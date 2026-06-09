@@ -12,28 +12,23 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       locale={zhCN}
       theme={{
         token: {
-          colorPrimary: '#1a73e8',
-          borderRadius: 4,
-          fontFamily: `-apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif`,
+          colorPrimary: '#1677ff',
+          borderRadius: 6,
+          fontFamily: `-apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`,
           fontSize: 14,
-          colorBgContainer: '#ffffff',
-          colorBgLayout: '#f5f7fa',
         },
         components: {
           Layout: {
+            siderBg: '#001529',
             headerBg: '#ffffff',
-            siderBg: '#ffffff',
-            bodyBg: '#f5f7fa',
+            bodyBg: '#f5f5f5',
           },
           Menu: {
-            itemBg: '#ffffff',
-            itemSelectedBg: '#e8f0fe',
-            itemSelectedColor: '#1a73e8',
-            itemHoverBg: '#f5f7fa',
+            darkItemBg: '#001529',
+            darkItemSelectedBg: '#1677ff',
+            darkItemColor: 'rgba(255,255,255,0.65)',
           },
-          Card: {
-            borderRadiusLG: 8,
-          },
+          Card: { paddingLG: 24 },
         },
       }}
     >
