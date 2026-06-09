@@ -1,59 +1,102 @@
-"""Prediction API routes."""
+"""Prediction API — real Kronos K-line forecasting."""
 
-from typing import Optional
+import os, logging
 from fastapi import APIRouter, Query, HTTPException
 import pandas as pd
 import numpy as np
 
-# Avoid circular import: access model state via app.main module
 import app.main as _m
 
+logger = logging.getLogger("prediction-service.routes")
 router = APIRouter(prefix="/api/v1/prediction", tags=["prediction"])
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+DB_PATH = os.environ.get("KRONOS_DB_PATH",
+    os.path.join(_ROOT, "Kronos", "webui", "stock_screening.db"))
+
+
+def _get_kline(code: str, lookback: int = 400):
+    """Get K-line data from SQLite DB."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT trade_date, open, high, low, close, volume, amount "
+                  "FROM daily_kline WHERE code=? ORDER BY trade_date DESC LIMIT ?",
+                  (code, lookback))
+        rows = c.fetchall()
+        conn.close()
+        if len(rows) < 30: return None
+        df = pd.DataFrame([{"open": r[1], "high": r[2], "low": r[3], "close": r[4],
+                            "volume": r[5], "amount": r[6]} for r in reversed(rows)])
+        # Generate timestamps
+        dates = pd.to_datetime([r[0] for r in reversed(rows)])
+        return df, pd.Series(dates)
+    except Exception as e:
+        logger.warning(f"DB error for {code}: {e}")
+        return None
 
 
 @router.get("/status")
 async def model_status():
-    """Check if Kronos model is loaded and ready."""
-    return {"model_loaded": _model_loaded, "model": "Kronos-small", "device": "cpu"}
+    return {"model_loaded": _m._model_loaded, "model": "Kronos-small", "device": "cpu"}
 
 
 @router.post("/predict/{code}")
 async def predict_stock(
     code: str,
-    pred_days: int = Query(30, ge=5, le=60, description="Prediction horizon (trading days)"),
+    pred_days: int = Query(20, ge=5, le=30),
 ):
-    """Predict 30-day price trajectory for a single stock.
-
-    Requires the screener-service or data pipeline to provide K-line data.
-    """
+    """Run real Kronos prediction for a single stock."""
     if not _m._model_loaded or _m._predictor is None:
-        raise HTTPException(status_code=503, detail="Kronos model not loaded")
+        raise HTTPException(503, "Kronos model not loaded")
 
-    # In production, fetch K-line from the data service or DB adapter
-    # For now, return a placeholder demonstrating the API contract
+    kline = _get_kline(code)
+    if kline is None:
+        raise HTTPException(404, f"No K-line data for {code} (need ≥30 rows)")
+
+    df, x_ts = kline
+    lookback = min(len(df), 400)
+    x_df = df.iloc[-lookback:]
+    x_timestamp = x_ts.iloc[-lookback:].reset_index(drop=True)
+
+    # Future timestamps
+    last_date = x_timestamp.iloc[-1]
+    y_ts = pd.bdate_range(start=last_date + pd.Timedelta(days=1), periods=pred_days)
+    y_timestamp = pd.Series(y_ts)
+
+    try:
+        pred_df = _m._predictor.predict(
+            df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
+            pred_len=pred_days, T=1.0, top_p=0.9, sample_count=3,
+            verbose=False,
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Prediction failed: {e}")
+
+    current_price = float(df["close"].iloc[-1])
+    pred_close = float(pred_df["close"].iloc[-1])
+    pred_return = round((pred_close / current_price - 1) * 100, 2)
+    pred_high = round(float(pred_df["high"].max()), 2)
+    pred_low = round(float(pred_df["low"].min()), 2)
+    max_dd = round((pred_low / current_price - 1) * 100, 2)
+    trend = "📈 上升" if pred_close > current_price else "📉 下降"
+
     return {
         "code": code,
+        "current_price": round(current_price, 2),
         "pred_days": pred_days,
-        "status": "model_ready",
-        "message": "Prediction endpoint ready. Integrate with data pipeline for live predictions.",
-    }
-
-
-@router.post("/predict-batch")
-async def predict_batch(
-    codes: list[str],
-    pred_days: int = Query(30, ge=5, le=60),
-):
-    """Batch predict 30-day trajectories for multiple stocks (up to 30)."""
-    if not _m._model_loaded or _m._predictor is None:
-        raise HTTPException(status_code=503, detail="Kronos model not loaded")
-
-    if len(codes) > 30:
-        raise HTTPException(status_code=400, detail="Max 30 stocks per batch")
-
-    return {
-        "codes": codes,
-        "pred_days": pred_days,
-        "status": "model_ready",
-        "message": f"Batch prediction ready for {len(codes)} stocks.",
+        "pred_last_close": round(pred_close, 2),
+        "pred_return_pct": pred_return,
+        "pred_high": pred_high,
+        "pred_low": pred_low,
+        "max_drawdown_pct": max_dd,
+        "trend": trend,
+        "pred_trajectory": [
+            {"day": i + 1, "open": round(float(pred_df["open"].iloc[i]), 2),
+             "high": round(float(pred_df["high"].iloc[i]), 2),
+             "low": round(float(pred_df["low"].iloc[i]), 2),
+             "close": round(float(pred_df["close"].iloc[i]), 2)}
+            for i in range(min(pred_days, len(pred_df)))
+        ],
     }
