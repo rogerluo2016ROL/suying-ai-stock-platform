@@ -13,9 +13,14 @@ export default function Diagnosis() {
     if (!code) { message.warning('请输入股票代码'); return }
     setLoading(true)
     try {
-      const r = await fetch(`/api/v1/signal/analyze/${code}`)
-      setResult(await r.json())
-      message.success('诊断完成')
+      const [sigRes, predRes] = await Promise.all([
+        fetch(`/api/v1/signal/analyze/${code}`),
+        fetch(`/api/v1/prediction/predict/${code}?pred_days=10`, { method: 'POST' }).catch(() => null),
+      ])
+      const signal = await sigRes.json()
+      const prediction = predRes ? await predRes.json() : null
+      setResult({ signal, prediction })
+      message.success(`诊断完成: ${signal.signal?.level}`)
     } catch { message.error('诊断失败') }
     finally { setLoading(false) }
   }
@@ -40,11 +45,11 @@ export default function Diagnosis() {
           </Card>
 
           <Spin spinning={loading}>
-            {result && !result.error && (
+            {result?.signal && (
               <>
                 <Card style={{ borderRadius: 8, marginBottom: 16 }}>
                   <Row gutter={12}>
-                    <Col span={6}><Statistic title="综合评分" value={result.signal?.score || '--'} suffix="分" /></Col>
+                    <Col span={6}><Statistic title="综合评分" value={result.signal?.signal?.score || '--'} suffix="分" /></Col>
                     <Col span={6}><Statistic title="信号" value={result.signal?.level} valueStyle={{ color: '#1677ff' }} /></Col>
                     <Col span={6}><Statistic title="技术面" value={result.components?.factor_resonance?.detail?.technical} suffix="分" /></Col>
                     <Col span={6}><Statistic title="资金面" value={result.components?.factor_resonance?.detail?.money_flow} suffix="分" /></Col>
