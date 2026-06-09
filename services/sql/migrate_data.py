@@ -75,7 +75,12 @@ def migrate_table(sqlite_conn, pg_conn, table: str, batch_size: int = 5000) -> d
     written = 0
     batch = []
     for row in cur:
-        batch.append(tuple(row))
+        # Clean null bytes and invalid chars that break PostgreSQL
+        clean_row = tuple(
+            v.replace('\x00', '').replace('\0', '') if isinstance(v, str) else v
+            for v in row
+        )
+        batch.append(clean_row)
         if len(batch) >= batch_size:
             psycopg2.extras.execute_batch(pg_cur, insert_sql, batch)
             pg_conn.commit()
