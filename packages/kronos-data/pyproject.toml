@@ -1,0 +1,21 @@
+[project]
+name = "kronos-data"
+version = "0.1.0"
+description = "A-share data pipeline — Tushare/AkShare/mootdx sync, DB models, market data service"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "tushare>=1.4",
+    "akshare>=1.11",
+    "mootdx>=0.11",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
