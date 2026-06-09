@@ -1,93 +1,75 @@
-"""Trade API routes — unified Order API for paper & live trading."""
+"""Trade API routes — paper trading with real in-memory engine."""
 
 from fastapi import APIRouter, Query, HTTPException
+from app.engine import get_engine
 
 router = APIRouter(prefix="/api/v1/trade", tags=["trade"])
+engine = get_engine()
 
-# ── Order ──
+
 @router.post("/order")
 async def place_order(
-    code: str,
+    code: str = Query(..., description="Stock code"),
     direction: str = Query(..., description="BUY / SELL"),
     price: float = Query(0, description="0 = market order"),
     volume: int = Query(..., ge=100, description="Shares"),
-    order_type: str = Query("LIMIT", description="LIMIT / MARKET"),
 ):
-    """Place an order (paper or live, depending on service mode)."""
-    if direction not in ("BUY", "SELL"):
+    """Place a paper trading order. Filled immediately at mock price."""
+    if direction.upper() not in ("BUY", "SELL"):
         raise HTTPException(400, "direction must be BUY or SELL")
+
+    order = engine.place_order(code, direction, price, volume)
     return {
-        "order_id": f"ord_{code}_{direction}",
-        "code": code, "direction": direction, "price": price or "MKT",
-        "volume": volume, "order_type": order_type,
-        "status": "pending",
-        "message": f"Order {direction} {volume} shares of {code} submitted.",
+        "order_id": order.id,
+        "code": order.code,
+        "direction": order.direction,
+        "price": order.filled_price,
+        "volume": order.volume,
+        "status": order.status,
+        "filled_at": order.filled_at,
+        "message": f"{'买入' if order.direction == 'BUY' else '卖出'} {order.code} {order.volume}股 @ {order.filled_price}",
     }
 
 
 @router.delete("/order/{order_id}")
 async def cancel_order(order_id: str):
-    """Cancel a pending order."""
-    return {"order_id": order_id, "status": "cancelled"}
+    ok = engine.cancel_order(order_id)
+    return {"order_id": order_id, "status": "cancelled" if ok else "not_found"}
 
 
 @router.get("/orders")
-async def list_orders(status: str = Query(None, description="pending/filled/cancelled")):
-    """List orders."""
-    return {"orders": [], "status": "endpoint_ready"}
+async def list_orders():
+    return {"orders": [{"id": o.id, "code": o.code, "direction": o.direction,
+            "price": o.filled_price, "volume": o.volume, "status": o.status,
+            "created": o.created_at} for o in engine.get_orders()]}
 
 
-# ── Position ──
 @router.get("/positions")
 async def get_positions():
-    """Get current positions (paper or live)."""
-    return {"positions": [], "status": "endpoint_ready"}
+    return {"positions": [{"code": p.code, "volume": p.volume, "avg_cost": round(p.avg_cost, 2),
+            "market_value": p.market_value, "pnl": round(p.pnl, 2)}
+            for p in engine.get_positions()]}
 
 
-# ── Account ──
 @router.get("/account")
 async def get_account():
-    """Get account info — capital, available, market value, P&L."""
+    acct = engine.get_account()
     return {
-        "total_capital": 1_000_000,
-        "available": 1_000_000,
-        "market_value": 0,
-        "total_pnl": 0,
-        "daily_pnl": 0,
-        "status": "endpoint_ready",
+        "total_capital": acct.total_capital,
+        "available": acct.available,
+        "market_value": acct.market_value,
+        "total_pnl": round(acct.total_pnl, 2),
+        "daily_pnl": round(acct.daily_pnl, 2),
     }
 
 
 @router.get("/pnl")
-async def get_pnl(period: str = Query("daily", description="daily/weekly/monthly/yearly")):
-    """Get P&L statistics."""
-    return {"period": period, "pnl": 0, "trades": 0, "win_rate": 0, "status": "endpoint_ready"}
+async def get_pnl():
+    acct = engine.get_account()
+    return {"total_pnl": round(acct.total_pnl, 2), "daily_pnl": round(acct.daily_pnl, 2)}
 
 
-# ── Mode ──
 @router.put("/mode")
-async def switch_mode(mode: str = Query("paper", description="paper / live")):
-    """Switch between paper trading and live trading."""
-    if mode not in ("paper", "live"):
-        raise HTTPException(400, "mode must be paper or live")
-    return {"mode": mode, "status": "switched", "warning": "Live mode requires broker setup."}
-
-
-# ── Strategy execution ──
-@router.post("/strategy/start")
-async def start_quant_strategy(
-    plan_id: str,
-    execution_mode: str = Query("semi_auto", description="full_auto / semi_auto"),
-):
-    """Start automated quantitative strategy execution from a confirmed plan."""
-    return {
-        "plan_id": plan_id,
-        "execution_mode": execution_mode,
-        "status": "started",
-        "message": f"Quant strategy started in {execution_mode} mode.",
-    }
-
-
-@router.post("/strategy/stop")
-async def stop_quant_strategy(plan_id: str):
-    return {"plan_id": plan_id, "status": "stopped"}
+async def switch_mode(mode: str = Query("paper")):
+    if mode not in ("paper", "live"): raise HTTPException(400, "mode must be paper or live")
+    return {"mode": mode, "status": "ok"}
