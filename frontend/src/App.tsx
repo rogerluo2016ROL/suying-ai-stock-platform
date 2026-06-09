@@ -46,19 +46,26 @@ export default function App() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {/* ── Sidebar (QuantDinger style) ── */}
+      {/* ── Sidebar (QuantDinger exact style) ── */}
       <Sider
         trigger={null}
         collapsible
         collapsed={collapsed}
-        width={220}
-        style={{ overflow: 'auto', height: '100vh', position: 'fixed', left: 0, zIndex: 100 }}
+        width={256}
+        style={{
+          overflow: 'auto', height: '100vh', position: 'fixed', left: 0, zIndex: 100,
+          background: '#fff', boxShadow: '2px 0px 8px 0px rgba(29, 35, 41, 0.05)',
+        }}
       >
         {/* Logo */}
-        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}>
-          <StockOutlined style={{ fontSize: 24, color: '#fff', marginRight: collapsed ? 0 : 10 }} />
+        <div style={{
+          height: 64, display: 'flex', alignItems: 'center',
+          padding: collapsed ? '0 8px' : '0 24px',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+        }}>
+          <StockOutlined style={{ fontSize: 24, color: '#1677ff' }} />
           {!collapsed && (
-            <span style={{ color: '#fff', fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            <span style={{ marginLeft: 12, fontSize: 16, fontWeight: 600, color: '#000000d9', whiteSpace: 'nowrap' }}>
               速赢AI
             </span>
           )}
@@ -66,31 +73,38 @@ export default function App() {
 
         {/* Main Menu */}
         <Menu
-          theme="dark"
           mode="inline"
           selectedKeys={[selectedKey]}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
+          style={{
+            border: 'none',
+            background: '#fff',
+          }}
         />
 
         {/* Bottom Menu */}
         <div style={{ position: 'absolute', bottom: 0, width: '100%' }}>
           <Menu
-            theme="dark"
             mode="inline"
             selectable={false}
             items={bottomMenuItems}
             onClick={({ key }) => navigate(key)}
+            style={{
+              border: 'none',
+              background: '#fff',
+            }}
           />
         </div>
       </Sider>
 
       {/* ── Main Layout ── */}
-      <Layout style={{ marginLeft: collapsed ? 80 : 220, transition: 'margin-left 0.2s' }}>
+      <Layout style={{ marginLeft: collapsed ? 80 : 256, transition: 'margin-left 0.2s' }}>
         {/* ── Top Header Bar (QuantDinger style) ── */}
         <Header style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0 24px', height: 48, lineHeight: '48px',
+          background: '#fff',
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
           position: 'sticky', top: 0, zIndex: 99,
         }}>
