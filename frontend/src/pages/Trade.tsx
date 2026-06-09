@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Row, Col, Statistic, Button, Tag, Typography, Space, Radio, InputNumber, Form, Input, Select, Table, message } from 'antd'
 import {
   DollarOutlined, RiseOutlined, RobotOutlined, PauseCircleOutlined,
@@ -21,6 +21,20 @@ const strategyCards = [
 export default function Trade() {
   const [mode, setMode] = useState('paper')
   const [orders, setOrders] = useState<any[]>([])
+  const [account, setAccount] = useState<any>({})
+  const [positions, setPositions] = useState<any[]>([])
+
+  useEffect(() => {
+    fetch('/api/v1/trade/account').then(r => r.json()).then(setAccount).catch(()=>{})
+    fetch('/api/v1/trade/positions').then(r => r.json()).then(d => setPositions(d.positions||[])).catch(()=>{})
+    fetch('/api/v1/trade/orders').then(r => r.json()).then(d => setOrders(d.orders||[])).catch(()=>{})
+  }, [])
+
+  const refreshAccount = () => {
+    fetch('/api/v1/trade/account').then(r => r.json()).then(setAccount).catch(()=>{})
+    fetch('/api/v1/trade/positions').then(r => r.json()).then(d => setPositions(d.positions||[])).catch(()=>{})
+    fetch('/api/v1/trade/orders').then(r => r.json()).then(d => setOrders(d.orders||[])).catch(()=>{})
+  }
 
   const placeOrder = async (values: any) => {
     try {
@@ -36,6 +50,7 @@ export default function Trade() {
           price: data.price, volume: data.volume,
           status: data.status, time: data.filled_at?.slice(11, 19) || new Date().toLocaleTimeString(),
         }, ...prev])
+        refreshAccount()
         message.success(data.message)
       } else {
         message.error(data.detail || '下单失败')
@@ -59,25 +74,29 @@ export default function Trade() {
         <Col span={6}>
           <Card size="small" style={{ borderRadius: 8 }}>
             <Space><WalletOutlined /><Text type="secondary" style={{ fontSize: 12 }}>总资产</Text></Space>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#1677ff' }}>¥1,000,000</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: '#1677ff' }}>
+              ¥{(account.total_capital || 0).toLocaleString()}
+            </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small" style={{ borderRadius: 8 }}>
             <Space><RiseOutlined /><Text type="secondary" style={{ fontSize: 12 }}>总盈亏</Text></Space>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#52c41a' }}>+¥0.00</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: (account.total_pnl||0) >= 0 ? '#52c41a' : '#ff4d4f' }}>
+              {(account.total_pnl||0) >= 0 ? '+' : ''}¥{(account.total_pnl||0).toLocaleString()}
+            </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small" style={{ borderRadius: 8 }}>
-            <Space><RobotOutlined /><Text type="secondary" style={{ fontSize: 12 }}>运行策略</Text></Space>
-            <div style={{ fontSize: 24, fontWeight: 700 }}>0<span style={{ fontSize: 14, fontWeight: 400, color: '#8c8c8c' }}>/0</span></div>
+            <Space><WalletOutlined /><Text type="secondary" style={{ fontSize: 12 }}>可用资金</Text></Space>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>¥{(account.available || 0).toLocaleString()}</div>
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small" style={{ borderRadius: 8 }}>
-            <Space><PauseCircleOutlined /><Text type="secondary" style={{ fontSize: 12 }}>已停止</Text></Space>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#8c8c8c' }}>0</div>
+            <Space><PauseCircleOutlined /><Text type="secondary" style={{ fontSize: 12 }}>持仓市值</Text></Space>
+            <div style={{ fontSize: 24, fontWeight: 700, color: '#8c8c8c' }}>¥{(account.market_value || 0).toLocaleString()}</div>
           </Card>
         </Col>
       </Row>
