@@ -614,8 +614,8 @@ def run_multi_model(df: pd.DataFrame, code: str,
     }
 
 
-# Import five-factor (avoid circular)
-from webui.services.screener_service import score_five_factor  # noqa: E402
+# Import five-factor (avoid circular) — uses local package import
+from kronos_factors.scorer.five_factor import score_five_factor  # noqa: E402
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -658,9 +658,9 @@ NEGATIVE_WORDS = ["下跌", "亏损", "减持", "爆雷", "违约", "退市", "�
 
 
 def score_hard_tech(code: str) -> dict:
-    from webui.services.database import get_db
+    from kronos_factors.scorer._db_stub import _get_db
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             row = db.execute("SELECT name, industry FROM stocks WHERE code=?", (code,)).fetchone()
             if not row: return {"score": 0.0, "signal": "no_data", "source": "hard_tech"}
             name = (row["name"] or "") + (row["industry"] or "")
@@ -683,10 +683,10 @@ def score_hard_tech(code: str) -> dict:
 def get_tushare_scores(code: str) -> dict:
     import os
     if not os.environ.get("TUSHARE_TOKEN"): return {}
-    from webui.services.database import get_db
+    from kronos_factors.scorer._db_stub import _get_db
     scores = {}
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             mf_rows = db.execute("SELECT * FROM moneyflow WHERE code=? ORDER BY trade_date DESC LIMIT 20", (code,)).fetchall()
             hk_rows = db.execute("SELECT * FROM hk_holdings WHERE code=? ORDER BY trade_date DESC LIMIT 20", (code,)).fetchall()
             mg_rows = db.execute("SELECT * FROM margin_detail WHERE code=? ORDER BY trade_date DESC LIMIT 10", (code,)).fetchall()

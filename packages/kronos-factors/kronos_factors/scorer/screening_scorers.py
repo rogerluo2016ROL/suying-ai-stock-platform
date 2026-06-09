@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 """Full-market screening with mode support: short/long/all.
 
-Usage:
-    python tools/screening_top50.py                # default: all-mode
-    python tools/screening_top50.py --mode short   # short-term trading
-    python tools/screening_top50.py --mode long    # long-term value
-    python tools/screening_top50.py --top-n 30     # custom count
+Extracted from Kronos/tools/screening_top50.py
 """
 import argparse, json, math, os, sys, time
 from collections import Counter
@@ -13,15 +9,11 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-_PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(_PROJ, "src"))
-sys.path.insert(0, _PROJ)
 os.environ.setdefault("TUSHARE_TOKEN", os.environ.get("TUSHARE_TOKEN", ""))
 
-from webui.services.database import get_db
-from webui.services.market_data_service import MarketDataService
-from webui.services.screener_service import score_five_factor, score_fundamental
-from webui.services.advanced_models import (
+from kronos_factors.scorer._db_stub import _get_db, _get_market_data
+from kronos_factors.scorer.five_factor import score_five_factor
+from kronos_factors.scorer.advanced_factors import (
     score_money_flow, score_mean_reversion, score_trend_strength,
     score_reversal, score_liquidity, get_tushare_scores, score_hard_tech,
 )
@@ -114,9 +106,9 @@ def score_short_term(df) -> dict:
 
 def score_long_term(code: str) -> dict:
     """Long-term value quality scoring (0-10)."""
-    from webui.services.database import get_db
+    from kronos_factors.scorer._db_stub import _get_db
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             inds = db.execute(
                 "SELECT * FROM financial_indicator WHERE code=? ORDER BY end_date DESC LIMIT 16",
                 (code,)).fetchall()
@@ -176,9 +168,9 @@ def score_long_term(code: str) -> dict:
 
 def score_growth(code: str) -> dict:
     """Revenue/profit growth scoring (0-10)."""
-    from webui.services.database import get_db
+    from kronos_factors.scorer._db_stub import _get_db
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             incs = db.execute(
                 "SELECT * FROM financial_income WHERE code=? ORDER BY end_date DESC LIMIT 8",
                 (code,)).fetchall()
@@ -253,7 +245,7 @@ def get_stock_themes(code: str, kline_df=None, ht: dict = None) -> dict:
     }
 
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             # ── Research report analysis ──
             reps = db.execute(
                 "SELECT trade_date, title, author FROM research_reports_tushare "
@@ -365,7 +357,7 @@ def check_multi_timeframe_trend(code: str) -> dict:
     import numpy as np
     result = {"weekly_ok": False, "monthly_ok": False}
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             # ── Weekly ──
             wk_rows = db.execute(
                 "SELECT open, high, low, close FROM weekly_kline "
@@ -409,7 +401,7 @@ def score_identifiability(code: str, kline_df=None) -> dict:
     """
     s, sigs = 5.0, []
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             row = db.execute(
                 "SELECT market_cap, float_mv, listed_date, industry FROM stocks WHERE code=?",
                 (code,)).fetchone()
@@ -495,7 +487,7 @@ def score_margin_momentum(code: str) -> dict:
     """
     s, sigs = 5.0, []
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             mg_rows = db.execute(
                 "SELECT trade_date, rzye, rzmre, rzche FROM margin_detail "
                 "WHERE code=? ORDER BY trade_date DESC LIMIT 20", (code,)
@@ -688,9 +680,9 @@ check_social_security_fund = check_institutional_funds
 
 def should_exclude(code: str, kline_df) -> bool:
     """Exclude micro-cap and overbought stocks."""
-    from webui.services.database import get_db
+    from kronos_factors.scorer._db_stub import _get_db
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             row = db.execute(
                 "SELECT market_cap FROM stocks WHERE code=?", (code,)
             ).fetchone()
@@ -949,7 +941,7 @@ def score_chokepoint(code: str) -> dict:
     s, sigs = 5.0, []
 
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             # ── 1. Industry monopoly (同行业上市公司数) ──
             row = db.execute(
                 "SELECT industry, market_cap, name FROM stocks WHERE code=?", (code,)
@@ -1075,7 +1067,7 @@ def generate_devils_advocate(code: str, chkp_score: dict, kline_df=None) -> list
     """Generate risk counter-arguments (魔鬼代言人)."""
     risks = []
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             row = db.execute(
                 "SELECT market_cap, industry FROM stocks WHERE code=?", (code,)
             ).fetchone()
@@ -1131,7 +1123,7 @@ def get_market_regime() -> dict:
     """
     try:
         import numpy as np
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             # Multi-index cross-check: 沪深300 + 创业板 + 中证500
             regime_votes = {"bull": 0, "bear": 0, "neutral": 0}
             for idx_code in ["000300.SH", "399006.SZ", "000905.SH"]:
@@ -1192,7 +1184,7 @@ def get_sector_momentum(code: str) -> float:
     Returns 0-10 score where higher = sector is outperforming.
     """
     try:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             # Get stock's SW industry code
             row = db.execute(
                 "SELECT industry FROM stocks WHERE code=?", (code,)
@@ -1248,7 +1240,7 @@ def run_screening(mode="all", top_n=50, method="linear", lgbm_model=None, lgbm_c
     if regime.get("bonus", 0) != 0:
         print(f"  市场环境: {regime['label']} (评分调整 {regime['bonus']:+.1f}) [{regime.get('factor_hint','')}]")
 
-    with get_db(readonly=True) as db:
+    with _get_db(readonly=True) as db:
         codes = [r["code"] for r in db.execute(
             "SELECT code FROM stocks WHERE is_st=0 ORDER BY code").fetchall()]
         names = {r["code"]: r["name"] for r in db.execute(
@@ -1258,7 +1250,7 @@ def run_screening(mode="all", top_n=50, method="linear", lgbm_model=None, lgbm_c
     excluded = 0
     for i, code in enumerate(codes):
         try:
-            df = MarketDataService.get_kline_df(code, lookback=400)
+            df = _get_market_data().get_kline_df(code, lookback=400)
             if df is None or len(df) < 30:
                 continue
             if should_exclude(code, df):

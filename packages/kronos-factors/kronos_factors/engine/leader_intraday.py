@@ -22,10 +22,8 @@ from datetime import datetime
 import numpy as np
 
 _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(_PROJ, "src"))
-sys.path.insert(0, _PROJ)
 
-from webui.services.database import get_db
+from kronos_factors.scorer._db_stub import _get_db
 
 # ── Intraday scoring weights (10因子 → V4.2 重校准) ──
 INTRA_WEIGHTS = {
@@ -461,7 +459,7 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
 
 def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
     """14:00 盘中选股主流程."""
-    with get_db(readonly=True) as db:
+    with _get_db(readonly=True) as db:
         print(f"  🕑 快照时间: {time_slot}")
         snapshot = get_intraday_snapshot(db, trade_date, time_slot)
         print(f"  📊 快照: {len(snapshot)} 只")
@@ -641,7 +639,7 @@ def main():
     p.add_argument("--export", type=str, default=None, help="Export JSON")
     args = p.parse_args()
 
-    with get_db(readonly=True) as db:
+    with _get_db(readonly=True) as db:
         # ── RT模式: 自动检测最新时点 ──
         time_slot = args.time
         if args.rt:

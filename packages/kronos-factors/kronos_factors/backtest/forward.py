@@ -15,12 +15,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
-_PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(_PROJ, "src"))
-sys.path.insert(0, _PROJ)
-
-from webui.services.database import get_db
-from webui.services.market_data_service import MarketDataService
+from kronos_factors.scorer._db_stub import _get_db, _get_market_data
 
 
 def run_backtest(mode="all", windows=3, top_n=30, forward_days=60):
@@ -31,7 +26,7 @@ def run_backtest(mode="all", windows=3, top_n=30, forward_days=60):
     2. Select top_n picks
     3. Check actual returns from cutoff_date to cutoff_date + forward_days
     """
-    with get_db(readonly=True) as db:
+    with _get_db(readonly=True) as db:
         # Get available date range
         max_date = db.execute("SELECT MAX(trade_date) FROM daily_kline").fetchone()[0]
         min_date = db.execute("SELECT MIN(trade_date) FROM daily_kline WHERE code LIKE '000%' OR code LIKE '600%'").fetchone()[0]
@@ -60,7 +55,7 @@ def run_backtest(mode="all", windows=3, top_n=30, forward_days=60):
 
         # P1: Use full screening engine instead of simplified scoring
         # P1: Use full screening engine (all stocks, multi-factor, ICIR-weighted)
-        from tools.screening_top50 import run_screening
+        from kronos_factors.scorer.screening_scorers import run_screening
         print(f"  Running full screening engine (SHORT mode, P0+P1 ICIR-weighted)...")
         try:
             result = run_screening(mode="short", top_n=top_n * 5, method="linear")
@@ -78,7 +73,7 @@ def run_backtest(mode="all", windows=3, top_n=30, forward_days=60):
                 break
             code = s['code']
             try:
-                df = MarketDataService.get_kline_df(code, lookback=400)
+                df = _get_market_data().get_kline_df(code, lookback=400)
                 if df is None or len(df) < 60:
                     continue
                 ts_col = 'timestamps' if 'timestamps' in df.columns else 'trade_date'

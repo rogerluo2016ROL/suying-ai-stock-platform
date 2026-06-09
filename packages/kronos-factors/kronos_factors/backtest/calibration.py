@@ -17,13 +17,11 @@ from collections import defaultdict
 import numpy as np
 
 _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(_PROJ, "src"))
-sys.path.insert(0, _PROJ)
+os.environ.setdefault("TUSHARE_TOKEN", os.environ.get("TUSHARE_TOKEN", ""))
 
-from webui.services.database import get_db
-from webui.services.market_data_service import MarketDataService
-from webui.services.screener_service import score_five_factor
-from webui.services.advanced_models import (
+from kronos_factors.scorer._db_stub import _get_db, _get_market_data
+from kronos_factors.scorer.five_factor import score_five_factor
+from kronos_factors.scorer.advanced_factors import (
     score_money_flow, score_mean_reversion, score_trend_strength,
     score_reversal, score_liquidity, get_tushare_scores, score_hard_tech,
 )
@@ -55,7 +53,7 @@ def compute_factor_scores(code, df):
         ts_ = score_trend_strength(df)
         gr_obj = None
         lt_obj = None
-        from tools.screening_top50 import score_short_term, score_long_term, score_growth
+        from kronos_factors.scorer.screening_scorers import score_short_term, score_long_term, score_growth
         st = score_short_term(df)
         lt = score_long_term(code)
         gr = score_growth(code)
@@ -94,7 +92,7 @@ def run_calibration(codes, cutoff_date, forward_days=60) -> dict:
 
     for i, code in enumerate(codes):
         try:
-            df = MarketDataService.get_kline_df(code, lookback=400)
+            df = _get_market_data().get_kline_df(code, lookback=400)
             if df is None or len(df) < 80:
                 continue
 
@@ -153,7 +151,7 @@ def main():
     args = parser.parse_args()
     os.chdir(_PROJ)
 
-    with get_db(readonly=True) as db:
+    with _get_db(readonly=True) as db:
         max_date = db.execute("SELECT MAX(trade_date) FROM daily_kline").fetchone()[0]
     max_dt = datetime.strptime(max_date, "%Y-%m-%d")
 
@@ -167,7 +165,7 @@ def main():
     print(f"每窗口采样: {args.n_stocks} 只\n")
 
     # Get stock sample
-    with get_db(readonly=True) as db:
+    with _get_db(readonly=True) as db:
         codes = [r['code'] for r in db.execute(
             f"SELECT code FROM stocks WHERE is_st=0 ORDER BY RANDOM() LIMIT {args.n_stocks}"
         ).fetchall()]

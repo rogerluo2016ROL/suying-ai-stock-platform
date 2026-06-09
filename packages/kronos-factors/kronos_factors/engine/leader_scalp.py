@@ -17,10 +17,12 @@ from enum import Enum
 import numpy as np
 
 _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(_PROJ, "src"))
-sys.path.insert(0, _PROJ)
+os.environ.setdefault("TUSHARE_TOKEN", os.environ.get("TUSHARE_TOKEN", ""))
 
-from webui.services.database import get_db, write_screening_scores
+from kronos_factors.scorer._db_stub import _get_db, _get_market_data
+
+# Stub: DB write function — inject real implementation in production
+_write_screening_scores = None
 
 
 # ── V4.0: 市场环境枚举 ──
@@ -1303,7 +1305,7 @@ def run_leader_screening(trade_date, top_n=20, env_check=True):
         top_n: number of top picks to return
         env_check: if True, run V4.0 market environment assessment
     """
-    with get_db(readonly=True) as db:
+    with _get_db(readonly=True) as db:
         # ── V4.0 模块A: 市场环境预检 ──
         market_env = MarketEnv.BULL
         env_detail = {}
@@ -1741,7 +1743,7 @@ def _write_to_db(all_scores, trade_date, top_n):
     batch_id = f"leader_scalp_{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
     with get_db() as db:
-        write_screening_scores(
+        _write_screening_scores and _write_screening_scores(
             db, rows, batch_id,
             engine_name="leader_scalp",
             strategy_label="龙头短线战法",
@@ -1859,7 +1861,7 @@ def main():
     args = parser.parse_args()
 
     if args.backtest > 0:
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             dates = get_last_trading_days(db, args.backtest)
         print(f"回测日期: {dates}")
         results = run_backtest(dates, args.top_n)
@@ -1913,7 +1915,7 @@ def main():
 
     else:
         # Default: latest trading day
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             dates = get_last_trading_days(db, 1)
         if dates:
             print(f"最新交易日: {dates[0]}")

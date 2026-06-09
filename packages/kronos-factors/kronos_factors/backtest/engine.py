@@ -13,9 +13,9 @@ from datetime import datetime, timedelta
 import numpy as np
 from scipy import stats
 
-from webui.services.database import get_db
+from kronos_factors.scorer._db_stub import _get_db, _get_market_data
 
-logger = logging.getLogger("kronos-webui.backtest")
+logger = logging.getLogger("kronos-factors.backtest")
 
 # Models to evaluate (must match screening_scores columns)
 MODEL_COLS = [
@@ -188,7 +188,7 @@ def run_backtest() -> dict:
             "composite": {...},
         }
     """
-    with get_db(readonly=True) as db:
+    with _get_db(readonly=True) as db:
         # Get latest kline date to know how far we can backtest
         max_date = db.execute(
             "SELECT MAX(trade_date) as d FROM daily_kline"
@@ -263,7 +263,7 @@ def run_backtest() -> dict:
         batch_id = batch["batch_id"]
         batch_date = batch["created_at"][:10]
 
-        with get_db(readonly=True) as db:
+        with _get_db(readonly=True) as db:
             scores = db.execute(
                 "SELECT * FROM screening_scores WHERE batch_id=?",
                 (batch_id,),
@@ -411,10 +411,9 @@ def run_historical_backtest(sample_size: int = 500, months: int = 120) -> dict:
     This approach doesn't need pre-existing screening_batches — it uses
     the 20 years of K-line data to provide statistically robust IC estimates.
     """
-    from webui.services.market_data_service import MarketDataService
-    from webui.services.screener_service import score_five_factor
+    from kronos_factors.scorer.five_factor import score_five_factor
 
-    with get_db(readonly=True) as db:
+    with _get_db(readonly=True) as db:
         # Get all month-end trading dates
         all_dates = [r[0] for r in db.execute(
             "SELECT DISTINCT trade_date FROM daily_kline ORDER BY trade_date"
@@ -499,7 +498,7 @@ def run_historical_backtest(sample_size: int = 500, months: int = 120) -> dict:
             scores_list = []
             for code in batch_codes:
                 try:
-                    kline_df = MarketDataService.get_kline_df(code, lookback=400)
+                    kline_df = _get_market_data().get_kline_df(code, lookback=400)
                     if kline_df is None or len(kline_df) < 30:
                         continue
                     ff = score_five_factor(kline_df)
