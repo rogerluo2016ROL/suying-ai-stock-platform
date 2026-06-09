@@ -5,7 +5,8 @@ from fastapi import APIRouter, Query, HTTPException
 import pandas as pd
 import numpy as np
 
-from app.main import _model_loaded, _predictor
+# Avoid circular import: access model state via app.main module
+import app.main as _m
 
 router = APIRouter(prefix="/api/v1/prediction", tags=["prediction"])
 
@@ -25,7 +26,7 @@ async def predict_stock(
 
     Requires the screener-service or data pipeline to provide K-line data.
     """
-    if not _model_loaded or _predictor is None:
+    if not _m._model_loaded or _m._predictor is None:
         raise HTTPException(status_code=503, detail="Kronos model not loaded")
 
     # In production, fetch K-line from the data service or DB adapter
@@ -44,7 +45,7 @@ async def predict_batch(
     pred_days: int = Query(30, ge=5, le=60),
 ):
     """Batch predict 30-day trajectories for multiple stocks (up to 30)."""
-    if not _model_loaded or _predictor is None:
+    if not _m._model_loaded or _m._predictor is None:
         raise HTTPException(status_code=503, detail="Kronos model not loaded")
 
     if len(codes) > 30:
