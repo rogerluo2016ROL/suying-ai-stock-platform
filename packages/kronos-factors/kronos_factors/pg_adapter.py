@@ -38,10 +38,8 @@ class _PgAdapter:
 
     def __init__(self, pg_url: str):
         import psycopg2
-        import psycopg2.extras
         self.pg_url = pg_url
         self._conn = None
-        psycopg2.extras.register_default_jsonb(conn_or_curs=psycopg2)
 
     def _get_conn(self):
         if self._conn is None or self._conn.closed:
