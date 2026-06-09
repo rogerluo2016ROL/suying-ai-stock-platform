@@ -4,9 +4,14 @@
 #   cd docker && docker compose up -d
 #
 # 服务端口:
-#   8001 — screener-service   (选股+排序)
-#   8002 — prediction-service (Kronos预测)
-#   8007 — backtest-service   (回测+校准)
+#   8001 — screener-service    (选股+排序)
+#   8002 — prediction-service  (Kronos预测)
+#   8003 — strategy-service    (LLM方案生成)
+#   8004 — signal-service      (交易信号)
+#   8005 — alert-service       (预警提醒)
+#   8006 — trade-service       (模拟+实盘交易)
+#   8007 — backtest-service    (回测+校准)
+#   8009 — diagnosis-service   (股票诊断)
 
 version: "3.8"
 
@@ -85,6 +90,60 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
+
+  strategy-service:
+    build:
+      context: ..
+      dockerfile: services/strategy-service/Dockerfile
+    ports:
+      - "8003:8003"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+    volumes:
+      - ../packages:/app/packages:ro
+    restart: unless-stopped
+
+  signal-service:
+    build:
+      context: ..
+      dockerfile: services/signal-service/Dockerfile
+    ports:
+      - "8004:8004"
+    volumes:
+      - ../packages:/app/packages:ro
+    restart: unless-stopped
+
+  alert-service:
+    build:
+      context: ..
+      dockerfile: services/alert-service/Dockerfile
+    ports:
+      - "8005:8005"
+    volumes:
+      - ../packages:/app/packages:ro
+    restart: unless-stopped
+
+  trade-service:
+    build:
+      context: ..
+      dockerfile: services/trade-service/Dockerfile
+    ports:
+      - "8006:8006"
+    environment:
+      - TRADE_MODE=paper
+    volumes:
+      - ../packages:/app/packages:ro
+    restart: unless-stopped
+
+  diagnosis-service:
+    build:
+      context: ..
+      dockerfile: services/diagnosis-service/Dockerfile
+    ports:
+      - "8009:8009"
+    volumes:
+      - ../packages:/app/packages:ro
     restart: unless-stopped
 
 volumes:
