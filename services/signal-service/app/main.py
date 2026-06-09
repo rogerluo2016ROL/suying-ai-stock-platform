@@ -20,9 +20,19 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 logger = logging.getLogger("signal-service")
 
 
+_DB_PATH = os.environ.get("KRONOS_DB_PATH",
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "Kronos", "webui", "stock_screening.db"))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Signal Service...")
+    try:
+        from app.adapters import inject_adapters
+        inject_adapters(_DB_PATH)
+        logger.info("DB adapters injected (path=%s)", _DB_PATH)
+    except Exception as e:
+        logger.warning("DB adapter injection skipped: %s", e)
     yield
     logger.info("Signal Service stopped.")
 
