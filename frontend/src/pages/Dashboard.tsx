@@ -24,14 +24,12 @@ const signalStocks = [
 ]
 
 const services = [
-  { name: '选股服务', port: 8001, icon: <SearchOutlined /> },
-  { name: '预测服务', port: 8002, icon: <LineChartOutlined /> },
-  { name: '方案服务', port: 8003, icon: <BulbOutlined /> },
-  { name: '信号服务', port: 8004, icon: <ThunderboltOutlined /> },
-  { name: '预警服务', port: 8005, icon: <BellOutlined /> },
-  { name: '交易服务', port: 8006, icon: <DollarOutlined /> },
-  { name: '回测服务', port: 8007, icon: <ExperimentOutlined /> },
-  { name: '诊断服务', port: 8009, icon: <FundOutlined /> },
+  { name: '选股服务', port: 8001 },
+  { name: '预测服务', port: 8002 },
+  { name: '方案服务', port: 8003 },
+  { name: '信号服务', port: 8004 },
+  { name: '交易服务', port: 8006 },
+  { name: '回测服务', port: 8007 },
 ]
 
 export default function Dashboard() {

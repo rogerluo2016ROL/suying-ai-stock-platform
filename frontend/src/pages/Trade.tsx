@@ -22,13 +22,25 @@ export default function Trade() {
   const [mode, setMode] = useState('paper')
   const [orders, setOrders] = useState<any[]>([])
 
-  const placeOrder = (values: any) => {
-    setOrders(prev => [{
-      id: Date.now(), code: values.code, direction: values.direction,
-      price: values.price || '市价', volume: values.volume,
-      status: 'pending', time: new Date().toLocaleTimeString(),
-    }, ...prev])
-    message.success(`${values.direction} ${values.code} ${values.volume}股`)
+  const placeOrder = async (values: any) => {
+    try {
+      const params = new URLSearchParams({
+        code: values.code, direction: values.direction,
+        price: String(values.price || 0), volume: String(values.volume),
+      })
+      const r = await fetch(`/api/v1/trade/order?${params}`, { method: 'POST' })
+      const data = await r.json()
+      if (r.ok) {
+        setOrders(prev => [{
+          id: data.order_id, code: data.code, direction: data.direction,
+          price: data.price, volume: data.volume,
+          status: data.status, time: data.filled_at?.slice(11, 19) || new Date().toLocaleTimeString(),
+        }, ...prev])
+        message.success(data.message)
+      } else {
+        message.error(data.detail || '下单失败')
+      }
+    } catch { message.error('交易服务未连接') }
   }
 
   return (
