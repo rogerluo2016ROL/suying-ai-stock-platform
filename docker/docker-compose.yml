@@ -1,0 +1,92 @@
+# 速赢AI证券投资管理平台 — Docker Compose (开发环境)
+#
+# 启动所有服务:
+#   cd docker && docker compose up -d
+#
+# 服务端口:
+#   8001 — screener-service   (选股+排序)
+#   8002 — prediction-service (Kronos预测)
+#   8007 — backtest-service   (回测+校准)
+
+version: "3.8"
+
+services:
+  # ── 基础设施 ──
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: kronos
+      POSTGRES_PASSWORD: kronos
+      POSTGRES_DB: kronos
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kronos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── 微服务 ──
+  screener-service:
+    build:
+      context: ..
+      dockerfile: services/screener-service/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - KRONOS_DB_PATH=/data/kronos.db
+      - TUSHARE_TOKEN=${TUSHARE_TOKEN:-}
+    volumes:
+      - ../Kronos/data:/data:ro
+      - ../packages:/app/packages:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  prediction-service:
+    build:
+      context: ..
+      dockerfile: services/prediction-service/Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - KRONOS_DEVICE=cpu
+    volumes:
+      - ../packages:/app/packages:ro
+      - model_cache:/root/.cache/huggingface
+    restart: unless-stopped
+
+  backtest-service:
+    build:
+      context: ..
+      dockerfile: services/backtest-service/Dockerfile
+    ports:
+      - "8007:8007"
+    environment:
+      - KRONOS_DB_PATH=/data/kronos.db
+    volumes:
+      - ../Kronos/data:/data:ro
+      - ../packages:/app/packages:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  model_cache:

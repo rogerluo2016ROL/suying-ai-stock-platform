@@ -1,0 +1,10 @@
+[project]
+name = "backtest-service"
+version = "0.1.0"
+description = "Backtest and calibration microservice — IC analysis, strategy validation"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "kronos-factors",
+]

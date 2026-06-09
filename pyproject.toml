@@ -1,0 +1,12 @@
+[project]
+name = "suying-ai-platform"
+version = "0.1.0"
+description = "速赢AI证券投资管理平台 — Monorepo workspace"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+packages = []
+
+[tool.pytest.ini_options]
+testpaths = ["packages/*/tests", "services/*/tests"]
+pythonpath = ["packages/kronos-factors", "packages/kronos-core", "packages/kronos-data"]

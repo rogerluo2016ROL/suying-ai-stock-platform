@@ -1,0 +1,13 @@
+[project]
+name = "prediction-service"
+version = "0.1.0"
+description = "Kronos K-line prediction microservice — 30-day price trajectory forecasting"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "kronos-core",
+    "kronos-factors",
+    "torch>=2.0",
+    "huggingface-hub>=0.16",
+]
