@@ -28,9 +28,17 @@ _DB_PATH = os.environ.get("KRONOS_DB_PATH",
 async def lifespan(app: FastAPI):
     logger.info("Starting Signal Service...")
     try:
-        from app.adapters import inject_adapters
-        inject_adapters(_DB_PATH)
-        logger.info("DB adapters injected (path=%s)", _DB_PATH)
+        pg_url = os.environ.get('KRONOS_PG_URL', '')
+        if pg_url:
+            from kronos_factors.pg_adapter import create_pg_adapter
+            from kronos_factors.scorer._db_stub import set_db_adapter, set_market_data_adapter
+            adapter = create_pg_adapter(pg_url)
+            set_db_adapter(adapter); set_market_data_adapter(adapter)
+            logger.info("Using PostgreSQL")
+        else:
+            from app.adapters import inject_adapters
+            inject_adapters(_DB_PATH)
+            logger.info("Using SQLite: %s", _DB_PATH)
     except Exception as e:
         logger.warning("DB adapter injection skipped: %s", e)
     yield

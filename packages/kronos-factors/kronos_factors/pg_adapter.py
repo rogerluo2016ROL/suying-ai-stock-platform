@@ -86,6 +86,14 @@ class _PgAdapter:
             return [r[0] for r in cur.fetchall()]
         except Exception: return []
 
+    # MarketDataAdapter interface
+    def get_kline_df(self, code: str, lookback: int = 400) -> Optional[pd.DataFrame]:
+        """Get K-line DataFrame (MarketDataAdapter interface)."""
+        return self.get_kline(code, lookback)
+
+    def sync_stock_list(self) -> int: return 0
+    def update_daily_kline(self, from_date: str) -> int: return 0
+
     def __enter__(self): return self
     def __exit__(self, *args): pass
 
