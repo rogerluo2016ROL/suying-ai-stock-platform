@@ -13,11 +13,10 @@ export default function Predictions() {
     if (!code) { message.warning('请输入股票代码'); return }
     setLoading(true)
     try {
-      // Use signal/analyze as fallback (returns factor scores when Kronos is offline)
-      const r = await fetch(`/api/v1/signal/analyze/${code}`)
+      const r = await fetch(`/api/v1/prediction/predict/${code}?pred_days=10`, { method: 'POST' })
       const data = await r.json()
       setResult(data)
-      message.success('分析完成')
+      message.success(`Kronos预测: ${data.pred_return_pct > 0 ? '📈' : '📉'} ${data.pred_return_pct > 0 ? '+' : ''}${data.pred_return_pct}%`)
     } catch {
       message.error('分析失败')
     } finally { setLoading(false) }
@@ -49,64 +48,59 @@ export default function Predictions() {
                 <Row gutter={12} style={{ marginBottom: 16 }}>
                   <Col span={6}>
                     <Card size="small" style={{ borderRadius: 8 }}>
-                      <Statistic title="信号级别" value={result.signal?.level || '--'}
-                                valueStyle={{ color: result.signal?.score >= 60 ? '#52c41a' : '#faad14' }} />
+                      <Statistic title="当前价" value={result.current_price} prefix="¥" />
                     </Card>
                   </Col>
                   <Col span={6}>
                     <Card size="small" style={{ borderRadius: 8 }}>
-                      <Statistic title="综合评分" value={result.signal?.score} suffix="分" />
+                      <Statistic title="预测收盘" value={result.pred_last_close} prefix="¥"
+                                valueStyle={{ color: result.pred_return_pct >= 0 ? '#52c41a' : '#ff4d4f' }} />
                     </Card>
                   </Col>
                   <Col span={6}>
                     <Card size="small" style={{ borderRadius: 8 }}>
-                      <Statistic title="技术面" value={result.components?.factor_resonance?.detail?.technical}
-                                suffix="分" valueStyle={{ color: '#1677ff' }} />
+                      <Statistic title="预期收益" value={`${result.pred_return_pct > 0 ? '+' : ''}${result.pred_return_pct}%`}
+                                valueStyle={{ color: result.pred_return_pct >= 0 ? '#52c41a' : '#ff4d4f' }} />
                     </Card>
                   </Col>
                   <Col span={6}>
                     <Card size="small" style={{ borderRadius: 8 }}>
-                      <Statistic title="资金面" value={result.components?.factor_resonance?.detail?.money_flow}
-                                suffix="分" valueStyle={{ color: '#52c41a' }} />
+                      <Statistic title="趋势" value={result.trend} />
                     </Card>
                   </Col>
                 </Row>
 
-                <Card title={<Space><LineChartOutlined style={{ color: '#1677ff' }} />预测因子详情</Space>}
+                <Card title={<Space><LineChartOutlined style={{ color: '#1677ff' }} />Kronos 预测详情</Space>}
                       style={{ borderRadius: 8 }}>
-                  {result.factors?.five_factor && (
-                    <Descriptions column={2} size="small" bordered>
-                      <Descriptions.Item label="五因子评分">
-                        {result.factors.five_factor.score}分 ({result.factors.five_factor.grade}级)
-                      </Descriptions.Item>
-                      <Descriptions.Item label="动量/量能/技术/质量/风险">
-                        {result.factors.five_factor.momentum}/{result.factors.five_factor.volume}/
-                        {result.factors.five_factor.technical}/{result.factors.five_factor.quality}/
-                        {result.factors.five_factor.risk}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="资金流向">
-                        <Tag color={result.factors.money_flow?.signal === 'inflow' ? 'green' : 'orange'}>
-                          {result.factors.money_flow?.signal}
-                        </Tag>
-                      </Descriptions.Item>
-                      <Descriptions.Item label="趋势强度">
-                        {result.factors.trend_strength?.score}分 ({result.factors.trend_strength?.adx} ADX)
-                      </Descriptions.Item>
-                    </Descriptions>
-                  )}
+                  <Descriptions column={2} size="small" bordered>
+                    <Descriptions.Item label="预测区间">{result.pred_low} ~ {result.pred_high}</Descriptions.Item>
+                    <Descriptions.Item label="最大回调">
+                      <Tag color={result.max_drawdown_pct < -5 ? 'red' : 'orange'}>{result.max_drawdown_pct}%</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="预测天数">{result.pred_days} 天</Descriptions.Item>
+                    <Descriptions.Item label="轨迹点数">{result.pred_trajectory?.length || 0}</Descriptions.Item>
+                  </Descriptions>
                 </Card>
 
-                <Card style={{ borderRadius: 8, marginTop: 16 }}>
-                  <div style={{ height: 280, background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-                    borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', flexDirection: 'column', gap: 8 }}>
-                    <LineChartOutlined style={{ fontSize: 48, opacity: 0.6 }} />
-                    <Text style={{ color: 'rgba(255,255,255,0.6)' }}>📈 Kronos 30日预测K线图</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>
-                      启动 prediction-service 后渲染真实预测K线
-                    </Text>
-                  </div>
-                </Card>
+                {result.pred_trajectory && (
+                  <Card title="预测轨迹" style={{ borderRadius: 8, marginTop: 16 }}>
+                    <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 8 }}>
+                      {result.pred_trajectory.map((p: any) => (
+                        <div key={p.day} style={{
+                          minWidth: 50, textAlign: 'center', padding: 8,
+                          background: p.close >= result.current_price ? '#f6ffed' : '#fff2f0',
+                          borderRadius: 4, border: '1px solid ' + (p.close >= result.current_price ? '#b7eb8f' : '#ffa39e'),
+                        }}>
+                          <div style={{ fontSize: 10, color: '#8c8c8c' }}>D{p.day}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600 }}>{p.close}</div>
+                          <div style={{ fontSize: 10, color: p.close >= result.current_price ? '#52c41a' : '#ff4d4f' }}>
+                            {p.close >= result.current_price ? '↑' : '↓'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
               </>
             )}
           </Spin>
