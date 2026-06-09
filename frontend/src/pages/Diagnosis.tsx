@@ -1,90 +1,110 @@
 import { useState } from 'react'
-import { Card, Input, Button, Descriptions, Tag, Progress, Space, Typography, Row, Col, Statistic, message } from 'antd'
-import { FundOutlined } from '@ant-design/icons'
-import { diagnosisApi } from '../api/client'
+import { Card, Input, Button, Descriptions, Tag, Progress, Space, Typography, Row, Col, Statistic, message, Spin } from 'antd'
+import { FundOutlined, LineChartOutlined } from '@ant-design/icons'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 export default function Diagnosis() {
   const [code, setCode] = useState('')
-  const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<any>(null)
 
   const analyze = async () => {
     if (!code) { message.warning('请输入股票代码'); return }
     setLoading(true)
     try {
-      const r = await diagnosisApi.analyze(code.toUpperCase())
-      setResult(r.data)
-    } catch (e: any) {
-      message.error(e.response?.data?.detail || '诊断失败')
-    } finally { setLoading(false) }
+      const r = await fetch(`/api/v1/signal/analyze/${code}`)
+      setResult(await r.json())
+      message.success('诊断完成')
+    } catch { message.error('诊断失败') }
+    finally { setLoading(false) }
   }
 
   return (
     <div>
-      <Title level={2}><FundOutlined /> 个股诊断</Title>
+      <div style={{ marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          <FundOutlined style={{ marginRight: 8, color: '#1677ff' }} />
+          个股诊断
+        </Title>
+        <Text type="secondary">五维分析：技术面 · 资金面 · 基本面 · AI预测 · 情绪面</Text>
+      </div>
 
-      <Card>
-        <Space>
-          <Input placeholder="输入股票代码" value={code} onChange={e => setCode(e.target.value)}
-                 style={{ width: 200 }} onPressEnter={analyze} />
-          <Button type="primary" loading={loading} onClick={analyze}>开始诊断</Button>
-        </Space>
-      </Card>
-
-      {result && (
-        <>
-          <Card style={{ marginTop: 16 }}>
-            <Row gutter={16}>
-              <Col span={6}>
-                <Statistic title="综合评分" value={result.overall_score} suffix="/100" />
-              </Col>
-              <Col span={6}>
-                <Statistic title="评级" value={result.grade} />
-              </Col>
-              <Col span={6}>
-                <Statistic title="建议" value={result.recommendation} />
-              </Col>
-              <Col span={6}>
-                <Statistic title="Kronos预测收益" value={`${result.kronos_prediction?.pred_return_pct || '--'}%`} />
-              </Col>
-            </Row>
+      <Row gutter={16}>
+        <Col span={16}>
+          <Card style={{ borderRadius: 8, marginBottom: 16 }}>
+            <Space>
+              <Input.Search placeholder="输入股票代码" value={code} onChange={e => setCode(e.target.value)}
+                            onSearch={analyze} enterButton="开始诊断" loading={loading} style={{ width: 280 }} />
+            </Space>
           </Card>
 
-          <Card title="五维诊断" style={{ marginTop: 16 }}>
-            {Object.entries(result.dimensions || {}).map(([key, dim]: [string, any]) => (
-              <div key={key} style={{ marginBottom: 12 }}>
-                <Space>
-                  <Tag color={dim.grade === 'A' ? 'green' : dim.grade === 'B' ? 'blue' : 'orange'}>{dim.grade}</Tag>
-                  <span>{key}</span>
-                  <Progress percent={dim.score * 10} size="small" style={{ width: 200 }} />
-                  <Typography.Text type="secondary">权重 {dim.weight * 100}%</Typography.Text>
-                </Space>
-              </div>
-            ))}
-          </Card>
+          <Spin spinning={loading}>
+            {result && !result.error && (
+              <>
+                <Card style={{ borderRadius: 8, marginBottom: 16 }}>
+                  <Row gutter={12}>
+                    <Col span={6}><Statistic title="综合评分" value={result.signal?.score || '--'} suffix="分" /></Col>
+                    <Col span={6}><Statistic title="信号" value={result.signal?.level} valueStyle={{ color: '#1677ff' }} /></Col>
+                    <Col span={6}><Statistic title="技术面" value={result.components?.factor_resonance?.detail?.technical} suffix="分" /></Col>
+                    <Col span={6}><Statistic title="资金面" value={result.components?.factor_resonance?.detail?.money_flow} suffix="分" /></Col>
+                  </Row>
+                </Card>
 
-          {result.kronos_prediction && (
-            <Card title="Kronos AI 预测" style={{ marginTop: 16 }}>
-              <Descriptions column={2} size="small" bordered>
-                <Descriptions.Item label="30日预测收盘">{result.kronos_prediction.pred_30d_close}</Descriptions.Item>
-                <Descriptions.Item label="趋势">{result.kronos_prediction.trend}</Descriptions.Item>
-                <Descriptions.Item label="最大回调"><Tag color="red">{result.kronos_prediction.max_drawdown_pct}%</Tag></Descriptions.Item>
-                <Descriptions.Item label="拐点天数">{result.kronos_prediction.inflection_days?.join(', ')}</Descriptions.Item>
-              </Descriptions>
-            </Card>
-          )}
+                <Card title="五维诊断" style={{ borderRadius: 8, marginBottom: 16 }}>
+                  {[
+                    { key: '技术面', score: Number(result.components?.factor_resonance?.detail?.technical) || 50, weight: 40, color: '#1677ff' },
+                    { key: '资金面', score: Number(result.components?.factor_resonance?.detail?.money_flow) || 50, weight: 25, color: '#52c41a' },
+                    { key: '趋势面', score: Number(result.components?.factor_resonance?.detail?.trend) || 50, weight: 15, color: '#faad14' },
+                    { key: 'AI预测', score: 50, weight: 10, color: '#722ed1' },
+                    { key: '情绪面', score: 50, weight: 10, color: '#fa8c16' },
+                  ].map(d => (
+                    <div key={d.key} style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <Tag style={{ width: 60, textAlign: 'center' }}>{d.key}</Tag>
+                      <Progress percent={d.score} size="small" strokeColor={d.color} style={{ flex: 1 }} />
+                      <Text type="secondary" style={{ width: 60 }}>权重 {d.weight}%</Text>
+                    </div>
+                  ))}
+                </Card>
 
-          <Card title="关键价位" style={{ marginTop: 16 }}>
-            <Descriptions column={3} size="small">
-              <Descriptions.Item label="支撑位">{result.key_levels?.support}</Descriptions.Item>
-              <Descriptions.Item label="压力位">{result.key_levels?.resistance}</Descriptions.Item>
-              <Descriptions.Item label="止损位"><Tag color="red">{result.key_levels?.stop_loss}</Tag></Descriptions.Item>
-            </Descriptions>
+                {result.factors?.five_factor && (
+                  <Card title="五因子细节" style={{ borderRadius: 8 }}>
+                    <Descriptions column={2} size="small" bordered>
+                      <Descriptions.Item label="评分">{result.factors.five_factor.score}分 ({result.factors.five_factor.grade}级)</Descriptions.Item>
+                      <Descriptions.Item label="动量">{result.factors.five_factor.momentum}</Descriptions.Item>
+                      <Descriptions.Item label="量能">{result.factors.five_factor.volume}</Descriptions.Item>
+                      <Descriptions.Item label="技术">{result.factors.five_factor.technical}</Descriptions.Item>
+                      <Descriptions.Item label="质量">{result.factors.five_factor.quality}</Descriptions.Item>
+                      <Descriptions.Item label="风险">{result.factors.five_factor.risk}</Descriptions.Item>
+                      <Descriptions.Item label="资金流">{result.factors.money_flow?.signal}</Descriptions.Item>
+                      <Descriptions.Item label="趋势(ADX)">{result.factors.trend_strength?.adx}</Descriptions.Item>
+                    </Descriptions>
+                  </Card>
+                )}
+              </>
+            )}
+          </Spin>
+        </Col>
+
+        <Col span={8}>
+          <Card title="诊断维度" size="small" style={{ borderRadius: 8, marginBottom: 16 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              📊 <b>技术面</b> — 均线/形态/指标<br />
+              💰 <b>资金面</b> — 主力/北向/龙虎榜<br />
+              📈 <b>基本面</b> — PE/ROE/成长<br />
+              🤖 <b>AI预测</b> — Kronos K线预测<br />
+              🎯 <b>情绪面</b> — 新闻/研报/舆情
+            </Text>
           </Card>
-        </>
-      )}
+          <Card title="关键价位" size="small" style={{ borderRadius: 8 }}>
+            <div style={{ fontSize: 12 }}>
+              <Tag color="green">支撑</Tag> --<br />
+              <Tag color="red">压力</Tag> --<br />
+              <Tag color="orange">止损</Tag> --
+            </div>
+          </Card>
+        </Col>
+      </Row>
     </div>
   )
 }

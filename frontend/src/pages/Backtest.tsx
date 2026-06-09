@@ -1,48 +1,50 @@
 import { useState, useEffect } from 'react'
-import { Card, Table, Button, Select, Space, Typography, Tag, InputNumber } from 'antd'
-import { ExperimentOutlined } from '@ant-design/icons'
+import { Card, Table, Button, Select, Space, Typography, Tag, Row, Col, Statistic, message } from 'antd'
+import { ExperimentOutlined, PlayCircleOutlined } from '@ant-design/icons'
 import { backtestApi } from '../api/client'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 export default function Backtest() {
   const [factors, setFactors] = useState<any[]>([])
-  const [mode, setMode] = useState('all')
-  const [windows, setWindows] = useState(3)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     backtestApi.getFactors().then(r => setFactors(r.data.factors || [])).catch(() => {})
   }, [])
 
+  const runBacktest = () => {
+    setLoading(true)
+    backtestApi.run().then(() => { message.success('回测已触发'); setLoading(false) }).catch(() => setLoading(false))
+  }
+
   return (
     <div>
-      <Title level={2}><ExperimentOutlined /> 回测分析</Title>
+      <div style={{ marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          <ExperimentOutlined style={{ marginRight: 8, color: '#1677ff' }} />
+          回测分析
+        </Title>
+        <Text type="secondary">滚动窗口 IC/ICIR 验证 · 策略绩效评估 · 因子校准</Text>
+      </div>
 
-      <Card>
-        <Space>
-          <Select value={mode} onChange={setMode} style={{ width: 120 }} options={[
-            { label: '综合', value: 'all' }, { label: '短线', value: 'short' }, { label: '长线', value: 'long' },
-          ]} />
-          <span>窗口:</span>
-          <InputNumber min={1} max={12} value={windows} onChange={v => setWindows(v || 3)} />
-          <Button type="primary" icon={<ExperimentOutlined />}>运行回测</Button>
-        </Space>
-      </Card>
+      <Row gutter={12} style={{ marginBottom: 16 }}>
+        <Col span={6}><Card size="small" style={{ borderRadius: 8 }}><Statistic title="因子数" value={factors.length} /></Card></Col>
+        <Col span={6}><Card size="small" style={{ borderRadius: 8 }}><Statistic title="策略" value="6" suffix="套" /></Card></Col>
+        <Col span={6}><Card size="small" style={{ borderRadius: 8 }}><Statistic title="胜率" value="--" /></Card></Col>
+        <Col span={6}><Card size="small" style={{ borderRadius: 8 }}><Statistic title="夏普比" value="--" /></Card></Col>
+      </Row>
 
-      <Card title={`因子列表 (${factors.length} 个)`} style={{ marginTop: 16 }}>
-        <Table dataSource={factors} rowKey="id" size="small" pagination={false} columns={[
-          { title: '因子ID', dataIndex: 'id', width: 160 },
+      <Card title={<Space><ExperimentOutlined style={{color:'#1677ff'}} />因子列表 ({factors.length})</Space>}
+            style={{ borderRadius: 8, marginBottom: 16 }}
+            extra={<Button type="primary" icon={<PlayCircleOutlined />} loading={loading} onClick={runBacktest}>运行回测</Button>}>
+        <Table dataSource={factors} rowKey="id" size="small" pagination={{ pageSize: 10 }} columns={[
+          { title: '因子ID', dataIndex: 'id', width: 160, render: (v: string) => <Text code style={{fontSize:11}}>{v}</Text> },
           { title: '因子名称', dataIndex: 'name' },
-          { title: 'IC均值', dataIndex: 'ic_mean', width: 80, render: () => <Tag>--</Tag> },
-          { title: 'ICIR', dataIndex: 'icir', width: 80, render: () => <Tag>--</Tag> },
-          { title: '胜率', dataIndex: 'hit_rate', width: 80, render: () => <Tag>--</Tag> },
+          { title: 'IC', width: 60, render: () => <Tag>--</Tag> },
+          { title: 'ICIR', width: 60, render: () => <Tag>--</Tag> },
+          { title: '胜率', width: 60, render: () => <Tag>--</Tag> },
         ]} />
-      </Card>
-
-      <Card title="回测指标" style={{ marginTop: 16 }}>
-        <Typography.Text type="secondary">
-          对接数据管道后填充：累计收益曲线、夏普比率、最大回撤、胜率、盈亏比、月度收益热力图
-        </Typography.Text>
       </Card>
     </div>
   )
