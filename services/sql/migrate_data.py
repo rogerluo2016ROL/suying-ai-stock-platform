@@ -56,6 +56,11 @@ def migrate_table(sqlite_conn, pg_conn, table: str, batch_size: int = 5000) -> d
     import psycopg2
     import psycopg2.extras
 
+    # Read PG columns (only migrate columns that exist in both)
+    pg_cur = pg_conn.cursor()
+    pg_cur.execute(f"SELECT column_name FROM information_schema.columns WHERE table_name=%s", (table,))
+    pg_cols = {r[0] for r in pg_cur.fetchall()}
+
     # Read from SQLite
     cur = sqlite_conn.cursor()
     cur.execute(f"SELECT COUNT(*) FROM {table}")
@@ -64,21 +69,25 @@ def migrate_table(sqlite_conn, pg_conn, table: str, batch_size: int = 5000) -> d
         return {"table": table, "rows": 0, "status": "empty"}
 
     cur.execute(f"SELECT * FROM {table}")
-    columns = [desc[0] for desc in cur.description]
+    all_columns = [desc[0] for desc in cur.description]
+    # Only keep columns that exist in PG
+    columns = [c for c in all_columns if c in pg_cols]
+    skipped_cols = [c for c in all_columns if c not in pg_cols]
+    if skipped_cols:
+        print(f"  {table}: skipping columns {skipped_cols}")
 
-    # Write to PostgreSQL
-    pg_cur = pg_conn.cursor()
     col_names = ", ".join(columns)
     placeholders = ", ".join(["%s"] * len(columns))
     insert_sql = f"INSERT INTO {table} ({col_names}) VALUES ({placeholders}) ON CONFLICT DO NOTHING"
 
     written = 0
     batch = []
+    col_indices = [all_columns.index(c) for c in columns]
     for row in cur:
-        # Clean null bytes and invalid chars that break PostgreSQL
+        # Clean null bytes and extract only matching columns
         clean_row = tuple(
-            v.replace('\x00', '').replace('\0', '') if isinstance(v, str) else v
-            for v in row
+            (row[i].replace('\x00', '').replace('\0', '') if isinstance(row[i], str) else row[i])
+            for i in col_indices
         )
         batch.append(clean_row)
         if len(batch) >= batch_size:
