@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Card, Select, Button, Table, Tag, Space, Typography, InputNumber, message, Row, Col, Divider } from 'antd'
-import { PlayCircleOutlined, TrophyOutlined, FilterOutlined } from '@ant-design/icons'
+import { PlayCircleOutlined, TrophyOutlined, FilterOutlined, FileTextOutlined } from '@ant-design/icons'
 import { screenerApi } from '../api/client'
 
 const { Title, Text } = Typography
@@ -13,6 +13,24 @@ export default function Screener() {
   const [picks, setPicks] = useState<any[]>([])
   const [marketEnv, setMarketEnv] = useState('')
   const [stats, setStats] = useState({ scored: 0, excluded: 0, elapsed: 0 })
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+
+  const generatePlan = async () => {
+    const selectedPicks = picks.filter((_:any,i:number) => selectedRowKeys.includes(i))
+    if (selectedPicks.length === 0) { message.warning('请先勾选股票'); return }
+    try {
+      // 1. Create plan
+      const r1 = await fetch(`/api/v1/strategy/plans?name=选股方案-${new Date().toLocaleDateString()}&model_name=${mode}&max_positions=${selectedPicks.length}`, { method: 'POST' })
+      const plan = await r1.json()
+      // 2. Add picks
+      await fetch(`/api/v1/strategy/plans/${plan.plan.id}/picks`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(selectedPicks),
+      })
+      message.success(`预方案已生成: ${plan.plan.id} (${selectedPicks.length}只)`)
+      setSelectedRowKeys([])
+    } catch { message.error('方案生成失败') }
+  }
 
   useEffect(() => {
     screenerApi.getModes().then(r => setModes(r.data.modes || [])).catch(() => {})
@@ -96,6 +114,12 @@ export default function Screener() {
                     onClick={runScreening} size="middle">
               开始选股
             </Button>
+            {picks.length > 0 && (
+              <Button icon={<FileTextOutlined />} onClick={generatePlan}
+                      disabled={selectedRowKeys.length === 0}>
+                生成预方案 ({selectedRowKeys.length})
+              </Button>
+            )}
           </Col>
           {marketEnv && (
             <Col>
@@ -117,6 +141,10 @@ export default function Screener() {
             title={picks.length > 0 ? `选股结果 (Top ${picks.length})` : '等待选股'}
       >
         <Table columns={columns} dataSource={picks} rowKey="code" size="small"
+               rowSelection={{
+                 selectedRowKeys,
+                 onChange: setSelectedRowKeys,
+               }}
                pagination={{ pageSize: 15, showSizeChanger: false }}
                scroll={{ x: 750 }}
                locale={{ emptyText: '点击「开始选股」运行模型筛选全市场标的' }} />

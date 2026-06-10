@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Card, Button, Steps, Space, Typography, Tag, message, Select } from 'antd'
-import { BulbOutlined, PlayCircleOutlined, FileTextOutlined } from '@ant-design/icons'
-import { strategyApi } from '../api/client'
+import { Card, Button, Steps, Space, Typography, Tag, message, Table, Modal, Descriptions } from 'antd'
+import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, CheckCircleOutlined, EyeOutlined } from '@ant-design/icons'
 
 const { Title, Text } = Typography
 
@@ -14,13 +13,60 @@ const planSteps = [
   { title: '执行交易', description: '模拟/实盘' },
 ]
 
-export default function Strategy() {
-  const [currentStep, setCurrentStep] = useState(0)
-  const [templates, setTemplates] = useState<any[]>([])
+const statusColors: Record<string, string> = {
+  draft: 'blue', confirmed: 'green', active: 'red', archived: 'default',
+}
 
-  useEffect(() => {
-    strategyApi.getTemplates().then(r => setTemplates(r.data.templates || [])).catch(() => {})
-  }, [])
+export default function Strategy() {
+  const [plans, setPlans] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [detailPlan, setDetailPlan] = useState<any>(null)
+
+  const loadPlans = () => {
+    setLoading(true)
+    fetch('/api/v1/strategy/plans').then(r => r.json()).then(d => {
+      setPlans(d.plans || [])
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }
+
+  useEffect(() => { loadPlans() }, [])
+
+  const confirmPlan = async (id: string) => {
+    await fetch(`/api/v1/strategy/plans/${id}/confirm`, { method: 'POST' })
+    message.success('方案已确认')
+    loadPlans()
+  }
+
+  const deletePlan = async (id: string) => {
+    await fetch(`/api/v1/strategy/plans/${id}`, { method: 'DELETE' })
+    message.success('方案已删除')
+    loadPlans()
+  }
+
+  const viewPlan = async (id: string) => {
+    const r = await fetch(`/api/v1/strategy/plans/${id}`)
+    setDetailPlan(await r.json())
+  }
+
+  const columns = [
+    { title: '方案ID', dataIndex: 'id', width: 140, render: (v: string) => <Text code style={{fontSize:11}}>{v}</Text> },
+    { title: '名称', dataIndex: 'name', width: 160 },
+    { title: '状态', dataIndex: 'status', width: 80,
+      render: (v: string) => <Tag color={statusColors[v] || 'default'}>{v}</Tag> },
+    { title: '标的数', dataIndex: 'picks_count', width: 60 },
+    { title: '资金', dataIndex: 'capital', width: 90, render: (v: number) => `¥${(v/10000).toFixed(0)}万` },
+    { title: '创建时间', dataIndex: 'created_at', width: 110, render: (v: string) => v?.slice(0,16) },
+    { title: '操作', dataIndex: 'id', width: 200, render: (id: string, record: any) => (
+      <Space size="small">
+        <Button size="small" icon={<EyeOutlined />} onClick={() => viewPlan(id)}>查看</Button>
+        {record.status === 'draft' && (
+          <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={() => confirmPlan(id)}>确认</Button>
+        )}
+        <Button size="small" danger icon={<DeleteOutlined />} onClick={() => deletePlan(id)} />
+      </Space>
+    )},
+  ]
 
   return (
     <div>
@@ -33,30 +79,35 @@ export default function Strategy() {
       </div>
 
       <Card style={{ borderRadius: 8, marginBottom: 16 }}>
-        <Steps current={currentStep} size="small" items={planSteps} onChange={setCurrentStep}
-               style={{ cursor: 'pointer' }} />
+        <Steps current={plans.length > 0 ? 1 : 0} size="small" items={planSteps} />
       </Card>
 
-      <Card title="新建方案" style={{ borderRadius: 8, marginBottom: 16 }}>
-        <Space>
-          <Select defaultValue="balanced" style={{ width: 200 }} options={
-            templates.map((t: any) => ({ label: `${t.name} (单票${t.single_max * 100}%)`, value: t.id }))
-          } />
-          <Button type="primary" icon={<PlayCircleOutlined />}
-                  onClick={() => message.info('请先在智能选股页面获取 picks')}>
-            生成方案
-          </Button>
-        </Space>
+      <Card title={<Space><FileTextOutlined />方案列表 ({plans.length})</Space>}
+            style={{ borderRadius: 8 }}
+            extra={<Button icon={<PlayCircleOutlined />} onClick={loadPlans} loading={loading}>刷新</Button>}>
+        <Table columns={columns} dataSource={plans} rowKey="id" size="small"
+               pagination={{ pageSize: 10 }}
+               locale={{ emptyText: '暂无方案。请在智能选股页面运行选股后，勾选标的生成预方案。' }} />
       </Card>
 
-      <Card style={{ borderRadius: 8 }}>
-        <div style={{ textAlign: 'center', padding: 40 }}>
-          <FileTextOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
-          <div style={{ marginTop: 12 }}>
-            <Text type="secondary">暂无方案 — 请先运行选股生成标的池，再创建方案</Text>
-          </div>
-        </div>
-      </Card>
+      <Modal title="方案详情" open={!!detailPlan} onCancel={() => setDetailPlan(null)} footer={null} width={600}>
+        {detailPlan && (
+          <Descriptions column={1} size="small" bordered>
+            <Descriptions.Item label="方案ID">{detailPlan.id}</Descriptions.Item>
+            <Descriptions.Item label="名称">{detailPlan.name}</Descriptions.Item>
+            <Descriptions.Item label="状态"><Tag color={statusColors[detailPlan.status]}>{detailPlan.status}</Tag></Descriptions.Item>
+            <Descriptions.Item label="选股模型">{detailPlan.model_name}</Descriptions.Item>
+            <Descriptions.Item label="资金">¥{(detailPlan.capital/10000).toFixed(0)}万</Descriptions.Item>
+            <Descriptions.Item label="最大持仓">{detailPlan.max_positions}只</Descriptions.Item>
+            <Descriptions.Item label="标的列表">
+              {(detailPlan.picks || []).map((p: any) => (
+                <Tag key={p.code}>{p.code} {p.name} {p.score?.toFixed(1)}分</Tag>
+              ))}
+              {detailPlan.picks?.length === 0 && '暂未添加标的'}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
     </div>
   )
 }
