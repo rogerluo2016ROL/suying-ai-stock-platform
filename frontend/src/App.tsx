@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Button, Space, Badge, Avatar, Dropdown, Drawer, Switch, Typography, theme as antTheme, Radio } from 'antd'
 import {
@@ -40,9 +40,18 @@ const bottomMenuItems = [
 export default function App() {
   const [collapsed, setCollapsed] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [unreadAlerts, setUnreadAlerts] = useState(0)
   const navigate = useNavigate()
   const location = useLocation()
   const selectedKey = '/' + location.pathname.split('/')[1]
+
+  useEffect(() => {
+    const poll = () => {
+      fetch('/api/v1/alert/unread-count').then(r => r.json()).then(d => setUnreadAlerts(d.unread || 0)).catch(()=>{})
+    }
+    poll(); const timer = setInterval(poll, 30000)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -116,7 +125,7 @@ export default function App() {
           </Space>
 
           <Space size="middle">
-            <Badge count={5} size="small">
+            <Badge count={unreadAlerts} size="small" offset={[-2, 2]}>
               <Button type="text" icon={<BellOutlined />} />
             </Badge>
             <Button type="text" icon={<GlobalOutlined />} title="语言" />
