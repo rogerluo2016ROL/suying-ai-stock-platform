@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Card, Button, Steps, Space, Typography, Tag, message, Table, Modal, Descriptions, List } from 'antd'
-import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, CheckCircleOutlined, EyeOutlined, FundOutlined } from '@ant-design/icons'
+import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, CheckCircleOutlined, EyeOutlined, FundOutlined, ExperimentOutlined } from '@ant-design/icons'
 
 const { Title, Text } = Typography
 
@@ -56,6 +56,14 @@ export default function Strategy() {
     if (data.title) setReport(data)
   }
 
+  const runBacktestOnPlan = async (id: string) => {
+    message.loading('回测运行中...')
+    try {
+      await fetch(`/api/v1/backtest/run?mode=all`, { method: 'POST' })
+      message.success('回测完成, 请查看回测分析页面')
+    } catch { message.error('回测服务未连接') }
+  }
+
   const columns = [
     { title: '方案ID', dataIndex: 'id', width: 140, render: (v: string) => <Text code style={{fontSize:11}}>{v}</Text> },
     { title: '名称', dataIndex: 'name', width: 160 },
@@ -71,7 +79,10 @@ export default function Strategy() {
           <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={() => confirmPlan(id)}>确认</Button>
         )}
         {record.status === 'confirmed' && (
-          <Button size="small" icon={<FundOutlined />} onClick={() => viewReport(id)}>报告</Button>
+          <>
+            <Button size="small" icon={<FundOutlined />} onClick={() => viewReport(id)}>报告</Button>
+            <Button size="small" icon={<ExperimentOutlined />} onClick={() => runBacktestOnPlan(id)}>回测</Button>
+          </>
         )}
         <Button size="small" danger icon={<DeleteOutlined />} onClick={() => deletePlan(id)} />
       </Space>
