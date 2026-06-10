@@ -26,19 +26,66 @@ _model_loaded = False
 _predictor = None
 
 
+def _find_kronos_root() -> str:
+    """Find Kronos project root for model checkpoints."""
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "Kronos"),
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "Kronos"),
+    ]
+    for c in candidates:
+        if os.path.isdir(os.path.join(c, "outputs", "models")):
+            return os.path.abspath(c)
+    return ""
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _model_loaded, _predictor
     logger.info("Starting Prediction Service...")
     try:
+        import torch
         from kronos.model.kronos import Kronos, KronosTokenizer, KronosPredictor
+
+        kronos_root = _find_kronos_root()
+        device = "mps" if torch.backends.mps.is_available() else "cpu"
+        model_name = "Kronos-mini"
+
+        # ── Load base architecture from HuggingFace ──
+        logger.info("Loading tokenizer: NeoQuasar/Kronos-Tokenizer-base")
         tokenizer = KronosTokenizer.from_pretrained("NeoQuasar/Kronos-Tokenizer-base")
-        model = Kronos.from_pretrained("NeoQuasar/Kronos-small")
-        _predictor = KronosPredictor(model, tokenizer, max_context=512, device="cpu")
+        logger.info("Loading predictor: NeoQuasar/%s", model_name)
+        model = Kronos.from_pretrained(f"NeoQuasar/{model_name}")
+
+        # ── Apply fine-tuned weights if available ──
+        ft_tok = os.path.join(kronos_root, "outputs", "models",
+                              "finetune_tokenizer_demo", "checkpoints", "best_model",
+                              "pytorch_model.bin")
+        ft_pred = os.path.join(kronos_root, "outputs", "models",
+                               "finetune_predictor_demo", "checkpoints", "best_model",
+                               "pytorch_model.bin")
+
+        if os.path.exists(ft_tok):
+            logger.info("Loading fine-tuned tokenizer weights: %s", ft_tok)
+            tokenizer.load_state_dict(torch.load(ft_tok, map_location="cpu"))
+            logger.info("Fine-tuned tokenizer loaded (%.1f MB)", os.path.getsize(ft_tok)/1e6)
+        else:
+            logger.info("Using pre-trained tokenizer (no fine-tuned checkpoint)")
+
+        if os.path.exists(ft_pred):
+            logger.info("Loading fine-tuned predictor weights: %s", ft_pred)
+            model.load_state_dict(torch.load(ft_pred, map_location="cpu"))
+            logger.info("Fine-tuned predictor loaded (%.1f MB)", os.path.getsize(ft_pred)/1e6)
+        else:
+            logger.info("Using pre-trained predictor (no fine-tuned checkpoint)")
+
+        _predictor = KronosPredictor(model, tokenizer, max_context=512, device=device)
         _model_loaded = True
-        logger.info("Kronos-small model loaded (CPU)")
+        params = sum(p.numel() for p in model.parameters())
+        logger.info("%s model loaded on %s (%s params, fine-tuned=%s)",
+                    model_name, device, f"{params:,}",
+                    "yes" if os.path.exists(ft_pred) else "no")
     except Exception as e:
-        logger.warning("Kronos model not loaded (skip predictions): %s", e)
+        logger.warning("Kronos model not loaded: %s", e)
     yield
     logger.info("Prediction Service stopped.")
 
