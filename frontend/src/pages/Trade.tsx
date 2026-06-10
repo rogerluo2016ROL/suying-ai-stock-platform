@@ -130,7 +130,7 @@ export default function Trade() {
           </Card>
 
           {/* ── Orders Table ── */}
-          <Card title="委托记录" style={{ borderRadius: 8 }}>
+          <Card title={<Space><FormOutlined />委托记录</Space>} style={{ borderRadius: 8 }}>
             {orders.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 24 }}>
                 <Text type="secondary">暂无委托 — 使用右侧下单面板创建第一条交易</Text>
