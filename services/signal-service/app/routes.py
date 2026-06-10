@@ -2,9 +2,11 @@
 
 import os, logging
 from fastapi import APIRouter, Query, HTTPException
+from app.signal_store import get_store
 
 logger = logging.getLogger("signal-service.routes")
 router = APIRouter(prefix="/api/v1/signal", tags=["signal"])
+store = get_store()
 
 
 @router.get("/levels")
@@ -61,6 +63,10 @@ async def analyze_signal(code: str):
     elif signal_score >= 20:  level, icon = "REDUCE", "🟠"
     else:                     level, icon = "SELL", "🔴"
 
+    # Record signal history
+    store.record(code=code, level=level, icon=icon, score=round(signal_score, 1),
+                 reason=f"技术{tech_score:.0f}/资金{money_score:.0f}/趋势{trend_score:.0f}")
+
     return {
         "code": code,
         "signal": {"level": level, "icon": icon, "score": round(signal_score, 1)},
@@ -103,9 +109,18 @@ async def batch_signals(codes: list[str]):
 @router.get("/history")
 async def signal_history(
     code: str = Query(None),
+    session: str = Query(None),
     limit: int = Query(50, ge=10, le=200),
 ):
-    return {"filters": {"code": code}, "limit": limit, "signals": [], "status": "endpoint_ready"}
+    """Query historical signals with filters."""
+    results = store.query(code=code, session=session, limit=limit)
+    return {
+        "signals": [{"code": s.code, "level": s.level, "icon": s.icon,
+                      "score": s.score, "reason": s.reason, "session": s.session,
+                      "created_at": s.created_at} for s in results],
+        "total": len(results),
+        "filters": {"code": code, "session": session},
+    }
 
 
 @router.put("/rules")

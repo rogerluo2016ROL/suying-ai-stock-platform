@@ -66,7 +66,13 @@ async def get_account():
 @router.get("/pnl")
 async def get_pnl():
     acct = engine.get_account()
-    return {"total_pnl": round(acct.total_pnl, 2), "daily_pnl": round(acct.daily_pnl, 2)}
+    orders = engine.get_orders()
+    trades = [o for o in orders if o.status == "filled"]
+    return {
+        "total_pnl": round(acct.total_pnl, 2), "daily_pnl": round(acct.daily_pnl, 2),
+        "total_trades": len(trades), "positions": len(engine.get_positions()),
+        "total_capital": acct.total_capital,
+    }
 
 
 @router.put("/mode")
