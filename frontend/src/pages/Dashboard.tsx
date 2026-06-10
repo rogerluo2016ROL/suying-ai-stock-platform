@@ -1,249 +1,699 @@
-import { useState, useEffect } from 'react'
-import { Row, Col, Card, Tag, Typography, Space, Button, Radio, Avatar, List, Progress, Tooltip } from 'antd'
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  RiseOutlined, FallOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  ThunderboltOutlined, SearchOutlined, LineChartOutlined, SyncOutlined,
-  StarOutlined, StockOutlined, DollarOutlined, ScheduleOutlined,
-  BulbOutlined, BellOutlined, ExperimentOutlined, FundOutlined,
-  DashboardOutlined,
+  Row, Col, Card, Tag, Typography, Space, Button, Radio, List,
+  Progress, Tooltip, Modal, Table, Statistic, Badge, Divider, Empty, message,
+} from 'antd'
+import {
+  RiseOutlined, FallOutlined, SyncOutlined, ThunderboltOutlined,
+  SearchOutlined, LineChartOutlined, StarOutlined, DashboardOutlined,
+  BulbOutlined, ExperimentOutlined, FundOutlined, CheckCircleOutlined,
+  InfoCircleOutlined, RightOutlined, ApiOutlined, BellOutlined,
 } from '@ant-design/icons'
-import { screenerApi } from '../api/client'
+import type { ColumnsType } from 'antd/es/table'
 
 const { Title, Text } = Typography
 
-// Mock signal data (would come from API)
-const signalStocks = [
-  { code: '000001', name: '平安银行', price: 13.50, change: 2.15, signal: 'Bullish', desc: '资金持续流入，突破前高', market: 'A股' },
-  { code: '600519', name: '贵州茅台', price: 1680, change: -1.2, signal: 'Bearish', desc: '板块轮动承压，短期回调', market: 'A股' },
-  { code: '300750', name: '宁德时代', price: 210, change: 3.5, signal: 'Bullish', desc: '产业链利好，放量上攻', market: 'A股' },
-  { code: '000858', name: '五粮液', price: 156, change: -0.8, signal: 'consolidation', desc: '窄幅震荡，等待方向选择', market: 'A股' },
-  { code: '002594', name: '比亚迪', price: 285, change: 1.8, signal: 'Bullish', desc: '新能源汽车销量超预期', market: 'A股' },
-  { code: '601318', name: '中国平安', price: 56.9, change: 0.09, signal: 'consolidation', desc: '横盘整理，等待催化剂', market: 'A股' },
-  { code: '600036', name: '招商银行', price: 42.3, change: -2.1, signal: 'Bearish', desc: '息差收窄预期，银行板块承压', market: 'A股' },
-  { code: '300059', name: '东方财富', price: 18.5, change: 1.2, signal: 'Bullish', desc: '券商板块活跃，量价齐升', market: 'A股' },
-]
+// ── Types ──
 
-const services = [
-  { name: '选股服务', port: 8001 },
-  { name: '预测服务', port: 8002 },
-  { name: '方案服务', port: 8003 },
-  { name: '信号服务', port: 8004 },
-  { name: '交易服务', port: 8006 },
-  { name: '回测服务', port: 8007 },
-]
+interface SignalStock {
+  code: string; name: string; price: number; change_pct: number
+  volume: number; signal: string; desc: string; market: string
+}
+
+interface LimitStock {
+  code: string; name: string; limit_price: number; change_pct: number; pre_close: number
+}
+
+interface WatchlistItem {
+  code: string; name: string; market_cap: number; industry: string
+}
+
+interface ServiceHealth {
+  key: string; name: string; port: number; online: boolean
+}
+
+interface ScreenerMode {
+  id: string; name: string; cycle: string; style: string
+}
+
+interface AlertSignal {
+  type: string; icon: string; level: string
+  code: string; name: string; price: number; change_pct: number
+  reason: string
+}
+
+interface DashboardData {
+  refreshed_at: string
+  market_sentiment: {
+    score: number; label: string; trade_date: string
+    avg_change_pct: number; up_stocks: number; down_stocks: number; total_stocks: number
+    model: string; formula: string
+    sub_dimensions: Record<string, string>
+  }
+  signal_stocks: SignalStock[]
+  limit_stocks: { up_count: number; down_count: number; up_list: LimitStock[]; down_list: LimitStock[]; data_source: string }
+  alert_signals: AlertSignal[]
+  service_health: ServiceHealth[]
+  screener_modes: ScreenerMode[]
+  watchlist: WatchlistItem[]
+  data_sources: Record<string, string>
+}
+
+// ── Signal color helpers ──
+
+function signalTag(signal: string) {
+  if (signal === 'Bullish') return { color: '#52c41a', icon: '📈', label: '看涨' }
+  if (signal === 'Bearish') return { color: '#ff4d4f', icon: '📉', label: '看跌' }
+  return { color: '#1890ff', icon: '➡️', label: '震荡' }
+}
+
+// ── Component ──
 
 export default function Dashboard() {
-  const [modes, setModes] = useState<any[]>([])
-  const [serviceStatus, setServiceStatus] = useState<Record<number, boolean>>({})
+  const navigate = useNavigate()
+  const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState('A股')
+  const [lastRefresh, setLastRefresh] = useState<string>('')
+  const [limitModal, setLimitModal] = useState<{ open: boolean; type: 'up' | 'down' }>({ open: false, type: 'up' })
 
-  useEffect(() => {
-    screenerApi.getModes().then(r => setModes(r.data.modes || [])).catch(() => {})
-    services.forEach(s => {
-      fetch(`/api/v1/health`, { signal: AbortSignal.timeout(1500) })
-        .then(r => setServiceStatus(prev => ({ ...prev, [s.port]: r.ok })))
-        .catch(() => setServiceStatus(prev => ({ ...prev, [s.port]: false })))
-    })
+  // ── Screening Dashboard state ──
+  const [dbSummary, setDbSummary] = useState<any>(null)
+  const [dashboardPicks, setDashboardPicks] = useState<any[]>([])
+  const [dashboardPredictions, setDashboardPredictions] = useState<any[]>([])
+  const [picksLoading, setPicksLoading] = useState(false)
+  const [dbLoading, setDbLoading] = useState(false)
+
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true)
+    try {
+      // Cache-bust to ensure we always get fresh PG data
+      const r = await fetch(`/api/v1/signal/dashboard-summary?_t=${Date.now()}`)
+      if (r.ok) {
+        const d: DashboardData = await r.json()
+        setData(d)
+        setLastRefresh(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
+      }
+    } catch { /* silent */ }
+    finally { setLoading(false) }
   }, [])
 
-  const onlineCount = Object.values(serviceStatus).filter(Boolean).length
+  useEffect(() => { fetchDashboard() }, [fetchDashboard])
+
+  // Auto-refresh every 60s
+  useEffect(() => {
+    const timer = setInterval(fetchDashboard, 60_000)
+    return () => clearInterval(timer)
+  }, [fetchDashboard])
+
+  // ── Fetch Screening Dashboard ──
+  useEffect(() => {
+    const fetchScreening = async () => {
+      setPicksLoading(true); setDbLoading(true)
+      try {
+        const r = await fetch(`/api/v1/dashboard/summary?_t=${Date.now()}`)
+        if (r.ok) {
+          const d = await r.json()
+          if (d.status !== 'no_data') {
+            setDbSummary(d)
+            setDashboardPicks(d.dual_consensus?.length > 0 ? d.dual_consensus : d.merged || [])
+            setDashboardPredictions(d.predictions || [])
+          }
+        }
+      } catch { /* silent */ }
+      finally { setPicksLoading(false); setDbLoading(false) }
+    }
+    fetchScreening()
+    const timer = setInterval(fetchScreening, 120_000) // every 2min
+    return () => clearInterval(timer)
+  }, [])
+
+  // ── Render helpers ──
+
+  const sentiment = data?.market_sentiment
+  const limitStocks = data?.limit_stocks
+  const signalStocks = data?.signal_stocks || []
+  const alertSignals = data?.alert_signals || []
+  const watchlist = data?.watchlist || []
+  const modes = data?.screener_modes || []
+  const services = data?.service_health || []
+  const onlineCount = services.filter(s => s.online).length
+  const refreshCountdown = (d: string) => {
+    if (!d) return ''
+    const elapsed = Math.floor((Date.now() - new Date(d).getTime()) / 1000)
+    const next = 60 - (elapsed % 60)
+    return `${next}s 后自动刷新`
+  }
+
+  // Limit stock drill-down columns
+  const limitColumns: ColumnsType<LimitStock> = [
+    { title: '代码', dataIndex: 'code', width: 80, render: (v: string) => <Text code>{v}</Text> },
+    { title: '名称', dataIndex: 'name', width: 100 },
+    { title: '涨停价', dataIndex: 'limit_price', width: 80, render: (v: number) => `¥${v?.toFixed(2)}` },
+    { title: '昨收', dataIndex: 'pre_close', width: 80, render: (v: number) => `¥${v?.toFixed(2)}` },
+    { title: '涨幅', dataIndex: 'change_pct', width: 80,
+      render: (v: number) => <Text style={{ color: v >= 0 ? '#ff4d4f' : '#52c41a', fontWeight: 600 }}>{v >= 0 ? '+' : ''}{v}%</Text> },
+  ]
+
+  const sentimentColor = (sentiment?.score ?? 50) >= 60 ? '#52c41a' : (sentiment?.score ?? 50) >= 40 ? '#faad14' : '#ff4d4f'
 
   return (
     <div>
-      {/* ── AI Opportunity Radar ── */}
+      {/* ══════════════════════════════════════════════════ */}
+      {/* ── Header: AI Opportunity Radar ── */}
+      {/* ══════════════════════════════════════════════════ */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          <ThunderboltOutlined style={{ marginRight: 8, color: '#1677ff' }} />
-          AI 机会雷达
-        </Title>
+        <div>
+          <Title level={4} style={{ margin: 0 }}>
+            <ThunderboltOutlined style={{ marginRight: 8, color: '#1677ff' }} />
+            AI 机会雷达
+          </Title>
+          {data?.data_sources?.signal_stocks && (
+            <Tooltip title={`数据来源: ${data.data_sources.signal_stocks}`}>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                <InfoCircleOutlined style={{ marginRight: 4 }} />
+                {data?.data_sources?.signal_stocks?.split('—')[0]?.trim()}
+              </Text>
+            </Tooltip>
+          )}
+        </div>
         <Space>
-          <Text type="secondary" style={{ fontSize: 12 }}>每分钟更新</Text>
-          <Button size="small" icon={<SyncOutlined />} loading={loading}>刷新</Button>
+          {lastRefresh && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              最近刷新: {lastRefresh}
+              {data?.refreshed_at && (
+                <Text type="secondary" style={{ fontSize: 10, marginLeft: 8, color: '#bfbfbf' }}>
+                  ({refreshCountdown(data.refreshed_at)})
+                </Text>
+              )}
+            </Text>
+          )}
+          <Button size="small" icon={<SyncOutlined />} loading={loading} onClick={fetchDashboard}>刷新</Button>
         </Space>
       </div>
 
-      {/* Signal Cards — horizontal scroll */}
-      <div style={{
-        display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 12,
-        scrollbarWidth: 'none',
-      }}>
-        {signalStocks.map(stock => (
-          <Card
-            key={stock.code}
-            size="small"
-            style={{
-              minWidth: 200, maxWidth: 200, borderRadius: 8, cursor: 'pointer', flexShrink: 0,
-              border: '1px solid #f0f0f0',
-            }}
-            hoverable
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <Text strong style={{ fontSize: 14 }}>{stock.code}</Text>
-                <Tag style={{ marginLeft: 4, fontSize: 10 }}>{stock.market}</Tag>
-              </div>
-              <Tag color={
-                stock.signal === 'Bullish' ? '#52c41a' :
-                stock.signal === 'Bearish' ? '#ff4d4f' : '#1890ff'
-              } style={{ fontSize: 10 }}>
-                {stock.signal === 'Bullish' ? '📈 看涨' :
-                 stock.signal === 'Bearish' ? '📉 看跌' : '➡️ 震荡'}
-              </Tag>
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <Text style={{ fontSize: 20, fontWeight: 700 }}>{stock.price}</Text>
-              <Text style={{
-                fontSize: 13, marginLeft: 8,
-                color: stock.change >= 0 ? '#52c41a' : '#ff4d4f',
-              }}>
-                {stock.change >= 0 ? '+' : ''}{stock.change}%
-              </Text>
-            </div>
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-              {stock.desc}
-            </Text>
+      {/* ── Signal Cards with auto-scroll ── */}
+      <div style={{ overflow: 'hidden', marginBottom: 16, position: 'relative' }}>
+        {signalStocks.length > 0 ? (
+          <div style={{
+            display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8,
+            scrollBehavior: 'smooth',
+          }}>
+            {signalStocks.map(stock => {
+              const st = signalTag(stock.signal)
+              return (
+                <Card key={stock.code} size="small" hoverable
+                  style={{ minWidth: 200, maxWidth: 200, borderRadius: 8, flexShrink: 0, border: '1px solid #f0f0f0' }}
+                  onClick={() => navigate(`/diagnosis?code=${stock.code}`)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <Text strong style={{ fontSize: 14 }}>{stock.code}</Text>
+                      <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>{stock.name}</Text>
+                      <Tag style={{ marginLeft: 4, fontSize: 10 }}>{stock.market}</Tag>
+                    </div>
+                    <Tag color={st.color} style={{ fontSize: 10 }}>{st.icon} {st.label}</Tag>
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <Text style={{ fontSize: 20, fontWeight: 700 }}>¥{stock.price}</Text>
+                    <Text style={{ fontSize: 13, marginLeft: 8, color: stock.change_pct >= 0 ? '#52c41a' : '#ff4d4f' }}>
+                      {stock.change_pct >= 0 ? '+' : ''}{stock.change_pct}%
+                    </Text>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                    {stock.desc || (stock.change_pct >= 0 ? '上涨' : '下跌')}
+                  </Text>
+                </Card>
+              )
+            })}
+          </div>
+        ) : (
+          <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
+            <Text type="secondary">信号数据加载中...</Text>
           </Card>
-        ))}
+        )}
       </div>
 
-      {/* ── Market Indicators ── */}
+      {/* ══════════════════════════════════════════════════ */}
+      {/* ── Market Indicators Row ── */}
+      {/* ══════════════════════════════════════════════════ */}
       <Row gutter={12} style={{ marginBottom: 16 }}>
+        {/* ── Market Sentiment ── */}
         <Col span={8}>
-          <Card size="small" style={{ borderRadius: 8 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>市场情绪</Text>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#faad14' }}>62</div>
-            <Progress percent={62} size="small" showInfo={false} strokeColor="#faad14" />
-          </Card>
+          <Tooltip
+            title={
+              <div style={{ maxWidth: 360 }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>市场情绪指数 ({sentiment?.score ?? '—'})</div>
+                <div style={{ fontSize: 12, marginBottom: 8 }}>{sentiment?.model}</div>
+                <div style={{ fontSize: 12, marginBottom: 4 }}>{sentiment?.formula}</div>
+                <div style={{ fontSize: 11, color: '#aaa' }}>
+                  {sentiment && Object.entries(sentiment.sub_dimensions).map(([k, v]) => (
+                    <div key={k}>{k}: {v}</div>
+                  ))}
+                </div>
+              </div>
+            }
+          >
+            <Card size="small" style={{ borderRadius: 8, cursor: 'help', height: '100%' }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                市场情绪 <InfoCircleOutlined style={{ fontSize: 10 }} />
+              </Text>
+              <div style={{ fontSize: 24, fontWeight: 700, color: sentimentColor }}>
+                {sentiment?.score ?? '—'}
+                <Text style={{ fontSize: 13, fontWeight: 400, marginLeft: 6, color: sentimentColor }}>
+                  {sentiment?.label}
+                </Text>
+              </div>
+              <Progress percent={sentiment?.score ?? 50} size="small" showInfo={false}
+                strokeColor={sentimentColor} />
+              {sentiment?.trade_date && (
+                <Text type="secondary" style={{ fontSize: 10 }}>
+                  数据日期: {sentiment.trade_date} | 共 {sentiment.total_stocks} 只
+                </Text>
+              )}
+            </Card>
+          </Tooltip>
         </Col>
+
+        {/* ── Limit Up/Down ── */}
         <Col span={8}>
-          <Card size="small" style={{ borderRadius: 8 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>涨停/跌停</Text>
+          <Card size="small" style={{ borderRadius: 8, cursor: 'pointer', height: '100%' }}
+            onClick={() => setLimitModal({ open: true, type: 'up' })} hoverable>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              涨停 / 跌停 <InfoCircleOutlined style={{ fontSize: 10 }} />
+            </Text>
             <div style={{ fontSize: 24, fontWeight: 700 }}>
-              <span style={{ color: '#ff4d4f' }}>45</span>
-              <span style={{ color: '#d9d9d9', margin: '0 4px' }}>/</span>
-              <span style={{ color: '#52c41a' }}>8</span>
+              <Tooltip title="点击查看涨停股票列表">
+                <span style={{ color: '#ff4d4f', cursor: 'pointer' }}
+                  onClick={e => { e.stopPropagation(); setLimitModal({ open: true, type: 'up' }) }}>
+                  {limitStocks?.up_count ?? '—'}
+                </span>
+              </Tooltip>
+              <span style={{ color: '#d9d9d9', margin: '0 6px' }}>/</span>
+              <Tooltip title="点击查看跌停股票列表">
+                <span style={{ color: '#52c41a', cursor: 'pointer' }}
+                  onClick={e => { e.stopPropagation(); setLimitModal({ open: true, type: 'down' }) }}>
+                  {limitStocks?.down_count ?? '—'}
+                </span>
+              </Tooltip>
             </div>
+            <Text type="secondary" style={{ fontSize: 10 }}>
+              {limitStocks?.data_source || '数据来源: stk_limit 表'}
+            </Text>
           </Card>
         </Col>
+
+        {/* ── Trading Alert Signals (replaces old Service Status) ── */}
         <Col span={8}>
-          <Card size="small" style={{ borderRadius: 8 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>服务状态</Text>
-            <div style={{ fontSize: 24, fontWeight: 700, color: onlineCount >= 6 ? '#52c41a' : '#faad14' }}>
-              {onlineCount}<span style={{ fontSize: 14, fontWeight: 400, color: '#8c8c8c' }}>/8</span>
+          <Card
+            size="small"
+            style={{ borderRadius: 8, height: '100%', borderTop: '3px solid #fa8c16', background: '#fffbe6' }}
+            bodyStyle={{ padding: '12px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Space size={4}>
+                <BellOutlined style={{ color: '#fa8c16', fontSize: 14 }} />
+                <Text strong style={{ fontSize: 13 }}>交易预警信号</Text>
+                {alertSignals.length > 0 && (
+                  <Badge count={alertSignals.length} size="small" style={{ backgroundColor: '#fa8c16' }} />
+                )}
+              </Space>
+              <Tooltip title={data?.data_sources?.alert_signals || '量价异动 + 涨跌停逼近实时预警'}>
+                <InfoCircleOutlined style={{ color: '#8c8c8c', fontSize: 11, cursor: 'help' }} />
+              </Tooltip>
+            </div>
+
+            {alertSignals.length > 0 ? (
+              <div style={{
+                maxHeight: 110, overflowY: 'auto',
+                scrollBehavior: 'smooth',
+              }}>
+                {alertSignals.map((a, i) => (
+                  <div
+                    key={`${a.code}-${i}`}
+                    style={{
+                      padding: '5px 6px', marginBottom: 4, borderRadius: 4,
+                      background: a.level === 'urgent' ? '#fff2f0' : '#fffbe6',
+                      borderLeft: `3px solid ${a.level === 'urgent' ? '#ff4d4f' : '#fa8c16'}`,
+                      cursor: 'pointer', fontSize: 11,
+                      animation: i === 0 ? 'pulse 2s infinite' : undefined,
+                    }}
+                    onClick={() => navigate(`/diagnosis?code=${a.code}`)}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <Space size={4}>
+                        <span>{a.icon}</span>
+                        <Text strong style={{ fontSize: 11 }}>{a.code}</Text>
+                        <Text style={{ fontSize: 10, color: '#595959' }}>{a.name}</Text>
+                        <Text style={{
+                          fontSize: 11, fontWeight: 600,
+                          color: a.change_pct >= 0 ? '#52c41a' : '#ff4d4f',
+                        }}>
+                          {a.change_pct >= 0 ? '+' : ''}{a.change_pct}%
+                        </Text>
+                      </Space>
+                      <Tag color={a.level === 'urgent' ? 'red' : 'orange'}
+                           style={{ fontSize: 9, margin: 0, padding: '0 4px', lineHeight: '16px' }}>
+                        {a.level === 'urgent' ? '紧急' : '预警'}
+                      </Tag>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 10, display: 'block', marginTop: 2, lineHeight: 1.4 }}>
+                      {a.reason}
+                    </Text>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                <CheckCircleOutlined style={{ fontSize: 20, color: '#52c41a', display: 'block', marginBottom: 4 }} />
+                <Text type="secondary" style={{ fontSize: 11 }}>暂无异常预警信号</Text>
+              </div>
+            )}
+
+            {/* Service status mini bar */}
+            <Divider style={{ margin: '6px 0' }} />
+            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              {services.map(s => (
+                <Tooltip key={s.key} title={`${s.name} (:${s.port}) ${s.online ? '在线' : '离线'}`}>
+                  <Badge status={s.online ? 'success' : 'default'} />
+                  <Text style={{ fontSize: 9, color: '#8c8c8c', marginRight: 4 }}>:{s.port}</Text>
+                </Tooltip>
+              ))}
             </div>
           </Card>
         </Col>
       </Row>
 
-      {/* ── Main Content Area ── */}
+      {/* ══════════════════════════════════════════════════ */}
+      {/* ── Main Content ── */}
+      {/* ══════════════════════════════════════════════════ */}
       <Row gutter={16}>
-        {/* Left: Quick Actions + Model Info */}
         <Col span={16}>
-          {/* Asset Class Tabs */}
-          <Radio.Group value={activeTab} onChange={e => setActiveTab(e.target.value)}
-                       style={{ marginBottom: 16 }} size="small">
-            <Radio.Button value="A股">A股</Radio.Button>
-            <Radio.Button value="港股">港股</Radio.Button>
-            <Radio.Button value="板块">板块</Radio.Button>
-          </Radio.Group>
-
-          {/* AI Analysis Engine Card */}
-          <Card style={{ borderRadius: 8, marginBottom: 16 }}
-                title={<Space><StarOutlined style={{ color: '#1677ff' }} />AI 分析引擎</Space>}
-                extra={<Tag color="blue">AI-POWERED</Tag>}>
-            <Text type="secondary">多源数据驱动 · 机构级洞察 · 实时市场脉动</Text>
+          {/* ── AI Analysis Engine ── */}
+          <Card
+            title={<Space><StarOutlined style={{ color: '#1677ff' }} />AI 分析引擎</Space>}
+            extra={<Tag color="blue">AI-POWERED</Tag>}
+            style={{ borderRadius: 8, marginBottom: 16 }}
+          >
+            <Text type="secondary">
+              多源数据驱动 · 机构级洞察 · 实时市场脉动 · 点击卡片进入对应功能
+            </Text>
             <Row gutter={12} style={{ marginTop: 16 }}>
               <Col span={8}>
-                <Card size="small" style={{ textAlign: 'center', borderRadius: 8 }}>
+                <Card size="small" hoverable style={{ textAlign: 'center', borderRadius: 8, cursor: 'pointer' }}
+                  onClick={() => navigate('/predictions')}>
                   <LineChartOutlined style={{ fontSize: 28, color: '#1677ff' }} />
-                  <div style={{ fontWeight: 600, marginTop: 8 }}>多周期预测</div>
-                  <Text type="secondary" style={{ fontSize: 11 }}>融合4时间维度AI共识</Text>
+                  <div style={{ fontWeight: 600, marginTop: 8 }}>K线预测</div>
+                  <Text type="secondary" style={{ fontSize: 11 }}>Kronos 4时间维度AI共识</Text>
+                  <div style={{ marginTop: 4 }}>
+                    <Button type="link" size="small">进入预测 <RightOutlined /></Button>
+                  </div>
                 </Card>
               </Col>
               <Col span={8}>
-                <Card size="small" style={{ textAlign: 'center', borderRadius: 8 }}>
-                  <DashboardOutlined style={{ fontSize: 28, color: '#1677ff' }} />
-                  <div style={{ fontWeight: 600, marginTop: 8 }}>因子矩阵</div>
-                  <Text type="secondary" style={{ fontSize: 11 }}>机构级量化指标体系</Text>
+                <Card size="small" hoverable style={{ textAlign: 'center', borderRadius: 8, cursor: 'pointer' }}
+                  onClick={() => navigate('/screener')}>
+                  <SearchOutlined style={{ fontSize: 28, color: '#1677ff' }} />
+                  <div style={{ fontWeight: 600, marginTop: 8 }}>智能选股</div>
+                  <Text type="secondary" style={{ fontSize: 11 }}>6套策略 · 5000+标的 · 多因子排序</Text>
+                  <div style={{ marginTop: 4 }}>
+                    <Button type="link" size="small">进入选股 <RightOutlined /></Button>
+                  </div>
                 </Card>
               </Col>
               <Col span={8}>
-                <Card size="small" style={{ textAlign: 'center', borderRadius: 8 }}>
-                  <StarOutlined style={{ fontSize: 28, color: '#1677ff' }} />
-                  <div style={{ fontWeight: 600, marginTop: 8 }}>一键选股</div>
-                  <Text type="secondary" style={{ fontSize: 11 }}>方案直达 · 智能监控</Text>
+                <Card size="small" hoverable style={{ textAlign: 'center', borderRadius: 8, cursor: 'pointer' }}
+                  onClick={() => navigate('/strategy')}>
+                  <BulbOutlined style={{ fontSize: 28, color: '#1677ff' }} />
+                  <div style={{ fontWeight: 600, marginTop: 8 }}>方案管理</div>
+                  <Text type="secondary" style={{ fontSize: 11 }}>选股 → 方案 → 自动交易</Text>
+                  <div style={{ marginTop: 4 }}>
+                    <Button type="link" size="small">进入方案 <RightOutlined /></Button>
+                  </div>
                 </Card>
               </Col>
             </Row>
           </Card>
 
-          {/* Screening Models */}
-          <Card title={<Space><SearchOutlined style={{ color: '#1677ff' }} />选股模型 ({modes.length})</Space>}
-                style={{ borderRadius: 8 }}>
-            <List dataSource={modes} renderItem={(m: any) => (
-              <List.Item style={{ padding: '8px 0' }}>
-                <Space>
-                  <Tag color="blue" style={{ fontFamily: 'monospace' }}>{m.id}</Tag>
-                  <Text strong>{m.name}</Text>
-                  <Tag>{m.cycle}</Tag>
-                  <Tag color={m.style === '激进' ? '#ff4d4f' : m.style === '稳健' ? '#52c41a' : '#1890ff'}>
-                    {m.style}
-                  </Tag>
-                </Space>
-              </List.Item>
-            )} />
+          {/* ── Screening Models ── */}
+          <Card
+            title={<Space><ExperimentOutlined style={{ color: '#1677ff' }} />选股模型 ({modes.length})</Space>}
+            style={{ borderRadius: 8, marginBottom: 16 }}
+            extra={
+              <Tooltip title={data?.data_sources?.screener_modes}>
+                <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+              </Tooltip>
+            }
+          >
+            {modes.length > 0 ? (
+              <List
+                dataSource={modes}
+                renderItem={(m: ScreenerMode) => (
+                  <List.Item style={{ padding: '8px 0', cursor: 'pointer' }}
+                    onClick={() => navigate('/screener')}>
+                    <Space>
+                      <Tag color="blue" style={{ fontFamily: 'monospace' }}>{m.id}</Tag>
+                      <Text strong>{m.name}</Text>
+                      <Tag>{m.cycle}</Tag>
+                      <Tag color={m.style === '激进' ? '#ff4d4f' : m.style === '稳健' ? '#52c41a' : '#1890ff'}>
+                        {m.style}
+                      </Tag>
+                    </Space>
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <Empty description="选股模型加载中..." image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            )}
+          </Card>
+
+          {/* ── Market Data Sources ── */}
+          <Card size="small" style={{ borderRadius: 8, background: '#fafafa' }}
+            title={<Space><ApiOutlined style={{ color: '#8c8c8c' }} />数据来源</Space>}>
+            {data?.data_sources && Object.entries(data.data_sources).map(([key, val]) => (
+              <div key={key} style={{ fontSize: 12, marginBottom: 2 }}>
+                <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 11 }}>{key}</Text>
+                <Text style={{ fontSize: 11, marginLeft: 8 }}>{val}</Text>
+              </div>
+            ))}
           </Card>
         </Col>
 
-        {/* Right: Watchlist + Service Status */}
+        {/* ══════════════════════════════════════════════════ */}
+        {/* ── Right Column: Watchlist + Health ── */}
+        {/* ══════════════════════════════════════════════════ */}
         <Col span={8}>
+          {/* ── Watchlist Enhanced ── */}
           <Card
-            title={<Space><StarOutlined /> 自选监控</Space>}
-            size="small" style={{ borderRadius: 8, marginBottom: 16 }}
-            extra={<Button size="small" type="text" icon={<StarOutlined />} />}
+            title={<Space><StarOutlined />自选监控</Space>}
+            size="small"
+            style={{ borderRadius: 8, marginBottom: 16 }}
+            extra={<Button size="small" type="text" icon={<SyncOutlined />} loading={loading} onClick={fetchDashboard} />}
           >
-            {signalStocks.slice(0, 4).map(s => (
-              <div key={s.code} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '6px 0', borderBottom: '1px solid #f0f0f0',
-              }}>
-                <div>
-                  <Text strong style={{ fontSize: 13 }}>{s.code}</Text>
-                  <Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>{s.market}</Text>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <Text style={{ fontSize: 13 }}>{s.price}</Text>
-                  <Text style={{
-                    fontSize: 12, marginLeft: 8,
-                    color: s.change >= 0 ? '#52c41a' : '#ff4d4f',
-                  }}>{s.change >= 0 ? '+' : ''}{s.change}%</Text>
-                </div>
+            {watchlist.length > 0 ? (
+              <div>
+                {watchlist.map(s => (
+                  <div key={s.code} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '8px 0', borderBottom: '1px solid #f0f0f0', cursor: 'pointer',
+                  }} onClick={() => navigate(`/diagnosis?code=${s.code}`)}>
+                    <div>
+                      <Text strong style={{ fontSize: 13 }}>{s.code}</Text>
+                      <Text style={{ fontSize: 12, marginLeft: 6 }}>{s.name}</Text>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                        {s.industry || '—'}
+                      </Text>
+                      <Text style={{ fontSize: 12, fontWeight: 600 }}>
+                        {(s.market_cap / 1e8).toFixed(0)}亿
+                      </Text>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <Empty description="自选股加载中..." image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            )}
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                数据来源: {data?.data_sources?.watchlist || 'PG stocks 表市值 Top 10'}
+              </Text>
+            </div>
           </Card>
 
-          <Card title="服务状态" size="small" style={{ borderRadius: 8 }}>
+          {/* ── Service Health Detail ── */}
+          <Card
+            title={<Space><DashboardOutlined />服务状态详情</Space>}
+            size="small" style={{ borderRadius: 8 }}
+            extra={<Text type="secondary" style={{ fontSize: 11 }}>{onlineCount}/{services.length}</Text>}
+          >
             {services.map(s => (
-              <div key={s.port} style={{
+              <div key={s.key} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '4px 0', fontSize: 12,
+                padding: '5px 0', fontSize: 12,
               }}>
                 <Space size="small">
-                  <span style={{
-                    width: 6, height: 6, borderRadius: '50%', display: 'inline-block',
-                    backgroundColor: serviceStatus[s.port] ? '#52c41a' : '#d9d9d9',
-                  }} />
+                  <Badge status={s.online ? 'success' : 'default'} />
                   <Text style={{ fontSize: 12 }}>{s.name}</Text>
                 </Space>
-                <Tag color={serviceStatus[s.port] ? 'success' : 'default'} style={{ fontSize: 10 }}>
-                  :{s.port}
-                </Tag>
+                <Space size="small">
+                  <Tag color={s.online ? 'success' : 'default'} style={{ fontSize: 10 }}>
+                    :{s.port}
+                  </Tag>
+                  <Text type="secondary" style={{ fontSize: 10 }}>
+                    {s.online ? '在线' : '离线'}
+                  </Text>
+                </Space>
               </div>
             ))}
+            <Divider style={{ margin: '8px 0' }} />
+            <Text type="secondary" style={{ fontSize: 10 }}>
+              检测方式: 各服务 /api/v1/health 端点 · 60秒自动刷新
+            </Text>
           </Card>
         </Col>
       </Row>
+
+      {/* ══════════════════════════════════════════════════ */}
+      {/* ── Smart Screening Dashboard ── */}
+      {/* ══════════════════════════════════════════════════ */}
+      <Card
+        title={<Space><SearchOutlined style={{ color: '#1677ff' }} />多策略融合选股看板</Space>}
+        style={{ borderRadius: 8, marginBottom: 16 }}
+        extra={<Space>
+          <Text type="secondary" style={{ fontSize: 11 }}>数据来源: orchestrator.py</Text>
+          <Button size="small" type="primary" icon={<ThunderboltOutlined />}
+            onClick={async () => {
+              try {
+                await fetch('/api/v1/dashboard/run-pipeline', { method: 'POST' })
+                message.success('流水线已触发, 2分钟后刷新查看结果')
+              } catch { message.error('触发失败') }
+            }}>
+            一键选股
+          </Button>
+        </Space>}
+      >
+        <Row gutter={16}>
+          {/* Left: Consensus picks table */}
+          <Col span={16}>
+            <Text strong style={{ fontSize: 13 }}>共识选股 Top 20</Text>
+            <Table
+              dataSource={dashboardPicks.slice(0, 20)}
+              rowKey="code"
+              size="small"
+              loading={dbLoading || picksLoading}
+              pagination={false}
+              scroll={{ y: 400 }}
+              style={{ marginTop: 8 }}
+              onRow={(record) => ({
+                onClick: () => navigate(`/diagnosis?code=${record.code}`),
+                style: { cursor: 'pointer' },
+              })}
+              columns={[
+                { title: '#', width: 30, render: (_: any, __: any, i: number) => i + 1 },
+                { title: '代码', dataIndex: 'code', width: 80, render: (v: string) => <Text code>{v}</Text> },
+                { title: '名称', dataIndex: 'name', width: 80 },
+                { title: '共识', dataIndex: 'consensus_level', width: 120,
+                  render: (v: string, r: any) => (
+                    <Space>
+                      <Tag color={r.consensus >= 2 ? 'gold' : 'default'}>{v}</Tag>
+                      <Text type="secondary" style={{ fontSize: 10 }}>{r.sources?.join?.('+')}</Text>
+                    </Space>
+                  )},
+                { title: '评分', dataIndex: 'best_score', width: 60, sorter: (a:any,b:any) => a.best_score - b.best_score,
+                  render: (v: number) => <Text strong>{v}</Text> },
+                { title: '评级', dataIndex: 'best_grade', width: 50,
+                  render: (v: string) => <Tag color={v==='S'?'red':v==='A'?'orange':'default'}>{v}</Tag> },
+              ]}
+            />
+          </Col>
+
+          {/* Right: Summary stats + Predictions */}
+          <Col span={8}>
+            {/* Summary stats */}
+            <Card size="small" style={{ borderRadius: 8, marginBottom: 12 }}>
+              <Statistic title="融合标的" value={dbSummary?.summary?.total_picks || 0} suffix="只"
+                valueStyle={{ fontSize: 20 }} />
+              <Row gutter={8}>
+                <Col span={12}>
+                  <Statistic title="高共识" value={dbSummary?.summary?.consensus_dual || 0}
+                    valueStyle={{ fontSize: 16, color: '#faad14' }} suffix="只" />
+                </Col>
+                <Col span={12}>
+                  <Statistic title="策略数" value={dbSummary?.summary?.strategies_run || 0}
+                    valueStyle={{ fontSize: 16, color: '#1677ff' }} suffix="套" />
+                </Col>
+              </Row>
+              <Text type="secondary" style={{ fontSize: 10 }}>
+                耗时 {(dbSummary?.elapsed || 0).toFixed(0)}s · {dbSummary?.date || '—'}
+              </Text>
+            </Card>
+
+            {/* Kronos Predictions */}
+            <Card size="small" title={<Space><LineChartOutlined style={{ color: '#722ed1' }} />AI 预测 Top 5</Space>}
+              style={{ borderRadius: 8 }}>
+              {dashboardPredictions.slice(0, 5).map((p: any) => (
+                <div key={p.code} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontSize: 12,
+                }}>
+                  <div>
+                    <Text strong style={{ fontSize: 12 }}>{p.code}</Text>
+                    <Text style={{ marginLeft: 4, fontSize: 11 }}>{p.name}</Text>
+                  </div>
+                  <Space size={4}>
+                    <Tag color={p.pred_return_pct > 0 ? 'green' : 'red'} style={{ fontSize: 10 }}>
+                      {p.pred_return_pct > 0 ? '+' : ''}{p.pred_return_pct}%
+                    </Tag>
+                    <Text style={{ fontSize: 10, color: '#8c8c8c' }}>{p.current_price}</Text>
+                  </Space>
+                </div>
+              ))}
+              {dashboardPredictions.length === 0 && (
+                <Text type="secondary" style={{ fontSize: 11 }}>预测模型未加载或无可预测标的</Text>
+              )}
+              {dbSummary?.summary?.predictions_total > 0 && (
+                <Text type="secondary" style={{ fontSize: 9, display: 'block', marginTop: 4 }}>
+                  Kronos-mini 微调模型 · {dbSummary.summary.predictions_up}↑ {dbSummary.summary.predictions_down}↓
+                </Text>
+              )}
+            </Card>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* ══════════════════════════════════════════════════ */}
+      {/* ── Limit Stock Drill-Down Modal ── */}
+      {/* ══════════════════════════════════════════════════ */}
+      <Modal
+        title={`${limitModal.type === 'up' ? '📈 涨停' : '📉 跌停'} 股票列表 (${limitModal.type === 'up' ? limitStocks?.up_count : limitStocks?.down_count} 只)`}
+        open={limitModal.open}
+        onCancel={() => setLimitModal({ open: false, type: 'up' })}
+        footer={null}
+        width={600}
+      >
+        <Radio.Group
+          value={limitModal.type}
+          onChange={e => setLimitModal(prev => ({ ...prev, type: e.target.value }))}
+          style={{ marginBottom: 16 }}
+        >
+          <Radio.Button value="up">涨停 ({limitStocks?.up_count ?? 0})</Radio.Button>
+          <Radio.Button value="down">跌停 ({limitStocks?.down_count ?? 0})</Radio.Button>
+        </Radio.Group>
+        {limitModal.type === 'up' && (limitStocks?.up_list?.length ?? 0) > 0 && (
+          <Table columns={limitColumns} dataSource={limitStocks!.up_list} rowKey="code"
+            size="small" pagination={{ pageSize: 15 }} />
+        )}
+        {limitModal.type === 'down' && (limitStocks?.down_list?.length ?? 0) > 0 && (
+          <Table columns={limitColumns} dataSource={limitStocks!.down_list} rowKey="code"
+            size="small" pagination={{ pageSize: 15 }} />
+        )}
+        {((limitModal.type === 'up' && !limitStocks?.up_list?.length) ||
+          (limitModal.type === 'down' && !limitStocks?.down_list?.length)) && (
+          <Empty description="暂无数据。stk_limit 表可能缺少当日的涨跌停明细。" />
+        )}
+      </Modal>
     </div>
   )
 }
