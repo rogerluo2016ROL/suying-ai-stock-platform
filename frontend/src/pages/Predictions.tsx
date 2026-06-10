@@ -83,21 +83,43 @@ export default function Predictions() {
                 </Card>
 
                 {result.pred_trajectory && (
-                  <Card title="预测轨迹" style={{ borderRadius: 8, marginTop: 16 }}>
-                    <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 8 }}>
-                      {result.pred_trajectory.map((p: any) => (
-                        <div key={p.day} style={{
-                          minWidth: 50, textAlign: 'center', padding: 8,
-                          background: p.close >= result.current_price ? '#f6ffed' : '#fff2f0',
-                          borderRadius: 4, border: '1px solid ' + (p.close >= result.current_price ? '#b7eb8f' : '#ffa39e'),
-                        }}>
-                          <div style={{ fontSize: 10, color: '#8c8c8c' }}>D{p.day}</div>
-                          <div style={{ fontSize: 12, fontWeight: 600 }}>{p.close}</div>
-                          <div style={{ fontSize: 10, color: p.close >= result.current_price ? '#52c41a' : '#ff4d4f' }}>
-                            {p.close >= result.current_price ? '↑' : '↓'}
-                          </div>
-                        </div>
-                      ))}
+                  <Card title="Kronos 预测K线图" style={{ borderRadius: 8, marginTop: 16 }}>
+                    <div style={{ background: '#1a1a2e', borderRadius: 8, padding: 16, overflowX: 'auto' }}>
+                      {(() => { const traj = result.pred_trajectory; const maxVal = Math.max(...traj.map((x:any)=>x.high)); const minVal = Math.min(...traj.map((x:any)=>x.low)); return <>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 200, minWidth: traj.length * 22 }}>
+                        {traj.map((p: any, i: number) => {
+                          const range = maxVal - minVal || 1
+                          const hPct = ((p.high - minVal) / range) * 160 + 20
+                          const lPct = ((p.low - minVal) / range) * 160 + 20
+                          const oPct = ((p.open - minVal) / range) * 160 + 20
+                          const cPct = ((p.close - minVal) / range) * 160 + 20
+                          const isUp = p.close >= p.open
+                          return (
+                            <div key={i} style={{ flex: 1, position: 'relative', height: 200, minWidth: 16 }}>
+                              {/* High-Low line */}
+                              <div style={{ position:'absolute', left:'50%', width:1, top:`${200-hPct}px`, height:`${hPct-lPct}px`, background:'#888' }} />
+                              {/* Open-Close body */}
+                              <div style={{ position:'absolute', left:2, right:2,
+                                top:`${200-Math.max(oPct,cPct)}px`,
+                                height:`${Math.abs(cPct-oPct)||2}px`,
+                                background: isUp ? '#26a69a' : '#ef5350',
+                                borderRadius: 1 }} />
+                              {/* Day label */}
+                              <div style={{ position:'absolute', bottom:0, left:0, right:0, textAlign:'center', fontSize:8, color:'#888' }}>D{p.day}</div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginTop:4 }}>
+                        <Text style={{color:'#888',fontSize:10}}>{minVal.toFixed(1)}</Text>
+                        <Text style={{color:'#fff',fontSize:12}}>{result.current_price} → {result.pred_last_close} ({result.pred_return_pct > 0 ? '+' : ''}{result.pred_return_pct}%)</Text>
+                        <Text style={{color:'#888',fontSize:10}}>{maxVal.toFixed(1)}</Text>
+                      </div>
+                      </> })()}
+                      <div style={{display:'flex',gap:16,marginTop:4,justifyContent:'center'}}>
+                        <Space><span style={{width:10,height:10,background:'#26a69a',borderRadius:1,display:'inline-block'}}/><Text style={{color:'#888',fontSize:10}}>阳线</Text></Space>
+                        <Space><span style={{width:10,height:10,background:'#ef5350',borderRadius:1,display:'inline-block'}}/><Text style={{color:'#888',fontSize:10}}>阴线</Text></Space>
+                      </div>
                     </div>
                   </Card>
                 )}
