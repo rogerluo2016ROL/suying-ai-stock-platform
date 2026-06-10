@@ -1,0 +1,914 @@
+- generic [active] [ref=e1]:
+  - img
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - generic:
+        - generic [ref=e5]:
+          - link "东方财富网" [ref=e8] [cursor=pointer]:
+            - /url: //www.eastmoney.com
+          - link "股吧首页" [ref=e10] [cursor=pointer]:
+            - /url: //guba.eastmoney.com
+          - link "基金吧" [ref=e13] [cursor=pointer]:
+            - /url: //guba.eastmoney.com/jj.html
+          - link "话题" [ref=e16] [cursor=pointer]:
+            - /url: //gubatopic.eastmoney.com
+          - link "问董秘" [ref=e19] [cursor=pointer]:
+            - /url: //guba.eastmoney.com/qa/qa_list.aspx
+          - link "人气榜" [ref=e22] [cursor=pointer]:
+            - /url: //guba.eastmoney.com/rank/
+        - generic [ref=e23]:
+          - text: 您好，欢迎来股吧！
+          - link "登录/注册" [ref=e24] [cursor=pointer]:
+            - /url: https://passport2.eastmoney.com/pub/login?backurl=https%3A%2F%2Fguba.eastmoney.com%2Fnews%2Cgssz%2C1723460893.html%3Fjumph5%3D1
+    - generic [ref=e26]:
+      - iframe [ref=e28]:
+        - link [ref=f2e3] [cursor=pointer]:
+          - /url: //same.eastmoney.com/c?z=eastmoney&la=0&si=1&cg=39&c=1709&ci=1&or=3841&l=17026&bg=17027&b=19530&u=https%3A%2F%2Fzqhd.18.cn%2Findex.html%3Fad_id%3Dwebtg_hskh_act_gbzwy1tz_01_01_01_0
+          - img [ref=f2e4]
+      - generic [ref=e30]:
+        - link [ref=e32] [cursor=pointer]:
+          - /url: //guba.eastmoney.com
+        - generic [ref=e34]:
+          - textbox "请输入股票代码、吧名、作者、话题、内容关键字" [ref=e37]
+          - generic [ref=e38] [cursor=pointer]: 股吧搜索
+        - generic [ref=e39]:
+          - generic:
+            - generic:
+              - generic:
+                - generic [ref=e40]:
+                  - generic:
+                    - list [ref=e41]:
+                      - listitem [ref=e42]:
+                        - generic [ref=e43] [cursor=pointer]: 热门个股吧
+                      - listitem [ref=e44]:
+                        - generic [ref=e45] [cursor=pointer]: 热门主题吧
+                      - listitem [ref=e46]:
+                        - generic [ref=e47] [cursor=pointer]: 热门概念吧
+                      - listitem [ref=e48]:
+                        - generic [ref=e49] [cursor=pointer]: 我关注的吧
+                    - link "更多" [ref=e52] [cursor=pointer]:
+                      - /url: //guba.eastmoney.com/rank
+                      - text: 更多
+                      - img [ref=e53]
+                - generic:
+                  - list:
+                    - listitem:
+                      - generic:
+                        - generic [ref=e55]:
+                          - link "1. 亨通光电吧" [ref=e56] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,600487.html
+                          - generic [ref=e57]: 10.00%
+                        - generic [ref=e58]:
+                          - link "2. 中天科技吧" [ref=e59] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,600522.html
+                          - generic [ref=e60]: 9.99%
+                        - generic [ref=e61]:
+                          - link "3. 京东方Ａ吧" [ref=e62] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,000725.html
+                          - generic [ref=e63]: 3.66%
+                        - generic [ref=e64]:
+                          - link "4. 风华高科吧" [ref=e65] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,000636.html
+                          - generic [ref=e66]: 9.99%
+                        - generic [ref=e67]:
+                          - link "5. 华电辽能吧" [ref=e68] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,600396.html
+                          - generic [ref=e69]: 10.00%
+                        - generic [ref=e70]:
+                          - link "6. 天娱数科吧" [ref=e71] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,002354.html
+                          - generic [ref=e72]: 9.96%
+                        - generic [ref=e73]:
+                          - link "7. 埃斯顿吧" [ref=e74] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,002747.html
+                          - generic [ref=e75]: 9.99%
+                        - generic [ref=e76]:
+                          - link "8. 长电科技吧" [ref=e77] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,600584.html
+                          - generic [ref=e78]: 7.10%
+                        - generic [ref=e79]:
+                          - link "9. 豫能控股吧" [ref=e80] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,001896.html
+                          - generic [ref=e81]: 10.00%
+                        - generic [ref=e82]:
+                          - link "10. 圣泉集团吧" [ref=e83] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,605589.html
+                          - generic [ref=e84]: 10.01%
+                        - generic [ref=e85]:
+                          - link "11. 达实智能吧" [ref=e86] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,002421.html
+                          - generic [ref=e87]: "-0.52%"
+                        - generic [ref=e88]:
+                          - link "12. 中国巨石吧" [ref=e89] [cursor=pointer]:
+                            - /url: //guba.eastmoney.com/list,600176.html
+                          - generic [ref=e90]: 10.01%
+          - img [ref=e91]
+          - generic [ref=e92]: 热搜：
+          - link "亨通光电吧" [ref=e94] [cursor=pointer]:
+            - /url: //guba.eastmoney.com/list,600487.html
+          - link "中天科技吧" [ref=e96] [cursor=pointer]:
+            - /url: //guba.eastmoney.com/list,600522.html
+          - link "京东方Ａ吧" [ref=e98] [cursor=pointer]:
+            - /url: //guba.eastmoney.com/list,000725.html
+          - link "风华高科吧" [ref=e100] [cursor=pointer]:
+            - /url: //guba.eastmoney.com/list,000636.html
+    - generic [ref=e101]:
+      - generic [ref=e102]:
+        - generic [ref=e103]:
+          - generic [ref=e104]:
+            - generic [ref=e105]:
+              - img [ref=e106]
+              - link "社区" [ref=e107] [cursor=pointer]:
+                - /url: /?tab=3&jump=1
+              - img [ref=e108]
+              - link "湘潭电化吧" [ref=e109] [cursor=pointer]:
+                - /url: /list,002125.html
+              - img [ref=e110]
+              - text: 帖子正文
+            - link "返回湘潭电化吧" [ref=e112] [cursor=pointer]:
+              - /url: /list,002125.html
+              - text: 返回湘潭电化吧
+              - img [ref=e113]
+          - generic [ref=e114]:
+            - generic [ref=e116]: 湘潭电化：全球锰基材料绝对龙头，MLCC半导体材料国产替代核心受益者2026年，AI算力革命引爆MLCC行业史诗级超级周期，高
+            - generic [ref=e118]:
+              - link:
+                - /url: //i.eastmoney.com/6131016956953222
+              - link "九洲大道" [ref=e119] [cursor=pointer]:
+                - /url: //i.eastmoney.com/6131016956953222
+              - generic [ref=e120]: 2026-06-09 19:04:01
+              - generic [ref=e121]: 来自江西
+          - generic [ref=e122]:
+            - list [ref=e123]:
+              - listitem [ref=e124]:
+                - generic [ref=e125] [cursor=pointer]:
+                  - emphasis [ref=e126]
+                  - text: "6"
+              - listitem [ref=e128]:
+                - generic [ref=e129] [cursor=pointer]:
+                  - emphasis [ref=e130]
+                  - text: 评论
+              - listitem [ref=e132]:
+                - generic [ref=e133] [cursor=pointer]:
+                  - img [ref=e134]
+                  - text: 收藏
+              - listitem [ref=e136]
+            - list [ref=e139]:
+              - generic [ref=e140]:
+                - emphasis [ref=e141]: 分享到：
+                - link "分享到股吧" [ref=e142] [cursor=pointer]:
+                  - /url: http://gb.eastmoney.com/share.aspx?url=https%3A%2F%2Fguba.eastmoney.com%2Fnews%2Cgssz%2C1723460893.html%3Fjumph5%3D1&title=%E6%B9%98%E6%BD%AD%E7%94%B5%E5%8C%96%EF%BC%9A%E5%85%A8%E7%90%83%E9%94%B0%E5%9F%BA%E6%9D%90%E6%96%99%E7%BB%9D%E5%AF%B9%E9%BE%99%E5%A4%B4%EF%BC%8CMLCC%E5%8D%8A%E5%AF%BC%E4%BD%93%E6%9D%90%E6%96%99%E5%9B%BD%E4%BA%A7%E6%9B%BF%E4%BB%A3%E6%A0%B8%E5%BF%83%E5%8F%97%E7%9B%8A%E8%80%852026%E5%B9%B4%EF%BC%8CAI%E7%AE%97%E5%8A%9B%E9%9D%A9%E5%91%BD%E5%BC%95%E7%88%86MLCC%E8%A1%8C%E4%B8%9A%E5%8F%B2%E8%AF%97%E7%BA%A7%E8%B6%85%E7%BA%A7%E5%91%A8%E6%9C%9F%EF%BC%8C%E9%AB%98_%E6%B9%98%E6%BD%AD%E7%94%B5%E5%8C%96(002125)%E8%82%A1%E5%90%A7_%E4%B8%9C%E6%96%B9%E8%B4%A2%E5%AF%8C%E7%BD%91%E8%82%A1%E5%90%A7
+                - generic "分享到微信" [ref=e143] [cursor=pointer]
+                - link "分享到新浪微博" [ref=e144] [cursor=pointer]:
+                  - /url: http://service.weibo.com/share/share.php?url=https%3A%2F%2Fguba.eastmoney.com%2Fnews%2Cgssz%2C1723460893.html%3Fjumph5%3D1&title=%E6%B9%98%E6%BD%AD%E7%94%B5%E5%8C%96%EF%BC%9A%E5%85%A8%E7%90%83%E9%94%B0%E5%9F%BA%E6%9D%90%E6%96%99%E7%BB%9D%E5%AF%B9%E9%BE%99%E5%A4%B4%EF%BC%8CMLCC%E5%8D%8A%E5%AF%BC%E4%BD%93%E6%9D%90%E6%96%99%E5%9B%BD%E4%BA%A7%E6%9B%BF%E4%BB%A3%E6%A0%B8%E5%BF%83%E5%8F%97%E7%9B%8A%E8%80%852026%E5%B9%B4%EF%BC%8CAI%E7%AE%97%E5%8A%9B%E9%9D%A9%E5%91%BD%E5%BC%95%E7%88%86MLCC%E8%A1%8C%E4%B8%9A%E5%8F%B2%E8%AF%97%E7%BA%A7%E8%B6%85%E7%BA%A7%E5%91%A8%E6%9C%9F%EF%BC%8C%E9%AB%98_%E6%B9%98%E6%BD%AD%E7%94%B5%E5%8C%96(002125)%E8%82%A1%E5%90%A7_%E4%B8%9C%E6%96%B9%E8%B4%A2%E5%AF%8C%E7%BD%91%E8%82%A1%E5%90%A7&searchPic=false&pic=https%3A%2F%2Fcmsjs.eastmoney.com%2Fcommon%2Fweixin-share.png
+                - link "分享到QQ空间" [ref=e145] [cursor=pointer]:
+                  - /url: http://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=https%3A%2F%2Fguba.eastmoney.com%2Fnews%2Cgssz%2C1723460893.html%3Fjumph5%3D1&title=%E6%B9%98%E6%BD%AD%E7%94%B5%E5%8C%96%EF%BC%9A%E5%85%A8%E7%90%83%E9%94%B0%E5%9F%BA%E6%9D%90%E6%96%99%E7%BB%9D%E5%AF%B9%E9%BE%99%E5%A4%B4%EF%BC%8CMLCC%E5%8D%8A%E5%AF%BC%E4%BD%93%E6%9D%90%E6%96%99%E5%9B%BD%E4%BA%A7%E6%9B%BF%E4%BB%A3%E6%A0%B8%E5%BF%83%E5%8F%97%E7%9B%8A%E8%80%852026%E5%B9%B4%EF%BC%8CAI%E7%AE%97%E5%8A%9B%E9%9D%A9%E5%91%BD%E5%BC%95%E7%88%86MLCC%E8%A1%8C%E4%B8%9A%E5%8F%B2%E8%AF%97%E7%BA%A7%E8%B6%85%E7%BA%A7%E5%91%A8%E6%9C%9F%EF%BC%8C%E9%AB%98_%E6%B9%98%E6%BD%AD%E7%94%B5%E5%8C%96(002125)%E8%82%A1%E5%90%A7_%E4%B8%9C%E6%96%B9%E8%B4%A2%E5%AF%8C%E7%BD%91%E8%82%A1%E5%90%A7&desc=%24%E6%B9%98%E6%BD%AD%E7%94%B5%E5%8C%96(SZ002125)%24%E6%B9%98%E6%BD%AD%E7%94%B5%E5%8C%96%EF%BC%9A%E5%85%A8%E7%90%83%E9%94%B0%E5%9F%BA%E6%9D%90%E6%96%99%E7%BB%9D%E5%AF%B9%E9%BE%99%E5%A4%B4%EF%BC%8CMLCC%E5%8D%8A%E5%AF%BC%E4%BD%93%E6%9D%90%E6%96%99%E5%9B%BD%E4%BA%A7%E6%9B%BF%E4%BB%A3%E6%A0%B8%E5%BF%83%E5%8F%97%E7%9B%8A%E8%80%85%0A2026%E5%B9%B4%EF%BC%8CAI%E7%AE%97%E5%8A%9B%E9%9D%A9%E5%91%BD%E5%BC%95%E7%88%86MLCC%E8%A1%8C%E4%B8%9A%E5%8F%B2%E8%AF%97%E7%BA%A7%E8%B6%85%E7%BA%A7%E5%91%A8%E6%9C%9F%EF%BC%8C%E9%AB%98%E7%AB%AF%E9%AB%98%E5%AE%B9MLCC%E6%88%90%E4%B8%BA%E7%BB%A7GPU%E3%80%81%E5%AD%98%E5%82%A8%E4%B9%8B%E5%90%8E%E7%9A%84%E7%AC%AC%E4%B8%89%E5%A4%A7%E7%AE%97%E5%8A%9B%E7%93%B6%E9%A2%88%EF%BC%8C%E7%8E%B0%E8%B4%A7%E4%BB%B7%E6%A0%BC%E6%9A%B4%E6%B6%A850%25-60%25%EF%BC%8C%E9%83%A8%E5%88%86%E7%A8%80%E7%BC%BA%E5%9E%8B%E5%8F%B7%E7%9B%B4%E6%8E%A5%E7%BF%BB%E5%80%8D%EF%BC%8C%E5%85%A8%E7%90%83%E5%A4%B4%E9%83%A8%E5%8E%82%E5%95%86%E4%BA%A7%E8%83%BD%E5%B7%B2%E8%A2%ABAI%E8%AE%A2%E5%8D%95%E9%94%81%E5%AE%9A%E8%87%B32027%E5%B9%B4%E3%80%82%E5%9C%A8%E8%BF%99%E5%9C%BA%E4%BA%A7%E4%B8%9A%E9%93%BE%E4%BB%B7%E5%80%BC%E9%87%8D%E6%9E%84%E4%B8%AD%EF%BC%8C%E6%B9%98%E6%BD%AD%E7%94%B5%E5%8C%96%EF%BC%88002125%EF%BC%89%E4%BD%9C%E4%B8%BA%E5%85%A8%E7%90%83%E7%94%B5%E8%A7%A3%E4%BA%8C%E6%B0%A7%E5%8C%96%E9%94%B0%E7%BB%9D%E5%AF%B9%E9%BE%99%E5%A4%B4%EF%BC%8C%E5%87%AD%E5%80%9F20%E4%BD%99%E5%B9%B4...&pics=https%3A%2F%2Fcmsjs.eastmoney.com%2Fcommon%2Fweixin-share.png
+          - iframe [ref=e146]:
+            - link [ref=f3e3] [cursor=pointer]:
+              - /url: //same.eastmoney.com/c?z=eastmoney&la=0&si=1&cg=39&c=1800&ci=481&or=3441&l=17665&bg=17666&b=20247&u=https%3A%2F%2Facttg.eastmoney.com%2Fpub%2Fwebtg_hskh_act_zixun_01_01_01_0
+              - img [ref=f3e4]
+          - paragraph [ref=e147]:
+            - link "四大权益礼包，开户即送" [ref=e148] [cursor=pointer]:
+              - /url: https://acttg.eastmoney.com/pub/webtg_hskh_act_zixun_01_01_01_0
+          - generic [ref=e149]:
+            - generic [ref=e151]:
+              - paragraph [ref=e152]:
+                - link "$湘潭电化(SZ002125)$" [ref=e154] [cursor=pointer]:
+                  - /url: //quote.eastmoney.com/unify/r/0.002125
+                - link "湘潭电化" [ref=e155] [cursor=pointer]:
+                  - /url: https://quote.eastmoney.com/unify/r/0.002125
+                - text: ：全球锰基材料绝对龙头，MLCC半导体材料国产替代核心受益者
+              - paragraph [ref=e156]
+              - paragraph [ref=e157]:
+                - text: 2026年，AI算力革命引爆MLCC行业史诗级超级周期，高端高容MLCC成为继GPU、存储之后的第三大算力瓶颈，现货价格暴涨50%-60%，部分稀缺型号直接翻倍，全球头部厂商产能已被AI订单锁定至2027年。在这场产业链价值重构中，湘潭电化（002125）作为全球电解二氧化锰绝对龙头，凭借20余年电化学技术积累，构建起覆盖MLCC陶瓷粉掺杂剂+贱金属电极原料的完整产品矩阵，深度绑定
+                - link "国瓷材料" [ref=e158] [cursor=pointer]:
+                  - /url: https://quote.eastmoney.com/unify/r/0.300285
+                - text: 、
+                - link "博迁新材" [ref=e159] [cursor=pointer]:
+                  - /url: https://quote.eastmoney.com/unify/r/1.605376
+                - text: 等国内半导体材料龙头，成为MLCC国产替代浪潮中最核心的上游材料供应商，迎来量价齐升的历史性机遇。
+              - paragraph [ref=e160]
+              - paragraph [ref=e161]: 一、MLCC超级周期：从"电子大米"到"算力刚需"，上游材料成最大赢家
+              - paragraph [ref=e162]
+              - paragraph [ref=e163]: 本轮MLCC行情绝非简单的库存反弹，而是AI算力爆发+汽车电子化升级+国产替代加速三重共振的产业级拐点，其核心特征是"高端全面缺货、低端被动跟涨"，上游高纯电子化学品成为制约产能的关键瓶颈。
+              - paragraph [ref=e164]
+              - paragraph [ref=e165]: 1. AI服务器需求呈指数级增长，高容MLCC供需缺口彻底拉开
+              - paragraph [ref=e166]
+              - paragraph [ref=e167]:
+                - text: "- 用量暴增：单台"
+                - link "英伟达" [ref=e168] [cursor=pointer]:
+                  - /url: https://quote.eastmoney.com/unify/r/105.NVDA
+                - text: Rubin架构AI服务器MLCC用量达2.8万颗，是通用服务器的13倍；单机柜MLCC用量飙升至60万颗，价值量较GB300平台暴涨182%。2026年全球AI服务器MLCC需求量预计达726亿颗，同比增长87%，2027年将进一步增至1367亿颗，同比增长88%。
+              - paragraph [ref=e169]: "- 性能要求严苛：AI服务器800V高压架构要求MLCC具备更高的绝缘电阻率和温度稳定性，只有添加高纯锰基掺杂剂的X7R/X8R型高容MLCC才能满足需求，常规低端MLCC完全无法使用。"
+              - paragraph [ref=e170]: "- 全球产能收缩：受中国重稀土出口管制影响，日本堺化学等全球高端粉体龙头产能被动收缩20%-25%，村田高端MLCC交期从3-4个月拉长至6-12个月，供需缺口持续扩大。"
+              - paragraph [ref=e171]
+              - paragraph [ref=e172]: 2. MLCC涨价潮全面蔓延，上游原料迎来量价双击
+              - paragraph [ref=e173]
+              - paragraph [ref=e174]:
+                - text: 自2026年2月以来，MLCC现货价格普遍上涨15%-20%，AI服务器用10μF、20μF等高容产品平均涨幅达50%-60%。3月村田对AI/车规高端MLCC提价15%-35%，4月三星全线涨价10%-20%，5月
+                - link "风华高科" [ref=e175] [cursor=pointer]:
+                  - /url: https://quote.eastmoney.com/unify/r/0.000636
+                - text: 暂停0402/0603中低端规格接单。中游MLCC厂商加速扩产高端产能，直接拉动上游高纯锰源、镍源等核心材料的刚性需求，电子级EMD、高纯硫酸镍等产品价格已进入上行通道。
+              - paragraph [ref=e176]
+              - paragraph [ref=e177]: 二、湘潭电化：MLCC半导体材料端全产业链布局，四大核心产品构筑护城河
+              - paragraph [ref=e178]
+              - paragraph [ref=e179]: 湘潭电化不直接生产MLCC成品，却精准卡位MLCC产业链最上游、壁垒最高的陶瓷粉掺杂剂和贱金属电极原料两大核心环节，是A股唯一同时掌握固态锰源、液态锰源和高纯镍源的企业，四大核心产品全面覆盖高端MLCC制造的关键材料需求。
+              - paragraph [ref=e180]
+              - paragraph [ref=e181]: 1. 电子级高纯EMD：高端MLCC陶瓷粉"心脏级"原料，全球产能第一
+              - paragraph [ref=e182]
+              - paragraph [ref=e183]: "**高端高容MLCC（AI/车规级）必须添加高纯电解二氧化锰（EMD）**作为钛酸钡陶瓷粉体的核心掺杂剂，用于改善介电性能、温漂稳定性和绝缘电阻率，是本轮MLCC涨价潮中最紧缺的上游原料之一。"
+              - paragraph [ref=e184]
+              - paragraph [ref=e185]: "- 全球龙头地位：公司拥有全球最大的电解二氧化锰产能12.2万吨/年，全球市占率达13%，国内市占率超过30%，是当之无愧的行业绝对龙头。"
+              - paragraph [ref=e186]: "- 技术壁垒领先：公司高性能电子级EMD纯度达99.99%，杂质含量控制在5ppm以内，完全满足AI服务器与车规级MLCC的严苛要求，是国内少数能稳定批量供应高端电子级EMD的企业。"
+              - paragraph [ref=e187]:
+                - text: "- 客户深度绑定：公司是国瓷材料、"
+                - link "三环集团" [ref=e188] [cursor=pointer]:
+                  - /url: https://quote.eastmoney.com/unify/r/0.300408
+                - text: 、风华高科等国内头部MLCC粉料企业的第一大锰源供应商，MLCC领域已成为公司EMD产品增长最快的下游应用，2026年电子级EMD销量预计同比增长60%以上。
+              - paragraph [ref=e189]
+              - paragraph [ref=e190]: 2. 电子级溴化锰：国内唯一量产企业，高端MLCC液态前驱锰源垄断者
+              - paragraph [ref=e191]
+              - paragraph [ref=e192]: 电子级溴化锰（溴粉）是高端MLCC钛酸钡粉体不可或缺的液态前驱锰源，相比固态EMD，溴化锰掺杂更均匀，能显著提升MLCC的介电性能和一致性，是生产0402及以下小尺寸高容MLCC的必备原料。
+              - paragraph [ref=e193]
+              - paragraph [ref=e194]: "- 独家产能优势：公司现有电子级溴化锰产能3000吨/年，2026年技改扩至5000吨/年，是国内唯一能稳定批量供应高纯度溴化锰的企业，市占率达100%。"
+              - paragraph [ref=e195]: "- 全产业链成本优势：依托自产3万吨高纯硫酸锰作为核心原料，省去外购锰盐成本，从源头保证产品纯度与价格竞争力，溴化锰产品毛利率显著高于行业平均水平。"
+              - paragraph [ref=e196]: "- 客户独家供应：公司电子级溴化锰产品独家供应国瓷材料，深度绑定其高端MLCC粉体产能扩张，随着0402/0201小尺寸MLCC需求爆发，溴化锰业务将成为公司新的利润增长点。"
+              - paragraph [ref=e197]
+              - paragraph [ref=e198]: 3. 高纯四氧化三锰：X8R高温高容MLCC核心改性剂
+              - paragraph [ref=e199]
+              - paragraph [ref=e200]: 高纯四氧化三锰是X8R型高温高容MLCC陶瓷改性的关键原料，用于提升MLCC在高温环境下的容量稳定性和可靠性，广泛应用于汽车电子、工业控制和AI服务器等领域。
+              - paragraph [ref=e201]
+              - paragraph [ref=e202]: "- 技术成熟量产：公司已实现电子级高纯四氧化三锰量产，纯度达99.99%，杂质含量＜5ppm，产品性能达到国际先进水平。"
+              - paragraph [ref=e203]: "- 客户覆盖全面：批量供货国瓷材料、风华高科等头部MLCC粉料企业，随着车规级MLCC需求爆发，公司四氧化三锰业务将迎来快速增长。"
+              - paragraph [ref=e204]
+              - paragraph [ref=e205]: 4. 高纯硫酸镍：MLCC贱金属电极纳米镍粉核心原料
+              - paragraph [ref=e206]
+              - paragraph [ref=e207]: MLCC主流BME贱金属电极使用的超细镍粉，其核心原料就是电子级高纯硫酸镍。AI服务器MLCC向超薄介电层、高堆叠层数方向迭代，带动120nm及以下超细镍粉需求激增，高纯硫酸镍作为上游原料也随之供不应求 。
+              - paragraph [ref=e208]
+              - paragraph [ref=e209]: "- 产能稳定落地：公司鹤岭基地1万吨/年高纯硫酸镍产线已稳定投产，纯度达到电子级标准，可满足MLCC电极用超细镍粉的生产要求。"
+              - paragraph [ref=e210]: "- 绑定全球镍粉龙头：核心供给博迁新材等纳米镍粉龙头企业，间接绑定三星、村田、TDK等国际MLCC大厂，受益于AI服务器拉动的镍粉需求爆发。博迁新材作为全球唯一能量产80nm超细镍粉的企业，其MLCC用镍粉业务2025年营收同比增长25.88%，单吨售价同比上涨23.53% ，直接带动上游高纯硫酸镍需求增长。"
+              - paragraph [ref=e211]
+              - paragraph [ref=e212]: 三、全产业链壁垒不可复制，国产替代加速打开成长空间
+              - paragraph [ref=e213]
+              - paragraph [ref=e214]: 湘潭电化的核心竞争力不仅在于产能规模，更在于不可复制的全产业链垂直整合优势和长达2-3年的客户认证壁垒，在MLCC国产替代加速的大背景下，公司将充分享受行业增长红利。
+              - paragraph [ref=e215]
+              - paragraph [ref=e216]: 1. 资源+技术+成本三位一体，构筑坚固护城河
+              - paragraph [ref=e217]
+              - paragraph [ref=e218]: "- 资源壁垒：控股股东拥有1亿吨以上锰矿储量，公司广西靖西爱屯9.9万吨/年锰矿2026年已投产，锰矿自给率大幅提升，有效对冲原材料价格波动风险。"
+              - paragraph [ref=e219]: "- 技术壁垒：20余年电解二氧化锰生产技术积累，拥有多项国家级专利，在高纯电子化学品提纯工艺方面处于国内领先地位，产品纯度和稳定性得到下游客户的高度认可。"
+              - paragraph [ref=e220]: "- 认证壁垒：电子级材料认证周期长达2-3年，一旦通过认证，客户不会轻易更换供应商。公司产品已通过国瓷材料、风华高科、博迁新材等头部企业的严格认证，形成了极高的客户粘性。"
+              - paragraph [ref=e221]
+              - paragraph [ref=e222]: 2. MLCC国产替代加速，公司成为最大受益者
+              - paragraph [ref=e223]
+              - paragraph [ref=e224]: 随着中美科技竞争加剧，MLCC国产替代进入加速期。目前国内MLCC厂商在中低端市场已占据主导地位，但在高端高容MLCC市场仍被日韩企业垄断，国产替代空间巨大。湘潭电化作为国内MLCC上游材料龙头，将直接受益于国内MLCC厂商高端产能的扩张。
+              - paragraph [ref=e225]
+              - paragraph [ref=e226]: 据测算，2026年国内高端MLCC高纯锰源市场规模将达到15亿元，2027年将突破25亿元，湘潭电化凭借全球龙头地位和全产业链优势，有望占据60%以上的市场份额。同时，随着高纯硫酸镍和溴化锰业务的放量，公司电子材料业务占比将持续提升，盈利能力显著增强。
+              - paragraph [ref=e227]
+              - paragraph [ref=e228]: 四、业绩爆发在即，估值迎来戴维斯双击
+              - paragraph [ref=e229]
+              - paragraph [ref=e230]: 2026年，随着AI产业链需求的全面爆发，湘潭电化将迎来传统业务稳增长+电子材料高弹性的业绩双击：
+              - paragraph [ref=e231]
+              - paragraph [ref=e232]: "- 传统业务：电解二氧化锰作为现金牛业务，每年稳定贡献2.2-3亿元净利润；锰酸锂业务受益于两轮电动车、储能与磷酸锰铁锂需求爆发，2026年产能达5万吨/年，预计贡献净利润1-1.5亿元。"
+              - paragraph [ref=e233]: "- 电子材料业务：MLCC相关高纯锰源、镍盐业务2026年预计贡献净利润0.8-1.2亿元，2027年随着产能释放与价格上涨，有望突破2亿元。"
+              - paragraph [ref=e234]
+              - paragraph [ref=e235]: 中性情景下，公司2026年归母净利润预计达3.5-4.5亿元，2027年有望突破6亿元。目前公司估值仍被严重低估，市场对其MLCC半导体材料龙头地位的认知尚未充分体现。随着MLCC涨价潮持续蔓延和公司电子材料业务的快速增长，公司将迎来业绩增长+估值提升的戴维斯双击。
+              - paragraph [ref=e236]
+              - paragraph [ref=e237]: 结论：湘潭电化是全球锰基材料绝对龙头，也是A股唯一同时深度绑定MLCC陶瓷粉掺杂剂和贱金属电极原料两大核心环节的半导体材料企业。在AI算力革命和MLCC国产替代的双重驱动下，公司上游核心原料的战略价值将得到充分体现，成长空间全面打开，是当前AI半导体产业链中最具性价比的投资标的之一。
+            - generic [ref=e241] [cursor=pointer]: 展开阅读全文
+          - paragraph [ref=e242]:
+            - link "股市如棋局，开户先布局，随时把握投资机遇！" [ref=e243] [cursor=pointer]:
+              - /url: https://acttg.eastmoney.com/pub/webtg_hskh_act_zixun_01_01_01_0
+          - generic [ref=e244]:
+            - generic [ref=e246]:
+              - text: 本文提到：
+              - link "湘潭电化" [ref=e247] [cursor=pointer]:
+                - /url: //quote.eastmoney.com/unify/r/0.002125
+            - link "举报" [ref=e250] [cursor=pointer]:
+              - /url: //help.eastmoney.com/report_center.html?reportType=3&title=%E6%B9%98%E6%BD%AD%E7%94%B5%E5%8C%96%EF%BC%9A%E5%85%A8%E7%90%83%E9%94%B0%E5%9F%BA%E6%9D%90%E6%96%99%E7%BB%9D%E5%AF%B9%E9%BE%99%E5%A4%B4%EF%BC%8CMLCC%E5%8D%8A%E5%AF%BC%E4%BD%93%E6%9D%90%E6%96%99%E5%9B%BD%E4%BA%A7%E6%9B%BF%E4%BB%A3%E6%A0%B8&nickName=%E4%B9%9D%E6%B4%B2%E5%A4%A7%E9%81%93&gubaCode=002125&id=1723460893&uid=6131016956953222&systype=1&replyid=
+              - emphasis [ref=e251]
+              - text: 举报
+          - generic [ref=e252]: 郑重声明：用户在社区发表的所有信息将由本网站记录保存，仅代表作者个人观点，与本网站立场无关，不对您构成任何投资建议，据此操作风险自担。请勿相信代客理财、免费荐股和炒股培训等宣传内容，远离非法证券活动。请勿添加发言用户的手机号码、公众号、微博、微信及QQ等信息，谨防上当受骗！
+        - generic [ref=e254]:
+          - generic [ref=e255]:
+            - generic [ref=e256]:
+              - generic [ref=e257]: 网友评论
+              - generic [ref=e258]: 人评论
+            - generic [ref=e259]:
+              - link [ref=e260] [cursor=pointer]:
+                - /url: //i.eastmoney.com/
+                - img [ref=e261]
+              - generic [ref=e263]:
+                - generic [ref=e264] [cursor=pointer]: 登录
+                - link "注册" [ref=e265] [cursor=pointer]:
+                  - /url: https://passport2.eastmoney.com/pub/reg
+            - generic [ref=e266]:
+              - textbox "文明上网，理性发言" [ref=e267]
+              - generic [ref=e268]:
+                - generic [ref=e269]:
+                  - generic [ref=e270] [cursor=pointer]:
+                    - emphasis [ref=e271]
+                    - text: 表情
+                  - generic [ref=e272] [cursor=pointer]:
+                    - emphasis [ref=e273]
+                    - text: 添加图片
+                - generic [ref=e274]:
+                  - generic [ref=e275] [cursor=pointer]: 清除
+                  - generic [ref=e276] [cursor=pointer]: 发布
+          - generic [ref=e277]:
+            - text: 温馨提示： 1.根据《证券法》规定，禁止编造、传播虚假信息或者误导性信息，扰乱证券市场；2.用户在本社区发表的所有资料、言论等仅代表个人观点，与本网站立场无关，不对您构成任何投资建议。用户应基于自己的独立判断，自行决定证券投资并承担相应风险。
+            - link "《东方财富社区管理规定》" [ref=e278] [cursor=pointer]:
+              - /url: /gltl.aspx
+        - iframe [ref=e280]:
+          - link [ref=f1e3] [cursor=pointer]:
+            - /url: //same.eastmoney.com/c?z=eastmoney&la=0&si=1&cg=39&c=1711&ci=104&or=5484&l=18416&bg=18418&b=21119&u=https%3A%2F%2Fzqhdplus.eastmoney.com%2Fs%2FrQJFtJ
+            - img [ref=f1e4]
+      - generic [ref=e282]:
+        - generic [ref=e283]:
+          - generic [ref=e284]:
+            - generic [ref=e286] [cursor=pointer]: 行情
+            - generic [ref=e288] [cursor=pointer]: 人气排名
+          - generic [ref=e289]:
+            - generic [ref=e291]:
+              - generic [ref=e292]:
+                - generic [ref=e293]:
+                  - button "分时" [ref=e294] [cursor=pointer]
+                  - button "日K" [ref=e295] [cursor=pointer]
+                  - button "周K" [ref=e296] [cursor=pointer]
+                  - button "月K" [ref=e297] [cursor=pointer]
+                - generic [ref=e298]:
+                  - link "大盘星图，一览市场行情" [ref=e299] [cursor=pointer]:
+                    - /url: //quote.eastmoney.com/stockhotmap/?from=guba
+                  - link "全屏" [ref=e300] [cursor=pointer]:
+                    - /url: //quote.eastmoney.com/concept/sz002125.html?from=guba#fschart-r
+                    - text: 全屏
+                    - img [ref=e301]
+              - link [ref=e304] [cursor=pointer]:
+                - /url: //quote.eastmoney.com/unify/r/0.002125
+                - img [ref=e306]:
+                  - generic [ref=e307]: 湘潭电化
+                  - generic [ref=e308]: 17.07 ▲1.23 ▲7.77%
+                  - generic [ref=e312]: 09:30
+                  - generic [ref=e313]: 15:00
+                  - generic [ref=e314]: "17.42"
+                  - generic [ref=e315]: "15.84"
+                  - generic [ref=e316]: "14.26"
+            - generic [ref=e320]:
+              - generic [ref=e321]:
+                - textbox "输代码、名称或简拼" [ref=e323]
+                - img [ref=e324]
+              - generic [ref=e325] [cursor=pointer]: 行情
+              - generic [ref=e326] [cursor=pointer]: 资金
+              - generic [ref=e327] [cursor=pointer]: 人气
+            - generic [ref=e328]:
+              - link "大盘" [ref=e329] [cursor=pointer]:
+                - /url: //quote.eastmoney.com/center/index.html#zyzs_0_1
+              - list [ref=e331]:
+                - listitem [ref=e332]:
+                  - link "上证指数：" [ref=e333] [cursor=pointer]:
+                    - /url: //quote.eastmoney.com/zs000001.html
+                    - generic [ref=e334]: 上证指数：
+                  - generic [ref=e335]: 4010.03↑
+                  - text: 1.28%
+                - listitem [ref=e336]:
+                  - link "深证成指：" [ref=e337] [cursor=pointer]:
+                    - /url: //quote.eastmoney.com/zs399001.html
+                    - generic [ref=e338]: 深证成指：
+                  - generic [ref=e339]: 15268.71↑
+                  - text: 3.02%
+                - listitem [ref=e340]:
+                  - link "沪深300：" [ref=e341] [cursor=pointer]:
+                    - /url: //quote.eastmoney.com/zs000300.html
+                    - generic [ref=e342]: 沪深300：
+                  - generic [ref=e343]: 4801.81↑
+                  - text: 1.87%
+                - listitem [ref=e344]:
+                  - link "中小100：" [ref=e345] [cursor=pointer]:
+                    - /url: //quote.eastmoney.com/zs399005.html
+                    - generic [ref=e346]: 中小100：
+                  - generic [ref=e347]: 9193.80↑
+                  - text: 2.79%
+                - listitem [ref=e348]:
+                  - link "创业板指：" [ref=e349] [cursor=pointer]:
+                    - /url: //quote.eastmoney.com/zs399006.html
+                    - generic [ref=e350]: 创业板指：
+                  - generic [ref=e351]: 3961.75↑
+                  - text: 3.93%
+              - generic [ref=e352]:
+                - button [ref=e353] [cursor=pointer]:
+                  - img [ref=e354]
+                - button [ref=e355] [cursor=pointer]:
+                  - img [ref=e356]
+        - generic [ref=e357]:
+          - generic [ref=e358]:
+            - generic [ref=e359]:
+              - text: 资金流向
+              - link "详情" [ref=e360] [cursor=pointer]:
+                - /url: //data.eastmoney.com/zjlx/002125.html
+                - text: 详情
+                - img [ref=e361]
+            - generic [ref=e362]:
+              - generic [ref=e363]:
+                - generic [ref=e369]: "-3316万"
+                - generic [ref=e371]: "-7403万"
+              - generic [ref=e372]:
+                - generic [ref=e374]: 3983万
+                - generic [ref=e376]: 6736万
+            - generic [ref=e381]:
+              - generic [ref=e383]: 净超大
+              - generic [ref=e385]: 净大单
+              - generic [ref=e387]: 净中单
+              - generic [ref=e389]: 净小单
+            - separator [ref=e390]
+          - generic [ref=e392]:
+            - link [ref=e394] [cursor=pointer]:
+              - /url: //data.eastmoney.com/stockdata/002125.html
+              - img [ref=e395]
+            - generic [ref=e396]:
+              - generic [ref=e397]:
+                - link "智能点评" [ref=e398] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/stockcomment/002125.html
+                - link "龙虎榜单" [ref=e399] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/stock/lhb/002125.html
+                - link "限售解禁" [ref=e400] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/dxf/q/002125.html
+                - link "沪深港通" [ref=e401] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/hsgt/hsgtV2.html
+              - generic [ref=e402]:
+                - link "融资融券" [ref=e403] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/rzrq/detail/002125.html
+                - link "高管持股" [ref=e404] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/executive/002125.html
+                - link "大宗交易" [ref=e405] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/dzjy/detail/002125.html
+                - link "机构持仓" [ref=e406] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/zlsj/detail/002125.html
+              - generic [ref=e407]:
+                - link "股权质押" [ref=e408] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/gpzy/detail/002125.html
+                - link "并购重组" [ref=e409] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/bgcz/detail/002125.html
+                - link "股票回购" [ref=e410] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/gphg/002125.html
+                - link "公司投资" [ref=e411] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/gstz/stock/002125.html
+              - generic [ref=e412]:
+                - link "股东分析" [ref=e413] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/gdfx/stock/002125.html
+                - link "最新业绩" [ref=e414] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/bbsj/002125.html
+                - link "研报公告" [ref=e415] [cursor=pointer]:
+                  - /url: //data.eastmoney.com/notices/stock/002125.html
+                - link "条件选股" [ref=e416] [cursor=pointer]:
+                  - /url: //xuangu.eastmoney.com/
+        - generic [ref=e417]:
+          - generic [ref=e418]: 多空看盘
+          - generic [ref=e419]:
+            - generic [ref=e420]:
+              - generic [ref=e421]: 53.48%
+              - generic [ref=e422]: 46.52%
+            - generic [ref=e427]:
+              - button "看涨" [ref=e428] [cursor=pointer]
+              - button "看跌" [ref=e429] [cursor=pointer]
+        - generic [ref=e430]:
+          - generic [ref=e431]:
+            - text: 个股日历
+            - link "详情" [ref=e432] [cursor=pointer]:
+              - /url: //data.eastmoney.com/stockcalendar/002125.html
+              - text: 详情
+              - img [ref=e433]
+          - list [ref=e434]:
+            - listitem [ref=e435]:
+              - link "2026年06月10日发布《湘潭电化:关于“电化转债”2026年付息的公告》" [ref=e437] [cursor=pointer]:
+                - /url: //data.eastmoney.com/notices/stock/002125.html
+                - emphasis [ref=e438]
+                - text: 2026年06月10日发布《湘潭电化:关于“电化转债”2026年付息的公告》
+        - generic [ref=e439]:
+          - generic [ref=e440]: 所属板块
+          - list [ref=e441]:
+            - listitem [ref=e442]:
+              - link "电池化学品" [ref=e444] [cursor=pointer]:
+                - /url: //quote.eastmoney.com/unify/r/90.BK1302
+              - generic [ref=e445]:
+                - generic [ref=e446]: 3.27%
+                - link "壹石通" [ref=e447] [cursor=pointer]:
+                  - /url: //quote.eastmoney.com/unify/r/1.688733
+            - listitem [ref=e448]:
+              - link "固态电池" [ref=e450] [cursor=pointer]:
+                - /url: //quote.eastmoney.com/unify/r/90.BK0968
+              - generic [ref=e451]:
+                - generic [ref=e452]: 3.09%
+                - link "圣泉集团" [ref=e453] [cursor=pointer]:
+                  - /url: //quote.eastmoney.com/unify/r/1.605589
+            - listitem [ref=e454]:
+              - link "电池" [ref=e456] [cursor=pointer]:
+                - /url: //quote.eastmoney.com/unify/r/90.BK1033
+              - generic [ref=e457]:
+                - generic [ref=e458]: 3.08%
+                - link "浙江恒威" [ref=e459] [cursor=pointer]:
+                  - /url: //quote.eastmoney.com/unify/r/0.301222
+            - listitem [ref=e460]:
+              - link "小金属概念" [ref=e462] [cursor=pointer]:
+                - /url: //quote.eastmoney.com/unify/r/90.BK0695
+              - generic [ref=e463]:
+                - generic [ref=e464]: 2.77%
+                - link "博迁新材" [ref=e465] [cursor=pointer]:
+                  - /url: //quote.eastmoney.com/unify/r/1.605376
+            - listitem [ref=e466]:
+              - link "锂电池概念" [ref=e468] [cursor=pointer]:
+                - /url: //quote.eastmoney.com/unify/r/90.BK0574
+              - generic [ref=e469]:
+                - generic [ref=e470]: 2.56%
+                - link "圣泉集团" [ref=e471] [cursor=pointer]:
+                  - /url: //quote.eastmoney.com/unify/r/1.605589
+            - listitem [ref=e472]:
+              - link "电池技术" [ref=e474] [cursor=pointer]:
+                - /url: //quote.eastmoney.com/unify/r/90.BK1648
+              - generic [ref=e475]:
+                - generic [ref=e476]: 2.47%
+                - link "圣泉集团" [ref=e477] [cursor=pointer]:
+                  - /url: //quote.eastmoney.com/unify/r/1.605589
+        - generic [ref=e478]:
+          - generic [ref=e479]:
+            - text: 该吧人气用户
+            - button "换一换" [ref=e480] [cursor=pointer]:
+              - img [ref=e481]
+              - text: 换一换
+          - list [ref=e482]:
+            - listitem [ref=e483]:
+              - link "葫芦大侠侠" [ref=e486] [cursor=pointer]:
+                - /url: //i.eastmoney.com/7994084879352896
+                - img "葫芦大侠侠" [ref=e487]
+              - generic [ref=e488]:
+                - generic [ref=e489]:
+                  - link "葫芦大侠侠" [ref=e491] [cursor=pointer]:
+                    - /url: //i.eastmoney.com/7994084879352896
+                  - button "关注" [ref=e493] [cursor=pointer]
+                - generic [ref=e494]:
+                  - generic [ref=e495]: 5万粉丝
+                  - generic [ref=e496]: 19条相关讨论
+            - listitem [ref=e497]:
+              - link "股友DahF0w" [ref=e500] [cursor=pointer]:
+                - /url: //i.eastmoney.com/1702345792616940
+                - img "股友DahF0w" [ref=e501]
+              - generic [ref=e502]:
+                - generic [ref=e503]:
+                  - link "股友DahF0w" [ref=e505] [cursor=pointer]:
+                    - /url: //i.eastmoney.com/1702345792616940
+                  - button "关注" [ref=e507] [cursor=pointer]
+                - generic [ref=e509]: 81条相关讨论
+            - listitem [ref=e510]:
+              - link "湘潭电化钉子户" [ref=e513] [cursor=pointer]:
+                - /url: //i.eastmoney.com/6776084869855030
+                - img "湘潭电化钉子户" [ref=e514]
+              - generic [ref=e515]:
+                - generic [ref=e516]:
+                  - link "湘潭电化钉子户" [ref=e518] [cursor=pointer]:
+                    - /url: //i.eastmoney.com/6776084869855030
+                  - button "关注" [ref=e520] [cursor=pointer]
+                - generic [ref=e521]:
+                  - generic [ref=e522]: 292粉丝
+                  - generic [ref=e523]: 966条相关讨论
+        - generic [ref=e524]:
+          - generic [ref=e525]: 关注该股的股友还关注
+          - list [ref=e526]:
+            - listitem [ref=e527]:
+              - link "京东方Ａ 3.66% 000725 6.52" [ref=e528] [cursor=pointer]:
+                - /url: /list,000725.html
+                - generic [ref=e529]:
+                  - generic [ref=e530]: 京东方Ａ
+                  - generic [ref=e531]: 3.66%
+                - generic [ref=e532]:
+                  - generic [ref=e533]: "000725"
+                  - generic [ref=e534]: "6.52"
+            - listitem [ref=e535]:
+              - link "红星发展 5.15% 600367 55.55" [ref=e536] [cursor=pointer]:
+                - /url: /list,600367.html
+                - generic [ref=e537]:
+                  - generic [ref=e538]: 红星发展
+                  - generic [ref=e539]: 5.15%
+                - generic [ref=e540]:
+                  - generic [ref=e541]: "600367"
+                  - generic [ref=e542]: "55.55"
+            - listitem [ref=e543]:
+              - link "达实智能 -0.52% 002421 5.70" [ref=e544] [cursor=pointer]:
+                - /url: /list,002421.html
+                - generic [ref=e545]:
+                  - generic [ref=e546]: 达实智能
+                  - generic [ref=e547]: "-0.52%"
+                - generic [ref=e548]:
+                  - generic [ref=e549]: "002421"
+                  - generic [ref=e550]: "5.70"
+            - listitem [ref=e551]:
+              - link "中天科技 9.99% 600522 54.48" [ref=e552] [cursor=pointer]:
+                - /url: /list,600522.html
+                - generic [ref=e553]:
+                  - generic [ref=e554]: 中天科技
+                  - generic [ref=e555]: 9.99%
+                - generic [ref=e556]:
+                  - generic [ref=e557]: "600522"
+                  - generic [ref=e558]: "54.48"
+            - listitem [ref=e559]:
+              - link "埃斯顿 9.99% 002747 37.53" [ref=e560] [cursor=pointer]:
+                - /url: /list,002747.html
+                - generic [ref=e561]:
+                  - generic [ref=e562]: 埃斯顿
+                  - generic [ref=e563]: 9.99%
+                - generic [ref=e564]:
+                  - generic [ref=e565]: "002747"
+                  - generic [ref=e566]: "37.53"
+            - listitem [ref=e567]:
+              - link "豫能控股 10.00% 001896 21.56" [ref=e568] [cursor=pointer]:
+                - /url: /list,001896.html
+                - generic [ref=e569]:
+                  - generic [ref=e570]: 豫能控股
+                  - generic [ref=e571]: 10.00%
+                - generic [ref=e572]:
+                  - generic [ref=e573]: "001896"
+                  - generic [ref=e574]: "21.56"
+            - listitem [ref=e575]:
+              - link "双星新材 10.01% 002585 12.20" [ref=e576] [cursor=pointer]:
+                - /url: /list,002585.html
+                - generic [ref=e577]:
+                  - generic [ref=e578]: 双星新材
+                  - generic [ref=e579]: 10.01%
+                - generic [ref=e580]:
+                  - generic [ref=e581]: "002585"
+                  - generic [ref=e582]: "12.20"
+            - listitem [ref=e583]:
+              - link "天娱数科 9.96% 002354 8.06" [ref=e584] [cursor=pointer]:
+                - /url: /list,002354.html
+                - generic [ref=e585]:
+                  - generic [ref=e586]: 天娱数科
+                  - generic [ref=e587]: 9.96%
+                - generic [ref=e588]:
+                  - generic [ref=e589]: "002354"
+                  - generic [ref=e590]: "8.06"
+            - listitem [ref=e591]:
+              - link "神剑股份 -4.00% 002361 17.75" [ref=e592] [cursor=pointer]:
+                - /url: /list,002361.html
+                - generic [ref=e593]:
+                  - generic [ref=e594]: 神剑股份
+                  - generic [ref=e595]: "-4.00%"
+                - generic [ref=e596]:
+                  - generic [ref=e597]: "002361"
+                  - generic [ref=e598]: "17.75"
+            - listitem [ref=e599]:
+              - link "春秋电子 -9.57% 603890 25.43" [ref=e600] [cursor=pointer]:
+                - /url: /list,603890.html
+                - generic [ref=e601]:
+                  - generic [ref=e602]: 春秋电子
+                  - generic [ref=e603]: "-9.57%"
+                - generic [ref=e604]:
+                  - generic [ref=e605]: "603890"
+                  - generic [ref=e606]: "25.43"
+        - generic [ref=e607]:
+          - generic [ref=e608]: 股吧热榜
+          - generic [ref=e609]:
+            - button "个股" [ref=e610] [cursor=pointer]
+            - button "话题" [ref=e611] [cursor=pointer]
+            - button "资讯" [ref=e612] [cursor=pointer]
+            - button "文章" [ref=e613] [cursor=pointer]
+          - table [ref=e615]:
+            - rowgroup [ref=e616]:
+              - row "股票名称 人气排名 较昨日变动" [ref=e617]:
+                - columnheader "股票名称" [ref=e618]
+                - columnheader "人气排名" [ref=e619]
+                - columnheader "较昨日变动" [ref=e620]
+            - rowgroup [ref=e621]:
+              - row "亨通光电 第1名 ↑ 8" [ref=e622]:
+                - cell "亨通光电" [ref=e623]:
+                  - link "亨通光电" [ref=e624] [cursor=pointer]:
+                    - /url: //guba.eastmoney.com/rank/stock?code=600487
+                - cell "第1名" [ref=e625]
+                - cell "↑ 8" [ref=e626]
+              - row "中天科技 第2名 ↓ 1" [ref=e627]:
+                - cell "中天科技" [ref=e628]:
+                  - link "中天科技" [ref=e629] [cursor=pointer]:
+                    - /url: //guba.eastmoney.com/rank/stock?code=600522
+                - cell "第2名" [ref=e630]
+                - cell "↓ 1" [ref=e631]
+              - row "京东方Ａ 第3名 ↑ 3" [ref=e632]:
+                - cell "京东方Ａ" [ref=e633]:
+                  - link "京东方Ａ" [ref=e634] [cursor=pointer]:
+                    - /url: //guba.eastmoney.com/rank/stock?code=000725
+                - cell "第3名" [ref=e635]
+                - cell "↑ 3" [ref=e636]
+              - row "风华高科 第4名 ↑ 51" [ref=e637]:
+                - cell "风华高科" [ref=e638]:
+                  - link "风华高科" [ref=e639] [cursor=pointer]:
+                    - /url: //guba.eastmoney.com/rank/stock?code=000636
+                - cell "第4名" [ref=e640]
+                - cell "↑ 51" [ref=e641]
+              - row "华电辽能 第5名 ↑ 58" [ref=e642]:
+                - cell "华电辽能" [ref=e643]:
+                  - link "华电辽能" [ref=e644] [cursor=pointer]:
+                    - /url: //guba.eastmoney.com/rank/stock?code=600396
+                - cell "第5名" [ref=e645]
+                - cell "↑ 58" [ref=e646]
+              - row "天娱数科 第6名 ↓ 1" [ref=e647]:
+                - cell "天娱数科" [ref=e648]:
+                  - link "天娱数科" [ref=e649] [cursor=pointer]:
+                    - /url: //guba.eastmoney.com/rank/stock?code=002354
+                - cell "第6名" [ref=e650]
+                - cell "↓ 1" [ref=e651]
+              - row "埃斯顿 第7名 ↓ 5" [ref=e652]:
+                - cell "埃斯顿" [ref=e653]:
+                  - link "埃斯顿" [ref=e654] [cursor=pointer]:
+                    - /url: //guba.eastmoney.com/rank/stock?code=002747
+                - cell "第7名" [ref=e655]
+                - cell "↓ 5" [ref=e656]
+              - row "长电科技 第8名 ↑ 23" [ref=e657]:
+                - cell "长电科技" [ref=e658]:
+                  - link "长电科技" [ref=e659] [cursor=pointer]:
+                    - /url: //guba.eastmoney.com/rank/stock?code=600584
+                - cell "第8名" [ref=e660]
+                - cell "↑ 23" [ref=e661]
+              - row "豫能控股 第9名 ↑ 53" [ref=e662]:
+                - cell "豫能控股" [ref=e663]:
+                  - link "豫能控股" [ref=e664] [cursor=pointer]:
+                    - /url: //guba.eastmoney.com/rank/stock?code=001896
+                - cell "第9名" [ref=e665]
+                - cell "↑ 53" [ref=e666]
+              - row "圣泉集团 第10名 ↑ 130" [ref=e667]:
+                - cell "圣泉集团" [ref=e668]:
+                  - link "圣泉集团" [ref=e669] [cursor=pointer]:
+                    - /url: //guba.eastmoney.com/rank/stock?code=605589
+                - cell "第10名" [ref=e670]
+                - cell "↑ 130" [ref=e671]
+          - link "查看更多" [ref=e672] [cursor=pointer]:
+            - /url: //guba.eastmoney.com/rank/
+        - generic [ref=e673]:
+          - generic [ref=e674] [cursor=pointer]:
+            - img [ref=e675]
+            - generic [ref=e676]: 刷新
+          - link "意见反馈" [ref=e677] [cursor=pointer]:
+            - /url: //corp.eastmoney.com/Lianxi_liuyan.asp
+            - img [ref=e678]
+            - generic [ref=e679]: 意见反馈
+    - generic:
+      - list
+  - generic [ref=e682]:
+    - generic [ref=e683]:
+      - generic [ref=e684]:
+        - link "东方财富" [ref=e686] [cursor=pointer]:
+          - /url: http://acttg.eastmoney.com/pub/web_dfcfsy_dbtg_wzl_01_01_01_1
+        - link [ref=e687] [cursor=pointer]:
+          - /url: http://acttg.eastmoney.com/pub/web_app_dcsy_2wm_01_01_01_0
+          - emphasis [ref=e688]
+        - text: 扫一扫下载APP
+      - generic [ref=e689]:
+        - generic [ref=e690]: 东方财富产品
+        - list [ref=e691]:
+          - listitem [ref=e692]:
+            - link "东方财富免费版" [ref=e693] [cursor=pointer]:
+              - /url: https://acttg.eastmoney.com/pub/pctg_hskh_act_dfcfwmfb_01_01_01_0
+          - listitem [ref=e694]:
+            - link "东方财富Level-2" [ref=e695] [cursor=pointer]:
+              - /url: https://acttg.eastmoney.com/pub/pctg_hskh_act_dfcfwl2_01_01_01_0
+          - listitem [ref=e696]:
+            - link "东方财富策略版" [ref=e697] [cursor=pointer]:
+              - /url: https://www.dfcfw.com/CLB/
+          - listitem [ref=e698]:
+            - link "妙想投研助理" [ref=e699] [cursor=pointer]:
+              - /url: https://acttg.eastmoney.com/pub/web_dfcfsy_wzl_bottom_02_02_04_1
+          - listitem [ref=e700]:
+            - link "Choice金融终端" [ref=e701] [cursor=pointer]:
+              - /url: https://choice.eastmoney.com/terminal?adid=web_choice_dcsy_website_02_01_01_0
+      - generic [ref=e702]:
+        - generic [ref=e703]: 证券交易
+        - list [ref=e704]:
+          - listitem [ref=e705]:
+            - link "东方财富证券开户" [ref=e706] [cursor=pointer]:
+              - /url: https://acttg.eastmoney.com/pub/web_kh_dcsy_dbtkwzl_01_01_01_0
+          - listitem [ref=e707]:
+            - link "东方财富在线交易" [ref=e708] [cursor=pointer]:
+              - /url: https://jywg.18.cn/Trade/Buy
+          - listitem [ref=e709]:
+            - link "东方财富证券交易" [ref=e710] [cursor=pointer]:
+              - /url: https://acttg.eastmoney.com/pub/pctg_hskh_act_dfcfzqjy_01_01_01_0
+      - generic [ref=e711]:
+        - generic [ref=e712]: 关注东方财富
+        - list [ref=e713]:
+          - listitem [ref=e714]:
+            - link "东方财富网微博" [ref=e715] [cursor=pointer]:
+              - /url: http://weibo.com/dfcfw
+              - emphasis [ref=e716]
+              - text: 东方财富网微博
+          - listitem [ref=e717]:
+            - link "东方财富网微信" [ref=e718] [cursor=pointer]:
+              - /url: javascript:;
+              - emphasis [ref=e719]
+              - text: 东方财富网微信
+          - listitem [ref=e720]:
+            - link "意见与建议" [ref=e721] [cursor=pointer]:
+              - /url: http://corp.eastmoney.com/Lianxi_liuyan.asp
+              - emphasis [ref=e722]
+              - text: 意见与建议
+      - generic [ref=e723]:
+        - link "天天基金" [ref=e725] [cursor=pointer]:
+          - /url: http://acttg.eastmoney.com/pub/web_ttjjsy_dbtg_wzl_01_01_01_1
+        - link [ref=e726] [cursor=pointer]:
+          - /url: http://js1.eastmoney.com/tg.aspx?ID=4672
+          - emphasis [ref=e727]
+        - text: 扫一扫下载APP
+      - generic [ref=e728]:
+        - generic [ref=e729]: 基金交易
+        - list [ref=e730]:
+          - listitem [ref=e731]:
+            - link "基金开户" [ref=e732] [cursor=pointer]:
+              - /url: https://trade6.1234567.com.cn/reg/step1
+          - listitem [ref=e733]:
+            - link "基金交易" [ref=e734] [cursor=pointer]:
+              - /url: https://trade.1234567.com.cn/login
+          - listitem [ref=e735]:
+            - link "活期宝" [ref=e736] [cursor=pointer]:
+              - /url: http://huoqibao.1234567.com.cn/
+          - listitem [ref=e737]:
+            - link "基金产品" [ref=e738] [cursor=pointer]:
+              - /url: http://fund.eastmoney.com/trade/default.html
+          - listitem [ref=e739]:
+            - link "稳健理财" [ref=e740] [cursor=pointer]:
+              - /url: http://fund.eastmoney.com/gslc/
+      - generic [ref=e741]:
+        - generic [ref=e742]: 关注天天基金
+        - list [ref=e743]:
+          - listitem [ref=e744]:
+            - link "天天基金网微博" [ref=e745] [cursor=pointer]:
+              - /url: http://weibo.com/ttfund
+              - emphasis [ref=e746]
+              - text: 天天基金网微博
+          - listitem [ref=e747]:
+            - link "天天基金网微信" [ref=e748] [cursor=pointer]:
+              - /url: javascript:;
+              - emphasis [ref=e749]
+              - text: 天天基金网微信
+      - generic [ref=e750]:
+        - link "东方财富期货" [ref=e752] [cursor=pointer]:
+          - /url: https://qs.dfcfw.com/1605
+        - link [ref=e753] [cursor=pointer]:
+          - /url: http://acttg.eastmoney.com/pub/web_kh_dcsy_dibudfcfqh_01_01_01_1
+          - emphasis [ref=e754]
+        - text: 扫一扫下载APP
+      - generic [ref=e755]:
+        - generic [ref=e756]: 期货交易
+        - list [ref=e757]:
+          - listitem [ref=e758]:
+            - link "期货手机开户" [ref=e759] [cursor=pointer]:
+              - /url: https://qs.dfcfw.com/1606
+          - listitem [ref=e760]:
+            - link "期货电脑开户" [ref=e761] [cursor=pointer]:
+              - /url: https://qs.dfcfw.com/1607
+          - listitem [ref=e762]:
+            - link "期货官方网站" [ref=e763] [cursor=pointer]:
+              - /url: https://qs.dfcfw.com/1608
+    - generic [ref=e764]:
+      - text: 信息网络传播视听节目许可证：0908328号 经营证券期货业务许可证编号：913101046312860336 违法和不良信息举报:021-61278686 举报邮箱：
+      - link "jubao@eastmoney.com" [ref=e765] [cursor=pointer]:
+        - /url: mailto:jubao@eastmoney.com
+    - generic [ref=e766]:
+      - emphasis [ref=e767]
+      - text: 沪ICP证:沪B2-20070217
+      - link "网站备案号:沪ICP备05006054号-11" [ref=e768] [cursor=pointer]:
+        - /url: https://beian.miit.gov.cn/
+      - link "沪公网安备 31010402000120号" [ref=e769] [cursor=pointer]:
+        - /url: http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=31010402000120
+        - emphasis [ref=e770]
+        - text: 沪公网安备 31010402000120号
+      - text: 版权所有:东方财富网 意见与建议:4000300059/952500
+    - generic [ref=e771]:
+      - link "关于我们" [ref=e772] [cursor=pointer]:
+        - /url: http://about.eastmoney.com
+      - link "可持续发展" [ref=e773] [cursor=pointer]:
+        - /url: https://about.eastmoney.com/about/sdindex
+      - link "广告服务" [ref=e774] [cursor=pointer]:
+        - /url: http://emhd2.eastmoney.com/market
+      - link "供应商平台" [ref=e775] [cursor=pointer]:
+        - /url: https://srm.eastmoney.com/official-site/
+      - link "联系我们" [ref=e776] [cursor=pointer]:
+        - /url: http://about.eastmoney.com/home/contact
+      - link "诚聘英才" [ref=e777] [cursor=pointer]:
+        - /url: https://zhaopin.eastmoney.com/
+      - link "法律声明" [ref=e778] [cursor=pointer]:
+        - /url: http://about.eastmoney.com/home/legal
+      - link "隐私保护" [ref=e779] [cursor=pointer]:
+        - /url: http://about.eastmoney.com/home/conceal
+      - link "征稿启事" [ref=e780] [cursor=pointer]:
+        - /url: http://about.eastmoney.com/home/parper
+      - link "友情链接" [ref=e781] [cursor=pointer]:
+        - /url: http://about.eastmoney.com/home/links
+    - generic [ref=e782]:
+      - img "亲爱的市民朋友，上海警方反诈劝阻电 话“962110”系专门针对避免您财产被 骗受损而设，请您一旦收到来电，立即 接听。" [ref=e783]
+      - generic "上海网警网络110" [ref=e784]
+      - generic "网络社会征信网" [ref=e785]
+      - link "上海违法和违规信息举报中心" [ref=e786] [cursor=pointer]:
+        - /url: http://www.shjbzx.cn/
+      - link "中国互联网违法和不良信息举报中心" [ref=e787] [cursor=pointer]:
+        - /url: http://www.12377.cn
+  - img [ref=e788]
+  - generic [ref=e790]:
+    - img [ref=e791] [cursor=pointer]
+    - img [ref=e792]
+    - link [ref=e793] [cursor=pointer]:
+      - /url: "#"
+  - iframe [ref=e795]:
+    - generic [ref=f4e6] [cursor=pointer]: 点击开始验证

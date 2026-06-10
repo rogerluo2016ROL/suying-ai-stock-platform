@@ -1,0 +1,32 @@
+[    1265ms] [LOG] 湘潭电化：全球锰基材料绝对龙头，MLCC半导体材料国产替代核 //help.eastmoney.com/report_center.html?reportType=3&title=%E6%B9%98%E6%BD%AD%E7%94%B5%E5%8C%96%EF%BC%9A%E5%85%A8%E7%90%83%E9%94%B0%E5%9F%BA%E6%9D%90%E6%96%99%E7%BB%9D%E5%AF%B9%E9%BE%99%E5%A4%B4%EF%BC%8CMLCC%E5%8D%8A%E5%AF%BC%E4%BD%93%E6%9D%90%E6%96%99%E5%9B%BD%E4%BA%A7%E6%9B%BF%E4%BB%A3%E6%A0%B8&nickName=%E4%B9%9D%E6%B4%B2%E5%A4%A7%E9%81%93&gubaCode=002125&id=1723460893&uid=6131016956953222&systype=1&replyid= @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1268ms] [LOG] {payList: NodeList(0)} @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1269ms] [LOG] set EffectiveWhiteList: @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1274ms] [LOG] ht null @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1276ms] [LOG] setGbList_interval @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1286ms] [LOG] setBlock_interval @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1543ms] [ERROR] 白名单加载失败: Error: 白名单数据格式错误
+    at e.<anonymous> (https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:24:417265)
+    at https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:24:416248
+    at Object.next (https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:24:416353)
+    at a (https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:24:415069) @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1622ms] Uncaught (in promise) Error: 白名单数据格式错误
+    at <anonymous> (https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23:417264)
+    at <anonymous> (https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23:416247)
+    at <anonymous> (https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23:416352)
+    at a (https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23:415068)
+[    1576ms] [LOG] pureCode:000725 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1576ms] [LOG] pureCode:600367 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1576ms] [LOG] pureCode:002421 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1576ms] [LOG] pureCode:600522 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1576ms] [LOG] pureCode:002747 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1576ms] [LOG] pureCode:001896 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1576ms] [LOG] pureCode:002585 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1576ms] [LOG] pureCode:002354 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1576ms] [LOG] pureCode:002361 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    1576ms] [LOG] pureCode:603890 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[    8274ms] [INFO] {ReturnCode: 0, Msg: 成功, Data: Object} @ https://i.eastmoney.com/websitecaptcha/build/slidervalid.js:1
+[   10776ms] [INFO] [https://guba.eastmoney.com, s, undefined, guba.eastmoney.com] @ https://i.eastmoney.com/websitecaptcha/build/slidervalid.js:1
+[   10777ms] [LOG] silidervalid_ok @ https://i.eastmoney.com/websitecaptcha/build/popwscpc.js:1
+[   11270ms] [ERROR] 白名单加载超时 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[   11270ms] [LOG] init_whiteLinks @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23
+[   11270ms] [WARNING] 白名单尚未加载完成 @ https://gbfek.dfcfw.com/deploy/fd_guba_web2022/work/news.js:23

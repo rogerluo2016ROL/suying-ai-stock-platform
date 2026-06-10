@@ -1,7 +1,15 @@
-"""Strategy API — plan management CRUD."""
+"""Strategy API — plan management CRUD + auto-trading strategy engine + executor."""
 
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Body, Query, HTTPException
+from pydantic import BaseModel, Field
+
 from app.plan_store import get_store
+from app.auto_trading_engine import (
+    generate_strategy_from_scheme,
+    create_custom_strategy,
+    get_strategy_store,
+)
+from app.auto_trading_executor import get_executor_manager, run_strategy
 
 router = APIRouter(prefix="/api/v1/strategy", tags=["strategy"])
 store = get_store()
@@ -195,4 +203,331 @@ async def list_templates():
             {"id": "balanced", "name": "均衡型", "risk": "medium", "max_positions": 5, "single_max": 0.12},
             {"id": "conservative", "name": "保守型", "risk": "low", "max_positions": 8, "single_max": 0.08},
         ]
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Auto-Trading Strategy Engine — PRD AC-10.6 ~ AC-10.8 + AC-11.5 ~ AC-11.6
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── Request schemas ──
+
+class CustomStrategyRequest(BaseModel):
+    """Request body for creating a custom strategy."""
+    name: str = Field(..., min_length=1, max_length=100, description="策略名称")
+    description: str = Field("", description="策略描述")
+    buy_conditions: list[dict] = Field(default_factory=list, description="买入条件列表")
+    sell_conditions: list[dict] = Field(default_factory=list, description="卖出条件列表")
+    position_rules: dict | None = Field(None, description="仓位规则")
+    risk_rules: dict | None = Field(None, description="风控规则")
+    trade_mode: str = Field("paper", description="paper | live")
+    check_interval_sec: int = Field(300, ge=30, le=3600, description="检查间隔(秒)")
+    capital: float = Field(1_000_000, ge=100_000, description="初始资金")
+    picks: list[dict] = Field(default_factory=list, description="标的列表")
+
+
+class StrategyUpdateRequest(BaseModel):
+    """Request body for updating a strategy."""
+    name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = None
+    buy_conditions: list[dict] | None = None
+    sell_conditions: list[dict] | None = None
+    position_rules: dict | None = None
+    risk_rules: dict | None = None
+    trade_mode: str | None = Field(None, description="paper | live")
+    check_interval_sec: int | None = Field(None, ge=30, le=3600)
+    capital: float | None = Field(None, ge=100_000)
+    picks: list[dict] | None = None
+
+
+# ── Strategy generation ──
+
+@router.post("/generate-from-scheme/{scheme_id}")
+async def api_generate_strategy_from_scheme(scheme_id: str):
+    """PRD AC-10.6: Generate a StrategyConfig from a confirmed trading plan.
+
+    Reads the plan (scheme) from PlanStore and auto-generates:
+      - buy_conditions: signal≥BUY(60), Kronos return>8%, factor resonance≥2
+      - sell_conditions: signal≤SELL(20), Kronos bearish, stop-loss≥3%, take-profit≥15%
+      - risk_rules: max 5 positions, daily max loss 3%, total cap 80%
+    """
+    try:
+        strategy = generate_strategy_from_scheme(scheme_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    return {
+        "strategy": strategy.to_dict(),
+        "message": f"策略 {strategy.id} 已从方案 {scheme_id} 生成",
+    }
+
+
+@router.post("/custom")
+async def api_create_custom_strategy(body: CustomStrategyRequest):
+    """PRD AC-10.7: Create a fully custom auto-trading strategy."""
+    try:
+        strategy = create_custom_strategy(
+            name=body.name,
+            description=body.description,
+            buy_conditions=body.buy_conditions,
+            sell_conditions=body.sell_conditions,
+            position_rules=body.position_rules,
+            risk_rules=body.risk_rules,
+            trade_mode=body.trade_mode,
+            check_interval_sec=body.check_interval_sec,
+            capital=body.capital,
+            picks=body.picks,
+        )
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+    return {
+        "strategy": strategy.to_dict(),
+        "message": f"自定义策略 {strategy.id} 创建成功",
+    }
+
+
+# ── Strategy CRUD ──
+
+@router.get("/list")
+async def api_list_strategies():
+    """PRD AC-10.8: List all auto-trading strategies."""
+    store = get_strategy_store()
+    strategies = store.list_all()
+    return {
+        "strategies": [s.to_dict() for s in strategies],
+        "total": len(strategies),
+    }
+
+
+@router.get("/{strategy_id}")
+async def api_get_strategy(strategy_id: str):
+    """Get strategy detail by ID."""
+    store = get_strategy_store()
+    strategy = store.get(strategy_id)
+    if not strategy:
+        raise HTTPException(404, "策略不存在")
+    return strategy.to_dict()
+
+
+@router.put("/{strategy_id}")
+async def api_update_strategy(strategy_id: str, body: StrategyUpdateRequest):
+    """PRD AC-10.8: Edit an existing strategy."""
+    store = get_strategy_store()
+    strategy = store.get(strategy_id)
+    if not strategy:
+        raise HTTPException(404, "策略不存在")
+
+    updates = {}
+    for field in ("name", "description", "trade_mode", "check_interval_sec", "capital"):
+        val = getattr(body, field, None)
+        if val is not None:
+            updates[field] = val
+
+    if body.buy_conditions is not None:
+        from app.auto_trading_engine import BuyCondition
+        updates["buy_conditions"] = [
+            BuyCondition(
+                field=c.get("field", ""),
+                operator=c.get("operator", ">="),
+                threshold=float(c.get("threshold", 0)),
+                description=c.get("description", ""),
+            )
+            for c in body.buy_conditions
+        ]
+
+    if body.sell_conditions is not None:
+        from app.auto_trading_engine import SellCondition
+        updates["sell_conditions"] = [
+            SellCondition(
+                field=c.get("field", ""),
+                operator=c.get("operator", ">="),
+                threshold=float(c.get("threshold", 0)),
+                description=c.get("description", ""),
+            )
+            for c in body.sell_conditions
+        ]
+
+    if body.position_rules is not None:
+        from app.auto_trading_engine import PositionRule
+        updates["position_rules"] = PositionRule(
+            max_positions=int(body.position_rules.get("max_positions", 5)),
+            single_max_pct=float(body.position_rules.get("single_max_pct", 0.20)),
+            total_position_cap_pct=float(body.position_rules.get("total_position_cap_pct", 0.80)),
+        )
+
+    if body.risk_rules is not None:
+        from app.auto_trading_engine import RiskRule
+        updates["risk_rules"] = RiskRule(
+            daily_max_loss_pct=float(body.risk_rules.get("daily_max_loss_pct", 0.03)),
+            stop_loss_pct=float(body.risk_rules.get("stop_loss_pct", 0.03)),
+            take_profit_pct=float(body.risk_rules.get("take_profit_pct", 0.15)),
+            trailing_stop_pct=float(body.risk_rules.get("trailing_stop_pct", 0.0)),
+        )
+
+    if body.picks is not None:
+        updates["picks"] = body.picks
+
+    store.update(strategy_id, **updates)
+    updated = store.get(strategy_id)
+    return {
+        "strategy": updated.to_dict() if updated else None,
+        "message": "策略已更新",
+    }
+
+
+@router.delete("/{strategy_id}")
+async def api_delete_strategy(strategy_id: str):
+    """PRD AC-10.8: Delete a strategy. Stops execution if running."""
+    mgr = get_executor_manager()
+    executor = mgr.get(strategy_id)
+    if executor and executor.status in ("running", "paused"):
+        try:
+            mgr.stop(strategy_id)
+        except ValueError:
+            pass
+
+    store = get_strategy_store()
+    if store.delete(strategy_id):
+        return {"strategy_id": strategy_id, "status": "deleted"}
+    raise HTTPException(404, "策略不存在")
+
+
+# ── Strategy Execution control ──
+
+@router.post("/{strategy_id}/start")
+async def api_start_strategy(
+    strategy_id: str,
+    mode: str = Query("paper", description="paper | live"),
+):
+    """PRD AC-11.5: Start executing a strategy.
+
+    Launches the async executor loop. The executor will:
+      1. Check buy conditions for picks not yet held
+      2. Check sell conditions for held positions
+      3. Place orders via trade-service
+      4. Repeat at the configured interval (default 5 min)
+    """
+    try:
+        state = run_strategy(strategy_id, mode=mode)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    return {
+        "strategy_id": strategy_id,
+        "status": state.status,
+        "started_at": state.started_at,
+        "trade_mode": mode,
+        "message": f"策略 {strategy_id} 已启动",
+    }
+
+
+@router.post("/{strategy_id}/pause")
+async def api_pause_strategy(strategy_id: str):
+    """PRD AC-11.6: Pause strategy execution (preserves state)."""
+    mgr = get_executor_manager()
+    try:
+        state = mgr.pause(strategy_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    return {
+        "strategy_id": strategy_id,
+        "status": state.status,
+        "message": "策略已暂停",
+    }
+
+
+@router.post("/{strategy_id}/resume")
+async def api_resume_strategy(strategy_id: str):
+    """PRD AC-11.6: Resume a paused strategy."""
+    mgr = get_executor_manager()
+    try:
+        state = mgr.resume(strategy_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    return {
+        "strategy_id": strategy_id,
+        "status": state.status,
+        "message": "策略已恢复",
+    }
+
+
+@router.post("/{strategy_id}/stop")
+async def api_stop_strategy(strategy_id: str):
+    """PRD AC-11.6: Stop strategy execution."""
+    mgr = get_executor_manager()
+    try:
+        state = mgr.stop(strategy_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    return {
+        "strategy_id": strategy_id,
+        "status": state.status,
+        "stopped_at": state.stopped_at,
+        "message": "策略已终止",
+    }
+
+
+@router.get("/{strategy_id}/status")
+async def api_get_strategy_status(strategy_id: str):
+    """PRD AC-11.6: Get execution status for a strategy."""
+    mgr = get_executor_manager()
+    state = mgr.get(strategy_id)
+
+    if state is None:
+        # Check if strategy exists but hasn't been started
+        store = get_strategy_store()
+        strategy = store.get(strategy_id)
+        if strategy is None:
+            raise HTTPException(404, "策略不存在")
+        return {
+            "strategy_id": strategy_id,
+            "status": strategy.status,
+            "executor_running": False,
+        }
+
+    store = get_strategy_store()
+    strategy = store.get(strategy_id)
+
+    return {
+        **state.to_status_dict(),
+        "trade_mode": strategy.trade_mode if strategy else "paper",
+        "check_interval_sec": strategy.check_interval_sec if strategy else 300,
+    }
+
+
+@router.get("/{strategy_id}/log")
+async def api_get_strategy_log(
+    strategy_id: str,
+    limit: int = Query(50, ge=10, le=500, description="Max log entries"),
+    level: str = Query(None, description="Filter: INFO | WARN | ERROR | BUY | SELL"),
+):
+    """PRD AC-11.6: Get execution logs for a strategy."""
+    mgr = get_executor_manager()
+    state = mgr.get(strategy_id)
+    if state is None:
+        raise HTTPException(404, "执行器未找到，策略可能未启动")
+
+    logs = state.logs
+    if level:
+        logs = [l for l in logs if l.level == level]
+
+    logs = logs[-limit:]
+
+    return {
+        "strategy_id": strategy_id,
+        "total_logs": len(state.logs),
+        "filtered": len(logs),
+        "logs": [
+            {
+                "timestamp": l.timestamp,
+                "level": l.level,
+                "message": l.message,
+                "details": l.details,
+            }
+            for l in logs
+        ],
     }

@@ -1,0 +1,3 @@
+- [D3 shadcn/ui 暂缓至 Phase B](d3-shadcn-deferred.md) — product-lead 2026-06-08 review 决定
+- [Phase A 双库并存策略](dual-db-phase-a.md) — ADR-005 D1/D6，SQLite + PG 双栈
+- [Auth/RBAC 技术选型](auth-decisions-2026-06-10.md) — PyJWT + argon2 + httpOnly cookie，ADR-001

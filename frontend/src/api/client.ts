@@ -1,16 +1,88 @@
-import axios from 'axios';
+import axios, { type InternalAxiosRequestConfig } from 'axios'
 
 const api = axios.create({
   baseURL: '/api/v1',
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
-});
+  withCredentials: true,
+})
+
+// ── Auth interceptor state (injected by AuthProvider) ──
+
+let _getAccessToken: (() => string | null) | null = null
+let _onRefreshToken: (() => Promise<string | null>) | null = null
+let _onForceLogout: (() => void) | null = null
+
+export function injectAuth(
+  getToken: () => string | null,
+  refreshToken: () => Promise<string | null>,
+  forceLogout: () => void,
+) {
+  _getAccessToken = getToken
+  _onRefreshToken = refreshToken
+  _onForceLogout = forceLogout
+}
+
+export function clearAuth() {
+  _getAccessToken = null
+  _onRefreshToken = null
+  _onForceLogout = null
+}
+
+// ── Request interceptor: attach Authorization header ──
+
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = _getAccessToken?.()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// ── Response interceptor: 401 → refresh → retry ──
+
+let _refreshPromise: Promise<string | null> | null = null
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (!_onRefreshToken) {
+        _onForceLogout?.()
+        return Promise.reject(error)
+      }
+
+      // Promise lock: only one refresh at a time
+      if (!_refreshPromise) {
+        _refreshPromise = _onRefreshToken().finally(() => {
+          _refreshPromise = null
+        })
+      }
+
+      const newToken = await _refreshPromise
+      if (newToken) {
+        originalRequest._retry = true
+        originalRequest.headers.Authorization = `Bearer ${newToken}`
+        return api(originalRequest)
+      }
+
+      // Refresh failed → force logout
+      _onForceLogout?.()
+    }
+
+    return Promise.reject(error)
+  },
+)
+
+// ── API modules (unchanged) ──
 
 // Screener
 export const screenerApi = {
   getModes: () => api.get('/screener/modes'),
   run: (mode: string, topN = 30) => api.post(`/screener/run?mode=${mode}&top_n=${topN}`),
-};
+}
 
 // Prediction
 export const predictionApi = {
@@ -18,7 +90,7 @@ export const predictionApi = {
   predict: (code: string, days = 30) => api.post(`/prediction/predict/${code}?pred_days=${days}`),
   predictBatch: (codes: string[], days = 30) =>
     api.post(`/prediction/predict-batch?pred_days=${days}`, codes),
-};
+}
 
 // Strategy
 export const strategyApi = {
@@ -26,20 +98,20 @@ export const strategyApi = {
     api.post(`/strategy/generate?capital=${capital}`, picks),
   getTemplates: () => api.get('/strategy/templates'),
   getPlans: () => api.get('/strategy/plans'),
-};
+}
 
 // Signal
 export const signalApi = {
   getLevels: () => api.get('/signal/levels'),
   getLive: (session = 'intra') => api.get(`/signal/live?session=${session}`),
   getHistory: (code?: string) => api.get(`/signal/history${code ? `?code=${code}` : ''}`),
-};
+}
 
 // Alert
 export const alertApi = {
   getChannels: () => api.get('/alert/channels'),
   getConfig: () => api.get('/alert/config'),
-};
+}
 
 // Trade
 export const tradeApi = {
@@ -47,21 +119,25 @@ export const tradeApi = {
   getPositions: () => api.get('/trade/positions'),
   placeOrder: (code: string, direction: string, volume: number, price = 0) =>
     api.post(`/trade/order?code=${code}&direction=${direction}&volume=${volume}&price=${price}`),
-};
+}
 
 // Backtest
 export const backtestApi = {
   getFactors: () => api.get('/backtest/factors'),
   run: (mode = 'all', windows = 3) => api.post(`/backtest/run?mode=${mode}&windows=${windows}`),
-};
+}
 
 // Diagnosis
 export const diagnosisApi = {
-  analyze: (code: string) => api.post(`/diagnosis/analyze?code=${code}`),
-  compare: (codes: string[]) => api.post('/diagnosis/compare', codes),
-};
+  analyze: (code: string, forceRefresh = false) =>
+    api.post('/diagnosis/analyze', { code, force_refresh: forceRefresh }),
+  compare: (codes: string[], dimensions?: string[], forceRefresh = false) =>
+    api.post('/diagnosis/compare', { codes, dimensions, force_refresh: forceRefresh }),
+}
 
 // Health
 export const healthApi = {
   check: (service: string) => api.get(`/${service}/../health`).catch(() => ({ data: { status: 'offline' } })),
-};
+}
+
+export default api

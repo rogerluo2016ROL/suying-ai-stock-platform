@@ -1,11 +1,22 @@
-import { useState, useEffect } from 'react'
-import { Card, Row, Col, Statistic, Button, Tag, Typography, Space, Radio, InputNumber, Form, Input, Select, Table, message } from 'antd'
+import { useState, useEffect, useCallback } from 'react'
+import {
+  Card, Row, Col, Statistic, Button, Tag, Typography, Space, Radio,
+  InputNumber, Form, Input, Select, Table, message, Segmented, Tooltip,
+} from 'antd'
 import {
   DollarOutlined, RiseOutlined, RobotOutlined, PauseCircleOutlined,
   ThunderboltOutlined, BarChartOutlined, FallOutlined, StockOutlined,
   FundOutlined, SendOutlined, WalletOutlined, LineChartOutlined,
-  RightOutlined,
+  RightOutlined, AuditOutlined,
 } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
+
+import { useLiveTrade } from '../hooks/useLiveTrade'
+import type { PreCheckResult, OrderParams } from '../hooks/useLiveTrade'
+import BrokerStatus from '../components/trade/BrokerStatus'
+import CircuitBreakerAlert from '../components/trade/CircuitBreakerAlert'
+import RiskCheckModal from '../components/trade/RiskCheckModal'
+import { showLargeTradeConfirm } from '../components/trade/LargeTradeConfirm'
 
 const { Title, Text } = Typography
 
@@ -19,43 +30,103 @@ const strategyCards = [
 ]
 
 export default function Trade() {
-  const [mode, setMode] = useState('paper')
+  const navigate = useNavigate()
+  const {
+    mode, setMode, brokerStatus, riskConfig, circuitBreaker,
+    apiPrefix, connectBroker, placeOrder,
+  } = useLiveTrade()
+
   const [orders, setOrders] = useState<any[]>([])
   const [account, setAccount] = useState<any>({})
   const [positions, setPositions] = useState<any[]>([])
 
-  useEffect(() => {
-    fetch('/api/v1/trade/account').then(r => r.json()).then(setAccount).catch(()=>{})
-    fetch('/api/v1/trade/positions').then(r => r.json()).then(d => setPositions(d.positions||[])).catch(()=>{})
-    fetch('/api/v1/trade/orders').then(r => r.json()).then(d => setOrders(d.orders||[])).catch(()=>{})
-  }, [])
+  // ── Risk check modal state ──
+  const [riskCheckOpen, setRiskCheckOpen] = useState(false)
+  const [riskCheckResult, setRiskCheckResult] = useState<PreCheckResult | null>(null)
 
-  const refreshAccount = () => {
-    fetch('/api/v1/trade/account').then(r => r.json()).then(setAccount).catch(()=>{})
-    fetch('/api/v1/trade/positions').then(r => r.json()).then(d => setPositions(d.positions||[])).catch(()=>{})
-    fetch('/api/v1/trade/orders').then(r => r.json()).then(d => setOrders(d.orders||[])).catch(()=>{})
+  // ── Derived disable states ──
+  const brokerDisconnected = mode === 'live' && (brokerStatus === 'disconnected' || brokerStatus === 'error')
+  const circuitBreakerActive = mode === 'live' && (circuitBreaker?.triggered ?? false)
+  const orderDisabled = brokerDisconnected || circuitBreakerActive
+
+  const orderDisabledReason = circuitBreakerActive
+    ? '熔断保护中，交易暂停'
+    : brokerDisconnected
+      ? '券商未连接，请先连接券商'
+      : undefined
+
+  // ── Data fetching based on mode ──
+  const fetchData = useCallback(() => {
+    // Account
+    fetch(`${apiPrefix}/account`)
+      .then(r => r.json())
+      .then(setAccount)
+      .catch(() => {})
+
+    // Positions
+    fetch(`${apiPrefix}/positions`)
+      .then(r => r.json())
+      .then(d => setPositions(d.positions || []))
+      .catch(() => {})
+
+    // Orders
+    fetch(`${apiPrefix}/orders`)
+      .then(r => r.json())
+      .then(d => setOrders(d.orders || []))
+      .catch(() => {})
+  }, [apiPrefix])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const refreshAccount = () => fetchData()
+
+  // ── Mode switch handler ──
+  const handleModeSwitch = (v: any) => {
+    const newMode = v as 'paper' | 'live'
+    if (newMode === 'live' && brokerStatus === 'disconnected') {
+      message.info('请先连接券商后再进行实盘交易')
+    }
+    setMode(newMode)
   }
 
-  const placeOrder = async (values: any) => {
-    try {
-      const params = new URLSearchParams({
-        code: values.code, direction: values.direction,
-        price: String(values.price || 0), volume: String(values.volume),
-      })
-      const r = await fetch(`/api/v1/trade/order?${params}`, { method: 'POST' })
-      const data = await r.json()
-      if (r.ok) {
-        setOrders(prev => [{
-          id: data.order_id, code: data.code, direction: data.direction,
-          price: data.price, volume: data.volume,
-          status: data.status, time: data.filled_at?.slice(11, 19) || new Date().toLocaleTimeString(),
-        }, ...prev])
-        refreshAccount()
-        message.success(data.message)
-      } else {
-        message.error(data.detail || '下单失败')
-      }
-    } catch { message.error('交易服务未连接') }
+  // ── Order placement with risk control ──
+  const handlePlaceOrder = async (values: any) => {
+    const orderParams: OrderParams = {
+      code: values.code,
+      direction: values.direction,
+      price: Number(values.price || 0),
+      volume: Number(values.volume),
+    }
+
+    const result = await placeOrder(orderParams, {
+      // Risk pre-check failed callback
+      onPreCheckFailed: (checkResult) => {
+        setRiskCheckResult(checkResult)
+        setRiskCheckOpen(true)
+      },
+      // Large order confirm callback
+      onLargeOrderConfirm: async (params) => {
+        const threshold = riskConfig?.large_order_threshold || 500000
+        return showLargeTradeConfirm(params, threshold)
+      },
+    })
+
+    if (result.success) {
+      // Add order to local state
+      const data = result.data
+      setOrders(prev => [{
+        id: data?.order_id || Date.now(),
+        code: data?.code || orderParams.code,
+        direction: data?.direction || orderParams.direction,
+        price: data?.price || orderParams.price,
+        volume: data?.volume || orderParams.volume,
+        status: data?.status || 'pending',
+        time: data?.filled_at?.slice(11, 19) || new Date().toLocaleTimeString(),
+      }, ...prev])
+      refreshAccount()
+    }
   }
 
   return (
@@ -66,8 +137,55 @@ export default function Trade() {
           <DollarOutlined style={{ marginRight: 8 }} />
           交易中心
         </Title>
-        <Tag color={mode === 'paper' ? 'blue' : 'red'}>{mode === 'paper' ? '📝 模拟交易' : '🔴 实盘交易'}</Tag>
+
+        <Space size="middle">
+          {/* Mode switch */}
+          <Segmented
+            value={mode}
+            onChange={handleModeSwitch}
+            options={[
+              {
+                label: '📝 模拟盘',
+                value: 'paper',
+              },
+              {
+                label: '🔴 实盘',
+                value: 'live',
+              },
+            ]}
+            style={{
+              backgroundColor: mode === 'live' ? '#fff2f0' : '#f0f5ff',
+            }}
+          />
+
+          {/* Broker status (live mode only) */}
+          {mode === 'live' && (
+            <BrokerStatus status={brokerStatus} onConnect={connectBroker} />
+          )}
+
+          {/* Audit log entry (live mode only) */}
+          {mode === 'live' && (
+            <Button
+              type="link"
+              size="small"
+              icon={<AuditOutlined />}
+              onClick={() => navigate('/trade/audit-log')}
+            >
+              审计日志
+            </Button>
+          )}
+        </Space>
       </div>
+
+      {/* ── Circuit breaker alert (live mode + triggered) ── */}
+      {circuitBreaker?.triggered && (
+        <CircuitBreakerAlert
+          triggered={circuitBreaker.triggered}
+          lossAmount={circuitBreaker.loss_amount}
+          threshold={circuitBreaker.threshold}
+          message={circuitBreaker.message}
+        />
+      )}
 
       {/* ── KPI Banner ── */}
       <Row gutter={12} style={{ marginBottom: 16 }}>
@@ -75,15 +193,15 @@ export default function Trade() {
           <Card size="small" style={{ borderRadius: 8 }}>
             <Space><WalletOutlined /><Text type="secondary" style={{ fontSize: 12 }}>总资产</Text></Space>
             <div style={{ fontSize: 24, fontWeight: 700, color: '#1677ff' }}>
-              ¥{(account.total_capital || 0).toLocaleString()}
+              ¥{(account.total_capital || account.total_assets || 0).toLocaleString()}
             </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small" style={{ borderRadius: 8 }}>
             <Space><RiseOutlined /><Text type="secondary" style={{ fontSize: 12 }}>总盈亏</Text></Space>
-            <div style={{ fontSize: 24, fontWeight: 700, color: (account.total_pnl||0) >= 0 ? '#52c41a' : '#ff4d4f' }}>
-              {(account.total_pnl||0) >= 0 ? '+' : ''}¥{(account.total_pnl||0).toLocaleString()}
+            <div style={{ fontSize: 24, fontWeight: 700, color: (account.total_pnl || 0) >= 0 ? '#52c41a' : '#ff4d4f' }}>
+              {(account.total_pnl || 0) >= 0 ? '+' : ''}¥{(account.total_pnl || 0).toLocaleString()}
             </div>
           </Card>
         </Col>
@@ -153,7 +271,7 @@ export default function Trade() {
         {/* ── Order Panel ── */}
         <Col span={10}>
           <Card title="下单" style={{ borderRadius: 8, position: 'sticky', top: 64 }}>
-            <Form layout="vertical" onFinish={placeOrder} size="small">
+            <Form layout="vertical" onFinish={handlePlaceOrder} size="small">
               <Form.Item label="股票代码" name="code" rules={[{ required: true, message: '请输入代码' }]}>
                 <Input placeholder="000001" />
               </Form.Item>
@@ -169,9 +287,17 @@ export default function Trade() {
               <Form.Item label="数量 (股)" name="volume" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={100} step={100} />
               </Form.Item>
-              <Button type="primary" htmlType="submit" icon={<SendOutlined />} block>
-                下单
-              </Button>
+              <Tooltip title={orderDisabledReason}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  icon={<SendOutlined />}
+                  block
+                  disabled={orderDisabled}
+                >
+                  下单
+                </Button>
+              </Tooltip>
               <div style={{ marginTop: 8 }}>
                 <Text type="secondary" style={{ fontSize: 11 }}>
                   需要完整脚本策略控制？<Button type="link" size="small" style={{ padding: 0, fontSize: 11 }}>前往方案管理 <RightOutlined style={{ fontSize: 10 }} /></Button>
@@ -181,6 +307,13 @@ export default function Trade() {
           </Card>
         </Col>
       </Row>
+
+      {/* ── Risk Check Modal ── */}
+      <RiskCheckModal
+        open={riskCheckOpen}
+        result={riskCheckResult}
+        onClose={() => setRiskCheckOpen(false)}
+      />
     </div>
   )
 }

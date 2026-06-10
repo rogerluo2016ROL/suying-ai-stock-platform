@@ -1,0 +1,85 @@
+- generic [ref=e3]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: K
+      - generic [ref=e8]: K线大模型平台
+    - generic [ref=e9]: 核心功能
+    - navigation [ref=e10]:
+      - link "📊 首页看板" [ref=e11] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e12]: 📊
+        - generic [ref=e13]: 首页看板
+      - link "🔍 智能选股" [ref=e14] [cursor=pointer]:
+        - /url: /screening
+        - generic [ref=e15]: 🔍
+        - generic [ref=e16]: 智能选股
+      - link "📈 个股预测" [ref=e17] [cursor=pointer]:
+        - /url: /predict
+        - generic [ref=e18]: 📈
+        - generic [ref=e19]: 个股预测
+      - link "💼 持仓管理" [ref=e20] [cursor=pointer]:
+        - /url: /portfolio
+        - generic [ref=e21]: 💼
+        - generic [ref=e22]: 持仓管理
+    - generic [ref=e23]: 策略与数据
+    - navigation [ref=e24]:
+      - link "📋 方案中心" [ref=e25] [cursor=pointer]:
+        - /url: /schemes
+        - generic [ref=e26]: 📋
+        - generic [ref=e27]: 方案中心
+      - link "🔔 预警中心" [ref=e28] [cursor=pointer]:
+        - /url: /alerts
+        - generic [ref=e29]: 🔔
+        - generic [ref=e30]: 预警中心
+      - link "⏪ 回测验证" [ref=e31] [cursor=pointer]:
+        - /url: /backtest
+        - generic [ref=e32]: ⏪
+        - generic [ref=e33]: 回测验证
+      - link "📁 数据中心" [ref=e34] [cursor=pointer]:
+        - /url: /datacenter
+        - generic [ref=e35]: 📁
+        - generic [ref=e36]: 数据中心
+    - button "折叠侧边栏" [ref=e38] [cursor=pointer]:
+      - generic [ref=e39]: ◀
+      - generic [ref=e40]: 收起
+  - generic [ref=e41]:
+    - banner [ref=e42]:
+      - navigation "面包屑导航" [ref=e44]:
+        - link "首页" [ref=e46] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e47]:
+          - generic [ref=e48]: /
+          - generic [ref=e49]: 方案中心
+      - generic [ref=e50]:
+        - textbox "搜索股票代码或名称..." [ref=e52]
+        - generic [ref=e53]:
+          - button "暗色" [ref=e54] [cursor=pointer]
+          - button "亮色" [ref=e55] [cursor=pointer]
+    - main [ref=e56]:
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - generic [ref=e59]:
+            - heading "方案中心" [level=1] [ref=e60]
+            - paragraph [ref=e61]: 管理投资方案，创建、对比、跟踪收益
+          - button "创建方案" [ref=e62] [cursor=pointer]
+        - generic [ref=e63]:
+          - link "高股息组合 运行中 2 只 累计收益 — 超额收益 — 创建 2026-06-08" [ref=e64] [cursor=pointer]:
+            - /url: /schemes/3e78db07-aea9-4b0b-8e68-83595f6c785a
+            - generic [ref=e67]:
+              - generic [ref=e68]:
+                - generic [ref=e69]: 高股息组合
+                - generic [ref=e70]: 运行中
+              - paragraph [ref=e71]: 2 只
+              - generic [ref=e72]:
+                - generic [ref=e73]:
+                  - text: 累计收益
+                  - text: —
+                - generic [ref=e74]:
+                  - text: 超额收益
+                  - text: —
+                - generic [ref=e75]:
+                  - text: 创建
+                  - text: 2026-06-08
+          - generic [ref=e77] [cursor=pointer]:
+            - generic [ref=e78]: +
+            - text: 创建新方案

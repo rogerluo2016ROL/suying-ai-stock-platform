@@ -1,0 +1,51 @@
+[     102ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:14336
+[     173ms] TypeError: Cannot read properties of undefined (reading 'length')
+    at DashboardPage (http://localhost:5174/src/features/dashboard/DashboardPage.tsx?t=1780905611212:321:29)
+    at Object.react_stack_bottom_frame (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:12867:12)
+    at renderWithHooks (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:4212:19)
+    at updateFunctionComponent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:5568:16)
+    at beginWork (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:6139:20)
+    at runWithFiberInDEV (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:850:66)
+    at performUnitOfWork (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:8428:92)
+    at workLoopSync (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:8324:37)
+    at renderRootSync (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:8308:6)
+    at performWorkOnRoot (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:7993:27)
+[     173ms] [WARNING] %s
+
+%s
+ An error occurred in the <DashboardPage> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://localhost:5174/@vite/client:524
+[  287804ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:14336
+[  287851ms] TypeError: Cannot read properties of undefined (reading 'length')
+    at DashboardPage (http://localhost:5174/src/features/dashboard/DashboardPage.tsx?t=1780905611212:321:29)
+    at Object.react_stack_bottom_frame (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:12867:12)
+    at renderWithHooks (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:4212:19)
+    at updateFunctionComponent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:5568:16)
+    at beginWork (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:6139:20)
+    at runWithFiberInDEV (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:850:66)
+    at performUnitOfWork (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:8428:92)
+    at workLoopSync (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:8324:37)
+    at renderRootSync (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:8308:6)
+    at performWorkOnRoot (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:7993:27)
+[  287850ms] [WARNING] %s
+
+%s
+ An error occurred in the <DashboardPage> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://localhost:5174/@vite/client:524
+[  291857ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:14336
+[  291881ms] TypeError: Cannot read properties of undefined (reading 'length')
+    at DashboardPage (http://localhost:5174/src/features/dashboard/DashboardPage.tsx?t=1780905611212:321:29)
+    at Object.react_stack_bottom_frame (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:12867:12)
+    at renderWithHooks (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:4212:19)
+    at updateFunctionComponent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:5568:16)
+    at beginWork (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:6139:20)
+    at runWithFiberInDEV (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:850:66)
+    at performUnitOfWork (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:8428:92)
+    at workLoopSync (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:8324:37)
+    at renderRootSync (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:8308:6)
+    at performWorkOnRoot (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=f3c35d06:7993:27)
+[  291881ms] [WARNING] %s
+
+%s
+ An error occurred in the <DashboardPage> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://localhost:5174/@vite/client:524

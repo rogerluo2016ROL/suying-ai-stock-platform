@@ -1,0 +1,37 @@
+.worktrees/
+.DS_Store
+
+# Python (global)
+**/__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Team Dashboard (tools/team-dashboard/)
+tools/team-dashboard/web/node_modules/
+tools/team-dashboard/server/*.egg-info/
+tools/team-dashboard/web/dist/
+
+# Training deck build artifacts (regenerable via `python3 docs/training/build_main.py`)
+docs/training/agf-overview.pptx
+docs/training/agf-overview.pdf
+docs/training/preview/
+docs/training/agf-overview-*.pptx
+docs/training/agf-overview-*.pdf
+
+# LibreOffice / MS Office lock files (open .pptx 时产生)
+**/~$*
+**/.~lock.*
+**/.~*.pptx
+**/.~*.docx
+
+# Template analysis temp（thumbnail.py / unpack.py 临时产物，规范放 /tmp）
+template/.~*.pptx
+
+# Diagram render intermediate（draw.io desktop 临时锁）
+docs/training/diagrams/src/.~*.drawio
+
+# Training diagrams（draw.io 源文件 + 渲染 PNG 不入 git；本地生成 / 本地使用）
+docs/training/diagrams/
+Kronos/
+services/*/.venv/

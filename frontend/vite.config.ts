@@ -15,6 +15,8 @@ export default defineConfig({
       '/api/v1/backtest':    { target: 'http://localhost:8007', changeOrigin: true },
       '/api/v1/diagnosis':   { target: 'http://localhost:8009', changeOrigin: true },
       '/api/v1/health':      { target: 'http://localhost:8001', changeOrigin: true },
+      '/api/v1/auth':       { target: 'http://localhost:9001', changeOrigin: true },
+      '/api/v1/admin':      { target: 'http://localhost:9001', changeOrigin: true },
     },
   },
 })

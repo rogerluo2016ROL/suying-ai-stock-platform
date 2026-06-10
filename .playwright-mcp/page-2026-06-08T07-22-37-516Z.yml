@@ -1,0 +1,168 @@
+- generic [ref=e3]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: K
+      - generic [ref=e459]: K线大模型平台
+    - generic [ref=e9]: 核心功能
+    - navigation [ref=e10]:
+      - link "📊 首页看板" [ref=e11] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e12]: 📊
+        - generic [ref=e460]: 首页看板
+      - link "🔍 智能选股" [ref=e14] [cursor=pointer]:
+        - /url: /screening
+        - generic [ref=e15]: 🔍
+        - generic [ref=e461]: 智能选股
+      - link "📈 个股预测" [ref=e17] [cursor=pointer]:
+        - /url: /predict
+        - generic [ref=e18]: 📈
+        - generic [ref=e462]: 个股预测
+      - link "💼 持仓管理" [ref=e20] [cursor=pointer]:
+        - /url: /portfolio
+        - generic [ref=e21]: 💼
+        - generic [ref=e463]: 持仓管理
+    - generic [ref=e23]: 策略与数据
+    - navigation [ref=e24]:
+      - link "📋 方案中心" [active] [ref=e25] [cursor=pointer]:
+        - /url: /schemes
+        - generic [ref=e26]: 📋
+        - generic [ref=e464]: 方案中心
+      - link "🔔 预警中心" [ref=e28] [cursor=pointer]:
+        - /url: /alerts
+        - generic [ref=e29]: 🔔
+        - generic [ref=e465]: 预警中心
+      - link "⏪ 回测验证" [ref=e31] [cursor=pointer]:
+        - /url: /backtest
+        - generic [ref=e32]: ⏪
+        - generic [ref=e466]: 回测验证
+      - link "📁 数据中心" [ref=e34] [cursor=pointer]:
+        - /url: /datacenter
+        - generic [ref=e35]: 📁
+        - generic [ref=e467]: 数据中心
+    - button "折叠侧边栏" [ref=e38] [cursor=pointer]:
+      - generic [ref=e39]: ◀
+      - generic [ref=e468]: 收起
+  - generic [ref=e41]:
+    - banner [ref=e42]:
+      - navigation "面包屑导航" [ref=e44]:
+        - link "首页" [ref=e469] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e470]:
+          - generic [ref=e471]: /
+          - generic [ref=e472]: 方案中心
+      - generic [ref=e47]:
+        - textbox "搜索股票代码或名称..." [ref=e49]
+        - generic [ref=e50]:
+          - button "暗色" [ref=e51] [cursor=pointer]
+          - button "亮色" [ref=e52] [cursor=pointer]
+    - main [ref=e53]:
+      - generic [ref=e473]:
+        - generic [ref=e474]:
+          - generic [ref=e475]:
+            - heading "方案中心" [level=1] [ref=e476]
+            - paragraph [ref=e477]: 管理投资方案，创建、对比、跟踪收益
+          - button "创建方案" [ref=e478] [cursor=pointer]
+        - generic [ref=e479]:
+          - link "高股息组合 运行中 低估值高分红策略 · 10 只 总市值 ¥112.35 万 累计收益 +12.35% 超额收益 +5.20% 更新 2026-06-07" [ref=e480] [cursor=pointer]:
+            - /url: /schemes/s1
+            - generic [ref=e483]:
+              - generic [ref=e484]:
+                - generic [ref=e485]: 高股息组合
+                - generic [ref=e486]: 运行中
+              - paragraph [ref=e487]: 低估值高分红策略 · 10 只
+              - generic [ref=e488]:
+                - generic [ref=e489]:
+                  - text: 总市值
+                  - generic [ref=e490]: ¥112.35 万
+                - generic [ref=e491]:
+                  - text: 累计收益
+                  - text: +12.35%
+                - generic [ref=e492]:
+                  - text: 超额收益
+                  - text: +5.20%
+                - generic [ref=e493]:
+                  - text: 更新
+                  - text: 2026-06-07
+          - link "AI 概念精选 运行中 人工智能产业链 · 12 只 总市值 ¥108.9 万 累计收益 +8.90% 超额收益 +3.40% 更新 2026-06-07" [ref=e494] [cursor=pointer]:
+            - /url: /schemes/s2
+            - generic [ref=e497]:
+              - generic [ref=e498]:
+                - generic [ref=e499]: AI 概念精选
+                - generic [ref=e500]: 运行中
+              - paragraph [ref=e501]: 人工智能产业链 · 12 只
+              - generic [ref=e502]:
+                - generic [ref=e503]:
+                  - text: 总市值
+                  - generic [ref=e504]: ¥108.9 万
+                - generic [ref=e505]:
+                  - text: 累计收益
+                  - text: +8.90%
+                - generic [ref=e506]:
+                  - text: 超额收益
+                  - text: +3.40%
+                - generic [ref=e507]:
+                  - text: 更新
+                  - text: 2026-06-07
+          - link "成长股组合 运行中 高成长性标的 · 8 只 总市值 ¥95.6 万 累计收益 -4.40% 超额收益 -2.00% 更新 2026-06-06" [ref=e508] [cursor=pointer]:
+            - /url: /schemes/s3
+            - generic [ref=e511]:
+              - generic [ref=e512]:
+                - generic [ref=e513]: 成长股组合
+                - generic [ref=e514]: 运行中
+              - paragraph [ref=e515]: 高成长性标的 · 8 只
+              - generic [ref=e516]:
+                - generic [ref=e517]:
+                  - text: 总市值
+                  - generic [ref=e518]: ¥95.6 万
+                - generic [ref=e519]:
+                  - text: 累计收益
+                  - text: "-4.40%"
+                - generic [ref=e520]:
+                  - text: 超额收益
+                  - text: "-2.00%"
+                - generic [ref=e521]:
+                  - text: 更新
+                  - text: 2026-06-06
+          - link "消费龙头 运行中 必选消费核心 · 6 只 总市值 ¥120.1 万 累计收益 +20.10% 超额收益 +8.90% 更新 2026-06-07" [ref=e522] [cursor=pointer]:
+            - /url: /schemes/s4
+            - generic [ref=e525]:
+              - generic [ref=e526]:
+                - generic [ref=e527]: 消费龙头
+                - generic [ref=e528]: 运行中
+              - paragraph [ref=e529]: 必选消费核心 · 6 只
+              - generic [ref=e530]:
+                - generic [ref=e531]:
+                  - text: 总市值
+                  - generic [ref=e532]: ¥120.1 万
+                - generic [ref=e533]:
+                  - text: 累计收益
+                  - text: +20.10%
+                - generic [ref=e534]:
+                  - text: 超额收益
+                  - text: +8.90%
+                - generic [ref=e535]:
+                  - text: 更新
+                  - text: 2026-06-07
+          - link "量化多因子 运行中 Kronos 评分驱动 · 15 只 总市值 ¥115.77 万 累计收益 +15.77% 超额收益 +7.12% 更新 2026-06-07" [ref=e536] [cursor=pointer]:
+            - /url: /schemes/s5
+            - generic [ref=e539]:
+              - generic [ref=e540]:
+                - generic [ref=e541]: 量化多因子
+                - generic [ref=e542]: 运行中
+              - paragraph [ref=e543]: Kronos 评分驱动 · 15 只
+              - generic [ref=e544]:
+                - generic [ref=e545]:
+                  - text: 总市值
+                  - generic [ref=e546]: ¥115.77 万
+                - generic [ref=e547]:
+                  - text: 累计收益
+                  - text: +15.77%
+                - generic [ref=e548]:
+                  - text: 超额收益
+                  - text: +7.12%
+                - generic [ref=e549]:
+                  - text: 更新
+                  - text: 2026-06-07
+          - generic [ref=e551] [cursor=pointer]:
+            - generic [ref=e552]: +
+            - text: 创建新方案

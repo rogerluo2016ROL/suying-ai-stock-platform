@@ -1,0 +1,215 @@
+- generic [ref=e3]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: K
+      - generic [ref=e8]: K线大模型平台
+    - generic [ref=e9]: 核心功能
+    - navigation [ref=e10]:
+      - link "📊 首页看板" [active] [ref=e11] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e12]: 📊
+        - generic [ref=e13]: 首页看板
+      - link "🔍 智能选股" [ref=e14] [cursor=pointer]:
+        - /url: /screening
+        - generic [ref=e15]: 🔍
+        - generic [ref=e16]: 智能选股
+      - link "📈 个股预测" [ref=e17] [cursor=pointer]:
+        - /url: /predict
+        - generic [ref=e18]: 📈
+        - generic [ref=e19]: 个股预测
+      - link "💼 持仓管理" [ref=e20] [cursor=pointer]:
+        - /url: /portfolio
+        - generic [ref=e21]: 💼
+        - generic [ref=e22]: 持仓管理
+    - generic [ref=e23]: 策略与数据
+    - navigation [ref=e24]:
+      - link "📋 方案中心" [ref=e25] [cursor=pointer]:
+        - /url: /schemes
+        - generic [ref=e26]: 📋
+        - generic [ref=e27]: 方案中心
+      - link "🔔 预警中心" [ref=e28] [cursor=pointer]:
+        - /url: /alerts
+        - generic [ref=e29]: 🔔
+        - generic [ref=e30]: 预警中心
+      - link "⏪ 回测验证" [ref=e31] [cursor=pointer]:
+        - /url: /backtest
+        - generic [ref=e32]: ⏪
+        - generic [ref=e33]: 回测验证
+      - link "📁 数据中心" [ref=e34] [cursor=pointer]:
+        - /url: /datacenter
+        - generic [ref=e35]: 📁
+        - generic [ref=e36]: 数据中心
+    - button "折叠侧边栏" [ref=e38] [cursor=pointer]:
+      - generic [ref=e39]: ◀
+      - generic [ref=e40]: 收起
+  - generic [ref=e41]:
+    - banner [ref=e42]:
+      - navigation "面包屑导航" [ref=e44]:
+        - generic [ref=e287]: 首页
+      - generic [ref=e47]:
+        - textbox "搜索股票代码或名称..." [ref=e49]
+        - generic [ref=e50]:
+          - button "暗色" [ref=e51] [cursor=pointer]
+          - button "亮色" [ref=e52] [cursor=pointer]
+    - main [ref=e53]:
+      - generic [ref=e288]:
+        - generic [ref=e289]:
+          - heading "市场概览" [level=1] [ref=e290]
+          - paragraph [ref=e291]: 2026-06-07 收盘数据 · 更新于 15:30 CST
+        - generic [ref=e292]:
+          - generic [ref=e293]:
+            - generic [ref=e295]: 上证指数
+            - generic [ref=e296]:
+              - generic [ref=e297]: 3,284.62
+              - generic [ref=e298]: ▲
+          - generic [ref=e299]:
+            - generic [ref=e301]: 深证成指
+            - generic [ref=e302]:
+              - generic [ref=e303]: 10,876.30
+              - generic [ref=e304]: ▲
+          - generic [ref=e305]:
+            - generic [ref=e307]: 创业板指
+            - generic [ref=e308]:
+              - generic [ref=e309]: 2,156.88
+              - generic [ref=e310]: ▼
+          - generic [ref=e311]:
+            - generic [ref=e313]: 北向资金 (亿)
+            - generic [ref=e314]:
+              - generic [ref=e315]: "+42.18"
+              - generic [ref=e316]: ▲
+        - generic [ref=e317]:
+          - generic [ref=e318]:
+            - generic [ref=e319]:
+              - generic [ref=e320]: 方案总览
+              - generic [ref=e321]: 查看全部 →
+            - table [ref=e324]:
+              - rowgroup [ref=e325]:
+                - row "方案名称 持仓 累计收益 更新 状态" [ref=e326]:
+                  - columnheader "方案名称" [ref=e327]
+                  - columnheader "持仓" [ref=e328]
+                  - columnheader "累计收益" [ref=e329]
+                  - columnheader "更新" [ref=e330]
+                  - columnheader "状态" [ref=e331]
+              - rowgroup [ref=e332]:
+                - row "高股息组合 低估值高分红 · 10 只 10 +12.35% 06-07 运行中" [ref=e333]:
+                  - cell "高股息组合 低估值高分红 · 10 只" [ref=e334]:
+                    - text: 高股息组合
+                    - generic [ref=e335]: 低估值高分红 · 10 只
+                  - cell "10" [ref=e336]
+                  - cell "+12.35%" [ref=e337]
+                  - cell "06-07" [ref=e338]
+                  - cell "运行中" [ref=e339]:
+                    - generic [ref=e340]: 运行中
+                - row "AI 概念精选 人工智能产业链 · 12 只 12 +8.90% 06-07 运行中" [ref=e341]:
+                  - cell "AI 概念精选 人工智能产业链 · 12 只" [ref=e342]:
+                    - text: AI 概念精选
+                    - generic [ref=e343]: 人工智能产业链 · 12 只
+                  - cell "12" [ref=e344]
+                  - cell "+8.90%" [ref=e345]
+                  - cell "06-07" [ref=e346]
+                  - cell "运行中" [ref=e347]:
+                    - generic [ref=e348]: 运行中
+                - row "成长股组合 高成长性标的 · 8 只 8 -4.40% 06-06 运行中" [ref=e349]:
+                  - cell "成长股组合 高成长性标的 · 8 只" [ref=e350]:
+                    - text: 成长股组合
+                    - generic [ref=e351]: 高成长性标的 · 8 只
+                  - cell "8" [ref=e352]
+                  - cell "-4.40%" [ref=e353]
+                  - cell "06-06" [ref=e354]
+                  - cell "运行中" [ref=e355]:
+                    - generic [ref=e356]: 运行中
+                - row "消费龙头 必选消费核心 · 6 只 6 +20.10% 06-07 运行中" [ref=e357]:
+                  - cell "消费龙头 必选消费核心 · 6 只" [ref=e358]:
+                    - text: 消费龙头
+                    - generic [ref=e359]: 必选消费核心 · 6 只
+                  - cell "6" [ref=e360]
+                  - cell "+20.10%" [ref=e361]
+                  - cell "06-07" [ref=e362]
+                  - cell "运行中" [ref=e363]:
+                    - generic [ref=e364]: 运行中
+                - row "量化多因子 Kronos 评分驱动 · 15 只 15 +15.77% 06-07 运行中" [ref=e365]:
+                  - cell "量化多因子 Kronos 评分驱动 · 15 只" [ref=e366]:
+                    - text: 量化多因子
+                    - generic [ref=e367]: Kronos 评分驱动 · 15 只
+                  - cell "15" [ref=e368]
+                  - cell "+15.77%" [ref=e369]
+                  - cell "06-07" [ref=e370]
+                  - cell "运行中" [ref=e371]:
+                    - generic [ref=e372]: 运行中
+          - generic [ref=e373]:
+            - generic [ref=e374]:
+              - generic [ref=e375]:
+                - generic [ref=e376]: 预警汇总
+                - generic [ref=e377]: 全部 →
+              - generic [ref=e379]:
+                - generic [ref=e380]:
+                  - generic [ref=e382]:
+                    - generic [ref=e383]: 贵州茅台 跌破止损线
+                    - generic [ref=e384]: 15分钟前
+                  - generic [ref=e385]: 紧急
+                - generic [ref=e386]:
+                  - generic [ref=e388]:
+                    - generic [ref=e389]: 宁德时代 单日跌幅超 5%
+                    - generic [ref=e390]: 1小时前
+                  - generic [ref=e391]: 关注
+                - generic [ref=e392]:
+                  - generic [ref=e394]:
+                    - generic [ref=e395]: 高股息组合 月度再平衡到期
+                    - generic [ref=e396]: 2小时前
+                  - generic [ref=e397]: 提醒
+                - generic [ref=e398]:
+                  - generic [ref=e400]:
+                    - generic [ref=e401]: AI概念精选 夏普比率下降
+                    - generic [ref=e402]: 昨日
+                  - generic [ref=e403]: 关注
+                - generic [ref=e404]:
+                  - generic [ref=e406]:
+                    - generic [ref=e407]: 比亚迪 出现卖出信号
+                    - generic [ref=e408]: 昨日
+                  - generic [ref=e409]: 已处理
+            - generic [ref=e410]:
+              - generic [ref=e412]: 今日热门 TOP 5
+              - table [ref=e415]:
+                - rowgroup [ref=e416]:
+                  - row "# 代码 名称 评分 信号" [ref=e417]:
+                    - columnheader "#" [ref=e418]
+                    - columnheader "代码" [ref=e419]
+                    - columnheader "名称" [ref=e420]
+                    - columnheader "评分" [ref=e421]
+                    - columnheader "信号" [ref=e422]
+                - rowgroup [ref=e423]:
+                  - row "1 600519 贵州茅台 9.2 强烈买入" [ref=e424]:
+                    - cell "1" [ref=e425]
+                    - cell "600519" [ref=e426]
+                    - cell "贵州茅台" [ref=e427]
+                    - cell "9.2" [ref=e428]
+                    - cell "强烈买入" [ref=e429]:
+                      - generic [ref=e430]: 强烈买入
+                  - row "2 300750 宁德时代 8.8 强烈买入" [ref=e431]:
+                    - cell "2" [ref=e432]
+                    - cell "300750" [ref=e433]
+                    - cell "宁德时代" [ref=e434]
+                    - cell "8.8" [ref=e435]
+                    - cell "强烈买入" [ref=e436]:
+                      - generic [ref=e437]: 强烈买入
+                  - row "3 000858 五粮液 8.3 买入" [ref=e438]:
+                    - cell "3" [ref=e439]
+                    - cell "000858" [ref=e440]
+                    - cell "五粮液" [ref=e441]
+                    - cell "8.3" [ref=e442]
+                    - cell "买入" [ref=e443]:
+                      - generic [ref=e444]: 买入
+                  - row "4 600900 长江电力 7.9 买入" [ref=e445]:
+                    - cell "4" [ref=e446]
+                    - cell "600900" [ref=e447]
+                    - cell "长江电力" [ref=e448]
+                    - cell "7.9" [ref=e449]
+                    - cell "买入" [ref=e450]:
+                      - generic [ref=e451]: 买入
+                  - row "5 002415 海康威视 7.6 买入" [ref=e452]:
+                    - cell "5" [ref=e453]
+                    - cell "002415" [ref=e454]
+                    - cell "海康威视" [ref=e455]
+                    - cell "7.6" [ref=e456]
+                    - cell "买入" [ref=e457]:
+                      - generic [ref=e458]: 买入

@@ -1,0 +1,154 @@
+- generic [ref=e3]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: K
+      - generic [ref=e459]: K线大模型平台
+    - generic [ref=e9]: 核心功能
+    - navigation [ref=e10]:
+      - link "📊 首页看板" [ref=e11] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e12]: 📊
+        - generic [ref=e460]: 首页看板
+      - link "🔍 智能选股" [ref=e14] [cursor=pointer]:
+        - /url: /screening
+        - generic [ref=e15]: 🔍
+        - generic [ref=e461]: 智能选股
+      - link "📈 个股预测" [ref=e17] [cursor=pointer]:
+        - /url: /predict
+        - generic [ref=e18]: 📈
+        - generic [ref=e462]: 个股预测
+      - link "💼 持仓管理" [ref=e20] [cursor=pointer]:
+        - /url: /portfolio
+        - generic [ref=e21]: 💼
+        - generic [ref=e463]: 持仓管理
+    - generic [ref=e23]: 策略与数据
+    - navigation [ref=e24]:
+      - link "📋 方案中心" [ref=e25] [cursor=pointer]:
+        - /url: /schemes
+        - generic [ref=e26]: 📋
+        - generic [ref=e464]: 方案中心
+      - link "🔔 预警中心" [active] [ref=e28] [cursor=pointer]:
+        - /url: /alerts
+        - generic [ref=e29]: 🔔
+        - generic [ref=e465]: 预警中心
+      - link "⏪ 回测验证" [ref=e31] [cursor=pointer]:
+        - /url: /backtest
+        - generic [ref=e32]: ⏪
+        - generic [ref=e466]: 回测验证
+      - link "📁 数据中心" [ref=e34] [cursor=pointer]:
+        - /url: /datacenter
+        - generic [ref=e35]: 📁
+        - generic [ref=e467]: 数据中心
+    - button "折叠侧边栏" [ref=e38] [cursor=pointer]:
+      - generic [ref=e39]: ◀
+      - generic [ref=e468]: 收起
+  - generic [ref=e41]:
+    - banner [ref=e42]:
+      - navigation "面包屑导航" [ref=e44]:
+        - link "首页" [ref=e553] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e554]:
+          - generic [ref=e555]: /
+          - generic [ref=e556]: 预警中心
+      - generic [ref=e47]:
+        - textbox "搜索股票代码或名称..." [ref=e49]
+        - generic [ref=e50]:
+          - button "暗色" [ref=e51] [cursor=pointer]
+          - button "亮色" [ref=e52] [cursor=pointer]
+    - main [ref=e53]:
+      - generic [ref=e557]:
+        - generic [ref=e558]:
+          - generic [ref=e559]:
+            - heading "预警中心" [level=1] [ref=e560]
+            - paragraph [ref=e561]: 设置价格/技术/组合预警，实时监控异常信号
+          - button "创建规则" [ref=e562] [cursor=pointer]
+        - generic [ref=e563]:
+          - generic [ref=e564]:
+            - generic [ref=e565]:
+              - generic [ref=e566]: 预警规则
+              - generic [ref=e568]: 共 5 条
+            - generic [ref=e570]:
+              - generic [ref=e571]:
+                - generic [ref=e573]:
+                  - generic [ref=e574]: 贵州茅台 (600519) · 价格预警
+                  - generic [ref=e575]: "条件: 最新价 < 1,700 | 通知: 浏览器通知 + 站内 | 已触发 2 次"
+                - generic [ref=e576]: 已触发
+              - generic [ref=e577]:
+                - generic [ref=e579]:
+                  - generic [ref=e580]: 高股息组合 · 再平衡提醒
+                  - generic [ref=e581]: "条件: 每 30 天 | 通知: 站内消息"
+                - generic [ref=e582]: 启用
+              - generic [ref=e583]:
+                - generic [ref=e585]:
+                  - generic [ref=e586]: 宁德时代 (300750) · 涨跌幅预警
+                  - generic [ref=e587]: "条件: 日涨跌 < -5% | 通知: 浏览器通知 + 站内 | 已触发 1 次"
+                - generic [ref=e588]: 监控中
+              - generic [ref=e589]:
+                - generic [ref=e591]:
+                  - generic [ref=e592]: 五粮液 (000858) · 评分预警
+                  - generic [ref=e593]: "条件: 综合评分 < 5.0 | 通知: 站内消息"
+                - generic [ref=e594]: 启用
+              - generic [ref=e595]:
+                - generic [ref=e597]:
+                  - generic [ref=e598]: 比亚迪 (002594) · 信号预警
+                  - generic [ref=e599]: "条件: 信号 = 卖出 | 通知: 站内消息 | 已触发 1 次"
+                - generic [ref=e600]: 已处理
+          - generic [ref=e601]:
+            - generic [ref=e602]:
+              - generic [ref=e604]: 创建预警规则
+              - generic [ref=e606]:
+                - generic [ref=e607]:
+                  - generic [ref=e608]: 监控对象
+                  - combobox "监控对象" [ref=e609]:
+                    - option "选择股票或方案..." [selected]
+                    - option "贵州茅台 (600519)"
+                    - option "高股息组合"
+                - generic [ref=e610]:
+                  - generic [ref=e611]: 预警类型
+                  - combobox "预警类型" [ref=e612]:
+                    - option "价格预警" [selected]
+                    - option "涨跌幅预警"
+                    - option "Kronos 评分预警"
+                    - option "再平衡提醒"
+                - generic [ref=e613]:
+                  - generic [ref=e614]: 条件
+                  - textbox "条件" [ref=e615]:
+                    - /placeholder: "例如: 最新价 < 1700"
+                - generic [ref=e616]:
+                  - generic [ref=e617]:
+                    - checkbox "浏览器通知" [checked] [ref=e618]
+                    - text: 浏览器通知
+                  - generic [ref=e619]:
+                    - checkbox "站内消息" [ref=e620]
+                    - text: 站内消息
+                - button "创建预警规则" [ref=e621] [cursor=pointer]
+            - generic [ref=e622]:
+              - generic [ref=e623]:
+                - generic [ref=e624]: 触发历史
+                - generic [ref=e625]: 查看全部 →
+              - generic [ref=e627]:
+                - generic [ref=e628]:
+                  - generic [ref=e630]:
+                    - generic [ref=e631]: 贵州茅台 跌破止损线
+                    - generic [ref=e632]: 15分钟前
+                  - generic [ref=e633]: 紧急
+                - generic [ref=e634]:
+                  - generic [ref=e636]:
+                    - generic [ref=e637]: 宁德时代 单日跌幅超 5%
+                    - generic [ref=e638]: 1小时前
+                  - generic [ref=e639]: 关注
+                - generic [ref=e640]:
+                  - generic [ref=e642]:
+                    - generic [ref=e643]: 高股息组合 月度再平衡
+                    - generic [ref=e644]: 2小时前
+                  - generic [ref=e645]: 提醒
+                - generic [ref=e646]:
+                  - generic [ref=e648]:
+                    - generic [ref=e649]: AI概念精选 夏普下降
+                    - generic [ref=e650]: 昨日
+                  - generic [ref=e651]: 关注
+                - generic [ref=e652]:
+                  - generic [ref=e654]:
+                    - generic [ref=e655]: 比亚迪 卖出信号
+                    - generic [ref=e656]: 昨日
+                  - generic [ref=e657]: 已处理

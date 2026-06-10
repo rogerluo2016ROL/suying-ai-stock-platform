@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, Button, Steps, Space, Typography, Tag, message, Table, Modal, Descriptions, List } from 'antd'
-import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, CheckCircleOutlined, EyeOutlined, FundOutlined, ExperimentOutlined } from '@ant-design/icons'
+import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, CheckCircleOutlined, EyeOutlined, FundOutlined, ExperimentOutlined, RobotOutlined } from '@ant-design/icons'
 
 const { Title, Text } = Typography
 
@@ -18,6 +19,7 @@ const statusColors: Record<string, string> = {
 }
 
 export default function Strategy() {
+  const navigate = useNavigate()
   const [plans, setPlans] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [detailPlan, setDetailPlan] = useState<any>(null)
@@ -64,6 +66,22 @@ export default function Strategy() {
     } catch { message.error('回测服务未连接') }
   }
 
+  const generateQuantStrategy = async (id: string) => {
+    message.loading('正在生成量化策略...')
+    try {
+      const r = await fetch(`/api/v1/strategy/generate-from-scheme/${id}`, { method: 'POST' })
+      if (r.ok) {
+        message.success('量化策略生成成功')
+        navigate('/auto-trade')
+      } else {
+        const err = await r.json().catch(() => ({ detail: '生成失败' }))
+        message.error(err.detail || '生成失败')
+      }
+    } catch {
+      message.error('策略服务未连接')
+    }
+  }
+
   const columns = [
     { title: '方案ID', dataIndex: 'id', width: 140, render: (v: string) => <Text code style={{fontSize:11}}>{v}</Text> },
     { title: '名称', dataIndex: 'name', width: 160 },
@@ -72,7 +90,7 @@ export default function Strategy() {
     { title: '标的数', dataIndex: 'picks_count', width: 60 },
     { title: '资金', dataIndex: 'capital', width: 90, render: (v: number) => `¥${(v/10000).toFixed(0)}万` },
     { title: '创建时间', dataIndex: 'created_at', width: 110, render: (v: string) => v?.slice(0,16) },
-    { title: '操作', dataIndex: 'id', width: 200, render: (id: string, record: any) => (
+    { title: '操作', dataIndex: 'id', width: 280, render: (id: string, record: any) => (
       <Space size="small">
         <Button size="small" icon={<EyeOutlined />} onClick={() => viewPlan(id)}>查看</Button>
         {record.status === 'draft' && (
@@ -82,6 +100,7 @@ export default function Strategy() {
           <>
             <Button size="small" icon={<FundOutlined />} onClick={() => viewReport(id)}>报告</Button>
             <Button size="small" icon={<ExperimentOutlined />} onClick={() => runBacktestOnPlan(id)}>回测</Button>
+            <Button size="small" type="primary" icon={<RobotOutlined />} onClick={() => generateQuantStrategy(id)}>量化策略</Button>
           </>
         )}
         <Button size="small" danger icon={<DeleteOutlined />} onClick={() => deletePlan(id)} />

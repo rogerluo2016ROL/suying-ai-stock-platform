@@ -1,0 +1,27 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - img "stock" [ref=e7]:
+      - img [ref=e8]
+    - heading "速赢AI" [level=3] [ref=e10]
+    - text: 登录您的账号
+  - generic [ref=e11]:
+    - generic [ref=e14]:
+      - generic [ref=e17]:
+        - img "mail" [ref=e19]:
+          - img [ref=e20]
+        - textbox "邮箱" [active] [ref=e22]
+      - generic [ref=e51]: 请输入邮箱地址
+    - generic [ref=e25]:
+      - generic [ref=e28]:
+        - img "lock" [ref=e30]:
+          - img [ref=e31]
+        - textbox "密码" [ref=e33]
+        - img "eye-invisible" [ref=e35] [cursor=pointer]:
+          - img [ref=e36]
+      - generic [ref=e54]: 请输入密码
+    - button "登 录" [ref=e44] [cursor=pointer]:
+      - generic [ref=e45]: 登 录
+  - generic [ref=e47]:
+    - text: 还没有账号？
+    - link "去注册" [ref=e48] [cursor=pointer]:
+      - /url: /register

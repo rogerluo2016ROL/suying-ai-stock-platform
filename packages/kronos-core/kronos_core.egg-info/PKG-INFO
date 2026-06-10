@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: kronos-core
+Version: 0.2.0
+Summary: Kronos K-line foundation model — tokenizer, transformer predictor (AAAI 2026)
+Requires-Python: >=3.10
+Requires-Dist: numpy>=1.24
+Requires-Dist: pandas>=2.0
+Requires-Dist: torch>=2.0
+Requires-Dist: huggingface-hub>=0.16
+Requires-Dist: tqdm>=4.60
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
