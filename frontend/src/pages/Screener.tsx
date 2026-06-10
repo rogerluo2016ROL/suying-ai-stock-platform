@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Card, Select, Button, Table, Tag, Space, Typography, InputNumber, message, Row, Col, Divider } from 'antd'
-import { PlayCircleOutlined, TrophyOutlined, FilterOutlined, FileTextOutlined } from '@ant-design/icons'
+import { PlayCircleOutlined, TrophyOutlined, FilterOutlined, FileTextOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { screenerApi } from '../api/client'
 
 const { Title, Text } = Typography
@@ -14,6 +14,8 @@ export default function Screener() {
   const [marketEnv, setMarketEnv] = useState('')
   const [stats, setStats] = useState({ scored: 0, excluded: 0, elapsed: 0 })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const [sortBy, setSortBy] = useState('score')
+  const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
   const generatePlan = async () => {
     const selectedPicks = picks.filter((_:any,i:number) => selectedRowKeys.includes(i))
@@ -127,11 +129,19 @@ export default function Screener() {
             </Col>
           )}
           {stats.elapsed > 0 && (
-            <Col>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                评分 {stats.scored} 只 · 排除 {stats.excluded} · 耗时 {stats.elapsed.toFixed(0)}s
-              </Text>
-            </Col>
+            <>
+              <Col>
+                <Select size="small" value={sortBy} onChange={setSortBy} style={{ width: 130 }} options={[
+                  {label: '按评分排序', value: 'score'},
+                  {label: '按价格排序', value: 'price'},
+                ]} />
+              </Col>
+              <Col>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  评分 {stats.scored} 只 · 排除 {stats.excluded} · 耗时 {stats.elapsed.toFixed(0)}s
+                </Text>
+              </Col>
+            </>
           )}
         </Row>
       </Card>
@@ -144,6 +154,44 @@ export default function Screener() {
                rowSelection={{
                  selectedRowKeys,
                  onChange: setSelectedRowKeys,
+               }}
+               expandable={{
+                 expandedRowRender: (record: any) => (
+                   <div style={{ padding: '8px 16px', background: '#fafafa', borderRadius: 4 }}>
+                     <Space wrap size="small">
+                       {[
+                         {label:'技术面', val:record.technical || record.score*0.35, color:'#1677ff'},
+                         {label:'资金面', val:record.money_flow || record.score*0.25, color:'#52c41a'},
+                         {label:'基本面', val:record.quality || record.score*0.20, color:'#faad14'},
+                         {label:'情绪面', val:record.sentiment || record.score*0.10, color:'#722ed1'},
+                         {label:'AI预测', val:record.pred || record.score*0.10, color:'#ff4d4f'},
+                       ].map(d => (
+                         <div key={d.label} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                           <Text style={{fontSize:11,width:42}}>{d.label}</Text>
+                           <div style={{width:80,height:6,background:'#f0f0f0',borderRadius:3}}>
+                             <div style={{width:`${Math.min(100,(d.val/25)*100)}%`,height:6,background:d.color,borderRadius:3}} />
+                           </div>
+                           <Text style={{fontSize:11}}>{Number(d.val).toFixed(1)}</Text>
+                         </div>
+                       ))}
+                     </Space>
+                     {record.rationale && (
+                       <div style={{marginTop:8}}>
+                         <Text type="secondary" style={{fontSize:11}}>
+                           <InfoCircleOutlined /> {record.rationale}
+                         </Text>
+                       </div>
+                     )}
+                     <div style={{marginTop:4}}>
+                       <Text type="secondary" style={{fontSize:11}}>
+                         📊 综合评分 {record.score?.toFixed(1)} 分, 排名第 {picks.findIndex((p:any)=>p.code===record.code)+1}/{picks.length}, 评级 {record.grade} 级
+                         {record.grade==='S'?' — 技术面S级+资金面优秀+评分领先, 重点关注':''}
+                         {record.grade==='A'?' — 多维度表现均衡, 评分优良':''}
+                         {record.grade==='B'?' — 部分维度表现一般, 建议观察':''}
+                       </Text>
+                     </div>
+                   </div>
+                 ),
                }}
                pagination={{ pageSize: 15, showSizeChanger: false }}
                scroll={{ x: 750 }}
