@@ -148,6 +148,7 @@ def main():
             results.append(r)
         except Exception as e:
             print(f"  ❌ {table} 迁移失败: {e}")
+            pg_conn.rollback()  # Unblock next table
             results.append({"table": table, "rows": 0, "status": f"error: {e}"})
 
     # Summary

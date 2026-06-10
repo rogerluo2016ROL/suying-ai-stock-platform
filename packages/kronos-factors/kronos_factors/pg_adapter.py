@@ -45,14 +45,53 @@ class _PgAdapter:
         if self._conn is None or self._conn.closed:
             import psycopg2
             self._conn = psycopg2.connect(self.pg_url)
+        # Rollback any aborted transaction from previous failed query
+        try:
+            self._conn.rollback()
+        except Exception:
+            pass
         return self._conn
+
+    # Column name mapping: SQLite (engine) → PostgreSQL (Tushare)
+    _COLUMN_MAP = {
+        "pct_chg": "change_pct",
+        "ts_code": "code",
+    }
 
     def execute(self, sql: str, params: tuple = None):
         conn = self._get_conn()
         cur = conn.cursor()
         # Translate SQLite ? placeholders to PG %s
         sql_pg = sql.replace('?', '%s')
-        cur.execute(sql_pg, params or ())
+        # Translate SQLite column names to PG column names
+        for old, new in self._COLUMN_MAP.items():
+            sql_pg = sql_pg.replace(old, new)
+        # Handle 'latest' date params → PG subquery
+        params_list = list(params or ())
+        import re
+        # Strip Tushare exchange suffix from code params (000001.XSHE → 000001)
+        for i, p in enumerate(params_list):
+            if isinstance(p, str) and re.match(r'^\d{6}\.(XSHE|XSHG|SZ|SH|BJ)$', p):
+                params_list[i] = p.split('.')[0]
+        if params_list and any(p == 'latest' for p in params_list):
+            for i, p in enumerate(params_list):
+                if p == 'latest':
+                    table_match = re.search(r'FROM\s+(\w+)', sql_pg, re.IGNORECASE)
+                    if table_match:
+                        table = table_match.group(1)
+                        sql_pg = sql_pg.replace('%s', f"(SELECT MAX(trade_date) FROM {table})", 1)
+                        params_list[i] = None
+            params_list = [p for p in params_list if p is not None]
+        try:
+            cur.execute(sql_pg, tuple(params_list) if params_list else None)
+        except Exception as e:
+            err = str(e)
+            # Graceful degradation: missing table/column/division-by-zero → return empty
+            if any(k in err for k in ('does not exist', 'UndefinedColumn', 'UndefinedTable',
+                                       'DivisionByZero', 'division by zero')):
+                conn.rollback()
+                return _EmptyCursor()
+            raise
         return _PgCursor(cur)
 
     def get_kline(self, code: str, lookback: int = 400) -> Optional[pd.DataFrame]:
@@ -98,14 +137,24 @@ class _PgAdapter:
     def __exit__(self, *args): pass
 
 
+class _EmptyCursor:
+    def fetchone(self): return None
+    def fetchall(self): return []
+
 class _PgCursor:
+    # Result key mapping: PG column → engine-expected column (one-direction only)
+    _KEY_MAP = {"change_pct": "pct_chg"}
+
     def __init__(self, cur): self._cur = cur
+    def _map_row(self, row_dict):
+        return {self._KEY_MAP.get(k, k): v for k, v in row_dict.items()}
     def fetchone(self):
         row = self._cur.fetchone()
         if row is None: return None
-        return dict(zip([d[0] for d in self._cur.description], row))
+        return self._map_row(dict(zip([d[0] for d in self._cur.description], row)))
     def fetchall(self):
-        return [dict(zip([d[0] for d in self._cur.description], r)) for r in self._cur.fetchall()]
+        return [self._map_row(dict(zip([d[0] for d in self._cur.description], r)))
+                for r in self._cur.fetchall()]
 
 
 class _SqliteFallbackAdapter:

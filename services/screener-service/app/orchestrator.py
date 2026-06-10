@@ -44,8 +44,13 @@ async def run_screening(mode: str, top_n: int = 30, use_kronos: bool = False) ->
         result = engine.run(top_n=top_n)
         return {"picks": result, "mode": mode, "top_n": top_n}
     except Exception as e:
+        err = str(e)
         logger.exception("Screening failed for mode=%s", mode)
-        return {"error": str(e), "mode": mode}
+        if "division by zero" in err.lower():
+            return {"error": "数据不足：缺少行情数据，请先同步日线数据后再试", "mode": mode}
+        if "does not exist" in err.lower():
+            return {"error": "数据库表缺失：部分数据表未迁移，请检查数据同步状态", "mode": mode}
+        return {"error": f"选股失败: {err}", "mode": mode}
 
 def get_available_modes() -> list[str]:
     """Return list of registered screening modes."""

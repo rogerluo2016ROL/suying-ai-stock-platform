@@ -48,7 +48,12 @@ async def run_screening(
         else:
             result = _run_multifactor_mode(mode, top_n, trade_date)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Screening failed: {str(e)}")
+        err = str(e)
+        if any(k in err.lower() for k in ("division by zero", "'code'", "'pct_chg'", "keyerror", "none")):
+            raise HTTPException(status_code=503, detail="数据不足：部分行情数据缺失或不完整，请等待数据同步完成后再试")
+        if "does not exist" in err.lower():
+            raise HTTPException(status_code=503, detail="数据库表缺失：部分数据表未迁移，请先运行数据同步")
+        raise HTTPException(status_code=500, detail=f"Screening failed: {err}")
 
     result["elapsed"] = round(time.time() - t0, 1)
     return result
@@ -65,7 +70,9 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
         picks_data = run_intraday_screening(trade_date or "latest", top_n=top_n)
         plans = generate_intraday_plan(picks_data) if picks_data else []
     else:
-        picks_data = run_leader_screening(trade_date or "latest", top_n=top_n)
+        result = run_leader_screening(trade_date or "latest", top_n=top_n)
+        # run_leader_screening returns (picks_data, scores) tuple
+        picks_data = result[0] if isinstance(result, tuple) else result
         plans = generate_execution_plan(picks_data) if picks_data else []
 
     return {

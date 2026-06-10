@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Button, Steps, Space, Typography, Tag, message, Table, Modal, Descriptions, List } from 'antd'
-import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, CheckCircleOutlined, EyeOutlined, FundOutlined, ExperimentOutlined, RobotOutlined } from '@ant-design/icons'
+import { Card, Button, Steps, Space, Typography, Tag, message, Table, Modal, Descriptions, List, Row, Col } from 'antd'
+import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, CheckCircleOutlined, EyeOutlined, FundOutlined, ExperimentOutlined, RobotOutlined, ThunderboltOutlined, SafetyOutlined, BankOutlined } from '@ant-design/icons'
 
 const { Title, Text } = Typography
 
@@ -21,19 +21,54 @@ const statusColors: Record<string, string> = {
 export default function Strategy() {
   const navigate = useNavigate()
   const [plans, setPlans] = useState<any[]>([])
+  const [templates, setTemplates] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [detailPlan, setDetailPlan] = useState<any>(null)
   const [report, setReport] = useState<any>(null)
 
   const loadPlans = () => {
     setLoading(true)
-    fetch('/api/v1/strategy/plans').then(r => r.json()).then(d => {
-      setPlans(d.plans || [])
+    fetch('/api/v1/strategy/list').then(r => r.json()).then(d => {
+      setPlans(d.strategies || d.items || [])
       setLoading(false)
     }).catch(() => setLoading(false))
   }
 
-  useEffect(() => { loadPlans() }, [])
+  const loadTemplates = () => {
+    fetch('/api/v1/strategy/templates').then(r => r.json()).then(d => {
+      setTemplates(d.templates || [])
+    }).catch(() => {})
+  }
+
+  const createFromTemplate = async (template: any) => {
+    setCreating(true)
+    try {
+      const r = await fetch('/api/v1/strategy/plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${template.name}方案-${Date.now().toString(36)}`,
+          model: 'template',
+          capital: 1000000,
+          max_positions: template.max_positions || 5,
+          single_max_pct: template.single_max || 0.2,
+          risk: template.risk || 'medium',
+        }),
+      })
+      if (r.ok) {
+        message.success(`已基于"${template.name}"创建方案`)
+        loadPlans()
+      } else {
+        const err = await r.json().catch(() => ({}))
+        message.error(err.detail || '创建失败')
+      }
+    } catch {
+      message.error('策略服务未连接')
+    } finally { setCreating(false) }
+  }
+
+  useEffect(() => { loadPlans(); loadTemplates() }, [])
 
   const confirmPlan = async (id: string) => {
     await fetch(`/api/v1/strategy/plans/${id}/confirm`, { method: 'POST' })
@@ -119,10 +154,51 @@ export default function Strategy() {
       </div>
 
       <Card style={{ borderRadius: 8, marginBottom: 16 }}>
-        <Steps current={plans.length > 0 ? 1 : 0} size="small" items={planSteps} />
+        <Steps current={plans.length > 0 ? 2 : 0} size="small" items={planSteps} />
       </Card>
 
-      <Card title={<Space><FileTextOutlined />方案列表 ({plans.length})</Space>}
+      <Card
+        title={<Space><ThunderboltOutlined style={{color:'#fa8c16'}} />预设策略模板</Space>}
+        style={{ borderRadius: 8, marginBottom: 16 }}
+        styles={{ body: { padding: '16px 24px' } }}
+      >
+        <Row gutter={16}>
+          {templates.map((tpl: any) => {
+            const icons: Record<string, any> = { aggressive: <ThunderboltOutlined />, balanced: <SafetyOutlined />, conservative: <BankOutlined /> }
+            const colors: Record<string, string> = { aggressive: '#ff4d4f', balanced: '#1677ff', conservative: '#52c41a' }
+            const descs: Record<string, string> = {
+              aggressive: '高收益高风险，最多3只标的，单票上限20%',
+              balanced: '收益风险均衡，最多5只标的，单票上限12%',
+              conservative: '稳健低风险，最多8只标的，单票上限8%',
+            }
+            return (
+              <Col span={8} key={tpl.id}>
+                <Card
+                  hoverable
+                  size="small"
+                  style={{ borderRadius: 8, borderTop: `3px solid ${colors[tpl.id] || '#1677ff'}` }}
+                  onClick={() => createFromTemplate(tpl)}
+                >
+                  <Space direction="vertical" size={4} style={{width:'100%'}}>
+                    <Space>
+                      <span style={{fontSize:20, color: colors[tpl.id]}}>{icons[tpl.id]}</span>
+                      <Text strong style={{fontSize:16}}>{tpl.name}</Text>
+                      <Tag color={colors[tpl.id]} style={{margin:0}}>{tpl.risk === 'high' ? '高风险' : tpl.risk === 'medium' ? '中风险' : '低风险'}</Tag>
+                    </Space>
+                    <Text type="secondary" style={{fontSize:12}}>{descs[tpl.id] || '自定义策略模板'}</Text>
+                    <Button type="link" size="small" loading={creating} style={{padding:0}}>使用此模板 →</Button>
+                  </Space>
+                </Card>
+              </Col>
+            )
+          })}
+          {templates.length === 0 && (
+            <Col span={24}><Text type="secondary">模板加载中...</Text></Col>
+          )}
+        </Row>
+      </Card>
+
+      <Card title={<Space><FileTextOutlined />我的方案 ({plans.length})</Space>}
             style={{ borderRadius: 8 }}
             extra={<Button icon={<PlayCircleOutlined />} onClick={loadPlans} loading={loading}>刷新</Button>}>
         <Table columns={columns} dataSource={plans} rowKey="id" size="small"

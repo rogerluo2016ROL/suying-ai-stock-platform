@@ -138,7 +138,7 @@ export default function AutoTrade() {
   // ── Fetch strategies ──
   const loadStrategies = useCallback(() => {
     setLoading(true)
-    fetch('/api/v1/auto-trade/strategies')
+    fetch('/api/v1/strategy/list')
       .then(r => r.json())
       .then(d => setStrategies(d.strategies || []))
       .catch(() => message.error('加载策略列表失败'))
@@ -192,8 +192,8 @@ export default function AutoTrade() {
     try {
       const values = await form.validateFields()
       const url = editingStrategy
-        ? `/api/v1/auto-trade/strategies/${editingStrategy.id}`
-        : '/api/v1/auto-trade/strategies'
+        ? `/api/v1/strategy/${editingStrategy.id}`
+        : '/api/v1/strategy/custom'
       const method = editingStrategy ? 'PUT' : 'POST'
       const r = await fetch(url, {
         method,

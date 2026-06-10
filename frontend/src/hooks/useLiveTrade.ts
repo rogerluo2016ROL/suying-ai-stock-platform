@@ -62,7 +62,7 @@ export function useLiveTrade(): UseLiveTradeReturn {
 
   const prevBrokerStatus = useRef<BrokerStatus>('disconnected')
 
-  const apiPrefix = mode === 'paper' ? '/api/v1/trade' : '/api/v1/live-trade'
+  const apiPrefix = '/api/v1/trade'  // paper/live mode controlled by query param ?mode=
 
   // Persist mode
   const setMode = useCallback((m: TradeMode) => {
