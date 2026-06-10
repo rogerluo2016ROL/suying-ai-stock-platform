@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Card, Button, Steps, Space, Typography, Tag, message, Table, Modal, Descriptions } from 'antd'
-import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, CheckCircleOutlined, EyeOutlined } from '@ant-design/icons'
+import { Card, Button, Steps, Space, Typography, Tag, message, Table, Modal, Descriptions, List } from 'antd'
+import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, CheckCircleOutlined, EyeOutlined, FundOutlined } from '@ant-design/icons'
 
 const { Title, Text } = Typography
 
@@ -21,6 +21,7 @@ export default function Strategy() {
   const [plans, setPlans] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [detailPlan, setDetailPlan] = useState<any>(null)
+  const [report, setReport] = useState<any>(null)
 
   const loadPlans = () => {
     setLoading(true)
@@ -49,6 +50,12 @@ export default function Strategy() {
     setDetailPlan(await r.json())
   }
 
+  const viewReport = async (id: string) => {
+    const r = await fetch(`/api/v1/strategy/plans/${id}/report`)
+    const data = await r.json()
+    if (data.title) setReport(data)
+  }
+
   const columns = [
     { title: '方案ID', dataIndex: 'id', width: 140, render: (v: string) => <Text code style={{fontSize:11}}>{v}</Text> },
     { title: '名称', dataIndex: 'name', width: 160 },
@@ -62,6 +69,9 @@ export default function Strategy() {
         <Button size="small" icon={<EyeOutlined />} onClick={() => viewPlan(id)}>查看</Button>
         {record.status === 'draft' && (
           <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={() => confirmPlan(id)}>确认</Button>
+        )}
+        {record.status === 'confirmed' && (
+          <Button size="small" icon={<FundOutlined />} onClick={() => viewReport(id)}>报告</Button>
         )}
         <Button size="small" danger icon={<DeleteOutlined />} onClick={() => deletePlan(id)} />
       </Space>
@@ -89,6 +99,38 @@ export default function Strategy() {
                pagination={{ pageSize: 10 }}
                locale={{ emptyText: '暂无方案。请在智能选股页面运行选股后，勾选标的生成预方案。' }} />
       </Card>
+
+      <Modal title="选股报告" open={!!report} onCancel={() => setReport(null)} footer={null} width={700}>
+        {report && (
+          <>
+            <Descriptions column={2} size="small" bordered style={{ marginBottom: 12 }}>
+              <Descriptions.Item label="方案">{report.plan?.name}</Descriptions.Item>
+              <Descriptions.Item label="模型">{report.plan?.model}</Descriptions.Item>
+              <Descriptions.Item label="资金">¥{(report.plan?.capital/10000).toFixed(0)}万</Descriptions.Item>
+              <Descriptions.Item label="最大持仓">{report.plan?.max_positions}只</Descriptions.Item>
+            </Descriptions>
+            <Typography.Title level={5}>推荐标的</Typography.Title>
+            <List size="small" dataSource={report.picks || []} renderItem={(p: any) => (
+              <List.Item>
+                <Space direction="vertical" size={0}>
+                  <Space><Tag color="blue">{p.code}</Tag><Text strong>{p.name}</Text><Tag>{p.grade}级</Tag></Space>
+                  <Text type="secondary" style={{fontSize:12}}>
+                    入场:{p.operation?.entry_price} | 止损:{p.operation?.stop_loss} | 目标:{p.operation?.target_price} | 仓位:{p.operation?.position_pct}%
+                  </Text>
+                </Space>
+              </List.Item>
+            )} />
+            <Typography.Title level={5}>量化策略</Typography.Title>
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="买入条件">{report.quant_strategy?.buy_conditions?.join(' / ')}</Descriptions.Item>
+              <Descriptions.Item label="卖出条件">{report.quant_strategy?.sell_conditions?.join(' / ')}</Descriptions.Item>
+              <Descriptions.Item label="执行模式">{report.quant_strategy?.execution_mode}</Descriptions.Item>
+            </Descriptions>
+            <Typography.Title level={5} style={{marginTop:12}}>风险提示</Typography.Title>
+            {report.risk_warnings?.map((w: string) => <Tag key={w} color="orange" style={{marginBottom:4}}>{w}</Tag>)}
+          </>
+        )}
+      </Modal>
 
       <Modal title="方案详情" open={!!detailPlan} onCancel={() => setDetailPlan(null)} footer={null} width={600}>
         {detailPlan && (

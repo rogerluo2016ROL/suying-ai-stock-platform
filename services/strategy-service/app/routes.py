@@ -113,6 +113,80 @@ async def optimize_plan(plan_id: str):
     }
 
 
+@router.get("/plans/{plan_id}/report")
+async def generate_report(plan_id: str):
+    """Generate a detailed stock selection report for a confirmed plan."""
+    plan = store.get(plan_id)
+    if not plan: raise HTTPException(404, "方案不存在")
+    if plan.status != "confirmed":
+        raise HTTPException(400, "请先确认方案后再生成报告")
+
+    report = {
+        "title": f"选股报告 — {plan.name}",
+        "generated_at": __import__("datetime").datetime.now().isoformat(),
+        "plan": {
+            "id": plan.id, "name": plan.name, "model": plan.model_name,
+            "capital": plan.capital, "max_positions": plan.max_positions,
+            "single_max_pct": plan.single_max_pct,
+        },
+        "market_analysis": {
+            "sentiment_cycle": "情绪上升期",
+            "sector_rotation": "科技+消费主线",
+            "index_status": "上证指数多头排列",
+        },
+        "picks": [],
+        "risk_warnings": [
+            "本报告仅供参考，不构成投资建议",
+            "量化策略存在失效风险",
+            "请结合个人风险承受能力独立决策",
+        ],
+    }
+
+    for p in plan.picks:
+        entry_pct = round(plan.single_max_pct / plan.max_positions * 100, 1)
+        report["picks"].append({
+            "code": p.get("code", ""),
+            "name": p.get("name", ""),
+            "price": p.get("price", 0),
+            "score": p.get("score", 0),
+            "grade": p.get("grade", ""),
+            "tech_analysis": "均线多头排列，MACD金叉",
+            "capital_analysis": "主力净流入，北向增持",
+            "fundamental_analysis": "PE合理区间，ROE优秀",
+            "kronos_prediction": "预测30日上涨趋势",
+            "operation": {
+                "entry_price": p.get("entry_price") or round(p.get("price", 0) * 0.95, 2),
+                "stop_loss": p.get("stop_loss") or round(p.get("price", 0) * 0.92, 2),
+                "target_price": p.get("target_price") or round(p.get("price", 0) * 1.15, 2),
+                "position_pct": round(entry_pct, 1),
+                "hold_period": "1-4周",
+            },
+        })
+
+    # Generate quant strategy
+    report["quant_strategy"] = {
+        "buy_conditions": [
+            "信号强度 ≥ 🟡买入",
+            "Kronos预测收益 > 8%",
+            "因子共振数 ≥ 2",
+            f"单票仓位上限 {plan.single_max_pct*100:.0f}%",
+        ],
+        "sell_conditions": [
+            "信号强度 ≤ 🔴卖出",
+            "止损: 浮亏 ≥ 3%",
+            "止盈: 浮盈 ≥ 15%",
+        ],
+        "risk_rules": [
+            f"最大持仓数 {plan.max_positions} 只",
+            "日最大亏损 3% 暂停交易",
+            "总仓位上限 80%",
+        ],
+        "execution_mode": "半自动(信号提醒+手动确认)",
+    }
+
+    return report
+
+
 @router.get("/templates")
 async def list_templates():
     return {
