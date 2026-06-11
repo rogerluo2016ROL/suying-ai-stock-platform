@@ -736,6 +736,7 @@ _SYNC_MAP = {
         "margin_detail": ("margin", 30, "融资融券明细"),
         "margin_summary": ("margin_summary", 30, "融资融券汇总"),
         "top_list": ("top_list", 30, "龙虎榜"),
+        "stk_mins": ("stk_mins", 5, "分钟K线"),
         "daily_kline": ("daily_kline", 30, "日K线"),
         "daily_basic": ("daily_basic", 30, "基本面指标"),
         "stk_limit": ("stk_limit", 30, "涨跌停价"),

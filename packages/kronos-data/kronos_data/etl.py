@@ -137,10 +137,10 @@ def _get_etl_db() -> _Db:
     return _Db(sqlite3.connect(DB_PATH), False)
 
 
-def clean_before_write(db: _Db, table: str, days_back: int):
+def clean_before_write(db: _Db, table: str, days_back: int, date_col: str = "trade_date"):
     """Delete old rows within the sync window to avoid duplicates."""
     cutoff = (datetime.now() - timedelta(days=days_back + 1)).strftime("%Y-%m-%d")
-    db.execute(f"DELETE FROM {table} WHERE trade_date >= ?", (cutoff,))
+    db.execute(f"DELETE FROM {table} WHERE {date_col} >= ?", (cutoff,))
 
 
 def _insert_rows(db: _Db, table: str, columns: list[str],
@@ -1408,6 +1408,37 @@ def sync_all_new_apis(days_back: int = 3650) -> dict:
 # Main entry
 # ═══════════════════════════════════════════════════════════════
 
+def sync_stk_mins(days_back: int = 5) -> dict:
+    """Sync Tushare stk_mins (5min K-line) — per-date, all codes."""
+    pro = _get_pro()
+    if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
+    dates = _get_trade_dates(days_back)
+    db = _get_etl_db(); total = written = 0
+    clean_before_write(db, "stk_mins", days_back + 1, "trade_time")
+    cols = ["code", "trade_time", "open", "high", "low", "close", "volume", "amount", "freq"]
+    for td in dates:
+        try:
+            df = pro.stk_mins(freq="5min", start_date=f"{td} 09:30:00", end_date=f"{td} 15:00:00")
+            _rate_limit()
+            if df is None or df.empty: continue
+            rows = [
+                (_code_from_ts(str(r.get("ts_code", ""))), str(r.get("trade_time", "")),
+                 r.get("open"), r.get("high"), r.get("low"), r.get("close"),
+                 r.get("vol"), r.get("amount"), "5min")
+                for _, r in df.iterrows()
+            ]
+            total += len(rows)
+            written += _insert_rows(db, "stk_mins", cols, rows)
+        except Exception as e:
+            err = str(e)
+            if "token" in err.lower() or "权限" in err:
+                db.close()
+                return {"status": "error", "reason": err[:80]}
+    db.close()
+    print(f"  stk_mins: {total} fetched, {written} written ({len(dates)} dates)")
+    return {"status": "ok", "table": "stk_mins", "fetched": total, "written": written}
+
+
 def sync_daily_kline(days_back: int = 30) -> dict:
     """Sync Tushare daily (日K线行情) — full OHLCV per date."""
     pro = _get_pro()
@@ -1500,6 +1531,7 @@ SYNC_MODES = {
     "sw_daily": sync_sw_daily,
     "rt_sw_k": sync_rt_sw_k,
     "rt_k": sync_rt_k,
+    "stk_mins": sync_stk_mins,
     "stk_auction_o": sync_stk_auction_o,
     "all_new": sync_all_new_apis,
 }
