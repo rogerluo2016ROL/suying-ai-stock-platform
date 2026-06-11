@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Card, Table, Tag, Typography, Space, Button, Badge, Tooltip, Modal, InputNumber, Select, Switch, message } from 'antd'
+import { Card, Table, Tag, Typography, Space, Button, Badge, Tooltip, Modal, InputNumber, Select, Switch, message, TimePicker } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
 import { SyncOutlined, ClockCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined, CloudDownloadOutlined, ThunderboltOutlined, FieldTimeOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -34,11 +35,11 @@ export default function DataUpdate() {
   const [syncing, setSyncing] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState('')
   const [stats, setStats] = useState({ total_tables: 0, active_tables: 0, total_rows: 0 })
-  const [syncModal, setSyncModal] = useState<{ open: boolean; key: string; name: string; mode: string; days: number; interval: number }>(
-    { open: false, key: '', name: '', mode: '', days: 30, interval: 0 },
-  )
-  // Per-table auto-refresh: key → { intervalMinutes, nextRunAt, enabled }
-  const [schedules, setSchedules] = useState<Record<string, { interval: number; nextRun: number; enabled: boolean }>>({})
+  const [syncModal, setSyncModal] = useState<{
+    open: boolean; key: string; name: string; mode: string; days: number; interval: number; dailyAt: Dayjs | null
+  }>({ open: false, key: '', name: '', mode: '', days: 30, interval: 0, dailyAt: null })
+  // Per-table auto-refresh: key → { intervalMinutes, nextRunAt, enabled, dailyAt? }
+  const [schedules, setSchedules] = useState<Record<string, { interval: number; nextRun: number; enabled: boolean; dailyAt?: string }>>({})
   const timersRef = useRef<Record<string, ReturnType<typeof setInterval>>>({})
 
   const fetchData = useCallback(async () => {
@@ -73,27 +74,56 @@ export default function DataUpdate() {
   const openSyncModal = (key: string, name: string) => {
     const sm = syncMap[key]
     const sched = schedules[key]
-    setSyncModal({ open: true, key, name, mode: sm?.mode || '', days: sm?.days_default || 30, interval: sched?.interval || 0 })
+    setSyncModal({
+      open: true, key, name, mode: sm?.mode || '', days: sm?.days_default || 30,
+      interval: sched?.interval || 0, dailyAt: sched?.dailyAt ? dayjs(sched.dailyAt, 'HH:mm') : null,
+    })
+  }
+
+  // Calculate next run time for daily-at-specific-time schedule
+  const calcDailyNextRun = (timeStr: string): number => {
+    const now = dayjs()
+    const target = dayjs(timeStr, 'HH:mm')
+    let next = now.hour(target.hour()).minute(target.minute()).second(0)
+    if (next.isBefore(now)) next = next.add(1, 'day')
+    return next.valueOf()
   }
 
   // Start/stop auto-refresh timer for a table
-  const setAutoRefresh = (key: string, intervalMin: number) => {
-    // Clear existing timer
+  const setAutoRefresh = (key: string, intervalMin: number, dailyAt: string | null) => {
     if (timersRef.current[key]) { clearInterval(timersRef.current[key]); delete timersRef.current[key] }
     if (intervalMin <= 0) {
       setSchedules(prev => { const n = { ...prev }; delete n[key]; return n })
       return
     }
     const ms = intervalMin * 60 * 1000
-    const nextRun = Date.now() + ms
-    setSchedules(prev => ({ ...prev, [key]: { interval: intervalMin, nextRun, enabled: true } }))
-    timersRef.current[key] = setInterval(() => {
-      triggerSync(key, syncMap[key]?.days_default || 30, true)
-      setSchedules(prev => {
-        const s = prev[key]
-        return s ? { ...prev, [key]: { ...s, nextRun: Date.now() + ms } } : prev
-      })
-    }, ms)
+    const nextRun = dailyAt ? calcDailyNextRun(dailyAt) : Date.now() + ms
+    setSchedules(prev => ({ ...prev, [key]: { interval: intervalMin, nextRun, enabled: true, dailyAt: dailyAt || undefined } }))
+
+    if (dailyAt) {
+      // Daily-at-time: use setTimeout chain instead of setInterval
+      const scheduleNext = () => {
+        const next = calcDailyNextRun(dailyAt)
+        timersRef.current[key] = setTimeout(() => {
+          triggerSync(key, syncMap[key]?.days_default || 30, true)
+          setSchedules(prev => {
+            const s = prev[key]
+            return s ? { ...prev, [key]: { ...s, nextRun: calcDailyNextRun(dailyAt) } } : prev
+          })
+          scheduleNext()
+        }, next - Date.now())
+      }
+      scheduleNext()
+    } else {
+      // Interval: use setInterval
+      timersRef.current[key] = setInterval(() => {
+        triggerSync(key, syncMap[key]?.days_default || 30, true)
+        setSchedules(prev => {
+          const s = prev[key]
+          return s ? { ...prev, [key]: { ...s, nextRun: Date.now() + ms } } : prev
+        })
+      }, ms)
+    }
   }
 
   // Cleanup timers on unmount
@@ -176,16 +206,21 @@ export default function DataUpdate() {
       },
     },
     {
-      title: '定时', key: 'schedule', width: 90,
+      title: '定时', key: 'schedule', width: 110,
       render: (_: unknown, record: DataSource) => {
         const sched = schedules[record.key]
         if (!sched) return <Text type="secondary" style={{ fontSize: 10 }}>—</Text>
-        const remain = Math.max(0, Math.floor((sched.nextRun - Date.now()) / 60000))
+        const remainMs = sched.nextRun - Date.now()
+        if (remainMs <= 0) return <Text style={{ fontSize: 10, color: '#1677ff' }}>即将执行</Text>
+        const remainMin = Math.floor(remainMs / 60000)
+        const label = sched.dailyAt
+          ? `每天 ${sched.dailyAt}`
+          : `每 ${sched.interval}min`
         return (
-          <Tooltip title={`每 ${sched.interval} 分钟自动同步 · 下次: ${remain} 分钟后`}>
+          <Tooltip title={`${label} · 下次: ${new Date(sched.nextRun).toLocaleTimeString('zh-CN', { hour12: false })}`}>
             <Space size={2}>
               <FieldTimeOutlined style={{ color: '#1677ff', fontSize: 11 }} />
-              <Text style={{ fontSize: 10, color: '#1677ff' }}>{remain}min</Text>
+              <Text style={{ fontSize: 10, color: '#1677ff' }}>{sched.dailyAt || `${remainMin}min`}</Text>
             </Space>
           </Tooltip>
         )
@@ -276,7 +311,9 @@ export default function DataUpdate() {
         onCancel={() => setSyncModal(prev => ({ ...prev, open: false }))}
         onOk={() => {
           triggerSync(syncModal.key, syncModal.days)
-          if (syncModal.interval > 0) setAutoRefresh(syncModal.key, syncModal.interval)
+          const dailyAt = syncModal.interval === 1440 && syncModal.dailyAt
+            ? syncModal.dailyAt.format('HH:mm') : null
+          if (syncModal.interval > 0) setAutoRefresh(syncModal.key, syncModal.interval, dailyAt)
           setSyncModal(prev => ({ ...prev, open: false }))
         }}
         okText="开始同步"
@@ -306,9 +343,27 @@ export default function DataUpdate() {
               options={INTERVAL_OPTIONS}
               style={{ width: '100%', marginTop: 4 }}
             />
+            {syncModal.interval === 1440 && (
+              <div style={{ marginTop: 8 }}>
+                <Space>
+                  <FieldTimeOutlined />
+                  <Text strong>每天具体时间:</Text>
+                </Space>
+                <TimePicker
+                  value={syncModal.dailyAt}
+                  onChange={v => setSyncModal(prev => ({ ...prev, dailyAt: v }))}
+                  format="HH:mm"
+                  minuteStep={5}
+                  placeholder="选择时间"
+                  style={{ width: '100%', marginTop: 4 }}
+                />
+              </div>
+            )}
             {syncModal.interval > 0 && (
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                将每 {syncModal.interval} 分钟自动同步一次，每次拉取 {syncModal.days} 天数据
+                {syncModal.interval === 1440 && syncModal.dailyAt
+                  ? `每天 ${syncModal.dailyAt.format('HH:mm')} 自动同步，每次拉取 ${syncModal.days} 天数据`
+                  : `将每 ${syncModal.interval} 分钟自动同步一次，每次拉取 ${syncModal.days} 天数据`}
               </Text>
             )}
           </div>
