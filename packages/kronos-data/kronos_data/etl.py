@@ -1408,6 +1408,62 @@ def sync_all_new_apis(days_back: int = 3650) -> dict:
 # Main entry
 # ═══════════════════════════════════════════════════════════════
 
+def sync_daily_kline(days_back: int = 30) -> dict:
+    """Sync Tushare daily (日K线行情) — full OHLCV per date."""
+    pro = _get_pro()
+    if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
+    dates = _get_trade_dates(days_back)
+    db = _get_etl_db(); total = written = 0
+    cols = ["ts_code", "trade_date", "open", "high", "low", "close",
+            "pre_close", "change", "pct_chg", "vol", "amount"]
+    for td in dates:
+        try:
+            df = pro.daily(trade_date=td)
+            _rate_limit()
+            if df is None or df.empty: continue
+            rows = [(str(r["ts_code"]), str(r["trade_date"]),
+                     r.get("open"), r.get("high"), r.get("low"), r.get("close"),
+                     r.get("pre_close"), r.get("change"), r.get("pct_chg"),
+                     r.get("vol"), r.get("amount")) for _, r in df.iterrows()]
+            total += len(rows)
+            written += _insert_rows(db, "daily_kline", cols, rows)
+        except Exception as e:
+            if "token" in str(e).lower(): return {"status": "error", "reason": str(e)[:80]}
+    db.close()
+    print(f"  daily_kline: {total} fetched, {written} written ({len(dates)} dates)")
+    return {"status": "ok", "table": "daily_kline", "fetched": total, "written": written}
+
+
+def sync_limit_list_d(days_back: int = 30) -> dict:
+    """Sync Tushare limit_list_d (涨跌停明细)."""
+    pro = _get_pro()
+    if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
+    dates = _get_trade_dates(days_back)
+    db = _get_etl_db(); total = written = 0
+    cols = ["ts_code", "trade_date", "limit_type", "up_limit", "down_limit",
+            "first_time", "last_time", "open_times", "up_stat", "fd_amount",
+            "pct_chg", "pre_close", "close", "open"]
+    for td in dates:
+        for lt in ("U", "D", "Z"):
+            try:
+                df = pro.limit_list_d(trade_date=td, limit_type=lt)
+                _rate_limit()
+                if df is None or df.empty: continue
+                rows = [(str(r.get("ts_code", "")), str(r.get("trade_date", td)),
+                         lt, r.get("up_limit"), r.get("down_limit"),
+                         r.get("first_time"), r.get("last_time"), r.get("open_times"),
+                         r.get("up_stat"), r.get("fd_amount"),
+                         r.get("pct_chg"), r.get("pre_close"),
+                         r.get("close"), r.get("open")) for _, r in df.iterrows()]
+                total += len(rows)
+                written += _insert_rows(db, "limit_list_d", cols, rows)
+            except Exception:
+                pass
+    db.close()
+    print(f"  limit_list_d: {total} fetched, {written} written ({len(dates)} dates)")
+    return {"status": "ok", "table": "limit_list_d", "fetched": total, "written": written}
+
+
 SYNC_MODES = {
     "moneyflow": sync_moneyflow,
     "hk_hold": sync_hk_hold,
@@ -1420,6 +1476,8 @@ SYNC_MODES = {
     "adj_factor": sync_adj_factor,
     "index_basic": sync_index_basic,
     "index_daily": sync_index_daily,
+    "daily_kline": sync_daily_kline,
+    "limit_list": sync_limit_list_d,
     "income": sync_income,
     "balancesheet": sync_balancesheet,
     "cashflow": sync_cashflow,
