@@ -867,3 +867,73 @@ async def trigger_sync(
     except Exception as e:
         logger.exception("Trigger sync failed for %s", table_key)
         return {"status": "error", "table_key": table_key, "message": str(e)[:200]}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Sync Schedules — 持久化定时同步任务
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/sync-schedules")
+async def get_sync_schedules():
+    """Return all saved sync schedules."""
+    from kronos_factors.scorer._db_stub import _get_db as _db
+    try:
+        with _db() as d:
+            rows = d.execute(
+                "SELECT table_key, days_back, interval_minutes, daily_at, enabled, "
+                "last_sync_at, next_sync_at, created_at, updated_at "
+                "FROM sync_schedules ORDER BY table_key"
+            ).fetchall()
+        schedules = []
+        for r in rows:
+            schedules.append({
+                "table_key": r.get("table_key", ""),
+                "days_back": int(r.get("days_back") or 30),
+                "interval_minutes": int(r.get("interval_minutes") or 0),
+                "daily_at": r.get("daily_at") or None,
+                "enabled": bool(r.get("enabled", True)),
+                "last_sync_at": str(r.get("last_sync_at") or ""),
+                "created_at": str(r.get("created_at") or ""),
+                "updated_at": str(r.get("updated_at") or ""),
+            })
+        return {"status": "ok", "schedules": schedules}
+    except Exception as e:
+        logger.warning("Get schedules failed: %s", e)
+        return {"status": "error", "message": str(e)[:100], "schedules": []}
+
+
+@router.post("/sync-schedules")
+async def save_sync_schedule(
+    table_key: str = Query(...),
+    days_back: int = Query(30, ge=1, le=3650),
+    interval_minutes: int = Query(0, ge=0, le=10080),
+    daily_at: str = Query(None),
+    enabled: bool = Query(True),
+):
+    """Save or update a sync schedule."""
+    from kronos_factors.scorer._db_stub import _get_db as _db
+    try:
+        with _db() as d:
+            d.execute(
+                "INSERT INTO sync_schedules (table_key, days_back, interval_minutes, daily_at, enabled, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, NOW()) "
+                "ON CONFLICT (table_key) DO UPDATE SET "
+                "days_back=EXCLUDED.days_back, interval_minutes=EXCLUDED.interval_minutes, "
+                "daily_at=EXCLUDED.daily_at, enabled=EXCLUDED.enabled, updated_at=NOW()",
+                (table_key, days_back, interval_minutes, daily_at, enabled),
+            )
+        return {"status": "ok", "table_key": table_key, "message": "定时任务已保存"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)[:100]}
+
+
+@router.delete("/sync-schedules")
+async def delete_sync_schedule(table_key: str = Query(...)):
+    """Delete a sync schedule."""
+    from kronos_factors.scorer._db_stub import _get_db as _db
+    try:
+        with _db() as d:
+            d.execute("DELETE FROM sync_schedules WHERE table_key = ?", (table_key,))
+        return {"status": "ok", "table_key": table_key, "message": "定时任务已删除"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)[:100]}

@@ -89,11 +89,22 @@ export default function DataUpdate() {
     return next.valueOf()
   }
 
+  // Persist schedule to backend
+  const saveSchedule = async (key: string, daysBack: number, intervalMin: number, dailyAt: string | null, enabled: boolean) => {
+    const params = new URLSearchParams({ table_key: key, days_back: String(daysBack), interval_minutes: String(intervalMin), enabled: String(enabled) })
+    if (dailyAt) params.set('daily_at', dailyAt)
+    try { await fetch(`/api/v1/signal/sync-schedules?${params}`, { method: 'POST' }) } catch {}
+  }
+  const deleteSchedule = async (key: string) => {
+    try { await fetch(`/api/v1/signal/sync-schedules?table_key=${key}`, { method: 'DELETE' }) } catch {}
+  }
+
   // Start/stop auto-refresh timer for a table
   const setAutoRefresh = (key: string, intervalMin: number, dailyAt: string | null) => {
     if (timersRef.current[key]) { clearInterval(timersRef.current[key]); delete timersRef.current[key] }
     if (intervalMin <= 0) {
       setSchedules(prev => { const n = { ...prev }; delete n[key]; return n })
+      deleteSchedule(key)
       return
     }
     const ms = intervalMin * 60 * 1000
@@ -130,6 +141,22 @@ export default function DataUpdate() {
   useEffect(() => () => Object.values(timersRef.current).forEach(clearInterval), [])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // Load persisted schedules on mount
+  useEffect(() => {
+    fetch('/api/v1/signal/sync-schedules')
+      .then(r => r.json())
+      .then(d => {
+        if (d.schedules) {
+          d.schedules.forEach((s: { table_key: string; interval_minutes: number; daily_at: string | null; days_back: number; enabled: boolean }) => {
+            if (s.enabled && s.interval_minutes > 0) {
+              setAutoRefresh(s.table_key, s.interval_minutes, s.daily_at || null)
+            }
+          })
+        }
+      })
+      .catch(() => {})
+  }, []) // eslint-disable-line
 
   const formatRows = (n: number) => {
     if (n > 1e7) return (n / 1e7).toFixed(1) + '千万'
@@ -313,7 +340,13 @@ export default function DataUpdate() {
           triggerSync(syncModal.key, syncModal.days)
           const dailyAt = syncModal.interval === 1440 && syncModal.dailyAt
             ? syncModal.dailyAt.format('HH:mm') : null
-          if (syncModal.interval > 0) setAutoRefresh(syncModal.key, syncModal.interval, dailyAt)
+          if (syncModal.interval > 0) {
+            setAutoRefresh(syncModal.key, syncModal.interval, dailyAt)
+            saveSchedule(syncModal.key, syncModal.days, syncModal.interval, dailyAt, true)
+          } else {
+            setAutoRefresh(syncModal.key, 0, null)
+            deleteSchedule(syncModal.key)
+          }
           setSyncModal(prev => ({ ...prev, open: false }))
         }}
         okText="开始同步"
