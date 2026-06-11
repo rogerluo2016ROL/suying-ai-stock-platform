@@ -15,11 +15,14 @@ import sqlite3
 import time
 from datetime import datetime, timedelta
 
-_PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(_PROJ, "src"))
-sys.path.insert(0, _PROJ)
+_PKG_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # packages/kronos-data
+_PROJ = os.path.dirname(os.path.dirname(_PKG_ROOT))  # project root (2 levels up)
+sys.path.insert(0, os.path.join(_PKG_ROOT, "src"))
+sys.path.insert(0, _PKG_ROOT)
 
-DB_PATH = os.path.join(_PROJ, "webui", "stock_screening.db")
+DB_PATH = os.path.join(_PROJ, "Kronos", "webui", "stock_screening.db")
+if not os.path.exists(DB_PATH):
+    DB_PATH = os.path.join(_PROJ, "webui", "stock_screening.db")
 
 # Rate limiting — 500 req/min max, ~120ms per call
 _CALL_TIMES = []
