@@ -199,7 +199,7 @@ export default function DataUpdate() {
           <Tooltip title={`同步 ${record.name}`}>
             <Button
               size="small" type="link" icon={<CloudDownloadOutlined />}
-              loading={syncing === record.key}
+              loading={syncing === record.key || syncing === '__all__'}
               onClick={() => openSyncModal(record.key, record.name)}
               style={{ padding: 0 }}
             />
@@ -226,12 +226,29 @@ export default function DataUpdate() {
         <Space>
           {lastRefresh && <Text type="secondary" style={{ fontSize: 12 }}>最近刷新: {lastRefresh}</Text>}
           <Button size="small" icon={<SyncOutlined />} loading={loading} onClick={fetchData}>刷新</Button>
-          <Button size="small" icon={<ThunderboltOutlined />} onClick={() => {
-            const syncable = sources.filter(s => s.key in syncMap)
-            if (syncable.length === 0) { message.info('无可同步表'); return }
-            syncable.forEach((s, i) => setTimeout(() => triggerSync(s.key, syncMap[s.key].days_default || 30), i * 2000))
-            message.info(`开始同步 ${syncable.length} 张表...`)
-          }}>一键同步全部</Button>
+          <Button
+            size="small"
+            icon={<ThunderboltOutlined />}
+            loading={syncing === '__all__'}
+            onClick={async () => {
+              const syncable = sources.filter(s => s.key in syncMap)
+              if (syncable.length === 0) { message.info('无可同步表'); return }
+              setSyncing('__all__')
+              message.info(`开始顺序同步 ${syncable.length} 张表，请勿关闭页面...`)
+              let ok = 0; let fail = 0
+              for (const s of syncable) {
+                const days = syncMap[s.key]?.days_default || 30
+                try {
+                  const r = await fetch(`/api/v1/signal/trigger-sync?table_key=${s.key}&days=${days}`, { method: 'POST' })
+                  const d = await r.json()
+                  if (d.status === 'ok') ok++; else fail++
+                } catch { fail++ }
+              }
+              setSyncing(null)
+              fetchData()
+              message.success(`同步完成: ${ok} 成功, ${fail} 失败`)
+            }}
+          >一键同步全部</Button>
         </Space>
       </div>
 
