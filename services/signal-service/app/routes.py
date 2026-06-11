@@ -272,7 +272,7 @@ async def dashboard_summary():
                     "name": r.get("name", ""),
                     "price": round(price, 2),
                     "change_pct": chg,
-                    "reason": f"{side}：现价¥{price} 距离涨停价¥{up_lmt} 仅{abs(dist_up)}%，短线动能强劲注意追高风险",
+                    "reason": f"{side}：现价元{price} 距离涨停价元{up_lmt} 仅{abs(dist_up)}%,短线动能强劲注意追高风险",
                 })
             elif dist_down < 3:
                 alert_signals.append({
@@ -283,7 +283,7 @@ async def dashboard_summary():
                     "name": r.get("name", ""),
                     "price": round(price, 2),
                     "change_pct": chg,
-                    "reason": f"逼近跌停：现价¥{price} 距跌停价¥{down_lmt} 仅{dist_down}%，建议立即检查持仓风险并考虑止损",
+                    "reason": f"逼近跌停：现价元{price} 距跌停价元{down_lmt} 仅{dist_down}%,建议立即检查持仓风险并考虑止损",
                 })
 
         # Sort: urgent first, then by absolute change
@@ -682,4 +682,109 @@ async def update_signal_rules(
             "market_adapt":      round(market_weight / total, 3),
         },
         "status": "updated",
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# Data Status — 数据更新状态监控
+# ═══════════════════════════════════════════════════════════════
+
+_DATA_SOURCES = [
+    # 行情数据
+    {"key": "daily_kline",    "name": "日K线行情",         "category": "行情", "source": "Tushare daily",     "update": "每日盘后18:00", "note": "1990年起,含复权"},
+    {"key": "weekly_kline",   "name": "周K线行情",         "category": "行情", "source": "Tushare weekly",    "update": "每周五盘后",     "note": ""},
+    {"key": "monthly_kline",  "name": "月K线行情",         "category": "行情", "source": "Tushare monthly",   "update": "每月末盘后",     "note": ""},
+    {"key": "stk_mins",       "name": "分钟K线",           "category": "行情", "source": "Tushare stk_mins",  "update": "每日盘后18:00", "note": "5分钟粒度,实时分钟需rt_min权限"},
+    {"key": "adj_factor",     "name": "复权因子",           "category": "行情", "source": "Tushare adj_factor","update": "每日盘后",        "note": ""},
+    {"key": "daily_basic",    "name": "每日基本面指标",     "category": "行情", "source": "Tushare daily_basic","update":"每日盘后18:00",   "note": "PE/PB/换手率等"},
+    {"key": "stk_limit",      "name": "涨跌停价格",         "category": "行情", "source": "Tushare stk_limit", "update": "每日08:40",      "note": "当日涨跌停价预测"},
+    {"key": "index_daily",    "name": "指数日线",           "category": "行情", "source": "Tushare index_daily","update":"每日盘后",        "note": "上证/深证/创业板等"},
+    {"key": "sw_daily",       "name": "申万行业指数",       "category": "行情", "source": "Tushare sw_daily",  "update": "每日盘后",        "note": "申万2021版行业分类"},
+    {"key": "rt_sw_k",        "name": "申万实时行情",       "category": "行情", "source": "Tushare rt_sw_k",   "update": "实时(交易时段)",  "note": "独立权限,实时快照"},
+    # 资金数据
+    {"key": "moneyflow",      "name": "个股资金流向",       "category": "资金", "source": "Tushare moneyflow", "update": "每日盘后18:00",  "note": "大单/中单/小单分类"},
+    {"key": "moneyflow_hsgt", "name": "沪深港通资金",       "category": "资金", "source": "Tushare moneyflow_hsgt","update":"每日盘后", "note": "北向南向资金"},
+    {"key": "hk_holdings",    "name": "沪深港通持股",       "category": "资金", "source": "Tushare hk_hold",   "update": "每日盘后",        "note": "北向资金持仓明细"},
+    {"key": "margin_detail",  "name": "融资融券明细",       "category": "资金", "source": "Tushare margin_detail","update":"每日盘后",     "note": ""},
+    {"key": "margin_summary", "name": "融资融券汇总",       "category": "资金", "source": "Tushare margin_summary","update":"每日盘后",   "note": ""},
+    {"key": "block_trade_data","name":"大宗交易",           "category": "资金", "source": "Tushare block_trade","update":"每日盘后",     "note": ""},
+    # 特色数据
+    {"key": "stk_auction_o",  "name": "开盘集合竞价", "category": "特色", "source": "Tushare stk_auction_o", "update": "每日09:30", "note": "500元年, 竞价意图分析数据源"},
+    {"key": "stk_factor_pro", "name": "技术因子(专业版)",   "category": "特色", "source": "Tushare stk_factor_pro","update":"每日盘后",  "note": "MA/MACD/RSI等"},
+    {"key": "broker_recommend","name":"券商推荐",           "category": "特色", "source": "Tushare broker_recommend","update":"每日盘后","note": ""},
+    {"key": "cyq_chips",      "name": "筹码分布",           "category": "特色", "source": "Tushare cyq_chips", "update": "每日盘后",        "note": "CYQ成本分布"},
+    {"key": "top_list",       "name": "龙虎榜",             "category": "特色", "source": "Tushare top_list",  "update": "每日盘后",        "note": "营业部买卖明细"},
+    {"key": "top_inst",       "name": "机构持仓",           "category": "特色", "source": "Tushare top_inst",  "update": "季度更新",        "note": "机构季度持仓"},
+    {"key": "limit_list_d",   "name": "涨跌停明细",         "category": "特色", "source": "Tushare limit_list_d","update":"每日盘后",     "note": "涨停/跌停股票列表"},
+    # 财务数据
+    {"key": "financial_indicator","name":"财务指标",        "category": "财务", "source": "Tushare fina_indicator","update":"季度更新",   "note": "ROE/ROA/毛利率等"},
+    {"key": "financial_income","name":"利润表",             "category": "财务", "source": "Tushare income",    "update": "季度更新",        "note": ""},
+    {"key": "financial_balance","name":"资产负债表",        "category": "财务", "source": "Tushare balancesheet","update":"季度更新",   "note": ""},
+    {"key": "financial_cashflow","name":"现金流量表",       "category": "财务", "source": "Tushare cashflow",  "update": "季度更新",        "note": ""},
+    {"key": "forecast_data",  "name": "业绩预告",           "category": "财务", "source": "Tushare forecast",  "update": "不定期",          "note": ""},
+    {"key": "dividend_data",  "name": "分红送股",           "category": "财务", "source": "Tushare dividend",  "update": "不定期",          "note": ""},
+    # 基础数据
+    {"key": "stocks",         "name": "股票列表",           "category": "基础", "source": "Tushare stock_basic","update":"每日盘后",      "note": "含行业/市值/上市日期"},
+    {"key": "index_basic",    "name": "指数基本信息",       "category": "基础", "source": "Tushare index_basic","update":"不定期",       "note": ""},
+    {"key": "ths_member",     "name": "同花顺概念成分",     "category": "基础", "source": "Tushare ths_member","update":"不定期",       "note": ""},
+    # 舆情
+    {"key": "stock_news_tushare","name":"股票新闻",         "category": "舆情", "source": "Tushare news",      "update": "每日盘后",        "note": ""},
+    {"key": "research_reports","name":"研究报告",           "category": "舆情", "source": "Tushare research_report","update":"每日盘后","note": ""},
+]
+
+
+@router.get("/data-status")
+async def data_status():
+    """Return comprehensive data source status with metadata."""
+    from kronos_factors.scorer._db_stub import _get_db as _db
+
+    sources = []
+    try:
+        with _db() as d:
+            for src in _DATA_SOURCES:
+                key = src["key"]
+                try:
+                    # Try trade_date first, then trade_time
+                    row = d.execute(f"SELECT COUNT(*) as cnt FROM {key}").fetchone()
+                    cnt = int(row["cnt"]) if row else 0
+                    min_val, max_val = None, None
+                    if cnt > 0:
+                        for col in ("trade_date", "trade_time"):
+                            try:
+                                dr = d.execute(
+                                    f"SELECT MIN({col}) as mn, MAX({col}) as mx FROM {key}"
+                                ).fetchone()
+                                if dr and dr.get("mn"):
+                                    min_val = str(dr["mn"])[:10]
+                                    max_val = str(dr["mx"])[:19]
+                                break
+                            except Exception:
+                                continue
+                    sources.append({
+                        **src,
+                        "rows": cnt,
+                        "min_date": min_val or "—",
+                        "max_date": max_val or "—",
+                        "status": "active" if cnt > 0 else "empty",
+                    })
+                except Exception as e:
+                    sources.append({
+                        **src,
+                        "rows": 0, "min_date": "—", "max_date": "—",
+                        "status": "error", "error": str(e)[:60],
+                    })
+    except Exception as e:
+        return {"status": "error", "message": str(e)[:100]}
+
+    categories = sorted(set(s["category"] for s in sources))
+    now = datetime.now(timezone.utc).isoformat()
+
+    return {
+        "status": "ok",
+        "refreshed_at": now,
+        "total_tables": len(sources),
+        "active_tables": sum(1 for s in sources if s["status"] == "active"),
+        "total_rows": sum(s["rows"] for s in sources),
+        "categories": categories,
+        "sources": sources,
     }

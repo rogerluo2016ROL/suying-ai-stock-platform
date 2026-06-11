@@ -10,7 +10,7 @@ import {
   MenuFoldOutlined, MenuUnfoldOutlined,
   GlobalOutlined, StockOutlined, RobotOutlined,
   GithubOutlined, MailOutlined, LogoutOutlined,
-  ApiOutlined,
+  ApiOutlined, ClockCircleOutlined,
 } from '@ant-design/icons'
 import { useAuth, type Role } from './contexts/AuthContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
@@ -28,6 +28,7 @@ import Strategy from './pages/Strategy'
 import AutoTrade from './pages/AutoTrade'
 import Training from './pages/Training'
 import ModelRegistry from './pages/ModelRegistry'
+import DataUpdate from './pages/DataUpdate'
 
 const { Header, Sider, Content, Footer } = Layout
 const { Text, Link } = Typography
@@ -53,6 +54,7 @@ const allMenuItems: MenuItemWithRoles[] = [
   { key: '/diagnosis',   icon: <FundOutlined />,         label: '个股诊断',   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { key: '/training',        icon: <ExperimentOutlined />, label: '模型训练',   roles: ['admin'] },
   { key: '/model-registry',  icon: <ApiOutlined />,        label: '模型注册',   roles: ['admin'] },
+  { key: '/data-update',     icon: <ClockCircleOutlined />, label: '数据更新',   roles: ['admin', 'internal_analyst'] },
 ]
 
 const bottomMenuItems: MenuItemWithRoles[] = [
@@ -74,6 +76,7 @@ const protectedRoutes: { path: string; element: React.ReactNode; roles: Role[] }
   { path: '/diagnosis',      element: <Diagnosis />,      roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/training',       element: <Training />,       roles: ['admin'] },
   { path: '/model-registry', element: <ModelRegistry />,  roles: ['admin'] },
+  { path: '/data-update',    element: <DataUpdate />,     roles: ['admin', 'internal_analyst'] },
 ]
 
 function filterMenu(items: MenuItemWithRoles[], role: Role | null): ItemType[] {
