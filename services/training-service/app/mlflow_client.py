@@ -222,11 +222,16 @@ class LiveMlflowClient:
         self._client.set_terminated(run_id, status)
 
     def register_model(self, run_id: str, model_name: str) -> int:
+        # Ensure registered model exists, then create version
+        try:
+            self._client.get_registered_model(model_name)
+        except Exception:
+            self._client.create_registered_model(model_name)
         result = self._client.create_model_version(
             name=model_name,
             source=f"runs:/{run_id}/model",
         )
-        return result.version
+        return int(result.version)
 
     def get_model_version(self, name: str, version: int) -> Optional[Dict]:
         try:
