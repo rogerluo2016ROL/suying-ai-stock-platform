@@ -20,6 +20,11 @@ _PROJ = os.path.dirname(os.path.dirname(_PKG_ROOT))  # project root (2 levels up
 sys.path.insert(0, os.path.join(_PKG_ROOT, "src"))
 sys.path.insert(0, _PKG_ROOT)
 
+# PG connection (preferred) or SQLite fallback
+_PG_URL = os.environ.get("KRONOS_PG_URL", "")
+_USE_PG = bool(_PG_URL)
+_pg_conn = None
+
 DB_PATH = os.path.join(_PROJ, "Kronos", "webui", "stock_screening.db")
 if not os.path.exists(DB_PATH):
     DB_PATH = os.path.join(_PROJ, "webui", "stock_screening.db")
@@ -87,34 +92,88 @@ def _code_from_ts(ts_code: str) -> str:
     return str(ts_code).split(".")[0][:6]
 
 
-def clean_before_write(db: sqlite3.Connection, table: str, days_back: int):
+# ═══════════════════════════════════════════════════════════════
+# DB helpers — PG-aware, fall back to SQLite
+# ═══════════════════════════════════════════════════════════════
+
+class _Db:
+    """Unified DB wrapper — same API for PG and SQLite.
+
+    Usage:
+        db = _get_etl_db()
+        db.execute("SELECT ...", (params,))
+        db.commit()
+        db.close()
+    """
+    def __init__(self, conn, is_pg: bool):
+        self._conn = conn
+        self._pg = is_pg
+    def execute(self, sql: str, params: tuple = None):
+        if self._pg:
+            sql = sql.replace("?", "%s")
+            cur = self._conn.cursor()
+            cur.execute(sql, params or ())
+            return cur
+        return self._conn.execute(sql, params or ())
+    def commit(self):
+        self._conn.commit()
+    def close(self):
+        self._conn.close()
+    def rollback(self):
+        try: self._conn.rollback()
+        except: pass
+
+def _get_etl_db() -> _Db:
+    """Return _Db wrapper. PG if KRONOS_PG_URL is set, else SQLite."""
+    global _pg_conn
+    if _USE_PG:
+        try:
+            import psycopg2
+            if _pg_conn is None or _pg_conn.closed:
+                _pg_conn = psycopg2.connect(_PG_URL)
+            return _Db(_pg_conn, True)
+        except Exception as e:
+            print(f"  PG connection failed ({e}), falling back to SQLite")
+    return _Db(sqlite3.connect(DB_PATH), False)
+
+
+def clean_before_write(db: _Db, table: str, days_back: int):
     """Delete old rows within the sync window to avoid duplicates."""
     cutoff = (datetime.now() - timedelta(days=days_back + 1)).strftime("%Y-%m-%d")
-    db.execute(
-        f"DELETE FROM {table} WHERE trade_date >= ? AND trade_date LIKE '%-%'",
-        (cutoff,),
-    )
-    cutoff2 = (datetime.now() - timedelta(days=days_back + 1)).strftime("%Y%m%d")
-    db.execute(
-        f"DELETE FROM {table} WHERE trade_date >= ? AND trade_date NOT LIKE '%-%'",
-        (cutoff2,),
-    )
+    db.execute(f"DELETE FROM {table} WHERE trade_date >= ?", (cutoff,))
 
 
-def _insert_rows(db: sqlite3.Connection, table: str, columns: list[str],
+def _insert_rows(db: _Db, table: str, columns: list[str],
                  rows: list[tuple]) -> int:
-    """INSERT OR REPLACE with per-row error isolation. Returns count written."""
-    placeholders = ",".join(["?"] * len(columns))
-    col_str = ",".join(columns)
-    sql = f"INSERT OR REPLACE INTO {table}({col_str}) VALUES({placeholders})"
-    written = 0
-    for row in rows:
+    """INSERT with per-row error isolation. Uses PG or SQLite bulk insert."""
+    col_str = ", ".join(columns)
+    if db._pg:
+        import psycopg2.extras
+        cur = db._conn.cursor()
+        sql = f"INSERT INTO {table}({col_str}) VALUES %s ON CONFLICT DO NOTHING"
         try:
-            db.execute(sql, row)
-            written += 1
+            psycopg2.extras.execute_values(cur, sql, rows, page_size=1000)
+            written = cur.rowcount
+            db.commit()
+            return written
         except Exception:
-            pass
-    return written
+            db.rollback()
+            placeholders = ", ".join(["%s"] * len(columns))
+            sql2 = f"INSERT INTO {table}({col_str}) VALUES({placeholders}) ON CONFLICT DO NOTHING"
+            written = 0
+            for row in rows:
+                try: cur.execute(sql2, tuple(row)); written += 1
+                except: pass
+            db.commit()
+            return written
+    else:
+        placeholders = ",".join(["?"] * len(columns))
+        sql = f"INSERT OR REPLACE INTO {table}({col_str}) VALUES({placeholders})"
+        written = 0
+        for row in rows:
+            try: db.execute(sql, row); written += 1
+            except: pass
+        return written
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -128,7 +187,7 @@ def sync_moneyflow(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "moneyflow", days_back)
 
     total, written = 0, 0
@@ -170,7 +229,7 @@ def sync_hk_hold(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "hk_holdings", days_back)
 
     total, written = 0, 0
@@ -206,7 +265,7 @@ def sync_margin(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "margin_detail", days_back)
 
     total, written = 0, 0
@@ -243,7 +302,7 @@ def sync_top_list(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "top_list", days_back)
 
     total, written = 0, 0
@@ -283,7 +342,7 @@ def sync_daily_basic(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "daily_basic", days_back)
 
     total, written = 0, 0
@@ -324,7 +383,7 @@ def sync_stk_limit(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "stk_limit", days_back)
 
     total, written = 0, 0
@@ -360,7 +419,7 @@ def sync_weekly_kline(days_back: int = 365) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "weekly_kline", days_back)
 
     total, written = 0, 0
@@ -397,7 +456,7 @@ def sync_monthly_kline(days_back: int = 365 * 2) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "monthly_kline", days_back)
 
     total, written = 0, 0
@@ -434,7 +493,7 @@ def sync_adj_factor(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "adj_factor", days_back)
 
     total, written = 0, 0
@@ -469,7 +528,7 @@ def sync_index_basic(days_back: int = 30) -> dict:
     pro = _get_pro()
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     cols = ["ts_code", "name", "market", "publisher", "category",
             "base_date", "base_point", "list_date"]
 
@@ -516,7 +575,7 @@ def sync_index_daily(days_back: int = 30) -> dict:
         "399005.SZ",  # 中小板指
     ]
 
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "index_daily", days_back)
 
     total, written = 0, 0
@@ -576,7 +635,7 @@ def _sync_per_stock_financial(table: str, api_name: str, fields: str,
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
 
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     db.row_factory = sqlite3.Row
     codes = _get_all_codes(db)
     total, written = 0, 0
@@ -688,7 +747,7 @@ def sync_forecast_data(days_back: int = 180) -> dict:
         d = today - timedelta(days=i)
         dates.append(d.strftime("%Y%m%d"))
 
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     cols = ["code", "ann_date", "end_date", "forecast_type",
             "net_profit_min", "net_profit_max", "change_reason"]
     total, written = 0, 0
@@ -733,7 +792,7 @@ def sync_dividend_data(days_back: int = 365) -> dict:
         d = today - timedelta(days=i)
         dates.append(d.strftime("%Y%m%d"))
 
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     cols = ["code", "end_date", "ann_date", "cash_div", "stk_div",
             "stk_bo_rate", "record_date", "ex_date"]
     total, written = 0, 0
@@ -776,7 +835,7 @@ def sync_top_inst(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "top_inst", days_back)
     total, written = 0, 0
     cols = ["code", "trade_date", "exalter", "buy", "buy_rate",
@@ -805,7 +864,7 @@ def sync_block_trade_data(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "block_trade_data", days_back)
     total, written = 0, 0
     cols = ["code", "trade_date", "price", "vol", "amount", "buyer", "seller"]
@@ -833,7 +892,7 @@ def sync_margin_summary(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "margin_summary", days_back)
     total, written = 0, 0
     cols = ["trade_date", "rzye", "rzmre", "rzche", "rqye", "rqmcl", "rzrqye"]
@@ -860,7 +919,7 @@ def sync_moneyflow_hsgt(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     clean_before_write(db, "moneyflow_hsgt", days_back)
     total, written = 0, 0
     cols = ["trade_date", "ggt_ss", "ggt_sz", "hgt", "sgt", "north_money", "south_money"]
@@ -886,7 +945,7 @@ def sync_stk_holdertrade(days_back: int = 90) -> dict:
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     total, written = 0, 0
     cols = ["code", "ann_date", "holder_name", "holder_type", "in_de",
             "change_vol", "change_ratio"]
@@ -912,7 +971,7 @@ def sync_stk_holdernumber(days_back: int = 30) -> dict:
     """Sync pro.stk_holdernumber() — 股东人数 (top 500 stocks only for speed)."""
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     db.row_factory = sqlite3.Row
     codes = [r["code"] for r in db.execute(
         "SELECT code FROM stocks WHERE is_st=0 AND (code LIKE '00%' OR code LIKE '30%' OR code LIKE '60%' OR code LIKE '68%') "
@@ -940,7 +999,7 @@ def sync_pledge_detail(days_back: int = 30) -> dict:
     """Sync pro.pledge_detail() — 股权质押 (top 500 by market cap)."""
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     db.row_factory = sqlite3.Row
     codes = [r["code"] for r in db.execute(
         "SELECT code FROM stocks WHERE is_st=0 AND (code LIKE '00%' OR code LIKE '30%' OR code LIKE '60%' OR code LIKE '68%') "
@@ -969,7 +1028,7 @@ def sync_repurchase(days_back: int = 90) -> dict:
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     total, written = 0, 0
     cols = ["code", "ann_date", "end_date", "proc", "vol", "amount"]
     for d in dates:
@@ -994,7 +1053,7 @@ def sync_share_float(days_back: int = 90) -> dict:
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     # Clean old data by ann_date
     cutoff = (datetime.now() - timedelta(days=days_back + 1)).strftime("%Y-%m-%d")
     db.execute("DELETE FROM share_float WHERE ann_date >= ?", (cutoff,))
@@ -1026,7 +1085,7 @@ def sync_cyq_chips(days_back: int = 5) -> dict:
     """
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
-    db = sqlite3.connect(DB_PATH); db.row_factory = sqlite3.Row
+    db = _get_etl_db(); db.row_factory = sqlite3.Row
     codes = [r["code"] for r in db.execute(
         "SELECT code FROM stocks WHERE is_st=0 AND market_cap>0 "
         "AND (code LIKE '00%' OR code LIKE '30%' OR code LIKE '60%' OR code LIKE '68%') "
@@ -1062,7 +1121,7 @@ def sync_broker_recommend(days_back: int = 90) -> dict:
     """
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     total, written = 0, 0
     cols = ["month", "broker", "code", "name"]
     # Sync last 6 months (data typically available with 1-month lag)
@@ -1088,7 +1147,7 @@ def sync_research_report(days_back: int = 3650) -> dict:
     """Sync pro.research_report() — 券商研报 (10 years, date-batched)."""
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     total, written = 0, 0
     cols = ["trade_date", "title", "report_type", "author", "name", "code"]
     # Batch by 30-day windows (API returns max 1000 per call)
@@ -1122,7 +1181,7 @@ def sync_stock_news(days_back: int = 3650) -> dict:
     """Sync pro.major_news() + pro.news() — 新闻资讯 (10 years)."""
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     total, written = 0, 0
     cols = ["pub_time", "title", "content", "source"]
     today = datetime.now()
@@ -1155,7 +1214,7 @@ def sync_sw_daily(days_back: int = 3650) -> dict:
     """Sync pro.sw_daily() — 申万行业日线 (10 years, date-batched)."""
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     total, written = 0, 0
     cols = ["ts_code", "trade_date", "name", "open", "high", "low", "close",
             "change", "pct_change", "pe", "pb", "float_mv", "total_mv", "vol", "amount"]
@@ -1194,7 +1253,7 @@ def sync_rt_sw_k(days_back: int = 1) -> dict:
     """
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     total, written = 0, 0
     cols = ["trade_time", "ts_code", "name", "close", "pre_close",
             "open", "high", "low", "vol", "amount", "pct_change"]
@@ -1233,7 +1292,7 @@ def sync_rt_k() -> dict:
     """
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     total, written = 0, 0
     try:
         # Get the latest trading day from stk_mins
@@ -1315,7 +1374,7 @@ def sync_stk_auction_o(trade_date: str = None) -> dict:
         return {"status": "ok", "table": "stk_auction_o", "fetched": 0, "written": 0}
 
     # Actual fields: ts_code, trade_date, close, open, high, low, vol, amount, vwap
-    db = sqlite3.connect(DB_PATH)
+    db = _get_etl_db()
     cols = ["ts_code", "trade_date", "close", "open", "high", "low", "vol", "amount", "vwap"]
     rows = []
     for _, r in df.iterrows():
