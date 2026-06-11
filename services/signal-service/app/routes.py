@@ -760,7 +760,6 @@ _SYNC_MAP = {
         "stock_news_tushare": ("stock_news", 30, "股票新闻"),
         "research_reports": ("research_report", 30, "研究报告"),
         "sw_daily": ("sw_daily", 365, "申万行业指数"),
-        "stk_factor_pro": ("stk_factor_pro", 30, "技术因子"),
         "limit_list_d": ("limit_list", 30, "涨跌停明细"),
     }
 
@@ -841,7 +840,7 @@ async def trigger_sync(
 
     try:
         import subprocess, sys
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
         packages_path = os.pathsep.join([
             os.path.join(project_root, "packages", "kronos-factors"),
             os.path.join(project_root, "packages", "kronos-core"),
