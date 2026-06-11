@@ -43,6 +43,15 @@ interface AlertSignal {
   reason: string
 }
 
+interface AuctionIntentItem {
+  code: string; name: string; auction_price: number; prev_close: number
+  chg_pct: number; vs_vwap: number; vol_ratio: number; open_gap: number
+  vol: number; amount: number
+  intent: string; icon: string; level: string; score: number
+  reasons: string[]
+  breakdown: { price_direction: number; buy_sell_pressure: number; auction_strength: number; opening_continuity: number }
+}
+
 interface DashboardData {
   refreshed_at: string
   market_sentiment: {
@@ -54,6 +63,7 @@ interface DashboardData {
   signal_stocks: SignalStock[]
   limit_stocks: { up_count: number; down_count: number; up_list: LimitStock[]; down_list: LimitStock[]; data_source: string }
   alert_signals: AlertSignal[]
+  auction_intent: { trade_date: string; total_analyzed: number; bullish_count: number; bearish_count: number; neutral_count: number; top_bullish: AuctionIntentItem[]; top_bearish: AuctionIntentItem[]; data_source: string }
   service_health: ServiceHealth[]
   screener_modes: ScreenerMode[]
   watchlist: WatchlistItem[]
@@ -134,6 +144,7 @@ export default function Dashboard() {
   const limitStocks = data?.limit_stocks
   const signalStocks = data?.signal_stocks || []
   const alertSignals = data?.alert_signals || []
+  const auctionIntent = data?.auction_intent
   const watchlist = data?.watchlist || []
   const modes = data?.screener_modes || []
   const services = data?.service_health || []
@@ -520,6 +531,75 @@ export default function Dashboard() {
                 数据来源: {data?.data_sources?.watchlist || 'PG stocks 表市值 Top 10'}
               </Text>
             </div>
+          </Card>
+
+          {/* ── Auction Intent ── */}
+          <Card
+            title={<Space><ThunderboltOutlined style={{ color: '#fa8c16' }} />竞价意图</Space>}
+            size="small" style={{ borderRadius: 8, marginBottom: 16 }}
+            extra={
+              auctionIntent && (
+                <Space size={4}>
+                  <Tag color="red" style={{ fontSize: 10, margin: 0 }}>🔥{auctionIntent.bullish_count}</Tag>
+                  <Tag color="green" style={{ fontSize: 10, margin: 0 }}>⚠️{auctionIntent.bearish_count}</Tag>
+                </Space>
+              )
+            }
+          >
+            {auctionIntent ? (
+              <div>
+                {/* Top bullish */}
+                {auctionIntent.top_bullish?.slice(0, 3).map((item: AuctionIntentItem) => (
+                  <div key={item.code} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '4px 0', borderBottom: '1px solid #f5f5f5', cursor: 'pointer',
+                  }} onClick={() => navigate(`/diagnosis?code=${item.code}`)}>
+                    <Space size={4}>
+                      <Text style={{ fontSize: 10 }}>{item.icon}</Text>
+                      <Text strong style={{ fontSize: 12 }}>{item.code}</Text>
+                      <Text style={{ fontSize: 11, color: '#595959' }}>{item.name}</Text>
+                    </Space>
+                    <Space size={4}>
+                      <Text style={{
+                        fontSize: 12, fontWeight: 600,
+                        color: item.chg_pct >= 0 ? '#cf1322' : '#3f8600',
+                      }}>
+                        {item.chg_pct >= 0 ? '+' : ''}{item.chg_pct}%
+                      </Text>
+                      <Tag color={item.score >= 75 ? 'red' : item.score >= 60 ? 'orange' : 'default'}
+                           style={{ fontSize: 9, margin: 0, padding: '0 3px' }}>
+                        {item.score}
+                      </Tag>
+                    </Space>
+                  </div>
+                ))}
+                {/* Top bearish */}
+                {auctionIntent.top_bearish?.slice(0, 2).map((item: AuctionIntentItem) => (
+                  <div key={item.code} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '4px 0', cursor: 'pointer',
+                  }} onClick={() => navigate(`/diagnosis?code=${item.code}`)}>
+                    <Space size={4}>
+                      <Text style={{ fontSize: 10 }}>{item.icon}</Text>
+                      <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{item.code}</Text>
+                      <Text style={{ fontSize: 11, color: '#bfbfbf' }}>{item.name}</Text>
+                    </Space>
+                    <Space size={4}>
+                      <Text style={{ fontSize: 12, color: '#3f8600' }}>
+                        {item.chg_pct >= 0 ? '+' : ''}{item.chg_pct}%
+                      </Text>
+                      <Tag color="green" style={{ fontSize: 9, margin: 0, padding: '0 3px' }}>{item.score}</Tag>
+                    </Space>
+                  </div>
+                ))}
+                <Divider style={{ margin: '6px 0' }} />
+                <Text type="secondary" style={{ fontSize: 10 }}>
+                  分析 {auctionIntent.total_analyzed}只 · 模型: 价格方向+买卖压力+竞价强度+开盘延续
+                </Text>
+              </div>
+            ) : (
+              <Text type="secondary" style={{ fontSize: 11 }}>竞价数据加载中...</Text>
+            )}
           </Card>
 
           {/* ── Service Health Detail ── */}
