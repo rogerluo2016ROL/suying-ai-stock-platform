@@ -399,3 +399,9 @@ CREATE TABLE IF NOT EXISTS watchlist (
     added_at TIMESTAMP DEFAULT NOW(),
     note TEXT
 );
+
+-- 实时日K线 (rt_k, Level-2 权限)
+CREATE TABLE IF NOT EXISTS rt_k (id SERIAL PRIMARY KEY, ts_code TEXT NOT NULL, trade_date DATE NOT NULL, open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION, close DOUBLE PRECISION, pre_close DOUBLE PRECISION, change DOUBLE PRECISION, pct_chg DOUBLE PRECISION, vol DOUBLE PRECISION, amount DOUBLE PRECISION, UNIQUE(ts_code, trade_date));
+
+-- 开盘集合竞价 (stk_auction_o, 特色数据权限)
+CREATE TABLE IF NOT EXISTS stk_auction_o (id SERIAL PRIMARY KEY, ts_code TEXT NOT NULL, trade_date DATE NOT NULL, pre_close DOUBLE PRECISION, price DOUBLE PRECISION, volume DOUBLE PRECISION, amount DOUBLE PRECISION, bid_volume DOUBLE PRECISION, ask_volume DOUBLE PRECISION, bid_amount DOUBLE PRECISION, ask_amount DOUBLE PRECISION, UNIQUE(ts_code, trade_date));

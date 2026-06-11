@@ -679,6 +679,32 @@ def _create_tables(db: sqlite3.Connection) -> None:
             UNIQUE(trade_time, ts_code)
         );
 
+        -- 47. 实时日K线 (Tushare rt_k, Level-2 权限 — same-day only)
+        CREATE TABLE IF NOT EXISTS rt_k (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts_code TEXT NOT NULL,
+            trade_date TEXT NOT NULL,
+            open REAL, high REAL, low REAL, close REAL,
+            pre_close REAL, change REAL, pct_chg REAL,
+            vol REAL, amount REAL,
+            updated_at TEXT DEFAULT (datetime('now','localtime')),
+            UNIQUE(ts_code, trade_date)
+        );
+
+        -- 48. 开盘集合竞价 (Tushare stk_auction_o, 特色数据权限)
+        CREATE TABLE IF NOT EXISTS stk_auction_o (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts_code TEXT NOT NULL,
+            trade_date TEXT NOT NULL,
+            pre_close REAL, price REAL,
+            volume REAL, amount REAL,
+            bid_volume REAL, ask_volume REAL,
+            bid_amount REAL, ask_amount REAL,
+            updated_at TEXT DEFAULT (datetime('now','localtime')),
+            UNIQUE(ts_code, trade_date)
+        );
+
+
         -- 46. 申万行业日线 (Tushare sw_daily, 独立权限)
         CREATE TABLE IF NOT EXISTS sw_daily (
             ts_code TEXT NOT NULL,

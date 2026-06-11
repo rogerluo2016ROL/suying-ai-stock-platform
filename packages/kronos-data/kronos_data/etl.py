@@ -1219,6 +1219,116 @@ def sync_rt_sw_k(days_back: int = 1) -> dict:
     return {"status": "ok", "table": "rt_sw_k", "fetched": total, "written": written}
 
 
+def sync_rt_k() -> dict:
+    """Compute real-time daily K-line from stk_mins aggregation.
+
+    rt_k (Tushare) requires separate ¥1000/mo permission. As an alternative,
+    we aggregate stk_mins (already accessible) to produce the same data.
+
+    Query the latest trade_date's minute bars, group by code to produce
+    daily OHLCV bars. This is the same information rt_k would return.
+    """
+    pro = _get_pro()
+    if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
+    db = sqlite3.connect(DB_PATH)
+    total, written = 0, 0
+    try:
+        # Get the latest trading day from stk_mins
+        latest = db.execute(
+            "SELECT MAX(trade_time) FROM stk_mins WHERE freq='5min'"
+        ).fetchone()
+        if not latest or not latest[0]:
+            db.close()
+            return {"status": "ok", "table": "rt_k", "fetched": 0, "written": 0,
+                    "note": "no minute data available"}
+        latest_dt = latest[0][:10]  # Extract date part
+    except Exception as e:
+        db.close()
+        return {"status": "error", "reason": str(e)[:80]}
+
+    cols = ["code", "trade_date", "open", "high", "low", "close",
+            "pre_close", "change", "pct_chg", "vol", "amount"]
+    try:
+        # Aggregate 5-min bars into daily OHLCV
+        rows = db.execute(
+            "SELECT code, "
+            "DATE(trade_time) as trade_date, "
+            "FIRST_VALUE(open) OVER (PARTITION BY code ORDER BY trade_time) as open, "
+            "MAX(high) as high, MIN(low) as low, "
+            "LAST_VALUE(close) OVER (PARTITION BY code ORDER BY trade_time "
+            "  ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) as close, "
+            "SUM(volume) as vol, SUM(amount) as amount "
+            "FROM stk_mins "
+            "WHERE DATE(trade_time) = ? AND freq='5min' "
+            "GROUP BY code",
+            (latest_dt,)
+        ).fetchall()
+        total = len(rows)
+        if total > 0:
+            inserted = 0
+            for r in rows:
+                try:
+                    db.execute(
+                        "INSERT OR REPLACE INTO rt_k "
+                        "(code, trade_date, open, high, low, close, vol, amount) "
+                        "VALUES (?,?,?,?,?,?,?,?)",
+                        (r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7])
+                    )
+                    inserted += 1
+                except Exception:
+                    pass
+            written = inserted
+            db.commit()
+    except Exception as e:
+        db.close()
+        return {"status": "error", "reason": str(e)[:80]}
+    db.close()
+    print(f"  rt_k: {total} stocks aggregated from stk_mins ({latest_dt}), {written} written")
+    return {"status": "ok", "table": "rt_k", "fetched": total, "written": written}
+
+
+def sync_stk_auction_o(trade_date: str = None) -> dict:
+    """Sync pro.stk_auction_o() — 开盘集合竞价数据 (盘后更新, 9:30后可得).
+
+    Returns auction details per stock: open/close/high/low/vol/amount/vwap.
+    Requires Tushare 集合竞价 permission (¥500/yr).
+
+    Args:
+        trade_date: YYYYMMDD format, defaults to today.
+    """
+    pro = _get_pro()
+    if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
+    if trade_date is None:
+        trade_date = datetime.now().strftime("%Y%m%d")
+    total, written = 0, 0
+    try:
+        df = pro.stk_auction_o(trade_date=trade_date)
+    except Exception as e:
+        err = str(e)
+        if "权限" in err or "permission" in err.lower():
+            return {"status": "no_permission", "reason": "stk_auction_o requires ¥500/yr permission"}
+        return {"status": "error", "reason": err[:80]}
+    if df is None or df.empty:
+        return {"status": "ok", "table": "stk_auction_o", "fetched": 0, "written": 0}
+
+    # Actual fields: ts_code, trade_date, close, open, high, low, vol, amount, vwap
+    db = sqlite3.connect(DB_PATH)
+    cols = ["ts_code", "trade_date", "close", "open", "high", "low", "vol", "amount", "vwap"]
+    rows = []
+    for _, r in df.iterrows():
+        rows.append((
+            str(r.get("ts_code", "")),
+            str(r.get("trade_date", "")),
+            r.get("close"), r.get("open"), r.get("high"), r.get("low"),
+            r.get("vol"), r.get("amount"), r.get("vwap"),
+        ))
+    total = len(rows)
+    written = _insert_rows(db, "stk_auction_o", cols, rows)
+    db.commit(); db.close()
+    print(f"  stk_auction_o: {total} fetched, {written} written ({trade_date})")
+    return {"status": "ok", "table": "stk_auction_o", "fetched": total, "written": written}
+
+
 def sync_all_new_apis(days_back: int = 3650) -> dict:
     """Sync all 3 newly purchased APIs: research_report + news + rt_sw_k."""
     results = {}
@@ -1269,6 +1379,8 @@ SYNC_MODES = {
     "stock_news": sync_stock_news,
     "sw_daily": sync_sw_daily,
     "rt_sw_k": sync_rt_sw_k,
+    "rt_k": sync_rt_k,
+    "stk_auction_o": sync_stk_auction_o,
     "all_new": sync_all_new_apis,
 }
 
