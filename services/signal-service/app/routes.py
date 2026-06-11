@@ -833,7 +833,7 @@ async def trigger_sync(
     Returns status, rows fetched, and rows written.
     """
     if table_key not in _SYNC_MAP:
-        return {"status": "error", "message": f"Unknown table: {table_key}. Available: {list(_SYNC_MAP.keys())}"}
+        return {"status": "error", "message": f"不支持的表: {table_key}, 可选: {list(_SYNC_MAP.keys())}"}
 
     mode, _, desc = _SYNC_MAP[table_key]
     logger.info("Trigger sync: %s (mode=%s, days=%d)", table_key, mode, days)

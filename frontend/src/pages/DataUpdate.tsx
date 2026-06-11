@@ -63,9 +63,9 @@ export default function DataUpdate() {
       const r = await fetch(`/api/v1/signal/trigger-sync?table_key=${key}&days=${days}`, { method: 'POST' })
       const d = await r.json()
       if (d.status === 'ok') {
-        if (!silent) message.success(`${d.desc}: ${d.output?.[d.output.length-1] || 'sync completed'}`)
+        if (!silent) message.success(`${d.desc}: ${d.output?.[d.output.length-1] || '同步完成'}`)
       } else {
-        if (!silent) message.error(d.message || 'sync failed')
+        if (!silent) message.error(d.message || '同步失败，请检查 Tushare 连接')
       }
     } catch { if (!silent) message.error('触发同步失败') }
     finally { setSyncing(null); fetchData() }
