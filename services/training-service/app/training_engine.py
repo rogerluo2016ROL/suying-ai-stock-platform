@@ -336,133 +336,187 @@ def _train_lightgbm_sync(
     y_train = (y_train_raw > 0).astype(int)
     y_val = (y_val_raw > 0).astype(int)
 
+    # Base params (always defined)
+    base_params = {
+        "objective": "binary",
+        "metric": "auc",
+        "boosting_type": "gbdt",
+        "num_leaves": params.num_leaves or 63,
+        "learning_rate": params.learning_rate or 0.03,
+        "feature_fraction": params.colsample_bytree or 0.7,
+        "bagging_fraction": params.subsample or 0.7,
+        "bagging_freq": 10,
+        "min_data_in_leaf": 100,
+        "verbose": -1,
+        "num_threads": TRAINING_NUM_THREADS,
+        "seed": 42,
+        "is_unbalance": True,
+    }
+    if params.max_depth is not None:
+        base_params["max_depth"] = params.max_depth
+
     # Optuna hyperparameter search
     best_params = {}
     best_score = -float("inf")
+    use_optuna = params.n_trials > 1
 
-    if params.n_trials > 1:
+    if use_optuna:
         try:
             import optuna
-        except ImportError:
-            logger.warning("Optuna not installed, using fixed params")
-            params_dict = {
-                "objective": "binary",
-                "metric": "auc",
-                "boosting_type": "gbdt",
-                "num_leaves": params.num_leaves or 63,
-                "learning_rate": params.learning_rate or 0.03,
-                "feature_fraction": params.colsample_bytree or 0.7,
-                "bagging_fraction": params.subsample or 0.7,
-                "bagging_freq": 10,
-                "min_data_in_leaf": 100,
-                "verbose": -1,
-                "num_threads": TRAINING_NUM_THREADS,
-                "seed": 42,
-                "is_unbalance": True,
-            }
-            params_dict["num_leaves"] = params.num_leaves or 63
-            params_dict["learning_rate"] = params.learning_rate or 0.03
-            params_dict["max_depth"] = params.max_depth or -1
-    else:
-        params_dict = {
-            "objective": "binary",
-            "metric": "auc",
-            "boosting_type": "gbdt",
-            "num_leaves": params.num_leaves or 63,
-            "learning_rate": params.learning_rate or 0.03,
-            "feature_fraction": params.colsample_bytree or 0.7,
-            "bagging_fraction": params.subsample or 0.7,
-            "bagging_freq": 10,
-            "min_data_in_leaf": 100,
-            "verbose": -1,
-            "num_threads": TRAINING_NUM_THREADS,
-            "seed": 42,
-            "is_unbalance": True,
-        }
 
-    if params.max_depth is not None:
-        params_dict["max_depth"] = params.max_depth
+            def _objective(trial):
+                trial_params = {
+                    **base_params,
+                    "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.1, log=True),
+                    "num_leaves": trial.suggest_int("num_leaves", 15, 127),
+                    "feature_fraction": trial.suggest_float("feature_fraction", 0.5, 1.0),
+                    "bagging_fraction": trial.suggest_float("bagging_fraction", 0.5, 1.0),
+                    "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 20, 200),
+                }
+                if params.max_depth is not None:
+                    trial_params["max_depth"] = params.max_depth
+                else:
+                    trial_params["max_depth"] = trial.suggest_int("max_depth", 3, 15)
 
-    t0 = time.time()
+                dtrain = lgb.Dataset(X_train, label=y_train)
+                dval = lgb.Dataset(X_val, label=y_val)
+                model = lgb.train(
+                    trial_params, dtrain,
+                    num_boost_round=200,
+                    valid_sets=[dval],
+                    callbacks=[
+                        lgb.early_stopping(params.early_stopping_rounds),
+                        lgb.log_evaluation(0),
+                    ],
+                )
+                y_pred = model.predict(X_val)
+                from scipy import stats
+                ic, _ = stats.spearmanr(y_pred, y_val)
+                return 0.0 if np.isnan(ic) else float(ic)
 
-    # Simplified: single training run with fixed params
-    # Full Optuna integration would iterate trials here
-    n_effective_trials = min(params.n_trials, 10)  # Cap to avoid excessive time
+            study = optuna.create_study(direction="maximize")
+            n_trials = min(params.n_trials, 20)
+            study.optimize(_objective, n_trials=n_trials, show_progress_bar=False)
 
-    for trial_num in range(max(1, n_effective_trials)):
-        # Adjust learning rate per trial
-        trial_params = {**params_dict}
-        if n_effective_trials > 1:
-            trial_params["learning_rate"] = params_dict["learning_rate"] * (0.5 + 0.5 * (trial_num + 1) / n_effective_trials)
-            trial_params["num_leaves"] = max(15, params_dict["num_leaves"] - trial_num * 5)
-
-        dtrain = lgb.Dataset(X_train, label=y_train)
-        dval = lgb.Dataset(X_val, label=y_val)
-
-        model = lgb.train(
-            trial_params,
-            dtrain,
-            num_boost_round=200,
-            valid_sets=[dval],
-            callbacks=[
-                lgb.early_stopping(params.early_stopping_rounds),
-                lgb.log_evaluation(0),
-            ],
-        )
-
-        # Evaluate
-        y_pred = model.predict(X_val)
-        from scipy import stats
-        ic, _ = stats.spearmanr(y_pred, y_val)
-        ic = 0.0 if np.isnan(ic) else float(ic)
-
-        valid_mask = y_val.notna()
-        if valid_mask.sum() >= 20:
-            pred_std = np.std(y_pred[valid_mask]) if np.std(y_pred[valid_mask]) > 0 else 1
-            icir = ic / pred_std
-        else:
-            icir = 0.0
-
-        best_score_auc = model.best_score["valid_0"]["auc"]
-        train_loss = 1.0 - best_score_auc
-        valid_loss = 1.0 - best_score_auc
-
-        # Feature importance
-        importance = model.feature_importance(importance_type="gain")
-        imp_dict = {
-            feature_cols[i]: float(importance[i])
-            for i in np.argsort(importance)[::-1][:10]
-            if i < len(feature_cols)
-        }
-
-        elapsed = time.time() - t0
-
-        metrics = TrainingMetrics(
-            trial=trial_num + 1,
-            epoch=model.current_iteration(),
-            train_loss=round(train_loss, 4),
-            valid_loss=round(valid_loss, 4),
-            best_valid_loss=round(valid_loss, 4),
-            ic=round(ic, 4),
-            icir=round(icir, 4),
-            feature_importance=imp_dict,
-            elapsed_seconds=round(elapsed, 1),
-        )
-
-        if progress_callback:
-            progress_callback(metrics)
-
-        if ic > best_score:
-            best_score = ic
+            # Train final model with best params
+            best_trial_params = {**base_params, **study.best_params}
+            dtrain = lgb.Dataset(X_train, label=y_train)
+            dval = lgb.Dataset(X_val, label=y_val)
+            best_model = lgb.train(
+                best_trial_params, dtrain,
+                num_boost_round=200,
+                valid_sets=[dval],
+                callbacks=[lgb.early_stopping(params.early_stopping_rounds), lgb.log_evaluation(0)],
+            )
             best_params = {
-                "learning_rate": trial_params["learning_rate"],
-                "num_leaves": trial_params["num_leaves"],
-                "max_depth": trial_params.get("max_depth", -1),
-                "feature_fraction": trial_params.get("feature_fraction", 0.7),
-                "best_iteration": model.current_iteration(),
-                "best_score": best_score_auc,
+                "learning_rate": best_trial_params["learning_rate"],
+                "num_leaves": best_trial_params["num_leaves"],
+                "max_depth": best_trial_params.get("max_depth", -1),
+                "feature_fraction": best_trial_params["feature_fraction"],
+                "best_iteration": best_model.current_iteration(),
+                "best_score": study.best_value,
+                "optuna_trials": n_trials,
             }
-            best_model = model
+
+            # Single metric for progress
+            y_pred = best_model.predict(X_val)
+            from scipy import stats
+            ic, _ = stats.spearmanr(y_pred, y_val)
+            ic = 0.0 if np.isnan(ic) else float(ic)
+            metrics = TrainingMetrics(
+                trial=1, epoch=best_model.current_iteration(),
+                train_loss=0.0, valid_loss=0.0, best_valid_loss=0.0,
+                ic=round(ic, 4), icir=round(ic / max(np.std(y_pred), 0.001), 4),
+                feature_importance={}, elapsed_seconds=0.0,
+            )
+            if progress_callback:
+                progress_callback(metrics)
+
+            model = best_model
+        except ImportError:
+            use_optuna = False
+            logger.warning("Optuna not installed — using manual trial loop")
+
+    if not use_optuna:
+        t0 = time.time()
+
+        # Manual trial loop (Optuna not available or n_trials=1)
+        n_effective_trials = min(params.n_trials, 10)
+        params_dict = base_params
+
+        for trial_num in range(max(1, n_effective_trials)):
+            trial_params = {**params_dict}
+            if n_effective_trials > 1:
+                trial_params["learning_rate"] = params_dict["learning_rate"] * (0.5 + 0.5 * (trial_num + 1) / n_effective_trials)
+                trial_params["num_leaves"] = max(15, params_dict["num_leaves"] - trial_num * 5)
+
+                dtrain = lgb.Dataset(X_train, label=y_train)
+                dval = lgb.Dataset(X_val, label=y_val)
+
+                model = lgb.train(
+                    trial_params,
+                    dtrain,
+                    num_boost_round=200,
+                    valid_sets=[dval],
+                    callbacks=[
+                        lgb.early_stopping(params.early_stopping_rounds),
+                        lgb.log_evaluation(0),
+                    ],
+                )
+
+                # Evaluate
+                y_pred = model.predict(X_val)
+                from scipy import stats
+                ic, _ = stats.spearmanr(y_pred, y_val)
+                ic = 0.0 if np.isnan(ic) else float(ic)
+
+                valid_mask = y_val.notna()
+                if valid_mask.sum() >= 20:
+                    pred_std = np.std(y_pred[valid_mask]) if np.std(y_pred[valid_mask]) > 0 else 1
+                    icir = ic / pred_std
+                else:
+                    icir = 0.0
+
+                best_score_auc = model.best_score["valid_0"]["auc"]
+                train_loss = 1.0 - best_score_auc
+                valid_loss = 1.0 - best_score_auc
+
+                # Feature importance
+                importance = model.feature_importance(importance_type="gain")
+                imp_dict = {
+                    feature_cols[i]: float(importance[i])
+                    for i in np.argsort(importance)[::-1][:10]
+                    if i < len(feature_cols)
+                }
+
+                elapsed = time.time() - t0
+
+                metrics = TrainingMetrics(
+                    trial=trial_num + 1,
+                    epoch=model.current_iteration(),
+                    train_loss=round(train_loss, 4),
+                    valid_loss=round(valid_loss, 4),
+                    best_valid_loss=round(valid_loss, 4),
+                    ic=round(ic, 4),
+                    icir=round(icir, 4),
+                    feature_importance=imp_dict,
+                    elapsed_seconds=round(elapsed, 1),
+                )
+
+                if progress_callback:
+                    progress_callback(metrics)
+
+                if ic > best_score:
+                    best_score = ic
+                    best_params = {
+                        "learning_rate": trial_params["learning_rate"],
+                        "num_leaves": trial_params["num_leaves"],
+                        "max_depth": trial_params.get("max_depth", -1),
+                        "feature_fraction": trial_params.get("feature_fraction", 0.7),
+                        "best_iteration": model.current_iteration(),
+                        "best_score": best_score_auc,
+                    }
+                    best_model = model
 
     # Save model
     model_dir = os.path.join(TRAINING_OUTPUT_DIR, "lgbm_ranker")
@@ -689,10 +743,8 @@ async def run_training(
     await _save_job(job)
     logger.info("Training job created: %s (model=%s)", job_id, params.model_type.value)
 
-    # Submit to thread pool for background execution
-    _executor.submit(
-        lambda: asyncio.run(_execute_training(job_id, params, auto_deploy))
-    )
+    # Run training in background via asyncio.create_task (CPU-bound work uses run_in_executor)
+    asyncio.create_task(_execute_training(job_id, params, auto_deploy))
 
     return job_id
 
@@ -715,7 +767,7 @@ async def _execute_training(job_id: str, params: TrainingParams, auto_deploy: bo
 
         # ── Progress callback ──
         def on_metric(metric: TrainingMetrics):
-            asyncio.run(_on_training_metric(job_id, metric))
+            asyncio.ensure_future(_on_training_metric(job_id, metric))
 
         # ── Train ──
         train_fn = {
