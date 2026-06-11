@@ -1,3 +1,6 @@
 - [D3 shadcn/ui 暂缓至 Phase B](d3-shadcn-deferred.md) — product-lead 2026-06-08 review 决定
 - [Phase A 双库并存策略](dual-db-phase-a.md) — ADR-005 D1/D6，SQLite + PG 双栈
 - [Auth/RBAC 技术选型](auth-decisions-2026-06-10.md) — PyJWT + argon2 + httpOnly cookie，ADR-001
+- [数据管道 PG-first 写入策略](data-pipeline-pg-first.md) — ADR-006 决策 1：PG 为主存储，SQLite fallback，先 PG 后 SQLite
+- [subprocess 桥反模式已否决](data-pipeline-no-subprocess-bridge.md) — ADR-006 决策 3：消除 pg_sync 步骤，sync 函数内直写 PG
+- [stocks 表同步策略](data-pipeline-stocks-sync.md) — ADR-006 决策 4：Tushare stock_basic 周级全量 + 日级增量

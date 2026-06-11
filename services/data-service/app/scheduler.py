@@ -4,7 +4,8 @@ import asyncio, logging, time
 from datetime import datetime, date
 from app.sync.rt_min import collect_rt_min
 from app.sync.tushare import sync_post_market_core, sync_post_market_ext
-from app.sync.pg_writer import sync_daily_to_pg, refresh_materialized_views
+from app.sync.pg_writer import refresh_materialized_views
+from app.sync.stocks import sync_stock_list, sync_stocks_incremental
 
 logger = logging.getLogger("data-service.scheduler")
 
@@ -77,22 +78,44 @@ async def _scheduler_loop():
         await asyncio.sleep(30)
 
 
+def run_intraday_sync():
+    """盘中午间同步 — 交易日 13:00 同步当天上午数据到 SQLite + PG."""
+    today = date.today().strftime("%Y-%m-%d")
+    core = sync_post_market_core(today)
+    ext = sync_post_market_ext(today)
+    logger.info("Intraday sync done: core=%s, ext=%s",
+                str({k: v.get("written", 0) for k, v in core.items()}),
+                str({k: v.get("written", 0) for k, v in ext.items()}))
+    return {"core_summary": str({k: v.get("written", 0) for k, v in core.items()}),
+            "ext_summary": str({k: v.get("written", 0) for k, v in ext.items()})}
+
+
 def start_scheduler():
     """注册定时任务并启动后台循环."""
     global _jobs
     today = date.today().strftime("%Y-%m-%d")
 
     _jobs = [
+        # 股票列表全量同步 — 每周六 02:00 (ADR-006 决策 4)
+        {"id": "stocks_sync", "name": "股票列表同步", "cron": "0 2 * * 6",
+         "fn": sync_stock_list},
+        # 股票增量同步 — 每日盘前 8:00 检测新上市 (ADR-006 决策 4)
+        {"id": "stocks_incremental", "name": "新股增量检测", "cron": "0 8 * * 1-5",
+         "fn": sync_stocks_incremental},
+        # 实时分钟线 — 自带 PG 双写 (write_stk_mins)
         {"id": "rt_min", "name": "实时分钟线", "cron": "*/1 9-15 * * 1-5",
          "fn": collect_rt_min},
         {"id": "auction", "name": "竞价快照", "cron": "25 9 * * 1-5",
          "fn": collect_rt_min},
+        # 盘中午间同步 — 交易日 13:00 同步上午数据 (SQLite + PG 直写)
+        {"id": "intraday_sync", "name": "盘中午间同步", "cron": "0 13 * * 1-5",
+         "fn": run_intraday_sync},
+        # 盘后同步 — 自带 PG 直写 (不再需要 subprocess 桥接)
         {"id": "post_market_core", "name": "P0核心盘后", "cron": "30 15 * * 1-5",
          "fn": sync_post_market_core, "args": (today,)},
         {"id": "post_market_ext", "name": "P1扩展盘后", "cron": "35 15 * * 1-5",
          "fn": sync_post_market_ext, "args": (today,)},
-        {"id": "pg_sync", "name": "PG增量同步", "cron": "36 15 * * 1-5",
-         "fn": sync_daily_to_pg, "args": (today,)},
+        # PG 物化视图刷新
         {"id": "pg_refresh", "name": "PG物化视图刷新", "cron": "37 15 * * 1-5",
          "fn": refresh_materialized_views},
     ]

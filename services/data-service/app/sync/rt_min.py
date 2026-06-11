@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 
 from app.config import TUSHARE_TOKEN, DB_PATH, THREAD_POOL_SIZE, TUSHARE_BATCH_SIZE
+from app.sync.rate_limiter import rate_limit
 
 logger = logging.getLogger("data-service.rt_min")
 
@@ -32,6 +33,7 @@ def _fetch_batch(batch: list[str]) -> list[tuple]:
     ts_codes = ",".join(_ts_code(c) for c in batch)
     rows = []
     try:
+        rate_limit()
         df = pro.rt_min(ts_code=ts_codes, freq="5MIN")
         if df is not None and len(df) > 0:
             for _, r in df.iterrows():
