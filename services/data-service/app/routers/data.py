@@ -1,6 +1,6 @@
 """Data Service REST API — 手动触发 + 状态查询."""
 
-import logging, re
+import logging
 from datetime import date
 from fastapi import APIRouter, Query, HTTPException
 
@@ -36,31 +36,13 @@ async def data_status():
     # 附加限频状态 (ADR-006)
     result["rate_limiter"] = get_rate_limit_status()
 
-    # 汇总 PG 写入统计 + 每 job pg_write_status (ADR-006 决策 6 / PRD AC-8)
+    # 汇总 PG 写入统计 (直接从 scheduler 返回的 pg_write_status/pg_written 字段读取)
     pg_totals = {}
     for job in result.get("jobs", []):
-        result_str = job.get("last_result", "")
-        last_status = job.get("last_status", "pending")
-        # 提取 pg_written 值
-        pg_count = 0
-        if "pg_written" in result_str:
-            try:
-                matches = re.findall(r"'pg_written':\s*(\d+)", result_str)
-                pg_count = sum(int(m) for m in matches)
-                pg_totals[job["id"]] = pg_count
-            except Exception:
-                pass
-        # 推导 pg_write_status
-        if last_status == "error":
-            job["pg_write_status"] = "fail"
-        elif last_status == "pending":
-            job["pg_write_status"] = "skipped"
-        elif "pg_written" not in result_str:
-            job["pg_write_status"] = "skipped"
-        elif pg_count == 0:
-            job["pg_write_status"] = "partial"
-        else:
-            job["pg_write_status"] = "ok"
+        job_id = job.get("id", "")
+        pg_count = job.get("pg_written", 0)
+        if pg_count:
+            pg_totals[job_id] = pg_count
     result["pg_write_summary"] = pg_totals
 
     return result

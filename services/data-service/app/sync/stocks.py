@@ -53,21 +53,7 @@ def sync_stock_list(exchange: str = "") -> dict:
         is_st = 1 if "ST" in name else 0
         rows.append((code, name, market, industry, list_date, is_st))
 
-    # ── SQLite 写入 ──
-    sqlite_written = 0
-    try:
-        db = sqlite3.connect(DB_PATH)
-        db.executemany(
-            "INSERT OR REPLACE INTO stocks(code,name,board,industry,listed_date,is_st,updated_at) "
-            "VALUES(?,?,?,?,?,?,datetime('now','localtime'))", rows)
-        db.commit()
-        sqlite_written = len(rows)
-        db.close()
-        logger.info("SQLite stocks: %d rows written", sqlite_written)
-    except Exception as e:
-        logger.warning("SQLite stocks write failed: %s", e)
-
-    # ── PG 写入 (INSERT ON CONFLICT DO UPDATE 增量更新, autocommit 逐行保护) ──
+    # ── PG 写入 (主路径, INSERT ON CONFLICT DO UPDATE 增量更新) ──
     pg_written = 0
     try:
         import psycopg2
@@ -91,6 +77,20 @@ def sync_stock_list(exchange: str = "") -> dict:
         logger.info("PG stocks: %d rows written", pg_written)
     except Exception as e:
         logger.debug("PG stocks write skipped: %s", e)
+
+    # ── SQLite 写入 (fallback) ──
+    sqlite_written = 0
+    try:
+        db = sqlite3.connect(DB_PATH)
+        db.executemany(
+            "INSERT OR REPLACE INTO stocks(code,name,board,industry,listed_date,is_st,updated_at) "
+            "VALUES(?,?,?,?,?,?,datetime('now','localtime'))", rows)
+        db.commit()
+        sqlite_written = len(rows)
+        db.close()
+        logger.info("SQLite stocks: %d rows written", sqlite_written)
+    except Exception as e:
+        logger.warning("SQLite stocks write failed: %s", e)
 
     elapsed = time.time() - t0
     logger.info("sync_stock_list: SQLite=%d PG=%d total=%d %.1fs",

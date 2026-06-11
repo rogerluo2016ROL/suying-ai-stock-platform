@@ -766,8 +766,14 @@ async def _execute_training(job_id: str, params: TrainingParams, auto_deploy: bo
         await _publish_progress(job_id, "status", {"status": "running", "message": f"开始训练 ({params.model_type.value})..."})
 
         # ── Progress callback ──
+        # 捕获主事件循环，供线程池中的 on_metric 回调安全调度协程
+        _main_loop = asyncio.get_event_loop()
+
         def on_metric(metric: TrainingMetrics):
-            asyncio.ensure_future(_on_training_metric(job_id, metric))
+            # 从线程池线程安全调度协程到主事件循环
+            _main_loop.call_soon_threadsafe(
+                lambda: asyncio.ensure_future(_on_training_metric(job_id, metric))
+            )
 
         # ── Train ──
         train_fn = {
@@ -780,8 +786,7 @@ async def _execute_training(job_id: str, params: TrainingParams, auto_deploy: bo
             raise ValueError(f"Unknown model type: {params.model_type.value}")
 
         # Run in thread executor since training is CPU-bound sync code
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
+        result = await _main_loop.run_in_executor(
             None,
             lambda: train_fn(df, params, on_metric)
         )

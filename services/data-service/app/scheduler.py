@@ -38,20 +38,50 @@ def _cron_match(cron_expr: str, now: datetime) -> bool:
             _match(parts[4], now.isoweekday()))
 
 
+def _extract_pg_status(result) -> tuple:
+    """从 sync 函数返回值中提取 pg_write_status 和 pg_written 总数.
+
+    支持扁平 dict（如 daily_kline）和嵌套 dict
+    （如 post_market_core 的 {table: {..., pg_written: N}}）.
+    """
+    pg_total = 0
+    has_pg_field = False
+    if isinstance(result, dict):
+        # 扁平: {"pg_written": N, ...}
+        if "pg_written" in result:
+            pg_total += int(result["pg_written"] or 0)
+            has_pg_field = True
+        # 嵌套: {"table_name": {"pg_written": N, ...}, ...}
+        for v in result.values():
+            if isinstance(v, dict) and "pg_written" in v:
+                pg_total += int(v["pg_written"] or 0)
+                has_pg_field = True
+    if not has_pg_field:
+        return "skipped", 0
+    if pg_total > 0:
+        return "ok", pg_total
+    return "partial", 0
+
+
 async def _run_job(job: dict):
     """执行单个任务并记录状态."""
     t0 = datetime.now()
     try:
         fn = job["fn"]
         result = fn() if not job.get("args") else fn(*job["args"])
+        pg_status, pg_total = _extract_pg_status(result)
         _job_status[job["id"]] = {
             "last_run": t0.isoformat(), "last_status": "ok",
             "result": str(result)[:300],
+            "pg_write_status": pg_status,
+            "pg_written": pg_total,
         }
     except Exception as e:
         _job_status[job["id"]] = {
             "last_run": t0.isoformat(), "last_status": "error",
             "error": str(e)[:300],
+            "pg_write_status": "fail",
+            "pg_written": 0,
         }
         logger.warning("%s: %s", job["id"], e)
 
@@ -140,6 +170,8 @@ def get_job_status() -> dict:
             "last_run": status.get("last_run"),
             "last_status": status.get("last_status", "pending"),
             "last_result": status.get("result", ""),
+            "pg_write_status": status.get("pg_write_status", "skipped"),
+            "pg_written": status.get("pg_written", 0),
         })
     return {"jobs": result_jobs, "scheduler_running": _running}
 
