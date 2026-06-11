@@ -56,15 +56,15 @@ _job_lock = threading.Lock()
 # ═══════════════════════════════════════════════════════════════════════════
 
 async def _publish_progress(job_id: str, event_type: str, data: Dict[str, Any]):
-    """Publish a training progress event to Redis Pub/Sub."""
+    """Publish a training progress event to Redis Pub/Sub (with 3s timeout)."""
     try:
         import redis.asyncio as redis
-        r = redis.from_url(REDIS_URL)
+        r = redis.from_url(REDIS_URL, socket_connect_timeout=3)
         payload = json.dumps({"type": event_type, **data}, default=str)
-        await r.publish(f"training:{job_id}", payload)
-        await r.close()
-    except Exception as e:
-        logger.warning("Redis publish failed (non-critical): %s", e)
+        await asyncio.wait_for(r.publish(f"training:{job_id}", payload), timeout=5.0)
+        await asyncio.wait_for(r.close(), timeout=2.0)
+    except (Exception, asyncio.TimeoutError):
+        pass  # Redis is non-critical, silent fail
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -877,6 +877,7 @@ async def _update_job_status(
     error_message: Optional[str] = None,
 ):
     """Update job status in memory and PostgreSQL."""
+    job = None
     with _job_lock:
         job = _jobs.get(job_id)
         if job:
@@ -889,7 +890,9 @@ async def _update_job_status(
                 job.final_metrics = final_metrics
             if error_message:
                 job.error_message = error_message
-            await _save_job(job)
+    # _save_job 内部有自己的 _job_lock，在锁外调用避免死锁
+    if job:
+        await _save_job(job)
 
 
 async def _on_training_metric(job_id: str, metric: TrainingMetrics):

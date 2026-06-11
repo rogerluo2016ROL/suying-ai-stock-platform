@@ -24,7 +24,7 @@ JWT_SECRET_KEY = os.environ.get(
 JWT_ALGORITHM = "HS256"
 
 # ── Redis (for training progress pub/sub) ──
-REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:7379/0")
 
 # ── MLflow ──
 MLFLOW_TRACKING_URI = os.environ.get(
