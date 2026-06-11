@@ -770,22 +770,46 @@ async def data_status():
     """Return comprehensive data source status with metadata."""
     from kronos_factors.scorer._db_stub import _get_db as _db
 
+    # Date columns to try per table (ordered: trade_date first, then trade_time)
+    _DATE_COLS = [
+        "trade_date", "trade_time",
+    ]
+
     sources = []
-    pg_stats = {}
+    pg_stats = {}; date_cache = {}
     try:
         import psycopg2 as pg2
         pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
         conn = pg2.connect(pg_url)
         cur = conn.cursor()
+        # Row counts from PG stats (instant)
         cur.execute("SELECT relname, n_live_tup FROM pg_stat_user_tables")
         pg_stats = {r[0]: int(r[1]) for r in cur.fetchall()}
+        # MIN/MAX per table with 2s timeout — indexed tables return instantly
+        for src in _DATA_SOURCES:
+            key = src["key"]
+            for col in _DATE_COLS:
+                try:
+                    cur.execute(f"SET LOCAL statement_timeout = 2000")
+                    cur.execute(f"SELECT MIN({col}), MAX({col}) FROM {key}")
+                    row = cur.fetchone()
+                    if row and row[0] is not None:
+                        mn, mx = str(row[0]), str(row[1])
+                        # Normalize YYYYMMDD → YYYY-MM-DD
+                        if len(mn) == 8 and mn.isdigit(): mn = f"{mn[:4]}-{mn[4:6]}-{mn[6:8]}"
+                        if len(mx) == 8 and mx.isdigit(): mx = f"{mx[:4]}-{mx[4:6]}-{mx[6:8]}"
+                        date_cache[key] = (mn[:19], mx[:19])
+                        break  # Found date column, skip remaining
+                except Exception:
+                    continue  # Column not found or timeout → try next
         conn.close()
     except Exception: pass
 
     for src in _DATA_SOURCES:
         key = src["key"]; cnt = pg_stats.get(key, 0)
+        mn, mx = date_cache.get(key, ("—", "—"))
         sources.append({
-            **src, "rows": cnt, "min_date": "—", "max_date": "—",
+            **src, "rows": cnt, "min_date": mn, "max_date": mx,
             "status": "active" if cnt > 0 else "empty",
         })
 
