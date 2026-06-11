@@ -1,4 +1,5 @@
 """Mode Orchestrator — routes screening modes to strategy engines."""
+import asyncio
 import logging
 from typing import Optional
 
@@ -41,7 +42,11 @@ async def run_screening(mode: str, top_n: int = 30, use_kronos: bool = False) ->
     
     try:
         engine = engine_cls()
-        result = engine.run(top_n=top_n)
+        # Run in thread pool to avoid blocking the async event loop
+        # Processing 5000+ stocks takes several minutes; this prevents the
+        # FastAPI worker from being blocked and the client from timing out.
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, engine.run, top_n)
         return {"picks": result, "mode": mode, "top_n": top_n}
     except Exception as e:
         err = str(e)

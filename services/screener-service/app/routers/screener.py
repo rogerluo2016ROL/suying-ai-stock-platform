@@ -65,12 +65,26 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
         run_leader_screening, run_intraday_screening,
         generate_execution_plan, generate_intraday_plan,
     )
+    from kronos_factors.scorer._db_stub import _get_db
+
+    # Resolve 'latest' to actual date from PG
+    td = trade_date
+    if not td or td == 'latest':
+        try:
+            with _get_db() as db:
+                latest = db.execute(
+                    "SELECT MAX(trade_date) FROM daily_kline"
+                ).fetchone()
+                if latest:
+                    td = str(list(latest.values())[0]) if isinstance(latest, dict) else str(latest[0])
+        except Exception:
+            td = trade_date or 'latest'
 
     if mode == "leader_intraday":
-        picks_data = run_intraday_screening(trade_date or "latest", top_n=top_n)
+        picks_data = run_intraday_screening(td or "latest", top_n=top_n)
         plans = generate_intraday_plan(picks_data) if picks_data else []
     else:
-        result = run_leader_screening(trade_date or "latest", top_n=top_n)
+        result = run_leader_screening(td or "latest", top_n=top_n)
         # run_leader_screening returns (picks_data, scores) tuple
         picks_data = result[0] if isinstance(result, tuple) else result
         plans = generate_execution_plan(picks_data) if picks_data else []

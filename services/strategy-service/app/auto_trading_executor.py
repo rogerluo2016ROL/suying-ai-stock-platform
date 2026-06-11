@@ -138,12 +138,15 @@ class ExecutorManager:
             store.update(strategy_id, status="active")
 
             # Create and schedule the async task
+            # NOTE: start() must be called from within an async context (e.g. FastAPI route).
+            # If no running loop exists, raise a clear error instead of silently failing.
             try:
                 loop = asyncio.get_running_loop()
             except RuntimeError:
-                # No running loop — schedule on a new one
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                raise RuntimeError(
+                    "ExecutorManager.start() must be called from within an async context. "
+                    "Ensure the API route handler is async."
+                )
 
             state._task = loop.create_task(_executor_loop(state, strategy))
             state.add_log("INFO", f"策略执行器已启动 (mode={strategy.trade_mode})")

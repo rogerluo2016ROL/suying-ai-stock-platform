@@ -185,13 +185,20 @@ class StrategyStore:
         with self._lock:
             return list(self._strategies.values())
 
+    # Allowlist of fields that can be updated via the public API
+    _UPDATABLE_FIELDS = frozenset({
+        "name", "description", "status", "source_type", "source_scheme_id",
+        "buy_conditions", "sell_conditions", "position_rules", "risk_rules",
+        "trade_mode", "check_interval_sec", "capital", "picks",
+    })
+
     def update(self, strategy_id: str, **kwargs) -> StrategyConfig | None:
         with self._lock:
             s = self._strategies.get(strategy_id)
             if not s:
                 return None
             for k, v in kwargs.items():
-                if hasattr(s, k):
+                if k in self._UPDATABLE_FIELDS:
                     setattr(s, k, v)
             s.updated_at = datetime.now().isoformat()
             return s

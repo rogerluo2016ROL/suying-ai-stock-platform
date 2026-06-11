@@ -5,7 +5,7 @@ Usage:
     set_db_adapter(create_pg_adapter(os.environ['KRONOS_PG_URL']))
 """
 
-import logging, os
+import logging, os, re
 from typing import Optional
 import pandas as pd
 
@@ -33,6 +33,21 @@ def create_pg_adapter(pg_url: str = None):
     return None
 
 
+def _translate_sqlite_date(m: re.Match) -> str:
+    """Translate SQLite date('now', ...) to PostgreSQL CURRENT_DATE +/- INTERVAL."""
+    modifier = m.group(1)  # e.g. '-90 days', 'start of month', etc.
+    if not modifier:
+        return "CURRENT_DATE"
+    # Handle '-N days' / '+N days' modifiers
+    days_match = re.match(r'([+-]\d+)\s*days?', modifier)
+    if days_match:
+        days = days_match.group(1)
+        op = '+' if days.startswith('+') else '-'
+        n = days.lstrip('+-')
+        return f"CURRENT_DATE - INTERVAL '{n} days'"
+    return "CURRENT_DATE"  # fallback for unsupported modifiers
+
+
 class _PgAdapter:
     """PostgreSQL adapter for kronos-factors."""
 
@@ -45,11 +60,6 @@ class _PgAdapter:
         if self._conn is None or self._conn.closed:
             import psycopg2
             self._conn = psycopg2.connect(self.pg_url)
-        # Rollback any aborted transaction from previous failed query
-        try:
-            self._conn.rollback()
-        except Exception:
-            pass
         return self._conn
 
     # Column name mapping: SQLite (engine) → PostgreSQL (Tushare)
@@ -61,37 +71,53 @@ class _PgAdapter:
     def execute(self, sql: str, params: tuple = None):
         conn = self._get_conn()
         cur = conn.cursor()
-        # Translate SQLite ? placeholders to PG %s
-        sql_pg = sql.replace('?', '%s')
-        # Translate SQLite column names to PG column names
+        # If query uses SQLite ? placeholders, translate to PG %s
+        if '?' in sql:
+            sql_pg = sql.replace('%', '%%').replace('?', '%s')
+            param_tuple = tuple(params) if params else None
+        else:
+            # Already PG-style (%s or %(name)s) — pass through
+            sql_pg = sql
+            param_tuple = params  # could be tuple or dict
+        # Translate SQLite column names to PG column names (word-boundary aware)
         for old, new in self._COLUMN_MAP.items():
-            sql_pg = sql_pg.replace(old, new)
-        # Handle 'latest' date params → PG subquery
-        params_list = list(params or ())
-        import re
-        # Strip Tushare exchange suffix from code params (000001.XSHE → 000001)
-        for i, p in enumerate(params_list):
-            if isinstance(p, str) and re.match(r'^\d{6}\.(XSHE|XSHG|SZ|SH|BJ)$', p):
-                params_list[i] = p.split('.')[0]
-        if params_list and any(p == 'latest' for p in params_list):
+            sql_pg = re.sub(rf'\b{re.escape(old)}\b', new, sql_pg)
+        # Translate SQLite date functions to PG equivalents
+        sql_pg = re.sub(r"date\('now'(?:,'([^']*)')?\)", _translate_sqlite_date, sql_pg)
+        # Handle 'latest' date params → PG subquery (tuple params only)
+        if param_tuple and isinstance(param_tuple, (tuple, list)):
+            params_list = list(param_tuple)
+            # Strip Tushare exchange suffix from code params (000001.XSHE → 000001)
             for i, p in enumerate(params_list):
-                if p == 'latest':
-                    table_match = re.search(r'FROM\s+(\w+)', sql_pg, re.IGNORECASE)
-                    if table_match:
-                        table = table_match.group(1)
-                        sql_pg = sql_pg.replace('%s', f"(SELECT MAX(trade_date) FROM {table})", 1)
-                        params_list[i] = None
-            params_list = [p for p in params_list if p is not None]
+                if isinstance(p, str) and re.match(r'^\d{6}\.(XSHE|XSHG|SZ|SH|BJ)$', p):
+                    params_list[i] = p.split('.')[0]
+            if params_list and any(p == 'latest' for p in params_list):
+                for i, p in enumerate(params_list):
+                    if p == 'latest':
+                        table_match = re.search(r'FROM\s+(\w+)', sql_pg, re.IGNORECASE)
+                        if table_match:
+                            table = table_match.group(1)
+                            sql_pg = sql_pg.replace('%s', f"(SELECT MAX(trade_date) FROM {table})", 1)
+                            params_list[i] = None
+                params_list = [p for p in params_list if p is not None]
+            param_tuple = tuple(params_list) if params_list else None
         try:
-            cur.execute(sql_pg, tuple(params_list) if params_list else None)
+            cur.execute(sql_pg, param_tuple or None)
         except Exception as e:
             err = str(e)
+            # Handle previous aborted transaction — rollback and retry once
+            if 'InFailedSqlTransaction' in err or 'current transaction is aborted' in err:
+                conn.rollback()
+                cur = conn.cursor()
+                cur.execute(sql_pg, param_tuple or None)
             # Graceful degradation: missing table/column/division-by-zero → return empty
-            if any(k in err for k in ('does not exist', 'UndefinedColumn', 'UndefinedTable',
-                                       'DivisionByZero', 'division by zero')):
+            elif any(k in err for k in ('does not exist', 'UndefinedColumn', 'UndefinedTable',
+                                         'DivisionByZero', 'division by zero')):
+                logger.debug("PG graceful degradation: %s — SQL: %s", err[:100], sql_pg[:120])
                 conn.rollback()
                 return _EmptyCursor()
-            raise
+            else:
+                raise
         return _PgCursor(cur)
 
     def get_kline(self, code: str, lookback: int = 400) -> Optional[pd.DataFrame]:
@@ -138,6 +164,8 @@ class _PgAdapter:
 
 
 class _EmptyCursor:
+    def __init__(self):
+        logger.debug("PG query returned empty cursor — data may be missing (table/column not found or division by zero)")
     def fetchone(self): return None
     def fetchall(self): return []
 
@@ -147,7 +175,14 @@ class _PgCursor:
 
     def __init__(self, cur): self._cur = cur
     def _map_row(self, row_dict):
-        return {self._KEY_MAP.get(k, k): v for k, v in row_dict.items()}
+        result = {}
+        for k, v in row_dict.items():
+            # Convert PG date/datetime to string (SQLite compatibility)
+            from datetime import date, datetime as dt
+            if isinstance(v, (date, dt)):
+                v = str(v)
+            result[self._KEY_MAP.get(k, k)] = v
+        return result
     def fetchone(self):
         row = self._cur.fetchone()
         if row is None: return None

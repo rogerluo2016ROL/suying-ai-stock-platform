@@ -5,6 +5,54 @@ import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, Che
 
 const { Title, Text } = Typography
 
+// ── Types ──
+
+interface PlanPick {
+  code: string
+  name: string
+  price: number
+  score: number
+  grade: string
+  entry_price?: number
+  stop_loss?: number
+  target_price?: number
+}
+
+interface Plan {
+  id: string
+  name: string
+  status: string
+  picks_count: number
+  model_name: string
+  capital: number
+  max_positions: number
+  single_max_pct: number
+  picks: PlanPick[]
+  created_at: string
+  updated_at: string
+}
+
+interface PlanReport {
+  title: string
+  generated_at: string
+  plan: { id: string; name: string; model: string; capital: number; max_positions: number }
+  picks: Array<{
+    code: string; name: string; price: number; score: number; grade: string
+    entry_price?: number; stop_loss?: number; target_price?: number
+    operation?: { entry_price: number; stop_loss: number; target_price: number; position_pct: number }
+  }>
+  quant_strategy?: { buy_conditions: string[]; sell_conditions: string[]; execution_mode: string }
+  risk_warnings?: string[]
+}
+
+interface StrategyTemplate {
+  id: string
+  name: string
+  risk: string
+  max_positions: number
+  single_max: number
+}
+
 const planSteps = [
   { title: '选股', description: '运行模型' },
   { title: '预方案', description: '勾选标的' },
@@ -20,12 +68,12 @@ const statusColors: Record<string, string> = {
 
 export default function Strategy() {
   const navigate = useNavigate()
-  const [plans, setPlans] = useState<any[]>([])
-  const [templates, setTemplates] = useState<any[]>([])
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [templates, setTemplates] = useState<StrategyTemplate[]>([])
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [detailPlan, setDetailPlan] = useState<any>(null)
-  const [report, setReport] = useState<any>(null)
+  const [detailPlan, setDetailPlan] = useState<Plan | null>(null)
+  const [report, setReport] = useState<PlanReport | null>(null)
 
   const loadPlans = () => {
     setLoading(true)
@@ -41,7 +89,7 @@ export default function Strategy() {
     }).catch(() => {})
   }
 
-  const createFromTemplate = async (template: any) => {
+  const createFromTemplate = async (template: StrategyTemplate) => {
     setCreating(true)
     try {
       const r = await fetch('/api/v1/strategy/plans', {
@@ -84,13 +132,21 @@ export default function Strategy() {
 
   const viewPlan = async (id: string) => {
     const r = await fetch(`/api/v1/strategy/plans/${id}`)
-    setDetailPlan(await r.json())
+    if (r.ok) {
+      setDetailPlan(await r.json())
+    } else {
+      message.error('方案不存在或已被删除')
+    }
   }
 
   const viewReport = async (id: string) => {
     const r = await fetch(`/api/v1/strategy/plans/${id}/report`)
-    const data = await r.json()
-    if (data.title) setReport(data)
+    if (r.ok) {
+      const data = await r.json()
+      if (data.title) setReport(data)
+    } else {
+      message.error('报告生成失败，请先确认方案')
+    }
   }
 
   const runBacktestOnPlan = async (id: string) => {
@@ -125,7 +181,7 @@ export default function Strategy() {
     { title: '标的数', dataIndex: 'picks_count', width: 60 },
     { title: '资金', dataIndex: 'capital', width: 90, render: (v: number) => `¥${(v/10000).toFixed(0)}万` },
     { title: '创建时间', dataIndex: 'created_at', width: 110, render: (v: string) => v?.slice(0,16) },
-    { title: '操作', dataIndex: 'id', width: 280, render: (id: string, record: any) => (
+    { title: '操作', dataIndex: 'id', width: 280, render: (id: string, record: Plan) => (
       <Space size="small">
         <Button size="small" icon={<EyeOutlined />} onClick={() => viewPlan(id)}>查看</Button>
         {record.status === 'draft' && (
@@ -163,8 +219,8 @@ export default function Strategy() {
         styles={{ body: { padding: '16px 24px' } }}
       >
         <Row gutter={16}>
-          {templates.map((tpl: any) => {
-            const icons: Record<string, any> = { aggressive: <ThunderboltOutlined />, balanced: <SafetyOutlined />, conservative: <BankOutlined /> }
+          {templates.map((tpl: StrategyTemplate) => {
+            const icons: Record<string, React.ReactNode> = { aggressive: <ThunderboltOutlined />, balanced: <SafetyOutlined />, conservative: <BankOutlined /> }
             const colors: Record<string, string> = { aggressive: '#ff4d4f', balanced: '#1677ff', conservative: '#52c41a' }
             const descs: Record<string, string> = {
               aggressive: '高收益高风险，最多3只标的，单票上限20%',
@@ -216,7 +272,7 @@ export default function Strategy() {
               <Descriptions.Item label="最大持仓">{report.plan?.max_positions}只</Descriptions.Item>
             </Descriptions>
             <Typography.Title level={5}>推荐标的</Typography.Title>
-            <List size="small" dataSource={report.picks || []} renderItem={(p: any) => (
+            <List size="small" dataSource={report.picks || []} renderItem={(p: PlanReport['picks'][number]) => (
               <List.Item>
                 <Space direction="vertical" size={0}>
                   <Space><Tag color="blue">{p.code}</Tag><Text strong>{p.name}</Text><Tag>{p.grade}级</Tag></Space>
@@ -248,7 +304,7 @@ export default function Strategy() {
             <Descriptions.Item label="资金">¥{(detailPlan.capital/10000).toFixed(0)}万</Descriptions.Item>
             <Descriptions.Item label="最大持仓">{detailPlan.max_positions}只</Descriptions.Item>
             <Descriptions.Item label="标的列表">
-              {(detailPlan.picks || []).map((p: any) => (
+              {(detailPlan.picks || []).map((p: PlanPick) => (
                 <Tag key={p.code}>{p.code} {p.name} {p.score?.toFixed(1)}分</Tag>
               ))}
               {detailPlan.picks?.length === 0 && '暂未添加标的'}

@@ -747,6 +747,9 @@ def score_stock(code, info, db, trade_date):
     if gain_pct < 7.0 or gain_pct > 12.0:
         return None  # 淘汰
 
+    # Initialize gain_score (max from WEIGHTS["gain_quality"]) before F15-F18 checks
+    gain_score = 20
+
     # ── F15: 主升浪确认 (近10日阳线占比≥50%) ──
     kline_10d = db.execute(
         "SELECT close, LAG(close) OVER (ORDER BY trade_date) as prev_close "
@@ -795,6 +798,7 @@ def score_stock(code, info, db, trade_date):
 
     # ── 封板质量评分 (从limit_list_d获取) ──
     seal_score = 0
+    seal_weakness = ""  # initialized; may be overwritten by limit_detail or yizi checks
     limit_row = db.execute(
         "SELECT first_time, open_times, fd_amount, up_stat FROM limit_list_d "
         "WHERE ts_code LIKE ? AND trade_date=?",
@@ -1067,7 +1071,7 @@ def score_stock(code, info, db, trade_date):
         "SELECT trade_date FROM daily_kline WHERE trade_date < ? ORDER BY trade_date DESC LIMIT 1",
         (trade_date,)
     ).fetchone()
-    prev_date = prev_date_row[0] if prev_date_row else trade_date
+    prev_date = list(prev_date_row.values())[0] if prev_date_row else trade_date
     peer_count = db.execute(
         "SELECT COUNT(DISTINCT a.code) FROM daily_kline a "
         "JOIN daily_kline b ON a.code=b.code AND b.trade_date=? "
@@ -1075,7 +1079,8 @@ def score_stock(code, info, db, trade_date):
         "WHERE a.trade_date=? AND s.industry=? "
         "AND b.close > 0 AND (a.close/b.close-1)*100 >= 7",
         (prev_date, trade_date, industry)
-    ).fetchone()[0]
+    ).fetchone()
+    peer_count = peer_count["count"] if peer_count else 0
 
     sector_change = sector_pct["pct_change"] if sector_pct and sector_pct["pct_change"] is not None else 0
     sector_amount = sector_pct["amount"] if sector_pct else 0

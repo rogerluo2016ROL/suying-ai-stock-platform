@@ -150,7 +150,7 @@ export default function AutoTrade() {
   // ── Fetch logs for detail ──
   const loadLogs = (strategyId: string) => {
     setLogsLoading(true)
-    fetch(`/api/v1/auto-trade/strategies/${strategyId}/logs`)
+    fetch(`/api/v1/strategy/${strategyId}/log`)
       .then(r => r.json())
       .then(d => setLogEntries(d.logs || []))
       .catch(() => setLogEntries([]))
@@ -216,7 +216,7 @@ export default function AutoTrade() {
   // ── Strategy actions ──
   const actionStrategy = async (id: string, action: string) => {
     try {
-      const r = await fetch(`/api/v1/auto-trade/strategies/${id}/${action}`, { method: 'POST' })
+      const r = await fetch(`/api/v1/strategy/${id}/${action}`, { method: 'POST' })
       if (r.ok) {
         message.success(`策略已${action === 'start' ? '启动' : action === 'pause' ? '暂停' : action === 'resume' ? '恢复' : '终止'}`)
         loadStrategies()
@@ -230,7 +230,7 @@ export default function AutoTrade() {
   }
 
   const deleteStrategy = async (id: string) => {
-    await fetch(`/api/v1/auto-trade/strategies/${id}`, { method: 'DELETE' })
+    await fetch(`/api/v1/strategy/${id}`, { method: 'DELETE' })
     message.success('策略已删除')
     loadStrategies()
   }
@@ -238,7 +238,7 @@ export default function AutoTrade() {
   const viewDetail = async (id: string) => {
     setLoading(true)
     try {
-      const r = await fetch(`/api/v1/auto-trade/strategies/${id}`)
+      const r = await fetch(`/api/v1/strategy/${id}`)
       if (r.ok) {
         const d = await r.json()
         setDetailStrategy(d)

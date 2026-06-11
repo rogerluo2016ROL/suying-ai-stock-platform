@@ -1,5 +1,7 @@
 """Strategy API — plan management CRUD + auto-trading strategy engine + executor."""
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Body, Query, HTTPException
 from pydantic import BaseModel, Field
 
@@ -44,7 +46,7 @@ async def add_picks(plan_id: str, picks: list[dict]):
     plan = store.get(plan_id)
     if not plan: raise HTTPException(404, "方案不存在")
     plan.picks = picks
-    plan.updated_at = __import__("datetime").datetime.now().isoformat()
+    plan.updated_at = datetime.now(timezone.utc).isoformat()
     return {"plan_id": plan_id, "picks_count": len(plan.picks), "message": f"已添加 {len(picks)} 只标的"}
 
 
@@ -131,7 +133,7 @@ async def generate_report(plan_id: str):
 
     report = {
         "title": f"选股报告 — {plan.name}",
-        "generated_at": __import__("datetime").datetime.now().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "plan": {
             "id": plan.id, "name": plan.name, "model": plan.model_name,
             "capital": plan.capital, "max_positions": plan.max_positions,
