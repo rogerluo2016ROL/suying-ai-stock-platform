@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Row, Col, Card, Tag, Typography, Space, Button, Radio, List,
+  Row, Col, Card, Tag, Typography, Space, Button, Radio, List, Tabs,
   Progress, Tooltip, Modal, Table, Statistic, Badge, Divider, Empty, message,
 } from 'antd'
 import {
@@ -93,6 +93,9 @@ export default function Dashboard() {
   const [dashboardPredictions, setDashboardPredictions] = useState<any[]>([])
   const [picksLoading, setPicksLoading] = useState(false)
   const [dbLoading, setDbLoading] = useState(false)
+  const [auctionPicks, setAuctionPicks] = useState<any[]>([])
+  const [auctionSectors, setAuctionSectors] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState('post')
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true)
@@ -134,7 +137,20 @@ export default function Dashboard() {
       finally { setPicksLoading(false); setDbLoading(false) }
     }
     fetchScreening()
-    const timer = setInterval(fetchScreening, 120_000) // every 2min
+    const timer = setInterval(fetchScreening, 120_000)
+
+    // 竞价数据
+    fetch('/api/v1/dashboard/auction')
+      .then(r => r.json()).then(d => {
+        if (d.picks) { setAuctionPicks(d.picks); setAuctionSectors(d.sectors || []) }
+      }).catch(() => {})
+
+    // 自动切换 Tab: 9:25-14:00 竞价, 14:00-15:30 盘中, 其他盘后
+    const h = new Date().getHours(), m = new Date().getMinutes()
+    if (h === 9 || (h === 10 && m < 30)) setActiveTab('auction')
+    else if (h >= 10 && h < 15) setActiveTab('intra')
+    else setActiveTab('post')
+
     return () => clearInterval(timer)
   }, [])
 
@@ -654,8 +670,58 @@ export default function Dashboard() {
           </Button>
         </Space>}
       >
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+          // ── Tab 1: 竞价 ──
+          { key: 'auction', label: '🔥 竞价选股',
+            children: (
+              <Row gutter={16}>
+                <Col span={16}>
+                  <Table dataSource={auctionPicks.slice(0,15)} rowKey="code" size="small" pagination={false}
+                    scroll={{ y: 350 }}
+                    onRow={r => ({ onClick: () => navigate(`/diagnosis?code=${r.code}`), style: {cursor:'pointer'} })}
+                    columns={[
+                      { title:'#', width:30, render:(_:any,__:any,i:number) => i+1 },
+                      { title:'代码', dataIndex:'code', width:80, render:(v:string) => <Text code>{v}</Text> },
+                      { title:'高开', dataIndex:'gap_pct', width:70, render:(v:number) => <Text style={{color:v>=5?'#cf1322':'#fa8c16',fontWeight:600}}>+{v}%</Text> },
+                      { title:'评分', dataIndex:'score', width:50, sorter:(a:any,b:any)=>a.score-b.score },
+                      { title:'现价', dataIndex:'price', width:60 },
+                      { title:'板块', dataIndex:'industry', width:80 },
+                    ]}
+                  />
+                </Col>
+                <Col span={8}>
+                  <Card size="small" style={{borderRadius:8,marginBottom:8}}>
+                    <Statistic title="竞价标的" value={auctionPicks.length} suffix="只" valueStyle={{fontSize:18}} />
+                  </Card>
+                  <Card size="small" title="🔥 一字定方向" style={{borderRadius:8}}>
+                    {auctionSectors.slice(0,6).map((s:any) => (
+                      <div key={s.name} style={{display:'flex',justifyContent:'space-between',padding:'2px 0',fontSize:12}}>
+                        <span>{s.name}</span>
+                        <Tag color={s.count>=5?'red':s.count>=3?'orange':'default'}>{s.count}只</Tag>
+                      </div>
+                    ))}
+                  </Card>
+                </Col>
+              </Row>
+            )
+          },
+          // ── Tab 2: 盘中 ──
+          { key: 'intra', label: '📈 盘中选股',
+            children: (
+              <div style={{textAlign:'center',padding:20}}>
+                <Text type="secondary">盘中选股需在 14:00 运行 leader_scalp_intraday.py</Text>
+                <br/>
+                <Button size="small" style={{marginTop:8}} icon={<ThunderboltOutlined />}
+                  onClick={() => window.open('/api/v1/dashboard/run-pipeline','_blank')}>
+                  触发盘中选股
+                </Button>
+              </div>
+            )
+          },
+          // ── Tab 3: 盘后 ──
+          { key: 'post', label: '📊 盘后选股',
+            children: (
         <Row gutter={16}>
-          {/* Left: Consensus picks table */}
           <Col span={16}>
             <Text strong style={{ fontSize: 13 }}>共识选股 Top 20</Text>
             <Table
@@ -741,6 +807,9 @@ export default function Dashboard() {
             </Card>
           </Col>
         </Row>
+            )
+          },
+        ]} />
       </Card>
 
       {/* ══════════════════════════════════════════════════ */}

@@ -208,6 +208,69 @@ async def sync_status():
         return {"status": "error", "message": "data-service not reachable"}
 
 
+@router.get("/auction")
+async def auction_picks(date_param: str = Query(None, alias="date")):
+    """竞价分析: 快速 SQL 预取 (1-2s)."""
+    target = date_param or date.today().strftime("%Y-%m-%d")
+    try:
+        import sqlite3, os
+        from collections import defaultdict
+        db_path = os.path.join(KRONOS_ROOT, "webui", "stock_screening.db")
+        db = sqlite3.connect(db_path)
+        db.row_factory = sqlite3.Row
+
+        snap = {}
+        for r in db.execute(f"SELECT ts_code, open, high, low, close, volume, amount FROM stk_mins WHERE trade_time LIKE '{target} 09:35%' AND freq='5min'").fetchall():
+            snap[r['ts_code'].split('.')[0]] = dict(r)
+
+        pc = {}
+        for r in db.execute(f"SELECT a.code, a.close FROM daily_kline a JOIN (SELECT code, MAX(trade_date) as pd FROM daily_kline WHERE trade_date < '{target}' GROUP BY code) b ON a.code=b.code AND a.trade_date=b.pd").fetchall():
+            pc[r['code']] = r['close']
+
+        mv = {}; ind_map = {}
+        for r in db.execute('SELECT code, float_mv, industry FROM stocks').fetchall():
+            mv[r['code']] = (r['float_mv'] or 0)
+            ind_map[r['code']] = (r['industry'] or '其他')
+
+        sector_cnt = defaultdict(int)
+        results = []
+        for code, s in snap.items():
+            if code not in pc or code.startswith(('92','83','87','4')): continue
+            pre = pc[code]; o = s['open']
+            if o <= 0 or pre <= 0: continue
+            gap = (o/pre-1)*100
+            if gap >= 2:
+                industry = ind_map.get(code,'其他')
+                if gap >= 5: sector_cnt[industry] += 1
+                fmv = mv.get(code,0)
+                score = gap*8 + (8 if fmv>500 else 0) + (10 if sector_cnt.get(industry,0)>=3 else 0)
+                results.append({"code":code,"gap_pct":round(gap,1),"score":round(score,0),
+                               "industry":industry,"price":round(o,2),"float_mv":round(fmv,0),
+                               "sector_count":sector_cnt.get(industry,0)})
+        results.sort(key=lambda x:-x['score'])
+        db.close()
+
+        sectors = [{"name":k,"count":v} for k,v in sorted(sector_cnt.items(),key=lambda x:-x[1])[:8]]
+        return {"date":target,"total":len(results),"picks":results[:20],"sectors":sectors}
+    except Exception as e:
+        return {"status":"error","message":str(e)}
+
+
+@router.get("/intraday")
+async def intraday_picks(date_param: str = Query(None, alias="date")):
+    """盘中选股: 读取最新 intraday JSON 输出."""
+    target = date_param or date.today().strftime("%Y-%m-%d")
+    import glob
+    pattern = os.path.join(OUTPUTS_DIR, "orchestrator_*", "report.md")
+    files = sorted(glob.glob(pattern), reverse=True)
+    # 简单返回最近报告摘要
+    if files:
+        with open(files[0]) as f:
+            content = f.read()[:3000]
+        return {"date": target, "report": content, "source": files[0]}
+    return {"date": target, "picks": [], "message": "暂无盘中数据"}
+
+
 @router.post("/run-pipeline")
 async def trigger_pipeline():
     """Trigger daily pipeline (non-blocking fire-and-forget)."""
