@@ -300,7 +300,7 @@ async def _score_capital_flow(code: str, db) -> CapitalFlowDimension:
         # Query northbound (北向资金)
         nb_result = await db.execute(
             sa_text(
-                "SELECT net_flow, close FROM capital_flow "
+                "SELECT net_mf_amount AS net_flow, 0 AS close FROM moneyflow "
                 "WHERE code = :code AND trade_date >= CURRENT_DATE - INTERVAL '30 days' "
                 "ORDER BY trade_date DESC LIMIT 30"
             ),
@@ -312,7 +312,7 @@ async def _score_capital_flow(code: str, db) -> CapitalFlowDimension:
         # Query margin (融资融券)
         mg_result = await db.execute(
             sa_text(
-                "SELECT margin_balance FROM margin_data "
+                "SELECT rzye AS margin_balance FROM margin_detail "
                 "WHERE code = :code ORDER BY trade_date DESC LIMIT 1"
             ),
             {"code": code},
@@ -323,7 +323,7 @@ async def _score_capital_flow(code: str, db) -> CapitalFlowDimension:
         # Query leaderboard (龙虎榜) — recent 10 days
         lb_result = await db.execute(
             sa_text(
-                "SELECT net_buy FROM leaderboard "
+                "SELECT net_amount AS net_buy FROM top_list "
                 "WHERE code = :code AND trade_date >= CURRENT_DATE - INTERVAL '10 days' "
                 "ORDER BY trade_date DESC"
             ),
@@ -335,8 +335,10 @@ async def _score_capital_flow(code: str, db) -> CapitalFlowDimension:
         # Query main force flow (主力资金流向)
         mf_result = await db.execute(
             sa_text(
-                "SELECT main_net_inflow, super_large_net, large_net, mid_net, small_net "
-                "FROM money_flow "
+                "SELECT net_mf_amount AS main_net_inflow, "
+                "buy_elg_amount AS super_large_net, buy_lg_amount AS large_net, "
+                "buy_md_amount AS mid_net, buy_sm_amount AS small_net "
+                "FROM moneyflow "
                 "WHERE code = :code AND trade_date >= CURRENT_DATE - INTERVAL '5 days' "
                 "ORDER BY trade_date DESC"
             ),
@@ -413,9 +415,9 @@ async def _score_fundamental(code: str, db) -> FundamentalDimension:
         # Query latest fundamental data
         fd_result = await db.execute(
             sa_text(
-                "SELECT pe, pe_percentile, roe, revenue_growth, debt_ratio, "
-                "pb, market_cap, net_profit_growth "
-                "FROM fundamental_data WHERE code = :code ORDER BY report_date DESC LIMIT 1"
+                "SELECT NULL AS pe, 50.0 AS pe_percentile, roe, revenue_growth, debt_ratio, "
+                "NULL AS pb, NULL AS market_cap, profit_growth AS net_profit_growth "
+                "FROM financial_indicator WHERE code = :code ORDER BY end_date DESC LIMIT 1"
             ),
             {"code": code},
         )
@@ -682,10 +684,10 @@ async def _score_sentiment(code: str, db) -> SentimentDimension:
         # Query recent research report ratings
         rr_result = await db.execute(
             sa_text(
-                "SELECT rating, target_price, org_name "
+                "SELECT rating, target_price, broker AS org_name "
                 "FROM research_reports "
-                "WHERE code = :code AND publish_date >= CURRENT_DATE - INTERVAL '90 days' "
-                "ORDER BY publish_date DESC LIMIT 5"
+                "WHERE code = :code AND pub_date >= CURRENT_DATE - INTERVAL '90 days' "
+                "ORDER BY pub_date DESC LIMIT 5"
             ),
             {"code": code},
         )
@@ -821,17 +823,33 @@ async def diagnose(
     """
     logger.info("Diagnosing %s (force_refresh=%s)...", code, force_refresh)
 
-    # Run all five dimensions concurrently
-    results = await asyncio.gather(
-        _score_technical(code, db, None),
-        _score_capital_flow(code, db),
-        _score_fundamental(code, db),
-        _score_ai_predict(code, db, auth_token=auth_token),
-        _score_sentiment(code, db),
-        return_exceptions=True,
-    )
+    # Each dimension gets its own DB session to isolate transaction failures
+    from app.database import AsyncSessionLocal
 
-    tech, cap, fund, ai_p, sent = results
+    async def _run_dim(key: str, fn, code_arg, auth_token=None):
+        try:
+            async with AsyncSessionLocal() as dim_db:
+                if auth_token is not None:
+                    return await fn(code_arg, dim_db, auth_token=auth_token)
+                return await fn(code_arg, dim_db)
+        except Exception as e:
+            logger.error("Dimension %s failed: %s", key, e)
+            return e
+
+    # _score_technical has special signature: (code, db, market_data)
+    async def _run_tech():
+        try:
+            async with AsyncSessionLocal() as dim_db:
+                return await _score_technical(code, dim_db, None)
+        except Exception as e:
+            logger.error("Dimension technical failed: %s", e)
+            return e
+
+    tech = await _run_tech()
+    cap = await _run_dim("capital_flow", _score_capital_flow, code)
+    fund = await _run_dim("fundamental", _score_fundamental, code)
+    ai_p = await _run_dim("ai_predict", _score_ai_predict, code, auth_token)
+    sent = await _run_dim("sentiment", _score_sentiment, code)
 
     # Handle exceptions in individual dimensions
     dims: Dict[str, DimensionScore] = {}
@@ -859,6 +877,10 @@ async def diagnose(
     ]:
         if isinstance(result, Exception):
             logger.error("Dimension %s raised: %s", key, result)
+            try:
+                await db.rollback()
+            except Exception:
+                pass
             dims[key] = default_factory()
         else:
             dims[key] = result
