@@ -21,6 +21,7 @@
 | 实盘交易 | Xtquant (QMT) 券商接口 + MockBroker (模拟) | ADR-002 |
 | 自动交易 | asyncio 定时轮询 + APScheduler (训练调度) | ADR-003, ADR-004 |
 | 测试框架 | pytest (Python) + vitest (前端) | — |
+| 数据管道 | data-service (asyncio 调度 + PG-first 直写 + Tushare 1.4.29) + SQLite fallback | ADR-006 |
 | 部署 | Docker Compose (dev, postgres:15-alpine + redis:7-alpine + 8 微服务) | — |
 
 ## Verified Facts (Quick Reference)
@@ -107,6 +108,7 @@
 | ADR-003 | 量化自动交易策略引擎 — asyncio 轮询 + ExecutorManager | Proposed |
 | ADR-004 | 模型训练管线 — APScheduler + MLflow + A/B 上线 | Proposed |
 | ADR-005 | 个股诊断 — 五维加权评分 + PDF 导出 + 多股对比 | Proposed |
+| ADR-006 | 数据管道 — PG-first 直写 + 消除 subprocess 桥 + stocks 同步 + 物化视图 | Proposed |
 
 ## Project-Specific Rules
 
