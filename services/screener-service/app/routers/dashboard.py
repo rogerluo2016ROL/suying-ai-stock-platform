@@ -180,6 +180,34 @@ async def dashboard_freshness():
         return {"status": "error", "message": str(e)}
 
 
+@router.post("/sync/trigger")
+async def trigger_sync(sync_type: str = "rt_min"):
+    """手动触发数据同步 (代理到 data-service :8010).
+
+    sync_type: rt_min | auction | post_market
+    """
+    import urllib.request
+    DATA_SERVICE = "http://localhost:8010/api/v1/data"
+    url = f"{DATA_SERVICE}/sync/{sync_type}"
+    try:
+        req = urllib.request.Request(url, method="POST")
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read())
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@router.get("/sync/status")
+async def sync_status():
+    """查询数据同步状态."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen("http://localhost:8010/api/v1/data/status", timeout=5) as resp:
+            return json.loads(resp.read())
+    except Exception:
+        return {"status": "error", "message": "data-service not reachable"}
+
+
 @router.post("/run-pipeline")
 async def trigger_pipeline():
     """Trigger daily pipeline (non-blocking fire-and-forget)."""
