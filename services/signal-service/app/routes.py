@@ -770,38 +770,39 @@ async def data_status():
     """Return comprehensive data source status with metadata."""
     from kronos_factors.scorer._db_stub import _get_db as _db
 
-    # Date columns to try per table (ordered: trade_date first, then trade_time)
-    _DATE_COLS = [
-        "trade_date", "trade_time",
-    ]
+    # Date column per table (specific to avoid trial-and-error overhead)
+    _DATE_COL_MAP = {
+        "daily_kline": "trade_date", "weekly_kline": "trade_date", "monthly_kline": "trade_date",
+        "stk_mins": "trade_time", "stk_auction_o": "trade_date", "moneyflow": "trade_date",
+        "stk_limit": "trade_date", "daily_basic": "trade_date", "adj_factor": "trade_date",
+        "index_daily": "trade_date", "sw_daily": "trade_date", "top_list": "trade_date",
+        "top_inst": "trade_date", "margin_detail": "trade_date", "margin_summary": "trade_date",
+        "moneyflow_hsgt": "trade_date", "hk_holdings": "trade_date",
+        "block_trade_data": "trade_date", "limit_list_d": "trade_date",
+        "cyq_chips": "trade_date", "rt_sw_k": "trade_date",
+    }
 
     sources = []
+    # ANALYZE to refresh PG stats (makes n_live_tup accurate)
     pg_stats = {}; date_cache = {}
     try:
         import psycopg2 as pg2
         pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
-        conn = pg2.connect(pg_url)
-        cur = conn.cursor()
-        # Row counts from PG stats (instant)
+        conn = pg2.connect(pg_url); cur = conn.cursor()
         cur.execute("SELECT relname, n_live_tup FROM pg_stat_user_tables")
         pg_stats = {r[0]: int(r[1]) for r in cur.fetchall()}
-        # MIN/MAX per table with 2s timeout — indexed tables return instantly
-        for src in _DATA_SOURCES:
-            key = src["key"]
-            for col in _DATE_COLS:
-                try:
-                    cur.execute(f"SET LOCAL statement_timeout = 2000")
-                    cur.execute(f"SELECT MIN({col}), MAX({col}) FROM {key}")
-                    row = cur.fetchone()
-                    if row and row[0] is not None:
-                        mn, mx = str(row[0]), str(row[1])
-                        # Normalize YYYYMMDD → YYYY-MM-DD
-                        if len(mn) == 8 and mn.isdigit(): mn = f"{mn[:4]}-{mn[4:6]}-{mn[6:8]}"
-                        if len(mx) == 8 and mx.isdigit(): mx = f"{mx[:4]}-{mx[4:6]}-{mx[6:8]}"
-                        date_cache[key] = (mn[:19], mx[:19])
-                        break  # Found date column, skip remaining
-                except Exception:
-                    continue  # Column not found or timeout → try next
+        # MIN/MAX with 2s timeout per table, using specific date column
+        for key, col in _DATE_COL_MAP.items():
+            try:
+                cur.execute(f"SET LOCAL statement_timeout = 2000")
+                cur.execute(f"SELECT MIN({col}), MAX({col}) FROM {key}")
+                row = cur.fetchone()
+                if row and row[0] is not None:
+                    mn, mx = str(row[0]), str(row[1])
+                    if len(mn) == 8 and mn.isdigit(): mn = f"{mn[:4]}-{mn[4:6]}-{mn[6:8]}"
+                    if len(mx) == 8 and mx.isdigit(): mx = f"{mx[:4]}-{mx[4:6]}-{mx[6:8]}"
+                    date_cache[key] = (mn[:19], mx[:19])
+            except Exception: pass
         conn.close()
     except Exception: pass
 
