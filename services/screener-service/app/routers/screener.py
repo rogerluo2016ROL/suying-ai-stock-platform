@@ -81,7 +81,9 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
             td = trade_date or 'latest'
 
     if mode == "leader_intraday":
-        picks_data = run_intraday_screening(td or "latest", top_n=top_n)
+        result = run_intraday_screening(td or "latest", top_n=top_n)
+        # run_intraday_screening returns (picks_data, scores) tuple
+        picks_data = result[0] if isinstance(result, tuple) else result
         plans = generate_intraday_plan(picks_data) if picks_data else []
     else:
         result = run_leader_screening(td or "latest", top_n=top_n)

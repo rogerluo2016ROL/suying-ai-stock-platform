@@ -92,7 +92,8 @@ def get_intraday_snapshot(db, trade_date, time_slot="14:00"):
     ).fetchall()
     snapshot = {}
     for r in rows:
-        code = r["ts_code"].split('.')[0]
+        raw_code = r.get("code") or r.get("ts_code","")
+        code = raw_code.split('.')[0] if '.' in str(raw_code) else str(raw_code)
         snapshot[code] = {
             "open": float(r["open"] or 0), "high": float(r["high"] or 0),
             "low": float(r["low"] or 0), "close": float(r["close"] or 0),
@@ -220,7 +221,7 @@ def get_intraday_limit_status(db, trade_date):
     ).fetchall()
     limit_map = {}
     for r in rows:
-        code = r["ts_code"].split('.')[0]
+        code = (r.get("code") or r.get("ts_code","")).split('.')[0]
         ft = r["first_time"] or ""
         limit_map[code] = {
             "first_time": ft,
@@ -491,8 +492,8 @@ def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
         prev_date_row = db.execute(
             "SELECT MAX(trade_date) FROM daily_kline WHERE trade_date < ?", (trade_date,)
         ).fetchone()
-        if prev_date_row and prev_date_row[0]:
-            prev_date = prev_date_row[0]
+        if prev_date_row and (list(prev_date_row.values())[0] if isinstance(prev_date_row, dict) else (prev_date_row[0] if prev_date_row else None)):
+            prev_date = list(prev_date_row.values())[0] if isinstance(prev_date_row, dict) else prev_date_row[0]
             breadth_row = db.execute(
                 "SELECT SUM(CASE WHEN m.close > d.close THEN 1 ELSE 0 END) as up, "
                 "SUM(CASE WHEN m.close < d.close THEN 1 ELSE 0 END) as down "
