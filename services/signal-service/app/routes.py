@@ -716,21 +716,53 @@ _DATA_SOURCES = [
     {"key": "top_list",       "name": "龙虎榜",             "category": "特色", "source": "Tushare top_list",  "update": "每日盘后",        "note": "营业部买卖明细"},
     {"key": "top_inst",       "name": "机构持仓",           "category": "特色", "source": "Tushare top_inst",  "update": "季度更新",        "note": "机构季度持仓"},
     {"key": "limit_list_d",   "name": "涨跌停明细",         "category": "特色", "source": "Tushare limit_list_d","update":"每日盘后",     "note": "涨停/跌停股票列表"},
-    # 财务数据
     {"key": "financial_indicator","name":"财务指标",        "category": "财务", "source": "Tushare fina_indicator","update":"季度更新",   "note": "ROE/ROA/毛利率等"},
     {"key": "financial_income","name":"利润表",             "category": "财务", "source": "Tushare income",    "update": "季度更新",        "note": ""},
     {"key": "financial_balance","name":"资产负债表",        "category": "财务", "source": "Tushare balancesheet","update":"季度更新",   "note": ""},
     {"key": "financial_cashflow","name":"现金流量表",       "category": "财务", "source": "Tushare cashflow",  "update": "季度更新",        "note": ""},
     {"key": "forecast_data",  "name": "业绩预告",           "category": "财务", "source": "Tushare forecast",  "update": "不定期",          "note": ""},
     {"key": "dividend_data",  "name": "分红送股",           "category": "财务", "source": "Tushare dividend",  "update": "不定期",          "note": ""},
-    # 基础数据
     {"key": "stocks",         "name": "股票列表",           "category": "基础", "source": "Tushare stock_basic","update":"每日盘后",      "note": "含行业/市值/上市日期"},
     {"key": "index_basic",    "name": "指数基本信息",       "category": "基础", "source": "Tushare index_basic","update":"不定期",       "note": ""},
     {"key": "ths_member",     "name": "同花顺概念成分",     "category": "基础", "source": "Tushare ths_member","update":"不定期",       "note": ""},
-    # 舆情
     {"key": "stock_news_tushare","name":"股票新闻",         "category": "舆情", "source": "Tushare news",      "update": "每日盘后",        "note": ""},
     {"key": "research_reports","name":"研究报告",           "category": "舆情", "source": "Tushare research_report","update":"每日盘后","note": ""},
 ]
+
+# ETL 同步映射: table_key → (sync_mode, days_default, description)
+_SYNC_MAP = {
+        "moneyflow": ("moneyflow", 30, "资金流向"),
+        "moneyflow_hsgt": ("moneyflow_hsgt", 30, "沪深港通"),
+        "margin_detail": ("margin", 30, "融资融券明细"),
+        "margin_summary": ("margin_summary", 30, "融资融券汇总"),
+        "top_list": ("top_list", 30, "龙虎榜"),
+        "daily_kline": ("daily", 30, "日K线"),
+        "daily_basic": ("daily_basic", 30, "基本面指标"),
+        "stk_limit": ("stk_limit", 30, "涨跌停价"),
+        "weekly_kline": ("weekly", 365, "周K线"),
+        "monthly_kline": ("monthly", 730, "月K线"),
+        "adj_factor": ("adj_factor", 30, "复权因子"),
+        "index_basic": ("index_basic", 30, "指数基本信息"),
+        "index_daily": ("index_daily", 30, "指数日线"),
+        "financial_income": ("income", 30, "利润表"),
+        "financial_balance": ("balancesheet", 30, "资产负债表"),
+        "financial_cashflow": ("cashflow", 30, "现金流量表"),
+        "financial_indicator": ("fina_indicator", 30, "财务指标"),
+        "forecast_data": ("forecast", 180, "业绩预告"),
+        "dividend_data": ("dividend", 365, "分红送股"),
+        "top_inst": ("top_inst", 30, "机构持仓"),
+        "block_trade_data": ("block_trade", 30, "大宗交易"),
+        "hk_holdings": ("hk_hold", 30, "港股通持股"),
+        "cyq_chips": ("cyq_chips", 30, "筹码分布"),
+        "broker_recommend": ("broker_recommend", 30, "券商推荐"),
+        "stk_auction_o": ("stk_auction_o", 1, "集合竞价"),
+        "rt_sw_k": ("rt_sw_k", 1, "申万实时行情"),
+        "stock_news_tushare": ("stock_news", 30, "股票新闻"),
+        "research_reports": ("research_report", 30, "研究报告"),
+        "sw_daily": ("sw_daily", 365, "申万行业指数"),
+        "stk_factor_pro": ("stk_factor_pro", 30, "技术因子"),
+        "limit_list_d": ("limit_list", 30, "涨跌停明细"),
+    }
 
 
 @router.get("/data-status")
@@ -787,4 +819,52 @@ async def data_status():
         "total_rows": sum(s["rows"] for s in sources),
         "categories": categories,
         "sources": sources,
+        "sync_map": {k: {"mode": v[0], "days_default": v[1], "desc": v[2]} for k, v in _SYNC_MAP.items()},
     }
+
+
+@router.post("/trigger-sync")
+async def trigger_sync(
+    table_key: str = Query(..., description="Table key e.g. moneyflow, daily_kline"),
+    days: int = Query(30, ge=1, le=3650, description="Days back to sync"),
+):
+    """Trigger a Tushare data sync for a specific table.
+
+    Calls the corresponding kronos-data ETL sync function via subprocess.
+    Returns status, rows fetched, and rows written.
+    """
+    if table_key not in _SYNC_MAP:
+        return {"status": "error", "message": f"Unknown table: {table_key}. Available: {list(_SYNC_MAP.keys())}"}
+
+    mode, _, desc = _SYNC_MAP[table_key]
+    logger.info("Trigger sync: %s (mode=%s, days=%d)", table_key, mode, days)
+
+    try:
+        import subprocess, sys
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        packages_path = os.pathsep.join([
+            os.path.join(project_root, "packages", "kronos-factors"),
+            os.path.join(project_root, "packages", "kronos-core"),
+            os.path.join(project_root, "packages", "kronos-data"),
+        ])
+        env = {**os.environ, "PYTHONPATH": packages_path}
+        result = subprocess.run(
+            [sys.executable, "-m", "kronos_data.etl", "--mode", mode, "--days", str(days)],
+            capture_output=True, text=True, timeout=300,
+            cwd=project_root, env=env,
+        )
+        ok = result.returncode == 0
+        output_lines = result.stdout.strip().split("\n")[-5:] if result.stdout else []
+        return {
+            "status": "ok" if ok else "error",
+            "table_key": table_key,
+            "mode": mode,
+            "desc": desc,
+            "days": days,
+            "returncode": result.returncode,
+            "output": output_lines,
+            "stderr": result.stderr[:200] if result.stderr else "",
+        }
+    except Exception as e:
+        logger.exception("Trigger sync failed for %s", table_key)
+        return {"status": "error", "table_key": table_key, "message": str(e)[:200]}
