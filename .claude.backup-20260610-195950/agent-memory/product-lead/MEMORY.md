@@ -1,0 +1,1 @@
+- [KV-cache 技术评估](kv-cache-tech-assessment.md) — tech-lead 对 P0-2 的风险矩阵和实现建议（2026-06-01）
