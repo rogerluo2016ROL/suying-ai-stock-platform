@@ -9,27 +9,28 @@ PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6
 
 
 def write_stk_mins(rows: list[tuple]) -> int:
-    """批量写入 stk_mins 到 PG (ts_code→code 映射).
-
-    Note: PG stk_mins 暂无 (code,trade_time,freq) 唯一约束,
-    会接受重复行。建议空闲时添加约束:
-      ALTER TABLE stk_mins ADD CONSTRAINT stk_mins_uniq UNIQUE(code,trade_time,freq);
-    """
+    """批量写入 stk_mins 到 PG (ts_code→code 映射, 自动去重)."""
     if not rows:
         return 0
     try:
         import psycopg2
         conn = psycopg2.connect(PG_URL)
+        conn.autocommit = True
         cur = conn.cursor()
+        written = 0
         for r in rows:
             ts_code, trade_time, o, h, l, c, vol, amt, freq = r
             code = ts_code.split(".")[0] if "." in str(ts_code) else ts_code
             cur.execute(
                 "INSERT INTO stk_mins(code,trade_time,open,high,low,close,volume,amount,freq) "
-                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                (code, trade_time, o, h, l, c, vol, amt, freq))
-        conn.commit(); conn.close()
-        return len(rows)
+                "SELECT %s,%s,%s,%s,%s,%s,%s,%s,%s "
+                "WHERE NOT EXISTS (SELECT 1 FROM stk_mins WHERE code=%s AND trade_time=%s AND freq=%s)",
+                (code, trade_time, o, h, l, c, vol, amt, freq,
+                 code, trade_time, freq))
+            if cur.rowcount > 0:
+                written += 1
+        conn.close()
+        return written
     except Exception as e:
         logger.debug("PG write stk_mins: %s", e)
         return 0
