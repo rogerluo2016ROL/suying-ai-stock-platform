@@ -9,7 +9,12 @@ PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6
 
 
 def write_stk_mins(rows: list[tuple]) -> int:
-    """批量写入 stk_mins 到 PG (ts_code→code 映射)."""
+    """批量写入 stk_mins 到 PG (ts_code→code 映射).
+
+    Note: PG stk_mins 暂无 (code,trade_time,freq) 唯一约束,
+    会接受重复行。建议空闲时添加约束:
+      ALTER TABLE stk_mins ADD CONSTRAINT stk_mins_uniq UNIQUE(code,trade_time,freq);
+    """
     if not rows:
         return 0
     try:
@@ -21,8 +26,7 @@ def write_stk_mins(rows: list[tuple]) -> int:
             code = ts_code.split(".")[0] if "." in str(ts_code) else ts_code
             cur.execute(
                 "INSERT INTO stk_mins(code,trade_time,open,high,low,close,volume,amount,freq) "
-                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) "
-                "ON CONFLICT(code,trade_time,freq) DO NOTHING",
+                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (code, trade_time, o, h, l, c, vol, amt, freq))
         conn.commit(); conn.close()
         return len(rows)

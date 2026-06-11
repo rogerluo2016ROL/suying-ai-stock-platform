@@ -61,6 +61,8 @@ def collect_rt_min(progress_callback=None) -> dict:
     batches = [codes[i:i + TUSHARE_BATCH_SIZE] for i in range(0, len(codes), TUSHARE_BATCH_SIZE)]
     total_written = 0
 
+    all_pg_rows = []  # 收集用于 PG 双写
+
     with ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE) as pool:
         futures = {pool.submit(_fetch_batch, b): i for i, b in enumerate(batches)}
 
@@ -72,14 +74,24 @@ def collect_rt_min(progress_callback=None) -> dict:
                     "INSERT OR REPLACE INTO stk_mins(ts_code,trade_time,open,high,low,close,volume,amount,freq) "
                     "VALUES(?,?,?,?,?,?,?,?,?)", rows)
                 total_written += len(rows)
+                all_pg_rows.extend(rows)
             if progress_callback:
                 progress_callback(len(futures))
         db.commit()
+
+        # 🔥 Phase 3: PG 双写
+        pg_written = 0
+        try:
+            from app.sync.pg_writer import write_stk_mins
+            pg_written = write_stk_mins(all_pg_rows)
+        except Exception as e:
+            logger.debug("PG dual-write skipped: %s", e)
+
         db.close()
 
     elapsed = time.time() - t0
-    logger.info("rt_min: %s stocks, %s rows, %.1fs", len(codes), total_written, elapsed)
-    return {"status": "ok", "stocks": len(codes), "written": total_written, "elapsed": elapsed}
+    logger.info("rt_min: %s stocks, %s rows (PG: %s), %.1fs", len(codes), total_written, pg_written, elapsed)
+    return {"status": "ok", "stocks": len(codes), "written": total_written, "pg_written": pg_written, "elapsed": elapsed}
 
 
 def collect_auction_snapshot() -> dict:

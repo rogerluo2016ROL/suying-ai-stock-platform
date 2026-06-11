@@ -4,6 +4,7 @@ import asyncio, logging, time
 from datetime import datetime, date
 from app.sync.rt_min import collect_rt_min
 from app.sync.tushare import sync_post_market_core, sync_post_market_ext
+from app.sync.pg_writer import sync_daily_to_pg, refresh_materialized_views
 
 logger = logging.getLogger("data-service.scheduler")
 
@@ -90,6 +91,10 @@ def start_scheduler():
          "fn": sync_post_market_core, "args": (today,)},
         {"id": "post_market_ext", "name": "P1扩展盘后", "cron": "35 15 * * 1-5",
          "fn": sync_post_market_ext, "args": (today,)},
+        {"id": "pg_sync", "name": "PG增量同步", "cron": "36 15 * * 1-5",
+         "fn": sync_daily_to_pg, "args": (today,)},
+        {"id": "pg_refresh", "name": "PG物化视图刷新", "cron": "37 15 * * 1-5",
+         "fn": refresh_materialized_views},
     ]
 
     for j in _jobs:
