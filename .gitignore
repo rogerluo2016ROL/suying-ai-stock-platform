@@ -35,3 +35,8 @@ docs/training/diagrams/src/.~*.drawio
 docs/training/diagrams/
 Kronos/
 services/*/.venv/
+
+# Large data & dependencies (not tracked)
+backend/data/*.db
+node_modules/
+.playwright-mcp/
