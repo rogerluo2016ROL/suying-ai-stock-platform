@@ -305,7 +305,219 @@ async def dashboard_summary():
         "watchlist": "PG stocks 表 — 按市值排序 Top 10",
     }
 
+    # ── 9. Auction intent (开盘竞价意图分析) ──
+    try:
+        with _get_db() as d:
+            auction_results = d.execute("""
+                WITH latest_auction AS (
+                    SELECT trade_date FROM stk_auction_o ORDER BY trade_date DESC LIMIT 1
+                ),
+                auction_data AS (
+                    SELECT a.code, a.close as auction_price, a.open, a.high, a.low,
+                           a.vol, a.amount, a.vwap,
+                           prev.close as prev_close,
+                           (a.close / NULLIF(prev.close, 0) - 1) * 100 as chg_pct,
+                           (a.open / NULLIF(a.close, 0) - 1) * 100 as open_gap,
+                           (a.close / NULLIF(a.vwap, 0) - 1) * 100 as vs_vwap
+                    FROM stk_auction_o a
+                    CROSS JOIN LATERAL (
+                        SELECT close FROM daily_kline
+                        WHERE code = a.code AND trade_date < a.trade_date
+                        ORDER BY trade_date DESC LIMIT 1
+                    ) prev
+                    WHERE a.trade_date = (SELECT trade_date FROM latest_auction)
+                      AND a.vol > 0
+                ),
+                vol_avg AS (
+                    SELECT code, AVG(volume) as avg_vol
+                    FROM daily_kline
+                    WHERE trade_date > (SELECT MAX(trade_date) FROM daily_kline) - INTERVAL '30 days'
+                      AND trade_date < (SELECT MAX(trade_date) FROM daily_kline)
+                    GROUP BY code
+                )
+                SELECT ad.code,
+                       COALESCE(s.name, ad.code) as name,
+                       ad.auction_price, ad.open, ad.vwap, ad.vol, ad.amount,
+                       ad.prev_close,
+                       ROUND(ad.chg_pct::numeric, 2) as chg_pct,
+                       ROUND(ad.open_gap::numeric, 2) as open_gap,
+                       ROUND(ad.vs_vwap::numeric, 2) as vs_vwap,
+                       ROUND((ad.vol / NULLIF(va.avg_vol, 0))::numeric, 2) as vol_ratio
+                FROM auction_data ad
+                LEFT JOIN stocks s ON ad.code = s.code
+                LEFT JOIN vol_avg va ON ad.code = va.code
+                ORDER BY ad.vol DESC
+                LIMIT 100
+            """).fetchall()
+
+        intent_list = []
+        for r in auction_results:
+            chg = float(r.get("chg_pct") or 0)
+            vs_vwap = float(r.get("vs_vwap") or 0)
+            vol_ratio = float(r.get("vol_ratio") or 0)
+            open_gap = float(r.get("open_gap") or 0)
+
+            # Multi-dimension intent scoring (0-100)
+            price_score = max(0, min(40, (chg + 10) * 2))  # -10%→0, +10%→40
+            pressure_score = max(0, min(25, 12.5 + vs_vwap * 5))  # -2.5%→0, +2.5%→25
+            strength_score = max(0, min(20, vol_ratio * 0.5))  # vol_ratio 0→0, 40x→20
+            gap_score = max(0, min(15, 7.5 + open_gap * 3))  # -2.5%→0, +2.5%→15
+            total = round(price_score + pressure_score + strength_score + gap_score)
+
+            if total >= 75:
+                intent, icon, level = "强烈抢筹", "🔥", "bullish"
+            elif total >= 60:
+                intent, icon, level = "偏多抢筹", "📈", "bullish"
+            elif total >= 40:
+                intent, icon, level = "中性", "➖", "neutral"
+            elif total >= 25:
+                intent, icon, level = "偏空出货", "📉", "bearish"
+            else:
+                intent, icon, level = "强烈出货", "⚠️", "bearish"
+
+            # Reason string
+            reasons = []
+            if chg > 3: reasons.append(f"竞价高开{chg:.1f}%")
+            elif chg < -3: reasons.append(f"竞价低开{chg:.1f}%")
+            if vs_vwap > 1: reasons.append("买盘踊跃(价>均价)")
+            elif vs_vwap < -1: reasons.append("卖压沉重(价<均价)")
+            if vol_ratio > 3: reasons.append(f"竞价放量{vol_ratio:.0f}倍")
+            if open_gap > 0.5: reasons.append("开盘续涨")
+            elif open_gap < -0.5: reasons.append("开盘续跌")
+
+            intent_list.append({
+                "code": r.get("code", ""),
+                "name": r.get("name", ""),
+                "auction_price": round(float(r.get("auction_price") or 0), 2),
+                "prev_close": round(float(r.get("prev_close") or 0), 2),
+                "chg_pct": round(chg, 2),
+                "vs_vwap": round(vs_vwap, 2),
+                "vol_ratio": round(vol_ratio, 2),
+                "open_gap": round(open_gap, 2),
+                "vol": int(float(r.get("vol") or 0)),
+                "amount": round(float(r.get("amount") or 0), 0),
+                "intent": intent,
+                "icon": icon,
+                "level": level,
+                "score": total,
+                "reasons": reasons,
+            })
+
+        # Summary counts
+        bullish = [i for i in intent_list if i["level"] == "bullish"]
+        bearish = [i for i in intent_list if i["level"] == "bearish"]
+        neutral = [i for i in intent_list if i["level"] == "neutral"]
+
+        result["auction_intent"] = {
+            "trade_date": str(auction_results[0].get("trade_date", "")) if auction_results else "",
+            "total_analyzed": len(intent_list),
+            "bullish_count": len(bullish),
+            "bearish_count": len(bearish),
+            "neutral_count": len(neutral),
+            "top_bullish": bullish[:5],
+            "top_bearish": bearish[:5],
+            "data_source": "PG stk_auction_o 表 (Tushare 集合竞价数据)",
+        }
+    except Exception as e:
+        logger.warning("Auction intent analysis failed: %s", e)
+        result["auction_intent"] = {"error": str(e)[:80]}
+
+    result["data_sources"]["auction_intent"] = "PG stk_auction_o — 开盘集合竞价多维意图分析 (价格方向/买卖压力/竞价强度/开盘延续)"
+
     return result
+
+
+@router.get("/auction-intent")
+async def auction_intent(limit: int = Query(50, ge=10, le=200)):
+    """PRD: 开盘集合竞价意图分析 — 识别抢筹/出货信号.
+
+    Scores each stock on 4 dimensions:
+      1. 价格方向 (40%): auction change vs prev close
+      2. 买卖压力 (25%): auction price vs VWAP
+      3. 竞价强度 (20%): auction volume vs 20-day avg
+      4. 开盘延续 (15%): open vs auction price
+
+    Returns intent label + multi-dimension score for top N stocks by auction volume.
+    """
+    from kronos_factors.scorer._db_stub import _get_db as _db
+
+    results = []
+    try:
+        with _db() as d:
+            rows = d.execute("""
+                WITH auction_data AS (
+                    SELECT a.ts_code, a.close as auction_price, a.open, a.vol, a.amount, a.vwap,
+                           prev.close as prev_close,
+                           (a.close/NULLIF(prev.close,0)-1)*100 as chg_pct,
+                           (a.open/NULLIF(a.close,0)-1)*100 as open_gap,
+                           (a.close/NULLIF(a.vwap,0)-1)*100 as vs_vwap
+                    FROM stk_auction_o a
+                    CROSS JOIN LATERAL (
+                        SELECT close FROM daily_kline
+                        WHERE code=a.code AND trade_date<a.trade_date
+                        ORDER BY trade_date DESC LIMIT 1
+                    ) prev
+                    WHERE a.trade_date=(SELECT MAX(trade_date) FROM stk_auction_o) AND a.vol>0
+                ),
+                vol_avg AS (
+                    SELECT code, AVG(volume) as avg_vol FROM daily_kline
+                    WHERE trade_date>(SELECT MAX(trade_date) FROM daily_kline)-INTERVAL '30 days'
+                      AND trade_date<(SELECT MAX(trade_date) FROM daily_kline)
+                    GROUP BY code
+                )
+                SELECT ad.*, COALESCE(s.name,ad.code) as name,
+                       ROUND((ad.vol/NULLIF(va.avg_vol,0))::numeric,2) as vol_ratio
+                FROM auction_data ad
+                LEFT JOIN stocks s ON ad.code=s.code
+                LEFT JOIN vol_avg va ON ad.code=va.code
+                ORDER BY ad.vol DESC LIMIT %s
+            """, (limit,)).fetchall()
+
+        for r in rows:
+            chg = float(r.get("chg_pct") or 0)
+            vs_vwap = float(r.get("vs_vwap") or 0)
+            vol_ratio = float(r.get("vol_ratio") or 0)
+            open_gap = float(r.get("open_gap") or 0)
+
+            price_score = max(0, min(40, (chg + 10) * 2))
+            pressure_score = max(0, min(25, 12.5 + vs_vwap * 5))
+            strength_score = max(0, min(20, vol_ratio * 0.5))
+            gap_score = max(0, min(15, 7.5 + open_gap * 3))
+            total = round(price_score + pressure_score + strength_score + gap_score)
+
+            if total >= 75:    intent, icon = "强烈抢筹", "🔥"
+            elif total >= 60:  intent, icon = "偏多抢筹", "📈"
+            elif total >= 40:  intent, icon = "中性", "➖"
+            elif total >= 25:  intent, icon = "偏空出货", "📉"
+            else:              intent, icon = "强烈出货", "⚠️"
+
+            results.append({
+                "code": r.get("code",""), "name": r.get("name",""),
+                "auction_price": round(float(r.get("auction_price") or 0), 2),
+                "prev_close": round(float(r.get("prev_close") or 0), 2),
+                "chg_pct": round(chg, 2), "vs_vwap": round(vs_vwap, 2),
+                "vol_ratio": round(vol_ratio, 2), "open_gap": round(open_gap, 2),
+                "vol": int(float(r.get("vol") or 0)),
+                "amount": round(float(r.get("amount") or 0), 0),
+                "intent": intent, "icon": icon, "score": total,
+                "breakdown": {
+                    "price_direction": round(price_score, 1),
+                    "buy_sell_pressure": round(pressure_score, 1),
+                    "auction_strength": round(strength_score, 1),
+                    "opening_continuity": round(gap_score, 1),
+                },
+            })
+    except Exception as e:
+        logger.warning("Auction intent query failed: %s", e)
+        return {"status": "error", "message": str(e)[:100], "results": []}
+
+    return {
+        "status": "ok",
+        "trade_date": str(rows[0].get("trade_date", "")) if rows else "",
+        "total": len(results),
+        "model": "四维竞价意图评分: 价格方向(40) + 买卖压力(25) + 竞价强度(20) + 开盘延续(15)",
+        "results": results,
+    }
 
 
 @router.get("/levels")
