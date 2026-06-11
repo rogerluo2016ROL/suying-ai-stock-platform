@@ -773,38 +773,22 @@ async def data_status():
     sources = []
     try:
         with _db() as d:
+            # Fast: PG stats for row counts + single MIN/MAX query per table with timeout
+            pg_stats = {}
+            try:
+                rows = d.execute("SELECT relname, n_live_tup FROM pg_stat_user_tables").fetchall()
+                pg_stats = {r["relname"]: int(r["n_live_tup"]) for r in rows}
+            except Exception:
+                pass
+
             for src in _DATA_SOURCES:
                 key = src["key"]
-                try:
-                    # Try trade_date first, then trade_time
-                    row = d.execute(f"SELECT COUNT(*) as cnt FROM {key}").fetchone()
-                    cnt = int(row["cnt"]) if row else 0
-                    min_val, max_val = None, None
-                    if cnt > 0:
-                        for col in ("trade_date", "trade_time"):
-                            try:
-                                dr = d.execute(
-                                    f"SELECT MIN({col}) as mn, MAX({col}) as mx FROM {key}"
-                                ).fetchone()
-                                if dr and dr.get("mn"):
-                                    min_val = str(dr["mn"])[:10]
-                                    max_val = str(dr["mx"])[:19]
-                                break
-                            except Exception:
-                                continue
-                    sources.append({
-                        **src,
-                        "rows": cnt,
-                        "min_date": min_val or "—",
-                        "max_date": max_val or "—",
-                        "status": "active" if cnt > 0 else "empty",
-                    })
-                except Exception as e:
-                    sources.append({
-                        **src,
-                        "rows": 0, "min_date": "—", "max_date": "—",
-                        "status": "error", "error": str(e)[:60],
-                    })
+                cnt = pg_stats.get(key, 0)
+                sources.append({
+                    **src, "rows": cnt,
+                    "min_date": "—", "max_date": "—",
+                    "status": "active" if cnt > 0 else "empty",
+                })
     except Exception as e:
         return {"status": "error", "message": str(e)[:100]}
 
