@@ -14,8 +14,8 @@ SCHEDULES = {
 
 # ── 数据库路径 ──
 DB_PATH = os.environ.get("KRONOS_DB_PATH", os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))))), "Kronos", "webui", "stock_screening.db"))
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))), "Kronos", "webui", "stock_screening.db"))
 
 # ── Redis ──
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:7379/0")
