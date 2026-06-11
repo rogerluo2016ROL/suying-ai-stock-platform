@@ -794,7 +794,7 @@ async def data_status():
         # MIN/MAX with 2s timeout per table, using specific date column
         for key, col in _DATE_COL_MAP.items():
             try:
-                cur.execute(f"SET LOCAL statement_timeout = 2000")
+                cur.execute(f"SET LOCAL statement_timeout = 3000")
                 cur.execute(f"SELECT MIN({col}), MAX({col}) FROM {key}")
                 row = cur.fetchone()
                 if row and row[0] is not None:
