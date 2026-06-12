@@ -168,6 +168,7 @@ async def dashboard_summary():
         {"id": "chokepoint",      "name": "大葱卡脖子选股模型",       "cycle": "1-3月",  "style": "主题"},
         {"id": "cb_floor",       "name": "匪爷可转债底价选债模型",   "cycle": "1-4周",  "style": "稳健"},
         {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
+        {"id": "cb_auction",     "name": "秋神竞价概念选债模型",       "cycle": "1-2天",  "style": "竞价"},
     ]
 
     # ── 6. Watchlist (top 10 stocks by market cap) ──

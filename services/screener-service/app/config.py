@@ -27,4 +27,5 @@ AVAILABLE_MODES = [
     "chokepoint",         # 大葱卡脖子选股模型
     "cb_floor",           # 匪爷可转债底价选债模型
     "cb_intraday",        # 匪爷可转债日内投机博弈模型
+    "cb_auction",         # 秋神竞价概念选债模型
 ]

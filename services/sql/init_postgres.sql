@@ -598,3 +598,13 @@ CREATE TABLE IF NOT EXISTS cb_call (
 
 CREATE INDEX IF NOT EXISTS idx_cb_call_code ON cb_call(ts_code);
 CREATE INDEX IF NOT EXISTS idx_cb_call_date ON cb_call(call_date);
+
+CREATE TABLE IF NOT EXISTS cb_concept (
+    id SERIAL PRIMARY KEY,
+    ts_code TEXT NOT NULL REFERENCES cb_basic(ts_code),
+    concept TEXT NOT NULL,
+    bond_name TEXT,
+    UNIQUE(ts_code, concept)
+);
+CREATE INDEX IF NOT EXISTS idx_cb_concept_code ON cb_concept(ts_code);
+CREATE INDEX IF NOT EXISTS idx_cb_concept_name ON cb_concept(concept);

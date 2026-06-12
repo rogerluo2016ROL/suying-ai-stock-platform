@@ -247,15 +247,44 @@ class CbFloorEngine:
         except Exception:
             pass
 
-        # ── Pre-fetch: hot themes ──
-        hot_industries = set()
+        # ── Pre-fetch: cb_concept mapping (bulk to avoid N+1) ──
+        cb_concept_map = {}  # {ts_code: [concept1, concept2, ...]}
         try:
+            cur.execute("SELECT ts_code, concept FROM cb_concept")
+            for r in cur.fetchall():
+                cb_concept_map.setdefault(r[0], []).append(r[1])
+        except Exception:
+            pass
+
+        # ── Pre-fetch: hot concepts (from ths_daily + cb_concept) ──
+        hot_concepts = set()
+        try:
+            # Get top-performing ths_daily plates (concept-level)
+            cur.execute(
+                "SELECT name, AVG(pct_chg) as avg_pct FROM ths_daily "
+                "WHERE trade_date = %s AND pct_chg IS NOT NULL "
+                "GROUP BY name HAVING COUNT(*) >= 2 AND AVG(pct_chg) > 2 "
+                "ORDER BY avg_pct DESC LIMIT 20",
+                (trade_date,),
+            )
+            for r in cur.fetchall():
+                hot_concepts.add(r[0])
+            # Also add industry-level hot sectors mapped to concepts
             cur.execute(
                 "SELECT DISTINCT industry FROM ths_daily WHERE trade_date = %s "
                 "AND pct_chg > 2 ORDER BY pct_chg DESC LIMIT 15",
                 (trade_date,),
             )
-            hot_industries = {r[0] for r in cur.fetchall() if r[0]}
+            hot_industries_extra = {r[0] for r in cur.fetchall() if r[0]}
+            if hot_industries_extra:
+                for ind in hot_industries_extra:
+                    cur.execute(
+                        "SELECT DISTINCT cc.concept FROM cb_concept cc "
+                        "JOIN cb_basic cb ON cc.ts_code = cb.ts_code "
+                        "JOIN stocks s ON SPLIT_PART(cb.stk_code, '.', 1) = s.code "
+                        "WHERE s.industry = %s LIMIT 5", (ind,))
+                    for r2 in cur.fetchall():
+                        hot_concepts.add(r2[0])
         except Exception:
             pass
 
@@ -357,8 +386,10 @@ class CbFloorEngine:
                 # ── Factor 5: Recent downward revision (10%) ──
                 revision_score = self._score_recent_revision(ts_code, price_chg_map)
 
-                # ── Factor 6: Hot theme (5%) ──
-                theme_score = 80.0 if industry and industry in hot_industries else 40.0
+                # ── Factor 6: Hot concept (5%) ──
+                cb_concepts = set(cb_concept_map.get(ts_code, []))
+                concept_overlap = hot_concepts & cb_concepts
+                theme_score = 80.0 if concept_overlap else (60.0 if cb_concepts else 40.0)
 
                 # ── Factor 7: Downward revision history (5%) ──
                 history_score = self._score_revision_history(ts_code, price_chg_map)

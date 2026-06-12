@@ -23,6 +23,7 @@ async def list_modes():
             {"id": "chokepoint",      "name": "大葱卡脖子选股模型",       "cycle": "1-3月",  "style": "主题"},
             {"id": "cb_floor",       "name": "匪爷可转债底价选债模型",   "cycle": "1-4周",  "style": "稳健"},
             {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
+            {"id": "cb_auction",     "name": "秋神竞价概念选债模型",       "cycle": "1-2天",  "style": "竞价"},
         ]
     }
 
@@ -48,7 +49,7 @@ async def run_screening(
     try:
         if mode in ("leader_scalp", "leader_intraday", "leader_auction"):
             result = _run_leader_mode(mode, top_n, trade_date)
-        elif mode in ("cb_floor", "cb_intraday"):
+        elif mode in ("cb_floor", "cb_intraday", "cb_auction"):
             result = _run_cb_mode(mode, top_n, trade_date)
         else:
             result = _run_multifactor_mode(mode, top_n, trade_date)
@@ -110,14 +111,17 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
 
 
 def _run_cb_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run convertible bond screening (cb_floor / cb_intraday)."""
+    """Run convertible bond screening (cb_floor / cb_intraday / cb_auction)."""
     from kronos_factors.engine.cb_floor import CbFloorEngine
     from kronos_factors.engine.cb_intraday import CbIntradayEngine
+    from kronos_factors.engine.cb_auction import CbAuctionEngine
 
-    if mode == "cb_floor":
-        engine = CbFloorEngine()
-    else:
-        engine = CbIntradayEngine()
+    engine_map = {
+        "cb_floor": CbFloorEngine,
+        "cb_intraday": CbIntradayEngine,
+        "cb_auction": CbAuctionEngine,
+    }
+    engine = engine_map[mode]()
 
     picks = engine.run(trade_date=trade_date, top_n=top_n)
     engine.close()
