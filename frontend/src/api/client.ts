@@ -124,7 +124,29 @@ export const tradeApi = {
 // Backtest
 export const backtestApi = {
   getFactors: () => api.get('/backtest/factors'),
-  run: (mode = 'all', windows = 3) => api.post(`/backtest/run?mode=${mode}&windows=${windows}`),
+  run: (params: {
+    mode?: string
+    windows?: number
+    top_n?: number
+    forward_days?: number
+  } = {}) => {
+    const { mode = 'all', windows = 3, top_n = 30, forward_days = 60 } = params
+    const qs = new URLSearchParams({ mode, windows: String(windows), top_n: String(top_n), forward_days: String(forward_days) })
+    return api.post(`/backtest/run?${qs.toString()}`)
+  },
+  calibrate: (mode = 'all') => api.post(`/backtest/calibrate?mode=${mode}`),
+  compare: (params: {
+    strategy_ids?: string[]
+    start_date?: string
+    end_date?: string
+  } = {}) => {
+    const { strategy_ids = ['momentum', 'quality'], start_date, end_date } = params
+    const qs = new URLSearchParams()
+    strategy_ids.forEach(id => qs.append('strategy_ids', id))
+    if (start_date) qs.set('start_date', start_date)
+    if (end_date) qs.set('end_date', end_date)
+    return api.post(`/backtest/compare?${qs.toString()}`)
+  },
 }
 
 // Diagnosis

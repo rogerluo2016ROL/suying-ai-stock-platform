@@ -1558,32 +1558,9 @@ def sync_cb_basic(days_back: int = 0) -> dict:
     for _, r in df.iterrows():
         rows.append(tuple(_safe_val(c, r.get(c)) for c in cols))
 
-    # Use direct psycopg2 insert for reliable bulk write
-    import psycopg2, psycopg2.extras
-    pg_conn = psycopg2.connect(_PG_URL)
-    cur = pg_conn.cursor()
-    col_str = ", ".join(cols)
-    sql = f"INSERT INTO cb_basic({col_str}) VALUES %s ON CONFLICT (ts_code) DO NOTHING"
-    try:
-        psycopg2.extras.execute_values(cur, sql, rows, page_size=1000)
-        written = len(rows)  # execute_values rowcount is unreliable with page_size
-        pg_conn.commit()
-    except Exception as e:
-        pg_conn.rollback()
-        print(f"  cb_basic bulk insert failed: {e}, falling back row-by-row")
-        written = 0
-        for row in rows:
-            try:
-                placeholders = ", ".join(["%s"] * len(cols))
-                cur.execute(
-                    f"INSERT INTO cb_basic({col_str}) VALUES({placeholders}) "
-                    f"ON CONFLICT (ts_code) DO NOTHING",
-                    tuple(row))
-                written += cur.rowcount
-            except Exception:
-                pass
-        pg_conn.commit()
-    pg_conn.close()
+    written = _insert_rows(db, "cb_basic", cols, rows)
+
+    db.commit()
     db.close()
     print(f"  cb_basic: {len(rows)} fetched, {written} written")
     return {"status": "ok", "table": "cb_basic", "fetched": len(rows), "written": written}
@@ -1636,22 +1613,9 @@ def sync_cb_daily(days_back: int = 30) -> dict:
                 for c in cols
             ))
         total += len(rows)
-        # Direct psycopg2 for reliable bulk insert
-        try:
-            import psycopg2, psycopg2.extras
-            pg_conn = psycopg2.connect(_PG_URL)
-            cur2 = pg_conn.cursor()
-            col_str2 = ", ".join(cols)
-            psycopg2.extras.execute_values(
-                cur2,
-                f"INSERT INTO cb_daily({col_str2}) VALUES %s ON CONFLICT (ts_code, trade_date) DO NOTHING",
-                rows, page_size=1000)
-            written += len(rows)  # execute_values rowcount unreliable with page_size
-            pg_conn.commit()
-            pg_conn.close()
-        except Exception:
-            pass
+        written += _insert_rows(db, "cb_daily", cols, rows)
 
+    db.commit()
     db.close()
     print(f"  cb_daily: {total} fetched, {written} written ({len(dates)} dates)")
     return {"status": "ok", "table": "cb_daily", "fetched": total, "written": written}
@@ -1702,22 +1666,9 @@ def sync_cb_price_chg(days_back: int = 365) -> dict:
                 str(r.get("change_reason") or r.get("change_reason_desc") or "")[:200],
             ))
         total += len(rows)
-        # Direct psycopg2 for reliable bulk insert
-        try:
-            import psycopg2, psycopg2.extras
-            pg_conn = psycopg2.connect(_PG_URL)
-            cur2 = pg_conn.cursor()
-            col_str2 = ", ".join(cols)
-            psycopg2.extras.execute_values(
-                cur2,
-                f"INSERT INTO cb_price_chg({col_str2}) VALUES %s ON CONFLICT (ts_code, change_date) DO NOTHING",
-                rows, page_size=1000)
-            written += len(rows)  # execute_values rowcount unreliable with page_size
-            pg_conn.commit()
-            pg_conn.close()
-        except Exception:
-            pass
+        written += _insert_rows(db, "cb_price_chg", cols, rows)
 
+    db.commit()
     db.close()
     print(f"  cb_price_chg: {total} fetched, {written} written ({len(dates)} dates)")
     return {"status": "ok", "table": "cb_price_chg", "fetched": total, "written": written}
@@ -1753,28 +1704,9 @@ def sync_cb_call(days_back: int = 365) -> dict:
             for c in cols
         ))
 
-    # Direct psycopg2 insert
-    import psycopg2, psycopg2.extras
-    pg_conn = psycopg2.connect(_PG_URL)
-    cur = pg_conn.cursor()
-    col_str = ", ".join(cols)
-    sql = f"INSERT INTO cb_call({col_str}) VALUES %s ON CONFLICT (ts_code, ann_date, call_type) DO NOTHING"
-    try:
-        psycopg2.extras.execute_values(cur, sql, rows, page_size=1000)
-        written = len(rows)
-        pg_conn.commit()
-    except Exception:
-        pg_conn.rollback()
-        written = 0
-        for row in rows:
-            try:
-                placeholders = ", ".join(["%s"] * len(cols))
-                cur.execute(f"INSERT INTO cb_call({col_str}) VALUES({placeholders}) ON CONFLICT DO NOTHING", tuple(row))
-                written += cur.rowcount
-            except Exception:
-                pass
-        pg_conn.commit()
-    pg_conn.close()
+    written = _insert_rows(db, "cb_call", cols, rows)
+
+    db.commit()
     db.close()
     print(f"  cb_call: {len(rows)} fetched, {written} written")
     return {"status": "ok", "table": "cb_call", "fetched": len(rows), "written": written}
@@ -1821,21 +1753,9 @@ def sync_cb_factor(days_back: int = 30) -> dict:
             rows.append(tuple(row_vals))
 
         total += len(rows)
-        try:
-            import psycopg2, psycopg2.extras
-            pg_conn = psycopg2.connect(_PG_URL)
-            cur2 = pg_conn.cursor()
-            col_str = ", ".join(cols)
-            psycopg2.extras.execute_values(
-                cur2,
-                f"INSERT INTO cb_factor({col_str}) VALUES %s ON CONFLICT DO NOTHING",
-                rows, page_size=1000)
-            written += len(rows)
-            pg_conn.commit()
-            pg_conn.close()
-        except Exception:
-            pass
+        written += _insert_rows(db, "cb_factor", cols, rows)
 
+    db.commit()
     db.close()
     print(f"  cb_factor: {total} fetched, {written} written ({len(dates)} dates)")
     return {"status": "ok", "table": "cb_factor", "fetched": total, "written": written}

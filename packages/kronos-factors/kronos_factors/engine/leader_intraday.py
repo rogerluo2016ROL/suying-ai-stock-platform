@@ -25,20 +25,19 @@ _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 from kronos_factors.scorer._db_stub import _get_db
 
-# ── Intraday scoring weights (9因子 V5.2 复盘校准) ──
-# V5.2: 新增板块内涨幅排名 + 升级过热惩罚权重
-# 6/5回测: 赢家&输家 peer_count 均值相同(15 vs 16), 需要排名区分
+# ── Intraday scoring weights (9因子 V5.3 THS数据驱动) ──
+# V5.3: THS概念数据已同步, sector_momentum/resonance 升权
 INTRA_WEIGHTS = {
     "gain_quality": 20,              # 14:00涨幅质量
-    "afternoon_strength": 20,        # V5.1: 22→20, 让位给高潮检测
-    "intraday_leadership": 12,       # V5.0: 分时引领性 (板块内率先拉升)
-    "sector_leader": 14,             # V5.1: 12→14, 复盘验证板块最票最强
+    "afternoon_strength": 20,        # 午后强势度
+    "intraday_leadership": 12,       # 分时引领性
+    "sector_leader": 14,             # 板块龙头
+    "sector_momentum": 12,           # V5.3: 6→12, THS数据100%覆盖
     "turnover": 12,                  # 预估成交额
-    "ma_trend": 6,                   # V5.0: 均线趋势 2→6 (比例加分)
-    "volume_surge": 8,               # 集中放量 7→8
-    "sector_momentum": 6,            # V5.1: 8→6, 需搭配高潮检测使用
-    "resonance": 8,                  # V5.0: 板块共振 → 顺势因子 (双强最高)
-    "sector_climax_penalty": 12,     # V5.1 P0: 板块高潮次日惩罚 (减分项)
+    "resonance": 10,                 # V5.3: 8→10, 板块+大盘共振
+    "volume_surge": 8,               # 集中放量
+    "ma_trend": 6,                   # 均线趋势
+    "sector_climax_penalty": 12,     # P0: 板块高潮次日惩罚
 }
 
 # Full-day completion ratios for different time slots
