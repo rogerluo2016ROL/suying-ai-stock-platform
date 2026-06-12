@@ -75,6 +75,9 @@ class _PGAdapter:
         # Fix common SQLite→PG issues
         sql = sql.replace("datetime('now','localtime')", "NOW()")
         sql = sql.replace("strftime(", "TO_CHAR(")
+        # Kronos SQLite → PG column mapping
+        sql = re.sub(r'\bts_code\b', 'code', sql)  # stk_mins, stk_limit etc
+        sql = sql.replace("float_mv", "COALESCE(float_mv, market_cap)")
         return sql
 
     def get_kline(self, code: str, lookback: int = 400) -> Optional[pd.DataFrame]:
