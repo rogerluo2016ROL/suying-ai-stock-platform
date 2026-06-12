@@ -438,8 +438,9 @@ class CbFloorEngine:
                     "call_risk": call_risk,
                     "call_date": str(call_info.get("call_date")) if call_info.get("call_date") else None,
                     "call_price": round(call_info["call_price"], 2) if call_info.get("call_price") else None,
-                    "cb_momentum": round(sum(cb_changes[:5]) if cb_changes else 0, 2),
-                    "stock_momentum": round(sum(stk_changes[:3]) if stk_changes else 0, 2),
+                    "cb_momentum": round(float(pct_chg or 0), 2),
+                    "rsi_6": round(rsi_6, 1) if rsi_6 else None,
+                    "macd_val": round(macd_val, 3) if macd_val else None,
                     "total_score": round(total, 1),
                     "grade": grade,
                     "details": {
@@ -457,8 +458,6 @@ class CbFloorEngine:
                         "rsi_bonus": round(rsi_bonus, 1),
                         "macd_bonus": round(macd_bonus, 1),
                     },
-                    "rsi_6": round(rsi_6, 1) if rsi_6 else None,
-                    "macd_val": round(macd_val, 3) if macd_val else None,
                 })
 
             except Exception as e:
@@ -471,7 +470,7 @@ class CbFloorEngine:
 
         elapsed = time.time() - t0
         logger.info(
-            "CbFloorEngine V2: %d picks from %d CBs (%.1fs)",
+            "CbFloorEngine V3: %d picks from %d CBs (%.1fs)",
             len(picks), len(rows), elapsed,
         )
 
