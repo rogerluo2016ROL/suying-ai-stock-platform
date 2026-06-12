@@ -1,17 +1,25 @@
-"""匪爷可转债底价选债模型 — 11因子综合评分引擎.
+"""匪爷可转债底价选债模型 V2 — 12因子优化版.
 
-选债逻辑:
-  1. 到期收益率越高越好 (25%)
-  2. 债券评级 A级以上 (硬过滤)
-  3. 溢价率越低越好 (20%)
-  4. 正股财报标准无保留 (加分)
-  5. 近10日下修转股价优先 (15%)
-  6. 热门题材优先 (10%)
-  7. 下修历史优先 (10%)
-  8. 非国企控股优先 (5%)
-  9. 规模越小越好 (10%)
-  10. 到期剩余<3个月排除 (硬排除)
-  11. 股东质押率低 (5%)
+优化要点 (基于回测发现):
+  1. 过期收益率权重 25%→10% (削弱ST债偏好)
+  2. 溢价率权重 20%→30% + 折价额外加分
+  3. 评级从硬过滤改为软扣分
+  4. 新增 CB动量(15%) + 正股动量(10%) + 成交量(5%)
+  5. 剔除低效因子: 审计意见(0%)、下修权重下调
+
+因子权重 V2:
+  1. 溢价率越低越好 (30%)
+  2. CB近10日动量 (15%)
+  3. 到期收益率 (10%)
+  4. 正股近5日动量 (10%)
+  5. 近10日下修转股价优先 (10%)
+  6. 热门题材 (5%)
+  7. 下修历史 (5%)
+  8. 规模越小越好 (5%)
+  9. 非国企控股优先 (5%)
+  10. CB成交量活跃 (5%)
+  11. 评级软扣分 (-15 if 无/B级以下)
+  -  到期剩余<3个月排除 (硬排除)
 """
 
 import logging
@@ -23,7 +31,7 @@ logger = logging.getLogger("screener.cb_floor")
 
 
 class CbFloorEngine:
-    """匪爷可转债底价选债模型 — 11 维加权评分."""
+    """匪爷可转债底价选债模型 V2 — 12因子优化评分."""
 
     def __init__(self, pg_url: str = None):
         self.pg_url = pg_url or os.environ.get(
@@ -48,47 +56,67 @@ class CbFloorEngine:
     # ── Factor scoring helpers ──
 
     @staticmethod
-    def _rating_to_score(rating: str) -> float:
-        """Map credit rating to 0-100 score. A+ and above = full score."""
-        if not rating:
-            return 50.0
-        r = rating.upper().strip()
-        # AAA -> 100, AA+ -> 95, AA -> 90, AA- -> 85, A+ -> 80, A -> 75, A- -> 70
-        # BBB+ -> 60, BBB -> 50, BB -> 30, B -> 15, CCC/CC/C -> 5
-        base_map = {
-            "AAA": 100, "AAA-": 97,
-            "AA+": 95, "AA": 90, "AA-": 85,
-            "A+": 80, "A": 75, "A-": 70,
-            "BBB+": 65, "BBB": 60, "BBB-": 55,
-            "BB+": 45, "BB": 35, "BB-": 25,
-            "B+": 20, "B": 15, "B-": 10,
-            "CCC": 5, "CC": 3, "C": 1, "D": 0,
-        }
-        return base_map.get(r, 50.0)
-
-    @staticmethod
     def _premium_score(premium_rate: float) -> float:
-        """Lower premium = higher score. 0-100."""
+        """V2: 折价加分 + 溢价惩罚. 0-100."""
         if premium_rate is None:
             return 50.0
+        # Deep discount = full marks
+        if premium_rate <= -15:
+            return 100.0
+        if premium_rate <= -10:
+            return 97 + (premium_rate + 15) * 0.6
+        if premium_rate <= -5:
+            return 93 + (premium_rate + 10) * 0.8
         if premium_rate <= 0:
-            return 95.0
-        if premium_rate <= 5:
-            return 100 - premium_rate * 1.0
-        if premium_rate <= 20:
-            return 95 - (premium_rate - 5) * 1.33
+            return 85 + premium_rate * 1.6   # 0折价=85, -5折价=93
+        if premium_rate <= 10:
+            return 85 - premium_rate * 3.0    # 10%溢价→55
+        if premium_rate <= 25:
+            return 55 - (premium_rate - 10) * 2.0   # 25%→25
         if premium_rate <= 50:
-            return 75 - (premium_rate - 20) * 1.5
-        if premium_rate <= 100:
-            return 30 - (premium_rate - 50) * 0.4
-        return max(5.0, 10 - premium_rate * 0.05)
+            return 25 - (premium_rate - 25) * 0.8   # 50%→5
+        return max(5.0, 5 - (premium_rate - 50) * 0.1)
+
+    @staticmethod
+    def _momentum_score(pct_changes: list) -> float:
+        """V2: CB momentum score from recent daily returns. 0-100."""
+        if not pct_changes:
+            return 50.0
+        valid = [p for p in pct_changes if p is not None]
+        if not valid:
+            return 50.0
+        # Weighted: more recent = higher weight
+        weights = list(reversed(range(1, len(valid) + 1)))
+        weighted_sum = sum(w * v for w, v in zip(weights, valid))
+        total_weight = sum(weights)
+        avg = weighted_sum / total_weight if total_weight > 0 else 0
+        # -5% daily avg → 0, 0% → 50, +5% → 100
+        return min(100, max(0, 50 + avg * 10))
+
+    @staticmethod
+    def _volume_score(vol_amounts: list) -> float:
+        """V2: CB volume activity score. Higher volume = more liquid. 0-100."""
+        if not vol_amounts:
+            return 50.0
+        valid = [a for a in vol_amounts if a is not None and a > 0]
+        if not valid:
+            return 50.0
+        avg_amount = sum(valid) / len(valid) / 1e4  # avg daily amount in 万
+        # <10万 → 10, 100万 → 50, >1000万 → 100
+        if avg_amount >= 1000:
+            return 100.0
+        if avg_amount >= 100:
+            return 50 + (avg_amount - 100) / 900 * 50
+        if avg_amount >= 10:
+            return 10 + (avg_amount - 10) / 90 * 40
+        return max(5.0, avg_amount)
 
     @staticmethod
     def _size_score(remain_size: float) -> float:
         """Smaller size = higher score. 0-100."""
         if remain_size is None:
             return 50.0
-        size_yi = remain_size / 1e8  # convert to 亿
+        size_yi = remain_size / 1e8
         if size_yi <= 0.5:
             return 100.0
         if size_yi <= 1:
@@ -103,10 +131,24 @@ class CbFloorEngine:
             return 20 - (size_yi - 10) * 1
         return max(5.0, 10 - size_yi * 0.1)
 
+    @staticmethod
+    def _rating_penalty(rating: str) -> float:
+        """V2: Soft penalty for missing/low rating. Returns 0 to -15."""
+        if not rating:
+            return -10.0  # No rating = moderate penalty
+        r = rating.upper().strip()
+        if any(r.startswith(p) for p in ("AAA", "AA", "A")):
+            return 0.0   # A and above = no penalty
+        if r.startswith("BBB"):
+            return -5.0
+        if r.startswith("BB"):
+            return -10.0
+        return -15.0  # B or below
+
     # ── Main run ──
 
     def run(self, top_n: int = 20, trade_date: str = None, **kwargs) -> list[dict]:
-        """Execute convertible bond floor-price screening.
+        """Execute convertible bond floor-price screening V2.
 
         Args:
             top_n: max picks to return
@@ -126,19 +168,19 @@ class CbFloorEngine:
             if isinstance(trade_date, date):
                 trade_date = trade_date.strftime("%Y-%m-%d")
 
-        logger.info("CbFloorEngine: screening for %s, top_n=%d", trade_date, top_n)
+        logger.info("CbFloorEngine V2: screening for %s, top_n=%d", trade_date, top_n)
 
-        # ── Query: join cb_basic + latest cb_daily + stock info + stock kline ──
+        # ── Query: join cb_basic + cb_daily latest + stock kline + stock info ──
         query = """
         SELECT
             cb.ts_code, cb.bond_short_name, cb.stk_code, cb.stk_short_name,
             cb.maturity_date, cb.coupon_rate, cb.remain_size,
-            cb.newest_rating, cb.issue_rating, cb.par, cb.list_date,
-            cb.conv_price, cb.exchange, cb.cb_type, cb.rate_type,
-            d.close, d.cb_over_rate, d.bond_value, d.bond_over_rate,
-            d.pre_close, d.pct_chg, d.amount,
-            s.industry, s.market_cap,
-            sk.close AS stock_close
+            cb.newest_rating, cb.issue_rating, cb.par,
+            cb.conv_price, cb.list_date,
+            d.close, d.cb_over_rate, d.pct_chg, d.amount,
+            s.industry,
+            sk.close AS stock_close,
+            sk.change_pct AS stock_pct_chg
         FROM cb_basic cb
         LEFT JOIN cb_daily d ON cb.ts_code = d.ts_code AND d.trade_date = %s
         LEFT JOIN stocks s ON SPLIT_PART(cb.stk_code, '.', 1) = s.code
@@ -149,40 +191,46 @@ class CbFloorEngine:
         rows = cur.fetchall()
 
         if not rows:
-            logger.warning("CbFloorEngine: no CB data for %s", trade_date)
+            logger.warning("CbFloorEngine V2: no CB data for %s", trade_date)
             return []
 
-        # ── Pre-fetch: price change history for all CBs ──
-        cur.execute("""
-            SELECT ts_code, change_date, pre_price, new_price, change_reason
-            FROM cb_price_chg
-            ORDER BY ts_code, change_date DESC
-        """)
-        price_chg_rows = cur.fetchall()
-        price_chg_map = {}  # {ts_code: [(change_date, pre, new, reason), ...]}
-        for r in price_chg_rows:
+        # Build {ts_code: row} map
+        row_map = {}
+        for r in rows:
+            row_map[r[0]] = r
+
+        # ── Pre-fetch: CB daily history for momentum + volume ──
+        cb_daily_history = {}  # {ts_code: [(date, close, pct_chg, amount), ...]}
+        cur.execute(
+            "SELECT ts_code, trade_date, close, pct_chg, amount FROM cb_daily "
+            "WHERE trade_date <= %s AND trade_date >= %s::date - INTERVAL '15 days' "
+            "ORDER BY ts_code, trade_date DESC",
+            (trade_date, trade_date),
+        )
+        for r in cur.fetchall():
+            cb_daily_history.setdefault(r[0], []).append(r[1:])
+
+        # ── Pre-fetch: stock daily history for momentum ──
+        stock_daily_history = {}  # {code: [(date, close, change_pct), ...]}
+        cur.execute(
+            "SELECT code, trade_date, close, change_pct FROM daily_kline "
+            "WHERE trade_date <= %s AND trade_date >= %s::date - INTERVAL '10 days' "
+            "ORDER BY code, trade_date DESC",
+            (trade_date, trade_date),
+        )
+        for r in cur.fetchall():
+            stock_daily_history.setdefault(r[0], []).append(r[1:])
+
+        # ── Pre-fetch: price change history ──
+        cur.execute(
+            "SELECT ts_code, change_date, pre_price, new_price, change_reason "
+            "FROM cb_price_chg ORDER BY ts_code, change_date DESC"
+        )
+        price_chg_map = {}
+        for r in cur.fetchall():
             price_chg_map.setdefault(r[0], []).append(r)
 
-        # ── Pre-fetch: pledge detail for underlying stocks ──
-        stock_codes = list(set(r[2] for r in rows if r[2]))
-        pledge_map = {}
-        if stock_codes:
-            placeholders = ",".join(["%s"] * len(stock_codes))
-            try:
-                cur.execute(
-                    f"SELECT code, pledge_ratio FROM pledge_detail "
-                    f"WHERE code IN ({placeholders}) "
-                    f"ORDER BY code, trade_date DESC",
-                    stock_codes,
-                )
-                for r in cur.fetchall():
-                    if r[0] not in pledge_map:
-                        pledge_map[r[0]] = r[1]
-            except Exception:
-                pass  # pledge_detail may not have pledge_ratio column
-
-        # ── Pre-fetch: hot themes from ths_daily ──
-        today = date.today().strftime("%Y-%m-%d")
+        # ── Pre-fetch: hot themes ──
         hot_industries = set()
         try:
             cur.execute(
@@ -194,28 +242,25 @@ class CbFloorEngine:
         except Exception:
             pass
 
+        # ── Resolve stock codes without suffix ──
+        def _strip_code(ts_code: str) -> str:
+            return ts_code.split(".")[0] if ts_code and "." in ts_code else (ts_code or "")
+
         # ── Score each CB ──
         picks = []
         for r in rows:
             try:
                 (
-                    ts_code, name, stk_code, stk_name,
+                    ts_code, name, stk_code_ts, stk_name,
                     maturity_date_, coupon_rate, remain_size,
-                    newest_rating, issue_rating, par, list_date_,
-                    conv_price, exchange, cb_type, rate_type,
-                    close, cb_over_rate, bond_value, bond_over_rate,
-                    pre_close, pct_chg, amount,
-                    industry, market_cap,
-                    stock_close,
+                    newest_rating, issue_rating, par,
+                    conv_price, list_date_,
+                    close, cb_over_rate, pct_chg, amount,
+                    industry,
+                    stock_close, stock_pct_chg,
                 ) = r
 
-                # ── Hard filter: rating A- and above ──
-                rating = newest_rating or issue_rating or ""
-                if rating and not any(
-                    rating.upper().startswith(p)
-                    for p in ("AAA", "AA", "A")
-                ):
-                    continue
+                stk_code_raw = _strip_code(stk_code_ts or "")
 
                 # ── Hard exclude: maturity < 3 months ──
                 if maturity_date_:
@@ -227,72 +272,92 @@ class CbFloorEngine:
                     if days_left < 90:
                         continue
 
-                # ── Calculate premium rate if not available ──
+                # ── Calculate premium rate ──
                 if cb_over_rate is None and conv_price and stock_close and close and conv_price > 0 and stock_close > 0:
-                    # conv_value = (100 / conv_price) * stock_price
-                    # premium_rate = (cb_price / conv_value - 1) * 100
-                    conv_value = 100.0 / conv_price * stock_close
+                    conv_value = 100.0 / float(conv_price) * float(stock_close)
                     if conv_value > 0:
-                        cb_over_rate = (close / conv_value - 1) * 100
+                        cb_over_rate = (float(close) / conv_value - 1) * 100
 
-                # ── Factor 1: YTM score (25%) ──
-                ytm_score = self._score_ytm(
-                    close, coupon_rate, par, maturity_date_, rate_type
-                )
-
-                # ── Factor 2: Rating score (embedded in hard filter above, bonus here) ──
-                rating_score = self._rating_to_score(rating)
-
-                # ── Factor 3: Premium score (20%) ──
+                # ── Factor 1: Premium rate (30%) ──
                 premium_score = self._premium_score(cb_over_rate)
 
-                # ── Factor 4: Audit opinion (check financial_indicator) ──
-                audit_bonus = self._check_audit_opinion(cur, stk_code)
+                # ── Factor 2: CB Momentum (15%) ──
+                cb_hist = cb_daily_history.get(ts_code, [])
+                # cb_hist elements: (trade_date, close, pct_chg, amount) — indices (0,1,2,3)
+                # Compute daily returns from consecutive closes
+                cb_closes = [(h[0], h[1]) for h in cb_hist[:11] if h[1] is not None and h[1] > 0]
+                cb_changes = []
+                for i in range(min(len(cb_closes) - 1, 10)):
+                    prev_c = cb_closes[i + 1][1]
+                    cur_c = cb_closes[i][1]
+                    if prev_c and cur_c and prev_c > 0:
+                        cb_changes.append((cur_c / prev_c - 1) * 100)
+                momentum_score = self._momentum_score(cb_changes)
 
-                # ── Factor 5: Recent downward revision (15%) ──
-                revision_score = self._score_recent_revision(
-                    ts_code, price_chg_map, days=10
-                )
+                # ── Factor 3: YTM (10%) ──
+                ytm_score = self._score_ytm(close, coupon_rate, par, maturity_date_)
 
-                # ── Factor 6: Hot theme (10%) ──
+                # ── Factor 4: Stock Momentum (10%) ──
+                stk_hist = stock_daily_history.get(stk_code_raw, [])
+                # stk_hist elements: (trade_date, close, change_pct)  — indices (0, 1, 2)
+                # Compute daily returns from consecutive closes (change_pct often NULL)
+                stk_closes = [(h[0], h[1]) for h in stk_hist[:6] if h[1] is not None and h[1] > 0]
+                stk_changes = []
+                for i in range(len(stk_closes) - 1):
+                    prev_close = stk_closes[i + 1][1]
+                    cur_close = stk_closes[i][1]
+                    if prev_close and cur_close and prev_close > 0:
+                        stk_changes.append((cur_close / prev_close - 1) * 100)
+                # Fallback to DB change_pct if no computed changes
+                if not stk_changes:
+                    stk_changes = [h[2] for h in stk_hist[:5] if len(h) > 2 and h[2] is not None]
+                stock_momentum = self._momentum_score(stk_changes)
+
+                # ── Factor 5: Recent downward revision (10%) ──
+                revision_score = self._score_recent_revision(ts_code, price_chg_map)
+
+                # ── Factor 6: Hot theme (5%) ──
                 theme_score = 80.0 if industry and industry in hot_industries else 40.0
 
-                # ── Factor 7: Downward revision history (10%) ──
-                history_score = self._score_revision_history(
-                    ts_code, price_chg_map
-                )
+                # ── Factor 7: Downward revision history (5%) ──
+                history_score = self._score_revision_history(ts_code, price_chg_map)
 
-                # ── Factor 8: Non-SOE priority (5%) ──
-                soe_score = self._score_ownership(cur, stk_code)
-
-                # ── Factor 9: Size score (10%) ──
+                # ── Factor 8: Size (5%) ──
                 size_score = self._size_score(remain_size)
 
-                # ── Factor 10: maturity filter (handled above) ──
+                # ── Factor 9: Non-SOE (5%) ──
+                soe_score = self._score_ownership(cur, stk_code_raw)
 
-                # ── Factor 11: Pledge score (5%) ──
-                pledge_score = self._score_pledge(stk_code, pledge_map)
+                # ── Factor 10: Volume activity (5%) ──
+                # cb_hist elements: (trade_date, close, pct_chg, amount) — amount at index 3
+                cb_amounts = [h[3] for h in cb_hist[:5] if len(h) > 3 and h[3] is not None and h[3] > 0]
+                volume_score = self._volume_score(cb_amounts)
+
+                # ── Factor 11: Rating soft penalty ──
+                rating = newest_rating or issue_rating or ""
+                rating_penalty = self._rating_penalty(rating)
 
                 # ── Weighted total ──
                 total = (
-                    ytm_score * 0.25
-                    + rating_score * 0.05
-                    + premium_score * 0.20
-                    + audit_bonus * 0.05
-                    + revision_score * 0.15
-                    + theme_score * 0.10
+                    premium_score * 0.30
+                    + momentum_score * 0.15
+                    + ytm_score * 0.10
+                    + stock_momentum * 0.10
+                    + revision_score * 0.10
+                    + theme_score * 0.05
                     + history_score * 0.05
-                    + soe_score * 0.05
                     + size_score * 0.05
-                    + pledge_score * 0.05
+                    + soe_score * 0.05
+                    + volume_score * 0.05
+                    + rating_penalty
                 )
 
-                # Grade
-                if total >= 80:
+                # Grade (adjusted thresholds V2)
+                if total >= 75:
                     grade = "S"
-                elif total >= 65:
+                elif total >= 60:
                     grade = "A"
-                elif total >= 50:
+                elif total >= 45:
                     grade = "B"
                 else:
                     grade = "C"
@@ -300,7 +365,7 @@ class CbFloorEngine:
                 picks.append({
                     "code": ts_code,
                     "name": name or ts_code,
-                    "stk_code": stk_code,
+                    "stk_code": stk_code_raw,
                     "stk_name": stk_name,
                     "industry": industry,
                     "price": round(close, 2) if close else None,
@@ -308,19 +373,22 @@ class CbFloorEngine:
                     "remain_size_yi": round(remain_size / 1e8, 2) if remain_size else None,
                     "maturity_date": str(maturity_date_) if maturity_date_ else None,
                     "rating": rating,
+                    "cb_momentum": round(sum(cb_changes[:5]) if cb_changes else 0, 2),
+                    "stock_momentum": round(sum(stk_changes[:3]) if stk_changes else 0, 2),
                     "total_score": round(total, 1),
                     "grade": grade,
                     "details": {
-                        "ytm_score": round(ytm_score, 1),
-                        "rating_score": round(rating_score, 1),
                         "premium_score": round(premium_score, 1),
-                        "audit_bonus": round(audit_bonus, 1),
+                        "momentum_score": round(momentum_score, 1),
+                        "ytm_score": round(ytm_score, 1),
+                        "stock_momentum": round(stock_momentum, 1),
                         "revision_score": round(revision_score, 1),
                         "theme_score": round(theme_score, 1),
                         "history_score": round(history_score, 1),
-                        "soe_score": round(soe_score, 1),
                         "size_score": round(size_score, 1),
-                        "pledge_score": round(pledge_score, 1),
+                        "soe_score": round(soe_score, 1),
+                        "volume_score": round(volume_score, 1),
+                        "rating_penalty": round(rating_penalty, 1),
                     },
                 })
 
@@ -334,7 +402,7 @@ class CbFloorEngine:
 
         elapsed = time.time() - t0
         logger.info(
-            "CbFloorEngine: %d picks from %d CBs (%.1fs)",
+            "CbFloorEngine V2: %d picks from %d CBs (%.1fs)",
             len(picks), len(rows), elapsed,
         )
 
@@ -342,8 +410,8 @@ class CbFloorEngine:
 
     # ── Factor implementations ──
 
-    def _score_ytm(self, close, coupon_rate, par, maturity_date_, rate_type):
-        """Score yield-to-maturity. Higher YTM = higher score."""
+    def _score_ytm(self, close, coupon_rate, par, maturity_date_):
+        """Score yield-to-maturity. Higher YTM = higher score. V2: reduced impact."""
         if not close or close <= 0:
             return 30.0
         if not coupon_rate:
@@ -351,8 +419,7 @@ class CbFloorEngine:
         if not par:
             par = 100.0
 
-        # Simple YTM approximation: (coupon + (par - price) / years_left) / price
-        years_left = 3.0  # default
+        years_left = 3.0
         if maturity_date_:
             if isinstance(maturity_date_, str):
                 mat_dt = datetime.strptime(maturity_date_, "%Y-%m-%d").date()
@@ -364,7 +431,6 @@ class CbFloorEngine:
         capital_gain = (par - close) / years_left
         ytm = (annual_coupon + capital_gain) / close * 100
 
-        # Score: YTM ≥ 5% -> 100, ≥ 3% -> 80, ≥ 1% -> 60, ≥ 0% -> 40, <0% -> 10
         if ytm >= 8:
             return 100.0
         if ytm >= 5:
@@ -377,31 +443,6 @@ class CbFloorEngine:
             return 20 + ytm * 20
         return max(5.0, 20 + ytm * 2)
 
-    def _check_audit_opinion(self, cur, stk_code) -> float:
-        """Check if the underlying stock has clean audit opinion. Return bonus 0-100."""
-        if not stk_code:
-            return 50.0
-        try:
-            cur.execute(
-                "SELECT audit_opinion FROM financial_indicator "
-                "WHERE code = %s AND audit_opinion IS NOT NULL "
-                "ORDER BY end_date DESC LIMIT 1",
-                (stk_code,),
-            )
-            row = cur.fetchone()
-            if row and row[0]:
-                opinion = str(row[0]).strip()
-                if "标准无保留" in opinion or "无保留意见" in opinion:
-                    return 100.0
-                if "保留" in opinion:
-                    return 30.0
-                if "否定" in opinion or "无法表示" in opinion:
-                    return 0.0
-                return 60.0
-        except Exception:
-            pass
-        return 50.0
-
     def _score_recent_revision(self, ts_code, price_chg_map, days=10) -> float:
         """Score recent downward conversion price revision. 0-100."""
         changes = price_chg_map.get(ts_code, [])
@@ -409,26 +450,18 @@ class CbFloorEngine:
             return 30.0
 
         cutoff = date.today()
-        recent = False
-        has_downward = False
         for chg_date, pre_price, new_price, reason in changes:
             if isinstance(chg_date, str):
                 chg_date = datetime.strptime(chg_date, "%Y-%m-%d").date()
             if (cutoff - chg_date).days <= days and new_price and pre_price:
                 if new_price < pre_price:
-                    recent = True
-                    break
+                    return 100.0
 
-        if recent:
-            return 100.0
-
-        # Check if any downward revision at all
         for _, pre_price, new_price, reason in changes:
             if new_price and pre_price and new_price < pre_price:
-                has_downward = True
-                break
+                return 60.0
 
-        return 60.0 if has_downward else 30.0
+        return 30.0
 
     def _score_revision_history(self, ts_code, price_chg_map) -> float:
         """Score based on total number of downward revisions. 0-100."""
@@ -442,7 +475,7 @@ class CbFloorEngine:
                 downward_count += 1
                 reason_str = str(reason or "").lower()
                 if any(kw in reason_str for kw in ("下修", "修正", "向下")):
-                    downward_count += 1  # double count explicit 下修
+                    downward_count += 1
 
         if downward_count >= 3:
             return 100.0
@@ -464,34 +497,12 @@ class CbFloorEngine:
             row = cur.fetchone()
             if row and row[0]:
                 legal = str(row[0])
-                soe_keywords = ("国有", "央企", "地方国企", "国资委", "国资")
-                if any(kw in legal for kw in soe_keywords):
+                if any(kw in legal for kw in ("国有", "央企", "地方国企", "国资委", "国资")):
                     return 20.0
                 return 90.0
         except Exception:
             pass
 
-        # Fallback: check stock code prefix for SOE hints (6xx mostly state-owned)
         if stk_code.startswith("6"):
             return 40.0
         return 70.0
-
-    def _score_pledge(self, stk_code, pledge_map) -> float:
-        """Lower pledge ratio = higher score. 0-100."""
-        if not stk_code:
-            return 50.0
-        ratio = pledge_map.get(stk_code)
-        if ratio is None:
-            return 50.0
-        # ratio is typically 0-100%
-        if isinstance(ratio, (int, float)):
-            if ratio <= 5:
-                return 100.0
-            if ratio <= 15:
-                return 100 - ratio * 1.0
-            if ratio <= 30:
-                return 85 - (ratio - 15) * 2.0
-            if ratio <= 50:
-                return 55 - (ratio - 30) * 1.0
-            return max(5.0, 35 - (ratio - 50) * 0.5)
-        return 50.0
