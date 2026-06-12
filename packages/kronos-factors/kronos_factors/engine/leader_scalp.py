@@ -309,15 +309,27 @@ def get_moneyflow(db, code, trade_date):
     return row
 
 
-def get_sector_index(db, industry, trade_date):
-    """Get sector index performance (V5.2 fix: index_basic→index_daily).
+def get_sector_index(db, industry, trade_date, code=None):
+    """Get sector index performance (V5.3: THS概念优先 → index_basic fallback).
 
-    Original ths_daily (empty) / sw_daily (wrong column names) always returned None.
-    V5.2 uses index_basic.name keyword match → index_daily.change_pct.
+    V5.3: 通过 ths_member + ths_daily 获取股票所属概念实时涨跌幅.
     """
-    keyword = industry[-2:] if len(industry) >= 2 else industry
+    # 1. THS概念路径 (最完整, ≥1500概念每日)
+    if code:
+        row = db.execute(
+            "SELECT d.change_pct, i.name FROM ths_daily d "
+            "JOIN ths_member m ON m.ts_code = d.code "
+            "JOIN ths_index i ON m.ts_code = i.ts_code "
+            "WHERE m.con_code LIKE ? AND d.trade_date = ? "
+            "ORDER BY ABS(d.change_pct) DESC LIMIT 1",
+            (f"{code}%", trade_date)
+        ).fetchone()
+        if row and row["change_pct"] is not None:
+            return {"pct_change": float(row["change_pct"]), "amount": 0,
+                    "name": row["name"], "source": "ths"}
 
-    # 1. Try index_basic → index_daily (申万/中证指数, 最完整)
+    # 2. index_basic → index_daily fallback
+    keyword = industry[-2:] if len(industry) >= 2 else industry
     row = db.execute(
         "SELECT d.pct_chg, b.name FROM index_daily d "
         "JOIN index_basic b ON d.code=b.code "
@@ -328,28 +340,6 @@ def get_sector_index(db, industry, trade_date):
     if row and row["pct_chg"] is not None:
         return {"pct_change": float(row["pct_chg"]), "amount": 0,
                 "name": row["name"], "source": "index"}
-
-    # 2. Broad match with full industry name
-    row = db.execute(
-        "SELECT d.pct_chg, b.name FROM index_daily d "
-        "JOIN index_basic b ON d.code=b.code "
-        "WHERE b.name LIKE ? AND d.trade_date=? "
-        "ORDER BY ABS(d.pct_chg) DESC LIMIT 1",
-        (f"%{industry}%", trade_date)
-    ).fetchone()
-    if row and row["pct_chg"] is not None:
-        return {"pct_change": float(row["pct_chg"]), "amount": 0,
-                "name": row["name"], "source": "index"}
-
-    # 3. ths_daily fallback (if data becomes available)
-    td = trade_date.replace('-', '')
-    row = db.execute(
-        "SELECT pct_change, total_mv, name FROM ths_daily WHERE name LIKE ? AND trade_date=? LIMIT 1",
-        (f"%{industry}%", td)
-    ).fetchone()
-    if row and row["pct_change"] is not None:
-        return {"pct_change": float(row["pct_change"]), "amount": row["total_mv"] or 0,
-                "name": row["name"], "source": "ths"}
 
     return None
 
@@ -1069,7 +1059,7 @@ def score_stock(code, info, db, trade_date):
     # ═══════════════════════════════════════════════
     # 条件 5: 板块共振 (15分)
     # ═══════════════════════════════════════════════
-    sector_pct = get_sector_index(db, industry, trade_date)
+    sector_pct = get_sector_index(db, industry, trade_date, code)
     sh_pct = get_shanghai_index(db, trade_date)
 
     # ── F14: 板块支撑验证 (板块推演术核心) ──
