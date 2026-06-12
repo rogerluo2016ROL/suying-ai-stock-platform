@@ -63,37 +63,45 @@ def collect_rt_min(progress_callback=None) -> dict:
     batches = [codes[i:i + TUSHARE_BATCH_SIZE] for i in range(0, len(codes), TUSHARE_BATCH_SIZE)]
     total_written = 0
 
-    all_pg_rows = []  # 收集用于 PG 双写
+    all_rows_for_backup = []  # 收集用于 SQLite 备份写入
 
     with ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE) as pool:
         futures = {pool.submit(_fetch_batch, b): i for i, b in enumerate(batches)}
 
-        db = sqlite3.connect(DB_PATH)
+        # 🔥 Phase 3: PG 主写
+        pg_written = 0
         for f in as_completed(futures):
             rows = f.result()
             if rows:
-                db.executemany(
-                    "INSERT OR REPLACE INTO stk_mins(ts_code,trade_time,open,high,low,close,volume,amount,freq) "
-                    "VALUES(?,?,?,?,?,?,?,?,?)", rows)
+                try:
+                    from app.sync.pg_writer import write_stk_mins
+                    pg_written += write_stk_mins(rows)
+                except Exception:
+                    pass  # PG write failed → rows go to SQLite backup
                 total_written += len(rows)
-                all_pg_rows.extend(rows)
+                all_rows_for_backup.extend(rows)
             if progress_callback:
                 progress_callback(len(futures))
-        db.commit()
 
-        # 🔥 Phase 3: PG 双写
-        pg_written = 0
+        # SQLite 备份写入 (best-effort)
+        sqlite_written = 0
         try:
-            from app.sync.pg_writer import write_stk_mins
-            pg_written = write_stk_mins(all_pg_rows)
+            db = sqlite3.connect(DB_PATH)
+            if all_rows_for_backup:
+                db.executemany(
+                    "INSERT OR REPLACE INTO stk_mins(ts_code,trade_time,open,high,low,close,volume,amount,freq) "
+                    "VALUES(?,?,?,?,?,?,?,?,?)", all_rows_for_backup)
+                sqlite_written = len(all_rows_for_backup)
+                db.commit()
+            db.close()
         except Exception as e:
-            logger.debug("PG dual-write skipped: %s", e)
-
-        db.close()
+            logger.debug("SQLite backup write skipped: %s", e)
 
     elapsed = time.time() - t0
-    logger.info("rt_min: %s stocks, %s rows (PG: %s), %.1fs", len(codes), total_written, pg_written, elapsed)
-    return {"status": "ok", "stocks": len(codes), "written": total_written, "pg_written": pg_written, "elapsed": elapsed}
+    logger.info("rt_min Phase3: %s stocks, PG=%s rows, SQLite=%s rows, %.1fs",
+                len(codes), pg_written, sqlite_written, elapsed)
+    return {"status": "ok", "stocks": len(codes), "pg_written": pg_written,
+            "sqlite_written": sqlite_written, "elapsed": elapsed}
 
 
 def collect_auction_snapshot() -> dict:
