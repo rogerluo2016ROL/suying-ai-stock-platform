@@ -268,18 +268,62 @@ async def intraday_picks(date_param: str = Query(None, alias="date")):
 
 
 @router.post("/run-pipeline")
-async def trigger_pipeline():
-    """Trigger daily pipeline (non-blocking fire-and-forget)."""
-    script = os.path.join(TOOLS_DIR, "pipeline_daily.py")
-    if not os.path.exists(script):
-        return {"status": "error", "message": "pipeline_daily.py not found"}
+async def trigger_pipeline(
+    modes: str = Query("leader_auction,leader_scalp,short", description="策略列表"),
+    top_n: int = Query(20, ge=5, le=50),
+    auto_trade: bool = Query(False, description="是否自动提交模拟交易"),
+):
+    """V4.0 一键流水线 — 竞价选股 → 多策略融合 → 生成报告.
+
+    支持 engine 模式 (无 subprocess, 更快) 和 subprocess 回退.
+    """
+    target = date.today().strftime("%Y-%m-%d")
+    mode_list = [m.strip() for m in modes.split(",") if m.strip()]
 
     try:
-        subprocess.Popen(
-            ["python3", script, "--date", date.today().strftime("%Y-%m-%d")],
-            cwd=KRONOS_ROOT,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
-        return {"status": "started", "message": "流水线已触发, 请稍后刷新查看结果"}
+        from app.orchestrator import run_fusion_screening
+        result = await run_fusion_screening(mode_list, top_n=top_n, trade_date=target)
+
+        # Generate execution plans for consensus picks
+        plans = []
+        try:
+            from kronos_factors.engine import generate_execution_plan
+            consensus = result.get("consensus", [])
+            if consensus:
+                plans = generate_execution_plan(consensus)
+        except Exception:
+            pass
+
+        return {
+            "status": "completed",
+            "date": target,
+            "pipeline": "V4.0-engine",
+            "modes": mode_list,
+            "fusion": result,
+            "execution_plans": plans[:5] if plans else [],
+            "stats": result.get("fusion_stats", {}),
+        }
     except Exception as e:
+        # Fallback to subprocess
+        script = os.path.join(TOOLS_DIR, "pipeline_daily.py")
+        if os.path.exists(script):
+            subprocess.Popen(
+                ["python3", script, "--date", target],
+                cwd=KRONOS_ROOT,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            return {"status": "started-subprocess", "message": "引擎模式失败, 已回退 subprocess 流水线"}
         return {"status": "error", "message": str(e)}
+
+
+@router.get("/pipeline/status")
+async def pipeline_status():
+    """查询最近流水线输出."""
+    import glob
+    pattern = os.path.join(OUTPUTS_DIR, "orchestrator_*", "report.md")
+    files = sorted(glob.glob(pattern), reverse=True)
+    runs = []
+    for f in files[:5]:
+        d = os.path.basename(os.path.dirname(f))
+        runs.append({"run": d, "report": f, "size": os.path.getsize(f)})
+    return {"runs": runs, "latest": runs[0] if runs else None}
