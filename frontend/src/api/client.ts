@@ -118,7 +118,7 @@ export const tradeApi = {
   getAccount: () => api.get('/trade/account'),
   getPositions: () => api.get('/trade/positions'),
   placeOrder: (code: string, direction: string, volume: number, price = 0) =>
-    api.post(`/trade/order?code=${code}&direction=${direction}&volume=${volume}&price=${price}`),
+    api.post('/trade/order', { code, direction, volume, price }),
 }
 
 // Backtest

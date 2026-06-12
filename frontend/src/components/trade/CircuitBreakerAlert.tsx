@@ -5,21 +5,27 @@ import { useState } from 'react'
 const { Text } = Typography
 
 interface CircuitBreakerAlertProps {
-  triggered: boolean
-  lossAmount: number
-  threshold: number
-  message?: string
+  status: 'NORMAL' | 'TRIGGERED'
+  dailyLossPct: number
+  thresholdPct: number
+  dailyPnl: number
+  initialCapital: number
+  cooldownMinutes: number
+  triggeredAt: string | null
 }
 
 export default function CircuitBreakerAlert({
-  triggered,
-  lossAmount,
-  threshold,
-  message,
+  status,
+  dailyLossPct,
+  thresholdPct,
+  dailyPnl,
+  initialCapital,
+  cooldownMinutes,
+  triggeredAt,
 }: CircuitBreakerAlertProps) {
   const [dismissed, setDismissed] = useState(false)
 
-  if (!triggered || dismissed) return null
+  if (status !== 'TRIGGERED' || dismissed) return null
 
   return (
     <Alert
@@ -28,18 +34,25 @@ export default function CircuitBreakerAlert({
       showIcon
       message={
         <Space>
-          <Text strong style={{ color: '#ff4d4f' }}>日内熔断已触发</Text>
+          <Text strong style={{ color: '#ff4d4f' }}>日亏损熔断已触发</Text>
         </Space>
       }
       description={
         <div>
           <Text style={{ color: '#595959' }}>
-            今日亏损 ¥{lossAmount.toLocaleString()} 已超过熔断阈值 ¥{threshold.toLocaleString()}，实盘交易已暂停。
-            {message && ` ${message}`}
+            今日亏损 {dailyLossPct.toFixed(2)}%（¥{Math.abs(dailyPnl).toLocaleString()} / ¥{initialCapital.toLocaleString()}），
+            已超过熔断阈值 {thresholdPct}%，实盘交易已暂停。
           </Text>
+          {triggeredAt && (
+            <div style={{ marginTop: 4 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                触发时间：{new Date(triggeredAt).toLocaleString()}
+              </Text>
+            </div>
+          )}
           <div style={{ marginTop: 4 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              如需恢复，请联系管理员或等待次日自动重置。
+              冷却 {cooldownMinutes} 分钟后可联系管理员手动重置，或等待次日开盘自动恢复。
             </Text>
           </div>
         </div>

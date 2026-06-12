@@ -115,12 +115,24 @@ interface DiagnosisCompareResponse {
 
 // ── Data transformer: Backend DiagnosisReport → Frontend DiagnosisResult ──
 
+function transformHistoryItem(item: any): HistoryRecord {
+  return {
+    id: item.id,
+    code: item.code,
+    name: item.code,
+    score: item.overall_score ?? item.score ?? 0,
+    grade: item.grade ?? '',
+    grade_label: item.recommendation ?? item.grade_label ?? '',
+    created_at: item.created_at ?? '',
+  }
+}
+
 function transformDiagnosisReport(report: DiagnosisReport): DiagnosisResult {
   const dims = report.dimensions
   const tech = dims['technical'] || ({} as DimensionScore)
   const capital = dims['capital_flow'] || ({} as DimensionScore)
   const fund = dims['fundamental'] || ({} as DimensionScore)
-  const ai = dims['ai_prediction'] || ({} as DimensionScore)
+  const ai = dims['ai_predict'] || ({} as DimensionScore)
   const sent = dims['sentiment'] || ({} as DimensionScore)
 
   // Factor details from technical dimension factor_scores
@@ -781,9 +793,10 @@ export default function Diagnosis() {
       const res = await fetch('/api/v1/diagnosis/history')
       if (res.ok) {
         const data = await res.json()
-        setHistory(data.items || [])
-      } else {
-        // Mock history
+        const rawItems = data.items || []
+        setHistory(rawItems.map(transformHistoryItem))
+      } else if (import.meta.env.DEV) {
+        // Mock history (DEV only)
         const mockHistory: HistoryRecord[] = Array.from({ length: 8 }, (_, i) => {
           const codes = ['000001', '600519', '300750', '000858', '002594', '601318', '600036', '300059']
           const names = ['平安银行', '贵州茅台', '宁德时代', '五粮液', '比亚迪', '中国平安', '招商银行', '东方财富']
@@ -805,7 +818,11 @@ export default function Diagnosis() {
         setHistory(mockHistory)
       }
     } catch {
-      // Silent fail for history
+      if (import.meta.env.DEV) {
+        // Silent fail in dev — table stays empty
+      } else {
+        message.error('历史记录加载失败，请稍后重试')
+      }
     } finally {
       setHistoryLoading(false)
     }
@@ -823,11 +840,16 @@ export default function Diagnosis() {
       // Refresh history
       loadHistory()
     } catch {
-      // Fallback to mock data for demo
-      const mock = generateMockResult(stockCode)
-      setResult(mock)
-      setIsDemo(true)
-      message.warning('诊断完成 (演示数据 — DEMO DATA)')
+      if (import.meta.env.DEV) {
+        // Fallback to mock data for demo (DEV only)
+        const mock = generateMockResult(stockCode)
+        setResult(mock)
+        setIsDemo(true)
+        message.warning('诊断完成 (演示数据 — DEMO DATA)')
+      } else {
+        setError('诊断服务暂不可用，请稍后重试')
+        message.error('诊断失败，请检查网络连接后重试')
+      }
     } finally {
       setLoading(false)
     }
@@ -839,7 +861,12 @@ export default function Diagnosis() {
       const res = await diagnosisApi.analyze(stockCode)
       setHistoryDetail(transformDiagnosisReport(res.data))
     } catch {
-      setHistoryDetail(generateMockResult(stockCode))
+      if (import.meta.env.DEV) {
+        setHistoryDetail(generateMockResult(stockCode))
+      } else {
+        setHistoryDetail(null)
+        message.error('加载诊断详情失败')
+      }
     } finally {
       setHistoryDetailLoading(false)
     }
@@ -852,9 +879,14 @@ export default function Diagnosis() {
       const stocks: DiagnosisReport[] = res.data.stocks || []
       setCompareResults(stocks.map(transformDiagnosisReport))
     } catch {
-      // Fallback mock
-      setCompareResults(codes.map(c => generateMockResult(c)))
-      message.warning('对比结果 (演示数据 — DEMO DATA)')
+      if (import.meta.env.DEV) {
+        // Fallback mock (DEV only)
+        setCompareResults(codes.map(c => generateMockResult(c)))
+        message.warning('对比结果 (演示数据 — DEMO DATA)')
+      } else {
+        setCompareResults([])
+        message.error('对比功能暂不可用，请稍后重试')
+      }
     } finally {
       setCompareLoading(false)
     }

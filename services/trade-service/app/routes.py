@@ -7,7 +7,7 @@ New live-trading endpoints (per PRD AC-11.1~11.9):
   PUT  /api/v1/trade/mode            — switch paper/live
   POST /api/v1/trade/broker/connect  — connect to broker
   GET  /api/v1/trade/broker/status   — broker connection status
-  GET  /api/v1/trade/audit-log       — query audit trail
+  GET  /api/v1/trade/audit-logs      — query audit trail
   POST /api/v1/trade/circuit-breaker/reset  — manual reset
   GET  /api/v1/trade/circuit-breaker        — breaker status
 """
@@ -18,8 +18,8 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query, Depends
-from app.deps import require_auth
+from fastapi import APIRouter, HTTPException, Query, Depends, Body
+from kronos_auth import require_role
 
 from app.engine import get_engine
 from app.broker_interface import (
@@ -29,7 +29,8 @@ from app.broker_interface import (
     OrderType,
 )
 from app.risk_gateway import pre_check
-from app.circuit_breaker import check_daily_loss, reset, get_state
+from app.circuit_breaker import check_daily_loss, reset, get_state, can_trade, record_probe
+from app.schemas import PlaceOrderRequest
 
 logger = logging.getLogger("trade-service.routes")
 
@@ -120,33 +121,31 @@ class _PaperEngineAdapter:
 
 @router.post("/order")
 async def place_order(
-    code: str = Query(..., description="Stock code"),
-    direction: str = Query(..., description="BUY / SELL"),
-    price: float = Query(0, description="0 = market order"),
-    volume: int = Query(..., ge=100, description="Shares"),
-    trade_mode: str = Query("paper", description="paper | live"),
+    body: PlaceOrderRequest = Body(...),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Place a trading order — paper or live."""
-    if direction.upper() not in ("BUY", "SELL"):
+    if body.direction.upper() not in ("BUY", "SELL"):
         raise HTTPException(400, "direction must be BUY or SELL")
 
     order_req = OrderRequest(
-        symbol=code.upper(),
-        side=OrderSide(direction.upper()),
-        order_type=OrderType.LIMIT if price > 0 else OrderType.MARKET,
-        quantity=volume,
-        price=price,
+        symbol=body.code.upper(),
+        side=OrderSide(body.direction.upper()),
+        order_type=OrderType.LIMIT if body.price > 0 else OrderType.MARKET,
+        quantity=body.volume,
+        price=body.price,
     )
 
     # Determine broker
-    if trade_mode == "live" and _live_broker is not None:
+    if body.trade_mode == "live" and _live_broker is not None:
         broker = _live_broker
     else:
         broker = _PaperEngineAdapter(engine)
 
     # Risk check (only for live mode)
     risk_result = None
-    if trade_mode == "live":
+    is_probe = False
+    if body.trade_mode == "live":
         acct = await broker.get_account()
         positions = await broker.get_positions()
         risk_result = await pre_check(order_req, acct, positions)
@@ -160,29 +159,36 @@ async def place_order(
                 },
             )
 
-        # Circuit breaker check
+        # Circuit breaker check (supports HALF_OPEN probing)
         acct_id = _broker_config.get("account_id", "default")
-        breaker_status = await check_daily_loss(acct_id, daily_pnl=acct.daily_pnl)
-        if breaker_status.value == "TRIGGERED":
+        await check_daily_loss(acct_id, daily_pnl=acct.daily_pnl)
+        trade_allowed, block_reason = await can_trade(acct_id)
+        if not trade_allowed:
             raise HTTPException(
                 409,
                 detail={
-                    "detail": "交易已暂停（日亏损熔断触发）",
+                    "detail": f"交易已暂停: {block_reason}",
                     "error_code": "CIRCUIT_BREAKER_OPEN",
                 },
             )
+        is_probe = block_reason.startswith("HALF_OPEN")
 
     # Execute
     result = await broker.place_order(order_req)
 
+    # HALF_OPEN probing: record the result
+    if body.trade_mode == "live" and is_probe:
+        probe_success = result.status.value not in ("REJECTED", "FAILED")
+        await record_probe(acct_id, success=probe_success)
+
     # Audit log (best-effort)
     _audit_record_safe(
         action="PLACE_ORDER",
-        mode=trade_mode,
+        mode=body.trade_mode,
         details={
             "request": {
-                "code": code, "direction": direction, "price": price,
-                "volume": volume, "order_type": order_req.order_type.value,
+                "code": body.code, "direction": body.direction, "price": body.price,
+                "volume": body.volume, "order_type": order_req.order_type.value,
             },
             "result": {
                 "order_id": result.order_id,
@@ -193,7 +199,7 @@ async def place_order(
             },
             "risk_check": risk_result.to_dict() if risk_result else None,
         },
-        symbol=code,
+        symbol=body.code,
         order_id=result.order_id,
     )
 
@@ -211,13 +217,18 @@ async def place_order(
 
 
 @router.delete("/order/{order_id}")
-async def cancel_order(order_id: str):
+async def cancel_order(
+    order_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     ok = engine.cancel_order(order_id)
     return {"order_id": order_id, "status": "cancelled" if ok else "not_found"}
 
 
 @router.get("/orders")
-async def list_orders():
+async def list_orders(
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     return {"orders": [{"id": o.id, "code": o.code, "direction": o.direction,
             "price": o.filled_price, "volume": o.volume, "status": o.status,
             "created": o.created_at} for o in engine.get_orders()]}
@@ -227,6 +238,7 @@ async def list_orders():
 async def get_positions(
     trade_mode: str = Query("paper", description="paper | live"),
     sync: bool = Query(False, description="Sync from broker first"),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     if trade_mode == "live" and _live_broker is not None:
         if sync:
@@ -256,6 +268,7 @@ async def get_positions(
 async def get_account(
     trade_mode: str = Query("paper", description="paper | live"),
     sync: bool = Query(False, description="Sync from broker first"),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     if trade_mode == "live" and _live_broker is not None:
         if sync:
@@ -292,7 +305,9 @@ async def get_account(
 
 
 @router.get("/pnl")
-async def get_pnl():
+async def get_pnl(
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     acct = engine.get_account()
     orders = engine.get_orders()
     trades = [o for o in orders if o.status == "filled"]
@@ -308,7 +323,10 @@ async def get_pnl():
 # ═══════════════════════════════════════════════════════════════════════
 
 @router.put("/mode")
-async def switch_mode(mode: str = Query("paper", description="paper | live")):
+async def switch_mode(
+    mode: str = Query("paper", description="paper | live"),
+    user: dict = Depends(require_role("admin")),
+):
     """Switch global trading mode between paper and live."""
     global _current_mode
 
@@ -352,6 +370,7 @@ async def broker_connect(
     server_ip: str = Query("127.0.0.1"),
     server_port: int = Query(6001),
     trade_password: str = Query("", description="Trading password (encrypted)"),
+    user: dict = Depends(require_role("admin")),
 ):
     """Connect to the live broker (xtquant/QMT)."""
     global _live_broker, _broker_config, _broker_connected_at
@@ -409,7 +428,7 @@ async def broker_connect(
 
 
 @router.get("/broker/status")
-async def broker_status(user=Depends(require_auth)):
+async def broker_status(user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst"))):
     """Get current broker connection status."""
     connected = _live_broker is not None
     return {
@@ -433,7 +452,9 @@ async def broker_status(user=Depends(require_auth)):
 # ── Circuit Breaker routes ────────────────────────────────────────────
 
 @router.get("/circuit-breaker")
-async def get_circuit_breaker():
+async def get_circuit_breaker(
+    user: dict = Depends(require_role("admin", "internal_analyst")),
+):
     """Get current circuit breaker state."""
     acct_id = _broker_config.get("account_id", "default")
     state = await get_state(acct_id)
@@ -443,6 +464,7 @@ async def get_circuit_breaker():
 @router.post("/circuit-breaker/reset")
 async def reset_circuit_breaker(
     reason: str = Query("manual reset", description="Reset reason"),
+    user: dict = Depends(require_role("admin")),
 ):
     """Manually reset the circuit breaker."""
     acct_id = _broker_config.get("account_id", "default")
@@ -471,13 +493,14 @@ async def reset_circuit_breaker(
 
 # ── Audit Log routes ──────────────────────────────────────────────────
 
-@router.get("/audit-log")
-async def get_audit_log(
+@router.get("/audit-logs")
+async def get_audit_logs(
     action: str = Query(None, description="Filter by action type"),
     trade_mode: str = Query(None, description="paper | live"),
     code: str = Query(None, description="Stock code"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
+    user: dict = Depends(require_role("admin", "internal_analyst")),
 ):
     """Query the audit log (read-only)."""
     # In production this calls audit_log.query(db, ...).

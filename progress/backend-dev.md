@@ -99,6 +99,67 @@
 **质量门**: syntax ✅ / SIT ✅ (4 MV 全部 ok, composite_ranking 3 行数据)
 **下一步**: 全部完成，等待 code review
 
+## 后端重构完成度评估 — 2026-06-12 18:00
+**状态**: 评估完成
+**Skills**: N/A (只读审计，无代码变更)
+
+**SIT 证据**: 本次为审计评估，非功能实现，SIT 不适用。
+
+### 1. 微服务整体状态
+
+| 服务 | 端口 | 路由行数 | 单元测试 | 侧层厚度 | 综合评级 |
+|---|---|---|---|---|---|
+| screener-service | 8001 | 156 | 有 | adapters/cache/orchestrator | 成熟 |
+| signal-service | 8004 | 948 | 无 | adapters/signal_store | 成熟 |
+| strategy-service | 8003 | 535 | 无 | auto_trading_engine/executor/plan_store | 基础具备 |
+| trade-service | 8006 | 520 | 无 | broker_interface/risk_gateway/circuit_breaker/xtquant_broker | 基础具备 (4 TODO) |
+| backtest-service | 8007 | 302 | 有 | adapters | 基础具备 |
+| prediction-service | 8002 | 102 | 有 | onnx_optimizer | 成熟 |
+| alert-service | 8005 | 75 | 无 | alert_store | 骨架 |
+| diagnosis-service | 8009 | 686 | 无 | diagnosis_engine/schemas/deps | 成熟 |
+| training-service | 8008 | 920 | 无 | scheduler/mlflow_client/factor_calibration/training_engine | 成熟 |
+| data-service | N/A | 65 (main) | 无 | sync/scheduler | 完整 (PG-first 管线下) |
+| api-gateway | 8080 | 65 | 无 | 无 | 骨架 |
+
+### 2. ETL (kronos-data/kronos_data/etl.py) 重构状态
+
+- 30+ sync 函数覆盖行情/资金/基本面/机构/研究/可转债/实时数据全部类别
+- PG-first + SQLite fallback 写入模式 (`_Db` 统一封装)
+- 未提交变更 (+231 行): cb_basic/cb_daily/cb_price_chg 3 个可转债同步函数，但使用直接 psycopg2 而非 `_Db` 封装 — **写法不一致**
+- SYNC_MODES 注册了 37 种模式，覆盖完整
+
+### 3. 数据库 Schema 对齐 (init_postgres.sql vs migrate_data.py vs ETL)
+
+- init_postgres.sql: 51 张表 + 3 物化视图 + 索引完整
+- migrate_data.py TABLE_ORDER: 48 张表 — **缺** ths_daily, limit_list_d, stk_mins, rt_k, stk_auction_o (这些表在 init_postgres.sql 中已定义但未进迁移顺序)
+- migrate_data.py 未包含 cb_basic/cb_daily/cb_price_chg (未提交变更新增的表)
+- migrate_data.py 端口硬编码 5432 (CLAUDE.md 规定 6432)
+- ETL 写入的列名 (如 moneyflow 用 `code`) 与 PG Schema (如 moneyflow 用 `code`) 一致 — 但部分表如 daily_kline ETL 写 `ts_code` 而 PG 建的是 `code REFERENCES stocks(code)`
+
+### 4. Backend 认证系统 & API 网关
+
+- **认证系统**: 完整实现 JWT HS256 + Argon2id + 4 角色 RBAC + httpOnly Refresh Cookie + Token 轮换 (family revocation 防重放)
+- **Alembic 迁移**: 5 个文件 (001-auth, 002-audit, 003-training, 004-diagnosis, 005-legacy)，均可逆
+- **API 网关**: 骨架级 httpx 反向代理 + 内存限流，缺少 JWT 验证中间件 (auth 在 backend:9001 做而非 gateway)
+- **端口不一致**: CLAUDE.md 声明端口 8080，实际代码监听 8000
+- **依赖不一致**: Gateway 使用 httpx，CLAUDE.md 要求 urllib
+
+### 5. 风险与差距汇总
+
+| 严重度 | 描述 | 影响面 |
+|---|---|---|
+| P0 | migrate_data.py 端口错误 (5432→6432) + 缺 5 张新表 | 迁移工具不可用 |
+| P1 | ETL 新增 CB 函数未使用 `_Db` 封装，直接 psycopg2 — 写法不一致 | 维护性 |
+| P1 | Gateway 端口 8000 vs CLAUDE.md 8080 | 文档不一致 |
+| P2 | Gateway 使用 httpx 而非 urllib | 与 CLAUDE.md 标准冲突 |
+| P2 | trade-service 4 个 Xtquant TODO stub — 实盘交易未接通 | 实盘功能不完整 |
+| P2 | 5/10 服务无 unit test | 测试覆盖率不足 |
+| P3 | alert-service 仅 75 行骨架 | 预警功能待开发 |
+| P3 | init_postgres.sql 列名 daily_kline ETL 写 ts_code 而 PG 定义 code REFERENCES | 外键可能约束失败 |
+
+**质量门**: 只读审计，无代码变更。
+**下一步**: 由 product-lead 根据差距汇总排优先级分派修复任务。
+
 ## Code Review 修复 — Finding #1 (写入顺序) + #3 (status 解析) - 2026-06-12 17:00
 **状态**: 已完成
 **Skills**: superpowers:verification-before-completion

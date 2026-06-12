@@ -1,0 +1,6 @@
+PyJWT>=2.8
+fastapi>=0.100
+
+[dev]
+pytest>=7.0
+pytest-asyncio>=0.21

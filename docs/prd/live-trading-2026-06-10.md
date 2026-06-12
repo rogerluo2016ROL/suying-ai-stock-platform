@@ -44,6 +44,9 @@ CREATE TABLE audit_logs (
 ```
 
 ## Open Questions
-1. xtquant 需本地运行客户端，Docker 部署方案？
-2. 券商断线后持仓如何处理？
-3. 实盘是否需要独立交易密码（非登录密码）？
+
+| ID | 问题 | Owner | 状态 | 决议/方向 |
+|----|------|-------|------|----------|
+| OQ-1 | xtquant 需本地运行客户端，Docker 部署方案？ | tech-lead | Open | 方向：trade-service 容器挂载 xtquant SDK volume + host network mode；备选：独立 xtquant-gateway 宿主机进程通过 localhost socket 通信。待 tech-lead 出 ADR-002 补充决议 |
+| OQ-2 | 券商断线后持仓如何处理？ | tech-lead | Open | 方向：CircuitBreaker 触发 HALF_OPEN 后保留本地持仓缓存（`positions_snapshot`），恢复连接后调用 `sync_positions()` 与券商对账。`get_positions()` 返回缓存 + `stale: true` 标记。待 tech-lead 在 ADR-002 或独立 ADR 落盘 |
+| OQ-3 | 实盘是否需要独立交易密码（非登录密码）？ | product-lead | Resolved | **不需要**。理由：(a) 已有多因子认证（JWT + httpOnly Cookie + Argon2id），加交易密码增加摩擦但不增加实质安全（XSS/CSRF 已防）；(b) 大额确认弹窗（AC-11.4）已提供操作级二次确认。若合规要求升级可在 Phase B 加 TOTP |

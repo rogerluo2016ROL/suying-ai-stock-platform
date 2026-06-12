@@ -56,7 +56,7 @@ class ExecutorState:
 
     def __init__(self, strategy: StrategyConfig):
         self.strategy_id = strategy.id
-        self.status: str = "idle"  # idle / running / paused / stopped
+        self.status: str = "stopped"  # stopped / running / paused
         self.started_at: str | None = None
         self.stopped_at: str | None = None
         self.last_check_at: str | None = None
@@ -122,8 +122,14 @@ class ExecutorManager:
 
         with self._lock:
             existing = self._executors.get(strategy_id)
-            if existing and existing.status in ("running", "paused"):
-                raise ValueError(f"策略已在执行中 (status={existing.status})，使用 resume 恢复或 stop 终止后重新 start")
+            if existing:
+                if existing.status == "running":
+                    raise ValueError(f"策略已在执行中 (status=running)，请先 stop 再 start")
+                if existing.status == "paused":
+                    raise ValueError(f"策略已暂停 (status=paused)，请使用 resume 恢复，不要重复 start")
+                if existing.status == "stopped":
+                    # Allowed: stopped → start (clean restart)
+                    pass
 
             state = ExecutorState(strategy)
             state.status = "running"
@@ -263,7 +269,7 @@ async def _run_one_check(state: ExecutorState, strategy: StrategyConfig) -> None
 
     # Check daily loss limit first
     daily_pnl = account.get("daily_pnl", 0)
-    daily_loss_pct = abs(daily_pnl) / strategy.capital if daily_pnl < 0 else 0
+    daily_loss_pct = abs(daily_pnl) / strategy.capital if daily_pnl < 0 and strategy.capital > 0 else 0
     if daily_loss_pct >= strategy.risk_rules.daily_max_loss_pct:
         state.add_log(
             "WARN",

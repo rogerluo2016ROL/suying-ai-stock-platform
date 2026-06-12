@@ -117,25 +117,45 @@ class XtquantBroker(BrokerInterface):
     # ── BrokerInterface implementation ────────────────────────────────
 
     async def place_order(self, order: OrderRequest) -> OrderResult:
-        if _XTQUANT_AVAILABLE and self._trader is not None:
+        if _XTQUANT_AVAILABLE:
+            if self._trader is None:
+                raise RuntimeError(
+                    "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub（防止虚假成交）。"
+                    "请先调用 connect() 连接券商。"
+                )
             # TODO: wire to xtquant.xttrader.order_stock(...)
             logger.info("xtquant place_order not yet wired — falling back to stub")
         return self._place_order_stub(order)
 
     async def cancel_order(self, order_id: str) -> CancelResult:
-        if _XTQUANT_AVAILABLE and self._trader is not None:
+        if _XTQUANT_AVAILABLE:
+            if self._trader is None:
+                raise RuntimeError(
+                    "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
+                    "请先调用 connect() 连接券商。"
+                )
             # TODO: wire to xtquant.xttrader.cancel_order_stock(...)
             logger.info("xtquant cancel_order not yet wired — falling back to stub")
         return self._cancel_order_stub(order_id)
 
     async def get_positions(self) -> list[Position]:
-        if _XTQUANT_AVAILABLE and self._trader is not None:
+        if _XTQUANT_AVAILABLE:
+            if self._trader is None:
+                raise RuntimeError(
+                    "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
+                    "请先调用 connect() 连接券商。"
+                )
             # TODO: wire to xtquant.xttrader.query_stock_positions(...)
             logger.info("xtquant query_positions not yet wired — falling back to stub")
         return list(self._stub_positions.values())
 
     async def get_account(self) -> AccountInfo:
-        if _XTQUANT_AVAILABLE and self._trader is not None:
+        if _XTQUANT_AVAILABLE:
+            if self._trader is None:
+                raise RuntimeError(
+                    "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
+                    "请先调用 connect() 连接券商。"
+                )
             # TODO: wire to xtquant.xttrader.query_stock_asset(...)
             logger.info("xtquant query_account not yet wired — falling back to stub")
         return self._stub_account

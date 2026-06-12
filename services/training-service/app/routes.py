@@ -33,6 +33,7 @@ from app.database import get_db
 from app.deps import require_role
 from app.mlflow_client import get_mlflow_client, get_production_model, set_production_model
 from app.schemas import (
+    ArchiveRequest,
     CalibrateRequest,
     CalibrateResponse,
     CompareResult,
@@ -59,6 +60,10 @@ from app.schemas import (
     TrainResponse,
 )
 from app.training_engine import (
+    _job_lock,
+    _jobs,
+    _publish_progress,
+    _save_job,
     check_active_job,
     get_job,
     list_jobs,
@@ -215,6 +220,55 @@ async def _sse_status_stream(job_id: str):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2b. POST /api/v1/training/status/{job_id}/cancel — Cancel training job
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.post("/status/{job_id}/cancel")
+async def api_cancel_job(
+    job_id: str,
+    current_user: dict = Depends(require_role("admin")),
+):
+    """Cancel a running training job (PENDING/PREPARING/RUNNING/EVALUATING).
+
+    Sets the job status to CANCELLED, persists, and publishes to Redis.
+    """
+    job = None
+    with _job_lock:
+        job = _jobs.get(job_id)
+
+    if not job:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "job_not_found", "message": f"Job {job_id} not found"},
+        )
+
+    cancellable = {JobStatus.PENDING, JobStatus.PREPARING, JobStatus.RUNNING, JobStatus.EVALUATING}
+    if job.status not in cancellable:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "cannot_cancel",
+                "message": "只能取消进行中的任务 (status={})".format(job.status.value),
+            },
+        )
+
+    job.status = JobStatus.CANCELLED
+    job.completed_at = datetime.now(timezone.utc)
+    await _save_job(job)
+    await _publish_progress(job_id, "cancelled", {
+        "job_id": job_id,
+        "status": "cancelled",
+        "message": "任务已取消",
+    })
+
+    return {
+        "job_id": job_id,
+        "status": "cancelled",
+        "message": "任务已取消",
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -562,6 +616,68 @@ async def api_rollback_model(
         reason=body.reason,
         message=f"已回滚到 {model_name} v{body.target_version}",
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6b. POST /api/v1/training/models/{id}/archive — Archive model
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.post("/models/{model_id}/archive")
+async def api_archive_model(
+    model_id: str,
+    body: ArchiveRequest,
+    current_user: dict = Depends(require_role("admin")),
+):
+    """Archive a model (set stage to 'archived' with reason notes).
+
+    Used when A/B comparison shows the new model is worse than the
+    production model — the new staging model is archived and the
+    old production model is kept.
+    """
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                sa_text("SELECT * FROM model_registry WHERE id = :id"),
+                {"id": model_id},
+            )
+            row = result.fetchone()
+            if not row:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"error": "model_not_found", "message": f"Model {model_id} not found"},
+                )
+            d = dict(row._mapping)
+
+            # Only archive staging models (production should use rollback)
+            if d["stage"] == "production":
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "cannot_archive",
+                        "message": "线上模型不支持直接归档，请使用回滚功能",
+                    },
+                )
+
+            await db.execute(
+                sa_text(
+                    "UPDATE model_registry SET stage = 'archived', "
+                    "updated_at = NOW(), notes = :reason WHERE id = :id"
+                ),
+                {"id": model_id, "reason": body.reason},
+            )
+            await db.commit()
+
+        return {
+            "model_id": model_id,
+            "stage": "archived",
+            "reason": body.reason,
+            "message": f"模型 {d['name']} v{d['version']} 已归档",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to archive model")
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -148,6 +148,23 @@ def write_limit_list_d(rows: list[tuple]) -> int:
                      ["code", "trade_date"], mapped)
 
 
+def write_ths_daily(rows: list[tuple]) -> int:
+    """写入 ths_daily (swap trade_date/ts_code, convert date to ISO)."""
+    if not rows:
+        return 0
+    mapped = []
+    for r in rows:
+        # Tushare 顺序: (trade_date, ts_code, name, close, pct_change, avg_price, total_mv, float_mv)
+        ts_code = str(r[1])
+        trade_date_str = str(r[0])
+        trade_date = (f"{trade_date_str[:4]}-{trade_date_str[4:6]}-{trade_date_str[6:8]}"
+                      if len(trade_date_str) == 8 else trade_date_str)
+        mapped.append((ts_code, trade_date, str(r[2]), r[3], r[4], r[5], r[6], r[7]))
+    return _pg_write("ths_daily",
+                     ["ts_code", "trade_date", "name", "close", "pct_change", "avg_price", "total_mv", "float_mv"],
+                     ["ts_code", "trade_date"], mapped)
+
+
 # ── 物化视图刷新 ──
 
 def refresh_materialized_views() -> dict:

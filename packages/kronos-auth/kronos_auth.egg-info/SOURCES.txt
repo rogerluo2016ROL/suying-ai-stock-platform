@@ -1,0 +1,11 @@
+pyproject.toml
+kronos_auth/__init__.py
+kronos_auth/config.py
+kronos_auth/deps.py
+kronos_auth/exceptions.py
+kronos_auth.egg-info/PKG-INFO
+kronos_auth.egg-info/SOURCES.txt
+kronos_auth.egg-info/dependency_links.txt
+kronos_auth.egg-info/requires.txt
+kronos_auth.egg-info/top_level.txt
+tests/test_deps.py

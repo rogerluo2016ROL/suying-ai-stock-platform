@@ -12,19 +12,27 @@ export interface RiskConfig {
 }
 
 export interface CircuitBreakerState {
-  triggered: boolean
-  loss_amount: number
-  threshold: number
-  message?: string
+  account_id: string
+  status: 'NORMAL' | 'TRIGGERED'
+  triggered_at: string | null
+  daily_pnl: number
+  initial_capital: number
+  daily_loss_pct: number
+  threshold_pct: number
+  cooldown_minutes: number
+  can_trade: boolean
+  date: string
 }
 
 export interface PreCheckResult {
   passed: boolean
+  requires_confirmation?: boolean
+  confirm_reason?: string
   checks: Array<{
-    name: string
-    passed: boolean
+    rule: string
+    level: string  // 'pass' | 'warn' | 'reject'
     message: string
-    block: boolean  // true = blocking, false = warning only
+    detail?: Record<string, any>
   }>
 }
 
@@ -79,8 +87,8 @@ export function useLiveTrade(): UseLiveTradeReturn {
     liveTradeApi.getRiskConfig()
       .then(r => setRiskConfig(r.data))
       .catch(() => {
-        // Default risk config if API unavailable
-        setRiskConfig({ large_order_threshold: 500000 })
+        // No fallback — threshold only from backend to avoid config inconsistency
+        setRiskConfig(null)
       })
   }, [])
 
@@ -117,7 +125,10 @@ export function useLiveTrade(): UseLiveTradeReturn {
 
     const pollBreaker = () => {
       liveTradeApi.getCircuitBreakerStatus()
-        .then(r => setCircuitBreaker(r.data))
+        .then(r => {
+          const breakers = r.data?.breakers || []
+          setCircuitBreaker(breakers[0] || null)
+        })
         .catch(() => setCircuitBreaker(null))
     }
 
@@ -160,8 +171,8 @@ export function useLiveTrade(): UseLiveTradeReturn {
           return { success: false, error: '风控检查未通过' }
         }
 
-        // Show non-blocking warnings
-        const warnings = preCheck.checks?.filter(c => !c.passed && !c.block) || []
+        // Show non-blocking warnings (level === 'warn')
+        const warnings = preCheck.checks?.filter(c => c.level === 'warn') || []
         warnings.forEach(w => {
           message.warning(w.message)
         })
@@ -172,13 +183,14 @@ export function useLiveTrade(): UseLiveTradeReturn {
       }
     }
 
-    // Step 2: Large order check (live mode only)
-    if (mode === 'live' && riskConfig) {
+    // Step 2: Large order check (live mode only, only when backend config loaded)
+    const largeOrderThreshold = riskConfig?.large_order_threshold
+    if (mode === 'live' && largeOrderThreshold != null) {
       const estimatedAmount = params.price > 0
         ? params.price * params.volume
         : 0 // Market order - cannot estimate, always confirm
 
-      if (estimatedAmount === 0 || estimatedAmount >= riskConfig.large_order_threshold) {
+      if (estimatedAmount === 0 || estimatedAmount >= largeOrderThreshold) {
         const confirmed = await callbacks.onLargeOrderConfirm?.(params)
         if (!confirmed) {
           return { success: false, error: '用户取消大额交易' }
@@ -189,10 +201,16 @@ export function useLiveTrade(): UseLiveTradeReturn {
     // Step 3: Submit order
     try {
       if (mode === 'paper') {
-        const r = await fetch(
-          `/api/v1/trade/order?code=${encodeURIComponent(params.code)}&direction=${params.direction}&price=${params.price}&volume=${params.volume}`,
-          { method: 'POST' },
-        )
+        const r = await fetch(`${apiPrefix}/order`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: params.code,
+            direction: params.direction,
+            price: params.price,
+            volume: params.volume,
+          }),
+        })
         const data = await r.json()
         if (r.ok) {
           message.success(data.message || '下单成功')

@@ -13,8 +13,8 @@ interface RiskCheckModalProps {
 export default function RiskCheckModal({ open, result, onClose }: RiskCheckModalProps) {
   if (!result) return null
 
-  const blockingChecks = result.checks?.filter(c => !c.passed && c.block) || []
-  const warningChecks = result.checks?.filter(c => !c.passed && !c.block) || []
+  const blockingChecks = result.checks?.filter(c => c.level === 'reject') || []
+  const warningChecks = result.checks?.filter(c => c.level === 'warn') || []
 
   return (
     <Modal
@@ -54,7 +54,7 @@ export default function RiskCheckModal({ open, result, onClose }: RiskCheckModal
                 }}
               >
                 <div>
-                  <Tag color="red">{check.name}</Tag>
+                  <Tag color="red">{check.rule}</Tag>
                 </div>
                 <Text style={{ fontSize: 13, color: '#595959' }}>{check.message}</Text>
               </div>
@@ -67,7 +67,7 @@ export default function RiskCheckModal({ open, result, onClose }: RiskCheckModal
         <div>
           <Text strong style={{ color: '#faad14' }}>
             <WarningOutlined style={{ marginRight: 4 }} />
-            风险提示（不阻止下单，仅供参考）
+            风险提示（需确认后方可下单）
           </Text>
           <div style={{ marginTop: 8 }}>
             {warningChecks.map((check, idx) => (
@@ -82,7 +82,7 @@ export default function RiskCheckModal({ open, result, onClose }: RiskCheckModal
                 }}
               >
                 <div>
-                  <Tag color="orange">{check.name}</Tag>
+                  <Tag color="orange">{check.rule}</Tag>
                 </div>
                 <Text style={{ fontSize: 13, color: '#595959' }}>{check.message}</Text>
               </div>
@@ -103,20 +103,7 @@ export default function RiskCheckModal({ open, result, onClose }: RiskCheckModal
   )
 }
 
-// Helper to format risk check messages
-export function formatRiskErrorMessage(checkName: string, message: string): string {
-  const nameMap: Record<string, string> = {
-    insufficient_funds: '资金不足',
-    position_limit: '超持仓上限',
-    price_limit: '涨跌停限制',
-    max_single_amount: '超单笔上限',
-    circuit_breaker: '熔断保护',
-    daily_loss_limit: '日亏损超限',
-    blacklist: '黑名单限制',
-    frequency_limit: '交易频率限制',
-    price_deviation: '价格偏离过大',
-  }
-
-  const displayName = nameMap[checkName] || checkName
-  return `风控拦截：${displayName}，${message}`
+// Helper to format risk check messages (backend returns Chinese rule names)
+export function formatRiskErrorMessage(rule: string, message: string): string {
+  return `风控拦截：${rule}，${message}`
 }

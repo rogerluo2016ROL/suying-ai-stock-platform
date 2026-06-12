@@ -2,7 +2,8 @@
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Body, Query, HTTPException
+from fastapi import APIRouter, Body, Query, HTTPException, Depends
+from kronos_auth import require_role
 from pydantic import BaseModel, Field
 
 from app.plan_store import get_store
@@ -24,6 +25,7 @@ async def create_plan(
     capital: float = Query(1_000_000, ge=100_000),
     max_positions: int = Query(5, ge=1, le=20),
     single_max_pct: float = Query(0.2, ge=0.05, le=0.5),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Create a new draft plan."""
     plan = store.create(name=name, picks=[], model_name=model_name,
@@ -41,7 +43,11 @@ async def create_plan(
 
 
 @router.post("/plans/{plan_id}/picks")
-async def add_picks(plan_id: str, picks: list[dict]):
+async def add_picks(
+    plan_id: str,
+    picks: list[dict],
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     """Add screening picks to a plan."""
     plan = store.get(plan_id)
     if not plan: raise HTTPException(404, "方案不存在")
@@ -51,7 +57,9 @@ async def add_picks(plan_id: str, picks: list[dict]):
 
 
 @router.get("/plans")
-async def list_plans():
+async def list_plans(
+    user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
+):
     """List all plans."""
     plans = store.list_all()
     return {
@@ -65,7 +73,10 @@ async def list_plans():
 
 
 @router.get("/plans/{plan_id}")
-async def get_plan(plan_id: str):
+async def get_plan(
+    plan_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
+):
     """Get plan detail with picks."""
     plan = store.get(plan_id)
     if not plan: raise HTTPException(404, "方案不存在")
@@ -78,7 +89,12 @@ async def get_plan(plan_id: str):
 
 
 @router.put("/plans/{plan_id}")
-async def update_plan(plan_id: str, name: str = None, status: str = None):
+async def update_plan(
+    plan_id: str,
+    name: str = None,
+    status: str = None,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     """Update plan name or status."""
     plan = store.get(plan_id)
     if not plan: raise HTTPException(404, "方案不存在")
@@ -93,7 +109,10 @@ async def update_plan(plan_id: str, name: str = None, status: str = None):
 
 
 @router.delete("/plans/{plan_id}")
-async def delete_plan(plan_id: str):
+async def delete_plan(
+    plan_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     """Delete a plan."""
     if store.delete(plan_id):
         return {"plan_id": plan_id, "status": "deleted"}
@@ -101,7 +120,10 @@ async def delete_plan(plan_id: str):
 
 
 @router.post("/plans/{plan_id}/confirm")
-async def confirm_plan(plan_id: str):
+async def confirm_plan(
+    plan_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     """Confirm a plan → generates report + trading signals."""
     plan = store.confirm(plan_id)
     if not plan: raise HTTPException(404, "方案不存在")
@@ -113,7 +135,10 @@ async def confirm_plan(plan_id: str):
 
 
 @router.post("/plans/{plan_id}/optimize")
-async def optimize_plan(plan_id: str):
+async def optimize_plan(
+    plan_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst")),
+):
     """Optimize plan using Kronos predictions."""
     plan = store.get(plan_id)
     if not plan: raise HTTPException(404, "方案不存在")
@@ -124,7 +149,10 @@ async def optimize_plan(plan_id: str):
 
 
 @router.get("/plans/{plan_id}/report")
-async def generate_report(plan_id: str):
+async def generate_report(
+    plan_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
+):
     """Generate a detailed stock selection report for a confirmed plan."""
     plan = store.get(plan_id)
     if not plan: raise HTTPException(404, "方案不存在")
@@ -198,7 +226,9 @@ async def generate_report(plan_id: str):
 
 
 @router.get("/templates")
-async def list_templates():
+async def list_templates(
+    user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
+):
     return {
         "templates": [
             {"id": "aggressive", "name": "激进型", "risk": "high", "max_positions": 3, "single_max": 0.20},
@@ -245,7 +275,10 @@ class StrategyUpdateRequest(BaseModel):
 # ── Strategy generation ──
 
 @router.post("/generate-from-scheme/{scheme_id}")
-async def api_generate_strategy_from_scheme(scheme_id: str):
+async def api_generate_strategy_from_scheme(
+    scheme_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     """PRD AC-10.6: Generate a StrategyConfig from a confirmed trading plan.
 
     Reads the plan (scheme) from PlanStore and auto-generates:
@@ -265,7 +298,10 @@ async def api_generate_strategy_from_scheme(scheme_id: str):
 
 
 @router.post("/custom")
-async def api_create_custom_strategy(body: CustomStrategyRequest):
+async def api_create_custom_strategy(
+    body: CustomStrategyRequest,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     """PRD AC-10.7: Create a fully custom auto-trading strategy."""
     try:
         strategy = create_custom_strategy(
@@ -292,7 +328,9 @@ async def api_create_custom_strategy(body: CustomStrategyRequest):
 # ── Strategy CRUD ──
 
 @router.get("/list")
-async def api_list_strategies():
+async def api_list_strategies(
+    user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
+):
     """PRD AC-10.8: List all auto-trading strategies."""
     store = get_strategy_store()
     strategies = store.list_all()
@@ -303,7 +341,10 @@ async def api_list_strategies():
 
 
 @router.get("/{strategy_id}")
-async def api_get_strategy(strategy_id: str):
+async def api_get_strategy(
+    strategy_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
+):
     """Get strategy detail by ID."""
     store = get_strategy_store()
     strategy = store.get(strategy_id)
@@ -313,7 +354,11 @@ async def api_get_strategy(strategy_id: str):
 
 
 @router.put("/{strategy_id}")
-async def api_update_strategy(strategy_id: str, body: StrategyUpdateRequest):
+async def api_update_strategy(
+    strategy_id: str,
+    body: StrategyUpdateRequest,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     """PRD AC-10.8: Edit an existing strategy."""
     store = get_strategy_store()
     strategy = store.get(strategy_id)
@@ -379,7 +424,10 @@ async def api_update_strategy(strategy_id: str, body: StrategyUpdateRequest):
 
 
 @router.delete("/{strategy_id}")
-async def api_delete_strategy(strategy_id: str):
+async def api_delete_strategy(
+    strategy_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     """PRD AC-10.8: Delete a strategy. Stops execution if running."""
     mgr = get_executor_manager()
     executor = mgr.get(strategy_id)
@@ -401,6 +449,7 @@ async def api_delete_strategy(strategy_id: str):
 async def api_start_strategy(
     strategy_id: str,
     mode: str = Query("paper", description="paper | live"),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """PRD AC-11.5: Start executing a strategy.
 
@@ -425,7 +474,10 @@ async def api_start_strategy(
 
 
 @router.post("/{strategy_id}/pause")
-async def api_pause_strategy(strategy_id: str):
+async def api_pause_strategy(
+    strategy_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     """PRD AC-11.6: Pause strategy execution (preserves state)."""
     mgr = get_executor_manager()
     try:
@@ -441,7 +493,10 @@ async def api_pause_strategy(strategy_id: str):
 
 
 @router.post("/{strategy_id}/resume")
-async def api_resume_strategy(strategy_id: str):
+async def api_resume_strategy(
+    strategy_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     """PRD AC-11.6: Resume a paused strategy."""
     mgr = get_executor_manager()
     try:
@@ -457,7 +512,10 @@ async def api_resume_strategy(strategy_id: str):
 
 
 @router.post("/{strategy_id}/stop")
-async def api_stop_strategy(strategy_id: str):
+async def api_stop_strategy(
+    strategy_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
     """PRD AC-11.6: Stop strategy execution."""
     mgr = get_executor_manager()
     try:
@@ -474,7 +532,10 @@ async def api_stop_strategy(strategy_id: str):
 
 
 @router.get("/{strategy_id}/status")
-async def api_get_strategy_status(strategy_id: str):
+async def api_get_strategy_status(
+    strategy_id: str,
+    user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
+):
     """PRD AC-11.6: Get execution status for a strategy."""
     mgr = get_executor_manager()
     state = mgr.get(strategy_id)
@@ -506,6 +567,7 @@ async def api_get_strategy_log(
     strategy_id: str,
     limit: int = Query(50, ge=10, le=500, description="Max log entries"),
     level: str = Query(None, description="Filter: INFO | WARN | ERROR | BUY | SELL"),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
 ):
     """PRD AC-11.6: Get execution logs for a strategy."""
     mgr = get_executor_manager()

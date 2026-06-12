@@ -608,3 +608,30 @@ CREATE TABLE IF NOT EXISTS cb_concept (
 );
 CREATE INDEX IF NOT EXISTS idx_cb_concept_code ON cb_concept(ts_code);
 CREATE INDEX IF NOT EXISTS idx_cb_concept_name ON cb_concept(concept);
+
+-- cb_factor_pro: 精选技术指标 (从89个字段中提取关键的15个)
+CREATE TABLE IF NOT EXISTS cb_factor (
+    ts_code TEXT NOT NULL REFERENCES cb_basic(ts_code),
+    trade_date DATE NOT NULL,
+    close DOUBLE PRECISION,
+    pre_close DOUBLE PRECISION,
+    pct_change DOUBLE PRECISION,
+    vol DOUBLE PRECISION,
+    amount DOUBLE PRECISION,
+    rsi_6 DOUBLE PRECISION,
+    rsi_12 DOUBLE PRECISION,
+    rsi_24 DOUBLE PRECISION,
+    macd DOUBLE PRECISION,
+    macd_dif DOUBLE PRECISION,
+    macd_dea DOUBLE PRECISION,
+    boll_upper DOUBLE PRECISION,
+    boll_mid DOUBLE PRECISION,
+    boll_lower DOUBLE PRECISION,
+    atr DOUBLE PRECISION,
+    ma_5 DOUBLE PRECISION,
+    ma_20 DOUBLE PRECISION,
+    ma_60 DOUBLE PRECISION,
+    PRIMARY KEY (ts_code, trade_date)
+);
+CREATE INDEX IF NOT EXISTS idx_cb_factor_code ON cb_factor(ts_code);
+CREATE INDEX IF NOT EXISTS idx_cb_factor_date ON cb_factor(trade_date);

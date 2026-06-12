@@ -15,14 +15,14 @@
 | 前端框架 | React 18 + Vite 6 + TypeScript 5.6 + Ant Design 5.22 + ECharts 5.5 | — |
 | 后端框架 | FastAPI (Python ≥3.10) + uvicorn + Pydantic v2 | — |
 | 数据库 | PostgreSQL 15 (primary, docker) + SQLite (fallback/kronos legacy) + Redis 7 (cache) | ADR-001 |
-| AI/ML | Kronos (自研 K线预测 Transformer) + LightGBM + CatBoost + ONNX Runtime | ADR-004, ADR-005 |
+| AI/ML | Kronos (自研 K线预测 Transformer) + LightGBM + CatBoost + ONNX Runtime | ADR-004 (model-training-pipeline), ADR-005 |
 | LLM SDK | DeepSeek (方案生成, strategy-service) | — |
 | 认证 | PyJWT (HS256) + Argon2id + RBAC 4 角色 + httpOnly Refresh Cookie | ADR-001 |
-| 实盘交易 | Xtquant (QMT) 券商接口 + MockBroker (模拟) | ADR-002 |
+| 实盘交易 | Xtquant (QMT) 券商接口 + MockBroker (模拟) | ADR-002 (live-trading-broker) |
 | 自动交易 | asyncio 定时轮询 + APScheduler (训练调度) | ADR-003, ADR-004 |
 | 测试框架 | pytest (Python) + vitest (前端) | — |
 | 数据管道 | data-service (asyncio 调度 + PG-first 直写 + Tushare 1.4.29) + SQLite fallback | ADR-006 |
-| 部署 | Docker Compose (dev, postgres:15-alpine + redis:7-alpine + 8 微服务) | — |
+| 部署 | Docker Compose (dev, postgres:15-alpine + redis:7-alpine + 8 微服务; 另有 3 个手动启动: backend/data-service/training-service) | — |
 
 ## Verified Facts (Quick Reference)
 
@@ -96,7 +96,7 @@
 | `Kronos/` | Kronos 模型训练工具 + WebUI (Flask legacy) + 数据/模型输出 |
 | `docker/` | Docker Compose 编排 + 每个服务的 Dockerfile |
 | `services/sql/` | PostgreSQL 初始化 SQL + 数据迁移脚本 |
-| `docs/adr/` | 5 个 ADR (均 Proposed 状态): 认证/交易/自动交易/训练/诊断 |
+| `docs/adr/` | 6 个 ADR: 认证/券商交易/自动交易/训练/诊断/数据管道 |
 | `docs/prd/` | PRD 文档 (auto-trading / live-trading) |
 
 ### ADR 基线
@@ -104,9 +104,9 @@
 | ADR | 主题 | 状态 |
 |---|---|---|
 | ADR-001 | 用户认证与 RBAC — JWT + Argon2id + httpOnly Cookie | Proposed |
-| ADR-002 | 券商实盘交易 — BrokerInterface 抽象 + Xtquant + CircuitBreaker | Proposed |
+| ADR-002 | 券商实盘交易 — BrokerInterface 抽象 + Xtquant + CircuitBreaker (live-trading-broker) | Proposed |
 | ADR-003 | 量化自动交易策略引擎 — asyncio 轮询 + ExecutorManager | Proposed |
-| ADR-004 | 模型训练管线 — APScheduler + MLflow + A/B 上线 | Proposed |
+| ADR-004 | 模型训练管线 — APScheduler + MLflow + A/B 上线 (model-training-pipeline) | Proposed |
 | ADR-005 | 个股诊断 — 五维加权评分 + PDF 导出 + 多股对比 | Proposed |
 | ADR-006 | 数据管道 — PG-first 直写 + 消除 subprocess 桥 + stocks 同步 + 物化视图 | Proposed |
 

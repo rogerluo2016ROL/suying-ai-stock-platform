@@ -4,27 +4,27 @@ import api from './client'
 
 export const liveTradeApi = {
   // Account & positions
-  getAccount: () => api.get('/live-trade/account'),
-  getPositions: () => api.get('/live-trade/positions'),
-  getOrders: () => api.get('/live-trade/orders'),
+  getAccount: () => api.get('/trade/account'),
+  getPositions: () => api.get('/trade/positions'),
+  getOrders: () => api.get('/trade/orders'),
 
   // Order
   placeOrder: (code: string, direction: string, volume: number, price = 0) =>
-    api.post(`/live-trade/order?code=${code}&direction=${direction}&volume=${volume}&price=${price}`),
+    api.post('/trade/order', { code, direction, volume, price }),
 
   // Pre-check (risk control check before order)
   preCheck: (params: { code: string; direction: string; price: number; volume: number }) =>
-    api.post('/live-trade/order/pre-check', params),
+    api.post('/trade/order/pre-check', params),
 
   // Broker connection
-  getBrokerStatus: () => api.get('/live-trade/broker/status'),
-  connectBroker: () => api.post('/live-trade/broker/connect'),
+  getBrokerStatus: () => api.get('/trade/broker/status'),
+  connectBroker: () => api.post('/trade/broker/connect'),
 
   // Risk config
-  getRiskConfig: () => api.get('/live-trade/risk-config'),
+  getRiskConfig: () => api.get('/trade/risk-config'),
 
   // Circuit breaker
-  getCircuitBreakerStatus: () => api.get('/live-trade/circuit-breaker/status'),
+  getCircuitBreakerStatus: () => api.get('/trade/circuit-breaker/status'),
 
   // Audit logs
   getAuditLogs: (params: {
@@ -35,7 +35,7 @@ export const liveTradeApi = {
     action_type?: string
     stock_code?: string
     operator?: string
-  }) => api.get('/live-trade/audit-logs', { params }),
+  }) => api.get('/trade/audit-logs', { params }),
 
   exportAuditLogs: (params: {
     start_date?: string
@@ -43,7 +43,7 @@ export const liveTradeApi = {
     action_type?: string
     stock_code?: string
     operator?: string
-  }) => api.get('/live-trade/audit-logs/export', {
+  }) => api.get('/trade/audit-logs/export', {
     params,
     responseType: 'blob',
   }),

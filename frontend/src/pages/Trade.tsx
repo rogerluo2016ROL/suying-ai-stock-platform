@@ -46,7 +46,7 @@ export default function Trade() {
 
   // ── Derived disable states ──
   const brokerDisconnected = mode === 'live' && (brokerStatus === 'disconnected' || brokerStatus === 'error')
-  const circuitBreakerActive = mode === 'live' && (circuitBreaker?.triggered ?? false)
+  const circuitBreakerActive = mode === 'live' && (circuitBreaker?.status === 'TRIGGERED')
   const orderDisabled = brokerDisconnected || circuitBreakerActive
 
   const orderDisabledReason = circuitBreakerActive
@@ -108,7 +108,7 @@ export default function Trade() {
       },
       // Large order confirm callback
       onLargeOrderConfirm: async (params) => {
-        const threshold = riskConfig?.large_order_threshold || 500000
+        const threshold = riskConfig?.large_order_threshold || 0
         return showLargeTradeConfirm(params, threshold)
       },
     })
@@ -178,12 +178,15 @@ export default function Trade() {
       </div>
 
       {/* ── Circuit breaker alert (live mode + triggered) ── */}
-      {circuitBreaker?.triggered && (
+      {circuitBreaker?.status === 'TRIGGERED' && (
         <CircuitBreakerAlert
-          triggered={circuitBreaker.triggered}
-          lossAmount={circuitBreaker.loss_amount}
-          threshold={circuitBreaker.threshold}
-          message={circuitBreaker.message}
+          status={circuitBreaker.status}
+          dailyLossPct={circuitBreaker.daily_loss_pct}
+          thresholdPct={circuitBreaker.threshold_pct}
+          dailyPnl={circuitBreaker.daily_pnl}
+          initialCapital={circuitBreaker.initial_capital}
+          cooldownMinutes={circuitBreaker.cooldown_minutes}
+          triggeredAt={circuitBreaker.triggered_at}
         />
       )}
 

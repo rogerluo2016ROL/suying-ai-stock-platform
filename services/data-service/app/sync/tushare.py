@@ -251,6 +251,9 @@ def sync_post_market_ext(trade_date: str) -> dict:
                 if table == "daily_basic":
                     from app.sync.pg_writer import write_daily_basic
                     pg_wr = write_daily_basic(rows)
+                elif table == "ths_daily":
+                    from app.sync.pg_writer import write_ths_daily
+                    pg_wr = write_ths_daily(rows)
             except Exception as e:
                 logger.debug("PG write %s skipped: %s", table, e)
         r["pg_written"] = pg_wr

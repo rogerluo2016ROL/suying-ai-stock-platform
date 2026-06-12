@@ -1780,6 +1780,67 @@ def sync_cb_call(days_back: int = 365) -> dict:
     return {"status": "ok", "table": "cb_call", "fetched": len(rows), "written": written}
 
 
+def sync_cb_factor(days_back: int = 30) -> dict:
+    """Sync pro.cb_factor_pro() — selected technical indicators for CBs."""
+    pro = _get_pro()
+    if pro is None:
+        return {"status": "skipped", "reason": "no Tushare token"}
+    dates = _get_trade_dates(days_back)
+    db = _get_etl_db()
+
+    cols = ["ts_code", "trade_date", "close", "pre_close", "pct_change",
+            "vol", "amount", "rsi_6", "rsi_12", "rsi_24",
+            "macd", "macd_dif", "macd_dea",
+            "boll_upper", "boll_mid", "boll_lower",
+            "atr", "ma_5", "ma_20", "ma_60"]
+    src_cols = ["close", "pre_close", "pct_change",
+               "vol", "amount", "rsi_bfq_6", "rsi_bfq_12", "rsi_bfq_24",
+               "macd_bfq", "macd_dif_bfq", "macd_dea_bfq",
+               "boll_upper_bfq", "boll_mid_bfq", "boll_lower_bfq",
+               "atr_bfq", "ma_bfq_5", "ma_bfq_20", "ma_bfq_60"]
+
+    total, written = 0, 0
+    for d in dates:
+        _rate_limit()
+        date_str = d[:4] + "-" + d[4:6] + "-" + d[6:8]
+        try:
+            df = pro.cb_factor_pro(trade_date=d)
+        except Exception:
+            continue
+        if df is None or df.empty:
+            continue
+        rows = []
+        for _, r in df.iterrows():
+            row_vals = [r.get("ts_code"), date_str]
+            for c in src_cols:
+                v = r.get(c)
+                if isinstance(v, float) and str(v) == 'nan':
+                    row_vals.append(None)
+                else:
+                    row_vals.append(v)
+            rows.append(tuple(row_vals))
+
+        total += len(rows)
+        try:
+            import psycopg2, psycopg2.extras
+            pg_conn = psycopg2.connect(_PG_URL)
+            cur2 = pg_conn.cursor()
+            col_str = ", ".join(cols)
+            psycopg2.extras.execute_values(
+                cur2,
+                f"INSERT INTO cb_factor({col_str}) VALUES %s ON CONFLICT DO NOTHING",
+                rows, page_size=1000)
+            written += len(rows)
+            pg_conn.commit()
+            pg_conn.close()
+        except Exception:
+            pass
+
+    db.close()
+    print(f"  cb_factor: {total} fetched, {written} written ({len(dates)} dates)")
+    return {"status": "ok", "table": "cb_factor", "fetched": total, "written": written}
+
+
 SYNC_MODES = {
     "moneyflow": sync_moneyflow,
     "hk_hold": sync_hk_hold,
@@ -1822,6 +1883,7 @@ SYNC_MODES = {
     "cb_daily": sync_cb_daily,
     "cb_price_chg": sync_cb_price_chg,
     "cb_call": sync_cb_call,
+    "cb_factor": sync_cb_factor,
     "all_new": sync_all_new_apis,
 }
 

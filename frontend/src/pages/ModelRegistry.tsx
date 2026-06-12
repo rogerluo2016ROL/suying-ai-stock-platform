@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Card, Button, Table, Tag, Typography, Space, message, Modal, Form,
   Row, Col, Statistic, Popconfirm, Drawer, Descriptions, Divider,
-  Empty, Input, Alert, Select,
+  Empty, Input, InputNumber, Alert, Select,
 } from 'antd'
 import {
   ApiOutlined, ReloadOutlined, RocketOutlined, RollbackOutlined,
@@ -144,6 +144,7 @@ export default function ModelRegistry() {
   const [compareRecommendation, setCompareRecommendation] = useState('')
   const [rollbackReason, setRollbackReason] = useState('')
   const [rollbackOpen, setRollbackOpen] = useState<string | null>(null)
+  const [targetVersion, setTargetVersion] = useState(1)
   const [archiveReason, setArchiveReason] = useState('')
   const [archiveModelId, setArchiveModelId] = useState<string | null>(null)
   const [factors, setFactors] = useState<FactorInfo[]>([])
@@ -261,7 +262,7 @@ export default function ModelRegistry() {
   // ── Deploy ──
   const handleDeploy = useCallback(async (modelId: string) => {
     try {
-      await api.post(`/training/models/${modelId}/deploy`)
+      await api.post(`/training/models/${modelId}/deploy`, { notes: '' })
       message.success('模型已上线')
       loadModels()
       setCompareOpen(false)
@@ -278,9 +279,10 @@ export default function ModelRegistry() {
       return
     }
     try {
-      await api.post(`/training/models/${modelId}/rollback`, { reason: rollbackReason })
+      await api.post(`/training/models/${modelId}/rollback`, { target_version: targetVersion, reason: rollbackReason })
       message.success('模型已回滚')
       setRollbackReason('')
+      setTargetVersion(1)
       setRollbackOpen(null)
       loadModels()
     } catch (err: unknown) {
@@ -450,7 +452,10 @@ export default function ModelRegistry() {
           )}
           {record.stage === 'production' && (
             <Button type="link" size="small" icon={<RollbackOutlined />} danger
-              onClick={() => setRollbackOpen(record.id)}>
+              onClick={() => {
+                setTargetVersion(Math.max(1, record.version - 1))
+                setRollbackOpen(record.id)
+              }}>
               回滚
             </Button>
           )}
@@ -768,12 +773,25 @@ export default function ModelRegistry() {
       <Modal
         title="模型回滚"
         open={!!rollbackOpen}
-        onCancel={() => { setRollbackOpen(null); setRollbackReason(''); }}
+        onCancel={() => { setRollbackOpen(null); setRollbackReason(''); setTargetVersion(1); }}
         onOk={() => rollbackOpen && handleRollback(rollbackOpen)}
         okText="确认回滚"
         okButtonProps={{ danger: true }}
       >
-        <Paragraph>确认回滚此模型到上一版本？回滚后当前线上模型将被归档，上一版本自动上线。</Paragraph>
+        <Paragraph>确认回滚此模型到上一版本？回滚后当前线上模型将被归档，指定版本自动上线。</Paragraph>
+        <Row gutter={12} style={{ marginBottom: 12 }}>
+          <Col span={8}>
+            <Text type="secondary">目标版本</Text>
+          </Col>
+          <Col span={16}>
+            <InputNumber
+              min={1}
+              value={targetVersion}
+              onChange={(v) => setTargetVersion(v || 1)}
+              style={{ width: '100%' }}
+            />
+          </Col>
+        </Row>
         <TextArea
           rows={3}
           value={rollbackReason}
