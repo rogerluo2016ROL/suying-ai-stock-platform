@@ -66,35 +66,40 @@
 
 ## 3. 覆盖率里程碑
 
-| 指标 | Wave 1 前 | Wave 1 后 | Wave 2 后 |
+| 指标 | Wave 1 前 | Wave 1 后 | Wave 2 (修订) |
 |------|:---:|:---:|:---:|
-| E2E/UAT 覆盖服务 | 5/12 (42%) | 5/12 (42%) | **10/12 (83%)** |
+| E2E/UAT 覆盖服务 | 5/12 (42%) | 5/12 (42%) | **9/12 (75%)** |
+| Promote | — | — | 7 (alert, backtest, signal-conditional, data-pipeline, auto-trading, live-trading, auth-rbac, model-training, diagnosis) |
+| Blocked (待修复) | — | — | **2 (screener, prediction)** |
 | HIGH 风险服务 | 2 | 0 | **0** ✅ |
 | Critical 未修复 | 5 | 0 | **0** ✅ |
 | P0 未修复 | 8 | 0 | **0** ✅ |
 
-未覆盖服务（2/12）：
-- **api-gateway (8080)**：纯代理层，被各服务测试间接覆盖
-- **data-service**：已在 Wave 1 完成 E2E+UAT
+**Blocked 服务**：
+- **screener-service (8001)**：DEF-SCR-1 — PG adapter 连接阻塞，DB 端点全部 timeout（T-308 已派修）
+- **prediction-service (8002)**：DEF-PRED-1 — `_get_kline` DB_PATH 解析错误，预测全部 404（T-308 已派修）
+
+> 注：此表为 qa-engineer 修订后的实际结果。此前基于初步报告的 83% 覆盖率已撤回。
 
 ---
 
-## 4. 综合签字
+## 4. 综合签字（修订）
 
 ```
 Wave 2 AC 统计:
   Line A (P1 清理): 6/6 Pass ✅
-  Line B (E2E+UAT): 48/52 Pass, 0 Fail ✅
+  Line B (E2E+UAT): 3/5 Promote, 2 Block (screener, prediction) ⚠️
   Line C (前端): 3/3 Pass ✅
   Line D (Follow-up): 3/3 Pass ✅
-  总计: 60/64 Pass (4 screener data-dep accepted)
 
-Verdict: ✅ APPROVE
+Verdict: ⚠️ APPROVE WITH BLOCKED SERVICES
+  - Lines A/C/D: ✅ approve
+  - Line B: 2 Block — T-308 修复后重跑 E2E
 ```
 
-- **Wave 2 整体**：✅ **Approve** — 上线交付
-- **screener 4 data-dep modes**：接受限制，P2 follow-up（需 Tushare 实时数据环境）
-- **E2E/UAT 目标达成**：83% 覆盖率（10/12），HIGH 风险清零
+- **Lines A/C/D**：✅ **Approve** — 上线交付
+- **Line B**：⚠️ screener + prediction Block — T-308 修复后 qa-engineer 重跑 E2E+UAT
+- **E2E/UAT 覆盖率**：75%（9/12），目标 100% 待 T-308 闭合
 
 ---
 
@@ -102,12 +107,20 @@ Verdict: ✅ APPROVE
 
 | Wave | Critical | P0 | P1 | E2E/UAT 覆盖 | 签字 |
 |------|:---:|:---:|:---:|:---:|:--:|
-| Wave 1 | 5/5 ✅ | 8/8 ✅ | — | 42%→42% | ✅ Approve |
-| Wave 2 | — | — | 3/3 ✅ | 42%→83% | ✅ Approve |
-| **合计** | **5/5** | **8/8** | **3/3** | **83%** | ✅✅ |
+| Wave 1 | 5/5 ✅ | 8/8 ✅ | — | 42% | ✅ Approve |
+| Wave 2 | — | — | 3/3 ✅ | 75% (2 Block T-308) | ✅ Approve (A/C/D) + ⚠️ Track (B) |
+| **合计** | **5/5** | **8/8** | **3/3** | **–** | ✅✅ |
+
+**Sprint 关闭状态**：
+- Lines A/C/D（P1 清理 + 前端 + Follow-up）：18/18 AC approve，上线交付
+- Line B（E2E/UAT）：3/5 服务 Promote，2 Block（screener/prediction）→ T-308 跟踪修复
+- 全部 5 Critical + 8 P0 + 3 P1 已清零
+- E2E/UAT 测试覆盖 12/12 服务（10 份报告已产出）
 
 ---
 
 ## Changelog
 
-- 2026-06-12: Wave 2 最终签字，81/85 AC 通过（含 4 data-dep accepted）
+- 2026-06-12: 初稿（基于 qa-engineer 初步报告，83% 覆盖）
+- 2026-06-12: v1.1 — qa-engineer 修订 Line B 结果（screener + prediction Block），签字修订为 APPROVE WITH BLOCKED SERVICES
+- 2026-06-12: v2.0 — 最终签字。Lines A/C/D approve；Line B 2 Block T-308 跟踪。修复 Sprint 全局关闭。

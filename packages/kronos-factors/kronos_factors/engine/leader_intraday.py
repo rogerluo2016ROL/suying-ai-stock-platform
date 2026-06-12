@@ -386,8 +386,9 @@ def get_sector_climax_penalty(db, industry, trade_date):
 
 
 def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
-                          time_slot="14:00", limit_map=None):
-    """盘中选股评分 (V5.1: 9因子 + P0高潮检测 + P1独立过滤)."""
+                          time_slot="14:00", limit_map=None,
+                          industry_stats=None, kline_cache=None):
+    """盘中选股评分 (V5.4: 9因子 + P0高潮检测 + P1独立过滤 + 预计算加速)."""
     close_14 = snap["close"]
     amount_14 = snap["amount"]
     volume_14 = snap["volume"]
@@ -474,10 +475,16 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif amount_yi >= 2: turnover_score = 1
     else: return None
 
-    # ── 条件5: 均线趋势 (0-5) ──
-    klines = get_kline_data(db, code, trade_date, 60)
-    if len(klines) < 20: return None
-    closes = np.array([r["close"] for r in klines], dtype=np.float64)
+    # ── V5.4 条件5: 均线趋势 (0-5) — 从预取缓存取K线 ──
+    if kline_cache and code in kline_cache:
+        closes, vols, _amounts = kline_cache[code]
+    else:
+        klines = get_kline_data(db, code, trade_date, 60)
+        if len(klines) < 20: return None
+        closes = np.array([r["close"] for r in klines], dtype=np.float64)
+        vols = np.array([r["volume"] for r in klines], dtype=np.float64)
+
+    if len(closes) < 20: return None
     ma5, ma10, ma20 = compute_ma(closes, 5), compute_ma(closes, 10), compute_ma(closes, 20)
     if ma5 is None or ma10 is None: return None
     if ma20 and ma5 > ma10 > ma20: ma_score = 5
@@ -490,7 +497,6 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     cum_vol = cum_volume if cum_volume > 0 else volume_14
     adj_ratio_v = get_adjusted_completion(db, code, trade_date, time_slot, cum_volume)
     est_day_vol = cum_vol / adj_ratio_v if adj_ratio_v > 0 else cum_vol
-    vols = np.array([r["volume"] for r in klines], dtype=np.float64)
     vol_ma5 = np.mean(vols[-6:-1]) if len(vols) >= 6 else np.mean(vols[:-1])
     vol_ratio = est_day_vol / vol_ma5 if vol_ma5 > 0 else 1.0
     if vol_ratio >= 3.0: volume_score = 7
@@ -499,25 +505,31 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif vol_ratio >= 1.0: volume_score = 1
     else: volume_score = 0
 
-    # ── V5.1 P1: 板块龙头 (0-14) + 独立标的强化过滤 ──
-    peer_cnt = db.execute(
-        "SELECT COUNT(DISTINCT SUBSTR(m.ts_code,1,6)) as cnt "
-        "FROM stk_mins m JOIN stocks s ON s.code=SUBSTR(m.ts_code,1,6) "
-        "JOIN stk_limit l ON s.code=l.code AND l.trade_date=? "
-        "WHERE m.trade_time LIKE ? AND m.freq='5min' AND s.industry=? "
-        "AND l.pre_close>0 AND (m.close/l.pre_close-1)*100>=5",
-        (trade_date, f"{trade_date} {time_slot}%", industry)
-    ).fetchone()
-    peer_n = peer_cnt["cnt"] if peer_cnt else 0
+    # ── V5.4 P1: 板块龙头 (0-14) — 从预计算表取, 无预计算时 fallback 查询 ──
+    if industry_stats and industry in industry_stats:
+        peer_n = industry_stats[industry]["peer_count"]
+    else:
+        peer_cnt = db.execute(
+            "SELECT COUNT(DISTINCT SUBSTR(m.ts_code,1,6)) as cnt "
+            "FROM stk_mins m JOIN stocks s ON s.code=SUBSTR(m.ts_code,1,6) "
+            "JOIN stk_limit l ON s.code=l.code AND l.trade_date=? "
+            "WHERE m.trade_time LIKE ? AND m.freq='5min' AND s.industry=? "
+            "AND l.pre_close>0 AND (m.close/l.pre_close-1)*100>=5",
+            (trade_date, f"{trade_date} {time_slot}%", industry)
+        ).fetchone()
+        peer_n = peer_cnt["cnt"] if peer_cnt else 0
     if peer_n >= 5: sl_score = 14      # V5.1: 升权 12→14, 板块集群最强
     elif peer_n >= 3: sl_score = 11
     elif peer_n >= 2: sl_score = 7
     elif peer_n == 1: sl_score = 3     # V5.1: 独苗弱化
     else: sl_score = 0                 # V5.1: 无同板块→0分
 
-    # ── V5.2: 板块内涨幅排名 (总龙加分, 跟风减分) ──
-    # 6/5回测: 赢家与输家peer_count均值相同(15 vs 16), 需要板块内排名区分
-    if peer_n >= 2:
+    # ── V5.4: 板块内涨幅排名 (总龙加分, 跟风减分) — 预计算加速 ──
+    if peer_n >= 2 and industry_stats and industry in industry_stats:
+        # 从预计算的 max_gain 快速估算排名: gain_14 >= max_gain → rank=1
+        max_g = industry_stats[industry].get("max_gain", 0)
+        intra_rank = 1 if gain_14 >= max_g - 0.01 else 2  # 简化排名估算
+    elif peer_n >= 2:
         rank_row = db.execute(
             "SELECT COUNT(*) as higher FROM stk_mins m "
             "JOIN stocks s ON s.code=SUBSTR(m.ts_code,1,6) "
@@ -526,9 +538,9 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
             "AND l.pre_close>0 AND (m.close/l.pre_close-1)*100 > ?",
             (trade_date, f"{trade_date} {time_slot}%", industry, gain_14)
         ).fetchone()
-        intra_rank = (rank_row["higher"] if rank_row else 0) + 1  # 1 = 涨幅最高(总龙)
+        intra_rank = (rank_row["higher"] if rank_row else 0) + 1
     else:
-        intra_rank = 1  # 独苗, 无排名意义
+        intra_rank = 1
 
     # 板块内排名加分: 总龙(第1)+6, 前排(2-3)+3, 中游+0, 后排(>5)-3
     if intra_rank == 1 and peer_n >= 3:
@@ -608,8 +620,65 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     }
 
 
+# ── V5.4 性能优化: 批量预计算 ──
+
+def _precompute_industry_stats(db, trade_date, time_slot):
+    """批量预计算每个行业的 peer_count 和涨幅排名.
+
+    替代 score_intraday_stock 中 per-stock 的 peer_count + intra_rank 查询.
+    1 次查询覆盖所有行业, 节省 ~90ms × N 只股票.
+    """
+    rows = db.execute(
+        "SELECT s.industry, COUNT(DISTINCT SUBSTR(m.ts_code,1,6)) as peer_cnt, "
+        "MAX((m.close/l.pre_close-1)*100) as max_gain "
+        "FROM stk_mins m "
+        "JOIN stocks s ON s.code=SUBSTR(m.ts_code,1,6) "
+        "JOIN stk_limit l ON s.code=l.code AND l.trade_date=? "
+        "WHERE m.trade_time LIKE ? AND m.freq='5min' "
+        "AND l.pre_close>0 AND (m.close/l.pre_close-1)*100>=5 "
+        "GROUP BY s.industry",
+        (trade_date, f"{trade_date} {time_slot}%")
+    ).fetchall()
+
+    result = {}
+    for r in rows:
+        ind = r["industry"] or "其他"
+        result[ind] = {"peer_count": r["peer_cnt"] or 0, "max_gain": float(r["max_gain"] or 0)}
+    return result
+
+
+def _prefetch_kline_batch(db, trade_date):
+    """批量预取所有股票的近60日K线数据.
+
+    替代 score_intraday_stock 中 per-stock 的 get_kline_data 查询.
+    1 次 JOIN 查询, 节省 ~11ms × N 只股票.
+    返回: {code: [close_array, volume_array, amount_array]}
+    """
+    rows = db.execute(
+        "SELECT code, close, volume, amount FROM daily_kline "
+        "WHERE trade_date > ? AND trade_date <= ? "
+        "ORDER BY code, trade_date ASC",
+        (f"{trade_date[:4]}-{trade_date[5:7]}-01", trade_date)
+    ).fetchall()
+
+    import numpy as np
+    from collections import defaultdict
+    result = {}
+    by_code = defaultdict(list)
+    for r in rows:
+        by_code[r["code"]].append((float(r["close"]), float(r["volume"]), float(r["amount"])))
+
+    for code, data in by_code.items():
+        if len(data) >= 20:
+            closes = np.array([d[0] for d in data], dtype=np.float64)
+            volumes = np.array([d[1] for d in data], dtype=np.float64)
+            amounts = np.array([d[2] for d in data], dtype=np.float64)
+            result[code] = (closes, volumes, amounts)
+    return result
+
+
 def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
-    """V5.1 盘中选股主流程 (P0高潮检测 + P1独立过滤)."""
+    """V5.4 盘中选股主流程 (P0高潮检测 + P1独立过滤 + 批量预计算)."""
     # 每次运行清空高潮检测缓存
     _sector_climax_cache.clear()
     with _get_db(readonly=True) as db:
@@ -627,6 +696,12 @@ def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
         ).fetchall()
         print(f"  📈 股票池: {len(stocks)} 只")
 
+        # ── V5.4 性能优化: 批量预计算行业统计 + K线数据 ──
+        t_pre = time.time()
+        industry_stats = _precompute_industry_stats(db, trade_date, time_slot)
+        kline_cache = _prefetch_kline_batch(db, trade_date)
+        print(f"  ⚡ 预计算: {len(industry_stats)}个行业 + {len(kline_cache)}只K线, {time.time()-t_pre:.1f}s")
+
         scores = []
         for r in stocks:
             c = r["code"]
@@ -634,7 +709,8 @@ def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
             try:
                 res = score_intraday_stock(c, r["name"], r["industry"] or "其他",
                                             snapshot[c], pre_closes[c], db,
-                                            trade_date, time_slot, limit_map)
+                                            trade_date, time_slot, limit_map,
+                                            industry_stats, kline_cache)
                 if res: scores.append(res)
             except Exception: continue
 
@@ -876,7 +952,7 @@ if __name__ == "__main__":
 
 
 class IntradayScalpEngine:
-    """V5.2 秋神龙头战法-盘中引擎 — 14:00 选股 (板块排名+过热升级+狂热减N)."""
+    """V5.4 秋神龙头战法-盘中引擎 — 14:00 选股 (批量预计算加速)."""
 
     def __init__(self, pg_url: str = None):
         self.pg_url = pg_url

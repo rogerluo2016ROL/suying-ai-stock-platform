@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Card, Button, Table, Tag, Typography, Space, message, Row, Col, Statistic,
-  Select, InputNumber, Form, Tabs, Divider, Empty, Popconfirm, Slider, DatePicker,
+  Select, InputNumber, Form, Tabs, Divider, Empty, Popconfirm, Slider,
 } from 'antd'
 import {
   ExperimentOutlined, PlayCircleOutlined, ReloadOutlined,
@@ -94,16 +94,6 @@ const MODE_LABELS: Record<BacktestMode, string> = {
   long: '多头策略',
   short: '空头策略',
 }
-
-const BENCHMARK_OPTIONS = [
-  { value: 'sh000001', label: '上证指数' },
-  { value: 'sz399001', label: '深证成指' },
-  { value: 'sz399006', label: '创业板指' },
-  { value: 'sh000688', label: '科创50' },
-  { value: 'sh000300', label: '沪深300' },
-]
-
-const { RangePicker } = DatePicker
 
 // ── Helpers: Sharpe & Max Drawdown ──
 
@@ -319,11 +309,6 @@ export default function Backtest() {
   const [result, setResult] = useState<BacktestResult | null>(null)
   const [runError, setRunError] = useState('')
 
-  // Strategy plans (from strategy-service)
-  const [strategyPlans, setStrategyPlans] = useState<Array<{
-    id: string; name: string; model_name: string; status: string; picks_count: number
-  }>>([])
-
   // Factors
   const [factors, setFactors] = useState<FactorItem[]>([])
   const [factorsLoading, setFactorsLoading] = useState(false)
@@ -353,14 +338,6 @@ export default function Backtest() {
   }, [])
 
   useEffect(() => { loadFactors() }, [loadFactors])
-
-  // Load strategy plans from strategy-service (AC-306.1)
-  useEffect(() => {
-    fetch('/api/v1/strategy/plans')
-      .then(r => r.json())
-      .then(d => setStrategyPlans(d.plans || d.items || []))
-      .catch(() => {})
-  }, [])
 
   // ── Run Backtest ──
 
@@ -576,28 +553,9 @@ export default function Backtest() {
             <Form
               form={form}
               layout="inline"
-              initialValues={{ mode: 'all', windows: 5, top_n: 30, forward_days: 60, benchmark: 'sh000300', initial_capital: 100 }}
+              initialValues={{ mode: 'all', windows: 5, top_n: 30, forward_days: 60 }}
               style={{ flexWrap: 'wrap', gap: 12 }}
             >
-              <Form.Item name="date_range" label="回测日期范围">
-                <RangePicker style={{ width: 240 }} size="small" placeholder={['开始日期', '结束日期']} />
-              </Form.Item>
-
-              <Form.Item name="strategy_id" label="参考策略">
-                <Select style={{ width: 200 }} size="small" placeholder="选择策略方案" allowClear showSearch
-                  optionFilterProp="label"
-                  options={strategyPlans.map(s => ({
-                    label: `${s.name} (${s.model_name || s.status})`,
-                    value: s.id,
-                  }))}
-                  notFoundContent={<Text type="secondary" style={{fontSize:12}}>暂无策略方案</Text>}
-                />
-              </Form.Item>
-
-              <Form.Item name="initial_capital" label="初始资金(万)">
-                <InputNumber min={10} max={10000} step={10} style={{ width: 100 }} size="small" />
-              </Form.Item>
-
               <Form.Item name="mode" label="策略模式" rules={[{ required: true }]}>
                 <Select style={{ width: 150 }}>
                   <Option value="all">全市场选股</Option>
@@ -616,14 +574,6 @@ export default function Backtest() {
 
               <Form.Item name="forward_days" label="前瞻天数">
                 <InputNumber min={20} max={252} step={10} style={{ width: 120 }} />
-              </Form.Item>
-
-              <Form.Item name="benchmark" label="基准指数">
-                <Select style={{ width: 140 }}>
-                  {BENCHMARK_OPTIONS.map(b => (
-                    <Option key={b.value} value={b.value}>{b.label}</Option>
-                  ))}
-                </Select>
               </Form.Item>
             </Form>
 
