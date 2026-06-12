@@ -1495,6 +1495,234 @@ def sync_limit_list_d(days_back: int = 30) -> dict:
     return {"status": "ok", "table": "limit_list_d", "fetched": total, "written": written}
 
 
+# ═══════════════════════════════════════════════════════════════
+# 可转债同步 (3 functions)
+# ═══════════════════════════════════════════════════════════════
+
+def sync_cb_basic(days_back: int = 0) -> dict:
+    """Sync pro.cb_basic() — full refresh of convertible bond basic info."""
+    pro = _get_pro()
+    if pro is None:
+        return {"status": "skipped", "reason": "no Tushare token"}
+    db = _get_etl_db()
+
+    cols = ["ts_code", "bond_full_name", "bond_short_name", "cb_code", "cb_type",
+            "stk_code", "stk_short_name", "maturity", "par", "issue_price",
+            "issue_size", "remain_size", "value_date", "maturity_date",
+            "rate_type", "coupon_rate", "add_rate", "pay_per_year",
+            "list_date", "delist_date", "exchange", "conv_start_date",
+            "conv_end_date", "conv_stop_date", "first_conv_price", "conv_price",
+            "rate_clause", "put_clause", "maturity_call_price", "call_clause",
+            "reset_clause", "conv_clause", "guarantor", "guarantee_type",
+            "issue_rating", "newest_rating", "rating_comp"]
+    date_cols = {"value_date", "maturity_date", "list_date", "delist_date",
+                 "conv_start_date", "conv_end_date", "conv_stop_date"}
+
+    def _safe_val(c, v):
+        if v is None:
+            return None
+        # Convert numpy scalars to native Python types
+        try:
+            import numpy as np
+            if isinstance(v, (np.integer,)):
+                return int(v)
+            if isinstance(v, (np.floating,)):
+                if np.isnan(v):
+                    return None
+                return float(v)
+            if isinstance(v, np.bool_):
+                return bool(v)
+        except ImportError:
+            pass
+        if isinstance(v, float) and str(v) == 'nan':
+            return None
+        if c in date_cols and v is not None:
+            s = str(v).strip()
+            if len(s) == 8 and s.isdigit():
+                return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
+            return s if s else None
+        return v
+
+    _rate_limit()
+    try:
+        df = pro.cb_basic()
+    except Exception as e:
+        db.close()
+        return {"status": "error", "reason": str(e)}
+
+    if df is None or df.empty:
+        db.close()
+        return {"status": "skipped", "reason": "no data"}
+
+    rows = []
+    for _, r in df.iterrows():
+        rows.append(tuple(_safe_val(c, r.get(c)) for c in cols))
+
+    # Use direct psycopg2 insert for reliable bulk write
+    import psycopg2, psycopg2.extras
+    pg_conn = psycopg2.connect(_PG_URL)
+    cur = pg_conn.cursor()
+    col_str = ", ".join(cols)
+    sql = f"INSERT INTO cb_basic({col_str}) VALUES %s ON CONFLICT (ts_code) DO NOTHING"
+    try:
+        psycopg2.extras.execute_values(cur, sql, rows, page_size=1000)
+        written = len(rows)  # execute_values rowcount is unreliable with page_size
+        pg_conn.commit()
+    except Exception as e:
+        pg_conn.rollback()
+        print(f"  cb_basic bulk insert failed: {e}, falling back row-by-row")
+        written = 0
+        for row in rows:
+            try:
+                placeholders = ", ".join(["%s"] * len(cols))
+                cur.execute(
+                    f"INSERT INTO cb_basic({col_str}) VALUES({placeholders}) "
+                    f"ON CONFLICT (ts_code) DO NOTHING",
+                    tuple(row))
+                written += cur.rowcount
+            except Exception:
+                pass
+        pg_conn.commit()
+    pg_conn.close()
+    db.close()
+    print(f"  cb_basic: {len(rows)} fetched, {written} written")
+    return {"status": "ok", "table": "cb_basic", "fetched": len(rows), "written": written}
+
+
+def sync_cb_daily(days_back: int = 30) -> dict:
+    """Sync pro.cb_daily() — daily CB quotes with premium rates."""
+    pro = _get_pro()
+    if pro is None:
+        return {"status": "skipped", "reason": "no Tushare token"}
+    dates = _get_trade_dates(days_back)
+    db = _get_etl_db()
+    clean_before_write(db, "cb_daily", days_back)
+
+    total, written = 0, 0
+    cols = ["ts_code", "trade_date", "pre_close", "open", "high", "low",
+            "close", "change", "pct_chg", "vol", "amount",
+            "bond_value", "bond_over_rate", "cb_value", "cb_over_rate"]
+
+    def _safe_cb_val(v):
+        if v is None:
+            return None
+        try:
+            import numpy as np
+            if isinstance(v, (np.integer,)):
+                return int(v)
+            if isinstance(v, (np.floating,)):
+                if np.isnan(v):
+                    return None
+                return float(v)
+        except ImportError:
+            pass
+        if isinstance(v, float) and str(v) == 'nan':
+            return None
+        return v
+
+    for d in dates:
+        _rate_limit()
+        try:
+            df = pro.cb_daily(trade_date=d)
+        except Exception:
+            continue
+        if df is None or df.empty:
+            continue
+        rows = []
+        for _, r in df.iterrows():
+            rows.append(tuple(
+                _safe_cb_val(r.get(c)) if c != "trade_date"
+                else d[:4] + "-" + d[4:6] + "-" + d[6:8]
+                for c in cols
+            ))
+        total += len(rows)
+        # Direct psycopg2 for reliable bulk insert
+        try:
+            import psycopg2, psycopg2.extras
+            pg_conn = psycopg2.connect(_PG_URL)
+            cur2 = pg_conn.cursor()
+            col_str2 = ", ".join(cols)
+            psycopg2.extras.execute_values(
+                cur2,
+                f"INSERT INTO cb_daily({col_str2}) VALUES %s ON CONFLICT (ts_code, trade_date) DO NOTHING",
+                rows, page_size=1000)
+            written += len(rows)  # execute_values rowcount unreliable with page_size
+            pg_conn.commit()
+            pg_conn.close()
+        except Exception:
+            pass
+
+    db.close()
+    print(f"  cb_daily: {total} fetched, {written} written ({len(dates)} dates)")
+    return {"status": "ok", "table": "cb_daily", "fetched": total, "written": written}
+
+
+def sync_cb_price_chg(days_back: int = 365) -> dict:
+    """Sync pro.cb_price_chg() — conversion price change history."""
+    pro = _get_pro()
+    if pro is None:
+        return {"status": "skipped", "reason": "no Tushare token"}
+    dates = _get_trade_dates(days_back)
+    db = _get_etl_db()
+    clean_before_write(db, "cb_price_chg", days_back, date_col="change_date")
+
+    total, written = 0, 0
+    cols = ["ts_code", "change_date", "pre_price", "new_price", "change_reason"]
+
+    def _safe_pc_val(v):
+        if v is None:
+            return None
+        try:
+            import numpy as np
+            if isinstance(v, (np.integer,)):
+                return int(v)
+            if isinstance(v, (np.floating,)):
+                if np.isnan(v):
+                    return None
+                return float(v)
+        except ImportError:
+            pass
+        return v
+
+    for d in dates:
+        _rate_limit()
+        try:
+            df = pro.cb_price_chg(trade_date=d)
+        except Exception:
+            continue
+        if df is None or df.empty:
+            continue
+        rows = []
+        for _, r in df.iterrows():
+            rows.append((
+                str(r.get("ts_code", "")),
+                d[:4] + "-" + d[4:6] + "-" + d[6:8],
+                _safe_pc_val(r.get("pre_price")),
+                _safe_pc_val(r.get("new_price")),
+                str(r.get("change_reason") or r.get("change_reason_desc") or "")[:200],
+            ))
+        total += len(rows)
+        # Direct psycopg2 for reliable bulk insert
+        try:
+            import psycopg2, psycopg2.extras
+            pg_conn = psycopg2.connect(_PG_URL)
+            cur2 = pg_conn.cursor()
+            col_str2 = ", ".join(cols)
+            psycopg2.extras.execute_values(
+                cur2,
+                f"INSERT INTO cb_price_chg({col_str2}) VALUES %s ON CONFLICT (ts_code, change_date) DO NOTHING",
+                rows, page_size=1000)
+            written += len(rows)  # execute_values rowcount unreliable with page_size
+            pg_conn.commit()
+            pg_conn.close()
+        except Exception:
+            pass
+
+    db.close()
+    print(f"  cb_price_chg: {total} fetched, {written} written ({len(dates)} dates)")
+    return {"status": "ok", "table": "cb_price_chg", "fetched": total, "written": written}
+
+
 SYNC_MODES = {
     "moneyflow": sync_moneyflow,
     "hk_hold": sync_hk_hold,
@@ -1533,6 +1761,9 @@ SYNC_MODES = {
     "rt_k": sync_rt_k,
     "stk_mins": sync_stk_mins,
     "stk_auction_o": sync_stk_auction_o,
+    "cb_basic": sync_cb_basic,
+    "cb_daily": sync_cb_daily,
+    "cb_price_chg": sync_cb_price_chg,
     "all_new": sync_all_new_apis,
 }
 

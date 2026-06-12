@@ -25,4 +25,6 @@ AVAILABLE_MODES = [
     "long",               # 长线价值
     "all",                # 综合多因子
     "chokepoint",         # 大葱卡脖子选股模型
+    "cb_floor",           # 匪爷可转债底价选债模型
+    "cb_intraday",        # 匪爷可转债日内投机博弈模型
 ]

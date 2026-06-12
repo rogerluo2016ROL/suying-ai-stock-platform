@@ -501,3 +501,81 @@ WHERE d.trade_date = (SELECT MAX(trade_date) FROM daily_kline)
   AND s.name NOT LIKE '%退市%';
 
 CREATE UNIQUE INDEX idx_mv_composite_code ON mv_daily_composite_ranking(code);
+
+-- ── 可转债 (3 张表) ──
+
+CREATE TABLE IF NOT EXISTS cb_basic (
+    ts_code TEXT PRIMARY KEY,
+    bond_full_name TEXT,
+    bond_short_name TEXT,
+    cb_code TEXT,
+    cb_type TEXT,
+    stk_code TEXT,
+    stk_short_name TEXT,
+    maturity DOUBLE PRECISION,
+    par DOUBLE PRECISION,
+    issue_price DOUBLE PRECISION,
+    issue_size DOUBLE PRECISION,
+    remain_size DOUBLE PRECISION,
+    value_date DATE,
+    maturity_date DATE,
+    rate_type TEXT,
+    coupon_rate DOUBLE PRECISION,
+    add_rate DOUBLE PRECISION,
+    pay_per_year INTEGER,
+    list_date DATE,
+    delist_date DATE,
+    exchange TEXT,
+    conv_start_date DATE,
+    conv_end_date DATE,
+    conv_stop_date DATE,
+    first_conv_price DOUBLE PRECISION,
+    conv_price DOUBLE PRECISION,
+    rate_clause TEXT,
+    put_clause TEXT,
+    maturity_call_price TEXT,
+    call_clause TEXT,
+    reset_clause TEXT,
+    conv_clause TEXT,
+    guarantor TEXT,
+    guarantee_type TEXT,
+    issue_rating TEXT,
+    newest_rating TEXT,
+    rating_comp TEXT,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cb_daily (
+    id SERIAL PRIMARY KEY,
+    ts_code TEXT NOT NULL REFERENCES cb_basic(ts_code),
+    trade_date DATE NOT NULL,
+    pre_close DOUBLE PRECISION,
+    open DOUBLE PRECISION,
+    high DOUBLE PRECISION,
+    low DOUBLE PRECISION,
+    close DOUBLE PRECISION,
+    change DOUBLE PRECISION,
+    pct_chg DOUBLE PRECISION,
+    vol DOUBLE PRECISION,
+    amount DOUBLE PRECISION,
+    bond_value DOUBLE PRECISION,
+    bond_over_rate DOUBLE PRECISION,
+    cb_value DOUBLE PRECISION,
+    cb_over_rate DOUBLE PRECISION,
+    UNIQUE(ts_code, trade_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cb_daily_code ON cb_daily(ts_code);
+CREATE INDEX IF NOT EXISTS idx_cb_daily_date ON cb_daily(trade_date);
+
+CREATE TABLE IF NOT EXISTS cb_price_chg (
+    id SERIAL PRIMARY KEY,
+    ts_code TEXT NOT NULL REFERENCES cb_basic(ts_code),
+    change_date DATE NOT NULL,
+    pre_price DOUBLE PRECISION,
+    new_price DOUBLE PRECISION,
+    change_reason TEXT,
+    UNIQUE(ts_code, change_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cb_price_chg_code ON cb_price_chg(ts_code);

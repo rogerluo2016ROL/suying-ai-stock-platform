@@ -1,4 +1,4 @@
-"""Screener API routes — 6 screening modes via unified endpoint."""
+"""Screener API routes — 9 screening modes via unified endpoint."""
 
 import time
 from typing import Optional
@@ -21,6 +21,8 @@ async def list_modes():
             {"id": "long",            "name": "长线价值",         "cycle": "3-12月", "style": "稳健"},
             {"id": "all",             "name": "综合多因子",       "cycle": "1-6月",  "style": "中性"},
             {"id": "chokepoint",      "name": "大葱卡脖子选股模型",       "cycle": "1-3月",  "style": "主题"},
+            {"id": "cb_floor",       "name": "匪爷可转债底价选债模型",   "cycle": "1-4周",  "style": "稳健"},
+            {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
         ]
     }
 
@@ -46,6 +48,8 @@ async def run_screening(
     try:
         if mode in ("leader_scalp", "leader_intraday", "leader_auction"):
             result = _run_leader_mode(mode, top_n, trade_date)
+        elif mode in ("cb_floor", "cb_intraday"):
+            result = _run_cb_mode(mode, top_n, trade_date)
         else:
             result = _run_multifactor_mode(mode, top_n, trade_date)
     except Exception as e:
@@ -102,6 +106,27 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
         "total_picks": len(picks_data) if picks_data else 0,
         "picks": picks_data if picks_data else [],
         "execution_plans": plans,
+    }
+
+
+def _run_cb_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
+    """Run convertible bond screening (cb_floor / cb_intraday)."""
+    from kronos_factors.engine.cb_floor import CbFloorEngine
+    from kronos_factors.engine.cb_intraday import CbIntradayEngine
+
+    if mode == "cb_floor":
+        engine = CbFloorEngine()
+    else:
+        engine = CbIntradayEngine()
+
+    picks = engine.run(trade_date=trade_date, top_n=top_n)
+    engine.close()
+
+    return {
+        "mode": mode,
+        "trade_date": trade_date,
+        "total_picks": len(picks),
+        "picks": picks,
     }
 
 

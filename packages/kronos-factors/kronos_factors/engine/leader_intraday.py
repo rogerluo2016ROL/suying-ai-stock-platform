@@ -25,18 +25,20 @@ _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 from kronos_factors.scorer._db_stub import _get_db
 
-# ── Intraday scoring weights (10因子 → V4.2 重校准) ──
-# V5.0 顺势重构 — 从反转→顺势, 移除负IC因子, 新增分时引领性
+# ── Intraday scoring weights (9因子 V5.2 复盘校准) ──
+# V5.2: 新增板块内涨幅排名 + 升级过热惩罚权重
+# 6/5回测: 赢家&输家 peer_count 均值相同(15 vs 16), 需要排名区分
 INTRA_WEIGHTS = {
-    "gain_quality": 20,           # 14:00涨幅质量
-    "afternoon_strength": 22,     # 午后强势度 (最强正向)
-    "intraday_leadership": 12,    # V5.0: 分时引领性 (板块内率先拉升)
-    "sector_leader": 12,          # 板块龙头
-    "turnover": 12,               # 预估成交额
-    "ma_trend": 6,                # V5.0: 均线趋势 2→6 (比例加分)
-    "volume_surge": 8,            # 集中放量 7→8
-    "sector_momentum": 8,         # V5.0: 板块动量 → 顺势因子
-    "resonance": 8,               # V5.0: 板块共振 → 顺势因子 (双强最高)
+    "gain_quality": 20,              # 14:00涨幅质量
+    "afternoon_strength": 20,        # V5.1: 22→20, 让位给高潮检测
+    "intraday_leadership": 12,       # V5.0: 分时引领性 (板块内率先拉升)
+    "sector_leader": 14,             # V5.1: 12→14, 复盘验证板块最票最强
+    "turnover": 12,                  # 预估成交额
+    "ma_trend": 6,                   # V5.0: 均线趋势 2→6 (比例加分)
+    "volume_surge": 8,               # 集中放量 7→8
+    "sector_momentum": 6,            # V5.1: 8→6, 需搭配高潮检测使用
+    "resonance": 8,                  # V5.0: 板块共振 → 顺势因子 (双强最高)
+    "sector_climax_penalty": 12,     # V5.1 P0: 板块高潮次日惩罚 (减分项)
 }
 
 # Full-day completion ratios for different time slots
@@ -266,17 +268,47 @@ def get_kline_data(db, code, trade_date, lookback=60):
 
 
 def get_sector_index(db, industry, trade_date):
+    """获取板块指数涨跌幅 (V5.1 修复: index_basic→index_daily).
+
+    原实现查询 sw_daily.name/pct_change 列不存在, 导致始终返回0.
+    V5.1 改用 index_basic.name 模糊匹配 → index_daily.pct_chg.
+    """
+    # 策略: 用 industry 最后2个汉字匹配 index_basic.name
+    # 例如: '全国地产' → 匹配含'地产'的指数, '半导体' → 匹配含'半导体'的指数
+    keyword = industry[-2:] if len(industry) >= 2 else industry
+
+    # 1. Try index_basic → index_daily (申万/中证指数)
+    row = db.execute(
+        "SELECT d.pct_chg FROM index_daily d "
+        "JOIN index_basic b ON d.code=b.code "
+        "WHERE b.name LIKE ? AND d.trade_date=? "
+        "ORDER BY d.pct_chg DESC LIMIT 1",
+        (f"%{keyword}%", trade_date)
+    ).fetchone()
+    if row and row["pct_chg"] is not None:
+        return float(row["pct_chg"])
+
+    # 2. Try broader match with full industry name
+    row = db.execute(
+        "SELECT d.pct_chg FROM index_daily d "
+        "JOIN index_basic b ON d.code=b.code "
+        "WHERE b.name LIKE ? AND d.trade_date=? "
+        "ORDER BY d.pct_chg DESC LIMIT 1",
+        (f"%{industry}%", trade_date)
+    ).fetchone()
+    if row and row["pct_chg"] is not None:
+        return float(row["pct_chg"])
+
+    # 3. ths_daily fallback (if data ever becomes available)
     td = trade_date.replace('-', '')
     row = db.execute(
         "SELECT pct_change FROM ths_daily WHERE name LIKE ? AND trade_date=? LIMIT 1",
         (f"%{industry}%", td)
     ).fetchone()
-    if row: return row["pct_change"]
-    row = db.execute(
-        "SELECT pct_change FROM sw_daily WHERE name LIKE ? AND trade_date=? LIMIT 1",
-        (f"%{industry}%", trade_date)
-    ).fetchone()
-    return row["pct_change"] if row else 0
+    if row and row["pct_change"] is not None:
+        return float(row["pct_change"])
+
+    return 0
 
 
 def get_shanghai_index(db, trade_date):
@@ -286,9 +318,82 @@ def get_shanghai_index(db, trade_date):
     return row["pct_chg"] if row else 0
 
 
+# ── V5.1 P0: 板块高潮次日检测缓存 ──
+_sector_climax_cache = {}
+
+def get_sector_climax_penalty(db, industry, trade_date):
+    """V5.1 P0: 检测板块昨日是否高潮加速, 返回今日惩罚分 (0-20).
+
+    复盘证据: 六氟化钨板块昨日高潮→今日中船特气(-7%)+中巨芯(-6%)
+    机制: 昨日板块涨幅≥5% OR 板块内涨停≥3家 → 今日获利回吐概率高
+
+    Returns: penalty score (0-20), higher = more penalty for today's picks
+    """
+    cache_key = (industry, trade_date)
+    if cache_key in _sector_climax_cache:
+        return _sector_climax_cache[cache_key]
+
+    # 1. 获取前一个交易日
+    prev_row = db.execute(
+        "SELECT trade_date FROM daily_kline WHERE trade_date < ? "
+        "ORDER BY trade_date DESC LIMIT 1",
+        (trade_date,)
+    ).fetchone()
+    if not prev_row:
+        _sector_climax_cache[cache_key] = 0
+        return 0
+    prev_date = prev_row["trade_date"]
+
+    # 2. 昨日板块涨幅 (index_basic → index_daily, 用最后2字关键词匹配)
+    keyword = industry[-2:] if len(industry) >= 2 else industry
+    td_prev = str(prev_date)
+    sector_row = db.execute(
+        "SELECT d.pct_chg FROM index_daily d "
+        "JOIN index_basic b ON d.code=b.code "
+        "WHERE b.name LIKE ? AND d.trade_date=? "
+        "ORDER BY d.pct_chg DESC LIMIT 1",
+        (f"%{keyword}%", td_prev)
+    ).fetchone()
+    yesterday_sector_pct = float(sector_row["pct_chg"] or 0) if sector_row else 0
+
+    # 2b. Fallback: broader match with full industry name
+    if yesterday_sector_pct == 0:
+        sector_row = db.execute(
+            "SELECT d.pct_chg FROM index_daily d "
+            "JOIN index_basic b ON d.code=b.code "
+            "WHERE b.name LIKE ? AND d.trade_date=? "
+            "ORDER BY d.pct_chg DESC LIMIT 1",
+            (f"%{industry}%", td_prev)
+        ).fetchone()
+        yesterday_sector_pct = float(sector_row["pct_chg"] or 0) if sector_row else 0
+
+    # 3. 昨日板块内涨停家数 (limit_list_d 用 YYYYMMDD 格式)
+    td_prev_short = td_prev.replace('-', '')
+    limit_row = db.execute(
+        "SELECT COUNT(*) as cnt FROM limit_list_d l "
+        "JOIN stocks s ON s.code=SUBSTR(l.ts_code,1,6) "
+        "WHERE l.trade_date=? AND l.pct_chg > 0 AND s.industry=?",
+        (td_prev_short, industry)
+    ).fetchone()
+    yesterday_limit_count = limit_row["cnt"] if limit_row else 0
+
+    # 4. 判定惩罚等级
+    if yesterday_sector_pct >= 5 or yesterday_limit_count >= 3:
+        penalty = 20   # 🔴 重度高潮: 板块涨>5%或涨停≥3家 → 次日大概率分歧
+    elif yesterday_sector_pct >= 3 or yesterday_limit_count >= 2:
+        penalty = 12   # 🟡 中度高潮: 板块涨>3%或涨停≥2家 → 适度谨慎
+    elif yesterday_sector_pct >= 1.5:
+        penalty = 5    # 🟠 轻度热度: 板块涨>1.5% → 小幅减持
+    else:
+        penalty = 0    # 🟢 正常: 昨日板块温和, 无高潮风险
+
+    _sector_climax_cache[cache_key] = penalty
+    return penalty
+
+
 def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
                           time_slot="14:00", limit_map=None):
-    """盘中选股评分 (10因子)."""
+    """盘中选股评分 (V5.1: 9因子 + P0高潮检测 + P1独立过滤)."""
     close_14 = snap["close"]
     amount_14 = snap["amount"]
     volume_14 = snap["volume"]
@@ -400,7 +505,7 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif vol_ratio >= 1.0: volume_score = 1
     else: volume_score = 0
 
-    # ── 板块龙头 (0-12) ──
+    # ── V5.1 P1: 板块龙头 (0-14) + 独立标的强化过滤 ──
     peer_cnt = db.execute(
         "SELECT COUNT(DISTINCT SUBSTR(m.ts_code,1,6)) as cnt "
         "FROM stk_mins m JOIN stocks s ON s.code=SUBSTR(m.ts_code,1,6) "
@@ -410,14 +515,57 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         (trade_date, f"{trade_date} {time_slot}%", industry)
     ).fetchone()
     peer_n = peer_cnt["cnt"] if peer_cnt else 0
-    if peer_n >= 5: sl_score = 12
-    elif peer_n >= 3: sl_score = 9
-    elif peer_n >= 2: sl_score = 6
-    else: sl_score = 2
+    if peer_n >= 5: sl_score = 14      # V5.1: 升权 12→14, 板块集群最强
+    elif peer_n >= 3: sl_score = 11
+    elif peer_n >= 2: sl_score = 7
+    elif peer_n == 1: sl_score = 3     # V5.1: 独苗弱化
+    else: sl_score = 0                 # V5.1: 无同板块→0分
 
-    # ── 板块动量 (V4.2: 反转因子, IC=-0.51) ──
-    # 高板块动量 → 次日均值回归 → 扣分
-    # 低板块动量 → 次日反弹 → 加分
+    # ── V5.2: 板块内涨幅排名 (总龙加分, 跟风减分) ──
+    # 6/5回测: 赢家与输家peer_count均值相同(15 vs 16), 需要板块内排名区分
+    if peer_n >= 2:
+        rank_row = db.execute(
+            "SELECT COUNT(*) as higher FROM stk_mins m "
+            "JOIN stocks s ON s.code=SUBSTR(m.ts_code,1,6) "
+            "JOIN stk_limit l ON s.code=l.code AND l.trade_date=? "
+            "WHERE m.trade_time LIKE ? AND m.freq='5min' AND s.industry=? "
+            "AND l.pre_close>0 AND (m.close/l.pre_close-1)*100 > ?",
+            (trade_date, f"{trade_date} {time_slot}%", industry, gain_14)
+        ).fetchone()
+        intra_rank = (rank_row["higher"] if rank_row else 0) + 1  # 1 = 涨幅最高(总龙)
+    else:
+        intra_rank = 1  # 独苗, 无排名意义
+
+    # 板块内排名加分: 总龙(第1)+6, 前排(2-3)+3, 中游+0, 后排(>5)-3
+    if intra_rank == 1 and peer_n >= 3:
+        leadership_bonus = 6   # 🟢 板块总龙头, 最强辨识度
+    elif intra_rank <= 3 and peer_n >= 3:
+        leadership_bonus = 3   # 🟡 板块前排
+    elif intra_rank > 5 and peer_n >= 5:
+        leadership_bonus = -3  # 🔴 板块跟风, 次日最先被淘汰
+    else:
+        leadership_bonus = 0
+
+    # V5.1 P1: 独立标的强化惩罚 (复盘: 粤桂股份-7% 偏独立)
+    if peer_n == 0:
+        independent_penalty = 12       # 🔴 零板块支撑: 重罚
+    elif peer_n == 1:
+        independent_penalty = 4        # 🟡 独苗: 轻罚
+    else:
+        independent_penalty = 0
+
+    # ── V5.1 P0: 板块高潮次日检测 (index_basic→index_daily) ──
+    climax_penalty = get_sector_climax_penalty(db, industry, trade_date)
+
+    # ── V5.2 P0b: 板块日内过热检测 (提升权重 8→10, 15→18) ──
+    if peer_n >= 30:
+        overheat_penalty = 18   # 🔴 极度拥挤, 即使龙头也要谨慎
+    elif peer_n >= 20:
+        overheat_penalty = 10   # 🟡 板块过热
+    else:
+        overheat_penalty = 0
+
+    # ── 板块动量 (V5.1: 维持反转逻辑, 降权 8→6) ──
     sp = get_sector_index(db, industry, trade_date)
     if sp > 3: sm_score = 0   # 过热, 次日大概率回调
     elif sp > 1: sm_score = 2  # 偏热
@@ -425,7 +573,7 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif sp > -2: sm_score = 7 # 适度回调, 次日反弹概率高
     else: sm_score = 8         # 深跌板块, 次日反弹最强
 
-    # ── 板块共振 (V4.2: 反转因子, IC=-0.44) ──
+    # ── 板块共振 (V5.1: 维持反转逻辑) ──
     sh = get_shanghai_index(db, trade_date)
     if sp > 2 and sh > 0:
         res_score = 0  # 板块+大盘双强 → 过热, 次日回调
@@ -438,9 +586,11 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     else:
         res_score = 3
 
-    # ── V4.2 综合 (移除 money_score, 板块因子反转, 午后升权) ──
+    # ── V5.2 综合 (P0高潮惩罚 + P0b过热惩罚 + P1独立过滤 + 板块排名) ──
     total = (gain_score + seal_score + afternoon_score +
-             turnover_score + ma_score + volume_score + sl_score + sm_score + res_score)
+             turnover_score + ma_score + volume_score + sl_score + sm_score + res_score
+             + leadership_bonus
+             - independent_penalty - climax_penalty - overheat_penalty)
     grade = "S" if total >= 75 else ("A" if total >= 60 else ("B" if total >= 45 else "C"))
 
     return {
@@ -455,11 +605,19 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         "volume_score": volume_score, "sector_leader_score": sl_score,
         "sector_momentum_score": sm_score, "resonance_score": res_score,
         "sector_change": round(sp, 2),
+        "peer_count": peer_n,                              # V5.1: 同板块强势股数
+        "intra_rank": intra_rank,                           # V5.2: 板块内涨幅排名
+        "leadership_bonus": leadership_bonus,               # V5.2: 板块龙头加分
+        "independent_penalty": independent_penalty,         # V5.1 P1
+        "climax_penalty": climax_penalty,                   # V5.1 P0
+        "overheat_penalty": overheat_penalty,               # V5.1 P0b
     }
 
 
 def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
-    """14:00 盘中选股主流程."""
+    """V5.1 盘中选股主流程 (P0高潮检测 + P1独立过滤)."""
+    # 每次运行清空高潮检测缓存
+    _sector_climax_cache.clear()
     with _get_db(readonly=True) as db:
         print(f"  🕑 快照时间: {time_slot}")
         snapshot = get_intraday_snapshot(db, trade_date, time_slot)
@@ -535,24 +693,47 @@ def generate_intraday_plan(picks):
         elif ss == "拉升中": act = "🟢 现价买入"
         elif ss == "炸板回封": act = "🟡 等回封确认"
         else: act = "🟠 谨慎"
+
+        # V5.1: 高潮/独立风险标注
+        risk_tags = []
+        if s.get("climax_penalty", 0) >= 20:
+            risk_tags.append("⚠️板块高潮次日")
+            pos = "0%"
+            act = "🔴 高潮次日不买"
+        elif s.get("climax_penalty", 0) >= 12:
+            risk_tags.append("⚡板块偏热")
+        if s.get("independent_penalty", 0) >= 12:
+            risk_tags.append("🔸独立标的")
+        if s.get("independent_penalty", 0) >= 4:
+            risk_tags.append("🔹独苗")
+
         plans.append({"code": s["code"], "name": s["name"], "grade": g,
                        "total_score": s["total_score"], "entry_price": entry,
                        "stop_loss": stop, "position": pos, "action": act,
-                       "seal_status": ss, "gain_14": s["gain_14"]})
+                       "seal_status": ss, "gain_14": s["gain_14"],
+                       "risk_tags": risk_tags})
     return plans
 
 
 def print_intraday_results(top, trade_date, time_slot):
-    print(f"\n{'=' * 95}")
-    print(f"  盘中龙头短线战法 — {trade_date} {time_slot} Top {len(top)}")
-    print(f"{'=' * 95}")
-    print(f"\n  V4.2: 涨幅(18)+封板(8)+午后(20)+成交(12)+龙头(12)+放量(7)+反转(板块动量+共振)")
-    print(f"{'#':<3} {'代码':<8} {'名称':<8} {'总分':<5} {'级':<3} {'涨':<7} {'预估':<8} {'午后':<6} {'资金':<5} {'状态':<10} {'板块'}")
-    print(f"{'-'*85}")
+    print(f"\n{'=' * 105}")
+    print(f"  秋神龙头战法-盘中 V5.1 — {trade_date} {time_slot} Top {len(top)}")
+    print(f"{'=' * 105}")
+    print(f"\n  V5.1: 涨幅(20)+午后(20)+龙头(14)+分时(12)+成交(12)+放量(8)+共振(8)+板块动量(6)+均线(6)")
+    print(f"        +P0高潮检测(12) +P1独立过滤 | 复盘:中船特气(-7%)+中巨芯(-6%) 高潮次日分歧")
+    # V5.1: 显示高潮惩罚和独立惩罚
+    climax_count = sum(1 for s in top if s.get("climax_penalty", 0) > 0)
+    indep_count = sum(1 for s in top if s.get("independent_penalty", 0) > 0)
+    if climax_count or indep_count:
+        print(f"  ⚠️ 高潮惩罚: {climax_count}只 | 独立惩罚: {indep_count}只")
+    print(f"{'#':<3} {'代码':<8} {'名称':<8} {'总分':<5} {'级':<3} {'涨':<7} {'预估':<8} {'同板块':<6} {'高潮罚':<6} {'独立罚':<6} {'板块'}")
+    print(f"{'-'*95}")
     for i, s in enumerate(top, 1):
+        clim = f"-{s.get('climax_penalty',0)}" if s.get('climax_penalty',0) > 0 else "·"
+        indp = f"-{s.get('independent_penalty',0)}" if s.get('independent_penalty',0) > 0 else "·"
         print(f"{i:<3} {s['code']:<8} {s['name']:<8} {s['total_score']:<5.0f} {s['grade']:<3} "
-              f"{s['gain_14']:>+5.1f}% {s['amount_yi_est']:<6.0f}亿 {s.get('afternoon_strength',0):>+5.1f}% "
-              f"{s.get('vol_surge',0):>4.1f}x {s.get('seal_status','-'):<10} "
+              f"{s['gain_14']:>+5.1f}% {s['amount_yi_est']:<6.0f}亿 {s.get('peer_count',0):<6} "
+              f"{clim:<6} {indp:<6} "
               f"{s.get('sector_change',0):>+5.1f}% {s['industry']}")
     sc = sum(1 for s in top if s['grade'] == 'S')
     ac = sum(1 for s in top if s['grade'] == 'A')
@@ -560,14 +741,15 @@ def print_intraday_results(top, trade_date, time_slot):
 
 
 def print_intraday_plan(plans):
-    print(f"\n{'=' * 80}")
-    print(f"  📋 盘中买入执行计划 (14:00-15:00)")
-    print(f"{'=' * 80}")
-    print(f"  {'代码':<8} {'名称':<8} {'级':<3} {'动作':<18} {'入场':<8} {'止损':<8} {'仓位':<6}")
-    print(f"  {'-' * 58}")
+    print(f"\n{'=' * 90}")
+    print(f"  📋 盘中买入执行计划 V5.1 (14:00-15:00)")
+    print(f"{'=' * 90}")
+    print(f"  {'代码':<8} {'名称':<8} {'级':<3} {'动作':<22} {'入场':<8} {'止损':<8} {'仓位':<6} {'风险'}")
+    print(f"  {'-' * 78}")
     for p in plans:
-        print(f"  {p['code']:<8} {p['name']:<8} {p['grade']:<3} {p['action']:<18} "
-              f"{p['entry_price']:<8} {p['stop_loss']:<8} {p['position']:<6}")
+        tags = " ".join(p.get("risk_tags", []))
+        print(f"  {p['code']:<8} {p['name']:<8} {p['grade']:<3} {p['action']:<22} "
+              f"{p['entry_price']:<8} {p['stop_loss']:<8} {p['position']:<6} {tags}")
 
 
 def get_latest_rt_slot(db, trade_date):
@@ -685,7 +867,7 @@ if __name__ == "__main__":
 
 
 class IntradayScalpEngine:
-    """V5.0 秋神龙头战法-盘中引擎 — 14:00 选股."""
+    """V5.2 秋神龙头战法-盘中引擎 — 14:00 选股 (板块排名 + 过热惩罚升级)."""
 
     def __init__(self, pg_url: str = None):
         self.pg_url = pg_url

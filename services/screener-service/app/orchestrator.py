@@ -22,6 +22,8 @@ def _get_engine(mode: str):
         from kronos_factors.engine.leader_scalp import LeaderScalpEngine
         from kronos_factors.engine.leader_intraday import IntradayScalpEngine
         from kronos_factors.engine.leader_auction import AuctionScalpEngine
+        from kronos_factors.engine.cb_floor import CbFloorEngine
+        from kronos_factors.engine.cb_intraday import CbIntradayEngine
 
         _ENGINES.update({
             "leader_scalp": LeaderScalpEngine,
@@ -31,6 +33,8 @@ def _get_engine(mode: str):
             "long": LongModeEngine,
             "all": AllModeEngine,
             "chokepoint": ChokepointEngine,
+            "cb_floor": CbFloorEngine,
+            "cb_intraday": CbIntradayEngine,
         })
         return _ENGINES.get(mode)
     except ImportError as e:

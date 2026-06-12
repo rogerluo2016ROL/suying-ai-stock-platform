@@ -48,6 +48,8 @@ TABLE_ORDER = [
     "screening_scores", "screening_batches",
     "predictions", "prediction_versions", "prediction_details",
     "backtest_records",
+    # 可转债
+    "cb_basic", "cb_daily", "cb_price_chg",
 ]
 
 
