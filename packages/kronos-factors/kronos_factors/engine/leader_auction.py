@@ -161,6 +161,42 @@ class AuctionScalpEngine:
             return float(r[0]) >= float(r[1]) * 0.995
         return False
 
+    # ── V4.0 陷阱反转检测 ──
+
+    def detect_trap_reversal(self, code: str, trade_date: str) -> tuple:
+        """V4.0 检测"示弱次日反转"模式.
+
+        模式: 昨日高开低走套人 → 今日跳空突破昨日最高点.
+        中船特气: 6/3高开+2.7%收跌-1.9% → 6/4高开+3.5%突破前高.
+
+        Returns: (is_trap_reversal: bool, yest_high: float, trap_score: float)
+        """
+        cur = self.db.cursor()
+        cur.execute("""
+            SELECT open, high, low, close, amount, trade_date FROM daily_kline
+            WHERE code = %s AND trade_date < %s ORDER BY trade_date DESC LIMIT 3
+        """, (code, trade_date))
+        rows = cur.fetchall()
+        if len(rows) < 3:
+            return (False, 0, 0)
+
+        yest_open = float(rows[0][0] or 0)
+        yest_high = float(rows[0][1] or 0)
+        yest_close = float(rows[0][3] or 0)
+        yest_amount = float(rows[0][4] or 0)
+        prev_close = float(rows[1][3] or 0)
+
+        if yest_open <= 0 or yest_close <= 0 or prev_close <= 0:
+            return (False, 0, 0)
+
+        yest_gap = (yest_open / prev_close - 1) * 100
+        yest_body = (yest_close / yest_open - 1) * 100
+
+        # 条件: 昨日高开>1.5% + 收跌(实体<-1%) + 成交>1千万
+        if yest_gap >= 1.5 and yest_body <= -1.0 and yest_amount > 1e7:
+            return (True, yest_high, min(20, abs(yest_body) * 3 + yest_gap * 2))
+        return (False, 0, 0)
+
     # ── 核心评分 ──
 
     def score_auction_stock(self, code: str, trade_date: str, pre_close: float,
@@ -224,6 +260,15 @@ class AuctionScalpEngine:
         else:
             sector_score = 0   # 独苗惩罚
 
+        # ── 因子6: 陷阱反转 V4.0 (0-20分) ──
+        is_trap, yest_high, trap_score = self.detect_trap_reversal(code, trade_date)
+        if is_trap and gap_pct > 1.0:
+            # 今日突破昨日最高+高开 → 强反转信号
+            if auction_open > yest_high:
+                trap_score = min(20, trap_score + 5)
+        else:
+            trap_score = 0
+
         # ── 加权总分 ──
         total = (
             gap_score * WEIGHTS["gap_surprise"] / 25 +
@@ -231,6 +276,7 @@ class AuctionScalpEngine:
             amt_score * WEIGHTS["amount_surprise"] / 15 +
             yizi_score * WEIGHTS["yizi_direction"] / 15 +
             sector_score * WEIGHTS["sector_context"] / 30 +
+            trap_score * WEIGHTS["trap_reversal"] / 20 +
             max(0, min(10, gap_pct * 2)) * WEIGHTS["gap_absolute"] / 10
         )
 
@@ -241,9 +287,11 @@ class AuctionScalpEngine:
             "gap_z": round(gap_z, 2), "vol_z": round(vol_z, 2), "amt_z": round(amt_z, 2),
             "is_yizi": is_yizi, "seal_amount": seal_amount,
             "sector_boost": sector_score,
+            "trap_reversal": is_trap, "trap_score": trap_score,
             "details": {
                 "gap_score": gap_score, "vol_score": vol_score, "amt_score": amt_score,
                 "yizi_score": yizi_score, "sector_score": sector_score,
+                "trap_score": trap_score,
             }
         }
 
