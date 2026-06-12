@@ -40,3 +40,4 @@ services/*/.venv/
 backend/data/*.db
 node_modules/
 .playwright-mcp/
+outputs/cb_ml_*.pkl
