@@ -394,7 +394,8 @@ def get_sector_climax_penalty(db, industry, trade_date):
 
 def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
                           time_slot="14:00", limit_map=None,
-                          industry_stats=None, kline_cache=None):
+                          industry_stats=None, kline_cache=None,
+                          mins_agg_cache=None):
     """盘中选股评分 (V5.4: 9因子 + P0高潮检测 + P1独立过滤 + 预计算加速)."""
     close_14 = snap["close"]
     amount_14 = snap["amount"]
@@ -442,10 +443,22 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     else:
         seal_score = 6  # 拉升中可买 (降权后)
 
-    # ── I2: 午后强势度 (0-20) ──
-    vwap, baseline_vol, _, _, has_full = get_baseline_stats(db, code, trade_date)
+    # ── V5.4 I2+I3+条件4: stk_mins 聚合 — 优先从预计算缓存取 ──
+    if mins_agg_cache and code in mins_agg_cache:
+        ma = mins_agg_cache[code]
+        vwap = ma["vwap"]
+        has_full = ma["has_full"]
+        day_high, day_low = ma["day_high"], ma["day_low"]
+        cum_amount, cum_volume = ma["cum_amount"], ma["cum_volume"]
+        # Volume surge: afternoon avg / morning avg
+        vol_surge = ma["pm_avg_vol"] / ma["am_avg_vol"] if ma["am_avg_vol"] > 0 else 1.0
+    else:
+        vwap, baseline_vol, _, _, has_full = get_baseline_stats(db, code, trade_date)
+        day_high, day_low = get_day_range(db, code, trade_date, time_slot)
+        cum_amount, cum_volume = get_cumulative_amount(db, code, trade_date, time_slot)
+        vol_surge = get_recent_volume_surge(db, code, trade_date, time_slot)
+
     afternoon_str = (close_14 / vwap - 1) * 100 if vwap > 0 else 0
-    day_high, day_low = get_day_range(db, code, trade_date, time_slot)
     day_range = day_high - day_low if day_high > 0 else (snap["high"] - snap["low"])
     pos_in_day = (close_14 - day_low) / max(0.01, day_range) if day_range > 0 else 0.5
 
@@ -459,16 +472,14 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         afternoon_score += 2
     afternoon_score = min(max_afternoon, max(0, afternoon_score))
 
-    # ── I3: 盘中资金强度 (0-10) ──
-    vol_surge = get_recent_volume_surge(db, code, trade_date, time_slot)
+    # I3: 盘中资金强度
     if vol_surge > 3.0: money_score = 10
     elif vol_surge > 2.0: money_score = 7
     elif vol_surge > 1.5: money_score = 4
     elif vol_surge > 1.0: money_score = 2
     else: money_score = 0
 
-    # ── 条件4: 预估成交额 (0-10) ──
-    cum_amount, cum_volume = get_cumulative_amount(db, code, trade_date, time_slot)
+    # 条件4: 预估成交额
     amount_14 = cum_amount if cum_amount > 0 else amount_14
     adj_ratio = get_adjusted_completion(db, code, trade_date, time_slot, cum_amount)
     amount_yi = (amount_14 / adj_ratio) / 1e8 if adj_ratio > 0 else amount_14 / 1e8
@@ -693,6 +704,58 @@ def _prefetch_kline_batch(db, trade_date):
     return result
 
 
+def _prefetch_mins_agg_batch(db, trade_date, time_slot):
+    """批量预取所有股票的 stk_mins 聚合, 替代 4 个 per-stock 查询.
+
+    合并: baseline_stats + volume_surge + cumulative_amount + day_range
+    节省 ~60ms × N 只股票 (占总耗时 60%).
+    返回: {code: {vwap, am_vol, am_bars, cum_amount, cum_volume, day_high, day_low, pm_avg_vol, am_avg_vol}}
+    """
+    morning_end = f"{trade_date} 11:30:59"
+    afternoon_start = f"{trade_date} 13:00:00"
+    time_start = f"{trade_date} 09:00:00"
+    time_end = f"{trade_date} {time_slot}:59"
+
+    rows = db.execute(
+        "SELECT SUBSTR(ts_code,1,6) as code, "
+        "AVG(CASE WHEN trade_time <= ? THEN close END) as am_vwap, "
+        "SUM(CASE WHEN trade_time <= ? THEN volume END) as am_vol, "
+        "MAX(CASE WHEN trade_time <= ? THEN high END) as am_high, "
+        "MIN(CASE WHEN trade_time <= ? THEN low END) as am_low, "
+        "COUNT(CASE WHEN trade_time <= ? THEN 1 END) as am_bars, "
+        "SUM(amount) as cum_amount, SUM(volume) as cum_volume, "
+        "MAX(high) as day_high, MIN(low) as day_low, "
+        "AVG(CASE WHEN trade_time >= ? THEN volume END) as pm_avg_vol, "
+        "AVG(CASE WHEN trade_time <= ? THEN volume END) as am_avg_vol "
+        "FROM stk_mins WHERE trade_time >= ? AND trade_time <= ? AND freq='5min' "
+        "GROUP BY SUBSTR(ts_code,1,6)",
+        (morning_end,) * 5 + (afternoon_start, morning_end, time_start, time_end)
+    ).fetchall()
+
+    result = {}
+    for r in rows:
+        code = r.get("code", "")
+        if not code:
+            continue
+        am_bars = int(r["am_bars"] or 0)
+        am_vol = float(r["am_vol"] or 0)
+        result[code] = {
+            "vwap": float(r["am_vwap"] or 0),
+            "am_vol": am_vol,
+            "am_high": float(r["am_high"] or 0),
+            "am_low": float(r["am_low"] or 0),
+            "am_bars": am_bars,
+            "has_full": am_bars >= 5,
+            "cum_amount": float(r["cum_amount"] or 0),
+            "cum_volume": float(r["cum_volume"] or 0),
+            "day_high": float(r["day_high"] or 0),
+            "day_low": float(r["day_low"] or 0),
+            "pm_avg_vol": float(r["pm_avg_vol"] or 0),
+            "am_avg_vol": float(r["am_avg_vol"] or 0),
+        }
+    return result
+
+
 def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
     """V5.4 盘中选股主流程 (P0高潮检测 + P1独立过滤 + 批量预计算)."""
     # 每次运行清空高潮检测缓存
@@ -712,11 +775,12 @@ def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
         ).fetchall()
         print(f"  📈 股票池: {len(stocks)} 只")
 
-        # ── V5.4 性能优化: 批量预计算行业统计 + K线数据 ──
+        # ── V5.4 性能优化: 批量预计算 ──
         t_pre = time.time()
         industry_stats = _precompute_industry_stats(db, trade_date, time_slot)
         kline_cache = _prefetch_kline_batch(db, trade_date)
-        print(f"  ⚡ 预计算: {len(industry_stats)}行业 + {len(kline_cache)}K线, {time.time()-t_pre:.1f}s")
+        mins_agg_cache = _prefetch_mins_agg_batch(db, trade_date, time_slot)
+        print(f"  ⚡ 预计算: {len(industry_stats)}行业 + {len(kline_cache)}K线 + {len(mins_agg_cache)}分钟, {time.time()-t_pre:.1f}s")
 
         scores = []
         for r in stocks:
@@ -726,7 +790,8 @@ def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
                 res = score_intraday_stock(c, r["name"], r["industry"] or "其他",
                                             snapshot[c], pre_closes[c], db,
                                             trade_date, time_slot, limit_map,
-                                            industry_stats, kline_cache)
+                                            industry_stats, kline_cache,
+                                            mins_agg_cache)
                 if res: scores.append(res)
             except Exception: continue
 
