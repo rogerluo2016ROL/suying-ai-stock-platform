@@ -67,7 +67,7 @@ def write_stk_mins(rows: list[tuple]) -> int:
     mapped = []
     for r in rows:
         ts_code, trade_time, o, h, l, c, vol, amt, freq = r
-        code = ts_code.split(".")[0] if "." in str(ts_code) else ts_code
+        code = ts_code.split(".")[0][:6]
         mapped.append((code, trade_time, o, h, l, c, vol, amt, freq))
     return _pg_write("stk_mins",
                      ["code", "trade_time", "open", "high", "low", "close", "volume", "amount", "freq"],
