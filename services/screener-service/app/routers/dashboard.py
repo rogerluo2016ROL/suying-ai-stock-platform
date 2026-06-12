@@ -239,6 +239,19 @@ async def auction_picks(date_param: str = Query(None, alias="date")):
         return {"status": "error", "message": str(e)}
 
 
+@router.get("/fusion")
+async def fusion_picks(
+    modes: str = Query("leader_scalp,short", description="策略列表,逗号分隔"),
+    top_n: int = Query(20, ge=5, le=50),
+    date_param: str = Query(None, alias="date"),
+):
+    """V4.0 多策略共识融合选股 — 并行运行多套策略, 共识加权."""
+    from app.orchestrator import run_fusion_screening
+    mode_list = [m.strip() for m in modes.split(",") if m.strip()]
+    result = await run_fusion_screening(mode_list, top_n=top_n, trade_date=date_param)
+    return result
+
+
 @router.get("/intraday")
 async def intraday_picks(date_param: str = Query(None, alias="date")):
     """盘中选股: 读取最新 intraday JSON 输出."""

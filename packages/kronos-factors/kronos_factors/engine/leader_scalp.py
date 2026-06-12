@@ -1928,13 +1928,34 @@ def main():
                                                     env_check=args.env_check)
             print_results(top, dates[0])
 
-            if args.execution_plan and top:
-                env = MarketEnv(top[0].get("market_env", "bull")) if top else MarketEnv.BULL
-                plans = generate_execution_plan(top, env)
-                print_execution_plan(plans)
 
-            if args.db_write and all_scores:
-                _write_to_db(all_scores, dates[0], args.top_n)
+# ── Service-layer engine wrapper ──
+
+
+class LeaderScalpEngine:
+    """V4.0 龙头短线战法引擎 — 收盘后选股.
+
+    Wraps run_leader_screening + generate_execution_plan for screener-service.
+    """
+
+    def __init__(self, pg_url: str = None):
+        self.pg_url = pg_url
+
+    def run(self, top_n: int = 20, trade_date: str = None, **kwargs) -> list[dict]:
+        """Execute leader scalp screening.
+
+        Returns: [{code, name, total_score, grade, ...}, ...]
+        """
+        if trade_date is None:
+            with _get_db(readonly=True) as db:
+                dates = get_last_trading_days(db, 1)
+                trade_date = dates[0] if dates else None
+
+        if not trade_date:
+            return []
+
+        top, all_scores = run_leader_screening(trade_date, top_n=top_n)
+        return top if top else []
 
 
 if __name__ == "__main__":

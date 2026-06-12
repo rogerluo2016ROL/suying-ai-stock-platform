@@ -682,3 +682,15 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+class IntradayScalpEngine:
+    """V5.0 盘中龙头战法引擎 — 14:00 选股."""
+
+    def __init__(self, pg_url: str = None):
+        self.pg_url = pg_url
+
+    def run(self, top_n: int = 20, trade_date: str = None, **kwargs) -> list[dict]:
+        """Execute intraday screening."""
+        picks, scores = run_intraday_screening(trade_date or "latest", top_n=top_n)
+        return picks if picks else []
