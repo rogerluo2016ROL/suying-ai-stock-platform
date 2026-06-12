@@ -217,15 +217,18 @@ def detect_extreme_loss_risk(db, trade_date, market_env):
         ).fetchone()
         if prev_top_sector:
             ind = prev_top_sector["industry"]
-            td_short = trade_date.replace('-', '')
+            kw = ind[-2:] if len(ind) >= 2 else ind
             sector_today = db.execute(
-                "SELECT pct_change FROM ths_daily WHERE name LIKE ? AND trade_date=? LIMIT 1",
-                (f"%{ind}%", td_short)
+                "SELECT d.pct_chg FROM index_daily d "
+                "JOIN index_basic b ON d.code=b.code "
+                "WHERE b.name LIKE ? AND d.trade_date=? "
+                "ORDER BY ABS(d.pct_chg) DESC LIMIT 1",
+                (f"%{kw}%", trade_date)
             ).fetchone()
-            if sector_today and sector_today["pct_change"] and sector_today["pct_change"] < -1.5:
+            if sector_today and sector_today["pct_chg"] and float(sector_today["pct_chg"]) < -1.5:
                 risk_detail["sector_reversal"] = True
                 risk_detail["risk_score"] += 2
-                risk_detail["reasons"].append(f"前日最强板块{ind}今日逆转{sector_today['pct_change']:+.1f}%")
+                risk_detail["reasons"].append(f"前日最强板块{ind}今日逆转{float(sector_today['pct_chg']):+.1f}%")
 
     # Determine risk level
     risk_score = risk_detail["risk_score"]
@@ -307,35 +310,46 @@ def get_moneyflow(db, code, trade_date):
 
 
 def get_sector_index(db, industry, trade_date):
-    """Get THS concept sector performance (preferred) or SW industry (fallback).
+    """Get sector index performance (V5.2 fix: index_basic→index_daily).
 
-    THS concepts are more market-relevant for short-term leader identification.
+    Original ths_daily (empty) / sw_daily (wrong column names) always returned None.
+    V5.2 uses index_basic.name keyword match → index_daily.change_pct.
     """
-    # Try THS concept first
+    keyword = industry[-2:] if len(industry) >= 2 else industry
+
+    # 1. Try index_basic → index_daily (申万/中证指数, 最完整)
+    row = db.execute(
+        "SELECT d.pct_chg, b.name FROM index_daily d "
+        "JOIN index_basic b ON d.code=b.code "
+        "WHERE b.name LIKE ? AND d.trade_date=? "
+        "ORDER BY ABS(d.pct_chg) DESC LIMIT 1",
+        (f"%{keyword}%", trade_date)
+    ).fetchone()
+    if row and row["pct_chg"] is not None:
+        return {"pct_change": float(row["pct_chg"]), "amount": 0,
+                "name": row["name"], "source": "index"}
+
+    # 2. Broad match with full industry name
+    row = db.execute(
+        "SELECT d.pct_chg, b.name FROM index_daily d "
+        "JOIN index_basic b ON d.code=b.code "
+        "WHERE b.name LIKE ? AND d.trade_date=? "
+        "ORDER BY ABS(d.pct_chg) DESC LIMIT 1",
+        (f"%{industry}%", trade_date)
+    ).fetchone()
+    if row and row["pct_chg"] is not None:
+        return {"pct_change": float(row["pct_chg"]), "amount": 0,
+                "name": row["name"], "source": "index"}
+
+    # 3. ths_daily fallback (if data becomes available)
     td = trade_date.replace('-', '')
     row = db.execute(
         "SELECT pct_change, total_mv, name FROM ths_daily WHERE name LIKE ? AND trade_date=? LIMIT 1",
         (f"%{industry}%", td)
     ).fetchone()
-    if row:
-        return {"pct_change": row["pct_change"], "amount": row["total_mv"], "name": row["name"], "source": "ths"}
-
-    # Try broader THS match
-    if len(industry) >= 2:
-        row = db.execute(
-            "SELECT pct_change, total_mv, name FROM ths_daily WHERE name LIKE ? AND trade_date=? LIMIT 1",
-            (f"%{industry[:2]}%", td)
-        ).fetchone()
-        if row:
-            return {"pct_change": row["pct_change"], "amount": row["total_mv"], "name": row["name"], "source": "ths"}
-
-    # Fallback to SW industry
-    row = db.execute(
-        "SELECT pct_change, amount FROM sw_daily WHERE name LIKE ? AND trade_date=? LIMIT 1",
-        (f"%{industry}%", trade_date)
-    ).fetchone()
-    if row:
-        return {"pct_change": row["pct_change"], "amount": row["amount"], "name": industry, "source": "sw"}
+    if row and row["pct_change"] is not None:
+        return {"pct_change": float(row["pct_change"]), "amount": row["total_mv"] or 0,
+                "name": row["name"], "source": "ths"}
 
     return None
 
@@ -403,32 +417,26 @@ def get_weak_sectors(db, trade_date, bottom_pct=20):
 
 
 def score_sector_cycle(db, industry, trade_date):
-    """F8: 板块周期阶段评分 (0-10) — 板块推演术启发。
+    """F8: 板块周期阶段评分 (0-10) — 板块推演术启发 (V5.2 fix).
 
     优先"将成龙/主升初期"，避开"充分演绎"。
     """
-    td = trade_date.replace('-', '')
+    keyword = industry[-2:] if len(industry) >= 2 else industry
     score = 0
 
-    # Check sector performance over last 5 days
+    # V5.2 fix: index_basic → index_daily (ths_daily empty, sw_daily columns wrong)
     rows = db.execute(
-        "SELECT pct_change FROM ths_daily WHERE name LIKE ? AND trade_date <= ? "
-        "ORDER BY trade_date DESC LIMIT 5",
-        (f"%{industry}%", td)
+        "SELECT d.pct_chg, d.trade_date FROM index_daily d "
+        "JOIN index_basic b ON d.code=b.code "
+        "WHERE b.name LIKE ? AND d.trade_date <= ? "
+        "ORDER BY d.trade_date DESC LIMIT 5",
+        (f"%{keyword}%", trade_date)
     ).fetchall()
-
-    if not rows:
-        # Fallback to SW
-        rows = db.execute(
-            "SELECT pct_change FROM sw_daily WHERE name LIKE ? AND trade_date <= ? "
-            "ORDER BY trade_date DESC LIMIT 5",
-            (f"%{industry}%", trade_date)
-        ).fetchall()
 
     if not rows or len(rows) < 3:
         return 5  # Insufficient data → neutral
 
-    changes = [(r["pct_change"] or 0) for r in rows]
+    changes = [(float(r["pct_chg"]) if r["pct_chg"] is not None else 0) for r in rows]
 
     # Sector trend strength: recent 3-day cumulative return
     cum_3d = sum(changes[:3]) if len(changes) >= 3 else 0
@@ -1197,18 +1205,17 @@ def compute_sector_leader(scores, db, trade_date):
     all_industries = set(s["industry"] for s in scores)
 
     for industry in all_industries:
-        # Check sector downside using ths_daily or sw_daily
+        # V5.2 fix: index_basic → index_daily (ths_daily empty, sw_daily columns wrong)
+        kw = industry[-2:] if len(industry) >= 2 else industry
         sector_row = db.execute(
-            "SELECT pct_change FROM ths_daily WHERE name LIKE ? AND trade_date=? LIMIT 1",
-            (f"%{industry}%", td)
+            "SELECT d.pct_chg FROM index_daily d "
+            "JOIN index_basic b ON d.code=b.code "
+            "WHERE b.name LIKE ? AND d.trade_date=? "
+            "ORDER BY ABS(d.pct_chg) DESC LIMIT 1",
+            (f"%{kw}%", trade_date)
         ).fetchone()
-        if not sector_row:
-            sector_row = db.execute(
-                "SELECT pct_change FROM sw_daily WHERE name LIKE ? AND trade_date=? LIMIT 1",
-                (f"%{industry}%", trade_date)
-            ).fetchone()
 
-        sector_pct = sector_row["pct_change"] if sector_row else 0
+        sector_pct = float(sector_row["pct_chg"]) if sector_row and sector_row["pct_chg"] is not None else 0
 
         # Count limit-down stocks in this sector (pct_chg < 0 = 跌停)
         ld_in_sector = db.execute(
@@ -1243,9 +1250,20 @@ def compute_sector_leader(scores, db, trade_date):
         elif is_crashing:
             sector_penalty = -8   # Sector crashing >3%
 
+        # V5.2 P0b: Sector overheat penalty (板块过热 → 次日分化)
+        # 回测证据: 板块≥20只涨停 → 次日跟风股大幅回调
+        n_total = len(stocks)
+        if n_total >= 30:
+            sector_overheat = -12   # 极度拥挤
+        elif n_total >= 20:
+            sector_overheat = -8    # 板块过热
+        elif n_total >= 15:
+            sector_overheat = -3    # 轻微过热警告
+        else:
+            sector_overheat = 0
+
         # Rank by gain within sector
         stocks.sort(key=lambda x: -x["gain_pct"])
-        n_total = len(stocks)
         count_strong = n_total
 
         for rank, s in enumerate(stocks, 1):
@@ -1264,6 +1282,17 @@ def compute_sector_leader(scores, db, trade_date):
             # Apply sector penalty to rank score
             if sector_penalty != 0:
                 rank_score = max(0, rank_score + sector_penalty // 3)  # Distribute across all stocks
+
+            # V5.2 P0b: 板块过热 → 后排跟风股罚更多, 前排龙头罚更少
+            if sector_overheat != 0:
+                if rank <= 3:
+                    stock_overheat = sector_overheat // 2  # 龙头: 半罚
+                elif rank <= 5:
+                    stock_overheat = sector_overheat        # 前排: 全额
+                else:
+                    stock_overheat = int(sector_overheat * 1.5)  # 跟风: 1.5倍
+            else:
+                stock_overheat = 0
 
             # Sector breadth score
             if count_strong >= 5:
@@ -1287,11 +1316,13 @@ def compute_sector_leader(scores, db, trade_date):
             else:
                 conc_score = 0
 
-            s["sector_leader_score"] = min(25, rank_score + breadth_score + conc_score)
+            s["sector_leader_score"] = min(25, rank_score + breadth_score + conc_score + stock_overheat)
             s["sector_rank"] = rank
             s["sector_strong_count"] = count_strong
             s["concentration_pct"] = round(concentration, 1)
             s["_sector_risk"] = risk  # Attach sector risk info
+            s["_sector_overheat"] = sector_overheat != 0
+            s["_stock_overheat_penalty"] = stock_overheat
 
             # B3: Tag weak/crashing sectors
             if is_crashing:
@@ -1419,16 +1450,16 @@ def run_leader_screening(trade_date, top_n=20, env_check=True):
         if s.get("is_yizi"):
             s["total_score"] -= 3   # 一字板无法买入, 降低吸引力
 
-        # ── V4.1 E3: 连板溢价 (V4回测: 二板71%胜率+3.2%均值, 三板+100%胜率5样本) ──
+        # ── V5.2 E3: 连板溢价重校准 (6月回测: 二板-7.8%/-7.5%, 三板+5.4%) ──
         board_rank = s.get("board_rank", "")
         if board_rank == "首板":
-            s["total_score"] += 2   # 首板次日确定性高
+            s["total_score"] += 3   # 首板确定性最高
         elif board_rank == "二板":
-            s["total_score"] += 5   # 二板惯性最强 (+3.2%均值)
+            s["total_score"] -= 2   # V5.2: 回测数据二板风险大 (万通-7.8%, 双星-7.5%)
         elif "三板" in str(board_rank) or board_rank == "三板":
-            s["total_score"] += 3   # 三板适度加分 (样本小, 保守)
+            s["total_score"] += 2   # 三板惯性尚可, 适度加分
         elif "4板" in str(board_rank) or "5板" in str(board_rank):
-            s["total_score"] -= 2   # 高位风险, 少量惩罚
+            s["total_score"] -= 5   # 高位风险, 加大惩罚
 
         # ── V4.1 F0 阈值重校准 (S=95→100修复A级倒挂) ──
         if s["total_score"] >= 100:
@@ -1444,14 +1475,14 @@ def run_leader_screening(trade_date, top_n=20, env_check=True):
 
     # ── V4.1 E2+模块B2: 板块集中度控制 (依市场环境动态调整) ──
     if market_env == MarketEnv.BULL:
-        max_per_sector = 4
-        min_grade = "B"  # B级以上可入选
+        max_per_sector = 3    # V5.2: 4→3, 板块集中度控制
+        min_grade = "B"
     elif market_env == MarketEnv.NEUTRAL:
-        max_per_sector = 3
-        min_grade = "A"  # V4.1 E2: NEUTRAL只选A级以上
+        max_per_sector = 2    # V5.2: 3→2
+        min_grade = "A"
     else:
-        max_per_sector = 2
-        min_grade = "S"  # BEAR只观察S级
+        max_per_sector = 1    # V5.2: 2→1, BEAR只看最强
+        min_grade = "S"
 
     top = []
     sector_counts = {}

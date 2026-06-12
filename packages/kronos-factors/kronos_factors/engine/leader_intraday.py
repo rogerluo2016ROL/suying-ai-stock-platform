@@ -668,6 +668,15 @@ def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
                 breadth = 50
         else:
             breadth = 50  # No previous day → assume neutral
+        # ── V5.2 P2: 市场狂热日检测 ──
+        # 6/9回测: 192只通过初筛(正常日60-80), 全市场板块爆发 → 次日全面回调
+        # 策略: 狂热日减少选股数量, 只留最强标的
+        MARKET_FRENZY_THRESHOLD = 120
+        market_frenzy = len(scores) > MARKET_FRENZY_THRESHOLD
+        if market_frenzy:
+            frenzy_ratio = len(scores) / 80  # 正常日基准≈80只
+            print(f"  🔥 市场狂热: {len(scores)}只通过初筛 ({(frenzy_ratio-1)*100:.0f}%高于正常)")
+
         if breadth < 40:
             effective_n = max(5, int(top_n * 0.5))
             print(f"  🌧️ 涨跌比 {breadth:.0f}% (<40%), Top-N {top_n}→{effective_n}")
@@ -676,6 +685,12 @@ def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
             print(f"  ⛅ 涨跌比 {breadth:.0f}% (40-55%), Top-N {top_n}→{effective_n}")
         else:
             effective_n = top_n
+
+        # V5.2: 市场狂热日进一步收紧 (全市场板块爆发→次日全面回调)
+        if market_frenzy:
+            frenzy_n = max(5, int(effective_n * 0.5))  # 狂热日只选一半
+            print(f"  🔥 市场狂热: effective_n {effective_n}→{frenzy_n}")
+            effective_n = frenzy_n
 
     scores.sort(key=lambda x: -x["total_score"])
     return scores[:effective_n], scores
@@ -867,7 +882,7 @@ if __name__ == "__main__":
 
 
 class IntradayScalpEngine:
-    """V5.2 秋神龙头战法-盘中引擎 — 14:00 选股 (板块排名 + 过热惩罚升级)."""
+    """V5.2 秋神龙头战法-盘中引擎 — 14:00 选股 (板块排名+过热升级+狂热减N)."""
 
     def __init__(self, pg_url: str = None):
         self.pg_url = pg_url
