@@ -1,12 +1,19 @@
 """Screener API routes — 9 screening modes via unified endpoint."""
 
+import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 from fastapi import APIRouter, Query, HTTPException
 
 from app.config import AVAILABLE_MODES, DEFAULT_TOP_N, MAX_TOP_N
 
 router = APIRouter(prefix="/api/v1/screener", tags=["screener"])
+
+# Shared thread pool for offloading synchronous screening engines.
+# Each /run call is serialized behind a max_workers=3 pool to limit
+# concurrent heavy computation (Kronos factor engine + PG queries).
+_executor = ThreadPoolExecutor(max_workers=3)
 
 
 @router.get("/modes")
@@ -45,14 +52,21 @@ async def run_screening(
         )
 
     t0 = time.time()
+    loop = asyncio.get_running_loop()
 
     try:
         if mode in ("leader_scalp", "leader_intraday", "leader_auction"):
-            result = _run_leader_mode(mode, top_n, trade_date)
+            result = await loop.run_in_executor(
+                _executor, _run_leader_mode, mode, top_n, trade_date
+            )
         elif mode in ("cb_floor", "cb_intraday", "cb_auction"):
-            result = _run_cb_mode(mode, top_n, trade_date)
+            result = await loop.run_in_executor(
+                _executor, _run_cb_mode, mode, top_n, trade_date
+            )
         else:
-            result = _run_multifactor_mode(mode, top_n, trade_date)
+            result = await loop.run_in_executor(
+                _executor, _run_multifactor_mode, mode, top_n, trade_date
+            )
     except Exception as e:
         err = str(e)
         if any(k in err.lower() for k in ("division by zero", "'code'", "'pct_chg'", "keyerror", "none")):

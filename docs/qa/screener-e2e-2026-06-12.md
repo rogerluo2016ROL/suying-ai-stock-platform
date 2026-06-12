@@ -1,8 +1,18 @@
 ---
 tester: qa-engineer
+model: deepseek-v4-pro
 stage: e2e
-report_verdict: Block
-uat_signoff_verdict: pending
+report_verdict: "❌ Block — PG connection pool leak (DEF-SCR-1 fix incomplete)"
+ac_total: 11
+ac_pass: 3
+ac_fail: 0
+ac_blocked: 8
+p0_total: 6
+p0_pass: 2
+p0_fail: 0
+p0_blocked: 4
+p0_pass2_total: 2
+p0_pass2_ok: 2
 ac_total: 2
 ac_pass: 0
 ac_fail: 1
@@ -141,3 +151,58 @@ date: 2026-06-12
 ## Hand-off
 
 ❌ Block → SendMessage product-lead: screener-service core screening endpoints all hang. Only 3/11 E2E scenarios pass (stateless: health, modes, error handling). Critical defect DEF-SCR-1 in PG adapter connection blocking.
+
+---
+
+## Re-run 1 — 2026-06-12 15:00 (T-308: ThreadedConnectionPool fix)
+
+**Trigger**: T-308 修复 DEF-SCR-1 (PG adapter 单连接 → ThreadedConnectionPool 2..10 + autocommit)
+**Commit**: 7f110a7 (盘中选股快照 + 预测服务路由优化)
+
+### Re-run Results
+
+| # | Test | Result | Evidence |
+|---|------|:---:|------|
+| R1-1 | GET /modes | ✅ 200 | 10 modes returned |
+| R1-2 | POST /run?mode=short&top_n=5 | ✅ 200 | 863 scored, 5 picks (绿的谐波/奥比中光/...), 54.5s |
+| R1-3 | POST /run?mode=long&top_n=5 | ❌ TIMEOUT | 120s no response — PG pool exhausted |
+| R1-4 | POST /run?mode=all&top_n=5 | ❌ EMPTY | Body empty — PG pool dead |
+| R1-5 | POST /run?mode=chokepoint&top_n=5 | ❌ EMPTY | Body empty — PG pool dead |
+| R1-6 | POST /run?mode=leader_scalp&top_n=5 | ❌ EMPTY | Body empty — PG pool dead |
+| R1-7 | POST /run?mode=leader_auction&top_n=5 | ❌ EMPTY | Body empty — PG pool dead |
+| R1-8 | POST /run?mode=cb_floor&top_n=5 | ❌ EMPTY | Body empty — PG pool dead |
+| R1-9 | POST /run?top_n=5 (valid bounds) | ✅ 200 | short mode accepted top_n=5 (was >= 5 validation) |
+| R1-10 | POST /run?top_n=3 (below min) | ✅ 422 | `Input should be >= 5` |
+
+### Evidence
+
+```
+--- short mode (R1-2, PASS) ---
+HTTP/1.1 200 OK
+{"mode":"short","market_env":"未知","total_scored":863,"total_excluded":4423,
+ "picks":[
+   {"code":"688017","name":"绿的谐波","price":373.73,"score":20.3,"grade":"S",
+    "entry_price":364.18,"rationale":"当前价373.73高于MA10入场点364.18..."},
+   {"code":"688322","name":"奥比中光","price":133.06,"score":19.7,"grade":"S",...},
+   {"code":"001896","name":"豫能控股","price":21.38,"score":19.6,"grade":"S",...},
+   {"code":"300814","name":"中富电路","price":166.79,"score":19.5,"grade":"S",...},
+   {"code":"600498","name":"烽火通信","price":65.05,"score":19.5,"grade":"S",...}],
+ "factor_weights":{"short_term":0.3,"volume_factor":0.1,...},
+ "elapsed":54.5}
+
+--- long mode (R1-3, FAIL) ---
+TIMEOUT after 120s — service accepts connection but never responds
+
+--- all/chokepoint/leader_scalp/leader_auction/cb_floor (R1-4~8, FAIL) ---
+ALL return empty body — PG connection pool exhausted after short query.
+Service must be restarted to recover.
+```
+
+### Root Cause
+
+**DEF-SCR-1 fix incomplete**: ThreadedConnectionPool(2..10) connections are NOT properly released after each request. The `short` mode query (54.5s, 863 stocks) exhausts all pool connections. No connection return to pool → subsequent requests hang. 100% reproducible on fresh restart.
+
+### Re-run Verdict
+
+**❌ Block** — PG pool leak confirmed. Service becomes unusable after 1 query. T-308 fix must add connection release/cleanup per-request.
+

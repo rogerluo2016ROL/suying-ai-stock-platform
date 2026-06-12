@@ -21,7 +21,13 @@ def inject_adapters(db_path: str):
     # Try PG first, fall back to SQLite
     try:
         adapter = _PGAdapter()
-        logger.info("DB adapters: PG mode (postgresql://%s)", PG_URL.split("@")[-1])
+        # Health check: verify connection works before committing to PG
+        try:
+            adapter._get_conn()
+            logger.info("DB adapters: PG mode (postgresql://%s)", PG_URL.split("@")[-1])
+        except Exception as e:
+            logger.warning("PG connection test failed (%s), falling back to SQLite", e)
+            adapter = _LegacyDBAdapter(db_path)
     except Exception as e:
         logger.warning("PG adapter unavailable (%s), falling back to SQLite", e)
         adapter = _LegacyDBAdapter(db_path)
@@ -49,7 +55,10 @@ class _PGAdapter:
     def _get_conn(self):
         import psycopg2
         if self._conn is None or self._conn.closed:
-            self._conn = psycopg2.connect(self._url)
+            self._conn = psycopg2.connect(
+                self._url, connect_timeout=5,
+                options="-c statement_timeout=30000 -c lock_timeout=10000"
+            )
             self._conn.autocommit = True
         return self._conn
 
