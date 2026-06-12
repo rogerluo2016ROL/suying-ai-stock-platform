@@ -8,7 +8,7 @@
     # 2. 迁移数据
     python services/sql/migrate_data.py \
         --sqlite Kronos/data/kronos.db \
-        --pg postgresql://kronos:kronos@localhost:5432/kronos
+        --pg postgresql://kronos:kronos@localhost:6432/kronos
 
     # 3. 只迁移特定表
     python services/sql/migrate_data.py --tables stocks,daily_kline
@@ -28,6 +28,7 @@ TABLE_ORDER = [
     "daily_kline", "weekly_kline", "monthly_kline",
     "adj_factor", "daily_basic", "stk_limit",
     "index_daily", "sw_daily", "rt_sw_k",
+    "rt_k", "stk_auction_o", "stk_mins", "limit_list_d", "ths_daily",
     # 资金面
     "moneyflow", "moneyflow_hsgt", "hk_holdings",
     "margin_detail", "margin_summary", "top_list", "top_inst",
@@ -49,7 +50,7 @@ TABLE_ORDER = [
     "predictions", "prediction_versions", "prediction_details",
     "backtest_records",
     # 可转债
-    "cb_basic", "cb_daily", "cb_price_chg",
+    "cb_basic", "cb_daily", "cb_price_chg", "cb_call",
 ]
 
 
@@ -110,7 +111,7 @@ def migrate_table(sqlite_conn, pg_conn, table: str, batch_size: int = 5000) -> d
 def main():
     parser = argparse.ArgumentParser(description="SQLite → PostgreSQL 数据迁移")
     parser.add_argument("--sqlite", required=True, help="SQLite 数据库路径")
-    parser.add_argument("--pg", default="postgresql://kronos:kronos@localhost:5432/kronos",
+    parser.add_argument("--pg", default="postgresql://kronos:kronos@localhost:6432/kronos",
                         help="PostgreSQL 连接字符串")
     parser.add_argument("--tables", help="要迁移的表 (逗号分隔), 默认全部 48 张")
     parser.add_argument("--batch-size", type=int, default=5000)

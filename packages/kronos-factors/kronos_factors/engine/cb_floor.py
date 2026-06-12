@@ -230,6 +230,23 @@ class CbFloorEngine:
         for r in cur.fetchall():
             price_chg_map.setdefault(r[0], []).append(r)
 
+        # ── Pre-fetch: cb_call (强赎) risk ──
+        call_risk_map = {}  # {ts_code: {is_call, call_date, call_price, call_reg_date}}
+        try:
+            cur.execute(
+                "SELECT ts_code, is_call, call_date, call_price, call_reg_date FROM cb_call "
+                "WHERE call_date >= CURRENT_DATE - INTERVAL '30 days' "
+                "ORDER BY ts_code, call_date DESC"
+            )
+            for r in cur.fetchall():
+                if r[0] not in call_risk_map:
+                    call_risk_map[r[0]] = {
+                        "is_call": r[1], "call_date": r[2],
+                        "call_price": r[3], "call_reg_date": r[4],
+                    }
+        except Exception:
+            pass
+
         # ── Pre-fetch: hot themes ──
         hot_industries = set()
         try:
@@ -261,6 +278,30 @@ class CbFloorEngine:
                 ) = r
 
                 stk_code_raw = _strip_code(stk_code_ts or "")
+
+                # ── Check 强赎 risk ──
+                call_info = call_risk_map.get(ts_code, {})
+                call_risk = "安全"
+                call_penalty = 0.0
+                if call_info.get("is_call") == "公告实施强赎":
+                    call_risk = "强赎中"
+                    reg_date = call_info.get("call_reg_date")
+                    if reg_date:
+                        if isinstance(reg_date, str):
+                            reg_date = datetime.strptime(reg_date, "%Y-%m-%d").date()
+                        days_to_reg = (reg_date - date.today()).days
+                        if days_to_reg < 0:
+                            continue  # registration date passed, can't trade
+                        if days_to_reg <= 3:
+                            call_risk = "强赎中(最后3天!)"
+                            call_penalty = -20.0
+                        elif days_to_reg <= 7:
+                            call_penalty = -10.0
+                        else:
+                            call_penalty = -5.0
+                elif call_info.get("is_call") == "公告提示强赎":
+                    call_risk = "提示强赎"
+                    call_penalty = -3.0
 
                 # ── Hard exclude: maturity < 3 months ──
                 if maturity_date_:
@@ -350,6 +391,7 @@ class CbFloorEngine:
                     + soe_score * 0.05
                     + volume_score * 0.05
                     + rating_penalty
+                    + call_penalty
                 )
 
                 # Grade (adjusted thresholds V2)
@@ -373,6 +415,9 @@ class CbFloorEngine:
                     "remain_size_yi": round(remain_size / 1e8, 2) if remain_size else None,
                     "maturity_date": str(maturity_date_) if maturity_date_ else None,
                     "rating": rating,
+                    "call_risk": call_risk,
+                    "call_date": str(call_info.get("call_date")) if call_info.get("call_date") else None,
+                    "call_price": round(call_info["call_price"], 2) if call_info.get("call_price") else None,
                     "cb_momentum": round(sum(cb_changes[:5]) if cb_changes else 0, 2),
                     "stock_momentum": round(sum(stk_changes[:3]) if stk_changes else 0, 2),
                     "total_score": round(total, 1),

@@ -148,6 +148,20 @@ class CbIntradayEngine:
             )
             return []
 
+        # ── Pre-fetch: 强赎 risk ──
+        call_risk_map = {}
+        try:
+            cur.execute(
+                "SELECT ts_code, is_call, call_date, call_price, call_reg_date FROM cb_call "
+                "WHERE call_date >= CURRENT_DATE - INTERVAL '30 days'"
+            )
+            for r in cur.fetchall():
+                if r[0] not in call_risk_map:
+                    call_risk_map[r[0]] = {"is_call": r[1], "call_date": r[2],
+                                           "call_price": r[3], "call_reg_date": r[4]}
+        except Exception:
+            pass
+
         # ── Step 3: Score each CB ──
         picks = []
         for r in rows:
@@ -177,11 +191,37 @@ class CbIntradayEngine:
                 # Size score (25%)
                 size_score = self._size_score(remain_size)
 
+                # 强赎 penalty
+                call_info = call_risk_map.get(ts_code, {})
+                call_risk = "安全"
+                call_penalty = 0.0
+                if call_info.get("is_call") == "公告实施强赎":
+                    call_risk = "强赎中"
+                    reg_date = call_info.get("call_reg_date")
+                    if reg_date:
+                        if isinstance(reg_date, str):
+                            from datetime import datetime as dt2
+                            reg_date = dt2.strptime(reg_date, "%Y-%m-%d").date()
+                        days_to_reg = (reg_date - date.today()).days
+                        if days_to_reg < 0:
+                            continue
+                        if days_to_reg <= 3:
+                            call_risk = "强赎中(最后3天!)"
+                            call_penalty = -20.0
+                        elif days_to_reg <= 7:
+                            call_penalty = -10.0
+                        else:
+                            call_penalty = -5.0
+                elif call_info.get("is_call") == "公告提示强赎":
+                    call_risk = "提示强赎"
+                    call_penalty = -3.0
+
                 # Weighted total
                 total = (
                     sector_score * 0.40
                     + premium_score * 0.35
                     + size_score * 0.25
+                    + call_penalty
                 )
 
                 # Grade
@@ -205,6 +245,8 @@ class CbIntradayEngine:
                     "premium_rate": round(cb_over_rate, 2) if cb_over_rate else None,
                     "remain_size_yi": round(remain_size / 1e8, 2) if remain_size else None,
                     "rating": rating,
+                    "call_risk": call_risk,
+                    "call_date": str(call_info.get("call_date")) if call_info.get("call_date") else None,
                     "total_score": round(total, 1),
                     "grade": grade,
                     "details": {

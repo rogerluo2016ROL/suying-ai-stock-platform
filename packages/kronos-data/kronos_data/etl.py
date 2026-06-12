@@ -1723,6 +1723,63 @@ def sync_cb_price_chg(days_back: int = 365) -> dict:
     return {"status": "ok", "table": "cb_price_chg", "fetched": total, "written": written}
 
 
+def sync_cb_call(days_back: int = 365) -> dict:
+    """Sync pro.cb_call() — redemption/call info for risk detection."""
+    pro = _get_pro()
+    if pro is None:
+        return {"status": "skipped", "reason": "no Tushare token"}
+    db = _get_etl_db()
+
+    cols = ["ts_code", "call_type", "is_call", "ann_date", "call_date",
+            "call_price", "call_price_tax", "call_vol", "call_amount",
+            "payment_date", "call_reg_date"]
+
+    _rate_limit()
+    try:
+        df = pro.cb_call()
+    except Exception as e:
+        db.close()
+        return {"status": "error", "reason": str(e)}
+
+    if df is None or df.empty:
+        db.close()
+        return {"status": "skipped", "reason": "no data"}
+
+    rows = []
+    for _, r in df.iterrows():
+        rows.append(tuple(
+            str(r.get(c)) if c in ("ts_code", "call_type", "is_call") and r.get(c) is not None
+            else (r.get(c) if not (isinstance(r.get(c), float) and str(r.get(c)) == 'nan') else None)
+            for c in cols
+        ))
+
+    # Direct psycopg2 insert
+    import psycopg2, psycopg2.extras
+    pg_conn = psycopg2.connect(_PG_URL)
+    cur = pg_conn.cursor()
+    col_str = ", ".join(cols)
+    sql = f"INSERT INTO cb_call({col_str}) VALUES %s ON CONFLICT (ts_code, ann_date, call_type) DO NOTHING"
+    try:
+        psycopg2.extras.execute_values(cur, sql, rows, page_size=1000)
+        written = len(rows)
+        pg_conn.commit()
+    except Exception:
+        pg_conn.rollback()
+        written = 0
+        for row in rows:
+            try:
+                placeholders = ", ".join(["%s"] * len(cols))
+                cur.execute(f"INSERT INTO cb_call({col_str}) VALUES({placeholders}) ON CONFLICT DO NOTHING", tuple(row))
+                written += cur.rowcount
+            except Exception:
+                pass
+        pg_conn.commit()
+    pg_conn.close()
+    db.close()
+    print(f"  cb_call: {len(rows)} fetched, {written} written")
+    return {"status": "ok", "table": "cb_call", "fetched": len(rows), "written": written}
+
+
 SYNC_MODES = {
     "moneyflow": sync_moneyflow,
     "hk_hold": sync_hk_hold,
@@ -1764,6 +1821,7 @@ SYNC_MODES = {
     "cb_basic": sync_cb_basic,
     "cb_daily": sync_cb_daily,
     "cb_price_chg": sync_cb_price_chg,
+    "cb_call": sync_cb_call,
     "all_new": sync_all_new_apis,
 }
 

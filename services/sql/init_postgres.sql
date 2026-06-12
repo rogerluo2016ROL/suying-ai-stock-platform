@@ -403,8 +403,8 @@ CREATE TABLE IF NOT EXISTS watchlist (
 -- 实时日K线 (rt_k, Level-2 权限)
 CREATE TABLE IF NOT EXISTS rt_k (id SERIAL PRIMARY KEY, ts_code TEXT NOT NULL, trade_date DATE NOT NULL, open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION, close DOUBLE PRECISION, pre_close DOUBLE PRECISION, change DOUBLE PRECISION, pct_chg DOUBLE PRECISION, vol DOUBLE PRECISION, amount DOUBLE PRECISION, UNIQUE(ts_code, trade_date));
 
--- 开盘集合竞价 (stk_auction_o, 特色数据权限)
-CREATE TABLE IF NOT EXISTS stk_auction_o (id SERIAL PRIMARY KEY, ts_code TEXT NOT NULL, trade_date DATE NOT NULL, pre_close DOUBLE PRECISION, price DOUBLE PRECISION, volume DOUBLE PRECISION, amount DOUBLE PRECISION, bid_volume DOUBLE PRECISION, ask_volume DOUBLE PRECISION, bid_amount DOUBLE PRECISION, ask_amount DOUBLE PRECISION, UNIQUE(ts_code, trade_date));
+-- 开盘集合竞价 (stk_auction_o, 从 9:30 首根5min K线采集 — scheduler.collect_auction_snapshot)
+CREATE TABLE IF NOT EXISTS stk_auction_o (id SERIAL PRIMARY KEY, code TEXT NOT NULL, trade_date DATE NOT NULL, open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION, close DOUBLE PRECISION, vol DOUBLE PRECISION, amount DOUBLE PRECISION, vwap DOUBLE PRECISION, UNIQUE(code, trade_date));
 
 -- 实时分钟线 (stk_mins, 来自 Tushare rt_min API + PG 直写)
 CREATE TABLE IF NOT EXISTS stk_mins (
@@ -579,3 +579,22 @@ CREATE TABLE IF NOT EXISTS cb_price_chg (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cb_price_chg_code ON cb_price_chg(ts_code);
+
+CREATE TABLE IF NOT EXISTS cb_call (
+    id SERIAL PRIMARY KEY,
+    ts_code TEXT NOT NULL REFERENCES cb_basic(ts_code),
+    call_type TEXT,
+    is_call TEXT,
+    ann_date DATE,
+    call_date DATE,
+    call_price DOUBLE PRECISION,
+    call_price_tax DOUBLE PRECISION,
+    call_vol DOUBLE PRECISION,
+    call_amount DOUBLE PRECISION,
+    payment_date DATE,
+    call_reg_date DATE,
+    UNIQUE(ts_code, ann_date, call_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cb_call_code ON cb_call(ts_code);
+CREATE INDEX IF NOT EXISTS idx_cb_call_date ON cb_call(call_date);
