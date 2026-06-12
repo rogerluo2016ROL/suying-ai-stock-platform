@@ -267,17 +267,29 @@ def get_kline_data(db, code, trade_date, lookback=60):
     return rows
 
 
-def get_sector_index(db, industry, trade_date):
-    """获取板块指数涨跌幅 (V5.1 修复: index_basic→index_daily).
+def get_sector_index(db, industry, trade_date, code=None):
+    """获取板块指数涨跌幅 (V5.3: THS概念优先 → index_basic fallback).
 
-    原实现查询 sw_daily.name/pct_change 列不存在, 导致始终返回0.
-    V5.1 改用 index_basic.name 模糊匹配 → index_daily.pct_chg.
+    V5.3: 通过 ths_member + ths_daily 获取股票所属概念的实时涨跌幅.
     """
-    # 策略: 用 industry 最后2个汉字匹配 index_basic.name
-    # 例如: '全国地产' → 匹配含'地产'的指数, '半导体' → 匹配含'半导体'的指数
-    keyword = industry[-2:] if len(industry) >= 2 else industry
+    # 1. THS概念路径 (最完整, ≥1500概念每日) — 通过股票代码查概念成分
+    if code:
+        row = db.execute(
+            "SELECT d.change_pct FROM ths_daily d "
+            "JOIN ths_member m ON m.ts_code = d.code "
+            "JOIN ths_index i ON m.ts_code = i.ts_code "
+            "WHERE m.con_code LIKE ? AND d.trade_date = ? "
+            "ORDER BY ABS(d.change_pct) DESC LIMIT 1",
+            (f"{code}%", trade_date)
+        ).fetchone()
+        if row:
+            # PG adapter _KEY_MAP: change_pct → pct_chg
+            val = row.get("pct_chg") or row.get("change_pct")
+            if val is not None:
+                return float(val)
 
-    # 1. Try index_basic → index_daily (申万/中证指数)
+    # 2. index_basic → index_daily fallback
+    keyword = industry[-2:] if len(industry) >= 2 else industry
     row = db.execute(
         "SELECT d.pct_chg FROM index_daily d "
         "JOIN index_basic b ON d.code=b.code "
@@ -287,26 +299,6 @@ def get_sector_index(db, industry, trade_date):
     ).fetchone()
     if row and row["pct_chg"] is not None:
         return float(row["pct_chg"])
-
-    # 2. Try broader match with full industry name
-    row = db.execute(
-        "SELECT d.pct_chg FROM index_daily d "
-        "JOIN index_basic b ON d.code=b.code "
-        "WHERE b.name LIKE ? AND d.trade_date=? "
-        "ORDER BY d.pct_chg DESC LIMIT 1",
-        (f"%{industry}%", trade_date)
-    ).fetchone()
-    if row and row["pct_chg"] is not None:
-        return float(row["pct_chg"])
-
-    # 3. ths_daily fallback (if data ever becomes available)
-    td = trade_date.replace('-', '')
-    row = db.execute(
-        "SELECT pct_change FROM ths_daily WHERE name LIKE ? AND trade_date=? LIMIT 1",
-        (f"%{industry}%", td)
-    ).fetchone()
-    if row and row["pct_change"] is not None:
-        return float(row["pct_change"])
 
     return 0
 
@@ -566,7 +558,7 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         overheat_penalty = 0
 
     # ── 板块动量 (V5.1: 维持反转逻辑, 降权 8→6) ──
-    sp = get_sector_index(db, industry, trade_date)
+    sp = get_sector_index(db, industry, trade_date, code)
     if sp > 3: sm_score = 0   # 过热, 次日大概率回调
     elif sp > 1: sm_score = 2  # 偏热
     elif sp > 0: sm_score = 5  # 温和, OK
