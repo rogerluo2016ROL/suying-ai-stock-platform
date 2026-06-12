@@ -78,12 +78,18 @@ async def lifespan(app: FastAPI):
         else:
             logger.info("Using pre-trained predictor (no fine-tuned checkpoint)")
 
-        _predictor = KronosPredictor(model, tokenizer, max_context=512, device=device)
+        _predictor = KronosPredictor(model, tokenizer, max_context=512, device=device,
+                                      compile_model=True, use_amp=(device != "cpu"))
         _model_loaded = True
         params = sum(p.numel() for p in model.parameters())
-        logger.info("%s model loaded on %s (%s params, fine-tuned=%s)",
+        logger.info("%s model loaded on %s (%s params, fine-tuned=%s, compiled=True)",
                     model_name, device, f"{params:,}",
                     "yes" if os.path.exists(ft_pred) else "no")
+
+        # 🔥 V2: 预热模型 — 消除首次推理 JIT 编译延迟
+        logger.info("Warming up model (first inference may take 5-30s for JIT compile)...")
+        _predictor.warmup(seq_len=60, pred_len=15)
+        logger.info("Warmup complete — model ready for real-time inference")
     except Exception as e:
         logger.warning("Kronos model not loaded: %s", e)
     yield

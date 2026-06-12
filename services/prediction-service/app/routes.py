@@ -42,6 +42,57 @@ async def model_status():
     return {"model_loaded": _m._model_loaded, "model": "Kronos-small", "device": "cpu"}
 
 
+@router.post("/predict/{code}/fast")
+async def predict_stock_fast(
+    code: str,
+    pred_days: int = Query(15, ge=5, le=30),
+):
+    """🔥 V2 快速预测: 单样本+低延迟，适合实时诊断 (延迟 ~300ms vs 标准 ~1s)。"""
+    if not _m._model_loaded or _m._predictor is None:
+        raise HTTPException(503, "Kronos model not loaded")
+
+    kline = _get_kline(code)
+    if kline is None:
+        raise HTTPException(404, f"No K-line data for {code} (need ≥30 rows)")
+
+    df, x_ts = kline
+    lookback = min(len(df), 400)
+    x_df = df.iloc[-lookback:]
+    x_timestamp = x_ts.iloc[-lookback:].reset_index(drop=True)
+
+    last_date = x_timestamp.iloc[-1]
+    y_ts = pd.bdate_range(start=last_date + pd.Timedelta(days=1), periods=pred_days)
+    y_timestamp = pd.Series(y_ts)
+
+    try:
+        pred_df = _m._predictor.predict_fast(
+            df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
+            pred_len=pred_days, verbose=False,
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Prediction failed: {e}")
+
+    current_price = float(df["close"].iloc[-1])
+    pred_close = float(pred_df["close"].iloc[-1])
+    pred_return = round((pred_close / current_price - 1) * 100, 2)
+
+    return {
+        "code": code, "mode": "fast",
+        "current_price": round(current_price, 2),
+        "pred_days": pred_days,
+        "pred_last_close": round(pred_close, 2),
+        "pred_return_pct": pred_return,
+        "trend": "📈 上升" if pred_close > current_price else "📉 下降",
+        "pred_trajectory": [
+            {"day": i + 1, "open": round(float(pred_df["open"].iloc[i]), 2),
+             "high": round(float(pred_df["high"].iloc[i]), 2),
+             "low": round(float(pred_df["low"].iloc[i]), 2),
+             "close": round(float(pred_df["close"].iloc[i]), 2)}
+            for i in range(min(pred_days, len(pred_df)))
+        ],
+    }
+
+
 @router.post("/predict/{code}")
 async def predict_stock(
     code: str,
@@ -68,7 +119,7 @@ async def predict_stock(
     try:
         pred_df = _m._predictor.predict(
             df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
-            pred_len=pred_days, T=1.0, top_p=0.9, sample_count=3,
+            pred_len=pred_days, T=0.7, top_k=10, top_p=0.95, sample_count=3,
             verbose=False,
         )
     except Exception as e:

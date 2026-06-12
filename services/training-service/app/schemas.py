@@ -44,8 +44,8 @@ class ModelStage(str, Enum):
 class TrainingParams(BaseModel):
     """Training hyperparameters (transparent to Optuna search_space or fixed)."""
     model_type: ModelType = Field(..., description="Model type")
-    horizon: int = Field(default=10, ge=1, le=60, description="Forecast holding days")
-    lookback: int = Field(default=90, ge=30, le=500, description="Lookback window days")
+    horizon: int = Field(default=15, ge=1, le=60, description="Forecast holding days (V2: 10→15)")
+    lookback: int = Field(default=180, ge=30, le=500, description="Lookback window days (V2: 90→180)")
     n_trials: int = Field(default=50, ge=1, le=500, description="Optuna trial count")
     cv_folds: int = Field(default=5, ge=2, le=10, description="Cross-validation folds")
     early_stopping_rounds: int = Field(default=50, ge=10, le=200)
@@ -241,6 +241,11 @@ class RollbackResponse(BaseModel):
     rolled_back_from: int
     reason: str
     message: str
+
+
+class ArchiveRequest(BaseModel):
+    """POST /models/{id}/archive request body."""
+    reason: str = Field(..., min_length=1, description="Archive reason")
 
 
 class PaginatedModelsResponse(BaseModel):
