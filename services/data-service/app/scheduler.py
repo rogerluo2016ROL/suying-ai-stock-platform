@@ -1,11 +1,20 @@
 """内置 asyncio 定时任务调度 — 零外部依赖."""
 
-import asyncio, logging, os, time
+import asyncio, logging, os, sys, time
 from datetime import datetime, date
 from app.sync.rt_min import collect_rt_min
 from app.sync.tushare import sync_post_market_core, sync_post_market_ext
 from app.sync.pg_writer import refresh_materialized_views
 from app.sync.stocks import sync_stock_list, sync_stocks_incremental
+from app.sync.cb_sync import sync_ths_daily, sync_cb_price_chg_all, sync_ths_concept_map
+
+# 从 kronos-data/etl.py 导入已有 sync 函数 (零重复代码)
+_PROJ_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
+_KRONOS_DATA = os.path.join(_PROJ_ROOT, "packages", "kronos-data")
+if _KRONOS_DATA not in sys.path:
+    sys.path.insert(0, _KRONOS_DATA)
+from kronos_data.etl import sync_cb_daily, sync_cb_factor, sync_stk_auction_o, sync_index_daily
 
 logger = logging.getLogger("data-service.scheduler")
 
@@ -15,7 +24,11 @@ _running = False
 
 
 def _cron_match(cron_expr: str, now: datetime) -> bool:
-    """简易 cron 匹配: 'minute hour * * day_of_week'. 支持 */N 语法."""
+    """简易 cron 匹配: 'minute hour day_of_month * day_of_week'. 支持 */N 语法.
+
+    fields: minute (0-59), hour (0-23), day_of_month (1-31), *, day_of_week (1-7, Mon=1).
+    day_of_month 为 * 时忽略; day_of_week 为 * 时忽略.
+    """
     parts = cron_expr.split()
     if len(parts) < 5:
         return False
@@ -35,6 +48,7 @@ def _cron_match(cron_expr: str, now: datetime) -> bool:
 
     return (_match(parts[0], now.minute) and
             _match(parts[1], now.hour) and
+            _match(parts[2], now.day) and
             _match(parts[4], now.isoweekday()))
 
 
@@ -64,26 +78,39 @@ def _extract_pg_status(result) -> tuple:
 
 
 async def _run_job(job: dict):
-    """执行单个任务并记录状态."""
+    """执行单个任务并记录状态, 最多重试3次 (指数退避: 1s, 4s, 16s)."""
     t0 = datetime.now()
-    try:
-        fn = job["fn"]
-        result = fn() if not job.get("args") else fn(*job["args"])
-        pg_status, pg_total = _extract_pg_status(result)
-        _job_status[job["id"]] = {
-            "last_run": t0.isoformat(), "last_status": "ok",
-            "result": str(result)[:300],
-            "pg_write_status": pg_status,
-            "pg_written": pg_total,
-        }
-    except Exception as e:
-        _job_status[job["id"]] = {
-            "last_run": t0.isoformat(), "last_status": "error",
-            "error": str(e)[:300],
-            "pg_write_status": "fail",
-            "pg_written": 0,
-        }
-        logger.warning("%s: %s", job["id"], e)
+    max_retries = 3
+
+    for attempt in range(max_retries):
+        try:
+            fn = job["fn"]
+            result = fn() if not job.get("args") else fn(*job["args"])
+            pg_status, pg_total = _extract_pg_status(result)
+            _job_status[job["id"]] = {
+                "last_run": t0.isoformat(), "last_status": "ok",
+                "result": str(result)[:300],
+                "pg_write_status": pg_status,
+                "pg_written": pg_total,
+            }
+            if pg_total > 0:
+                logger.info("%s: ok (pg=%s, %d rows)", job["id"], pg_status, pg_total)
+            return  # success, exit retry loop
+        except Exception as e:
+            if attempt < max_retries - 1:
+                sleep_s = 4 ** attempt  # 1, 4, 16
+                logger.warning("%s: retry %d/%d after %.0fs — %s",
+                               job["id"], attempt + 1, max_retries, sleep_s, e)
+                await asyncio.sleep(sleep_s)
+            else:
+                _job_status[job["id"]] = {
+                    "last_run": t0.isoformat(), "last_status": "error",
+                    "error": str(e)[:300],
+                    "pg_write_status": "fail",
+                    "pg_written": 0,
+                }
+                logger.warning("%s: FAILED after %d retries — %s",
+                               job["id"], max_retries, e)
 
 
 async def _scheduler_loop():
@@ -186,6 +213,28 @@ def start_scheduler():
         # PG 物化视图刷新
         {"id": "pg_refresh", "name": "PG物化视图刷新", "cron": "37 15 * * 1-5",
          "fn": refresh_materialized_views},
+        # ── 可转债 & 同花顺数据源自动采集 (每日盘后) ──
+        # stk_auction_o — 开盘集合竞价, 盘后15:30同步 (依赖 Tushare 集合竞价权限)
+        {"id": "stk_auction_o", "name": "开盘集合竞价", "cron": "30 15 * * 1-5",
+         "fn": sync_stk_auction_o},
+        # ths_daily — 同花顺概念板块每日行情, 16:00
+        {"id": "ths_daily", "name": "同花顺概念板块", "cron": "0 16 * * 1-5",
+         "fn": sync_ths_daily},
+        # cb_daily — 可转债日线行情, 16:00
+        {"id": "cb_daily", "name": "可转债日线", "cron": "0 16 * * 1-5",
+         "fn": sync_cb_daily},
+        # index_daily — 主要指数日线, 16:00
+        {"id": "index_daily", "name": "指数日线", "cron": "0 16 * * 1-5",
+         "fn": sync_index_daily},
+        # cb_factor — 可转债技术因子, 16:30
+        {"id": "cb_factor", "name": "可转债技术因子", "cron": "30 16 * * 1-5",
+         "fn": sync_cb_factor},
+        # cb_price_chg — 转股价变动, 每周一 09:00 (逐只遍历 cb_basic)
+        {"id": "cb_price_chg", "name": "转股价变动", "cron": "0 9 * * 1",
+         "fn": sync_cb_price_chg_all},
+        # ths_concept_map — 同花顺概念映射, 每月1日 03:00
+        {"id": "ths_concept_map", "name": "同花顺概念映射", "cron": "0 3 1 * *",
+         "fn": sync_ths_concept_map},
     ]
 
     for j in _jobs:
