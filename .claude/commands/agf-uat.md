@@ -25,4 +25,4 @@ argument-hint: <feature-slug>（必须已通过 code review（含 SIT Audit）�
 
 # 任务规模过小怎么办
 
-UAT 阶段规模总是 ≥ 中等（涉及业务方），不存在"过小"的情况。但如果业务方暂未就位 → 不要硬启动 UAT，告诉用户："UAT 需要业务方在场，请先和 [业务方角色] 排时间；当前 code review（含 SIT Audit）与 E2E 已完成，可把对应 Task 通过 `TaskUpdate` 标记为 `blocked: pending UAT`。"
+UAT 阶段规模总是 ≥ 中等（涉及业务方），不存在"过小"。但若业务方暂未就位 → 不要硬启动 UAT，告诉用户："UAT 需要业务方在场，请先和 [业务方角色] 排时间；当前 code review（含 SIT Audit）与 E2E 已完成，可把对应 Task 通过 `TaskUpdate` 标记为 `blocked: pending UAT`。"

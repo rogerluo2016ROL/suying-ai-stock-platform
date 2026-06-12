@@ -1,7 +1,7 @@
 # Plans 轻量化格式规范
 
 > 本规范约束 **派工前** `product-lead` 用 `superpowers:writing-plans` 生成的实施计划。
-> 执行层收到的 plan 目标读者是"有上下文但没看完 spec"的 agent，轻量化即可。
+> plan 的目标读者是"有上下文但没看完 spec"的执行层 agent，轻量化即可。
 
 ## 格式 vs 默认模板的差异
 
@@ -55,7 +55,7 @@
 
 - 单个 Task ≤ 200 字（含 markdown）
 - 整个 Plan ≤ 1 页（~500 字）
-- 超过即拆分 — 拆分信号：超过 4 个 Task 或涉及 2 个以上独立子系统
+- 超过即拆分 — 拆分信号：超过 4 个 Task 或涉及 ≥2 个独立子系统
 
 ## 质量自检
 
@@ -67,6 +67,6 @@
 ## 与默认模板的关系
 
 本规范是 `superpowers:writing-plans` 的**项目级输出约束**，不替换 skill 本身。
-`product-lead` 调用 skill 时按 skill 流程走，但在保存 plan 前对照本规范做简化压缩。
+`product-lead` 调用 skill 时按 skill 流程走，但保存 plan 前对照本规范做简化压缩。
 
-执行层 agent（`frontend-dev` / `backend-dev` 等）收到的是轻量化 plan，具体实现细节由他们自己在 sub-task 内用 `superpowers:executing-plans` 或 `subagent-driven-development` 补充。
+执行层 agent（`frontend-dev` / `backend-dev` 等）收到轻量化 plan，具体实现细节由他们在 sub-task 内用 `superpowers:executing-plans` 或 `subagent-driven-development` 补充。

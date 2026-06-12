@@ -28,12 +28,17 @@ argument-hint: 无需参数（自动探测安装产物）
 - 落盘后**暂不删** `.agf-template` / `.backup-*`（留到第 7 步统一清理，便于用户回看）。
 - 若项目原本无 CLAUDE.md（现 CLAUDE.md 即模板版）→ 跳过合并，仅在第 3 步把 Tech Stack 摘要改成项目实际栈。
 
-## 3. 技术栈基线 ADR-000（核心 AI 价值）
+## 3. 技术栈基线 ADR-000（核心 AI 价值 · 幻觉重灾区）
+
+> ⚠️ **本步最易瞎编技术栈**。三道硬约束**不可省、不可走捷径**——宁可慢，不可猜：
+> 1. **brownfield 必须先 `/agf-understand` 扫描出理解地图后才动 ADR-000**——禁止凭目录名 / 文件后缀 / 印象直接断言技术栈；没有理解地图就没有 ADR-000。
+> 2. **verify before assert**（[`coding.md`](../standards/coding.md) 同名纪律）：写进 ADR-000 / CLAUDE.md 的**每一条**技术栈结论（语言 / 框架 / 版本 / DB / 外部服务）必须先 `grep` 或读实际文件（`package.json` / `pyproject.toml` / `requirements.txt` / `go.mod` / lockfile / 实际 import）**逐条核实**，不接受"看起来像 / 通常是 / 默认应该"；核实不到的标 `待确认`，不臆断填值。
+> 3. **ADR-000 一律派 `tech-lead` 写，不由主 session 顺手写**——tech-lead 带版本查证 + ADR 撰写的专门约束，降低"边 init 边随手编"的风险。
 
 `docs/adr/000-system-architecture.md.agf-template` 是模板默认栈（React + FastAPI + Postgres），**大概率不是本项目**。分两种情况：
-- **已有代码（brownfield）**：先跑 `/agf-understand 整个仓库` 产出理解地图（识别真实语言/框架/数据库/外部服务），再据此派 `tech-lead` 重写 `docs/adr/000-system-architecture.md` 为项目实际栈 + 同步 CLAUDE.md `## Tech Stack` 摘要。派单示例：`Agent({subagent_type: "tech-lead", description: "落地 ADR-000", prompt: "据理解地图 docs/reviews/<slug>-understand-<date>.md 重写 docs/adr/000-system-architecture.md 为本项目真实技术栈，并同步 CLAUDE.md Tech Stack 摘要"})`。
-- **空项目（greenfield）**：用 AskUserQuestion 确认技术选型（默认模板栈 React+Vite / FastAPI+Postgres，或用户指定），据答案落 ADR-000。
-- ADR-000 写好后才删其 `.agf-template`（第 7 步）。
+- **已有代码（brownfield）**：① 先跑 `/agf-understand 整个仓库` 出理解地图（`docs/reviews/<slug>-understand-<date>.md`）；② 派 `tech-lead` 据**理解地图 + 逐条 grep 核实**重写 `docs/adr/000-system-architecture.md` + 同步 CLAUDE.md `## Tech Stack` 摘要。派单示例：`Agent({subagent_type: "tech-lead", description: "落地 ADR-000", prompt: "据理解地图 docs/reviews/<slug>-understand-<date>.md 重写 docs/adr/000-system-architecture.md 为本项目真实技术栈；每条结论先 grep 实际 manifest/lockfile/import 核实（verify before assert），核实不到的标『待确认』不臆断；同步 CLAUDE.md Tech Stack 摘要"})`。
+- **空项目（greenfield，无可扫描代码）**：跳过 /agf-understand（无代码可扫），用 AskUserQuestion 让用户确认技术选型（默认模板栈 React+Vite / FastAPI+Postgres，或用户指定），据**用户明确答案**落 ADR-000——greenfield 的栈来自用户决策，不是 LLM 猜。
+- ADR-000 写好后才删其 `.agf-template`（第 7 步）；写完向用户一句话说明"栈据什么定的（扫了哪几个 manifest / 你的选型）"，便于你复核有没有编。
 
 ## 4. settings.json / .mcp.json 合并（安全防御不能缺）
 

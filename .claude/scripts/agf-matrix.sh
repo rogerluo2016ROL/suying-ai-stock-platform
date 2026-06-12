@@ -103,23 +103,47 @@ matrix_progress() {
   echo "| Instance | 状态 | Skills | 质量门 | 下一步 |"
   echo "|---|---|---|---|---|"
 
-  local FILE INSTANCE LAST_LINE BLOCK STATUS SKILLS GATE NEXT
+  local FILE INSTANCE ROW STATUS SKILLS GATE NEXT
   for FILE in "${FILES[@]}"; do
     INSTANCE=$(basename "$FILE" .md)
     if [[ -n "$FILTER_ROLE" ]]; then
       [[ "$INSTANCE" == "$FILTER_ROLE" || "$INSTANCE" =~ ^${FILTER_ROLE}-[0-9]+$ ]] || continue
     fi
 
-    LAST_LINE=$(grep -n '^## ' "$FILE" 2>/dev/null | tail -1 | cut -d: -f1)
-    if [[ -z "$LAST_LINE" ]]; then
+    # 单次 awk 提全部字段（原版每文件 fork 4 条 grep|sed|cut 流水线 + 1 次 grep -n 定位）：
+    # 定位最后一个 `## ` 条目，块内每字段取首个 `**字段**` 行、剥 `**字段**[:：]` 前缀
+    # （前缀不命中或剥后为空 → 保留整行，等价原 sed 行为）。
+    # 输出：无 `## ` 头 → 空；否则 4 字段一行 \037（ASCII unit separator）分隔
+    # （字段值是 markdown 文本，不含控制字符；不能用 \001——那是 bash 内部 CTLESC
+    # 哨兵，bash 3.2 的 IFS=$'\001' read 不会按它切分，实测必须避开）。
+    # 截断（50/60/40 字符）放 bash ${var:0:N} 做：macOS awk substr 按字节数多字节会截烂，
+    # bash 3.2 的 ${var:0:N} 与原 cut -c 同为字符语义。
+    ROW=$(awk '
+      { line[NR] = $0; if ($0 ~ /^## /) last = NR }
+      function fval(l, marker,   v) {
+        v = l
+        if (sub(".*" marker "\\*\\*(:|：)[[:space:]]*", "", v) && length(v) > 0) return v
+        return l
+      }
+      END {
+        if (!last) exit
+        status = ""; skills = ""; gate = ""; nxt = ""
+        for (i = last; i <= NR; i++) {
+          l = line[i]
+          if      (status == "" && l ~ /^\*\*状态\*\*/)   status = fval(l, "状态")
+          else if (skills == "" && l ~ /^\*\*Skills\*\*/) skills = fval(l, "Skills")
+          else if (gate == ""   && l ~ /^\*\*质量门\*\*/)  gate   = fval(l, "质量门")
+          else if (nxt == ""    && l ~ /^\*\*下一步\*\*/)  nxt    = fval(l, "下一步")
+        }
+        printf "%s\037%s\037%s\037%s\n", status, skills, gate, nxt
+      }
+    ' "$FILE" 2>/dev/null)
+
+    if [[ -z "$ROW" ]]; then
       echo "| $INSTANCE | （无条目）| - | - | - |"; continue
     fi
-    BLOCK=$(tail -n +"$LAST_LINE" "$FILE")
-
-    STATUS=$(printf '%s' "$BLOCK" | grep -m1 '^\*\*状态\*\*' | sed -E 's/.*状态\*\*[:：][[:space:]]*(.+)$/\1/' || echo "-")
-    SKILLS=$(printf '%s' "$BLOCK" | grep -m1 '^\*\*Skills\*\*' | sed -E 's/.*Skills\*\*[:：][[:space:]]*(.+)$/\1/' | cut -c1-50 || echo "-")
-    GATE=$(printf '%s' "$BLOCK" | grep -m1 '^\*\*质量门\*\*' | sed -E 's/.*质量门\*\*[:：][[:space:]]*(.+)$/\1/' | cut -c1-60 || echo "-")
-    NEXT=$(printf '%s' "$BLOCK" | grep -m1 '^\*\*下一步\*\*' | sed -E 's/.*下一步\*\*[:：][[:space:]]*(.+)$/\1/' | cut -c1-40 || echo "-")
+    IFS=$'\037' read -r STATUS SKILLS GATE NEXT <<< "$ROW"
+    SKILLS="${SKILLS:0:50}"; GATE="${GATE:0:60}"; NEXT="${NEXT:0:40}"
 
     STATUS="${STATUS:--}"; SKILLS="${SKILLS:--}"; GATE="${GATE:--}"; NEXT="${NEXT:--}"
     echo "| $INSTANCE | ${STATUS//|/\\|} | ${SKILLS//|/\\|} | ${GATE//|/\\|} | ${NEXT//|/\\|} |"

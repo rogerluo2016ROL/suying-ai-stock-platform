@@ -20,11 +20,9 @@ argument-hint: <vX.Y.Z>（必须已经 git tag + gh release create 成功）
    - CHANGELOG.md 必须含 `## [$ARGUMENTS]` 节
    - `gh release view $ARGUMENTS` 必须成功
 
-3. **复制模板** 到 `docs/reviews/retro-$ARGUMENTS-$(date +%Y-%m-%d).md`，并 pre-fill header（版本号、release 日期、CHANGELOG 锚点）
+3. **调用 skill** `agf-running-release-retro` 接力执行：模板复制 + pre-fill header + 剩余 7 步**全由 skill 主持**（scaffold 不在本命令重复做——避免与 skill Step 1 双写）
 
-4. **调用 skill** `agf-running-release-retro` 接力执行剩余 7 步
-
-5. **不要自己跑复盘** — 你（主 Claude）只负责前置检查 + 文件 scaffold + 调用 skill；复盘的整合 / 派 self-report / 验收由 skill 主持（实际执行者是 product-lead）
+4. **不要自己跑复盘** — 你（主 Claude）只负责版本解析 + 前置检查 + 调用 skill；复盘的整合 / 派 self-report / 验收由 skill 主持（执行者是 product-lead）
 
 # 任务规模过小怎么办
 

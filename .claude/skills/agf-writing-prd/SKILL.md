@@ -7,8 +7,8 @@ description: Use when product-lead is about to draft a PRD for a new feature. Pr
 
 Use this skill when:
 
-- product-lead has finished `superpowers:brainstorming` and the user has approved the rough direction
-- Need to formalize a feature into `docs/prd/[feature]-[YYYY-MM-DD].md` before dispatching execution layer
+- product-lead finished `superpowers:brainstorming` and the user approved the rough direction
+- Formalizing a feature into `docs/prd/[feature]-[YYYY-MM-DD].md` before dispatching execution layer
 - Updating an existing PRD after an open question is resolved
 
 ## Pre-conditions
@@ -17,13 +17,13 @@ Use this skill when:
 - [ ] You know who the user is and what business outcome you're optimizing
 - [ ] At least 1 measurable success metric is identifiable (else: brainstorm more, the requirement is too vague)
 
-If any precondition fails: **stop, do not write a PRD**. Either route back to brainstorming or SendMessage user for clarification.
+If any precondition fails: **stop, do not write a PRD**. Route back to brainstorming or SendMessage user for clarification.
 
 ## File path & naming
 
 `docs/prd/[feature-kebab-case]-[YYYY-MM-DD].md` — e.g. `docs/prd/oauth-login-2026-05-12.md`.
 
-One PRD per feature. Updates go to the same file with a `## Changelog` entry at the bottom; do NOT create a new dated file unless the scope materially changes (then archive old, link to new).
+One PRD per feature. Updates go to the same file with a `## Changelog` entry at the bottom; do NOT create a new dated file unless scope materially changes (then archive old, link to new).
 
 ## Required sections (in order)
 
@@ -111,29 +111,30 @@ One PRD per feature. Updates go to the same file with a `## Changelog` entry at 
 - YYYY-MM-DD: 初稿
 ```
 
-## AC 写作 5 条铁律
+## AC 写作 6 条铁律
 
-1. **每条 AC 独立可验证** — qa-engineer 不应该需要"先看其他 AC"才能测这一条
-2. **优先级强制标注**（P0/P1/P2） — 用于 SIT/E2E 阶段决定 Block vs Conditional Pass
-3. **用动词起头**（"用户点击 X 后...返回 Y"），不要用"应该" / "需要" 这种弱断言
-4. **错误路径单独成条**，不要把"valid 时 200 / invalid 时 401"塞同一条
+1. **每条 AC 独立可验证** — qa-engineer 不该需要"先看其他 AC"才能测这一条
+2. **优先级强制标注**（P0/P1/P2） — SIT/E2E 阶段据此决定 Block vs Conditional Pass
+3. **用动词起头**（"用户点击 X 后...返回 Y"），不用"应该" / "需要" 这种弱断言
+4. **错误路径单独成条**，别把"valid 时 200 / invalid 时 401"塞同一条
 5. **不写实现细节** — AC 是"行为契约"，不是"代码方案"
+6. **交互类 AC 写成可点击因果链** — "点击 X 控件 → 发出 `<method path>` → 成功后 UI 显示 Z"，把控件 + API 调用 + 可观测后果串进一条（防"按钮没事件 / 前后端接不上"在验收时无据可依；见 `ac-lifecycle.md` AC 可测试性标准）
 
 ## 反模式
 
-- ❌ PRD 里写 SQL schema 字段长度（除非真的是业务约束，比如发票号 32 位）— 那是 design / dev 的细节
+- ❌ PRD 里写 SQL schema 字段长度（除非真是业务约束，如发票号 32 位）— 那是 design / dev 的细节
 - ❌ AC = "性能良好" / "用户体验好" — 不可验证
-- ❌ 不列 Non-Goals — scope 一定会蔓延
+- ❌ 不列 Non-Goals — scope 一定蔓延
 - ❌ 不写 Cost Estimate — 进 cost-budget 哪一档都不知道
 - ❌ Open Questions 留空 + 无 owner — 等于没问
 
 ## 完成前的验证
 
-写完 PRD 后，把它放在 `docs/prd/` 之前，**自检**：
+PRD 落盘前**自检**：
 
 - [ ] 每条 AC 都能被 qa-engineer 用一段话描述测试步骤吗？
 - [ ] Non-Goals 列了至少 1 项？
-- [ ] 至少 1 个 KPI 可以从现有 metrics 系统拿到？
+- [ ] 至少 1 个 KPI 可从现有 metrics 系统拿到？
 - [ ] Open Questions 每条都填了 **Owner + Due**（缺任一项 → hook 会在 dispatch 阶段拦下，回头补更慢）？
 - [ ] Cost Estimate 落到 cost-budget.md 的某一档了？
 

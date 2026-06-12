@@ -12,17 +12,19 @@ Use this skill when:
 
 ## Applicability — PATCH is excluded
 
-**Parse `vX.Y.Z`** and gate the execution:
+**Parse `vX.Y.Z`** to gate execution:
 
-- `Y=0 ∧ Z=0` → **MAJOR**, retro required
-- `Y>0 ∧ Z=0` → **MINOR**, retro required
-- `Z>0` → **PATCH**, abort with message: "PATCH release — retro not required per versioning.md, exiting."
+> retro 是 release 后的**建议复盘（非强制 gate，见 versioning.md step 7）**；本 skill 在用户主动触发 `/agf-release-retro` 时运行。
+
+- `Y=0 ∧ Z=0` → **MAJOR**, retro applies — proceed
+- `Y>0 ∧ Z=0` → **MINOR**, retro applies — proceed
+- `Z>0` → **PATCH**, abort with message: "PATCH release — retro not applicable per versioning.md, exiting."
 
 If the version is PATCH, do not proceed.
 
 ## Pre-conditions
 
-All the following **must pass** before starting the execution sequence. If any fails, SendMessage product-lead with the specific failure and do not proceed:
+All **must pass** before the execution sequence. On any failure, SendMessage product-lead the specific failure and do not proceed:
 
 - [ ] CHANGELOG.md contains section `## [vX.Y.Z]`（不再要求"pushed to origin"——下条 `gh release view` 已隐含 release 必须可见于 GitHub）
 - [ ] `git tag -l vX.Y.Z` returns the tag
@@ -47,7 +49,7 @@ Read CHANGELOG `## [vX.Y.Z]` section and any linked PRD / ADR. Write §1 with:
 
 ### 3. Dispatch self-report tasks
 
-Use `Agent({subagent_type: ..., prompt: ...})` to send parallel self-report prompts to roles that contributed to this release. Include:
+Use `Agent({subagent_type: ..., prompt: ...})` to send parallel self-report prompts to roles that contributed to this release:
 
 - `code-reviewer` — code review severity distribution, rejection rates, **SIT Audit verdicts** (Pass / Pass with concerns / Redo SIT counts)
 - `qa-engineer` — E2E / UAT failure counts, AC gaps missed until production (SIT is dev-owned; not in qa scope)
@@ -58,18 +60,19 @@ Each role returns **≤3 highlights / ≤3 pains / ≤3 Action item candidates**
 
 ### 4. Integrate role inputs into §1–§4
 
-Read each returned self-report and integrate findings into:
+Read each returned self-report and integrate into:
 
 - §1: update with timeline/blocker insights
 - §2: add quality metrics (code-review severity, test failure counts, production gaps)
-- §3: 摘录本会话 Claude Code 内置 `/usage` 输出，**4 类 token 字段必填**：`input_tokens` / `output_tokens` / `cache_creation_input_tokens` / `cache_read_input_tokens` + 总 cost + cache hit ratio（cache_read / (input + cache_read + cache_creation)）；并对照 [`cost-budget.md`](../../standards/cost-budget.md) 分档明确写"本 release 落在 Small / Medium / Large 哪档"；或写"本 release 不涉 cost"。这是后续跨 release 对比与 sweet-spot 判定的唯一数据来源。
+- §3: 摘 `/usage` 的 4 类 token 字段（`input_tokens` / `output_tokens` / `cache_creation_input_tokens` / `cache_read_input_tokens`）+ 总 cost + cache hit ratio，按 [`cost-budget.md`](../../standards/cost-budget.md) 分档明确写"本 release 落 Small / Medium / Large 哪档"（或"不涉 cost"）。这是跨 release 对比与 sweet-spot 判定的唯一数据来源。
+  **`/usage` 实数强制**：4 类实数由**用户**在会话里跑 `/usage` 贴给 product-lead（`/usage` 是 Claude Code 交互命令，agent 无法自跑）；§3 缺任一实数则本 retro **不得标记完成、不得进 Step 7**——SendMessage 用户索要后等待。
 - §4: note workflow frictions and template improvements
 
-Deduplicate Action item candidates and draft §5 (Action Items table).
+Deduplicate Action item candidates and draft §5 (Action Items table)。§5 表**必须带「继承次数」列**：新项 = 0；承自上一轮 §5 的项 = 上一轮该项值 +1。
 
 ### 4.1 Feature cycle time trend (≥3 retros 后强制评估)
 
-> 项目声明不统计 Velocity / Burndown（见 `product-workflow.md §4.4`），但跨 retro 的"起点 → tag 日期"数据天然存在。**累计 ≥3 个 retro 后**，本步骤强制做趋势评估，作为 Velocity 的隐式形式。
+> 项目声明不统计 Velocity / Burndown（见 `product-workflow.md §4.4`），但跨 retro 的"起点 → tag 日期"数据天然存在。**累计 ≥3 个 retro 后**强制做趋势评估，作为 Velocity 的隐式形式。
 
 执行：
 
@@ -81,6 +84,15 @@ Deduplicate Action item candidates and draft §5 (Action Items table).
 
 写入 §1 末尾或 §4 流程协作节，**不另起独立小节**，避免文档膨胀。
 
+### 4.2 Action 继承 Gate（硬规则：禁止第三次继承）
+
+任一 action **继承次数已 ≥2**（上一轮 §5 该项「继承次数」列 ≥2）时，本轮**必须二选一**，不得再入 §5：
+
+- **(a) 落地为硬手段**：hook / lint 断言 / 模板必填字段 / 带死线的 gh issue —— §0 标 `done` 并附证据链接
+- **(b) 显式 `dropped`**：§0 标 `dropped` + 一句话放弃理由
+
+本轮 §5 出现「继承次数」≥3 的行即非法（= 第三次继承），verification gate 直接 fail。
+
 ### 5. Decide §6 (Public version)
 
 Decide: **是 (public)** or **否 (not public)**.
@@ -90,12 +102,13 @@ Decide: **是 (public)** or **否 (not public)**.
 
 ### 6. Verification gate
 
-All of the following **must pass** before commit:
+All **must pass** before commit:
 
 - [ ] §0 is written (首个 retro: explicit "首个 retro，无前置项"; subsequent: table filled from prior release §5)
-- [ ] §0 **转继承 ≥3 次 trigger** 已应用：扫前 3 个 retro §5，凡同一 AI 已转继承 ≥3 次仍 pending，本轮必须显式 `in-progress`（含具体进展）或 `dropped`（含放弃理由），**不允许第 4 次继承**（信任崩塌防御，详见 `docs/reviews/retro-_TEMPLATE.md` §0 起源说明）
+- [ ] **Action 继承 Gate** 已应用（§4.2）：§5 带「继承次数」列且所有行 ≤2；上一轮 §5 中继承次数 ≥2 的项本轮已 (a) 落地为硬手段（§0 `done` + 证据）或 (b) `dropped` + 理由，**禁止第三次继承**
+- [ ] §3 含 `/usage` 4 类 token 实数（input / output / cache_read / cache_create，用户贴入）；缺任一实数 retro 不得标记完成
 - [ ] §5 has ≥1 Action item **OR** explicit "本轮无显著改进项" + one-line reason
-- [ ] Every §5 row has non-empty **Owner** column and non-empty **Due** column
+- [ ] Every §5 row has non-empty **Owner** column, non-empty **Due** column, and a numeric **继承次数** column
 
 If any check fails, do not proceed to Step 7.
 
@@ -111,6 +124,8 @@ Do **not** push.
 ## Anti-patterns
 
 - ❌ Action item without owner or without due date
+- ❌ 同一 action 第三次继承（继承次数 ≥3 必须已落地为硬手段或 `dropped`，见 §4.2）
+- ❌ §3 无 `/usage` 4 类 token 实数仍把 retro 标记完成（实数由用户贴入，缺则等待）
 - ❌ §0 missing (首个 retro must explicitly state "首个 retro，无前置项")
 - ❌ PATCH release forced into the template (should have aborted at Applicability gate)
 - ❌ Retro content duplicates CHANGELOG (changelog = "what was built"; retro = "why and how to improve next time")

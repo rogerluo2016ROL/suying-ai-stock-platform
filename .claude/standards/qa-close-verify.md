@@ -1,12 +1,13 @@
 # P0/P1 Issue Close Verify SOP
 
-> **版本**: v1.0 — 2026-05-17
 > **触发教训**: Issue #37 Premature Close — `dc512fa` 修复代码 commit 后立即 close，但容器未重建，fix 未上线；实际由 #39 hot-fix fe9ab58 + 容器重建 + `curl 实证（cost ¥301.76 → HTTP 422 + 中文 detail）`才完成验收。
-> **合规样本**: Issue #39 close comment 含完整 curl 命令 + response body（详见 `docs/reviews/issue-audit-2026-05-16.md §#39`）。
+> **合规样本**: 合规 close comment 含完整 curl 命令 + response body（样本源自 RolexOps 实战，不随模板分发；§3 模板据此提炼）。
 
 ---
 
 ## 适用范围
+
+> **与 SIT Audit 的分工**（防同一证据被验两遍）：SIT Audit（code review 阶段，见 [`workflow.md`](workflow.md)）审**开发阶段集成验证**证据，不要求容器重建；本 SOP 只管 **P0/P1 issue close 前的部署后端到端实证**（容器重建 + 真实 curl）。dev 不需要在 progress SIT 证据段重复提交 close-verify 级证据，反之亦然。
 
 | 严重度 | Close 前必须本 SOP | 备注 |
 |---|---|---|
@@ -19,20 +20,20 @@
 
 ## §1 Close 前 Checklist（Close-Gate）
 
-关闭 P0/P1 issue 前，**发起方必须逐条打勾**，code-reviewer 在 review 时可拦截任一未勾项：
+关闭 P0/P1 issue 前**发起方必须逐条打勾**；code-reviewer review 时可拦截任一未勾项。
 
 ### 1.1 修复验证
 
-- [ ] **代码路径确认**：定位到引发 bug 的具体文件 + 行号，确认 fix 已覆盖该路径
-- [ ] **AC 边界触发**：使用 **真实 curl / pytest / Playwright** 命令**实际触发**原 bug 的 AC 边界条件（不接受"阅读代码逻辑判断已修复"）
-- [ ] **Response body 可见**：命令输出包含完整 HTTP 状态码 + response body（或 DB row / log line），敏感字段可打码，但结构必须完整
+- [ ] **代码路径确认**：定位引发 bug 的具体文件 + 行号，确认 fix 已覆盖该路径
+- [ ] **AC 边界触发**：用 **真实 curl / pytest / Playwright** 命令**实际触发**原 bug 的 AC 边界条件（不接受"读代码逻辑判断已修复"）
+- [ ] **Response body 可见**：命令输出含完整 HTTP 状态码 + response body（或 DB row / log line），敏感字段可打码但结构必须完整
 
 ### 1.2 容器化部署专项（使用 docker compose 时必做）
 
 > **教训 #37**：代码 commit 后未重建容器，旧镜像仍在运行，close 时 fix 实际未上线。
 
 - [ ] **容器重建**：fix commit 后执行 `docker compose up --build -d <service>` 或等价命令（不接受仅 `docker compose restart`，重启不重建镜像）
-- [ ] **重建后 curl 实证**：**重建完成后** 再次执行边界验证命令，output 中时间戳或 response 差异可证明是新镜像响应
+- [ ] **重建后 curl 实证**：**重建完成后**再次执行边界验证命令，output 中时间戳或 response 差异可证明是新镜像响应
 - [ ] **旧容器无遗留**：`docker compose ps` 确认相关 service `Up` 而非 `Restarting` 或 `Exit`
 
 ### 1.3 回归验证
@@ -49,7 +50,7 @@
 
 ## §2 Evidence 质量要求
 
-### 2.1 必须包含的产物（至少一项，P0 建议多项）
+### 2.1 必须包含的产物（至少一项；P0 建议多项）
 
 | 场景 | 合规 Evidence | 不合规（拒绝 close） |
 |---|---|---|
@@ -65,7 +66,7 @@
 ❌ 代码 diff + 注释"此处逻辑已修复"
 ❌ 截图无时间戳（无法区分修复前/后）
 ❌ 纯文字描述"测试通过，无问题"
-❌ curl mock（v1.6+ 铁律：**issue close 边界验证证据中禁 mock，必须真实接入**；SIT / 单元测试内 mock 外部 API、miniapp E2E 用 `mockWxMethod` 仍允许，本铁律仅约束 close-verify evidence）
+❌ curl mock（铁律：**issue close 边界验证证据中禁 mock，必须真实接入**；SIT / 单元测试内 mock 外部 API、miniapp E2E 用 `mockWxMethod` 仍允许，本铁律仅约束 close-verify evidence）
 ❌ 仅 log 无对应请求记录（无法溯源）
 ```
 
@@ -102,7 +103,7 @@ HTTP/1.1 200 OK
 
 ## §3 gh Issue Close Comment 模板
 
-关闭 P0/P1 issue 时，**必须**以下列模板写 close comment（通过 `gh issue comment` 或 GitHub UI）：
+关闭 P0/P1 issue 时**必须**用下列模板写 close comment（`gh issue comment` 或 GitHub UI）：
 
 ```markdown
 ## Close Verify Report — Issue #[N]
@@ -147,7 +148,7 @@ HTTP/1.1 200 OK
 
 ## §4 Code-Reviewer Close-Gate 职责
 
-code-reviewer 在 review PR / 接到 close 通知时，**有权拦截**以下情形并要求补 evidence：
+code-reviewer 在 review PR / 接到 close 通知时**有权拦截**以下情形，要求补 evidence：
 
 | 拦截条件 | 要求补充 |
 |---|---|
@@ -155,7 +156,7 @@ code-reviewer 在 review PR / 接到 close 通知时，**有权拦截**以下情
 | 容器化 fix 无重建证明 | 补 `docker compose up --build` + 重建后 curl |
 | Evidence 时间戳早于 fix commit | 重跑并附新截图 |
 | 仅 diff + 逻辑分析 | 补真实命令输出 |
-| `curl mock` 输出（v1.6+ 禁止） | 必须真实接入后重验 |
+| `curl mock` 输出（铁律禁止） | 必须真实接入后重验 |
 
 **拦截方式**：在 PR comment / issue comment 写明缺失项，**不 approve close**，直到补齐。
 

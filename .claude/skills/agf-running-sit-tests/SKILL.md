@@ -7,7 +7,7 @@ description: Use when an execution-layer dev (frontend-dev / backend-dev / ai-ag
 
 Use this skill when:
 
-- A dev has finished feature code + Unit tests and is about to enter code-review
+- A dev finished feature code + Unit tests and is about to enter code-review
 - A dev needs to verify a fix doesn't regress integration (API ↔ DB ↔ external)
 
 ## What SIT is — and is not
@@ -18,7 +18,7 @@ Use this skill when:
 - E2E tests (real browser + real user journey — run downstream after code-review)
 - UAT (business owner final sign-off — product-lead drives, downstream of E2E)
 
-You just wrote the Unit tests — you have the clearest picture of where the unit-vs-integration boundary sits. If a failure can be reproduced by running just the backend unit tests with mocks, it's a unit-level miss, not a SIT finding; fold it back into the unit suite instead of writing it up as a SIT defect.
+You just wrote the Unit tests, so you have the clearest picture of the unit-vs-integration boundary. If a failure reproduces by running just the backend unit tests with mocks, it's a unit-level miss, not a SIT finding; fold it back into the unit suite rather than writing it up as a SIT defect.
 
 ## Pre-conditions
 
@@ -26,6 +26,7 @@ You just wrote the Unit tests — you have the clearest picture of where the uni
 - [ ] All Unit tests passing on the branch (pytest / vitest green) + lint + typecheck green
 - [ ] PRD acceptance criteria (AC) accessible at `docs/prd/[feature]-[date].md`
 - [ ] `.env.local` with SIT-mode flags configured (or `.env.sit` if a dedicated SIT config exists)
+- [ ] **前端 SIT 专属**：MSW mock 来自 orval 生成产物（`*.msw.ts`），非手写——mock 与 OpenAPI 契约同源（见 ADR-006 / `coding.md` 契约纪律）
 
 If any precondition fails: SendMessage product-lead, do not proceed.
 
@@ -50,12 +51,12 @@ For LLM-dependent features, set provider env vars per `agf-wiring-multi-llm-sdk`
 Walk every AC from `docs/prd/[feature].md`. For each AC at the integration layer:
 
 1. **Setup** — record exact starting state (DB rows / fixture / user logged in)
-2. **Action** — describe step-by-step what triggers the integration (frontend button click → API call → DB write → external service callback)
+2. **Action** — step-by-step what triggers the integration (frontend button click → API call → DB write → external service callback)
 3. **Expected** — copy the AC verbatim
-4. **Actual** — capture: HTTP status, response body excerpt, DB row diff, log lines
+4. **Actual** — capture HTTP status, response body excerpt, DB row diff, log lines
 5. **Verdict** — Pass / Fail / Blocked (with reason)
 
-> **Verify, don't assume.** Don't write "Passed" because the code looks right. Run the action; capture the actual response; compare. Per `.claude/standards/coding.md` "Verify before assert" — paste the actual command output into the progress entry.
+> **Verify, don't assume.** Don't write "Passed" because the code looks right. Run the action, capture the actual response, compare. Per `.claude/standards/coding.md` "Verify before assert" — paste the actual command output into the progress entry.
 
 ## Evidence collection
 
@@ -70,23 +71,16 @@ Keep evidence inline in the `**SIT 证据**` section of `progress/<role>.md` (sm
 
 ## Evidence Output
 
-SIT no longer produces a standalone report under `docs/qa/`. All evidence lives in `progress/<role>.md` under the `**SIT 证据**` section of the task entry. The progress entry uses **5-section format** (状态 / Skills / SIT 证据 / 质量门 / 下一步); AC self-verify `[x]/[ ]` checkboxes are inlined as the row prefix of each AC line inside `**SIT 证据**` (no separate `AC 自验` / `验证命令` / `验证输出` top-level fields — those were collapsed in the 2026-05 refactor).
+SIT no longer produces a standalone report under `docs/qa/`. All evidence lives in `progress/<role>.md` under the `**SIT 证据**` section of the task entry — pass = single AC-tagged line (`✅ AC-N (integration): <一句话>`), fail/blocked expands命令 + 输出 + 偏差.
 
-Format authority: see `.claude/standards/ac-lifecycle.md` → **完整条目格式** (the `**SIT 证据**` block — pass single line ≤ 80 chars, fail/blocked expands命令 + 输出 + 偏差 ≤ 5 lines).
-
-Key rule (C-decision):
-
-- **Pass case** — single line, AC-tagged: `✅ AC-N (integration): <一句话>`
-- **Fail / Blocked** — expand: test case path, exact command, actual output, deviation note
-
-The progress file is archived into `docs/qa/[feature]-process-log.md` after UAT sign-off (product-lead), so SIT evidence survives without a separate report artifact.
+Format authority: `.claude/standards/ac-lifecycle.md` → **完整条目格式** (5-section format 状态 / Skills / SIT 证据 / 质量门 / 下一步 + the `**SIT 证据**` block rules). The progress file is archived into `docs/qa/[feature]-process-log.md` after UAT sign-off (product-lead), so SIT evidence survives without a separate report artifact.
 
 ## Hand-off
 
 完成 SIT 自跑后：
 
 - **All AC pass**: SendMessage product-lead — "Implementation + SIT done, ready for code-review"，引用 `progress/<role>.md` 条目路径 + 时间戳
-- **Some AC fail / blocked**: 仍写完 `progress/<role>.md` 的 SIT 段（如实记录 fail / blocked），但 SendMessage 写明阻塞原因与影响范围，由 product-lead 决定是否本轮就修
+- **Some AC fail / blocked**: 仍写完 `progress/<role>.md` 的 SIT 段（如实记录 fail / blocked），但 SendMessage 写明阻塞原因与影响范围，由 product-lead 决定本轮是否就修
 - 不再直接 SendMessage 下游 QA 角色（已不参与 SIT）；E2E 由 product-lead 在 code-review (含 SIT Audit) 通过后单独启动
 
 ## Anti-patterns

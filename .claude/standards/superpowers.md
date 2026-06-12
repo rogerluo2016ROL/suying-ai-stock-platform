@@ -1,13 +1,13 @@
 # Superpowers Skills Policy
 
-> 基线：superpowers plugin **v5.1.0**。每个 skill 的完整描述以本地 SKILL.md 为准：
-> `~/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/<name>/SKILL.md`
+> 基线：superpowers plugin（版本以本地安装为准）。每个 skill 的完整描述以本地 SKILL.md 为准：
+> `~/.claude/plugins/cache/claude-plugins-official/superpowers/<version>/skills/<name>/SKILL.md`
 
 团队在关键流程节点必须调用 `superpowers:` 系列 skill，保证需求澄清、实现质量、完成验证、代码审查的一致性。
 
 ## 1. 强制调用 skill 映射（含 agf-* 项目 skills）
 
-> 本表混合 `superpowers:*` 与项目级 `agf-*` skills；二者在"强制"语义上等价（dev 必走 SIT 与 TDD 同一档位），仅命名空间不同。
+> 本表混合 `superpowers:*` 与项目级 `agf-*` skills；二者"强制"语义等价（dev 必走 SIT 与 TDD 同一档位），仅命名空间不同。
 
 满足"何时调"列条件时**必须先调 skill，再做后续动作**。
 
@@ -19,20 +19,20 @@
 | `superpowers:using-git-worktrees` | product-lead | 并行派 ≥2 个 execution-layer teammate 之前 | 单实例派发、纯只读 reviewer 并行 |
 | `superpowers:test-driven-development` | frontend-dev / backend-dev / ai-agent-dev / ml-engineer / miniapp-dev | 收到"新功能"或"bugfix"任务 → 写实现前 | 纯重构、只改文档/配置 |
 | `agf-running-sit-tests` | frontend-dev / backend-dev / ai-agent-dev / ml-engineer / miniapp-dev | Unit 全绿后、code-review 前 → 自跑 API+DB+external 单边集成 SIT，证据写入 `progress/<role>.md` | 纯文档/配置；无外部 IO 的算法纯函数 |
-| `superpowers:systematic-debugging` | 所有开发者 + qa-engineer / miniapp-qa-engineer | 遇测试失败 / bug / 预期外行为 → 定位前 | 新功能正常流程 |
-| `superpowers:verification-before-completion` | 所有开发者 + qa-engineer / miniapp-qa-engineer | 发完成报告 / E2E-UAT 测试报告之前 | 中间汇报（progress 阻塞条目除外） |
+| `superpowers:systematic-debugging` | 所有开发者 + qa-engineer / miniapp-qa-engineer + deploy-engineer | 遇测试失败 / bug / 预期外行为 → 定位前；deploy-engineer 部署 / 冒烟遇故障 → 定位（环境 vs 代码）前 | 新功能正常流程 |
+| `superpowers:verification-before-completion` | 所有开发者 + qa-engineer / miniapp-qa-engineer + deploy-engineer | 发完成报告 / E2E-UAT 测试报告之前；deploy-engineer 交接 qa-engineer 前确认 UAT 栈真实可用（冒烟真实输出）| 中间汇报（progress 阻塞条目除外） |
 | `superpowers:requesting-code-review` | product-lead | 触发 code-reviewer / miniapp-code-reviewer 前 | 文档类任务 |
 | `superpowers:receiving-code-review` | product-lead / 开发者 | 收到审查结论 / 被打回要改 → 处理前 | — |
 | `superpowers:finishing-a-development-branch` | product-lead | UAT 签字后整合到主干前（决定 merge / PR / 保留分支） | 模板自身的 internal commit |
 
-> `tech-lead` 不在表内：tech-lead 预加载 skills 作为条件触发介入时的后备能力，不被强制要求主动调用。
+> `tech-lead` 不在表内：tech-lead 预加载 skills 是条件触发介入时的后备能力，不强制主动调用。
 
 ## 2. 推荐但非强制
 
 按 SKILL.md 自带触发条件按需用：
 
-- `superpowers:dispatching-parallel-agents` — 主 Claude / product-lead 决定要不要并行多 teammate 时；与 [`workflow.md`](workflow.md) "Parallel Dispatch" 边界一致
-- `superpowers:executing-plans` — 把 plan 派去**单独 session** 执行时；本仓库默认在 Team Mode 内由各 teammate 自己消化 plan
+- `superpowers:dispatching-parallel-agents` — 主 Claude / product-lead 决定是否并行多 teammate 时；与 [`workflow.md`](workflow.md) "Parallel Dispatch" 边界一致
+- `superpowers:executing-plans` — 把 plan 派去**单独 session** 执行时；本仓库默认在 Team Mode 内由各 teammate 自行消化 plan
 - `superpowers:subagent-driven-development` — 在**当前 session 内**用一组 subagent 推进 plan 的独立 task；与 Agent Team 多 teammate 模式互斥，二选一
 - `superpowers:writing-skills` — 仅在新增/编辑 `.claude/skills/<name>/SKILL.md` 时调
 
@@ -43,7 +43,7 @@ Skill({skill: "superpowers:brainstorming", args: "[需求/情境摘要]"})
 Skill({skill: "superpowers:verification-before-completion"})
 ```
 
-`args` 可选；带上能让 skill 一进来就有上下文（特别是 `brainstorming` / `writing-plans`）。
+`args` 可选；带上能让 skill 一进来就有上下文（尤其 `brainstorming` / `writing-plans`）。
 
 ## 4. Skills used 字段
 

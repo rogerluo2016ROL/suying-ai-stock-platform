@@ -8,7 +8,7 @@
 # can decide whether to trust the content). Hard-blocking would over-fire on legit
 # docs/blog posts that discuss prompt injection.
 #
-# Design (2026-05-01):
+# Design:
 # - Defense-in-depth layer for prompt-injection attacks where untrusted content
 #   from web pages, MCP servers, file reads, or shell pipes contains text
 #   instructing the model to ignore instructions / exfiltrate secrets / call
@@ -28,7 +28,7 @@ set -uo pipefail
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 TOOL_OUTPUT=$(echo "$INPUT" | jq -r '.tool_response.output // .tool_response.stdout // .tool_response // empty' 2>/dev/null)
-# duration_ms: PostToolUse hook input field added in Claude Code 2.1.119; tool exec
+# duration_ms: PostToolUse hook input field; tool exec
 # time excluding permission prompts and PreToolUse hooks. Surface slow tools so the
 # model and user notice the cost driver without waiting for end-of-session /usage.
 DURATION_MS=$(echo "$INPUT" | jq -r '.duration_ms // empty' 2>/dev/null)
@@ -52,27 +52,38 @@ OUTPUT_FLAT=$(printf '%s' "$TOOL_OUTPUT" | tr '\n\r' '  ' | head -c 200000)
 
 WARNINGS=()
 
+# Text patterns 1-4 (single source — combined fast-path and labeled greps both
+# use these variables; edit the variable, never duplicate the regex):
 # 1) Classic instruction-override phrases.
-# Permissive form: leading verb + a few words + noun (instructions / prompts /
-# rules / context). Catches "ignore all previous instructions",
-# "disregard the prior prompt", "forget everything above", etc.
-if printf '%s' "$OUTPUT_FLAT" | grep -qiE '(ignore|disregard|forget|override)[[:space:]]+([A-Za-z]+[[:space:]]+){0,4}(instructions?|prompts?|rules?|context|directives?)'; then
-  WARNINGS+=("instruction-override phrasing detected")
-fi
-
+#    Permissive form: leading verb + a few words + noun (instructions / prompts /
+#    rules / context). Catches "ignore all previous instructions",
+#    "disregard the prior prompt", "forget everything above", etc.
+PAT_OVERRIDE='(ignore|disregard|forget|override)[[:space:]]+([A-Za-z]+[[:space:]]+){0,4}(instructions?|prompts?|rules?|context|directives?)'
 # 2) System-prompt impersonation
-if printf '%s' "$OUTPUT_FLAT" | grep -qiE '<\|im_start\|>system|<system>[[:space:]]*you[[:space:]]+are|^[[:space:]]*system:[[:space:]]+you[[:space:]]+(are|must|shall)|\[INST\][[:space:]]*<<SYS>>'; then
-  WARNINGS+=("system-role impersonation tokens detected")
-fi
-
+PAT_IMPERSONATE='<\|im_start\|>system|<system>[[:space:]]*you[[:space:]]+are|^[[:space:]]*system:[[:space:]]+you[[:space:]]+(are|must|shall)|\[INST\][[:space:]]*<<SYS>>'
 # 3) Tool-coercion attempts
-if printf '%s' "$OUTPUT_FLAT" | grep -qiE 'you[[:space:]]+(must|shall|should)[[:space:]]+(now[[:space:]]+)?(call|invoke|use|run)[[:space:]]+(the[[:space:]]+)?(Bash|Write|Edit|WebFetch)|execute[[:space:]]+the[[:space:]]+following[[:space:]]+(command|script)'; then
-  WARNINGS+=("tool-coercion phrasing detected")
-fi
-
+PAT_COERCION='you[[:space:]]+(must|shall|should)[[:space:]]+(now[[:space:]]+)?(call|invoke|use|run)[[:space:]]+(the[[:space:]]+)?(Bash|Write|Edit|WebFetch)|execute[[:space:]]+the[[:space:]]+following[[:space:]]+(command|script)'
 # 4) Exfiltration markers — instructions to send data out
-if printf '%s' "$OUTPUT_FLAT" | grep -qiE 'send[[:space:]]+(your|the)[[:space:]]+(api[[:space:]]+key|token|credentials|secrets?)[[:space:]]+(to|via)|curl[[:space:]]+[^[:space:]]+[?&](key|token|secret|cred)='; then
-  WARNINGS+=("credential-exfiltration phrasing detected")
+PAT_EXFIL='send[[:space:]]+(your|the)[[:space:]]+(api[[:space:]]+key|token|credentials|secrets?)[[:space:]]+(to|via)|curl[[:space:]]+[^[:space:]]+[?&](key|token|secret|cred)='
+
+# Fast path: one combined ERE decides "any text pattern at all?" in a single grep
+# fork. The overwhelming majority of tool calls are clean → skip the 4 labeled
+# greps entirely. Only on a hit do we re-run each pattern to name the indicator
+# (warning texts unchanged). Rule 5 (zero-width) is byte-based on the raw output
+# and stays independent below.
+if printf '%s' "$OUTPUT_FLAT" | grep -qiE "${PAT_OVERRIDE}|${PAT_IMPERSONATE}|${PAT_COERCION}|${PAT_EXFIL}"; then
+  if printf '%s' "$OUTPUT_FLAT" | grep -qiE "$PAT_OVERRIDE"; then
+    WARNINGS+=("instruction-override phrasing detected")
+  fi
+  if printf '%s' "$OUTPUT_FLAT" | grep -qiE "$PAT_IMPERSONATE"; then
+    WARNINGS+=("system-role impersonation tokens detected")
+  fi
+  if printf '%s' "$OUTPUT_FLAT" | grep -qiE "$PAT_COERCION"; then
+    WARNINGS+=("tool-coercion phrasing detected")
+  fi
+  if printf '%s' "$OUTPUT_FLAT" | grep -qiE "$PAT_EXFIL"; then
+    WARNINGS+=("credential-exfiltration phrasing detected")
+  fi
 fi
 
 # 5) Hidden-instruction markers (zero-width / unicode tag chars used in known PI attacks)

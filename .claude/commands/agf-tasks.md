@@ -5,23 +5,13 @@ argument-hint: [team-name] [task-id | -s <status>]
 
 # 任务
 
-执行 `bash .claude/scripts/agf-tasks.sh $ARGUMENTS` 并把输出原样呈现给用户。
-
-## 调用模式速查
-
-| 用户意图 | 命令 |
-|---|---|
-| 看所有 team 概览 | `/agf-tasks` |
-| 看某 team 的 task 表 | `/agf-tasks <team>` |
-| 按状态过滤（pending/in_progress/completed/blocked） | `/agf-tasks <team> -s <status>` |
-| 看单 task 完整描述 | `/agf-tasks <team> <id>` |
-| 帮助 | `/agf-tasks --help` |
+执行 `bash .claude/scripts/agf-tasks.sh $ARGUMENTS` 并把输出原样呈现给用户。调用模式（无参概览 / `<team>` / `<team> -s <status>` / `<team> <id>`）以脚本 `--help` 为准，本文件不复述。
 
 ## 行为
 
 1. 直接 Bash 跑 `bash .claude/scripts/agf-tasks.sh $ARGUMENTS`
 2. 把 stdout 完整输出给用户（含 emoji + 颜色码——Claude Code UI 一般会渲染颜色；不渲染时以纯文本看也清晰）
-3. 如果用户问"这个 team 都谁在干什么"/"现在卡在哪"，**优先用本命令**，不要让 lead 调 TaskList（节省 token；本命令直接读文件系统）
+3. 用户问"这个 team 都谁在干什么"/"现在卡在哪"时，**优先用本命令**，不要让 lead 调 TaskList（省 token；本命令直接读文件系统）
 
 ## 约束
 

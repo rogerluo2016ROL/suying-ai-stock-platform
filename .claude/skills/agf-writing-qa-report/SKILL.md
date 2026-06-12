@@ -7,12 +7,13 @@ description: Use when qa-engineer (or miniapp-qa-engineer) is about to publish a
 
 Use this skill when:
 
-- E2E execution is complete and a report needs to be published
+- E2E execution is complete and a report needs publishing
 - UAT business sign-off needs to be captured
-- A bug-fix E2E re-verification needs to be recorded (always **appended** as `## Re-run [N] — [date]` to the existing `[feature]-e2e-[YYYY-MM-DD].md`; never a new file — see "File path & naming" below)
+- A bug-fix E2E re-verification needs recording (always **appended** as `## Re-run [N] — [date]` to the existing `[feature]-e2e-[YYYY-MM-DD].md`; never a new file — see "File path & naming" below)
 
 **Pair with**:
 - `agf-running-sit-tests` skill — SIT 由 dev 自跑，本 skill 不覆盖 SIT 报告（SIT 证据已在 `progress/<role>.md` 的 `**SIT 证据**` 段，归档随 `docs/qa/<feature>-process-log.md` 走）
+- **UAT 用例文档** `docs/qa/[feature]-uat-cases-[date].md`（模板 `docs/qa/uat-cases-_TEMPLATE.md`，gate SSOT 见 `testing.md`「UAT 用例文档」节）— UAT 执行前生成 + 用户审核 `status: Approved`；执行证据回填用例文档（证据 SSOT），**UAT 报告引用用例 ID，不重复粘贴证据**
 - This skill — covers the **E2E / UAT artifact** (report file) format
 
 ## File path & naming
@@ -21,7 +22,7 @@ Use this skill when:
 - `docs/qa/oauth-login-e2e-2026-05-13.md`
 - `docs/qa/oauth-login-uat-2026-05-15.md`
 
-**One report per stage per feature.** Re-runs after defect fix → append to same file with a new `## Re-run [N] — [date]` section, do not create a new file.
+**One report per stage per feature.** Re-runs after defect fix → append a new `## Re-run [N] — [date]` section to the same file, do not create a new file.
 
 ## Required sections (in order)
 
@@ -42,6 +43,7 @@ Use this skill when:
 - Passed: M
 - Failed: K
 - Blocked: J
+- 界面渲染核查（仅 UAT 且含界面 feature）: N/N 界面真渲染 + 截图 + 读图四查通过（矩阵 SSOT 在用例文档）
 - **Verdict**: ✅ Promote to next stage / ❌ Block / ⚠️ Conditional promote
 
 ## Pre-conditions Checked
@@ -50,6 +52,7 @@ Use this skill when:
 - [ ] code-reviewer 报告已存在且 verdict ≠ Block（含 SIT Audit = ✅ / ⚠️）
 - [ ] PRD AC 可访问
 - [ ] 环境就绪（DB 起来 / 迁移已 apply / 服务已启动）
+- [ ] **（仅 UAT）用例文档已审核**：`docs/qa/[feature]-uat-cases-[date].md` 存在且 frontmatter `status: Approved`（MAJOR / MINOR 强制；PATCH 级 hotfix 由 PL 豁免时在报告注明理由）
 
 任何一条没勾 → 不该开始测；先 SendMessage product-lead 解决先决条件。
 
@@ -125,16 +128,22 @@ P0 全 Pass，P1 部分 Fail        → ⚠️ Conditional（P1 失败必须建�
 - 日志：相关行（带时间戳）
 - 文件落盘：`ls -la` + 内容 head
 
-**禁止**只写"Passed, looks correct"——这种 Pass 不可信，等同于没测。
+**禁止**只写"Passed, looks correct"——这种 Pass 不可信，等同没测。
+
+**UAT 含用户可见界面的用例额外强制**（SSOT：`testing.md`「UAT 界面渲染核查」节）：
+
+- 截图**必选**且必须来自 chrome-devtools 真渲染（小程序 / Apple 轨用对应模拟器；命名 `evidence/UAT-[case]-[界面slug].png`），**落盘后必须用 Read 读回做视觉分析**（对照 design spec + `index.html` 原型），在用例文档「界面渲染核查矩阵」回填四查结论（导航 / 裁切 / 控件可点 / 视觉达标）
+- curl / `SELECT` 输出只能作**补充**——**纯 API / DB 断言不构成 Pass**；矩阵任一行缺截图或缺读图结论（"已截图" ≠ "已核查"）= 该界面未测，本报告不得发布
 
 ## 反模式
 
-- ❌ 把多个 AC 合并写 "AC-1 to AC-5 all passed" — 每条 AC 独立成节
-- ❌ Verdict = ✅ 但 Actual 段空 — 没证据的 Pass = Fail
+（"合并写 all passed" / "无 evidence 的 Pass" / "Defect 不写 Repro" 已由下文「完成前的验证」checklist 反向守门，此处不重列。）
+
 - ❌ 跑 E2E 时同时改代码（移动靶）— 必须 freeze 分支再跑
 - ❌ 用生产 API key 跑 E2E — 必须用专用测试 key + 每日花费上限
-- ❌ Defect 不写 Repro steps — code-owner 没法复现 = 不能 fix
 - ❌ 用本 skill 写 SIT 报告 — SIT 已 dev 自跑，证据落 `progress/<role>.md`，不再有独立 SIT 报告
+- ❌ UAT 用 API 断言代替界面渲染 — 接口 200 ≠ 界面可用（导航缺失 / 裁切 / 控件点不动全漏检）；含界面用例必须真渲染 + 截图 + 读图四查，"时间紧 / E2E 已截过图 / 后端数据对了"都不是豁免理由
+- ❌ 截图存档但不读图 — 截图必须用 Read 读回、以视觉能力对照 design spec 给"视觉达标"结论；**UIUX 是用户对产品最直接的感受**，"功能对了但界面糙"不是可交付状态，"已截图"不等于"已核查"
 
 ## 完成前的验证
 
@@ -143,6 +152,8 @@ P0 全 Pass，P1 部分 Fail        → ⚠️ Conditional（P1 失败必须建�
 - [ ] Defects 表每行都有 Repro steps + Suspected file？
 - [ ] Cost 一节填了实际数字（不是 TBD）？
 - [ ] Verdict 由决策树推出（不是凭感觉）？
+- [ ] **交互控件全覆盖**（含前端的 feature）：页面每个可交互控件都点击/输入过 + 断言了可观测后果（DOM/网络/路由/状态），非"截图看着有按钮"（见 `testing.md` 前后端对接强制覆盖项 ③）？
+- [ ] **（仅 UAT）界面渲染核查矩阵**：每个用户可见界面已真渲染 + 截图 + 读图四查（导航 / 裁切 / 控件可点 / 视觉达标），每张截图都被 Read 读回分析过，无"待执行"残留、无以纯 API 断言代替（见 `testing.md`「UAT 界面渲染核查」节）？
 - [ ] Hand-off SendMessage 已发出？
 
 任一不行 → 不要 publish，回去补。

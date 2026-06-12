@@ -13,7 +13,8 @@
 # - Bypass for true emergencies: `git commit --no-verify` (logged in security.md as
 #   discouraged; please open an incident note)
 #
-# Patterns mirror .claude/hooks/scan-secrets.sh — keep both in sync when adding rules,
+# Patterns mirror .claude/hooks/scan-secrets.sh — 覆盖面 parity 由
+# hooks/tests/test-secret-pattern-parity.sh 机器强制（加厂商只改一边会 fail），无需人工盯。
 # EXCEPT rule #11 which is commit-only by design (see #11 inline comment for rationale).
 # Reference: https://github.com/dwarvesf/claude-guardrails (scan-commit pattern)
 
@@ -78,6 +79,10 @@ m=$(echo "$ADDED" | grep -E '\-\-\-\-\-BEGIN[[:space:]]+(RSA|EC|DSA|OPENSSH|PGP|
 # 8) China LLM provider keys (inline KEY=value)
 m=$(echo "$ADDED" | grep -E '\b(DEEPSEEK_API_KEY|ARK_API_KEY|DASHSCOPE_API_KEY|MINIMAX_API_KEY|QWEN_API_KEY|DOUBAO_API_KEY)[[:space:]]*=[[:space:]]*[A-Za-z0-9_.+/=-]{20,}' | head -1 || true)
 [ -n "$m" ] && report "China-LLM provider key (DeepSeek/Doubao/Qwen/MiniMax)" "$m"
+
+# 8b) Apple signing credentials (mirror scan-secrets.sh rule 8b; .p8 content = PEM → rule #7)
+m=$(echo "$ADDED" | grep -E '\b(APP_STORE_CONNECT_API_KEY|ASC_API_KEY|MATCH_PASSWORD|FASTLANE_PASSWORD|FASTLANE_SESSION)[[:space:]]*=[[:space:]]*[^[:space:]]{8,}' | head -1 || true)
+[ -n "$m" ] && report "Apple signing credentials (ASC API key / match password)" "$m"
 
 # 9) BIP39 mnemonic — keyword + 12+ short lowercase words on the same diff line
 m=$(echo "$ADDED" | grep -iE '\b(bip[ -]?39|mnemonic|seed[[:space:]]+phrase|recovery[[:space:]]+phrase|wallet[[:space:]]+phrase)\b' \

@@ -77,8 +77,14 @@ tui_capable() {
 # 用法：_tui_color <code>  → 打印对应转义；reset 用 _tui_color 0。
 # 设计 token（全库统一，勿散用其他色号）：
 #   1=bold 标题 · 2=dim 辅助/未到步 · 36=cyan 主色/当前步 · 7=反显选中行 · 33=yellow 告警
+#
+# ⚠️ 能力探测必须在 source 时做一次并缓存：_tui_color 几乎总在 $(…) 命令替换里被调，
+# 彼时 stdout 是捕获管道而非终端，函数内 [[ -t 1 ]] 恒 false → 历史 bug：样式层
+# （反显选中/bold 标题/dim 提示/cyan 当前步）从未真正输出过。source 发生在脚本顶层，
+# stdout 仍是真终端，此时探测才准。
+if [[ -t 1 && -z "${TUI_NO_COLOR:-}" ]]; then _TUI_COLOR_ON=1; else _TUI_COLOR_ON=0; fi
 _tui_color() {
-  [[ -t 1 && -z "${TUI_NO_COLOR:-}" ]] || return 0
+  [[ "${_TUI_COLOR_ON:-0}" -eq 1 && -z "${TUI_NO_COLOR:-}" ]] || return 0
   printf '\033[%sm' "$1"
 }
 
@@ -213,25 +219,33 @@ _tui_read_key() {
   return 0
 }
 
-# ---------- 内部：渲染一帧菜单 ----------
+# ---------- 内部：渲染一帧菜单（clack 式脊柱时间线）----------
 # 入参（caller 局部）：
 #   $1 模式 multi|single ; $2 标题 ; $3 当前光标行 cur ; $4 键位提示（dim 渲染）
 # 读全局：TUI_ITEMS / TUI_LABELS / _TUI_SEL[]（多选勾选态，平行 TUI_ITEMS）
-# 布局（共 n + 5 行，留白与缩进是观感关键，改动需同步 _tui_menu_loop 的 total_rows）：
-#   空行 / 标题(bold) / 空行 / n 个选项行(选中整行反显) / 空行 / 提示(dim)
+# 布局（标题 1 + 空 1 + n 项 + 空 1 + 提示 1 = 共 n + 4 行，改动需同步 _tui_menu_loop 的 total_rows）：
+#   ◆ 标题(bold) / │空 / │n 个选项行(选中内容反显) / │空 / │提示(dim)
+#   ◇/◆/■/│ 均为 E2 系窄字符（与既有 │─ 同族，无 CJK 宽度风险）。
 # 约定：调用前光标已在帧顶部；本函数逐行打印，每行末尾 \033[K 清到行尾。
 _tui_render() {
   local mode="$1" title="$2" cur="$3" hint="$4"
   local n="${#TUI_ITEMS[@]}"
-  local hi rs bold dim
-  hi="$(_tui_color 7)"      # 反显（选中行）
+  local hi rs bold dim cyan gut
+  hi="$(_tui_color '7;36')" # 反显 + cyan（选中条带品牌色，而非黑白硬反显）
   rs="$(_tui_color 0)"      # reset
   bold="$(_tui_color 1)"
   dim="$(_tui_color 2)"
-  printf '\033[K\r\n'
-  printf '  %s%s%s\033[K\r\n' "$bold" "$title" "$rs"
-  printf '\033[K\r\n'
-  local i mark prefix line label
+  cyan="$(_tui_color 36)"
+  gut="$(printf '%s│%s' "$dim" "$rs")"   # 脊柱
+  # 值列宽度动态：最长值 + 3（原固定 25 在短值集上留出大片空洞，扫读断裂）
+  local i vw=8 l
+  for (( i = 0; i < n; i++ )); do
+    l="${#TUI_ITEMS[$i]}"
+    (( l + 3 > vw )) && vw=$(( l + 3 ))
+  done
+  printf '  %s◆%s %s%s%s\033[K\r\n' "$cyan" "$rs" "$bold" "$title" "$rs"
+  printf '  %s\033[K\r\n' "$gut"
+  local mark prefix line label
   for (( i = 0; i < n; i++ )); do
     # 光标前缀
     if [[ "$i" -eq "$cur" ]]; then prefix="›"; else prefix=" "; fi
@@ -239,25 +253,43 @@ _tui_render() {
     if [[ "$mode" == "multi" ]]; then
       if [[ "${_TUI_SEL[$i]:-0}" -eq 1 ]]; then mark="[x]"; else mark="[ ]"; fi
     else
-      mark="   "
+      mark=" "
     fi
     # 描述（可选）
     label="${TUI_LABELS[$i]:-}"
-    # 组装一行：缩进 + 前缀 + 标记 + 值（左对齐 25 宽，值为 ASCII 时对齐才可靠）+ 描述
+    # 组装一行：前缀 + 标记 + 值（左对齐动态宽，值为 ASCII 时对齐才可靠）+ 描述
     if [[ -n "$label" ]]; then
-      line="$(printf '  %s %s %-25s %s' "$prefix" "$mark" "${TUI_ITEMS[$i]}" "$label")"
+      line="$(printf ' %s %s %-*s %s' "$prefix" "$mark" "$vw" "${TUI_ITEMS[$i]}" "$label")"
     else
-      line="$(printf '  %s %s %s' "$prefix" "$mark" "${TUI_ITEMS[$i]}")"
+      line="$(printf ' %s %s %s' "$prefix" "$mark" "${TUI_ITEMS[$i]}")"
     fi
     if [[ "$i" -eq "$cur" ]]; then
-      # 当前行整行反显
-      printf '%s%s%s\033[K\r\n' "$hi" "$line" "$rs"
+      # 当前行内容反显（cyan 条；脊柱保持常态不卷入）
+      printf '  %s%s%s%s\033[K\r\n' "$gut" "$hi" "$line" "$rs"
     else
-      printf '%s\033[K\r\n' "$line"
+      printf '  %s%s\033[K\r\n' "$gut" "$line"
     fi
   done
-  printf '\033[K\r\n'
-  printf '  %s%s%s\033[K\r\n' "$dim" "$hint" "$rs"
+  printf '  %s\033[K\r\n' "$gut"
+  printf '  %s %s%s%s\033[K\r\n' "$gut" "$dim" "$hint" "$rs"
+}
+
+# ---------- 内部：折叠已完成的菜单帧（clack 式：交互块收成 2 行留痕）----------
+# 调用前提：光标在帧底部（_tui_render 刚画完一帧，占 total_rows 行）。
+# 动作：上移 total_rows → 打印 2 行折叠态（◇ 标题 / │ dim 答案）→ 把余下行清空 →
+#       光标回到折叠块之后，使后续输出紧接时间线。
+# $1=total_rows  $2=标题  $3=答案文本  $4=节点字形（◇ 完成 / ■ 取消）+颜色 code
+_tui_collapse() {
+  local total="$1" title="$2" answer="$3" glyph="${4:-◇}" gcolor="${5:-32}"
+  local rs dim gc
+  rs="$(_tui_color 0)"; dim="$(_tui_color 2)"; gc="$(_tui_color "$gcolor")"
+  printf '\033[%dA' "$total"
+  printf '  %s%s%s %s\033[K\r\n' "$gc" "$glyph" "$rs" "$title"
+  printf '  %s│%s  %s%s%s\033[K\r\n' "$dim" "$rs" "$dim" "$answer" "$rs"
+  local i wipe=$(( total - 2 ))
+  for (( i = 0; i < wipe; i++ )); do printf '\033[K\r\n'; done
+  [[ "$wipe" -gt 0 ]] && printf '\033[%dA' "$wipe"
+  return 0
 }
 
 # ---------- 内部：选择菜单主循环（multiselect / select 共用）----------
@@ -279,14 +311,14 @@ _tui_menu_loop() {
   for (( i = 0; i < n; i++ )); do _TUI_SEL+=("0"); done
 
   local cur=0
-  # 提示行（hint）；总渲染行数 = 空行×3 + 标题 1 + n 项 + 提示 1（见 _tui_render 布局注释）
+  # 提示行（hint）；总渲染行数 = 标题 1 + │空 1 + n 项 + │空 1 + │提示 1（见 _tui_render 布局注释）
   local hint
   if [[ "$mode" == "multi" ]]; then
     hint="↑/↓ 移动 · 空格 勾选 · a 全选 · n 全不选 · 回车 确认 · q 取消"
   else
     hint="↑/↓ 移动 · 回车 确认 · q 取消"
   fi
-  local total_rows=$(( n + 5 ))
+  local total_rows=$(( n + 4 ))
 
   tui_raw_begin || return 1
 
@@ -346,6 +378,21 @@ _tui_menu_loop() {
     _tui_render "$mode" "$title" "$cur" "$hint"
   done
 
+  # clack 式折叠留痕：交互块收成「◇ 标题 / │ 答案」2 行（取消则 ■ 红 + 已取消）
+  local answer
+  if [[ "$rc" -eq 0 ]]; then
+    if [[ "$mode" == "single" ]]; then
+      answer="${TUI_ITEMS[$cur]}"
+      [[ -n "${TUI_LABELS[$cur]:-}" ]] && answer="$answer · ${TUI_LABELS[$cur]}"
+    else
+      answer="${TUI_RESULT:-（未选）}"
+      [[ -z "$answer" ]] && answer="（未选）"
+    fi
+    _tui_collapse "$total_rows" "$title" "$answer" "◇" 32
+  else
+    _tui_collapse "$total_rows" "$title" "已取消" "■" 31
+  fi
+
   tui_raw_end
   return "$rc"
 }
@@ -365,33 +412,42 @@ tui_select() {
 # 空或长度 < minlen 则提示重问。写 TUI_RESULT，返回 0。
 # $3 可选：dim 辅助说明行（约束 / 示例 / 退出方式），显示在提示与输入符之间。
 # -e 在 bash 3.2 安全（agf-team-start.sh 一贯在用），与 spec §5 "readline 行编辑" 一致。
-# 布局：空行 / 提示(bold) / [辅助说明(dim)] / "  › " 输入符 —— 与菜单帧同一缩进体系。
+# 布局（clack 式脊柱）：◆ 提示(bold) / [│ 辅助说明(dim)] / │ › 输入符；
+# 成功后折叠为「◇ 提示 / │ 答案」2 行（行数随重试可变，用 rows 计数追踪供折叠上移）。
 tui_input() {
   local prompt="${1:-请输入}" minlen="${2:-1}" note="${3:-}"
-  local bold dim cyan rs yellow
+  local bold dim cyan rs yellow gut
   bold="$(_tui_color 1)"; dim="$(_tui_color 2)"; cyan="$(_tui_color 36)"
   rs="$(_tui_color 0)"; yellow="$(_tui_color 33)"
-  local val=""
-  printf '\n  %s%s%s\n' "$bold" "$prompt" "$rs"
-  [[ -n "$note" ]] && printf '  %s%s%s\n' "$dim" "$note" "$rs"
+  gut="$(printf '%s│%s' "$dim" "$rs")"
+  local val="" rows=1
+  printf '  %s◆%s %s%s%s\n' "$cyan" "$rs" "$bold" "$prompt" "$rs"
+  if [[ -n "$note" ]]; then
+    printf '  %s %s%s%s\n' "$gut" "$dim" "$note" "$rs"
+    rows=$(( rows + 1 ))
+  fi
   while true; do
-    printf '  %s›%s ' "$cyan" "$rs"
+    printf '  %s %s›%s ' "$gut" "$cyan" "$rs"
     # 注意：勿加 2>/dev/null —— read -e 的 readline 字符回显走 stderr，
     # 重定向掉会导致"输入看不见"（输入其实读到了，只是不回显）。原启动器
     # 的 read -er 也从不重定向 stderr，正是此因。
     IFS= read -er val || val=""
+    rows=$(( rows + 1 ))   # 本次输入行（read 回车后光标已到下一行）
     # 去首尾空白
     val="$(printf '%s' "$val" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     if [[ -z "$val" ]]; then
-      printf '  %s输入不能为空，请重试。%s\n' "$yellow" "$rs"
+      printf '  %s %s输入不能为空，请重试。%s\n' "$gut" "$yellow" "$rs"
+      rows=$(( rows + 1 ))
       continue
     fi
     if [[ "${#val}" -lt "$minlen" ]]; then
-      printf '  %s至少需要 %s 个字符（当前 %s），请重试。%s\n' "$yellow" "$minlen" "${#val}" "$rs"
+      printf '  %s %s至少需要 %s 个字符（当前 %s），请重试。%s\n' "$gut" "$yellow" "$minlen" "${#val}" "$rs"
+      rows=$(( rows + 1 ))
       continue
     fi
     break
   done
+  _tui_collapse "$rows" "$prompt" "$val" "◇" 32
   TUI_RESULT="$val"
   return 0
 }

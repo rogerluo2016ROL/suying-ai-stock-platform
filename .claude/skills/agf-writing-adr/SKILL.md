@@ -7,7 +7,7 @@ description: Use when tech-lead is about to record an architecture decision (new
 
 Use this skill when:
 
-- A new technology / framework / vendor is being added to the stack (and not already covered by ADR-000)
+- A new technology / framework / vendor is being added to the stack (not already covered by ADR-000)
 - An existing baseline is being **deviated from** (e.g. swapping Postgres → SQLite for a specific service)
 - A cross-cutting decision needs explicit record (auth scheme, deployment shape, observability stack, LLM caching policy)
 - code-reviewer escalates a "this needs ADR" finding
@@ -34,7 +34,7 @@ ADR-000 is reserved for the system architecture baseline. Never reuse a number; 
 `Proposed` → `Accepted` → (later) `Superseded by ADR-NNN` / `Deprecated`. Once `Accepted`, **do not edit decisions**; supersede with a new ADR.
 
 Allowed in-place edits on Accepted ADRs:
-- Backfill `## 版本与查证` rows when a deferred row gets resolved
+- Backfill `## 版本与查证` rows when a deferred row resolves
 - Typos and broken links
 
 Anything else → new ADR.
@@ -100,11 +100,11 @@ Anything else → new ADR.
 
 ADR 不是事后总结，是决策**前**的工具：
 
-1. **查证**：每个候选选型用 WebFetch 拉官方 changelog / release notes，记录"今天最新稳定版 + 维护状态 + 已知 breaking change"
+1. **查证**：每个候选选型先用 Context7（`resolve-library-id` → `get-library-docs`）拉当前版本官方文档；未收录或版本信息不足再 WebFetch 官方 changelog / release notes。记录"今天最新稳定版 + 维护状态 + 已知 breaking change"
 2. **决策**：在多个候选间挑选，列至少 1 个备选 + 否决理由
 3. **写 ADR**：把上述过程落地，commit + announce
 
-如果你已经做完 1 + 2 但跳过 3，未来一定会被问"当时为啥选这个"——回答不了就是组织记忆缺失。
+做完 1 + 2 但跳过 3，未来一定会被问"当时为啥选这个"——答不了就是组织记忆缺失。
 
 ## 完成前的验证
 
@@ -117,9 +117,9 @@ ADR 不是事后总结，是决策**前**的工具：
 
 ## 反模式
 
-- ❌ 「因为大家都用」/「业界标准」 — 这不是理由，写出**你具体的约束**
+- ❌ 「因为大家都用」/「业界标准」 — 不是理由，写出**你具体的约束**
 - ❌ 没有备选 — 表示你只是默认采纳，不是决策
-- ❌ ADR 修改 Accepted 状态后的「决策」段 — 必须 supersede
+- ❌ ADR 改 Accepted 状态后的「决策」段 — 必须 supersede
 - ❌ 写完 ADR 不更新 CLAUDE.md Tech Stack 表 — 单一来源原则破裂
 - ❌ ADR 标题用「升级 X 到 Y 版本」 — 那不是决策，是事实记录；除非升级跨大版本且有 breaking change，否则进 commit message 即可
 

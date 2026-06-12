@@ -1,12 +1,12 @@
 # Observability Baseline
 
-团队通用观测基线，覆盖 **应用运行时** 与 **AI agent 自身运行时** 两个维度。每个项目的具体技术选型由 tech-lead 在项目级 ADR 中固化。
+团队通用观测基线，覆盖 **应用运行时** 与 **AI agent 自身运行时** 两个维度。各项目具体技术选型由 tech-lead 在项目级 ADR 中固化。
 
 ## 应用运行时
 
 ### 结构化日志（必须）
 
-- 后端（FastAPI）：使用 `structlog` 或 `loguru`，输出 JSON；关键字段：`ts`、`level`、`request_id`、`user_id`（脱敏）、`event`、`latency_ms`
+- 后端（FastAPI）：用 `structlog` 或 `loguru`，输出 JSON；关键字段：`ts`、`level`、`request_id`、`user_id`（脱敏）、`event`、`latency_ms`
 - 前端：错误边界 + Sentry SDK；不在控制台打 `console.log`（用 `logger` 抽象）
 - 严禁日志包含：完整 token / 密码 / 手机号 / 身份证号 / 完整邮箱（参考 `security.md`）
 
@@ -26,7 +26,9 @@
 
 ### 内置 `/usage`
 
-需要查会话 token / cost / cache hit 时跑 Claude Code 内置 `/usage`（不维护项目级 cost log；release retro §3 摘录该输出，见 `agf-running-release-retro` skill）。
+查会话 token / cost / cache hit 时跑 Claude Code 内置 `/usage`（不维护项目级 cost log；release retro §3 摘录该输出，见 `agf-running-release-retro` skill）。
+
+`/usage` 支持**分类成本拆分**：skills / subagents / plugins / **per-MCP-server** 各自的 cost。这是 Agent Team **角色级 / 工具级成本归因**的最快入口——pool 模式下想知道"哪个 MCP、哪类 skill 在烧钱"直接看 `/usage` 分类，不用自建 log。（`/cost` 与 `/stats` 已并入 `/usage`。）
 
 ### OpenTelemetry 导出（可选启用）
 
@@ -47,10 +49,11 @@
 
 > 注意：`OTEL_LOG_USER_PROMPTS=1` 会把用户原始 prompt 推到 OTEL，可能含敏感信息。**生产固定为 0**，仅本地排障打开。
 
-**有用的 event / attribute（Claude Code 2.1.117–2.1.126）**：
-- `claude_code.skill_activated` 现带 `invocation_trigger`（`user-slash` / `claude-proactive` / `nested-skill`），可统计哪些 skill 真正被人类显式触发，用于识别"agent 自动绕路调用"型成本
+**有用的 event / attribute**：
+- `claude_code.skill_activated` 现带 `invocation_trigger`（`user-slash` / `claude-proactive` / `nested-skill`），可统计哪些 skill 真正被人类显式触发，识别"agent 自动绕路调用"型成本
 - `cost.usage` / `token.usage` / `api_request` / `api_error` 在支持 effort 的模型上带 `effort` 属性，分级看 high/medium/low effort 的成本占比
 - `tool_result` 带 `tool_use_id` 与 `tool_input_size_bytes`；`PostToolUse` hook 输入还带 `duration_ms`（已被 `sanitize-tool-output.sh` 用于 >10s 慢调用警告）
+- `claude_code.tool` span 带 `agent_id` 与 `parent_agent_id`——**Agent Team / subagent 成本可按实例归因**（哪个 `<type>-N` 实例、谁 spawn 的）；且 trace parenting 已修正：background subagent 的 span 正确挂在派发它的 Agent 工具下，pool fan-out 调用树不再扁平。配合 `app.entrypoint`（opt-in `OTEL_METRICS_INCLUDE_ENTRYPOINT=true`）区分会话入口来源
 
 ### 推荐对接
 
@@ -67,4 +70,4 @@
 
 ## 边界
 
-具体技术栈选型（哪个 APM、哪个日志后端）由 tech-lead 在 ADR 中决策；本基线只规定 **必须覆盖什么**、**禁止做什么**，不锁定供应商。
+具体技术栈选型（哪个 APM、哪个日志后端）由 tech-lead 在 ADR 中决策；本基线只规定 **必须覆盖什么**、**禁止做什么**，不锁供应商。

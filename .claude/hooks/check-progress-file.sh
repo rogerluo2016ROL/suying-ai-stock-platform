@@ -7,7 +7,7 @@
 #          否则 exit 2 阻断退出，提示按 .claude/standards/ac-lifecycle.md 流程补写。
 #
 # 强制对象（execution-layer roles）：
-#   backend-dev / frontend-dev / ai-agent-dev / ml-engineer / miniapp-dev
+#   backend-dev / frontend-dev / ai-agent-dev / ml-engineer / miniapp-dev / apple-dev
 #
 # 豁免规则（exit 0 放行）：
 #   - 当前 teammate 不在执行层强制名单（lead / reviewer / qa / designer / writer / analyst）
@@ -33,6 +33,7 @@ EXECUTION_ROLES=(
   "ai-agent-dev"
   "ml-engineer"
   "miniapp-dev"
+  "apple-dev"
 )
 
 # 防御式提取 role / teammate name（payload shape 因 hook 类型而异）
@@ -110,7 +111,7 @@ for r in "${EXECUTION_ROLES[@]}"; do
 done
 [[ "$IN_LIST" -eq 0 ]] && exit 0
 
-# Standby 豁免（v3, 2026-05-25）：
+# Standby 豁免：
 # 真实 Agent Teams task JSON schema 仅含 {id, subject, description, activeForm,
 # status, blocks, blockedBy}——没有 assignee/teammate/to/owner 字段。R3 audit 实测
 # 发现 R1 写的"按 role 名匹配 task"判定永远 false → hook 永远走 exit 0 死分支 →

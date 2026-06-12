@@ -21,11 +21,9 @@ miniapp/
 
 ## 2. 框架选型决策树（默认原生）
 
-默认：原生 WXML/WXSS/JS
-
-触发 Taro 的场景（少数）：
-1. 该页面 80% 以上业务逻辑已存在于 Web React 组件，需要复用
-2. 团队需要在 Web 与小程序之间快速同步同一功能（双端发布）
+默认原生 WXML/WXSS/JS；以下少数场景触发 Taro：
+1. 该页面 80% 以上业务逻辑已存在于 Web React 组件，需复用
+2. 团队需在 Web 与小程序间快速同步同一功能（双端发布）
 3. 选型分歧时由 `tech-lead` 仲裁
 
 ## 3. WeUI 设计规范要点
@@ -57,9 +55,9 @@ miniapp/
 
 ### 自动化技术栈（标准方案）
 
-为避免对第三方 MCP 的依赖（如 `@creatoria/miniapp-mcp` / `roy2an/minium-mcp-server` 均为社区项目），团队采用**微信官方 SDK + Jest** 的组合：
+为避免依赖第三方 MCP（如 `@creatoria/miniapp-mcp` / `roy2an/minium-mcp-server` 均为社区项目），团队采用**微信官方 SDK + Jest** 组合：
 
-- **`miniprogram-automator`**（微信官方，npm 包）：启动开发者工具、控制小程序、操作页面与元素、注入代码、截图、mock wx API、性能评分、真机调试
+- **`miniprogram-automator`**（微信官方 npm 包）：启动开发者工具、控制小程序、操作页面与元素、注入代码、截图、mock wx API、性能评分、真机调试
 - **Jest**：测试框架（断言、生命周期、报告）
 
 ### 目录结构
@@ -144,7 +142,7 @@ test('AC-2: 点击登录按钮触发 wx.login', async () => {
 | Mock 数据 / mock wx API 写在脚本里 | `miniapp-dev`（脚本作者负责 mock） |
 | 真机 E2E（扫码 + 多设备） | `miniapp-qa-engineer` |
 
-> 第三方 MCP（如 `@creatoria/miniapp-mcp`）可作为**可选增强**，让 AI agent 直接以自然语言驱动 DevTools；但**默认方案不依赖**，确保团队基线在断网或无第三方服务时也能跑通。如需引入需走 `tech-lead` ADR。
+> 第三方 MCP（如 `@creatoria/miniapp-mcp`）可作**可选增强**（让 AI agent 直接以自然语言驱动 DevTools），但**默认方案不依赖**——确保团队基线在断网或无第三方服务时也能跑通；如需引入须走 `tech-lead` ADR。
 
 ## 7. SendMessage 协作模板
 
@@ -156,19 +154,18 @@ test('AC-2: 点击登录按钮触发 wx.login', async () => {
 
 ## 8. 与 Web 团队的边界
 
-- `backend-dev`、`ai-agent-dev`、`ml-engineer` 共用，不区分 Web / MiniApp
-- API 层默认与 Web 共用（同一个 `backend-dev`）；接口按业务域划分，不按端划分
+- `backend-dev`、`ai-agent-dev`、`ml-engineer` 共用，不区分 Web / MiniApp；API 层默认与 Web 共用（同一个 `backend-dev`），接口按业务域划分而非按端划分
 - UI 层各自维护，不强制 Web 与小程序共享代码；如确有跨端复用需求，由 `tech-lead` 单开 ADR 约定共享目录与边界
 
 ## 9. MiniApp Mode 行为（uiux-designer 在小程序场景的 overlay）
 
-> 适用对象：`uiux-designer`。当 `product-lead` 任务明确为微信小程序（提到 "小程序" / "miniapp" / "微信端"）时，本角色应用以下附加规则。
+> 适用对象：`uiux-designer`。`product-lead` 任务明确为微信小程序（提到 "小程序" / "miniapp" / "微信端"）时，本角色应用以下附加规则。
 
 - **产出路径**：`docs/design/[feature]-miniapp/spec.md` + `index.html`（与 Web 设计区分）
 - **设计规范**：遵循本文件第 3 节 WeUI 要点（导航栏、tabBar、安全区、胶囊按钮、字号字体）
-- **审核红线前置**：设计阶段就标注本文件第 4 节相关约束——隐私协议弹窗时机、用户协议链接位置、`getUserProfile` 触发时机（仅在用户主动操作时）
+- **审核红线前置**：设计阶段就标注第 4 节相关约束——隐私协议弹窗时机、用户协议链接位置、`getUserProfile` 触发时机（仅在用户主动操作时）
 - **微信交互约束**：明确无 hover 态、无右键菜单、下拉刷新区域、转发卡片样式、订阅消息时机
 - **视口**：仅设计 375×667 移动视口，不做桌面断点
 - **交付对象**：通过 SendMessage 交付给 `miniapp-dev`（非 `frontend-dev`），消息内容同 Web 模板，路径替换为 `[feature]-miniapp/`
 
-> 设计意图：本节集中 Designer 在小程序模式下的所有附加规则。`customize.sh --preset minimal`（仅 Web 项目）会连同本文件一并裁剪，让 `uiux-designer.md` 不必同步删除——单一来源 + 干净裁剪。
+> 设计意图：本节集中 Designer 在小程序模式下的所有附加规则；`customize.sh --preset minimal`（仅 Web 项目）会连同本文件一并裁剪，让 `uiux-designer.md` 不必同步删除——单一来源 + 干净裁剪。

@@ -54,7 +54,7 @@ CALLER=$(extract_first_nonempty \
   '.tool_input.agent_name' \
   || true)
 
-# === 豁免逻辑（v2，2026-05-25 加） ===
+# === 豁免逻辑 ===
 # 目的：让 main session / 非 product-lead 上下文中的内部任务追踪不被强制 6 段 schema。
 # 触发"必须 6 段校验"的任一条件：
 #   1) caller 显式是 product-lead（在 Agent Team 中派单）

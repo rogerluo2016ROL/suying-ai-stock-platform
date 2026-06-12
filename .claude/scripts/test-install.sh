@@ -100,6 +100,7 @@ done
 
 info "校验关键文件..."
 REQUIRED_FILES=".claude/settings.json
+.claude/.agf-version
 setup/init-team.sh
 setup/agf-team-start.sh
 setup/customize.sh
@@ -109,6 +110,9 @@ docs/FIRST_RUN.md
 docs/team-capability-map.md
 docs/product-workflow.md
 docs/prd/_TEMPLATE.md
+docs/qa/_TEMPLATE.md
+docs/qa/uat-cases-_TEMPLATE.md
+docs/reviews/_TEMPLATE.md
 docs/reviews/retro-_TEMPLATE.md
 docs/adr/000-system-architecture.md.agf-template
 progress/README.md
@@ -133,6 +137,15 @@ else
   fail "greenfield CLAUDE.md 非 CLAUDE.example.md 起点（疑似拷了模板仓自身 CLAUDE.md）"
 fi
 
+# 版本标记：内容必须与源仓 CLAUDE.md Template Version 一致（agf-install 升级检测依赖）
+SRC_VER="$(sed -n 's/.*Template Version: \(v[0-9][0-9.]*\).*/\1/p' "$SOURCE/CLAUDE.md" 2>/dev/null | head -1)"
+TGT_VER="$(head -1 "$TMP/.claude/.agf-version" 2>/dev/null)"
+if [[ -n "$SRC_VER" && "$TGT_VER" == "$SRC_VER" ]]; then
+  ok ".claude/.agf-version = ${TGT_VER}（与源仓一致）"
+else
+  fail ".claude/.agf-version 不一致：源 '${SRC_VER}' vs 装入 '${TGT_VER}'"
+fi
+
 # pre-commit symlink
 if [[ -L "$TMP/.git/hooks/pre-commit" ]] && [[ "$(readlink "$TMP/.git/hooks/pre-commit")" == *"scan-commit.sh" ]]; then
   ok ".git/hooks/pre-commit → scan-commit.sh symlink 已装"
@@ -149,6 +162,21 @@ for f in "$TMP/setup/init-team.sh" "$TMP/setup/agf-team-start.sh" "$TMP/setup/cu
   fi
 done
 [[ $NOEXEC -eq 0 ]] && ok "setup/*.sh + hooks/*.sh + scripts/*.sh 可执行位齐全"
+
+# workflows 必须拷（/agf-understand 等依赖）
+if [[ -f "$TMP/.claude/workflows/agf-understand.js" ]]; then
+  ok ".claude/workflows/ 已装（agf-understand / agf-review-sweep）"
+else
+  fail ".claude/workflows/ 未装入（/agf-understand 在目标项目不可用）"
+fi
+
+# 去链接化：目标 .claude/*.md 不应残留任何 markdown 链接 [text](url)
+MDLINKS=$(grep -rE '\]\([^)]+\)' "$TMP/.claude" --include="*.md" 2>/dev/null | wc -l | tr -d ' ')
+if [[ "$MDLINKS" -eq 0 ]]; then
+  ok "target .claude/*.md 无 markdown 链接（去链接化生效，零 404）"
+else
+  fail "target .claude/*.md 残留 $MDLINKS 处 markdown 链接（去链接化未生效）"
+fi
 
 # ---- 检查 b: JSON 可解析 --------------------------------------------------------
 echo
@@ -197,6 +225,30 @@ else
   DIFF_N=$(echo "$DIFF" | wc -l | tr -d ' ')
   warn "known-gap: 二次重跑产生 $DIFF_N 处 diff（备份 + .agf-template + NEXT_STEPS 重写，安装器现状刻意如此，不算失败）。样例："
   echo "$DIFF" | head -8 | sed 's/^/     /'
+fi
+
+# ---- 检查 c2: --refresh-docs（升级刷新：旧文件备份 + 内容更新为源仓新版）----------
+echo
+info "--refresh-docs：篡改目标 docs/FIRST_RUN.md 后第三次重跑..."
+echo "OLD-CONTENT-MARKER" > "$TMP/docs/FIRST_RUN.md"
+LOG3="$TMP/.git/agf-install-run3.log"
+if bash "$INSTALLER" "$TMP" --refresh-docs </dev/null >"$LOG3" 2>&1; then
+  ok "第三次重跑（--refresh-docs）exit 0"
+else
+  RC=$?
+  fail "--refresh-docs 运行失败 (exit $RC)，日志尾部："
+  tail -10 "$LOG3" | sed 's/^/     /'
+fi
+if ! grep -q "OLD-CONTENT-MARKER" "$TMP/docs/FIRST_RUN.md" 2>/dev/null \
+   && cmp -s "$TMP/docs/FIRST_RUN.md" "$SOURCE/docs/FIRST_RUN.md"; then
+  ok "--refresh-docs 已把 docs/FIRST_RUN.md 刷新为源仓新版"
+else
+  fail "--refresh-docs 未刷新 docs/FIRST_RUN.md（仍是旧内容或与源仓不一致）"
+fi
+if ls "$TMP"/docs/FIRST_RUN.md.backup-* >/dev/null 2>&1; then
+  ok "--refresh-docs 旧文件已备份（docs/FIRST_RUN.md.backup-*）"
+else
+  fail "--refresh-docs 未备份旧文件"
 fi
 
 # ---- 检查 d: 源仓未被污染 -------------------------------------------------------

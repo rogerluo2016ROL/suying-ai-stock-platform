@@ -2,7 +2,7 @@
 # UserPromptSubmit hook: block prompts containing secret/credential patterns.
 # Exit 2 = block + show stderr message; Exit 0 = allow.
 #
-# Design (2026-05-01):
+# Design:
 # - Runs on every user prompt before it reaches the model. If a known secret
 #   pattern (AWS key / OpenAI key / GitHub token / Anthropic key / private key
 #   header) is found, block immediately so the secret is never logged in
@@ -40,6 +40,7 @@ COMBINED="$COMBINED"'|\bAIza[0-9A-Za-z_-]{35}\b'
 COMBINED="$COMBINED"'|\bxox[abprs]-[A-Za-z0-9-]{10,}\b'
 COMBINED="$COMBINED"'|\-\-\-\-\-BEGIN[[:space:]]+(RSA|EC|DSA|OPENSSH|PGP|PRIVATE|ENCRYPTED)[[:space:]]*(PRIVATE[[:space:]]+)?KEY\-\-\-\-\-'
 COMBINED="$COMBINED"'|\b(DEEPSEEK_API_KEY|ARK_API_KEY|DASHSCOPE_API_KEY|MINIMAX_API_KEY|QWEN_API_KEY|DOUBAO_API_KEY)[[:space:]]*=[[:space:]]*[A-Za-z0-9_.+/=-]{20,}'
+COMBINED="$COMBINED"'|\b(APP_STORE_CONNECT_API_KEY|ASC_API_KEY|MATCH_PASSWORD|FASTLANE_PASSWORD|FASTLANE_SESSION)[[:space:]]*=[[:space:]]*[^[:space:]]{8,}'
 COMBINED="$COMBINED"'|PuTTY-User-Key-File-[23]:'
 
 if ! printf '%s' "$PROMPT_FLAT" | grep -qE "$COMBINED"; then
@@ -105,6 +106,15 @@ fi
 # secret-like (>=20 chars, mixed case + digits/symbols).
 if printf '%s' "$PROMPT_FLAT" | grep -qE '\b(DEEPSEEK_API_KEY|ARK_API_KEY|DASHSCOPE_API_KEY|MINIMAX_API_KEY|QWEN_API_KEY|DOUBAO_API_KEY)[[:space:]]*=[[:space:]]*[A-Za-z0-9_.+/=-]{20,}'; then
   echo "Blocked: prompt contains a China-LLM provider API key. Remove the secret and use env vars / .env file (gitignored)." >&2
+  exit 2
+fi
+
+# 8b) Apple signing credentials (App Store Connect API key env / fastlane match
+# password / fastlane session) — defensive for the apple-* track (ADR-009).
+# Note: pasted .p8 file CONTENT is a PEM "BEGIN PRIVATE KEY" block → already
+# caught by rule #7; this rule catches the inline `KEY=value` credential form.
+if printf '%s' "$PROMPT_FLAT" | grep -qE '\b(APP_STORE_CONNECT_API_KEY|ASC_API_KEY|MATCH_PASSWORD|FASTLANE_PASSWORD|FASTLANE_SESSION)[[:space:]]*=[[:space:]]*[^[:space:]]{8,}'; then
+  echo "Blocked: prompt contains Apple signing credentials (App Store Connect API key / match password). Use env vars / Keychain — never paste signing secrets." >&2
   exit 2
 fi
 

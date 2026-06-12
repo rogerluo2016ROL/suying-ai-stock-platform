@@ -37,16 +37,22 @@ if [[ "$PRE_COMMIT_MODE" -eq 1 ]]; then
   # 仅校验 staged 文件
   STAGED=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)
   SHELL_FILES=$(echo "$STAGED" | grep -E '\.sh$' || true)
-  JSON_FILES=$(echo "$STAGED" | grep -E '\.json$' | grep -v 'tools/team-dashboard/node_modules' || true)
+  JSON_FILES=$(echo "$STAGED" | grep -E '\.json$' || true)
   YAML_FILES=$(echo "$STAGED" | grep -E '\.(ya?ml)$' || true)
 else
-  SHELL_FILES=$(find .claude -type f -name '*.sh' 2>/dev/null | grep -v node_modules)
+  # Shell: .claude 全深度 + setup/ 安装脚本 + 仓库根 maxdepth 1 的 *.sh（假设 cwd = 仓库根，合并去重）
+  SHELL_FILES=$(
+    { find .claude -type f -name '*.sh' 2>/dev/null
+      find setup -type f -name '*.sh' 2>/dev/null
+      find . -maxdepth 1 -type f -name '*.sh' 2>/dev/null
+    } | grep -v node_modules | sed 's|^\./||' | sort -u
+  )
   # JSON: 单根 . 跑（避免 .claude 和 . 双根重复扫同文件）
   JSON_FILES=$(find . -maxdepth 3 -type f -name '*.json' 2>/dev/null \
-    | grep -v node_modules | grep -v '\.pytest_cache' | grep -v 'tools/team-dashboard' \
+    | grep -v node_modules | grep -v '\.pytest_cache' \
     | sed 's|^\./||' | sort -u)
   YAML_FILES=$(find . -maxdepth 3 -type f \( -name '*.yaml' -o -name '*.yml' \) 2>/dev/null \
-    | grep -v node_modules | grep -v '\.pytest_cache' | grep -v 'tools/team-dashboard' \
+    | grep -v node_modules | grep -v '\.pytest_cache' \
     | sed 's|^\./||' | sort -u)
 fi
 
@@ -106,20 +112,28 @@ else
   echo "  （无 .yaml/.yml 文件）"
 fi
 
-# === Hook 既有测试 ===
-if [[ "$PRE_COMMIT_MODE" -eq 0 ]] && [[ -x .claude/hooks/test-validate-task-schema.sh ]]; then
-  echo ""
-  echo "=== Hook 既有测试套 ==="
-  if bash .claude/hooks/test-validate-task-schema.sh > /tmp/_validate_test.out 2>&1; then
-    TESTS_PASSED=$(grep -c '✅' /tmp/_validate_test.out || echo 0)
-    echo "  ✅ test-validate-task-schema.sh ($TESTS_PASSED 用例通过)"
-    PASS_COUNT=$((PASS_COUNT + 1))
-  else
-    echo "  ❌ test-validate-task-schema.sh 失败" >&2
-    cat /tmp/_validate_test.out >&2
-    FAIL=$((FAIL + 1))
+# === Hook 测试套（全部 test-*.sh）===
+if [[ "$PRE_COMMIT_MODE" -eq 0 ]]; then
+  shopt -s nullglob
+  TEST_HOOKS=(.claude/hooks/tests/test-*.sh)
+  shopt -u nullglob
+  if (( ${#TEST_HOOKS[@]} > 0 )); then
+    echo ""
+    echo "=== Hook 测试套 ==="
+    for th in "${TEST_HOOKS[@]}"; do
+      [[ -x "$th" ]] || continue
+      if bash "$th" > /tmp/_hooktest.out 2>&1; then
+        tp=$(grep -c '✅' /tmp/_hooktest.out 2>/dev/null || true)
+        echo "  ✅ $(basename "$th") ($tp 用例)"
+        PASS_COUNT=$((PASS_COUNT + 1))
+      else
+        echo "  ❌ $(basename "$th") 失败" >&2
+        cat /tmp/_hooktest.out >&2
+        FAIL=$((FAIL + 1))
+      fi
+      rm -f /tmp/_hooktest.out
+    done
   fi
-  rm -f /tmp/_validate_test.out
 fi
 
 # === 总结 ===

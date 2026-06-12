@@ -23,7 +23,7 @@
 # SubagentStop 而非 PostToolUse：后者对 subagent/Task 不触发（anthropics/claude-code#34692）；
 # 同挂 TeammateIdle 兼顾 Agent Team teammate 形态。
 #
-# 注册：.claude/settings.json → hooks.SubagentStop / hooks.TeammateIdle（matcher: code-reviewer / miniapp-code-reviewer）
+# 注册：.claude/settings.json → hooks.SubagentStop / hooks.TeammateIdle（matcher: code-reviewer / miniapp-code-reviewer / apple-code-reviewer）
 # 词表 SSOT：.claude/standards/workflow.md §Verdict 词表 + review-checklist.md
 
 set -uo pipefail
@@ -46,7 +46,7 @@ ROLE=$(printf '%s' "$INPUT" | jq -r '
   | map(select(. != null and . != "")) | .[0] // ""' 2>/dev/null)
 BASE="$ROLE"; [[ "$ROLE" =~ ^(.+)-([0-9]+)$ ]] && BASE="${BASH_REMATCH[1]}"
 case "$BASE" in
-  code-reviewer|miniapp-code-reviewer) ;;
+  code-reviewer|miniapp-code-reviewer|apple-code-reviewer) ;;
   *)
     echo "[validate-review-verdict] WARN — role='${ROLE:-?}' 非 reviewer, fail-open 放行" >&2
     exit 0 ;;

@@ -2,7 +2,7 @@
 # PreToolUse hook: block destructive Bash commands.
 # Exit 2 = block + show stderr message; Exit 0 = allow.
 #
-# Design (2026-04-29 precision hardening, revised):
+# Design (precision hardening, revised):
 # - Patterns are anchored to command boundaries (^, ;, &, &&, |, ||) so a
 #   dangerous verb only matches when it is the *executed* command, not when
 #   it appears inside quoted argument content (e.g. a commit message that
