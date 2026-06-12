@@ -685,7 +685,7 @@ if __name__ == "__main__":
 
 
 class IntradayScalpEngine:
-    """V5.0 盘中龙头战法引擎 — 14:00 选股."""
+    """V5.0 秋神龙头战法-盘中引擎 — 14:00 选股."""
 
     def __init__(self, pg_url: str = None):
         self.pg_url = pg_url

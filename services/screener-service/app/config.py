@@ -18,11 +18,11 @@ MAX_TOP_N = int(os.environ.get("SCREENER_MAX_TOP_N", "100"))
 
 # ── Available screening modes ──
 AVAILABLE_MODES = [
-    "leader_auction",     # 🔥V4.3 竞价超预期战法 (9:25选股)
-    "leader_scalp",       # 龙头战法 (收盘后)
-    "leader_intraday",    # 龙头战法 (盘中)
-    "short",              # 短线多因子
+    "leader_auction",     # 🔥秋神竞价超预期战法 V4.3 (9:25选股)
+    "leader_scalp",       # 秋神龙头战法-盘后
+    "leader_intraday",    # 秋神龙头战法-盘中
+    "short",              # 匪爷短线多因子选股模型
     "long",               # 长线价值
     "all",                # 综合多因子
-    "chokepoint",         # 卡脖子专题
+    "chokepoint",         # 大葱卡脖子选股模型
 ]

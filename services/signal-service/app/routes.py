@@ -160,12 +160,12 @@ async def dashboard_summary():
 
     # ── 5. Screener modes (inlined for efficiency) ──
     result["screener_modes"] = [
-        {"id": "leader_scalp",    "name": "龙头战法 (收盘后)", "cycle": "1-5天",  "style": "激进"},
-        {"id": "leader_intraday", "name": "龙头战法 (盘中)",   "cycle": "1-2天",  "style": "激进"},
-        {"id": "short",           "name": "短线多因子",       "cycle": "1-4周",  "style": "积极"},
+        {"id": "leader_scalp",    "name": "秋神龙头战法-盘后", "cycle": "1-5天",  "style": "激进"},
+        {"id": "leader_intraday", "name": "秋神龙头战法-盘中", "cycle": "1-2天",  "style": "激进"},
+        {"id": "short",           "name": "匪爷短线多因子选股模型",       "cycle": "1-4周",  "style": "积极"},
         {"id": "long",            "name": "长线价值",         "cycle": "3-12月", "style": "稳健"},
         {"id": "all",             "name": "综合多因子",       "cycle": "1-6月",  "style": "中性"},
-        {"id": "chokepoint",      "name": "卡脖子专题",       "cycle": "1-3月",  "style": "主题"},
+        {"id": "chokepoint",      "name": "大葱卡脖子选股模型",       "cycle": "1-3月",  "style": "主题"},
     ]
 
     # ── 6. Watchlist (top 10 stocks by market cap) ──

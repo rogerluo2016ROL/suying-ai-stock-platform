@@ -1,4 +1,4 @@
-"""V4.3 竞价超预期战法引擎 — PG 适配版.
+"""秋神竞价超预期战法 V4.3 引擎 — PG 适配版.
 
 从 auction_scalp.py 提取核心评分逻辑, 适配 PostgreSQL 数据源.
 供 screener-service orchestrator 调用.
@@ -31,7 +31,7 @@ WEIGHTS = {
 
 
 class AuctionScalpEngine:
-    """V4.3 竞价超预期战法 — 9:25 选股, 9:30 前决策."""
+    """秋神竞价超预期战法 V4.3 — 9:25 选股, 9:30 前决策."""
 
     def __init__(self, pg_url: str = None):
         import psycopg2
