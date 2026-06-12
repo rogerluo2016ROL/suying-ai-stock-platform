@@ -1,6 +1,6 @@
 """内置 asyncio 定时任务调度 — 零外部依赖."""
 
-import asyncio, logging, time
+import asyncio, logging, os, time
 from datetime import datetime, date
 from app.sync.rt_min import collect_rt_min
 from app.sync.tushare import sync_post_market_core, sync_post_market_ext
@@ -108,6 +108,44 @@ async def _scheduler_loop():
         await asyncio.sleep(30)
 
 
+def collect_auction_snapshot():
+    """9:25 竞价快照 — 采集9:30首根5min K线存入 stk_auction_o."""
+    import sqlite3, psycopg2
+    from datetime import date
+    from app.config import DB_PATH
+    today = date.today().strftime("%Y-%m-%d")
+
+    # 1. Collect rt_min for 9:30 first bar
+    collect_rt_min()
+
+    # 2. Build auction snapshot from stk_mins 9:30-9:35 first bar → stk_auction_o
+    try:
+        db = sqlite3.connect(DB_PATH)
+        rows = db.execute(
+            "SELECT ts_code, open, high, low, close, volume, amount "
+            "FROM stk_mins WHERE trade_time LIKE ? AND freq='5min'",
+            (f"{today} 09:3%",)
+        ).fetchall()
+        if rows:
+            pg = psycopg2.connect(os.environ.get("KRONOS_PG_URL",
+                "postgresql://kronos:kronos@localhost:6432/kronos"))
+            pg.autocommit = True
+            cur = pg.cursor()
+            for r in rows:
+                code = r[0].split('.')[0] if '.' in str(r[0]) else r[0]
+                cur.execute(
+                    "INSERT INTO stk_auction_o (code, trade_date, open, high, low, close, vol, amount, vwap) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (code, trade_date) DO NOTHING",
+                    (code, today, r[1], r[2], r[3], r[4], r[5], r[6],
+                     r[6]/r[5] if r[5] and float(r[5]) > 0 else r[1]))
+            pg.close()
+        db.close()
+        logger.info("Auction snapshot: %d stocks", len(rows))
+    except Exception as e:
+        logger.warning("Auction snapshot failed: %s", e)
+    return {"status": "ok", "date": today, "stocks": len(rows) if rows else 0}
+
+
 def run_intraday_sync():
     """盘中午间同步 — 交易日 13:00 同步当天上午数据到 SQLite + PG."""
     today = date.today().strftime("%Y-%m-%d")
@@ -136,7 +174,7 @@ def start_scheduler():
         {"id": "rt_min", "name": "实时分钟线", "cron": "*/1 9-15 * * 1-5",
          "fn": collect_rt_min},
         {"id": "auction", "name": "竞价快照", "cron": "25 9 * * 1-5",
-         "fn": collect_rt_min},
+         "fn": collect_auction_snapshot},
         # 盘中午间同步 — 交易日 13:00 同步上午数据 (SQLite + PG 直写)
         {"id": "intraday_sync", "name": "盘中午间同步", "cron": "0 13 * * 1-5",
          "fn": run_intraday_sync},
