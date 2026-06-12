@@ -25,17 +25,17 @@ _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 from kronos_factors.scorer._db_stub import _get_db
 
-# ── Intraday scoring weights (9因子 V5.3 THS数据驱动) ──
-# V5.3: THS概念数据已同步, sector_momentum/resonance 升权
+# ── Intraday scoring weights (9因子 V6.3 优化) ──
+# V6.3: +P20假活跃熔断 +P21科创板龙头折扣 +P22共振弱减半
 INTRA_WEIGHTS = {
-    "gain_quality": 20,              # 14:00涨幅质量
-    "afternoon_strength": 20,        # 午后强势度
-    "intraday_leadership": 12,       # 分时引领性
-    "sector_leader": 14,             # 板块龙头
-    "sector_momentum": 12,           # V5.3: 6→12, THS数据100%覆盖
-    "turnover": 12,                  # 预估成交额
-    "resonance": 10,                 # V5.3: 8→10, 板块+大盘共振
-    "volume_surge": 8,               # 集中放量
+    "gain_quality": 18,              # 14:00涨幅质量 (≥7%)
+    "afternoon_strength": 12,        # 午后强势度 D:10→12
+    "intraday_leadership": 22,       # 分时引领性 (含leadership_bonus)
+    "sector_leader": 24,             # 板块龙头 (最重要)
+    "sector_momentum": 8,            # 板块动量
+    "turnover": 10,                  # 预估成交额
+    "resonance": 8,                  # 板块共振
+    "volume_surge": 7,               # 集中放量
     "ma_trend": 6,                   # 均线趋势
     "sector_climax_penalty": 12,     # P0: 板块高潮次日惩罚
 }
@@ -45,7 +45,7 @@ INTRA_WEIGHTS = {
 TIME_COMPLETION = {
     "10:00": 0.15, "10:30": 0.25, "11:00": 0.35, "11:30": 0.45,
     "13:00": 0.48, "13:30": 0.55, "14:00": 0.65, "14:30": 0.78,
-    "15:00": 1.00,
+    "14:40": 0.85, "15:00": 1.00,
 }
 
 # V4.3: conservative afternoon share for leader stocks (backtest: 9-16%)
@@ -403,45 +403,75 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     if close_14 <= 0 or pre_close <= 0:
         return None
 
-    # ── 条件1: 14:00涨幅 (0-18) — 对齐盘后模型 7-12% ──
+    # ── 条件1: V5.9 涨幅过滤 (8-12%, 排除 9-9.5% 涨停阻力区) ──
     gain_14 = (close_14 / pre_close - 1) * 100
-    if gain_14 < 7.0 or gain_14 > 12.0:
+    if gain_14 < 8.0 or gain_14 > 12.0:
         return None
+    # P9: 9-9.5%是涨停阻力区, 14:40回测29%胜率-2.07%均值, 直接淘汰
+    if 9.0 <= gain_14 < 9.5:
+        return None  # 涨停阻力区: 接近涨停但封不住, 确定性最差
     if code.startswith(('92', '83', '87', '4')):
         return None
     if 'ST' in name.upper():
         return None
 
+    # ── V6.2 P16: 距涨停<2%淘汰 — 封板率80%, 真实交易-0.33%均值 ──
+    # 计算涨停价 (A股10%, 科创板20%, 北交所30%)
+    if code.startswith(('8','9','4')): limit_pct = 1.30
+    elif code.startswith('688'): limit_pct = 1.20
+    else: limit_pct = 1.10
+    limit_price = pre_close * limit_pct
+    dist_to_limit = (limit_price / close_14 - 1) * 100  # 正数=还有空间, 0=已到涨停
+    if dist_to_limit < 2.0:  # 距涨停不足2%, 随时封板或已近封板
+        return None  # 🔴 封板风险过高, 不可交易
+
+    # ── V6.2 P17: 创业板(300/301)淘汰 — 封板率极高(81%), 真实可买仅19% ──
+    if code.startswith(('300','301')):
+        return None  # 🔴 创业板封板率过高, 无法判断可买性
+
     if gain_14 >= 10.0: gain_score = 18
     elif gain_14 >= 9.5: gain_score = 16
     elif gain_14 >= 9.0: gain_score = 14
     elif gain_14 >= 8.5: gain_score = 12
-    elif gain_14 >= 8.0: gain_score = 10
-    elif gain_14 >= 7.5: gain_score = 9
-    else: gain_score = 8
+    else: gain_score = 10                        # V5.8: 8.0-8.5%
+
+    # ── V5.8 P5: 涨停阻力区惩罚 — 9.5~10%接近涨停但封不住,次日低开概率大(回测44%胜率) ──
+    limit_resistance_penalty = 0
+    if 9.5 <= gain_14 < 10.0:
+        limit_resistance_penalty = 3  # 涨停阻力扣3分
 
     day_range = snap["high"] - snap["low"]
     if day_range > 0 and (close_14 - snap["low"]) / day_range > 0.9:
         gain_score += 2
     gain_score = min(18, gain_score)
 
-    # ── I1: 封板可买性 (0-8) — V4.2降权 15→8 ──
-    seal_score = 0; seal_status = "拉升中"
+    # ── I1: 封板可买性 (0-8) + V5.7 涨停板不可买过滤 ──
+    seal_score = 0; seal_status = "拉升中"; seal_buyable = True
     if limit_map and code in limit_map:
         lim = limit_map[code]
         if lim["is_sealed_by_14"]:
             if lim["open_times"] == 0 and lim["fd_amount_yi"] >= 3:
                 seal_score = 8; seal_status = "封死可排"
+                seal_buyable = False  # V5.7: 封死涨停, 买不到
             elif lim["open_times"] <= 1 and lim["fd_amount_yi"] >= 1:
                 seal_score = 6; seal_status = "封板可排"
+                seal_buyable = False  # V5.7: 封板涨停, 排板困难
             elif lim["open_times"] <= 2:
                 seal_score = 4; seal_status = "炸板回封"
+                seal_buyable = True   # V5.7: 炸开过, 有机会买入
             else:
                 seal_score = 1; seal_status = "多次炸板"
+                seal_buyable = True
         else:
             seal_score = 3; seal_status = "尾盘封板"
+            seal_buyable = True
     else:
-        seal_score = 6  # 拉升中可买 (降权后)
+        seal_score = 6  # 拉升中可买
+        seal_buyable = True
+
+    # ── V5.7: 涨停板不可买 — 封死/封板的股票直接淘汰 ──
+    if not seal_buyable:
+        return None  # limit_list_d: 已封死涨停, 当日无法买入
 
     # ── V5.4 I2+I3+条件4: stk_mins 聚合 — 优先从预计算缓存取 ──
     if mins_agg_cache and code in mins_agg_cache:
@@ -458,18 +488,36 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         cum_amount, cum_volume = get_cumulative_amount(db, code, trade_date, time_slot)
         vol_surge = get_recent_volume_surge(db, code, trade_date, time_slot)
 
+    # ── V6.1 P15: 实时封板检测 — 不依赖limit_list_d, day_high已就绪 ──
+    # A股10%涨停价, 北交所30%
+    if code.startswith(('8','9','4')):  # 北交所
+        limit_price = pre_close * 1.30
+    elif code.startswith('688'):  # 科创板
+        limit_price = pre_close * 1.20
+    else:
+        limit_price = pre_close * 1.10
+
+    # 14:40现价 ≥ 涨停价的99.5% 且 等于日内最高 → 已封死, 无法买入
+    if close_14 >= limit_price * 0.995 and close_14 >= day_high * 0.999:
+        return None  # 🔴 实时封死涨停: 14:40已到涨停价且无更高成交
+
     afternoon_str = (close_14 / vwap - 1) * 100 if vwap > 0 else 0
+
+    # ── V5.6 P3: 午后VWAP趋势过滤 — 现价跌穿分时均线=午后主力撤退, 淘汰 ──
+    if close_14 < vwap and vwap > 0:
+        return None  # 跌穿分时成交均线, 午后走弱
+
     day_range = day_high - day_low if day_high > 0 else (snap["high"] - snap["low"])
     pos_in_day = (close_14 - day_low) / max(0.01, day_range) if day_range > 0 else 0.5
 
-    max_afternoon = 20 if has_full else 16
+    max_afternoon = 12 if has_full else 10  # V5.9: 午后回升权重
     if afternoon_str > 2.5: afternoon_score = max_afternoon
-    elif afternoon_str > 1.5: afternoon_score = max_afternoon - 4
-    elif afternoon_str > 0.5: afternoon_score = max_afternoon - 10
-    elif afternoon_str > 0: afternoon_score = max_afternoon - 14
+    elif afternoon_str > 1.5: afternoon_score = max_afternoon - 2
+    elif afternoon_str > 0.5: afternoon_score = max_afternoon - 5
+    elif afternoon_str > 0: afternoon_score = max_afternoon - 7
     else: afternoon_score = 0
     if pos_in_day > 0.85 and afternoon_str > 0:
-        afternoon_score += 2
+        afternoon_score += 1
     afternoon_score = min(max_afternoon, max(0, afternoon_score))
 
     # I3: 盘中资金强度
@@ -534,11 +582,15 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
             (trade_date, f"{trade_date} {time_slot}%", industry)
         ).fetchone()
         peer_n = peer_cnt["cnt"] if peer_cnt else 0
-    if peer_n >= 5: sl_score = 14      # V5.1: 升权 12→14, 板块集群最强
-    elif peer_n >= 3: sl_score = 11
-    elif peer_n >= 2: sl_score = 7
-    elif peer_n == 1: sl_score = 3     # V5.1: 独苗弱化
-    else: sl_score = 0                 # V5.1: 无同板块→0分
+    if peer_n >= 5: sl_score = 24      # V5.5: 升权 14→24, 板块龙头最重要
+    elif peer_n >= 3: sl_score = 18     # V5.5: 11→18
+    elif peer_n >= 2: sl_score = 12     # V5.5: 7→12
+    elif peer_n == 1: sl_score = 6      # V5.5: 3→6, 独苗仍给基础分
+    else: sl_score = 0
+
+    # ── V6.3 P21: 科创板龙头分折扣 — peer_n计算虚高, 满分龙头名不副实 ──
+    if code.startswith('688') and sl_score >= 18:
+        sl_score = int(sl_score * 0.5)  # 科创板龙头降权50%
 
     # ── V5.4: 板块内涨幅排名 (总龙加分, 跟风减分) — 预计算加速 ──
     if peer_n >= 2 and industry_stats and industry in industry_stats:
@@ -558,23 +610,26 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     else:
         intra_rank = 1
 
-    # 板块内排名加分: 总龙(第1)+6, 前排(2-3)+3, 中游+0, 后排(>5)-3
+    # 板块内排名加分: V5.5 总龙(第1)+12, 前排(2-3)+6, 中游+0, 后排(>5)-3
     if intra_rank == 1 and peer_n >= 3:
-        leadership_bonus = 6   # 🟢 板块总龙头, 最强辨识度
+        leadership_bonus = 12  # V5.5: +6→+12, 🟢 板块总龙头, 最强辨识度
     elif intra_rank <= 3 and peer_n >= 3:
-        leadership_bonus = 3   # 🟡 板块前排
+        leadership_bonus = 6   # V5.5: +3→+6, 🟡 板块前排
     elif intra_rank > 5 and peer_n >= 5:
         leadership_bonus = -3  # 🔴 板块跟风, 次日最先被淘汰
     else:
         leadership_bonus = 0
 
-    # V5.1 P1: 独立标的强化惩罚 (复盘: 粤桂股份-7% 偏独立)
+    # ── V5.8 P4: 零板块支撑重罚 — 回测Top10亏损全部peer_n=0, 扣20分近乎淘汰 ──
     if peer_n == 0:
-        independent_penalty = 12       # 🔴 零板块支撑: 重罚
+        independent_penalty = 20  # 🔴 零板块支撑: 重罚但保留(弱市亦有独龙)
     elif peer_n == 1:
-        independent_penalty = 4        # 🟡 独苗: 轻罚
+        independent_penalty = 4   # 🟡 独苗: 轻罚
     else:
         independent_penalty = 0
+
+    # V6.0 reverted: P12 零龙头+强午后淘汰过于激进(667笔→筛选过多)
+    # 保留原有 P4 零龙头扣20分机制
 
     # ── V5.1 P0: 板块高潮次日检测 (index_basic→index_daily) ──
     climax_penalty = get_sector_climax_penalty(db, industry, trade_date)
@@ -595,25 +650,66 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif sp > -2: sm_score = 7 # 适度回调, 次日反弹概率高
     else: sm_score = 8         # 深跌板块, 次日反弹最强
 
-    # ── 板块共振 (V5.1: 维持反转逻辑) ──
+    # ── 板块共振 (V5.9: 0-8, 回测验证最优区间) ──
     sh = get_shanghai_index(db, trade_date)
     if sp > 2 and sh > 0:
-        res_score = 0  # 板块+大盘双强 → 过热, 次日回调
+        res_score = 0   # 板块+大盘双强 → 过热, 次日回调
     elif sp > 0 and sh < 0:
-        res_score = 3  # 板块逆市走强(已涨过), 次日动力不足
+        res_score = 5   # 板块逆市走强(已涨过)
     elif sp < 0 and sh < 0 and sp > sh:
-        res_score = 5  # 板块抗跌, OK
+        res_score = 8   # 板块抗跌, 最佳共振
     elif sp < -1:
-        res_score = 5  # 板块超跌, 次日反弹
+        res_score = 8   # 板块超跌, 次日反弹
     else:
-        res_score = 3
+        res_score = 5
 
-    # ── V5.2 综合 (P0高潮惩罚 + P0b过热惩罚 + P1独立过滤 + 板块排名) ──
+    # ── V5.8 P6: 行业5日动量黑名单 — 板块近5日累计<0扣8分 ──
+    sector_blacklist_penalty = 0
+    try:
+        td8 = trade_date.replace('-', '')
+        # Get 5-day sector return from ths_daily or sw_daily
+        sector_5d = db.execute(
+            "SELECT SUM(pct_change) as sum5d FROM ("
+            "SELECT pct_change FROM ths_daily WHERE name LIKE ? AND trade_date <= ? "
+            "ORDER BY trade_date DESC LIMIT 5"
+            ") t",
+            (f"%{industry}%", td8)
+        ).fetchone()
+        s5d = sector_5d["sum5d"] if sector_5d and sector_5d["sum5d"] else None
+        if s5d is None:
+            sector_5d = db.execute(
+                "SELECT SUM(pct_change) as sum5d FROM ("
+                "SELECT pct_change FROM sw_daily WHERE name LIKE ? AND trade_date <= ? "
+                "ORDER BY trade_date DESC LIMIT 5"
+                ") t",
+                (f"%{industry}%", trade_date)
+            ).fetchone()
+            s5d = sector_5d["sum5d"] if sector_5d and sector_5d["sum5d"] else 0
+        if s5d and s5d < 0:
+            sector_blacklist_penalty = 8  # 板块5日趋势向下
+    except Exception:
+        pass
+
+    # ── V6.2 P19: 距涨停距离因子 (0-10) — 距离越远可交易性越好 ──
+    # dist_to_limit already computed in P16
+    if dist_to_limit >= 10: dist_score = 10       # 充足空间, 完全可交易
+    elif dist_to_limit >= 7: dist_score = 8        # 较好空间
+    elif dist_to_limit >= 5: dist_score = 6        # 中等空间
+    elif dist_to_limit >= 3: dist_score = 4        # 偏近
+    else: dist_score = 2                           # 临界(2-3%, P16已淘汰<2%)
+
+    # ── V6.2 P18: 满分龙头 × 远离涨停加成 — 11笔+4.45%, 确定性最高 ──
+    leader_distance_bonus = 0
+    if sl_score >= 24 and dist_to_limit >= 5:
+        leader_distance_bonus = 8  # 🔥 满分龙头+足够空间=高确定性盈利
+
+    # ── V6.2 综合 ──
     total = (gain_score + seal_score + afternoon_score +
              turnover_score + ma_score + volume_score + sl_score + sm_score + res_score
-             + leadership_bonus
-             - independent_penalty - climax_penalty - overheat_penalty)
-    grade = "S" if total >= 75 else ("A" if total >= 60 else ("B" if total >= 45 else "C"))
+             + dist_score + leadership_bonus + leader_distance_bonus
+             - independent_penalty - climax_penalty - overheat_penalty
+             - limit_resistance_penalty - sector_blacklist_penalty)
+    grade = "S" if total >= 80 else ("A" if total >= 65 else ("B" if total >= 50 else "C"))
 
     return {
         "code": code, "name": name, "industry": industry,
@@ -630,6 +726,8 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         "peer_count": peer_n,                              # V5.1: 同板块强势股数
         "intra_rank": intra_rank,                           # V5.2: 板块内涨幅排名
         "leadership_bonus": leadership_bonus,               # V5.2: 板块龙头加分
+        "dist_to_limit": round(dist_to_limit, 2),            # V6.2: 距涨停距离
+        "dist_score": dist_score,                            # V6.2: 距离因子分
         "independent_penalty": independent_penalty,         # V5.1 P1
         "climax_penalty": climax_penalty,                   # V5.1 P0
         "overheat_penalty": overheat_penalty,               # V5.1 P0b
@@ -756,7 +854,7 @@ def _prefetch_mins_agg_batch(db, trade_date, time_slot):
     return result
 
 
-def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
+def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: 默认14:40
     """V5.4 盘中选股主流程 (P0高潮检测 + P1独立过滤 + 批量预计算)."""
     # 每次运行清空高潮检测缓存
     _sector_climax_cache.clear()
@@ -828,6 +926,15 @@ def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
             frenzy_ratio = len(scores) / 80  # 正常日基准≈80只
             print(f"  🔥 市场狂热: {len(scores)}只通过初筛 ({(frenzy_ratio-1)*100:.0f}%高于正常)")
 
+        # ── V5.6 A: 弱市熔断提示 — 初筛<30只时警告但仍选股 ──
+        if len(scores) < 30:
+            print(f"  ⚠️ 弱市预警: 仅{len(scores)}只通过初筛, 建议谨慎/减仓")
+
+        # ── V6.3 P20: 初筛20-40熔断 — 6/9唯一样本15笔全亏-3.59% ──
+        if 20 <= len(scores) < 40:
+            print(f"  🛑 假活跃熔断: {len(scores)}只(20-40区间), 次日全面回调, 空仓")
+            return [], []
+
         if breadth < 40:
             effective_n = max(5, int(top_n * 0.5))
             print(f"  🌧️ 涨跌比 {breadth:.0f}% (<40%), Top-N {top_n}→{effective_n}")
@@ -843,7 +950,37 @@ def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
             print(f"  🔥 市场狂热: effective_n {effective_n}→{frenzy_n}")
             effective_n = frenzy_n
 
+        # ── V6.3 P22: 共振弱日减半 — 共振均值≤5→次日板块分化, 减仓 ──
+        if scores:
+            avg_res = sum(s.get("resonance_score", 0) for s in scores) / len(scores)
+            if avg_res <= 5:
+                effective_n = max(3, int(effective_n * 0.5))
+                print(f"  🔻 共振弱(均{avg_res:.1f}≤5): effective_n →{effective_n} (-50%)")
+
+        # ── V5.8 P7: 周一加成+周五减仓 ──
+        from datetime import datetime
+        dow = datetime.strptime(trade_date, "%Y-%m-%d").weekday()
+        if dow == 0:  # Monday
+            effective_n = min(top_n, int(effective_n * 1.3))
+            print(f"  📈 周一效应: effective_n →{effective_n} (+30%)")
+        elif dow == 4:  # Friday
+            effective_n = max(3, int(effective_n * 0.7))
+            print(f"  📉 周五减仓: effective_n →{effective_n} (-30%)")
+
     scores.sort(key=lambda x: -x["total_score"])
+
+    # ── V5.8 P8: 日内评分归一化 (≥5只启用) — 映射到0-100标准分, 跨天可比 ──
+    if len(scores) >= 5:
+        raw_max = scores[0]["total_score"]
+        raw_min = scores[-1]["total_score"]
+        score_range = raw_max - raw_min if raw_max > raw_min else 1
+        for s in scores:
+            s["total_score_raw"] = s["total_score"]
+            s["total_score"] = round((s["total_score"] - raw_min) / score_range * 100, 1)
+            # Re-grade after normalization
+            ns = s["total_score"]
+            s["grade"] = "S" if ns >= 75 else ("A" if ns >= 60 else ("B" if ns >= 45 else "C"))
+
     return scores[:effective_n], scores
 
 
@@ -853,7 +990,20 @@ def generate_intraday_plan(picks):
         entry = round(s["close_14"] * 1.01, 2)
         stop = round(s["close_14"] * 0.96, 2)
         g = s["grade"]
-        pos = "20%" if g == "S" else ("15%" if g == "A" else ("10%" if g == "B" else "0%"))
+        # V5.9 P11: 满分龙头(24分)仓位翻倍 — 74%胜率+3.66%均值
+        is_full_leader = s.get("sector_leader_score", 0) >= 24
+        if is_full_leader and g == "S":
+            pos = "25%"  # 满分龙头: 重仓
+        elif is_full_leader and g == "A":
+            pos = "20%"  # 满分龙头A级: 加仓
+        elif g == "S":
+            pos = "20%"
+        elif g == "A":
+            pos = "15%"
+        elif g == "B":
+            pos = "10%"
+        else:
+            pos = "0%"
         ss = s.get("seal_status", "")
         if ss in ("封死可排", "封板可排"): act = "🟢 排板买入"
         elif ss == "拉升中": act = "🟢 现价买入"
