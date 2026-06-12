@@ -11,29 +11,57 @@ logger = logging.getLogger("prediction-service.routes")
 router = APIRouter(prefix="/api/v1/prediction", tags=["prediction"])
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-DB_PATH = os.environ.get("KRONOS_DB_PATH",
-    os.path.join(_ROOT, "Kronos", "webui", "stock_screening.db"))
+
+
+def _resolve_db_path() -> str:
+    """Resolve DB path with fallback search."""
+    # 1) explicit env var
+    env_path = os.environ.get("KRONOS_DB_PATH")
+    if env_path and os.path.isfile(env_path):
+        return env_path
+
+    # 2) relative to project root
+    candidates = [
+        os.path.join(_ROOT, "Kronos", "webui", "stock_screening.db"),
+        os.path.join(_ROOT, "..", "Kronos", "webui", "stock_screening.db"),
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "Kronos", "webui", "stock_screening.db"),
+    ]
+    for c in candidates:
+        abs_c = os.path.abspath(c)
+        if os.path.isfile(abs_c):
+            return abs_c
+
+    logger.warning("stock_screening.db not found, tried: %s", candidates)
+    return ""  # let sqlite3.connect fail with clear error
+
+
+DB_PATH = _resolve_db_path()
 
 
 def _get_kline(code: str, lookback: int = 400):
-    """Get K-line data from SQLite DB."""
+    """Get K-line data from SQLite DB (column: code, not ts_code)."""
     import sqlite3
+    if not DB_PATH:
+        logger.error("No database available — set KRONOS_DB_PATH env var")
+        return None
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
+        # daily_kline uses 'code' column (not 'ts_code')
         c.execute("SELECT trade_date, open, high, low, close, volume, amount "
                   "FROM daily_kline WHERE code=? ORDER BY trade_date DESC LIMIT ?",
                   (code, lookback))
         rows = c.fetchall()
         conn.close()
-        if len(rows) < 30: return None
+        if len(rows) < 30:
+            logger.info("Insufficient K-line data for %s: %d rows (need ≥30)", code, len(rows))
+            return None
         df = pd.DataFrame([{"open": r[1], "high": r[2], "low": r[3], "close": r[4],
                             "volume": r[5], "amount": r[6]} for r in reversed(rows)])
-        # Generate timestamps
         dates = pd.to_datetime([r[0] for r in reversed(rows)])
         return df, pd.Series(dates)
     except Exception as e:
-        logger.warning(f"DB error for {code}: {e}")
+        logger.warning("DB error for %s: %s", code, e)
         return None
 
 
@@ -42,7 +70,7 @@ async def model_status():
     return {"model_loaded": _m._model_loaded, "model": "Kronos-small", "device": "cpu"}
 
 
-@router.post("/predict/{code}/fast")
+@router.post("/{code}/fast")
 async def predict_stock_fast(
     code: str,
     pred_days: int = Query(15, ge=5, le=30),
@@ -93,7 +121,7 @@ async def predict_stock_fast(
     }
 
 
-@router.post("/predict/{code}")
+@router.post("/{code}")
 async def predict_stock(
     code: str,
     pred_days: int = Query(20, ge=5, le=30),

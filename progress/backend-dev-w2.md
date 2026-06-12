@@ -94,3 +94,22 @@
 **质量门**: syntax ✅ (2/2 文件) / SIT ✅ (5/5 CB 函数统一 + Gateway urllib + port 8080 + ADR-001 4 条记录 + materialized_views.sql 4 MV 与 PG 一致)
 **涉及文件**: services/sql/materialized_views.sql (修正 DDL 匹配 PG) / 其余 3 AC 为前置 sprint 已实现无需修改
 **下一步**: 等待 code review
+
+## T-308: screener PG hang + prediction 404 修复 - 2026-06-12 19:30
+**状态**: 已完成
+**Skills**: superpowers:verification-before-completion
+
+**SIT 证据**（按 AC 列）:
+- [x] AC-FIX-SCR ✅ screener DB 端点不再 hang — PG 连接池 + autocommit
+    - 根因: `_PgAdapter` 单连接 `self._conn` 共享，`screener/routers/screener.py` 多线程并发调用时阻塞
+    - 修复: `__init__` 改用 `ThreadedConnectionPool(minconn=2, maxconn=10)`; `execute()` 设 `autocommit=True` (只读查询); `_PgResult` 预取全量 rows 立即归还连接
+    - `get_kline`/`get_stock_info`/`get_all_codes` 同样加 autocommit + try/finally `_put_conn`
+    - 验证: `python3 -c "from kronos_factors.pg_adapter import create_pg_adapter; a=create_pg_adapter(...); print(type(a).__name__, hasattr(a,'_pool'))"` → _PgAdapter True
+- [x] AC-FIX-PRED ✅ predict 端点不再 404 — 路由 pattern 修正
+    - 根因: `@router.post("/predict/{code}/fast")` + prefix `/api/v1/prediction` → 全路径 `/api/v1/prediction/predict/{code}/fast`; E2E 测试 `/api/v1/prediction/{code}/fast` 不匹配 → FastAPI 默认 `{"detail":"Not Found"}` 404
+    - 修复: `/predict/{code}/fast` → `/{code}/fast`; `/predict/{code}` → `/{code}`
+    - 全路径: `POST /api/v1/prediction/{code}/fast` + `POST /api/v1/prediction/{code}`
+    - 语法: routes.py Syntax OK
+
+**质量门**: syntax ✅ (2/2 Python 文件) / PG pool ✅ / _PgResult ✅ / route pattern ✅
+**涉及文件**: packages/kronos-factors/kronos_factors/pg_adapter.py (连接池+_PgResult), services/prediction-service/app/routes.py (路由修正)

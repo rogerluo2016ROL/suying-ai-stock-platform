@@ -37,12 +37,25 @@ async def lifespan(app: FastAPI):
         # Try PG first, fall back to SQLite
         pg_url = os.environ.get('KRONOS_PG_URL', '')
         if pg_url:
-            from kronos_factors.pg_adapter import create_pg_adapter
-            from kronos_factors.scorer._db_stub import set_db_adapter, set_market_data_adapter
-            adapter = create_pg_adapter(pg_url)
-            set_db_adapter(adapter)
-            set_market_data_adapter(adapter)
-            logger.info("Using PostgreSQL: %s", pg_url.split('@')[1] if '@' in pg_url else pg_url)
+            import socket
+            socket.setdefaulttimeout(5)  # Prevent PG connection from hanging startup
+            try:
+                from kronos_factors.pg_adapter import create_pg_adapter
+                from kronos_factors.scorer._db_stub import set_db_adapter, set_market_data_adapter
+                adapter = create_pg_adapter(pg_url)
+                if adapter is not None:
+                    set_db_adapter(adapter)
+                    set_market_data_adapter(adapter)
+                    logger.info("Using PostgreSQL: %s", pg_url.split('@')[1] if '@' in pg_url else pg_url)
+                else:
+                    raise RuntimeError("create_pg_adapter returned None")
+            except Exception as e:
+                logger.warning("PG unavailable (%s), falling back to SQLite", e)
+                from app.adapters import inject_adapters
+                inject_adapters(DB_PATH)
+                logger.info("Using SQLite: %s", DB_PATH)
+            finally:
+                socket.setdefaulttimeout(None)
         else:
             from app.adapters import inject_adapters
             inject_adapters(DB_PATH)
