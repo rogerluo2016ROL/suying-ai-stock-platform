@@ -313,6 +313,7 @@ def get_sector_index(db, industry, trade_date, code=None):
     """Get sector index performance (V5.3: THS概念优先 → index_basic fallback)."""
     # 1. THS概念路径 (psycopg2 raw — 避免 adapter 把 m.ts_code 错译成 m.code)
     if code:
+        raw_conn = None
         try:
             raw_conn = db._get_conn()
             cur = raw_conn.cursor()
@@ -329,7 +330,13 @@ def get_sector_index(db, industry, trade_date, code=None):
                 return {"pct_change": float(r[0]), "amount": 0,
                         "name": r[1] or "", "source": "ths"}
         except Exception:
-            pass  # fall through to index_basic
+            pass
+        finally:
+            if raw_conn:
+                try:
+                    db._put_conn(raw_conn)
+                except Exception:
+                    pass
 
     # 2. index_basic → index_daily fallback
     keyword = industry[-2:] if len(industry) >= 2 else industry

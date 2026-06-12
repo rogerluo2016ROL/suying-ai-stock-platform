@@ -274,6 +274,7 @@ def get_sector_index(db, industry, trade_date, code=None):
     """
     # 1. THS概念路径 (psycopg2 raw query — 避免 adapter 把 m.ts_code 错译成 m.code)
     if code:
+        raw_conn = None
         try:
             raw_conn = db._get_conn()
             cur = raw_conn.cursor()
@@ -288,7 +289,13 @@ def get_sector_index(db, industry, trade_date, code=None):
             if r and r[0] is not None:
                 return float(r[0])
         except Exception:
-            pass  # fall through to index_basic
+            pass
+        finally:
+            if raw_conn:
+                try:
+                    db._put_conn(raw_conn)
+                except Exception:
+                    pass
 
     # 2. index_basic → index_daily fallback (via adapter, no ts_code issue)
     keyword = industry[-2:] if len(industry) >= 2 else industry
@@ -435,16 +442,14 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     else:
         seal_score = 6  # 拉升中可买 (降权后)
 
-    # ── I2: 午后强势度 (0-15) ──
+    # ── I2: 午后强势度 (0-20) ──
     vwap, baseline_vol, _, _, has_full = get_baseline_stats(db, code, trade_date)
     afternoon_str = (close_14 / vwap - 1) * 100 if vwap > 0 else 0
-    # 使用当日累计最高/最低 (修正单根K线bug)
     day_high, day_low = get_day_range(db, code, trade_date, time_slot)
     day_range = day_high - day_low if day_high > 0 else (snap["high"] - snap["low"])
     pos_in_day = (close_14 - day_low) / max(0.01, day_range) if day_range > 0 else 0.5
 
-    # V4.2: 午后强度升权 15→20 (IC=+0.23, 最强正向因子)
-    max_afternoon = 20 if has_full else 16  # 部分数据降权
+    max_afternoon = 20 if has_full else 16
     if afternoon_str > 2.5: afternoon_score = max_afternoon
     elif afternoon_str > 1.5: afternoon_score = max_afternoon - 4
     elif afternoon_str > 0.5: afternoon_score = max_afternoon - 10
@@ -462,7 +467,7 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif vol_surge > 1.0: money_score = 2
     else: money_score = 0
 
-    # ── 条件4: 预估成交额 (0-10) — 自适应completion ratio ──
+    # ── 条件4: 预估成交额 (0-10) ──
     cum_amount, cum_volume = get_cumulative_amount(db, code, trade_date, time_slot)
     amount_14 = cum_amount if cum_amount > 0 else amount_14
     adj_ratio = get_adjusted_completion(db, code, trade_date, time_slot, cum_amount)
@@ -651,14 +656,21 @@ def _prefetch_kline_batch(db, trade_date):
     """批量预取所有股票的近60日K线数据.
 
     替代 score_intraday_stock 中 per-stock 的 get_kline_data 查询.
-    1 次 JOIN 查询, 节省 ~11ms × N 只股票.
-    返回: {code: [close_array, volume_array, amount_array]}
+    1 次查询, 节省 ~11ms × N 只股票.
     """
+    # 计算60个交易日前的日期 (约3个月)
+    parts = trade_date.split("-")
+    y, m = int(parts[0]), int(parts[1])
+    m -= 3
+    if m <= 0:
+        m += 12
+        y -= 1
+    start_date = f"{y}-{m:02d}-01"
+
     rows = db.execute(
         "SELECT code, close, volume, amount FROM daily_kline "
-        "WHERE trade_date > ? AND trade_date <= ? "
-        "ORDER BY code, trade_date ASC",
-        (f"{trade_date[:4]}-{trade_date[5:7]}-01", trade_date)
+        "WHERE trade_date >= ? AND trade_date <= ? ORDER BY code, trade_date ASC",
+        (start_date, trade_date)
     ).fetchall()
 
     import numpy as np
@@ -666,14 +678,18 @@ def _prefetch_kline_batch(db, trade_date):
     result = {}
     by_code = defaultdict(list)
     for r in rows:
-        by_code[r["code"]].append((float(r["close"]), float(r["volume"]), float(r["amount"])))
+        c = r.get("code") or r.get("ts_code", "")
+        if not c:
+            continue
+        by_code[c].append((float(r["close"] or 0), float(r["volume"] or 0), float(r["amount"] or 0)))
 
     for code, data in by_code.items():
         if len(data) >= 20:
-            closes = np.array([d[0] for d in data], dtype=np.float64)
-            volumes = np.array([d[1] for d in data], dtype=np.float64)
-            amounts = np.array([d[2] for d in data], dtype=np.float64)
-            result[code] = (closes, volumes, amounts)
+            result[code] = (
+                np.array([d[0] for d in data], dtype=np.float64),
+                np.array([d[1] for d in data], dtype=np.float64),
+                np.array([d[2] for d in data], dtype=np.float64),
+            )
     return result
 
 
@@ -700,7 +716,7 @@ def run_intraday_screening(trade_date, time_slot="14:00", top_n=20):
         t_pre = time.time()
         industry_stats = _precompute_industry_stats(db, trade_date, time_slot)
         kline_cache = _prefetch_kline_batch(db, trade_date)
-        print(f"  ⚡ 预计算: {len(industry_stats)}个行业 + {len(kline_cache)}只K线, {time.time()-t_pre:.1f}s")
+        print(f"  ⚡ 预计算: {len(industry_stats)}行业 + {len(kline_cache)}K线, {time.time()-t_pre:.1f}s")
 
         scores = []
         for r in stocks:
