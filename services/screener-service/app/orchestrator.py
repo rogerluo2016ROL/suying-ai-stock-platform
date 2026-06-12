@@ -94,7 +94,17 @@ async def run_fusion_screening(modes: list[str], top_n: int = 30,
             kwargs = {"top_n": top_n}
             if trade_date:
                 kwargs["trade_date"] = trade_date
-            return mode, engine.run(**kwargs)
+            result = engine.run(**kwargs)
+            # Normalize result to list of dicts
+            if hasattr(result, 'picks'):
+                result = result.picks
+            if hasattr(result, 'results'):
+                result = result.results
+            if isinstance(result, dict) and 'picks' in result:
+                result = result['picks']
+            if not isinstance(result, list):
+                result = []
+            return mode, result
         except Exception as e:
             logger.error("Strategy %s failed: %s", mode, e)
             return mode, []
@@ -131,7 +141,7 @@ def merge_picks(strategy_results: dict, top_n: int = 30) -> list[dict]:
     stock_scores = defaultdict(lambda: {"score": 0, "count": 0, "strategies": [], "data": {}})
 
     for mode, picks in strategy_results.items():
-        if not picks:
+        if not picks or not isinstance(picks, list):
             continue
         for p in picks:
             code = p.get("code", "")
