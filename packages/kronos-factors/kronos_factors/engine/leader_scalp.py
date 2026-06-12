@@ -311,21 +311,25 @@ def get_moneyflow(db, code, trade_date):
 
 def get_sector_index(db, industry, trade_date, code=None):
     """Get sector index performance (V5.3: THS概念优先 → index_basic fallback)."""
-    # 1. THS概念路径 (ths_member + ths_daily)
+    # 1. THS概念路径 (psycopg2 raw — 避免 adapter 把 m.ts_code 错译成 m.code)
     if code:
-        row = db.execute(
-            "SELECT d.change_pct, i.name FROM ths_daily d "
-            "JOIN ths_member m ON m.ts_code = d.code "
-            "JOIN ths_index i ON m.ts_code = i.ts_code "
-            "WHERE m.con_code LIKE ? AND d.trade_date = ? "
-            "ORDER BY ABS(d.change_pct) DESC LIMIT 1",
-            (f"{code}%", trade_date)
-        ).fetchone()
-        if row:
-            val = row.get("pct_chg") or row.get("change_pct")
-            if val is not None:
-                return {"pct_change": float(val), "amount": 0,
-                        "name": row.get("name", ""), "source": "ths"}
+        try:
+            raw_conn = db._get_conn()
+            cur = raw_conn.cursor()
+            cur.execute(
+                "SELECT d.change_pct, i.name FROM ths_daily d "
+                "JOIN ths_member m ON m.ts_code = d.code "
+                "JOIN ths_index i ON m.ts_code = i.ts_code "
+                "WHERE m.con_code LIKE %s AND d.trade_date = %s "
+                "ORDER BY ABS(d.change_pct) DESC LIMIT 1",
+                (f"{code}%", trade_date)
+            )
+            r = cur.fetchone()
+            if r and r[0] is not None:
+                return {"pct_change": float(r[0]), "amount": 0,
+                        "name": r[1] or "", "source": "ths"}
+        except Exception:
+            pass  # fall through to index_basic
 
     # 2. index_basic → index_daily fallback
     keyword = industry[-2:] if len(industry) >= 2 else industry

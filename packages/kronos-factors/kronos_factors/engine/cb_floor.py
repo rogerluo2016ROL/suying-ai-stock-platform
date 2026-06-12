@@ -1,25 +1,24 @@
-"""匪爷可转债底价选债模型 V2 — 12因子优化版.
+"""匪爷可转债底价选债模型 V3 — cb_factor技术指标版.
 
-优化要点 (基于回测发现):
-  1. 过期收益率权重 25%→10% (削弱ST债偏好)
-  2. 溢价率权重 20%→30% + 折价额外加分
-  3. 评级从硬过滤改为软扣分
-  4. 新增 CB动量(15%) + 正股动量(10%) + 成交量(5%)
-  5. 剔除低效因子: 审计意见(0%)、下修权重下调
+V3 优化:
+  1. 自算动量 → cb_factor RSI/MACD/布林带 (数据更全、更稳定)
+  2. 新增 RSI超卖加分 (6日RSI<30 → +10)
+  3. 新增 MACD金叉加分 (dif上穿dea → +8)
 
-因子权重 V2:
-  1. 溢价率越低越好 (30%)
-  2. CB近10日动量 (15%)
+因子权重 V3:
+  1. 溢价率越低越好 (25%)
+  2. RSI 趋势强度 (15%)  ← cb_factor.rsi_6
   3. 到期收益率 (10%)
-  4. 正股近5日动量 (10%)
-  5. 近10日下修转股价优先 (10%)
-  6. 热门题材 (5%)
-  7. 下修历史 (5%)
-  8. 规模越小越好 (5%)
-  9. 非国企控股优先 (5%)
-  10. CB成交量活跃 (5%)
-  11. 评级软扣分 (-15 if 无/B级以下)
-  -  到期剩余<3个月排除 (硬排除)
+  4. MACD 动能 (10%)      ← cb_factor.macd
+  5. 近10日下修转股价 (10%)
+  6. 热门概念 (5%)
+  7. 布林带位置 (5%)      ← cb_factor.boll_*
+  8. 下修历史 (5%)
+  9. 规模越小越好 (5%)
+  10. 成交量活跃 (5%)
+  + RSI超卖加成 + MACD金叉加成
+  11. 评级软扣分
+  -  到期剩余<3个月排除
 """
 
 import logging
@@ -199,28 +198,6 @@ class CbFloorEngine:
         for r in rows:
             row_map[r[0]] = r
 
-        # ── Pre-fetch: CB daily history for momentum + volume ──
-        cb_daily_history = {}  # {ts_code: [(date, close, pct_chg, amount), ...]}
-        cur.execute(
-            "SELECT ts_code, trade_date, close, pct_chg, amount FROM cb_daily "
-            "WHERE trade_date <= %s AND trade_date >= %s::date - INTERVAL '15 days' "
-            "ORDER BY ts_code, trade_date DESC",
-            (trade_date, trade_date),
-        )
-        for r in cur.fetchall():
-            cb_daily_history.setdefault(r[0], []).append(r[1:])
-
-        # ── Pre-fetch: stock daily history for momentum ──
-        stock_daily_history = {}  # {code: [(date, close, change_pct), ...]}
-        cur.execute(
-            "SELECT code, trade_date, close, change_pct FROM daily_kline "
-            "WHERE trade_date <= %s AND trade_date >= %s::date - INTERVAL '10 days' "
-            "ORDER BY code, trade_date DESC",
-            (trade_date, trade_date),
-        )
-        for r in cur.fetchall():
-            stock_daily_history.setdefault(r[0], []).append(r[1:])
-
         # ── Pre-fetch: price change history ──
         cur.execute(
             "SELECT ts_code, change_date, pre_price, new_price, change_reason "
@@ -229,6 +206,26 @@ class CbFloorEngine:
         price_chg_map = {}
         for r in cur.fetchall():
             price_chg_map.setdefault(r[0], []).append(r)
+
+        # ── Pre-fetch: cb_factor technical indicators ──
+        cb_factor_map = {}  # {ts_code: {rsi_6, macd, boll_lower, boll_mid, boll_upper, ...}}
+        try:
+            cur.execute(
+                "SELECT ts_code, rsi_6, rsi_12, macd, macd_dif, macd_dea, "
+                "boll_lower, boll_mid, boll_upper, atr, ma_5, ma_20, pct_change, vol "
+                "FROM cb_factor WHERE trade_date = %s",
+                (trade_date,),
+            )
+            for r in cur.fetchall():
+                cb_factor_map[r[0]] = {
+                    "rsi_6": r[1], "rsi_12": r[2], "macd": r[3],
+                    "macd_dif": r[4], "macd_dea": r[5],
+                    "boll_lower": r[6], "boll_mid": r[7], "boll_upper": r[8],
+                    "atr": r[9], "ma_5": r[10], "ma_20": r[11],
+                    "pct_change": r[12], "vol": r[13],
+                }
+        except Exception:
+            pass
 
         # ── Pre-fetch: cb_call (强赎) risk ──
         call_risk_map = {}  # {ts_code: {is_call, call_date, call_price, call_reg_date}}
@@ -348,40 +345,28 @@ class CbFloorEngine:
                     if conv_value > 0:
                         cb_over_rate = (float(close) / conv_value - 1) * 100
 
-                # ── Factor 1: Premium rate (30%) ──
+                # ── Factor 1: Premium rate (25%) ──
                 premium_score = self._premium_score(cb_over_rate)
 
-                # ── Factor 2: CB Momentum (15%) ──
-                cb_hist = cb_daily_history.get(ts_code, [])
-                # cb_hist elements: (trade_date, close, pct_chg, amount) — indices (0,1,2,3)
-                # Compute daily returns from consecutive closes
-                cb_closes = [(h[0], h[1]) for h in cb_hist[:11] if h[1] is not None and h[1] > 0]
-                cb_changes = []
-                for i in range(min(len(cb_closes) - 1, 10)):
-                    prev_c = cb_closes[i + 1][1]
-                    cur_c = cb_closes[i][1]
-                    if prev_c and cur_c and prev_c > 0:
-                        cb_changes.append((cur_c / prev_c - 1) * 100)
-                momentum_score = self._momentum_score(cb_changes)
+                # ── Factor 2: RSI Trend (15%) from cb_factor ──
+                factors = cb_factor_map.get(ts_code, {})
+                rsi_6 = factors.get("rsi_6")
+                rsi_score = self._score_rsi(rsi_6)
+                # RSI oversold bonus
+                rsi_bonus = 10.0 if rsi_6 is not None and rsi_6 < 30 else 0.0
 
                 # ── Factor 3: YTM (10%) ──
                 ytm_score = self._score_ytm(close, coupon_rate, par, maturity_date_)
 
-                # ── Factor 4: Stock Momentum (10%) ──
-                stk_hist = stock_daily_history.get(stk_code_raw, [])
-                # stk_hist elements: (trade_date, close, change_pct)  — indices (0, 1, 2)
-                # Compute daily returns from consecutive closes (change_pct often NULL)
-                stk_closes = [(h[0], h[1]) for h in stk_hist[:6] if h[1] is not None and h[1] > 0]
-                stk_changes = []
-                for i in range(len(stk_closes) - 1):
-                    prev_close = stk_closes[i + 1][1]
-                    cur_close = stk_closes[i][1]
-                    if prev_close and cur_close and prev_close > 0:
-                        stk_changes.append((cur_close / prev_close - 1) * 100)
-                # Fallback to DB change_pct if no computed changes
-                if not stk_changes:
-                    stk_changes = [h[2] for h in stk_hist[:5] if len(h) > 2 and h[2] is not None]
-                stock_momentum = self._momentum_score(stk_changes)
+                # ── Factor 4: MACD Momentum (10%) from cb_factor ──
+                macd_val = factors.get("macd")
+                macd_dif = factors.get("macd_dif")
+                macd_dea = factors.get("macd_dea")
+                macd_score = self._score_macd(macd_val, macd_dif, macd_dea)
+                # MACD golden cross bonus
+                macd_bonus = 8.0 if (macd_dif is not None and macd_dea is not None
+                                      and macd_dif > macd_dea
+                                      and macd_val is not None and macd_val > 0) else 0.0
 
                 # ── Factor 5: Recent downward revision (10%) ──
                 revision_score = self._score_recent_revision(ts_code, price_chg_map)
@@ -391,19 +376,21 @@ class CbFloorEngine:
                 concept_overlap = hot_concepts & cb_concepts
                 theme_score = 80.0 if concept_overlap else (60.0 if cb_concepts else 40.0)
 
-                # ── Factor 7: Downward revision history (5%) ──
+                # ── Factor 7: Bollinger position (5%) from cb_factor ──
+                boll_lower = factors.get("boll_lower")
+                boll_mid = factors.get("boll_mid")
+                boll_upper = factors.get("boll_upper")
+                boll_score = self._score_bollinger(close, boll_lower, boll_mid, boll_upper)
+
+                # ── Factor 8: Downward revision history (5%) ──
                 history_score = self._score_revision_history(ts_code, price_chg_map)
 
-                # ── Factor 8: Size (5%) ──
+                # ── Factor 9: Size (5%) ──
                 size_score = self._size_score(remain_size)
 
-                # ── Factor 9: Non-SOE (5%) ──
-                soe_score = self._score_ownership(cur, stk_code_raw)
-
-                # ── Factor 10: Volume activity (5%) ──
-                # cb_hist elements: (trade_date, close, pct_chg, amount) — amount at index 3
-                cb_amounts = [h[3] for h in cb_hist[:5] if len(h) > 3 and h[3] is not None and h[3] > 0]
-                volume_score = self._volume_score(cb_amounts)
+                # ── Factor 10: Volume activity (5%) from cb_factor ──
+                cb_vol = factors.get("vol")
+                volume_score = self._score_vol(cb_vol)
 
                 # ── Factor 11: Rating soft penalty ──
                 rating = newest_rating or issue_rating or ""
@@ -411,18 +398,20 @@ class CbFloorEngine:
 
                 # ── Weighted total ──
                 total = (
-                    premium_score * 0.30
-                    + momentum_score * 0.15
+                    premium_score * 0.25
+                    + rsi_score * 0.15
                     + ytm_score * 0.10
-                    + stock_momentum * 0.10
+                    + macd_score * 0.10
                     + revision_score * 0.10
                     + theme_score * 0.05
+                    + boll_score * 0.05
                     + history_score * 0.05
                     + size_score * 0.05
-                    + soe_score * 0.05
                     + volume_score * 0.05
                     + rating_penalty
                     + call_penalty
+                    + rsi_bonus
+                    + macd_bonus
                 )
 
                 # Grade (adjusted thresholds V2)
@@ -455,17 +444,21 @@ class CbFloorEngine:
                     "grade": grade,
                     "details": {
                         "premium_score": round(premium_score, 1),
-                        "momentum_score": round(momentum_score, 1),
+                        "rsi_score": round(rsi_score, 1),
                         "ytm_score": round(ytm_score, 1),
-                        "stock_momentum": round(stock_momentum, 1),
+                        "macd_score": round(macd_score, 1),
                         "revision_score": round(revision_score, 1),
                         "theme_score": round(theme_score, 1),
+                        "boll_score": round(boll_score, 1),
                         "history_score": round(history_score, 1),
                         "size_score": round(size_score, 1),
-                        "soe_score": round(soe_score, 1),
                         "volume_score": round(volume_score, 1),
                         "rating_penalty": round(rating_penalty, 1),
+                        "rsi_bonus": round(rsi_bonus, 1),
+                        "macd_bonus": round(macd_bonus, 1),
                     },
+                    "rsi_6": round(rsi_6, 1) if rsi_6 else None,
+                    "macd_val": round(macd_val, 3) if macd_val else None,
                 })
 
             except Exception as e:
@@ -485,6 +478,72 @@ class CbFloorEngine:
         return picks
 
     # ── Factor implementations ──
+
+    @staticmethod
+    def _score_rsi(rsi_6):
+        """RSI trend strength. RSI 40-60 = healthy trend = high score. 0-100."""
+        if rsi_6 is None:
+            return 50.0
+        if 40 <= rsi_6 <= 60:
+            return 80 + abs(rsi_6 - 50) * 0.4  # Healthy range
+        if 30 <= rsi_6 < 40:
+            return 60 + (rsi_6 - 30) * 2  # Oversold recovering
+        if 60 < rsi_6 <= 70:
+            return 60 + (70 - rsi_6) * 2  # Overbought cooling
+        if rsi_6 < 30:
+            return 30 + rsi_6  # Deep oversold
+        if rsi_6 > 70:
+            return max(10, 90 - rsi_6)  # Deep overbought
+        return 50.0
+
+    @staticmethod
+    def _score_macd(macd, dif, dea):
+        """MACD momentum. Positive & rising = high score. 0-100."""
+        if macd is None:
+            return 50.0
+        # MACD histogram strength
+        score = 50.0
+        if macd > 0:
+            score += min(30, macd * 100)  # Positive momentum
+            if dif is not None and dea is not None and dif > dea:
+                score += 10  # Golden cross zone
+        else:
+            score += max(-30, macd * 100)  # Negative momentum penalty
+        return max(10, min(100, score))
+
+    @staticmethod
+    def _score_bollinger(close, boll_lower, boll_mid, boll_upper):
+        """Bollinger Band position. Near lower band = oversold bounce potential. 0-100."""
+        if close is None or boll_lower is None or boll_upper is None or boll_mid is None:
+            return 50.0
+        if boll_upper <= boll_lower:
+            return 50.0
+        # Position within bands: 0 = at lower, 1 = at upper
+        pos = (close - boll_lower) / (boll_upper - boll_lower)
+        # Near lower band = potential bounce = higher score for CBs
+        if pos <= 0.1:
+            return 90.0  # At/ below lower band
+        if pos <= 0.3:
+            return 80 - (pos - 0.1) * 50
+        if pos <= 0.7:
+            return 70  # Middle range
+        if pos <= 0.9:
+            return 60 - (pos - 0.7) * 100
+        return max(10, 30)  # At upper band, overbought risk
+
+    @staticmethod
+    def _score_vol(vol):
+        """Volume activity from cb_factor. 0-100."""
+        if vol is None:
+            return 50.0
+        vol_wan = vol / 1e4
+        if vol_wan >= 500:
+            return 100.0
+        if vol_wan >= 100:
+            return 60 + (vol_wan - 100) / 400 * 40
+        if vol_wan >= 10:
+            return 20 + (vol_wan - 10) / 90 * 40
+        return max(5.0, vol_wan * 2)
 
     def _score_ytm(self, close, coupon_rate, par, maturity_date_):
         """Score yield-to-maturity. Higher YTM = higher score. V2: reduced impact."""
