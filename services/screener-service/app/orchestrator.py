@@ -17,9 +17,11 @@ def _get_engine(mode: str):
         )
         from kronos_factors.engine.leader_scalp import LeaderScalpEngine
         from kronos_factors.engine.leader_intraday import IntradayScalpEngine
-        
+        from kronos_factors.engine.leader_auction import AuctionScalpEngine
+
         _ENGINES.update({
             "leader_scalp": LeaderScalpEngine,
+            "leader_auction": AuctionScalpEngine,
             "intraday": IntradayScalpEngine,
             "short": ShortModeEngine,
             "long": LongModeEngine,
