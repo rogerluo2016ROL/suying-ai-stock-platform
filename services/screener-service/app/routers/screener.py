@@ -14,6 +14,7 @@ async def list_modes():
     """List available screening modes with descriptions."""
     return {
         "modes": [
+            {"id": "leader_auction",  "name": "🔥竞价超预期 V4.3", "cycle": "1-3天",  "style": "竞价"},
             {"id": "leader_scalp",    "name": "龙头战法 (收盘后)", "cycle": "1-5天",  "style": "激进"},
             {"id": "leader_intraday", "name": "龙头战法 (盘中)",   "cycle": "1-2天",  "style": "激进"},
             {"id": "short",           "name": "短线多因子",       "cycle": "1-4周",  "style": "积极"},
@@ -43,7 +44,7 @@ async def run_screening(
     t0 = time.time()
 
     try:
-        if mode in ("leader_scalp", "leader_intraday"):
+        if mode in ("leader_scalp", "leader_intraday", "leader_auction"):
             result = _run_leader_mode(mode, top_n, trade_date)
         else:
             result = _run_multifactor_mode(mode, top_n, trade_date)
@@ -80,14 +81,18 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
         except Exception:
             td = trade_date or 'latest'
 
-    if mode == "leader_intraday":
+    if mode == "leader_auction":
+        from kronos_factors.engine.leader_auction import AuctionScalpEngine
+        engine = AuctionScalpEngine()
+        picks_data = engine.run(trade_date=td, top_n=top_n)
+        engine.close()
+        plans = generate_execution_plan(picks_data) if picks_data else []
+    elif mode == "leader_intraday":
         result = run_intraday_screening(td or "latest", top_n=top_n)
-        # run_intraday_screening returns (picks_data, scores) tuple
         picks_data = result[0] if isinstance(result, tuple) else result
         plans = generate_intraday_plan(picks_data) if picks_data else []
     else:
         result = run_leader_screening(td or "latest", top_n=top_n)
-        # run_leader_screening returns (picks_data, scores) tuple
         picks_data = result[0] if isinstance(result, tuple) else result
         plans = generate_execution_plan(picks_data) if picks_data else []
 
