@@ -22,7 +22,7 @@ PRD 要求实现 JWT + 4 角色 RBAC 系统，角色包括：管理员（admin�
 | 访问令牌 | **JWT Access Token（15min）+ Refresh Token（7d）** | 短生命周期 Access Token 限制泄露影响范围；Refresh Token Rotation 每次刷新时轮换，可检测 token 重放；Refresh Token 存储于 httpOnly cookie 而非 Access Token，降低 XSS 风险 |
 | 前端 Token 存储 | **httpOnly + Secure + SameSite=Strict Cookie**（仅存 Refresh Token） | XSS 无法读取 httpOnly cookie；Secure 确保仅 HTTPS 传输；SameSite=Strict 防 CSRF。否决 localStorage：任何 XSS 漏洞即可读取 token 并外传。Access Token 仅存于内存（React state），页面刷新后通过 Refresh Token 静默获取新 Access Token |
 | RBAC 中间件 | **FastAPI `Depends()` 依赖注入** | 每个微服务通过共享的 `kronos-auth` Python 包引入 `require_role(role)` 依赖；无需独立网关层；与 FastAPI 生态原生集成。否决 API Gateway 集中鉴权：引入额外的网络跃点和单点故障；微服务间仍需服务间认证，网关不能完全替代 |
-| 认证服务 | **独立 auth-service（FastAPI，端口 8010）** | 与现有微服务体系一致（FastAPI + uvicorn）；职责单一（登录/注册/刷新/登出/角色管理）；可独立扩缩容。备选：嵌入每个服务共享库——会被否决，因为 Refresh Token 黑名单/角色变更需要共享状态 |
+| 认证服务 | **独立 auth-service（FastAPI，端口 8010）→ 实施变更为合并入 backend（FastAPI，端口 9001）** | 原决策：与现有微服务体系一致（FastAPI + uvicorn）；职责单一（登录/注册/刷新/登出/角色管理）；可独立扩缩容。2026-06-12 实施变更：auth 合并入 `backend/`（端口 9001），不独立部署 auth-service（端口 8010）。理由：Phase A 用户量 < 100，独立扩缩容收益为零，合并减少 1 个容器；端口 9001 复用未使用的预留端口，9010 不再占用 |
 | 数据库 | **PostgreSQL 15**（新增 users / roles 表） | 与现有基础设施一致（docker-compose 已运行 postgres:15-alpine）；利用行级安全 + 外键约束；表命名延续现有 snake_case 风格 |
 | 密码存储参数 | Argon2id: `time_cost=3, memory_cost=65536, parallelism=2` | 目标验证时间 ~300ms（生产服务器基准）；memory_cost=65536 KiB = 64 MiB，符合 OWASP 中等偏上建议 |
 
@@ -51,13 +51,20 @@ PRD 要求实现 JWT + 4 角色 RBAC 系统，角色包括：管理员（admin�
 
 ## 后续工作
 
-- [ ] backend-dev: 创建 `services/auth-service/` 项目骨架（FastAPI + uvicorn + Dockerfile），预计 1d
-- [ ] backend-dev: 创建 `packages/kronos-auth/` 共享包（JWT 工具 + RBAC Depends），预计 1d
-- [ ] backend-dev: 实现 users / roles 数据库迁移脚本（Alembic），预计 0.5d
-- [ ] backend-dev: 实现 POST /login, POST /refresh, POST /logout, GET /me 端点，预计 1d
-- [ ] backend-dev: 为 8 个现有微服务添加 `Depends(require_role(...))`，预计 1d
-- [ ] frontend-dev: 实现登录页 + AuthContext + axios interceptor（token 刷新），预计 2d
-- [ ] product-lead: 确认 4 角色的具体权限矩阵（哪些 API 哪个角色可访问），AD 通过后触发
+- [x] backend-dev: 创建 `services/auth-service/` 项目骨架 → **实施变更为合并入 `backend/`（9001）**
+- [x] backend-dev: 创建 `packages/kronos-auth/` 共享包 → **合并入 `backend/app/`（services/auth_service.py + api/deps.py）**
+- [x] backend-dev: 实现 users / roles 数据库迁移脚本（Alembic `001_add_auth_tables.py`）
+- [x] backend-dev: 实现 POST /login, POST /refresh, POST /logout, GET /me 端点（`backend/app/routers/auth.py`）
+- [x] backend-dev: 为现有微服务添加 `Depends(require_role(...))` → **Phase 1: trade-service 完成；其余服务 Phase B**
+- [x] frontend-dev: 实现登录页 + AuthContext + axios interceptor（token 刷新）
+- [x] product-lead: 确认 4 角色的具体权限矩阵
+
+### 实施变更记录（2026-06-12）
+
+1. **auth-service 不独立部署**：认证/用户管理合并入 `backend/`（端口 9001），而非独立 `services/auth-service/`（端口 8010）。`backend/app/` 下的 `routers/auth.py` + `services/auth_service.py` + `models/user.py` + `api/deps.py` 构成完整 auth 链路。
+2. **共享包 kronos-auth 不独立发布**：RBAC Depends（`require_role`）复用 `backend/app/api/deps.py` 的模式，各服务按需内联依赖（Phase B）。
+3. **Alembic 迁移**：`backend/alembic/versions/001_add_auth_tables.py` 创建 roles/users/refresh_tokens 三表并 seed 4 个角色。
+4. **数据库端口统一**：backend 使用 `postgresql+asyncpg://kronos:kronos@localhost:6432/kronos`（Docker port mapping），与 CLAUDE.md 一致。
 
 ## 版本与查证
 

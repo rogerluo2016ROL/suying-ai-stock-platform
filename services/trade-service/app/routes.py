@@ -369,7 +369,7 @@ async def broker_connect(
     account_id: str = Query(..., description="Broker account ID"),
     server_ip: str = Query("127.0.0.1"),
     server_port: int = Query(6001),
-    trade_password: str = Query("", description="Trading password (encrypted)"),
+    trade_password: str = Body("", embed=True),
     user: dict = Depends(require_role("admin")),
 ):
     """Connect to the live broker (xtquant/QMT)."""
@@ -389,6 +389,7 @@ async def broker_connect(
         "account_id": account_id,
         "server_ip": server_ip,
         "server_port": server_port,
+        "trade_password": trade_password,
     }
 
     if broker_name != "xtquant":

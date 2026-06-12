@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Card, Button, Table, Tag, Typography, Space, message, Row, Col, Statistic,
-  Select, InputNumber, Form, Tabs, Divider, Empty, Popconfirm, Slider,
+  Select, InputNumber, Form, Tabs, Divider, Empty, Popconfirm, Slider, DatePicker,
 } from 'antd'
 import {
   ExperimentOutlined, PlayCircleOutlined, ReloadOutlined,
@@ -103,6 +103,32 @@ const BENCHMARK_OPTIONS = [
   { value: 'sh000300', label: '沪深300' },
 ]
 
+const { RangePicker } = DatePicker
+
+// ── Helpers: Sharpe & Max Drawdown ──
+
+function computeSharpe(returns: number[], forwardDays = 60): number {
+  if (returns.length < 2) return 0
+  const mean = returns.reduce((a, b) => a + b, 0) / returns.length
+  const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / (returns.length - 1)
+  const std = Math.sqrt(variance)
+  if (std === 0) return 0
+  return (mean / std) * Math.sqrt(252 / forwardDays)
+}
+
+function computeMaxDrawdown(returns: number[]): number {
+  let peak = -Infinity
+  let maxDD = 0
+  let cum = 0
+  for (const r of returns) {
+    cum += r
+    if (cum > peak) peak = cum
+    const dd = peak - cum
+    if (dd > maxDD) maxDD = dd
+  }
+  return maxDD
+}
+
 const STRATEGY_OPTIONS = Object.entries({
   momentum: '五因子-动量',
   volume: '五因子-量能',
@@ -124,35 +150,56 @@ const STRATEGY_OPTIONS = Object.entries({
 
 function buildReturnChartOption(details: BacktestDetail[]): object {
   if (!details.length) return {}
+  const benchmarkLabel = '市场基准'
   return {
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['策略收益', '市场基准', '超额收益'], bottom: 0 },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: any) => {
+        const p = Array.isArray(params) ? params : [params]
+        return p.map((item: any) =>
+          `${item.marker} ${item.seriesName}: ${Number(item.value).toFixed(2)}%`
+        ).join('<br/>')
+      },
+    },
+    legend: { data: ['策略收益', benchmarkLabel, '超额收益'], bottom: 0 },
     grid: { left: '3%', right: '4%', bottom: '12%', containLabel: true },
     xAxis: {
       type: 'category',
-      data: details.map(d => `窗口${d.window}\n${d.start_date?.slice(5)}-${d.end_date?.slice(5)}`),
+      data: details.map(d => `窗口${d.window}`),
       axisLabel: { fontSize: 11 },
     },
-    yAxis: { type: 'value', name: '收益率 (%)' },
+    yAxis: { type: 'value', name: '收益率 (%)', axisLabel: { formatter: '{value}%' } },
     series: [
       {
         name: '策略收益',
-        type: 'bar',
+        type: 'line',
         data: details.map(d => +d.avg_return_pct.toFixed(2)),
-        itemStyle: { color: '#1677ff', borderRadius: [4, 4, 0, 0] },
-        barGap: '20%',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: { color: '#1677ff', width: 2 },
+        itemStyle: { color: '#1677ff' },
       },
       {
-        name: '市场基准',
-        type: 'bar',
+        name: benchmarkLabel,
+        type: 'line',
         data: details.map(d => +d.benchmark_pct.toFixed(2)),
-        itemStyle: { color: '#d9d9d9', borderRadius: [4, 4, 0, 0] },
+        smooth: true,
+        symbol: 'diamond',
+        symbolSize: 6,
+        lineStyle: { color: '#fa8c16', width: 2, type: 'dashed' },
+        itemStyle: { color: '#fa8c16' },
       },
       {
         name: '超额收益',
         type: 'bar',
         data: details.map(d => +d.excess_return.toFixed(2)),
-        itemStyle: { color: '#52c41a', borderRadius: [4, 4, 0, 0] },
+        barWidth: 16,
+        itemStyle: {
+          color: (params: any) =>
+            details[params.dataIndex].excess_return >= 0 ? '#52c41a' : '#ff4d4f',
+          borderRadius: [4, 4, 0, 0],
+        },
       },
     ],
   }
@@ -272,6 +319,11 @@ export default function Backtest() {
   const [result, setResult] = useState<BacktestResult | null>(null)
   const [runError, setRunError] = useState('')
 
+  // Strategy plans (from strategy-service)
+  const [strategyPlans, setStrategyPlans] = useState<Array<{
+    id: string; name: string; model_name: string; status: string; picks_count: number
+  }>>([])
+
   // Factors
   const [factors, setFactors] = useState<FactorItem[]>([])
   const [factorsLoading, setFactorsLoading] = useState(false)
@@ -301,6 +353,14 @@ export default function Backtest() {
   }, [])
 
   useEffect(() => { loadFactors() }, [loadFactors])
+
+  // Load strategy plans from strategy-service (AC-306.1)
+  useEffect(() => {
+    fetch('/api/v1/strategy/plans')
+      .then(r => r.json())
+      .then(d => setStrategyPlans(d.plans || d.items || []))
+      .catch(() => {})
+  }, [])
 
   // ── Run Backtest ──
 
@@ -516,9 +576,28 @@ export default function Backtest() {
             <Form
               form={form}
               layout="inline"
-              initialValues={{ mode: 'all', windows: 5, top_n: 30, forward_days: 60, benchmark: 'sh000300' }}
+              initialValues={{ mode: 'all', windows: 5, top_n: 30, forward_days: 60, benchmark: 'sh000300', initial_capital: 100 }}
               style={{ flexWrap: 'wrap', gap: 12 }}
             >
+              <Form.Item name="date_range" label="回测日期范围">
+                <RangePicker style={{ width: 240 }} size="small" placeholder={['开始日期', '结束日期']} />
+              </Form.Item>
+
+              <Form.Item name="strategy_id" label="参考策略">
+                <Select style={{ width: 200 }} size="small" placeholder="选择策略方案" allowClear showSearch
+                  optionFilterProp="label"
+                  options={strategyPlans.map(s => ({
+                    label: `${s.name} (${s.model_name || s.status})`,
+                    value: s.id,
+                  }))}
+                  notFoundContent={<Text type="secondary" style={{fontSize:12}}>暂无策略方案</Text>}
+                />
+              </Form.Item>
+
+              <Form.Item name="initial_capital" label="初始资金(万)">
+                <InputNumber min={10} max={10000} step={10} style={{ width: 100 }} size="small" />
+              </Form.Item>
+
               <Form.Item name="mode" label="策略模式" rules={[{ required: true }]}>
                 <Select style={{ width: 150 }}>
                   <Option value="all">全市场选股</Option>
@@ -550,20 +629,23 @@ export default function Backtest() {
 
             <Divider style={{ margin: '12px 0 4px' }} />
             <Row gutter={16}>
-              <Col span={4}>
-                <Form.Item name="windows" label="窗口数（滑块）" style={{ margin: 0 }}>
-                  <Slider min={1} max={12} marks={{ 1: '1', 3: '3', 6: '6', 9: '9', 12: '12' }} />
-                </Form.Item>
+              <Col span={8}>
+                <Text type="secondary" style={{ fontSize: 11 }}>窗口数</Text>
+                <Slider min={1} max={12} marks={{ 1: '1', 3: '3', 6: '6', 9: '9', 12: '12' }}
+                  value={form.getFieldValue('windows') ?? 5}
+                  onChange={v => form.setFieldsValue({ windows: v })} />
               </Col>
-              <Col span={4}>
-                <Form.Item name="top_n" label="选股数（滑块）" style={{ margin: 0 }}>
-                  <Slider min={10} max={100} step={10} marks={{ 10: '10', 30: '30', 50: '50', 100: '100' }} />
-                </Form.Item>
+              <Col span={8}>
+                <Text type="secondary" style={{ fontSize: 11 }}>选股数</Text>
+                <Slider min={10} max={100} step={10} marks={{ 10: '10', 30: '30', 50: '50', 100: '100' }}
+                  value={form.getFieldValue('top_n') ?? 30}
+                  onChange={v => form.setFieldsValue({ top_n: v })} />
               </Col>
-              <Col span={4}>
-                <Form.Item name="forward_days" label="前瞻天数（滑块）" style={{ margin: 0 }}>
-                  <Slider min={20} max={252} step={20} marks={{ 20: '20', 60: '60', 120: '120', 252: '252' }} />
-                </Form.Item>
+              <Col span={8}>
+                <Text type="secondary" style={{ fontSize: 11 }}>前瞻天数</Text>
+                <Slider min={20} max={252} step={20} marks={{ 20: '20', 60: '60', 120: '120', 252: '252' }}
+                  value={form.getFieldValue('forward_days') ?? 60}
+                  onChange={v => form.setFieldsValue({ forward_days: v })} />
               </Col>
             </Row>
           </Card>
@@ -576,8 +658,61 @@ export default function Backtest() {
           )}
 
           {/* ── Summary Cards (AC-306.2) ── */}
-          {summary && (
+          {summary && result?.details && (() => {
+            const detailReturns = result.details.map(d => d.avg_return_pct)
+            const fwdDays = result.forward_days || 60
+            const totalReturn = detailReturns.reduce((a, b) => a + b, 0)
+            const sharpe = computeSharpe(detailReturns, fwdDays)
+            const maxDD = computeMaxDrawdown(detailReturns)
+            return (
             <Row gutter={12} style={{ marginBottom: 16 }}>
+              <Col span={4}>
+                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
+                  <Statistic
+                    title="累计收益"
+                    value={totalReturn}
+                    precision={2}
+                    suffix="%"
+                    valueStyle={{ color: totalReturn >= 0 ? '#52c41a' : '#ff4d4f', fontSize: 24 }}
+                    prefix={totalReturn >= 0 ? <RiseOutlined /> : <FallOutlined />}
+                  />
+                </Card>
+              </Col>
+              <Col span={4}>
+                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
+                  <Statistic
+                    title="夏普比率"
+                    value={sharpe}
+                    precision={2}
+                    valueStyle={{ color: sharpe >= 1 ? '#52c41a' : sharpe >= 0 ? '#faad14' : '#ff4d4f', fontSize: 24 }}
+                    prefix={<TrophyOutlined />}
+                  />
+                </Card>
+              </Col>
+              <Col span={4}>
+                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
+                  <Statistic
+                    title="最大回撤"
+                    value={maxDD}
+                    precision={2}
+                    suffix="%"
+                    valueStyle={{ color: '#ff4d4f', fontSize: 24 }}
+                    prefix={<FallOutlined />}
+                  />
+                </Card>
+              </Col>
+              <Col span={4}>
+                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
+                  <Statistic
+                    title="胜率"
+                    value={summary.avg_hit_rate}
+                    precision={1}
+                    suffix="%"
+                    valueStyle={{ color: summary.avg_hit_rate >= 50 ? '#52c41a' : '#ff4d4f', fontSize: 24 }}
+                    prefix={<DashboardOutlined />}
+                  />
+                </Card>
+              </Col>
               <Col span={4}>
                 <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
                   <Statistic
@@ -600,52 +735,9 @@ export default function Backtest() {
                   />
                 </Card>
               </Col>
-              <Col span={4}>
-                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
-                  <Statistic
-                    title="命中率"
-                    value={summary.avg_hit_rate}
-                    precision={1}
-                    suffix="%"
-                    valueStyle={{ color: summary.avg_hit_rate >= 50 ? '#52c41a' : '#ff4d4f', fontSize: 24 }}
-                    prefix={<TrophyOutlined />}
-                  />
-                </Card>
-              </Col>
-              <Col span={4}>
-                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
-                  <Statistic
-                    title={summary.avg_excess_return >= 0 ? '超额收益' : '超额亏损'}
-                    value={summary.avg_excess_return}
-                    precision={2}
-                    suffix="%"
-                    valueStyle={{ color: summary.avg_excess_return >= 0 ? '#52c41a' : '#ff4d4f', fontSize: 24 }}
-                    prefix={summary.avg_excess_return >= 0 ? <RiseOutlined /> : <FallOutlined />}
-                  />
-                </Card>
-              </Col>
-              <Col span={4}>
-                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
-                  <Statistic
-                    title="回测窗口"
-                    value={summary.total_windows}
-                    valueStyle={{ fontSize: 24 }}
-                    prefix={<DashboardOutlined />}
-                  />
-                </Card>
-              </Col>
-              <Col span={4}>
-                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
-                  <Statistic
-                    title="数据源"
-                    value={result?.data_source === 'pg' ? 'PostgreSQL' : result?.data_source || '—'}
-                    valueStyle={{ fontSize: 16, color: '#8c8c8c' }}
-                    prefix={<StockOutlined />}
-                  />
-                </Card>
-              </Col>
             </Row>
-          )}
+            )
+          })()}
 
           {/* ── Charts (AC-306.2) ── */}
           {result?.details && result.details.length > 0 && (

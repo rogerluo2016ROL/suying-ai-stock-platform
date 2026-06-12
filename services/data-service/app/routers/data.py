@@ -4,7 +4,7 @@ import logging
 from datetime import date
 from fastapi import APIRouter, Query, HTTPException
 
-from app.scheduler import get_job_status
+from app.scheduler import get_job_status, _run_job, _job_status
 from app.sync.rt_min import collect_rt_min
 from app.sync.tushare import sync_post_market_core, sync_post_market_ext
 from app.sync.stocks import sync_stock_list
@@ -70,12 +70,18 @@ async def trigger_auction():
 
 @router.post("/sync/post_market")
 async def trigger_post_market(date_param: str = Query(None, alias="date")):
-    """手动触发盘后同步 (P0+P1)."""
+    """手动触发盘后同步 (P0+P1) — 经 _run_job 更新 _job_status."""
     trade_date = date_param or date.today().strftime("%Y-%m-%d")
     try:
-        core = sync_post_market_core(trade_date)
-        ext = sync_post_market_ext(trade_date)
-        return {"status": "ok", "core": core, "ext": ext}
+        core_job = {"id": "post_market_core", "fn": sync_post_market_core,
+                    "args": (trade_date,)}
+        ext_job = {"id": "post_market_ext", "fn": sync_post_market_ext,
+                   "args": (trade_date,)}
+        await _run_job(core_job)
+        await _run_job(ext_job)
+        return {"status": "ok",
+                "core": _job_status.get("post_market_core", {}),
+                "ext": _job_status.get("post_market_ext", {})}
     except Exception as e:
         raise HTTPException(500, str(e))
 

@@ -458,49 +458,9 @@ CREATE TABLE IF NOT EXISTS ths_daily (
 
 -- ── 物化视图: 每日综合排名 (涨幅 + 资金 + 估值 + 流动性) ──
 -- 盘后刷新，为选股 Dashboard 提供预计算数据
-DROP MATERIALIZED VIEW IF EXISTS mv_daily_composite_ranking;
-CREATE MATERIALIZED VIEW mv_daily_composite_ranking AS
-SELECT
-    d.code,
-    s.name,
-    s.industry,
-    d.close,
-    sl.pre_close,
-    ((d.close / NULLIF(sl.pre_close, 0) - 1) * 100)::numeric(6,2) AS gain_pct,
-    (d.amount / 1e8)::numeric(10,1) AS amount_yi,
-    d.turnover_rate,
-    (d.volume / NULLIF(dbl.volume_ratio, 0))::numeric(10,1) AS avg_vol_ratio,
-    COALESCE(mf.net_mf_amount, 0)::numeric(12,2) AS net_mf_amount,
-    COALESCE(dbl.pe, 0)::numeric(8,2) AS pe,
-    COALESCE(dbl.pb, 0)::numeric(8,2) AS pb,
-    (dbl.total_mv / 1e8)::numeric(12,1) AS total_mv_yi,
-    -- 综合评分: 涨幅归一化 + 资金归一化 + 流动性归一化 (0-100)
-    (
-        CASE WHEN sl.pre_close > 0 THEN
-            LEAST(((d.close / sl.pre_close - 1) * 100 + 10) * 3, 40)
-        ELSE 0 END
-        +
-        CASE WHEN COALESCE(mf.net_mf_amount, 0) > 0 THEN
-            LEAST(LN(GREATEST(COALESCE(mf.net_mf_amount, 1), 1)) * 3, 35)
-        ELSE 0 END
-        +
-        CASE WHEN d.turnover_rate > 0 THEN
-            LEAST(d.turnover_rate * 2, 25)
-        ELSE 0 END
-    )::numeric(6,2) AS composite_score,
-    d.trade_date
-FROM daily_kline d
-JOIN stk_limit sl ON d.code = sl.code AND d.trade_date = sl.trade_date
-JOIN stocks s ON d.code = s.code
-LEFT JOIN daily_basic dbl ON d.code = dbl.code AND d.trade_date = dbl.trade_date
-LEFT JOIN moneyflow mf ON d.code = mf.code AND d.trade_date = mf.trade_date
-WHERE d.trade_date = (SELECT MAX(trade_date) FROM daily_kline)
-  AND d.close > 0
-  AND sl.pre_close > 0
-  AND s.name NOT LIKE '%ST%'
-  AND s.name NOT LIKE '%退市%';
-
-CREATE UNIQUE INDEX idx_mv_composite_code ON mv_daily_composite_ranking(code);
+-- 物化视图 DDL 已独立到 services/sql/materialized_views.sql（含 4 个视图）
+-- 执行: psql -U kronos -d kronos -f services/sql/materialized_views.sql
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_composite_code ON mv_daily_composite_ranking(code);
 
 -- ── 可转债 (3 张表) ──
 
