@@ -26,17 +26,17 @@ _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from kronos_factors.scorer._db_stub import _get_db
 
 # ── Intraday scoring weights (10因子 → V4.2 重校准) ──
+# V5.0 顺势重构 — 从反转→顺势, 移除负IC因子, 新增分时引领性
 INTRA_WEIGHTS = {
-    "gain_quality": 18,       # 14:00涨幅质量 (IC=+0.18)
-    "seal_buyability": 8,     # V4.2: 封板可买 15→8 (IC=-0.18)
-    "afternoon_strength": 20, # V4.2: 午后强势 15→20 (IC=+0.23, 最强正向)
-    "intraday_money": 0,      # V4.2: 盘中资金 10→0 (IC=-0.15, 移除)
-    "sector_leader": 12,      # 板块龙头
-    "ma_trend": 2,            # V4.2: 均线趋势 5→2 (IC=-0.14)
-    "turnover": 12,           # V4.2: 成交额 10→12 (IC=+0.19)
-    "sector_momentum": 8,     # 板块动量 → V4.2改为反转因子
-    "volume_surge": 7,        # 集中放量
-    "resonance": 5,           # 板块共振 → V4.2改为反转因子
+    "gain_quality": 20,           # 14:00涨幅质量
+    "afternoon_strength": 22,     # 午后强势度 (最强正向)
+    "intraday_leadership": 12,    # V5.0: 分时引领性 (板块内率先拉升)
+    "sector_leader": 12,          # 板块龙头
+    "turnover": 12,               # 预估成交额
+    "ma_trend": 6,                # V5.0: 均线趋势 2→6 (比例加分)
+    "volume_surge": 8,            # 集中放量 7→8
+    "sector_momentum": 8,         # V5.0: 板块动量 → 顺势因子
+    "resonance": 8,               # V5.0: 板块共振 → 顺势因子 (双强最高)
 }
 
 # Full-day completion ratios for different time slots
