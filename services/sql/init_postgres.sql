@@ -449,12 +449,24 @@ CREATE TABLE IF NOT EXISTS ths_daily (
     trade_date DATE NOT NULL,
     name TEXT,
     close DOUBLE PRECISION,
-    pct_change DOUBLE PRECISION,
+    pct_change DOUBLE PRECISION NOT NULL,
     avg_price DOUBLE PRECISION,
     total_mv DOUBLE PRECISION,
     float_mv DOUBLE PRECISION,
     PRIMARY KEY(ts_code, trade_date)
 );
+
+-- 同花顺概念板块成分股映射 (ths_concept_map, 每月同步)
+CREATE TABLE IF NOT EXISTS ths_concept_map (
+    id SERIAL PRIMARY KEY,
+    ts_code TEXT NOT NULL,
+    concept_name TEXT NOT NULL,
+    concept_code TEXT NOT NULL,
+    trade_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    UNIQUE(ts_code, concept_name)
+);
+CREATE INDEX IF NOT EXISTS idx_ths_concept_map_code ON ths_concept_map(ts_code);
+CREATE INDEX IF NOT EXISTS idx_ths_concept_map_concept ON ths_concept_map(concept_name);
 
 -- ── 物化视图: 每日综合排名 (涨幅 + 资金 + 估值 + 流动性) ──
 -- 盘后刷新，为选股 Dashboard 提供预计算数据
@@ -522,7 +534,8 @@ CREATE TABLE IF NOT EXISTS cb_daily (
     bond_over_rate DOUBLE PRECISION,
     cb_value DOUBLE PRECISION,
     cb_over_rate DOUBLE PRECISION,
-    UNIQUE(ts_code, trade_date)
+    UNIQUE(ts_code, trade_date),
+    CONSTRAINT chk_cb_daily_valid CHECK (close > 0 AND amount >= 0)
 );
 
 CREATE INDEX IF NOT EXISTS idx_cb_daily_code ON cb_daily(ts_code);
@@ -535,6 +548,8 @@ CREATE TABLE IF NOT EXISTS cb_price_chg (
     pre_price DOUBLE PRECISION,
     new_price DOUBLE PRECISION,
     change_reason TEXT,
+    publish_date DATE,
+    convert_price_initial DOUBLE PRECISION,
     UNIQUE(ts_code, change_date)
 );
 
@@ -569,7 +584,7 @@ CREATE TABLE IF NOT EXISTS cb_concept (
 CREATE INDEX IF NOT EXISTS idx_cb_concept_code ON cb_concept(ts_code);
 CREATE INDEX IF NOT EXISTS idx_cb_concept_name ON cb_concept(concept);
 
--- cb_factor_pro: 精选技术指标 (从89个字段中提取关键的15个)
+-- cb_factor_pro: 精选技术指标 (从89个字段中提取关键的18个, 含KDJ)
 CREATE TABLE IF NOT EXISTS cb_factor (
     ts_code TEXT NOT NULL REFERENCES cb_basic(ts_code),
     trade_date DATE NOT NULL,
@@ -591,7 +606,11 @@ CREATE TABLE IF NOT EXISTS cb_factor (
     ma_5 DOUBLE PRECISION,
     ma_20 DOUBLE PRECISION,
     ma_60 DOUBLE PRECISION,
-    PRIMARY KEY (ts_code, trade_date)
+    kdj_k DOUBLE PRECISION,
+    kdj_d DOUBLE PRECISION,
+    kdj_j DOUBLE PRECISION,
+    PRIMARY KEY (ts_code, trade_date),
+    CONSTRAINT chk_rsi_range CHECK (rsi_6 BETWEEN 0 AND 100 AND rsi_12 BETWEEN 0 AND 100 AND rsi_24 BETWEEN 0 AND 100)
 );
 CREATE INDEX IF NOT EXISTS idx_cb_factor_code ON cb_factor(ts_code);
 CREATE INDEX IF NOT EXISTS idx_cb_factor_date ON cb_factor(trade_date);
