@@ -1220,8 +1220,9 @@ def sync_sw_daily(days_back: int = 3650) -> dict:
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
     db = _get_etl_db()
     total, written = 0, 0
-    cols = ["ts_code", "trade_date", "name", "open", "high", "low", "close",
-            "change", "pct_change", "pe", "pb", "float_mv", "total_mv", "vol", "amount"]
+    # PG columns: code, trade_date, name, open, high, low, close, change, change_pct, pe, pb, float_mv, total_mv, vol, amount
+    cols = ["code", "trade_date", "name", "open", "high", "low", "close",
+            "change", "change_pct", "pe", "pb", "float_mv", "total_mv", "vol", "amount"]
     today = datetime.now()
     for i in range(0, days_back, 30):
         end = (today - timedelta(days=i)).strftime("%Y%m%d")
@@ -1232,9 +1233,11 @@ def sync_sw_daily(days_back: int = 3650) -> dict:
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
+            tc = str(r.get("ts_code", ""))
+            code = tc.split(".")[0] if "." in tc else tc
             td = str(r.get("trade_date", ""))
             rows.append((
-                str(r["ts_code"]), td[:4]+"-"+td[4:6]+"-"+td[6:8] if len(td)==8 else td,
+                code, td[:4]+"-"+td[4:6]+"-"+td[6:8] if len(td)==8 else td,
                 str(r.get("name", "")), r.get("open"), r.get("high"), r.get("low"),
                 r.get("close"), r.get("change"), r.get("pct_change"),
                 r.get("pe"), r.get("pb"), r.get("float_mv"), r.get("total_mv"),
