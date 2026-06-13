@@ -105,8 +105,11 @@ def sync_ths_daily(days_back: int = 30) -> dict:
 
     dates = _get_trade_dates(days_back)
     total, pg_written = 0, 0
-    cols = ["ts_code", "trade_date", "name", "close", "pct_change",
-            "avg_price", "total_mv", "float_mv"]
+    # API fields: ts_code, trade_date, open, high, low, close, pre_close,
+    #   avg_price, change, pct_change, vol, turnover_rate
+    # Note: API returns NO name/total_mv/float_mv; name comes from ths_concept_map join
+    cols = ["ts_code", "trade_date", "close", "pct_change",
+            "avg_price"]
 
     for d in dates:
         # 3 次重试拉取
@@ -134,12 +137,9 @@ def sync_ths_daily(days_back: int = 30) -> dict:
             rows.append((
                 str(r.get("ts_code", "")),
                 td,
-                str(r.get("name", "")),
                 _safe_val(r.get("close")),
                 _safe_val(r.get("pct_change")),
                 _safe_val(r.get("avg_price")),
-                _safe_val(r.get("total_mv")),
-                _safe_val(r.get("float_mv")),
             ))
 
         total += len(rows)

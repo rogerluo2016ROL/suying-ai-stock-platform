@@ -15,7 +15,7 @@ _KRONOS_DATA = os.path.join(_PROJ_ROOT, "packages", "kronos-data")
 if _KRONOS_DATA not in sys.path:
     sys.path.insert(0, _KRONOS_DATA)
 from kronos_data.etl import (
-    sync_cb_daily, sync_cb_factor, sync_stk_auction_o, sync_index_daily,
+    sync_cb_daily, sync_cb_factor, sync_cb_call, sync_index_daily,
     sync_moneyflow, sync_daily_basic, sync_stk_limit, sync_daily_kline,
     sync_limit_list_d, sync_moneyflow_hsgt, sync_sw_daily, sync_stk_mins,
 )
@@ -660,8 +660,7 @@ def start_scheduler():
         # P0 核心表 — 15:30 盘后立即采集
         {"id": "post_market_core", "name": "[L2]P0核心盘后", "cron": "30 15 * * 1-5",
          "fn": sync_post_market_core, "args": (today,)},
-        {"id": "stk_auction_o", "name": "[L2]开盘集合竞价", "cron": "30 15 * * 1-5",
-         "fn": sync_stk_auction_o},
+        # stk_auction_o 在 9:25 竞价快照 job 中一并采集, 不单独调度
         # P1 扩展表 — 15:35 紧跟核心表
         {"id": "post_market_ext", "name": "[L2]P1扩展盘后", "cron": "35 15 * * 1-5",
          "fn": sync_post_market_ext, "args": (today,)},
@@ -669,11 +668,12 @@ def start_scheduler():
         {"id": "pg_refresh", "name": "[L2]PG物化视图刷新", "cron": "37 15 * * 1-5",
          "fn": refresh_materialized_views},
         # 16:00 批次 — 同花顺 + 可转债 + 指数
-        {"id": "ths_daily", "name": "[L2]同花顺概念板块", "cron": "0 16 * * 1-5",
-         "fn": sync_ths_daily},
-        {"id": "cb_daily", "name": "[L2]可转债日线", "cron": "0 16 * * 1-5",
+        # 以下数据源在 18:00 后由 Tushare 发布 (收盘后数据)
+        {"id": "cb_daily", "name": "[L2]可转债日线", "cron": "0 18 * * 1-5",
          "fn": sync_cb_daily},
-        {"id": "index_daily", "name": "[L2]指数日线", "cron": "0 16 * * 1-5",
+        {"id": "ths_daily", "name": "[L2]同花顺概念板块", "cron": "5 18 * * 1-5",
+         "fn": sync_ths_daily},
+        {"id": "index_daily", "name": "[L2]指数日线", "cron": "10 18 * * 1-5",
          "fn": sync_index_daily},
         # 16:05 批次 — 申万行业 + 股票技术因子 (新增)
         {"id": "sw_daily", "name": "[L2]申万行业日线", "cron": "5 16 * * 1-5",
@@ -681,8 +681,10 @@ def start_scheduler():
         {"id": "stk_factor_pro", "name": "[L2]股票技术因子", "cron": "5 16 * * 1-5",
          "fn": sync_stk_factor_pro_daily},
         # 16:30 批次 — 可转债技术因子
-        {"id": "cb_factor", "name": "[L2]可转债技术因子", "cron": "30 16 * * 1-5",
+        {"id": "cb_factor", "name": "[L2]可转债技术因子", "cron": "30 18 * * 1-5",
          "fn": sync_cb_factor},
+        {"id": "cb_call", "name": "[L2]可转债强赎信息", "cron": "35 18 * * 1-5",
+         "fn": sync_cb_call},
 
         # ── L3 周级 (每周一) ──
         # 股票列表全量同步 — 每周六 02:00 (ADR-006 决策 4)

@@ -134,31 +134,45 @@ END $$;
 
 -- ──────────────────────────────────────────────────────────────
 -- 5. ths_daily 清理 + NOT NULL 约束
---    删除 change_pct 为 NULL 的行，再设 NOT NULL
+--    注意: 表列名可能是 pct_change (来自 init_postgres.sql) 或 change_pct
+--    此处检测实际列名后执行清理
 -- ──────────────────────────────────────────────────────────────
 \echo '--- [5/6] Clean ths_daily + add NOT NULL ---'
 
-SELECT 'ths_daily rows with change_pct IS NULL: ' || COUNT(*)::TEXT
-FROM ths_daily WHERE change_pct IS NULL;
-
--- 也检查 pct_change 列 (两个列名可能混用)
-SELECT 'ths_daily rows with pct_change IS NULL: ' || COUNT(*)::TEXT
-FROM ths_daily WHERE pct_change IS NULL;
-
--- 删除 change_pct 为 NULL 的行
-DELETE FROM ths_daily WHERE change_pct IS NULL;
-
--- 设置 NOT NULL 约束 (先检查是否已有约束)
+-- 检测实际列名
 DO $$
+DECLARE
+    col_name TEXT;
 BEGIN
+    SELECT column_name INTO col_name
+    FROM information_schema.columns
+    WHERE table_name = 'ths_daily'
+      AND column_name IN ('pct_change', 'change_pct')
+    LIMIT 1;
+
+    IF col_name IS NULL THEN
+        RAISE NOTICE 'ths_daily: no pct_change/change_pct column found, skipping';
+        RETURN;
+    END IF;
+
+    RAISE NOTICE 'ths_daily: using column "%" for cleanup', col_name;
+
+    -- 统计并删除 NULL 行
+    EXECUTE format('SELECT ''ths_daily rows with %I IS NULL: '' || COUNT(*)::TEXT FROM ths_daily WHERE %I IS NULL', col_name, col_name);
+    EXECUTE format('DELETE FROM ths_daily WHERE %I IS NULL', col_name);
+
+    -- 设置 NOT NULL 约束
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint c
         JOIN pg_attribute a ON a.attnum = ANY(c.conkey)
-        WHERE c.conname LIKE '%change_pct%'
+        WHERE c.conname LIKE '%' || col_name || '%'
           AND c.conrelid = 'ths_daily'::regclass
           AND c.contype = 'n'
     ) THEN
-        ALTER TABLE ths_daily ALTER COLUMN change_pct SET NOT NULL;
+        EXECUTE format('ALTER TABLE ths_daily ALTER COLUMN %I SET NOT NULL', col_name);
+        RAISE NOTICE 'ths_daily: NOT NULL constraint added on %I', col_name;
+    ELSE
+        RAISE NOTICE 'ths_daily: NOT NULL constraint already exists on %I', col_name;
     END IF;
 END $$;
 
@@ -180,6 +194,43 @@ CREATE TABLE IF NOT EXISTS ths_concept_map (
 CREATE INDEX IF NOT EXISTS idx_ths_concept_map_code ON ths_concept_map(ts_code);
 CREATE INDEX IF NOT EXISTS idx_ths_concept_map_concept ON ths_concept_map(concept_name);
 
+-- ──────────────────────────────────────────────────────────────
+-- 7. 扩展 cb_price_chg: 添加 API 返回但表缺失的字段
+--    API: publish_date (公告日), convert_price_initial (初始转股价)
+-- ──────────────────────────────────────────────────────────────
+\echo '--- [7/10] Extend cb_price_chg ---'
+ALTER TABLE cb_price_chg ADD COLUMN IF NOT EXISTS publish_date DATE;
+ALTER TABLE cb_price_chg ADD COLUMN IF NOT EXISTS convert_price_initial DOUBLE PRECISION;
+
+-- ──────────────────────────────────────────────────────────────
+-- 8. 扩展 cb_factor: 添加 KDJ 字段 (cb_factor_pro API 原生提供)
+--    引擎不再需要自己计算分时 KDJ, 日线 KDJ 可从 API 直接取
+-- ──────────────────────────────────────────────────────────────
+\echo '--- [8/10] Extend cb_factor with KDJ ---'
+ALTER TABLE cb_factor ADD COLUMN IF NOT EXISTS kdj_k DOUBLE PRECISION;
+ALTER TABLE cb_factor ADD COLUMN IF NOT EXISTS kdj_d DOUBLE PRECISION;
+ALTER TABLE cb_factor ADD COLUMN IF NOT EXISTS kdj_j DOUBLE PRECISION;
+
+-- ──────────────────────────────────────────────────────────────
+-- 9. 统一 ths_daily 字段命名: API pct_change → 表 change_pct
+--    name 列永久为空 (API 不返回概念名称, 用 ths_concept_map 替代)
+-- ──────────────────────────────────────────────────────────────
+\echo '--- [9/10] Normalize ths_daily column names ---'
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'ths_daily' AND column_name = 'pct_change') THEN
+        UPDATE ths_daily SET change_pct = pct_change
+        WHERE change_pct IS NULL AND pct_change IS NOT NULL;
+    END IF;
+END $$;
+
+-- ──────────────────────────────────────────────────────────────
+-- 10. 添加 cb_call 每日同步: 确保强赎信息及时更新
+-- ──────────────────────────────────────────────────────────────
+\echo '--- [10/10] Verify cb_call constraints ---'
+ALTER TABLE cb_call ADD COLUMN IF NOT EXISTS ann_date DATE;
+
 COMMIT;
 
-\echo '=== Data quality fix completed ==='
+\echo '=== Data quality fix v2 completed ==='
