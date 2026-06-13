@@ -69,6 +69,7 @@ class _PgAdapter:
     # Column name mapping: SQLite (engine) → PostgreSQL (Tushare)
     _COLUMN_MAP = {
         "pct_chg": "change_pct",
+        "pct_change": "change_pct",   # ths_daily/sw_daily Tushare API field name
         "ts_code": "code",
     }
 

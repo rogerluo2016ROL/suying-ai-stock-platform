@@ -1,0 +1,53 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8">
+<title>AGF Board · cbdatagovernanceteam</title>
+<style>
+ :root{color-scheme:dark}
+ body{background:#0d1117;color:#e6edf3;font:14px/1.5 -apple-system,"PingFang SC",sans-serif;margin:0;padding:24px}
+ header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+ h1{font-size:18px;margin:0}.dim{color:#8b949e;font-size:12px}
+ .gates{margin:10px 0 18px;display:flex;gap:8px;flex-wrap:wrap}
+ .gate{font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid #30363d;color:#8b949e}
+ .gate.ok{color:#3fb950;border-color:#238636;background:#12261e}
+ .gate.run{color:#58a6ff;border-color:#1f6feb;background:#0d1d33}
+ .gate.bad{color:#f85149;border-color:#da3633;background:#2d1214}
+ .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+ .col{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px}
+ .col h2{font-size:13px;margin:0 0 10px;color:#8b949e;display:flex;justify-content:space-between}
+ .col h2 b{color:#e6edf3}
+ .card{background:#0d1117;border:1px solid #30363d;border-left:3px solid #8b949e;border-radius:8px;padding:10px 12px;margin-bottom:10px}
+ .card.s-completed{opacity:.62}
+ .card.s-completed .subj::before{content:"✓ ";color:#3fb950}
+ .card.s-in_progress{border-color:#1f6feb40;box-shadow:0 0 0 1px #1f6feb33}
+ .row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px}
+ .tid{color:#8b949e}.role{font-weight:600}
+ .subj{font-weight:600;font-size:13.5px}
+ .act{color:#58a6ff;font-size:12px;margin-top:4px}
+ .sum{color:#8b949e;font-size:12px;margin-top:4px}
+ .chips{margin-top:6px}.chip{font-size:11px;border:1px solid #30363d;border-radius:99px;padding:1px 8px;color:#d29922;margin-right:4px}
+ .empty{color:#484f58;font-size:12px;text-align:center;padding:14px 0}
+ .age{color:#6e7681;font-weight:400}
+ .team{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+ .mem{font-size:12px;border:1px solid #30363d;border-radius:99px;padding:3px 11px;display:inline-flex;align-items:center;gap:6px;color:#e6edf3}
+ .mem i{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+ .mem.on{border-color:#23863666;background:#12261e55}
+ .mem.off{color:#8b949e;opacity:.65}
+ .mem em{font-style:normal;color:#58a6ff;font-weight:600}
+ .mem em.hint{color:#8b949e;font-weight:400;cursor:help}
+</style></head><body>
+<header><h1>AGF Board</h1><span class="dim">team: cbdatagovernanceteam</span>
+<span class="dim">0/2 完成 · 更新 07:50:26</span></header>
+<div class="gates"><span class="gate run">● 实现</span><span class="gate none">— Code Review</span><span class="gate none">— UAT 部署</span><span class="gate none">— E2E</span><span class="gate none">— UAT</span></div>
+<div class=\"team\"><span class="mem on"><i style="background:#8b949e"></i>◆ team-lead</span><span class="mem off"><i style="background:#22c55e"></i>○ data-gov-dev</span></div>
+<div class="cols">
+ <div class="col"><h2>⏸ Pending <b>2</b></h2><div class="card s-pending" style="border-left-color:#22c55e">
+  <div class="row"><span class="tid">#1 <span class="age">· 1 分钟前</span></span><span class="role" style="color:#22c55e">●&nbsp;backend-dev</span></div>
+  <div class="subj">补齐数据源自动采集调度</div>
+  <div class="sum"> 任务类型: backend-dev — 数据管道配置 </div>
+</div><div class="card s-pending" style="border-left-color:#22c55e">
+  <div class="row"><span class="tid">#2 <span class="age">· 1 分钟前</span></span><span class="role" style="color:#22c55e">●&nbsp;backend-dev</span></div>
+  <div class="subj">清理数据表异常数据并添加质量约束</div>
+  <div class="sum"> 任务类型: backend-dev — 数据质量清洗 </div>
+</div></div>
+ <div class="col"><h2>🔄 In Progress <b>0</b></h2><div class=\"empty\">（空）</div></div>
+ <div class="col"><h2>✅ Completed <b>0</b></h2><div class=\"empty\">（空）</div></div>
+</div></body></html>

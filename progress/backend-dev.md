@@ -176,3 +176,35 @@
 
 **质量门**: syntax ✅ / SIT: pg_write_status 字段从 scheduler 直接透传，无需字符串解析
 **下一步**: 等待 E2E 验证 (PL 确认无需重新 code review)
+
+## 数据治理：分层调度与缺失回补 — 2026-06-13 10:00
+**状态**: 已完成
+**Skills**: —
+
+**SIT 证据**（按 AC 列；行首 `[x]/[ ]` 同时表达 AC 自验勾选）:
+- [x] AC-1 ✅ 代码分析完成 — 阅读 6 个文件的现有逻辑，识别 5 个调度缺口
+    - 文件: tushare.py (308 行) / rt_min.py (110 行) / stocks.py (173 行) / scheduler.py (269 行) / config.py (29 行) / etl.py (1865 行)
+    - 缺口: L1 limit_list_d 日内缺失 / L2 sw_daily+stk_factor_pro 未调度 / L3 moneyflow_hsgt 未注册 / L4 回补无自动化 / 无数据完整性检测
+- [x] AC-2 ✅ scheduler.py 增强 — 新增 8 个函数 + 扩展 import
+    - 命令: `python3 -c "import ast; ast.parse(open('services/data-service/app/scheduler.py').read()); print('Syntax OK')"`
+    - 输出: Syntax OK
+    - 新增函数: check_table_latest_date, detect_data_gaps, trigger_data_backfill, run_data_integrity_check, sync_stk_factor_pro_daily, sync_sw_daily_batch, sync_limit_list_d_intraday, sync_moneyflow_hsgt_weekly
+    - 行数: 269 → 737 行 (+468 行)
+- [x] AC-3 ✅ MONITORED_TABLES 配置 — 12 张表，L0-L4 四层分频，含 lookback / gap_threshold
+    - 表: daily_kline, moneyflow, stk_limit, daily_basic, ths_daily, sw_daily, index_daily, stk_factor_pro, limit_list_d, moneyflow_hsgt, stocks, stk_mins
+- [x] AC-4 ✅ _BACKFILL_MAP 映射 — 8 张表有对应 etl.py 回补函数，4 张表预留 no_handler 分支
+- [x] AC-5 ✅ start_scheduler() 新增 5 个调度任务 — 21 jobs 总计
+    - L1: limit_list_d_intra (cron: */30 9-15 * * 1-5)
+    - L2: sw_daily (cron: 5 16 * * 1-5), stk_factor_pro (cron: 5 16 * * 1-5)
+    - L3: moneyflow_hsgt (cron: 30 8 * * 1)
+    - L4: data_integrity (cron: 0 4 * * *)
+- [x] AC-6 ✅ docs/data-governance/scheduler-plan.md 产出 — 6 节完整文档
+    - 1. 问题分析 (5 缺口 + 3 质量问题)
+    - 2. 分层调度矩阵 (21 行明细表 + 限频策略 + 重试策略)
+    - 3. 缺失数据自动回补流程 (流程图 + 12 张表映射 + 5 项安全机制)
+    - 4. 代码修改清单 (1 文件修改 + 3 环境变量 + 5 文件无需修改原因)
+    - 5. 监控建议 (8 条告警阈值 + 4 项实施建议 + 日志关键字)
+    - 6. 未来扩展 (4 项)
+
+**质量门**: syntax ✅ (scheduler.py) / 设计完整性 ✅ (L0-L4 全覆盖 + 回补自动检测 + 监控告警阈值)
+**下一步**: 等待 code review；PL 确认后可在 data-service 重启验证新 job 注册与 L4 检测功能
