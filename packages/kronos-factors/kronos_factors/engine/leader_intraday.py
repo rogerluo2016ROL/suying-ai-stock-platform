@@ -669,8 +669,8 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         td8 = trade_date.replace('-', '')
         # Get 5-day sector return from ths_daily or sw_daily
         sector_5d = db.execute(
-            "SELECT SUM(pct_change) as sum5d FROM ("
-            "SELECT pct_change FROM ths_daily WHERE name LIKE ? AND trade_date <= ? "
+            "SELECT SUM(change_pct) as sum5d FROM ("
+            "SELECT change_pct FROM ths_daily WHERE name LIKE ? AND trade_date <= ? "
             "ORDER BY trade_date DESC LIMIT 5"
             ") t",
             (f"%{industry}%", td8)
@@ -678,8 +678,8 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         s5d = sector_5d["sum5d"] if sector_5d and sector_5d["sum5d"] else None
         if s5d is None:
             sector_5d = db.execute(
-                "SELECT SUM(pct_change) as sum5d FROM ("
-                "SELECT pct_change FROM sw_daily WHERE name LIKE ? AND trade_date <= ? "
+                "SELECT SUM(change_pct) as sum5d FROM ("
+                "SELECT change_pct FROM sw_daily WHERE name LIKE ? AND trade_date <= ? "
                 "ORDER BY trade_date DESC LIMIT 5"
                 ") t",
                 (f"%{industry}%", trade_date)
