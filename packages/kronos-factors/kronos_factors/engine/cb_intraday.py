@@ -527,10 +527,9 @@ class CbIntradayEngine:
     def _find_cbs_in_sectors(self, cur, sector_keys: set, trade_date: str) -> dict:
         """通过 cb_concept 找到属于强势板块/概念的转债.
 
-        三路径依次尝试:
+        两路径依次尝试:
         1. concept 精确匹配 → 模糊匹配 (cb_concept LIKE '%key%')
         2. industry 路径 (stocks.industry IN keys)
-        3. key 包含 cb_concept (反向模糊: key LIKE '%concept%')
 
         Returns:
             {ts_code: {"stk_code", "name", "stk_name", "sector", "conv_price"}}
@@ -559,17 +558,6 @@ class CbIntradayEngine:
                 WHERE {fuzzy_ors}
             """, fuzzy_params)
             all_matched_concepts.update(r[0] for r in cur.fetchall())
-
-            # ── Path 1c: reverse fuzzy: key contains cb_concept ──
-            for k in sector_list:
-                try:
-                    cur.execute(
-                        "SELECT DISTINCT concept FROM cb_concept WHERE %s LIKE '%%' || concept || '%%'",
-                        (k,),
-                    )
-                    all_matched_concepts.update(r[0] for r in cur.fetchall())
-                except Exception:
-                    pass
 
             # ── Path 2: industry → concept ──
             if not all_matched_concepts:
