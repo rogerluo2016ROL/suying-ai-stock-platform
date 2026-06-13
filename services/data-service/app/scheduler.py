@@ -51,6 +51,8 @@ MONITORED_TABLES: dict[str, dict] = {
     "stocks":         {"date_col": "updated_at",  "lookback": 14, "freq": "L3-weekly", "gap_threshold": 7},
     # ── L0 实时级 (交易日每分钟应有数据) ──
     "stk_mins":       {"date_col": "trade_time",  "lookback": 10, "freq": "L0-realtime","gap_threshold": 1},
+    # ── 基础日历 (每周一更新, 1天缺口即触发) ──
+    "trade_cal":      {"date_col": "cal_date",    "lookback": 90, "freq": "L3-weekly", "gap_threshold": 1},
 }
 
 # 表 → 回补函数 (来自 kronos_data.etl, 接受 days_back=int 参数)
@@ -128,11 +130,32 @@ def check_table_latest_date(table: str, date_col: str = "trade_date") -> date | 
     return None
 
 
-def detect_data_gaps(lookback_days: int = None) -> dict:
-    """扫描所有监控表, 检测数据缺口.
+def _count_trading_days(from_date: date, to_date: date) -> int:
+    """使用 trade_cal 表计算两个日期之间的真实交易日数。
 
-    对每张表查询最新日期, 与今天比较。超过 gap_threshold 天即标记为缺口。
-    stk_mins (trade_time=datetime) 特殊处理: 仅比较日期部分。
+    若 trade_cal 不可用, fallback 到自然日数 (保守估计)。
+    """
+    try:
+        import psycopg2
+        conn = psycopg2.connect(_PG_URL)
+        conn.autocommit = True
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT COUNT(*) FROM trade_cal WHERE cal_date > %s AND cal_date <= %s AND is_open=1",
+            (from_date.isoformat(), to_date.isoformat())
+        )
+        cnt = cur.fetchone()[0]
+        conn.close()
+        return cnt if cnt else (to_date - from_date).days  # fallback
+    except Exception:
+        return (to_date - from_date).days
+
+
+def detect_data_gaps(lookback_days: int = None) -> dict:
+    """扫描所有监控表, 检测数据缺口 (使用真实交易日历)。
+
+    对每张表查询最新日期, 通过 trade_cal 计算交易日缺口。
+    超过 gap_threshold 个交易日即标记为缺口。
 
     Args:
         lookback_days: 覆盖 MONITORED_TABLES 中的默认 lookback, None=使用各表默认值
@@ -164,19 +187,20 @@ def detect_data_gaps(lookback_days: int = None) -> dict:
             logger.debug("Data gap: %s — no data found", table)
             continue
 
-        gap_days = (today - latest).days
-        if gap_days > threshold:
+        # 使用真实交易日历计算缺口 (而非自然日)
+        gap_trading_days = _count_trading_days(latest, today)
+        if gap_trading_days > threshold:
             tables[table] = {
                 "status": "gap", "latest_date": latest.isoformat(),
-                "gap_days": gap_days, "threshold": threshold, "freq": freq,
+                "gap_days": gap_trading_days, "threshold": threshold, "freq": freq,
             }
             gap_count += 1
-            logger.info("Data gap: %s — latest=%s, %d days behind (threshold=%d)",
-                       table, latest.isoformat(), gap_days, threshold)
+            logger.info("Data gap: %s — latest=%s, %d trading days behind (threshold=%d)",
+                       table, latest.isoformat(), gap_trading_days, threshold)
         else:
             tables[table] = {
                 "status": "ok", "latest_date": latest.isoformat(),
-                "gap_days": gap_days, "threshold": threshold, "freq": freq,
+                "gap_days": gap_trading_days, "threshold": threshold, "freq": freq,
             }
             ok_count += 1
 
