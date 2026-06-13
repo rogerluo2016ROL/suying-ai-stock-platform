@@ -26,7 +26,7 @@ _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from kronos_factors.scorer._db_stub import _get_db
 
 # ── Intraday scoring weights (9因子 V6.3 优化) ──
-# V6.4: O1日级别择时(共振均值决定仓位) +O2共振信号强化(res±3)
+# V6.5: O3市场广度反转(弱市加仓+1.12%>强市+0.09%) +O1共振择时 +O2共振强化
 INTRA_WEIGHTS = {
     "gain_quality": 18,              # 14:00涨幅质量 (≥7%)
     "afternoon_strength": 12,        # 午后强势度 D:10→12
@@ -933,14 +933,29 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
             frenzy_ratio = len(scores) / 80  # 正常日基准≈80只
             print(f"  🔥 市场狂热: {len(scores)}只通过初筛 ({(frenzy_ratio-1)*100:.0f}%高于正常)")
 
-        # ── V5.6 A: 弱市熔断提示 — 初筛<30只时警告但仍选股 ──
+        # ── V5.6 A: 弱市熔断提示 ──
         if len(scores) < 30:
             print(f"  ⚠️ 弱市预警: 仅{len(scores)}只通过初筛, 建议谨慎/减仓")
 
-        # ── V6.3 P20: 初筛20-40熔断 — 6/9唯一样本15笔全亏-3.59% ──
+        # ── V6.3 P20: 初筛20-40熔断 ──
         if 20 <= len(scores) < 40:
             print(f"  🛑 假活跃熔断: {len(scores)}只(20-40区间), 次日全面回调, 空仓")
             return [], []
+
+        # ── V6.5 O3: 市场广度信号 — 弱市稀缺溢价, 注入个股评分 ──
+        # 涨跌比越低 → 能逆市走强的个股质量越高 → 次日溢价越大
+        if breadth < 30:
+            market_breadth_bonus = 5   # 极弱市: 稀缺溢价最高(日均+1.12%)
+            print(f"  📈 极弱市 涨跌比{breadth:.0f}%: 个股+5分(强者恒强)")
+        elif breadth < 50:
+            market_breadth_bonus = 3   # 弱市: 溢价(日均+0.86%)
+            print(f"  📈 弱市 涨跌比{breadth:.0f}%: 个股+3分")
+        elif breadth < 65:
+            market_breadth_bonus = 0   # 中强市: 无溢价(日均-0.20%)
+            print(f"  📉 中强市 涨跌比{breadth:.0f}%: 个股+0分(信号稀释)")
+        else:
+            market_breadth_bonus = -2  # 强市: 轻度惩罚(日均+0.26%)
+            print(f"  📉 强市 涨跌比{breadth:.0f}%: 个股-2分")
 
         if breadth < 40:
             effective_n = max(5, int(top_n * 0.5))
@@ -951,9 +966,9 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
         else:
             effective_n = top_n
 
-        # V5.2: 市场狂热日进一步收紧 (全市场板块爆发→次日全面回调)
+        # V5.2: 市场狂热日进一步收紧
         if market_frenzy:
-            frenzy_n = max(5, int(effective_n * 0.5))  # 狂热日只选一半
+            frenzy_n = max(5, int(effective_n * 0.5))
             print(f"  🔥 市场狂热: effective_n {effective_n}→{frenzy_n}")
             effective_n = frenzy_n
 
@@ -987,7 +1002,8 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
         for s in scores:
             s["total_score_raw"] = s["total_score"]
             s["total_score"] = round((s["total_score"] - raw_min) / score_range * 100, 1)
-            # Re-grade after normalization
+            # V6.5 O3: 市场广度溢价(归一化后注入, 不被吞掉)
+            s["total_score"] += market_breadth_bonus
             ns = s["total_score"]
             s["grade"] = "S" if ns >= 75 else ("A" if ns >= 60 else ("B" if ns >= 45 else "C"))
 
