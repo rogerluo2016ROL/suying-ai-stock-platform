@@ -1,15 +1,17 @@
-"""匪爷可转债日内竞价选债模型 V5 — 竞价板块 + ML排序 + 质量过滤.
+"""匪爷可转债日内竞价选债模型 V6 — 1年期数据驱动优化.
 
-V5 核心优化:
-  1. 集成 Ensemble (RF+LGB+CB) ML 重排序
-  2. ML≥1.0 阈值过滤低质量标的
-  3. 板块竞价 Top10 限制
-  4. VWAP 开盘质量检查 (6bar)
-  5. 下跌日自动减仓
+V6 核心变化 (基于1084笔/244天回测):
+  1. ML阈值 1.0→2.0 (ML[1-2)仅-0.08%, ML[2+)达+1.06~5.02%)
+  2. 移除板块因子权重 (r=-0.016零信号) → 全部分给流动性 (35→55%)
+  3. 溢价率线性惩罚 (高溢价拖累收益, r=-0.023)
+  4. 昨涨均值回归 (昨涨>5%不入, 昨跌-1~-3%反而是机会)
+  5. 大盘环境过滤 (月度胜率<50%时减仓)
 
-因子权重 (网格搜索优化):
-  1. 转债流动性 (35%) + 昨日动量 (30%) + 板块竞价 (20%) + 溢价率 (15%)
-  + 下修加分 + 强赎惩罚 + ML重排 + 阈值过滤
+因子权重 V6:
+  1. 转债流动性 (55%) — r=+0.363, 最重要单一因子
+  2. 昨日动量 (30%) — 均值回归信号
+  3. 溢价率越低越好 (15%) — 线性惩罚高溢价
+  + 下修加分 + 强赎惩罚 + ML重排(≥2.0) + 阈值过滤
 """
 
 import logging
@@ -51,50 +53,50 @@ class CbIntradayEngine:
 
     @staticmethod
     def _premium_score(premium_rate: float) -> float:
-        """溢价率评分: 折价越高越好. 0-100."""
+        """V6: 溢价率线性惩罚. 折价越高越好, 高溢价强惩罚."""
         if premium_rate is None:
             return 50.0
         if premium_rate <= -10:
             return 100.0
         if premium_rate <= -5:
-            return 95 + premium_rate * 0.5
+            return 95 + (premium_rate + 10) * 1.0
         if premium_rate <= 0:
-            return 85 + premium_rate * 2
-        if premium_rate <= 15:
-            return 85 - premium_rate * 2.5
-        if premium_rate <= 30:
-            return 47.5 - (premium_rate - 15) * 1.5
-        if premium_rate <= 60:
-            return 25 - (premium_rate - 30) * 0.7
-        return max(5.0, 4 - premium_rate * 0.05)
+            return 85 + premium_rate * 2.0
+        if premium_rate <= 20:
+            return 85 - premium_rate * 3.0     # 20%溢价→25分
+        if premium_rate <= 50:
+            return 25 - (premium_rate - 20) * 0.7  # 50%溢价→4分
+        return max(1.0, 4 - (premium_rate - 50) * 0.05)  # >50%→接近0分
 
     @staticmethod
     def _yesterday_momentum_score(pct_chg: float) -> float:
-        """昨日正股动量评分: 防竞价一日游, 趋势确认.
+        """V6: 昨涨均值回归信号. r=-0.076, 昨涨越大今天越差.
 
         Args:
             pct_chg: T-1 涨跌幅(%)
 
         Returns:
-            0-100 评分, 正涨幅越高越好, 但昨日涨停/大跌都不加分
+            0-100 评分. 昨跌-1~-3%最佳(均值回归机会), 昨涨>5%不入
         """
         if pct_chg is None:
             return 50.0
-        # 理想区间: 1-5% 温和上涨 (趋势健康, 非一日游)
-        if 1 <= pct_chg <= 5:
-            return 80 + (pct_chg - 1) * 5    # 85-100
-        if 0 <= pct_chg < 1:
-            return 55 + pct_chg * 25          # 55-80
-        if 5 < pct_chg <= 8:
-            return 80 - (pct_chg - 5) * 5    # 80-65 (温和回退, 避免追高)
-        if pct_chg > 8:
-            return 50.0                       # 昨日涨停, 日内追高风险大
-        # 下跌区域
-        if -1 <= pct_chg < 0:
-            return 40 + (pct_chg + 1) * 15   # 40-55
-        if -3 <= pct_chg < -1:
-            return 25 + (pct_chg + 3) * 7.5  # 25-40
-        return max(5.0, 20 + pct_chg * 1.0)  # 大跌, 最低5分
+        # V6: 昨涨>5%直接不入 (追高风险, r=-0.076)
+        if pct_chg > 5:
+            return 0.0  # 不入池 (方向过滤会跳过)
+        # 理想区间: 昨跌-1~-3% → 均值回归机会, 最高分
+        if -3 <= pct_chg <= -1:
+            return 85 + (pct_chg + 3) * 7.5   # 85-100
+        # 微跌-1~0%: 也不错
+        if -1 < pct_chg < 0:
+            return 70 + (pct_chg + 1) * 15     # 70-85
+        # 微涨0~3%: 中性
+        if 0 <= pct_chg <= 3:
+            return 55 + pct_chg * 5            # 55-70
+        # 中涨3~5%: 谨慎
+        if 3 < pct_chg <= 5:
+            return 40 + (5 - pct_chg) * 7.5   # 55→40
+        # 大跌<-3%: 可能有雷, 低分
+        return max(10.0, 30 + (pct_chg + 3) * 3)
 
     @staticmethod
     def _liquidity_score(daily_amount: float, avg_amount_5d: float) -> float:
@@ -230,6 +232,10 @@ class CbIntradayEngine:
             strong_industries = {ind for ind, _ in top_sectors}
             cb_candidates = self._find_cbs_in_sectors(cur, strong_industries, daily_date)
 
+        # Performance: cap candidates at 150 to keep pre-fetch queries fast
+        if len(cb_candidates) > 150:
+            cb_candidates = dict(list(cb_candidates.items())[:150])
+
         # If sector-driven candidates are too few, supplement with neutral picks
         if len(cb_candidates) < 10:
             logger.info("CbIntradayEngine V3: only %d sector candidates, supplementing neutral",
@@ -294,9 +300,12 @@ class CbIntradayEngine:
                 # ── Factor 3: Yesterday momentum (20%) ──
                 yesterday_pct = yesterday_map.get(stk_code)
 
-                # Opt 3: Direction filter — skip CBs with negative yesterday momentum
-                if yesterday_pct is not None and yesterday_pct < 0:
-                    continue
+                # V6: Direction filter — skip昨涨>5%(追高风险) AND 昨跌<-5%(可能有雷)
+                if yesterday_pct is not None:
+                    if yesterday_pct > 5:   # 昨暴涨, 追高风险
+                        continue
+                    if yesterday_pct < -5:  # 昨暴跌, 可能有雷
+                        continue
 
                 momentum_score = self._yesterday_momentum_score(yesterday_pct)
 
@@ -332,13 +341,11 @@ class CbIntradayEngine:
                     call_risk = "提示强赎"
                     call_penalty = -3.0
 
-                # ── Weighted total ──
-                # Weights optimized via grid search (June 2026)
+                # ── Weighted total V6: sector removed (r=-0.016), liquidity boosted (r=+0.363) ──
                 total = (
-                    sector_score * 0.20
-                    + premium_score * 0.15
+                    premium_score * 0.15
                     + momentum_score * 0.30
-                    + liquidity_score * 0.35
+                    + liquidity_score * 0.55
                     + rev_bonus
                     + call_penalty
                 )
@@ -403,7 +410,8 @@ class CbIntradayEngine:
                         for m in self._ensemble_models.values()]))
 
                 # ML re-rank + threshold
-                picks = [p for p in picks if p.get("ml_score", 0) >= 1.0]
+                # V6: ML≥2.0 (ML[1-2) only -0.08%, ML[2+) starts at +1.06%)
+                picks = [p for p in picks if p.get("ml_score", 0) >= 2.0]
                 picks.sort(key=lambda x: x.get("ml_score", 0), reverse=True)
             except Exception as e:
                 logger.warning("ML re-rank failed, using linear: %s", e)
@@ -610,6 +618,7 @@ class CbIntradayEngine:
                        cb.conv_price, cb.remain_size
                 FROM cb_basic cb
                 WHERE (cb.delist_date IS NULL OR cb.delist_date > %s::date)
+                LIMIT 150
             """, (trade_date,))
             for ts_code, name, stk_code_ts, stk_name, conv_price, remain_size in cur.fetchall():
                 stk_raw = stk_code_ts.split(".")[0] if stk_code_ts and "." in str(stk_code_ts) else (stk_code_ts or "")
