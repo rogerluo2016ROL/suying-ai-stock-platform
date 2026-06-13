@@ -579,11 +579,15 @@ def sync_index_daily(days_back: int = 30) -> dict:
     clean_before_write(db, "index_daily", days_back)
 
     total, written = 0, 0
-    cols = ["ts_code", "trade_date", "close", "open", "high", "low",
-            "pre_close", "change", "pct_chg", "vol", "amount"]
+    # PG columns: code, trade_date, open, high, low, close, volume, amount, change_pct
+    cols = ["code", "trade_date", "open", "high", "low", "close",
+            "volume", "amount", "change_pct"]
 
     start = (datetime.now() - timedelta(days=days_back)).strftime("%Y%m%d")
     end = datetime.now().strftime("%Y%m%d")
+
+    def _ts_to_code(tc):
+        return tc.split(".")[0] if "." in str(tc) else str(tc)
 
     for code in MAJOR_INDICES:
         _rate_limit()
@@ -596,11 +600,11 @@ def sync_index_daily(days_back: int = 30) -> dict:
         rows = []
         for _, r in df.iterrows():
             rows.append((
-                r["ts_code"],
+                _ts_to_code(r["ts_code"]),
                 str(r["trade_date"])[:4] + "-" + str(r["trade_date"])[4:6] + "-" + str(r["trade_date"])[6:8],
-                r["close"], r["open"], r["high"], r["low"],
-                r.get("pre_close"), r.get("change"), r.get("pct_chg"),
+                r["open"], r["high"], r["low"], r["close"],
                 r.get("vol"), r.get("amount"),
+                r.get("pct_chg"),
             ))
         total += len(rows)
         written += _insert_rows(db, "index_daily", cols, rows)
@@ -922,7 +926,8 @@ def sync_moneyflow_hsgt(days_back: int = 30) -> dict:
     db = _get_etl_db()
     clean_before_write(db, "moneyflow_hsgt", days_back)
     total, written = 0, 0
-    cols = ["trade_date", "ggt_ss", "ggt_sz", "hgt", "sgt", "north_money", "south_money"]
+    # PG columns: trade_date, north_net_inflow, south_net_inflow
+    cols = ["trade_date", "north_net_inflow", "south_net_inflow"]
     for d in dates:
         _rate_limit()
         try: df = pro.moneyflow_hsgt(trade_date=d)
@@ -931,8 +936,7 @@ def sync_moneyflow_hsgt(days_back: int = 30) -> dict:
         rows = []
         for _, r in df.iterrows():
             rows.append((d[:4]+"-"+d[4:6]+"-"+d[6:8],
-                r.get("ggt_ss"), r.get("ggt_sz"), r.get("hgt"), r.get("sgt"),
-                r.get("north_money"), r.get("south_money")))
+                r.get("north_net_inflow"), r.get("south_net_inflow")))
         total += len(rows)
         written += _insert_rows(db, "moneyflow_hsgt", cols, rows)
     db.commit(); db.close()

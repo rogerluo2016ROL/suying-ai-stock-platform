@@ -305,60 +305,64 @@ def sync_stk_factor_pro_daily() -> dict:
     if df is None or len(df) == 0:
         return {"table": "stk_factor_pro", "written": 0, "note": "no data for today"}
 
-    cols = ["ts_code", "trade_date", "close", "open", "high", "low",
-            "pre_close", "change", "pct_chg", "vol", "amount",
-            "turnover_rate", "volume_ratio", "pe", "pe_ttm", "pb",
-            "macd_dif", "macd_dea", "macd",
-            "kdj_k", "kdj_d", "kdj_j",
-            "rsi_6", "rsi_12", "rsi_24",
-            "boll_upper", "boll_mid", "boll_lower", "atr14"]
+    # PG stk_factor_pro columns: ts_code, trade_date,
+    #   ma5, ma10, ma20, ma60 (computed from close),
+    #   macd_dif, macd_dea, macd, rsi_6, rsi_12, rsi_24,
+    #   boll_upper, boll_mid, boll_lower, kdj_k, kdj_d, kdj_j,
+    #   vol_ratio, turnover_rate
+    # Tushare API returns: close, macd_*, rsi_*, boll_*, kdj_*, turnover_rate, volume_ratio
+    api_cols = ["ts_code", "macd_dif", "macd_dea", "macd",
+                "kdj_k", "kdj_d", "kdj_j",
+                "rsi_6", "rsi_12", "rsi_24",
+                "boll_upper", "boll_mid", "boll_lower",
+                "turnover_rate", "volume_ratio"]
+    pg_col_map = {  # API field → PG column name
+        "volume_ratio": "vol_ratio",  # PG column name differs
+    }
 
     rows = []
     for _, r in df.iterrows():
-        row = []
-        for c in cols:
-            if c == "trade_date":
-                row.append(trade_date)
+        vals = []
+        for c in api_cols:
+            if c == "ts_code":
+                vals.append(r.get("ts_code"))
             else:
                 v = r.get(c)
-                # 过滤 numpy NaN
                 try:
                     import numpy as np
                     if isinstance(v, (np.floating,)) and np.isnan(v):
-                        row.append(None)
+                        vals.append(None)
                         continue
                 except ImportError:
                     pass
-                row.append(v)
-        rows.append(tuple(row))
+                vals.append(v)
+        rows.append(tuple(vals))
+
+    pg_cols = [pg_col_map.get(c, c) for c in api_cols]
 
     # PG 直写 (主路径)
     pg_written = 0
     if rows:
         try:
             from app.sync.pg_writer import _pg_write
-            pg_cols = ["ts_code", "trade_date", "close", "open", "high", "low",
-                       "pre_close", "change", "pct_chg", "vol", "amount",
-                       "turnover_rate", "volume_ratio", "pe", "pe_ttm", "pb",
-                       "macd_dif", "macd_dea", "macd",
-                       "kdj_k", "kdj_d", "kdj_j",
-                       "rsi_6", "rsi_12", "rsi_24",
-                       "boll_upper", "boll_mid", "boll_lower", "atr14"]
             pg_written = _pg_write("stk_factor_pro", pg_cols,
                                     ["ts_code", "trade_date"], rows)
         except Exception as e:
             logger.debug("PG write stk_factor_pro skipped: %s", e)
 
-    # SQLite 写入 (fallback)
+    # SQLite 写入 (fallback) — 使用 pg_cols (PG兼容列名)
     sqlite_written = 0
     if rows:
         try:
             db = sqlite3.connect(DB_PATH)
-            placeholders = ",".join(["?"] * len(cols))
+            sqlite_cols = ["ts_code", "trade_date"] + pg_cols[1:]  # trade_date first
+            placeholders = ",".join(["?"] * len(sqlite_cols))
+            # Build rows with trade_date prepended
+            sqlite_rows = [(row[0], trade_date) + tuple(row[1:]) for row in rows]
             db.executemany(
-                f"INSERT OR REPLACE INTO stk_factor_pro({','.join(cols)}) "
-                f"VALUES({placeholders})", rows)
-            sqlite_written = len(rows)
+                f"INSERT OR REPLACE INTO stk_factor_pro({','.join(sqlite_cols)}) "
+                f"VALUES({placeholders})", sqlite_rows)
+            sqlite_written = len(sqlite_rows)
             db.commit()
             db.close()
         except Exception as e:
