@@ -26,7 +26,7 @@ _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from kronos_factors.scorer._db_stub import _get_db
 
 # ── Intraday scoring weights (9因子 V6.3 优化) ──
-# V6.3: +P20假活跃熔断 +P21科创板龙头折扣 +P22共振弱减半
+# V6.4: O1日级别择时(共振均值决定仓位) +O2共振信号强化(res±3)
 INTRA_WEIGHTS = {
     "gain_quality": 18,              # 14:00涨幅质量 (≥7%)
     "afternoon_strength": 12,        # 午后强势度 D:10→12
@@ -703,10 +703,17 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     if sl_score >= 24 and dist_to_limit >= 5:
         leader_distance_bonus = 8  # 🔥 满分龙头+足够空间=高确定性盈利
 
-    # ── V6.2 综合 ──
+    # ── V6.4 O2: 共振信号强化 — res=8加分, res≤5扣分 (Top10赢家6/10共振=8) ──
+    resonance_bonus = 0
+    if res_score >= 8:
+        resonance_bonus = 3   # 板块共振强: 最佳信号
+    elif res_score <= 5:
+        resonance_bonus = -3  # 板块共振弱: 确定性差
+
+    # ── V6.4 综合 (日级别择时+共振强化) ──
     total = (gain_score + seal_score + afternoon_score +
              turnover_score + ma_score + volume_score + sl_score + sm_score + res_score
-             + dist_score + leadership_bonus + leader_distance_bonus
+             + dist_score + leadership_bonus + leader_distance_bonus + resonance_bonus
              - independent_penalty - climax_penalty - overheat_penalty
              - limit_resistance_penalty - sector_blacklist_penalty)
     grade = "S" if total >= 80 else ("A" if total >= 65 else ("B" if total >= 50 else "C"))
@@ -950,12 +957,15 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
             print(f"  🔥 市场狂热: effective_n {effective_n}→{frenzy_n}")
             effective_n = frenzy_n
 
-        # ── V6.3 P22: 共振弱日减半 — 共振均值≤5→次日板块分化, 减仓 ──
+        # ── V6.4 O1: 日级别择时 — 共振均值决定仓位 ──
         if scores:
             avg_res = sum(s.get("resonance_score", 0) for s in scores) / len(scores)
             if avg_res <= 5:
                 effective_n = max(3, int(effective_n * 0.5))
                 print(f"  🔻 共振弱(均{avg_res:.1f}≤5): effective_n →{effective_n} (-50%)")
+            if avg_res <= 4:
+                effective_n = max(1, int(effective_n * 0.3))
+                print(f"  🛑 共振极弱(均{avg_res:.1f}≤4): effective_n →{effective_n} (-70%), 几乎空仓")
 
         # ── V5.8 P7: 周一加成+周五减仓 ──
         from datetime import datetime
