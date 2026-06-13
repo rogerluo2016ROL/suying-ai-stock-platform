@@ -926,8 +926,7 @@ def sync_moneyflow_hsgt(days_back: int = 30) -> dict:
     db = _get_etl_db()
     clean_before_write(db, "moneyflow_hsgt", days_back)
     total, written = 0, 0
-    # PG columns: trade_date, north_net_inflow, south_net_inflow
-    cols = ["trade_date", "north_net_inflow", "south_net_inflow"]
+    cols = ["trade_date", "ggt_ss", "ggt_sz", "hgt", "sgt", "north_money", "south_money"]
     for d in dates:
         _rate_limit()
         try: df = pro.moneyflow_hsgt(trade_date=d)
@@ -936,7 +935,8 @@ def sync_moneyflow_hsgt(days_back: int = 30) -> dict:
         rows = []
         for _, r in df.iterrows():
             rows.append((d[:4]+"-"+d[4:6]+"-"+d[6:8],
-                r.get("north_net_inflow"), r.get("south_net_inflow")))
+                r.get("ggt_ss"), r.get("ggt_sz"), r.get("hgt"), r.get("sgt"),
+                r.get("north_money"), r.get("south_money")))
         total += len(rows)
         written += _insert_rows(db, "moneyflow_hsgt", cols, rows)
     db.commit(); db.close()
