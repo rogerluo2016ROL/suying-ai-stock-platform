@@ -703,17 +703,43 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     if sl_score >= 24 and dist_to_limit >= 5:
         leader_distance_bonus = 8  # 🔥 满分龙头+足够空间=高确定性盈利
 
-    # ── V6.4 O2: 共振信号强化 — res=8加分, res≤5扣分 (Top10赢家6/10共振=8) ──
+    # ── V6.4 O2: 共振信号强化 — res=8加分, res≤5扣分 ──
     resonance_bonus = 0
     if res_score >= 8:
-        resonance_bonus = 3   # 板块共振强: 最佳信号
+        resonance_bonus = 3
     elif res_score <= 5:
-        resonance_bonus = -3  # 板块共振弱: 确定性差
+        resonance_bonus = -3
 
-    # ── V6.4 综合 (日级别择时+共振强化) ──
+    # ── V6.6 O4: 融资融券信号 — 前日融资变化反映杠杆资金方向 ──
+    margin_bonus = 0
+    try:
+        # Get previous 2 trading days' margin balances
+        margin_rows = db.execute(
+            "SELECT rzye, trade_date FROM margin_detail WHERE code=? AND trade_date <= ? "
+            "ORDER BY trade_date DESC LIMIT 2",
+            (code, trade_date)
+        ).fetchall()
+        if len(margin_rows) >= 2 and margin_rows[0]["rzye"] and margin_rows[1]["rzye"]:
+            today_rzye = float(margin_rows[0]["rzye"])
+            prev_rzye = float(margin_rows[1]["rzye"])
+            if prev_rzye > 0:
+                rzye_chg = (today_rzye - prev_rzye) / prev_rzye * 100
+                if rzye_chg > 2:       # 融资显著增加(>2%)→杠杆资金强烈看多
+                    margin_bonus = 4
+                elif rzye_chg > 0:     # 融资微增→温和看多
+                    margin_bonus = 2
+                elif rzye_chg < -3:    # 融资显著减少(<-3%)→杠杆资金撤离
+                    margin_bonus = -4
+                elif rzye_chg < 0:     # 融资微减→温和看空
+                    margin_bonus = -1
+    except Exception:
+        pass  # 无融资数据时不影响评分
+
+    # ── V6.6 综合 (共振强化+融资信号) ──
     total = (gain_score + seal_score + afternoon_score +
              turnover_score + ma_score + volume_score + sl_score + sm_score + res_score
-             + dist_score + leadership_bonus + leader_distance_bonus + resonance_bonus
+             + dist_score + leadership_bonus + leader_distance_bonus
+             + resonance_bonus + margin_bonus
              - independent_penalty - climax_penalty - overheat_penalty
              - limit_resistance_penalty - sector_blacklist_penalty)
     grade = "S" if total >= 80 else ("A" if total >= 65 else ("B" if total >= 50 else "C"))
