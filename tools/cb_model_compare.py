@@ -47,8 +47,9 @@ def collect_data(days_back: int, top_n: int) -> tuple:
 
     X_list, y_list, meta = [], [], []
     for ti, td in enumerate(trade_dates):
+        # V6: use_ml=False to get raw linear picks (ML re-rank happens in this script)
         engine = CbIntradayEngine(pg_url=PG_URL)
-        picks = engine.run(trade_date=td, top_n=top_n)
+        picks = engine.run(trade_date=td, top_n=top_n, use_ml=False)
         engine.close()
         if not picks:
             continue

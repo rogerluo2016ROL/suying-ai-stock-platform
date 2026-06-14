@@ -584,14 +584,14 @@ class CbFloorEngine:
             return 30.0
 
         cutoff = date.today()
-        for chg_date, pre_price, new_price, reason in changes:
+        for _, chg_date, pre_price, new_price, reason in changes:
             if isinstance(chg_date, str):
                 chg_date = datetime.strptime(chg_date, "%Y-%m-%d").date()
             if (cutoff - chg_date).days <= days and new_price and pre_price:
                 if new_price < pre_price:
                     return 100.0
 
-        for _, pre_price, new_price, reason in changes:
+        for _, _, pre_price, new_price, reason in changes:
             if new_price and pre_price and new_price < pre_price:
                 return 60.0
 
@@ -604,7 +604,7 @@ class CbFloorEngine:
             return 20.0
 
         downward_count = 0
-        for _, pre_price, new_price, reason in changes:
+        for _, _, pre_price, new_price, reason in changes:
             if new_price and pre_price and new_price < pre_price:
                 downward_count += 1
                 reason_str = str(reason or "").lower()
