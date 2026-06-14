@@ -26,7 +26,7 @@ _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from kronos_factors.scorer._db_stub import _get_db
 
 # ── Intraday scoring weights (9因子 V6.3 优化) ──
-# 尾盘V2.0: V7.0筛选全保留 + V8.0现价入场+3%止损 — 最小改动最大收益
+# 尾盘V3.0: +O1恢复P9 +O2共振±5 +O3评级降门槛
 INTRA_WEIGHTS = {
     "gain_quality": 18,              # 14:00涨幅质量 (≥7%)
     "afternoon_strength": 12,        # 午后强势度 D:10→12
@@ -407,7 +407,9 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     gain_14 = (close_14 / pre_close - 1) * 100
     if gain_14 < 8.0 or gain_14 > 12.0:
         return None
-    # 尾盘V1.0: 保留9-9.5%排除
+    # 尾盘V3 O1: 恢复9-9.5%淘汰(52笔/40%胜率/-0.11%)
+    if 9.0 <= gain_14 < 9.5:
+        return None
     if code.startswith(('92', '83', '87', '4')):
         return None
     if 'ST' in name.upper():
@@ -705,12 +707,12 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     if sl_score >= 24 and dist_to_limit >= 5:
         leader_distance_bonus = 8  # 🔥 满分龙头+足够空间=高确定性盈利
 
-    # ── V6.4 O2: 共振信号强化 ──
+    # ── 尾盘V3 O2: 共振信号强化(±5, 共振=8→50%胜率+1.33%最强信号) ──
     resonance_bonus = 0
     if res_score >= 8:
-        resonance_bonus = 3
+        resonance_bonus = 5
     elif res_score <= 5:
-        resonance_bonus = -3
+        resonance_bonus = -5
 
     # 将成龙: 午后稳步走强 + 量能放大 + 涨幅8-10%(非涨停板)
     if 0 < afternoon_str <= 2.5 and vol_surge >= 2.0 and 8 <= gain_14 < 10.5:
@@ -761,7 +763,7 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     simple_score = (-gain_14 * 0.5 + dist_to_limit * 0.3 + res_score * 2) * 5 + 50
     # 50% 复杂模型 + 50% 简化模型 → 取长补短
     total = int(total_complex * 0.5 + simple_score * 0.5)
-    grade = "S" if total >= 80 else ("A" if total >= 65 else ("B" if total >= 50 else "C"))
+    grade = "S" if total >= 65 else ("A" if total >= 50 else ("B" if total >= 35 else "C"))  # 尾盘V3: 降门槛修复倒挂
 
     return {
         "code": code, "name": name, "industry": industry,
@@ -1050,7 +1052,7 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
             # V6.5 O3: 市场广度溢价(归一化后注入, 不被吞掉)
             s["total_score"] += market_breadth_bonus
             ns = s["total_score"]
-            s["grade"] = "S" if ns >= 75 else ("A" if ns >= 60 else ("B" if ns >= 45 else "C"))
+            s["grade"] = "S" if ns >= 60 else ("A" if ns >= 45 else ("B" if ns >= 30 else "C"))  # 尾盘V3: 同步降门槛
 
     return scores[:effective_n], scores
 
