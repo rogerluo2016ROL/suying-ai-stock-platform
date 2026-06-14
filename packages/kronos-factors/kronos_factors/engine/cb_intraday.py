@@ -304,6 +304,11 @@ class CbIntradayEngine:
 
                 # ── Factor 4: Liquidity (20%) ──
                 avg_amount_5d = cb_avg_amount_map.get(ts_code)
+
+                # Opt: Absolute liquidity floor — <10万成交额不入
+                if cb_amount is not None and cb_amount < 10e4:
+                    continue
+
                 liquidity_score = self._liquidity_score(cb_amount, avg_amount_5d)
 
                 # ── Opt 1: Revision bonus ──
@@ -403,9 +408,21 @@ class CbIntradayEngine:
                     p["ml_score"] = float(np.mean([m.predict(X)[0]
                         for m in self._ensemble_models.values()]))
 
-                # ML re-rank + threshold
-                # V6: ML≥2.0 (ML[1-2) only -0.08%, ML[2+) starts at +1.06%)
-                picks = [p for p in picks if p.get("ml_score", 0) >= 2.0]
+                # ── Dynamic ML threshold based on market environment ──
+                ml_threshold = 2.0  # default
+                try:
+                    cur2 = self.db.cursor()
+                    cur2.execute("SELECT change_pct FROM index_daily WHERE code='000001' AND trade_date=%s", (auction_date,))
+                    row = cur2.fetchone()
+                    cur2.close()
+                    if row and row[0] is not None:
+                        mkt = float(row[0])
+                        if mkt < -1.0: ml_threshold = 3.0       # 熊市: 更严格
+                        elif mkt > 0.5: ml_threshold = 1.5      # 牛市: 放宽
+                except Exception:
+                    pass  # no index data: use default
+
+                picks = [p for p in picks if p.get("ml_score", 0) >= ml_threshold]
                 picks.sort(key=lambda x: x.get("ml_score", 0), reverse=True)
             except Exception as e:
                 logger.warning("ML re-rank failed, using linear: %s", e)
