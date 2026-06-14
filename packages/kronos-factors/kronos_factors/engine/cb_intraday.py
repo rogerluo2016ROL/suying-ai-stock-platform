@@ -1,16 +1,9 @@
-"""匪爷可转债日内竞价选债模型 V6 — 1年期数据驱动优化.
+"""匪爷可转债日内竞价选债模型 V6.1 — 趋势追随+均值回归混合.
 
-V6 核心变化 (基于1084笔/244天回测):
-  1. ML阈值 1.0→2.0 (ML[1-2)仅-0.08%, ML[2+)达+1.06~5.02%)
-  2. 溢价率线性惩罚 (高溢价拖累收益, r=-0.023)
-  3. 昨涨均值回归 (昨涨>5%不入, 昨跌-1~-3%反而是机会)
-  4. 昨跌<-5%过滤 (防雷)
+V6.1: 回退动量评分到趋势追随(温和上涨最高分), 保留V6的ML≥2.0+溢价惩罚
 
-因子权重 V6:
-  1. 转债流动性 (35%) — r=+0.363, 最重要单一因子
-  2. 昨日动量 (30%) — 均值回归信号
-  3. 板块竞价强度 (20%) — 定性筛选
-  4. 溢价率越低越好 (15%) — 线性惩罚高溢价
+因子权重 V6.1:
+  1. 转债流动性 (35%) + 昨日动量 (30%) + 板块竞价 (20%) + 溢价率 (15%)
   + 下修加分 + 强赎惩罚 + ML重排(≥2.0) + 阈值过滤
 """
 
@@ -70,33 +63,33 @@ class CbIntradayEngine:
 
     @staticmethod
     def _yesterday_momentum_score(pct_chg: float) -> float:
-        """V6: 昨涨均值回归信号. r=-0.076, 昨涨越大今天越差.
+        """V6.1: 趋势追随 + 均值回归混合.
 
         Args:
             pct_chg: T-1 涨跌幅(%)
 
         Returns:
-            0-100 评分. 昨跌-1~-3%最佳(均值回归机会), 昨涨>5%不入
+            0-100. 温和上涨最佳(趋势健康), 极端涨跌不入.
         """
         if pct_chg is None:
             return 50.0
-        # V6: 昨涨>5%直接不入 (追高风险, r=-0.076)
+        # 昨涨>5%: 追高风险, 不入
         if pct_chg > 5:
-            return 0.0  # 不入池 (方向过滤会跳过)
-        # 理想区间: 昨跌-1~-3% → 均值回归机会, 最高分
-        if -3 <= pct_chg <= -1:
-            return 85 + (pct_chg + 3) * 7.5   # 85-100
-        # 微跌-1~0%: 也不错
-        if -1 < pct_chg < 0:
-            return 70 + (pct_chg + 1) * 15     # 70-85
-        # 微涨0~3%: 中性
-        if 0 <= pct_chg <= 3:
-            return 55 + pct_chg * 5            # 55-70
-        # 中涨3~5%: 谨慎
-        if 3 < pct_chg <= 5:
-            return 40 + (5 - pct_chg) * 7.5   # 55→40
+            return 0.0
+        # 理想: 1-5%温和上涨 (趋势健康, 非一日游)
+        if 1 <= pct_chg <= 5:
+            return 80 + (pct_chg - 1) * 5    # 85-100
+        # 微涨0-1%: 中性偏正
+        if 0 <= pct_chg < 1:
+            return 55 + pct_chg * 25          # 55-80
+        # 微跌-1~0%: 可接受
+        if -1 <= pct_chg < 0:
+            return 40 + (pct_chg + 1) * 15   # 40-55
+        # 中跌-3~-1%: 均值回归机会, 给中等分
+        if -3 <= pct_chg < -1:
+            return 30 + (pct_chg + 3) * 5    # 30-40
         # 大跌<-3%: 可能有雷, 低分
-        return max(10.0, 30 + (pct_chg + 3) * 3)
+        return max(10.0, 25 + (pct_chg + 3) * 2)
 
     @staticmethod
     def _liquidity_score(daily_amount: float, avg_amount_5d: float) -> float:
@@ -300,11 +293,11 @@ class CbIntradayEngine:
                 # ── Factor 3: Yesterday momentum (20%) ──
                 yesterday_pct = yesterday_map.get(stk_code)
 
-                # V6: Direction filter — skip昨涨>5%(追高风险) AND 昨跌<-5%(可能有雷)
+                # V6.1: Direction filter — 极端涨跌不入
                 if yesterday_pct is not None:
-                    if yesterday_pct > 5:   # 昨暴涨, 追高风险
+                    if yesterday_pct > 5:    # 昨暴涨追高
                         continue
-                    if yesterday_pct < -5:  # 昨暴跌, 可能有雷
+                    if yesterday_pct < -5:   # 昨暴跌有雷
                         continue
 
                 momentum_score = self._yesterday_momentum_score(yesterday_pct)
