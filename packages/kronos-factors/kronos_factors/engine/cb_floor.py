@@ -305,6 +305,11 @@ class CbFloorEngine:
 
                 stk_code_raw = _strip_code(stk_code_ts or "")
 
+                # ── Opt 3: Liquidity pre-filter (<10万成交额不入) ──
+                cb_daily_amount = amount
+                if cb_daily_amount is not None and cb_daily_amount < 10e4:  # <10万
+                    continue
+
                 # ── Check 强赎 risk ──
                 call_info = call_risk_map.get(ts_code, {})
                 call_risk = "安全"
@@ -396,18 +401,18 @@ class CbFloorEngine:
                 rating = newest_rating or issue_rating or ""
                 rating_penalty = self._rating_penalty(rating)
 
-                # ── Weighted total ──
+                # ── Weighted total V4: grid-search optimized (June 2026) ──
                 total = (
-                    premium_score * 0.25
-                    + rsi_score * 0.15
+                    premium_score * 0.30
+                    + rsi_score * 0.20
                     + ytm_score * 0.10
-                    + macd_score * 0.10
-                    + revision_score * 0.10
-                    + theme_score * 0.05
-                    + boll_score * 0.05
-                    + history_score * 0.05
-                    + size_score * 0.05
-                    + volume_score * 0.05
+                    + macd_score * 0.05
+                    + revision_score * 0.15
+                    + theme_score * 0.04
+                    + boll_score * 0.04
+                    + history_score * 0.04
+                    + size_score * 0.04
+                    + volume_score * 0.04
                     + rating_penalty
                     + call_penalty
                     + rsi_bonus
