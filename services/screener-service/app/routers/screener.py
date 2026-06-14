@@ -23,7 +23,8 @@ async def list_modes():
         "modes": [
             {"id": "leader_auction",  "name": "🔥秋神龙头竞价超预期战法 V4.3", "cycle": "1-3天",  "style": "竞价"},
             {"id": "leader_scalp",    "name": "秋神龙头战法-盘后", "cycle": "1-5天",  "style": "激进"},
-            {"id": "leader_intraday", "name": "秋神龙头战法-盘中", "cycle": "1-2天",  "style": "激进"},
+            {"id": "leader_intraday", "name": "秋神龙头战法-盘中 V7.0", "cycle": "1-2天",  "style": "激进"},
+            {"id": "leader_closing",  "name": "秋神龙头战法-尾盘顺势 V2.0", "cycle": "1-2天",  "style": "顺势"},
             {"id": "short",           "name": "匪爷短线多因子选股模型",       "cycle": "1-4周",  "style": "积极"},
             {"id": "long",            "name": "长线价值",         "cycle": "3-12月", "style": "稳健"},
             {"id": "all",             "name": "综合多因子",       "cycle": "1-6月",  "style": "中性"},
@@ -55,7 +56,7 @@ async def run_screening(
     loop = asyncio.get_running_loop()
 
     try:
-        if mode in ("leader_scalp", "leader_intraday", "leader_auction"):
+        if mode in ("leader_scalp", "leader_intraday", "leader_auction", "leader_closing"):
             result = await loop.run_in_executor(
                 _executor, _run_leader_mode, mode, top_n, trade_date
             )
@@ -108,6 +109,11 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
         plans = generate_execution_plan(picks_data) if picks_data else []
     elif mode == "leader_intraday":
         result = run_intraday_screening(td or "latest", top_n=top_n)
+        picks_data = result[0] if isinstance(result, tuple) else result
+        plans = generate_intraday_plan(picks_data) if picks_data else []
+    elif mode == "leader_closing":
+        from kronos_factors.engine.leader_closing import run_intraday_screening as run_closing
+        result = run_closing(td or "latest", time_slot="14:40", top_n=top_n)
         picks_data = result[0] if isinstance(result, tuple) else result
         plans = generate_intraday_plan(picks_data) if picks_data else []
     else:

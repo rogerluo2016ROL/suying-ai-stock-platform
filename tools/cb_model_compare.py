@@ -33,9 +33,15 @@ FEATURE_COLS = [
     "rev_bonus", "call_penalty",
     "premium_rate_raw", "yesterday_pct_raw", "amount_wan_raw",
     "remain_size_yi", "stock_atr_pct",
+    # Interaction features
+    "liq_x_mom",      # liquidity × momentum
+    "prem_x_sector",  # premium × sector
+    "liq_x_atr",      # liquidity × volatility
+    "mom_x_yest",     # momentum score × raw yesterday pct
 ]
 FEATURE_NAMES = ["板块", "溢价率", "动量", "流动性", "下修加分", "强赎惩罚",
-                 "溢价率%", "昨涨跌幅%", "成交额(万)", "剩余规模", "ATR%"]
+                 "溢价率%", "昨涨跌幅%", "成交额(万)", "剩余规模", "ATR%",
+                 "流动×动量", "溢价×板块", "流动×波动", "动量×昨涨"]
 
 
 def collect_data(days_back: int, top_n: int) -> tuple:
@@ -97,12 +103,20 @@ def collect_data(days_back: int, top_n: int) -> tuple:
                 cb_exit = float(row[0]) if row and row[0] else cb_open
 
             d = p.get("details", {})
+            liq = d.get("liquidity_score", 50)
+            mom = d.get("momentum_score", 50)
+            sec = d.get("sector_score", 50)
+            prem = d.get("premium_score", 50)
+            ypct = p.get("yesterday_pct") or 0
             features = [
-                d.get("sector_score", 50), d.get("premium_score", 50),
-                d.get("momentum_score", 50), d.get("liquidity_score", 50),
+                sec, prem, mom, liq,
                 d.get("rev_bonus", 0), d.get("call_penalty", 0),
-                p.get("premium_rate") or 0, p.get("yesterday_pct") or 0,
+                p.get("premium_rate") or 0, ypct,
                 p.get("cb_amount_wan") or 0, 0, atr_pct or 0,
+                liq * mom / 100,          # liquidity × momentum interaction
+                prem * sec / 100,         # premium × sector interaction
+                liq * (atr_pct or 0) / 100,  # liquidity × volatility
+                mom * ypct / 100,         # momentum × yesterday pct
             ]
             X_list.append(features)
             y_list.append((cb_exit - cb_open) / cb_open * 100)
