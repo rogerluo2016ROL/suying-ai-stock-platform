@@ -26,7 +26,7 @@ _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from kronos_factors.scorer._db_stub import _get_db
 
 # ── Intraday scoring weights (9因子 V6.3 优化) ──
-# V6.5: O3市场广度反转(弱市加仓+1.12%>强市+0.09%) +O1共振择时 +O2共振强化
+# V6.7: R1板块联动加分+R2独立区分+R3节奏因子(将成龙/强分/惯性套利)
 INTRA_WEIGHTS = {
     "gain_quality": 18,              # 14:00涨幅质量 (≥7%)
     "afternoon_strength": 12,        # 午后强势度 D:10→12
@@ -588,9 +588,16 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif peer_n == 1: sl_score = 6      # V5.5: 3→6, 独苗仍给基础分
     else: sl_score = 0
 
-    # ── V6.3 P21: 科创板龙头分折扣 — peer_n计算虚高, 满分龙头名不副实 ──
+    # ── V6.3 P21: 科创板龙头分折扣 ──
     if code.startswith('688') and sl_score >= 18:
-        sl_score = int(sl_score * 0.5)  # 科创板龙头降权50%
+        sl_score = int(sl_score * 0.5)
+
+    # ── V6.7 R1: 板块联动加分 — 同概念多股共振=行情确认(秋神方法论) ──
+    sector_resonance_bonus = 0
+    if peer_n >= 5:
+        sector_resonance_bonus = 5   # 强板块联动: 行情级别确认
+    elif peer_n >= 3:
+        sector_resonance_bonus = 3   # 中等联动: 有跟风效应
 
     # ── V5.4: 板块内涨幅排名 (总龙加分, 跟风减分) — 预计算加速 ──
     if peer_n >= 2 and industry_stats and industry in industry_stats:
@@ -620,16 +627,13 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     else:
         leadership_bonus = 0
 
-    # ── V5.8 P4: 零板块支撑重罚 — 回测Top10亏损全部peer_n=0, 扣20分近乎淘汰 ──
+    # ── V6.7 R2: 零板块支撑保留但降低惩罚(V6.6回退) ──
     if peer_n == 0:
-        independent_penalty = 20  # 🔴 零板块支撑: 重罚但保留(弱市亦有独龙)
+        independent_penalty = 10  # 零板块支撑: 中等惩罚(非淘汰)
     elif peer_n == 1:
-        independent_penalty = 4   # 🟡 独苗: 轻罚
+        independent_penalty = 3   # 独苗: 轻罚
     else:
         independent_penalty = 0
-
-    # V6.0 reverted: P12 零龙头+强午后淘汰过于激进(667笔→筛选过多)
-    # 保留原有 P4 零龙头扣20分机制
 
     # ── V5.1 P0: 板块高潮次日检测 (index_basic→index_daily) ──
     climax_penalty = get_sector_climax_penalty(db, industry, trade_date)
@@ -703,12 +707,22 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     if sl_score >= 24 and dist_to_limit >= 5:
         leader_distance_bonus = 8  # 🔥 满分龙头+足够空间=高确定性盈利
 
-    # ── V6.4 O2: 共振信号强化 — res=8加分, res≤5扣分 ──
+    # ── V6.4 O2: 共振信号强化 ──
     resonance_bonus = 0
     if res_score >= 8:
         resonance_bonus = 3
     elif res_score <= 5:
         resonance_bonus = -3
+
+    # 将成龙: 午后稳步走强 + 量能放大 + 涨幅8-10%(非涨停板)
+    if 0 < afternoon_str <= 2.5 and vol_surge >= 2.0 and 8 <= gain_14 < 10.5:
+        rhythm_bonus = 4; rhythm_label = "将成龙"
+    # 惯性套利: 已高位 + 板块过热(sp>2) + 涨幅>10.5%
+    elif gain_14 > 10.5 and sp > 2:
+        rhythm_bonus = -3; rhythm_label = "惯性套利"
+    # 强分: 默认, 不强不弱=中等
+    else:
+        rhythm_bonus = 0; rhythm_label = "强分"
 
     # ── V6.6 O4: 融资融券信号 — 前日融资变化反映杠杆资金方向 ──
     margin_bonus = 0
@@ -735,11 +749,12 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     except Exception:
         pass  # 无融资数据时不影响评分
 
-    # ── V6.6 综合 (共振强化+融资信号) ──
+    # ── V6.7 综合 (R1板块联动+共振+融资) ──
     total = (gain_score + seal_score + afternoon_score +
              turnover_score + ma_score + volume_score + sl_score + sm_score + res_score
              + dist_score + leadership_bonus + leader_distance_bonus
              + resonance_bonus + margin_bonus
+             + sector_resonance_bonus
              - independent_penalty - climax_penalty - overheat_penalty
              - limit_resistance_penalty - sector_blacklist_penalty)
     grade = "S" if total >= 80 else ("A" if total >= 65 else ("B" if total >= 50 else "C"))
