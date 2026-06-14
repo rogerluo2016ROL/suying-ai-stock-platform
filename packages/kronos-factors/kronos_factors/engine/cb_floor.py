@@ -227,6 +227,35 @@ class CbFloorEngine:
         except Exception:
             pass
 
+        # ── Round 2: Auction sector strength (same as cb_intraday) ──
+        sector_score_map = {}
+        try:
+            cur.execute("""
+                SELECT s.industry,
+                       AVG((ao.open - ao.close) / NULLIF(ao.close, 0) * 100) AS avg_gap,
+                       COUNT(*) AS stock_count
+                FROM stk_auction_o ao
+                JOIN stocks s ON ao.code = s.code
+                WHERE ao.trade_date = %s
+                  AND ao.open > 0 AND ao.close > 0
+                  AND s.industry IS NOT NULL AND s.industry != ''
+                  AND s.name NOT LIKE '%%ST%%'
+                GROUP BY s.industry
+                HAVING COUNT(*) >= 3
+                   AND AVG((ao.open - ao.close) / NULLIF(ao.close, 0) * 100) > 0
+                ORDER BY avg_gap DESC
+            """, (trade_date,))
+            for industry, gap, count in cur.fetchall():
+                gap_val = float(gap)
+                if gap_val >= 4: s = 100.0
+                elif gap_val >= 2: s = 85 + (gap_val - 2) * 7.5
+                elif gap_val >= 1: s = 70 + (gap_val - 1) * 15
+                elif gap_val >= 0.5: s = 55 + (gap_val - 0.5) * 30
+                else: s = 40 + gap_val * 30
+                sector_score_map[industry] = min(100, s + min(10, (count - 3) * 1.5))
+        except Exception:
+            pass
+
         # ── Pre-fetch: cb_call (强赎) risk ──
         call_risk_map = {}  # {ts_code: {is_call, call_date, call_price, call_reg_date}}
         try:
@@ -401,18 +430,24 @@ class CbFloorEngine:
                 rating = newest_rating or issue_rating or ""
                 rating_penalty = self._rating_penalty(rating)
 
-                # ── Weighted total V4: grid-search optimized (June 2026) ──
+                # ── Round 2: Auction sector bonus (direction anchor) ──
+                sector_bonus = 0.0
+                if industry and industry in sector_score_map:
+                    sector_bonus = sector_score_map[industry] * 0.05  # 5% weight
+
+                # ── Weighted total V4 ──
                 total = (
-                    premium_score * 0.30
-                    + rsi_score * 0.20
+                    premium_score * 0.28
+                    + rsi_score * 0.18
                     + ytm_score * 0.10
                     + macd_score * 0.05
-                    + revision_score * 0.15
+                    + revision_score * 0.14
                     + theme_score * 0.04
                     + boll_score * 0.04
                     + history_score * 0.04
                     + size_score * 0.04
                     + volume_score * 0.04
+                    + sector_bonus
                     + rating_penalty
                     + call_penalty
                     + rsi_bonus
@@ -462,6 +497,7 @@ class CbFloorEngine:
                         "rating_penalty": round(rating_penalty, 1),
                         "rsi_bonus": round(rsi_bonus, 1),
                         "macd_bonus": round(macd_bonus, 1),
+                        "sector_bonus": round(sector_bonus, 1),
                     },
                 })
 
