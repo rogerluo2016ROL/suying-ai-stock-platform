@@ -21,7 +21,7 @@ async def list_modes():
     """List available screening modes with descriptions."""
     return {
         "modes": [
-            {"id": "leader_auction",  "name": "🔥秋神竞价超预期战法 V4.3", "cycle": "1-3天",  "style": "竞价"},
+            {"id": "leader_auction",  "name": "🔥秋神龙头竞价超预期战法 V4.3", "cycle": "1-3天",  "style": "竞价"},
             {"id": "leader_scalp",    "name": "秋神龙头战法-盘后", "cycle": "1-5天",  "style": "激进"},
             {"id": "leader_intraday", "name": "秋神龙头战法-盘中", "cycle": "1-2天",  "style": "激进"},
             {"id": "short",           "name": "匪爷短线多因子选股模型",       "cycle": "1-4周",  "style": "积极"},

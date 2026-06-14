@@ -210,7 +210,7 @@ async def sync_status():
 
 @router.get("/auction")
 async def auction_picks(date_param: str = Query(None, alias="date")):
-    """秋神竞价超预期战法 V4.3 — 四维评分 + 一字板封单检测."""
+    """秋神龙头竞价超预期战法 V4.3 — 四维评分 + 一字板封单检测."""
     target = date_param or date.today().strftime("%Y-%m-%d")
     try:
         from kronos_factors.engine.leader_auction import AuctionScalpEngine
