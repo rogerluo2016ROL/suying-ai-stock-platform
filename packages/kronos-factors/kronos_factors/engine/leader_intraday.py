@@ -749,14 +749,20 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     except Exception:
         pass  # 无融资数据时不影响评分
 
-    # ── V6.7 综合 (R1板块联动+共振+融资) ──
-    total = (gain_score + seal_score + afternoon_score +
+    # ── V6.7 综合 (9因子) ──
+    total_complex = (gain_score + seal_score + afternoon_score +
              turnover_score + ma_score + volume_score + sl_score + sm_score + res_score
              + dist_score + leadership_bonus + leader_distance_bonus
              + resonance_bonus + margin_bonus
              + sector_resonance_bonus
              - independent_penalty - climax_penalty - overheat_penalty
              - limit_resistance_penalty - sector_blacklist_penalty)
+
+    # ── V7.0 S1: 简化三因子评分 — 数据驱动(AUC验证), 去噪声 ──
+    # gain(AUC=0.49逆): 涨幅越低越好 | dist(AUC=0.51): 距涨停越远越好 | res(AUC=0.52): 共振越高越好
+    simple_score = (-gain_14 * 0.5 + dist_to_limit * 0.3 + res_score * 2) * 5 + 50
+    # 50% 复杂模型 + 50% 简化模型 → 取长补短
+    total = int(total_complex * 0.5 + simple_score * 0.5)
     grade = "S" if total >= 80 else ("A" if total >= 65 else ("B" if total >= 50 else "C"))
 
     return {
