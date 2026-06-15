@@ -140,14 +140,18 @@ class CbIntradayEngine:
 
     @staticmethod
     def _revision_bonus(revision_pct: float, days_since: int) -> float:
-        """下修催化剂加分. 中幅下修(5-10%)性价比最高."""
+        """下修催化剂加分. 微小调整(<2%)和未来日期不计分."""
         if revision_pct is None or revision_pct >= 0:
             return 0.0
+        if days_since < 0:  # 未来日期, 数据异常, 不计
+            return 0.0
         magnitude = abs(revision_pct)
+        if magnitude < 2.0:  # 微小调整(配股/分红导致), 不计
+            return 0.0
         if 5 <= magnitude <= 10:
             return 4.0 if days_since <= 10 else (3.0 if days_since <= 30 else 1.0)
-        elif magnitude < 5:
-            return 1.0 if days_since <= 30 else 0.0
+        elif 2 <= magnitude < 5:
+            return 2.0 if days_since <= 30 else 0.0
         else:
             return 2.0 if days_since <= 30 else 0.0
 
