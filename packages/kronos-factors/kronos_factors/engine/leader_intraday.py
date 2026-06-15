@@ -1026,7 +1026,7 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
             print(f"  ⚠️ 弱市预警: 仅{len(scores)}只通过初筛, 建议谨慎/减仓")
 
         # ── V6.3 P20: 初筛20-40熔断 ──
-        if len(scores) < 15:
+        if len(scores) < 5:
             print(f"  🛑 弱市空仓: {len(scores)}只(20-40区间), 次日全面回调, 空仓")
             return [], []
 
