@@ -1004,13 +1004,10 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
         if len(scores) < 30:
             print(f"  ⚠️ 弱市预警: 仅{len(scores)}只通过初筛, 建议谨慎/减仓")
 
-                # ── V6.3 P20: 时点感知熔断 (14:40=20-40, 其余按完成率缩放)
-        completion = TIME_COMPLETION.get(time_slot, 0.65)
-        frenzy_lo = max(5, int(20 * 0.85 / completion)) if completion > 0 else 20
-        frenzy_hi = max(10, int(40 * 0.85 / completion)) if completion > 0 else 40
-        if frenzy_lo <= len(scores) < frenzy_hi:
-            print(f"  假活跃熔断: {len(scores)}只({frenzy_lo}-{frenzy_hi}区间, 时点{time_slot}), 空仓")
-            return [], [], []
+                # ── V6.3 P20: 初筛20-40熔断 — 仅对14:40生效(回测校准)
+        if time_slot == '14:40' and 20 <= len(scores) < 40:
+            print(f"  假活跃熔断: {len(scores)}只(20-40区间), 次日全面回调, 空仓")
+            return [], []
 
         # ── V6.5 O3: 市场广度信号 — 弱市稀缺溢价, 注入个股评分 ──
         # 涨跌比越低 → 能逆市走强的个股质量越高 → 次日溢价越大
