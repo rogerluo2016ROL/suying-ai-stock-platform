@@ -422,7 +422,7 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     else: limit_pct = 1.10
     limit_price = pre_close * limit_pct
     dist_to_limit = (limit_price / close_14 - 1) * 100  # 正数=还有空间, 0=已到涨停
-    if dist_to_limit < 2.0:  # 距涨停不足2%, 随时封板或已近封板
+    if dist_to_limit < 0.5:  # 距涨停不足2%, 随时封板或已近封板
         return None  # 🔴 封板风险过高, 不可交易
 
     # ── V6.2 P17: 创业板(300/301)淘汰 — 封板率极高(81%), 真实可买仅19% ──
