@@ -184,6 +184,14 @@ class CbIntradayEngine:
         else:
             auction_date = trade_date
             daily_date = trade_date
+            # Fallback: if no cb_daily data for this date, use latest available
+            cur.execute("SELECT COUNT(*) FROM cb_daily WHERE trade_date = %s", (trade_date,))
+            if cur.fetchone()[0] == 0:
+                cur.execute("SELECT MAX(trade_date) FROM cb_daily")
+                row = cur.fetchone()
+                if row and row[0]:
+                    daily_date = str(row[0])
+                    logger.info("CbIntradayEngine: no cb_daily for %s, using %s", trade_date, daily_date)
 
         logger.info("CbIntradayEngine V3: auction=%s, daily=%s, top_n=%d",
                     auction_date, daily_date, top_n)
