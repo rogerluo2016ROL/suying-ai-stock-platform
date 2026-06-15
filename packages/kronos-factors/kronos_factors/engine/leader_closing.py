@@ -235,12 +235,8 @@ def get_intraday_limit_status(db, trade_date):
 
 
 def get_pre_close_map(db, trade_date):
-    """Get pre_close from daily_kline (stk_limit.pre_close is often NULL).
-
-    Uses the close price from the most recent trading day before trade_date.
-    """
+    """Get adjusted pre_close. Priority: stk_limit(复权价) > daily_kline.close."""
     result = {}
-    # Subquery: for each stock, get the previous trading day's close
     rows = db.execute(
         "SELECT a.code, a.close FROM daily_kline a "
         "JOIN (SELECT code, MAX(trade_date) as prev_date FROM daily_kline "
@@ -249,7 +245,20 @@ def get_pre_close_map(db, trade_date):
         "WHERE a.close > 0",
         (trade_date,)
     ).fetchall()
-    return {r["code"]: r["close"] for r in rows}
+    result = {r["code"]: r["close"] for r in rows}
+    try:
+        limit_rows = db.execute(
+            "SELECT code, up_limit FROM stk_limit WHERE trade_date=? AND up_limit>0",
+            (trade_date,)
+        ).fetchall()
+        for r in limit_rows:
+            code = r["code"]; up = float(r["up_limit"])
+            if code.startswith('688'): pc = up / 1.20
+            elif code.startswith(('300','301')): pc = up / 1.20
+            else: pc = up / 1.10
+            if pc > 0: result[code] = pc
+    except Exception: pass
+    return result
 
 
 def compute_ma(closes, period):
