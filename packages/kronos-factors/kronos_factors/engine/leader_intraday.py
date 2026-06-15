@@ -235,13 +235,12 @@ def get_intraday_limit_status(db, trade_date):
 
 
 def get_pre_close_map(db, trade_date):
-    """Get adjusted pre_close. Priority: stk_limit(复权价) > daily_kline.close.
+    """Get pre_close from daily_kline (stk_limit.pre_close is often NULL).
 
-    Uses stk_limit.up_limit to compute adjusted pre_close for ex-dividend stocks.
-    Falls back to daily_kline.close for stocks without stk_limit data.
+    Uses the close price from the most recent trading day before trade_date.
     """
     result = {}
-    # 1. Primary: daily_kline close from previous trading day
+    # Subquery: for each stock, get the previous trading day's close
     rows = db.execute(
         "SELECT a.code, a.close FROM daily_kline a "
         "JOIN (SELECT code, MAX(trade_date) as prev_date FROM daily_kline "
@@ -250,26 +249,7 @@ def get_pre_close_map(db, trade_date):
         "WHERE a.close > 0",
         (trade_date,)
     ).fetchall()
-    result = {r["code"]: r["close"] for r in rows}
-
-    # 2. Override with stk_limit adjusted pre_close (up_limit/limit_pct)
-    try:
-        limit_rows = db.execute(
-            "SELECT code, up_limit, down_limit FROM stk_limit WHERE trade_date=? AND up_limit>0",
-            (trade_date,)
-        ).fetchall()
-        for r in limit_rows:
-            code = r["code"]; up = float(r["up_limit"])
-            # 科创板 20%, 主板 10%
-            if code.startswith('688'): pc = up / 1.20
-            elif code.startswith(('300','301')): pc = up / 1.20
-            else: pc = up / 1.10
-            if pc > 0:
-                result[code] = pc  # Override with adjusted pre_close
-    except Exception:
-        pass  # stk_limit may not exist
-
-    return result
+    return {r["code"]: r["close"] for r in rows}
 
 
 def compute_ma(closes, period):
@@ -1004,9 +984,9 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
         if len(scores) < 30:
             print(f"  ⚠️ 弱市预警: 仅{len(scores)}只通过初筛, 建议谨慎/减仓")
 
-                # ── V6.3 P20: 初筛20-40熔断 — 仅对14:40生效(回测校准)
-        if time_slot == '14:40' and 20 <= len(scores) < 40:
-            print(f"  假活跃熔断: {len(scores)}只(20-40区间), 次日全面回调, 空仓")
+        # ── V6.3 P20: 初筛20-40熔断 ──
+        if 20 <= len(scores) < 40:
+            print(f"  🛑 假活跃熔断: {len(scores)}只(20-40区间), 次日全面回调, 空仓")
             return [], []
 
         # ── V6.5 O3: 市场广度信号 — 弱市稀缺溢价, 注入个股评分 ──
