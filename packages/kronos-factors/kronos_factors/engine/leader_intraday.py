@@ -235,8 +235,12 @@ def get_intraday_limit_status(db, trade_date):
 
 
 def get_pre_close_map(db, trade_date):
-    """Get adjusted pre_close. Priority: stk_limit(复权价) > daily_kline.close."""
+    """Get pre_close from daily_kline (stk_limit.pre_close is often NULL).
+
+    Uses the close price from the most recent trading day before trade_date.
+    """
     result = {}
+    # Subquery: for each stock, get the previous trading day's close
     rows = db.execute(
         "SELECT a.code, a.close FROM daily_kline a "
         "JOIN (SELECT code, MAX(trade_date) as prev_date FROM daily_kline "
@@ -245,21 +249,7 @@ def get_pre_close_map(db, trade_date):
         "WHERE a.close > 0",
         (trade_date,)
     ).fetchall()
-    result = {r["code"]: r["close"] for r in rows}
-    # Override with stk_limit adjusted pre_close (up_limit/limit_pct) for ex-dividend stocks
-    try:
-        limit_rows = db.execute(
-            "SELECT code, up_limit FROM stk_limit WHERE trade_date=? AND up_limit>0",
-            (trade_date,)
-        ).fetchall()
-        for r in limit_rows:
-            code = r["code"]; up = float(r["up_limit"])
-            if code.startswith('688'): pc = up / 1.20
-            elif code.startswith(('300','301')): pc = up / 1.20
-            else: pc = up / 1.10
-            if pc > 0: result[code] = pc
-    except Exception: pass
-    return result
+    return {r["code"]: r["close"] for r in rows}
 
 
 def compute_ma(closes, period):
@@ -277,10 +267,9 @@ def get_kline_data(db, code, trade_date, lookback=60):
 
 
 def get_sector_index(db, industry, trade_date, code=None):
-    """获取板块指数涨跌幅 (V6.8: THS概念优先 → index_basic fallback).
+    """获取板块指数涨跌幅 (V5.3: THS概念优先 → index_basic fallback).
 
-    V6.8: 修复 ths_daily.code 格式不一致 (700001 vs 700001.TI),
-    新增 ths_index 概念名称关联, 今日无数据时回退到最近交易日.
+    V5.3: 通过 ths_member + ths_daily 获取股票所属概念的实时涨跌幅.
     注: 绕过 PG adapter 的 ts_code→code 误翻译, 直接用 psycopg2 查询.
     """
     # 1. THS概念路径 (psycopg2 raw query — 避免 adapter 把 m.ts_code 错译成 m.code)
@@ -289,27 +278,14 @@ def get_sector_index(db, industry, trade_date, code=None):
         try:
             raw_conn = db._get_conn()
             cur = raw_conn.cursor()
-            # V6.8: (1) 修复 code 格式: d.code 可能是 '700001' 或 '700001.TI'
-            #       (2) 今日无数据时回退到最近交易日
-            #       (3) JOIN ths_index 取概念名称
             cur.execute(
                 "SELECT d.change_pct FROM ths_daily d "
-                "JOIN ths_member m ON (m.ts_code = d.code OR m.ts_code = d.code || '.TI') "
+                "JOIN ths_member m ON m.ts_code = d.code "
                 "WHERE m.con_code LIKE %s AND d.trade_date = %s "
                 "ORDER BY ABS(d.change_pct) DESC LIMIT 1",
                 (f"{code}%", trade_date)
             )
             r = cur.fetchone()
-            # Fallback: 今日无数据 → 取最近交易日
-            if not r:
-                cur.execute(
-                    "SELECT d.change_pct FROM ths_daily d "
-                    "JOIN ths_member m ON (m.ts_code = d.code OR m.ts_code = d.code || '.TI') "
-                    "WHERE m.con_code LIKE %s "
-                    "ORDER BY d.trade_date DESC, ABS(d.change_pct) DESC LIMIT 1",
-                    (f"{code}%",)
-                )
-                r = cur.fetchone()
             if r and r[0] is not None:
                 return float(r[0])
         except Exception:
@@ -330,15 +306,6 @@ def get_sector_index(db, industry, trade_date, code=None):
         "ORDER BY d.pct_chg DESC LIMIT 1",
         (f"%{keyword}%", trade_date)
     ).fetchone()
-    # Fallback: 今日无数据 → 最近交易日
-    if (not row or row["pct_chg"] is None):
-        row = db.execute(
-            "SELECT d.pct_chg FROM index_daily d "
-            "JOIN index_basic b ON d.code=b.code "
-            "WHERE b.name LIKE ? "
-            "ORDER BY d.trade_date DESC, d.pct_chg DESC LIMIT 1",
-            (f"%{keyword}%",)
-        ).fetchone()
     if row and row["pct_chg"] is not None:
         return float(row["pct_chg"])
 
@@ -448,25 +415,19 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     if 'ST' in name.upper():
         return None
 
-    # ── V6.3 P16: 距涨停分板差异化 ──
+    # ── V6.2 P16: 距涨停<2%淘汰 — 封板率80%, 真实交易-0.33%均值 ──
+    # 计算涨停价 (A股10%, 科创板20%, 北交所30%)
     if code.startswith(('8','9','4')): limit_pct = 1.30
-    elif code.startswith(('688','300','301')): limit_pct = 1.20
+    elif code.startswith('688'): limit_pct = 1.20
     else: limit_pct = 1.10
     limit_price = pre_close * limit_pct
-    dist_to_limit = (limit_price / close_14 - 1) * 100
-    is_main_board = not code.startswith(('688','300','301','8','9','4'))
+    dist_to_limit = (limit_price / close_14 - 1) * 100  # 正数=还有空间, 0=已到涨停
+    if dist_to_limit < 2.0:  # 距涨停不足2%, 随时封板或已近封板
+        return None  # 🔴 封板风险过高, 不可交易
 
-    if is_main_board:
-        if dist_to_limit < 1.0:
-            return None  # 主板距涨停<1%=几乎封板, 淘汰
-        # 主板距涨停1-2%: 不淘汰, 但需量能确认(稍后检查)
-    else:
-        if dist_to_limit < 2.0:
-            return None  # 科创/创业板距涨停<2%=淘汰
-
-    # ── V6.3 P17: 创业板(300/301)淘汰 — 回测证实科创板策略最优 ──
+    # ── V6.2 P17: 创业板(300/301)淘汰 — 封板率极高(81%), 真实可买仅19% ──
     if code.startswith(('300','301')):
-        return None
+        return None  # 🔴 创业板封板率过高, 无法判断可买性
 
     if gain_14 >= 10.0: gain_score = 18
     elif gain_14 >= 9.5: gain_score = 16
@@ -608,10 +569,6 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif vol_ratio >= 1.0: volume_score = 1
     else: volume_score = 0
 
-    # ── V6.3 P16b: 主板距涨停1-2%需量能确认(vol>=2排除脉冲) ──
-    if is_main_board and 1.0 <= dist_to_limit < 2.0 and vol_surge < 2.0:
-        return None  # 主板近涨停但无量=脉冲, 淘汰
-
     # ── V5.4 P1: 板块龙头 (0-14) — 从预计算表取, 无预计算时 fallback 查询 ──
     if industry_stats and industry in industry_stats:
         peer_n = industry_stats[industry]["peer_count"]
@@ -631,7 +588,9 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif peer_n == 1: sl_score = 6      # V5.5: 3→6, 独苗仍给基础分
     else: sl_score = 0
 
-    # V6.3: P21已删除(科创板龙头不打折)
+    # ── V6.3 P21: 科创板龙头分折扣 ──
+    if code.startswith('688') and sl_score >= 18:
+        sl_score = int(sl_score * 0.5)
 
     # ── V6.7 R1: 板块联动加分 — 同概念多股共振=行情确认(秋神方法论) ──
     sector_resonance_bonus = 0
@@ -1022,12 +981,12 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
             print(f"  🔥 市场狂热: {len(scores)}只通过初筛 ({(frenzy_ratio-1)*100:.0f}%高于正常)")
 
         # ── V5.6 A: 弱市熔断提示 ──
-        if len(scores) < 30 and len(scores) >= 20:
+        if len(scores) < 30:
             print(f"  ⚠️ 弱市预警: 仅{len(scores)}只通过初筛, 建议谨慎/减仓")
 
         # ── V6.3 P20: 初筛20-40熔断 ──
-        if len(scores) < 5:
-            print(f"  🛑 弱市空仓: {len(scores)}只(20-40区间), 次日全面回调, 空仓")
+        if 20 <= len(scores) < 40:
+            print(f"  🛑 假活跃熔断: {len(scores)}只(20-40区间), 次日全面回调, 空仓")
             return [], []
 
         # ── V6.5 O3: 市场广度信号 — 弱市稀缺溢价, 注入个股评分 ──
