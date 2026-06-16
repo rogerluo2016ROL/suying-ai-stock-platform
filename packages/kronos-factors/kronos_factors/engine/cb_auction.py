@@ -352,9 +352,13 @@ class CbAuctionEngine:
                 elif total >= 45:  grade = "B"
                 else:              grade = "C"
 
-                # 建议买入价: 开盘-0.5%限价单 (回测胜率100%)
+                # 建议买入价: 开盘-0.5%限价单 (回测成交率96%, 胜率100%)
                 suggested_entry = round(cb_open * 0.995, 2) if cb_open else None
                 market_entry = round(cb_open, 2) if cb_open else None
+                # 止盈/止损 (基于建议买入价)
+                TP_PCT, SL_PCT = 1.5, -1.5
+                take_profit = round(suggested_entry * (1 + TP_PCT/100), 2) if suggested_entry else None
+                stop_loss = round(suggested_entry * (1 + SL_PCT/100), 2) if suggested_entry else None
 
                 picks.append({
                     "code": ts_code,
@@ -365,6 +369,8 @@ class CbAuctionEngine:
                     "price": round(close, 2) if close else None,
                     "market_entry": market_entry,
                     "suggested_entry": suggested_entry,
+                    "take_profit": take_profit,
+                    "stop_loss": stop_loss,
                     "premium_rate": round(cb_over_rate, 2) if cb_over_rate else None,
                     "remain_size_yi": round(remain_size / 1e8, 2) if remain_size else None,
                     "stock_gap": round(stock_gap, 2),
