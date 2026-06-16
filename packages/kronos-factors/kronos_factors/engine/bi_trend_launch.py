@@ -41,12 +41,22 @@ MIN_TREND_20D = 5.0          # V4.4: 近20日涨幅≥5%, 过滤横盘震荡股
 STRONG_WR_DROP = -25
 STRONG_OBV_DAYS = 10
 
-# V4.0: 市场环境 (改用5日均线)
-MARKET_BREADTH_CRASH = 18       # 单日涨跌比<18% → 系统性崩盘, 次日空仓
-POST_CRASH_SKIP_BREADTH = 20    # 前日涨跌比<20% → 次日直接空仓 (非减半!)
+# V5.0: 近三月回测优化
+MARKET_BREADTH_CRASH = 18       # 单日涨跌比<18% → 系统性崩盘
+POST_CRASH_SKIP_BREADTH = 20    # 前日涨跌比<20% → 次日空仓
 SH_INDEX_MA_DAYS = 20           # 上证20日均线判断中期趋势
 WEAK_BREADTH_5D = 35            # 5日涨跌比均线<35% → 半仓
-BEAR_BREADTH_5D = 25            # 5日涨跌比均线<25% → 空仓
+BEAR_BREADTH_5D = 30            # V5.0: 25→30 (上证<20MA AND 5日<30% → 空仓)
+MIN_HOLD_DAYS = 5               # V5.0: 最低持有5天(非止损), 消除1-2天止损
+
+# V5.0: 卖出优化
+SELL_STOP_LOSS = -10            # 硬止损 -10%
+SELL_TRAILING_STOP = -5         # 移动止盈: 从最高点回落-5%
+SELL_TRAILING_STOP_TIGHT = -3   # V5.0: 盈利>20%时收紧到-3%
+TRAILING_PROFIT_THRESHOLD = 20  # V5.0: 盈利>此值触发收紧止盈
+
+# V5.0: 弱市精选
+WEAK_MARKET_S_ONLY = True       # V5.0: 弱市(上证weak+5日<35%)仅选strong_buy+S级
 
 
 def calc_obv(closes, volumes):
@@ -488,17 +498,21 @@ def run_bi_screening(db, trade_date, top_n=20):
             print(f"  🛑 崩盘次日: 前日涨跌比{prev_breadth:.0f}%<{POST_CRASH_SKIP_BREADTH}% → 空仓")
             return [], [], {"breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1), "sh_trend": sh_trend, "env": "post_crash"}
 
-    # 3. 5日涨跌比均线 < 25% AND 上证下跌趋势 → 空仓
-    if breadth_5d < BEAR_BREADTH_5D and sh_trend == "down":
-        print(f"  🛑 熊市: 5日均涨跌比{breadth_5d:.0f}% + 上证下跌 → 空仓")
+    # V5.0: 3. 上证<20MA AND 5日涨跌比<30% → 熊市空仓
+    is_bear = sh_trend in ("down", "weak") and breadth_5d < BEAR_BREADTH_5D
+    if is_bear:
+        print(f"  🛑 熊市: 上证{sh_trend} + 5日涨跌比{breadth_5d:.0f}%<{BEAR_BREADTH_5D}% → 空仓")
         return [], [], {"breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1), "sh_trend": sh_trend, "env": "bear_market"}
 
-    # 4. 5日涨跌比均线 < 35% OR 上证偏弱 → 半仓
+    # V5.0: 4. 弱市精选: 上证weak + 5日<35% → 仅选strong_buy
+    weak_market = sh_trend in ("down", "weak") and breadth_5d < WEAK_BREADTH_5D
     effective_n = top_n
-    if breadth_5d < WEAK_BREADTH_5D or sh_trend == "weak":
+    if weak_market:
         effective_n = max(5, top_n // 2)
-        reason = f"5日均涨跌比{breadth_5d:.0f}%" if breadth_5d < WEAK_BREADTH_5D else f"上证{sh_trend}"
-        print(f"  ⚠️ 半仓: {reason}, Top-N {top_n}→{effective_n}")
+        print(f"  ⚠️ 弱市精选: 上证{sh_trend} + 5日{breadth_5d:.0f}%, 仅选🔥strong_buy, Top-N {top_n}→{effective_n}")
+    elif breadth_5d < WEAK_BREADTH_5D:
+        effective_n = max(5, top_n // 2)
+        print(f"  ⚠️ 半仓: 5日均涨跌比{breadth_5d:.0f}%, Top-N {top_n}→{effective_n}")
 
     env = "bull" if breadth_5d > 55 else ("neutral" if breadth_5d > BEAR_BREADTH_5D else "bear")
     print(f"  📊 涨跌比: {breadth:.0f}% ({env}) | 前日: {prev_date}")
@@ -553,15 +567,19 @@ def run_bi_screening(db, trade_date, top_n=20):
     # ── 排序取Top N ──
     scores.sort(key=lambda x: -x["total_score"])
 
-    # V4.0: strong_buy first, then S, then A
+    # V5.0: 弱市仅选strong_buy, 正常市strong_buy优先
     strong = [s for s in scores if s["signal"] == "strong_buy"]
     s_grade = [s for s in scores if s["signal"] != "strong_buy" and s["grade"] == "S"]
     a_grade = [s for s in scores if s["signal"] != "strong_buy" and s["grade"] == "A"]
 
-    # 板块集中度控制: 同行业最多2只
+    if weak_market:
+        candidates = strong  # 仅strong_buy
+    else:
+        candidates = strong + s_grade + a_grade
+
     top = []
     sector_counts = defaultdict(int)
-    for s in strong + s_grade + a_grade:
+    for s in candidates:
         ind = s["industry"]
         if sector_counts[ind] < 2:
             top.append(s)
@@ -855,9 +873,12 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
     # ── L2: 移动止盈 (从最高点回落) ──
     if highest_since_entry and highest_since_entry > entry_price:
         drawdown_from_high = (price / highest_since_entry - 1) * 100
-        if drawdown_from_high <= SELL_TRAILING_STOP:
+        profit_from_entry = (highest_since_entry / entry_price - 1) * 100
+        # V5.0: 盈利>20%时收紧止盈到-3%
+        stop_pct = SELL_TRAILING_STOP_TIGHT if profit_from_entry >= TRAILING_PROFIT_THRESHOLD else SELL_TRAILING_STOP
+        if drawdown_from_high <= stop_pct:
             return {"signal": "trailing_stop",
-                    "reason": f"从最高{((highest_since_entry/entry_price-1)*100):+.0f}%回落{drawdown_from_high:+.1f}%",
+                    "reason": f"从最高{profit_from_entry:+.0f}%回落{drawdown_from_high:+.1f}%",
                     "current_return_pct": round(current_return, 2)}
 
     # ── 最低持有期: 非止损情况下持有<MIN_HOLD_DAYS天, 不检查 ──
