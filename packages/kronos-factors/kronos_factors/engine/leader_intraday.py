@@ -1292,7 +1292,7 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
         # ── V5.2 P2: 市场狂热日检测 ──
         # 6/9回测: 192只通过初筛(正常日60-80), 全市场板块爆发 → 次日全面回调
         # 策略: 狂热日减少选股数量, 只留最强标的
-        MARKET_FRENZY_THRESHOLD = 120
+        MARKET_FRENZY_THRESHOLD = 120  # V8.1: 保持 (160导致赔钱日增多)
         market_frenzy = len(scores) > MARKET_FRENZY_THRESHOLD
         if market_frenzy:
             frenzy_ratio = len(scores) / 80  # 正常日基准≈80只
@@ -1347,6 +1347,25 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
                 effective_n = max(1, int(effective_n * 0.3))
                 print(f"  🛑 共振极弱(均{avg_res:.1f}≤4): effective_n →{effective_n} (-70%), 几乎空仓")
 
+        # ── V8.1: 前日强→今日弱 保护 (6/09复盘: 前日大涨次日全面回调) ──
+        if prev_date:
+            prev_breadth = db.execute(
+                "SELECT SUM(CASE WHEN a.close > b.close THEN 1 ELSE 0 END) as up, "
+                "SUM(CASE WHEN a.close < b.close THEN 1 ELSE 0 END) as down "
+                "FROM daily_kline a "
+                "JOIN daily_kline b ON a.code=b.code AND b.trade_date IN "
+                "(SELECT MAX(trade_date) FROM daily_kline WHERE trade_date < ?) "
+                "WHERE a.trade_date=?",
+                (prev_date, prev_date)
+            ).fetchone()
+            if prev_breadth and (prev_breadth["up"] or 0) + (prev_breadth["down"] or 0) > 0:
+                prev_up = prev_breadth["up"] or 0
+                prev_down = prev_breadth["down"] or 0
+                prev_br = prev_up / max(1, prev_up + prev_down) * 100
+                if prev_br > 65 and breadth < 50:
+                    effective_n = max(3, int(effective_n * 0.5))
+                    print(f"  🛑 前日强({prev_br:.0f}%)→今日弱({breadth:.0f}%): 回撤保护 effective_n→{effective_n}")
+
         # ── V5.8 P7: 周一加成+周五减仓 ──
         from datetime import datetime
         dow = datetime.strptime(trade_date, "%Y-%m-%d").weekday()
@@ -1387,11 +1406,10 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
 
 
 def generate_intraday_plan(picks):
-    """V8.0: ATR 动态止损 + 分级止盈 + 开盘动量检测.
+    """V8.1: 简化为收盘→收盘, 回测证明止损策略跑不赢裸持.
 
-    - ATR 动态止损: max(固定-4%, 1.5×ATR), 高波动股给更多空间
-    - 分级止盈: S级+8%, A级+6%, B级+4%
-    - 开盘检测: 标记次日低开风险
+    - 1日持有不需止损: 55.7% vs 44.3% (固定) vs 40.0% (ATR)
+    - 保留入场价和参考止损/止盈作为辅助信息
     """
     plans = []
     for s in picks:
@@ -1399,28 +1417,22 @@ def generate_intraday_plan(picks):
         g = s["grade"]
         atr_pct = s.get("atr_pct", 0)
 
-        # ── V8.0 入场价 ──
+        # ── 入场价 ──
         entry = round(close_14 * 1.01, 2)
 
-        # ── V8.0 ATR 动态止损 ──
-        #   固定止损 -4%, 高波动股加宽到 0.5×ATR (取两者中更宽的)
-        fixed_stop_pct = 4.0
-        atr_stop_pct = atr_pct * 0.5 if atr_pct > 0 else 0
-        effective_stop_pct = max(fixed_stop_pct, atr_stop_pct)
-        stop = round(close_14 * (1 - effective_stop_pct / 100), 2)
+        # ── 参考止损 (4% 兜底, 非强制) ──
+        stop = round(close_14 * 0.96, 2)
 
-        # ── V8.0 分级止盈 ──
+        # ── 参考止盈 ──
         if g == "S":
-            take_profit = round(entry * 1.08, 2)   # S级 +8%
+            take_profit = round(close_14 * 1.08, 2)
         elif g == "A":
-            take_profit = round(entry * 1.06, 2)   # A级 +6%
-        elif g == "B":
-            take_profit = round(entry * 1.04, 2)   # B级 +4%
+            take_profit = round(close_14 * 1.06, 2)
         else:
-            take_profit = round(entry * 1.03, 2)   # C级 +3%
+            take_profit = round(close_14 * 1.04, 2)
 
-        # ── V8.0 开盘动量检测标记 ──
-        morning_stop_price = round(entry * 0.98, 2)  # 低开2%阈值
+        # ── 开盘参考 ──
+        morning_stop_price = round(entry * 0.98, 2)
 
         # V5.9 P11: 满分龙头(24分)仓位翻倍 — 74%胜率+3.66%均值
         is_full_leader = s.get("sector_leader_score", 0) >= 24
@@ -1456,9 +1468,7 @@ def generate_intraday_plan(picks):
         if s.get("independent_penalty", 0) >= 4:
             risk_tags.append("🔹独苗")
 
-        # V8.0: ATR 高波动标记 (仅当 ATR 主动加宽止损时)
-        if atr_stop_pct > fixed_stop_pct:
-            risk_tags.append(f"📈高波动(止损-{effective_stop_pct:.1f}%)")
+        # V8.1: 简化, 仅保留高潮/独立风险
 
         plans.append({
             "code": s["code"], "name": s["name"], "grade": g,
