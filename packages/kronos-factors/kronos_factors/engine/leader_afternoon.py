@@ -406,6 +406,13 @@ def score_stock_afternoon(code, name, industry, snap, pre_close, db, trade_date,
     # ── 方案B: 实时涨停检测 (stk_mins + stk_limit 替代 limit_list_d) ──
     is_at_limit = limit_info.get(code, {}).get("is_at_limit", False) if limit_info else False
 
+    # ── V1.2: 封板不可买 — 已封板直接淘汰 ──
+    # 14:00/14:30 已封板的股票当日无法买入, 排除
+    # 核心逻辑: 选"将成龙"(还没封但即将封), 不选"已成龙"(已经封死的)
+    # 一字板也淘汰 (开盘即封死, 全天买不到)
+    if is_at_limit:
+        return None
+
     # ── 方案B: G1 — 涨幅不足无接力价值 ──
     # 14:30涨幅<7%已在上方过滤, 此处仅作记录
 
@@ -431,17 +438,20 @@ def score_stock_afternoon(code, name, industry, snap, pre_close, db, trade_date,
         gain_score += 2
     gain_score = min(18, gain_score)
 
-    # ── F2: 封板质量 (方案B降级版, 14:30已封板=强信号, 回测74%胜率) ──
-    if is_at_limit:
-        seal_score = 8  # 14:30已封板→强信号, 升权 (原版无细节给5分)
-        seal_weakness = "盘中涨停"
-        # 一字板检测: 开盘=最高=最低 → 买不到
-        if snap["open"] >= snap["high"] * 0.999 and snap["low"] >= snap["high"] * 0.999:
-            seal_score = 3
-            seal_weakness = "一字板(买不到)"
+    # ── F2: 封板潜力 (V1.2: 已封板被淘汰, 此处评分的是"距涨停有多近") ──
+    # dist_to_limit 越小 = 越接近封板 = 尾盘封板概率越高
+    if dist_to_limit <= 2.0:
+        seal_score = 8    # 即将封板, 尾盘30分钟大概率封死
+        seal_weakness = "即将封板"
+    elif dist_to_limit <= 4.0:
+        seal_score = 6    # 近涨停, 有封板潜力
+        seal_weakness = "接近涨停"
+    elif dist_to_limit <= 7.0:
+        seal_score = 4    # 有一定距离但可冲刺
+        seal_weakness = "拉升中"
     else:
-        seal_score = 3  # 未涨停但拉升中
-        seal_weakness = ""
+        seal_score = 2    # 距涨停较远, 尾盘封板概率低
+        seal_weakness = "距涨停较远"
 
     # ── 方案B: 一字板不可买过滤 ──
     if is_at_limit and snap["open"] >= snap["high"] * 0.999 and snap["low"] >= snap["high"] * 0.999:
