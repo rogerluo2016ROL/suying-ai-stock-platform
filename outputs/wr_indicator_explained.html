@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Williams %R 指标图解 — 301119 正强股份</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#1a1a2e;color:#e0e0e0;font-family:'PingFang SC','Microsoft YaHei',sans-serif}
+  .header{background:linear-gradient(135deg,#16213e,#0f3460);padding:24px 32px;border-bottom:2px solid #e94560;text-align:center}
+  .header h1{font-size:24px;margin-bottom:6px}
+  .header .sub{font-size:13px;color:#a0a0c0}
+  .container{max-width:1400px;margin:0 auto;padding:20px}
+  .chart-box{background:#16213e;border-radius:12px;margin-bottom:20px;padding:16px;border:1px solid #2a2a4a}
+  .chart-box h3{font-size:15px;margin-bottom:8px;color:#e94560;padding-left:12px;border-left:3px solid #e94560}
+  .chart{width:100%}
+  .legend-row{display:flex;gap:24px;flex-wrap:wrap;margin:16px 0}
+  .legend-card{background:#0f3460;border-radius:8px;padding:14px 18px;flex:1;min-width:180px;border-left:4px solid}
+  .legend-card.z1{border-color:#ff4444}
+  .legend-card.z2{border-color:#ffaa00}
+  .legend-card.z3{border-color:#44cc44}
+  .legend-card.z4{border-color:#4488ff}
+  .legend-card .title{font-weight:bold;font-size:13px;margin-bottom:4px}
+  .legend-card .desc{font-size:11px;color:#a0a0c0;line-height:1.5}
+  .summary{background:#16213e;border-radius:12px;padding:24px;border:1px solid #2a2a4a;line-height:1.8;font-size:14px}
+  .summary h3{color:#e94560;margin-bottom:12px;font-size:16px}
+  .summary strong{color:#ffaa00}
+  .summary .formula{background:#0a0a1e;padding:8px 16px;border-radius:6px;font-family:monospace;margin:8px 0;display:inline-block}
+  .highlight{color:#e94560;font-weight:bold}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 Williams %R (WR) 指标完全图解</h1>
+  <div class="sub">301119 正强股份 · 2026-04-01 ~ 2026-06-16 真实数据 · 14日周期</div>
+</div>
+
+<div class="container">
+
+<!-- Chart 1: Price + WR -->
+<div class="chart-box">
+  <h3>📈 上层：K线图 + 均线 | 下层：WR 指标 + 分区</h3>
+  <div id="main-chart" class="chart" style="height:700px"></div>
+</div>
+
+<!-- Legend Cards -->
+<div class="legend-row">
+  <div class="legend-card z1">
+    <div class="title">🔴 超买区 (0 ~ -20)</div>
+    <div class="desc">价格在近期高位<br>→ 买方力量衰竭<br>→ 回调风险大<br>→ <b>卖出信号</b></div>
+  </div>
+  <div class="legend-card z2">
+    <div class="title">🟡 偏高区 (-20 ~ -50)</div>
+    <div class="desc">价格偏强但未过热<br>→ 趋势正常<br>→ 可能出现回踩<br>→ <b>持有/观望</b></div>
+  </div>
+  <div class="legend-card z3">
+    <div class="title">🟢 偏低区 (-50 ~ -80)</div>
+    <div class="desc">价格在回调中<br>→ 开始出现买点<br>→ 关注是否企稳<br>→ <b>准备买入</b></div>
+  </div>
+  <div class="legend-card z4">
+    <div class="title">🔵 超卖区 (-80 ~ -100)</div>
+    <div class="desc">价格在近期低位<br>→ 卖方力量衰竭<br>→ 反弹概率大<br>→ <b>买入信号</b></div>
+  </div>
+</div>
+
+<!-- Understanding WR -->
+<div class="summary">
+  <h3>🧠 WR 指标核心理解</h3>
+  <p><strong>WR 全称 Williams %R（威廉指标）</strong>，由 Larry Williams 发明。它衡量的是：<span class="highlight">当前收盘价在近 N 日价格区间中的相对位置</span>。</p>
+  <br>
+  <div class="formula">
+    WR = (N日最高价 - 当日收盘价) / (N日最高价 - N日最低价) × <b>-100</b>
+  </div>
+  <br><br>
+  <p>📌 <strong>关键解读：</strong></p>
+  <p>• WR = <span class="highlight">-10</span> → 收盘价接近 N 日最高价（涨了很多，<strong>超买</strong>）</p>
+  <p>• WR = <span class="highlight">-50</span> → 收盘价在 N 日区间中间（<strong>中性</strong>）</p>
+  <p>• WR = <span class="highlight">-90</span> → 收盘价接近 N 日最低价（跌了很多，<strong>超卖</strong>）</p>
+  <br>
+  <p>📌 <strong>注意！WR 是负值指标，越小（越接近 -100）越超卖，越大（越接近 0）越超买。</strong>这与 RSI 不同。</p>
+  <br>
+  <p>📌 <strong>毕师傅战法中的关键用法：不是看 WR 绝对值，而是看 WR 的"急跌"——</strong></p>
+  <p>• <span class="highlight">WR 急跌</span>（2-3 天内从 -30 跌到 -80）→ 价格快速回踩 → <strong>洗盘特征 → 买点</strong></p>
+  <p>• <span class="highlight">WR 急涨</span>（2-3 天内从 -80 涨到 -30）→ 价格快速拉升 → <strong>追高风险 → 卖点</strong></p>
+</div>
+
+<!-- Chart 2: WR Drop Analysis -->
+<div class="chart-box">
+  <h3>🔍 下层放大：WR 急跌/急涨 信号标注（对应上方 K 线图理解买卖点）</h3>
+  <div id="wr-detail" class="chart" style="height:450px"></div>
+</div>
+
+<!-- How to use -->
+<div class="summary" style="margin-top:20px">
+  <h3>🛠️ WR 实战口诀</h3>
+  <table style="width:100%;border-collapse:collapse;margin-top:12px">
+    <tr style="border-bottom:1px solid #2a2a4a">
+      <th style="padding:8px;text-align:left;color:#e94560">场景</th>
+      <th style="padding:8px;text-align:left;color:#e94560">WR 表现</th>
+      <th style="padding:8px;text-align:left;color:#e94560">操作</th>
+    </tr>
+    <tr style="border-bottom:1px solid #2a2a4a">
+      <td style="padding:8px">📈 上升趋势中</td>
+      <td style="padding:8px">WR 从 -100 附近快速回升</td>
+      <td style="padding:8px">🟢 趋势确认，继续持有</td>
+    </tr>
+    <tr style="border-bottom:1px solid #2a2a4a">
+      <td style="padding:8px">📉 上升趋势中突然 WR 急跌</td>
+      <td style="padding:8px">2-3 天内从 -30 → -80</td>
+      <td style="padding:8px">🟢 <b>洗盘回踩！最佳买点</b></td>
+    </tr>
+    <tr style="border-bottom:1px solid #2a2a4a">
+      <td style="padding:8px">📊 下跌趋势中 WR 钝化</td>
+      <td style="padding:8px">持续在 -80 以下不反弹</td>
+      <td style="padding:8px">🔴 弱势！不能抄底</td>
+    </tr>
+    <tr style="border-bottom:1px solid #2a2a4a">
+      <td style="padding:8px">🚀 快速拉升中</td>
+      <td style="padding:8px">WR 从 -100 飙升到 -20 以上</td>
+      <td style="padding:8px">🔴 追高风险，考虑止盈</td>
+    </tr>
+    <tr>
+      <td style="padding:8px">🔄 高位横盘</td>
+      <td style="padding:8px">WR 在 -20~0 之间反复</td>
+      <td style="padding:8px">🔴 涨势衰竭，警惕回调</td>
+    </tr>
+  </table>
+  <br>
+  <p>💡 <strong>最重要的原则：WR 不能单独用，必须配合 OBV（资金流向）和量价关系。WR 告诉你"跌够了没"，OBV 告诉你"资金还在不在"。</strong></p>
+</div>
+
+</div>
+
+<script>
+var dates = ["2026-04-01","2026-04-02","2026-04-03","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13","2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24","2026-04-27","2026-04-28","2026-04-29","2026-04-30","2026-05-06","2026-05-07","2026-05-08","2026-05-11","2026-05-12","2026-05-13","2026-05-14","2026-05-15","2026-05-18","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-25","2026-05-26","2026-05-27","2026-05-28","2026-05-29","2026-06-01","2026-06-02","2026-06-03","2026-06-04","2026-06-05","2026-06-08","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-15","2026-06-16"];
+
+var kdata = [[42.0,41.83,41.64,42.63],[41.71,41.54,41.18,42.8],[41.33,40.61,40.15,41.91],[41.0,41.05,40.09,41.4],[43.1,42.98,42.01,43.1],[42.93,42.92,41.6,43.86],[43.36,44.98,43.1,45.16],[44.76,45.65,44.5,46.73],[46.0,46.25,45.5,47.08],[46.33,45.1,44.9,46.76],[45.51,45.15,44.61,45.65],[45.1,45.98,44.99,46.85],[45.98,46.09,45.74,46.78],[45.88,44.68,44.16,46.08],[44.68,44.46,43.63,45.53],[44.7,42.33,41.73,44.7],[42.42,41.5,41.18,42.9],[41.71,41.5,40.6,41.96],[40.76,39.75,39.33,41.59],[39.72,40.2,39.46,40.86],[40.2,40.9,39.8,40.96],[41.26,41.97,40.94,42.88],[42.03,43.08,42.03,44.44],[42.95,43.35,42.56,43.88],[43.6,43.83,42.75,44.63],[43.79,44.22,43.18,44.78],[44.22,43.5,43.0,44.32],[43.9,42.44,42.2,44.17],[42.48,43.06,42.3,44.1],[42.84,42.26,41.72,43.27],[42.26,42.51,41.78,42.96],[42.51,42.48,41.62,42.64],[42.72,40.98,40.78,43.5],[41.04,40.96,40.03,41.49],[40.96,39.25,38.84,41.47],[39.08,37.94,37.19,39.87],[37.24,35.93,35.46,39.62],[35.92,36.39,35.5,36.74],[36.56,34.32,34.18,36.56],[35.51,35.09,34.79,36.0],[35.2,34.1,33.77,35.8],[34.05,33.75,33.58,34.73],[33.76,33.78,33.22,34.72],[33.68,34.09,32.77,34.8],[33.81,32.9,32.15,33.98],[33.39,32.89,32.43,33.79],[32.89,32.26,31.6,33.24],[32.04,31.71,31.37,32.39],[32.05,32.53,31.67,32.63],[32.32,32.57,31.71,32.66],[32.37,35.42,31.51,35.88]];
+
+var wr14 = [null,null,null,null,null,null,null,null,null,null,null,null,null,null,-37.5,-68.0,-79.8,-86.1,-94.6,-88.8,-79.7,-65.9,-50.1,-46.5,-40.2,-34.4,-38.2,-49.8,-31.6,-46.2,-41.7,-42.2,-71.4,-76.7,-93.1,-90.1,-95.0,-90.0,-98.7,-91.0,-96.8,-98.4,-94.6,-87.7,-93.4,-93.5,-93.3,-96.6,-86.4,-85.5,-24.6];
+
+var ma5 = [null,null,null,null,41.6,41.82,42.51,43.52,44.56,44.98,45.43,45.63,45.71,45.4,45.27,44.71,43.81,42.89,41.91,41.06,40.77,40.86,41.18,41.9,42.63,43.29,43.6,43.47,43.41,43.1,42.75,42.55,42.26,41.84,41.24,40.32,39.01,38.09,36.77,35.93,35.17,34.73,34.21,34.16,33.72,33.48,33.18,32.77,32.46,32.39,32.9];
+
+var ma10 = [null,null,null,null,null,null,null,null,null,43.29,43.62,44.07,44.61,44.98,45.13,45.07,44.72,44.3,43.65,43.16,42.74,42.34,42.04,41.9,41.84,42.03,42.23,42.32,42.66,42.86,43.02,43.07,42.86,42.62,42.17,41.54,40.78,40.18,39.3,38.59,37.74,36.87,36.15,35.46,34.83,34.32,33.96,33.49,33.31,33.06,33.19];
+
+// ======== MAIN CHART: K-line + WR ========
+var mainChart = echarts.init(document.getElementById('main-chart'));
+
+var option1 = {
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: { type: 'cross', crossStyle: { color: '#999' } },
+    formatter: function(params) {
+      var d = params[0].axisValue;
+      var html = '<b>' + d + '</b><br/>';
+      params.forEach(function(p) {
+        if (p.seriesName === 'K线') {
+          var k = p.data;
+          if (k && k.length >= 4) {
+            html += '开:' + k[1] + ' 收:' + k[2] + ' 低:' + k[3] + ' 高:' + k[4] + '<br/>';
+          }
+        } else if (p.value != null) {
+          html += p.marker + ' ' + p.seriesName + ': ' + p.value + '<br/>';
+        }
+      });
+      return html;
+    }
+  },
+  axisPointer: { link: [{ xAxisIndex: 'all' }] },
+  grid: [
+    { left: '8%', right: '3%', top: '5%', height: '48%' },
+    { left: '8%', right: '3%', top: '58%', height: '38%' }
+  ],
+  xAxis: [
+    { type: 'category', data: dates, gridIndex: 0, axisLabel: { show: false }, axisLine: { lineStyle: { color: '#444' } } },
+    { type: 'category', data: dates, gridIndex: 1, axisLabel: { color: '#a0a0c0', fontSize: 10, rotate: 45 }, axisLine: { lineStyle: { color: '#444' } } }
+  ],
+  yAxis: [
+    { type: 'value', gridIndex: 0, scale: true, splitLine: { lineStyle: { color: '#2a2a3a' } }, axisLabel: { color: '#a0a0c0' }, name: '价格(元)', nameTextStyle: { color: '#a0a0c0' } },
+    { type: 'value', gridIndex: 1, scale: true, min: -105, max: 5, interval: 10,
+      splitLine: { lineStyle: { color: '#2a2a3a' } },
+      axisLabel: { color: '#a0a0c0', formatter: '{value}' },
+      name: 'WR (%)', nameTextStyle: { color: '#a0a0c0' }
+    }
+  ],
+  series: [
+    {
+      name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0,
+      data: kdata,
+      itemStyle: { color: '#ef5350', color0: '#26a69a', borderColor: '#ef5350', borderColor0: '#26a69a' },
+      markPoint: {
+        symbol: 'pin', symbolSize: 40,
+        data: [
+          { name: '最高', coord: ['2026-04-14', 46.25], value: '46.25 高点', itemStyle: { color: '#ef5350' } },
+          { name: '最低', coord: ['2026-06-16', 31.51], value: '31.51\n最低点', itemStyle: { color: '#26a69a' }, symbolRotate: 180 }
+        ],
+        label: { color: '#fff', fontSize: 11 }
+      }
+    },
+    { name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma5, smooth: true, lineStyle: { width: 1.5, color: '#ff9800' }, symbol: 'none' },
+    { name: 'MA10', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma10, smooth: true, lineStyle: { width: 1.5, color: '#2196f3' }, symbol: 'none' },
+    // WR line
+    {
+      name: 'WR14', type: 'line', xAxisIndex: 1, yAxisIndex: 1,
+      data: wr14, smooth: false,
+      lineStyle: { width: 2, color: '#e94560' },
+      symbol: 'circle', symbolSize: 4,
+      itemStyle: { color: '#e94560' },
+      markArea: {
+        silent: true,
+        data: [
+          // Overbought zone (0 to -20) - Red
+          [{ yAxis: 0, itemStyle: { color: 'rgba(255,0,0,0.1)' } }, { yAxis: -20, itemStyle: { color: 'rgba(255,0,0,0.05)' } }],
+          // Neutral-high (-20 to -50) - Yellow
+          [{ yAxis: -20, itemStyle: { color: 'rgba(255,170,0,0.08)' } }, { yAxis: -50, itemStyle: { color: 'rgba(255,170,0,0.03)' } }],
+          // Neutral-low (-50 to -80) - Green
+          [{ yAxis: -50, itemStyle: { color: 'rgba(0,200,0,0.08)' } }, { yAxis: -80, itemStyle: { color: 'rgba(0,200,0,0.03)' } }],
+          // Oversold zone (-80 to -105) - Blue
+          [{ yAxis: -80, itemStyle: { color: 'rgba(0,100,255,0.12)' } }, { yAxis: -105, itemStyle: { color: 'rgba(0,100,255,0.05)' } }]
+        ]
+      },
+      markLine: {
+        silent: true,
+        symbol: 'none',
+        lineStyle: { type: 'dashed', width: 1 },
+        label: { fontSize: 10, color: '#a0a0c0', formatter: '{b}' },
+        data: [
+          { yAxis: 0, name: '0 极端超买', lineStyle: { color: 'rgba(255,0,0,0.6)' } },
+          { yAxis: -20, name: '-20 超买线', lineStyle: { color: '#ffaa00' } },
+          { yAxis: -50, name: '-50 中线', lineStyle: { color: '#888' } },
+          { yAxis: -80, name: '-80 超卖线', lineStyle: { color: '#44cc44' } },
+          { yAxis: -100, name: '-100 极端超卖', lineStyle: { color: '#4488ff' } }
+        ]
+      }
+    }
+  ]
+};
+
+mainChart.setOption(option1);
+
+// ======== WR DETAIL CHART ========
+var detailChart = echarts.init(document.getElementById('wr-detail'));
+
+// Annotate WR drop/rise events
+var markPoints = [
+  // WR急跌事件 (买点)
+  { coord: ['2026-04-23', -79.8], value: 'WR急跌\n(买点)', symbol: 'arrow', symbolRotate: 90, symbolSize: 18, itemStyle: { color: '#26a69a' }, label: { fontSize: 10, color: '#26a69a' } },
+  { coord: ['2026-05-27', -95.0], value: 'WR深度超卖\n(买点)', symbol: 'arrow', symbolRotate: 90, symbolSize: 18, itemStyle: { color: '#26a69a' }, label: { fontSize: 10, color: '#26a69a' } },
+  { coord: ['2026-06-11', -96.6], value: 'WR极值\n(最佳买点)', symbol: 'arrow', symbolRotate: 90, symbolSize: 22, itemStyle: { color: '#00ff88' }, label: { fontSize: 10, color: '#00ff88' } },
+  // WR急涨事件 (卖点/追高风险)
+  { coord: ['2026-04-14', -37.5], value: 'WR冲高\n(追高风险)', symbol: 'arrow', symbolRotate: -90, symbolSize: 18, itemStyle: { color: '#ef5350' }, label: { fontSize: 10, color: '#ef5350' } },
+  { coord: ['2026-06-16', -24.6], value: 'WR飙升↑\n(今日！)', symbol: 'arrow', symbolRotate: -90, symbolSize: 22, itemStyle: { color: '#ff0000' }, label: { fontSize: 10, color: '#ff0000' } }
+];
+
+var option2 = {
+  tooltip: {
+    trigger: 'axis',
+    formatter: function(ps) {
+      var d = ps[0].axisValue;
+      var html = '<b>' + d + '</b><br/>';
+      ps.forEach(function(p) {
+        if (p.value != null) {
+          html += p.marker + ' ' + p.seriesName + ': ' + p.value + '<br/>';
+        }
+      });
+      return html;
+    }
+  },
+  grid: { left: '8%', right: '5%', top: '8%', bottom: '10%' },
+  xAxis: { type: 'category', data: dates, axisLabel: { color: '#a0a0c0', fontSize: 10, rotate: 45 }, axisLine: { lineStyle: { color: '#444' } } },
+  yAxis: {
+    type: 'value', min: -105, max: 5, interval: 10,
+    splitLine: { lineStyle: { color: '#2a2a3a' } },
+    axisLabel: { color: '#a0a0c0' }
+  },
+  series: [
+    // WR 斜率变化 - 用柱状图表示每日变化
+    {
+      name: 'WR 每日变化', type: 'bar',
+      data: wr14.map(function(v, i) {
+        if (i === 0 || wr14[i] == null || wr14[i-1] == null) return null;
+        return (wr14[i] - wr14[i-1]).toFixed(1);
+      }),
+      itemStyle: {
+        color: function(params) {
+          return params.value > 0 ? '#ef5350' : '#26a69a';
+        }
+      },
+      barWidth: '60%'
+    },
+    {
+      name: 'WR14', type: 'line',
+      data: wr14, smooth: false,
+      lineStyle: { width: 3, color: '#e94560' },
+      symbol: 'circle', symbolSize: 6,
+      itemStyle: { color: '#e94560' },
+      markArea: {
+        silent: true,
+        data: [
+          [{ yAxis: 0, itemStyle: { color: 'rgba(255,0,0,0.12)' } }, { yAxis: -20, itemStyle: { color: 'rgba(255,0,0,0.04)' } }],
+          [{ yAxis: -80, itemStyle: { color: 'rgba(0,100,255,0.14)' } }, { yAxis: -105, itemStyle: { color: 'rgba(0,100,255,0.06)' } }]
+        ]
+      },
+      markLine: {
+        silent: true, symbol: 'none',
+        lineStyle: { type: 'dashed', width: 1 },
+        label: { fontSize: 10, color: '#a0a0c0', formatter: '{b}' },
+        data: [
+          { yAxis: -20, name: '-20 超买线', lineStyle: { color: '#ffaa00' } },
+          { yAxis: -80, name: '-80 超卖线', lineStyle: { color: '#44cc44' } },
+          { yAxis: -50, name: '-50 中线', lineStyle: { color: '#888' } }
+        ]
+      },
+      markPoint: {
+        data: markPoints,
+        label: { color: '#fff' }
+      }
+    }
+  ]
+};
+
+detailChart.setOption(option2);
+
+// Responsive
+window.addEventListener('resize', function() {
+  mainChart.resize();
+  detailChart.resize();
+});
+</script>
+</body>
+</html>
