@@ -400,8 +400,7 @@ class CbAuctionEngine:
                 elif total >= 45:  grade = "B"
                 else:              grade = "C"
 
-                # ── 止盈: +2.0% (回测最优, 无硬止损) ──
-                # 不加固定止损 — CB波动大容易被震出, 靠收盘平仓
+                # ── 止盈: +2.0% (无硬止损, 收盘平仓) ──
                 stock_atr = stock_atr_map.get(stk_code)
                 TP_PCT = 2.0
                 if market_change is not None and market_change > 2.0:
