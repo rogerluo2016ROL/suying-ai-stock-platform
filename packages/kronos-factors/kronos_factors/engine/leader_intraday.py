@@ -682,6 +682,15 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         atr_val = calc_atr(highs, lows, closes, period=14)
         atr_pct = round(atr_val / close_14 * 100, 2) if atr_val > 0 and close_14 > 0 else 0
 
+    # ── V8.1 新鲜度因子: 惩罚已充分演绎的标的 ──
+    #   近5日累计涨幅越大 → 已涨过头的概率越高 → 扣分
+    freshness_penalty = 0
+    if len(closes) >= 5:
+        gain_5d = (closes[-1] / closes[-5] - 1) * 100
+        if gain_5d > 25:       freshness_penalty = 12   # 🔴 近5日涨超25%: 严重透支
+        elif gain_5d > 15:     freshness_penalty = 6    # 🟡 近5日涨超15%: 轻度透支
+        elif gain_5d > 8:      freshness_penalty = 2    # 🟠 近5日涨超8%: 轻微
+
     # ── V8.0 P1: 板块龙头 (THS概念优先 → stocks.industry fallback) ──
     # concept_stats 是 per-stock 格式: {code: {concept_code, concept_name, peer_count, max_gain}}
     peer_n = 0
@@ -873,14 +882,15 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     except Exception:
         pass  # 无融资数据时不影响评分
 
-    # ── V6.7 综合 (9因子) ──
+    # ── V8.1 综合 (9因子 + 新鲜度) ──
     total_complex = (gain_score + seal_score + afternoon_score +
              turnover_score + ma_score + volume_score + sl_score + sm_score + res_score
              + dist_score + leadership_bonus + leader_distance_bonus
              + resonance_bonus + margin_bonus
              + sector_resonance_bonus
              - independent_penalty - climax_penalty - overheat_penalty
-             - limit_resistance_penalty - sector_blacklist_penalty)
+             - limit_resistance_penalty - sector_blacklist_penalty
+             - freshness_penalty)
 
     # ── V7.0 S1: 简化三因子评分 — 数据驱动(AUC验证), 去噪声 ──
     # gain(AUC=0.49逆): 涨幅越低越好 | dist(AUC=0.51): 距涨停越远越好 | res(AUC=0.52): 共振越高越好
@@ -911,6 +921,7 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         "independent_penalty": independent_penalty,         # V5.1 P1
         "climax_penalty": climax_penalty,                   # V5.1 P0
         "overheat_penalty": overheat_penalty,               # V5.1 P0b
+        "freshness_penalty": freshness_penalty,             # V8.1: 新鲜度惩罚
         "atr_pct": atr_pct,                                 # V8.0: ATR 百分比(动态止损)
     }
 
@@ -1361,7 +1372,18 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
             ns = s["total_score"]
             s["grade"] = "S" if ns >= 75 else ("A" if ns >= 60 else ("B" if ns >= 45 else "C"))
 
-    return scores[:effective_n], scores
+    # ── V8.1 概念去重: 同一概念最多2只, 避免扎堆 ──
+    deduped = []
+    concept_counts = {}
+    for s in scores:
+        c = s.get("concept", "") or s.get("industry", "")
+        if concept_counts.get(c, 0) < 2:
+            deduped.append(s)
+            concept_counts[c] = concept_counts.get(c, 0) + 1
+    if len(deduped) < len(scores):
+        print(f"  🔄 概念去重: {len(scores)}→{len(deduped)}只 (同一概念最多2只)")
+
+    return deduped[:effective_n], deduped
 
 
 def generate_intraday_plan(picks):
@@ -1457,10 +1479,14 @@ def print_intraday_results(top, trade_date, time_slot):
     print(f"{'=' * 115}")
     print(f"\n  V8.0: THS概念板块 | 涨幅(18)+午后(12)+龙头(22→12)+板块龙头(24→12)+板块动量(8)")
     print(f"        +成交(10)+共振(8)+放量(7)+均线(6)+P0高潮检测(12)+P1独立过滤")
-    # Show concept coverage
+    # Show concept coverage + freshness
     ths_count = sum(1 for s in top if s.get("concept_code"))
+    fresh_count = sum(1 for s in top if s.get("freshness_penalty", 0) > 0)
     if ths_count:
-        print(f"  🟢 THS概念覆盖: {ths_count}/{len(top)}只")
+        print(f"  🟢 THS概念覆盖: {ths_count}/{len(top)}只", end="")
+        if fresh_count:
+            print(f" | 🍃 新鲜度惩罚: {fresh_count}只", end="")
+        print()
     climax_count = sum(1 for s in top if s.get("climax_penalty", 0) > 0)
     indep_count = sum(1 for s in top if s.get("independent_penalty", 0) > 0)
     if climax_count or indep_count:
