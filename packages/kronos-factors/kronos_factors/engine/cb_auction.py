@@ -1,11 +1,11 @@
-"""匪爷竞价选债模型 V5 — 自适应止盈 + 大盘感知 + 数据修复 + 可配权重.
+"""匪爷竞价选债模型 V5 — 固定止盈止损 + 大盘感知 + 数据修复 + 可配权重.
 
 流水线:
   1. stk_auction_o 竞价 Top 100 → cb_sector/ths_member/cb_concept → 概念聚合
   2. 强势概念 → 转债候选池
   3. 硬过滤: 规模<10亿 + 正股竞价>0.5% + 退市>15天
-  4. ATR自适应止盈 + 大盘环境感知 + 强赎感知溢价率
-  5. 输出: suggested_entry + take_profit(ATR) + stop_loss(market-aware)
+  4. 止盈+2.0%(无硬止损,收盘平仓) + 强赎感知溢价率
+  5. 输出: suggested_entry(开盘×0.995) + take_profit
 """
 
 import logging
@@ -83,38 +83,6 @@ class CbAuctionEngine:
         if avg_gap <= 0:
             return 0.0
         return min(100.0, avg_gap * 12.0 + stock_cnt * 1.5)
-
-    @staticmethod
-    def _adaptive_tp(stock_atr_pct: float, market_change: float) -> tuple:
-        """自适应止盈止损 — 基于正股ATR和大盘环境.
-
-        Args:
-            stock_atr_pct: 正股近5日平均振幅(%)
-            market_change: 上证当日涨跌幅(%)
-
-        Returns:
-            (tp_pct, sl_pct) 止盈/止损百分比
-        """
-        # 基础参数
-        if stock_atr_pct and stock_atr_pct > 0:
-            # ATR 2% → TP 1.5%, ATR 5% → TP 2.5%
-            tp_base = 1.0 + stock_atr_pct * 0.3
-            sl_base = -tp_base  # 对称
-        else:
-            tp_base, sl_base = 1.5, -1.5
-
-        # 大盘调整
-        if market_change is not None:
-            if market_change < -1.0:
-                # 熊市: 止损收紧, 止盈放宽(跌市反弹空间大)
-                sl_base = max(-1.0, sl_base + 0.5)
-                tp_base = min(3.0, tp_base + 0.5)
-            elif market_change > 0.5:
-                # 牛市: 止损放宽, 止盈适度(趋势延续)
-                sl_base = min(-2.0, sl_base - 0.5)
-                tp_base = min(3.0, tp_base - 0.2)
-
-        return round(tp_base, 1), round(sl_base, 1)
 
     # ── Main run ──
 
@@ -432,21 +400,22 @@ class CbAuctionEngine:
                 elif total >= 45:  grade = "B"
                 else:              grade = "C"
 
-                # ── 自适应止盈止损 ──
+                # ── 止盈: +2.0% (回测最优, 无硬止损) ──
+                # 不加固定止损 — CB波动大容易被震出, 靠收盘平仓
                 stock_atr = stock_atr_map.get(stk_code)
-                tp_pct, sl_pct = self._adaptive_tp(stock_atr, market_change)
+                TP_PCT = 2.0
+                if market_change is not None and market_change > 2.0:
+                    TP_PCT = 2.5  # 暴涨日放宽
 
-                # 建议买入价: 开盘-0.5%限价单 (cb_daily有同日数据的用实际价, 否则用估算价)
+                # 建议买入价: 开盘-0.5%限价单
                 if cb_open:
                     suggested_entry = round(cb_open * 0.995, 2)
                     market_entry = round(cb_open, 2)
-                    take_profit = round(suggested_entry * (1 + tp_pct / 100), 2)
-                    stop_loss = round(suggested_entry * (1 + sl_pct / 100), 2)
+                    take_profit = round(suggested_entry * (1 + TP_PCT / 100), 2)
                 else:
                     suggested_entry = None
                     market_entry = None
                     take_profit = None
-                    stop_loss = None
 
                 picks.append({
                     "code": ts_code,
@@ -458,9 +427,7 @@ class CbAuctionEngine:
                     "market_entry": market_entry,
                     "suggested_entry": suggested_entry,
                     "take_profit": take_profit,
-                    "stop_loss": stop_loss,
-                    "tp_pct": tp_pct,
-                    "sl_pct": sl_pct,
+                    "tp_pct": TP_PCT,
                     "stock_atr": round(stock_atr, 1) if stock_atr else None,
                     "premium_rate": round(cb_over_rate, 2) if cb_over_rate else None,
                     "remain_size_yi": round(remain_size / 1e8, 2) if remain_size else None,
@@ -476,8 +443,7 @@ class CbAuctionEngine:
                         "premium_rate": round(cb_over_rate, 1) if cb_over_rate else None,
                         "remain_size_yi": round(remain_size / 1e8, 2) if remain_size else None,
                         "call_status": call_status,
-                        "tp_pct": tp_pct,
-                        "sl_pct": sl_pct,
+                        "tp_pct": TP_PCT,
                         "stock_atr": round(stock_atr, 1) if stock_atr else None,
                         "market": round(market_change, 1) if market_change is not None else None,
                     },
