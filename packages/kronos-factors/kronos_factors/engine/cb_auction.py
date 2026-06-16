@@ -221,7 +221,7 @@ class CbAuctionEngine:
               AND b.cb_type = 'CB'
               AND b.bond_short_name NOT LIKE '%%定%%'
               AND ao.close > 0
-              AND (ao.open - ao.close) / NULLIF(ao.close, 0) * 100 > 0.5
+              AND (ao.open - ao.close) / NULLIF(ao.close, 0) * 100 BETWEEN 0.5 AND 10
             ORDER BY b.ts_code
         """, strong_concepts + strong_concepts + [trade_date])
         cb_rows = cur.fetchall()
@@ -388,6 +388,10 @@ class CbAuctionEngine:
                 if skip:
                     continue
 
+                # 溢价率硬过滤: >50%且非不强赎 → 排除 (回测验证高溢价CB日内难涨)
+                if cb_over_rate is not None and cb_over_rate > 50 and call_status != '公告不强赎':
+                    continue
+
                 # 评分
                 gap_score = min(100.0, max(0.0, stock_gap * 20.0))
                 premium_score = self._premium_score(cb_over_rate, call_status)
@@ -400,7 +404,7 @@ class CbAuctionEngine:
                 elif total >= 45:  grade = "B"
                 else:              grade = "C"
 
-                # ── 止盈: +2.0% (无硬止损, 收盘平仓) ──
+                # ── 止盈: +2.0% (无硬止损, 14:00前未触发则收盘平仓) ──
                 stock_atr = stock_atr_map.get(stk_code)
                 TP_PCT = 2.0
                 if market_change is not None and market_change > 2.0:
