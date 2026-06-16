@@ -582,15 +582,15 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
             (trade_date, f"{trade_date} {time_slot}%", industry)
         ).fetchone()
         peer_n = peer_cnt["cnt"] if peer_cnt else 0
-    if peer_n >= 5: sl_score = 24      # V5.5: 升权 14→24, 板块龙头最重要
-    elif peer_n >= 3: sl_score = 18     # V5.5: 11→18
-    elif peer_n >= 2: sl_score = 12     # V5.5: 7→12
-    elif peer_n == 1: sl_score = 6      # V5.5: 3→6, 独苗仍给基础分
+    # V7.1 O2: 龙头分降权50%(近1月corr=-0.135)
+    if peer_n >= 5: sl_score = 12      # 24→12
+    elif peer_n >= 3: sl_score = 9      # 18→9
+    elif peer_n >= 2: sl_score = 6      # 12→6
+    elif peer_n == 1: sl_score = 3      # 6→3
     else: sl_score = 0
 
     # ── V6.3 P21: 科创板龙头分折扣 ──
-    if code.startswith('688') and sl_score >= 18:
-        sl_score = int(sl_score * 0.5)
+    # V7.1: P21已删除(sl_score已降权50%)
 
     # ── V6.7 R1: 板块联动加分 — 同概念多股共振=行情确认(秋神方法论) ──
     sector_resonance_bonus = 0
@@ -707,12 +707,12 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     if sl_score >= 24 and dist_to_limit >= 5:
         leader_distance_bonus = 8  # 🔥 满分龙头+足够空间=高确定性盈利
 
-    # ── V6.4 O2: 共振信号强化 ──
+    # ── V7.1 O1: 共振信号强化(±8, 近1月共振>=8→56%/+2.30%) ──
     resonance_bonus = 0
     if res_score >= 8:
-        resonance_bonus = 3
+        resonance_bonus = 8
     elif res_score <= 5:
-        resonance_bonus = -3
+        resonance_bonus = -8
 
     # 将成龙: 午后稳步走强 + 量能放大 + 涨幅8-10%(非涨停板)
     if 0 < afternoon_str <= 2.5 and vol_surge >= 2.0 and 8 <= gain_14 < 10.5:
