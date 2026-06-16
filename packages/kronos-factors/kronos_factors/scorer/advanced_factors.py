@@ -4,6 +4,7 @@ Models:
   1. MoneyFlowModel  — 资金流向 (MFI + OBV trend + volume-price divergence)
   2. MeanReversionModel — 均值回归 (Bollinger %B + RSI extreme + MA deviation)
   3. TrendStrengthModel — 趋势强度 (ADX + DI + MA divergence)
+  4. TrendLaunchModel — 趋势启动 (OBV均线确认 + WR急跌回踩)
 """
 import math
 import numpy as np
@@ -362,6 +363,197 @@ def score_trend_strength(df: pd.DataFrame) -> dict:
             "di_plus": round(di_p, 1),
             "di_minus": round(di_m, 1),
             "trend_dir": trend_dir}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Model 3.5: 趋势启动检测 (OBV 均线确认 + WR 急跌回踩)
+# ═══════════════════════════════════════════════════════════════
+
+def score_trend_launch(df: pd.DataFrame) -> dict:
+    """Detect trend initiation — OBV above MA confirms uptrend, WR sudden drop = pullback entry.
+
+    核心逻辑:
+      1. OBV > OBV_MA (10日): 资金持续流入, 趋势方向确认
+      2. WR 急跌 (1-3日从 -20→-60 以下): 价格快速回踩, 洗盘非反转
+      3. 两者叠加 = "上升趋势中的洗盘回踩" → 高胜率买入信号
+
+    Components:
+      - OBV vs OBV_10MA: 资金方向确认
+      - OBV 持续天数: 趋势稳固度
+      - WR 急跌幅度: 回踩深度
+      - 量价配合: 回踩是否缩量 (洗盘特征)
+
+    Returns:
+      {"score": 0~10, "signal": "strong_buy"/"buy"/"watch"/"no_signal",
+       "obv_above_ma": bool, "obv_days_above": int,
+       "wr_current": float, "wr_drop_pct": float, "volume_contract": bool}
+    """
+    closes = df["close"].values
+    highs = df["high"].values
+    lows = df["low"].values
+    volumes = df["volume"].values
+
+    if len(closes) < 30:
+        return {"score": 5.0, "signal": "no_signal",
+                "obv_above_ma": False, "obv_days_above": 0,
+                "wr_current": -50, "wr_drop_pct": 0, "volume_contract": False}
+
+    # ── 1. OBV 计算 ──
+    obv = np.zeros(len(closes))
+    for i in range(1, len(closes)):
+        if closes[i] > closes[i-1]:
+            obv[i] = obv[i-1] + volumes[i]
+        elif closes[i] < closes[i-1]:
+            obv[i] = obv[i-1] - volumes[i]
+        else:
+            obv[i] = obv[i-1]
+
+    # OBV 10日/20日均线
+    obv_ma10 = np.convolve(obv, np.ones(10)/10, mode='valid')
+    obv_ma20 = np.convolve(obv, np.ones(20)/20, mode='valid')
+
+    if len(obv_ma10) < 5:
+        return {"score": 5.0, "signal": "no_signal",
+                "obv_above_ma": False, "obv_days_above": 0,
+                "wr_current": -50, "wr_drop_pct": 0, "volume_contract": False}
+
+    # OBV 是否高于 MA10
+    obv_now = obv[-1]
+    obv_ma10_now = obv_ma10[-1]
+    obv_above = obv_now > obv_ma10_now
+
+    # OBV 持续高于 MA 的天数 (趋势稳固度)
+    obv_days_above = 0
+    for i in range(len(obv)-1, -1, -1):
+        ma_idx = i - 10 + 1
+        if ma_idx >= 0 and obv[i] > obv_ma10[ma_idx]:
+            obv_days_above += 1
+        else:
+            break
+
+    # ── 2. WR (威廉指标) 计算 ──
+    def calc_wr(period=14):
+        """Williams %R: (highest_high - close) / (highest_high - lowest_low) * -100"""
+        wr_values = []
+        for i in range(period-1, len(closes)):
+            hh = np.max(highs[i-period+1:i+1])
+            ll = np.min(lows[i-period+1:i+1])
+            if hh - ll > 0:
+                wr = (hh - closes[i]) / (hh - ll) * -100
+            else:
+                wr = -50
+            wr_values.append(wr)
+        return np.array(wr_values)
+
+    wr14 = calc_wr(14)
+
+    if len(wr14) < 5:
+        return {"score": 5.0, "signal": "no_signal",
+                "obv_above_ma": obv_above, "obv_days_above": obv_days_above,
+                "wr_current": -50, "wr_drop_pct": 0, "volume_contract": False}
+
+    wr_now = float(wr14[-1])
+    wr_3d_ago = float(wr14[-4]) if len(wr14) >= 4 else wr_now
+    wr_5d_ago = float(wr14[-6]) if len(wr14) >= 6 else wr_now
+
+    # WR 急跌幅度: 3日内从高位跌了多少
+    wr_drop_3d = wr_now - wr_3d_ago  # 负数 = 急跌
+    wr_drop_5d = wr_now - wr_5d_ago
+
+    # ── 3. 量价配合: 回踩是否缩量 ──
+    vol_recent_3 = np.mean(volumes[-3:]) if len(volumes) >= 3 else volumes[-1]
+    vol_prev_10 = np.mean(volumes[-13:-3]) if len(volumes) >= 13 else vol_recent_3
+    vol_contract = vol_recent_3 < vol_prev_10 * 0.8  # 缩量20%+
+
+    # ── 4. 综合评分 ──
+    score = 5.0
+
+    # OBV 趋势得分
+    if obv_above:
+        if obv_days_above >= 15:
+            score += 2.5   # OBV 持续15天+高于均线 → 趋势非常稳固
+            obv_strength = "极强"
+        elif obv_days_above >= 10:
+            score += 2.0
+            obv_strength = "强"
+        elif obv_days_above >= 5:
+            score += 1.5
+            obv_strength = "中等"
+        else:
+            score += 0.5
+            obv_strength = "刚突破"
+    else:
+        score -= 1.0       # OBV 低于均线 → 资金未确认流入
+        obv_strength = "弱势"
+
+    # WR 急跌得分 (核心信号)
+    if wr_drop_3d < -30:
+        score += 2.5       # 3日急跌30%+ → 深度回踩, 洗盘充分
+        wr_signal = "深度洗盘"
+    elif wr_drop_3d < -20:
+        score += 2.0       # 3日跌20-30% → 明显回踩
+        wr_signal = "明显回踩"
+    elif wr_drop_3d < -10:
+        score += 1.5       # 温和回踩
+        wr_signal = "温和回踩"
+    elif wr_drop_5d < -15:
+        score += 1.0       # 5日级别缓跌 → 慢洗
+        wr_signal = "缓跌洗盘"
+    else:
+        wr_signal = "无急跌"
+
+    # WR 当前位置得分
+    if wr_now < -80:
+        score += 1.0       # 超卖区 → 反弹概率高
+        wr_zone = "超卖区"
+    elif wr_now < -60:
+        score += 0.5       # 偏弱区 → 回踩到位
+        wr_zone = "回踩区"
+    elif wr_now < -40:
+        wr_zone = "中性区"
+    elif wr_now < -20:
+        score -= 0.5       # 仍在高位 → 可能没跌够
+        wr_zone = "偏强区"
+    else:
+        score -= 1.0       # 超买区 → 太高了
+        wr_zone = "超买区"
+
+    # 量价配合: 缩量回踩 = 洗盘非出货
+    if vol_contract and wr_drop_3d < -10:
+        score += 1.0       # 缩量回踩 → 主力没走
+    elif not vol_contract and wr_drop_3d < -10:
+        score -= 0.5       # 放量下跌 → 可能真出货
+
+    # 趋势 + 回踩 共振加分
+    if obv_days_above >= 10 and wr_drop_3d < -20:
+        score += 1.5       # 强趋势 + 深回踩 = 最佳买点
+        resonance = "🟢 完美共振"
+    elif obv_days_above >= 5 and wr_drop_3d < -10:
+        score += 0.5
+        resonance = "🟡 有效共振"
+    else:
+        resonance = "⚪ 无共振"
+
+    score = max(0, min(10, round(score, 1)))
+
+    # ── 5. 信号判定 ──
+    if score >= 8:
+        signal = "strong_buy"       # 趋势稳固 + 深度回踩 → 强买
+    elif score >= 6.5:
+        signal = "buy"              # 趋势确认 + 回踩 → 可买
+    elif score >= 5:
+        signal = "watch"            # 趋势或回踩单边满足 → 观望等确认
+    else:
+        signal = "no_signal"
+
+    return {
+        "score": score, "signal": signal,
+        "obv_above_ma": obv_above, "obv_days_above": obv_days_above,
+        "obv_strength": obv_strength,
+        "wr_current": round(wr_now, 1), "wr_drop_3d": round(wr_drop_3d, 1),
+        "wr_signal": wr_signal, "wr_zone": wr_zone,
+        "volume_contract": vol_contract, "resonance": resonance,
+    }
 
 
 # ═══════════════════════════════════════════════════════════════

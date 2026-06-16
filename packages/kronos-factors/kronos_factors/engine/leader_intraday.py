@@ -17,6 +17,7 @@ Usage:
 """
 import argparse, json, os, sys, time
 from collections import defaultdict
+from contextlib import contextmanager
 from datetime import datetime
 
 import numpy as np
@@ -50,6 +51,41 @@ TIME_COMPLETION = {
 
 # V4.3: conservative afternoon share for leader stocks (backtest: 9-16%)
 DEFAULT_PM_RATIO = 0.20
+
+
+@contextmanager
+def _get_raw_pg_conn(db):
+    """绕过 PG adapter 的 ts_code→code 误翻译, 直接获取 raw psycopg2 cursor.
+
+    PG adapter 会把 SQL 中的 ts_code 替换为 code, 破坏 ths_member/ths_daily
+    等 THS 概念表的 JOIN。所有 THS 查询应通过此 context manager 执行。
+
+    Yields: psycopg2 cursor on success, None on failure (caller handles fallback).
+    """
+    raw_conn = None
+    try:
+        raw_conn = db._get_conn()
+        yield raw_conn.cursor()
+    except Exception:
+        yield None
+    finally:
+        if raw_conn:
+            try:
+                db._put_conn(raw_conn)
+            except Exception:
+                pass
+
+
+def _get_board(code):
+    """检测股票所属板块, 用于分板差异化参数.
+
+    Returns: 'star' (科创板 20%), 'gem' (创业板 20%), 'bse' (北交所 30%), 'main' (主板 10%)
+    """
+    if code.startswith('688'): return 'star'
+    if code.startswith(('300', '301')): return 'gem'
+    if code.startswith(('8', '9', '4')): return 'bse'
+    return 'main'
+
 
 def get_adjusted_completion(db, code, trade_date, time_slot, cum_amount):
     """V4.3: adaptive completion ratio.
@@ -266,34 +302,53 @@ def get_kline_data(db, code, trade_date, lookback=60):
     return rows
 
 
-def get_sector_index(db, industry, trade_date, code=None):
-    """获取板块指数涨跌幅 (V5.3: THS概念优先 → index_basic fallback).
+def get_sector_index(db, industry, trade_date, code=None, concept_code=None):
+    """获取板块指数涨跌幅 (V8.0: THS概念优先 → code fallback → index_basic).
 
-    V5.3: 通过 ths_member + ths_daily 获取股票所属概念的实时涨跌幅.
+    V8.0: 新增 concept_code 参数, 直接精确查询 ths_daily, 比原先 LIKE join 更准确.
     注: 绕过 PG adapter 的 ts_code→code 误翻译, 直接用 psycopg2 查询.
     """
-    # 1. THS概念路径 (psycopg2 raw query — 避免 adapter 把 m.ts_code 错译成 m.code)
-    if code:
-        raw_conn = None
-        try:
-            raw_conn = db._get_conn()
-            cur = raw_conn.cursor()
-            cur.execute(
-                "SELECT d.change_pct FROM ths_daily d "
-                "JOIN ths_member m ON m.ts_code = d.code "
-                "WHERE m.con_code LIKE %s AND d.trade_date = %s "
-                "ORDER BY ABS(d.change_pct) DESC LIMIT 1",
-                (f"{code}%", trade_date)
-            )
-            r = cur.fetchone()
-            if r and r[0] is not None:
-                return float(r[0])
-        except Exception:
-            pass
-        finally:
-            if raw_conn:
+    # 1. THS概念路径 — 精确 concept_code 查询 (V8.0 新增)
+    if concept_code:
+        with _get_raw_pg_conn(db) as cur:
+            if cur is not None:
                 try:
-                    db._put_conn(raw_conn)
+                    # Try exact date match
+                    cur.execute(
+                        "SELECT pct_change FROM ths_daily "
+                        "WHERE ts_code = %s AND trade_date = %s",
+                        (concept_code, trade_date)
+                    )
+                    r = cur.fetchone()
+                    if r and r[0] is not None:
+                        return float(r[0])
+                    # Fallback: latest available date
+                    cur.execute(
+                        "SELECT pct_change FROM ths_daily "
+                        "WHERE ts_code = %s ORDER BY trade_date DESC LIMIT 1",
+                        (concept_code,)
+                    )
+                    r = cur.fetchone()
+                    if r and r[0] is not None:
+                        return float(r[0])
+                except Exception:
+                    pass
+
+    # 2. THS概念路径 — 原有 code 模糊匹配 (V5.3)
+    if code:
+        with _get_raw_pg_conn(db) as cur:
+            if cur is not None:
+                try:
+                    cur.execute(
+                        "SELECT d.change_pct FROM ths_daily d "
+                        "JOIN ths_member m ON m.ts_code = d.code "
+                        "WHERE m.con_code LIKE %s AND d.trade_date = %s "
+                        "ORDER BY ABS(d.change_pct) DESC LIMIT 1",
+                        (f"{code}%", trade_date)
+                    )
+                    r = cur.fetchone()
+                    if r and r[0] is not None:
+                        return float(r[0])
                 except Exception:
                     pass
 
@@ -322,15 +377,17 @@ def get_shanghai_index(db, trade_date):
 # ── V5.1 P0: 板块高潮次日检测缓存 ──
 _sector_climax_cache = {}
 
-def get_sector_climax_penalty(db, industry, trade_date):
-    """V5.1 P0: 检测板块昨日是否高潮加速, 返回今日惩罚分 (0-20).
+def get_sector_climax_penalty(db, industry, trade_date, concept_code=None):
+    """V8.0 P0: 检测板块昨日是否高潮加速, 返回今日惩罚分 (0-20).
 
     复盘证据: 六氟化钨板块昨日高潮→今日中船特气(-7%)+中巨芯(-6%)
     机制: 昨日板块涨幅≥5% OR 板块内涨停≥3家 → 今日获利回吐概率高
 
+    V8.0: 新增 concept_code 参数, 用 THS 概念精确查询昨日涨跌幅, 替代关键词模糊匹配.
+
     Returns: penalty score (0-20), higher = more penalty for today's picks
     """
-    cache_key = (industry, trade_date)
+    cache_key = (concept_code or industry, trade_date)
     if cache_key in _sector_climax_cache:
         return _sector_climax_cache[cache_key]
 
@@ -344,39 +401,73 @@ def get_sector_climax_penalty(db, industry, trade_date):
         _sector_climax_cache[cache_key] = 0
         return 0
     prev_date = prev_row["trade_date"]
-
-    # 2. 昨日板块涨幅 (index_basic → index_daily, 用最后2字关键词匹配)
-    keyword = industry[-2:] if len(industry) >= 2 else industry
     td_prev = str(prev_date)
-    sector_row = db.execute(
-        "SELECT d.pct_chg FROM index_daily d "
-        "JOIN index_basic b ON d.code=b.code "
-        "WHERE b.name LIKE ? AND d.trade_date=? "
-        "ORDER BY d.pct_chg DESC LIMIT 1",
-        (f"%{keyword}%", td_prev)
-    ).fetchone()
-    yesterday_sector_pct = float(sector_row["pct_chg"] or 0) if sector_row else 0
+    td_prev_short = td_prev.replace('-', '')
 
-    # 2b. Fallback: broader match with full industry name
+    yesterday_sector_pct = 0
+    yesterday_limit_count = 0
+
+    # 2. V8.0 THS概念路径: 精确查询 ths_daily (替代关键词模糊匹配)
+    if concept_code:
+        with _get_raw_pg_conn(db) as cur:
+            if cur is not None:
+                try:
+                    # 2a. 昨日概念涨跌幅
+                    cur.execute(
+                        "SELECT pct_change FROM ths_daily "
+                        "WHERE ts_code = %s AND trade_date = %s",
+                        (concept_code, td_prev)
+                    )
+                    r = cur.fetchone()
+                    if r and r[0] is not None:
+                        yesterday_sector_pct = float(r[0])
+
+                    # 2b. 昨日概念内涨停家数
+                    cur.execute(
+                        "SELECT COUNT(DISTINCT l.ts_code) "
+                        "FROM limit_list_d l "
+                        "JOIN ths_member m ON m.con_code = SUBSTR(l.ts_code, 1, 6) "
+                        "WHERE m.ts_code = %s AND l.trade_date = %s AND l.pct_chg > 0",
+                        (concept_code, td_prev_short)
+                    )
+                    r = cur.fetchone()
+                    if r and r[0] is not None:
+                        yesterday_limit_count = int(r[0])
+                except Exception:
+                    pass
+
+    # 3. Fallback: index_basic → index_daily 关键词匹配
     if yesterday_sector_pct == 0:
+        keyword = industry[-2:] if len(industry) >= 2 else industry
         sector_row = db.execute(
             "SELECT d.pct_chg FROM index_daily d "
             "JOIN index_basic b ON d.code=b.code "
             "WHERE b.name LIKE ? AND d.trade_date=? "
             "ORDER BY d.pct_chg DESC LIMIT 1",
-            (f"%{industry}%", td_prev)
+            (f"%{keyword}%", td_prev)
         ).fetchone()
         yesterday_sector_pct = float(sector_row["pct_chg"] or 0) if sector_row else 0
 
-    # 3. 昨日板块内涨停家数 (limit_list_d 用 YYYYMMDD 格式)
-    td_prev_short = td_prev.replace('-', '')
-    limit_row = db.execute(
-        "SELECT COUNT(*) as cnt FROM limit_list_d l "
-        "JOIN stocks s ON s.code=SUBSTR(l.ts_code,1,6) "
-        "WHERE l.trade_date=? AND l.pct_chg > 0 AND s.industry=?",
-        (td_prev_short, industry)
-    ).fetchone()
-    yesterday_limit_count = limit_row["cnt"] if limit_row else 0
+        # 3b. Fallback: broader match with full industry name
+        if yesterday_sector_pct == 0:
+            sector_row = db.execute(
+                "SELECT d.pct_chg FROM index_daily d "
+                "JOIN index_basic b ON d.code=b.code "
+                "WHERE b.name LIKE ? AND d.trade_date=? "
+                "ORDER BY d.pct_chg DESC LIMIT 1",
+                (f"%{industry}%", td_prev)
+            ).fetchone()
+            yesterday_sector_pct = float(sector_row["pct_chg"] or 0) if sector_row else 0
+
+    # 3c. Fallback: 涨停家数用 stocks.industry
+    if yesterday_limit_count == 0:
+        limit_row = db.execute(
+            "SELECT COUNT(*) as cnt FROM limit_list_d l "
+            "JOIN stocks s ON s.code=SUBSTR(l.ts_code,1,6) "
+            "WHERE l.trade_date=? AND l.pct_chg > 0 AND s.industry=?",
+            (td_prev_short, industry)
+        ).fetchone()
+        yesterday_limit_count = limit_row["cnt"] if limit_row else 0
 
     # 4. 判定惩罚等级
     if yesterday_sector_pct >= 5 or yesterday_limit_count >= 3:
@@ -394,51 +485,69 @@ def get_sector_climax_penalty(db, industry, trade_date):
 
 def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
                           time_slot="14:00", limit_map=None,
-                          industry_stats=None, kline_cache=None,
-                          mins_agg_cache=None):
-    """盘中选股评分 (V5.4: 9因子 + P0高潮检测 + P1独立过滤 + 预计算加速)."""
+                          industry_stats=None, concept_stats=None,
+                          kline_cache=None, mins_agg_cache=None):
+    """盘中选股评分 (V8.0: THS概念板块 + 9因子 + P0高潮检测 + P1独立过滤)."""
     close_14 = snap["close"]
     amount_14 = snap["amount"]
     volume_14 = snap["volume"]
     if close_14 <= 0 or pre_close <= 0:
         return None
 
-    # ── 条件1: V5.9 涨幅过滤 (8-12%, 排除 9-9.5% 涨停阻力区) ──
+    # ── V8.0 条件1: 分板涨幅过滤 ──
+    board = _get_board(code)
     gain_14 = (close_14 / pre_close - 1) * 100
-    if gain_14 < 8.0 or gain_14 > 12.0:
-        return None
-    # P9: 9-9.5%是涨停阻力区, 14:40回测29%胜率-2.07%均值, 直接淘汰
-    if 9.0 <= gain_14 < 9.5:
-        return None  # 涨停阻力区: 接近涨停但封不住, 确定性最差
-    if code.startswith(('92', '83', '87', '4')):
-        return None
+
+    if board == 'main':
+        # 主板 10% 涨停: 6-9.5% 可交易区间 (8%以上往往已封板)
+        if gain_14 < 6.0 or gain_14 > 9.5:
+            return None
+        # 主板涨停阻力区: 7-8% 接近涨停确定性差
+        if 7.0 <= gain_14 < 8.0:
+            return None
+    else:
+        # 科创板/创业板 20% 涨停: ≥7% 即可, 上限由距涨停过滤(P16)控制
+        if gain_14 < 7.0:
+            return None
+
+    if board == 'bse':
+        return None  # 北交所排除
+    # P17 已移除 — 创业板与科创板使用相同的 20% 涨停参数
     if 'ST' in name.upper():
         return None
 
-    # ── V6.2 P16: 距涨停<2%淘汰 — 封板率80%, 真实交易-0.33%均值 ──
-    # 计算涨停价 (A股10%, 科创板20%, 北交所30%)
-    if code.startswith(('8','9','4')): limit_pct = 1.30
-    elif code.startswith('688'): limit_pct = 1.20
-    else: limit_pct = 1.10
+    # ── V8.0 P16: 分板距涨停过滤 ──
+    if board == 'main':
+        limit_pct = 1.10
+        min_dist = 1.5   # 主板距涨停<1.5%淘汰
+    else:
+        limit_pct = 1.20
+        min_dist = 2.0   # 科创板距涨停<2%淘汰
     limit_price = pre_close * limit_pct
-    dist_to_limit = (limit_price / close_14 - 1) * 100  # 正数=还有空间, 0=已到涨停
-    if dist_to_limit < 2.0:  # 距涨停不足2%, 随时封板或已近封板
-        return None  # 🔴 封板风险过高, 不可交易
+    dist_to_limit = (limit_price / close_14 - 1) * 100
+    if dist_to_limit < min_dist:
+        return None
 
-    # ── V6.2 P17: 创业板(300/301)淘汰 — 封板率极高(81%), 真实可买仅19% ──
-    if code.startswith(('300','301')):
-        return None  # 🔴 创业板封板率过高, 无法判断可买性
+    # ── V8.0: 分板 gain_score ──
+    if board == 'main':
+        # 主板 6-9.5%: 距涨停越近分数越高
+        if gain_14 >= 9.0: gain_score = 14
+        elif gain_14 >= 8.5: gain_score = 12
+        elif gain_14 >= 8.0: gain_score = 14   # 出涨停阻力区→高确定性
+        elif gain_14 >= 6.5: gain_score = 12
+        else: gain_score = 10                   # 6.0-6.5%
+    else:
+        # 科创板/创业板 ≥7%: 涨幅越高越好, 上限由距涨停过滤控制
+        if gain_14 >= 14.0: gain_score = 18
+        elif gain_14 >= 12.0: gain_score = 16
+        elif gain_14 >= 10.0: gain_score = 14
+        elif gain_14 >= 8.5: gain_score = 12
+        else: gain_score = 10                   # 7.0-8.5%
 
-    if gain_14 >= 10.0: gain_score = 18
-    elif gain_14 >= 9.5: gain_score = 16
-    elif gain_14 >= 9.0: gain_score = 14
-    elif gain_14 >= 8.5: gain_score = 12
-    else: gain_score = 10                        # V5.8: 8.0-8.5%
-
-    # ── V5.8 P5: 涨停阻力区惩罚 — 9.5~10%接近涨停但封不住,次日低开概率大(回测44%胜率) ──
+    # ── V8.0 P5: 分板涨停阻力区惩罚 ──
     limit_resistance_penalty = 0
-    if 9.5 <= gain_14 < 10.0:
-        limit_resistance_penalty = 3  # 涨停阻力扣3分
+    if board == 'main' and 8.5 <= gain_14 < 9.5:
+        limit_resistance_penalty = 3   # 主板涨停阻力
 
     day_range = snap["high"] - snap["low"]
     if day_range > 0 and (close_14 - snap["low"]) / day_range > 0.9:
@@ -488,16 +597,8 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         cum_amount, cum_volume = get_cumulative_amount(db, code, trade_date, time_slot)
         vol_surge = get_recent_volume_surge(db, code, trade_date, time_slot)
 
-    # ── V6.1 P15: 实时封板检测 — 不依赖limit_list_d, day_high已就绪 ──
-    # A股10%涨停价, 北交所30%
-    if code.startswith(('8','9','4')):  # 北交所
-        limit_price = pre_close * 1.30
-    elif code.startswith('688'):  # 科创板
-        limit_price = pre_close * 1.20
-    else:
-        limit_price = pre_close * 1.10
-
-    # 14:40现价 ≥ 涨停价的99.5% 且 等于日内最高 → 已封死, 无法买入
+    # ── V8.0 P15: 实时封板检测 (复用上方 board/limit_price) ──
+    # 现价 ≥ 涨停价的99.5% 且 等于日内最高 → 已封死, 无法买入
     if close_14 >= limit_price * 0.995 and close_14 >= day_high * 0.999:
         return None  # 🔴 实时封死涨停: 14:40已到涨停价且无更高成交
 
@@ -539,14 +640,20 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif amount_yi >= 2: turnover_score = 1
     else: return None
 
-    # ── V5.4 条件5: 均线趋势 (0-5) — 从预取缓存取K线 ──
+    # ── V5.4 条件5: 均线趋势 (0-5) + V8.0 ATR — 从预取缓存取K线 ──
+    highs = lows = None  # V8.0: for ATR
     if kline_cache and code in kline_cache:
-        closes, vols, _amounts = kline_cache[code]
+        cached = kline_cache[code]
+        closes, vols = cached[0], cached[1]
+        if len(cached) >= 5:
+            highs, lows = cached[3], cached[4]  # V8.0
     else:
         klines = get_kline_data(db, code, trade_date, 60)
         if len(klines) < 20: return None
         closes = np.array([r["close"] for r in klines], dtype=np.float64)
         vols = np.array([r["volume"] for r in klines], dtype=np.float64)
+        highs = np.array([r["high"] for r in klines], dtype=np.float64)
+        lows = np.array([r["low"] for r in klines], dtype=np.float64)
 
     if len(closes) < 20: return None
     ma5, ma10, ma20 = compute_ma(closes, 5), compute_ma(closes, 10), compute_ma(closes, 20)
@@ -569,9 +676,28 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif vol_ratio >= 1.0: volume_score = 1
     else: volume_score = 0
 
-    # ── V5.4 P1: 板块龙头 (0-14) — 从预计算表取, 无预计算时 fallback 查询 ──
-    if industry_stats and industry in industry_stats:
+    # ── V8.0: ATR 动态止损参数 ──
+    atr_pct = 0
+    if highs is not None and lows is not None and len(closes) >= 15:
+        atr_val = calc_atr(highs, lows, closes, period=14)
+        atr_pct = round(atr_val / close_14 * 100, 2) if atr_val > 0 and close_14 > 0 else 0
+
+    # ── V8.0 P1: 板块龙头 (THS概念优先 → stocks.industry fallback) ──
+    # concept_stats 是 per-stock 格式: {code: {concept_code, concept_name, peer_count, max_gain}}
+    peer_n = 0
+    max_g = 0
+    concept_code = None
+    concept_name = industry  # fallback display value
+
+    if concept_stats and code in concept_stats:
+        cs = concept_stats[code]
+        peer_n = cs["peer_count"]
+        max_g = cs.get("max_gain", 0)
+        concept_code = cs.get("concept_code")
+        concept_name = cs.get("concept_name", industry)
+    elif industry_stats and industry in industry_stats:
         peer_n = industry_stats[industry]["peer_count"]
+        max_g = industry_stats[industry].get("max_gain", 0)
     else:
         peer_cnt = db.execute(
             "SELECT COUNT(DISTINCT SUBSTR(m.ts_code,1,6)) as cnt "
@@ -599,10 +725,8 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     elif peer_n >= 3:
         sector_resonance_bonus = 3   # 中等联动: 有跟风效应
 
-    # ── V5.4: 板块内涨幅排名 (总龙加分, 跟风减分) — 预计算加速 ──
-    if peer_n >= 2 and industry_stats and industry in industry_stats:
-        # 从预计算的 max_gain 快速估算排名: gain_14 >= max_gain → rank=1
-        max_g = industry_stats[industry].get("max_gain", 0)
+    # ── V8.0: 板块内涨幅排名 (concept_stats 或 industry_stats 预计算加速) ──
+    if peer_n >= 2 and max_g > 0:
         intra_rank = 1 if gain_14 >= max_g - 0.01 else 2  # 简化排名估算
     elif peer_n >= 2:
         rank_row = db.execute(
@@ -635,8 +759,8 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     else:
         independent_penalty = 0
 
-    # ── V5.1 P0: 板块高潮次日检测 (index_basic→index_daily) ──
-    climax_penalty = get_sector_climax_penalty(db, industry, trade_date)
+    # ── V8.0 P0: 板块高潮次日检测 (THS概念精确 → index_basic fallback) ──
+    climax_penalty = get_sector_climax_penalty(db, industry, trade_date, concept_code=concept_code)
 
     # ── V5.2 P0b: 板块日内过热检测 (提升权重 8→10, 15→18) ──
     if peer_n >= 30:
@@ -646,8 +770,8 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     else:
         overheat_penalty = 0
 
-    # ── 板块动量 (V5.1: 维持反转逻辑, 降权 8→6) ──
-    sp = get_sector_index(db, industry, trade_date, code)
+    # ── 板块动量 (V8.0: THS概念优先, 降权 8→6) ──
+    sp = get_sector_index(db, industry, trade_date, code, concept_code=concept_code)
     if sp > 3: sm_score = 0   # 过热, 次日大概率回调
     elif sp > 1: sm_score = 2  # 偏热
     elif sp > 0: sm_score = 5  # 温和, OK
@@ -767,6 +891,8 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
 
     return {
         "code": code, "name": name, "industry": industry,
+        "concept": concept_name,                              # V8.0: THS概念名称
+        "concept_code": concept_code or "",                   # V8.0: THS概念代码
         "gain_14": round(gain_14, 2), "close_14": close_14, "pre_close": pre_close,
         "amount_yi_est": round(amount_yi, 1), "amount_14_yi": round(amount_14/1e5, 1),
         "vol_surge": round(vol_surge, 2), "afternoon_strength": round(afternoon_str, 2),
@@ -785,16 +911,17 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
         "independent_penalty": independent_penalty,         # V5.1 P1
         "climax_penalty": climax_penalty,                   # V5.1 P0
         "overheat_penalty": overheat_penalty,               # V5.1 P0b
+        "atr_pct": atr_pct,                                 # V8.0: ATR 百分比(动态止损)
     }
 
 
 # ── V5.4 性能优化: 批量预计算 ──
 
-def _precompute_industry_stats(db, trade_date, time_slot):
-    """批量预计算每个行业的 peer_count 和涨幅排名.
+def _precompute_industry_stats_fallback(db, trade_date, time_slot):
+    """[Fallback] 批量预计算每个行业的 peer_count 和涨幅排名.
 
-    替代 score_intraday_stock 中 per-stock 的 peer_count + intra_rank 查询.
-    1 次查询覆盖所有行业, 节省 ~90ms × N 只股票.
+    当 THS 概念数据不可用时使用此函数.
+    返回 per-industry 格式: {industry: {peer_count, max_gain}}
     """
     rows = db.execute(
         "SELECT s.industry, COUNT(DISTINCT SUBSTR(m.ts_code,1,6)) as peer_cnt, "
@@ -815,11 +942,174 @@ def _precompute_industry_stats(db, trade_date, time_slot):
     return result
 
 
+def _precompute_concept_stats(db, trade_date, time_slot, snapshot=None, pre_closes=None):
+    """批量预计算 THS 概念板块统计 (per-stock).
+
+    替代旧的 _precompute_industry_stats, 解决 stocks.industry 对科创板
+    粒度过细导致 peer_count=0 的问题。
+
+    每个股票可能属于多个 THS 概念, 选取当日活跃股票最多的概念作为主概念。
+
+    V8.0: 活跃股票判定在 Python 中完成 (使用 snapshot + pre_closes),
+          避免 raw SQL 中 stk_limit.pre_close 缺失的问题。
+
+    返回: {stock_code: {"concept_code": str, "concept_name": str,
+                       "peer_count": int, "max_gain": float}}
+    失败/无数据时返回 {}, 调用方应 fallback 到 _precompute_industry_stats_fallback.
+    """
+    result = {}
+
+    # Step 1: 在 Python 中计算活跃股票 (涨幅≥5%), 避免 SQL 中的 pre_close 问题
+    active_stocks = {}  # {code: gain_pct}
+    if snapshot and pre_closes:
+        for code, snap in snapshot.items():
+            pc = pre_closes.get(code, 0)
+            if pc > 0 and snap.get("close", 0) > 0:
+                gain = (snap["close"] / pc - 1) * 100
+                if gain >= 5:
+                    active_stocks[code] = gain
+
+    if not active_stocks:
+        return result
+
+    active_list = list(active_stocks.keys())
+
+    # Step 2: THS 概念路径 (raw psycopg2, 绕过 PG adapter 的 ts_code→code 误翻译)
+    # 注意: ths_member.con_code 带交易所后缀 (.SH/.SZ/.BJ), 需要用 SUBSTR 提取前6位
+    # V8.0: 过滤总成员>500的元概念 (同花顺全A/融资融券/深股通等), 仅保留行业级概念
+    with _get_raw_pg_conn(db) as cur:
+        if cur is None:
+            return result  # SQLite or no raw conn → fallback
+
+        try:
+            # Pre-fetch valid concepts (3-500 total members, excludes meta-concepts)
+            cur.execute(
+                "SELECT ts_code FROM ths_member "
+                "WHERE LEFT(ts_code, 3) IN ('881','882','883','884','885','886') "
+                "GROUP BY ts_code HAVING COUNT(*) BETWEEN 3 AND 500"
+            )
+            valid_concepts = [r[0] for r in cur.fetchall()]
+            if not valid_concepts:
+                return result
+
+            # Query A: 按概念统计当日活跃股票数和最大涨幅
+            cur.execute(
+                "SELECT m.ts_code AS concept_code, "
+                "       COUNT(DISTINCT SUBSTR(m.con_code, 1, 6)) AS peer_count "
+                "FROM ths_member m "
+                "WHERE SUBSTR(m.con_code, 1, 6) = ANY(%s) "
+                "  AND m.ts_code = ANY(%s) "
+                "GROUP BY m.ts_code",
+                (active_list, valid_concepts)
+            )
+            concept_rows = cur.fetchall()
+            if not concept_rows:
+                return result
+
+            # Build concept → {peer_count, max_gain}
+            concept_stats = {}
+            for row in concept_rows:
+                cc = row[0]
+                concept_stats[cc] = {
+                    "peer_count": int(row[1] or 0),
+                    "max_gain": 0.0,  # computed below
+                }
+
+            # Compute max_gain per concept from active_stocks
+            cur.execute(
+                "SELECT m.ts_code, SUBSTR(m.con_code, 1, 6) AS bare_code "
+                "FROM ths_member m "
+                "WHERE SUBSTR(m.con_code, 1, 6) = ANY(%s) "
+                "  AND m.ts_code = ANY(%s)",
+                (active_list, valid_concepts)
+            )
+            for row in cur.fetchall():
+                cc = row[0]
+                stock_code = row[1]  # bare 6-digit code
+                if cc in concept_stats and stock_code in active_stocks:
+                    g = active_stocks[stock_code]
+                    if g > concept_stats[cc]["max_gain"]:
+                        concept_stats[cc]["max_gain"] = g
+
+            # Query B: 对每只活跃股票, 找出 peer_count 最大的概念
+            cur.execute(
+                "SELECT DISTINCT ON (SUBSTR(m.con_code, 1, 6)) "
+                "       SUBSTR(m.con_code, 1, 6) AS code, "
+                "       m.ts_code AS concept_code "
+                "FROM ths_member m "
+                "WHERE SUBSTR(m.con_code, 1, 6) = ANY(%s) "
+                "  AND m.ts_code = ANY(%s) "
+                "ORDER BY SUBSTR(m.con_code, 1, 6), "
+                "         (SELECT COUNT(*) FROM ths_member m2 "
+                "          WHERE m2.ts_code = m.ts_code "
+                "            AND SUBSTR(m2.con_code, 1, 6) = ANY(%s)) DESC",
+                (active_list, valid_concepts, active_list)
+            )
+            stock_concept_rows = cur.fetchall()
+
+            # Get concept names from ths_index (one query for all used concepts)
+            used_concepts = set(row[1] for row in stock_concept_rows)
+            concept_name_map = {}
+            if used_concepts:
+                cur.execute(
+                    "SELECT ts_code, name FROM ths_index WHERE ts_code = ANY(%s)",
+                    (list(used_concepts),)
+                )
+                concept_name_map = {r[0]: r[1] for r in cur.fetchall()}
+
+            # Build per-stock result (keyed by bare 6-digit code)
+            for row in stock_concept_rows:
+                code = row[0]
+                concept_code = row[1]
+                if concept_code in concept_stats:
+                    result[code] = {
+                        "concept_code": concept_code,
+                        "concept_name": concept_name_map.get(concept_code, ""),
+                        "peer_count": concept_stats[concept_code]["peer_count"],
+                        "max_gain": concept_stats[concept_code]["max_gain"],
+                    }
+
+        except Exception:
+            # Any PG error → fallback silently
+            return {}
+
+    return result
+
+
+def calc_atr(highs, lows, closes, period=14):
+    """计算 ATR (Average True Range) — V8.0 用于动态止损.
+
+    Args:
+        highs, lows, closes: numpy arrays of daily OHLC
+        period: ATR period (default 14)
+
+    Returns:
+        float: ATR value (absolute price), or 0 if insufficient data
+    """
+    n = len(closes)
+    if n < period + 1:
+        return 0
+    tr = np.zeros(n)
+    for i in range(1, n):
+        tr[i] = max(
+            highs[i] - lows[i],
+            abs(highs[i] - closes[i - 1]),
+            abs(lows[i] - closes[i - 1]),
+        )
+    atr = np.zeros(n)
+    atr[period] = np.mean(tr[1:period + 1])
+    for i in range(period + 1, n):
+        atr[i] = (atr[i - 1] * (period - 1) + tr[i]) / period
+    return float(atr[-1]) if atr[-1] > 0 else 0
+
+
 def _prefetch_kline_batch(db, trade_date):
     """批量预取所有股票的近60日K线数据.
 
     替代 score_intraday_stock 中 per-stock 的 get_kline_data 查询.
     1 次查询, 节省 ~11ms × N 只股票.
+
+    V8.0: 增加 high/low 字段用于 ATR 计算.
     """
     # 计算60个交易日前的日期 (约3个月)
     parts = trade_date.split("-")
@@ -831,7 +1121,7 @@ def _prefetch_kline_batch(db, trade_date):
     start_date = f"{y}-{m:02d}-01"
 
     rows = db.execute(
-        "SELECT code, close, volume, amount FROM daily_kline "
+        "SELECT code, open, high, low, close, volume, amount FROM daily_kline "
         "WHERE trade_date >= ? AND trade_date <= ? ORDER BY code, trade_date ASC",
         (start_date, trade_date)
     ).fetchall()
@@ -844,14 +1134,20 @@ def _prefetch_kline_batch(db, trade_date):
         c = r.get("code") or r.get("ts_code", "")
         if not c:
             continue
-        by_code[c].append((float(r["close"] or 0), float(r["volume"] or 0), float(r["amount"] or 0)))
+        by_code[c].append((
+            float(r["open"] or 0), float(r["high"] or 0),
+            float(r["low"] or 0), float(r["close"] or 0),
+            float(r["volume"] or 0), float(r["amount"] or 0),
+        ))
 
     for code, data in by_code.items():
         if len(data) >= 20:
             result[code] = (
-                np.array([d[0] for d in data], dtype=np.float64),
-                np.array([d[1] for d in data], dtype=np.float64),
-                np.array([d[2] for d in data], dtype=np.float64),
+                np.array([d[3] for d in data], dtype=np.float64),  # closes
+                np.array([d[4] for d in data], dtype=np.float64),  # volumes
+                np.array([d[5] for d in data], dtype=np.float64),  # amounts
+                np.array([d[1] for d in data], dtype=np.float64),  # highs (V8.0)
+                np.array([d[2] for d in data], dtype=np.float64),  # lows  (V8.0)
             )
     return result
 
@@ -909,7 +1205,7 @@ def _prefetch_mins_agg_batch(db, trade_date, time_slot):
 
 
 def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: 默认14:40
-    """V5.4 盘中选股主流程 (P0高潮检测 + P1独立过滤 + 批量预计算)."""
+    """V8.0 盘中选股主流程 (THS概念板块 + P0高潮检测 + P1独立过滤 + 批量预计算)."""
     # 每次运行清空高潮检测缓存
     _sector_climax_cache.clear()
     with _get_db(readonly=True) as db:
@@ -927,12 +1223,21 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
         ).fetchall()
         print(f"  📈 股票池: {len(stocks)} 只")
 
-        # ── V5.4 性能优化: 批量预计算 ──
+        # ── V8.0 性能优化: 批量预计算 (THS概念优先) ──
         t_pre = time.time()
-        industry_stats = _precompute_industry_stats(db, trade_date, time_slot)
+        concept_stats = _precompute_concept_stats(db, trade_date, time_slot,
+                                                     snapshot=snapshot, pre_closes=pre_closes)
+        # Fallback: THS概念不可用时用行业统计
+        if not concept_stats:
+            industry_stats = _precompute_industry_stats_fallback(db, trade_date, time_slot)
+        else:
+            industry_stats = {}
         kline_cache = _prefetch_kline_batch(db, trade_date)
         mins_agg_cache = _prefetch_mins_agg_batch(db, trade_date, time_slot)
-        print(f"  ⚡ 预计算: {len(industry_stats)}行业 + {len(kline_cache)}K线 + {len(mins_agg_cache)}分钟, {time.time()-t_pre:.1f}s")
+        ths_covered = len(set(cs.get("concept_code", "") for cs in concept_stats.values()) if concept_stats else [])
+        ths_stocks = len(concept_stats) if concept_stats else 0
+        print(f"  ⚡ 预计算: {ths_covered}概念/{ths_stocks}股(THS) + {len(industry_stats)}行业(fallback) + "
+              f"{len(kline_cache)}K线 + {len(mins_agg_cache)}分钟, {time.time()-t_pre:.1f}s")
 
         scores = []
         for r in stocks:
@@ -942,8 +1247,10 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
                 res = score_intraday_stock(c, r["name"], r["industry"] or "其他",
                                             snapshot[c], pre_closes[c], db,
                                             trade_date, time_slot, limit_map,
-                                            industry_stats, kline_cache,
-                                            mins_agg_cache)
+                                            industry_stats=industry_stats if industry_stats else None,
+                                            concept_stats=concept_stats,
+                                            kline_cache=kline_cache,
+                                            mins_agg_cache=mins_agg_cache)
                 if res: scores.append(res)
             except Exception: continue
 
@@ -1058,17 +1365,47 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: �
 
 
 def generate_intraday_plan(picks):
+    """V8.0: ATR 动态止损 + 分级止盈 + 开盘动量检测.
+
+    - ATR 动态止损: max(固定-4%, 1.5×ATR), 高波动股给更多空间
+    - 分级止盈: S级+8%, A级+6%, B级+4%
+    - 开盘检测: 标记次日低开风险
+    """
     plans = []
     for s in picks:
-        entry = round(s["close_14"] * 1.01, 2)
-        stop = round(s["close_14"] * 0.96, 2)
+        close_14 = s["close_14"]
         g = s["grade"]
+        atr_pct = s.get("atr_pct", 0)
+
+        # ── V8.0 入场价 ──
+        entry = round(close_14 * 1.01, 2)
+
+        # ── V8.0 ATR 动态止损 ──
+        #   固定止损 -4%, 高波动股加宽到 0.5×ATR (取两者中更宽的)
+        fixed_stop_pct = 4.0
+        atr_stop_pct = atr_pct * 0.5 if atr_pct > 0 else 0
+        effective_stop_pct = max(fixed_stop_pct, atr_stop_pct)
+        stop = round(close_14 * (1 - effective_stop_pct / 100), 2)
+
+        # ── V8.0 分级止盈 ──
+        if g == "S":
+            take_profit = round(entry * 1.08, 2)   # S级 +8%
+        elif g == "A":
+            take_profit = round(entry * 1.06, 2)   # A级 +6%
+        elif g == "B":
+            take_profit = round(entry * 1.04, 2)   # B级 +4%
+        else:
+            take_profit = round(entry * 1.03, 2)   # C级 +3%
+
+        # ── V8.0 开盘动量检测标记 ──
+        morning_stop_price = round(entry * 0.98, 2)  # 低开2%阈值
+
         # V5.9 P11: 满分龙头(24分)仓位翻倍 — 74%胜率+3.66%均值
         is_full_leader = s.get("sector_leader_score", 0) >= 24
         if is_full_leader and g == "S":
-            pos = "25%"  # 满分龙头: 重仓
+            pos = "25%"
         elif is_full_leader and g == "A":
-            pos = "20%"  # 满分龙头A级: 加仓
+            pos = "20%"
         elif g == "S":
             pos = "20%"
         elif g == "A":
@@ -1077,6 +1414,7 @@ def generate_intraday_plan(picks):
             pos = "10%"
         else:
             pos = "0%"
+
         ss = s.get("seal_status", "")
         if ss in ("封死可排", "封板可排"): act = "🟢 排板买入"
         elif ss == "拉升中": act = "🟢 现价买入"
@@ -1096,49 +1434,67 @@ def generate_intraday_plan(picks):
         if s.get("independent_penalty", 0) >= 4:
             risk_tags.append("🔹独苗")
 
-        plans.append({"code": s["code"], "name": s["name"], "grade": g,
-                       "total_score": s["total_score"], "entry_price": entry,
-                       "stop_loss": stop, "position": pos, "action": act,
-                       "seal_status": ss, "gain_14": s["gain_14"],
-                       "risk_tags": risk_tags})
+        # V8.0: ATR 高波动标记 (仅当 ATR 主动加宽止损时)
+        if atr_stop_pct > fixed_stop_pct:
+            risk_tags.append(f"📈高波动(止损-{effective_stop_pct:.1f}%)")
+
+        plans.append({
+            "code": s["code"], "name": s["name"], "grade": g,
+            "total_score": s["total_score"], "entry_price": entry,
+            "stop_loss": stop, "take_profit": take_profit,    # V8.0 新增
+            "morning_stop": morning_stop_price,                # V8.0 新增
+            "atr_pct": atr_pct,                                # V8.0 新增
+            "position": pos, "action": act,
+            "seal_status": ss, "gain_14": s["gain_14"],
+            "risk_tags": risk_tags,
+        })
     return plans
 
 
 def print_intraday_results(top, trade_date, time_slot):
-    print(f"\n{'=' * 105}")
-    print(f"  秋神龙头战法-盘中 V5.1 — {trade_date} {time_slot} Top {len(top)}")
-    print(f"{'=' * 105}")
-    print(f"\n  V5.1: 涨幅(20)+午后(20)+龙头(14)+分时(12)+成交(12)+放量(8)+共振(8)+板块动量(6)+均线(6)")
-    print(f"        +P0高潮检测(12) +P1独立过滤 | 复盘:中船特气(-7%)+中巨芯(-6%) 高潮次日分歧")
-    # V5.1: 显示高潮惩罚和独立惩罚
+    print(f"\n{'=' * 115}")
+    print(f"  秋神龙头战法-盘中 V8.0 — {trade_date} {time_slot} Top {len(top)}")
+    print(f"{'=' * 115}")
+    print(f"\n  V8.0: THS概念板块 | 涨幅(18)+午后(12)+龙头(22→12)+板块龙头(24→12)+板块动量(8)")
+    print(f"        +成交(10)+共振(8)+放量(7)+均线(6)+P0高潮检测(12)+P1独立过滤")
+    # Show concept coverage
+    ths_count = sum(1 for s in top if s.get("concept_code"))
+    if ths_count:
+        print(f"  🟢 THS概念覆盖: {ths_count}/{len(top)}只")
     climax_count = sum(1 for s in top if s.get("climax_penalty", 0) > 0)
     indep_count = sum(1 for s in top if s.get("independent_penalty", 0) > 0)
     if climax_count or indep_count:
         print(f"  ⚠️ 高潮惩罚: {climax_count}只 | 独立惩罚: {indep_count}只")
-    print(f"{'#':<3} {'代码':<8} {'名称':<8} {'总分':<5} {'级':<3} {'涨':<7} {'预估':<8} {'同板块':<6} {'高潮罚':<6} {'独立罚':<6} {'板块'}")
-    print(f"{'-'*95}")
+    print(f"{'#':<3} {'代码':<8} {'名称':<8} {'总分':<5} {'级':<3} {'涨':<7} {'预估':<8} "
+          f"{'同概念':<6} {'概念'} {'板块涨':<7}")
+    print(f"{'-'*105}")
     for i, s in enumerate(top, 1):
-        clim = f"-{s.get('climax_penalty',0)}" if s.get('climax_penalty',0) > 0 else "·"
-        indp = f"-{s.get('independent_penalty',0)}" if s.get('independent_penalty',0) > 0 else "·"
+        concept_display = s.get("concept", s["industry"])[:10]
         print(f"{i:<3} {s['code']:<8} {s['name']:<8} {s['total_score']:<5.0f} {s['grade']:<3} "
               f"{s['gain_14']:>+5.1f}% {s['amount_yi_est']:<6.0f}亿 {s.get('peer_count',0):<6} "
-              f"{clim:<6} {indp:<6} "
-              f"{s.get('sector_change',0):>+5.1f}% {s['industry']}")
+              f"{concept_display:<10} "
+              f"{s.get('sector_change',0):>+5.1f}%")
     sc = sum(1 for s in top if s['grade'] == 'S')
     ac = sum(1 for s in top if s['grade'] == 'A')
     print(f"\n  S级={sc} A级={ac} B级={sum(1 for s in top if s['grade']=='B')}")
 
 
 def print_intraday_plan(plans):
-    print(f"\n{'=' * 90}")
-    print(f"  📋 盘中买入执行计划 V5.1 (14:00-15:00)")
-    print(f"{'=' * 90}")
-    print(f"  {'代码':<8} {'名称':<8} {'级':<3} {'动作':<22} {'入场':<8} {'止损':<8} {'仓位':<6} {'风险'}")
-    print(f"  {'-' * 78}")
+    print(f"\n{'=' * 105}")
+    print(f"  📋 盘中买入执行计划 V8.0 (ATR动态止损 + 分级止盈)")
+    print(f"{'=' * 105}")
+    print(f"  {'代码':<8} {'名称':<8} {'级':<3} {'动作':<18} {'入场':<8} {'止损':<8} {'止盈':<8} {'开盘止':<8} {'仓位':<6}")
+    print(f"  {'-' * 95}")
     for p in plans:
-        tags = " ".join(p.get("risk_tags", []))
-        print(f"  {p['code']:<8} {p['name']:<8} {p['grade']:<3} {p['action']:<22} "
-              f"{p['entry_price']:<8} {p['stop_loss']:<8} {p['position']:<6} {tags}")
+        tp = f"{p.get('take_profit', 0):.2f}" if p.get('take_profit') else "·"
+        ms = f"{p.get('morning_stop', 0):.2f}" if p.get('morning_stop') else "·"
+        print(f"  {p['code']:<8} {p['name']:<8} {p['grade']:<3} {p['action']:<18} "
+              f"{p['entry_price']:<8} {p['stop_loss']:<8} {tp:<8} {ms:<8} {p['position']:<6}")
+    # Show risk tags separately
+    for p in plans:
+        tags = p.get("risk_tags", [])
+        if tags:
+            print(f"  {' ' * 4}{p['code']} ⚠️ {' | '.join(tags)}")
 
 
 def get_latest_rt_slot(db, trade_date):

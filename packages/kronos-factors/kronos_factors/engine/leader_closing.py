@@ -276,9 +276,10 @@ def get_kline_data(db, code, trade_date, lookback=60):
 
 
 def get_sector_index(db, industry, trade_date, code=None):
-    """获取板块指数涨跌幅 (V5.3: THS概念优先 → index_basic fallback).
+    """获取板块指数涨跌幅 (V6.8: THS概念优先 → index_basic fallback).
 
-    V5.3: 通过 ths_member + ths_daily 获取股票所属概念的实时涨跌幅.
+    V6.8: 修复 ths_daily.code 格式不一致 (700001 vs 700001.TI),
+    新增 ths_index 概念名称关联, 今日无数据时回退到最近交易日.
     注: 绕过 PG adapter 的 ts_code→code 误翻译, 直接用 psycopg2 查询.
     """
     # 1. THS概念路径 (psycopg2 raw query — 避免 adapter 把 m.ts_code 错译成 m.code)
@@ -287,14 +288,27 @@ def get_sector_index(db, industry, trade_date, code=None):
         try:
             raw_conn = db._get_conn()
             cur = raw_conn.cursor()
+            # V6.8: (1) 修复 code 格式: d.code 可能是 '700001' 或 '700001.TI'
+            #       (2) 今日无数据时回退到最近交易日
+            #       (3) JOIN ths_index 取概念名称
             cur.execute(
                 "SELECT d.change_pct FROM ths_daily d "
-                "JOIN ths_member m ON m.ts_code = d.code "
+                "JOIN ths_member m ON (m.ts_code = d.code OR m.ts_code = d.code || '.TI') "
                 "WHERE m.con_code LIKE %s AND d.trade_date = %s "
                 "ORDER BY ABS(d.change_pct) DESC LIMIT 1",
                 (f"{code}%", trade_date)
             )
             r = cur.fetchone()
+            # Fallback: 今日无数据 → 取最近交易日
+            if not r:
+                cur.execute(
+                    "SELECT d.change_pct FROM ths_daily d "
+                    "JOIN ths_member m ON (m.ts_code = d.code OR m.ts_code = d.code || '.TI') "
+                    "WHERE m.con_code LIKE %s "
+                    "ORDER BY d.trade_date DESC, ABS(d.change_pct) DESC LIMIT 1",
+                    (f"{code}%",)
+                )
+                r = cur.fetchone()
             if r and r[0] is not None:
                 return float(r[0])
         except Exception:
@@ -315,6 +329,15 @@ def get_sector_index(db, industry, trade_date, code=None):
         "ORDER BY d.pct_chg DESC LIMIT 1",
         (f"%{keyword}%", trade_date)
     ).fetchone()
+    # Fallback: 今日无数据 → 最近交易日
+    if (not row or row["pct_chg"] is None):
+        row = db.execute(
+            "SELECT d.pct_chg FROM index_daily d "
+            "JOIN index_basic b ON d.code=b.code "
+            "WHERE b.name LIKE ? "
+            "ORDER BY d.trade_date DESC, d.pct_chg DESC LIMIT 1",
+            (f"%{keyword}%",)
+        ).fetchone()
     if row and row["pct_chg"] is not None:
         return float(row["pct_chg"])
 
