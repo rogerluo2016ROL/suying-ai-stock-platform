@@ -378,6 +378,7 @@ def run_bi_screening(db, trade_date, top_n=20):
     import pandas as pd
 
     # ── V2.0: 市场环境评估 ──
+    # V8.0: 兼容盘中实时数据 — daily_kline 无当日数据时 fallback 到 stk_mins
     prev_row = db.execute(
         "SELECT MAX(trade_date) as prev_date FROM daily_kline WHERE trade_date < ?", (trade_date,)
     ).fetchone()
@@ -385,17 +386,42 @@ def run_bi_screening(db, trade_date, top_n=20):
         return [], [], {"breadth": 50, "env": "unknown"}
     prev_date = prev_row["prev_date"]
 
-    breadth_row = db.execute(
-        "SELECT SUM(CASE WHEN a.close > b.close THEN 1 ELSE 0 END) as up, "
-        "SUM(CASE WHEN a.close < b.close THEN 1 ELSE 0 END) as down "
-        "FROM daily_kline a "
-        "JOIN daily_kline b ON a.code=b.code AND b.trade_date=? "
-        "JOIN stocks s ON a.code=s.code "
-        "WHERE a.trade_date=? AND s.is_st=0 AND s.name NOT LIKE '%ST%'",
-        (prev_date, trade_date)
+    # 检查当日 daily_kline 是否有数据
+    today_dk = db.execute(
+        "SELECT COUNT(*) as cnt FROM daily_kline WHERE trade_date=?", (trade_date,)
     ).fetchone()
-    up = breadth_row["up"] or 0
-    down = breadth_row["down"] or 0
+    has_today_dk = today_dk and (today_dk["cnt"] or 0) > 100
+
+    if has_today_dk:
+        # 标准路径: daily_kline 已收盘, 用日线计算涨跌比
+        breadth_row = db.execute(
+            "SELECT SUM(CASE WHEN a.close > b.close THEN 1 ELSE 0 END) as up, "
+            "SUM(CASE WHEN a.close < b.close THEN 1 ELSE 0 END) as down "
+            "FROM daily_kline a "
+            "JOIN daily_kline b ON a.code=b.code AND b.trade_date=? "
+            "JOIN stocks s ON a.code=s.code "
+            "WHERE a.trade_date=? AND s.is_st=0 AND s.name NOT LIKE '%ST%'",
+            (prev_date, trade_date)
+        ).fetchone()
+        up = breadth_row["up"] or 0
+        down = breadth_row["down"] or 0
+    else:
+        # 盘中 fallback: 用 stk_mins 最新快照 vs daily_kline 前收
+        # 使用最新时间槽的收盘价作为当日价格
+        br = db.execute(
+            "SELECT SUM(CASE WHEN m.close > d.close THEN 1 ELSE 0 END) as up, "
+            "SUM(CASE WHEN m.close < d.close THEN 1 ELSE 0 END) as down "
+            "FROM stk_mins m "
+            "JOIN daily_kline d ON d.code = m.code AND d.trade_date = ? "
+            "JOIN stocks s ON m.code = s.code "
+            "WHERE m.trade_time = (SELECT MAX(trade_time) FROM stk_mins "
+            "                      WHERE trade_time LIKE ? AND freq='5min') "
+            "  AND m.freq = '5min' "
+            "  AND d.close > 0 AND s.is_st = 0 AND s.name NOT LIKE '%ST%'",
+            (prev_date, f"{trade_date}%")
+        ).fetchone()
+        up = br["up"] or 0 if br else 0
+        down = br["down"] or 0 if br else 0
     breadth = up / max(1, up + down) * 100
 
     # ── V4.0: 5日涨跌比均线 (中期市场环境) ──
@@ -1016,5 +1042,5 @@ class BiTrendLaunchEngine:
             return []
 
         with _get_db(readonly=True) as db:
-            top, _ = run_bi_screening(db, trade_date, top_n=top_n)
+            top, _, _ = run_bi_screening(db, trade_date, top_n=top_n)
         return top if top else []

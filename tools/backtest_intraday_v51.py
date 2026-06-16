@@ -44,40 +44,91 @@ def get_trading_days(db, month_prefix="2026-06"):
     return [r["trade_date"] for r in rows]
 
 
-def get_next_day_return(db, code, trade_date):
-    """获取次日收益率: (次日close / 当日close - 1) * 100.
+def get_next_day_return(db, code, trade_date, entry_price=None,
+                        stop_loss=None, take_profit=None, morning_stop=None,
+                        exit_strategy="close"):
+    """V8.0: 基于次日 OHLC 的真实退出模拟.
 
-    如果次日无数据(今天是最后交易日), 返回 None.
+    exit_strategy:
+      - "close": T日收盘→T+1日收盘 (baseline)
+      - "fixed": 固定止损-4% + 固定止盈+5%
+      - "atr": ATR动态止损 + 分级止盈 + 开盘动量检测
+
+    退出优先级:
+      1. 开盘价 < morning_stop → 开盘止损
+      2. 最高价 >= take_profit → 止盈成交
+      3. 最低价 <= stop_loss → 止损成交
+      4. 默认 → 收盘卖出
+
+    Returns: (return_pct, exit_reason) or None if insufficient data
     """
-    # Get today's close at 14:00 (not daily close — use stk_mins snapshot)
-    # For backtest, we use the 14:00 close as entry, next day close as exit
+    # Get next day OHLC
     row = db.execute(
-        "SELECT a.close as next_close "
-        "FROM daily_kline a "
-        "WHERE a.code=? AND a.trade_date > ? "
-        "ORDER BY a.trade_date ASC LIMIT 1",
+        "SELECT open, high, low, close, trade_date "
+        "FROM daily_kline WHERE code=? AND trade_date > ? "
+        "ORDER BY trade_date ASC LIMIT 1",
         (code, trade_date)
     ).fetchone()
-    if not row or not row["next_close"]:
+    if not row or not row["close"]:
         return None
 
-    # Get entry price (today's daily close as proxy for 14:00)
-    entry_row = db.execute(
-        "SELECT close FROM daily_kline WHERE code=? AND trade_date=?",
-        (code, trade_date)
-    ).fetchone()
-    if not entry_row or not entry_row["close"]:
-        return None
+    next_open = float(row["open"] or row["close"])
+    next_high = float(row["high"] or row["close"])
+    next_low = float(row["low"] or row["close"])
+    next_close = float(row["close"])
 
-    next_close = float(row["next_close"])
-    entry_close = float(entry_row["close"])
-    return (next_close / entry_close - 1) * 100
+    # Entry price: use provided close_14, fall back to daily close
+    if entry_price is None or entry_price <= 0:
+        entry_row = db.execute(
+            "SELECT close FROM daily_kline WHERE code=? AND trade_date=?",
+            (code, trade_date)
+        ).fetchone()
+        if not entry_row or not entry_row["close"]:
+            return None
+        entry_price = float(entry_row["close"])
+
+    # ── Baseline: close-to-close ──
+    if exit_strategy == "close":
+        ret = (next_close / entry_price - 1) * 100
+        return (ret, "close")
+
+    # ── Fixed strategy: -4% stop, +5% take-profit ──
+    if exit_strategy == "fixed":
+        sl = entry_price * 0.96
+        tp = entry_price * 1.05
+    elif exit_strategy == "atr":
+        sl = stop_loss if stop_loss else entry_price * 0.96
+        tp = take_profit if take_profit else entry_price * 1.05
+        ms = morning_stop if morning_stop else entry_price * 0.98
+    else:
+        ret = (next_close / entry_price - 1) * 100
+        return (ret, "close")
+
+    # ── Realistic exit simulation (OHLC) ──
+    # Priority 1: Morning gap-down stop (only for ATR strategy)
+    if exit_strategy == "atr" and next_open < ms:
+        ret = (next_open / entry_price - 1) * 100
+        return (ret, f"open_gap({ret:+.1f}%)")
+
+    # Priority 2: Take-profit hit
+    if next_high >= tp:
+        ret = (tp / entry_price - 1) * 100
+        return (ret, f"tp({ret:+.1f}%)")
+
+    # Priority 3: Stop-loss hit
+    if next_low <= sl:
+        ret = (sl / entry_price - 1) * 100
+        return (ret, f"sl({ret:+.1f}%)")
+
+    # Priority 4: Close exit
+    ret = (next_close / entry_price - 1) * 100
+    return (ret, "close")
 
 
 def run_backtest(trade_date, top_n=15):
-    """Run V5.1 screening on a single day and compute next-day returns."""
+    """Run V8.0 screening on a single day and generate trading plans."""
     from kronos_factors.engine.leader_intraday import (
-        run_intraday_screening, _sector_climax_cache
+        run_intraday_screening, generate_intraday_plan, _sector_climax_cache
     )
 
     # Suppress print output during batch run
@@ -87,35 +138,77 @@ def run_backtest(trade_date, top_n=15):
     with contextlib.redirect_stdout(io.StringIO()):
         top, all_scores = run_intraday_screening(trade_date, top_n=top_n)
 
+    plans = generate_intraday_plan(top) if top else []
+
     return {
         "trade_date": trade_date,
         "total_qualified": len(all_scores),
         "top_picks": top,
+        "plans": plans,          # V8.0: with entry/stop/tp/morning_stop
         "all_scores": all_scores,
     }
 
 
-def analyze_results(results, db):
-    """分析回测结果: 计算胜率、均值收益、按评级分组等."""
+def analyze_results(results, db, compare_exits=False):
+    """V8.0: 分析回测结果, 支持多策略对比."""
+    plans_lookup = {}  # (trade_date, code) -> plan dict
     all_picks = []
     for r in results:
         td = r["trade_date"]
+        for plan in r.get("plans", []):
+            plans_lookup[(td, plan["code"])] = plan
         for s in r["top_picks"]:
-            ret = get_next_day_return(db, s["code"], td)
-            all_picks.append({
-                "trade_date": td,
-                "code": s["code"],
-                "name": s["name"],
-                "industry": s["industry"],
-                "grade": s["grade"],
-                "total_score": s["total_score"],
-                "gain_14": s["gain_14"],
-                "peer_count": s.get("peer_count", 0),
-                "climax_penalty": s.get("climax_penalty", 0),
-                "independent_penalty": s.get("independent_penalty", 0),
-                "sector_change": s.get("sector_change", 0),
-                "next_day_return": ret,
-            })
+            plan = plans_lookup.get((td, s["code"]), {})
+            entry = plan.get("entry_price", s.get("close_14", 0))
+
+            if compare_exits:
+                # Baseline: close_14 → next close (no slippage, no stops)
+                ret_close = get_next_day_return(db, s["code"], td,
+                    entry_price=s.get("close_14", entry), exit_strategy="close")
+                # Fixed: plan entry_price with slippage + fixed stop/tp
+                ret_fixed = get_next_day_return(db, s["code"], td,
+                    entry_price=entry, exit_strategy="fixed")
+                # ATR: plan entry_price with dynamic stop/tp + morning gap
+                ret_atr = get_next_day_return(db, s["code"], td,
+                    entry_price=entry,
+                    stop_loss=plan.get("stop_loss"),
+                    take_profit=plan.get("take_profit"),
+                    morning_stop=plan.get("morning_stop"),
+                    exit_strategy="atr")
+
+                all_picks.append({
+                    "trade_date": td,
+                    "code": s["code"], "name": s["name"],
+                    "industry": s["industry"], "grade": s["grade"],
+                    "total_score": s["total_score"], "gain_14": s["gain_14"],
+                    "peer_count": s.get("peer_count", 0),
+                    "climax_penalty": s.get("climax_penalty", 0),
+                    "independent_penalty": s.get("independent_penalty", 0),
+                    "next_day_return": ret_close[0] if ret_close else None,
+                    "exit_reason": ret_close[1] if ret_close else None,
+                    "ret_close": ret_close[0] if ret_close else None,
+                    "close_reason": ret_close[1] if ret_close else None,
+                    "ret_fixed": ret_fixed[0] if ret_fixed else None,
+                    "fixed_reason": ret_fixed[1] if ret_fixed else None,
+                    "ret_atr": ret_atr[0] if ret_atr else None,
+                    "atr_reason": ret_atr[1] if ret_atr else None,
+                })
+            else:
+                # Baseline only (backward compatible)
+                ret = get_next_day_return(db, s["code"], td,
+                    entry_price=entry, exit_strategy="close")
+                all_picks.append({
+                    "trade_date": td,
+                    "code": s["code"], "name": s["name"],
+                    "industry": s["industry"], "grade": s["grade"],
+                    "total_score": s["total_score"], "gain_14": s["gain_14"],
+                    "peer_count": s.get("peer_count", 0),
+                    "climax_penalty": s.get("climax_penalty", 0),
+                    "independent_penalty": s.get("independent_penalty", 0),
+                    "sector_change": s.get("sector_change", 0),
+                    "next_day_return": ret[0] if ret else None,
+                    "exit_reason": ret[1] if ret else None,
+                })
 
     # ── 总体统计 ──
     valid = [p for p in all_picks if p["next_day_return"] is not None]
@@ -191,6 +284,36 @@ def analyze_results(results, db):
         print(f"     胜率: {cw2/len(cluster_picks)*100:.1f}%  均值: {cr2.mean():+.2f}%  "
               f"最差: {cr2.min():+.2f}%")
 
+    # ── V8.0: 三种退出策略对比 ──
+    if compare_exits:
+        print(f"\n{'=' * 80}")
+        print(f"  V8.0 退出策略对比")
+        print(f"{'=' * 80}")
+        strategies = [
+            ("close", "收盘→收盘 (Baseline)"),
+            ("fixed", "固定止损-4% + 止盈+5%"),
+            ("atr",  "ATR动态 + 分级止盈 + 开盘检测"),
+        ]
+        print(f"  {'策略':<35} {'胜率':<8} {'均值':<8} {'中位数':<8} {'盈亏比':<15} {'最大盈':<8} {'最大亏':<8}")
+        print(f"  {'-' * 100}")
+        for key, label in strategies:
+            rets = [p[f"ret_{key}"] for p in valid if p.get(f"ret_{key}") is not None]
+            if not rets:
+                continue
+            rets = np.array(rets)
+            wins = rets[rets > 0]
+            losses = rets[rets <= 0]
+            w_rate = len(wins) / len(rets) * 100
+            pf = abs(wins.mean() / losses.mean()) if len(losses) > 0 and losses.mean() != 0 else float('inf')
+            reasons = [p.get(f"{key}_reason", "") for p in valid if p.get(f"ret_{key}") is not None]
+            from collections import Counter
+            reason_dist = Counter(reasons)
+            reason_str = " | ".join(f"{k}:{v}" for k, v in reason_dist.most_common(4))
+
+            print(f"  {label:<35} {w_rate:>6.1f}% {rets.mean():>+7.2f}% {np.median(rets):>+7.2f}% "
+                  f"{wins.mean():>+6.2f}%/{losses.mean():>+6.2f}% {rets.max():>+7.2f}% {rets.min():>+7.2f}%")
+            print(f"    {' ':>35} 退出分布: {reason_str}")
+
     # ── 每日汇总 ──
     print(f"\n{'─' * 80}")
     print(f"  每日汇总:")
@@ -228,6 +351,7 @@ def main():
     parser = argparse.ArgumentParser(description="V5.1 秋神龙头战法-盘中 回测")
     parser.add_argument("--month", type=str, default="2026-06", help="回测月份 (YYYY-MM)")
     parser.add_argument("--top-n", type=int, default=15, help="每日选股数")
+    parser.add_argument("--compare-exits", action="store_true", help="对比三种退出策略")
     parser.add_argument("--export", type=str, default=None, help="导出JSON路径")
     args = parser.parse_args()
 
@@ -269,7 +393,7 @@ def main():
 
     # ── 分析 ──
     with _get_db() as db:
-        all_picks = analyze_results(results, db)
+        all_picks = analyze_results(results, db, compare_exits=args.compare_exits)
 
     if args.export:
         export_json(all_picks, args.export)
