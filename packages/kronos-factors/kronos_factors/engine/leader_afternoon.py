@@ -177,17 +177,25 @@ def calc_atr(highs, lows, closes, period=14):
 
 def get_moneyflow(db, code, trade_date):
     """主力资金 (T+1延迟, 可能为空)."""
-    row = db.execute(
-        "SELECT buy_lg_amount, sell_lg_amount, buy_elg_amount, sell_elg_amount, "
-        "net_mf_amount FROM moneyflow_dc WHERE ts_code LIKE ? AND trade_date=?",
-        (f"{code}%", trade_date.replace('-', ''))
-    ).fetchone()
-    if not row:
+    row = None
+    try:
         row = db.execute(
             "SELECT buy_lg_amount, sell_lg_amount, buy_elg_amount, sell_elg_amount, "
-            "net_mf_amount FROM moneyflow WHERE code=? AND trade_date=?",
-            (code, trade_date)
+            "net_mf_amount FROM moneyflow_dc WHERE ts_code LIKE ? AND trade_date=?",
+            (f"{code}%", trade_date.replace('-', ''))
         ).fetchone()
+    except Exception:
+        pass  # moneyflow_dc may not exist in PG, fallback to moneyflow
+
+    if not row:
+        try:
+            row = db.execute(
+                "SELECT buy_lg_amount, sell_lg_amount, buy_elg_amount, sell_elg_amount, "
+                "net_mf_amount FROM moneyflow WHERE code=? AND trade_date=?",
+                (code, trade_date)
+            ).fetchone()
+        except Exception:
+            pass
     return row
 
 
