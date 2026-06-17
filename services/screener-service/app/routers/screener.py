@@ -98,6 +98,54 @@ def _sanitize_picks(picks: list) -> list:
 _executor = ThreadPoolExecutor(max_workers=3)
 
 
+def _auto_save_snapshot(result: dict, mode: str):
+    """Auto-save screening results to JSON file and PG (fire-and-forget).
+
+    Called after every successful screening run. Saves to:
+      - outputs/snapshots/{mode}/{date}_{time_slot}.json
+      - PG screening_snapshots table via recorder.record_picks()
+    """
+    import json, os
+    from datetime import datetime
+
+    picks = result.get("picks", [])
+    if not picks:
+        return
+
+    trade_date = result.get("trade_date") or datetime.now().strftime("%Y-%m-%d")
+    time_slot = result.get("time_slot") or datetime.now().strftime("%H:%M")
+
+    # 1) JSON file snapshot
+    try:
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+        snap_dir = os.path.join(repo_root, "outputs", "snapshots", mode)
+        os.makedirs(snap_dir, exist_ok=True)
+
+        snap_path = os.path.join(snap_dir, f"{trade_date}_{time_slot.replace(':', '')}.json")
+        with open(snap_path, "w") as f:
+            json.dump({
+                "mode": mode,
+                "trade_date": trade_date,
+                "time_slot": time_slot,
+                "saved_at": datetime.now().isoformat(),
+                "total_picks": len(picks),
+                "picks": picks,
+            }, f, ensure_ascii=False, indent=2, default=str)
+        logger.info("Snapshot saved: %s (%d picks)", snap_path, len(picks))
+    except Exception as e:
+        logger.warning("Snapshot file save failed: %s", e)
+
+    # 2) PG screening_snapshots via recorder
+    try:
+        model_key = mode  # e.g. 'leader_afternoon', 'bi_trend_launch'
+        from kronos_factors.recorder import record_picks
+        n = record_picks(model_key, trade_date, time_slot, picks)
+        if n:
+            logger.info("Recorder: %s %s — %d picks", model_key, trade_date, n)
+    except Exception as e:
+        logger.warning("Recorder save failed (PG may not be available): %s", e)
+
+
 @router.get("/modes")
 async def list_modes():
     """List available screening modes with descriptions."""
@@ -187,6 +235,9 @@ async def run_screening(
     if "picks" in result and result["picks"]:
         result["picks"] = _sanitize_picks(result["picks"])
         result["picks"] = _normalize_picks(result["picks"], mode)
+
+    # ── Auto-save snapshot (JSON file + PG) — before cache to ensure persistence ──
+    _auto_save_snapshot(result, mode)
 
     # ── Redis cache write (L4: screener results, TTL 1h) ──
     try:

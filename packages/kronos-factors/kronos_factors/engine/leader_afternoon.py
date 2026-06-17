@@ -828,3 +828,60 @@ class AfternoonLeaderEngine:
                 trade_date = row["max"] if row else None
         top, all_scores = run_afternoon_screening(trade_date, time_slot=time_slot, top_n=top_n)
         return top
+
+
+# ═══════════════════════ CLI ═══════════════════════
+
+def main():
+    import argparse, json, os, sys
+    from kronos_factors.scorer._db_stub import set_db_adapter
+    from kronos_factors.pg_adapter import create_pg_adapter
+
+    parser = argparse.ArgumentParser(description="秋神龙头战法-午后选股 V1.0")
+    parser.add_argument("--date", default=None, help="Trade date YYYY-MM-DD (default: latest)")
+    parser.add_argument("--time", default="14:30", help="Time slot (default: 14:30)")
+    parser.add_argument("--top-n", type=int, default=20, help="Top N picks")
+    parser.add_argument("--export", default=None, help="Export JSON file path")
+    parser.add_argument("--db-write", action="store_true", help="Write picks to screening_snapshots PG table")
+    args = parser.parse_args()
+
+    pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+    adapter = create_pg_adapter(pg_url)
+    if adapter:
+        set_db_adapter(adapter)
+        print(f"  📡 PG: {pg_url.split('@')[-1] if '@' in pg_url else pg_url}")
+    else:
+        print("  ⚠️ PG 连接失败, 使用 SQLite fallback")
+
+    trade_date = args.date
+    if trade_date is None:
+        with _get_db(readonly=True) as db:
+            row = db.execute("SELECT MAX(trade_date) FROM daily_kline").fetchone()
+            trade_date = str(row["max"]) if row else None
+        if not trade_date:
+            print("No trade date found"); return
+
+    top, all_scores = run_afternoon_screening(trade_date, time_slot=args.time, top_n=args.top_n)
+    print_results(top, trade_date, args.time)
+
+    if top and args.export:
+        export_path = args.export
+        os.makedirs(os.path.dirname(export_path) or "outputs", exist_ok=True)
+        with open(export_path, 'w') as f:
+            json.dump({
+                "date": trade_date, "time_slot": args.time,
+                "top_n": len(top), "picks": top,
+            }, f, ensure_ascii=False, indent=2, default=str)
+        print(f"\n  📁 Exported: {export_path}")
+
+    if top and args.db_write:
+        try:
+            from kronos_factors.recorder import record_picks
+            n = record_picks("leader_afternoon", trade_date, args.time, top)
+            print(f"  🗄️ DB write: {n} picks → screening_snapshots")
+        except Exception as e:
+            print(f"  ⚠️ DB write failed: {e}")
+
+
+if __name__ == "__main__":
+    main()

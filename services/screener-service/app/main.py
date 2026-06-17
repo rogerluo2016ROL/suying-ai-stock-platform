@@ -71,6 +71,13 @@ async def lifespan(app: FastAPI):
     except ImportError as e:
         logger.error("kronos-factors not found: %s. Run: pip install -e packages/kronos-factors", e)
 
+    # Start daily backfill scheduler (auto-tracks pick performance after market close)
+    try:
+        from app.scheduler import start_scheduler
+        start_scheduler()
+    except Exception as e:
+        logger.warning("Scheduler not started: %s", e)
+
     yield
 
     logger.info("Screener Service stopped.")

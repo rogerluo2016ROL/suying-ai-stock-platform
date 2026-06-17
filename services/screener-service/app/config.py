@@ -22,6 +22,7 @@ AVAILABLE_MODES = [
     "leader_scalp",       # 秋神龙头战法-盘后
     "leader_intraday",    # 秋神龙头战法-盘中
     "leader_closing",     # 秋神龙头战法-尾盘顺势 V2.0 (14:40选股)
+    "leader_afternoon",   # 秋神龙头战法-午后选股 V1.0 (14:30选股)
     "short",              # 匪爷短线多因子选股模型
     "long",               # 长线价值
     "all",                # 综合多因子

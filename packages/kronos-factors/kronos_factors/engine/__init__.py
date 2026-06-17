@@ -9,6 +9,9 @@ from kronos_factors.engine.leader_intraday import (
     score_intraday_stock, run_intraday_screening,
     generate_intraday_plan,
 )
+from kronos_factors.engine.leader_afternoon import (
+    AfternoonLeaderEngine, run_afternoon_screening,
+)
 from kronos_factors.engine.modes import (
     ChokepointEngine, ShortModeEngine, LongModeEngine, AllModeEngine,
 )
@@ -21,6 +24,8 @@ __all__ = [
     # Leader Intraday (盘中)
     "score_intraday_stock", "run_intraday_screening",
     "generate_intraday_plan",
+    # Leader Afternoon (午后)
+    "AfternoonLeaderEngine", "run_afternoon_screening",
     # Multi-factor modes
     "ChokepointEngine", "ShortModeEngine", "LongModeEngine", "AllModeEngine",
 ]

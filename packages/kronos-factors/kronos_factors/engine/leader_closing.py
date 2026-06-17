@@ -83,12 +83,12 @@ def get_intraday_snapshot(db, trade_date, time_slot="14:00"):
     """
     time_cutoff = f"{trade_date} {time_slot}:59"  # Include bars up to XX:59
     rows = db.execute(
-        "SELECT m.ts_code, m.open, m.high, m.low, m.close, m.volume, m.amount "
+        "SELECT m.code, m.open, m.high, m.low, m.close, m.volume, m.amount "
         "FROM stk_mins m "
-        "INNER JOIN (SELECT ts_code, MAX(trade_time) as max_time FROM stk_mins "
+        "INNER JOIN (SELECT code, MAX(trade_time) as max_time FROM stk_mins "
         "            WHERE trade_time >= ? AND trade_time <= ? AND freq='5min' "
-        "            GROUP BY ts_code) latest "
-        "ON m.ts_code=latest.ts_code AND m.trade_time=latest.max_time",
+        "            GROUP BY code) latest "
+        "ON m.code=latest.code AND m.trade_time=latest.max_time",
         (f"{trade_date} 09:00:00", time_cutoff)
     ).fetchall()
     snapshot = {}
@@ -990,9 +990,9 @@ def run_intraday_screening(trade_date, time_slot="14:40", top_n=20):  # V5.9: é»
             breadth_row = db.execute(
                 "SELECT SUM(CASE WHEN m.close > d.close THEN 1 ELSE 0 END) as up, "
                 "SUM(CASE WHEN m.close < d.close THEN 1 ELSE 0 END) as down "
-                "FROM (SELECT DISTINCT ts_code, close FROM stk_mins "
+                "FROM (SELECT DISTINCT code, close FROM stk_mins "
                 "      WHERE trade_time >= ? AND trade_time <= ? AND freq='5min') m "
-                "JOIN daily_kline d ON d.code=SUBSTR(m.ts_code,1,6) AND d.trade_date=? "
+                "JOIN daily_kline d ON d.code=SUBSTR(m.code,1,6) AND d.trade_date=? "
                 "WHERE d.close > 0",
                 (f"{trade_date} 09:00:00", f"{trade_date} {time_slot}:59", prev_date)
             ).fetchone()
