@@ -93,8 +93,9 @@ class _PGAdapter:
         # Step 3: Fix common SQLite→PG issues
         sql = sql.replace("datetime('now','localtime')", "NOW()")
         sql = sql.replace("strftime(", "TO_CHAR(")
-        # Kronos SQLite → PG column mapping
+        # Kronos SQLite → PG column mapping (must match pg_adapter._COLUMN_MAP)
         sql = re.sub(r'\bts_code\b', 'code', sql)  # stk_mins, stk_limit etc
+        sql = re.sub(r'\bpct_chg\b', 'change_pct', sql)  # index_daily, moneyflow etc
         sql = sql.replace("float_mv", "COALESCE(float_mv, market_cap)")
         return sql
 

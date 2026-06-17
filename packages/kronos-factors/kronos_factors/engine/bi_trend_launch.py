@@ -73,9 +73,9 @@ HARD_TECH_INDUSTRY_KW = [
 HARD_TECH_TRACK_WEIGHT = 3     # 硬科技赛道额外加分 (满分3)
 CHOKEPOINT_SCARCITY_WEIGHT = 2  # 卡脖子稀缺性加分 (满分2)
 
-GRADE_THRESHOLDS = {"S": 85, "A": 72, "B": 60}
+GRADE_THRESHOLDS = {"S": 70, "A": 55, "B": 40}  # V5.9 P5: 放宽弱市等级门槛 85→70, 72→55, 60→40
 MIN_OBV_DAYS = 2
-MIN_TREND_20D = 3.0
+MIN_TREND_20D = 0            # V5.9 P5: 3.0→0 弱市中放宽趋势门槛
 STRONG_WR_DROP = -25
 STRONG_OBV_DAYS = 10
 

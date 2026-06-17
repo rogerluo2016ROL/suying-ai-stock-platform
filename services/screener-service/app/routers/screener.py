@@ -3,16 +3,38 @@
 import asyncio
 import json
 import logging
+import math
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 from fastapi import APIRouter, Query, HTTPException
+
+import numpy as np
 
 from app.config import AVAILABLE_MODES, DEFAULT_TOP_N, MAX_TOP_N
 
 logger = logging.getLogger("screener.routes")
 
 router = APIRouter(prefix="/api/v1/screener", tags=["screener"])
+
+
+def _sanitize_picks(picks: list) -> list:
+    """Convert numpy types in picks to native Python types for JSON serialization."""
+    def _convert(v):
+        if isinstance(v, (np.integer,)):
+            return int(v)
+        if isinstance(v, (np.floating,)):
+            return float(v) if not math.isnan(v) else None
+        if isinstance(v, (np.bool_,)):
+            return bool(v)
+        if isinstance(v, np.ndarray):
+            return v.tolist()
+        if isinstance(v, dict):
+            return {k: _convert(vv) for k, vv in v.items()}
+        if isinstance(v, list):
+            return [_convert(vv) for vv in v]
+        return v
+    return [_convert(p) for p in picks]
 
 # Shared thread pool for offloading synchronous screening engines.
 # Each /run call is serialized behind a max_workers=3 pool to limit
@@ -215,6 +237,9 @@ def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict
 
     engine = BiTrendLaunchEngine()
     picks = engine.run(top_n=top_n, trade_date=trade_date)
+
+    # Sanitize numpy types for JSON serialization
+    picks = _sanitize_picks(picks)
 
     # Generate execution plans with market regime awareness
     regime = "neutral"
