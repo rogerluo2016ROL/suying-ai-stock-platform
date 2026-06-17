@@ -374,7 +374,12 @@ async def run_leader_backtest(
                 all_returns.extend(fwd_rets)
 
         if not results:
-            return {"status": "error", "message": "Not enough valid windows"}
+            return {
+                "status": "ok", "mode": mode, "windows": 0,
+                "summary": {"avg_return": 0, "hit_rate": 0, "total_trades": 0},
+                "details": [],
+                "message": "No valid windows — market conditions may not yield leader picks"
+            }
 
         return {
             "status": "ok", "mode": mode, "windows": len(results),
@@ -470,7 +475,12 @@ async def run_cb_backtest(
                 all_returns.extend(fwd_rets)
 
         if not results:
-            return {"status": "error", "message": "Not enough valid windows"}
+            return {
+                "status": "ok", "mode": mode, "windows": 0,
+                "summary": {"avg_return": 0, "hit_rate": 0, "total_trades": 0},
+                "details": [],
+                "message": "No valid windows for CB backtest"
+            }
 
         return {
             "status": "ok", "mode": mode, "windows": len(results),

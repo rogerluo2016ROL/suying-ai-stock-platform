@@ -122,6 +122,10 @@ async def run_screening(
 
     result["elapsed"] = round(time.time() - t0, 1)
 
+    # ── Sanitize numpy types across all modes ──
+    if "picks" in result and result["picks"]:
+        result["picks"] = _sanitize_picks(result["picks"])
+
     # ── Redis cache write (L4: screener results, TTL 1h) ──
     try:
         from app.cache import cache_set
@@ -238,8 +242,7 @@ def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict
     engine = BiTrendLaunchEngine()
     picks = engine.run(top_n=top_n, trade_date=trade_date)
 
-    # Sanitize numpy types for JSON serialization
-    picks = _sanitize_picks(picks)
+    # (numpy sanitization is applied globally in run_screening)
 
     # Generate execution plans with market regime awareness
     regime = "neutral"
