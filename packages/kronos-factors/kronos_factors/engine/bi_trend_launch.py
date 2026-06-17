@@ -1736,6 +1736,9 @@ class BiTrendLaunchEngine:
         if not trade_date:
             return []
 
+        # Normalize trade_date to string (PG adapter may return datetime.date)
+        trade_date = str(trade_date)[:10]
+
         with _get_db(readonly=True) as db:
             top, _, _ = run_bi_screening(db, trade_date, top_n=top_n,
                                           hard_tech_only=hard_tech_only)

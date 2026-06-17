@@ -91,6 +91,7 @@ async def run_screening(
             )
     except Exception as e:
         err = str(e)
+        logger.exception("Screening failed for mode=%s: %s", mode, err)
         if any(k in err.lower() for k in ("division by zero", "'code'", "'pct_chg'", "keyerror", "none")):
             raise HTTPException(status_code=503, detail="数据不足：部分行情数据缺失或不完整，请等待数据同步完成后再试")
         if "does not exist" in err.lower():

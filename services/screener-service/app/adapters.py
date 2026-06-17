@@ -74,14 +74,23 @@ class _PGAdapter:
         return _PGCursorWrapper(cur)
 
     def _translate_sql(self, sql: str) -> str:
-        """Convert SQLite-style SQL to PG: ? → %s, fix table/column names."""
-        # Replace ? placeholders with %s (preserving ? inside strings)
-        # Simple approach: split by quotes, replace ? only outside quotes
+        """Convert SQLite-style SQL to PG: ? → %s, fix table/column names.
+
+        IMPORTANT: After replacing ? with %s, any remaining literal %
+        characters (e.g., in LIKE '%ST%') must be escaped to %%
+        to prevent psycopg2 from interpreting them as placeholders.
+        """
+        # Step 1: Replace ? placeholders with %s (preserving ? inside quoted strings)
         parts = re.split(r"('(?:[^'\\]|\\.)*')", sql)
         for i in range(0, len(parts), 2):
             parts[i] = parts[i].replace("?", "%s")
         sql = "".join(parts)
-        # Fix common SQLite→PG issues
+        # Step 2: Escape literal % in quoted strings to prevent psycopg2 errors
+        # (psycopg2 treats %S, %T etc as placeholders, not just %s)
+        def _escape_like_percent(m):
+            return m.group(0).replace("%", "%%")
+        sql = re.sub(r"'[^']*'", _escape_like_percent, sql)
+        # Step 3: Fix common SQLite→PG issues
         sql = sql.replace("datetime('now','localtime')", "NOW()")
         sql = sql.replace("strftime(", "TO_CHAR(")
         # Kronos SQLite → PG column mapping
