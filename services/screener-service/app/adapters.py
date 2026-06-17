@@ -93,9 +93,19 @@ class _PGAdapter:
         # Step 3: Fix common SQLite→PG issues
         sql = sql.replace("datetime('now','localtime')", "NOW()")
         sql = sql.replace("strftime(", "TO_CHAR(")
-        # Kronos SQLite → PG column mapping (must match pg_adapter._COLUMN_MAP)
-        sql = re.sub(r'\bts_code\b', 'code', sql)  # stk_mins, stk_limit etc
-        sql = re.sub(r'\bpct_chg\b', 'change_pct', sql)  # index_daily, moneyflow etc
+        # Kronos SQLite → PG column mapping (TABLE-AWARE)
+        # PG actual column names:
+        #   stk_mins → code (NOT ts_code!)
+        #   index_daily → change_pct (NOT pct_chg!)
+        #   limit_list_d → ts_code, pct_chg (Tushare names, engine uses these)
+        #   daily_kline/stocks → code, change_pct
+        if "stk_mins" in sql.lower():
+            sql = re.sub(r'\bts_code\b', 'code', sql)  # stk_mins PG has 'code'
+        if "index_daily" in sql.lower():
+            sql = re.sub(r'\bts_code\b', 'code', sql)  # index_daily PG has 'code'
+            sql = re.sub(r'\bpct_chg\b', 'change_pct', sql)  # index_daily PG has 'change_pct'
+        if "limit_list_d" in sql.lower():
+            sql = re.sub(r'\bcode\b(?!_)', 'ts_code', sql)  # limit_list_d PG has 'ts_code'
         sql = sql.replace("float_mv", "COALESCE(float_mv, market_cap)")
         return sql
 

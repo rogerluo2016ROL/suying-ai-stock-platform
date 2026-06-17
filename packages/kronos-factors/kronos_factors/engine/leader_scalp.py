@@ -172,10 +172,10 @@ def detect_extreme_loss_risk(db, trade_date, market_env):
         (trade_date,)
     ).fetchone()
     if prev_date_row:
-        prev_date = prev_date_row["trade_date"]
+        prev_date = str(prev_date_row["trade_date"])[:10]  # PG may return datetime.date
         from datetime import datetime, timedelta
         try:
-            td_dt = datetime.strptime(trade_date, "%Y-%m-%d")
+            td_dt = datetime.strptime(str(trade_date)[:10], "%Y-%m-%d")
             pd_dt = datetime.strptime(prev_date, "%Y-%m-%d")
             gap_days = (td_dt - pd_dt).days
             risk_detail["gap_days"] = gap_days
