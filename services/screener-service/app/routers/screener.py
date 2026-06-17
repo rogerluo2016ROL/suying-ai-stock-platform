@@ -18,6 +18,62 @@ logger = logging.getLogger("screener.routes")
 router = APIRouter(prefix="/api/v1/screener", tags=["screener"])
 
 
+def _normalize_picks(picks: list, mode: str) -> list:
+    """Normalize engine-specific field names to frontend-expected fields.
+
+    Frontend expects: price, score, grade, entry_price, stop_loss, target_price
+    Different engines use different names, so we normalize here.
+    """
+    for p in picks:
+        # Normalize price
+        if "price" not in p:
+            if "close" in p:
+                p["price"] = p["close"]
+            elif "current_price" in p:
+                p["price"] = p["current_price"]
+            # leader_auction: no price field, use default placeholder
+            elif "gap_pct" in p:
+                p["price"] = 0  # auction mode doesn't store price
+
+        # Normalize score
+        if "score" not in p:
+            if "total_score" in p:
+                p["score"] = p["total_score"]
+            elif "composite_score" in p:
+                p["score"] = p["composite_score"]
+            elif "gap_score" in p:
+                p["score"] = p.get("total_score", 5.0)
+
+        # Normalize grade (default B if missing)
+        if "grade" not in p:
+            sc = p.get("score", 0)
+            if sc >= 20: p["grade"] = "S"
+            elif sc >= 16: p["grade"] = "A"
+            elif sc >= 10: p["grade"] = "B"
+            else: p["grade"] = "C"
+
+        # Normalize entry/stop/target (fill None or missing values)
+        base_price = p.get("close") or p.get("price") or 0
+        if base_price and float(base_price) > 0:
+            bp = float(base_price)
+            if not p.get("entry_price"):
+                p["entry_price"] = round(bp * 1.01, 2)
+            if not p.get("stop_loss"):
+                p["stop_loss"] = round(bp * 0.93, 2)
+            if not p.get("target_price"):
+                p["target_price"] = round(bp * 1.15, 2)
+
+        # Ensure numeric types
+        for k in ("price", "score", "entry_price", "stop_loss", "target_price"):
+            if k in p and p[k] is not None:
+                try:
+                    p[k] = round(float(p[k]), 2)
+                except (ValueError, TypeError):
+                    pass
+
+    return picks
+
+
 def _sanitize_picks(picks: list) -> list:
     """Convert numpy types in picks to native Python types for JSON serialization."""
     def _convert(v):
@@ -51,6 +107,7 @@ async def list_modes():
             {"id": "leader_scalp",    "name": "秋神龙头战法-盘后", "cycle": "1-5天",  "style": "激进"},
             {"id": "leader_intraday", "name": "秋神龙头战法-盘中 V7.0", "cycle": "1-2天",  "style": "激进"},
             {"id": "leader_closing",  "name": "秋神龙头战法-尾盘顺势 V2.0", "cycle": "1-2天",  "style": "顺势"},
+            {"id": "leader_afternoon","name": "🔥秋神龙头战法-午后选股 V1.0", "cycle": "1-2天",  "style": "午后"},
             {"id": "short",           "name": "匪爷短线多因子选股模型",       "cycle": "1-4周",  "style": "积极"},
             {"id": "long",            "name": "长线价值",         "cycle": "3-12月", "style": "稳健"},
             {"id": "all",             "name": "综合多因子",       "cycle": "1-6月",  "style": "中性"},
@@ -99,6 +156,10 @@ async def run_screening(
             result = await loop.run_in_executor(
                 _executor, _run_leader_mode, mode, top_n, trade_date
             )
+        elif mode == "leader_afternoon":
+            result = await loop.run_in_executor(
+                _executor, _run_afternoon_mode, mode, top_n, trade_date
+            )
         elif mode in ("cb_floor", "cb_intraday", "cb_auction"):
             result = await loop.run_in_executor(
                 _executor, _run_cb_mode, mode, top_n, trade_date
@@ -125,6 +186,7 @@ async def run_screening(
     # ── Sanitize numpy types across all modes ──
     if "picks" in result and result["picks"]:
         result["picks"] = _sanitize_picks(result["picks"])
+        result["picks"] = _normalize_picks(result["picks"], mode)
 
     # ── Redis cache write (L4: screener results, TTL 1h) ──
     try:
@@ -177,11 +239,14 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
         picks_data = result[0] if isinstance(result, tuple) else result
         plans = generate_execution_plan(picks_data) if picks_data else []
 
+    picks_out = _sanitize_picks(picks_data) if picks_data else []
+    picks_out = _normalize_picks(picks_out, mode)
+
     return {
         "mode": mode,
         "trade_date": trade_date,
-        "total_picks": len(picks_data) if picks_data else 0,
-        "picks": picks_data if picks_data else [],
+        "total_picks": len(picks_out),
+        "picks": picks_out,
         "execution_plans": plans,
     }
 
@@ -201,6 +266,9 @@ def _run_cb_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
 
     picks = engine.run(trade_date=trade_date, top_n=top_n)
     engine.close()
+
+    picks = _sanitize_picks(picks)
+    picks = _normalize_picks(picks, mode)
 
     return {
         "mode": mode,
@@ -225,12 +293,15 @@ def _run_multifactor_mode(mode: str, top_n: int, trade_date: Optional[str]) -> d
     engine = engine_map[mode]()
     result = engine.run(top_n=top_n)
 
+    picks = _sanitize_picks(result.picks)
+    picks = _normalize_picks(picks, mode)
+
     return {
         "mode": result.mode,
         "market_env": result.market_env,
         "total_scored": result.total_scored,
         "total_excluded": result.total_excluded,
-        "picks": result.picks,
+        "picks": picks,
         "factor_weights": engine.get_factor_weights(),
     }
 
@@ -242,7 +313,8 @@ def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict
     engine = BiTrendLaunchEngine()
     picks = engine.run(top_n=top_n, trade_date=trade_date)
 
-    # (numpy sanitization is applied globally in run_screening)
+    picks = _sanitize_picks(picks)
+    picks = _normalize_picks(picks, mode)
 
     # Generate execution plans with market regime awareness
     regime = "neutral"
@@ -254,4 +326,22 @@ def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict
         "total_picks": len(picks),
         "picks": picks,
         "execution_plans": plans,
+    }
+
+
+def _run_afternoon_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
+    """Run 秋神龙头战法-午后选股 V1.0 (14:30 afternoon leader screening)."""
+    from kronos_factors.engine.leader_afternoon import AfternoonLeaderEngine
+
+    engine = AfternoonLeaderEngine()
+    picks = engine.run(top_n=top_n, trade_date=trade_date, time_slot="14:30")
+
+    picks = _sanitize_picks(picks)
+    picks = _normalize_picks(picks, mode)
+
+    return {
+        "mode": mode,
+        "trade_date": trade_date,
+        "total_picks": len(picks),
+        "picks": picks,
     }
