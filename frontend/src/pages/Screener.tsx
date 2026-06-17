@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, Select, Button, Table, Tag, Space, Typography, InputNumber, message, Row, Col, Divider } from 'antd'
 import { PlayCircleOutlined, TrophyOutlined, FilterOutlined, FileTextOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { screenerApi, strategyApi } from '../api/client'
@@ -6,6 +7,7 @@ import { screenerApi, strategyApi } from '../api/client'
 const { Title, Text } = Typography
 
 export default function Screener() {
+  const navigate = useNavigate()
   const [modes, setModes] = useState<any[]>([])
   const [mode, setMode] = useState('leader_scalp')
   const [topN, setTopN] = useState(20)
@@ -57,9 +59,15 @@ export default function Screener() {
       <Text type="secondary" style={{ fontSize: 12 }}>{i + 1}</Text>
     )},
     { title: '代码', dataIndex: 'code', width: 100, render: (v: string) => (
-      <Text code style={{ fontSize: 12 }}>{v}</Text>
+      <a onClick={() => navigate(`/diagnosis?code=${v}`)} style={{ cursor: 'pointer' }}>
+        <Text code style={{ fontSize: 12 }}>{v}</Text>
+      </a>
     )},
-    { title: '名称', dataIndex: 'name', width: 90 },
+    { title: '名称', dataIndex: 'name', width: 90, render: (v: string, record: any) => (
+      <a onClick={() => navigate(`/diagnosis?code=${record.code}`)} style={{ cursor: 'pointer', color: '#1677ff' }}>
+        {v}
+      </a>
+    )},
     { title: '价格', dataIndex: 'price', width: 70, render: (v: number) => v?.toFixed(2) },
     { title: '评分', dataIndex: 'score', width: 65, render: (v: number) => (
       <Text strong style={{ color: v >= 16 ? '#ff4d4f' : v >= 12 ? '#fa8c16' : '#1890ff' }}>

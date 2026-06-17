@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, Table, Tag, Select, Space, Typography, Input, Button, Row, Col, message, Descriptions } from 'antd'
 import { ThunderboltOutlined, SearchOutlined } from '@ant-design/icons'
 import { signalApi } from '../api/client'
@@ -11,6 +12,7 @@ const signalColors: Record<string, string> = {
 }
 
 export default function Signals() {
+  const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [result, setResult] = useState<any>(null)
   const [levels, setLevels] = useState<any[]>([])

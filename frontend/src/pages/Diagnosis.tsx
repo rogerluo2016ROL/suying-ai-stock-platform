@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Card, Input, Button, Tag, Progress, Typography, Row, Col,
   Statistic, message, Spin, Tabs, Table, Collapse, Descriptions,
@@ -762,8 +763,10 @@ function generateMockResult(code: string): DiagnosisResult {
 // ── Component ──
 
 export default function Diagnosis() {
+  const [searchParams] = useSearchParams()
+
   // Search state
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState(searchParams.get('code') || '')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<DiagnosisResult | null>(null)
   const [isDemo, setIsDemo] = useState(false)
@@ -896,6 +899,16 @@ export default function Diagnosis() {
   useEffect(() => {
     loadHistory()
   }, [loadHistory])
+
+  // Auto-run diagnosis from URL param (?code=000001)
+  useEffect(() => {
+    const urlCode = searchParams.get('code')
+    if (urlCode && urlCode.trim()) {
+      setCode(urlCode.trim())
+      setActiveTab('diagnosis')
+      runDiagnosis(urlCode.trim())
+    }
+  }, [])  // run once on mount
 
   // ── Handlers ──
 

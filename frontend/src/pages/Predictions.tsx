@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, Input, Button, Descriptions, Tag, Space, Typography, Row, Col, Statistic, message, Spin, Progress } from 'antd'
 import { LineChartOutlined, ThunderboltOutlined, RiseOutlined, FallOutlined } from '@ant-design/icons'
 
 const { Title, Text } = Typography
 
 export default function Predictions() {
+  const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
@@ -45,6 +47,11 @@ export default function Predictions() {
           <Spin spinning={loading}>
             {result && !result.error && (
               <>
+                <div style={{ marginBottom: 12 }}>
+                  <a onClick={() => navigate(`/diagnosis?code=${code}`)} style={{ fontSize: 13 }}>
+                    🔍 查看 {code} 完整诊断 →
+                  </a>
+                </div>
                 <Row gutter={12} style={{ marginBottom: 16 }}>
                   <Col span={6}>
                     <Card size="small" style={{ borderRadius: 8 }}>
