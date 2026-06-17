@@ -106,7 +106,8 @@ class _PGAdapter:
             sql = re.sub(r'\bpct_chg\b', 'change_pct', sql)  # index_daily PG has 'change_pct'
         if "limit_list_d" in sql.lower():
             sql = re.sub(r'\bcode\b(?!_)', 'ts_code', sql)  # limit_list_d PG has 'ts_code'
-        sql = sql.replace("float_mv", "COALESCE(float_mv, market_cap)")
+        # Replace standalone float_mv (not preceded by . or letter) to avoid breaking s.float_mv
+        sql = re.sub(r'(?<![.\w])float_mv(?![.\w])', 'COALESCE(float_mv, market_cap)', sql)
         return sql
 
     def get_kline(self, code: str, lookback: int = 400) -> Optional[pd.DataFrame]:

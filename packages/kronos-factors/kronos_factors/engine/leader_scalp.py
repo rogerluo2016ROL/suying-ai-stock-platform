@@ -193,11 +193,12 @@ def detect_extreme_loss_risk(db, trade_date, market_env):
     # Check if previous day had extreme returns (suggesting profit-taking)
     if prev_date_row:
         prev_top_ret = db.execute(
-            "SELECT AVG((a.close/b.close-1)*100) as avg_gain "
+            "SELECT AVG((a.close/NULLIF(b.close,0)-1)*100) as avg_gain "
             "FROM daily_kline a "
             "JOIN daily_kline b ON a.code=b.code AND b.trade_date < a.trade_date "
             "WHERE a.trade_date=? AND a.amount/1e5 >= 10 "
-            "AND (a.close/b.close-1)*100 BETWEEN 7 AND 12",
+            "AND b.close > 0 "
+            "AND (a.close/NULLIF(b.close,0)-1)*100 BETWEEN 7 AND 12",
             (prev_date,)
         ).fetchone()
         if prev_top_ret and prev_top_ret["avg_gain"] and prev_top_ret["avg_gain"] > 8.5:
@@ -211,7 +212,7 @@ def detect_extreme_loss_risk(db, trade_date, market_env):
             "SELECT s.industry FROM daily_kline a "
             "JOIN stocks s ON a.code=s.code "
             "JOIN daily_kline b ON a.code=b.code AND b.trade_date < a.trade_date "
-            "WHERE a.trade_date=? AND (a.close/b.close-1)*100 >= 9.5 "
+            "WHERE a.trade_date=? AND (a.close/NULLIF(b.close,0)-1)*100 >= 9.5 "
             "GROUP BY s.industry ORDER BY COUNT(*) DESC LIMIT 1",
             (prev_date,)
         ).fetchone()
@@ -419,7 +420,7 @@ def get_weak_sectors(db, trade_date, bottom_pct=20):
     for ind in set(industries):
         # 计算该行业所有股票近5日平均涨幅
         row = db.execute(
-            "SELECT AVG((a.close/b.close-1)*100) as avg_5d "
+            "SELECT AVG((a.close/NULLIF(b.close,0)-1)*100) as avg_5d "
             "FROM daily_kline a "
             "JOIN daily_kline b ON a.code=b.code AND b.trade_date=? "
             "JOIN stocks s ON a.code=s.code "
@@ -505,7 +506,7 @@ def score_leader_role(db, code, industry, trade_date, gain_pct, amount_yi):
 
     # Find all qualifying stocks in same sector
     peers = db.execute(
-        "SELECT a.code, (a.close/b.close-1)*100 as gain, a.amount/1e5 as amt, a.volume "
+        "SELECT a.code, (a.close/NULLIF(b.close,0)-1)*100 as gain, a.amount/1e5 as amt, a.volume "
         "FROM daily_kline a "
         "JOIN daily_kline b ON a.code=b.code AND b.trade_date < ? "
         "JOIN stocks s ON a.code=s.code "
@@ -1110,7 +1111,7 @@ def score_stock(code, info, db, trade_date):
         "JOIN daily_kline b ON a.code=b.code AND b.trade_date=? "
         "JOIN stocks s ON a.code=s.code "
         "WHERE a.trade_date=? AND s.industry=? "
-        "AND b.close > 0 AND (a.close/b.close-1)*100 >= 7",
+        "AND b.close > 0 AND (a.close/NULLIF(b.close,0)-1)*100 >= 7",
         (prev_date, trade_date, industry)
     ).fetchone()
     peer_count = peer_count["count"] if peer_count else 0
