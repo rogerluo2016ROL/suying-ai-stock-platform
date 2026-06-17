@@ -36,7 +36,7 @@ async def data_status():
     # 附加限频状态 (ADR-006)
     result["rate_limiter"] = get_rate_limit_status()
 
-    # 汇总 PG 写入统计 (直接从 scheduler 返回的 pg_write_status/pg_written 字段读取)
+    # 汇总 PG 写入统计
     pg_totals = {}
     for job in result.get("jobs", []):
         job_id = job.get("id", "")
@@ -44,6 +44,22 @@ async def data_status():
         if pg_count:
             pg_totals[job_id] = pg_count
     result["pg_write_summary"] = pg_totals
+
+    # 兼容前端 DataUpdate 页面格式
+    result["sources"] = [
+        {"key": j["id"], "name": j["name"], "category": j["id"].split("_")[0] if "_" in j["id"] else "L2",
+         "source": "Tushare", "update": j["cron"], "note": "",
+         "rows": j.get("pg_written", 0), "min_date": "", "max_date": "",
+         "status": "active" if j.get("last_status") == "ok" else "pending"}
+        for j in result.get("jobs", [])
+    ]
+    result["sync_map"] = {
+        j["id"]: {"mode": j["id"], "days_default": 30, "desc": j["name"]}
+        for j in result.get("jobs", [])
+    }
+    result["total_tables"] = len(result.get("jobs", []))
+    result["active_tables"] = sum(1 for j in result.get("jobs", []) if j.get("last_status") == "ok")
+    result["total_rows"] = sum(j.get("pg_written", 0) for j in result.get("jobs", []))
 
     return result
 

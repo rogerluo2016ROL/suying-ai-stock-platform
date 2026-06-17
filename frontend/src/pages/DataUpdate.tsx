@@ -45,7 +45,7 @@ export default function DataUpdate() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await fetch(`/api/v1/signal/data-status?_t=${Date.now()}`)
+      const r = await fetch(`/api/v1/data/status?_t=${Date.now()}`)
       if (r.ok) {
         const d = await r.json()
         setSources(d.sources || [])
@@ -60,7 +60,9 @@ export default function DataUpdate() {
   const triggerSync = async (key: string, days: number, silent = false) => {
     setSyncing(key)
     try {
-      const r = await fetch(`/api/v1/signal/trigger-sync?table_key=${key}&days=${days}`, { method: 'POST' })
+      // Map table keys to data-service sync types
+      const syncType = key === 'rt_min' ? 'rt_min' : key === 'stocks' ? 'stocks' : 'post_market'
+      const r = await fetch(`/api/v1/data/sync/${syncType}?days=${days}`, { method: 'POST' })
       const d = await r.json()
       if (d.status === 'ok') {
         if (!silent) message.success(`${d.desc}: ${d.output?.[d.output.length-1] || '同步完成'}`)
@@ -93,10 +95,10 @@ export default function DataUpdate() {
   const saveSchedule = async (key: string, daysBack: number, intervalMin: number, dailyAt: string | null, enabled: boolean) => {
     const params = new URLSearchParams({ table_key: key, days_back: String(daysBack), interval_minutes: String(intervalMin), enabled: String(enabled) })
     if (dailyAt) params.set('daily_at', dailyAt)
-    try { await fetch(`/api/v1/signal/sync-schedules?${params}`, { method: 'POST' }) } catch {}
+    try { await fetch(`/api/v1/data/status?${params}`, { method: 'POST' }) } catch {}
   }
   const deleteSchedule = async (key: string) => {
-    try { await fetch(`/api/v1/signal/sync-schedules?table_key=${key}`, { method: 'DELETE' }) } catch {}
+    try { await fetch(`/api/v1/data/status?table_key=${key}`, { method: 'DELETE' }) } catch {}
   }
 
   // Start/stop auto-refresh timer for a table
@@ -144,7 +146,7 @@ export default function DataUpdate() {
 
   // Load persisted schedules on mount
   useEffect(() => {
-    fetch('/api/v1/signal/sync-schedules')
+    fetch('/api/v1/data/status')
       .then(r => r.json())
       .then(d => {
         if (d.schedules) {
@@ -301,7 +303,7 @@ export default function DataUpdate() {
               for (const s of syncable) {
                 const days = syncMap[s.key]?.days_default || 30
                 try {
-                  const r = await fetch(`/api/v1/signal/trigger-sync?table_key=${s.key}&days=${days}`, { method: 'POST' })
+                  const r = await fetch(`/api/v1/data/sync/post_market?table_key=${s.key}&days=${days}`, { method: 'POST' })
                   const d = await r.json()
                   if (d.status === 'ok') ok++; else fail++
                 } catch { fail++ }
