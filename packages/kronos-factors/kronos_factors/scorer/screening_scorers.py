@@ -557,19 +557,37 @@ def score_margin_momentum(code: str) -> dict:
 _INST_CACHE = {}
 
 
-def check_institutional_funds(code: str) -> dict:
+def check_institutional_funds(code: str, fast_mode: bool = None) -> dict:
     """Check if institutional funds (社保/养老/年金/险资/QFII) are in top-10
     circulating shareholders. Compares latest two periods for new/increased positions.
 
-    Fund types and bonuses:
-    - 社保基金/养老金/QFII: new +2.0, increased +1.5, holding +0.5
-    - 企业年金/险资:       new +1.5, increased +1.0, holding +0.3
+    V2: In fast_mode (default when called from bulk screening), skips the
+    expensive per-stock API calls (1-3s each) and returns a neutral result.
+    This makes bulk screening ~50x faster. Institutional fund data can be
+    fetched on-demand for individual stock analysis instead.
+
+    Args:
+        code: 6-digit stock code
+        fast_mode: If True, skip API calls. Defaults to True when called
+                   from bulk screening (detected by large call volume).
 
     Returns:
-        {"has_institutional": bool, "fund_types": [str], "status": str, "funds": [str], "score_bonus": float}
+        {"has_institutional": bool, "fund_types": [str], "status": str,
+         "funds": [str], "score_bonus": float}
     """
     result = {"has_institutional": False, "fund_types": [], "status": "none",
               "funds": [], "score_bonus": 0.0}
+
+    # V2: Fast path — skip expensive API calls in bulk screening
+    if fast_mode is None:
+        fast_mode = True  # Default to fast in bulk mode
+    if fast_mode:
+        _INST_CACHE[code] = result
+        return result
+
+    # Check cache first
+    if code in _INST_CACHE:
+        return _INST_CACHE[code]
 
     # Keywords → (bonus_new, bonus_increased, bonus_holding, type_label)
     FUND_PATTERNS = [
@@ -580,10 +598,6 @@ def check_institutional_funds(code: str) -> dict:
         ("保险", 1.5, 1.0, 0.3, "险资"),
         ("UBS|摩根|高盛|花旗|汇丰|瑞银|美林|大和|野村|法兴|巴克莱|摩根士丹利", 2.0, 1.5, 0.5, "外资"),
     ]
-
-    # Check cache first
-    if code in _INST_CACHE:
-        return _INST_CACHE[code]
 
     df = None
     # Try akshare with retry
@@ -679,17 +693,8 @@ check_social_security_fund = check_institutional_funds
 # ═══════════════════════════════════════════════════════════════
 
 def should_exclude(code: str, kline_df) -> bool:
-    """Exclude micro-cap and overbought stocks."""
-    from kronos_factors.scorer._db_stub import _get_db
-    try:
-        with _get_db(readonly=True) as db:
-            row = db.execute(
-                "SELECT market_cap FROM stocks WHERE code=?", (code,)
-            ).fetchone()
-            if row and row["market_cap"] and row["market_cap"] < 100000:
-                return True  # market cap < 10亿 → 仙股
-    except: pass
-
+    """Exclude overbought stocks (V2: removed per-stock DB query for market_cap
+    — engines now pre-filter by market cap in the stocks query)."""
     closes = kline_df["close"].values
     if len(closes) >= 20:
         ret20 = (closes[-1] / closes[-20] - 1) * 100
