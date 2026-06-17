@@ -36,7 +36,42 @@ WEIGHTS = {
     "freshness": 3,             # 回踩新鲜度
     "rebound_strength": 3,      # 2→3 (反弹力度更重要)
     "obv_accel": 3,             # V5.3 新增: OBV加速度
+    "hard_tech_track": 3,       # V5.8: 硬科技赛道
+    "chokepoint_scarcity": 2,   # V5.8: 卡脖子稀缺性
 }
+
+# ── V5.8: 硬科技 + 卡脖子筛选 (国家鼓励方向) ──
+HARD_TECH_ONLY = True  # 默认开启硬科技门控
+
+# 硬科技行业关键词（与 advanced_factors.py HARD_TECH_KEYWORDS 对齐，轻量纯字符串匹配）
+HARD_TECH_INDUSTRY_KW = [
+    # AI算力
+    "算力", "光模块", "服务器", "AI芯片", "GPU", "CPO", "HBM", "数据中心", "智算",
+    # 半导体
+    "半导体", "芯片", "集成电路", "晶圆", "光刻", "EDA", "封装", "测试", "存储", "碳化硅",
+    # 机器人/智造
+    "机器人", "伺服", "减速器", "具身智能", "机器视觉", "传感器", "丝杠",
+    # 锂电储能
+    "锂电池", "锂电", "储能", "固态电池", "逆变器", "充电桩", "新能源车",
+    # 信创国产
+    "国产OS", "数据库", "工业软件", "信创", "国产替代", "操作系统", "中间件",
+    # 低空经济
+    "无人机", "eVTOL", "空管", "低空", "通航", "航天", "卫星",
+    # 显示面板
+    "OLED", "面板", "MLED", "MiniLED", "MicroLED", "液晶",
+    # 通信
+    "通信", "5G", "光通信", "光纤", "基站",
+    # 新材料
+    "新材料", "碳纤维", "复合材料", "电子化学品", "特种", "精密", "稀土",
+    # 医药生物
+    "创新药", "医疗器械", "生物", "基因",
+    # 军工
+    "军工", "航空",
+    # 工业母机
+    "数控", "精密制造",
+]
+HARD_TECH_TRACK_WEIGHT = 3     # 硬科技赛道额外加分 (满分3)
+CHOKEPOINT_SCARCITY_WEIGHT = 2  # 卡脖子稀缺性加分 (满分2)
 
 GRADE_THRESHOLDS = {"S": 85, "A": 72, "B": 60}
 MIN_OBV_DAYS = 2
@@ -99,6 +134,11 @@ MIDTERM_BREADTH_BEAR = 42         # 10日均涨跌比<42% → 中期熊市
 MIDTERM_BEAR_RECOVERY_DAILY = 50  # 单日涨跌比>此值 + 10日均>RECOVERY_10D → 恢复
 MIDTERM_BEAR_RECOVERY_10D = 48    # 10日均涨跌比恢复阈值
 
+# V5.9 P0: 中期熊市熔断豁免 — 单日强反弹时解除熔断
+# 问题: 6/12 涨跌比85%但10日均31%被熔断, 错过V型反弹
+# 修复: 单日涨跌比>65%说明市场情绪已逆转, 10日均只是滞后指标
+MIDTERM_BEAR_OVERRIDE_DAILY = 65  # 单日涨跌比>此值 → 豁免中期熊市熔断
+
 # V5.7: 周线趋势确认 — 仅惩罚逆势, 不奖励顺势(好股已自证)
 WEEKLY_MA_PERIOD = 50           # MA50 ≈ 10周线
 WEEKLY_BEARISH_PENALTY = 6      # 周线空头惩罚 (price<MA50 AND MA50下降)
@@ -142,6 +182,11 @@ SELL_TRAILING_TIER4_PROFIT = 60   # V5.5: 盈利30-60% → Tier4
 SELL_TRAILING_TIER4_STOP = -8     # V5.5: -8% (让趋势跑)
 SELL_TRAILING_TIER5_STOP = -12    # V5.5: 盈利>60% → -12% (超级牛股, 给足空间)
 SELL_TAKE_PROFIT_FIXED = 15       # 固定止盈+15% (保留, 但移动止盈优先)
+
+# V5.9 P4: 弱市快进快出 — 弱市/中性市场缩短持仓周期
+# 6月回测: T+1胜率50%均值+0.86%, T+3胜率降至37.5%
+WEAK_MARKET_TAKE_PROFIT = 5.0     # 弱市止盈目标 (快进快出)
+WEAK_MARKET_STOP_LOSS = -5.0      # 弱市止损线 (更紧)
 
 # 向后兼容别名
 SELL_STOP_LOSS = SELL_STOP_LOSS_BASE
@@ -217,6 +262,51 @@ def calc_adx(highs, lows, closes, period=14):
     return float(adx[-1]), float(di_plus[-1]), float(di_minus[-1])
 
 
+# ── V5.8: 硬科技 + 卡脖子辅助函数 ──
+
+def _is_hard_tech_stock(industry: str) -> bool:
+    """判断行业是否为硬科技赛道 (纯字符串匹配, 无DB依赖)."""
+    if not industry:
+        return False
+    return any(kw in industry for kw in HARD_TECH_INDUSTRY_KW)
+
+
+def _get_hard_tech_track(industry: str) -> str:
+    """返回匹配的硬科技赛道名，用于展示."""
+    if not industry:
+        return ""
+    _TRACK_MAP = {
+        "算力": "AI算力", "光模块": "AI算力", "服务器": "AI算力", "GPU": "AI算力",
+        "CPO": "AI算力", "HBM": "AI算力", "数据中心": "AI算力", "智算": "AI算力",
+        "半导体": "半导体", "芯片": "半导体", "集成电路": "半导体", "晶圆": "半导体",
+        "光刻": "半导体", "EDA": "半导体", "封装": "半导体", "碳化硅": "半导体",
+        "机器人": "机器人", "伺服": "机器人", "减速器": "机器人", "具身智能": "机器人",
+        "锂电池": "锂电储能", "锂电": "锂电储能", "储能": "锂电储能", "固态电池": "锂电储能",
+        "逆变器": "锂电储能", "充电桩": "锂电储能",
+        "信创": "信创国产", "国产替代": "信创国产", "工业软件": "信创国产", "操作系统": "信创国产",
+        "无人机": "低空经济", "eVTOL": "低空经济", "低空": "低空经济", "卫星": "低空经济",
+        "OLED": "显示面板", "面板": "显示面板", "MLED": "显示面板",
+        "通信": "通信", "5G": "通信", "光通信": "通信",
+        "新材料": "新材料", "碳纤维": "新材料", "稀土": "新材料",
+        "创新药": "医药生物", "医疗器械": "医药生物", "生物": "医药生物",
+        "军工": "军工", "航空": "军工",
+        "数控": "工业母机", "精密制造": "工业母机",
+    }
+    for kw, track in _TRACK_MAP.items():
+        if kw in industry:
+            return track
+    return "硬科技"
+
+
+def _get_industry_peers(db) -> dict:
+    """批量计算各行业的上市公司数量 (卡脖子稀缺性)."""
+    rows = db.execute(
+        "SELECT industry, COUNT(*) as cnt FROM stocks WHERE is_st=0 "
+        "AND name NOT LIKE '%ST%' GROUP BY industry"
+    ).fetchall()
+    return {r["industry"]: r["cnt"] for r in rows if r["industry"]}
+
+
 def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     """毕师傅趋势启动战法 — 单只股票评分.
 
@@ -242,8 +332,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     # 涨幅过滤(排除涨停/跌停极端情况)
     if len(closes) >= 2 and closes[-2] > 0:
         daily_gain = (closes[-1] / closes[-2] - 1) * 100
-        if daily_gain > 9.5 or daily_gain < -9.5:
-            return None  # 涨跌停不参与
+        # V5.8: 移除涨跌停过滤
 
     # 近20日跌幅>30% 淘汰, 涨幅<5% 过滤横盘
     if len(closes) >= 20 and closes[-20] > 0:
@@ -461,8 +550,12 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     }
 
 
-def run_bi_screening(db, trade_date, top_n=20):
+def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     """毕师傅趋势启动战法 V2.0 — 全市场选股.
+
+    V5.8:
+      - 硬科技门控 (hard_tech_only=True): 仅筛选国家鼓励的硬科技赛道
+      - 卡脖子稀缺性: 同行业上市公司数越少加分越高 (寡头溢价)
 
     V2.0优化:
       - 市场环境熔断: 涨跌比<40%空仓
@@ -617,12 +710,20 @@ def run_bi_screening(db, trade_date, top_n=20):
     except Exception:
         pass  # 无法获取上证数据时跳过
 
-    # ── V5.4 P0: 中期熊市 → 空仓 (优先级最高) ──
+    # ── V5.9 P0: 中期熊市 → 空仓 (优先级最高, 但单日强反弹豁免) ──
+    midterm_bear_override = False
     if midterm_bear and not midterm_recovering:
-        print(f"  🐻 中期熊市: 10日均涨跌比{breadth_10d:.0f}%<{MIDTERM_BREADTH_BEAR}% (恢复需单日>{MIDTERM_BEAR_RECOVERY_DAILY}%+10日均>{MIDTERM_BEAR_RECOVERY_10D}%)")
-        return [], [], {"breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),
-                        "breadth_10d": round(breadth_10d, 1), "sh_trend": sh_trend,
-                        "env": "midterm_bear", "midterm_bear": True}
+        # V5.9 P0: 熔断豁免 — 单日涨跌比>65%说明市场情绪已逆转
+        if breadth > MIDTERM_BEAR_OVERRIDE_DAILY:
+            midterm_bear_override = True
+            print(f"  🟢 中期熊市熔断豁免: 单日涨跌比{breadth:.0f}%>{MIDTERM_BEAR_OVERRIDE_DAILY}% "
+                  f"(10日均{breadth_10d:.0f}%仍<{MIDTERM_BREADTH_BEAR}%, 但V型反弹确认)")
+        else:
+            print(f"  🐻 中期熊市: 10日均涨跌比{breadth_10d:.0f}%<{MIDTERM_BREADTH_BEAR}% "
+                  f"(恢复需单日>{MIDTERM_BEAR_RECOVERY_DAILY}%+10日均>{MIDTERM_BEAR_RECOVERY_10D}%)")
+            return [], [], {"breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),
+                            "breadth_10d": round(breadth_10d, 1), "sh_trend": sh_trend,
+                            "env": "midterm_bear", "midterm_bear": True}
 
     # ── V5.2 方向3: 熔断逻辑 (增强版) ──
     # 1. 系统性崩盘 → 空仓
@@ -662,8 +763,8 @@ def run_bi_screening(db, trade_date, top_n=20):
         regime = "neutral"
     elif breadth_10d >= MIDTERM_BREADTH_BEAR:
         regime = "weak"
-    elif midterm_recovering:
-        regime = "recovery"
+    elif midterm_recovering or midterm_bear_override:
+        regime = "recovery"  # V5.9 P0: 熔断豁免 → 3成仓试探
     else:
         regime = "bear"  # midterm_bear (已在前面 return)
 
@@ -683,7 +784,16 @@ def run_bi_screening(db, trade_date, top_n=20):
         "AND name NOT LIKE '%ST%' "
         "AND (float_mv IS NULL OR float_mv >= 20)"
     ).fetchall()
-    print(f"  📈 股票池: {len(stocks)} 只")
+    total_pool = len(stocks)
+
+    # ── V5.8: 硬科技门控 + 行业稀缺预计算 ──
+    industry_peers = {}
+    if hard_tech_only:
+        industry_peers = _get_industry_peers(db)
+        stocks = [r for r in stocks if _is_hard_tech_stock(r["industry"] or "")]
+        print(f"  🔬 硬科技门控: {total_pool} → {len(stocks)} 只 (仅国家鼓励的硬科技赛道)")
+    else:
+        print(f"  📈 股票池: {len(stocks)} 只 (全市场)")
 
     # ── 批量预取K线 (关键性能优化) ──
     t0 = time.time()
@@ -703,19 +813,27 @@ def run_bi_screening(db, trade_date, top_n=20):
             if len(closes) < 40:
                 continue
 
-            # 构造 mini dict (复用预取数据)
-            df = type('obj', (object,), {
-                'close': type('arr', (object,), {'values': closes})()
-            })()
-            # 简单方式: 直接传 arrays 给 score_bi_trend
             industry = r["industry"] or "其他"
             sc = get_sector_index(db, industry, trade_date, code)
             sector_change = sc if isinstance(sc, (int, float)) else 0
 
+            # ── V5.8: 硬科技赛道 + 卡脖子稀缺性 ──
+            hard_tech_track = ""
+            chokepoint_score = 0
+            if hard_tech_only:
+                hard_tech_track = _get_hard_tech_track(industry)
+                peer_count = industry_peers.get(industry, 99)
+                if peer_count <= 3:
+                    chokepoint_score = 2  # 绝对稀缺: ≤3家同行
+                elif peer_count <= 8:
+                    chokepoint_score = 1  # 寡头格局: ≤8家同行
+
             result = _score_bi_trend_arrays(
                 closes, highs, lows, volumes,
                 code=code, name=r["name"], industry=industry,
-                sector_change=sector_change
+                sector_change=sector_change,
+                hard_tech_track=hard_tech_track,
+                chokepoint_score=chokepoint_score,
             )
             if result:
                 scores.append(result)
@@ -772,8 +890,13 @@ def run_bi_screening(db, trade_date, top_n=20):
     return top, scores, market_info
 
 
-def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, industry=None, sector_change=0):
-    """V5.1: 毕师傅趋势启动战法 — 单只股票评分 (numpy arrays版本).
+def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, industry=None, sector_change=0,
+                          hard_tech_track="", chokepoint_score=0):
+    """V5.8: 毕师傅趋势启动战法 — 单只股票评分 (numpy arrays版本).
+
+    V5.8 新增:
+      - 硬科技赛道: 行业匹配国家鼓励方向 → +3分
+      - 卡脖子稀缺性: 同行业公司≤3家+2分, ≤8家+1分
 
     V5.1 新增:
       - 追高惩罚: OBV极强(≥18天) + WR未深跌(>-55) → 降8分 (修复S级悖论)
@@ -790,8 +913,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     # ── 基础过滤 ──
     if len(closes) >= 2 and closes[-2] > 0:
         daily_gain = (closes[-1] / closes[-2] - 1) * 100
-        if daily_gain > 9.5 or daily_gain < -9.5:
-            return None
+        # V5.8: 移除涨跌停过滤, 允许涨停股参与 (涨停也可能是趋势启动信号)
     if len(closes) >= 20 and closes[-20] > 0:
         ret_20d = (closes[-1] / closes[-20] - 1) * 100
         if ret_20d < -30:
@@ -1022,10 +1144,15 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             weekly_score_adj = -WEEKLY_BEARISH_PENALTY
 
     # ── V5.7 综合评分 (含周线惩罚) ──
+    # ── V5.8: 硬科技赛道 + 卡脖子稀缺 ──
+    ht_score = HARD_TECH_TRACK_WEIGHT if hard_tech_track else 0
+    cp_score = chokepoint_score  # 0/1/2 (pre-computed)
+
     total_raw = (obv_score + wr_score + freshness_bonus + rebound_strength_bonus +
                  obv_accel_score + vol_score + ma_score + adx_score + sm_score
                  - chase_penalty - distribution_penalty - ma20_extension_penalty
-                 + weekly_score_adj)
+                 + weekly_score_adj
+                 + ht_score + cp_score)
     total = round(total_raw, 0)
 
     # ── V5.3 评级 ──
@@ -1168,6 +1295,9 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         "ma20_extension_penalty": ma20_extension_penalty,
         "consecutive_up_bonus": consecutive_up_bonus,
         "buy_subtype": buy_subtype,
+        # V5.8: 硬科技 + 卡脖子
+        "hard_tech_track": hard_tech_track,
+        "chokepoint_score": chokepoint_score,
         # Price
         "close": round(float(price), 2),
         "daily_gain": round((closes[-1]/closes[-2]-1)*100, 2) if len(closes) >= 2 and closes[-2] > 0 else 0,
@@ -1386,15 +1516,31 @@ def _prefetch_kline_batch(db, trade_date):
     return result
 
 
-def generate_bi_plan(picks):
-    """V5.2: 生成次日执行计划 — buy分层 + D3检查."""
+def generate_bi_plan(picks, market_regime="neutral"):
+    """V5.9: 生成次日执行计划 — buy分层 + D3检查 + 弱市快进快出.
+
+    Args:
+        picks: 选股结果列表
+        market_regime: 市场环境 (bull/neutral/weak/recovery/bear)
+            V5.9 P4: weak/recovery/neutral → 快进快出 (止盈+5%, 止损-5%)
+    """
+    # V5.9 P4: 弱市快进快出 — T+1 止盈止损收紧
+    is_fast_market = market_regime in ("weak", "recovery", "neutral")
+
     plans = []
     for s in picks:
         entry = round(s["close"] * 1.01, 2)
-        stop_early = round(s["close"] * (1 + EARLY_STOP_LOSS_PCT / 100), 2)  # 前3天宽止损
-        stop_normal = round(s["close"] * 0.93, 2)  # D3后标准止损
-        tp_half = round(s["close"] * 1.08, 2)
-        tp_full = round(s["close"] * 1.15, 2)
+        if is_fast_market:
+            # 快进快出: 止盈+5%, 止损-5%, 不设半仓
+            stop_early = round(s["close"] * (1 + WEAK_MARKET_STOP_LOSS / 100), 2)
+            stop_normal = round(s["close"] * (1 + WEAK_MARKET_STOP_LOSS / 100), 2)
+            tp_half = round(s["close"] * (1 + WEAK_MARKET_TAKE_PROFIT / 100), 2)
+            tp_full = round(s["close"] * (1 + WEAK_MARKET_TAKE_PROFIT / 100), 2)
+        else:
+            stop_early = round(s["close"] * (1 + EARLY_STOP_LOSS_PCT / 100), 2)  # 前3天宽止损
+            stop_normal = round(s["close"] * 0.93, 2)  # D3后标准止损
+            tp_half = round(s["close"] * 1.08, 2)
+            tp_full = round(s["close"] * 1.15, 2)
 
         g = s["grade"]
         sig = s["signal"]
@@ -1420,12 +1566,22 @@ def generate_bi_plan(picks):
         else:
             pos = "0%";  action = "🔴 不参与"
 
+        # V5.9 P4: 弱市快进快出 → 仓位减半, 加⚡标记
+        if is_fast_market and pos not in ("0%", ""):
+            pos_val = int(pos.replace("%", ""))
+            pos = f"{max(3, pos_val // 2)}%"  # 弱市仓位减半, 最低3%
+            action = "⚡" + action  # 快进快出标记
+
         # 提示标签
         tips = []
+        if is_fast_market: tips.append('⚡快进快出')
         if is_chase: tips.append('⚠️追高')
         if is_dead_cat: tips.append('💀中继')
         if s.get("_fresh"): tips.append('✨新鲜')
         if s.get("rebound_strength_bonus", 0) > 0: tips.append('💪强反弹')
+        if s.get("hard_tech_track"): tips.append(f'🔬{s["hard_tech_track"]}')
+        if s.get("chokepoint_score", 0) >= 2: tips.append('🏆稀缺')
+        elif s.get("chokepoint_score", 0) >= 1: tips.append('🥇寡头')
 
         plans.append({
             "code": s["code"], "name": s["name"], "grade": g,
@@ -1435,25 +1591,28 @@ def generate_bi_plan(picks):
             "stop_loss_normal": stop_normal,
             "take_profit_half": tp_half, "take_profit_full": tp_full,
             "position": pos, "action": action,
+            "market_regime": market_regime, "fast_market": is_fast_market,
             "obv_level": s["obv_level"], "wr_level": s["wr_level"],
             "close": s["close"],
             "chase_warning": is_chase, "dead_cat": is_dead_cat,
             "fresh_pullback": s.get("_fresh", False),
+            "hard_tech_track": s.get("hard_tech_track", ""),
+            "chokepoint_score": s.get("chokepoint_score", 0),
             "tips": ','.join(tips) if tips else '',
         })
     return plans
 
 
 def print_bi_results(top, trade_date):
-    """V5.2: 打印选股结果."""
-    print(f"\n{'=' * 125}")
-    print(f"  毕师傅趋势启动战法 V5.2 — {trade_date} Top {len(top)}")
-    print(f"{'=' * 125}")
-    print(f"\n  OBV(32) + WR(28) + 新鲜(3) + 强反弹(2) + 缩量(10) + 均线(10) + ADX(8) + 板块(7) - 追高(8) = 100")
-    print(f"  V5.2: 🔥强买=趋势+回踩+反弹 | 📦优选=新鲜+放量+力度 | 💀中继=下跌中继过滤")
+    """V5.9: 打印选股结果."""
+    print(f"\n{'=' * 140}")
+    print(f"  毕师傅趋势启动战法 V5.9 — {trade_date} Top {len(top)}")
+    print(f"{'=' * 140}")
+    print(f"\n  OBV(30) + WR(28) + 量(8) + 均线(10) + ADX(8) + 板块(7) + 硬科技(3) + 稀缺(2) + 新鲜(3) + 强反弹(2) = 101")
+    print(f"  V5.9: 🔥强买 | 🔬硬科技门控 | P0熔断豁免 | P4弱市快进快出(止盈+5%/-5%)")
     print(f"{'#':<3} {'代码':<8} {'名称':<8} {'总':<4} {'级':<3} {'信号':<12} {'子类':<8} "
-          f"{'OBV':<12} {'WR跌':<6} {'量':<6} {'均线':<8} {'标记'}")
-    print(f"{'-'*110}")
+          f"{'OBV':<12} {'WR跌':<6} {'量':<6} {'均线':<8} {'硬科技':<8} {'标记'}")
+    print(f"{'-'*125}")
     for i, s in enumerate(top, 1):
         sig_map = {"strong_buy": "🔥强买", "buy": "🟢买入", "watch": "🟡观察"}
         sig = sig_map.get(s["signal"], s["signal"])
@@ -1466,12 +1625,16 @@ def print_bi_results(top, trade_date):
         if s.get('_dead_cat'): tags.append('💀中继')
         if s.get('_fresh'): tags.append('✨')
         if s.get('rebound_strength_bonus', 0) > 0: tags.append('💪')
+        if s.get('chokepoint_score', 0) >= 2: tags.append('🏆')
+        elif s.get('chokepoint_score', 0) >= 1: tags.append('🥇')
         tag_str = ' '.join(tags)
+
+        ht_track = s.get('hard_tech_track', '')[:8]
 
         print(f"{i:<3} {s['code']:<8} {s['name']:<8} {s['total_score']:<4.0f} {s['grade']:<3} "
               f"{sig:<12} {buy_sub:<8} "
               f"{s['obv_level']:<12} {wrs:<6} {s['vol_level']:<6} "
-              f"{s['ma_level']:<8} {tag_str}")
+              f"{s['ma_level']:<8} {ht_track:<8} {tag_str}")
 
     s_cnt = sum(1 for s in top if s['grade']=='S')
     a_cnt = sum(1 for s in top if s['grade']=='A')
@@ -1482,20 +1645,26 @@ def print_bi_results(top, trade_date):
     buy_w = sum(1 for s in top if s.get('_buy_sub')=='weak')
     chase_cnt = sum(1 for s in top if s.get('_chase'))
     dead_cnt = sum(1 for s in top if s.get('_dead_cat'))
-    print(f"\n  S={s_cnt} A={a_cnt} B={b_cnt} | 🔥强买={strong} 📦优选={buy_p} 📦标准={buy_s} 📦弱={buy_w} | ⚠️追高={chase_cnt} 💀中继={dead_cnt}")
+    scarce_cnt = sum(1 for s in top if s.get('chokepoint_score', 0) >= 2)
+    oligo_cnt = sum(1 for s in top if s.get('chokepoint_score', 0) >= 1)
+    print(f"\n  S={s_cnt} A={a_cnt} B={b_cnt} | 🔥强买={strong} 📦优选={buy_p} 📦标准={buy_s} 📦弱={buy_w} | ⚠️追高={chase_cnt} 💀中继={dead_cnt} | 🏆稀缺={scarce_cnt} 🥇寡头={oligo_cnt}")
 
 
 def print_bi_plan(plans):
-    """V5.2: 打印执行计划."""
-    print(f"\n{'=' * 120}")
-    print(f"  📋 毕师傅趋势启动战法 V5.2 — 执行计划")
-    print(f"{'=' * 120}")
-    print(f"  {'代码':<8} {'名称':<8} {'级':<3} {'信号':<12} {'子类':<8} {'动作':<16} {'入场':<8} {'止损D3':<8} {'止盈½':<8} {'止盈全':<8} {'仓位':<6} {'提示'}")
-    print(f"  {'-' * 112}")
+    """V5.9: 打印执行计划."""
+    fast_mode = any(p.get("fast_market") for p in plans)
+    header = "⚡快进快出" if fast_mode else "标准持仓"
+    print(f"\n{'=' * 130}")
+    print(f"  📋 毕师傅趋势启动战法 V5.9 — 执行计划 [{header}]")
+    print(f"{'=' * 130}")
+    if fast_mode:
+        print(f"  ⚡ 弱市快进快出: 止盈+{WEAK_MARKET_TAKE_PROFIT}% 止损{WEAK_MARKET_STOP_LOSS}% | 仓位减半")
+    print(f"  {'代码':<8} {'名称':<8} {'级':<3} {'信号':<12} {'子类':<8} {'动作':<18} {'入场':<8} {'止损':<8} {'止盈':<8} {'仓位':<6} {'提示'}")
+    print(f"  {'-' * 118}")
     for p in plans:
         print(f"  {p['code']:<8} {p['name']:<8} {p['grade']:<3} {p['signal']:<12} "
-              f"{p.get('buy_subtype',''):<8} {p['action']:<16} {p['entry_price']:<8} "
-              f"{p['stop_loss_early']:<8} {p['take_profit_half']:<8} {p['take_profit_full']:<8} "
+              f"{p.get('buy_subtype',''):<8} {p['action']:<18} {p['entry_price']:<8} "
+              f"{p['stop_loss_early']:<8} {p['take_profit_half']:<8} "
               f"{p['position']:<6} {p.get('tips','')}")
 
 
@@ -1507,8 +1676,15 @@ class BiTrendLaunchEngine:
     def __init__(self, pg_url: str = None):
         self.pg_url = pg_url
 
-    def run(self, top_n: int = 20, trade_date: str = None, **kwargs) -> list[dict]:
-        """Execute Bi trend launch screening."""
+    def run(self, top_n: int = 20, trade_date: str = None,
+            hard_tech_only: bool = True, **kwargs) -> list[dict]:
+        """Execute Bi trend launch screening.
+
+        Args:
+            top_n: 返回Top N股票
+            trade_date: 交易日期 YYYY-MM-DD (None=最新)
+            hard_tech_only: V5.8 硬科技门控, 默认True仅选国家鼓励的硬科技赛道
+        """
         from kronos_factors.scorer._db_stub import _get_db
 
         if trade_date is None:
@@ -1519,5 +1695,6 @@ class BiTrendLaunchEngine:
             return []
 
         with _get_db(readonly=True) as db:
-            top, _, _ = run_bi_screening(db, trade_date, top_n=top_n)
+            top, _, _ = run_bi_screening(db, trade_date, top_n=top_n,
+                                          hard_tech_only=hard_tech_only)
         return top if top else []
