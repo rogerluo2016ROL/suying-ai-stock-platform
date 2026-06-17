@@ -77,8 +77,8 @@ export default function Strategy() {
 
   const loadPlans = () => {
     setLoading(true)
-    fetch('/api/v1/strategy/list').then(r => r.json()).then(d => {
-      setPlans(d.strategies || d.items || [])
+    fetch('/api/v1/strategy/plans').then(r => r.json()).then(d => {
+      setPlans(d.plans || d.items || [])
       setLoading(false)
     }).catch(() => setLoading(false))
   }
