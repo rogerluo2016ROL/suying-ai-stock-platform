@@ -128,16 +128,11 @@ WEAK_BREADTH_5D = 35
 BEAR_BREADTH_5D = 30
 MIN_HOLD_DAYS = 5
 
-# V5.4 P0: 中期熊市检测 — 10日涨跌比均线
+# V5.4: 10日涨跌比均线 — 仅用于仓位管理, 不再熔断
 MIDTERM_BREADTH_WINDOW = 10       # 10日滚动窗口
-MIDTERM_BREADTH_BEAR = 42         # 10日均涨跌比<42% → 中期熊市
+MIDTERM_BREADTH_BEAR = 42         # 10日均涨跌比<42% → 弱市/减仓
 MIDTERM_BEAR_RECOVERY_DAILY = 50  # 单日涨跌比>此值 + 10日均>RECOVERY_10D → 恢复
 MIDTERM_BEAR_RECOVERY_10D = 48    # 10日均涨跌比恢复阈值
-
-# V5.9 P0: 中期熊市熔断豁免 — 单日强反弹时解除熔断
-# 问题: 6/12 涨跌比85%但10日均31%被熔断, 错过V型反弹
-# 修复: 单日涨跌比>65%说明市场情绪已逆转, 10日均只是滞后指标
-MIDTERM_BEAR_OVERRIDE_DAILY = 65  # 单日涨跌比>此值 → 豁免中期熊市熔断
 
 # V5.7: 周线趋势确认 — 仅惩罚逆势, 不奖励顺势(好股已自证)
 WEEKLY_MA_PERIOD = 50           # MA50 ≈ 10周线
@@ -151,7 +146,7 @@ POSITION_REGIME = {
     "neutral":    0.7,    # 10日均 48-55%: 7成仓
     "weak":       0.4,    # 10日均 42-48%: 4成仓
     "recovery":   0.3,    # 刚从熊市恢复: 3成仓试探
-    "bear":       0.0,    # 10日均<42%: 空仓 (midterm_bear)
+    "bear":       0.3,    # 已废弃 (不再熔断, 统一用weak)
 }
 # 信号质量 → 仓位权重 (叠加市场档位)
 SIGNAL_WEIGHT = {
@@ -710,35 +705,15 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     except Exception:
         pass  # 无法获取上证数据时跳过
 
-    # ── V5.9 P0: 中期熊市 → 空仓 (优先级最高, 但单日强反弹豁免) ──
-    midterm_bear_override = False
-    if midterm_bear and not midterm_recovering:
-        # V5.9 P0: 熔断豁免 — 单日涨跌比>65%说明市场情绪已逆转
-        if breadth > MIDTERM_BEAR_OVERRIDE_DAILY:
-            midterm_bear_override = True
-            print(f"  🟢 中期熊市熔断豁免: 单日涨跌比{breadth:.0f}%>{MIDTERM_BEAR_OVERRIDE_DAILY}% "
-                  f"(10日均{breadth_10d:.0f}%仍<{MIDTERM_BREADTH_BEAR}%, 但V型反弹确认)")
-        else:
-            print(f"  🐻 中期熊市: 10日均涨跌比{breadth_10d:.0f}%<{MIDTERM_BREADTH_BEAR}% "
-                  f"(恢复需单日>{MIDTERM_BEAR_RECOVERY_DAILY}%+10日均>{MIDTERM_BEAR_RECOVERY_10D}%)")
-            return [], [], {"breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),
-                            "breadth_10d": round(breadth_10d, 1), "sh_trend": sh_trend,
-                            "env": "midterm_bear", "midterm_bear": True}
-
-    # ── V5.2 方向3: 熔断逻辑 (增强版) ──
-    # 1. 系统性崩盘 → 空仓
+    # ── V5.2 方向3: 熔断逻辑 ──
+    # 1. 系统性崩盘 → 空仓 (唯一保留的熔断)
     if breadth < MARKET_BREADTH_CRASH:
         print(f"  🛑 熔断: 涨跌比{breadth:.0f}%<{MARKET_BREADTH_CRASH}%")
         return [], [], {"breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1), "sh_trend": sh_trend, "env": "crash"}
 
-    # 2. V5.2: 前日涨跌比<30% → 空仓 (从20%收紧)
-    if breadth_5d_list and len(breadth_5d_list) >= 2:
-        prev_breadth = breadth_5d_list[1]  # 昨日涨跌比
-        if prev_breadth < POST_CRASH_SKIP_BREADTH:
-            print(f"  🛑 前日暴跌: 涨跌比{prev_breadth:.0f}%<{POST_CRASH_SKIP_BREADTH}% → 空仓")
-            return [], [], {"breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1), "sh_trend": sh_trend, "env": "post_crash"}
+    # 2. 前日暴跌/上证熊市 → 不再熔断 (V5.9: 过于严格, 仅降仓不空仓)
 
-    # 3. V5.2: 连续2天涨跌比下降且当前<40% → 大盘转弱预警, 半仓
+    # 3. V5.2: 连续2天涨跌比下降且当前<40% → 大盘转弱预警
     pre_warning = False
     if breadth_5d_list and len(breadth_5d_list) >= 3:
         # 最近3天涨跌比: breadth_5d_list[0]=今日, [1]=昨日, [2]=前日
@@ -748,25 +723,18 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
             recent_3[0] < recent_3[1] < recent_3[2]):  # 连续下降
             pre_warning = True
 
-    # 4. 上证<20MA AND 5日涨跌比<30% → 熊市空仓 (保留)
-    is_bear = sh_trend in ("down", "weak") and breadth_5d < BEAR_BREADTH_5D
-    if is_bear:
-        print(f"  🛑 熊市: 上证{sh_trend} + 5日涨跌比{breadth_5d:.0f}%<{BEAR_BREADTH_5D}% → 空仓")
-        return [], [], {"breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),
-                        "breadth_10d": round(breadth_10d, 1), "sh_trend": sh_trend, "env": "bear_market"}
+    # 4. 上证熊市 → 不再熔断 (V5.9: 仅降仓)
 
     # ── V5.6 P1续: 动态仓位管理 — 10日均涨跌比 → 仓位档位 ──
-    # 五档: bull(>55%) / neutral(48-55%) / weak(42-48%) / recovery / bear(<42%)
+    # 四档: bull(>55%) / neutral(48-55%) / weak(<48%) / recovery (熊市恢复中)
     if breadth_10d > 55:
         regime = "bull"
     elif breadth_10d >= 48:
         regime = "neutral"
-    elif breadth_10d >= MIDTERM_BREADTH_BEAR:
-        regime = "weak"
-    elif midterm_recovering or midterm_bear_override:
-        regime = "recovery"  # V5.9 P0: 熔断豁免 → 3成仓试探
+    elif midterm_recovering:
+        regime = "recovery"
     else:
-        regime = "bear"  # midterm_bear (已在前面 return)
+        regime = "weak"  # 10日均<48% → 弱市减仓, 但不再熔断
 
     position_ratio = POSITION_REGIME.get(regime, 0.3)
     effective_n = top_n  # 不减少数量, 保持分散度
@@ -852,13 +820,10 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     s_grade = [s for s in scores if s["signal"] not in ("strong_buy", "buy") and s["grade"] == "S"]
     a_grade = [s for s in scores if s["signal"] not in ("strong_buy", "buy") and s["grade"] == "A"]
 
-    # V5.6: 仅信号过滤 (弱市只选strong_buy+buy_premium), 不减少数量
-    # 原因: 减仓会降低分散度, 个别止损拖累整体 > 质量过滤的收益
+    # V5.9: 弱市信号过滤放宽 — 不再限制, 通过仓位减半控制风险
+    # 弱市仍然排除 no_signal (纯技术面不达标)
     if weak_market:
-        candidates = strong + buy_premium
-        # 如果强信号不够, 用buy_standard补足 (不空仓)
-        if len(candidates) < effective_n:
-            candidates = candidates + buy_standard
+        candidates = strong + buy_premium + buy_standard + s_grade + buy_weak + a_grade
     else:
         candidates = strong + buy_premium + buy_standard + s_grade + buy_weak + a_grade
 
