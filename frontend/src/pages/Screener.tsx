@@ -18,7 +18,7 @@ export default function Screener() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
   const generatePlan = async () => {
-    const selectedPicks = picks.filter((_:any,i:number) => selectedRowKeys.includes(i))
+    const selectedPicks = picks.filter((p:any) => selectedRowKeys.includes(p.code))
     if (selectedPicks.length === 0) { message.warning('请先勾选股票'); return }
     try {
       const r1 = await strategyApi.createPlan(
