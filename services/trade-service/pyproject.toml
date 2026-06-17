@@ -1,0 +1,23 @@
+[project]
+name = "trade-service"
+version = "0.1.0"
+description = "FastAPI trade service — paper & live trading with broker integration"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "kronos-factors",
+    "kronos-core",
+    "kronos-data",
+    "kronos-auth",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "httpx>=0.27",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"

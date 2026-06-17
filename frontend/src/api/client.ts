@@ -87,7 +87,8 @@ export const screenerApi = {
 // Prediction
 export const predictionApi = {
   getStatus: () => api.get('/prediction/status'),
-  predict: (code: string, days = 30) => api.post(`/prediction/predict/${code}?pred_days=${days}`),
+  predict: (code: string, predDays = 10) => api.post(`/prediction/predict/${code}?pred_days=${predDays}`),
+  predictFast: (code: string, predDays = 15) => api.post(`/prediction/${code}/fast?pred_days=${predDays}`),
   predictBatch: (codes: string[], days = 30) =>
     api.post(`/prediction/predict-batch?pred_days=${days}`, codes),
 }
@@ -98,6 +99,12 @@ export const strategyApi = {
     api.post(`/strategy/generate?capital=${capital}`, picks),
   getTemplates: () => api.get('/strategy/templates'),
   getPlans: () => api.get('/strategy/plans'),
+  createPlan: (name: string, modelName: string, maxPositions: number, capital = 1_000_000) =>
+    api.post(`/strategy/plans?name=${encodeURIComponent(name)}&model_name=${modelName}&max_positions=${maxPositions}&capital=${capital}`),
+  getPlan: (planId: string) => api.get(`/strategy/plans/${planId}`),
+  addPicks: (planId: string, picks: any[]) =>
+    api.post(`/strategy/plans/${planId}/picks`, picks),
+  deletePlan: (planId: string) => api.delete(`/strategy/plans/${planId}`),
 }
 
 // Signal
@@ -105,6 +112,14 @@ export const signalApi = {
   getLevels: () => api.get('/signal/levels'),
   getLive: (session = 'intra') => api.get(`/signal/live?session=${session}`),
   getHistory: (code?: string) => api.get(`/signal/history${code ? `?code=${code}` : ''}`),
+  analyzeCode: (code: string) => api.get(`/signal/analyze/${code}`),
+  getDashboardSummary: () => api.get(`/signal/dashboard-summary?_t=${Date.now()}`),
+  getDataStatus: () => api.get(`/signal/data-status?_t=${Date.now()}`),
+  triggerSync: (tableKey: string, days: number) =>
+    api.post(`/signal/trigger-sync?table_key=${tableKey}&days=${days}`),
+  getSyncSchedules: () => api.get('/signal/sync-schedules'),
+  updateSyncSchedules: (params: string) => api.post(`/signal/sync-schedules?${params}`),
+  deleteSyncSchedule: (key: string) => api.delete(`/signal/sync-schedules?table_key=${key}`),
 }
 
 // Alert
@@ -157,9 +172,10 @@ export const diagnosisApi = {
     api.post('/diagnosis/compare', { codes, dimensions, force_refresh: forceRefresh }),
 }
 
-// Health
+// Health — check microservice health through API gateway
 export const healthApi = {
-  check: (service: string) => api.get(`/${service}/../health`).catch(() => ({ data: { status: 'offline' } })),
+  check: (service: string) => api.get(`/${service}/health`).catch(() => ({ data: { status: 'offline' } })),
+  gateway: () => api.get('/health').catch(() => ({ data: { status: 'offline' } })),
 }
 
 export default api

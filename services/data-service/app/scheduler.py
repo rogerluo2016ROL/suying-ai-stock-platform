@@ -292,6 +292,127 @@ def run_data_integrity_check(dry_run: bool = False) -> dict:
     return {"check": gaps, "backfill": backfill}
 
 
+def run_data_quality_report() -> dict:
+    """L4 数据质量检查 — 检测异常值、空值、重复、新鲜度。
+
+    对 PG 中的核心表执行质量扫描，输出异常计数报告。
+    每周六凌晨 4:30 执行，避免与数据完整性检查冲突。
+
+    检查项:
+      - daily_kline: close<=0, volume<0, change_pct NULL
+      - stk_auction_o: close NULL, vwap NULL
+      - index_daily: close NULL
+      - cb_daily: close<=0, duplicate (ts_code, trade_date)
+      - cb_factor: RSI 越界 [0,100]
+      - stocks: market_cap NULL (非ST)
+      - 数据新鲜度: 每张表最新日期距今天数
+    """
+    import psycopg2
+    logger.info("Data quality report starting...")
+    t0 = time.time()
+    today = date.today()
+    results: dict[str, list] = {}
+
+    try:
+        conn = psycopg2.connect(_PG_URL)
+        conn.autocommit = True
+        cur = conn.cursor()
+
+        # ── 行情数据质量 ──
+        checks = [
+            ("daily_kline", "close <= 0",
+             "SELECT COUNT(*) FROM daily_kline WHERE close <= 0 OR close IS NULL"),
+            ("daily_kline", "volume < 0",
+             "SELECT COUNT(*) FROM daily_kline WHERE volume < 0"),
+            ("daily_kline", "change_pct IS NULL",
+             "SELECT COUNT(*) FROM daily_kline WHERE change_pct IS NULL"),
+            ("index_daily", "close IS NULL",
+             "SELECT COUNT(*) FROM index_daily WHERE close IS NULL"),
+            ("stk_auction_o", "close IS NULL",
+             "SELECT COUNT(*) FROM stk_auction_o WHERE close IS NULL"),
+        ]
+
+        # Only check cb_* tables if they exist
+        for table in ("cb_daily", "cb_factor", "cb_price_chg", "cb_basic"):
+            try:
+                cur.execute("SELECT 1 FROM %s LIMIT 1" % table)
+            except Exception:
+                continue  # table doesn't exist, skip
+
+        # cb_daily checks
+        try:
+            cur.execute("SELECT COUNT(*) FROM cb_daily WHERE close <= 0 OR close IS NULL")
+            results["cb_daily"] = [{"check": "close <= 0", "count": cur.fetchone()[0]}]
+            cur.execute("SELECT COUNT(*) FROM (SELECT ts_code, trade_date FROM cb_daily GROUP BY ts_code, trade_date HAVING COUNT(*) > 1) d")
+            results["cb_daily"].append({"check": "duplicate", "count": cur.fetchone()[0]})
+        except Exception:
+            pass
+
+        # cb_factor RSI range check
+        try:
+            for field in ("rsi_6", "rsi_12", "rsi_24"):
+                cur.execute(f"SELECT COUNT(*) FROM cb_factor WHERE {field} IS NOT NULL AND ({field} < 0 OR {field} > 100)")
+                k = f"cb_factor.{field}_out_of_range"
+                results[k] = [{"check": f"{field} ∉ [0,100]", "count": cur.fetchone()[0]}]
+        except Exception:
+            pass
+
+        # stocks check
+        try:
+            cur.execute("SELECT COUNT(*) FROM stocks WHERE market_cap IS NULL AND is_st = 0")
+            results["stocks"] = [{"check": "market_cap NULL (non-ST)", "count": cur.fetchone()[0]}]
+        except Exception:
+            pass
+
+        # ── 数据新鲜度 (days behind today) ──
+        freshness_checks = [
+            ("daily_kline", "trade_date"),
+            ("index_daily", "trade_date"),
+            ("ths_daily", "trade_date"),
+            ("stk_auction_o", "trade_date"),
+            ("stk_mins", "trade_time"),
+        ]
+        for table, col in freshness_checks:
+            try:
+                cur.execute(f"SELECT MAX({col}) FROM {table}")
+                row = cur.fetchone()
+                if row and row[0]:
+                    latest = _parse_date(row[0])
+                    if latest:
+                        days_behind = (today - latest).days
+                        results.setdefault("freshness", []).append(
+                            {"table": table, "latest": latest.isoformat(), "days_behind": days_behind})
+            except Exception:
+                pass
+
+        conn.close()
+    except Exception as e:
+        logger.warning("Data quality report PG check failed: %s", e)
+
+    elapsed = time.time() - t0
+
+    # ── 汇总并告警 ──
+    total_anomalies = 0
+    for key, items in results.items():
+        if key != "freshness":
+            for item in items:
+                total_anomalies += item.get("count", 0)
+
+    report = {
+        "checked_at": datetime.now().isoformat(),
+        "total_anomalies": total_anomalies,
+        "results": results,
+        "elapsed": round(elapsed, 1),
+    }
+
+    if total_anomalies > 0:
+        logger.warning("Data quality: %d anomalies detected", total_anomalies)
+    else:
+        logger.info("Data quality: all checks passed (%.1fs)", elapsed)
+
+    return report
+
+
 # ═══════════════════════════════════════════════════════════════
 # 新增同步函数 (L1 日内 / L2 盘后 / L3 周级 补充)
 # ═══════════════════════════════════════════════════════════════
@@ -764,6 +885,9 @@ def start_scheduler():
         # ── L4 历史回补 (每日凌晨自动检测 + 回补) ──
         {"id": "data_integrity", "name": "[L4]数据完整性检查+回补", "cron": "0 4 * * *",
          "fn": run_data_integrity_check},
+        # 数据质量检查 — 每周六凌晨 4:30
+        {"id": "data_quality", "name": "[L4]数据质量周检", "cron": "30 4 * * 6",
+         "fn": run_data_quality_report},
     ]
 
     for j in _jobs:

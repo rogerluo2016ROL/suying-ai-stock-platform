@@ -25,6 +25,7 @@ def _get_engine(mode: str):
         from kronos_factors.engine.cb_floor import CbFloorEngine
         from kronos_factors.engine.cb_intraday import CbIntradayEngine
         from kronos_factors.engine.cb_auction import CbAuctionEngine
+        from kronos_factors.engine.bi_trend_launch import BiTrendLaunchEngine
 
         _ENGINES.update({
             "leader_scalp": LeaderScalpEngine,
@@ -34,6 +35,7 @@ def _get_engine(mode: str):
             "long": LongModeEngine,
             "all": AllModeEngine,
             "chokepoint": ChokepointEngine,
+            "bi_trend_launch": BiTrendLaunchEngine,
             "cb_floor": CbFloorEngine,
             "cb_intraday": CbIntradayEngine,
             "cb_auction": CbAuctionEngine,

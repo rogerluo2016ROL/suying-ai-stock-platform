@@ -4,14 +4,16 @@
 #   cd docker && docker compose up -d
 #
 # 服务端口:
-#   8001 — screener-service    (选股+排序)
-#   8002 — prediction-service  (Kronos预测)
-#   8003 — strategy-service    (LLM方案生成)
-#   8004 — signal-service      (交易信号)
-#   8005 — alert-service       (预警提醒)
-#   8006 — trade-service       (模拟+实盘交易)
-#   8007 — backtest-service    (回测+校准)
-#   8009 — diagnosis-service   (股票诊断)
+#   8080 — api-gateway          (统一网关)
+#   8001 — screener-service     (选股+排序, 12模型)
+#   8002 — prediction-service   (Kronos K线预测)
+#   8003 — strategy-service     (LLM方案生成+自动交易)
+#   8004 — signal-service       (交易信号, 50维)
+#   8005 — alert-service        (预警提醒)
+#   8006 — trade-service        (模拟+实盘交易)
+#   8007 — backtest-service     (回测+IC校准)
+#   8009 — diagnosis-service    (五维个股诊断)
+#   9001 — backend              (JWT认证+用户管理)
 
 version: "3.8"
 
@@ -45,6 +47,39 @@ services:
       retries: 5
 
   # ── 微服务 ──
+
+  # API Gateway (统一入口)
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: services/api-gateway/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Backend (认证+用户管理)
+  backend:
+    build:
+      context: ..
+      dockerfile: services/backend/Dockerfile
+    ports:
+      - "9001:9001"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://kronos:kronos@postgres:5432/kronos
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-change-in-production}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@suying.ai}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-Admin123!}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Screener (选股)
   screener-service:
     build:
       context: ..
@@ -52,11 +87,12 @@ services:
     ports:
       - "8001:8001"
     environment:
+      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - KRONOS_DB_PATH=/data/kronos.db
       - TUSHARE_TOKEN=${TUSHARE_TOKEN:-}
+      - REDIS_URL=redis://redis:6379/0
     volumes:
       - ../Kronos/data:/data:ro
-      - ../packages:/app/packages:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,6 +100,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Prediction (Kronos K线预测)
   prediction-service:
     build:
       context: ..
@@ -71,28 +108,14 @@ services:
     ports:
       - "8002:8002"
     environment:
+      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - KRONOS_DEVICE=cpu
     volumes:
-      - ../packages:/app/packages:ro
+      - ../Kronos/outputs/models:/app/Kronos/outputs/models:ro
       - model_cache:/root/.cache/huggingface
     restart: unless-stopped
 
-  backtest-service:
-    build:
-      context: ..
-      dockerfile: services/backtest-service/Dockerfile
-    ports:
-      - "8007:8007"
-    environment:
-      - KRONOS_DB_PATH=/data/kronos.db
-    volumes:
-      - ../Kronos/data:/data:ro
-      - ../packages:/app/packages:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-
+  # Strategy (方案管理+自动交易引擎)
   strategy-service:
     build:
       context: ..
@@ -100,31 +123,47 @@ services:
     ports:
       - "8003:8003"
     environment:
+      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
-    volumes:
-      - ../packages:/app/packages:ro
+      - TRADE_SERVICE_URL=http://trade-service:8006
+      - SIGNAL_SERVICE_URL=http://signal-service:8004
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
+  # Signal (交易信号)
   signal-service:
     build:
       context: ..
       dockerfile: services/signal-service/Dockerfile
     ports:
       - "8004:8004"
+    environment:
+      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+      - KRONOS_DB_PATH=/data/kronos.db
     volumes:
-      - ../packages:/app/packages:ro
+      - ../Kronos/data:/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
+  # Alert (预警提醒)
   alert-service:
     build:
       context: ..
       dockerfile: services/alert-service/Dockerfile
     ports:
       - "8005:8005"
-    volumes:
-      - ../packages:/app/packages:ro
+    environment:
+      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
+  # Trade (模拟/实盘交易)
   trade-service:
     build:
       context: ..
@@ -132,19 +171,42 @@ services:
     ports:
       - "8006:8006"
     environment:
+      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - TRADE_MODE=paper
-    volumes:
-      - ../packages:/app/packages:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
+  # Backtest (回测+IC校准)
+  backtest-service:
+    build:
+      context: ..
+      dockerfile: services/backtest-service/Dockerfile
+    ports:
+      - "8007:8007"
+    environment:
+      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+      - KRONOS_DB_PATH=/data/kronos.db
+    volumes:
+      - ../Kronos/data:/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Diagnosis (五维个股诊断)
   diagnosis-service:
     build:
       context: ..
       dockerfile: services/diagnosis-service/Dockerfile
     ports:
       - "8009:8009"
-    volumes:
-      - ../packages:/app/packages:ro
+    environment:
+      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

@@ -15,6 +15,7 @@ from kronos_factors.scorer.advanced_factors import (
     score_money_flow, score_mean_reversion, score_trend_strength,
     score_reversal, score_liquidity, score_hard_tech, get_tushare_scores,
 )
+from kronos_factors.scorer.kronos_prediction import score_kronos_prediction
 from kronos_factors.scorer.screening_scorers import (
     score_short_term, score_long_term, score_growth,
     score_identifiability, score_margin_momentum, score_chokepoint,
@@ -41,7 +42,8 @@ def _compute_shared_factors(code: str, df: pd.DataFrame):
     ht = score_hard_tech(code)
     ts_scores = get_tushare_scores(code) if os.environ.get("TUSHARE_TOKEN") else {}
     th = get_stock_themes(code, df, ht)
-    return ff, mf, mr, ts_, rev, liq, st, lt, gr, ht, ts_scores, th
+    kp = score_kronos_prediction(code)  # Kronos AI prediction factor (opt-in)
+    return ff, mf, mr, ts_, rev, liq, st, lt, gr, ht, ts_scores, th, kp
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -82,7 +84,7 @@ class ChokepointEngine(StrategyEngine):
                 price = float(df["close"].values[-1])
                 cp_score = cp["score"]
                 idf = score_identifiability(code, df)
-                _, _, _, _, _, _, _, _, _, ht, _, th = _compute_shared_factors(code, df)
+                _, _, _, _, _, _, _, _, _, ht, _, th, _ = _compute_shared_factors(code, df)
                 devils = generate_devils_advocate(code, cp, df)
 
                 picks.append({
@@ -155,7 +157,7 @@ class ShortModeEngine(StrategyEngine):
                 if not mtf.get("weekly_ok") or not mtf.get("monthly_ok"):
                     excluded += 1; continue
 
-                ff, mf, mr, ts_, rev, liq, st, lt, gr, ht, ts_scores, th = (
+                ff, mf, mr, ts_, rev, liq, st, lt, gr, ht, ts_scores, th, kp = (
                     _compute_shared_factors(code, df))
                 mg = score_margin_momentum(code)
                 idf = score_identifiability(code, df)
@@ -174,6 +176,9 @@ class ShortModeEngine(StrategyEngine):
                     (ts_scores.get("tushare_hk_hold", {}).get("score", 5), 0.03),
                     (idf["score"], 0.07),
                 ]
+                # Kronos AI prediction factor (opt-in, 3% weight when available)
+                if kp.get("available"):
+                    models.append((kp["score"], 0.03))
 
                 # Regime-adaptive adjustment
                 hint = regime.get("factor_hint", "")
@@ -208,6 +213,7 @@ class ShortModeEngine(StrategyEngine):
                     "entry_price": levels.get("entry"), "stop_loss": levels.get("stop"),
                     "target_price": levels.get("target"), "rationale": rationale,
                     "risk_level": risk.get("risk_level"),
+                    "kronos_prediction": kp if kp.get("available") else None,
                 })
                 scored += 1
             except Exception:
@@ -259,7 +265,7 @@ class LongModeEngine(StrategyEngine):
                 if should_exclude(code, df):
                     excluded += 1; continue
 
-                ff, mf, mr, ts_, rev, liq, st, lt, gr, ht, ts_scores, th = (
+                ff, mf, mr, ts_, rev, liq, st, lt, gr, ht, ts_scores, th, kp = (
                     _compute_shared_factors(code, df))
 
                 models = [
@@ -269,6 +275,9 @@ class LongModeEngine(StrategyEngine):
                     (ts_scores.get("tushare_daily_basic", {}).get("score", 5), 0.05),
                     (ts_scores.get("tushare_por", {}).get("score", 5), 0.02),
                 ]
+                # Kronos AI prediction factor (opt-in, 5% weight for long-term)
+                if kp.get("available"):
+                    models.append((kp["score"], 0.05))
 
                 # Institutional fund bonus
                 inst = check_institutional_funds(code)
@@ -294,6 +303,7 @@ class LongModeEngine(StrategyEngine):
                     "entry_price": levels.get("entry"), "stop_loss": levels.get("stop"),
                     "target_price": levels.get("target"), "rationale": rationale,
                     "risk_level": risk.get("risk_level"),
+                    "kronos_prediction": kp if kp.get("available") else None,
                     "institutional_funds": inst.get("funds", []),
                 })
                 scored += 1
@@ -350,7 +360,7 @@ class AllModeEngine(StrategyEngine):
                 if should_exclude(code, df):
                     excluded += 1; continue
 
-                ff, mf, mr, ts_, rev, liq, st, lt, gr, ht, ts_scores, th = (
+                ff, mf, mr, ts_, rev, liq, st, lt, gr, ht, ts_scores, th, kp = (
                     _compute_shared_factors(code, df))
                 idf_all = score_identifiability(code, df)
 
@@ -367,6 +377,9 @@ class AllModeEngine(StrategyEngine):
                     (ts_scores.get("tushare_por", {}).get("score", 5), 0.010),
                     (idf_all["score"], 0.008),
                 ]
+                # Kronos AI prediction factor (opt-in, 3% weight)
+                if kp.get("available"):
+                    models.append((kp["score"], 0.03))
 
                 # Multi-timeframe bonus (not hard filter in ALL mode)
                 mtf = check_multi_timeframe_trend(code)
@@ -394,6 +407,7 @@ class AllModeEngine(StrategyEngine):
                     "entry_price": levels.get("entry"), "stop_loss": levels.get("stop"),
                     "target_price": levels.get("target"), "rationale": rationale,
                     "risk_level": risk.get("risk_level"),
+                    "kronos_prediction": kp if kp.get("available") else None,
                     "sector_score": round(sector_score, 2),
                 })
                 scored += 1

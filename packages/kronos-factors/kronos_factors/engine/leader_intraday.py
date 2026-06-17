@@ -341,7 +341,7 @@ def get_sector_index(db, industry, trade_date, code=None, concept_code=None):
                 try:
                     cur.execute(
                         "SELECT d.change_pct FROM ths_daily d "
-                        "JOIN ths_member m ON m.ts_code = d.code "
+                        "JOIN ths_member m ON m.ts_code = d.ts_code "
                         "WHERE m.con_code LIKE %s AND d.trade_date = %s "
                         "ORDER BY ABS(d.change_pct) DESC LIMIT 1",
                         (f"{code}%", trade_date)
@@ -356,7 +356,7 @@ def get_sector_index(db, industry, trade_date, code=None, concept_code=None):
     keyword = industry[-2:] if len(industry) >= 2 else industry
     row = db.execute(
         "SELECT d.pct_chg FROM index_daily d "
-        "JOIN index_basic b ON d.code=b.code "
+        "JOIN index_basic b ON d.ts_code=b.ts_code "
         "WHERE b.name LIKE ? AND d.trade_date=? "
         "ORDER BY d.pct_chg DESC LIMIT 1",
         (f"%{keyword}%", trade_date)
@@ -441,7 +441,7 @@ def get_sector_climax_penalty(db, industry, trade_date, concept_code=None):
         keyword = industry[-2:] if len(industry) >= 2 else industry
         sector_row = db.execute(
             "SELECT d.pct_chg FROM index_daily d "
-            "JOIN index_basic b ON d.code=b.code "
+            "JOIN index_basic b ON d.ts_code=b.ts_code "
             "WHERE b.name LIKE ? AND d.trade_date=? "
             "ORDER BY d.pct_chg DESC LIMIT 1",
             (f"%{keyword}%", td_prev)
@@ -452,7 +452,7 @@ def get_sector_climax_penalty(db, industry, trade_date, concept_code=None):
         if yesterday_sector_pct == 0:
             sector_row = db.execute(
                 "SELECT d.pct_chg FROM index_daily d "
-                "JOIN index_basic b ON d.code=b.code "
+                "JOIN index_basic b ON d.ts_code=b.ts_code "
                 "WHERE b.name LIKE ? AND d.trade_date=? "
                 "ORDER BY d.pct_chg DESC LIMIT 1",
                 (f"%{industry}%", td_prev)

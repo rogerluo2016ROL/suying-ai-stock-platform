@@ -26,6 +26,7 @@ AVAILABLE_MODES = [
     "long",               # 长线价值
     "all",                # 综合多因子
     "chokepoint",         # 大葱卡脖子选股模型
+    "bi_trend_launch",    # 毕师傅趋势启动战法 V5.9 (OBV+WR趋势信号)
     "cb_floor",           # 匪爷可转债底价选债模型
     "cb_intraday",        # 匪爷可转债日内投机博弈模型
     "cb_auction",         # 秋神竞价概念选债模型

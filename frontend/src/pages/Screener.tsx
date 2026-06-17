@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, Select, Button, Table, Tag, Space, Typography, InputNumber, message, Row, Col, Divider } from 'antd'
 import { PlayCircleOutlined, TrophyOutlined, FilterOutlined, FileTextOutlined, InfoCircleOutlined } from '@ant-design/icons'
-import { screenerApi } from '../api/client'
+import { screenerApi, strategyApi } from '../api/client'
 
 const { Title, Text } = Typography
 
@@ -21,14 +21,10 @@ export default function Screener() {
     const selectedPicks = picks.filter((_:any,i:number) => selectedRowKeys.includes(i))
     if (selectedPicks.length === 0) { message.warning('请先勾选股票'); return }
     try {
-      // 1. Create plan
-      const r1 = await fetch(`/api/v1/strategy/plans?name=选股方案-${new Date().toLocaleDateString()}&model_name=${mode}&max_positions=${selectedPicks.length}`, { method: 'POST' })
-      const plan = await r1.json()
-      // 2. Add picks
-      await fetch(`/api/v1/strategy/plans/${plan.plan.id}/picks`, {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(selectedPicks),
-      })
+      const r1 = await strategyApi.createPlan(
+        `选股方案-${new Date().toLocaleDateString()}`, mode, selectedPicks.length)
+      const plan = r1.data
+      await strategyApi.addPicks(plan.plan.id, selectedPicks)
       message.success(`预方案已生成: ${plan.plan.id} (${selectedPicks.length}只)`)
       setSelectedRowKeys([])
     } catch { message.error('方案生成失败') }

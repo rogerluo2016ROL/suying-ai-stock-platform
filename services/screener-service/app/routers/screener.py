@@ -1,12 +1,16 @@
-"""Screener API routes — 9 screening modes via unified endpoint."""
+"""Screener API routes — 12 screening modes via unified endpoint with Redis caching."""
 
 import asyncio
+import json
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 from fastapi import APIRouter, Query, HTTPException
 
 from app.config import AVAILABLE_MODES, DEFAULT_TOP_N, MAX_TOP_N
+
+logger = logging.getLogger("screener.routes")
 
 router = APIRouter(prefix="/api/v1/screener", tags=["screener"])
 
@@ -32,6 +36,7 @@ async def list_modes():
             {"id": "cb_floor",       "name": "匪爷可转债底价选债模型",   "cycle": "1-4周",  "style": "稳健"},
             {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
             {"id": "cb_auction",     "name": "秋神竞价概念选债模型",       "cycle": "1-2天",  "style": "竞价"},
+            {"id": "bi_trend_launch","name": "毕师傅趋势启动战法 V5.9",     "cycle": "5-20天", "style": "趋势"},
         ]
     }
 
@@ -55,6 +60,18 @@ async def run_screening(
     t0 = time.time()
     loop = asyncio.get_running_loop()
 
+    # ── Redis cache check (L4: screener results, TTL 1h) ──
+    cache_key = f"screener:{mode}:{top_n}:{trade_date or 'latest'}"
+    try:
+        from app.cache import cache_get
+        cached = await cache_get(cache_key)
+        if cached:
+            cached["cached"] = True
+            cached["elapsed"] = round(time.time() - t0, 1)
+            return cached
+    except Exception:
+        pass  # cache miss or Redis unavailable → proceed normally
+
     try:
         if mode in ("leader_scalp", "leader_intraday", "leader_auction", "leader_closing"):
             result = await loop.run_in_executor(
@@ -63,6 +80,10 @@ async def run_screening(
         elif mode in ("cb_floor", "cb_intraday", "cb_auction"):
             result = await loop.run_in_executor(
                 _executor, _run_cb_mode, mode, top_n, trade_date
+            )
+        elif mode == "bi_trend_launch":
+            result = await loop.run_in_executor(
+                _executor, _run_bi_trend_mode, mode, top_n, trade_date
             )
         else:
             result = await loop.run_in_executor(
@@ -77,6 +98,14 @@ async def run_screening(
         raise HTTPException(status_code=500, detail=f"Screening failed: {err}")
 
     result["elapsed"] = round(time.time() - t0, 1)
+
+    # ── Redis cache write (L4: screener results, TTL 1h) ──
+    try:
+        from app.cache import cache_set
+        loop.create_task(cache_set(cache_key, result, ttl=3600))
+    except Exception:
+        pass
+
     return result
 
 
@@ -176,4 +205,24 @@ def _run_multifactor_mode(mode: str, top_n: int, trade_date: Optional[str]) -> d
         "total_excluded": result.total_excluded,
         "picks": result.picks,
         "factor_weights": engine.get_factor_weights(),
+    }
+
+
+def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
+    """Run 毕师傅趋势启动战法 V5.9 (OBV+WR trend launch screening)."""
+    from kronos_factors.engine.bi_trend_launch import BiTrendLaunchEngine, generate_bi_plan
+
+    engine = BiTrendLaunchEngine()
+    picks = engine.run(top_n=top_n, trade_date=trade_date)
+
+    # Generate execution plans with market regime awareness
+    regime = "neutral"
+    plans = generate_bi_plan(picks, market_regime=regime) if picks else []
+
+    return {
+        "mode": mode,
+        "trade_date": trade_date,
+        "total_picks": len(picks),
+        "picks": picks,
+        "execution_plans": plans,
     }
