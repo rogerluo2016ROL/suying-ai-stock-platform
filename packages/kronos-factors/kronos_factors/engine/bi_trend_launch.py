@@ -596,9 +596,9 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         ).fetchone()
         up = breadth_row["up"] or 0
         down = breadth_row["down"] or 0
+        breadth = up / max(1, up + down) * 100
     else:
-        # 盘中 fallback: 用 stk_mins 最新快照 vs daily_kline 前收
-        # 使用最新时间槽的收盘价作为当日价格
+        # V5.9 盘中 fallback: 用 stk_mins 最新快照 vs daily_kline 前收
         br = db.execute(
             "SELECT SUM(CASE WHEN m.close > d.close THEN 1 ELSE 0 END) as up, "
             "SUM(CASE WHEN m.close < d.close THEN 1 ELSE 0 END) as down "
@@ -613,7 +613,22 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         ).fetchone()
         up = br["up"] or 0 if br else 0
         down = br["down"] or 0 if br else 0
-    breadth = up / max(1, up + down) * 100
+        breadth = up / max(1, up + down) * 100
+        # V5.9: 快照数据可能全是前日收盘价(涨跌比≈0%), 回退到前日涨跌比
+        if breadth < 5:
+            br_prev = db.execute(
+                "SELECT SUM(CASE WHEN a.close > b.close THEN 1 ELSE 0 END) as up, "
+                "SUM(CASE WHEN a.close < b.close THEN 1 ELSE 0 END) as down "
+                "FROM daily_kline a "
+                "JOIN daily_kline b ON a.code=b.code AND b.trade_date = "
+                "(SELECT MAX(trade_date) FROM daily_kline WHERE trade_date < ?) "
+                "WHERE a.trade_date=?",
+                (prev_date, prev_date)
+            ).fetchone()
+            if br_prev:
+                up_p = br_prev["up"] or 0; down_p = br_prev["down"] or 0
+                breadth = up_p / max(1, up_p + down_p) * 100
+                print(f"    盘中快照无涨跌数据, 回退到前日涨跌比: {breadth:.0f}%")
 
     # ── V4.0: 5日涨跌比均线 (中期市场环境) ──
     # 计算前5个交易日的涨跌比
@@ -763,9 +778,9 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     else:
         print(f"  📈 股票池: {len(stocks)} 只 (全市场)")
 
-    # ── 批量预取K线 (关键性能优化) ──
+    # ── 批量预取K线 (V5.9: 历史日=日线 / 实时日=日线+分时快照) ──
     t0 = time.time()
-    kline_cache = _prefetch_kline_batch(db, trade_date)
+    kline_cache = _prefetch_kline_batch(db, trade_date, live_mode=not has_today_dk)
     print(f"  ⚡ K线预取: {len(kline_cache)} 只, {time.time()-t0:.1f}s")
 
     # ── 板块涨跌 ──
@@ -1442,8 +1457,14 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
                 "current_return_pct": round(current_return, 2)}
 
 
-def _prefetch_kline_batch(db, trade_date):
-    """批量预取所有股票近60日K线 (性能优化)."""
+def _prefetch_kline_batch(db, trade_date, live_mode=False):
+    """批量预取所有股票近60日K线 (性能优化).
+
+    Args:
+        db: 数据库连接
+        trade_date: 目标交易日 YYYY-MM-DD
+        live_mode: True=当天盘中(用 stk_mins 实时快照追加), False=历史日(纯 daily_kline)
+    """
     parts = trade_date.split("-")
     y, m = int(parts[0]), int(parts[1])
     m -= 3
@@ -1452,24 +1473,80 @@ def _prefetch_kline_batch(db, trade_date):
         y -= 1
     start_date = f"{y}-{m:02d}-01"
 
-    rows = db.execute(
-        "SELECT code, close, high, low, volume FROM daily_kline "
-        "WHERE trade_date >= ? AND trade_date <= ? ORDER BY code, trade_date ASC",
-        (start_date, trade_date)
-    ).fetchall()
-
     import numpy as np
     from collections import defaultdict
-    by_code = defaultdict(list)
-    for r in rows:
-        c = r.get("code") or r.get("ts_code", "")
-        if not c:
-            continue
-        by_code[c].append((
-            float(r["close"] or 0), float(r["high"] or 0),
-            float(r["low"] or 0), float(r["volume"] or 0)
-        ))
 
+    if live_mode:
+        # ── 实时模式: daily_kline(历史到前日) + stk_mins(当日最新快照) ──
+        # Step 1: 取历史日线 (到 trade_date 前一天)
+        prev_row = db.execute(
+            "SELECT MAX(trade_date) as pd FROM daily_kline WHERE trade_date < ?", (trade_date,)
+        ).fetchone()
+        if not prev_row or not prev_row["pd"]:
+            return {}
+        prev_date = prev_row["pd"]
+
+        rows = db.execute(
+            "SELECT code, close, high, low, volume FROM daily_kline "
+            "WHERE trade_date >= ? AND trade_date <= ? ORDER BY code, trade_date ASC",
+            (start_date, prev_date)
+        ).fetchall()
+
+        by_code = defaultdict(list)
+        for r in rows:
+            c = r.get("code") or r.get("ts_code", "")
+            if not c: continue
+            by_code[c].append((
+                float(r["close"] or 0), float(r["high"] or 0),
+                float(r["low"] or 0), float(r["volume"] or 0)
+            ))
+
+        # Step 2: 取当日 stk_mins 最新快照 (每只股票取最新一根5分钟K线)
+        # 使用子查询取每只股票的最新 trade_time
+        mins_rows = db.execute(
+            "SELECT m.code, m.open, m.high, m.low, m.close, m.volume "
+            "FROM stk_mins m "
+            "INNER JOIN ("
+            "  SELECT code, MAX(trade_time) as max_time "
+            "  FROM stk_mins "
+            "  WHERE trade_time >= ? AND trade_time < ? AND freq='5min' "
+            "  GROUP BY code"
+            ") latest ON m.code = latest.code AND m.trade_time = latest.max_time "
+            "WHERE m.freq = '5min'",
+            (trade_date + " 09:00", trade_date + " 16:00")
+        ).fetchall()
+
+        live_count = 0
+        for r in mins_rows:
+            c = r.get("code") or ""
+            if not c or c not in by_code:
+                continue
+            # 追加当日快照为最后一根K线
+            by_code[c].append((
+                float(r["close"] or 0), float(r["high"] or 0),
+                float(r["low"] or 0), float(r["volume"] or 0)
+            ))
+            live_count += 1
+
+        print(f"    实时模式: 历史{len(rows)}条日线 + {live_count}只当日快照", end="")
+    else:
+        # ── 历史模式: 纯 daily_kline ──
+        rows = db.execute(
+            "SELECT code, close, high, low, volume FROM daily_kline "
+            "WHERE trade_date >= ? AND trade_date <= ? ORDER BY code, trade_date ASC",
+            (start_date, trade_date)
+        ).fetchall()
+
+        by_code = defaultdict(list)
+        for r in rows:
+            c = r.get("code") or r.get("ts_code", "")
+            if not c: continue
+            by_code[c].append((
+                float(r["close"] or 0), float(r["high"] or 0),
+                float(r["low"] or 0), float(r["volume"] or 0)
+            ))
+
+    # ── 组装结果 ──
     result = {}
     for code, data in by_code.items():
         if len(data) >= 40:
