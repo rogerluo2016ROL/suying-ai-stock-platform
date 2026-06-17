@@ -239,6 +239,21 @@ def assess_market_env(db, trade_date):
         for r in pre_rows:
             pre_closes[r["code"]] = float(r["pre_close"] or 0)
 
+        # Fallback: if stk_limit has no pre_close (e.g., data sync gap),
+        # use daily_kline from previous trading day
+        has_pre_close = any(v > 0 for v in pre_closes.values())
+        if not has_pre_close and prev_date:
+            prev_rows = db.execute(
+                "SELECT code, close FROM daily_kline WHERE trade_date=?",
+                (str(prev_date)[:10],)
+            ).fetchall()
+            for r in prev_rows:
+                code = r["code"] or r.get("ts_code", "")
+                if code and code not in pre_closes:
+                    pre_closes[code] = float(r["close"] or 0)
+            print(f"  ⚠️ stk_limit.pre_close=0, fallback to daily_kline {prev_date}: "
+                  f"{sum(1 for v in pre_closes.values() if v>0)} stocks")
+
         up_count = sum(1 for code, snap in snapshot.items()
                        if code in pre_closes and pre_closes[code] > 0
                        and snap["close"] > pre_closes[code])
