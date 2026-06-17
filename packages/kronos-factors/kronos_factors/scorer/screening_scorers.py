@@ -247,11 +247,14 @@ def get_stock_themes(code: str, kline_df=None, ht: dict = None) -> dict:
     try:
         with _get_db(readonly=True) as db:
             # ── Research report analysis ──
-            reps = db.execute(
-                "SELECT trade_date, title, author FROM research_reports_tushare "
-                "WHERE code=? AND code != 'nan' ORDER BY trade_date DESC LIMIT 6",
-                (code,)
-            ).fetchall()
+            try:
+                reps = db.execute(
+                    "SELECT trade_date, title, author FROM research_reports_tushare "
+                    "WHERE code=? AND code != 'nan' ORDER BY trade_date DESC LIMIT 6",
+                    (code,)
+                ).fetchall()
+            except Exception:
+                reps = []  # Table not available, skip report analysis
 
             company_name = db.execute(
                 "SELECT name, industry FROM stocks WHERE code=?", (code,)
@@ -984,33 +987,20 @@ def score_chokepoint(code: str) -> dict:
                 s += 1.0; sigs.append(f"行业{peer_count}家(有限竞争)")
 
             # ── 2. Semantic chokepoint matching (sentence-transformer) ──
-            reps = db.execute(
-                "SELECT title FROM research_reports_tushare "
-                "WHERE code=? AND code != 'nan' ORDER BY trade_date DESC LIMIT 5",
-                (code,)
-            ).fetchall()
-
-            # Try semantic matching first (P1 upgrade, model loaded once)
-            semantic_score = 0.0
             try:
-                if '_ST_MODEL' not in globals():
-                    from sentence_transformers import SentenceTransformer
-                    global _ST_MODEL, _CP_EMB
-                    _ST_MODEL = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-                    _CP_EMB = _ST_MODEL.encode("不可替代的核心供应商 技术壁垒 国产替代 唯一供应商 卡脖子 打破垄断 自主可控")
-                _st_model = _ST_MODEL
-                cp_emb = _CP_EMB
-                cp_query = "不可替代的核心供应商 技术壁垒 国产替代 唯一供应商 卡脖子 打破垄断 自主可控"
-                cp_emb = _st_model.encode(cp_query)
-                for r in reps:
-                    t_emb = _st_model.encode(r["title"])
-                    sim = float(np.dot(cp_emb, t_emb) / (np.linalg.norm(cp_emb) * np.linalg.norm(t_emb)))
-                    semantic_score = max(semantic_score, sim)
-                if semantic_score > 0.3:
-                    s += min(3.0, semantic_score * 6)  # 0.3→1.8, 0.5→3.0
-                    sigs.append(f"语义卡脖子({semantic_score:.2f})")
+                reps = db.execute(
+                    "SELECT title FROM research_reports_tushare "
+                    "WHERE code=? AND code != 'nan' ORDER BY trade_date DESC LIMIT 5",
+                    (code,)
+                ).fetchall()
             except Exception:
-                # Fallback to regex keywords
+                reps = []  # Table not available, fall through to regex keywords
+
+            # V2: Use regex keyword matching (fast, no ML model download needed)
+            # Semantic matching with SentenceTransformer is available as opt-in
+            # for individual stock analysis, but skipped in batch screening.
+            semantic_score = 0.0
+            if reps:  # Only try regex if we have research reports
                 chokepoint_kw = {
                     "唯一供应商|独家供应|仅此一家|不可替代|稀缺性": 3.0,
                     "国产替代|打破垄断|自主可控|填补空白|进口替代": 2.0,
@@ -1042,28 +1032,35 @@ def score_chokepoint(code: str) -> dict:
                 sigs.append(f"赛道:{tracks}")
 
             # ── 4. Institutional attention ──
-            from datetime import timedelta
-            cutoff = (datetime.now() - timedelta(days=90)).strftime("%Y%m")
-            br_count = db.execute(
-                "SELECT COUNT(DISTINCT broker) as cnt FROM broker_recommend "
-                "WHERE code=? AND month >= ?", (code, cutoff)
-            ).fetchone()["cnt"]
+            # Broker coverage (skip if table missing)
+            try:
+                from datetime import timedelta
+                cutoff = (datetime.now() - timedelta(days=90)).strftime("%Y%m")
+                br_count = db.execute(
+                    "SELECT COUNT(DISTINCT broker) as cnt FROM broker_recommend "
+                    "WHERE code=? AND month >= ?", (code, cutoff)
+                ).fetchone()["cnt"]
 
-            if br_count >= 3:
-                s += 2.0; sigs.append(f"{br_count}家券商覆盖")
-            elif br_count >= 1:
-                s += 1.0; sigs.append(f"{br_count}家券商覆盖")
+                if br_count >= 3:
+                    s += 2.0; sigs.append(f"{br_count}家券商覆盖")
+                elif br_count >= 1:
+                    s += 1.0; sigs.append(f"{br_count}家券商覆盖")
+            except Exception:
+                pass
 
-            # Smart money check (社保/北向)
-            hk = db.execute(
-                "SELECT ratio FROM hk_holdings WHERE code=? ORDER BY trade_date DESC LIMIT 1",
-                (code,)
-            ).fetchone()
-            if hk and hk["ratio"] and float(hk["ratio"]) > 1:
-                s += 1.0; sigs.append("北向持仓")
+            # Smart money check (北向, skip if table missing)
+            try:
+                hk = db.execute(
+                    "SELECT ratio FROM hk_holdings WHERE code=? ORDER BY trade_date DESC LIMIT 1",
+                    (code,)
+                ).fetchone()
+                if hk and hk["ratio"] and float(hk["ratio"]) > 1:
+                    s += 1.0; sigs.append("北向持仓")
+            except Exception:
+                pass
 
     except Exception:
-        return {"score": 5.0, "signals": ["error"]}
+        return {"score": 5.0, "signals": [f"error: {str(e)[:60]}"]}
 
     return {"score": round(max(0, min(10, s)), 1), "signals": sigs, "industry": industry}
 

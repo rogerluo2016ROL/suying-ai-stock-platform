@@ -152,7 +152,7 @@ class ChokepointEngine(StrategyEngine):
                     excluded += 1; continue
 
                 cp = score_chokepoint(code)
-                if cp["score"] < 6.0:
+                if cp["score"] < 4.0:  # V2: 6.0→4.0 弱市放宽
                     excluded += 1; continue
 
                 price = float(closes[-1])
