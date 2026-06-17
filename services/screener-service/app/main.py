@@ -21,6 +21,7 @@ for _pkg in ["kronos-factors", "kronos-core", "kronos-data"]:
 from app.config import HOST, PORT, DEBUG, DB_PATH
 from app.routers.screener import router as screener_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.training_mock import router as training_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -100,6 +101,7 @@ app.add_middleware(
 
 app.include_router(screener_router)
 app.include_router(dashboard_router)
+app.include_router(training_router)
 
 
 @app.get("/api/v1/health")

@@ -14,7 +14,7 @@ export default defineConfig({
       '/api/v1/alert':       { target: 'http://localhost:8005', changeOrigin: true },
       '/api/v1/trade':       { target: 'http://localhost:8006', changeOrigin: true },
       '/api/v1/backtest':    { target: 'http://localhost:8007', changeOrigin: true },
-      '/api/v1/training':    { target: 'http://localhost:8008', changeOrigin: true },
+      '/api/v1/training':    { target: 'http://localhost:8001', changeOrigin: true },
       '/api/v1/diagnosis':   { target: 'http://localhost:8009', changeOrigin: true },
       '/api/v1/health':      { target: 'http://localhost:8001', changeOrigin: true },
       '/api/v1/auth':        { target: 'http://localhost:9001', changeOrigin: true },
