@@ -1357,44 +1357,86 @@ def sync_rt_k() -> dict:
 
 
 def sync_stk_auction_o(trade_date: str = None) -> dict:
-    """Sync pro.stk_auction_o() — 开盘集合竞价数据 (盘后更新, 9:30后可得).
+    """Sync pro.stk_auction() — 开盘集合竞价数据 (9:25-9:29 实时发布).
 
-    Returns auction details per stock: open/close/high/low/vol/amount/vwap.
-    Requires Tushare 集合竞价 permission (¥500/yr).
+    Uses Tushare stk_auction (new) interface available daily at 9:25-9:29 AM.
+    Falls back to stk_auction_o (old, EOD) if new interface unavailable.
+
+    Field mapping: price→open, pre_close→close (no high/low/vwap in new API).
 
     Args:
         trade_date: YYYYMMDD format, defaults to today.
     """
+    import numpy as np
+
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
     if trade_date is None:
         trade_date = datetime.now().strftime("%Y%m%d")
     total, written = 0, 0
+
+    # Try new stk_auction first (real-time, 9:25-9:29)
+    df = None
     try:
-        df = pro.stk_auction_o(trade_date=trade_date)
-    except Exception as e:
-        err = str(e)
-        if "权限" in err or "permission" in err.lower():
-            return {"status": "no_permission", "reason": "stk_auction_o requires ¥500/yr permission"}
-        return {"status": "error", "reason": err[:80]}
+        df = pro.stk_auction(trade_date=trade_date)
+    except Exception:
+        pass
+
+    # Fallback to old stk_auction_o (EOD update)
+    if df is None or df.empty:
+        try:
+            df = pro.stk_auction_o(trade_date=trade_date)
+        except Exception as e:
+            err = str(e)
+            if "权限" in err or "permission" in err.lower():
+                return {"status": "no_permission", "reason": "stk_auction requires permission"}
+            return {"status": "error", "reason": err[:80]}
+
     if df is None or df.empty:
         return {"status": "ok", "table": "stk_auction_o", "fetched": 0, "written": 0}
 
-    # Actual fields: ts_code, trade_date, close, open, high, low, vol, amount, vwap
+    # Detect API version and map fields
+    has_open = 'open' in df.columns
     db = _get_etl_db()
-    cols = ["ts_code", "trade_date", "close", "open", "high", "low", "vol", "amount", "vwap"]
+    cols = ["code", "trade_date", "close", "open", "high", "low", "vol", "amount", "vwap"]
     rows = []
     for _, r in df.iterrows():
-        rows.append((
-            str(r.get("ts_code", "")),
-            str(r.get("trade_date", "")),
-            r.get("close"), r.get("open"), r.get("high"), r.get("low"),
-            r.get("vol"), r.get("amount"), r.get("vwap"),
-        ))
+        ts_code = str(r.get("ts_code", ""))
+        code = ts_code.split(".")[0][:6] if "." in ts_code else ts_code
+
+        if has_open:
+            # Old API: close/open/high/low/vwap present
+            open_p = r.get("open")
+            close_p = r.get("close")
+            high_p = r.get("high", open_p)
+            low_p = r.get("low", open_p)
+            vwap_p = r.get("vwap", open_p)
+        else:
+            # New API: price=竞价均价, pre_close=昨收
+            open_p = r.get("price")
+            close_p = r.get("pre_close")
+            high_p = open_p
+            low_p = open_p
+            vwap_p = open_p
+
+        try:
+            of = float(open_p) if open_p is not None else None
+            cf = float(close_p) if close_p is not None else None
+            if of is None or cf is None or np.isnan(of) or np.isnan(cf) or of <= 0 or cf <= 0:
+                continue
+        except (ValueError, TypeError):
+            continue
+
+        vol = r.get("vol", 0) or 0
+        amt = r.get("amount", 0) or 0
+        rows.append((code, f"{trade_date[:4]}-{trade_date[4:6]}-{trade_date[6:8]}",
+                     cf, of, float(high_p or of), float(low_p or of),
+                     float(vol), float(amt), float(vwap_p or of)))
+
     total = len(rows)
     written = _insert_rows(db, "stk_auction_o", cols, rows)
     db.commit(); db.close()
-    print(f"  stk_auction_o: {total} fetched, {written} written ({trade_date})")
+    print(f"  stk_auction_o: {total} fetched, {written} written ({trade_date}) [src={'stk_auction' if not has_open else 'stk_auction_o'}]")
     return {"status": "ok", "table": "stk_auction_o", "fetched": total, "written": written}
 
 

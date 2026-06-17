@@ -18,6 +18,7 @@ from kronos_data.etl import (
     sync_cb_daily, sync_cb_factor, sync_cb_call, sync_index_daily,
     sync_moneyflow, sync_daily_basic, sync_stk_limit, sync_daily_kline,
     sync_limit_list_d, sync_moneyflow_hsgt, sync_sw_daily, sync_stk_mins,
+    sync_stk_auction_o,
 )
 
 logger = logging.getLogger("data-service.scheduler")
@@ -616,24 +617,52 @@ async def _scheduler_loop():
 
 
 def collect_auction_snapshot():
-    """9:25 竞价快照 — 采集9:30首根5min K线存入 stk_auction_o."""
-    import sqlite3, psycopg2
+    """9:25 竞价快照 — Tushare stk_auction (实时) → mootdx fallback.
+
+    Priority:
+      1. Tushare stk_auction (new API, available 9:25-9:29 daily)
+      2. mootdx 9:30 first 5min bar (fallback if Tushare unavailable)
+
+    Writes to PG stk_auction_o for all screener models.
+    """
     from datetime import date
+    today_str = datetime.now().strftime("%Y%m%d")
+    today_dash = date.today().strftime("%Y-%m-%d")
+
+    # ── Path 1: Tushare stk_auction (preferred, real-time 9:25-9:29) ──
+    try:
+        result = sync_stk_auction_o(trade_date=today_str)
+        fetched = result.get("fetched", 0) if isinstance(result, dict) else 0
+        if fetched > 0:
+            logger.info("Auction snapshot: Tushare stk_auction → %d stocks", fetched)
+            return {"status": "ok", "source": "tushare_stk_auction",
+                    "date": today_dash, "stocks": fetched}
+    except Exception as e:
+        logger.warning("Tushare stk_auction failed, falling back to mootdx: %s", e)
+
+    # ── Path 2: mootdx 9:30 first bar (legacy fallback) ──
+    import sqlite3, psycopg2
     from app.config import DB_PATH
-    today = date.today().strftime("%Y-%m-%d")
 
-    # 1. Collect rt_min for 9:30 first bar
-    collect_rt_min()
+    try:
+        collect_rt_min()
+    except Exception as e:
+        logger.warning("collect_rt_min failed: %s", e)
 
-    # 2. Build auction snapshot from stk_mins 9:30-9:35 first bar → stk_auction_o
+    rows = []
     try:
         db = sqlite3.connect(DB_PATH)
         rows = db.execute(
             "SELECT ts_code, open, high, low, close, volume, amount "
             "FROM stk_mins WHERE trade_time LIKE ? AND freq='5min'",
-            (f"{today} 09:3%",)
+            (f"{today_dash} 09:3%",)
         ).fetchall()
-        if rows:
+        db.close()
+    except Exception as e:
+        logger.warning("mootdx stk_mins read failed: %s", e)
+
+    if rows:
+        try:
             pg = psycopg2.connect(os.environ.get("KRONOS_PG_URL",
                 "postgresql://kronos:kronos@localhost:6432/kronos"))
             pg.autocommit = True
@@ -643,14 +672,15 @@ def collect_auction_snapshot():
                 cur.execute(
                     "INSERT INTO stk_auction_o (code, trade_date, open, high, low, close, vol, amount, vwap) "
                     "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (code, trade_date) DO NOTHING",
-                    (code, today, r[1], r[2], r[3], r[4], r[5], r[6],
+                    (code, today_dash, r[1], r[2], r[3], r[4], r[5], r[6],
                      r[6]/r[5] if r[5] and float(r[5]) > 0 else r[1]))
             pg.close()
-        db.close()
-        logger.info("Auction snapshot: %d stocks", len(rows))
-    except Exception as e:
-        logger.warning("Auction snapshot failed: %s", e)
-    return {"status": "ok", "date": today, "stocks": len(rows) if rows else 0}
+        except Exception as e:
+            logger.warning("PG write failed for mootdx auction: %s", e)
+
+    logger.info("Auction snapshot (mootdx fallback): %d stocks", len(rows))
+    return {"status": "ok", "source": "mootdx_fallback",
+            "date": today_dash, "stocks": len(rows)}
 
 
 def run_intraday_sync():

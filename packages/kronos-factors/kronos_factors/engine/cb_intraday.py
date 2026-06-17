@@ -590,16 +590,17 @@ class CbIntradayEngine:
             """, fuzzy_params)
             all_matched_concepts.update(r[0] for r in cur.fetchall())
 
-            # ── Path 2: industry → concept ──
-            if not all_matched_concepts:
-                cur.execute(f"""
-                    SELECT DISTINCT cc.concept
-                    FROM cb_concept cc
-                    JOIN cb_basic cb ON cc.ts_code = cb.ts_code
-                    JOIN stocks s ON SPLIT_PART(cb.stk_code, '.', 1) = s.code
-                    WHERE s.industry IN ({placeholders})
-                """, sector_list)
-                all_matched_concepts.update(r[0] for r in cur.fetchall())
+            # ── Path 2: industry → concept (always run as complement) ──
+            cur.execute(f"""
+                SELECT DISTINCT cc.concept
+                FROM cb_concept cc
+                JOIN cb_basic cb ON cc.ts_code = cb.ts_code
+                JOIN stocks s ON SPLIT_PART(cb.stk_code, '.', 1) = s.code
+                WHERE s.industry IN ({placeholders})
+                  AND cb.bond_short_name NOT LIKE '%%定%%'
+                  AND cb.cb_type = 'CB'
+            """, sector_list)
+            all_matched_concepts.update(r[0] for r in cur.fetchall())
 
             if not all_matched_concepts:
                 return {}
@@ -614,6 +615,9 @@ class CbIntradayEngine:
                 JOIN cb_basic cb ON cc.ts_code = cb.ts_code
                 WHERE cc.concept IN ({cp_placeholders})
                   AND (cb.delist_date IS NULL OR cb.delist_date > %s::date)
+                  AND cb.bond_short_name NOT LIKE '%%定%%'
+                  AND cb.cb_type = 'CB'
+                  AND cb.remain_size < 10e8
             """, list(all_matched_concepts) + [trade_date])
 
             for ts_code, name, stk_code_ts, stk_name, conv_price, remain_size, concept in cur.fetchall():
@@ -641,6 +645,9 @@ class CbIntradayEngine:
                        cb.conv_price, cb.remain_size
                 FROM cb_basic cb
                 WHERE (cb.delist_date IS NULL OR cb.delist_date > %s::date)
+                  AND cb.bond_short_name NOT LIKE '%%定%%'
+                  AND cb.cb_type = 'CB'
+                  AND cb.remain_size < 10e8
                 LIMIT 150
             """, (trade_date,))
             for ts_code, name, stk_code_ts, stk_name, conv_price, remain_size in cur.fetchall():
