@@ -232,27 +232,26 @@ def assess_market_env(db, trade_date):
         prev_date = list(prev_date_row.values())[0] if isinstance(prev_date_row, dict) else prev_date_row[0]
         # Use stk_mins snapshot to compute breadth
         snapshot = get_intraday_snapshot(db, trade_date, "14:30")
+        # Get pre_close from daily_kline (Tushare stk_limit API has no pre_close!)
+        # Use the previous trading day's close for all stocks in the snapshot
         pre_closes = {}
-        pre_rows = db.execute(
-            "SELECT code, pre_close FROM stk_limit WHERE trade_date=?", (trade_date,)
-        ).fetchall()
-        for r in pre_rows:
-            pre_closes[r["code"]] = float(r["pre_close"] or 0)
-
-        # Fallback: if stk_limit has no pre_close (e.g., data sync gap),
-        # use daily_kline from previous trading day
-        has_pre_close = any(v > 0 for v in pre_closes.values())
-        if not has_pre_close and prev_date:
-            prev_rows = db.execute(
-                "SELECT code, close FROM daily_kline WHERE trade_date=?",
-                (str(prev_date)[:10],)
-            ).fetchall()
-            for r in prev_rows:
-                code = r["code"] or r.get("ts_code", "")
-                if code and code not in pre_closes:
-                    pre_closes[code] = float(r["close"] or 0)
-            print(f"  ⚠️ stk_limit.pre_close=0, fallback to daily_kline {prev_date}: "
-                  f"{sum(1 for v in pre_closes.values() if v>0)} stocks")
+        if prev_date:
+            prev_date_str = prev_date.strftime("%Y-%m-%d") if hasattr(prev_date, 'strftime') else str(prev_date)[:10]
+            # Batch lookup: get all snapshot codes' previous close in one query
+            snapshot_codes = list(snapshot.keys())
+            batch_size = 1000
+            for i in range(0, len(snapshot_codes), batch_size):
+                batch = snapshot_codes[i:i+batch_size]
+                placeholders = ",".join(["?"] * len(batch))
+                prev_rows = db.execute(
+                    f"SELECT code, close FROM daily_kline WHERE trade_date=? AND code IN ({placeholders})",
+                    [prev_date_str] + batch
+                ).fetchall()
+                for r in prev_rows:
+                    code = r["code"] or r.get("ts_code", "")
+                    if code:
+                        pre_closes[code] = float(r["close"] or 0)
+            print(f"  📊 pre_close from daily_kline({prev_date_str}): {len(pre_closes)} stocks")
 
         up_count = sum(1 for code, snap in snapshot.items()
                        if code in pre_closes and pre_closes[code] > 0
@@ -705,14 +704,28 @@ def run_afternoon_screening(trade_date, time_slot="14:30", top_n=20, env_check=T
         snapshot = get_intraday_snapshot(db, trade_date, time_slot)
         print(f"  📊 14:30快照: {len(snapshot)} 只 ({time.time()-t0:.1f}s)")
 
-        # ── pre_close ──
+        # ── pre_close from daily_kline (Tushare stk_limit has no pre_close!) ──
         pre_closes = {}
-        pre_rows = db.execute(
-            "SELECT code, pre_close FROM stk_limit WHERE trade_date=?", (trade_date,)
-        ).fetchall()
-        for r in pre_rows:
-            pre_closes[r["code"]] = float(r["pre_close"] or 0)
-        print(f"  📊 pre_close: {len(pre_closes)} 只")
+        prev_row = db.execute(
+            "SELECT MAX(trade_date) as pd FROM daily_kline WHERE trade_date < ?", (trade_date,)
+        ).fetchone()
+        if prev_row:
+            prev_d = prev_row["pd"] if isinstance(prev_row, dict) else prev_row[0]
+            prev_d_str = prev_d.strftime("%Y-%m-%d") if hasattr(prev_d, 'strftime') else str(prev_d)[:10]
+            snapshot_codes = list(snapshot.keys())
+            batch_size = 1000
+            for i in range(0, len(snapshot_codes), batch_size):
+                batch = snapshot_codes[i:i+batch_size]
+                placeholders = ",".join(["?"] * len(batch))
+                prev_rows = db.execute(
+                    f"SELECT code, close FROM daily_kline WHERE trade_date=? AND code IN ({placeholders})",
+                    [prev_d_str] + batch
+                ).fetchall()
+                for r in prev_rows:
+                    code = r["code"] or r.get("ts_code", "")
+                    if code:
+                        pre_closes[code] = float(r["close"] or 0)
+            print(f"  📊 pre_close from daily_kline({prev_d_str}): {len(pre_closes)} 只")
 
         # ── 方案B: 实时涨停检测 (替代 limit_list_d) ──
         limit_info = detect_intraday_limits(db, trade_date, snapshot, pre_closes)
