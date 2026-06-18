@@ -2,7 +2,11 @@
 import os, jwt
 from fastapi import Header, HTTPException, Request, Depends
 
-JWT_SECRET = os.environ.get("JWT_SECRET_KEY", "dev-secret-change-in-production-min-32-chars!!")
+JWT_SECRET = os.environ.get("JWT_SECRET_KEY")
+if not JWT_SECRET:
+    import secrets, warnings
+    JWT_SECRET = secrets.token_hex(32)
+    warnings.warn("JWT_SECRET_KEY not set — using random key!", RuntimeWarning)
 
 async def require_auth(request: Request):
     """Verify JWT Bearer token from Authorization header."""

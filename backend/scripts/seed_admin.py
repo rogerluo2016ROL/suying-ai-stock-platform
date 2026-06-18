@@ -2,14 +2,11 @@
 """Seed admin user from environment variables.
 
 Usage:
-    ADMIN_EMAIL=admin@suying.ai ADMIN_PASSWORD=Admin123! python scripts/seed_admin.py
+    ADMIN_EMAIL=admin@suying.ai ADMIN_PASSWORD=<your-password> python scripts/seed_admin.py
 """
 
-import asyncio
-import os
-import sys
+import asyncio, os, sys, secrets
 
-# Ensure backend/app is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.database import AsyncSessionLocal
@@ -20,7 +17,11 @@ from sqlalchemy import select
 
 async def main():
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@suying.ai")
-    admin_password = os.environ.get("ADMIN_PASSWORD", "Admin123!")
+    admin_password = os.environ.get("ADMIN_PASSWORD")
+    if not admin_password:
+        admin_password = secrets.token_urlsafe(12)
+        print(f"⚠️  ADMIN_PASSWORD not set — using random: {admin_password}")
+        print(f"   Save this password! Set ADMIN_PASSWORD env var for persistence.")
     admin_name = os.environ.get("ADMIN_NAME", "admin")
 
     async with AsyncSessionLocal() as db:

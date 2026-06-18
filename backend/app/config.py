@@ -13,7 +13,12 @@ DATABASE_SYNC_URL = os.environ.get(
 )
 
 # ── JWT ──
-JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-secret-change-in-production-min-32-chars!!")
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY:
+    import secrets
+    JWT_SECRET_KEY = secrets.token_hex(32)
+    import warnings
+    warnings.warn("JWT_SECRET_KEY not set — using random key. Set in production!", RuntimeWarning)
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_EXPIRE_SECONDS = int(os.environ.get("JWT_ACCESS_EXPIRE_SECONDS", "900"))  # 15 min
 JWT_REFRESH_EXPIRE_SECONDS = int(os.environ.get("JWT_REFRESH_EXPIRE_SECONDS", "604800"))  # 7 days

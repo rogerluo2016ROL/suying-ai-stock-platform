@@ -1,3 +1,4 @@
+import os
 """API Gateway — reverse proxy with rate limiting (urllib async wrapper).
 
 Per CLAUDE.md: microservice HTTP calls use urllib async wrapper
@@ -14,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","), allow_methods=["*"], allow_headers=["*"])
 
 _rate_store: dict[str, list[float]] = {}
 

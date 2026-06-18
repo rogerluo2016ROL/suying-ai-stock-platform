@@ -1,0 +1,19 @@
+{
+  "factor_keys": [
+    "f_afternoon_score",
+    "f_gain_14",
+    "f_gain_score",
+    "f_leadership_bonus",
+    "f_ma_score",
+    "f_peer_count",
+    "f_resonance_score",
+    "f_seal_score",
+    "f_sector_leader_score",
+    "f_sector_momentum_score",
+    "f_turnover_score",
+    "f_volume_score"
+  ],
+  "total_samples": 531,
+  "model_key": null,
+  "exported_at": "2026-06-17"
+}

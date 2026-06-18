@@ -27,9 +27,10 @@ import time
 
 # ── V5.3: 降低止损率 — 连阳确认 + 深度回踩 + 派发检测 ──
 WEIGHTS = {
-    "obv_trend": 30,            # 32→30 (继续降权,减少追高)
+    "obv_trend": 28,            # 30→28 (让位给VR)
     "wr_pullback": 28,          # 不变
-    "volume_contract": 8,       # 10→8 (缩量重要性降低)
+    "volume_contract": 6,       # 8→6 (缩量重要性降低,VR 更精准)
+    "vr_flow": 6,               # V5.10 新增: VR资金流向
     "ma_trend": 10,             # 不变
     "trend_strength": 8,        # 不变
     "sector_momentum": 7,       # 不变
@@ -39,6 +40,20 @@ WEIGHTS = {
     "hard_tech_track": 3,       # V5.8: 硬科技赛道
     "chokepoint_scarcity": 2,   # V5.8: 卡脖子稀缺性
 }
+
+# ── V5.10: VR 资金流向参数 ──
+VR_PERIOD = 14                  # VR 计算周期 (14日)
+VR_STRONG_INFLOW = 150          # 强资金流入阈值 (放宽)
+VR_BIASED_UP = 120              # 偏多阈值
+VR_NEUTRAL = 100                # 中性线
+VR_DISTRIBUTION = 85            # 偏弱阈值 (放宽, 原70太严)
+VR_BULL_TRAP_THRESHOLD = 85     # 诱多: OBV强但VR低于此值
+VR_STRONG_SCORE = 5             # 强流入得分
+VR_BIASED_UP_SCORE = 3          # 偏多得
+VR_NEUTRAL_SCORE = 1            # 中性得分
+VR_WEAK_SCORE = 0               # 偏弱不罚 (VR 偏弱可能是回踩的正常表现)
+VR_DISTRIBUTION_PENALTY = -3    # 资金流出罚分 (减轻 -4→-3)
+VR_BULL_TRAP_EXTRA = -2         # 诱多额外惩罚 (减轻)
 
 # ── V5.8: 硬科技 + 卡脖子筛选 (国家鼓励方向) ──
 HARD_TECH_ONLY = True  # 默认开启硬科技门控
@@ -255,6 +270,54 @@ def calc_adx(highs, lows, closes, period=14):
         adx[i] = dx if i == period else (adx[i-1]*(period-1) + dx) / period
 
     return float(adx[-1]), float(di_plus[-1]), float(di_minus[-1])
+
+
+def calc_vr(closes, volumes, period=14):
+    """计算 VR (Volume Ratio) — 资金流向偏度.
+
+    VR = (上涨日量 + 0.5×平盘日量) / (下跌日量 + 0.5×平盘日量) × 100.
+    衡量近 N 日资金是净流入还是净流出.
+    返回: VR值 (float), VR信号档位 (str)
+    """
+    n = len(closes)
+    if n < period + 1:
+        return 100.0, "数据不足"
+
+    up_vol = 0.0
+    down_vol = 0.0
+    flat_vol = 0.0
+
+    for i in range(max(1, n - period), n):
+        change = closes[i] - closes[i - 1]
+        vol = volumes[i] if volumes[i] > 0 else 0
+        if change > 0:
+            up_vol += vol
+        elif change < 0:
+            down_vol += vol
+        else:
+            flat_vol += vol
+
+    half_flat = flat_vol * 0.5
+    denominator = down_vol + half_flat
+    if denominator < 1:
+        return 200.0, "极端流入"  # No down volume = extreme inflow
+
+    vr = (up_vol + half_flat) / denominator * 100
+
+    if vr >= VR_STRONG_INFLOW:
+        level = "强流入"
+    elif vr >= VR_BIASED_UP:
+        level = "偏多"
+    elif vr >= VR_NEUTRAL:
+        level = "中性"
+    elif vr >= VR_DISTRIBUTION:
+        level = "偏弱"
+    elif vr >= 70:
+        level = "弱"
+    else:
+        level = "流出"
+
+    return round(vr, 1), level
 
 
 # ── V5.8: 硬科技 + 卡脖子辅助函数 ──
@@ -1057,6 +1120,26 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             if day_change < 0:
                 distribution_penalty = DISTRIBUTION_PENALTY  # 最大量日是阴线=派发嫌疑
 
+    # ── V5.10: F3b VR 资金流向 (0-6分) ──
+    # 补上"量能方向"缺口: 回踩中资金是否持续流入?
+    vr_value, vr_level = calc_vr(closes, volumes, VR_PERIOD)
+    if vr_value >= VR_STRONG_INFLOW:
+        vr_score = VR_STRONG_SCORE
+    elif vr_value >= VR_BIASED_UP:
+        vr_score = VR_BIASED_UP_SCORE
+    elif vr_value >= VR_NEUTRAL:
+        vr_score = VR_NEUTRAL_SCORE
+    elif vr_value >= VR_DISTRIBUTION:
+        vr_score = VR_WEAK_SCORE
+    else:
+        vr_score = VR_DISTRIBUTION_PENALTY
+
+    # V5.10: 诱多检测 — OBV强 + VR弱 = 主力边拉边出
+    vr_bull_trap = False
+    if obv_days_above >= 7 and vr_value < VR_BULL_TRAP_THRESHOLD:
+        vr_bull_trap = True
+        vr_score += VR_BULL_TRAP_EXTRA  # 额外惩罚
+
     # ── F4: 均线趋势 (0-10分) ──
     ma5 = np.mean(closes[-5:])
     ma10 = np.mean(closes[-10:])
@@ -1129,7 +1212,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     cp_score = chokepoint_score  # 0/1/2 (pre-computed)
 
     total_raw = (obv_score + wr_score + freshness_bonus + rebound_strength_bonus +
-                 obv_accel_score + vol_score + ma_score + adx_score + sm_score
+                 obv_accel_score + vol_score + vr_score + ma_score + adx_score + sm_score
                  - chase_penalty - distribution_penalty - ma20_extension_penalty
                  + weekly_score_adj
                  + ht_score + cp_score)
@@ -1198,6 +1281,9 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     # V5.3: 派发嫌疑降级 (strong_buy→buy, buy→watch)
     if distribution_penalty > 0 and signal_type in ("strong_buy", "buy"):
         signal_type = "watch" if signal_type == "buy" else "buy"
+    # V5.10: VR 诱多检测降级 — OBV强但资金流出, 疑似主力边拉边出
+    if vr_bull_trap and signal_type in ("strong_buy", "buy"):
+        signal_type = "watch" if signal_type == "buy" else "buy"
     # V5.3: MA20太远降级
     if ma20_extension_penalty > 0 and signal_type == "strong_buy":
         signal_type = "buy"
@@ -1260,6 +1346,9 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         "wr_drop_3d": round(wr_max_drop, 1), "wr_level": wr_level,
         # Volume
         "vol_score": vol_score, "vol_ratio": round(vol_ratio, 2), "vol_level": vol_level,
+        # V5.10: VR 资金流向
+        "vr_score": vr_score, "vr_value": vr_value, "vr_level": vr_level,
+        "vr_bull_trap": vr_bull_trap,
         # MA
         "ma_score": ma_score, "ma_level": ma_level,
         # ADX
