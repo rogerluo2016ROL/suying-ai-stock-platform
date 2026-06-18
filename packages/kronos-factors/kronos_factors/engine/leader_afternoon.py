@@ -126,6 +126,46 @@ def get_intraday_snapshot(db, trade_date, time_slot="14:30"):
     return snapshot
 
 
+def get_historical_snapshot(db, trade_date):
+    """回测模式: 用 daily_kline 日线数据模拟14:30快照.
+
+    历史日期没有 stk_mins，用当日日线OHLC作为快照数据。
+    amount 为全天成交额（回测中无法区分14:30累计）。
+    """
+    rows = db.execute(
+        "SELECT code, open, high, low, close, volume, amount "
+        "FROM daily_kline WHERE trade_date=? AND volume > 0",
+        (trade_date,)
+    ).fetchall()
+    snapshot = {}
+    for r in rows:
+        code = r.get("code") or r.get("ts_code", "")
+        if not code:
+            continue
+        snapshot[code] = {
+            "open": float(r["open"] or 0), "high": float(r["high"] or 0),
+            "low": float(r["low"] or 0), "close": float(r["close"] or 0),
+            "volume": float(r["volume"] or 0), "amount": float(r["amount"] or 0),
+        }
+    return snapshot
+
+
+def get_unified_snapshot(db, trade_date, time_slot="14:30"):
+    """统一快照: 实时用 stk_mins, 历史用 daily_kline. 自动检测."""
+    from datetime import date
+    today = date.today().strftime("%Y-%m-%d")
+
+    if trade_date == today:
+        # Try stk_mins first
+        snap = get_intraday_snapshot(db, trade_date, time_slot)
+        if len(snap) > 100:
+            return snap, "live"
+
+    # Fallback: daily_kline for historical dates or if stk_mins empty
+    snap = get_historical_snapshot(db, trade_date)
+    return snap, "historical" if snap else "empty"
+
+
 # ── 保留的原始函数 (不依赖 daily_kline 今日数据) ──
 
 def get_pre_close(db, code, trade_date):
@@ -387,7 +427,7 @@ def score_resilience_intraday(intraday_ohlc):
 
 def score_stock_afternoon(code, name, industry, snap, pre_close, db, trade_date,
                            time_slot="14:30", limit_info=None,
-                           sector_stats=None, kline_cache=None):
+                           sector_stats=None, kline_cache=None, is_historical=False):
     """午后选股评分 (方案B: stk_mins数据 + 降级封板 + 日内分歧不死)."""
     close_14 = snap["close"]
     amount_14 = snap["amount"]
@@ -707,10 +747,11 @@ def run_afternoon_screening(trade_date, time_slot="14:30", top_n=20, env_check=T
             print(f"  ⛔ 市场熔断, 跳过选股")
             return [], []
 
-        # ── 14:30 快照 ──
+        # ── 14:30 快照 (V1.1: 自动实时/历史切换) ──
         t0 = time.time()
-        snapshot = get_intraday_snapshot(db, trade_date, time_slot)
-        print(f"  📊 14:30快照: {len(snapshot)} 只 ({time.time()-t0:.1f}s)")
+        snapshot, snap_mode = get_unified_snapshot(db, trade_date, time_slot)
+        mode_icon = "📡" if snap_mode == "live" else "📜"
+        print(f"  {mode_icon} 快照({snap_mode}): {len(snapshot)} 只 ({time.time()-t0:.1f}s)")
 
         # ── pre_close from daily_kline (Tushare stk_limit has no pre_close!) ──
         pre_closes = {}
@@ -777,7 +818,7 @@ def run_afternoon_screening(trade_date, time_slot="14:30", top_n=20, env_check=T
                     c, r["name"], r["industry"] or "其他",
                     snapshot[c], pre_closes[c], db, trade_date,
                     time_slot=time_slot, limit_info=limit_info,
-                    sector_stats=sector_stats,
+                    sector_stats=sector_stats, is_historical=(snap_mode != "live"),
                 )
                 if res:
                     scores.append(res)
