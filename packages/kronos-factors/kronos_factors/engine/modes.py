@@ -7,7 +7,7 @@ V2: Batch K-line prefetch replaces per-stock get_kline_df(), reducing
     5000+ individual DB queries to a single bulk query (~60x faster).
 """
 
-import os, time
+import logging, os, time
 from collections import defaultdict
 from datetime import datetime, date
 import numpy as np
@@ -169,7 +169,8 @@ class ChokepointEngine(StrategyEngine):
                     "cp_score": cp_score, "devils": devils,
                     "cp_signals": cp.get("signals", []),
                 })
-            except Exception:
+            except Exception as _e:
+                if __debug__: import logging; logging.getLogger("modes").debug("Stock scoring error: %s", _e)
                 excluded += 1
 
         picks.sort(key=lambda x: x["score"], reverse=True)
@@ -300,7 +301,8 @@ class ShortModeEngine(StrategyEngine):
                     "kronos_prediction": kp if kp.get("available") else None,
                 })
                 scored += 1
-            except Exception:
+            except Exception as _e:
+                if __debug__: import logging; logging.getLogger("modes").debug("Stock scoring error: %s", _e)
                 excluded += 1
 
         picks.sort(key=lambda x: x["score"], reverse=True)
@@ -412,7 +414,8 @@ class LongModeEngine(StrategyEngine):
                     "institutional_funds": inst.get("funds", []),
                 })
                 scored += 1
-            except Exception:
+            except Exception as _e:
+                if __debug__: import logging; logging.getLogger("modes").debug("Stock scoring error: %s", _e)
                 excluded += 1
 
         picks.sort(key=lambda x: x["score"], reverse=True)
@@ -536,7 +539,8 @@ class AllModeEngine(StrategyEngine):
                     "sector_score": round(sector_score, 2),
                 })
                 scored += 1
-            except Exception:
+            except Exception as _e:
+                if __debug__: import logging; logging.getLogger("modes").debug("Stock scoring error: %s", _e)
                 excluded += 1
 
         picks.sort(key=lambda x: x["score"], reverse=True)

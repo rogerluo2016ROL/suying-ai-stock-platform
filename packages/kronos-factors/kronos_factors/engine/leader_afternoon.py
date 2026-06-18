@@ -782,7 +782,7 @@ def run_afternoon_screening(trade_date, time_slot="14:30", top_n=20, env_check=T
                 if res:
                     scores.append(res)
             except Exception:
-                continue
+                continue  # (scoring error, stock skipped)
 
         print(f"  ✅ 筛选后: {len(scores)} 只 ({time.time()-t0:.1f}s)")
 
