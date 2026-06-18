@@ -494,3 +494,87 @@ async def run_cb_backtest(
     except Exception as e:
         logger.error("CB backtest failed: %s", e)
         raise HTTPException(500, str(e))
+
+
+# ═══════════════════════════════════════════════════════════════
+# 秋神午后回测 (V1.1: 历史日K线模式)
+# ═══════════════════════════════════════════════════════════════
+
+@router.post("/run-afternoon")
+async def run_afternoon_backtest(
+    windows: int = Query(6, ge=1, le=12),
+    top_n: int = Query(15, ge=5, le=30),
+    forward_days: int = Query(5, ge=1, le=20),
+):
+    """秋神午后回测 — 自动使用日K线历史数据."""
+    try:
+        from kronos_factors.engine.leader_afternoon import run_afternoon_screening
+
+        conn = _get_pg()
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT trade_date FROM daily_kline WHERE volume > 0 ORDER BY trade_date")
+        all_dates = [r[0] for r in cur.fetchall()]
+        conn.close()
+
+        recent = [d for d in all_dates if d >= (all_dates[-1] - timedelta(days=365))]
+        step = max(3, (len(recent) - forward_days - 5) // windows)
+        results = []
+        all_returns = []
+
+        for i in range(windows):
+            idx = i * step
+            if idx + forward_days + 5 >= len(recent):
+                break
+            sel_date = recent[idx]
+            fwd_date = recent[min(idx + forward_days, len(recent) - 1)]
+
+            try:
+                picks, _ = run_afternoon_screening(
+                    str(sel_date)[:10], time_slot="14:30", top_n=top_n, env_check=False
+                )
+                if not picks:
+                    continue
+            except Exception as e:
+                logger.debug("Afternoon failed at %s: %s", sel_date, e)
+                continue
+
+            conn2 = _get_pg()
+            cur2 = conn2.cursor()
+            fwd_rets = []
+            for pk in picks[:top_n]:
+                code = pk.get("code", "")
+                if not code: continue
+                cur2.execute("SELECT close FROM daily_kline WHERE code=%s AND trade_date <= %s ORDER BY trade_date DESC LIMIT 1", (code, fwd_date))
+                r1 = cur2.fetchone()
+                cur2.execute("SELECT close FROM daily_kline WHERE code=%s AND trade_date <= %s ORDER BY trade_date DESC LIMIT 1", (code, sel_date))
+                r2 = cur2.fetchone()
+                if r1 and r2 and r2[0] > 0:
+                    fwd_rets.append(float((r1[0] - r2[0]) / r2[0] * 100))
+            conn2.close()
+
+            if fwd_rets:
+                results.append({
+                    "window": i + 1, "sel_date": str(sel_date)[:10], "fwd_date": str(fwd_date)[:10],
+                    "picks": len(picks),
+                    "avg_return_pct": round(float(np.mean(fwd_rets)), 2),
+                    "hit_rate_pct": round(float(np.mean(np.array(fwd_rets) > 0)) * 100, 1),
+                })
+                all_returns.extend(fwd_rets)
+
+        if not results:
+            return {"status": "ok", "mode": "leader_afternoon", "windows": 0,
+                    "summary": {"avg_return": 0, "hit_rate": 0, "total_trades": 0},
+                    "message": "No valid windows"}
+
+        return {
+            "status": "ok", "mode": "leader_afternoon", "windows": len(results),
+            "summary": {
+                "avg_return": round(float(np.mean(all_returns)), 2) if all_returns else 0,
+                "hit_rate": round(float(np.mean(np.array(all_returns) > 0)) * 100, 1) if all_returns else 0,
+                "total_trades": len(all_returns),
+            },
+            "details": results,
+        }
+    except Exception as e:
+        logger.error("Afternoon backtest failed: %s", e)
+        raise HTTPException(500, str(e))
