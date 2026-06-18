@@ -9,6 +9,9 @@ from kronos_factors.engine.leader_intraday import (
     score_intraday_stock, run_intraday_screening,
     generate_intraday_plan,
 )
+from kronos_factors.engine.bi_trend_full_market import (
+    BiTrendFullMarketEngine, run_bi_screening as run_bi_full_market,
+)
 from kronos_factors.engine.leader_afternoon import (
     AfternoonLeaderEngine, run_afternoon_screening,
 )
@@ -26,6 +29,8 @@ __all__ = [
     "generate_intraday_plan",
     # Leader Afternoon (午后)
     "AfternoonLeaderEngine", "run_afternoon_screening",
+    # Bi Trend Full Market (全市场)
+    "BiTrendFullMarketEngine", "run_bi_full_market",
     # Multi-factor modes
     "ChokepointEngine", "ShortModeEngine", "LongModeEngine", "AllModeEngine",
 ]

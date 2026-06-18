@@ -163,7 +163,8 @@ async def list_modes():
             {"id": "cb_floor",       "name": "匪爷可转债底价选债模型",   "cycle": "1-4周",  "style": "稳健"},
             {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
             {"id": "cb_auction",     "name": "秋神竞价概念选债模型",       "cycle": "1-2天",  "style": "竞价"},
-            {"id": "bi_trend_launch","name": "毕师傅趋势启动战法 V5.9",     "cycle": "5-20天", "style": "趋势"},
+            {"id": "bi_trend_launch","name": "毕师傅硬核科技趋势启动 V5.9", "cycle": "5-20天", "style": "趋势"},
+            {"id": "bi_trend_full_market","name": "毕师傅全市场趋势启动 V1.0", "cycle": "5-20天", "style": "全市场"},
         ]
     }
 
@@ -215,6 +216,10 @@ async def run_screening(
         elif mode == "bi_trend_launch":
             result = await loop.run_in_executor(
                 _executor, _run_bi_trend_mode, mode, top_n, trade_date
+            )
+        elif mode == "bi_trend_full_market":
+            result = await loop.run_in_executor(
+                _executor, _run_bi_full_market_mode, mode, top_n, trade_date
             )
         else:
             result = await loop.run_in_executor(
@@ -368,6 +373,28 @@ def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict
     picks = _normalize_picks(picks, mode)
 
     # Generate execution plans with market regime awareness
+    regime = "neutral"
+    plans = generate_bi_plan(picks, market_regime=regime) if picks else []
+
+    return {
+        "mode": mode,
+        "trade_date": trade_date,
+        "total_picks": len(picks),
+        "picks": picks,
+        "execution_plans": plans,
+    }
+
+
+def _run_bi_full_market_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
+    """Run 毕师傅全市场趋势启动战法 V1.0 (全市场 + VR过滤)."""
+    from kronos_factors.engine.bi_trend_full_market import BiTrendFullMarketEngine, generate_bi_plan
+
+    engine = BiTrendFullMarketEngine()
+    picks = engine.run(top_n=top_n, trade_date=trade_date)
+
+    picks = _sanitize_picks(picks)
+    picks = _normalize_picks(picks, mode)
+
     regime = "neutral"
     plans = generate_bi_plan(picks, market_regime=regime) if picks else []
 

@@ -1,22 +1,14 @@
 #!/usr/bin/env python3
-"""毕师傅趋势启动战法 — Bi's Trend Launch Strategy.
+"""毕师傅全市场趋势启动战法 — Bi's Full-Market Trend Launch Strategy.
 
-买入: OBV均线确认趋势 + WR急跌回踩 + 反弹启动 = 趋势启动买入信号.
-卖出: OBV跌破均线(资金流出) + WR回升超买(涨势耗尽) = 趋势终结卖出信号.
-
-核心理念:
-  1. OBV > OBV_MA10 持续N天 → 资金持续流入, 趋势方向确认
-  2. WR 3日内急跌 → 价格快速回踩, 洗盘而非反转
-  3. 回踩缩量 → 主力未出货, 洗盘特征
-  4. 三者叠加 = "上升趋势中的洗盘回踩" → 高胜率买点
-
-与现有模型互补:
-  - leader_scalp/closing: 龙头战法(板块龙头+涨幅筛选)
-  - bi_trend_launch: 趋势战法(OBV+WR技术信号, 不依赖板块)
-  - MoneyFlowModel: 资金流向评分(可组合使用)
+与硬核科技版(bi_trend_launch)相同核心逻辑, 差异:
+  1. 全市场选股 (不限于硬科技赛道, 股票池扩大 ~10x)
+  2. 新增 VR 资金流向过滤: VR<85 直接淘汰
+  3. 移除硬科技/卡脖子加分, OBV 权重恢复 30
+  4. 追加流通市值门槛 ≥30亿
 
 Usage:
-    python tools/backtest_bi_trend.py --month 2026-06 --top-n 20
+    python tools/backtest_bi_trend.py --month 2026-06 --top-n 20 --full-market
 """
 
 import numpy as np
@@ -27,23 +19,22 @@ import time
 
 # ── V5.3: 降低止损率 — 连阳确认 + 深度回踩 + 派发检测 ──
 WEIGHTS = {
-    "obv_trend": 30,            # 32→30 (继续降权,减少追高)
+    "obv_trend": 30,            # 全市场OBV区分度更高, 保持权重
     "wr_pullback": 28,          # 不变
-    "volume_contract": 8,       # 10→8 (缩量重要性降低)
+    "volume_contract": 8,       # 不变
     "ma_trend": 10,             # 不变
     "trend_strength": 8,        # 不变
     "sector_momentum": 7,       # 不变
     "freshness": 3,             # 回踩新鲜度
-    "rebound_strength": 3,      # 2→3 (反弹力度更重要)
-    "obv_accel": 3,             # V5.3 新增: OBV加速度
-    "hard_tech_track": 3,       # V5.8: 硬科技赛道
-    "chokepoint_scarcity": 2,   # V5.8: 卡脖子稀缺性
+    "rebound_strength": 3,      # 反弹力度
+    "obv_accel": 3,             # OBV加速度
 }
 
-# ── V5.8: 硬科技 + 卡脖子筛选 (国家鼓励方向) ──
-HARD_TECH_ONLY = True  # 默认开启硬科技门控
+# ── 全市场配置 ──
+HARD_TECH_ONLY = False           # 全市场选股
+MIN_FLOAT_MV = 30                # 最小流通市值(亿)
+VR_MIN_THRESHOLD = 85            # VR最低门槛: <85 直接淘汰
 
-# 硬科技行业关键词（与 advanced_factors.py HARD_TECH_KEYWORDS 对齐，轻量纯字符串匹配）
 HARD_TECH_INDUSTRY_KW = [
     # AI算力
     "算力", "光模块", "服务器", "AI芯片", "GPU", "CPO", "HBM", "数据中心", "智算",
@@ -70,8 +61,8 @@ HARD_TECH_INDUSTRY_KW = [
     # 工业母机
     "数控", "精密制造",
 ]
-HARD_TECH_TRACK_WEIGHT = 3     # 硬科技赛道额外加分 (满分3)
-CHOKEPOINT_SCARCITY_WEIGHT = 2  # 卡脖子稀缺性加分 (满分2)
+HARD_TECH_TRACK_WEIGHT = 0     # 全市场版不用
+CHOKEPOINT_SCARCITY_WEIGHT = 0  # 全市场版不用
 
 GRADE_THRESHOLDS = {"S": 70, "A": 55, "B": 40}  # V5.9 P5: 放宽弱市等级门槛 85→70, 72→55, 60→40
 MIN_OBV_DAYS = 2
@@ -255,6 +246,29 @@ def calc_adx(highs, lows, closes, period=14):
         adx[i] = dx if i == period else (adx[i-1]*(period-1) + dx) / period
 
     return float(adx[-1]), float(di_plus[-1]), float(di_minus[-1])
+
+
+def calc_vr_simple(closes, volumes, period=14):
+    """VR 资金流向 — 简单计算, 仅用于过滤.
+
+    VR = (上涨日量 + 0.5×平盘日量) / (下跌日量 + 0.5×平盘日量) × 100.
+    返回 VR 值, 用于判断是否≥MIN_VR门槛.
+    """
+    n = len(closes)
+    if n < period + 1:
+        return 100.0
+    up_vol = 0.0; down_vol = 0.0; flat_vol = 0.0
+    for i in range(max(1, n - period), n):
+        change = closes[i] - closes[i - 1]
+        vol = volumes[i] if volumes[i] > 0 else 0
+        if change > 0: up_vol += vol
+        elif change < 0: down_vol += vol
+        else: flat_vol += vol
+    half_flat = flat_vol * 0.5
+    denominator = down_vol + half_flat
+    if denominator < 1:
+        return 200.0
+    return round((up_vol + half_flat) / denominator * 100, 1)
 
 
 # ── V5.8: 硬科技 + 卡脖子辅助函数 ──
@@ -761,22 +775,17 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     print(f"  📊 涨跌比: {breadth:.0f}% | 5日均: {breadth_5d:.0f}% | 10日均: {breadth_10d:.0f}% | "
           f"{regime_icon.get(regime,'')}{regime} | 前日: {prev_date}")
 
-    # ── 股票池 ──
+    # ── 股票池 (全市场 + 市值门槛) ──
     stocks = db.execute(
         "SELECT code, name, industry FROM stocks WHERE is_st=0 "
         "AND name NOT LIKE '%ST%' "
-        "AND (float_mv IS NULL OR float_mv >= 20)"
-    ).fetchall()
+        "AND (float_mv IS NULL OR float_mv >= ?)"
+    , (MIN_FLOAT_MV,)).fetchall()
     total_pool = len(stocks)
+    print(f"  📈 全市场股票池: {len(stocks)} 只 (流通市值≥{MIN_FLOAT_MV}亿)")
 
-    # ── V5.8: 硬科技门控 + 行业稀缺预计算 ──
+    # ── 全市场版: 不用硬科技门控, 不用行业稀缺 ──
     industry_peers = {}
-    if hard_tech_only:
-        industry_peers = _get_industry_peers(db)
-        stocks = [r for r in stocks if _is_hard_tech_stock(r["industry"] or "")]
-        print(f"  🔬 硬科技门控: {total_pool} → {len(stocks)} 只 (仅国家鼓励的硬科技赛道)")
-    else:
-        print(f"  📈 股票池: {len(stocks)} 只 (全市场)")
 
     # ── 批量预取K线 (V5.9: 历史日=日线 / 实时日=日线+分时快照) ──
     t0 = time.time()
@@ -800,16 +809,14 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
             sc = get_sector_index(db, industry, trade_date, code)
             sector_change = sc if isinstance(sc, (int, float)) else 0
 
-            # ── V5.8: 硬科技赛道 + 卡脖子稀缺性 ──
+            # ── 全市场版: VR 资金流向过滤 ──
+            vr_val = calc_vr_simple(closes, volumes)
+            if vr_val < VR_MIN_THRESHOLD:
+                continue  # VR不达标, 直接淘汰
+
+            # 移除硬科技/卡脖子加分 (全市场版)
             hard_tech_track = ""
             chokepoint_score = 0
-            if hard_tech_only:
-                hard_tech_track = _get_hard_tech_track(industry)
-                peer_count = industry_peers.get(industry, 99)
-                if peer_count <= 3:
-                    chokepoint_score = 2  # 绝对稀缺: ≤3家同行
-                elif peer_count <= 8:
-                    chokepoint_score = 1  # 寡头格局: ≤8家同行
 
             result = _score_bi_trend_arrays(
                 closes, highs, lows, volumes,
@@ -1648,10 +1655,10 @@ def generate_bi_plan(picks, market_regime="neutral"):
 def print_bi_results(top, trade_date):
     """V5.9: 打印选股结果."""
     print(f"\n{'=' * 140}")
-    print(f"  毕师傅趋势启动战法 V5.9 — {trade_date} Top {len(top)}")
+    print(f"  毕师傅全市场趋势启动战法 V1.0 — {trade_date} Top {len(top)}")
     print(f"{'=' * 140}")
-    print(f"\n  OBV(30) + WR(28) + 量(8) + 均线(10) + ADX(8) + 板块(7) + 硬科技(3) + 稀缺(2) + 新鲜(3) + 强反弹(2) = 101")
-    print(f"  V5.9: 🔥强买 | 🔬硬科技门控 | P0熔断豁免 | P4弱市快进快出(止盈+5%/-5%)")
+    print(f"\n  OBV(30) + WR(28) + 量(8) + 均线(10) + ADX(8) + 板块(7) + 新鲜(3) + 强反弹(3) = 97")
+    print(f"  V1.0: 🔥强买 | 🌐全市场 | VR≥85过滤 | P4弱市快进快出(止盈+5%/-5%)")
     print(f"{'#':<3} {'代码':<8} {'名称':<8} {'总':<4} {'级':<3} {'信号':<12} {'子类':<8} "
           f"{'OBV':<12} {'WR跌':<6} {'量':<6} {'均线':<8} {'硬科技':<8} {'标记'}")
     print(f"{'-'*125}")
@@ -1712,8 +1719,8 @@ def print_bi_plan(plans):
 
 # ── Engine wrapper ──
 
-class BiTrendLaunchEngine:
-    """毕师傅趋势启动战法引擎."""
+class BiTrendFullMarketEngine:
+    """毕师傅全市场趋势启动战法引擎."""
 
     def __init__(self, pg_url: str = None):
         self.pg_url = pg_url
