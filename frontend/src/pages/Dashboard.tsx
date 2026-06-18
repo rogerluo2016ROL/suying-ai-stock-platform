@@ -143,7 +143,7 @@ export default function Dashboard() {
     fetch('/api/v1/dashboard/auction')
       .then(r => r.json()).then(d => {
         if (d.picks) { setAuctionPicks(d.picks); setAuctionSectors(d.sectors || []) }
-      }).catch(() => message.warning("看板数据加载失败"))
+      }).catch(() => {})
 
     // 自动切换 Tab: 9:25-14:00 竞价, 14:00-15:30 盘中, 其他盘后
     const h = new Date().getHours(), m = new Date().getMinutes()
