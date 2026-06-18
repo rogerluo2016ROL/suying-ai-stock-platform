@@ -131,11 +131,11 @@ class ChokepointEngine(StrategyEngine):
 
         with _get_db(readonly=True) as db:
             codes = [r["code"] for r in db.execute(
-                "SELECT code FROM stocks WHERE is_st=0 ORDER BY code").fetchall()]
+                "SELECT code FROM stocks WHERE is_st=0 AND listed_date IS NOT NULL ORDER BY code").fetchall()]
             names = {r["code"]: r["name"] for r in db.execute(
                 "SELECT code, name FROM stocks").fetchall()}
 
-            # V2: Batch K-line prefetch
+            # V2: Batch K-line prefetch (BACKTEST NOTE: ensure trade_date is set correctly to avoid look-ahead)
             kline_cache = _prefetch_kline_batch(db)
             # Pre-filter: skip penny stocks and illiquid
             valid = {c for c, (cl, _, _, vol) in kline_cache.items()
@@ -215,11 +215,11 @@ class ShortModeEngine(StrategyEngine):
 
         with _get_db(readonly=True) as db:
             codes = [r["code"] for r in db.execute(
-                "SELECT code FROM stocks WHERE is_st=0 ORDER BY code").fetchall()]
+                "SELECT code FROM stocks WHERE is_st=0 AND listed_date IS NOT NULL ORDER BY code").fetchall()]
             names = {r["code"]: r["name"] for r in db.execute(
                 "SELECT code, name FROM stocks").fetchall()}
 
-            # V2: Batch K-line prefetch
+            # V2: Batch K-line prefetch (BACKTEST NOTE: ensure trade_date is set correctly to avoid look-ahead)
             kline_cache = _prefetch_kline_batch(db)
             # Pre-filter: skip penny stocks (<¥5) and illiquid (avg vol < 500k)
             valid_codes = set()
@@ -350,11 +350,15 @@ class LongModeEngine(StrategyEngine):
                 "WHERE s.is_st=0 AND (db.total_mv IS NULL OR db.total_mv >= 5000000) "
                 "ORDER BY s.code"  # total_mv in 万元, 5000000万=50B, value investing focus
             ).fetchall()]
+            # Fallback: if market cap filter too strict (e.g., backtest with old dates), use all
+            if len(codes) < 100:
+                codes = [r["code"] for r in db.execute(
+                    "SELECT code FROM stocks WHERE is_st=0 AND listed_date IS NOT NULL ORDER BY code").fetchall()]
             names = {r["code"]: r["name"] for r in db.execute(
                 "SELECT code, name FROM stocks").fetchall()}
 
             t_prep = time.time()
-            # V2: Batch K-line prefetch
+            # V2: Batch K-line prefetch (BACKTEST NOTE: ensure trade_date is set correctly to avoid look-ahead)
             kline_cache = _prefetch_kline_batch(db)
             # Pre-filter: skip penny stocks and illiquid
             valid = {c for c, (cl, _, _, vol) in kline_cache.items()
@@ -470,7 +474,7 @@ class AllModeEngine(StrategyEngine):
                 "SELECT code, name FROM stocks").fetchall()}
 
             t_prep = time.time()
-            # V2: Batch K-line prefetch
+            # V2: Batch K-line prefetch (BACKTEST NOTE: ensure trade_date is set correctly to avoid look-ahead)
             kline_cache = _prefetch_kline_batch(db)
             # Pre-filter: skip penny stocks and illiquid
             valid = {c for c, (cl, _, _, vol) in kline_cache.items()
