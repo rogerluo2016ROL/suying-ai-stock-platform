@@ -274,7 +274,7 @@ export default function Dashboard() {
                 <div style={{ fontSize: 12, marginBottom: 8 }}>{sentiment?.model}</div>
                 <div style={{ fontSize: 12, marginBottom: 4 }}>{sentiment?.formula}</div>
                 <div style={{ fontSize: 11, color: '#aaa' }}>
-                  {sentiment && Object.entries(sentiment.sub_dimensions).map(([k, v]) => (
+                  {sentiment?.sub_dimensions && Object.entries(sentiment.sub_dimensions).map(([k, v]) => (
                     <div key={k}>{k}: {v}</div>
                   ))}
                 </div>
