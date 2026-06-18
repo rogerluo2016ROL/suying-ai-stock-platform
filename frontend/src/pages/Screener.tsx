@@ -29,7 +29,7 @@ export default function Screener() {
       await strategyApi.addPicks(plan.plan.id, selectedPicks)
       message.success(`预方案已生成: ${plan.plan.id} (${selectedPicks.length}只)`)
       setSelectedRowKeys([])
-    } catch { message.error('方案生成失败') }
+    } catch { message.error('方案生成失败，请检查strategy-service是否启动') }
   }
 
   useEffect(() => {

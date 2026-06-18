@@ -80,13 +80,13 @@ export default function Strategy() {
     fetch('/api/v1/strategy/plans').then(r => r.json()).then(d => {
       setPlans(d.plans || d.items || [])
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => {message.warning("方案加载失败"); setLoading(false)})
   }
 
   const loadTemplates = () => {
     fetch('/api/v1/strategy/templates').then(r => r.json()).then(d => {
       setTemplates(d.templates || [])
-    }).catch(() => {})
+    }).catch(() => message.warning("方案数据加载失败"))
   }
 
   const createFromTemplate = async (template: StrategyTemplate) => {

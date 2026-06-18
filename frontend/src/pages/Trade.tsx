@@ -61,19 +61,19 @@ export default function Trade() {
     fetch(`${apiPrefix}/account`)
       .then(r => r.json())
       .then(setAccount)
-      .catch(() => {})
+      .catch(() => message.warning("交易数据加载失败"))
 
     // Positions
     fetch(`${apiPrefix}/positions`)
       .then(r => r.json())
       .then(d => setPositions(d.positions || []))
-      .catch(() => {})
+      .catch(() => message.warning("交易数据加载失败"))
 
     // Orders
     fetch(`${apiPrefix}/orders`)
       .then(r => r.json())
       .then(d => setOrders(d.orders || []))
-      .catch(() => {})
+      .catch(() => message.warning("交易数据加载失败"))
   }, [apiPrefix])
 
   useEffect(() => {

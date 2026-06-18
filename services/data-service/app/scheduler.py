@@ -106,7 +106,7 @@ def check_table_latest_date(table: str, date_col: str = "trade_date") -> date | 
         conn.autocommit = True
         cur = conn.cursor()
         # 使用 quote_ident 防止 SQL 注入 (table/column 不可参数化)
-        cur.execute(f"SELECT MAX(\"{date_col}\") FROM \"{table}\"")
+        cur.execute(SQL("SELECT MAX({})".format(Identifier(date_col))).format(Identifier(table)))
         row = cur.fetchone()
         conn.close()
         parsed = _parse_date(row[0]) if row else None
@@ -335,7 +335,7 @@ def run_data_quality_report() -> dict:
         # Only check cb_* tables if they exist
         for table in ("cb_daily", "cb_factor", "cb_price_chg", "cb_basic"):
             try:
-                cur.execute("SELECT 1 FROM %s LIMIT 1" % table)
+                cur.execute(SQL("SELECT 1 FROM {} LIMIT 1").format(Identifier(table)))
             except Exception:
                 continue  # table doesn't exist, skip
 
@@ -351,7 +351,7 @@ def run_data_quality_report() -> dict:
         # cb_factor RSI range check
         try:
             for field in ("rsi_6", "rsi_12", "rsi_24"):
-                cur.execute(f"SELECT COUNT(*) FROM cb_factor WHERE {field} IS NOT NULL AND ({field} < 0 OR {field} > 100)")
+                cur.execute(SQL("SELECT COUNT(*) FROM cb_factor WHERE {} IS NOT NULL AND ({} < 0 OR {} > 100)").format(Identifier(field), Identifier(field)))
                 k = f"cb_factor.{field}_out_of_range"
                 results[k] = [{"check": f"{field} ∉ [0,100]", "count": cur.fetchone()[0]}]
         except Exception:
@@ -374,7 +374,7 @@ def run_data_quality_report() -> dict:
         ]
         for table, col in freshness_checks:
             try:
-                cur.execute(f"SELECT MAX({col}) FROM {table}")
+                cur.execute(SQL("SELECT MAX({})").format(Identifier(col)).format(Identifier(table)))
                 row = cur.fetchone()
                 if row and row[0]:
                     latest = _parse_date(row[0])

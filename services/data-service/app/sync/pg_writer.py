@@ -178,7 +178,7 @@ def refresh_materialized_views() -> dict:
         cur = conn.cursor()
         for view in views:
             try:
-                cur.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view}")
+                cur.execute(SQL("REFRESH MATERIALIZED VIEW CONCURRENTLY {}").format(Identifier(view)))
                 cur.execute(f"SELECT COUNT(*) FROM {view}")
                 row_count = cur.fetchone()[0]
                 results[view] = {"status": "ok", "rows": row_count}

@@ -12,6 +12,7 @@ For dev, set KRONOS_PG_URL to auto-connect.
 
 import logging
 import os
+import threading
 from contextlib import contextmanager
 from typing import Optional
 
@@ -20,31 +21,36 @@ logger = logging.getLogger("kronos-factors.db_stub")
 _db_adapter = None
 _market_data_adapter = None
 _adapter_initialized = False
+_lock = threading.Lock()
 
 
 def set_db_adapter(adapter):
     """Inject a real DBAdapter instance. Call once at application startup."""
     global _db_adapter
-    _db_adapter = adapter
+    with _lock:
+        _db_adapter = adapter
 
 
 def set_market_data_adapter(adapter):
     """Inject a real MarketDataAdapter instance."""
     global _market_data_adapter
-    _market_data_adapter = adapter
+    with _lock:
+        _market_data_adapter = adapter
 
 
 def _auto_init_adapter():
     """Auto-initialize DB adapter from environment (PG-first, SQLite fallback).
 
     Called lazily on first _get_db() call if no adapter is injected.
-    This ensures PG-first read path without requiring every service to
-    manually call create_pg_adapter() at startup.
+    Thread-safe: double-checked locking pattern.
     """
     global _db_adapter, _adapter_initialized
     if _adapter_initialized:
         return
-    _adapter_initialized = True
+    with _lock:
+        if _adapter_initialized:
+            return
+        _adapter_initialized = True
 
     pg_url = os.environ.get("KRONOS_PG_URL", "")
     if pg_url:
