@@ -1148,49 +1148,55 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         return None
 
     wr_now = float(wr_valid[-1])
-    wr_2d = float(wr_valid[-3]) if len(wr_valid) >= 3 else wr_now
-    wr_3d = float(wr_valid[-4]) if len(wr_valid) >= 4 else wr_now
-    wr_5d = float(wr_valid[-6]) if len(wr_valid) >= 6 else wr_now
-    wr_drop_2d = wr_now - wr_2d
-    wr_drop_3d = wr_now - wr_3d
-    wr_drop_5d = wr_now - wr_5d
-    wr_max_drop = min(wr_drop_2d, wr_drop_3d, wr_drop_5d)
+    # V9.0: 动态三日轨迹评分 (同步launch版)
+    wr_d3 = float(wr_valid[-3] - wr_valid[-4]) if len(wr_valid) >= 4 else 0  # D-3→D-2
+    wr_d2 = float(wr_valid[-2] - wr_valid[-3]) if len(wr_valid) >= 3 else 0  # D-2→D-1
+    wr_d1 = float(wr_valid[-1] - wr_valid[-2]) if len(wr_valid) >= 2 else 0  # D-1→D0
 
-    # V5.1: 回踩新鲜度 - WR最大跌幅发生在最近2天加分
-    freshness_bonus = 0
-    if wr_drop_2d <= wr_max_drop and wr_max_drop < -10:
-        freshness_bonus = FRESH_PULLBACK_BONUS  # 最近2天急跌=新鲜回踩
-
-    # WR评分
-    if wr_max_drop < -40:
-        wr_score, wr_level = 28, "深度洗盘"
-    elif wr_max_drop < -30:
-        wr_score, wr_level = 25, "明显洗盘"
-    elif wr_max_drop < -20:
-        wr_score, wr_level = 20, "温和洗盘"
-    elif wr_max_drop < -10:
-        wr_score, wr_level = 13, "轻微回踩"
-    elif wr_max_drop < -5:
-        wr_score, wr_level = 7, "微调"
+    if wr_d3 < -10 and wr_d2 > 5 and wr_d1 > 10:
+        wr_score, wr_level = 32, "强势反转🔥🔥"
+    elif wr_d3 < -10 and wr_d2 > -10 and wr_d1 > 5:
+        wr_score, wr_level = 28, "急跌→止跌→反弹🔥"
+    elif wr_d3 < -10 and wr_d2 < -5 and wr_d1 > -3:
+        wr_score, wr_level = 14, "跌速放缓→企稳"
+    elif wr_d3 < -10 and wr_d2 < -10 and wr_d1 < -5:
+        wr_score, wr_level = 8, "加速赶底"
+    elif wr_d3 > 10 and wr_d2 < -10 and wr_d1 < -5:
+        wr_score, wr_level = 2, "假突破暴跌☠️"
+    elif abs(wr_d3) < 8 and abs(wr_d2) < 8 and wr_d1 < -15:
+        wr_score, wr_level = 2, "突然破位☠️"
+    elif wr_d1 > 15:
+        wr_score, wr_level = 20, "单日急弹"
+    elif wr_d1 > 5:
+        wr_score, wr_level = 14, "温和反弹"
+    elif wr_d1 < -15:
+        wr_score, wr_level = 5, "单日急跌"
     else:
-        wr_score, wr_level = 2, "无回踩"
+        wr_score, wr_level = 10, "平稳"
 
-    # WR当前位置修正 (V5.7: 深度超卖梯度加分)
+    freshness_bonus = 0
+    if "🔥" in wr_level and wr_now < -50:
+        freshness_bonus = FRESH_PULLBACK_BONUS
+
     if wr_now < -90:
-        wr_score = min(28, wr_score + 4)   # 极度超卖->最强反弹
+        wr_score = min(32, wr_score + 5)
     elif wr_now < -80:
-        wr_score = min(28, wr_score + 3)   # 深度超卖
-    # V6.0: WR位置修正 (已在主评分段处理, 此处移除重复逻辑)
+        wr_score = min(32, wr_score + 3)
+    elif wr_now < -70:
+        wr_score = min(32, wr_score + 2)
+    elif wr_now < -60:
+        wr_score = min(32, wr_score + 1)
+
     #    V6.0: 梯度追高惩罚 (同步launch版)
     chase_penalty = 0
     if obv_days_above >= CHASE_PENALTY_OBV_DAYS_EXTREME and wr_now > CHASE_PENALTY_WR_EXTREME:
-        chase_penalty = CHASE_PENALTY_SCORE_EXTREME  # 极度追高 -12
+        chase_penalty = CHASE_PENALTY_SCORE_EXTREME
         obv_level = obv_level + "⚠️"
     elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_HIGH and wr_now > CHASE_PENALTY_WR_THRESHOLD:
-        chase_penalty = CHASE_PENALTY_SCORE          # 明显追高 -8
+        chase_penalty = CHASE_PENALTY_SCORE
         obv_level = obv_level + " "
     elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_MILD and wr_now > CHASE_PENALTY_WR_EXTREME:
-        chase_penalty = CHASE_PENALTY_SCORE_MILD     # 轻度追高 -4
+        chase_penalty = CHASE_PENALTY_SCORE_MILD
 
     #    F3: 回踩缩量 (0-12分)   
     vol_3d = np.mean(volumes[-3:])
@@ -1394,10 +1400,10 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
 
     #    V5.3: 三层确认信号体系 (WR深度要求 + 连阳 + 下跌中继)   
     obv_confirmed = obv_days_above >= STRONG_OBV_DAYS
-    wr_drop_confirmed = wr_max_drop < STRONG_WR_DROP
+    wr_drop_confirmed = "🔥" in wr_level  # V9.0
 
     # L3: 反弹启动确认 (V5.7 + higher low)
-    wr_stopping = abs(wr_now - wr_2d) < 5
+    wr_stopping = abs(wr_d1) < 5  # V9.0
     price_rising = closes[-1] > closes[-2] if len(closes) >= 2 else False
     vol_surging = vol_rebound_ratio >= REBOUND_VOL_MIN_RATIO
     # V5.7: Higher low - 今日低点 > 前日低点 (回踩找到支撑)
@@ -1493,7 +1499,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         "obv_level": obv_level, "obv_slope_pct": round(obv_slope, 1),
         # WR
         "wr_score": wr_score, "wr_current": round(wr_now, 1),
-        "wr_drop_3d": round(wr_max_drop, 1), "wr_level": wr_level,
+        "wr_drop_3d": round(wr_d1 + wr_d2 + wr_d3, 1), "wr_level": wr_level,
         # Volume
         "vol_score": vol_score, "vol_ratio": round(vol_ratio, 2), "vol_level": vol_level,
         # MA
