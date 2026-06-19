@@ -416,9 +416,16 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     #    P3: OBV三重确认   
     obv_ma5 = np.mean(obv[-5:]) if len(obv) >= 5 else obv_now
     obv_triple_ok = (obv_now > obv_ma5 > obv_ma10_now and obv_slope > 0)
-    # V2.0: OBV必须>=MIN_OBV_DAYS天高于MA, 否则淘汰
+    # V8.1: OBV天数过滤 — WR压缩时放宽
     if obv_days_above < MIN_OBV_DAYS:
-        return None
+        wr_fast = -50
+        if len(highs) >= 14:
+            hh14 = np.max(highs[-14:]); ll14 = np.min(lows[-14:])
+            if hh14 > ll14:
+                wr_fast = (hh14 - closes[-1]) / (hh14 - ll14) * -100
+        if wr_fast > -70:
+            return None  # WR不够超卖=真弱势, 淘汰
+        # WR<-70: 压缩反转候选, 保留
     if not obv_triple_ok and obv_days_above < 7:
         obv_score -= 5
 
@@ -1024,8 +1031,17 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         else:
             break
 
-    if obv_days_above < MIN_OBV_DAYS:
+    # V8.1: OBV天数过滤 — 保持原规则 + 压缩反转加分
+    # 工业富联/华润微教训: OBV刚死叉+WR极限压缩=最佳买点, 不能淘汰
+    wr_fast = -50
+    if len(highs) >= 14:
+        hh14 = np.max(highs[-14:]); ll14 = np.min(lows[-14:])
+        if hh14 > ll14:
+            wr_fast = (hh14 - closes[-1]) / (hh14 - ll14) * -100
+    compression_reversal = (obv_days_above < MIN_OBV_DAYS and wr_fast < -70)
+    if obv_days_above < MIN_OBV_DAYS and not compression_reversal:
         return None
+    # 压缩反转: 保留, 后续给额外加分
 
     obv_slope = 0
     if len(obv) >= 15 and abs(obv[-10]) > 1:
@@ -1280,6 +1296,19 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             if avg_vol < COILING_VOL_MAX and max_chg < COILING_PRICE_CHG_MAX:
                 coiling_bonus = COILING_BONUS  # 缩量横盘=蓄力待发
 
+    #    V8.1: 压缩反转加分 (工业富联/华润微: OBV刚死叉+WR极限=最佳买点)
+    compression_reversal_bonus = 0
+    if obv_days_above < MIN_OBV_DAYS and wr_now < -70:
+        # 额外条件: OBV正值 + 缩量 + 区间底部
+        obv_positive = obv[-1] > 0 if len(obv) > 0 else False
+        vol_low = False
+        if len(volumes) >= 20:
+            vol_low = volumes[-1] / max(1, np.mean(volumes[-20:])) < 0.85
+        in_range_bottom = range_pos < 0.30
+        if obv_positive and vol_low and in_range_bottom:
+            compression_reversal_bonus = 5  # 压缩反转: 高赔率信号
+            obv_level = obv_level + "💎"  # 标记压缩反转
+
     #    V5.8: 硬科技赛道 + 卡脖子稀缺
     ht_score = HARD_TECH_TRACK_WEIGHT if hard_tech_track else 0
     cp_score = chokepoint_score  # 0/1/2 (pre-computed)
@@ -1290,7 +1319,8 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
                  + weekly_score_adj
                  + ht_score + cp_score
                  + short_pullback_bonus + momentum_bonus
-                 + range_position_bonus + ignition_bonus + coiling_bonus)
+                 + range_position_bonus + ignition_bonus + coiling_bonus
+                 + compression_reversal_bonus)
     total = round(total_raw, 0)
 
     #    V5.3 评级   
