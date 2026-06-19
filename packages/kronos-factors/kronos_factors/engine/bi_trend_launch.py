@@ -1051,11 +1051,11 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     if obv_days_above >= 20:
         obv_score, obv_level = 32, "极强"
     elif obv_days_above >= 15:
-        obv_score, obv_level = 28, "很强"
+        obv_score, obv_level = 26, "很强"  # V9.1: 28->26
     elif obv_days_above >= 10:
-        obv_score, obv_level = 24, "强"
+        obv_score, obv_level = 20, "强"    # V9.1: 24->20 (天孚通信06-05:10天追高)
     elif obv_days_above >= 7:
-        obv_score, obv_level = 18, "中等"
+        obv_score, obv_level = 16, "中等"  # V9.1: 18->16
     else:  # 2-6天
         obv_score, obv_level = 12, "刚突破"
 
@@ -1128,16 +1128,18 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         wr_score = min(32, wr_score + 1)   # 偏超卖
     #    V6.0: 梯度追高惩罚 (修复S级悖论)
     # 回测: S级胜率29% vs A级52%, OBV超15天=严重追高
-    # 三档梯度: 轻度(>=12d) -> 明显(>=15d) -> 极度(>=20d)
+    # V9.1: 新增OBV>=8d+WR>-40惩罚 (天孚通信06-05教训)
     chase_penalty = 0
     if obv_days_above >= CHASE_PENALTY_OBV_DAYS_EXTREME and wr_now > CHASE_PENALTY_WR_EXTREME:
         chase_penalty = CHASE_PENALTY_SCORE_EXTREME  # 极度追高 -12
-        obv_level = obv_level + "⚠️"  # 标记极度追高风险
+        obv_level = obv_level + "⚠️"
     elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_HIGH and wr_now > CHASE_PENALTY_WR_THRESHOLD:
         chase_penalty = CHASE_PENALTY_SCORE          # 明显追高 -8
-        obv_level = obv_level + " "  # 标记追高风险
+        obv_level = obv_level + " "
     elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_MILD and wr_now > CHASE_PENALTY_WR_EXTREME:
         chase_penalty = CHASE_PENALTY_SCORE_MILD     # 轻度追高 -4
+    elif obv_days_above >= 8 and wr_now > -40:
+        chase_penalty = 3                            # V9.1: 温和追高 -3
 
     #    F3: 回踩缩量 (0-12分)   
     vol_3d = np.mean(volumes[-3:])

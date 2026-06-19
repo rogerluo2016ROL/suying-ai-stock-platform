@@ -1115,11 +1115,11 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     if obv_days_above >= 20:
         obv_score, obv_level = 32, "极强"
     elif obv_days_above >= 15:
-        obv_score, obv_level = 28, "很强"
+        obv_score, obv_level = 26, "很强"  # V9.1
     elif obv_days_above >= 10:
-        obv_score, obv_level = 24, "强"
+        obv_score, obv_level = 20, "强"    # V9.1
     elif obv_days_above >= 7:
-        obv_score, obv_level = 18, "中等"
+        obv_score, obv_level = 16, "中等"  # V9.1
     else:  # 2-6天
         obv_score, obv_level = 12, "刚突破"
 
@@ -1197,6 +1197,8 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         obv_level = obv_level + " "
     elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_MILD and wr_now > CHASE_PENALTY_WR_EXTREME:
         chase_penalty = CHASE_PENALTY_SCORE_MILD
+    elif obv_days_above >= 8 and wr_now > -40:
+        chase_penalty = 3                            # V9.1: 温和追高
 
     #    F3: 回踩缩量 (0-12分)   
     vol_3d = np.mean(volumes[-3:])
