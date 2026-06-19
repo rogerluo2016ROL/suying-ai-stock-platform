@@ -64,11 +64,15 @@ HARD_TECH_INDUSTRY_KW = [
 HARD_TECH_TRACK_WEIGHT = 0     # 全市场版不用
 CHOKEPOINT_SCARCITY_WEIGHT = 0  # 全市场版不用
 
-GRADE_THRESHOLDS = {"S": 70, "A": 55, "B": 40}  # V5.9 P5: 放宽弱市等级门槛 85->70, 72->55, 60->40
-MIN_OBV_DAYS = 2
-MIN_TREND_20D = 0            # V5.9 P5: 3.0->0 弱市中放宽趋势门槛
-STRONG_WR_DROP = -25
-STRONG_OBV_DAYS = 10
+GRADE_THRESHOLDS = {"S": 70, "A": 55, "B": 40}
+MIN_OBV_DAYS = 3             # V6.0: 数据驱动, 2->3天(5年回测:≥3天Sharpe+0.12)
+MIN_TREND_20D = 0
+STRONG_WR_DROP = -20         # V6.0: -25->-20, 轻踩比深踩好(WR-20~-40最优)
+STRONG_OBV_DAYS = 7          # V6.0: 10->7, ≥7天Sharpe 0.86分界线
+HOLD_OBV_DAYS = 15           # V6.0: 新增持有信号, ≥15天Sharpe 1.17
+SELL_OBV_BELOW_DAYS = 2      # V6.0: OBV下穿MA10≥2天→清仓
+TIME_STOP_DAYS = 10          # V6.0: 持仓>10天收益<2%→时间止损
+TIME_STOP_MIN_RET = 2.0      # V6.0: 时间止损最低收益%
 
 # V5.1: 追高惩罚
 CHASE_PENALTY_OBV_DAYS = 18
@@ -463,33 +467,30 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     wr_drop_3d = wr_now - wr_3d   # 3日变化
     wr_drop_5d = wr_now - wr_5d   # 5日变化
 
-    # WR急跌评分(取最陡的一段) - P4: 动态阈值
+    # V6.0: WR回踩评分反转 — 数据驱动: 轻踩(20-40)最优, 深踩(>50)不是抄底信号
     wr_max_drop = min(wr_drop_2d, wr_drop_3d, wr_drop_5d)
 
-    # 用ATR动态阈值替代固定-40/-30/-20
-    t = wr_drop_threshold  # e.g. -35 for high-ATR stocks
-    if wr_max_drop < t * 1.6:
-        wr_score = 25; wr_level = "深度洗盘"
-    elif wr_max_drop < t * 1.2:
-        wr_score = 22; wr_level = "明显洗盘"
-    elif wr_max_drop < t * 0.8:
-        wr_score = 18; wr_level = "温和洗盘"
-    elif wr_max_drop < t * 0.4:
-        wr_score = 12; wr_level = "轻微回踩"
+    # 轻度回踩(20-40) = 最优买点 (5年回测: +0.75%, 优于深踩的+0.52%)
+    if -40 <= wr_max_drop < -20:
+        wr_score = 25; wr_level = "黄金回踩"
+    elif -50 <= wr_max_drop < -40:
+        wr_score = 20; wr_level = "温和回踩"
+    elif wr_max_drop < -50:
+        wr_score = 10; wr_level = "过度踩踏"  # V6.0: 深度踩踏降分(-50%样本收益只有+0.5%)
+    elif -20 <= wr_max_drop < -10:
+        wr_score = 15; wr_level = "浅回踩"
     elif wr_max_drop < -5:
-        wr_score = 6;  wr_level = "微调"
+        wr_score = 8;  wr_level = "微调"
     else:
-        wr_score = 2;  wr_level = "无回踩"
+        wr_score = 3;  wr_level = "无回踩"
 
-    # WR当前位置修正
-    if wr_now < -85:
-        wr_score = min(25, wr_score + 3)   # 极度超卖->反弹力强
-    elif wr_now < -70:
-        wr_score = min(25, wr_score + 1)   # 超卖区
-    elif wr_now > -30:
-        wr_score = max(2, wr_score - 5)    # 仍在高位->没跌够
-        if wr_score <= 5:
-            return None  # WR高位无回踩, 不符合战法
+    # V6.0: WR高位修正 — 超买区(>-20) = 强势持续, 加分!
+    if wr_now > -20:
+        wr_score = min(28, wr_score + 5)   # 5年回测: WR>-20区 5日+0.98%, 最优!
+    elif wr_now < -80:
+        wr_score = max(3, wr_score - 5)    # 极度超卖区反而是弱势股(-0.44%)
+    elif wr_now < -60:
+        wr_score = max(5, wr_score - 2)    # 超卖区收益偏低
 
     #    F3: 回踩缩量 (0-15分)   
     vol_3d = np.mean(volumes[-3:])
@@ -1075,16 +1076,8 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         wr_score = min(28, wr_score + 4)   # 极度超卖->最强反弹
     elif wr_now < -80:
         wr_score = min(28, wr_score + 3)   # 深度超卖
-    elif wr_now < -70:
-        wr_score = min(28, wr_score + 2)   # 超卖区
-    elif wr_now < -60:
-        wr_score = min(28, wr_score + 1)   # 偏超卖
-    elif wr_now > -30:
-        wr_score = max(2, wr_score - 5)    # 仍在高位->没跌够
-        if wr_score <= 5:
-            return None  # WR高位无回踩, 不符合战法
-
-    #    V5.1: 追高惩罚 (修复S级悖论)   
+    # V6.0: WR位置修正 (已在主评分段处理, 此处移除重复逻辑)
+    #    V5.1: 追高惩罚 (修复S级悖论)
     # 问题: OBV极强(>=18天) + WR未深跌(>-55) = 已涨很多但还没回调 -> 买入即追高
     # 4月回测: S级胜率仅28.6%, 均值-2.43%
     chase_penalty = 0
@@ -1706,6 +1699,12 @@ def generate_bi_plan(picks, market_regime="neutral"):
         else:
             pos = "0%";  action = "  不参与"
 
+        # V6.0: 卖出规则
+        sell_rules = []
+        sell_rules.append(f"止损: {dyn_stop:.1f}% (ATR动态)")
+        sell_rules.append(f"OBV下穿{SELL_OBV_BELOW_DAYS}天->清仓")
+        sell_rules.append(f">{TIME_STOP_DAYS}日收益<{TIME_STOP_MIN_RET}%->时间止损")
+
         # V5.9 P4: 弱市快进快出 -> 仓位减半, 加 标记
         if is_fast_market and pos not in ("0%", ""):
             pos_val = int(pos.replace("%", ""))
@@ -1739,6 +1738,9 @@ def generate_bi_plan(picks, market_regime="neutral"):
             "hard_tech_track": s.get("hard_tech_track", ""),
             "chokepoint_score": s.get("chokepoint_score", 0),
             "tips": ','.join(tips) if tips else '',
+            "sell_rules": sell_rules,
+            "time_stop_days": TIME_STOP_DAYS,
+            "time_stop_min_ret": TIME_STOP_MIN_RET,
         })
     return plans
 
