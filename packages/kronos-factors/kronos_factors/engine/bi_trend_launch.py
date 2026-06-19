@@ -1038,7 +1038,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         hh14 = np.max(highs[-14:]); ll14 = np.min(lows[-14:])
         if hh14 > ll14:
             wr_fast = (hh14 - closes[-1]) / (hh14 - ll14) * -100
-    compression_reversal = (obv_days_above < MIN_OBV_DAYS and wr_fast < -70)
+    compression_reversal = (obv_days_above < MIN_OBV_DAYS and wr_fast < -60)
     if obv_days_above < MIN_OBV_DAYS and not compression_reversal:
         return None
     # 压缩反转: 保留, 后续给额外加分
@@ -1305,15 +1305,15 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
 
     #    V8.1: 压缩反转加分 (工业富联/华润微: OBV刚死叉+WR极限=最佳买点)
     compression_reversal_bonus = 0
-    if obv_days_above < MIN_OBV_DAYS and wr_now < -70:
+    if obv_days_above < MIN_OBV_DAYS and wr_now < -60:
         # 额外条件: OBV正值 + 缩量 + 区间底部
         obv_positive = obv[-1] > 0 if len(obv) > 0 else False
         vol_low = False
         if len(volumes) >= 20:
             vol_low = volumes[-1] / max(1, np.mean(volumes[-20:])) < 0.85
-        in_range_bottom = range_pos < 0.30
+        in_range_bottom = range_pos < 0.35
         if obv_positive and vol_low and in_range_bottom:
-            compression_reversal_bonus = 5  # 压缩反转: 高赔率信号
+            compression_reversal_bonus = 8  # 压缩反转: 高赔率信号 (光迅科技06-01)
             obv_level = obv_level + "💎"  # 标记压缩反转
 
     #    V5.8: 硬科技赛道 + 卡脖子稀缺

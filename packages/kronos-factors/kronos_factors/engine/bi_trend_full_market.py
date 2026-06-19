@@ -442,7 +442,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
             hh14 = np.max(highs[-14:]); ll14 = np.min(lows[-14:])
             if hh14 > ll14:
                 wr_fast = (hh14 - closes[-1]) / (hh14 - ll14) * -100
-        if wr_fast > -70:
+        if wr_fast > -60:
             return None  # WR不够超卖=真弱势, 淘汰
         # WR<-70: 压缩反转候选, 保留
     # 三重确认不通过 -> 降分, 不淘汰(保留容错)
@@ -1103,7 +1103,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         if hh14 > ll14:
             wr_fast = (hh14 - closes[-1]) / (hh14 - ll14) * -100
     if obv_days_above < MIN_OBV_DAYS:
-        if wr_fast > -70:
+        if wr_fast > -60:
             return None  # WR不够超卖=真弱势, 淘汰
         # WR<-70: 压缩反转候选, 保留
 
@@ -1360,9 +1360,9 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         vol_low = False
         if len(volumes) >= 20:
             vol_low = volumes[-1] / max(1, np.mean(volumes[-20:])) < 0.85
-        in_range_bottom = range_pos < 0.30
+        in_range_bottom = range_pos < 0.35
         if obv_positive and vol_low and in_range_bottom:
-            compression_reversal_bonus = 5
+            compression_reversal_bonus = 8
             obv_level = obv_level + "💎"
 
     #    V5.8: 硬科技赛道 + 卡脖子稀缺
