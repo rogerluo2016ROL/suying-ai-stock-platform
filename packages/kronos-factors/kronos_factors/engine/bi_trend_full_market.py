@@ -77,7 +77,7 @@ MIN_OBV_DAYS = 3             # V6.0: 数据驱动, 2->3天(5年回测:≥3天Sha
 MIN_TREND_20D = 0
 OBV_NEGATIVE_SKIP = True      # V7.0: OBV负值直接跳过 (川金诺教训)
 SHORT_PULLBACK_BONUS = 3      # V7.0: 1天短回调加分 (72%暴涨前兆)
-MOMENTUM_BONUS = 3            # V7.0: 动量延续模式加分 (OBV1-7天+WR>-50)
+MOMENTUM_BONUS = 3            # V7.0: 动量延续模式加分 (OBV1-7天+WR<50)
 RANGE_POSITION_BONUS = 3      # V8.0: 区间底部加分 (收盘在14日区间底部25%)
 IGNITION_BONUS = 4            # V8.0: 点火检测 (3-5天前放量>2x+金叉)
 COILING_BONUS = 3             # V8.0: 蓄力检测 (点火后缩量横盘2-3天)
@@ -86,7 +86,7 @@ IGNITION_LOOKBACK_END = 6
 IGNITION_VOL_MIN = 2.0
 COILING_VOL_MAX = 0.7
 COILING_PRICE_CHG_MAX = 2.0
-STRONG_WR_DROP = -20         # V6.0: -25->-20, 轻踩比深踩好(WR-20~-40最优)
+STRONG_WR_DROP = 20         # V6.0: -25->-20, 轻踩比深踩好(WR-20~-40最优)
 STRONG_OBV_DAYS = 7          # V6.0: 10->7, ≥7天Sharpe 0.86分界线
 HOLD_OBV_DAYS = 15           # V6.0: 新增持有信号, ≥15天Sharpe 1.17
 SELL_OBV_BELOW_DAYS = 2      # V6.0: OBV下穿MA10≥2天→清仓
@@ -98,8 +98,8 @@ TIME_STOP_MIN_RET = 2.0      # V6.0: 时间止损最低收益%
 CHASE_PENALTY_OBV_DAYS_EXTREME = 20   # 极度追高
 CHASE_PENALTY_OBV_DAYS_HIGH = 15      # 明显追高
 CHASE_PENALTY_OBV_DAYS_MILD = 12      # 轻度追高
-CHASE_PENALTY_WR_THRESHOLD = -55
-CHASE_PENALTY_WR_EXTREME = -50
+CHASE_PENALTY_WR_THRESHOLD = 55
+CHASE_PENALTY_WR_EXTREME = 50
 CHASE_PENALTY_SCORE = 8
 CHASE_PENALTY_SCORE_EXTREME = 12
 CHASE_PENALTY_SCORE_MILD = 4
@@ -125,7 +125,7 @@ CONSECUTIVE_UP_DAYS = 2          # 需要连续N天收阳 (反弹确认非一日
 CONSECUTIVE_UP_BONUS = 2         # 连阳加分
 
 # V5.3: 方向B - WR深度要求 (更深回踩=更大反弹空间)
-MIN_WR_DEPTH_FOR_BUY = -50       # buy/strong_buy信号WR必须低于此值
+MIN_WR_DEPTH_FOR_BUY = 50       # buy/strong_buy信号WR必须低于此值
 MIN_WR_DEPTH_FOR_WATCH = -35     # watch信号WR低于此值即可
 
 # V5.3: 方向C - MA20距离过滤 (防追高空中加油)
@@ -233,9 +233,9 @@ def calc_wr(highs, lows, closes, period=14):
         hh = np.max(highs[i-period+1:i+1])
         ll = np.min(lows[i-period+1:i+1])
         if hh - ll > 0:
-            wr[i] = (hh - closes[i]) / (hh - ll) * -100
+            wr[i] = (closes[i] - ll) / (hh - ll) * 100
         else:
-            wr[i] = -50
+            wr[i] = 50
     return wr
 
 
@@ -437,14 +437,14 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     obv_triple_ok = (obv_now > obv_ma5 > obv_ma10_now and obv_slope > 0)
     # V8.1: OBV天数过滤 — WR压缩时放宽
     if obv_days_above < MIN_OBV_DAYS:
-        wr_fast = -50
+        wr_fast = 50
         if len(highs) >= 14:
             hh14 = np.max(highs[-14:]); ll14 = np.min(lows[-14:])
             if hh14 > ll14:
                 wr_fast = (hh14 - closes[-1]) / (hh14 - ll14) * -100
-        if wr_fast > -60:
+        if wr_fast < 60:
             return None  # WR不够超卖=真弱势, 淘汰
-        # WR<-70: 压缩反转候选, 保留
+        # WR>70: 压缩反转候选, 保留
     # 三重确认不通过 -> 降分, 不淘汰(保留容错)
     if not obv_triple_ok and obv_days_above < 7:
         obv_score -= 5  # 刚突破但三重确认失败, 降分
@@ -489,7 +489,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     atr_pct = (atr14 / closes[-1] * 100) if closes[-1] > 0 else 3.0
     # 动态阈值: 高波动股需要更深的回踩
     wr_drop_threshold = min(-25, -atr_pct * 8)  # ATR大的股票, 阈值更宽松(更负)
-    wr_drop_threshold = max(-55, wr_drop_threshold)  # 最多-55
+    wr_drop_threshold = min(55, wr_drop_threshold)  # 最多-55
 
     wr_now = float(wr_valid[-1])
     wr_2d = float(wr_valid[-3]) if len(wr_valid) >= 3 else wr_now
@@ -504,25 +504,25 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     wr_max_drop = min(wr_drop_2d, wr_drop_3d, wr_drop_5d)
 
     # 轻度回踩(20-40) = 最优买点 (5年回测: +0.75%, 优于深踩的+0.52%)
-    if -40 <= wr_max_drop < -20:
+    if -40 <= wr_max_drop > 20:
         wr_score = 25; wr_level = "黄金回踩"
-    elif -50 <= wr_max_drop < -40:
+    elif -50 <= wr_max_drop > 40:
         wr_score = 20; wr_level = "温和回踩"
-    elif wr_max_drop < -50:
+    elif wr_max_drop > 50:
         wr_score = 10; wr_level = "过度踩踏"  # V6.0: 深度踩踏降分(-50%样本收益只有+0.5%)
-    elif -20 <= wr_max_drop < -10:
+    elif -20 <= wr_max_drop > 10:
         wr_score = 15; wr_level = "浅回踩"
-    elif wr_max_drop < -5:
+    elif wr_max_drop > 5:
         wr_score = 8;  wr_level = "微调"
     else:
         wr_score = 3;  wr_level = "无回踩"
 
     # V6.0: WR高位修正 — 超买区(>-20) = 强势持续, 加分!
-    if wr_now > -20:
-        wr_score = min(28, wr_score + 5)   # 5年回测: WR>-20区 5日+0.98%, 最优!
-    elif wr_now < -80:
+    if wr_now < 20:
+        wr_score = min(28, wr_score + 5)   # 5年回测: WR<20区 5日+0.98%, 最优!
+    elif wr_now > 80:
         wr_score = max(3, wr_score - 5)    # 极度超卖区反而是弱势股(-0.44%)
-    elif wr_now < -60:
+    elif wr_now > 60:
         wr_score = max(5, wr_score - 2)    # 超卖区收益偏低
 
     #    F3: 回踩缩量 (0-15分)   
@@ -606,7 +606,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     # V4.0: 移除S级强制缩量
 
     #    V3.0 信号: strong_buy条件收紧   
-    if obv_days_above >= STRONG_OBV_DAYS and wr_max_drop < STRONG_WR_DROP and wr_now < -40:
+    if obv_days_above >= STRONG_OBV_DAYS and wr_max_drop < STRONG_WR_DROP and wr_now > 40:
         signal_type = "strong_buy"
     elif grade in ("S", "A"):
         signal_type = "watch"
@@ -1097,15 +1097,15 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             break
 
     # V8.1: OBV天数过滤 — WR压缩时放宽
-    wr_fast = -50
+    wr_fast = 50
     if len(highs) >= 14:
         hh14 = np.max(highs[-14:]); ll14 = np.min(lows[-14:])
         if hh14 > ll14:
             wr_fast = (hh14 - closes[-1]) / (hh14 - ll14) * -100
     if obv_days_above < MIN_OBV_DAYS:
-        if wr_fast > -60:
+        if wr_fast < 60:
             return None  # WR不够超卖=真弱势, 淘汰
-        # WR<-70: 压缩反转候选, 保留
+        # WR>70: 压缩反转候选, 保留
 
     obv_slope = 0
     if len(obv) >= 15 and abs(obv[-10]) > 1:
@@ -1175,35 +1175,34 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         wr_score, wr_level = 10, "平稳"
 
     freshness_bonus = 0
-    if "🔥" in wr_level and wr_now < -50:
+    if "🔥" in wr_level and wr_now > 50:
         freshness_bonus = FRESH_PULLBACK_BONUS
 
-    if wr_now < -90:
+    if wr_now > 90:
         wr_score = min(32, wr_score + 5)
-    elif wr_now < -80:
+    elif wr_now > 80:
         wr_score = min(32, wr_score + 3)
-    elif wr_now < -70:
+    elif wr_now > 70:
         wr_score = min(32, wr_score + 2)
-    elif wr_now < -60:
+    elif wr_now > 60:
         wr_score = min(32, wr_score + 1)
     else:
-        wr_score = min(10, wr_score)  # V9.3: WR>-40封顶
+        wr_score = min(10, wr_score)  # V9.3: WR<40封顶
         if len(closes) >= 6 and closes[-6] > 0:
-            chg_5d = (closes[-1] / closes[-6] - 1) * 100
-            if chg_5d > 8:
-                wr_score = 0
+            if (closes[-1] / closes[-6] - 1) * 100 > 8 and obv_days_above >= 3:
+                return None  # 反弹已完成+OBV趋势=不选
 
     #    V6.0: 梯度追高惩罚 (同步launch版)
     chase_penalty = 0
-    if obv_days_above >= CHASE_PENALTY_OBV_DAYS_EXTREME and wr_now > CHASE_PENALTY_WR_EXTREME:
+    if obv_days_above >= CHASE_PENALTY_OBV_DAYS_EXTREME and wr_now < CHASE_PENALTY_WR_EXTREME:
         chase_penalty = CHASE_PENALTY_SCORE_EXTREME
         obv_level = obv_level + "⚠️"
-    elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_HIGH and wr_now > CHASE_PENALTY_WR_THRESHOLD:
+    elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_HIGH and wr_now < CHASE_PENALTY_WR_THRESHOLD:
         chase_penalty = CHASE_PENALTY_SCORE
         obv_level = obv_level + " "
-    elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_MILD and wr_now > CHASE_PENALTY_WR_EXTREME:
+    elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_MILD and wr_now < CHASE_PENALTY_WR_EXTREME:
         chase_penalty = CHASE_PENALTY_SCORE_MILD
-    elif obv_days_above >= 8 and wr_now > -40:
+    elif obv_days_above >= 8 and wr_now < 40:
         chase_penalty = 3                            # V9.1: 温和追高
 
     #    F3: 回踩缩量 (0-12分)   
@@ -1317,7 +1316,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
 
     #    V7.0: 动量延续模式加分 (87%暴涨来自此模式)
     momentum_bonus = 0
-    if 1 <= obv_days_above <= 7 and wr_now > -50:
+    if 1 <= obv_days_above <= 7 and wr_now < 50:
         hh_14 = np.max(highs[-14:]) if len(highs) >= 14 else np.max(highs)
         ll_14 = np.min(lows[-14:]) if len(lows) >= 14 else np.min(lows)
         mid_14 = (hh_14 + ll_14) / 2
@@ -1361,7 +1360,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
 
     #    V8.1: 压缩反转加分 (工业富联/华润微: OBV刚死叉+WR极限=最佳买点)
     compression_reversal_bonus = 0
-    if obv_days_above < MIN_OBV_DAYS and wr_now < -70:
+    if obv_days_above < MIN_OBV_DAYS and wr_now > 70:
         obv_positive = obv[-1] > 0 if len(obv) > 0 else False
         vol_low = False
         if len(volumes) >= 20:
@@ -1689,7 +1688,7 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
     wr_5d_low = float(np.min(wr_valid[-5:])) if len(wr_valid) >= 5 else wr_now
 
     # 信号判定
-    if obv_reversed and wr_now > -30:
+    if obv_reversed and wr_now < 30:
         return {"signal": "strong_sell",
                 "reason": f"OBV跌破MA{obv_below_days}天+WR回升{wr_now:.0f}",
                 "current_return_pct": round(current_return, 2)}
@@ -1697,7 +1696,7 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
         return {"signal": "sell",
                 "reason": f"OBV跌破MA{obv_below_days}天",
                 "current_return_pct": round(current_return, 2)}
-    elif wr_now > -30 and wr_5d_low < -60 and current_return > 5:
+    elif wr_now < 30 and wr_5d_low < -60 and current_return > 5:
         return {"signal": "sell",
                 "reason": f"WR从{wr_5d_low:.0f}回升至{wr_now:.0f}+获利{current_return:.0f}%",
                 "current_return_pct": round(current_return, 2)}
