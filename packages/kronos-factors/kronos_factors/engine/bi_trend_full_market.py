@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""毕师傅全市场趋势启动战法 — Bi's Full-Market Trend Launch Strategy.
+"""毕师傅全市场趋势启动战法 - Bi's Full-Market Trend Launch Strategy.
 
 与硬核科技版(bi_trend_launch)相同核心逻辑, 差异:
   1. 全市场选股 (不限于硬科技赛道, 股票池扩大 ~10x)
   2. 新增 VR 资金流向过滤: VR<85 直接淘汰
   3. 移除硬科技/卡脖子加分, OBV 权重恢复 30
-  4. 追加流通市值门槛 ≥30亿
+  4. 追加流通市值门槛 >=30亿
 
 Usage:
     python tools/backtest_bi_trend.py --month 2026-06 --top-n 20 --full-market
@@ -17,7 +17,7 @@ from datetime import datetime
 import time
 
 
-# ── V5.3: 降低止损率 — 连阳确认 + 深度回踩 + 派发检测 ──
+#    V5.3: 降低止损率 - 连阳确认 + 深度回踩 + 派发检测   
 WEIGHTS = {
     "obv_trend": 30,            # 全市场OBV区分度更高, 保持权重
     "wr_pullback": 28,          # 不变
@@ -30,7 +30,7 @@ WEIGHTS = {
     "obv_accel": 3,             # OBV加速度
 }
 
-# ── 全市场配置 ──
+#    全市场配置   
 HARD_TECH_ONLY = False           # 全市场选股
 MIN_FLOAT_MV = 30                # 最小流通市值(亿)
 VR_MIN_THRESHOLD = 85            # VR最低门槛: <85 直接淘汰
@@ -64,9 +64,9 @@ HARD_TECH_INDUSTRY_KW = [
 HARD_TECH_TRACK_WEIGHT = 0     # 全市场版不用
 CHOKEPOINT_SCARCITY_WEIGHT = 0  # 全市场版不用
 
-GRADE_THRESHOLDS = {"S": 70, "A": 55, "B": 40}  # V5.9 P5: 放宽弱市等级门槛 85→70, 72→55, 60→40
+GRADE_THRESHOLDS = {"S": 70, "A": 55, "B": 40}  # V5.9 P5: 放宽弱市等级门槛 85->70, 72->55, 60->40
 MIN_OBV_DAYS = 2
-MIN_TREND_20D = 0            # V5.9 P5: 3.0→0 弱市中放宽趋势门槛
+MIN_TREND_20D = 0            # V5.9 P5: 3.0->0 弱市中放宽趋势门槛
 STRONG_WR_DROP = -25
 STRONG_OBV_DAYS = 10
 
@@ -84,25 +84,25 @@ REBOUND_VOL_MIN_RATIO = 0.9
 
 # V5.2: 入场精细化
 REBOUND_STRONG_GAIN = 2.0
-REBOUND_STRONG_BONUS = 3        # 2→3
+REBOUND_STRONG_BONUS = 3        # 2->3
 DEAD_CAT_BOUNCE_DAYS = 3
 DEAD_CAT_MIN_DROP = -1.5
 EARLY_STOP_LOSS_DAYS = 3
 EARLY_STOP_LOSS_PCT = -12
 DAY3_CHECK_LOSS_THRESHOLD = -5
 
-# V5.3: 方向A — 连阳确认 (防一日游)
+# V5.3: 方向A - 连阳确认 (防一日游)
 CONSECUTIVE_UP_DAYS = 2          # 需要连续N天收阳 (反弹确认非一日游)
 CONSECUTIVE_UP_BONUS = 2         # 连阳加分
 
-# V5.3: 方向B — WR深度要求 (更深回踩=更大反弹空间)
+# V5.3: 方向B - WR深度要求 (更深回踩=更大反弹空间)
 MIN_WR_DEPTH_FOR_BUY = -50       # buy/strong_buy信号WR必须低于此值
 MIN_WR_DEPTH_FOR_WATCH = -35     # watch信号WR低于此值即可
 
-# V5.3: 方向C — MA20距离过滤 (防追高空中加油)
+# V5.3: 方向C - MA20距离过滤 (防追高空中加油)
 MA20_EXTENSION_MAX = 1.15        # 价格/MA20 < 此值 (不超过MA20的15%)
 
-# V5.3: 方向D — 派发量检测 (最大量日为阴线=主力出货)
+# V5.3: 方向D - 派发量检测 (最大量日为阴线=主力出货)
 DISTRIBUTION_LOOKBACK = 5        # 近N日检测
 DISTRIBUTION_PENALTY = 5         # 派发嫌疑降分
 
@@ -119,19 +119,19 @@ WEAK_BREADTH_5D = 35
 BEAR_BREADTH_5D = 30
 MIN_HOLD_DAYS = 5
 
-# V5.4: 10日涨跌比均线 — 仅用于仓位管理, 不再熔断
+# V5.4: 10日涨跌比均线 - 仅用于仓位管理, 不再熔断
 MIDTERM_BREADTH_WINDOW = 10       # 10日滚动窗口
-MIDTERM_BREADTH_BEAR = 42         # 10日均涨跌比<42% → 弱市/减仓
-MIDTERM_BEAR_RECOVERY_DAILY = 50  # 单日涨跌比>此值 + 10日均>RECOVERY_10D → 恢复
+MIDTERM_BREADTH_BEAR = 42         # 10日均涨跌比<42% -> 弱市/减仓
+MIDTERM_BEAR_RECOVERY_DAILY = 50  # 单日涨跌比>此值 + 10日均>RECOVERY_10D -> 恢复
 MIDTERM_BEAR_RECOVERY_10D = 48    # 10日均涨跌比恢复阈值
 
-# V5.7: 周线趋势确认 — 仅惩罚逆势, 不奖励顺势(好股已自证)
-WEEKLY_MA_PERIOD = 50           # MA50 ≈ 10周线
+# V5.7: 周线趋势确认 - 仅惩罚逆势, 不奖励顺势(好股已自证)
+WEEKLY_MA_PERIOD = 50           # MA50   10周线
 WEEKLY_BEARISH_PENALTY = 6      # 周线空头惩罚 (price<MA50 AND MA50下降)
 WEEKLY_SLOPE_LOOKBACK = 10      # MA50斜率检测窗口
 
-# V5.6 P1续: 动态仓位管理 — 市场环境 → Top-N, 信号质量 → 权重
-# 市场五档 → 选股数量比例
+# V5.6 P1续: 动态仓位管理 - 市场环境 -> Top-N, 信号质量 -> 权重
+# 市场五档 -> 选股数量比例
 POSITION_REGIME = {
     "bull":       1.0,    # 10日均>55%: 满仓
     "neutral":    0.7,    # 10日均 48-55%: 7成仓
@@ -139,7 +139,7 @@ POSITION_REGIME = {
     "recovery":   0.3,    # 刚从熊市恢复: 3成仓试探
     "bear":       0.3,    # 已废弃 (不再熔断, 统一用weak)
 }
-# 信号质量 → 仓位权重 (叠加市场档位)
+# 信号质量 -> 仓位权重 (叠加市场档位)
 SIGNAL_WEIGHT = {
     "strong_buy":     1.0,
     "buy_premium":    0.8,
@@ -150,26 +150,26 @@ SIGNAL_WEIGHT = {
     "B_watch":        0.0,
 }
 
-# V5.3: 卖出优化 — 止损硬上限 + 时间止损
+# V5.3: 卖出优化 - 止损硬上限 + 时间止损
 SELL_STOP_LOSS_BASE = -10
 SELL_STOP_ATR_MULT = 1.5
 SELL_MAX_STOP_LOSS = -15          # V5.3: 止损硬上限 (防-22%极端亏损)
-SELL_TIME_STOP_DAYS = 5           # V5.3: 持有N天仍亏损+无改善 → 时间止损
+SELL_TIME_STOP_DAYS = 5           # V5.3: 持有N天仍亏损+无改善 -> 时间止损
 SELL_TIME_STOP_THRESHOLD = -3     # V5.3: 时间止损亏损阈值
 
-# V5.5 P1: 五档分级移动止盈 — 盈利越大止盈越宽, 让牛股跑远
-SELL_TRAILING_TIER1_PROFIT = 5    # 盈利<5% → Tier1
+# V5.5 P1: 五档分级移动止盈 - 盈利越大止盈越宽, 让牛股跑远
+SELL_TRAILING_TIER1_PROFIT = 5    # 盈利<5% -> Tier1
 SELL_TRAILING_TIER1_STOP = -7     # -7% (刚起步, 给空间)
-SELL_TRAILING_TIER2_PROFIT = 15   # 盈利5-15% → Tier2
+SELL_TRAILING_TIER2_PROFIT = 15   # 盈利5-15% -> Tier2
 SELL_TRAILING_TIER2_STOP = -5     # -5% (标准保护)
-SELL_TRAILING_TIER3_PROFIT = 30   # V5.5: 盈利15-30% → Tier3
+SELL_TRAILING_TIER3_PROFIT = 30   # V5.5: 盈利15-30% -> Tier3
 SELL_TRAILING_TIER3_STOP = -5     # V5.5: -5% (不过早截断)
-SELL_TRAILING_TIER4_PROFIT = 60   # V5.5: 盈利30-60% → Tier4
+SELL_TRAILING_TIER4_PROFIT = 60   # V5.5: 盈利30-60% -> Tier4
 SELL_TRAILING_TIER4_STOP = -8     # V5.5: -8% (让趋势跑)
-SELL_TRAILING_TIER5_STOP = -12    # V5.5: 盈利>60% → -12% (超级牛股, 给足空间)
+SELL_TRAILING_TIER5_STOP = -12    # V5.5: 盈利>60% -> -12% (超级牛股, 给足空间)
 SELL_TAKE_PROFIT_FIXED = 15       # 固定止盈+15% (保留, 但移动止盈优先)
 
-# V5.9 P4: 弱市快进快出 — 弱市/中性市场缩短持仓周期
+# V5.9 P4: 弱市快进快出 - 弱市/中性市场缩短持仓周期
 # 6月回测: T+1胜率50%均值+0.86%, T+3胜率降至37.5%
 WEAK_MARKET_TAKE_PROFIT = 5.0     # 弱市止盈目标 (快进快出)
 WEAK_MARKET_STOP_LOSS = -5.0      # 弱市止损线 (更紧)
@@ -248,11 +248,35 @@ def calc_adx(highs, lows, closes, period=14):
     return float(adx[-1]), float(di_plus[-1]), float(di_minus[-1])
 
 
-def calc_vr_simple(closes, volumes, period=14):
-    """VR 资金流向 — 简单计算, 仅用于过滤.
+def _calc_adx(highs, lows, closes, period=14):
+    """P1: 简易ADX计算 - 趋势强度指标.
+    ADX>25=有趋势, ADX>40=强趋势, ADX<20=无趋势.
+    """
+    n = len(closes)
+    if n < period + 1:
+        return 0
+    tr = np.zeros(n)
+    plus_dm = np.zeros(n)
+    minus_dm = np.zeros(n)
+    for i in range(1, n):
+        tr[i] = max(highs[i]-lows[i], abs(highs[i]-closes[i-1]), abs(lows[i]-closes[i-1]))
+        up = highs[i] - highs[i-1]
+        down = lows[i-1] - lows[i]
+        plus_dm[i] = up if up > down and up > 0 else 0
+        minus_dm[i] = down if down > up and down > 0 else 0
+    atr = np.convolve(tr, np.ones(period)/period, mode='valid')
+    plus_di = np.convolve(plus_dm, np.ones(period)/period, mode='valid') / np.maximum(atr, 1e-10) * 100
+    minus_di = np.convolve(minus_dm, np.ones(period)/period, mode='valid') / np.maximum(atr, 1e-10) * 100
+    dx = np.abs(plus_di - minus_di) / np.maximum(plus_di + minus_di, 1e-10) * 100
+    adx = np.convolve(dx, np.ones(period)/period, mode='valid')
+    return float(adx[-1]) if len(adx) > 0 else 0
 
-    VR = (上涨日量 + 0.5×平盘日量) / (下跌日量 + 0.5×平盘日量) × 100.
-    返回 VR 值, 用于判断是否≥MIN_VR门槛.
+
+def calc_vr_simple(closes, volumes, period=14):
+    """VR 资金流向 - 简单计算, 仅用于过滤.
+
+    VR = (上涨日量 + 0.5 平盘日量) / (下跌日量 + 0.5 平盘日量)   100.
+    返回 VR 值, 用于判断是否>=MIN_VR门槛.
     """
     n = len(closes)
     if n < period + 1:
@@ -271,7 +295,7 @@ def calc_vr_simple(closes, volumes, period=14):
     return round((up_vol + half_flat) / denominator * 100, 1)
 
 
-# ── V5.8: 硬科技 + 卡脖子辅助函数 ──
+#    V5.8: 硬科技 + 卡脖子辅助函数   
 
 def _is_hard_tech_stock(industry: str) -> bool:
     """判断行业是否为硬科技赛道 (纯字符串匹配, 无DB依赖)."""
@@ -281,7 +305,7 @@ def _is_hard_tech_stock(industry: str) -> bool:
 
 
 def _get_hard_tech_track(industry: str) -> str:
-    """返回匹配的硬科技赛道名，用于展示."""
+    """返回匹配的硬科技赛道名 用于展示."""
     if not industry:
         return ""
     _TRACK_MAP = {
@@ -317,7 +341,7 @@ def _get_industry_peers(db) -> dict:
 
 
 def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
-    """毕师傅趋势启动战法 — 单只股票评分.
+    """毕师傅趋势启动战法 - 单只股票评分.
 
     Args:
         df: DataFrame with [open, high, low, close, volume]
@@ -337,7 +361,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
 
     price = closes[-1]
 
-    # ── 条件0: 基础过滤 ──
+    #    条件0: 基础过滤   
     # 涨幅过滤(排除涨停/跌停极端情况)
     if len(closes) >= 2 and closes[-2] > 0:
         daily_gain = (closes[-1] / closes[-2] - 1) * 100
@@ -349,7 +373,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
         if ret_20d < -30 or ret_20d < MIN_TREND_20D:
             return None
 
-    # ── F1: OBV趋势 (0-30分) ──
+    #    F1: OBV趋势 (0-30分)   
     obv = calc_obv(closes, volumes)
     obv_ma10 = np.convolve(obv, np.ones(10)/10, mode='valid')
     obv_ma20 = np.convolve(obv, np.ones(20)/20, mode='valid')
@@ -378,9 +402,15 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     else:
         obv_slope = 0
 
-    # V2.0: OBV必须≥MIN_OBV_DAYS天高于MA, 否则淘汰
+    #    P3: OBV三重确认 (OBV > MA5 > MA10 + 斜率>0)   
+    obv_ma5 = np.mean(obv[-5:]) if len(obv) >= 5 else obv_now
+    obv_triple_ok = (obv_now > obv_ma5 > obv_ma10_now and obv_slope > 0)
+    # V2.0: OBV必须>=MIN_OBV_DAYS天高于MA, 否则淘汰
     if obv_days_above < MIN_OBV_DAYS:
         return None
+    # 三重确认不通过 -> 降分, 不淘汰(保留容错)
+    if not obv_triple_ok and obv_days_above < 7:
+        obv_score -= 5  # 刚突破但三重确认失败, 降分
 
     if obv_days_above >= 20:
         obv_score = 35
@@ -404,12 +434,25 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     elif obv_slope < -5 and obv_level != "极强":
         obv_score = max(3, obv_score - 5)
 
-    # ── F2: WR急跌回踩 (0-25分) ──
+    #    F2: WR急跌回踩 (0-25分)   
     wr14 = calc_wr(highs, lows, closes, 14)
     wr_valid = wr14[~np.isnan(wr14)]
 
     if len(wr_valid) < 5:
         return None
+
+    #    P4: ATR动态回踩阈值   
+    n = len(closes)
+    atr14 = 0.0
+    if n >= 15:
+        tr_arr = np.zeros(n)
+        for i in range(1, n):
+            tr_arr[i] = max(highs[i]-lows[i], abs(highs[i]-closes[i-1]), abs(lows[i]-closes[i-1]))
+        atr14 = float(np.mean(tr_arr[-14:]))
+    atr_pct = (atr14 / closes[-1] * 100) if closes[-1] > 0 else 3.0
+    # 动态阈值: 高波动股需要更深的回踩
+    wr_drop_threshold = min(-25, -atr_pct * 8)  # ATR大的股票, 阈值更宽松(更负)
+    wr_drop_threshold = max(-55, wr_drop_threshold)  # 最多-55
 
     wr_now = float(wr_valid[-1])
     wr_2d = float(wr_valid[-3]) if len(wr_valid) >= 3 else wr_now
@@ -420,16 +463,18 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     wr_drop_3d = wr_now - wr_3d   # 3日变化
     wr_drop_5d = wr_now - wr_5d   # 5日变化
 
-    # WR急跌评分(取最陡的一段)
+    # WR急跌评分(取最陡的一段) - P4: 动态阈值
     wr_max_drop = min(wr_drop_2d, wr_drop_3d, wr_drop_5d)
 
-    if wr_max_drop < -40:
+    # 用ATR动态阈值替代固定-40/-30/-20
+    t = wr_drop_threshold  # e.g. -35 for high-ATR stocks
+    if wr_max_drop < t * 1.6:
         wr_score = 25; wr_level = "深度洗盘"
-    elif wr_max_drop < -30:
+    elif wr_max_drop < t * 1.2:
         wr_score = 22; wr_level = "明显洗盘"
-    elif wr_max_drop < -20:
+    elif wr_max_drop < t * 0.8:
         wr_score = 18; wr_level = "温和洗盘"
-    elif wr_max_drop < -10:
+    elif wr_max_drop < t * 0.4:
         wr_score = 12; wr_level = "轻微回踩"
     elif wr_max_drop < -5:
         wr_score = 6;  wr_level = "微调"
@@ -438,15 +483,15 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
 
     # WR当前位置修正
     if wr_now < -85:
-        wr_score = min(25, wr_score + 3)   # 极度超卖→反弹力强
+        wr_score = min(25, wr_score + 3)   # 极度超卖->反弹力强
     elif wr_now < -70:
         wr_score = min(25, wr_score + 1)   # 超卖区
     elif wr_now > -30:
-        wr_score = max(2, wr_score - 5)    # 仍在高位→没跌够
+        wr_score = max(2, wr_score - 5)    # 仍在高位->没跌够
         if wr_score <= 5:
             return None  # WR高位无回踩, 不符合战法
 
-    # ── F3: 回踩缩量 (0-15分) ──
+    #    F3: 回踩缩量 (0-15分)   
     vol_3d = np.mean(volumes[-3:])
     vol_10d = np.mean(volumes[-13:-3]) if len(volumes) >= 13 else vol_3d
     vol_ratio = vol_3d / max(1, vol_10d)
@@ -462,7 +507,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     else:
         vol_score = 2;  vol_level = "放量"
 
-    # ── F4: 均线趋势 (0-12分) ──
+    #    F4: 均线趋势 (0-12分)   
     ma5 = np.mean(closes[-5:])
     ma10 = np.mean(closes[-10:])
     ma20 = np.mean(closes[-20:])
@@ -481,7 +526,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     else:
         ma_score = 0;  ma_level = "空头"
 
-    # ── F5: ADX趋势强度 (0-10分) ──
+    #    F5: ADX趋势强度 (0-10分)   
     try:
         adx, di_p, di_m = calc_adx(highs, lows, closes)
     except Exception:
@@ -498,7 +543,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     else:
         adx_score = 2;  adx_level = "无趋势"
 
-    # ── F6: 板块动量 (0-8分) ──
+    #    F6: 板块动量 (0-8分)   
     if sector_change > 3:
         sm_score = 3    # 板块过热, 谨慎
     elif sector_change > 0:
@@ -510,11 +555,11 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     else:
         sm_score = 2    # 板块大跌拖累
 
-    # ── 综合评分 ──
+    #    综合评分   
     total_raw = obv_score + wr_score + vol_score + ma_score + adx_score + sm_score  # max=100
     total = round(total_raw * 100 / 100, 0)  # 0-100 scale
 
-    # ── V3.0 评级 ──
+    #    V3.0 评级   
     if total >= GRADE_THRESHOLDS["S"]:
         grade = "S"
     elif total >= GRADE_THRESHOLDS["A"]:
@@ -526,7 +571,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
 
     # V4.0: 移除S级强制缩量
 
-    # ── V3.0 信号: strong_buy条件收紧 ──
+    #    V3.0 信号: strong_buy条件收紧   
     if obv_days_above >= STRONG_OBV_DAYS and wr_max_drop < STRONG_WR_DROP and wr_now < -40:
         signal_type = "strong_buy"
     elif grade in ("S", "A"):
@@ -560,30 +605,27 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
 
 
 def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
-    """毕师傅趋势启动战法 V2.0 — 全市场选股.
+    """毕师傅趋势启动战法 V2.0 - 全市场选股.
 
-    V5.8:
-      - 硬科技门控 (hard_tech_only=True): 仅筛选国家鼓励的硬科技赛道
-      - 卡脖子稀缺性: 同行业上市公司数越少加分越高 (寡头溢价)
+    V5.8: 硬科技门控 + 卡脖子稀缺性
+    V2.0: 市场环境熔断 + 批量K线预取 + OBV>=5天硬门槛
+    P2: 自动获取市场regime, 熊市减仓+质量过滤.
+    P1: ADX趋势强度过滤.
 
-    V2.0优化:
-      - 市场环境熔断: 涨跌比<40%空仓
-      - 批量K线预取加速
-      - OBV≥5天硬门槛
-      - 只保留strong_buy信号
-
-    Args:
-        db: 数据库连接
-        trade_date: YYYY-MM-DD
-        top_n: 返回Top N
-
-    Returns:
-        (top_picks, all_scores, market_info)
+    Returns: (top_picks, all_scores, market_info)
     """
+    # P2: 获取市场regime
+    market_regime = {"regime": "neutral", "bonus": 0.0}
+    try:
+        from kronos_factors.scorer.screening_scorers import get_market_regime
+        market_regime = get_market_regime()
+    except Exception:
+        pass
+
     import pandas as pd
 
-    # ── V2.0: 市场环境评估 ──
-    # V8.0: 兼容盘中实时数据 — daily_kline 无当日数据时 fallback 到 stk_mins
+    # V2.0: 市场环境评估   
+    # V8.0: 兼容盘中实时数据 - daily_kline 无当日数据时 fallback 到 stk_mins
     prev_row = db.execute(
         "SELECT MAX(trade_date) as prev_date FROM daily_kline WHERE trade_date < ?", (trade_date,)
     ).fetchone()
@@ -628,7 +670,7 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         up = br["up"] or 0 if br else 0
         down = br["down"] or 0 if br else 0
         breadth = up / max(1, up + down) * 100
-        # V5.9: 快照数据可能全是前日收盘价(涨跌比≈0%), 回退到前日涨跌比
+        # V5.9: 快照数据可能全是前日收盘价(涨跌比 0%), 回退到前日涨跌比
         if breadth < 5:
             br_prev = db.execute(
                 "SELECT SUM(CASE WHEN a.close > b.close THEN 1 ELSE 0 END) as up, "
@@ -644,7 +686,7 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
                 breadth = up_p / max(1, up_p + down_p) * 100
                 print(f"    盘中快照无涨跌数据, 回退到前日涨跌比: {breadth:.0f}%")
 
-    # ── V4.0: 5日涨跌比均线 (中期市场环境) ──
+    #    V4.0: 5日涨跌比均线 (中期市场环境)   
     # 计算前5个交易日的涨跌比
     breadth_5d_list = [breadth]
     cursor_date = prev_date
@@ -674,7 +716,7 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
 
     breadth_5d = sum(breadth_5d_list) / len(breadth_5d_list) if breadth_5d_list else breadth
 
-    # ── V5.4 P0: 10日涨跌比均线 (中期趋势) ──
+    #    V5.4 P0: 10日涨跌比均线 (中期趋势)   
     # 从 breadth_5d_list 扩展到10日 (已计算了5日, 补充前5日)
     breadth_10d_list = list(breadth_5d_list)
     if breadth_10d_list:
@@ -707,13 +749,13 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
 
     breadth_10d = sum(breadth_10d_list) / len(breadth_10d_list) if breadth_10d_list else breadth
 
-    # ── V5.4 P0: 中期熊市检测 — 10日均涨跌比<42% → 中期熊市 ──
+    #    V5.4 P0: 中期熊市检测 - 10日均涨跌比<42% -> 中期熊市   
     # 恢复条件: 单日涨跌比>50% AND 10日均>48%
     midterm_bear = breadth_10d < MIDTERM_BREADTH_BEAR
     midterm_recovering = (breadth > MIDTERM_BEAR_RECOVERY_DAILY and
                           breadth_10d > MIDTERM_BEAR_RECOVERY_10D)
 
-    # ── V4.0: 上证20MA中期趋势 ──
+    #    V4.0: 上证20MA中期趋势   
     sh_trend = "up"
     try:
         sh_klines = db.execute(
@@ -734,15 +776,15 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     except Exception:
         pass  # 无法获取上证数据时跳过
 
-    # ── V5.2 方向3: 熔断逻辑 ──
-    # 1. 系统性崩盘 → 空仓 (唯一保留的熔断)
+    #    V5.2 方向3: 熔断逻辑   
+    # 1. 系统性崩盘 -> 空仓 (唯一保留的熔断)
     if breadth < MARKET_BREADTH_CRASH:
-        print(f"  🛑 熔断: 涨跌比{breadth:.0f}%<{MARKET_BREADTH_CRASH}%")
+        print(f"    熔断: 涨跌比{breadth:.0f}%<{MARKET_BREADTH_CRASH}%")
         return [], [], {"breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1), "sh_trend": sh_trend, "env": "crash"}
 
-    # 2. 前日暴跌/上证熊市 → 不再熔断 (V5.9: 过于严格, 仅降仓不空仓)
+    # 2. 前日暴跌/上证熊市 -> 不再熔断 (V5.9: 过于严格, 仅降仓不空仓)
 
-    # 3. V5.2: 连续2天涨跌比下降且当前<40% → 大盘转弱预警
+    # 3. V5.2: 连续2天涨跌比下降且当前<40% -> 大盘转弱预警
     pre_warning = False
     if breadth_5d_list and len(breadth_5d_list) >= 3:
         # 最近3天涨跌比: breadth_5d_list[0]=今日, [1]=昨日, [2]=前日
@@ -752,9 +794,9 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
             recent_3[0] < recent_3[1] < recent_3[2]):  # 连续下降
             pre_warning = True
 
-    # 4. 上证熊市 → 不再熔断 (V5.9: 仅降仓)
+    # 4. 上证熊市 -> 不再熔断 (V5.9: 仅降仓)
 
-    # ── V5.6 P1续: 动态仓位管理 — 10日均涨跌比 → 仓位档位 ──
+    #    V5.6 P1续: 动态仓位管理 - 10日均涨跌比 -> 仓位档位   
     # 四档: bull(>55%) / neutral(48-55%) / weak(<48%) / recovery (熊市恢复中)
     if breadth_10d > 55:
         regime = "bull"
@@ -763,7 +805,7 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     elif midterm_recovering:
         regime = "recovery"
     else:
-        regime = "weak"  # 10日均<48% → 弱市减仓, 但不再熔断
+        regime = "weak"  # 10日均<48% -> 弱市减仓, 但不再熔断
 
     position_ratio = POSITION_REGIME.get(regime, 0.3)
     effective_n = top_n  # 不减少数量, 保持分散度
@@ -771,28 +813,28 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     # 弱市精选: 仅选 strong_buy + buy_premium (不减少数量, 保持分散度)
     weak_market = regime in ("weak", "recovery")
 
-    regime_icon = {"bull": "🟢", "neutral": "🟡", "weak": "🟠", "recovery": "🔵", "bear": "🔴"}
-    print(f"  📊 涨跌比: {breadth:.0f}% | 5日均: {breadth_5d:.0f}% | 10日均: {breadth_10d:.0f}% | "
+    regime_icon = {"bull": " ", "neutral": " ", "weak": " ", "recovery": " ", "bear": " "}
+    print(f"    涨跌比: {breadth:.0f}% | 5日均: {breadth_5d:.0f}% | 10日均: {breadth_10d:.0f}% | "
           f"{regime_icon.get(regime,'')}{regime} | 前日: {prev_date}")
 
-    # ── 股票池 (全市场 + 市值门槛) ──
+    #    股票池 (全市场 + 市值门槛)   
     stocks = db.execute(
         "SELECT code, name, industry FROM stocks WHERE is_st=0 "
         "AND name NOT LIKE '%ST%' "
         "AND (float_mv IS NULL OR float_mv >= ?)"
     , (MIN_FLOAT_MV,)).fetchall()
     total_pool = len(stocks)
-    print(f"  📈 全市场股票池: {len(stocks)} 只 (流通市值≥{MIN_FLOAT_MV}亿)")
+    print(f"    全市场股票池: {len(stocks)} 只 (流通市值>={MIN_FLOAT_MV}亿)")
 
-    # ── 全市场版: 不用硬科技门控, 不用行业稀缺 ──
+    #    全市场版: 不用硬科技门控, 不用行业稀缺   
     industry_peers = {}
 
-    # ── 批量预取K线 (V5.9: 历史日=日线 / 实时日=日线+分时快照) ──
+    #    批量预取K线 (V5.9: 历史日=日线 / 实时日=日线+分时快照)   
     t0 = time.time()
     kline_cache = _prefetch_kline_batch(db, trade_date, live_mode=not has_today_dk)
-    print(f"  ⚡ K线预取: {len(kline_cache)} 只, {time.time()-t0:.1f}s")
+    print(f"    K线预取: {len(kline_cache)} 只, {time.time()-t0:.1f}s")
 
-    # ── 板块涨跌 ──
+    #    板块涨跌   
     from kronos_factors.engine.leader_intraday import get_sector_index
 
     scores = []
@@ -809,10 +851,28 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
             sc = get_sector_index(db, industry, trade_date, code)
             sector_change = sc if isinstance(sc, (int, float)) else 0
 
-            # ── 全市场版: VR 资金流向过滤 ──
+            #    全市场版: VR 资金流向过滤   
             vr_val = calc_vr_simple(closes, volumes)
             if vr_val < VR_MIN_THRESHOLD:
                 continue  # VR不达标, 直接淘汰
+
+            #    P1: ADX趋势强度过滤 - 无趋势震荡股直接淘汰   
+            adx_val = _calc_adx(highs, lows, closes, 14)
+            if adx_val < 25:
+                continue  # ADX<25: 无明显趋势, 假突破概率高
+
+            #    P2: 市场regime自适应 (bear->减仓, bull->积极)   
+            if market_regime.get("regime") == "bear" and len(scores) >= top_n:
+                continue  # 熊市: top_n满后不再选股
+            if market_regime.get("regime") == "bear":
+                # 熊市额外质量过滤: 需要OBV确认天数>=10天
+                # (快速OBV计算, 低于阈值直接淘汰)
+                obv_fast = calc_obv(closes, volumes)
+                obv_ma10_fast = np.mean(obv_fast[-10:]) if len(obv_fast) >= 10 else 0
+                if obv_ma10_fast > 0:
+                    above_days = sum(1 for i in range(10) if obv_fast[-(i+1)] > obv_ma10_fast)
+                    if above_days < 5:  # 熊市需>=5天OBV高于MA
+                        continue
 
             # 移除硬科技/卡脖子加分 (全市场版)
             hard_tech_track = ""
@@ -830,9 +890,9 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         except Exception:
             continue
 
-    print(f"  ✅ 筛选: {len(scores)} 只")
+    print(f"    筛选: {len(scores)} 只")
 
-    # ── V5.6 P1续: 信号质量分层 + 动态仓位 ──
+    #    V5.6 P1续: 信号质量分层 + 动态仓位   
     scores.sort(key=lambda x: -x["total_score"])
 
     strong = [s for s in scores if s["signal"] == "strong_buy"]
@@ -842,7 +902,7 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     s_grade = [s for s in scores if s["signal"] not in ("strong_buy", "buy") and s["grade"] == "S"]
     a_grade = [s for s in scores if s["signal"] not in ("strong_buy", "buy") and s["grade"] == "A"]
 
-    # V5.9: 弱市信号过滤放宽 — 不再限制, 通过仓位减半控制风险
+    # V5.9: 弱市信号过滤放宽 - 不再限制, 通过仓位减半控制风险
     # 弱市仍然排除 no_signal (纯技术面不达标)
     if weak_market:
         candidates = strong + buy_premium + buy_standard + s_grade + buy_weak + a_grade
@@ -879,16 +939,16 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
 
 def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, industry=None, sector_change=0,
                           hard_tech_track="", chokepoint_score=0):
-    """V5.8: 毕师傅趋势启动战法 — 单只股票评分 (numpy arrays版本).
+    """V5.8: 毕师傅趋势启动战法 - 单只股票评分 (numpy arrays版本).
 
     V5.8 新增:
-      - 硬科技赛道: 行业匹配国家鼓励方向 → +3分
-      - 卡脖子稀缺性: 同行业公司≤3家+2分, ≤8家+1分
+      - 硬科技赛道: 行业匹配国家鼓励方向 -> +3分
+      - 卡脖子稀缺性: 同行业公司<=3家+2分, <=8家+1分
 
     V5.1 新增:
-      - 追高惩罚: OBV极强(≥18天) + WR未深跌(>-55) → 降8分 (修复S级悖论)
-      - 回踩新鲜度: WR最大跌幅发生在最近2天 → +3分
-      - 反弹量能确认: 今日量>近3日均量*0.9 → 反弹有效
+      - 追高惩罚: OBV极强(>=18天) + WR未深跌(>-55) -> 降8分 (修复S级悖论)
+      - 回踩新鲜度: WR最大跌幅发生在最近2天 -> +3分
+      - 反弹量能确认: 今日量>近3日均量*0.9 -> 反弹有效
       - 三档分级止盈 + 固定止盈+15%
       - ATR自适应止损
     """
@@ -897,7 +957,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
 
     price = closes[-1]
 
-    # ── 基础过滤 ──
+    #    基础过滤   
     if len(closes) >= 2 and closes[-2] > 0:
         daily_gain = (closes[-1] / closes[-2] - 1) * 100
         # V5.8: 移除涨跌停过滤, 允许涨停股参与 (涨停也可能是趋势启动信号)
@@ -908,7 +968,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         if ret_20d < MIN_TREND_20D:
             return None
 
-    # ── V5.2 方向1: 连续下跌后首阳过滤 (防下跌中继) ──
+    #    V5.2 方向1: 连续下跌后首阳过滤 (防下跌中继)   
     dead_cat = False
     if len(closes) >= DEAD_CAT_BOUNCE_DAYS + 1:
         consecutive_drops = 0
@@ -920,12 +980,12 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             dead_cat = True
             # 不直接淘汰, 但会在信号分级时降级
 
-    # ── V5.2 方向1: 反弹强度 — 反弹日涨幅>2%加分 ──
+    #    V5.2 方向1: 反弹强度 - 反弹日涨幅>2%加分   
     rebound_strength_bonus = 0
     if daily_gain > REBOUND_STRONG_GAIN and not dead_cat:
         rebound_strength_bonus = REBOUND_STRONG_BONUS
 
-    # ── F1: OBV趋势 (0-32分) ──
+    #    F1: OBV趋势 (0-32分)   
     obv = calc_obv(closes, volumes)
     obv_ma10 = np.convolve(obv, np.ones(10)/10, mode='valid')
     if len(obv_ma10) < 10:
@@ -946,7 +1006,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     if len(obv) >= 15 and abs(obv[-10]) > 1:
         obv_slope = (obv[-1] - obv[-10]) / abs(obv[-10]) * 100
 
-    # V5.1: OBV评分 — 上限32 (降权防追高)
+    # V5.1: OBV评分 - 上限32 (降权防追高)
     if obv_days_above >= 20:
         obv_score, obv_level = 32, "极强"
     elif obv_days_above >= 15:
@@ -964,8 +1024,8 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     elif obv_slope < -5 and obv_level != "极强":
         obv_score = max(12, obv_score - 4)
 
-    # ── V5.3: OBV加速度 (0-3分) ──
-    # OBV近5日斜率 vs 近15日斜率 → 加速=趋势加强, 减速=可能衰竭
+    #    V5.3: OBV加速度 (0-3分)   
+    # OBV近5日斜率 vs 近15日斜率 -> 加速=趋势加强, 减速=可能衰竭
     obv_accel_score = 0
     if len(obv) >= 20 and abs(obv[-5]) > 1 and abs(obv[-15]) > 1:
         obv_slope_5d = (obv[-1] - obv[-5]) / abs(obv[-5]) * 100
@@ -976,7 +1036,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             obv_accel_score = 1  # 减速但仍在流入
         # 负斜率不加分 (OBV在流出)
 
-    # ── WR ──
+    #    WR   
     wr14 = calc_wr(highs, lows, closes, 14)
     wr_valid = wr14[~np.isnan(wr14)]
     if len(wr_valid) < 5:
@@ -991,7 +1051,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     wr_drop_5d = wr_now - wr_5d
     wr_max_drop = min(wr_drop_2d, wr_drop_3d, wr_drop_5d)
 
-    # V5.1: 回踩新鲜度 — WR最大跌幅发生在最近2天加分
+    # V5.1: 回踩新鲜度 - WR最大跌幅发生在最近2天加分
     freshness_bonus = 0
     if wr_drop_2d <= wr_max_drop and wr_max_drop < -10:
         freshness_bonus = FRESH_PULLBACK_BONUS  # 最近2天急跌=新鲜回踩
@@ -1012,7 +1072,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
 
     # WR当前位置修正 (V5.7: 深度超卖梯度加分)
     if wr_now < -90:
-        wr_score = min(28, wr_score + 4)   # 极度超卖→最强反弹
+        wr_score = min(28, wr_score + 4)   # 极度超卖->最强反弹
     elif wr_now < -80:
         wr_score = min(28, wr_score + 3)   # 深度超卖
     elif wr_now < -70:
@@ -1020,24 +1080,24 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     elif wr_now < -60:
         wr_score = min(28, wr_score + 1)   # 偏超卖
     elif wr_now > -30:
-        wr_score = max(2, wr_score - 5)    # 仍在高位→没跌够
+        wr_score = max(2, wr_score - 5)    # 仍在高位->没跌够
         if wr_score <= 5:
             return None  # WR高位无回踩, 不符合战法
 
-    # ── V5.1: 追高惩罚 (修复S级悖论) ──
-    # 问题: OBV极强(≥18天) + WR未深跌(>-55) = 已涨很多但还没回调 → 买入即追高
+    #    V5.1: 追高惩罚 (修复S级悖论)   
+    # 问题: OBV极强(>=18天) + WR未深跌(>-55) = 已涨很多但还没回调 -> 买入即追高
     # 4月回测: S级胜率仅28.6%, 均值-2.43%
     chase_penalty = 0
     if obv_days_above >= CHASE_PENALTY_OBV_DAYS and wr_now > CHASE_PENALTY_WR_THRESHOLD:
         chase_penalty = CHASE_PENALTY_SCORE
-        obv_level = obv_level + "⚠️"  # 标记追高风险
+        obv_level = obv_level + "  "  # 标记追高风险
 
-    # ── F3: 回踩缩量 (0-12分) ──
+    #    F3: 回踩缩量 (0-12分)   
     vol_3d = np.mean(volumes[-3:])
     vol_10d = np.mean(volumes[-13:-3]) if len(volumes) >= 13 else vol_3d
     vol_ratio = vol_3d / max(1, vol_10d)
 
-    # V5.1: 反弹量能确认 — 今日单日量 vs 近3日均量
+    # V5.1: 反弹量能确认 - 今日单日量 vs 近3日均量
     vol_today = volumes[-1]
     vol_rebound_ratio = vol_today / max(1, vol_3d)
 
@@ -1052,7 +1112,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     else:
         vol_score, vol_level = 0, "放量"
 
-    # ── V5.3: 派发量检测 — 近5日最大量日为阴线=主力出货 ──
+    #    V5.3: 派发量检测 - 近5日最大量日为阴线=主力出货   
     distribution_penalty = 0
     if len(closes) >= DISTRIBUTION_LOOKBACK:
         recent_vols = volumes[-DISTRIBUTION_LOOKBACK:]
@@ -1064,7 +1124,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             if day_change < 0:
                 distribution_penalty = DISTRIBUTION_PENALTY  # 最大量日是阴线=派发嫌疑
 
-    # ── F4: 均线趋势 (0-10分) ──
+    #    F4: 均线趋势 (0-10分)   
     ma5 = np.mean(closes[-5:])
     ma10 = np.mean(closes[-10:])
     ma20 = np.mean(closes[-20:])
@@ -1082,7 +1142,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     else:
         ma_score, ma_level = 0, "空头"
 
-    # ── V5.3: MA20距离过滤 — 价格/MA20 > 1.15 = 追高空中加油 ──
+    #    V5.3: MA20距离过滤 - 价格/MA20 > 1.15 = 追高空中加油   
     ma20_extension_penalty = 0
     if ma20 > 0:
         price_to_ma20 = price / ma20
@@ -1090,7 +1150,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             ma20_extension_penalty = 4  # 价格离MA20太远, 回调可能还没到位
             ma_score = max(0, ma_score - 2)
 
-    # ── F5: ADX趋势强度 (0-8分) ──
+    #    F5: ADX趋势强度 (0-8分)   
     try:
         adx, di_p, di_m = calc_adx(highs, lows, closes)
     except Exception:
@@ -1106,7 +1166,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     else:
         adx_score, adx_level = 1, "无趋势"
 
-    # ── F6: 板块动量 (0-7分) ──
+    #    F6: 板块动量 (0-7分)   
     if sector_change > 3:
         sm_score = 2
     elif sector_change > 0:
@@ -1118,7 +1178,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     else:
         sm_score = 1
 
-    # ── V5.7: 周线趋势确认 — 仅惩罚逆势 (price<MA50 AND MA50下降) ──
+    #    V5.7: 周线趋势确认 - 仅惩罚逆势 (price<MA50 AND MA50下降)   
     weekly_bearish = False
     weekly_score_adj = 0
     if len(closes) >= WEEKLY_MA_PERIOD + WEEKLY_SLOPE_LOOKBACK:
@@ -1130,8 +1190,8 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             weekly_bearish = True
             weekly_score_adj = -WEEKLY_BEARISH_PENALTY
 
-    # ── V5.7 综合评分 (含周线惩罚) ──
-    # ── V5.8: 硬科技赛道 + 卡脖子稀缺 ──
+    #    V5.7 综合评分 (含周线惩罚)   
+    #    V5.8: 硬科技赛道 + 卡脖子稀缺   
     ht_score = HARD_TECH_TRACK_WEIGHT if hard_tech_track else 0
     cp_score = chokepoint_score  # 0/1/2 (pre-computed)
 
@@ -1142,7 +1202,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
                  + ht_score + cp_score)
     total = round(total_raw, 0)
 
-    # ── V5.3 评级 ──
+    #    V5.3 评级   
     if total >= GRADE_THRESHOLDS["S"]:
         grade = "S"
     elif total >= GRADE_THRESHOLDS["A"]:
@@ -1152,7 +1212,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     else:
         grade = "C"
 
-    # ── V5.3: 连阳确认 (防一日游) ──
+    #    V5.3: 连阳确认 (防一日游)   
     consecutive_up = 0
     for i in range(min(CONSECUTIVE_UP_DAYS + 1, len(closes))):
         idx = len(closes) - 1 - i
@@ -1163,7 +1223,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     two_day_up = consecutive_up >= CONSECUTIVE_UP_DAYS
     consecutive_up_bonus = CONSECUTIVE_UP_BONUS if two_day_up else 0
 
-    # ── V5.3: 三层确认信号体系 (WR深度要求 + 连阳 + 下跌中继) ──
+    #    V5.3: 三层确认信号体系 (WR深度要求 + 连阳 + 下跌中继)   
     obv_confirmed = obv_days_above >= STRONG_OBV_DAYS
     wr_drop_confirmed = wr_max_drop < STRONG_WR_DROP
 
@@ -1171,38 +1231,38 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     wr_stopping = abs(wr_now - wr_2d) < 5
     price_rising = closes[-1] > closes[-2] if len(closes) >= 2 else False
     vol_surging = vol_rebound_ratio >= REBOUND_VOL_MIN_RATIO
-    # V5.7: Higher low — 今日低点 > 前日低点 (回踩找到支撑)
+    # V5.7: Higher low - 今日低点 > 前日低点 (回踩找到支撑)
     higher_low = lows[-1] > lows[-2] if len(lows) >= 2 else False
     rebound_confirmed = wr_stopping and price_rising and vol_surging and higher_low
 
-    # ── V5.3 信号分层 (WR深度门槛 + 连阳确认) ──
+    #    V5.3 信号分层 (WR深度门槛 + 连阳确认)   
     wr_deep_enough = wr_now < MIN_WR_DEPTH_FOR_BUY       # 深度回踩
     wr_moderate = wr_now < MIN_WR_DEPTH_FOR_WATCH        # 中等回踩
 
     if obv_confirmed and wr_drop_confirmed and wr_deep_enough:
         if rebound_confirmed and not dead_cat:
             if two_day_up:
-                signal_type = "strong_buy"   # 🔥 三层+连阳: 最高置信度
+                signal_type = "strong_buy"   #   三层+连阳: 最高置信度
                 total_raw += 5
             else:
-                signal_type = "buy"          # 🟢 三层确认, 等连阳
+                signal_type = "buy"          #   三层确认, 等连阳
         elif rebound_confirmed and dead_cat:
-            signal_type = "buy"              # 中继但有三层确认→buy
+            signal_type = "buy"              # 中继但有三层确认->buy
         else:
-            signal_type = "buy"              # 🟢 两层确认+深度回踩
+            signal_type = "buy"              #   两层确认+深度回踩
     elif obv_confirmed and wr_drop_confirmed and wr_moderate:
         if two_day_up and rebound_confirmed and not dead_cat:
-            signal_type = "buy"              # 中等回踩但有连阳→buy
+            signal_type = "buy"              # 中等回踩但有连阳->buy
         else:
-            signal_type = "watch"            # 中等回踩无连阳→观察
+            signal_type = "watch"            # 中等回踩无连阳->观察
     elif obv_confirmed and wr_drop_confirmed:
-        signal_type = "watch"                # WR不够深→降级
+        signal_type = "watch"                # WR不够深->降级
     elif grade in ("S", "A"):
         signal_type = "watch"
     else:
         signal_type = "no_signal"
 
-    # V5.3: 派发嫌疑降级 (strong_buy→buy, buy→watch)
+    # V5.3: 派发嫌疑降级 (strong_buy->buy, buy->watch)
     if distribution_penalty > 0 and signal_type in ("strong_buy", "buy"):
         signal_type = "watch" if signal_type == "buy" else "buy"
     # V5.3: MA20太远降级
@@ -1294,17 +1354,17 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     }
 
 
-# ═══════════════════════════════════════════════════════════════
+#                                                                
 # 卖出信号 V5.1: 五层卖出逻辑
-# ═══════════════════════════════════════════════════════════════
+#                                                                
 
 # V4.3: 仓位分级 (保留)
 POSITION = {
-    "strong_buy_S": 0.20,  # 🔥强买+S级 → 20%
-    "strong_buy_A": 0.15,  # 🔥强买+A级 → 15%
-    "buy_S": 0.12,         # 🟢买入+S级 → 12%
-    "buy_A": 0.08,         # 🟢买入+A级 → 8%
-    "watch": 0.05,         # 🟡观察 → 5%
+    "strong_buy_S": 0.20,  #  强买+S级 -> 20%
+    "strong_buy_A": 0.15,  #  强买+A级 -> 15%
+    "buy_S": 0.12,         #  买入+S级 -> 12%
+    "buy_A": 0.08,         #  买入+A级 -> 8%
+    "watch": 0.05,         #  观察 -> 5%
 }
 
 
@@ -1325,12 +1385,12 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
     """V5.2 检测是否应该卖出.
 
     六层卖出逻辑 (按优先级):
-      L0: 固定止盈: 现价 ≥ 入场价 * 1.15 → 到价即卖
+      L0: 固定止盈: 现价 >= 入场价 * 1.15 -> 到价即卖
       L1: ATR自适应止损 (V5.2: 前3天用宽止损-12%)
       L2: 三档分级移动止盈
-      L3: D3期中检查: 亏损>5%且无改善 → 主动退出 (V5.2新增)
-      L4: OBV跌破MA10连续≥3天 → 资金流出
-      L5: WR从深跌(-60以下)回升至-30以上 → 涨势耗尽
+      L3: D3期中检查: 亏损>5%且无改善 -> 主动退出 (V5.2新增)
+      L4: OBV跌破MA10连续>=3天 -> 资金流出
+      L5: WR从深跌(-60以下)回升至-30以上 -> 涨势耗尽
 
     持有<MIN_HOLD_DAYS天时不触发L4/L5(给趋势时间发展).
 
@@ -1344,13 +1404,13 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
     price = closes[-1]
     current_return = (price / entry_price - 1) * 100 if entry_price and entry_price > 0 else 0
 
-    # ── L0: 固定止盈 ──
+    #    L0: 固定止盈   
     if entry_price and current_return >= SELL_TAKE_PROFIT_FIXED:
         return {"signal": "take_profit",
                 "reason": f"固定止盈+{current_return:+.1f}%",
                 "current_return_pct": round(current_return, 2)}
 
-    # ── L1: ATR自适应止损 (V5.3: 前3天宽, 之后标准) ──
+    #    L1: ATR自适应止损 (V5.3: 前3天宽, 之后标准)   
     if entry_price:
         atr = calc_atr(highs, lows, closes)
         atr_pct = (atr / price * 100) if price > 0 else 0
@@ -1362,12 +1422,12 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
                     "reason": f"止损{current_return:+.1f}%(ATR{atr_pct:.1f}%,上限{SELL_MAX_STOP_LOSS}%)",
                     "current_return_pct": round(current_return, 2)}
 
-    # ── L2: 五档分级移动止盈 (V5.5 P1 强趋势让利) ──
+    #    L2: 五档分级移动止盈 (V5.5 P1 强趋势让利)   
     if highest_since_entry and highest_since_entry > entry_price:
         drawdown_from_high = (price / highest_since_entry - 1) * 100
         profit_from_entry = (highest_since_entry / entry_price - 1) * 100
 
-        # V5.5: 五档 — 盈利越大, 止盈越宽, 让牛股跑远
+        # V5.5: 五档 - 盈利越大, 止盈越宽, 让牛股跑远
         if profit_from_entry >= SELL_TRAILING_TIER4_PROFIT:       # >60%
             stop_pct = SELL_TRAILING_TIER5_STOP                   # -12%
         elif profit_from_entry >= SELL_TRAILING_TIER3_PROFIT:     # 30-60%
@@ -1390,7 +1450,7 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
                     "reason": f"{tier_name}:从最高{profit_from_entry:+.0f}%回落{drawdown_from_high:+.1f}%(阈值{stop_pct}%)",
                     "current_return_pct": round(current_return, 2)}
 
-    # ── 最低持有期: 非止损/止盈情况下持有<MIN_HOLD_DAYS天, 不检查技术信号 ──
+    #    最低持有期: 非止损/止盈情况下持有<MIN_HOLD_DAYS天, 不检查技术信号   
     if hold_days < MIN_HOLD_DAYS:
         # V5.2: D3期中检查
         if hold_days >= EARLY_STOP_LOSS_DAYS and current_return < DAY3_CHECK_LOSS_THRESHOLD:
@@ -1405,7 +1465,7 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
         return {"signal": "hold", "reason": f"持有{hold_days}天(最低{MIN_HOLD_DAYS}天)",
                 "current_return_pct": round(current_return, 2)}
 
-    # ── V5.3: D5时间止损 — 持有≥5天仍亏损>3%且无OBV改善 → 主动退出 ──
+    #    V5.3: D5时间止损 - 持有>=5天仍亏损>3%且无OBV改善 -> 主动退出   
     if (hold_days >= SELL_TIME_STOP_DAYS and
         current_return < SELL_TIME_STOP_THRESHOLD and
         current_return > SELL_MAX_STOP_LOSS):  # 没触发硬止损但持续亏损
@@ -1423,7 +1483,7 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
                         "reason": f"D{hold_days}时间止损: 亏损{current_return:+.1f}%+OBV恶化",
                         "current_return_pct": round(current_return, 2)}
 
-    # ── L4: OBV 趋势逆转 ──
+    #    L4: OBV 趋势逆转   
     obv = calc_obv(closes, volumes)
     obv_ma10 = np.convolve(obv, np.ones(10)/10, mode='valid')
     if len(obv_ma10) < 3:
@@ -1439,7 +1499,7 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
 
     obv_reversed = obv_below_days >= 3
 
-    # ── L5: WR 回升 ──
+    #    L5: WR 回升   
     wr14 = calc_wr(highs, lows, closes, 14)
     wr_valid = wr14[~np.isnan(wr14)]
     wr_now = float(wr_valid[-1]) if len(wr_valid) > 0 else -50
@@ -1484,7 +1544,7 @@ def _prefetch_kline_batch(db, trade_date, live_mode=False):
     from collections import defaultdict
 
     if live_mode:
-        # ── 实时模式: daily_kline(历史到前日) + stk_mins(当日最新快照) ──
+        #    实时模式: daily_kline(历史到前日) + stk_mins(当日最新快照)   
         # Step 1: 取历史日线 (到 trade_date 前一天)
         prev_row = db.execute(
             "SELECT MAX(trade_date) as pd FROM daily_kline WHERE trade_date < ?", (trade_date,)
@@ -1537,7 +1597,7 @@ def _prefetch_kline_batch(db, trade_date, live_mode=False):
 
         print(f"    实时模式: 历史{len(rows)}条日线 + {live_count}只当日快照", end="")
     else:
-        # ── 历史模式: 纯 daily_kline ──
+        #    历史模式: 纯 daily_kline   
         rows = db.execute(
             "SELECT code, close, high, low, volume FROM daily_kline "
             "WHERE trade_date >= ? AND trade_date <= ? ORDER BY code, trade_date ASC",
@@ -1553,7 +1613,7 @@ def _prefetch_kline_batch(db, trade_date, live_mode=False):
                 float(r["low"] or 0), float(r["volume"] or 0)
             ))
 
-    # ── 组装结果 ──
+    #    组装结果   
     result = {}
     for code, data in by_code.items():
         if len(data) >= 40:
@@ -1565,31 +1625,62 @@ def _prefetch_kline_batch(db, trade_date, live_mode=False):
     return result
 
 
+def _get_atr_pct_for_code(code: str) -> float:
+    """P5: 从DB获取股票的ATR百分比 (1次查询, 用于动态止盈止损)."""
+    try:
+        from kronos_factors.scorer._db_stub import _get_db
+        with _get_db(readonly=True) as db:
+            rows = db.execute(
+                "SELECT high, low, close FROM daily_kline WHERE code=? "
+                "ORDER BY trade_date DESC LIMIT 15", (code,)
+            ).fetchall()
+            if len(rows) < 14:
+                return 0.0
+            closes = np.array([r["close"] for r in rows], dtype=np.float64)
+            highs = np.array([r["high"] for r in rows], dtype=np.float64)
+            lows = np.array([r["low"] for r in rows], dtype=np.float64)
+            n = len(closes)
+            tr = np.zeros(n)
+            for i in range(1, n):
+                tr[i] = max(highs[i]-lows[i], abs(highs[i]-closes[i-1]), abs(lows[i]-closes[i-1]))
+            atr14 = float(np.mean(tr[-14:]))
+            return atr14 / closes[-1] * 100 if closes[-1] > 0 else 0.0
+    except Exception:
+        return 0.0
+
+
 def generate_bi_plan(picks, market_regime="neutral"):
-    """V5.9: 生成次日执行计划 — buy分层 + D3检查 + 弱市快进快出.
+    """V5.9: 生成次日执行计划 - buy分层 + D3检查 + 弱市快进快出.
 
     Args:
         picks: 选股结果列表
         market_regime: 市场环境 (bull/neutral/weak/recovery/bear)
-            V5.9 P4: weak/recovery/neutral → 快进快出 (止盈+5%, 止损-5%)
+            V5.9 P4: weak/recovery/neutral -> 快进快出 (止盈+5%, 止损-5%)
     """
-    # V5.9 P4: 弱市快进快出 — T+1 止盈止损收紧
+    # V5.9 P4: 弱市快进快出 - T+1 止盈止损收紧
     is_fast_market = market_regime in ("weak", "recovery", "neutral")
 
     plans = []
     for s in picks:
         entry = round(s["close"] * 1.01, 2)
+
+        #    P5: ATR动态止盈止损   
+        code = s.get("code", "")
+        atr_pct = _get_atr_pct_for_code(code) if code else 0
+        # 默认: ATR大的股票放宽止损, ATR小的股票收紧
+        dyn_stop = max(3.0, min(8.0, atr_pct * 1.5)) if atr_pct > 0 else 5.0
+        dyn_tp = max(5.0, min(15.0, atr_pct * 3.0)) if atr_pct > 0 else 8.0
+
         if is_fast_market:
-            # 快进快出: 止盈+5%, 止损-5%, 不设半仓
-            stop_early = round(s["close"] * (1 + WEAK_MARKET_STOP_LOSS / 100), 2)
-            stop_normal = round(s["close"] * (1 + WEAK_MARKET_STOP_LOSS / 100), 2)
-            tp_half = round(s["close"] * (1 + WEAK_MARKET_TAKE_PROFIT / 100), 2)
-            tp_full = round(s["close"] * (1 + WEAK_MARKET_TAKE_PROFIT / 100), 2)
+            stop_early = round(s["close"] * (1 - dyn_stop / 100), 2)
+            stop_normal = round(s["close"] * (1 - dyn_stop / 100), 2)
+            tp_half = round(s["close"] * (1 + dyn_tp / 100), 2)
+            tp_full = round(s["close"] * (1 + dyn_tp / 100), 2)
         else:
-            stop_early = round(s["close"] * (1 + EARLY_STOP_LOSS_PCT / 100), 2)  # 前3天宽止损
-            stop_normal = round(s["close"] * 0.93, 2)  # D3后标准止损
-            tp_half = round(s["close"] * 1.08, 2)
-            tp_full = round(s["close"] * 1.15, 2)
+            stop_early = round(s["close"] * (1 - max(dyn_stop - 2, 2) / 100), 2)
+            stop_normal = round(s["close"] * (1 - dyn_stop / 100), 2)
+            tp_half = round(s["close"] * (1 + dyn_tp / 100), 2)
+            tp_full = round(s["close"] * (1 + min(dyn_tp * 1.5, 15) / 100), 2)
 
         g = s["grade"]
         sig = s["signal"]
@@ -1599,38 +1690,38 @@ def generate_bi_plan(picks, market_regime="neutral"):
 
         # V5.2: 仓位按信号分层
         if g == "S" and sig == "strong_buy" and not is_chase:
-            pos = "20%"; action = "🟢 重仓买入"
+            pos = "20%"; action = "  重仓买入"
         elif sig == "strong_buy":
-            pos = "15%"; action = "🟢 强买"
+            pos = "15%"; action = "  强买"
         elif sig == "buy" and buy_sub == "premium":
-            pos = "12%"; action = "🟢 优选买入"
+            pos = "12%"; action = "  优选买入"
         elif g == "S":
-            pos = "12%"; action = "🟢 S级买入"
+            pos = "12%"; action = "  S级买入"
         elif sig == "buy" and buy_sub == "standard":
-            pos = "8%";  action = "🟡 标准买入"
+            pos = "8%";  action = "  标准买入"
         elif sig == "buy" and buy_sub == "weak":
-            pos = "5%";  action = "🟡 弱买(减仓)"
+            pos = "5%";  action = "  弱买(减仓)"
         elif g == "A":
-            pos = "5%";  action = "🟡 观察仓"
+            pos = "5%";  action = "  观察仓"
         else:
-            pos = "0%";  action = "🔴 不参与"
+            pos = "0%";  action = "  不参与"
 
-        # V5.9 P4: 弱市快进快出 → 仓位减半, 加⚡标记
+        # V5.9 P4: 弱市快进快出 -> 仓位减半, 加 标记
         if is_fast_market and pos not in ("0%", ""):
             pos_val = int(pos.replace("%", ""))
             pos = f"{max(3, pos_val // 2)}%"  # 弱市仓位减半, 最低3%
-            action = "⚡" + action  # 快进快出标记
+            action = " " + action  # 快进快出标记
 
         # 提示标签
         tips = []
-        if is_fast_market: tips.append('⚡快进快出')
-        if is_chase: tips.append('⚠️追高')
-        if is_dead_cat: tips.append('💀中继')
-        if s.get("_fresh"): tips.append('✨新鲜')
-        if s.get("rebound_strength_bonus", 0) > 0: tips.append('💪强反弹')
-        if s.get("hard_tech_track"): tips.append(f'🔬{s["hard_tech_track"]}')
-        if s.get("chokepoint_score", 0) >= 2: tips.append('🏆稀缺')
-        elif s.get("chokepoint_score", 0) >= 1: tips.append('🥇寡头')
+        if is_fast_market: tips.append(' 快进快出')
+        if is_chase: tips.append('  追高')
+        if is_dead_cat: tips.append(' 中继')
+        if s.get("_fresh"): tips.append(' 新鲜')
+        if s.get("rebound_strength_bonus", 0) > 0: tips.append(' 强反弹')
+        if s.get("hard_tech_track"): tips.append(f' {s["hard_tech_track"]}')
+        if s.get("chokepoint_score", 0) >= 2: tips.append(' 稀缺')
+        elif s.get("chokepoint_score", 0) >= 1: tips.append(' 寡头')
 
         plans.append({
             "code": s["code"], "name": s["name"], "grade": g,
@@ -1655,27 +1746,27 @@ def generate_bi_plan(picks, market_regime="neutral"):
 def print_bi_results(top, trade_date):
     """V5.9: 打印选股结果."""
     print(f"\n{'=' * 140}")
-    print(f"  毕师傅全市场趋势启动战法 V1.0 — {trade_date} Top {len(top)}")
+    print(f"  毕师傅全市场趋势启动战法 V1.0 - {trade_date} Top {len(top)}")
     print(f"{'=' * 140}")
     print(f"\n  OBV(30) + WR(28) + 量(8) + 均线(10) + ADX(8) + 板块(7) + 新鲜(3) + 强反弹(3) = 97")
-    print(f"  V1.0: 🔥强买 | 🌐全市场 | VR≥85过滤 | P4弱市快进快出(止盈+5%/-5%)")
+    print(f"  V1.0:  强买 |  全市场 | VR>=85过滤 | P4弱市快进快出(止盈+5%/-5%)")
     print(f"{'#':<3} {'代码':<8} {'名称':<8} {'总':<4} {'级':<3} {'信号':<12} {'子类':<8} "
           f"{'OBV':<12} {'WR跌':<6} {'量':<6} {'均线':<8} {'硬科技':<8} {'标记'}")
     print(f"{'-'*125}")
     for i, s in enumerate(top, 1):
-        sig_map = {"strong_buy": "🔥强买", "buy": "🟢买入", "watch": "🟡观察"}
+        sig_map = {"strong_buy": " 强买", "buy": " 买入", "watch": " 观察"}
         sig = sig_map.get(s["signal"], s["signal"])
         buy_sub = s.get("_buy_sub", "")
         wrs = f"{s.get('wr_drop_3d',0):+.0f}"
 
         tags = []
-        if s.get('_rebound'): tags.append('✅')
-        if s.get('_chase'): tags.append('⚠️追高')
-        if s.get('_dead_cat'): tags.append('💀中继')
-        if s.get('_fresh'): tags.append('✨')
-        if s.get('rebound_strength_bonus', 0) > 0: tags.append('💪')
-        if s.get('chokepoint_score', 0) >= 2: tags.append('🏆')
-        elif s.get('chokepoint_score', 0) >= 1: tags.append('🥇')
+        if s.get('_rebound'): tags.append(' ')
+        if s.get('_chase'): tags.append('  追高')
+        if s.get('_dead_cat'): tags.append(' 中继')
+        if s.get('_fresh'): tags.append(' ')
+        if s.get('rebound_strength_bonus', 0) > 0: tags.append(' ')
+        if s.get('chokepoint_score', 0) >= 2: tags.append(' ')
+        elif s.get('chokepoint_score', 0) >= 1: tags.append(' ')
         tag_str = ' '.join(tags)
 
         ht_track = s.get('hard_tech_track', '')[:8]
@@ -1696,18 +1787,18 @@ def print_bi_results(top, trade_date):
     dead_cnt = sum(1 for s in top if s.get('_dead_cat'))
     scarce_cnt = sum(1 for s in top if s.get('chokepoint_score', 0) >= 2)
     oligo_cnt = sum(1 for s in top if s.get('chokepoint_score', 0) >= 1)
-    print(f"\n  S={s_cnt} A={a_cnt} B={b_cnt} | 🔥强买={strong} 📦优选={buy_p} 📦标准={buy_s} 📦弱={buy_w} | ⚠️追高={chase_cnt} 💀中继={dead_cnt} | 🏆稀缺={scarce_cnt} 🥇寡头={oligo_cnt}")
+    print(f"\n  S={s_cnt} A={a_cnt} B={b_cnt} |  强买={strong}  优选={buy_p}  标准={buy_s}  弱={buy_w} |   追高={chase_cnt}  中继={dead_cnt} |  稀缺={scarce_cnt}  寡头={oligo_cnt}")
 
 
 def print_bi_plan(plans):
     """V5.9: 打印执行计划."""
     fast_mode = any(p.get("fast_market") for p in plans)
-    header = "⚡快进快出" if fast_mode else "标准持仓"
+    header = " 快进快出" if fast_mode else "标准持仓"
     print(f"\n{'=' * 130}")
-    print(f"  📋 毕师傅趋势启动战法 V5.9 — 执行计划 [{header}]")
+    print(f"    毕师傅趋势启动战法 V5.9 - 执行计划 [{header}]")
     print(f"{'=' * 130}")
     if fast_mode:
-        print(f"  ⚡ 弱市快进快出: 止盈+{WEAK_MARKET_TAKE_PROFIT}% 止损{WEAK_MARKET_STOP_LOSS}% | 仓位减半")
+        print(f"    弱市快进快出: 止盈+{WEAK_MARKET_TAKE_PROFIT}% 止损{WEAK_MARKET_STOP_LOSS}% | 仓位减半")
     print(f"  {'代码':<8} {'名称':<8} {'级':<3} {'信号':<12} {'子类':<8} {'动作':<18} {'入场':<8} {'止损':<8} {'止盈':<8} {'仓位':<6} {'提示'}")
     print(f"  {'-' * 118}")
     for p in plans:
@@ -1717,7 +1808,7 @@ def print_bi_plan(plans):
               f"{p['position']:<6} {p.get('tips','')}")
 
 
-# ── Engine wrapper ──
+#    Engine wrapper   
 
 class BiTrendFullMarketEngine:
     """毕师傅全市场趋势启动战法引擎."""

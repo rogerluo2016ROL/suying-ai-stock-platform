@@ -390,7 +390,7 @@ def _run_bi_full_market_mode(mode: str, top_n: int, trade_date: Optional[str]) -
     from kronos_factors.engine.bi_trend_full_market import BiTrendFullMarketEngine, generate_bi_plan
 
     engine = BiTrendFullMarketEngine()
-    picks = engine.run(top_n=top_n, trade_date=trade_date)
+    picks = engine.run(top_n=top_n, trade_date=trade_date, hard_tech_only=False)
 
     picks = _sanitize_picks(picks)
     picks = _normalize_picks(picks, mode)
