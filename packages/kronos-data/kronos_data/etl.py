@@ -711,30 +711,49 @@ def _sync_per_stock_financial(table: str, api_name: str, fields: str,
     return {"status": "ok", "table": table, "fetched": total, "written": written}
 
 
+def _recent_quarters(n: int = 2) -> list[str]:
+    """Compute the N most recent quarter-end dates dynamically (YYYYMMDD)."""
+    today = datetime.now().date()
+    quarters = []
+    for year in range(today.year, today.year - 3, -1):
+        for m, d in [("12", "31"), ("09", "30"), ("06", "30"), ("03", "31")]:
+            try:
+                qd = datetime(year, int(m), int(d)).date()
+            except ValueError:
+                continue
+            if qd <= today:
+                quarters.append(qd.strftime("%Y%m%d"))
+            if len(quarters) >= n + 2:
+                break
+        if len(quarters) >= n + 2:
+            break
+    return sorted(set(quarters), reverse=True)[:n]
+
+
 def sync_income(days_back: int = 30) -> dict:
     """Sync pro.income() — latest 2 quarters for all stocks."""
-    periods = ["20260331", "20251231"]
+    periods = _recent_quarters(2)
     fields = "ts_code,end_date,report_type,basic_eps,total_revenue,revenue,oper_cost,sell_expense,admin_expense,fin_expense,n_income,n_income_attr_p,operate_profit,total_profit"
     return _sync_per_stock_financial("financial_income", "income", fields, periods)
 
 
 def sync_balancesheet(days_back: int = 30) -> dict:
     """Sync pro.balancesheet() — latest 2 quarters for all stocks."""
-    periods = ["20260331", "20251231"]
+    periods = _recent_quarters(2)
     fields = "ts_code,end_date,report_type,total_assets,total_cur_assets,total_liab,total_cur_liab,total_hldr_eqy_exc_min_int,total_share,cap_rese,undistr_porfit"
     return _sync_per_stock_financial("financial_balance", "balancesheet", fields, periods)
 
 
 def sync_cashflow(days_back: int = 30) -> dict:
     """Sync pro.cashflow() — latest 2 quarters for all stocks."""
-    periods = ["20260331", "20251231"]
+    periods = _recent_quarters(2)
     fields = "ts_code,end_date,report_type,n_cashflow_act,n_cashflow_inv_act,n_cashflow_fin_act,c_fr_sale_sg,net_profit"
     return _sync_per_stock_financial("financial_cashflow", "cashflow", fields, periods)
 
 
 def sync_financial_indicator(days_back: int = 30) -> dict:
     """Sync pro.fina_indicator() — latest 2 quarters for all stocks."""
-    periods = ["20260331", "20251231"]
+    periods = _recent_quarters(2)
     fields = "ts_code,end_date,roe,roa,grossprofit_margin,netprofit_margin,debt_to_assets,eps,ocfps,current_ratio,quick_ratio,or_yoy,profit_dedt"
     return _sync_per_stock_financial("financial_indicator", "fina_indicator", fields, periods)
 
@@ -1291,15 +1310,17 @@ def sync_rt_sw_k(days_back: int = 1) -> dict:
 def sync_rt_k() -> dict:
     """Compute real-time daily K-line from stk_mins aggregation.
 
-    rt_k (Tushare) requires separate ¥1000/mo permission. As an alternative,
-    we aggregate stk_mins (already accessible) to produce the same data.
+    Aggregates stk_mins 5-min bars into daily OHLCV bars for the latest
+    trading day. Uses PG-compatible SQL with subquery to avoid window-function
+    vs GROUP BY conflicts.
 
-    Query the latest trade_date's minute bars, group by code to produce
-    daily OHLCV bars. This is the same information rt_k would return.
+    Called every 5 min during trading hours (L0 realtime).
     """
+    import psycopg2
     pro = _get_pro()
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
     db = _get_etl_db()
+    t0 = time.time()
     total, written = 0, 0
     try:
         # Get the latest trading day from stk_mins
@@ -1318,29 +1339,35 @@ def sync_rt_k() -> dict:
     cols = ["code", "trade_date", "open", "high", "low", "close",
             "pre_close", "change", "pct_chg", "vol", "amount"]
     try:
-        # Aggregate 5-min bars into daily OHLCV
-        rows = db.execute(
-            "SELECT code, "
-            "DATE(trade_time) as trade_date, "
-            "FIRST_VALUE(open) OVER (PARTITION BY code ORDER BY trade_time) as open, "
-            "MAX(high) as high, MIN(low) as low, "
-            "LAST_VALUE(close) OVER (PARTITION BY code ORDER BY trade_time "
-            "  ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) as close, "
-            "SUM(volume) as vol, SUM(amount) as amount "
-            "FROM stk_mins "
-            "WHERE DATE(trade_time) = ? AND freq='5min' "
-            "GROUP BY code",
-            (latest_dt,)
-        ).fetchall()
+        # PG-compatible daily OHLCV aggregation from 5-min bars
+        # Use subquery to avoid window-function + GROUP BY conflict
+        sql = (
+            "SELECT code, trade_date, "
+            "(ARRAY_AGG(open ORDER BY trade_time))[1] AS open, "
+            "MAX(high) AS high, MIN(low) AS low, "
+            "(ARRAY_AGG(close ORDER BY trade_time DESC))[1] AS close, "
+            "SUM(volume) AS vol, SUM(amount) AS amount "
+            "FROM ("
+            "  SELECT code, trade_time::date AS trade_date, trade_time, "
+            "         open, high, low, close, volume, amount "
+            "  FROM stk_mins "
+            "  WHERE trade_time::date = %s::date AND freq='5min'"
+            ") sub "
+            "GROUP BY code, trade_date"
+        )
+        rows = db.execute(sql, (latest_dt,)).fetchall()
         total = len(rows)
         if total > 0:
             inserted = 0
             for r in rows:
                 try:
                     db.execute(
-                        "INSERT OR REPLACE INTO rt_k "
+                        "INSERT INTO rt_k "
                         "(code, trade_date, open, high, low, close, vol, amount) "
-                        "VALUES (?,?,?,?,?,?,?,?)",
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) "
+                        "ON CONFLICT (code, trade_date) DO UPDATE SET "
+                        "open=EXCLUDED.open, high=EXCLUDED.high, low=EXCLUDED.low, "
+                        "close=EXCLUDED.close, vol=EXCLUDED.vol, amount=EXCLUDED.amount",
                         (r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7])
                     )
                     inserted += 1
@@ -1352,8 +1379,9 @@ def sync_rt_k() -> dict:
         db.close()
         return {"status": "error", "reason": str(e)[:80]}
     db.close()
-    print(f"  rt_k: {total} stocks aggregated from stk_mins ({latest_dt}), {written} written")
-    return {"status": "ok", "table": "rt_k", "fetched": total, "written": written}
+    elapsed = time.time() - t0
+    print(f"  rt_k: {total} stocks aggregated from stk_mins ({latest_dt}), {written} written, {elapsed:.1f}s")
+    return {"status": "ok", "table": "rt_k", "fetched": total, "written": written, "elapsed": elapsed}
 
 
 def sync_stk_auction_o(trade_date: str = None) -> dict:

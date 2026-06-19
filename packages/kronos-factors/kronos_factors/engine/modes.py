@@ -28,6 +28,7 @@ from kronos_factors.scorer.screening_scorers import (
     check_institutional_funds, get_market_regime, get_sector_momentum,
     assess_risk, build_rationale, compute_trade_levels,
     should_exclude, generate_devils_advocate,
+    score_revenue_structure,
 )
 
 
@@ -199,11 +200,12 @@ class ShortModeEngine(StrategyEngine):
 
     def get_factor_weights(self) -> dict[str, float]:
         return {
-            "short_term": 0.30, "volume_factor": 0.10, "trend_strength": 0.08,
+            "short_term": 0.28, "volume_factor": 0.10, "trend_strength": 0.08,
             "five_factor_composite": 0.07, "momentum_inverted": 0.06,
             "money_flow": 0.05, "margin_momentum": 0.07,
-            "top_list": 0.08, "top_inst": 0.06,
-            "analyst": 0.03, "hk_hold": 0.03, "identifiability": 0.07,
+            "top_list": 0.07, "top_inst": 0.05,
+            "analyst": 0.03, "hk_hold": 0.03, "identifiability": 0.06,
+            "tushare_events": 0.05,  # P0: 股东增减持+质押+回购+解禁
         }
 
     def run(self, top_n: int = 30, **kwargs) -> ScreeningResult:
@@ -248,18 +250,19 @@ class ShortModeEngine(StrategyEngine):
                 idf = score_identifiability(code, df)
 
                 models = [
-                    (st["score"], 0.30),
+                    (st["score"], 0.28),
                     (ff["volume_factor"], 0.10),
                     (ts_["score"], 0.08),
                     (ff["score"] / 25 * 10, 0.07),
                     ((8.0 - ff["momentum"]), 0.06),
                     (mf["score"], 0.05),
                     (mg["score"], 0.07),
-                    (ts_scores.get("tushare_top_list", {}).get("score", 5), 0.08),
-                    (ts_scores.get("tushare_top_inst", {}).get("score", 5), 0.06),
+                    (ts_scores.get("tushare_top_list", {}).get("score", 5), 0.07),
+                    (ts_scores.get("tushare_top_inst", {}).get("score", 5), 0.05),
                     (ts_scores.get("tushare_analyst", {}).get("score", 5), 0.03),
                     (ts_scores.get("tushare_hk_hold", {}).get("score", 5), 0.03),
-                    (idf["score"], 0.07),
+                    (ts_scores.get("tushare_events", {}).get("score", 5), 0.05),  # P0: 增减持+质押+回购+解禁
+                    (idf["score"], 0.06),
                 ]
                 # Kronos AI prediction factor (opt-in, 3% weight when available)
                 if kp.get("available"):
@@ -379,11 +382,17 @@ class LongModeEngine(StrategyEngine):
                 ff, mf, mr, ts_, rev, liq, st, lt, gr, ht, ts_scores, th, kp = (
                     _compute_shared_factors(code, df))
 
+                # P3: 主营构成 (收入结构分析)
+                rev = score_revenue_structure(code)
+                rev_score = rev.get("score", 5) if rev.get("available") else 5
+
                 models = [
-                    (lt["score"], 0.40), (gr["score"], 0.35),
+                    (lt["score"], 0.36), (gr["score"], 0.31),
                     (ht["score"] * 2, 0.10),
-                    (ts_scores.get("tushare_financial", {}).get("score", 5), 0.08),
+                    (ts_scores.get("tushare_financial", {}).get("score", 5), 0.07),
                     (ts_scores.get("tushare_daily_basic", {}).get("score", 5), 0.05),
+                    (ts_scores.get("tushare_events", {}).get("score", 5), 0.05),
+                    (rev_score, 0.04),  # P3: 收入结构
                     (ts_scores.get("tushare_por", {}).get("score", 5), 0.02),
                 ]
                 # Kronos AI prediction factor (opt-in, 5% weight for long-term)
@@ -452,6 +461,7 @@ class AllModeEngine(StrategyEngine):
             "hard_tech": 0.012, "growth": 0.018,
             "short_term": 0.005, "long_term": 0.005,
             "por": 0.010, "identifiability": 0.008,
+            "tushare_events": 0.007,  # P0: 增减持+质押+回购+解禁
         }
 
     def run(self, top_n: int = 50, **kwargs) -> ScreeningResult:
@@ -506,6 +516,7 @@ class AllModeEngine(StrategyEngine):
                     (ts_scores.get("tushare_financial", {}).get("score", 5), 0.010),
                     (ht["score"] * 2, 0.012), (gr["score"], 0.018),
                     (st["score"], 0.005), (lt["score"], 0.005),
+                    (ts_scores.get("tushare_events", {}).get("score", 5), 0.007),  # P0: 事件风控
                     (ts_scores.get("tushare_por", {}).get("score", 5), 0.010),
                     (idf_all["score"], 0.008),
                 ]

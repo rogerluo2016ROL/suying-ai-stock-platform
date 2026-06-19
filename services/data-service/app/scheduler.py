@@ -7,6 +7,14 @@ from app.sync.tushare import sync_post_market_core, sync_post_market_ext
 from app.sync.pg_writer import refresh_materialized_views
 from app.sync.stocks import sync_stock_list, sync_stocks_incremental
 from app.sync.cb_sync import sync_ths_daily, sync_cb_price_chg_all, sync_ths_concept_map
+from app.sync.announcements import sync_announcements
+from app.sync.fina_mainbz import sync_fina_mainbz
+from app.sync.fina_audit import sync_fina_audit
+from app.sync.stock_profiles import sync_stock_profiles
+from app.sync.interact import sync_interact_qa
+from app.sync.policy_law import sync_policy_law
+from app.sync.mp_report import sync_mp_report
+from app.sync.cctv_news import sync_cctv_news
 
 # 从 kronos-data/etl.py 导入已有 sync 函数 (零重复代码)
 _PROJ_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -19,6 +27,16 @@ from kronos_data.etl import (
     sync_moneyflow, sync_daily_basic, sync_stk_limit, sync_daily_kline,
     sync_limit_list_d, sync_moneyflow_hsgt, sync_sw_daily, sync_stk_mins,
     sync_stk_auction_o,
+    # ── P0 新接入: 风控 + 财务 + 资讯 + 行情 (24 个函数, 代码已实现) ──
+    sync_hk_hold, sync_margin, sync_margin_summary, sync_top_list, sync_top_inst,
+    sync_block_trade_data, sync_stk_holdertrade, sync_stk_holdernumber,
+    sync_pledge_detail, sync_repurchase, sync_share_float, sync_cyq_chips,
+    sync_broker_recommend, sync_weekly_kline, sync_monthly_kline, sync_adj_factor,
+    sync_index_basic, sync_income, sync_balancesheet, sync_cashflow,
+    sync_financial_indicator, sync_forecast_data, sync_dividend_data,
+    sync_research_report, sync_stock_news,
+    # ── P3 实时行情 ──
+    sync_rt_k, sync_rt_sw_k,
 )
 
 logger = logging.getLogger("data-service.scheduler")
@@ -52,8 +70,47 @@ MONITORED_TABLES: dict[str, dict] = {
     "stocks":         {"date_col": "updated_at",  "lookback": 14, "freq": "L3-weekly", "gap_threshold": 7},
     # ── L0 实时级 (交易日每分钟应有数据) ──
     "stk_mins":       {"date_col": "trade_time",  "lookback": 10, "freq": "L0-realtime","gap_threshold": 1},
+    "rt_k":           {"date_col": "trade_date",  "lookback": 5,  "freq": "L0-realtime","gap_threshold": 1},
+    "rt_sw_k":        {"date_col": "trade_date",  "lookback": 5,  "freq": "L0-realtime","gap_threshold": 1},
     # ── 基础日历 (每周一更新, 1天缺口即触发) ──
     "trade_cal":      {"date_col": "cal_date",    "lookback": 90, "freq": "L3-weekly", "gap_threshold": 1},
+    # ── P0 新接入: L2 风控数据 (每日盘后应有数据) ──
+    "hk_holdings":              {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 2},
+    "margin_detail":            {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 2},
+    "margin_summary":           {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 1},
+    "top_list":                 {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 1},
+    "top_inst":                 {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 1},
+    "block_trade_data":         {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 2},
+    "stk_holdertrade":          {"date_col": "ann_date",   "lookback": 30, "freq": "L2-daily",  "gap_threshold": 3},
+    "pledge_detail":            {"date_col": "end_date",   "lookback": 30, "freq": "L2-daily",  "gap_threshold": 3},
+    "share_float":              {"date_col": "float_date", "lookback": 30, "freq": "L3-weekly", "gap_threshold": 7},
+    "cyq_chips":                {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 2},
+    "forecast_data":            {"date_col": "end_date",   "lookback": 30, "freq": "L2-daily",  "gap_threshold": 3},
+    "dividend_data":            {"date_col": "ex_date",    "lookback": 30, "freq": "L3-weekly", "gap_threshold": 7},
+    "adj_factor":               {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 1},
+    # ── P0 新接入: L2 财务数据 (财报季日更, 普通季周更) ──
+    "financial_indicator":      {"date_col": "end_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
+    "financial_income":         {"date_col": "end_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
+    "financial_balance":        {"date_col": "end_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
+    "financial_cashflow":       {"date_col": "end_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
+    "fina_mainbz":              {"date_col": "end_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
+    "fina_audit":               {"date_col": "ann_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
+    # ── P0 新接入: L2 资讯数据 ──
+    "research_reports_tushare": {"date_col": "pub_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
+    "stock_news_tushare":       {"date_col": "pub_time",   "lookback": 7,  "freq": "L1-intra",  "gap_threshold": 1},
+    "announcements":            {"date_col": "ann_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
+    # ── P0 新接入: L3 周/月级行情 ──
+    "weekly_kline":             {"date_col": "trade_date", "lookback": 14, "freq": "L3-weekly", "gap_threshold": 7},
+    "monthly_kline":            {"date_col": "trade_date", "lookback": 60, "freq": "L3-monthly","gap_threshold": 31},
+    "stk_holdernumber":         {"date_col": "end_date",   "lookback": 90, "freq": "L3-weekly", "gap_threshold": 14},
+    "repurchase":               {"date_col": "ann_date",   "lookback": 30, "freq": "L3-weekly", "gap_threshold": 7},
+    "index_basic":              {"date_col": "updated_at", "lookback": 30, "freq": "L3-weekly", "gap_threshold": 7},
+    "broker_recommend":         {"date_col": "month",      "lookback": 90, "freq": "L3-monthly","gap_threshold": 31},
+    "stock_profiles":           {"date_col": "updated_at", "lookback": 14, "freq": "L3-weekly", "gap_threshold": 7},
+    "interact_qa":              {"date_col": "pub_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
+    "policy_law":               {"date_col": "pub_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
+    "mp_report":                {"date_col": "pub_date",   "lookback": 120,"freq": "L3-monthly","gap_threshold": 35},
+    "cctv_news":                {"date_col": "pub_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
 }
 
 # 表 → 回补函数 (来自 kronos_data.etl, 接受 days_back=int 参数)
@@ -66,7 +123,45 @@ _BACKFILL_MAP: dict[str, callable] = {
     "moneyflow_hsgt": sync_moneyflow_hsgt,
     "sw_daily":       sync_sw_daily,
     "stk_mins":       sync_stk_mins,
-    # ths_daily, index_daily, stk_factor_pro 回补函数内联或由独立 sync 处理
+    "rt_k":           sync_rt_k,
+    "rt_sw_k":        sync_rt_sw_k,
+    # ── P0 风控数据回补 ──
+    "hk_holdings":    sync_hk_hold,
+    "margin_detail":  sync_margin,
+    "margin_summary": sync_margin_summary,
+    "top_list":       sync_top_list,
+    "top_inst":       sync_top_inst,
+    "block_trade_data": sync_block_trade_data,
+    "stk_holdertrade":  sync_stk_holdertrade,
+    "stk_holdernumber": sync_stk_holdernumber,
+    "pledge_detail":    sync_pledge_detail,
+    "repurchase":       sync_repurchase,
+    "share_float":      sync_share_float,
+    "cyq_chips":        sync_cyq_chips,
+    "forecast_data":    sync_forecast_data,
+    "dividend_data":    sync_dividend_data,
+    "adj_factor":       sync_adj_factor,
+    # ── P0 财务数据回补 ──
+    "financial_indicator": sync_financial_indicator,
+    "financial_income":    sync_income,
+    "financial_balance":   sync_balancesheet,
+    "financial_cashflow":  sync_cashflow,
+    # ── P0 资讯数据回补 ──
+    "research_reports_tushare": sync_research_report,
+    "stock_news_tushare":       sync_stock_news,
+    "announcements":            sync_announcements,
+    "fina_mainbz":              sync_fina_mainbz,
+    "fina_audit":               sync_fina_audit,
+    "stock_profiles":           sync_stock_profiles,
+    "interact_qa":              sync_interact_qa,
+    "policy_law":               sync_policy_law,
+    "mp_report":                sync_mp_report,
+    "cctv_news":                sync_cctv_news,
+    # ── P0 周/月线回补 ──
+    "weekly_kline":     sync_weekly_kline,
+    "monthly_kline":    sync_monthly_kline,
+    "index_basic":      sync_index_basic,
+    "broker_recommend": sync_broker_recommend,
 }
 
 
@@ -822,11 +917,17 @@ def start_scheduler():
     today = date.today().strftime("%Y-%m-%d")
 
     _jobs = [
-        # ── L0 实时级 (交易时段每 1 分钟) ──
+        # ── L0 实时级 (交易时段) ──
         {"id": "rt_min", "name": "[L0]实时分钟线", "cron": "*/1 9-15 * * 1-5",
          "fn": collect_rt_min},
         {"id": "auction", "name": "[L0]竞价快照", "cron": "25 9 * * 1-5",
          "fn": collect_auction_snapshot},
+        # P3 实时日线 — 从 stk_mins 聚合 daily OHLCV (每 5 分钟)
+        {"id": "rt_k", "name": "[L0]实时日线OHLCV", "cron": "*/5 9-15 * * 1-5",
+         "fn": sync_rt_k},
+        # P3 申万实时行情 — 盘中快照 (每 5 分钟)
+        {"id": "rt_sw_k", "name": "[L0]申万实时行情", "cron": "*/5 9-15 * * 1-5",
+         "fn": sync_rt_sw_k},
 
         # ── L1 日内级 (交易时段每 30 分钟) ──
         {"id": "limit_list_d_intra", "name": "[L1]涨跌停日内增量", "cron": "*/30 9-15 * * 1-5",
@@ -834,6 +935,9 @@ def start_scheduler():
         # 盘中午间同步 — 交易日 13:00 同步上午数据
         {"id": "intraday_sync", "name": "[L1]盘中午间同步", "cron": "0 13 * * 1-5",
          "fn": run_intraday_sync},
+        # P0 新闻舆情增量 — 盘中每 30 分钟采集最新快讯
+        {"id": "stock_news", "name": "[L1]新闻舆情增量", "cron": "*/30 9-15 * * 1-5",
+         "fn": sync_stock_news, "args": (7,)},
 
         # ── L2 盘后级 (每日 16:00 前后) ──
         # P0 核心表 — 15:30 盘后立即采集
@@ -859,13 +963,70 @@ def start_scheduler():
          "fn": sync_sw_daily_batch},
         {"id": "stk_factor_pro", "name": "[L2]股票技术因子", "cron": "5 16 * * 1-5",
          "fn": sync_stk_factor_pro_daily},
+
+        # ── P0: L2-P2 风控数据波 (16:00-17:30) ──
+        {"id": "hk_hold", "name": "[L2]沪深港通持股明细", "cron": "0 16 * * 1-5",
+         "fn": sync_hk_hold},
+        {"id": "margin_detail", "name": "[L2]融资融券明细", "cron": "2 16 * * 1-5",
+         "fn": sync_margin},
+        {"id": "margin_summary", "name": "[L2]融资融券汇总", "cron": "4 16 * * 1-5",
+         "fn": sync_margin_summary},
+        {"id": "adj_factor", "name": "[L2]复权因子", "cron": "30 16 * * 1-5",
+         "fn": sync_adj_factor},
+        {"id": "top_list", "name": "[L2]龙虎榜明细", "cron": "0 17 * * 1-5",
+         "fn": sync_top_list},
+        {"id": "top_inst", "name": "[L2]龙虎榜机构交易", "cron": "3 17 * * 1-5",
+         "fn": sync_top_inst},
+        {"id": "block_trade", "name": "[L2]大宗交易", "cron": "6 17 * * 1-5",
+         "fn": sync_block_trade_data},
+        {"id": "holder_trade", "name": "[L2]股东增减持", "cron": "9 17 * * 1-5",
+         "fn": sync_stk_holdertrade},
+        {"id": "pledge_detail", "name": "[L2]股权质押明细", "cron": "12 17 * * 1-5",
+         "fn": sync_pledge_detail},
+        {"id": "share_float", "name": "[L2]限售股解禁", "cron": "15 17 * * 1-5",
+         "fn": sync_share_float},
+        {"id": "cyq_chips", "name": "[L2]每日筹码分布", "cron": "18 17 * * 1-5",
+         "fn": sync_cyq_chips},
+        {"id": "forecast", "name": "[L2]业绩预告", "cron": "21 17 * * 1-5",
+         "fn": sync_forecast_data},
+        {"id": "dividend", "name": "[L2]分红送股", "cron": "24 17 * * 1-5",
+         "fn": sync_dividend_data},
+
+        # ── P0: L2-P3 财务数据波 (17:25-17:45, 财报季日更, 其余时间 small batch) ──
+        {"id": "income", "name": "[L2]利润表", "cron": "25 17 * * 1-5",
+         "fn": sync_income},
+        {"id": "balancesheet", "name": "[L2]资产负债表", "cron": "28 17 * * 1-5",
+         "fn": sync_balancesheet},
+        {"id": "cashflow", "name": "[L2]现金流量表", "cron": "31 17 * * 1-5",
+         "fn": sync_cashflow},
+        {"id": "fina_indicator", "name": "[L2]财务指标100+", "cron": "34 17 * * 1-5",
+         "fn": sync_financial_indicator},
+        # P1 财务深度 — 主营构成 + 审计意见 (财报季日更)
+        {"id": "fina_mainbz", "name": "[L2]主营业务构成", "cron": "37 17 * * 1-5",
+         "fn": sync_fina_mainbz},
+        {"id": "fina_audit", "name": "[L2]审计意见", "cron": "40 17 * * 1-5",
+         "fn": sync_fina_audit},
+
         # 16:30 批次 — 可转债技术因子
         {"id": "cb_factor", "name": "[L2]可转债技术因子", "cron": "30 18 * * 1-5",
          "fn": sync_cb_factor},
         {"id": "cb_call", "name": "[L2]可转债强赎信息", "cron": "35 18 * * 1-5",
          "fn": sync_cb_call},
+        # ── P0: L2-P4 资讯数据波 (18:00-18:55) ──
+        {"id": "research_report", "name": "[L2]券商研报", "cron": "38 18 * * 1-5",
+         "fn": sync_research_report, "args": (7,)},
+        {"id": "announcements", "name": "[L2]上市公司公告", "cron": "42 18 * * 1-5",
+         "fn": sync_announcements},
+        # P2 资讯深度 — 互动问答 + 新闻联播 (盘后)
+        {"id": "interact_qa", "name": "[L2]互动问答", "cron": "45 18 * * 1-5",
+         "fn": sync_interact_qa},
+        {"id": "cctv_news", "name": "[L2]新闻联播文字稿", "cron": "48 18 * * 1-5",
+         "fn": sync_cctv_news},
+        # P2 政策法规 — 盘后 19:00
+        {"id": "policy_law", "name": "[L2]政策法规库", "cron": "0 19 * * 1-5",
+         "fn": sync_policy_law},
 
-        # ── L3 周级 (每周一) ──
+        # ── L3 周级 (每周) ──
         # 股票列表全量同步 — 每周六 02:00 (ADR-006 决策 4)
         {"id": "stocks_sync", "name": "[L3]股票列表同步", "cron": "0 2 * * 6",
          "fn": sync_stock_list},
@@ -875,9 +1036,29 @@ def start_scheduler():
         # 沪深港通资金流向 — 每周一 08:30
         {"id": "moneyflow_hsgt", "name": "[L3]沪深港通资金流向", "cron": "30 8 * * 1",
          "fn": sync_moneyflow_hsgt_weekly},
+        # P0 周级风控 — 每周一凌晨
+        {"id": "weekly_kline", "name": "[L3]周线数据", "cron": "0 1 * * 1",
+         "fn": sync_weekly_kline},
+        {"id": "holder_number", "name": "[L3]股东人数筹码集中度", "cron": "0 2 * * 1",
+         "fn": sync_stk_holdernumber},
+        {"id": "repurchase", "name": "[L3]股票回购", "cron": "30 2 * * 1",
+         "fn": sync_repurchase},
+        {"id": "index_basic", "name": "[L3]指数基本信息", "cron": "0 2 * * 6",
+         "fn": sync_index_basic},
+        # P1 公司基本信息 — 每周六 03:00 (全量刷新)
+        {"id": "stock_profiles", "name": "[L3]公司基本信息", "cron": "0 3 * * 6",
+         "fn": sync_stock_profiles},
+        # P2 央行货币政策报告 — 每月 5 日 04:00
+        {"id": "mp_report", "name": "[L3]央行货币政策报告", "cron": "0 4 5 * *",
+         "fn": sync_mp_report},
         # 转股价变动 — 每周一 09:00
         {"id": "cb_price_chg", "name": "[L3]转股价变动", "cron": "0 9 * * 1",
          "fn": sync_cb_price_chg_all},
+        # P0 月级 — 每月1日凌晨
+        {"id": "monthly_kline", "name": "[L3]月线数据", "cron": "0 2 1 * *",
+         "fn": sync_monthly_kline},
+        {"id": "broker_recommend", "name": "[L3]券商每月金股", "cron": "30 2 1 * *",
+         "fn": sync_broker_recommend},
         # 同花顺概念映射 — 每月1日 03:00
         {"id": "ths_concept_map", "name": "[L3]同花顺概念映射", "cron": "0 3 1 * *",
          "fn": sync_ths_concept_map},

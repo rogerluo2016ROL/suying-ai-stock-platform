@@ -149,6 +149,28 @@ def score_long_term(code: str) -> dict:
     if 0 < debt < 40:
         s += 1.0; sigs.append(f"负债率={debt:.0f}%")
 
+    # ── P3: 股息率因子 ──
+    try:
+        div_rows = db.execute(
+            "SELECT cash_div, ex_date FROM dividend_data WHERE code=? "
+            "ORDER BY ex_date DESC LIMIT 4", (code,)
+        ).fetchall()
+        if div_rows:
+            close_row = db.execute(
+                "SELECT close FROM daily_kline WHERE code=? ORDER BY trade_date DESC LIMIT 1",
+                (code,)
+            ).fetchone()
+            if close_row and close_row["close"]:
+                total_div = sum(r["cash_div"] or 0 for r in div_rows)
+                div_yield = total_div / close_row["close"] / 10  # cash_div = 每10股分xx元
+                if div_yield > 0.03: s += 2.0; sigs.append(f"高股息{div_yield:.1%}")
+                elif div_yield > 0.02: s += 1.0; sigs.append(f"股息{div_yield:.1%}")
+                elif div_yield > 0.01: s += 0.5
+            # 连续分红年数
+            years = len(set(str(r["ex_date"])[:4] for r in div_rows if r["ex_date"]))
+            if years >= 3: s += 0.5; sigs.append(f"连续{years}年分红")
+    except Exception: pass
+
     # 营收CAGR
     if len(inds) >= 12:
         revs = [(dict(r).get("or_yoy") or 0) for r in inds[:12]]
@@ -1059,10 +1081,101 @@ def score_chokepoint(code: str) -> dict:
             except Exception:
                 pass
 
+            # ── P3: 主营构成验证 (卡脖子逻辑增强) ──
+            try:
+                rev = score_revenue_structure(code)
+                if rev.get("available"):
+                    # Revenue structure bonus: diversified + hard-tech products
+                    s += (rev["score"] - 5) * 0.3  # ±1.5 max
+                    if rev.get("signals"):
+                        sigs.extend(rev["signals"][:2])
+            except Exception:
+                pass
+
     except Exception:
         return {"score": 5.0, "signals": [f"error: {str(e)[:60]}"]}
 
     return {"score": round(max(0, min(10, s)), 1), "signals": sigs, "industry": industry}
+
+
+def score_revenue_structure(code: str) -> dict:
+    """P3: Revenue structure analysis from fina_mainbz (主营业务构成).
+
+    Computes:
+      - CR1: revenue concentration of top product (lower = more diversified)
+      - Product count: number of distinct products (higher = more resilient)
+      - Hard-tech alignment: whether main products match chokepoint keywords
+
+    Returns: {"score": 0-10, "cr1": float, "product_count": int, "signals": [...]}
+    """
+    try:
+        with _get_db(readonly=True) as db:
+            rows = db.execute(
+                "SELECT biz_item, biz_income FROM fina_mainbz "
+                "WHERE code=? AND biz_type='P' "
+                "ORDER BY end_date DESC, biz_income DESC",
+                (code,)
+            ).fetchall()
+    except Exception:
+        return {"score": 5.0, "available": False, "signals": ["无主营数据"]}
+
+    if not rows:
+        return {"score": 5.0, "available": False, "signals": ["无主营数据"]}
+
+    incomes = [r["biz_income"] or 0 for r in rows]
+    total = sum(incomes)
+    if total <= 0:
+        return {"score": 5.0, "available": False, "signals": ["主营收入为0"]}
+
+    cr1 = incomes[0] / total  # Top product concentration
+    product_count = len([x for x in incomes if x > 0])
+
+    s = 5.0
+    signals = []
+
+    # ── Revenue concentration scoring ──
+    if cr1 < 0.30:
+        s += 3.0; signals.append(f"收入高度分散(CR1={cr1:.0%})")
+    elif cr1 < 0.50:
+        s += 1.5; signals.append(f"收入适度分散(CR1={cr1:.0%})")
+    elif cr1 < 0.70:
+        s += 0.0  # neutral
+    elif cr1 < 0.90:
+        s -= 1.5; signals.append(f"收入较集中(CR1={cr1:.0%})")
+    else:
+        s -= 3.0; signals.append(f"收入高度集中(CR1={cr1:.0%})")
+
+    # ── Product diversity scoring ──
+    if product_count >= 5:
+        s += 1.5; signals.append(f"{product_count}个产品线")
+    elif product_count >= 3:
+        s += 0.5
+    elif product_count == 1:
+        s -= 1.0; signals.append("单一产品依赖")
+
+    # ── Hard-tech product alignment ──
+    chokepoint_products = [
+        "芯片", "半导体", "集成电路", "光刻", "晶圆", "EDA", "封测",
+        "AI", "算力", "服务器", "GPU", "TPU", "NPU",
+        "机器人", "伺服", "减速器", "控制器",
+        "锂电", "电池", "储能", "逆变器", "光伏",
+        "创新药", "生物制药", "疫苗", "基因",
+        "航空", "航天", "军工", "导弹", "雷达",
+        "操作系统", "数据库", "中间件", "工业软件",
+    ]
+    biz_items = " ".join(str(r["biz_item"]) for r in rows)
+    matched = [kw for kw in chokepoint_products if kw in biz_items]
+    if matched:
+        s += min(2.0, len(matched) * 0.5)
+        signals.append(f"硬科技产品: {','.join(matched[:3])}")
+
+    return {
+        "score": round(max(0, min(10, s)), 1),
+        "cr1": round(cr1, 2),
+        "product_count": product_count,
+        "signals": signals,
+        "available": True,
+    }
 
 
 def generate_devils_advocate(code: str, chkp_score: dict, kline_df=None) -> list[str]:
@@ -1118,6 +1231,25 @@ def generate_devils_advocate(code: str, chkp_score: dict, kline_df=None) -> list
     return risks
 
 
+def get_trading_day_offset(days_back: int = 30) -> str:
+    """P4: 基于交易日历获取 N 个交易日前日期 (YYYY-MM-DD).
+
+    替代 INTERVAL 'N days' 的自然日偏移, 消除周末/节假日干扰.
+    """
+    try:
+        with _get_db(readonly=True) as db:
+            row = db.execute(
+                "SELECT cal_date FROM trade_cal WHERE is_open=1 AND cal_date <= DATE('now') "
+                "ORDER BY cal_date DESC LIMIT 1 OFFSET ?",
+                (days_back,)
+            ).fetchone()
+            if row and row["cal_date"]:
+                return str(row["cal_date"])
+    except Exception: pass
+    from datetime import date, timedelta
+    return (date.today() - timedelta(days=days_back)).isoformat()
+
+
 def get_market_regime() -> dict:
     """P2: Enhanced market regime detection with multi-index + volume confirmation.
 
@@ -1155,25 +1287,49 @@ def get_market_regime() -> dict:
             regime = max(regime_votes, key=regime_votes.get)
             confidence = regime_votes[regime] / sum(regime_votes.values())
 
+            # ── P3: 融资融券全市场情绪 (margin_summary) ──
+            margin_signal = None
+            try:
+                mg_rows = db.execute(
+                    "SELECT rzye FROM margin_summary ORDER BY trade_date DESC LIMIT 10"
+                ).fetchall()
+                if len(mg_rows) >= 10:
+                    balances = [float(r["rzye"] or 0) for r in mg_rows]
+                    if all(balances[i] > balances[i+1] for i in range(5)):  # 连续5日增长
+                        margin_signal = "bullish"
+                    elif all(balances[i] < balances[i+1] for i in range(5)):  # 连续5日下降
+                        margin_signal = "bearish"
+            except Exception: pass
+
             if regime == "bull":
-                bonus = 0.3 + (confidence - 0.5) * 0.2  # 0.3~0.4 for high confidence
+                bonus = 0.3 + (confidence - 0.5) * 0.2
+                if margin_signal == "bullish": bonus += 0.15  # 杠杆资金确认
+                elif margin_signal == "bearish": bonus -= 0.1  # 背离: 指数涨但融资降
                 return {
                     "regime": "bull", "bonus": round(bonus, 2),
                     "label": f"市场强势({regime_votes['bull']}/{sum(regime_votes.values())}指数)",
                     "factor_hint": "momentum_weighted",
+                    "margin_signal": margin_signal,
                 }
             elif regime == "bear":
                 bonus = -0.3 - (confidence - 0.5) * 0.2
+                if margin_signal == "bearish": bonus -= 0.15  # 杠杆资金撤离确认
+                elif margin_signal == "bullish": bonus += 0.1  # 背离: 指数跌但融资增
                 return {
                     "regime": "bear", "bonus": round(bonus, 2),
                     "label": f"市场弱势({regime_votes['bear']}/{sum(regime_votes.values())}指数)",
                     "factor_hint": "quality_defensive",
+                    "margin_signal": margin_signal,
                 }
             else:
+                if margin_signal == "bullish": bonus_shift = 0.1
+                elif margin_signal == "bearish": bonus_shift = -0.1
+                else: bonus_shift = 0.0
                 return {
-                    "regime": "neutral", "bonus": 0.0,
+                    "regime": "neutral", "bonus": round(bonus_shift, 2),
                     "label": f"市场震荡({regime_votes['neutral']}/{sum(regime_votes.values())}指数)",
                     "factor_hint": "technical_weighted",
+                    "margin_signal": margin_signal,
                 }
     except:
         pass
@@ -1227,6 +1383,19 @@ def get_sector_momentum(code: str) -> float:
             # Consistency bonus: positive every day in last 5
             if all(c > 0 for c in changes[:5]):
                 score += 0.5
+
+            # ── P4: 实时行业动量 (rt_sw_k) ──
+            try:
+                rt_row = db.execute(
+                    "SELECT close, pre_close FROM rt_sw_k WHERE ts_code=? "
+                    "ORDER BY trade_date DESC LIMIT 1", (sw_code,)
+                ).fetchone()
+                if rt_row and rt_row["close"] and rt_row["pre_close"]:
+                    today_chg = (rt_row["close"] / rt_row["pre_close"] - 1) * 100
+                    if today_chg > 2: score += 1.5
+                    elif today_chg > 0: score += 0.5
+                    elif today_chg < -2: score -= 1.0
+            except Exception: pass
 
             return max(0, min(10, round(score, 1)))
     except:

@@ -1007,6 +1007,28 @@ def get_tushare_scores(code: str) -> dict:
                 if fi_cf and eps > 0:
                     ocfps = latest.get("ocfps") or 0
                     if ocfps and ocfps > eps*0.8: s += 0.5
+                # ── P3: 资产负债表深度 (商誉/应收/存货质量) ──
+                try:
+                    fi_bs = db.execute(
+                        "SELECT * FROM financial_balance WHERE code=? ORDER BY end_date DESC LIMIT 1",
+                        (code,)).fetchone()
+                    if fi_bs:
+                        bs = dict(fi_bs)
+                        goodwill = bs.get("goodwill") or 0
+                        equity = bs.get("total_hldr_eqy_exc_min_int") or 1
+                        receivables = bs.get("notes_receiv") or 0
+                        inventory = bs.get("inventories") or 0
+                        revenue = latest.get("total_revenue") or dict(fi_inc[0]).get("total_revenue", 0) if fi_inc else 1
+                        cash_equiv = bs.get("money_cap") or 0
+                        short_debt = bs.get("short_borrow") or 0
+                        if equity > 0:
+                            if goodwill / equity > 0.30: s -= 2.0  # 商誉减值炸弹
+                            elif goodwill / equity > 0.15: s -= 1.0
+                        if revenue and revenue > 0:
+                            if receivables / revenue > 0.50: s -= 1.5  # 回款风险
+                            if inventory / revenue > 0.60: s -= 1.5  # 滞销风险
+                        if short_debt > 0 and cash_equiv / short_debt > 2: s += 1.0  # 流动性充裕
+                except Exception: pass
                 scores["tushare_financial"] = {"score": round(max(0,min(10,s)),1), "signal": "quality" if s>=7 else "fair" if s>=4 else "weak", "source": "tushare"}
             else: scores["tushare_financial"] = {"score": 5.0, "signal": "neutral", "source": "tushare", "available": False}
 
@@ -1031,6 +1053,22 @@ def get_tushare_scores(code: str) -> dict:
                 elif mp > 30: s -= 1.5
             if ev_repo and ev_repo["c"] > 0: s += 2.0
             if ev_float and ev_float["float_ratio"] and ev_float["float_ratio"] > 5: s -= 2.0
+            # P3: 业绩预告 SUE 因子
+            try:
+                fc_row = db.execute(
+                    "SELECT forecast_type, net_profit_min, net_profit_max, change_reason "
+                    "FROM forecast_data WHERE code=? ORDER BY end_date DESC LIMIT 1", (code,)
+                ).fetchone()
+                if fc_row:
+                    ftype = str(fc_row["forecast_type"] or "")
+                    if any(kw in ftype for kw in ["预增", "扭亏", "续盈", "大增"]): s += 2.5
+                    elif "略增" in ftype: s += 1.0
+                    elif any(kw in ftype for kw in ["预减", "首亏", "续亏", "预亏"]): s -= 2.5
+                    elif "略减" in ftype: s -= 1.0
+                    # 净利润变动幅度 bonus
+                    pmin = fc_row["net_profit_min"] or 0; pmax = fc_row["net_profit_max"] or 0
+                    if pmin > 0 and pmax > pmin * 1.5: s += 0.5
+            except Exception: pass
             scores["tushare_events"] = {"score": round(max(0,min(10,s)),1), "signal": "positive" if s>=7 else "negative" if s<=3 else "neutral", "source": "tushare"}
 
             # cyq

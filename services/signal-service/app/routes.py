@@ -427,7 +427,167 @@ async def dashboard_summary():
 
     result["data_sources"]["auction_intent"] = "PG stk_auction_o — 开盘集合竞价多维意图分析 (价格方向/买卖压力/竞价强度/开盘延续)"
 
+    # ── P4: 交易日历 ──
+    try:
+        import psycopg2, os
+        pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+        conn = psycopg2.connect(pg_url, connect_timeout=3)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT cal_date, is_open FROM trade_cal "
+            "WHERE cal_date >= CURRENT_DATE - INTERVAL '3 days' "
+            "AND cal_date <= CURRENT_DATE + INTERVAL '5 days' ORDER BY cal_date")
+        result["trading_calendar"] = [
+            {"date": str(r[0]), "is_open": bool(r[1])} for r in cur.fetchall()
+        ]
+        # Next trading day
+        cur.execute(
+            "SELECT cal_date FROM trade_cal WHERE is_open=1 AND cal_date >= CURRENT_DATE "
+            "ORDER BY cal_date LIMIT 1")
+        nxt = cur.fetchone()
+        result["next_trading_day"] = str(nxt[0]) if nxt else None
+        conn.close()
+    except Exception:
+        result["trading_calendar"] = []
+        result["next_trading_day"] = None
+
+    # ── P3: 互动问答风险信号 ──
+    try:
+        import psycopg2, os
+        pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+        conn = psycopg2.connect(pg_url, connect_timeout=3)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT code, COUNT(*) as cnt, MAX(pub_date) as latest FROM interact_qa "
+            "WHERE pub_date >= CURRENT_DATE - INTERVAL '7 days' "
+            "AND (question ~ %s OR answer ~ %s) "
+            "GROUP BY code ORDER BY cnt DESC LIMIT 10",
+            ("风险|质押|立案|商誉|减持|退市|亏损|ST|调查|违规|冻结|诉讼|处罚",
+             "风险|质押|立案|商誉|减持|退市|亏损|ST|调查|违规|冻结|诉讼|处罚"))
+        result["risk_interact"] = [
+            {"code": r[0], "risk_count": r[1], "latest_date": str(r[2])}
+            for r in cur.fetchall()
+        ]
+        conn.close()
+    except Exception:
+        result["risk_interact"] = []
+
+    # ── P3: 政策风向标 + 新闻联播热度 + 央行货币政策 (PG直连) ──
+    try:
+        import psycopg2, os
+        pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+        conn = psycopg2.connect(pg_url, connect_timeout=3)
+        cur = conn.cursor()
+
+        # 最新政策法规
+        cur.execute("SELECT pub_date, title, ptype, puborg FROM policy_law ORDER BY pub_date DESC LIMIT 5")
+        result["policy_signals"] = [
+            {"date": str(r[0])[:10], "title": str(r[1])[:80], "type": str(r[2]), "org": str(r[3])}
+            for r in cur.fetchall()
+        ]
+
+        # 最新新闻联播标题
+        cur.execute("SELECT pub_date, title FROM cctv_news ORDER BY pub_date DESC LIMIT 10")
+        result["cctv_headlines"] = [
+            {"date": str(r[0]), "title": str(r[1])[:80]} for r in cur.fetchall()
+        ]
+
+        # 央行货币政策立场
+        cur.execute("SELECT pub_date, title, content_html FROM mp_report ORDER BY pub_date DESC LIMIT 1")
+        mp_row = cur.fetchone()
+        if mp_row:
+            import re
+            title = str(mp_row[1] or "")
+            content = re.sub(r"<[^>]+>", "", str(mp_row[2] or ""))
+            full_text = title + " " + content[:2000]
+            if any(kw in full_text for kw in ["适度宽松", "宽松的货币政策"]):
+                stance, stance_score = "适度宽松", 3
+            elif any(kw in full_text for kw in ["从紧", "收紧", "紧缩"]):
+                stance, stance_score = "紧缩", -5
+            elif any(kw in full_text for kw in ["稳健", "灵活适度"]):
+                stance, stance_score = "稳健", 0
+            elif any(kw in full_text for kw in ["偏宽松", "流动性充裕"]):
+                stance, stance_score = "偏宽松", 2
+            else:
+                stance, stance_score = "未明确", 0
+            result["monetary_policy"] = {
+                "report_date": str(mp_row[0]),
+                "report_title": title,
+                "stance": stance,
+                "stance_score": stance_score,
+            }
+        conn.close()
+    except Exception:
+        result["policy_signals"] = []
+        result["cctv_headlines"] = []
+        result["monetary_policy"] = None
+
     return result
+
+
+# ═══════════════════════════════════════════════════════════════
+# P4: 跨模型超级信号 (screener + signal + diagnosis 融合)
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/super-signal/{code}")
+async def super_signal(code: str):
+    """P4: 跨模型融合, 综合 screener 排名 + 信号评分 + 诊断评分.
+
+    仅在 screener 选出的前 50 只股票上计算, 不增加全市场扫描成本.
+    """
+    import urllib.request, json, os
+
+    results = {"code": code, "super_score": 50.0, "components": {}}
+
+    # 1. Signal score (local)
+    try:
+        sig = await analyze_signal(code)
+        sig_score = sig["signal"]["score"]
+        results["components"]["signal"] = {"score": sig_score, "weight": 0.40}
+    except Exception:
+        sig_score = 50.0
+        results["components"]["signal"] = {"score": 50, "weight": 0.40, "error": "unavailable"}
+
+    # 2. Diagnosis score (HTTP call)
+    try:
+        diag_url = "http://localhost:8009/api/v1/diagnosis/analyze"
+        req = urllib.request.Request(diag_url,
+            data=json.dumps({"code": code}).encode(),
+            headers={"Content-Type": "application/json"})
+        diag = json.loads(urllib.request.urlopen(req, timeout=5).read())
+        diag_score = diag.get("overall_score", 50)
+        results["components"]["diagnosis"] = {"score": diag_score, "weight": 0.35}
+    except Exception:
+        diag_score = 50.0
+        results["components"]["diagnosis"] = {"score": 50, "weight": 0.35, "error": "unavailable"}
+
+    # 3. Screener rank (percentile)
+    try:
+        scr_url = "http://localhost:8001/api/v1/screener/run"
+        req = urllib.request.Request(scr_url,
+            data=json.dumps({"mode": "short", "top_n": 50}).encode(),
+            headers={"Content-Type": "application/json"})
+        scr = json.loads(urllib.request.urlopen(req, timeout=10).read())
+        picks = scr.get("picks", [])
+        rank = next((i+1 for i, p in enumerate(picks) if p.get("code") == code), 51)
+        rank_score = max(10, 100 - rank * 2) if rank <= 50 else 50
+        results["components"]["screener"] = {"rank": rank, "score": rank_score, "weight": 0.25}
+    except Exception:
+        rank_score = 50.0
+        results["components"]["screener"] = {"score": 50, "weight": 0.25, "error": "unavailable"}
+
+    # Super score
+    results["super_score"] = round(
+        sig_score * 0.40 + diag_score * 0.35 + rank_score * 0.25, 1
+    )
+    results["recommendation"] = (
+        "STRONG_BUY" if results["super_score"] >= 80 else
+        "BUY" if results["super_score"] >= 60 else
+        "HOLD" if results["super_score"] >= 40 else
+        "REDUCE" if results["super_score"] >= 20 else "SELL"
+    )
+
+    return results
 
 
 @router.get("/auction-intent")
@@ -561,14 +721,42 @@ async def analyze_signal(code: str):
     money_score = min(100, mf["score"] / 10 * 100)
     trend_score = min(100, ts["score"] / 10 * 100)
 
-    # Signal aggregation: weighted combination
-    factor_resonance = (tech_score * 0.4 + money_score * 0.3 + trend_score * 0.3)
-    # Kronos placeholder (30% weight — filled when prediction-service is connected)
-    kronos_confidence = 50  # neutral default when no Kronos prediction
-    # Market adaptation (simplified: use technical score as proxy)
-    market_adapt = 50
+    # ── P4: 六维信号升级 (新增 Fundamental + EventRisk) ──
+    fundamental_score = 50.0
+    event_risk_score = 50.0
+    try:
+        from kronos_factors.scorer.screening_scorers import score_long_term
+        from kronos_factors.scorer.advanced_factors import get_tushare_scores
+        lt = score_long_term(code)
+        ts_data = get_tushare_scores(code)
+        fundamental_score = lt.get("score", 5) * 10  # 0-10 → 0-100
+        # EventRisk: blend tushare_events + tushare_financial
+        ev_score = ts_data.get("tushare_events", {}).get("score", 5)
+        fin_score = ts_data.get("tushare_financial", {}).get("score", 5)
+        event_risk_score = min(100, (ev_score * 0.6 + fin_score * 0.4) * 10)
+    except Exception:
+        pass
 
-    signal_score = kronos_confidence * 0.3 + factor_resonance * 0.3 + 50 * 0.2 + market_adapt * 0.2
+    # Kronos placeholder
+    kronos_confidence = 50
+    # Market adaptation: use regime bonus from screener
+    market_adapt = 50
+    try:
+        from kronos_factors.scorer.screening_scorers import get_market_regime
+        regime = get_market_regime()
+        market_adapt = 50 + regime.get("bonus", 0) * 50  # bonus is ~±0.3, map to 35-65
+    except Exception:
+        pass
+
+    # Six-dimension weighted signal (total = 1.0)
+    signal_score = (
+        kronos_confidence * 0.20 +    # Kronos AI
+        tech_score * 0.20 +           # Technical
+        money_score * 0.12 +          # Fund flow
+        fundamental_score * 0.15 +    # Fundamental (NEW)
+        event_risk_score * 0.13 +     # Event risk (NEW)
+        market_adapt * 0.20           # Market regime
+    )
 
     # Determine level
     if signal_score >= 80:   level, icon = "STRONG_BUY", "🟢"
@@ -576,6 +764,36 @@ async def analyze_signal(code: str):
     elif signal_score >= 40:  level, icon = "HOLD", "🔵"
     elif signal_score >= 20:  level, icon = "REDUCE", "🟠"
     else:                     level, icon = "SELL", "🔴"
+
+    # ── P0: 审计意见风控 — 非标审计意见强制降级 ──
+    audit_risk = None
+    try:
+        from sqlalchemy import text as sa_text
+        from kronos_factors.scorer._db_stub import _get_db
+        with _get_db(readonly=True) as db:
+            audit_row = db.execute(
+                "SELECT audit_result FROM fina_audit WHERE code=? ORDER BY end_date DESC LIMIT 1",
+                (code,)
+            ).fetchone()
+        if audit_row:
+            opinion = str(audit_row[0] or "")
+            # Check most severe first; "保留意见" is substring of "标准无保留意见"!
+            if "无法表示意见" in opinion or "否定意见" in opinion:
+                level, icon = "SELL", "🔴"
+                signal_score = max(0, signal_score - 25)
+                audit_risk = {"opinion": opinion, "action": "强制SELL", "penalty": 25}
+            elif "标准无保留意见" in opinion:
+                audit_risk = None  # Clean, no action
+            elif "保留意见" in opinion:
+                signal_score = max(0, signal_score - 15)
+                audit_risk = {"opinion": opinion, "action": "降级-15分", "penalty": 15}
+                if signal_score < 20: level, icon = "SELL", "🔴"
+                elif signal_score < 40: level, icon = "REDUCE", "🟠"
+            elif "强调事项" in opinion or "持续经营" in opinion:
+                signal_score = max(0, signal_score - 8)
+                audit_risk = {"opinion": opinion, "action": "降级-8分", "penalty": 8}
+    except Exception:
+        pass  # fina_audit table not available
 
     # Record signal history
     store.record(code=code, level=level, icon=icon, score=round(signal_score, 1),
@@ -585,13 +803,15 @@ async def analyze_signal(code: str):
         "code": code,
         "signal": {"level": level, "icon": icon, "score": round(signal_score, 1)},
         "components": {
-            "kronos_confidence": {"score": kronos_confidence, "weight": 0.30},
-            "factor_resonance":  {"score": round(factor_resonance, 1), "weight": 0.30,
-                                  "detail": {"technical": round(tech_score, 1),
-                                             "money_flow": round(money_score, 1),
+            "kronos_confidence": {"score": kronos_confidence, "weight": 0.20},
+            "technical":         {"score": round(tech_score, 1), "weight": 0.20,
+                                  "detail": {"five_factor": round(ff["score"]/25*100, 1),
                                              "trend": round(trend_score, 1)}},
-            "rule_match":        {"score": 50, "weight": 0.20, "note": "default-no-rules-configured"},
-            "market_adapt":      {"score": market_adapt, "weight": 0.20},
+            "fund_flow":         {"score": round(money_score, 1), "weight": 0.12},
+            "fundamental":       {"score": round(fundamental_score, 1), "weight": 0.15},
+            "event_risk":        {"score": round(event_risk_score, 1), "weight": 0.13},
+            "market_adapt":      {"score": round(market_adapt, 1), "weight": 0.20},
+            "rule_match":        {"score": 50, "weight": 0.00, "note": "deprecated-merged-into-event-risk"},
         },
         "factors": {
             "five_factor": {"score": ff["score"], "grade": ff["grade"],
@@ -600,6 +820,7 @@ async def analyze_signal(code: str):
             "money_flow": mf,
             "trend_strength": ts,
         },
+        "audit_risk": audit_risk,
         "generated_at": __import__("datetime").datetime.now().isoformat(),
     }
 

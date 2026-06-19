@@ -205,6 +205,18 @@ CREATE TABLE IF NOT EXISTS financial_abstracts (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS fina_audit (
+    code TEXT NOT NULL,
+    ann_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    audit_result TEXT,
+    audit_fees DOUBLE PRECISION,
+    audit_agency TEXT,
+    audit_sign TEXT,
+    CONSTRAINT fina_audit_pkey PRIMARY KEY(code, end_date)
+);
+CREATE INDEX IF NOT EXISTS idx_fina_audit_result ON fina_audit(audit_result);
+
 CREATE TABLE IF NOT EXISTS forecast_data (
     code TEXT NOT NULL,
     end_date DATE NOT NULL,
@@ -307,7 +319,64 @@ CREATE TABLE IF NOT EXISTS stock_news_tushare (
 CREATE TABLE IF NOT EXISTS stock_profiles (
     code TEXT PRIMARY KEY,
     full_name TEXT, province TEXT, reg_capital DOUBLE PRECISION,
-    main_business TEXT, website TEXT
+    main_business TEXT, website TEXT,
+    city TEXT, setup_date TEXT, business_scope TEXT, email TEXT,
+    chairman TEXT, manager TEXT, secretary TEXT,
+    employees INTEGER, introduction TEXT,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_stock_profiles_province ON stock_profiles(province);
+
+-- ── P2: 资讯舆情数据 (5 张表) ──
+
+-- 互动问答 (深交所互动易 + 上证e互动)
+CREATE TABLE IF NOT EXISTS interact_qa (
+    id SERIAL PRIMARY KEY,
+    code TEXT NOT NULL,
+    pub_date DATE NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT,
+    pub_time TIMESTAMP,
+    source TEXT DEFAULT 'szse',
+    CONSTRAINT interact_qa_uniq UNIQUE(code, pub_date, question)
+);
+CREATE INDEX IF NOT EXISTS idx_interact_qa_code ON interact_qa(code);
+CREATE INDEX IF NOT EXISTS idx_interact_qa_date ON interact_qa(pub_date);
+
+-- 国家政策法规库 (国务院及各部委)
+CREATE TABLE IF NOT EXISTS policy_law (
+    id SERIAL PRIMARY KEY,
+    pub_date TIMESTAMP,
+    title TEXT NOT NULL,
+    url TEXT,
+    content_html TEXT,
+    pcode TEXT,
+    puborg TEXT,
+    ptype TEXT,
+    CONSTRAINT policy_law_uniq UNIQUE(pub_date, title)
+);
+CREATE INDEX IF NOT EXISTS idx_policy_law_ptype ON policy_law(ptype);
+CREATE INDEX IF NOT EXISTS idx_policy_law_puborg ON policy_law(puborg);
+
+-- 央行货币政策执行报告
+CREATE TABLE IF NOT EXISTS mp_report (
+    id SERIAL PRIMARY KEY,
+    pub_date DATE NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT,
+    pdf_url TEXT,
+    content_html TEXT,
+    CONSTRAINT mp_report_uniq UNIQUE(pub_date, title)
+);
+
+-- 新闻联播文字稿
+CREATE TABLE IF NOT EXISTS cctv_news (
+    id SERIAL PRIMARY KEY,
+    pub_date DATE NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT,
+    channels TEXT,
+    CONSTRAINT cctv_news_uniq UNIQUE(pub_date, title)
 );
 
 CREATE TABLE IF NOT EXISTS broker_recommend (
@@ -326,7 +395,11 @@ CREATE TABLE IF NOT EXISTS announcements (
 CREATE TABLE IF NOT EXISTS fina_mainbz (
     code TEXT NOT NULL,
     end_date DATE NOT NULL,
-    biz_item TEXT, biz_income DOUBLE PRECISION, biz_ratio DOUBLE PRECISION
+    biz_item TEXT NOT NULL,
+    biz_income DOUBLE PRECISION,
+    biz_ratio DOUBLE PRECISION,
+    biz_type TEXT DEFAULT 'P',
+    CONSTRAINT fina_mainbz_pk UNIQUE(code, end_date, biz_item)
 );
 
 CREATE TABLE IF NOT EXISTS rt_sw_k (

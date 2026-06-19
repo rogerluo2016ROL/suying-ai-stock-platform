@@ -882,11 +882,37 @@ def score_intraday_stock(code, name, industry, snap, pre_close, db, trade_date,
     except Exception:
         pass  # 无融资数据时不影响评分
 
-    # ── V8.1 综合 (9因子 + 新鲜度) ──
+    # ── P3: 实时突破确认 (rt_k today's OHLCV) ──
+    rt_breakout_bonus = 0
+    if kline_cache and code in kline_cache:
+        cached = kline_cache[code]
+        closes_rt = cached[0]
+        if len(closes_rt) >= 21:  # Need at least 20 historical + 1 today
+            today_close = closes_rt[-1]   # rt_k merged today's close
+            recent_high = np.max(cached[3][-21:-1]) if cached[3] is not None else today_close  # highs[-20:-1]
+            recent_low = np.min(cached[4][-21:-1]) if cached[4] is not None else today_close   # lows[-20:-1]
+
+            # 盘中创新高: 今日高 > 近20日高 → 突破确认
+            if today_close > 0 and recent_high > 0:
+                if today_close >= recent_high * 0.98:
+                    rt_breakout_bonus += 4  # 接近或突破近20日高点
+
+                # 今日涨幅质量: 盘中涨幅 5-10% 且创新高 → 强确认
+                if 5 <= gain_14 <= 10 and today_close >= recent_high:
+                    rt_breakout_bonus += 3
+
+                # 盘中拒绝新低: 今低 > 近5日低 → 拒绝下跌
+                if len(cached[4]) >= 6:
+                    recent_5_low = np.min(cached[4][-6:-1])
+                    today_low = cached[4][-1] if cached[4] is not None else today_close
+                    if today_low > 0 and recent_5_low > 0 and today_low > recent_5_low * 1.01:
+                        rt_breakout_bonus += 2
+
+    # ── V8.1 综合 (9因子 + 新鲜度 + P3) ──
     total_complex = (gain_score + seal_score + afternoon_score +
              turnover_score + ma_score + volume_score + sl_score + sm_score + res_score
              + dist_score + leadership_bonus + leader_distance_bonus
-             + resonance_bonus + margin_bonus
+             + resonance_bonus + margin_bonus + rt_breakout_bonus
              + sector_resonance_bonus
              - independent_penalty - climax_penalty - overheat_penalty
              - limit_resistance_penalty - sector_blacklist_penalty
@@ -1114,6 +1140,52 @@ def calc_atr(highs, lows, closes, period=14):
     return float(atr[-1]) if atr[-1] > 0 else 0
 
 
+def _try_merge_rt_k(by_code: dict, trade_date: str):
+    """P3: 盘中时段将 rt_k 实时日线合并到历史 daily_kline.
+
+    在交易时段 (9:30-15:00)，daily_kline 没有当日数据。rt_k 每5分钟从
+    stk_mins 聚合出当日实时 OHLCV，合并后可实现真正的盘中决策。
+
+    合并逻辑:
+      - 查询 rt_k 中 trade_date 等于当天的所有记录
+      - 追加到每只股票的 OHLCV 数组末尾 (类似 daily_kline 新加一天)
+      - 只对已有历史数据的股票合并 (确保有足够的 lookback)
+    """
+    try:
+        rt_rows = db.execute(
+            "SELECT code, open, high, low, close, vol, amount FROM rt_k "
+            "WHERE trade_date = ?",
+            (trade_date,)
+        ).fetchall()
+    except Exception:
+        return  # rt_k table may not exist yet
+
+    if not rt_rows:
+        return  # No real-time data for today (非交易时段)
+
+    merged = 0
+    for r in rt_rows:
+        code = r.get("code") or r.get("ts_code", "")
+        if not code or code not in by_code:
+            continue
+        # Avoid duplicate: skip if today's date already exists in daily_kline
+        # (late afternoon when daily_kline has today's data)
+        data_list = by_code[code]
+        # 追加当日 rt_k 数据到 K 线序列
+        data_list.append((
+            float(r["open"] or 0), float(r["high"] or 0),
+            float(r["low"] or 0), float(r["close"] or 0),
+            float(r["vol"] or 0), float(r["amount"] or 0),
+        ))
+        merged += 1
+
+    if merged > 0:
+        import logging
+        logging.getLogger("leader_intraday").info(
+            "P3 rt_k merge: %d stocks with today's real-time OHLCV", merged
+        )
+
+
 def _prefetch_kline_batch(db, trade_date):
     """批量预取所有股票的近60日K线数据.
 
@@ -1121,6 +1193,7 @@ def _prefetch_kline_batch(db, trade_date):
     1 次查询, 节省 ~11ms × N 只股票.
 
     V8.0: 增加 high/low 字段用于 ATR 计算.
+    P3: 盘中时段合并 rt_k 实时日线数据, 实现当日 OHLCV 感知.
     """
     # 计算60个交易日前的日期 (约3个月)
     parts = trade_date.split("-")
@@ -1150,6 +1223,9 @@ def _prefetch_kline_batch(db, trade_date):
             float(r["low"] or 0), float(r["close"] or 0),
             float(r["volume"] or 0), float(r["amount"] or 0),
         ))
+
+    # ── P3: 盘中时间 → 合并 rt_k 实时日线 (当日 OHLCV) ──
+    _try_merge_rt_k(by_code, trade_date)
 
     for code, data in by_code.items():
         if len(data) >= 20:

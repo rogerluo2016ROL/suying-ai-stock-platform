@@ -306,6 +306,28 @@ async def _run_one_check(state: ExecutorState, strategy: StrategyConfig) -> None
         if not code:
             continue
 
+        # P0: 公告事件风险检测 (优先于常规卖出条件)
+        is_announcement_risk, announcement_reason = _check_announcement_risk(code)
+        if is_announcement_risk:
+            state.add_log(
+                "SELL",
+                f"触发事件止损: {code} — {announcement_reason}",
+                {"code": code, "reason": announcement_reason, "source": "announcement_risk"},
+            )
+            result = await _place_order(
+                symbol=code,
+                direction="SELL",
+                volume=pos.get("volume", 0),
+                trade_mode=strategy.trade_mode,
+            )
+            state.orders_placed += 1
+            state.add_log(
+                "SELL",
+                f"事件止损卖单已提交: {code}",
+                {"code": code, "order_id": result.get("order_id")},
+            )
+            continue  # 跳过常规卖出条件
+
         signal = await _fetch_signal(code)
         should_sell, sell_reason = _evaluate_sell_conditions(
             strategy.sell_conditions, signal, pos
@@ -349,6 +371,12 @@ async def _run_one_check(state: ExecutorState, strategy: StrategyConfig) -> None
         # Skip if at max positions
         if current_positions_count >= strategy.position_rules.max_positions:
             break
+
+        # ── P3: 业绩预告负向过滤 ──
+        forecast_warn = _check_forecast_risk(code)
+        if forecast_warn:
+            state.add_log("WARN", f"跳过买入 {code}: 业绩预告风险 — {forecast_warn}", {"code": code})
+            continue
 
         # Fetch signal for this pick
         signal = await _fetch_signal(code)
@@ -427,6 +455,115 @@ def _evaluate_buy_conditions(
         return False, f"条件不满足: {'; '.join(failed)}"
 
 
+# ── P0: 公告事件风险检测 ──
+
+_ANNOUNCEMENT_RISK_KEYWORDS = [
+    "退市", "ST", "*ST", "暂停上市", "终止上市", "立案调查", "行政处罚",
+    "业绩修正", "预亏", "预降", "亏损", "重大诉讼", "债务违约",
+    "控股股东", "司法冻结", "轮候冻结", "破产", "重整",
+    "无法表示意见", "否定意见", "保留意见", "关联方占用",
+    "违规担保", "信息披露", "责令改正", "警示函", "监管函",
+]
+
+
+def _check_announcement_risk(code: str) -> tuple[bool, str]:
+    """Check if stock has recent risk-related announcements.
+
+    Returns:
+        (is_risky, reason_string)
+    """
+    try:
+        import psycopg2
+        pg_url = os.environ.get(
+            "KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+        conn = psycopg2.connect(pg_url, connect_timeout=3)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT title, ann_date FROM announcements "
+            "WHERE code = %s AND ann_date >= CURRENT_DATE - INTERVAL '3 days' "
+            "ORDER BY ann_date DESC LIMIT 10",
+            (code,),
+        )
+        rows = cur.fetchall()
+        conn.close()
+
+        for title, ann_date in rows:
+            title_str = str(title or "")
+            for kw in _ANNOUNCEMENT_RISK_KEYWORDS:
+                if kw in title_str:
+                    return True, f"风险公告[{ann_date}]: {title_str[:80]}"
+        return False, ""
+    except Exception:
+        return False, ""
+
+
+def _get_atr_stop_loss(code: str) -> float:
+    """P4: ATR-based dynamic stop loss (替代硬编码 3%).
+
+    stop_loss_pct = 1.5 × ATR(14) / close × 100
+    低位震荡股 ~2%, 高位活跃股 ~5-7%
+
+    Returns: stop_loss percentage (e.g. 3.5 = 3.5%), or 0 if unavailable.
+    """
+    try:
+        import psycopg2, numpy as np
+        pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+        conn = psycopg2.connect(pg_url, connect_timeout=3)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT high, low, close FROM daily_kline WHERE code=%s "
+            "ORDER BY trade_date DESC LIMIT 15", (code,))
+        rows = cur.fetchall()
+        conn.close()
+
+        if len(rows) < 14:
+            return 0.0
+
+        closes = np.array([r[2] for r in rows], dtype=np.float64)
+        highs = np.array([r[0] for r in rows], dtype=np.float64)
+        lows = np.array([r[1] for r in rows], dtype=np.float64)
+
+        # ATR(14) calculation
+        tr = np.maximum(highs - lows,
+                        np.abs(highs - np.roll(closes, 1)),
+                        np.abs(lows - np.roll(closes, 1)))
+        tr[0] = highs[0] - lows[0]
+        atr = np.mean(tr[:14])
+
+        current_close = closes[0]
+        if current_close > 0 and atr > 0:
+            stop_pct = round(1.5 * atr / current_close * 100, 1)
+            return max(2.0, min(8.0, stop_pct))  # clamp 2%~8%
+    except Exception:
+        pass
+    return 0.0
+
+
+def _check_forecast_risk(code: str) -> str:
+    """P3: 检查业绩预告风险 — 预减/预亏/首亏则阻止买入.
+
+    Returns: warning string if risky, empty string otherwise.
+    """
+    try:
+        import psycopg2
+        pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+        conn = psycopg2.connect(pg_url, connect_timeout=3)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT forecast_type, change_reason FROM forecast_data "
+            "WHERE code=%s ORDER BY end_date DESC LIMIT 1", (code,))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            ftype = str(row[0] or "")
+            reason = str(row[1] or "")
+            if any(kw in ftype for kw in ["预减", "首亏", "续亏", "预亏"]):
+                return f"{ftype}({reason[:40]})" if reason else ftype
+        return ""
+    except Exception:
+        return ""
+
+
 def _evaluate_sell_conditions(
     conditions: list[SellCondition],
     signal: dict,
@@ -443,8 +580,15 @@ def _evaluate_sell_conditions(
     # Merge position data into evaluation context
     context = {**signal}
     context["pnl_pct"] = position.get("pnl_pct", 0)
-    context["stop_loss"] = abs(position.get("pnl_pct", 0)) if position.get("pnl_pct", 0) < 0 else 0
     context["take_profit"] = position.get("pnl_pct", 0) if position.get("pnl_pct", 0) > 0 else 0
+
+    # ── P4: ATR 动态止损 (替代硬编码 3%) ──
+    code = position.get("code", "")
+    dynamic_stop = _get_atr_stop_loss(code)
+    if dynamic_stop > 0:
+        context["stop_loss"] = dynamic_stop
+    else:
+        context["stop_loss"] = abs(position.get("pnl_pct", 0)) if position.get("pnl_pct", 0) < 0 else 0
 
     for cond in conditions:
         field_value = context.get(cond.field, 0)

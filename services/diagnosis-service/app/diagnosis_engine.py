@@ -62,20 +62,20 @@ from app.schemas import (
 # ═══════════════════════════════════════════════════════════════════════════
 
 WEIGHTS = {
-    "technical": 0.40,
-    "capital_flow": 0.25,
-    "fundamental": 0.20,
+    "technical": 0.38,
+    "capital_flow": 0.23,
+    "fundamental": 0.18,
     "ai_predict": 0.10,
-    "sentiment": 0.05,
+    "sentiment": 0.11,
 }
 
 # Degraded weights when Kronos is unavailable (ADR-005 Decision 5)
 DEGRADED_WEIGHTS = {
-    "technical": 0.44,
-    "capital_flow": 0.28,
-    "fundamental": 0.22,
+    "technical": 0.42,
+    "capital_flow": 0.26,
+    "fundamental": 0.20,
     "ai_predict": 0.00,
-    "sentiment": 0.06,
+    "sentiment": 0.12,
 }
 
 # Grade thresholds (ADR-005 Decision 1)
@@ -507,6 +507,37 @@ async def _score_fundamental(code: str, db) -> FundamentalDimension:
         fundamental_score = round(
             pe_score * 0.35 + roe_score * 0.30 + growth_score * 0.20 + debt_score * 0.15, 1
         )
+
+        # ── P0: 审计意见风险调整 ──
+        audit_penalty = 0
+        audit_opinion = "无数据"
+        try:
+            audit_result = await db.execute(
+                sa_text(
+                    "SELECT audit_result FROM fina_audit "
+                    "WHERE code = :code ORDER BY end_date DESC LIMIT 1"
+                ),
+                {"code": code},
+            )
+            audit_row = audit_result.fetchone()
+            if audit_row:
+                opinion = str(audit_row[0] or "")
+                audit_opinion = opinion
+                # Check most severe first; "保留意见" is substring of "标准无保留意见"!
+                if "无法表示意见" in opinion or "否定意见" in opinion:
+                    audit_penalty = 20
+                elif "标准无保留意见" in opinion:
+                    audit_penalty = 0  # Clean opinion, no penalty
+                elif "保留意见" in opinion:
+                    audit_penalty = 10
+                elif "强调事项" in opinion or "持续经营" in opinion:
+                    audit_penalty = 5
+                else:
+                    audit_penalty = 0
+        except Exception:
+            pass  # fina_audit table may not exist yet
+
+        fundamental_score = max(0, fundamental_score - audit_penalty)
         fundamental_score = _clamp(fundamental_score)
 
         signals = []
@@ -518,6 +549,8 @@ async def _score_fundamental(code: str, db) -> FundamentalDimension:
             signals.append(f"营收高增长 ({revenue_growth:.1f}%)")
         if debt_ratio > 70:
             signals.append(f"负债率偏高 ({debt_ratio:.1f}%)")
+        if audit_penalty > 0:
+            signals.append(f"⚠️ 审计意见: {audit_opinion} (扣{audit_penalty:.0f}分)")
 
         return FundamentalDimension(
             name="基本面",
@@ -533,6 +566,8 @@ async def _score_fundamental(code: str, db) -> FundamentalDimension:
             details={
                 "pe": round(pe_val, 2),
                 "pe_percentile": round(pe_percentile, 1),
+                "audit_opinion": audit_opinion,
+                "audit_penalty": audit_penalty,
             },
         )
 
@@ -730,7 +765,140 @@ async def _score_sentiment(code: str, db) -> SentimentDimension:
         except Exception:
             pass  # Table may not exist yet — use default
 
-        sentiment_score = round(research_score * 0.6 + news_score * 0.4, 1)
+        # ── P0: 互动问答情绪分析 ──
+        interact_score = 50.0
+        interact_count = 0
+        try:
+            iq_result = await db.execute(
+                sa_text(
+                    "SELECT question, answer FROM interact_qa "
+                    "WHERE code = :code AND pub_date >= CURRENT_DATE - INTERVAL '90 days' "
+                    "ORDER BY pub_date DESC LIMIT 10"
+                ),
+                {"code": code},
+            )
+            iq_rows = iq_result.fetchall()
+            if iq_rows:
+                risk_keywords = ["风险", "亏损", "质押", "立案", "调查", "退市", "ST",
+                                "减持", "商誉", "减值", "债务", "违约", "停工", "裁员",
+                                "处罚", "罚款", "诉讼", "担保", "冻结"]
+                opportunity_keywords = ["增长", "突破", "中标", "签约", "扩产", "新品",
+                                       "利好", "回购", "增持", "分红", "订单"]
+                pos_count = 0; neg_count = 0
+                for row in iq_rows:
+                    text = str(row[0] or "") + str(row[1] or "")
+                    for kw in risk_keywords:
+                        if kw in text:
+                            neg_count += 1; break
+                    for kw in opportunity_keywords:
+                        if kw in text:
+                            pos_count += 1; break
+                if neg_count > pos_count:
+                    interact_score = max(10, 50 - neg_count * 5)
+                elif pos_count > neg_count:
+                    interact_score = min(90, 50 + pos_count * 5)
+                interact_count = len(iq_rows)
+        except Exception:
+            pass
+
+        # ── P3: 新闻联播行业热度 + 政策法规影响 ──
+        policy_score = 50.0
+        cctv_heat_score = 50.0
+        policy_signals = []
+        try:
+            # Get stock's industry
+            ind_result = await db.execute(
+                sa_text("SELECT industry FROM stocks WHERE code = :code"),
+                {"code": code},
+            )
+            ind_row = ind_result.fetchone()
+            stock_industry = str(ind_row[0] or "") if ind_row else ""
+
+            if stock_industry:
+                # ── 新闻联播行业热度: 近期新闻联播关键词匹配 ──
+                cctv_result = await db.execute(
+                    sa_text(
+                        "SELECT title, content FROM cctv_news "
+                        "WHERE pub_date >= CURRENT_DATE - INTERVAL '7 days'"
+                    ),
+                )
+                cctv_rows = cctv_result.fetchall()
+                if cctv_rows:
+                    # Industry keyword map: industry name → related keywords in news
+                    industry_kw_map = {
+                        "半导体": ["芯片", "半导体", "集成电路", "光刻", "晶圆"],
+                        "电气设备": ["新能源", "光伏", "风电", "储能", "特高压", "电网"],
+                        "软件服务": ["人工智能", "AI", "数字化", "软件", "数据"],
+                        "汽车配件": ["新能源车", "智能驾驶", "汽车", "动力电池"],
+                        "医疗保健": ["医药", "医疗", "生物", "疫苗", "健康"],
+                        "化工原料": ["化工", "新材料", "石化", "碳中和"],
+                        "通信设备": ["5G", "6G", "通信", "卫星", "算力"],
+                        "元器件": ["电子", "传感器", "面板", "显示"],
+                        "专用机械": ["机器人", "高端装备", "智能制造", "工业母机"],
+                        "银行": ["金融", "银行", "信贷", "降准", "利率"],
+                        "房地产": ["房地产", "住房", "楼市", "保障房"],
+                        "证券": ["资本市场", "股市", "注册制", "科创板"],
+                        "农业": ["农业", "粮食", "种业", "乡村振兴", "耕地"],
+                        "食品饮料": ["消费", "食品", "餐饮", "零售"],
+                        "航空": ["航天", "大飞机", "卫星", "民航"],
+                        "互联网": ["互联网", "平台经济", "电商", "直播"],
+                        "环境保护": ["环保", "双碳", "绿色", "新能源"],
+                    }
+                    # Find matching keywords for stock's industry
+                    matched_kw = set()
+                    for ind_kw, news_kws in industry_kw_map.items():
+                        if ind_kw in stock_industry or stock_industry in ind_kw:
+                            for row in cctv_rows:
+                                text = str(row[0] or "") + str(row[1] or "")
+                                for nk in news_kws:
+                                    if nk in text:
+                                        matched_kw.add(nk)
+                    if matched_kw:
+                        # Positive heat: industry mentioned in news = attention
+                        cctv_heat_score = min(90, 55 + len(matched_kw) * 5)
+                        policy_signals.append(f"新闻联播提及: {','.join(list(matched_kw)[:3])}")
+
+                # ── 政策法规影响: 近期政策匹配行业 ──
+                policy_result = await db.execute(
+                    sa_text(
+                        "SELECT title, ptype, puborg FROM policy_law "
+                        "WHERE pub_date >= CURRENT_DATE - INTERVAL '30 days'"
+                    ),
+                )
+                policy_rows = policy_result.fetchall()
+                if policy_rows:
+                    for row in policy_rows:
+                        ptype = str(row[1] or "")
+                        title = str(row[0] or "")
+                        # Map policy type → industry keywords
+                        ptype_industry_map = {
+                            "科技": ["半导体", "元器件", "软件服务", "通信设备", "互联网"],
+                            "金融": ["银行", "证券", "保险", "多元金融"],
+                            "医药": ["医疗保健", "化学制药", "生物制药", "中成药"],
+                            "能源": ["电气设备", "煤炭", "石油", "电力"],
+                            "环保": ["环境保护", "水务", "新型电力"],
+                            "房地产": ["房地产", "建筑工程", "建材"],
+                            "农业": ["农业", "食品饮料", "饲料"],
+                            "教育": ["文教休闲", "传媒娱乐"],
+                            "交通": ["航空", "运输", "物流", "铁路"],
+                            "财政": ["银行", "证券", "保险"],
+                            "税务": ["银行", "证券", "保险"],
+                        }
+                        for pkw, industries in ptype_industry_map.items():
+                            if pkw in ptype and any(ind in stock_industry for ind in industries):
+                                puborg = str(row[2] or "")
+                                if "国务院" in puborg or "发改委" in puborg:
+                                    policy_score = 60  # 国家级别政策 → 适度积极
+                                    policy_signals.append(f"政策: {title[:30]}...")
+                                break
+        except Exception:
+            pass
+
+        # Blend: research 40% + cctv 15% + policy 10% + interact 20% + news 15%
+        sentiment_score = round(
+            research_score * 0.40 + cctv_heat_score * 0.15 + policy_score * 0.10
+            + interact_score * 0.20 + news_score * 0.15, 1
+        )
         sentiment_score = _clamp(sentiment_score)
 
         signals = []
@@ -738,6 +906,8 @@ async def _score_sentiment(code: str, db) -> SentimentDimension:
             signals.append(f"分析师评级: {research_rating}")
         if analyst_target:
             signals.append(f"目标价: {analyst_target:.2f}")
+        for ps in policy_signals:
+            signals.append(ps)
 
         return SentimentDimension(
             name="情绪面",
@@ -745,13 +915,15 @@ async def _score_sentiment(code: str, db) -> SentimentDimension:
             weight=WEIGHTS["sentiment"],
             grade=_score_to_grade(sentiment_score),
             status=DimensionStatus.AVAILABLE,
-            news_sentiment=round(news_score / 100 * 2 - 1, 2),  # back to -1..1
+            news_sentiment=round(news_score / 100 * 2 - 1, 2),
             research_rating=research_rating,
             analyst_target=analyst_target,
             signals=signals if signals else None,
             details={
                 "research_reports_count": len(rr_rows),
                 "news_sentiment_score": round(news_score, 1),
+                "cctv_heat_score": round(cctv_heat_score, 1),
+                "policy_score": round(policy_score, 1),
             },
         )
 
@@ -765,6 +937,61 @@ async def _score_sentiment(code: str, db) -> SentimentDimension:
             status=DimensionStatus.DEGRADED,
             details={"error": str(e)},
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# P3: 宏观货币政策立场 (央行报告)
+# ═══════════════════════════════════════════════════════════════════════════
+
+async def _get_macro_stance(db) -> tuple[str, float]:
+    """Extract macro monetary policy stance from latest PBOC report.
+
+    Queries the most recent mp_report, strips HTML tags, and matches
+    keyword patterns to determine policy stance.
+
+    Returns:
+        (stance_label, score_modifier): e.g. ("适度宽松", +3) or ("稳健", 0)
+    """
+    try:
+        from sqlalchemy import text as sa_text
+
+        result = await db.execute(
+            sa_text(
+                "SELECT title, content_html FROM mp_report "
+                "ORDER BY pub_date DESC LIMIT 1"
+            ),
+        )
+        row = result.fetchone()
+        if not row:
+            return "未知", 0.0
+
+        title = str(row[0] or "")
+        content = str(row[1] or "")
+
+        # Strip HTML tags for keyword matching
+        import re
+        text = re.sub(r"<[^>]+>", "", content)
+        full_text = title + " " + text[:3000]  # First 3000 chars is enough
+
+        # ── Stance detection ──
+        # Priority order: more specific → less specific
+        if any(kw in full_text for kw in ["适度宽松", "宽松的货币政策"]):
+            stance, modifier = "适度宽松", 3.0
+        elif any(kw in full_text for kw in ["从紧", "收紧", "紧缩"]):
+            stance, modifier = "紧缩", -5.0
+        elif any(kw in full_text for kw in ["稳健", "灵活适度", "精准有力"]):
+            stance, modifier = "稳健", 0.0
+        elif any(kw in full_text for kw in ["偏宽松", "流动性充裕", "逆周期"]):
+            stance, modifier = "偏宽松", 2.0
+        elif any(kw in full_text for kw in ["流动性合理充裕", "不搞大水漫灌"]):
+            stance, modifier = "稳健偏中性", -1.0
+        else:
+            stance, modifier = "未明确", 0.0
+
+        return stance, modifier
+
+    except Exception:
+        return "无数据", 0.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -887,13 +1114,33 @@ async def diagnose(
 
     # Check if Kronos is unavailable → use degraded weights
     kronos_available = dims["ai_predict"].status != DimensionStatus.UNAVAILABLE
-    effective_weights = WEIGHTS if kronos_available else DEGRADED_WEIGHTS
+    base_weights = WEIGHTS if kronos_available else DEGRADED_WEIGHTS
+
+    # ── P4: 自适应市场 regime 权重 ──
+    effective_weights = dict(base_weights)
+    try:
+        from kronos_factors.scorer.screening_scorers import get_market_regime
+        regime_info = get_market_regime()
+        regime = regime_info.get("regime", "neutral")
+        if regime == "bull":
+            effective_weights.update({"technical": 0.43, "fundamental": 0.14, "sentiment": 0.13})
+        elif regime == "bear":
+            effective_weights.update({"technical": 0.32, "fundamental": 0.24, "capital_flow": 0.20})
+        # neutral: keep base weights
+        # Normalize to ensure sum = 1.0
+        w_sum = sum(effective_weights.values())
+        effective_weights = {k: v / w_sum for k, v in effective_weights.items()}
+    except Exception:
+        pass
 
     # Identify degraded dimensions
     degraded_dims = [
         k for k, v in dims.items()
         if v.status in (DimensionStatus.DEGRADED, DimensionStatus.UNAVAILABLE)
     ]
+
+    # ── P3: 宏观货币政策立场 (来自央行报告) ──
+    macro_stance, macro_modifier = await _get_macro_stance(db)
 
     # Compute weighted overall score (ADR-005 Decision 1)
     overall = sum(
@@ -902,6 +1149,8 @@ async def diagnose(
     # Normalize: score / sum(weights) * 100
     weight_sum = sum(effective_weights.values())
     overall = (overall / weight_sum) if weight_sum > 0 else 50.0
+    # Apply macro stance modifier (±5 points max)
+    overall = overall + macro_modifier
     overall = round(_clamp(overall), 1)
 
     # Determine recommendation and grade
@@ -918,6 +1167,9 @@ async def diagnose(
 
     if not kronos_available:
         reasons.insert(0, "AI 预测暂不可用 (权重已重新分配)")
+    if macro_modifier != 0:
+        prefix = "宏观利好" if macro_modifier > 0 else "宏观承压"
+        reasons.insert(0, f"{prefix}: 央行{macro_stance} ({macro_modifier:+.0f}分)")
 
     reason_text = "；".join(reasons) + "。"
 
