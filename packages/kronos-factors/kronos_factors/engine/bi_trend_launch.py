@@ -42,6 +42,9 @@ WEIGHTS = {
     "chokepoint_scarcity": 2,   # 不变
     "short_pullback": 3,        # V7.0: 1-2天短回调加分 (72%暴涨前兆)
     "momentum_continue": 3,     # V7.0: 动量延续模式加分 (87%暴涨模式)
+    "range_position": 3,        # V8.0: 区间底部加分 (弹簧压缩)
+    "ignition": 4,              # V8.0: 点火检测加分 (放量金叉)
+    "coiling": 3,               # V8.0: 蓄力检测加分 (点火后缩量横盘)
 }
 
 #    V5.8: 硬科技 + 卡脖子筛选 (国家鼓励方向)   
@@ -83,6 +86,14 @@ MIN_TREND_20D = 0
 OBV_NEGATIVE_SKIP = True      # V7.0: OBV负值直接跳过 (川金诺教训)
 SHORT_PULLBACK_BONUS = 3      # V7.0: 1天短回调加分 (72%暴涨前兆)
 MOMENTUM_BONUS = 3            # V7.0: 动量延续模式加分 (OBV1-7天+WR>-50)
+RANGE_POSITION_BONUS = 3      # V8.0: 区间底部加分 (收盘在14日区间底部25%)
+IGNITION_BONUS = 4            # V8.0: 点火检测 (3-5天前放量>2x+金叉)
+COILING_BONUS = 3             # V8.0: 蓄力检测 (点火后缩量横盘2-3天)
+IGNITION_LOOKBACK_START = 3   # V8.0: 点火回溯起始天数
+IGNITION_LOOKBACK_END = 6     # V8.0: 点火回溯结束天数
+IGNITION_VOL_MIN = 2.0        # V8.0: 点火最小量比
+COILING_VOL_MAX = 0.7         # V8.0: 蓄力最大量比
+COILING_PRICE_CHG_MAX = 2.0   # V8.0: 蓄力最大价格波动(%)
 STRONG_WR_DROP = -20         # V6.0: -25->-20, 轻踩优于深踩
 STRONG_OBV_DAYS = 7          # V6.0: 10->7, Sharpe分界线
 HOLD_OBV_DAYS = 15           # V6.0: 持有信号
@@ -1227,6 +1238,48 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             momentum_bonus = MOMENTUM_BONUS  # 动量延续: 强势区间+OBV确认
             obv_level = obv_level + "🚀"  # 标记动量模式
 
+    #    V8.0: 区间位置加分 (大涨前D-1共同特征: 收盘在14日区间底部)
+    range_position_bonus = 0
+    hh_14 = np.max(highs[-14:]) if len(highs) >= 14 else np.max(highs)
+    ll_14 = np.min(lows[-14:]) if len(lows) >= 14 else np.min(lows)
+    range_pos = (price - ll_14) / max(0.01, hh_14 - ll_14)
+    if range_pos < 0.25:
+        range_position_bonus = RANGE_POSITION_BONUS  # 区间底部25%=弹簧压紧
+
+    #    V8.0: 点火检测 (3-5天前是否有人用大钱点火)
+    ignition_bonus = 0
+    if len(volumes) >= IGNITION_LOOKBACK_END + 10:
+        vol_20d_ign = np.mean(volumes[:-IGNITION_LOOKBACK_START])
+        for lookback in range(IGNITION_LOOKBACK_START, IGNITION_LOOKBACK_END + 1):
+            idx = len(volumes) - lookback
+            if idx < 10: continue
+            # 当日量比>2x
+            day_vol_ratio = volumes[idx] / max(1, vol_20d_ign)
+            # 当日OBV是否金叉
+            obv_day = sum(volumes[:idx+1])  # simplified: cumulative up to that day
+            obv_ma10_day = np.mean(volumes[max(0,idx-9):idx+1])  # rough
+            day_golden = (volumes[idx] > 0 and idx > 0)
+            if day_vol_ratio >= IGNITION_VOL_MIN and day_golden:
+                ignition_bonus = IGNITION_BONUS
+                break
+
+    #    V8.0: 蓄力检测 (点火后缩量横盘2-3天)
+    coiling_bonus = 0
+    if ignition_bonus > 0 and len(volumes) >= 5:
+        recent_vol_ratios = []
+        recent_price_chgs = []
+        for lookback in range(1, IGNITION_LOOKBACK_START):
+            idx = len(volumes) - lookback
+            if idx >= 3:
+                recent_vol_ratios.append(volumes[idx] / max(1, vol_20d_ign))
+                if closes[idx-1] > 0:
+                    recent_price_chgs.append(abs((closes[idx] / closes[idx-1] - 1) * 100))
+        if recent_vol_ratios and recent_price_chgs:
+            avg_vol = np.mean(recent_vol_ratios)
+            max_chg = max(recent_price_chgs)
+            if avg_vol < COILING_VOL_MAX and max_chg < COILING_PRICE_CHG_MAX:
+                coiling_bonus = COILING_BONUS  # 缩量横盘=蓄力待发
+
     #    V5.8: 硬科技赛道 + 卡脖子稀缺
     ht_score = HARD_TECH_TRACK_WEIGHT if hard_tech_track else 0
     cp_score = chokepoint_score  # 0/1/2 (pre-computed)
@@ -1236,7 +1289,8 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
                  - chase_penalty - distribution_penalty - ma20_extension_penalty
                  + weekly_score_adj
                  + ht_score + cp_score
-                 + short_pullback_bonus + momentum_bonus)
+                 + short_pullback_bonus + momentum_bonus
+                 + range_position_bonus + ignition_bonus + coiling_bonus)
     total = round(total_raw, 0)
 
     #    V5.3 评级   
