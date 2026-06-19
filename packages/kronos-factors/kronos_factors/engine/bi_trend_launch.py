@@ -26,18 +26,20 @@ import time
 
 
 #    V5.3: 降低止损率 - 连阳确认 + 深度回踩 + 派发检测   
+# V6.0 权重再平衡 (回测驱动: S级悖论修复)
+# OBV 30->22 (减动量) | WR 28->30 (增回踩质量) | Vol 8->10 | Freshness 3->5
 WEIGHTS = {
-    "obv_trend": 30,            # 32->30 (继续降权,减少追高)
-    "wr_pullback": 28,          # 不变
-    "volume_contract": 8,       # 10->8 (缩量重要性降低)
+    "obv_trend": 22,            # V6.0: 30->22 (大幅降权, 减少追高依赖)
+    "wr_pullback": 30,          # V6.0: 28->30 (回踩质量比趋势长度更重要)
+    "volume_contract": 10,      # V6.0: 8->10 (缩量信号更可靠)
     "ma_trend": 10,             # 不变
     "trend_strength": 8,        # 不变
     "sector_momentum": 7,       # 不变
-    "freshness": 3,             # 回踩新鲜度
-    "rebound_strength": 3,      # 2->3 (反弹力度更重要)
-    "obv_accel": 3,             # V5.3 新增: OBV加速度
-    "hard_tech_track": 3,       # V5.8: 硬科技赛道
-    "chokepoint_scarcity": 2,   # V5.8: 卡脖子稀缺性
+    "freshness": 5,             # V6.0: 3->5 (新鲜回踩=更高安全边际)
+    "rebound_strength": 3,      # 不变
+    "obv_accel": 3,             # 不变
+    "hard_tech_track": 3,       # 不变
+    "chokepoint_scarcity": 2,   # 不变
 }
 
 #    V5.8: 硬科技 + 卡脖子筛选 (国家鼓励方向)   
@@ -84,9 +86,16 @@ TIME_STOP_DAYS = 10          # V6.0: 时间止损
 TIME_STOP_MIN_RET = 2.0      # V6.0: 最低收益%
 
 # V5.1: 追高惩罚
-CHASE_PENALTY_OBV_DAYS = 18
-CHASE_PENALTY_WR_THRESHOLD = -55
-CHASE_PENALTY_SCORE = 8
+# V6.0: 梯度追高惩罚 (修复S级悖论)
+# 回测: S级胜率29% vs A级52%, 根因=OBV超15天仍高分追高
+CHASE_PENALTY_OBV_DAYS_EXTREME = 20   # 极度追高
+CHASE_PENALTY_OBV_DAYS_HIGH = 15      # 明显追高 (原18)
+CHASE_PENALTY_OBV_DAYS_MILD = 12      # 轻度追高 (新增)
+CHASE_PENALTY_WR_THRESHOLD = -55      # WR回踩不足阈值
+CHASE_PENALTY_WR_EXTREME = -50        # 极度追高WR阈值
+CHASE_PENALTY_SCORE = 8               # 明显追高扣分
+CHASE_PENALTY_SCORE_EXTREME = 12      # 极度追高扣分
+CHASE_PENALTY_SCORE_MILD = 4          # 轻度追高扣分
 
 # V5.1: 回踩新鲜度
 FRESH_PULLBACK_DAYS = 2
@@ -124,6 +133,7 @@ BUY_PREMIUM_CONDITIONS = ["_fresh", "_rebound", "!_chase"]
 
 # V5.2: 大盘预警 (保留)
 MARKET_BREADTH_CRASH = 18
+MARKET_BREADTH_WEAK = 35             # V6.0: 弱市阈值, 低于此值只选A级跳过S级
 POST_CRASH_SKIP_BREADTH = 30
 PRE_WARNING_BREADTH_DROP = 40
 CONSECUTIVE_DROP_DAYS = 2
@@ -784,10 +794,18 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         regime = "weak"  # 10日均<48% -> 弱市减仓, 但不再熔断
 
     position_ratio = POSITION_REGIME.get(regime, 0.3)
-    effective_n = top_n  # 不减少数量, 保持分散度
-
-    # 弱市精选: 仅选 strong_buy + buy_premium (不减少数量, 保持分散度)
+    # V6.0: 弱市缩减选股数 + S级过滤
+    # 回测: 涨跌比30-50%区间胜率仅23%, S级胜率29%
     weak_market = regime in ("weak", "recovery")
+    if weak_market:
+        effective_n = max(6, top_n // 2)   # 弱市减半, 最少6只
+    else:
+        effective_n = top_n
+
+    # V6.0: 当日涨跌比<35% -> 只选A级, 跳过S级 (修复S级悖论)
+    skip_s_grade = breadth < MARKET_BREADTH_WEAK
+    if skip_s_grade:
+        print(f"    ⚠️ 弱市过滤: 涨跌比{breadth:.0f}%<{MARKET_BREADTH_WEAK}%, 跳过S级只选A级")
 
     regime_icon = {"bull": " ", "neutral": " ", "weak": " ", "recovery": " ", "bear": " "}
     print(f"    涨跌比: {breadth:.0f}% | 5日均: {breadth_5d:.0f}% | 10日均: {breadth_10d:.0f}% | "
@@ -883,9 +901,13 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     s_grade = [s for s in scores if s["signal"] not in ("strong_buy", "buy") and s["grade"] == "S"]
     a_grade = [s for s in scores if s["signal"] not in ("strong_buy", "buy") and s["grade"] == "A"]
 
-    # V5.9: 弱市信号过滤放宽 - 不再限制, 通过仓位减半控制风险
-    # 弱市仍然排除 no_signal (纯技术面不达标)
-    if weak_market:
+    # V6.0: 弱市信号过滤 - skip_s_grade时排除S级非buy信号
+    if skip_s_grade:
+        # 涨跌比<35%: 只选有buy信号的, 排除纯S级(追高票)
+        candidates = strong + buy_premium + buy_standard + buy_weak
+        if not weak_market:
+            candidates += a_grade  # 非弱市(regime正常但当日breadth低)加A级
+    elif weak_market:
         candidates = strong + buy_premium + buy_standard + s_grade + buy_weak + a_grade
     else:
         candidates = strong + buy_premium + buy_standard + s_grade + buy_weak + a_grade
@@ -1061,13 +1083,18 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     elif wr_now < -60:
         wr_score = min(28, wr_score + 1)   # 偏超卖
     # V6.0: WR位置修正 (已在主评分段处理)
-    #    V5.1: 追高惩罚 (修复S级悖论)   
-    # 问题: OBV极强(>=18天) + WR未深跌(>-55) = 已涨很多但还没回调 -> 买入即追高
-    # 4月回测: S级胜率仅28.6%, 均值-2.43%
+    #    V6.0: 梯度追高惩罚 (修复S级悖论)
+    # 回测: S级胜率29% vs A级52%, OBV超15天=严重追高
+    # 三档梯度: 轻度(>=12d) -> 明显(>=15d) -> 极度(>=20d)
     chase_penalty = 0
-    if obv_days_above >= CHASE_PENALTY_OBV_DAYS and wr_now > CHASE_PENALTY_WR_THRESHOLD:
-        chase_penalty = CHASE_PENALTY_SCORE
-        obv_level = obv_level + "  "  # 标记追高风险
+    if obv_days_above >= CHASE_PENALTY_OBV_DAYS_EXTREME and wr_now > CHASE_PENALTY_WR_EXTREME:
+        chase_penalty = CHASE_PENALTY_SCORE_EXTREME  # 极度追高 -12
+        obv_level = obv_level + "⚠️"  # 标记极度追高风险
+    elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_HIGH and wr_now > CHASE_PENALTY_WR_THRESHOLD:
+        chase_penalty = CHASE_PENALTY_SCORE          # 明显追高 -8
+        obv_level = obv_level + " "  # 标记追高风险
+    elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_MILD and wr_now > CHASE_PENALTY_WR_EXTREME:
+        chase_penalty = CHASE_PENALTY_SCORE_MILD     # 轻度追高 -4
 
     #    F3: 回踩缩量 (0-12分)   
     vol_3d = np.mean(volumes[-3:])
