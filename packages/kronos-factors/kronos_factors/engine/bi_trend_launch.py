@@ -958,6 +958,17 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         if len(top) >= effective_n:
             break
 
+    # V11: 差异化持有建议 (S级长持, A级快出)
+    for s in top:
+        if s["grade"] == "S":
+            s["hold_days"] = 10
+            s["stop_loss"] = None  # S级不设止损, 扛波动
+            s["take_profit"] = None
+        elif s["grade"] == "A":
+            s["hold_days"] = 3
+            s["stop_loss"] = -5
+            s["take_profit"] = 10
+
     market_info = {
         "breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),
         "breadth_10d": round(breadth_10d, 1),
