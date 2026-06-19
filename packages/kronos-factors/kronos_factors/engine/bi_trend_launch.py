@@ -148,7 +148,7 @@ DISTRIBUTION_PENALTY = 5         # 派发嫌疑降分
 BUY_PREMIUM_CONDITIONS = ["_fresh", "_rebound", "!_chase"]
 
 # V5.2: 大盘预警 (保留)
-MARKET_BREADTH_CRASH = 18
+MARKET_BREADTH_CRASH = 15            # V10: 18→15 (领先股份06-08:涨跌比16%)
 MARKET_BREADTH_WEAK = 25             # V9.4: 35→25, 减少误杀 (立昂微06-02:涨跌比27%)
 POST_CRASH_SKIP_BREADTH = 30
 PRE_WARNING_BREADTH_DROP = 40
