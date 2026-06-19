@@ -427,6 +427,14 @@ async def dashboard_summary():
 
     result["data_sources"]["auction_intent"] = "PG stk_auction_o — 开盘集合竞价多维意图分析 (价格方向/买卖压力/竞价强度/开盘延续)"
 
+    # ── P4: A股市场风向感知 (V2 八维模型) ──
+    try:
+        from kronos_factors.scorer.market_regime import get_market_regime_v2
+        regime_v2 = get_market_regime_v2()
+        result["market_regime_v2"] = regime_v2
+    except Exception:
+        result["market_regime_v2"] = None
+
     # ── P4: 交易日历 ──
     try:
         import psycopg2, os

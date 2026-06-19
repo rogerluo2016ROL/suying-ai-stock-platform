@@ -1251,14 +1251,39 @@ def get_trading_day_offset(days_back: int = 30) -> str:
 
 
 def get_market_regime() -> dict:
-    """P2: Enhanced market regime detection with multi-index + volume confirmation.
+    """V2: A股市场风向感知模型 - 八维评分 + 黑天鹅检测.
 
-    Returns regime info + factor-weight adjustment hints.
+    Delegates to market_regime.py for comprehensive multi-dimensional analysis.
+    Returns legacy-compatible format with enhanced fields.
     """
+    try:
+        from kronos_factors.scorer.market_regime import get_market_regime_v2
+        v2 = get_market_regime_v2()
+        # Map to legacy format for backward compatibility
+        regime_map = {"BULL": "bull", "NEUTRAL_BULL": "bull",
+                      "NEUTRAL": "neutral", "NEUTRAL_BEAR": "bear", "BEAR": "bear",
+                      "BLACK_SWAN": "bear"}
+        hint_map = {"momentum_weighted": "momentum_weighted",
+                    "quality_defensive": "quality_defensive",
+                    "technical_weighted": "technical_weighted"}
+        hints = v2.get("factor_hints", {})
+        return {
+            "regime": regime_map.get(v2["regime"], "neutral"),
+            "bonus": (v2["score"] - 50) / 100 * 0.6,  # -0.3 ~ +0.3
+            "label": v2["label"],
+            "factor_hint": hints.get("hint", "technical_weighted"),
+            "score": v2["score"],
+            "confidence": v2["confidence"],
+            "alerts": v2.get("alerts", []),
+            "position_cap": hints.get("position", "<=50%"),
+            "market_regime_v2": v2,  # full V2 data
+        }
+    except Exception:
+        pass
+    # Fallback to original simplified logic
     try:
         import numpy as np
         with _get_db(readonly=True) as db:
-            # Multi-index cross-check: 沪深300 + 创业板 + 中证500
             regime_votes = {"bull": 0, "bear": 0, "neutral": 0}
             for idx_code in ["000300.SH", "399006.SZ", "000905.SH"]:
                 rows = db.execute(
