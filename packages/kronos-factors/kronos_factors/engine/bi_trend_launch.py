@@ -958,16 +958,19 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         if len(top) >= effective_n:
             break
 
-    # V11: 差异化持有建议 (S级长持, A级快出)
+    # V11: 个性化持有建议 (基于信号强度)
     for s in top:
-        if s["grade"] == "S":
-            s["hold_days"] = 10
-            s["stop_loss"] = None  # S级不设止损, 扛波动
-            s["take_profit"] = None
-        elif s["grade"] == "A":
-            s["hold_days"] = 3
-            s["stop_loss"] = -5
-            s["take_profit"] = 10
+        cs = s.get("checklist_score", 0)
+        ign = s.get("ignition_bonus", 0)
+        wr_f = s.get("wr_freshness_bonus", 0)
+        wr_level = s.get("wr_level", "")
+
+        if cs >= 4 or (cs >= 3 and ("🔥🔥" in wr_level or (ign > 0 and wr_f > 0))):
+            s["hold_days"] = 10; s["stop_loss"] = None; s["take_profit"] = None
+        elif cs >= 3:
+            s["hold_days"] = 5; s["stop_loss"] = None; s["take_profit"] = 12
+        else:
+            s["hold_days"] = 3; s["stop_loss"] = -5; s["take_profit"] = 10
 
     market_info = {
         "breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),
@@ -1534,6 +1537,10 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         # V5.8: 硬科技 + 卡脖子
         "hard_tech_track": hard_tech_track,
         "chokepoint_score": chokepoint_score,
+        # V11: 信号质量指标 (用于个性化持有建议)
+        "checklist_score": checklist_score,
+        "ignition_bonus": ignition_bonus,
+        "wr_freshness_bonus": wr_freshness_bonus,
         # Price
         "close": round(float(price), 2),
         "daily_gain": round((closes[-1]/closes[-2]-1)*100, 2) if len(closes) >= 2 and closes[-2] > 0 else 0,
