@@ -31,7 +31,7 @@ import time
 WEIGHTS = {
     "obv_trend": 22,            # V6.0: 30->22 (大幅降权, 减少追高依赖)
     "wr_pullback": 30,          # V6.0: 28->30 (回踩质量比趋势长度更重要)
-    "volume_contract": 10,      # V6.0: 8->10 (缩量信号更可靠)
+    "volume_contract": 15,      # V10: 10→15 (缩量是大涨前最一致信号)
     "ma_trend": 10,             # 不变
     "trend_strength": 8,        # 不变
     "sector_momentum": 7,       # 不变
@@ -821,7 +821,9 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     # 回测: 涨跌比30-50%区间胜率仅23%, S级胜率29%
     weak_market = regime in ("weak", "recovery")
     if weak_market:
-        effective_n = max(6, top_n // 2)   # 弱市减半, 最少6只
+        effective_n = max(6, top_n // 2)
+    elif breadth > 55:  # V10: 强市放宽
+        effective_n = min(30, top_n * 2)
     else:
         effective_n = top_n
 
@@ -1062,6 +1064,9 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         obv_score, obv_level = 26, "启动确认"
     else:  # 0-2天
         obv_score, obv_level = 32, "刚突破🔥"
+    # V10: OBV=0天(金叉当天)额外+5 (爆发力最强)
+    if obv_days_above == 0:
+        obv_score += 5; obv_level += "⚡"
 
     # OBV斜率修正
     if obv_slope > 5:
@@ -1319,6 +1324,34 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             if avg_vol < COILING_VOL_MAX and max_chg < COILING_PRICE_CHG_MAX:
                 coiling_bonus = COILING_BONUS  # 缩量横盘=蓄力待发
 
+    #    V10: 5点前置清单组合加分
+    #    OBV>0 + WR>60 + 缩量<0.85x + 区间底部<30% + 点火/压缩反转
+    checklist_bonus = 0
+    c1 = obv[-1] > 0 if len(obv) > 0 else False                    # OBV正值
+    c2 = wr_now > 60                                                 # WR压缩区
+    c3 = (volumes[-1] / max(1, np.mean(volumes[-20:]))) < 0.85 if len(volumes) >= 20 else False  # 缩量
+    c4 = range_pos < 0.30                                            # 区间底部
+    c5 = (ignition_bonus > 0 or compression_reversal_bonus > 0)     # 点火或压缩反转
+    checklist_score = sum([c1, c2, c3, c4, c5])
+    if checklist_score >= 5:   checklist_bonus = 10  # 五星共振
+    elif checklist_score >= 4: checklist_bonus = 5   # 四星
+    elif checklist_score >= 3: checklist_bonus = 2   # 三星
+
+    #    V10: WR压缩新鲜度 — 最低点距今≤3天额外加分
+    wr_freshness_bonus = 0
+    if len(closes) >= 17:
+        wr_values_5d = []
+        for offset in range(5):
+            idx = len(closes) - 1 - offset
+            if idx >= 14:
+                hh = np.max(highs[idx-13:idx+1]); ll = np.min(lows[idx-13:idx+1])
+                wr_values_5d.append((closes[idx] - ll) / max(0.01, hh - ll) * 100)
+        if wr_values_5d:
+            wr_min_5d = min(wr_values_5d)
+            wr_min_offset = wr_values_5d.index(wr_min_5d)  # 0=今天, 越大越远
+            if wr_min_5d > 80 and wr_min_offset <= 3:  # 3天内曾极度压缩
+                wr_freshness_bonus = 3  # 新鲜压缩
+
     #    V8.1: 压缩反转加分 (工业富联/华润微: OBV刚死叉+WR极限=最佳买点)
     compression_reversal_bonus = 0
     if obv_days_above < MIN_OBV_DAYS and wr_now > 60:  # 偏超卖
@@ -1343,7 +1376,8 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
                  + ht_score + cp_score
                  + short_pullback_bonus
                  + range_position_bonus + ignition_bonus + coiling_bonus
-                 + compression_reversal_bonus)
+                 + compression_reversal_bonus
+                 + checklist_bonus + wr_freshness_bonus)
     total = round(total_raw, 0)
 
     #    V5.3 评级   
