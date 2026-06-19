@@ -1074,7 +1074,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     elif obv_slope < -5:
         obv_score = max(3, obv_score - 4)
 
-    # V10: WR压缩倍率 — 当前WR决定OBV倒置有效性
+    # V10: WR压缩倍率 — WR>60(压缩区)倍率高, WR<40(底部飞刀)倍率低
     if wr_fast_v10 > 80:       obv_score = round(obv_score * 1.3)
     elif wr_fast_v10 > 60:     obv_score = round(obv_score * 1.0)
     elif wr_fast_v10 > 40:     obv_score = round(obv_score * 0.6)
