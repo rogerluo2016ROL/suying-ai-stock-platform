@@ -18,6 +18,9 @@ from kronos_factors.engine.leader_afternoon import (
 from kronos_factors.engine.modes import (
     ChokepointEngine, ShortModeEngine, LongModeEngine, AllModeEngine,
 )
+from kronos_factors.engine.supply_chain import (
+    SupplyChainEngine,
+)
 
 __all__ = [
     # Leader Scalp (收盘后)
@@ -33,4 +36,6 @@ __all__ = [
     "BiTrendFullMarketEngine", "run_bi_full_market",
     # Multi-factor modes
     "ChokepointEngine", "ShortModeEngine", "LongModeEngine", "AllModeEngine",
+    # Supply Chain
+    "SupplyChainEngine",
 ]

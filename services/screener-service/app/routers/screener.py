@@ -165,6 +165,7 @@ async def list_modes():
             {"id": "cb_auction",     "name": "秋神竞价概念选债模型",       "cycle": "1-2天",  "style": "竞价"},
             {"id": "bi_trend_launch","name": "毕师傅硬核科技趋势启动 V5.9", "cycle": "5-20天", "style": "趋势"},
             {"id": "bi_trend_full_market","name": "毕师傅全市场趋势启动 V1.0", "cycle": "5-20天", "style": "全市场"},
+            {"id": "supply_chain",  "name": "大葱产业链解构选股", "cycle": "3-12月", "style": "中长线"},
         ]
     }
 
