@@ -1092,6 +1092,8 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         wr_score, wr_level = 32, "强势反转🔥🔥"
     elif wr_d3 < -10 and wr_d2 > -10 and wr_d1 > 5:
         wr_score, wr_level = 28, "急跌→止跌→反弹🔥"
+    elif wr_d3 < -10 and wr_d2 < -10 and wr_d1 > 10:
+        wr_score, wr_level = 26, "双日急跌→急弹🔥"  # V9.5: 强一06-09
     elif wr_d3 < -10 and wr_d2 < -5 and wr_d1 > -3:
         wr_score, wr_level = 14, "跌速放缓→企稳"
     elif wr_d3 < -10 and wr_d2 < -10 and wr_d1 < -5:
@@ -1120,15 +1122,17 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     elif wr_now < 20:  # 深度超卖
         wr_score = min(32, wr_score + 3)   # 深度超卖
     elif wr_now < 30:  # 超卖区
-        wr_score = min(32, wr_score + 2)   # 超卖区
-    elif wr_now > 60:  # 偏超卖
-        wr_score = min(32, wr_score + 1)   # 偏超卖
+        wr_score = min(32, wr_score + 2)
+    elif wr_now < 50:  # V9.5: 回踩区 (强一06-09:WR=52)
+        wr_score = min(32, wr_score + 1)
+    elif wr_now < 60:  # V9.5: 中性区, 不加不扣
+        pass
     else:
-        # V9.3: WR>60已反弹完毕 (光迅科技06-05教训)
+        # V9.3: WR>=60已反弹完毕
         wr_score = min(10, wr_score)
         if len(closes) >= 6 and closes[-6] > 0:
             if (closes[-1] / closes[-6] - 1) * 100 > 8 and obv_days_above >= 3:
-                return None  # 反弹已完成+OBV趋势=不选
+                return None
     #    V6.0: 梯度追高惩罚 (修复S级悖论)
     # V6.0: 梯度追高惩罚 + V9.4: WR豁免 (鼎通06-01教训)
     # WR<40(区间底部): OBV再长也不罚 — 已深跌回来
