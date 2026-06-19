@@ -1186,6 +1186,12 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         wr_score = min(32, wr_score + 2)
     elif wr_now < -60:
         wr_score = min(32, wr_score + 1)
+    else:
+        wr_score = min(10, wr_score)  # V9.3: WR>-40封顶
+        if len(closes) >= 6 and closes[-6] > 0:
+            chg_5d = (closes[-1] / closes[-6] - 1) * 100
+            if chg_5d > 8:
+                wr_score = 0
 
     #    V6.0: 梯度追高惩罚 (同步launch版)
     chase_penalty = 0

@@ -1126,6 +1126,14 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         wr_score = min(32, wr_score + 2)   # 超卖区
     elif wr_now < -60:
         wr_score = min(32, wr_score + 1)   # 偏超卖
+    else:
+        # V9.3: WR>-40已反弹完毕 (光迅科技06-05教训)
+        wr_score = min(10, wr_score)
+        # 已涨超8%=反弹彻底完成, 不是买点
+        if len(closes) >= 6 and closes[-6] > 0:
+            chg_5d = (closes[-1] / closes[-6] - 1) * 100
+            if chg_5d > 8:
+                wr_score = 0  # 反弹已完成, WR贡献清零
     #    V6.0: 梯度追高惩罚 (修复S级悖论)
     # 回测: S级胜率29% vs A级52%, OBV超15天=严重追高
     # V9.1: 新增OBV>=8d+WR>-40惩罚 (天孚通信06-05教训)
