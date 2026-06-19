@@ -149,7 +149,7 @@ BUY_PREMIUM_CONDITIONS = ["_fresh", "_rebound", "!_chase"]
 
 # V5.2: 大盘预警 (保留)
 MARKET_BREADTH_CRASH = 18
-MARKET_BREADTH_WEAK = 35             # V6.0: 弱市阈值, 低于此值只选A级跳过S级
+MARKET_BREADTH_WEAK = 25             # V9.4: 35→25, 减少误杀 (立昂微06-02:涨跌比27%)
 POST_CRASH_SKIP_BREADTH = 30
 PRE_WARNING_BREADTH_DROP = 40
 CONSECUTIVE_DROP_DAYS = 2
@@ -930,12 +930,9 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     s_grade = [s for s in scores if s["signal"] not in ("strong_buy", "buy") and s["grade"] == "S"]
     a_grade = [s for s in scores if s["signal"] not in ("strong_buy", "buy") and s["grade"] == "A"]
 
-    # V6.0: 弱市信号过滤 - skip_s_grade时排除S级非buy信号
+    # V9.4: 弱市信号过滤 - skip_s_grade时降权S级, 不排除
     if skip_s_grade:
-        # 涨跌比<35%: 只选有buy信号的, 排除纯S级(追高票)
-        candidates = strong + buy_premium + buy_standard + buy_weak
-        if not weak_market:
-            candidates += a_grade  # 非弱市(regime正常但当日breadth低)加A级
+        candidates = strong + buy_premium + buy_standard + buy_weak + a_grade + s_grade
     elif weak_market:
         candidates = strong + buy_premium + buy_standard + s_grade + buy_weak + a_grade
     else:
@@ -1134,9 +1131,9 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
                 return None  # 反弹已完成+OBV趋势=不选
     #    V6.0: 梯度追高惩罚 (修复S级悖论)
     # V6.0: 梯度追高惩罚 + V9.4: WR豁免 (鼎通06-01教训)
-    # WR<30(区间底部): OBV再长也不罚 — 已深跌回来
+    # WR<40(区间底部): OBV再长也不罚 — 已深跌回来
     chase_penalty = 0
-    if wr_now < 30:  # V9.4: WR底部豁免
+    if wr_now < 40:  # V9.4: WR底部豁免 (立昂微06-02:WR=37)
         pass
     elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_EXTREME and wr_now > CHASE_PENALTY_WR_EXTREME:
         chase_penalty = CHASE_PENALTY_SCORE_EXTREME
