@@ -1069,19 +1069,11 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     elif obv_slope < -5:
         obv_score = max(3, obv_score - 4)
 
-    # V10.1: WR压缩倍率 — 取近期最低点(领先股份06-09: 当前WR=20, 3天前=6)
-    wr_min_3d = 50
-    if len(closes) >= 17:  # 14 days for WR + 3 lookback
-        for offset in [0, 1, 2, 3]:
-            idx = len(closes) - 1 - offset
-            if idx >= 14:
-                hh = np.max(highs[idx-13:idx+1]); ll = np.min(lows[idx-13:idx+1])
-                wr_at = (closes[idx] - ll) / max(0.01, hh - ll) * 100
-                wr_min_3d = min(wr_min_3d, wr_at)
-    if wr_min_3d > 80:       obv_score = round(obv_score * 1.3)
-    elif wr_min_3d > 60:     obv_score = round(obv_score * 1.0)
-    elif wr_min_3d > 40:     obv_score = round(obv_score * 0.6)
-    else:                     obv_score = round(obv_score * 0.3)
+    # V10: WR压缩倍率 — 当前WR决定OBV倒置有效性
+    if wr_fast_v10 > 80:       obv_score = round(obv_score * 1.3)
+    elif wr_fast_v10 > 60:     obv_score = round(obv_score * 1.0)
+    elif wr_fast_v10 > 40:     obv_score = round(obv_score * 0.6)
+    else:                      obv_score = round(obv_score * 0.3)
 
     #    V5.3: OBV加速度 (0-3分)   
     # OBV近5日斜率 vs 近15日斜率 -> 加速=趋势加强, 减速=可能衰竭
