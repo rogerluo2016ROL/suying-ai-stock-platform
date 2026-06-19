@@ -1149,19 +1149,18 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     #    V6.0: 梯度追高惩罚 (修复S级悖论)
     # V6.0: 梯度追高惩罚 + V9.4: WR豁免 (鼎通06-01教训)
     # WR<40(区间底部): OBV再长也不罚 — 已深跌回来
+    # V10: 追高惩罚减半 (OBV倒置已大幅降权, 双重惩罚过重)
     chase_penalty = 0
-    if wr_now < 40:  # V9.4: WR底部豁免 (立昂微06-02:WR=37)
+    if wr_now < 40:
         pass
-    elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_EXTREME and wr_now > CHASE_PENALTY_WR_EXTREME:
-        chase_penalty = CHASE_PENALTY_SCORE_EXTREME
-        obv_level = obv_level + "⚠️"
-    elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_HIGH and wr_now > CHASE_PENALTY_WR_THRESHOLD:
-        chase_penalty = CHASE_PENALTY_SCORE
-        obv_level = obv_level + " "
-    elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_MILD and wr_now > CHASE_PENALTY_WR_EXTREME:
-        chase_penalty = CHASE_PENALTY_SCORE_MILD
+    elif obv_days_above >= 20 and wr_now > 50:
+        chase_penalty = 6; obv_level = obv_level + "⚠️"
+    elif obv_days_above >= 15 and wr_now > 45:
+        chase_penalty = 4; obv_level = obv_level + " "
+    elif obv_days_above >= 12 and wr_now > 50:
+        chase_penalty = 2
     elif obv_days_above >= 8 and wr_now > 60:
-        chase_penalty = 3
+        chase_penalty = 1
 
     #    F3: 回踩缩量 (0-12分)   
     vol_3d = np.mean(volumes[-3:])
