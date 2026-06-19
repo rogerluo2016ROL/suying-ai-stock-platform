@@ -30,6 +30,8 @@ WEIGHTS = {
     "freshness": 5,             # V6.0: 3->5 (新鲜回踩=更高安全边际)
     "rebound_strength": 3,      # 不变
     "obv_accel": 3,             # 不变
+    "short_pullback": 3,        # V7.0: 1-2天短回调加分 (72%暴涨前兆)
+    "momentum_continue": 3,     # V7.0: 动量延续模式加分 (87%暴涨模式)
 }
 
 #    全市场配置   
@@ -70,6 +72,9 @@ CHOKEPOINT_SCARCITY_WEIGHT = 0  # 全市场版不用
 GRADE_THRESHOLDS = {"S": 70, "A": 55, "B": 40}
 MIN_OBV_DAYS = 3             # V6.0: 数据驱动, 2->3天(5年回测:≥3天Sharpe+0.12)
 MIN_TREND_20D = 0
+OBV_NEGATIVE_SKIP = True      # V7.0: OBV负值直接跳过 (川金诺教训)
+SHORT_PULLBACK_BONUS = 3      # V7.0: 1天短回调加分 (72%暴涨前兆)
+MOMENTUM_BONUS = 3            # V7.0: 动量延续模式加分 (OBV1-7天+WR>-50)
 STRONG_WR_DROP = -20         # V6.0: -25->-20, 轻踩比深踩好(WR-20~-40最优)
 STRONG_OBV_DAYS = 7          # V6.0: 10->7, ≥7天Sharpe 0.86分界线
 HOLD_OBV_DAYS = 15           # V6.0: 新增持有信号, ≥15天Sharpe 1.17
@@ -921,7 +926,13 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
             if vr_val < VR_MIN_THRESHOLD:
                 continue  # VR不达标, 直接淘汰
 
-            #    P1: ADX趋势强度过滤 - 无趋势震荡股直接淘汰   
+            #    V7.0: OBV负值过滤 (川金诺教训: 长期资金流出=所有信号失效)
+            if OBV_NEGATIVE_SKIP:
+                obv_fast = calc_obv(closes, volumes)
+                if obv_fast[-1] < 0:
+                    continue  # OBV为负, 跳过
+
+            #    P1: ADX趋势强度过滤 - 无趋势震荡股直接淘汰
             adx_val = _calc_adx(highs, lows, closes, 14)
             if adx_val < 25:
                 continue  # ADX<25: 无明显趋势, 假突破概率高
@@ -1253,8 +1264,28 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             weekly_bearish = True
             weekly_score_adj = -WEEKLY_BEARISH_PENALTY
 
-    #    V5.7 综合评分 (含周线惩罚)   
-    #    V5.8: 硬科技赛道 + 卡脖子稀缺   
+    #    V7.0: 短回调加分 (491次事件: 72%暴涨前1-2天微跌)
+    short_pullback_bonus = 0
+    if len(closes) >= 3:
+        ret_yesterday = (closes[-1] / closes[-2] - 1) * 100 if closes[-2] > 0 else 0
+        ret_day_before = (closes[-2] / closes[-3] - 1) * 100 if closes[-3] > 0 else 0
+        down_count = (1 if ret_yesterday < 0 else 0) + (1 if ret_day_before < 0 else 0)
+        if down_count == 1:
+            short_pullback_bonus = SHORT_PULLBACK_BONUS  # 1天短回调=蓄力
+        elif down_count == 0:
+            short_pullback_bonus = 1  # 连涨后仍涨=强势确认
+
+    #    V7.0: 动量延续模式加分 (87%暴涨来自此模式)
+    momentum_bonus = 0
+    if 1 <= obv_days_above <= 7 and wr_now > -50:
+        hh_14 = np.max(highs[-14:]) if len(highs) >= 14 else np.max(highs)
+        ll_14 = np.min(lows[-14:]) if len(lows) >= 14 else np.min(lows)
+        mid_14 = (hh_14 + ll_14) / 2
+        if price > mid_14:
+            momentum_bonus = MOMENTUM_BONUS  # 动量延续: 强势区间+OBV确认
+            obv_level = obv_level + "🚀"
+
+    #    V5.8: 硬科技赛道 + 卡脖子稀缺
     ht_score = HARD_TECH_TRACK_WEIGHT if hard_tech_track else 0
     cp_score = chokepoint_score  # 0/1/2 (pre-computed)
 
@@ -1262,7 +1293,8 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
                  obv_accel_score + vol_score + ma_score + adx_score + sm_score
                  - chase_penalty - distribution_penalty - ma20_extension_penalty
                  + weekly_score_adj
-                 + ht_score + cp_score)
+                 + ht_score + cp_score
+                 + short_pullback_bonus + momentum_bonus)
     total = round(total_raw, 0)
 
     #    V5.3 评级   
