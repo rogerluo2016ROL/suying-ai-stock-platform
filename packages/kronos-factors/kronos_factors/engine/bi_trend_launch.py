@@ -41,7 +41,7 @@ WEIGHTS = {
     "hard_tech_track": 3,       # 不变
     "chokepoint_scarcity": 2,   # 不变
     "short_pullback": 3,        # V7.0: 1-2天短回调加分 (72%暴涨前兆)
-    "momentum_continue": 3,     # V7.0: 动量延续模式加分 (87%暴涨模式)
+    # V10: 移除 momentum_continue — 我们要的是启动, 不是延续
     "range_position": 3,        # V8.0: 区间底部加分 (弹簧压缩)
     "ignition": 4,              # V8.0: 点火检测加分 (放量金叉)
     "coiling": 3,               # V8.0: 蓄力检测加分 (点火后缩量横盘)
@@ -85,7 +85,7 @@ MIN_OBV_DAYS = 3             # V6.0: 2->3, 数据驱动
 MIN_TREND_20D = 0
 OBV_NEGATIVE_SKIP = True      # V7.0: OBV负值直接跳过 (川金诺教训)
 SHORT_PULLBACK_BONUS = 3      # V7.0: 1天短回调加分 (72%暴涨前兆)
-MOMENTUM_BONUS = 3            # V7.0: 动量延续模式加分 (OBV1-7天+WR<50)
+# V10: 移除 MOMENTUM_BONUS — 奖励启动非延续
 RANGE_POSITION_BONUS = 3      # V8.0: 区间底部加分 (收盘在14日区间底部25%)
 IGNITION_BONUS = 4            # V8.0: 点火检测 (3-5天前放量>2x+金叉)
 COILING_BONUS = 3             # V8.0: 蓄力检测 (点火后缩量横盘2-3天)
@@ -1028,39 +1028,52 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         else:
             break
 
-    # V8.1: OBV天数过滤 — 保持原规则 + 压缩反转加分
-    # 工业富联/华润微教训: OBV刚死叉+WR极限压缩=最佳买点, 不能淘汰
-    wr_fast = 50
-    if len(highs) >= 14:
-        hh14 = np.max(highs[-14:]); ll14 = np.min(lows[-14:])
-        if hh14 > ll14:
-            wr_fast = (hh14 - closes[-1]) / (hh14 - ll14) * -100
-    compression_reversal = (obv_days_above < MIN_OBV_DAYS and wr_fast < -60)
-    if obv_days_above < MIN_OBV_DAYS and not compression_reversal:
-        return None
-    # 压缩反转: 保留, 后续给额外加分
+    # V10: 移除 MIN_OBV_DAYS 硬过滤 — OBV=0也是最佳买点
+    # 仅淘汰 OBV=0 + 趋势向下 (无任何反转迹象)
+    if obv_days_above == 0:
+        obv_slope = 0
+        if len(obv) >= 15 and abs(obv[-10]) > 1:
+            obv_slope = (obv[-1] - obv[-10]) / abs(obv[-10]) * 100
+        if obv_slope < -10:
+            return None  # OBV下降趋势, 真弱势
 
     obv_slope = 0
     if len(obv) >= 15 and abs(obv[-10]) > 1:
         obv_slope = (obv[-1] - obv[-10]) / abs(obv[-10]) * 100
 
-    # V5.1: OBV评分 - 上限32 (降权防追高)
+    # V10: OBV评分前先算WR (用于压缩倍率)
+    wr_fast_v10 = 50
+    if len(highs) >= 14:
+        hh14_v10 = np.max(highs[-14:]); ll14_v10 = np.min(lows[-14:])
+        if hh14_v10 > ll14_v10:
+            wr_fast_v10 = (closes[-1] - ll14_v10) / (hh14_v10 - ll14_v10) * 100
+
+    # V10: OBV评分倒置 — 奖励"刚启动", 惩罚"已涨完"
+    # 数据驱动: OBV 0-3天暴涨概率最高(491次事件40%), 15+天最低
     if obv_days_above >= 20:
-        obv_score, obv_level = 32, "极强"
+        obv_score, obv_level = 3, "极度滞后"
     elif obv_days_above >= 15:
-        obv_score, obv_level = 26, "很强"  # V9.1: 28->26
-    elif obv_days_above >= 10:
-        obv_score, obv_level = 20, "强"    # V9.1: 24->20 (天孚通信06-05:10天追高)
+        obv_score, obv_level = 6, "趋势尾部"
+    elif obv_days_above >= 12:
+        obv_score, obv_level = 10, "趋势末端"
     elif obv_days_above >= 7:
-        obv_score, obv_level = 16, "中等"  # V9.1: 18->16
-    else:  # 2-6天
-        obv_score, obv_level = 12, "刚突破"
+        obv_score, obv_level = 18, "趋势中段"
+    elif obv_days_above >= 3:
+        obv_score, obv_level = 26, "启动确认"
+    else:  # 0-2天
+        obv_score, obv_level = 32, "刚突破🔥"
 
     # OBV斜率修正
     if obv_slope > 5:
         obv_score = min(30, obv_score + 2)
-    elif obv_slope < -5 and obv_level != "极强":
-        obv_score = max(12, obv_score - 4)
+    elif obv_slope < -5:
+        obv_score = max(3, obv_score - 4)
+
+    # V10: WR压缩倍率 — OBV倒置只在WR压缩时有效
+    if wr_fast_v10 > 80:       obv_score = round(obv_score * 1.3)
+    elif wr_fast_v10 > 60:     obv_score = round(obv_score * 1.0)
+    elif wr_fast_v10 > 40:     obv_score = round(obv_score * 0.6)
+    else:                      obv_score = round(obv_score * 0.3)
 
     #    V5.3: OBV加速度 (0-3分)   
     # OBV近5日斜率 vs 近15日斜率 -> 加速=趋势加强, 减速=可能衰竭
@@ -1259,16 +1272,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         elif down_count == 0:
             short_pullback_bonus = 1  # 连涨后仍涨=强势确认
 
-    #    V7.0: 动量延续模式加分 (87%暴涨来自此模式)
-    #    OBV 1-7天 + WR > -50 + 价格在14日区间上50%
-    momentum_bonus = 0
-    if 1 <= obv_days_above <= 7 and wr_now < 50:
-        hh_14 = np.max(highs[-14:]) if len(highs) >= 14 else np.max(highs)
-        ll_14 = np.min(lows[-14:]) if len(lows) >= 14 else np.min(lows)
-        mid_14 = (hh_14 + ll_14) / 2
-        if price > mid_14:
-            momentum_bonus = MOMENTUM_BONUS  # 动量延续: 强势区间+OBV确认
-            obv_level = obv_level + "🚀"  # 标记动量模式
+    # V10: 移除动量延续加分 — 我们要涨之前买入, 不是涨了再追
 
     #    V8.0: 区间位置加分 (大涨前D-1共同特征: 收盘在14日区间底部)
     range_position_bonus = 0
@@ -1278,22 +1282,26 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     if range_pos < 0.25:
         range_position_bonus = RANGE_POSITION_BONUS  # 区间底部25%=弹簧压紧
 
-    #    V8.0: 点火检测 (3-5天前是否有人用大钱点火)
+    #    V10: 点火检测 — WR必须先压缩, 后才放量点火 (时序正确)
     ignition_bonus = 0
-    if len(volumes) >= IGNITION_LOOKBACK_END + 10:
+    if len(volumes) >= IGNITION_LOOKBACK_END + 14:
         vol_20d_ign = np.mean(volumes[:-IGNITION_LOOKBACK_START])
         for lookback in range(IGNITION_LOOKBACK_START, IGNITION_LOOKBACK_END + 1):
             idx = len(volumes) - lookback
-            if idx < 10: continue
-            # 当日量比>2x
+            if idx < 14: continue
             day_vol_ratio = volumes[idx] / max(1, vol_20d_ign)
-            # 当日OBV是否金叉
-            obv_day = sum(volumes[:idx+1])  # simplified: cumulative up to that day
-            obv_ma10_day = np.mean(volumes[max(0,idx-9):idx+1])  # rough
-            day_golden = (volumes[idx] > 0 and idx > 0)
-            if day_vol_ratio >= IGNITION_VOL_MIN and day_golden:
-                ignition_bonus = IGNITION_BONUS
-                break
+            if day_vol_ratio >= IGNITION_VOL_MIN:
+                # 点火日的前几天, WR是否在压缩区(>70)?
+                wr_before = 50
+                for pre in range(lookback+1, min(lookback+5, len(closes)-idx+lookback)):
+                    pre_idx = len(closes) - pre
+                    if pre_idx >= 14:
+                        hh_p = np.max(highs[pre_idx-13:pre_idx+1])
+                        ll_p = np.min(lows[pre_idx-13:pre_idx+1])
+                        wr_before = max(wr_before, (closes[pre_idx] - ll_p) / max(0.01, hh_p - ll_p) * 100)
+                if wr_before >= 70:  # 点火前WR曾压缩到70以上
+                    ignition_bonus = IGNITION_BONUS
+                    break
 
     #    V8.0: 蓄力检测 (点火后缩量横盘2-3天)
     coiling_bonus = 0
@@ -1334,7 +1342,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
                  - chase_penalty - distribution_penalty - ma20_extension_penalty
                  + weekly_score_adj
                  + ht_score + cp_score
-                 + short_pullback_bonus + momentum_bonus
+                 + short_pullback_bonus
                  + range_position_bonus + ignition_bonus + coiling_bonus
                  + compression_reversal_bonus)
     total = round(total_raw, 0)
