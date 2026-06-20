@@ -1044,14 +1044,19 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         else:
             break
 
-    # V10: 移除 MIN_OBV_DAYS 硬过滤 — OBV=0也是最佳买点
-    # 仅淘汰 OBV=0 + 趋势向下 (无任何反转迹象)
+    # V12: OBV=0过滤 — 斜率下降+WR不压缩=真弱势, 淘汰
+    # WR>60(压缩区)豁免: 下降是正常的回踩, 不淘汰
     if obv_days_above == 0:
         obv_slope = 0
         if len(obv) >= 15 and abs(obv[-10]) > 1:
             obv_slope = (obv[-1] - obv[-10]) / abs(obv[-10]) * 100
         if obv_slope < -10:
-            return None  # OBV下降趋势, 真弱势
+            wr_check = 50
+            if len(highs) >= 14:
+                hh = np.max(highs[-14:]); ll = np.min(lows[-14:])
+                if hh > ll: wr_check = (closes[-1] - ll) / (hh - ll) * 100
+            if wr_check < 60:  # 不压缩=真弱势
+                return None
 
     obv_slope = 0
     if len(obv) >= 15 and abs(obv[-10]) > 1:
@@ -1347,9 +1352,9 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     c4 = range_pos < 0.30                                            # 区间底部
     c5 = (ignition_bonus > 0 or compression_reversal_bonus > 0)     # 点火或压缩反转
     checklist_score = sum([c1, c2, c3, c4, c5])
-    if checklist_score >= 5:   checklist_bonus = 10  # 五星共振
-    elif checklist_score >= 4: checklist_bonus = 5   # 四星
-    elif checklist_score >= 3: checklist_bonus = 2   # 三星
+    if checklist_score >= 5:   checklist_bonus = 5   # V12: 减半防双计数
+    elif checklist_score >= 4: checklist_bonus = 3
+    elif checklist_score >= 3: checklist_bonus = 0   # 3星不加, 让OBV+WR主排序
 
     #    V10: WR压缩新鲜度 — 最低点距今≤3天额外加分
     wr_freshness_bonus = 0
