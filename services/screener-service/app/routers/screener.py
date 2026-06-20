@@ -222,6 +222,10 @@ async def run_screening(
             result = await loop.run_in_executor(
                 _executor, _run_bi_full_market_mode, mode, top_n, trade_date
             )
+        elif mode == "supply_chain":
+            result = await loop.run_in_executor(
+                _executor, _run_supply_chain_mode, mode, top_n, trade_date
+            )
         else:
             result = await loop.run_in_executor(
                 _executor, _run_multifactor_mode, mode, top_n, trade_date
@@ -326,6 +330,35 @@ def _run_cb_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
 
     picks = _sanitize_picks(picks)
     picks = _normalize_picks(picks, mode)
+
+    return {
+        "mode": mode,
+        "trade_date": trade_date,
+        "total_picks": len(picks),
+        "picks": picks,
+    }
+
+
+def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
+    """Run 大葱产业链解构选股 (中长线)."""
+    from kronos_factors.engine.supply_chain import SupplyChainEngine
+
+    engine = SupplyChainEngine()
+    result = engine.run(top_n=top_n, trade_date=trade_date)
+
+    picks = result.get("picks", [])
+    picks = _sanitize_picks(picks)
+    # Normalize: total_score→score, preserve chain/layer/moat fields
+    for p in picks:
+        if "total_score" in p and "score" not in p:
+            p["score"] = p["total_score"]
+        if "price" not in p:
+            p["price"] = 0
+        sc = p.get("score", 0)
+        if sc >= 80: p["grade"] = "S"
+        elif sc >= 65: p["grade"] = "A"
+        elif sc >= 50: p["grade"] = "B"
+        else: p["grade"] = "C"
 
     return {
         "mode": mode,
