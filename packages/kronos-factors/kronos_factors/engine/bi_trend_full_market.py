@@ -23,7 +23,7 @@ import time
 WEIGHTS = {
     "obv_trend": 22,            # V6.0: 30->22 (大幅降权, 减少追高依赖)
     "wr_pullback": 30,          # V6.0: 28->30 (回踩质量比趋势长度更重要)
-    "volume_contract": 10,      # V6.0: 8->10 (缩量信号更可靠)
+    "volume_contract": 15,      # V10: 10->15
     "ma_trend": 10,             # 不变
     "trend_strength": 8,        # 不变
     "sector_momentum": 7,       # 不变
@@ -31,7 +31,6 @@ WEIGHTS = {
     "rebound_strength": 3,      # 不变
     "obv_accel": 3,             # 不变
     "short_pullback": 3,        # V7.0: 1-2天短回调加分 (72%暴涨前兆)
-    "momentum_continue": 3,     # V7.0: 动量延续模式加分 (87%暴涨模式)
     "range_position": 3,        # V8.0: 区间底部加分 (弹簧压缩)
     "ignition": 4,              # V8.0: 点火检测加分 (放量金叉)
     "coiling": 3,               # V8.0: 蓄力检测加分 (点火后缩量横盘)
@@ -77,7 +76,7 @@ MIN_OBV_DAYS = 3             # V6.0: 数据驱动, 2->3天(5年回测:≥3天Sha
 MIN_TREND_20D = 0
 OBV_NEGATIVE_SKIP = True      # V7.0: OBV负值直接跳过 (川金诺教训)
 SHORT_PULLBACK_BONUS = 3      # V7.0: 1天短回调加分 (72%暴涨前兆)
-MOMENTUM_BONUS = 3            # V7.0: 动量延续模式加分 (OBV1-7天+WR<50)
+# V10: 移除 MOMENTUM_BONUS
 RANGE_POSITION_BONUS = 3      # V8.0: 区间底部加分 (收盘在14日区间底部25%)
 IGNITION_BONUS = 4            # V8.0: 点火检测 (3-5天前放量>2x+金叉)
 COILING_BONUS = 3             # V8.0: 蓄力检测 (点火后缩量横盘2-3天)
@@ -140,7 +139,7 @@ BUY_PREMIUM_CONDITIONS = ["_fresh", "_rebound", "!_chase"]
 
 # V5.2: 大盘预警 (保留)
 MARKET_BREADTH_CRASH = 18
-MARKET_BREADTH_WEAK = 35             # V6.0: 弱市阈值, 低于此值只选A级跳过S级
+MARKET_BREADTH_WEAK = 25             # V9.4: 35→25, 低于此值只选A级跳过S级
 POST_CRASH_SKIP_BREADTH = 30
 PRE_WARNING_BREADTH_DROP = 40
 CONSECUTIVE_DROP_DAYS = 2
@@ -632,6 +631,10 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
         "di_plus": round(di_p, 1), "adx_level": adx_level,
         # Sector
         "sm_score": sm_score, "sector_change": round(sector_change, 2),
+        # V12: 信号质量指标
+        "checklist_score": checklist_score,
+        "ignition_bonus": ignition_bonus,
+        "wr_freshness_bonus": wr_freshness_bonus,
         # Price
         "close": round(float(price), 2),
         "daily_gain": round((closes[-1]/closes[-2]-1)*100, 2) if len(closes) >= 2 and closes[-2] > 0 else 0,
@@ -1024,6 +1027,19 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         if len(top) >= effective_n:
             break
 
+    # V12: 个性化持有建议
+    for s in top:
+        cs = s.get("checklist_score", 0)
+        ign = s.get("ignition_bonus", 0)
+        wr_f = s.get("wr_freshness_bonus", 0)
+        wr_level = s.get("wr_level", "")
+        if cs >= 4 or (cs >= 3 and ("🔥🔥" in wr_level or (ign > 0 and wr_f > 0))):
+            s["hold_days"] = 10; s["stop_loss"] = None; s["take_profit"] = None
+        elif cs >= 3:
+            s["hold_days"] = 5; s["stop_loss"] = None; s["take_profit"] = 12
+        else:
+            s["hold_days"] = 3; s["stop_loss"] = -5; s["take_profit"] = 10
+
     market_info = {
         "breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),
         "breadth_10d": round(breadth_10d, 1),
@@ -1126,8 +1142,19 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     # OBV斜率修正
     if obv_slope > 5:
         obv_score = min(30, obv_score + 2)
-    elif obv_slope < -5 and obv_level != "极强":
-        obv_score = max(12, obv_score - 4)
+    elif obv_slope < -5:
+        obv_score = max(3, obv_score - 4)
+
+    # V10: WR压缩倍率 — 当前WR决定OBV倒置有效性
+    wr_fast_v10 = 50
+    if len(highs) >= 14:
+        hh14_v10 = np.max(highs[-14:]); ll14_v10 = np.min(lows[-14:])
+        if hh14_v10 > ll14_v10:
+            wr_fast_v10 = (closes[-1] - ll14_v10) / (hh14_v10 - ll14_v10) * 100
+    if wr_fast_v10 > 80:       obv_score = round(obv_score * 1.3)
+    elif wr_fast_v10 > 60:     obv_score = round(obv_score * 1.0)
+    elif wr_fast_v10 > 40:     obv_score = round(obv_score * 0.6)
+    else:                      obv_score = round(obv_score * 0.3)
 
     #    V5.3: OBV加速度 (0-3分)   
     # OBV近5日斜率 vs 近15日斜率 -> 加速=趋势加强, 减速=可能衰竭
@@ -1192,18 +1219,18 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             if (closes[-1] / closes[-6] - 1) * 100 > 8 and obv_days_above >= 3:
                 return None  # 反弹已完成+OBV趋势=不选
 
-    #    V6.0: 梯度追高惩罚 (同步launch版)
+    # V10: 追高惩罚减半 + WR豁免
     chase_penalty = 0
-    if obv_days_above >= CHASE_PENALTY_OBV_DAYS_EXTREME and wr_now < CHASE_PENALTY_WR_EXTREME:
-        chase_penalty = CHASE_PENALTY_SCORE_EXTREME
-        obv_level = obv_level + "⚠️"
-    elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_HIGH and wr_now < CHASE_PENALTY_WR_THRESHOLD:
-        chase_penalty = CHASE_PENALTY_SCORE
-        obv_level = obv_level + " "
-    elif obv_days_above >= CHASE_PENALTY_OBV_DAYS_MILD and wr_now < CHASE_PENALTY_WR_EXTREME:
-        chase_penalty = CHASE_PENALTY_SCORE_MILD
+    if wr_now < 40:
+        pass
+    elif obv_days_above >= 20 and wr_now > 50:
+        chase_penalty = 6; obv_level = obv_level + "⚠️"
+    elif obv_days_above >= 15 and wr_now > 45:
+        chase_penalty = 4; obv_level = obv_level + " "
+    elif obv_days_above >= 12 and wr_now > 50:
+        chase_penalty = 2
     elif obv_days_above >= 8 and wr_now > 60:
-        chase_penalty = 3                            # V9.1: 温和追高
+        chase_penalty = 1                            # V9.1: 温和追高
 
     #    F3: 回踩缩量 (0-12分)   
     vol_3d = np.mean(volumes[-3:])
@@ -1314,15 +1341,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         elif down_count == 0:
             short_pullback_bonus = 1  # 连涨后仍涨=强势确认
 
-    #    V7.0: 动量延续模式加分 (87%暴涨来自此模式)
-    momentum_bonus = 0
-    if 1 <= obv_days_above <= 7 and wr_now < 50:
-        hh_14 = np.max(highs[-14:]) if len(highs) >= 14 else np.max(highs)
-        ll_14 = np.min(lows[-14:]) if len(lows) >= 14 else np.min(lows)
-        mid_14 = (hh_14 + ll_14) / 2
-        if price > mid_14:
-            momentum_bonus = MOMENTUM_BONUS  # 动量延续: 强势区间+OBV确认
-            obv_level = obv_level + "🚀"
+    # V10: 移除动量延续
 
     #    V8.0: 区间位置加分 (大涨前D-1共同特征)
     range_position_bonus = 0
@@ -1370,18 +1389,57 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             compression_reversal_bonus = 8
             obv_level = obv_level + "💎"
 
-    #    V5.8: 硬科技赛道 + 卡脖子稀缺
+    # V12: 5点前置清单组合加分
+    checklist_bonus = 0
+    c1 = obv[-1] > 0 if len(obv) > 0 else False
+    c2 = wr_now > 60
+    c3 = (volumes[-1] / max(1, np.mean(volumes[-20:]))) < 0.85 if len(volumes) >= 20 else False
+    c4 = range_pos < 0.30
+    c5 = (ignition_bonus > 0 or compression_reversal_bonus > 0)
+    checklist_score = sum([c1, c2, c3, c4, c5])
+    if checklist_score >= 5:   checklist_bonus = 5
+    elif checklist_score >= 4: checklist_bonus = 3
+    elif checklist_score >= 3: checklist_bonus = 0
+
+    # V12: WR压缩新鲜度
+    wr_freshness_bonus = 0
+    if len(closes) >= 17:
+        wr_values_5d = []
+        for offset in range(5):
+            idx = len(closes) - 1 - offset
+            if idx >= 14:
+                hh = np.max(highs[idx-13:idx+1]); ll = np.min(lows[idx-13:idx+1])
+                wr_values_5d.append((closes[idx] - ll) / max(0.01, hh - ll) * 100)
+        if wr_values_5d:
+            wr_min_5d = min(wr_values_5d)
+            wr_min_offset = wr_values_5d.index(wr_min_5d)
+            if wr_min_5d > 80 and wr_min_offset <= 3:
+                wr_freshness_bonus = 3
+
+    # V8.1: 压缩反转加分
+    compression_reversal_bonus = 0
+    if obv_days_above < MIN_OBV_DAYS and wr_now > 60:
+        obv_positive = obv[-1] > 0 if len(obv) > 0 else False
+        vol_low = False
+        if len(volumes) >= 20:
+            vol_low = volumes[-1] / max(1, np.mean(volumes[-20:])) < 0.85
+        in_range_bottom = range_pos < 0.35
+        if obv_positive and vol_low and in_range_bottom:
+            compression_reversal_bonus = 8
+            obv_level = obv_level + "💎"
+
     ht_score = HARD_TECH_TRACK_WEIGHT if hard_tech_track else 0
-    cp_score = chokepoint_score  # 0/1/2 (pre-computed)
+    cp_score = chokepoint_score
 
     total_raw = (obv_score + wr_score + freshness_bonus + rebound_strength_bonus +
                  obv_accel_score + vol_score + ma_score + adx_score + sm_score
                  - chase_penalty - distribution_penalty - ma20_extension_penalty
                  + weekly_score_adj
                  + ht_score + cp_score
-                 + short_pullback_bonus + momentum_bonus
+                 + short_pullback_bonus
                  + range_position_bonus + ignition_bonus + coiling_bonus
-                 + compression_reversal_bonus)
+                 + compression_reversal_bonus
+                 + checklist_bonus + wr_freshness_bonus)
     total = round(total_raw, 0)
 
     #    V5.3 评级   
@@ -1527,6 +1585,10 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         # V5.8: 硬科技 + 卡脖子
         "hard_tech_track": hard_tech_track,
         "chokepoint_score": chokepoint_score,
+        # V12: 信号质量指标
+        "checklist_score": checklist_score,
+        "ignition_bonus": ignition_bonus,
+        "wr_freshness_bonus": wr_freshness_bonus,
         # Price
         "close": round(float(price), 2),
         "daily_gain": round((closes[-1]/closes[-2]-1)*100, 2) if len(closes) >= 2 and closes[-2] > 0 else 0,
