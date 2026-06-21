@@ -7,7 +7,7 @@ code_verdict: approve with changes
 sit_audit_verdict: "⚠️ Pass with concerns"
 critical_count: 0   # C-1 Resolved (§8 最终复审)
 warning_count: 3   # W-1/W-2 留阶段3, W-4 仍开(非阻断); W-3 已解决
-suggestion_count: 4
+suggestion_count: 5
 go_no_go: "CONDITIONAL GO (C-1 Resolved; AC-2 curl 归 UAT 冒烟)"
 ---
 
@@ -190,6 +190,7 @@ GET /api/v1/.../trade/mode   Headers: X-Service-Auth: dev-only-service-secret-ch
 - **S-2** [T-006] `_audit_record_safe` 的 `logger.exception` 文案建议带 `fail_safe`/`audit` 结构化字段，便于日志告警按"审计写失败"单独提阈值。
 - **S-3** [T-007] `_risk_engine` 无显式 `dispose()` 钩子，依赖进程退出自动 dispose；如未来引入热重载/多 worker fork，建议在 lifespan shutdown 显式 dispose。
 - **S-4** [T-005] `backend/app/main.py:_run_migrations` 用 `asyncio.to_thread` 跑同步 alembic，PG 不可达时 `command.upgrade` 抛异常会冒泡中断 lifespan（符合"宁可启动失败不可带病运行"），但建议捕获后给明确日志（"alembic migrate failed, abort startup"）便于排障。
+- **S-5** [T-005 / C-1] `_DEV_SECRET_PREFIX`（deps.py:33）与 `config._secret()` dev fallback 前缀（config.py:42/47/53）的耦合：deps.py 侧已单向注释锁定，config.py 侧缺反向注释。tech-lead 点名为"唯一脆弱点，文档化即可，不抽共享常量"。建议 backend-dev 在 config.py 三处 dev fallback 加反向注释（改动此前缀必须同步 deps.py:_DEV_SECRET_PREFIX，否则纵深防御失效）。非阻断。
 
 ---
 
@@ -275,7 +276,7 @@ sit_audit_rationale: >
   属文档/pending 非虚假证据，不构成 Redo SIT。
 critical_count: 0   # C-1 Resolved (§8 最终复审)
 warning_count: 3    # W-1 client_ip(阶段3) / W-2 AuthContext fetch(阶段3) / W-4 测试同名(仍开,非阻断)   # W-3 已解决
-suggestion_count: 4 # S-1..S-4
+suggestion_count: 5 # S-1..S-5 (S-5 coupling 反向注释, tech-lead 点名)
 go_no_go: GO (conditional)
 go_no_go_rationale: "C-1 Resolved（§8 最终复审 1-4 ✅ + AC-2 curl 归 UAT 冒烟）。CONDITIONAL GO → 进 UAT 部署。条件：UAT 冒烟实测 AC-2 curl 两组（旧默认值+空值）均 401；W-4 留 CI 修（非阻断）；W-1/W-2 留阶段 3。"
 blocking_findings: []   # C-1 Resolved
