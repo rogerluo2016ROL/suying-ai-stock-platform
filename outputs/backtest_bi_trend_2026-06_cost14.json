@@ -2,22 +2,22 @@
   "month": "2026-06",
   "cost_bps": 14,
   "cost_pct_round_trip": 0.14,
-  "total_picks": 72,
+  "total_picks": 57,
   "summary": {
-    "valid": 64,
+    "valid": 51,
     "gross": {
-      "mean_per_trade": 1.2463111418726984,
-      "median_per_trade": 0.9031133783757417,
-      "sum": 79.7639130798527,
-      "win_rate": 60.9375,
-      "win_count": 39
+      "mean_per_trade": 1.6038000948200188,
+      "median_per_trade": 1.596902976046466,
+      "sum": 81.79380483582096,
+      "win_rate": 62.745098039215684,
+      "win_count": 32
     },
     "net": {
-      "mean_per_trade": 1.1063111418726985,
-      "median_per_trade": 0.7631133783757417,
-      "sum": 70.8039130798527,
-      "win_rate": 56.25,
-      "win_count": 36
+      "mean_per_trade": 1.4638000948200192,
+      "median_per_trade": 1.4569029760464658,
+      "sum": 74.65380483582098,
+      "win_rate": 56.86274509803921,
+      "win_count": 29
     },
     "by_grade": {},
     "by_signal": {}
@@ -43,10 +43,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-01",
@@ -68,10 +65,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-01",
@@ -93,35 +87,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
-    },
-    {
-      "trade_date": "2026-06-01",
-      "code": "688336",
-      "name": "三生国健",
-      "industry": "生物制药",
-      "grade": "A",
-      "total_score": 66,
-      "signal": "watch",
-      "obv_days_above": 2,
-      "obv_level": "刚突破🔥",
-      "wr_level": "强势反转🔥🔥",
-      "vol_level": "放量",
-      "next_day_return": -7.083716651333938,
-      "net_return": -7.2237166513339375,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-01",
@@ -143,10 +109,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-02",
@@ -168,10 +131,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.0
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-02",
@@ -193,10 +153,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.0
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-02",
@@ -218,10 +175,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-02",
@@ -243,10 +197,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 5,
-      "early_confidence": 0.55
+      "checklist_score": "1"
     },
     {
       "trade_date": "2026-06-03",
@@ -268,10 +219,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.0
+      "checklist_score": "1"
     },
     {
       "trade_date": "2026-06-03",
@@ -293,10 +241,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 5,
-      "early_confidence": 0.55
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-03",
@@ -318,10 +263,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-03",
@@ -343,10 +285,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-04",
@@ -368,10 +307,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "1"
     },
     {
       "trade_date": "2026-06-04",
@@ -393,10 +329,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-04",
@@ -418,10 +351,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-04",
@@ -443,10 +373,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-05",
@@ -468,10 +395,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-05",
@@ -493,10 +417,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-05",
@@ -518,10 +439,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 5,
-      "early_confidence": 0.55
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-05",
@@ -543,10 +461,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-09",
@@ -568,10 +483,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "1"
     },
     {
       "trade_date": "2026-06-09",
@@ -593,10 +505,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-09",
@@ -618,10 +527,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 5,
-      "early_confidence": 0.55
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-09",
@@ -643,10 +549,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 5,
-      "early_confidence": 0.55
+      "checklist_score": "1"
     },
     {
       "trade_date": "2026-06-10",
@@ -668,10 +571,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 4,
-      "early_confidence": 0.53
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-10",
@@ -693,10 +593,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-10",
@@ -718,35 +615,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 5,
-      "early_confidence": 0.55
-    },
-    {
-      "trade_date": "2026-06-10",
-      "code": "002935",
-      "name": "天奥电子",
-      "industry": "航空",
-      "grade": "A",
-      "total_score": 58,
-      "signal": "watch",
-      "obv_days_above": 1,
-      "obv_level": "刚突破🔥",
-      "wr_level": "强势反转🔥🔥",
-      "vol_level": "正常",
-      "next_day_return": 3.3282130056323522,
-      "net_return": 3.188213005632352,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 5,
-      "early_confidence": 0.55
+      "checklist_score": "1"
     },
     {
       "trade_date": "2026-06-11",
@@ -768,10 +637,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-11",
@@ -793,10 +659,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-11",
@@ -818,85 +681,29 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-11",
-      "code": "688002",
-      "name": "睿创微纳",
+      "code": "300560",
+      "name": "中富通",
       "industry": "通信设备",
-      "grade": "A",
-      "total_score": 59,
-      "signal": "watch",
-      "obv_days_above": 2,
-      "obv_level": "刚突破🔥",
-      "wr_level": "单日急弹",
-      "vol_level": "放量",
-      "next_day_return": 0.5962846877149985,
-      "net_return": 0.4562846877149985,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
-    },
-    {
-      "trade_date": "2026-06-11",
-      "code": "002935",
-      "name": "天奥电子",
-      "industry": "航空",
       "grade": "A",
       "total_score": 57,
       "signal": "watch",
-      "obv_days_above": 2,
+      "obv_days_above": 1,
       "obv_level": "刚突破🔥",
       "wr_level": "单日急弹",
-      "vol_level": "放量",
-      "next_day_return": 10.009910802775025,
-      "net_return": 9.869910802775024,
+      "vol_level": "明显缩量",
+      "next_day_return": 3.832752613240409,
+      "net_return": 3.6927526132404087,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
-    },
-    {
-      "trade_date": "2026-06-11",
-      "code": "300696",
-      "name": "爱乐达",
-      "industry": "航空",
-      "grade": "A",
-      "total_score": 55,
-      "signal": "no_signal",
-      "obv_days_above": 2,
-      "obv_level": "刚突破🔥",
-      "wr_level": "单日急弹",
-      "vol_level": "放量",
-      "next_day_return": 3.2339089481946637,
-      "net_return": 3.0939089481946636,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "1"
     },
     {
       "trade_date": "2026-06-12",
@@ -918,10 +725,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.0
+      "checklist_score": "1"
     },
     {
       "trade_date": "2026-06-12",
@@ -943,10 +747,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.0
+      "checklist_score": "1"
     },
     {
       "trade_date": "2026-06-12",
@@ -968,10 +769,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 5,
-      "early_confidence": 0.55
+      "checklist_score": "1"
     },
     {
       "trade_date": "2026-06-12",
@@ -993,85 +791,29 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-12",
-      "code": "688818",
-      "name": "电科蓝天",
-      "industry": "航空",
-      "grade": "A",
-      "total_score": 68,
-      "signal": "watch",
-      "obv_days_above": 1,
-      "obv_level": "刚突破🔥",
-      "wr_level": "强势反转🔥🔥",
-      "vol_level": "放量",
-      "next_day_return": -5.807829181494661,
-      "net_return": -5.947829181494661,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
-    },
-    {
-      "trade_date": "2026-06-12",
-      "code": "002902",
-      "name": "铭普光磁",
+      "code": "300308",
+      "name": "中际旭创",
       "industry": "通信设备",
-      "grade": "A",
-      "total_score": 65,
-      "signal": "watch",
-      "obv_days_above": 1,
-      "obv_level": "刚突破🔥",
-      "wr_level": "急跌→止跌→反弹🔥",
-      "vol_level": "放量",
-      "next_day_return": 3.2228915662650515,
-      "net_return": 3.0828915662650513,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
-    },
-    {
-      "trade_date": "2026-06-12",
-      "code": "688382",
-      "name": "益方生物",
-      "industry": "生物制药",
       "grade": "A",
       "total_score": 55,
       "signal": "watch",
       "obv_days_above": 1,
       "obv_level": "刚突破🔥",
-      "wr_level": "单日急弹",
+      "wr_level": "跌速放缓→企稳",
       "vol_level": "放量",
-      "next_day_return": -5.39788536449638,
-      "net_return": -5.53788536449638,
+      "next_day_return": 8.050406165382217,
+      "net_return": 7.910406165382217,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "1",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "1"
     },
     {
       "trade_date": "2026-06-15",
@@ -1093,10 +835,7 @@
       "stop_loss": null,
       "take_profit": null,
       "trailing_stop": null,
-      "checklist_score": "4",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "4"
     },
     {
       "trade_date": "2026-06-15",
@@ -1118,10 +857,7 @@
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-15",
@@ -1143,10 +879,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-15",
@@ -1168,10 +901,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-15",
@@ -1193,10 +923,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-15",
@@ -1218,60 +945,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
-    },
-    {
-      "trade_date": "2026-06-15",
-      "code": "600211",
-      "name": "西藏药业",
-      "industry": "生物制药",
-      "grade": "A",
-      "total_score": 63,
-      "signal": "watch",
-      "obv_days_above": 2,
-      "obv_level": "刚突破🔥",
-      "wr_level": "强势反转🔥🔥",
-      "vol_level": "放量",
-      "next_day_return": -1.371336380747512,
-      "net_return": -1.5113363807475122,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 5,
-      "early_confidence": 0.55
-    },
-    {
-      "trade_date": "2026-06-15",
-      "code": "300239",
-      "name": "东宝生物",
-      "industry": "生物制药",
-      "grade": "A",
-      "total_score": 57,
-      "signal": "watch",
-      "obv_days_above": 2,
-      "obv_level": "刚突破🔥",
-      "wr_level": "单日急弹",
-      "vol_level": "放量",
-      "next_day_return": -2.075471698113196,
-      "net_return": -2.215471698113196,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-16",
@@ -1293,10 +967,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-16",
@@ -1318,10 +989,7 @@
       "stop_loss": null,
       "take_profit": null,
       "trailing_stop": null,
-      "checklist_score": "4",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "4"
     },
     {
       "trade_date": "2026-06-16",
@@ -1343,10 +1011,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-16",
@@ -1368,10 +1033,7 @@
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "2"
     },
     {
       "trade_date": "2026-06-16",
@@ -1393,35 +1055,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
-    },
-    {
-      "trade_date": "2026-06-16",
-      "code": "688173",
-      "name": "希荻微",
-      "industry": "半导体",
-      "grade": "A",
-      "total_score": 57,
-      "signal": "watch",
-      "obv_days_above": 3,
-      "obv_level": "启动确认",
-      "wr_level": "单日急弹",
-      "vol_level": "放量",
-      "next_day_return": 1.6816816816816793,
-      "net_return": 1.5416816816816792,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-17",
@@ -1443,10 +1077,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-17",
@@ -1468,10 +1099,7 @@
       "stop_loss": null,
       "take_profit": null,
       "trailing_stop": null,
-      "checklist_score": "4",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "4"
     },
     {
       "trade_date": "2026-06-17",
@@ -1493,10 +1121,7 @@
       "stop_loss": null,
       "take_profit": null,
       "trailing_stop": null,
-      "checklist_score": "4",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "4"
     },
     {
       "trade_date": "2026-06-17",
@@ -1513,115 +1138,12 @@
       "next_day_return": 7.021311746241543,
       "net_return": 6.881311746241543,
       "stopped": false,
-      "weight": 0.5,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
-      "trailing_stop": null,
-      "checklist_score": "4",
-      "early_signal": "early_buy",
-      "early_score": 9,
-      "early_confidence": 0.68
-    },
-    {
-      "trade_date": "2026-06-17",
-      "code": "301201",
-      "name": "诚达药业",
-      "industry": "生物制药",
-      "grade": "A",
-      "total_score": 66,
-      "signal": "watch",
-      "obv_days_above": 4,
-      "obv_level": "启动确认",
-      "wr_level": "温和反弹",
-      "vol_level": "极度缩量",
-      "next_day_return": 0.8469791078486555,
-      "net_return": 0.7069791078486555,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
+      "weight": 0.6,
+      "hold_days": 10,
       "stop_loss": null,
-      "take_profit": 20,
+      "take_profit": null,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
-    },
-    {
-      "trade_date": "2026-06-17",
-      "code": "600893",
-      "name": "航发动力",
-      "industry": "航空",
-      "grade": "A",
-      "total_score": 64,
-      "signal": "watch",
-      "obv_days_above": 4,
-      "obv_level": "启动确认",
-      "wr_level": "强势反转🔥🔥",
-      "vol_level": "极度缩量",
-      "next_day_return": -2.009040683073826,
-      "net_return": -2.1490406830738262,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
-    },
-    {
-      "trade_date": "2026-06-17",
-      "code": "688239",
-      "name": "航宇科技",
-      "industry": "航空",
-      "grade": "A",
-      "total_score": 61,
-      "signal": "watch",
-      "obv_days_above": 4,
-      "obv_level": "启动确认",
-      "wr_level": "急跌→止跌→反弹🔥",
-      "vol_level": "极度缩量",
-      "next_day_return": 4.190981432360741,
-      "net_return": 4.050981432360741,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
-    },
-    {
-      "trade_date": "2026-06-17",
-      "code": "688710",
-      "name": "益诺思",
-      "industry": "生物制药",
-      "grade": "A",
-      "total_score": 55,
-      "signal": "no_signal",
-      "obv_days_above": 4,
-      "obv_level": "启动确认",
-      "wr_level": "急跌→止跌→反弹🔥",
-      "vol_level": "极度缩量",
-      "next_day_return": 6.487695749440703,
-      "net_return": 6.347695749440703,
-      "stopped": false,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": null,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "4"
     },
     {
       "trade_date": "2026-06-18",
@@ -1643,10 +1165,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-18",
@@ -1668,10 +1187,7 @@
       "stop_loss": null,
       "take_profit": null,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-18",
@@ -1688,15 +1204,12 @@
       "next_day_return": null,
       "net_return": null,
       "stopped": null,
-      "weight": 0.5,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "weight": 0.6,
+      "hold_days": 10,
+      "stop_loss": null,
+      "take_profit": null,
       "trailing_stop": null,
-      "checklist_score": "4",
-      "early_signal": "early_buy",
-      "early_score": 9,
-      "early_confidence": 0.68
+      "checklist_score": "4"
     },
     {
       "trade_date": "2026-06-18",
@@ -1718,10 +1231,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-18",
@@ -1743,10 +1253,7 @@
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     },
     {
       "trade_date": "2026-06-18",
@@ -1763,65 +1270,12 @@
       "next_day_return": null,
       "net_return": null,
       "stopped": null,
-      "weight": 0.5,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
-      "trailing_stop": null,
-      "checklist_score": "3",
-      "early_signal": "early_buy",
-      "early_score": 9,
-      "early_confidence": 0.68
-    },
-    {
-      "trade_date": "2026-06-18",
-      "code": "688818",
-      "name": "电科蓝天",
-      "industry": "航空",
-      "grade": "A",
-      "total_score": 61,
-      "signal": "watch",
-      "obv_days_above": 5,
-      "obv_level": "启动确认",
-      "wr_level": "单日急弹",
-      "vol_level": "极度缩量",
-      "next_day_return": null,
-      "net_return": null,
-      "stopped": null,
       "weight": 1.0,
       "hold_days": 5,
-      "stop_loss": -12,
+      "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 5,
-      "early_confidence": 0.55
-    },
-    {
-      "trade_date": "2026-06-18",
-      "code": "600211",
-      "name": "西藏药业",
-      "industry": "生物制药",
-      "grade": "A",
-      "total_score": 59,
-      "signal": "watch",
-      "obv_days_above": 5,
-      "obv_level": "启动确认",
-      "wr_level": "急跌→止跌→反弹🔥",
-      "vol_level": "极度缩量",
-      "next_day_return": null,
-      "net_return": null,
-      "stopped": null,
-      "weight": 1.0,
-      "hold_days": 5,
-      "stop_loss": -12,
-      "take_profit": 20,
-      "trailing_stop": null,
-      "checklist_score": "2",
-      "early_signal": "",
-      "early_score": 0,
-      "early_confidence": 0.4
+      "checklist_score": "3"
     }
   ]
 }

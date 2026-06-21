@@ -1,8 +1,24 @@
 {
   "month": "2026-03",
-  "total_picks": 116,
+  "cost_bps": 14,
+  "cost_pct_round_trip": 0.14,
+  "total_picks": 120,
   "summary": {
-    "valid": 114,
+    "valid": 118,
+    "gross": {
+      "mean_per_trade": -0.4863496599886477,
+      "median_per_trade": -0.6743660168266385,
+      "sum": -57.38925987866043,
+      "win_rate": 37.28813559322034,
+      "win_count": 44
+    },
+    "net": {
+      "mean_per_trade": -0.6263496599886478,
+      "median_per_trade": -0.8143660168266386,
+      "sum": -73.90925987866044,
+      "win_rate": 35.59322033898305,
+      "win_count": 42
+    },
     "by_grade": {},
     "by_signal": {}
   },
@@ -20,13 +36,17 @@
       "wr_level": "平稳",
       "vol_level": "正常",
       "next_day_return": -10.967613749254912,
+      "net_return": -11.107613749254913,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-02",
@@ -41,13 +61,17 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "正常",
       "next_day_return": -9.311250252474245,
+      "net_return": -9.451250252474246,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-02",
@@ -62,13 +86,17 @@
       "wr_level": "平稳",
       "vol_level": "放量",
       "next_day_return": -2.3763648041104757,
+      "net_return": -2.516364804110476,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-02",
@@ -83,13 +111,17 @@
       "wr_level": "温和反弹",
       "vol_level": "温和缩量",
       "next_day_return": -10.003534817956872,
+      "net_return": -10.143534817956873,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-02",
@@ -104,13 +136,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "放量⚠️出货",
       "next_day_return": -3.8136324417601397,
+      "net_return": -3.95363244176014,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-02",
@@ -125,13 +161,17 @@
       "wr_level": "跌速放缓→企稳",
       "vol_level": "放量",
       "next_day_return": -3.8279481374768554,
+      "net_return": -3.9679481374768555,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-02",
@@ -146,13 +186,17 @@
       "wr_level": "平稳",
       "vol_level": "极度缩量",
       "next_day_return": -4.224894377640565,
+      "net_return": -4.364894377640565,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-04",
@@ -167,13 +211,17 @@
       "wr_level": "平稳",
       "vol_level": "温和缩量",
       "next_day_return": 0.9932671155256312,
+      "net_return": 0.8532671155256312,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-04",
@@ -188,13 +236,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量",
       "next_day_return": -2.1919142717973794,
+      "net_return": -2.3319142717973795,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-04",
@@ -209,13 +261,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 0.586510263929596,
+      "net_return": 0.44651026392959603,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-04",
@@ -230,13 +286,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": -1.5052617556946757,
+      "net_return": -1.6452617556946758,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-04",
@@ -251,13 +311,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量",
       "next_day_return": 2.570694087403602,
+      "net_return": 2.430694087403602,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-04",
@@ -272,13 +336,17 @@
       "wr_level": "平稳",
       "vol_level": "放量",
       "next_day_return": 1.2612612612612706,
+      "net_return": 1.1212612612612705,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-04",
@@ -293,13 +361,17 @@
       "wr_level": "平稳",
       "vol_level": "放量",
       "next_day_return": 1.5781922525107683,
+      "net_return": 1.4381922525107682,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-04",
@@ -314,13 +386,17 @@
       "wr_level": "温和反弹",
       "vol_level": "放量",
       "next_day_return": 1.0791366906474975,
+      "net_return": 0.9391366906474975,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
       "trailing_stop": null,
-      "checklist_score": "4"
+      "checklist_score": "4",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-04",
@@ -335,13 +411,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "放量",
       "next_day_return": 0.9339975093399788,
+      "net_return": 0.7939975093399788,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-05",
@@ -356,13 +436,17 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "正常",
       "next_day_return": -0.22900763358778553,
+      "net_return": -0.36900763358778554,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-05",
@@ -377,13 +461,17 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "正常",
       "next_day_return": 1.7937219730941756,
+      "net_return": 1.6537219730941755,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
       "trailing_stop": null,
-      "checklist_score": "4"
+      "checklist_score": "4",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-05",
@@ -398,13 +486,17 @@
       "wr_level": "平稳",
       "vol_level": "放量⚠️出货",
       "next_day_return": -5.779753761969896,
+      "net_return": -5.919753761969896,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-05",
@@ -419,13 +511,17 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "放量",
       "next_day_return": -0.04177109440267612,
+      "net_return": -0.18177109440267614,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-05",
@@ -440,13 +536,67 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "放量",
       "next_day_return": 2.44122965641953,
+      "net_return": 2.30122965641953,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
+    },
+    {
+      "trade_date": "2026-03-05",
+      "code": "300666",
+      "name": "江丰电子",
+      "industry": "半导体",
+      "grade": "S",
+      "total_score": 75,
+      "signal": "watch",
+      "obv_days_above": 0,
+      "obv_level": "刚突破🔥⚡",
+      "wr_level": "跌速放缓→企稳",
+      "vol_level": "正常",
+      "next_day_return": -2.066006600660064,
+      "net_return": -2.2060066006600643,
+      "stopped": false,
+      "weight": 0.6,
+      "hold_days": 5,
+      "stop_loss": null,
+      "take_profit": 20,
+      "trailing_stop": null,
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
+    },
+    {
+      "trade_date": "2026-03-05",
+      "code": "600507",
+      "name": "方大特钢",
+      "industry": "特种钢",
+      "grade": "S",
+      "total_score": 72,
+      "signal": "watch",
+      "obv_days_above": 1,
+      "obv_level": "刚突破🔥",
+      "wr_level": "温和反弹",
+      "vol_level": "放量",
+      "next_day_return": 0.4237288135593209,
+      "net_return": 0.2837288135593209,
+      "stopped": false,
+      "weight": 0.6,
+      "hold_days": 10,
+      "stop_loss": null,
+      "take_profit": null,
+      "trailing_stop": null,
+      "checklist_score": "4",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-06",
@@ -461,13 +611,17 @@
       "wr_level": "温和反弹",
       "vol_level": "温和缩量",
       "next_day_return": -1.195720578980497,
+      "net_return": -1.3357205789804971,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-06",
@@ -482,13 +636,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 3.2287119794914387,
+      "net_return": 3.0887119794914386,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-06",
@@ -503,13 +661,17 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "正常⚠️出货",
       "next_day_return": -0.7940930621343045,
+      "net_return": -0.9340930621343045,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-06",
@@ -524,13 +686,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 0.35203003989674464,
+      "net_return": 0.21203003989674463,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-06",
@@ -545,13 +711,17 @@
       "wr_level": "平稳",
       "vol_level": "正常",
       "next_day_return": -1.2658227848101333,
+      "net_return": -1.4058227848101335,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
       "trailing_stop": null,
-      "checklist_score": "4"
+      "checklist_score": "4",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-06",
@@ -566,13 +736,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 2.708803611738153,
+      "net_return": 2.568803611738153,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-06",
@@ -587,13 +761,17 @@
       "wr_level": "温和反弹",
       "vol_level": "正常",
       "next_day_return": -2.946428571428572,
+      "net_return": -3.086428571428572,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-06",
@@ -608,13 +786,17 @@
       "wr_level": "平稳",
       "vol_level": "放量",
       "next_day_return": 0.19607843137257053,
+      "net_return": 0.056078431372570514,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-06",
@@ -629,13 +811,17 @@
       "wr_level": "平稳",
       "vol_level": "正常",
       "next_day_return": -1.3031161473087693,
+      "net_return": -1.4431161473087695,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-06",
@@ -650,13 +836,17 @@
       "wr_level": "单日急弹",
       "vol_level": "正常",
       "next_day_return": -1.2345679012345623,
+      "net_return": -1.3745679012345624,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-09",
@@ -671,13 +861,17 @@
       "wr_level": "温和反弹",
       "vol_level": "温和缩量",
       "next_day_return": 1.7622599168371833,
+      "net_return": 1.6222599168371832,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-09",
@@ -692,13 +886,17 @@
       "wr_level": "平稳",
       "vol_level": "放量⚠️出货",
       "next_day_return": 0.1956947162426559,
+      "net_return": 0.05569471624265587,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 4,
+      "early_confidence": 0.53
     },
     {
       "trade_date": "2026-03-09",
@@ -713,13 +911,17 @@
       "wr_level": "单日急跌",
       "vol_level": "正常",
       "next_day_return": 7.961399276236425,
+      "net_return": 7.821399276236425,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-09",
@@ -734,13 +936,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 0.0888888888888939,
+      "net_return": -0.05111111111110611,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-09",
@@ -755,13 +961,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 2.5725053252498853,
+      "net_return": 2.432505325249885,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-09",
@@ -776,13 +986,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量",
       "next_day_return": 8.73900293255132,
+      "net_return": 8.59900293255132,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-09",
@@ -797,13 +1011,17 @@
       "wr_level": "平稳",
       "vol_level": "温和缩量",
       "next_day_return": -0.05740528128588274,
+      "net_return": -0.19740528128588275,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-09",
@@ -818,13 +1036,17 @@
       "wr_level": "平稳",
       "vol_level": "温和缩量",
       "next_day_return": 0.8547008547008517,
+      "net_return": 0.7147008547008517,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-09",
@@ -839,13 +1061,17 @@
       "wr_level": "平稳",
       "vol_level": "正常",
       "next_day_return": 1.8817581800308902,
+      "net_return": 1.7417581800308901,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-09",
@@ -860,13 +1086,17 @@
       "wr_level": "跌速放缓→企稳",
       "vol_level": "放量",
       "next_day_return": -4.4518828451882815,
+      "net_return": -4.591882845188281,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-10",
@@ -881,13 +1111,17 @@
       "wr_level": "平稳",
       "vol_level": "温和缩量",
       "next_day_return": 0.78125,
+      "net_return": 0.64125,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-10",
@@ -902,13 +1136,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "温和缩量",
       "next_day_return": 19.999999999999996,
+      "net_return": 19.859999999999996,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-10",
@@ -923,13 +1161,17 @@
       "wr_level": "单日急弹",
       "vol_level": "明显缩量",
       "next_day_return": -1.4809902740937297,
+      "net_return": -1.6209902740937299,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-10",
@@ -944,13 +1186,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "正常",
       "next_day_return": 0.0,
+      "net_return": -0.14,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-10",
@@ -965,13 +1211,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": -3.575418994413393,
+      "net_return": -3.715418994413393,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-10",
@@ -986,13 +1236,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": -2.7661472990596514,
+      "net_return": -2.9061472990596515,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-10",
@@ -1007,13 +1261,17 @@
       "wr_level": "温和反弹",
       "vol_level": "正常⚠️出货",
       "next_day_return": -2.3432115782219154,
+      "net_return": -2.4832115782219155,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-10",
@@ -1028,13 +1286,17 @@
       "wr_level": "单日急弹",
       "vol_level": "温和缩量",
       "next_day_return": -1.6687790452049156,
+      "net_return": -1.8087790452049157,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-10",
@@ -1049,13 +1311,17 @@
       "wr_level": "平稳",
       "vol_level": "明显缩量",
       "next_day_return": -1.836158192090398,
+      "net_return": -1.9761581920903981,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-10",
@@ -1070,13 +1336,17 @@
       "wr_level": "平稳",
       "vol_level": "温和缩量",
       "next_day_return": 0.8041355542791617,
+      "net_return": 0.6641355542791617,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-11",
@@ -1091,13 +1361,17 @@
       "wr_level": "平稳",
       "vol_level": "明显缩量",
       "next_day_return": 5.038759689922467,
+      "net_return": 4.898759689922468,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
       "trailing_stop": null,
-      "checklist_score": "4"
+      "checklist_score": "4",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-11",
@@ -1112,13 +1386,17 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "放量",
       "next_day_return": 5.821917808219168,
+      "net_return": 5.681917808219168,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-11",
@@ -1133,13 +1411,17 @@
       "wr_level": "平稳",
       "vol_level": "温和缩量",
       "next_day_return": 0.9847806624887934,
+      "net_return": 0.8447806624887934,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-11",
@@ -1154,13 +1436,17 @@
       "wr_level": "单日急跌",
       "vol_level": "温和缩量",
       "next_day_return": -4.47454140236585,
+      "net_return": -4.61454140236585,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-11",
@@ -1175,13 +1461,17 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "放量⚠️出货",
       "next_day_return": -5.3830227743271175,
+      "net_return": -5.523022774327117,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-11",
@@ -1196,13 +1486,17 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "放量⚠️出货",
       "next_day_return": 3.1874906029168315,
+      "net_return": 3.0474906029168314,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-11",
@@ -1217,13 +1511,17 @@
       "wr_level": "平稳",
       "vol_level": "温和缩量",
       "next_day_return": -0.575539568345329,
+      "net_return": -0.7155395683453291,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-11",
@@ -1238,13 +1536,17 @@
       "wr_level": "平稳",
       "vol_level": "正常",
       "next_day_return": -3.275746017500558,
+      "net_return": -3.4157460175005583,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-11",
@@ -1259,13 +1561,17 @@
       "wr_level": "单日急跌",
       "vol_level": "温和缩量",
       "next_day_return": -0.7480592801693775,
+      "net_return": -0.8880592801693775,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-11",
@@ -1280,13 +1586,17 @@
       "wr_level": "平稳",
       "vol_level": "明显缩量",
       "next_day_return": -0.05698005698006048,
+      "net_return": -0.1969800569800605,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-12",
@@ -1301,13 +1611,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": -0.3236245954692518,
+      "net_return": -0.46362459546925183,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-12",
@@ -1322,13 +1636,17 @@
       "wr_level": "温和反弹",
       "vol_level": "正常⚠️出货",
       "next_day_return": -1.50339476236665,
+      "net_return": -1.64339476236665,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-12",
@@ -1343,13 +1661,17 @@
       "wr_level": "温和反弹",
       "vol_level": "正常⚠️出货",
       "next_day_return": 0.06391818472355482,
+      "net_return": -0.0760818152764452,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 4,
+      "early_confidence": 0.53
     },
     {
       "trade_date": "2026-03-12",
@@ -1364,13 +1686,17 @@
       "wr_level": "温和反弹",
       "vol_level": "温和缩量",
       "next_day_return": 8.324468085106385,
+      "net_return": 8.184468085106385,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-12",
@@ -1385,13 +1711,17 @@
       "wr_level": "平稳",
       "vol_level": "放量",
       "next_day_return": -4.230726068903601,
+      "net_return": -4.3707260689036005,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-12",
@@ -1406,13 +1736,17 @@
       "wr_level": "平稳",
       "vol_level": "明显缩量",
       "next_day_return": -0.9122006841505104,
+      "net_return": -1.0522006841505105,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-12",
@@ -1427,13 +1761,17 @@
       "wr_level": "温和反弹",
       "vol_level": "明显缩量",
       "next_day_return": -0.36900369003689537,
+      "net_return": -0.5090036900368954,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-12",
@@ -1448,13 +1786,17 @@
       "wr_level": "假突破暴跌☠️",
       "vol_level": "明显缩量",
       "next_day_return": -0.46928327645050505,
+      "net_return": -0.6092832764505051,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-13",
@@ -1469,13 +1811,17 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "温和缩量",
       "next_day_return": 0.3230543318649026,
+      "net_return": 0.1830543318649026,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-13",
@@ -1490,13 +1836,17 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "放量",
       "next_day_return": -0.3940886699507429,
+      "net_return": -0.5340886699507429,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-13",
@@ -1511,13 +1861,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "放量",
       "next_day_return": 2.5613372876786,
+      "net_return": 2.4213372876786,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-13",
@@ -1532,13 +1886,17 @@
       "wr_level": "平稳",
       "vol_level": "温和缩量",
       "next_day_return": 2.0679468242245314,
+      "net_return": 1.9279468242245312,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-13",
@@ -1553,13 +1911,17 @@
       "wr_level": "单日急弹",
       "vol_level": "明显缩量",
       "next_day_return": -0.9149130832570851,
+      "net_return": -1.0549130832570852,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-13",
@@ -1574,13 +1936,17 @@
       "wr_level": "平稳",
       "vol_level": "明显缩量",
       "next_day_return": 1.057293899128453,
+      "net_return": 0.917293899128453,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-13",
@@ -1595,13 +1961,17 @@
       "wr_level": "平稳",
       "vol_level": "明显缩量",
       "next_day_return": -6.214039125431525,
+      "net_return": -6.354039125431525,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-13",
@@ -1616,13 +1986,17 @@
       "wr_level": "单日急跌",
       "vol_level": "温和缩量",
       "next_day_return": -3.1481481481481444,
+      "net_return": -3.2881481481481445,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-16",
@@ -1637,13 +2011,17 @@
       "wr_level": "温和反弹",
       "vol_level": "温和缩量",
       "next_day_return": -5.643994211287994,
+      "net_return": -5.783994211287994,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 4,
+      "early_confidence": 0.53
     },
     {
       "trade_date": "2026-03-16",
@@ -1658,13 +2036,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "放量⚠️出货",
       "next_day_return": -3.8164002062919145,
+      "net_return": -3.9564002062919146,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-16",
@@ -1679,13 +2061,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "温和缩量",
       "next_day_return": -1.9444444444444486,
+      "net_return": -2.0844444444444488,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-16",
@@ -1700,13 +2086,17 @@
       "wr_level": "温和反弹",
       "vol_level": "正常⚠️出货",
       "next_day_return": -1.9677996422182487,
+      "net_return": -2.107799642218249,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-16",
@@ -1721,13 +2111,17 @@
       "wr_level": "平稳",
       "vol_level": "明显缩量",
       "next_day_return": -0.4241481690937299,
+      "net_return": -0.5641481690937299,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-16",
@@ -1742,13 +2136,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量",
       "next_day_return": -4.003313086692428,
+      "net_return": -4.1433130866924275,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-16",
@@ -1763,13 +2161,17 @@
       "wr_level": "跌速放缓→企稳",
       "vol_level": "温和缩量",
       "next_day_return": -1.31848813360681,
+      "net_return": -1.45848813360681,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-16",
@@ -1784,13 +2186,17 @@
       "wr_level": "假突破暴跌☠️",
       "vol_level": "正常",
       "next_day_return": -2.294455066921608,
+      "net_return": -2.434455066921608,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-18",
@@ -1805,13 +2211,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "正常",
       "next_day_return": 0.9808612440191489,
+      "net_return": 0.8408612440191489,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-18",
@@ -1826,13 +2236,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "放量⚠️出货",
       "next_day_return": -2.1488133418858135,
+      "net_return": -2.2888133418858136,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-18",
@@ -1847,13 +2261,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": -2.968188473312916,
+      "net_return": -3.108188473312916,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-18",
@@ -1868,13 +2286,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "放量",
       "next_day_return": -1.3166144200626895,
+      "net_return": -1.4566144200626896,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-18",
@@ -1889,13 +2311,17 @@
       "wr_level": "单日急弹",
       "vol_level": "正常⚠️出货",
       "next_day_return": -1.80797151075196,
+      "net_return": -1.9479715107519602,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-18",
@@ -1910,13 +2336,42 @@
       "wr_level": "温和反弹",
       "vol_level": "放量",
       "next_day_return": -3.2693866522561454,
+      "net_return": -3.4093866522561456,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
+    },
+    {
+      "trade_date": "2026-03-18",
+      "code": "688239",
+      "name": "航宇科技",
+      "industry": "航空",
+      "grade": "C",
+      "total_score": 36,
+      "signal": "no_signal",
+      "obv_days_above": 0,
+      "obv_level": "刚突破🔥⚡",
+      "wr_level": "温和反弹",
+      "vol_level": "温和缩量",
+      "next_day_return": -5.000000000000004,
+      "net_return": -5.140000000000004,
+      "stopped": true,
+      "weight": 0.5,
+      "hold_days": 3,
+      "stop_loss": -5,
+      "take_profit": 10,
+      "trailing_stop": null,
+      "checklist_score": "2",
+      "early_signal": "early_buy",
+      "early_score": 10,
+      "early_confidence": 0.7
     },
     {
       "trade_date": "2026-03-24",
@@ -1931,13 +2386,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "正常",
       "next_day_return": -0.4036066981537134,
+      "net_return": -0.5436066981537134,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-24",
@@ -1952,13 +2411,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 1.3392857142857206,
+      "net_return": 1.1992857142857205,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-24",
@@ -1973,13 +2436,17 @@
       "wr_level": "温和反弹",
       "vol_level": "放量",
       "next_day_return": 1.5975175267210595,
+      "net_return": 1.4575175267210594,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-24",
@@ -1994,13 +2461,17 @@
       "wr_level": "单日急跌",
       "vol_level": "放量",
       "next_day_return": null,
+      "net_return": null,
       "stopped": null,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-24",
@@ -2015,13 +2486,17 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "放量",
       "next_day_return": -0.47303689687796524,
+      "net_return": -0.6130368968779653,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-24",
@@ -2036,13 +2511,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量",
       "next_day_return": -1.5843023255813993,
+      "net_return": -1.7243023255813994,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-25",
@@ -2057,13 +2536,17 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "温和缩量",
       "next_day_return": -5.222551928783381,
+      "net_return": -5.362551928783381,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-25",
@@ -2078,13 +2561,17 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "温和缩量",
       "next_day_return": -1.6772700983227362,
+      "net_return": -1.8172700983227363,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-25",
@@ -2099,13 +2586,17 @@
       "wr_level": "单日急弹",
       "vol_level": "正常",
       "next_day_return": -1.2191780821917853,
+      "net_return": -1.3591780821917854,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-25",
@@ -2120,13 +2611,17 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "正常",
       "next_day_return": -2.9185867895545226,
+      "net_return": -3.0585867895545227,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-25",
@@ -2141,13 +2636,42 @@
       "wr_level": "平稳",
       "vol_level": "温和缩量",
       "next_day_return": 0.7242628039316967,
+      "net_return": 0.5842628039316967,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
+    },
+    {
+      "trade_date": "2026-03-25",
+      "code": "002038",
+      "name": "双鹭药业",
+      "industry": "生物制药",
+      "grade": "A",
+      "total_score": 55,
+      "signal": "no_signal",
+      "obv_days_above": 1,
+      "obv_level": "刚突破🔥",
+      "wr_level": "单日急弹",
+      "vol_level": "放量⚠️出货",
+      "next_day_return": -3.839999999999999,
+      "net_return": -3.979999999999999,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-27",
@@ -2162,13 +2686,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 7.075098814229253,
+      "net_return": 6.935098814229253,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-27",
@@ -2183,13 +2711,17 @@
       "wr_level": "单日急弹",
       "vol_level": "正常",
       "next_day_return": -1.6777286135693292,
+      "net_return": -1.8177286135693294,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-27",
@@ -2204,13 +2736,17 @@
       "wr_level": "单日急跌",
       "vol_level": "放量",
       "next_day_return": null,
+      "net_return": null,
       "stopped": null,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-27",
@@ -2225,13 +2761,17 @@
       "wr_level": "单日急弹",
       "vol_level": "放量",
       "next_day_return": 7.191011235955047,
+      "net_return": 7.051011235955047,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-27",
@@ -2246,13 +2786,17 @@
       "wr_level": "温和反弹",
       "vol_level": "放量",
       "next_day_return": -0.6006727534838996,
+      "net_return": -0.7406727534838996,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 5,
+      "early_confidence": 0.55
     },
     {
       "trade_date": "2026-03-27",
@@ -2267,13 +2811,17 @@
       "wr_level": "单日急跌",
       "vol_level": "放量⚠️出货",
       "next_day_return": 3.0064423765211234,
+      "net_return": 2.8664423765211233,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-30",
@@ -2288,13 +2836,17 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "温和缩量",
       "next_day_return": -2.5875190258751846,
+      "net_return": -2.7275190258751847,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-30",
@@ -2309,13 +2861,17 @@
       "wr_level": "平稳",
       "vol_level": "放量⚠️出货",
       "next_day_return": -0.2583979328165342,
+      "net_return": -0.39839793281653424,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-30",
@@ -2330,13 +2886,17 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "温和缩量",
       "next_day_return": -4.322937228582702,
+      "net_return": -4.462937228582701,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-30",
@@ -2351,13 +2911,17 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "放量⚠️出货",
       "next_day_return": -3.0026311716452536,
+      "net_return": -3.1426311716452537,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 7,
       "stop_loss": -12,
       "take_profit": 25,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-30",
@@ -2372,13 +2936,17 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "放量",
       "next_day_return": -2.4343675417661026,
+      "net_return": -2.5743675417661027,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "1"
+      "checklist_score": "1",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-30",
@@ -2393,13 +2961,17 @@
       "wr_level": "温和反弹",
       "vol_level": "极度缩量",
       "next_day_return": -1.0067114093959662,
+      "net_return": -1.1467114093959663,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-31",
@@ -2414,13 +2986,17 @@
       "wr_level": "平稳",
       "vol_level": "放量⚠️出货",
       "next_day_return": 6.698741672834929,
+      "net_return": 6.5587416728349295,
       "stopped": false,
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "3"
+      "checklist_score": "3",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     },
     {
       "trade_date": "2026-03-31",
@@ -2435,13 +3011,17 @@
       "wr_level": "平稳",
       "vol_level": "放量",
       "next_day_return": 6.183115338882295,
+      "net_return": 6.043115338882295,
       "stopped": false,
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": -12,
       "take_profit": 20,
       "trailing_stop": null,
-      "checklist_score": "2"
+      "checklist_score": "2",
+      "early_signal": "",
+      "early_score": 0,
+      "early_confidence": 0.4
     }
   ]
 }

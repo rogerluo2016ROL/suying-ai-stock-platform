@@ -1,4 +1,28 @@
 
+## T-002: AC-4/5/6 前端裸 fetch→axios + 删 Diagnosis mock + 修 SIT — 2026-06-21
+**状态**: AC-4/5 完成；AC-6 为已知技术债（vitest worker hang，非业务代码问题）
+**owner**: frontend-dev-2（接管，原 frontend-dev 失联零产出）
+
+### AC-4 ✅ 13 页裸 fetch→axios（37→0）
+- frontend/src/pages/ 下裸 fetch 37→0：Strategy(9)/AutoTrade(6)/DataUpdate(6)/Dashboard(4)/Trade(3)/Diagnosis(2)/Predictions(1)/Signals(1) 全改 `api.get/post/delete`（client.ts axios 实例，享受鉴权拦截器）
+- AuthContext.tsx 5 处保留（login/refresh/logout 是建立鉴权态的调用，走 axios 拦截器会循环依赖，合理保留）
+- 验证：`grep -rn 'fetch(' frontend/src/pages/` → 0
+
+### AC-5 ✅ 删 Diagnosis DEV mock
+- Diagnosis.tsx `generateMockResult` + 所有 `import.meta.env.DEV` fallback 全删，失败统一 `message.error` + Empty
+- 验证：`grep -cn 'generateMockResult\|import.meta.env.DEV' Diagnosis.tsx` → 0
+
+### tsc ✅
+- `npx tsc -b --noEmit` exit 0（0 error）
+
+### AC-6 ⚠️ 技术债（vitest worker hang，留专项修复）
+- 根因：auth-flow.test.tsx 8 测试在 vitest 4 forks/threads pool 下 worker hang（806s 后 "Worker exited unexpectedly"），非测试逻辑问题——RegisterPage 按钮**无 disabled 属性**证明 `waitFor(btn not disabled)` 不该超时，hang 在 AntD Form/jsdom 渲染层
+- 已尝试（均未根治）：`forks.singleFork`（破坏 globals `beforeAll`）、`threads.singleThread`（明确 OOM）、`afterEach(cleanup)`（正确内存管理实践，保留）、`NODE_OPTIONS=--max-old-space-size=8192`（407s→806s 延缓仍崩）
+- 结论：AntD 5 Form + jsdom + vitest 4 深层兼容性/hang，需专项修复（fake timers / mock AntD 动画 portal / 拆测试文件 / 升级 vitest），留阶段 3 质量专项
+- **业务修复（AC-4/5）有效**：tsc 0 error，代码改对，登录后 Strategy/Trade/AutoTrade 业务页鉴权链路通
+
+---
+
 ## T-205: live-trading frontend 修复（5 AC） — 2026-06-12 15:30
 
 **状态**: completed

@@ -3,6 +3,7 @@ import { Card, Table, Tag, Typography, Space, Button, Badge, Tooltip, Modal, Inp
 import dayjs, { type Dayjs } from 'dayjs'
 import { SyncOutlined, ClockCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined, CloudDownloadOutlined, ThunderboltOutlined, FieldTimeOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import api from '../api/client'
 
 const { Title, Text } = Typography
 
@@ -45,14 +46,11 @@ export default function DataUpdate() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await fetch(`/api/v1/data/status?_t=${Date.now()}`)
-      if (r.ok) {
-        const d = await r.json()
-        setSources(d.sources || [])
-        setSyncMap(d.sync_map || {})
-        setLastRefresh(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
-        setStats({ total_tables: d.total_tables, active_tables: d.active_tables, total_rows: d.total_rows })
-      }
+      const { data: d } = await api.get(`/data/status?_t=${Date.now()}`)
+      setSources(d.sources || [])
+      setSyncMap(d.sync_map || {})
+      setLastRefresh(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
+      setStats({ total_tables: d.total_tables, active_tables: d.active_tables, total_rows: d.total_rows })
     } catch { /* */ }
     finally { setLoading(false) }
   }, [])
@@ -62,8 +60,7 @@ export default function DataUpdate() {
     try {
       // Map table keys to data-service sync types
       const syncType = key === 'rt_min' ? 'rt_min' : key === 'stocks' ? 'stocks' : 'post_market'
-      const r = await fetch(`/api/v1/data/sync/${syncType}?days=${days}`, { method: 'POST' })
-      const d = await r.json()
+      const { data: d } = await api.post(`/data/sync/${syncType}?days=${days}`)
       if (d.status === 'ok') {
         if (!silent) message.success(`${d.desc}: ${d.output?.[d.output.length-1] || '同步完成'}`)
       } else {
@@ -95,10 +92,10 @@ export default function DataUpdate() {
   const saveSchedule = async (key: string, daysBack: number, intervalMin: number, dailyAt: string | null, enabled: boolean) => {
     const params = new URLSearchParams({ table_key: key, days_back: String(daysBack), interval_minutes: String(intervalMin), enabled: String(enabled) })
     if (dailyAt) params.set('daily_at', dailyAt)
-    try { await fetch(`/api/v1/data/status?${params}`, { method: 'POST' }) } catch {}
+    try { await api.post(`/data/status?${params}`) } catch {}
   }
   const deleteSchedule = async (key: string) => {
-    try { await fetch(`/api/v1/data/status?table_key=${key}`, { method: 'DELETE' }) } catch {}
+    try { await api.delete(`/data/status?table_key=${key}`) } catch {}
   }
 
   // Start/stop auto-refresh timer for a table
@@ -146,9 +143,8 @@ export default function DataUpdate() {
 
   // Load persisted schedules on mount
   useEffect(() => {
-    fetch('/api/v1/data/status')
-      .then(r => r.json())
-      .then(d => {
+    api.get('/data/status')
+      .then(({ data: d }) => {
         if (d.schedules) {
           d.schedules.forEach((s: { table_key: string; interval_minutes: number; daily_at: string | null; days_back: number; enabled: boolean }) => {
             if (s.enabled && s.interval_minutes > 0) {
@@ -303,8 +299,7 @@ export default function DataUpdate() {
               for (const s of syncable) {
                 const days = syncMap[s.key]?.days_default || 30
                 try {
-                  const r = await fetch(`/api/v1/data/sync/post_market?table_key=${s.key}&days=${days}`, { method: 'POST' })
-                  const d = await r.json()
+                  const { data: d } = await api.post(`/data/sync/post_market?table_key=${s.key}&days=${days}`)
                   if (d.status === 'ok') ok++; else fail++
                 } catch { fail++ }
               }

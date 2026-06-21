@@ -21,6 +21,9 @@ import urllib.error
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
 
+from sqlalchemy import text as sa_text
+from sqlalchemy.ext.asyncio import create_async_engine
+
 from app.auto_trading_engine import (
     StrategyConfig,
     BuyCondition,
@@ -29,6 +32,53 @@ from app.auto_trading_engine import (
 )
 
 logger = logging.getLogger("strategy-service.executor")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Risk-check DB engine (shared, process-level singleton) + fail-safe signal
+# ═══════════════════════════════════════════════════════════════════════════
+# AC-10: the 3 risk-check functions share a single async engine (built at
+# module import = process startup, not per loop iteration). pool_timeout
+# bounds how long a risk check can block the trading loop. On DB failure
+# the functions raise RiskCheckUnavailable so the caller pauses the whole
+# loop (systemic risk) instead of returning a neutral default that would
+# let trading continue without stop-loss / risk gating.
+
+def _resolve_risk_db_url() -> str:
+    """Resolve an asyncpg-compatible Postgres URL (mirrors trade-service database.py).
+
+    DATABASE_URL (asyncpg scheme) takes precedence; otherwise derive from
+    KRONOS_PG_URL (psycopg2 scheme) by swapping the driver.
+    """
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        url = os.environ.get(
+            "KRONOS_PG_URL",
+            "postgresql://kronos:kronos@localhost:6432/kronos",
+        )
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
+_risk_engine = create_async_engine(
+    _resolve_risk_db_url(),
+    echo=False,
+    pool_pre_ping=True,
+    pool_size=2,
+    max_overflow=3,
+    pool_timeout=5,
+)
+
+
+class RiskCheckUnavailable(RuntimeError):
+    """DB unreachable during a risk check → fail-safe: caller pauses the loop.
+
+    Raised instead of returning a neutral default (which would let trading
+    continue without stop-loss / risk gating — a capital risk). Per AC-10 /
+    ADR-007: connection failure is treated as a systemic risk, not a
+    per-stock verdict.
+    """
 
 # ── Service URLs (configurable via env) ──────────────────────────────────
 TRADE_SERVICE_URL = os.environ.get("TRADE_SERVICE_URL", "http://localhost:8006")
@@ -300,126 +350,153 @@ async def _run_one_check(state: ExecutorState, strategy: StrategyConfig) -> None
     held_codes = {p.get("code", "") for p in positions.get("positions", []) if p.get("volume", 0) > 0}
     current_positions_count = len(held_codes)
 
-    # ── Check SELL conditions for held positions ──
-    for pos in positions.get("positions", []):
-        code = pos.get("code", "")
-        if not code:
-            continue
+    # AC-10 fail-safe: the risk-check functions (announcement / ATR / forecast)
+    # raise RiskCheckUnavailable when the risk DB is unreachable. Such a
+    # connection failure is a systemic risk — we must NOT fall back to a
+    # neutral default (which would let trading continue without stop-loss /
+    # risk gating). Instead, pause the whole loop and bail out of this round.
+    try:
+        # ── Check SELL conditions for held positions ──
+        for pos in positions.get("positions", []):
+            code = pos.get("code", "")
+            if not code:
+                continue
 
-        # P0: 公告事件风险检测 (优先于常规卖出条件)
-        is_announcement_risk, announcement_reason = _check_announcement_risk(code)
-        if is_announcement_risk:
-            state.add_log(
-                "SELL",
-                f"触发事件止损: {code} — {announcement_reason}",
-                {"code": code, "reason": announcement_reason, "source": "announcement_risk"},
-            )
-            result = await _place_order(
-                symbol=code,
-                direction="SELL",
-                volume=pos.get("volume", 0),
-                trade_mode=strategy.trade_mode,
-            )
-            state.orders_placed += 1
-            state.add_log(
-                "SELL",
-                f"事件止损卖单已提交: {code}",
-                {"code": code, "order_id": result.get("order_id")},
-            )
-            continue  # 跳过常规卖出条件
+            # P0: 公告事件风险检测 (优先于常规卖出条件)
+            is_announcement_risk, announcement_reason = await _check_announcement_risk(code)
+            if is_announcement_risk:
+                state.add_log(
+                    "SELL",
+                    f"触发事件止损: {code} — {announcement_reason}",
+                    {"code": code, "reason": announcement_reason, "source": "announcement_risk"},
+                )
+                result = await _place_order(
+                    symbol=code,
+                    direction="SELL",
+                    volume=pos.get("volume", 0),
+                    trade_mode=strategy.trade_mode,
+                )
+                state.orders_placed += 1
+                state.add_log(
+                    "SELL",
+                    f"事件止损卖单已提交: {code}",
+                    {"code": code, "order_id": result.get("order_id")},
+                )
+                continue  # 跳过常规卖出条件
 
-        signal = await _fetch_signal(code)
-        should_sell, sell_reason = _evaluate_sell_conditions(
-            strategy.sell_conditions, signal, pos
-        )
-
-        if should_sell:
-            state.add_log(
-                "SELL",
-                f"触发卖出条件: {code} — {sell_reason}",
-                {"code": code, "reason": sell_reason, "pnl_pct": pos.get("pnl_pct", 0)},
-            )
-            result = await _place_order(
-                symbol=code,
-                direction="SELL",
-                volume=pos.get("volume", 0),
-                trade_mode=strategy.trade_mode,
-            )
-            state.orders_placed += 1
-            state.add_log(
-                "SELL",
-                f"卖单已提交: {code} — order_id={result.get('order_id', '?')}",
-                {"code": code, "order_id": result.get("order_id")},
+            signal = await _fetch_signal(code)
+            should_sell, sell_reason = await _evaluate_sell_conditions(
+                strategy.sell_conditions, signal, pos
             )
 
-    # ── Check BUY conditions for picks not yet held ──
-    if current_positions_count >= strategy.position_rules.max_positions:
-        state.add_log(
-            "INFO",
-            f"持仓数 {current_positions_count} 已达上限 {strategy.position_rules.max_positions}",
-        )
+            if should_sell:
+                state.add_log(
+                    "SELL",
+                    f"触发卖出条件: {code} — {sell_reason}",
+                    {"code": code, "reason": sell_reason, "pnl_pct": pos.get("pnl_pct", 0)},
+                )
+                result = await _place_order(
+                    symbol=code,
+                    direction="SELL",
+                    volume=pos.get("volume", 0),
+                    trade_mode=strategy.trade_mode,
+                )
+                state.orders_placed += 1
+                state.add_log(
+                    "SELL",
+                    f"卖单已提交: {code} — order_id={result.get('order_id', '?')}",
+                    {"code": code, "order_id": result.get("order_id")},
+                )
 
-    for pick in strategy.picks:
-        code = pick.get("code", "")
-        if not code:
-            continue
-
-        # Skip already held
-        if code in held_codes:
-            continue
-
-        # Skip if at max positions
+        # ── Check BUY conditions for picks not yet held ──
         if current_positions_count >= strategy.position_rules.max_positions:
-            break
+            state.add_log(
+                "INFO",
+                f"持仓数 {current_positions_count} 已达上限 {strategy.position_rules.max_positions}",
+            )
 
-        # ── P3: 业绩预告负向过滤 ──
-        forecast_warn = _check_forecast_risk(code)
-        if forecast_warn:
-            state.add_log("WARN", f"跳过买入 {code}: 业绩预告风险 — {forecast_warn}", {"code": code})
-            continue
+        for pick in strategy.picks:
+            code = pick.get("code", "")
+            if not code:
+                continue
 
-        # Fetch signal for this pick
-        signal = await _fetch_signal(code)
-        should_buy, buy_reason = _evaluate_buy_conditions(
-            strategy.buy_conditions, signal
+            # Skip already held
+            if code in held_codes:
+                continue
+
+            # Skip if at max positions
+            if current_positions_count >= strategy.position_rules.max_positions:
+                break
+
+            # ── P3: 业绩预告负向过滤 ──
+            forecast_warn = await _check_forecast_risk(code)
+            if forecast_warn:
+                state.add_log("WARN", f"跳过买入 {code}: 业绩预告风险 — {forecast_warn}", {"code": code})
+                continue
+
+            # Fetch signal for this pick
+            signal = await _fetch_signal(code)
+            should_buy, buy_reason = _evaluate_buy_conditions(
+                strategy.buy_conditions, signal
+            )
+
+            if should_buy:
+                # Calculate position size
+                position_pct = strategy.position_rules.single_max_pct / strategy.position_rules.max_positions
+                # Prefer pick's own entry price or signal price
+                entry_price = float(pick.get("entry_price") or pick.get("price") or signal.get("price", 0))
+                if entry_price <= 0:
+                    state.add_log("WARN", f"无法获取 {code} 价格，跳过买入", {"code": code})
+                    continue
+
+                volume = int((strategy.capital * position_pct) / entry_price)
+                volume = (volume // 100) * 100  # round to lot size
+                if volume < 100:
+                    state.add_log("WARN", f"{code} 计算股数 {volume} < 100，跳过", {"code": code})
+                    continue
+
+                state.add_log(
+                    "BUY",
+                    f"触发买入条件: {code} — {buy_reason}",
+                    {"code": code, "reason": buy_reason, "price": entry_price, "volume": volume},
+                )
+
+                result = await _place_order(
+                    symbol=code,
+                    direction="BUY",
+                    price=entry_price,
+                    volume=volume,
+                    trade_mode=strategy.trade_mode,
+                )
+                state.orders_placed += 1
+                current_positions_count += 1
+                held_codes.add(code)
+                state.add_log(
+                    "BUY",
+                    f"买单已提交: {code} — order_id={result.get('order_id', '?')}",
+                    {"code": code, "order_id": result.get("order_id")},
+                )
+    except RiskCheckUnavailable as e:
+        logger.error(
+            "risk DB unreachable — pausing executor for manual intervention (strategy=%s): %s",
+            strategy.id, e, exc_info=True,
         )
-
-        if should_buy:
-            # Calculate position size
-            position_pct = strategy.position_rules.single_max_pct / strategy.position_rules.max_positions
-            # Prefer pick's own entry price or signal price
-            entry_price = float(pick.get("entry_price") or pick.get("price") or signal.get("price", 0))
-            if entry_price <= 0:
-                state.add_log("WARN", f"无法获取 {code} 价格，跳过买入", {"code": code})
-                continue
-
-            volume = int((strategy.capital * position_pct) / entry_price)
-            volume = (volume // 100) * 100  # round to lot size
-            if volume < 100:
-                state.add_log("WARN", f"{code} 计算股数 {volume} < 100，跳过", {"code": code})
-                continue
-
+        state.add_log(
+            "ERROR",
+            f"风控检查 DB 不可达 — fail-safe 暂停整轮循环: {e}",
+            {"error": str(e), "fail_safe": True},
+        )
+        mgr = get_executor_manager()
+        try:
+            mgr.pause(strategy.id)
             state.add_log(
-                "BUY",
-                f"触发买入条件: {code} — {buy_reason}",
-                {"code": code, "reason": buy_reason, "price": entry_price, "volume": volume},
+                "ERROR",
+                "DB 风控不可用 — 自动暂停策略执行（等待人工介入 / DB 恢复后 resume）",
             )
-
-            result = await _place_order(
-                symbol=code,
-                direction="BUY",
-                price=entry_price,
-                volume=volume,
-                trade_mode=strategy.trade_mode,
-            )
-            state.orders_placed += 1
-            current_positions_count += 1
-            held_codes.add(code)
-            state.add_log(
-                "BUY",
-                f"买单已提交: {code} — order_id={result.get('order_id', '?')}",
-                {"code": code, "order_id": result.get("order_id")},
-            )
+        except ValueError:
+            # Already paused/stopped — nothing more to do.
+            pass
+        return  # 不下单：本轮中止
 
     state.checks_completed += 1
     state.add_log("INFO", f"检查完成 (第 {state.checks_completed} 轮)")
@@ -466,26 +543,27 @@ _ANNOUNCEMENT_RISK_KEYWORDS = [
 ]
 
 
-def _check_announcement_risk(code: str) -> tuple[bool, str]:
+async def _check_announcement_risk(code: str) -> tuple[bool, str]:
     """Check if stock has recent risk-related announcements.
 
     Returns:
         (is_risky, reason_string)
+
+    Raises:
+        RiskCheckUnavailable: if the risk DB is unreachable (caller must pause
+        the loop — never return a neutral default, per AC-10).
     """
     try:
-        import psycopg2
-        pg_url = os.environ.get(
-            "KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
-        conn = psycopg2.connect(pg_url, connect_timeout=3)
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT title, ann_date FROM announcements "
-            "WHERE code = %s AND ann_date >= CURRENT_DATE - INTERVAL '3 days' "
-            "ORDER BY ann_date DESC LIMIT 10",
-            (code,),
-        )
-        rows = cur.fetchall()
-        conn.close()
+        async with _risk_engine.connect() as conn:
+            result = await conn.execute(
+                sa_text(
+                    "SELECT title, ann_date FROM announcements "
+                    "WHERE code = :code AND ann_date >= CURRENT_DATE - INTERVAL '3 days' "
+                    "ORDER BY ann_date DESC LIMIT 10"
+                ),
+                {"code": code},
+            )
+            rows = result.fetchall()
 
         for title, ann_date in rows:
             title_str = str(title or "")
@@ -493,28 +571,34 @@ def _check_announcement_risk(code: str) -> tuple[bool, str]:
                 if kw in title_str:
                     return True, f"风险公告[{ann_date}]: {title_str[:80]}"
         return False, ""
-    except Exception:
-        return False, ""
+    except Exception as e:
+        logger.warning("公告风险检查 DB 不可达 code=%s: %s", code, e)
+        raise RiskCheckUnavailable(f"announcement_risk DB unreachable: {e}") from e
 
 
-def _get_atr_stop_loss(code: str) -> float:
+async def _get_atr_stop_loss(code: str) -> float:
     """P4: ATR-based dynamic stop loss (替代硬编码 3%).
 
     stop_loss_pct = 1.5 × ATR(14) / close × 100
     低位震荡股 ~2%, 高位活跃股 ~5-7%
 
-    Returns: stop_loss percentage (e.g. 3.5 = 3.5%), or 0 if unavailable.
+    Returns: stop_loss percentage (e.g. 3.5 = 3.5%), or 0 if insufficient data.
+
+    Raises:
+        RiskCheckUnavailable: if the risk DB is unreachable (caller must pause
+        the loop — never return 0 which would fall back to a weaker stop, per AC-10).
     """
+    import numpy as np
     try:
-        import psycopg2, numpy as np
-        pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
-        conn = psycopg2.connect(pg_url, connect_timeout=3)
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT high, low, close FROM daily_kline WHERE code=%s "
-            "ORDER BY trade_date DESC LIMIT 15", (code,))
-        rows = cur.fetchall()
-        conn.close()
+        async with _risk_engine.connect() as conn:
+            result = await conn.execute(
+                sa_text(
+                    "SELECT high, low, close FROM daily_kline WHERE code = :code "
+                    "ORDER BY trade_date DESC LIMIT 15"
+                ),
+                {"code": code},
+            )
+            rows = result.fetchall()
 
         if len(rows) < 14:
             return 0.0
@@ -534,37 +618,51 @@ def _get_atr_stop_loss(code: str) -> float:
         if current_close > 0 and atr > 0:
             stop_pct = round(1.5 * atr / current_close * 100, 1)
             return max(2.0, min(8.0, stop_pct))  # clamp 2%~8%
-    except Exception:
-        pass
-    return 0.0
+        return 0.0
+    except RiskCheckUnavailable:
+        raise
+    except Exception as e:
+        logger.warning("ATR 止损检查 DB 不可达 code=%s: %s", code, e)
+        raise RiskCheckUnavailable(f"atr_stop_loss DB unreachable: {e}") from e
 
 
-def _check_forecast_risk(code: str) -> str:
+async def _check_forecast_risk(code: str) -> str:
     """P3: 检查业绩预告风险 — 预减/预亏/首亏则阻止买入.
 
     Returns: warning string if risky, empty string otherwise.
+
+    Raises:
+        RiskCheckUnavailable: if the risk DB is unreachable (caller must pause
+        the loop — never return "" which would allow buying, per AC-10).
     """
     try:
-        import psycopg2
-        pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
-        conn = psycopg2.connect(pg_url, connect_timeout=3)
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT forecast_type, change_reason FROM forecast_data "
-            "WHERE code=%s ORDER BY end_date DESC LIMIT 1", (code,))
-        row = cur.fetchone()
-        conn.close()
+        async with _risk_engine.connect() as conn:
+            result = await conn.execute(
+                sa_text(
+                    # NOTE: forecast_data has no change_reason column (schema
+                    # drift from the original psycopg2 code which silently
+                    # swallowed the error). Use forecast_net_profit as the
+                    # negative-profit signal instead.
+                    "SELECT forecast_type, forecast_net_profit FROM forecast_data "
+                    "WHERE code = :code ORDER BY end_date DESC LIMIT 1"
+                ),
+                {"code": code},
+            )
+            row = result.fetchone()
         if row:
             ftype = str(row[0] or "")
-            reason = str(row[1] or "")
-            if any(kw in ftype for kw in ["预减", "首亏", "续亏", "预亏"]):
-                return f"{ftype}({reason[:40]})" if reason else ftype
+            net_profit = row[1]
+            is_loss = net_profit is not None and float(net_profit) < 0
+            if any(kw in ftype for kw in ["预减", "首亏", "续亏", "预亏"]) or is_loss:
+                profit_hint = f"净利={net_profit}" if is_loss else ""
+                return f"{ftype}({profit_hint})" if profit_hint else ftype
         return ""
-    except Exception:
-        return ""
+    except Exception as e:
+        logger.warning("业绩预告风险检查 DB 不可达 code=%s: %s", code, e)
+        raise RiskCheckUnavailable(f"forecast_risk DB unreachable: {e}") from e
 
 
-def _evaluate_sell_conditions(
+async def _evaluate_sell_conditions(
     conditions: list[SellCondition],
     signal: dict,
     position: dict,
@@ -573,6 +671,10 @@ def _evaluate_sell_conditions(
 
     Returns:
         (should_sell, reason_string)
+
+    Raises:
+        RiskCheckUnavailable: propagated from ``_get_atr_stop_loss`` when the
+        risk DB is unreachable (caller pauses the loop).
     """
     if not conditions:
         return False, ""
@@ -584,7 +686,7 @@ def _evaluate_sell_conditions(
 
     # ── P4: ATR 动态止损 (替代硬编码 3%) ──
     code = position.get("code", "")
-    dynamic_stop = _get_atr_stop_loss(code)
+    dynamic_stop = await _get_atr_stop_loss(code)
     if dynamic_stop > 0:
         context["stop_loss"] = dynamic_stop
     else:

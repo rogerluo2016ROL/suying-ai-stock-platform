@@ -20,7 +20,10 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query, Depends, Body
 from kronos_auth import require_role
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit_log import record as record_audit, query as query_audit
+from app.database import get_db
 from app.engine import get_engine
 from app.broker_interface import (
     BrokerInterface,
@@ -122,6 +125,7 @@ class _PaperEngineAdapter:
 @router.post("/order")
 async def place_order(
     body: PlaceOrderRequest = Body(...),
+    db: AsyncSession = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Place a trading order — paper or live."""
@@ -182,9 +186,11 @@ async def place_order(
         await record_probe(acct_id, success=probe_success)
 
     # Audit log (best-effort)
-    _audit_record_safe(
+    await _audit_record_safe(
+        db,
         action="PLACE_ORDER",
         mode=body.trade_mode,
+        user=user,
         details={
             "request": {
                 "code": body.code, "direction": body.direction, "price": body.price,
@@ -325,6 +331,7 @@ async def get_pnl(
 @router.put("/mode")
 async def switch_mode(
     mode: str = Query("paper", description="paper | live"),
+    db: AsyncSession = Depends(get_db),
     user: dict = Depends(require_role("admin")),
 ):
     """Switch global trading mode between paper and live."""
@@ -345,9 +352,11 @@ async def switch_mode(
     previous = _current_mode
     _current_mode = mode
 
-    _audit_record_safe(
+    await _audit_record_safe(
+        db,
         action="MODE_SWITCH",
         mode=mode,
+        user=user,
         details={"previous_mode": previous, "current_mode": mode},
     )
 
@@ -370,6 +379,7 @@ async def broker_connect(
     server_ip: str = Query("127.0.0.1"),
     server_port: int = Query(6001),
     trade_password: str = Body("", embed=True),
+    db: AsyncSession = Depends(get_db),
     user: dict = Depends(require_role("admin")),
 ):
     """Connect to the live broker (xtquant/QMT)."""
@@ -414,9 +424,11 @@ async def broker_connect(
     _live_broker = broker
     _broker_connected_at = datetime.now(timezone.utc)
 
-    _audit_record_safe(
+    await _audit_record_safe(
+        db,
         action="BROKER_CONNECT",
         mode="live",
+        user=user,
         details={"broker_name": broker_name, "account_id": account_id},
     )
 
@@ -465,6 +477,7 @@ async def get_circuit_breaker(
 @router.post("/circuit-breaker/reset")
 async def reset_circuit_breaker(
     reason: str = Query("manual reset", description="Reset reason"),
+    db: AsyncSession = Depends(get_db),
     user: dict = Depends(require_role("admin")),
 ):
     """Manually reset the circuit breaker."""
@@ -473,9 +486,11 @@ async def reset_circuit_breaker(
     await reset(acct_id, reason=reason)
     state_after = await get_state(acct_id)
 
-    _audit_record_safe(
+    await _audit_record_safe(
+        db,
         action="CIRCUIT_BREAKER",
         mode="live",
+        user=user,
         details={
             "previous_status": state_before["status"],
             "current_status": state_after["status"],
@@ -496,49 +511,76 @@ async def reset_circuit_breaker(
 
 @router.get("/audit-logs")
 async def get_audit_logs(
-    action: str = Query(None, description="Filter by action type"),
-    trade_mode: str = Query(None, description="paper | live"),
-    code: str = Query(None, description="Stock code"),
+    action: str | None = Query(None, description="Filter by action type"),
+    trade_mode: str | None = Query(None, description="paper | live"),
+    code: str | None = Query(None, description="Stock code"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst")),
 ):
     """Query the audit log (read-only)."""
-    # In production this calls audit_log.query(db, ...).
-    # Without a database session available in trade-service, return
-    # an informative placeholder so the frontend can integrate.
-    return {
-        "total": 0,
-        "page": page,
-        "page_size": page_size,
-        "records": [],
-        "note": (
-            "Audit log requires a PostgreSQL database session. "
-            "Wire audit_log.query(db, ...) through the backend API gateway "
-            "or add a database dependency to trade-service."
-        ),
-    }
+    return await query_audit(
+        db,
+        action=action,
+        mode=trade_mode,
+        symbol=code,
+        page=page,
+        page_size=page_size,
+    )
 
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
-def _audit_record_safe(
+def _uid(user: dict | None) -> int | None:
+    """Extract a numeric user id from the JWT payload returned by require_role.
+
+    ``require_role`` returns the decoded JWT (keys: sub, name, role, ...).
+    ``sub`` may be a numeric user id (string) or ``"service"`` for internal
+    service-to-service calls; return None for the latter / non-numeric values.
+    """
+    if not user:
+        return None
+    raw = user.get("sub") or user.get("user_id") or user.get("id")
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+async def _audit_record_safe(
+    db: AsyncSession,
+    *,
     action: str,
     mode: str,
+    user: dict | None = None,
     details: dict | None = None,
     symbol: str | None = None,
     order_id: str | None = None,
+    client_ip: str | None = None,
 ) -> None:
-    """Best-effort audit log write — logs to console if DB is unavailable."""
+    """Best-effort audit log write — never blocks the main operation.
+
+    On DB failure: rollback + ``logger.exception`` (never silent, never re-raise).
+    Per AC-4 / ADR-007 Q-3.
+    """
     try:
-        logger.info(
-            "AUDIT | action=%s mode=%s symbol=%s order=%s details=%s",
-            action, mode, symbol, order_id, details,
+        await record_audit(
+            db,
+            user_id=_uid(user),
+            action=action,
+            mode=mode,
+            details=details,
+            symbol=symbol,
+            order_id=order_id,
+            client_ip=client_ip,
         )
-        # In production:
-        #   from app.audit_log import record
-        #   import db_session
-        #   await record(db_session, user_id=..., action=action, mode=mode, ...)
-        # For now, console logging ensures no data loss.
+        await db.commit()
     except Exception:
-        logger.exception("Audit log write failed (non-fatal)")
+        await db.rollback()
+        logger.exception(
+            "AUDIT write failed (non-fatal) action=%s mode=%s symbol=%s order=%s",
+            action, mode, symbol, order_id,
+        )

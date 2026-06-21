@@ -1,4 +1,42 @@
-## 数据管道 PG 直写重构 — 代码实现 - 2026-06-12 14:30
+## 阶段0 — T-005 AC-1/2/3 认证密钥分级 raise + AC-8 docker 跑 alembic - 2026-06-21
+**状态**: 代码完成（backend-dev 改码 config×2 + 测试×2 + compose；PL 补 Dockerfile AC-8 + PL 代跑 SIT verify）；AC-2 curl 待 UAT 实测
+**Skills**: agf-running-sit-tests（PL 代跑 verify）
+
+**SIT 证据**:
+- [x] AC-1 ✅ packages/kronos-auth/kronos_auth/config.py：KRONOS_SERVICE_SECRET / KRONOS_JWT_SECRET 统一 `_secret()` 读法，prod（KRONOS_ENV=production）缺失 raise RuntimeError / dev warn + `dev-only-` 前缀 fallback；禁硬编码默认。单测 6 passed（用 backend/.venv python，系统 python3 缺 pyjwt）
+- [x] AC-3 ✅ backend/app/config.py：JWT_SECRET_KEY + ADMIN_PASSWORD 分级 raise；**移除 secrets.token_hex**（AST 测试断言无 `secrets.token_hex` Call）；**移除 Admin123!**（AST 测试断言 ADMIN_PASSWORD 默认非 Admin123 字面量）。单测 8 passed
+- [x] AC-8 ✅ backend/app/main.py lifespan 加 `_run_migrations()`（编程式 `alembic upgrade head` via asyncio.to_thread），seed_roles 前自动 migrate——**覆盖 docker compose + 手动 uvicorn 所有启动方式**（PL 补：发现 backend 手动启动为主 + compose 引用不存在的 `services/backend/Dockerfile` + 根 `backend/Dockerfile` 原 CMD 路径错，故以 main.py 为单一 migrate 可信入口）；同步修 compose `dockerfile: services/backend/Dockerfile`→`backend/Dockerfile` + 注入 `DATABASE_SYNC_URL`；`backend/Dockerfile` 简化为 `WORKDIR /app/backend` + `uvicorn app.main:app`（migrate 交 main.py）
+- [ ] AC-2 ⏳ curl 越权验证待 UAT：`docker compose up backend` + `curl -H "X-Service-Auth: dev-service-secret-change-in-production" .../trade/mode` → 应 401（AC-1 落地后旧默认值 ≠ 实际 secret）
+
+**单测**: backend 8 passed + kronos-auth 6 passed = **14 全绿**
+**交叉点**: T-004 已把 compose 的 ADMIN_PASSWORD/JWT_SECRET_KEY 改 `:?` 强制（AC-12）；本 task 补 DATABASE_SYNC_URL（AC-8 alembic 必需）+ config 逻辑侧 + Dockerfile
+**下一步**: AC-2 curl 实测归 UAT/E2E（全服务起来后统一验证）
+
+---
+
+
+**状态**: 已完成
+**Skills**: agf-running-sit-tests, superpowers:verification-before-completion
+
+**SIT 证据**（按 AC 列；行首 `[x]/[ ]` 同时表达 AC 自验勾选）:
+- [x] AC-7 ✅ 两文件顶部加 `from psycopg2.sql import SQL, Identifier`，SQL/Identifier 不再 NameError
+    - 命令: `$ .venv/bin/python -c "import ast; ast.parse(open('<file>').read())"` → 两文件 Syntax OK
+    - 实跑: `refresh_materialized_views()`（原 L181 NameError）返回 `{'status':'error','error':'connection ... refused'}`（无 PG，符合预期），**无 NameError**
+    - AST: `check_table_latest_date`(L188, L204 site) + `run_data_quality_report`(L391, L433/449/472 sites) 均引用 SQL/Identifier，import 行已存在
+- [x] AC-12 ✅ compose 明文密码移除，改为强制 env 注入 + 缺失报错
+    - `grep -c "Admin123!" docker/docker-compose.yml` → 0 命中
+    - `ADMIN_PASSWORD=${ADMIN_PASSWORD:?... must be set ...}`（无默认值，缺失即报错）
+    - `JWT_SECRET_KEY` 同步改为 `:?` 强制 env（原本有弱默认 `dev-secret-change-in-production`）
+    - KRONOS_SERVICE_SECRET 在本 compose 中不存在（无需改）
+    - 验证: `ADMIN_PASSWORD='' JWT_SECRET_KEY='' docker compose config` exit=1 + stderr "required variable JWT_SECRET_KEY is missing"；设上 env 后 `docker compose config` OK
+
+**质量门**: lint N/A（python ast.parse OK + compose config 验证 OK）/ typecheck N/A / unit N/A（纯 import 修复+env 加固，无新逻辑）/ SIT ✅
+
+**下一步**: 等待 code-review（含 SIT Audit）
+
+---
+
+
 **状态**: 已完成
 **Skills**: agf-running-sit-tests, superpowers:verification-before-completion
 

@@ -1,4 +1,5 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, cleanup } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -51,7 +52,12 @@ const server = setupServer(
 )
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
-afterEach(() => server.resetHandlers())
+afterEach(() => {
+  // AC-6: release DOM + AntD Form/jsdom state between tests — without this the
+  // 8 tests accumulate heap until the vitest worker OOMs (ERR_WORKER_OUT_OF_MEMORY).
+  cleanup()
+  server.resetHandlers()
+})
 afterAll(() => server.close())
 
 // ── Helper: mock a successful session restore (refresh + /me) ──
@@ -76,31 +82,33 @@ function mockSessionRestore(userData: Record<string, unknown> = {}) {
 // ── Helpers ──
 
 async function fillLoginForm(email: string, password: string) {
+  const user = userEvent.setup()
   await waitFor(() => {
     expect(screen.getByPlaceholderText('邮箱')).toBeInTheDocument()
   })
-  fireEvent.change(screen.getByPlaceholderText('邮箱'), { target: { value: email } })
-  fireEvent.change(screen.getByPlaceholderText('密码'), { target: { value: password } })
+  await user.type(screen.getByPlaceholderText('邮箱'), email)
+  await user.type(screen.getByPlaceholderText('密码'), password)
   await waitFor(() => {
     const btn = screen.getByRole('button', { name: /登录/ })
     expect(btn).not.toBeDisabled()
   })
-  fireEvent.click(screen.getByRole('button', { name: /登录/ }))
+  await user.click(screen.getByRole('button', { name: /登录/ }))
 }
 
 async function fillRegisterForm(name: string, email: string, password: string, confirm: string) {
+  const user = userEvent.setup()
   await waitFor(() => {
     expect(screen.getByPlaceholderText('用户名')).toBeInTheDocument()
   })
-  fireEvent.change(screen.getByPlaceholderText('用户名'), { target: { value: name } })
-  fireEvent.change(screen.getByPlaceholderText('邮箱'), { target: { value: email } })
-  fireEvent.change(screen.getByPlaceholderText('密码'), { target: { value: password } })
-  fireEvent.change(screen.getByPlaceholderText('确认密码'), { target: { value: confirm } })
+  await user.type(screen.getByPlaceholderText('用户名'), name)
+  await user.type(screen.getByPlaceholderText('邮箱'), email)
+  await user.type(screen.getByPlaceholderText('密码'), password)
+  await user.type(screen.getByPlaceholderText('确认密码'), confirm)
   await waitFor(() => {
     const btn = screen.getByRole('button', { name: /注册/ })
     expect(btn).not.toBeDisabled()
   })
-  fireEvent.click(screen.getByRole('button', { name: /注册/ }))
+  await user.click(screen.getByRole('button', { name: /注册/ }))
 }
 
 // ── SIT: Auth Flow ──

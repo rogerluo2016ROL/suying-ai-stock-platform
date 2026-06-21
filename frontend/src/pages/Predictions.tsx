@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Input, Button, Descriptions, Tag, Space, Typography, Row, Col, Statistic, message, Spin, Progress } from 'antd'
 import { LineChartOutlined, ThunderboltOutlined, RiseOutlined, FallOutlined } from '@ant-design/icons'
+import { predictionApi } from '../api/client'
 
 const { Title, Text } = Typography
 
@@ -15,12 +16,11 @@ export default function Predictions() {
     if (!code) { message.warning('请输入股票代码'); return }
     setLoading(true)
     try {
-      const r = await fetch(`/api/v1/prediction/${code}?pred_days=10`, { method: 'POST' })
-      const data = await r.json()
+      const { data } = await predictionApi.predict(code, 10)
       setResult(data)
       message.success(`Kronos预测: ${data.pred_return_pct > 0 ? '📈' : '📉'} ${data.pred_return_pct > 0 ? '+' : ''}${data.pred_return_pct}%`)
-    } catch {
-      message.error('分析失败')
+    } catch (e: any) {
+      message.error(e.response?.data?.detail || '分析失败')
     } finally { setLoading(false) }
   }
 

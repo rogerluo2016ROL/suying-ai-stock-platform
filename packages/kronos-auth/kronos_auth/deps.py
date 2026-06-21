@@ -21,12 +21,16 @@ import jwt
 from fastapi import Depends, Header, Request
 from jwt import ExpiredSignatureError, InvalidTokenError
 
-from kronos_auth.config import KRONOS_JWT_SECRET, KRONOS_SERVICE_SECRET, JWT_ALGORITHM
+from kronos_auth.config import KRONOS_JWT_SECRET, KRONOS_SERVICE_SECRET, JWT_ALGORITHM, SERVICE_AUTH_ENABLED
 from kronos_auth.exceptions import UnauthorizedError, ForbiddenError
 
 logger = logging.getLogger("kronos-auth")
 
 X_SERVICE_AUTH_HEADER = "X-Service-Auth"
+# C-1: must match the `dev-only-` prefix used by config._secret() dev fallbacks.
+# Any secret still carrying this prefix MUST NOT grant X-Service-Auth exemption,
+# regardless of whether KRONOS_ENV=production is set on the deployment side.
+_DEV_SECRET_PREFIX = "dev-only-"
 
 
 async def _extract_bearer_token(request: Request) -> str:
@@ -67,6 +71,15 @@ async def get_current_user_jwt(request: Request) -> dict:
     # ── X-Service-Auth exemption ──
     service_auth = request.headers.get(X_SERVICE_AUTH_HEADER, "")
     if service_auth:
+        # C-1 安全硬约束（code-reviewer 验收清单 §3-3）：SERVICE_AUTH_ENABLED 仅在
+        # secret 非 dev-only- 前缀时为 True。dev fallback（仓库可见）绝不能授予 admin
+        # 豁免 → 一律拒绝。不依赖部署是否设 KRONOS_ENV=production。
+        if not SERVICE_AUTH_ENABLED:
+            logger.error(
+                "X-Service-Auth rejected: KRONOS_SERVICE_SECRET is a dev-only "
+                "fallback — inject a real secret to enable service-to-service auth"
+            )
+            raise UnauthorizedError("Service auth not configured (dev fallback)")
         if service_auth == KRONOS_SERVICE_SECRET:
             return {
                 "sub": "service",

@@ -66,14 +66,17 @@ services:
   backend:
     build:
       context: ..
-      dockerfile: services/backend/Dockerfile
+      dockerfile: backend/Dockerfile
     ports:
       - "9001:9001"
     environment:
       - DATABASE_URL=postgresql+asyncpg://kronos:kronos@postgres:5432/kronos
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-change-in-production}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set in env (>=32 chars in prod)}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@suying.ai}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-Admin123!}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set in env (no hardcoded default)}
+      - DATABASE_SYNC_URL=postgresql+psycopg2://kronos:kronos@postgres:5432/kronos
+      - KRONOS_ENV=production
+      - KRONOS_SERVICE_SECRET=${KRONOS_SERVICE_SECRET:?KRONOS_SERVICE_SECRET must be set (service-to-service auth)}
     depends_on:
       postgres:
         condition: service_healthy
@@ -127,6 +130,8 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - TRADE_SERVICE_URL=http://trade-service:8006
       - SIGNAL_SERVICE_URL=http://signal-service:8004
+      - KRONOS_ENV=production
+      - KRONOS_SERVICE_SECRET=${KRONOS_SERVICE_SECRET:?KRONOS_SERVICE_SECRET must be set (service-to-service auth)}
     depends_on:
       postgres:
         condition: service_healthy
@@ -173,6 +178,8 @@ services:
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - TRADE_MODE=paper
+      - KRONOS_ENV=production
+      - KRONOS_SERVICE_SECRET=${KRONOS_SERVICE_SECRET:?KRONOS_SERVICE_SECRET must be set (service-to-service auth)}
     depends_on:
       postgres:
         condition: service_healthy

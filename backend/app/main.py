@@ -13,9 +13,33 @@ from app.routers.auth import router as auth_router
 from app.routers.admin import router as admin_router
 
 
+def _run_migrations() -> None:
+    """AC-8: run `alembic upgrade head` programmatically before seed_roles.
+
+    Ensures auth/audit/circuit_breaker tables exist regardless of how backend
+    is started (docker compose / manual uvicorn). Idempotent. Sync (psycopg2
+    via DATABASE_SYNC_URL); called via asyncio.to_thread from the async lifespan.
+    ADR-007 Q-4 dual-track: business tables via init_postgres.sql, auth/audit/
+    training/circuit_breaker tables via alembic — this runs the alembic track.
+    Failure (e.g. PG unreachable) aborts startup cleanly rather than crashing
+    later in seed_roles with a cryptic 'relation does not exist'.
+    """
+    from alembic import command
+    from alembic.config import Config as AlembicConfig
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # backend/
+    cfg = AlembicConfig(os.path.join(base_dir, "alembic.ini"))
+    command.upgrade(cfg, "head")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup: seed roles + admin user. Shutdown: dispose engine."""
+    """Startup: migrate (alembic) + seed roles + admin user. Shutdown: dispose engine."""
+    import asyncio
+
+    # AC-8: ensure auth/audit/circuit_breaker schema exists before seed_roles.
+    await asyncio.to_thread(_run_migrations)
+
     # Import here to avoid circular deps
     from app.services.auth_service import seed_roles
     from app.config import ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME

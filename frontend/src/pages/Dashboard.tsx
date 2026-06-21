@@ -11,6 +11,7 @@ import {
   InfoCircleOutlined, RightOutlined, ApiOutlined, BellOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import api, { signalApi } from '../api/client'
 
 const { Title, Text } = Typography
 
@@ -101,12 +102,9 @@ export default function Dashboard() {
     setLoading(true)
     try {
       // Cache-bust to ensure we always get fresh PG data
-      const r = await fetch(`/api/v1/signal/dashboard-summary?_t=${Date.now()}`)
-      if (r.ok) {
-        const d: DashboardData = await r.json()
-        setData(d)
-        setLastRefresh(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
-      }
+      const { data: d }: { data: DashboardData } = await signalApi.getDashboardSummary()
+      setData(d)
+      setLastRefresh(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
     } catch { /* silent */ }
     finally { setLoading(false) }
   }, [])
@@ -124,14 +122,11 @@ export default function Dashboard() {
     const fetchScreening = async () => {
       setPicksLoading(true); setDbLoading(true)
       try {
-        const r = await fetch(`/api/v1/dashboard/summary?_t=${Date.now()}`)
-        if (r.ok) {
-          const d = await r.json()
-          if (d.status !== 'no_data') {
-            setDbSummary(d)
-            setDashboardPicks(d.dual_consensus?.length > 0 ? d.dual_consensus : d.merged || [])
-            setDashboardPredictions(d.predictions || [])
-          }
+        const { data: d } = await api.get(`/dashboard/summary?_t=${Date.now()}`)
+        if (d.status !== 'no_data') {
+          setDbSummary(d)
+          setDashboardPicks(d.dual_consensus?.length > 0 ? d.dual_consensus : d.merged || [])
+          setDashboardPredictions(d.predictions || [])
         }
       } catch { /* silent */ }
       finally { setPicksLoading(false); setDbLoading(false) }
@@ -140,8 +135,8 @@ export default function Dashboard() {
     const timer = setInterval(fetchScreening, 120_000)
 
     // 竞价数据
-    fetch('/api/v1/dashboard/auction')
-      .then(r => r.json()).then(d => {
+    api.get('/dashboard/auction')
+      .then(({ data: d }) => {
         if (d.picks) { setAuctionPicks(d.picks); setAuctionSectors(d.sectors || []) }
       }).catch(() => {})
 
@@ -662,7 +657,7 @@ export default function Dashboard() {
           <Button size="small" type="primary" icon={<ThunderboltOutlined />}
             onClick={async () => {
               try {
-                await fetch('/api/v1/dashboard/run-pipeline', { method: 'POST' })
+                await api.post('/dashboard/run-pipeline')
                 message.success('流水线已触发, 2分钟后刷新查看结果')
               } catch { message.error('触发失败') }
             }}>

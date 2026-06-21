@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Button, Steps, Space, Typography, Tag, message, Table, Modal, Descriptions, List, Row, Col } from 'antd'
 import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, CheckCircleOutlined, EyeOutlined, FundOutlined, ExperimentOutlined, RobotOutlined, ThunderboltOutlined, SafetyOutlined, BankOutlined } from '@ant-design/icons'
+import api, { backtestApi } from '../api/client'
 
 const { Title, Text } = Typography
 
@@ -77,14 +78,14 @@ export default function Strategy() {
 
   const loadPlans = () => {
     setLoading(true)
-    fetch('/api/v1/strategy/plans').then(r => r.json()).then(d => {
+    api.get('/strategy/plans').then(({ data: d }) => {
       setPlans(d.plans || d.items || [])
       setLoading(false)
     }).catch(() => setLoading(false))
   }
 
   const loadTemplates = () => {
-    fetch('/api/v1/strategy/templates').then(r => r.json()).then(d => {
+    api.get('/strategy/templates').then(({ data: d }) => {
       setTemplates(d.templates || [])
     }).catch(() => {})
   }
@@ -99,50 +100,50 @@ export default function Strategy() {
         max_positions: String(template.max_positions || 5),
         single_max_pct: String(template.single_max || 0.2),
       })
-      const r = await fetch(`/api/v1/strategy/plans?${params.toString()}`, {
-        method: 'POST',
-      })
-      if (r.ok) {
-        message.success(`已基于"${template.name}"创建方案`)
-        loadPlans()
-      } else {
-        const err = await r.json().catch(() => ({}))
-        message.error(err.detail || '创建失败')
-      }
-    } catch {
-      message.error('策略服务未连接')
+      await api.post(`/strategy/plans?${params.toString()}`)
+      message.success(`已基于"${template.name}"创建方案`)
+      loadPlans()
+    } catch (e: any) {
+      message.error(e.response?.data?.detail || '创建失败')
     } finally { setCreating(false) }
   }
 
   useEffect(() => { loadPlans(); loadTemplates() }, [])
 
   const confirmPlan = async (id: string) => {
-    await fetch(`/api/v1/strategy/plans/${id}/confirm`, { method: 'POST' })
-    message.success('方案已确认')
-    loadPlans()
+    try {
+      await api.post(`/strategy/plans/${id}/confirm`)
+      message.success('方案已确认')
+      loadPlans()
+    } catch (e: any) {
+      message.error(e.response?.data?.detail || '确认失败')
+    }
   }
 
   const deletePlan = async (id: string) => {
-    await fetch(`/api/v1/strategy/plans/${id}`, { method: 'DELETE' })
-    message.success('方案已删除')
-    loadPlans()
+    try {
+      await api.delete(`/strategy/plans/${id}`)
+      message.success('方案已删除')
+      loadPlans()
+    } catch (e: any) {
+      message.error(e.response?.data?.detail || '删除失败')
+    }
   }
 
   const viewPlan = async (id: string) => {
-    const r = await fetch(`/api/v1/strategy/plans/${id}`)
-    if (r.ok) {
-      setDetailPlan(await r.json())
-    } else {
+    try {
+      const { data } = await api.get(`/strategy/plans/${id}`)
+      setDetailPlan(data)
+    } catch {
       message.error('方案不存在或已被删除')
     }
   }
 
   const viewReport = async (id: string) => {
-    const r = await fetch(`/api/v1/strategy/plans/${id}/report`)
-    if (r.ok) {
-      const data = await r.json()
+    try {
+      const { data } = await api.get(`/strategy/plans/${id}/report`)
       if (data.title) setReport(data)
-    } else {
+    } catch {
       message.error('报告生成失败，请先确认方案')
     }
   }
@@ -150,7 +151,7 @@ export default function Strategy() {
   const runBacktestOnPlan = async (id: string) => {
     message.loading('回测运行中...')
     try {
-      await fetch(`/api/v1/backtest/run?mode=all`, { method: 'POST' })
+      await backtestApi.run({ mode: 'all' })
       message.success('回测完成, 请查看回测分析页面')
     } catch { message.error('回测服务未连接') }
   }
@@ -158,16 +159,11 @@ export default function Strategy() {
   const generateQuantStrategy = async (id: string) => {
     message.loading('正在生成量化策略...')
     try {
-      const r = await fetch(`/api/v1/strategy/generate-from-scheme/${id}`, { method: 'POST' })
-      if (r.ok) {
-        message.success('量化策略生成成功')
-        navigate('/auto-trade')
-      } else {
-        const err = await r.json().catch(() => ({ detail: '生成失败' }))
-        message.error(err.detail || '生成失败')
-      }
-    } catch {
-      message.error('策略服务未连接')
+      await api.post(`/strategy/generate-from-scheme/${id}`)
+      message.success('量化策略生成成功')
+      navigate('/auto-trade')
+    } catch (e: any) {
+      message.error(e.response?.data?.detail || '生成失败')
     }
   }
 

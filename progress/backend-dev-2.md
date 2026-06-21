@@ -119,3 +119,235 @@ curl -X POST localhost:8006/api/v1/trade/order \
 **涉及文件**:
 - `services/trade-service/app/schemas.py` (新增 PlaceOrderRequest)
 - `services/trade-service/app/routes.py` (place_order Query→Body)
+
+---
+
+# T-006: AC-9 trade-service audit_log 接 DB（4 类资金操作落 audit_logs 表）
+
+**日期**: 2026-06-21 | **状态**: ✅ 完成 | **owner**: backend-dev-2
+
+## Skills used
+
+agf-running-sit-tests, superpowers:verification-before-completion
+
+## Plan Mode
+
+高风险（资金审计可追溯）已进 Plan Mode，product-lead 基于已 Accepted 的 ADR-007 Q-3 直接授权实施（消息正文传递丢失，PL 改为读文件确认）。方案契约：复用 `audit_logs` 表（alembic 002，非 ADR-002 的 `trade_audit_log`）+ diagnosis async SQLAlchemy 模式 + URL scheme 适配（不改 docker-compose，避开 T-005 临界区）。
+
+## 实施摘要
+
+### 1. 新增 `services/trade-service/app/database.py`（复用 diagnosis 模板）
+- `create_async_engine` + `async_sessionmaker(expire_on_commit=False)` + `get_db()` async dependency。
+- `_resolve_async_url()`：`DATABASE_URL` 优先，否则从 `KRONOS_PG_URL`（compose 已有，psycopg2 scheme）派生，统一 `postgresql://` → `postgresql+asyncpg://`（左起首次替换，凭证安全）。
+- `_is_test` 时挂 `NullPool`；`pool_pre_ping=True`。
+- 零新依赖（sqlalchemy/asyncpg 在栈内）。
+
+### 2. `routes.py` 改造
+- `_audit_record_safe`（原 :525-544）改 async + 吃 `AsyncSession`，内部 `await record_audit(db, ...)` + `commit`；失败 `rollback + logger.exception`（不静默吞、不 re-raise、不阻断主操作）。
+- 新增 `_uid(user)` helper：从 JWT payload 的 `sub`/`user_id`/`id` 取数字 user id；`"service"` / 非数字 → None。
+- 4 个调用点全改 `await _audit_record_safe(db, ...)` + 注入 `db: AsyncSession = Depends(get_db)`：
+  - PLACE_ORDER `routes.py:189`
+  - MODE_SWITCH `routes.py:355`
+  - BROKER_CONNECT `routes.py:427`
+  - CIRCUIT_BREAKER `routes.py:489`
+- `/audit-logs`（原 :497-520）删硬编码空数组 + placeholder note，改 `return await query_audit(db, action=, mode=trade_mode, symbol=code, page=, page_size=)`。
+
+### 3. `audit_log.py` 修复 asyncpg 兼容性 bug（既有缺陷，落表硬阻断）
+- `record()` 的 `INSERT ... :details::jsonb` 被 asyncpg dialect 把 `::jsonb` 当命名占位符解析 → `syntax error at or near ":"`（该代码此前从未真跑过 DB）。
+- 修法：`::jsonb` 改 `CAST(:details AS jsonb)`，asyncpg-safe。
+- 该修复是 AC-9 落表的必需项（不修则 4 类操作全部写失败被 best-effort 静默吞）。
+
+## SIT 证据（真实 PG localhost:6432 + 真实 uvicorn :8006）
+
+环境：`docker start docker-postgres-1`（healthy）+ alembic 002 已建 `audit_logs` 表 + `TRUNCATE audit_logs` 清空起步。
+
+### AC-9.1: database.py 能连 kronos 库（URL 适配）
+```
+DATABASE_URL = postgresql+asyncpg://kronos:kronos@localhost:6432/kronos  ← 从 KRONOS_PG_URL(postgresql://) 正确适配
+routes import OK; _audit_record_safe iscoroutinefunction: True
+_uid({'sub':'service'})=None  _uid({'sub':'123'})=123  _uid(None)=None
+```
+- [x] AC-9.1 通过：get_db dependency 存在，asyncpg URL 正确解析
+
+### AC-9.2: 4 类操作全部落 audit_logs 表
+触发 3 个真实 API（MODE_SWITCH / PLACE_ORDER / CIRCUIT_BREAKER）+ BROKER_CONNECT 直调 `record()`（xtquant SDK 在 macOS SIT 环境不可达，按计划绕过 connect 验证 record 落表路径）：
+```
+$ curl -X PUT  -H "$H" /api/v1/trade/mode?mode=paper                          → 200
+$ curl -X POST -H "$H" /api/v1/trade/order -d '{...paper下单...}'             → 200 (ORD0001)
+$ curl -X POST -H "$H" /api/v1/trade/circuit-breaker/reset?reason=sit-test2  → 200
+$ record(db, action='BROKER_CONNECT', ...)                                    → id=4
+
+DB 直查: SELECT id, action, mode, user_id FROM audit_logs ORDER BY id;
+  1 | MODE_SWITCH     | paper | 1
+  2 | PLACE_ORDER     | paper | 1
+  3 | CIRCUIT_BREAKER | live  | 1
+  4 | BROKER_CONNECT  | live  | 1
+```
+`/audit-logs` 真查询返回（user_id=1 正确提取，details jsonb 正确反序列化，分页 OK）：
+```json
+{"total":3,"page":1,"page_size":50,"records":[
+ {"id":3,"action":"CIRCUIT_BREAKER","mode":"live","user_id":1,"details":{"reason":"sit-test2","current_status":"NORMAL","previous_status":"NORMAL"},...},
+ {"id":2,"action":"PLACE_ORDER","mode":"paper","user_id":1,"details":{"result":{...},"request":{...},"risk_check":null},"symbol":"600000","order_id":"ORD0001",...},
+ {"id":1,"action":"MODE_SWITCH","mode":"paper","user_id":1,"details":{"current_mode":"paper","previous_status":"paper"},...}
+]}
+```
+- [x] AC-9.2 通过：4 类操作（切 mode / broker connect / 重置熔断 / 下单）全部落表
+
+### AC-9.3: 重启 trade-service 后记录仍在（持久化）
+```
+kill <pid> → 重启 uvicorn :8006 → GET /audit-logs
+total = 4
+  4 BROKER_CONNECT
+  3 CIRCUIT_BREAKER
+  2 PLACE_ORDER
+  1 MODE_SWITCH
+```
+- [x] AC-9.3 通过：进程重启后 4 条记录全部持久化存在
+
+### AC-9.4: 审计写失败 best-effort 不阻断主操作 + 不静默吞
+将 `KRONOS_PG_URL` 指向不可达地址 `127.0.0.1:9999` 强制审计写失败：
+```
+$ curl -X POST -H "$H" /api/v1/trade/order -d '{...600001...}' -w "%{http_code}"
+{"order_id":"ORD0001","code":"600001","direction":"BUY","price":9.0,...,"status":"filled"}
+HTTP_STATUS=200                                              ← 主操作不受影响
+$ grep -c "AUDIT write failed (non-fatal)" /tmp/trade-svc-fail.log
+1                                                            ← 失败被记日志
+$ grep -c "Traceback" /tmp/trade-svc-fail.log
+1                                                            ← 完整 traceback（不静默吞）
+```
+失败 traceback 头部（确认是连接拒绝，非代码缺陷）：
+```
+[ERROR] trade-service.routes: AUDIT write failed (non-fatal) action=PLACE_ORDER mode=paper symbol=600001 order=ORD0001
+... connect ECONNREFUSED 127.0.0.1:9999 ...
+```
+- [x] AC-9.4 通过：写失败不阻断（200）+ logger.exception 留痕（非静默吞）
+
+## 自查清单
+- [x] 4 类操作全挂 `await _audit_record_safe(db, ...)`（grep 验证 :189/:355/:427/:489，无遗漏旧式调用）
+- [x] `_audit_record_safe` 已改 async + `await record_audit` + commit/rollback/exception
+- [x] `/audit-logs` 改 `query_audit(db, ...)` 真查询（placeholder note 已删）
+- [x] `get_db` 用路由级 `Depends(get_db)`（5 处：4 写 + 1 读），main.py 未动
+- [x] 表名 `audit_logs`（与 alembic 002 一致，非 ADR-002 的 `trade_audit_log`）
+- [x] 参数化查询（`text()` + bind），无 SQL 注入
+- [x] 无明文密钥进代码（JWT secret / service secret 走 env）
+- [x] 不碰 docker-compose / alembic（T-005 临界区）/ strategy-service（T-007）
+
+## 质量门
+- [x] 全部 4 项 AC（9.1~9.4）通过，附真实 curl + DB 直查输出
+- [x] Python 语法检查通过（routes.py / database.py / audit_log.py）
+- [x] git scope 干净：仅 `services/trade-service/app/` 下 3 文件（audit_log.py 修 + routes.py 改 + database.py 新增）
+- [x] 无新增依赖、无 schema 变更（复用 alembic 002 现成 audit_logs）
+- [x] 回滚成本低：database.py 可删；routes.py git revert；零 migration 回滚
+
+## 下一步
+
+等待 code-reviewer 审查（含 SIT Audit）。SIT 证据：4 类操作落表 + 重启持久化 + 写失败 best-effort 不阻断，均在真实 PG + 真实 uvicorn 上验证。
+
+---
+
+**涉及文件**:
+- `services/trade-service/app/database.py`（新增 — async SQLAlchemy session + URL 适配）
+- `services/trade-service/app/routes.py`（改 — `_audit_record_safe` async 化 + `/audit-logs` 真查询 + 4 操作挂 `Depends(get_db)` + `_uid` helper）
+- `services/trade-service/app/audit_log.py`（修 — `record()` 的 `::jsonb` → `CAST(... AS jsonb)`，asyncpg 兼容）
+
+---
+
+# T-007: AC-10 auto_trading 风控连接池 + DB 异常 fail-safe 暂停（最高风险）
+
+**日期**: 2026-06-21 | **状态**: ✅ 完成 | **owner**: backend-dev-2
+
+## Skills used
+
+agf-running-sit-tests, superpowers:verification-before-completion
+
+## Plan Mode
+
+最高风险项（资金 fail-safe）。fail-safe 代码结构经 product-lead 书面授权实施，复用 ADR-003 的 asyncio.Event pause 机制（AC-202 已建，不重造）。对齐 ADR-007 + tech-lead AC-10 铁律：连接失败=系统性风险→暂停整轮循环，**严禁** `return True`（全卖）/ 维持 `return False`（不止损继续下单）。
+
+## 实施摘要（services/strategy-service/app/auto_trading_executor.py）
+
+### 1. 模块级 async engine（进程级单例，不每循环建池）
+- 新增 `_resolve_risk_db_url()`：`DATABASE_URL` 优先，否则从 `KRONOS_PG_URL` 派生 `postgresql+asyncpg://`（与 AC-9 trade-service 一致）。
+- `_risk_engine = create_async_engine(..., pool_pre_ping=True, pool_size=2, max_overflow=3, pool_timeout=5)`（:50-60）。进程级单例，executor 启动即就绪，多策略共享，进程退出自动 dispose（单策略 stop 不关共享池）。
+- `pool_timeout=5` 防风控调用无限阻塞循环；`pool_pre_ping` 兜底断连。
+
+### 2. 专用异常 `RiskCheckUnavailable`（:74）
+- DB 不可达时由 3 风控函数抛出，caller（`_run_one_check`）catch 后暂停整轮循环。**绝不**返回中性默认值（杜绝让交易继续的 `False`/`""`/`0.0`）。
+
+### 3. 3 风控函数改 async + engine + 抛异常
+- `_check_announcement_risk`（原 :469）→ async，`engine.connect()` + 参数化 `:code`；except → `raise RiskCheckUnavailable`（:576）。
+- `_get_atr_stop_loss`（原 :500）→ async，numpy ATR 逻辑保留，只把 DB 取数换 engine；except → raise（:626）。
+- `_check_forecast_risk`（原 :542）→ async；**附带修复 schema 漂移**：原查 `change_reason` 列实际不存在（既有缺陷，被旧 `except:return ""` 静默吞 → 表现为"无风险放行买入"，资金风险），改用实际列 `forecast_net_profit`（净利<0 视为预亏）。
+- 移除全部裸 `psycopg2.connect`（模块内 0 实际 psycopg2 调用，仅 2 处注释提及历史）。
+
+### 4. `_run_one_check` fail-safe 暂停（:353-497，复用日亏损暂停范式）
+- 把卖出循环（announcement + ATR 经 `_evaluate_sell_conditions`）+ 买入循环（forecast）整体包进 `try: ... except RiskCheckUnavailable`（:479）。
+- catch 后：`logger.error("risk DB unreachable — pausing executor for manual intervention", exc_info=True)` + 结构化 log（`fail_safe: True`）+ `mgr = get_executor_manager(); mgr.pause(strategy.id)` + `return`（本轮终止，不下单）。
+- 复用现有 `ExecutorManager.pause()`（:163-174）：`_pause_event.clear()` + `status="paused"` + store.update + 结构化 log。`_executor_loop` :221 `await state._pause_event.wait()` 自动阻塞循环。
+
+### 5. 调用链 async 化
+- `_evaluate_sell_conditions`（:659）改 async，内部 `await _get_atr_stop_loss(code)`（:683）。
+- 3 个调用点（announcement :366 / evaluate_sell :388 / forecast :432）全部加 `await`。
+
+## SIT 证据
+
+环境：`docker start docker-postgres-1`（healthy）+ pytest-asyncio 1.4.0 + 真实 PG（daily_kline 855 万行 / forecast_data 27251 行）。
+
+### 单测：tests/test_fail_safe_db_unreachable.py（3 passed）
+```
+$ pytest tests/test_fail_safe_db_unreachable.py -v
+collected 3 items
+tests/test_fail_safe_db_unreachable.py::test_db_unreachable_pauses_executor_not_orders PASSED [ 33%]
+tests/test_fail_safe_db_unreachable.py::test_db_healthy_does_not_pause          PASSED [ 66%]
+tests/test_fail_safe_db_unreachable.py::test_risk_functions_raise_on_db_failure PASSED [100%]
+============================== 3 passed in 0.17s ===============================
+```
+- **用例 1（AC-10 核心）**：mock `_risk_engine` connect 抛 OperationalError → `await _run_one_check` → 断言 `state.status == "paused"` + `orders_placed == 0` + `place_order` 从未被调 + `pause_event` cleared（循环阻塞）+ fail-safe log 存在。
+- **用例 2（回归）**：健康 DB（mock 风控正常返回）→ `state.status == "running"` + `checks_completed == 1` + 无 fail-safe log（防过度暂停）。
+- **用例 3（单元）**：3 函数各自在 DB fail 时 `raise RiskCheckUnavailable`（不返回中性默认值）。
+
+### 真实集成 SIT（真实 PG localhost:6432 + 真实 engine，非 mock）
+```
+[HEALTHY] announcement=(False, '')  atr=4.3  forecast=''  — all returned normally, NO pause
+[DEAD host] announcement: raised RiskCheckUnavailable (fail-safe OK)
+[DEAD host] atr: raised RiskCheckUnavailable (fail-safe OK)
+[DEAD host] forecast: raised RiskCheckUnavailable (fail-safe OK)
+```
+- **健康路径**：真实连库，announcement/atr/forecast 三函数全部正常返回（atr 算出 4.3% 止损线），不暂停。
+- **断连路径**：engine 指向 127.0.0.1:9999（不可达），三函数全部 raise `RiskCheckUnavailable` → `_run_one_check` catch → `mgr.pause()` 暂停整轮循环。
+
+### fail-safe 机制实跑日志（用例 1 captured log，证明非静默吞）
+```
+WARNING  strategy-service.executor: 公告风险检查 DB 不可达 code=600000: ...
+ERROR    strategy-service.executor: risk DB unreachable — pausing executor for manual intervention (strategy=sit-strat-failsafe): announcement_risk DB unreachable: ...
+(完整 traceback，exc_info=True)
+```
+
+## 自查清单
+- [x] 3 函数用 `_risk_engine` 连接池，模块内 0 裸 `psycopg2.connect`
+- [x] DB 异常 → 抛 `RiskCheckUnavailable` → `_run_one_check` catch → `mgr.pause()` 暂停整轮（非对单股返回 True/False）
+- [x] 严禁 `return True`（全卖）/ 维持 `return False`（不止损）—— 均未出现，统一走 raise
+- [x] 池生命周期：进程级单例（启动建，进程退出关），不每循环建池，单策略 stop 不关共享池
+- [x] 暂停/恢复有结构化日志（ERROR + fail_safe:True + exc_info traceback）
+- [x] 复用 ADR-003 asyncio.Event + ExecutorManager.pause（AC-202 机制，不重造）
+- [x] 单测 mock DB fail → 断言 `status=="paused"` + `orders_placed==0`（AC-10 Verification）
+- [x] 参数化查询（`:code`），无 SQL 注入
+- [x] 附带修复 forecast_data schema 漂移（`change_reason` 列不存在 → `forecast_net_profit`）
+- [x] 不碰 trade-service（T-006）/ docker-compose（T-005）/ 其他 strategy 路由
+
+## 质量门
+- [x] 单测 3 passed（mock DB fail → paused）+ 真实集成 SIT（健康 3 函数正常 / 断连 3 函数 raise）
+- [x] Python 语法检查通过（auto_trading_executor.py + test 文件）
+- [x] git scope 干净：仅 `services/strategy-service/`（auto_trading_executor.py 改 + tests/ 新增）
+- [x] 无新增依赖（sqlalchemy/asyncpg 在栈内）
+- [x] 零 schema 变更；回滚 = 单文件 git revert + 删 tests/
+
+## 下一步
+
+阶段 0 后端 5 个 task（T-001/004/005/006/007）全部收口。等 code-reviewer 审查（含 SIT Audit）。SIT 证据：单测 3 passed + 真实 PG 集成（健康路径正常返回 / 断连路径全 raise → 暂停）。
+
+---
+
+**涉及文件**:
+- `services/strategy-service/app/auto_trading_executor.py`（改 — engine 连接池 + `RiskCheckUnavailable` + 3 函数 async 化 + `_run_one_check` fail-safe 暂停 + forecast schema 修复）
+- `services/strategy-service/tests/test_fail_safe_db_unreachable.py`（新增 — 3 用例：DB fail→paused / 健康 DB 回归 / 3 函数 raise）

@@ -14,6 +14,7 @@ import {
   BellOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import api from '../api/client'
 
 const { Title, Text } = Typography
 
@@ -128,9 +129,8 @@ export default function AutoTrade() {
   // ── Fetch strategies ──
   const loadStrategies = useCallback(() => {
     setLoading(true)
-    fetch('/api/v1/strategy/list')
-      .then(r => r.json())
-      .then(d => setStrategies(d.strategies || []))
+    api.get('/strategy/list')
+      .then(({ data: d }) => setStrategies(d.strategies || []))
       .catch(() => message.error('加载策略列表失败'))
       .finally(() => setLoading(false))
   }, [])
@@ -140,9 +140,8 @@ export default function AutoTrade() {
   // ── Fetch logs for detail ──
   const loadLogs = (strategyId: string) => {
     setLogsLoading(true)
-    fetch(`/api/v1/strategy/${strategyId}/log`)
-      .then(r => r.json())
-      .then(d => setLogEntries(d.logs || []))
+    api.get(`/strategy/${strategyId}/log`)
+      .then(({ data: d }) => setLogEntries(d.logs || []))
       .catch(() => setLogEntries([]))
       .finally(() => setLogsLoading(false))
   }
@@ -245,22 +244,18 @@ export default function AutoTrade() {
     try {
       const values = await form.validateFields()
       const body = buildApiBody(values)
-      const url = editingStrategy
-        ? `/api/v1/strategy/${editingStrategy.id}`
-        : '/api/v1/strategy/custom'
-      const method = editingStrategy ? 'PUT' : 'POST'
-      const r = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (r.ok) {
-        message.success(editingStrategy ? '策略已更新' : '策略已创建')
+      try {
+        if (editingStrategy) {
+          await api.put(`/strategy/${editingStrategy.id}`, body)
+          message.success('策略已更新')
+        } else {
+          await api.post('/strategy/custom', body)
+          message.success('策略已创建')
+        }
         setDrawerOpen(false)
         loadStrategies()
-      } else {
-        const err = await r.json().catch(() => ({ detail: '保存失败' }))
-        message.error(err.detail || '保存失败')
+      } catch (e: any) {
+        message.error(e.response?.data?.detail || '保存失败')
       }
     } catch {
       // validation error handled by antd
@@ -270,24 +265,19 @@ export default function AutoTrade() {
   // ── Strategy actions ──
   const actionStrategy = async (id: string, action: string) => {
     try {
-      const r = await fetch(`/api/v1/strategy/${id}/${action}`, { method: 'POST' })
-      if (r.ok) {
-        const labels: Record<string, string> = {
-          start: '已启动', pause: '已暂停', resume: '已恢复', stop: '已终止',
-        }
-        message.success(`策略${labels[action] || '操作成功'}`)
-        loadStrategies()
-      } else {
-        const err = await r.json().catch(() => ({ detail: '操作失败' }))
-        message.error(err.detail || '操作失败')
+      await api.post(`/strategy/${id}/${action}`)
+      const labels: Record<string, string> = {
+        start: '已启动', pause: '已暂停', resume: '已恢复', stop: '已终止',
       }
-    } catch {
-      message.error('操作失败')
+      message.success(`策略${labels[action] || '操作成功'}`)
+      loadStrategies()
+    } catch (e: any) {
+      message.error(e.response?.data?.detail || '操作失败')
     }
   }
 
   const deleteStrategy = async (id: string) => {
-    await fetch(`/api/v1/strategy/${id}`, { method: 'DELETE' })
+    await api.delete(`/strategy/${id}`)
     message.success('策略已删除')
     loadStrategies()
   }
@@ -295,13 +285,10 @@ export default function AutoTrade() {
   const viewDetail = async (id: string) => {
     setLoading(true)
     try {
-      const r = await fetch(`/api/v1/strategy/${id}`)
-      if (r.ok) {
-        const d = await r.json()
-        setDetailStrategy(d)
-        loadLogs(id)
-      }
-    } catch { message.error('加载详情失败') }
+      const { data: d } = await api.get(`/strategy/${id}`)
+      setDetailStrategy(d)
+      loadLogs(id)
+    } catch (e: any) { message.error(e.response?.data?.detail || '加载详情失败') }
     finally { setLoading(false) }
   }
 

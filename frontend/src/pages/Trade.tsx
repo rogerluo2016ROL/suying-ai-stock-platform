@@ -17,6 +17,7 @@ import BrokerStatus from '../components/trade/BrokerStatus'
 import CircuitBreakerAlert from '../components/trade/CircuitBreakerAlert'
 import RiskCheckModal from '../components/trade/RiskCheckModal'
 import { showLargeTradeConfirm } from '../components/trade/LargeTradeConfirm'
+import { tradeApi } from '../api/client'
 
 const { Title, Text } = Typography
 
@@ -33,7 +34,7 @@ export default function Trade() {
   const navigate = useNavigate()
   const {
     mode, setMode, brokerStatus, riskConfig, circuitBreaker,
-    apiPrefix, connectBroker, placeOrder,
+    connectBroker, placeOrder,
   } = useLiveTrade()
 
   const [orders, setOrders] = useState<any[]>([])
@@ -58,23 +59,20 @@ export default function Trade() {
   // ── Data fetching based on mode ──
   const fetchData = useCallback(() => {
     // Account
-    fetch(`${apiPrefix}/account`)
-      .then(r => r.json())
-      .then(setAccount)
+    tradeApi.getAccount()
+      .then(r => setAccount(r.data))
       .catch(() => {})
 
     // Positions
-    fetch(`${apiPrefix}/positions`)
-      .then(r => r.json())
-      .then(d => setPositions(d.positions || []))
+    tradeApi.getPositions()
+      .then(r => setPositions(r.data.positions || []))
       .catch(() => {})
 
     // Orders
-    fetch(`${apiPrefix}/orders`)
-      .then(r => r.json())
-      .then(d => setOrders(d.orders || []))
+    tradeApi.getOrders()
+      .then(r => setOrders(r.data.orders || []))
       .catch(() => {})
-  }, [apiPrefix])
+  }, [])
 
   useEffect(() => {
     fetchData()

@@ -132,6 +132,7 @@ export const alertApi = {
 export const tradeApi = {
   getAccount: () => api.get('/trade/account'),
   getPositions: () => api.get('/trade/positions'),
+  getOrders: () => api.get('/trade/orders'),
   placeOrder: (code: string, direction: string, volume: number, price = 0) =>
     api.post('/trade/order', { code, direction, volume, price }),
 }
@@ -170,6 +171,9 @@ export const diagnosisApi = {
     api.post('/diagnosis/analyze', { code, force_refresh: forceRefresh }),
   compare: (codes: string[], dimensions?: string[], forceRefresh = false) =>
     api.post('/diagnosis/compare', { codes, dimensions, force_refresh: forceRefresh }),
+  getHistory: () => api.get('/diagnosis/history'),
+  getReportPdf: (code: string) =>
+    api.get(`/diagnosis/report/${code}/pdf`, { responseType: 'blob' }),
 }
 
 // Health — check microservice health through API gateway

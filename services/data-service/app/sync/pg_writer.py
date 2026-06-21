@@ -1,6 +1,7 @@
 """PG 直写 — best-effort, ON CONFLICT DO NOTHING + executemany 批量写入."""
 
 import logging, os, time
+from psycopg2.sql import SQL, Identifier
 
 logger = logging.getLogger("data-service.pg_writer")
 

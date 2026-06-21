@@ -26,9 +26,9 @@ export default function Signals() {
     if (!code) { message.warning('请输入股票代码'); return }
     setLoading(true)
     try {
-      const r = await fetch(`/api/v1/signal/analyze/${code}`)
-      setResult(await r.json())
-    } catch { message.error('分析失败') }
+      const { data } = await signalApi.analyzeCode(code)
+      setResult(data)
+    } catch (e: any) { message.error(e.response?.data?.detail || '分析失败') }
     finally { setLoading(false) }
   }
 

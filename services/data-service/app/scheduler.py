@@ -2,6 +2,7 @@
 
 import asyncio, logging, os, sys, time
 from datetime import datetime, date
+from psycopg2.sql import SQL, Identifier
 from app.sync.rt_min import collect_rt_min
 from app.sync.tushare import sync_post_market_core, sync_post_market_ext
 from app.sync.pg_writer import refresh_materialized_views

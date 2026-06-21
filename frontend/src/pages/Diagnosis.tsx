@@ -621,145 +621,6 @@ function buildPredictionOverlayChart(
   }
 }
 
-// ── Mock data generators (fallback when API unavailable) ──
-
-function generateMockResult(code: string): DiagnosisResult {
-  const seed = code.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  const rng = (min: number, max: number) => {
-    const x = Math.sin(seed * 9301 + 49297) * 233280
-    return min + ((x - Math.floor(x)) * (max - min))
-  }
-  const score = Math.round(rng(45, 92))
-  const gradeLetters = ['E', 'D', 'C', 'C+', 'B', 'B+', 'A', 'A+']
-  const recommendations = ['卖出', '减仓', '持有', '买入', '强烈买入']
-  const gradeIdx = score >= 90 ? 7 : score >= 80 ? 6 : score >= 70 ? 5 : score >= 60 ? 4 : score >= 50 ? 3 : score >= 40 ? 2 : score >= 30 ? 1 : 0
-  const grade = gradeLetters[gradeIdx]
-  const recommendation = score >= 80 ? '强烈买入' : score >= 65 ? '买入' : score >= 45 ? '持有' : score >= 30 ? '减仓' : '卖出'
-
-  const tScore = Math.round(rng(40, 90))
-  const cScore = Math.round(rng(35, 85))
-  const fScore = Math.round(rng(30, 88))
-  const aScore = Math.round(rng(40, 85))
-  const sScore = Math.round(rng(35, 82))
-
-  const names: Record<string, string> = {
-    '000001': '平安银行', '600519': '贵州茅台', '300750': '宁德时代',
-    '000858': '五粮液', '002594': '比亚迪', '601318': '中国平安',
-    '600036': '招商银行', '300059': '东方财富', '688981': '中芯国际',
-    '002415': '海康威视', '600900': '长江电力', '601012': '隆基绿能',
-  }
-
-  // Generate 30 historical K-line points
-  const basePrice = rng(10, 300)
-  const histKlines: PredictionPoint[] = []
-  let price = basePrice * 0.85
-  for (let i = 0; i < 30; i++) {
-    const d = new Date()
-    d.setDate(d.getDate() - (60 - i * 2))
-    const dateStr = d.toISOString().slice(0, 10)
-    const open = price
-    const vol = price * rng(0.01, 0.05) * (Math.random() > 0.5 ? 1 : -1)
-    const close = price + vol
-    const high = Math.max(open, close) + Math.abs(vol) * rng(0.1, 0.5)
-    const low = Math.min(open, close) - Math.abs(vol) * rng(0.1, 0.5)
-    histKlines.push({ date: dateStr, open: +open.toFixed(2), close: +close.toFixed(2), high: +high.toFixed(2), low: +low.toFixed(2) })
-    price = close
-  }
-
-  // Generate 30 prediction points continuing from last historical
-  const lastPrice = histKlines[histKlines.length - 1].close
-  const predictions: PredictionPoint[] = []
-  let predPrice = lastPrice
-  const trend = rng(-0.3, 0.5) // slight bias toward up
-  for (let i = 0; i < 30; i++) {
-    const d = new Date()
-    d.setDate(d.getDate() + i)
-    const dateStr = d.toISOString().slice(0, 10)
-    const dailyReturn = rng(-0.02, 0.025) + trend * 0.005
-    const close = predPrice * (1 + dailyReturn)
-    const dailyRange = Math.abs(close - predPrice) * rng(0.5, 1.8)
-    const high = Math.max(predPrice, close) + dailyRange * rng(0.1, 0.4)
-    const low = Math.min(predPrice, close) - dailyRange * rng(0.1, 0.4)
-    predictions.push({
-      date: dateStr, open: +predPrice.toFixed(2), close: +close.toFixed(2),
-      high: +high.toFixed(2), low: +low.toFixed(2),
-    })
-    predPrice = close
-  }
-
-  // Factor details
-  const factorNames = [
-    { name: 'RSI(14)', weight: 0.15 },
-    { name: 'MACD', weight: 0.15 },
-    { name: '均线排列', weight: 0.12 },
-    { name: '成交量比', weight: 0.10 },
-    { name: '布林带', weight: 0.08 },
-    { name: 'ATR波动率', weight: 0.07 },
-    { name: 'OBV资金流', weight: 0.10 },
-    { name: 'KDJ', weight: 0.08 },
-    { name: '动量因子', weight: 0.10 },
-    { name: '波动率因子', weight: 0.05 },
-  ]
-  const factor_details: FactorDetail[] = factorNames.map(f => ({
-    name: f.name,
-    score: Math.round(rng(25, 95)),
-    weight: f.weight,
-    direction: rng(0, 1) > 0.35 ? 'bullish' : rng(0, 1) > 0.5 ? 'neutral' : 'bearish',
-    detail: `当前${f.name}处于${rng(0, 1) > 0.5 ? '强势' : '中性'}区间`,
-  }))
-
-  const buyPrice = +(lastPrice * rng(0.92, 0.98)).toFixed(2)
-  const stopLoss = +(buyPrice * rng(0.93, 0.96)).toFixed(2)
-  const takeProfit = +(buyPrice * rng(1.08, 1.18)).toFixed(2)
-
-  return {
-    code,
-    name: names[code] || `个股${code}`,
-    market: code.startsWith('6') ? '上海' : code.startsWith('00') || code.startsWith('30') ? '深圳' : '科创板',
-    current_price: +lastPrice.toFixed(2),
-    change_pct: +rng(-4, 5).toFixed(2),
-    overall_score: score,
-    grade,
-    grade_label: recommendation,
-    dimensions: {
-      technical: tScore, capital: cScore, fundamental: fScore,
-      ai_prediction: aScore, sentiment: sScore,
-    },
-    factor_details,
-    capital_flow: {
-      north_bound: { net_inflow: +rng(-5000, 8000).toFixed(0), trend: rng(0, 1) > 0.5 ? '持续流入' : '小幅流出' },
-      margin: { balance: +rng(50, 200).toFixed(0), ratio: +rng(1.5, 5.5).toFixed(2) },
-      dragon_tiger: { net_buy: +rng(-2000, 5000).toFixed(0), institutions: Math.round(rng(1, 6)) },
-    },
-    fundamentals: {
-      pe: +rng(8, 60).toFixed(1),
-      pb: +rng(0.8, 8.0).toFixed(2),
-      roe: +rng(5, 35).toFixed(1),
-      revenue_growth: +rng(-15, 40).toFixed(1),
-      profit_growth: +rng(-20, 50).toFixed(1),
-      debt_ratio: +rng(20, 75).toFixed(1),
-      market_cap: Math.round(rng(5, 500)),
-    },
-    sentiment: {
-      news_score: +rng(3, 9).toFixed(1),
-      news_count: Math.round(rng(5, 50)),
-      research_rating: rng(0, 1) > 0.6 ? '增持' : rng(0, 1) > 0.5 ? '买入' : '中性',
-      research_target: +rng(lastPrice * 1.05, lastPrice * 1.3).toFixed(2),
-      social_sentiment: +rng(3, 9).toFixed(1),
-    },
-    historical_klines: histKlines,
-    predictions,
-    suggestion: {
-      action: recommendation,
-      buy_price: buyPrice,
-      stop_loss: stopLoss,
-      take_profit: takeProfit,
-      confidence: Math.round(rng(55, 90)),
-      reasoning: `综合五维评分${score}分，等级${grade}，建议${recommendation}。`,
-    },
-  }
-}
-
 // ── Component ──
 
 export default function Diagnosis() {
@@ -769,7 +630,6 @@ export default function Diagnosis() {
   const [code, setCode] = useState(searchParams.get('code') || '')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<DiagnosisResult | null>(null)
-  const [isDemo, setIsDemo] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // History state
@@ -793,39 +653,11 @@ export default function Diagnosis() {
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true)
     try {
-      const res = await fetch('/api/v1/diagnosis/history')
-      if (res.ok) {
-        const data = await res.json()
-        const rawItems = data.items || []
-        setHistory(rawItems.map(transformHistoryItem))
-      } else if (import.meta.env.DEV) {
-        // Mock history (DEV only)
-        const mockHistory: HistoryRecord[] = Array.from({ length: 8 }, (_, i) => {
-          const codes = ['000001', '600519', '300750', '000858', '002594', '601318', '600036', '300059']
-          const names = ['平安银行', '贵州茅台', '宁德时代', '五粮液', '比亚迪', '中国平安', '招商银行', '东方财富']
-          const scores = [78, 88, 72, 65, 82, 55, 48, 71]
-          const grades = ['B', 'A', 'B', 'B', 'A', 'C', 'D', 'B']
-          const recommendations = ['买入', '强烈买入', '买入', '买入', '强烈买入', '持有', '减仓', '买入']
-          const d = new Date()
-          d.setHours(d.getHours() - i * 3)
-          return {
-            id: i + 1,
-            code: codes[i],
-            name: names[i],
-            score: scores[i],
-            grade: grades[i],
-            grade_label: recommendations[i],
-            created_at: d.toISOString(),
-          }
-        })
-        setHistory(mockHistory)
-      }
+      const { data } = await diagnosisApi.getHistory()
+      const rawItems = data.items || []
+      setHistory(rawItems.map(transformHistoryItem))
     } catch {
-      if (import.meta.env.DEV) {
-        // Silent fail in dev — table stays empty
-      } else {
-        message.error('历史记录加载失败，请稍后重试')
-      }
+      message.error('历史记录加载失败，请稍后重试')
     } finally {
       setHistoryLoading(false)
     }
@@ -834,7 +666,6 @@ export default function Diagnosis() {
   const runDiagnosis = useCallback(async (stockCode: string) => {
     setLoading(true)
     setError(null)
-    setIsDemo(false)
     try {
       const res = await diagnosisApi.analyze(stockCode)
       const transformed = transformDiagnosisReport(res.data)
@@ -843,16 +674,8 @@ export default function Diagnosis() {
       // Refresh history
       loadHistory()
     } catch {
-      if (import.meta.env.DEV) {
-        // Fallback to mock data for demo (DEV only)
-        const mock = generateMockResult(stockCode)
-        setResult(mock)
-        setIsDemo(true)
-        message.warning('诊断完成 (演示数据 — DEMO DATA)')
-      } else {
-        setError('诊断服务暂不可用，请稍后重试')
-        message.error('诊断失败，请检查网络连接后重试')
-      }
+      setError('诊断服务暂不可用，请稍后重试')
+      message.error('诊断失败，请检查网络连接后重试')
     } finally {
       setLoading(false)
     }
@@ -864,12 +687,8 @@ export default function Diagnosis() {
       const res = await diagnosisApi.analyze(stockCode)
       setHistoryDetail(transformDiagnosisReport(res.data))
     } catch {
-      if (import.meta.env.DEV) {
-        setHistoryDetail(generateMockResult(stockCode))
-      } else {
-        setHistoryDetail(null)
-        message.error('加载诊断详情失败')
-      }
+      setHistoryDetail(null)
+      message.error('加载诊断详情失败')
     } finally {
       setHistoryDetailLoading(false)
     }
@@ -882,14 +701,8 @@ export default function Diagnosis() {
       const stocks: DiagnosisReport[] = res.data.stocks || []
       setCompareResults(stocks.map(transformDiagnosisReport))
     } catch {
-      if (import.meta.env.DEV) {
-        // Fallback mock (DEV only)
-        setCompareResults(codes.map(c => generateMockResult(c)))
-        message.warning('对比结果 (演示数据 — DEMO DATA)')
-      } else {
-        setCompareResults([])
-        message.error('对比功能暂不可用，请稍后重试')
-      }
+      setCompareResults([])
+      message.error('对比功能暂不可用，请稍后重试')
     } finally {
       setCompareLoading(false)
     }
@@ -924,12 +737,8 @@ export default function Diagnosis() {
   const handleExportPdf = async () => {
     if (!result) return
     try {
-      const res = await fetch(`/api/v1/diagnosis/report/${result.code}/pdf`)
-      if (!res.ok) {
-        message.error('PDF 生成失败')
-        return
-      }
-      const blob = await res.blob()
+      const res = await diagnosisApi.getReportPdf(result.code)
+      const blob = new Blob([res.data], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -1189,24 +998,6 @@ export default function Diagnosis() {
                 {/* Results */}
                 {result && !loading && (
                   <>
-                    {/* DEMO DATA watermark */}
-                    {isDemo && (
-                      <Card
-                        style={{
-                          borderRadius: 8, marginBottom: 16,
-                          background: '#fff1f0', border: '2px solid #ff4d4f',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Text strong style={{ color: '#ff4d4f', fontSize: 15 }}>
-                            DEMO DATA -- 演示数据，仅供参考
-                          </Text>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            (后端 API 不可达，当前展示为本地生成的模拟数据)
-                          </Text>
-                        </div>
-                      </Card>
-                    )}
 
                     {/* ── Top: Score + Grade + Price ── */}
                     <Card style={{ borderRadius: 8, marginBottom: 16 }}>

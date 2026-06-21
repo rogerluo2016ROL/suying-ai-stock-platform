@@ -78,7 +78,8 @@ async def record(
             INSERT INTO {TABLE_AUDIT_LOGS}
                 (user_id, action, mode, details, symbol, order_id, client_ip, created_at)
             VALUES
-                (:user_id, :action, :mode, :details::jsonb, :symbol, :order_id, :client_ip, :created_at)
+                (:user_id, :action, :mode, CAST(:details AS jsonb),
+                 :symbol, :order_id, :client_ip, :created_at)
             RETURNING id
             """
         ),
