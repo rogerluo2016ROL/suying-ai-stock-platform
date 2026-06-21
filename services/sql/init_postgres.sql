@@ -91,11 +91,18 @@ CREATE TABLE IF NOT EXISTS index_basic (
     publisher TEXT
 );
 
+-- ADR-008: 15 列对齐 etl sync_sw_daily (Tushare sw_daily 5000 积分接口全字段)
+-- 单位: vol=万股, amount=万元, float_mv=万元, total_mv=万元 (Tushare 原值直写, sync 不做单位转换)
 CREATE TABLE IF NOT EXISTS sw_daily (
     code TEXT NOT NULL,
     trade_date DATE NOT NULL,
+    name TEXT,
     open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION, close DOUBLE PRECISION,
+    change DOUBLE PRECISION,
     change_pct DOUBLE PRECISION,
+    pe DOUBLE PRECISION, pb DOUBLE PRECISION,
+    float_mv DOUBLE PRECISION, total_mv DOUBLE PRECISION,
+    vol DOUBLE PRECISION, amount DOUBLE PRECISION,
     PRIMARY KEY(code, trade_date)
 );
 
@@ -543,9 +550,10 @@ CREATE INDEX IF NOT EXISTS idx_ths_concept_map_concept ON ths_concept_map(concep
 
 -- ── 物化视图: 每日综合排名 (涨幅 + 资金 + 估值 + 流动性) ──
 -- 盘后刷新，为选股 Dashboard 提供预计算数据
--- 物化视图 DDL 已独立到 services/sql/materialized_views.sql（含 4 个视图）
--- 执行: psql -U kronos -d kronos -f services/sql/materialized_views.sql
-CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_composite_code ON mv_daily_composite_ranking(code);
+-- 物化视图 DDL 在 services/sql/materialized_views.sql（4 视图 + 各自索引）
+-- docker-compose 挂 materialized_views.sql 作 02_，首启 01 建表 → 02 建 MV
+-- （原 CREATE UNIQUE INDEX ON mv_daily_composite_ranking 是孤儿——MV 不在此文件，
+--   索引在 materialized_views.sql:132；删此避免新卷首启 init exit 3）
 
 -- ── 可转债 (3 张表) ──
 

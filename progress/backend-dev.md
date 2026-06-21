@@ -246,3 +246,68 @@
 
 **质量门**: syntax ✅ (scheduler.py) / 设计完整性 ✅ (L0-L4 全覆盖 + 回补自动检测 + 监控告警阈值)
 **下一步**: 等待 code review；PL 确认后可在 data-service 重启验证新 job 注册与 L4 检测功能
+
+---
+
+## ADR-008 sw_daily schema 对齐 — 加 8 列 + TRUNCATE 全量回补 - 2026-06-22
+**状态**: 已完成（alembic 007 + init SQL 同步 + TRUNCATE 回补 + SIT 7 项全绿）；schema 迁移属高风险，ADR 已是 PL 评审通过的授权方案，按 ADR §决策4/5 落地
+**Skills**: agf-running-sit-tests
+
+**SIT 证据**（按 ADR §后续工作 checklist；行首 `[x]/[ ]` 同时表达 AC 自验勾选）:
+- [x] AC-1 ✅ alembic 007 迁移脚本写入 `backend/alembic/versions/007_sw_daily_add_columns.py`
+    - revision=`007`, down_revision=`006`（grep 实测确认 006 为最新；ADR 说 006 正确）
+    - upgrade 单条 ALTER 加 8 列（name/change/pe/pb/float_mv/total_mv/vol/amount），全 IF NOT EXISTS 幂等
+    - downgrade 单条 ALTER DROP 8 列，全 IF EXISTS 幂等；风格对齐 005
+- [x] AC-2 ✅ init SQL 同步 `services/sql/init_postgres.sql` sw_daily DDL（7→15 列），含单位注释（vol=万股等），新环境 init 与迁移一致
+- [x] AC-3 ✅ etl.py / 下游零改动（ADR §决策3 落实）——只动了 2 文件（007 迁移 + init SQL），未碰 etl.py / pg_adapter / kronos-factors
+- [x] AC-4 ✅ `alembic upgrade head` 成功（007 applied）
+    - 起点异常：实测 `alembic current` = 005（非预期 006），因 006 迁移缺 IF NOT EXISTS 且 DB 里 screening_snapshots 列已存在导致 `DuplicateColumn` 报错
+    - 处理：DB 实测确认 screening_snapshots 的 ret_3d..ret_20d 全部 11 列已存在（状态漂移：列在但 version_num 未推进），用 `alembic stamp 006` 修正版本指针（只改 alembic_version 表 1 行，不动 schema），随后 `upgrade head` 正常跑到 007
+    - 幂等性：第二次 `alembic upgrade head` 无报错，current = `007 (head)`
+    - 命令: `cd backend && .venv/bin/alembic upgrade head`
+    - 输出: `Running upgrade 006 -> 007, sw_daily schema 对齐 etl 写入端 — 加 8 列承接 Tushare 全量字段。`
+- [x] AC-5 ✅ `\d sw_daily` 确认 15 列（7 原列 + 8 新列）
+    ```
+    code, trade_date, open, high, low, close, change_pct (原 7)
+    name(TEXT), change, pe, pb, float_mv, total_mv, vol, amount (新 8, DOUBLE PRECISION 除 name)
+    主键 sw_daily_pkey(code, trade_date) 不变；idx_sw_daily_date 保留
+    ```
+- [x] AC-6 ✅ Tushare 探针 `pro.sw_daily(trade_date='20260612')` 返回 439 行，15 列齐全（含 pe/name/pb/vol/amount/float_mv/total_mv/change），pe 非空 438/439、name 非空 439/439 ——5000 积分门槛已过，token 可拉（ADR §风险1 前置验证通过）
+- [x] AC-7 ✅ TRUNCATE + 全量回补 `sync_sw_daily(days_back=3650)`
+    - 前置: KRONOS_PG_URL=postgresql://kronos:kronos@localhost:6432/kronos（必设，否则 fallback SQLite），PYTHONPATH 含 packages/kronos-data
+    - TRUNCATE 前基线: 491,937 行 / max 2026-06-18 / min 2016-06-21（旧数据 8 列全 NULL）
+    - 回补输出: `sw_daily: 488,000 fetched, 122,000 written (10yr) / elapsed: 68.0s / status: ok`
+    - 注: written 122k 是 execute_values 在 ON CONFLICT DO NOTHING 下 rowcount 不可靠的显示值，实际表落盘 488,000 行（见 AC-8 验证）
+    - **无 WARN 丢弃列**（grep 回补输出无 warn/drop/error）——ADR §上下文 问题 #2 "_insert_rows 静默吞列" 已破除
+- [x] AC-8 ✅ 回补后验证
+    ```sql
+    SELECT COUNT(*) AS total, COUNT(pe) AS pe_non_null, COUNT(name) AS name_non_null, COUNT(vol) AS vol_non_null, MAX(trade_date), MIN(trade_date) FROM sw_daily;
+    -- total=488000, pe_non_null=488000, name_non_null=488000, vol_non_null=488000, max=2026-06-18, min=2016-07-06
+    ```
+    - pe/name/vol **100% 非空**（488,000/488,000）
+    - 与 ADR §决策5 估算 ~107 万行偏差说明: ADR 按"440 代码 × 2440 交易日"线性估算，实际 Tushare 只返回历史存在过的代码（申万体系经 2014/2021 两次调整，早期行业数远少于现在）；488k 是 API 真实返回的全部可用数据，pe 100% 覆盖，符合 ADR §决策5 前置验证 #3 "回补后非零"
+- [x] AC-9 ✅ detect_data_gaps 回归: sw_daily status=`ok`, gap_days=1 < threshold=2（回补前因数据旧本应触发 GAP，回补后最新到 06-18，从 GAP→OK）
+- [x] AC-10 ✅ 下游因子 `tushare_sector_val` 冒烟（pg_adapter 翻译 ts_code→code 后 PG 直查模拟）
+    ```sql
+    -- 模拟 advanced_factors.py:1208 name LIKE 查行业
+    SELECT code, name, pe FROM sw_daily WHERE name LIKE '%农林牧渔%' ORDER BY trade_date DESC LIMIT 2;
+    -- 801010 | 农林牧渔 | 37.26 (2026-06-18), 37.92 (2026-06-17) — name 非空, pe 有值
+
+    -- 模拟 :1210 pe 历史分位 (因子要求 len(pe_hist)>=100)
+    SELECT COUNT(*) FILTER (WHERE pe>0) FROM sw_daily WHERE name LIKE '%农林牧渔%';
+    -- 964 行 >> 100 阈值, 分位计算可执行
+
+    -- 5 行业抽样 (农林牧渔/医药生物/计算机/银行/食品饮料) 全部有 latest_pe + ~965 行历史
+    ```
+    - 结论: 因子从 `available:False, score:5.0`（pe/name NULL fallback）→ 现可拿 latest_pe + 964+ 行历史，分位生效 → `available:True`；ADR §决策6 预期行为修复达成
+
+**质量门**:
+- 迁移幂等性 ✅（IF NOT EXISTS / IF EXISTS，二次 upgrade head 无报错）
+- 主键/索引不变 ✅（sw_daily_pkey + idx_sw_daily_date 保留，无新增索引 YAGNI）
+- etl/下游零改动 ✅（仅改 2 文件：007 迁移 + init SQL）
+- 数据完整性 ✅（488k 行 pe/name 100% 非空，无 WARN 吞列）
+- 回滚可行 ✅（downgrade 单条 DROP COLUMN IF EXISTS 可逆；TRUNCATE 前已记录 491,937 基线，极端情况可重跑 sync_sw_daily 回补）
+
+**状态漂移发现（附带报告，非本 task 范围）**: 006 迁移 `screening_snapshots` 加列缺 IF NOT EXISTS（与 005 风格不一致），DB 里列已存在导致 DuplicateColumn，alembic_version 停在 005。本次用 stamp 006 绕过推进到 007。建议 PL 排期修 006 加 IF NOT EXISTS（临界区文件，不本次改）。
+
+**下一步**: 等 code-review（含 SIT Audit）；tech-lead 后续审查 `advanced_factors.tushare_sector_val` 抽样输出确认 pe 分位无极端异常（ADR §后续工作 tech-lead 项）；考虑补 `pe < 500` 异常值上限（ADR §风险3 建议另开 task）
