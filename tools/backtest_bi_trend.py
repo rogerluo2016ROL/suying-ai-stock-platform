@@ -137,6 +137,7 @@ def analyze_results(results, db):
                 "hold_days": s.get("hold_days"),
                 "stop_loss": sl,
                 "take_profit": s.get("take_profit"),
+                "trailing_stop": s.get("trailing_stop"),  # V12.3
                 "checklist_score": s.get("checklist_score"),
             })
 

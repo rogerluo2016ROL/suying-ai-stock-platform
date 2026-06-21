@@ -988,8 +988,7 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
             break
 
     # V12.2: 个性化持有建议 (网格搜索216种参数 → 最优解)
-    # 核心发现: -5%/-8%止损全部误杀(触发率44-56%), 不止损反而收益最高
-    # S级→T+10长持无止损 | A级→T+5+15%止盈 | 仅-12%宽止损用于极端保护
+    # 核心发现: -5%/-8%止损全部误杀 | 固定TP+20%最优 | WR超买/移动止盈均不如固定TP
     for s in top:
         cs = s.get("checklist_score", 0)
         ign = s.get("ignition_bonus", 0)
@@ -1001,14 +1000,14 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
             # S级最强: T+10长持, 无止损, 无止盈 (让牛股跑完全程)
             s["hold_days"] = 10; s["stop_loss"] = None; s["take_profit"] = None
         elif cs >= 3:
-            # A级中持: T+5, 无止损, 15%止盈 (网格最优: 胜率50%+)
-            s["hold_days"] = 5; s["stop_loss"] = None; s["take_profit"] = 15
+            # A级中持: T+5, 无止损, 固定+20%止盈 (V12.2: 15→20, 均收益最优)
+            s["hold_days"] = 5; s["stop_loss"] = None; s["take_profit"] = 20
         elif grade == "S":
-            # S级清单略低: T+7, 宽止损-12%, 20%止盈
-            s["hold_days"] = 7; s["stop_loss"] = -12; s["take_profit"] = 20
+            # S级清单略低: T+7, 宽止损-12%, 固定+25%止盈
+            s["hold_days"] = 7; s["stop_loss"] = -12; s["take_profit"] = 25
         else:
-            # A/B级: T+5, 宽止损-12%, 15%止盈
-            s["hold_days"] = 5; s["stop_loss"] = -12; s["take_profit"] = 15
+            # A/B级: T+5, 宽止损-12%, 固定+20%止盈
+            s["hold_days"] = 5; s["stop_loss"] = -12; s["take_profit"] = 20
 
     market_info = {
         "breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),
