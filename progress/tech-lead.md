@@ -181,3 +181,56 @@
 2. backend-dev 进 Plan Mode 前先读 ADR-007「实现契约」+ 本段 AC 风险，**尤其 AC-10 的 fail-safe 方向**（不可简单 `return True`）。
 3. CLAUDE.md Tech Stack 表无需更新（ADR-007 不引新依赖，asyncpg/SQLAlchemy/alembic 已在栈内）。
 4. ADR-007「后续工作」第 5 条（对齐 ADR-002 §197 表名）由 tech-lead 随手修。
+
+---
+
+## 2026-06-22 — ADR-011 top_inst schema 对齐（数据管道写入侧第 7 表）
+
+- 触发：product-lead 派单"细化 ADR-011 大纲为 Accepted 版"
+- 范围：仅文档（ADR），未改代码
+
+### 产物
+
+- `docs/adr/011-top-inst-schema-alignment.md` — Proposed → **Accepted**，全 7 决策 + 7 备选 + 完整版本与查证段落 + backend-dev 实施清单
+
+### 关键决策
+
+1. **决策 0 文件白名单**：仅允许 `010_top_inst_align.py`（新建）+ `init_postgres.sql:161-165` + 索引追加；`etl.py` / `kronos-factors/` / `pg_adapter.py` / 其他 alembic 全部禁改（沿用 ADR-010 风格）。
+2. **主键策略选 BIGSERIAL 自增 id**：实测「机构专用」匿名席位同 code/trade_date 内重复出现，任何 `(code, trade_date, exalter)` 复合 PK 都会因 ON CONFLICT DO NOTHING 丢数据 → 下游 SUM 偏低；BIGSERIAL + `clean_before_write`（已存在 etl.py:895）兜底防累积；配套 `idx_top_inst_code_date` 业务索引。
+3. **删 4 死列**：`inst_name / buy_amount / sell_amount / net_amount`（Tushare 不返回此命名，纯凭空想象的死列）。
+4. **否决物化视图 mv_top_inst_daily**（大纲推荐选项）：grep 实证 `advanced_factors.py:945-953` 下游本就是 per-institution 明细 + 应用层 `sum(r["net_buy"] for r in ti_rows)`，物化视图反需改下游 SQL（违反决策 0「下游零改动」），是解决不存在的问题（YAGNI）。
+5. **大纲笔误纠正**：大纲列了 `side / reason` 字段，实测 Tushare top_inst 接口**不返回**这两列（与 `top_list` 接口混淆，后者有 reason 见 ADR-009 决策 3）；本 ADR 严格对齐 sync `etl.py:897-898` 现状 8 字段。
+6. **零下游改动达成**：sync cols 已正确（commit 5694c09 之前修）+ 下游 `SELECT *` 后应用层 SUM 字段名与新物理列字面一致——schema 对齐即自动从 fallback 中性 5.0 切换到真实数据评分。
+7. **Alembic 010 模板**：DROP CONSTRAINT IF EXISTS（无旧 PK 但保留兜底）→ 单 ALTER 删 4 列 + 加 6 业务列 → ADD COLUMN id BIGSERIAL → ADD PK (id) → CREATE INDEX；全 `op.execute` 幂等，禁 `op.add_column` / `op.create_primary_key`（ADR-008 教训）。
+
+### 实施清单（交接 backend-dev，限额重置后 / 新会话）
+
+清单已写入 ADR 末尾 **Hand-off** 段，含：
+1. 起草 `backend/alembic/versions/010_top_inst_align.py`（upgrade / downgrade 模板已贴）
+2. 改 `init_postgres.sql:161-165` + 追加 idx_top_inst_code_date
+3. 盘后 `TRUNCATE → alembic upgrade head → sync_top_inst(days_back=30)`
+4. 3 条验证 SQL + SIT 6 项 checklist（双向迁移 / 行数 / 匿名席位完整保留 / 因子脱离 fallback / grep 旧列名残留）
+5. 白名单边界硬约束（不得动 etl.py / factors / 其他 alembic）
+
+### 质量门
+
+- [x] 至少 1 备选方案 + 否决理由 → 7 个备选（A-G）+ 完整否决论证
+- [x] 选型附查证日期 + 信息源 URL → 版本与查证段含 5 行表格 + 4 处 grep 实证 + 接口文档 URL
+- [x] CLAUDE.md Tech Stack 表同步 → 本 ADR 不引新依赖，Tech Stack 无需更新
+- [x] 仅产 ADR，未碰代码 / Alembic / init_sql（沿用决策 0 自约束）
+
+### 数据管道写债收口进度
+
+| ADR | 表 | 状态 |
+|---|---|---|
+| ADR-008 | sw_daily | Accepted（commit 48c8b6a） |
+| ADR-009 | pledge_detail / rt_sw_k / top_list | Accepted |
+| ADR-010 | cyq_chips | Accepted（commit 8e18637） |
+| **ADR-011** | **top_inst** | **Accepted（本次）** |
+| ADR-012（待立） | hk_holdings / repurchase / share_float / cyq_perf 等剩余表 | Pending — 查证后批量修复 |
+
+### 下一步
+
+1. **product-lead**：派 backend-dev（限额重置后）按 ADR-011 Hand-off 段实施；不需要 PL 二次评审 ADR 本身（已 Accepted）。
+2. **tech-lead 本会话剩余**：等 PL 派"sync 设计统一回补方案评估"任务（PL 已预告）。
+3. **memory 不写入**：本 ADR 决策正文 + 否决清单全部已在 `docs/adr/011-*.md`，避免双源（遵循 tech-lead memory 「避免写入：已 accept 的决策正文」规则）；待 ADR-012 立项时若产生跨 ADR 复用结论（如「BIGSERIAL 已成 per-detail 表 PK 标准」）再写一条。

@@ -178,3 +178,43 @@
 - walk-forward 同口径一致性 (mode/cost/n_months 全等), 结论符号 (负) 在两套独立参数下都稳定 — 印证 T-010+T-011 决定性结论非参数依赖.
 
 **下一步**: SIT 全绿可入 code-review (含 SIT Audit). 阶段 1 收尾: T-013 完, 剩 T-012 (AC-2 ST JOIN, 等 backend-dev-2 管道, 我可单独接). PL 已确认阶段 2 (接 Kronos/LLM) 暂停, bi_trend 需根本性策略重设.
+
+## T-012 AC-2 — st_history JOIN 幸存者偏差过滤 (2026-06-22)
+
+**Context**: 阶段 1 收尾任务. 审计 §4.3 — 回测选股池按当前 stocks.is_st=0 过滤 (engine 内部, 当前快照), 历史回测时把"今日已戴帽/退市股"的过去交易日纳入, 系统性高估收益. backend-dev-2 已落 st_history 表 (commit 5694c09, 1132 区间, 715 code, source='tushare_namechange'). 铁律: 不动 strategy engine, 仅 backtest 工具层 (tools/) 加 T 日戴帽后置过滤.
+
+**Did**:
+- `tools/backtest_bi_trend.py` 新增 `get_st_codes_on(db, trade_date)`: SQL `SELECT DISTINCT code FROM st_history WHERE start_date <= ? AND (end_date IS NULL OR end_date > ?)`, 返回 T 日处于戴帽区间的 code 集合 (set).
+- `run_backtest_day(db, trade_date, top_n, st_filter=True)` 新增 `st_filter` 参数 (默认 True): 调用原 `run_bi_screening` 后, 用 `get_st_codes_on(db, trade_date)` 过滤 `top_picks`, 记录 `n_st_removed`. st_filter=False 回归原行为 (旧产物可复现).
+- 不修改 strategy engine `bi_trend_launch.py` (其内部 `s.is_st=0` 仍走 stocks 快照, 仅作为粗筛, 由 st_history JOIN 在 backtest 层做精确历史过滤).
+- `tools/walk_forward.py` 透明继承 (调用 `run_backtest_day` 默认 st_filter=True).
+
+**AC**:
+- AC-2.1 get_st_codes_on 返回 T 日活跃 ST 集合 (区间过滤 start<=T<end) ✅
+- AC-2.2 run_backtest_day st_filter=True 剔除当时戴帽, 记 n_st_removed ✅
+- AC-2.3 st_filter=False 回归原行为 (向后兼容) ✅
+- AC-2.4 walk_forward 透明继承 (无需改) ✅
+- AC-2.5 重跑 2024-2025 OOS 对比修复前后样本数 + 净收益 ✅
+- **质量门**: 修复后 vs 修复前 2024-2025 walk-forward (V13 后复权 +14bp 成本): n_trades 2994 → 2898 (剔除 96 笔 ST 交易, 3.2%); Sharpe **-3.178 → -3.305** (更负); 加权月均 **-1.157%/月 → -1.175%/月**; median **-1.280 → -1.270%**; 正月 3/24 → 3/24 (不变). **符号: 仍为负, 且亏损更深** — 移除幸存者偏差后策略真实表现更差, 反向印证阶段 1 决定性结论 (策略逻辑本身亏钱).
+
+**SIT 证据**:
+- SIT 范围: 单边集成 — ST 过滤链路 (st_history → get_st_codes_on → run_backtest_day → walk_forward 透传) + PG 真实数据剔除验证 + 修复前后聚合对比.
+- Unit 测试: `tools/tests/test_st_filter_ac2.py` 5/5 PASSED (pytest 0.04s):
+  1. test_get_st_codes_on_basic — mock DB 2 行 ST, 返回 set 含 2 个 code, SQL 含 start_date<=? AND end_date IS NULL OR end_date>?
+  2. test_get_st_codes_on_empty — DB 空返回空集合
+  3. test_run_backtest_day_st_filter_on_removes_st — top_picks 4 只含 2 只 ST, 过滤后 2 只, n_st_removed=2
+  4. test_run_backtest_day_st_filter_off_keeps_all — st_filter=False 全保留, n_st_removed=0
+  5. test_get_st_codes_on_boundary_already_removed — end_date <= T 不在结果中 (SQL 已严格过滤)
+- 全 Unit 回归: tools/tests + backend/tests/ml/test_simulate_position 22/22 PASSED (0.27s, AC-2 修改无 regression).
+- 真实 PG SIT-1: `get_st_codes_on(db, '2024-06-15')` 返回 190 戴帽 code; '2025-01-15' 返回 191; '2026-06-20' 返回 302; 样本 ['000005','000007','000023'] 等均为已知 ST.
+- 真实 PG SIT-2: `run_backtest_day(db, '2025-06-20', top_n=50, st_filter=False)` 返回 8 picks; st_filter=True 返回 6, n_st_removed=2, 剔除 ['000518','600360']. 反向 verify PG: `SELECT code,start_date,end_date,st_type FROM st_history WHERE code IN ('000518','600360') AND start_date<='2025-06-20' AND (end_date IS NULL OR end_date>'2025-06-20')` 返回 2 行 (000518 *ST 2025-04-30..2026-05-20; 600360 *ST 2025-05-06..2026-05-20), 数学正确.
+- 真实 PG SIT-3: walk_forward.py --start 2024-01 --end 2025-12 --cost-bps 14 端到端跑通 24 月, 透明继承 st_filter=True, 总 trades 从 2994 (无过滤) → 2898 (过滤). exit_reasons 聚合 {hold_to_maturity:1518, trailing_stop:1245, stop_loss:113, take_profit:22} — trailing_stop 仍占 43% (策略主要靠 trailing 兜底, 与阶段 1 已知结论一致).
+- 异常处理: st_history 表空 / DB 不可达 → get_st_codes_on 返回空集合 (无 ST 数据时不过滤, 退化为原行为, 不崩溃); pg_adapter 自动 ? → %s 占位符翻译; AC-2 用 LEFT-style 后置过滤而非 SQL JOIN, 避免与 engine 内部 SQL 耦合.
+
+**产物**:
+- `tools/backtest_bi_trend.py` (改: +get_st_codes_on, run_backtest_day 加 st_filter + n_st_removed)
+- `tools/tests/test_st_filter_ac2.py` (新, 5 测试)
+- `outputs/walk_forward_2024-2025_st_filter.json` (V13 + ST 过滤 24 月 OOS)
+- 对比基线: `outputs/walk_forward_2024-2025.json` (V13 无过滤, 已存在)
+
+**下一步**: 阶段 1 全部完成 (AC-1/2/3/4/5/6 全过, T-008 复权 + T-014 simulate_position + T-010 walk-forward + T-011 冻结对比 + T-013 SIT + T-012 ST 过滤). AC-2 修复确认阶段 1 决定性结论 (Sharpe -3.305, 月均 -1.175%/月, 仍为负且更深). 可入 code-review.
