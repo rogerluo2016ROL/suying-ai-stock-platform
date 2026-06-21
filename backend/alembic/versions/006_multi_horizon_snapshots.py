@@ -14,6 +14,26 @@ depends_on = None
 
 
 def upgrade():
+    # screening_snapshots 建表：核心业务表（recorder INSERT / signal SELECT），此前无 migration/init SQL 创建（schema gap）。
+    # schema 取自 recorder.py INSERT 列 + backfill next_day_return/is_win + id PK。IF NOT EXISTS 保证 dev/UAT 都安全。
+    op.execute("""
+    CREATE TABLE IF NOT EXISTS screening_snapshots (
+        id BIGSERIAL PRIMARY KEY,
+        model_key TEXT NOT NULL,
+        trade_date DATE NOT NULL,
+        stock_code TEXT NOT NULL,
+        time_slot TEXT,
+        factors JSONB,
+        total_score DOUBLE PRECISION,
+        grade TEXT,
+        rank_in_day INTEGER,
+        next_day_return DOUBLE PRECISION,
+        is_win BOOLEAN,
+        created_at TIMESTAMP DEFAULT NOW()
+    )
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS idx_screening_snapshots_code_date ON screening_snapshots(stock_code, trade_date)")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_screening_snapshots_model ON screening_snapshots(model_key, trade_date)")
     for col, dtype in [
         ("ret_3d", sa.Double), ("ret_5d", sa.Double),
         ("ret_10d", sa.Double), ("ret_20d", sa.Double),
@@ -22,7 +42,7 @@ def upgrade():
         ("ret_3d_at", sa.DateTime), ("ret_5d_at", sa.DateTime),
         ("ret_10d_at", sa.DateTime), ("ret_20d_at", sa.DateTime),
     ]:
-        op.execute(f"ALTER TABLE screening_snapshots ADD COLUMN IF NOT EXISTS {col} {dtype().compile(op.get_bind()) if hasattr(dtype(), 'compile') else ''}")
+        op.add_column('screening_snapshots', sa.Column(col, dtype(), nullable=True))
 
 
 def downgrade():
