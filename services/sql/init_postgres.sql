@@ -293,13 +293,15 @@ CREATE TABLE IF NOT EXISTS repurchase (
     repurchase_amount DOUBLE PRECISION, repurchase_price DOUBLE PRECISION
 );
 
+-- cyq_chips: Tushare per-price 筹码明细 (ADR-010)
+--   每股每日 ~104 个 price 档位, 每档 (price, percent) 一行
+--   下游 advanced_factors.py:1076 `SELECT price, percent ORDER BY price` 聚合算 avg_cost/集中度
 CREATE TABLE IF NOT EXISTS cyq_chips (
     code TEXT NOT NULL,
     trade_date DATE NOT NULL,
-    avg_cost DOUBLE PRECISION,
-    concentration_90 DOUBLE PRECISION,
-    profit_ratio DOUBLE PRECISION,
-    PRIMARY KEY(code, trade_date)
+    price NUMERIC NOT NULL,
+    percent NUMERIC,
+    PRIMARY KEY(code, trade_date, price)
 );
 
 -- ── 研究与新闻数据 (4 张表) ──
