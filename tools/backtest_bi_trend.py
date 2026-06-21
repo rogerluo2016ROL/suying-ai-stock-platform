@@ -104,6 +104,11 @@ def analyze_results(results, db):
                 "wr_level": s["wr_level"],
                 "vol_level": s["vol_level"],
                 "next_day_return": ret,
+                # V12.1: 个性化持有建议
+                "hold_days": s.get("hold_days"),
+                "stop_loss": s.get("stop_loss"),
+                "take_profit": s.get("take_profit"),
+                "checklist_score": s.get("checklist_score"),
             })
 
     valid = [p for p in all_picks if p["next_day_return"] is not None]

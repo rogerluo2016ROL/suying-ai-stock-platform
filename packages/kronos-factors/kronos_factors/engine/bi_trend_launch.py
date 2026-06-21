@@ -972,17 +972,24 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         if len(top) >= effective_n:
             break
 
-    # V11: 个性化持有建议 (基于信号强度)
+    # V12.1: 个性化持有建议 (基于信号强度 + 等级)
+    # 中富通/5月复盘: S级放宽止损-8%, 首日暴跌给观察期
     for s in top:
         cs = s.get("checklist_score", 0)
         ign = s.get("ignition_bonus", 0)
         wr_f = s.get("wr_freshness_bonus", 0)
         wr_level = s.get("wr_level", "")
+        grade = s.get("grade", "")
 
         if cs >= 4 or (cs >= 3 and ("🔥🔥" in wr_level or (ign > 0 and wr_f > 0))):
+            # S级长持: 无止损, 让牛股跑远
             s["hold_days"] = 10; s["stop_loss"] = None; s["take_profit"] = None
         elif cs >= 3:
+            # A级中持: 无硬止损, 12%止盈
             s["hold_days"] = 5; s["stop_loss"] = None; s["take_profit"] = 12
+        elif grade == "S":
+            # V12.1: S级高评分但清单略低 → 放宽止损-8% (中天科技教训)
+            s["hold_days"] = 5; s["stop_loss"] = -8; s["take_profit"] = 12
         else:
             s["hold_days"] = 3; s["stop_loss"] = -5; s["take_profit"] = 10
 
@@ -1715,16 +1722,19 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
                     "reason": f"{tier_name}:从最高{profit_from_entry:+.0f}%回落{drawdown_from_high:+.1f}%(阈值{stop_pct}%)",
                     "current_return_pct": round(current_return, 2)}
 
-    #    最低持有期: 非止损/止盈情况下持有<MIN_HOLD_DAYS天, 不检查技术信号   
+    #    最低持有期: 非止损/止盈情况下持有<MIN_HOLD_DAYS天, 不检查技术信号
     if hold_days < MIN_HOLD_DAYS:
-        # V5.2: D3期中检查
-        if hold_days >= EARLY_STOP_LOSS_DAYS and current_return < DAY3_CHECK_LOSS_THRESHOLD:
+        # V12.1: D4期中检查 (延迟1天, 首日暴跌给观察期 — 中天科技/光库科技教训)
+        # 原V5.2: D3检查 → V12.1: D4检查, 且要求连续2天无改善
+        if hold_days >= EARLY_STOP_LOSS_DAYS + 1 and current_return < DAY3_CHECK_LOSS_THRESHOLD:
             recent_1d = closes[-1]
-            recent_2d_avg = np.mean(closes[-3:-1]) if len(closes) >= 3 else recent_1d
-            no_improvement = recent_1d <= recent_2d_avg
+            recent_2d = closes[-2] if len(closes) >= 2 else recent_1d
+            recent_3d_avg = np.mean(closes[-4:-1]) if len(closes) >= 4 else recent_1d
+            # V12.1: 要求连续2天无改善 (比单日更可靠)
+            no_improvement = (recent_1d <= recent_2d and recent_2d <= recent_3d_avg)
             if no_improvement:
                 return {"signal": "early_exit",
-                        "reason": f"D{hold_days}期中检查: 亏损{current_return:+.1f}%且无改善",
+                        "reason": f"D{hold_days}期中检查: 亏损{current_return:+.1f}%且连续无改善",
                         "current_return_pct": round(current_return, 2)}
 
         return {"signal": "hold", "reason": f"持有{hold_days}天(最低{MIN_HOLD_DAYS}天)",
