@@ -807,6 +807,12 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
 
     # 2. 前日暴跌/上证熊市 -> 不再熔断 (V5.9: 过于严格, 仅降仓不空仓)
 
+    # V13 P2: 熔断后冷静期 — 昨日熔断→今日降仓防追反弹
+    # 06-09(06-08熔断后-2.09%)/05-28(05-27熔断后-6.59%) 教训
+    post_meltdown = False
+    if len(breadth_5d_list) >= 2 and breadth_5d_list[1] < MARKET_BREADTH_CRASH:
+        post_meltdown = True
+
     # 3. V5.2: 连续2天涨跌比下降且当前<40% -> 大盘转弱预警
     pre_warning = False
     if breadth_5d_list and len(breadth_5d_list) >= 3:
@@ -842,6 +848,10 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         effective_n = top_n
     # V13 P1: 最低分散 — 至少5只防单票暴雷 (新易盛教训)
     effective_n = max(effective_n, 5)
+    # V13 P2: 熔断后冷静期 — 降仓至半仓, 只选A级以上
+    if post_meltdown:
+        effective_n = max(3, effective_n // 2)
+        skip_s_grade = True  # 熔断后不追S级高波
 
     # V6.0: 当日涨跌比<35% -> 只选A级, 跳过S级 (修复S级悖论)
     skip_s_grade = breadth < MARKET_BREADTH_WEAK

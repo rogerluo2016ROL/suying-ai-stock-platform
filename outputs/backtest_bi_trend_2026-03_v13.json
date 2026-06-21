@@ -24,7 +24,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -39,12 +40,13 @@
       "obv_level": "刚突破🔥",
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "正常",
-      "next_day_return": -7.9999999999999964,
-      "stopped": true,
+      "next_day_return": -9.311250252474245,
+      "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -64,7 +66,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -84,7 +87,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -102,9 +106,10 @@
       "next_day_return": -3.8136324417601397,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -124,7 +129,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -142,9 +148,10 @@
       "next_day_return": -4.224894377640565,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -164,7 +171,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -184,7 +192,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -204,7 +213,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -222,9 +232,10 @@
       "next_day_return": -1.5052617556946757,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -242,9 +253,10 @@
       "next_day_return": 2.570694087403602,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -262,9 +274,10 @@
       "next_day_return": 1.2612612612612706,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -284,7 +297,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -305,6 +319,7 @@
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
+      "trailing_stop": null,
       "checklist_score": "4"
     },
     {
@@ -322,9 +337,10 @@
       "next_day_return": 0.9339975093399788,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -342,9 +358,10 @@
       "next_day_return": -0.22900763358778553,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -365,6 +382,7 @@
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
+      "trailing_stop": null,
       "checklist_score": "4"
     },
     {
@@ -384,7 +402,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -402,9 +421,10 @@
       "next_day_return": -0.04177109440267612,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -424,7 +444,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -444,7 +465,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -465,6 +487,7 @@
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
+      "trailing_stop": null,
       "checklist_score": "4"
     },
     {
@@ -482,9 +505,10 @@
       "next_day_return": -2.5273224043715903,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -502,9 +526,10 @@
       "next_day_return": 10.002667377967466,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -524,7 +549,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -544,7 +570,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -562,9 +589,10 @@
       "next_day_return": 3.2287119794914387,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -582,9 +610,10 @@
       "next_day_return": -0.7940930621343045,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -602,9 +631,10 @@
       "next_day_return": 0.35203003989674464,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -625,6 +655,7 @@
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
+      "trailing_stop": null,
       "checklist_score": "4"
     },
     {
@@ -642,9 +673,10 @@
       "next_day_return": 2.708803611738153,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -659,12 +691,13 @@
       "obv_level": "刚突破🔥",
       "wr_level": "温和反弹",
       "vol_level": "正常",
-      "next_day_return": -5.000000000000004,
-      "stopped": true,
+      "next_day_return": -2.946428571428572,
+      "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -684,7 +717,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -704,7 +738,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -722,9 +757,10 @@
       "next_day_return": -1.2345679012345623,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -744,7 +780,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -764,7 +801,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -784,7 +822,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -802,9 +841,10 @@
       "next_day_return": 0.0888888888888939,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -822,9 +862,10 @@
       "next_day_return": 2.5725053252498853,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -842,9 +883,10 @@
       "next_day_return": 8.73900293255132,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -862,9 +904,10 @@
       "next_day_return": -0.05740528128588274,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -884,7 +927,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -902,9 +946,10 @@
       "next_day_return": 1.8817581800308902,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -924,7 +969,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -944,7 +990,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -964,7 +1011,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -982,9 +1030,10 @@
       "next_day_return": -1.4809902740937297,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1004,7 +1053,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1024,7 +1074,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1042,9 +1093,10 @@
       "next_day_return": -2.7661472990596514,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1062,9 +1114,10 @@
       "next_day_return": -2.3432115782219154,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1082,9 +1135,10 @@
       "next_day_return": -1.6687790452049156,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1104,7 +1158,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1124,7 +1179,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1145,6 +1201,7 @@
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
+      "trailing_stop": null,
       "checklist_score": "4"
     },
     {
@@ -1162,9 +1219,10 @@
       "next_day_return": 5.821917808219168,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1184,7 +1242,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1202,9 +1261,10 @@
       "next_day_return": -4.47454140236585,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1222,9 +1282,10 @@
       "next_day_return": -5.3830227743271175,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1242,9 +1303,10 @@
       "next_day_return": 3.1874906029168315,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1262,9 +1324,10 @@
       "next_day_return": -0.575539568345329,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1284,7 +1347,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1304,7 +1368,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1324,7 +1389,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1344,7 +1410,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1362,9 +1429,10 @@
       "next_day_return": -1.50339476236665,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1382,9 +1450,10 @@
       "next_day_return": 0.06391818472355482,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1402,9 +1471,10 @@
       "next_day_return": 8.324468085106385,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1422,9 +1492,10 @@
       "next_day_return": -4.230726068903601,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1444,7 +1515,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1464,7 +1536,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1484,7 +1557,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1502,9 +1576,10 @@
       "next_day_return": 0.3230543318649026,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -1522,9 +1597,10 @@
       "next_day_return": -0.3940886699507429,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -1542,9 +1618,10 @@
       "next_day_return": 2.5613372876786,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1564,7 +1641,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1584,7 +1662,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1604,7 +1683,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1619,12 +1699,13 @@
       "obv_level": "刚突破🔥⚡",
       "wr_level": "平稳",
       "vol_level": "明显缩量",
-      "next_day_return": -5.000000000000004,
-      "stopped": true,
+      "next_day_return": -6.214039125431525,
+      "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1642,9 +1723,10 @@
       "next_day_return": -3.1481481481481444,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1664,7 +1746,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1684,7 +1767,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1702,9 +1786,10 @@
       "next_day_return": -1.9444444444444486,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -1724,7 +1809,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1744,7 +1830,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1764,7 +1851,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1782,9 +1870,10 @@
       "next_day_return": -1.31848813360681,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1802,9 +1891,10 @@
       "next_day_return": -2.294455066921608,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1822,9 +1912,10 @@
       "next_day_return": 0.9808612440191489,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1844,7 +1935,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1862,9 +1954,10 @@
       "next_day_return": -2.968188473312916,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1882,9 +1975,10 @@
       "next_day_return": -1.3166144200626895,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -1902,9 +1996,10 @@
       "next_day_return": -1.80797151075196,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1924,7 +2019,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1942,9 +2038,10 @@
       "next_day_return": -0.4036066981537134,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -1964,7 +2061,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -1982,9 +2080,10 @@
       "next_day_return": 1.5975175267210595,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -2004,7 +2103,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -2024,7 +2124,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -2042,9 +2143,10 @@
       "next_day_return": -1.5843023255813993,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -2062,9 +2164,10 @@
       "next_day_return": -5.222551928783381,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -2082,9 +2185,10 @@
       "next_day_return": -1.6772700983227362,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -2102,9 +2206,10 @@
       "next_day_return": -1.2191780821917853,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -2122,9 +2227,10 @@
       "next_day_return": -2.9185867895545226,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -2144,7 +2250,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -2162,9 +2269,10 @@
       "next_day_return": 7.075098814229253,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -2182,9 +2290,10 @@
       "next_day_return": -1.6777286135693292,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -2204,7 +2313,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -2222,9 +2332,10 @@
       "next_day_return": 7.191011235955047,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -2244,7 +2355,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -2264,7 +2376,8 @@
       "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -2282,9 +2395,10 @@
       "next_day_return": -2.5875190258751846,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -2304,7 +2418,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -2322,9 +2437,10 @@
       "next_day_return": -4.322937228582702,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -2342,9 +2458,10 @@
       "next_day_return": -3.0026311716452536,
       "stopped": false,
       "weight": 0.6,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 25,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -2362,9 +2479,10 @@
       "next_day_return": -2.4343675417661026,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "1"
     },
     {
@@ -2382,9 +2500,10 @@
       "next_day_return": -1.0067114093959662,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     },
     {
@@ -2404,7 +2523,8 @@
       "weight": 0.6,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "3"
     },
     {
@@ -2422,9 +2542,10 @@
       "next_day_return": 6.183115338882295,
       "stopped": false,
       "weight": 1.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 20,
+      "trailing_stop": null,
       "checklist_score": "2"
     }
   ]
