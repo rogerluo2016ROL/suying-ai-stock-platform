@@ -1,9 +1,15 @@
 # 速赢AI证券投资管理平台 — Docker Compose (开发环境)
 #
 # 启动所有服务:
-#   cd docker && docker compose up -d
+#   cd docker && docker compose up -d                      # dev (default ports)
+#   cd docker && docker compose --env-file .env.uat up -d  # UAT (offset ports, 隔离)
 #
-# 服务端口:
+# 端口 env 驱动（deployment.md §6.2 隔离契约）：
+#   dev 不设 *_PORT → 用 default（6432/8080/9001/8001-8009/7379）
+#   UAT 在 .env.uat 设偏移端口（如 +900: POSTGRES_PORT=7332/BACKEND_PORT=9901/...）避 dev 冲突
+#   容器内端口不变（服务间用 service name + 内部端口通信）
+#
+# 服务端口 (default):
 #   8080 — api-gateway          (统一网关)
 #   8001 — screener-service     (选股+排序, 12模型)
 #   8002 — prediction-service   (Kronos K线预测)
@@ -26,7 +32,7 @@ services:
       POSTGRES_PASSWORD: kronos
       POSTGRES_DB: kronos
     ports:
-      - "6432:5432"
+      - "${POSTGRES_PORT:-6432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ../services/sql/init_postgres.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
@@ -39,7 +45,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "7379:6379"
+      - "${REDIS_PORT:-7379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -54,7 +60,7 @@ services:
       context: ..
       dockerfile: services/api-gateway/Dockerfile
     ports:
-      - "8080:8080"
+      - "${API_GATEWAY_PORT:-8080}:8080"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
     depends_on:
@@ -68,7 +74,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
     ports:
-      - "9001:9001"
+      - "${BACKEND_PORT:-9001}:9001"
     environment:
       - DATABASE_URL=postgresql+asyncpg://kronos:kronos@postgres:5432/kronos
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set in env (>=32 chars in prod)}
@@ -88,7 +94,7 @@ services:
       context: ..
       dockerfile: services/screener-service/Dockerfile
     ports:
-      - "8001:8001"
+      - "${SCREENER_PORT:-8001}:8001"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - KRONOS_DB_PATH=/data/kronos.db
@@ -109,7 +115,7 @@ services:
       context: ..
       dockerfile: services/prediction-service/Dockerfile
     ports:
-      - "8002:8002"
+      - "${PREDICTION_PORT:-8002}:8002"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - KRONOS_DEVICE=cpu
@@ -124,7 +130,7 @@ services:
       context: ..
       dockerfile: services/strategy-service/Dockerfile
     ports:
-      - "8003:8003"
+      - "${STRATEGY_PORT:-8003}:8003"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
@@ -143,7 +149,7 @@ services:
       context: ..
       dockerfile: services/signal-service/Dockerfile
     ports:
-      - "8004:8004"
+      - "${SIGNAL_PORT:-8004}:8004"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - KRONOS_DB_PATH=/data/kronos.db
@@ -160,7 +166,7 @@ services:
       context: ..
       dockerfile: services/alert-service/Dockerfile
     ports:
-      - "8005:8005"
+      - "${ALERT_PORT:-8005}:8005"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
     depends_on:
@@ -174,7 +180,7 @@ services:
       context: ..
       dockerfile: services/trade-service/Dockerfile
     ports:
-      - "8006:8006"
+      - "${TRADE_PORT:-8006}:8006"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - TRADE_MODE=paper
@@ -191,7 +197,7 @@ services:
       context: ..
       dockerfile: services/backtest-service/Dockerfile
     ports:
-      - "8007:8007"
+      - "${BACKTEST_PORT:-8007}:8007"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - KRONOS_DB_PATH=/data/kronos.db
@@ -208,7 +214,7 @@ services:
       context: ..
       dockerfile: services/diagnosis-service/Dockerfile
     ports:
-      - "8009:8009"
+      - "${DIAGNOSIS_PORT:-8009}:8009"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
     depends_on:
