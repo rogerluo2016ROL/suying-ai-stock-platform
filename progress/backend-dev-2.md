@@ -351,3 +351,139 @@ ERROR    strategy-service.executor: risk DB unreachable — pausing executor for
 **涉及文件**:
 - `services/strategy-service/app/auto_trading_executor.py`（改 — engine 连接池 + `RiskCheckUnavailable` + 3 函数 async 化 + `_run_one_check` fail-safe 暂停 + forecast schema 修复）
 - `services/strategy-service/tests/test_fail_safe_db_unreachable.py`（新增 — 3 用例：DB fail→paused / 健康 DB 回归 / 3 函数 raise）
+
+---
+
+# 阶段 1 AC-2: ST 数据管道 — st_history 表 + namechange 同步（幸存者偏差修复）
+
+**日期**: 2026-06-22 | **状态**: ✅ 完成 | **owner**: backend-dev-2
+
+## Skills used
+
+agf-running-sit-tests, superpowers:verification-before-completion
+
+## Plan Mode
+
+高风险（schema 变更 + 批量数据脚本）。PL 定 schema + 文件归属后直接授权实施。对齐 PRD `docs/prd/phase1-backtest-credibility-2026-06-22.md` AC-2 + Q-3 决策（namechange → st_history）。下游 task #12（AC-2 st_history JOIN 幸存者偏差过滤）依赖本管道。
+
+## 实施摘要
+
+### 1. st_history 表（services/sql/init_postgres.sql 追加）
+```sql
+CREATE TABLE IF NOT EXISTS st_history (
+    code TEXT NOT NULL, start_date DATE NOT NULL, end_date DATE, st_type TEXT,
+    source TEXT DEFAULT 'tushare_namechange', PRIMARY KEY(code, start_date)
+);
+CREATE INDEX IF NOT EXISTS idx_st_history_code ON st_history(code);
+CREATE INDEX IF NOT EXISTS idx_st_history_date ON st_history(start_date);
+```
+- init_postgres.sql 是 ADR-007 Q-4 业务表临界区，PL 授权直接改；追加到文件末尾，零现有表改动。
+- `source` 字段区分完整历史（`tushare_namechange`）vs 降级快照（`stocks_is_st_snapshot`）。
+
+### 2. namechange 同步（services/data-service/app/sync/namechange.py 新增）
+- `sync_st_history(start_date='20180101', end_date=None, dry_run=False)`：
+  1. `pro.namechange(start_date=..., limit=5000)` 分页拉全市场改名记录（20 页上限）
+  2. `_parse_st_intervals()`：按 code 分组、start_date 排序扫描 name 序列——非ST→含ST=戴帽（开区间），含ST→非ST=摘帽（闭区间填 end_date），ST 类型变化（ST↔*ST）切新区间，末尾仍含ST则 end_date=NULL
+  3. `_upsert_st_history()`：`ON CONFLICT(code,start_date) DO UPDATE` 幂等写（回填 end_date/st_type/source）
+- `_classify_st(name)`：`*ST` > `ST` 优先级判定。
+- **dry-run 模式**（铁律 #2）：只解析+打印抽样区间，不写库。
+- **积分 fallback**（`_fallback_snapshot`）：捕获 namechange API 积分/权限异常 → 从 `stocks.is_st` 导当前快照（end_date=NULL，source='stocks_is_st_snapshot'）+ logger.warning 降级标注。
+
+### 3. scheduler 注册（services/data-service/app/scheduler.py）
+- import `sync_st_history`（:18）
+- job `{"id": "st_history_sync", "name": "[L3]ST历史同步", "cron": "30 3 * * 6", "fn": sync_st_history}`（周六 03:30 增量，ST 事件稀有，周级够）
+
+## SIT 证据（真实 PG localhost:6432 + 真实 Tushare token 实调）
+
+### 积分确认（核心结论）
+**当前 Tushare token 积分充足，走 namechange 主路径，未触发 fallback**：
+```
+namechange 拉取完成：5369 条改名记录（0.3s）   ← 无积分报错，全市场历史拉通
+解析 ST 区间：1134 个（戴帽/摘帽成对，当前仍戴帽 end_date=NULL）
+```
+- 实测 namechange 是 120 积分级接口（非 PL 预估的 2000），当前 token 直通。fallback 代码已就位但本次未触发。
+
+### dry-run 验证（解析逻辑正确性）
+```
+[dry-run] 抽样区间：
+  ['002898', '2025-04-28', '2026-06-26', '*ST']   ← *ST 戴帽→摘帽（已摘）
+  ['002217', '2024-05-06', '2025-06-24', '*ST']   ← *ST 戴帽→摘帽
+  ['002217', '2026-06-23', None, 'ST']            ← 同股再次戴帽至今（end_date=NULL）
+  ['002808', '2023-05-05', '2025-04-25', 'ST']    ← ST→转 *ST（类型变化切区间）
+  ['002808', '2025-04-25', '2026-06-23', '*ST']
+```
+- 同股多次戴帽（002217）、ST↔*ST 类型切换（002808）均正确配对成独立区间。
+
+### 真实写库 + PG 直查
+```
+RESULT: {'source': 'tushare_namechange', 'namechange_records': 5369, 'st_intervals': 1134, 'written': 1134}
+
+PG: SELECT st_type, count(*) FILTER (WHERE end_date IS NULL) AS currently_st, count(*) AS total FROM st_history GROUP BY st_type;
+ st_type | currently_st | total_intervals
+---------+--------------+-----------------
+ ST      |          128 |             476
+ *ST     |          167 |             656
+(715 个不同股票，295 只当前仍戴帽)
+```
+
+### 幂等性验证（重跑不重复）
+```
+rerun: {'source': 'tushare_namechange', 'namechange_records': 5369, 'st_intervals': 1134, 'written': 1134}
+SELECT count(*) FROM st_history;  →  1132   ← 重跑后行数不变，ON CONFLICT DO UPDATE 去重
+```
+（解析 1134 区间 vs 落库 1132：2 个区间 start_date 完全相同被 PK 去重，预期行为）
+
+### AC-2 JOIN 语义验证（下游 ml-engineer-p1 回测剔除）
+```sql
+-- T=2025-08-01 当日 ST-active 应剔除的股数
+SELECT count(DISTINCT code) FROM st_history
+WHERE start_date <= '2025-08-01' AND (end_date IS NULL OR end_date > '2025-08-01');
+→ 246 只
+
+-- 幸存者偏差干净池（anti-join：stocks 不在 T 日 ST-active）
+SELECT count(*) FROM stocks s WHERE NOT EXISTS (
+  SELECT 1 FROM st_history h WHERE h.code=s.code
+  AND h.start_date <= '2025-08-01' AND (h.end_date IS NULL OR h.end_date > '2025-08-01'));
+→ 5471 只
+```
+- JOIN 语义正确：`start_date<=T AND (end_date IS NULL OR end_date>T)` = T 日戴帽中。下游可直接 LEFT JOIN / anti-join 剔除。
+
+## 自查清单
+- [x] st_history 表创建（init_postgres.sql 追加 + live PG 验证 schema）
+- [x] namechange sync 解析戴帽/摘帽成对区间（同股多次戴帽 / ST↔*ST 类型切换正确）
+- [x] ON CONFLICT DO UPDATE 幂等写（重跑无重复，行数稳定 1132）
+- [x] dry-run 模式（铁律 #2 批量脚本）
+- [x] 积分 fallback 就位（stocks.is_st 快照 + 降级标注，本次未触发）
+- [x] scheduler job 注册（周六 03:30 周级增量）
+- [x] 参数化查询（namechange via pro API，无 SQL 拼接）
+- [x] AC-2 JOIN 语义验证（T 日 ST-active 246 / 干净池 5471）
+- [x] 不碰 alembic / trade-service / strategy-service（T-005/006/007 归属）
+
+## 质量门
+- [x] 真实 Tushare namechange 实调（5369 条，积分充足无 fallback）
+- [x] 真实 PG 写库 + 直查（1132 区间 / 715 股 / 295 当前 ST）
+- [x] 幂等性验证（重跑无重复）
+- [x] AC-2 JOIN 语义验证（下游可直接用）
+- [x] Python 语法检查通过（namechange.py / scheduler.py）
+- [x] git scope 干净：services/sql/init_postgres.sql（追加表）+ services/data-service/app/sync/namechange.py（新增）+ services/data-service/app/scheduler.py（import + job）
+- [x] 零现有表改动；回滚 = DROP TABLE st_history + 删 sync + 删 job
+
+## 下一步
+
+ST 数据管道就绪，下游 task #12（AC-2 st_history JOIN 幸存者偏差过滤）可接入。回测选股池 SQL 模板：
+```sql
+-- 剔除 T 日已戴帽股
+SELECT s.code FROM stocks s
+WHERE NOT EXISTS (
+  SELECT 1 FROM st_history h WHERE h.code = s.code
+  AND h.start_date <= :trade_date
+  AND (h.end_date IS NULL OR h.end_date > :trade_date)
+);
+```
+
+---
+
+**涉及文件**:
+- `services/sql/init_postgres.sql`（追加 st_history 表 + 2 索引）
+- `services/data-service/app/sync/namechange.py`（新增 — namechange 拉取/解析/写库/dry-run/fallback）
+- `services/data-service/app/scheduler.py`（import sync_st_history + 注册 st_history_sync job）

@@ -1,0 +1,415 @@
+{
+  "design": {
+    "train_months": 3,
+    "step_months": 1,
+    "frozen_params": true,
+    "cost_bps": 14,
+    "mode": "multi_day AC-1 + 后复权 Q-4 + 加权 AC-6"
+  },
+  "monthly_table": [
+    {
+      "n_trades": 36,
+      "weighted_net_mean": -4.067684578902632,
+      "weighted_net_sum": -146.43664484049478,
+      "net_mean": -4.610999986544106,
+      "net_median": -3.618805288550063,
+      "win_rate_net": 13.88888888888889,
+      "exit_reasons": {
+        "hold_to_maturity": 26,
+        "stop_loss": 4,
+        "trailing_stop": 6
+      },
+      "oos_month": "2024-01",
+      "train_window": "2023-10..2023-12",
+      "n_trading_days": 22
+    },
+    {
+      "n_trades": 33,
+      "weighted_net_mean": -0.6739275140267159,
+      "weighted_net_sum": -22.239607962881625,
+      "net_mean": -0.837535171084473,
+      "net_median": -0.14,
+      "win_rate_net": 45.45454545454545,
+      "exit_reasons": {
+        "trailing_stop": 17,
+        "hold_to_maturity": 16
+      },
+      "oos_month": "2024-02",
+      "train_window": "2023-11..2024-01",
+      "n_trading_days": 15
+    },
+    {
+      "n_trades": 120,
+      "weighted_net_mean": -1.5786179473314603,
+      "weighted_net_sum": -189.43415367977525,
+      "net_mean": -1.9719503532209235,
+      "net_median": -0.2147580987204788,
+      "win_rate_net": 40.833333333333336,
+      "exit_reasons": {
+        "trailing_stop": 46,
+        "hold_to_maturity": 67,
+        "stop_loss": 7
+      },
+      "oos_month": "2024-03",
+      "train_window": "2023-12..2024-02",
+      "n_trading_days": 21
+    },
+    {
+      "n_trades": 71,
+      "weighted_net_mean": -2.0290880470523045,
+      "weighted_net_sum": -144.06525134071362,
+      "net_mean": -2.3763067592562015,
+      "net_median": -0.4745413994981783,
+      "win_rate_net": 35.2112676056338,
+      "exit_reasons": {
+        "hold_to_maturity": 42,
+        "stop_loss": 5,
+        "trailing_stop": 22,
+        "take_profit": 2
+      },
+      "oos_month": "2024-04",
+      "train_window": "2024-01..2024-03",
+      "n_trading_days": 20
+    },
+    {
+      "n_trades": 132,
+      "weighted_net_mean": -1.5253996098712548,
+      "weighted_net_sum": -201.35274850300564,
+      "net_mean": -2.139317372726142,
+      "net_median": -2.1500952225041603,
+      "win_rate_net": 25.757575757575758,
+      "exit_reasons": {
+        "hold_to_maturity": 94,
+        "trailing_stop": 30,
+        "take_profit": 2,
+        "stop_loss": 6
+      },
+      "oos_month": "2024-05",
+      "train_window": "2024-02..2024-04",
+      "n_trading_days": 20
+    },
+    {
+      "n_trades": 60,
+      "weighted_net_mean": -1.4723458649522925,
+      "weighted_net_sum": -88.34075189713755,
+      "net_mean": -2.228726644421589,
+      "net_median": -1.2639444610114225,
+      "win_rate_net": 25.0,
+      "exit_reasons": {
+        "hold_to_maturity": 31,
+        "trailing_stop": 23,
+        "take_profit": 1,
+        "stop_loss": 5
+      },
+      "oos_month": "2024-06",
+      "train_window": "2024-03..2024-05",
+      "n_trading_days": 19
+    },
+    {
+      "n_trades": 67,
+      "weighted_net_mean": -2.537879567592181,
+      "weighted_net_sum": -170.03793102867613,
+      "net_mean": -3.1064521755286507,
+      "net_median": -1.2016784630940403,
+      "win_rate_net": 31.343283582089555,
+      "exit_reasons": {
+        "hold_to_maturity": 35,
+        "stop_loss": 6,
+        "trailing_stop": 26
+      },
+      "oos_month": "2024-07",
+      "train_window": "2024-04..2024-06",
+      "n_trading_days": 23
+    },
+    {
+      "n_trades": 57,
+      "weighted_net_mean": -2.650311350975142,
+      "weighted_net_sum": -151.0677470055831,
+      "net_mean": -3.4671944242699335,
+      "net_median": -3.0131604765241726,
+      "win_rate_net": 12.280701754385964,
+      "exit_reasons": {
+        "trailing_stop": 17,
+        "stop_loss": 2,
+        "hold_to_maturity": 37,
+        "take_profit": 1
+      },
+      "oos_month": "2024-08",
+      "train_window": "2024-05..2024-07",
+      "n_trading_days": 22
+    },
+    {
+      "n_trades": 87,
+      "weighted_net_mean": 2.8937962677516333,
+      "weighted_net_sum": 251.7602752943921,
+      "net_mean": 3.1722402016327247,
+      "net_median": 2.3143378995433683,
+      "win_rate_net": 62.06896551724138,
+      "exit_reasons": {
+        "hold_to_maturity": 35,
+        "take_profit": 6,
+        "trailing_stop": 43,
+        "stop_loss": 3
+      },
+      "oos_month": "2024-09",
+      "train_window": "2024-06..2024-08",
+      "n_trading_days": 19
+    },
+    {
+      "n_trades": 132,
+      "weighted_net_mean": 0.10175053581231573,
+      "weighted_net_sum": 13.431070727225677,
+      "net_mean": 0.1264713990819446,
+      "net_median": -0.058517065393741574,
+      "win_rate_net": 48.484848484848484,
+      "exit_reasons": {
+        "hold_to_maturity": 60,
+        "trailing_stop": 71,
+        "stop_loss": 1
+      },
+      "oos_month": "2024-10",
+      "train_window": "2024-07..2024-09",
+      "n_trading_days": 18
+    },
+    {
+      "n_trades": 142,
+      "weighted_net_mean": -1.3365009704832371,
+      "weighted_net_sum": -189.78313780861967,
+      "net_mean": -1.8689079403943134,
+      "net_median": -0.20590335849617214,
+      "win_rate_net": 27.464788732394368,
+      "exit_reasons": {
+        "hold_to_maturity": 66,
+        "trailing_stop": 67,
+        "stop_loss": 8,
+        "take_profit": 1
+      },
+      "oos_month": "2024-11",
+      "train_window": "2024-08..2024-10",
+      "n_trading_days": 21
+    },
+    {
+      "n_trades": 118,
+      "weighted_net_mean": -2.15615282408349,
+      "weighted_net_sum": -254.4260332418518,
+      "net_mean": -2.842268983367899,
+      "net_median": -1.8550212933952748,
+      "win_rate_net": 23.728813559322035,
+      "exit_reasons": {
+        "hold_to_maturity": 51,
+        "trailing_stop": 50,
+        "take_profit": 2,
+        "stop_loss": 15
+      },
+      "oos_month": "2024-12",
+      "train_window": "2024-09..2024-11",
+      "n_trading_days": 22
+    },
+    {
+      "n_trades": 92,
+      "weighted_net_mean": -1.104591994360663,
+      "weighted_net_sum": -101.622463481181,
+      "net_mean": -1.4356717399413603,
+      "net_median": -0.14,
+      "win_rate_net": 43.47826086956522,
+      "exit_reasons": {
+        "hold_to_maturity": 38,
+        "trailing_stop": 49,
+        "stop_loss": 4,
+        "take_profit": 1
+      },
+      "oos_month": "2025-01",
+      "train_window": "2024-10..2024-12",
+      "n_trading_days": 18
+    },
+    {
+      "n_trades": 147,
+      "weighted_net_mean": -0.6983809565917118,
+      "weighted_net_sum": -102.66200061898164,
+      "net_mean": -1.1148735781593997,
+      "net_median": -0.24131712259371374,
+      "win_rate_net": 27.2108843537415,
+      "exit_reasons": {
+        "trailing_stop": 70,
+        "hold_to_maturity": 72,
+        "stop_loss": 5
+      },
+      "oos_month": "2025-02",
+      "train_window": "2024-11..2025-01",
+      "n_trading_days": 18
+    },
+    {
+      "n_trades": 184,
+      "weighted_net_mean": -1.47686220520255,
+      "weighted_net_sum": -271.7426457572692,
+      "net_mean": -2.1872802845742556,
+      "net_median": -0.49396051920724704,
+      "win_rate_net": 29.891304347826086,
+      "exit_reasons": {
+        "trailing_stop": 87,
+        "hold_to_maturity": 96,
+        "stop_loss": 1
+      },
+      "oos_month": "2025-03",
+      "train_window": "2024-12..2025-02",
+      "n_trading_days": 21
+    },
+    {
+      "n_trades": 139,
+      "weighted_net_mean": -1.3228850871453237,
+      "weighted_net_sum": -183.8810271132,
+      "net_mean": -1.8332601630348246,
+      "net_median": -0.36258862324816554,
+      "win_rate_net": 33.81294964028777,
+      "exit_reasons": {
+        "trailing_stop": 55,
+        "stop_loss": 8,
+        "hold_to_maturity": 76
+      },
+      "oos_month": "2025-04",
+      "train_window": "2025-01..2025-03",
+      "n_trading_days": 21
+    },
+    {
+      "n_trades": 167,
+      "weighted_net_mean": -0.4964952862647566,
+      "weighted_net_sum": -82.91471280621435,
+      "net_mean": -0.7837332103287951,
+      "net_median": -0.14,
+      "win_rate_net": 38.32335329341318,
+      "exit_reasons": {
+        "trailing_stop": 60,
+        "hold_to_maturity": 103,
+        "take_profit": 1,
+        "stop_loss": 3
+      },
+      "oos_month": "2025-05",
+      "train_window": "2025-02..2025-04",
+      "n_trading_days": 19
+    },
+    {
+      "n_trades": 159,
+      "weighted_net_mean": -0.6358100953208476,
+      "weighted_net_sum": -101.09380515601478,
+      "net_mean": -0.9456554242644987,
+      "net_median": -0.14,
+      "win_rate_net": 32.075471698113205,
+      "exit_reasons": {
+        "trailing_stop": 70,
+        "hold_to_maturity": 88,
+        "stop_loss": 1
+      },
+      "oos_month": "2025-06",
+      "train_window": "2025-03..2025-05",
+      "n_trading_days": 20
+    },
+    {
+      "n_trades": 224,
+      "weighted_net_mean": 0.27264930802144777,
+      "weighted_net_sum": 61.0734449968043,
+      "net_mean": 0.3116187447456545,
+      "net_median": 0.18441860465117765,
+      "win_rate_net": 51.33928571428571,
+      "exit_reasons": {
+        "hold_to_maturity": 125,
+        "trailing_stop": 98,
+        "stop_loss": 1
+      },
+      "oos_month": "2025-07",
+      "train_window": "2025-04..2025-06",
+      "n_trading_days": 23
+    },
+    {
+      "n_trades": 170,
+      "weighted_net_mean": -0.9419389892018464,
+      "weighted_net_sum": -160.12962816431389,
+      "net_mean": -1.3792903049561271,
+      "net_median": -0.14,
+      "win_rate_net": 35.294117647058826,
+      "exit_reasons": {
+        "trailing_stop": 86,
+        "hold_to_maturity": 76,
+        "take_profit": 1,
+        "stop_loss": 7
+      },
+      "oos_month": "2025-08",
+      "train_window": "2025-05..2025-07",
+      "n_trading_days": 21
+    },
+    {
+      "n_trades": 149,
+      "weighted_net_mean": -1.2231091413256348,
+      "weighted_net_sum": -182.2432620575196,
+      "net_mean": -1.8491169693023524,
+      "net_median": -0.1423912003825788,
+      "win_rate_net": 28.859060402684566,
+      "exit_reasons": {
+        "hold_to_maturity": 67,
+        "trailing_stop": 77,
+        "stop_loss": 4,
+        "take_profit": 1
+      },
+      "oos_month": "2025-09",
+      "train_window": "2025-06..2025-08",
+      "n_trading_days": 22
+    },
+    {
+      "n_trades": 156,
+      "weighted_net_mean": -1.2853386971628498,
+      "weighted_net_sum": -200.51283675740456,
+      "net_mean": -1.641352133103292,
+      "net_median": -0.3693443964006159,
+      "win_rate_net": 37.17948717948718,
+      "exit_reasons": {
+        "trailing_stop": 55,
+        "hold_to_maturity": 94,
+        "stop_loss": 7
+      },
+      "oos_month": "2025-10",
+      "train_window": "2025-07..2025-09",
+      "n_trading_days": 17
+    },
+    {
+      "n_trades": 163,
+      "weighted_net_mean": -1.2747545395184665,
+      "weighted_net_sum": -207.78498994151005,
+      "net_mean": -1.7838233160693884,
+      "net_median": -0.867069351230425,
+      "win_rate_net": 27.607361963190186,
+      "exit_reasons": {
+        "hold_to_maturity": 97,
+        "trailing_stop": 58,
+        "stop_loss": 5,
+        "take_profit": 3
+      },
+      "oos_month": "2025-11",
+      "train_window": "2025-08..2025-10",
+      "n_trading_days": 20
+    },
+    {
+      "n_trades": 189,
+      "weighted_net_mean": -0.5462678988795243,
+      "weighted_net_sum": -103.24463288823009,
+      "net_mean": -1.0346729363009566,
+      "net_median": -0.14,
+      "win_rate_net": 34.92063492063492,
+      "exit_reasons": {
+        "hold_to_maturity": 85,
+        "trailing_stop": 98,
+        "stop_loss": 6
+      },
+      "oos_month": "2025-12",
+      "train_window": "2025-09..2025-11",
+      "n_trading_days": 23
+    }
+  ],
+  "sharpe_like_annualized": -3.177516236512832,
+  "conclusion": {
+    "sample_out_range": "2024-01~2025-12",
+    "n_sample_months": 24,
+    "monthly_weighted_net_mean_avg": -1.1569227939441453,
+    "monthly_pos_count": 3,
+    "sharpe_like_annualized": -3.177516236512832,
+    "weighted_net_sign_aggregate": "负"
+  }
+}
