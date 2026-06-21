@@ -15,7 +15,7 @@ for _pkg in ["kronos-factors", "kronos-core", "kronos-data"]:
     if os.path.isdir(_path) and _path not in sys.path:
         sys.path.insert(0, _path)
 
-from app.routes import router
+from app.routes import router, dashboard_router, data_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("signal-service")
@@ -55,6 +55,8 @@ app = FastAPI(
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","), allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(router)
+app.include_router(dashboard_router)
+app.include_router(data_router)
 
 
 @app.get("/api/v1/health")

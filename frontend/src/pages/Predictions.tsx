@@ -15,7 +15,7 @@ export default function Predictions() {
     if (!code) { message.warning('请输入股票代码'); return }
     setLoading(true)
     try {
-      const r = await fetch(`/api/v1/prediction/predict/${code}?pred_days=10`, { method: 'POST' })
+      const r = await fetch(`/api/v1/prediction/${code}?pred_days=10`, { method: 'POST' })
       const data = await r.json()
       setResult(data)
       message.success(`Kronos预测: ${data.pred_return_pct > 0 ? '📈' : '📉'} ${data.pred_return_pct > 0 ? '+' : ''}${data.pred_return_pct}%`)
@@ -148,7 +148,7 @@ export default function Predictions() {
           </Card>
           <Card title="批量预测" size="small" style={{ borderRadius: 8 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              对接 POST /api/v1/prediction/predict-batch<br />
+              对接 POST /api/v1/prediction/{'{'}code{'}'}<br />
               最多30只 · 每只可选5条采样路径
             </Text>
           </Card>

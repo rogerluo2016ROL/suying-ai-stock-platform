@@ -1,0 +1,79 @@
+{
+  "mode": "all",
+  "trade_date": "2026-06-18",
+  "time_slot": "08:53",
+  "saved_at": "2026-06-18T08:53:16.775519",
+  "total_picks": 5,
+  "picks": [
+    {
+      "code": "688512",
+      "name": "慧智微",
+      "price": 14.46,
+      "score": 11.3,
+      "grade": "B",
+      "entry_price": 13.21,
+      "stop_loss": 13.45,
+      "target_price": 16.63,
+      "rationale": "MA60支撑位13.21，当前价14.46 | 止损13.21，目标16.63（+15%）/18.8（+30%）",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "sector_score": 5.0
+    },
+    {
+      "code": "002025",
+      "name": "航天电器",
+      "price": 63.4,
+      "score": 11.2,
+      "grade": "B",
+      "entry_price": 66.64,
+      "stop_loss": 58.96,
+      "target_price": 72.91,
+      "rationale": "MA60支撑位66.64，当前价63.4 | 止损61.98，目标72.91（+15%）/82.42（+30%）",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "sector_score": 5.0
+    },
+    {
+      "code": "603259",
+      "name": "药明康德",
+      "price": 98.2,
+      "score": 11.2,
+      "grade": "B",
+      "entry_price": 99.4,
+      "stop_loss": 91.33,
+      "target_price": 112.93,
+      "rationale": "MA60支撑位99.4，当前价98.2 | 止损92.44，目标112.93（+15%）/127.66（+30%）",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "sector_score": 5.0
+    },
+    {
+      "code": "688729",
+      "name": "屹唐股份",
+      "price": 27.56,
+      "score": 11.2,
+      "grade": "B",
+      "entry_price": 24.26,
+      "stop_loss": 25.63,
+      "target_price": 31.69,
+      "rationale": "MA60支撑位24.26，当前价27.56 | 止损22.56，目标31.69（+15%）/35.83（+30%）",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "sector_score": 5.0
+    },
+    {
+      "code": "601838",
+      "name": "成都银行",
+      "price": 19.23,
+      "score": 11.1,
+      "grade": "B",
+      "entry_price": 18.28,
+      "stop_loss": 17.88,
+      "target_price": 22.11,
+      "rationale": "MA60支撑位18.28，当前价19.23 | 止损18.28，目标22.11（+15%）/25.0（+30%）",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "sector_score": 5.0
+    }
+  ]
+}

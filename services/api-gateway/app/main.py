@@ -26,6 +26,8 @@ SERVICES = {
     "/api/v1/prediction": "http://localhost:8002",
     "/api/v1/strategy": "http://localhost:8003",
     "/api/v1/signal": "http://localhost:8004",
+    "/api/v1/dashboard": "http://localhost:8004",  # signal-service hosts dashboard aggregation
+    "/api/v1/data": "http://localhost:8004",        # signal-service hosts data-status/sync
     "/api/v1/alert": "http://localhost:8005",
     "/api/v1/trade": "http://localhost:8006",
     "/api/v1/backtest": "http://localhost:8007",

@@ -92,17 +92,15 @@ export default function Strategy() {
   const createFromTemplate = async (template: StrategyTemplate) => {
     setCreating(true)
     try {
-      const r = await fetch('/api/v1/strategy/plans', {
+      const params = new URLSearchParams({
+        name: `${template.name}方案-${Date.now().toString(36)}`,
+        model_name: 'template',
+        capital: '1000000',
+        max_positions: String(template.max_positions || 5),
+        single_max_pct: String(template.single_max || 0.2),
+      })
+      const r = await fetch(`/api/v1/strategy/plans?${params.toString()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `${template.name}方案-${Date.now().toString(36)}`,
-          model: 'template',
-          capital: 1000000,
-          max_positions: template.max_positions || 5,
-          single_max_pct: template.single_max || 0.2,
-          risk: template.risk || 'medium',
-        }),
       })
       if (r.ok) {
         message.success(`已基于"${template.name}"创建方案`)

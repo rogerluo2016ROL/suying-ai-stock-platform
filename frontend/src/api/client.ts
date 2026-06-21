@@ -87,10 +87,10 @@ export const screenerApi = {
 // Prediction
 export const predictionApi = {
   getStatus: () => api.get('/prediction/status'),
-  predict: (code: string, predDays = 10) => api.post(`/prediction/predict/${code}?pred_days=${predDays}`),
+  predict: (code: string, predDays = 10) => api.post(`/prediction/${code}?pred_days=${predDays}`),
   predictFast: (code: string, predDays = 15) => api.post(`/prediction/${code}/fast?pred_days=${predDays}`),
   predictBatch: (codes: string[], days = 30) =>
-    api.post(`/prediction/predict-batch?pred_days=${days}`, codes),
+    api.post(`/prediction/${codes[0]}/meta?pred_days=${days}`, codes),
 }
 
 // Strategy

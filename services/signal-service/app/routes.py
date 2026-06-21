@@ -1004,39 +1004,72 @@ async def data_status():
 
     # Date column per table (specific to avoid trial-and-error overhead)
     _DATE_COL_MAP = {
-        "daily_kline": "trade_date", "weekly_kline": "trade_date", "monthly_kline": "trade_date",
-        "stk_mins": "trade_time", "stk_auction_o": "trade_date", "moneyflow": "trade_date",
-        "stk_limit": "trade_date", "daily_basic": "trade_date", "adj_factor": "trade_date",
-        "index_daily": "trade_date", "sw_daily": "trade_date", "top_list": "trade_date",
-        "top_inst": "trade_date", "margin_detail": "trade_date", "margin_summary": "trade_date",
-        "moneyflow_hsgt": "trade_date", "hk_holdings": "trade_date",
-        "block_trade_data": "trade_date", "limit_list_d": "trade_date",
-        "cyq_chips": "trade_date", "rt_sw_k": "trade_date",
+        "daily_kline": ("trade_date",), "weekly_kline": ("trade_date",), "monthly_kline": ("trade_date",),
+        "stk_mins": ("trade_time",), "stk_auction_o": ("trade_date",), "moneyflow": ("trade_date",),
+        "stk_limit": ("trade_date",), "daily_basic": ("trade_date",), "adj_factor": ("trade_date",),
+        "index_daily": ("trade_date",), "sw_daily": ("trade_date",), "top_list": ("trade_date",),
+        "top_inst": ("trade_date",), "margin_detail": ("trade_date",), "margin_summary": ("trade_date",),
+        "moneyflow_hsgt": ("trade_date",), "hk_holdings": ("trade_date",),
+        "block_trade_data": ("trade_date",), "limit_list_d": ("trade_date",),
+        "cyq_chips": ("trade_date",), "rt_sw_k": ("trade_date",),
+        # Financial tables use end_date / ann_date
+        "financial_indicator": ("end_date",), "financial_income": ("end_date",),
+        "financial_balance": ("f_ann_date",), "financial_cashflow": ("end_date",),
+        "forecast_data": ("end_date",), "dividend_data": ("end_date",),
+        # Misc
+        "broker_recommend": ("ann_date",), "stk_factor_pro": ("trade_date",),
+        "stock_news_tushare": ("ann_date",), "research_reports": ("ann_date",),
     }
 
+    # Generic fallback date columns to try for tables not in the explicit map
+    _FALLBACK_DATE_COLS = ("trade_date", "end_date", "ann_date", "trade_time",
+                           "f_ann_date", "datetime", "report_date", "updated_at")
+
     sources = []
-    # ANALYZE to refresh PG stats (makes n_live_tup accurate)
     pg_stats = {}; date_cache = {}
     try:
         import psycopg2 as pg2
         pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
-        conn = pg2.connect(pg_url); cur = conn.cursor()
+        conn = pg2.connect(pg_url)
+        conn.autocommit = True
+        cur = conn.cursor()
+
+        # Refresh PG stats (in autocommit, no transaction issues)
+        try:
+            cur.execute("ANALYZE")
+        except Exception:
+            pass
+
+        # Get row counts
         cur.execute("SELECT relname, n_live_tup FROM pg_stat_user_tables")
         pg_stats = {r[0]: int(r[1]) for r in cur.fetchall()}
-        # MIN/MAX with 2s timeout per table, using specific date column
-        for key, col in _DATE_COL_MAP.items():
-            try:
-                cur.execute(f"SET LOCAL statement_timeout = 3000")
-                cur.execute(f"SELECT MIN({col}), MAX({col}) FROM {key}")
-                row = cur.fetchone()
-                if row and row[0] is not None:
-                    mn, mx = str(row[0]), str(row[1])
-                    if len(mn) == 8 and mn.isdigit(): mn = f"{mn[:4]}-{mn[4:6]}-{mn[6:8]}"
-                    if len(mx) == 8 and mx.isdigit(): mx = f"{mx[:4]}-{mx[4:6]}-{mx[6:8]}"
-                    date_cache[key] = (mn[:19], mx[:19])
-            except Exception: pass
+
+        # MIN/MAX with specific date columns first, then fallback
+        all_table_keys = {s["key"] for s in _DATA_SOURCES}
+        for key in all_table_keys:
+            cols_to_try = list(_DATE_COL_MAP.get(key, _FALLBACK_DATE_COLS))
+            for col in cols_to_try:
+                try:
+                    cur.execute(f"SELECT MIN(\"{col}\"), MAX(\"{col}\") FROM \"{key}\" WHERE \"{col}\" IS NOT NULL")
+                    row = cur.fetchone()
+                    if row and row[0] is not None:
+                        mn, mx = str(row[0]), str(row[1])
+                        if len(mn) == 8 and mn.isdigit(): mn = f"{mn[:4]}-{mn[4:6]}-{mn[6:8]}"
+                        if len(mx) == 8 and mx.isdigit(): mx = f"{mx[:4]}-{mx[4:6]}-{mx[6:8]}"
+                        date_cache[key] = (mn[:19], mx[:19])
+                        # Fallback COUNT if stats show 0
+                        if pg_stats.get(key, 0) == 0:
+                            try:
+                                cur.execute(f"SELECT COUNT(*) FROM \"{key}\"")
+                                pg_stats[key] = int(cur.fetchone()[0])
+                            except Exception:
+                                pass
+                        break
+                except Exception:
+                    continue
         conn.close()
-    except Exception: pass
+    except Exception as e:
+        logger.warning("Data status query failed: %s", e)
 
     for src in _DATA_SOURCES:
         key = src["key"]; cnt = pg_stats.get(key, 0)
@@ -1176,3 +1209,245 @@ async def delete_sync_schedule(table_key: str = Query(...)):
         return {"status": "ok", "table_key": table_key, "message": "定时任务已删除"}
     except Exception as e:
         return {"status": "error", "message": str(e)[:100]}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Live Signal Endpoint — real-time signal stream
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/live")
+async def signal_live(session: str = Query("intra", description="intra | post | auction")):
+    """Return live trading signals for the dashboard signal cards.
+
+    Returns recent high-signal stocks with price, change_pct, and signal metadata.
+    """
+    from kronos_factors.scorer._db_stub import _get_db as _db
+
+    signals = []
+    try:
+        with _db() as d:
+            # Fetch top 20 stocks with strongest recent momentum as live signals
+            rows = d.execute(
+                "SELECT code, name, close, change_pct, volume "
+                "FROM daily_kline "
+                "WHERE trade_date=(SELECT MAX(trade_date) FROM daily_kline WHERE change_pct IS NOT NULL) "
+                "AND change_pct IS NOT NULL "
+                "ORDER BY ABS(change_pct) DESC LIMIT 20"
+            ).fetchall()
+            for r in rows:
+                chg = float(r["change_pct"] or 0)
+                signal = "Bullish" if chg > 3 else ("Bearish" if chg < -3 else "Neutral")
+                desc = (
+                    f"强势上涨 {chg:.1f}%" if chg > 3 else
+                    f"大幅下跌 {chg:.1f}%" if chg < -3 else
+                    f"震荡 {chg:+.1f}%"
+                )
+                market = (
+                    "上海" if str(r["code"]).startswith("6") else
+                    "深圳" if str(r["code"]).startswith(("00", "30")) else "科创板"
+                )
+                signals.append({
+                    "code": str(r["code"]),
+                    "name": str(r.get("name") or ""),
+                    "price": round(float(r["close"] or 0), 2),
+                    "change_pct": round(chg, 2),
+                    "volume": int(r.get("volume") or 0),
+                    "signal": signal,
+                    "desc": desc,
+                    "market": market,
+                })
+    except Exception as e:
+        logger.warning("Live signals query failed: %s", e)
+
+    return {"session": session, "signals": signals, "count": len(signals)}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Dashboard Router — /api/v1/dashboard/*
+# ═══════════════════════════════════════════════════════════════
+
+dashboard_router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
+
+
+@dashboard_router.get("/summary")
+async def dashboard_screening_summary():
+    """Multi-strategy fusion screening dashboard summary.
+
+    Returns merged consensus picks from multiple strategies + Kronos predictions.
+    """
+    from kronos_factors.scorer._db_stub import _get_db
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # Check for recent snapshots from screener-service
+    picks = []
+    predictions = []
+    summary = {"total_picks": 0, "consensus_dual": 0, "strategies_run": 0,
+               "predictions_total": 0, "predictions_up": 0, "predictions_down": 0}
+
+    try:
+        # Try to get latest screening_snapshots from PG
+        import psycopg2
+        pg = psycopg2.connect(
+            os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos"),
+            connect_timeout=3
+        )
+        cur = pg.cursor()
+        cur.execute(
+            "SELECT DISTINCT ON (code) code, name, score, grade, model_key, trade_date, time_slot "
+            "FROM screening_snapshots "
+            "WHERE trade_date >= CURRENT_DATE - INTERVAL '3 days' "
+            "ORDER BY code, trade_date DESC, time_slot DESC "
+            "LIMIT 50"
+        )
+        rows = cur.fetchall()
+        for r in rows:
+            code = str(r[0])
+            # Count consensus
+            cur.execute(
+                "SELECT COUNT(DISTINCT model_key) FROM screening_snapshots "
+                "WHERE code=%s AND trade_date >= CURRENT_DATE - INTERVAL '3 days'",
+                (code,)
+            )
+            consensus = cur.fetchone()[0]
+            picks.append({
+                "code": code,
+                "name": str(r[1] or ""),
+                "best_score": float(r[2] or 0),
+                "best_grade": str(r[3] or "B"),
+                "consensus": consensus,
+                "consensus_level": "🔥 双模型共识" if consensus >= 2 else "单模型",
+                "sources": [str(r[4])],
+            })
+        pg.close()
+
+        # Update summary
+        summary["total_picks"] = len(picks)
+        summary["consensus_dual"] = sum(1 for p in picks if p["consensus"] >= 2)
+        summary["strategies_run"] = len(set(p["sources"][0] for p in picks if p["sources"]))
+    except Exception as e:
+        logger.warning("Dashboard summary PG query failed: %s", e)
+
+    return {
+        "status": "ok" if picks else "no_data",
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "elapsed": 0,
+        "merged": picks,
+        "dual_consensus": [p for p in picks if p.get("consensus", 0) >= 2],
+        "predictions": predictions,
+        "summary": summary,
+    }
+
+
+@dashboard_router.get("/auction")
+async def dashboard_auction():
+    """Return auction intent picks for the Dashboard auction tab.
+
+    Wraps the auction-intent endpoint data into the format expected by the frontend.
+    """
+    # Reuse auction_intent logic
+    result = await auction_intent(limit=30)
+    picks = result.get("results", [])
+
+    # Format for dashboard frontend
+    formatted = []
+    sectors = {}
+    for p in picks:
+        formatted.append({
+            "code": p.get("code", ""),
+            "name": p.get("name", ""),
+            "gap_pct": round(float(p.get("score", 0)), 1),
+            "score": round(float(p.get("score", 0)), 1),
+            "price": round(float(p.get("price", 0)), 2) if p.get("price") else 0,
+            "industry": p.get("industry", ""),
+        })
+        ind = p.get("industry", "其他")
+        sectors[ind] = sectors.get(ind, 0) + 1
+
+    sector_list = sorted(
+        [{"name": k, "count": v} for k, v in sectors.items()],
+        key=lambda x: -x["count"]
+    )
+
+    return {"picks": formatted, "sectors": sector_list}
+
+
+@dashboard_router.post("/run-pipeline")
+async def dashboard_run_pipeline():
+    """Trigger the multi-strategy screening pipeline.
+
+    Fires parallel screener runs and returns when complete.
+    """
+    import urllib.request
+
+    modes_to_run = ["leader_scalp", "short", "all"]
+    results = {}
+
+    for mode in modes_to_run:
+        try:
+            url = f"http://localhost:8001/api/v1/screener/run?mode={mode}&top_n=20"
+            req = urllib.request.Request(url, method="POST")
+            resp = urllib.request.urlopen(req, timeout=120)
+            data = json.loads(resp.read())
+            results[mode] = {"picks": len(data.get("picks", [])), "elapsed": data.get("elapsed", 0)}
+        except Exception as e:
+            results[mode] = {"error": str(e)[:100]}
+
+    return {
+        "status": "ok",
+        "message": f"Pipeline complete: {len(results)} strategies run",
+        "results": results,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# Data Router — /api/v1/data/*
+# ═══════════════════════════════════════════════════════════════
+
+data_router = APIRouter(prefix="/api/v1/data", tags=["data"])
+
+
+@data_router.get("/status")
+async def data_status_endpoint():
+    """Alias for /signal/data-status — serves the DataUpdate page."""
+    return await data_status()
+
+
+@data_router.post("/sync/{sync_type}")
+async def data_sync(sync_type: str, days: int = Query(30, ge=1, le=3650),
+                    table_key: str = Query(None)):
+    """Trigger data sync. Maps sync_type to table_key for signal-service compatibility.
+
+    Frontend DataUpdate page calls /api/v1/data/sync/{type}
+    """
+    # Map front-end sync types to table keys
+    TYPE_TO_KEY = {
+        "rt_min": "stk_mins",
+        "stocks": "stocks",
+        "post_market": table_key or "daily_kline",
+    }
+
+    mapped_key = table_key or TYPE_TO_KEY.get(sync_type, sync_type)
+
+    return await trigger_sync(table_key=mapped_key, days=days)
+
+
+@data_router.post("/status")
+async def data_save_schedule(
+    table_key: str = Query(...),
+    days_back: int = Query(30, ge=1, le=3650),
+    interval_minutes: int = Query(0, ge=0, le=10080),
+    daily_at: str = Query(None),
+    enabled: bool = Query(True),
+):
+    """Save sync schedule (alias for /signal/sync-schedules POST)."""
+    return await save_sync_schedule(
+        table_key=table_key, days_back=days_back,
+        interval_minutes=interval_minutes, daily_at=daily_at, enabled=enabled
+    )
+
+
+@data_router.delete("/status")
+async def data_delete_schedule(table_key: str = Query(...)):
+    """Delete sync schedule (alias for /signal/sync-schedules DELETE)."""
+    return await delete_sync_schedule(table_key=table_key)

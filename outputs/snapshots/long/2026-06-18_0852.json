@@ -1,0 +1,79 @@
+{
+  "mode": "long",
+  "trade_date": "2026-06-18",
+  "time_slot": "08:52",
+  "saved_at": "2026-06-18T08:52:25.510297",
+  "total_picks": 5,
+  "picks": [
+    {
+      "code": "002648",
+      "name": "卫星化学",
+      "price": 22.4,
+      "score": 15.3,
+      "grade": "A",
+      "entry_price": 23.72,
+      "stop_loss": 20.83,
+      "target_price": 25.76,
+      "rationale": "MA60支撑位23.72，当前价22.4 | 止损22.06，目标25.76（+15%）/29.12（+30%） | 基本面：PE=14",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "institutional_funds": []
+    },
+    {
+      "code": "601117",
+      "name": "中国化学",
+      "price": 8.22,
+      "score": 15.0,
+      "grade": "A",
+      "entry_price": 7.65,
+      "stop_loss": 7.64,
+      "target_price": 9.45,
+      "rationale": "MA60支撑位7.65，当前价8.22 | 止损7.11，目标9.45（+15%）/10.69（+30%） | 基本面：PE=8",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "institutional_funds": []
+    },
+    {
+      "code": "601600",
+      "name": "中国铝业",
+      "price": 9.97,
+      "score": 15.0,
+      "grade": "A",
+      "entry_price": 10.91,
+      "stop_loss": 9.27,
+      "target_price": 11.47,
+      "rationale": "MA60支撑位10.91，当前价9.97 | 止损10.15，目标11.47（+15%）/12.96（+30%） | 基本面：PE=13",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "institutional_funds": []
+    },
+    {
+      "code": "601857",
+      "name": "中国石油",
+      "price": 9.77,
+      "score": 15.0,
+      "grade": "A",
+      "entry_price": 10.61,
+      "stop_loss": 9.09,
+      "target_price": 11.24,
+      "rationale": "MA60支撑位10.61，当前价9.77 | 止损9.87，目标11.24（+15%）/12.7（+30%） | 基本面：PE=11",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "institutional_funds": []
+    },
+    {
+      "code": "601898",
+      "name": "中煤能源",
+      "price": 14.0,
+      "score": 15.0,
+      "grade": "A",
+      "entry_price": 15.94,
+      "stop_loss": 13.02,
+      "target_price": 16.1,
+      "rationale": "MA60支撑位15.94，当前价14.0 | 止损14.82，目标16.1（+15%）/18.2（+30%） | 基本面：PE=10",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "institutional_funds": []
+    }
+  ]
+}
