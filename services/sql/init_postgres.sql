@@ -145,11 +145,16 @@ CREATE TABLE IF NOT EXISTS margin_summary (
     rzye DOUBLE PRECISION, rqye DOUBLE PRECISION
 );
 
+-- ADR-009: top_list 11 列对齐 sync_top_list. pct_change 用 Tushare 原名 (下游无消费者, 与 sync r.get 直通零映射;
+-- 与 sw_daily.change_pct 命名分歧, 未来跨表 JOIN 另开 ADR). l_sell→sell_amount, l_buy→buy_amount 在 sync 侧映射.
 CREATE TABLE IF NOT EXISTS top_list (
     code TEXT NOT NULL,
     trade_date DATE NOT NULL,
-    reason TEXT,
+    name TEXT,
+    close DOUBLE PRECISION, pct_change DOUBLE PRECISION,
+    turnover_rate DOUBLE PRECISION, amount DOUBLE PRECISION,
     buy_amount DOUBLE PRECISION, sell_amount DOUBLE PRECISION, net_amount DOUBLE PRECISION,
+    reason TEXT,
     PRIMARY KEY(code, trade_date)
 );
 
@@ -272,10 +277,14 @@ CREATE TABLE IF NOT EXISTS share_float (
     PRIMARY KEY(code, float_date)
 );
 
+-- ADR-009: pledge_detail 6 列对齐 sync_pledge_detail + 下游读法 (advanced_factors:1038,1051 读 pledge_total_ratio).
+-- 删 end_date/pledge_ratio (表原有但 sync 从未写/下游从不读, 列名冲突); 加 PK(code, ann_date) 修无 PK 累积重复行.
 CREATE TABLE IF NOT EXISTS pledge_detail (
     code TEXT NOT NULL,
-    end_date DATE NOT NULL,
-    pledge_amount DOUBLE PRECISION, pledge_ratio DOUBLE PRECISION
+    ann_date DATE NOT NULL,
+    pledgor TEXT, pledgee TEXT,
+    pledge_amount DOUBLE PRECISION, pledge_total_ratio DOUBLE PRECISION,
+    PRIMARY KEY(code, ann_date)
 );
 
 CREATE TABLE IF NOT EXISTS repurchase (
@@ -409,10 +418,15 @@ CREATE TABLE IF NOT EXISTS fina_mainbz (
     CONSTRAINT fina_mainbz_pk UNIQUE(code, end_date, biz_item)
 );
 
+-- ADR-009: rt_sw_k 11 列对齐 sync_rt_sw_k. sync 侧 trade_time→trade_date / ts_code(裸码)→code;
+-- pre_close 是下游 screening_scorers:1418 算涨幅的核心读列. 物理列 code, 下游 WHERE ts_code=? 经 pg_adapter 翻译.
 CREATE TABLE IF NOT EXISTS rt_sw_k (
     code TEXT NOT NULL,
     trade_date DATE NOT NULL,
-    open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION, close DOUBLE PRECISION,
+    name TEXT,
+    close DOUBLE PRECISION, pre_close DOUBLE PRECISION,
+    open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION,
+    vol DOUBLE PRECISION, amount DOUBLE PRECISION, pct_change DOUBLE PRECISION,
     PRIMARY KEY(code, trade_date)
 );
 
@@ -695,3 +709,17 @@ CREATE TABLE IF NOT EXISTS cb_factor (
 );
 CREATE INDEX IF NOT EXISTS idx_cb_factor_code ON cb_factor(ts_code);
 CREATE INDEX IF NOT EXISTS idx_cb_factor_date ON cb_factor(trade_date);
+
+-- ── ST 历史 (幸存者偏差修复 — 阶段 1 AC-2) ──
+-- Tushare namechange 解析的戴帽/摘帽区间；回测选股池按 trade_date JOIN 剔除 T 日已戴帽股。
+-- source='tushare_namechange'（完整历史区间）/ 'stocks_is_st_snapshot'（积分不足 fallback：仅当前快照）。
+CREATE TABLE IF NOT EXISTS st_history (
+    code TEXT NOT NULL,
+    start_date DATE NOT NULL,   -- 戴帽日
+    end_date DATE,              -- 摘帽日（NULL = 当前仍戴帽）
+    st_type TEXT,               -- 'ST' / '*ST'
+    source TEXT DEFAULT 'tushare_namechange',
+    PRIMARY KEY (code, start_date)
+);
+CREATE INDEX IF NOT EXISTS idx_st_history_code ON st_history(code);
+CREATE INDEX IF NOT EXISTS idx_st_history_date ON st_history(start_date);

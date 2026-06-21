@@ -16,6 +16,7 @@ from app.sync.interact import sync_interact_qa
 from app.sync.policy_law import sync_policy_law
 from app.sync.mp_report import sync_mp_report
 from app.sync.cctv_news import sync_cctv_news
+from app.sync.namechange import sync_st_history
 
 # 从 kronos-data/etl.py 导入已有 sync 函数 (零重复代码)
 _PROJ_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -83,7 +84,7 @@ MONITORED_TABLES: dict[str, dict] = {
     "top_inst":                 {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 1},
     "block_trade_data":         {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 2},
     "stk_holdertrade":          {"date_col": "ann_date",   "lookback": 30, "freq": "L2-daily",  "gap_threshold": 3},
-    "pledge_detail":            {"date_col": "end_date",   "lookback": 30, "freq": "L2-daily",  "gap_threshold": 3},
+    "pledge_detail":            {"date_col": "ann_date",   "lookback": 30, "freq": "L2-daily",  "gap_threshold": 3},  # ADR-009: end_date 列已删, 改 ann_date
     "share_float":              {"date_col": "float_date", "lookback": 30, "freq": "L3-weekly", "gap_threshold": 7},
     "cyq_chips":                {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 2},
     "forecast_data":            {"date_col": "end_date",   "lookback": 30, "freq": "L2-daily",  "gap_threshold": 3},
@@ -1065,6 +1066,10 @@ def start_scheduler():
         # P1 公司基本信息 — 每周六 03:00 (全量刷新)
         {"id": "stock_profiles", "name": "[L3]公司基本信息", "cron": "0 3 * * 6",
          "fn": sync_stock_profiles},
+        # 阶段 1 AC-2 — ST 历史增量同步 (幸存者偏差修复, 供回测 JOIN 剔除戴帽股)
+        # 周六 03:30 增量拉 namechange 解析戴帽/摘帽区间写 st_history
+        {"id": "st_history_sync", "name": "[L3]ST历史同步", "cron": "30 3 * * 6",
+         "fn": sync_st_history},
         # P2 央行货币政策报告 — 每月 5 日 04:00
         {"id": "mp_report", "name": "[L3]央行货币政策报告", "cron": "0 4 5 * *",
          "fn": sync_mp_report},

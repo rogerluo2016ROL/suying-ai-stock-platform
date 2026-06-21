@@ -338,8 +338,9 @@ def sync_top_list(days_back: int = 30) -> dict:
     clean_before_write(db, "top_list", days_back)
 
     total, written = 0, 0
+    # ADR-009 §决策4c: cols l_sell→sell_amount, l_buy→buy_amount 对齐表列 (r.get 值不变, Tushare 原字段名)
     cols = ["code", "trade_date", "name", "close", "pct_change",
-            "turnover_rate", "amount", "l_sell", "l_buy", "net_amount", "reason"]
+            "turnover_rate", "amount", "sell_amount", "buy_amount", "net_amount", "reason"]
 
     for d in dates:
         _rate_limit()
@@ -1068,9 +1069,12 @@ def sync_pledge_detail(days_back: int = 30) -> dict:
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
-            rows.append((code, str(r.get("ann_date", "")),
+            # ADR-009 §决策4a: ann_date 格式化 "YYYYMMDD"→"YYYY-MM-DD" (同 sw_daily trade_date 模式, L1289-1291)
+            td = str(r.get("ann_date", ""))
+            ann_date = td[:4] + "-" + td[4:6] + "-" + td[6:8] if len(td) == 8 else td
+            rows.append((code, ann_date,
                 str(r.get("pledgor", "")), str(r.get("pledgee", "")),
-                r.get("pledge_amount"), r.get("pledge_total_ratio")))
+                r.get("pledge_amount"), r.get("p_total_ratio")))  # ADR-009 修正: Tushare 实际字段名 p_total_ratio (探针实测, 非 ADR 原假设的 pledge_total_ratio)
         total += len(rows)
         written += _insert_rows(db, "pledge_detail", cols, rows)
     db.commit(); db.close()
@@ -1313,7 +1317,8 @@ def sync_rt_sw_k(days_back: int = 1) -> dict:
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
     db = _get_etl_db()
     total, written = 0, 0
-    cols = ["trade_time", "ts_code", "name", "close", "pre_close",
+    # ADR-009 §决策4b: cols trade_time→trade_date, ts_code→code (engine 命名; 下游 WHERE ts_code=? 经 pg_adapter 翻译)
+    cols = ["code", "trade_date", "name", "close", "pre_close",
             "open", "high", "low", "vol", "amount", "pct_change"]
     try:
         df = pro.rt_sw_k()
@@ -1325,9 +1330,12 @@ def sync_rt_sw_k(days_back: int = 1) -> dict:
         return {"status": "ok", "table": "rt_sw_k", "fetched": 0, "written": 0}
     rows = []
     for _, r in df.iterrows():
+        # ADR-009 §决策4b: code=ts_code split 裸码, trade_date=trade_time 抽 date 部分
+        tc = str(r.get("ts_code", ""))
+        code = tc.split(".")[0] if "." in tc else tc
+        trade_date = str(r.get("trade_time", ""))[:10]  # "2026-06-22 14:55:00" → "2026-06-22"
         rows.append((
-            str(r.get("trade_time", "")),
-            str(r["ts_code"]), str(r.get("name", "")).strip(),
+            code, trade_date, str(r.get("name", "")).strip(),
             r.get("close"), r.get("pre_close"),
             r.get("open"), r.get("high"), r.get("low"),
             r.get("vol"), r.get("amount"), r.get("pct_change"),
