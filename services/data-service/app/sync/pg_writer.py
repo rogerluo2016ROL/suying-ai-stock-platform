@@ -42,6 +42,9 @@ def _pg_write(table: str, columns: list[str], conflict_cols: list[str],
                 logger.debug("PG write %s retry %d/%d after %.0fs: %s", table, attempt + 1, _MAX_RETRIES, sleep_s, e)
                 time.sleep(sleep_s)
         except Exception as e:
+            # 不静默: pg_writer 路径的写入失败也要可见 (与 etl._insert_rows 改造一致),
+            # 否则走 _pg_write 的 sync (stk_factor_pro 等) 失败会伪装成 written=0 成功
+            print(f"  [WARN] _pg_write {table} 写入失败: {str(e)[:140]}", flush=True)
             logger.debug("PG write %s: %s", table, e)
             return 0
     logger.warning("PG write %s failed after %d retries: %s", table, _MAX_RETRIES, last_error)
