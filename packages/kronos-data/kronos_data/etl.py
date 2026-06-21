@@ -112,7 +112,12 @@ class _Db:
         if self._pg:
             sql = sql.replace("?", "%s")
             cur = self._conn.cursor()
-            cur.execute(sql, params or ())
+            # params=None 时不传 args —— 旧写法 cur.execute(sql, params or ()) 会把空 tuple ()
+            # 传给无 %s 占位符的 SQL, psycopg2 报 "tuple index out of range" (影响所有无参 db.execute)
+            if params:
+                cur.execute(sql, params)
+            else:
+                cur.execute(sql)
             return cur
         return self._conn.execute(sql, params or ())
     def commit(self):
@@ -122,6 +127,19 @@ class _Db:
     def rollback(self):
         try: self._conn.rollback()
         except: pass
+
+
+# 模块级缓存: table -> 实际列名 (供 _insert_rows 自动过滤无效列, 止血 etl cols 与 PG schema 脱节)
+_pg_table_cols_cache: dict = {}
+
+def _get_pg_columns(conn, table: str) -> frozenset:
+    """缓存查询 PG 表的实际列名."""
+    if table not in _pg_table_cols_cache:
+        cur = conn.cursor()
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name=%s", (table,))
+        _pg_table_cols_cache[table] = frozenset(r[0] for r in cur.fetchall())
+    return _pg_table_cols_cache[table]
+
 
 def _get_etl_db() -> _Db:
     """Return _Db wrapper. PG if KRONOS_PG_URL is set, else SQLite."""
@@ -149,23 +167,34 @@ def _insert_rows(db: _Db, table: str, columns: list[str],
     col_str = ", ".join(columns)
     if db._pg:
         import psycopg2.extras
-        cur = db._conn.cursor()
+        # 止血: 查表实际列, 过滤 cols 中表不存在的列。etl cols 原为 SQLite 设计, 迁 PG 后大量列名脱节
+        # (如 hk_holdings 的 hold_vol), 导致 execute_values 整批 "column does not exist" 失败;
+        # 旧代码 except:pass 静默吞 → 表面成功实则 0 写入, 数据停滞数周无人察觉。
+        actual = _get_pg_columns(db._conn, table)
+        if not actual:
+            print(f"  [WARN] _insert_rows: 表 {table} 不存在, 跳过写入", flush=True)
+            return 0
+        valid_cols = [c for c in columns if c in actual]
+        dropped = [c for c in columns if c not in actual]
+        if dropped:
+            print(f"  [WARN] _insert_rows {table}: 丢弃表不存在的列 {dropped}", flush=True)
+        if not valid_cols or not rows:
+            return 0
+        valid_idx = [columns.index(c) for c in valid_cols]
+        filtered = [tuple(row[i] for i in valid_idx) for row in rows]
+        col_str = ", ".join(valid_cols)
         sql = f"INSERT INTO {table}({col_str}) VALUES %s ON CONFLICT DO NOTHING"
+        cur = db._conn.cursor()
         try:
-            psycopg2.extras.execute_values(cur, sql, rows, page_size=1000)
-            written = cur.rowcount
+            psycopg2.extras.execute_values(cur, sql, filtered, page_size=1000)
+            written = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
             db.commit()
             return written
-        except Exception:
+        except Exception as e:
+            # 不再静默吞: 真实写入失败 (非冲突) 必须可见, 否则数据停滞无人察觉
             db.rollback()
-            placeholders = ", ".join(["%s"] * len(columns))
-            sql2 = f"INSERT INTO {table}({col_str}) VALUES({placeholders}) ON CONFLICT DO NOTHING"
-            written = 0
-            for row in rows:
-                try: cur.execute(sql2, tuple(row)); written += 1
-                except: pass
-            db.commit()
-            return written
+            print(f"  [WARN] _insert_rows {table} 写入失败: {str(e)[:140]}", flush=True)
+            return 0
     else:
         placeholders = ",".join(["?"] * len(columns))
         sql = f"INSERT OR REPLACE INTO {table}({col_str}) VALUES({placeholders})"

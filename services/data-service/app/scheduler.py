@@ -171,18 +171,25 @@ _BACKFILL_MAP: dict[str, callable] = {
 # ═══════════════════════════════════════════════════════════════
 
 def _parse_date(val) -> date | None:
-    """将 DB 返回值统一解析为 date 对象."""
+    """将 DB 返回值统一解析为 date 对象.
+
+    兼容 datetime / date / 'YYYY-MM-DD' / 'YYYYMMDD' (紧凑格式)。
+    注意 datetime 是 date 的子类, 必须先判断 —— 否则会被 isinstance(val, date)
+    捕获后直接返回 datetime, 导致后续 date-datetime 运算报错。
+    """
     if val is None:
         return None
-    if isinstance(val, date):
-        return val
     if isinstance(val, datetime):
         return val.date()
-    s = str(val)[:10]
-    try:
-        return datetime.strptime(s, "%Y-%m-%d").date()
-    except ValueError:
-        return None
+    if isinstance(val, date):
+        return val
+    s = str(val)[:10].strip()
+    for fmt in ("%Y-%m-%d", "%Y%m%d"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 def check_table_latest_date(table: str, date_col: str = "trade_date") -> date | None:
@@ -201,8 +208,11 @@ def check_table_latest_date(table: str, date_col: str = "trade_date") -> date | 
         conn = psycopg2.connect(_PG_URL)
         conn.autocommit = True
         cur = conn.cursor()
-        # 使用 quote_ident 防止 SQL 注入 (table/column 不可参数化)
-        cur.execute(SQL("SELECT MAX({})".format(Identifier(date_col))).format(Identifier(table)))
+        # 用 psycopg2.sql.Identifier 防注入 (table/column 不可参数化)。
+        # 必须用 SQL(...).format() 而非 Python str.format —— 后者会把 Identifier 转成 repr
+        # 生成非法 SQL (如 "SELECT MAX(Identifier('trade_date'))"), 导致查询全部抛异常被吞。
+        # 且原写法漏了 FROM 子句。
+        cur.execute(SQL("SELECT MAX({}) FROM {}").format(Identifier(date_col), Identifier(table)))
         row = cur.fetchone()
         conn.close()
         parsed = _parse_date(row[0]) if row else None
@@ -243,7 +253,11 @@ def _count_trading_days(from_date: date, to_date: date) -> int:
         )
         cnt = cur.fetchone()[0]
         conn.close()
-        return cnt if cnt else (to_date - from_date).days  # fallback
+        # cnt=0 是有效结果 (区间内确无交易日, 如收盘后/周末/节假日),
+        # 不应 fallback —— 否则周末会把"最近交易日的最新数据"误判为 gap=自然日差,
+        # 进而触发 trigger_data_backfill 对已是最新数据的表做无谓回补 (浪费 Tushare 配额)。
+        # 仅当 trade_cal 查询本身失败 (except) 才保守 fallback 到自然日。
+        return cnt
     except Exception:
         return (to_date - from_date).days
 
@@ -1037,9 +1051,11 @@ def start_scheduler():
         # 沪深港通资金流向 — 每周一 08:30
         {"id": "moneyflow_hsgt", "name": "[L3]沪深港通资金流向", "cron": "30 8 * * 1",
          "fn": sync_moneyflow_hsgt_weekly},
-        # P0 周级风控 — 每周一凌晨
-        {"id": "weekly_kline", "name": "[L3]周线数据", "cron": "0 1 * * 1",
-         "fn": sync_weekly_kline},
+        # P0 周线 — 每个交易日 16:00 同步 (节前最后交易日当天即可补本周周K;
+        # 旧调度 0 1 * * 1=每周一凌晨, 导致本周周K要拖到下周一才入库, 修复见 docs/reviews)
+        # 窗口缩到 21 天 (clean_before_write 按此清表重拉, 控制配额)
+        {"id": "weekly_kline", "name": "[L2]周线数据", "cron": "0 16 * * 1-5",
+         "fn": sync_weekly_kline, "args": (21,)},
         {"id": "holder_number", "name": "[L3]股东人数筹码集中度", "cron": "0 2 * * 1",
          "fn": sync_stk_holdernumber},
         {"id": "repurchase", "name": "[L3]股票回购", "cron": "30 2 * * 1",

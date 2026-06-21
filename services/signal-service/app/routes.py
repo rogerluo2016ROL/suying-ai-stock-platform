@@ -924,7 +924,7 @@ async def update_signal_rules(
 _DATA_SOURCES = [
     # 行情数据
     {"key": "daily_kline",    "name": "日K线行情",         "category": "行情", "source": "Tushare daily",     "update": "每日盘后18:00", "note": "1990年起,含复权"},
-    {"key": "weekly_kline",   "name": "周K线行情",         "category": "行情", "source": "Tushare weekly",    "update": "每周五盘后",     "note": ""},
+    {"key": "weekly_kline",   "name": "周K线行情",         "category": "行情", "source": "Tushare weekly",    "update": "每交易日盘后16:00", "note": "节前最后交易日即补本周周K"},
     {"key": "monthly_kline",  "name": "月K线行情",         "category": "行情", "source": "Tushare monthly",   "update": "每月末盘后",     "note": ""},
     {"key": "stk_mins",       "name": "分钟K线",           "category": "行情", "source": "Tushare stk_mins",  "update": "每日盘后18:00", "note": "5分钟粒度,实时分钟需rt_min权限"},
     {"key": "adj_factor",     "name": "复权因子",           "category": "行情", "source": "Tushare adj_factor","update": "每日盘后",        "note": ""},
