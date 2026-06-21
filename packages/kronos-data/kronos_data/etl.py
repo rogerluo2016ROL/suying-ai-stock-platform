@@ -111,8 +111,11 @@ class _Db:
     def execute(self, sql: str, params: tuple = None):
         if self._pg:
             sql = sql.replace("?", "%s")
-            cur = self._conn.cursor()
-            # params=None 时不传 args —— 旧写法 cur.execute(sql, params or ()) 会把空 tuple ()
+            # 用 DictCursor —— fetchall 返回的行支持 r["col"] (与 SQLite sqlite3.Row 行为一致)。
+            # 否则 PG 返回 tuple, sync 函数里的 r["code"] 报 "tuple indices must be integers"。
+            from psycopg2.extras import DictCursor
+            cur = self._conn.cursor(cursor_factory=DictCursor)
+            # params=None 时不传 args —— cur.execute(sql, params or ()) 会把空 tuple ()
             # 传给无 %s 占位符的 SQL, psycopg2 报 "tuple index out of range" (影响所有无参 db.execute)
             if params:
                 cur.execute(sql, params)
