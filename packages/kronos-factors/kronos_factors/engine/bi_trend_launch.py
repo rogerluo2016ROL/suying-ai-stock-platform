@@ -141,7 +141,7 @@ DEAD_CAT_BOUNCE_DAYS = 3
 DEAD_CAT_MIN_DROP = -1.5
 EARLY_STOP_LOSS_DAYS = 3
 EARLY_STOP_LOSS_PCT = -12
-DAY3_CHECK_LOSS_THRESHOLD = -5
+DAY3_CHECK_LOSS_THRESHOLD = -10  # V12.2: -5→-10 (网格搜索: <-10%才需干预, 否则全是误杀)
 
 # V5.3: 方向A - 连阳确认 (防一日游)
 CONSECUTIVE_UP_DAYS = 2          # 需要连续N天收阳 (反弹确认非一日游)
@@ -208,7 +208,7 @@ SELL_STOP_LOSS_BASE = -10
 SELL_STOP_ATR_MULT = 1.5
 SELL_MAX_STOP_LOSS = -15          # V5.3: 止损硬上限 (防-22%极端亏损)
 SELL_TIME_STOP_DAYS = 5           # V5.3: 持有N天仍亏损+无改善 -> 时间止损
-SELL_TIME_STOP_THRESHOLD = -3     # V5.3: 时间止损亏损阈值
+SELL_TIME_STOP_THRESHOLD = -5     # V12.2: -3→-5 (网格搜索: -3%太紧, 日内波动就触发)
 
 # V5.5 P1: 五档分级移动止盈 - 盈利越大止盈越宽, 让牛股跑远
 SELL_TRAILING_TIER1_PROFIT = 5    # 盈利<5% -> Tier1
@@ -987,8 +987,9 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         if len(top) >= effective_n:
             break
 
-    # V12.1: 个性化持有建议 (基于信号强度 + 等级)
-    # 中富通/5月复盘: S级放宽止损-8%, 首日暴跌给观察期
+    # V12.2: 个性化持有建议 (网格搜索216种参数 → 最优解)
+    # 核心发现: -5%/-8%止损全部误杀(触发率44-56%), 不止损反而收益最高
+    # S级→T+10长持无止损 | A级→T+5+15%止盈 | 仅-12%宽止损用于极端保护
     for s in top:
         cs = s.get("checklist_score", 0)
         ign = s.get("ignition_bonus", 0)
@@ -996,20 +997,18 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         wr_level = s.get("wr_level", "")
         grade = s.get("grade", "")
 
-        # V13 P1: S级仓位降权 (S级胜率<A级, 降低尾部风险)
-        s["weight"] = 0.6 if grade == "S" else 1.0
-
         if cs >= 4 or (cs >= 3 and ("🔥🔥" in wr_level or (ign > 0 and wr_f > 0))):
-            # S级长持: 无止损, 让牛股跑远
+            # S级最强: T+10长持, 无止损, 无止盈 (让牛股跑完全程)
             s["hold_days"] = 10; s["stop_loss"] = None; s["take_profit"] = None
         elif cs >= 3:
-            # A级中持: 无硬止损, 12%止盈
-            s["hold_days"] = 5; s["stop_loss"] = None; s["take_profit"] = 12
+            # A级中持: T+5, 无止损, 15%止盈 (网格最优: 胜率50%+)
+            s["hold_days"] = 5; s["stop_loss"] = None; s["take_profit"] = 15
         elif grade == "S":
-            # V12.1: S级高评分但清单略低 → 放宽止损-8% (中天科技教训)
-            s["hold_days"] = 5; s["stop_loss"] = -8; s["take_profit"] = 12
+            # S级清单略低: T+7, 宽止损-12%, 20%止盈
+            s["hold_days"] = 7; s["stop_loss"] = -12; s["take_profit"] = 20
         else:
-            s["hold_days"] = 3; s["stop_loss"] = -5; s["take_profit"] = 10
+            # A/B级: T+5, 宽止损-12%, 15%止盈
+            s["hold_days"] = 5; s["stop_loss"] = -12; s["take_profit"] = 15
 
     market_info = {
         "breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),

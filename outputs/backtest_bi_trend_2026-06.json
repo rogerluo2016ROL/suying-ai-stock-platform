@@ -20,9 +20,11 @@
       "wr_level": "平稳",
       "vol_level": "正常",
       "next_day_return": 6.23529411764705,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -38,9 +40,11 @@
       "wr_level": "单日急弹",
       "vol_level": "放量",
       "next_day_return": -2.612330198537094,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -56,9 +60,11 @@
       "wr_level": "温和反弹",
       "vol_level": "放量",
       "next_day_return": 10.014727540500722,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -74,9 +80,11 @@
       "wr_level": "平稳",
       "vol_level": "放量",
       "next_day_return": 8.488135593220347,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "2"
     },
     {
@@ -92,9 +100,11 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "放量",
       "next_day_return": 0.0,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "2"
     },
     {
@@ -110,9 +120,11 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "正常",
       "next_day_return": 0.08733624454146938,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -128,9 +140,11 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "温和缩量",
       "next_day_return": -1.6393442622950838,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "2"
     },
     {
@@ -146,9 +160,11 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "正常",
       "next_day_return": -0.22123893805310324,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "1"
     },
     {
@@ -164,9 +180,11 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "正常",
       "next_day_return": 8.697452229299362,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "1"
     },
     {
@@ -182,9 +200,11 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "放量",
       "next_day_return": -4.576569528652463,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "2"
     },
     {
@@ -200,9 +220,11 @@
       "wr_level": "平稳",
       "vol_level": "放量",
       "next_day_return": -3.642206748794874,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -218,9 +240,11 @@
       "wr_level": "单日急弹",
       "vol_level": "温和缩量",
       "next_day_return": 4.401805869074504,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "2"
     },
     {
@@ -236,9 +260,11 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "温和缩量",
       "next_day_return": -2.360332823908984,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "1"
     },
     {
@@ -254,9 +280,11 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "放量⚠️出货",
       "next_day_return": 2.0275270090276853,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "2"
     },
     {
@@ -272,9 +300,11 @@
       "wr_level": "平稳",
       "vol_level": "放量",
       "next_day_return": -1.3615733736762503,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "2"
     },
     {
@@ -290,9 +320,11 @@
       "wr_level": "单日急弹",
       "vol_level": "放量",
       "next_day_return": -3.0270270270270183,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "2"
     },
     {
@@ -308,9 +340,11 @@
       "wr_level": "平稳",
       "vol_level": "放量⚠️出货",
       "next_day_return": -2.9881055990716554,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "2"
     },
     {
@@ -326,9 +360,11 @@
       "wr_level": "平稳",
       "vol_level": "放量",
       "next_day_return": -3.074866310160429,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "2"
     },
     {
@@ -344,9 +380,11 @@
       "wr_level": "温和反弹",
       "vol_level": "正常",
       "next_day_return": -2.5775271848570203,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "2"
     },
     {
@@ -362,9 +400,11 @@
       "wr_level": "温和反弹",
       "vol_level": "正常",
       "next_day_return": -6.263736263736264,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "2"
     },
     {
@@ -380,9 +420,11 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "放量",
       "next_day_return": -2.79661016949152,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "1"
     },
     {
@@ -398,9 +440,11 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "正常⚠️出货",
       "next_day_return": -1.683784506128061,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "2"
     },
     {
@@ -416,9 +460,11 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "温和缩量",
       "next_day_return": -3.427419354838701,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -434,9 +480,11 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "放量",
       "next_day_return": -0.4644990046449915,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "1"
     },
     {
@@ -451,10 +499,12 @@
       "obv_level": "刚突破🔥⚡",
       "wr_level": "平稳",
       "vol_level": "正常⚠️出货",
-      "next_day_return": -31.909385113268605,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "next_day_return": -28.543689320388353,
+      "stopped": true,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "2"
     },
     {
@@ -470,9 +520,11 @@
       "wr_level": "单日急弹",
       "vol_level": "正常",
       "next_day_return": 0.9592476489028279,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "2"
     },
     {
@@ -488,9 +540,11 @@
       "wr_level": "单日急弹",
       "vol_level": "温和缩量",
       "next_day_return": 1.7796440711857597,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "1"
     },
     {
@@ -506,9 +560,11 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 1.596902976046466,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "2"
     },
     {
@@ -524,9 +580,11 @@
       "wr_level": "温和反弹",
       "vol_level": "放量",
       "next_day_return": 0.03459010722934863,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "2"
     },
     {
@@ -542,9 +600,11 @@
       "wr_level": "温和反弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 0.10626992561104665,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -560,9 +620,11 @@
       "wr_level": "单日急弹",
       "vol_level": "明显缩量",
       "next_day_return": 3.832752613240409,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "1"
     },
     {
@@ -578,9 +640,11 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "放量",
       "next_day_return": 8.908922179504163,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "1"
     },
     {
@@ -596,9 +660,11 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "放量",
       "next_day_return": 3.911735205616851,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "1"
     },
     {
@@ -614,9 +680,11 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "放量",
       "next_day_return": 4.306487695749439,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "1"
     },
     {
@@ -632,9 +700,11 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 1.9212109450805315,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "2"
     },
     {
@@ -650,9 +720,11 @@
       "wr_level": "跌速放缓→企稳",
       "vol_level": "放量",
       "next_day_return": 8.050406165382217,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "1"
     },
     {
@@ -668,6 +740,8 @@
       "wr_level": "平稳",
       "vol_level": "放量⚠️出货",
       "next_day_return": -4.501960784313718,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
@@ -686,9 +760,11 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "放量",
       "next_day_return": 8.227311280746408,
-      "hold_days": 5,
-      "stop_loss": -8,
-      "take_profit": 12,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 7,
+      "stop_loss": -12,
+      "take_profit": 20,
       "checklist_score": "2"
     },
     {
@@ -704,9 +780,11 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "放量",
       "next_day_return": 0.24819277108432125,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -722,9 +800,11 @@
       "wr_level": "单日急弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 4.150166323459525,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -740,9 +820,11 @@
       "wr_level": "单日急弹",
       "vol_level": "放量",
       "next_day_return": 9.13292818625353,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "2"
     },
     {
@@ -758,9 +840,11 @@
       "wr_level": "温和反弹",
       "vol_level": "放量⚠️出货",
       "next_day_return": 11.405178979436403,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -776,9 +860,11 @@
       "wr_level": "平稳",
       "vol_level": "放量⚠️出货",
       "next_day_return": 4.714828897338386,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -794,6 +880,8 @@
       "wr_level": "单日急跌",
       "vol_level": "放量",
       "next_day_return": 2.0039421813403457,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
@@ -812,9 +900,11 @@
       "wr_level": "平稳",
       "vol_level": "放量",
       "next_day_return": 2.245030406461068,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -830,9 +920,11 @@
       "wr_level": "单日急弹",
       "vol_level": "放量",
       "next_day_return": 10.000000000000009,
-      "hold_days": 3,
-      "stop_loss": -5,
-      "take_profit": 10,
+      "stopped": false,
+      "weight": 1.0,
+      "hold_days": 5,
+      "stop_loss": -12,
+      "take_profit": 15,
       "checklist_score": "2"
     },
     {
@@ -848,9 +940,11 @@
       "wr_level": "温和反弹",
       "vol_level": "放量",
       "next_day_return": 2.7232523857553037,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -866,9 +960,11 @@
       "wr_level": "温和反弹",
       "vol_level": "极度缩量",
       "next_day_return": 9.999999999999986,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -884,6 +980,8 @@
       "wr_level": "双日急跌→急弹🔥",
       "vol_level": "极度缩量",
       "next_day_return": 9.999999999999986,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
@@ -902,6 +1000,8 @@
       "wr_level": "平稳",
       "vol_level": "极度缩量",
       "next_day_return": 0.32403493941954853,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
@@ -920,6 +1020,8 @@
       "wr_level": "单日急跌",
       "vol_level": "极度缩量",
       "next_day_return": 7.021311746241543,
+      "stopped": false,
+      "weight": 1.0,
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
@@ -938,9 +1040,11 @@
       "wr_level": "温和反弹",
       "vol_level": "极度缩量",
       "next_day_return": null,
+      "stopped": null,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -956,6 +1060,8 @@
       "wr_level": "强势反转🔥🔥",
       "vol_level": "极度缩量",
       "next_day_return": null,
+      "stopped": null,
+      "weight": 1.0,
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
@@ -974,6 +1080,8 @@
       "wr_level": "平稳",
       "vol_level": "极度缩量",
       "next_day_return": null,
+      "stopped": null,
+      "weight": 1.0,
       "hold_days": 10,
       "stop_loss": null,
       "take_profit": null,
@@ -992,9 +1100,11 @@
       "wr_level": "急跌→止跌→反弹🔥",
       "vol_level": "极度缩量",
       "next_day_return": null,
+      "stopped": null,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -1010,9 +1120,11 @@
       "wr_level": "温和反弹",
       "vol_level": "极度缩量",
       "next_day_return": null,
+      "stopped": null,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     },
     {
@@ -1028,9 +1140,11 @@
       "wr_level": "平稳",
       "vol_level": "极度缩量",
       "next_day_return": null,
+      "stopped": null,
+      "weight": 1.0,
       "hold_days": 5,
       "stop_loss": null,
-      "take_profit": 12,
+      "take_profit": 15,
       "checklist_score": "3"
     }
   ]
