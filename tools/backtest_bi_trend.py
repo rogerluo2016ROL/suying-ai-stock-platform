@@ -50,25 +50,48 @@ def get_trading_days(db, month_prefix="2026-06"):
     return [r["trade_date"] for r in rows]
 
 
-def get_next_day_return(db, code, trade_date):
-    """获取次日收益率: (次日close / 当日close - 1) * 100."""
-    # T日收盘买入, T+1日收盘卖出
+def get_next_day_return(db, code, trade_date, stop_loss_pct=None):
+    """获取次日收益率: T日收盘买入, T+1日收盘卖出 (可选止损).
+
+    V13 P1: 支持盘中止损模拟.
+    止损逻辑: 如果 T+1日最低价触及止损价, 以止损价退出; 否则以收盘价退出.
+    跳空低开: 如果开盘价已低于止损价, 以开盘价退出 (模拟竞价止损).
+    """
     entry_row = db.execute(
         "SELECT close FROM daily_kline WHERE code=? AND trade_date=?",
         (code, trade_date)
     ).fetchone()
     if not entry_row or not entry_row["close"]:
-        return None
+        return None, None
+    entry_price = float(entry_row["close"])
 
-    exit_row = db.execute(
-        "SELECT close FROM daily_kline WHERE code=? AND trade_date > ? "
+    next_row = db.execute(
+        "SELECT open, high, low, close FROM daily_kline WHERE code=? AND trade_date > ? "
         "ORDER BY trade_date ASC LIMIT 1",
         (code, trade_date)
     ).fetchone()
-    if not exit_row or not exit_row["close"]:
-        return None
+    if not next_row or not next_row["close"]:
+        return None, None
 
-    return (float(exit_row["close"]) / float(entry_row["close"]) - 1) * 100
+    exit_price = float(next_row["close"])
+    stopped = False
+
+    if stop_loss_pct is not None and stop_loss_pct < 0:
+        stop_price = entry_price * (1 + stop_loss_pct / 100)
+        next_open = float(next_row["open"] or exit_price)
+        next_low = float(next_row["low"] or exit_price)
+
+        # 跳空低开: 开盘即跌破止损
+        if next_open <= stop_price:
+            exit_price = next_open
+            stopped = True
+        # 盘中触及止损
+        elif next_low <= stop_price:
+            exit_price = stop_price
+            stopped = True
+
+    ret = (exit_price / entry_price - 1) * 100
+    return ret, stopped
 
 
 def run_backtest_day(db, trade_date, top_n=20):
@@ -85,12 +108,16 @@ def run_backtest_day(db, trade_date, top_n=20):
 
 
 def analyze_results(results, db):
-    """分析回测结果."""
+    """分析回测结果 (V13 P1: 支持止损模拟)."""
     all_picks = []
     for r in results:
         td = r["trade_date"]
         for s in r["top_picks"]:
-            ret = get_next_day_return(db, s["code"], td)
+            # V13 P1: 使用 pivot 的止损价位
+            sl = s.get("stop_loss")  # 负数, 如 -8 = -8%止损
+            ret, stopped = get_next_day_return(db, s["code"], td, stop_loss_pct=sl)
+            # V13 P1: S级仓位降权
+            weight = s.get("weight", 1.0)
             all_picks.append({
                 "trade_date": td,
                 "code": s["code"],
@@ -104,9 +131,11 @@ def analyze_results(results, db):
                 "wr_level": s["wr_level"],
                 "vol_level": s["vol_level"],
                 "next_day_return": ret,
+                "stopped": stopped,
+                "weight": weight,
                 # V12.1: 个性化持有建议
                 "hold_days": s.get("hold_days"),
-                "stop_loss": s.get("stop_loss"),
+                "stop_loss": sl,
                 "take_profit": s.get("take_profit"),
                 "checklist_score": s.get("checklist_score"),
             })
@@ -167,10 +196,17 @@ def analyze_results(results, db):
         print(f"  {sig:<14} {len(g):<6} {gw/len(g)*100:>6.1f}% {gr.mean():>+7.2f}% "
               f"{np.median(gr):>+7.2f}% {pw:>+6.2f}/{nw:>+6.2f}")
 
-    # ── 每日汇总 ──
-    print(f"\n  📊 每日汇总:")
-    print(f"  {'日期':<12} {'笔数':<5} {'胜率':<8} {'均值':<8} {'S/A级':<6} {'强买':<5}")
-    print(f"  {'-' * 50}")
+    # ── V13 P1: 加权止损统计 ──
+    stopped_count = sum(1 for p in valid if p.get("stopped"))
+    if stopped_count > 0:
+        print(f"\n  🛑 止损触发: {stopped_count}/{total} 笔 ({stopped_count/total*100:.0f}%)")
+        for p in [p for p in valid if p.get("stopped")][:5]:
+            print(f"    {p['trade_date']} {p['code']} {p['name']:<8} {p['grade']}级 止损{p['stop_loss']}% → {p['next_day_return']:+.2f}%")
+
+    # ── 每日汇总 (V13 P1: 加权收益) ──
+    print(f"\n  📊 每日汇总 (加权):")
+    print(f"  {'日期':<12} {'笔数':<5} {'胜率':<8} {'加权均值':<10} {'S级权重':<8} {'止损':<5}")
+    print(f"  {'-' * 55}")
     for r in results:
         td = r["trade_date"]
         day_picks = [p for p in valid if p["trade_date"] == td]
@@ -178,10 +214,13 @@ def analyze_results(results, db):
             continue
         dr = np.array([p["next_day_return"] for p in day_picks])
         dw = (dr > 0).sum()
-        sa = sum(1 for p in day_picks if p["grade"] in ("S", "A"))
-        sb = sum(1 for p in day_picks if p["signal"] == "strong_buy")
+        # 加权均值: S级 0.6x, A/B级 1.0x
+        weights = np.array([p.get("weight", 1.0) for p in day_picks])
+        weighted_avg = np.average(dr, weights=weights) if weights.sum() > 0 else dr.mean()
+        s_count = sum(1 for p in day_picks if p["grade"] == "S")
+        st = sum(1 for p in day_picks if p.get("stopped"))
         print(f"  {td:<12} {len(day_picks):<5} {dw/len(day_picks)*100:>6.1f}% "
-              f"{dr.mean():>+7.2f}% {sa:<6} {sb:<5}")
+              f"{weighted_avg:>+8.2f}%  {s_count}x0.6{'':<4} {st:<5}")
 
     # ── Top winners & losers ──
     print(f"\n  🏆 最佳10笔:")

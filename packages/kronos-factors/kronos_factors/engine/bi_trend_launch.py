@@ -840,6 +840,8 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         effective_n = min(30, top_n * 2)
     else:
         effective_n = top_n
+    # V13 P1: 最低分散 — 至少5只防单票暴雷 (新易盛教训)
+    effective_n = max(effective_n, 5)
 
     # V6.0: 当日涨跌比<35% -> 只选A级, 跳过S级 (修复S级悖论)
     skip_s_grade = breadth < MARKET_BREADTH_WEAK
@@ -894,6 +896,19 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
                 obv_fast = calc_obv(closes, volumes)
                 if obv_fast[-1] < 0:
                     continue  # OBV为负, 跳过
+
+            #    V13 P0: 前N日暴跌过滤 (新易盛教训: 5日内单日跌>8%=接飞刀)
+            #    仅在弱市(涨跌比<40%)生效, 强市允许急跌反弹
+            #    检查前5个交易日, 不含当日 (range(-6,-1) = 5天前~昨天)
+            if breadth < 40 and len(closes) >= 7:
+                max_drop_5d = 0.0
+                for k in range(-6, -1):
+                    if closes[k-1] > 0 and closes[k] > 0:
+                        drop = (closes[k] / closes[k-1] - 1) * 100
+                        if drop < max_drop_5d:
+                            max_drop_5d = drop
+                if max_drop_5d < -8:
+                    continue  # 暴跌后接飞刀, 跳过
 
             #    P1: ADX趋势强度过滤
             adx_val = _calc_adx(highs, lows, closes, 14)
@@ -980,6 +995,9 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         wr_f = s.get("wr_freshness_bonus", 0)
         wr_level = s.get("wr_level", "")
         grade = s.get("grade", "")
+
+        # V13 P1: S级仓位降权 (S级胜率<A级, 降低尾部风险)
+        s["weight"] = 0.6 if grade == "S" else 1.0
 
         if cs >= 4 or (cs >= 3 and ("🔥🔥" in wr_level or (ign > 0 and wr_f > 0))):
             # S级长持: 无止损, 让牛股跑远
@@ -1085,19 +1103,27 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         else:
             break
 
-    # V12: OBV=0过滤 — 斜率下降+WR不压缩=真弱势, 淘汰
-    # WR>60(压缩区)豁免: 下降是正常的回踩, 不淘汰
+    # V13 P0: OBV=0强化过滤 — 新易盛教训: OBV刚突破+极端波动=假突破
+    # V12保留: 斜率下降+WR不压缩=真弱势
+    # V13条件2: WR<60=价格未充分回踩
+    # V13条件3: 极端波动(>100%)+OBV=0=信号噪音 (新易盛:年化181%,OBV=0,次日-32%)
     if obv_days_above == 0:
         obv_slope = 0
         if len(obv) >= 15 and abs(obv[-10]) > 1:
             obv_slope = (obv[-1] - obv[-10]) / abs(obv[-10]) * 100
-        if obv_slope < -10:
-            wr_check = 50
-            if len(highs) >= 14:
-                hh = np.max(highs[-14:]); ll = np.min(lows[-14:])
-                if hh > ll: wr_check = (closes[-1] - ll) / (hh - ll) * 100
-            if wr_check < 60:  # 不压缩=真弱势
-                return None
+        wr_check = 50
+        if len(highs) >= 14:
+            hh = np.max(highs[-14:]); ll = np.min(lows[-14:])
+            if hh > ll: wr_check = (closes[-1] - ll) / (hh - ll) * 100
+        # 条件1: 斜率下降+WR不压缩 (V12)
+        if obv_slope < -10 and wr_check < 60:
+            return None
+        # 条件2: WR<60=价格未充分回踩 (V13 P0)
+        if wr_check < 60:
+            return None
+        # 条件3: 极端波动+OBV=0=假突破 (V13 P0 — 新易盛:年化181%,次日-32%)
+        if is_extreme_vol:
+            return None
 
     obv_slope = 0
     if len(obv) >= 15 and abs(obv[-10]) > 1:
