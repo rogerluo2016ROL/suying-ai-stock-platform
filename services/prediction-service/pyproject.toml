@@ -11,3 +11,7 @@ dependencies = [
     "torch>=2.0",
     "huggingface-hub>=0.16",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]

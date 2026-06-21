@@ -8,3 +8,7 @@ dependencies = [
     "uvicorn[standard]>=0.27",
     "kronos-factors",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]

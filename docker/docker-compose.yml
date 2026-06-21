@@ -36,6 +36,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ../services/sql/init_postgres.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ../services/sql/materialized_views.sql:/docker-entrypoint-initdb.d/02_materialized_views.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kronos"]
       interval: 10s
@@ -138,6 +139,7 @@ services:
       - SIGNAL_SERVICE_URL=http://signal-service:8004
       - KRONOS_ENV=production
       - KRONOS_SERVICE_SECRET=${KRONOS_SERVICE_SECRET:?KRONOS_SERVICE_SECRET must be set (service-to-service auth)}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set (kronos-auth prod-gate)}
     depends_on:
       postgres:
         condition: service_healthy
@@ -186,6 +188,7 @@ services:
       - TRADE_MODE=paper
       - KRONOS_ENV=production
       - KRONOS_SERVICE_SECRET=${KRONOS_SERVICE_SECRET:?KRONOS_SERVICE_SECRET must be set (service-to-service auth)}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set (kronos-auth prod-gate)}
     depends_on:
       postgres:
         condition: service_healthy

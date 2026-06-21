@@ -17,6 +17,13 @@ dev = [
     "httpx>=0.27",
 ]
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+# Explicit package declaration — services/screener-service/ has both app/ (real pkg)
+# and outputs/ (backtest artifacts), flat-layout auto-discovery hits 2 top-level pkgs
+# → setuptools refuses. Pin to app/ only (UAT build 阻断 2 根因修复).
+
 [build-system]
 requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"

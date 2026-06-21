@@ -6,6 +6,9 @@ requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
+    "pyjwt",
+    "sqlalchemy>=2.0",
+    "asyncpg",
     "kronos-factors",
     "kronos-core",
     "kronos-data",
@@ -16,6 +19,10 @@ dev = [
     "pytest>=7.0",
     "httpx>=0.27",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
 
 [build-system]
 requires = ["setuptools>=68.0"]
