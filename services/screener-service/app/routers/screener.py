@@ -163,7 +163,7 @@ async def list_modes():
             {"id": "cb_floor",       "name": "匪爷可转债底价选债模型",   "cycle": "1-4周",  "style": "稳健"},
             {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
             {"id": "cb_auction",     "name": "秋神竞价概念选债模型",       "cycle": "1-2天",  "style": "竞价"},
-            {"id": "bi_trend_launch","name": "毕师傅硬核科技趋势启动 V5.9", "cycle": "5-20天", "style": "趋势"},
+            {"id": "bi_trend_launch","name": "毕师傅硬核科技趋势启动 V13", "cycle": "5-20天", "style": "趋势"},
             {"id": "bi_trend_full_market","name": "毕师傅全市场趋势启动 V1.0", "cycle": "5-20天", "style": "全市场"},
             {"id": "supply_chain",  "name": "大葱产业链解构选股", "cycle": "3-12月", "style": "中长线"},
         ]
@@ -397,7 +397,7 @@ def _run_multifactor_mode(mode: str, top_n: int, trade_date: Optional[str]) -> d
 
 
 def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run 毕师傅趋势启动战法 V5.9 (OBV+WR trend launch screening)."""
+    """Run 毕师傅趋势启动战法 V13 (OBV+WR trend launch screening + 黑天鹅防护 + 止损降权分散 + 智能卖出决策树)."""
     from kronos_factors.engine.bi_trend_launch import BiTrendLaunchEngine, generate_bi_plan
 
     engine = BiTrendLaunchEngine()
