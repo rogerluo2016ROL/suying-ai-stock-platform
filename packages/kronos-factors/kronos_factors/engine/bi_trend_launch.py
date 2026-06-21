@@ -94,6 +94,20 @@ IGNITION_LOOKBACK_END = 6     # V8.0: 点火回溯结束天数
 IGNITION_VOL_MIN = 2.0        # V8.0: 点火最小量比
 COILING_VOL_MAX = 0.7         # V8.0: 蓄力最大量比
 COILING_PRICE_CHG_MAX = 2.0   # V8.0: 蓄力最大价格波动(%)
+
+# V12.1: 高波动股过滤器 (中富通教训: 年化波动>100%的股票信号完全失效)
+HIGH_VOL_ANNUAL = 80            # 高波动阈值 (>80%年化波动 → 信号衰减)
+EXTREME_VOL_ANNUAL = 100        # 极端波动阈值 (>100%年化波动 → 信号大幅衰减)
+HIGH_VOL_OBV_MULT = 0.6         # 高波动OBV倍率
+HIGH_VOL_WR_MULT = 0.7          # 高波动WR倍率
+EXTREME_VOL_OBV_MULT = 0.3      # 极端波动OBV倍率
+EXTREME_VOL_WR_MULT = 0.5       # 极端波动WR倍率
+# V12.1: WR极值+点火反转 (WR>=95时点火=顶部出货信号, 非蓄力)
+WR_EXTREME_IGNITION = 95        # WR极值阈值
+WR_EXTREME_IGNITION_PENALTY = 8 # 极值点火惩罚分
+# V12.1: WR高位缩量要求 (WR>80时放量=出货嫌疑, 缩量要求收紧)
+WR_HIGH_VOL_THRESHOLD = 0.85    # WR>80时的缩量要求
+WR_HIGH_VOL_PENALTY = 5         # 放量出货惩罚分
 STRONG_WR_DROP = 20         # V6.0: -25->-20, 轻踩优于深踩
 STRONG_OBV_DAYS = 7          # V6.0: 10->7, Sharpe分界线
 HOLD_OBV_DAYS = 15           # V6.0: 持有信号
@@ -1013,7 +1027,27 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         if ret_20d < MIN_TREND_20D:
             return None
 
-    #    V5.2 方向1: 连续下跌后首阳过滤 (防下跌中继)   
+    #    V12.1: 高波动股过滤器 (中富通教训: 年化波动>100%信号完全失效)
+    #    计算20日年化波动率, 用于后续信号衰减
+    annual_vol = 50.0  # 默认正常波动
+    if len(closes) >= 21:
+        daily_rets = []
+        for k in range(len(closes)-20, len(closes)):
+            if closes[k-1] > 0:
+                daily_rets.append((closes[k] / closes[k-1] - 1) * 100)
+        if daily_rets:
+            annual_vol = np.std(daily_rets) * np.sqrt(252)
+    # 标记波动等级
+    is_extreme_vol = annual_vol > EXTREME_VOL_ANNUAL
+    is_high_vol = annual_vol > HIGH_VOL_ANNUAL
+    if is_extreme_vol:
+        vol_regime = "extreme"
+    elif is_high_vol:
+        vol_regime = "high"
+    else:
+        vol_regime = "normal"
+
+    #    V5.2 方向1: 连续下跌后首阳过滤 (防下跌中继)
     dead_cat = False
     if len(closes) >= DEAD_CAT_BOUNCE_DAYS + 1:
         consecutive_drops = 0
@@ -1099,6 +1133,18 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     elif wr_fast_v10 > 40:     obv_score = round(obv_score * 0.6)
     else:                      obv_score = round(obv_score * 0.3)
 
+    #    V12.1: 高波动股信号衰减 (中富通教训: 极端波动下OBV/WR信号失效)
+    #    年化波动>100%: OBV×0.3 WR×0.5 | >80%: OBV×0.6 WR×0.7
+    vol_decay_note = ""
+    if is_extreme_vol:
+        obv_score = max(1, round(obv_score * EXTREME_VOL_OBV_MULT))
+        vol_decay_note = f"⚡{annual_vol:.0f}%"
+        obv_level = obv_level + vol_decay_note
+    elif is_high_vol:
+        obv_score = round(obv_score * HIGH_VOL_OBV_MULT)
+        vol_decay_note = f"📉{annual_vol:.0f}%"
+        obv_level = obv_level + vol_decay_note
+
     #    V5.3: OBV加速度 (0-3分)   
     # OBV近5日斜率 vs 近15日斜率 -> 加速=趋势加强, 减速=可能衰竭
     obv_accel_score = 0
@@ -1153,6 +1199,12 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     if "🔥" in wr_level and wr_now > 50:
         freshness_bonus = FRESH_PULLBACK_BONUS  # 轨迹反弹 + 仍在深跌区 = 新鲜
 
+    # V12.1: WR波动衰减 (高波动下WR信号失真)
+    if is_extreme_vol:
+        wr_score = max(1, round(wr_score * EXTREME_VOL_WR_MULT))
+    elif is_high_vol:
+        wr_score = round(wr_score * HIGH_VOL_WR_MULT)
+
     # WR当前位置修正 (深度超卖梯度加分)
     if wr_now < 10:  # 极度超卖
         wr_score = min(32, wr_score + 5)   # 极度超卖+轨迹确认=高赔率
@@ -1205,6 +1257,11 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         vol_score, vol_level = 2, "正常"
     else:
         vol_score, vol_level = 0, "放量"
+
+    # V12.1: WR高位缩量要求收紧 (中富通教训: WR>80+放量=主力出货)
+    if wr_fast_v10 > 80 and vol_ratio >= WR_HIGH_VOL_THRESHOLD:
+        vol_score = max(-WR_HIGH_VOL_PENALTY, vol_score - WR_HIGH_VOL_PENALTY)
+        vol_level = vol_level + "⚠️出货"
 
     #    V5.3: 派发量检测 - 近5日最大量日为阴线=主力出货   
     distribution_penalty = 0
@@ -1324,7 +1381,14 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
                         wr_before = max(wr_before, (closes[pre_idx] - ll_p) / max(0.01, hh_p - ll_p) * 100)
                 if wr_before >= 70:  # 点火前WR曾压缩到70以上
                     ignition_bonus = IGNITION_BONUS
+                    # V12.1: WR极值点火反转 (中富通: WR>=95时点火=顶部出货)
+                    if wr_fast_v10 >= WR_EXTREME_IGNITION:
+                        ignition_bonus = -WR_EXTREME_IGNITION_PENALTY
                     break
+
+    # V12.1: 高波动下点火信号清零 (信号噪音)
+    if is_extreme_vol and ignition_bonus > 0:
+        ignition_bonus = 0
 
     #    V8.0: 蓄力检测 (点火后缩量横盘2-3天)
     coiling_bonus = 0
@@ -1342,19 +1406,6 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             max_chg = max(recent_price_chgs)
             if avg_vol < COILING_VOL_MAX and max_chg < COILING_PRICE_CHG_MAX:
                 coiling_bonus = COILING_BONUS  # 缩量横盘=蓄力待发
-
-    #    V10: 5点前置清单组合加分
-    #    OBV>0 + WR>60 + 缩量<0.85x + 区间底部<30% + 点火/压缩反转
-    checklist_bonus = 0
-    c1 = obv[-1] > 0 if len(obv) > 0 else False                    # OBV正值
-    c2 = wr_now > 60                                                 # WR压缩区
-    c3 = (volumes[-1] / max(1, np.mean(volumes[-20:]))) < 0.85 if len(volumes) >= 20 else False  # 缩量
-    c4 = range_pos < 0.30                                            # 区间底部
-    c5 = (ignition_bonus > 0 or compression_reversal_bonus > 0)     # 点火或压缩反转
-    checklist_score = sum([c1, c2, c3, c4, c5])
-    if checklist_score >= 5:   checklist_bonus = 5   # V12: 减半防双计数
-    elif checklist_score >= 4: checklist_bonus = 3
-    elif checklist_score >= 3: checklist_bonus = 0   # 3星不加, 让OBV+WR主排序
 
     #    V10: WR压缩新鲜度 — 最低点距今≤3天额外加分
     wr_freshness_bonus = 0
@@ -1383,6 +1434,19 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         if obv_positive and vol_low and in_range_bottom:
             compression_reversal_bonus = 8  # 压缩反转: 高赔率信号 (光迅科技06-01)
             obv_level = obv_level + "💎"  # 标记压缩反转
+
+    #    V10: 5点前置清单组合加分
+    #    OBV>0 + WR>60 + 缩量<0.85x + 区间底部<30% + 点火/压缩反转
+    checklist_bonus = 0
+    c1 = obv[-1] > 0 if len(obv) > 0 else False                    # OBV正值
+    c2 = wr_now > 60                                                 # WR压缩区
+    c3 = (volumes[-1] / max(1, np.mean(volumes[-20:]))) < 0.85 if len(volumes) >= 20 else False  # 缩量
+    c4 = range_pos < 0.30                                            # 区间底部
+    c5 = (ignition_bonus > 0 or compression_reversal_bonus > 0)     # 点火或压缩反转
+    checklist_score = sum([c1, c2, c3, c4, c5])
+    if checklist_score >= 5:   checklist_bonus = 5   # V12: 减半防双计数
+    elif checklist_score >= 4: checklist_bonus = 3
+    elif checklist_score >= 3: checklist_bonus = 0   # 3星不加, 让OBV+WR主排序
 
     #    V5.8: 硬科技赛道 + 卡脖子稀缺
     ht_score = HARD_TECH_TRACK_WEIGHT if hard_tech_track else 0
