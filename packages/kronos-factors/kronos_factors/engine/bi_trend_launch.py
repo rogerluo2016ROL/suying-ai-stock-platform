@@ -996,6 +996,9 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         wr_level = s.get("wr_level", "")
         grade = s.get("grade", "")
 
+        # V13 P1: S级仓位降权 0.6x (H1数据: S胜率47.4% < A胜率50.7%)
+        s["weight"] = 0.6 if grade == "S" else 1.0
+
         if cs >= 4 or (cs >= 3 and ("🔥🔥" in wr_level or (ign > 0 and wr_f > 0))):
             # S级最强: T+10长持, 无止损, 无止盈 (让牛股跑完全程)
             s["hold_days"] = 10; s["stop_loss"] = None; s["take_profit"] = None
