@@ -243,7 +243,7 @@
 - [x] AC-2: M08 单日口径标注 "含前视仅对比用禁止披露" + lookahead_warning 字段 — SIT test_m08_single_day_lookahead_warning ✅
 - [x] AC-3: M09 个股教训阈值标 DEPRECATED (学术默认) — SIT test_m09_anecdote_thresholds_marked_deprecated ✅
 - [x] AC-4: M10 onnx_optimizer.py 删 (grep 0 调用) + ONNX 措辞清理 (CLAUDE.md/api-contract) — SIT test_m10_onnx_optimizer_deleted + test_m10_onnx_wording_removed_from_tech_stack + test_m10_onnx_no_callers ✅
-- [ ] AC-5: M11 dataset.py train max<val min 校验 — **代码完成 + SIT 通过 (test_m11_dataset_time_consistency_check ✅), 但 commit blocked 等 tech-lead (Kronos gitlink)**
+- [~] AC-5: M11 dataset.py train max<val min 校验 — **代码完成 + SIT 通过 (test_m11_dataset_time_consistency_check ✅) + 嵌套仓库 commit 完成 (Kronos/Kronos-uat-bak c2bc93d, master, 在 1472f20 之上)**. 剩父仓库 gitlink 提升待 tech-lead 4 约束: Kronos/ 是孤儿 gitlink (mode 160000 无 .gitmodules), c2bc93d 在嵌套 Kronos-uat-bak/.git, 父 `git add Kronos` 看不进内部 — 需决策 proper submodule / push remote (rogerluo2016ROL/Kronos.git) / gitlink 重定向.
 - [x] AC-6: M12 非 live skip auto-deploy (M04 安全门覆盖) + 阈值改统计显著性标注 (MIN_SIGNAL_PCT 5% + 点估计 NOT significant + bootstrap TODO) — SIT test_m12_evaluate_significance_annotation ✅
 - [x] AC-7: 相关 pytest 通过; SIT 证据落本段
 
