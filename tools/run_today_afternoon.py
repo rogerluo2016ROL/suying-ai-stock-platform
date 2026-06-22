@@ -69,11 +69,24 @@ def get_latest_min_snapshot(db, trade_date):
 
 
 def get_pre_close_map(db, trade_date):
-    """获取前收盘价."""
+    """获取前收盘价.
+
+    优先 stk_limit.pre_close；若全为 NULL（数据管道历史问题），fallback 到
+    daily_kline 前一交易日 close。
+    """
     rows = db.execute(
         "SELECT code, pre_close FROM stk_limit WHERE trade_date=?", (trade_date,)
     ).fetchall()
-    return {r["code"]: float(r["pre_close"] or 0) for r in rows if r["pre_close"] and float(r["pre_close"]) > 0}
+    out = {r["code"]: float(r["pre_close"] or 0) for r in rows if r["pre_close"] and float(r["pre_close"]) > 0}
+    if out:
+        return out
+    # Fallback: daily_kline 前一交易日 close
+    rows = db.execute(
+        "SELECT code, close FROM daily_kline WHERE trade_date = ("
+        "SELECT MAX(trade_date) FROM daily_kline WHERE trade_date < ?)",
+        (trade_date,)
+    ).fetchall()
+    return {r["code"]: float(r["close"] or 0) for r in rows if r["close"] and float(r["close"]) > 0}
 
 
 def get_avg_daily_amount(db, code, trade_date, lookback=10):
