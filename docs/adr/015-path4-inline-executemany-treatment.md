@@ -11,7 +11,7 @@
 |---|:---:|---|:---:|
 | [ADR-015.0](015.0-pg-write-upsert-extension.md) | P0 前置 | `_pg_write` UPSERT 扩展 (conflict_action 参数) | ✅ Accepted (2026-06-22) |
 | [ADR-015.1](015.1-stocks-pg-write-migration.md) | P1 | `stocks.py` (高风险 + 高频写入, 需 UPSERT) | ✅ Accepted (2026-06-22) |
-| ADR-015.2 | P1 | `tushare.py` 5 处 inline (daily_kline/moneyflow/stk_limit/limit_list_d) | ⏳ Pending |
+| [ADR-015.2](015.2-tushare-pg-path-audit.md) | P1 | `tushare.py` (audit-only: PG 已在 ADR-012 收口, SQLite 保留) | ✅ Accepted (2026-06-22, no-op) |
 | ADR-015.3 | P2 | `announcements.py / cctv_news.py / mp_report.py / policy_law.py` (合并) | ⏳ Pending |
 | ADR-015.4 | P2 | `fina_mainbz.py / fina_audit.py / stock_profiles.py` (合并) | ⏳ Pending |
 | ADR-015.5 | P3 | `namechange.py` (PG-only inline, 需 UPSERT, 可能合并到 015.3) | ⏳ Pending |

@@ -626,3 +626,41 @@ Task B 和 Task C 工作量小（各 1 day）且都是 audit / survey 性质（�
 1. **ADR-015.2** (P1, tushare.py) — 5 处 inline executemany 收拢 (daily_kline/moneyflow/stk_limit/limit_list_d)
 2. **ADR-015.3-.6** (P2/P3) 批量
 3. ADR-015.1 验证 ADR-015.0 API 真实业务可用, now_cols 设计正确
+
+---
+
+## 2026-06-22（同日 +7）— ADR-015.2 audit-only: tushare.py PG 路径已收口确认
+
+- **触发**: PL 继续推 ADR-015 §决策 4 P1 第二模块 tushare.py。
+- **审计发现**: 实施前 grep 实证 tushare.py **PG 路径已在 ADR-012 §决策 5.2 期间收口**：
+  - PG 直连 = 0（无 psycopg2 / conn.cursor / cur.execute INSERT）
+  - PG 写入 7 处 import 全走 `write_*` helper → `_pg_write`（覆盖 daily_kline/moneyflow/stk_limit/index_daily/daily_basic/ths_daily/limit_list_d 7 表）
+  - 盘点报告 §1 的 "5 处 inline executemany"（L66/186/194/265）全是 **SQLite 侧**，按 ADR-015 方案 A 决策保留
+- **结论**: tushare.py 无需改造，ADR-015.2 是 **audit-only no-op**。
+- **盘点报告误判**: §决策 4 排期表将 tushare.py 列为 P1 "5 处 inline" 基于盘点报告 §1 行号，但行号是 SQLite 侧；§2 矩阵正确标注 PG 路径 = `_pg_write (via thin wrapper)`，两处不一致。本 ADR 修正认知。
+
+### ADR-015.2 §决策 2 SIT verdict
+
+| # | 验证项 | Verdict |
+|---|---|---|
+| 1 | tushare.py 无 PG 直连 (psycopg2/conn.cursor/cur.execute INSERT) | ✅ 0 命中 |
+| 2 | PG 写入 7 处 import 走 write_* helper (覆盖 7 表) | ✅ |
+| 3 | SQLite inline executemany 保留 (6 处) | ✅ |
+| 4 | 白名单审计零 .py 改动 | ✅ |
+| 5 | 盘点报告 §2 矩阵一致性 (PG 路径 = _pg_write) | ✅ |
+| 6 | §决策 4 误判标注 + 修正 | ✅ |
+
+**Verdict**: 6/6 PASS, ADR-015.2 Accepted (no-op)。
+
+### 优先级重排建议
+
+path #4 真正未收口的 PG 模块（原盘点报告低估）：
+- `stock_profiles.py` — PG 走 `inline-execute_values`（16 列，high risk），原 P2 → 建议提 P1（ADR-015.4）
+- `namechange.py` — PG 走 `inline-cursor`，原 P3（ADR-015.5，需 UPSERT）
+- `etl_rt_k.py` — PG 走 `inline-execute_values`，原 P3（ADR-015.6）
+
+### 下一步
+
+1. **ADR-015.4** (stock_profiles.py, 提 P1) — path #4 真正未收口的高风险模块
+2. 或 **ADR-015.5** (namechange.py) — 需 UPSERT, 验证 now_cols 第二用例
+3. ADR-015.3 (announcements/cctv_news/mp_report/policy_law) — SQLite-only 清理, 低优先
