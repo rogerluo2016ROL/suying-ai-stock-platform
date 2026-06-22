@@ -176,12 +176,29 @@
 - `frontend/src/__tests__/LoginPage.test.tsx`（1 测试）：P0-02 已登录挂载 LoginPage 不抛 render 期副作用，navigate 由 useEffect 触发 `('/', {replace:true})`
 - `frontend/tests/sit/auth-redirect.test.tsx`（1 测试，SIT）：P0-03 未登录访问 `/backtest` → 完整 App 路由树渲染 LoginPage（证明 catch-all 经 ProtectedRoute → Navigate `/login?redirect=/backtest`）
 
-测试命令证据：
+测试命令证据（SIT Redo 如实复跑 — 2026-06-22 22:03）：
+
 ```
-cd frontend && npx vitest run src/__tests__/useLiveTrade.test.tsx src/__tests__/LoginPage.test.tsx tests/sit/auth-redirect.test.tsx
+$ cd frontend && npx vitest run src/__tests__/useLiveTrade.test.tsx src/__tests__/LoginPage.test.tsx tests/sit/auth-redirect.test.tsx
+ RUN  v4.1.8 /Users/rogerluo/程序目录/K线大模型/frontend
  Test Files  3 passed (3)
       Tests  6 passed (6)
+   Start at  22:03:55
+   Duration  1.93s (transform 119ms, setup 146ms, import 2.92s, tests 857ms, environment 1.07s)
 ```
+
+AC-3 SIT Redo 专项复跑（auth-redirect 独立 — 2026-06-22 22:03）：
+
+```
+$ cd frontend && npx vitest run tests/sit/auth-redirect.test.tsx
+ RUN  v4.1.8 /Users/rogerluo/程序目录/K线大模型/frontend
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  22:03:23
+   Duration  2.09s (transform 67ms, setup 52ms, import 873ms, tests 719ms, environment 382ms)
+```
+
+> **SIT Redo 说明（纠正 review 时序）**：AC-3 `auth-redirect.test.tsx` 在 FE-P1 P1-05（主题切换）引入 `useTheme()` 到 App.tsx 时曾出现回归（完整 App 渲染型 SIT 缺 ThemeProvider 包裹 → `useTheme must be used within ThemeProvider`）。该回归已在 FE-P1 commit `e89314a` 中修复：`tests/sit/auth-redirect.test.tsx` test harness 外层补 `<ThemeProvider baseToken={{}} baseComponents={{}}>` 包裹（见本文件 FE-P1 段"修复回归"条）。**as-committed 状态（HEAD）下 AC-3 SIT 真实复跑 1 passed**，无 ThemeProvider 抛错。本段 Redo 复跑命令与输出即对 review 时序失真的纠正证据。
 
 Pre-existing 失败隔离证据（与本次修复无关，已通过 baseline 双重确认）：
 - `tests/sit/auth-flow.test.tsx` 有 4 个测试失败（AC-23/AC-24/AC-26/注册失败），失败点在 `fillLoginForm` 的 `getByRole('button', {name:/登录/})` 找不到按钮——属 AntD Form 在 jsdom 环境的渲染时序问题，**不在本次 4 个 P0 修复范围内**（我的 P0-02 改动只动 `isAuthenticated===true` 分支，auth-flow 测试初始 `isAuthenticated===false` 的表单分支一行未改）。
