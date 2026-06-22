@@ -478,6 +478,10 @@ def analyze_results(results, db, adjusted=True, multi_day=False, cost_bps=0):
     print(f"\n{'=' * 80}")
     print(f"  毕师傅趋势启动战法 — 回测汇总 [{mode_label}]")
     print(f"  {len(results)} 交易日 | {total} 笔交易 | pending={pending} | 成本 {cost_bps}bp")
+    if not multi_day:
+        # M08: 单日口径 (T收盘买 T+1收盘卖) 含成交假设前视 — T日 close 物理上不可成交,
+        # 系统性高估收益, 仅作向后兼容对比, 禁止对外披露/据此投资决策.
+        print(f"  ⚠️ 单日口径含成交假设前视 (T收盘买入不可成交), 仅对比用, 禁止对外披露")
     print(f"{'=' * 80}")
     print(f"  📊 总体统计 (毛 {ret_key}):")
     print(f"    胜率:      {win_count}/{total} = {win_count/total*100:.1f}%")
@@ -659,6 +663,12 @@ def main():
         "mode": "multi_day (AC-1)" if args.multi_day else "single_day_T+1",
         "cost_bps": args.cost_bps,
     }
+    if not args.multi_day:
+        # M08: 单日口径含成交假设前视, 显式标注禁止对外披露.
+        summary["lookahead_warning"] = (
+            "单日口径 (T收盘买 T+1收盘卖) 含成交假设前视 — T日 close 物理上不可成交, "
+            "系统性高估收益, 仅向后兼容对比用, 禁止对外披露或据此投资决策 (M08)."
+        )
     if net_vals:
         summary["net"] = {
             "mean_per_trade": float(np.mean(net_vals)),

@@ -1109,6 +1109,8 @@ CREATE INDEX idx_calibration_date ON factor_calibration_history(calibrated_at DE
 
 **建议**：Kronos Fine-tune 使用独立的训练流程（不对接 Optuna），用 `mlflow.pytorch.autolog()` 记录实验，注册为独立的 `kronos-finetune` 模型。推理时通过 ONNX Runtime 加载，选股引擎统一通过 `mlflow.pyfunc.load_model()` 接口。
 
+> **修订 (M05/M10, audit-model-2026-06-22)**: 上述"ONNX Runtime 加载"为早期设计假设, 实际未实现 — `services/prediction-service/app/onnx_optimizer.py` 全为 placeholder 死代码, 已删除 (M10). 生产 prediction-service 当前基于公开 `NeoQuasar/Kronos-mini` 的 PyTorch 托管推理 (非自研, M05), 自研 fine-tune 训练见 ADR-004 待定项.
+
 ---
 
 ### Q3: 模型 A/B 测试的流量分配策略

@@ -33,6 +33,7 @@ from app.config import (
     TRAINING_OUTPUT_DIR,
 )
 from app.mlflow_client import get_mlflow_client, log_model, register_model
+from app.mlflow_client import MLFLOW_MODE  # M04: auto-deploy 仅在 live MLflow 下允许
 from app.schemas import (
     JobStatus,
     ModelType,
@@ -198,6 +199,45 @@ async def check_active_job(model_type: str) -> Optional[TrainingJob]:
 # Training execution (runs in thread pool)
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _group_split_masks(train_df: pd.DataFrame, test_size: float,
+                       horizon: int) -> tuple:
+    """M06 (audit-model-2026-06-22): time-based group split with purge + embargo.
+
+    Returns (train_mask, val_mask) as boolean Series aligned with train_df.index.
+
+    Guarantees (with a hard assertion):
+      - No date appears in both train and val (no cross-sectional leakage).
+      - A `horizon`-day embargo gap is purged between train end and val start,
+        so sliding-window labels (lookback=90, overlap 89/90) cannot span the
+        split — otherwise val labels are near-copies of train labels and IC is
+        severely inflated.
+
+    Original code split by date but let same-day samples of different stocks
+    fall into both sets, with no gap → train IC was meaningless.
+    """
+    dates = sorted(train_df["date"].unique())
+    if len(dates) < 4:
+        raise ValueError(f"M06 group split: too few unique dates ({len(dates)})")
+    split_idx = int(len(dates) * (1 - test_size))
+    split_idx = max(1, min(split_idx, len(dates) - 2))
+    split_date = dates[split_idx]
+    # embargo: val 起点在 split 之后再隔 horizon 个交易日, purge 掉标签重叠区间
+    embargo_idx = min(split_idx + max(horizon, 1), len(dates) - 1)
+    val_start_date = dates[embargo_idx]
+    train_mask = train_df["date"] < split_date
+    val_mask = train_df["date"] >= val_start_date
+
+    train_dates = set(train_df.loc[train_mask, "date"].unique())
+    val_dates = set(train_df.loc[val_mask, "date"].unique())
+    overlap = train_dates & val_dates
+    if overlap:
+        raise RuntimeError(
+            f"M06 group split 断言失败: train/val 存在 {len(overlap)} 个重叠日期, "
+            f"示例: {sorted(overlap)[:5]}. 横截面泄露必须修复."
+        )
+    return train_mask, val_mask
+
+
 def _build_features_from_kline(
     df_ohlcv: pd.DataFrame,
     lookback: int = 90,
@@ -321,11 +361,11 @@ def _train_lightgbm_sync(
     if len(train_df) < 100:
         raise ValueError(f"Not enough valid samples: {len(train_df)}")
 
-    # Time-based split
-    dates = sorted(train_df["date"].unique())
-    split_date = dates[int(len(dates) * (1 - params.test_size))]
-    train_mask = train_df["date"] <= split_date
-    val_mask = train_df["date"] > split_date
+    # M06 (audit-model-2026-06-22): group split with purge/embargo.
+    # val 必须是 train 之后连续日期段 + horizon 天 embargo gap, 防止 sliding window
+    # 跨 train/val 边界 (原实现同日样本横跨两集 + 无 gap, val 标签与 train 高度相关,
+    # IC 严重高估). 详见 _group_split_masks docstring.
+    train_mask, val_mask = _group_split_masks(train_df, params.test_size, params.horizon)
 
     X_train = train_df.loc[train_mask, feature_cols].fillna(0)
     y_train_raw = train_df.loc[train_mask, target]
@@ -555,10 +595,8 @@ def _train_catboost_sync(
     if len(train_df) < 100:
         raise ValueError(f"Not enough valid samples: {len(train_df)}")
 
-    dates = sorted(train_df["date"].unique())
-    split_date = dates[int(len(dates) * (1 - params.test_size))]
-    train_mask = train_df["date"] <= split_date
-    val_mask = train_df["date"] > split_date
+    # M06: group split with purge/embargo (同 lightgbm, 详见 _group_split_masks).
+    train_mask, val_mask = _group_split_masks(train_df, params.test_size, params.horizon)
 
     X_train = train_df.loc[train_mask, feature_cols].fillna(0).values.astype(np.float32)
     y_train = train_df.loc[train_mask, target].values.astype(np.float32)
@@ -664,39 +702,21 @@ def _train_kronos_sync(
     params: TrainingParams,
     progress_callback: Callable[[TrainingMetrics], None],
 ) -> Dict[str, Any]:
-    """Synchronous Kronos fine-tune training (placeholder).
+    """Kronos fine-tune training — DISABLED (M04, audit-model-2026-06-22).
 
-    Kronos is a Transformer-based time series model — requires GPU.
-    This is a placeholder until Kronos fine-tune is ready (ADR-004).
+    Kronos 自研 fine-tune 未实现: 原实现是 time.sleep(0.5) + 假 loss 数列的
+    placeholder, 产出的"模型"会被 auto-deploy 盲目上线. 在 GPU 训练链路 +
+    真实数据集就绪前, 该分支必须显式失败, 不得静默产出假指标.
+
+    生产 prediction-service 当前基于公开 Kronos-mini 托管推理 (见 ADR-005 /
+    M05), 自研训练另立项.
     """
-    t0 = time.time()
-
-    # Simulate epochs
-    for epoch in range(5):
-        time.sleep(0.5)  # Simulate training time
-        elapsed = time.time() - t0
-
-        metrics = TrainingMetrics(
-            trial=epoch + 1,
-            epoch=epoch + 1,
-            train_loss=0.5 - epoch * 0.05,
-            valid_loss=0.55 - epoch * 0.04,
-            best_valid_loss=0.55 - epoch * 0.04,
-            ic=0.02 + epoch * 0.005,
-            icir=0.3 + epoch * 0.08,
-            elapsed_seconds=round(elapsed, 1),
-        )
-        if progress_callback:
-            progress_callback(metrics)
-
-    return {
-        "model": None,
-        "model_path": os.path.join(TRAINING_OUTPUT_DIR, "kronos_finetune"),
-        "feature_cols": [],
-        "best_params": {"epochs": 5, "learning_rate": 1e-4},
-        "n_samples": 0,
-        "n_features": 0,
-    }
+    raise NotImplementedError(
+        "Kronos fine-tune training is not implemented (M04). "
+        "原实现为 placeholder (time.sleep + 假 loss), 已禁用. "
+        "生产 prediction-service 使用公开 Kronos-mini 托管推理, "
+        "自研训练需 GPU 集群 + 真实数据集另立项."
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -839,6 +859,16 @@ async def _execute_training(job_id: str, params: TrainingParams, auto_deploy: bo
         comparison = await _evaluate_vs_production(job_id, params, mlflow_client)
 
         # ── Auto-deploy if applicable ──
+        # M04: auto-deploy 仅在 live MLflow 模式下允许. mock MLflow + 合成数据下
+        # IC≈1.0, comparison 必判 new_better, 会在假数据上盲目上线模型.
+        if auto_deploy and MLFLOW_MODE != "live":
+            logger.warning(
+                "auto_deploy suppressed: MLFLOW_MODE=%s (非 live). "
+                "mock MLflow 下 IC 不可信, 禁止自动上线 (M04).", MLFLOW_MODE)
+            auto_deploy = False
+            await _publish_progress(job_id, "auto_deploy_skipped", {
+                "message": "auto-deploy 已跳过: 非 live MLflow 模式 (M04 安全门)",
+            })
         if auto_deploy and comparison and comparison.get("verdict") == "new_better":
             mlflow_client.set_production_model(model_name, version)
             # Save model record to registry
@@ -905,51 +935,60 @@ async def _on_training_metric(job_id: str, metric: TrainingMetrics):
     await _publish_progress(job_id, "metric", metric.model_dump())
 
 
-def _prepare_training_data(params: TrainingParams) -> Optional[pd.DataFrame]:
-    """Prepare training data by loading from Kronos data store and building features."""
-    try:
-        from kronos.finetune.config import Config
-        import pickle
+def _prepare_training_data(params: TrainingParams, allow_synthetic: bool = False) -> pd.DataFrame:
+    """Prepare training data by loading from Kronos data store and building features.
 
-        config = Config()
-        data_path = f"{config.dataset_path}/train_data.pkl"
+    M04 (audit-model-2026-06-22): 找不到真实数据时 **抛异常**, 不再静默 fallback
+    到合成数据. 原实现会让 auto-deploy 在 np.random 造的合成数据 (label 与特征
+    完全相关, IC≈1.0) 上盲目上线模型. `allow_synthetic=True` 仅用于显式 dev/test
+    入口, 主训练路径禁止.
+    """
+    from kronos.finetune.config import Config
+    import pickle
 
-        if not os.path.exists(data_path):
-            logger.warning("Training data not found: %s", data_path)
-            # Generate synthetic data for dev/testing
+    config = Config()
+    data_path = f"{config.dataset_path}/train_data.pkl"
+
+    if not os.path.exists(data_path):
+        if allow_synthetic:
+            logger.warning("Training data not found: %s — using synthetic (dev/test only)", data_path)
             return _generate_synthetic_data(params)
+        raise FileNotFoundError(
+            f"Training data not found: {data_path} (M04). "
+            "主训练路径禁止 fallback 合成数据 (IC≈1.0 会让 auto-deploy 盲目上线). "
+            "请准备真实数据集, 或在 dev/test 入口显式传 allow_synthetic=True."
+        )
 
-        with open(data_path, "rb") as f:
-            train_data = pickle.load(f)
+    with open(data_path, "rb") as f:
+        train_data = pickle.load(f)
 
-        max_stocks = min(len(train_data), 200)
-        symbols = list(train_data.keys())[:max_stocks]
+    max_stocks = min(len(train_data), 200)
+    symbols = list(train_data.keys())[:max_stocks]
 
-        all_dfs = []
-        for sym in symbols:
-            df_stock = train_data[sym]
-            features = _build_features_from_kline(
-                df_stock,
-                lookback=params.lookback,
-                predict=params.horizon,
-            )
-            if len(features) > 0:
-                features["code"] = sym
-                all_dfs.append(features)
+    all_dfs = []
+    for sym in symbols:
+        df_stock = train_data[sym]
+        features = _build_features_from_kline(
+            df_stock,
+            lookback=params.lookback,
+            predict=params.horizon,
+        )
+        if len(features) > 0:
+            features["code"] = sym
+            all_dfs.append(features)
 
-        if not all_dfs:
+    if not all_dfs:
+        if allow_synthetic:
+            logger.warning("No valid features extracted — using synthetic (dev/test only)")
             return _generate_synthetic_data(params)
+        raise ValueError(
+            "No valid features extracted from training data (M04). "
+            "主训练路径禁止 fallback 合成数据."
+        )
 
-        result = pd.concat(all_dfs, ignore_index=True)
-        logger.info("Training data: %d samples, %d stocks", len(result), len(all_dfs))
-        return result
-
-    except ImportError:
-        logger.warning("Kronos Config not accessible — generating synthetic data")
-        return _generate_synthetic_data(params)
-    except Exception as e:
-        logger.warning("Failed to load Kronos data (%s) — generating synthetic data", e)
-        return _generate_synthetic_data(params)
+    result = pd.concat(all_dfs, ignore_index=True)
+    logger.info("Training data: %d samples, %d stocks", len(result), len(all_dfs))
+    return result
 
 
 def _generate_synthetic_data(params: TrainingParams) -> pd.DataFrame:
@@ -1026,11 +1065,23 @@ async def _evaluate_vs_production(
     ic_delta_pct = ((new_ic - old_ic) / abs(old_ic) * 100) if old_ic != 0 else 0
     icir_delta_pct = ((new_icir - old_icir) / abs(old_icir) * 100) if old_icir != 0 else 0
 
-    # Per ADR-004 Decision 4: Rank IC improvement >= 2% to recommend deploy
+    # M12 (audit-model-2026-06-22): 原 2% 点估计阈值在 mock MLflow + 合成数据下 IC≈1.0,
+    # 容易误判 new_better 触发 auto-deploy. 真正的统计显著性检验 (Diebold-Mariano /
+    # bootstrap IC 置信区间) 需要 per-batch IC 序列, 当前 job 只存 final_metrics 单点 —
+    # 故本实现: (1) 非 live MLflow 已由 _execute_training 的 auto-deploy 安全门拦截 (M04);
+    # (2) 加最小信号门 (|ic_delta_pct| < 5% 视为 inconclusive, 避免边界噪声触发部署);
+    # (3) 显式标注 verdict 为点估计 (非 statistically significant), 待 per-batch IC 序列
+    #     落库后升级为 bootstrap 检验 (TODO).
+    logger.warning(
+        "M12: _evaluate_vs_production 当前为点估计阈值 (非 statistically significant), "
+        "需 per-batch IC 序列才能做 bootstrap/Diebold-Mariano 检验. "
+        "auto-deploy 已由 M04 live-MLflow 安全门兜底."
+    )
     verdict = "inconclusive"
-    if ic_delta_pct >= 2 and icir_delta_pct > 0:
+    MIN_SIGNAL_PCT = 5  # M12: 最小信号门, 低于此视为噪声 (原 2% 太松)
+    if abs(ic_delta_pct) >= MIN_SIGNAL_PCT and icir_delta_pct > 0:
         verdict = "new_better"
-    elif ic_delta_pct < -2:
+    elif ic_delta_pct <= -MIN_SIGNAL_PCT:
         verdict = "old_better"
 
     comparison = {
@@ -1041,6 +1092,10 @@ async def _evaluate_vs_production(
         "old_icir": old_icir,
         "ic_delta_pct": round(ic_delta_pct, 1),
         "icir_delta_pct": round(icir_delta_pct, 1),
+        # M12: 显式标注 — 当前 verdict 基于点估计, 非 statistically significant.
+        "significance_method": "point_estimate_threshold (NOT statistically significant)",
+        "significance_todo": "upgrade to bootstrap IC CI / Diebold-Mariano once per-batch IC series persisted",
+        "min_signal_pct": MIN_SIGNAL_PCT,
     }
 
     await _publish_progress(job_id, "comparison", comparison)
