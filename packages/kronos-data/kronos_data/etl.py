@@ -164,11 +164,21 @@ def clean_before_write(db: _Db, table: str, days_back: int, date_col: str = "tra
     db.execute(f"DELETE FROM {table} WHERE {date_col} >= ?", (cutoff,))
 
 
+# ADR-015.0 §决策 2 约束 3: update_cols 黑名单 (审计列)
+# created_at: 不应被 UPSERT 刷新 (审计语义 "首次创建时间")
+# updated_at: 应由 trigger / 显式 NOW() 维护, 不走 EXCLUDED
+_UPDATE_COLS_BLACKLIST = frozenset({"created_at", "updated_at"})
+
+
 def _insert_rows(db: _Db, table: str, columns: list[str],
                  rows: list[tuple],
                  retries: int = 0,
                  data_volume_floor: int | None = None,
-                 data_volume_warn: int | None = None) -> int:
+                 data_volume_warn: int | None = None,
+                 conflict_action: str = "nothing",
+                 conflict_cols: list[str] | None = None,
+                 update_cols: list[str] | None = None,
+                 now_cols: list[str] | None = None) -> int:
     """INSERT with per-row error isolation. Uses PG or SQLite bulk insert.
 
     Args:
@@ -183,7 +193,66 @@ def _insert_rows(db: _Db, table: str, columns: list[str],
                           ADR-013 §决策 4 (W-2 二档恢复): 关键表 daily_kline / stk_mins 用 warn=3000
                           配合 floor=1000 形成两档分级 (< floor → ERROR, floor ≤ x < warn → WARN);
                           默认 None = 关闭, 保持旧行为. 与 floor 互不依赖, 可独立启用.
+        conflict_action: ADR-015.0 §决策 1 — ``"nothing"`` (默认, ON CONFLICT DO NOTHING, 100%
+                         向后兼容; 现有 31 个调用点全部沿用) | ``"update"`` (ON CONFLICT DO UPDATE
+                         SET, 解锁 stocks / namechange UPSERT 语义). SQLite 路径忽略此参数
+                         (SQLite 走 INSERT OR REPLACE, 本身就 UPSERT).
+        conflict_cols: ``conflict_action="update"`` 时必传, 指定 ON CONFLICT (cols) 约束列;
+                       必须 ⊆ 表 PK / UNIQUE 约束 (DB 层强制). 默认 None.
+        update_cols: ``conflict_action="update"`` 时必传, 指定 DO UPDATE SET 列;
+                     必须 ⊆ ``columns`` 且 ∩ ``conflict_cols`` = ∅ (PK 列 SET 是反模式);
+                     不允许包含 ``created_at`` / ``updated_at`` (审计列黑名单 _UPDATE_COLS_BLACKLIST).
+                     默认 None.
+        now_cols: ADR-015.0 minor amend (2026-06-22) — DO UPDATE SET 时走 ``NOW()`` 而非
+                  ``EXCLUDED.x`` 的列 (如 ``updated_at``). 专为审计列刷新设计: §决策 2 约束 3
+                  黑名单禁止 updated_at 走 EXCLUDED, 但 stocks / namechange 业务需要每次
+                  UPSERT 刷新 "最后同步时间" (MONITORED_TABLES detect_data_gaps 依赖).
+                  约束: ∩ ``update_cols`` = ∅ (一列不能既 EXCLUDED 又 NOW); ⊆ ``columns``;
+                  仅 ``conflict_action="update"`` 时生效, ``"nothing"`` 时忽略. 默认 None.
+
+    Raises:
+        ValueError: ``conflict_action="update"`` 但 ``conflict_cols`` / ``update_cols`` 缺失或违约
+                    (update_cols ∩ conflict_cols ≠ ∅, 或 update_cols 含审计列, 或 update_cols ⊄ columns,
+                    或 now_cols ∩ update_cols ≠ ∅, 或 now_cols ⊄ columns).
     """
+    # ADR-015.0 §决策 1: conflict_action 参数早 fail 校验 (raise ValueError 防误用)
+    if conflict_action not in ("nothing", "update"):
+        raise ValueError(f"conflict_action must be 'nothing' or 'update', got {conflict_action!r}")
+    if conflict_action == "update":
+        if not conflict_cols:
+            raise ValueError("conflict_action='update' requires non-empty conflict_cols")
+        if not update_cols:
+            raise ValueError("conflict_action='update' requires non-empty update_cols")
+        # update_cols ⊆ columns
+        if not set(update_cols).issubset(columns):
+            extra = set(update_cols) - set(columns)
+            raise ValueError(f"update_cols must be subset of columns; extra: {sorted(extra)}")
+        # update_cols ∩ conflict_cols = ∅ (PK 列 SET 反模式)
+        overlap = set(update_cols) & set(conflict_cols)
+        if overlap:
+            raise ValueError(f"update_cols must NOT overlap conflict_cols; overlap: {sorted(overlap)}")
+        # update_cols ∩ 审计列黑名单 = ∅
+        blacklisted = set(update_cols) & _UPDATE_COLS_BLACKLIST
+        if blacklisted:
+            raise ValueError(f"update_cols must NOT include audit cols {sorted(blacklisted)}; "
+                             f"created_at/updated_at should be trigger-maintained or NOW() (use now_cols for updated_at)")
+        # ADR-015.0 minor amend: now_cols 校验
+        # now_cols 是独立追加列 (INSERT VALUES + DO UPDATE SET 都用 NOW()), 不要求 ⊆ columns,
+        # 但必须与 columns / update_cols / conflict_cols 互斥 (防重复列 / 语义冲突)
+        if now_cols:
+            # now_cols ∩ columns = ∅ (不能既是业务列又是 NOW 列, 否则 INSERT 重复列)
+            nc_cols_overlap = set(now_cols) & set(columns)
+            if nc_cols_overlap:
+                raise ValueError(f"now_cols must NOT overlap columns (now_cols 是独立追加列); "
+                                 f"overlap: {sorted(nc_cols_overlap)}")
+            # now_cols ∩ update_cols = ∅ (一列不能既 EXCLUDED 又 NOW)
+            nc_overlap = set(now_cols) & set(update_cols)
+            if nc_overlap:
+                raise ValueError(f"now_cols must NOT overlap update_cols; overlap: {sorted(nc_overlap)}")
+            # now_cols ∩ conflict_cols = ∅ (PK 列 NOW() 反模式, 同 update_cols 约束)
+            nc_cc_overlap = set(now_cols) & set(conflict_cols)
+            if nc_cc_overlap:
+                raise ValueError(f"now_cols must NOT overlap conflict_cols; overlap: {sorted(nc_cc_overlap)}")
     import time
     col_str = ", ".join(columns)
     if db._pg:
@@ -205,7 +274,41 @@ def _insert_rows(db: _Db, table: str, columns: list[str],
         valid_idx = [columns.index(c) for c in valid_cols]
         filtered = [tuple(row[i] for i in valid_idx) for row in rows]
         col_str = ", ".join(valid_cols)
-        sql = f"INSERT INTO {table}({col_str}) VALUES %s ON CONFLICT DO NOTHING"
+        # ADR-015.0 §决策 1: 按 conflict_action 分支生成 ON CONFLICT 子句
+        # - "nothing" (默认): DO NOTHING (沿用 ADR-012 §决策 5.2 行为, 100% 向后兼容)
+        # - "update": DO UPDATE SET {cols=EXCLUDED.cols} (解锁 stocks / namechange UPSERT)
+        # 自动列过滤前置: update_cols / conflict_cols / now_cols 也需按 actual 过滤, 防 schema drift 时 SQL 报错
+        # ADR-015.0 minor amend: now_cols 是独立追加列 (不在 columns 里), INSERT VALUES 用 NOW() 字面
+        # (通过 execute_values template), DO UPDATE SET 也用 NOW(). 专为 updated_at 审计列刷新设计.
+        valid_now_cols = [c for c in (now_cols or []) if c in actual] if conflict_action == "update" else []
+        if conflict_action == "update":
+            valid_update_cols = [c for c in (update_cols or []) if c in actual and c in valid_cols]
+            valid_conflict_cols = [c for c in (conflict_cols or []) if c in actual]
+            if not valid_update_cols or not valid_conflict_cols:
+                # 过滤后空集 → 降级 DO NOTHING (best-effort, 与 valid_cols 为空时 return 0 同档)
+                print(f"  [WARN] _insert_rows {table}: update/conflict cols 经 schema 过滤后为空 "
+                      f"({update_cols=} {conflict_cols=}), 降级 DO NOTHING", flush=True)
+                conflict_clause = "ON CONFLICT DO NOTHING"
+                valid_now_cols = []  # 降级时 now_cols 也不生效
+            else:
+                cc_str = ", ".join(valid_conflict_cols)
+                set_parts = [f"{c} = EXCLUDED.{c}" for c in valid_update_cols]
+                set_parts.extend(f"{c} = NOW()" for c in valid_now_cols)
+                set_str = ", ".join(set_parts)
+                conflict_clause = f"ON CONFLICT ({cc_str}) DO UPDATE SET {set_str}"
+        else:
+            conflict_clause = "ON CONFLICT DO NOTHING"
+            valid_now_cols = []  # nothing 时 now_cols 忽略
+        # now_cols 追加到 INSERT columns + VALUES(NOW()), 用 execute_values template 实现
+        if valid_now_cols:
+            insert_cols = valid_cols + valid_now_cols
+            insert_col_str = ", ".join(insert_cols)
+            placeholders = ["%s"] * len(valid_cols) + ["NOW()"] * len(valid_now_cols)
+            values_template = "(" + ", ".join(placeholders) + ")"
+            sql = f"INSERT INTO {table}({insert_col_str}) VALUES %s {conflict_clause}"
+        else:
+            sql = f"INSERT INTO {table}({col_str}) VALUES %s {conflict_clause}"
+            values_template = None
         # ADR-012 §决策 5.1: retries ≥ 1 时启用 OperationalError 指数退避 (1s/4s/16s).
         # max(1, retries) 保证 retries=0 时仍跑 1 次, 与旧行为 100% 一致.
         attempts = max(1, retries)
@@ -213,7 +316,7 @@ def _insert_rows(db: _Db, table: str, columns: list[str],
         for attempt in range(attempts):
             cur = db._conn.cursor()
             try:
-                psycopg2.extras.execute_values(cur, sql, filtered, page_size=1000)
+                psycopg2.extras.execute_values(cur, sql, filtered, template=values_template, page_size=1000)
                 written = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
                 db.commit()
                 # 数据量门禁 (best-effort, 不 raise)

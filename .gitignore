@@ -43,8 +43,10 @@ backend/data/*.db-wal
 node_modules/
 .playwright-mcp/
 outputs/cb_ml_*.pkl
-outputs/snapshots/  # 运行时回测/选股快照, 体积膨胀且与代码无关
-node_modules/.vite/  # vitest 缓存
+# 运行时回测/选股快照, 体积膨胀且与代码无关
+outputs/snapshots/
+# vitest 缓存
+node_modules/.vite/
 
 # UAT/dev env files (contain secrets)
 docker/.env.*

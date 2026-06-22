@@ -33,7 +33,10 @@ if _KRONOS_DATA not in sys.path:
 
 
 def _pg_write(table: str, columns: list[str], conflict_cols: list[str],
-              rows: list[tuple]) -> int:
+              rows: list[tuple],
+              conflict_action: str = "nothing",
+              update_cols: list[str] | None = None,
+              now_cols: list[str] | None = None) -> int:
     """通用 PG 批量写入 — ADR-012 §决策 5.2: thin wrapper, delegate to kronos_data.etl._insert_rows.
 
     Args:
@@ -43,17 +46,29 @@ def _pg_write(table: str, columns: list[str], conflict_cols: list[str],
                        ADR-012 §决策 5.2.bis: _insert_rows 用 ON CONFLICT DO NOTHING 依赖表 PK 约束,
                        与 ON CONFLICT(conflict_cols) DO NOTHING 仅在 conflict_cols ⊆ 表 PK 时等价;
                        grep 实证所有调用方传的 conflict_cols 都是表 PK / UNIQUE 约束列, 等价成立).
+                       ADR-015.0 §决策 1: conflict_action="update" 时透传给 _insert_rows 作为
+                       ON CONFLICT (cols) 约束声明 (非 DO NOTHING 等价回退).
         rows: 待写入数据
+        conflict_action: ADR-015.0 §决策 1 — "nothing" (默认, DO NOTHING, 100% 向后兼容) |
+                        "update" (DO UPDATE SET, 解锁 stocks / namechange UPSERT 语义).
+        update_cols: conflict_action="update" 时必传 (⊆ columns, ∩ conflict_cols = ∅,
+                    禁含 created_at/updated_at). 默认 None.
+        now_cols: ADR-015.0 minor amend — DO UPDATE SET 走 NOW() 的列 (如 updated_at).
+                  ∩ update_cols = ∅, ⊆ columns. 默认 None.
 
     Returns:
         实际写入行数 (扣除 ON CONFLICT 跳过的). 出错时 0.
+
+    Raises:
+        ValueError: ADR-015.0 conflict_action / cols 约束违反时由 _insert_rows raise.
 
     路径合并语义变化 (与旧实现对比):
       - 旧: 显式 ON CONFLICT(conflict_cols) DO NOTHING + 失败 print + return 0
       - 新: _insert_rows 自动列过滤 (列名错位时 WARN + 丢列, 不再整批 UndefinedColumn 归零)
             + retries=3 OperationalError 重试 (与旧实现等价)
             + data_volume_floor (daily_kline / stk_mins 触发)
-      - conflict_cols 参数语义保留: 调用方仍按表 PK 列传, 即使 _insert_rows 内部不显式传该列表
+            + conflict_action 可选 UPSERT (ADR-015.0)
+      - conflict_cols 参数语义保留: 调用方仍按表 PK 列传, conflict_action="update" 时实际生效
     """
     if not rows:
         return 0
@@ -66,7 +81,11 @@ def _pg_write(table: str, columns: list[str], conflict_cols: list[str],
         written = _insert_rows(db, table, columns, rows,
                                retries=_MAX_RETRIES,
                                data_volume_floor=cfg.get("floor"),
-                               data_volume_warn=cfg.get("warn"))
+                               data_volume_warn=cfg.get("warn"),
+                               conflict_action=conflict_action,
+                               conflict_cols=conflict_cols,
+                               update_cols=update_cols,
+                               now_cols=now_cols)
         return written
     except Exception as e:
         # _insert_rows 内部已 catch 大部分异常, 此处兜底 connection 失败等

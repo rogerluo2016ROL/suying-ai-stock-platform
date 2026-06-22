@@ -1,9 +1,22 @@
 # ADR-015: 路径 #4 inline executemany 模块治理（SQLite/PG dual-target 盘点 + 选型）
 
-- 状态：**Proposed**（待 backend-dev 实施 SIT + reviewer audit 通过后升 Accepted；本 ADR 仅含盘点 + 选型，**不立即全量改造**）
+- 状态：**Accepted**（2026-06-22 盘点报告产出 + tech-lead 选型对齐方案 A + ADR-015.0 前置完成）
 - 日期：2026-06-22
 - 决策者：tech-lead 起草；product-lead 排期实施
 - 影响范围：盘点性 + 选型性 ADR，**不直接做模块改造**；产物是盘点报告 + 候选方案对比 + 推荐方案 + 子 ADR-015.X 实施清单
+
+## 子 ADR-015.X 跟踪表
+
+| 子 ADR | 优先级 | 范围 | 状态 |
+|---|:---:|---|:---:|
+| [ADR-015.0](015.0-pg-write-upsert-extension.md) | P0 前置 | `_pg_write` UPSERT 扩展 (conflict_action 参数) | ✅ Accepted (2026-06-22) |
+| ADR-015.1 | P1 | `stocks.py` (高风险 + 高频写入, 需 UPSERT) | ⏳ Pending |
+| ADR-015.2 | P1 | `tushare.py` 5 处 inline (daily_kline/moneyflow/stk_limit/limit_list_d) | ⏳ Pending |
+| ADR-015.3 | P2 | `announcements.py / cctv_news.py / mp_report.py / policy_law.py` (合并) | ⏳ Pending |
+| ADR-015.4 | P2 | `fina_mainbz.py / fina_audit.py / stock_profiles.py` (合并) | ⏳ Pending |
+| ADR-015.5 | P3 | `namechange.py` (PG-only inline, 需 UPSERT, 可能合并到 015.3) | ⏳ Pending |
+| ADR-015.6 | P3 | `rt_k.py` 相关 (dual-target) | ⏳ Pending |
+| 不立 ADR | — | `interact.py / rt_min.py` (SQLite-only, 无 PG 表) | ❌ Excluded |
 
 ## 上下文
 

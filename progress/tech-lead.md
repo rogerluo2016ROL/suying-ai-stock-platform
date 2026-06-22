@@ -524,3 +524,69 @@ Task B 和 Task C 工作量小（各 1 day）且都是 audit / survey 性质（�
 - **状态**：ADR-013 保持 **Proposed**（minor amend 不升 Accepted；升 Accepted 由 code-reviewer audit + UAT 通过后另派）。
 - **未动**：ADR-014 / ADR-015 文档不动；progress/backend-dev.md L890-953 dev 自留（不替 dev 修）。
 
+
+---
+
+## 2026-06-22（同日 +5）— ADR-015.0 立项 + 实施 + SIT 完成
+
+- **触发**：ADR013-015FollowupTeam 收尾完成（commit 2180fa7）后，PL 继续推进 ADR-015 子 ADR；ADR-015 §决策 4 标 P0 前置 `_pg_write` UPSERT 扩展为 ADR-015.0，必须先于 015.1+ 实施。
+- **背景**：path #4 盘点报告 §4 实证 `stocks.py:85` 和 `namechange.py:123` 用 inline-cursor `ON CONFLICT(...) DO UPDATE SET ...` 走 UPSERT 业务语义；直接切 `_pg_write` 会退化为 DO NOTHING → 业务回归（stock.name 永不更新 / ST 区间错误）。
+- **决策**：方案 D — `_insert_rows` 加 `conflict_action: Literal["nothing","update"]` + `conflict_cols` + `update_cols` 三参数，默认 `"nothing"` 100% 向后兼容；`_pg_write` thin wrapper 同步透传。
+
+### ADR-015.0 §决策 6 SIT 验证清单 verdict
+
+| # | 验证项 | 命令 | 期望 | 实际 | Verdict |
+|---|---|---|---|---|---|
+| 1 | etl.py 只 `_insert_rows` 改签 | `git diff b63c288 -- ...etl.py \| grep "^[+-]def "` | 仅 `_insert_rows` | 仅 `_insert_rows` | ✅ |
+| 2 | pg_writer.py 只 `_pg_write` 改签 | `git diff b63c288 -- ...pg_writer.py \| grep "^[+-]def "` | 仅 `_pg_write` | 仅 `_pg_write` | ✅ |
+| 3 | 两种 ON CONFLICT 子句存在 | `grep "ON CONFLICT" etl.py` | nothing + update | 6 命中 (含 docstring + SQL 生成) | ✅ |
+| 4 | 现有调用方零回归 | `pytest tests/` | 全 pass | 9/9 pass (无 pre-existing 用例, 全部新增) | ✅ |
+| 5 | 新单测全 pass | `pytest tests/test_insert_rows_upsert.py -v` | 4+ pass | **9/9 pass** | ✅ |
+| 6 | UPSERT 真实写库 | 单测 t_adr015_upsert (id=2, value 20→200) | UPDATE 后 value=200 | ✅ value=200 | ✅ |
+| 7 | ValueError 防误用 | 5 类用例 (缺参/重叠/审计列/越界/非法 action) | 全 raise | 全 raise | ✅ |
+| 8 | 白名单审计 | `git diff --stat` | 仅 etl.py + pg_writer.py + 新单测 + ADR + progress | 仅命中 4 文件 | ✅ |
+
+**Verdict**: **8/8 PASS** — ADR-015.0 可升 Accepted。
+
+### 改动清单
+
+| 文件 | 改动 | 行数 |
+|---|---|---|
+| `packages/kronos-data/kronos_data/etl.py` | `_insert_rows` 加 3 参数 + 校验 + SQL 分支 | +66 |
+| `services/data-service/app/sync/pg_writer.py` | `_pg_write` 加 2 参数 + 透传 | +21 |
+| `packages/kronos-data/tests/test_insert_rows_upsert.py` | 新建, 9 用例 | +203 |
+| `docs/adr/015.0-pg-write-upsert-extension.md` | 新 ADR (Proposed → Accepted 同日) | +143 |
+| `docs/adr/015-path4-inline-executemany-treatment.md` | 顶部状态 + 子 ADR 跟踪表 | +13 |
+
+### 下一步
+
+1. **ADR-015.1**（P1, stocks.py）—— path #4 第一个 UPSERT 模块, 验证 ADR-015.0 API 真实业务场景可用
+2. **ADR-015.2**（P1, tushare.py）—— 5 处 inline executemany 收拢
+3. PL 排期：015.1 / 015.2 可并行（不同模块, 独立 worktree）；015.3-.6 在 015.1+2 完成后批量
+
+### memory 暂不写入
+
+- ADR-015.0 是主干扩展, 不是新模块, 不构成长期跨 session 决策点
+- 等 ADR-015.1 / 015.2 实施后再评估「path #4 UPSERT 切换 playbook」memory
+
+### ADR-015.0 minor amend (2026-06-22 同日): 加 `now_cols` 参数
+
+- **触发**: ADR-015.1 (stocks.py) 实施前调研发现 stocks.py 现状 UPSERT `updated_at=NOW()`，但 ADR-015.0 §决策 2 约束 3 黑名单禁止 `updated_at` 走 EXCLUDED → API gap，无法 100% 还原业务语义。
+- **根因**: `updated_at` 是 DB 维护列（不在调用方业务 `columns` 里），且 INSERT + DO UPDATE SET 都需要 `NOW()`。原 `update_cols` 走 `EXCLUDED.x` 模式无法表达 "DB 函数刷新"。
+- **决策**: 加 `now_cols: list[str] | None = None` 参数，独立追加列（不要求 ⊆ columns），通过 `execute_values` `template` 在 VALUES 混 `NOW()` 字面 + DO UPDATE SET `c=NOW()`。
+- **约束**: `now_cols` ∩ `columns`/`update_cols`/`conflict_cols` = ∅；⊆ 表实际列；仅 `conflict_action="update"` 时生效。
+- **SIT**: 单测从 9 → 14 用例（+5 now_cols: 真实刷新 / overlap update_cols / overlap columns / overlap conflict_cols / nothing 时忽略），全 pass。
+- **零回归**: 原 9 用例全 pass，`conflict_action="nothing"` 默认路径 SQL 字面不变。
+
+### ADR-015.0 最终 SIT verdict (amend 后)
+
+| # | 验证项 | Verdict |
+|---|---|---|
+| 1-8 | (同前) | ✅ 8/8 |
+| 9 | now_cols 真实刷新 updated_at (INSERT + UPDATE 都 NOW()) | ✅ |
+| 10 | now_cols ∩ update_cols raise | ✅ |
+| 11 | now_cols ∩ columns raise | ✅ |
+| 12 | now_cols ∩ conflict_cols raise | ✅ |
+| 13 | nothing 时 now_cols 忽略 | ✅ |
+
+**Verdict**: 14/14 pass, ADR-015.0 API 完整, 可支撑 ADR-015.1 (stocks.py) 实施。
