@@ -1045,12 +1045,22 @@ async def data_status():
         pg_stats = {r[0]: int(r[1]) for r in cur.fetchall()}
 
         # MIN/MAX with specific date columns first, then fallback
+        # P1-7 (audit): use psycopg2.sql.Identifier for col/key interpolation
+        # instead of f-string with double-quoted identifiers. col/key come from
+        # _DATE_COL_MAP/_DATA_SOURCES constants today (not user input), but
+        # Identifier is the defense-in-depth pattern (see pg_writer.py:228) so a
+        # future refactor that makes these dynamic can't become an injection.
+        from psycopg2.sql import SQL, Identifier
         all_table_keys = {s["key"] for s in _DATA_SOURCES}
         for key in all_table_keys:
             cols_to_try = list(_DATE_COL_MAP.get(key, _FALLBACK_DATE_COLS))
             for col in cols_to_try:
                 try:
-                    cur.execute(f"SELECT MIN(\"{col}\"), MAX(\"{col}\") FROM \"{key}\" WHERE \"{col}\" IS NOT NULL")
+                    cur.execute(
+                        SQL('SELECT MIN({}), MAX({}) FROM {} WHERE {} IS NOT NULL').format(
+                            Identifier(col), Identifier(col), Identifier(key), Identifier(col)
+                        )
+                    )
                     row = cur.fetchone()
                     if row and row[0] is not None:
                         mn, mx = str(row[0]), str(row[1])
@@ -1060,7 +1070,7 @@ async def data_status():
                         # Fallback COUNT if stats show 0
                         if pg_stats.get(key, 0) == 0:
                             try:
-                                cur.execute(f"SELECT COUNT(*) FROM \"{key}\"")
+                                cur.execute(SQL("SELECT COUNT(*) FROM {}").format(Identifier(key)))
                                 pg_stats[key] = int(cur.fetchone()[0])
                             except Exception:
                                 pass

@@ -5,7 +5,13 @@ Output: docs/reviews/schema-drift-audit-YYYY-MM-DD.md (read-only, no deps beyond
 import os, re; from collections import defaultdict; from datetime import date; from pathlib import Path; import psycopg2
 PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:16432/kronos")
 INIT_SQL = "services/sql/init_postgres.sql"
-EXCLUDED = {"sw_daily","pledge_detail","rt_sw_k","top_list","cyq_chips","top_inst","ths_daily",
+# P1-4 (audit): the 5 data-pipeline tables (sw_daily, pledge_detail, rt_sw_k,
+# top_list, cyq_chips) were previously EXCLUDED, which hid their schema drift
+# (pledge_total_ratio column-name issues, rt_sw_k/sw_daily missing-core-column
+# rumours). They are now in scope so future drift surfaces automatically.
+# ths_daily / top_inst remain excluded (ADR-008~011 already reconciled; top_inst
+# indexes are still checked individually in §6 F-1 收尾).
+EXCLUDED = {"top_inst","ths_daily",
     "alembic_version","audit_logs","refresh_tokens","roles","users","model_registry","training_jobs",
     "training_schedule","diagnosis_config","diagnosis_history","factor_calibration_history","factor_weights",
     "predictions","prediction_details","prediction_versions","backtest_records","screening_scores",
@@ -110,8 +116,9 @@ def render(diffs,im,dbm,mm,path):
     T=lambda t: "yes" if t in MONITORED else "no"; C=lambda m_,t: len(m_.get(t,{}).get("cols",[]))
     L=[f"# Schema Drift Audit Report — {date.today().isoformat()}", "**ADR-014 | UAT PG(16432) read-only**", "",
        "## §1 审计范围","",f"- DB {len(dbm)}张 | init_sql {len(im)}张 | 审计 {len(diffs)}张 | 排除 {len(EXCLUDED)}张",
-       f"- ADR-008~013 已修排除表 (本审计不重复扫): ths_daily, sw_daily, pledge_detail, rt_sw_k, top_list, cyq_chips, top_inst",
-       f"- 应用层排除表 (auth/training/diagnosis/screening/prediction/backtest/factor): {len(EXCLUDED)-7} 张",
+       f"- P1-4 已纳入审计的数据管道表 (原 EXCLUDED): sw_daily, pledge_detail, rt_sw_k, top_list, cyq_chips",
+       f"- ADR-008~011 已修仍排除表 (不重复扫): ths_daily, top_inst (top_inst 索引见 §6)",
+       f"- 应用层排除表 (auth/training/diagnosis/screening/prediction/backtest/factor): {len(EXCLUDED)-2} 张",
        f"- high={len(h)} medium={len(m)} low={len(l)}",
        f"- MONITORED双缺(DB+init均无): {sorted(mm) or '无'}", f"### 审计表清单 ({len(diffs)}张)","",
        "|#|表|DB列|init列|严重|状态|MON|","|---|---|---|---|---|---|---|"]

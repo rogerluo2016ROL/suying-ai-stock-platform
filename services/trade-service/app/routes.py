@@ -177,8 +177,22 @@ async def place_order(
             )
         is_probe = block_reason.startswith("HALF_OPEN")
 
-    # Execute
-    result = await broker.place_order(order_req)
+    # Execute. P0-3: can_trade() atomically reserves the single HALF_OPEN probe
+    # slot (increments probing_count) when it grants a probe. If place_order
+    # raises, we must still settle the reservation via record_probe(success=False)
+    # so the slot is not leaked (which would wedge the breaker in HALF_OPEN,
+    # blocking all live trades until manual reset / next-day rollover). A failed
+    # probe transitions HALF_OPEN → TRIGGERED, matching the existing failure
+    # semantics — so this is consistent, not a new state.
+    try:
+        result = await broker.place_order(order_req)
+    except Exception:
+        if body.trade_mode == "live" and is_probe:
+            try:
+                await record_probe(acct_id, success=False)
+            except Exception:
+                logger.exception("record_probe fallback failed for account=%s", acct_id)
+        raise
 
     # HALF_OPEN probing: record the result
     if body.trade_mode == "live" and is_probe:
@@ -394,12 +408,20 @@ async def broker_connect(
             },
         )
 
+    # P1-6 (audit): do NOT persist the plaintext trade_password into the
+    # module-level _broker_config dict (real-money credential; would survive in
+    # process memory until restart and leak on any future logger.debug of the
+    # config or in a traceback). XtquantBroker.connect() authenticates via the
+    # QMT userdata session path, not this password — so we only record a
+    # boolean "was provided" flag for status/audit, and let the plaintext drop
+    # out of scope here for GC. If a future broker needs the password, pass it
+    # as a local variable to the constructor (never store on _broker_config).
     _broker_config = {
         "broker_name": broker_name,
         "account_id": account_id,
         "server_ip": server_ip,
         "server_port": server_port,
-        "trade_password": trade_password,
+        "trade_password_provided": bool(trade_password),
     }
 
     if broker_name != "xtquant":

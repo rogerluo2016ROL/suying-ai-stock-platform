@@ -9,11 +9,14 @@ Usage:
 """
 
 import argparse
+import logging
 import os
 import sys
 import sqlite3
 import time
 from datetime import datetime, timedelta
+
+logger = logging.getLogger("kronos-data.etl")
 
 _PKG_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # packages/kronos-data
 _PROJ = os.path.dirname(os.path.dirname(_PKG_ROOT))  # project root (2 levels up)
@@ -129,7 +132,7 @@ class _Db:
         self._conn.close()
     def rollback(self):
         try: self._conn.rollback()
-        except: pass
+        except Exception as e: logger.warning("rollback failed: %s", e)
 
 
 # 模块级缓存: table -> 实际列名 (供 _insert_rows 自动过滤无效列, 止血 etl cols 与 PG schema 脱节)
@@ -357,7 +360,7 @@ def _insert_rows(db: _Db, table: str, columns: list[str],
         written = 0
         for row in rows:
             try: db.execute(sql, row); written += 1
-            except: pass
+            except Exception as e: logger.warning("SQLite insert failed for %s row: %s", table, e)
         return written
 
 
@@ -1052,7 +1055,7 @@ def sync_top_inst(days_back: int = 30) -> dict:
     for d in dates:
         _rate_limit()
         try: df = pro.top_inst(trade_date=d)
-        except: continue
+        except Exception as e: logger.warning("top_inst fetch failed for %s: %s", d, e); continue
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
@@ -1080,7 +1083,7 @@ def sync_block_trade_data(days_back: int = 30) -> dict:
     for d in dates:
         _rate_limit()
         try: df = pro.block_trade(trade_date=d)
-        except: continue
+        except Exception as e: logger.warning("block_trade fetch failed for %s: %s", d, e); continue
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
@@ -1108,7 +1111,7 @@ def sync_margin_summary(days_back: int = 30) -> dict:
     for d in dates:
         _rate_limit()
         try: df = pro.margin(trade_date=d)
-        except: continue
+        except Exception as e: logger.warning("margin fetch failed for %s: %s", d, e); continue
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
@@ -1135,7 +1138,7 @@ def sync_moneyflow_hsgt(days_back: int = 30) -> dict:
     for d in dates:
         _rate_limit()
         try: df = pro.moneyflow_hsgt(trade_date=d)
-        except: continue
+        except Exception as e: logger.warning("moneyflow_hsgt fetch failed for %s: %s", d, e); continue
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
@@ -1161,7 +1164,7 @@ def sync_stk_holdertrade(days_back: int = 90) -> dict:
     for d in dates:
         _rate_limit()
         try: df = pro.stk_holdertrade(ann_date=d)
-        except: continue
+        except Exception as e: logger.warning("stk_holdertrade fetch failed for %s: %s", d, e); continue
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
@@ -1192,7 +1195,7 @@ def sync_stk_holdernumber(days_back: int = 30) -> dict:
     for code in codes:
         _rate_limit()
         try: df = pro.stk_holdernumber(ts_code=_ts_code(code), start_date=start, end_date=end)
-        except: continue
+        except Exception as e: logger.warning("stk_holdernumber fetch failed for %s: %s", code, e); continue
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
@@ -1214,11 +1217,18 @@ def sync_pledge_detail(days_back: int = 30) -> dict:
         "SELECT code FROM stocks WHERE is_st=0 AND (code LIKE '00%' OR code LIKE '30%' OR code LIKE '60%' OR code LIKE '68%') "
         "ORDER BY market_cap DESC LIMIT 500").fetchall()]
     total, written = 0, 0
+    # P1-3 (audit): cols[5] is the PG column name ``pledge_total_ratio`` and MUST
+    # match the live DB schema (verified: \d pledge_detail → pledge_total_ratio).
+    # The value at rows[*][5] comes from Tushare field ``p_total_ratio`` (the API
+    # field name, not the column name) — see rows.append below. Position-aligned,
+    # so the value lands in the correct column. Do NOT rename cols[5] to
+    # ``p_total_ratio``: _insert_rows would then filter it out as an unknown PG
+    # column and the data would be silently dropped.
     cols = ["code", "ann_date", "pledgor", "pledgee", "pledge_amount", "pledge_total_ratio"]
     for code in codes:
         _rate_limit()
         try: df = pro.pledge_detail(ts_code=_ts_code(code))
-        except: continue
+        except Exception as e: logger.warning("pledge_detail fetch failed for %s: %s", code, e); continue
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
@@ -1227,7 +1237,7 @@ def sync_pledge_detail(days_back: int = 30) -> dict:
             ann_date = td[:4] + "-" + td[4:6] + "-" + td[6:8] if len(td) == 8 else td
             rows.append((code, ann_date,
                 str(r.get("pledgor", "")), str(r.get("pledgee", "")),
-                r.get("pledge_amount"), r.get("p_total_ratio")))  # ADR-009 修正: Tushare 实际字段名 p_total_ratio (探针实测, 非 ADR 原假设的 pledge_total_ratio)
+                r.get("pledge_amount"), r.get("p_total_ratio")))  # Tushare field p_total_ratio → PG col pledge_total_ratio (cols[5])
         total += len(rows)
         written += _insert_rows(db, "pledge_detail", cols, rows)
     db.commit(); db.close()
@@ -1246,7 +1256,7 @@ def sync_repurchase(days_back: int = 90) -> dict:
     for d in dates:
         _rate_limit()
         try: df = pro.repurchase(ann_date=d)
-        except: continue
+        except Exception as e: logger.warning("repurchase fetch failed for %s: %s", d, e); continue
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
@@ -1274,7 +1284,7 @@ def sync_share_float(days_back: int = 90) -> dict:
     for d in dates:
         _rate_limit()
         try: df = pro.share_float(ann_date=d)
-        except: continue
+        except Exception as e: logger.warning("share_float fetch failed for %s: %s", d, e); continue
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
@@ -1313,7 +1323,7 @@ def sync_cyq_chips(days_back: int = 5) -> dict:
             _rate_limit()
             try:
                 df = pro.cyq_chips(ts_code=_ts_code(code), trade_date=d)
-            except: continue
+            except Exception as e: logger.warning("cyq_chips fetch failed for %s %s: %s", code, d, e); continue
             if df is None or df.empty: continue
             rows = [(code, d[:4]+"-"+d[4:6]+"-"+d[6:8],
                      r.get("price"), r.get("percent")) for _, r in df.iterrows()]
@@ -1343,7 +1353,7 @@ def sync_broker_recommend(days_back: int = 90) -> dict:
         _rate_limit()
         try:
             df = pro.broker_recommend(month=month)
-        except: continue
+        except Exception as e: logger.warning("broker_recommend fetch failed for %s: %s", month, e); continue
         if df is None or df.empty: continue
         rows = [(month, str(r.get("broker","")),
                  _code_from_ts(r["ts_code"]), str(r.get("name","")))
@@ -1369,7 +1379,7 @@ def sync_research_report(days_back: int = 3650) -> dict:
         start = (today - timedelta(days=min(days_back, i+30))).strftime("%Y%m%d")
         _rate_limit()
         try: df = pro.research_report(start_date=start, end_date=end)
-        except: continue
+        except Exception as e: logger.warning("research_report fetch failed for %s..%s: %s", start, end, e); continue
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
@@ -1437,7 +1447,7 @@ def sync_sw_daily(days_back: int = 3650) -> dict:
         start = (today - timedelta(days=min(days_back, i+30))).strftime("%Y%m%d")
         _rate_limit()
         try: df = pro.sw_daily(start_date=start, end_date=end)
-        except: continue
+        except Exception as e: logger.warning("sw_daily fetch failed for %s..%s: %s", start, end, e); continue
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():

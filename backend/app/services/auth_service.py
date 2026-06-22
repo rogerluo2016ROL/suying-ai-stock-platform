@@ -203,7 +203,21 @@ async def rotate_refresh_token(
     """Validate old refresh token, revoke the whole family, issue new pair.
 
     Returns (new_access_token, new_refresh_token, user) or None if invalid.
+
+    P1-5: verify signature + ``type == refresh`` claim BEFORE the DB lookup.
+    Security currently holds by coincidence (refresh_tokens table only stores
+    hashes of tokens issued by create_refresh_token, so an access-token hash
+    never matches), but verifying explicitly defends against any future code
+    path that hashes non-refresh tokens into this table.
     """
+    # P1-5: verify it's a valid refresh token before trusting it for rotation.
+    try:
+        payload = decode_token(old_token)
+    except jwt.PyJWTError:
+        return None
+    if payload.get("type") != "refresh":
+        return None
+
     token_hash = _hash_token(old_token)
 
     from sqlalchemy.orm import selectinload

@@ -18,6 +18,13 @@ app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","), allow_methods=["*"], allow_headers=["*"])
 
 _rate_store: dict[str, list[float]] = {}
+# P1-8: request counter for periodic eviction of stale rate-store keys.
+# _rate_store[ip] is pruned to the last 60s on each hit, but keys with empty
+# lists were never removed → unbounded growth over long runs with many IPs.
+# Every _GC_INTERVAL requests we sweep the dict and drop keys whose window has
+# fully expired, bounding memory.
+_rate_request_count = 0
+_RATE_GC_INTERVAL = 512
 
 # DEF-3 fix: docker compose 容器内 localhost 指向 api-gateway 自己, 而非目标服务.
 # GATEWAY_NETWORK_MODE=compose 时用 compose 服务名 (容器间 DNS); default (host 模式
@@ -85,12 +92,26 @@ SERVICES = {
 
 
 def _rate_check(ip: str) -> bool:
+    global _rate_request_count
     now = time.time()
     w = [t for t in _rate_store.get(ip, []) if now - t < 60]
-    _rate_store[ip] = w
+    # P1-8: drop the key when its window is empty instead of retaining a stale
+    # empty list (which previously kept the IP in the dict forever).
+    if w:
+        _rate_store[ip] = w
+    elif ip in _rate_store:
+        del _rate_store[ip]
     if len(w) >= 60:
         return False
     w.append(now)
+    _rate_store[ip] = w
+    # P1-8: periodic full sweep — evict any other keys whose 60s window has
+    # fully expired (covers IPs that stop sending before their next hit).
+    _rate_request_count += 1
+    if _rate_request_count % _RATE_GC_INTERVAL == 0:
+        stale = [k for k, ts in _rate_store.items() if not any(now - t < 60 for t in ts)]
+        for k in stale:
+            del _rate_store[k]
     return True
 
 

@@ -22,6 +22,8 @@ import math
 import os
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -587,6 +589,40 @@ async def _score_fundamental(code: str, db) -> FundamentalDimension:
 # Dimension 4: AI Prediction (10%) — Kronos integration
 # ═══════════════════════════════════════════════════════════════════════════
 
+
+class _HttpException(Exception):
+    """Raised by _http_get_json on non-200 HTTP responses, carrying the status."""
+
+    def __init__(self, status: int, body: str = ""):
+        super().__init__(f"HTTP {status}")
+        self.status = status
+        self.body = body
+
+
+async def _http_get_json(url: str, headers: dict, timeout: int) -> dict:
+    """Async GET returning parsed JSON (P1-1: urllib wrapper, no aiohttp).
+
+    Raises ``_HttpException`` on non-200 so callers can map status codes
+    (e.g. 401 → auth failure). Network/parse errors raise ValueError.
+    """
+    return await asyncio.get_running_loop().run_in_executor(
+        None, _sync_get_json, url, headers, timeout
+    )
+
+
+def _sync_get_json(url: str, headers: dict, timeout: int) -> dict:
+    """Synchronous urllib GET (runs in executor thread)."""
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+        raise _HttpException(e.status, body) from None
+    except urllib.error.URLError as e:
+        raise ValueError(f"Kronos unreachable: {e.reason}") from e
+
+
 async def _get_kronos_prediction(
     code: str,
     auth_token: Optional[str] = None,
@@ -617,23 +653,19 @@ async def _get_kronos_prediction(
     if not auth_token:
         raise ValueError("No auth token available for Kronos — skipping AI prediction")
 
-    # Call Kronos API (C3 fix — add Authorization header)
-    import aiohttp
-
+    # Call Kronos API via urllib async wrapper (P1-1: removed aiohttp per
+    # CLAUDE.md "微服务间 HTTP 调用使用 urllib async wrapper，不引入 httpx/aiohttp").
     from app.config import KRONOS_PREDICTION_URL, KRONOS_PREDICTION_TIMEOUT
 
     kr_url = f"{KRONOS_PREDICTION_URL}/predict/{code}"
-    timeout = aiohttp.ClientTimeout(total=KRONOS_PREDICTION_TIMEOUT)
-    headers = {"Authorization": f"Bearer {auth_token}"}
+    headers = {"Authorization": f"Bearer {auth_token}", "Accept": "application/json"}
 
-    async with aiohttp.ClientSession() as session:
-        async with session.get(kr_url, timeout=timeout, headers=headers) as resp:
-            if resp.status == 200:
-                data = await resp.json()
-            elif resp.status == 401:
-                raise ValueError("Kronos authentication failed (401) — check JWT token")
-            else:
-                raise ValueError(f"Kronos returned {resp.status}")
+    try:
+        data = await _http_get_json(kr_url, headers, KRONOS_PREDICTION_TIMEOUT)
+    except _HttpException as e:
+        if e.status == 401:
+            raise ValueError("Kronos authentication failed (401) — check JWT token")
+        raise ValueError(f"Kronos returned {e.status}")
 
     result = {
         "pred_return_pct": float(data.get("pred_return_pct", 0)),
