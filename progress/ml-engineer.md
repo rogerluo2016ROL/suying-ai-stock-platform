@@ -243,7 +243,13 @@
 - [x] AC-2: M08 单日口径标注 "含前视仅对比用禁止披露" + lookahead_warning 字段 — SIT test_m08_single_day_lookahead_warning ✅
 - [x] AC-3: M09 个股教训阈值标 DEPRECATED (学术默认) — SIT test_m09_anecdote_thresholds_marked_deprecated ✅
 - [x] AC-4: M10 onnx_optimizer.py 删 (grep 0 调用) + ONNX 措辞清理 (CLAUDE.md/api-contract) — SIT test_m10_onnx_optimizer_deleted + test_m10_onnx_wording_removed_from_tech_stack + test_m10_onnx_no_callers ✅
-- [~] AC-5: M11 dataset.py train max<val min 校验 — **代码完成 + SIT 通过 (test_m11_dataset_time_consistency_check ✅) + 嵌套仓库 commit 完成 (Kronos/Kronos-uat-bak c2bc93d, master, 在 1472f20 之上)**. 剩父仓库 gitlink 提升待 tech-lead 4 约束: Kronos/ 是孤儿 gitlink (mode 160000 无 .gitmodules), c2bc93d 在嵌套 Kronos-uat-bak/.git, 父 `git add Kronos` 看不进内部 — 需决策 proper submodule / push remote (rogerluo2016ROL/Kronos.git) / gitlink 重定向.
+- [x] AC-5: M11 dataset.py train max<val min 校验 — **代码 + SIT + 嵌套 commit + gitlink 提升 + remote 可达 全完成**.
+  - 嵌套 commit: Kronos/Kronos-uat-bak c2bc93d (master, linear on 1472f20, AST 行为验证: 方法定义 + raise 强制 + val 路径单次调用).
+  - SIT: test_m11_dataset_time_consistency_check ✅.
+  - remote 可达: `git push my master` (1472f20..c2bc93d), `git ls-remote my master` = c2bc93d 确认.
+  - gitlink 止血提升 (tech-lead 评估 docs/reviews/kronos-gitlink-assessment-2026-06-22.md §4.2 P1): 备份 tag pre-m11-gitlink-bump (→ e15f24d) → `git update-index --cacheinfo 160000,c2bc93d...,Kronos` → commit 597ede8 (chore: 更新 Kronos submodule, 中文句式对齐 fb734f5/79c9900).
+  - 三重验证: `git show HEAD --stat` = "Kronos | 2 +- 1 file changed" (无夹带); `git ls-tree HEAD -- Kronos` = 160000 commit c2bc93d; `git ls-remote my master` = c2bc93d (可达, 不悬空).
+  - 结构债 (Kronos 孤儿 gitlink + 路径错位) 记 GitHub issue #2 (FU-Kronos-gitlink-1), 触发根治条件 = bi_trend 重设专项启动.
 - [x] AC-6: M12 非 live skip auto-deploy (M04 安全门覆盖) + 阈值改统计显著性标注 (MIN_SIGNAL_PCT 5% + 点估计 NOT significant + bootstrap TODO) — SIT test_m12_evaluate_significance_annotation ✅
 - [x] AC-7: 相关 pytest 通过; SIT 证据落本段
 
