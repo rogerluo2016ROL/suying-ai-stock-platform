@@ -848,3 +848,40 @@ path #4 收官是长期跨 session 决策点, 建议写 memory:
 
 - **DEF-3/DEF-4** UAT 配置 bug (api-gateway 路由 / JWT_SECRET_KEY env) — follow-up issue, 低优先
 - ADR-013/014/015 全线完成, 数据管道 schema + 写入路径治理收官
+
+---
+
+## 2026-06-22（同日 +12）— DEF-3/DEF-4 follow-up issue 草拟
+
+- **触发**: ADR-014.1 收官后推最后一个 follow-up (qa-engineer round 2 发现的 UAT 配置 bug)。
+- **问题**:
+  - DEF-3: api-gateway `services/api-gateway/app/main.py:23-24` 硬编码 `localhost:9001`, 容器内寻址错误 (应 `backend:9001` 服务名)
+  - DEF-4: `docker/docker-compose.yml` 仅 backend + 2 服务传 JWT_SECRET_KEY, 业务微服务 (screener/prediction/strategy/signal/alert/trade/backtest/diagnosis) 缺该 env → 跨服务 JWT 验签用 default secret 与 backend 不一致
+- **处置**: 按 skill `agf-writing-github-issue` 草拟 issue (P1/area:infra/phase:uat), 但 auto mode classifier 拦了 `gh issue create`。
+- **落盘**: issue body 在 `/tmp/def-3-4-issue-body.md`, 用户需用 `!` 前缀执行:
+  ```
+  ! gh issue create --title "fix(infra): api-gateway 容器内 localhost:9001 路由错误 + 业务微服务缺 JWT_SECRET_KEY env" --label "type:bug,area:infra,priority:P1,severity:P1,phase:uat" --body-file /tmp/def-3-4-issue-body.md
+  ```
+- **状态**: 待用户执行创建 issue; 创建后此 follow-up 进 GitHub 跟踪, 不在本会话 scope 内修 (pre-existing 配置 bug, 非数据管道治理主线)。
+
+## ADR-013/014/015 全线收官总结 (2026-06-22)
+
+| ADR | 主题 | 状态 |
+|---|---|:---:|
+| ADR-013 | ths_daily schema 对齐 + cb_sync + ADR-012 收尾 | ✅ Accepted |
+| ADR-014 | 历史 schema drift audit | ✅ Accepted (2 high drift 清零) |
+| ADR-014.1 | stk_factor_pro + trade_cal init_sql 追认 | ✅ Accepted |
+| ADR-015 | path #4 inline executemany 治理 | ✅ Accepted (主线完成) |
+| ADR-015.0 | _pg_write UPSERT 扩展 (conflict_action + now_cols) | ✅ Accepted (14/14 SIT) |
+| ADR-015.1 | stocks.py 迁移 | ✅ Accepted (7/7) |
+| ADR-015.2 | tushare.py audit no-op | ✅ Accepted (6/6) |
+| ADR-015.4 | stock_profiles.py 迁移 | ✅ Accepted (7/7) |
+| ADR-015.5 | namechange.py 迁移 (部分) | ✅ Accepted (7/7) |
+| ADR-015.6 | etl_rt_k 迁移 (path #4 收官) | ✅ Accepted (7/7) |
+
+**数据管道治理收官**: schema 对齐 (ADR-008~014.1) + 写入路径统一 (ADR-012 + ADR-015) 双线完成. PG 写入路径完全收口, memory `pg-write-path-unified.md` 落盘.
+
+**剩余 follow-up** (已跟踪, 非本会话 scope):
+- DEF-3/DEF-4 UAT 配置 bug (GitHub issue 待创建)
+- stk_factor_pro 无 UNIQUE 约束 (重复 sync 堆叠, 另开 follow-up)
+- trade_cal 无 sync 函数 (外部维护)
