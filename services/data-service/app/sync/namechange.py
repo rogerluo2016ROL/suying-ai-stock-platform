@@ -107,23 +107,23 @@ def _upsert_st_history(intervals: list[tuple]) -> int:
     """Upsert ST intervals into st_history (ON CONFLICT DO UPDATE end_date).
 
     intervals: list of (code, start_date, end_date, st_type).
+    ADR-015.5: inline executemany → _pg_write(update). source 列由调用方
+    拼入 rows (_pg_write 是 values-based, 不支持 SQL 字面量列). 表无
+    updated_at 列, 不传 now_cols.
     """
     if not intervals:
         return 0
-    import psycopg2
-    conn = psycopg2.connect(PG_URL)
-    conn.autocommit = True
-    cur = conn.cursor()
-    sql = (
-        "INSERT INTO st_history(code, start_date, end_date, st_type, source) "
-        "VALUES(%s, %s, %s, %s, 'tushare_namechange') "
-        "ON CONFLICT(code, start_date) DO UPDATE SET "
-        "  end_date = EXCLUDED.end_date, st_type = EXCLUDED.st_type, source = EXCLUDED.source"
+    # intervals 4 元组 → 拼 source 列成 5 元组
+    rows = [(c, sd, ed, st, "tushare_namechange") for (c, sd, ed, st) in intervals]
+    from app.sync.pg_writer import _pg_write
+    return _pg_write(
+        "st_history",
+        columns=["code", "start_date", "end_date", "st_type", "source"],
+        conflict_cols=["code", "start_date"],
+        rows=rows,
+        conflict_action="update",
+        update_cols=["end_date", "st_type", "source"],
     )
-    cur.executemany(sql, intervals)
-    written = cur.rowcount
-    conn.close()
-    return written
 
 
 def _fallback_snapshot() -> dict:

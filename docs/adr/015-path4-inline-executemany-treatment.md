@@ -15,7 +15,7 @@
 | ADR-015.3 | P2 | `announcements.py / cctv_news.py / mp_report.py / policy_law.py` (合并) | ⏳ Pending |
 | [ADR-015.4](015.4-stock-profiles-pg-write-migration.md) | P1 (015.2 重排) | `stock_profiles.py` (16 列 inline-execute_values, UPSERT) | ✅ Accepted (2026-06-22) |
 | ADR-015.4a | P2 | `fina_mainbz.py / fina_audit.py` (原 015.4 拆出, SQLite-only 清理) | ⏳ Pending |
-| ADR-015.5 | P3 | `namechange.py` (PG-only inline, 需 UPSERT, 可能合并到 015.3) | ⏳ Pending |
+| [ADR-015.5](015.5-namechange-pg-write-migration.md) | P3 | `namechange.py` (PG-only inline, 需 UPSERT; `_upsert_st_history` 收口, `_fallback_snapshot` 保留 INSERT...SELECT) | ✅ Accepted (2026-06-22) |
 | ADR-015.6 | P3 | `rt_k.py` 相关 (dual-target) | ⏳ Pending |
 | 不立 ADR | — | `interact.py / rt_min.py` (SQLite-only, 无 PG 表) | ❌ Excluded |
 

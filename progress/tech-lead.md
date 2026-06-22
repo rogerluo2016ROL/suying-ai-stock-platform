@@ -706,3 +706,54 @@ path #4 真正未收口的 PG 模块（原盘点报告低估）：
 2. **ADR-015.3** (announcements/cctv_news/mp_report/policy_law, P2) — SQLite-only 清理
 3. **ADR-015.4a** (fina_mainbz/fina_audit, P2) — SQLite-only 清理
 4. **ADR-015.6** (rt_k, P3) — dual-target
+
+---
+
+## 2026-06-22（同日 +9）— ADR-015.5 立项 + 实施 + SIT 完成 (namechange.py)
+
+- **触发**: ADR-015.4 完成后继续推 path #4 真正未收口 PG 模块 (剩 namechange + etl_rt_k)。
+- **背景**: namechange.py 两处 PG inline:
+  1. `_upsert_st_history` (L106-126): executemany + ON CONFLICT(code,start_date) DO UPDATE SET end_date/st_type/source, SQL 硬编码 source='tushare_namechange' 字面量, intervals 4 元组
+  2. `_fallback_snapshot` (L129-153): INSERT...SELECT FROM stocks (降级路径, values-based _pg_write 无法表达)
+- **决策**: 方案 B — 只收口 `_upsert_st_history` (主路径), `_fallback_snapshot` 保留 inline (INSERT...SELECT 形态, _pg_write 无法表达, 强行改两步引入竞态)。source 字面量由调用方拼入 rows (4→5 元组)。
+
+### ADR-015.5 §决策 3 SIT verdict
+
+| # | 验证项 | Verdict |
+|---|---|---|
+| 1 | 白名单审计仅 namechange.py + ADR + progress | ✅ |
+| 2 | _upsert_st_history 切 _pg_write (1 处) | ✅ |
+| 3 | _fallback_snapshot inline 保留 (INSERT...SELECT 1 处) | ✅ |
+| 4 | inline executemany 已删 (0 命中) | ✅ |
+| 5 | 语法 ast.parse OK | ✅ |
+| 6 | 真实写库 UPSERT end_date 回填 (None → 2024-06-01) | ✅ |
+| 7 | source 列正确 ('tushare_namechange') + st_type 变更 (ST → *ST) | ✅ |
+
+**Verdict**: 7/7 PASS, ADR-015.5 可升 Accepted。
+
+### 真实写库 SIT 细节
+
+- mock code 999996, 首次戴帽 end_date=None, 二次回填 2024-06-01
+- source='tushare_namechange' 正确写入 (调用方拼 5 元组)
+- st_type ST → *ST 刷新
+- cleanup 删 mock
+
+### 关键设计: source 字面量处理
+
+现状 SQL 在 VALUES 硬编码 source='tushare_namechange', intervals 4 元组。
+`_pg_write` 是 values-based 不支持 SQL 字面量列。方案: 调用方在
+`_upsert_st_history` 内部 map 4→5 元组拼 source 列, 保持 `_parse_st_intervals`
+解析层纯净 (4 元组不变)。
+
+### path #4 收口进度
+
+真正未收口 PG 模块 (015.2 重排后):
+- ✅ stocks.py (ADR-015.1)
+- ✅ stock_profiles.py (ADR-015.4)
+- ✅ namechange.py _upsert_st_history (ADR-015.5; _fallback_snapshot 保留)
+- ⏳ etl_rt_k.py (ADR-015.6, 最后一个)
+
+### 下一步
+
+1. **ADR-015.6** (etl_rt_k, P3) — path #4 最后一个真正未收口 PG 模块
+2. **ADR-015.3 / 015.4a** (SQLite-only 清理, 低优先) — 方案 A 保留 SQLite inline, 可能不立 ADR
