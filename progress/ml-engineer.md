@@ -281,3 +281,51 @@
 - commit e7f13ad (W-1 测试隔离 + 中富通注释修 + CLAUDE.md L119): services/training-service/tests/{conftest,test_group_split,test_ml_p0_sit,test_ml_p1_sit}.py + packages/kronos-factors/kronos_factors/engine/bi_trend_launch.py + CLAUDE.md
 - commit 7031fdb (ML-P1 M07-M10/M12): services/prediction-service/app/main.py + services/prediction-service/app/onnx_optimizer.py(删) + services/training-service/app/training_engine.py + tools/backtest_bi_trend.py + docs/design/model-training/api-contract.md
 - M11 未 commit: Kronos/Kronos-uat-bak/src/kronos/finetune/dataset.py (等 tech-lead 决策)
+
+
+## M01-A/C walk_forward 时序泄露护栏 (ML-P0 收尾, tech-lead 评估 §3) (2026-06-22)
+
+**Context**: code-reviewer-ml 在 ML-P0 review 把 M01 flag 升级 tech-lead (AC-1 字面满足但实质未达: 记录了泄露没阻止泄露). tech-lead 评估 docs/reviews/m01-techlead-assessment-2026-06-22.md 推 **A+C 组合 (不取 B)**:
+- memory 三重印证 (bi_trend V13 -3.178 / V5.9 frozen -2.993 / V13+ST -3.305) 证明**亏损根因是策略逻辑本身 (OBV+WR+ADX), 非参数时序泄露**. M01 从 audit §3"最致命根因"下调为"放大器+流程缺陷".
+- 但 A+C 仍做 — **A 是跨策略护栏, 价值延续到 bi_trend 重设之后** (重设后新策略也走 walk-forward, --strict-timeline 永久生效).
+- B (per-month checkout) 不做: 为已证伪策略做框架级深度修复是沉没成本 + reload/subprocess 工程风险高 (bi_trend_launch.py 2158 行单文件 + 进程内 DB adapter 全局态 + Python module cache 不级联 reload). 记入 bi_trend 重设专项 follow-up.
+
+**Did** (3 条 AC, tech-lead §3 精确 spec):
+- **AC-M01-A** (tools/walk_forward.py): 加 `--strict-timeline` flag (默认 False 兼容). 新增纯函数 `_timeline_guard_decision(strategy_info, start_month, strict) → {"exit": False} | {"exit": True, "code": 2, "message": "..."}`. 启用时 commit 日期 > args.start → main() 打印 message + sys.exit(2). 错误信息含 commit 日期 / 起始月 / 时序泄露诊断 / --strict-timeline 提示 / checkout 建议.
+- **AC-M01-C** (tools/walk_forward.py): dirty 工作区 → 始终 sys.exit(2), 不受 flag 控制 (guard 顺序: M01-C dirty 优先于 M01-A 时序泄露).
+- **AC-M01-test** (services/training-service/tests/test_walk_forward_timeline.py, 新 8 测): 行为级单测, 不依赖 PG/GPU.
+  - 5 纯函数 _timeline_guard_decision: (a) clean+早commit+strict 放行; (b) clean+晚commit+strict exit2; (c) dirty 无论 strict exit2; (d) dirty 优先于晚commit (dirty+晚commit+strict 报 M01-C 非 M01-A); (e) clean+晚commit 非 strict 放行.
+  - 3 main() 级 end-to-end: mock subprocess.run (按 cmd 序列返回不同 commit/date/dirty), monkeypatch setup_db/month_iter, 验证 sys.exit 真触发 (strict+晚commit exit2 / dirty exit2 / 非 strict+晚commit 放行+软警告).
+  - 直接回应 code-reviewer-ml W-2 (M01 原只有契约字符串校验, 无行为级测试).
+- 非 strict + clean + 晚 commit 保留软警告 (D 模式过渡兜底, 诊断性跑批放行但明确"结果不可作样本外结论").
+
+**AC 自验**:
+- [x] AC-M01-A: --strict-timeline flag + commit 日期 > start → sys.exit(2) — test_guard_clean_commit_after_start_strict_exits + test_main_strict_late_commit_exits_2 ✅
+- [x] AC-M01-C: dirty → 始终 sys.exit(2) (无 flag 也阻断) — test_guard_dirty_always_exits_regardless_of_strict + test_main_dirty_always_exits_2 ✅
+- [x] AC-M01-test: 行为级单测 (非字符串校验), 8 测覆盖三路径 — test_walk_forward_timeline.py 8/8 ✅
+- [x] AC-M01-ci: grep .github/workflows + .claude/scripts 确认 0 CI 入口跑 walk_forward → 列 follow-up (未来加 CI 必须传 --strict-timeline)
+- [x] 契约层: test_ml_p0_sit.py test_m01_walk_forward_records_strategy_commit 扩展 (assert --strict-timeline / _timeline_guard_decision / sys.exit) ✅
+
+**SIT 证据** (行为级, 非 PG):
+- 运行: `cd services/training-service && pytest tests/test_walk_forward_timeline.py -v` → **8 passed**
+- 全 training-service 套件回归: `cd services/training-service && pytest tests/` → **29 passed, 1 skipped (PG)** (8 walk_forward_timeline + 9 ml_p0_sit + 9 ml_p1_sit + 4 group_split - 1 PG skip = 29)
+- backend 套件隔离回归: `cd backend && .venv/bin/pytest tests/` → **51 passed, 9 skipped, 0 fail**
+- 真实测试输出样本 (行为级验证 sys.exit 真触发, 非字符串):
+  ```
+  test_guard_dirty_always_exits_regardless_of_strict PASSED  (M01-C: dirty + 非 strict 也 exit2)
+  test_guard_dirty_takes_precedence_over_late_commit PASSED (dirty+晚commit 报 M01-C 非 M01-A)
+  test_main_strict_late_commit_exits_2 PASSED               (main 级: strict+晚commit → SystemExit code=2)
+  test_main_dirty_always_exits_2 PASSED                     (main 级: dirty → SystemExit code=2, 无 strict)
+  test_main_non_strict_late_commit_passes_with_warning PASSED (非 strict+晚commit 放行+软警告)
+  ```
+
+**质量门 (P95 延迟 / 单次成本)**:
+- walk_forward 是回测工具非推理服务, guard 决策纯函数 <1ms, 无延迟/成本影响.
+- guard 在 setup_db() 之前执行 (line 249 setup_db → line 258 strategy_info → line 266 guard), dirty/strict 阻断时不触达 PG, 0 成本.
+
+**对 code-reviewer-ml C-1 的回应**: tech-lead 接受 C-1 (当前实现"记录了泄露没阻止"是事实), 处置是补阻断机制 (A/C) 而非驳回. C-1 在 A/C 落地后 (本 commit 92a4d39) 可降为 warning, 残留 follow-up = B (留待 bi_trend 重设后视情况).
+
+**下一步**: ML-P0 全收尾 (W-1 测试隔离 + M01-A/C/test). ML-P1 (task #8) M07-M10/M12 已 commit (7031fdb), M11 commit 路径待 tech-lead (Kronos gitlink).
+
+**产物**:
+- commit 92a4d39: tools/walk_forward.py (加 flag + guard 函数 + main 集成) + services/training-service/tests/test_walk_forward_timeline.py (新 8 测) + services/training-service/tests/test_ml_p0_sit.py (M01 契约扩展)
