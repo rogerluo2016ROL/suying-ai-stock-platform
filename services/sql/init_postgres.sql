@@ -158,11 +158,19 @@ CREATE TABLE IF NOT EXISTS top_list (
     PRIMARY KEY(code, trade_date)
 );
 
+-- ADR-011: top_inst per-institution 明细 + BIGSERIAL PK
+-- Tushare pro.top_inst(trade_date) 返回 8 字段, 单日 ~1020 行 (每股 ~10 个机构席位)
+-- BIGSERIAL surrogate key: 「机构专用」匿名席位同股同日多次出现, 业务字段复合 PK 会丢数据 → ADR §决策 2
 CREATE TABLE IF NOT EXISTS top_inst (
+    id BIGSERIAL PRIMARY KEY,
     code TEXT NOT NULL,
     trade_date DATE NOT NULL,
-    inst_name TEXT, buy_amount DOUBLE PRECISION, sell_amount DOUBLE PRECISION, net_amount DOUBLE PRECISION
+    exalter TEXT,
+    buy DOUBLE PRECISION, buy_rate DOUBLE PRECISION,
+    sell DOUBLE PRECISION, sell_rate DOUBLE PRECISION,
+    net_buy DOUBLE PRECISION
 );
+CREATE INDEX IF NOT EXISTS idx_top_inst_code_date ON top_inst(code, trade_date);
 
 CREATE TABLE IF NOT EXISTS block_trade_data (
     code TEXT NOT NULL,
