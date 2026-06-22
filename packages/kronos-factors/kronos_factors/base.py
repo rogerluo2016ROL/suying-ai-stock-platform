@@ -54,8 +54,14 @@ class DBAdapter(ABC):
         ...
 
     @abstractmethod
-    def get_kline(self, code: str, lookback: int = 400) -> Optional[pd.DataFrame]:
-        """Get K-line data for a single stock."""
+    def get_kline(self, code: str, lookback: int = 400,
+                  end_date: Optional[str] = None) -> Optional[pd.DataFrame]:
+        """Get K-line data for a single stock.
+
+        M03: `end_date` bounds the result to `trade_date <= end_date` so
+        historical backtests do not see future K-line. Adapters without an
+        historical-bound mode may ignore it.
+        """
         ...
 
     @abstractmethod
@@ -73,8 +79,13 @@ class MarketDataAdapter(ABC):
     """Abstract market data adapter."""
 
     @abstractmethod
-    def get_kline_df(self, code: str, lookback: int = 400) -> Optional[pd.DataFrame]:
-        """Get K-line DataFrame for a single stock."""
+    def get_kline_df(self, code: str, lookback: int = 400,
+                     end_date: Optional[str] = None) -> Optional[pd.DataFrame]:
+        """Get K-line DataFrame for a single stock.
+
+        M03: `end_date` propagated to underlying get_kline to prevent
+        future-K-line leakage in historical backtests.
+        """
         ...
 
     @abstractmethod

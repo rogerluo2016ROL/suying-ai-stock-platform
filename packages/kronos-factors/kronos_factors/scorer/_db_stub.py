@@ -97,7 +97,7 @@ def _get_db(readonly: bool = True):
 class StubMarketDataService:
     """Neutral market data stub."""
     @staticmethod
-    def get_kline_df(code: str, lookback: int = 400):
+    def get_kline_df(code: str, lookback: int = 400, end_date=None):
         return None
     @staticmethod
     def get_stock_info(code: str):
