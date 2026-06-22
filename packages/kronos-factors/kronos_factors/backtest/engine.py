@@ -399,7 +399,11 @@ def run_backtest() -> dict:
     }
 
 
-def run_historical_backtest(sample_size: int = 500, months: int = 120) -> dict:
+def run_historical_backtest(
+    sample_size: int = 500,
+    months: int = 120,
+    n_seeds: int = 5,
+) -> dict:
     """Generate historical backtest batches from K-line data directly.
 
     For each month-end over the last `months` months:
@@ -410,6 +414,11 @@ def run_historical_backtest(sample_size: int = 500, months: int = 120) -> dict:
 
     This approach doesn't need pre-existing screening_batches — it uses
     the 20 years of K-line data to provide statistically robust IC estimates.
+
+    M16: the entire sampling pass runs `n_seeds` times (default 5) with distinct
+    seeds; all batch ICs are pooled for the headline mean/std, and a cross-seed
+    std-of-means (seed_std_ic) is reported so a lucky single-seed draw cannot
+    masquerade as a robust IC. n_seeds=1 recovers the legacy single-seed path.
     """
     from kronos_factors.scorer.five_factor import score_five_factor
 
@@ -456,141 +465,177 @@ def run_historical_backtest(sample_size: int = 500, months: int = 120) -> dict:
         ).fetchall()]
 
         import random
-        random.seed(42)
 
+        def _run_one_seed(seed: int):
+            """M16: run one sampling pass with a fixed seed, return per-seed accumulators.
+
+            All sampling randomness (random.sample) is keyed off `seed`; the DB
+            reads and IC math are deterministic given the sampled codes.
+            """
+            random.seed(seed)
+            _model_ics = defaultdict(list)
+            _model_hits = defaultdict(list)
+            _decay_ics = defaultdict(lambda: defaultdict(list))
+            _batch_count = 0
+
+            for batch_date in available:
+                # Random sample
+                batch_codes = random.sample(codes, min(sample_size, len(codes)))
+
+                # Compute Tushare scores for this batch at this date (batch DB query)
+                tushare_batch = _compute_tushare_scores_batch(batch_codes, batch_date, db)
+
+                # Compute POR scores from daily_basic at this date
+                por_batch = {}
+                placeholders = ",".join("?" * len(batch_codes))
+                por_rows = db.execute(
+                    f"SELECT code, pe, pe_ttm, pb, ps, ps_ttm FROM daily_basic "
+                    f"WHERE code IN ({placeholders}) AND trade_date=?",
+                    batch_codes + [batch_date]
+                ).fetchall()
+                for r in por_rows:
+                    code = r["code"]; pe = r["pe_ttm"] or r["pe"] or 0; pb = r["pb"] or 0; ps = r["ps_ttm"] or r["ps"] or 0
+                    s = 5.0
+                    if pe > 0:
+                        per = pe/20.0
+                        if per < 0.5: s += 2.0
+                        elif per < 0.8: s += 1.0
+                        elif per > 2.0: s -= 2.0
+                    if pb > 0:
+                        if pb/2.0 < 0.5: s += 1.5
+                        elif pb/2.0 > 2.5: s -= 1.5
+                    if ps > 0:
+                        if ps/3.0 < 0.3: s += 1.0
+                        elif ps/3.0 > 3.0: s -= 1.0
+                    por_batch[code] = round(max(0, min(10, s)), 1)
+
+                # Get 5-factor scores from K-line
+                # M03: pass batch_date as end_date so factors are computed from only
+                # the K-line that existed at batch_date — otherwise get_kline_df
+                # returns the *current* most-recent 400 rows regardless of batch_date,
+                # leaking future K-line into historical IC.
+                scores_list = []
+                for code in batch_codes:
+                    try:
+                        kline_df = _get_market_data().get_kline_df(
+                            code, lookback=400, end_date=batch_date)
+                        if kline_df is None or len(kline_df) < 30:
+                            continue
+                        ff = score_five_factor(kline_df)
+                        ts = tushare_batch.get(code, {})
+                        scores_list.append({
+                            "code": code,
+                            "momentum": ff["momentum"],
+                            "volume_factor": ff["volume_factor"],
+                            "technical": ff["technical"],
+                            "quality": ff["quality"],
+                            "risk": ff["risk"],
+                            "score": ff["score"],
+                            "money_flow_score": 5.0,
+                            "mean_reversion_score": 5.0,
+                            "trend_strength_score": 5.0,
+                            "reversal_score": 5.0,
+                            "liquidity_score": 5.0,
+                            "tushare_mf_score": ts.get("tushare_mf_score", 5.0),
+                            "tushare_margin_score": ts.get("tushare_margin_score", 5.0),
+                            "tushare_daily_score": ts.get("tushare_daily_score", 5.0),
+                            "tushare_por_score": por_batch.get(code, 5.0),
+                            "tushare_sector_score": 5.0,
+                            "tushare_sector_val_score": 5.0,
+                            "tushare_news_score": 5.0,
+                            "tushare_analyst_score": 5.0,
+                        })
+                    except Exception:
+                        continue
+
+                if len(scores_list) < 30:
+                    continue
+
+                # Compute forward returns
+                base_prices = {}
+                future_prices = {h: {} for h in HORIZONS}
+                for sc in scores_list:
+                    code = sc["code"]
+                    # Base price
+                    row = db.execute(
+                        "SELECT close FROM daily_kline WHERE code=? AND trade_date<=? "
+                        "ORDER BY trade_date DESC LIMIT 1",
+                        (code, batch_date)
+                    ).fetchone()
+                    if row:
+                        base_prices[code] = row["close"]
+
+                    # Future prices at each horizon
+                    for h in HORIZONS:
+                        future_date_idx = None
+                        for i, d in enumerate(all_dates):
+                            if d > batch_date:
+                                if i + h - 1 < len(all_dates):
+                                    future_date_idx = i + h - 1
+                                break
+                        if future_date_idx is not None and future_date_idx < len(all_dates):
+                            target_date = all_dates[future_date_idx]
+                            row = db.execute(
+                                "SELECT close FROM daily_kline WHERE code=? AND trade_date=?",
+                                (code, target_date)
+                            ).fetchone()
+                            if row:
+                                future_prices[h][code] = row["close"]
+
+                # Compute IC for each model × horizon
+                for col_name, display_name in MODEL_COLS:
+                    model_scores = []
+                    for h in HORIZONS:
+                        s_arr = []
+                        r_arr = []
+                        for sc in scores_list:
+                            code = sc["code"]
+                            base = base_prices.get(code)
+                            if not base or base <= 0:
+                                continue
+                            val = sc.get(col_name)
+                            if val is None:
+                                continue
+                            fut = future_prices.get(h, {}).get(code)
+                            if fut and fut > 0:
+                                s_arr.append(float(val))
+                                r_arr.append((fut / base - 1) * 100)
+
+                        if len(s_arr) >= 10:
+                            res = compute_ic(np.array(s_arr), np.array(r_arr))
+                            if h == HORIZONS[0]:  # Use shortest horizon for primary IC
+                                _model_ics[display_name].append(res["ic"])
+                                _model_hits[display_name].append(res["hit_rate"])
+                            _decay_ics[display_name][h].append(res["ic"])
+
+                _batch_count += 1
+                if _batch_count % 20 == 0:
+                    print(f"  [seed={seed}] {_batch_count}/{len(available)} batches...")
+
+        return _model_ics, _model_hits, _decay_ics, _batch_count
+
+        # M16: multi-seed averaging. Run the sampling pass n_seeds times with
+        # distinct seeds, pool every batch IC across seeds for the headline
+        # mean/std, and also report the cross-seed std-of-means so a lucky
+        # single-seed draw cannot masoch the IC.
         model_ics = defaultdict(list)
         model_hits = defaultdict(list)
         decay_ics = defaultdict(lambda: defaultdict(list))
         batch_count = 0
+        seed_mean_ics: dict[str, list[float]] = defaultdict(list)
 
-        for batch_date in available:
-            # Random sample
-            batch_codes = random.sample(codes, min(sample_size, len(codes)))
-
-            # Compute Tushare scores for this batch at this date (batch DB query)
-            tushare_batch = _compute_tushare_scores_batch(batch_codes, batch_date, db)
-
-            # Compute POR scores from daily_basic at this date
-            por_batch = {}
-            placeholders = ",".join("?" * len(batch_codes))
-            por_rows = db.execute(
-                f"SELECT code, pe, pe_ttm, pb, ps, ps_ttm FROM daily_basic "
-                f"WHERE code IN ({placeholders}) AND trade_date=?",
-                batch_codes + [batch_date]
-            ).fetchall()
-            for r in por_rows:
-                code = r["code"]; pe = r["pe_ttm"] or r["pe"] or 0; pb = r["pb"] or 0; ps = r["ps_ttm"] or r["ps"] or 0
-                s = 5.0
-                if pe > 0:
-                    per = pe/20.0
-                    if per < 0.5: s += 2.0
-                    elif per < 0.8: s += 1.0
-                    elif per > 2.0: s -= 2.0
-                if pb > 0:
-                    if pb/2.0 < 0.5: s += 1.5
-                    elif pb/2.0 > 2.5: s -= 1.5
-                if ps > 0:
-                    if ps/3.0 < 0.3: s += 1.0
-                    elif ps/3.0 > 3.0: s -= 1.0
-                por_batch[code] = round(max(0, min(10, s)), 1)
-
-            # Get 5-factor scores from K-line
-            scores_list = []
-            for code in batch_codes:
-                try:
-                    kline_df = _get_market_data().get_kline_df(code, lookback=400)
-                    if kline_df is None or len(kline_df) < 30:
-                        continue
-                    ff = score_five_factor(kline_df)
-                    ts = tushare_batch.get(code, {})
-                    scores_list.append({
-                        "code": code,
-                        "momentum": ff["momentum"],
-                        "volume_factor": ff["volume_factor"],
-                        "technical": ff["technical"],
-                        "quality": ff["quality"],
-                        "risk": ff["risk"],
-                        "score": ff["score"],
-                        "money_flow_score": 5.0,
-                        "mean_reversion_score": 5.0,
-                        "trend_strength_score": 5.0,
-                        "reversal_score": 5.0,
-                        "liquidity_score": 5.0,
-                        "tushare_mf_score": ts.get("tushare_mf_score", 5.0),
-                        "tushare_margin_score": ts.get("tushare_margin_score", 5.0),
-                        "tushare_daily_score": ts.get("tushare_daily_score", 5.0),
-                        "tushare_por_score": por_batch.get(code, 5.0),
-                        "tushare_sector_score": 5.0,
-                        "tushare_sector_val_score": 5.0,
-                        "tushare_news_score": 5.0,
-                        "tushare_analyst_score": 5.0,
-                    })
-                except Exception:
-                    continue
-
-            if len(scores_list) < 30:
-                continue
-
-            # Compute forward returns
-            base_prices = {}
-            future_prices = {h: {} for h in HORIZONS}
-            for sc in scores_list:
-                code = sc["code"]
-                # Base price
-                row = db.execute(
-                    "SELECT close FROM daily_kline WHERE code=? AND trade_date<=? "
-                    "ORDER BY trade_date DESC LIMIT 1",
-                    (code, batch_date)
-                ).fetchone()
-                if row:
-                    base_prices[code] = row["close"]
-
-                # Future prices at each horizon
-                for h in HORIZONS:
-                    future_date_idx = None
-                    for i, d in enumerate(all_dates):
-                        if d > batch_date:
-                            if i + h - 1 < len(all_dates):
-                                future_date_idx = i + h - 1
-                            break
-                    if future_date_idx is not None and future_date_idx < len(all_dates):
-                        target_date = all_dates[future_date_idx]
-                        row = db.execute(
-                            "SELECT close FROM daily_kline WHERE code=? AND trade_date=?",
-                            (code, target_date)
-                        ).fetchone()
-                        if row:
-                            future_prices[h][code] = row["close"]
-
-            # Compute IC for each model × horizon
-            for col_name, display_name in MODEL_COLS:
-                model_scores = []
-                for h in HORIZONS:
-                    s_arr = []
-                    r_arr = []
-                    for sc in scores_list:
-                        code = sc["code"]
-                        base = base_prices.get(code)
-                        if not base or base <= 0:
-                            continue
-                        val = sc.get(col_name)
-                        if val is None:
-                            continue
-                        fut = future_prices.get(h, {}).get(code)
-                        if fut and fut > 0:
-                            s_arr.append(float(val))
-                            r_arr.append((fut / base - 1) * 100)
-
-                    if len(s_arr) >= 10:
-                        res = compute_ic(np.array(s_arr), np.array(r_arr))
-                        if h == HORIZONS[0]:  # Use shortest horizon for primary IC
-                            model_ics[display_name].append(res["ic"])
-                            model_hits[display_name].append(res["hit_rate"])
-                        decay_ics[display_name][h].append(res["ic"])
-
-            batch_count += 1
-            if batch_count % 20 == 0:
-                print(f"  {batch_count}/{len(available)} batches...")
+        for seed in range(n_seeds):
+            s_ics, s_hits, s_decay, s_n = _run_one_seed(seed)
+            for name, lst in s_ics.items():
+                model_ics[name].extend(lst)
+                if lst:
+                    seed_mean_ics[name].append(float(np.mean(lst)))
+            for name, lst in s_hits.items():
+                model_hits[name].extend(lst)
+            for name, hmap in s_decay.items():
+                for h, lst in hmap.items():
+                    decay_ics[name][h].extend(lst)
+            batch_count += s_n
 
     # Aggregate
     results = {}
@@ -608,6 +653,11 @@ def run_historical_backtest(sample_size: int = 500, months: int = 120) -> dict:
             vals = decay_ics[display_name].get(h, [])
             decay[h] = round(float(np.mean(vals)), 4) if vals else 0.0
 
+        # M16: cross-seed aggregation on per-seed mean IC
+        seed_agg = _aggregate_multi_seed(
+            {display_name: seed_mean_ics.get(display_name, [])}
+        ).get(display_name, {})
+
         results[display_name] = {
             "mean_ic": round(mean_ic, 4),
             "std_ic": round(std_ic, 4),
@@ -616,6 +666,11 @@ def run_historical_backtest(sample_size: int = 500, months: int = 120) -> dict:
             "hit_rate": round(hit, 4),
             "decay": decay,
             "n_batches": len(ics),
+            # M16: multi-seed stability fields
+            "seed_mean_ic": round(seed_agg.get("seed_mean_ic", mean_ic), 4),
+            "seed_std_ic": round(seed_agg.get("seed_std_ic", 0.0), 4),
+            "seed_icir": round(seed_agg.get("seed_icir", 0.0), 4),
+            "n_seeds": len(seed_mean_ics.get(display_name, [])),
         }
 
     return {
@@ -623,9 +678,41 @@ def run_historical_backtest(sample_size: int = 500, months: int = 120) -> dict:
         "total_stocks_analyzed": sample_size * batch_count,
         "avg_stocks_per_batch": sample_size,
         "horizons_days": HORIZONS,
+        "n_seeds": n_seeds,
         "models": results,
         "generated_at": datetime.now().isoformat(),
     }
+
+
+def _aggregate_multi_seed(seed_mean_ics: dict) -> dict:
+    """M16: aggregate per-seed mean IC into cross-seed mean / std / ICIR.
+
+    Args:
+        seed_mean_ics: {model_name: [ic_seed0, ic_seed1, ...]}
+
+    Returns:
+        {model_name: {seed_mean_ic, seed_std_ic, seed_icir, n_seeds}}
+
+    seed_icir = seed_mean_ic / seed_std_ic; when seed_std_ic == 0 (all seeds
+    identical) we record 0.0 to avoid divide-by-zero rather than +inf.
+    """
+    out = {}
+    for name, means in seed_mean_ics.items():
+        if not means:
+            continue
+        arr = np.asarray(means, dtype=float)
+        m = float(np.mean(arr))
+        s = float(np.std(arr))
+        # Tolerance: floating-point std of identical ICs is ~1e-17, not 0.
+        # Treat std below 1e-12 as zero to avoid 1e16+ ICIR blowups.
+        seed_icir = m / s if s > 1e-12 else 0.0
+        out[name] = {
+            "seed_mean_ic": m,
+            "seed_std_ic": s,
+            "seed_icir": seed_icir,
+            "n_seeds": len(means),
+        }
+    return out
 
 
 def get_model_ranking() -> list[dict]:
