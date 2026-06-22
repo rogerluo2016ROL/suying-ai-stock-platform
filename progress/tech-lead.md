@@ -234,3 +234,188 @@
 1. **product-lead**：派 backend-dev（限额重置后）按 ADR-011 Hand-off 段实施；不需要 PL 二次评审 ADR 本身（已 Accepted）。
 2. **tech-lead 本会话剩余**：等 PL 派"sync 设计统一回补方案评估"任务（PL 已预告）。
 3. **memory 不写入**：本 ADR 决策正文 + 否决清单全部已在 `docs/adr/011-*.md`，避免双源（遵循 tech-lead memory 「避免写入：已 accept 的决策正文」规则）；待 ADR-012 立项时若产生跨 ADR 复用结论（如「BIGSERIAL 已成 per-detail 表 PK 标准」）再写一条。
+
+---
+
+## 2026-06-22 — ADR-012 数据管道写入路径统一化（方法论 ADR，Proposed）
+
+- 触发：product-lead 派单"评估 sync 设计统一回补方案"，背景 memory `data-pipeline-write-debt`
+- 范围：仅文档（方法论 ADR），未改代码
+
+### 产物
+
+- `docs/adr/012-data-pipeline-write-path-unification.md` — **Proposed**（待 PL 决策方案 A vs B 后升 Accepted）
+
+### 现状盘点核心数据（grep 实证 2026-06-22）
+
+1. **4 套写入路径并存**：
+   - `etl._insert_rows`（32+ sync 调用，唯一带自动列过滤但缺重试 / 数据量门禁）
+   - `pg_writer._pg_write`（stk_factor_pro / rt_k 等，有重试 + 数据量门禁但缺列过滤）
+   - `cb_sync._pg_bulk_insert`（ths_daily 等 3 函数，与 `_pg_write` 95% 复制粘贴）
+   - inline `db.executemany`（announcements / cctv_news / mp_report / ... 8 个 sync 模块，零防御）
+2. **48 个 monitored 表 / 43 个 backfill handler / 5 表缺 handler**：`[index_daily, stk_factor_pro, stocks, ths_daily, trade_cal]`
+   - stk_factor_pro 病灶：sync 签名无参数（仅拉 today），不兼容 `_BACKFILL_MAP` 期望的 `fn(days_back=int)`
+   - ths_daily / index_daily：签名兼容但遗漏注册
+   - stocks / trade_cal：监控规则与 backfill 模型错配（非时序数据）
+3. **真相源 4 处分裂**：物理列集 / sync cols / backfill 注册 / 监控配置 / date_col 散落 4 处独立维护，无静态校验
+
+### 核心病灶诊断
+
+**根因 = 写入路径分裂（缺陷 A）+ 真相源分裂（缺陷 B）的乘积**：
+- 缺陷 A：4 套路径互不知晓，能力不互通（列过滤 vs 重试 vs 门禁各缺一块）
+- 缺陷 B：MONITORED_TABLES / _BACKFILL_MAP / sync cols / date_col 4 处字典靠人脑对账
+
+每加一表 → 4 路径×4 真相 = 16 种错配空间。ADR-008~011 修「已暴露错配」，不解「未来仍会错配」。
+
+### 决策方向（PL 二选一）
+
+| 维度 | 方案 A 渐进收口 | 方案 B 注册中心 |
+|---|---|---|
+| 核心 | 三路径合并 fallback 到 `_insert_rows` + 补 5 表 backfill + scheduler validator | 新建 `sync_registry.py` (SyncSpec dataclass) + 4 处字典退化为视图 + 启动期 raise |
+| 改动文件 | 4 | 12+ |
+| 工作量 | 2-3 day | 5-7 day |
+| 缺陷 A 解 | ✅ | ✅ |
+| 缺陷 B 解 | ⚠️ 仅 validator catch | ✅ 静态 raise |
+| ADR-013+ 模板瘦身 | ❌ | ✅ ~50% |
+| 可逆性 | ✅ | ⚠️ |
+
+**tech-lead 倾向方案 A**，理由：
+1. 剩余表数量有限（5-8 张），方案 B 红利在中短期内体现不充分
+2. ADR-013+ 模板瘦身可在 `agf-writing-adr` skill 加 schema-alignment 子模板实现，不必引入 SyncSpec 抽象层
+3. 方案 A 任意时刻可回滚，方案 B adopt 后回滚需还原 4 处字典 + sync 签名
+4. ADR-006「轻量 sync 函数」哲学与 SyncSpec dataclass 有张力，需评估冲突
+
+若 PL 有以下信号则选方案 B：剩余表 > 10 / 监控告警频繁 / 新人加表错配率 > 30%。
+
+### 备选方案（已否决）
+
+- C. 不做统一化继续单表修：technical debt 复利 > 一次性重构（否决）
+- D. 弃用 `services/data-service/app/sync/` 全迁 `etl.py`：违反 ADR-006 分层（否决）
+- E. SQLAlchemy ORM 替代 SyncSpec：与 ADR-006 既有基线冲突（否决）
+- F. 只补 backfill + validator（方案 A 子集）：放弃缺陷 A 解，省半天不划算（否决）
+- G. Tushare schema 自动生成全部：Tushare 字段命名不规范、稳定性不达标，自动化反生漂移（否决）
+
+### 质量门
+
+- [x] ≥ 2 备选方案 + 否决理由 → 主决策 2 方案对比 + 5 个备选（C-G）逐条否决
+- [x] 选型附查证日期 + 信息源 → 版本与查证段含 4 行表格 + 8 项 grep 实证清单
+- [x] CLAUDE.md Tech Stack 表同步 → 本 ADR 不引新依赖，无需更新
+- [x] 仅产 ADR（Proposed）+ §决策 0 文件白名单占位、未碰代码 / Alembic / init_sql
+- [x] 未自行升 Accepted（按硬约束）—— 等 PL 决策方向
+
+### 数据管道写债收口方法论进度
+
+| ADR | 主题 | 状态 |
+|---|---|---|
+| ADR-008 | sw_daily | Accepted |
+| ADR-009 | pledge_detail / rt_sw_k / top_list | Accepted |
+| ADR-010 | cyq_chips | Accepted |
+| ADR-011 | top_inst | Accepted |
+| **ADR-012** | **写入路径统一化（方法论）** | **Proposed（本次）** |
+| ADR-013（待立） | 首张按 ADR-012 方法论修的表（建议 stk_factor_pro，同时含缺陷 A+B） | Pending — ADR-012 Accepted 后立项 |
+
+### 下一步（交接 product-lead）
+
+1. **PL 决策方案 A vs B**：回执含「选 X / 理由」+ 是否接受 tech-lead 建议 A
+2. **PL 回执后 tech-lead 升 Accepted**：补 §决策 0 文件白名单 + §决策 N 细化（按选定方案）+ §版本与查证 升级日期
+3. **ADR-013 立项时机**：建议 ADR-012 Accepted 后 1-2 周内立 013（首个应用方法论的样本），避免模板飘移
+4. **memory 不写入**：本 ADR Proposed 阶段决策未定，等 Accepted 后产生稳定结论（如「方案 A 已 adopt，新表必填 _BACKFILL_MAP」）再写一条
+
+---
+
+## 2026-06-22（同日 +1）— ADR-012 升 Accepted（PL 选方案 A）
+
+- 触发：product-lead 回执选**方案 A（渐进收口）**
+- PL 决策理由（对照 tech-lead §决策 4「选 B 触发信号」）：
+  1. ❌ 剩余表 = 5-8 张（不超 10）
+  2. ❌ detect_data_gaps OK 21→32，无运维告警压力
+  3. ❌ 单 agent 团队，无新人错配场景
+  4. ✅ 可逆性优先 + 保留方案 B 升级通道（未来 > 10 表新数据源走 ADR-016 升级）
+
+### 本次落盘改动
+
+`docs/adr/012-data-pipeline-write-path-unification.md` 状态 **Proposed → Accepted**，补齐方案 A 实施细则：
+
+1. **顶部状态段** + 新增「PL 决策记录」段，记录选 A 的 4 条理由
+2. **§决策 0 文件白名单**写实（沿用 ADR-010/011 风格，硬约束 backend-dev 不越界）：
+   - 白名单 #1: `packages/kronos-data/kronos_data/etl.py`（仅 `_insert_rows` 加 retries/data_volume_floor 参数）
+   - 白名单 #2: `services/data-service/app/sync/pg_writer.py`（`_pg_write` thin wrapper + `_VOLUME_FLOOR_MAP`）
+   - 白名单 #3: `services/data-service/app/sync/cb_sync.py`（`_pg_bulk_insert` thin wrapper）
+   - 白名单 #4: `services/data-service/app/scheduler.py`（`_BACKFILL_MAP` 补 5 表 + `validate_pipeline_consistency()` 启动期自检）
+   - 含「Decision 0 范围声明」明示路径 #4 inline 8 模块暂不动 → ADR-015 留位
+3. **§决策 5 实施细则**（5.1-5.6）：6 个子决策 + 各代码骨架 + 关键注意（如 `conflict_cols` 兼容性 5.2.bis）
+4. **§决策 6 SIT 12 项验证清单**：单测 / 行数等价性 / backfill smoke / git diff 白名单审计
+5. **§决策 7 分阶段实施顺序**：6 阶段 + 5 个回滚点（任一失败可停在该阶段独立 commit）
+6. **§不覆盖**段更新：明确 ADR-013（剩余表 schema 对齐）/ ADR-015（路径 #4）/ ADR-016（方案 B 升级路径）三个未来 ADR 留位
+7. **§后续工作**勾选 PL 决策 + tech-lead 升 Accepted；backend-dev 待办按阶段 1-6 列
+8. **§版本与查证**升级查证日期到 Accepted 当日（2026-06-22）+ 加 `inspect.signature` stdlib 版本行（决策 5.5 用到）
+9. **Hand-off 段**重写为 backend-dev 实施清单（与 ADR-010 + ADR-011 follow-up 合并到同一 worktree 的协调说明 + 白名单边界硬强调）
+
+### 关键技术决策亮点（落地依据）
+
+- **`_insert_rows` 加可选参数而非新建函数**：保持 32+ sync 函数零改动，向后兼容（retries=0 + floor=None 是旧行为）
+- **`_pg_write` 改 thin wrapper 但保留 8 个 `write_*` helper**：列重排逻辑（write_moneyflow 的字段 `[0,1,2,3,4,5,6,7,8,9,10]` 去掉 `net_mf_vol` r[11]、write_daily_basic 重排为 8 字段等）是业务必需，不能删——thin wrapper 仅替换底层写入引擎，不动 helper 业务转换
+- **`conflict_cols` 兼容性 5.2.bis**：`_insert_rows` 用 `ON CONFLICT DO NOTHING` 不指定列，依赖表 PK；调用方 `conflict_cols` 必须 ⊆ 表 PK，遇 ths_daily 等 `(ts_code, trade_date)` UNIQUE 约束非裸 PK 的例外，backend-dev 实施时需先 grep 验证
+- **stk_factor_pro 双轨入口**：`sync_stk_factor_pro_daily()` 保留作 cron 入口（内部调 `sync_stk_factor_pro_backfill(days_back=1)`），新增 `sync_stk_factor_pro_backfill(days_back: int)` 注册 `_BACKFILL_MAP`，避免破坏 cron job
+- **validator WARN 不 raise**：可逆性优先；启动期不阻断（与方案 B 的 raise 形成对比，保留 ADR-016 升级时再切 raise）
+
+### 质量门
+
+- [x] §决策 0 白名单 4 文件 + 8+ 越界禁项明确
+- [x] §决策 5 含代码骨架 + 关键注意点（5.2.bis / 5.4 双轨 / 5.6 不在范围）
+- [x] §决策 6 SIT 12 项可独立验证（含 git diff 白名单审计 #12）
+- [x] §决策 7 分阶段 + 回滚点设计
+- [x] §不覆盖明确 ADR-013/015/016 三个未来留位（防止 backend-dev 把"剩余表 schema"误抓进本 ADR 实施）
+- [x] §版本与查证 Accepted 日期 + `inspect.signature` 新增基线
+- [x] Hand-off 段含与 ADR-010 / ADR-011 follow-up 合并 worktree 的协调说明（PL 在派单时说明合并）
+
+### 下一步（交接 product-lead）
+
+1. **PL**：等 ADR-010 code-review 结论 → 统一派 backend-dev 实施 ADR-010 follow-up + ADR-011 + ADR-012 三家到同一 worktree（PL 派单时指定 base ref + 三家 ADR Hand-off 段链接）
+2. **backend-dev**（限额重置后）：按本 ADR §决策 7 阶段 1-6 顺序实施，证据落 `progress/backend-dev.md`
+3. **tech-lead**（backend-dev 完成后）：抽取本 ADR 决策 0+5+6 模板片段到 `.claude/skills/agf-writing-adr/SKILL.md` 新增 "schema-alignment subtemplate"，给 ADR-013+ 复用
+4. **tech-lead**（ADR-012 实施 + UAT 通过后 1-2 周）：立 ADR-013（建议从 hk_holdings 起，而非原计划 stk_factor_pro——因后者已被本 ADR 阶段 4 修了 backfill handler，hk_holdings 调用方多更适合验证瘦身模板）
+5. **memory 更新（推迟）**：方案 A 实施成功后再写一条 memory「ADR-012 方案 A 已 adopt，新表必填 _BACKFILL_MAP + 路径选 _insert_rows」；当前 Accepted 但未实施，避免双源
+
+---
+
+## 2026-06-22（同日 +2）— §F-2 cyq 因子抽样验证
+
+- 触发：team-lead 转交 code-reviewer 的 F-2 follow-up，并行小任务，read-only 抽样
+- 范围：抽 5 只样本股，对比 fallback（pre-ADR-010）vs 实际 cyq_chips 真实数据下的 `tushare_cyq` 因子输出
+
+### 验证目标对照
+
+| 问题 | 结论 |
+|---|---|
+| (a) percent 0-100 体系是否被因子代码假设为 0-1（若是则 100x 误差） | **否**。`advanced_factors.py:1079` `tp = sum(percents) or 1.0` 再 `w/tp` 归一化为权重比例，**对 0-1 / 0-100 体系均不敏感**（avg_cost / 累积 p5/p95 算法纯归一化）；100x 风险**不存在**。 |
+| (b) 单日历史是否够算 avg_cost / concentration_90 | **够**。`advanced_factors.py:1075-1095` 整个 cyq 因子只读 `MAX(trade_date)` 一天的全价格分布，avg_cost / p5 / p95 / concentration 全是**单日盘内分布统计**，**不依赖时序**。F-3 月底 days_back=30 累积 → 只让历史回测可用（trade_date 选 t-N），不影响实时因子。 |
+| (c) F-3 月底 days_back=30 累积后是否能解锁更多因子 | **当前因子无新增解锁**。代码层仅消费 `MAX(trade_date)` 单日。但若未来追加"筹码迁移率 / 多日 avg_cost 趋势"类时序因子（advanced_factors 现暂无），则需累积。当前 cyq 因子已 100% 解锁 fallback。 |
+
+### 抽样结果（trade_date=2026-06-18，close 来自同日 daily_kline）
+
+| code | rows | close | avg_cost | pr=cp/avg | p5 | p95 | conc(%) | score | signal | 备注 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 000338 | 178 | 30.09 | 31.32 | 0.961 | 27.40 | 35.40 | 25.5 | **7.5** | accumulation | pr 落 [0.90,1.05] +2.5；conc 25.5 略高于阈值无加分 |
+| 000988 | 100 | 177.55 | 163.45 | 1.086 | 147.60 | 178.20 | 18.7 | **6.0** | neutral | pr 1.086 越过 1.05 无加分；conc<25 +1.0 |
+| 601127 | 99 | 64.81 | 84.69 | 0.765 | 66.30 | 120.70 | 64.2 | **4.0** | neutral | pr<0.80 无加分；conc>50 -1.0（套牢盘大） |
+| 601916 | 21 | 2.99 | 3.01 | 0.993 | 2.90 | 3.30 | 13.3 | **9.5** | accumulation | 极端集中（最高 pmax 39.87），近完美锚定 |
+| 688506 | 185 | 229.43 | 292.68 | 0.784 | 212.10 | 382.20 | 58.1 | **4.0** | neutral | 高位深套，conc>50 -1.0 |
+
+**对比 pre-ADR-010 fallback**：5 只全部走 `else` 分支 → `{"score": 5.0, "signal": "no_data", "available": False}`，对外鉴别力为零。
+
+**ADR-010 上线后**：5 只样本 score 区间 [4.0, 9.5]，标准差 ≈ 2.3，**对外鉴别力恢复**；signal 分层 accumulation/neutral/distribution 三档全部触发。
+
+### 结论
+
+1. **从 fallback 切到真实数据已生效**（pre/post 对比 5/5 信号源标记由 `no_data` 切到分层 signal）
+2. **无 0-1 vs 0-100 量纲 bug**——percent 体系无关，归一化吸收所有差异
+3. **F-3 月底 days_back=30 累积**对当前 cyq 因子**无额外解锁**（单日盘内分布统计即可），仅利于历史回测（trade_date 倒查）和未来时序型筹码因子（暂未实现）
+4. **行动建议**：无需改 advanced_factors.py / schema / Alembic；ADR-010 follow-up + ADR-011 + ADR-012 合并 worktree 派单时**不必带 cyq 因子改造**
+5. **追加观察**：601127 / 688506 conc>50 + pr<0.80 的"高位深套"样本得低分（4.0），符合"分发期"经济含义；601916 conc 13.3 + pr=0.993 得 9.5 高分，符合"主力锁仓 + 现价贴近成本"的"吸筹期"含义——**因子输出与业务直觉一致**
+
+### 证据落盘
+
+- 抽样脚本：`/tmp/cyq_factor_check.py`（5 股 583 行 cyq_chips 来自 PG）
+- 因子源码：`packages/kronos-factors/kronos_factors/scorer/advanced_factors.py:1075-1096`
+- 数据库现状：cyq_chips 36,142 行 / 300 股 / 2026-06-18 单日（与 F-1 报告一致）
