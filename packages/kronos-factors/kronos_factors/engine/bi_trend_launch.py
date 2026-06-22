@@ -261,28 +261,48 @@ def _calc_adx(highs, lows, closes, period=14):
 
 
 def calc_obv(closes, volumes):
-    """计算OBV序列."""
-    obv = np.zeros(len(closes))
-    for i in range(1, len(closes)):
-        if closes[i] > closes[i-1]:
-            obv[i] = obv[i-1] + volumes[i]
-        elif closes[i] < closes[i-1]:
-            obv[i] = obv[i-1] - volumes[i]
-        else:
-            obv[i] = obv[i-1]
+    """计算OBV序列（M13 向量化: 原为 Python for-loop O(N) 但有 N 次分支, 全市场 5000 股×400 天累积开销显著）.
+
+    OBV[t] = OBV[t-1] + sign(close[t]-close[t-1]) * volume[t]
+    """
+    closes = np.asarray(closes, dtype=float)
+    volumes = np.asarray(volumes, dtype=float)
+    n = len(closes)
+    if n == 0:
+        return np.zeros(0)
+    obv = np.zeros(n)
+    if n == 1:
+        return obv
+    # sign(close[i] - close[i-1]): +1 up / -1 down / 0 flat
+    direction = np.sign(np.diff(closes))
+    # OBV[i] = sum_{j=1..i} direction[j-1] * volume[j], OBV[0] = 0
+    obv[1:] = np.cumsum(direction * volumes[1:])
     return obv
 
 
 def calc_wr(highs, lows, closes, period=14):
-    """计算Williams %R序列. 范围 -100~0."""
-    wr = np.full(len(closes), np.nan)
-    for i in range(period-1, len(closes)):
-        hh = np.max(highs[i-period+1:i+1])
-        ll = np.min(lows[i-period+1:i+1])
-        if hh - ll > 0:
-            wr[i] = (closes[i] - ll) / (hh - ll) * 100
-        else:
-            wr[i] = 50
+    """计算Williams %R序列. 范围 -100~0（M13 向量化: 原为内层 np.max/min 切片 O(N*period)）.
+
+    WR[t] = (close[t] - lowest_low[t]) / (highest_high[t] - lowest_low[t]) * 100
+    前 period-1 个值为 NaN（数据不足），flat range (hh==ll) 记 50 与原实现一致.
+    """
+    import pandas as pd
+    closes = np.asarray(closes, dtype=float)
+    n = len(closes)
+    wr = np.full(n, np.nan)
+    if n < period:
+        return wr
+    highs_s = pd.Series(np.asarray(highs, dtype=float))
+    lows_s = pd.Series(np.asarray(lows, dtype=float))
+    # rolling(period).max/min 用 right-closed 含当前 bar (window 含 i-period+1..i)
+    hh = highs_s.rolling(window=period, min_periods=period).max().to_numpy()
+    ll = lows_s.rolling(window=period, min_periods=period).min().to_numpy()
+    span = hh - ll
+    valid = span > 0
+    wr[valid] = (closes[valid] - ll[valid]) / span[valid] * 100
+    # flat range: hh == ll -> 50 (与原 for-loop 一致)
+    flat = (~np.isnan(hh)) & (~valid)
+    wr[flat] = 50.0
     return wr
 
 
