@@ -22,6 +22,7 @@ Usage:
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from collections import defaultdict
@@ -40,6 +41,87 @@ if os.path.isdir(_TOOLS) and _TOOLS not in sys.path:
 from backtest_bi_trend import (  # noqa: E402
     setup_db, get_trading_days, run_backtest_day, simulate_pick,
 )
+
+
+def _git_strategy_commit(strategy_path: str) -> dict:
+    """M01: record which commit of bi_trend_launch.py is being used.
+
+    The walk-forward "sample-out" is only valid if the strategy module's
+    parameters predate the OOS window. Without an explicit commit record,
+    the loop silently uses HEAD — which, when HEAD carries in-sample tuning,
+    leaks future parameters into the past (audit-model-2026-06-22 M01).
+
+    Returns dict with commit / subject / dirty flag for the strategy file.
+    """
+    info = {"path": strategy_path, "commit": "unknown", "subject": "",
+            "date": "", "dirty": False, "error": None}
+    try:
+        repo_root = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, cwd=_PROJ, timeout=5).stdout.strip()
+        if not repo_root:
+            info["error"] = "not a git repo"
+            return info
+        rel = os.path.relpath(strategy_path, repo_root)
+        commit = subprocess.run(
+            ["git", "log", "-1", "--format=%H", "--", rel],
+            capture_output=True, text=True, cwd=repo_root, timeout=5).stdout.strip()
+        info["commit"] = commit or "untracked"
+        if commit and commit != "untracked":
+            info["subject"] = subprocess.run(
+                ["git", "log", "-1", "--format=%s", commit],
+                capture_output=True, text=True, cwd=repo_root, timeout=5).stdout.strip()
+            info["date"] = subprocess.run(
+                ["git", "show", "-s", "--format=%cI", commit],
+                capture_output=True, text=True, cwd=repo_root, timeout=5).stdout.strip()[:10]
+        status = subprocess.run(
+            ["git", "status", "--porcelain", "--", rel],
+            capture_output=True, text=True, cwd=repo_root, timeout=5).stdout.strip()
+        info["dirty"] = bool(status)
+    except Exception as e:
+        info["error"] = str(e)
+    return info
+
+
+def _timeline_guard_decision(strategy_info: dict, start_month: str, strict: bool) -> dict:
+    """M01-A/C 流程护栏: 决定是否阻断 walk-forward 跑批 (纯函数, 可单测).
+
+    返回 ``{"exit": False}`` 放行, 或 ``{"exit": True, "code": 2, "message": "..."}``
+    阻断. main() 拿到 exit=True 后打印 message 并 sys.exit(code).
+
+    两条护栏 (tech-lead 评估 docs/reviews/m01-techlead-assessment-2026-06-22.md §3):
+      - M01-C (始终强制, 不受 strict 控制): 工作区 dirty → exit(2). 本地有未提交
+        策略修改跑样本外任何情况都不可信, 没有"兼容"必要.
+      - M01-A (受 --strict-timeline 控制): strict 启用且 commit 日期晚于 start_month
+        → exit(2). commit 日期 > 样本外起始月 = 参数从未来泄漏到过去, 拒绝跑;
+        若确需用此 commit 回测, 去掉 --strict-timeline 但结果不可作样本外结论.
+
+    注: 这是跨策略护栏, 价值延续到 bi_trend 重设之后 — 任何新策略走 walk-forward
+    都应传 --strict-timeline (memory phase1-sample-out-conclusion How-to-apply #4).
+    M01 不能自动用对时点参数 (那是方案 B, 重设后视情况), 只逼操作者显式声明 commit.
+    """
+    # M01-C: dirty 始终强制阻断.
+    if strategy_info.get("dirty"):
+        return {
+            "exit": True, "code": 2,
+            "message": (
+                f"❌ M01-C: 策略模块 {strategy_info.get('path')} 有未提交的本地修改 "
+                f"(dirty=True). dirty 工作区跑样本外任何情况都不可信, 先 commit 或 stash "
+                f"再回测. (此护栏始终强制, 不受 --strict-timeline 控制)"),
+        }
+    # M01-A: 仅 strict 模式下阻断时序泄露.
+    if strict:
+        commit_date = strategy_info.get("date", "")
+        if commit_date and commit_date > start_month:
+            return {
+                "exit": True, "code": 2,
+                "message": (
+                    f"❌ M01-A: 策略 commit 日期 {commit_date} 晚于样本外起始 {start_month} "
+                    f"— 参数时序泄露 (用未来参数测过去), 拒绝跑. 若确需用此 commit 回测, "
+                    f"去掉 --strict-timeline, 但结果不可作样本外结论. 正确做法: "
+                    f"git checkout <commit-at-oos> 后再跑."),
+            }
+    return {"exit": False}
 
 
 def month_iter(start, end):
@@ -151,6 +233,12 @@ def main():
                         help="AC-5 冻结参数模式: pick 缺 hold_days/tp/sl 时用 V5.9 调参前默认 "
                              "(hold=5, tp=15, stop=-10, weight=1.0). 需配合 git checkout 调参前 bi_trend_launch.py.")
     parser.add_argument("--export", type=str, default=None, help="导出JSON路径")
+    parser.add_argument("--strict-timeline", action="store_true",
+                        help="M01-A 流程护栏: 启用后若策略 commit 日期晚于 --start 样本外起始月, "
+                             "sys.exit(2) 硬阻断 (参数时序泄露, 拒绝跑). "
+                             "CI 跑 walk_forward 必须传此 flag 结果才算有效样本外. "
+                             "默认 False 保持兼容 (诊断性跑批). "
+                             "注: 工作区 dirty 始终强制 exit(2), 不受此 flag 控制 (M01-C).")
     args = parser.parse_args()
 
     # AC-5 冻结参数默认 (V5.9 调参前, git 972a10f): 统一持有, 无个性化建议
@@ -160,6 +248,32 @@ def main():
 
     adapter = setup_db()
     from kronos_factors.scorer._db_stub import _get_db
+
+    # M01: 显式记录本次样本外跑用的是哪个 commit 的策略模块, 避免"用未来参数测过去".
+    # walk_forward 的 run_month 调 HEAD 版本的 bi_trend_launch.py — 若 HEAD 带样本内调参,
+    # 就把未来参数泄漏到过去. 这里记录 commit + 日期, 若 commit 日期晚于样本外起始月则警告.
+    strategy_path = os.path.join(
+        _PROJ, "packages", "kronos-factors", "kronos_factors", "engine",
+        "bi_trend_launch.py")
+    strategy_info = _git_strategy_commit(strategy_path)
+    print(f"📌 策略模块: {strategy_info['path']}")
+    print(f"   commit: {strategy_info['commit'][:12]} ({strategy_info['date']}) — {strategy_info['subject']}")
+    print(f"   dirty(本地未提交修改): {strategy_info['dirty']}")
+
+    # M01-A/C 流程护栏 (tech-lead 评估 §3): dirty 始终 exit(2) (M01-C);
+    # --strict-timeline 启用时 commit 日期 > 样本外起始 exit(2) (M01-A).
+    # 决策抽成纯函数 _timeline_guard_decision, 便于行为级单测 (不需起进程).
+    guard = _timeline_guard_decision(strategy_info, args.start, args.strict_timeline)
+    if guard["exit"]:
+        print(guard["message"])
+        sys.exit(guard["code"])
+    # 未启用 --strict-timeline 且 commit 日期晚于起始: 软警告 (D 模式过渡兜底,
+    # 诊断性跑批放行但结果不可作样本外结论).
+    if (not args.strict_timeline) and strategy_info["date"] and strategy_info["date"] > args.start:
+        print(f"   ⚠️  警告: 策略 commit 日期 {strategy_info['date']} 晚于样本外起始 {args.start} — "
+              f"参数可能从未来泄漏到过去 (M01). 加 --strict-timeline 可硬阻断; "
+              f"结果不可作样本外结论, 应 checkout 样本外时点的策略版本再回测.")
+    print()
 
     sample_months = month_iter(args.start, args.end)
     print(f"📅 walk-forward 样本外: {args.start} ~ {args.end} ({len(sample_months)} 月)")
@@ -238,6 +352,8 @@ def main():
                    "frozen_params": True, "cost_bps": args.cost_bps,
                    "frozen_v59_defaults": frozen_defaults,
                    "mode": "multi_day AC-1 + 后复权 Q-4 + 加权 AC-6"},
+        # M01: 记录本次样本外用的策略 commit, 审计时可核对 commit 日期是否早于样本外窗口.
+        "strategy_commit": strategy_info,
         "monthly_table": monthly_table,
         "sharpe_like_annualized": sharpe,
         "conclusion": conclusion,

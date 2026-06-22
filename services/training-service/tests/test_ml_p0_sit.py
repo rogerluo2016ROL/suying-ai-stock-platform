@@ -58,13 +58,24 @@ def test_m02_bi_trend_no_insample_annotations():
 # ── M01: walk_forward 显式记录策略 commit ──────────────────────────────────
 
 def test_m01_walk_forward_records_strategy_commit():
-    """M01: walk_forward.py 必须有 _git_strategy_commit 函数 + 导出 JSON 含 strategy_commit."""
+    """M01: walk_forward.py 必须有 _git_strategy_commit + A/C 护栏 + 导出 JSON 含 strategy_commit.
+
+    tech-lead 评估 (docs/reviews/m01-techlead-assessment-2026-06-22.md §3) 推 A+C:
+      - _git_strategy_commit 记录 commit (原 M01 基础)
+      - --strict-timeline flag + _timeline_guard_decision (M01-A 硬阻断时序泄露)
+      - dirty 始终 exit(2) (M01-C, 不受 flag 控制)
+    行为级验证见 test_walk_forward_timeline.py; 此处为契约层 (防修复标记被删).
+    """
     src_path = os.path.join(_PROJ, "tools", "walk_forward.py")
     with open(src_path, encoding="utf-8") as f:
         src = f.read()
     assert "def _git_strategy_commit" in src, "walk_forward 缺少 _git_strategy_commit 函数"
     assert '"strategy_commit"' in src, "walk_forward 导出 JSON 未记录 strategy_commit"
     assert "M01" in src, "walk_forward 未标注 M01 修复说明"
+    # M01-A: --strict-timeline flag + guard 决策函数
+    assert "--strict-timeline" in src, "walk_forward 缺 --strict-timeline flag (M01-A)"
+    assert "def _timeline_guard_decision" in src, "walk_forward 缺 _timeline_guard_decision 函数 (M01-A/C)"
+    assert "sys.exit" in src, "walk_forward guard 未用 sys.exit 硬阻断 (M01-A/C)"
 
 
 # ── M03: pg_adapter end_date (单测见 test_pg_adapter_end_date.py, 此处校验接口一致) ──
