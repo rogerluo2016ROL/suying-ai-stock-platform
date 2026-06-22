@@ -15,7 +15,7 @@
 | 前端框架 | React 18 + Vite 6 + TypeScript 5.6 + Ant Design 5.22 + ECharts 5.5 | — |
 | 后端框架 | FastAPI (Python ≥3.10) + uvicorn + Pydantic v2 | — |
 | 数据库 | PostgreSQL 15 (primary, docker) + SQLite (fallback/kronos legacy) + Redis 7 (cache) | ADR-001 |
-| AI/ML | Kronos (自研 K线预测 Transformer) + LightGBM + CatBoost + ONNX Runtime | ADR-004 (model-training-pipeline), ADR-005 |
+| AI/ML | Kronos-mini (公开模型托管推理, 非自研 — 见 ADR-005/M05) + LightGBM + CatBoost | ADR-004 (model-training-pipeline), ADR-005 |
 | LLM SDK | DeepSeek (方案生成, strategy-service) | — |
 | 认证 | PyJWT (HS256) + Argon2id + RBAC 4 角色 + httpOnly Refresh Cookie | ADR-001 |
 | 实盘交易 | Xtquant (QMT) 券商接口 + MockBroker (模拟) | ADR-002 (live-trading-broker) |
@@ -116,7 +116,7 @@
 - 微服务间 HTTP 调用使用 `urllib` async wrapper (`loop.run_in_executor`)，不引入 `httpx`/`aiohttp` 额外依赖。
 - 自动交易引擎的状态管理使用 `asyncio.Event`（暂停/停止信号），与 `threading.Lock`（StrategyStore）分层隔离。
 - PG 与 SQLite 列名差异（`pct_chg` vs `change_pct`, `ts_code` vs `code`）由 `pg_adapter._PgCursor._KEY_MAP` 和 `_COLUMN_MAP` 透明转换，代码层应始终使用 SQLite/engine 命名。
-- Kronos 模型检查点位于 `Kronos/outputs/models/`，预测服务 (8002) 启动时自动加载最新 checkpoint。
+- 预测服务 (8002) 基于公开 `NeoQuasar/Kronos-mini` 托管推理（非自研，详见 ADR-005）；自研 fine-tune checkpoint 目录 `Kronos/outputs/models/` 当前不存在，启动走 base 分支是预期行为，`/api/v1/health` 的 `checkpoint_status` 字段标注来源（`base_public` / `finetuned`）。
 - 涉及多 LLM SDK 接入（DeepSeek/Doubao/Qwen/MiniMax 切换、fallback、env 变量）→ 必须先看 skill `agf-wiring-multi-llm-sdk`。
 - 写 PRD → skill `agf-writing-prd`；写 ADR → skill `agf-writing-adr`。
 - SIT 由执行层 dev 自跑（按 skill `agf-running-sit-tests`），证据落 `progress/<role>.md` 的 `**SIT 证据**` 段，由 `code-reviewer` 在 code review 时 audit。

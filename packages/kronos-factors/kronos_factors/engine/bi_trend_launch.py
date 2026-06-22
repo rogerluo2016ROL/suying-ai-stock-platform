@@ -83,7 +83,9 @@ CHOKEPOINT_SCARCITY_WEIGHT = 2  # 卡脖子稀缺性加分 (满分2)
 GRADE_THRESHOLDS = {"S": 70, "A": 55, "B": 40}
 MIN_OBV_DAYS = 3             # V6.0: 2->3, 数据驱动
 MIN_TREND_20D = 0
-OBV_NEGATIVE_SKIP = True      # V7.0: OBV负值直接跳过 (川金诺教训)
+OBV_NEGATIVE_SKIP = True      # DEPRECATED: in-sample anecdote (原个股事件反推, M09).
+                               # 学术默认 (OBV<0 即资金净流出跳过) 合理, 保留数值但待 walk-forward 校准.
+                               # V7.0: OBV负值直接跳过 (长期资金流出=信号失效)
 SHORT_PULLBACK_BONUS = 3      # V7.0: 1天短回调加分 (72%暴涨前兆)
 # V10: 移除 MOMENTUM_BONUS — 奖励启动非延续
 RANGE_POSITION_BONUS = 3      # V8.0: 区间底部加分 (收盘在14日区间底部25%)
@@ -95,19 +97,21 @@ IGNITION_VOL_MIN = 2.0        # V8.0: 点火最小量比
 COILING_VOL_MAX = 0.7         # V8.0: 蓄力最大量比
 COILING_PRICE_CHG_MAX = 2.0   # V8.0: 蓄力最大价格波动(%)
 
-# V12.1: 高波动股过滤器 (中富通教训: 年化波动>100%的股票信号完全失效)
+# V12.1: 高波动股过滤器 (年化波动>100%的股票信号完全失效)
+# DEPRECATED (M09): 下列倍率/阈值由单股事件反推, 为 in-sample anecdote (具体标的见审计报告, 不在此列出以保持代码中性).
+# 学术默认方向: 高波动 → 信号衰减 (保留), 但具体倍率 0.3/0.5/0.6/0.7 待 walk-forward 校准.
 HIGH_VOL_ANNUAL = 80            # 高波动阈值 (>80%年化波动 → 信号衰减)
 EXTREME_VOL_ANNUAL = 100        # 极端波动阈值 (>100%年化波动 → 信号大幅衰减)
-HIGH_VOL_OBV_MULT = 0.6         # 高波动OBV倍率
-HIGH_VOL_WR_MULT = 0.7          # 高波动WR倍率
-EXTREME_VOL_OBV_MULT = 0.3      # 极端波动OBV倍率
-EXTREME_VOL_WR_MULT = 0.5       # 极端波动WR倍率
+HIGH_VOL_OBV_MULT = 0.6         # 高波动OBV倍率 (DEPRECATED: anecdote, M09)
+HIGH_VOL_WR_MULT = 0.7          # 高波动WR倍率  (DEPRECATED: anecdote, M09)
+EXTREME_VOL_OBV_MULT = 0.3      # 极端波动OBV倍率 (DEPRECATED: anecdote, M09)
+EXTREME_VOL_WR_MULT = 0.5       # 极端波动WR倍率  (DEPRECATED: anecdote, M09)
 # V12.1: WR极值+点火反转 (WR>=95时点火=顶部出货信号, 非蓄力)
 WR_EXTREME_IGNITION = 95        # WR极值阈值
-WR_EXTREME_IGNITION_PENALTY = 8 # 极值点火惩罚分
+WR_EXTREME_IGNITION_PENALTY = 8 # 极值点火惩罚分 (DEPRECATED: anecdote, M09)
 # V12.1: WR高位缩量要求 (WR>80时放量=出货嫌疑, 缩量要求收紧)
-WR_HIGH_VOL_THRESHOLD = 0.85    # WR>80时的缩量要求
-WR_HIGH_VOL_PENALTY = 5         # 放量出货惩罚分
+WR_HIGH_VOL_THRESHOLD = 0.85    # WR>80时的缩量要求 (DEPRECATED: anecdote, M09)
+WR_HIGH_VOL_PENALTY = 5         # 放量出货惩罚分 (DEPRECATED: anecdote, M09)
 STRONG_WR_DROP = 20         # V6.0: -25->-20, 轻踩优于深踩
 STRONG_OBV_DAYS = 7          # V6.0: 10->7, Sharpe分界线
 HOLD_OBV_DAYS = 15           # V6.0: 持有信号
@@ -141,7 +145,7 @@ DEAD_CAT_BOUNCE_DAYS = 3
 DEAD_CAT_MIN_DROP = -1.5
 EARLY_STOP_LOSS_DAYS = 3
 EARLY_STOP_LOSS_PCT = -12
-DAY3_CHECK_LOSS_THRESHOLD = -10  # V12.2: -5→-10 (网格搜索: <-10%才需干预, 否则全是误杀)
+DAY3_CHECK_LOSS_THRESHOLD = -10  # <-10%才需干预, 否则全是误杀
 
 # V5.3: 方向A - 连阳确认 (防一日游)
 CONSECUTIVE_UP_DAYS = 2          # 需要连续N天收阳 (反弹确认非一日游)
@@ -163,7 +167,8 @@ BUY_PREMIUM_CONDITIONS = ["_fresh", "_rebound", "!_chase"]
 
 # V5.2: 大盘预警 (保留)
 MARKET_BREADTH_CRASH = 18
-MARKET_BREADTH_WEAK = 25             # V9.4: 35→25, 减少误杀 (立昂微06-02:涨跌比27%)
+MARKET_BREADTH_WEAK = 25             # DEPRECATED: in-sample anecdote (原 35→25 单股事件反推, M09).
+                                       # 学术默认 35 (1/3 涨跌比为弱市分界), 待 walk-forward 校准.
 POST_CRASH_SKIP_BREADTH = 30
 PRE_WARNING_BREADTH_DROP = 40
 CONSECUTIVE_DROP_DAYS = 2
@@ -208,7 +213,7 @@ SELL_STOP_LOSS_BASE = -10
 SELL_STOP_ATR_MULT = 1.5
 SELL_MAX_STOP_LOSS = -15          # V5.3: 止损硬上限 (防-22%极端亏损)
 SELL_TIME_STOP_DAYS = 5           # V5.3: 持有N天仍亏损+无改善 -> 时间止损
-SELL_TIME_STOP_THRESHOLD = -5     # V12.2: -3→-5 (网格搜索: -3%太紧, 日内波动就触发)
+SELL_TIME_STOP_THRESHOLD = -5     # -3%太紧, 日内波动就触发
 
 # V5.5 P1: 五档分级移动止盈 - 盈利越大止盈越宽, 让牛股跑远
 SELL_TRAILING_TIER1_PROFIT = 5    # 盈利<5% -> Tier1
@@ -807,8 +812,7 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
 
     # 2. 前日暴跌/上证熊市 -> 不再熔断 (V5.9: 过于严格, 仅降仓不空仓)
 
-    # V13 P2: 熔断后冷静期 — 昨日熔断→今日降仓防追反弹
-    # 06-09(06-08熔断后-2.09%)/05-28(05-27熔断后-6.59%) 教训
+    # 熔断后冷静期 — 昨日熔断→今日降仓防追反弹
     post_meltdown = False
     if len(breadth_5d_list) >= 2 and breadth_5d_list[1] < MARKET_BREADTH_CRASH:
         post_meltdown = True
@@ -846,9 +850,9 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         effective_n = min(30, top_n * 2)
     else:
         effective_n = top_n
-    # V13 P1: 最低分散 — 至少5只防单票暴雷 (新易盛教训)
+    # 最低分散 — 至少5只防单票暴雷
     effective_n = max(effective_n, 5)
-    # V13 P2: 熔断后冷静期 — 降仓至半仓, 只选A级以上
+    # 熔断后冷静期 — 降仓至半仓, 只选A级以上
     if post_meltdown:
         effective_n = max(3, effective_n // 2)
         skip_s_grade = True  # 熔断后不追S级高波
@@ -901,13 +905,13 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
             sc = get_sector_index(db, industry, trade_date, code)
             sector_change = sc if isinstance(sc, (int, float)) else 0
 
-            #    V7.0: OBV负值过滤 (川金诺教训: 长期资金流出=所有信号失效)
+            #    V7.0: OBV负值过滤 (长期资金流出=所有信号失效)
             if OBV_NEGATIVE_SKIP:
                 obv_fast = calc_obv(closes, volumes)
                 if obv_fast[-1] < 0:
                     continue  # OBV为负, 跳过
 
-            #    V13 P0: 前N日暴跌过滤 (新易盛教训: 5日内单日跌>8%=接飞刀)
+            #    前N日暴跌过滤 (5日内单日跌>8%=接飞刀)
             #    仅在弱市(涨跌比<40%)生效, 强市允许急跌反弹
             #    检查前5个交易日, 不含当日 (range(-6,-1) = 5天前~昨天)
             if breadth < 40 and len(closes) >= 7:
@@ -997,30 +1001,16 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         if len(top) >= effective_n:
             break
 
-    # V12.2: 个性化持有建议 (网格搜索216种参数 → 最优解)
-    # 核心发现: -5%/-8%止损全部误杀 | 固定TP+20%最优 | WR超买/移动止盈均不如固定TP
+    # M02 (audit-model-2026-06-22): 推回调参前统一持有参数.
+    # 此前基于样本内 (6月/H1) 反复调出的"个性化持有建议"和"S级降权"
+    # 均为样本内调参产物, memory 已定性: 样本外 -1.157%/月, 禁再基于6月调参.
+    # 统一 hold=5 / tp=15 / stop=-10 / weight=1.0 (调参前基线).
+    # 策略迭代改为 walk-forward 样本外先行, 而非事后回填调参注释.
     for s in top:
-        cs = s.get("checklist_score", 0)
-        ign = s.get("ignition_bonus", 0)
-        wr_f = s.get("wr_freshness_bonus", 0)
-        wr_level = s.get("wr_level", "")
-        grade = s.get("grade", "")
-
-        # V13 P1: S级仓位降权 0.6x (H1数据: S胜率47.4% < A胜率50.7%)
-        s["weight"] = 0.6 if grade == "S" else 1.0
-
-        if cs >= 4 or (cs >= 3 and ("🔥🔥" in wr_level or (ign > 0 and wr_f > 0))):
-            # S级最强: T+10长持, 无止损, 无止盈 (让牛股跑完全程)
-            s["hold_days"] = 10; s["stop_loss"] = None; s["take_profit"] = None
-        elif cs >= 3:
-            # A级中持: T+5, 无止损, 固定+20%止盈 (V12.2: 15→20, 均收益最优)
-            s["hold_days"] = 5; s["stop_loss"] = None; s["take_profit"] = 20
-        elif grade == "S":
-            # S级清单略低: T+7, 宽止损-12%, 固定+25%止盈
-            s["hold_days"] = 7; s["stop_loss"] = -12; s["take_profit"] = 25
-        else:
-            # A/B级: T+5, 宽止损-12%, 固定+20%止盈
-            s["hold_days"] = 5; s["stop_loss"] = -12; s["take_profit"] = 20
+        s["weight"] = 1.0
+        s["hold_days"] = 5
+        s["stop_loss"] = -10
+        s["take_profit"] = 15
 
     market_info = {
         "breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),
@@ -1063,7 +1053,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         if ret_20d < MIN_TREND_20D:
             return None
 
-    #    V12.1: 高波动股过滤器 (中富通教训: 年化波动>100%信号完全失效)
+    #    V12.1: 高波动股过滤器 (年化波动>100%信号完全失效)
     #    计算20日年化波动率, 用于后续信号衰减
     annual_vol = 50.0  # 默认正常波动
     if len(closes) >= 21:
@@ -1114,10 +1104,10 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         else:
             break
 
-    # V13 P0: OBV=0强化过滤 — 新易盛教训: OBV刚突破+极端波动=假突破
+    # OBV=0强化过滤 — OBV刚突破+极端波动=假突破
     # V12保留: 斜率下降+WR不压缩=真弱势
     # V13条件2: WR<60=价格未充分回踩
-    # V13条件3: 极端波动(>100%)+OBV=0=信号噪音 (新易盛:年化181%,OBV=0,次日-32%)
+    # V13条件3: 极端波动(>100%)+OBV=0=信号噪音
     if obv_days_above == 0:
         obv_slope = 0
         if len(obv) >= 15 and abs(obv[-10]) > 1:
@@ -1129,10 +1119,10 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         # 条件1: 斜率下降+WR不压缩 (V12)
         if obv_slope < -10 and wr_check < 60:
             return None
-        # 条件2: WR<60=价格未充分回踩 (V13 P0)
+        # 条件2: WR<60=价格未充分回踩
         if wr_check < 60:
             return None
-        # 条件3: 极端波动+OBV=0=假突破 (V13 P0 — 新易盛:年化181%,次日-32%)
+        # 条件3: 极端波动+OBV=0=假突破
         if is_extreme_vol:
             return None
 
@@ -1177,7 +1167,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     elif wr_fast_v10 > 40:     obv_score = round(obv_score * 0.6)
     else:                      obv_score = round(obv_score * 0.3)
 
-    #    V12.1: 高波动股信号衰减 (中富通教训: 极端波动下OBV/WR信号失效)
+    #    V12.1: 高波动股信号衰减 (极端波动下OBV/WR信号失效)
     #    年化波动>100%: OBV×0.3 WR×0.5 | >80%: OBV×0.6 WR×0.7
     vol_decay_note = ""
     if is_extreme_vol:
@@ -1202,7 +1192,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         # 负斜率不加分 (OBV在流出)
 
     #    WR — V9.0: 动态三日轨迹评分 (替代静态最深值)
-    #    工业富联06-05/华润微06-09教训: 5天前的WR最深值不能支撑今天买入
+    #    5天前的WR最深值不能支撑今天买入
     wr14 = calc_wr(highs, lows, closes, 14)
     wr_valid = wr14[~np.isnan(wr14)]
     if len(wr_valid) < 5:
@@ -1267,7 +1257,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             if (closes[-1] / closes[-6] - 1) * 100 > 8 and obv_days_above >= 3:
                 return None
     #    V6.0: 梯度追高惩罚 (修复S级悖论)
-    # V6.0: 梯度追高惩罚 + V9.4: WR豁免 (鼎通06-01教训)
+    # V6.0: 梯度追高惩罚 + V9.4: WR豁免
     # WR<40(区间底部): OBV再长也不罚 — 已深跌回来
     # V10: 追高惩罚减半 (OBV倒置已大幅降权, 双重惩罚过重)
     chase_penalty = 0
@@ -1302,7 +1292,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     else:
         vol_score, vol_level = 0, "放量"
 
-    # V12.1: WR高位缩量要求收紧 (中富通教训: WR>80+放量=主力出货)
+    # V12.1: WR高位缩量要求收紧 (WR>80+放量=主力出货)
     if wr_fast_v10 > 80 and vol_ratio >= WR_HIGH_VOL_THRESHOLD:
         vol_score = max(-WR_HIGH_VOL_PENALTY, vol_score - WR_HIGH_VOL_PENALTY)
         vol_level = vol_level + "⚠️出货"
@@ -1425,7 +1415,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
                         wr_before = max(wr_before, (closes[pre_idx] - ll_p) / max(0.01, hh_p - ll_p) * 100)
                 if wr_before >= 70:  # 点火前WR曾压缩到70以上
                     ignition_bonus = IGNITION_BONUS
-                    # V12.1: WR极值点火反转 (中富通: WR>=95时点火=顶部出货)
+                    # V12.1: WR极值点火反转 (WR>=95时点火=顶部出货)
                     if wr_fast_v10 >= WR_EXTREME_IGNITION:
                         ignition_bonus = -WR_EXTREME_IGNITION_PENALTY
                     break
@@ -1466,7 +1456,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
             if wr_min_5d > 80 and wr_min_offset <= 3:  # 3天内曾极度压缩
                 wr_freshness_bonus = 3  # 新鲜压缩
 
-    #    V8.1: 压缩反转加分 (工业富联/华润微: OBV刚死叉+WR极限=最佳买点)
+    #    V8.1: 压缩反转加分 (OBV刚死叉+WR极限=最佳买点)
     compression_reversal_bonus = 0
     if obv_days_above < MIN_OBV_DAYS and wr_now > 60:  # 偏超卖
         # 额外条件: OBV正值 + 缩量 + 区间底部
@@ -1761,7 +1751,7 @@ def check_sell_signal(closes, highs, lows, volumes, entry_price=None, highest_si
 
     #    最低持有期: 非止损/止盈情况下持有<MIN_HOLD_DAYS天, 不检查技术信号
     if hold_days < MIN_HOLD_DAYS:
-        # V12.1: D4期中检查 (延迟1天, 首日暴跌给观察期 — 中天科技/光库科技教训)
+        # V12.1: D4期中检查 (延迟1天, 首日暴跌给观察期)
         # 原V5.2: D3检查 → V12.1: D4检查, 且要求连续2天无改善
         if hold_days >= EARLY_STOP_LOSS_DAYS + 1 and current_return < DAY3_CHECK_LOSS_THRESHOLD:
             recent_1d = closes[-1]
