@@ -757,3 +757,57 @@ path #4 真正未收口的 PG 模块（原盘点报告低估）：
 
 1. **ADR-015.6** (etl_rt_k, P3) — path #4 最后一个真正未收口 PG 模块
 2. **ADR-015.3 / 015.4a** (SQLite-only 清理, 低优先) — 方案 A 保留 SQLite inline, 可能不立 ADR
+
+---
+
+## 2026-06-22（同日 +10）— ADR-015.6 立项 + 实施 + SIT 完成 (etl_rt_k) — path #4 收官
+
+- **触发**: ADR-015.5 完成后推 path #4 最后一个真正未收口 PG 模块。
+- **审计发现**:
+  - `sync_rt_sw_k` (L1497) **已走 `_insert_rows`** (DO NOTHING 默认), 盘点报告 "inline-execute_values" 标注过时 → audit no-op
+  - `sync_rt_k` (L1557-1568) inline-cursor 逐行 UPSERT, 5000 行 = 5000 次 round-trip → 真正未收口
+- **决策**: 方案 C — 聚合 rows 收集成 list, `_insert_rows(update)` 批量。只写 8 列 (OHLCV+code+trade_date), pre_close/change/pct_chg 不写 (聚合 SQL 没算, pre-existing 行为 100% 还原)。表无 updated_at, 不传 now_cols。
+
+### ADR-015.6 §决策 3 SIT verdict
+
+| # | 验证项 | Verdict |
+|---|---|---|
+| 1 | etl.py 只 sync_rt_k 改 | ✅ |
+| 2 | sync_rt_sw_k 零碰 (已收口 no-op) | ✅ |
+| 3 | inline INSERT INTO rt_k 已删 | ✅ |
+| 4 | _insert_rows(update) rt_k 调用正确 | ✅ |
+| 5 | 语法 ast.parse OK | ✅ |
+| 6 | 现有测试零回归 (14/14 pass) | ✅ |
+| 7 | 真实写库 UPSERT close/high/vol 刷新 (10.2 → 10.5) | ✅ |
+
+**Verdict**: 7/7 PASS, ADR-015.6 可升 Accepted。
+
+### path #4 收官 (2026-06-22)
+
+真正未收口 PG 模块全部收口:
+- ✅ stocks.py (015.1, inline-cursor → _pg_write+now_cols)
+- ✅ tushare.py (015.2, audit no-op, ADR-012 已收口)
+- ✅ stock_profiles.py (015.4, inline-execute_values → _pg_write)
+- ✅ namechange.py (015.5, inline-executemany → _pg_write; fallback 保留)
+- ✅ etl_rt_k (015.6, inline-cursor → _insert_rows)
+
+ADR-015.3 / 015.4a (SQLite-only 清理) 不立 ADR — 方案 A 决策 SQLite inline 保留 (YAGNI), PG 侧已全收口。
+
+### ADR-015 主线完成总结
+
+| 子 ADR | 类型 | SIT |
+|---|---|---|
+| 015.0 | 主干扩展 (UPSERT API + now_cols) | 14/14 |
+| 015.1 | stocks.py 迁移 | 7/7 |
+| 015.2 | tushare.py audit no-op | 6/6 |
+| 015.4 | stock_profiles.py 迁移 | 7/7 |
+| 015.5 | namechange.py 迁移 (部分) | 7/7 |
+| 015.6 | etl_rt_k 迁移 (收官) | 7/7 |
+
+**path #4 PG 写入路径大一统**: 所有 PG 写入走 `_insert_rows` / `_pg_write` 主干, inline-cursor / inline-execute_values 反模式消除。ADR-012 §决策 5.2 thin wrapper 化 + ADR-015 path #4 治理 = PG 写入路径完全收口。
+
+### memory 写入评估
+
+path #4 收官是长期跨 session 决策点, 建议写 memory:
+- "PG 写入路径完全收口: _insert_rows/_pg_write 单一主干, conflict_action+now_cols 支持 UPSERT"
+- "path #4 SQLite inline 按方案 A 保留 (YAGNI), 不立 ADR"

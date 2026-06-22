@@ -16,8 +16,25 @@
 | [ADR-015.4](015.4-stock-profiles-pg-write-migration.md) | P1 (015.2 重排) | `stock_profiles.py` (16 列 inline-execute_values, UPSERT) | ✅ Accepted (2026-06-22) |
 | ADR-015.4a | P2 | `fina_mainbz.py / fina_audit.py` (原 015.4 拆出, SQLite-only 清理) | ⏳ Pending |
 | [ADR-015.5](015.5-namechange-pg-write-migration.md) | P3 | `namechange.py` (PG-only inline, 需 UPSERT; `_upsert_st_history` 收口, `_fallback_snapshot` 保留 INSERT...SELECT) | ✅ Accepted (2026-06-22) |
-| ADR-015.6 | P3 | `rt_k.py` 相关 (dual-target) | ⏳ Pending |
+| [ADR-015.6](015.6-rt-k-pg-write-migration.md) | P3 | `etl.py sync_rt_k` (inline-cursor 逐行 UPSERT → `_insert_rows(update)` 批量; `sync_rt_sw_k` 已收口 no-op) | ✅ Accepted (2026-06-22, path #4 收官) |
 | 不立 ADR | — | `interact.py / rt_min.py` (SQLite-only, 无 PG 表) | ❌ Excluded |
+| 不立 ADR | — | `announcements / cctv_news / mp_report / policy_law / fina_mainbz / fina_audit` (PG 已走 `_pg_write`, SQLite inline 按方案 A 保留) | ❌ Excluded (方案 A YAGNI) |
+
+### path #4 收官声明 (2026-06-22)
+
+ADR-015.6 完成后，**path #4 真正未收口的 PG 模块全部收口**：
+
+| 模块 | ADR | 收口方式 |
+|---|---|---|
+| stocks.py | 015.1 | inline-cursor → `_pg_write(update)` + now_cols |
+| tushare.py | 015.2 | audit no-op (ADR-012 已收口) |
+| stock_profiles.py | 015.4 | inline-execute_values → `_pg_write(update)` |
+| namechange.py | 015.5 | inline-executemany → `_pg_write(update)` (fallback 保留) |
+| etl_rt_k | 015.6 | inline-cursor → `_insert_rows(update)` |
+
+ADR-015.3 / 015.4a（SQLite-only 清理）不立 ADR —— 按 ADR-015 方案 A 决策「SQLite 侧保留 inline 是合理的（YAGNI）」，PG 侧这些模块已全部走 `_pg_write`/`_insert_rows`，SQLite inline 保留不动。
+
+**ADR-015 主线完成**。剩余 SQLite-only 清理（如未来需要）可单开轻量 task，不需 ADR 级治理。
 
 ## 上下文
 

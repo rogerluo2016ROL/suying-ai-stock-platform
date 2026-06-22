@@ -1551,22 +1551,17 @@ def sync_rt_k() -> dict:
         rows = db.execute(sql, (latest_dt,)).fetchall()
         total = len(rows)
         if total > 0:
-            inserted = 0
-            for r in rows:
-                try:
-                    db.execute(
-                        "INSERT INTO rt_k "
-                        "(code, trade_date, open, high, low, close, vol, amount) "
-                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) "
-                        "ON CONFLICT (code, trade_date) DO UPDATE SET "
-                        "open=EXCLUDED.open, high=EXCLUDED.high, low=EXCLUDED.low, "
-                        "close=EXCLUDED.close, vol=EXCLUDED.vol, amount=EXCLUDED.amount",
-                        (r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7])
-                    )
-                    inserted += 1
-                except Exception:
-                    pass
-            written = inserted
+            # ADR-015.6: inline-cursor 逐行 UPSERT → _insert_rows(update) 批量
+            # 业务语义: 盘中每 5min 刷新当日 rt_k OHLCV (ON CONFLICT(code,trade_date) DO UPDATE)
+            # 表无 updated_at, 不传 now_cols. 只写 8 列 (OHLCV+code+trade_date),
+            # pre_close/change/pct_chg 不写 (聚合 SQL 没算, pre-existing 行为 100% 还原)
+            insert_cols = ["code", "trade_date", "open", "high", "low", "close", "vol", "amount"]
+            written = _insert_rows(
+                db, "rt_k", insert_cols, [tuple(r) for r in rows],
+                conflict_action="update",
+                conflict_cols=["code", "trade_date"],
+                update_cols=["open", "high", "low", "close", "vol", "amount"],
+            )
             db.commit()
     except Exception as e:
         db.close()
