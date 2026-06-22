@@ -141,7 +141,10 @@ class TestRefresh:
         # Extract cookie value
         rt_val = rt_cookie.split("refresh_token=")[1].split(";")[0]
 
-        resp = await client.post("/api/v1/auth/refresh", cookies={"refresh_token": rt_val})
+        # P2-3 (audit): set the cookie on the client instance's cookie jar
+        # instead of passing per-request cookies= (httpx DeprecationWarning).
+        client.cookies.set("refresh_token", rt_val)
+        resp = await client.post("/api/v1/auth/refresh")
         assert resp.status_code == 200
         body = resp.json()
         assert "access_token" in body

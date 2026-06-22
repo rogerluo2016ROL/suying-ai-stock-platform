@@ -111,6 +111,14 @@ class _Db:
     def __init__(self, conn, is_pg: bool):
         self._conn = conn
         self._pg = is_pg
+        # P2-1 (audit): row_factory is honored ONLY on the SQLite path (below).
+        # The PG path uses psycopg2.extras.DictCursor in execute() instead —
+        # setting row_factory on a psycopg2 connection is a no-op (the attribute
+        # is ignored), so historical `db.row_factory = sqlite3.Row` lines in
+        # callers were misleading dead code on PG. Centralising it here makes
+        # the SQLite-vs-PG behaviour explicit; callers no longer need to set it.
+        if not is_pg:
+            conn.row_factory = sqlite3.Row
     def execute(self, sql: str, params: tuple = None):
         if self._pg:
             sql = sql.replace("?", "%s")

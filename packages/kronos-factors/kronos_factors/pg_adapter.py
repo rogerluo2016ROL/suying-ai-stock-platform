@@ -66,11 +66,18 @@ class _PgAdapter:
         except Exception:
             pass  # connection may already be closed/invalid
 
-    # Column name mapping: SQLite (engine) → PostgreSQL (Tushare)
+    # Column name mapping: SQLite (engine) → PostgreSQL (Tushare).
+    # P2-2 (audit): added vol→volume so queries written against the SQLite/engine
+    # column name transparently hit the PG column (daily_kline/index_daily store
+    # `volume`). Note this only translates column names inside SQL text in
+    # execute(); it does NOT replace the per-row positional remapping that
+    # pg_writer.write_index_daily etc. perform on fetched/inserted data tuples
+    # (that is a row-level value reorder, a different concern).
     _COLUMN_MAP = {
         "pct_chg": "change_pct",
         "pct_change": "change_pct",   # ths_daily/sw_daily Tushare API field name
         "ts_code": "code",
+        "vol": "volume",              # engine uses `vol`, PG daily_kline/index_daily use `volume`
     }
 
     def execute(self, sql: str, params: tuple = None):
@@ -135,16 +142,38 @@ class _PgAdapter:
             self._put_conn(conn)
             raise
 
-    def get_kline(self, code: str, lookback: int = 400) -> Optional[pd.DataFrame]:
+    def get_kline(self, code: str, lookback: int = 400,
+                  end_date: Optional[str] = None) -> Optional[pd.DataFrame]:
+        """Get K-line history for `code`.
+
+        M03 (audit-model-2026-06-22): `end_date` bounds the query to
+        `trade_date <= end_date` so historical backtests compute factors from
+        only the K-line available at `batch_date`. Without it the SQL returns
+        the *current* most-recent rows regardless of batch_date, leaking
+        future K-line into historical factor computation.
+
+        Args:
+            code: stock code (6-digit, without XSHE/XSHG suffix)
+            lookback: max number of rows to return
+            end_date: inclusive upper bound ('YYYY-MM-DD'); None = unbounded
+                      (preserves existing behavior for live screening).
+        """
         conn = None
         try:
             conn = self._get_conn()
             conn.autocommit = True
             cur = conn.cursor()
-            cur.execute(
-                "SELECT trade_date, open, high, low, close, volume, amount "
-                "FROM daily_kline WHERE code=%s ORDER BY trade_date DESC LIMIT %s",
-                (code, lookback))
+            if end_date:
+                cur.execute(
+                    "SELECT trade_date, open, high, low, close, volume, amount "
+                    "FROM daily_kline WHERE code=%s AND trade_date<=%s "
+                    "ORDER BY trade_date DESC LIMIT %s",
+                    (code, end_date, lookback))
+            else:
+                cur.execute(
+                    "SELECT trade_date, open, high, low, close, volume, amount "
+                    "FROM daily_kline WHERE code=%s ORDER BY trade_date DESC LIMIT %s",
+                    (code, lookback))
             rows = cur.fetchall()
             if not rows:
                 self._put_conn(conn)
@@ -194,9 +223,14 @@ class _PgAdapter:
             return []
 
     # MarketDataAdapter interface
-    def get_kline_df(self, code: str, lookback: int = 400) -> Optional[pd.DataFrame]:
-        """Get K-line DataFrame (MarketDataAdapter interface)."""
-        return self.get_kline(code, lookback)
+    def get_kline_df(self, code: str, lookback: int = 400,
+                     end_date: Optional[str] = None) -> Optional[pd.DataFrame]:
+        """Get K-line DataFrame (MarketDataAdapter interface).
+
+        M03: `end_date` propagated to get_kline to prevent future-K-line leakage
+        in historical backtests. See get_kline docstring.
+        """
+        return self.get_kline(code, lookback, end_date=end_date)
 
     def sync_stock_list(self) -> int: return 0
     def update_daily_kline(self, from_date: str) -> int: return 0

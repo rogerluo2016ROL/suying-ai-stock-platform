@@ -115,6 +115,39 @@ def _rate_check(ip: str) -> bool:
     return True
 
 
+# P2-4 (audit): hop-by-hop (RFC 7230 §6.1) + body-encoding headers that must
+# NOT be forwarded when re-emitting an upstream response — urllib has already
+# read+decoded the body, so Content-Length / Content-Encoding / Transfer-Encoding
+# would corrupt the downstream response if re-emitted. Content-Type is excluded
+# here because Response(media_type=…) sets it (avoids a duplicate header).
+_HOP_BY_HOP = {
+    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+    "te", "trailers", "transfer-encoding", "upgrade",
+    "content-length", "content-encoding", "content-type",
+}
+
+
+def _forward_headers(upstream_headers) -> dict:
+    """Build a headers dict from upstream, stripping hop-by-hop / body-encoding.
+
+    Set-Cookie may appear multiple times; http.client HTTPMessage is a
+    case-insensitive Multimap — `get_all` preserves every value so all cookies
+    survive the proxy.
+    """
+    out: dict[str, str] = {}
+    # Normal single-valued headers.
+    for k, v in upstream_headers.items():
+        if k.lower() in _HOP_BY_HOP:
+            continue
+        out[k] = v
+    # Set-Cookie must forward all values (headers.items() dedupes by key).
+    cookies = upstream_headers.get_all("Set-Cookie") if hasattr(upstream_headers, "get_all") else None
+    if cookies:
+        # Starlette Response headers accept list values per key.
+        out["Set-Cookie"] = list(cookies)
+    return out
+
+
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
 async def gateway(request: Request, path: str):
     # Health check
@@ -153,9 +186,17 @@ async def gateway(request: Request, path: str):
 
     try:
         resp = await loop.run_in_executor(None, _proxy)
+        body = resp.read()
+        # P2-4 (audit): forward upstream headers (Set-Cookie, X-Request-ID,
+        # Cache-Control, …) instead of only Content-Type. Strip hop-by-hop
+        # headers (RFC 7230 §6.1) plus Content-Length / Content-Encoding /
+        # Transfer-Encoding (body already read+decoded by urllib, re-emitting
+        # these would corrupt the downstream response) and Content-Type (set
+        # via media_type below to avoid duplication).
         return Response(
-            content=resp.read(),
+            content=body,
             status_code=resp.status,
+            headers=_forward_headers(resp.headers),
             media_type=resp.headers.get("content-type", "application/json"),
         )
     except URLError as e:
@@ -164,6 +205,7 @@ async def gateway(request: Request, path: str):
         return Response(
             content=e.read(),
             status_code=e.code,
+            headers=_forward_headers(e.headers),
             media_type=e.headers.get("content-type", "application/json"),
         )
 
