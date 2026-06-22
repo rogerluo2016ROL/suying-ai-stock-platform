@@ -242,10 +242,17 @@ def _build_features_from_kline(
     df_ohlcv: pd.DataFrame,
     lookback: int = 90,
     predict: int = 10,
+    sym: str = "000001",
 ) -> pd.DataFrame:
     """Compute model features from OHLCV history using existing scoring functions.
 
     Mirrors the feature engineering in Kronos/tools/train_lgbm_ranker.py.
+
+    M14: `sym` is the stock code of df_ohlcv; passed to score_fundamental(sym)
+    so fund_score reflects THIS stock's fundamentals (not a hardcoded 000001
+    constant for the entire sample). Default kept 000001 only for legacy
+    callers without a symbol context; production caller (training_engine train)
+    always passes the real sym.
     """
     try:
         from webui.services.screener_service import score_five_factor, score_fundamental
@@ -285,7 +292,7 @@ def _build_features_from_kline(
 
         try:
             ff = score_five_factor(kline_df)
-            fund = score_fundamental("000001")
+            fund = score_fundamental(sym)
             mf = score_money_flow(kline_df)
             mr = score_mean_reversion(kline_df)
             ts_ = score_trend_strength(kline_df)
@@ -972,6 +979,7 @@ def _prepare_training_data(params: TrainingParams, allow_synthetic: bool = False
             df_stock,
             lookback=params.lookback,
             predict=params.horizon,
+            sym=sym,
         )
         if len(features) > 0:
             features["code"] = sym
