@@ -1,58 +1,87 @@
-"""PG 直写 — best-effort, ON CONFLICT DO NOTHING + executemany 批量写入."""
+"""PG 直写 — best-effort, ON CONFLICT DO NOTHING + executemany 批量写入.
 
-import logging, os, time
+ADR-012 §决策 5.2: _pg_write 改为 thin wrapper, 内部 delegate 给 kronos_data.etl._insert_rows
+(获得自动列过滤能力 + 统一重试 + 数据量门禁). 保留 8 个 write_* helper 外部入口名与现有 column
+mapping 逻辑 (write_moneyflow / write_daily_basic / write_index_daily 等的字段重排是业务必需).
+"""
+
+import logging, os, sys, time
 from psycopg2.sql import SQL, Identifier
 
 logger = logging.getLogger("data-service.pg_writer")
 
 PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
 
-_MAX_RETRIES = 3  # ADR-006 决策 6: 3 次指数退避 (1s, 4s, 16s)
+_MAX_RETRIES = 3  # ADR-006 决策 6: 3 次指数退避 (1s, 4s, 16s); ADR-012 §决策 5.1 沿用
+
+# ADR-012 §决策 5.2: 数据量门禁阈值表 (从原 _check_data_volume 提取为显式策略)
+# 仅对 daily_kline / stk_mins 这两张 P0 量级表启用低水位 ERROR; 其他表 None=不启用
+_VOLUME_FLOOR_MAP: dict[str, int] = {
+    "daily_kline": 1000,
+    "stk_mins": 1000,
+}
+
+# 确保 kronos-data 可 import (data-service 启动时 scheduler.py 已注入 sys.path,
+# 但 pg_writer 可能被先 import; 复用同套 sys.path 注入策略)
+_PROJ_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
+_KRONOS_DATA = os.path.join(_PROJ_ROOT, "packages", "kronos-data")
+if _KRONOS_DATA not in sys.path:
+    sys.path.insert(0, _KRONOS_DATA)
 
 
 def _pg_write(table: str, columns: list[str], conflict_cols: list[str],
               rows: list[tuple]) -> int:
-    """通用 PG 批量写入 — ON CONFLICT DO NOTHING + executemany.
+    """通用 PG 批量写入 — ADR-012 §决策 5.2: thin wrapper, delegate to kronos_data.etl._insert_rows.
 
-    ADR-006 决策 6: psycopg2.OperationalError 自动重试 3 次指数退避 (1s, 4s, 16s).
+    Args:
+        table: 表名
+        columns: 列名 (业务列)
+        conflict_cols: ON CONFLICT 列 (保留参数兼容外部 8 个 write_* helper 签名;
+                       ADR-012 §决策 5.2.bis: _insert_rows 用 ON CONFLICT DO NOTHING 依赖表 PK 约束,
+                       与 ON CONFLICT(conflict_cols) DO NOTHING 仅在 conflict_cols ⊆ 表 PK 时等价;
+                       grep 实证所有调用方传的 conflict_cols 都是表 PK / UNIQUE 约束列, 等价成立).
+        rows: 待写入数据
+
+    Returns:
+        实际写入行数 (扣除 ON CONFLICT 跳过的). 出错时 0.
+
+    路径合并语义变化 (与旧实现对比):
+      - 旧: 显式 ON CONFLICT(conflict_cols) DO NOTHING + 失败 print + return 0
+      - 新: _insert_rows 自动列过滤 (列名错位时 WARN + 丢列, 不再整批 UndefinedColumn 归零)
+            + retries=3 OperationalError 重试 (与旧实现等价)
+            + data_volume_floor (daily_kline / stk_mins 触发)
+      - conflict_cols 参数语义保留: 调用方仍按表 PK 列传, 即使 _insert_rows 内部不显式传该列表
     """
     if not rows:
         return 0
-    last_error = None
-    for attempt in range(_MAX_RETRIES):
+    # Lazy import 避免循环依赖 (kronos_data.etl 顶层不依赖 services/)
+    from kronos_data.etl import _insert_rows, _get_etl_db
+    db = _get_etl_db()
+    try:
+        floor = _VOLUME_FLOOR_MAP.get(table)
+        written = _insert_rows(db, table, columns, rows,
+                               retries=_MAX_RETRIES,
+                               data_volume_floor=floor)
+        return written
+    except Exception as e:
+        # _insert_rows 内部已 catch 大部分异常, 此处兜底 connection 失败等
+        print(f"  [WARN] _pg_write {table} thin-wrapper 失败: {str(e)[:140]}", flush=True)
+        logger.debug("PG write %s wrapper exception: %s", table, e)
+        return 0
+    finally:
         try:
-            import psycopg2
-            conn = psycopg2.connect(PG_URL)
-            conn.autocommit = True
-            cur = conn.cursor()
-            col_str = ",".join(columns)
-            placeholders = ",".join(["%s"] * len(columns))
-            conflict_str = ",".join(conflict_cols)
-            sql = (f"INSERT INTO {table}({col_str}) VALUES({placeholders}) "
-                   f"ON CONFLICT({conflict_str}) DO NOTHING")
-            cur.executemany(sql, rows)
-            written = cur.rowcount
-            conn.close()
-            _check_data_volume(table, written)
-            return written
-        except psycopg2.OperationalError as e:
-            last_error = e
-            if attempt < _MAX_RETRIES - 1:
-                sleep_s = 4 ** attempt  # 1, 4, 16
-                logger.debug("PG write %s retry %d/%d after %.0fs: %s", table, attempt + 1, _MAX_RETRIES, sleep_s, e)
-                time.sleep(sleep_s)
-        except Exception as e:
-            # 不静默: pg_writer 路径的写入失败也要可见 (与 etl._insert_rows 改造一致),
-            # 否则走 _pg_write 的 sync (stk_factor_pro 等) 失败会伪装成 written=0 成功
-            print(f"  [WARN] _pg_write {table} 写入失败: {str(e)[:140]}", flush=True)
-            logger.debug("PG write %s: %s", table, e)
-            return 0
-    logger.warning("PG write %s failed after %d retries: %s", table, _MAX_RETRIES, last_error)
-    return 0
+            db.close()
+        except Exception:
+            pass
 
 
 def _check_data_volume(table: str, written: int):
-    """数据量门禁: <1000 ERROR, <3000 WARN (仅日线/分钟线)."""
+    """数据量门禁: <1000 ERROR, <3000 WARN (仅日线/分钟线).
+
+    ADR-012 §决策 5.2: 本函数被保留以兼容潜在外部调用; 新路径由 _insert_rows 的 data_volume_floor
+    参数承担 ERROR 提示. _pg_write 内部不再调用本函数 (避免重复 ERROR).
+    """
     if written == 0:
         return
     if written < 1000 and table in ("daily_kline", "stk_mins"):

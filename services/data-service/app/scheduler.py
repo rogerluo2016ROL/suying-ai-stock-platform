@@ -164,7 +164,24 @@ _BACKFILL_MAP: dict[str, callable] = {
     "monthly_kline":    sync_monthly_kline,
     "index_basic":      sync_index_basic,
     "broker_recommend": sync_broker_recommend,
+    # ── ADR-012 §决策 5.4: 补齐之前缺 handler 的 3 表 ──
+    # ths_daily / index_daily: 函数签名 (days_back=int) 已兼容, 注册即生效
+    # stk_factor_pro: 见 sync_stk_factor_pro_backfill 下方定义 (新增双轨入口)
+    "ths_daily":        sync_ths_daily,
+    "index_daily":      sync_index_daily,
+    # stk_factor_pro 注册延后到 sync_stk_factor_pro_backfill 定义后 (函数在本文件下方),
+    # 通过 _register_backfill_handlers_late() 调用.
 }
+
+
+# ADR-012 §决策 5.4: stocks / trade_cal 的监控规则与 days_back 回补模型错配:
+# - stocks: 非时序数据 (全量股票列表), 由 cron 'stocks_sync' (每周六 02:00 sync_stock_list)
+#   + 'stocks_incremental' (每日 08:00 sync_stocks_incremental) 维护; 不进 _BACKFILL_MAP.
+# - trade_cal: 交易日历, 由其他流程维护 (无独立 sync_trade_cal 入口); 不进 _BACKFILL_MAP.
+# 这两表保留在 MONITORED_TABLES (供 detect_data_gaps 可见) 但 _BACKFILL_MAP 不挂 handler,
+# trigger_data_backfill 的 'no_handler' 分支会 logger.debug 跳过, 不再静默无声.
+# 在 validate_pipeline_consistency 中显式标注 DESIGN_SKIP 避免 WARN 噪音.
+_DESIGN_SKIP_BACKFILL = {"stocks", "trade_cal"}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -632,6 +649,130 @@ def sync_stk_factor_pro_daily() -> dict:
             "pg_written": pg_written, "sqlite_written": sqlite_written, "elapsed": elapsed}
 
 
+def sync_stk_factor_pro_backfill(days_back: int = 7) -> dict:
+    """ADR-012 §决策 5.4: stk_factor_pro 双轨入口 — 接受 days_back 参数支持 backfill 注册.
+
+    原 sync_stk_factor_pro_daily() 是无参数 cron 入口 (只拉今日), 与 _BACKFILL_MAP 期望的
+    fn(days_back=int) 签名不兼容, 导致 detect_data_gaps 标记 stk_factor_pro gap 时
+    trigger_data_backfill 返回 {status: "no_handler"} 静默跳过.
+
+    本函数循环近 N 个交易日逐日调用 pro.stk_factor_pro(trade_date=YYYYMMDD), 写入
+    PG (主) + SQLite (fallback), 与 sync_stk_factor_pro_daily 的字段映射 / column rename
+    逻辑保持完全一致 (复用相同写入路径 _pg_write).
+
+    Args:
+        days_back: 回补天数 (默认 7; trigger_data_backfill 会传 gap_days + 3 缓冲)
+
+    Returns:
+        {"table": "stk_factor_pro", "written": N, "pg_written": N, "sqlite_written": N,
+         "days_processed": N, "elapsed": S}
+    """
+    import sqlite3
+    from datetime import date, timedelta
+    from app.config import DB_PATH, TUSHARE_TOKEN
+    from app.sync.rate_limiter import rate_limit
+
+    t0 = time.time()
+    if not TUSHARE_TOKEN:
+        return {"status": "skipped", "reason": "no Tushare token"}
+
+    try:
+        import tushare as ts
+        ts.set_token(TUSHARE_TOKEN)
+        pro = ts.pro_api()
+    except Exception as e:
+        return {"status": "error", "reason": str(e)[:200]}
+
+    today = date.today()
+    # 列名映射与 sync_stk_factor_pro_daily 保持完全一致 (单一来源 by copy, 因 sync_daily
+    # 字段映射是脱敏 inline 写死, 没有 helper 可抽; 改 helper 超出本 ADR 白名单)
+    api_cols = ["ts_code", "macd_dif", "macd_dea", "macd",
+                "kdj_k", "kdj_d", "kdj_j",
+                "rsi_6", "rsi_12", "rsi_24",
+                "boll_upper", "boll_mid", "boll_lower",
+                "turnover_rate", "volume_ratio"]
+    pg_col_map = {"volume_ratio": "vol_ratio"}
+    pg_cols = [pg_col_map.get(c, c) for c in api_cols]
+
+    total_written, total_pg, total_sqlite, days_processed = 0, 0, 0, 0
+
+    for offset in range(days_back, -1, -1):  # 含今日; offset=days_back ... 0
+        d = today - timedelta(days=offset)
+        ymd = d.strftime("%Y%m%d")
+        trade_date_iso = d.strftime("%Y-%m-%d")
+
+        rate_limit()
+        try:
+            df = pro.stk_factor_pro(trade_date=ymd)
+        except Exception as e:
+            logger.debug("stk_factor_pro backfill fetch %s failed: %s", ymd, str(e)[:120])
+            continue
+        if df is None or len(df) == 0:
+            continue  # 非交易日 / 数据未到 (盘后未结算)
+
+        rows = []
+        for _, r in df.iterrows():
+            vals = []
+            for c in api_cols:
+                if c == "ts_code":
+                    vals.append(r.get("ts_code"))
+                else:
+                    v = r.get(c)
+                    try:
+                        import numpy as np
+                        if isinstance(v, (np.floating,)) and np.isnan(v):
+                            vals.append(None)
+                            continue
+                    except ImportError:
+                        pass
+                    vals.append(v)
+            rows.append(tuple(vals))
+
+        if not rows:
+            continue
+
+        # PG 直写 (主路径) — 走改造后的 thin wrapper, 自动列过滤 + 重试
+        try:
+            from app.sync.pg_writer import _pg_write
+            pg_w = _pg_write("stk_factor_pro", pg_cols,
+                             ["ts_code", "trade_date"], rows)
+            total_pg += pg_w
+        except Exception as e:
+            logger.debug("PG write stk_factor_pro %s skipped: %s", ymd, str(e)[:120])
+
+        # SQLite fallback — 使用 pg_cols (PG 兼容列名) + 显式 prepend trade_date
+        try:
+            db = sqlite3.connect(DB_PATH)
+            sqlite_cols = ["ts_code", "trade_date"] + pg_cols[1:]
+            placeholders = ",".join(["?"] * len(sqlite_cols))
+            sqlite_rows = [(row[0], trade_date_iso) + tuple(row[1:]) for row in rows]
+            db.executemany(
+                f"INSERT OR REPLACE INTO stk_factor_pro({','.join(sqlite_cols)}) "
+                f"VALUES({placeholders})", sqlite_rows)
+            total_sqlite += len(sqlite_rows)
+            db.commit()
+            db.close()
+        except Exception as e:
+            logger.debug("SQLite write stk_factor_pro %s failed: %s", ymd, str(e)[:120])
+
+        total_written += len(rows)
+        days_processed += 1
+        logger.debug("stk_factor_pro backfill %s: %d rows (PG=%d, SQLite=%d)",
+                     ymd, len(rows), pg_w if 'pg_w' in dir() else 0, len(rows))
+
+    elapsed = time.time() - t0
+    logger.info("stk_factor_pro backfill: %d days processed, %d rows total, PG=%d, SQLite=%d, %.1fs",
+                days_processed, total_written, total_pg, total_sqlite, elapsed)
+    return {"table": "stk_factor_pro", "written": total_written,
+            "pg_written": total_pg, "sqlite_written": total_sqlite,
+            "days_processed": days_processed, "days_back": days_back,
+            "elapsed": round(elapsed, 1)}
+
+
+# ADR-012 §决策 5.4: 注册 stk_factor_pro backfill handler (函数定义后立刻补登记)
+_BACKFILL_MAP["stk_factor_pro"] = sync_stk_factor_pro_backfill
+
+
 def sync_sw_daily_batch(days_back: int = 7) -> dict:
     """同步申万行业日线 — 从 etl.sync_sw_daily 封装.
 
@@ -927,10 +1068,106 @@ def run_intraday_sync():
             "ext_summary": str({k: v.get("written", 0) for k, v in ext.items()})}
 
 
+def validate_pipeline_consistency() -> dict:
+    """ADR-012 §决策 5.5: 启动期数据管道一致性自检 — WARN 不 raise (方案 A 可逆性优先).
+
+    检查项 (任一不一致仅 logger.warning, 不阻断启动):
+      1. MONITORED_TABLES 中的每个表, _BACKFILL_MAP 是否注册了 handler
+         (例外: stocks/trade_cal 在 _DESIGN_SKIP_BACKFILL 中显式跳过)
+      2. MONITORED_TABLES[table].date_col 是否在表实际列集内 (PG introspect information_schema)
+      3. _BACKFILL_MAP 的每个 handler 是否 callable + 签名含 days_back 参数 (inspect.signature)
+
+    Returns:
+        {"checked": N, "warnings": [{"table": ..., "issue": ..., "fix_hint": ...}, ...],
+         "errors": [...]} — errors 列存 PG introspect 异常等不可恢复信息 (不阻断)
+    """
+    import inspect
+    warnings_list = []
+    errors_list = []
+
+    # ── 检查 1: 监控表缺 backfill (排除 design-skip) ──
+    for table in MONITORED_TABLES:
+        if table in _DESIGN_SKIP_BACKFILL:
+            continue
+        if table not in _BACKFILL_MAP:
+            warnings_list.append({
+                "table": table,
+                "issue": "monitored but no backfill handler",
+                "fix_hint": f"add _BACKFILL_MAP['{table}'] = sync_<fn> in scheduler.py",
+            })
+
+    # ── 检查 2: date_col 实际存在 (PG introspect) ──
+    try:
+        import psycopg2
+        conn = psycopg2.connect(_PG_URL)
+        cur = conn.cursor()
+        for table, cfg in MONITORED_TABLES.items():
+            try:
+                cur.execute(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name=%s",
+                    (table,)
+                )
+                actual_cols = {r[0] for r in cur.fetchall()}
+            except Exception as e:
+                # 单表 introspect 失败不阻断其他表; 记录后继续
+                errors_list.append({"table": table, "phase": "introspect", "error": str(e)[:120]})
+                continue
+            if not actual_cols:
+                # 表不存在 (pre-migration / 待 alembic upgrade), 不算 warning
+                continue
+            date_col = cfg.get("date_col")
+            if date_col and date_col not in actual_cols:
+                warnings_list.append({
+                    "table": table,
+                    "issue": f"date_col '{date_col}' not in PG columns",
+                    "fix_hint": f"update MONITORED_TABLES['{table}'].date_col "
+                                f"(actual sample: {sorted(actual_cols)[:5]}) "
+                                f"or run alembic upgrade",
+                })
+        conn.close()
+    except Exception as e:
+        errors_list.append({"table": "*", "phase": "pg_connect", "error": str(e)[:120]})
+        logger.debug("validate_pipeline_consistency: PG introspect skipped (%s)", e)
+
+    # ── 检查 3: handler 签名 ──
+    for table, fn in _BACKFILL_MAP.items():
+        try:
+            sig = inspect.signature(fn)
+        except (TypeError, ValueError):
+            warnings_list.append({
+                "table": table,
+                "issue": "handler not introspectable",
+                "fix_hint": "ensure backfill is a plain function, not partial/lambda",
+            })
+            continue
+        if "days_back" not in sig.parameters:
+            warnings_list.append({
+                "table": table,
+                "issue": f"backfill handler {fn.__name__} missing 'days_back' param",
+                "fix_hint": "add `days_back: int = N` to function signature",
+            })
+
+    # ── 输出 ──
+    for w in warnings_list:
+        logger.warning("Pipeline validate [%s]: %s | hint: %s",
+                       w["table"], w["issue"], w["fix_hint"])
+    logger.info("Pipeline validate: checked %d monitored tables, %d warnings, %d errors",
+                len(MONITORED_TABLES), len(warnings_list), len(errors_list))
+    return {"checked": len(MONITORED_TABLES),
+            "warnings": warnings_list, "errors": errors_list}
+
+
 def start_scheduler():
     """注册定时任务并启动后台循环."""
     global _jobs
     today = date.today().strftime("%Y-%m-%d")
+
+    # ADR-012 §决策 5.5: 启动期自检数据管道一致性 (WARN 不 raise, 方案 A 可逆性优先)
+    try:
+        validate_pipeline_consistency()
+    except Exception as e:
+        # 自检本身异常不阻断 scheduler 启动
+        logger.warning("validate_pipeline_consistency raised (ignored): %s", e)
 
     _jobs = [
         # ── L0 实时级 (交易时段) ──

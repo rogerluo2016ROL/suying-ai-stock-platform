@@ -165,10 +165,24 @@ def clean_before_write(db: _Db, table: str, days_back: int, date_col: str = "tra
 
 
 def _insert_rows(db: _Db, table: str, columns: list[str],
-                 rows: list[tuple]) -> int:
-    """INSERT with per-row error isolation. Uses PG or SQLite bulk insert."""
+                 rows: list[tuple],
+                 retries: int = 0,
+                 data_volume_floor: int | None = None) -> int:
+    """INSERT with per-row error isolation. Uses PG or SQLite bulk insert.
+
+    Args:
+        retries: PG ``psycopg2.OperationalError`` 重试次数 (默认 0 = 不重试, 保持旧行为).
+                 ADR-012 §决策 5.1: 路径 #2/#3 改造时传 3 (沿用 pg_writer 现有 1s/4s/16s 指数退避).
+                 仅 catch OperationalError —— 列错位等 SQL 语义错误仍走 WARN + return 0 路径,
+                 retry 不掩盖代码 bug.
+        data_volume_floor: 写入行数 < floor 时 print ERROR 提示 (best-effort, 不 raise).
+                           ADR-012 §决策 5.1: 关键表 (daily_kline / stk_mins) 用 1000 floor;
+                           默认 None = 关闭门禁, 保持旧行为. SQLite 路径不触发 (本地文件无 IO 抖动).
+    """
+    import time
     col_str = ", ".join(columns)
     if db._pg:
+        import psycopg2
         import psycopg2.extras
         # 止血: 查表实际列, 过滤 cols 中表不存在的列。etl cols 原为 SQLite 设计, 迁 PG 后大量列名脱节
         # (如 hk_holdings 的 hold_vol), 导致 execute_values 整批 "column does not exist" 失败;
@@ -187,17 +201,42 @@ def _insert_rows(db: _Db, table: str, columns: list[str],
         filtered = [tuple(row[i] for i in valid_idx) for row in rows]
         col_str = ", ".join(valid_cols)
         sql = f"INSERT INTO {table}({col_str}) VALUES %s ON CONFLICT DO NOTHING"
-        cur = db._conn.cursor()
-        try:
-            psycopg2.extras.execute_values(cur, sql, filtered, page_size=1000)
-            written = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
-            db.commit()
-            return written
-        except Exception as e:
-            # 不再静默吞: 真实写入失败 (非冲突) 必须可见, 否则数据停滞无人察觉
-            db.rollback()
-            print(f"  [WARN] _insert_rows {table} 写入失败: {str(e)[:140]}", flush=True)
-            return 0
+        # ADR-012 §决策 5.1: retries ≥ 1 时启用 OperationalError 指数退避 (1s/4s/16s).
+        # max(1, retries) 保证 retries=0 时仍跑 1 次, 与旧行为 100% 一致.
+        attempts = max(1, retries)
+        last_err = None
+        for attempt in range(attempts):
+            cur = db._conn.cursor()
+            try:
+                psycopg2.extras.execute_values(cur, sql, filtered, page_size=1000)
+                written = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+                db.commit()
+                # 数据量门禁 (best-effort, 不 raise)
+                if data_volume_floor is not None and 0 < written < data_volume_floor:
+                    print(f"  [ERROR] _insert_rows {table}: 写入量 {written} 低于 floor {data_volume_floor}, "
+                          f"可能 Tushare API 异常 / 权限过期", flush=True)
+                return written
+            except psycopg2.OperationalError as e:
+                # 仅 OperationalError 走重试 (网络瞬时抖动); 其他 SQL 错误走下面 except Exception
+                last_err = e
+                db.rollback()
+                if attempt < attempts - 1:
+                    sleep_s = 4 ** attempt  # 1, 4, 16
+                    print(f"  [INFO] _insert_rows {table} OperationalError retry {attempt+1}/{attempts} "
+                          f"after {sleep_s}s: {str(e)[:120]}", flush=True)
+                    time.sleep(sleep_s)
+                    continue
+                print(f"  [WARN] _insert_rows {table} 重试 {attempts} 次仍失败: {str(e)[:140]}", flush=True)
+                return 0
+            except Exception as e:
+                # 不再静默吞: 真实写入失败 (非冲突) 必须可见, 否则数据停滞无人察觉
+                db.rollback()
+                print(f"  [WARN] _insert_rows {table} 写入失败: {str(e)[:140]}", flush=True)
+                return 0
+        # 兜底 (attempts=0 不该走到): 保留 last_err 痕迹
+        if last_err is not None:
+            print(f"  [WARN] _insert_rows {table} 最终失败: {str(last_err)[:140]}", flush=True)
+        return 0
     else:
         placeholders = ",".join(["?"] * len(columns))
         sql = f"INSERT OR REPLACE INTO {table}({col_str}) VALUES({placeholders})"

@@ -57,37 +57,21 @@ def _safe_val(v):
 
 def _pg_bulk_insert(table: str, columns: list[str], conflict_cols: list[str],
                     rows: list[tuple]) -> int:
-    """PG 批量写入 — ON CONFLICT DO NOTHING + 3 次指数退避重试."""
+    """PG 批量写入 — ADR-012 §决策 5.3: thin wrapper, delegate to pg_writer._pg_write.
+
+    与 pg_writer._pg_write 函数体 95% 复制粘贴是历史包袱 (cb_sync.py 后加, 没复用)。
+    本次合并: cb_sync 的 3 个 sync 函数 (sync_ths_daily / sync_cb_price_chg_all /
+    sync_ths_concept_map) 通过本 thin wrapper 间接走 _insert_rows, 获得自动列过滤能力.
+
+    保留参数签名 / 返回值语义 (sync 函数零改动). conflict_cols 参数语义同 pg_writer._pg_write
+    (ADR-012 §决策 5.2.bis): _insert_rows 用 ON CONFLICT DO NOTHING 依表 PK 约束, 调用方仍按
+    表 PK / UNIQUE 列传值, 等价成立 (grep 实证 ths_daily UNIQUE(code,trade_date) /
+    cb_price_chg UNIQUE(ts_code,change_date) / ths_concept_map PK(ts_code) 均与 conflict_cols 对齐).
+    """
     if not rows:
         return 0
-    last_error = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            import psycopg2
-            conn = psycopg2.connect(PG_URL)
-            conn.autocommit = True
-            cur = conn.cursor()
-            col_str = ", ".join(columns)
-            placeholders = ", ".join(["%s"] * len(columns))
-            conflict_str = ", ".join(conflict_cols)
-            sql = (f"INSERT INTO {table}({col_str}) VALUES({placeholders}) "
-                   f"ON CONFLICT({conflict_str}) DO NOTHING")
-            cur.executemany(sql, rows)
-            written = cur.rowcount
-            conn.close()
-            return written
-        except psycopg2.OperationalError as e:
-            last_error = e
-            if attempt < MAX_RETRIES - 1:
-                sleep_s = 4 ** attempt  # 1, 4, 16
-                logger.debug("PG write %s retry %d/%d after %.0fs: %s",
-                             table, attempt + 1, MAX_RETRIES, sleep_s, e)
-                time.sleep(sleep_s)
-        except Exception as e:
-            logger.debug("PG write %s: %s", table, e)
-            return 0
-    logger.warning("PG write %s failed after %d retries: %s", table, MAX_RETRIES, last_error)
-    return 0
+    from app.sync.pg_writer import _pg_write
+    return _pg_write(table, columns, conflict_cols, rows)
 
 
 # ── sync functions ──
