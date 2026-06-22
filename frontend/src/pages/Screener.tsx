@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Select, Button, Table, Tag, Space, Typography, InputNumber, message, Row, Col, Divider } from 'antd'
 import { PlayCircleOutlined, TrophyOutlined, FilterOutlined, FileTextOutlined, InfoCircleOutlined } from '@ant-design/icons'
@@ -53,6 +53,19 @@ export default function Screener() {
       message.error(e.response?.data?.detail || '选股失败')
     } finally { setLoading(false) }
   }
+
+  // P1-10: apply the sortBy selector so it is a live control (previously the
+  // dropdown stored a value but the list was never re-sorted). Immutable copy.
+  const sortedPicks = useMemo(() => {
+    const copy = [...picks]
+    if (sortBy === 'price') {
+      copy.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0))
+    } else {
+      // default: by score descending
+      copy.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+    }
+    return copy
+  }, [picks, sortBy])
 
   const columns = [
     { title: '#', width: 40, render: (_: any, __: any, i: number) => (
@@ -154,7 +167,7 @@ export default function Screener() {
       <Card style={{ borderRadius: 8 }} loading={loading}
             title={picks.length > 0 ? `选股结果 (Top ${picks.length})` : '等待选股'}
       >
-        <Table columns={columns} dataSource={picks} rowKey="code" size="small"
+        <Table columns={columns} dataSource={sortedPicks} rowKey="code" size="small"
                rowSelection={{
                  selectedRowKeys,
                  onChange: setSelectedRowKeys,

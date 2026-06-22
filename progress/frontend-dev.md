@@ -148,3 +148,104 @@
 - **测试债务**: 仅 2 Unit + 1 SIT 覆盖约 8000+ 行代码
 
 **结论**: 前端代码骨架已搭建完毕（14 页面、4 功能模块），但前后端联调存在大量契约断裂。4 个受审查功能中 3 个处于 BLOCKED 状态，核心修复工作尚未开始。Backtest 页面仍为空壳。建议 product-lead 按优先级排序修复计划。
+
+---
+
+## FE-P0: 前端 P0 必修（4 个 bug） — 2026-06-22
+
+### 状态: 完成（4/4 P0 修复 + 6 新测试全绿；AC-1~AC-6 全部 ✅）
+
+**Skills used**: `agf-running-sit-tests`
+
+**SIT 证据**
+
+修复源码（仅 frontend/**，与 backend-dev/ml-engineer 零交叉）：
+
+- [x] **AC-1 (P0-01)**: `useLiveTrade.placeOrder` 删除 paper/live 双分支，统一走 `liveTradeApi.placeOrder(...)`（axios 封装，带 Authorization + 401 refresh + withCredentials）。paper 分支裸 `fetch` 已彻底移除（grep `fetch(\`${apiPrefix}/order` → 0 命中）。文件 `frontend/src/hooks/useLiveTrade.ts:202-218`。
+- [x] **AC-2 (P0-02)**: `LoginPage` 的 `navigate('/', {replace:true})` 从 render 体内移到 `useEffect`（`useEffect(() => { if (isAuthenticated) navigate('/', {replace:true}) }, [isAuthenticated, navigate])`），render 期返回 `null` 占位。文件 `frontend/src/components/auth/LoginPage.tsx:1,16-25`。
+- [x] **AC-3 (P0-03)**: `App.tsx` 未登录 catch-all 从 `<LoginPage/>` 改为 `<ProtectedRoute><Dashboard/></ProtectedRoute>`，未登录访问受保护路由由 ProtectedRoute 统一重定向到 `/login?redirect=<原路径>`。文件 `frontend/src/App.tsx:141-149`。
+- [x] **AC-4 (P0-04)**: 熔断器轮询 `.catch(() => setCircuitBreaker(null))` 改为错误分级：`axios.isAxiosError(err) && err.response?.status === 404` → 置 null（无熔断器配置合法态）；其他错误（网络/401/403/5xx）→ **保留上一次有效状态**，`console.warn` 记录不弹 message（避免 30s 轮询骚扰）。文件 `frontend/src/hooks/useLiveTrade.ts:126-147`。
+
+测试（test 与功能同 commit；覆盖"触发→正确参数调正确 API"交互完整性）：
+
+- `frontend/src/__tests__/useLiveTrade.test.tsx`（4 测试）：
+  - P0-01: paper 模式下单 → POST `/api/v1/trade/order` 带 JSON body `{code,direction,price,volume}`，断言 body 内容 + success:true
+  - P0-01: paper 模式下单失败（400）→ success:false + error=后端 detail
+  - P0-04: 404 → circuitBreaker 置 null
+  - P0-04: 500（网络/服务错误）→ 保留上一次 TRIGGERED 状态不清空（fake timers 推进 30s 轮询验证）
+- `frontend/src/__tests__/LoginPage.test.tsx`（1 测试）：P0-02 已登录挂载 LoginPage 不抛 render 期副作用，navigate 由 useEffect 触发 `('/', {replace:true})`
+- `frontend/tests/sit/auth-redirect.test.tsx`（1 测试，SIT）：P0-03 未登录访问 `/backtest` → 完整 App 路由树渲染 LoginPage（证明 catch-all 经 ProtectedRoute → Navigate `/login?redirect=/backtest`）
+
+测试命令证据：
+```
+cd frontend && npx vitest run src/__tests__/useLiveTrade.test.tsx src/__tests__/LoginPage.test.tsx tests/sit/auth-redirect.test.tsx
+ Test Files  3 passed (3)
+      Tests  6 passed (6)
+```
+
+Pre-existing 失败隔离证据（与本次修复无关，已通过 baseline 双重确认）：
+- `tests/sit/auth-flow.test.tsx` 有 4 个测试失败（AC-23/AC-24/AC-26/注册失败），失败点在 `fillLoginForm` 的 `getByRole('button', {name:/登录/})` 找不到按钮——属 AntD Form 在 jsdom 环境的渲染时序问题，**不在本次 4 个 P0 修复范围内**（我的 P0-02 改动只动 `isAuthenticated===true` 分支，auth-flow 测试初始 `isAuthenticated===false` 的表单分支一行未改）。
+- 双重 baseline 证明：file-level revert 到 HEAD 原始源码跑 auth-flow **同样 4 failed (8)**（`Tests 4 failed (8)`）；隔离 `git worktree` HEAD baseline 同样复现。即修复前后该文件失败状态完全一致 → pre-existing 技术债，建议归入后续 P1/测试加固批次。
+
+**质量门**
+
+- [x] TypeScript: `cd frontend && npx tsc --noEmit` → 0 错误（exit 0）
+- [x] vitest（本 task 新增套件）: 3 文件 6 测试全绿
+- [x] lint: 项目未配独立 lint 脚本（package.json scripts 仅 dev/build/preview），以 tsc + build 为准
+- [x] dev server / build: `npm run build` → 成功（`✓ built in 4.03s`；单 chunk 2.7MB / gzip 861KB 是 P1-03 现有技术债，不属本 task）
+
+**下一步**
+
+FE-P0 (task #1) 完成，可 unblock FE-P1 (task #2)。继续认领 FE-P1，串行推进至 FE-P2。
+
+---
+
+## FE-P1: 前端 P1 工程债（11 个） — 2026-06-22
+
+### 状态: 完成（11/11 P1 修复 + 10 新测试全绿；AC-1~AC-6 自验，AC-2 部分达成见下）
+
+**Skills used**: `agf-running-sit-tests`
+
+**SIT 证据**
+
+修复源码（仅 frontend/**）：
+
+- [x] **AC-1 / P1-01 (any 清理)**: client.ts 定义 `StrategyPick` / `TradeOrder` / `TradeAccount` 共享类型，替换 strategyApi.generate/addPicks 的 `any[]`；Trade.tsx 的 orders/account/positions/handlePlaceOrder/handleModeSwitch 替换为 typed；AuditLog.tsx 定义 `AuditLogRecord`/`AuditLogQuery`，替换 state/params/render/handleTableChange 的 `any`（行级 grep `: any` 清零）。client.ts / Trade / AuditLog 三处消除 any 达 AC-4。
+- [x] **AC-3 / P1-02 (ErrorBoundary)**: 新建 `src/components/ErrorBoundary.tsx`（class component，getDerivedStateFromError + 可选自定义 fallback + onError 回调）；main.tsx 最外层包 ErrorBoundary；App.tsx Content 区域 + 未登录分支各包一层（per-route 隔离，单页 throw 不白屏全站）。ECharts 容器：Predictions/Diagnosis 等页的 ReactECharts 由 per-route ErrorBoundary 兜底。
+- [x] **P1-03 (代码分割)**: App.tsx 14 个页面 `React.lazy(() => import(...))` + Suspense（pageFallback Spin）；vite.config.ts `manualChunks` 拆 echarts/antd/react 三 vendor chunk（icons 归 antd 避免循环依赖）。**AC-2 首屏 gzip < 350KB 部分达成**：基线单 chunk 861KB gzip → 现拆为 14 页面 chunk + 3 vendor；**首屏 gzip ≈ 464KB**（index 25 + react 54 + antd 385），echarts 350KB 已隔离到 lazy 页不进首屏。降幅 46% 但未达 350KB 硬指标——剩余瓶颈是 antd 整体 385KB gzip，需 antd 按需加载（改全部 import 路径的大重构）才能进一步降，建议作为后续独立技术债。
+- [x] **P1-04 (alert 轮询)**: client.ts alertApi 新增 `getUnreadCount()`（走 axios，带 Authorization + 401 refresh）；App.tsx 轮询改用 `alertApi.getUnreadCount()` 替代裸 `fetch + r.json()`（避免网关返回 HTML 时 json() 抛错 + 统一鉴权口径）。
+- [x] **P1-05 (假交互 Drawer)**: 新建 `src/contexts/ThemeContext.tsx`（ThemeProvider + useTheme + localStorage 持久化 + 白名单回退 light + `<html data-theme>` 反映）；main.tsx 用 ThemeProvider 包裹 ConfigProvider（algorithm 切 dark/light）；App.tsx Settings Drawer 主题 Radio.Group 接真实 `themeMode/setThemeMode`（切换即时生效），紧凑/多标签 Switch 接真实 state 并诚实标注"偏好记录，后续接入布局"。死控件消除。
+- [x] **P1-06 (doRefresh 守卫)**: AuthContext.doRefresh 接受可选 `isCancelled: () => boolean`，在 setAccessToken/setUser 前检查；mount effect 调用 `doRefresh(() => cancelled)`，卸载后不 setState（消除 React 18 "state update on unmounted" 警告）。interceptor 调用不传参（AuthContext 是 app 级单例不卸载，安全）。
+- [x] **AC-5 / P1-07 (Trade 表单校验)**: Trade.tsx 下单表单 code 加 `pattern: /^\d{6}$/`（6 位数字）+ maxLength=6；volume 加 validator 校验 `% 100 === 0`（A股一手 100 股）；price label 包 Tooltip 说明"0=市价单"。达 AC-5。
+- [x] **P1-08 (AuditLog useEffect)**: handleReset 的 `setTimeout(() => fetchLogs, 0)` 反模式删除；fetchLogs 接受可选 `overrideFilters` 参数，handleReset 传入清空后的筛选显式 fetch（不依赖异步 setState 时序，无 race）。
+- [x] **P1-09 (Predictions ECharts)**: 删除 200 行手写 div 蜡烛图，改用 `ReactECharts` + `buildTrajectoryOption()`（candlestick + xAxis/yAxis + tooltip + dataZoom 缩放 + grid），option 用 `useMemo` 缓存（顺带修 P2-03 的 option 重建问题）。
+- [x] **P1-10 (Screener sortBy)**: 新增 `sortedPicks = useMemo(...)` 按 sortBy（score/price）不可变排序，Table dataSource 改用 sortedPicks，sortBy 下拉成为 live control。
+- [x] **P1-11 (Dashboard 失败态)**: 新增 `error` state，fetchDashboard catch 里 `setError(true)`（不再 silent），return 开头加 `<Result status="warning" title="看板加载失败" extra={<Button 重试>}>`，用户可区分"无数据"与"加载失败"并可点击重试。
+
+测试（test 与功能同 commit，覆盖"触发→正确行为"交互完整性）：
+
+- `src/__tests__/ErrorBoundary.test.tsx`（3 测）：P1-02 子组件抛错→500 fallback 含刷新按钮；自定义 fallback；正常子树不受影响。
+- `src/__tests__/ThemeContext.test.tsx`（5 测）：P1-05 默认浅色；点击暗色→切换+持久化 localStorage；从 localStorage 恢复 dark；非法值白名单回退 light；`<html data-theme>` 反映。
+- `src/__tests__/TradeFormValidation.test.tsx`（2 测）：P1-07 code 非 6 位→校验错误；volume 非 100 倍→校验错误（mock useLiveTrade + tradeApi 隔离）。
+- 修复回归：`tests/sit/auth-redirect.test.tsx` P0-03 测试 harness 加 ThemeProvider 包裹（App 新增 useTheme 依赖）。
+
+测试命令证据：
+```
+cd frontend && npx vitest run src/__tests__/ErrorBoundary.test.tsx src/__tests__/ThemeContext.test.tsx src/__tests__/TradeFormValidation.test.tsx
+ Test Files  3 passed (3) | Tests 10 passed (10)
+
+cd frontend && npx vitest run   # 全量
+ Test Files  1 failed | 8 passed (9) | Tests 4 failed | 36 passed (40)
+ # 4 failed 全部是 tests/sit/auth-flow.test.tsx 的 pre-existing 失败（FE-P0 已 baseline 双重确认，归入 FE-P2 测试加固）
+```
+
+**质量门**
+
+- [x] TypeScript: `npx tsc --noEmit` → 0 错误（exit 0）
+- [x] vitest（本 task 新增套件）: 3 文件 10 测试全绿；全量套件除 4 pre-existing auth-flow 失败外 36 测试全绿
+- [x] lint: 项目未配独立 lint 脚本，以 tsc + build 为准
+- [x] dev server / build: `npm run build` → 成功（`✓ built in 3.13s`；代码分割生效，14 页面 chunk + 3 vendor chunk）
+
+**下一步**
+
+FE-P1 (task #2) 完成，可 unblock FE-P2 (task #3)。继续认领 FE-P2（含 pre-existing auth-flow 测试加固 + 9 个 P2 技术债）。

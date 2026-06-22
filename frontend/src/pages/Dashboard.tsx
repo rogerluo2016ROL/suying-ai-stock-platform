@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Row, Col, Card, Tag, Typography, Space, Button, Radio, List, Tabs,
-  Progress, Tooltip, Modal, Table, Statistic, Badge, Divider, Empty, message,
+  Progress, Tooltip, Modal, Table, Statistic, Badge, Divider, Empty, Result, message,
 } from 'antd'
 import {
   RiseOutlined, FallOutlined, SyncOutlined, ThunderboltOutlined,
@@ -85,6 +85,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<string>('')
   const [limitModal, setLimitModal] = useState<{ open: boolean; type: 'up' | 'down' }>({ open: false, type: 'up' })
 
@@ -104,9 +105,13 @@ export default function Dashboard() {
       // Cache-bust to ensure we always get fresh PG data
       const { data: d }: { data: DashboardData } = await signalApi.getDashboardSummary()
       setData(d)
+      setError(false)
       setLastRefresh(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
-    } catch { /* silent */ }
-    finally { setLoading(false) }
+    } catch {
+      // P1-11: surface the failure instead of silently rendering an empty board
+      // (users couldn't distinguish "no data" from "load failed").
+      setError(true)
+    } finally { setLoading(false) }
   }, [])
 
   useEffect(() => { fetchDashboard() }, [fetchDashboard])
@@ -181,6 +186,19 @@ export default function Dashboard() {
 
   return (
     <div>
+      {/* P1-11: explicit failure state so an empty board is distinguishable from a load error. */}
+      {error && !data && !loading && (
+        <Result
+          status="warning"
+          title="看板加载失败"
+          subTitle="无法连接数据服务，请稍后重试。"
+          extra={
+            <Button type="primary" icon={<SyncOutlined />} onClick={fetchDashboard}>
+              重试
+            </Button>
+          }
+        />
+      )}
       {/* ══════════════════════════════════════════════════ */}
       {/* ── Header: AI Opportunity Radar ── */}
       {/* ══════════════════════════════════════════════════ */}

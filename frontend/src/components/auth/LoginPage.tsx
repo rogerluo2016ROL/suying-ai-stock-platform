@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Form, Input, Button, Card, Typography, Alert } from 'antd'
 import { StockOutlined, MailOutlined, LockOutlined } from '@ant-design/icons'
@@ -13,9 +13,15 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  // Already logged in → redirect to home
+  // Already logged in → redirect to home (P0-02: must run in useEffect, NOT during render)
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true })
+    }
+  }, [isAuthenticated, navigate])
+
+  // Render-phase placeholder while the effect above triggers the redirect
   if (isAuthenticated) {
-    navigate('/', { replace: true })
     return null
   }
 

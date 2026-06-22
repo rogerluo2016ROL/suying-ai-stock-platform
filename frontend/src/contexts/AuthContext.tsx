@@ -40,8 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!user && !!accessToken
 
   // ── Token refresh function (used by interceptor too) ──
+  // P1-06: accept an optional mounted-guard so the mount effect can prevent
+  // setState after unmount. The axios interceptor omits the guard (AuthContext
+  // is an app-level singleton that never unmounts, so its calls are safe).
 
-  const doRefresh = useCallback(async (): Promise<string | null> => {
+  const doRefresh = useCallback(async (
+    isCancelled?: () => boolean,
+  ): Promise<string | null> => {
     try {
       const refreshRes = await fetch('/api/v1/auth/refresh', {
         method: 'POST',
@@ -51,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!refreshRes.ok) return null
       const refreshData = await refreshRes.json()
       const token: string = refreshData.access_token
+      if (isCancelled?.()) return null
       setAccessToken(token)
 
       // Fetch full user profile after token refresh
@@ -59,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       if (!meRes.ok) return null
       const meData = await meRes.json()
+      if (isCancelled?.()) return null
       setUser({
         id: meData.id,
         name: meData.name,
@@ -92,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    doRefresh().finally(() => {
+    doRefresh(() => cancelled).finally(() => {
       if (!cancelled) setIsLoading(false)
     })
     return () => { cancelled = true }

@@ -14,6 +14,34 @@ import dayjs from 'dayjs'
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
 
+// P1-01: typed audit-log record + filter params (replaces `any`).
+interface AuditLogRecord {
+  id?: string | number
+  created_at?: string
+  event_type?: string
+  symbol?: string
+  side?: string
+  detail?: string | Record<string, unknown>
+  mode?: string
+  operator?: string
+  ip_address?: string
+  quantity?: number
+  price?: number | string
+  filled_qty?: number
+  error_message?: string
+  [key: string]: unknown
+}
+
+interface AuditLogQuery {
+  page?: number
+  page_size?: number
+  start_date?: string
+  end_date?: string
+  action_type?: string
+  stock_code?: string
+  operator?: string
+}
+
 const ACTION_TYPES = [
   { value: 'ORDER_PLACED', label: '买入下单' },
   { value: 'ORDER_CANCELLED', label: '撤单' },
@@ -50,31 +78,42 @@ export default function AuditLog() {
   const [operator, setOperator] = useState('')
 
   // ── Table state ──
-  const [data, setData] = useState<any[]>([])
+  const [data, setData] = useState<AuditLogRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
   // ── Fetch audit logs ──
-  const fetchLogs = useCallback(async (p?: number, ps?: number) => {
+  // P1-08: accept an optional filter override so callers (handleReset) can fetch
+  // with the POST-reset values without waiting on async setState (the old code
+  // used setTimeout(...,0) which raced under React 18 batching).
+  const fetchLogs = useCallback(async (
+    p?: number,
+    ps?: number,
+    overrideFilters?: { dateRange?: [dayjs.Dayjs, dayjs.Dayjs] | null; actionType?: string; stockCode?: string; operator?: string },
+  ) => {
     setLoading(true)
     try {
       const currentPage = p ?? page
       const currentPageSize = ps ?? pageSize
+      const fDateRange = overrideFilters ? overrideFilters.dateRange : dateRange
+      const fActionType = overrideFilters ? overrideFilters.actionType : actionType
+      const fStockCode = overrideFilters ? overrideFilters.stockCode : stockCode
+      const fOperator = overrideFilters ? overrideFilters.operator : operator
 
-      const params: any = {
+      const params: AuditLogQuery = {
         page: currentPage,
         page_size: currentPageSize,
       }
 
-      if (dateRange && dateRange[0] && dateRange[1]) {
-        params.start_date = dateRange[0].format('YYYY-MM-DD')
-        params.end_date = dateRange[1].format('YYYY-MM-DD')
+      if (fDateRange && fDateRange[0] && fDateRange[1]) {
+        params.start_date = fDateRange[0].format('YYYY-MM-DD')
+        params.end_date = fDateRange[1].format('YYYY-MM-DD')
       }
-      if (actionType) params.action_type = actionType
-      if (stockCode.trim()) params.stock_code = stockCode.trim()
-      if (operator.trim()) params.operator = operator.trim()
+      if (fActionType) params.action_type = fActionType
+      if (fStockCode && fStockCode.trim()) params.stock_code = fStockCode.trim()
+      if (fOperator && fOperator.trim()) params.operator = fOperator.trim()
 
       const r = await liveTradeApi.getAuditLogs(params)
       setData(r.data?.items || r.data?.logs || [])
@@ -99,19 +138,20 @@ export default function AuditLog() {
   }
 
   const handleReset = () => {
+    const cleared = { dateRange: null, actionType: undefined, stockCode: '', operator: '' }
     setDateRange(null)
     setActionType(undefined)
     setStockCode('')
     setOperator('')
     setPage(1)
-    // Fetch will be triggered by state change, but we need immediate effect
-    setTimeout(() => fetchLogs(1, pageSize), 0)
+    // P1-08: fetch with the cleared filters directly (override) — no setTimeout.
+    fetchLogs(1, pageSize, cleared)
   }
 
   // ── Export CSV ──
   const handleExport = async () => {
     try {
-      const params: any = {}
+      const params: AuditLogQuery = {}
       if (dateRange && dateRange[0] && dateRange[1]) {
         params.start_date = dateRange[0].format('YYYY-MM-DD')
         params.end_date = dateRange[1].format('YYYY-MM-DD')
@@ -135,7 +175,7 @@ export default function AuditLog() {
   }
 
   // ── Table change handler ──
-  const handleTableChange = (pagination: any) => {
+  const handleTableChange = (pagination: { current?: number; pageSize?: number }) => {
     const p = pagination.current || 1
     const ps = pagination.pageSize || 20
     setPage(p)
@@ -178,7 +218,7 @@ export default function AuditLog() {
       title: '详情',
       dataIndex: 'detail',
       ellipsis: true,
-      render: (v: any, record: any) => {
+      render: (v: AuditLogRecord['detail'], record: AuditLogRecord) => {
         if (v) return typeof v === 'string' ? v : JSON.stringify(v)
         // Build detail from record fields
         const parts: string[] = []
@@ -303,7 +343,7 @@ export default function AuditLog() {
         <Table
           dataSource={data}
           columns={columns}
-          rowKey={(record) => record.id || record.created_at}
+          rowKey={(record) => String(record.id ?? record.created_at ?? '')}
           size="small"
           loading={loading}
           pagination={{

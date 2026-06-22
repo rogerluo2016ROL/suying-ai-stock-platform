@@ -7,6 +7,41 @@ const api = axios.create({
   withCredentials: true,
 })
 
+// ── Shared response/payload types (P1-01: replace `any` with typed shapes) ──
+
+/** A screener pick passed to strategy generation / plan picks. */
+export interface StrategyPick {
+  code: string
+  name?: string
+  price?: number
+  score?: number
+  grade?: string
+  [key: string]: unknown
+}
+
+/** Trade order record (audit log / orders list). */
+export interface TradeOrder {
+  id?: string | number
+  code: string
+  direction: string
+  price: number
+  volume: number
+  status?: string
+  time?: string
+  filled_at?: string
+  [key: string]: unknown
+}
+
+/** Trade account summary. */
+export interface TradeAccount {
+  total_capital?: number
+  total_assets?: number
+  total_pnl?: number
+  available?: number
+  market_value?: number
+  [key: string]: unknown
+}
+
 // ── Auth interceptor state (injected by AuthProvider) ──
 
 let _getAccessToken: (() => string | null) | null = null
@@ -95,14 +130,14 @@ export const predictionApi = {
 
 // Strategy
 export const strategyApi = {
-  generate: (picks: any[], capital = 1_000_000) =>
+  generate: (picks: StrategyPick[], capital = 1_000_000) =>
     api.post(`/strategy/generate?capital=${capital}`, picks),
   getTemplates: () => api.get('/strategy/templates'),
   getPlans: () => api.get('/strategy/plans'),
   createPlan: (name: string, modelName: string, maxPositions: number, capital = 1_000_000) =>
     api.post(`/strategy/plans?name=${encodeURIComponent(name)}&model_name=${modelName}&max_positions=${maxPositions}&capital=${capital}`),
   getPlan: (planId: string) => api.get(`/strategy/plans/${planId}`),
-  addPicks: (planId: string, picks: any[]) =>
+  addPicks: (planId: string, picks: StrategyPick[]) =>
     api.post(`/strategy/plans/${planId}/picks`, picks),
   deletePlan: (planId: string) => api.delete(`/strategy/plans/${planId}`),
 }
@@ -126,6 +161,9 @@ export const signalApi = {
 export const alertApi = {
   getChannels: () => api.get('/alert/channels'),
   getConfig: () => api.get('/alert/config'),
+  // P1-04: route the unread-count poll through the axios instance so it shares
+  // the Authorization header + 401 refresh logic with every other request.
+  getUnreadCount: () => api.get<number>('/alert/unread-count'),
 }
 
 // Trade

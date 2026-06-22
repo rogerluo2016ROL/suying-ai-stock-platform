@@ -1,16 +1,70 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Input, Button, Descriptions, Tag, Space, Typography, Row, Col, Statistic, message, Spin, Progress } from 'antd'
+import { Card, Input, Button, Descriptions, Tag, Space, Typography, Row, Col, Statistic, message, Spin } from 'antd'
 import { LineChartOutlined, ThunderboltOutlined, RiseOutlined, FallOutlined } from '@ant-design/icons'
+import ReactECharts from 'echarts-for-react'
+import type { EChartsOption } from 'echarts'
 import { predictionApi } from '../api/client'
 
 const { Title, Text } = Typography
+
+// P1-09: trajectory candle shape returned by the prediction API
+interface TrajectoryPoint {
+  day: number
+  open: number
+  high: number
+  low: number
+  close: number
+}
+
+// Build an ECharts candlestick option from the prediction trajectory.
+// Replaces the previous 200-line hand-rolled div candlestick (no axis/tooltip/zoom).
+function buildTrajectoryOption(traj: TrajectoryPoint[]): EChartsOption {
+  const upColor = '#26a69a'
+  const downColor = '#ef5350'
+  return {
+    backgroundColor: '#1a1a2e',
+    animation: false,
+    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+    xAxis: {
+      type: 'category',
+      data: traj.map(p => `D${p.day}`),
+      axisLine: { lineStyle: { color: '#888' } },
+      axisLabel: { color: '#aaa', fontSize: 10 },
+    },
+    yAxis: {
+      type: 'value',
+      scale: true,
+      axisLabel: { color: '#aaa', fontSize: 10 },
+      splitLine: { lineStyle: { color: '#333' } },
+    },
+    dataZoom: [{ type: 'inside' }, { type: 'slider', height: 16, bottom: 4 }],
+    grid: { left: 48, right: 16, top: 16, bottom: 40 },
+    series: [{
+      type: 'candlestick',
+      data: traj.map(p => [p.open, p.close, p.low, p.high]),
+      itemStyle: {
+        color: upColor,
+        color0: downColor,
+        borderColor: upColor,
+        borderColor0: downColor,
+      },
+    }],
+  }
+}
 
 export default function Predictions() {
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
+
+  // P1-09: memoize the ECharts option so it isn't rebuilt on every render.
+  const trajectoryOption = useMemo<EChartsOption | null>(() => {
+    const traj: TrajectoryPoint[] | undefined = result?.pred_trajectory
+    if (!traj || !traj.length) return null
+    return buildTrajectoryOption(traj)
+  }, [result?.pred_trajectory])
 
   const runPredict = async () => {
     if (!code) { message.warning('请输入股票代码'); return }
@@ -89,43 +143,13 @@ export default function Predictions() {
                   </Descriptions>
                 </Card>
 
-                {result.pred_trajectory && (
+                {trajectoryOption && (
                   <Card title="Kronos 预测K线图" style={{ borderRadius: 8, marginTop: 16 }}>
-                    <div style={{ background: '#1a1a2e', borderRadius: 8, padding: 16, overflowX: 'auto' }}>
-                      {(() => { const traj = result.pred_trajectory; const maxVal = Math.max(...traj.map((x:any)=>x.high)); const minVal = Math.min(...traj.map((x:any)=>x.low)); return <>
-                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 200, minWidth: traj.length * 22 }}>
-                        {traj.map((p: any, i: number) => {
-                          const range = maxVal - minVal || 1
-                          const hPct = ((p.high - minVal) / range) * 160 + 20
-                          const lPct = ((p.low - minVal) / range) * 160 + 20
-                          const oPct = ((p.open - minVal) / range) * 160 + 20
-                          const cPct = ((p.close - minVal) / range) * 160 + 20
-                          const isUp = p.close >= p.open
-                          return (
-                            <div key={i} style={{ flex: 1, position: 'relative', height: 200, minWidth: 16 }}>
-                              {/* High-Low line */}
-                              <div style={{ position:'absolute', left:'50%', width:1, top:`${200-hPct}px`, height:`${hPct-lPct}px`, background:'#888' }} />
-                              {/* Open-Close body */}
-                              <div style={{ position:'absolute', left:2, right:2,
-                                top:`${200-Math.max(oPct,cPct)}px`,
-                                height:`${Math.abs(cPct-oPct)||2}px`,
-                                background: isUp ? '#26a69a' : '#ef5350',
-                                borderRadius: 1 }} />
-                              {/* Day label */}
-                              <div style={{ position:'absolute', bottom:0, left:0, right:0, textAlign:'center', fontSize:8, color:'#888' }}>D{p.day}</div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      <div style={{ display:'flex', justifyContent:'space-between', marginTop:4 }}>
-                        <Text style={{color:'#888',fontSize:10}}>{minVal.toFixed(1)}</Text>
-                        <Text style={{color:'#fff',fontSize:12}}>{result.current_price} → {result.pred_last_close} ({result.pred_return_pct > 0 ? '+' : ''}{result.pred_return_pct}%)</Text>
-                        <Text style={{color:'#888',fontSize:10}}>{maxVal.toFixed(1)}</Text>
-                      </div>
-                      </> })()}
-                      <div style={{display:'flex',gap:16,marginTop:4,justifyContent:'center'}}>
-                        <Space><span style={{width:10,height:10,background:'#26a69a',borderRadius:1,display:'inline-block'}}/><Text style={{color:'#888',fontSize:10}}>阳线</Text></Space>
-                        <Space><span style={{width:10,height:10,background:'#ef5350',borderRadius:1,display:'inline-block'}}/><Text style={{color:'#888',fontSize:10}}>阴线</Text></Space>
+                    <div style={{ background: '#1a1a2e', borderRadius: 8, padding: 16 }}>
+                      <ReactECharts option={trajectoryOption} style={{ height: 280, width: '100%' }} notMerge />
+                      <div style={{ display: 'flex', gap: 16, marginTop: 4, justifyContent: 'center' }}>
+                        <Space><span style={{ width: 10, height: 10, background: '#26a69a', borderRadius: 1, display: 'inline-block' }} /><Text style={{ color: '#aaa', fontSize: 10 }}>阳线</Text></Space>
+                        <Space><span style={{ width: 10, height: 10, background: '#ef5350', borderRadius: 1, display: 'inline-block' }} /><Text style={{ color: '#aaa', fontSize: 10 }}>阴线</Text></Space>
                       </div>
                     </div>
                   </Card>

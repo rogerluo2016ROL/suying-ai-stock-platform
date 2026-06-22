@@ -22,4 +22,23 @@ export default defineConfig({
       '/api/v1/admin':       { target: 'http://localhost:9001', changeOrigin: true },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // P1-03: split heavy vendor bundles so the initial chunk shrinks.
+        // echarts (~1MB) is only used on 4 pages → its own lazy chunk.
+        // antd + its icons share a chunk (splitting them triggers a circular
+        // chunk warning because antd core and @ant-design/icons are mutually
+        // imported). react gets its own chunk for long-term caching.
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('echarts')) return 'echarts'
+            if (id.includes('antd') || id.includes('@ant-design/icons') || id.includes('/rc-') || id.includes('@rc-component') || id.includes('rc-util')) return 'antd'
+            if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/react-router') || id.includes('/scheduler/')) return 'react'
+          }
+          return undefined
+        },
+      },
+    },
+  },
 })

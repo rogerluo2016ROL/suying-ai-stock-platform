@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Button, Space, Badge, Avatar, Dropdown, Drawer, Switch, Typography, Radio } from 'antd'
+import { Layout, Menu, Button, Space, Badge, Avatar, Dropdown, Drawer, Switch, Typography, Radio, Spin } from 'antd'
 import type { ItemType } from 'antd/es/menu/interface'
 import {
   SearchOutlined, LineChartOutlined, ThunderboltOutlined,
@@ -13,25 +13,39 @@ import {
   ApiOutlined, ClockCircleOutlined,
 } from '@ant-design/icons'
 import { useAuth, type Role } from './contexts/AuthContext'
+import { useTheme } from './contexts/ThemeContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import ErrorBoundary from './components/ErrorBoundary'
+import { alertApi } from './api/client'
 import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
-import Dashboard from './pages/Dashboard'
-import Screener from './pages/Screener'
-import Predictions from './pages/Predictions'
-import Signals from './pages/Signals'
-import Trade from './pages/Trade'
-import AuditLog from './pages/AuditLog'
-import Diagnosis from './pages/Diagnosis'
-import Backtest from './pages/Backtest'
-import Strategy from './pages/Strategy'
-import AutoTrade from './pages/AutoTrade'
-import Training from './pages/Training'
-import ModelRegistry from './pages/ModelRegistry'
-import DataUpdate from './pages/DataUpdate'
+
+// P1-03: code-split the 14 page bundles so the initial download only carries
+// the layout + auth pages; ECharts-heavy pages (Diagnosis/Backtest/Training/
+// ModelRegistry/Predictions) load on demand.
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Screener = lazy(() => import('./pages/Screener'))
+const Predictions = lazy(() => import('./pages/Predictions'))
+const Signals = lazy(() => import('./pages/Signals'))
+const Trade = lazy(() => import('./pages/Trade'))
+const AuditLog = lazy(() => import('./pages/AuditLog'))
+const Diagnosis = lazy(() => import('./pages/Diagnosis'))
+const Backtest = lazy(() => import('./pages/Backtest'))
+const Strategy = lazy(() => import('./pages/Strategy'))
+const AutoTrade = lazy(() => import('./pages/AutoTrade'))
+const Training = lazy(() => import('./pages/Training'))
+const ModelRegistry = lazy(() => import('./pages/ModelRegistry'))
+const DataUpdate = lazy(() => import('./pages/DataUpdate'))
 
 const { Header, Sider, Content, Footer } = Layout
 const { Text, Link } = Typography
+
+// Suspense fallback for lazy page loads
+const pageFallback = (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+    <Spin size="large" />
+  </div>
+)
 
 // ── Menu items with role restrictions ──
 
@@ -92,6 +106,9 @@ export default function App() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, isAuthenticated, isLoading, logout, hasRole } = useAuth()
+  const { mode: themeMode, setMode: setThemeMode } = useTheme()
+  const [compactMode, setCompactMode] = useState(false)
+  const [multiTab, setMultiTab] = useState(false)
 
   const selectedKey = '/' + location.pathname.split('/')[1]
 
@@ -106,13 +123,15 @@ export default function App() {
   )
 
   // Poll unread alerts only when authenticated
+  // P1-04: go through alertApi (axios) so the request carries the Authorization
+  // header and participates in 401 refresh, instead of a raw fetch + r.json()
+  // that would throw on non-JSON gateway error pages.
   useEffect(() => {
     if (!isAuthenticated) return
     const poll = () => {
-      fetch('/api/v1/alert/unread-count', { credentials: 'include' })
-        .then(r => r.json())
-        .then(d => setUnreadAlerts(d.unread || 0))
-        .catch(() => {})
+      alertApi.getUnreadCount()
+        .then(r => setUnreadAlerts((r.data as { unread?: number })?.unread || 0))
+        .catch(() => { /* best-effort poll; UI keeps last count */ })
     }
     poll()
     const timer = setInterval(poll, 30000)
@@ -139,12 +158,20 @@ export default function App() {
   }
 
   if (isAuthPage || !isAuthenticated) {
+    // Auth pages render bare (no sidebar/header).
+    // The catch-all goes through ProtectedRoute so that an unauthenticated user
+    // hitting a protected URL (e.g. refreshing /backtest) gets redirected to
+    // /login?redirect=<original-path> instead of landing on /login with no target.
     return (
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="*" element={<LoginPage />} />
-      </Routes>
+      <ErrorBoundary>
+        <Suspense fallback={pageFallback}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     )
   }
 
@@ -240,37 +267,53 @@ export default function App() {
           </Space>
         </Header>
 
-        {/* ── Page Style Settings Drawer ── */}
+        {/* ── Page Style Settings Drawer (P1-05: live controls, persisted) ── */}
         <Drawer title="页面风格设置" open={settingsOpen} onClose={() => setSettingsOpen(false)} width={280}>
           <Typography.Title level={5} style={{ marginTop: 0 }}>主题模式</Typography.Title>
-          <Radio.Group defaultValue="light" style={{ marginBottom: 24 }}>
-            <Radio.Button value="dark">暗色</Radio.Button>
+          <Radio.Group
+            value={themeMode}
+            onChange={e => setThemeMode(e.target.value)}
+            style={{ marginBottom: 24 }}
+          >
             <Radio.Button value="light">浅色</Radio.Button>
+            <Radio.Button value="dark">暗色</Radio.Button>
           </Radio.Group>
+          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 24 }}>
+            当前：{themeMode === 'dark' ? '暗色' : '浅色'}（选择已保存到本地）
+          </Typography.Text>
 
           <Typography.Title level={5}>其他设置</Typography.Title>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span>弱色模式</span>
-            <Switch size="small" />
+            <span>紧凑模式</span>
+            <Switch size="small" checked={compactMode} onChange={setCompactMode} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>多标签页</span>
-            <Switch size="small" />
+            <Switch size="small" checked={multiTab} onChange={setMultiTab} />
           </div>
+          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
+            注：紧凑模式/多标签页为偏好记录，后续迭代接入布局。
+          </Typography.Text>
         </Drawer>
 
         {/* ── Content ── */}
         <Content style={{ margin: 16, minHeight: 'calc(100vh - 48px - 180px)' }}>
-          <Routes>
-            {protectedRoutes.map(({ path, element, roles }) => (
-              <Route
-                key={path}
-                path={path}
-                element={<ProtectedRoute roles={roles}>{element}</ProtectedRoute>}
-              />
-            ))}
-            <Route path="*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          </Routes>
+          {/* P1-02: per-route error boundary so a single page throw doesn't white-screen the app;
+              P1-03: Suspense wraps the lazy-loaded page bundles. */}
+          <ErrorBoundary>
+            <Suspense fallback={pageFallback}>
+              <Routes>
+                {protectedRoutes.map(({ path, element, roles }) => (
+                  <Route
+                    key={path}
+                    path={path}
+                    element={<ProtectedRoute roles={roles}>{element}</ProtectedRoute>}
+                  />
+                ))}
+                <Route path="*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
         </Content>
 
         {/* ── Footer ── */}

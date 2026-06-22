@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { message } from 'antd'
+import axios from 'axios'
 import { liveTradeApi } from '../api/liveTrade'
 
 export type TradeMode = 'paper' | 'live'
@@ -129,7 +130,20 @@ export function useLiveTrade(): UseLiveTradeReturn {
           const breakers = r.data?.breakers || []
           setCircuitBreaker(breakers[0] || null)
         })
-        .catch(() => setCircuitBreaker(null))
+        .catch((err: unknown) => {
+          // P0-04: error triage — do NOT silently clear breaker state.
+          // - 404 / explicit "no breaker configured" response → legitimate null (no breaker)
+          // - network error / 401 / 403 / 5xx → RETAIN last known state so the risk
+          //   warning stays visible; a transient blip must not mask a triggered breaker.
+          if (axios.isAxiosError(err) && err.response?.status === 404) {
+            setCircuitBreaker(null)
+            return
+          }
+          // Network/server error: keep previous breaker state, log for debugging.
+          // Intentionally no message popup — this polls every 30s and would spam users.
+          // eslint-disable-next-line no-console
+          console.warn('[useLiveTrade] circuit breaker poll failed, retaining last state', err)
+        })
     }
 
     pollBreaker()
@@ -199,33 +213,16 @@ export function useLiveTrade(): UseLiveTradeReturn {
     }
 
     // Step 3: Submit order
+    // P0-01: paper/live unified through the axios-wrapped liveTradeApi.placeOrder.
+    // Previously the paper branch used a raw fetch() that bypassed client.ts — no
+    // Authorization header, no 401 refresh, no withCredentials cookie. Now both modes
+    // go through the single axios instance so the auth contract is consistent. The
+    // backend decides paper vs live from its own account/broker config.
     try {
-      if (mode === 'paper') {
-        const r = await fetch(`${apiPrefix}/order`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: params.code,
-            direction: params.direction,
-            price: params.price,
-            volume: params.volume,
-          }),
-        })
-        const data = await r.json()
-        if (r.ok) {
-          message.success(data.message || '下单成功')
-          return { success: true, data }
-        } else {
-          const errMsg = data.detail || '下单失败'
-          message.error(errMsg)
-          return { success: false, error: errMsg }
-        }
-      } else {
-        const r = await liveTradeApi.placeOrder(params.code, params.direction, params.volume, params.price)
-        const data = r.data
-        message.success(data.message || '下单成功')
-        return { success: true, data }
-      }
+      const r = await liveTradeApi.placeOrder(params.code, params.direction, params.volume, params.price)
+      const data = r.data
+      message.success(data.message || '下单成功')
+      return { success: true, data }
     } catch (err: any) {
       const errMsg = err?.response?.data?.detail || '交易服务未连接'
       message.error(errMsg)

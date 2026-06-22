@@ -18,6 +18,7 @@ import CircuitBreakerAlert from '../components/trade/CircuitBreakerAlert'
 import RiskCheckModal from '../components/trade/RiskCheckModal'
 import { showLargeTradeConfirm } from '../components/trade/LargeTradeConfirm'
 import { tradeApi } from '../api/client'
+import type { TradeOrder, TradeAccount } from '../api/client'
 
 const { Title, Text } = Typography
 
@@ -37,9 +38,9 @@ export default function Trade() {
     connectBroker, placeOrder,
   } = useLiveTrade()
 
-  const [orders, setOrders] = useState<any[]>([])
-  const [account, setAccount] = useState<any>({})
-  const [positions, setPositions] = useState<any[]>([])
+  const [orders, setOrders] = useState<TradeOrder[]>([])
+  const [account, setAccount] = useState<TradeAccount>({})
+  const [positions, setPositions] = useState<TradeOrder[]>([])
 
   // ── Risk check modal state ──
   const [riskCheckOpen, setRiskCheckOpen] = useState(false)
@@ -81,8 +82,8 @@ export default function Trade() {
   const refreshAccount = () => fetchData()
 
   // ── Mode switch handler ──
-  const handleModeSwitch = (v: any) => {
-    const newMode = v as 'paper' | 'live'
+  const handleModeSwitch = (v: 'paper' | 'live') => {
+    const newMode = v
     if (newMode === 'live' && brokerStatus === 'disconnected') {
       message.info('请先连接券商后再进行实盘交易')
     }
@@ -90,7 +91,7 @@ export default function Trade() {
   }
 
   // ── Order placement with risk control ──
-  const handlePlaceOrder = async (values: any) => {
+  const handlePlaceOrder = async (values: { code: string; direction: string; price: number; volume: number }) => {
     const orderParams: OrderParams = {
       code: values.code,
       direction: values.direction,
@@ -273,8 +274,15 @@ export default function Trade() {
         <Col span={10}>
           <Card title="下单" style={{ borderRadius: 8, position: 'sticky', top: 64 }}>
             <Form layout="vertical" onFinish={handlePlaceOrder} size="small">
-              <Form.Item label="股票代码" name="code" rules={[{ required: true, message: '请输入代码' }]}>
-                <Input placeholder="000001" />
+              <Form.Item
+                label="股票代码"
+                name="code"
+                rules={[
+                  { required: true, message: '请输入代码' },
+                  { pattern: /^\d{6}$/, message: '股票代码为 6 位数字' },
+                ]}
+              >
+                <Input placeholder="000001" maxLength={6} />
               </Form.Item>
               <Form.Item label="方向" name="direction" initialValue="BUY">
                 <Radio.Group buttonStyle="solid" size="small" style={{ width: '100%' }}>
@@ -282,10 +290,26 @@ export default function Trade() {
                   <Radio.Button value="SELL" style={{ width: '50%', textAlign: 'center', color: '#52c41a' }}>🔴 卖出</Radio.Button>
                 </Radio.Group>
               </Form.Item>
-              <Form.Item label="价格 (0=市价)" name="price" initialValue={0}>
+              <Form.Item
+                label={<Tooltip title="0 表示市价单（按当前盘口价成交）">价格 (0=市价)</Tooltip>}
+                name="price"
+                initialValue={0}
+              >
                 <InputNumber style={{ width: '100%' }} min={0} precision={2} />
               </Form.Item>
-              <Form.Item label="数量 (股)" name="volume" rules={[{ required: true }]}>
+              <Form.Item
+                label="数量 (股)"
+                name="volume"
+                rules={[
+                  { required: true, message: '请输入数量' },
+                  {
+                    validator: (_, value: number) =>
+                      value && value % 100 === 0
+                        ? Promise.resolve()
+                        : Promise.reject(new Error('数量须为 100 的整数倍（A股一手 100 股）')),
+                  },
+                ]}
+              >
                 <InputNumber style={{ width: '100%' }} min={100} step={100} />
               </Form.Item>
               <Tooltip title={orderDisabledReason}>
