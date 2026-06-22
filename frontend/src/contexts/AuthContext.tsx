@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { injectAuth } from '../api/client'
 
 // ── Types ──
@@ -38,6 +38,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   const isAuthenticated = !!user && !!accessToken
+
+  // P2-04: guard the mount-only refresh so React.StrictMode's double-invoke in
+  // dev does not fire two /auth/refresh requests (wasted tokens / race).
+  const didInitRef = useRef(false)
 
   // ── Token refresh function (used by interceptor too) ──
   // P1-06: accept an optional mounted-guard so the mount effect can prevent
@@ -98,6 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Initialization: try refresh on mount ──
 
   useEffect(() => {
+    // P2-04: StrictMode double-invokes mount effects in dev; the ref guard
+    // ensures only the first invocation actually fires the refresh.
+    if (didInitRef.current) {
+      setIsLoading(false)
+      return
+    }
+    didInitRef.current = true
     let cancelled = false
     doRefresh(() => cancelled).finally(() => {
       if (!cancelled) setIsLoading(false)

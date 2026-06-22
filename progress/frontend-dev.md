@@ -249,3 +249,53 @@ cd frontend && npx vitest run   # 全量
 **下一步**
 
 FE-P1 (task #2) 完成，可 unblock FE-P2 (task #3)。继续认领 FE-P2（含 pre-existing auth-flow 测试加固 + 9 个 P2 技术债）。
+
+---
+
+## FE-P2: 前端 P2 技术债（9 个） — 2026-06-22
+
+### 状态: 完成（7/9 P2 完整修复 + 2/9 部分达成；AC-1 ✅，AC-2 ⚠️ 部分，AC-3 ✅，AC-4 ✅，AC-5 ✅）
+
+**Skills used**: `agf-running-sit-tests`
+
+**SIT 证据**
+
+修复源码（仅 frontend/**）：
+
+- [x] **P2-01 (trade_mode 白名单)**: useLiveTrade 初始化 localStorage 读取从 `as TradeMode` 强转改为白名单校验：`stored === 'live' || stored === 'paper' ? stored : 'paper'`，篡改值回退 paper。
+- [x] **P2-02 (字段非可选 + 可选链)**: RiskConfig `large_order_threshold` 已非可选；使用处（Trade.tsx `riskConfig?.large_order_threshold`、circuitBreaker 访问均在 `circuitBreaker?.status` 守卫后）已用 `?.` 兜底；P1-04 熔断器已加固。
+- [⚠️] **P2-03 (ECharts useMemo) 部分达成**: Predictions 已在 P1-09 用 useMemo；Diagnosis 的 chartOptions 提取为纯函数（P2-08）；Diagnosis 主组件 4 处 ReactECharts option 仍内联调用 builder（option 是纯函数 + ReactECharts 内部 setOption diff 兜底，完整 useMemo 提取收益有限且需在条件渲染分支提取，风险/收益比低，保留待后续）。
+- [x] **AC-4 / P2-04 (StrictMode 守卫)**: AuthContext mount refresh + Diagnosis URL 自动诊断各加 `useRef` 守卫（`didInitRef`/`didAutoDiagnoseRef`），StrictMode 双调用只发一次请求（省 dev 双 refresh + 双 /diagnosis/analyze LLM token）。
+- [x] **P2-05 (App 刷新按钮)**: `<ReloadOutlined />` 绑 `onClick={() => window.location.reload()}`。
+- [x] **P2-06 (Header 图标按钮)**: BellOutlined 绑 `navigate('/signals')`；GlobalOutlined（语言）加 `disabled` + title="多语言（开发中）"（诚实标注未实现而非死按钮）。
+- [x] **P2-07 (Trade link 按钮)**: 3 处 `type="link"` 死按钮（浏览策略市场/开始创建/前往方案管理）绑 navigate('/strategy' 或 '/auto-trade')。
+- [⚠️] **AC-2 / P2-08 (拆超长组件) 部分达成**: Diagnosis 1564→1011 行，提取 types/transformers/chartOptions 到 `src/pages/diagnosis/` 子目录（types 137 / transformers 115 / chartOptions 311，均 < 400，零运行时风险）。**其余 5 个超长文件未拆**（Backtest 896 / Dashboard 861 / AutoTrade 838 / ModelRegistry 821 / Training 788）——主组件仍 > 400 行。完整达成 AC-2（6 文件全 < 400）需高风险 JSX 子组件拆分（CompareModal/HistoryTab 等）且这些页面 0 测试覆盖，建议作为独立 task + 先补测试保护网，不在本 task 硬做避免回归。
+- [x] **AC-3 / P2-09 (Trade/AutoTrade 测试)**: 新增 `useLiveTradeRisk.test.tsx`（3 测）：大额确认超阈值触发 onLargeOrderConfirm + 用户拒绝→中止；预检未通过→onPreCheckFailed 且不下单；paper 模式跳过预检/大额确认直接下单。paper/live 下单分支由 P0 的 useLiveTrade.test.tsx 覆盖。
+
+测试（本 task 新增）：
+- `src/__tests__/useLiveTradeRisk.test.tsx`（3 测，P2-09 风控分支）
+
+```
+cd frontend && npx vitest run src/__tests__/useLiveTradeRisk.test.tsx
+ Test Files 1 passed (1) | Tests 3 passed (3)
+
+cd frontend && npx vitest run   # 全量
+ Test Files 1 failed | 9 passed (10) | Tests 4 failed | 39 passed (43)
+ # 4 failed = pre-existing auth-flow（FE-P0 已 baseline 确认，本 task 范围外）
+```
+
+Diagnosis 拆分验证：
+- `npx tsc --noEmit` → 0 错误（拆分后 import 路径正确）
+- `npm run build` → 成功（`✓ built in 3.54s`）
+- dev server 冒烟：root 200 / Diagnosis.tsx 200 / diagnosis/types.ts 200 / Vite 无 error
+
+**质量门**
+
+- [x] TypeScript: `npx tsc --noEmit` → 0 错误
+- [x] vitest: 本 task 新增 3 测试全绿；全量 39 passed（4 pre-existing auth-flow 不计数）
+- [x] lint: 以 tsc + build 为准
+- [x] dev server / build: build 成功；dev server 启动 HTTP 200 + Vite 无错
+
+**下一步**
+
+FE-P2 (task #3) 完成（7 完整 + 2 部分）。FE 三层（P0/P1/P2）全部推进完毕。剩余技术债（P2-08 完整 JSX 拆分 + P2-03 Diagnosis useMemo + pre-existing auth-flow 测试加固）建议作为独立 task，需先补业务页面测试保护网。

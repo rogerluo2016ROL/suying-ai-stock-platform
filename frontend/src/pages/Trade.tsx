@@ -225,7 +225,7 @@ export default function Trade() {
         {/* ── Strategy Cards ── */}
         <Col span={14}>
           <Card title="创建交易策略" style={{ borderRadius: 8, marginBottom: 16 }}
-                extra={<Button type="link" size="small">浏览策略市场 <RightOutlined /></Button>}>
+                extra={<Button type="link" size="small" onClick={() => navigate('/strategy')}>浏览策略市场 <RightOutlined /></Button>}>
             <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
               选择一个策略类型快速创建自动化交易
             </Text>
@@ -240,7 +240,8 @@ export default function Trade() {
                       <Tag color={s.color === '#ff4d4f' ? 'red' : s.color === '#52c41a' ? 'green' : 'blue'} style={{ fontSize: 10 }}>{s.risk}</Tag>
                       <Tag style={{ fontSize: 10 }}>{s.market}</Tag>
                     </div>
-                    <Button type="link" size="small" style={{ padding: '4px 0', marginTop: 4 }}>
+                    <Button type="link" size="small" style={{ padding: '4px 0', marginTop: 4 }}
+                            onClick={() => navigate('/auto-trade')}>
                       开始创建 <RightOutlined style={{ fontSize: 10 }} />
                     </Button>
                   </Card>
@@ -325,7 +326,7 @@ export default function Trade() {
               </Tooltip>
               <div style={{ marginTop: 8 }}>
                 <Text type="secondary" style={{ fontSize: 11 }}>
-                  需要完整脚本策略控制？<Button type="link" size="small" style={{ padding: 0, fontSize: 11 }}>前往方案管理 <RightOutlined style={{ fontSize: 10 }} /></Button>
+                  需要完整脚本策略控制？<Button type="link" size="small" style={{ padding: 0, fontSize: 11 }} onClick={() => navigate('/strategy')}>前往方案管理 <RightOutlined style={{ fontSize: 10 }} /></Button>
                 </Text>
               </div>
             </Form>

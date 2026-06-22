@@ -63,7 +63,10 @@ export interface UseLiveTradeReturn {
 
 export function useLiveTrade(): UseLiveTradeReturn {
   const [mode, setModeState] = useState<TradeMode>(() => {
-    return (localStorage.getItem('trade_mode') as TradeMode) || 'paper'
+    // P2-01: whitelist-validate the stored value instead of blindly casting —
+    // a tampered localStorage ('foobar') must not pollute state.
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('trade_mode') : null
+    return stored === 'live' || stored === 'paper' ? stored : 'paper'
   })
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus>('disconnected')
   const [riskConfig, setRiskConfig] = useState<RiskConfig | null>(null)

@@ -245,14 +245,16 @@ export default function App() {
             <Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                     onClick={() => setCollapsed(!collapsed)}
             />
-            <Button type="text" icon={<ReloadOutlined />} title="刷新" />
+            <Button type="text" icon={<ReloadOutlined />} title="刷新页面"
+                    onClick={() => window.location.reload()} />
           </Space>
 
           <Space size="middle">
             <Badge count={unreadAlerts} size="small" offset={[-2, 2]}>
-              <Button type="text" icon={<BellOutlined />} />
+              <Button type="text" icon={<BellOutlined />} title="交易信号"
+                      onClick={() => navigate('/signals')} />
             </Badge>
-            <Button type="text" icon={<GlobalOutlined />} title="语言" />
+            <Button type="text" icon={<GlobalOutlined />} title="多语言（开发中）" disabled />
             <Button type="text" icon={<SettingOutlined />} title="页面设置"
                     onClick={() => setSettingsOpen(true)} />
             <Dropdown menu={{ items: [
