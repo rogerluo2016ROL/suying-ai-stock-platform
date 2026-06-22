@@ -664,3 +664,45 @@ path #4 真正未收口的 PG 模块（原盘点报告低估）：
 1. **ADR-015.4** (stock_profiles.py, 提 P1) — path #4 真正未收口的高风险模块
 2. 或 **ADR-015.5** (namechange.py) — 需 UPSERT, 验证 now_cols 第二用例
 3. ADR-015.3 (announcements/cctv_news/mp_report/policy_law) — SQLite-only 清理, 低优先
+
+---
+
+## 2026-06-22（同日 +8）— ADR-015.4 立项 + 实施 + SIT 完成 (stock_profiles.py)
+
+- **触发**: ADR-015.2 优先级重排将 stock_profiles.py 从 P2 提到 P1 (path #4 真正未收口的高风险模块, 16 列 inline-execute_values)。
+- **背景**: stock_profiles.py PG 路径用 inline-execute_values + 手拼 `ON CONFLICT(code) DO UPDATE SET` 14 业务列 (L81-99), 未走 `_pg_write` 主干, schema drift 无防御。
+- **决策**: 方案 D — PG 路径切 `_pg_write(conflict_action="update", update_cols=[14 业务列])`, **不传 now_cols** (100% 还原现状不刷 updated_at, 参考 ADR-013 S-1 教训不扩 scope), SQLite 保留 INSERT OR REPLACE。
+
+### ADR-015.4 §决策 3 SIT verdict
+
+| # | 验证项 | Verdict |
+|---|---|---|
+| 1 | 白名单审计仅 stock_profiles.py + ADR + progress | ✅ |
+| 2 | SQLite INSERT OR REPLACE 保留 (1 处) | ✅ |
+| 3 | inline-execute_values + ON CONFLICT SQL 已删 (仅 docstring 注释) | ✅ |
+| 4 | _pg_write 调用正确 (1 处 + conflict_action + 无 now_cols) | ✅ |
+| 5 | 语法 ast.parse OK | ✅ |
+| 6 | 真实写库 UPSERT 业务列刷新 (full_name → SIT_TEST_PROFILE_NEW) | ✅ |
+| 7 | updated_at 100% 还原不刷 (二次 UPSERT 前后 ts1 == ts2) | ✅ |
+
+**Verdict**: 7/7 PASS, ADR-015.4 可升 Accepted。
+
+### 真实写库 SIT 细节
+
+- mock: existing code 688322 (奥比中光) + new code 999997
+- `_pg_write` 返回 written=2 (1 UPDATE + 1 INSERT 批量)
+- UPSERT 后 full_name 刷新为 SIT_TEST_PROFILE_NEW (非首次快照)
+- 二次 UPSERT 后 updated_at 不变 (2026-06-18 18:43:33 == ts1, 100% 还原不刷)
+- 业务列 full_name 二次刷新为 SIT_TEST_PROFILE_V2
+- cleanup: 恢复 688322 full_name + 删 mock 999997
+
+### 跟踪表调整
+
+- ADR-015.4 拆分: stock_profiles.py 单独成 ADR-015.4 (P1, 已完成); fina_mainbz/fina_audit 拆为 ADR-015.4a (P2, SQLite-only 清理, pending)
+
+### 下一步
+
+1. **ADR-015.5** (namechange.py, P3) — 第二个 UPSERT + now_cols 用例 (st_history 区间续接)
+2. **ADR-015.3** (announcements/cctv_news/mp_report/policy_law, P2) — SQLite-only 清理
+3. **ADR-015.4a** (fina_mainbz/fina_audit, P2) — SQLite-only 清理
+4. **ADR-015.6** (rt_k, P3) — dual-target

@@ -77,24 +77,19 @@ def sync_stock_profiles(days_back: int = 0) -> dict:
                "main_business", "business_scope", "website", "email", "chairman",
                "manager", "secretary", "employees", "introduction"]
 
-    # ── PG 直写 (主路径) — 使用 upsert 因为要更新已有行的新字段 ──
+    # ── PG 直写 (主路径, ADR-015.4: _pg_write UPSERT 替代 inline-execute_values) ──
+    # 业务语义: ON CONFLICT(code) DO UPDATE SET 14 业务列 (不刷 updated_at, 100% 还原现状)
+    # 若业务需刷 updated_at, 另开 follow-up (本 ADR 不扩 scope, 参考 ADR-013 S-1 教训)
     try:
-        import psycopg2, os
-        pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
-        conn = psycopg2.connect(pg_url)
-        conn.autocommit = True
-        cur = conn.cursor()
-        update_cols = [c for c in pg_cols if c != "code"]
-        set_clause = ", ".join(f"{c}=EXCLUDED.{c}" for c in update_cols)
-        sql = (
-            f"INSERT INTO stock_profiles({','.join(pg_cols)}) VALUES("
-            + ",".join(["%s"] * len(pg_cols))
-            + f") ON CONFLICT(code) DO UPDATE SET {set_clause}"
+        from app.sync.pg_writer import _pg_write
+        pg_written = _pg_write(
+            "stock_profiles",
+            columns=pg_cols,
+            conflict_cols=["code"],
+            rows=all_rows,
+            conflict_action="update",
+            update_cols=[c for c in pg_cols if c != "code"],
         )
-        from psycopg2.extras import execute_values
-        execute_values(cur, sql, all_rows, page_size=500)
-        pg_written = cur.rowcount
-        conn.close()
     except Exception as e:
         logger.debug("PG write stock_profiles skipped: %s", e)
 
