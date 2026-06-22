@@ -19,20 +19,68 @@ app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_OR
 
 _rate_store: dict[str, list[float]] = {}
 
+# DEF-3 fix: docker compose 容器内 localhost 指向 api-gateway 自己, 而非目标服务.
+# GATEWAY_NETWORK_MODE=compose 时用 compose 服务名 (容器间 DNS); default (host 模式
+# uvicorn 直起) 用 localhost. 逐服务 host 覆盖 env (GATEWAY_<NAME>_HOST) 优先级最高.
+_USE_COMPOSE = os.environ.get("GATEWAY_NETWORK_MODE", "").lower() == "compose"
+_COMPOSE_HOSTS = {
+    "/api/v1/auth": "backend",
+    "/api/v1/admin": "backend",
+    "/api/v1/screener": "screener-service",
+    "/api/v1/prediction": "prediction-service",
+    "/api/v1/strategy": "strategy-service",
+    "/api/v1/signal": "signal-service",
+    "/api/v1/dashboard": "signal-service",  # signal-service hosts dashboard aggregation
+    "/api/v1/data": "signal-service",        # signal-service hosts data-status/sync
+    "/api/v1/alert": "alert-service",
+    "/api/v1/trade": "trade-service",
+    "/api/v1/backtest": "backtest-service",
+    "/api/v1/training": "training-service",
+    "/api/v1/diagnosis": "diagnosis-service",
+}
+_HOST_ENV = {
+    "/api/v1/auth": "GATEWAY_BACKEND_HOST",
+    "/api/v1/admin": "GATEWAY_BACKEND_HOST",
+    "/api/v1/screener": "GATEWAY_SCREENER_HOST",
+    "/api/v1/prediction": "GATEWAY_PREDICTION_HOST",
+    "/api/v1/strategy": "GATEWAY_STRATEGY_HOST",
+    "/api/v1/signal": "GATEWAY_SIGNAL_HOST",
+    "/api/v1/dashboard": "GATEWAY_SIGNAL_HOST",
+    "/api/v1/data": "GATEWAY_SIGNAL_HOST",
+    "/api/v1/alert": "GATEWAY_ALERT_HOST",
+    "/api/v1/trade": "GATEWAY_TRADE_HOST",
+    "/api/v1/backtest": "GATEWAY_BACKTEST_HOST",
+    "/api/v1/training": "GATEWAY_TRAINING_HOST",
+    "/api/v1/diagnosis": "GATEWAY_DIAGNOSIS_HOST",
+}
+
+
+def _svc_url(prefix: str, port: int) -> str:
+    """解析服务 URL: env GATEWAY_<NAME>_HOST > compose 服务名 > localhost."""
+    env_name = _HOST_ENV.get(prefix)
+    if env_name and os.environ.get(env_name):
+        host = os.environ[env_name]
+    elif _USE_COMPOSE:
+        host = _COMPOSE_HOSTS.get(prefix, "localhost")
+    else:
+        host = "localhost"
+    return f"http://{host}:{port}"
+
+
 SERVICES = {
-    "/api/v1/auth": "http://localhost:9001",
-    "/api/v1/admin": "http://localhost:9001",
-    "/api/v1/screener": "http://localhost:8001",
-    "/api/v1/prediction": "http://localhost:8002",
-    "/api/v1/strategy": "http://localhost:8003",
-    "/api/v1/signal": "http://localhost:8004",
-    "/api/v1/dashboard": "http://localhost:8004",  # signal-service hosts dashboard aggregation
-    "/api/v1/data": "http://localhost:8004",        # signal-service hosts data-status/sync
-    "/api/v1/alert": "http://localhost:8005",
-    "/api/v1/trade": "http://localhost:8006",
-    "/api/v1/backtest": "http://localhost:8007",
-    "/api/v1/training": "http://localhost:8008",
-    "/api/v1/diagnosis": "http://localhost:8009",
+    "/api/v1/auth": _svc_url("/api/v1/auth", 9001),
+    "/api/v1/admin": _svc_url("/api/v1/admin", 9001),
+    "/api/v1/screener": _svc_url("/api/v1/screener", 8001),
+    "/api/v1/prediction": _svc_url("/api/v1/prediction", 8002),
+    "/api/v1/strategy": _svc_url("/api/v1/strategy", 8003),
+    "/api/v1/signal": _svc_url("/api/v1/signal", 8004),
+    "/api/v1/dashboard": _svc_url("/api/v1/dashboard", 8004),
+    "/api/v1/data": _svc_url("/api/v1/data", 8004),
+    "/api/v1/alert": _svc_url("/api/v1/alert", 8005),
+    "/api/v1/trade": _svc_url("/api/v1/trade", 8006),
+    "/api/v1/backtest": _svc_url("/api/v1/backtest", 8007),
+    "/api/v1/training": _svc_url("/api/v1/training", 8008),
+    "/api/v1/diagnosis": _svc_url("/api/v1/diagnosis", 8009),
 }
 
 

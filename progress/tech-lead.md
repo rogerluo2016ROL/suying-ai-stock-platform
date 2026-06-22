@@ -885,3 +885,36 @@ path #4 收官是长期跨 session 决策点, 建议写 memory:
 - DEF-3/DEF-4 UAT 配置 bug (GitHub issue 待创建)
 - stk_factor_pro 无 UNIQUE 约束 (重复 sync 堆叠, 另开 follow-up)
 - trade_cal 无 sync 函数 (外部维护)
+
+---
+
+## 2026-06-22（同日 +13）— DEF-3/DEF-4 直接修复 (跳过 issue, 实修更有价值)
+
+- **触发**: DEF-3/DEF-4 issue body 草拟后, 用户"继续"。直接修配置 bug 比只提 issue 更实在 (真实 bug, 低风险, 可 SIT)。
+- **DEF-3 修复** `services/api-gateway/app/main.py`:
+  - SERVICES dict 原 12 路由全硬编码 `localhost:PORT`, 容器内 localhost = api-gateway 自己 → 路由 502
+  - 加 `GATEWAY_NETWORK_MODE=compose` env 切换: compose 模式用服务名 (backend/screener-service/...), default host 模式用 localhost (dev 向后兼容)
+  - 逐服务 host 可被 `GATEWAY_<NAME>_HOST` env 覆盖 (优先级最高, 灵活调试)
+  - docker-compose.yml api-gateway 段注入 `GATEWAY_NETWORK_MODE=compose`
+- **DEF-4 修复** `docker/docker-compose.yml`:
+  - 实测验签服务仅 backend/strategy/trade/diagnosis (training 手动启动不在 compose)
+  - compose 原覆盖 backend/strategy/trade, **只缺 diagnosis-service**
+  - diagnosis-service 段补 `JWT_SECRET_KEY=${JWT_SECRET_KEY:?...}` env
+
+### SIT 6/6 verdict
+
+| # | 验证项 | Verdict |
+|---|---|---|
+| 1 | api-gateway main.py 语法 | ✅ |
+| 2 | compose YAML 语法 | ✅ |
+| 3 | host 模式 default localhost (dev 向后兼容) | ✅ |
+| 4 | compose 模式用服务名 (backend/screener-service/diagnosis-service) | ✅ |
+| 5 | env GATEWAY_<NAME>_HOST 覆盖优先级最高 | ✅ |
+| 6 | DEF-4 所有验签服务 (backend/strategy/trade/diagnosis) 覆盖 JWT_SECRET_KEY | ✅ |
+
+**Verdict**: 6/6 PASS, DEF-3/DEF-4 修复完成。原 issue body /tmp/def-3-4-issue-body.md 仍可提 (记录 pre-existing bug 已修), 但修复本身已完成无需等 issue。
+
+### 后续验证 (需 UAT 栈重起, 非本会话 scope)
+
+- UAT 栈 round 3 重跑 ADR-013 AC-4 (登录经 gateway) + AC-5 (跨服务带 JWT) 应从 Conditional → Pass
+- DEF-3/DEF-4 issue (如已创建) 可直接关 close (已修)

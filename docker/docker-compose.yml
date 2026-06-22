@@ -64,6 +64,8 @@ services:
       - "${API_GATEWAY_PORT:-8080}:8080"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+      # DEF-3 fix: 容器内用 compose 服务名寻址 (非 localhost); 逐服务 host 可被 GATEWAY_<NAME>_HOST 覆盖
+      - GATEWAY_NETWORK_MODE=compose
     depends_on:
       postgres:
         condition: service_healthy
@@ -220,6 +222,8 @@ services:
       - "${DIAGNOSIS_PORT:-8009}:8009"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+      # DEF-4 fix: 跨服务 JWT 验签须与 backend 同 secret (原缺 env → fallback default → 验签失败)
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set (kronos-auth prod-gate)}
     depends_on:
       postgres:
         condition: service_healthy
