@@ -106,7 +106,9 @@ MONITORED_TABLES: dict[str, dict] = {
     "monthly_kline":            {"date_col": "trade_date", "lookback": 60, "freq": "L3-monthly","gap_threshold": 31},
     "stk_holdernumber":         {"date_col": "end_date",   "lookback": 90, "freq": "L3-weekly", "gap_threshold": 14},
     "repurchase":               {"date_col": "ann_date",   "lookback": 30, "freq": "L3-weekly", "gap_threshold": 7},
-    "index_basic":              {"date_col": "updated_at", "lookback": 30, "freq": "L3-weekly", "gap_threshold": 7},
+    # ADR-013 §决策 6 (LD-2): index_basic 是基础元数据 (code/market/name/publisher 等), 非时序数据,
+    # 表无 updated_at 列 (validate 检查 2 触发 WARN); 监控价值有限. 从 MONITORED_TABLES 移除 —— 最干净.
+    # 若未来加 updated_at 列 (作为元数据漂移监控) 可重新加入此表.
     "broker_recommend":         {"date_col": "month",      "lookback": 90, "freq": "L3-monthly","gap_threshold": 31},
     "stock_profiles":           {"date_col": "updated_at", "lookback": 14, "freq": "L3-weekly", "gap_threshold": 7},
     "interact_qa":              {"date_col": "pub_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
@@ -169,19 +171,22 @@ _BACKFILL_MAP: dict[str, callable] = {
     # stk_factor_pro: 见 sync_stk_factor_pro_backfill 下方定义 (新增双轨入口)
     "ths_daily":        sync_ths_daily,
     "index_daily":      sync_index_daily,
-    # stk_factor_pro 注册延后到 sync_stk_factor_pro_backfill 定义后 (函数在本文件下方),
-    # 通过 _register_backfill_handlers_late() 调用.
+    # stk_factor_pro 注册延后到 sync_stk_factor_pro_backfill 定义后 (函数在本文件下方);
+    # ADR-013 §决策 5 (S-4): 旧注释提到 "_register_backfill_handlers_late() 调用" 是失效语义
+    # (该函数从未实现, 实际由本文件 L773 顶层 `_BACKFILL_MAP["stk_factor_pro"] = sync_stk_factor_pro_backfill`
+    # 直接赋值绕过 forward declaration 限制 — Python 模块加载时顺序执行, 函数定义后立即赋值即生效).
 }
 
 
-# ADR-012 §决策 5.4: stocks / trade_cal 的监控规则与 days_back 回补模型错配:
-# - stocks: 非时序数据 (全量股票列表), 由 cron 'stocks_sync' (每周六 02:00 sync_stock_list)
-#   + 'stocks_incremental' (每日 08:00 sync_stocks_incremental) 维护; 不进 _BACKFILL_MAP.
-# - trade_cal: 交易日历, 由其他流程维护 (无独立 sync_trade_cal 入口); 不进 _BACKFILL_MAP.
-# 这两表保留在 MONITORED_TABLES (供 detect_data_gaps 可见) 但 _BACKFILL_MAP 不挂 handler,
-# trigger_data_backfill 的 'no_handler' 分支会 logger.debug 跳过, 不再静默无声.
-# 在 validate_pipeline_consistency 中显式标注 DESIGN_SKIP 避免 WARN 噪音.
-_DESIGN_SKIP_BACKFILL = {"stocks", "trade_cal"}
+# ADR-012 §决策 5.4 + ADR-013 §决策 6 (LD-3): _DESIGN_SKIP_BACKFILL 列出"按设计不走 days_back
+# 历史回补模型"的表 ── 它们的 sync 函数不接受 days_back 参数 (实时拉取 / 全量元数据), 但被
+# trigger_data_backfill 调用时会因签名不匹配 / 业务语义错位而误触发. validator 检查 1 + 检查 3
+# 均跳过此集合避免噪音.
+# - stocks: 非时序 (全量股票列表), cron 'stocks_sync' (每周六 02:00) + 'stocks_incremental' (每日 08:00) 维护
+# - trade_cal: 交易日历, 由其他流程维护 (无独立 sync_trade_cal 入口)
+# - rt_k / rt_sw_k (ADR-013 §决策 6 LD-3 新增): 实时数据按 cron 拉, sync_rt_k 签名无 days_back,
+#   sync_rt_sw_k 签名虽有 days_back=1 但语义是"今天再拉一次"非"回补 N 天" → 监控失配, 留在监控但不进 backfill
+_DESIGN_SKIP_BACKFILL = {"stocks", "trade_cal", "rt_k", "rt_sw_k"}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -732,6 +737,10 @@ def sync_stk_factor_pro_backfill(days_back: int = 7) -> dict:
             continue
 
         # PG 直写 (主路径) — 走改造后的 thin wrapper, 自动列过滤 + 重试
+        # ADR-013 §决策 5 (S-3): pg_w 显式初始化, 用 try/except 包裹 PG 写入; 删除原 L761
+        # "pg_w if 'pg_w' in dir() else 0" 反模式 (依赖 dir() introspection 检测变量存在性
+        # 是脆弱写法 — pg_w 在异常分支若未初始化会 NameError; 显式 pg_w=0 是 PEP 8 推荐).
+        pg_w = 0
         try:
             from app.sync.pg_writer import _pg_write
             pg_w = _pg_write("stk_factor_pro", pg_cols,
@@ -758,13 +767,20 @@ def sync_stk_factor_pro_backfill(days_back: int = 7) -> dict:
         total_written += len(rows)
         days_processed += 1
         logger.debug("stk_factor_pro backfill %s: %d rows (PG=%d, SQLite=%d)",
-                     ymd, len(rows), pg_w if 'pg_w' in dir() else 0, len(rows))
+                     ymd, len(rows), pg_w, len(rows))
 
     elapsed = time.time() - t0
     logger.info("stk_factor_pro backfill: %d days processed, %d rows total, PG=%d, SQLite=%d, %.1fs",
                 days_processed, total_written, total_pg, total_sqlite, elapsed)
-    return {"table": "stk_factor_pro", "written": total_written,
-            "pg_written": total_pg, "sqlite_written": total_sqlite,
+    # ADR-013 §决策 5 (W-3): "written" 语义修复 — 旧实现 written=total_written (累计 fetched, 含 ON CONFLICT
+    # 跳过的重复行) 与 detect_data_gaps 期望的"实际 PG 落库行数"语义错位 (~10x 监控误导).
+    # 新约定: written = pg_written = PG 实际新增行数 (与 detect_data_gaps 一致); fetched = 累计 fetch 行数
+    # (监控/调试用, 未去重). pg_written 显式别名向后兼容 (SIT 7 evidence / 历史 stk_factor_pro_daily 输出).
+    return {"table": "stk_factor_pro",
+            "written": total_pg,             # ← 语义对齐 detect_data_gaps (PG 实际落库)
+            "fetched": total_written,        # ← 累计 fetch (含去重前重复)
+            "pg_written": total_pg,          # ← 向后兼容别名
+            "sqlite_written": total_sqlite,
             "days_processed": days_processed, "days_back": days_back,
             "elapsed": round(elapsed, 1)}
 
@@ -1130,7 +1146,12 @@ def validate_pipeline_consistency() -> dict:
         logger.debug("validate_pipeline_consistency: PG introspect skipped (%s)", e)
 
     # ── 检查 3: handler 签名 ──
+    # ADR-013 §决策 6 (LD-3): _DESIGN_SKIP_BACKFILL 内的 handler 按设计不走 days_back 历史回补,
+    # 跳过签名检查避免误报 (如 sync_rt_k 实时拉取无 days_back 参数). validator 检查 1 已跳过 monitored
+    # 列表里的 design-skip 表, 此处补检查 3 的对称跳过.
     for table, fn in _BACKFILL_MAP.items():
+        if table in _DESIGN_SKIP_BACKFILL:
+            continue
         try:
             sig = inspect.signature(fn)
         except (TypeError, ValueError):

@@ -167,7 +167,8 @@ def clean_before_write(db: _Db, table: str, days_back: int, date_col: str = "tra
 def _insert_rows(db: _Db, table: str, columns: list[str],
                  rows: list[tuple],
                  retries: int = 0,
-                 data_volume_floor: int | None = None) -> int:
+                 data_volume_floor: int | None = None,
+                 data_volume_warn: int | None = None) -> int:
     """INSERT with per-row error isolation. Uses PG or SQLite bulk insert.
 
     Args:
@@ -178,6 +179,10 @@ def _insert_rows(db: _Db, table: str, columns: list[str],
         data_volume_floor: 写入行数 < floor 时 print ERROR 提示 (best-effort, 不 raise).
                            ADR-012 §决策 5.1: 关键表 (daily_kline / stk_mins) 用 1000 floor;
                            默认 None = 关闭门禁, 保持旧行为. SQLite 路径不触发 (本地文件无 IO 抖动).
+        data_volume_warn: 写入行数 < warn 时 print WARN 提示 (best-effort, 不 raise).
+                          ADR-013 §决策 4 (W-2 二档恢复): 关键表 daily_kline / stk_mins 用 warn=3000
+                          配合 floor=1000 形成两档分级 (< floor → ERROR, floor ≤ x < warn → WARN);
+                          默认 None = 关闭, 保持旧行为. 与 floor 互不依赖, 可独立启用.
     """
     import time
     col_str = ", ".join(columns)
@@ -212,9 +217,15 @@ def _insert_rows(db: _Db, table: str, columns: list[str],
                 written = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
                 db.commit()
                 # 数据量门禁 (best-effort, 不 raise)
-                if data_volume_floor is not None and 0 < written < data_volume_floor:
-                    print(f"  [ERROR] _insert_rows {table}: 写入量 {written} 低于 floor {data_volume_floor}, "
-                          f"可能 Tushare API 异常 / 权限过期", flush=True)
+                # ADR-013 §决策 4 (W-2): floor → ERROR 优先 (严重); warn → WARN 次档 (温和).
+                # 二档互斥分支 (ERROR 触发后不再 WARN), written>0 才检测 (0 不触发避免空跑误报).
+                if written > 0:
+                    if data_volume_floor is not None and written < data_volume_floor:
+                        print(f"  [ERROR] _insert_rows {table}: 写入量 {written} 低于 floor {data_volume_floor}, "
+                              f"可能 Tushare API 异常 / 权限过期", flush=True)
+                    elif data_volume_warn is not None and written < data_volume_warn:
+                        print(f"  [WARN] _insert_rows {table}: 写入量 {written} 低于 warn 阈值 {data_volume_warn}, "
+                              f"可能上半场断网 / 部分日期缺数据", flush=True)
                 return written
             except psycopg2.OperationalError as e:
                 # 仅 OperationalError 走重试 (网络瞬时抖动); 其他 SQL 错误走下面 except Exception

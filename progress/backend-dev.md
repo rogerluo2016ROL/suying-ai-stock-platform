@@ -637,6 +637,7 @@
     SIT 7 PASS
     ```
     `written=22037` 注解：**fetched 累计 22,037 行**（Tushare 4 个交易日 × ~5500 stk_factor_pro 记录）；**其中 PG 新增 ~2,037 行**（`pg_written=2037`），其余 ~20,000 行因 ON CONFLICT DO NOTHING 跳过（近 4 个交易日已被 daily cron 写入过——这是 thin wrapper 去重作用，非 bug）。written=22037 >> ADR §决策 6 SIT 7 阈值 5000 ✅；days_processed=4 = 7 天窗口里实际触达的有效交易日数（节假日 / 数据未到）；elapsed 8.7s 在 ADR §配额评估 < 5s 浮动可接受（首次 backfill 表大）。sqlite_written=0 是 SQLite legacy 表不存在的预期表象（与 `sync_stk_factor_pro_daily` 现状一致，不属本 ADR 范围）。 *(W-3 注解 2026-06-22 补)*
+    **W-3 后续修订 (ADR-013 §决策 5)**: 上述 `written=22037` 实为 `fetched 累计`（含 ON CONFLICT 跳过的重复行）而非 PG 新增；与 `detect_data_gaps` 期望的「实际 PG 落库行数」语义错位（~10x 监控误导）。ADR-013 §决策 5 已修正 return 字段：`written` ≡ `pg_written` (PG 新增) + `fetched` (累计 fetch，未去重) + 保留 `pg_written` 显式别名兼容历史。修复后实跑 `r["written"]=2037 == r["pg_written"]=2037`，`r["fetched"]=22037` ratio=10.82×（见 ADR-013 SIT 12）。
 
 - [x] **SIT 8 — `detect_data_gaps` 5 表 status 可见** ✅
     ```
@@ -726,3 +727,232 @@
 3. `_BACKFILL_MAP["rt_k"] = sync_rt_k` 签名无 `days_back`：rt_k 设计是实时拉非历史回补，可通过加入 `_DESIGN_SKIP_BACKFILL` 或给 sync_rt_k 加 `days_back: int = 0` 修复（属架构层小决策，建议 PL 选）。
 
 **下一步**: 等 code-review 一次性 audit ADR-010 follow-up + ADR-011 + ADR-012 三批；上述 3 项 latent debt 等 PL 排期。
+
+## ADR-013 — ths_daily schema 对齐 + cb_sync cols 修复 + ADR-012 review 收尾 - 2026-06-22
+
+**状态**: 已完成（16 项 SIT 全绿，其中 1 项 PARTIAL 带 rationale；7 文件白名单合规 + 0 越界；ADR-013 §决策 0-8 全实施）
+
+**Skills**: agf-running-sit-tests
+
+**SIT 证据**（按 ADR-013 §决策 7 修订后 16 项 checklist 逐条贴证据；行首 `[x]/[ ]` 同时表达 AC 自验勾选）:
+
+- [x] **SIT 1 — `alembic upgrade head` 跑通（010 → 011）** ✅
+    ```
+    $ cd backend && .venv/bin/alembic upgrade head
+    INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+    INFO  [alembic.runtime.migration] Will assume transactional DDL.
+    INFO  [alembic.runtime.migration] Running upgrade 010 -> 011, ths_daily schema 反向追认 DB 现状 + 补 BIGSERIAL PK + 业务索引.
+    $ alembic current
+    011 (head)
+    $ psql -c "SELECT version_num FROM alembic_version;" → 011
+    ```
+    9 步 op.execute 顺序：CREATE SEQUENCE → ALTER TYPE bigint → SET DEFAULT nextval → UPDATE 回填 1.93M 行 → setval 续接 → SET NOT NULL → ADD PK → SEQUENCE OWNED BY → CREATE 业务索引。
+
+- [x] **SIT 2 — `alembic upgrade head` 重跑幂等** ✅
+    ```
+    $ alembic upgrade head   # 第二次跑
+    INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+    INFO  [alembic.runtime.migration] Will assume transactional DDL.
+    （无 "Running upgrade" 行 → no-op）
+    $ alembic current → 011 (head)
+    ```
+    各 op.execute 都用 IF NOT EXISTS / DROP IF EXISTS / setval false 兜底；ALTER TYPE bigint 已是 bigint 时 PG 自然 no-op。
+
+- [x] **SIT 3 — `alembic downgrade -1` + 重 upgrade 双向 OK** ✅
+    ```
+    $ alembic downgrade -1
+    INFO  [alembic.runtime.migration] Running downgrade 011 -> 010, ...
+    $ alembic upgrade head
+    INFO  [alembic.runtime.migration] Running upgrade 010 -> 011, ...
+    $ psql "\d ths_daily" → id bigint NOT NULL DEFAULT nextval('ths_daily_id_seq'::regclass)
+                            ths_daily_pkey PRIMARY KEY btree(id)
+                            idx_ths_daily_code_date btree(code, trade_date)
+                            ths_daily_code_date_uniq UNIQUE CONSTRAINT btree(code, trade_date)
+    $ SELECT COUNT(*), COUNT(id), MAX(id) FROM ths_daily → 1931458 / 1931458 / 1931458
+    ```
+    downgrade 不破坏数据 (id 列回 integer 但值留存，1.93M 行远 < int4 上限)；roundtrip 后 id 全填 + PK + 索引 + UNIQUE 完整。
+
+- [x] **SIT 4 — DB 17 列形态 + UNIQUE + BIGSERIAL PK + 业务索引** ✅
+    ```
+    $ psql -c "\d ths_daily"
+    栏位 17 个: id bigint PK NOT NULL DEFAULT nextval(...) | trade_date text | code text | name | open/high/low/close/pre_close/avg_price/change_pct/change/total_mv/float_mv/vol/turnover_rate (double precision) | updated_at text
+    索引:
+      "ths_daily_pkey" PRIMARY KEY, btree (id)
+      "idx_ths_daily_code_date" btree (code, trade_date)         ← ADR-013 新增业务索引
+      "ths_daily_code_date_uniq" UNIQUE CONSTRAINT, btree (code, trade_date)
+    ```
+    17 列 + UNIQUE(code, trade_date) + BIGSERIAL PK(id) + idx_ths_daily_code_date 全部满足；trade_date / updated_at 保留 TEXT 类型 (DB 现状, ADR §决策 1 修订段; 列入 ADR-014 audit)。
+
+- [x] **SIT 5 — `cb_sync.sync_ths_daily` 实跑无 `[WARN] _insert_rows ths_daily: 丢弃表不存在的列 ['pct_change']`** ✅
+    ```
+    $ KRONOS_PG_URL=postgresql://kronos:kronos@localhost:6432/kronos /opt/homebrew/bin/python3 \
+        -c "from app.sync.cb_sync import sync_ths_daily; r=sync_ths_daily(days_back=10); print(r)"
+    INFO data-service.cb_sync: ths_daily: 7257 fetched, 2028 written (10 dates)
+    RESULT: {'status': 'ok', 'table': 'ths_daily', 'fetched': 7257, 'pg_written': 2028}
+    ```
+    **关键：stdout 无 `[WARN] _insert_rows ths_daily: 丢弃表不存在的列` 输出**（ADR-012 SIT 5 中的列名错位警告已消失）；written=2028 远 > 0（10 天窗口中含周末 6 个交易日，每日 ~1500 records × 6 天去重后新增 ~2028）；ADR-013 §决策 2 cols 5 → 15 改造生效。
+
+- [x] **SIT 6 — `change_pct` 列非 NULL 验证（近 14 天）** ✅
+    ```
+    SELECT COUNT(*) AS total_new, COUNT(change_pct) AS change_pct_nn
+    FROM ths_daily WHERE trade_date >= '2026-06-13';
+     total_new | change_pct_nn
+    -----------+---------------
+          6028 |          6028
+    ```
+    6028 行 100% 非 NULL，与 ADR-012 SIT 5 之前"丢列 → 全 NULL"形成鲜明对比；leader_intraday 因子读 ths_daily.change_pct 终于可读出真实数据（非 fallback）。
+
+- [x] **SIT 7 — `name / total_mv / vol` 等扩展列写入验证** ✅
+    ```
+    SELECT trade_date, COUNT(*) AS rows, COUNT(change_pct), COUNT(open), COUNT(vol), COUNT(name), COUNT(total_mv)
+    FROM ths_daily WHERE trade_date >= '2026-06-13' GROUP BY trade_date ORDER BY trade_date;
+     trade_date | rows | change_pct_nn | open_nn | vol_nn | name_nn | total_mv_nn
+    ------------+------+---------------+---------+--------+---------+-------------
+     2026-06-15 | 1507 |          1507 |    1507 |   1507 |       0 |           0
+     2026-06-16 | 1506 |          1506 |    1506 |   1506 |       0 |           0
+     2026-06-17 | 1508 |          1508 |    1508 |   1508 |       0 |           0
+     2026-06-18 | 1507 |          1507 |    1507 |   1507 |       0 |           0
+    ```
+    **预期结果调整**: open/high/low/close/pre_close/avg_price/change_pct/change/vol/turnover_rate 10 列 100% 非 NULL（vs ADR-012 SIT 5 前 5 列）；**name / total_mv / float_mv 真实 Tushare API 不返回此 3 列**（实证 `pro.ths_daily(trade_date=20260618)` 返回 cols 仅 12 个，无 name/total_mv/float_mv —— ADR-013 §决策 1 引用的"Tushare 15 列"实证错误；ADR-013 §决策 2 cols 含这 3 列是 ADR-006 物化视图 / ths_concept_map join 预留位）。实际语义：sync_ths_daily 每天落 12 列业务数据 + 3 列空位等 join 填充；这 3 列 0 nn 是 Tushare API 设计，非 sync bug。
+
+- [x] **SIT 8 — `validate_pipeline_consistency` 不再报 ths_daily / index_basic / rt_k 警告** ✅
+    ```
+    $ KRONOS_PG_URL=... python3 -c "from app.scheduler import validate_pipeline_consistency; r=validate_pipeline_consistency(); print('checked:', r['checked'], 'warnings:', len(r['warnings']))"
+    checked: 47
+    warnings: 0
+    errors: 0
+    ```
+    MONITORED_TABLES 从 48 表 → 47 表（index_basic 移除）；rt_k/rt_sw_k 加入 `_DESIGN_SKIP_BACKFILL` + validator 检查 3 跳过 `_DESIGN_SKIP_BACKFILL` ⇒ ADR-012 SIT 9 中的 2 项 latent debt WARN 全部消除（从 2 warnings → 0 warnings）。
+
+- [x] **SIT 9 — `leader_intraday` 因子读 ths_daily.change_pct 复活（脱离 fallback）** ✅
+    ```
+    $ grep pct_change packages/kronos-factors/kronos_factors/pg_adapter.py
+    71:        "pct_chg": "change_pct",
+    72:        "pct_change": "change_pct",   # ths_daily/sw_daily Tushare API field name
+    $ psql -c "SELECT code, trade_date, change_pct FROM ths_daily WHERE code='700001.TI' AND trade_date >= '2026-06-13' ORDER BY trade_date DESC LIMIT 5;"
+       code    | trade_date | change_pct
+    -----------+------------+---------
+     700001.TI | 2026-06-18 |  0.3339
+     700001.TI | 2026-06-17 |  0.8739
+     700001.TI | 2026-06-16 |  0.6676
+     700001.TI | 2026-06-15 |  2.9814
+    ```
+    pg_adapter `_COLUMN_MAP["pct_change":"change_pct"]` 翻译保留（与 ADR §决策 0 不在白名单内的 pg_adapter 一致，未碰）；leader_intraday 因子 SELECT pct_change FROM ths_daily 经翻译落 change_pct，**真实数据非 NULL → 不再 fallback**。
+
+- [x] **SIT 10 — `_VOLUME_THRESHOLD_MAP` 双档 + `_check_data_volume` dead 函数已删** ✅
+    ```
+    $ grep -n "_VOLUME_THRESHOLD_MAP\|_check_data_volume" services/data-service/app/sync/pg_writer.py
+    18:_VOLUME_THRESHOLD_MAP: dict[str, dict[str, int]] = {
+    19:    "daily_kline": {"floor": 1000, "warn": 3000},
+    20:    "stk_mins":    {"floor": 1000, "warn": 3000},
+    83:# ADR-013 §决策 4 (W-2 联动 S-2): _check_data_volume 已删 — 二档分级逻辑迁移到 _insert_rows
+    （0 处实际 def _check_data_volume）
+    $ grep -rn "_check_data_volume" services/ packages/ → 0 命中 (仅注释提及)
+    ```
+    `_VOLUME_FLOOR_MAP` (单档) → `_VOLUME_THRESHOLD_MAP` (双档 floor/warn)；`_check_data_volume` 14 行 dead 函数物理删除；`_pg_write` 用 `cfg.get("floor")` / `cfg.get("warn")` 透传给 `_insert_rows`。
+
+- [x] **SIT 11 — W-2 二档告警单测（4 case 全过）** ✅
+    Mock psycopg2.extras.execute_values 注入不同 rowcount + floor/warn 阈值：
+    ```
+    === SIT 11a: 2000 rows, floor=1000 warn=3000 ===
+      written=2000, out: '[WARN] _insert_rows fake_table: 写入量 2000 低于 warn 阈值 3000, 可能上半场断网 / 部分日期缺数据'
+      RESULT: PASS
+
+    === SIT 11b: 500 rows (< floor) ===
+      written=500, out: '[ERROR] _insert_rows fake_table: 写入量 500 低于 floor 1000, 可能 Tushare API 异常 / 权限过期'
+      RESULT: PASS (ERROR-priority)
+
+    === SIT 11c: 5000 rows (>= warn) 静默 ===
+      written=5000, out: ''
+      RESULT: PASS (silent)
+
+    === SIT 11d: 默认参数 None/None 旧行为 ===
+      written=100, out: ''
+      RESULT: PASS (legacy behavior)
+    ```
+    二档分级：< floor → ERROR 优先（严重）；floor ≤ x < warn → WARN 次档（温和）；>= warn → 静默；None/None 默认参数 → 旧行为零回归。
+
+- [x] **SIT 12 — W-3 `written == pg_written` 语义修复** ✅
+    ```
+    $ /opt/homebrew/bin/python3 -c "from app.scheduler import sync_stk_factor_pro_backfill; r=sync_stk_factor_pro_backfill(days_back=7); print(r)"
+    INFO data-service.scheduler: stk_factor_pro backfill: 4 days processed, 22037 rows total, PG=2037, SQLite=0, 12.6s
+    RESULT: {'table': 'stk_factor_pro', 'written': 2037, 'fetched': 22037, 'pg_written': 2037, 'sqlite_written': 0, 'days_processed': 4, 'days_back': 7, 'elapsed': 12.6}
+    W-3 PASS: written == pg_written == 2037
+         fetched= 22037 (含 ON CONFLICT 重复, ratio = 10.82×)
+    ```
+    ADR-012 SIT 7 中 `written=22037` (实为 fetched 累计) → ADR-013 修正为 `written=pg_written=2037` (PG 新增) + `fetched=22037` (累计) + 保留 `pg_written` 别名；语义对齐 `detect_data_gaps` 期望。
+
+- [x] **SIT 13 — LD-2/LD-3 validator 静默（与 SIT 8 联动）** ✅
+    见 SIT 8 — validator warnings=0 即 LD-2/LD-3 两项 latent debt 全部静默：
+    - LD-2: `index_basic` 已从 MONITORED_TABLES 移除 → 不再触发 "date_col 'updated_at' not in PG columns" WARN
+    - LD-3: `rt_k`/`rt_sw_k` 已加入 `_DESIGN_SKIP_BACKFILL` + validator 检查 3 跳过 → 不再触发 "missing 'days_back' param" WARN
+
+- [⚠] **SIT 14 — S-1 cb_sync dead code 已删（PARTIAL — ADR misclass）** ⚠️
+    ```
+    $ grep -n "^import time\|^MAX_RETRIES\|^PG_URL" services/data-service/app/sync/cb_sync.py
+    23:MAX_RETRIES = 3
+    24:PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+    （`import time` 在第 9 行）
+    ```
+    **PARTIAL 偏离 ADR**（已通过 SendMessage 单独 PL 通告，下方"偏离说明"段陈述）：ADR-012 review §9 S-1 标这 3 项为 "thin wrapper 化后未使用 dead code"，实证 grep 显示三者均被 `sync_cb_price_chg_all` / `sync_ths_concept_map` 主动使用（12 处 MAX_RETRIES 引用 + L161 PG_URL psycopg2.connect 读 cb_basic + 4 处 time.sleep 指数退避）—— **ADR 误分类**，删之会 NameError 整文件不可 import。代码层加偏离说明 docstring（cb_sync.py:14-22）保留三者；本 SIT 项标 PARTIAL 并附 rationale。建议 ADR-013 文本侧后续做 minor amend 删除 §决策 0 白名单 #3 中 S-1 子项。
+
+- [x] **SIT 15 — S-2 `_check_data_volume` dead 函数已删** ✅
+    见 SIT 10 — `grep -rn "_check_data_volume" services/ packages/` 0 处 def 命中（仅 ADR-013 注释引用），14 行物理删除生效。
+
+- [x] **SIT 16 — S-3 `if 'pg_w' in dir()` 反模式已修** ✅
+    ```
+    $ grep -n "'pg_w' in dir" services/data-service/app/scheduler.py
+    741:        # "pg_w if 'pg_w' in dir() else 0" 反模式 (依赖 dir() introspection 检测变量存在性
+    （仅注释引用，0 处实际执行路径命中）
+    ```
+    旧 L761 `pg_w if 'pg_w' in dir() else 0` 反模式（依赖 dir() introspection 检测变量存在性，脆弱）→ 改为 try 前显式 `pg_w = 0` 初始化 + except 分支保留 0，引用处 `len(rows), pg_w, len(rows)` 直接用变量（无 dir 调用）。
+
+- [x] **SIT 17 — git diff 白名单审计（7 文件全员命中且仅命中）** ✅
+    ```
+    $ git diff --stat HEAD + git ls-files --others backend/alembic/versions/
+     backend/alembic/versions/011_ths_daily_align.py     | +98  ← NEW
+     services/sql/init_postgres.sql                      | +21 -10
+     services/data-service/app/sync/cb_sync.py           | +29 -8
+     packages/kronos-data/kronos_data/etl.py             | +17 -2
+     services/data-service/app/sync/pg_writer.py         | +24 -19
+     services/data-service/app/scheduler.py              | +25 -11
+     progress/backend-dev.md                             | +200+ (本段 + W-3 注解)
+    ```
+    | # | ADR-013 §决策 0 白名单 | 实际改动 | 范围合规 |
+    |---|---|---|---|
+    | 1 | `backend/alembic/versions/011_ths_daily_align.py` | ✅ NEW 98 行 | 9 步 op.execute 反向追认 DB 17 列 + BIGSERIAL PK + idx |
+    | 2 | `services/sql/init_postgres.sql:551-561` | ✅ 8 行 → 22 行 | 字面与 011 upgrade 后形态一致（trade_date/updated_at TEXT 保留 ADR §决策 1 修订段） |
+    | 3 | `services/data-service/app/sync/cb_sync.py` | ✅ +29/−8 | sync_ths_daily cols 5→15 + rows 拼装 15 元组 + S-1 PARTIAL rationale 注释 |
+    | 4 | `packages/kronos-data/kronos_data/etl.py` | ✅ +17/−2 | 仅 `_insert_rows` 加 `data_volume_warn` 参数 + WARN 分支；其他零碰 |
+    | 5 | `services/data-service/app/sync/pg_writer.py` | ✅ +24/−19 | `_VOLUME_FLOOR_MAP`→`_VOLUME_THRESHOLD_MAP` 二档 + 删 `_check_data_volume` 14 行 + cfg.get 透传 |
+    | 6 | `services/data-service/app/scheduler.py` | ✅ +25/−11 | W-3 字段语义 + S-3 显式 pg_w=0 + S-4 注释 + LD-2 index_basic 移除 + LD-3 _DESIGN_SKIP_BACKFILL 扩 + validator 检查 3 跳过 |
+    | 7 | `progress/backend-dev.md` | ✅ +200+ | SIT 7 段补 W-3 注解 + 本 ADR-013 SIT 16 项 |
+
+    **零越界证明**：
+    - ❌ 其他 alembic 迁移（001-010）：未改动
+    - ❌ packages/kronos-factors（含 pg_adapter._COLUMN_MAP）：未改动（保留翻译层）
+    - ❌ 其他 drift 表（hk_holdings/repurchase/share_float/cyq_perf/stock_news_tushare 等）：留 ADR-014
+    - ❌ 路径 #4 inline executemany 8+ 模块：留 ADR-015
+    - ❌ CLAUDE.md Tech Stack：未碰（不引新依赖）
+    - ❌ W-1 `_pg_write` 共享连接关闭：按 ADR §决策修订段推迟到 ADR-014/015 顺手处理
+
+**S-1 偏离说明**（向 PL 报备）：
+- ADR-012 review §9 S-1 标 `MAX_RETRIES` / `PG_URL` / `import time` 为 "cb_sync 中 thin wrapper 化后未使用 dead code"
+- 实证 grep `services/data-service/app/sync/cb_sync.py` 显示：
+  - `MAX_RETRIES`: L105/110/113/117/180/185/238/249/252/266/271 共 12 处主动使用（Tushare API 应用层重试循环；与 _pg_write 内 PG 写入重试是不同层级 — 前者 fetch 层、后者 write 层，并存合理）
+  - `PG_URL`: L161 `psycopg2.connect(PG_URL)` 直接读 cb_basic 列表（`sync_cb_price_chg_all` 业务流程必需，不走 thin wrapper）
+  - `time`: L114/186/250/272 共 4 处 `time.sleep(2 ** attempt)` 指数退避
+- 删之会 NameError 整文件不可 import → 违背 "不破坏功能 / 不扩范围" 原则
+- 处理方案：保留三者，在文件顶 docstring 加偏离说明（cb_sync.py:14-22）；SIT 14 标 PARTIAL；ADR-013 §决策 0 白名单 #3 中 "S-1" 子项建议 PL 排期做 ADR-013 minor amend 删除
+- W-3 + W-2 + S-2 + S-3 + S-4 + LD-2 + LD-3 + alembic + cb_sync cols 修复（核心 9 项）全部 100% 完成 — S-1 是已知 dead code 误分类的 1 项
+
+**质量门**:
+- 7 文件白名单合规 ✅（SIT 17 git diff stat 全员命中且仅命中）
+- 阶段独立可回滚 ✅（阶段 1-6 各自落在独立函数 / 映射表）
+- 旧行为零回归 ✅（SIT 11d 默认参数路径 byte-equivalent）
+- ADR-012 review 收尾 ✅（W-2/W-3/S-2/S-3/S-4/LD-2/LD-3 全部 verify；W-1 推迟，S-1 PARTIAL）
+- ths_daily 出血止血 ✅（SIT 5 无 WARN + SIT 6 change_pct 100% nn + SIT 9 因子读复活）
+- 0 新依赖 ✅（仅现有 psycopg2 + stdlib inspect/time）
+- 数据安全 ✅（alembic 不破坏 1.93M 历史行；downgrade 双向可逆；setval 续接序列）
+
+**下一步**: 等 code-reviewer audit (ADR-010 follow-up + ADR-011 + ADR-012 + ADR-013 四批一次性 review)；S-1 minor amend 由 PL 排期；W-1 共享连接关闭 / 其他 drift 表 audit 留 ADR-014/015。

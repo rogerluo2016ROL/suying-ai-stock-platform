@@ -547,18 +547,31 @@ CREATE TABLE IF NOT EXISTS limit_list_d (
     PRIMARY KEY(code, trade_date)
 );
 
--- 同花顺每日指标 (ths_daily, 来自 Tushare ths_daily API)
+-- 同花顺每日指标 (ths_daily, 来自 Tushare pro.ths_daily API)
+-- ADR-013: schema 反向追认 DB 现状 (alembic 011) — 17 列 + BIGSERIAL PK + UNIQUE(code, trade_date)
+-- 字段命名: ts_code → code (项目级 normalization), pct_change → change_pct (与 sw_daily 同型, ADR-008)
+-- trade_date / updated_at 保留 TEXT 类型 (DB 现状反常但下游已适配, 列入 ADR-014 audit)
 CREATE TABLE IF NOT EXISTS ths_daily (
-    ts_code TEXT NOT NULL,
-    trade_date DATE NOT NULL,
-    name TEXT,
-    close DOUBLE PRECISION,
-    pct_change DOUBLE PRECISION NOT NULL,
-    avg_price DOUBLE PRECISION,
-    total_mv DOUBLE PRECISION,
-    float_mv DOUBLE PRECISION,
-    PRIMARY KEY(ts_code, trade_date)
+    id            BIGSERIAL PRIMARY KEY,
+    code          TEXT NOT NULL,
+    trade_date    TEXT NOT NULL,
+    name          TEXT,
+    open          DOUBLE PRECISION,
+    high          DOUBLE PRECISION,
+    low           DOUBLE PRECISION,
+    close         DOUBLE PRECISION,
+    pre_close     DOUBLE PRECISION,
+    avg_price     DOUBLE PRECISION,
+    change_pct    DOUBLE PRECISION,         -- Tushare API: pct_change → 表 change_pct (sw_daily 同型, ADR-008)
+    change        DOUBLE PRECISION,
+    total_mv      DOUBLE PRECISION,
+    float_mv      DOUBLE PRECISION,
+    vol           DOUBLE PRECISION,
+    turnover_rate DOUBLE PRECISION,
+    updated_at    TEXT,                     -- 同步时间戳 (TEXT 类型为 DB 现状; ADR-014 audit 后视情况升 TIMESTAMP)
+    CONSTRAINT ths_daily_code_date_uniq UNIQUE (code, trade_date)
 );
+CREATE INDEX IF NOT EXISTS idx_ths_daily_code_date ON ths_daily(code, trade_date);
 
 -- 同花顺概念板块成分股映射 (ths_concept_map, 每月同步)
 CREATE TABLE IF NOT EXISTS ths_concept_map (

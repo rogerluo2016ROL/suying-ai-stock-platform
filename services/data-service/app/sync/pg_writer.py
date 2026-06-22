@@ -14,11 +14,13 @@ PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6
 
 _MAX_RETRIES = 3  # ADR-006 决策 6: 3 次指数退避 (1s, 4s, 16s); ADR-012 §决策 5.1 沿用
 
-# ADR-012 §决策 5.2: 数据量门禁阈值表 (从原 _check_data_volume 提取为显式策略)
-# 仅对 daily_kline / stk_mins 这两张 P0 量级表启用低水位 ERROR; 其他表 None=不启用
-_VOLUME_FLOOR_MAP: dict[str, int] = {
-    "daily_kline": 1000,
-    "stk_mins": 1000,
+# ADR-013 §决策 4 (W-2): 数据量门禁阈值表 — 二档分级 (floor → ERROR, warn → WARN).
+# 替代 ADR-012 单档 _VOLUME_FLOOR_MAP (新 _insert_rows 已支持 data_volume_warn 参数).
+# 仅对 daily_kline / stk_mins 这两张 P0 量级表启用二档门禁; 其他表 None=不启用 (字典 .get 返回 {}).
+# 单档历史阈值: <1000 ERROR + <3000 WARN (原 pg_writer._check_data_volume 内部硬编码), 二档表 1:1 还原.
+_VOLUME_THRESHOLD_MAP: dict[str, dict[str, int]] = {
+    "daily_kline": {"floor": 1000, "warn": 3000},
+    "stk_mins":    {"floor": 1000, "warn": 3000},
 }
 
 # 确保 kronos-data 可 import (data-service 启动时 scheduler.py 已注入 sys.path,
@@ -59,10 +61,12 @@ def _pg_write(table: str, columns: list[str], conflict_cols: list[str],
     from kronos_data.etl import _insert_rows, _get_etl_db
     db = _get_etl_db()
     try:
-        floor = _VOLUME_FLOOR_MAP.get(table)
+        # ADR-013 §决策 4 (W-2): 二档阈值映射 — {table: {floor, warn}}; 未配置表回退 {} → 双 None
+        cfg = _VOLUME_THRESHOLD_MAP.get(table, {})
         written = _insert_rows(db, table, columns, rows,
                                retries=_MAX_RETRIES,
-                               data_volume_floor=floor)
+                               data_volume_floor=cfg.get("floor"),
+                               data_volume_warn=cfg.get("warn"))
         return written
     except Exception as e:
         # _insert_rows 内部已 catch 大部分异常, 此处兜底 connection 失败等
@@ -76,19 +80,10 @@ def _pg_write(table: str, columns: list[str], conflict_cols: list[str],
             pass
 
 
-def _check_data_volume(table: str, written: int):
-    """数据量门禁: <1000 ERROR, <3000 WARN (仅日线/分钟线).
-
-    ADR-012 §决策 5.2: 本函数被保留以兼容潜在外部调用; 新路径由 _insert_rows 的 data_volume_floor
-    参数承担 ERROR 提示. _pg_write 内部不再调用本函数 (避免重复 ERROR).
-    """
-    if written == 0:
-        return
-    if written < 1000 and table in ("daily_kline", "stk_mins"):
-        logger.error("PG %s: 写入量异常低 (%d 行 < 1000) — 可能 Tushare API 异常或权限过期",
-                     table, written)
-    elif written < 3000 and table in ("daily_kline", "stk_mins"):
-        logger.warning("PG %s: 写入量偏低 (%d 行 < 3000)", table, written)
+# ADR-013 §决策 4 (W-2 联动 S-2): _check_data_volume 已删 — 二档分级逻辑迁移到 _insert_rows
+# data_volume_floor / data_volume_warn 双参数 (etl.py:170). 历史阈值 (floor=1000/warn=3000) 在
+# _VOLUME_THRESHOLD_MAP 透明保留. ADR-012 §决策 5.2 "_check_data_volume 被保留以兼容潜在外部
+# 调用" 在 grep 实证下未发现任何外部调用 → 删除安全.
 
 
 # ── 各表写入函数 ──

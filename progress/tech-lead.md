@@ -419,3 +419,108 @@
 - 抽样脚本：`/tmp/cyq_factor_check.py`（5 股 583 行 cyq_chips 来自 PG）
 - 因子源码：`packages/kronos-factors/kronos_factors/scorer/advanced_factors.py:1075-1096`
 - 数据库现状：cyq_chips 36,142 行 / 300 股 / 2026-06-18 单日（与 F-1 报告一致）
+
+---
+
+## 2026-06-22（同日 +3）— ADR-013/014/015 立项记录
+
+- 触发：code-reviewer 在 `docs/reviews/adr-011-012-code-review-2026-06-22.md` §10 给出 ACCEPT_WITH_FOLLOWUPS verdict（critical=0 / warning=3 / suggestion=5）+ 3 项 dev 自陈 latent debt 转 backlog 派给 tech-lead；product-lead 派单"按顺序起 ADR-013/014/015"
+- 范围：仅文档（3 份 Proposed ADR），未改代码 / Alembic / init_sql / sync / factors
+
+### 产物
+
+| ADR | 文件路径 | 状态 | 类型 | 决策 0 范围 |
+|---|---|---|---|---|
+| ADR-013 | `docs/adr/013-ths-daily-schema-alignment.md` | Proposed | 单表 schema 对齐 + ADR-012 review follow-up 收尾 | ths_daily 一表 schema 对齐 + cb_sync.sync_ths_daily cols 修复 + ADR-012 review W-2/W-3 + S-1~S-4 + LD-1/LD-2/LD-3 收尾（W-1 经风险评估推迟到 ADR-014/015 实施时顺手处理） |
+| ADR-014 | `docs/adr/014-historical-schema-drift-audit.md` | Proposed | 审计型（audit-only） | 全 schema drift 一次性 audit + 索引登记（合并 ADR-010 F-1）；产物是审计报告 + 子 ADR-014.X 建议清单，**不做 schema 迁移** |
+| ADR-015 | `docs/adr/015-path4-inline-executemany-treatment.md` | Proposed | 盘点 + 选型型 | path #4 inline executemany 13+ 模块盘点 + 候选方案 A/B/C 对比 + 推荐方案 A + 子 ADR-015.X 实施清单；**不做模块改造** |
+
+### 关键决策亮点
+
+**ADR-013**：
+- §决策 0 白名单 7 文件（含 progress/backend-dev.md 自陈 SIT 7 注解）
+- §决策 1 「DB 现状为权威」原则：alembic 011 反向追认 DB 17 列（避免破坏既有数据 + 兼容 pg_adapter._COLUMN_MAP 已生效翻译层）
+- §决策 2 cb_sync.sync_ths_daily cols 从 5 列扩展到 15 列（对齐 Tushare API 实际返回 + DB 列名 `pct_change → change_pct`）
+- §决策 3-6 收尾 ADR-012 review W-2 / W-3 / S-1~S-4 / LD-2 / LD-3
+- §决策 修订段：W-1 共享连接关闭风险评估后推迟到后续 ADR（删 `finally: db.close()` 需配套 apscheduler shutdown hook 才能安全，工作量超本 ADR 边界）
+- 16 项 SIT + 6 阶段实施顺序 + 5 个回滚点
+
+**ADR-014**：
+- 审计型 ADR，产出 `docs/reviews/schema-drift-audit-YYYY-MM-DD.md` 含 §1-§6 全段（含 ADR-010 F-1 合并收尾）
+- §决策 4 子 ADR 拆分规则：列差 ≥ 3 / PK 不一致 / 类型不一致 / 涉及下游因子 → 拆 ADR-014.X
+- §决策 1 候选清单 17 表（hk_holdings / repurchase / share_float / cyq_perf / stock_news_tushare / research_reports_tushare / stk_factor_pro / index_daily 等）
+- 一次性脚本 `services/sql/audit/schema_audit.py`（< 200 行，正则 + information_schema introspect，read-only）
+- 9 项 SIT；不修改 schema / sync / init_sql
+
+**ADR-015**：
+- 盘点型 ADR，产出 `docs/reviews/path4-inline-executemany-survey-YYYY-MM-DD.md`
+- 实测 path #4 实际涉及 **13+ 模块**（非原 ADR-012 §不覆盖段写的 8 模块），且每个模块 SQLite-only / PG-only / Dual / 混合 路径各不相同
+- 关键发现：部分模块（如 announcements.py / stocks.py）的 PG 路径已经收口到 ADR-012 `_pg_write` 主干，只剩 SQLite 侧是 inline
+- §决策 2 三方案对比：方案 A 渐进切换 / 方案 B dual_writer adapter / 方案 C SQLite 退役 —— **推荐方案 A**（与 ADR-012 一致）
+- §决策 3 前置条件：必须先立 ADR-015.0「`_pg_write` UPSERT 扩展」（stocks.py 需要 UPSERT 语义）才能开始模块改造
+- §决策 4 子 ADR 优先级 P0-P3（前置 ADR-015.0 → P1 stocks/tushare → P2 announcements 等合并 → P3 namechange/rt_k）
+- 8 项 SIT；不修改 sync / pg_writer / etl
+
+### 三 ADR 间依赖与排期建议
+
+| 维度 | ADR-013 | ADR-014 | ADR-015 |
+|---|---|---|---|
+| 类型 | 实施型（schema 对齐 + follow-up） | 审计型 | 盘点 + 选型型 |
+| 优先级 | P1（出血修复：ths_daily 每天丢列） | P2 | P2 |
+| 工作量 | 2-3 day | 1 day | 1 day |
+| 依赖 | 独立，可立即派 | 独立，可与 013 并行 | 独立，可与 013/014 并行 |
+| 后续 | 实施 + UAT 后立 ADR-014 | 报告产出后立 ADR-014.X 子 ADR 系列 | 报告产出后立 ADR-015.0 + ADR-015.X 系列 |
+
+**建议 PL 排期**：ADR-013 P1 先派（解 ths_daily 出血）；ADR-014 / 015 P2 并行排期（两者范围不重叠：014 是数据 schema diff，015 是代码 code path）。
+
+### 下一步派给 backend-dev 的实施 task 草案（不真派，PL 排期）
+
+**Task A — ADR-013 实施**（P1）：
+- 预期产物：`backend/alembic/versions/011_ths_daily_align.py`（新建）+ `services/sql/init_postgres.sql:551-561` + `services/data-service/app/sync/cb_sync.py` + `packages/kronos-data/kronos_data/etl.py`（`_insert_rows` 加 `data_volume_warn`）+ `services/data-service/app/sync/pg_writer.py`（`_VOLUME_THRESHOLD_MAP` 双档 + 删 `_check_data_volume`）+ `services/data-service/app/scheduler.py`（W-3 + S-3/S-4 + LD-2/LD-3）+ `progress/backend-dev.md`
+- SIT 16 项（ADR-013 §决策 7）；6 阶段顺序（ADR-013 §决策 8）
+- worktree：独立（与 ADR-014/015 不冲突）
+
+**Task B — ADR-014 实施**（P2）：
+- 预期产物：`services/sql/audit/schema_audit.py`（新建，< 200 行）+ `docs/reviews/schema-drift-audit-YYYY-MM-DD.md`（新建）+ `progress/backend-dev.md`
+- SIT 9 项（ADR-014 §决策 6）
+- worktree：独立（read-only PG introspect + 文件新建，不改任何现有 service code）
+
+**Task C — ADR-015 实施**（P2）：
+- 预期产物：`services/sql/audit/path4_survey.py`（新建，≤ 250 行）+ `docs/reviews/path4-inline-executemany-survey-YYYY-MM-DD.md`（新建）+ `progress/backend-dev.md`
+- SIT 8 项（ADR-015 §决策 6）
+- worktree：独立（read-only grep + AST 静态分析 + 文件新建，不改任何现有 service code）
+
+Task B 和 Task C 工作量小（各 1 day）且都是 audit / survey 性质（无 schema / 代码改动风险），可以由 backend-dev 在同一 worktree 串行实施或并行 spawn 实例（视 PL 决策）。
+
+### 质量门
+
+- [x] 3 ADR 均沿用 ADR-008~012 同型骨架 + `agf-writing-adr` skill 模板（含 §决策 0 / 备选方案 / 影响 / 不覆盖 / 版本与查证 / Hand-off）
+- [x] 每个 ADR 至少 5 个备选方案 + 否决理由（铁律 #1）
+- [x] 版本与查证段 + 实证 grep 来源表（铁律 #2）
+- [x] CLAUDE.md Tech Stack 无需更新（3 ADR 均不引新依赖）
+- [x] 仅产 ADR（Proposed）+ 决策 0 范围声明 + Hand-off 段；未碰代码 / Alembic / init_sql / sync / factors
+- [x] §不覆盖段明确 ADR-014/015/016 相互留位（防 backend-dev 把范围误抓）
+- [x] 修订段说明：ADR-013 §决策 修订段把 W-1 推迟到后续 ADR（基于风险评估 + 工作量超边界），不在本 ADR 实施
+- [x] memory 不写入（3 ADR 均 Proposed，等 Accepted 后再写跨 ADR 复用结论）
+
+### Skills 使用
+
+- `agf-writing-adr`（3 份 ADR 起草）
+
+### 下一步
+
+1. **product-lead**：按上述「三 ADR 间依赖与排期建议」+ Task A/B/C 草案排期派 backend-dev
+2. **tech-lead 本会话剩余**：等 PL 后续任务（如对 backend-dev 实施 SIT 结果的 audit 或对 ADR-014 / ADR-015 报告产出后的子 ADR 立项）
+3. **memory 推迟写入**：3 ADR 均 Proposed，等其中之一 Accepted 后再评估写入；预计 ADR-013 实施 + UAT 通过后写一条「ths_daily DDL 以 DB 现状为权威 + cb_sync cols 已对齐 15 列」
+
+---
+
+## 2026-06-22（同日 +4）— ADR-013 minor amend：删 §决策 0 白名单 #3 的 S-1 子项
+
+- **触发**：backend-dev 实施阶段 2 时实证 grep 发现 ADR-012 review §9 S-1 误分类（`cb_sync.py` 中 `MAX_RETRIES` 12 处 + `PG_URL` L161 `psycopg2.connect` + `time.sleep` 4 处指数退避均为活代码，删之 `NameError`）；上游误分类落 `docs/reviews/adr-011-012-code-review-2026-06-22.md` §9，实证证据落 `progress/backend-dev.md` L890-953。
+- **改动**：
+  - `docs/adr/013-ths-daily-schema-alignment.md` L40 白名单 #3 子项 (c) 改为「~~S-1 cleanup~~ 已撤销，依据见 §决策修订 minor amend 2026-06-22」
+  - `docs/adr/013-ths-daily-schema-alignment.md` L287 新增 §决策修订 minor amend 行（含日期 + 实证依据 + SIT 14 改判 N/A）
+- **状态**：ADR-013 保持 **Proposed**（minor amend 不升 Accepted；升 Accepted 由 code-reviewer audit + UAT 通过后另派）。
+- **未动**：ADR-014 / ADR-015 文档不动；progress/backend-dev.md L890-953 dev 自留（不替 dev 修）。
+

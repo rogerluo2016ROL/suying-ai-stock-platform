@@ -11,6 +11,15 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger("data-service.cb_sync")
 
+# ADR-013 §决策 0 白名单 #3 (S-1) 偏离说明:
+# ADR-012 review §9 S-1 标 MAX_RETRIES / PG_URL / import time 为 "thin wrapper 化后未使用 dead code"
+# → 实证 grep 显示三者**均被 sync_cb_price_chg_all / sync_ths_concept_map 主动使用** (非 dead):
+#   - MAX_RETRIES: 用于 Tushare API 调用的应用层重试循环 (与 _pg_write thin wrapper 的 PG 写入重试是
+#     不同层级 — 前者是 fetch 层 retry, 后者是 write 层 retry, 二者并存合理)
+#   - PG_URL:      sync_cb_price_chg_all 直接 psycopg2.connect 读 cb_basic 列表 (L161)
+#   - import time: sync_ths_daily/sync_cb_price_chg_all/sync_ths_concept_map 的 time.sleep 指数退避
+# 删之会 NameError 整文件不可 import → 违背"不扩范围/不破坏功能"原则. ADR §决策 0 表述与代码现状不一致,
+# 保留三者; SIT 14 标记 PARTIAL (with rationale), 已通过 SendMessage 单独 PL 通告.
 MAX_RETRIES = 3
 PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
 
@@ -89,11 +98,14 @@ def sync_ths_daily(days_back: int = 30) -> dict:
 
     dates = _get_trade_dates(days_back)
     total, pg_written = 0, 0
-    # API fields: ts_code, trade_date, open, high, low, close, pre_close,
-    #   avg_price, change, pct_change, vol, turnover_rate
-    # Note: API returns NO name/total_mv/float_mv; name comes from ths_concept_map join
-    cols = ["ts_code", "trade_date", "close", "pct_change",
-            "avg_price"]
+    # ADR-013 §决策 2: cols 5 → 15 对齐 Tushare pro.ths_daily 实际返回字段 + DB 17 列业务列.
+    # API 返回 15 字段 (ts_code/trade_date/name/open/high/low/close/pre_close/avg_price/change/
+    # pct_change/vol/turnover_rate/total_mv/float_mv); 命名映射:
+    #   - ts_code → code      (项目级 normalization, 与 pg_adapter._COLUMN_MAP 一致)
+    #   - pct_change → change_pct (与 sw_daily 同型, ADR-008)
+    cols = ["code", "trade_date", "name", "open", "high", "low", "close",
+            "pre_close", "avg_price", "change_pct", "change",
+            "total_mv", "float_mv", "vol", "turnover_rate"]
 
     for d in dates:
         # 3 次重试拉取
@@ -118,16 +130,30 @@ def sync_ths_daily(days_back: int = 30) -> dict:
         rows = []
         for _, r in df.iterrows():
             td = d[:4] + "-" + d[4:6] + "-" + d[6:8]
+            # ADR-013 §决策 2: 15 元组对齐上方 cols 顺序; Tushare API ts_code → 表 code (str 兜底空值),
+            # pct_change → change_pct; 其他 12 列字面一致.
             rows.append((
                 str(r.get("ts_code", "")),
                 td,
+                str(r.get("name", "")) if r.get("name") is not None else None,
+                _safe_val(r.get("open")),
+                _safe_val(r.get("high")),
+                _safe_val(r.get("low")),
                 _safe_val(r.get("close")),
-                _safe_val(r.get("pct_change")),
+                _safe_val(r.get("pre_close")),
                 _safe_val(r.get("avg_price")),
+                _safe_val(r.get("pct_change")),
+                _safe_val(r.get("change")),
+                _safe_val(r.get("total_mv")),
+                _safe_val(r.get("float_mv")),
+                _safe_val(r.get("vol")),
+                _safe_val(r.get("turnover_rate")),
             ))
 
         total += len(rows)
-        w = _pg_bulk_insert("ths_daily", cols, ["ts_code", "trade_date"], rows)
+        # ADR-013 §决策 2: conflict_cols 改 ["code", "trade_date"] 与 UNIQUE 约束对齐.
+        # _insert_rows 底层用 ON CONFLICT DO NOTHING 依赖表 UNIQUE/PK 约束, 行为等价 (ADR-012 §决策 5.2.bis).
+        w = _pg_bulk_insert("ths_daily", cols, ["code", "trade_date"], rows)
         pg_written += w
         if w > 0:
             logger.debug("ths_daily %s: %d rows written", d, w)
