@@ -53,28 +53,22 @@ def sync_stock_list(exchange: str = "") -> dict:
         is_st = 1 if "ST" in name else 0
         rows.append((code, name, market, industry, list_date, is_st))
 
-    # ── PG 写入 (主路径, INSERT ON CONFLICT DO UPDATE 增量更新) ──
+    # ── PG 写入 (主路径, ADR-015.1: _pg_write UPSERT 替代 inline-cursor) ──
+    # 业务语义: ON CONFLICT(code) DO UPDATE SET 5 业务列 + updated_at=NOW()
+    # ADR-015.0 now_cols=["updated_at"] 走 NOW() 而非 EXCLUDED (审计列黑名单)
     pg_written = 0
     try:
-        import psycopg2
-        conn = psycopg2.connect(PG_URL)
-        conn.autocommit = True
-        cur = conn.cursor()
-        for r in rows:
-            code, name, board, industry, listed_date, is_st = r
-            try:
-                cur.execute(
-                    "INSERT INTO stocks(code,name,board,industry,listed_date,is_st,updated_at) "
-                    "VALUES(%s,%s,%s,%s,%s,%s,NOW()) "
-                    "ON CONFLICT(code) DO UPDATE SET "
-                    "name=EXCLUDED.name, board=EXCLUDED.board, industry=EXCLUDED.industry, "
-                    "listed_date=EXCLUDED.listed_date, is_st=EXCLUDED.is_st, updated_at=NOW()",
-                    (code, name, board, industry, listed_date, is_st))
-                pg_written += 1
-            except Exception:
-                logger.debug("PG stocks row %s failed, skipping", code)
-        conn.close()
-        logger.info("PG stocks: %d rows written", pg_written)
+        from app.sync.pg_writer import _pg_write
+        pg_written = _pg_write(
+            "stocks",
+            columns=["code", "name", "board", "industry", "listed_date", "is_st"],
+            conflict_cols=["code"],
+            rows=rows,
+            conflict_action="update",
+            update_cols=["name", "board", "industry", "listed_date", "is_st"],
+            now_cols=["updated_at"],
+        )
+        logger.info("PG stocks: %d rows written (UPSERT)", pg_written)
     except Exception as e:
         logger.debug("PG stocks write skipped: %s", e)
 
@@ -129,27 +123,19 @@ def sync_stocks_incremental(trade_date: str = "") -> dict:
         is_st = 1 if "ST" in name else 0
         rows.append((code, name, market, industry, list_date, is_st))
 
-    # PG 直写 (主路径)
+    # PG 直写 (主路径, ADR-015.1: _pg_write UPSERT)
     pg_written = 0
     try:
-        import psycopg2
-        conn = psycopg2.connect(PG_URL)
-        conn.autocommit = True
-        cur = conn.cursor()
-        for r in rows:
-            code, name, board, industry, listed_date, is_st = r
-            try:
-                cur.execute(
-                    "INSERT INTO stocks(code,name,board,industry,listed_date,is_st,updated_at) "
-                    "VALUES(%s,%s,%s,%s,%s,%s,NOW()) "
-                    "ON CONFLICT(code) DO UPDATE SET "
-                    "name=EXCLUDED.name, board=EXCLUDED.board, industry=EXCLUDED.industry, "
-                    "listed_date=EXCLUDED.listed_date, is_st=EXCLUDED.is_st, updated_at=NOW()",
-                    (code, name, board, industry, listed_date, is_st))
-                pg_written += 1
-            except Exception:
-                pass
-        conn.close()
+        from app.sync.pg_writer import _pg_write
+        pg_written = _pg_write(
+            "stocks",
+            columns=["code", "name", "board", "industry", "listed_date", "is_st"],
+            conflict_cols=["code"],
+            rows=rows,
+            conflict_action="update",
+            update_cols=["name", "board", "industry", "listed_date", "is_st"],
+            now_cols=["updated_at"],
+        )
     except Exception as e:
         logger.debug("PG stocks incremental skipped: %s", e)
 

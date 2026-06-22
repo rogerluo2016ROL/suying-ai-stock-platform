@@ -590,3 +590,39 @@ Task B 和 Task C 工作量小（各 1 day）且都是 audit / survey 性质（�
 | 13 | nothing 时 now_cols 忽略 | ✅ |
 
 **Verdict**: 14/14 pass, ADR-015.0 API 完整, 可支撑 ADR-015.1 (stocks.py) 实施。
+
+---
+
+## 2026-06-22（同日 +6）— ADR-015.1 立项 + 实施 + SIT 完成
+
+- **触发**: ADR-015.0 (含 now_cols amend) Accepted 后, PL 继续推 ADR-015 §决策 4 P1 首模块 stocks.py。
+- **背景**: stocks.py PG 路径用 inline-cursor 逐行 `INSERT ... ON CONFLICT(code) DO UPDATE SET ... updated_at=NOW()` (2 处: sync_stock_list L66-72 + sync_stocks_incremental L142-148), 业务语义 UPSERT。5000 行 = 5000 次 round-trip, 性能差。
+- **决策**: 方案 D — PG 路径切 `_pg_write(conflict_action="update", update_cols=[5 业务列], now_cols=["updated_at"])`, SQLite 保留 `INSERT OR REPLACE` (方案 A 决策)。
+
+### ADR-015.1 §决策 3 SIT 验证清单 verdict
+
+| # | 验证项 | Verdict |
+|---|---|---|
+| 1 | stocks.py 只改 PG 路径 (白名单) | ✅ 仅 stocks.py + ADR + progress |
+| 2 | SQLite 路径保留 INSERT OR REPLACE | ✅ 2 处保留 |
+| 3 | inline-cursor ON CONFLICT SQL 已删 | ✅ 0 实际 SQL 命中 (1 docstring 注释) |
+| 4 | _pg_write 调用正确 (2 处, 含 conflict_action + now_cols) | ✅ |
+| 5 | 语法正确 | ✅ ast.parse exit 0 |
+| 6 | 真实写库 updated_at 100% 非 NULL | ✅ 5646 行 fill rate 100% |
+| 7 | UPSERT 语义 (name 刷新非首次快照) | ✅ mock existing_code name 刷新为 SIT_TEST_NAME_NEW |
+
+**Verdict**: **7/7 PASS** — ADR-015.1 可升 Accepted。
+
+### 真实写库 SIT 细节
+
+- mock rows: 1 条已存在 code (000016 *ST康佳A) + 1 条新 code (999999)
+- `_pg_write` 返回 `written=2` (1 UPDATE + 1 INSERT, execute_values 批量 1 次 round-trip)
+- UPSERT 后 existing_code.name 刷新为 SIT_TEST_NAME_NEW (非首次快照)
+- updated_at 刷新为 NOW() 非 NULL
+- cleanup: 恢复原 name + 删 mock code
+
+### 下一步
+
+1. **ADR-015.2** (P1, tushare.py) — 5 处 inline executemany 收拢 (daily_kline/moneyflow/stk_limit/limit_list_d)
+2. **ADR-015.3-.6** (P2/P3) 批量
+3. ADR-015.1 验证 ADR-015.0 API 真实业务可用, now_cols 设计正确
