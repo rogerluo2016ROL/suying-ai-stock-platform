@@ -4,3 +4,4 @@
 - [数据管道 PG-first 写入策略](data-pipeline-pg-first.md) — ADR-006 决策 1：PG 为主存储，SQLite fallback，先 PG 后 SQLite
 - [subprocess 桥反模式已否决](data-pipeline-no-subprocess-bridge.md) — ADR-006 决策 3：消除 pg_sync 步骤，sync 函数内直写 PG
 - [stocks 表同步策略](data-pipeline-stocks-sync.md) — ADR-006 决策 4：Tushare stock_basic 周级全量 + 日级增量
+- [data-pipeline 双轨部署：fresh DB 启动顺序](data-pipeline-dual-track-deployment.md) — alembic + init_postgres.sql 双轨：fresh DB 必须先 alembic 001-007 → stamp 011（跳过 ALTER PK 冲突）→ backend lifespan no-op

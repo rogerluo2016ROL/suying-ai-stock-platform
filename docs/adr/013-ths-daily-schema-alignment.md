@@ -1,6 +1,6 @@
 # ADR-013: ths_daily schema 对齐 + cb_sync cols 修复 + ADR-012 W/S/LD 收尾
 
-- 状态：**Proposed**（待 backend-dev 实施 SIT + reviewer audit 通过后升 Accepted）
+- 状态：**Accepted**（2026-06-22 backend-dev SIT round 2 通过 8/10 项 + change_pct 100% / NULL 0%；reviewer audit 通过；同日 minor amend 见 §决策修订）
 - 日期：2026-06-22
 - 决策者：tech-lead 起草；product-lead 排期实施
 - 影响范围：单表 schema（ths_daily）+ cb_sync 单文件 cols 修复 + ADR-012 review follow-up 收尾（W-1 / W-2 / W-3 / S-1~S-4 / LD-1~LD-3）

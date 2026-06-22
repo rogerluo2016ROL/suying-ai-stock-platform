@@ -956,3 +956,94 @@
 - 数据安全 ✅（alembic 不破坏 1.93M 历史行；downgrade 双向可逆；setval 续接序列）
 
 **下一步**: 等 code-reviewer audit (ADR-010 follow-up + ADR-011 + ADR-012 + ADR-013 四批一次性 review)；S-1 minor amend 由 PL 排期；W-1 共享连接关闭 / 其他 drift 表 audit 留 ADR-014/015。
+
+---
+
+## Task #4 收尾：commit 拆分 + push（2026-06-22）
+
+按 code-review verdict ACCEPT_WITH_FOLLOWUPS 处理 W-1 commit 拆分 + W-2 .gitignore：
+
+| Commit | Hash | 范围 |
+|---|---|---|
+| A | `061dd1a` | feat(adr-013) 主线 12 文件（5 新 + 7 修改）— ths_daily schema 对齐 + cb_sync cols 修复 + ADR-012 review 收尾 |
+| B | `641b647` | chore(tools) tools/run_today_afternoon.py pre_close fallback（与 ADR-013 无关，旁路修补） |
+| C | `0ba2a3e` | chore(gitignore) 追加 backend/data/*.db-shm/*.db-wal + git rm --cached 现行 WAL/SHM 残留 |
+
+Push: `git push origin feature/suying-ai-stock-platform` fast-forward `1e1ef8d..0ba2a3e` 成功。
+
+---
+
+## Task #8 — ADR-015 path #4 inline executemany 盘点 + 选型 - 2026-06-22 (backend-dev-survey)
+**状态**: 已完成（survey-only / read-only，无 sync / scheduler / pg_writer / etl 改动）
+**Skills**: agf-running-sit-tests
+
+**SIT 证据**（ADR-015 §决策 6 — 8 项全过）:
+- [x] SIT-1 ✅ 脚本可执行 — `$ python3 services/sql/audit/path4_survey.py` → exit 0, stdout `Survey complete: docs/reviews/path4-inline-executemany-survey-2026-06-22.md\n  Modules: 13 total (12 dual, 0 SQLite-only, 1 PG-only)`
+- [x] SIT-2 ✅ 报告含 13 个候选模块 — `$ grep -c '^### ' docs/reviews/path4-inline-executemany-survey-2026-06-22.md` → 14（13 模块 ### 头 + §2 "### 逐模块详情"）
+- [x] SIT-3 ✅ SQLite-only 排除清单 — §6 排除 rt_min（write_stk_mins thin wrapper）+ etl_rt_k（_get_etl_db 统一 PG/SQLite），含排除理由
+- [x] SIT-4 ✅ `_pg_write` 主干兼容性段 — §4 标记 stocks「需 upsert 扩展（ADR-015.0 前置）」+ stock_profiles / namechange 同标记
+- [x] SIT-5 ✅ 子 ADR 清单 P0-P3 4 档全 — §5 含 ADR-015.0（P0 前置 upsert 扩展）/ ADR-015.1 stocks（P1）/ ADR-015.2 tushare（P1）/ ADR-015.3 公告舆情合并（P2）/ ADR-015.4 财务/公司合并（P2）/ ADR-015.5 namechange（P3）= 5+1 候选
+- [x] SIT-6 ✅ 脚本无 schema 写操作 — `$ grep -cE 'INSERT|UPDATE|DELETE|ALTER|CREATE|DROP' services/sql/audit/path4_survey.py` → 0
+- [x] SIT-7 ✅ ADR-012 §决策 0 引用 — §4 标题「ADR-012 兼容性」+ 报告末「引用: ADR-012 §决策 0 + ADR-015 §决策 0-6 + 方案 A」
+- [x] SIT-8 ✅ git diff 白名单 — 仅命中 `services/sql/audit/path4_survey.py`（新建 225 行，≤250 上限）+ `docs/reviews/path4-inline-executemany-survey-2026-06-22.md`（新建）+ `progress/backend-dev.md`（追加本段）；不命中 sync/scheduler/pg_writer/etl/alembic/init_sql/factors
+
+**关键发现**:
+- 实测 13 模块（10 dual + 1 PG-only + 2 dual via etl/wrapper），非 ADR-015 原推断的 8
+- 7 模块（announcements/cctv_news/mp_report/interact/policy_law/fina_mainbz/fina_audit）PG 侧已走 `_pg_write` 主干，SQLite inline executemany 可保留为方案 A fallback
+- 3 模块（stocks/stock_profiles/namechange）需 `ON CONFLICT DO update` 语义 → 必须前置 ADR-015.0 `_pg_write` upsert 扩展
+- tushare.py 5 处 inline executemany 写 SQLite（PG 已全走 pg_writer thin wrapper），需确认 insert-or-replace 语义兼容
+- 2 模块（rt_min / etl_rt_k）排除：rt_min 用 write_stk_mins thin wrapper；etl_rt_k 在 kronos-data etl，非 path #4 治理范围
+
+**质量门**: lint N/A（pure Python read-only）/ typecheck N/A / unit N/A（survey 脚本一次性使用）/ SIT ✅ 8/8 / 脚本行数 225 ≤ 250
+**下一步**: 等待 code-review（含 SIT Audit）+ tech-lead 1 周内立 ADR-015.0 子 ADR 起 P0 实施
+
+---
+
+## Task #7 (ADR-014): 历史 schema drift 一次性 audit + 索引登记 — 2026-06-22
+**状态**: 完成（audit-only，read-only PG introspect + init_postgres.sql 正则解析，无 schema/code 改动）
+**Skills**: agf-running-sit-tests
+
+**SIT 证据**（ADR-014 §决策 6 全 9 项）:
+
+- [x] **SIT 1 脚本可执行**: `python3 services/sql/audit/schema_audit.py` exit=0, stdout `OK docs/reviews/schema-drift-audit-2026-06-22.md | audited=54 high=2 med=0 low=52 MISSING=['stk_factor_pro', 'trade_cal']`
+- [x] **SIT 2 脚本幂等**: 连跑两次 `diff -q /tmp/run1.md docs/reviews/schema-drift-audit-2026-06-22.md` 退出 0，内容字面一致
+- [x] **SIT 3 ths_daily 排除**: grep 报告仅 1 处命中（§1 排除清单第 7 行：`ADR-008~013 已修排除表 (本审计不重复扫): ths_daily, sw_daily, pledge_detail, rt_sw_k, top_list, cyq_chips, top_inst`），不在 diff 表中
+- [x] **SIT 4 high severity ≥1**: 报告 §3 含 `### ADR-14.1: stk_factor_pro` + `### ADR-14.2: trade_cal` 两张表（MONITORED_TABLES 内但 DB+init_sql 双缺，scheduler 监控会失败 — 必须拆子 ADR）
+- [x] **SIT 5 索引登记完整**: ADR-010 backlog 的 `idx_cyq_chips_date` 已被 ADR-010 alembic 009/clean-up 清理（UAT PG 实测 `pg_indexes WHERE tablename IN ('cyq_chips','top_inst')` 仅返回 `cyq_chips_pkey` / `top_inst_pkey` / `idx_top_inst_code_date` 三项，无 `idx_cyq_chips_date`/`idx_top_inst_date`）；§6 处置记录完成状态 `COMPLETED(synced)`
+- [x] **SIT 6 子 ADR 摘要可用**: §3 每张 high 表附「DB 列数 X vs init_sql Y / 关键 diff / 涉及下游(MONITORED) / 建议方案」四要素，模板可直接用作 ADR-014.1 / 014.2 拆稿起点
+- [x] **SIT 7 ADR-010 F-1 收尾**: §6 含 F-1 背景 + 处置查证 + 结论「idx_cyq_chips_date / idx_top_inst_date 在 ADR-010/011 alembic 迁移后已清理 — F-1 跟踪项可关闭」
+- [x] **SIT 8 脚本无 schema 写操作**: `grep "cur.execute" services/sql/audit/schema_audit.py` 命中 3 次，全部 SELECT（information_schema.columns / pg_constraint / pg_indexes），0 个 INSERT/UPDATE/DELETE/ALTER/CREATE/DROP 执行
+- [x] **SIT 9 git diff 白名单**: `git status --short` 仅命中 `M progress/backend-dev.md` + `?? services/sql/audit/`（新增 audit dir + script）+ `docs/reviews/schema-drift-audit-2026-06-22.md`（新建报告，untracked），不触碰 alembic / init_postgres.sql / sync 函数 / factor 代码
+
+**审计核心发现**:
+
+| 维度 | 数据 |
+|---|---|
+| DB public 表数 | 79 |
+| init_sql `CREATE TABLE` 数 | 66 |
+| 审计扫描表数 | 54（52 init+DB 双有 + 2 MONITORED 双缺） |
+| 排除表数 | 27（ADR-008~013 已修 7 + app/auth/training/diagnosis/screening/prediction/backtest/factor 20） |
+| high severity | **2**（stk_factor_pro / trade_cal — 均 MONITORED 双缺） |
+| medium severity | 0 |
+| low severity | 52（schema 与 init_sql 一致；ADR-008~013 已完成主要 drift 修复） |
+| 建议子 ADR 数 | **2**（ADR-014.1 stk_factor_pro / ADR-014.2 trade_cal） |
+| 轻量对齐清单 | **0**（所有 medium/low 表 schema 已与 init_sql 同步） |
+| 索引登记表行数 | 23（全 synced，无 drift-init-missing / drift-db-missing） |
+| ADR-010 F-1 状态 | **CLOSED**（idx_cyq_chips_date / idx_top_inst_date 已被 ADR-010/011 alembic 清理） |
+
+**关键洞察**:
+
+1. **ADR-008~013 修复成效极佳**: 52/52 in-scope 表 schema 已与 init_sql 同步，0 列差/类型差/PK 差，验证 ADR-012 「方案 A 渐进收口」决策的有效性 — 不需立 ADR-016 方案 B 注册中心
+2. **唯一遗留 drift = 2 张 MONITORED 双缺表**:
+   - `stk_factor_pro`: ADR-012 已修 backfill handler 但 schema 从未建表（DB + init_sql 双缺）— scheduler 监控 + sync 都会失败
+   - `trade_cal`: 交易日历，无独立 sync 入口且 init_sql 无定义（ADR-013 §决策 6 LD-3 已注释「无 sync_trade_cal 入口」），但 MONITORED 内会触发 validate 报错
+3. **F-1 跟踪项 alembic 已自然清理**: ADR-011 review §1.3 / S-5 标记的索引 drift 是在旧 SQLite legacy 状态下，PG 新建后 alembic 010/011 已收口，本审计验证 UAT PG 16432 中两索引均不存在 → ADR-010 backlog F-1 关闭
+
+**质量门**:
+
+- 脚本 174 行（< 200 行硬约束 ✅）
+- 报告 134 行，§1-§6 全段（DoD ✅）
+- 0 第三方新依赖（仅 stdlib + psycopg2 — 与 ADR-014 §决策 3 一致 ✅）
+- 0 schema/init_sql/sync/alembic/factor 改动（read-only ✅）
+
+**下一步**: 报告产出后由 tech-lead 在 1 周内（§决策 7）评估 §3 子 ADR 建议（ADR-014.1 / 014.2），PL 排期 backend-dev 实施。

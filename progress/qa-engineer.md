@@ -121,3 +121,73 @@
 - [x] ADR 决策覆盖评估
 - [x] 风险排序清晰
 - [x] 未覆盖清单可操作
+
+---
+
+## ADR-013 E2E + UAT — 2026-06-22
+
+- **Stage**: E2E + UAT 合段（含 deploy-engineer 冒烟尾部）
+- **Branch / commit**: feature/suying-ai-stock-platform @ 0ba2a3e
+- **Environment**: UAT 隔离栈 `uat-adr013` (PG 16432 / API-GW 18080 / 10 services 18001-18009/19001/18080)
+- **Report**: `docs/reviews/adr-013-e2e-uat-report-2026-06-22.md`
+
+### AC 总览 (10 项)
+
+| AC | Priority | Verdict | 备注 |
+|----|----------|---------|------|
+| AC-1 health × 10 | P0 | ❌ Fail | backend 19001 restart-loop (exit 3) |
+| AC-2 data-service 宿主进程 | P1 | ✅ Pass | UAT 端口 18010 启动成功 |
+| AC-3 cb_sync + change_pct 100% 非 NULL | P0 | ✅ Pass^2 (2/2) | 3015 行，change_pct fill rate 100.00% |
+| AC-4 登录链路 | P0 | ⚠️ Blocked | backend 不可达 |
+| AC-5 端到端 happy path | P0 | ⚠️ Blocked | 依赖 AC-4 + 缺基础数据 |
+| AC-6 ths_daily fallback 消除 | P1 | ✅ Pass | signal/screener 日志无 fallback 警告 |
+| AC-7 抽 3-5 股 | P1 | ⚠️ Blocked | 依赖 AC-4 |
+| AC-8 validator warnings=0 | P0 | ✅ Pass^2 (2/2) | checked 47 tables, 0 warn / 0 err |
+| AC-9 合并报告输出 | P1 | ✅ Pass | 本报告 |
+| AC-10 verdict 判定 | P0 | ❌ Block | 决策树推出 |
+
+**Summary**: 4 pass / 0 fail / 6 blocked (其中 1 P0 Fail, 3 P0 Blocked)
+
+### 关键发现
+
+1. **ADR-013 主线核心验证 PASS**：`ths_daily.change_pct` 列 100% 非 NULL（3015/3015 rows），sync_ths_daily 写入成功，validator 0 warnings，下游 fallback 警告消除。**ADR-013 schema 对齐目标本身已达成**。
+
+2. **P0 阻塞 (DEF-1 Critical)**：UAT backend Docker 镜像缺少 Alembic 008-011 migrations。`uat-adr013-deploy.sh` retag 了旧的 `suying-uat-backend:latest` 镜像而非从当前代码 rebuild，导致 backend 容器启动时执行 `alembic upgrade head` 报 `Can't locate revision '011'`，exit 3 后被 compose `restart: unless-stopped` 持续拉起。
+
+3. **DEF-2 High**：UAT PG 基础数据未填充（stocks=0, daily_kline=0），导致下游业务接口（选股/诊断/信号）即使有 auth 也不可用。
+
+### Hand-off
+
+立即升 PL，**不自行 hack 修复**（遵守 task §7 + iron rule #7）。
+
+
+---
+
+## ADR-013 E2E + UAT — Re-run Round 2 — 2026-06-22
+
+**Trigger**: deploy-engineer + dev 修复 P0 阻塞后（rebuild backend + alembic 001-007 + stamp 011 + restart）PL 重派 Task #6。
+
+### Round 2 AC 总览
+
+| AC | P | Round 1 | Round 2 | pass^2 |
+|----|---|---------|---------|--------|
+| AC-1 health × 10 | P0 | ❌ Fail | ✅ Pass | 2/2 |
+| AC-3 change_pct | P0 | ✅ | ✅ | 2/2 |
+| AC-4 登录 | P0 | ⚠️ Blocked | ✅ Pass | 2/2 |
+| AC-5 happy path | P0 | ⚠️ Blocked | ⚠️ Conditional | — |
+| AC-8 validator | P0 | ✅ | ✅ | 2/2 |
+| AC-10 verdict | P0 | ❌ | ⚠️ Conditional | — |
+
+**Round 2 final**: 8 Pass / 0 Fail / 2 Conditional, P0 pass^2 = 4/4
+
+### Verdict
+
+⚠️ **Conditional Promote** — ADR-013 schema 对齐主线完整达成，可 merge。
+
+### 新发现 (round 2 only)
+
+- **DEF-3 Medium**: api-gateway:18080 路由到 `localhost:9001` 错（容器内寻址），auth 走 gateway 失败；绕过直连 backend 19001 OK
+- **DEF-4 Medium**: docker-compose.yml 业务微服务缺 `JWT_SECRET_KEY` env，跨服务 JWT 验签用 default secret 失败
+
+两者均 **pre-existing 配置 bug, 与 ADR-013 无关**，建议单开 follow-up issue。
+

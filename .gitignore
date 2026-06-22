@@ -43,3 +43,6 @@ backend/data/*.db-wal
 node_modules/
 .playwright-mcp/
 outputs/cb_ml_*.pkl
+
+# UAT/dev env files (contain secrets)
+docker/.env.*
