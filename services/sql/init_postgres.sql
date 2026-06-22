@@ -342,6 +342,14 @@ CREATE TABLE IF NOT EXISTS stock_news_tushare (
 
 -- ── 其他 (11 张表) ──
 
+-- 交易日历 (trade_cal, 外部维护/手动导入; _trading_days_between 读此表算真实交易日数)
+-- ADR-014.1: 反向追认 DB 现状 (init_sql 原缺, fresh 部署会丢表致 backtest 交易日数 fallback 自然日)
+CREATE TABLE IF NOT EXISTS trade_cal (
+    cal_date DATE PRIMARY KEY,
+    is_open INTEGER,
+    pretrade_date DATE
+);
+
 CREATE TABLE IF NOT EXISTS stock_profiles (
     code TEXT PRIMARY KEY,
     full_name TEXT, province TEXT, reg_capital DOUBLE PRECISION,
@@ -509,6 +517,33 @@ CREATE TABLE IF NOT EXISTS rt_k (id SERIAL PRIMARY KEY, ts_code TEXT NOT NULL, t
 
 -- 开盘集合竞价 (stk_auction_o, 从 9:30 首根5min K线采集 — scheduler.collect_auction_snapshot)
 CREATE TABLE IF NOT EXISTS stk_auction_o (id SERIAL PRIMARY KEY, code TEXT NOT NULL, trade_date DATE NOT NULL, open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION, close DOUBLE PRECISION, vol DOUBLE PRECISION, amount DOUBLE PRECISION, vwap DOUBLE PRECISION, UNIQUE(code, trade_date));
+
+-- 股票每日技术因子 (stk_factor_pro, sync_stk_factor_pro_daily/backfill 写入; 下游因子计算)
+-- ADR-014.1: 反向追认 DB 现状 (init_sql 原缺). 注意: DB 无 UNIQUE(ts_code,trade_date) 约束,
+-- sync 走 _pg_write DO NOTHING 无冲突检测 → 重复 sync 可能堆叠 (pre-existing, 另开 follow-up)
+CREATE TABLE IF NOT EXISTS stk_factor_pro (
+    id SERIAL PRIMARY KEY,
+    ts_code TEXT,
+    trade_date TEXT,
+    ma5 DOUBLE PRECISION,
+    ma10 DOUBLE PRECISION,
+    ma20 DOUBLE PRECISION,
+    ma60 DOUBLE PRECISION,
+    macd_dif DOUBLE PRECISION,
+    macd_dea DOUBLE PRECISION,
+    macd DOUBLE PRECISION,
+    rsi_6 DOUBLE PRECISION,
+    rsi_12 DOUBLE PRECISION,
+    rsi_24 DOUBLE PRECISION,
+    boll_upper DOUBLE PRECISION,
+    boll_mid DOUBLE PRECISION,
+    boll_lower DOUBLE PRECISION,
+    kdj_k DOUBLE PRECISION,
+    kdj_d DOUBLE PRECISION,
+    kdj_j DOUBLE PRECISION,
+    vol_ratio DOUBLE PRECISION,
+    turnover_rate DOUBLE PRECISION
+);
 
 -- 实时分钟线 (stk_mins, 来自 Tushare rt_min API + PG 直写)
 CREATE TABLE IF NOT EXISTS stk_mins (

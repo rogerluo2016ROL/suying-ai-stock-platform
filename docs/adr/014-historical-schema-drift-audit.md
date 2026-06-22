@@ -1,6 +1,6 @@
 # ADR-014: 历史 schema drift 一次性 audit + 索引登记
 
-- 状态：**Proposed**（待 backend-dev 实施 SIT + reviewer audit 通过后升 Accepted）
+- 状态：**Accepted**（2026-06-22 audit 报告产出 + ADR-010 F-1 关闭 + ADR-014.1 子 ADR 完成清零 2 high drift）
 - 日期：2026-06-22
 - 决策者：tech-lead 起草；product-lead 排期实施
 - 影响范围：审计性 ADR，**不直接做 schema 迁移**；产出审计报告 + 索引登记清单 + ADR-014.X 子 ADR 建议清单

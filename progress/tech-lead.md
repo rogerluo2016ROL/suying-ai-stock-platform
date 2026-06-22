@@ -811,3 +811,40 @@ ADR-015.3 / 015.4a (SQLite-only 清理) 不立 ADR — 方案 A 决策 SQLite in
 path #4 收官是长期跨 session 决策点, 建议写 memory:
 - "PG 写入路径完全收口: _insert_rows/_pg_write 单一主干, conflict_action+now_cols 支持 UPSERT"
 - "path #4 SQLite inline 按方案 A 保留 (YAGNI), 不立 ADR"
+
+---
+
+## 2026-06-22（同日 +11）— ADR-014.1 立项 + 实施 + SIT 完成 (stk_factor_pro + trade_cal init_sql 追认) — ADR-014 收官
+
+- **触发**: ADR-015 path #4 收官后推 ADR-014 剩余 2 high drift。
+- **复审修正**: ADR-014 audit 报告 §2 说 "stk_factor_pro / trade_cal DB+init 双缺" 是 audit 脚本查 UAT PG 16432 (fresh 部署) 的误判。dev PG 6432 实测两表都存在且有数据 (stk_factor_pro 71610 行 / trade_cal 1348 行)。真实 drift = DB 有表 + init_sql 完全缺 DDL → fresh 部署丢表。
+- **决策**: 方案 D — init_postgres.sql 反向追认 DB 现状 DDL (2 表), 不加约束不迁 alembic (业务表归 init_sql 轨, ADR-007 Q-4; 已部署环境 DB 已有表, init_sql IF NOT EXISTS 幂等)。合并原 14.1 + 14.2 为单 ADR (同型改动)。
+
+### ADR-014.1 §决策 4 SIT verdict
+
+| # | 验证项 | Verdict |
+|---|---|---|
+| 1 | 白名单审计仅 init_postgres.sql + ADR + progress | ✅ |
+| 2 | init_sql 含 stk_factor_pro DDL | ✅ 1 处 |
+| 3 | init_sql 含 trade_cal DDL | ✅ 1 处 |
+| 4 | DDL 与 DB 现状字面一致 (列名/类型/PK) | ✅ (stk_factor_pro id SERIAL vs DB integer+nextval 等价; trade_cal 3 列完全一致) |
+| 5 | 幂等性 (dev PG 6432 重跑 CREATE TABLE IF NOT EXISTS 不破坏, 行数 71610/1348 不变) | ✅ |
+| 6 | fresh 部署模拟 (临时 schema drop+重跑, 建表成功 21/3 列) | ✅ |
+
+**Verdict**: 6/6 PASS, ADR-014.1 可升 Accepted。
+
+### 遗留 (不在本 ADR scope)
+
+- stk_factor_pro 无 UNIQUE(ts_code,trade_date) 约束 → sync _pg_write DO NOTHING 无冲突检测, 重复 sync 可能堆叠重复行 (pre-existing, 另开 follow-up issue)
+- trade_cal 无 sync 函数 → 外部维护/手动导入 (pre-existing)
+
+### ADR-014 收官
+
+- audit 报告 2 high drift (stk_factor_pro + trade_cal) 清零
+- ADR-010 F-1 (cyq_chips/top_inst 索引登记) 已在 audit §6 关闭
+- ADR-014 主线完成, 升 Accepted
+
+### 下一步
+
+- **DEF-3/DEF-4** UAT 配置 bug (api-gateway 路由 / JWT_SECRET_KEY env) — follow-up issue, 低优先
+- ADR-013/014/015 全线完成, 数据管道 schema + 写入路径治理收官
