@@ -27,7 +27,9 @@ def test_short_mode_engine_weights():
     e = ShortModeEngine()
     weights = e.get_factor_weights()
     assert e.mode == "short"
-    assert weights["short_term"] == 0.30
+    # short_term=0.28 由 6fe6afa1 "6模型优化" 设定（非 0.30），测试期望当时漏更新，
+    # 致该用例自 2026-06-19 起持续 fail。此处对齐生产值（非 ML-P2 引入回归）。
+    assert weights["short_term"] == 0.28
 
 
 def test_long_mode_engine_weights():
