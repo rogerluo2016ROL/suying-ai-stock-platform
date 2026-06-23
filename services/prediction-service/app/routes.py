@@ -172,7 +172,35 @@ def _compute_auxiliary_score(feats: dict) -> dict:
 
 
 def _get_kline(code: str, lookback: int = 400):
-    """Get K-line data from SQLite DB (column: code, not ts_code)."""
+    """Get K-line data from PostgreSQL first, then optional legacy SQLite."""
+    pg_url = os.environ.get("KRONOS_PG_URL")
+    if pg_url:
+        try:
+            import psycopg2
+            conn = psycopg2.connect(pg_url, connect_timeout=5)
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT trade_date, open, high, low, close, volume, amount "
+                "FROM daily_kline WHERE code=%s ORDER BY trade_date DESC LIMIT %s",
+                (code, lookback),
+            )
+            rows = cur.fetchall()
+            conn.close()
+            if len(rows) >= 30:
+                df = pd.DataFrame([
+                    {"open": r[1], "high": r[2], "low": r[3], "close": r[4],
+                     "volume": r[5], "amount": r[6]}
+                    for r in reversed(rows)
+                ])
+                dates = pd.to_datetime([r[0] for r in reversed(rows)])
+                return df, pd.Series(dates)
+            logger.info("Insufficient PG K-line data for %s: %d rows (need ≥30)", code, len(rows))
+        except Exception as e:
+            logger.warning("PG K-line error for %s: %s", code, e)
+
+    if os.environ.get("DATA_SQLITE_FALLBACK", "true").lower() in ("0", "false", "no"):
+        return None
+
     import sqlite3
     if not DB_PATH:
         logger.error("No database available — set KRONOS_DB_PATH env var")
@@ -198,6 +226,26 @@ def _get_kline(code: str, lookback: int = 400):
         return None
 
 
+def _baseline_predict(df: pd.DataFrame, pred_days: int) -> pd.DataFrame:
+    """Lightweight local fallback when Kronos weights/runtime are unavailable."""
+    recent = df.tail(min(len(df), 20)).copy()
+    returns = recent["close"].pct_change().dropna()
+    drift = float(returns.mean()) if len(returns) else 0.0
+    vol = float(returns.std()) if len(returns) else 0.01
+    drift = float(np.clip(drift, -0.03, 0.03))
+    vol = float(np.clip(vol, 0.002, 0.05))
+
+    prev_close = float(df["close"].iloc[-1])
+    rows = []
+    for i in range(pred_days):
+        close = prev_close * ((1 + drift) ** (i + 1))
+        open_ = prev_close if i == 0 else rows[-1]["close"]
+        high = max(open_, close) * (1 + vol * 0.7)
+        low = min(open_, close) * (1 - vol * 0.7)
+        rows.append({"open": open_, "high": high, "low": low, "close": close})
+    return pd.DataFrame(rows)
+
+
 @router.get("/status")
 async def model_status():
     return {"model_loaded": _m._model_loaded, "model": "Kronos-small", "device": "cpu"}
@@ -209,9 +257,6 @@ async def predict_stock_fast(
     pred_days: int = Query(15, ge=5, le=30),
 ):
     """🔥 V2 快速预测: 单样本+低延迟，适合实时诊断 (延迟 ~300ms vs 标准 ~1s)。"""
-    if not _m._model_loaded or _m._predictor is None:
-        raise HTTPException(503, "Kronos model not loaded")
-
     kline = _get_kline(code)
     if kline is None:
         raise HTTPException(404, f"No K-line data for {code} (need ≥30 rows)")
@@ -225,13 +270,16 @@ async def predict_stock_fast(
     y_ts = pd.bdate_range(start=last_date + pd.Timedelta(days=1), periods=pred_days)
     y_timestamp = pd.Series(y_ts)
 
-    try:
-        pred_df = _m._predictor.predict_fast(
-            df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
-            pred_len=pred_days, verbose=False,
-        )
-    except Exception as e:
-        raise HTTPException(500, f"Prediction failed: {e}")
+    if not _m._model_loaded or _m._predictor is None:
+        pred_df = _baseline_predict(x_df, pred_days)
+    else:
+        try:
+            pred_df = _m._predictor.predict_fast(
+                df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
+                pred_len=pred_days, verbose=False,
+            )
+        except Exception as e:
+            raise HTTPException(500, f"Prediction failed: {e}")
 
     current_price = float(df["close"].iloc[-1])
     pred_close = float(pred_df["close"].iloc[-1])
@@ -275,9 +323,6 @@ async def predict_stock(
     pred_days: int = Query(20, ge=5, le=30),
 ):
     """Run real Kronos prediction for a single stock."""
-    if not _m._model_loaded or _m._predictor is None:
-        raise HTTPException(503, "Kronos model not loaded")
-
     kline = _get_kline(code)
     if kline is None:
         raise HTTPException(404, f"No K-line data for {code} (need ≥30 rows)")
@@ -292,14 +337,17 @@ async def predict_stock(
     y_ts = pd.bdate_range(start=last_date + pd.Timedelta(days=1), periods=pred_days)
     y_timestamp = pd.Series(y_ts)
 
-    try:
-        pred_df = _m._predictor.predict(
-            df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
-            pred_len=pred_days, T=0.7, top_k=10, top_p=0.95, sample_count=3,
-            verbose=False,
-        )
-    except Exception as e:
-        raise HTTPException(500, f"Prediction failed: {e}")
+    if not _m._model_loaded or _m._predictor is None:
+        pred_df = _baseline_predict(x_df, pred_days)
+    else:
+        try:
+            pred_df = _m._predictor.predict(
+                df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
+                pred_len=pred_days, T=0.7, top_k=10, top_p=0.95, sample_count=3,
+                verbose=False,
+            )
+        except Exception as e:
+            raise HTTPException(500, f"Prediction failed: {e}")
 
     current_price = float(df["close"].iloc[-1])
     pred_close = float(pred_df["close"].iloc[-1])

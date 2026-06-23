@@ -1,6 +1,18 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const authServiceTarget = process.env.VITE_AUTH_SERVICE_URL || 'http://localhost:9001'
+const screenerServiceTarget = process.env.VITE_SCREENER_SERVICE_URL || 'http://localhost:8001'
+const predictionServiceTarget = process.env.VITE_PREDICTION_SERVICE_URL || 'http://localhost:8002'
+const strategyServiceTarget = process.env.VITE_STRATEGY_SERVICE_URL || 'http://localhost:8003'
+const signalServiceTarget = process.env.VITE_SIGNAL_SERVICE_URL || 'http://localhost:8004'
+const alertServiceTarget = process.env.VITE_ALERT_SERVICE_URL || 'http://localhost:8005'
+const tradeServiceTarget = process.env.VITE_TRADE_SERVICE_URL || 'http://localhost:8006'
+const backtestServiceTarget = process.env.VITE_BACKTEST_SERVICE_URL || 'http://localhost:8007'
+const trainingServiceTarget = process.env.VITE_TRAINING_SERVICE_URL || 'http://localhost:8008'
+const diagnosisServiceTarget = process.env.VITE_DIAGNOSIS_SERVICE_URL || 'http://localhost:8009'
+const gatewayServiceTarget = process.env.VITE_GATEWAY_SERVICE_URL || 'http://localhost:8080'
+
 /// <reference types="vitest/config" />
 // P2 测试加固（FE-P1 review S-2 同批）：tests/sit/auth-flow.test.tsx 在单 worker
 // 内连续渲染 8 个 AntD Form（LoginPage/RegisterPage 全树）+ userEvent 队列累积，
@@ -22,20 +34,20 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api/v1/screener':    { target: 'http://localhost:8001', changeOrigin: true, timeout: 600000 },
-      '/api/v1/dashboard':   { target: 'http://localhost:8004', changeOrigin: true },
-      '/api/v1/prediction':  { target: 'http://localhost:8002', changeOrigin: true },
-      '/api/v1/strategy':    { target: 'http://localhost:8003', changeOrigin: true },
-      '/api/v1/signal':      { target: 'http://localhost:8004', changeOrigin: true },
-      '/api/v1/alert':       { target: 'http://localhost:8005', changeOrigin: true },
-      '/api/v1/trade':       { target: 'http://localhost:8006', changeOrigin: true },
-      '/api/v1/backtest':    { target: 'http://localhost:8007', changeOrigin: true },
-      '/api/v1/training':    { target: 'http://localhost:8008', changeOrigin: true },
-      '/api/v1/diagnosis':   { target: 'http://localhost:8009', changeOrigin: true },
-      '/api/v1/health':      { target: 'http://localhost:8080', changeOrigin: true },
-      '/api/v1/data':        { target: 'http://localhost:8004', changeOrigin: true },
-      '/api/v1/auth':        { target: 'http://localhost:9001', changeOrigin: true },
-      '/api/v1/admin':       { target: 'http://localhost:9001', changeOrigin: true },
+      '/api/v1/screener':    { target: screenerServiceTarget, changeOrigin: true, timeout: 600000 },
+      '/api/v1/dashboard':   { target: signalServiceTarget, changeOrigin: true },
+      '/api/v1/prediction':  { target: predictionServiceTarget, changeOrigin: true },
+      '/api/v1/strategy':    { target: strategyServiceTarget, changeOrigin: true },
+      '/api/v1/signal':      { target: signalServiceTarget, changeOrigin: true },
+      '/api/v1/alert':       { target: alertServiceTarget, changeOrigin: true },
+      '/api/v1/trade':       { target: tradeServiceTarget, changeOrigin: true },
+      '/api/v1/backtest':    { target: backtestServiceTarget, changeOrigin: true },
+      '/api/v1/training':    { target: trainingServiceTarget, changeOrigin: true },
+      '/api/v1/diagnosis':   { target: diagnosisServiceTarget, changeOrigin: true },
+      '/api/v1/health':      { target: gatewayServiceTarget, changeOrigin: true },
+      '/api/v1/data':        { target: signalServiceTarget, changeOrigin: true },
+      '/api/v1/auth':        { target: authServiceTarget, changeOrigin: true },
+      '/api/v1/admin':       { target: authServiceTarget, changeOrigin: true },
     },
   },
   build: {

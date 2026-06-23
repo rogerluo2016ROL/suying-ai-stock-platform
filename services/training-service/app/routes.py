@@ -402,6 +402,10 @@ async def api_model_detail(
     except Exception as e:
         logger.warning("Failed to query model from DB: %s", e)
 
+    mlflow_record = _find_mlflow_model_record(model_id, get_mlflow_client())
+    if mlflow_record:
+        return mlflow_record
+
     raise HTTPException(
         status_code=404,
         detail={"error": "model_not_found", "message": f"Model {model_id} not found"},
@@ -410,6 +414,49 @@ async def api_model_detail(
 
 # Need this import for the models endpoint
 from app.database import AsyncSessionLocal
+
+
+def _model_type_from_name(name: str) -> ModelType:
+    if "catboost" in name:
+        return ModelType.CATBOOST
+    if "kronos" in name:
+        return ModelType.KRONOS_FINETUNE
+    return ModelType.LIGHTGBM
+
+
+def _model_record_from_mlflow(mv: dict) -> ModelRecord:
+    name = mv.get("name", "unknown")
+    version = int(mv.get("version", 1))
+    return ModelRecord(
+        id=f"mdl-{name}-v{version}",
+        name=name,
+        version=version,
+        model_type=_model_type_from_name(name),
+        stage=ModelStage(mv.get("stage", "none")),
+        run_id=mv.get("run_id"),
+        params=mv.get("params") or {},
+        metrics=mv.get("metrics") or {},
+        deployed_at=mv.get("deployed_at"),
+        created_by="system",
+        created_at=mv.get("created_at", datetime.now(timezone.utc)),
+    )
+
+
+def _find_mlflow_model_record(model_id: str, mlflow_client) -> ModelRecord | None:
+    if not model_id.startswith("mdl-") or "-v" not in model_id:
+        return None
+    name_part, version_part = model_id[4:].rsplit("-v", 1)
+    try:
+        version = int(version_part)
+    except ValueError:
+        return None
+    for mv in mlflow_client.list_models(name_part):
+        if int(mv.get("version", 0)) == version:
+            return _model_record_from_mlflow(mv)
+    mv = mlflow_client.get_model_version(name_part, version)
+    if not mv:
+        return None
+    return _model_record_from_mlflow(mv)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -708,23 +755,28 @@ async def api_compare_models(
             )
             row = result.fetchone()
             if not row:
-                raise HTTPException(
-                    status_code=404,
-                    detail={"error": "model_not_found", "message": f"Model {model_id} not found"},
-                )
-            new_model_data = dict(row._mapping)
-            model_name = new_model_data["name"]
+                mlflow_record = _find_mlflow_model_record(model_id, mlflow_client)
+                if not mlflow_record:
+                    raise HTTPException(
+                        status_code=404,
+                        detail={"error": "model_not_found", "message": f"Model {model_id} not found"},
+                    )
+                new_model_data = mlflow_record.model_dump()
+                old_model_data = None
+            else:
+                new_model_data = dict(row._mapping)
+                model_name = new_model_data["name"]
 
-            # Get production model (for comparison)
-            result2 = await db.execute(
-                sa_text(
-                    "SELECT * FROM model_registry WHERE name = :name "
-                    "AND stage = 'production' AND id != :id"
-                ),
-                {"name": model_name, "id": model_id},
-            )
-            old_row = result2.fetchone()
-            old_model_data = dict(old_row._mapping) if old_row else None
+                # Get production model (for comparison)
+                result2 = await db.execute(
+                    sa_text(
+                        "SELECT * FROM model_registry WHERE name = :name "
+                        "AND stage = 'production' AND id != :id"
+                    ),
+                    {"name": model_name, "id": model_id},
+                )
+                old_row = result2.fetchone()
+                old_model_data = dict(old_row._mapping) if old_row else None
     except HTTPException:
         raise
     except Exception as e:

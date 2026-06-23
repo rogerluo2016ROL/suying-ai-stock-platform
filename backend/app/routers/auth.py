@@ -1,5 +1,7 @@
 """Auth API routes — register, login, refresh, logout, me. PRD v1.1 compliant."""
 
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +36,10 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 REFRESH_COOKIE_KEY = "refresh_token"
 REFRESH_COOKIE_MAX_AGE = JWT_REFRESH_EXPIRE_SECONDS
+REFRESH_COOKIE_SECURE = os.environ.get(
+    "AUTH_COOKIE_SECURE",
+    "true" if os.environ.get("KRONOS_ENV", "").lower() == "production" else "false",
+).lower() in ("1", "true", "yes")
 
 
 def _role_name(user: User) -> str:
@@ -47,7 +53,7 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         value=token,
         max_age=REFRESH_COOKIE_MAX_AGE,
         httponly=True,
-        secure=True,
+        secure=REFRESH_COOKIE_SECURE,
         samesite="strict",
         path="/api/v1/auth",
     )
@@ -59,7 +65,7 @@ def _clear_refresh_cookie(response: Response) -> None:
         key=REFRESH_COOKIE_KEY,
         path="/api/v1/auth",
         httponly=True,
-        secure=True,
+        secure=REFRESH_COOKIE_SECURE,
         samesite="strict",
     )
 

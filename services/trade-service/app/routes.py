@@ -484,6 +484,17 @@ async def broker_status(user: dict = Depends(require_role("admin", "internal_ana
     }
 
 
+@router.get("/risk-config")
+async def risk_config(user: dict = Depends(require_role("admin", "internal_analyst", "user"))):
+    """Return frontend-visible pre-trade risk thresholds."""
+    return {
+        "large_order_threshold": float(os.environ.get("RISK_LARGE_TRADE_THRESHOLD", "500000")),
+        "max_single_amount": float(os.environ.get("RISK_MAX_SINGLE_ORDER_AMOUNT", "500000")),
+        "max_position_pct": float(os.environ.get("RISK_MAX_POSITION_CONCENTRATION", "30")),
+        "price_limit_pct": float(os.environ.get("RISK_PRICE_LIMIT_PCT", "10.0")),
+    }
+
+
 # ── Circuit Breaker routes ────────────────────────────────────────────
 
 @router.get("/circuit-breaker")
@@ -491,6 +502,16 @@ async def get_circuit_breaker(
     user: dict = Depends(require_role("admin", "internal_analyst")),
 ):
     """Get current circuit breaker state."""
+    acct_id = _broker_config.get("account_id", "default")
+    state = await get_state(acct_id)
+    return {"breakers": [state]}
+
+
+@router.get("/circuit-breaker/status")
+async def get_circuit_breaker_status(
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
+    """Compatibility endpoint used by the frontend live-trade hook."""
     acct_id = _broker_config.get("account_id", "default")
     state = await get_state(acct_id)
     return {"breakers": [state]}
