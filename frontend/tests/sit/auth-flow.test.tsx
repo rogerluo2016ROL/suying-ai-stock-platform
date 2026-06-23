@@ -80,6 +80,12 @@ function mockSessionRestore(userData: Record<string, unknown> = {}) {
 }
 
 // ── Helpers ──
+//
+// P2 测试加固（FE-P1 review S-2 同批）：AntD 5.22 给 block+primary 按钮的 CJK 文本
+// 插入了字符间距（letter-spacing），accessible name 实算为 "登 录" / "注 册"（每字
+// 间一空格），原 `/登录/` / `/注册/` 正则无法匹配 → fillLoginForm/fillRegisterForm 的
+// waitFor 永超时（实测探针：textContent = "登 录"）。改用 `/登\s*录/` / `/注\s*册/`
+// 容忍空格，4 个 pre-existing 失败（AC-23/AC-24/AC-26/注册失败）一次性闭合。
 
 async function fillLoginForm(email: string, password: string) {
   const user = userEvent.setup()
@@ -89,10 +95,10 @@ async function fillLoginForm(email: string, password: string) {
   await user.type(screen.getByPlaceholderText('邮箱'), email)
   await user.type(screen.getByPlaceholderText('密码'), password)
   await waitFor(() => {
-    const btn = screen.getByRole('button', { name: /登录/ })
+    const btn = screen.getByRole('button', { name: /登\s*录/ })
     expect(btn).not.toBeDisabled()
   })
-  await user.click(screen.getByRole('button', { name: /登录/ }))
+  await user.click(screen.getByRole('button', { name: /登\s*录/ }))
 }
 
 async function fillRegisterForm(name: string, email: string, password: string, confirm: string) {
@@ -105,10 +111,10 @@ async function fillRegisterForm(name: string, email: string, password: string, c
   await user.type(screen.getByPlaceholderText('密码'), password)
   await user.type(screen.getByPlaceholderText('确认密码'), confirm)
   await waitFor(() => {
-    const btn = screen.getByRole('button', { name: /注册/ })
+    const btn = screen.getByRole('button', { name: /注\s*册/ })
     expect(btn).not.toBeDisabled()
   })
-  await user.click(screen.getByRole('button', { name: /注册/ }))
+  await user.click(screen.getByRole('button', { name: /注\s*册/ }))
 }
 
 // ── SIT: Auth Flow ──
@@ -129,7 +135,7 @@ describe('SIT: Auth Flow', () => {
     await fillLoginForm('admin@test.com', 'Abc12345')
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: /登录/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /登\s*录/ })).not.toBeInTheDocument()
     })
   })
 
@@ -144,7 +150,10 @@ describe('SIT: Auth Flow', () => {
       </MemoryRouter>,
     )
 
-    await fillLoginForm('wrong@test.com', 'wrongpass')
+    // 注意：密码须满足 LoginPage 表单校验（≥8 位 + 含大写 + 含数字），否则 AntD
+    // Form 拦截 onFinish，根本不发起 /login 请求，断言"邮箱或密码错误"必失败。
+    // 这里用合法密码 + 错误邮箱触发后端 401 → LoginPage catch → 渲染错误 Alert。
+    await fillLoginForm('wrong@test.com', 'Wrongpass1')
 
     await waitFor(() => {
       expect(screen.getByText('邮箱或密码错误')).toBeInTheDocument()
@@ -165,7 +174,7 @@ describe('SIT: Auth Flow', () => {
     await fillRegisterForm('NewUser', 'new@test.com', 'Abc12345', 'Abc12345')
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: /注册/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /注\s*册/ })).not.toBeInTheDocument()
     })
   })
 

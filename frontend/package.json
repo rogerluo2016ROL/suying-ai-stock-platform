@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --port 3000",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:sit": "vitest run tests/sit/"
   },
   "dependencies": {
     "@ant-design/icons": "^5.5",

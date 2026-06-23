@@ -215,9 +215,38 @@ export const diagnosisApi = {
 }
 
 // Health — check microservice health through API gateway
+//
+// FE-P1 review S-2: 原实现 `.catch(() => ({ data: { status: 'offline' } }))` 把任何
+// 错误（网络/超时/CORS/5xx）伪装成 resolved 的 200 形态响应，破坏 axios 错误契约——
+// 调用方 try/catch 永远进不到 catch，无法区分"服务 offline"与"请求本身失败"。
+// 改为：失败时 throw HealthCheckError（语义化错误），调用方可 catch 后判 offline。
+// 保留 `checkOffline()` 便捷访问器返回 boolean（内部 catch），兼容只想拿"在不在线"
+// 布尔的简单调用方，不必每个调用点都写 try/catch。
+export class HealthCheckError extends Error {
+  constructor(public readonly service: string, public readonly cause?: unknown) {
+    super(`health check failed for service "${service}"`)
+    this.name = 'HealthCheckError'
+  }
+}
+
 export const healthApi = {
-  check: (service: string) => api.get(`/${service}/health`).catch(() => ({ data: { status: 'offline' } })),
-  gateway: () => api.get('/health').catch(() => ({ data: { status: 'offline' } })),
+  check: (service: string) =>
+    api.get(`/${service}/health`).catch((err: unknown) => {
+      throw new HealthCheckError(service, err)
+    }),
+  gateway: () =>
+    api.get('/health').catch((err: unknown) => {
+      throw new HealthCheckError('gateway', err)
+    }),
+  /** Convenience: returns true when the service is reachable and reports healthy. */
+  checkOnline: async (service: string): Promise<boolean> => {
+    try {
+      const res = await api.get(`/${service}/health`)
+      return (res as { data?: { status?: string } })?.data?.status === 'online'
+    } catch {
+      return false
+    }
+  },
 }
 
 export default api

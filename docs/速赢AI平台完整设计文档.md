@@ -179,7 +179,7 @@ _compute_shared_factors(code, df)
 | **API 网关** | FastAPI + urllib async wrapper | Python ≥3.10 |
 | **微服务** | FastAPI + uvicorn + Pydantic v2 | 13 服务 |
 | **数据库** | PostgreSQL 15 (主) + SQLite (备) + Redis 7 (缓存) | PG:6432, Redis:7379 |
-| **ML 预测** | Kronos Transformer (PyTorch) + ONNX Runtime | HuggingFace |
+| **ML 预测** | Kronos-mini (公开模型托管推理, PyTorch — M05/M10: ONNX Runtime 死代码已删, 非自研) | HuggingFace |
 | **ML 训练** | LightGBM + CatBoost + MLflow | — |
 | **LLM** | DeepSeek (方案生成) | API |
 | **行情数据** | Tushare 1.4.29 + mootdx (fallback) | — |

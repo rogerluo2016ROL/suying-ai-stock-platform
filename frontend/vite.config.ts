@@ -1,8 +1,24 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+/// <reference types="vitest/config" />
+// P2 测试加固（FE-P1 review S-2 同批）：tests/sit/auth-flow.test.tsx 在单 worker
+// 内连续渲染 8 个 AntD Form（LoginPage/RegisterPage 全树）+ userEvent 队列累积，
+// 默认 Node heap (~1.5GB) 下会 FATAL OOM（"Ineffective mark-compacts near heap
+// limit"）。forks 池每个测试文件独立进程 + 单进程隔离，避免重型 SIT 文件互相挤压。
+// 仍需配合 npm test 的 NODE_OPTIONS --max-old-space-size=4096 给 worker 充足堆。
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: false,
+        isolate: true,
+      },
+    },
+  },
   server: {
     port: 3000,
     proxy: {

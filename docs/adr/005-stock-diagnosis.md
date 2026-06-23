@@ -64,6 +64,7 @@ PRD 第 ⑫ 环节"个股诊断"（AC-12.1~12.7）要求实现：用户输入股
 | 缓存刷新策略 | 被动失效 + 主动预热 | 交易日开盘前（9:00）和收盘后（15:30），通过 APScheduler 定时任务预热热门股票（持仓股 + 最近 7 天诊断过的股票）的 Kronos 预测缓存，确保用户进行诊断时命中率 >90%。缓存键包含 `pred_days=30` 参数，与 PRD AC-12.3 要求的"Kronos 30 日预测 K 线图"一致 |
 | 容错降级 | Kronos 不可用时 AI 预测维度显示"暂无数据" | 诊断不应因 Kronos 服务故障而整体失败。当 Kronos 调用超时（>8s）或返回 5xx 时，AI 预测维度标记为 `unavailable`，维度权重临时重新分配（技术面 44%、资金面 28%、基本面 22%、情绪面 6%），总分仍然计算但标注"AI 预测暂不可用" |
 | Kronos 集成协议 | HTTP REST `POST /api/v1/prediction/predict/{code}` + 带 Bearer Token 认证 | diagnosis-service 通过内部网络调用 Kronos 服务，不经过前端中转，减少延迟和暴露面 |
+| 模型来源说明 | **基于公开 `NeoQuasar/Kronos-mini` 托管推理**（非自研） | M05（audit-model-2026-06-22）：prediction-service 加载的是 HuggingFace 公开的 `NeoQuasar/Kronos-mini` base 权重，自研 fine-tune checkpoint（`Kronos/outputs/models/finetune_*`）**当前不存在**。本 ADR 中的"Kronos 预测"均指该公开模型的本地托管推理，不自研、不微调。自研训练需 GPU 集群 + 真实数据集，另立项（见 ADR-004 决策 6 待定项）。prediction-service `/api/v1/health` 的 `checkpoint_status` 字段标注来源（`base_public` / `finetuned`）|
 
 ## 备选方案
 
