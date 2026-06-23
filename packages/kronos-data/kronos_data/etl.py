@@ -826,11 +826,19 @@ def _get_all_codes(db: sqlite3.Connection) -> list[str]:
 
 
 def _sync_per_stock_financial(table: str, api_name: str, fields: str,
-                               periods: list[str], extra_kwargs: dict = None) -> dict:
+                               periods: list[str], extra_kwargs: dict = None,
+                               conflict_action: str = "nothing",
+                               codes: list[str] = None) -> dict:
     """Generic per-stock financial data sync for quarterly statements.
 
     Calls pro.<api_name>(ts_code=<ts_code>, period=<period>, fields=<fields>) per stock.
     Rate-limited to ~450 calls/min.
+
+    Args:
+        conflict_action: "nothing" (默认, ON CONFLICT DO NOTHING) | "update" (回填已有行的
+                         NULL 字段, 用于历史回填 growth 等). update 模式下 conflict_cols=[code,end_date],
+                         update_cols=cols 去掉 code/end_date/report_type.
+        codes: 指定股票代码列表 (None=全市场 _get_all_codes, 用于小范围历史回填).
     """
     pro = _get_pro()
     if pro is None:
@@ -838,7 +846,8 @@ def _sync_per_stock_financial(table: str, api_name: str, fields: str,
 
     db = _get_etl_db()
     db.row_factory = sqlite3.Row
-    codes = _get_all_codes(db)
+    if codes is None:
+        codes = _get_all_codes(db)
     total, written = 0, 0
 
     cols_map = {
@@ -852,9 +861,21 @@ def _sync_per_stock_financial(table: str, api_name: str, fields: str,
         "financial_cashflow": ["code", "end_date", "report_type",
             "n_cashflow_act", "n_cashflow_inv_act", "n_cashflow_fin_act",
             "c_fr_sale_sg", "net_profit"],
+        # P4 修复: cols 用 PG 表列名 (非 Tushare 原名), 配合 field_aliases 取值.
+        # 原 cols 用 grossprofit_margin/or_yoy 等 Tushare 名, 与 PG 列 (gross_margin/revenue_growth)
+        # 不匹配, 被 _insert_rows 过滤 → growth/gross_margin 等字段从未写入 (全期 NULL/0).
         "financial_indicator": ["code", "end_date", "roe", "roa",
-            "grossprofit_margin", "netprofit_margin", "debt_to_assets",
-            "eps", "ocfps", "current_ratio", "quick_ratio", "or_yoy", "profit_dedt"],
+            "gross_margin", "net_margin", "debt_ratio",
+            "eps", "current_ratio", "revenue_growth", "profit_growth"],
+    }
+    # PG 表列名 → Tushare API 字段名 (取值用 Tushare 名, 写入用 PG 列名).
+    # profit_growth 用 netprofit_yoy (归母净利同比), 非 profit_dedt (扣非净利绝对值, 非同比).
+    field_aliases = {
+        "financial_indicator": {
+            "gross_margin": "grossprofit_margin", "net_margin": "netprofit_margin",
+            "debt_ratio": "debt_to_assets", "revenue_growth": "or_yoy",
+            "profit_growth": "netprofit_yoy",
+        },
     }
 
     cols = cols_map.get(table, [])
@@ -880,6 +901,7 @@ def _sync_per_stock_financial(table: str, api_name: str, fields: str,
                 continue
 
             rows = []
+            aliases = field_aliases.get(table, {})
             for _, r in df.iterrows():
                 row_vals = []
                 for c in cols:
@@ -890,11 +912,37 @@ def _sync_per_stock_financial(table: str, api_name: str, fields: str,
                     elif c == "report_type":
                         row_vals.append(str(r.get("report_type", "")))
                     else:
-                        # Map DB column to Tushare field (same name)
-                        row_vals.append(r.get(c))
+                        # 取值用 Tushare 字段名 (alias), 写入用 PG 表列名 (c);
+                        # numpy 标量转原生 (update 模式 execute_values 不隐式转换, 防 np.float64 进 SQL)
+                        v = r.get(aliases.get(c, c))
+                        if isinstance(v, (int, float)) is False and v is not None:
+                            import numpy as _np
+                            if isinstance(v, _np.floating):
+                                v = float(v) if not _np.isnan(v) else None
+                            elif isinstance(v, _np.integer):
+                                v = int(v)
+                        elif isinstance(v, float):
+                            import math
+                            if math.isnan(v):
+                                v = None
+                        row_vals.append(v)
                 rows.append(tuple(row_vals))
+            # 按 (code, end_date) 去重: fina_indicator 等同期可能返回多版本行,
+            # ON CONFLICT DO UPDATE 不允许同批重复影响同一行 (保留最后=最新版本)
+            if len(rows) > 1:
+                ci, ei = cols.index("code"), cols.index("end_date")
+                dedup = {}
+                for row in rows:
+                    dedup[(row[ci], row[ei])] = row
+                rows = list(dedup.values())
             total += len(rows)
-            written += _insert_rows(db, table, cols, rows)
+            if conflict_action == "update":
+                # 回填模式: ON CONFLICT(code,end_date) DO UPDATE SET 非PK列
+                upd = [c for c in cols if c not in ("code", "end_date", "report_type")]
+                written += _insert_rows(db, table, cols, rows, conflict_action="update",
+                                        conflict_cols=["code", "end_date"], update_cols=upd)
+            else:
+                written += _insert_rows(db, table, cols, rows)
 
         processed += 1
         if processed % 500 == 0:
@@ -949,9 +997,13 @@ def sync_cashflow(days_back: int = 30) -> dict:
 
 
 def sync_financial_indicator(days_back: int = 30) -> dict:
-    """Sync pro.fina_indicator() — latest 2 quarters for all stocks."""
+    """Sync pro.fina_indicator() — latest 2 quarters for all stocks.
+
+    P4 修复: fields 含 netprofit_yoy (归母净利同比→profit_growth), 配合 cols_map/field_aliases
+    正确写入 PG 列. 原 profit_dedt 是扣非净利绝对值非同比, 已弃用.
+    """
     periods = _recent_quarters(2)
-    fields = "ts_code,end_date,roe,roa,grossprofit_margin,netprofit_margin,debt_to_assets,eps,ocfps,current_ratio,quick_ratio,or_yoy,profit_dedt"
+    fields = "ts_code,end_date,roe,roa,grossprofit_margin,netprofit_margin,debt_to_assets,eps,current_ratio,or_yoy,netprofit_yoy"
     return _sync_per_stock_financial("financial_indicator", "fina_indicator", fields, periods)
 
 
