@@ -50,3 +50,9 @@ node_modules/.vite/
 
 # UAT/dev env files (contain secrets)
 docker/.env.*
+
+# agent/build/run artifacts — PlatformFixTeam follow-up, 避免误 commit 工具/构建/运行产物
+.agents/
+.codex/
+**/tsconfig.tsbuildinfo
+services/training-service/outputs/
