@@ -1255,3 +1255,126 @@ Push: `git push origin feature/suying-ai-stock-platform` fast-forward `1e1ef8d..
 - `progress/backend-dev.md`（BE-P2 段 AC-2/AC-5/质量门/归属范围 4 处证据更正 + 本返工段落 + 23c8137 归属标注）
 
 **下一步**: 报告 product-lead BE-P2 review W-1/W-2 已更正（progress 纯文字，无源码改动）+ 23c8137 归属已标注。BE 链路 P0/P1/P2 + review + 返工 + progress 更正全闭合。
+
+## supply_chain P1 重构 (2026-06-23)
+
+**范围**: packages/kronos-factors/kronos_factors/engine/supply_chain.py + services/screener-service/app/routers/screener.py
+**方案**: /Users/rogerluo/.claude/plans/effervescent-watching-hennessy.md (P1 阶段)
+
+**改动**:
+- SupplyChainEngine 继承 StrategyEngine, run()→ScreeningResult, 新增 get_factor_weights()
+- run() 加 trade_date 参数 (财务/研报/券商 cutoff <= trade_date, 解锁样本外回测)
+- layer 用 stock_profiles.main_business 关键词真实匹配 (原恒取 layers[0])
+- 研报查询加 ORDER BY pub_date DESC (修 LIMIT 50000 无序 bug)
+- screener.py _run_supply_chain_mode: result.get("picks") → result.picks
+
+**SIT 证据** (PYTHONPATH=packages/kronos-factors KRONOS_PG_URL=... .venv/bin/python):
+- AC1.1 isinstance(SupplyChainEngine(), StrategyEngine)=True; get_factor_weights={moat:0.4,growth:0.3,profit:0.15,rating:0.1,consensus:0.05}
+- AC1.2 run(trade_date='2024-06-28')→ScreeningResult, metadata.trade_date='2024-06-28'; 300274 财务 cutoff 取 2023-12-31 (psql 交叉验证 end_date<=cutoff)
+- AC1.3 layer 分布 14 种值 (材料/制造/封测/设计/设备/硬件/软件/应用/核心部件/整机/集成/CXO/原料药/光伏/电池), 不再恒 layers[0]
+- AC1.4 picks 字段完整 (code/name/chain/layer/grade/total_score/moat_score/moat_signals); picks=40
+- 注: 个别 layer 标注需 P3 精细化 (如阳光电源=材料, 实为光伏逆变器; 关键词表待 P3 外置 JSON 时校正)
+
+**后续**: P2 rating 复活 / P3 配置外置 / P4 权重 IC 化 / P5 样本外验证 — 待新需求(产业链BOM重塑)重新规划后整合
+
+## supply_chain P3 配置外置+产业链扩展 (2026-06-23)
+
+**范围**: 新建 packages/kronos-factors/configs/supply_chains.json + supply_chain.py 加 _load_chains_config()
+**方案**: P3 阶段 (无需二次授权)
+
+**改动**:
+- 新建 configs/supply_chains.json (10 链: 半导体/新能源/AI算力/机器人/创新药 + 新能源车/消费升级/国防军工/高端制造/周期资源), 含每链 industries/layers/layer_keywords + moat_keywords
+- supply_chain.py: 原 CHAINS/LAYER_KW/MOAT_KW 硬编码→_BUILTIN_*; 新增 _load_chains_config() 优先读 JSON, 失败/缺失/不完整 fallback 内置默认
+- 新链 industry 关键词基于 stocks.industry 实际分布 (汽车配件260/家用电器87/食品86/航空53/化工原料251/工程机械37 等)
+
+**SIT 证据** (PYTHONPATH=packages/kronos-factors):
+- AC3.1 JSON 加载 10 链 (半导体/新能源/AI算力/机器人/创新药/新能源车/消费升级/国防军工/高端制造/周期资源); layer_kw 10 链; moat 4 类
+- AC3.2 消费升级 picks=20, 新能源车 picks=20 (新链 industry 匹配生效)
+- AC3.3 半导体回归 picks=20, layers={设计6/制造1/材料11/设备2} (P1 真实匹配 + P3 JSON 配置叠加正常)
+- 全部 chain 分布覆盖 5+ 链 (AI算力10/创新药8/机器人6/半导体25/新能源11)
+
+**后续**: P2(rating复活) / P4(权重IC化) / P5(样本外验证) 属高风险变更, 需各自 Plan Mode 授权
+
+## supply_chain P2 rating 覆盖广度复活 (2026-06-23)
+
+**范围**: packages/kronos-factors/kronos_factors/engine/supply_chain.py
+**方案**: P2 阶段 (评分口径变更, 已授权)
+
+**改动**:
+- 新增研报篇数查询 SELECT code,COUNT(*) FROM research_reports_tushare GROUP BY code (title 100%非空, 篇数可靠), 带 pub_date cutoff
+- 研报标题查询去掉 rating 列 (全空无用), 仅留 moat 关键词匹配
+- 新增同业分布构建: peer_broker/peer_report 按行业聚合全市场非ST股的 bc/rc (缺省0), 排序供分位数
+- 新增 _percentile() + _compute_rating_dimension(): rating=report分位×6 + broker分位×4 (满分10), report_count 来自不同表(research_reports 4098股 vs broker_recommend 2269股)更正交
+- 移除 RATING_MAP ratings 累积逻辑 (deprecated), report_count 字段改用真实篇数 rc
+- moat/consensus 逻辑不变
+
+**SIT 证据** (PYTHONPATH=packages/kronos-factors, top_n=100):
+- AC2.1 rating 非默认占比 1.0 (全部非5.0, 死维度复活)
+- AC2.2 corr(rating,consensus)=0.641 < 0.7 (正交性达成, 避免重复计数)
+- AC2.3 rating前10 ∩ consensus前10 = 2/10 (解耦良好)
+- rating 分布 6.6~10.0 mean9.09; report_count 6~165 (候选池为产业链龙头, 覆盖天然偏高, 区分度集中在高位, 合理)
+- 首条: 金山办公 AI算链 S级 total98.9 rating9.9 consensus5 report82
+
+**后续**: P4 权重IC化 / P5 样本外验证
+
+## supply_chain P4 IC工具 + financial_indicator 字段映射修复 (2026-06-23)
+
+**范围**: 新建 backtest/supply_chain_ic.py + 修 packages/kronos-data/etl.py 列名映射缺陷 + 新建 backfill_financial.py
+**方案**: P4 阶段 (权重变更高风险已授权)
+
+**P4 IC 校准工具** (backtest/supply_chain_ic.py):
+- compute_dimension_ic(engine,cutoff,horizon=20): 真前向跑engine.run(trade_date=cutoff),取5因子分值,用_get_trading_day+daily_kline算forward return,每因子调compute_ic(engine.py:131复用)
+- calibrate_weights(train_cutoffs,method="icir"): ICIR归一化权重, 输出calibrated_weights.json
+- supply_chain.py加__init__(weights=None),run()各维归一化×权重×100 (默认权重下与原sum(dim)等价, grade阈值S80/A65/B50不变)
+- 管道验证通过: 3 cutoff composite IC +0.16/+0.01/+0.10, forward return计算正确
+
+**关键发现 — financial_indicator growth 字段退化根因** (阻塞P4/P5):
+- revenue_growth/profit_growth 在2025-12前几乎全空(revenue_growth非零率0/500直到2025-12才1773/5022)
+- 根因: etl cols_map["financial_indicator"]用Tushare字段名(or_yoy/grossprofit_margin/profit_dedt), PG实际表列是重命名后(revenue_growth/gross_margin/profit_growth), _insert_rows过滤掉表不存在列→从未写入
+- profit_dedt是扣非净利绝对值(非同比), profit_growth应映射netprofit_yoy
+- 历史code覆盖2024及以前仅500股(vs 5401)
+
+**修复**:
+- cols_map改用PG列名 + field_aliases(PG列→Tushare字段)取值映射
+- _sync_per_stock_financial加conflict_action="update"模式(回填已有行NULL) + codes参数 + numpy类型转换 + 按(code,end_date)去重
+- sync_financial_indicator fields加netprofit_yoy弃profit_dedt
+- 新建backfill_financial.py历史回填脚本(update模式,产业链候选池×历史季度)
+
+**SIT 证据**:
+- 字段映射修复验证: 5股×2025-12-31回填后growth正确(茅台rg=-1.206%/pg=-4.5323同比, 宁德pg从64507864000绝对值修正为42.28%同比)
+- 历史回填验证: 3股×2022-12-31/2021-12-31回填6行, 2022-12-31 growth从NULL→茅台rg=16.87%/pg=19.55%正确
+- 权重注入: 默认权重下金山办公total=98.9与P2一致(回归), 自定义权重注入正常
+- P4校准(修复前数据): growth因子IC=0(std=0,数据退化假象), composite默认权重mean_ic=-0.0146 — 不可信, 待回填后重跑
+
+**历史回填**: 后台启动3379产业链股×24季度(2020Q1-2025Q4), nohup独立于会话, 日志/tmp/backfill_fin.log
+**后续**: 回填完成后重跑P4校准验证growth复活 → P5样本外验证
+
+## supply_chain P5 样本外验证框架 (2026-06-23)
+
+**范围**: 新建 backtest/supply_chain_validation.py + tools/supply_chain_validate.py (CLI)
+**方案**: P5 阶段 (门禁标准高风险已授权)
+
+**改动**:
+- backtest/supply_chain_validation.py:
+  - _forward_returns(): 用 _get_trading_day + daily_kline 算 [cutoff, cutoff+horizon] forward return
+  - _ic_bootstrap(): 对 picks 有放回抽 sample_size 算 IC 重复 n_seeds 次, 估 IC 均值/std (防单次抽样侥幸)
+  - _run_period(): 真前向跑 engine.run(trade_date=cutoff) 用历史数据打分, 取 total_score 作 composite, 聚合 IC 序列, stats.ttest_1samp 单边 p
+  - _run_baseline(): random (随机置换score, IC应≈0) / chokepoint (ChokepointEngine同期)
+  - run_supply_chain_oos_validation(): train/test 切分 + 门禁 verdict
+- tools/supply_chain_validate.py: argparse CLI, --weights 加载P4校准权重, 输出 verdict + 报告JSON
+
+**门禁 verdict=PASS 当且仅当** (4条全满足):
+  ① test.mean_ic > 0  ② test.p_value(单边) < 0.05  ③ test.mean_ic > baseline + 0.02  ④ 跨 seed std < 0.03
+  FAIL + 校准权重 → 权重不得上线, 回退默认, CLI exit 1
+
+**SIT 证据** (小窗口冒烟, train/test 各2 cutoff, 验证流程非结论):
+- 框架完整跑通: 真前向cutoff→forward return→bootstrap IC→t检验→random基线→verdict
+- random 基线 mean_ic=-0.0068 (≈0, 验证基线计算正确)
+- cutoff 2024-01-31: mean_ic=+0.1328 n_picks=1026 n_valid=376; 2024-02-29: -0.1871
+- verdict=FAIL (预期: 回填未完成growth退化 + 仅2 cutoff样本不足, 非结论)
+
+**注**: 冒烟结果 test mean_ic=-0.027 是回填未完成 + 样本不足的预期结果, 待回填完成后跑完整窗口(2020-2023 train / 2024-2026 test)才有统计意义.
+
+**完整验证命令** (回填完成后):
+  PYTHONPATH=packages/kronos-factors KRONOS_PG_URL=... .venv/bin/python tools/supply_chain_validate.py \
+    --train-start 2020-03-31 --test-end 2026-06-30 --baseline random --weights calibrated_weights.json

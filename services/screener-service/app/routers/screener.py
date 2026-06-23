@@ -346,7 +346,7 @@ def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> 
     engine = SupplyChainEngine()
     result = engine.run(top_n=top_n, trade_date=trade_date)
 
-    picks = result.get("picks", [])
+    picks = result.picks
     picks = _sanitize_picks(picks)
     # Normalize: total_score→score, preserve chain/layer/moat fields
     for p in picks:

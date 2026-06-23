@@ -60,3 +60,8 @@ services/training-service/outputs/
 
 # kronos-factors 运行产物（ml-engineer-2 重跑 IC follow-up 产物）
 packages/kronos-factors/outputs/
+
+# supply_chain P4/P5 校准与验证产物（运行时生成，不入库）
+calibrated_weights.json
+supply_chain_oos_report.json
+.claude/scheduled_tasks.lock
