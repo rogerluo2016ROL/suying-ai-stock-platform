@@ -1047,3 +1047,167 @@ Push: `git push origin feature/suying-ai-stock-platform` fast-forward `1e1ef8d..
 - 0 schema/init_sql/sync/alembic/factor 改动（read-only ✅）
 
 **下一步**: 报告产出后由 tech-lead 在 1 周内（§决策 7）评估 §3 子 ADR 建议（ADR-014.1 / 014.2），PL 排期 backend-dev 实施。
+
+---
+
+## Task #4 (BE-P0): 后端 P0 必修 — JWT 三服务统一 + 删死代码 + circuit_breaker 加锁 - 2026-06-22 (backend-dev)
+**状态**: 已完成（3 个 P0 全修，AC-1~AC-7 全过；含 P0-3 reserve 语义 + routes.py 名额泄漏边界修复）
+**Skills**: agf-running-sit-tests
+**Plan Mode 授权**: P0-3 circuit_breaker 涉交易资金风控，已获 product-lead 书面授权（重入锁拆分 / get_state 加锁 / DB 持久化不锁 / pyproject 非临界区直接做，四项审查全认可）
+
+**SIT 证据**（AC-1~AC-7 全 7 项）:
+
+- [x] **AC-1** ✅ P0-1 三服务 JWT fallback 一致 — diagnosis/training config.py 改用 `_secret()` 分级 raise 范式（复制 backend/app/config.py:14-38），fallback 统一 `dev-only-jwt-secret-change-in-production-min-32-chars!!`。实测三服务加载后 `JWT_SECRET_KEY` 字面一致（见 AC-6 证据）。`KRONOS_ENV=production` 缺失 raise 实测：`PASS: prod raises -> JWT_SECRET_KEY must be set in production`
+- [x] **AC-2** ✅ P0-2 deps.py 删除 — `grep -rn "from app.deps\|from \.deps\|import deps" services/trade-service/ docker/` 返回 rc=1（零引用），`git rm services/trade-service/app/deps.py` 已执行，`git status` 显示 `D services/trade-service/app/deps.py`。routes.py 实际认证走 `from kronos_auth import require_role`（line 22）
+- [x] **AC-3** ✅ P0-3 circuit_breaker 加 asyncio.Lock — `import asyncio` + 模块级 `_lock = asyncio.Lock()`；`_get_or_create` 改 `async def`（caller must hold lock）；`check_daily_loss` 拆 `_check_daily_loss_locked`（持锁内部版）+ 公开版（`async with _lock` 调内部版，防重入死锁）；`can_trade` / `record_probe` / `reset` / `get_state` 全 `async with _lock`。grep 实测：`_lock = asyncio.Lock` + `async with _lock` + `_check_daily_loss_locked` 共 10 处命中
+- [x] **AC-4** ✅ 并发测试 HALF_OPEN 恰一次 True — `test_half_open_concurrent_can_trade_exactly_one_true`：`asyncio.gather(can_trade, can_trade)` 断言 `allowed.count(True)==1 and allowed.count(False)==1 and probing_count==1`；加压 `test_half_open_high_concurrency_still_one_true`：16 路并发仍恰 1 True。**实现机制**：`can_trade` 改为 atomic check-and-reserve（HALF_OPEN 首次通过时 `probing_count += 1`），`record_probe` 不再递增 count（名额已被 reserve）。11 测试全过：`10 passed... 11 passed in 0.12s`（含死锁回归 / 名额泄漏 / 阈值并发触发 / reset 并发等）
+- [x] **AC-5** ✅ backend + trade-service pytest 全过（0 回归）：
+  - **trade-service**: `11 passed in 0.12s`（新建 tests/，含并发 + reserve + 名额泄漏）
+  - **backend**（逐文件跑，见下方"测试隔离债"说明）: test_auth.py 14 passed / test_config_secrets.py 8 passed（含 `test_no_token_hex_random_path` 验证 P0-2 反模式不存在）/ test_auth_integration.py 16 passed / test_group_split.py 4 passed / test_simulate_position.py 13 passed / test_ml_p0_sit.py 9 passed+1 skipped / test_backtest_multiday_sit.py 9 skipped = **64 passed + 10 skipped，0 failed**
+  - **测试隔离债（既有，非本 task 引入，如实报告）**: `cd backend && pytest tests/`（目录形式）会触发 `ImportError: cannot import name 'JWT_ACCESS_EXPIRE_SECONDS' from 'app.config' (services/training-service/app/config.py)`。根因：`backend/tests/sit/test_ml_p0_sit.py:27` + `tests/ml/test_group_split.py:18`（均为 ml-engineer ML-P0 文件）执行 `_SVC = os.path.join(_PROJ, "services", "training-service")` 并把该路径插入 sys.path，污染后续测试的 `app` 包名解析（backend 与所有 services 共用顶层包名 `app`）。**逐文件跑（`pytest tests/test_auth.py ...`）不触发**，因为单文件路径不触发根 `pyproject.toml` 的 `testpaths=["services/*/tests"]` globbing。审计报告的 "51 passed" 应是用逐文件或等价隔离跑法。此债不在 BE-P0 范围（属 ml-engineer 测试 + 项目 `app` 命名架构），建议后续单独立项（给 backend 加专属 pytest.ini + confcutdir，或 ml 测试用 `importlib` 模式/独立包名）
+- [x] **AC-6** ✅ unset JWT_SECRET_KEY 跨服务验签不再 401 — 实测脚本：backend 用 fallback 签发 `jwt.encode({'sub':'1','role':'admin','type':'access'}, backend_cfg.JWT_SECRET_KEY, HS256)`，diagnosis + training 各自用己方 fallback `jwt.decode` 均成功，payload 一致 `{'sub':'1','role':'admin','type':'access'}`。三服务 fallback 字面值实测全为 `'dev-only-jwt-secret-change-in-production-min-32-chars!!'`。修复前 diagnosis/training fallback 是 `dev-secret-change...`（前缀不符）→ 验签必失败 → 401
+- [x] **AC-7** ✅ SIT 证据落 progress/backend-dev.md（本段）
+
+**关键设计决策**:
+
+1. **P0-1 用本地 `_secret()` 复制范式，不 import kronos_auth** — diagnosis/training 的 pyproject/requirements 未列 kronos-auth 依赖，加依赖属临界区（改 lockfile）。本地复制 `_is_production()` + `_secret()` 与 backend/app/config.py:14-38 字面一致，零依赖、零回归
+2. **P0-3 reserve 语义（check-and-reserve）** — 单纯加锁的 `can_trade`（纯查询）无法满足 AC-4"恰一次 True"：两次并发 check 都会看到 probing_count==0 都返回 True。要让两次并发恰一次 True，`can_trade` 必须在 HALF_OPEN 首次通过时**原子递增 probing_count**（reserve 名额）。这是 `can_trade` 从纯查询到 check-and-reserve 的契约扩展，docstring 已写明；`record_probe` 相应改为不再递增 count（名额已 reserve），只记录 success/failure 并转换状态
+3. **P0-3 routes.py 名额泄漏边界修复（必要，非越界）** — reserve 语义引入新边界：`can_trade` reserve 成功后若 `broker.place_order` 抛异常，原代码直接 raise，`record_probe` 永不执行 → probing_count 永久卡 1 → breaker 卡 HALF_OPEN 阻塞所有 live 交易。修复：routes.py:180-198 把 `place_order` 包 try/except，异常时调 `record_probe(success=False)` 释放名额（探测失败 → HALF_OPEN 回 TRIGGERED，与现有失败语义一致），re-raise 原异常。测试 `test_probe_slot_not_leaked_when_place_order_raises` 覆盖
+4. **DB 持久化函数不加锁** — `ensure_table`/`save_to_db`/`load_from_db`/`load_all_from_db` 是独立 DB I/O，不在内存状态竞态临界区，加锁反而拖慢 DB 写（product-lead 审查认可）
+
+**质量门**:
+- backend pytest 64 passed/10 skipped（逐文件跑避开 ml-engineer sys.path 污染，0 回归；BE-P0 review W-2 已修正此处原 51/9 笔误对齐 AC-5）✅
+- trade-service pytest 11 passed（含并发 + reserve + 名额泄漏）✅
+- 0 第三方新依赖（asyncio 是 stdlib；pytest-asyncio 已在 .venv，仅加进 pyproject dev optional-dependencies 声明）✅
+- 改动文件全在归属范围（services/{diagnosis,training,trade}-service/**，team-lead 派单清单内）✅
+- routes.py 改动属交易核心路径，已加测试 + Plan Mode 授权范围内（P0-3 资金风控正确性必要修复）✅
+
+**改动文件清单**（6 个）:
+- `services/diagnosis-service/app/config.py`（改：+`_secret()` 范式，fallback 统一 dev-only-jwt-）
+- `services/training-service/app/config.py`（改：同上）
+- `services/trade-service/app/circuit_breaker.py`（改：+`_lock` + `_check_daily_loss_locked` 拆分 + 5 函数加锁 + `can_trade` reserve 语义 + `record_probe` 不再递增）
+- `services/trade-service/app/routes.py`（改：place_order try/except + 异常路径 record_probe(success=False) 释放名额）
+- `services/trade-service/app/deps.py`（删：死代码，0 引用）
+- `services/trade-service/pyproject.toml`（改：+`[tool.pytest.ini_options]` asyncio_mode=auto + pytest-asyncio dev 依赖）
+- `services/trade-service/tests/test_circuit_breaker_concurrency.py`（新增：11 个并发/契约测试）
+
+**下一步**: 报告 product-lead → 认领 task #5 BE-P1（9 个 P1，含 P1-2 删 diagnosis 死代码 nested api-gateway — 与 P0-1 核验时发现的残留 `dev-secret-change` 同源）
+
+---
+
+## Task #5 (BE-P1): 后端 P1 工程债 9 项 - 2026-06-23 (backend-dev)
+**状态**: 已完成（9 个 P1 全修，AC-1~AC-10 全过；含 P1-3 偏离审计字面建议的 DB 实证判断）
+**Skills**: agf-running-sit-tests
+**Commit**: c00bf32 (BE-P0 纯文件) + 3d3cc3e (BE-P1 + routes.py 横跨 P0-3/P1-6)
+
+**SIT 证据**（AC-1~AC-10）:
+
+- [x] **AC-1** ✅ P1-1 diagnosis aiohttp→urllib — 新增 `_http_get_json` (async, `loop.run_in_executor`) + `_HttpException` + `_sync_get_json`，删 `import aiohttp`/`ClientSession`。功能 smoke（本地 http.server）：200→JSON 解析 OK / 401→`_HttpException(status=401)` / 500→`_HttpException(status=500)`。grep `aiohttp` 仅剩注释（历史说明）
+- [x] **AC-2** ✅ P1-2 删 nested gateway — `git rm -r services/diagnosis-service/services/`（5 文件：__init__×3 + main.py + routes.py）。grep 外部引用 rc=1（diagnosis main app + Dockerfile 均 0 引用）。顺带清掉残留 `dev-secret-change`（P0-1 核验时发现的 main.py:24）。全仓 `dev-secret-change` 现只剩 config.py 注释
+- [x] **AC-3** ✅ P1-3 pledge_detail 列名 — **psql `\d pledge_detail` 实测 PG 列名 = `pledge_total_ratio`**（非审计假设的 p_total_ratio）。审计"cols 第6项改 p_total_ratio"的建议**错误**：改了会被 `_insert_rows` 的 `_get_pg_columns` 列过滤当无效列丢弃 → 数据丢失。实际 cols[5]=`pledge_total_ratio` 与 PG 一致、rows 取 `r["p_total_ratio"]` 值正确，数据未丢。修复=加注释说明位置映射（cols 列名 vs Tushare 字段名），防后续踩坑。**偏离审计字面建议，基于 DB 实证**
+- [x] **AC-4** ✅ P1-4 schema_audit EXCLUDED 清空 5 表 — 移除 `sw_daily/pledge_detail/rt_sw_k/top_list/cyq_chips`（保留 top_inst/ths_daily，审计未点名 + ADR-008~011 已修）。重跑：`audited=71 high=4 med=17 low=50 MISSING=none`（原 54 表）。5 表 drift 现 medium 可见（cyq_chips/rt_sw_k/sw_daily/top_list）。注：重跑覆盖了 task #7 ADR-014 的同名报告，内容更新为 P1-4 后版本
+- [x] **AC-5** ✅ P1-5 rotate_refresh_token type 校验 — 开头加 `decode_token(old_token)` (jwt.PyJWTError→None) + `payload.get("type") != "refresh"` → None，在 DB 查询前。guard 逻辑 smoke：access token→None（拒）/ refresh token→payload（接受）/ 坏签名→None（拒）
+- [x] **AC-6** ✅ P1-6 trade_password 脱敏 — `_broker_config` 不再存明文 `trade_password`，改 `trade_password_provided: bool`。实测 `XtquantBroker(path, account)` 构造器**不收密码参数**（密码从未被使用），故直接丢弃明文最安全（审计长期建议方向）。grep 确认无其他 `_broker_config["trade_password"]` 读取处
+- [x] **AC-7** ✅ P1-7 裸 SQL Identifier — **signal-service** `routes.py:1053/1063` 的 `f'SELECT MIN("{col}")... FROM "{key}"'` 改 `SQL(...).format(Identifier(col), Identifier(key))`（psycopg2.sql）。**diagnosis-service** `routes.py:603` 的 `sa_text(f"...WHERE {where_sql}")` 经核实 `where_sql="1=1 AND code = :code"` 是参数化 clause 字符串（非标识符拼接，表名 diagnosis_history 硬编码常量），**无标识符注入点，无需改**（审计 P1-7 diagnosis 部分为误判）
+- [x] **AC-8** ✅ P1-8 gateway _rate_store 清理 — `_rate_check` 内：空窗口 `del _rate_store[ip]`（不再保留空 list）+ 每 `_RATE_GC_INTERVAL=512` 请求全扫清 stale key。逻辑 smoke：3 IP 场景下 stale entry（120s 前）被清理、fresh entry 正确跟踪
+- [x] **AC-9** ✅ P1-9 etl.py 异常吞没 — 加 module `logger = logging.getLogger("kronos-data.etl")`，15 处裸 `except:` 全改 `except Exception as e: logger.warning(...)`（pledge/repurchase/share_float/cyq_chips/broker_recommend/research_report/sw_daily/top_inst/block_trade/margin/moneyflow_hsgt/stk_holdertrade/stk_holdernumber + SQLite insert + rollback）。grep `except\s*:` 现只剩 L266 注释
+- [x] **AC-10** ✅ backend + 各 service pytest 通过 + SIT 落 progress：
+  - backend test_auth.py + test_config_secrets.py: 22 passed（逐文件跑，避开 ml-engineer sys.path 污染，见 BE-P0 说明）
+  - kronos-data: 14 passed
+  - trade-service: 11 passed
+  - diagnosis_engine 独立 import OK（`_http_get_json`/`_HttpException` 就位）
+  - api-gateway main import OK + _rate_check 逻辑 smoke
+  - P1-1/P1-5/P1-8 功能 smoke 通过
+
+**关键设计决策**:
+
+1. **P1-3 偏离审计字面建议**：审计假设 PG 列名可能是 `p_total_ratio`（建议改 cols），但 `psql \d` 实测是 `pledge_total_ratio`。审计的担心（数据丢失）不成立；反方向执行审计建议反而会丢数据。基于 DB 实证选注释澄清而非改列名。reviewer 请注意此偏离有 PG 实测背书
+2. **P1-7 diagnosis 侧不改**：审计点名 `sa_text(f"...WHERE {where_sql}")`，但 `where_sql` 是 `"1=1 AND code = :code"` 参数化 clause（不是标识符），表名硬编码。无注入点、无映射问题（diagnosis_history 是应用表非行情表）。signal 侧真有标识符拼接已修
+3. **P1-6 直接丢弃明文**：审计给"短期 mask + 构造器收真实密码"两方案，但实测 XtquantBroker 构造器不收密码（密码当前完全无用）。直接丢弃明文比 mask 更彻底（mask 仍保留可还原的明文在内存），符合审计长期建议（"trade_password 不应走 API"）方向
+
+**质量门**:
+- backend 22 passed / kronos-data 14 passed / trade-service 11 passed（0 回归）✅
+- 0 第三方新依赖（urllib stdlib；psycopg2.sql 已在 psycopg2）✅
+- 改动文件全在 BE-P1 归属范围（与 ml-engineer 零交叉）✅
+- 2 commit 按文件归属分割（c00bf32 BE-P0 纯文件 + 3d3cc3e BE-P1，routes.py 横跨 P0-3/P1-6 归 BE-P1 commit 并在 message 标注）✅
+- pre-commit lint 全过 ✅
+
+**改动文件清单**（13 个，BE-P1 commit）:
+- `services/diagnosis-service/app/diagnosis_engine.py`（P1-1: urllib wrapper）
+- `services/diagnosis-service/services/`（P1-2: 删 5 文件）
+- `packages/kronos-data/kronos_data/etl.py`（P1-3 注释 + P1-9 logger + 15 处 except）
+- `services/sql/audit/schema_audit.py`（P1-4: EXCLUDED 移 5 表 + §1 描述同步）
+- `docs/reviews/schema-drift-audit-2026-06-22.md`（P1-4: 重跑报告，audited 54→71）
+- `backend/app/services/auth_service.py`（P1-5: rotate type 校验）
+- `services/trade-service/app/routes.py`（P1-6 trade_password + 含 BE-P0 P0-3 名额泄漏 try/except）
+- `services/signal-service/app/routes.py`（P1-7: psycopg2.sql.Identifier）
+- `services/api-gateway/app/main.py`（P1-8: _rate_store stale 清理）
+
+**下一步**: 报告 product-lead → 认领 task #6 BE-P2（4 个 P2：etl row_factory 死代码注释 / pg_adapter _COLUMN_MAP 扩展 / backend SIT httpx warning / gateway headers 透传）
+
+---
+
+## Task #6 (BE-P2): 后端 P2 技术债 4 项 - 2026-06-23 (backend-dev)
+**状态**: 已完成（4 个 P2 全修，AC-1~AC-5 全过；含 P2-2 概念澄清偏离审计字面建议）
+**Skills**: agf-running-sit-tests
+**Commit**: 37040d9
+
+**SIT 证据**（AC-1~AC-5）:
+
+- [x] **AC-1** ✅ P2-1 etl row_factory — `_Db.__init__` 加 SQLite 分支 `conn.row_factory = sqlite3.Row`（PG 用 DictCursor 不读 row_factory），加注释说明"row_factory 仅 SQLite 生效，PG 走 DictCursor"。4 处调用点的 `db.row_factory = sqlite3.Row` 变幂等冗余（_Db 已统一负责）。kronos-data 14 passed 验证不回归
+- [x] **AC-2** ✅ P2-2 _COLUMN_MAP 扩 vol→volume + 注释澄清 — `_COLUMN_MAP` 加 `"vol": "volume"`。**write_index_daily 手补重排未删**（审计字面建议"去手补重排"概念混淆）：write_index_daily 的 `(code, r[1], r[3]...r[8])` 是**数据行元组按 PG 列序重排**（值级），而 `_COLUMN_MAP` 作用在 `execute()` 的 **SQL 文本翻译**（pct_chg→change_pct），两者层次不同，无法互相替代。加注释说明此区别。kronos-factors 31 passed（ml-engineer 的 test_m16_multi_seed 3 failed 是 M16 WIP，与 _COLUMN_MAP 零关系——引擎代码无 SQL 用 `vol`，vol→volume map 不会被触发）
+- [x] **AC-3** ✅ P2-3 backend SIT httpx warning — `test_refresh_from_cookie` 的 `client.post(..., cookies={...})` 改为 `client.cookies.set("refresh_token", rt_val)` + `client.post(...)`（实例 cookie jar，符合 httpx 新 API）。验证：`-W error::DeprecationWarning` 跑无 cookies 相关 deprecation；grep 无活跃 per-request `cookies=`。**注**：该测试在当前环境因 DB fixture（sit_r@test.com user 创建失败）跑不过——这是既有 SIT 环境债（TestLogin/TestRefresh 整批都失败，非本 task 引入），P2-3 目标（消除 warning）已达成
+- [x] **AC-4** ✅ P2-4 gateway 透传 headers — 新增 `_forward_headers(upstream_headers)`：strip `_HOP_BY_HOP`（RFC 7230 §6.1 + Content-Length/Encoding/Type，body 已被 urllib 解码）+ 用 `get_all` 保留 Set-Cookie 多值。gateway 的 200 分支 + HTTPError 分支都改。功能 smoke（email.message 模拟 HTTPMessage）：X-Request-ID 透传、Set-Cookie 双值全保留、Content-Length/Transfer-Encoding/Connection 被剥
+- [x] **AC-5** ✅ pytest 通过 + SIT 落 progress — kronos-data 14 passed / kronos-factors 31 passed（M16 WIP 3 failed 非 P2 引入）/ api-gateway import + _forward_headers smoke / _rate_check smoke
+
+**关键设计决策**:
+
+1. **P2-2 偏离审计字面建议（后半句）**：审计建议"扩 _COLUMN_MAP 去 write_index_daily 手补重排"混淆了两个机制——`_COLUMN_MAP`（execute SQL 文本翻译）vs `write_*`（数据行元组重排）。前者加 vol→volume 是合理的防御性扩展（已做），但后者无法被替代（删了会数据错位）。保留手补 + 加注释说明层次区别
+2. **P2-3 如实报告既有 SIT 环境债**：test_refresh_from_cookie 在当前 DB 环境跑不过（user 创建失败，TestLogin/TestRefresh 整批 fail），非 P2-3 引入。P2-3 的目标（消除 httpx DeprecationWarning）独立达成（per-request cookies 用法已删，-W error 验证无 deprecation）
+
+**质量门**:
+- kronos-data 14 passed / kronos-factors 31 passed（0 回归；M16 WIP 失败非本 task）✅
+- 0 第三方新依赖 ✅
+- 改动文件全在 BE-P2 归属范围（pg_adapter 只碰 _COLUMN_MAP，未碰 ml-engineer 的 get_kline end_date 区域）✅
+- pre-commit lint 全过 ✅
+
+**改动文件清单**（4 个）:
+- `packages/kronos-data/kronos_data/etl.py`（P2-1: _Db row_factory 统一 + 注释）
+- `packages/kronos-factors/kronos_factors/pg_adapter.py`（P2-2: _COLUMN_MAP 扩 vol→volume + 注释）
+- `backend/tests/sit/test_auth_integration.py`（P2-3: cookies→client.cookies.set）
+- `services/api-gateway/app/main.py`（P2-4: _forward_headers 透传 + 两分支改）
+
+**下一步**: BE 链路 P0/P1/P2 全部完成（3 commit: c00bf32 + 3d3cc3e + 37040d9）。报告 product-lead，等待 code-review（reviewer 审计发现 + SIT Audit）。本人 BE 后端审计修复全部交付完毕。
+
+---
+
+## BE Review 返工（BE-P0 + BE-P1 warning 修复）- 2026-06-23 (backend-dev)
+**触发**: code-reviewer 两份报告（`docs/reviews/be-p0-review-2026-06-22.md` + `docs/reviews/be-p1-review-2026-06-23.md`）均 `approve with changes`，0 critical，合计 3 warning + 4 suggestion。
+**状态**: 3 warning 全修，4 suggestion 按理由取舍（2 不改 + 2 记录为已知技术债），回归测试全过。
+
+### 已修 warning（3 项）
+
+- **BE-P0 W-2（SIT 证据数值笔误）** — `progress/backend-dev.md` BE-P0 质量门行原 `51 passed/9 skipped` 改为 `64 passed/10 skipped` 对齐 AC-5 逐文件分解（reviewer 指出此为陈旧复制粘贴笔误，改后可升 SIT Audit 为 ✅ Pass）。
+- **BE-P0 W-1（get_state can_trade 语义漂移）** — `services/trade-service/app/circuit_breaker.py:292` `get_state` docstring 补 9 行注释，明确 `can_trade` 字段是**只读快照判断**、不 reserve HALF_OPEN 名额、并发下可能被抢导致 409、权威 gate 是 `can_trade()`→`place_order`。未改逻辑（只读 API 不 reserve 本就是正确语义），仅消除命名重载导致的误导。
+- **BE-P1 W-1（rotate_refresh_token 异常覆盖窄）** — `backend/app/services/auth_service.py:213-219` `except jwt.PyJWTError` 扩为 `except (jwt.PyJWTError, TypeError, ValueError)`。兑现 docstring "defends against any future code path" 声明（非字符串 token 如 None/int/dict 现在统一返 None 而非冒泡）。
+
+### 未修 suggestion（4 项，附取舍理由）
+
+- **BE-P0 S-1（can_trade 命名漂移）** — **不改**。重命名 `try_reserve_trade`/`request_trade_slot` 会 break routes.py + 11 测试 + docstring 引用，ROI 低。reviewer 自评"不建议本 task 改"，记录为未来重构 circuit_breaker 模块时一并处理的已知技术债。
+- **BE-P0 S-2（check_daily_loss + can_trade 双重评估冗余）** — **不改**。锁内评估是 O(1) 内存操作，性能可忽略；显式表达"先更新 PnL 再判断可交易"可读性更好。reviewer 自评"不建议改"。
+- **BE-P1 S-1（_sync_get_json 成功路径无 encoding fallback）** — **不改**。与 strategy-service `_http_get` 范式保持一致（Kronos 内部服务恒返回 UTF-8 JSON），一致性优先。
+- **BE-P1 S-2（_RATE_GC_INTERVAL=512 魔法数）** — **不改**。512 是合理经验值（约每秒级扫一次于中等 QPS），reviewer 自评"非问题"。当前 512 已在生产合理区间，配置化属过度设计。
+
+### 回归测试
+
+- `backend/tests/test_auth.py`: **14 passed**（含 rotate_refresh_token 全路径：access token→None / refresh token→payload / 坏签名→None）✅ P1 W-1 except 扩展无回归
+- `services/trade-service/tests/test_circuit_breaker_concurrency.py`: **11 passed in 0.07s**（get_state docstring 改动不影响并发契约）✅ P0 W-1 无回归
+- 两文件 AST 语法校验通过 ✅
+
+### 改动文件清单（3 个）
+
+- `services/trade-service/app/circuit_breaker.py`（P0 W-1: get_state docstring 补注释）
+- `backend/app/services/auth_service.py`（P1 W-1: rotate except 扩展）
+- `progress/backend-dev.md`（P0 W-2: 质量门行 51→64 笔误修正 + 本返工段落）
+
+**下一步**: 提交返工 commit → 报告 product-lead review 已闭环（3 warning 全修 + 回归绿），4 suggestion 附取舍理由待 PL 知晓。BE-P0/P1 review 的 `approve with changes` 经此次返工后应可升 `approve`。

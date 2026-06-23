@@ -335,3 +335,32 @@
 
 **产物**:
 - commit 92a4d39: tools/walk_forward.py (加 flag + guard 函数 + main 集成) + services/training-service/tests/test_walk_forward_timeline.py (新 8 测) + services/training-service/tests/test_ml_p0_sit.py (M01 契约扩展)
+
+---
+
+## ML-P2 (task #9) 模型 P2 技术债 — 2026-06-23
+
+**状态**: 已完成
+**Skills**: superpowers:test-driven-development, agf-running-sit-tests
+
+**SIT 证据**（按 AC 列；行首 `[x]/[~]` 为 AC 自验勾选）:
+- [x] AC-1: M13 calc_obv/calc_wr 向量化（np.diff+sign+cumsum / pd.Series.rolling）, tests/test_calc_obv_wr_vectorized.py **7 passed**, 对照内联 reference for-loop 数值一致（随机/flat=50/空/前 period-1 NaN）, benchmark calc_obv 0.3ms / calc_wr 3.8ms (50×2000bars). commit d9840d4
+- [x] AC-2: M14 score_fundamental(sym) 去硬编码 000001, _build_features_from_kline 增 sym 参数透传, tests/test_m14_score_fundamental_sym.py **3 passed**, 不同 sym → 不同 fund_score（不再恒常数）. commit baff037
+- [~] AC-3: M15 bi_trend_launch.py 拆分 — **部分达成**: 2168→1961 行（-214）, 抽离 params.py（全部可调参数常量 + M02/M09 DEPRECATED 标注保留）, bi_trend_launch re-export 向后兼容, tests/test_m15_params_extraction.py **4 passed**. 函数级拆分（factors/scoring/screening）标 **follow-up**（score_bi_trend/_score_bi_trend_arrays/run_bi_screening 深度互调+引用上百常量，需先补集成测试覆盖再拆，team-lead 授权"高风险逻辑拆分标 follow-up"）. commit 1dc4c00
+- [x] AC-4: M16 run_historical_backtest 多 seed（n_seeds 默认 5）, 重构 _run_one_seed(seed) 闭包, 新增 _aggregate_multi_seed 纯函数（population std + 1e-12 容差防 fp 噪声使 ICIR 爆 1e16）, 每 model 输出 seed_mean_ic/seed_std_ic/seed_icir/n_seeds, tests/test_m16_multi_seed.py **4 passed**. 附带补提交 M03 end_date（base/pg_adapter/_db_stub 签名传播 + engine.py 调用点 + test_pg_adapter_end_date.py 3 passed, ML-P0 已批漏 commit 的契约收尾）. commit eed099b / a6bce3a / bd420d4
+- [x] AC-5: pytest 通过 + 回测逻辑不回归:
+  - `cd packages/kronos-factors && pytest tests/` → **37 passed, 1 failed**（test_short_mode_engine_weights short_term 0.28≠0.30 为**预存 P2 失败与本 commit 无关**, grep 确认 modes.py:203 为 0.28 非 ML-P2 触及）
+  - `cd services/training-service && pytest tests/` → **32 passed, 1 skipped**（M14 +3, 无回归）
+  - 下游消费者 import 验证: bi_trend_full_market / walk_forward / backtest_bi_trend 全部 import OK, M08 lookahead_warning 完好
+
+**质量门**: lint ✅ (pre-commit 7 commit 全过) / unit ✅ (M13 7+M14 3+M15 4+M16 4 = 18 新测全绿) / SIT ✅（kronos-factors 37p + training-service 32p，唯一 fail 为预存 modes.py 与本任务无关）
+
+**下一步**: 等 ML-P2 review 派单（code-reviewer-ml 审 M13/M14/M15 部分/M16 + M03 补提交）。M15 函数级拆分 follow-up（factors/scoring/screening）建议挂 bi_trend 重设专项（与 issue #2 gitlink / phase1 样本外重设同批）——拆分前需先补 _score_bi_trend_arrays 集成测试覆盖（当前无单测，纯数组评分逻辑 600+ 行）。
+
+**产物**（commit 链 d9840d4 → bd420d4）:
+- d9840d4 M13 calc_obv/calc_wr 向量化 + test_calc_obv_wr_vectorized.py
+- baff037 M14 score_fundamental(sym) 去硬编码 + test_m14_score_fundamental_sym.py
+- eed099b M16 多 seed 平均 IC + _aggregate_multi_seed + test_m16_multi_seed.py（含 M03 end_date engine.py 调用点）
+- a6bce3a M03 end_date 签名传播补提交（base/pg_adapter/_db_stub）
+- bd420d4 M03 test_pg_adapter_end_date.py 补提交
+- 1dc4c00 M15 params.py 提取 + test_m15_params_extraction.py

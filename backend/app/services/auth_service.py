@@ -211,9 +211,13 @@ async def rotate_refresh_token(
     path that hashes non-refresh tokens into this table.
     """
     # P1-5: verify it's a valid refresh token before trusting it for rotation.
+    # BE-P1 review W-1: widen the guard beyond jwt.PyJWTError so a non-string
+    # token (None/int/dict from a future code path) raises TypeError/ValueError
+    # and is rejected the same way as a malformed/expired JWT — matches the
+    # docstring claim "defends against any future code path".
     try:
         payload = decode_token(old_token)
-    except jwt.PyJWTError:
+    except (jwt.PyJWTError, TypeError, ValueError):
         return None
     if payload.get("type") != "refresh":
         return None

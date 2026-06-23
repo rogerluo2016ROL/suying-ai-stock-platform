@@ -290,7 +290,16 @@ async def reset(account_id: str, *, reason: str = "") -> BreakerStatus:
 
 
 async def get_state(account_id: str) -> dict:
-    """Return the full breaker state as a dict for API responses."""
+    """Return the full breaker state as a dict for API responses.
+
+    NOTE on the ``can_trade`` field: this is a **read-only snapshot** of
+    whether trading *appears* permitted right now — it does NOT reserve a
+    HALF_OPEN probe slot. Under concurrency a caller that observes
+    ``can_trade: true`` here may still lose the slot to a concurrent
+    ``can_trade()`` call and get a 409 from ``place_order``. The
+    authoritative gate is ``can_trade()`` (atomic check-and-reserve) →
+    ``place_order``; treat this field as advisory UI state only.
+    """
     async with _lock:
         state = await _get_or_create(account_id)
         loss_pct = (
