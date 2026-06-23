@@ -33,6 +33,22 @@ CREATE TABLE IF NOT EXISTS daily_kline (
 CREATE INDEX IF NOT EXISTS idx_daily_kline_code ON daily_kline(code);
 CREATE INDEX IF NOT EXISTS idx_daily_kline_date ON daily_kline(trade_date);
 
+-- 盘中聚合日线: stk_mins(5min) 聚合出的当日 OHLCV, 与权威 daily_kline 隔离.
+-- daily_kline 收盘后由 data-service 写完整日线; intraday 盘中反复刷新(UPSERT), 收盘后可清理.
+-- 不加 REFERENCES stocks(code): 派生表, 避免 stk_mins 含边缘 code 时外键失败.
+CREATE TABLE IF NOT EXISTS daily_kline_intraday (
+    id SERIAL PRIMARY KEY,
+    code TEXT NOT NULL,
+    trade_date DATE NOT NULL,
+    open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION, close DOUBLE PRECISION,
+    volume DOUBLE PRECISION, amount DOUBLE PRECISION,
+    bars INTEGER,
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(code, trade_date)
+);
+CREATE INDEX IF NOT EXISTS idx_daily_kline_intraday_code ON daily_kline_intraday(code);
+CREATE INDEX IF NOT EXISTS idx_daily_kline_intraday_date ON daily_kline_intraday(trade_date);
+
 CREATE TABLE IF NOT EXISTS weekly_kline (
     id SERIAL PRIMARY KEY,
     code TEXT NOT NULL REFERENCES stocks(code),

@@ -36,7 +36,33 @@ def get_stock_name_map(db):
 
 
 def get_latest_min_snapshot(db, trade_date):
-    """获取今天最新的分钟快照 (兼容PG code列名)."""
+    """获取今天的快照 — 优先读 daily_kline_intraday 聚合日线(全天OHLCV, amount为全天累计),
+    回退到 stk_mins 最新5min bar(向后兼容).
+
+    daily_kline_intraday 由 tools/aggregate_intraday_daily.py 从 stk_mins 聚合, 相比最新单bar:
+    open/high/low 为全天值, volume/amount 为全天累计, 振幅与分歧评分更准.
+    需先跑聚合脚本填充; 未填充时自动回退 stk_mins 最新bar.
+    """
+    # 优先: daily_kline_intraday 聚合日线
+    intra_rows = db.execute(
+        "SELECT code, open, high, low, close, volume, amount, bars "
+        "FROM daily_kline_intraday WHERE trade_date=?",
+        (trade_date,)
+    ).fetchall()
+    if len(intra_rows) > 100:
+        snapshot = {}
+        bars_sum = 0
+        for r in intra_rows:
+            snapshot[r["code"]] = {
+                "open": float(r["open"] or 0), "high": float(r["high"] or 0),
+                "low": float(r["low"] or 0), "close": float(r["close"] or 0),
+                "volume": float(r["volume"] or 0), "amount": float(r["amount"] or 0),
+            }
+            bars_sum += int(r["bars"] or 0)
+        print(f"  📊 快照源: daily_kline_intraday 聚合日线 ({len(snapshot)}只, 平均bars {bars_sum/max(1,len(snapshot)):.1f})")
+        return snapshot
+
+    # 回退: stk_mins 最新5min bar (intraday 表未填充时)
     rows = db.execute(
         "SELECT code, MAX(trade_time) as max_time FROM stk_mins "
         "WHERE trade_time LIKE ? AND freq='5min' GROUP BY code",
@@ -45,11 +71,9 @@ def get_latest_min_snapshot(db, trade_date):
     if not rows:
         return {}
 
-    # Get the latest time slot
     max_time = max(r["max_time"] for r in rows)
-    print(f"  📊 最新分钟时段: {max_time}")
+    print(f"  📊 快照源: stk_mins 最新bar @ {max_time} (intraday表为空, 回退)")
 
-    # Get snapshot at latest time
     snapshot = {}
     for r in db.execute(
         "SELECT code, open, high, low, close, volume, amount FROM stk_mins "
@@ -136,7 +160,11 @@ def calc_atr(highs, lows, closes, period=14):
 
 
 def get_shanghai_pct(db, trade_date):
-    """上证指数涨跌幅."""
+    """上证指数涨跌幅. fallback: index_daily今日 → SH_PCT_TODAY环境变量 → 0.0.
+
+    盘中 index_daily 未落库(收盘后才写)时读不到会返回0, 导致市场环境误判(中性偏多).
+    fallback 到环境变量 SH_PCT_TODAY (盘中实测值, 如 -0.49), 由调用方注入.
+    """
     row = db.execute(
         "SELECT change_pct FROM index_daily WHERE code='000001' AND trade_date=?",
         (trade_date,)
@@ -146,6 +174,14 @@ def get_shanghai_pct(db, trade_date):
         val = row.get("pct_chg") or row.get("change_pct")
         if val is not None:
             return float(val)
+    # fallback: 盘中 index_daily 空 → 环境变量注入 (静默: score_stock 逐股调用会刷屏;
+    #           上证涨幅由 main 头部 get_shanghai_pct 单次调用统一打印)
+    env_sh = os.environ.get("SH_PCT_TODAY")
+    if env_sh:
+        try:
+            return float(env_sh)
+        except ValueError:
+            pass
     return 0.0
 
 
@@ -209,8 +245,11 @@ def detect_limits(db, trade_date, snapshot, pre_closes):
 
 
 def score_stock(code, name, industry, snap, pre_close, db, trade_date,
-                limit_info, sector_stats, avg_amounts):
-    """秋神午后选股评分 (简版 — 用历史均价替代累计成交额)."""
+                limit_info, sector_stats, avg_amounts, include_limits=False):
+    """秋神午后选股评分 (简版 — 用历史均价替代累计成交额).
+
+    include_limits=True 时保留已封板股(默认剔除), 用于完整排名.
+    """
     close_14 = snap["close"]
     amount_14 = snap["amount"]
     volume_14 = snap["volume"]
@@ -235,9 +274,9 @@ def score_stock(code, name, industry, snap, pre_close, db, trade_date,
     if gain_pct > 25.0:
         return None
 
-    # 已封板淘汰
+    # 已封板淘汰 (include_limits=True 时保留, 用于完整排名)
     is_at_limit = limit_info.get(code, {}).get("is_at_limit", False)
-    if is_at_limit:
+    if is_at_limit and not include_limits:
         return None
 
     dist_to_limit = limit_info.get(code, {}).get("dist_to_limit_pct", 99)
@@ -436,6 +475,8 @@ def main():
     parser.add_argument("--date", type=str, default="2026-06-17")
     parser.add_argument("--time", type=str, default="14:00")
     parser.add_argument("--top-n", type=int, default=20)
+    parser.add_argument("--include-limits", action="store_true",
+                        help="保留已封板股 + 不限板块/grade, 取完整 top-N 排名")
     args = parser.parse_args()
 
     trade_date = args.date
@@ -495,7 +536,8 @@ def main():
             try:
                 res = score_stock(
                     code, name, industry, snap, pre_closes[code], db, trade_date,
-                    limit_info, sector_stats, avg_amounts
+                    limit_info, sector_stats, avg_amounts,
+                    include_limits=args.include_limits
                 )
                 if res:
                     scores.append(res)
@@ -520,6 +562,12 @@ def main():
             max_per_sector = 1
             min_grade = "S"
             market_env = "🔴 谨慎"
+
+        if args.include_limits:
+            # 完整排名模式: 保留涨停 + 不限板块 + 允许所有grade, 取完整 top-N
+            max_per_sector = 999
+            min_grade = "C"
+            market_env += " | 含涨停(完整排名)"
 
         grade_order = {"S": 0, "A": 1, "B": 2, "C": 3}
         top = []
