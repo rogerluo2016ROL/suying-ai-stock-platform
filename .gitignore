@@ -54,6 +54,7 @@ docker/.env.*
 # agent/build/run artifacts — PlatformFixTeam follow-up, 避免误 commit 工具/构建/运行产物
 .agents/
 .codex/
+.codegraph/
 **/tsconfig.tsbuildinfo
 services/training-service/outputs/
 
