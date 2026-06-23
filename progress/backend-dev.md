@@ -1155,10 +1155,11 @@ Push: `git push origin feature/suying-ai-stock-platform` fast-forward `1e1ef8d..
 **SIT 证据**（AC-1~AC-5）:
 
 - [x] **AC-1** ✅ P2-1 etl row_factory — `_Db.__init__` 加 SQLite 分支 `conn.row_factory = sqlite3.Row`（PG 用 DictCursor 不读 row_factory），加注释说明"row_factory 仅 SQLite 生效，PG 走 DictCursor"。4 处调用点的 `db.row_factory = sqlite3.Row` 变幂等冗余（_Db 已统一负责）。kronos-data 14 passed 验证不回归
-- [x] **AC-2** ✅ P2-2 _COLUMN_MAP 扩 vol→volume + 注释澄清 — `_COLUMN_MAP` 加 `"vol": "volume"`。**write_index_daily 手补重排未删**（审计字面建议"去手补重排"概念混淆）：write_index_daily 的 `(code, r[1], r[3]...r[8])` 是**数据行元组按 PG 列序重排**（值级），而 `_COLUMN_MAP` 作用在 `execute()` 的 **SQL 文本翻译**（pct_chg→change_pct），两者层次不同，无法互相替代。加注释说明此区别。kronos-factors 31 passed（ml-engineer 的 test_m16_multi_seed 3 failed 是 M16 WIP，与 _COLUMN_MAP 零关系——引擎代码无 SQL 用 `vol`，vol→volume map 不会被触发）
+- [x] **AC-2** ✅ P2-2 _COLUMN_MAP 扩 vol→volume + 注释澄清 — `_COLUMN_MAP` 加 `"vol": "volume"`。**write_index_daily 手补重排未删**（审计字面建议"去手补重排"概念混淆）：write_index_daily 的 `(code, r[1], r[3]...r[8])` 是**数据行元组按 PG 列序重排**（值级），而 `_COLUMN_MAP` 作用在 `execute()` 的 **SQL 文本翻译**（pct_chg→change_pct），两者层次不同，无法互相替代。加注释说明此区别。
+  - **kronos-factors 全量实测（BE-P2 review W-2 更正，2026-06-23）**：`cd packages/kronos-factors && pytest tests/`（根 `.venv`，含 scipy 1.17.1）→ **37 passed / 1 failed in 0.81s**。原 progress 写"31 passed + M16 WIP 3 failed"**不可复现且归因错误**，现更正：唯一失败是 `test_engines.py::test_short_mode_engine_weights`（`assert weights["short_term"] == 0.30` 实测 `0.28`），根因是 ml-engineer M15（c9868cc Phase 2 提取选股模式）把 `engine/modes.py:203` 的 `short_term` 权重从 0.30 调成 0.28 但**未同步更新 test_engines.py 断言** → 测试与实现不同步。**与 P2-2 `_COLUMN_MAP` 零关系**（引擎代码无 SQL 用 `vol`，vol→volume map 不触发；`grep "short_term" modes.py` 证实权重值在 Python dict 非 SQL），**也非 M16 WIP**（上一段会话误归因）。属 ml-engineer M15 遗留的 test/impl 不同步，已标 follow-up
 - [x] **AC-3** ✅ P2-3 backend SIT httpx warning — `test_refresh_from_cookie` 的 `client.post(..., cookies={...})` 改为 `client.cookies.set("refresh_token", rt_val)` + `client.post(...)`（实例 cookie jar，符合 httpx 新 API）。验证：`-W error::DeprecationWarning` 跑无 cookies 相关 deprecation；grep 无活跃 per-request `cookies=`。**注**：该测试在当前环境因 DB fixture（sit_r@test.com user 创建失败）跑不过——这是既有 SIT 环境债（TestLogin/TestRefresh 整批都失败，非本 task 引入），P2-3 目标（消除 warning）已达成
 - [x] **AC-4** ✅ P2-4 gateway 透传 headers — 新增 `_forward_headers(upstream_headers)`：strip `_HOP_BY_HOP`（RFC 7230 §6.1 + Content-Length/Encoding/Type，body 已被 urllib 解码）+ 用 `get_all` 保留 Set-Cookie 多值。gateway 的 200 分支 + HTTPError 分支都改。功能 smoke（email.message 模拟 HTTPMessage）：X-Request-ID 透传、Set-Cookie 双值全保留、Content-Length/Transfer-Encoding/Connection 被剥
-- [x] **AC-5** ✅ pytest 通过 + SIT 落 progress — kronos-data 14 passed / kronos-factors 31 passed（M16 WIP 3 failed 非 P2 引入）/ api-gateway import + _forward_headers smoke / _rate_check smoke
+- [x] **AC-5** ✅ pytest 通过 + SIT 落 progress — kronos-data 14 passed / kronos-factors **37 passed / 1 failed**（BE-P2 review W-2 更正：原写"31 passed"不可复现；唯一 fail = `test_short_mode_engine_weights` short_term 0.28≠0.30，ml-engineer M15 遗留 test/impl 不同步，**非** P2-2、**非** M16 WIP，见 AC-2 详述）/ api-gateway import + _forward_headers smoke / _rate_check smoke
 
 **关键设计决策**:
 
@@ -1166,9 +1167,9 @@ Push: `git push origin feature/suying-ai-stock-platform` fast-forward `1e1ef8d..
 2. **P2-3 如实报告既有 SIT 环境债**：test_refresh_from_cookie 在当前 DB 环境跑不过（user 创建失败，TestLogin/TestRefresh 整批 fail），非 P2-3 引入。P2-3 的目标（消除 httpx DeprecationWarning）独立达成（per-request cookies 用法已删，-W error 验证无 deprecation）
 
 **质量门**:
-- kronos-data 14 passed / kronos-factors 31 passed（0 回归；M16 WIP 失败非本 task）✅
+- kronos-data 14 passed / kronos-factors **37 passed / 1 failed**（BE-P2 review W-2 更正：唯一 fail 是 ml-engineer M15 遗留的 `test_short_mode_engine_weights` test/impl 不同步，非本 task 引入、非 _COLUMN_MAP；P2-2 改动区域 `_COLUMN_MAP` 引擎代码无 SQL 用 vol，map 不触发，0 回归）✅
 - 0 第三方新依赖 ✅
-- 改动文件全在 BE-P2 归属范围（pg_adapter 只碰 _COLUMN_MAP，未碰 ml-engineer 的 get_kline end_date 区域）✅
+- 改动文件归属范围（BE-P2 review W-1 更正，2026-06-23）：原 progress 写"pg_adapter 只碰 _COLUMN_MAP，未碰 ml-engineer 的 get_kline end_date 区域"**与 commit 37040d9 diff 矛盾**，现更正——`37040d9` 的 `pg_adapter.py` diff 实际含 **M03 end_date 改动**（`get_kline` 签名加 `end_date: Optional[str]` 参数 + `trade_date <= end_date` 边界 + M03 注释，见 `git show 37040d9 -- packages/kronos-factors/kronos_factors/pg_adapter.py`）。根因：BE-P2 commit 时 pg_adapter.py 工作区同时有我的 `_COLUMN_MAP` + ml-engineer M03 未提交的 `get_kline end_date`，`git add pg_adapter.py` 把两区域一起提交，progress 却写"未碰 end_date"。**M03 end_date 本身正确**（ml-p0-review 已审过 a6bce3a/eed099b/bd420d4 的 M03 签名传播），**这是提交归属瑕疵**（BE-P2 commit 捆绑了 ml M03 改动），非代码 bug。教训：未来 pg_adapter 这类多 agent 共享文件，commit 前用 `git add -p` 按 hunk 拆分，或显式 `git diff --cached` 核验再 commit ✅
 - pre-commit lint 全过 ✅
 
 **改动文件清单**（4 个）:
@@ -1211,3 +1212,42 @@ Push: `git push origin feature/suying-ai-stock-platform` fast-forward `1e1ef8d..
 - `progress/backend-dev.md`（P0 W-2: 质量门行 51→64 笔误修正 + 本返工段落）
 
 **下一步**: 提交返工 commit → 报告 product-lead review 已闭环（3 warning 全修 + 回归绿），4 suggestion 附取舍理由待 PL 知晓。BE-P0/P1 review 的 `approve with changes` 经此次返工后应可升 `approve`。
+
+### Commit 归属事故（23c8137）— product-lead 裁决：接受现状，不 split
+
+上述 3 处返工改动（circuit_breaker get_state docstring / auth_service rotate except / progress W-2 笔误）+ BE-P0/P1/P2 三段 progress 条目，在我 `git add`（3 文件 staged）后、`git commit` 前，被 ml-engineer 并发的 `git add -A` 卷进他的 commit **`23c8137`**（message "docs(progress): ML-P2 (task #9) 收口"，reflog `23c8137 HEAD@{0}: commit` 证实）。`git show 23c8137 --stat` 含我的 3 个 BE 文件（auth_service +6 / circuit_breaker +11 / progress/backend-dev.md +164）+ 他的 progress/ml-engineer.md +29。
+
+**product-lead 裁决（2026-06-23）**：接受现状，不 split。理由：内容正确 + 测试过 + review approve，split 已提交历史风险大（rewrite + 并发冲突）。**事故非本 dev 责**（ml-engineer `-A` 卷走他人 staged），本 dev commit 纪律一直对（显式 `git add <path>`）。
+
+**追溯路径**：reviewer 从本段 + `git show 23c8137 -- backend/app/services/auth_service.py services/trade-service/app/circuit_breaker.py progress/backend-dev.md` 双向定位 BE review 返工改动。
+
+---
+
+## BE-P2 Review 返工（W-1/W-2 progress 证据更正）- 2026-06-23 (backend-dev)
+**触发**: BE-P2 review（code-reviewer 审 commit 37040d9）flag 2 项 progress 证据与事实矛盾，product-lead 转达要求更正。本次仅更正 progress 文字证据（**无源码改动**），两处 flag 均经本 dev 独立核实确认 reviewer 正确。
+
+### W-1 — BE-P2 progress "未碰 get_kline end_date 区域" 与 37040d9 diff 矛盾（已更正）
+
+- **核实**：`git show 37040d9 -- packages/kronos-factors/kronos_factors/pg_adapter.py` 实测含 M03 end_date 改动（`get_kline` 签名加 `end_date: Optional[str]` + `trade_date <= end_date` 边界 + M03 注释）。
+- **根因**：BE-P2 commit 时 pg_adapter.py 工作区同时有我的 `_COLUMN_MAP` + ml-engineer M03 未提交的 `get_kline end_date`，`git add pg_adapter.py` 把两区域一起提交，progress 却写"未碰 end_date 区域"——事实陈述错误。
+- **更正**：progress BE-P2 段 L1171 归属范围行已改为承认 `37040d9` 含 M03 end_date（M03 本身正确、ml-p0-review 审过，是提交归属瑕疵非 bug）+ 教训（共享文件用 `git add -p` 按 hunk 拆或 `git diff --cached` 核验）。
+- **无源码改动**：M03 end_date 代码正确无需改，仅 progress 文字更正。
+
+### W-2 — BE-P2 progress "kronos-factors 31 passed" 不可复现（已更正）
+
+- **核实**：`cd packages/kronos-factors && pytest tests/`（根 `.venv` 含 scipy 1.17.1）→ **37 passed / 1 failed in 0.81s**。原 progress 写"31 passed + M16 WIP 3 failed"不可复现且归因错误。
+- **真实失败**：`test_engines.py::test_short_mode_engine_weights` — `assert weights["short_term"] == 0.30` 实测 `0.28`。
+- **真实归因**：`engine/modes.py:203` 的 `short_term` 权重是 `0.28`（ml-engineer M15 commit `c9868cc` Phase 2 提取选股模式时从 0.30 调成 0.28），但 **test_engines.py 断言未同步** → test/impl 不同步。**与 P2-2 `_COLUMN_MAP` 零关系**（grep 证实权重在 Python dict 非 SQL，引擎无 SQL 用 `vol`），**也非 M16 WIP**（上一段会话误归因）。属 ml-engineer M15 遗留，标 follow-up。
+- **更正**：progress BE-P2 段 AC-2 / AC-5 / 质量门三处 "31 passed" 已全改为 "37 passed / 1 failed" + 真实归因。
+- **无源码改动**：失败是 ml-engineer M15 的 test/impl 不同步，非本 dev 范围，不擅自改 ml-engineer 的 modes.py 或 test_engines.py。
+
+### 回归测试（progress 更正本身无代码回归风险，仅文档）
+
+- 本次仅改 `progress/backend-dev.md`（文字更正），无源码改动，无需跑测试。
+- 复核证据实跑命令留存：`cd packages/kronos-factors && /Users/rogerluo/程序目录/K线大模型/.venv/bin/pytest tests/ -q` → 37 passed/1 failed；`git show 37040d9 -- pg_adapter.py | grep end_date` 证实 M03 捆绑。
+
+### 改动文件清单（1 个，纯 progress 文字更正）
+
+- `progress/backend-dev.md`（BE-P2 段 AC-2/AC-5/质量门/归属范围 4 处证据更正 + 本返工段落 + 23c8137 归属标注）
+
+**下一步**: 报告 product-lead BE-P2 review W-1/W-2 已更正（progress 纯文字，无源码改动）+ 23c8137 归属已标注。BE 链路 P0/P1/P2 + review + 返工 + progress 更正全闭合。
