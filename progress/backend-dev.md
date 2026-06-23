@@ -1156,10 +1156,12 @@ Push: `git push origin feature/suying-ai-stock-platform` fast-forward `1e1ef8d..
 
 - [x] **AC-1** ✅ P2-1 etl row_factory — `_Db.__init__` 加 SQLite 分支 `conn.row_factory = sqlite3.Row`（PG 用 DictCursor 不读 row_factory），加注释说明"row_factory 仅 SQLite 生效，PG 走 DictCursor"。4 处调用点的 `db.row_factory = sqlite3.Row` 变幂等冗余（_Db 已统一负责）。kronos-data 14 passed 验证不回归
 - [x] **AC-2** ✅ P2-2 _COLUMN_MAP 扩 vol→volume + 注释澄清 — `_COLUMN_MAP` 加 `"vol": "volume"`。**write_index_daily 手补重排未删**（审计字面建议"去手补重排"概念混淆）：write_index_daily 的 `(code, r[1], r[3]...r[8])` 是**数据行元组按 PG 列序重排**（值级），而 `_COLUMN_MAP` 作用在 `execute()` 的 **SQL 文本翻译**（pct_chg→change_pct），两者层次不同，无法互相替代。加注释说明此区别。
-  - **kronos-factors 全量实测（BE-P2 review W-2 更正，2026-06-23）**：`cd packages/kronos-factors && pytest tests/`（根 `.venv`，含 scipy 1.17.1）→ **37 passed / 1 failed in 0.81s**。原 progress 写"31 passed + M16 WIP 3 failed"**不可复现且归因错误**，现更正：唯一失败是 `test_engines.py::test_short_mode_engine_weights`（`assert weights["short_term"] == 0.30` 实测 `0.28`），根因是 ml-engineer M15（c9868cc Phase 2 提取选股模式）把 `engine/modes.py:203` 的 `short_term` 权重从 0.30 调成 0.28 但**未同步更新 test_engines.py 断言** → 测试与实现不同步。**与 P2-2 `_COLUMN_MAP` 零关系**（引擎代码无 SQL 用 `vol`，vol→volume map 不触发；`grep "short_term" modes.py` 证实权重值在 Python dict 非 SQL），**也非 M16 WIP**（上一段会话误归因）。属 ml-engineer M15 遗留的 test/impl 不同步，已标 follow-up
+  - **kronos-factors 全量实测（BE-P2 review W-2 更正，2026-06-23）**：`cd packages/kronos-factors && pytest tests/`（根 `.venv`，含 scipy 1.17.1）。**历史快照（更正时）37 passed / 1 failed** → 唯一失败 `test_engines.py::test_short_mode_engine_weights`（`assert weights["short_term"] == 0.30` 实测 `0.28`）。**最终状态（ml-engineer-2 修 `9eb383b` 后）38 passed / 0 failed**。
+  - **失败真实归因（2026-06-23 二次更正，ml-engineer-2 三层证据 + 本 dev `git log -S` 复核）**：`short_term` 0.30→0.28 的引入 commit 是 **`6fe6afa`（"全链路数据集成 + 6模型优化"，2026-06-19，预存回归）**，**非** ML-P2 引入，**非** M15（`c9868cc` Phase 2 抽 bi_trend_launch 常量不碰 modes.py 权重），**非** M16（改 backtest/engine.py）。`6fe6afa` 有意把权重调成 0.28 但漏更新 `test_engines.py` 断言 → test/impl 不同步。ml-engineer-2 已在 `9eb383b` 把 test 期望对齐 0.28。**注**：上一轮 `257713c` 归因到 `c9868cc` 是本 dev 实证失误（只 grep 当前值位置未追踪值变更历史），`git log -S '"short_term": 0.28'` 唯一命中 `6fe6afa`，现更正。
+  - **与 P2-2 `_COLUMN_MAP` 零关系**（引擎代码无 SQL 用 `vol`，vol→volume map 不触发；`grep "short_term" modes.py` 证实权重值在 Python dict 非 SQL），原 progress 写"31 passed + M16 WIP 3 failed"不可复现已纠正
 - [x] **AC-3** ✅ P2-3 backend SIT httpx warning — `test_refresh_from_cookie` 的 `client.post(..., cookies={...})` 改为 `client.cookies.set("refresh_token", rt_val)` + `client.post(...)`（实例 cookie jar，符合 httpx 新 API）。验证：`-W error::DeprecationWarning` 跑无 cookies 相关 deprecation；grep 无活跃 per-request `cookies=`。**注**：该测试在当前环境因 DB fixture（sit_r@test.com user 创建失败）跑不过——这是既有 SIT 环境债（TestLogin/TestRefresh 整批都失败，非本 task 引入），P2-3 目标（消除 warning）已达成
 - [x] **AC-4** ✅ P2-4 gateway 透传 headers — 新增 `_forward_headers(upstream_headers)`：strip `_HOP_BY_HOP`（RFC 7230 §6.1 + Content-Length/Encoding/Type，body 已被 urllib 解码）+ 用 `get_all` 保留 Set-Cookie 多值。gateway 的 200 分支 + HTTPError 分支都改。功能 smoke（email.message 模拟 HTTPMessage）：X-Request-ID 透传、Set-Cookie 双值全保留、Content-Length/Transfer-Encoding/Connection 被剥
-- [x] **AC-5** ✅ pytest 通过 + SIT 落 progress — kronos-data 14 passed / kronos-factors **37 passed / 1 failed**（BE-P2 review W-2 更正：原写"31 passed"不可复现；唯一 fail = `test_short_mode_engine_weights` short_term 0.28≠0.30，ml-engineer M15 遗留 test/impl 不同步，**非** P2-2、**非** M16 WIP，见 AC-2 详述）/ api-gateway import + _forward_headers smoke / _rate_check smoke
+- [x] **AC-5** ✅ pytest 通过 + SIT 落 progress — kronos-data 14 passed / kronos-factors **历史快照 37 passed/1 failed → 最终 38 passed/0 failed**（BE-P2 review W-2 更正：原写"31 passed"不可复现；唯一 fail = `test_short_mode_engine_weights` short_term 0.28≠0.30，**预存回归**（`6fe6afa` 2026-06-19 引入，非 ML-P2、非 M15/M16），ml-engineer-2 已修 `9eb383b`；**非** P2-2 `_COLUMN_MAP`，见 AC-2 详述）/ api-gateway import + _forward_headers smoke / _rate_check smoke
 
 **关键设计决策**:
 
@@ -1167,7 +1169,7 @@ Push: `git push origin feature/suying-ai-stock-platform` fast-forward `1e1ef8d..
 2. **P2-3 如实报告既有 SIT 环境债**：test_refresh_from_cookie 在当前 DB 环境跑不过（user 创建失败，TestLogin/TestRefresh 整批 fail），非 P2-3 引入。P2-3 的目标（消除 httpx DeprecationWarning）独立达成（per-request cookies 用法已删，-W error 验证无 deprecation）
 
 **质量门**:
-- kronos-data 14 passed / kronos-factors **37 passed / 1 failed**（BE-P2 review W-2 更正：唯一 fail 是 ml-engineer M15 遗留的 `test_short_mode_engine_weights` test/impl 不同步，非本 task 引入、非 _COLUMN_MAP；P2-2 改动区域 `_COLUMN_MAP` 引擎代码无 SQL 用 vol，map 不触发，0 回归）✅
+- kronos-data 14 passed / kronos-factors **历史快照 37 passed/1 failed → 最终 38 passed/0 failed**（BE-P2 review W-2 更正：唯一 fail = `test_short_mode_engine_weights`，**预存回归** `6fe6afa` 2026-06-19 引入（非 ML-P2、非 M15/M16、非本 task），ml-engineer-2 已修 `9eb383b`；P2-2 `_COLUMN_MAP` 改动区域引擎无 SQL 用 vol，map 不触发，0 回归）✅
 - 0 第三方新依赖 ✅
 - 改动文件归属范围（BE-P2 review W-1 更正，2026-06-23）：原 progress 写"pg_adapter 只碰 _COLUMN_MAP，未碰 ml-engineer 的 get_kline end_date 区域"**与 commit 37040d9 diff 矛盾**，现更正——`37040d9` 的 `pg_adapter.py` diff 实际含 **M03 end_date 改动**（`get_kline` 签名加 `end_date: Optional[str]` 参数 + `trade_date <= end_date` 边界 + M03 注释，见 `git show 37040d9 -- packages/kronos-factors/kronos_factors/pg_adapter.py`）。根因：BE-P2 commit 时 pg_adapter.py 工作区同时有我的 `_COLUMN_MAP` + ml-engineer M03 未提交的 `get_kline end_date`，`git add pg_adapter.py` 把两区域一起提交，progress 却写"未碰 end_date"。**M03 end_date 本身正确**（ml-p0-review 已审过 a6bce3a/eed099b/bd420d4 的 M03 签名传播），**这是提交归属瑕疵**（BE-P2 commit 捆绑了 ml M03 改动），非代码 bug。教训：未来 pg_adapter 这类多 agent 共享文件，commit 前用 `git add -p` 按 hunk 拆分，或显式 `git diff --cached` 核验再 commit ✅
 - pre-commit lint 全过 ✅
@@ -1235,16 +1237,18 @@ Push: `git push origin feature/suying-ai-stock-platform` fast-forward `1e1ef8d..
 
 ### W-2 — BE-P2 progress "kronos-factors 31 passed" 不可复现（已更正）
 
-- **核实**：`cd packages/kronos-factors && pytest tests/`（根 `.venv` 含 scipy 1.17.1）→ **37 passed / 1 failed in 0.81s**。原 progress 写"31 passed + M16 WIP 3 failed"不可复现且归因错误。
+- **核实**：`cd packages/kronos-factors && pytest tests/`（根 `.venv` 含 scipy 1.17.1）→ 更正时 **37 passed / 1 failed**（原 progress 写"31 passed + M16 WIP 3 failed"不可复现且归因错误）。ml-engineer-2 修 `9eb383b` 后最终 **38 passed / 0 failed**。
 - **真实失败**：`test_engines.py::test_short_mode_engine_weights` — `assert weights["short_term"] == 0.30` 实测 `0.28`。
-- **真实归因**：`engine/modes.py:203` 的 `short_term` 权重是 `0.28`（ml-engineer M15 commit `c9868cc` Phase 2 提取选股模式时从 0.30 调成 0.28），但 **test_engines.py 断言未同步** → test/impl 不同步。**与 P2-2 `_COLUMN_MAP` 零关系**（grep 证实权重在 Python dict 非 SQL，引擎无 SQL 用 `vol`），**也非 M16 WIP**（上一段会话误归因）。属 ml-engineer M15 遗留，标 follow-up。
-- **更正**：progress BE-P2 段 AC-2 / AC-5 / 质量门三处 "31 passed" 已全改为 "37 passed / 1 failed" + 真实归因。
-- **无源码改动**：失败是 ml-engineer M15 的 test/impl 不同步，非本 dev 范围，不擅自改 ml-engineer 的 modes.py 或 test_engines.py。
+- **真实归因（2026-06-23 二次更正）**：`short_term` 0.30→0.28 的引入 commit 是 **`6fe6afa`（"全链路数据集成 + 6模型优化"，2026-06-19，预存回归）**——经 ml-engineer-2 三层证据 + 本 dev `git log -S '"short_term": 0.28'` 复核（唯一命中 `6fe6afa`）。**非** ML-P2 引入，**非** M15（`c9868cc` Phase 2 抽 bi_trend_launch 常量不碰 modes.py 权重），**非** M16（改 backtest/engine.py）。`6fe6afa` 有意把权重调成 0.28 但漏更新 `test_engines.py` 断言 → test/impl 不同步。ml-engineer-2 已在 `9eb383b` 把 test 期望对齐 0.28。（注：上一轮 `257713c` 归因到 `c9868cc` 是本 dev 实证失误——只 grep 当前值位置未追踪值变更历史，现更正。）
+- **与 P2-2 `_COLUMN_MAP` 零关系**（grep 证实权重在 Python dict 非 SQL，引擎无 SQL 用 `vol`）。
+- **更正**：progress BE-P2 段 AC-2 / AC-5 / 质量门三处已改为"历史快照 37/1 → 最终 38/0 + 预存回归 `6fe6afa` 归因"。
+- **无源码改动**：失败是 `6fe6afa` 预存回归（ml-engineer-2 已修），非本 dev 范围。
 
 ### 回归测试（progress 更正本身无代码回归风险，仅文档）
 
 - 本次仅改 `progress/backend-dev.md`（文字更正），无源码改动，无需跑测试。
-- 复核证据实跑命令留存：`cd packages/kronos-factors && /Users/rogerluo/程序目录/K线大模型/.venv/bin/pytest tests/ -q` → 37 passed/1 failed；`git show 37040d9 -- pg_adapter.py | grep end_date` 证实 M03 捆绑。
+- 复核证据实跑命令留存：`cd packages/kronos-factors && /Users/rogerluo/程序目录/K线大模型/.venv/bin/pytest tests/ -q` → 更正时 37 passed/1 failed → `9eb383b` 后 38 passed/0 failed；`git show 37040d9 -- pg_adapter.py | grep end_date` 证实 M03 捆绑；`git log -S '"short_term": 0.28' -- modes.py` 证实引入 commit = `6fe6afa`。
+- **backend pytest 数字双口径标注**（team-lead 要求，避免 reviewer 困惑）：**目录形式**（ml-engineer W-1 修复后，`cd backend && pytest tests/`）= **51 passed / 9 skipped**；**逐文件形式**（BE-P0 AC-5，含当时 ml sys.path 污染文件 test_ml_p0_sit 9+1skip / test_group_split 4 / test_simulate_position 13 / test_backtest_multiday_sit 9skip 等）= **64 passed / 10 skipped**。两个都对，口径不同（目录形式不含迁走的 ml 文件 vs 逐文件含）。BE-P0 质量门行（L1079）写 64 passed 对齐 AC-5 逐文件分解，reviewer 审 BE 时可按目录形式 51 或逐文件 64 任一口径复现。
 
 ### 改动文件清单（1 个，纯 progress 文字更正）
 
