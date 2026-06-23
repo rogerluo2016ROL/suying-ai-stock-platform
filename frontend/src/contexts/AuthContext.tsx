@@ -39,9 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = !!user && !!accessToken
 
-  // P2-04: guard the mount-only refresh so React.StrictMode's double-invoke in
-  // dev does not fire two /auth/refresh requests (wasted tokens / race).
-  const didInitRef = useRef(false)
+  // P2-04: keep the mount-only refresh idempotent under React.StrictMode.
+  // StrictMode runs effect setup -> cleanup -> setup in dev. The first request
+  // must remain usable by the second setup instead of being cancelled forever.
+  const mountedRef = useRef(false)
+  const initRefreshPromiseRef = useRef<Promise<string | null> | null>(null)
 
   // ── Token refresh function (used by interceptor too) ──
   // P1-06: accept an optional mounted-guard so the mount effect can prevent
@@ -102,18 +104,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Initialization: try refresh on mount ──
 
   useEffect(() => {
-    // P2-04: StrictMode double-invokes mount effects in dev; the ref guard
-    // ensures only the first invocation actually fires the refresh.
-    if (didInitRef.current) {
-      setIsLoading(false)
-      return
+    mountedRef.current = true
+    if (!initRefreshPromiseRef.current) {
+      initRefreshPromiseRef.current = doRefresh(() => !mountedRef.current)
     }
-    didInitRef.current = true
-    let cancelled = false
-    doRefresh(() => cancelled).finally(() => {
-      if (!cancelled) setIsLoading(false)
+    initRefreshPromiseRef.current.finally(() => {
+      if (mountedRef.current) setIsLoading(false)
     })
-    return () => { cancelled = true }
+    return () => { mountedRef.current = false }
     // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

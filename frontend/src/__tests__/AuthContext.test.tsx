@@ -1,7 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider, useAuth } from '../contexts/AuthContext'
-import type { ReactNode } from 'react'
+import React, { type ReactNode } from 'react'
 
 // ── Mock fetch ──
 
@@ -19,6 +19,16 @@ function wrapper({ children }: { children: ReactNode }) {
     <MemoryRouter>
       <AuthProvider>{children}</AuthProvider>
     </MemoryRouter>
+  )
+}
+
+function strictWrapper({ children }: { children: ReactNode }) {
+  return (
+    <React.StrictMode>
+      <MemoryRouter>
+        <AuthProvider>{children}</AuthProvider>
+      </MemoryRouter>
+    </React.StrictMode>
   )
 }
 
@@ -87,6 +97,23 @@ describe('AuthContext', () => {
       method: 'POST',
       credentials: 'include',
     }))
+  })
+
+  it('StrictMode 下 refresh 成功仍恢复登录态', async () => {
+    mockRefreshSuccess()
+    const { result } = renderHook(() => useAuth(), { wrapper: strictWrapper })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(result.current.isAuthenticated).toBe(true)
+    expect(result.current.user).toMatchObject({
+      id: 1,
+      name: 'test',
+      email: 'test@t.com',
+      role: 'user',
+    })
   })
 
   it('refresh 失败 → 保持未登录 (AC-28)', async () => {

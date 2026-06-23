@@ -1,11 +1,15 @@
 """Unit tests for kronos_auth.deps — JWT decode + role check + service auth."""
 
+import os
 import time
 
 import jwt
 import pytest
 from fastapi import FastAPI, Depends
 from fastapi.testclient import TestClient
+
+# Service auth tests must use a real test secret; dev-only fallback is guarded.
+os.environ.setdefault("KRONOS_SERVICE_SECRET", "test-service-secret-not-dev-only")
 
 from kronos_auth.config import KRONOS_JWT_SECRET, JWT_ALGORITHM, KRONOS_SERVICE_SECRET
 from kronos_auth.deps import get_current_user_jwt, require_role

@@ -113,10 +113,33 @@ api.interceptors.response.use(
 
 // ── API modules (unchanged) ──
 
+type SupplyChainWorkbenchParams = number | {
+  topN?: number
+  themeId?: string
+  nodeId?: string
+}
+
+const buildSupplyChainWorkbenchPath = (params: SupplyChainWorkbenchParams = {}) => {
+  const topN = typeof params === 'number' ? params : params.topN ?? 30
+  const search = new URLSearchParams({ top_n: String(topN) })
+  if (typeof params !== 'number') {
+    if (params.themeId) search.set('theme_id', params.themeId)
+    if (params.nodeId) search.set('node_id', params.nodeId)
+  }
+  return `/screener/supply-chain/workbench?${search.toString()}`
+}
+
 // Screener
 export const screenerApi = {
   getModes: () => api.get('/screener/modes'),
   run: (mode: string, topN = 30) => api.post(`/screener/run?mode=${mode}&top_n=${topN}`),
+  getSupplyChainThemes: () => api.get('/screener/supply-chain/themes'),
+  getSupplyChainBom: () => api.get('/screener/supply-chain/bom'),
+  getSupplyChainWorkbench: (params: SupplyChainWorkbenchParams = {}) => api.get(buildSupplyChainWorkbenchPath(params)),
+  getSupplyChainNode: (nodeId: string) => api.get(`/screener/supply-chain/node/${encodeURIComponent(nodeId)}`),
+  getSupplyChainCompany: (code: string) => api.get(`/screener/supply-chain/company/${encodeURIComponent(code)}`),
+  extractSupplyChainFacts: (text: string, source: Record<string, unknown> = {}, persist = false) =>
+    api.post('/screener/supply-chain/extract', { text, source, persist }),
 }
 
 // Prediction

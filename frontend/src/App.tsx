@@ -10,7 +10,7 @@ import {
   MenuFoldOutlined, MenuUnfoldOutlined,
   GlobalOutlined, StockOutlined, RobotOutlined,
   GithubOutlined, MailOutlined, LogoutOutlined,
-  ApiOutlined, ClockCircleOutlined,
+  ApiOutlined, ClockCircleOutlined, ApartmentOutlined,
 } from '@ant-design/icons'
 import { useAuth, type Role } from './contexts/AuthContext'
 import { useTheme } from './contexts/ThemeContext'
@@ -25,6 +25,7 @@ import RegisterPage from './components/auth/RegisterPage'
 // ModelRegistry/Predictions) load on demand.
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Screener = lazy(() => import('./pages/Screener'))
+const SupplyChainBom = lazy(() => import('./pages/SupplyChainBom'))
 const Predictions = lazy(() => import('./pages/Predictions'))
 const Signals = lazy(() => import('./pages/Signals'))
 const Trade = lazy(() => import('./pages/Trade'))
@@ -59,6 +60,7 @@ interface MenuItemWithRoles {
 const allMenuItems: MenuItemWithRoles[] = [
   { key: '/',            icon: <DashboardOutlined />,    label: 'AI 智能看板', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { key: '/screener',    icon: <SearchOutlined />,       label: '智能选股',   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/supply-chain-bom', icon: <ApartmentOutlined />, label: '产业链拆解', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { key: '/predictions', icon: <LineChartOutlined />,    label: 'K线预测',    roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { key: '/strategy',    icon: <BulbOutlined />,         label: '方案管理',   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { key: '/signals',     icon: <ThunderboltOutlined />,  label: '交易信号',   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
@@ -80,6 +82,7 @@ const bottomMenuItems: MenuItemWithRoles[] = [
 const protectedRoutes: { path: string; element: React.ReactNode; roles: Role[] }[] = [
   { path: '/',            element: <Dashboard />,    roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/screener',    element: <Screener />,      roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/supply-chain-bom', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/predictions', element: <Predictions />,   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/strategy',    element: <Strategy />,      roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/signals',     element: <Signals />,       roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },

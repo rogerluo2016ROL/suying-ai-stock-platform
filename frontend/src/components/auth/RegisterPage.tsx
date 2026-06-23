@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Form, Input, Button, Card, Typography, Alert } from 'antd'
 import { StockOutlined, MailOutlined, LockOutlined, UserOutlined } from '@ant-design/icons'
@@ -12,9 +12,15 @@ export default function RegisterPage() {
   const { register, isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
-  // Already logged in → redirect to home
+  // Already logged in → redirect to home. Keep navigation out of render so
+  // React and tests do not get stuck in render-phase state updates.
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true })
+    }
+  }, [isAuthenticated, navigate])
+
   if (isAuthenticated) {
-    navigate('/', { replace: true })
     return null
   }
 

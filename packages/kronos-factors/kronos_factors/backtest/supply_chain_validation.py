@@ -157,6 +157,7 @@ def run_supply_chain_oos_validation(
     Returns: {"train": {...}, "test": {...}, "baseline": {...}, "verdict": "PASS"/"FAIL",
               "criteria": {...}, "config": {...}}
     """
+    model_version = "supply_chain_bom_v4" if engine_cls.__name__ == "SupplyChainEngine" else engine_cls.__name__
     train_cutoffs = month_end_cutoffs(train_start, train_end)
     test_cutoffs = month_end_cutoffs(test_start, test_end)
     logger.info("OOS 验证: train %d cutoffs, test %d cutoffs, horizon=%d, baseline=%s",
@@ -184,6 +185,7 @@ def run_supply_chain_oos_validation(
     verdict = "PASS" if all([c1, c2, c3, c4]) else "FAIL"
 
     return {
+        "model_version": model_version,
         "verdict": verdict,
         "criteria": {
             "test_mean_ic_positive": c1, "test_p_lt_0.05": c2,
@@ -192,5 +194,6 @@ def run_supply_chain_oos_validation(
         "train": train, "test": test, "baseline": base,
         "config": {"weights": weights, "horizon": horizon, "n_seeds": n_seeds,
                    "sample_size": sample_size, "baseline": baseline,
+                   "model_version": model_version,
                    "train_range": [train_start, train_end], "test_range": [test_start, test_end]},
     }

@@ -15,7 +15,7 @@ class Order:
     direction: str  # BUY / SELL
     price: float    # 0 = market
     volume: int
-    status: str = "pending"  # pending / filled / cancelled
+    status: str = "pending"  # pending / filled / cancelled / rejected
     filled_price: float = 0
     filled_at: str = ""
     created_at: str = ""
@@ -51,15 +51,31 @@ class PaperTradingEngine:
 
     def place_order(self, code: str, direction: str, price: float, volume: int) -> Order:
         with self._lock:
+            code_upper = code.upper()
+            direction_upper = direction.upper()
             self._order_counter += 1
             order = Order(
                 id=f"ORD{self._order_counter:04d}",
-                code=code.upper(),
-                direction=direction.upper(),
+                code=code_upper,
+                direction=direction_upper,
                 price=price,
                 volume=volume,
                 created_at=datetime.now().isoformat(),
             )
+
+            if direction_upper not in {"BUY", "SELL"} or volume <= 0:
+                order.status = "rejected"
+                self.orders.append(order)
+                logger.warning("Order rejected: invalid direction/volume %s %s", direction, volume)
+                return order
+
+            if direction_upper == "SELL":
+                pos = self.positions.get(code_upper)
+                if pos is None or pos.volume < volume:
+                    order.status = "rejected"
+                    self.orders.append(order)
+                    logger.warning("Order rejected: insufficient position %s %s", code_upper, volume)
+                    return order
 
             # Simple fill logic: fill immediately at a mock price
             if price == 0:
@@ -75,12 +91,12 @@ class PaperTradingEngine:
 
             # Update account & position
             trade_amount = order.filled_price * volume
-            if direction.upper() == "BUY":
+            if direction_upper == "BUY":
                 self.account.available -= trade_amount
-                self._update_position_buy(code, volume, order.filled_price)
+                self._update_position_buy(code_upper, volume, order.filled_price)
             else:
                 self.account.available += trade_amount
-                self._update_position_sell(code, volume, order.filled_price)
+                self._update_position_sell(code_upper, volume, order.filled_price)
 
             self._recalc_account()
             logger.info(f"Order filled: {order.direction} {code} {volume}@{order.filled_price}")

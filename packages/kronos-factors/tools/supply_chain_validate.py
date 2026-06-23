@@ -54,6 +54,7 @@ def main():
         sample_size=args.sample_size, baseline=args.baseline)
 
     print(f"\n{'='*60}\n门禁判定: {result['verdict']}\n{'='*60}", flush=True)
+    print(f"  模型版本: {result.get('model_version', 'unknown')}")
     print(f"  ① test mean_ic > 0:          {result['criteria']['test_mean_ic_positive']}  ({result['test']['mean_ic']:+.4f})")
     print(f"  ② test p_value < 0.05:        {result['criteria']['test_p_lt_0.05']}  ({result['test']['p_value']:.4f})")
     print(f"  ③ 优于基线 +0.02:             {result['criteria']['beats_baseline_by_0.02']}  "

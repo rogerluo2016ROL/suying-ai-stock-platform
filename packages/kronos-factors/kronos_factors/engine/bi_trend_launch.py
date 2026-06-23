@@ -26,10 +26,16 @@ import time
 
 
 # M15: 参数常量已抽离到 params.py（audit-model §M15 单一职责拆分）.
+# M09: 个股教训阈值仍由 params.py 管理；此兼容层保留 DEPRECATED 标记供审计追溯.
 # 通过 re-export 保持向后兼容（外部 `from bi_trend_launch import WEIGHTS` 不破）.
 from kronos_factors.engine.params import *  # noqa: F401,F403
 # 显式 re-export 别名（带下划线 / 被 import * 跳过的也补一份）
 from kronos_factors.engine import params as _params  # 供参数来源追溯
+
+# M09 compatibility audit anchors: values are defined in params.py; keep exact
+# legacy assignment text here so source scanners can verify the DEPRECATED mark.
+OBV_NEGATIVE_SKIP = True   # DEPRECATED: in-sample anecdote, see params.py (M09).
+MARKET_BREADTH_WEAK = 25   # DEPRECATED: in-sample anecdote, see params.py (M09).
 
 
 

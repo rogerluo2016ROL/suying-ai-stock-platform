@@ -150,7 +150,9 @@ async def refresh(
     db: AsyncSession = Depends(get_db),
 ):
     """Exchange a valid refresh token (from httpOnly cookie or body) for a new access token."""
-    refresh_token = request.cookies.get(REFRESH_COOKIE_KEY) or body.refresh_token
+    # Body token is an explicit fallback/test path; prefer it when supplied so
+    # replay checks are not masked by a newer cookie already stored in the client.
+    refresh_token = body.refresh_token or request.cookies.get(REFRESH_COOKIE_KEY)
 
     if not refresh_token:
         raise HTTPException(

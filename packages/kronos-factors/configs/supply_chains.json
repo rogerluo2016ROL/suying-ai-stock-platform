@@ -1,6 +1,19 @@
 {
   "version": "1.0",
-  "description": "大葱产业链解构选股 — 产业链配置. industries=候选池industry关键词(LIKE匹配), layers=产业链层级, layer_keywords=层级匹配关键词(stock_profiles.main_business子串匹配, 按dict顺序=特异性优先级). moat_keywords=护城河研报标题正则.",
+  "description": "大葱产业链解构选股 — 产业链配置. industries=候选池industry关键词(LIKE匹配), layers=产业链层级, layer_keywords=层级匹配关键词(stock_profiles.main_business子串匹配, 按dict顺序=特异性优先级). upstream_influence_rules=从下游战略产业反向拆解出的上游材料/设备/工艺/软件影响规则. moat_keywords=护城河研报标题正则.",
+  "upstream_influence_rules": [
+    {
+      "rule_id": "functional_pigment_nanomaterials",
+      "upstream_node": "功能色浆/纳米材料",
+      "impact_role": "上游功能材料",
+      "industries": ["染料涂料"],
+      "keywords": ["色浆", "纳米色浆", "功能色浆", "功能涂层", "着色剂", "电子墨水", "光固化", "高分子分散"],
+      "downstream_chains": ["显示材料", "新材料", "高端制造", "新能源", "半导体"],
+      "policy_theme": "新质生产力",
+      "pool_status": "观察池",
+      "evidence_gaps": ["产品是否进入战略产业客户供应链", "是否有量产/扩产/客户验证公告", "专利和配方壁垒是否可验证", "收入和毛利率是否开始兑现"]
+    }
+  ],
   "chains": {
     "半导体": {
       "industries": ["半导体", "元器件"],

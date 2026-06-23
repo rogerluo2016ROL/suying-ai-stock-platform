@@ -74,13 +74,14 @@ class _PaperEngineAdapter:
             price=order.price,
             volume=order.quantity,
         )
+        status = OrderStatus(o.status)
         return OrderResult(
             order_id=o.id,
             broker_order_id="",
-            status=OrderStatus.FILLED,
-            filled_qty=o.volume,
+            status=status,
+            filled_qty=o.volume if status == OrderStatus.FILLED else 0,
             filled_avg_price=o.filled_price,
-            message="filled (paper)",
+            message=f"{status.value} (paper)",
         )
 
     async def cancel_order(self, order_id: str):

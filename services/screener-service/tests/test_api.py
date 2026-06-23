@@ -22,21 +22,23 @@ def client():
 class TestScreenerModes:
     """Test the modes listing endpoint."""
 
-    def test_list_modes_returns_all_12(self, client):
-        """Verify /modes returns all 12 screening modes."""
+    def test_list_modes_returns_supported_modes(self, client):
+        """Verify /modes returns the supported screening modes."""
         response = client.get("/api/v1/screener/modes")
         assert response.status_code == 200
         data = response.json()
         assert "modes" in data
-        assert len(data["modes"]) == 12
+        assert len(data["modes"]) >= 12
 
         # Verify key modes are present
         mode_ids = [m["id"] for m in data["modes"]]
+        assert len(mode_ids) == len(set(mode_ids))
         assert "leader_scalp" in mode_ids
         assert "short" in mode_ids
         assert "long" in mode_ids
         assert "all" in mode_ids
         assert "chokepoint" in mode_ids
+        assert "supply_chain" in mode_ids
         assert "bi_trend_launch" in mode_ids
         assert "cb_floor" in mode_ids
         assert "cb_intraday" in mode_ids

@@ -179,7 +179,8 @@ async def run_watcher(
     try:
         from watchfiles import awatch, Change  # type: ignore[import-untyped]
     except ImportError:
-        logger.error("watchfiles not installed — file watching disabled")
+        logger.error("watchfiles not installed — polling worktrees only")
+        await _worktree_poll_loop(queue, repo_path, worktree_poll_interval)
         return
 
     tasks_dir = Path.home() / ".claude" / "tasks"

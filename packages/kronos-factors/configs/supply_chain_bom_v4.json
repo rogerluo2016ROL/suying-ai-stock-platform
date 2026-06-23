@@ -1,0 +1,122 @@
+{
+  "version": "4.0",
+  "source": "习近平《前瞻布局和发展未来产业》 + 十五五未来产业主攻方向",
+  "themes": [
+    {
+      "theme_id": "future_industry_core",
+      "name": "未来产业主攻方向",
+      "policy_weight": 1.5,
+      "keywords": ["量子科技", "生物制造", "氢能", "核聚变能", "脑机接口", "具身智能", "第六代移动通信"],
+      "interpretation": "未来产业主攻方向强调前瞻布局，重点寻找可能形成新赛道、新动能和战略主动权的硬科技产业。选股上不能停留在主题热度，而要验证这些产业是否从技术突破进入工程化、样机验证、量产导入和规模商业化。",
+      "strategic_logic": "先用国家战略确定产业方向，再用BOM拆解找到关键零部件、核心材料、工艺设备和系统集成环节，最后筛出在量产、客户验证、专利标准和进口替代上已有证据的上市公司。",
+      "bom_focus": ["原创技术", "核心部件", "关键材料", "专用设备", "系统集成", "应用场景"],
+      "evidence_focus": ["国家级政策/规划", "样机或小批量交付", "产线建设/投产", "头部客户验证", "专利与标准", "订单和收入兑现"],
+      "policy_refs": ["习近平《前瞻布局和发展未来产业》", "十五五规划相关未来产业方向"]
+    },
+    {
+      "theme_id": "new_quality_productivity",
+      "name": "新质生产力",
+      "policy_weight": 1.3,
+      "keywords": ["新质生产力", "硬科技", "科技自立自强", "现代化产业体系"],
+      "interpretation": "新质生产力不是普通主题概念，而是以科技创新推动产业深度转型升级的生产力跃迁。它要求技术创新、产业创新、要素配置和组织效率共同提升，最终落到更高质量、更高效率和更强国际竞争力的现代化产业体系。",
+      "strategic_logic": "评分时优先识别能够把科技创新转化为可量产产品、可复制工艺、可持续利润和产业标准的公司；只讲概念但缺少产品、订单、毛利率或客户认证的公司降权。",
+      "bom_focus": ["底层技术平台", "智能制造装备", "工业软件", "高端材料", "先进工艺", "场景数字化"],
+      "evidence_focus": ["研发投入强度", "产品量产公告", "客户导入/订单", "毛利率改善", "全要素效率提升证据", "政策试点/示范项目"],
+      "policy_refs": ["习近平关于发展新质生产力的重要论述", "现代化产业体系建设相关政策"]
+    },
+    {
+      "theme_id": "tech_self_reliance",
+      "name": "科技自立自强",
+      "policy_weight": 1.25,
+      "keywords": ["关键核心技术", "卡脖子", "国产替代", "自主可控", "首台套", "首批次"],
+      "interpretation": "科技自立自强聚焦关键核心技术和卡脖子环节，核心不是简单国产替代标签，而是在国家产业安全、供应链安全和高端制造升级中具备不可替代性的上市公司。",
+      "strategic_logic": "沿关键设备、核心材料、基础软件、关键工艺和高端仪器逐级拆解，优先寻找进口依赖高、国产供给稀缺、客户认证周期长、专利和工艺壁垒深、量产后毛利弹性大的公司。",
+      "bom_focus": ["关键设备", "核心材料", "基础软件", "高端仪器", "关键工艺", "国产替代验证"],
+      "evidence_focus": ["首台套/首批次", "国产替代订单", "客户认证周期", "专利族/工艺秘密", "产能投放", "收入和毛利率兑现"],
+      "policy_refs": ["科技自立自强相关国家战略", "产业基础再造和重大技术装备政策"]
+    }
+  ],
+  "nodes": [
+    {
+      "node_id": "quantum_core",
+      "theme_id": "future_industry_core",
+      "chain_id": "quantum",
+      "parent_node_id": null,
+      "level": "chain",
+      "name": "量子科技",
+      "node_type": "industry",
+      "keywords": ["量子计算", "量子通信", "量子测量", "超导量子", "光量子"]
+    },
+    {
+      "node_id": "bio_manufacturing_core",
+      "theme_id": "future_industry_core",
+      "chain_id": "bio_manufacturing",
+      "parent_node_id": null,
+      "level": "chain",
+      "name": "生物制造",
+      "node_type": "industry",
+      "keywords": ["生物制造", "合成生物", "酶制剂", "发酵工程", "生物基材料"]
+    },
+    {
+      "node_id": "hydrogen_fusion_core",
+      "theme_id": "future_industry_core",
+      "chain_id": "hydrogen_fusion",
+      "parent_node_id": null,
+      "level": "chain",
+      "name": "氢能和核聚变能",
+      "node_type": "industry",
+      "keywords": ["氢能", "燃料电池", "电解槽", "储氢", "核聚变", "超导磁体"]
+    },
+    {
+      "node_id": "brain_computer_core",
+      "theme_id": "future_industry_core",
+      "chain_id": "brain_computer_interface",
+      "parent_node_id": null,
+      "level": "chain",
+      "name": "脑机接口",
+      "node_type": "industry",
+      "keywords": ["脑机接口", "神经电极", "脑电", "植入式", "神经调控"]
+    },
+    {
+      "node_id": "embodied_ai_core",
+      "theme_id": "future_industry_core",
+      "chain_id": "embodied_ai",
+      "parent_node_id": null,
+      "level": "chain",
+      "name": "具身智能",
+      "node_type": "industry",
+      "keywords": ["具身智能", "机器人", "人形机器人", "伺服", "减速器", "控制器", "传感器"]
+    },
+    {
+      "node_id": "6g_core",
+      "theme_id": "future_industry_core",
+      "chain_id": "6g",
+      "parent_node_id": null,
+      "level": "chain",
+      "name": "第六代移动通信",
+      "node_type": "industry",
+      "keywords": ["6G", "第六代移动通信", "卫星互联网", "太赫兹", "空天地一体", "光模块"]
+    },
+    {
+      "node_id": "semiconductor_equipment_materials",
+      "theme_id": "tech_self_reliance",
+      "chain_id": "semiconductor",
+      "parent_node_id": null,
+      "level": "chain",
+      "name": "半导体设备材料",
+      "node_type": "industry",
+      "keywords": ["半导体设备", "光刻胶", "刻蚀", "薄膜沉积", "靶材", "硅片", "EDA"]
+    },
+    {
+      "node_id": "industrial_software_core",
+      "theme_id": "new_quality_productivity",
+      "chain_id": "industrial_software",
+      "parent_node_id": null,
+      "level": "chain",
+      "name": "工业软件",
+      "node_type": "industry",
+      "keywords": ["工业软件", "CAD", "CAE", "MES", "PLM", "基础软件", "操作系统"]
+    }
+  ],
+  "edges": []
+}

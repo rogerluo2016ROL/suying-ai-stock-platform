@@ -198,6 +198,54 @@
 **质量门**: 只读审计，无代码变更。
 **下一步**: 由 product-lead 根据差距汇总排优先级分派修复任务。
 
+## supply_chain BOM V4 SIT Evidence (2026-06-23)
+
+**状态**: 已完成
+**Skills**: writing-plans, agf-wiring-multi-llm-sdk, executing-plans, test-driven-development, verification-before-completion
+
+**SIT 证据**:
+- [x] Backend unit: `cd packages/kronos-factors && pytest tests/test_supply_chain_bom_v4.py -v` → 3 passed
+- [x] Engine compatibility: `cd packages/kronos-factors && pytest tests/test_supply_chain_bom_v4.py tests/test_engines.py -v` → 15 passed
+- [x] Screener API + LLM adapter: `cd services/screener-service && pytest tests/test_supply_chain_bom_api.py tests/test_llm_supply_chain.py -v` → 7 passed, 1 Starlette/TestClient warning
+- [x] Frontend drill-down page: `cd frontend && npx vitest run src/__tests__/SupplyChainBom.test.tsx` → 1 passed; jsdom reports `getComputedStyle` pseudo-element warning from AntD
+- [x] Frontend typecheck: `cd frontend && npx tsc -b --noEmit` → passed
+- [x] Validation scripts syntax: `python3 -m py_compile packages/kronos-factors/kronos_factors/backtest/supply_chain_validation.py packages/kronos-factors/tools/supply_chain_validate.py` → passed
+
+**Known limitations**:
+- `supply_chain_v3` baseline was not added because the public `SupplyChainEngine` entry is now V4-enriched; a trustworthy V3 baseline requires preserving the old scorer behind a separate engine or fixture.
+- Patent, bidding, capacity, and company announcement evidence tables are schema-ready, but automated ingestion remains a follow-up connector task.
+- LLM extraction is wired with a DeepSeek-compatible guardrail; without `DEEPSEEK_API_KEY`, it returns a structured disabled result.
+
+## supply_chain BOM V4 Evidence Drilldown + LLM Entry (2026-06-23)
+
+**状态**: 已完成
+**Skills**: test-driven-development, verification-before-completion
+
+**SIT 证据**:
+- [x] Screener evidence API: `cd services/screener-service && pytest tests/test_supply_chain_bom_api.py tests/test_llm_supply_chain.py -v` → 10 passed, 1 Starlette/TestClient warning
+- [x] Frontend extraction UI: `cd frontend && npx vitest run src/__tests__/SupplyChainBom.test.tsx` → 2 passed; jsdom reports AntD `getComputedStyle` pseudo-element warning
+- [x] Frontend typecheck/build: `cd frontend && npx tsc -b --noEmit && npm run build` → passed; Vite reports existing antd/echarts chunk-size warning
+
+**新增能力**:
+- 节点接口读取 `company_bom_mapping` / `company_evidence` / `supply_chain_scores`，返回企业候选、评级、排序、交易信号和证据。
+- 公司接口读取产品、材料、财务指标和护城河证据，支撑“上市公司-产品/材料-财务指标-护城河证据”下钻。
+- 新增 `POST /api/v1/screener/supply-chain/extract`，前端工作台可粘贴政策/公告/研报文本触发 LLM 抽取；无密钥时稳定返回 disabled。
+
+## supply_chain BOM V4 Extract-to-Graph Preview/Persist (2026-06-23)
+
+**状态**: 已完成
+**Skills**: test-driven-development, verification-before-completion
+
+**SIT 证据**:
+- [x] Screener API + graph store + LLM adapter: `cd services/screener-service && pytest tests/test_supply_chain_bom_api.py tests/test_llm_supply_chain.py tests/test_supply_chain_graph_store.py -v` → 12 passed, 1 Starlette/TestClient warning
+- [x] Frontend extract preview/persist UI: `cd frontend && npx vitest run src/__tests__/SupplyChainBom.test.tsx` → 3 passed; jsdom reports AntD `getComputedStyle` pseudo-element warning
+- [x] Frontend typecheck/build: `cd frontend && npx tsc -b --noEmit && npm run build` → passed; Vite reports existing antd/echarts chunk-size warning
+
+**新增能力**:
+- LLM 抽取结果会生成稳定 `source` / `company_bom_mapping` / `company_evidence` 预览记录，默认 `pending_review`。
+- `POST /api/v1/screener/supply-chain/extract` 默认返回 records 预览；传 `persist: true` 时尝试写入图谱相关表。
+- 前端“LLM图谱抽取”支持显示映射/证据数量，并提供“写入待审核图谱”复选框。
+
 ## Code Review 修复 — Finding #1 (写入顺序) + #3 (status 解析) - 2026-06-12 17:00
 **状态**: 已完成
 **Skills**: superpowers:verification-before-completion
@@ -1378,3 +1426,39 @@ Push: `git push origin feature/suying-ai-stock-platform` fast-forward `1e1ef8d..
 **完整验证命令** (回填完成后):
   PYTHONPATH=packages/kronos-factors KRONOS_PG_URL=... .venv/bin/python tools/supply_chain_validate.py \
     --train-start 2020-03-31 --test-end 2026-06-30 --baseline random --weights calibrated_weights.json
+
+## supply_chain BOM V4 全项目测试闭环 (2026-06-23)
+
+**范围**: 大葱产业链 BOM V4 前后端实现 + 历史失败用例修复 + 全测试扫尾
+
+**修复闭环**:
+- backend refresh 回放测试: body refresh_token 显式优先, 避免被 TestClient 新 cookie 掩盖旧 token 重放.
+- kronos-auth 测试夹具: service-auth 用真实测试 secret, 不再依赖 dev fallback.
+- screener modes 测试: 兼容选股模式扩展到 15 个, 增加 supply_chain 与唯一 ID 断言.
+- bi_trend_launch 审计锚点: 在兼容层保留 OBV_NEGATIVE_SKIP / MARKET_BREADTH_WEAK 的 DEPRECATED 标记.
+- strategy-service pytest 配置: 增加 pythonpath/testpaths/asyncio_mode, 文档命令可直接导入 app.
+- trade-service paper engine: 拒绝非法方向、无持仓卖出、超持仓卖出, 防止模拟账户资金凭空增加; paper adapter 同步 rejected/cancelled 状态.
+- team-dashboard watcher: watchfiles 缺失时退回 worktree polling, 不再直接返回.
+- RegisterPage: 已登录跳转改为 useEffect, 避免 render 阶段 navigate 导致前端 SIT 卡住.
+
+**测试证据**:
+- backend: `.venv/bin/pytest tests/ -v` -> 51 passed, 9 skipped, 19 warnings.
+- packages/kronos-auth: `../../backend/.venv/bin/pytest tests/ -v` -> 28 passed, 16 warnings.
+- packages/kronos-data: `../../.venv/bin/pytest tests/ -v` -> 14 passed.
+- packages/kronos-factors: `../../.venv/bin/pytest tests/ -v` -> 41 passed.
+- services/screener-service: `../../.venv/bin/pytest tests/ -v` -> 18 passed, 2 warnings.
+- services/strategy-service: `../../.venv/bin/pytest tests/ -v` -> 3 passed.
+- services/training-service: `../../.venv/bin/pytest tests/ -v` -> 32 passed, 1 skipped, 1 warning.
+- services/trade-service: `../../.venv/bin/pytest tests/ -v` -> 15 passed.
+- services/prediction-service / backtest-service / signal-service / diagnosis-service: 无测试项或 tests 目录缺失, pytest 返回 no tests ran/file not found;已在本轮确认.
+- tools: `../.venv/bin/pytest tests/ -v` -> 9 passed.
+- tools/team-dashboard/server: `../../../.venv/bin/pytest tests/ -v` -> 64 passed.
+- tools/team-dashboard/web: `npm test` -> 3 files passed, 52 tests passed.
+- tools/team-dashboard/web: `npm run build` -> pass.
+- frontend: `npx vitest run` -> 11 files passed, 46 tests passed.
+- frontend typecheck: `npx tsc -b --noEmit` -> pass.
+- frontend build: `npm run build` -> pass (仅 Vite chunk size warning).
+- repo hygiene: `git diff --check` -> pass.
+
+**环境备注**:
+- 系统 Python `/opt/homebrew` 的 SciPy 动态库被 macOS system policy 拦截; 项目根 `.venv` 可正常加载 SciPy 1.17.1, 因此 kronos-factors/服务测试统一使用根 `.venv`.

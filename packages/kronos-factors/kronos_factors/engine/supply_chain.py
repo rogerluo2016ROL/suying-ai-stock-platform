@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from kronos_factors.base import StrategyEngine, ScreeningResult
+from kronos_factors.engine.supply_chain_bom import score_company_v4
 
 logger = logging.getLogger("kronos-factors.supply_chain")
 
@@ -96,6 +97,59 @@ def _load_chains_config():
     except Exception as e:
         logger.warning("产业链配置加载失败 (%s), 使用内置默认", e)
     return _BUILTIN_CHAINS, _BUILTIN_LAYER_KW, _BUILTIN_MOAT_KW
+
+
+def load_upstream_influence_rules(path: str | Path | None = None) -> list[dict]:
+    """Load rules for upstream suppliers that influence strategic downstream chains."""
+    config_path = Path(path) if path else _CONFIG_PATH
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        logger.warning("上游影响规则加载失败 (%s), 返回空规则", e)
+        return []
+    rules = data.get("upstream_influence_rules", [])
+    return rules if isinstance(rules, list) else []
+
+
+def _contains_any(text: str, terms: list[str]) -> bool:
+    normalized = text.lower()
+    return any(str(term).strip().lower() in normalized for term in terms if str(term).strip())
+
+
+def match_upstream_influence_rules(
+    code: str,
+    name: str,
+    industry: str,
+    main_business: str,
+    rules: list[dict] | None = None,
+) -> list[dict]:
+    """Match a company to upstream influence paths without requiring same-sector membership."""
+    matches = []
+    rule_set = rules if rules is not None else load_upstream_influence_rules()
+    industry_text = str(industry or "")
+    search_text = " ".join([str(name or ""), industry_text, str(main_business or "")])
+    for rule in rule_set:
+        if not isinstance(rule, dict):
+            continue
+        industry_hit = _contains_any(industry_text, rule.get("industries") or [])
+        keyword_hit = _contains_any(search_text, rule.get("keywords") or [])
+        if not industry_hit and not keyword_hit:
+            continue
+
+        upstream_node = str(rule.get("upstream_node") or "上游使能节点")
+        downstream_chains = [str(item) for item in rule.get("downstream_chains", []) if item]
+        matches.append({
+            "candidate_source": "upstream_influence",
+            "pool_status": rule.get("pool_status") or "观察池",
+            "rule_id": rule.get("rule_id") or upstream_node,
+            "policy_theme": rule.get("policy_theme") or "新质生产力",
+            "upstream_node": upstream_node,
+            "impact_role": rule.get("impact_role") or "上游使能环节",
+            "downstream_chains": downstream_chains,
+            "influence_paths": [f"{name or code} → {upstream_node} → {chain}" for chain in downstream_chains],
+            "evidence_gaps": rule.get("evidence_gaps") or [],
+        })
+    return matches
 
 
 CHAINS, LAYER_KW, MOAT_KW = _load_chains_config()
@@ -300,15 +354,16 @@ class SupplyChainEngine(StrategyEngine):
         for p in sorted(picks, key=lambda x: -x["total_score"]):
             if p["code"] not in seen:
                 seen[p["code"]] = p
-        picks = sorted(seen.values(), key=lambda x: -x["total_score"])[:top_n]
+        picks = [score_company_v4(p) for p in seen.values()]
+        picks = sorted(picks, key=lambda x: -x["total_score"])[:top_n]
         elapsed = time.time() - t0
-        logger.info("产业链解构V3: %d picks, %d chains (%.1fs, trade_date=%s)",
+        logger.info("产业链解构V4: %d picks, %d chains (%.1fs, trade_date=%s)",
                     len(picks), len(set(p["chain"] for p in picks)), elapsed, trade_date)
         return ScreeningResult(
             mode=self.mode, picks=picks, total_scored=len(picks),
             total_excluded=0, elapsed=elapsed,
             metadata={"chains_run": list(chains_to_run.keys()), "trade_date": trade_date,
-                      "weights": self.weights},
+                      "weights": self.weights, "bom_model_version": "4.0"},
         )
 
     @staticmethod

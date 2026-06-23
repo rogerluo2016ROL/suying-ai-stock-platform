@@ -238,9 +238,18 @@ def _make_exit(reason, price, date, hold_offset, entry_price, entry_date):
 def get_adjusted_bars(db, code, signal_date, max_hold_days=10):
     """从 PG 读 signal_date 当日 + 之后 max_hold_days+1 交易日的原始 OHLC + adj_factor,
     返回后复权 bar 序列 (供 simulate_position 消费). DB 薄包装层. AC-1 Q-4 复权."""
+    # 复权因子 forward-fill: adj_factor 缺失某交易日时 (如 2026-06-17 全表缺口),
+    # 用该 code 此前最近一个非空 adj_factor 填充, 而非塌成 1.0. 复权因子单调缓慢变化,
+    # 缺一天填前值才连续; 若 fallback 1.0 会让后复权序列出现 -85% 假跳变,
+    # 误触发 stop_loss (data-defect-2026-06-17: 中际旭创/兆易创新畸形 -85% 亏损根因).
+    # 全无历史 adj_factor 时才退回 1.0 (新股/无复权数据, 与旧行为一致).
     rows = db.execute(
         "SELECT d.trade_date AS date, d.open, d.high, d.low, d.close, "
-        "COALESCE(a.adj_factor, 1.0) AS adj "
+        "COALESCE(a.adj_factor, "
+        "  (SELECT a2.adj_factor FROM adj_factor a2 "
+        "   WHERE a2.code = d.code AND a2.trade_date <= d.trade_date "
+        "   ORDER BY a2.trade_date DESC LIMIT 1), "
+        "  1.0) AS adj "
         "FROM daily_kline d LEFT JOIN adj_factor a "
         "ON a.code = d.code AND a.trade_date = d.trade_date "
         "WHERE d.code = ? AND d.trade_date >= ? "
