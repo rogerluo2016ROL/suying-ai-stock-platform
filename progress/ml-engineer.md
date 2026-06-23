@@ -364,3 +364,34 @@
 - a6bce3a M03 end_date 签名传播补提交（base/pg_adapter/_db_stub）
 - bd420d4 M03 test_pg_adapter_end_date.py 补提交
 - 1dc4c00 M15 params.py 提取 + test_m15_params_extraction.py
+
+---
+
+## FU-重跑 IC (task #14) M03/M06 修复后历史 IC 验证 — 2026-06-23
+
+**状态**: 已完成
+**Skills**: agf-running-sit-tests
+
+**SIT 证据**（PG docker-postgres-1 started, psycopg2 OK, 5645 stocks / 8.5M kline rows / 10.7M daily_basic, 1990-2026）:
+
+**M03（backtest get_kline end_date 防未来 K 线泄漏）— 修复有效 ✅**
+端到端重跑（batch_date=2020-06-01, lookback=400, 5 样本股 002386/000046/000038/002385/002382）:
+- BEFORE-fix（无 end_date）: 5/5 窗口末尾交易日晚于 batch_date **+1135~+2212 天**（未来 K 线泄漏）。002386 2020 batch 因子用 2024-10~2026-06 价格窗口算（窗口动量 +28.39%），而非真实的 2018-10~2020-06 窗口（-19.36%）——**符号反转为虚高**.
+- AFTER-fix（end_date=batch_date）: 5/5 窗口末尾 == batch_date ±0 天（**leak=0**）。002386 真实窗口动量 -19.36%.
+- 结论: M03 修复使历史因子计算不再用未来 K 线。**修复前历史 IC 数字全部失真（因子符号反转级偏差），不可信**。产物 outputs/m03_ic_rerun_2020-06-01.json
+
+**M06（group split purge/embargo 防横截面泄露）— 修复有效 ✅**
+合成 sliding-window 标签泄漏场景重跑（n_dates=200 × n_stocks=20, horizon=10, seed=3 确定性可复现）:
+- BEFORE-fix（朴素 split 同日跨集 + 无 embargo）: val_ic **+0.6009**, label_overlap_rate **0.275**（27.5% val 行相邻日期样本泄入 train → val 标签近 train 拷贝 → IC 虚高 ~4x）
+- AFTER-fix（_group_split_masks purge + horizon embargo）: val_ic **+0.1512**, label_overlap_rate **0.0**（embargo purge 掉重叠区间）
+- val_ic_drop **0.4497**（虚高部分 = 泄漏贡献），train_ic 不变（0.317→0.317，模型未变，纯 split 机制差异）
+- 结论: M06 修复使 val IC 反映真实泛化（非泄漏虚高）。**修复前 val IC 高估 ~4x**。产物 outputs/m06_val_ic_rerun.json
+
+**质量门**: M03/M06 单测层（test_pg_adapter_end_date 3p / _group_split_masks overlap 断言）先前已绿，本次端到端重跑补齐"实际 IC 数字变化"证据，方向与修复预期一致（M03 因子符号反转级失真修正 / M06 val IC 降 4x）.
+
+**下一步**: M03/M06 follow-up 收口。历史 IC 全部需基于修复后口径重算（之前任何"历史 IC 0.xx"对外陈述作废）。关联 [[phase1-sample-out-conclusion]] bi_trend 样本外 -1.157%/月结论不受影响（walk_forward 用的是 HEAD 策略 + 真实未来收益对比，非 backtest engine 历史因子 IC 路径）.
+
+**产物**:
+- packages/kronos-factors/outputs/m03_ic_rerun.py + m03_ic_rerun_2020-06-01.json
+- services/training-service/outputs/m06_val_ic_rerun.py + m06_val_ic_rerun.json
+- （outputs/ gitignored，脚本与 JSON 不 commit；progress 段单独 commit）
