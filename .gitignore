@@ -56,3 +56,6 @@ docker/.env.*
 .codex/
 **/tsconfig.tsbuildinfo
 services/training-service/outputs/
+
+# kronos-factors 运行产物（ml-engineer-2 重跑 IC follow-up 产物）
+packages/kronos-factors/outputs/
