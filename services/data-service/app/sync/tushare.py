@@ -4,7 +4,7 @@ import logging, sqlite3, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 
-from app.config import TUSHARE_TOKEN, DB_PATH, THREAD_POOL_SIZE
+from app.config import TUSHARE_TOKEN, DB_PATH, SQLITE_FALLBACK_ENABLED, THREAD_POOL_SIZE
 from app.sync.rate_limiter import rate_limit
 
 logger = logging.getLogger("data-service.tushare")
@@ -30,7 +30,7 @@ def sync_daily_kline(trade_date: str) -> dict:
     pro = _get_pro()
     tushare_date = trade_date.replace("-", "")
     t0 = time.time()
-    db = sqlite3.connect(DB_PATH)
+    db = sqlite3.connect(DB_PATH) if SQLITE_FALLBACK_ENABLED else None
 
     all_rows = []
     for page in range(10):
@@ -45,7 +45,7 @@ def sync_daily_kline(trade_date: str) -> dict:
                              r.get("vol"), r.get("amount")))
             # 同步 pre_close (best-effort)
             pc = r.get("pre_close")
-            if pc and pc > 0:
+            if db is not None and pc and pc > 0:
                 try:
                     db.execute("UPDATE stk_limit SET pre_close=? WHERE code=? AND trade_date=? AND pre_close=0",
                                (pc, code, trade_date))
@@ -62,15 +62,16 @@ def sync_daily_kline(trade_date: str) -> dict:
             logger.debug("PG write daily_kline skipped: %s", e)
 
     # SQLite 写入 (fallback)
-    try:
-        db.executemany(
-            "INSERT OR REPLACE INTO daily_kline(code,trade_date,open,high,low,close,volume,amount) "
-            "VALUES(?,?,?,?,?,?,?,?)", all_rows)
-        db.commit()
-    except Exception as e:
-        logger.warning("SQLite write daily_kline failed: %s", e)
-    finally:
-        db.close()
+    if SQLITE_FALLBACK_ENABLED and db is not None:
+        try:
+            db.executemany(
+                "INSERT OR REPLACE INTO daily_kline(code,trade_date,open,high,low,close,volume,amount) "
+                "VALUES(?,?,?,?,?,?,?,?)", all_rows)
+            db.commit()
+        except Exception as e:
+            logger.warning("SQLite write daily_kline failed: %s", e)
+        finally:
+            db.close()
 
     return {"table": "daily_kline", "written": len(all_rows), "pg_written": pg_written, "elapsed": time.time() - t0}
 
@@ -125,7 +126,6 @@ def sync_post_market_core(trade_date: str) -> dict:
     results["daily_kline"] = sync_daily_kline(trade_date)
 
     # moneyflow + stk_limit in parallel
-    db = sqlite3.connect(DB_PATH)
     pro = _get_pro()
     tushare_date = trade_date.replace("-", "")
 
@@ -158,8 +158,6 @@ def sync_post_market_core(trade_date: str) -> dict:
         results["moneyflow"] = mf_result
         results["stk_limit"] = sl_result
 
-    db.close()
-
     # PG 直写 moneyflow + stk_limit (主路径)
     if mf_rows:
         try:
@@ -177,7 +175,7 @@ def sync_post_market_core(trade_date: str) -> dict:
             logger.debug("PG write stk_limit skipped: %s", e)
 
     # SQLite 写入 moneyflow + stk_limit (fallback)
-    if mf_rows:
+    if SQLITE_FALLBACK_ENABLED and mf_rows:
         try:
             mf_db = sqlite3.connect(DB_PATH)
             mf_cols = ["code", "trade_date", "buy_sm_amount", "sell_sm_amount",
@@ -187,7 +185,7 @@ def sync_post_market_core(trade_date: str) -> dict:
             mf_db.commit(); mf_db.close()
         except Exception as e:
             logger.warning("SQLite write moneyflow failed: %s", e)
-    if sl_rows:
+    if SQLITE_FALLBACK_ENABLED and sl_rows:
         try:
             sl_db = sqlite3.connect(DB_PATH)
             sl_cols = ["code", "trade_date", "up_limit", "down_limit", "pre_close"]
@@ -219,7 +217,7 @@ def sync_post_market_core(trade_date: str) -> dict:
             logger.debug("PG write index_daily skipped: %s", e)
 
     # SQLite 写入 index_daily (fallback)
-    if idx_rows:
+    if SQLITE_FALLBACK_ENABLED and idx_rows:
         try:
             db2 = sqlite3.connect(DB_PATH)
             for row in idx_rows:
@@ -258,7 +256,7 @@ def sync_post_market_ext(trade_date: str) -> dict:
                 logger.debug("PG write %s skipped: %s", table, e)
         r["pg_written"] = pg_wr
         # SQLite 写入 (fallback)
-        if rows:
+        if SQLITE_FALLBACK_ENABLED and rows:
             try:
                 db3 = sqlite3.connect(DB_PATH)
                 placeholders = ",".join(["?"] * len(cols))
@@ -292,15 +290,16 @@ def sync_post_market_ext(trade_date: str) -> dict:
             logger.debug("PG write limit_list_d skipped: %s", e)
 
         # SQLite 写入 limit_list_d (fallback)
-        try:
-            db = sqlite3.connect(DB_PATH)
-            db.execute("DELETE FROM limit_list_d WHERE trade_date=?", (trade_date.replace("-", ""),))
-            for row in limit_rows:
-                db.execute("INSERT INTO limit_list_d(trade_date,ts_code,name,close,pct_chg,amount,float_mv,turnover_ratio,fd_amount,first_time,last_time,open_times,up_stat,limit_times) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                           row)
-            db.commit(); db.close()
-        except Exception as e:
-            logger.warning("SQLite write limit_list_d failed: %s", e)
+        if SQLITE_FALLBACK_ENABLED:
+            try:
+                db = sqlite3.connect(DB_PATH)
+                db.execute("DELETE FROM limit_list_d WHERE trade_date=?", (trade_date.replace("-", ""),))
+                for row in limit_rows:
+                    db.execute("INSERT INTO limit_list_d(trade_date,ts_code,name,close,pct_chg,amount,float_mv,turnover_ratio,fd_amount,first_time,last_time,open_times,up_stat,limit_times) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                               row)
+                db.commit(); db.close()
+            except Exception as e:
+                logger.warning("SQLite write limit_list_d failed: %s", e)
         results["limit_list_d"] = {"table": "limit_list_d", "written": len(df), "pg_written": pg_lim}
     else:
         results["limit_list_d"] = {"table": "limit_list_d", "written": 0}

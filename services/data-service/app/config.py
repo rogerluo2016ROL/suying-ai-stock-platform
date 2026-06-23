@@ -16,6 +16,7 @@ SCHEDULES = {
 DB_PATH = os.environ.get("KRONOS_DB_PATH", os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))))), "Kronos", "webui", "stock_screening.db"))
+SQLITE_FALLBACK_ENABLED = os.environ.get("DATA_SQLITE_FALLBACK", "false").lower() in {"1", "true", "yes", "on"}
 
 # ── Redis ──
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:7379/0")
