@@ -1,0 +1,462 @@
+{
+  "generated_at": "2026-06-24T12:08:05.130173+00:00",
+  "model_version": "supply_chain_bom_v5",
+  "git_commit": "33bbbc3b1f9f7c35f7bb2317c97d4f4e047f81c5",
+  "universe": {
+    "mode": "cutoff_rebuilt_cache",
+    "size": 4,
+    "codes": [
+      "002472",
+      "002896",
+      "300503",
+      "688017"
+    ]
+  },
+  "bias_warnings": [
+    "公司-节点-主营占比已按cutoff从缓存主营表重建，但缓存覆盖范围仍决定候选宇宙上限；若缓存不是全市场，仍不能等同全市场选股能力。"
+  ],
+  "inputs": {
+    "fina_indicator.csv": {
+      "path": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_bom_smoke/fina_indicator.csv",
+      "sha256": "c58f05dd523977b0667ebebf1695d882a824fd23149ef12a5f38cc43555acf3d",
+      "size_bytes": 50969
+    },
+    "forecast.csv": {
+      "path": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_bom_smoke/forecast.csv",
+      "sha256": "cf176b25909dc30964d2640f4c00dada3271cf42aaa2c843f20a4d9772a2f6b3",
+      "size_bytes": 17396
+    },
+    "irm_qa.csv": {
+      "path": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_bom_smoke/irm_qa.csv",
+      "sha256": "ea5ddea691c688ba5f1172840fcc1123bb099e2c2cafb964944917b8f95f1074",
+      "size_bytes": 443355
+    },
+    "research_report.csv": {
+      "path": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_bom_smoke/research_report.csv",
+      "sha256": "21768e5b5eb967f12e2fbb35dc460ff65e94214552ae33e12a3df249db3e230b",
+      "size_bytes": 38749
+    },
+    "fina_mainbz.csv": {
+      "path": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_bom_smoke/fina_mainbz.csv",
+      "sha256": "771e48be9667874535d957a09cc5460643e52c67d0cf2b6acc8deddb07ed2b0b",
+      "size_bytes": 77158
+    }
+  },
+  "config": {
+    "horizons": [
+      10,
+      20
+    ],
+    "train_range": [
+      "2025-01",
+      "2025-09"
+    ],
+    "test_range": [
+      "2025-10",
+      "2026-05"
+    ],
+    "cutoff_frequency": "month_end",
+    "score_cutoff_rule": "financial/forecast ann_date<=cutoff, QA/research trade_date<=cutoff",
+    "universe_rule": "cutoff_rebuilt_cache",
+    "cache_dir": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_bom_smoke",
+    "require_visible_evidence": false,
+    "min_valid": 3,
+    "forward_return_source": "daily_kline close-to-close"
+  },
+  "results": {
+    "train_h10": {
+      "label": "train h10",
+      "n": 9,
+      "mean_rank_ic": 0.0,
+      "std": 0.0,
+      "icir": 0.0,
+      "p": NaN,
+      "per_cutoff": [
+        {
+          "cutoff": "2025-01-31",
+          "cutoff_td": "2025-01-27",
+          "future_td": "2025-02-18",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-02-28",
+          "cutoff_td": "2025-02-28",
+          "future_td": "2025-03-14",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-03-31",
+          "cutoff_td": "2025-03-31",
+          "future_td": "2025-04-15",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-04-30",
+          "cutoff_td": "2025-04-30",
+          "future_td": "2025-05-19",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-05-31",
+          "cutoff_td": "2025-05-30",
+          "future_td": "2025-06-16",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-06-30",
+          "cutoff_td": "2025-06-30",
+          "future_td": "2025-07-14",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-07-31",
+          "cutoff_td": "2025-07-31",
+          "future_td": "2025-08-14",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-08-31",
+          "cutoff_td": "2025-08-29",
+          "future_td": "2025-09-12",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-09-30",
+          "cutoff_td": "2025-09-30",
+          "future_td": "2025-10-22",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        }
+      ],
+      "observed_codes": [
+        "002472",
+        "002896",
+        "300503",
+        "688017"
+      ]
+    },
+    "test_h10": {
+      "label": "test h10",
+      "n": 8,
+      "mean_rank_ic": 0.0,
+      "std": 0.0,
+      "icir": 0.0,
+      "p": NaN,
+      "per_cutoff": [
+        {
+          "cutoff": "2025-10-31",
+          "cutoff_td": "2025-10-31",
+          "future_td": "2025-11-14",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-11-30",
+          "cutoff_td": "2025-11-28",
+          "future_td": "2025-12-12",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-12-31",
+          "cutoff_td": "2025-12-31",
+          "future_td": "2026-01-16",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2026-01-31",
+          "cutoff_td": "2026-01-30",
+          "future_td": "2026-02-13",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2026-02-28",
+          "cutoff_td": "2026-02-27",
+          "future_td": "2026-03-13",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2026-03-31",
+          "cutoff_td": "2026-03-31",
+          "future_td": "2026-04-15",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2026-04-30",
+          "cutoff_td": "2026-04-30",
+          "future_td": "2026-05-19",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2026-05-31",
+          "cutoff_td": "2026-05-29",
+          "future_td": "2026-06-12",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        }
+      ],
+      "observed_codes": [
+        "002472",
+        "002896",
+        "300503",
+        "688017"
+      ]
+    },
+    "train_h20": {
+      "label": "train h20",
+      "n": 9,
+      "mean_rank_ic": 0.0,
+      "std": 0.0,
+      "icir": 0.0,
+      "p": NaN,
+      "per_cutoff": [
+        {
+          "cutoff": "2025-01-31",
+          "cutoff_td": "2025-01-27",
+          "future_td": "2025-03-04",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-02-28",
+          "cutoff_td": "2025-02-28",
+          "future_td": "2025-03-28",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-03-31",
+          "cutoff_td": "2025-03-31",
+          "future_td": "2025-04-29",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-04-30",
+          "cutoff_td": "2025-04-30",
+          "future_td": "2025-06-03",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-05-31",
+          "cutoff_td": "2025-05-30",
+          "future_td": "2025-06-30",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-06-30",
+          "cutoff_td": "2025-06-30",
+          "future_td": "2025-07-28",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-07-31",
+          "cutoff_td": "2025-07-31",
+          "future_td": "2025-08-28",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-08-31",
+          "cutoff_td": "2025-08-29",
+          "future_td": "2025-09-26",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-09-30",
+          "cutoff_td": "2025-09-30",
+          "future_td": "2025-11-05",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        }
+      ],
+      "observed_codes": [
+        "002472",
+        "002896",
+        "300503",
+        "688017"
+      ]
+    },
+    "test_h20": {
+      "label": "test h20",
+      "n": 7,
+      "mean_rank_ic": 0.0,
+      "std": 0.0,
+      "icir": 0.0,
+      "p": NaN,
+      "per_cutoff": [
+        {
+          "cutoff": "2025-10-31",
+          "cutoff_td": "2025-10-31",
+          "future_td": "2025-11-28",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-11-30",
+          "cutoff_td": "2025-11-28",
+          "future_td": "2025-12-26",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2025-12-31",
+          "cutoff_td": "2025-12-31",
+          "future_td": "2026-01-30",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2026-01-31",
+          "cutoff_td": "2026-01-30",
+          "future_td": "2026-03-09",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2026-02-28",
+          "cutoff_td": "2026-02-27",
+          "future_td": "2026-03-27",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2026-03-31",
+          "cutoff_td": "2026-03-31",
+          "future_td": "2026-04-29",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        },
+        {
+          "cutoff": "2026-04-30",
+          "cutoff_td": "2026-04-30",
+          "future_td": "2026-06-02",
+          "universe_size": 4,
+          "n": 4,
+          "rank_ic": 0,
+          "ic": 0,
+          "hit": 0
+        }
+      ],
+      "observed_codes": [
+        "002472",
+        "002896",
+        "300503",
+        "688017"
+      ]
+    }
+  }
+}

@@ -169,13 +169,30 @@ def get_unified_snapshot(db, trade_date, time_slot="14:30"):
 # ── 保留的原始函数 (不依赖 daily_kline 今日数据) ──
 
 def get_pre_close(db, code, trade_date):
-    """获取前日收盘价."""
+    """获取前日收盘价.
+
+    优先级: stk_limit.pre_close > stk_auction_o.close > daily_kline.close
+    stk_auction_o.close 是 Tushare 新 API 的 pre_close 字段，
+    当日 9:25 即可用，比 daily_kline (T+1 盘后) 更及时。
+    """
+    # Path 1: stk_limit (最权威的昨收价)
     row = db.execute(
         "SELECT pre_close FROM stk_limit WHERE code=? AND trade_date=?",
         (code, trade_date)
     ).fetchone()
-    if row and row["pre_close"] and row["pre_close"] > 0:
+    if row and row["pre_close"] and float(row["pre_close"]) > 0:
         return float(row["pre_close"])
+    # Path 2: stk_auction_o.close = pre_close (当日 9:25 可用，比 daily_kline 及时)
+    try:
+        row = db.execute(
+            "SELECT close FROM stk_auction_o WHERE code=? AND trade_date=? AND close > 0",
+            (code, trade_date)
+        ).fetchone()
+        if row and row["close"] and float(row["close"]) > 0:
+            return float(row["close"])
+    except Exception:
+        pass
+    # Path 3: daily_kline (T+1 盘后才有，可能滞后一天)
     row = db.execute(
         "SELECT close FROM daily_kline WHERE code=? AND trade_date < ? "
         "ORDER BY trade_date DESC LIMIT 1",
@@ -753,28 +770,50 @@ def run_afternoon_screening(trade_date, time_slot="14:30", top_n=20, env_check=T
         mode_icon = "📡" if snap_mode == "live" else "📜"
         print(f"  {mode_icon} 快照({snap_mode}): {len(snapshot)} 只 ({time.time()-t0:.1f}s)")
 
-        # ── pre_close from daily_kline (Tushare stk_limit has no pre_close!) ──
+        # ── pre_close: 多源回退 (stk_auction_o → daily_kline) ──
+        # daily_kline 是 T+1 盘后才有，当天需从 stk_auction_o.close (即 pre_close) 获取
         pre_closes = {}
+        snapshot_codes = list(snapshot.keys())
+        batch_size = 1000
+        for i in range(0, len(snapshot_codes), batch_size):
+            batch = snapshot_codes[i:i+batch_size]
+            placeholders = ",".join(["?"] * len(batch))
+            # Path 1: stk_auction_o.close = 昨收价 (当日 9:25 即可用)
+            try:
+                a_rows = db.execute(
+                    f"SELECT code, close FROM stk_auction_o WHERE trade_date=? AND code IN ({placeholders}) AND close > 0",
+                    [trade_date] + batch
+                ).fetchall()
+                for r in a_rows:
+                    code = r["code"] or r.get("ts_code", "")
+                    if code and code not in pre_closes and float(r["close"] or 0) > 0:
+                        pre_closes[code] = float(r["close"])
+            except Exception:
+                pass
+        print(f"  📊 pre_close from stk_auction_o({trade_date}): {len(pre_closes)} 只")
+        # Path 2: daily_kline last close (T+1 fallback for any missing codes)
         prev_row = db.execute(
             "SELECT MAX(trade_date) as pd FROM daily_kline WHERE trade_date < ?", (trade_date,)
         ).fetchone()
         if prev_row:
             prev_d = prev_row["pd"] if isinstance(prev_row, dict) else prev_row[0]
             prev_d_str = prev_d.strftime("%Y-%m-%d") if hasattr(prev_d, 'strftime') else str(prev_d)[:10]
-            snapshot_codes = list(snapshot.keys())
-            batch_size = 1000
             for i in range(0, len(snapshot_codes), batch_size):
                 batch = snapshot_codes[i:i+batch_size]
                 placeholders = ",".join(["?"] * len(batch))
+                missing = [c for c in batch if c not in pre_closes]
+                if not missing:
+                    continue
+                m_placeholders = ",".join(["?"] * len(missing))
                 prev_rows = db.execute(
-                    f"SELECT code, close FROM daily_kline WHERE trade_date=? AND code IN ({placeholders})",
-                    [prev_d_str] + batch
+                    f"SELECT code, close FROM daily_kline WHERE trade_date=? AND code IN ({m_placeholders})",
+                    [prev_d_str] + missing
                 ).fetchall()
                 for r in prev_rows:
                     code = r["code"] or r.get("ts_code", "")
-                    if code:
+                    if code and code not in pre_closes:
                         pre_closes[code] = float(r["close"] or 0)
-            print(f"  📊 pre_close from daily_kline({prev_d_str}): {len(pre_closes)} 只")
+            print(f"  📊 pre_close from daily_kline({prev_d_str}): {len(pre_closes)} 只 (含回退)")
 
         # ── 方案B: 实时涨停检测 (替代 limit_list_d) ──
         limit_info = detect_intraday_limits(db, trade_date, snapshot, pre_closes)

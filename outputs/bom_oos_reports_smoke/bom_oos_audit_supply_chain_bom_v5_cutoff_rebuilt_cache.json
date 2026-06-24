@@ -1,0 +1,94 @@
+{
+  "generated_at": "2026-06-24T09:21:01.990931+00:00",
+  "model_version": "supply_chain_bom_v5",
+  "git_commit": "1365da1bbbd88a05ec545e330f5e89e8c34f7b95",
+  "universe": {
+    "mode": "cutoff_rebuilt_cache",
+    "size": 0,
+    "codes": []
+  },
+  "bias_warnings": [
+    "公司-节点-主营占比已按cutoff从缓存主营表重建，但缓存覆盖范围仍决定候选宇宙上限；若缓存不是全市场，仍不能等同全市场选股能力。"
+  ],
+  "inputs": {
+    "fina_indicator.csv": {
+      "path": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_smoke/fina_indicator.csv",
+      "sha256": "6bf845849ebf1dd94d6723cd1e1e1f6e8ddbbe916dd8390ee5cdcedb94ad62fe",
+      "size_bytes": 43407
+    },
+    "forecast.csv": {
+      "path": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_smoke/forecast.csv",
+      "sha256": "fe1c27bc00db8d3265642179885e49944adf42c60dfa08b7ecd1f1911309d182",
+      "size_bytes": 24575
+    },
+    "irm_qa.csv": {
+      "path": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_smoke/irm_qa.csv",
+      "sha256": "30c8a71195eda79818dcb8111e1268334fc4149e2dbe13770c3b890f9156eda8",
+      "size_bytes": 699700
+    },
+    "research_report.csv": {
+      "path": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_smoke/research_report.csv",
+      "sha256": "4aa6c34990a3e5520d3d1a463f438b7aa3c176ab80cc4326963bd846f9898764",
+      "size_bytes": 13163
+    },
+    "fina_mainbz.csv": {
+      "path": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_smoke/fina_mainbz.csv",
+      "sha256": "94e20f769a4bd6c78b968880a7b447b3dc587ce1199fe0b4c9017f9f4a18bda1",
+      "size_bytes": 148580
+    }
+  },
+  "config": {
+    "horizons": [
+      10,
+      20
+    ],
+    "train_range": [
+      "2025-01",
+      "2025-09"
+    ],
+    "test_range": [
+      "2025-10",
+      "2026-05"
+    ],
+    "cutoff_frequency": "month_end",
+    "score_cutoff_rule": "financial/forecast ann_date<=cutoff, QA/research trade_date<=cutoff",
+    "universe_rule": "cutoff_rebuilt_cache",
+    "cache_dir": "/Users/rogerluo/程序目录/K线大模型/outputs/bom_oos_cache_smoke",
+    "require_visible_evidence": false,
+    "forward_return_source": "daily_kline close-to-close"
+  },
+  "results": {
+    "train_h10": {
+      "label": "train h10",
+      "n": 0,
+      "mean_rank_ic": 0,
+      "p": 1,
+      "per_cutoff": [],
+      "observed_codes": []
+    },
+    "test_h10": {
+      "label": "test h10",
+      "n": 0,
+      "mean_rank_ic": 0,
+      "p": 1,
+      "per_cutoff": [],
+      "observed_codes": []
+    },
+    "train_h20": {
+      "label": "train h20",
+      "n": 0,
+      "mean_rank_ic": 0,
+      "p": 1,
+      "per_cutoff": [],
+      "observed_codes": []
+    },
+    "test_h20": {
+      "label": "test h20",
+      "n": 0,
+      "mean_rank_ic": 0,
+      "p": 1,
+      "per_cutoff": [],
+      "observed_codes": []
+    }
+  }
+}

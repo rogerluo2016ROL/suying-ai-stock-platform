@@ -9,7 +9,7 @@ const { Title, Text } = Typography
 export default function Screener() {
   const navigate = useNavigate()
   const [modes, setModes] = useState<any[]>([])
-  const [mode, setMode] = useState('leader_scalp')
+  const [mode, setMode] = useState('leader_auction')
   const [topN, setTopN] = useState(20)
   const [loading, setLoading] = useState(false)
   const [picks, setPicks] = useState<any[]>([])
