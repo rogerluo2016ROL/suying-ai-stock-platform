@@ -2114,6 +2114,8 @@ def generate_bi_plan(picks, market_regime="neutral"):
             pos = f"{max(3, pos_val // 2)}%"  # 弱市仓位减半, 最低3%
             action = " " + action  # 快进快出标记
 
+        hard_tech_track = (s.get("hard_tech") or {}).get("track") or s.get("hard_tech_track", "")
+
         # 提示标签
         tips = []
         if is_fast_market: tips.append(' 快进快出')
@@ -2121,7 +2123,7 @@ def generate_bi_plan(picks, market_regime="neutral"):
         if is_dead_cat: tips.append(' 中继')
         if s.get("_fresh"): tips.append(' 新鲜')
         if s.get("rebound_strength_bonus", 0) > 0: tips.append(' 强反弹')
-        if s.get("hard_tech_track"): tips.append(f' {s["hard_tech_track"]}')
+        if hard_tech_track: tips.append(f' {hard_tech_track}')
         if s.get("chokepoint_score", 0) >= 2: tips.append(' 稀缺')
         elif s.get("chokepoint_score", 0) >= 1: tips.append(' 寡头')
 
@@ -2138,7 +2140,7 @@ def generate_bi_plan(picks, market_regime="neutral"):
             "close": s["close"],
             "chase_warning": is_chase, "dead_cat": is_dead_cat,
             "fresh_pullback": s.get("_fresh", False),
-            "hard_tech_track": s.get("hard_tech_track", ""),
+            "hard_tech_track": hard_tech_track,
             "chokepoint_score": s.get("chokepoint_score", 0),
             "tips": ','.join(tips) if tips else '',
             "sell_rules": sell_rules,

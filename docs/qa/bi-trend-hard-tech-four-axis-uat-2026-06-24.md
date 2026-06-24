@@ -93,8 +93,9 @@ http://127.0.0.1:3002/screener
 |---|---|---|
 | 永鼎股份被归到半导体 core | 硬科技文本证据可能过宽，通信、航天、芯片词共现时会推高赛道层级 | 下一轮收窄 track 判定，区分主业证据和泛关键词 |
 | 评分仍可能奖励趋势末端票 | `late_rebound` 已能降分并解释，但部分高分票仍处于高位 | 增加真实样本复核和 OOS 质量对比 |
-| execution plan 仍展示旧 `hard_tech_track` | picks 主体已是新结构，execution plan 的摘要字段还保留旧赛道 | 后续统一 execution plan 摘要字段 |
 | 真实 UAT 认证服务不可控 | 19001 可能不是可登录 mock，浏览器验证需要可用账号或 mock auth | 保留 `dev:uat`，必要时单独启动 mock auth |
+
+已补充回归测试 `test_generate_bi_plan_uses_refined_hard_tech_track`，执行计划现在优先使用 `hard_tech.track`，旧 `hard_tech_track` 只作为 fallback。
 
 ## 8. 下一步
 
