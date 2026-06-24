@@ -64,6 +64,22 @@ def test_hard_tech_conviction_uses_evidence_text_to_refine_track():
     assert "算力" in result["matched_keywords"]
 
 
+def test_hard_tech_conviction_avoids_single_chip_keyword_overriding_communication():
+    from kronos_factors.engine.bi_trend_launch import _score_hard_tech_conviction
+
+    result = _score_hard_tech_conviction(
+        industry="通信设备",
+        hard_tech_track="通信",
+        chokepoint_score=0,
+        peer_count=131,
+        evidence_text="公司深耕光纤通信和特种通信，航空航天配套产品中使用部分芯片。",
+    )
+
+    assert result["track"] == "通信"
+    assert result["tier"] == "strategic"
+    assert result["score_adj"] <= 2
+
+
 def test_scored_pick_contains_explanation_fields():
     from kronos_factors.engine.bi_trend_launch import _score_bi_trend_arrays
 

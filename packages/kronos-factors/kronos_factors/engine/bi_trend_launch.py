@@ -146,6 +146,24 @@ def calc_adx(highs, lows, closes, period=14):
 
 #    V5.8: 硬科技 + 卡脖子辅助函数   
 
+HARD_TECH_TRACK_KEYWORDS = (
+    ("AI算力", ("算力", "光模块", "服务器", "GPU", "CPO", "HBM", "数据中心", "智算", "光互连")),
+    ("半导体", ("半导体", "芯片", "集成电路", "晶圆", "光刻", "EDA", "封装", "碳化硅")),
+    ("机器人", ("机器人", "伺服", "减速器", "具身智能")),
+    ("锂电储能", ("锂电池", "锂电", "储能", "固态电池", "逆变器", "充电桩")),
+    ("信创国产", ("信创", "国产替代", "工业软件", "操作系统")),
+    ("低空经济", ("无人机", "eVTOL", "低空", "卫星")),
+    ("显示面板", ("OLED", "面板", "MLED")),
+    ("通信", ("通信", "5G", "光通信", "光纤")),
+    ("新材料", ("新材料", "碳纤维", "稀土")),
+    ("医药生物", ("创新药", "医疗器械", "生物")),
+    ("军工", ("军工", "航空", "航天")),
+    ("工业母机", ("数控", "精密制造")),
+)
+
+GENERIC_CORE_EVIDENCE_KEYWORDS = {"芯片"}
+
+
 def _is_hard_tech_stock(industry: str) -> bool:
     """判断行业是否为硬科技赛道 (纯字符串匹配, 无DB依赖)."""
     if not industry:
@@ -157,27 +175,23 @@ def _get_hard_tech_track(industry: str) -> str:
     """返回匹配的硬科技赛道名 用于展示."""
     if not industry:
         return ""
-    _TRACK_MAP = {
-        "算力": "AI算力", "光模块": "AI算力", "服务器": "AI算力", "GPU": "AI算力",
-        "CPO": "AI算力", "HBM": "AI算力", "数据中心": "AI算力", "智算": "AI算力",
-        "半导体": "半导体", "芯片": "半导体", "集成电路": "半导体", "晶圆": "半导体",
-        "光刻": "半导体", "EDA": "半导体", "封装": "半导体", "碳化硅": "半导体",
-        "机器人": "机器人", "伺服": "机器人", "减速器": "机器人", "具身智能": "机器人",
-        "锂电池": "锂电储能", "锂电": "锂电储能", "储能": "锂电储能", "固态电池": "锂电储能",
-        "逆变器": "锂电储能", "充电桩": "锂电储能",
-        "信创": "信创国产", "国产替代": "信创国产", "工业软件": "信创国产", "操作系统": "信创国产",
-        "无人机": "低空经济", "eVTOL": "低空经济", "低空": "低空经济", "卫星": "低空经济",
-        "OLED": "显示面板", "面板": "显示面板", "MLED": "显示面板",
-        "通信": "通信", "5G": "通信", "光通信": "通信",
-        "新材料": "新材料", "碳纤维": "新材料", "稀土": "新材料",
-        "创新药": "医药生物", "医疗器械": "医药生物", "生物": "医药生物",
-        "军工": "军工", "航空": "军工",
-        "数控": "工业母机", "精密制造": "工业母机",
-    }
-    for kw, track in _TRACK_MAP.items():
-        if kw in industry:
+    for track, keywords in HARD_TECH_TRACK_KEYWORDS:
+        if any(kw in industry for kw in keywords):
             return track
     return "硬科技"
+
+
+def _matched_keywords_for_track(track: str, text: str) -> list[str]:
+    for track_name, keywords in HARD_TECH_TRACK_KEYWORDS:
+        if track_name == track:
+            return [kw for kw in keywords if kw in text]
+    return []
+
+
+def _has_confident_evidence_track(track: str, evidence_text: str) -> bool:
+    keywords = _matched_keywords_for_track(track, evidence_text)
+    strong_keywords = [kw for kw in keywords if kw not in GENERIC_CORE_EVIDENCE_KEYWORDS]
+    return bool(strong_keywords) or len(keywords) >= 2
 
 
 def _get_industry_peers(db) -> dict:
@@ -895,7 +909,7 @@ def _score_hard_tech_conviction(industry: str, hard_tech_track: str = "",
     base_track = hard_tech_track or _get_hard_tech_track(industry or "")
     evidence_track = _get_hard_tech_track(evidence_text or "") if evidence_text else ""
     if evidence_track in core_tracks and base_track not in core_tracks:
-        track = evidence_track
+        track = evidence_track if _has_confident_evidence_track(evidence_track, evidence_text) else base_track
     elif evidence_track and not base_track:
         track = evidence_track
     else:
