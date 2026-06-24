@@ -762,6 +762,7 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
             #    V5.8: 硬科技赛道 + 卡脖子稀缺性   
             hard_tech_track = ""
             chokepoint_score = 0
+            peer_count = None
             if hard_tech_only:
                 hard_tech_track = _get_hard_tech_track(industry)
                 peer_count = industry_peers.get(industry, 99)
@@ -776,6 +777,8 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
                 sector_change=sector_change,
                 hard_tech_track=hard_tech_track,
                 chokepoint_score=chokepoint_score,
+                peer_count=peer_count,
+                market_regime=regime,
             )
             if result:
                 scores.append(result)
@@ -841,8 +844,161 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     return top, scores, market_info
 
 
+def _score_hard_tech_conviction(industry: str, hard_tech_track: str = "",
+                                chokepoint_score: int = 0,
+                                peer_count: int | None = None) -> dict:
+    """Score hard-tech track strength with stable explanation fields."""
+    text = industry or ""
+    matched_keywords = [kw for kw in HARD_TECH_INDUSTRY_KW if kw and kw in text]
+    track = hard_tech_track or _get_hard_tech_track(text)
+
+    core_tracks = {"AI算力", "半导体", "机器人", "低空经济", "信创国产", "工业母机"}
+    strategic_tracks = {"锂电储能", "新材料", "军工", "通信", "医药生物", "显示面板"}
+    if track in core_tracks:
+        tier = "core"
+        base_score = 4
+    elif track in strategic_tracks:
+        tier = "strategic"
+        base_score = 2
+    else:
+        tier = "broad"
+        base_score = 1 if (track or matched_keywords) else 0
+
+    scarcity = min(2, max(0, int(chokepoint_score or 0)))
+    score_adj = min(6, base_score + scarcity)
+
+    if peer_count is not None and peer_count <= 3:
+        chokepoint_level = "scarce"
+        chokepoint_reason = "同行数 <= 3，赛道供给稀缺"
+    elif peer_count is not None and peer_count <= 8:
+        chokepoint_level = "oligopoly"
+        chokepoint_reason = "同行数 <= 8，赛道供给集中"
+    else:
+        chokepoint_level = "normal"
+        chokepoint_reason = "同行数量未触发稀缺加分"
+
+    if track:
+        conviction_reason = f"{track}{tier}赛道"
+    elif matched_keywords:
+        conviction_reason = "硬科技关键词匹配"
+    else:
+        conviction_reason = "未识别为核心硬科技赛道"
+
+    return {
+        "score_adj": score_adj,
+        "track": track or "",
+        "tier": tier,
+        "matched_keywords": matched_keywords,
+        "conviction_reason": conviction_reason,
+        "chokepoint_level": chokepoint_level,
+        "peer_count": peer_count,
+        "chokepoint_reason": chokepoint_reason,
+    }
+
+
+def _build_bi_trend_explanation(factor_breakdown: dict, quality_flags: list[str],
+                                risk_flags: list[str], power_flags: list[str],
+                                hard_tech: dict) -> dict:
+    """Build stable explanation fields for API/UI consumers."""
+    reasons = []
+    if power_flags:
+        reasons.append("启动信号: " + "、".join(power_flags[:3]))
+    if hard_tech.get("track"):
+        reasons.append(
+            f"硬科技: {hard_tech['track']}({hard_tech.get('tier', 'broad')})"
+        )
+    if risk_flags:
+        reasons.append("风险: " + "、".join(risk_flags[:3]))
+
+    return {
+        "factor_breakdown": factor_breakdown,
+        "entry_reason": "；".join(reasons) if reasons else "趋势启动候选",
+        "quality_flags": quality_flags,
+        "risk_flags": risk_flags,
+        "hard_tech": hard_tech,
+    }
+
+
+def _score_startup_quality(regime: str = "neutral", daily_gain: float = 0.0,
+                           two_day_up: bool = False, wr_now: float = 50.0,
+                           ret_5d: float = 0.0, ma20_extension_penalty: int = 0,
+                           distribution_penalty: int = 0, annual_vol: float = 0.0,
+                           vol_regime: str = "normal", weekly_bearish: bool = False,
+                           dead_cat: bool = False) -> dict:
+    """Score false-start risk without removing candidates outright."""
+    score_adj = 0
+    quality_flags = []
+    risk_flags = []
+
+    if regime in ("weak", "recovery") and daily_gain > 3 and not two_day_up:
+        score_adj -= 3
+        quality_flags.append("weak_market_single_pop")
+    if wr_now >= 80 and ret_5d > 8:
+        score_adj -= 4
+        risk_flags.append("late_rebound")
+    if ma20_extension_penalty > 0:
+        score_adj -= min(3, ma20_extension_penalty)
+        risk_flags.append("ma20_extension")
+    if distribution_penalty > 0:
+        score_adj -= min(4, distribution_penalty)
+        risk_flags.append("distribution_day")
+    if vol_regime == "extreme":
+        score_adj -= 4
+        risk_flags.append("extreme_volatility")
+    elif vol_regime == "high" or annual_vol >= HIGH_VOL_ANNUAL:
+        score_adj -= 2
+        risk_flags.append("high_volatility")
+    if weekly_bearish:
+        score_adj -= 2
+        risk_flags.append("weekly_bearish")
+    if dead_cat:
+        score_adj -= 2
+        risk_flags.append("dead_cat_bounce")
+
+    return {
+        "score_adj": max(-12, min(4, score_adj)),
+        "quality_flags": quality_flags,
+        "risk_flags": risk_flags,
+    }
+
+
+def _score_ignition_power(obv_days_above: int = 0, obv_positive: bool = False,
+                          obv_slope: float = 0.0, ignition_bonus: int = 0,
+                          coiling_bonus: int = 0,
+                          compression_reversal_bonus: int = 0,
+                          range_pos: float = 0.5, higher_low: bool = False,
+                          rebound_confirmed: bool = False,
+                          vol_ratio: float = 1.0, wr_now: float = 50.0,
+                          wr_level: str = "") -> dict:
+    """Reward early launch patterns while avoiding late-trend continuation."""
+    score_adj = 0
+    power_flags = []
+
+    if obv_positive and obv_days_above <= 3 and obv_slope > 0:
+        score_adj += 3
+        power_flags.append("fresh_obv_breakout")
+    if ignition_bonus > 0 and coiling_bonus > 0 and vol_ratio < 0.85:
+        score_adj += 3
+        power_flags.append("coiling_after_ignition")
+    if compression_reversal_bonus > 0 and range_pos < 0.35 and wr_now > 60:
+        score_adj += 3
+        power_flags.append("compression_reversal")
+    if higher_low and rebound_confirmed and vol_ratio < 1.0:
+        score_adj += 2
+        power_flags.append("higher_low_rebound")
+    if "🔥" in wr_level and wr_now <= 75:
+        score_adj += 1
+        power_flags.append("wr_reversal_track")
+
+    return {
+        "score_adj": max(0, min(10, score_adj)),
+        "power_flags": power_flags,
+    }
+
+
 def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, industry=None, sector_change=0,
-                          hard_tech_track="", chokepoint_score=0):
+                          hard_tech_track="", chokepoint_score=0, peer_count=None,
+                          market_regime="neutral"):
     """V5.8: 毕师傅趋势启动战法 - 单只股票评分 (numpy arrays版本).
 
     V5.8 新增:
@@ -860,6 +1016,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         return None
 
     price = closes[-1]
+    daily_gain = 0.0
 
     #    基础过滤   
     if len(closes) >= 2 and closes[-2] > 0:
@@ -1301,9 +1458,15 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     elif checklist_score >= 4: checklist_bonus = 3
     elif checklist_score >= 3: checklist_bonus = 0   # 3星不加, 让OBV+WR主排序
 
-    #    V5.8: 硬科技赛道 + 卡脖子稀缺
-    ht_score = HARD_TECH_TRACK_WEIGHT if hard_tech_track else 0
-    cp_score = chokepoint_score  # 0/1/2 (pre-computed)
+    #    四轴增强: 硬科技赛道强度 + 卡脖子稀缺解释
+    hard_tech = _score_hard_tech_conviction(
+        industry or "",
+        hard_tech_track=hard_tech_track,
+        chokepoint_score=chokepoint_score,
+        peer_count=peer_count,
+    )
+    ht_score = min(6, hard_tech["score_adj"])
+    cp_score = min(2, chokepoint_score)  # keep legacy field semantics
 
     total_raw = (obv_score + wr_score + freshness_bonus + rebound_strength_bonus +
                  obv_accel_score + vol_score + ma_score + adx_score + sm_score
@@ -1349,6 +1512,48 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     higher_low = lows[-1] > lows[-2] if len(lows) >= 2 else False
     rebound_confirmed = wr_stopping and price_rising and vol_surging and higher_low
 
+    ret_5d = (closes[-1] / closes[-6] - 1) * 100 if len(closes) >= 6 and closes[-6] > 0 else 0.0
+    startup_quality = _score_startup_quality(
+        regime=market_regime,
+        daily_gain=daily_gain,
+        two_day_up=two_day_up,
+        wr_now=wr_now,
+        ret_5d=ret_5d,
+        ma20_extension_penalty=ma20_extension_penalty,
+        distribution_penalty=distribution_penalty,
+        annual_vol=annual_vol,
+        vol_regime=vol_regime,
+        weekly_bearish=weekly_bearish,
+        dead_cat=dead_cat,
+    )
+    ignition_power = _score_ignition_power(
+        obv_days_above=obv_days_above,
+        obv_positive=bool(obv[-1] > 0) if len(obv) else False,
+        obv_slope=obv_slope,
+        ignition_bonus=ignition_bonus,
+        coiling_bonus=coiling_bonus,
+        compression_reversal_bonus=compression_reversal_bonus,
+        range_pos=range_pos,
+        higher_low=higher_low,
+        rebound_confirmed=rebound_confirmed,
+        vol_ratio=vol_ratio,
+        wr_now=wr_now,
+        wr_level=wr_level,
+    )
+    quality_flags = startup_quality["quality_flags"]
+    risk_flags = startup_quality["risk_flags"]
+    power_flags = ignition_power["power_flags"]
+    total_raw += startup_quality["score_adj"] + ignition_power["score_adj"]
+    total = round(total_raw, 0)
+    if total >= GRADE_THRESHOLDS["S"]:
+        grade = "S"
+    elif total >= GRADE_THRESHOLDS["A"]:
+        grade = "A"
+    elif total >= GRADE_THRESHOLDS["B"]:
+        grade = "B"
+    else:
+        grade = "C"
+
     #    V5.3 信号分层 (WR深度门槛 + 连阳确认)   
     wr_deep_enough = wr_now < MIN_WR_DEPTH_FOR_BUY       # 深度回踩
     wr_moderate = wr_now < MIN_WR_DEPTH_FOR_WATCH        # 中等回踩
@@ -1387,6 +1592,8 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         signal_type = "buy"
     elif weekly_bearish and signal_type == "buy":
         signal_type = "watch"
+    if "late_rebound" in risk_flags and signal_type == "strong_buy":
+        signal_type = "buy"
 
     # V5.3: buy信号子分类 (加入连阳和派发)
     buy_subtype = ""
@@ -1429,6 +1636,24 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
     _dist = distribution_penalty > 0
     _ma20_ext = ma20_extension_penalty > 0
     _two_up = two_day_up
+    factor_breakdown = {
+        "obv": obv_score,
+        "wr": wr_score,
+        "volume": vol_score,
+        "ma": ma_score,
+        "adx": adx_score,
+        "sector": sm_score,
+        "startup_quality": startup_quality["score_adj"],
+        "ignition_power": ignition_power["score_adj"],
+        "hard_tech_conviction": hard_tech["score_adj"],
+    }
+    explanation = _build_bi_trend_explanation(
+        factor_breakdown=factor_breakdown,
+        quality_flags=quality_flags,
+        risk_flags=risk_flags,
+        power_flags=power_flags,
+        hard_tech=hard_tech,
+    )
 
     return {
         "code": code or "", "name": name or "", "industry": industry or "",
@@ -1459,6 +1684,14 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         # V5.8: 硬科技 + 卡脖子
         "hard_tech_track": hard_tech_track,
         "chokepoint_score": chokepoint_score,
+        "hard_tech": hard_tech,
+        "factor_breakdown": factor_breakdown,
+        "entry_reason": explanation["entry_reason"],
+        "quality_flags": quality_flags,
+        "risk_flags": risk_flags,
+        "power_flags": power_flags,
+        "startup_quality_score": startup_quality["score_adj"],
+        "ignition_power_score": ignition_power["score_adj"],
         # V11: 信号质量指标 (用于个性化持有建议)
         "checklist_score": checklist_score,
         "ignition_bonus": ignition_bonus,
