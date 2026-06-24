@@ -189,6 +189,41 @@ def _get_industry_peers(db) -> dict:
     return {r["industry"]: r["cnt"] for r in rows if r["industry"]}
 
 
+def _get_hard_tech_evidence_texts(db) -> dict:
+    """Batch-load local profile/report text for hard-tech track refinement."""
+    evidence = defaultdict(list)
+    try:
+        rows = db.execute(
+            "SELECT code, main_business, introduction, business_scope FROM stock_profiles"
+        ).fetchall()
+        for r in rows:
+            parts = [r.get("main_business"), r.get("introduction"), r.get("business_scope")]
+            text = " ".join(str(p) for p in parts if p)
+            if text:
+                evidence[r["code"]].append(text[:800])
+    except Exception:
+        pass
+
+    for table in ("research_reports", "research_reports_tushare"):
+        try:
+            rows = db.execute(
+                f"SELECT code, title FROM {table} "
+                "WHERE pub_date >= '2024-01-01' ORDER BY pub_date DESC"
+            ).fetchall()
+            seen = defaultdict(int)
+            for r in rows:
+                code = r.get("code")
+                title = r.get("title")
+                if not code or not title or seen[code] >= 5:
+                    continue
+                evidence[code].append(str(title))
+                seen[code] += 1
+        except Exception:
+            continue
+
+    return {code: " ".join(parts) for code, parts in evidence.items()}
+
+
 def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     """毕师傅趋势启动战法 - 单只股票评分.
 
@@ -695,8 +730,10 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
 
     #    V5.8: 硬科技门控 + 行业稀缺预计算   
     industry_peers = {}
+    hard_tech_evidence = {}
     if hard_tech_only:
         industry_peers = _get_industry_peers(db)
+        hard_tech_evidence = _get_hard_tech_evidence_texts(db)
         stocks = [r for r in stocks if _is_hard_tech_stock(r["industry"] or "")]
         print(f"    硬科技门控: {total_pool} -> {len(stocks)} 只 (仅国家鼓励的硬科技赛道)")
     else:
@@ -779,6 +816,7 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
                 chokepoint_score=chokepoint_score,
                 peer_count=peer_count,
                 market_regime=regime,
+                hard_tech_evidence=hard_tech_evidence.get(code, ""),
             )
             if result:
                 scores.append(result)
@@ -846,14 +884,23 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
 
 def _score_hard_tech_conviction(industry: str, hard_tech_track: str = "",
                                 chokepoint_score: int = 0,
-                                peer_count: int | None = None) -> dict:
+                                peer_count: int | None = None,
+                                evidence_text: str = "") -> dict:
     """Score hard-tech track strength with stable explanation fields."""
-    text = industry or ""
+    text = " ".join(part for part in [industry or "", evidence_text or ""] if part)
     matched_keywords = [kw for kw in HARD_TECH_INDUSTRY_KW if kw and kw in text]
-    track = hard_tech_track or _get_hard_tech_track(text)
-
     core_tracks = {"AI算力", "半导体", "机器人", "低空经济", "信创国产", "工业母机"}
     strategic_tracks = {"锂电储能", "新材料", "军工", "通信", "医药生物", "显示面板"}
+
+    base_track = hard_tech_track or _get_hard_tech_track(industry or "")
+    evidence_track = _get_hard_tech_track(evidence_text or "") if evidence_text else ""
+    if evidence_track in core_tracks and base_track not in core_tracks:
+        track = evidence_track
+    elif evidence_track and not base_track:
+        track = evidence_track
+    else:
+        track = base_track or _get_hard_tech_track(text)
+
     if track in core_tracks:
         tier = "core"
         base_score = 4
@@ -998,7 +1045,7 @@ def _score_ignition_power(obv_days_above: int = 0, obv_positive: bool = False,
 
 def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, industry=None, sector_change=0,
                           hard_tech_track="", chokepoint_score=0, peer_count=None,
-                          market_regime="neutral"):
+                          market_regime="neutral", hard_tech_evidence=""):
     """V5.8: 毕师傅趋势启动战法 - 单只股票评分 (numpy arrays版本).
 
     V5.8 新增:
@@ -1464,6 +1511,7 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         hard_tech_track=hard_tech_track,
         chokepoint_score=chokepoint_score,
         peer_count=peer_count,
+        evidence_text=hard_tech_evidence,
     )
     ht_score = min(6, hard_tech["score_adj"])
     cp_score = min(2, chokepoint_score)  # keep legacy field semantics

@@ -47,6 +47,23 @@ def test_hard_tech_conviction_keeps_broad_match_low_conviction():
     assert result["chokepoint_level"] == "normal"
 
 
+def test_hard_tech_conviction_uses_evidence_text_to_refine_track():
+    from kronos_factors.engine.bi_trend_launch import _score_hard_tech_conviction
+
+    result = _score_hard_tech_conviction(
+        industry="通信设备",
+        hard_tech_track="通信",
+        chokepoint_score=0,
+        peer_count=131,
+        evidence_text="打造AI全栈光互连解决方案，受益国内AI算力发展",
+    )
+
+    assert result["track"] == "AI算力"
+    assert result["tier"] == "core"
+    assert result["score_adj"] >= 4
+    assert "算力" in result["matched_keywords"]
+
+
 def test_scored_pick_contains_explanation_fields():
     from kronos_factors.engine.bi_trend_launch import _score_bi_trend_arrays
 
