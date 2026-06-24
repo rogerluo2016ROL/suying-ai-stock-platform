@@ -846,19 +846,24 @@ def _build_evidence_summary(candidates: list[dict]) -> dict:
 
 
 def _supply_chain_model_payload() -> dict:
+    from kronos_factors.engine.supply_chain_bom_v5 import DIM_WEIGHTS
+
+    dimension_names = {
+        "policy": "政策力度",
+        "bom": "BOM关键度",
+        "chokepoint": "卡脖子/国产替代",
+        "growth": "业绩成长",
+        "profit": "盈利质量",
+        "commercialization": "商业化阶段",
+        "market": "市场共振",
+    }
     return {
-        "name": "大葱产业链解构选股模型 V4",
-        "version": "4.0",
+        "name": "大葱产业链解构选股模型 V5",
+        "version": "5.0",
         "philosophy": "政策主题定方向，BOM 拆解定环节，上市公司候选池定标的，商业化、政策、业绩、市场共振定启动信号。",
         "score_dimensions": [
-            {"key": "policy", "name": "政策力度", "weight": 15},
-            {"key": "bom", "name": "BOM关键度", "weight": 15},
-            {"key": "chokepoint", "name": "卡脖子/国产替代", "weight": 15},
-            {"key": "commercialization", "name": "商业化阶段", "weight": 15},
-            {"key": "growth", "name": "业绩成长", "weight": 15},
-            {"key": "profit", "name": "盈利质量", "weight": 10},
-            {"key": "moat", "name": "护城河证据", "weight": 10},
-            {"key": "market", "name": "市场共振", "weight": 5},
+            {"key": key, "name": dimension_names[key], "weight": weight}
+            for key, weight in DIM_WEIGHTS.items()
         ],
     }
 

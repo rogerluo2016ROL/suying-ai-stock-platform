@@ -1,105 +1,132 @@
 #!/usr/bin/env python3
-"""BOM 路径2 — 数据缓存: 拉 36 只公司全期财务/预告/问答/研报, 落本地 parquet/csv.
+"""BOM 路径2 — 数据缓存: 拉候选宇宙全期财务/预告/问答/研报, 落本地 CSV.
 
 cutoff-aware 评分需要逐 cutoff 切片 (ann_date<=cutoff), 逐 cutoff 实时拉 Tushare 太慢.
 本脚本一次拉全期 (2024-01~2026-06), 落本地, 路径2 评分脚本读本地切片.
 
 拉取: fina_indicator (财务) + forecast (预告) + irm_qa (问答) + research_report (研报)
-      + fina_mainbz_vip type=P (主营产品, 静态, 一次即可)
+      + fina_mainbz_vip type=P (主营产品)
 
 Usage:
     TUSHARE_TOKEN=xxx python tools/bom_oos_cache.py
+    TUSHARE_TOKEN=xxx python tools/bom_oos_cache.py --universe all_a --limit 5 --sleep-seconds 0 --out-dir outputs/bom_oos_cache_smoke
+    TUSHARE_TOKEN=xxx python tools/bom_oos_cache.py --universe all_a --out-dir outputs/bom_oos_cache_all_a --resume
 """
 import os
 import sys
 import time
 from pathlib import Path
 
-import pandas as pd
 import tushare as ts
 
 PROJ = Path("/Users/rogerluo/程序目录/K线大模型")
-CACHE = PROJ / "outputs" / "bom_oos_cache"
-CACHE.mkdir(parents=True, exist_ok=True)
+for p in ["packages/kronos-factors", "packages/kronos-core", "packages/kronos-data"]:
+    sys.path.insert(0, str(PROJ / p))
 
-START, END = "20240101", "20260615"
+from kronos_factors.backtest.bom_oos_cache import (  # noqa: E402
+    MANIFEST_NAME,
+    CacheConfig,
+    append_cache_frames,
+    fetch_all_a_codes,
+    fetch_company_payload,
+    load_processed_codes,
+    mark_code_processed,
+    parse_code_list,
+    parse_cache_args,
+    prepare_cache_output_dir,
+    to_ts_code,
+)
 
 
-def load_36():
+def load_bom36_codes():
     import psycopg2
     conn = psycopg2.connect(os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos"))
     cur = conn.cursor()
     cur.execute("SELECT code FROM company_bom_mapping ORDER BY code")
     codes = [r[0] for r in cur.fetchall()]
     conn.close()
-    def to_ts(c):
-        if c.startswith(("6", "5")): return c + ".SH"
-        if c.startswith(("0", "3")): return c + ".SZ"
-        return c + ".BJ"
-    return [(c, to_ts(c)) for c in codes]
+    return [(c, to_ts_code(c)) for c in codes]
 
 
-def main():
+def resolve_codes(pro, universe, codes_arg=""):
+    explicit_codes = parse_code_list(codes_arg)
+    if explicit_codes:
+        return explicit_codes
+    if universe == "bom36":
+        return load_bom36_codes()
+    if universe == "all_a":
+        return fetch_all_a_codes(pro)
+    raise ValueError(f"unsupported universe={universe}")
+
+
+def resolve_out_dir(out_dir):
+    path = Path(out_dir)
+    return path if path.is_absolute() else PROJ / path
+
+
+def main(argv=None):
+    args = parse_cache_args(argv)
+    out_dir = resolve_out_dir(args.out_dir)
+    try:
+        output_paths = prepare_cache_output_dir(out_dir, overwrite=args.overwrite, resume=args.resume)
+    except FileExistsError as exc:
+        print(f"❌ {exc}")
+        sys.exit(2)
+    manifest_path = out_dir / MANIFEST_NAME
+    if args.overwrite:
+        for path in [*output_paths.values(), manifest_path]:
+            if path.exists():
+                path.unlink()
+
     token = os.environ.get("TUSHARE_TOKEN", "")
     if not token:
         print("❌ TUSHARE_TOKEN 未设置"); sys.exit(1)
     ts.set_token(token)
     pro = ts.pro_api()
+    config = CacheConfig(start=args.start, end=args.end)
 
-    codes = load_36()
-    print(f"拉取 {len(codes)} 只公司全期数据 ({START}~{END}) → {CACHE}")
+    codes = resolve_codes(pro, args.universe, args.codes)
+    if args.limit and args.limit > 0:
+        codes = codes[:args.limit]
+    print(f"拉取 {len(codes)} 只公司全期数据 ({config.start}~{config.end}) universe={args.universe} → {out_dir}")
+    processed = load_processed_codes(manifest_path) if args.resume else set()
+    if processed:
+        print(f"  resume: 已完成 {len(processed)} 只, 将跳过")
 
-    fina_all, fc_all, qa_all, rr_all, mb_all = [], [], [], [], []
+    fetched = skipped = 0
     for i, (code6, ts_code) in enumerate(codes):
+        if str(code6).zfill(6)[-6:] in processed:
+            skipped += 1
+            continue
         print(f"  [{i+1}/{len(codes)}] {ts_code}", end=" ", flush=True)
-        # 财务
-        try:
-            df = pro.fina_indicator(ts_code=ts_code, start_date=START, end_date=END)
-            if df is not None and len(df):
-                df["code6"] = code6; fina_all.append(df)
-        except Exception as e:
-            print(f"fina_err:{str(e)[:30]}", end=" ")
-        # 预告
-        try:
-            df = pro.forecast(ts_code=ts_code, start_date=START, end_date=END)
-            if df is not None and len(df):
-                df["code6"] = code6; fc_all.append(df)
-        except Exception: pass
-        # 互动问答
-        api = "irm_qa_sh" if ts_code.endswith(".SH") else "irm_qa_sz"
-        try:
-            df = getattr(pro, api)(ts_code=ts_code, start_date=START, end_date=END)
-            if df is not None and len(df):
-                df["code6"] = code6; qa_all.append(df)
-        except Exception: pass
-        # 研报
-        try:
-            df = pro.research_report(ts_code=ts_code, start_date=START, end_date=END)
-            if df is not None and len(df):
-                df["code6"] = code6; rr_all.append(df)
-        except Exception: pass
-        # 主营产品 (静态)
-        try:
-            df = pro.fina_mainbz_vip(ts_code=ts_code, type="P")
-            if df is not None and len(df):
-                df["code6"] = code6; mb_all.append(df)
-        except Exception: pass
-        print()
-        time.sleep(0.3)
+        payload = fetch_company_payload(pro, code6, ts_code, config)
+        frames = payload["frames"]
+        errors = payload["errors"]
+        append_cache_frames(output_paths, frames)
+        frame_counts = {name: len(frame) for name, frame in frames.items()}
+        total_rows = sum(frame_counts.values())
+        if total_rows > 0:
+            status = "ok"
+        elif errors:
+            status = "error"
+        else:
+            status = "no_data"
+        mark_code_processed(
+            manifest_path,
+            code6=code6,
+            ts_code=ts_code,
+            frame_counts=frame_counts,
+            status=status,
+            errors=errors,
+        )
+        fetched += 1
+        error_hint = f" errors={len(errors)}" if errors else ""
+        print(f"rows={total_rows} status={status}{error_hint}")
+        if args.sleep_seconds > 0:
+            time.sleep(args.sleep_seconds)
 
-    def save(name, frames):
-        if not frames: print(f"  {name}: 0 行"); return
-        df = pd.concat(frames, ignore_index=True)
-        path = CACHE / f"{name}.csv"
-        df.to_csv(path, index=False, encoding="utf-8-sig")
-        print(f"  {name}: {len(df)} 行 × {df['code6'].nunique()} 公司 → {path.name}")
-
-    save("fina_indicator", fina_all)
-    save("forecast", fc_all)
-    save("irm_qa", qa_all)
-    save("research_report", rr_all)
-    save("fina_mainbz", mb_all)
-    print("\n✅ 缓存完成, 路径2 评分脚本可读本地切片")
+    print(f"\n✅ 缓存完成: fetched={fetched}, skipped={skipped}, manifest={manifest_path}")
+    print("   路径2 评分脚本可用 --cache-dir 指向该目录读取本地切片")
 
 
 if __name__ == "__main__":

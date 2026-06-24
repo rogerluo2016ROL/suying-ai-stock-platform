@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.routers.screener import router
 import app.routers.screener as screener_router
+from kronos_factors.engine.supply_chain_bom_v5 import DIM_WEIGHTS as V5_DIM_WEIGHTS
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -156,7 +157,8 @@ def test_supply_chain_workbench_returns_candidate_pool_with_model_context(monkey
     r = _client().get("/api/v1/screener/supply-chain/workbench?top_n=10")
     assert r.status_code == 200
     body = r.json()
-    assert body["model"]["name"] == "大葱产业链解构选股模型 V4"
+    assert body["model"]["name"] == "大葱产业链解构选股模型 V5"
+    assert body["model"]["version"] == "5.0"
     assert body["candidate_count"] == 1
     candidate = body["candidates"][0]
     assert candidate["code"] == "300308"
@@ -165,6 +167,24 @@ def test_supply_chain_workbench_returns_candidate_pool_with_model_context(monkey
     assert candidate["commercialization_cycle"] == "业绩兑现"
     assert candidate["resonance"]["summary"] == "政策、商业化、业绩、市场四维共振"
     assert candidate["dimension_scores"]["commercialization"] == 13.0
+
+
+def test_supply_chain_workbench_model_dimensions_match_v5_scorer(monkeypatch):
+    monkeypatch.setattr(
+        screener_router,
+        "_get_supply_chain_candidate_pool",
+        lambda top_n, trade_date=None: [],
+        raising=False,
+    )
+
+    r = _client().get("/api/v1/screener/supply-chain/workbench?top_n=10")
+
+    assert r.status_code == 200
+    dimensions = {
+        item["key"]: item["weight"]
+        for item in r.json()["model"]["score_dimensions"]
+    }
+    assert dimensions == V5_DIM_WEIGHTS
 
 
 def test_supply_chain_workbench_filters_candidates_by_selected_node(monkeypatch):

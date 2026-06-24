@@ -32,7 +32,16 @@ import tushare as ts
 PROJ = Path("/Users/rogerluo/程序目录/K线大模型")
 sys.path.insert(0, str(PROJ / "packages" / "kronos-factors"))
 from kronos_factors.engine.supply_chain_bom import (  # noqa: E402
-    DIM_WEIGHTS, derive_rating, derive_trade_signal,
+    derive_rating, derive_trade_signal,
+)
+from kronos_factors.engine.supply_chain_bom_v5 import (  # noqa: E402
+    DIM_WEIGHTS,
+    score_bom_ratio,
+    score_chokepoint_hits,
+    score_commercialization as v5_score_commercialization,
+    score_growth,
+    score_market as v5_score_market,
+    score_profit,
 )
 
 ANCHORED = pd.read_csv(PROJ / "outputs" / "bom_embodied_reducer_anchored.csv")
@@ -40,13 +49,6 @@ EV_ALL = pd.read_csv(PROJ / "outputs" / "bom_embodied_evidence_all.csv")
 V4_SCORE = pd.read_csv(PROJ / "outputs" / "bom_embodied_score_all.csv")  # 第4步结果, 做对比
 
 NODE_POLICY = {"reducer": 12, "motor": 12, "bearing": 11, "controller": 12}
-
-CHOKEPOINT_WEIGHTS = {
-    "垄断": 5, "独家": 5, "首家": 5, "稀缺": 5, "寡头": 5, "唯一": 5,
-    "国产替代": 4, "进口替代": 4, "自主可控": 4, "打破垄断": 5, "卡脖子": 4,
-    "客户验证": 3, "认证": 3, "供应商": 3, "定点": 3, "进入供应链": 3,
-}
-
 
 def _pl(s):
     if isinstance(s, list): return s
@@ -83,12 +85,7 @@ def score_policy(ev_df, node):
 
 
 def score_bom(ratio):
-    r = float(ratio)
-    if r >= 80: return 15.0
-    if r >= 50: return 12.0
-    if r >= 25: return 8.0
-    if r >= 10: return 4.0
-    return 2.0
+    return score_bom_ratio(ratio)
 
 
 def score_chokepoint_v5(ev_df):
@@ -97,22 +94,13 @@ def score_chokepoint_v5(ev_df):
     for _, r in ev_df.iterrows():
         for kw in _pl(r.get("chokepoint")):
             kw_count[kw] = kw_count.get(kw, 0) + 1
-    total = 0.0
-    for kw, cnt in kw_count.items():
-        effective = min(cnt, 2)  # 同关键词最多计2次
-        total += effective * CHOKEPOINT_WEIGHTS.get(kw, 2)
-    return min(total, DIM_WEIGHTS["chokepoint"]), kw_count
+    return score_chokepoint_hits(kw_count), kw_count
 
 
 def score_growth_v5(fina, ev_df):
     """财务增长优先, 预告兜底."""
     if fina:
-        g = max(fina["q_sales_yoy"], fina["netprofit_yoy"])
-        if g >= 100: return 15.0, f"财务yoy{g:.0f}%"
-        if g >= 50: return 12.0, f"财务yoy{g:.0f}%"
-        if g >= 20: return 9.0, f"财务yoy{g:.0f}%"
-        if g >= 0: return 6.0, f"财务yoy{g:.0f}%"
-        return 3.0, f"财务yoy{g:.0f}%(负)"
+        return score_growth(fina["q_sales_yoy"], fina["netprofit_yoy"])
     # 无财务, 用预告
     fc = ev_df[ev_df["source"] == "forecast"]
     for _, r in fc.iterrows():
@@ -121,21 +109,15 @@ def score_growth_v5(fina, ev_df):
             m = re.search(r"预增\s*([\d.]+)~([\d.]+)", t)
             if m:
                 hi = float(m.group(2))
-                if hi >= 100: return 15.0, f"预告预增{hi:.0f}%"
-                if hi >= 50: return 12.0, f"预告预增{hi:.0f}%"
-                return 9.0, f"预告预增{hi:.0f}%"
-    return 6.0, "中性(无财务无预告)"
+                return score_growth(None, None, forecast_type="预增", forecast_max=hi)
+    return score_growth(None, None)
 
 
 def score_profit_v5(fina):
     """毛利率映射 (制造业阈值下调)."""
     if fina:
-        gm = fina["gross_margin"]
-        if gm >= 50: return 10.0, f"毛利率{gm:.0f}%"
-        if gm >= 30: return 7.0, f"毛利率{gm:.0f}%"
-        if gm >= 15: return 4.0, f"毛利率{gm:.0f}%"
-        return 2.0, f"毛利率{gm:.0f}%(低)"
-    return 6.0, "中性(无财务)"
+        return score_profit(fina["gross_margin"])
+    return score_profit(None)
 
 
 def score_commercialization(ev_df):
@@ -146,20 +128,11 @@ def score_commercialization(ev_df):
     top = next((s for s in stage_order if s in hits), "未识别")
     fc = ev_df[ev_df["source"] == "forecast"]
     has_inc = any("预增" in str(r.get("text", "")) for _, r in fc.iterrows())
-    base = {"放量/订单": 12.0, "量产": 9.0, "小批量": 6.0, "样品/研发": 3.0, "未识别": 2.0}[top]
-    note = top
-    if has_inc and base >= 9:
-        base = min(base + 3, DIM_WEIGHTS["commercialization"]); note = f"{top}+业绩兑现"
-    return base, note
+    return v5_score_commercialization({top}, "预增" if has_inc else None)
 
 
 def score_market(ev_df):
-    n = len(ev_df)
-    if n >= 20: return 10.0
-    if n >= 10: return 7.0
-    if n >= 5: return 5.0
-    if n >= 1: return 3.0
-    return 1.0
+    return v5_score_market(len(ev_df))
 
 
 def main():

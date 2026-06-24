@@ -6,18 +6,15 @@ import json
 from pathlib import Path
 from typing import Any
 
+from kronos_factors.engine.supply_chain_bom_v5 import (
+    DIM_WEIGHTS,
+    derive_rating,
+    derive_trade_signal,
+    score_company_v5,
+)
+
 
 CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / "supply_chain_bom_v4.json"
-
-DIM_WEIGHTS = {
-    "policy": 15,
-    "bom": 15,
-    "chokepoint": 20,
-    "growth": 15,
-    "profit": 10,
-    "commercialization": 15,
-    "market": 10,
-}
 
 
 def load_bom_config(path: str | Path | None = None) -> dict[str, Any]:
@@ -28,37 +25,6 @@ def load_bom_config(path: str | Path | None = None) -> dict[str, Any]:
     data.setdefault("nodes", [])
     data.setdefault("edges", [])
     return data
-
-
-def derive_rating(total_score: float) -> str:
-    if total_score >= 85:
-        return "S"
-    if total_score >= 75:
-        return "A"
-    if total_score >= 65:
-        return "B"
-    if total_score >= 50:
-        return "C"
-    return "D"
-
-
-def derive_trade_signal(total_score: float, dimension_scores: dict[str, float]) -> str:
-    """Convert V4 score dimensions into a research signal, not an order action."""
-    if total_score < 50 or dimension_scores.get("risk", 0) >= 8:
-        return "风险回避"
-    commercialization = dimension_scores.get("commercialization", 0)
-    market = dimension_scores.get("market", 0)
-    policy = dimension_scores.get("policy", 0)
-    bom = dimension_scores.get("bom", 0)
-    growth = dimension_scores.get("growth", 0)
-    if total_score >= 85 and commercialization >= 12 and market >= 8:
-        return "强启动"
-    if total_score >= 75 and commercialization >= 10 and market >= 6:
-        return "启动"
-    strong_dims = sum(1 for value in (policy, bom, growth) if value >= 10)
-    if total_score >= 75 and strong_dims >= 2:
-        return "关注"
-    return "观察"
 
 
 def _clip(value: float, upper: float) -> float:

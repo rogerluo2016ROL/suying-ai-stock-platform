@@ -5,7 +5,7 @@
   - fina_indicator: ann_date <= cutoff 的最新一期
   - forecast: ann_date <= cutoff
   - irm_qa / research_report: trade_date <= cutoff
-  - fina_mainbz (主营占比, 静态): 用最新一期 (主营结构变化慢, 可接受)
+  - fina_mainbz: 默认保留 fixed_current_mapping；可用 cutoff_rebuilt_cache 按 cutoff 重建公司-节点-主营占比
 
 样本: 36 只 BOM 锚定公司 (PG company_bom_mapping)
 cutoff: 2025-01~2026-05 月末 (train 2025-01~09 / test 2025-10~2026-05)
@@ -16,10 +16,14 @@ IC: Spearman rank IC + bootstrap + 单样本 t 检验
 
 Usage:
     KRONOS_PG_URL=postgresql://kronos:kronos@localhost:6432/kronos python tools/bom_oos_ic.py
+    KRONOS_PG_URL=postgresql://kronos:kronos@localhost:6432/kronos python tools/bom_oos_ic.py --universe-mode cutoff_rebuilt_cache
+    KRONOS_PG_URL=postgresql://kronos:kronos@localhost:6432/kronos python tools/bom_oos_ic.py --universe-mode cutoff_rebuilt_cache --cache-dir outputs/bom_oos_cache_smoke
 """
+import argparse
 import ast
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -31,20 +35,34 @@ PROJ = Path("/Users/rogerluo/程序目录/K线大模型")
 for p in ["packages/kronos-factors", "packages/kronos-core", "packages/kronos-data"]:
     sys.path.insert(0, str(PROJ / p))
 from kronos_factors.backtest.engine import compute_ic  # noqa: E402
+from kronos_factors.backtest.bom_oos_report import (  # noqa: E402
+    build_oos_audit_report,
+    summarize_oos_verdict,
+    write_oos_audit_artifacts,
+)
+from kronos_factors.backtest.bom_oos_cache import cache_input_paths, load_cache_frames  # noqa: E402
+from kronos_factors.backtest.bom_universe import build_cutoff_universe_from_cache  # noqa: E402
 from kronos_factors.backtest.supply_chain_validation import _forward_returns  # noqa: E402
 from kronos_factors.backtest.supply_chain_ic import _resolve_trading_day  # noqa: E402
+from kronos_factors.engine.supply_chain_bom_v5 import (  # noqa: E402
+    score_bom_ratio,
+    score_chokepoint_hits,
+    score_commercialization,
+    score_growth,
+    score_market,
+    score_profit,
+)
 from kronos_factors.scorer._db_stub import _get_db  # noqa: E402
 
-CACHE = PROJ / "outputs" / "bom_oos_cache"
-FINA = pd.read_csv(CACHE / "fina_indicator.csv", dtype={"code6": str})
-FC = pd.read_csv(CACHE / "forecast.csv", dtype={"code6": str})
-QA = pd.read_csv(CACHE / "irm_qa.csv", dtype={"code6": str})
-RR = pd.read_csv(CACHE / "research_report.csv", dtype={"code6": str})
-MB = pd.read_csv(CACHE / "fina_mainbz.csv", dtype={"code6": str})
-
-# 补前导零
-for df in [FINA, FC, QA, RR, MB]:
-    df["code6"] = df["code6"].astype(str).str.zfill(6)
+DEFAULT_CACHE = PROJ / "outputs" / "bom_oos_cache"
+CACHE = DEFAULT_CACHE
+REPORT_DIR = PROJ / "outputs" / "bom_oos_reports"
+UNIVERSE_MODE = "fixed_current_mapping"
+FINA = pd.DataFrame()
+FC = pd.DataFrame()
+QA = pd.DataFrame()
+RR = pd.DataFrame()
+MB = pd.DataFrame()
 
 NODE_POLICY = {"reducer": 12, "motor": 12, "bearing": 11, "controller": 12}
 NODE_ID_MAP = {"bom_reducer": "reducer", "bom_motor": "motor",
@@ -79,6 +97,49 @@ def load_meta():
         meta[code] = (node, product or "", ratio)
     conn.close()
     return meta
+
+
+def resolve_project_path(path):
+    candidate = Path(path)
+    return candidate if candidate.is_absolute() else PROJ / candidate
+
+
+def set_cache_frames(cache_dir):
+    global CACHE, FINA, FC, QA, RR, MB
+    CACHE = resolve_project_path(cache_dir)
+    frames = load_cache_frames(CACHE)
+    FINA = frames["fina_indicator"]
+    FC = frames["forecast"]
+    QA = frames["irm_qa"]
+    RR = frames["research_report"]
+    MB = frames["fina_mainbz"]
+    return frames
+
+
+def load_cutoff_meta(cutoff_yyyymmdd, require_visible_evidence=False):
+    return build_cutoff_universe_from_cache(
+        mainbz_df=MB,
+        qa_df=QA,
+        research_df=RR,
+        cutoff_yyyymmdd=cutoff_yyyymmdd,
+        require_evidence=require_visible_evidence,
+    )
+
+
+def _git_commit():
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=PROJ,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        return ""
+
+
+def _cache_paths(cache_dir=None):
+    return list(cache_input_paths(cache_dir or CACHE).values())
 
 
 def cutoff_fina(code, cutoff_yyyymmdd):
@@ -128,27 +189,16 @@ def score_v5_cutoff(code, meta, cutoff_yyyymmdd):
     # policy
     policy = float(NODE_POLICY.get(node, 11))
     if n_ev > 0: policy = min(policy + 3, 15)
-    # bom (主营占比)
-    r = ratio
-    bom = 15 if r >= 80 else 12 if r >= 50 else 8 if r >= 25 else 4 if r >= 10 else 2
-    # chokepoint (多样性加权)
-    choke = min(sum(min(c, 2) * w for kw, c in ch_hits.items() for w in [CHOKEPOINT_KW[kw]]), 20)
-    # growth (财务优先, 预告兜底)
-    growth = 6.0
+    bom = score_bom_ratio(ratio)
+    choke = score_chokepoint_hits(ch_hits)
     if fina:
-        g = max(fina["q_sales_yoy"], fina["netprofit_yoy"])
-        growth = 15 if g >= 100 else 12 if g >= 50 else 9 if g >= 20 else 6 if g >= 0 else 3
-    elif fc_type and "预增" in fc_type:
-        growth = 15 if fc_max >= 100 else 12 if fc_max >= 50 else 9
-    # profit
-    profit = 10 if fina and fina["gross_margin"] >= 50 else 7 if fina and fina["gross_margin"] >= 30 else 4 if fina and fina["gross_margin"] >= 15 else 2 if fina else 6
-    # commercialization
-    stage_order = ["放量/订单", "量产", "小批量", "样品/研发"]
-    top = next((s for s in stage_order if s in stage_hits), "未识别")
-    comm = {"放量/订单": 12, "量产": 9, "小批量": 6, "样品/研发": 3, "未识别": 2}[top]
-    if fc_type and "预增" in fc_type and comm >= 9: comm = min(comm + 3, 15)
-    # market
-    market = 10 if n_ev >= 20 else 7 if n_ev >= 10 else 5 if n_ev >= 5 else 3 if n_ev >= 1 else 1
+        growth, _ = score_growth(fina["q_sales_yoy"], fina["netprofit_yoy"])
+        profit, _ = score_profit(fina["gross_margin"])
+    else:
+        growth, _ = score_growth(None, None, forecast_max=fc_max, forecast_type=fc_type)
+        profit, _ = score_profit(None)
+    comm, _ = score_commercialization(stage_hits, fc_type)
+    market = score_market(n_ev)
 
     total = policy + bom + choke + growth + profit + comm + market
     return min(round(total, 1), 100)
@@ -168,39 +218,137 @@ def month_ends(start, end):
     return out
 
 
-def run_period(cutoffs, codes, meta, horizon, label):
+def resolve_period_universe(
+    universe_mode,
+    fixed_codes,
+    fixed_meta,
+    cutoff_yyyymmdd,
+    require_visible_evidence=False,
+):
+    if universe_mode == "fixed_current_mapping":
+        return fixed_codes, fixed_meta
+    if universe_mode == "cutoff_rebuilt_cache":
+        cutoff_meta = load_cutoff_meta(cutoff_yyyymmdd, require_visible_evidence=require_visible_evidence)
+        return sorted(cutoff_meta.keys()), cutoff_meta
+    raise ValueError(f"unsupported universe_mode={universe_mode}")
+
+
+def run_period(
+    cutoffs,
+    codes,
+    meta,
+    horizon,
+    label,
+    *,
+    universe_mode=UNIVERSE_MODE,
+    require_visible_evidence=False,
+    min_valid=5,
+):
     ic_series = []
     per_cutoff = []
+    observed_codes = set()
     for cutoff in cutoffs:
         with _get_db(readonly=True) as db:
             cutoff_td = _resolve_trading_day(db, cutoff)  # 月末不超过该日的最近交易日
+        if not cutoff_td:
+            continue
         cutoff_yyyymmdd = cutoff_td.replace("-", "")
-        scores = np.array([score_v5_cutoff(c, meta, cutoff_yyyymmdd) for c in codes], dtype=np.float64)
-        rets, future_td = _forward_returns(codes, cutoff_td, horizon)
+        period_codes, period_meta = resolve_period_universe(
+            universe_mode,
+            codes,
+            meta,
+            cutoff_yyyymmdd,
+            require_visible_evidence=require_visible_evidence,
+        )
+        observed_codes.update(period_codes)
+        if len(period_codes) < min_valid:
+            continue
+
+        scores = np.array([score_v5_cutoff(c, period_meta, cutoff_yyyymmdd) for c in period_codes], dtype=np.float64)
+        rets, future_td = _forward_returns(period_codes, cutoff_td, horizon)
         valid = ~np.isnan(rets) & ~np.isnan(scores)
-        if valid.sum() < 5:
+        if valid.sum() < min_valid:
             continue
         ic = compute_ic(scores, rets)
         ic_series.append(ic["rank_ic"])
-        per_cutoff.append({"cutoff": cutoff, "n": int(valid.sum()), "rank_ic": ic["rank_ic"],
-                           "ic": ic["ic"], "hit": ic["hit_rate"]})
+        per_cutoff.append({
+            "cutoff": cutoff,
+            "cutoff_td": cutoff_td,
+            "future_td": future_td,
+            "universe_size": len(period_codes),
+            "n": int(valid.sum()),
+            "rank_ic": ic["rank_ic"],
+            "ic": ic["ic"],
+            "hit": ic["hit_rate"],
+        })
     if not ic_series:
-        return {"label": label, "n": 0, "mean_rank_ic": 0, "p": 1, "per_cutoff": []}
+        return {
+            "label": label,
+            "n": 0,
+            "mean_rank_ic": 0,
+            "p": 1,
+            "per_cutoff": [],
+            "observed_codes": sorted(observed_codes),
+        }
     arr = np.array(ic_series)
     t, p2 = stats.ttest_1samp(arr, 0)
     p1 = p2 / 2 if t > 0 else 1 - p2 / 2
     return {"label": label, "n": len(arr), "mean_rank_ic": round(float(arr.mean()), 4),
             "std": round(float(arr.std()), 4), "icir": round(float(arr.mean() / (arr.std() or 1e-9)), 4),
-            "p": round(float(p1), 4), "per_cutoff": per_cutoff}
+            "p": round(float(p1), 4), "per_cutoff": per_cutoff, "observed_codes": sorted(observed_codes)}
 
 
-def main():
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="BOM V5 cutoff-aware OOS IC validation")
+    parser.add_argument(
+        "--universe-mode",
+        choices=["fixed_current_mapping", "cutoff_rebuilt_cache"],
+        default=UNIVERSE_MODE,
+        help="fixed_current_mapping keeps PG company_bom_mapping; cutoff_rebuilt_cache rebuilds mapping from cache per cutoff.",
+    )
+    parser.add_argument(
+        "--require-visible-evidence",
+        action="store_true",
+        help="Only include cutoff-rebuilt companies whose QA/research evidence mentions the inferred node/product before cutoff.",
+    )
+    parser.add_argument(
+        "--cache-dir",
+        default=str(DEFAULT_CACHE.relative_to(PROJ)),
+        help="Directory containing BOM OOS cache CSVs.",
+    )
+    parser.add_argument(
+        "--min-valid",
+        type=int,
+        default=5,
+        help="Minimum valid stocks required per cutoff; lower only for smoke tests.",
+    )
+    parser.add_argument("--out-dir", default=str(REPORT_DIR), help="Directory for audit JSON/CSV artifacts.")
+    return parser.parse_args(argv)
+
+
+def _observed_universe_codes(all_results, fallback_codes=None):
+    observed = set()
+    for result in all_results.values():
+        observed.update(result.get("observed_codes", []))
+    return sorted(observed or (fallback_codes or []))
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    cache_dir = resolve_project_path(args.cache_dir)
+    try:
+        set_cache_frames(cache_dir)
+    except FileNotFoundError as exc:
+        print(f"❌ {exc}")
+        sys.exit(2)
     meta = load_meta()
     codes = sorted(meta.keys())
     print("=" * 95)
     print("  BOM 路径2 — 严格 OOS (cutoff-aware V5 评分 + forward IC)")
     print("=" * 95)
-    print(f"  样本: {len(codes)} 只 | train 2025-01~09 / test 2025-10~2026-05 | horizon 10/20d")
+    print(f"  固定映射基准样本: {len(codes)} 只 | train 2025-01~09 / test 2025-10~2026-05 | horizon 10/20d")
+    print(f"  宇宙模式: {args.universe_mode} | require_visible_evidence={args.require_visible_evidence}")
+    print(f"  缓存目录: {cache_dir}")
     print(f"  防 lookahead: 财务/预告 ann_date<=cutoff, 问答/研报 trade_date<=cutoff\n")
 
     train_cuts = month_ends("2025-01", "2025-09")
@@ -209,15 +357,36 @@ def main():
     all_results = {}
     for horizon in [10, 20]:
         print(f"  ▶ horizon={horizon}d")
-        tr = run_period(train_cuts, codes, meta, horizon, f"train h{horizon}")
-        te = run_period(test_cuts, codes, meta, horizon, f"test h{horizon}")
+        tr = run_period(
+            train_cuts,
+            codes,
+            meta,
+            horizon,
+            f"train h{horizon}",
+            universe_mode=args.universe_mode,
+            require_visible_evidence=args.require_visible_evidence,
+            min_valid=args.min_valid,
+        )
+        te = run_period(
+            test_cuts,
+            codes,
+            meta,
+            horizon,
+            f"test h{horizon}",
+            universe_mode=args.universe_mode,
+            require_visible_evidence=args.require_visible_evidence,
+            min_valid=args.min_valid,
+        )
         all_results[f"train_h{horizon}"] = tr
         all_results[f"test_h{horizon}"] = te
         print(f"    train: {tr['n']} cutoffs, mean_rankIC={tr['mean_rank_ic']:+.3f} std={tr.get('std',0):.3f} p={tr['p']:.3f}")
         print(f"    test:  {te['n']} cutoffs, mean_rankIC={te['mean_rank_ic']:+.3f} std={te.get('std',0):.3f} p={te['p']:.3f}")
         # 逐 cutoff
         for pc in te["per_cutoff"]:
-            print(f"      {pc['cutoff']} n={pc['n']:>2} rankIC={pc['rank_ic']:+.3f} hit={pc['hit']:.0%}")
+            print(
+                f"      {pc['cutoff']} universe={pc['universe_size']:>2} n={pc['n']:>2} "
+                f"rankIC={pc['rank_ic']:+.3f} hit={pc['hit']:.0%}"
+            )
         print()
 
     # 结论
@@ -230,14 +399,48 @@ def main():
         print(f"    train rankIC={tr['mean_rank_ic']:+.3f} (p={tr['p']:.3f}) | test rankIC={te['mean_rank_ic']:+.3f} (p={te['p']:.3f})")
     te20 = all_results["test_h20"]
     print()
-    if te20["mean_rank_ic"] > 0.03 and te20["p"] < 0.1:
-        verdict = "✅ test 期 rankIC 显著为正 — BOM 评分有真选股能力 (OOS 成立)"
-    elif te20["mean_rank_ic"] > 0:
-        verdict = "⚪ test 期 rankIC 弱正但不显著 — 方向对, 样本/功效不足"
+    verdict = summarize_oos_verdict(te20)
+    if verdict["status"] == "PASS":
+        verdict_prefix = "✅"
+    elif verdict["status"] == "INCONCLUSIVE":
+        verdict_prefix = "⚪"
+    elif verdict["status"] == "WEAK_POSITIVE":
+        verdict_prefix = "⚪"
     else:
-        verdict = "❌ test 期 rankIC ≤ 0 — BOM 评分 OOS 无效"
-    print(f"  判定: {verdict}")
-    print(f"  注: 样本 {len(codes)} 只偏小, 单 cutoff IC 噪声大. 结论供参考, 非投资建议.")
+        verdict_prefix = "❌"
+    print(f"  判定: {verdict_prefix} {verdict['message']}")
+    fallback_codes = codes if args.universe_mode == "fixed_current_mapping" else []
+    universe_codes = _observed_universe_codes(all_results, fallback_codes)
+    print(f"  注: 观测样本 {len(universe_codes)} 只偏小, 单 cutoff IC 噪声大. 结论供参考, 非投资建议.")
+    if args.universe_mode == "fixed_current_mapping":
+        print("  宇宙模式: fixed_current_mapping — 当前固定公司池会保留选择偏差, 下一阶段需按cutoff重建候选宇宙.")
+    else:
+        print("  宇宙模式: cutoff_rebuilt_cache — 公司-节点-主营占比已按cutoff重建, 但仍受缓存覆盖范围限制.")
+
+    report = build_oos_audit_report(
+        model_version="supply_chain_bom_v5",
+        universe_mode=args.universe_mode,
+        universe_codes=universe_codes,
+        results=all_results,
+        config={
+            "horizons": [10, 20],
+            "train_range": ["2025-01", "2025-09"],
+            "test_range": ["2025-10", "2026-05"],
+            "cutoff_frequency": "month_end",
+            "score_cutoff_rule": "financial/forecast ann_date<=cutoff, QA/research trade_date<=cutoff",
+            "universe_rule": args.universe_mode,
+            "cache_dir": str(cache_dir),
+            "require_visible_evidence": args.require_visible_evidence,
+            "min_valid": args.min_valid,
+            "forward_return_source": "daily_kline close-to-close",
+        },
+        cache_paths=_cache_paths(cache_dir),
+        git_commit=_git_commit(),
+    )
+    artifact_paths = write_oos_audit_artifacts(report, args.out_dir)
+    print("\n  审计产物:")
+    for name, path in artifact_paths.items():
+        print(f"    {name}: {path}")
 
 
 if __name__ == "__main__":
