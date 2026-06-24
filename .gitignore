@@ -62,6 +62,17 @@ services/training-service/outputs/
 # kronos-factors 运行产物（ml-engineer-2 重跑 IC follow-up 产物）
 packages/kronos-factors/outputs/
 
+# BOM 拆解 / walk-forward 归因 / 6月回测 运行产物 (数据 CSV + cache + log)
+outputs/bom_*.csv
+outputs/bom_*.json
+outputs/bom_oos_cache/
+outputs/wf_attr_*
+outputs/wf_attribution_*.json
+outputs/backtest_2026-06_*.log
+outputs/backtest_bi_trend_2026-06_*.json
+outputs/intraday_v8_2026-06-23_*.json
+.playwright-cli/
+
 # supply_chain P4/P5 校准与验证产物（运行时生成，不入库）
 calibrated_weights.json
 supply_chain_oos_report.json
