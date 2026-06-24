@@ -931,9 +931,8 @@ async def list_modes():
             {"id": "leader_intraday", "name": "秋神龙头战法-盘中 V7.0", "cycle": "1-2天",  "style": "激进"},
             {"id": "leader_closing",  "name": "秋神龙头战法-尾盘顺势 V2.0", "cycle": "1-2天",  "style": "顺势"},
             {"id": "leader_afternoon","name": "🔥秋神龙头战法-午后选股 V1.0", "cycle": "1-2天",  "style": "午后"},
+            {"id": "leader_afternoon_trend_full","name": "🔥秋神趋势启动午后全量版选股", "cycle": "1-3天",  "style": "午后全量"},
             {"id": "short",           "name": "匪爷短线多因子选股模型",       "cycle": "1-4周",  "style": "积极"},
-            {"id": "long",            "name": "长线价值",         "cycle": "3-12月", "style": "稳健"},
-            {"id": "all",             "name": "综合多因子",       "cycle": "1-6月",  "style": "中性"},
             {"id": "chokepoint",      "name": "大葱卡脖子选股模型",       "cycle": "1-3月",  "style": "主题"},
             {"id": "cb_floor",       "name": "匪爷可转债底价选债模型",   "cycle": "1-4周",  "style": "稳健"},
             {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
@@ -1168,7 +1167,7 @@ async def supply_chain_research_ingest(payload: dict | None = Body(default=None)
 
 @router.post("/run")
 async def run_screening(
-    mode: str = Query("all", description="Screening mode"),
+    mode: str = Query("short", description="Screening mode"),
     top_n: int = Query(DEFAULT_TOP_N, ge=5, le=MAX_TOP_N, description="Top N picks"),
     trade_date: Optional[str] = Query(None, description="Trade date (YYYY-MM-DD), defaults to latest"),
 ):
@@ -1202,7 +1201,7 @@ async def run_screening(
             result = await loop.run_in_executor(
                 _executor, _run_leader_mode, mode, top_n, trade_date
             )
-        elif mode == "leader_afternoon":
+        elif mode in ("leader_afternoon", "leader_afternoon_trend_full"):
             result = await loop.run_in_executor(
                 _executor, _run_afternoon_mode, mode, top_n, trade_date
             )
@@ -1365,15 +1364,13 @@ def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> 
 
 
 def _run_multifactor_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run multi-factor mode (short/long/all/chokepoint)."""
+    """Run multi-factor mode (short/chokepoint)."""
     from kronos_factors.engine.modes import (
-        ShortModeEngine, LongModeEngine, AllModeEngine, ChokepointEngine,
+        ShortModeEngine, ChokepointEngine,
     )
 
     engine_map = {
         "short": ShortModeEngine,
-        "long": LongModeEngine,
-        "all": AllModeEngine,
         "chokepoint": ChokepointEngine,
     }
     engine = engine_map[mode]()
@@ -1439,17 +1436,27 @@ def _run_bi_full_market_mode(mode: str, top_n: int, trade_date: Optional[str]) -
 
 def _run_afternoon_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
     """Run 秋神龙头战法-午后选股 V1.0 (14:30 afternoon leader screening)."""
-    from kronos_factors.engine.leader_afternoon import AfternoonLeaderEngine
+    from kronos_factors.engine.leader_afternoon import (
+        AfternoonLeaderEngine,
+        AfternoonTrendFullEngine,
+        build_sector_resonance_summary,
+    )
 
-    engine = AfternoonLeaderEngine()
-    picks = engine.run(top_n=top_n, trade_date=trade_date, time_slot="14:30")
+    is_full = mode == "leader_afternoon_trend_full"
+    engine = AfternoonTrendFullEngine() if is_full else AfternoonLeaderEngine()
+    run_top_n = max(top_n, 30) if is_full else top_n
+    picks = engine.run(top_n=run_top_n, trade_date=trade_date, time_slot="14:30")
 
     picks = _sanitize_picks(picks)
     picks = _normalize_picks(picks, mode)
+    sector_resonance = build_sector_resonance_summary(picks) if is_full else []
 
-    return {
+    result = {
         "mode": mode,
         "trade_date": trade_date,
         "total_picks": len(picks),
         "picks": picks,
     }
+    if is_full:
+        result["sector_resonance"] = sector_resonance
+    return result

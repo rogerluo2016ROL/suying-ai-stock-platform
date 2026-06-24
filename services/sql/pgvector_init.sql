@@ -73,7 +73,16 @@ INSERT INTO model_registry (model_name, display_name, category, factor_keys, fac
     ('leader_closing_v3',   '秋神龙头战法-尾盘 V3.0',  '秋神', ARRAY['gain_14','sector_leader_score','resonance_score','afternoon_score','seal_score','turnover_score','ma_score','volume_score','sector_momentum_score','gain_score','peer_count','leadership_bonus','resonance_bonus','margin_bonus','sector_resonance_bonus'], 32),
     ('leader_auction_v4',   '秋神龙头竞价超预期 V4.3','秋神', ARRAY['gap_z','sector_context','volume_surprise','amount_surprise','trap_reversal','fd_amount_yi'], 8),
     ('leader_scalp_v4',     '秋神龙头战法-盘后 V4.1',  '秋神', ARRAY['gain_quality','sector_leader','ma_trend','turnover','sector_resonance','capital_flow','sector_momentum','seal_quality','resilience'], 16),
-    ('cb_auction_v1',       '秋神竞价概念选债 V1.0',   '秋神', ARRAY['premium_rate','scale_score','concept_strength','auction_strength','liquidity_score'], 8)
+    ('leader_afternoon_v1', '秋神龙头战法-午后 V1.0',  '秋神', ARRAY['gain_pct','gain_score','seal_score','ma_score','turnover_score','volume_score','capital_score','resonance_score','sector_momentum_score','sector_leader_score','resilience_score','peer_count','dist_to_limit','seal_weakness','atr_pct'], 16),
+    ('leader_afternoon_trend_full_v1', '秋神趋势启动午后全量版选股 V1.0', '秋神', ARRAY['gain_pct','gain_score','seal_score','ma_score','turnover_score','volume_score','capital_score','resonance_score','sector_momentum_score','sector_leader_score','resilience_score','peer_count','dist_to_limit','is_at_limit','sector_resonance'], 16),
+    ('short_v1',            '匪爷短线多因子选股模型 V1.0', '匪爷', ARRAY['short_term','volume_factor','trend_strength','five_factor_composite','momentum_inverted','money_flow','margin_momentum','top_list','top_inst','analyst','hk_hold','tushare_events','identifiability','kronos_prediction'], 16),
+    ('chokepoint_v1',       '大葱卡脖子选股模型 V1.0', '大葱', ARRAY['cp_score','identifiability','hard_tech_score','theme_heat','devils_risk'], 8),
+    ('bi_trend_launch_v13', '毕师傅硬核科技趋势启动 V13', '毕师傅', ARRAY['obv_score','wr_score','vol_score','ma_score','adx_score','sm_score','startup_quality_score','ignition_power_score','hard_tech_conviction','chokepoint_score','checklist_score','freshness_bonus','rebound_strength_bonus','obv_accel_score'], 16),
+    ('bi_trend_full_market_v1', '毕师傅全市场趋势启动 V1.0', '毕师傅', ARRAY['obv_score','wr_score','vol_score','ma_score','adx_score','sm_score','startup_quality_score','ignition_power_score','hard_tech_conviction','chokepoint_score','checklist_score','freshness_bonus','rebound_strength_bonus','obv_accel_score'], 16),
+    ('supply_chain_bom_v5', '大葱产业链解构选股模型 V5', '大葱', ARRAY['moat_score','growth_score','profit_score','rating_score','consensus_score','revenue_growth','profit_growth','roe','gross_margin','report_count'], 16),
+    ('cb_auction_v1',       '秋神竞价概念选债 V1.0',   '秋神', ARRAY['premium_rate','scale_score','concept_strength','auction_strength','liquidity_score'], 8),
+    ('cb_floor_v1',         '匪爷可转债底价选债模型 V1.0', '匪爷', ARRAY['premium_score','rsi_score','ytm_score','macd_score','revision_score','theme_score','boll_score','history_score','size_score','volume_score','sector_bonus','rating_penalty','call_penalty'], 16),
+    ('cb_intraday_v1',      '匪爷可转债日内投机博弈模型 V1.0', '匪爷', ARRAY['sector_score','premium_score','momentum_score','liquidity_score','rev_bonus','call_penalty','premium_rate','yesterday_pct','cb_amount_wan'], 16)
 ON CONFLICT (model_name) DO NOTHING;
 
 -- 7. 向量索引维护 (每小时自动)

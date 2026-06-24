@@ -15,6 +15,7 @@ export default function Screener() {
   const [picks, setPicks] = useState<any[]>([])
   const [marketEnv, setMarketEnv] = useState('')
   const [stats, setStats] = useState({ scored: 0, excluded: 0, elapsed: 0 })
+  const [sectorResonance, setSectorResonance] = useState<any[]>([])
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [sortBy, setSortBy] = useState('score')
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
@@ -42,6 +43,7 @@ export default function Screener() {
       const r = await screenerApi.run(mode, topN)
       const data = r.data
       setPicks(data.picks || [])
+      setSectorResonance(data.sector_resonance || [])
       setMarketEnv(data.market_env || '')
       setStats({
         scored: data.total_scored || data.picks?.length || 0,
@@ -83,15 +85,17 @@ export default function Screener() {
       record.risk_flags?.length || record.power_flags?.length)
   )
 
+  const nowrapCell = () => ({ style: { whiteSpace: 'nowrap' as const } })
+
   const columns = [
     { title: '#', width: 40, render: (_: any, __: any, i: number) => (
       <Text type="secondary" style={{ fontSize: 12 }}>{i + 1}</Text>
-    )},
+    ), onCell: nowrapCell },
     { title: '代码', dataIndex: 'code', width: 100, render: (v: string) => (
       <a onClick={() => navigate(`/diagnosis?code=${v}`)} style={{ cursor: 'pointer' }}>
         <Text code style={{ fontSize: 12 }}>{v}</Text>
       </a>
-    )},
+    ), onCell: nowrapCell },
     { title: '名称', dataIndex: 'name', width: 130, render: (v: string, record: any) => (
       <div>
         <a onClick={() => navigate(`/diagnosis?code=${record.code}`)} style={{ cursor: 'pointer', color: '#1677ff' }}>
@@ -124,26 +128,44 @@ export default function Screener() {
           </div>
         )}
       </div>
-    )},
-    { title: '价格', dataIndex: 'price', width: 70, render: (v: number) => v?.toFixed(2) },
+    ), onCell: nowrapCell },
+    { title: '行业', dataIndex: 'industry', width: 95, ellipsis: true, onCell: nowrapCell },
+    { title: '涨停', dataIndex: 'is_at_limit', width: 58, render: (v: boolean) => (
+      v ? <Tag color="red" style={{ marginInlineEnd: 0 }}>是</Tag> : <Text type="secondary">否</Text>
+    ), onCell: nowrapCell },
+    { title: '价格', dataIndex: 'price', width: 70, render: (v: number) => v?.toFixed(2), onCell: nowrapCell },
     { title: '评分', dataIndex: 'score', width: 65, render: (v: number) => (
       <Text strong style={{ color: v >= 16 ? '#ff4d4f' : v >= 12 ? '#fa8c16' : '#1890ff' }}>
         {v?.toFixed(1)}
       </Text>
-    )},
+    ), onCell: nowrapCell },
     { title: '等级', dataIndex: 'grade', width: 50, render: (v: string) => {
       const color = v === 'S' ? '#ff4d4f' : v === 'A' ? '#fa8c16' : v === 'B' ? '#1890ff' : '#8c8c8c'
       return <Tag color={color} style={{ fontWeight: 600 }}>{v}</Tag>
-    }},
+    }, onCell: nowrapCell },
+    { title: '共振', dataIndex: 'resonance_score', width: 65, render: (v: number) => (
+      v === undefined || v === null ? <Text type="secondary">--</Text> : Number(v).toFixed(1)
+    ), onCell: nowrapCell },
     { title: '入场', dataIndex: 'entry_price', width: 70, render: (v: any) => v ? (
       <Text style={{ color: '#52c41a' }}>{Number(v).toFixed(2)}</Text>
-    ) : <Text type="secondary">--</Text> },
+    ) : <Text type="secondary">--</Text>, onCell: nowrapCell },
     { title: '止损', dataIndex: 'stop_loss', width: 70, render: (v: any) => v ? (
       <Text style={{ color: '#ff4d4f' }}>{Number(v).toFixed(2)}</Text>
-    ) : <Text type="secondary">--</Text> },
+    ) : <Text type="secondary">--</Text>, onCell: nowrapCell },
     { title: '目标', dataIndex: 'target_price', width: 70, render: (v: any) => v ? (
       <Text style={{ color: '#1a73e8' }}>{Number(v).toFixed(2)}</Text>
-    ) : <Text type="secondary">--</Text> },
+    ) : <Text type="secondary">--</Text>, onCell: nowrapCell },
+  ]
+
+  const sectorColumns = [
+    { title: '板块', dataIndex: 'sector', width: 110, ellipsis: true, onCell: nowrapCell },
+    { title: '入选', dataIndex: 'pick_count', width: 58, onCell: nowrapCell },
+    { title: '代表个股', dataIndex: 'representatives', width: 220, render: (v: string[]) => (
+      <Text>{(v || []).join(' / ')}</Text>
+    ), onCell: nowrapCell },
+    { title: '均共振', dataIndex: 'avg_resonance_score', width: 75, render: (v: number) => Number(v || 0).toFixed(1), onCell: nowrapCell },
+    { title: '板块涨幅', dataIndex: 'avg_sector_change', width: 85, render: (v: number) => `${Number(v || 0).toFixed(2)}%`, onCell: nowrapCell },
+    { title: '同板样本', dataIndex: 'max_peer_count', width: 80, onCell: nowrapCell },
   ]
 
   return (
@@ -211,6 +233,19 @@ export default function Screener() {
       <Card style={{ borderRadius: 8 }} loading={loading}
             title={picks.length > 0 ? `选股结果 (Top ${picks.length})` : '等待选股'}
       >
+        {sectorResonance.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 8, fontWeight: 600 }}>板块共振</div>
+            <Table
+              columns={sectorColumns}
+              dataSource={sectorResonance}
+              rowKey="sector"
+              size="small"
+              pagination={false}
+              scroll={{ x: 630 }}
+            />
+          </div>
+        )}
         <Table columns={columns} dataSource={sortedPicks} rowKey="code" size="small"
                rowSelection={{
                  selectedRowKeys,
@@ -289,8 +324,8 @@ export default function Screener() {
                    </div>
                  ),
                }}
-               pagination={{ pageSize: 15, showSizeChanger: false }}
-               scroll={{ x: 750 }}
+               pagination={{ pageSize: mode === 'leader_afternoon_trend_full' ? 30 : 15, showSizeChanger: false }}
+               scroll={{ x: 930 }}
                locale={{ emptyText: '点击「开始选股」运行模型筛选全市场标的' }} />
       </Card>
     </div>

@@ -54,6 +54,145 @@ WEIGHTS = {
 }
 TOTAL_WEIGHT = sum(WEIGHTS.values())
 
+# 回测 2026-03-24~2026-06-24 的轻量行业校准。
+# 只做小幅加减分，避免把三个月样本过拟合成硬名单。
+AFTERNOON_WEAK_INDUSTRIES = {"建筑工程", "矿物制品", "通信设备", "软件服务"}
+AFTERNOON_SUPPORTIVE_INDUSTRIES = {"汽车配件", "生物制药", "元器件"}
+
+
+def _afternoon_grade(total_score):
+    """Map afternoon model score to grade."""
+    if total_score >= 85:
+        return "S"
+    if total_score >= 72:
+        return "A"
+    if total_score >= 60:
+        return "B"
+    return "C"
+
+
+def apply_afternoon_optimization(score):
+    """Apply post-backtest crowding and industry calibration to one pick."""
+    optimised = dict(score)
+    raw_total = float(optimised.get("total_score", 0) or 0)
+    gain_pct = float(optimised.get("gain_pct", 0) or 0)
+    dist_to_limit = float(optimised.get("dist_to_limit", 99) or 99)
+    amount_yi = float(optimised.get("amount_yi_est", 0) or 0)
+    volume_score = float(optimised.get("volume_score", 0) or 0)
+    capital_score = float(optimised.get("capital_score", 0) or 0)
+    code = str(optimised.get("code", ""))
+    industry = optimised.get("industry", "")
+    is_20cm = code.startswith(("300", "301", "688"))
+
+    penalty = 0
+    bonus = 0
+    flags = []
+
+    high_gain = gain_pct >= (17.0 if is_20cm else 8.8)
+    if high_gain and dist_to_limit <= 1.2:
+        penalty += 8
+        flags.append("crowded_breakout")
+
+    if amount_yi >= 15 and volume_score >= 10:
+        penalty += 4
+        flags.append("high_turnover_crowding")
+
+    if amount_yi >= 10 and gain_pct >= 8 and capital_score <= 10:
+        penalty += 3
+        flags.append("weak_capital_confirmation")
+
+    if industry in AFTERNOON_WEAK_INDUSTRIES:
+        penalty += 6
+        flags.append("weak_industry")
+    elif industry in AFTERNOON_SUPPORTIVE_INDUSTRIES:
+        bonus += 2
+        flags.append("supportive_industry")
+
+    total = max(0, raw_total - penalty + bonus)
+    optimised["raw_total_score"] = raw_total
+    optimised["total_score"] = total
+    optimised["grade"] = _afternoon_grade(total)
+    optimised["optimization_penalty"] = penalty
+    optimised["optimization_bonus"] = bonus
+    optimised["optimization_flags"] = flags
+    return optimised
+
+
+def filter_tradeable_afternoon_picks(picks, top_n=None, drop_no_trade=True):
+    """Return picks eligible for trading after market-regime filters."""
+    tradeable = [
+        dict(p)
+        for p in picks
+        if not (drop_no_trade and p.get("_no_trade"))
+    ]
+    tradeable.sort(key=lambda x: -float(x.get("total_score", 0) or 0))
+    return tradeable[:top_n] if top_n else tradeable
+
+
+def build_sector_resonance_summary(picks, limit=10):
+    """Aggregate pick-level sector resonance into a compact sector table."""
+    grouped = {}
+    for pick in picks:
+        sector = pick.get("industry") or "其他"
+        item = grouped.setdefault(
+            sector,
+            {
+                "sector": sector,
+                "pick_count": 0,
+                "resonance_scores": [],
+                "sector_changes": [],
+                "peer_counts": [],
+                "representatives": [],
+            },
+        )
+        item["pick_count"] += 1
+        item["resonance_scores"].append(float(pick.get("resonance_score", 0) or 0))
+        item["sector_changes"].append(float(pick.get("sector_change", 0) or 0))
+        item["peer_counts"].append(int(pick.get("peer_count", 0) or 0))
+        if len(item["representatives"]) < 3:
+            item["representatives"].append(pick.get("name") or pick.get("code"))
+
+    summary = []
+    for item in grouped.values():
+        resonance_scores = item.pop("resonance_scores")
+        sector_changes = item.pop("sector_changes")
+        peer_counts = item.pop("peer_counts")
+        item["avg_resonance_score"] = round(float(np.mean(resonance_scores)), 1) if resonance_scores else 0
+        item["avg_sector_change"] = round(float(np.mean(sector_changes)), 2) if sector_changes else 0
+        item["max_peer_count"] = max(peer_counts) if peer_counts else 0
+        summary.append(item)
+
+    summary.sort(key=lambda x: (x["pick_count"], x["avg_resonance_score"]), reverse=True)
+    return summary[:limit]
+
+
+def select_afternoon_top(scores, market_env, top_n=20, full_output=False):
+    """Select final afternoon picks with either strict or full-observation rules."""
+    if full_output:
+        return list(scores[:top_n])
+
+    if market_env == MarketEnv.BULL:
+        max_per_sector = 3; min_grade = "B"
+    elif market_env == MarketEnv.NEUTRAL:
+        max_per_sector = 2; min_grade = "A"
+    else:
+        max_per_sector = 1; min_grade = "S"
+
+    grade_order = {"S": 0, "A": 1, "B": 2, "C": 3}
+    top = []
+    sector_counts = {}
+    for s in scores:
+        ind = s.get("industry", "其他")
+        cnt = sector_counts.get(ind, 0)
+        if grade_order.get(s.get("grade", "C"), 3) > grade_order.get(min_grade, 2):
+            continue
+        if cnt < max_per_sector:
+            top.append(s)
+            sector_counts[ind] = cnt + 1
+        if len(top) >= top_n:
+            break
+    return top
+
 
 # ═══════════════════════ 数据获取 (stk_mins 版本) ═══════════════════════
 
@@ -444,7 +583,8 @@ def score_resilience_intraday(intraday_ohlc):
 
 def score_stock_afternoon(code, name, industry, snap, pre_close, db, trade_date,
                            time_slot="14:30", limit_info=None,
-                           sector_stats=None, kline_cache=None, is_historical=False):
+                           sector_stats=None, kline_cache=None, is_historical=False,
+                           allow_at_limit=False):
     """午后选股评分 (方案B: stk_mins数据 + 降级封板 + 日内分歧不死)."""
     close_14 = snap["close"]
     amount_14 = snap["amount"]
@@ -489,7 +629,7 @@ def score_stock_afternoon(code, name, industry, snap, pre_close, db, trade_date,
     # 14:00/14:30 已封板的股票当日无法买入, 排除
     # 核心逻辑: 选"将成龙"(还没封但即将封), 不选"已成龙"(已经封死的)
     # 一字板也淘汰 (开盘即封死, 全天买不到)
-    if is_at_limit:
+    if is_at_limit and not allow_at_limit:
         return None
 
     # ── 方案B: G1 — 涨幅不足无接力价值 ──
@@ -715,21 +855,13 @@ def score_stock_afternoon(code, name, industry, snap, pre_close, db, trade_date,
              resonance_score + capital_adjusted + sector_momentum_adjusted +
              seal_score + resilience_adjusted)
 
-    # ── 评级 ──
-    if total >= 85:
-        grade = "S"
-    elif total >= 72:
-        grade = "A"
-    elif total >= 60:
-        grade = "B"
-    else:
-        grade = "C"
+    grade = _afternoon_grade(total)
 
     # ── 信号 ──
     atr_val = calc_atr(hist_highs, hist_lows, hist_closes, 14)
     atr_pct = (atr_val / close_14 * 100) if close_14 > 0 and atr_val > 0 else 0
 
-    return {
+    result = {
         "code": code, "name": name, "industry": industry,
         "gain_pct": round(gain_pct, 2), "close_14": close_14, "pre_close": pre_close,
         "amount_yi_est": round(amount_yi, 1),
@@ -745,11 +877,28 @@ def score_stock_afternoon(code, name, industry, snap, pre_close, db, trade_date,
         "seal_weakness": seal_weakness,
         "atr_pct": round(atr_pct, 2),
     }
+    result["sector_resonance"] = {
+        "sector": industry,
+        "sector_change": result["sector_change"],
+        "peer_count": peer_count,
+        "resonance_score": resonance_score,
+        "sector_momentum_score": sector_momentum_score,
+        "sector_leader_score": sl_score,
+    }
+    return apply_afternoon_optimization(result)
 
 
 # ═══════════════════════ 筛选主流程 ═══════════════════════
 
-def run_afternoon_screening(trade_date, time_slot="14:30", top_n=20, env_check=True):
+def run_afternoon_screening(
+    trade_date,
+    time_slot="14:30",
+    top_n=20,
+    env_check=True,
+    allow_at_limit=False,
+    tradeable_only=True,
+    full_output=False,
+):
     """14:30 午后选股主流程."""
     with _get_db(readonly=True) as db:
         # ── 市场环境 ──
@@ -858,6 +1007,7 @@ def run_afternoon_screening(trade_date, time_slot="14:30", top_n=20, env_check=T
                     snapshot[c], pre_closes[c], db, trade_date,
                     time_slot=time_slot, limit_info=limit_info,
                     sector_stats=sector_stats, is_historical=(snap_mode != "live"),
+                    allow_at_limit=allow_at_limit,
                 )
                 if res:
                     scores.append(res)
@@ -869,27 +1019,7 @@ def run_afternoon_screening(trade_date, time_slot="14:30", top_n=20, env_check=T
         # ── 排序 + Top-N ──
         scores.sort(key=lambda x: -x["total_score"])
 
-        # 板块集中度控制
-        if market_env == MarketEnv.BULL:
-            max_per_sector = 3; min_grade = "B"
-        elif market_env == MarketEnv.NEUTRAL:
-            max_per_sector = 2; min_grade = "A"
-        else:
-            max_per_sector = 1; min_grade = "S"
-
-        grade_order = {"S": 0, "A": 1, "B": 2, "C": 3}
-        top = []
-        sector_counts = {}
-        for s in scores:
-            ind = s.get("industry", "其他")
-            cnt = sector_counts.get(ind, 0)
-            if grade_order.get(s.get("grade", "C"), 3) > grade_order.get(min_grade, 2):
-                continue
-            if cnt < max_per_sector:
-                top.append(s)
-                sector_counts[ind] = cnt + 1
-            if len(top) >= top_n:
-                break
+        top = select_afternoon_top(scores, market_env, top_n=top_n, full_output=full_output)
 
         # 市场环境标记
         for s in top:
@@ -899,6 +1029,8 @@ def run_afternoon_screening(trade_date, time_slot="14:30", top_n=20, env_check=T
             elif market_env == MarketEnv.BEAR:
                 s["_no_trade"] = True
 
+        if tradeable_only:
+            top = filter_tradeable_afternoon_picks(top, top_n=top_n)
         return top, scores
 
 
@@ -943,6 +1075,28 @@ class AfternoonLeaderEngine:
                 row = db.execute("SELECT MAX(trade_date) FROM daily_kline").fetchone()
                 trade_date = row["max"] if row else None
         top, all_scores = run_afternoon_screening(trade_date, time_slot=time_slot, top_n=top_n)
+        return top
+
+
+class AfternoonTrendFullEngine:
+    """秋神趋势启动午后全量版选股引擎."""
+
+    def __init__(self, pg_url: str = None):
+        self.pg_url = pg_url
+
+    def run(self, top_n: int = 30, trade_date: str = None, time_slot: str = "14:30", **kwargs):
+        if trade_date is None:
+            with _get_db(readonly=True) as db:
+                row = db.execute("SELECT MAX(trade_date) FROM daily_kline").fetchone()
+                trade_date = row["max"] if row else None
+        top, _ = run_afternoon_screening(
+            trade_date,
+            time_slot=time_slot,
+            top_n=top_n,
+            allow_at_limit=True,
+            tradeable_only=False,
+            full_output=True,
+        )
         return top
 
 

@@ -28,15 +28,16 @@ class TestScreenerModes:
         assert response.status_code == 200
         data = response.json()
         assert "modes" in data
-        assert len(data["modes"]) >= 12
+        assert len(data["modes"]) >= 10
 
         # Verify key modes are present
         mode_ids = [m["id"] for m in data["modes"]]
         assert len(mode_ids) == len(set(mode_ids))
         assert "leader_scalp" in mode_ids
+        assert "leader_afternoon_trend_full" in mode_ids
         assert "short" in mode_ids
-        assert "long" in mode_ids
-        assert "all" in mode_ids
+        assert "long" not in mode_ids
+        assert "all" not in mode_ids
         assert "chokepoint" in mode_ids
         assert "supply_chain" in mode_ids
         assert "bi_trend_launch" in mode_ids
@@ -66,12 +67,19 @@ class TestScreenerRun:
 
     def test_run_top_n_out_of_range(self, client):
         """Verify top_n < 5 returns validation error."""
-        response = client.post("/api/v1/screener/run?mode=all&top_n=3")
+        response = client.post("/api/v1/screener/run?mode=short&top_n=3")
         assert response.status_code == 422  # FastAPI validation error
 
-    def test_run_all_mode_returns_picks(self, client):
-        """Verify 'all' mode returns picks (integration test, needs PG data)."""
-        response = client.post("/api/v1/screener/run?mode=all&top_n=5")
+    @pytest.mark.parametrize("mode", ["long", "all"])
+    def test_removed_modes_return_400(self, client, mode):
+        """Verify removed modes are no longer runnable."""
+        response = client.post(f"/api/v1/screener/run?mode={mode}&top_n=5")
+        assert response.status_code == 400
+        assert "Unknown mode" in response.json()["detail"]
+
+    def test_default_run_mode_remains_supported(self, client):
+        """Verify the default run mode still points at a supported model."""
+        response = client.post("/api/v1/screener/run?top_n=5")
         # May return 503 if no data, 200 if data available
         assert response.status_code in (200, 503)
         if response.status_code == 200:

@@ -17,11 +17,12 @@ def _get_engine(mode: str):
         return _ENGINES[mode]
     try:
         from kronos_factors.engine.modes import (
-            ChokepointEngine, ShortModeEngine, LongModeEngine, AllModeEngine
+            ChokepointEngine, ShortModeEngine
         )
         from kronos_factors.engine.leader_scalp import LeaderScalpEngine
         from kronos_factors.engine.leader_intraday import IntradayScalpEngine
         from kronos_factors.engine.leader_auction import AuctionScalpEngine
+        from kronos_factors.engine.leader_afternoon import AfternoonTrendFullEngine
         from kronos_factors.engine.cb_floor import CbFloorEngine
         from kronos_factors.engine.cb_intraday import CbIntradayEngine
         from kronos_factors.engine.cb_auction import CbAuctionEngine
@@ -31,10 +32,9 @@ def _get_engine(mode: str):
         _ENGINES.update({
             "leader_scalp": LeaderScalpEngine,
             "leader_auction": AuctionScalpEngine,
+            "leader_afternoon_trend_full": AfternoonTrendFullEngine,
             "intraday": IntradayScalpEngine,
             "short": ShortModeEngine,
-            "long": LongModeEngine,
-            "all": AllModeEngine,
             "chokepoint": ChokepointEngine,
             "bi_trend_launch": BiTrendLaunchEngine,
             "supply_chain": SupplyChainEngine,
@@ -183,5 +183,5 @@ def merge_picks(strategy_results: dict, top_n: int = 30) -> list[dict]:
 def get_available_modes() -> list[str]:
     """Return list of registered screening modes."""
     return list(_ENGINES.keys()) if _ENGINES else [
-        "leader_scalp", "intraday", "short", "long", "all", "chokepoint"
+        "leader_scalp", "intraday", "short", "chokepoint"
     ]
