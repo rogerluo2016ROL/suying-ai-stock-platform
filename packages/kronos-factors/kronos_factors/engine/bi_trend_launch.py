@@ -994,12 +994,16 @@ def _score_startup_quality(regime: str = "neutral", daily_gain: float = 0.0,
     if regime in ("weak", "recovery") and daily_gain > 3 and not two_day_up:
         score_adj -= 3
         quality_flags.append("weak_market_single_pop")
-    if wr_now >= 80 and ret_5d > 8:
+    late_rebound = wr_now >= 80 and ret_5d > 8
+    if late_rebound:
         score_adj -= 4
         risk_flags.append("late_rebound")
     if ma20_extension_penalty > 0:
         score_adj -= min(3, ma20_extension_penalty)
         risk_flags.append("ma20_extension")
+    if late_rebound and ma20_extension_penalty >= 4:
+        score_adj -= 3
+        risk_flags.append("late_stage_extension")
     if distribution_penalty > 0:
         score_adj -= min(4, distribution_penalty)
         risk_flags.append("distribution_day")

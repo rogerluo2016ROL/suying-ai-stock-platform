@@ -130,6 +130,30 @@ def test_startup_quality_flags_late_rebound_and_distribution():
     assert "weak_market_single_pop" in result["quality_flags"]
 
 
+def test_startup_quality_penalizes_late_stage_extension_cluster():
+    from kronos_factors.engine.bi_trend_launch import _score_startup_quality
+
+    result = _score_startup_quality(
+        regime="neutral",
+        daily_gain=2.0,
+        two_day_up=True,
+        wr_now=86.0,
+        ret_5d=13.0,
+        ma20_extension_penalty=5,
+        distribution_penalty=0,
+        annual_vol=45.0,
+        vol_regime="normal",
+        weekly_bearish=True,
+        dead_cat=False,
+    )
+
+    assert result["score_adj"] <= -12
+    assert "late_rebound" in result["risk_flags"]
+    assert "ma20_extension" in result["risk_flags"]
+    assert "weekly_bearish" in result["risk_flags"]
+    assert "late_stage_extension" in result["risk_flags"]
+
+
 def test_ignition_power_rewards_fresh_coiling_reversal():
     from kronos_factors.engine.bi_trend_launch import _score_ignition_power
 
