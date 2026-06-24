@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 3000",
+    "dev:uat": "VITE_AUTH_SERVICE_URL=http://127.0.0.1:19001 VITE_SCREENER_SERVICE_URL=http://127.0.0.1:18001 vite --host 127.0.0.1 --port 3002",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",

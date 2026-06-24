@@ -1,17 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolveProxyTargets } from './proxyTargets'
 
-const authServiceTarget = process.env.VITE_AUTH_SERVICE_URL || 'http://localhost:9001'
-const screenerServiceTarget = process.env.VITE_SCREENER_SERVICE_URL || 'http://localhost:8001'
-const predictionServiceTarget = process.env.VITE_PREDICTION_SERVICE_URL || 'http://localhost:8002'
-const strategyServiceTarget = process.env.VITE_STRATEGY_SERVICE_URL || 'http://localhost:8003'
-const signalServiceTarget = process.env.VITE_SIGNAL_SERVICE_URL || 'http://localhost:8004'
-const alertServiceTarget = process.env.VITE_ALERT_SERVICE_URL || 'http://localhost:8005'
-const tradeServiceTarget = process.env.VITE_TRADE_SERVICE_URL || 'http://localhost:8006'
-const backtestServiceTarget = process.env.VITE_BACKTEST_SERVICE_URL || 'http://localhost:8007'
-const trainingServiceTarget = process.env.VITE_TRAINING_SERVICE_URL || 'http://localhost:8008'
-const diagnosisServiceTarget = process.env.VITE_DIAGNOSIS_SERVICE_URL || 'http://localhost:8009'
-const gatewayServiceTarget = process.env.VITE_GATEWAY_SERVICE_URL || 'http://localhost:8080'
+const proxyTargets = resolveProxyTargets(process.env)
 
 /// <reference types="vitest/config" />
 // P2 测试加固（FE-P1 review S-2 同批）：tests/sit/auth-flow.test.tsx 在单 worker
@@ -34,20 +25,20 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api/v1/screener':    { target: screenerServiceTarget, changeOrigin: true, timeout: 600000 },
-      '/api/v1/dashboard':   { target: signalServiceTarget, changeOrigin: true },
-      '/api/v1/prediction':  { target: predictionServiceTarget, changeOrigin: true },
-      '/api/v1/strategy':    { target: strategyServiceTarget, changeOrigin: true },
-      '/api/v1/signal':      { target: signalServiceTarget, changeOrigin: true },
-      '/api/v1/alert':       { target: alertServiceTarget, changeOrigin: true },
-      '/api/v1/trade':       { target: tradeServiceTarget, changeOrigin: true },
-      '/api/v1/backtest':    { target: backtestServiceTarget, changeOrigin: true },
-      '/api/v1/training':    { target: trainingServiceTarget, changeOrigin: true },
-      '/api/v1/diagnosis':   { target: diagnosisServiceTarget, changeOrigin: true },
-      '/api/v1/health':      { target: gatewayServiceTarget, changeOrigin: true },
-      '/api/v1/data':        { target: signalServiceTarget, changeOrigin: true },
-      '/api/v1/auth':        { target: authServiceTarget, changeOrigin: true },
-      '/api/v1/admin':       { target: authServiceTarget, changeOrigin: true },
+      '/api/v1/screener':    { target: proxyTargets.screener, changeOrigin: true, timeout: 600000 },
+      '/api/v1/dashboard':   { target: proxyTargets.signal, changeOrigin: true },
+      '/api/v1/prediction':  { target: proxyTargets.prediction, changeOrigin: true },
+      '/api/v1/strategy':    { target: proxyTargets.strategy, changeOrigin: true },
+      '/api/v1/signal':      { target: proxyTargets.signal, changeOrigin: true },
+      '/api/v1/alert':       { target: proxyTargets.alert, changeOrigin: true },
+      '/api/v1/trade':       { target: proxyTargets.trade, changeOrigin: true },
+      '/api/v1/backtest':    { target: proxyTargets.backtest, changeOrigin: true },
+      '/api/v1/training':    { target: proxyTargets.training, changeOrigin: true },
+      '/api/v1/diagnosis':   { target: proxyTargets.diagnosis, changeOrigin: true },
+      '/api/v1/health':      { target: proxyTargets.gateway, changeOrigin: true },
+      '/api/v1/data':        { target: proxyTargets.signal, changeOrigin: true },
+      '/api/v1/auth':        { target: proxyTargets.auth, changeOrigin: true },
+      '/api/v1/admin':       { target: proxyTargets.auth, changeOrigin: true },
     },
   },
   build: {
