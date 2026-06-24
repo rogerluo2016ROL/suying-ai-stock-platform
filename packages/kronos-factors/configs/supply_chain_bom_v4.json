@@ -88,6 +88,46 @@
       "keywords": ["具身智能", "机器人", "人形机器人", "伺服", "减速器", "控制器", "传感器"]
     },
     {
+      "node_id": "bom_reducer",
+      "theme_id": "future_industry_core",
+      "chain_id": "embodied_ai",
+      "parent_node_id": "embodied_ai_core",
+      "level": "component",
+      "name": "减速器",
+      "node_type": "component",
+      "keywords": ["减速器", "谐波减速", "行星减速", "RV减速"]
+    },
+    {
+      "node_id": "bom_motor",
+      "theme_id": "future_industry_core",
+      "chain_id": "embodied_ai",
+      "parent_node_id": "embodied_ai_core",
+      "level": "component",
+      "name": "电机",
+      "node_type": "component",
+      "keywords": ["电机", "空心杯", "伺服电机", "步进电机"]
+    },
+    {
+      "node_id": "bom_bearing",
+      "theme_id": "future_industry_core",
+      "chain_id": "embodied_ai",
+      "parent_node_id": "embodied_ai_core",
+      "level": "component",
+      "name": "轴承",
+      "node_type": "component",
+      "keywords": ["轴承", "精密轴承"]
+    },
+    {
+      "node_id": "bom_controller",
+      "theme_id": "future_industry_core",
+      "chain_id": "embodied_ai",
+      "parent_node_id": "embodied_ai_core",
+      "level": "component",
+      "name": "控制器",
+      "node_type": "component",
+      "keywords": ["控制器", "运动控制", "控制系统"]
+    },
+    {
       "node_id": "6g_core",
       "theme_id": "future_industry_core",
       "chain_id": "6g",

@@ -245,9 +245,11 @@ def _query_supply_chain_company_detail(code: str) -> dict | None:
             mapping_rows = db.execute(
                 """
                 SELECT m.node_id, m.product_name, m.material_name, m.confidence,
-                       m.evidence_ids, n.name AS node_name, n.theme_id, n.level
+                       m.evidence_ids, n.name AS node_name, n.theme_id, n.level,
+                       COALESCE(s.name, m.code) AS company_name
                 FROM company_bom_mapping m
                 LEFT JOIN supply_chain_bom_nodes n ON n.node_id = m.node_id
+                LEFT JOIN stocks s ON s.code = m.code
                 WHERE m.code = ?
                 ORDER BY m.confidence DESC
                 """,
@@ -335,6 +337,8 @@ def _query_supply_chain_company_detail(code: str) -> dict | None:
     first_theme = theme_by_id.get(first_node.get("theme_id"), {})
     return {
         "code": code,
+        "name": _row_get(mapping_rows[0], "company_name") if mapping_rows else code,
+        "node_name": _row_get(mapping_rows[0], "node_name") if mapping_rows else None,
         "rank": None,
         "rating": _row_get(score, "rating") if score else None,
         "trade_signal": (_row_get(score, "trade_signal") if score else None) or "观察",
