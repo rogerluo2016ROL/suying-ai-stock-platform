@@ -67,6 +67,22 @@ export default function Screener() {
     return copy
   }, [picks, sortBy])
 
+  const hardTechTagColor = (tier?: string) => {
+    if (tier === 'core') return 'red'
+    if (tier === 'strategic') return 'blue'
+    return 'default'
+  }
+
+  const formatAxisScore = (label: string, value: any) => {
+    if (value === undefined || value === null || value === '') return null
+    return `${label} ${Number(value).toFixed(1)}`
+  }
+
+  const hasFourAxisDetail = (record: any) => (
+    Boolean(record.entry_reason || record.factor_breakdown || record.hard_tech ||
+      record.risk_flags?.length || record.power_flags?.length)
+  )
+
   const columns = [
     { title: '#', width: 40, render: (_: any, __: any, i: number) => (
       <Text type="secondary" style={{ fontSize: 12 }}>{i + 1}</Text>
@@ -76,10 +92,38 @@ export default function Screener() {
         <Text code style={{ fontSize: 12 }}>{v}</Text>
       </a>
     )},
-    { title: '名称', dataIndex: 'name', width: 90, render: (v: string, record: any) => (
-      <a onClick={() => navigate(`/diagnosis?code=${record.code}`)} style={{ cursor: 'pointer', color: '#1677ff' }}>
-        {v}
-      </a>
+    { title: '名称', dataIndex: 'name', width: 130, render: (v: string, record: any) => (
+      <div>
+        <a onClick={() => navigate(`/diagnosis?code=${record.code}`)} style={{ cursor: 'pointer', color: '#1677ff' }}>
+          {v}
+        </a>
+        {record.hard_tech?.track && (
+          <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            <Tag color={hardTechTagColor(record.hard_tech?.tier)} style={{ marginInlineEnd: 0, fontSize: 11 }}>
+              {record.hard_tech.track}
+            </Tag>
+            {record.hard_tech?.tier && (
+              <Tag color="default" style={{ marginInlineEnd: 0, fontSize: 11 }}>
+                {record.hard_tech.tier}
+              </Tag>
+            )}
+            {hasFourAxisDetail(record) && (
+              <Button
+                type="link"
+                size="small"
+                aria-label="展开四轴解释"
+                style={{ height: 18, padding: 0, fontSize: 11 }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setExpandedRow(expandedRow === record.code ? null : record.code)
+                }}
+              >
+                四轴
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
     )},
     { title: '价格', dataIndex: 'price', width: 70, render: (v: number) => v?.toFixed(2) },
     { title: '评分', dataIndex: 'score', width: 65, render: (v: number) => (
@@ -173,6 +217,8 @@ export default function Screener() {
                  onChange: setSelectedRowKeys,
                }}
                expandable={{
+                 expandedRowKeys: expandedRow ? [expandedRow] : [],
+                 onExpand: (expanded, record: any) => setExpandedRow(expanded ? record.code : null),
                  expandedRowRender: (record: any) => (
                    <div style={{ padding: '8px 16px', background: '#fafafa', borderRadius: 4 }}>
                      <Space wrap size="small">
@@ -197,6 +243,39 @@ export default function Screener() {
                          <Text type="secondary" style={{fontSize:11}}>
                            <InfoCircleOutlined /> {record.rationale}
                          </Text>
+                       </div>
+                     )}
+                     {hasFourAxisDetail(record) && (
+                       <div style={{ marginTop: 10 }}>
+                         {record.entry_reason && (
+                           <Text type="secondary" style={{ fontSize: 12 }}>
+                             <InfoCircleOutlined /> {record.entry_reason}
+                           </Text>
+                         )}
+                         <div style={{ marginTop: 8, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                           {[
+                             formatAxisScore('启动质量', record.factor_breakdown?.startup_quality ?? record.startup_quality_score),
+                             formatAxisScore('点火爆发', record.factor_breakdown?.ignition_power ?? record.ignition_power_score),
+                             formatAxisScore('硬科技', record.factor_breakdown?.hard_tech_conviction ?? record.hard_tech?.score_adj),
+                           ].filter(Boolean).map(item => (
+                             <Text key={item as string} style={{ fontSize: 12 }}>{item}</Text>
+                           ))}
+                         </div>
+                         {(record.risk_flags?.length || record.power_flags?.length || record.hard_tech?.matched_keywords?.length) && (
+                           <div style={{ marginTop: 8 }}>
+                             <Space wrap size={[4, 4]}>
+                               {(record.power_flags || []).map((flag: string) => (
+                                 <Tag key={`power-${flag}`} color="green" style={{ fontSize: 11 }}>{flag}</Tag>
+                               ))}
+                               {(record.risk_flags || []).map((flag: string) => (
+                                 <Tag key={`risk-${flag}`} color="orange" style={{ fontSize: 11 }}>{flag}</Tag>
+                               ))}
+                               {(record.hard_tech?.matched_keywords || []).slice(0, 4).map((kw: string) => (
+                                 <Tag key={`kw-${kw}`} color="geekblue" style={{ fontSize: 11 }}>{kw}</Tag>
+                               ))}
+                             </Space>
+                           </div>
+                         )}
                        </div>
                      )}
                      <div style={{marginTop:4}}>
