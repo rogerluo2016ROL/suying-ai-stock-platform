@@ -2133,6 +2133,8 @@ def generate_bi_plan(picks, market_regime="neutral"):
             action = " " + action  # 快进快出标记
 
         hard_tech_track = (s.get("hard_tech") or {}).get("track") or s.get("hard_tech_track", "")
+        risk_flags = list(s.get("risk_flags") or [])
+        risk_flag_set = set(risk_flags)
 
         # 提示标签
         tips = []
@@ -2141,6 +2143,11 @@ def generate_bi_plan(picks, market_regime="neutral"):
         if is_dead_cat: tips.append(' 中继')
         if s.get("_fresh"): tips.append(' 新鲜')
         if s.get("rebound_strength_bonus", 0) > 0: tips.append(' 强反弹')
+        if "late_stage_extension" in risk_flag_set: tips.append(' 末端延伸')
+        elif "late_rebound" in risk_flag_set: tips.append(' 高位反弹')
+        if "ma20_extension" in risk_flag_set and "late_stage_extension" not in risk_flag_set: tips.append(' 离均过远')
+        if "distribution_day" in risk_flag_set: tips.append(' 派发')
+        if "weekly_bearish" in risk_flag_set: tips.append(' 周线弱')
         if hard_tech_track: tips.append(f' {hard_tech_track}')
         if s.get("chokepoint_score", 0) >= 2: tips.append(' 稀缺')
         elif s.get("chokepoint_score", 0) >= 1: tips.append(' 寡头')
@@ -2158,6 +2165,7 @@ def generate_bi_plan(picks, market_regime="neutral"):
             "close": s["close"],
             "chase_warning": is_chase, "dead_cat": is_dead_cat,
             "fresh_pullback": s.get("_fresh", False),
+            "risk_flags": risk_flags,
             "hard_tech_track": hard_tech_track,
             "chokepoint_score": s.get("chokepoint_score", 0),
             "tips": ','.join(tips) if tips else '',

@@ -201,3 +201,27 @@ def test_generate_bi_plan_uses_refined_hard_tech_track(monkeypatch):
     assert plans[0]["hard_tech_track"] == "AI算力"
     assert "AI算力" in plans[0]["tips"]
     assert "通信" not in plans[0]["tips"]
+
+
+def test_generate_bi_plan_surfaces_late_stage_risk_flags(monkeypatch):
+    from kronos_factors.engine import bi_trend_launch
+
+    monkeypatch.setattr(bi_trend_launch, "_get_atr_pct_for_code", lambda code: 0.0)
+
+    plans = bi_trend_launch.generate_bi_plan([
+        {
+            "code": "002281",
+            "name": "光迅科技",
+            "close": 276.5,
+            "grade": "S",
+            "signal": "watch",
+            "total_score": 83,
+            "obv_level": "刚突破",
+            "wr_level": "平稳",
+            "risk_flags": ["late_rebound", "ma20_extension", "late_stage_extension"],
+            "hard_tech": {"track": "AI算力", "tier": "core"},
+        }
+    ])
+
+    assert plans[0]["risk_flags"] == ["late_rebound", "ma20_extension", "late_stage_extension"]
+    assert "末端延伸" in plans[0]["tips"]
