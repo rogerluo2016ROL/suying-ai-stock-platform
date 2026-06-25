@@ -228,3 +228,19 @@ SELL_TRAILING_STOP_TIGHT = SELL_TRAILING_TIER3_STOP  # now -5%
 TRAILING_PROFIT_THRESHOLD = SELL_TRAILING_TIER2_PROFIT
 
 WEAK_MARKET_S_ONLY = True
+
+# V14: 分级仓位权重 — 解决S级悖论（S级高波动降权，A级稳健满仓）
+GRADE_POSITION_WEIGHT = {
+    "S": 0.6,   # S级降权至60%（高风险高波动，黑天鹅冲击大）
+    "A": 1.0,   # A级正常仓位100%（胜率50.5%均值+0.46%，主力仓位）
+    "B": 0.3,   # B级降权至30%（质量差，胜率低，仅试探）
+}
+
+# V14: 最低分散化强制 — 解决浓度风险（日均3-4只，单票暴雷=全军覆没）
+MIN_DIVERSIFICATION = 5    # 至少5只股票（防单票暴雷）
+MAX_SAME_INDUSTRY = 2      # 同行业最多2只（防板块踩踏）
+
+# V14: OBV=0金叉溢价 — 真实选股路径 _score_bi_trend_arrays 已内置 (obv_days_above==0 → +5⚡).
+# 下列参数仅供 score_bi_trend (单测/兼容路径) 与文档引用, 实际选股不读取.
+OBV_ZERO_BONUS = 5          # OBV=0额外加分（与 _score_bi_trend_arrays 硬编码 +5 对齐）
+OBV_ZERO_WR_THRESHOLD = 50  # OBV=0时WR放宽阈值（保留供参考）

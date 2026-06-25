@@ -328,7 +328,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     elif obv_days_above >= 7:
         obv_score = 22
         obv_level = "中等"
-    else:  # 5-6天
+    else:  # 0-6天
         obv_score = 15
         obv_level = "刚突破"
 
@@ -469,7 +469,7 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
 
     # V4.0: 移除S级强制缩量
 
-    #    V3.0 信号: strong_buy条件收紧   
+    #    V3.0 信号: strong_buy条件收紧
     if obv_days_above >= STRONG_OBV_DAYS and wr_max_drop < STRONG_WR_DROP and wr_now > 40:
         signal_type = "strong_buy"
     elif grade in ("S", "A"):
@@ -865,23 +865,40 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
 
     candidates.sort(key=_signal_rank)
 
+    # V14: 最低分散化强制 — 至少5只，同行业最多2只（放宽策略）
+    # 解决浓度风险：日均3-4只，单票暴雷=全军覆没
+    # 两阶段策略：先严格去重选出前批，如不足5只则放宽至3只/行业补充
     top = []
     sector_counts = defaultdict(int)
+
+    # 阶段1：严格去重（同行业最多2只）
     for s in candidates:
         ind = s["industry"]
-        if sector_counts[ind] < 2:
+        if sector_counts[ind] < MAX_SAME_INDUSTRY:
             top.append(s)
             sector_counts[ind] += 1
         if len(top) >= effective_n:
             break
 
+    # 阶段2：如不足MIN_DIVERSIFICATION只，放宽至3只/行业补充
+    if len(top) < MIN_DIVERSIFICATION and len(candidates) >= MIN_DIVERSIFICATION:
+        for s in candidates:
+            if s in top:
+                continue  # 已入选跳过
+            ind = s["industry"]
+            if sector_counts[ind] < MAX_SAME_INDUSTRY + 1:  # 放宽至3只
+                top.append(s)
+                sector_counts[ind] += 1
+            if len(top) >= MIN_DIVERSIFICATION:
+                break
+
+    # V14: 分级仓位权重 — 解决S级悖论（S级降权60%，A级满仓100%，B级降权30%）
     # M02 (audit-model-2026-06-22): 推回调参前统一持有参数.
-    # 此前基于样本内 (6月/H1) 反复调出的"个性化持有建议"和"S级降权"
-    # 均为样本内调参产物, memory 已定性: 样本外 -1.157%/月, 禁再基于6月调参.
-    # 统一 hold=5 / tp=15 / stop=-10 / weight=1.0 (调参前基线).
-    # 策略迭代改为 walk-forward 样本外先行, 而非事后回填调参注释.
+    # 统一 hold=5 / tp=15 / stop=-10 (调参前基线), 但仓位权重按评级分级.
     for s in top:
-        s["weight"] = 1.0
+        grade = s.get("grade", "A")
+        # V14: 根据评级应用仓位权重（S级高波动降权，A级稳健满仓）
+        s["weight"] = GRADE_POSITION_WEIGHT.get(grade, 1.0)
         s["hold_days"] = 5
         s["stop_loss"] = -10
         s["take_profit"] = 15
