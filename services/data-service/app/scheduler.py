@@ -930,6 +930,9 @@ def _extract_pg_status(result) -> tuple:
     支持扁平 dict（如 daily_kline）和嵌套 dict
     （如 post_market_core 的 {table: {..., pg_written: N}}）.
     """
+    if isinstance(result, dict) and result.get("status") == "skipped":
+        return "skipped", 0
+
     pg_total = 0
     has_pg_field = False
     if isinstance(result, dict):
@@ -959,8 +962,10 @@ async def _run_job(job: dict):
             fn = job["fn"]
             result = fn() if not job.get("args") else fn(*job["args"])
             pg_status, pg_total = _extract_pg_status(result)
+            result_status = result.get("status") if isinstance(result, dict) else None
+            last_status = result_status if result_status in {"ok", "skipped", "degraded"} else "ok"
             _job_status[job["id"]] = {
-                "last_run": t0.isoformat(), "last_status": "ok",
+                "last_run": t0.isoformat(), "last_status": last_status,
                 "result": str(result)[:300],
                 "pg_write_status": pg_status,
                 "pg_written": pg_total,
@@ -1019,6 +1024,12 @@ def collect_auction_snapshot():
     from datetime import date
     today_str = datetime.now().strftime("%Y%m%d")
     today_dash = date.today().strftime("%Y-%m-%d")
+
+    from app.config import is_tushare_configured
+    if not is_tushare_configured():
+        return {"status": "skipped", "source": "tushare_stk_auction",
+                "reason": "TUSHARE_TOKEN not configured",
+                "requires": "TUSHARE_TOKEN", "date": today_dash, "stocks": 0}
 
     # ── Path 1: Tushare stk_auction (preferred, real-time 9:25-9:29) ──
     try:

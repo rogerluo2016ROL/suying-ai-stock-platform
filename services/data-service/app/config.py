@@ -22,7 +22,27 @@ SQLITE_FALLBACK_ENABLED = os.environ.get("DATA_SQLITE_FALLBACK", "false").lower(
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:7379/0")
 
 # ── Tushare ──
-TUSHARE_TOKEN = os.environ.get("TUSHARE_TOKEN", "")
+TUSHARE_TOKEN = os.environ.get("TUSHARE_TOKEN", "").strip()
+
+
+def is_tushare_configured() -> bool:
+    """Return whether market-data jobs can call Tushare."""
+    return bool(TUSHARE_TOKEN)
+
+
+def get_runtime_config_status() -> dict:
+    """Expose non-secret runtime config for readiness/status endpoints."""
+    return {
+        "tushare": {
+            "configured": is_tushare_configured(),
+            "env": "TUSHARE_TOKEN",
+            "action": "set TUSHARE_TOKEN before enabling market-data jobs",
+        },
+        "sqlite_fallback": {
+            "enabled": SQLITE_FALLBACK_ENABLED,
+            "env": "DATA_SQLITE_FALLBACK",
+        },
+    }
 
 # ── 并行度 ──
 THREAD_POOL_SIZE = int(os.environ.get("DATA_THREAD_POOL", "8"))

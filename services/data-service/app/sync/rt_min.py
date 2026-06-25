@@ -4,7 +4,14 @@ import logging, sqlite3, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 
-from app.config import TUSHARE_TOKEN, DB_PATH, THREAD_POOL_SIZE, TUSHARE_BATCH_SIZE, SQLITE_FALLBACK_ENABLED
+from app.config import (
+    TUSHARE_TOKEN,
+    DB_PATH,
+    THREAD_POOL_SIZE,
+    TUSHARE_BATCH_SIZE,
+    SQLITE_FALLBACK_ENABLED,
+    is_tushare_configured,
+)
 from app.sync.rate_limiter import rate_limit
 
 logger = logging.getLogger("data-service.rt_min")
@@ -52,6 +59,15 @@ def _fetch_batch(batch: list[str]) -> list[tuple]:
 
 def collect_rt_min(progress_callback=None) -> dict:
     """采集全市场实时分钟线 (ThreadPool 并行)."""
+    if not is_tushare_configured():
+        return {
+            "status": "skipped",
+            "reason": "TUSHARE_TOKEN not configured",
+            "requires": "TUSHARE_TOKEN",
+            "pg_written": 0,
+            "sqlite_written": 0,
+        }
+
     t0 = time.time()
     from kronos_data.etl import _get_etl_db
     db = _get_etl_db()

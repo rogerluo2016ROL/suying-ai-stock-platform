@@ -10,17 +10,14 @@ from app.sync.tushare import sync_post_market_core, sync_post_market_ext
 from app.sync.stocks import sync_stock_list
 from app.sync.rate_limiter import get_rate_limit_status
 from app.sync.pg_writer import PG_URL
+from app.config import get_runtime_config_status
 
 logger = logging.getLogger("data-service.api")
 router = APIRouter(prefix="/api/v1/data", tags=["data"])
 
 
-@router.get("/status")
-async def data_status():
-    """获取所有定时任务状态 + PG 写入状态 + API 限频状态."""
-    result = get_job_status()
-
-    # 附加 PG 连接状态 (ADR-006)
+def _check_pg_connection() -> dict:
+    """Return a non-secret PG connectivity status for readiness endpoints."""
     pg_ok = False
     try:
         import psycopg2
@@ -31,7 +28,44 @@ async def data_status():
         conn.close()
     except Exception:
         pass
-    result["pg_connection"] = {"url": PG_URL.split("@")[-1] if "@" in PG_URL else PG_URL, "ok": pg_ok}
+    return {"url": PG_URL.split("@")[-1] if "@" in PG_URL else PG_URL, "ok": pg_ok}
+
+
+def _find_job_status(status: dict, job_id: str) -> dict:
+    for job in status.get("jobs", []):
+        if job.get("id") == job_id:
+            return job
+    return {"id": job_id, "last_status": "unknown", "last_run": None, "last_result": ""}
+
+
+def _build_readiness_status() -> dict:
+    job_status = get_job_status()
+    pg_connection = _check_pg_connection()
+    runtime_config = get_runtime_config_status()
+    components = {
+        "service_alive": True,
+        "scheduler_running": bool(job_status.get("scheduler_running")),
+        "pg_ok": bool(pg_connection.get("ok")),
+        "tushare_configured": bool(runtime_config["tushare"]["configured"]),
+    }
+    return {
+        "ready": all(components.values()),
+        "components": components,
+        "pg_connection": pg_connection,
+        "runtime_config": runtime_config,
+        "last_auction_status": _find_job_status(job_status, "auction"),
+    }
+
+
+@router.get("/status")
+async def data_status():
+    """获取所有定时任务状态 + PG 写入状态 + API 限频状态."""
+    result = get_job_status()
+
+    # 附加 PG 连接状态 (ADR-006)
+    result["pg_connection"] = _check_pg_connection()
+    result["runtime_config"] = get_runtime_config_status()
+    result["readiness"] = _build_readiness_status()
 
     # 附加限频状态 (ADR-006)
     result["rate_limiter"] = get_rate_limit_status()
@@ -115,3 +149,8 @@ async def trigger_stocks_sync():
 @router.get("/health")
 async def health():
     return {"status": "healthy", "service": "data-service"}
+
+
+@router.get("/readiness")
+async def readiness():
+    return _build_readiness_status()
