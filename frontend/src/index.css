@@ -1,117 +1,76 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* 导入速赢AI设计系统 */
+@import './styles/suying-app.css';
 
-body {
-  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  background: #f5f7fa;
-  color: #333;
+/* Ant Design主题覆盖 - 适配暗色终端风格 */
+.ant-layout {
+  background: var(--bg);
 }
 
-#root { min-height: 100vh; }
-
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #bfbfbf; }
-
-/* ── Professional metric cards ── */
-.metric-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  transition: box-shadow 0.2s;
-}
-.metric-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-
-.metric-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1a1a2e;
-  line-height: 1.2;
-}
-.metric-label {
-  font-size: 13px;
-  color: #8c8c8c;
-  margin-top: 4px;
+.ant-layout-sider {
+  background: var(--surface) !important;
+  border-right: 1px solid var(--border) !important;
 }
 
-/* ── Section title ── */
-.section-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #1a1a2e;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.section-title::before {
-  content: '';
-  display: inline-block;
-  width: 4px;
-  height: 20px;
-  background: #1a73e8;
-  border-radius: 2px;
+.ant-menu {
+  background: transparent !important;
 }
 
-/* ── Supply-chain research workbench ── */
-.supply-chain-workbench {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.ant-menu-item {
+  color: var(--fg-2) !important;
 }
 
-.supply-chain-workbench-grid {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.78fr) minmax(520px, 1.45fr) minmax(360px, 1fr);
-  gap: 12px;
-  align-items: start;
+.ant-menu-item-selected {
+  background: var(--accent-dim) !important;
+  color: var(--accent) !important;
 }
 
-.supply-chain-workbench-panel {
-  min-width: 0;
-  overflow: auto;
-  border: 1px solid #e8edf3;
-  border-radius: 8px;
-  background: #fff;
-  padding: 12px;
-  max-height: 760px;
+.ant-card {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  border-radius: var(--radius) !important;
 }
 
-.supply-chain-workbench-panel .ant-table-wrapper,
-.supply-chain-workbench-panel .ant-table {
-  min-width: 0;
+.ant-btn-primary {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
 }
 
-.supply-chain-workbench-panel .ant-table-cell,
-.supply-chain-workbench-panel .ant-btn,
-.supply-chain-workbench-panel .ant-tag {
-  white-space: nowrap;
+.ant-input,
+.ant-select-selector,
+.ant-picker {
+  background: var(--surface-2) !important;
+  border-color: var(--border-2) !important;
+  color: var(--fg) !important;
 }
 
-.supply-chain-workbench-panel .ant-descriptions-item-content {
-  min-width: 0;
+.ant-table {
+  background: var(--surface) !important;
 }
 
-@media (max-width: 1280px) {
-  .supply-chain-workbench-grid {
-    grid-template-columns: minmax(240px, 0.8fr) minmax(480px, 1.2fr);
-  }
-
-  .supply-chain-workbench-panel--evidence {
-    grid-column: 1 / -1;
-    max-height: none;
-  }
+.ant-table-thead > tr > th {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--muted) !important;
 }
 
-@media (max-width: 860px) {
-  .supply-chain-workbench-grid {
-    grid-template-columns: 1fr;
-  }
+.ant-table-tbody > tr > td {
+  border-color: var(--border) !important;
+  color: var(--fg) !important;
+}
 
-  .supply-chain-workbench-panel {
-    max-height: none;
-  }
+.ant-table-tbody > tr:hover > td {
+  background: var(--elevated) !important;
+}
+
+.ant-tag {
+  border-radius: 5px !important;
+}
+
+.ant-modal-content {
+  background: var(--surface) !important;
+}
+
+.ant-modal-header {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
 }

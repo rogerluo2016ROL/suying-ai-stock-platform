@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 数据更新</title>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+/* ── 健康度总览环形图 ── */
+.health-hero{display:grid;grid-template-columns:180px 1fr;gap:22px;align-items:center}
+.ring-wrap{position:relative;width:160px;height:160px}
+.ring-wrap svg{transform:rotate(-90deg)}
+.ring-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.ring-center .pct{font-family:var(--font-mono);font-size:34px;font-weight:720;letter-spacing:-0.02em;line-height:1}
+.ring-center .lbl{font-size:11px;color:var(--muted);margin-top:3px;letter-spacing:0.04em}
+.health-legend{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hl{display:flex;align-items:center;gap:9px;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:10px 13px}
+.hl .dotc{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.hl .hl-t{font-size:12px;color:var(--fg-2)}
+.hl .hl-n{margin-left:auto;font-family:var(--font-mono);font-weight:680;font-size:16px}
+
+/* ── 故障横幅 ── */
+.alert-banner{display:flex;align-items:center;gap:12px;background:var(--warn-bg);border:1px solid var(--warn);
+  border-radius:var(--radius);padding:12px 16px;margin-bottom:14px}
+.alert-banner .ab-ic{width:30px;height:30px;border-radius:7px;background:var(--warn);display:grid;place-items:center;flex-shrink:0}
+.alert-banner .ab-ic svg{width:17px;height:17px;color:#1a1205}
+.alert-banner .ab-txt{flex:1;font-size:13px}
+.alert-banner .ab-txt b{color:var(--warn)}
+
+/* ── 数据源行 + 抽屉 ── */
+.ds-row{display:flex;align-items:center;gap:13px;padding:13px 8px;border-bottom:1px solid var(--border);
+  cursor:pointer;border-radius:7px;transition:background .12s}
+.ds-row:hover{background:var(--elevated)}
+.ds-row.alert{background:var(--warn-bg)}
+.ds-row.alert:hover{background:rgba(245,166,35,0.18)}
+.ds-main{flex:1;min-width:0}
+.ds-main .n{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:8px}
+.ds-main .s{font-size:11.5px;color:var(--muted);margin-top:2px}
+.ds-prog{width:150px}
+.ds-prog .t{font-size:11px;color:var(--muted);margin-top:5px;text-align:right;font-family:var(--font-mono)}
+.ds-chev{width:16px;height:16px;color:var(--muted);transition:transform .18s;flex-shrink:0}
+.ds-row.open .ds-chev{transform:rotate(90deg)}
+/* 流动进度条 */
+.barp{height:6px;border-radius:3px;background:var(--border-2);overflow:hidden;position:relative}
+.barp>i{display:block;height:100%;border-radius:3px}
+.barp.running>i{background:linear-gradient(90deg,var(--warn) 0%,#ffce72 50%,var(--warn) 100%);
+  background-size:200% 100%;animation:flow 1.3s linear infinite}
+@keyframes flow{0%{background-position:200% 0}100%{background-position:-200% 0}}
+/* 抽屉 */
+.drawer{display:none;padding:4px 8px 16px 43px}
+.drawer.open{display:block}
+.drawer-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.dg{background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:10px 12px}
+.dg .dl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em}
+.dg .dv{font-size:14px;font-weight:650;font-family:var(--font-mono);margin-top:3px}
+.mini-spark{height:34px;width:100%}
+
+/* ── 定时任务 ── */
+.cron-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+.cron-row:last-child{border-bottom:none}
+.toggle{width:38px;height:21px;border-radius:11px;background:var(--border-2);position:relative;cursor:pointer;transition:.15s;flex-shrink:0}
+.toggle.on{background:var(--down)}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:.15s}
+.toggle.on::after{left:19px}
+
+/* ── 时间线 ── */
+.timeline{position:relative;padding:8px 0 8px 0}
+@media(max-width:1180px){.health-hero{grid-template-columns:1fr;justify-items:center;text-align:center}.health-legend{width:100%}.drawer-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body data-page="data-update" data-title="数据更新">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>数据更新</h1><div class="sub">行情、财务、因子数据源同步状态 · 定时任务管理</div></div>
+        <div class="head-actions">
+          <span class="refresh-chip"><span class="live"></span> 自动同步开启</span>
+          <button class="btn primary" id="syncAll"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 4v5h-5"/></svg>立即全量同步</button>
+        </div>
+      </div>
+
+      <!-- 故障横幅：异常自己喊出来 -->
+      <div class="alert-banner">
+        <span class="ab-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/></svg></span>
+        <div class="ab-txt"><b>1 个数据源延迟</b> · 「竞价/龙虎榜」同步进度 62%，选股服务端口 8003 响应超时，已自动重试 1 次。</div>
+        <button class="btn sm" onclick="document.querySelector('.ds-row.alert').scrollIntoView?null:null;document.querySelector('.ds-row.alert').click()">查看详情</button>
+      </div>
+
+      <!-- 健康度总览 + KPI -->
+      <div class="row r-1-2">
+        <div class="card">
+          <div class="card-h"><h3>数据健康度</h3><span class="meta">06-25 15:02</span></div>
+          <div class="card-b">
+            <div class="health-hero">
+              <div class="ring-wrap">
+                <svg width="160" height="160" viewBox="0 0 160 160">
+                  <circle cx="80" cy="80" r="68" fill="none" stroke="var(--border-2)" stroke-width="14"/>
+                  <circle id="ringArc" cx="80" cy="80" r="68" fill="none" stroke="var(--down)" stroke-width="14" stroke-linecap="round"
+                    stroke-dasharray="427" stroke-dashoffset="427"/>
+                </svg>
+                <div class="ring-center"><div class="pct down" id="ringPct">83%</div><div class="lbl">整体健康</div></div>
+              </div>
+              <div class="health-legend">
+                <div class="hl"><span class="dotc" style="background:var(--down)"></span><span class="hl-t">正常</span><span class="hl-n up" style="color:var(--down)">5</span></div>
+                <div class="hl"><span class="dotc" style="background:var(--warn)"></span><span class="hl-t">延迟</span><span class="hl-n" style="color:var(--warn)">1</span></div>
+                <div class="hl"><span class="dotc" style="background:var(--up)"></span><span class="hl-t">故障</span><span class="hl-n">0</span></div>
+                <div class="hl"><span class="dotc" style="background:var(--muted)"></span><span class="hl-t">数据源</span><span class="hl-n">6</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpis" style="grid-template-columns:repeat(2,1fr);align-content:start">
+          <div class="kpi"><div class="k-lbl">覆盖标的</div><div class="k-val mono" style="margin-top:8px">5,287</div><div class="k-sub">A股全市场</div></div>
+          <div class="kpi"><div class="k-lbl">最新交易日</div><div class="k-val mono" style="margin-top:8px;font-size:24px">06-25</div><div class="k-sub">行情已收盘更新</div></div>
+          <div class="kpi"><div class="k-lbl">下次同步</div><div class="k-val mono" style="margin-top:8px;font-size:24px" id="nextSync">15:30</div><div class="k-sub">盘后行情同步</div></div>
+          <div class="kpi"><div class="k-lbl">今日同步</div><div class="k-val mono" style="margin-top:8px">18 <span style="font-size:14px;color:var(--muted);font-weight:500">次</span></div><div class="k-sub"><span class="tag t-down">17 成功</span> 1 部分</div></div>
+        </div>
+      </div>
+
+      <div class="row r-1-1 mt14">
+        <!-- 数据源状态 + 抽屉 -->
+        <div class="card">
+          <div class="card-h"><h3>数据源同步状态</h3><span class="meta">点击展开详情</span></div>
+          <div class="card-b" style="padding:8px 8px">
+            <!-- 延迟项置顶 -->
+            <div class="ds-row alert" data-ds>
+              <span class="led warn"></span>
+              <div class="ds-main"><div class="n">竞价 / 龙虎榜 <span class="tag t-warn">选股服务</span></div><div class="s">同步中… 端口 8003 延迟</div></div>
+              <div class="ds-prog"><div class="barp running"><i style="width:62%"></i></div><div class="t" style="color:var(--warn)">同步中 62%</div></div>
+              <svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+            </div>
+            <div class="drawer">
+              <div class="drawer-grid">
+                <div class="dg"><div class="dl">已采集</div><div class="dv">258 / 416</div></div>
+                <div class="dg"><div class="dl">重试次数</div><div class="dv" style="color:var(--warn)">1</div></div>
+                <div class="dg"><div class="dl">平均延迟</div><div class="dv">1,840ms</div></div>
+                <div class="dg"><div class="dl">预计完成</div><div class="dv">~40s</div></div>
+              </div>
+              <div style="display:flex;gap:8px"><button class="btn sm primary">手动重试</button><button class="btn sm">查看错误日志</button><button class="btn sm ghost">跳过该源</button></div>
+            </div>
+
+            <div class="ds-row" data-ds><span class="led on"></span><div class="ds-main"><div class="n">日线行情 <span class="tag t-mute">TuShare Pro</span></div><div class="s">5,287 标的 · 06-25 收盘</div></div><div class="ds-prog"><div class="barp"><i style="width:100%;background:var(--down)"></i></div><div class="t up">已完成 100%</div></div><svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="drawer"><div class="drawer-grid"><div class="dg"><div class="dl">记录数</div><div class="dv">5,287</div></div><div class="dg"><div class="dl">耗时</div><div class="dv">42s</div></div><div class="dg"><div class="dl">最后更新</div><div class="dv">15:02:18</div></div><div class="dg"><div class="dl">数据延迟</div><div class="dv up">0 天</div></div></div></div>
+
+            <div class="ds-row" data-ds><span class="led on"></span><div class="ds-main"><div class="n">分钟级行情 <span class="tag t-mute">行情网关</span></div><div class="s">1/5/15/60 分 · 06-25 15:00</div></div><div class="ds-prog"><div class="barp"><i style="width:100%;background:var(--down)"></i></div><div class="t up">已完成 100%</div></div><svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="drawer"><div class="drawer-grid"><div class="dg"><div class="dl">周期</div><div class="dv">4 档</div></div><div class="dg"><div class="dl">耗时</div><div class="dv">1m08s</div></div><div class="dg"><div class="dl">最后更新</div><div class="dv">15:00:30</div></div><div class="dg"><div class="dl">数据延迟</div><div class="dv up">0 分</div></div></div></div>
+
+            <div class="ds-row" data-ds><span class="led on"></span><div class="ds-main"><div class="n">财务数据 <span class="tag t-mute">交易所披露</span></div><div class="s">季报 / 年报 · 截至 2025-Q1</div></div><div class="ds-prog"><div class="barp"><i style="width:100%;background:var(--down)"></i></div><div class="t up">已完成 100%</div></div><svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="drawer"><div class="drawer-grid"><div class="dg"><div class="dl">覆盖标的</div><div class="dv">5,180</div></div><div class="dg"><div class="dl">最新报告期</div><div class="dv">2025-Q1</div></div><div class="dg"><div class="dl">更新频率</div><div class="dv">每周</div></div><div class="dg"><div class="dl">下次更新</div><div class="dv">周日 02:00</div></div></div></div>
+
+            <div class="ds-row" data-ds><span class="led on"></span><div class="ds-main"><div class="n">北向资金 <span class="tag t-mute">沪深港通</span></div><div class="s">实时流向 · 06-25 15:00</div></div><div class="ds-prog"><div class="barp"><i style="width:100%;background:var(--down)"></i></div><div class="t up">已完成 100%</div></div><svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="drawer"><div class="drawer-grid"><div class="dg"><div class="dl">今日净流入</div><div class="dv up">+38.2亿</div></div><div class="dg"><div class="dl">更新频率</div><div class="dv">实时</div></div><div class="dg"><div class="dl">最后更新</div><div class="dv">15:00:11</div></div><div class="dg"><div class="dl">数据延迟</div><div class="dv up">3s</div></div></div></div>
+
+            <div class="ds-row" data-ds style="border-bottom:none"><span class="led on"></span><div class="ds-main"><div class="n">因子库 <span class="tag t-mute">内部计算</span></div><div class="s">187 因子 · T+1 重算完成</div></div><div class="ds-prog"><div class="barp"><i style="width:100%;background:var(--down)"></i></div><div class="t up">已完成 100%</div></div><svg class="ds-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="drawer"><div class="drawer-grid"><div class="dg"><div class="dl">因子数</div><div class="dv">187</div></div><div class="dg"><div class="dl">重算耗时</div><div class="dv">6m40s</div></div><div class="dg"><div class="dl">最后更新</div><div class="dv">02:00:05</div></div><div class="dg"><div class="dl">覆盖标的</div><div class="dv">5,287</div></div></div></div>
+          </div>
+        </div>
+
+        <!-- 定时任务 -->
+        <div class="card">
+          <div class="card-h"><h3>定时任务</h3><span class="meta">4 个启用</span></div>
+          <div class="card-b" style="padding:8px 16px">
+            <div class="cron-row"><div class="ds-main"><div class="n">盘前数据预热</div><div class="s mono">09:00 每交易日</div></div><span class="tag t-down">已就绪</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            <div class="cron-row"><div class="ds-main"><div class="n">竞价数据采集</div><div class="s mono">09:25 每交易日</div></div><span class="tag t-down">已就绪</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            <div class="cron-row"><div class="ds-main"><div class="n">盘后行情同步</div><div class="s mono">15:30 每交易日</div></div><span class="tag t-warn">等待执行</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            <div class="cron-row"><div class="ds-main"><div class="n">因子库重算</div><div class="s mono">18:00 每交易日</div></div><span class="tag t-mute">待执行</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            <div class="cron-row"><div class="ds-main"><div class="n">财务数据更新</div><div class="s mono">每周日 02:00</div></div><span class="tag t-mute">待执行</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 同步日志 + 筛选 -->
+      <div class="card mt14">
+        <div class="card-h"><h3>同步日志</h3>
+          <div class="seg" style="margin-left:auto" id="logFilter">
+            <button class="s active" data-f="all">全部</button>
+            <button class="s" data-f="success">成功</button>
+            <button class="s" data-f="partial">部分</button>
+            <button class="s" data-f="fail">失败</button>
+          </div>
+        </div>
+        <div class="card-b" style="padding:6px 16px">
+          <table class="tbl" id="logTbl">
+            <thead><tr><th>时间</th><th>任务</th><th class="r">记录数</th><th class="r">耗时</th><th>结果</th></tr></thead>
+            <tbody>
+              <tr data-st="success"><td class="mono">15:02:18</td><td>日线行情同步</td><td class="r mono">5,287</td><td class="r mono">42s</td><td><span class="tag t-down">成功</span></td></tr>
+              <tr data-st="success"><td class="mono">15:01:30</td><td>北向资金更新</td><td class="r mono">2</td><td class="r mono">3s</td><td><span class="tag t-down">成功</span></td></tr>
+              <tr data-st="partial"><td class="mono">14:58:44</td><td>竞价数据采集</td><td class="r mono">416</td><td class="r mono" style="color:var(--warn)">超时重试</td><td><span class="tag t-warn">部分</span></td></tr>
+              <tr data-st="success"><td class="mono">09:25:02</td><td>竞价数据采集</td><td class="r mono">5,180</td><td class="r mono">28s</td><td><span class="tag t-down">成功</span></td></tr>
+              <tr data-st="success"><td class="mono">09:00:11</td><td>盘前数据预热</td><td class="r mono">5,287</td><td class="r mono">1m12s</td><td><span class="tag t-down">成功</span></td></tr>
+              <tr data-st="fail"><td class="mono">08:45:30</td><td>港股通快照</td><td class="r mono">0</td><td class="r mono" style="color:var(--up)">连接拒绝</td><td><span class="tag t-up">失败</span></td></tr>
+              <tr data-st="success"><td class="mono">02:00:05</td><td>因子库重算</td><td class="r mono">187</td><td class="r mono">6m40s</td><td><span class="tag t-down">成功</span></td></tr>
+            </tbody>
+          </table>
+          <div class="empty" id="logEmpty" style="display:none">该状态下暂无日志记录</div>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 数据同步任务由调度系统自动执行</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+<script>
+/* ── 环形进度（健康度 83%）：5/6 正常 + 0.5×延迟 ≈ 83% ── */
+(function(){
+  const arc=document.getElementById('ringArc');
+  const C=2*Math.PI*68; // 427
+  const pct=0.83;
+  // 动画填充
+  let cur=0; const target=pct;
+  const tick=()=>{cur+=0.04;if(cur>=target){cur=target;}arc.style.strokeDashoffset=C*(1-cur);if(cur<target)requestAnimationFrame(tick);};
+  setTimeout(()=>requestAnimationFrame(tick),200);
+})();
+
+/* ── 数据源抽屉展开 ── */
+document.querySelectorAll('.ds-row[data-ds]').forEach(row=>{
+  row.addEventListener('click',()=>{
+    const drawer=row.nextElementSibling;
+    const isOpen=row.classList.contains('open');
+    row.classList.toggle('open',!isOpen);
+    if(drawer&&drawer.classList.contains('drawer'))drawer.classList.toggle('open',!isOpen);
+  });
+});
+
+/* ── 日志筛选 ── */
+const logRows=[...document.querySelectorAll('#logTbl tbody tr')];
+document.querySelectorAll('#logFilter .s').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#logFilter .s').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+  const f=b.dataset.f;let n=0;
+  logRows.forEach(r=>{const ok=(f==='all'||r.dataset.st===f);r.style.display=ok?'':'none';if(ok)n++;});
+  document.getElementById('logEmpty').style.display=n?'none':'block';
+}));
+
+/* ── 全量同步反馈 ── */
+document.getElementById('syncAll').addEventListener('click',function(){
+  const b=this;b.textContent='同步中…';
+  setTimeout(()=>{b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>同步完成';
+    setTimeout(()=>b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 4v5h-5"/></svg>立即全量同步',1800);},1500);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "new-front-export/supply-chain.html",
+  "entry": "new-front-export/supply-chain.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-25T08:19:48.153Z",
+  "updatedAt": "2026-06-25T08:19:48.153Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

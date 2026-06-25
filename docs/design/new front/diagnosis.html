@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 个股诊断</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+#radarChart{width:100%;height:320px}
+.diag-score{display:flex;align-items:center;gap:16px;margin-bottom:6px}
+.diag-score .big{font-size:52px;font-weight:760;letter-spacing:-0.03em;line-height:1;font-family:var(--font-mono)}
+.diag-score .meta .lab{font-size:18px;font-weight:700}
+.dim-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+.dim-row:last-child{border-bottom:none}
+.dim-row .dn{width:78px;font-size:12.5px;color:var(--fg-2)}
+.dim-row .db{flex:1;height:7px;border-radius:4px;background:var(--border-2);overflow:hidden}
+.dim-row .db i{display:block;height:100%;border-radius:4px}
+.dim-row .dv{width:36px;text-align:right;font-family:var(--font-mono);font-weight:650;font-size:13px}
+@media(max-width:1180px){}
+</style>
+</head>
+<body data-page="diagnosis" data-title="个股诊断">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>个股诊断</h1><div class="sub">中际旭创 300308 · 通信设备 · 多维度量化体检</div></div>
+        <div class="head-actions"><input class="inp" style="width:170px" placeholder="输入代码 / 名称" value="300308 中际旭创" /><a class="btn primary" href="predictions.html">K线预测 →</a></div>
+      </div>
+
+      <div class="row r-1-1">
+        <div class="card">
+          <div class="card-h"><h3>综合诊断评分</h3><span class="meta">模型 diag-v2</span></div>
+          <div class="card-b">
+            <div class="diag-score">
+              <div class="big up">87</div>
+              <div class="meta"><div class="lab up">强烈关注</div><div style="font-size:12px;color:var(--muted);margin-top:4px">超越同行业 92% 标的</div></div>
+            </div>
+            <div style="margin-top:14px">
+              <div class="dim-row"><div class="dn">趋势强度</div><div class="db"><i style="width:90%;background:var(--up)"></i></div><div class="dv up">90</div></div>
+              <div class="dim-row"><div class="dn">资金流向</div><div class="db"><i style="width:85%;background:var(--up)"></i></div><div class="dv up">85</div></div>
+              <div class="dim-row"><div class="dn">估值水平</div><div class="db"><i style="width:58%;background:var(--warn)"></i></div><div class="dv" style="color:var(--warn)">58</div></div>
+              <div class="dim-row"><div class="dn">成长能力</div><div class="db"><i style="width:88%;background:var(--up)"></i></div><div class="dv up">88</div></div>
+              <div class="dim-row"><div class="dn">技术形态</div><div class="db"><i style="width:82%;background:var(--up)"></i></div><div class="dv up">82</div></div>
+              <div class="dim-row"><div class="dn">市场情绪</div><div class="db"><i style="width:76%;background:var(--accent)"></i></div><div class="dv neu">76</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>六维雷达</h3></div>
+          <div class="card-b"><div id="radarChart"></div></div>
+        </div>
+      </div>
+
+      <div class="row r-3 mt14">
+        <div class="card">
+          <div class="card-h"><h3>关键指标</h3></div>
+          <div class="card-b" style="padding:8px 16px">
+            <div class="li-row"><div class="li-main"><div class="s">市盈率 TTM</div></div><div class="mono" style="font-weight:650">42.6</div></div>
+            <div class="li-row"><div class="li-main"><div class="s">市净率</div></div><div class="mono" style="font-weight:650">8.1</div></div>
+            <div class="li-row"><div class="li-main"><div class="s">营收同比</div></div><div class="mono up" style="font-weight:650">+137%</div></div>
+            <div class="li-row"><div class="li-main"><div class="s">净利润同比</div></div><div class="mono up" style="font-weight:650">+204%</div></div>
+            <div class="li-row"><div class="li-main"><div class="s">ROE</div></div><div class="mono" style="font-weight:650">19.8%</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>技术信号</h3></div>
+          <div class="card-b" style="padding:8px 16px">
+            <div class="li-row"><div class="li-main"><div class="s">MACD</div></div><span class="tag t-up">金叉</span></div>
+            <div class="li-row"><div class="li-main"><div class="s">KDJ</div></div><span class="tag t-up">多头</span></div>
+            <div class="li-row"><div class="li-main"><div class="s">均线系统</div></div><span class="tag t-up">多头排列</span></div>
+            <div class="li-row"><div class="li-main"><div class="s">RSI(14)</div></div><span class="tag t-warn">偏高 71</span></div>
+            <div class="li-row"><div class="li-main"><div class="s">布林带</div></div><span class="tag t-neu">上轨运行</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>AI 诊断结论</h3></div>
+          <div class="card-b">
+            <p style="font-size:13px;color:var(--fg-2);line-height:1.7">该股处于<b style="color:var(--up)">强势主升通道</b>，业绩高增长与 AI 算力主题共振，资金持续流入，技术面多头排列。</p>
+            <p style="font-size:13px;color:var(--fg-2);line-height:1.7;margin-top:10px">短期 RSI 偏高，<b style="color:var(--warn)">注意回调风险</b>，估值已处历史高位，建议回踩 10 日线分批参与，止损设于 145。</p>
+            <a class="btn primary sm" href="trade.html" style="width:100%;justify-content:center;margin-top:12px">前往交易 →</a>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 诊断结论由量化模型生成，仅供研究参考，不构成投资建议</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+<script>
+let chart;
+function render(){
+  const dark=document.documentElement.getAttribute('data-theme')!=='light';
+  if(!chart)chart=echarts.init(document.getElementById('radarChart'));
+  const txtC=dark?'#9aa7b8':'#52617a',splitC=dark?'#1f2733':'#e6eaf0';
+  chart.setOption({
+    tooltip:{},
+    radar:{indicator:[{name:'趋势强度',max:100},{name:'资金流向',max:100},{name:'估值水平',max:100},{name:'成长能力',max:100},{name:'技术形态',max:100},{name:'市场情绪',max:100}],
+      center:['50%','55%'],radius:'66%',axisName:{color:txtC,fontSize:11},
+      splitLine:{lineStyle:{color:splitC}},splitArea:{areaStyle:{color:['transparent','transparent']}},axisLine:{lineStyle:{color:splitC}}},
+    series:[{type:'radar',data:[{value:[90,85,58,88,82,76],areaStyle:{color:'rgba(61,139,255,0.20)'},lineStyle:{color:'#3d8bff',width:2},itemStyle:{color:'#3d8bff'}}]}]
+  });
+}
+render();
+window.addEventListener('resize',()=>chart&&chart.resize());
+window.addEventListener('od-theme-change',()=>setTimeout(render,50));
+</script>
+</body>
+</html>

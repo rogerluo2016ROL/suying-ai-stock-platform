@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "new-front-export/workbench-redesign.html",
+  "entry": "new-front-export/workbench-redesign.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-25T08:19:48.155Z",
+  "updatedAt": "2026-06-25T08:19:48.155Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

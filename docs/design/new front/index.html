@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · AI 智能看板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+/* 看板专属 */
+.sentiment{display:grid;grid-template-columns:240px 1fr;gap:18px;align-items:center}
+.gauge-wrap{position:relative}
+#gaugeChart{width:220px;height:170px}
+.gauge-cap{position:absolute;left:0;right:0;bottom:6px;text-align:center}
+.gauge-cap .lab{font-size:14px;font-weight:700}
+.subdims{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.subdim{background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:11px 13px}
+.subdim .sd-lbl{font-size:11.5px;color:var(--fg-2);margin-bottom:6px;display:flex;justify-content:space-between}
+.subdim .sd-lbl b{color:var(--fg);font-weight:600}
+.formula{margin-top:14px;font-size:11px;color:var(--muted);font-family:var(--font-mono);
+  background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 11px}
+.limit-split{display:flex;border-radius:7px;overflow:hidden;border:1px solid var(--border);margin-bottom:14px}
+.limit-half{flex:1;padding:14px 16px;cursor:pointer;transition:.15s}
+.limit-half:hover{background:var(--elevated)}
+.limit-half.l-up{background:var(--up-bg)} .limit-half.l-down{background:var(--down-bg)}
+.limit-half .lh-lbl{font-size:11.5px;color:var(--fg-2);margin-bottom:4px}
+.limit-half .lh-val{font-size:26px;font-weight:720;letter-spacing:-0.02em}
+.limit-half .lh-val small{font-size:13px;font-weight:600;margin-left:3px}
+.intent-row{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--border)}
+.intent-row:last-child{border-bottom:none}
+.intent-row .score{width:42px;height:42px;border-radius:8px;display:grid;place-items:center;flex-shrink:0;
+  font-family:var(--font-mono);font-weight:720;font-size:16px}
+.intent-info{flex:1;min-width:0}
+.intent-info .top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.intent-info .reasons{display:flex;gap:6px;flex-wrap:wrap}
+.rtag{font-size:10px;color:var(--fg-2);background:var(--surface-2);border:1px solid var(--border);padding:1px 7px;border-radius:4px}
+.intent-metrics{display:flex;gap:16px;flex-shrink:0;text-align:right}
+.intent-metrics .ml{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.intent-metrics .mv{font-size:13px;font-weight:650;font-family:var(--font-mono)}
+.breakdown{display:flex;gap:3px;margin-top:6px}
+.breakdown i{flex:1;height:3px;border-radius:2px;background:var(--border-2)}
+.svc{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border)}
+.svc:last-child{border-bottom:none}
+.svc .sn{font-size:12.5px;font-weight:550}
+.svc .sp{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body data-page="dashboard" data-title="AI 智能看板">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <h1>AI 智能看板</h1>
+          <div class="sub">交易日 2026-06-25 · 盘后复盘 · 数据源 TuShare Pro + 内部因子库</div>
+        </div>
+        <div class="head-actions">
+          <div class="refresh-chip"><span class="live"></span> 实时 · <span id="countdown" class="mono">42s</span> 后自动刷新</div>
+        </div>
+      </div>
+
+      <!-- KPI -->
+      <div class="kpis">
+        <div class="kpi">
+          <div class="k-top"><span class="k-lbl">市场情绪指数</span>
+            <span class="k-ic" style="background:var(--down-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--down)" stroke-width="2"><path d="M3 17l5-6 4 4 5-8 4 5"/></svg></span></div>
+          <div class="k-val down">63<span style="font-size:15px;color:var(--muted);font-weight:500"> / 100</span></div>
+          <div class="k-sub"><span class="tag t-down">偏强</span> 较昨日 <span class="delta down">+5</span></div>
+          <svg class="spark" viewBox="0 0 96 40" preserveAspectRatio="none"><polyline points="0,30 12,28 24,31 36,24 48,26 60,18 72,20 84,12 96,10" fill="none" stroke="var(--down)" stroke-width="2"/></svg>
+        </div>
+        <div class="kpi">
+          <div class="k-top"><span class="k-lbl">涨停 / 跌停</span>
+            <span class="k-ic" style="background:var(--up-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span></div>
+          <div class="k-val"><span class="up">87</span><span style="color:var(--muted);font-weight:500"> / </span><span class="down">14</span></div>
+          <div class="k-sub">封板率 <b style="color:var(--fg)">78.4%</b> · 连板高度 6 板</div>
+          <svg class="spark" viewBox="0 0 96 40" preserveAspectRatio="none"><polyline points="0,22 12,18 24,24 36,14 48,16 60,10 72,14 84,8 96,11" fill="none" stroke="var(--up)" stroke-width="2"/></svg>
+        </div>
+        <div class="kpi">
+          <div class="k-top"><span class="k-lbl">竞价看多标的</span>
+            <span class="k-ic" style="background:var(--warn-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span></div>
+          <div class="k-val">28<span style="font-size:15px;color:var(--muted);font-weight:500"> 只</span></div>
+          <div class="k-sub">共分析 416 只 · 看空 19 · 中性 369</div>
+          <svg class="spark" viewBox="0 0 96 40" preserveAspectRatio="none"><polyline points="0,28 12,22 24,25 36,20 48,15 60,18 72,12 84,14 96,9" fill="none" stroke="var(--warn)" stroke-width="2"/></svg>
+        </div>
+        <div class="kpi">
+          <div class="k-top"><span class="k-lbl">服务在线</span>
+            <span class="k-ic" style="background:var(--accent-dim)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg></span></div>
+          <div class="k-val">6<span style="font-size:15px;color:var(--muted);font-weight:500"> / 7</span></div>
+          <div class="k-sub"><span class="tag t-down">健康</span> 选股服务延迟告警</div>
+          <svg class="spark" viewBox="0 0 96 40" preserveAspectRatio="none"><polyline points="0,20 12,20 24,20 36,20 48,20 60,28 72,20 84,20 96,20" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>
+        </div>
+      </div>
+
+      <!-- 情绪 + 竞价 -->
+      <div class="row r-2-1 mt14">
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--down-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--down)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg></span>
+            <h3>市场情绪 · 多维度模型</h3><span class="meta">模型 sentiment-v3 · 2026-06-25</span></div>
+          <div class="card-b">
+            <div class="sentiment">
+              <div class="gauge-wrap"><div id="gaugeChart"></div><div class="gauge-cap"><div class="lab down">偏强 · 63</div></div></div>
+              <div>
+                <div class="subdims">
+                  <div class="subdim"><div class="sd-lbl">涨跌家数比 <b>1.82</b></div><div class="bar"><i style="width:72%;background:var(--up)"></i></div></div>
+                  <div class="subdim"><div class="sd-lbl">成交量能 <b>放量</b></div><div class="bar"><i style="width:68%;background:var(--up)"></i></div></div>
+                  <div class="subdim"><div class="sd-lbl">涨停封板强度 <b>78.4%</b></div><div class="bar"><i style="width:78%;background:var(--up)"></i></div></div>
+                  <div class="subdim"><div class="sd-lbl">北向资金 <b>净流入</b></div><div class="bar"><i style="width:61%;background:var(--down)"></i></div></div>
+                </div>
+                <div class="formula">score = 0.35·涨跌比 + 0.25·量能 + 0.25·封板强度 + 0.15·北向 → 63 (偏强)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--warn-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span>
+            <h3>竞价意图</h3><span class="meta">9:25 集合竞价</span></div>
+          <div class="card-b">
+            <div class="seg" style="display:flex;margin-bottom:14px">
+              <button class="s active" style="flex:1" data-it="bull">看多 <span class="n">28</span></button>
+              <button class="s" style="flex:1" data-it="bear">看空 <span class="n">19</span></button>
+            </div>
+            <div id="intentList">
+              <div class="intent-row"><div class="score" style="background:var(--up-bg);color:var(--up)">92</div>
+                <div class="intent-info"><div class="top"><span class="nm">中际旭创</span> <span class="code">300308</span></div>
+                <div class="reasons"><span class="rtag">高开抢筹</span><span class="rtag">量比 4.2</span><span class="rtag">优于VWAP</span></div>
+                <div class="breakdown"><i style="background:var(--up)"></i><i style="background:var(--up)"></i><i style="background:var(--up)"></i><i style="background:var(--warn)"></i></div></div>
+                <div class="intent-metrics"><div><div class="ml">竞价涨幅</div><div class="mv up">+4.8%</div></div><div><div class="ml">量比</div><div class="mv">4.2</div></div></div></div>
+              <div class="intent-row"><div class="score" style="background:var(--up-bg);color:var(--up)">85</div>
+                <div class="intent-info"><div class="top"><span class="nm">寒武纪</span> <span class="code">688256</span></div>
+                <div class="reasons"><span class="rtag">资金抢筹</span><span class="rtag">缺口跳空</span></div>
+                <div class="breakdown"><i style="background:var(--up)"></i><i style="background:var(--up)"></i><i style="background:var(--warn)"></i><i style="background:var(--up)"></i></div></div>
+                <div class="intent-metrics"><div><div class="ml">竞价涨幅</div><div class="mv up">+3.1%</div></div><div><div class="ml">量比</div><div class="mv">3.5</div></div></div></div>
+              <div class="intent-row"><div class="score" style="background:var(--up-bg);color:var(--up)">79</div>
+                <div class="intent-info"><div class="top"><span class="nm">工业富联</span> <span class="code">601138</span></div>
+                <div class="reasons"><span class="rtag">温和高开</span><span class="rtag">承接良好</span></div>
+                <div class="breakdown"><i style="background:var(--up)"></i><i style="background:var(--warn)"></i><i style="background:var(--up)"></i><i style="background:var(--up)"></i></div></div>
+                <div class="intent-metrics"><div><div class="ml">竞价涨幅</div><div class="mv up">+2.2%</div></div><div><div class="ml">量比</div><div class="mv">2.8</div></div></div></div>
+            </div>
+            <div style="margin-top:6px;font-size:11px;color:var(--muted)">模型：价格方向 + 买卖压力 + 竞价强度 + 开盘延续</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 信号股 + 涨跌停/服务 -->
+      <div class="row r-2-1 mt14">
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--accent-dim)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span>
+            <h3>今日 AI 信号股</h3><a class="link-more" href="signals.html" style="margin-left:auto">查看全部 →</a></div>
+          <div class="card-b" style="padding:6px 16px">
+            <table class="tbl">
+              <thead><tr><th>代码 / 名称</th><th>信号</th><th class="r">现价</th><th class="r">涨跌幅</th><th class="r">量(万手)</th><th>依据</th></tr></thead>
+              <tbody>
+                <tr><td><span class="code">600519</span> <span class="nm">贵州茅台</span></td><td><span class="tag t-up">▲ 看涨</span></td><td class="r mono">1,685.00</td><td class="r mono up">+2.34%</td><td class="r mono">3.2</td><td style="color:var(--fg-2);font-size:11.5px">MACD 金叉 + 放量突破</td></tr>
+                <tr><td><span class="code">300750</span> <span class="nm">宁德时代</span></td><td><span class="tag t-up">▲ 看涨</span></td><td class="r mono">241.80</td><td class="r mono up">+5.12%</td><td class="r mono">28.6</td><td style="color:var(--fg-2);font-size:11.5px">资金主升 + 行业共振</td></tr>
+                <tr><td><span class="code">002594</span> <span class="nm">比亚迪</span></td><td><span class="tag t-neu">➡ 震荡</span></td><td class="r mono">328.50</td><td class="r mono up">+0.46%</td><td class="r mono">12.1</td><td style="color:var(--fg-2);font-size:11.5px">高位横盘 · 等待方向</td></tr>
+                <tr><td><span class="code">601318</span> <span class="nm">中国平安</span></td><td><span class="tag t-down">▼ 看跌</span></td><td class="r mono">52.16</td><td class="r mono down">−1.87%</td><td class="r mono">45.3</td><td style="color:var(--fg-2);font-size:11.5px">跌破 20 日线 · 量价背离</td></tr>
+                <tr><td><span class="code">000858</span> <span class="nm">五粮液</span></td><td><span class="tag t-up">▲ 看涨</span></td><td class="r mono">142.30</td><td class="r mono up">+3.08%</td><td class="r mono">8.7</td><td style="color:var(--fg-2);font-size:11.5px">底部反转 + KDJ 金叉</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <div class="card-h"><span class="ic" style="background:var(--up-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>
+              <h3>涨跌停统计</h3><span class="meta">实时盘口</span></div>
+            <div class="card-b">
+              <div class="limit-split">
+                <div class="limit-half l-up"><div class="lh-lbl">涨停</div><div class="lh-val up">87<small>只</small></div></div>
+                <div class="limit-half l-down"><div class="lh-lbl">跌停</div><div class="lh-val down">14<small>只</small></div></div>
+              </div>
+              <div class="chips"><span class="chip"><b>6 板</b> 连板高度</span><span class="chip">炸板 <b>23</b></span><span class="chip">封板率 <b>78.4%</b></span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="ic" style="background:var(--accent-dim)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg></span>
+              <h3>服务健康</h3><span class="meta">6 / 7 在线</span></div>
+            <div class="card-b" style="padding:8px 16px">
+              <div class="svc"><span class="led on"></span><span class="sn">认证服务</span><span class="sp">:8000 · 12ms</span></div>
+              <div class="svc"><span class="led on"></span><span class="sn">行情数据服务</span><span class="sp">:8001 · 8ms</span></div>
+              <div class="svc"><span class="led on"></span><span class="sn">K线预测服务</span><span class="sp">:8002 · 31ms</span></div>
+              <div class="svc"><span class="led warn"></span><span class="sn">选股服务</span><span class="sp" style="color:var(--warn)">:8003 · 延迟</span></div>
+              <div class="svc"><span class="led on"></span><span class="sn">交易网关</span><span class="sp">:8004 · 15ms</span></div>
+              <div class="svc"><span class="led on"></span><span class="sn">回测引擎</span><span class="sp">:8005 · 9ms</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 自选 + 选股模式 -->
+      <div class="row r-1-1 mt14">
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--warn-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><path d="M12 2l3 6.5 7 .9-5 4.9 1.2 7L12 18l-6.4 3.3L6.8 14 2 9.4l7-.9z"/></svg></span>
+            <h3>我的自选</h3><a class="link-more" href="diagnosis.html" style="margin-left:auto">管理自选 →</a></div>
+          <div class="card-b" style="padding:8px 16px">
+            <div class="li-row"><div class="li-badge">CL</div><div class="li-main"><div class="n">中际旭创 <span class="code">300308</span></div><div class="s">通信设备 · 市值 1,842 亿</div></div><div style="text-align:right"><div class="mono up" style="font-weight:650">156.20</div><div class="mono up" style="font-size:11.5px">+4.81%</div></div></div>
+            <div class="li-row"><div class="li-badge">NB</div><div class="li-main"><div class="n">宁波银行 <span class="code">002142</span></div><div class="s">城商行 · 市值 1,612 亿</div></div><div style="text-align:right"><div class="mono down" style="font-weight:650">24.18</div><div class="mono down" style="font-size:11.5px">−0.74%</div></div></div>
+            <div class="li-row"><div class="li-badge">KD</div><div class="li-main"><div class="n">凯莱英 <span class="code">002821</span></div><div class="s">医药生物 · 市值 386 亿</div></div><div style="text-align:right"><div class="mono up" style="font-weight:650">98.40</div><div class="mono up" style="font-size:11.5px">+1.23%</div></div></div>
+            <div class="li-row"><div class="li-badge">LX</div><div class="li-main"><div class="n">立讯精密 <span class="code">002475</span></div><div class="s">消费电子 · 市值 2,956 亿</div></div><div style="text-align:right"><div class="mono up" style="font-weight:650">41.05</div><div class="mono up" style="font-size:11.5px">+2.10%</div></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><span class="ic" style="background:var(--accent-dim)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
+            <h3>智能选股模式</h3><span class="meta">12 套策略</span></div>
+          <div class="card-b">
+            <div class="chips">
+              <span class="chip"><b>短线打板</b> · 日线 · 激进</span><span class="chip"><b>趋势波段</b> · 日线 · 稳健</span>
+              <span class="chip"><b>低吸潜伏</b> · 周线 · 价值</span><span class="chip"><b>主升加速</b> · 60分 · 激进</span>
+              <span class="chip"><b>OBV 资金</b> · 日线 · 量价</span><span class="chip"><b>产业链共振</b> · 日线 · 主题</span>
+              <span class="chip"><b>竞价抢筹</b> · 分时 · 激进</span><span class="chip"><b>均线多头</b> · 日线 · 趋势</span>
+            </div>
+            <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+              <span style="font-size:12px;color:var(--fg-2)">最近一次全市场扫描 <b style="color:var(--fg)">14:58</b> · 命中 <b style="color:var(--accent)">42</b> 只候选</span>
+              <a class="link-more" href="screener.html" style="margin-left:auto">进入选股 →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-foot">© 2026 速赢AI · 数据仅供研究参考，不构成投资建议 · 高保真 UI 原型</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+<script>
+let cd=42;setInterval(()=>{cd=cd<=1?60:cd-1;const e=document.getElementById('countdown');if(e)e.textContent=cd+'s';},1000);
+let gauge;
+function renderGauge(){
+  const dark=document.documentElement.getAttribute('data-theme')!=='light';
+  if(!gauge)gauge=echarts.init(document.getElementById('gaugeChart'));
+  gauge.setOption({series:[{type:'gauge',center:['50%','62%'],radius:'92%',startAngle:200,endAngle:-20,min:0,max:100,
+    progress:{show:true,width:12,roundCap:true},pointer:{width:4,length:'62%',itemStyle:{color:'#2ec27e'}},
+    axisLine:{lineStyle:{width:12,color:[[0.4,'#ff4d4f'],[0.6,'#f5a623'],[1,'#2ec27e']]}},axisTick:{show:false},
+    splitLine:{length:9,lineStyle:{width:1.5,color:dark?'#2a3444':'#d4dbe6'}},
+    axisLabel:{distance:-20,color:dark?'#5e6a7d':'#8a96a8',fontSize:9},anchor:{show:true,size:9,itemStyle:{color:'#2ec27e'}},
+    detail:{show:false},data:[{value:63}]}]});
+}
+renderGauge();
+window.addEventListener('resize',()=>gauge&&gauge.resize());
+window.addEventListener('od-theme-change',()=>setTimeout(renderGauge,50));
+const bull=document.getElementById('intentList').innerHTML;
+const bear=`<div class="intent-row"><div class="score" style="background:var(--down-bg);color:var(--down)">88</div><div class="intent-info"><div class="top"><span class="nm">某高位股</span> <span class="code">002···</span></div><div class="reasons"><span class="rtag">低开破位</span><span class="rtag">抛压沉重</span></div><div class="breakdown"><i style="background:var(--down)"></i><i style="background:var(--down)"></i><i style="background:var(--down)"></i><i style="background:var(--warn)"></i></div></div><div class="intent-metrics"><div><div class="ml">竞价涨幅</div><div class="mv down">−3.6%</div></div><div><div class="ml">量比</div><div class="mv">2.1</div></div></div></div><div class="intent-row"><div class="score" style="background:var(--down-bg);color:var(--down)">81</div><div class="intent-info"><div class="top"><span class="nm">某连板股</span> <span class="code">300···</span></div><div class="reasons"><span class="rtag">高位炸板风险</span><span class="rtag">竞价缩量</span></div><div class="breakdown"><i style="background:var(--down)"></i><i style="background:var(--warn)"></i><i style="background:var(--down)"></i><i style="background:var(--down)"></i></div></div><div class="intent-metrics"><div><div class="ml">竞价涨幅</div><div class="mv down">−2.4%</div></div><div><div class="ml">量比</div><div class="mv">1.6</div></div></div></div>`;
+document.querySelectorAll('.seg .s').forEach(s=>s.addEventListener('click',()=>{
+  document.querySelectorAll('.seg .s').forEach(x=>x.classList.remove('active'));s.classList.add('active');
+  document.getElementById('intentList').innerHTML=s.dataset.it==='bear'?bear:bull;
+}));
+</script>
+</body>
+</html>

@@ -1,0 +1,1620 @@
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>速赢AI · 开盘决策舱</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --surface: #101620;
+      --surface-2: #151d2a;
+      --surface-3: #1a2433;
+      --fg: #e8edf4;
+      --fg-2: #a8b3c3;
+      --muted: #667286;
+      --border: rgba(255,255,255,.08);
+      --border-strong: rgba(255,255,255,.14);
+      --accent: #3d8bff;
+      --accent-dim: rgba(61,139,255,.14);
+      --up: #ff4d4f;
+      --up-dim: rgba(255,77,79,.14);
+      --down: #2ec27e;
+      --down-dim: rgba(46,194,126,.14);
+      --warn: #f5a623;
+      --warn-dim: rgba(245,166,35,.14);
+      --grid: rgba(255,255,255,.045);
+      --font-display: "SF Pro Display", "PingFang SC", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-body: "SF Pro Text", "PingFang SC", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: "SF Mono", "JetBrains Mono", "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+      --radius: 8px;
+      --sidebar: 236px;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.5;
+      background:
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+        linear-gradient(180deg, var(--grid) 1px, transparent 1px),
+        radial-gradient(circle at 62% 12%, rgba(61,139,255,.08), transparent 34%),
+        var(--bg);
+      background-size: 48px 48px, 48px 48px, auto, auto;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    button, input, select { font: inherit; }
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 4px var(--accent-dim);
+    }
+    a { color: inherit; text-decoration: none; }
+    .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    .up { color: var(--up); }
+    .down { color: var(--down); }
+    .warn { color: var(--warn); }
+    .muted { color: var(--muted); }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+    }
+
+    .side {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 16px 12px;
+      border-right: 1px solid var(--border);
+      background: rgba(10,14,20,.92);
+      backdrop-filter: blur(14px);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .brand {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+    }
+
+    .mark {
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #1a6fff, #66a6ff);
+      box-shadow: 0 0 24px rgba(61,139,255,.34);
+    }
+
+    .mark svg { width: 18px; height: 18px; }
+    .brand-name {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 680;
+      letter-spacing: .02em;
+    }
+    .brand-name b { color: var(--accent); }
+
+    .nav-group {
+      margin: 12px 10px 6px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .nav {
+      display: grid;
+      gap: 2px;
+    }
+
+    .nav a {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      border-radius: 7px;
+      color: var(--fg-2);
+      font-size: 13px;
+      font-weight: 520;
+      transition: background .15s ease, color .15s ease, outline-color .15s ease;
+    }
+
+    .nav a:hover, .nav a.active {
+      background: var(--surface-2);
+      color: var(--fg);
+    }
+
+    .nav a.active {
+      outline: 1px solid var(--border-strong);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+
+    .nav svg {
+      width: 16px;
+      height: 16px;
+      color: currentColor;
+    }
+
+    .nav .pill {
+      margin-left: auto;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 6px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      background: var(--up-dim);
+      color: var(--up);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 720;
+    }
+
+    .side-footer {
+      margin-top: auto;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .side-footer .label {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .health {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--fg-2);
+    }
+
+    .led {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--down);
+      box-shadow: 0 0 10px var(--down);
+      display: inline-block;
+      margin-right: 7px;
+    }
+
+    .main {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      min-height: 92px;
+      padding: 10px 22px 0;
+      display: grid;
+      gap: 8px;
+      background: rgba(11,14,20,.88);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .topbar-main {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .top-context {
+      min-width: 172px;
+      display: grid;
+      gap: 2px;
+    }
+
+    .section-kicker {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 720;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .crumb {
+      font-weight: 650;
+      color: var(--fg);
+      white-space: nowrap;
+    }
+
+    .subnav {
+      min-width: 0;
+      display: flex;
+      align-items: stretch;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .subnav::-webkit-scrollbar { display: none; }
+
+    .subnav a {
+      position: relative;
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 7px 7px 0 0;
+      color: var(--fg-2);
+      font-size: 12px;
+      font-weight: 620;
+      white-space: nowrap;
+      transition: color .15s ease, background .15s ease, border-color .15s ease;
+    }
+
+    .subnav a:hover {
+      color: var(--fg);
+      background: rgba(255,255,255,.035);
+    }
+
+    .subnav a.active {
+      color: var(--fg);
+      background: rgba(61,139,255,.10);
+      border-color: var(--border-strong);
+      border-bottom-color: rgba(61,139,255,.48);
+    }
+
+    .subnav a.active::after {
+      content: "";
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: -1px;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 999px;
+    }
+
+    .subnav .count {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .desk-context {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      padding-bottom: 10px;
+    }
+
+    .desk-chip {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: rgba(255,255,255,.025);
+      color: var(--fg-2);
+      font-size: 11px;
+    }
+
+    .desk-chip b {
+      color: var(--fg);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 720;
+      white-space: nowrap;
+    }
+
+    .desk-chip.warn b { color: var(--warn); }
+    .desk-chip.up b { color: var(--up); }
+
+    .tape {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      gap: 18px;
+      overflow: hidden;
+      color: var(--fg-2);
+      font-size: 12px;
+    }
+
+    .tape span { white-space: nowrap; }
+    .tape b { color: var(--fg); font-weight: 650; }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid var(--border-strong);
+      border-radius: 7px;
+      background: var(--surface-2);
+      color: var(--fg);
+      padding: 0 12px;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+
+    .btn:hover { border-color: rgba(255,255,255,.25); background: var(--surface-3); }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary { border-color: var(--accent); background: var(--accent); color: white; }
+    .btn.danger { border-color: var(--up); background: var(--up-dim); color: var(--up); }
+    .btn[disabled], .btn[aria-disabled="true"] {
+      cursor: not-allowed;
+      opacity: .56;
+      transform: none;
+    }
+    .btn svg { width: 15px; height: 15px; }
+
+    .content {
+      padding: 22px;
+      display: grid;
+      gap: 16px;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .content > section,
+    .workspace > .panel {
+      scroll-margin-top: 118px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+      gap: 16px;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(16,22,32,.86);
+      overflow: hidden;
+      box-shadow: 0 18px 44px rgba(0,0,0,.18);
+    }
+
+    .panel-head {
+      min-height: 45px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.02);
+    }
+
+    .panel-head h2, .panel-head h3 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: .01em;
+    }
+
+    .panel-head .meta {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .panel-body { padding: 14px; }
+
+    .overview {
+      padding: 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 420px;
+      gap: 18px;
+      min-height: 316px;
+    }
+
+    .headline {
+      max-width: 760px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 8px 0 0;
+      max-width: 11ch;
+      font-family: var(--font-display);
+      font-size: clamp(36px, 5vw, 74px);
+      line-height: 1.02;
+      letter-spacing: -.03em;
+      font-weight: 720;
+    }
+
+    .lead {
+      margin: 14px 0 0;
+      max-width: 62ch;
+      color: var(--fg-2);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    .decision-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .decision {
+      min-height: 86px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface-2);
+      padding: 11px;
+    }
+
+    .decision .k {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .decision .v {
+      margin-top: 6px;
+      font-family: var(--font-mono);
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 740;
+      letter-spacing: -.02em;
+    }
+
+    .decision .s {
+      margin-top: 7px;
+      color: var(--fg-2);
+      font-size: 11px;
+    }
+
+    .market-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #0d121a;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .market-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .market-top .name {
+      font-weight: 650;
+      color: var(--fg);
+    }
+
+    .market-score {
+      text-align: right;
+    }
+
+    .market-score .num {
+      font-family: var(--font-mono);
+      font-size: 42px;
+      font-weight: 760;
+      line-height: 1;
+      color: var(--up);
+      letter-spacing: -.03em;
+    }
+
+    .phase-rail {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .phase {
+      min-height: 58px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: rgba(10,15,23,.72);
+      padding: 9px 10px;
+      display: grid;
+      gap: 3px;
+    }
+
+    .phase .t {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .phase .n {
+      font-size: 12px;
+      font-weight: 650;
+      color: var(--fg-2);
+    }
+
+    .phase.active {
+      border-color: rgba(61,139,255,.58);
+      background: var(--accent-dim);
+    }
+
+    .phase.active .n { color: var(--fg); }
+    .phase.warn { border-color: rgba(245,166,35,.42); }
+
+    .meter {
+      height: 9px;
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+    }
+
+    .meter i:nth-child(1) { width: 28%; background: var(--up); }
+    .meter i:nth-child(2) { width: 24%; background: var(--warn); }
+    .meter i:nth-child(3) { width: 48%; background: var(--down); }
+
+    .market-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .micro {
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      padding: 9px 10px;
+    }
+
+    .micro .label {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .micro .value {
+      margin-top: 3px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--fg);
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(280px, .9fr) minmax(500px, 1.45fr) minmax(300px, .9fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .search {
+      position: relative;
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .search input {
+      width: 100%;
+      height: 34px;
+      padding: 0 12px 0 34px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #0c1119;
+      color: var(--fg);
+      outline: none;
+    }
+
+    .search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+    .search svg {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 15px;
+      height: 15px;
+      color: var(--muted);
+    }
+
+    .chip {
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--fg-2);
+      padding: 0 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .chip.active {
+      border-color: rgba(61,139,255,.6);
+      background: var(--accent-dim);
+      color: var(--fg);
+    }
+
+    .candidate-list { display: grid; gap: 8px; }
+
+    .stock {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface-2);
+      color: var(--fg);
+      padding: 10px;
+      cursor: pointer;
+      display: grid;
+      gap: 8px;
+    }
+
+    .stock.active {
+      border-color: rgba(61,139,255,.7);
+      background: rgba(61,139,255,.10);
+    }
+
+    .stock-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .stock .name {
+      font-weight: 650;
+      font-size: 13px;
+    }
+
+    .stock .code {
+      color: var(--muted);
+      font-size: 11px;
+      margin-left: 6px;
+    }
+
+    .stock .score {
+      font-family: var(--font-mono);
+      font-weight: 740;
+      color: var(--accent);
+    }
+
+    .stock-line {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      color: var(--fg-2);
+      font-size: 11px;
+    }
+
+    .factor-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .factor {
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: rgba(10,15,23,.72);
+      padding: 5px 6px;
+      color: var(--fg-2);
+      font-size: 10px;
+      line-height: 1.3;
+    }
+
+    .factor b {
+      display: block;
+      color: var(--fg);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .stackbar {
+      height: 5px;
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+      background: var(--surface-3);
+    }
+
+    .stackbar i:nth-child(1) { background: var(--accent); }
+    .stackbar i:nth-child(2) { background: var(--down); }
+    .stackbar i:nth-child(3) { background: var(--warn); }
+
+    .chart-panel .panel-body {
+      display: grid;
+      gap: 12px;
+    }
+
+    .chart-meta {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 346px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255,255,255,.04) 1px, transparent 1px),
+        #0a0f17;
+      background-size: 54px 54px;
+      overflow: hidden;
+    }
+
+    .chart-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .price-label {
+      position: absolute;
+      right: 12px;
+      top: 22px;
+      display: grid;
+      gap: 6px;
+      color: var(--fg-2);
+      font-size: 11px;
+    }
+
+    .price-label span {
+      padding: 3px 7px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: rgba(10,15,23,.78);
+    }
+
+    .axis-note {
+      position: absolute;
+      left: 12px;
+      bottom: 10px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .signal-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .signal {
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface-2);
+      padding: 10px;
+    }
+
+    .signal .label { color: var(--muted); font-size: 11px; }
+    .signal .value { margin-top: 4px; font-weight: 650; }
+
+    .ticket {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .field input, .field select {
+      width: 100%;
+      height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #0c1119;
+      color: var(--fg);
+      padding: 0 10px;
+      outline: none;
+    }
+
+    .field input:focus, .field select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    .risk-box {
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #0c1119;
+      padding: 11px;
+      display: grid;
+      gap: 9px;
+    }
+
+    .risk-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--fg-2);
+      font-size: 12px;
+    }
+
+    .risk-line b {
+      color: var(--fg);
+      font-family: var(--font-mono);
+      font-weight: 650;
+    }
+
+    .gate {
+      border: 1px solid rgba(46,194,126,.38);
+      border-radius: 7px;
+      background: rgba(46,194,126,.08);
+      padding: 11px;
+      display: grid;
+      gap: 9px;
+    }
+
+    .gate.warn {
+      border-color: rgba(245,166,35,.44);
+      background: var(--warn-dim);
+    }
+
+    .gate-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--fg);
+      font-weight: 650;
+      font-size: 12px;
+    }
+
+    .gate-head b {
+      color: var(--down);
+      font-family: var(--font-mono);
+      font-weight: 740;
+    }
+
+    .gate.warn .gate-head b { color: var(--warn); }
+
+    .gate-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .gate-item {
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: rgba(10,15,23,.5);
+      padding: 7px;
+    }
+
+    .gate-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .gate-item strong {
+      display: block;
+      margin-top: 3px;
+      color: var(--fg);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .switch-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+
+    .toggle {
+      width: 44px;
+      height: 24px;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      background: var(--surface-3);
+      padding: 2px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .toggle i {
+      display: block;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--fg-2);
+      transition: transform .18s ease, background .18s ease;
+    }
+
+    .toggle.on {
+      border-color: rgba(46,194,126,.55);
+      background: var(--down-dim);
+    }
+
+    .toggle.on i {
+      transform: translateX(20px);
+      background: var(--down);
+    }
+
+    .empty-state {
+      display: none;
+      min-height: 136px;
+      place-items: center;
+      text-align: center;
+      border: 1px dashed var(--border-strong);
+      border-radius: 7px;
+      background: rgba(10,15,23,.56);
+      color: var(--fg-2);
+      padding: 18px;
+    }
+
+    .empty-state.show { display: grid; }
+
+    .empty-state b {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--fg);
+      font-size: 13px;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .event {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .event .time {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding-top: 2px;
+    }
+
+    .event .txt {
+      color: var(--fg-2);
+      font-size: 12px;
+    }
+
+    .service-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .service {
+      min-height: 74px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      padding: 10px;
+      display: grid;
+      align-content: space-between;
+    }
+
+    .service .name {
+      color: var(--fg-2);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .service .latency {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .service.warn {
+      border-color: rgba(245,166,35,.42);
+      background: var(--warn-dim);
+    }
+
+    .service.downline {
+      border-color: rgba(255,77,79,.38);
+      background: var(--up-dim);
+    }
+
+    .service.downline .led {
+      background: var(--up) !important;
+      box-shadow: 0 0 10px var(--up) !important;
+    }
+
+    .service .impact {
+      margin-top: 4px;
+      color: var(--fg-2);
+      font-size: 10px;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%) translateY(16px);
+      opacity: 0;
+      pointer-events: none;
+      border: 1px solid rgba(46,194,126,.55);
+      border-radius: 7px;
+      background: #101a22;
+      color: var(--fg);
+      padding: 10px 14px;
+      font-size: 13px;
+      transition: opacity .2s ease, transform .2s ease;
+      z-index: 30;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+      }
+    }
+
+    @media (max-width: 1320px) {
+      .hero, .overview, .workspace { grid-template-columns: 1fr; }
+      .service-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .chart-wrap { height: 320px; }
+    }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .side { position: static; height: auto; }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .topbar { min-height: auto; padding-bottom: 0; }
+      .topbar-main { align-items: flex-start; flex-direction: column; }
+      .top-actions { flex-wrap: wrap; }
+      .top-context { min-width: 0; }
+      .subnav { padding-bottom: 0; }
+      .desk-context { grid-template-columns: 1fr 1fr; }
+      .tape { width: 100%; }
+      .decision-strip, .chart-meta, .signal-row, .service-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .content, .topbar { padding-left: 14px; padding-right: 14px; }
+      .content { padding-top: 14px; }
+      .nav { grid-template-columns: 1fr; }
+      .top-actions, .button-row { display: grid; grid-template-columns: 1fr; width: 100%; }
+      .top-actions .btn { width: 100%; }
+      .desk-context, .decision-strip, .market-grid, .field-grid, .service-grid, .chart-meta, .signal-row { grid-template-columns: 1fr; }
+      h1 { font-size: 38px; }
+      .chart-wrap { height: 280px; }
+      .axis-note { position: static; padding: 10px 12px; background: rgba(10,15,23,.78); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="side" aria-label="主导航">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l5-6 4 4 5-8 2 4"/><path d="M4 21h16"/></svg>
+        </div>
+        <div class="brand-name">速赢<b>AI</b></div>
+      </div>
+
+      <div class="nav-group">行情决策</div>
+      <nav class="nav">
+        <a href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="8" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="15" width="7" height="6" rx="1"/></svg>AI智能看板</a>
+        <a class="active" href="suying-ai-workbench-redesign.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M4 12h16M4 19h16"/><path d="M8 3v18M16 3v18"/></svg>开盘决策舱</a>
+        <a href="screener.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>智能选股</a>
+        <a href="supply-chain.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="2.4"/><circle cx="5" cy="19" r="2.4"/><circle cx="19" cy="19" r="2.4"/><path d="M12 7.4v4M12 11.4L5.8 17M12 11.4L18.2 17"/></svg>产业链拆解</a>
+        <a href="predictions.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17l5-6 4 4 5-8 4 5"/></svg>K线预测</a>
+        <a href="strategy.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V9l4 3 5-8"/><path d="M4 20h16"/></svg>方案管理</a>
+        <a href="signals.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>交易信号</a>
+      </nav>
+
+      <div class="nav-group">交易执行</div>
+      <nav class="nav">
+        <a href="trade.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.2c0-1.2 1.1-1.9 2.5-1.9s2.5.7 2.5 1.9-1.1 1.7-2.5 1.7-2.5.6-2.5 1.8 1.1 1.9 2.5 1.9 2.5-.7 2.5-1.9"/></svg>交易中心</a>
+        <a href="auto-trade.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="7" width="14" height="12" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2M9 13h.01M15 13h.01"/></svg>量化交易</a>
+        <a href="backtest.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4v16h16"/><path d="M7 14l3-4 3 2 4-6"/></svg>回测分析</a>
+        <a href="diagnosis.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12h2l2-4 2 8 2-4h2"/></svg>个股诊断</a>
+      </nav>
+
+      <div class="nav-group">模型 / 系统</div>
+      <nav class="nav">
+        <a href="training.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2v3M14 2v3M7 8h10l-1 12H8z"/><path d="M9 12h6M9 16h6"/></svg>模型训练</a>
+        <a href="model-registry.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg>模型注册</a>
+        <a href="data-update.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>数据更新</a>
+      </nav>
+
+      <div class="side-footer">
+        <div class="label">服务状态</div>
+        <div class="health"><span><i class="led"></i>6 / 7 在线</span><span class="mono">31ms</span></div>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-main">
+          <div class="top-context">
+            <div class="section-kicker">当前工作台</div>
+            <div class="crumb">开盘决策舱</div>
+          </div>
+          <div class="tape" aria-label="市场快照">
+            <span>上证 <b class="up mono">3,486.32 +0.74%</b></span>
+            <span>深成 <b class="up mono">10,612.50 +1.12%</b></span>
+            <span>创业板 <b class="down mono">2,108.70 −0.43%</b></span>
+            <span>北向 <b class="up mono">+42.6亿</b></span>
+            <span>成交额 <b class="mono">8,942亿</b></span>
+          </div>
+          <div class="top-actions">
+            <button class="btn" id="refreshBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 4v5h-5"/></svg><span>刷新</span></button>
+            <button class="btn" id="degradeBtn" type="button" aria-pressed="false">应急降级</button>
+            <a class="btn primary" href="signals.html">查看信号</a>
+          </div>
+        </div>
+        <nav class="subnav" aria-label="开盘决策舱工作流">
+          <a class="active" href="#overview" aria-current="true">总览<span class="count">01</span></a>
+          <a href="#candidate-workspace">候选池<span class="count">42</span></a>
+          <a href="#prediction-panel">K线预测<span class="count">30D</span></a>
+          <a href="#trade-ticket">风控交易<span class="count">半自动</span></a>
+          <a href="#service-health">服务监控<span class="count">6/7</span></a>
+          <a href="backtest.html">回测验证<span class="count">T+0</span></a>
+        </nav>
+        <div class="desk-context" aria-label="当前交易上下文">
+          <div class="desk-chip"><span>交易日</span><b>2026-06-25</b></div>
+          <div class="desk-chip"><span>执行模式</span><b id="modeChip">半自动确认</b></div>
+          <div class="desk-chip up"><span>风控闸门</span><b id="gateChip">可提交</b></div>
+          <div class="desk-chip warn"><span>数据状态</span><b id="dataChip">候选延迟 1 周期</b></div>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="hero" id="overview">
+          <div class="panel overview">
+            <div class="headline">
+              <div>
+                <div class="eyebrow">AI 量化交易工作台</div>
+                <h1>把开盘前 20 分钟压成一个决策面板</h1>
+                <p class="lead">速赢AI把全市场扫描、Kronos K线预测、50维交易信号、策略回测与风控下单放进同一条工作流，减少在多个页面之间来回切换。</p>
+              </div>
+              <div class="phase-rail" aria-label="开盘前决策流程">
+                <div class="phase"><div class="t">09:15</div><div class="n">竞价池启动</div></div>
+                <div class="phase active"><div class="t">09:25</div><div class="n">候选锁定</div></div>
+                <div class="phase warn"><div class="t">09:28</div><div class="n">风控复核</div></div>
+                <div class="phase"><div class="t">09:30</div><div class="n">人工确认执行</div></div>
+              </div>
+              <div class="decision-strip">
+                <div class="decision"><div class="k">情绪分</div><div class="v up">63</div><div class="s">偏强，留意追高风险</div></div>
+                <div class="decision"><div class="k">候选</div><div class="v">42</div><div class="s">12 套策略并行命中</div></div>
+                <div class="decision"><div class="k">高置信</div><div class="v up">8</div><div class="s">评分 ≥ 85</div></div>
+                <div class="decision"><div class="k">告警</div><div class="v warn">1</div><div class="s">选股服务延迟</div></div>
+              </div>
+            </div>
+
+            <div class="market-card">
+              <div class="market-top">
+                <div>
+                  <div class="name">市场情绪 · 多维度模型</div>
+                  <div class="muted">涨跌比 / 量能 / 封板 / 北向资金</div>
+                </div>
+                <div class="market-score"><div class="num">63</div><div class="muted">偏强</div></div>
+              </div>
+              <div class="meter" aria-label="情绪结构"><i></i><i></i><i></i></div>
+              <div class="market-grid">
+                <div class="micro"><div class="label">涨跌家数比</div><div class="value mono">1.82</div></div>
+                <div class="micro"><div class="label">封板率</div><div class="value mono">78.4%</div></div>
+                <div class="micro"><div class="label">连板高度</div><div class="value mono">6 板</div></div>
+                <div class="micro"><div class="label">集合竞价</div><div class="value mono">28 多 / 19 空</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>9:25 交易简报</h2><span class="meta mono" id="clock">--:--:--</span></div>
+            <div class="panel-body timeline">
+              <div class="event"><div class="time">09:15</div><div class="txt">竞价池开始更新，资金抢筹集中在 CPO、算力、机器人方向。</div></div>
+              <div class="event"><div class="time">09:20</div><div class="txt">短线打板策略命中 18 只，强启动候选集中在高换手与放量缺口。</div></div>
+              <div class="event"><div class="time">09:25</div><div class="txt">中际旭创、寒武纪、工业富联进入高置信队列，建议先过风控阈值。</div></div>
+              <div class="event"><div class="time">09:28</div><div class="txt">自动交易当前为半自动确认模式，触发前仍需人工确认下单。</div></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="workspace" id="candidate-workspace">
+          <div class="panel">
+            <div class="panel-head"><h3>AI 候选队列</h3><span class="meta" id="candidateMeta">4 / 4</span></div>
+            <div class="panel-body">
+              <div class="toolbar">
+                <div class="search">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                  <input id="stockSearch" type="search" placeholder="搜索代码、名称或行业" aria-label="搜索候选股" />
+                </div>
+                <button class="chip active" type="button" data-filter="all" aria-pressed="true">全部</button>
+                <button class="chip" type="button" data-filter="strong" aria-pressed="false">强启动</button>
+                <button class="chip" type="button" data-filter="chain" aria-pressed="false">产业链共振</button>
+              </div>
+
+              <div class="candidate-list" id="candidateList">
+                <button class="stock active" type="button" aria-pressed="true" data-filter="strong chain" data-name="中际旭创 300308 通信设备" data-stock="中际旭创" data-code="300308" data-price="156.20" data-change="+4.81%" data-score="94" data-stop="146.20" data-action="可提交">
+                  <div class="stock-top"><div><span class="name">中际旭创</span><span class="code mono">300308</span></div><span class="score mono">94</span></div>
+                  <div class="stock-line"><span>CPO / 通信设备</span><span class="up mono">+4.81%</span><span class="mono">量比 4.2</span></div>
+                  <div class="factor-row"><span class="factor">资金<b>92</b></span><span class="factor">形态<b>88</b></span><span class="factor">主题<b>96</b></span></div>
+                  <div class="stackbar"><i style="width:45%"></i><i style="width:30%"></i><i style="width:25%"></i></div>
+                </button>
+                <button class="stock" type="button" aria-pressed="false" data-filter="strong" data-name="寒武纪 688256 半导体" data-stock="寒武纪" data-code="688256" data-price="658.40" data-change="+6.20%" data-score="91" data-stop="622.00" data-action="可提交">
+                  <div class="stock-top"><div><span class="name">寒武纪</span><span class="code mono">688256</span></div><span class="score mono">91</span></div>
+                  <div class="stock-line"><span>半导体 / 算力</span><span class="up mono">+6.20%</span><span class="mono">量比 3.5</span></div>
+                  <div class="factor-row"><span class="factor">资金<b>90</b></span><span class="factor">形态<b>84</b></span><span class="factor">主题<b>94</b></span></div>
+                  <div class="stackbar"><i style="width:44%"></i><i style="width:29%"></i><i style="width:27%"></i></div>
+                </button>
+                <button class="stock" type="button" aria-pressed="false" data-filter="chain" data-name="工业富联 601138 消费电子" data-stock="工业富联" data-code="601138" data-price="28.66" data-change="+3.92%" data-score="85" data-stop="27.10" data-action="需复核">
+                  <div class="stock-top"><div><span class="name">工业富联</span><span class="code mono">601138</span></div><span class="score mono">85</span></div>
+                  <div class="stock-line"><span>AI服务器 / 消费电子</span><span class="up mono">+3.92%</span><span class="mono">量比 2.6</span></div>
+                  <div class="factor-row"><span class="factor">资金<b>81</b></span><span class="factor">形态<b>86</b></span><span class="factor">主题<b>90</b></span></div>
+                  <div class="stackbar"><i style="width:40%"></i><i style="width:35%"></i><i style="width:25%"></i></div>
+                </button>
+                <button class="stock" type="button" aria-pressed="false" data-filter="all" data-name="宁德时代 300750 电池" data-stock="宁德时代" data-code="300750" data-price="241.80" data-change="+5.12%" data-score="88" data-stop="229.50" data-action="可提交">
+                  <div class="stock-top"><div><span class="name">宁德时代</span><span class="code mono">300750</span></div><span class="score mono">88</span></div>
+                  <div class="stock-line"><span>电池 / 趋势波段</span><span class="up mono">+5.12%</span><span class="mono">量比 2.8</span></div>
+                  <div class="factor-row"><span class="factor">资金<b>87</b></span><span class="factor">形态<b>82</b></span><span class="factor">主题<b>91</b></span></div>
+                  <div class="stackbar"><i style="width:41%"></i><i style="width:36%"></i><i style="width:23%"></i></div>
+                </button>
+              </div>
+              <div class="empty-state" id="emptyCandidates" role="status" aria-live="polite">
+                <div><b>没有匹配的候选股</b>清空搜索或切回“全部”，再重新评估候选池。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel chart-panel" id="prediction-panel">
+            <div class="panel-head"><h3 id="chartTitle">中际旭创 · Kronos 30 日预测</h3><span class="meta">技术 / 资金 / 基本面 / AI / 情绪</span></div>
+            <div class="panel-body">
+              <div class="chart-meta">
+                <div class="micro"><div class="label">现价</div><div class="value mono" id="mPrice">156.20</div></div>
+                <div class="micro"><div class="label">涨跌幅</div><div class="value mono up" id="mChange">+4.81%</div></div>
+                <div class="micro"><div class="label">综合评分</div><div class="value mono" id="mScore">94</div></div>
+                <div class="micro"><div class="label">建议动作</div><div class="value">观察 → 确认</div></div>
+              </div>
+
+              <div class="chart-wrap" aria-label="K线预测图">
+                <svg class="chart-svg" viewBox="0 0 720 346" preserveAspectRatio="none">
+                  <g opacity=".55" stroke="rgba(255,255,255,.10)" stroke-width="1">
+                    <line x1="0" y1="70" x2="720" y2="70"/><line x1="0" y1="140" x2="720" y2="140"/><line x1="0" y1="210" x2="720" y2="210"/><line x1="0" y1="280" x2="720" y2="280"/>
+                  </g>
+                  <polyline points="18,250 60,235 102,246 144,210 186,220 228,190 270,202 312,166 354,174 396,138 438,145 480,116 522,126 564,104 606,96 648,78 702,84" fill="none" stroke="#3d8bff" stroke-width="3"/>
+                  <polyline points="480,116 522,108 564,96 606,76 648,70 702,58" fill="none" stroke="#2ec27e" stroke-width="2" stroke-dasharray="7 6"/>
+                  <polyline points="480,116 522,128 564,136 606,122 648,132 702,126" fill="none" stroke="#f5a623" stroke-width="2" stroke-dasharray="7 6"/>
+                  <g id="candles" stroke-width="2">
+                    <rect x="52" y="218" width="10" height="28" fill="#ff4d4f"/><line x1="57" y1="202" x2="57" y2="258" stroke="#ff4d4f"/>
+                    <rect x="136" y="206" width="10" height="22" fill="#2ec27e"/><line x1="141" y1="192" x2="141" y2="240" stroke="#2ec27e"/>
+                    <rect x="220" y="184" width="10" height="31" fill="#ff4d4f"/><line x1="225" y1="170" x2="225" y2="226" stroke="#ff4d4f"/>
+                    <rect x="304" y="158" width="10" height="26" fill="#2ec27e"/><line x1="309" y1="145" x2="309" y2="196" stroke="#2ec27e"/>
+                    <rect x="388" y="130" width="10" height="28" fill="#ff4d4f"/><line x1="393" y1="114" x2="393" y2="170" stroke="#ff4d4f"/>
+                    <rect x="472" y="110" width="10" height="22" fill="#2ec27e"/><line x1="477" y1="96" x2="477" y2="144" stroke="#2ec27e"/>
+                  </g>
+                  <rect x="476" y="44" width="228" height="122" rx="8" fill="rgba(61,139,255,.08)" stroke="rgba(61,139,255,.32)"/>
+                  <text x="492" y="68" fill="#a8b3c3" font-size="12" font-family="monospace">Kronos 预测窗口</text>
+                  <text x="492" y="94" fill="#2ec27e" font-size="13" font-family="monospace">强势路径：+6.8%</text>
+                  <text x="492" y="118" fill="#f5a623" font-size="13" font-family="monospace">基准路径：+2.1%</text>
+                </svg>
+                <div class="price-label"><span class="mono">阻力 162.80</span><span class="mono">支撑 149.60</span><span class="mono">止损 146.20</span></div>
+                <div class="axis-note">蓝线为历史收盘轨迹，虚线为模型情景路径；此处为研究信号，不构成投资建议。</div>
+              </div>
+
+              <div class="signal-row">
+                <div class="signal"><div class="label">信号来源</div><div class="value">强启动 + 产业链共振</div></div>
+                <div class="signal"><div class="label">风控建议</div><div class="value">单票 ≤ 8% 仓位</div></div>
+                <div class="signal"><div class="label">复核入口</div><div class="value"><a class="down" href="diagnosis.html">打开个股诊断</a></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" id="trade-ticket">
+            <div class="panel-head"><h3>半自动交易票</h3><span class="meta">人工确认</span></div>
+            <div class="panel-body ticket">
+              <div class="field-grid">
+                <div class="field"><label for="ticketStock">标的</label><input id="ticketStock" value="中际旭创 300308" /></div>
+                <div class="field"><label for="ticketMode">模式</label><select id="ticketMode"><option>半自动确认</option><option>仅提醒</option><option>模拟执行</option></select></div>
+                <div class="field"><label for="ticketPrice">计划价格</label><input id="ticketPrice" class="mono" value="156.20" inputmode="decimal" /></div>
+                <div class="field"><label for="ticketPosition">仓位上限</label><input id="ticketPosition" class="mono" value="8%" /></div>
+                <div class="field"><label for="ticketStop">止损线</label><input id="ticketStop" class="mono" value="146.20" inputmode="decimal" /></div>
+                <div class="field"><label for="ticketExpiry">有效期</label><select id="ticketExpiry"><option>今日收盘前</option><option>30 分钟</option><option>触发后撤销</option></select></div>
+              </div>
+
+              <div class="risk-box">
+                <div class="risk-line"><span>账户风险暴露</span><b>23.6%</b></div>
+                <div class="risk-line"><span>同主题持仓</span><b>2 只</b></div>
+                <div class="risk-line"><span>最大回撤闸值</span><b class="warn">−3.5%</b></div>
+                <div class="switch-line">
+                  <span>触发前二次确认</span>
+                  <button class="toggle on" id="confirmToggle" type="button" role="switch" aria-checked="true" aria-label="触发前二次确认"><i></i></button>
+                </div>
+              </div>
+
+              <div class="gate" id="riskGate">
+                <div class="gate-head"><span>下单闸门 · <span id="gateStock">中际旭创</span></span><b id="gateAction">可提交</b></div>
+                <div class="gate-grid">
+                  <div class="gate-item"><span>模型评分</span><strong id="gateScore">94</strong></div>
+                  <div class="gate-item"><span>单票仓位</span><strong>≤8%</strong></div>
+                  <div class="gate-item"><span>触发确认</span><strong id="gateConfirm">开启</strong></div>
+                </div>
+              </div>
+
+              <div class="button-row">
+                <button class="btn primary" id="copyPlan" type="button">复制交易计划</button>
+                <button class="btn" id="watchBtn" type="button">加入观察池</button>
+              </div>
+              <button class="btn danger" id="saveOnlyBtn" type="button">只保存，不下单</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="service-health">
+          <div class="panel-head"><h3>微服务运行面板</h3><span class="meta">PG-first · Redis cache · Kronos checkpoint</span></div>
+          <div class="panel-body service-grid">
+            <div class="service warn" id="svcScreener"><div class="name"><i class="led" style="background:var(--warn);box-shadow:0 0 10px var(--warn)"></i>screener-service</div><div class="latency" id="screenerLatency">:8001 · 118ms</div><div class="impact" id="screenerImpact">候选池延迟 1 个周期</div></div>
+            <div class="service"><div class="name"><i class="led"></i>prediction-service</div><div class="latency">:8002 · 31ms</div></div>
+            <div class="service"><div class="name"><i class="led"></i>strategy-service</div><div class="latency">:8003 · 24ms</div></div>
+            <div class="service"><div class="name"><i class="led"></i>signal-service</div><div class="latency">:8004 · 15ms</div></div>
+            <div class="service"><div class="name"><i class="led"></i>trade-service</div><div class="latency">:8006 · 21ms</div></div>
+            <div class="service"><div class="name"><i class="led" style="background:var(--warn);box-shadow:0 0 10px var(--warn)"></i>training-service</div><div class="latency">:8008 · 队列中</div></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">已复制交易计划</div>
+
+  <script>
+    const state = {
+      filter: 'all',
+      selected: {
+        stock: '中际旭创',
+        code: '300308',
+        price: '156.20',
+        change: '+4.81%',
+        score: '94',
+        stop: '146.20',
+        action: '可提交'
+      }
+    };
+
+    const $ = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+    const toast = $('#toast');
+
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    function updateClock() {
+      const now = new Date();
+      $('#clock').textContent = now.toLocaleTimeString('zh-CN', { hour12: false });
+    }
+    updateClock();
+    window.setInterval(updateClock, 1000);
+
+    function applyFilter() {
+      const q = $('#stockSearch').value.trim().toLowerCase();
+      let visible = 0;
+      $$('.stock').forEach(card => {
+        const matchesText = !q || card.dataset.name.toLowerCase().includes(q);
+        const matchesFilter = state.filter === 'all' || card.dataset.filter.includes(state.filter);
+        const ok = matchesText && matchesFilter;
+        card.style.display = ok ? '' : 'none';
+        if (ok) visible += 1;
+      });
+      $('#candidateMeta').textContent = visible + ' / ' + $$('.stock').length;
+      $('#emptyCandidates').classList.toggle('show', visible === 0);
+    }
+
+    function paintGate() {
+      const score = Number(state.selected.score);
+      const gate = $('#riskGate');
+      const confirmOn = $('#confirmToggle').classList.contains('on');
+      const needsReview = score < 88 || !confirmOn;
+      gate.classList.toggle('warn', needsReview);
+      $('#gateStock').textContent = state.selected.stock;
+      $('#gateScore').textContent = state.selected.score;
+      $('#gateAction').textContent = needsReview ? '需复核' : state.selected.action;
+      $('#gateConfirm').textContent = confirmOn ? '开启' : '关闭';
+      $('#gateChip').textContent = needsReview ? '需人工复核' : state.selected.action;
+      $('#modeChip').textContent = confirmOn ? '半自动确认' : '仅保存草稿';
+    }
+
+    $$('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        $$('.chip').forEach(c => {
+          c.classList.remove('active');
+          c.setAttribute('aria-pressed', 'false');
+        });
+        chip.classList.add('active');
+        chip.setAttribute('aria-pressed', 'true');
+        state.filter = chip.dataset.filter;
+        applyFilter();
+      });
+    });
+
+    $$('.subnav a[href^="#"]').forEach(link => {
+      link.addEventListener('click', () => {
+        $$('.subnav a').forEach(item => {
+          item.classList.remove('active');
+          item.removeAttribute('aria-current');
+        });
+        link.classList.add('active');
+        link.setAttribute('aria-current', 'true');
+      });
+    });
+
+    $('#stockSearch').addEventListener('input', applyFilter);
+
+    $$('.stock').forEach(card => {
+      card.addEventListener('click', () => {
+        $$('.stock').forEach(c => {
+          c.classList.remove('active');
+          c.setAttribute('aria-pressed', 'false');
+        });
+        card.classList.add('active');
+        card.setAttribute('aria-pressed', 'true');
+        state.selected = {
+          stock: card.dataset.stock,
+          code: card.dataset.code,
+          price: card.dataset.price,
+          change: card.dataset.change,
+          score: card.dataset.score,
+          stop: card.dataset.stop,
+          action: card.dataset.action
+        };
+        $('#chartTitle').textContent = state.selected.stock + ' · Kronos 30 日预测';
+        $('#mPrice').textContent = state.selected.price;
+        $('#mChange').textContent = state.selected.change;
+        $('#mScore').textContent = state.selected.score;
+        $('#ticketStock').value = state.selected.stock + ' ' + state.selected.code;
+        $('#ticketPrice').value = state.selected.price;
+        $('#ticketStop').value = state.selected.stop;
+        paintGate();
+      });
+    });
+
+    $('#confirmToggle').addEventListener('click', () => {
+      $('#confirmToggle').classList.toggle('on');
+      $('#confirmToggle').setAttribute('aria-checked', $('#confirmToggle').classList.contains('on') ? 'true' : 'false');
+      paintGate();
+    });
+
+    $('#refreshBtn').addEventListener('click', () => {
+      const refreshBtn = $('#refreshBtn');
+      refreshBtn.disabled = true;
+      refreshBtn.setAttribute('aria-busy', 'true');
+      refreshBtn.querySelector('span').textContent = '刷新中';
+      showToast('正在刷新行情与模型状态');
+      window.setTimeout(() => {
+        refreshBtn.disabled = false;
+        refreshBtn.removeAttribute('aria-busy');
+        refreshBtn.querySelector('span').textContent = '刷新';
+        showToast('行情与模型状态已刷新');
+      }, 800);
+    });
+
+    $('#degradeBtn').addEventListener('click', () => {
+      const svc = $('#svcScreener');
+      svc.classList.toggle('downline');
+      svc.classList.toggle('warn');
+      const downline = svc.classList.contains('downline');
+      $('#degradeBtn').setAttribute('aria-pressed', downline ? 'true' : 'false');
+      $('#dataChip').textContent = downline ? '缓存候选池' : '候选延迟 1 周期';
+      $('#screenerLatency').textContent = downline ? ':8001 · 不可用' : ':8001 · 118ms';
+      $('#screenerImpact').textContent = downline ? '实时选股不可用，已禁止自动下单' : '候选池延迟 1 个周期';
+      showToast(downline ? '已切换到缓存候选池，禁止自动下单' : '已恢复实时选股服务');
+    });
+
+    $('#watchBtn').addEventListener('click', () => {
+      showToast(state.selected.stock + ' 已加入盘中观察池');
+    });
+
+    $('#saveOnlyBtn').addEventListener('click', () => {
+      showToast('交易票已保存为草稿，未触发下单');
+    });
+
+    $('#copyPlan').addEventListener('click', async () => {
+      const confirmText = $('#confirmToggle').classList.contains('on') ? '开启二次确认' : '关闭二次确认';
+      const plan = [
+        '速赢AI交易计划',
+        '标的：' + $('#ticketStock').value,
+        '计划价格：' + $('#ticketPrice').value,
+        '仓位上限：8%',
+        '止损线：' + $('#ticketStop').value,
+        '执行模式：半自动确认',
+        '风控：' + confirmText
+      ].join('\n');
+      try {
+        await navigator.clipboard.writeText(plan);
+        showToast('已复制交易计划');
+      } catch (err) {
+        showToast('当前环境不允许复制，计划已在表单中保留');
+      }
+    });
+    paintGate();
+  </script>
+</body>
+</html>

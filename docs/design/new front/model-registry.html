@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 模型注册</title>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+.reg-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+.reg-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.reg-top .rn{font-weight:650;font-size:15px}
+.reg-top .rv{font-family:var(--font-mono);font-size:11px;color:var(--muted);background:var(--surface-2);padding:2px 8px;border-radius:5px}
+.reg-metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.reg-metrics .rm{background:var(--surface-2);border-radius:6px;padding:10px 12px}
+.reg-metrics .rm .l{font-size:10.5px;color:var(--muted)} .reg-metrics .rm .v{font-size:16px;font-weight:700;font-family:var(--font-mono);margin-top:2px}
+@media(max-width:1180px){.reg-metrics{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body data-page="model-registry" data-title="模型注册">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>模型注册</h1><div class="sub">已注册模型版本管理 · 灰度上线与回滚 · 管理员专用</div></div>
+        <div class="head-actions"><span class="tag t-down">生产环境 2 个在线</span></div>
+      </div>
+
+      <!-- 生产模型 -->
+      <div class="reg-card" style="border-color:var(--down)">
+        <div class="reg-top">
+          <span class="led on"></span>
+          <span class="rn">Kronos-base</span><span class="rv">v3 · sha 4f2a9c</span>
+          <span class="tag t-down">生产 · 100% 流量</span>
+          <div style="margin-left:auto;display:flex;gap:8px"><button class="btn sm">查看日志</button><button class="btn sm ghost">回滚</button></div>
+        </div>
+        <div class="reg-metrics">
+          <div class="rm"><div class="l">验证 IC</div><div class="v up">0.087</div></div>
+          <div class="rm"><div class="l">AUC</div><div class="v">0.73</div></div>
+          <div class="rm"><div class="l">30日命中率</div><div class="v">61.2%</div></div>
+          <div class="rm"><div class="l">推理延迟</div><div class="v mono">31ms</div></div>
+          <div class="rm"><div class="l">上线时长</div><div class="v">2 天</div></div>
+        </div>
+      </div>
+
+      <div class="reg-card" style="border-color:var(--down)">
+        <div class="reg-top">
+          <span class="led on"></span>
+          <span class="rn">CatBoost-1440</span><span class="rv">v1 · sha 8b1e07</span>
+          <span class="tag t-down">生产 · 集成权重 40%</span>
+          <div style="margin-left:auto;display:flex;gap:8px"><button class="btn sm">查看日志</button><button class="btn sm ghost">回滚</button></div>
+        </div>
+        <div class="reg-metrics">
+          <div class="rm"><div class="l">验证 IC</div><div class="v">0.071</div></div>
+          <div class="rm"><div class="l">AUC</div><div class="v">0.70</div></div>
+          <div class="rm"><div class="l">30日命中率</div><div class="v">58.7%</div></div>
+          <div class="rm"><div class="l">推理延迟</div><div class="v mono">12ms</div></div>
+          <div class="rm"><div class="l">上线时长</div><div class="v">3 天</div></div>
+        </div>
+      </div>
+
+      <!-- 候选模型 -->
+      <div class="reg-card" style="border-style:dashed">
+        <div class="reg-top">
+          <span class="led warn"></span>
+          <span class="rn">ensemble</span><span class="rv">v1 · sha c3d5f2</span>
+          <span class="tag t-warn">候选 · 灰度 5%</span>
+          <div style="margin-left:auto;display:flex;gap:8px"><button class="btn sm primary">提升流量</button><button class="btn sm ghost">下线</button></div>
+        </div>
+        <div class="reg-metrics">
+          <div class="rm"><div class="l">验证 IC</div><div class="v up">0.091</div></div>
+          <div class="rm"><div class="l">AUC</div><div class="v up">0.75</div></div>
+          <div class="rm"><div class="l">灰度命中率</div><div class="v up">63.5%</div></div>
+          <div class="rm"><div class="l">推理延迟</div><div class="v mono">38ms</div></div>
+          <div class="rm"><div class="l">灰度时长</div><div class="v">6 小时</div></div>
+        </div>
+      </div>
+
+      <div class="card mt14">
+        <div class="card-h"><h3>全部注册版本</h3><span class="meta">14 个 · 含归档</span></div>
+        <div class="card-b" style="padding:6px 16px">
+          <table class="tbl">
+            <thead><tr><th>模型 / 版本</th><th>SHA</th><th class="r">IC</th><th class="r">AUC</th><th>注册时间</th><th>状态</th><th class="c">操作</th></tr></thead>
+            <tbody>
+              <tr><td class="nm">Kronos-base v3</td><td class="code">4f2a9c</td><td class="r mono up">0.087</td><td class="r mono">0.73</td><td class="mono">06-23 18:40</td><td><span class="tag t-down">生产</span></td><td class="c"><a href="#">详情</a></td></tr>
+              <tr><td class="nm">ensemble v1</td><td class="code">c3d5f2</td><td class="r mono up">0.091</td><td class="r mono">0.75</td><td class="mono">06-24 11:00</td><td><span class="tag t-warn">灰度</span></td><td class="c"><a href="#">详情</a></td></tr>
+              <tr><td class="nm">CatBoost-1440 v1</td><td class="code">8b1e07</td><td class="r mono">0.071</td><td class="r mono">0.70</td><td class="mono">06-22 14:05</td><td><span class="tag t-down">生产</span></td><td class="c"><a href="#">详情</a></td></tr>
+              <tr><td class="nm">Kronos-base v2</td><td class="code">1a9d33</td><td class="r mono">0.069</td><td class="r mono">0.68</td><td class="mono">06-20 09:12</td><td><span class="tag t-mute">归档</span></td><td class="c"><a href="#">详情</a></td></tr>
+              <tr><td class="nm">LSTM-attn v0</td><td class="code">7c0b81</td><td class="r mono down">0.042</td><td class="r mono">0.61</td><td class="mono">06-18 22:30</td><td><span class="tag t-mute">废弃</span></td><td class="c"><a href="#">详情</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 模型版本与灰度配置用于内部 MLOps 管理</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+</body>
+</html>

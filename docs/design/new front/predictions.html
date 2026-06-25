@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · K线预测</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+.pred-layout{display:grid;grid-template-columns:1fr 300px;gap:14px}
+#klineChart{width:100%;height:440px}
+.pred-stat{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.pred-stat .ps{background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:11px 13px}
+.pred-stat .ps .l{font-size:11px;color:var(--muted)}
+.pred-stat .ps .v{font-size:18px;font-weight:700;margin-top:3px}
+.prob-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.prob-row:last-child{border-bottom:none}
+.prob-row .pl{width:52px;font-size:12px;color:var(--fg-2)}
+.prob-row .pbar{flex:1;height:8px;border-radius:4px;background:var(--border-2);overflow:hidden}
+.prob-row .pbar i{display:block;height:100%}
+.prob-row .pv{width:42px;text-align:right;font-family:var(--font-mono);font-size:12px;font-weight:600}
+@media(max-width:1180px){.pred-layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-page="predictions" data-title="K线预测">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>K线预测</h1><div class="sub">中际旭创 300308 · 模型 Kronos-base · 预测未来 5 个交易日走势区间</div></div>
+        <div class="head-actions">
+          <input class="inp" style="width:160px" placeholder="输入代码 / 名称" value="300308 中际旭创" />
+          <div class="seg"><button class="s">日线</button><button class="s active">60分</button><button class="s">15分</button></div>
+        </div>
+      </div>
+
+      <div class="pred-layout">
+        <div class="card">
+          <div class="card-h"><h3>K线与预测区间</h3><span class="meta">实线=历史 · 虚线=预测中枢 · 阴影=80% 置信带</span></div>
+          <div class="card-b"><div id="klineChart"></div></div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-h"><h3>5 日预测</h3></div>
+            <div class="card-b">
+              <div class="pred-stat">
+                <div class="ps"><div class="l">中枢目标价</div><div class="v up mono">168.50</div></div>
+                <div class="ps"><div class="l">预期涨幅</div><div class="v up mono">+7.9%</div></div>
+                <div class="ps"><div class="l">上沿(80%)</div><div class="v mono">182.10</div></div>
+                <div class="ps"><div class="l">下沿(80%)</div><div class="v mono">154.30</div></div>
+              </div>
+              <div style="font-size:11.5px;color:var(--muted);font-family:var(--font-mono);background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:9px 11px">
+                方向判定：<span class="up">看涨</span> · 置信度 0.74 · 当前价 156.20
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>方向概率分布</h3></div>
+            <div class="card-b" style="padding:10px 16px">
+              <div class="prob-row"><div class="pl up">大涨</div><div class="pbar"><i style="width:38%;background:var(--up)"></i></div><div class="pv up">38%</div></div>
+              <div class="prob-row"><div class="pl up">小涨</div><div class="pbar"><i style="width:30%;background:var(--up)"></i></div><div class="pv up">30%</div></div>
+              <div class="prob-row"><div class="pl neu">震荡</div><div class="pbar"><i style="width:18%;background:var(--accent)"></i></div><div class="pv neu">18%</div></div>
+              <div class="prob-row"><div class="pl down">小跌</div><div class="pbar"><i style="width:9%;background:var(--down)"></i></div><div class="pv down">9%</div></div>
+              <div class="prob-row"><div class="pl down">大跌</div><div class="pbar"><i style="width:5%;background:var(--down)"></i></div><div class="pv down">5%</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt14">
+        <div class="card-h"><h3>多模型对比</h3><span class="meta">同一标的 · 不同模型预测中枢</span></div>
+        <div class="card-b" style="padding:6px 16px">
+          <table class="tbl">
+            <thead><tr><th>模型</th><th>类型</th><th class="r">目标价</th><th class="r">预期涨幅</th><th class="r">置信度</th><th>方向</th><th class="r">近30日命中率</th></tr></thead>
+            <tbody>
+              <tr><td class="nm">Kronos-base</td><td>Transformer</td><td class="r mono">168.50</td><td class="r mono up">+7.9%</td><td class="r mono">0.74</td><td><span class="tag t-up">看涨</span></td><td class="r mono">61.2%</td></tr>
+              <tr><td class="nm">CatBoost-1440</td><td>梯度提升</td><td class="r mono">164.20</td><td class="r mono up">+5.1%</td><td class="r mono">0.69</td><td><span class="tag t-up">看涨</span></td><td class="r mono">58.7%</td></tr>
+              <tr><td class="nm">LSTM-attn</td><td>循环网络</td><td class="r mono">159.80</td><td class="r mono up">+2.3%</td><td class="r mono">0.55</td><td><span class="tag t-neu">中性偏多</span></td><td class="r mono">53.4%</td></tr>
+              <tr><td class="nm">集成共识</td><td>加权融合</td><td class="r mono">166.10</td><td class="r mono up">+6.3%</td><td class="r mono">0.78</td><td><span class="tag t-up">看涨</span></td><td class="r mono">63.5%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 预测为模型概率输出，存在不确定性，不构成投资建议</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+<script>
+let chart;
+function fmt(){return document.documentElement.getAttribute('data-theme')!=='light';}
+// 历史 30 根 + 预测 5 根
+const hist=[[143.2,145.6,142.1,146.8],[146.5,148.2,145.3,149.0],[148.8,147.1,146.0,150.2],[147.0,150.5,146.8,151.3],[150.4,149.2,148.1,152.0],[149.0,152.8,148.5,153.4],[152.6,151.0,150.2,154.1],[151.2,153.9,150.8,155.0],[153.7,156.2,153.0,157.1],[156.0,154.8,153.9,157.6],[154.6,156.9,154.0,158.2],[156.8,155.2,154.5,158.0],[155.0,157.4,154.2,158.8],[157.2,159.0,156.1,160.2],[158.8,156.5,155.8,159.9],[156.3,158.2,155.0,159.0],[158.0,160.4,157.2,161.5],[160.2,158.6,157.5,161.2],[158.4,156.0,155.0,159.3],[155.8,153.2,152.0,156.5],[153.0,155.6,152.3,156.8],[155.4,157.8,154.6,158.9],[157.6,156.0,155.0,159.0],[155.8,158.4,155.0,159.6],[158.2,160.0,157.3,161.0],[159.8,157.6,156.8,160.8],[157.4,155.0,154.2,158.3],[154.8,156.8,153.9,157.9],[156.6,158.2,155.8,159.4],[158.0,156.2,155.0,159.0]];
+const dates=[];for(let i=30;i>0;i--)dates.push('D-'+i);
+const fdates=['D+1','D+2','D+3','D+4','D+5'];
+const mid=[158,160.5,163,165.8,168.5], up=[160,164,170,176,182.1], lo=[156,154,153.5,153.8,154.3];
+function render(){
+  const dark=fmt();
+  if(!chart)chart=echarts.init(document.getElementById('klineChart'));
+  const axisC=dark?'#2a3444':'#d4dbe6', txtC=dark?'#9aa7b8':'#52617a', gridC=dark?'#1f2733':'#e6eaf0';
+  chart.setOption({
+    grid:{left:48,right:18,top:18,bottom:30},
+    tooltip:{trigger:'axis',backgroundColor:dark?'#161c28':'#fff',borderColor:axisC,textStyle:{color:dark?'#e8edf4':'#1a2230'}},
+    xAxis:{type:'category',data:dates.concat(fdates),axisLine:{lineStyle:{color:axisC}},axisLabel:{color:txtC,fontSize:10,interval:4},splitLine:{show:false}},
+    yAxis:{scale:true,axisLine:{show:false},axisLabel:{color:txtC,fontSize:10},splitLine:{lineStyle:{color:gridC}}},
+    series:[
+      {type:'candlestick',name:'历史',data:hist.concat([[null,null,null,null],[null,null,null,null],[null,null,null,null],[null,null,null,null],[null,null,null,null]]),
+        itemStyle:{color:'#ff4d4f',color0:'#2ec27e',borderColor:'#ff4d4f',borderColor0:'#2ec27e'}},
+      {type:'line',name:'预测上沿',data:new Array(30).fill('-').concat(up),lineStyle:{opacity:0},stack:'band',symbol:'none'},
+      {type:'line',name:'置信带',data:new Array(30).fill('-').concat(lo.map((v,i)=>up[i]-v)),lineStyle:{opacity:0},areaStyle:{color:'rgba(61,139,255,0.14)'},stack:'band',symbol:'none'},
+      {type:'line',name:'预测中枢',data:new Array(29).fill('-').concat([158]).concat(mid),lineStyle:{color:'#3d8bff',width:2,type:'dashed'},symbol:'circle',symbolSize:5,itemStyle:{color:'#3d8bff'}}
+    ]
+  });
+}
+render();
+window.addEventListener('resize',()=>chart&&chart.resize());
+window.addEventListener('od-theme-change',()=>setTimeout(render,50));
+document.querySelectorAll('.seg .s').forEach(s=>s.addEventListener('click',()=>{document.querySelectorAll('.seg .s').forEach(x=>x.classList.remove('active'));s.classList.add('active');}));
+</script>
+</body>
+</html>

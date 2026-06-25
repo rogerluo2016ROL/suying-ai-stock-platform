@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 回测分析</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+#btChart{width:100%;height:340px}
+.cfg-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+@media(max-width:1180px){.cfg-row{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body data-page="backtest" data-title="回测分析">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>回测分析</h1><div class="sub">方案「AI 算力主线」· 2024-06-25 至 2026-06-25 · 初始资金 ¥1,000,000</div></div>
+        <div class="head-actions"><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>导出报告</button><button class="btn primary">运行回测</button></div>
+      </div>
+
+      <div class="card">
+        <div class="card-b">
+          <div class="cfg-row">
+            <div class="field" style="margin:0"><label>回测方案</label><select class="inp"><option>AI 算力主线</option><option>短线打板</option><option>白马价值底仓</option></select></div>
+            <div class="field" style="margin:0"><label>起始日期</label><input class="inp mono" value="2024-06-25" /></div>
+            <div class="field" style="margin:0"><label>结束日期</label><input class="inp mono" value="2026-06-25" /></div>
+            <div class="field" style="margin:0"><label>调仓周期</label><select class="inp"><option>每日</option><option>每周</option><option>信号触发</option></select></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpis mt14" style="grid-template-columns:repeat(6,1fr)">
+        <div class="kpi" style="padding:13px 15px"><div class="k-lbl">累计收益</div><div class="k-val mono up" style="font-size:22px;margin-top:6px">+62.4%</div></div>
+        <div class="kpi" style="padding:13px 15px"><div class="k-lbl">年化收益</div><div class="k-val mono up" style="font-size:22px;margin-top:6px">+27.3%</div></div>
+        <div class="kpi" style="padding:13px 15px"><div class="k-lbl">最大回撤</div><div class="k-val mono down" style="font-size:22px;margin-top:6px">−16.8%</div></div>
+        <div class="kpi" style="padding:13px 15px"><div class="k-lbl">夏普比率</div><div class="k-val mono" style="font-size:22px;margin-top:6px">1.86</div></div>
+        <div class="kpi" style="padding:13px 15px"><div class="k-lbl">胜率</div><div class="k-val mono" style="font-size:22px;margin-top:6px">58.3%</div></div>
+        <div class="kpi" style="padding:13px 15px"><div class="k-lbl">盈亏比</div><div class="k-val mono" style="font-size:22px;margin-top:6px">2.14</div></div>
+      </div>
+
+      <div class="card mt14">
+        <div class="card-h"><h3>净值曲线与回撤</h3><span class="meta">策略 vs 沪深300 基准</span></div>
+        <div class="card-b"><div id="btChart"></div></div>
+      </div>
+
+      <div class="row r-1-1 mt14">
+        <div class="card">
+          <div class="card-h"><h3>交易统计</h3></div>
+          <div class="card-b" style="padding:8px 16px">
+            <div class="li-row"><div class="li-main"><div class="s">总交易笔数</div></div><div class="mono" style="font-weight:650">186</div></div>
+            <div class="li-row"><div class="li-main"><div class="s">盈利 / 亏损笔数</div></div><div class="mono" style="font-weight:650"><span class="up">109</span> / <span class="down">77</span></div></div>
+            <div class="li-row"><div class="li-main"><div class="s">平均持仓天数</div></div><div class="mono" style="font-weight:650">6.4 天</div></div>
+            <div class="li-row"><div class="li-main"><div class="s">单笔最大盈利 / 亏损</div></div><div class="mono" style="font-weight:650"><span class="up">+24.6%</span> / <span class="down">−9.8%</span></div></div>
+            <div class="li-row"><div class="li-main"><div class="s">年化波动率</div></div><div class="mono" style="font-weight:650">21.4%</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>月度收益</h3><span class="meta">近 12 个月</span></div>
+          <div class="card-b" style="padding:6px 16px">
+            <table class="tbl">
+              <thead><tr><th>月份</th><th class="r">策略</th><th class="r">基准</th><th class="r">超额</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">2026-06</td><td class="r mono up">+6.2%</td><td class="r mono up">+1.4%</td><td class="r mono up">+4.8%</td></tr>
+                <tr><td class="mono">2026-05</td><td class="r mono up">+3.8%</td><td class="r mono down">−0.6%</td><td class="r mono up">+4.4%</td></tr>
+                <tr><td class="mono">2026-04</td><td class="r mono down">−2.1%</td><td class="r mono down">−3.2%</td><td class="r mono up">+1.1%</td></tr>
+                <tr><td class="mono">2026-03</td><td class="r mono up">+8.9%</td><td class="r mono up">+2.1%</td><td class="r mono up">+6.8%</td></tr>
+                <tr><td class="mono">2026-02</td><td class="r mono up">+5.4%</td><td class="r mono up">+1.8%</td><td class="r mono up">+3.6%</td></tr>
+                <tr><td class="mono">2026-01</td><td class="r mono down">−4.3%</td><td class="r mono down">−2.0%</td><td class="r mono down">−2.3%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 回测结果基于历史数据，存在过拟合风险，不代表未来表现</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+<script>
+let chart;
+function render(){
+  const dark=document.documentElement.getAttribute('data-theme')!=='light';
+  if(!chart)chart=echarts.init(document.getElementById('btChart'));
+  const axisC=dark?'#2a3444':'#d4dbe6',txtC=dark?'#9aa7b8':'#52617a',gridC=dark?'#1f2733':'#e6eaf0';
+  const d=[],eq=[],bs=[],dd=[];let e=1,b=1,peak=1;
+  for(let i=0;i<240;i++){d.push(i);e*=(1+Math.sin(i/11)*0.007+0.0021);b*=(1+Math.sin(i/13)*0.005+0.0005);
+    peak=Math.max(peak,e);eq.push(+e.toFixed(3));bs.push(+b.toFixed(3));dd.push(+(((e-peak)/peak)*100).toFixed(1));}
+  chart.setOption({
+    grid:[{left:48,right:16,top:18,height:'58%'},{left:48,right:16,top:'74%',height:'18%'}],
+    legend:{data:['策略净值','沪深300'],textStyle:{color:txtC},right:10,top:0,itemWidth:14,itemHeight:8},
+    tooltip:{trigger:'axis',backgroundColor:dark?'#161c28':'#fff',borderColor:axisC,textStyle:{color:dark?'#e8edf4':'#1a2230'}},
+    axisPointer:{link:[{xAxisIndex:'all'}]},
+    xAxis:[{type:'category',data:d,gridIndex:0,axisLine:{lineStyle:{color:axisC}},axisLabel:{show:false},splitLine:{show:false}},
+           {type:'category',data:d,gridIndex:1,axisLine:{lineStyle:{color:axisC}},axisLabel:{color:txtC,fontSize:10,interval:39,formatter:v=>'D'+v},splitLine:{show:false}}],
+    yAxis:[{scale:true,gridIndex:0,axisLine:{show:false},axisLabel:{color:txtC,fontSize:10},splitLine:{lineStyle:{color:gridC}}},
+           {gridIndex:1,axisLine:{show:false},axisLabel:{color:txtC,fontSize:9,formatter:'{value}%'},splitLine:{lineStyle:{color:gridC}}}],
+    series:[
+      {name:'策略净值',type:'line',data:eq,smooth:true,symbol:'none',lineStyle:{color:'#3d8bff',width:2.4},areaStyle:{color:'rgba(61,139,255,0.10)'},xAxisIndex:0,yAxisIndex:0},
+      {name:'沪深300',type:'line',data:bs,smooth:true,symbol:'none',lineStyle:{color:'#5e6a7d',width:1.5,type:'dashed'},xAxisIndex:0,yAxisIndex:0},
+      {name:'回撤',type:'line',data:dd,smooth:true,symbol:'none',lineStyle:{color:'#ff4d4f',width:1},areaStyle:{color:'rgba(255,77,79,0.14)'},xAxisIndex:1,yAxisIndex:1}
+    ]
+  });
+}
+render();
+window.addEventListener('resize',()=>chart&&chart.resize());
+window.addEventListener('od-theme-change',()=>setTimeout(render,50));
+</script>
+</body>
+</html>

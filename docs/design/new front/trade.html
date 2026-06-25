@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 交易中心</title>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+.trade-layout{display:grid;grid-template-columns:340px 1fr;gap:14px}
+.bs-seg{display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border-2);margin-bottom:16px}
+.bs-seg button{flex:1;padding:11px;font-size:14px;font-weight:650;border:none;background:var(--surface-2);color:var(--fg-2);cursor:pointer;transition:.12s}
+.bs-seg button.buy.on{background:var(--up);color:#fff}
+.bs-seg button.sell.on{background:var(--down);color:#fff}
+.qty-row{display:flex;gap:8px}
+.qty-row .chip{flex:1;text-align:center}
+.order-sum{background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:13px;margin:14px 0}
+.order-sum .or{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0}
+.order-sum .or .v{font-family:var(--font-mono);font-weight:600}
+@media(max-width:1180px){.trade-layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-page="trade" data-title="交易中心">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>交易中心</h1><div class="sub">模拟账户 · 总资产 ¥1,286,540 · 可用资金 ¥342,180</div></div>
+        <div class="head-actions"><a class="btn sm" href="trade.html">委托记录</a><span class="tag t-down">已连接 券商网关 :8004</span></div>
+      </div>
+
+      <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi"><div class="k-lbl">总资产</div><div class="k-val mono" style="margin-top:8px">1,286,540</div><div class="k-sub up">今日 +2.34% (+29,420)</div></div>
+        <div class="kpi"><div class="k-lbl">持仓市值</div><div class="k-val mono" style="margin-top:8px">944,360</div><div class="k-sub">5 只持仓</div></div>
+        <div class="kpi"><div class="k-lbl">可用资金</div><div class="k-val mono" style="margin-top:8px">342,180</div><div class="k-sub">仓位 73.4%</div></div>
+        <div class="kpi"><div class="k-lbl">浮动盈亏</div><div class="k-val mono up" style="margin-top:8px">+86,240</div><div class="k-sub up">+10.1%</div></div>
+      </div>
+
+      <div class="trade-layout mt14">
+        <!-- 下单 -->
+        <div class="card">
+          <div class="card-h"><h3>快速下单</h3></div>
+          <div class="card-b">
+            <div class="bs-seg">
+              <button class="buy on" id="bBuy">买入</button>
+              <button class="sell" id="bSell">卖出</button>
+            </div>
+            <div class="field"><label>证券代码</label><input class="inp" id="codeInp" value="300308 中际旭创" /></div>
+            <div class="field"><label>委托价格（元）</label><input class="inp mono" id="priceInp" value="156.20" /></div>
+            <div class="field"><label>委托数量（股）</label><input class="inp mono" id="qtyInp" value="1000" />
+              <div class="qty-row" style="margin-top:8px">
+                <span class="chip" data-pct="25">25%</span><span class="chip" data-pct="50">50%</span>
+                <span class="chip" data-pct="75">75%</span><span class="chip" data-pct="100">全仓</span>
+              </div>
+            </div>
+            <div class="order-sum">
+              <div class="or"><span>预估金额</span><span class="v" id="amt">¥156,200</span></div>
+              <div class="or"><span>手续费(约)</span><span class="v">¥46.86</span></div>
+              <div class="or"><span>可用后余额</span><span class="v" id="bal">¥185,933</span></div>
+            </div>
+            <button class="btn up" id="submitBtn" style="width:100%;justify-content:center">确认买入</button>
+          </div>
+        </div>
+
+        <!-- 持仓 -->
+        <div class="card">
+          <div class="card-h"><h3>当前持仓</h3><span class="meta">5 只 · 总浮盈 +86,240</span></div>
+          <div class="card-b" style="padding:6px 16px">
+            <table class="tbl">
+              <thead><tr><th>代码 / 名称</th><th class="r">持仓</th><th class="r">成本</th><th class="r">现价</th><th class="r">市值</th><th class="r">浮动盈亏</th><th class="c">操作</th></tr></thead>
+              <tbody>
+                <tr><td><span class="code">300308</span> <span class="nm">中际旭创</span></td><td class="r mono">2,000</td><td class="r mono">128.40</td><td class="r mono">156.20</td><td class="r mono">312,400</td><td class="r mono up">+55,600 (+21.7%)</td><td class="c"><a href="#" class="down">卖</a></td></tr>
+                <tr><td><span class="code">300750</span> <span class="nm">宁德时代</span></td><td class="r mono">800</td><td class="r mono">230.10</td><td class="r mono">241.80</td><td class="r mono">193,440</td><td class="r mono up">+9,360 (+5.1%)</td><td class="c"><a href="#" class="down">卖</a></td></tr>
+                <tr><td><span class="code">000858</span> <span class="nm">五粮液</span></td><td class="r mono">1,200</td><td class="r mono">138.00</td><td class="r mono">142.30</td><td class="r mono">170,760</td><td class="r mono up">+5,160 (+3.1%)</td><td class="c"><a href="#" class="down">卖</a></td></tr>
+                <tr><td><span class="code">601318</span> <span class="nm">中国平安</span></td><td class="r mono">3,000</td><td class="r mono">54.20</td><td class="r mono">52.16</td><td class="r mono">156,480</td><td class="r mono down">−6,120 (−3.8%)</td><td class="c"><a href="#" class="down">卖</a></td></tr>
+                <tr><td><span class="code">002475</span> <span class="nm">立讯精密</span></td><td class="r mono">2,700</td><td class="r mono">39.80</td><td class="r mono">41.05</td><td class="r mono">110,835</td><td class="r mono up">+3,375 (+3.1%)</td><td class="c"><a href="#" class="down">卖</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt14">
+        <div class="card-h"><h3>今日委托</h3><span class="meta">4 笔</span></div>
+        <div class="card-b" style="padding:6px 16px">
+          <table class="tbl">
+            <thead><tr><th>时间</th><th>代码 / 名称</th><th>方向</th><th class="r">委托价</th><th class="r">数量</th><th class="r">成交</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">14:32:40</td><td><span class="code">300308</span> 中际旭创</td><td><span class="tag t-up">买入</span></td><td class="r mono">156.20</td><td class="r mono">1,000</td><td class="r mono">1,000</td><td><span class="tag t-down">全部成交</span></td></tr>
+              <tr><td class="mono">11:21:03</td><td><span class="code">000858</span> 五粮液</td><td><span class="tag t-up">买入</span></td><td class="r mono">142.00</td><td class="r mono">1,200</td><td class="r mono">1,200</td><td><span class="tag t-down">全部成交</span></td></tr>
+              <tr><td class="mono">10:15:22</td><td><span class="code">601318</span> 中国平安</td><td><span class="tag t-down">卖出</span></td><td class="r mono">52.50</td><td class="r mono">2,000</td><td class="r mono">0</td><td><span class="tag t-warn">待成交</span></td></tr>
+              <tr><td class="mono">09:35:10</td><td><span class="code">300750</span> 宁德时代</td><td><span class="tag t-up">买入</span></td><td class="r mono">238.00</td><td class="r mono">800</td><td class="r mono">800</td><td><span class="tag t-down">全部成交</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 模拟交易环境，不涉及真实资金</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+<style>.toggle{width:38px;height:21px;border-radius:11px;background:var(--border-2);position:relative;cursor:pointer;flex-shrink:0}.toggle.on{background:var(--down)}.toggle::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:.15s}.toggle.on::after{left:19px}</style>
+<script>
+const avail=342180;
+function num(s){return parseFloat(String(s).replace(/[^\d.]/g,''))||0;}
+function recalc(){
+  const p=num(document.getElementById('priceInp').value), q=num(document.getElementById('qtyInp').value);
+  const amt=p*q; const fee=Math.max(5,amt*0.0003);
+  document.getElementById('amt').textContent='¥'+amt.toLocaleString('zh-CN',{maximumFractionDigits:0});
+  document.getElementById('bal').textContent='¥'+Math.round(avail-amt-fee).toLocaleString('zh-CN');
+}
+['priceInp','qtyInp'].forEach(id=>document.getElementById(id).addEventListener('input',recalc));
+document.querySelectorAll('.qty-row .chip').forEach(c=>c.addEventListener('click',()=>{
+  const p=num(document.getElementById('priceInp').value);const pct=+c.dataset.pct;
+  const shares=Math.floor(avail*pct/100/p/100)*100;
+  document.getElementById('qtyInp').value=shares;recalc();
+}));
+let side='buy';
+const bBuy=document.getElementById('bBuy'),bSell=document.getElementById('bSell'),sub=document.getElementById('submitBtn');
+bBuy.addEventListener('click',()=>{side='buy';bBuy.classList.add('on');bSell.classList.remove('on');sub.className='btn up';sub.textContent='确认买入';sub.style.width='100%';sub.style.justifyContent='center';});
+bSell.addEventListener('click',()=>{side='sell';bSell.classList.add('on');bBuy.classList.remove('on');sub.className='btn down';sub.textContent='确认卖出';sub.style.width='100%';sub.style.justifyContent='center';});
+sub.addEventListener('click',()=>{sub.textContent=(side==='buy'?'买入':'卖出')+'委托已提交 ✓';setTimeout(()=>sub.textContent=side==='buy'?'确认买入':'确认卖出',1600);});
+recalc();
+</script>
+</body>
+</html>

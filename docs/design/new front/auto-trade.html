@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 量化交易</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+#equityChart{width:100%;height:300px}
+.bot-row{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--border)}
+.bot-row:last-child{border-bottom:none}
+.bot-name{flex:1;min-width:0}
+.bot-name .n{font-weight:650;font-size:14px;display:flex;align-items:center;gap:8px}
+.bot-name .s{font-size:11.5px;color:var(--muted);margin-top:2px}
+.bot-stat{text-align:right;min-width:84px}
+.bot-stat .l{font-size:10px;color:var(--muted)}
+.bot-stat .v{font-family:var(--font-mono);font-weight:650;font-size:14px}
+.toggle{width:38px;height:21px;border-radius:11px;background:var(--border-2);position:relative;cursor:pointer;transition:.15s;flex-shrink:0}
+.toggle.on{background:var(--down)}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:.15s}
+.toggle.on::after{left:19px}
+.log-line{display:flex;gap:10px;padding:7px 0;font-size:12px;border-bottom:1px solid var(--border)}
+.log-line:last-child{border-bottom:none}
+.log-line .lt{font-family:var(--font-mono);color:var(--muted);font-size:11px;flex-shrink:0}
+@media(max-width:1180px){}
+</style>
+</head>
+<body data-page="auto-trade" data-title="量化交易">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>量化交易</h1><div class="sub">策略机器人自动执行 · 实时监控运行状态与净值</div></div>
+        <div class="head-actions">
+          <span class="refresh-chip"><span class="live"></span> 3 个策略运行中</span>
+          <button class="btn primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z"/></svg>启动新策略</button>
+        </div>
+      </div>
+
+      <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi"><div class="k-lbl">策略总净值</div><div class="k-val mono up" style="margin-top:8px">1.286</div><div class="k-sub up">累计 +28.6%</div></div>
+        <div class="kpi"><div class="k-lbl">今日盈亏</div><div class="k-val mono up" style="margin-top:8px">+1.84%</div><div class="k-sub">+¥23,640</div></div>
+        <div class="kpi"><div class="k-lbl">最大回撤</div><div class="k-val mono down" style="margin-top:8px">−12.3%</div><div class="k-sub">夏普 1.86</div></div>
+        <div class="kpi"><div class="k-lbl">自动成交</div><div class="k-val mono" style="margin-top:8px">17</div><div class="k-sub">今日 · 胜率 64.7%</div></div>
+      </div>
+
+      <div class="row r-2-1 mt14">
+        <div class="card">
+          <div class="card-h"><h3>策略净值曲线</h3><span class="meta">近 90 个交易日 · 对比沪深300</span></div>
+          <div class="card-b"><div id="equityChart"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>实时执行日志</h3><span class="meta">自动刷新</span></div>
+          <div class="card-b" style="padding:8px 16px">
+            <div class="log-line"><span class="lt">14:32</span><span><span class="up">买入</span> 中际旭创 300308 × 1000 @156.20 · <span style="color:var(--muted)">AI算力主线</span></span></div>
+            <div class="log-line"><span class="lt">13:50</span><span><span style="color:var(--warn)">风控</span> 寒武纪触发移动止盈，挂单等待</span></div>
+            <div class="log-line"><span class="lt">11:21</span><span><span class="up">买入</span> 五粮液 000858 × 1200 @142.00 · <span style="color:var(--muted)">白马价值</span></span></div>
+            <div class="log-line"><span class="lt">10:08</span><span><span class="down">卖出</span> 某标的 × 800 @28.6 止盈 +6.4%</span></div>
+            <div class="log-line"><span class="lt">09:35</span><span><span class="up">买入</span> 宁德时代 300750 × 800 @238.00 · <span style="color:var(--muted)">趋势波段</span></span></div>
+            <div class="log-line"><span class="lt">09:30</span><span><span class="neu">开盘</span> 3 个策略已激活，扫描信号中</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt14">
+        <div class="card-h"><h3>运行中的策略</h3><span class="meta">5 个 · 3 运行 / 2 暂停</span></div>
+        <div class="card-b" style="padding:6px 16px">
+          <div class="bot-row">
+            <div class="bot-name"><div class="n">AI 算力主线 <span class="tag t-down">运行中</span></div><div class="s">产业链共振 + 主升加速 · 日线 · 在持 8 只</div></div>
+            <div class="bot-stat"><div class="l">今日</div><div class="v up">+2.4%</div></div>
+            <div class="bot-stat"><div class="l">累计</div><div class="v up">+28.4%</div></div>
+            <div class="bot-stat"><div class="l">回撤</div><div class="v down">−9.2%</div></div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="bot-row">
+            <div class="bot-name"><div class="n">短线打板 <span class="tag t-down">运行中</span></div><div class="s">竞价抢筹 + 连板高度 · 分时 · 在持 3 只</div></div>
+            <div class="bot-stat"><div class="l">今日</div><div class="v up">+3.1%</div></div>
+            <div class="bot-stat"><div class="l">累计</div><div class="v up">+41.2%</div></div>
+            <div class="bot-stat"><div class="l">回撤</div><div class="v down">−18.6%</div></div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="bot-row">
+            <div class="bot-name"><div class="n">白马价值底仓 <span class="tag t-down">运行中</span></div><div class="s">低吸潜伏 · 周线 · 在持 12 只</div></div>
+            <div class="bot-stat"><div class="l">今日</div><div class="v up">+0.6%</div></div>
+            <div class="bot-stat"><div class="l">累计</div><div class="v up">+9.7%</div></div>
+            <div class="bot-stat"><div class="l">回撤</div><div class="v down">−4.1%</div></div>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div class="bot-row">
+            <div class="bot-name"><div class="n">新能源车链 <span class="tag t-mute">已暂停</span></div><div class="s">产业链共振 · 趋势波段 · 空仓</div></div>
+            <div class="bot-stat"><div class="l">今日</div><div class="v">—</div></div>
+            <div class="bot-stat"><div class="l">累计</div><div class="v down">−2.3%</div></div>
+            <div class="bot-stat"><div class="l">回撤</div><div class="v down">−14.0%</div></div>
+            <div class="toggle" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 量化策略自动执行存在模型与市场风险，请审慎使用</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+<script>
+let chart;
+function render(){
+  const dark=document.documentElement.getAttribute('data-theme')!=='light';
+  if(!chart)chart=echarts.init(document.getElementById('equityChart'));
+  const axisC=dark?'#2a3444':'#d4dbe6',txtC=dark?'#9aa7b8':'#52617a',gridC=dark?'#1f2733':'#e6eaf0';
+  const days=[],strat=[],base=[];let s=1,b=1;
+  for(let i=0;i<90;i++){days.push(i);s*=(1+(Math.sin(i/7)*0.006+0.0032));b*=(1+(Math.sin(i/9)*0.004+0.0008));strat.push(+s.toFixed(3));base.push(+b.toFixed(3));}
+  chart.setOption({
+    grid:{left:44,right:16,top:16,bottom:26},
+    legend:{data:['策略净值','沪深300'],textStyle:{color:txtC},right:10,top:0,itemWidth:14,itemHeight:8},
+    tooltip:{trigger:'axis',backgroundColor:dark?'#161c28':'#fff',borderColor:axisC,textStyle:{color:dark?'#e8edf4':'#1a2230'}},
+    xAxis:{type:'category',data:days,axisLine:{lineStyle:{color:axisC}},axisLabel:{color:txtC,fontSize:10,interval:14,formatter:v=>'D'+v},splitLine:{show:false}},
+    yAxis:{scale:true,axisLine:{show:false},axisLabel:{color:txtC,fontSize:10},splitLine:{lineStyle:{color:gridC}}},
+    series:[
+      {name:'策略净值',type:'line',data:strat,smooth:true,symbol:'none',lineStyle:{color:'#3d8bff',width:2.4},areaStyle:{color:'rgba(61,139,255,0.10)'}},
+      {name:'沪深300',type:'line',data:base,smooth:true,symbol:'none',lineStyle:{color:'#5e6a7d',width:1.5,type:'dashed'}}
+    ]
+  });
+}
+render();
+window.addEventListener('resize',()=>chart&&chart.resize());
+window.addEventListener('od-theme-change',()=>setTimeout(render,50));
+</script>
+</body>
+</html>
