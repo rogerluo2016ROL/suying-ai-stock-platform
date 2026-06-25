@@ -1,9 +1,10 @@
 import { Button, Checkbox, Empty, Select, Space, Table, Tag, Typography } from 'antd'
-import { EyeOutlined } from '@ant-design/icons'
+import { DownloadOutlined, EyeOutlined } from '@ant-design/icons'
 import { useMemo, useState } from 'react'
 import type { CandidateCompany } from './types'
 import { formatNumber, scoreColor } from './formatters'
 import CandidateCompareBar from './CandidateCompareBar'
+import { downloadResearchExport, evidenceQuality } from './researchWorkbenchUtils'
 
 const { Text } = Typography
 
@@ -94,6 +95,14 @@ export default function SupplyChainCandidateGrid({
       width: 100,
       render: (value: string) => <Tag color={statusColor(value)}>{statusText(value)}</Tag>,
     },
+    {
+      title: '证据评分',
+      width: 100,
+      render: (_: unknown, row: CandidateCompany) => {
+        const quality = evidenceQuality(row)
+        return <Tag color={quality.color}>{quality.score}</Tag>
+      },
+    },
     { title: '证据来源', dataIndex: 'mapping_source', width: 120 },
     { title: '信号', dataIndex: 'trade_signal', width: 100 },
     {
@@ -125,6 +134,9 @@ export default function SupplyChainCandidateGrid({
             { value: 'weak_evidence', label: '弱证据' },
           ]}
         />
+        <Button icon={<DownloadOutlined />} onClick={() => downloadResearchExport(filtered, selectedNodeName)}>
+          导出清单
+        </Button>
       </Space>
       <div data-testid="candidate-grid-wrap" style={{ whiteSpace: 'nowrap' }}>
         <Table
@@ -134,7 +146,7 @@ export default function SupplyChainCandidateGrid({
           columns={columns}
           dataSource={filtered}
           pagination={{ pageSize: 10, showSizeChanger: false }}
-          scroll={{ x: 1234 }}
+          scroll={{ x: 1334 }}
           locale={{
             emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={selectedNodeName ? mappingMessage || '该节点缺少公司映射证据' : '暂无候选公司'} />,
           }}

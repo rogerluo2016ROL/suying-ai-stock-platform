@@ -2,6 +2,7 @@ import { Button, Descriptions, Empty, Progress, Space, Tabs, Tag, Typography } f
 import { CheckCircleOutlined, CloseCircleOutlined, WarningOutlined } from '@ant-design/icons'
 import type { CandidateCompany } from './types'
 import { dimensionLabel, formatNumber } from './formatters'
+import { evidenceQuality } from './researchWorkbenchUtils'
 
 const { Text } = Typography
 
@@ -20,6 +21,7 @@ export default function CompanyEvidencePanel({ company, onReview }: CompanyEvide
   const financial = company.financial_indicators || {}
   const dimensionEntries = Object.entries(company.dimension_scores || {})
   const canReview = Boolean(company.code && nodeId)
+  const quality = evidenceQuality(company)
 
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
@@ -42,6 +44,12 @@ export default function CompanyEvidencePanel({ company, onReview }: CompanyEvide
                 <Descriptions column={1} size="small" bordered>
                   <Descriptions.Item label="映射节点">{company.node_name || company.layer || '--'}</Descriptions.Item>
                   <Descriptions.Item label="置信度">{formatNumber(company.mapping_confidence, 2)}</Descriptions.Item>
+                  <Descriptions.Item label="证据可信度">
+                    <Space>
+                      <Progress percent={quality.score} size="small" style={{ width: 120 }} />
+                      <Tag color={quality.color}>{quality.label}</Tag>
+                    </Space>
+                  </Descriptions.Item>
                   <Descriptions.Item label="来源">{company.mapping_source || '--'}</Descriptions.Item>
                   <Descriptions.Item label="产品">{company.products?.join('、') || '--'}</Descriptions.Item>
                 </Descriptions>
