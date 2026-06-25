@@ -58,7 +58,7 @@ export default function MethodSelector({
       <Radio.Group
         value={value}
         onChange={e => onChange(e.target.value as ChainMethod)}
-        disabled={disabled || loading}
+        disabled={disabled}
         buttonStyle="solid"
         size="small"
       >

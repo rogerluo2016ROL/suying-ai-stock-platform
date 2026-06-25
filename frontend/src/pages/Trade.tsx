@@ -61,17 +61,20 @@ export default function Trade() {
   const fetchData = useCallback(() => {
     // Account
     tradeApi.getAccount()
-      .then(r => setAccount(r.data))
+      .then(r => {
+        const data = r.data as unknown as { account?: TradeAccount } & TradeAccount
+        setAccount((data.account || data || {}) as TradeAccount)
+      })
       .catch(() => {})
 
     // Positions
     tradeApi.getPositions()
-      .then(r => setPositions(r.data.positions || []))
+      .then(r => setPositions((r.data as unknown as { positions?: TradeOrder[] }).positions || []))
       .catch(() => {})
 
     // Orders
     tradeApi.getOrders()
-      .then(r => setOrders(r.data.orders || []))
+      .then(r => setOrders((r.data as unknown as { orders?: TradeOrder[] }).orders || []))
       .catch(() => {})
   }, [])
 

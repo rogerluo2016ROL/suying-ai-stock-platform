@@ -363,9 +363,9 @@ export default function Screener() {
                   <div style={{ marginTop: 10 }}>
                     <div style={{ marginTop: 8, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                       {[
-                        formatAxisScore('启动质量', (record as unknown as { startup_quality_score?: number }).startup_quality_score),
-                        formatAxisScore('点火爆发', (record as unknown as { ignition_power_score?: number }).ignition_power_score),
-                        formatAxisScore('硬科技', record.hard_tech?.tier ? 5 : 0),
+                        formatAxisScore('启动质量', record.factor_breakdown?.startup_quality ?? (record as unknown as { startup_quality_score?: number }).startup_quality_score),
+                        formatAxisScore('点火爆发', record.factor_breakdown?.ignition_power ?? (record as unknown as { ignition_power_score?: number }).ignition_power_score),
+                        formatAxisScore('硬科技', record.factor_breakdown?.hard_tech_conviction ?? (record.hard_tech?.tier ? 5 : 0)),
                       ].filter(Boolean).map(item => (
                         <Text key={item as string} style={{ fontSize: 12, color: 'var(--fg-2)' }}>{item}</Text>
                       ))}

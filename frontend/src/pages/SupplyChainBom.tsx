@@ -3,6 +3,7 @@ import { Button, Checkbox, Col, Empty, Input, message, Row, Space, Statistic, Ta
 import { ApartmentOutlined, EyeOutlined, FileTextOutlined, ScanOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import { screenerApi, chainApi, type PolicyInterpretResponse, type ChainDeconstructResponse, type ChainNode, type ChainCandidate, type FilterSummary, type ResonanceSummary, type SupplyChainMappingQuality, type SupplyChainMappingReviewDecision } from '../api/client'
+import type { SupplyChainTheme, SupplyChainNode } from '../api/types'
 import CandidateCompanyTable from './supply-chain-bom/CandidateCompanyTable'
 import CompanyResearchDrawer from './supply-chain-bom/CompanyResearchDrawer'
 import NodeThesisPanel from './supply-chain-bom/NodeThesisPanel'
@@ -149,9 +150,10 @@ export default function SupplyChainBom() {
         if (!mounted) return
         const data = resp.data || {}
         applyWorkbenchPayload(data, true)
-        const nextThemes = data.themes || data.policy_themes || []
-        setSelectedThemeId(data.selected_theme_id || nextThemes[0]?.theme_id || '')
-        setSelectedNodeId(data.selected_node_id || '')
+        const nextThemes = (data as unknown as { themes?: (SupplyChainTheme & { theme_id?: string })[]; policy_themes?: (SupplyChainTheme & { theme_id?: string })[] }).themes || (data as unknown as { policy_themes?: (SupplyChainTheme & { theme_id?: string })[] }).policy_themes || []
+        const firstTheme = nextThemes[0]
+        setSelectedThemeId((data as unknown as { selected_theme_id?: string }).selected_theme_id || firstTheme?.id || firstTheme?.theme_id || '')
+        setSelectedNodeId((data as unknown as { selected_node_id?: string }).selected_node_id || '')
       })
       .finally(() => {
         if (mounted) setLoading(false)
@@ -174,7 +176,7 @@ export default function SupplyChainBom() {
         setChainDeconstructResult(data)
         // Convert chain nodes to BomNodes for display
         if (data.tree) {
-          const bomNodes = flattenChainNodes(data.tree, selectedThemeId)
+          const bomNodes = flattenChainNodes(data.tree as SupplyChainNode, selectedThemeId)
           setNodes(bomNodes)
         }
       })
@@ -364,7 +366,7 @@ export default function SupplyChainBom() {
     setCompanyDetail(company)
     setCompanyOpen(true)
     screenerApi.getSupplyChainCompany(company.code).then(resp => {
-      setCompanyDetail({ ...company, ...resp.data })
+      setCompanyDetail({ ...company, ...(resp.data as unknown as Record<string, unknown>) })
     })
   }
 
