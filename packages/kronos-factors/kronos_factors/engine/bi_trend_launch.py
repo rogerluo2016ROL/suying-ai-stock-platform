@@ -900,7 +900,8 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         # V14: 根据评级应用仓位权重（S级高波动降权，A级稳健满仓）
         s["weight"] = GRADE_POSITION_WEIGHT.get(grade, 1.0)
         s["hold_days"] = 5
-        s["stop_loss"] = -10
+        # V14: 波动率分级止损 — 极端波动票收紧到 -8%, 限制单笔尾部亏损
+        s["stop_loss"] = VOL_TIERED_STOP_LOSS.get(s.get("vol_regime", "normal"), -10)
         s["take_profit"] = 15
 
     market_info = {
@@ -1019,7 +1020,7 @@ def _score_startup_quality(regime: str = "neutral", daily_gain: float = 0.0,
         score_adj -= min(3, ma20_extension_penalty)
         risk_flags.append("ma20_extension")
     if late_rebound and ma20_extension_penalty >= 4:
-        score_adj -= 3
+        score_adj -= LATE_STAGE_EXTENSION_PENALTY  # V14: -3 → -6, 末端延伸簇加重压制
         risk_flags.append("late_stage_extension")
     if distribution_penalty > 0:
         score_adj -= min(4, distribution_penalty)
@@ -1038,7 +1039,7 @@ def _score_startup_quality(regime: str = "neutral", daily_gain: float = 0.0,
         risk_flags.append("dead_cat_bounce")
 
     return {
-        "score_adj": max(-12, min(4, score_adj)),
+        "score_adj": max(STARTUP_QUALITY_FLOOR, min(4, score_adj)),
         "quality_flags": quality_flags,
         "risk_flags": risk_flags,
     }
@@ -1749,6 +1750,8 @@ def _score_bi_trend_arrays(closes, highs, lows, volumes, code=None, name=None, i
         "wr_drop_3d": round(wr_d1 + wr_d2 + wr_d3, 1), "wr_level": wr_level,
         # Volume
         "vol_score": vol_score, "vol_ratio": round(vol_ratio, 2), "vol_level": vol_level,
+        # V14: 波动率 (供分级止损)
+        "annual_vol": round(annual_vol, 1), "vol_regime": vol_regime,
         # MA
         "ma_score": ma_score, "ma_level": ma_level,
         # ADX

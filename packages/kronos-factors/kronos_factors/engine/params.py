@@ -244,3 +244,17 @@ MAX_SAME_INDUSTRY = 2      # 同行业最多2只（防板块踩踏）
 # 下列参数仅供 score_bi_trend (单测/兼容路径) 与文档引用, 实际选股不读取.
 OBV_ZERO_BONUS = 5          # OBV=0额外加分（与 _score_bi_trend_arrays 硬编码 +5 对齐）
 OBV_ZERO_WR_THRESHOLD = 50  # OBV=0时WR放宽阈值（保留供参考）
+
+# V14: 末端延伸簇惩罚强化 — late_rebound + ma20_extension 同现=趋势末端追高
+# 启动质量 score_adj 下限放宽到 -15, 让深度风险票真正被压到 B/C 级
+LATE_STAGE_EXTENSION_PENALTY = 6   # 末端延伸簇额外扣分（V13 的 -3 → -6）
+STARTUP_QUALITY_FLOOR = -15        # 启动质量调整下限（V13 的 -12 → -15）
+
+# V14: 波动率分级止损 — 高波动股信号衰减需更紧止损, 低波动股给标准空间
+# 解决最大单笔亏损 (新易盛 -28.5%): 极端波动票止损收紧到 -8%
+# 注: 与 SELL_MAX_STOP_LOSS=-15 硬上限互不冲突, 此处是入场即设的初始止损
+VOL_TIERED_STOP_LOSS = {
+    "normal":  -10,   # 年化波动 <80%: 标准止损 -10%
+    "high":    -12,   # 年化波动 80-100%: 略宽 -12% (波动大易误触发)
+    "extreme":  -8,   # 年化波动 >100%: 收紧 -8% (信号已衰减, 快砍)
+}
