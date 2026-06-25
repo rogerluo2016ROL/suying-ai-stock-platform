@@ -9,6 +9,8 @@ dependencies = [
     "kronos-factors",
     "kronos-core",
     "kronos-data",
+    "openai>=1.0",
+    "tenacity>=8.0",
 ]
 
 [project.optional-dependencies]

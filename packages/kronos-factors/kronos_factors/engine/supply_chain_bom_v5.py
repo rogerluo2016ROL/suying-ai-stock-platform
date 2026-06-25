@@ -81,6 +81,26 @@ def derive_rating(total_score: float) -> str:
     return "D"
 
 
+# V6 Three-factor resonance scoring constants
+INDUSTRY_CYCLE_SCORE = {
+    "放量": 12.0,
+    "放量/订单": 12.0,
+    "量产": 9.0,
+    "小批量": 6.0,
+    "样品": 3.0,
+    "样品/研发": 3.0,
+    "研发": 3.0,
+    "未识别": 2.0,
+}
+
+PERFORMANCE_YIELD_SCORE = {
+    (100, float("inf")): 20.0,
+    (50, 100): 15.0,
+    (20, 50): 10.0,
+    (0, 20): 5.0,
+}
+
+
 def derive_trade_signal(total_score: float, dimension_scores: dict[str, float]) -> str:
     """Convert V5 score dimensions into a research signal, not an order action."""
     if total_score < 50 or dimension_scores.get("risk", 0) >= 8:
@@ -261,3 +281,169 @@ def score_company_v5(base_pick: dict[str, Any], evidence: list[dict[str, Any]] |
         "model_version": "supply_chain_bom_v5",
     })
     return enriched
+
+
+def _score_industry_cycle(stage: str | None) -> float:
+    """Score industry cycle stage (V6 three-factor: 产业周期)."""
+    if stage is None:
+        return INDUSTRY_CYCLE_SCORE["未识别"]
+    stage_str = str(stage).strip()
+    return INDUSTRY_CYCLE_SCORE.get(stage_str, INDUSTRY_CYCLE_SCORE["未识别"])
+
+
+def _score_policy_intensity(policy_score: float | None, relevance: float | None = None) -> float:
+    """Score policy intensity (V6 three-factor: 政策强度).
+
+    policy_score may be a 0-15 direct score. When policy_relevance is provided,
+    1-5 star scores are converted to the 0-15 range before applying relevance.
+    """
+    policy = _to_float(policy_score, 0.0) or 0.0
+    if relevance is None:
+        return _clip(policy, 15.0)
+
+    rel = _to_float(relevance, 1.0)
+    rel = 1.0 if rel is None else rel
+    if policy > 5:
+        return _clip(policy * rel, 15.0)
+    return _clip(policy * 3.0 * rel, 15.0)
+
+
+def _score_performance_yield(yoy: float | None) -> float:
+    """Score performance yield (V6 three-factor: 业绩兑现).
+
+    Based on revenue/profit YoY growth:
+    - yoy >= 100%: 20 points
+    - yoy >= 50%: 15 points
+    - yoy >= 20%: 10 points
+    - yoy >= 0%: 5 points
+    - yoy < 0%: 0 points
+    """
+    if yoy is None:
+        return 0.0
+    growth = _to_float(yoy, 0.0) or 0.0
+    for (lower, upper), score in PERFORMANCE_YIELD_SCORE.items():
+        if lower <= growth < upper:
+            return score
+    if growth >= 100:
+        return 20.0
+    return 0.0
+
+
+def derive_resonance_v6(pick: dict[str, Any], stage: str | None = None) -> dict[str, Any]:
+    """Calculate three-factor resonance score and determine startup signal.
+
+    Three factors:
+    1. Industry cycle (产业周期): commercialization stage score
+    2. Policy intensity (政策强度): policy_score * relevance
+    3. Performance yield (业绩兑现): revenue/profit YoY growth score
+
+    Resonance determination:
+    - All 3 factors pass threshold (强启动 threshold): "强启动"
+    - 2 factors pass threshold (启动 threshold): "启动"
+    - 1 factor passes threshold: "关注"
+    - 0 factors: "观察"
+
+    Thresholds:
+    - Industry cycle >= 9.0 (量产及以上)
+    - Policy intensity >= 9.0
+    - Performance yield >= 15.0 (yoy >= 50%)
+
+    Returns dict with:
+        - industry_cycle_score: float
+        - policy_intensity_score: float
+        - performance_yield_score: float
+        - resonance_factors: int (count of factors passing threshold)
+        - resonance_signal: str ("强启动"/"启动"/"关注"/"观察")
+        - resonance_details: dict with per-factor pass/fail status
+    """
+    # Factor 1: Industry cycle (产业周期)
+    industry_cycle_score = _score_industry_cycle(stage)
+
+    # Factor 2: Policy intensity (政策强度)
+    policy_intensity_score = _score_policy_intensity(
+        pick.get("policy_score"),
+        pick.get("policy_relevance")
+    )
+
+    # Factor 3: Performance yield (业绩兑现)
+    # Use max of revenue_yoy and profit_yoy
+    revenue_yoy = _to_float(pick.get("q_sales_yoy") or pick.get("revenue_yoy") or pick.get("revenue_growth"))
+    profit_yoy = _to_float(pick.get("netprofit_yoy") or pick.get("profit_yoy") or pick.get("profit_growth"))
+    best_yoy = max((y for y in [revenue_yoy, profit_yoy] if y is not None), default=None)
+    performance_yield_score = _score_performance_yield(best_yoy)
+
+    # Thresholds for resonance
+    INDUSTRY_CYCLE_THRESHOLD = 9.0  # 量产及以上
+    POLICY_INTENSITY_THRESHOLD = 9.0
+    PERFORMANCE_YIELD_THRESHOLD = 15.0  # yoy >= 50%
+
+    # Count factors passing threshold
+    factors = [
+        (industry_cycle_score >= INDUSTRY_CYCLE_THRESHOLD, "industry_cycle"),
+        (policy_intensity_score >= POLICY_INTENSITY_THRESHOLD, "policy_intensity"),
+        (performance_yield_score >= PERFORMANCE_YIELD_THRESHOLD, "performance_yield"),
+    ]
+    resonance_count = sum(1 for passed, _ in factors if passed)
+
+    # Determine resonance signal
+    if resonance_count >= 3:
+        resonance_signal = "强启动"
+    elif resonance_count == 2:
+        resonance_signal = "启动"
+    elif resonance_count == 1:
+        resonance_signal = "关注"
+    else:
+        resonance_signal = "观察"
+
+    return {
+        "industry_cycle_score": industry_cycle_score,
+        "policy_intensity_score": policy_intensity_score,
+        "performance_yield_score": performance_yield_score,
+        "resonance_factors": resonance_count,
+        "resonance_signal": resonance_signal,
+        "resonance_details": {
+            "industry_cycle_passed": factors[0][0],
+            "policy_intensity_passed": factors[1][0],
+            "performance_yield_passed": factors[2][0],
+        },
+        "thresholds": {
+            "industry_cycle": INDUSTRY_CYCLE_THRESHOLD,
+            "policy_intensity": POLICY_INTENSITY_THRESHOLD,
+            "performance_yield": PERFORMANCE_YIELD_THRESHOLD,
+        },
+    }
+
+
+CHOKEPOINT_CORE_KEYWORDS = frozenset({
+    "垄断", "独家", "首家", "稀缺", "寡头", "唯一", "打破垄断", "卡脖子",
+})
+
+CHOKEPOINT_KEY_KEYWORDS = frozenset({
+    "国产替代", "进口替代", "自主可控", "客户验证", "认证", "供应商", "定点", "进入供应链",
+})
+
+
+def classify_chokepoint_level(score: float, keywords: list[str] | None = None) -> str:
+    """Classify chokepoint level based on score and keywords.
+
+    Classification rules:
+    1. "卡脖子核心": score >= 10 AND has core keywords (垄断/独家/首家/稀缺/寡头/唯一/打破垄断/卡脖子)
+    2. "关键环节": score >= 6 OR has key keywords (国产替代/进口替代/自主可控/客户验证/认证/供应商/定点/进入供应链)
+    3. "普通": otherwise
+
+    Args:
+        score: Chokepoint dimension score (0-20)
+        keywords: List of chokepoint keywords found in evidence
+
+    Returns:
+        "卡脖子核心" / "关键环节" / "普通"
+    """
+    keyword_set = set(str(kw).strip() for kw in (keywords or []) if kw)
+    has_core_keyword = bool(keyword_set & CHOKEPOINT_CORE_KEYWORDS)
+    has_key_keyword = bool(keyword_set & CHOKEPOINT_KEY_KEYWORDS)
+
+    if score >= 10 and has_core_keyword:
+        return "卡脖子核心"
+    if score >= 6 or has_key_keyword:
+        return "关键环节"
+    return "普通"

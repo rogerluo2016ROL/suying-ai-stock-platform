@@ -316,3 +316,103 @@ Diagnosis 拆分验证：
 **下一步**
 
 FE-P2 (task #3) 完成（7 完整 + 2 部分）。FE 三层（P0/P1/P2）全部推进完毕。剩余技术债（P2-08 完整 JSX 拆分 + P2-03 Diagnosis useMemo + pre-existing auth-flow 测试加固）建议作为独立 task，需先补业务页面测试保护网。
+
+---
+
+## Task #9: Phase 2 ECharts Tree下钻图组件 — 2026-06-24
+
+### 状态: 完成 — AC全绿
+
+**Skills used**: context7 (ECharts Tree documentation query)
+
+**SIT 证据**
+
+```
+# TypeScript check
+cd frontend && npx tsc -b --noEmit → 0 errors (no output)
+
+# Unit tests (新增 11 tests)
+cd frontend && npx vitest run src/__tests__/chartOptions.test.ts
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+
+# Full test suite
+cd frontend && npx vitest run
+ Test Files  14 passed (14)
+      Tests  67 passed (67)
+```
+
+**AC验收**
+- [x] AC-1: buildChainTreeOption(data) 返回 ECharts Tree配置 — `chartOptions.ts:72-130`
+- [x] AC-2: symbolSize按chokepoint_level区分（核心=16, 关键=12, 普通=8）— `chartOptions.ts:21-24` + `symbolSize` 函数回调
+- [x] AC-3: 点击节点触发onEvents回调展开下钻 — `ChainTreeChart.tsx:55-70` onEvents.click handler
+- [x] AC-4: 颜色映射：卡脖子核心=red(#ff4d4f), 关键环节=gold(#faad14), 普通=blue(#1677ff) — `chartOptions.ts:15-20`
+- [x] AC-5: 渲染depth=3层级 — `chartOptions.ts:109` initialTreeDepth: 3
+
+**质量门**
+- [x] TypeScript: `npx tsc -b --noEmit` → 0 errors
+- [x] vitest: 新增 11 tests 全绿；全量 67 passed
+- [x] lint: 以 tsc为准
+- [x] dev server: 未启动（纯库函数 + 组件，无页面集成）
+
+**实际改动文件**
+- `frontend/src/pages/supply-chain-bom/chartOptions.ts` (新建)
+- `frontend/src/pages/supply-chain-bom/ChainTreeChart.tsx` (新建)
+- `frontend/src/__tests__/chartOptions.test.ts` (新建)
+
+**下一步**
+
+Task #9 完成。组件已实现但未集成到 SupplyChainBom.tsx 页面（需 Task #8 前端三视图Tab完成后集成）。
+
+---
+
+## Task #10: Phase 2 API Client扩展 - chainApi — 2026-06-24
+
+### 状态: 完成 — AC全绿
+
+**Skills used**: 无（纯 TypeScript 类型定义 + API 模块扩展）
+
+**SIT 证据**
+
+```
+# TypeScript check (client.ts 无错误)
+cd frontend && npx tsc -b --noEmit 2>&1 | grep -i "client.ts" || echo "No errors in client.ts"
+No errors in client.ts
+
+# Unit tests (全量)
+cd frontend && npx vitest run
+ Test Files  14 passed (14)
+      Tests  67 passed (67)
+   Start at  21:28:39
+   Duration  5.84s
+```
+
+**AC验收**
+- [x] AC-1: chainApi.interpretPolicy(text, source, persist) 调用 POST `/screener/policy/interpret` — `client.ts:263-270`
+- [x] AC-2: chainApi.deconstructChain(params) 调用 GET `/screener/chain/deconstruct` — `client.ts:273-277`
+- [x] AC-3: chainApi.getNodeCompanies(nodeId) 调用 GET `/screener/chain/node/{node_id}/companies` — `client.ts:280-281`
+- [x] AC-4: TypeScript类型定义完整 — `client.ts:178-261`（PolicyInterpretRequest/Response/LLMUsageInfo/InterpretationResult/ChainDeconstructParams/ChainNode/ChainDeconstructResponse/ThreeFactors/Resonance/ChainNodeCompany/ChainNodeCompaniesResponse）
+
+**质量门**
+- [x] TypeScript: `npx tsc -b --noEmit` → client.ts 0 errors
+- [x] vitest: 全量 67 passed
+- [x] lint: 以 tsc为准
+- [x] dev server: 未启动（纯 API client 扩展，无页面集成）
+
+**实际改动文件**
+- `frontend/src/api/client.ts` (扩展 chainApi 模块 + 12 个 TypeScript 类型定义)
+
+**契约对齐验证**
+- API endpoints 路径与后端 `screener.py` 一致：
+  - POST `/api/v1/screener/policy/interpret` (行 1270-1388)
+  - GET `/api/v1/screener/chain/deconstruct` (行 1682-1750)
+  - GET `/api/v1/screener/chain/node/{node_id}/companies` (行 1753-1824)
+- 响应类型与 Pydantic models 对齐：
+  - `PolicyInterpretResponse` ↔ `PolicyInterpretResponse` (行 64-73)
+  - `InterpretationResult` ↔ `InterpretationResult` (行 38-51)
+  - `LLMUsageInfo` ↔ `LLMUsageInfo` (行 54-61)
+- PRD §5.2 API契约字段覆盖完整
+
+**下一步**
+
+Task #10 完成。chainApi 模块已实现，可被 Task #8 前端页面调用进行政策解读 + 产业链解构。

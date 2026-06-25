@@ -7,14 +7,71 @@ import math
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
+from datetime import datetime
+from typing import Any, Optional
+
 from fastapi import APIRouter, Body, Query, HTTPException
+from pydantic import BaseModel, Field
 
 import numpy as np
 
 from app.config import AVAILABLE_MODES, DEFAULT_TOP_N, MAX_TOP_N
 
 logger = logging.getLogger("screener.routes")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Policy Interpretation Request/Response Models
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PolicyInterpretRequest(BaseModel):
+    """Request model for policy interpretation endpoint."""
+
+    text: str = Field(..., description="Policy document text to interpret")
+    source: Optional[dict[str, Any]] = Field(
+        default=None, description="Source metadata with title/published_at"
+    )
+    persist: bool = Field(default=False, description="Persist result to PG")
+    provider: str = Field(default="deepseek", description="LLM provider to use")
+
+
+class InterpretationResult(BaseModel):
+    """Structured interpretation result from LLM."""
+
+    summary: str = Field(default="", description="Brief summary of the policy")
+    industry_themes: list[dict[str, Any]] = Field(
+        default_factory=list, description="Identified industry themes"
+    )
+    bom_nodes: list[str] = Field(
+        default_factory=list, description="Supply-chain BOM nodes mentioned"
+    )
+    investment_logic: str = Field(default="", description="Investment thesis")
+    risk_factors: list[dict[str, Any]] = Field(
+        default_factory=list, description="Risk factors identified"
+    )
+
+
+class LLMUsageInfo(BaseModel):
+    """Token usage telemetry from LLM call."""
+
+    prompt_tokens: int = Field(default=0)
+    completion_tokens: int = Field(default=0)
+    total_tokens: int = Field(default=0)
+    provider: str = Field(default="")
+    model: str = Field(default="")
+
+
+class PolicyInterpretResponse(BaseModel):
+    """Response model for policy interpretation endpoint."""
+
+    status: str = Field(..., description="ok, disabled, or error")
+    interpretation_result: InterpretationResult = Field(
+        default_factory=InterpretationResult
+    )
+    usage: LLMUsageInfo = Field(default_factory=LLMUsageInfo)
+    persisted: bool = Field(default=False)
+    reason: Optional[str] = Field(default=None, description="Error reason if status!=ok")
+
 
 router = APIRouter(prefix="/api/v1/screener", tags=["screener"])
 
@@ -921,6 +978,52 @@ def _auto_save_snapshot(result: dict, mode: str):
         logger.warning("Recorder save failed (PG may not be available): %s", e)
 
 
+def _persist_policy_interpretation(
+    text: str,
+    source: dict[str, Any] | None,
+    interpretation: dict[str, Any],
+    usage: LLMUsageInfo,
+) -> dict[str, Any]:
+    """Persist policy interpretation result to policy_interpretations table.
+
+    Args:
+        text: Original policy text
+        source: Source metadata (title, url, etc.)
+        interpretation: Parsed interpretation dict from LLM
+        usage: Token usage telemetry
+
+    Returns:
+        Dict with status and inserted row id
+    """
+    source = source or {}
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+            cur.execute(
+                """
+                INSERT INTO policy_interpretations
+                    (source_type, source_content, source_url, interpreted_themes, model_used, tokens_used, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (
+                    source.get("source_type", "manual"),
+                    text,
+                    source.get("source_url"),
+                    json.dumps(interpretation, ensure_ascii=False),
+                    f"{usage.provider}/{usage.model}",
+                    usage.total_tokens,
+                    datetime.now(),
+                ),
+            )
+            row_id = cur.fetchone()[0]
+            pg.commit()
+            return {"status": "ok", "id": row_id}
+    except Exception as e:
+        logger.warning("policy_interpretation persist failed: %s", e)
+        return {"status": "error", "reason": str(e)}
+
+
 @router.get("/modes")
 async def list_modes():
     """List available screening modes with descriptions."""
@@ -1163,6 +1266,127 @@ async def supply_chain_research_ingest(payload: dict | None = Body(default=None)
         "persisted_count": persisted_count,
         "reports": results,
     }
+
+
+@router.post(
+    "/policy/interpret",
+    response_model=PolicyInterpretResponse,
+    operation_id="policy_interpret",
+    summary="Interpret policy document via LLM",
+)
+async def policy_interpret(request: PolicyInterpretRequest = Body(...)):
+    """Interpret policy document text using LLM to extract structured insights.
+
+    Extracts:
+    - summary: Brief policy summary
+    - industry_themes: Identified industry themes with policy intensity
+    - bom_nodes: Supply-chain BOM nodes mentioned
+    - investment_logic: Investment thesis and rationale
+    - risk_factors: Risk factors identified
+
+    Optionally persists results to policy_interpretations table when persist=True.
+    """
+    text = str(request.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+
+    source = request.source if isinstance(request.source, dict) else {}
+    provider = str(request.provider or "deepseek")
+
+    # Check if LLM is enabled (has API key for the requested provider)
+    from app.llm_multi_provider import PROVIDER_CONFIG, ProviderConfigError
+
+    provider_config = PROVIDER_CONFIG.get(provider)
+    if not provider_config:
+        return PolicyInterpretResponse(
+            status="disabled",
+            reason=f"Unknown provider: {provider}",
+        )
+
+    api_key_env = provider_config.get("api_key_env")
+    if not os.environ.get(api_key_env):
+        return PolicyInterpretResponse(
+            status="disabled",
+            reason=f"{api_key_env} missing",
+        )
+
+    try:
+        # Build prompt and call LLM
+        from app.llm_policy_interpret import (
+            build_policy_interpret_prompt,
+            parse_interpretation_json,
+        )
+        from app.llm_multi_provider import call_llm_with_fallback, LLMResponse
+
+        prompt = build_policy_interpret_prompt(text, source)
+        messages = [{"role": "user", "content": prompt}]
+
+        t0 = time.time()
+        llm_response: LLMResponse = await call_llm_with_fallback(
+            messages,
+            provider_override=provider,
+            temperature=0.3,  # Lower temperature for structured extraction
+            max_tokens=2000,
+        )
+        elapsed = time.time() - t0
+
+        logger.info(
+            "policy_interpret LLM call: provider=%s, tokens=%d, elapsed=%.2fs",
+            llm_response.usage.provider,
+            llm_response.usage.total_tokens,
+            elapsed,
+        )
+
+        # Parse LLM response into structured interpretation
+        interpretation = parse_interpretation_json(llm_response.content)
+
+        # Build usage info
+        usage = LLMUsageInfo(
+            prompt_tokens=llm_response.usage.prompt_tokens,
+            completion_tokens=llm_response.usage.completion_tokens,
+            total_tokens=llm_response.usage.total_tokens,
+            provider=llm_response.usage.provider,
+            model=llm_response.usage.model,
+        )
+
+        # Build interpretation result
+        result = InterpretationResult(
+            summary=interpretation.get("summary", ""),
+            industry_themes=interpretation.get("industry_themes", []),
+            bom_nodes=interpretation.get("bom_nodes", []),
+            investment_logic=interpretation.get("investment_logic", ""),
+            risk_factors=interpretation.get("risk_factors", []),
+        )
+
+        # Persist if requested
+        persisted = False
+        if request.persist:
+            persist_result = _persist_policy_interpretation(
+                text, source, interpretation, usage
+            )
+            persisted = persist_result.get("status") == "ok"
+            if not persisted:
+                logger.warning("policy_interpret persist failed: %s", persist_result.get("reason"))
+
+        return PolicyInterpretResponse(
+            status="ok",
+            interpretation_result=result,
+            usage=usage,
+            persisted=persisted,
+        )
+
+    except ProviderConfigError as e:
+        logger.warning("policy_interpret provider config error: %s", e)
+        return PolicyInterpretResponse(
+            status="disabled",
+            reason=str(e),
+        )
+    except Exception as e:
+        logger.exception("policy_interpret failed: %s", e)
+        return PolicyInterpretResponse(
+            status="error",
+            reason=str(e),
+        )
 
 
 @router.post("/run")
@@ -1460,3 +1684,435 @@ def _run_afternoon_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dic
     if is_full:
         result["sector_resonance"] = sector_resonance
     return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Industry Chain Deconstruct Endpoints (Phase 2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/chain/deconstruct")
+async def chain_deconstruct(
+    theme_id: str = Query(..., description="Industry theme ID (e.g., 'semiconductor')"),
+    method: str = Query("upstream_downstream", description="Deconstruct method: upstream_downstream, value_chain, competition"),
+):
+    """Return industry chain deconstruct tree with selected view method.
+
+    Methods:
+    - upstream_downstream: 5-layer tree (原材料→零部件→制造→渠道→终端)
+    - value_chain: tree + margin/pricing_power/value_added per node
+    - competition: tree + concentration/leader_share/barrier/threat per node
+    """
+    from kronos_factors.engine.chain_deconstruct import deconstruct_chain
+
+    # Query chain_nodes from PG for the given theme_id
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+            cur.execute(
+                """
+                SELECT node_id, theme_id, node_name, layer, parent_node_id,
+                       upstream_nodes, downstream_nodes, value_chain, competition
+                FROM chain_nodes
+                WHERE theme_id = %s
+                ORDER BY layer, node_id
+                """,
+                (theme_id,),
+            )
+            rows = cur.fetchall()
+            if not rows:
+                raise HTTPException(status_code=404, detail=f"Theme '{theme_id}' not found in chain_nodes")
+
+            # Get theme_name from industry_themes
+            cur.execute(
+                "SELECT theme_name FROM industry_themes WHERE theme_id = %s",
+                (theme_id,),
+            )
+            theme_row = cur.fetchone()
+            theme_name = str(theme_row[0]) if theme_row else theme_id
+
+            # Build nodes list for deconstruct_chain
+            nodes = []
+            for row in rows:
+                node = {
+                    "node_id": str(row[0] or ""),
+                    "theme_id": str(row[1] or ""),
+                    "node_name": str(row[2] or ""),
+                    "layer": int(row[3] or 0),
+                    "parent_node_id": str(row[4] or "") if row[4] else None,
+                    "upstream_nodes": _json_or_default(row[5], []),
+                    "downstream_nodes": _json_or_default(row[6], []),
+                    "value_chain": _json_or_default(row[7], {}),
+                    "competition": _json_or_default(row[8], {}),
+                }
+                nodes.append(node)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("chain_deconstruct query failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Database query failed: {e}")
+
+    # Call deconstruct_chain with the nodes
+    try:
+        result = deconstruct_chain(theme_id, method, nodes, theme_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result
+
+
+@router.get("/chain/node/{node_id}/companies")
+async def chain_node_companies(node_id: str):
+    """Return companies mapped to a specific chain node with resonance scores.
+
+    Response includes:
+    - node_id, node_name
+    - companies: list of mapped companies with code, name, main_pct, resonance, trade_signal
+    """
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+
+            # 1. Verify node exists and get node_name
+            cur.execute(
+                "SELECT node_id, node_name FROM chain_nodes WHERE node_id = %s",
+                (node_id,),
+            )
+            node_row = cur.fetchone()
+            if not node_row:
+                raise HTTPException(status_code=404, detail=f"Node '{node_id}' not found")
+            node_name = str(node_row[1] or node_id)
+
+            # 2. Query company_chain_mapping for the node
+            cur.execute(
+                """
+                SELECT m.code, COALESCE(s.name, m.code) AS name, m.main_pct,
+                       m.policy_match_score, m.chokepoint_score, m.evidence,
+                       m.three_factors, m.trade_signal
+                FROM company_chain_mapping m
+                LEFT JOIN stocks s ON s.code = m.code
+                WHERE m.node_id = %s
+                  AND (m.valid_to IS NULL OR m.valid_to >= CURRENT_DATE)
+                ORDER BY m.chokepoint_score DESC NULLS LAST, m.main_pct DESC NULLS LAST
+                LIMIT 50
+                """,
+                (node_id,),
+            )
+            rows = cur.fetchall()
+
+            companies = []
+            for idx, row in enumerate(rows, start=1):
+                three_factors = _json_or_default(row[6], {})
+                evidence = _json_or_default(row[5], [])
+
+                # Derive resonance summary from three_factors
+                resonance = _derive_resonance_from_three_factors(three_factors)
+
+                companies.append({
+                    "code": str(row[0] or ""),
+                    "name": str(row[1] or ""),
+                    "rank": idx,
+                    "main_pct": _to_float(row[2], None),
+                    "policy_match_score": _to_float(row[3], None),
+                    "chokepoint_score": int(row[4] or 0),
+                    "evidence": evidence,
+                    "three_factors": three_factors,
+                    "trade_signal": str(row[7] or "观察"),
+                    "resonance": resonance,
+                })
+
+            return {
+                "node_id": node_id,
+                "node_name": node_name,
+                "company_count": len(companies),
+                "companies": companies,
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("chain_node_companies query failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Database query failed: {e}")
+
+
+def _derive_resonance_from_three_factors(three_factors: dict) -> dict:
+    """Derive resonance summary from three_factors JSONB field.
+
+    three_factors structure (from PRD):
+    {
+        "industry_cycle": {"stage": "量产", "score": 9},
+        "policy_intensity": {"stars": 4, "score": 12},
+        "performance_proof": {"status": "业绩兑现", "score": 10}
+    }
+    """
+    if not three_factors:
+        return {"summary": "待评估", "dimensions": {}}
+
+    industry_cycle = three_factors.get("industry_cycle", {})
+    policy_intensity = three_factors.get("policy_intensity", {})
+    performance_proof = three_factors.get("performance_proof", {})
+
+    dims = {
+        "industry_cycle": {
+            "stage": industry_cycle.get("stage", "未知"),
+            "score": _to_float(industry_cycle.get("score"), 0),
+        },
+        "policy_intensity": {
+            "stars": int(policy_intensity.get("stars", 0)),
+            "score": _to_float(policy_intensity.get("score"), 0),
+        },
+        "performance_proof": {
+            "status": performance_proof.get("status", "待验证"),
+            "score": _to_float(performance_proof.get("score"), 0),
+        },
+    }
+
+    # Count how many dimensions are "达标" (score >= threshold)
+    cycle_ok = dims["industry_cycle"]["score"] >= 9  # 量产/放量
+    policy_ok = dims["policy_intensity"]["stars"] >= 4
+    perf_ok = dims["performance_proof"]["score"] >= 10
+
+    active_count = sum([cycle_ok, policy_ok, perf_ok])
+
+    if active_count >= 3:
+        summary = "三因子共振 — 强启动信号"
+    elif active_count >= 2:
+        summary = "双因子共振 — 关注信号"
+    elif active_count >= 1:
+        summary = "单因子达标 — 观察信号"
+    else:
+        summary = "待兑现 — 暂无共振"
+
+    return {
+        "summary": summary,
+        "dimensions": dims,
+        "active_count": active_count,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Chain Candidates Endpoint (Phase 3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+VALID_FILTERS = frozenset({
+    "high_growth", "high_profit", "high_moat", "chokepoint_core", "all"
+})
+
+VALID_RESONANCE_LEVELS = frozenset({
+    "强启动", "启动", "关注", "观察"
+})
+
+
+def _enrich_candidate_with_resonance_v6(candidate: dict) -> dict:
+    """Enrich a candidate with V6 three-factor resonance scoring."""
+    from kronos_factors.engine.supply_chain_bom_v5 import (
+        derive_resonance_v6,
+        classify_chokepoint_level,
+        CHOKEPOINT_CORE_KEYWORDS,
+    )
+
+    # Extract stage from candidate
+    stage = candidate.get("commercialization_stage")
+    if not stage or stage == "证据待抽取":
+        stage = candidate.get("stage")
+
+    # Compute V6 resonance scores
+    resonance_v6 = derive_resonance_v6(candidate, stage)
+
+    # Determine chokepoint level from dimension_scores keywords
+    dim_scores = candidate.get("dimension_scores") if isinstance(candidate.get("dimension_scores"), dict) else {}
+    chokepoint_score = _to_float(dim_scores.get("chokepoint", 0))
+    evidence = candidate.get("evidence") if isinstance(candidate.get("evidence"), list) else []
+    keywords = []
+    for item in evidence:
+        if isinstance(item, dict):
+            kw_list = item.get("keywords") or item.get("chokepoint")
+            if isinstance(kw_list, list):
+                keywords.extend([str(k) for k in kw_list if k])
+            elif isinstance(kw_list, str):
+                keywords.append(kw_list)
+
+    chokepoint_level = classify_chokepoint_level(chokepoint_score, keywords)
+
+    enriched = dict(candidate)
+    enriched.update({
+        "three_factor_scores": {
+            "industry_cycle": resonance_v6["industry_cycle_score"],
+            "policy_intensity": resonance_v6["policy_intensity_score"],
+            "performance_yield": resonance_v6["performance_yield_score"],
+        },
+        "resonance_factors": resonance_v6["resonance_factors"],
+        "resonance_signal": resonance_v6["resonance_signal"],
+        "resonance_details": resonance_v6["resonance_details"],
+        "chokepoint_level": chokepoint_level,
+        "chokepoint_keywords": [k for k in keywords if k in CHOKEPOINT_CORE_KEYWORDS] if keywords else [],
+    })
+
+    # Preserve existing resonance if available (backward compatibility)
+    if not enriched.get("resonance"):
+        enriched["resonance"] = {
+            "summary": resonance_v6["resonance_signal"],
+            "dimensions": resonance_v6["resonance_details"],
+        }
+
+    return enriched
+
+
+def _filter_candidate_by_filter_type(candidate: dict, filter_type: str) -> bool:
+    """Filter candidate by filter type criteria.
+
+    Filter criteria:
+    - high_growth: performance_yield >= 15 (yoy >= 50%)
+    - high_profit: gross_margin >= 50%
+    - high_moat: chokepoint_score >= 10
+    - chokepoint_core: chokepoint_level == "卡脖子核心"
+    - all: no filter
+    """
+    if filter_type == "all":
+        return True
+
+    three_factors = candidate.get("three_factor_scores") if isinstance(candidate.get("three_factor_scores"), dict) else {}
+    dim_scores = candidate.get("dimension_scores") if isinstance(candidate.get("dimension_scores"), dict) else {}
+
+    if filter_type == "high_growth":
+        perf_yield = _to_float(three_factors.get("performance_yield", 0))
+        return perf_yield >= 15.0
+
+    if filter_type == "high_profit":
+        gross_margin = _to_float(candidate.get("gross_margin", 0))
+        profit_dim = _to_float(dim_scores.get("profit", 0))
+        # High profit: gross_margin >= 50% OR profit_dim >= 10 (V5 max)
+        return gross_margin >= 50.0 or profit_dim >= 10.0
+
+    if filter_type == "high_moat":
+        chokepoint_score = _to_float(dim_scores.get("chokepoint", 0))
+        choke_keywords = candidate.get("chokepoint_keywords") if isinstance(candidate.get("chokepoint_keywords"), list) else []
+        # High moat: chokepoint_score >= 6 OR has chokepoint keywords
+        return chokepoint_score >= 6.0 or len(choke_keywords) > 0
+
+    if filter_type == "chokepoint_core":
+        chokepoint_level = str(candidate.get("chokepoint_level") or "")
+        return chokepoint_level == "卡脖子核心"
+
+    return True
+
+
+def _filter_candidate_by_resonance_level(candidate: dict, resonance_level: str | None) -> bool:
+    """Filter candidate by resonance level.
+
+    resonance_level options: 强启动, 启动, 关注, 观察
+    """
+    if not resonance_level:
+        return True
+
+    signal = str(candidate.get("resonance_signal") or candidate.get("trade_signal") or "观察")
+    return signal == resonance_level
+
+
+@router.get(
+    "/chain/candidates",
+    response_model=dict,
+    operation_id="chain_candidates",
+    summary="Get filtered supply-chain candidates with V6 resonance scoring",
+)
+async def chain_candidates(
+    filter: str = Query("all", description="Filter type: high_growth, high_profit, high_moat, chokepoint_core, all"),
+    resonance_level: Optional[str] = Query(None, description="Resonance level: 强启动, 启动, 关注, 观察"),
+    top_n: int = Query(30, ge=5, le=MAX_TOP_N, description="Top N candidates"),
+    trade_date: Optional[str] = Query(None, description="Trade date (YYYY-MM-DD)"),
+):
+    """Return filtered supply-chain candidates with three-factor resonance V6 scoring.
+
+    This endpoint integrates derive_resonance_v6 scoring and provides multi-dimensional filtering:
+
+    Filter types:
+    - high_growth: Candidates with performance_yield >= 15 (yoy >= 50%)
+    - high_profit: Candidates with gross_margin >= 50% or profit dimension >= 10
+    - high_moat: Candidates with chokepoint_score >= 6 or chokepoint keywords
+    - chokepoint_core: Candidates classified as "卡脖子核心" level
+    - all: No filter (default)
+
+    Resonance levels (V6 three-factor resonance):
+    - 强启动: All 3 factors pass threshold (industry_cycle >= 9, policy >= 9, performance >= 15)
+    - 启动: 2 factors pass threshold
+    - 关注: 1 factor passes threshold
+    - 观察: 0 factors pass threshold (default catch-all)
+
+    Response includes:
+    - candidates: list of filtered candidates with three_factor_scores + resonance summary
+    - filter_summary: counts per filter type
+    - resonance_summary: counts per resonance level
+    """
+    # Validate filter parameter
+    filter_type = str(filter or "all").strip().lower()
+    if filter_type not in VALID_FILTERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid filter '{filter}'. Valid: {sorted(VALID_FILTERS)}"
+        )
+
+    # Validate resonance_level parameter
+    if resonance_level:
+        level = str(resonance_level).strip()
+        if level not in VALID_RESONANCE_LEVELS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid resonance_level '{resonance_level}'. Valid: {sorted(VALID_RESONANCE_LEVELS)}"
+            )
+
+    t0 = time.time()
+    loop = asyncio.get_running_loop()
+
+    # Get candidate pool from supply_chain mode
+    candidates = await loop.run_in_executor(
+        _executor,
+        _get_supply_chain_candidate_pool,
+        100,  # Fetch more for filtering
+        trade_date,
+    )
+    candidates = _attach_market_snapshots(candidates, trade_date)
+
+    # Enrich each candidate with V6 resonance scoring
+    enriched_candidates = [_enrich_candidate_with_resonance_v6(c) for c in candidates]
+
+    # Apply filter type
+    filtered_by_type = [c for c in enriched_candidates if _filter_candidate_by_filter_type(c, filter_type)]
+
+    # Apply resonance_level filter
+    filtered_candidates = [c for c in filtered_by_type if _filter_candidate_by_resonance_level(c, resonance_level)]
+
+    # Sort by resonance_factors (descending), then by score (descending)
+    filtered_candidates.sort(
+        key=lambda c: (
+            int(c.get("resonance_factors", 0)),
+            _to_float(c.get("score", 0)),
+        ),
+        reverse=True,
+    )
+
+    # Limit to top_n
+    top_candidates = filtered_candidates[:top_n]
+
+    # Build filter summary (counts for all filter types)
+    filter_summary = {}
+    for ft in sorted(VALID_FILTERS):
+        count = sum(1 for c in enriched_candidates if _filter_candidate_by_filter_type(c, ft))
+        filter_summary[ft] = count
+
+    # Build resonance summary (counts for all resonance levels)
+    resonance_summary = {}
+    for level in sorted(VALID_RESONANCE_LEVELS):
+        count = sum(1 for c in enriched_candidates if _filter_candidate_by_resonance_level(c, level))
+        resonance_summary[level] = count
+
+    return {
+        "filter": filter_type,
+        "resonance_level": resonance_level,
+        "total_candidates": len(candidates),
+        "filtered_count": len(filtered_candidates),
+        "top_n": top_n,
+        "candidates": top_candidates,
+        "filter_summary": filter_summary,
+        "resonance_summary": resonance_summary,
+        "elapsed": round(time.time() - t0, 2),
+    }

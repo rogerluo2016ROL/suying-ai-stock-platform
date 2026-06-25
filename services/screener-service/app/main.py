@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
     # Verify package imports
     try:
         from kronos_factors.scorer import score_five_factor
-        from kronos_factors.engine.modes import AllModeEngine
+        from kronos_factors.engine.modes import ShortModeEngine
         logger.info("kronos-factors loaded: v%s", __import__("kronos_factors").__version__)
     except ImportError as e:
         logger.error("kronos-factors not found: %s. Run: pip install -e packages/kronos-factors", e)
