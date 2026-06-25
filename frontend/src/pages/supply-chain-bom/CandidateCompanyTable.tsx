@@ -1,5 +1,5 @@
 import { Button, Empty, Space, Table, Tag, Typography } from 'antd'
-import { ArrowDownOutlined, ArrowUpOutlined, ProfileOutlined } from '@ant-design/icons'
+import { ArrowDownOutlined, ArrowUpOutlined, ProfileOutlined, SignalFilled } from '@ant-design/icons'
 import type { CandidateCompany } from './types'
 import { formatNumber, scoreColor } from './formatters'
 
@@ -15,6 +15,32 @@ function changeColor(value?: number) {
   const n = Number(value)
   if (!Number.isFinite(n) || n === 0) return 'default'
   return n > 0 ? 'red' : 'green'
+}
+
+/**
+ * Determine resonance level color for V6 scoring
+ */
+function resonanceLevelColor(level: string): string {
+  if (level === '强启动') return 'red'
+  if (level === '启动') return 'orange'
+  if (level === '关注') return 'blue'
+  return 'default'
+}
+
+/**
+ * Parse resonance info from dimension_scores or resonance field
+ */
+function parseResonanceInfo(row: CandidateCompany): {
+  policyIntensity: number
+  performanceProof: number
+  chokepoint: number
+} {
+  const dimScores = row.dimension_scores || {}
+  return {
+    policyIntensity: dimScores.policy_intensity || 0,
+    performanceProof: dimScores.performance_proof || 0,
+    chokepoint: row.chokepoint_score || dimScores.chokepoint || 0,
+  }
 }
 
 interface CandidateCompanyTableProps {
@@ -86,26 +112,39 @@ export default function CandidateCompanyTable({
         <Space direction="vertical" size={4}>
           <Space>
             <Tag color={scoreColor(row.score)}>#{row.rank || '--'} {formatNumber(row.score, 1)}</Tag>
-            <Tag>{row.rating || '待评级'}</Tag>
+            <Tag>{row.rating || row.chokepoint_score?.toString() || '待评级'}</Tag>
           </Space>
-          <Tag color={row.trade_signal === '启动' || row.trade_signal === '强启动' ? 'red' : 'default'}>
+          <Tag color={resonanceLevelColor(row.trade_signal || '观察')}>
+            <SignalFilled style={{ marginRight: 4 }} />
             {row.trade_signal || '观察'}
           </Tag>
         </Space>
       ),
     },
     {
-      title: '商业阶段/共振',
-      width: 220,
-      render: (_: unknown, row: CandidateCompany) => (
-        <Space direction="vertical" size={4}>
-          <Space wrap>
-            <Tag color="green">{row.commercialization_stage || '待确认'}</Tag>
-            <Tag color="gold">{row.commercialization_cycle || '产业验证'}</Tag>
+      title: '三因子共振',
+      width: 200,
+      render: (_: unknown, row: CandidateCompany) => {
+        const { policyIntensity, performanceProof, chokepoint } = parseResonanceInfo(row)
+        return (
+          <Space direction="vertical" size={4}>
+            <Space size={4}>
+              <Tag color={policyIntensity >= 3 ? 'red' : policyIntensity >= 1 ? 'gold' : 'default'}>
+                政策: {policyIntensity.toFixed(0)}
+              </Tag>
+              <Tag color={performanceProof >= 10 ? 'green' : performanceProof >= 5 ? 'blue' : 'default'}>
+                业绩: {performanceProof.toFixed(0)}
+              </Tag>
+              <Tag color={chokepoint >= 6 ? 'purple' : chokepoint >= 3 ? 'cyan' : 'default'}>
+                卡脖: {chokepoint.toFixed(0)}
+              </Tag>
+            </Space>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {row.resonance?.summary || `${row.commercialization_stage || '待确认'} | ${row.commercialization_cycle || '产业验证'}`}
+            </Text>
           </Space>
-          <Text type="secondary">{row.resonance?.summary || '等待共振证据'}</Text>
-        </Space>
-      ),
+        )
+      },
     },
     {
       title: '入选理由',

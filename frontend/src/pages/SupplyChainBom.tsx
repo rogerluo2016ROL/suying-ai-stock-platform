@@ -1,11 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Button, Checkbox, Col, Empty, Input, Row, Space, Statistic, Table, Tag, Tree, Typography } from 'antd'
-import { ApartmentOutlined, EyeOutlined, ScanOutlined } from '@ant-design/icons'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Button, Checkbox, Col, Empty, Input, message, Row, Space, Statistic, Table, Tag, Typography } from 'antd'
+import { ApartmentOutlined, EyeOutlined, FileTextOutlined, ScanOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
-import { screenerApi } from '../api/client'
+import { screenerApi, chainApi, type PolicyInterpretResponse, type ChainDeconstructResponse, type ChainNode, type ChainCandidate, type FilterSummary, type ResonanceSummary, type SupplyChainMappingQuality, type SupplyChainMappingReviewDecision } from '../api/client'
 import CandidateCompanyTable from './supply-chain-bom/CandidateCompanyTable'
 import CompanyResearchDrawer from './supply-chain-bom/CompanyResearchDrawer'
 import NodeThesisPanel from './supply-chain-bom/NodeThesisPanel'
+import ChainTreeChart from './supply-chain-bom/ChainTreeChart'
+import MethodSelector, { type ChainMethod } from './supply-chain-bom/MethodSelector'
+import CandidateFilterBar from './supply-chain-bom/CandidateFilterBar'
+import ChainBubbleChart from './supply-chain-bom/ChainBubbleChart'
+import SupplyChainMappingReviewPanel from './supply-chain-bom/SupplyChainMappingReviewPanel'
+import SupplyChainResearchWorkbench from './supply-chain-bom/SupplyChainResearchWorkbench'
 import type {
   BomNode,
   CandidateCompany,
@@ -15,6 +21,7 @@ import type {
   SupplyChainDataFreshness,
   ThemeRow,
 } from './supply-chain-bom/types'
+import { chainCandidateToCandidateCompany } from './supply-chain-bom/types'
 import { formatNumber } from './supply-chain-bom/formatters'
 
 const { Title, Text, Paragraph } = Typography
@@ -46,6 +53,33 @@ function researchCollectionColor(status?: string) {
   return 'orange'
 }
 
+// Convert ChainNode from API to BomNode for display
+function chainNodeToBomNode(node: ChainNode, themeId: string): BomNode {
+  return {
+    node_id: node.node_id,
+    theme_id: themeId,
+    chain_id: themeId,
+    parent_node_id: undefined,
+    child_node_ids: node.children?.map(c => c.node_id) || [],
+    level: `L${node.layer}`,
+    name: node.name,
+    node_type: 'chain_node',
+    keywords: [],
+    policy_theme: undefined,
+  }
+}
+
+// Recursively flatten ChainNode tree to BomNode array
+function flattenChainNodes(node: ChainNode, themeId: string, result: BomNode[] = []): BomNode[] {
+  result.push(chainNodeToBomNode(node, themeId))
+  if (node.children) {
+    for (const child of node.children) {
+      flattenChainNodes(child, themeId, result)
+    }
+  }
+  return result
+}
+
 export default function SupplyChainBom() {
   const [themes, setThemes] = useState<ThemeRow[]>([])
   const [nodes, setNodes] = useState<BomNode[]>([])
@@ -62,12 +96,27 @@ export default function SupplyChainBom() {
   const [nodeDetail, setNodeDetail] = useState<any>(null)
   const [companyDetail, setCompanyDetail] = useState<CandidateCompany | null>(null)
   const [companyOpen, setCompanyOpen] = useState(false)
-  const [extractText, setExtractText] = useState('')
-  const [extractResult, setExtractResult] = useState<any>(null)
-  const [persistExtraction, setPersistExtraction] = useState(false)
-  const [extracting, setExtracting] = useState(false)
   const [loading, setLoading] = useState(false)
   const [candidateLoading, setCandidateLoading] = useState(false)
+  const [mappingQuality, setMappingQuality] = useState<SupplyChainMappingQuality | null>(null)
+
+  // P2-08: Policy interpretation state (replaces LLM extraction)
+  const [policyText, setPolicyText] = useState('')
+  const [policyResult, setPolicyResult] = useState<PolicyInterpretResponse | null>(null)
+  const [policyLoading, setPolicyLoading] = useState(false)
+  const [persistPolicy, setPersistPolicy] = useState(false)
+
+  // P2-08: Chain method selector state
+  const [chainMethod, setChainMethod] = useState<ChainMethod>('upstream_downstream')
+  const [chainDeconstructResult, setChainDeconstructResult] = useState<ChainDeconstructResponse | null>(null)
+  const [chainLoading, setChainLoading] = useState(false)
+
+  // Phase 3: V6 chain candidates state (from CandidateFilterBar)
+  const [chainCandidates, setChainCandidates] = useState<CandidateCompany[]>([])
+  const [chainCandidateLoading, setChainCandidateLoading] = useState(false)
+  const [filterSummary, setFilterSummary] = useState<FilterSummary | null>(null)
+  const [resonanceSummary, setResonanceSummary] = useState<ResonanceSummary | null>(null)
+  const [showBubbleChart, setShowBubbleChart] = useState(true)
 
   const applyWorkbenchPayload = (data: any, replaceCatalog = false) => {
     const nextThemes = data.themes || data.policy_themes || []
@@ -86,6 +135,12 @@ export default function SupplyChainBom() {
     setResearchIngestion(data.research_ingestion || {})
   }
 
+  const refreshMappingQuality = () => {
+    screenerApi.getSupplyChainMappingQuality()
+      .then(resp => setMappingQuality(resp.data))
+      .catch(() => setMappingQuality(null))
+  }
+
   useEffect(() => {
     let mounted = true
     setLoading(true)
@@ -101,10 +156,40 @@ export default function SupplyChainBom() {
       .finally(() => {
         if (mounted) setLoading(false)
       })
+    refreshMappingQuality()
     return () => {
       mounted = false
     }
   }, [])
+
+  // P2-08: Fetch chain deconstruct when method changes and theme is selected
+  useEffect(() => {
+    if (!selectedThemeId) return
+    let mounted = true
+    setChainLoading(true)
+    chainApi.deconstructChain({ theme_id: selectedThemeId, method: chainMethod })
+      .then(resp => {
+        if (!mounted) return
+        const data = resp.data as ChainDeconstructResponse
+        setChainDeconstructResult(data)
+        // Convert chain nodes to BomNodes for display
+        if (data.tree) {
+          const bomNodes = flattenChainNodes(data.tree, selectedThemeId)
+          setNodes(bomNodes)
+        }
+      })
+      .catch(err => {
+        if (!mounted) return
+        console.error('Chain deconstruct failed:', err)
+        message.warning('产业链拆解加载失败，使用默认数据')
+      })
+      .finally(() => {
+        if (mounted) setChainLoading(false)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [selectedThemeId, chainMethod])
 
   const selectedTheme = useMemo(
     () => themes.find(theme => theme.theme_id === selectedThemeId),
@@ -129,6 +214,7 @@ export default function SupplyChainBom() {
     setNodeDetail(null)
     setNodeCandidates([])
     setSelectedNodeThesis({})
+    setChainDeconstructResult(null)
   }
 
   const selectNode = (node: BomNode) => {
@@ -146,6 +232,90 @@ export default function SupplyChainBom() {
       .then(resp => setNodeDetail(resp.data))
       .catch(() => setNodeDetail(null))
   }
+
+  const selectNodeById = (nodeId: string) => {
+    const node = nodes.find(item => item.node_id === nodeId)
+    if (node) {
+      selectNode(node)
+    }
+  }
+
+  const reviewMapping = async (code: string, nodeId: string, decision: string) => {
+    const reviewDecision = decision as SupplyChainMappingReviewDecision['decision']
+    await screenerApi.reviewSupplyChainMapping(code, nodeId, { decision: reviewDecision })
+    const nextStatus = reviewDecision === 'needs_more_evidence' ? 'weak_evidence' : reviewDecision
+    const updateMappingStatus = (items: CandidateCompany[]) => items.map(item => (
+      item.code === code && item.node_id === nodeId
+        ? { ...item, mapping_status: nextStatus }
+        : item
+    ))
+    setCandidates(updateMappingStatus)
+    setNodeCandidates(updateMappingStatus)
+    refreshMappingQuality()
+    message.success('映射复核已提交')
+  }
+
+  // P2-08: Policy interpretation handler (replaces LLM extraction)
+  const runPolicyInterpret = async () => {
+    const text = policyText.trim()
+    if (!text) {
+      message.warning('请输入政策解读文本')
+      return
+    }
+    setPolicyLoading(true)
+    try {
+      const resp = await chainApi.interpretPolicy(text, { source_type: 'manual_paste' }, persistPolicy)
+      const data = resp.data as PolicyInterpretResponse
+      setPolicyResult(data)
+      if (data.status === 'ok') {
+        message.success('政策解读完成')
+        // If interpretation extracted themes, add them to the list
+        if (data.interpretation_result?.industry_themes?.length) {
+          const newThemes = data.interpretation_result.industry_themes.map((t: any, idx: number) => ({
+            theme_id: t.id || `policy-${Date.now()}-${idx}`,
+            name: t.name || '新政策主题',
+            policy_weight: t.weight || 1,
+            keywords: t.keywords || [],
+            node_count: 0,
+          }))
+          setThemes(prev => [...prev, ...newThemes])
+        }
+      } else if (data.status === 'disabled') {
+        message.info(data.reason || '政策解读功能未启用')
+      } else {
+        message.error(data.reason || '政策解读失败')
+      }
+    } catch (err) {
+      console.error('Policy interpret failed:', err)
+      message.error('政策解读请求失败')
+    } finally {
+      setPolicyLoading(false)
+    }
+  }
+
+  // Phase 3: Handler for CandidateFilterBar candidates change
+  const handleChainCandidatesChange = useCallback((candidates: ChainCandidate[]) => {
+    // Convert ChainCandidate[] to CandidateCompany[] for compatibility
+    const convertedCandidates = candidates.map(chainCandidateToCandidateCompany)
+    setChainCandidates(convertedCandidates)
+  }, [])
+
+  // Phase 3: Handler for CandidateFilterBar loading state
+  const handleChainCandidateLoadingChange = useCallback((loading: boolean) => {
+    setChainCandidateLoading(loading)
+  }, [])
+
+  // Phase 3: Handler for CandidateFilterBar summary change
+  const handleSummaryChange = useCallback((filterSum: FilterSummary, resonanceSum: ResonanceSummary) => {
+    setFilterSummary(filterSum)
+    setResonanceSummary(resonanceSum)
+  }, [])
+
+  // Phase 3: Determine which candidates to display (chain candidates or workbench candidates)
+  const displayCandidates = useMemo(() => {
+    // When chainCandidates has data, use it; otherwise use workbench candidates
+    return chainCandidates.length > 0 ? chainCandidates : activeCandidates
+  }, [chainCandidates, activeCandidates])
 
   const treeData = useMemo(() => themes.map(theme => ({
     title: theme.name,
@@ -196,18 +366,6 @@ export default function SupplyChainBom() {
     screenerApi.getSupplyChainCompany(company.code).then(resp => {
       setCompanyDetail({ ...company, ...resp.data })
     })
-  }
-
-  const runExtraction = async () => {
-    const text = extractText.trim()
-    if (!text) return
-    setExtracting(true)
-    try {
-      const resp = await screenerApi.extractSupplyChainFacts(text, { source_type: 'manual_paste' }, persistExtraction)
-      setExtractResult(resp.data)
-    } finally {
-      setExtracting(false)
-    }
   }
 
   const themeColumns: any[] = [
@@ -328,29 +486,36 @@ export default function SupplyChainBom() {
         </Space>
       </div>
 
-      <Row gutter={[16, 16]}>
+      <SupplyChainResearchWorkbench
+        themes={themes}
+        nodes={nodes}
+        candidates={activeCandidates}
+        selectedThemeId={selectedThemeId}
+        selectedNodeId={selectedNodeId}
+        selectedNodeThesis={selectedNodeThesis}
+        mappingQuality={mappingQuality}
+        loading={loading || candidateLoading}
+        onSelectTheme={selectTheme}
+        onSelectNode={selectNodeById}
+        onOpenCompany={openCompany}
+        onReviewMapping={reviewMapping}
+      />
+
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={7}>
           <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', padding: 12, minHeight: 360 }}>
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               <Title level={5} style={{ margin: 0 }}>BOM层层拆解</Title>
-              {treeData.length ? (
-                <Tree
-                  selectedKeys={[selectedNodeId || selectedThemeId]}
-                  defaultExpandAll
-                  treeData={treeData}
-                  onSelect={keys => {
-                    const key = String(keys[0] || '')
-                    if (themes.some(theme => theme.theme_id === key)) {
-                      selectTheme(key)
-                      return
-                    }
-                    const nextNode = nodes.find(node => node.node_id === key)
-                    if (nextNode) selectNode(nextNode)
-                  }}
-                />
-              ) : (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无BOM节点" />
-              )}
+              {/* P2-09: Use ChainTreeChart instead of Antd Tree */}
+              <ChainTreeChart
+                themes={themes}
+                nodes={nodes}
+                selectedThemeId={selectedThemeId}
+                selectedNodeId={selectedNodeId}
+                onNodeClick={selectNode}
+                onThemeClick={theme => selectTheme(theme.theme_id)}
+                height={280}
+              />
               <Table
                 loading={loading}
                 rowKey="theme_id"
@@ -366,9 +531,18 @@ export default function SupplyChainBom() {
 
         <Col xs={24} lg={10}>
           <div style={{ height: 360, border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }}>
+            {/* P2-08: MethodSelector for three view tabs */}
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0' }}>
+              <MethodSelector
+                value={chainMethod}
+                onChange={setChainMethod}
+                loading={chainLoading}
+                disabled={!selectedThemeId}
+              />
+            </div>
             <ReactECharts
               option={graphOption}
-              style={{ height: 358 }}
+              style={{ height: 306 }}
               onEvents={{
                 click: (params: any) => {
                   const nextNode = nodes.find(node => node.node_id === params?.data?.id)
@@ -451,19 +625,76 @@ export default function SupplyChainBom() {
       <div style={{ marginTop: 16 }}>
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
-            <Title level={5} style={{ margin: 0 }}>候选公司池</Title>
-            <Text type="secondary">
-              {selectedNode ? `${selectedNode.name}节点候选公司，基于BOM映射、商业阶段、政策力度、业绩与市场共振排序` : '全局候选池，选择BOM节点后切换为节点公司池'}
-            </Text>
+            <Space wrap>
+              <Title level={5} style={{ margin: 0 }}>候选公司池</Title>
+              <Tag color="blue">{displayCandidates.length} 候选</Tag>
+              {filterSummary && <Tag color="green">筛选生效</Tag>}
+              {resonanceSummary && (
+                <Space size={4}>
+                  {resonanceSummary['强启动'] > 0 && <Tag color="red">强启动 {resonanceSummary['强启动']}</Tag>}
+                  {resonanceSummary['启动'] > 0 && <Tag color="orange">启动 {resonanceSummary['启动']}</Tag>}
+                </Space>
+              )}
+            </Space>
+            <Checkbox
+              checked={showBubbleChart}
+              onChange={e => setShowBubbleChart(e.target.checked)}
+            >
+              显示气泡图
+            </Checkbox>
           </Space>
-          <CandidateCompanyTable
-            candidates={activeCandidates}
-            loading={candidateLoading}
-            selectedNodeName={selectedNode?.name}
-            mappingMessage={selectedNodeThesis.mapping_message}
-            onOpenCompany={openCompany}
+          <Text type="secondary">
+            {selectedNode ? `${selectedNode.name}节点候选公司，基于BOM映射、商业阶段、政策力度、业绩与市场共振排序` : '全局候选池，使用筛选器按三因子共振过滤'}
+          </Text>
+
+          {/* Phase 3: CandidateFilterBar for V6 resonance filtering */}
+          <CandidateFilterBar
+            onCandidatesChange={handleChainCandidatesChange}
+            onLoadingChange={handleChainCandidateLoadingChange}
+            onSummaryChange={handleSummaryChange}
+            topN={50}
+            disabled={false}
           />
+
+          {/* Phase 3: ChainBubbleChart for three-factor resonance visualization */}
+          {showBubbleChart && (
+            <Row gutter={[16, 16]}>
+              <Col xs={24} lg={12}>
+                <ChainBubbleChart
+                  candidates={displayCandidates}
+                  loading={candidateLoading || chainCandidateLoading}
+                  onPointClick={openCompany}
+                  themeName={selectedTheme?.name || selectedNode?.policy_theme}
+                  style={{ height: 420 }}
+                />
+              </Col>
+              <Col xs={24} lg={12}>
+                <CandidateCompanyTable
+                  candidates={displayCandidates}
+                  loading={candidateLoading || chainCandidateLoading}
+                  selectedNodeName={selectedNode?.name}
+                  mappingMessage={selectedNodeThesis.mapping_message}
+                  onOpenCompany={openCompany}
+                />
+              </Col>
+            </Row>
+          )}
+
+          {/* Show table only when bubble chart is hidden */}
+          {!showBubbleChart && (
+            <CandidateCompanyTable
+              candidates={displayCandidates}
+              loading={candidateLoading || chainCandidateLoading}
+              selectedNodeName={selectedNode?.name}
+              mappingMessage={selectedNodeThesis.mapping_message}
+              onOpenCompany={openCompany}
+            />
+          )}
         </Space>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <SupplyChainMappingReviewPanel />
       </div>
 
       <div style={{ marginTop: 16 }}>
@@ -489,52 +720,83 @@ export default function SupplyChainBom() {
         </Space>
       </div>
 
+      {/* P2-08: Policy interpretation section (replaces LLM extraction) */}
       <div style={{ marginTop: 16, border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', padding: 16 }}>
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Space wrap>
-            <Text strong>LLM图谱抽取</Text>
+            <Text strong><FileTextOutlined style={{ marginRight: 6 }} />政策解读</Text>
             <Tag color={researchCollectionColor(researchIngestion.auto_collection_status)}>
               {researchCollectionLabel(researchIngestion.auto_collection_status)}
             </Tag>
-            <Tag color={researchIngestion.llm_auto_extract_enabled ? 'green' : 'default'}>
-              {researchIngestion.llm_auto_extract_enabled ? 'LLM自动抽取已开启' : 'LLM自动抽取未开启'}
-            </Tag>
-            {researchIngestion.batch_extract_endpoint && <Tag color="processing">研报批量入口已就绪</Tag>}
-            {!!researchIngestion.source_row_count && (
-              <Tag>{researchIngestion.source_row_count}篇研报</Tag>
+            {policyResult?.status && (
+              <Tag color={policyResult.status === 'ok' ? 'green' : policyResult.status === 'disabled' ? 'gold' : 'red'}>
+                {policyResult.status === 'ok' ? '解读成功' : policyResult.status === 'disabled' ? '功能未启用' : '解读失败'}
+              </Tag>
             )}
-            {extractResult?.status && <Tag color={extractResult.status === 'ok' ? 'green' : 'orange'}>{extractResult.status}</Tag>}
-            {extractResult?.reason && <Text type="secondary">{extractResult.reason}</Text>}
+            {policyResult?.usage && (
+              <Tag color="purple">
+                tokens: {policyResult.usage.total_tokens}
+              </Tag>
+            )}
           </Space>
           {researchIngestion.message && (
             <Text type="secondary">{researchIngestion.message}</Text>
           )}
           <TextArea
-            value={extractText}
-            onChange={e => setExtractText(e.target.value)}
-            placeholder="粘贴政策、公告、研报文本"
-            autoSize={{ minRows: 3, maxRows: 6 }}
+            value={policyText}
+            onChange={e => setPolicyText(e.target.value)}
+            placeholder="粘贴政策文件、公告、新闻稿文本，LLM将自动解读并提取产业主题与投资逻辑..."
+            autoSize={{ minRows: 4, maxRows: 8 }}
           />
           <Space wrap>
-            <Button type="primary" icon={<ScanOutlined />} loading={extracting} disabled={!extractText.trim()} onClick={runExtraction}>
-              抽取图谱
+            <Button
+              type="primary"
+              icon={<ScanOutlined />}
+              loading={policyLoading}
+              disabled={!policyText.trim()}
+              onClick={runPolicyInterpret}
+            >
+              解读政策
             </Button>
-            <Checkbox checked={persistExtraction} onChange={e => setPersistExtraction(e.target.checked)}>
+            <Checkbox checked={persistPolicy} onChange={e => setPersistPolicy(e.target.checked)}>
               写入待审核图谱
             </Checkbox>
-            {extractResult?.policy_theme && <Tag color="blue">{extractResult.policy_theme}</Tag>}
-            {extractResult?.commercialization_stage && <Tag>{extractResult.commercialization_stage}</Tag>}
-            {extractResult?.persisted && <Tag color="green">已写入</Tag>}
+            {policyResult?.persisted && <Tag color="green">已写入</Tag>}
           </Space>
-          {extractResult?.records && (
-            <Space wrap>
-              <Tag color="processing">映射 {extractResult.records.mappings?.length || 0}</Tag>
-              <Tag color="processing">证据 {extractResult.records.evidence?.length || 0}</Tag>
-            </Space>
-          )}
-          {!!extractResult?.bom_nodes?.length && (
-            <Space wrap>
-              {extractResult.bom_nodes.map((node: string) => <Tag key={node}>{node}</Tag>)}
+          {policyResult?.interpretation_result && (
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              {policyResult.interpretation_result.summary && (
+                <Paragraph style={{ marginBottom: 0, background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+                  {policyResult.interpretation_result.summary}
+                </Paragraph>
+              )}
+              {policyResult.interpretation_result.investment_logic && (
+                <Text type="secondary">投资逻辑: {policyResult.interpretation_result.investment_logic}</Text>
+              )}
+              {!!policyResult.interpretation_result.industry_themes?.length && (
+                <Space wrap>
+                  <Text>产业主题:</Text>
+                  {policyResult.interpretation_result.industry_themes.map((t: any, idx: number) => (
+                    <Tag key={idx} color="blue">{t.name || t}</Tag>
+                  ))}
+                </Space>
+              )}
+              {!!policyResult.interpretation_result.bom_nodes?.length && (
+                <Space wrap>
+                  <Text>BOM节点:</Text>
+                  {policyResult.interpretation_result.bom_nodes.map((node: string, idx: number) => (
+                    <Tag key={idx}>{node}</Tag>
+                  ))}
+                </Space>
+              )}
+              {!!policyResult.interpretation_result.risk_factors?.length && (
+                <Space wrap>
+                  <Text>风险因素:</Text>
+                  {policyResult.interpretation_result.risk_factors.map((r: any, idx: number) => (
+                    <Tag key={idx} color="orange">{r.name || r}</Tag>
+                  ))}
+                </Space>
+              )}
             </Space>
           )}
         </Space>

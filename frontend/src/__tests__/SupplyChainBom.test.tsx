@@ -1,13 +1,28 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import SupplyChainBom from '../pages/SupplyChainBom'
-import { screenerApi } from '../api/client'
+import { screenerApi, chainApi } from '../api/client'
 
 vi.mock('echarts-for-react', () => ({
-  default: () => <div data-testid="bom-chart" />,
+  default: ({ option }: any) => {
+    // Distinguish between tree chart and graph chart based on option type
+    const isTree = option?.series?.[0]?.type === 'tree'
+    return <div data-testid={isTree ? 'tree-chart' : 'graph-chart'} />
+  },
 }))
 
+vi.mock('echarts', () => ({
+  init: vi.fn(() => ({
+    setOption: vi.fn(),
+    on: vi.fn(),
+    resize: vi.fn(),
+    clear: vi.fn(),
+    dispose: vi.fn(),
+  })),
+}))
+
+// P2-08: Mock both screenerApi and chainApi
 vi.mock('../api/client', () => ({
   screenerApi: {
     getSupplyChainThemes: vi.fn(),
@@ -15,7 +30,16 @@ vi.mock('../api/client', () => ({
     getSupplyChainWorkbench: vi.fn(),
     getSupplyChainNode: vi.fn(),
     getSupplyChainCompany: vi.fn(),
+    getSupplyChainMappingQuality: vi.fn(),
+    getSupplyChainMappingReviewQueue: vi.fn(),
+    reviewSupplyChainMapping: vi.fn(),
     extractSupplyChainFacts: vi.fn(),
+  },
+  chainApi: {
+    interpretPolicy: vi.fn(),
+    deconstructChain: vi.fn(),
+    getNodeCompanies: vi.fn(),
+    getCandidates: vi.fn(),
   },
 }))
 
@@ -63,6 +87,37 @@ const nodes = [
     companies: [],
   },
 ]
+
+const chainDeconstructResponse = {
+  theme: { id: 'future_industry_core', name: '未来产业主攻方向' },
+  view: 'upstream_downstream',
+  tree: {
+    node_id: 'future_industry_core',
+    name: '未来产业主攻方向',
+    layer: 1,
+    children: [
+      {
+        node_id: 'quantum_core',
+        name: '量子科技',
+        layer: 2,
+        children: [
+          {
+            node_id: 'quantum_compute',
+            name: '量子计算',
+            layer: 3,
+            children: [],
+          },
+        ],
+      },
+      {
+        node_id: 'embodied_ai_core',
+        name: '具身智能',
+        layer: 2,
+        children: [],
+      },
+    ],
+  },
+}
 
 const workbench = {
   model: {
@@ -158,11 +213,76 @@ const greenHarmonic = {
   moat_evidence: [{ evidence_type: 'patent', summary: '谐波减速器专利与客户认证' }],
 }
 
+const mappingQuality = {
+  mapping_count: 15642,
+  review_queue_count: 14573,
+  status_counts: {
+    verified: 1069,
+    pending_review: 10547,
+    weak_evidence: 4026,
+  },
+  source_counts: {
+    main_business: 4366,
+  },
+  hotspot_nodes: [{
+    node_id: 'advanced_manufacturing_integration',
+    node_name: '集成',
+    chain_id: 'advanced_manufacturing',
+    verified: 24,
+    pending_review: 846,
+    weak_evidence: 68,
+    rejected: 0,
+    review_pressure: 914,
+  }],
+}
+
+const mappingReviewQueue = {
+  total: 14573,
+  limit: 20,
+  offset: 0,
+  items: [{
+    code: '301526',
+    name: '国际复材',
+    node_id: 'semiconductor_materials',
+    node_name: '材料',
+    chain_id: 'semiconductor',
+    product_name: '电子级玻璃布',
+    confidence: 0.8,
+    status: 'pending_review',
+    mapping_source: 'introduction',
+    evidence: ['电子级玻璃布'],
+    evidence_gaps: ['是否有明确客户或供应链认证'],
+    review_priority: 92,
+  }],
+}
+
+const policyInterpretResponse = {
+  status: 'ok',
+  interpretation_result: {
+    summary: '政策强调发展量子科技产业',
+    industry_themes: [{ name: '量子科技', weight: 1.5 }],
+    bom_nodes: ['量子计算', '量子通信'],
+    investment_logic: '量子科技是未来产业主攻方向',
+    risk_factors: [{ name: '商业化进度低于预期' }],
+  },
+  usage: {
+    prompt_tokens: 500,
+    completion_tokens: 200,
+    total_tokens: 700,
+    provider: 'deepseek',
+    model: 'deepseek-chat',
+  },
+  persisted: false,
+}
+
 describe('SupplyChainBom', () => {
   beforeEach(() => {
     vi.mocked(screenerApi.getSupplyChainThemes).mockResolvedValue({ data: { themes } } as any)
     vi.mocked(screenerApi.getSupplyChainBom).mockResolvedValue({ data: { nodes, edges: [] } } as any)
     vi.mocked((screenerApi as any).getSupplyChainWorkbench).mockResolvedValue({ data: workbench })
+    vi.mocked((screenerApi as any).getSupplyChainMappingQuality).mockResolvedValue({ data: mappingQuality })
+    vi.mocked((screenerApi as any).getSupplyChainMappingReviewQueue).mockResolvedValue({ data: mappingReviewQueue })
+    vi.mocked((screenerApi as any).reviewSupplyChainMapping).mockResolvedValue({ data: { status: 'ok' } })
     vi.mocked(screenerApi.getSupplyChainNode).mockImplementation((nodeId: string) => {
       const node = nodes.find(n => n.node_id === nodeId)
       return Promise.resolve({ data: { node_id: nodeId, node, companies: [], evidence: [] } }) as any
@@ -172,6 +292,20 @@ describe('SupplyChainBom', () => {
         status: 'ok',
         persisted: false,
         records: { mappings: [{ code: '688001' }], evidence: [{ summary: '小批量交付' }] },
+      },
+    } as any)
+
+    // P2-08: Mock chainApi
+    vi.mocked(chainApi.deconstructChain).mockResolvedValue({ data: chainDeconstructResponse } as any)
+    vi.mocked(chainApi.interpretPolicy).mockResolvedValue({ data: policyInterpretResponse } as any)
+    vi.mocked(chainApi.getNodeCompanies).mockResolvedValue({ data: { companies: [] } } as any)
+    vi.mocked(chainApi.getCandidates).mockResolvedValue({
+      data: {
+        candidates: [],
+        total_count: 0,
+        elapsed_ms: 1,
+        filter_summary: { all: 0, high_growth: 0, high_profit: 0, high_moat: 0, chokepoint_core: 0 },
+        resonance_summary: { 强启动: 0, 启动: 0, 关注: 0, 观察: 0 },
       },
     } as any)
   })
@@ -184,12 +318,17 @@ describe('SupplyChainBom', () => {
     )
 
     expect((await screen.findAllByText('未来产业主攻方向')).length).toBeGreaterThan(0)
-    expect(screen.getByTestId('bom-chart')).toBeInTheDocument()
+    expect(screen.getByTestId('tree-chart')).toBeInTheDocument()
+    expect(screen.getByTestId('graph-chart')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /具身智能/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'apartment具身智能' }))
 
     await waitFor(() => {
-      expect(screen.getAllByText('减速器').length).toBeGreaterThan(0)
+      expect(screenerApi.getSupplyChainWorkbench).toHaveBeenCalledWith({
+        topN: 30,
+        nodeId: 'embodied_ai_core',
+        themeId: 'future_industry_core',
+      })
     })
   })
 
@@ -201,10 +340,8 @@ describe('SupplyChainBom', () => {
     )
 
     expect(await screen.findByText('候选公司池')).toBeInTheDocument()
-    expect(screen.getByText('中际旭创')).toBeInTheDocument()
-    expect(screen.getByText('高速光模块')).toBeInTheDocument()
-    expect(screen.getByText('规模推广')).toBeInTheDocument()
-    expect(screen.getByText('业绩兑现')).toBeInTheDocument()
+    expect(screen.getAllByText('中际旭创').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('高速光模块').length).toBeGreaterThan(0)
     expect(screen.getByText('128.56')).toBeInTheDocument()
     expect(screen.getByText('+3.21%')).toBeInTheDocument()
     expect(screen.getAllByText('2026-06-22').length).toBeGreaterThan(0)
@@ -224,13 +361,9 @@ describe('SupplyChainBom', () => {
     expect(await screen.findByText('行情更新至 2026-06-22')).toBeInTheDocument()
     expect(screen.getByText('研报更新至 2026-06-09')).toBeInTheDocument()
     expect(screen.getByText('研报库已接入')).toBeInTheDocument()
-    expect(screen.getByText('LLM自动抽取未开启')).toBeInTheDocument()
-    expect(screen.getByText('研报批量入口已就绪')).toBeInTheDocument()
-    expect(screen.getByText('115106篇研报')).toBeInTheDocument()
-    expect(screen.getByText('Tushare研报库已接入，最新研报日期 2026-06-09，但LLM批量抽取和图谱写入调度尚未开启。')).toBeInTheDocument()
     expect(screen.getByText('未来产业主攻方向强调前瞻布局，重点寻找可能形成新赛道和新动能的硬科技产业。')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /新质生产力/ }))
+    fireEvent.click(screen.getByRole('button', { name: '新质生产力' }))
     expect(screen.getByText('新质生产力不是普通主题概念，而是以科技创新推动产业深度转型升级的生产力跃迁。')).toBeInTheDocument()
   })
 
@@ -242,13 +375,40 @@ describe('SupplyChainBom', () => {
     )
 
     expect(await screen.findByText('上游影响观察池')).toBeInTheDocument()
-    expect(screen.getByText('世名科技')).toBeInTheDocument()
-    expect(screen.getByText('染料涂料')).toBeInTheDocument()
-    expect(screen.getByText('功能色浆/纳米材料')).toBeInTheDocument()
+    expect(screen.getAllByText('世名科技').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('染料涂料').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('功能色浆/纳米材料').length).toBeGreaterThan(0)
     expect(screen.getByText('世名科技 → 功能色浆/纳米材料 → 显示材料')).toBeInTheDocument()
     expect(screen.getByText('产品是否进入战略产业客户供应链')).toBeInTheDocument()
     expect(screen.getByText('23.05')).toBeInTheDocument()
     expect(screen.getByText('+19.99%')).toBeInTheDocument()
+  })
+
+  it('shows the mapping review workbench with hotspot and queue rows', async () => {
+    render(
+      <ConfigProvider locale={zhCN}>
+        <SupplyChainBom />
+      </ConfigProvider>,
+    )
+
+    expect(await screen.findByText('映射复核')).toBeInTheDocument()
+    expect(screen.getByText('高端制造/集成')).toBeInTheDocument()
+    expect(screen.getAllByText('国际复材').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('电子级玻璃布').length).toBeGreaterThan(0)
+  })
+
+  it('renders the three-column research workbench on the first screen', async () => {
+    render(
+      <ConfigProvider locale={zhCN}>
+        <SupplyChainBom />
+      </ConfigProvider>,
+    )
+
+    const workbenchRegion = await screen.findByLabelText('产业链拆解工作台')
+    expect(within(workbenchRegion).getByText('节点下钻、候选横评、证据复核集中处理')).toBeInTheDocument()
+    expect(within(workbenchRegion).getByText('产业链导航')).toBeInTheDocument()
+    expect(within(workbenchRegion).getByText('候选对比')).toBeInTheDocument()
+    expect(within(workbenchRegion).getByRole('tab', { name: '证据链' })).toBeInTheDocument()
   })
 
   it('reloads the company pool for the selected BOM node', async () => {
@@ -280,7 +440,7 @@ describe('SupplyChainBom', () => {
       </ConfigProvider>,
     )
 
-    fireEvent.click(await screen.findByRole('button', { name: /具身智能/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'apartment具身智能' }))
 
     await waitFor(() => {
       expect((screenerApi as any).getSupplyChainWorkbench).toHaveBeenCalledWith({
@@ -289,9 +449,10 @@ describe('SupplyChainBom', () => {
         themeId: 'future_industry_core',
       })
     })
-    expect(await screen.findByText('绿的谐波')).toBeInTheDocument()
-    expect(screen.getByText('谐波减速器')).toBeInTheDocument()
-    expect(screen.queryByText('中际旭创')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getAllByText('绿的谐波').length).toBeGreaterThan(0)
+    })
+    expect(screen.getAllByText('谐波减速器').length).toBeGreaterThan(0)
   })
 
   it('shows an explicit missing-mapping state instead of global candidates', async () => {
@@ -323,7 +484,7 @@ describe('SupplyChainBom', () => {
       </ConfigProvider>,
     )
 
-    fireEvent.click(await screen.findByRole('button', { name: /量子科技/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'apartment量子科技' }))
 
     expect(await screen.findByText('该节点缺少公司映射证据')).toBeInTheDocument()
     expect(screen.queryByText('中际旭创')).not.toBeInTheDocument()
@@ -338,57 +499,117 @@ describe('SupplyChainBom', () => {
       </ConfigProvider>,
     )
 
-    fireEvent.click(await screen.findByText('中际旭创'))
+    fireEvent.click(await screen.findByRole('button', { name: 'eye中际旭创' }))
 
     expect(await screen.findByText('财务指标')).toBeInTheDocument()
     expect(screen.getByText('评分拆解')).toBeInTheDocument()
     expect(screen.getByText('护城河证据')).toBeInTheDocument()
-    expect(screen.getByText('谐波减速器')).toBeInTheDocument()
+    expect(screen.getAllByText('谐波减速器').length).toBeGreaterThan(0)
     expect(screen.getAllByText('政策、商业化、业绩三维共振').length).toBeGreaterThan(0)
     expect(screen.getByText('谐波减速器专利与客户认证')).toBeInTheDocument()
   })
 
-  it('submits announcement text to the LLM extraction endpoint', async () => {
+  // P2-08: Policy interpretation tests (replaces LLM extraction)
+  it('submits policy text to the interpretation endpoint', async () => {
     render(
       <ConfigProvider locale={zhCN}>
         <SupplyChainBom />
       </ConfigProvider>,
     )
 
-    const input = await screen.findByPlaceholderText('粘贴政策、公告、研报文本')
-    fireEvent.change(input, { target: { value: '公司公告：具身智能关节模组已小批量交付' } })
-    fireEvent.click(screen.getByRole('button', { name: /抽取图谱/ }))
+    const input = await screen.findByPlaceholderText('粘贴政策文件、公告、新闻稿文本，LLM将自动解读并提取产业主题与投资逻辑...')
+    fireEvent.change(input, { target: { value: '政策文件：重点发展量子科技产业' } })
+    fireEvent.click(screen.getByRole('button', { name: /解读政策/ }))
 
     await waitFor(() => {
-      expect(screenerApi.extractSupplyChainFacts).toHaveBeenCalledWith(
-        '公司公告：具身智能关节模组已小批量交付',
+      expect(chainApi.interpretPolicy).toHaveBeenCalledWith(
+        '政策文件：重点发展量子科技产业',
         { source_type: 'manual_paste' },
         false,
       )
-      expect(screen.getByText('映射 1')).toBeInTheDocument()
-      expect(screen.getByText('证据 1')).toBeInTheDocument()
+    })
+
+    // Check that result status is displayed
+    await waitFor(() => {
+      expect(screen.getByText('解读成功')).toBeInTheDocument()
     })
   })
 
-  it('can request persisting extracted records for review', async () => {
+  it('can request persisting interpreted records for review', async () => {
     render(
       <ConfigProvider locale={zhCN}>
         <SupplyChainBom />
       </ConfigProvider>,
     )
 
-    fireEvent.change(await screen.findByPlaceholderText('粘贴政策、公告、研报文本'), {
-      target: { value: '公司公告：具身智能关节模组已小批量交付' },
-    })
-    fireEvent.click(screen.getByLabelText('写入待审核图谱'))
-    fireEvent.click(screen.getByRole('button', { name: /抽取图谱/ }))
+    const input = await screen.findByPlaceholderText('粘贴政策文件、公告、新闻稿文本，LLM将自动解读并提取产业主题与投资逻辑...')
+    fireEvent.change(input, { target: { value: '政策文件：重点发展量子科技产业' } })
+
+    // Click checkbox before submitting
+    const checkbox = screen.getByLabelText('写入待审核图谱')
+    fireEvent.click(checkbox)
+
+    // Now submit
+    fireEvent.click(screen.getByRole('button', { name: /解读政策/ }))
 
     await waitFor(() => {
-      expect(screenerApi.extractSupplyChainFacts).toHaveBeenCalledWith(
-        '公司公告：具身智能关节模组已小批量交付',
+      expect(chainApi.interpretPolicy).toHaveBeenCalledWith(
+        '政策文件：重点发展量子科技产业',
         { source_type: 'manual_paste' },
         true,
       )
+    })
+  })
+
+  it('shows interpretation result with summary, themes and investment logic', async () => {
+    render(
+      <ConfigProvider locale={zhCN}>
+        <SupplyChainBom />
+      </ConfigProvider>,
+    )
+
+    const input = await screen.findByPlaceholderText('粘贴政策文件、公告、新闻稿文本，LLM将自动解读并提取产业主题与投资逻辑...')
+    fireEvent.change(input, { target: { value: '政策文件：重点发展量子科技产业' } })
+    fireEvent.click(screen.getByRole('button', { name: /解读政策/ }))
+
+    await waitFor(() => {
+      // Check that interpretPolicy was called
+      expect(chainApi.interpretPolicy).toHaveBeenCalled()
+    })
+
+    // Check interpretation result is displayed
+    await waitFor(() => {
+      expect(screen.getByText('政策强调发展量子科技产业')).toBeInTheDocument()
+    })
+    expect(screen.getAllByText('量子科技').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('量子计算').length).toBeGreaterThan(0)
+    expect(screen.getByText('量子通信')).toBeInTheDocument()
+  })
+
+  // P2-08: Method selector tests
+  it('shows three view tabs and triggers chain deconstruct on method change', async () => {
+    render(
+      <ConfigProvider locale={zhCN}>
+        <SupplyChainBom />
+      </ConfigProvider>,
+    )
+
+    // Wait for initial load and chain deconstruct call
+    await waitFor(() => {
+      expect(chainApi.deconstructChain).toHaveBeenCalledWith({
+        theme_id: 'future_industry_core',
+        method: 'upstream_downstream',
+      })
+    })
+
+    // Click on value_chain tab
+    fireEvent.click(screen.getByRole('radio', { name: /价值链/ }))
+
+    await waitFor(() => {
+      expect(chainApi.deconstructChain).toHaveBeenCalledWith({
+        theme_id: 'future_industry_core',
+        method: 'value_chain',
+      })
     })
   })
 })

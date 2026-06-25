@@ -119,6 +119,56 @@ type SupplyChainWorkbenchParams = number | {
   nodeId?: string
 }
 
+export type SupplyChainMappingReviewStatus = 'reviewable' | 'pending_review' | 'weak_evidence' | 'verified' | 'rejected'
+
+export interface SupplyChainMappingReviewQueueParams {
+  status?: SupplyChainMappingReviewStatus
+  nodeId?: string
+  chainId?: string
+  limit?: number
+  offset?: number
+}
+
+export interface SupplyChainMappingReviewItem {
+  code: string
+  name?: string
+  node_id: string
+  node_name?: string
+  chain_id?: string
+  product_name?: string | null
+  material_name?: string | null
+  confidence?: number
+  status: string
+  mapping_source?: string
+  evidence?: string[]
+  evidence_gaps?: string[]
+  updated_at?: string
+  review_priority?: number
+}
+
+export interface SupplyChainMappingQuality {
+  mapping_count: number
+  review_queue_count: number
+  status_counts: Record<string, number>
+  source_counts: Record<string, number>
+  hotspot_nodes: Array<{
+    node_id: string
+    node_name?: string
+    chain_id?: string
+    verified?: number
+    pending_review?: number
+    weak_evidence?: number
+    rejected?: number
+    review_pressure?: number
+  }>
+}
+
+export interface SupplyChainMappingReviewDecision {
+  decision: 'verified' | 'rejected' | 'needs_more_evidence' | 'pending_review'
+  reviewer?: string
+  note?: string
+}
+
 const buildSupplyChainWorkbenchPath = (params: SupplyChainWorkbenchParams = {}) => {
   const topN = typeof params === 'number' ? params : params.topN ?? 30
   const search = new URLSearchParams({ top_n: String(topN) })
@@ -127,6 +177,17 @@ const buildSupplyChainWorkbenchPath = (params: SupplyChainWorkbenchParams = {}) 
     if (params.nodeId) search.set('node_id', params.nodeId)
   }
   return `/screener/supply-chain/workbench?${search.toString()}`
+}
+
+const buildSupplyChainMappingReviewQueuePath = (params: SupplyChainMappingReviewQueueParams = {}) => {
+  const search = new URLSearchParams({
+    status: params.status || 'reviewable',
+    limit: String(params.limit ?? 50),
+    offset: String(params.offset ?? 0),
+  })
+  if (params.nodeId) search.set('node_id', params.nodeId)
+  if (params.chainId) search.set('chain_id', params.chainId)
+  return `/screener/supply-chain/mapping-review/queue?${search.toString()}`
 }
 
 // Screener
@@ -138,6 +199,16 @@ export const screenerApi = {
   getSupplyChainWorkbench: (params: SupplyChainWorkbenchParams = {}) => api.get(buildSupplyChainWorkbenchPath(params)),
   getSupplyChainNode: (nodeId: string) => api.get(`/screener/supply-chain/node/${encodeURIComponent(nodeId)}`),
   getSupplyChainCompany: (code: string) => api.get(`/screener/supply-chain/company/${encodeURIComponent(code)}`),
+  getSupplyChainMappingQuality: () => api.get<SupplyChainMappingQuality>('/screener/supply-chain/mapping-review/quality'),
+  getSupplyChainMappingReviewQueue: (params: SupplyChainMappingReviewQueueParams = {}) =>
+    api.get<{ total: number; limit: number; offset: number; items: SupplyChainMappingReviewItem[] }>(
+      buildSupplyChainMappingReviewQueuePath(params),
+    ),
+  reviewSupplyChainMapping: (code: string, nodeId: string, decision: SupplyChainMappingReviewDecision) =>
+    api.post(
+      `/screener/supply-chain/mapping-review/${encodeURIComponent(code)}/${encodeURIComponent(nodeId)}`,
+      decision,
+    ),
   extractSupplyChainFacts: (text: string, source: Record<string, unknown> = {}, persist = false) =>
     api.post('/screener/supply-chain/extract', { text, source, persist }),
 }
@@ -269,6 +340,231 @@ export const healthApi = {
     } catch {
       return false
     }
+  },
+}
+
+// ── Chain API: Industry Chain Deconstruct (Phase 2) ─────────────────────────────────
+
+/** Policy interpretation request payload */
+export interface PolicyInterpretRequest {
+  text: string
+  source?: Record<string, unknown>
+  persist?: boolean
+  provider?: string
+}
+
+/** LLM usage telemetry */
+export interface LLMUsageInfo {
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  provider: string
+  model: string
+}
+
+/** Structured interpretation result from LLM */
+export interface InterpretationResult {
+  summary: string
+  industry_themes: Array<Record<string, unknown>>
+  bom_nodes: string[]
+  investment_logic: string
+  risk_factors: Array<Record<string, unknown>>
+}
+
+/** Policy interpretation response */
+export interface PolicyInterpretResponse {
+  status: 'ok' | 'disabled' | 'error'
+  interpretation_result: InterpretationResult
+  usage: LLMUsageInfo
+  persisted: boolean
+  reason?: string
+}
+
+/** Chain deconstruct request params */
+export interface ChainDeconstructParams {
+  theme_id: string
+  method?: 'upstream_downstream' | 'value_chain' | 'competition'
+}
+
+/** Chain node in deconstruct tree */
+export interface ChainNode {
+  node_id: string
+  name: string
+  layer: number
+  children?: ChainNode[]
+  upstream_nodes?: string[]
+  downstream_nodes?: string[]
+  value_chain?: {
+    margin: number
+    pricing_power: number
+    value_added: number
+  }
+  competition?: {
+    concentration: number
+    leader_share: number
+    barrier: number
+    threat: number
+  }
+}
+
+/** Chain deconstruct response */
+export interface ChainDeconstructResponse {
+  theme: {
+    id: string
+    name: string
+  }
+  view: string
+  tree: ChainNode
+  value_chain?: Record<string, { margin: number; pricing_power: number; value_added: number }>
+  competition?: Record<string, { concentration: number; leader_share: number; barrier: number; threat: number }>
+}
+
+/** Three-factor resonance */
+export interface ThreeFactors {
+  industry_cycle?: {
+    stage: string
+    score: number
+  }
+  policy_intensity?: {
+    stars: number
+    score: number
+  }
+  performance_proof?: {
+    status: string
+    score: number
+  }
+}
+
+/** Resonance summary */
+export interface Resonance {
+  summary: string
+  dimensions: ThreeFactors
+  active_count: number
+}
+
+/** Company mapped to chain node */
+export interface ChainNodeCompany {
+  code: string
+  name: string
+  rank: number
+  main_pct: number | null
+  policy_match_score: number | null
+  chokepoint_score: number
+  evidence: Array<Record<string, unknown>>
+  three_factors: ThreeFactors
+  trade_signal: string
+  resonance: Resonance
+}
+
+/** Chain node companies response */
+export interface ChainNodeCompaniesResponse {
+  node_id: string
+  node_name: string
+  company_count: number
+  companies: ChainNodeCompany[]
+}
+
+/** Filter types for chain candidates */
+export type ChainCandidateFilter = 'high_growth' | 'high_profit' | 'high_moat' | 'chokepoint_core' | 'all'
+
+/** Resonance levels for V6 three-factor scoring */
+export type ResonanceLevel = '强启动' | '启动' | '关注' | '观察'
+
+/** V6 three-factor scores for a candidate */
+export interface ThreeFactorScores {
+  industry_cycle?: { stage: string; score: number }
+  policy_intensity?: { stars: number; score: number }
+  performance_proof?: { status: string; score: number }
+}
+
+/** Candidate with V6 resonance scoring */
+export interface ChainCandidate {
+  code: string
+  name: string
+  score: number
+  chokepoint_score: number
+  three_factor_scores: ThreeFactorScores
+  resonance_factors: number
+  resonance_level: ResonanceLevel
+  trade_signal: string
+  commercialization_note?: string
+  gross_margin?: number
+  performance_yield?: number
+  main_pct?: number
+  policy_match_score?: number
+  evidence?: string[]
+  last_price?: number
+  last_change_pct?: number
+  last_trade_date?: string
+}
+
+/** Summary counts per filter type */
+export interface FilterSummary {
+  high_growth: number
+  high_profit: number
+  high_moat: number
+  chokepoint_core: number
+  all: number
+}
+
+/** Summary counts per resonance level */
+export interface ResonanceSummary {
+  '强启动': number
+  '启动': number
+  '关注': number
+  '观察': number
+}
+
+/** Chain candidates API response */
+export interface ChainCandidatesResponse {
+  filter: ChainCandidateFilter
+  resonance_level?: ResonanceLevel
+  total_count: number
+  candidates: ChainCandidate[]
+  filter_summary: FilterSummary
+  resonance_summary: ResonanceSummary
+  elapsed_ms: number
+}
+
+/** Chain API module for industry chain deconstruct */
+export const chainApi = {
+  /** Interpret policy document via LLM to extract structured insights */
+  interpretPolicy: (
+    text: string,
+    source?: Record<string, unknown>,
+    persist = false,
+    provider = 'deepseek',
+  ) =>
+    api.post<PolicyInterpretResponse>('/screener/policy/interpret', {
+      text,
+      source,
+      persist,
+      provider,
+    }),
+
+  /** Deconstruct industry chain into tree structure */
+  deconstructChain: (params: ChainDeconstructParams) => {
+    const { theme_id, method = 'upstream_downstream' } = params
+    const qs = new URLSearchParams({ theme_id, method })
+    return api.get<ChainDeconstructResponse>(`/screener/chain/deconstruct?${qs.toString()}`)
+  },
+
+  /** Get companies mapped to a specific chain node */
+  getNodeCompanies: (nodeId: string) =>
+    api.get<ChainNodeCompaniesResponse>(`/screener/chain/node/${encodeURIComponent(nodeId)}/companies`),
+
+  /** Get filtered supply-chain candidates with V6 resonance scoring */
+  getCandidates: (params: {
+    filter?: 'high_growth' | 'high_profit' | 'high_moat' | 'chokepoint_core' | 'all'
+    resonance_level?: '强启动' | '启动' | '关注' | '观察'
+    top_n?: number
+    trade_date?: string
+  } = {}) => {
+    const { filter = 'all', resonance_level, top_n = 30, trade_date } = params
+    const qs = new URLSearchParams({ filter, top_n: String(top_n) })
+    if (resonance_level) qs.set('resonance_level', resonance_level)
+    if (trade_date) qs.set('trade_date', trade_date)
+    return api.get<ChainCandidatesResponse>(`/screener/chain/candidates?${qs.toString()}`)
   },
 }
 

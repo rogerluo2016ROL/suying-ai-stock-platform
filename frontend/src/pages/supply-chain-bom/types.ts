@@ -39,13 +39,21 @@ export interface CandidateCompany {
   rank?: number
   chain?: string
   layer?: string
+  node_id?: string
+  node_name?: string
   score?: number
   rating?: string
   trade_signal?: string
+  mapping_confidence?: number
+  mapping_status?: string
+  mapping_source?: string
+  mapping_quality_weight?: number
+  mapping_adjusted_score?: number
   policy_theme?: string
   bom_path?: string[]
   products?: string[]
   materials?: string[]
+  report_titles?: string[]
   last_trade_date?: string
   last_price?: number
   last_change_pct?: number
@@ -64,6 +72,16 @@ export interface CandidateCompany {
   financial_indicators?: Record<string, number | string>
   moat_evidence?: Array<{ evidence_type?: string; summary?: string; confidence?: number }>
   evidence?: any[]
+  /** V6: chokepoint score for卡脖子评分 */
+  chokepoint_score?: number
+  /** V6: gross margin percentage */
+  gross_margin?: number
+  /** V6: performance yield */
+  performance_yield?: number
+  /** V6: main business percentage */
+  main_pct?: number
+  /** V6: policy match score */
+  policy_match_score?: number
 }
 
 export interface DataFreshnessBucket {
@@ -101,4 +119,75 @@ export interface SelectedNodeThesis {
   risk_factors?: string[]
   mapping_status?: string
   mapping_message?: string
+}
+
+// ─────────────────────────────────────────────────────────────────
+// V6 ChainCandidate to CandidateCompany conversion
+// ─────────────────────────────────────────────────────────────────
+
+import type { ChainCandidate, ThreeFactorScores, ResonanceLevel } from '../../api/client'
+
+/**
+ * Convert V6 ChainCandidate to CandidateCompany for compatibility
+ * with existing CandidateCompanyTable and ChainBubbleChart
+ */
+export function chainCandidateToCandidateCompany(candidate: ChainCandidate): CandidateCompany {
+  // Build resonance info from three_factor_scores
+  const resonance: Record<string, string> = {}
+  if (candidate.three_factor_scores) {
+    const { industry_cycle, policy_intensity, performance_proof } = candidate.three_factor_scores
+    if (industry_cycle) {
+      resonance.industry_cycle = `${industry_cycle.stage || '--'}:${industry_cycle.score || 0}`
+    }
+    if (policy_intensity) {
+      resonance.policy_intensity = `${policy_intensity.stars || 0}:${policy_intensity.score || 0}`
+    }
+    if (performance_proof) {
+      resonance.performance_proof = `${performance_proof.status || '--'}:${performance_proof.score || 0}`
+    }
+  }
+
+  // Build dimension_scores from three_factor_scores
+  const dimension_scores: Record<string, number> = {}
+  if (candidate.three_factor_scores) {
+    const { policy_intensity, performance_proof } = candidate.three_factor_scores
+    if (policy_intensity?.score) {
+      dimension_scores.policy_intensity = policy_intensity.score
+    }
+    if (performance_proof?.score) {
+      dimension_scores.performance_proof = performance_proof.score
+    }
+  }
+  // Add chokepoint_score
+  if (candidate.chokepoint_score) {
+    dimension_scores.chokepoint = candidate.chokepoint_score
+  }
+
+  // Determine trade_signal based on resonance_level
+  const tradeSignal = candidate.resonance_level === '强启动' ? '强启动'
+    : candidate.resonance_level === '启动' ? '启动'
+    : candidate.resonance_level === '关注' ? '关注'
+    : candidate.trade_signal || '观察'
+
+  return {
+    code: candidate.code,
+    name: candidate.name,
+    score: candidate.score,
+    rating: candidate.chokepoint_score?.toString() || '',
+    trade_signal: tradeSignal,
+    chokepoint_score: candidate.chokepoint_score,
+    resonance,
+    dimension_scores,
+    last_price: candidate.last_price,
+    last_change_pct: candidate.last_change_pct,
+    last_trade_date: candidate.last_trade_date,
+    gross_margin: candidate.gross_margin,
+    performance_yield: candidate.performance_yield,
+    main_pct: candidate.main_pct,
+    policy_match_score: candidate.policy_match_score,
+    commercialization_stage: candidate.commercialization_note?.split('，')[0] || undefined,
+    commercialization_cycle: candidate.three_factor_scores?.industry_cycle?.stage || undefined,
+    selection_reason: candidate.commercialization_note || candidate.evidence?.[0] || undefined,
+    evidence: candidate.evidence,
+  }
 }
