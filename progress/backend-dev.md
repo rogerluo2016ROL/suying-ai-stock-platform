@@ -36,6 +36,61 @@
 
 ---
 
+## 全链路 smoke 与 screener-service 回归收尾 — 2026-06-26
+
+**状态**: 已完成 — 后端相关测试与真实 smoke 通过
+
+**本轮修复**
+- `services/screener-service/app/routers/screener.py`
+  - `_resolve_trade_date()` 将 `latest` / 默认日期解析为 PG `daily_kline` 的实际最大交易日，避免把字符串 `latest` 传入因子引擎查询。
+  - `/supply-chain/research/ingest` 缺 LLM API key 时复用 provider 层统一文案：`Missing API key for <provider>: set <ENV> environment variable`，与 `/supply-chain/extract` 行为一致。
+- `services/screener-service/tests/test_api.py`
+  - 覆盖 latest trade date 成功解析与无可用交易日失败路径。
+- `services/screener-service/tests/test_supply_chain_bom_api.py`
+  - 缺 API key 断言改为语义级别，避免锁死内部文案。
+- `tools/full_stack_smoke.py` / `tools/tests/test_full_stack_smoke.py`
+  - 提供认证、选股、诊断、方案、回测、模拟交易、账户查询的端到端 smoke。
+
+**SIT 证据**
+```bash
+pytest tools/tests/test_full_stack_smoke.py -q
+# 4 passed in 0.01s
+
+pytest services/screener-service/tests/test_api.py -q
+# 10 passed, 2 warnings in 16.36s
+
+pytest services/screener-service/tests/test_supply_chain_bom_api.py::test_supply_chain_extract_endpoint_disables_without_llm_key \
+  services/screener-service/tests/test_supply_chain_bom_api.py::test_supply_chain_research_ingest_disables_without_llm_key -q
+# 2 passed, 1 warning in 0.40s
+
+pytest services/screener-service/tests -q
+# 117 passed, 1 warning in 8.51s
+```
+
+**真实全链路 smoke**
+```bash
+SMOKE_AUTH_URL=http://127.0.0.1:29001 \
+SMOKE_SCREENER_URL=http://127.0.0.1:28001 \
+SMOKE_DIAGNOSIS_URL=http://127.0.0.1:28009 \
+SMOKE_STRATEGY_URL=http://127.0.0.1:28003 \
+SMOKE_BACKTEST_URL=http://127.0.0.1:28007 \
+SMOKE_TRADE_URL=http://127.0.0.1:28006 \
+python3 tools/full_stack_smoke.py
+# status: ok
+# auth.login: admin@suying.ai
+# screener.run: short -> 300825 阿尔特
+# diagnosis.analyze: score 56.0
+# strategy.plan.create/confirm: PLAN-4855264D confirmed
+# backtest.run: ok, summary_keys avg_excess_return/avg_hit_rate/avg_ic/icir
+# trade.order.paper: ORD0006 filled
+# trade.account: available 990744.0, market_value 9256.0
+```
+
+**剩余提示**
+- screener-service 测试仍有 Starlette `TestClient` 的 httpx2 迁移 warning，非本轮功能失败。
+
+---
+
 
 **状态**: 已完成
 **Skills**: agf-running-sit-tests, superpowers:verification-before-completion

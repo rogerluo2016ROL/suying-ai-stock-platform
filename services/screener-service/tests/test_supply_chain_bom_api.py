@@ -457,7 +457,8 @@ def test_supply_chain_extract_endpoint_disables_without_llm_key(monkeypatch):
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "disabled"
-    assert body["reason"] == "DEEPSEEK_API_KEY missing"
+    assert "Missing API key" in body["reason"]
+    assert "DEEPSEEK_API_KEY" in body["reason"]
 
 
 def test_supply_chain_extract_endpoint_returns_records_preview(monkeypatch):
@@ -507,7 +508,8 @@ def test_supply_chain_research_ingest_disables_without_llm_key(monkeypatch):
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "disabled"
-    assert body["reason"] == "DEEPSEEK_API_KEY missing"
+    assert "Missing API key" in body["reason"]
+    assert "DEEPSEEK_API_KEY" in body["reason"]
     assert body["report_count"] == 1
 
 

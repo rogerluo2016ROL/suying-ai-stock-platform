@@ -215,6 +215,36 @@ def _json_or_default(value, default):
     return default
 
 
+def _get_factor_db():
+    from kronos_factors.scorer._db_stub import _get_db
+    return _get_db()
+
+
+def _resolve_trade_date(trade_date: Optional[str]) -> str:
+    """Resolve API latest/default trade_date to a concrete YYYY-MM-DD string."""
+    if trade_date and trade_date != "latest":
+        return trade_date
+
+    try:
+        with _get_factor_db() as db:
+            row = db.execute("SELECT MAX(trade_date) FROM daily_kline").fetchone()
+    except Exception as e:
+        logger.warning("latest trade_date lookup failed: %s", e)
+        raise RuntimeError("latest trade date unavailable") from e
+
+    if not row:
+        raise RuntimeError("latest trade date unavailable")
+
+    if isinstance(row, dict):
+        value = next(iter(row.values()), None)
+    else:
+        value = row[0] if len(row) else None
+
+    if not value:
+        raise RuntimeError("latest trade date unavailable")
+    return str(value)
+
+
 def _row_get(row, key, default=None):
     try:
         return row[key]
@@ -1211,10 +1241,20 @@ async def supply_chain_research_ingest(payload: dict | None = Body(default=None)
     persist = bool(payload.get("persist"))
     reports = _query_recent_research_reports(limit=limit, keyword=keyword)
 
-    if not os.environ.get("DEEPSEEK_API_KEY"):
+    from app.llm_multi_provider import PROVIDER_CONFIG, _missing_api_key_message
+    provider_config = PROVIDER_CONFIG.get(provider)
+    if not provider_config:
         return {
             "status": "disabled",
-            "reason": "DEEPSEEK_API_KEY missing",
+            "reason": f"unsupported provider: {provider}",
+            "report_count": len(reports),
+            "source_table": "research_reports_tushare",
+            "reports": reports,
+        }
+    if not os.environ.get(provider_config["api_key_env"]):
+        return {
+            "status": "disabled",
+            "reason": _missing_api_key_message(provider, provider_config["api_key_env"]),
             "report_count": len(reports),
             "source_table": "research_reports_tushare",
             "reports": reports,
@@ -1484,20 +1524,7 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
         run_leader_screening, run_intraday_screening,
         generate_execution_plan, generate_intraday_plan,
     )
-    from kronos_factors.scorer._db_stub import _get_db
-
-    # Resolve 'latest' to actual date from PG
-    td = trade_date
-    if not td or td == 'latest':
-        try:
-            with _get_db() as db:
-                latest = db.execute(
-                    "SELECT MAX(trade_date) FROM daily_kline"
-                ).fetchone()
-                if latest:
-                    td = str(list(latest.values())[0]) if isinstance(latest, dict) else str(latest[0])
-        except Exception:
-            td = trade_date or 'latest'
+    td = _resolve_trade_date(trade_date)
 
     if mode == "leader_auction":
         from kronos_factors.engine.leader_auction import AuctionScalpEngine
@@ -1524,7 +1551,7 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
 
     return {
         "mode": mode,
-        "trade_date": trade_date,
+        "trade_date": td,
         "total_picks": len(picks_out),
         "picks": picks_out,
         "execution_plans": plans,

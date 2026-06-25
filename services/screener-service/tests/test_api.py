@@ -12,6 +12,32 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 os.environ.setdefault("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
 
 
+class _FakeResult:
+    def __init__(self, row):
+        self._row = row
+
+    def fetchone(self):
+        return self._row
+
+
+class _FakeDb:
+    def __init__(self, row=None, exc=None):
+        self._row = row
+        self._exc = exc
+
+    def __enter__(self):
+        if self._exc:
+            raise self._exc
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def execute(self, sql):
+        assert "MAX(trade_date)" in sql
+        return _FakeResult(self._row)
+
+
 @pytest.fixture
 def client():
     """Create test client for screener service."""
@@ -88,6 +114,32 @@ class TestScreenerRun:
             assert "elapsed" in data
             assert isinstance(data["picks"], list)
             assert len(data["picks"]) <= 5
+
+    def test_resolve_trade_date_replaces_latest_with_pg_date(self, monkeypatch):
+        """Verify leader modes never pass the literal latest token into PG date filters."""
+        import app.routers.screener as screener_router
+
+        monkeypatch.setattr(
+            screener_router,
+            "_get_factor_db",
+            lambda: _FakeDb({"max": "2026-06-25"}),
+        )
+
+        assert screener_router._resolve_trade_date("latest") == "2026-06-25"
+        assert screener_router._resolve_trade_date(None) == "2026-06-25"
+
+    def test_resolve_trade_date_fails_fast_when_latest_unavailable(self, monkeypatch):
+        """Verify latest resolution raises a clear service error instead of leaking latest into SQL."""
+        import app.routers.screener as screener_router
+
+        monkeypatch.setattr(
+            screener_router,
+            "_get_factor_db",
+            lambda: _FakeDb(None),
+        )
+
+        with pytest.raises(RuntimeError, match="latest trade date unavailable"):
+            screener_router._resolve_trade_date("latest")
 
 
 class TestHealthEndpoint:
