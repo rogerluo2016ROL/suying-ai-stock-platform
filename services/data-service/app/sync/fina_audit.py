@@ -77,7 +77,7 @@ def sync_fina_audit(days_back: int = 365) -> dict:
     Returns:
         {"table": "fina_audit", "written": N, "pg_written": N, "elapsed": S}
     """
-    from app.config import TUSHARE_TOKEN, DB_PATH
+    from app.config import TUSHARE_TOKEN, DB_PATH, SQLITE_FALLBACK_ENABLED
     from app.sync.rate_limiter import rate_limit
 
     if not TUSHARE_TOKEN:
@@ -143,17 +143,18 @@ def sync_fina_audit(days_back: int = 365) -> dict:
             logger.debug("PG write fina_audit skipped: %s", e)
 
         # ── SQLite 写入 (fallback) ──
-        try:
-            db = sqlite3.connect(DB_PATH)
-            db.executemany(
-                "INSERT OR REPLACE INTO fina_audit(code, ann_date, end_date, audit_result, "
-                "audit_fees, audit_agency, audit_sign) VALUES(?,?,?,?,?,?,?)",
-                rows,
-            )
-            db.commit()
-            db.close()
-        except Exception as e:
-            logger.debug("SQLite write fina_audit failed: %s", e)
+        if SQLITE_FALLBACK_ENABLED:
+            try:
+                db = sqlite3.connect(DB_PATH)
+                db.executemany(
+                    "INSERT OR REPLACE INTO fina_audit(code, ann_date, end_date, audit_result, "
+                    "audit_fees, audit_agency, audit_sign) VALUES(?,?,?,?,?,?,?)",
+                    rows,
+                )
+                db.commit()
+                db.close()
+            except Exception as e:
+                logger.debug("SQLite write fina_audit failed: %s", e)
 
         total_rows += len(rows)
 

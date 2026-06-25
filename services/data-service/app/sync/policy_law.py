@@ -141,7 +141,9 @@ def _pg_write_batch(rows: list) -> int:
 
 def _sqlite_write_batch(rows: list):
     """SQLite fallback."""
-    from app.config import DB_PATH
+    from app.config import DB_PATH, SQLITE_FALLBACK_ENABLED
+    if not SQLITE_FALLBACK_ENABLED:
+        return
     try:
         db = sqlite3.connect(DB_PATH)
         db.executemany(

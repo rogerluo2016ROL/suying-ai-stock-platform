@@ -24,7 +24,7 @@ def sync_mp_report(days_back: int = 90) -> dict:
     Returns:
         {"table": "mp_report", "written": N, "pg_written": N, "elapsed": S}
     """
-    from app.config import TUSHARE_TOKEN, DB_PATH
+    from app.config import TUSHARE_TOKEN, DB_PATH, SQLITE_FALLBACK_ENABLED
     from app.sync.rate_limiter import rate_limit
 
     if not TUSHARE_TOKEN:
@@ -78,7 +78,7 @@ def sync_mp_report(days_back: int = 90) -> dict:
             logger.debug("PG write mp_report skipped: %s", e)
 
     # ── SQLite fallback ──
-    if rows:
+    if rows and SQLITE_FALLBACK_ENABLED:
         try:
             db = sqlite3.connect(DB_PATH)
             db.executemany(

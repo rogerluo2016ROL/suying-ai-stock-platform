@@ -22,7 +22,7 @@ def sync_announcements(days_back: int = 7) -> dict:
     Returns:
         {"table": "announcements", "written": N, "pg_written": N, "elapsed": S}
     """
-    from app.config import TUSHARE_TOKEN, DB_PATH
+    from app.config import TUSHARE_TOKEN, DB_PATH, SQLITE_FALLBACK_ENABLED
     from app.sync.rate_limiter import rate_limit
 
     if not TUSHARE_TOKEN:
@@ -84,17 +84,18 @@ def sync_announcements(days_back: int = 7) -> dict:
                 logger.debug("PG write announcements %s skipped: %s", d_iso, e)
 
         # ── SQLite 写入 (fallback) ──
-        try:
-            db = sqlite3.connect(DB_PATH)
-            db.executemany(
-                "INSERT OR REPLACE INTO announcements(code, ann_date, title, url, rec_time) "
-                "VALUES(?,?,?,?,?)",
-                rows,
-            )
-            db.commit()
-            db.close()
-        except Exception as e:
-            logger.warning("SQLite write announcements %s failed: %s", d_iso, e)
+        if SQLITE_FALLBACK_ENABLED:
+            try:
+                db = sqlite3.connect(DB_PATH)
+                db.executemany(
+                    "INSERT OR REPLACE INTO announcements(code, ann_date, title, url, rec_time) "
+                    "VALUES(?,?,?,?,?)",
+                    rows,
+                )
+                db.commit()
+                db.close()
+            except Exception as e:
+                logger.warning("SQLite write announcements %s failed: %s", d_iso, e)
 
         total_rows += len(rows)
 

@@ -22,7 +22,7 @@ def sync_stock_profiles(days_back: int = 0) -> dict:
     Returns:
         {"table": "stock_profiles", "written": N, "pg_written": N, "elapsed": S}
     """
-    from app.config import TUSHARE_TOKEN, DB_PATH
+    from app.config import TUSHARE_TOKEN, DB_PATH, SQLITE_FALLBACK_ENABLED
     from app.sync.rate_limiter import rate_limit
 
     if not TUSHARE_TOKEN:
@@ -94,18 +94,19 @@ def sync_stock_profiles(days_back: int = 0) -> dict:
         logger.debug("PG write stock_profiles skipped: %s", e)
 
     # ── SQLite 写入 (fallback) ──
-    try:
-        db = sqlite3.connect(DB_PATH)
-        # Ensure table has all needed columns
-        db.executemany(
-            "INSERT OR REPLACE INTO stock_profiles(code, full_name, province, reg_capital, main_business, website) "
-            "VALUES(?,?,?,?,?,?)",
-            [(r[0], r[1], r[2], r[4], r[6], r[8]) for r in all_rows],
-        )
-        db.commit()
-        db.close()
-    except Exception as e:
-        logger.warning("SQLite write stock_profiles failed: %s", e)
+    if SQLITE_FALLBACK_ENABLED:
+        try:
+            db = sqlite3.connect(DB_PATH)
+            # Ensure table has all needed columns
+            db.executemany(
+                "INSERT OR REPLACE INTO stock_profiles(code, full_name, province, reg_capital, main_business, website) "
+                "VALUES(?,?,?,?,?,?)",
+                [(r[0], r[1], r[2], r[4], r[6], r[8]) for r in all_rows],
+            )
+            db.commit()
+            db.close()
+        except Exception as e:
+            logger.warning("SQLite write stock_profiles failed: %s", e)
 
     elapsed = time.time() - t0
     logger.info("stock_profiles: %d companies, PG=%d, %.1fs", len(all_rows), pg_written, elapsed)

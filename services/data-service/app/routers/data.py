@@ -4,7 +4,7 @@ import logging
 from datetime import date
 from fastapi import APIRouter, Query, HTTPException
 
-from app.scheduler import get_job_status, _run_job, _job_status
+from app.scheduler import get_job_status, _run_job, _job_status, collect_auction_snapshot
 from app.sync.rt_min import collect_rt_min
 from app.sync.tushare import sync_post_market_core, sync_post_market_ext
 from app.sync.stocks import sync_stock_list
@@ -76,9 +76,9 @@ async def trigger_rt_min():
 
 @router.post("/sync/auction")
 async def trigger_auction():
-    """手动触发竞价快照."""
+    """手动触发竞价快照 (Tushare stk_auction → PG, B2 后不再走 SQLite mootdx fallback)."""
     try:
-        result = collect_rt_min()
+        result = collect_auction_snapshot()
         return {"status": "ok", **result}
     except Exception as e:
         raise HTTPException(500, str(e))

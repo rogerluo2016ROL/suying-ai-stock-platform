@@ -127,13 +127,14 @@ def _pg_write_batch(rows: list) -> int:
 
 def _write_batch(rows: list, source: str, d_iso: str, _prev_pg: int) -> int:
     """SQLite fallback 写入."""
-    from app.config import DB_PATH
-    try:
-        db = sqlite3.connect(DB_PATH)
-        db.executemany(
-            "INSERT OR REPLACE INTO interact_qa(code, pub_date, question, answer, pub_time, source) "
-            "VALUES(?,?,?,?,?,?)", rows)
-        db.commit(); db.close()
-    except Exception as e:
-        logger.warning("SQLite write interact_qa(%s) %s failed: %s", source, d_iso, e)
+    from app.config import DB_PATH, SQLITE_FALLBACK_ENABLED
+    if SQLITE_FALLBACK_ENABLED:
+        try:
+            db = sqlite3.connect(DB_PATH)
+            db.executemany(
+                "INSERT OR REPLACE INTO interact_qa(code, pub_date, question, answer, pub_time, source) "
+                "VALUES(?,?,?,?,?,?)", rows)
+            db.commit(); db.close()
+        except Exception as e:
+            logger.warning("SQLite write interact_qa(%s) %s failed: %s", source, d_iso, e)
     return len(rows)

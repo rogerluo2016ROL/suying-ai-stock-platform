@@ -4,7 +4,7 @@ import logging, sqlite3, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 
-from app.config import TUSHARE_TOKEN, DB_PATH, THREAD_POOL_SIZE, TUSHARE_BATCH_SIZE
+from app.config import TUSHARE_TOKEN, DB_PATH, THREAD_POOL_SIZE, TUSHARE_BATCH_SIZE, SQLITE_FALLBACK_ENABLED
 from app.sync.rate_limiter import rate_limit
 
 logger = logging.getLogger("data-service.rt_min")
@@ -17,8 +17,8 @@ def _ts_code(code: str) -> str:
     return f"{code}.SZ"
 
 
-def _get_codes(db: sqlite3.Connection) -> list[str]:
-    """从 stocks 表获取所有非 ST 代码."""
+def _get_codes(db) -> list[str]:
+    """从 stocks 表获取所有非 ST 代码 (PG 优先, 经 _get_etl_db; SQLite 仅本地 fallback)."""
     return [r[0] for r in db.execute(
         "SELECT code FROM stocks WHERE is_st=0 AND name NOT LIKE '%ST%' "
         "AND code NOT LIKE '92%' AND code NOT LIKE '83%' "
@@ -53,7 +53,8 @@ def _fetch_batch(batch: list[str]) -> list[tuple]:
 def collect_rt_min(progress_callback=None) -> dict:
     """采集全市场实时分钟线 (ThreadPool 并行)."""
     t0 = time.time()
-    db = sqlite3.connect(DB_PATH)
+    from kronos_data.etl import _get_etl_db
+    db = _get_etl_db()
     codes = _get_codes(db)
     db.close()
 
@@ -85,17 +86,18 @@ def collect_rt_min(progress_callback=None) -> dict:
 
         # SQLite 备份写入 (best-effort)
         sqlite_written = 0
-        try:
-            db = sqlite3.connect(DB_PATH)
-            if all_rows_for_backup:
-                db.executemany(
-                    "INSERT OR REPLACE INTO stk_mins(ts_code,trade_time,open,high,low,close,volume,amount,freq) "
-                    "VALUES(?,?,?,?,?,?,?,?,?)", all_rows_for_backup)
-                sqlite_written = len(all_rows_for_backup)
-                db.commit()
-            db.close()
-        except Exception as e:
-            logger.debug("SQLite backup write skipped: %s", e)
+        if SQLITE_FALLBACK_ENABLED:
+            try:
+                db = sqlite3.connect(DB_PATH)
+                if all_rows_for_backup:
+                    db.executemany(
+                        "INSERT OR REPLACE INTO stk_mins(ts_code,trade_time,open,high,low,close,volume,amount,freq) "
+                        "VALUES(?,?,?,?,?,?,?,?,?)", all_rows_for_backup)
+                    sqlite_written = len(all_rows_for_backup)
+                    db.commit()
+                db.close()
+            except Exception as e:
+                logger.debug("SQLite backup write skipped: %s", e)
 
     elapsed = time.time() - t0
     logger.info("rt_min Phase3: %s stocks, PG=%s rows, SQLite=%s rows, %.1fs",

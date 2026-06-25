@@ -41,7 +41,7 @@ def sync_fina_mainbz(days_back: int = 120) -> dict:
     Returns:
         {"table": "fina_mainbz", "written": N, "pg_written": N, "elapsed": S}
     """
-    from app.config import TUSHARE_TOKEN, DB_PATH
+    from app.config import TUSHARE_TOKEN, DB_PATH, SQLITE_FALLBACK_ENABLED
     from app.sync.rate_limiter import rate_limit
 
     if not TUSHARE_TOKEN:
@@ -101,17 +101,18 @@ def sync_fina_mainbz(days_back: int = 120) -> dict:
                 logger.debug("PG write fina_mainbz skipped: %s", e)
 
             # ── SQLite 写入 (fallback) ──
-            try:
-                db = sqlite3.connect(DB_PATH)
-                db.executemany(
-                    "INSERT OR REPLACE INTO fina_mainbz(code, end_date, biz_item, biz_income) "
-                    "VALUES(?,?,?,?)",
-                    [(r[0], r[1], r[2], r[3]) for r in rows],
-                )
-                db.commit()
-                db.close()
-            except Exception as e:
-                logger.warning("SQLite write fina_mainbz failed: %s", e)
+            if SQLITE_FALLBACK_ENABLED:
+                try:
+                    db = sqlite3.connect(DB_PATH)
+                    db.executemany(
+                        "INSERT OR REPLACE INTO fina_mainbz(code, end_date, biz_item, biz_income) "
+                        "VALUES(?,?,?,?)",
+                        [(r[0], r[1], r[2], r[3]) for r in rows],
+                    )
+                    db.commit()
+                    db.close()
+                except Exception as e:
+                    logger.warning("SQLite write fina_mainbz failed: %s", e)
 
             total_rows += len(rows)
             logger.debug("fina_mainbz period=%s type=%s: %d rows", period, biz_type, len(rows))

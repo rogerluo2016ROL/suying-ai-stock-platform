@@ -562,7 +562,7 @@ def sync_stk_factor_pro_daily() -> dict:
     """
     import sqlite3
     from datetime import date
-    from app.config import DB_PATH, TUSHARE_TOKEN
+    from app.config import DB_PATH, TUSHARE_TOKEN, SQLITE_FALLBACK_ENABLED
     from app.sync.rate_limiter import rate_limit
 
     t0 = time.time()
@@ -631,7 +631,7 @@ def sync_stk_factor_pro_daily() -> dict:
 
     # SQLite 写入 (fallback) — 使用 pg_cols (PG兼容列名)
     sqlite_written = 0
-    if rows:
+    if rows and SQLITE_FALLBACK_ENABLED:
         try:
             db = sqlite3.connect(DB_PATH)
             sqlite_cols = ["ts_code", "trade_date"] + pg_cols[1:]  # trade_date first
@@ -674,7 +674,7 @@ def sync_stk_factor_pro_backfill(days_back: int = 7) -> dict:
     """
     import sqlite3
     from datetime import date, timedelta
-    from app.config import DB_PATH, TUSHARE_TOKEN
+    from app.config import DB_PATH, TUSHARE_TOKEN, SQLITE_FALLBACK_ENABLED
     from app.sync.rate_limiter import rate_limit
 
     t0 = time.time()
@@ -750,19 +750,20 @@ def sync_stk_factor_pro_backfill(days_back: int = 7) -> dict:
             logger.debug("PG write stk_factor_pro %s skipped: %s", ymd, str(e)[:120])
 
         # SQLite fallback — 使用 pg_cols (PG 兼容列名) + 显式 prepend trade_date
-        try:
-            db = sqlite3.connect(DB_PATH)
-            sqlite_cols = ["ts_code", "trade_date"] + pg_cols[1:]
-            placeholders = ",".join(["?"] * len(sqlite_cols))
-            sqlite_rows = [(row[0], trade_date_iso) + tuple(row[1:]) for row in rows]
-            db.executemany(
-                f"INSERT OR REPLACE INTO stk_factor_pro({','.join(sqlite_cols)}) "
-                f"VALUES({placeholders})", sqlite_rows)
-            total_sqlite += len(sqlite_rows)
-            db.commit()
-            db.close()
-        except Exception as e:
-            logger.debug("SQLite write stk_factor_pro %s failed: %s", ymd, str(e)[:120])
+        if SQLITE_FALLBACK_ENABLED:
+            try:
+                db = sqlite3.connect(DB_PATH)
+                sqlite_cols = ["ts_code", "trade_date"] + pg_cols[1:]
+                placeholders = ",".join(["?"] * len(sqlite_cols))
+                sqlite_rows = [(row[0], trade_date_iso) + tuple(row[1:]) for row in rows]
+                db.executemany(
+                    f"INSERT OR REPLACE INTO stk_factor_pro({','.join(sqlite_cols)}) "
+                    f"VALUES({placeholders})", sqlite_rows)
+                total_sqlite += len(sqlite_rows)
+                db.commit()
+                db.close()
+            except Exception as e:
+                logger.debug("SQLite write stk_factor_pro %s failed: %s", ymd, str(e)[:120])
 
         total_written += len(rows)
         days_processed += 1
@@ -809,7 +810,7 @@ def sync_limit_list_d_intraday() -> dict:
     """
     import sqlite3
     from datetime import date
-    from app.config import DB_PATH, TUSHARE_TOKEN
+    from app.config import DB_PATH, TUSHARE_TOKEN, SQLITE_FALLBACK_ENABLED
     from app.sync.rate_limiter import rate_limit
 
     t0 = time.time()
@@ -863,16 +864,17 @@ def sync_limit_list_d_intraday() -> dict:
         logger.debug("PG write limit_list_d (intraday) skipped: %s", e)
 
     # SQLite fallback
-    try:
-        db = sqlite3.connect(DB_PATH)
-        db.executemany(
-            "INSERT OR REPLACE INTO limit_list_d(ts_code,trade_date,limit_type,up_limit,down_limit,"
-            "first_time,last_time,open_times,up_stat,fd_amount,pct_chg,pre_close,close,open) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", all_rows)
-        db.commit()
-        db.close()
-    except Exception as e:
-        logger.warning("SQLite write limit_list_d (intraday) failed: %s", e)
+    if SQLITE_FALLBACK_ENABLED:
+        try:
+            db = sqlite3.connect(DB_PATH)
+            db.executemany(
+                "INSERT OR REPLACE INTO limit_list_d(ts_code,trade_date,limit_type,up_limit,down_limit,"
+                "first_time,last_time,open_times,up_stat,fd_amount,pct_chg,pre_close,close,open) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", all_rows)
+            db.commit()
+            db.close()
+        except Exception as e:
+            logger.warning("SQLite write limit_list_d (intraday) failed: %s", e)
 
     elapsed = time.time() - t0
     logger.info("limit_list_d intraday: %d rows (U/D/Z), PG=%d, %.1fs",
@@ -1030,6 +1032,15 @@ def collect_auction_snapshot():
         logger.warning("Tushare stk_auction failed, falling back to mootdx: %s", e)
 
     # ── Path 2: mootdx 9:30 first bar (legacy fallback) ──
+    # B2: PG-only 部署 (SQLITE_FALLBACK_ENABLED=false) 下整段跳过 —
+    # Path2 依赖 SQLite stk_mins (由 collect_rt_min 在 fallback 模式下填), PG-only 时恒空且产只读报错噪音.
+    # Path1 (Tushare→PG) 已足够; 失败时返回 degraded 而非走废弃 SQLite 链路.
+    from app.config import SQLITE_FALLBACK_ENABLED
+    if not SQLITE_FALLBACK_ENABLED:
+        logger.warning("Auction Path1 empty/failed and SQLite fallback disabled; skip mootdx Path2")
+        return {"status": "degraded", "source": "tushare_only",
+                "date": today_dash, "stocks": 0}
+
     import sqlite3, psycopg2
     from app.config import DB_PATH
 

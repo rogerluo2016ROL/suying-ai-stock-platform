@@ -19,6 +19,7 @@
 #   8006 — trade-service        (模拟+实盘交易)
 #   8007 — backtest-service     (回测+IC校准)
 #   8009 — diagnosis-service    (五维个股诊断)
+#   8010 — data-service         (后台数据采集+定时调度, 常驻)
 #   9001 — backend              (JWT认证+用户管理)
 
 version: "3.8"
@@ -105,6 +106,29 @@ services:
       - REDIS_URL=redis://redis:6379/0
     volumes:
       - ../Kronos/data:/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Data (后台数据采集 + 定时调度, 常驻 — 竞价 9:25 / rt_min / 盘后全量 / 凌晨回补)
+  data-service:
+    build:
+      context: ..
+      dockerfile: services/data-service/Dockerfile
+    ports:
+      - "${DATA_SERVICE_PORT:-8010}:8010"
+    environment:
+      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+      - KRONOS_DB_PATH=/data/kronos.db     # 只读挂载; PG-only 下仅 _get_etl_db fallback 占位
+      - TUSHARE_TOKEN=${TUSHARE_TOKEN:-}
+      - REDIS_URL=redis://redis:6379/0
+      - TZ=Asia/Shanghai                   # 关键: cron "25 9" 按容器本地时区 (否则 UTC 偏移)
+      - DATA_SQLITE_FALLBACK=false          # 显式 PG-only (清债后 :ro 挂载安全)
+    volumes:
+      - ../Kronos/data:/data:ro            # 只读 (清债后无 SQLite 写)
     depends_on:
       postgres:
         condition: service_healthy

@@ -3,7 +3,7 @@
 import logging, sqlite3, time
 from datetime import date
 
-from app.config import TUSHARE_TOKEN, DB_PATH
+from app.config import TUSHARE_TOKEN, DB_PATH, SQLITE_FALLBACK_ENABLED
 
 logger = logging.getLogger("data-service.stocks")
 
@@ -74,17 +74,18 @@ def sync_stock_list(exchange: str = "") -> dict:
 
     # ── SQLite 写入 (fallback) ──
     sqlite_written = 0
-    try:
-        db = sqlite3.connect(DB_PATH)
-        db.executemany(
-            "INSERT OR REPLACE INTO stocks(code,name,board,industry,listed_date,is_st,updated_at) "
-            "VALUES(?,?,?,?,?,?,datetime('now','localtime'))", rows)
-        db.commit()
-        sqlite_written = len(rows)
-        db.close()
-        logger.info("SQLite stocks: %d rows written", sqlite_written)
-    except Exception as e:
-        logger.warning("SQLite stocks write failed: %s", e)
+    if SQLITE_FALLBACK_ENABLED:
+        try:
+            db = sqlite3.connect(DB_PATH)
+            db.executemany(
+                "INSERT OR REPLACE INTO stocks(code,name,board,industry,listed_date,is_st,updated_at) "
+                "VALUES(?,?,?,?,?,?,datetime('now','localtime'))", rows)
+            db.commit()
+            sqlite_written = len(rows)
+            db.close()
+            logger.info("SQLite stocks: %d rows written", sqlite_written)
+        except Exception as e:
+            logger.warning("SQLite stocks write failed: %s", e)
 
     elapsed = time.time() - t0
     logger.info("sync_stock_list: SQLite=%d PG=%d total=%d %.1fs",
@@ -141,16 +142,17 @@ def sync_stocks_incremental(trade_date: str = "") -> dict:
 
     # SQLite 写入 (fallback)
     sqlite_written = 0
-    try:
-        db = sqlite3.connect(DB_PATH)
-        db.executemany(
-            "INSERT OR REPLACE INTO stocks(code,name,board,industry,listed_date,is_st,updated_at) "
-            "VALUES(?,?,?,?,?,?,datetime('now','localtime'))", rows)
-        db.commit()
-        sqlite_written = len(rows)
-        db.close()
-    except Exception as e:
-        logger.warning("SQLite stocks incremental failed: %s", e)
+    if SQLITE_FALLBACK_ENABLED:
+        try:
+            db = sqlite3.connect(DB_PATH)
+            db.executemany(
+                "INSERT OR REPLACE INTO stocks(code,name,board,industry,listed_date,is_st,updated_at) "
+                "VALUES(?,?,?,?,?,?,datetime('now','localtime'))", rows)
+            db.commit()
+            sqlite_written = len(rows)
+            db.close()
+        except Exception as e:
+            logger.warning("SQLite stocks incremental failed: %s", e)
 
     elapsed = time.time() - t0
     logger.info("sync_stocks_incremental: date=%s SQLite=%d PG=%d %.1fs",

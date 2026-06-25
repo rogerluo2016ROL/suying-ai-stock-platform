@@ -22,7 +22,7 @@ def sync_cctv_news(days_back: int = 7) -> dict:
     Returns:
         {"table": "cctv_news", "written": N, "pg_written": N, "elapsed": S}
     """
-    from app.config import TUSHARE_TOKEN, DB_PATH
+    from app.config import TUSHARE_TOKEN, DB_PATH, SQLITE_FALLBACK_ENABLED
     from app.sync.rate_limiter import rate_limit
 
     if not TUSHARE_TOKEN:
@@ -80,14 +80,15 @@ def sync_cctv_news(days_back: int = 7) -> dict:
             logger.debug("PG write cctv_news skipped: %s", e)
 
         # ── SQLite fallback ──
-        try:
-            db = sqlite3.connect(DB_PATH)
-            db.executemany(
-                "INSERT OR REPLACE INTO cctv_news(pub_date, title, content, channels) "
-                "VALUES(?,?,?,?)", rows)
-            db.commit(); db.close()
-        except Exception as e:
-            logger.warning("SQLite write cctv_news failed: %s", e)
+        if SQLITE_FALLBACK_ENABLED:
+            try:
+                db = sqlite3.connect(DB_PATH)
+                db.executemany(
+                    "INSERT OR REPLACE INTO cctv_news(pub_date, title, content, channels) "
+                    "VALUES(?,?,?,?)", rows)
+                db.commit(); db.close()
+            except Exception as e:
+                logger.warning("SQLite write cctv_news failed: %s", e)
 
         total_rows += len(rows)
 
