@@ -416,3 +416,51 @@ cd frontend && npx vitest run
 **下一步**
 
 Task #10 完成。chainApi 模块已实现，可被 Task #8 前端页面调用进行政策解读 + 产业链解构。
+
+---
+
+## 智能看板二级页签与状态收尾 — 2026-06-26
+
+### 状态: 完成 — 测试与浏览器验收通过
+
+**需求确认**
+- 市场情绪、竞价意图、信号总览、自选跟踪均作为 AI 智能看板内的二级页签菜单。
+
+**实际改动**
+- `frontend/src/pages/Dashboard.tsx`
+  - 将市场情绪、竞价意图、信号总览、自选跟踪整合到智能看板二级 `Tabs`。
+  - 移除右侧重复的自选监控、竞价意图、服务状态详情卡片布局。
+  - 兼容 `signal/dashboard-summary` 返回的 `market_regime_v2`，市场情绪可显示 v2 分数与状态标签。
+  - 空信号、空自选数组显示“暂无信号数据 / 暂无自选股数据”，不再误停留在“加载中”。
+  - 将 AntD Card `bodyStyle` 替换为 `styles.body`，清理浏览器控制台弃用告警。
+- `frontend/src/__tests__/Dashboard.test.tsx`
+  - 覆盖智能看板二级页签结构，并验证“自选跟踪”页签可切换展示。
+
+**SIT 证据**
+```bash
+cd frontend && npx vitest run src/__tests__/Dashboard.test.tsx --reporter=verbose
+# Test Files  1 passed (1)
+# Tests       2 passed (2)
+
+cd frontend && npx tsc -b --noEmit
+# exit 0
+
+cd frontend && npx vitest run
+# Test Files  24 passed (24)
+# Tests       114 passed (114)
+
+cd frontend && npm run build
+# vite v6.4.3 building for production...
+# ✓ built in 3.02s
+```
+
+**浏览器验收**
+- 登录 `http://127.0.0.1:3004/` 后，AI 智能看板内出现二级页签：市场情绪、竞价意图、信号总览、自选跟踪。
+- 市场情绪真实数据展示为 `79.5 [BULL] 牛市 - 积极做多`。
+- 竞价意图页签可切换并显示竞价模型统计。
+- 信号总览页签可切换，空信号状态显示“暂无信号数据”，服务状态显示 `8/8` 在线。
+- 自选跟踪页签可切换，空自选状态显示“暂无自选股数据”。
+- Playwright 刷新并切换信号总览后控制台 `0 errors, 2 warnings`；剩余 warnings 为 React Router v7 future flag 提示。
+
+**剩余提示**
+- `npm run build` 仍提示 `echarts`、`antd` chunks 超过 500 kB，这是既有打包体积提示，非本次功能失败。
