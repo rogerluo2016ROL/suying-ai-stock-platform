@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 模型训练 · 训练任务</title>
+
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --success:#52c41a; --success-bg:rgba(82,196,26,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:18px 20px 32px}
+
+.grid{display:grid;gap:14px}
+
+/* Pill Tabs */
+.pill-tabs{display:flex;gap:4px;margin-bottom:18px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px;width:fit-content}
+.pill-tab{padding:6px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:.12s;color:var(--fg-2);border:none;background:transparent;font-family:var(--font-sans)}
+.pill-tab:hover{color:var(--fg);background:var(--surface-2)}
+.pill-tab.active{background:var(--accent);color:#fff}
+
+/* Top Bar */
+.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.top-bar .page-title{font-size:21px;font-weight:700}
+.top-bar .stats{font-size:12.5px;color:var(--fg-2)}
+.top-bar .stats b{color:var(--fg);font-weight:650}
+.top-bar .stats .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;margin-left:8px;vertical-align:middle}
+.top-bar .stats .dot.green{background:var(--down)}
+.top-bar .stats .dot.blue{background:var(--accent)}
+.top-bar .stats .dot.red{background:var(--up)}
+.top-bar .new-btn{margin-left:auto;padding:6px 18px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:.12s}
+.top-bar .new-btn:hover{background:#2d7ae0;border-color:#2d7ae0}
+.admin-badge{font-size:10px;padding:2px 8px;border-radius:3px;background:var(--accent-dim);color:var(--accent);font-weight:600;margin-left:8px}
+
+/* Filter Bar */
+.filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.filter-bar select{padding:5px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--fg-2);font-size:12px;font-family:var(--font-sans);cursor:pointer}
+.filter-bar input{padding:5px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-size:12px;font-family:var(--font-sans);width:180px}
+.filter-bar input::placeholder{color:var(--muted)}
+
+/* Section Label */
+.section-label{font-size:10.5px;color:var(--muted);font-weight:650;letter-spacing:.06em;padding:8px 0 4px}
+
+/* Task Card */
+.task-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;cursor:pointer;transition:all .12s;position:relative}
+.task-card:hover{background:var(--surface-2);border-color:var(--border-2)}
+.task-card.selected{background:var(--accent-dim);border-color:var(--accent)}
+.task-card.selected::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.task-card .tc-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.task-card .tc-name{font-size:14px;font-weight:650;color:var(--fg)}
+.task-card .tc-menu{margin-left:auto;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:4px;font-size:14px}
+.task-card .tc-menu:hover{background:var(--surface-2);color:var(--fg)}
+.task-card .tc-meta{display:flex;gap:12px;font-size:11px;color:var(--fg-2);margin-bottom:8px;flex-wrap:wrap;align-items:center}
+.task-card .tc-meta .meta-tag{font-size:10px;padding:1px 8px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);color:var(--accent)}
+.task-card .tc-meta .sep{width:1px;height:10px;background:var(--border)}
+
+/* Status Dot */
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-dot.running{background:var(--down);animation:dotPulse 1.8s infinite}
+.status-dot.completed{background:var(--success)}
+.status-dot.failed{background:var(--up)}
+.status-dot.archived{background:var(--muted)}
+@keyframes dotPulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 6px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
+
+/* Status Badge */
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.status-badge.running{background:var(--down-bg);color:var(--down);border:1px solid rgba(46,194,126,.25)}
+.status-badge.completed{background:var(--success-bg);color:var(--success);border:1px solid rgba(82,196,26,.25)}
+.status-badge.failed{background:var(--up-bg);color:var(--up);border:1px solid rgba(255,77,79,.25)}
+.status-badge.archived{background:rgba(154,167,184,.12);color:var(--muted);border:1px solid rgba(154,167,184,.25)}
+
+/* HP Chips */
+.hp-chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.hp-chip{font-size:9.5px;padding:2px 7px;border-radius:8px;background:var(--elevated);color:var(--fg-2);border:1px solid var(--border);font-family:var(--font-mono)}
+
+/* Metrics */
+.metrics-bar{display:flex;gap:16px;margin-bottom:8px;flex-wrap:wrap}
+.metric-item{display:flex;align-items:center;gap:4px;font-size:11.5px}
+.metric-item .mi-label{color:var(--muted);font-size:10px}
+.metric-item .mi-value{font-family:var(--font-mono);font-weight:650;color:var(--fg)}
+.metric-item .sep{width:1px;height:10px;background:var(--border)}
+
+/* Progress */
+.progress-section{margin-bottom:8px}
+.progress-info{display:flex;justify-content:space-between;font-size:10.5px;color:var(--fg-2);margin-bottom:4px}
+.progress-info b{color:var(--fg);font-family:var(--font-mono)}
+.progress-bar{width:100%;height:5px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;background:var(--accent);transition:width .5s ease}
+.progress-fill.running{background:linear-gradient(90deg,var(--accent),#7db2ff);animation:shimmer 2s infinite}
+@keyframes shimmer{0%{opacity:1}50%{opacity:.7}100%{opacity:1}}
+
+/* Actions */
+.tc-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap}
+.tc-actions button{font-size:10.5px;padding:3px 12px;border-radius:4px;border:1px solid var(--border);background:var(--elevated);color:var(--fg-2);cursor:pointer;transition:.12s;font-family:var(--font-sans)}
+.tc-actions button:hover{background:var(--surface);color:var(--fg)}
+.tc-actions button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.tc-actions button.primary:hover{background:#2d7ae0;border-color:#2d7ae0}
+.tc-actions button.success{color:var(--down);border-color:var(--down)}
+.tc-actions button.success:hover{background:var(--down-bg)}
+.tc-actions button.danger{color:var(--up);border-color:var(--border)}
+.tc-actions button.danger:hover{background:var(--up-bg);border-color:var(--up)}
+
+/* Create Form Card */
+.create-card{background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px}
+.create-card h3{font-size:14px;font-weight:650;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.create-form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.create-form .form-group{display:flex;flex-direction:column;gap:4px}
+.create-form .form-group label{font-size:10.5px;color:var(--muted);font-weight:600}
+.create-form select{padding:6px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-size:12px;font-family:var(--font-sans);min-width:150px}
+.create-form input{padding:6px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-size:12px;font-family:var(--font-sans);width:180px}
+.create-form input::placeholder{color:var(--muted)}
+.create-form .form-group.hp-row{flex-direction:row;align-items:center;gap:8px;flex-wrap:wrap}
+.create-form .hp-mini{display:flex;flex-direction:column;gap:3px}
+.create-form .hp-mini label{font-size:9.5px;color:var(--muted)}
+.create-form .hp-mini input{width:90px;padding:5px 8px;font-size:11px}
+.create-form .create-submit{padding:6px 24px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-sans);align-self:flex-end;height:33px;white-space:nowrap}
+.create-form .create-submit:hover{background:#2d7ae0}
+
+/* Toast */
+.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{background:var(--down-bg);border:1px solid var(--down);color:var(--down)}
+.toast.info{background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent)}
+.toast.error{background:var(--up-bg);border:1px solid var(--up);color:var(--up)}
+
+.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="training" data-title="模型训练 · 训练任务">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="public">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">模型管理员</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">管理域实验/产物</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/admin</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">不触达券商</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<!-- Pill Tabs -->
+          
+      
+          <!-- Top Bar -->
+          <div class="top-bar">
+            <span class="page-title">📋 训练任务</span>
+            <div class="stats">
+              <span class="dot green"></span>运行中 <b class="mono" style="color:var(--down)">2</b>
+              <span class="dot blue"></span>已完成 <b class="mono">15</b>
+              <span class="dot red"></span>失败 <b class="mono" style="color:var(--up)">1</b>
+            </div>
+            <button class="new-btn" onclick="document.getElementById('createForm').scrollIntoView({behavior:'smooth'})">+ 新建任务</button>
+          </div>
+      
+          <!-- Filter Bar -->
+          <div class="filter-bar">
+            <select><option>全部模型类型</option><option>Kronos Transformer</option><option>LightGBM</option><option>CatBoost</option></select>
+            <select><option>全部状态</option><option>运行中</option><option>已完成</option><option>失败</option><option>已归档</option></select>
+            <input type="text" placeholder="搜索任务名称..."/>
+          </div>
+      
+          <!-- Create Task Form -->
+          <div class="create-card" id="createForm">
+            <h3>➕ 创建训练任务 <span class="admin-badge">ADMIN</span></h3>
+            <div class="create-form">
+              <div class="form-group">
+                <label>任务名称</label>
+                <input type="text" placeholder="例: Kronos-V8-日频-全市场" id="taskName"/>
+              </div>
+              <div class="form-group">
+                <label>模型类型</label>
+                <select id="modelSelect" onchange="toggleHpFields(this.value)">
+                  <option value="kronos">Kronos Transformer</option>
+                  <option value="lightgbm">LightGBM</option>
+                  <option value="catboost">CatBoost</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>数据集</label>
+                <select>
+                  <option>日频全市场 (12,580股)</option>
+                  <option>日频沪深300 (300股)</option>
+                  <option>日频中证500 (500股)</option>
+                  <option>周频全市场</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>预测目标</label>
+                <select>
+                  <option>1日涨跌</option>
+                  <option>5日涨跌</option>
+                  <option>20日涨跌</option>
+                </select>
+              </div>
+              <div class="form-group hp-mini">
+                <label>learning_rate</label>
+                <input type="text" value="1e-4" style="width:80px"/>
+              </div>
+              <div class="form-group hp-mini">
+                <label>batch_size</label>
+                <input type="text" value="64" style="width:70px"/>
+              </div>
+              <div class="form-group hp-mini">
+                <label>epochs</label>
+                <input type="text" value="50" style="width:60px"/>
+              </div>
+              <div id="hpKronos1" class="form-group hp-mini">
+                <label>d_model</label>
+                <input type="text" value="512" style="width:70px"/>
+              </div>
+              <div id="hpKronos2" class="form-group hp-mini">
+                <label>n_heads</label>
+                <input type="text" value="8" style="width:60px"/>
+              </div>
+              <div class="form-group hp-mini">
+                <label>dropout</label>
+                <input type="text" value="0.1" style="width:60px"/>
+              </div>
+              <button class="create-submit" onclick="createTask()">▶️ 创建并开始训练</button>
+            </div>
+          </div>
+      
+          <!-- Task List -->
+          <div class="grid">
+      
+            <div class="section-label" style="display:flex;align-items:center;gap:6px">🟢 运行中 <span style="color:var(--down);font-weight:650">2</span></div>
+      
+            <!-- Task: Running 1 -->
+            <div class="task-card" id="task-1">
+              <div class="tc-head">
+                <span class="status-dot running"></span>
+                <span class="tc-name">Kronos-V7-日频-全市场</span>
+                <span class="status-badge running">运行中</span>
+                <span class="tc-menu" onclick="event.stopPropagation()">⋮</span>
+              </div>
+              <div class="tc-meta">
+                <span class="meta-tag">Kronos</span>
+                <span>日频全市场 (12,580股)</span>
+                <span class="sep"></span>
+                <span>创建: 06-25 22:00</span>
+                <span class="sep"></span>
+                <span style="color:var(--fg)">耗时 <b>2h 15min</b></span>
+              </div>
+              <div class="hp-chips">
+                <span class="hp-chip">lr=1e-4</span>
+                <span class="hp-chip">bs=64</span>
+                <span class="hp-chip">epochs=50</span>
+                <span class="hp-chip">d_model=512</span>
+                <span class="hp-chip">n_heads=8</span>
+                <span class="hp-chip">dropout=0.1</span>
+              </div>
+              <div class="metrics-bar">
+                <div class="metric-item"><span class="mi-label">Loss</span><span class="mi-value">0.324</span></div>
+                <span class="sep"></span>
+                <div class="metric-item"><span class="mi-label">Acc</span><span class="mi-value">68.2%</span></div>
+                <span class="sep"></span>
+                <div class="metric-item"><span class="mi-label">F1</span><span class="mi-value">0.743</span></div>
+                <span class="sep"></span>
+                <div class="metric-item"><span class="mi-label">AUC</span><span class="mi-value">0.812</span></div>
+              </div>
+              <div class="progress-section">
+                <div class="progress-info"><span>Epoch <b>23</b> / <b>50</b></span><span><b>46%</b></span></div>
+                <div class="progress-bar"><div class="progress-fill running" style="width:46%"></div></div>
+              </div>
+              <div class="tc-actions">
+                <button onclick="event.stopPropagation();showToast('训练已停止','info')">⏹️ 停止</button>
+                <button onclick="event.stopPropagation()">📊 查看指标</button>
+              </div>
+            </div>
+      
+            <!-- Task: Running 2 -->
+            <div class="task-card" id="task-2">
+              <div class="tc-head">
+                <span class="status-dot running"></span>
+                <span class="tc-name">LightGBM-V3-日频-沪深300</span>
+                <span class="status-badge running">运行中</span>
+                <span class="tc-menu" onclick="event.stopPropagation()">⋮</span>
+              </div>
+              <div class="tc-meta">
+                <span class="meta-tag" style="color:var(--warn)">LightGBM</span>
+                <span>日频沪深300 (300股)</span>
+                <span class="sep"></span>
+                <span>创建: 06-26 08:00</span>
+                <span class="sep"></span>
+                <span style="color:var(--fg)">耗时 <b>35min</b></span>
+              </div>
+              <div class="hp-chips">
+                <span class="hp-chip">lr=0.05</span>
+                <span class="hp-chip">max_depth=8</span>
+                <span class="hp-chip">n_estimators=500</span>
+                <span class="hp-chip">subsample=0.8</span>
+              </div>
+              <div class="metrics-bar">
+                <div class="metric-item"><span class="mi-label">Loss</span><span class="mi-value">0.412</span></div>
+                <span class="sep"></span>
+                <div class="metric-item"><span class="mi-label">Acc</span><span class="mi-value">62.5%</span></div>
+                <span class="sep"></span>
+                <div class="metric-item"><span class="mi-label">AUC</span><span class="mi-value">0.785</span></div>
+              </div>
+              <div class="progress-section">
+                <div class="progress-info"><span>Iteration <b>180</b> / <b>500</b></span><span><b>36%</b></span></div>
+                <div class="progress-bar"><div class="progress-fill running" style="width:36%"></div></div>
+              </div>
+              <div class="tc-actions">
+                <button onclick="event.stopPropagation()">⏹️ 停止</button>
+                <button onclick="event.stopPropagation()">📊 查看指标</button>
+              </div>
+            </div>
+      
+            <div class="section-label" style="display:flex;align-items:center;gap:6px">✅ 已完成 <span style="color:var(--success);font-weight:650">2</span></div>
+      
+            <!-- Task: Completed 1 -->
+            <div class="task-card" id="task-3">
+              <div class="tc-head">
+                <span class="status-dot completed"></span>
+                <span class="tc-name">Kronos-V6-周频-全市场</span>
+                <span class="status-badge completed">已完成</span>
+                <span class="tc-menu" onclick="event.stopPropagation()">⋮</span>
+              </div>
+              <div class="tc-meta">
+                <span class="meta-tag">Kronos</span>
+                <span>周频全市场</span>
+                <span class="sep"></span>
+                <span>耗时 4h 10min</span>
+                <span class="sep"></span>
+                <span>创建: 06-24 22:00</span>
+              </div>
+              <div class="hp-chips">
+                <span class="hp-chip">lr=5e-5</span>
+                <span class="hp-chip">bs=32</span>
+                <span class="hp-chip">epochs=80</span>
+                <span class="hp-chip">d_model=256</span>
+                <span class="hp-chip">n_heads=4</span>
+              </div>
+              <div class="metrics-bar">
+                <div class="metric-item"><span class="mi-label">Best Loss</span><span class="mi-value">0.298</span></div>
+                <span class="sep"></span>
+                <div class="metric-item"><span class="mi-label">Acc</span><span class="mi-value">72.4%</span></div>
+                <span class="sep"></span>
+                <div class="metric-item"><span class="mi-label">F1</span><span class="mi-value">0.768</span></div>
+                <span class="sep"></span>
+                <div class="metric-item"><span class="mi-label">AUC</span><span class="mi-value">0.841</span></div>
+              </div>
+              <div class="tc-actions">
+                <button onclick="event.stopPropagation();showToast('重跑任务已加入队列','info')">🔄 重跑</button>
+                <button onclick="event.stopPropagation()">📊 查看指标</button>
+                <button class="success" onclick="event.stopPropagation();showToast('模型已注册为 Staging','success')" style="color:var(--down);border-color:var(--down)">📦 注册模型</button>
+              </div>
+            </div>
+      
+            <!-- Task: Completed 2 -->
+            <div class="task-card" id="task-4">
+              <div class="tc-head">
+                <span class="status-dot completed"></span>
+                <span class="tc-name">LightGBM-V2-日频-中证500</span>
+                <span class="status-badge completed">已完成</span>
+                <span class="tc-menu" onclick="event.stopPropagation()">⋮</span>
+              </div>
+              <div class="tc-meta">
+                <span class="meta-tag" style="color:var(--warn)">LightGBM</span>
+                <span>日频中证500</span>
+                <span class="sep"></span>
+                <span>耗时 1h 22min</span>
+                <span class="sep"></span>
+                <span>创建: 06-23 22:00</span>
+              </div>
+              <div class="hp-chips">
+                <span class="hp-chip">lr=0.08</span>
+                <span class="hp-chip">max_depth=6</span>
+                <span class="hp-chip">n_estimators=800</span>
+              </div>
+              <div class="metrics-bar">
+                <div class="metric-item"><span class="mi-label">Best Loss</span><span class="mi-value">0.356</span></div>
+                <span class="sep"></span>
+                <div class="metric-item"><span class="mi-label">Acc</span><span class="mi-value">64.8%</span></div>
+                <span class="sep"></span>
+                <div class="metric-item"><span class="mi-label">AUC</span><span class="mi-value">0.763</span></div>
+              </div>
+              <div class="tc-actions">
+                <button onclick="event.stopPropagation()">🔄 重跑</button>
+                <button onclick="event.stopPropagation()">📊 查看指标</button>
+                <button class="danger" onclick="event.stopPropagation()">🗑 删除</button>
+              </div>
+            </div>
+      
+            <div class="section-label" style="display:flex;align-items:center;gap:6px">❌ 失败 <span style="color:var(--up);font-weight:650">1</span></div>
+      
+            <!-- Task: Failed -->
+            <div class="task-card" id="task-5">
+              <div class="tc-head">
+                <span class="status-dot failed"></span>
+                <span class="tc-name">CatBoost-V2-日频-全市场</span>
+                <span class="status-badge failed">失败</span>
+                <span class="tc-menu" onclick="event.stopPropagation()">⋮</span>
+              </div>
+              <div class="tc-meta">
+                <span class="meta-tag" style="color:var(--up)">CatBoost</span>
+                <span>日频全市场</span>
+                <span class="sep"></span>
+                <span>创建: 06-25 18:00</span>
+                <span class="sep"></span>
+                <span style="color:var(--up)">OOM · 内存不足</span>
+              </div>
+              <div class="hp-chips">
+                <span class="hp-chip">lr=0.03</span>
+                <span class="hp-chip">depth=10</span>
+                <span class="hp-chip">iters=1000</span>
+              </div>
+              <div class="metrics-bar" style="color:var(--muted)">
+                <span>Epoch 45 时进程被 OOM Killer 终止</span>
+              </div>
+              <div class="tc-actions">
+                <button class="primary" onclick="event.stopPropagation()">🔄 重跑</button>
+                <button onclick="event.stopPropagation()">📋 查看日志</button>
+                <button class="danger" style="color:var(--up);border-color:var(--up)" onclick="event.stopPropagation()">🗑 删除</button>
+              </div>
+            </div>
+      
+            <div class="section-label" style="display:flex;align-items:center;gap:6px">📦 已归档 <span style="color:var(--muted);font-weight:650">1</span></div>
+      
+            <!-- Task: Archived -->
+            <div class="task-card" id="task-6" style="opacity:.6">
+              <div class="tc-head">
+                <span class="status-dot archived"></span>
+                <span class="tc-name">Kronos-V5-日频-全市场</span>
+                <span class="status-badge archived">已归档</span>
+                <span class="tc-menu" onclick="event.stopPropagation()">⋮</span>
+              </div>
+              <div class="tc-meta">
+                <span class="meta-tag">Kronos</span>
+                <span>日频全市场</span>
+                <span class="sep"></span>
+                <span>耗时 3h 10min</span>
+                <span class="sep"></span>
+                <span>创建: 06-20 22:00</span>
+              </div>
+              <div class="hp-chips">
+                <span class="hp-chip">lr=2e-4</span>
+                <span class="hp-chip">bs=128</span>
+                <span class="hp-chip">epochs=60</span>
+                <span class="hp-chip">d_model=512</span>
+                <span class="hp-chip">n_heads=8</span>
+              </div>
+              <div class="metrics-bar">
+                <div class="metric-item"><span class="mi-label">Best Loss</span><span class="mi-value">0.365</span></div>
+                <span class="sep"></span>
+                <div class="metric-item"><span class="mi-label">Acc</span><span class="mi-value">63.5%</span></div>
+              </div>
+              <div class="tc-actions">
+                <button onclick="event.stopPropagation()">🔄 重跑</button>
+                <button onclick="event.stopPropagation()">📊 查看指标</button>
+              </div>
+            </div>
+      
+          </div>
+      
+          <!-- Footer -->
+          <div class="footer-bar">
+            <span>role: admin</span>
+            <span class="sep"></span>
+            <span>training-service :8008</span>
+            <span class="sep"></span>
+            <span>MLflow: localhost:5000</span>
+            <span class="sep"></span>
+            <span style="color:var(--down)">APScheduler: 2 jobs running</span>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type || 'info') + ' show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+function createTask(){
+  var name = document.getElementById('taskName').value || 'Kronos-V8-日频-全市场';
+  showToast('任务 "' + name + '" 已创建，开始训练...', 'success');
+}
+function toggleHpFields(val){
+  var k1 = document.getElementById('hpKronos1');
+  var k2 = document.getElementById('hpKronos2');
+  if (val === 'kronos') { k1.style.display = ''; k2.style.display = ''; }
+  else { k1.style.display = 'none'; k2.style.display = 'none'; }
+}
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

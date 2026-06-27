@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · P0主链路</title>
+<style class="legacy-page-style">
+:root{
+  --bg:#f5f8fd;--surface:#fff;--surface-2:#f7faff;--elevated:#eef5ff;
+  --border:#dfe8f5;--border-2:#c8d7ea;--fg:#1e293b;--fg-2:#64748b;--muted:#94a3b8;
+  --accent:#3d8bff;--accent-dim:rgba(61,139,255,.12);
+  --up:#ff4d4f;--up-bg:rgba(255,77,79,.1);--down:#2ec27e;--down-bg:rgba(46,194,126,.1);
+  --warn:#f5a623;--warn-bg:rgba(245,166,35,.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px;--header-h:52px;--radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.up{color:var(--up)}.down{color:var(--down)}.neu{color:var(--accent)}.warn{color:var(--warn)}
+.app{display:flex;min-height:100vh}.main{flex:1;margin-left:var(--sidebar-w);min-width:0}.content{padding:16px 20px 28px}
+.hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:18px 20px;background:linear-gradient(135deg,rgba(61,139,255,.12),rgba(46,194,126,.08));border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px}
+.hero h1{font-size:24px;line-height:1.2;margin-bottom:6px}.hero p{color:var(--fg-2)}
+.ctx-card{min-width:420px;background:rgba(255,255,255,.72);border:1px solid var(--border);border-radius:8px;padding:12px}
+.ctx-row{display:grid;grid-template-columns:92px 1fr;gap:8px;font-size:12px}.ctx-row+.ctx-row{margin-top:5px}.ctx-row span:first-child{color:var(--muted)}
+.flow-stepper{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.flow-btn{height:74px;text-align:left;border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:10px 12px;cursor:pointer;color:var(--fg);transition:.14s}
+.flow-btn:hover{border-color:var(--accent);background:var(--surface-2)}
+.flow-btn.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);background:linear-gradient(135deg,rgba(61,139,255,.12),rgba(255,255,255,.9))}
+.flow-btn .no{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border);font-family:var(--font-mono);font-weight:700;color:var(--muted);margin-right:8px}
+.flow-btn.active .no{background:var(--accent);border-color:var(--accent);color:#fff}.flow-btn strong{font-size:14px}.flow-btn p{font-size:11px;color:var(--fg-2);margin-top:6px}
+.layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(420px,.7fr);gap:12px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.panel-h{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid var(--border);font-weight:720}
+.panel-h .sub{font-size:11px;color:var(--muted);font-weight:500}.panel-b{padding:14px}
+.stage-grid{display:grid;grid-template-columns:1fr 320px;gap:12px}.stage-card{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px}
+.stage-card h3{font-size:16px;margin-bottom:8px}.stage-card p{color:var(--fg-2);font-size:12.5px}
+.metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px}.metric .l{font-size:11px;color:var(--muted)}.metric .v{font-size:20px;font-weight:760;margin-top:3px}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}.data-table th{height:32px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border);font-weight:650}.data-table td{height:42px;border-bottom:1px solid var(--border)}.data-table tr:last-child td{border-bottom:0}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);font-size:11px;font-weight:650}
+.pill.pass{background:var(--down-bg);border-color:rgba(46,194,126,.28);color:var(--down)}.pill.warn{background:var(--warn-bg);border-color:rgba(245,166,35,.32);color:var(--warn)}.pill.reject{background:var(--up-bg);border-color:rgba(255,77,79,.28);color:var(--up)}.pill.info{background:var(--accent-dim);border-color:rgba(61,139,255,.25);color:var(--accent)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.actions a,.actions button{height:32px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--fg);text-decoration:none;font-weight:650;cursor:pointer}.actions .primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.object-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.object-nav button{height:28px;padding:0 9px;border-radius:14px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer;color:var(--fg-2);font-size:11px}.object-nav button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.field-list{display:grid;gap:7px}.field{display:grid;grid-template-columns:140px 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}.field:last-child{border-bottom:0}.field .k{font-family:var(--font-mono);font-size:11px;color:var(--accent)}.field .d{font-size:12px;color:var(--fg-2)}
+.json-box{margin-top:12px;background:#0f172a;color:#dbeafe;border-radius:8px;padding:12px;overflow:auto;max-height:260px;font-size:11px;line-height:1.55}
+.timeline{display:grid;gap:10px}.tl{display:grid;grid-template-columns:28px 1fr;gap:8px}.tl .dot{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--accent-dim);color:var(--accent);font-family:var(--font-mono);font-size:11px;font-weight:700}.tl strong{display:block}.tl span{font-size:11px;color:var(--fg-2)}
+.footer-note{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:12px}
+@media(max-width:1180px){.layout,.stage-grid{grid-template-columns:1fr}.flow-stepper{grid-template-columns:repeat(2,1fr)}.ctx-card{min-width:0;width:100%}.hero{flex-direction:column}.metric-row{grid-template-columns:repeat(2,1fr)}}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="opening-decision" data-title="P0主链路">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">操盘手</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共竞价 + 私有候选</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">进入方案后绑定账户</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+      <section class="hero">
+        <div>
+          <h1>P0 主链路 · 交易决策闭环</h1>
+          <p>候选池到回测复盘的统一上下文、风险闸门和对象契约。</p>
+        </div>
+        <div class="ctx-card">
+          <div class="ctx-row"><span>contextId</span><b class="mono">CTX-20260627-093201-FU01</b></div>
+          <div class="ctx-row"><span>tradeDate</span><b class="mono">2026-06-27</b></div>
+          <div class="ctx-row"><span>source</span><b>opening_decision / candidate_pool</b></div>
+          <div class="ctx-row"><span>data</span><b><span class="pill pass">fresh</span> 行情 09:32 · 信号 09:31 · 风控 09:33</b></div>
+        </div>
+      </section>
+
+      <section class="flow-stepper" aria-label="P0主链路步骤">
+        <button class="flow-btn active" type="button" data-stage="candidate"><span class="no">01</span><strong>候选池</strong><p>多源融合、风险排除、生成方案</p></button>
+        <button class="flow-btn" type="button" data-stage="plan"><span class="no">02</span><strong>方案管理</strong><p>仓位、止损止盈、生命周期</p></button>
+        <button class="flow-btn" type="button" data-stage="order"><span class="no">03</span><strong>下单面板</strong><p>方案带入、价格数量、订单预览</p></button>
+        <button class="flow-btn" type="button" data-stage="risk"><span class="no">04</span><strong>风控闸门</strong><p>候选、方案、审单、执行、复盘</p></button>
+        <button class="flow-btn" type="button" data-stage="backtest"><span class="no">05</span><strong>回测复盘</strong><p>历史验证、执行偏差、写回方案</p></button>
+      </section>
+
+      <section class="layout">
+        <div class="panel">
+          <div class="panel-h"><span id="stageTitle">候选池 · Candidate 收口</span><span class="sub" id="stageSub">2.4 candidate-pool-preview.html</span></div>
+          <div class="panel-b" id="stageBody"></div>
+        </div>
+        <aside class="panel">
+          <div class="panel-h"><span>公共对象字段</span><span class="sub">五个对象定版</span></div>
+          <div class="panel-b">
+            <div class="object-nav" id="objectNav"></div>
+            <div class="field-list" id="fieldList"></div>
+            <pre class="json-box" id="jsonBox"></pre>
+          </div>
+        </aside>
+      </section>
+
+      <div class="footer-note">
+        <span>真实实现参考: frontend/src/pages/Screener.tsx · Strategy.tsx · Trade.tsx · Backtest.tsx</span>
+        <span>后端参考: strategy-service · trade-service/risk_gateway.py · backtest-service</span>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+const stages = {
+  candidate: {
+    title: '候选池 · Candidate 收口',
+    sub: '2.4 candidate-pool-preview.html',
+    html: `
+      <div class="stage-grid">
+        <div class="stage-card">
+          <h3>多源融合候选</h3>
+          <p>竞价、信号、智能选股、自选、产业链证据进入 CandidatePool，按共识度和综合评分排序。强制风险标的不可勾选。</p>
+          <div class="metric-row">
+            <div class="metric"><div class="l">原始输入</div><div class="v neu">28</div></div>
+            <div class="metric"><div class="l">去重后</div><div class="v">8</div></div>
+            <div class="metric"><div class="l">可用候选</div><div class="v down">6</div></div>
+            <div class="metric"><div class="l">已选</div><div class="v neu">3</div></div>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>候选</th><th>来源</th><th>预测</th><th>评分</th><th>风险</th></tr></thead>
+            <tbody>
+              <tr><td><b>300750 宁德</b></td><td><span class="pill info">竞价+信号+选股</span></td><td class="up">+12.5%</td><td class="mono">89.5</td><td><span class="pill pass">通过</span></td></tr>
+              <tr><td><b>688981 中芯</b></td><td><span class="pill info">竞价+信号</span></td><td class="up">+8.2%</td><td class="mono">83.0</td><td><span class="pill pass">通过</span></td></tr>
+              <tr><td><b>603986 兆易</b></td><td><span class="pill info">选股+自选</span></td><td class="up">+10.8%</td><td class="mono">86.0</td><td><span class="pill warn">止损近</span></td></tr>
+              <tr><td><b>000858 五粮</b></td><td><span class="pill">信号</span></td><td class="down">-2.0%</td><td class="mono">70.0</td><td><span class="pill reject">公告排除</span></td></tr>
+            </tbody>
+          </table>
+          <div class="actions">
+            <a class="primary" href="2.4 candidate-pool-preview.html">打开候选池原型</a>
+            <button type="button" data-object="Candidate">查看 Candidate 字段</button>
+          </div>
+        </div>
+        <div class="stage-card">
+          <h3>输出到 Plan</h3>
+          <div class="timeline">
+            <div class="tl"><span class="dot">1</span><div><strong>选中 3-5 只</strong><span>仅可用候选进入方案预览</span></div></div>
+            <div class="tl"><span class="dot">2</span><div><strong>生成 Plan 草稿</strong><span>分配仓位、计划价、止损、止盈</span></div></div>
+            <div class="tl"><span class="dot">3</span><div><strong>候选池风控</strong><span>生成 RiskVerdict(scope=candidate)</span></div></div>
+          </div>
+        </div>
+      </div>`
+  },
+  plan: {
+    title: '方案管理 · Plan 承载交易意图',
+    sub: '9.1 / 9.2 plan previews',
+    html: `
+      <div class="stage-grid">
+        <div class="stage-card">
+          <h3>Plan 生命周期</h3>
+          <p>Plan 是候选到交易执行之间的业务中枢。当前后端的 confirmed 建议在前端展示为 ready。</p>
+          <div class="metric-row">
+            <div class="metric"><div class="l">状态</div><div class="v neu">ready</div></div>
+            <div class="metric"><div class="l">总仓位</div><div class="v">37%</div></div>
+            <div class="metric"><div class="l">总风险</div><div class="v down">-4.5%</div></div>
+            <div class="metric"><div class="l">订单</div><div class="v">0/3</div></div>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>标的</th><th>计划价</th><th>仓位</th><th>止损</th><th>止盈</th></tr></thead>
+            <tbody>
+              <tr><td>300750 宁德</td><td class="mono">218.50</td><td>15%</td><td class="down mono">196.50</td><td class="up mono">251.00</td></tr>
+              <tr><td>688981 中芯</td><td class="mono">68.20</td><td>12%</td><td class="down mono">61.38</td><td class="up mono">78.40</td></tr>
+              <tr><td>603986 兆易</td><td class="mono">152.00</td><td>10%</td><td class="down mono">136.80</td><td class="up mono">174.80</td></tr>
+            </tbody>
+          </table>
+          <div class="actions">
+            <a class="primary" href="9.2 plan-detail-preview.html">打开方案详情</a>
+            <button type="button" data-object="Plan">查看 Plan 字段</button>
+          </div>
+        </div>
+        <div class="stage-card">
+          <h3>下一步动作</h3>
+          <div class="timeline">
+            <div class="tl"><span class="dot">A</span><div><strong>手动下单</strong><span>逐个 PlanItem 生成 Order 草稿并带入 7.1</span></div></div>
+            <div class="tl"><span class="dot">B</span><div><strong>自动交易</strong><span>生成执行器，但业务主对象仍是 Plan</span></div></div>
+            <div class="tl"><span class="dot">C</span><div><strong>回测复盘</strong><span>Plan 参数直接作为回测默认参数</span></div></div>
+          </div>
+        </div>
+      </div>`
+  },
+  order: {
+    title: '下单面板 · Order 审单前对象',
+    sub: '7.1 order-panel-preview.html',
+    html: `
+      <div class="stage-grid">
+        <div class="stage-card">
+          <h3>方案带入下单</h3>
+          <p>URL 只传 ctx/plan/item/code，页面恢复完整 DecisionContext，并自动填入建议价、仓位、数量和风险摘要。</p>
+          <div class="metric-row">
+            <div class="metric"><div class="l">委托价</div><div class="v mono">218.50</div></div>
+            <div class="metric"><div class="l">数量</div><div class="v mono">400</div></div>
+            <div class="metric"><div class="l">金额</div><div class="v mono">87,400</div></div>
+            <div class="metric"><div class="l">仓位</div><div class="v">6.4%</div></div>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>字段</th><th>值</th><th>来源</th></tr></thead>
+            <tbody>
+              <tr><td>contextId</td><td class="mono">CTX-20260627-093201-FU01</td><td>DecisionContext</td></tr>
+              <tr><td>planId</td><td class="mono">FU-20260627-01M</td><td>Plan</td></tr>
+              <tr><td>riskVerdict</td><td><span class="pill warn">warn</span></td><td>Order pre-check</td></tr>
+            </tbody>
+          </table>
+          <div class="actions">
+            <a class="primary" href="7.1 order-panel-preview.html">打开下单面板</a>
+            <button type="button" data-object="Order">查看 Order 字段</button>
+          </div>
+        </div>
+        <div class="stage-card">
+          <h3>审单流程</h3>
+          <div class="timeline">
+            <div class="tl"><span class="dot">1</span><div><strong>价格确认</strong><span>点击行情/盘口价填入委托价</span></div></div>
+            <div class="tl"><span class="dot">2</span><div><strong>订单预览</strong><span>金额、仓位、手续费、A股手数校验</span></div></div>
+            <div class="tl"><span class="dot">3</span><div><strong>风险预检</strong><span>生成 RiskVerdict(scope=order)</span></div></div>
+          </div>
+        </div>
+      </div>`
+  },
+  risk: {
+    title: '风控闸门 · RiskVerdict 统一判定',
+    sub: '10.x risk previews',
+    html: `
+      <div class="stage-grid">
+        <div class="stage-card">
+          <h3>多层闸门</h3>
+          <p>RiskVerdict 贯穿候选、方案、审单、执行和复盘。任何资金相关动作都不能绕过它。</p>
+          <table class="data-table">
+            <thead><tr><th>scope</th><th>target</th><th>status</th><th>gateAction</th></tr></thead>
+            <tbody>
+              <tr><td>candidate</td><td>CAND-000858</td><td><span class="pill reject">reject</span></td><td>block</td></tr>
+              <tr><td>plan</td><td>FU-20260627-01M</td><td><span class="pill pass">pass</span></td><td>allow</td></tr>
+              <tr><td>order</td><td>ORD-001</td><td><span class="pill warn">warn</span></td><td>allow_after_confirm</td></tr>
+              <tr><td>strategy</td><td>LT-20260627-01A</td><td><span class="pill warn">warn</span></td><td>pause_strategy</td></tr>
+            </tbody>
+          </table>
+          <div class="actions">
+            <a class="primary" href="10.1 risk-overview-preview.html">打开风控总览</a>
+            <button type="button" data-object="RiskVerdict">查看 RiskVerdict 字段</button>
+          </div>
+        </div>
+        <div class="stage-card">
+          <h3>已有后端映射</h3>
+          <div class="timeline">
+            <div class="tl"><span class="dot">R</span><div><strong>risk_gateway.py</strong><span>资金、持仓、涨跌停、集中度、单笔上限、大额确认</span></div></div>
+            <div class="tl"><span class="dot">C</span><div><strong>circuit_breaker.py</strong><span>日亏损熔断、半开探测、手动恢复</span></div></div>
+            <div class="tl"><span class="dot">A</span><div><strong>audit_log.py</strong><span>PLACE_ORDER 记录 request/result/risk_check</span></div></div>
+          </div>
+        </div>
+      </div>`
+  },
+  backtest: {
+    title: '回测复盘 · Plan 参数写回',
+    sub: '11.1 backtest-run-preview.html',
+    html: `
+      <div class="stage-grid">
+        <div class="stage-card">
+          <h3>从 Plan 带入回测</h3>
+          <p>回测不再孤立选择策略，而是默认继承 Plan 的标的、仓位、止损止盈、持有周期、手续费和滑点口径。</p>
+          <div class="metric-row">
+            <div class="metric"><div class="l">年化</div><div class="v up">+32.5%</div></div>
+            <div class="metric"><div class="l">最大回撤</div><div class="v down">-12.3%</div></div>
+            <div class="metric"><div class="l">夏普</div><div class="v neu">2.15</div></div>
+            <div class="metric"><div class="l">胜率</div><div class="v">68%</div></div>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>复盘口径</th><th>值</th><th>写回</th></tr></thead>
+            <tbody>
+              <tr><td>历史回测收益</td><td class="up">+42.8%</td><td>Plan.backtestRef</td></tr>
+              <tr><td>真实执行收益</td><td class="up">+2.1%</td><td>settlement report</td></tr>
+              <tr><td>执行偏差</td><td class="warn">滑点 +0.18%</td><td>Risk review</td></tr>
+            </tbody>
+          </table>
+          <div class="actions">
+            <a class="primary" href="11.1 backtest-run-preview.html">打开回测运行</a>
+            <button type="button" data-object="Plan">查看 Plan 字段</button>
+          </div>
+        </div>
+        <div class="stage-card">
+          <h3>复盘输出</h3>
+          <div class="timeline">
+            <div class="tl"><span class="dot">1</span><div><strong>权益曲线</strong><span>策略权益、基准、回撤区域</span></div></div>
+            <div class="tl"><span class="dot">2</span><div><strong>交易明细</strong><span>买入卖出、收益、持有天数、原因</span></div></div>
+            <div class="tl"><span class="dot">3</span><div><strong>模型反馈</strong><span>标记有效策略和失效风险规则</span></div></div>
+          </div>
+        </div>
+      </div>`
+  }
+};
+
+const objectDefs = {
+  DecisionContext: {
+    fields: [
+      ['contextId','跨页面唯一上下文 ID，URL 只传这个关键 ID'],
+      ['tradeDate','交易日，所有候选/方案/订单/回测口径对齐'],
+      ['sourceModule','来源模块，如 opening_decision / screener / plan'],
+      ['codes / primaryCode','当前链路涉及的标的集合和主标的'],
+      ['planId / orderIds / riskVerdictId','链路对象引用'],
+      ['modelRefs','选股、预测、信号、风控、回测模型版本引用'],
+      ['dataFreshness','行情、日线、信号、风控数据新鲜度']
+    ],
+    sample: {contextId:'CTX-20260627-093201-FU01',tradeDate:'2026-06-27',sourceModule:'opening_decision',codes:['300750','688981','603986'],planId:'FU-20260627-01M',dataFreshness:{status:'fresh',quoteUpdatedAt:'09:32:18'}}
+  },
+  Candidate: {
+    fields: [
+      ['candidateId','候选标的 ID，不等于股票代码'],
+      ['sources','来源列表，包含 score/rank/reason/capturedAt'],
+      ['consensusLevel','1/2/3 星共识度'],
+      ['scores','auction/signal/screener/prediction/composite'],
+      ['prediction','Kronos 方向、目标价、预测涨幅、置信度'],
+      ['suggestedTrade','建议方向、入场、止损、止盈'],
+      ['risk','通过/警告/拒绝/人工复核及排除原因']
+    ],
+    sample: {candidateId:'CAND-20260627-300750',code:'300750',name:'宁德时代',consensusLevel:3,scores:{compositeScore:89.5},prediction:{direction:'up',predReturnPct:12.5,confidence:78},risk:{status:'pass',isExcluded:false}}
+  },
+  Plan: {
+    fields: [
+      ['planId','方案主标识，按模型/日期/序号/类型编码'],
+      ['status','draft/ready/running/paused/closed/archived'],
+      ['executionMode','manual/semi_auto/auto'],
+      ['source','来源模块和 candidateIds'],
+      ['capital','预算、可用资金、目标仓位、单票上限'],
+      ['items','每个标的的价格、仓位、止损、止盈和状态'],
+      ['riskSummary','方案级风险摘要和 RiskVerdict 引用'],
+      ['orderRefs / backtestRef','订单和回测结果引用']
+    ],
+    sample: {planId:'FU-20260627-01M',status:'ready',executionMode:'manual',capital:{targetPositionPct:37,maxPositions:5,singleMaxPct:15},items:3,riskSummary:{status:'pass',totalRiskPct:-4.5}}
+  },
+  Order: {
+    fields: [
+      ['orderId / brokerOrderId','平台订单 ID 与券商订单 ID'],
+      ['contextId / planId / planItemId','从决策链路恢复来源'],
+      ['side / orderType','BUY/SELL + LIMIT/MARKET'],
+      ['price / quantity','委托价和股数，A 股需 100 股整数倍'],
+      ['estimatedAmount / estimatedFee','预估金额和费用'],
+      ['tradeMode','paper/live'],
+      ['riskSnapshot','审单风控快照'],
+      ['status / filledQty / filledAvgPrice','订单状态和成交回报']
+    ],
+    sample: {orderId:'ORD-20260627-093215-001',planId:'FU-20260627-01M',code:'300750',side:'BUY',orderType:'LIMIT',price:218.5,quantity:400,status:'pre_checked'}
+  },
+  RiskVerdict: {
+    fields: [
+      ['riskVerdictId','风控判定 ID'],
+      ['scope','candidate/plan/order/strategy/position/market'],
+      ['targetId','被判定对象 ID'],
+      ['status','pass/warn/reject/manual_review'],
+      ['checks','每条规则的 pass/warn/reject 和 detail'],
+      ['requiresConfirmation','warn 是否需要人工确认'],
+      ['gateAction','allow/block/route_manual_review/pause_strategy 等'],
+      ['engine','产生判定的服务和时间']
+    ],
+    sample: {riskVerdictId:'RISK-20260627-093210-001',scope:'order',targetId:'ORD-20260627-093215-001',status:'warn',requiresConfirmation:true,gateAction:'allow_after_confirm'}
+  }
+};
+
+function switchStage(stage){
+  const item = stages[stage] || stages.candidate;
+  document.getElementById('stageTitle').textContent = item.title;
+  document.getElementById('stageSub').textContent = item.sub;
+  document.getElementById('stageBody').innerHTML = item.html;
+  document.querySelectorAll('.flow-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.stage === stage));
+}
+
+function renderObject(name){
+  const def = objectDefs[name] || objectDefs.DecisionContext;
+  document.querySelectorAll('#objectNav button').forEach(btn => btn.classList.toggle('active', btn.dataset.object === name));
+  document.getElementById('fieldList').innerHTML = def.fields.map(([key, desc]) => `<div class="field"><div class="k">${key}</div><div class="d">${desc}</div></div>`).join('');
+  document.getElementById('jsonBox').textContent = JSON.stringify(def.sample, null, 2);
+}
+
+document.querySelectorAll('.flow-btn').forEach(btn => btn.addEventListener('click', () => switchStage(btn.dataset.stage)));
+document.getElementById('objectNav').innerHTML = Object.keys(objectDefs).map((name, i) => `<button type="button" data-object="${name}" class="${i===0?'active':''}">${name}</button>`).join('');
+document.getElementById('objectNav').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-object]');
+  if (btn) renderObject(btn.dataset.object);
+});
+document.getElementById('stageBody').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-object]');
+  if (btn) renderObject(btn.dataset.object);
+});
+switchStage('candidate');
+renderObject('DecisionContext');
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

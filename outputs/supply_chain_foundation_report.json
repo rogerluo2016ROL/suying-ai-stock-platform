@@ -1,0 +1,1263 @@
+{
+  "node_count": 44,
+  "edge_count": 58,
+  "mapping_count": 15606,
+  "status_counts": {
+    "verified": 1069,
+    "pending_review": 10511,
+    "weak_evidence": 4026
+  },
+  "chain_counts": {
+    "new_energy_vehicle": 1431,
+    "ai_compute": 2060,
+    "innovative_drug": 1087,
+    "advanced_manufacturing": 2145,
+    "consumer_upgrade": 1380,
+    "semiconductor": 1291,
+    "cyclical_resources": 2069,
+    "defense": 1119,
+    "robotics": 1792,
+    "new_energy": 1232
+  },
+  "source_counts": {
+    "main_business": 4366,
+    "introduction": 6434,
+    "research_report": 1294,
+    "industry": 3512
+  },
+  "audit": {
+    "hotspot_nodes": [
+      {
+        "node_id": "advanced_manufacturing_integration",
+        "weak_evidence": 68,
+        "pending_review": 846,
+        "verified": 24
+      },
+      {
+        "node_id": "cyclical_resources_resources",
+        "weak_evidence": 0,
+        "pending_review": 905,
+        "verified": 24
+      },
+      {
+        "node_id": "robotics_integration",
+        "weak_evidence": 19,
+        "pending_review": 694,
+        "verified": 66
+      },
+      {
+        "node_id": "cyclical_resources_processing",
+        "weak_evidence": 19,
+        "pending_review": 557,
+        "verified": 37
+      },
+      {
+        "node_id": "consumer_upgrade_channel",
+        "weak_evidence": 82,
+        "pending_review": 460,
+        "verified": 38
+      },
+      {
+        "node_id": "ai_compute_hardware",
+        "weak_evidence": 7,
+        "pending_review": 526,
+        "verified": 20
+      },
+      {
+        "node_id": "ai_compute_software",
+        "weak_evidence": 142,
+        "pending_review": 377,
+        "verified": 21
+      },
+      {
+        "node_id": "ai_compute_application",
+        "weak_evidence": 46,
+        "pending_review": 454,
+        "verified": 0
+      },
+      {
+        "node_id": "advanced_manufacturing_complete_machine",
+        "weak_evidence": 24,
+        "pending_review": 467,
+        "verified": 51
+      },
+      {
+        "node_id": "chain_semiconductor",
+        "weak_evidence": 488,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "chain_ai_compute",
+        "weak_evidence": 467,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "chain_innovative_drug",
+        "weak_evidence": 458,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "new_energy_vehicle_parts",
+        "weak_evidence": 0,
+        "pending_review": 430,
+        "verified": 113
+      },
+      {
+        "node_id": "chain_robotics",
+        "weak_evidence": 416,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "consumer_upgrade_brand",
+        "weak_evidence": 18,
+        "pending_review": 398,
+        "verified": 54
+      },
+      {
+        "node_id": "chain_cyclical_resources",
+        "weak_evidence": 386,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "advanced_manufacturing_core_parts",
+        "weak_evidence": 0,
+        "pending_review": 366,
+        "verified": 27
+      },
+      {
+        "node_id": "new_energy_photovoltaic",
+        "weak_evidence": 0,
+        "pending_review": 359,
+        "verified": 52
+      },
+      {
+        "node_id": "defense_components",
+        "weak_evidence": 0,
+        "pending_review": 341,
+        "verified": 2
+      },
+      {
+        "node_id": "chain_new_energy",
+        "weak_evidence": 336,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "chain_consumer_upgrade",
+        "weak_evidence": 330,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "robotics_core_parts",
+        "weak_evidence": 0,
+        "pending_review": 327,
+        "verified": 12
+      },
+      {
+        "node_id": "defense_subsystem",
+        "weak_evidence": 13,
+        "pending_review": 309,
+        "verified": 8
+      },
+      {
+        "node_id": "new_energy_vehicle_battery",
+        "weak_evidence": 0,
+        "pending_review": 277,
+        "verified": 5
+      },
+      {
+        "node_id": "chain_advanced_manufacturing",
+        "weak_evidence": 272,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "chain_new_energy_vehicle",
+        "weak_evidence": 260,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "robotics_complete_machine",
+        "weak_evidence": 4,
+        "pending_review": 242,
+        "verified": 12
+      },
+      {
+        "node_id": "semiconductor_design",
+        "weak_evidence": 0,
+        "pending_review": 239,
+        "verified": 105
+      },
+      {
+        "node_id": "innovative_drug_innovative_drug",
+        "weak_evidence": 0,
+        "pending_review": 233,
+        "verified": 137
+      },
+      {
+        "node_id": "semiconductor_equipment",
+        "weak_evidence": 0,
+        "pending_review": 225,
+        "verified": 22
+      }
+    ],
+    "suspicious_samples": [
+      {
+        "code": "000017",
+        "node_id": "consumer_upgrade_channel",
+        "chain_id": "consumer_upgrade",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "电商"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000021",
+        "node_id": "semiconductor_packaging_test",
+        "chain_id": "semiconductor",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "封装测试"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000026",
+        "node_id": "consumer_upgrade_channel",
+        "chain_id": "consumer_upgrade",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "零售",
+          "连锁"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000030",
+        "node_id": "new_energy_vehicle_vehicle",
+        "chain_id": "new_energy_vehicle",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "整车",
+          "乘用车",
+          "商用车"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000049",
+        "node_id": "new_energy_battery",
+        "chain_id": "new_energy",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "锂电池",
+          "动力电池",
+          "储能",
+          "电芯"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000153",
+        "node_id": "innovative_drug_api",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "原料药"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000338",
+        "node_id": "new_energy_vehicle_parts",
+        "chain_id": "new_energy_vehicle",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "零部件"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000338",
+        "node_id": "new_energy_vehicle_vehicle",
+        "chain_id": "new_energy_vehicle",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "整车",
+          "商用车"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000400",
+        "node_id": "new_energy_battery",
+        "chain_id": "new_energy",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "储能"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000403",
+        "node_id": "innovative_drug_innovative_drug",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "疫苗"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000420",
+        "node_id": "cyclical_resources_processing",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "制品"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000423",
+        "node_id": "innovative_drug_innovative_drug",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "生物药"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000504",
+        "node_id": "innovative_drug_innovative_drug",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "抗体"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000518",
+        "node_id": "innovative_drug_innovative_drug",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "制剂",
+          "药品"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000519",
+        "node_id": "robotics_integration",
+        "chain_id": "robotics",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "产线"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000521",
+        "node_id": "consumer_upgrade_channel",
+        "chain_id": "consumer_upgrade",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "电商"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000533",
+        "node_id": "new_energy_photovoltaic",
+        "chain_id": "new_energy",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "光伏"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000566",
+        "node_id": "innovative_drug_innovative_drug",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "创新药",
+          "生物药",
+          "制剂"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000581",
+        "node_id": "new_energy_vehicle_parts",
+        "chain_id": "new_energy_vehicle",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "零部件"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000590",
+        "node_id": "innovative_drug_api",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "原料药"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000629",
+        "node_id": "cyclical_resources_processing",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "制品"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000629",
+        "node_id": "cyclical_resources_resources",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "资源"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000635",
+        "node_id": "cyclical_resources_resources",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "资源"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000657",
+        "node_id": "cyclical_resources_resources",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "矿山"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000678",
+        "node_id": "new_energy_vehicle_vehicle",
+        "chain_id": "new_energy_vehicle",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "汽车制造"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000683",
+        "node_id": "cyclical_resources_resources",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "资源"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000691",
+        "node_id": "cyclical_resources_processing",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "制品",
+          "制造"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000697",
+        "node_id": "defense_materials",
+        "chain_id": "defense",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "高温合金",
+          "高温"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000697",
+        "node_id": "defense_subsystem",
+        "chain_id": "defense",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "发动机",
+          "航空发动机",
+          "系统"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000715",
+        "node_id": "consumer_upgrade_channel",
+        "chain_id": "consumer_upgrade",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "零售"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000725",
+        "node_id": "semiconductor_design",
+        "chain_id": "semiconductor",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "传感器"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000739",
+        "node_id": "innovative_drug_api",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "原料药",
+          "中间体"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000739",
+        "node_id": "innovative_drug_innovative_drug",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "制剂",
+          "药品"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000762",
+        "node_id": "cyclical_resources_processing",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "加工",
+          "深加工"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000766",
+        "node_id": "innovative_drug_api",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "原料药"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000809",
+        "node_id": "new_energy_photovoltaic",
+        "chain_id": "new_energy",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "光伏"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000813",
+        "node_id": "innovative_drug_innovative_drug",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "药品"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000831",
+        "node_id": "cyclical_resources_processing",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "加工",
+          "深加工"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000856",
+        "node_id": "robotics_integration",
+        "chain_id": "robotics",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "自动化",
+          "产线"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000895",
+        "node_id": "consumer_upgrade_channel",
+        "chain_id": "consumer_upgrade",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "连锁",
+          "超市"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000915",
+        "node_id": "innovative_drug_innovative_drug",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "药品"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000925",
+        "node_id": "defense_subsystem",
+        "chain_id": "defense",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "机电"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000931",
+        "node_id": "innovative_drug_api",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "原料药"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000931",
+        "node_id": "innovative_drug_innovative_drug",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "制剂",
+          "药品"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000938",
+        "node_id": "ai_compute_hardware",
+        "chain_id": "ai_compute",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "服务器",
+          "硬件"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000963",
+        "node_id": "innovative_drug_innovative_drug",
+        "chain_id": "innovative_drug",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "药品"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000970",
+        "node_id": "cyclical_resources_smelting",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "熔炼"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000977",
+        "node_id": "ai_compute_software",
+        "chain_id": "ai_compute",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "软件",
+          "云服务",
+          "平台"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "001207",
+        "node_id": "cyclical_resources_processing",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "制品",
+          "制造"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "001207",
+        "node_id": "cyclical_resources_resources",
+        "chain_id": "cyclical_resources",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "资源"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      }
+    ],
+    "review_queue_count": 14537
+  },
+  "empty_nodes": [],
+  "top_mappings": [
+    {
+      "code": "000030",
+      "node_id": "new_energy_vehicle_parts",
+      "chain_id": "new_energy_vehicle",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000034",
+      "node_id": "ai_compute_software",
+      "chain_id": "ai_compute",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000153",
+      "node_id": "innovative_drug_innovative_drug",
+      "chain_id": "innovative_drug",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000157",
+      "node_id": "advanced_manufacturing_complete_machine",
+      "chain_id": "advanced_manufacturing",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000333",
+      "node_id": "consumer_upgrade_brand",
+      "chain_id": "consumer_upgrade",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000417",
+      "node_id": "consumer_upgrade_channel",
+      "chain_id": "consumer_upgrade",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000419",
+      "node_id": "consumer_upgrade_channel",
+      "chain_id": "consumer_upgrade",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000425",
+      "node_id": "advanced_manufacturing_complete_machine",
+      "chain_id": "advanced_manufacturing",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000501",
+      "node_id": "consumer_upgrade_channel",
+      "chain_id": "consumer_upgrade",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000513",
+      "node_id": "innovative_drug_api",
+      "chain_id": "innovative_drug",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000513",
+      "node_id": "innovative_drug_innovative_drug",
+      "chain_id": "innovative_drug",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000528",
+      "node_id": "advanced_manufacturing_complete_machine",
+      "chain_id": "advanced_manufacturing",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000530",
+      "node_id": "advanced_manufacturing_core_parts",
+      "chain_id": "advanced_manufacturing",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000534",
+      "node_id": "innovative_drug_innovative_drug",
+      "chain_id": "innovative_drug",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000559",
+      "node_id": "new_energy_vehicle_parts",
+      "chain_id": "new_energy_vehicle",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000564",
+      "node_id": "consumer_upgrade_channel",
+      "chain_id": "consumer_upgrade",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000566",
+      "node_id": "innovative_drug_api",
+      "chain_id": "innovative_drug",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000589",
+      "node_id": "new_energy_vehicle_parts",
+      "chain_id": "new_energy_vehicle",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000590",
+      "node_id": "innovative_drug_innovative_drug",
+      "chain_id": "innovative_drug",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
+      "code": "000597",
+      "node_id": "innovative_drug_api",
+      "chain_id": "innovative_drug",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    }
+  ],
+  "persist_counts": {
+    "nodes": 44,
+    "chain_nodes": 44,
+    "edges": 58,
+    "company_bom_mapping": 15606,
+    "company_chain_mapping": 15606
+  },
+  "dry_run": false,
+  "persisted": true,
+  "min_confidence": 0.3
+}

@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 智能选股 — 因子分析</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;height:100vh;display:flex;flex-direction:column;z-index:40}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px 10px 4px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.nav-item.sub-active{color:var(--accent);font-weight:600}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(11,14,19,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:18px 20px 32px}
+
+.grid{display:grid;gap:14px}
+.row{display:grid;gap:14px}
+.r-7-5{grid-template-columns:7fr 5fr}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-h h3{font-size:13.5px;font-weight:650}
+.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
+.card-b{padding:16px}
+
+/* Segmented Control */
+.segmented{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);display:inline-flex;overflow:hidden}
+.seg{display:inline-flex;align-items:center;padding:6px 16px;font-size:12px;color:var(--fg-2);cursor:pointer;border-right:1px solid var(--border);transition:.12s;user-select:none;font-family:var(--font-sans)}
+.seg:last-child{border-right:none}
+.seg:hover{background:var(--elevated);color:var(--fg)}
+.seg.active{background:var(--accent-dim);color:var(--accent);font-weight:600}
+
+/* Chart containers */
+.chart-box{height:340px}
+.chart-box-lg{height:380px}
+
+/* Tables */
+.data-table{width:100%;border-collapse:collapse;font-size:11.5px}
+.data-table th{padding:7px 12px;background:var(--surface-2);color:var(--muted);font-weight:600;font-size:10px;text-align:left;border-bottom:1px solid var(--border)}
+.data-table td{padding:5px 12px;border-bottom:1px solid var(--border);font-family:var(--font-mono);white-space:nowrap}
+.data-table tr:hover td{background:var(--elevated)}
+.data-table td.pos{color:var(--up)}
+.data-table td.neg{color:var(--down)}
+.data-table td.neu{color:var(--accent)}
+.data-table tr.hl td{background:var(--accent-dim);font-weight:650;border-top:2px solid var(--accent)}
+
+.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+/* Industry exposure tags */
+.exp-tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-family:var(--font-mono)}
+.exp-tag.high{background:var(--up-bg);color:var(--up)}
+.exp-tag.low{background:var(--down-bg);color:var(--down)}
+.exp-tag.mid{background:var(--warn-bg);color:var(--warn)}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="screener" data-title="智能选股 — 因子分析">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">操盘手/投资者</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共模型 + 私有筛选</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">不直接下单</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<!-- ===== 使用引导条 ===== -->
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;font-size:11px;color:var(--fg-2)">
+            <span style="color:var(--accent);font-weight:600">💡 怎么用:</span>
+            <span>1. 选模型+时间窗口</span>
+            <span style="color:var(--muted)">→</span>
+            <span>2. 看IC柱状图找有效因子(ICIR>1.0)</span>
+            <span style="color:var(--muted)">→</span>
+            <span>3. 看热力图去冗余(相关性>0.7合并)</span>
+            <span style="color:var(--muted)">→</span>
+            <span>4. 看分层验证区分度(多空spread>5%)</span>
+            <span style="color:var(--muted)">→</span>
+            <span>5. 回到模型管理调权重</span>
+          </div>
+      
+          <!-- Row 1: IC Bar Chart (left) + ICIR Stats (right) -->
+          <div class="row r-7-5" style="margin-bottom:14px">
+      
+            <!-- IC Bar Chart -->
+            <div class="card">
+              <div class="card-h"><h3>📊 因子 IC 分析</h3><span class="meta">T+1 未来收益 · 近30天</span></div>
+              <div class="card-b" style="padding:8px 12px">
+                <div id="ic-bar-chart" class="chart-box"></div>
+              </div>
+            </div>
+      
+            <!-- ICIR Stats Table -->
+            <div class="card">
+              <div class="card-h"><h3>📋 IC / ICIR 统计</h3><span class="meta">按 |ICIR| 降序</span></div>
+              <div style="overflow-x:auto">
+              <table class="data-table">
+                <thead>
+                  <tr><th>因子</th><th>IC 均值</th><th>IC 标准差</th><th>ICIR</th><th>t-stat</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>OBV趋势强度</td><td class="pos">+0.045</td><td>0.12</td><td class="neu">0.375</td><td class="pos">2.85</td></tr>
+                  <tr><td>量比(20日)</td><td class="pos">+0.038</td><td>0.10</td><td class="neu">0.380</td><td class="pos">3.12</td></tr>
+                  <tr><td>ROE</td><td class="pos">+0.018</td><td>0.06</td><td class="neu">0.300</td><td class="pos">2.45</td></tr>
+                  <tr><td>动量因子</td><td class="pos">+0.025</td><td>0.09</td><td class="neu">0.278</td><td class="pos">2.10</td></tr>
+                  <tr><td>封单率</td><td class="pos">+0.012</td><td>0.08</td><td class="neu">0.150</td><td>1.15</td></tr>
+                  <tr><td>波动率(60d)</td><td class="neg">-0.008</td><td>0.15</td><td class="neg">-0.053</td><td>-0.42</td></tr>
+                  <tr><td>WR超卖程度</td><td class="neg">-0.015</td><td>0.14</td><td class="neg">-0.107</td><td class="neg">-1.12</td></tr>
+                  <tr><td>PE_TTM</td><td class="neg">-0.028</td><td>0.11</td><td class="neg">-0.255</td><td class="neg">-1.98</td></tr>
+                </tbody>
+              </table>
+              </div>
+            </div>
+          </div>
+      
+          <!-- Row 2: Heatmap (left) + Decile Return (right) -->
+          <div class="row r-7-5" style="margin-bottom:14px">
+      
+            <!-- Correlation Heatmap -->
+            <div class="card">
+              <div class="card-h"><h3>🔥 因子相关性矩阵</h3><span class="meta">6×6 核心因子</span></div>
+              <div class="card-b" style="padding:8px 12px">
+                <div id="correlation-heatmap" class="chart-box-lg"></div>
+              </div>
+            </div>
+      
+            <!-- Decile Return Table -->
+            <div class="card">
+              <div class="card-h"><h3>📈 因子收益率分层</h3><span class="meta">选中因子: OBV趋势强度</span></div>
+              <div style="overflow-x:auto">
+              <table class="data-table">
+                <thead>
+                  <tr><th>分层</th><th>说明</th><th>累计收益</th><th>日均收益</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><b>D10</b></td><td>最高 OBV</td><td class="pos">+7.8%</td><td class="pos">+0.31%</td></tr>
+                  <tr><td>D9</td><td></td><td class="pos">+5.8%</td><td class="pos">+0.23%</td></tr>
+                  <tr><td>D8</td><td></td><td class="pos">+4.5%</td><td class="pos">+0.18%</td></tr>
+                  <tr><td>D7</td><td></td><td class="pos">+3.1%</td><td class="pos">+0.12%</td></tr>
+                  <tr><td>D6</td><td></td><td class="pos">+2.2%</td><td class="pos">+0.09%</td></tr>
+                  <tr><td>D5</td><td></td><td class="pos">+1.5%</td><td class="pos">+0.06%</td></tr>
+                  <tr><td>D4</td><td></td><td class="pos">+0.8%</td><td class="pos">+0.03%</td></tr>
+                  <tr><td>D3</td><td></td><td class="neg">-0.5%</td><td class="neg">-0.02%</td></tr>
+                  <tr><td>D2</td><td></td><td class="neg">-1.8%</td><td class="neg">-0.07%</td></tr>
+                  <tr><td><b>D1</b></td><td>最低 OBV</td><td class="neg">-3.2%</td><td class="neg">-0.12%</td></tr>
+                  <tr class="hl"><td colspan="2"><b>多-空对冲</b></td><td class="neu"><b>+11.0%</b></td><td>—</td></tr>
+                </tbody>
+              </table>
+              </div>
+            </div>
+          </div>
+      
+          <!-- Row 3: Industry Exposure -->
+          <div class="card">
+            <div class="card-h"><h3>🏭 行业因子暴露</h3><span class="meta">选中因子: OBV趋势强度 · 近30天均值</span></div>
+            <div style="overflow-x:auto">
+            <table class="data-table">
+              <thead>
+                <tr><th>行业板块</th><th>OBV均值</th><th>暴露程度</th><th>股票数</th><th>说明</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>半导体</td><td class="pos">+0.65</td><td><span class="exp-tag high">偏高</span></td><td>42</td><td>OBV趋势显著强于全市场</td></tr>
+                <tr><td>新能源</td><td class="pos">+0.42</td><td><span class="exp-tag high">偏高</span></td><td>35</td><td></td></tr>
+                <tr><td>AI算力</td><td class="pos">+0.38</td><td><span class="exp-tag high">偏高</span></td><td>28</td><td></td></tr>
+                <tr><td>消费电子</td><td class="pos">+0.15</td><td><span class="exp-tag mid">中性</span></td><td>31</td><td></td></tr>
+                <tr><td>汽车</td><td class="pos">+0.08</td><td><span class="exp-tag mid">中性</span></td><td>45</td><td></td></tr>
+                <tr><td>白酒</td><td class="neg">-0.15</td><td><span class="exp-tag mid">中性</span></td><td>18</td><td></td></tr>
+                <tr><td>医药</td><td class="neg">-0.28</td><td><span class="exp-tag low">偏低</span></td><td>52</td><td></td></tr>
+                <tr><td>房地产</td><td class="neg">-0.52</td><td><span class="exp-tag low">偏低</span></td><td>38</td><td>OBV趋势显著弱于全市场</td></tr>
+              </tbody>
+            </table>
+            </div>
+          </div>
+      
+          <div class="footer-bar">
+            <span>智能选股 · 因子分析 | 盘后 15:42</span>
+            <span class="sep"></span>
+            <span>数据来源: screener-service GET /factors/* | 计算周期: T+1 未来收益</span>
+            <span class="sep"></span>
+            <span>ICIR = IC均值/IC标准差 | |t-stat| ≥ 2 视为显著</span>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+(function() {
+
+// ===== IC Bar Chart =====
+var icFactors = [
+  { name: 'OBV趋势强度', ic: 0.045 },
+  { name: '量比(20日)', ic: 0.038 },
+  { name: '动量因子', ic: 0.025 },
+  { name: 'ROE', ic: 0.018 },
+  { name: '封单率', ic: 0.012 },
+  { name: '波动率(60d)', ic: -0.008 },
+  { name: 'WR超卖程度', ic: -0.015 },
+  { name: 'PE_TTM', ic: -0.028 }
+];
+icFactors.sort(function(a, b) { return Math.abs(b.ic) - Math.abs(a.ic); });
+
+var icDom = document.getElementById('ic-bar-chart');
+var icChart = echarts.init(icDom, 'dark');
+
+icChart.setOption({
+  grid: { left: 130, right: 70, top: 10, bottom: 20 },
+  yAxis: {
+    type: 'category',
+    data: icFactors.map(function(d) { return d.name; }),
+    axisLabel: { fontSize: 11, color: '#9aa7b8' },
+    axisLine: { lineStyle: { color: '#1f2733' } },
+    inverse: true
+  },
+  xAxis: {
+    type: 'value',
+    name: 'IC Mean',
+    axisLabel: { fontSize: 10, color: '#5e6a7d' },
+    splitLine: { lineStyle: { color: '#1f2733' } }
+  },
+  series: [{
+    type: 'bar',
+    data: icFactors.map(function(d) { return d.ic; }),
+    barWidth: '60%',
+    itemStyle: {
+      color: function(params) {
+        return params.value >= 0 ? '#ff4d4f' : '#2ec27e';
+      }
+    },
+    label: {
+      show: true,
+      position: 'right',
+      formatter: function(p) { return p.value >= 0 ? '+' + (p.value).toFixed(3) : (p.value).toFixed(3); },
+      fontSize: 10,
+      fontFamily: '"SF Mono","JetBrains Mono",monospace',
+      color: '#9aa7b8'
+    },
+    emphasis: { itemStyle: { color: '#3d8bff' } }
+  }],
+  tooltip: {
+    trigger: 'axis',
+    formatter: function(params) {
+      return params[0].name + '<br/>IC Mean: ' + (params[0].value).toFixed(4);
+    }
+  },
+  backgroundColor: 'transparent'
+});
+
+// ===== Correlation Heatmap =====
+var factors = ['OBV趋势', 'WR超卖', '量比', '动量', 'PE_TTM', 'ROE'];
+var matrix = [
+  [ 1.00, -0.35,  0.62,  0.28, -0.12,  0.08],
+  [-0.35,  1.00, -0.18, -0.05,  0.03, -0.22],
+  [ 0.62, -0.18,  1.00,  0.45, -0.08,  0.15],
+  [ 0.28, -0.05,  0.45,  1.00, -0.20,  0.10],
+  [-0.12,  0.03, -0.08, -0.20,  1.00,  0.55],
+  [ 0.08, -0.22,  0.15,  0.10,  0.55,  1.00]
+];
+
+var heatData = [];
+for (var i = 0; i < factors.length; i++) {
+  for (var j = 0; j < factors.length; j++) {
+    heatData.push([j, i, parseFloat(matrix[i][j].toFixed(2))]);
+  }
+}
+
+var heatDom = document.getElementById('correlation-heatmap');
+var heatChart = echarts.init(heatDom, 'dark');
+
+heatChart.setOption({
+  grid: { left: 100, right: 40, top: 5, bottom: 100 },
+  xAxis: {
+    type: 'category',
+    data: factors,
+    axisLabel: { fontSize: 10, color: '#9aa7b8', rotate: 45, interval: 0 },
+    position: 'top',
+    splitArea: { show: false }
+  },
+  yAxis: {
+    type: 'category',
+    data: factors,
+    axisLabel: { fontSize: 10, color: '#9aa7b8' },
+    inverse: true,
+    splitArea: { show: false }
+  },
+  visualMap: {
+    min: -1,
+    max: 1,
+    calculable: false,
+    orient: 'horizontal',
+    left: 'center',
+    bottom: 5,
+    itemWidth: 12,
+    itemHeight: 140,
+    inRange: { color: ['#2ec27e', '#11161f', '#ff4d4f'] },
+    textStyle: { color: '#9aa7b8', fontSize: 10 }
+  },
+  series: [{
+    type: 'heatmap',
+    data: heatData,
+    label: {
+      show: true,
+      fontSize: 10,
+      fontFamily: '"SF Mono","JetBrains Mono",monospace',
+      color: '#e8edf4',
+      formatter: function(p) { return (p.value[2]).toFixed(1); }
+    },
+    emphasis: {
+      itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' }
+    }
+  }],
+  tooltip: {
+    formatter: function(p) {
+      var x = p.value[0], y = p.value[1], v = p.value[2];
+      return factors[x] + ' &times; ' + factors[y] + '<br/>相关性: ' + v.toFixed(3);
+    }
+  },
+  backgroundColor: 'transparent'
+});
+
+// ===== Responsive resize =====
+window.addEventListener('resize', function() {
+  icChart.resize();
+  heatChart.resize();
+});
+
+})();
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

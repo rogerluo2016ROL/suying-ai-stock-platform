@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 数据更新 — 全部数据表</title>
+
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --orange:#e8953b; --orange-bg:rgba(232,149,59,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:18px 20px 32px}
+
+.page-head h1{font-size:21px;font-weight:700;margin-bottom:4px}
+.page-head .sub{font-size:12.5px;color:var(--muted);margin-bottom:14px}
+.role-badge{font-size:10px;padding:2px 10px;border-radius:10px;font-weight:600;flex-shrink:0;display:inline-block;margin-left:10px}
+.role-badge.admin{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(61,139,255,.25)}
+
+.pill-tabs{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;margin-bottom:14px}
+.pill-tab{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;background:transparent;border:none;font-family:var(--font-sans);transition:.12s;text-decoration:none;display:inline-block}
+.pill-tab:hover{color:var(--fg)}
+.pill-tab.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+.filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.filter-bar select{padding:5px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--fg-2);font-size:12px;font-family:var(--font-sans);cursor:pointer}
+.filter-bar input{padding:5px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-size:12px;font-family:var(--font-sans);width:180px}
+.filter-bar input::placeholder{color:var(--muted)}
+.sync-all-btn{margin-left:auto;padding:6px 18px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:.12s}
+.sync-all-btn:hover{background:#2d7ae0;border-color:#2d7ae0}
+
+.section-label{font-size:10.5px;color:var(--muted);font-weight:650;letter-spacing:.06em;padding:8px 0 4px}
+
+.dt-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:8px;position:relative;transition:all .12s}
+.dt-card:hover{background:var(--surface-2);border-color:var(--border-2)}
+.dt-card.syncing{border-color:var(--accent);background:var(--accent-dim)}
+.dtc-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.dtc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dtc-dot.fresh{background:var(--down)} .dtc-dot.stale{background:var(--warn)} .dtc-dot.error{background:var(--up);animation:blink 1s infinite}
+.dtc-name{font-size:13px;font-weight:650;color:var(--fg)}
+.dtc-tbl{font-family:var(--font-mono);font-size:10.5px;color:var(--muted)}
+.dtc-cat{font-size:9.5px;padding:1px 7px;border-radius:10px;font-weight:600;flex-shrink:0}
+.dtc-core{font-size:9px;padding:1px 5px;border-radius:3px;background:var(--accent-dim);color:var(--accent);font-weight:600}
+.dtc-menu{margin-left:auto;color:var(--muted);cursor:pointer;font-size:14px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+.cat-kline{background:var(--accent-dim);color:var(--accent)}
+.cat-fin{background:var(--up-bg);color:var(--up)}
+.cat-fund{background:var(--down-bg);color:var(--down)}
+.cat-ann{background:var(--warn-bg);color:var(--warn)}
+.cat-ind{background:rgba(114,46,209,.12);color:#b37feb}
+.cat-factor{background:var(--down-bg);color:var(--down)}
+.cat-aux{background:rgba(154,167,184,.12);color:var(--muted)}
+
+.dtc-meta{display:flex;gap:14px;font-size:11px;color:var(--fg-2);margin-bottom:8px;flex-wrap:wrap}
+.dtc-date{font-family:var(--font-mono);font-weight:650}
+.dtc-date.fresh{color:var(--down)} .dtc-date.stale{color:var(--warn)} .dtc-date.error{color:var(--up)}
+.dtc-rows{font-family:var(--font-mono)} .sep{width:1px;height:10px;background:var(--border);display:inline-block;vertical-align:middle;margin:0 4px}
+
+.fresh-bar{width:100%;height:3px;background:var(--surface-2);border-radius:2px;overflow:hidden;margin-bottom:8px}
+.fresh-fill{height:100%;border-radius:2px;transition:width .5s}
+.fresh-fill.fresh{background:var(--down);width:100%}
+.fresh-fill.stale{background:var(--warn);width:66%}
+.fresh-fill.error{background:var(--up);width:33%}
+
+.dtc-sync{font-size:10.5px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dtc-sync .ok{color:var(--down)} .dtc-sync .fail{color:var(--up)} .dtc-sync .warn-msg{color:var(--warn)}
+
+.dtc-actions{display:flex;gap:6px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap}
+.dtc-actions button{font-size:10.5px;padding:3px 12px;border-radius:4px;border:1px solid var(--border);background:var(--elevated);color:var(--fg-2);cursor:pointer;transition:.12s;font-family:var(--font-sans)}
+.dtc-actions button:hover{background:var(--surface);color:var(--fg)}
+.dtc-actions button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.dtc-actions button.primary:hover{background:#2d7ae0}
+.dtc-actions button.primary:disabled{background:var(--border-2);border-color:var(--border-2);color:var(--muted);cursor:not-allowed}
+.dtc-actions button.warn-btn{color:var(--warn);border-color:var(--warn)}
+.dtc-actions button.warn-btn:hover{background:var(--warn-bg)}
+
+.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{background:var(--down-bg);border:1px solid var(--down);color:var(--down)}
+.toast.info{background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent)}
+
+.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="data-update" data-title="数据更新 — 全部数据表">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="public">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">管理员/操盘摘要</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共数据质量</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">platform</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">不触达券商</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<div class="page-head">
+            <h1>⏱️ 数据更新 <span class="role-badge admin">管理员</span></h1>
+            <div class="sub">全部 42 张数据表 · 新鲜度监控 · 手动同步 · 管理员专属视图</div>
+          </div><!-- Filter -->
+          <div class="filter-bar">
+            <select><option>全部分类</option><option>日K行情</option><option>财务数据</option><option>资金流向</option><option>公告事件</option><option>行业分类</option><option>因子数据</option><option>辅助数据</option></select>
+            <select><option>全部新鲜度</option><option>今日已更新</option><option>T-1</option><option>T-2+</option><option>同步失败</option></select>
+            <input type="text" placeholder="搜索表名或中文名..."/>
+            <button class="sync-all-btn" onclick="triggerSyncAll()">🔄 全部同步</button>
+          </div>
+      
+          <!-- ===== 核心表 (18) ===== -->
+          <div class="section-label">核心表 (18)</div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot fresh"></span>
+              <span class="dtc-name">日K线行情</span>
+              <span class="dtc-tbl">daily_bars</span>
+              <span class="dtc-cat cat-kline">日K行情</span>
+              <span class="dtc-core">核心</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date fresh mono">2026-06-26</span><span class="sep"></span>
+              <span class="dtc-rows mono">3,245,680 行</span><span class="sep"></span>
+              <span>起始: 2015-01-05</span><span class="sep"></span>
+              <span>每日收盘后</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill fresh"></div></div>
+            <div class="dtc-sync"><span class="ok">✅ 上次: 06-26 16:15</span><span>+1,245 行</span><span class="mono" style="color:var(--muted)">12.3s</span><span style="color:var(--muted)">下次: 18:00</span></div>
+            <div class="dtc-actions">
+              <button class="primary" onclick="syncTable(this)">🔄 手动同步</button>
+              <button>📋 查看日志</button>
+              <button>⚙️ 频率</button>
+            </div>
+          </div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot fresh"></span>
+              <span class="dtc-name">复权因子</span>
+              <span class="dtc-tbl">daily_adj_factor</span>
+              <span class="dtc-cat cat-kline">日K行情</span>
+              <span class="dtc-core">核心</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date fresh mono">2026-06-26</span><span class="sep"></span>
+              <span class="dtc-rows mono">3,120,450 行</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill fresh"></div></div>
+            <div class="dtc-sync"><span class="ok">✅ 上次: 06-26 16:14</span><span>+32 行</span><span class="mono" style="color:var(--muted)">8.2s</span></div>
+            <div class="dtc-actions"><button class="primary" onclick="syncTable(this)">🔄 手动同步</button><button>📋 日志</button></div>
+          </div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot fresh"></span>
+              <span class="dtc-name">日K前复权</span>
+              <span class="dtc-tbl">daily_qfq</span>
+              <span class="dtc-cat cat-kline">日K行情</span>
+              <span class="dtc-core">核心</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date fresh mono">2026-06-26</span><span class="sep"></span>
+              <span class="dtc-rows mono">2,980,100 行</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill fresh"></div></div>
+            <div class="dtc-sync"><span class="ok">✅ 上次: 06-26 16:15</span><span>+1,180 行</span><span class="mono" style="color:var(--muted)">11.2s</span></div>
+            <div class="dtc-actions"><button class="primary" onclick="syncTable(this)">🔄 手动同步</button><button>📋 日志</button></div>
+          </div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot stale"></span>
+              <span class="dtc-name">财务基础信息</span>
+              <span class="dtc-tbl">fin_basic</span>
+              <span class="dtc-cat cat-fin">财务数据</span>
+              <span class="dtc-core">核心</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date stale mono">2026-06-25 (T-1)</span><span class="sep"></span>
+              <span class="dtc-rows mono">8,520 行</span><span class="sep"></span>
+              <span>每季更新</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill stale"></div></div>
+            <div class="dtc-sync"><span class="warn-msg">⚠️ 上次: 06-25 18:00</span><span style="color:var(--muted)">季度更新，T-1 正常</span></div>
+            <div class="dtc-actions"><button class="primary" onclick="syncTable(this)">🔄 手动同步</button><button>📋 日志</button></div>
+          </div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot fresh"></span>
+              <span class="dtc-name">资金流向</span>
+              <span class="dtc-tbl">money_flow</span>
+              <span class="dtc-cat cat-fund">资金流向</span>
+              <span class="dtc-core">核心</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date fresh mono">2026-06-26</span><span class="sep"></span>
+              <span class="dtc-rows mono">980,240 行</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill fresh"></div></div>
+            <div class="dtc-sync"><span class="ok">✅ 上次: 06-26 16:14</span><span>+2,840 行</span><span class="mono" style="color:var(--muted)">15.6s</span></div>
+            <div class="dtc-actions"><button class="primary" onclick="syncTable(this)">🔄 手动同步</button><button>📋 日志</button></div>
+          </div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot error"></span>
+              <span class="dtc-name">龙虎榜明细</span>
+              <span class="dtc-tbl">lhb_detail</span>
+              <span class="dtc-cat cat-ann">公告事件</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date error mono">2026-06-23 (T-3)</span><span class="sep"></span>
+              <span class="dtc-rows mono">45,200 行</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill error"></div></div>
+            <div class="dtc-sync"><span class="fail">❌ 上次: 06-23 失败</span><span class="fail">Tushare 限流 · 已重试 3 次</span></div>
+            <div class="dtc-actions">
+              <button class="warn-btn" onclick="syncTable(this)">🔄 重试同步</button>
+              <button>📋 查看日志</button>
+              <button style="color:var(--up);border-color:var(--up)">⏸️ 暂停</button>
+            </div>
+          </div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot fresh"></span>
+              <span class="dtc-name">因子数据-日频</span>
+              <span class="dtc-tbl">factors_daily</span>
+              <span class="dtc-cat cat-factor">因子数据</span>
+              <span class="dtc-core">核心</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date fresh mono">2026-06-26</span><span class="sep"></span>
+              <span class="dtc-rows mono">4,580,200 行</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill fresh"></div></div>
+            <div class="dtc-sync"><span class="ok">✅ 上次: 06-26 06:15</span><span>+125,800 行</span><span class="mono" style="color:var(--muted)">45.2s</span></div>
+            <div class="dtc-actions"><button class="primary" onclick="syncTable(this)">🔄 手动同步</button><button>📋 日志</button></div>
+          </div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot stale"></span>
+              <span class="dtc-name">利润表</span>
+              <span class="dtc-tbl">income_stmt</span>
+              <span class="dtc-cat cat-fin">财务数据</span>
+              <span class="dtc-core">核心</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date stale mono">2026-06-25 (T-1)</span><span class="sep"></span>
+              <span class="dtc-rows mono">5,200 行</span><span class="sep"></span>
+              <span>每季更新</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill stale"></div></div>
+            <div class="dtc-sync"><span class="ok">✅ 上次: 06-25 18:02</span><span style="color:var(--muted)">季度数据，T-1 正常</span></div>
+            <div class="dtc-actions"><button class="primary" onclick="syncTable(this)">🔄 手动同步</button><button>📋 日志</button></div>
+          </div>
+      
+          <!-- ===== 辅助表 (24) ===== -->
+          <div class="section-label" style="margin-top:8px">辅助表 (24) — 部分展示</div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot fresh"></span>
+              <span class="dtc-name">公告信息</span>
+              <span class="dtc-tbl">announcements</span>
+              <span class="dtc-cat cat-ann">公告事件</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date fresh mono">2026-06-26</span><span class="sep"></span>
+              <span class="dtc-rows mono">85,400 行</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill fresh"></div></div>
+            <div class="dtc-sync"><span class="ok">✅ 上次: 06-26 08:15</span><span>+340 行</span></div>
+            <div class="dtc-actions"><button class="primary" onclick="syncTable(this)">🔄 手动同步</button><button>📋 日志</button></div>
+          </div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot fresh"></span>
+              <span class="dtc-name">股票基本信息</span>
+              <span class="dtc-tbl">stk_basic</span>
+              <span class="dtc-cat cat-aux">辅助数据</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date fresh mono">2026-06-26</span><span class="sep"></span>
+              <span class="dtc-rows mono">5,852 行</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill fresh"></div></div>
+            <div class="dtc-sync"><span class="ok">✅ 上次: 06-26 04:00</span><span>+12 行</span></div>
+            <div class="dtc-actions"><button class="primary" onclick="syncTable(this)">🔄 手动同步</button><button>📋 日志</button></div>
+          </div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot fresh"></span>
+              <span class="dtc-name">指数成分权重</span>
+              <span class="dtc-tbl">index_weight</span>
+              <span class="dtc-cat cat-ind">行业分类</span>
+              <span class="dtc-core">核心</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date fresh mono">2026-06-26</span><span class="sep"></span>
+              <span class="dtc-rows mono">12,480 行</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill fresh"></div></div>
+            <div class="dtc-sync"><span class="ok">✅ 上次: 06-26 04:00</span><span>+85 行</span></div>
+            <div class="dtc-actions"><button class="primary" onclick="syncTable(this)">🔄 手动同步</button></div>
+          </div>
+      
+          <div class="dt-card">
+            <div class="dtc-head">
+              <span class="dtc-dot stale"></span>
+              <span class="dtc-name">融资融券明细</span>
+              <span class="dtc-tbl">margin_detail</span>
+              <span class="dtc-cat cat-fund">资金流向</span>
+              <span class="dtc-core">核心</span>
+              <span class="dtc-menu">⋮</span>
+            </div>
+            <div class="dtc-meta">
+              <span class="dtc-date stale mono">2026-06-25 (T-1)</span><span class="sep"></span>
+              <span class="dtc-rows mono">3,520,000 行</span><span class="sep"></span>
+              <span>T+1 数据</span>
+            </div>
+            <div class="fresh-bar"><div class="fresh-fill stale"></div></div>
+            <div class="dtc-sync"><span class="ok">✅ 上次: 06-26 08:30</span><span style="color:var(--muted)">T+1 数据源，正常延迟</span></div>
+            <div class="dtc-actions"><button class="primary" onclick="syncTable(this)">🔄 手动同步</button><button>📋 日志</button></div>
+          </div>
+      
+          <div class="footer-bar">
+            <span>42 表 · 18 核心 + 24 辅助</span><span class="sep"></span>
+            <span>38 正常 · 3 T-1 · 1 异常</span><span class="sep"></span>
+            <span style="color:var(--accent)">← 返回数据总览</span>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+function syncTable(btn) {
+  btn.disabled = true;
+  var orig = btn.textContent;
+  btn.textContent = '⏳ 同步中...';
+  var card = btn.closest('.dt-card');
+  card.classList.add('syncing');
+  setTimeout(function(){
+    btn.disabled = false;
+    btn.textContent = orig;
+    card.classList.remove('syncing');
+    showToast('同步完成 ✅ · +1,245 行 · 12.3s', 'success');
+  }, 1500);
+}
+
+function triggerSyncAll() {
+  if (confirm('确认触发全量同步？\n\n42 张表 · 7 个阶段 · 预计 3-5 分钟')) {
+    showToast('全量同步已触发 · 预计 4 分钟', 'info');
+  }
+}
+
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type || 'info') + ' show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

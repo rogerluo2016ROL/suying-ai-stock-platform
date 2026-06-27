@@ -419,6 +419,55 @@ Task #10 完成。chainApi 模块已实现，可被 Task #8 前端页面调用�
 
 ---
 
+## Task #3: Phase 3 前端筛选器组件 - CandidateFilterBar — 2026-06-24
+
+### 状态: 完成 — AC全绿
+
+**Skills used**: 无（纯 React 组件开发 + TypeScript 类型定义）
+
+**SIT 证据**
+
+```
+# TypeScript check
+cd frontend && npx tsc -b --noEmit 2>&1 | grep -E "CandidateFilterBar" || echo "No errors in CandidateFilterBar files"
+No errors in CandidateFilterBar files
+
+# Unit tests (新增 10 tests)
+cd frontend && npx vitest run src/__tests__/CandidateFilterBar.test.tsx
+ RUN  v4.1.8 /Users/rogerluo/程序目录/K线大模型/frontend
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  22:43:09
+   Duration  2.33s
+
+# Build verification
+cd frontend && npm run build
+ ✓ built in 3.68s
+```
+
+**AC验收**
+- [x] AC-1: Select组件支持filter选项（high_growth/high_profit/high_moat/chokepoint_core/all）— `CandidateFilterBar.tsx:27-55` FILTER_OPTIONS + Select 组件
+- [x] AC-2: Select组件支持resonance_level选项（强启动/启动/关注/观察）— `CandidateFilterBar.tsx:57-82` RESONANCE_OPTIONS + Select 组件
+- [x] AC-3: 状态变化触发chainApi.getCandidates调用 — `CandidateFilterBar.tsx:150-173` fetchCandidates + useEffect 监听 filter/resonanceLevel 变化
+- [x] AC-4: TypeScript类型定义完整 — `client.ts:396-455`（ChainCandidateFilter/ResonanceLevel/ThreeFactorScores/ChainCandidate/FilterSummary/ResonanceSummary/ChainCandidatesResponse）
+
+**质量门**
+- [x] TypeScript: `npx tsc -b --noEmit` → CandidateFilterBar 相关文件 0 errors
+- [x] vitest: 新增 10 tests 全绿
+- [x] lint: 以 tsc为准
+- [x] dev server / build: `npm run build` → 成功
+
+**实际改动文件**
+- `frontend/src/api/client.ts` (扩展 getCandidates API + 8 个 TypeScript 类型定义)
+- `frontend/src/pages/supply-chain-bom/CandidateFilterBar.tsx` (新建组件 243 行)
+- `frontend/src/__tests__/CandidateFilterBar.test.tsx` (新建测试 10 个)
+
+**下一步**
+
+Task #3 完成。CandidateFilterBar 组件已实现，可被 Task #5 前端候选分析页面集成使用。
+
+---
+
 ## 智能看板二级页签与状态收尾 — 2026-06-26
 
 ### 状态: 完成 — 测试与浏览器验收通过

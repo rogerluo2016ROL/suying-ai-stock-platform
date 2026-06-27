@@ -14,8 +14,18 @@ from typing import Optional
 
 from kronos_factors.base import StrategyEngine, ScreeningResult
 from kronos_factors.engine.supply_chain_bom import score_company_v4
+from kronos_factors.engine.supply_chain_foundation import CHAIN_IDS
 
 logger = logging.getLogger("kronos-factors.supply_chain")
+
+MAPPING_QUALITY_WEIGHTS = {
+    "verified": 1.00,
+    "approved": 1.00,
+    "pending_review": 0.95,
+    "weak_evidence": 0.85,
+    "fallback_keyword": 0.75,
+    "rejected": 0.00,
+}
 
 _BUILTIN_CHAINS = {
     "半导体": {"industries": ["半导体", "元器件"], "layers": ["材料", "设备", "制造", "封测", "设计"]},
@@ -71,6 +81,50 @@ RATING_MAP = {"买入": 5, "增持": 4, "推荐": 4, "强烈推荐": 5, "跑赢�
 # 注: research_reports_tushare.rating 列当前全空 (etl 采集缺陷, Tushare research_report() 不返回评级).
 # RATING_MAP deprecated — rating 维度改用「研报覆盖广度同业分位数」复活 (见 _compute_rating_dimension),
 # 与 consensus(broker_recommend 绝对券商数) 正交, 避免重复计数.
+
+
+def _merge_mapping_context(pick: dict, mapping_context: dict[str, dict]) -> dict:
+    enriched = dict(pick)
+    contexts = [
+        c for c in (mapping_context.get(str(pick.get("code") or "")) or [])
+        if c.get("mapping_status") != "rejected"
+    ]
+    expected_chain_id = CHAIN_IDS.get(str(pick.get("chain") or ""))
+    context = None
+    if expected_chain_id:
+        matching = [c for c in contexts if c.get("chain_id") == expected_chain_id]
+        if matching:
+            context = max(matching, key=lambda c: float(c.get("mapping_confidence") or 0))
+    if context is None and contexts:
+        context = max(contexts, key=lambda c: float(c.get("mapping_confidence") or 0))
+    if not context:
+        enriched.setdefault("mapping_source", "fallback_keyword")
+        enriched.setdefault("mapping_status", "weak_evidence")
+        enriched.setdefault("evidence_gaps", ["缺少公司到产业链节点的正式映射"])
+        weight = MAPPING_QUALITY_WEIGHTS["fallback_keyword"]
+        enriched["mapping_quality_weight"] = weight
+        enriched["mapping_adjusted_score"] = round(float(enriched.get("total_score") or 0) * weight, 2)
+        return enriched
+    enriched.update({
+        "node_id": context.get("node_id"),
+        "node_name": context.get("node_name"),
+        "mapping_confidence": context.get("mapping_confidence"),
+        "mapping_status": context.get("mapping_status"),
+        "mapping_source": context.get("mapping_source"),
+        "evidence_gaps": context.get("evidence_gaps") or [],
+    })
+    weight = MAPPING_QUALITY_WEIGHTS.get(str(enriched.get("mapping_status") or ""), 0.90)
+    enriched["mapping_quality_weight"] = weight
+    enriched["mapping_adjusted_score"] = round(float(enriched.get("total_score") or 0) * weight, 2)
+    return enriched
+
+
+def _chain_id_from_node_id(node_id: str | None) -> str:
+    text = str(node_id or "")
+    for chain_id in sorted(CHAIN_IDS.values(), key=len, reverse=True):
+        if text == f"chain_{chain_id}" or text.startswith(f"{chain_id}_"):
+            return chain_id
+    return ""
 
 
 # ── 产业链配置加载 (P3): 优先 configs/supply_chains.json, 失败/缺失 fallback 内置默认 ──
@@ -191,6 +245,7 @@ class SupplyChainEngine(StrategyEngine):
         t0 = time.time()
 
         fin, broker, reports, report_counts, peers, main_business = {}, {}, {}, {}, {}, {}
+        mapping_context = {}
         try:
             import psycopg2
             pg = psycopg2.connect(os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos"), connect_timeout=5)
@@ -251,6 +306,29 @@ class SupplyChainEngine(StrategyEngine):
             cur.execute("SELECT industry, COUNT(*) FROM stocks WHERE is_st=0 GROUP BY industry")
             for r in cur.fetchall():
                 peers[r[0]] = r[1]
+            try:
+                cur.execute("""
+                    SELECT c.code, c.node_id, n.node_name,
+                           b.confidence, b.status, c.evidence
+                    FROM company_chain_mapping c
+                    LEFT JOIN company_bom_mapping b ON b.code = c.code AND b.node_id = c.node_id
+                    LEFT JOIN chain_nodes n ON n.node_id = c.node_id
+                """)
+                for code, node_id, node_name, confidence, status, evidence in cur.fetchall():
+                    evidence = evidence or {}
+                    conf = float(confidence or evidence.get("confidence") or 0)
+                    item = {
+                        "node_id": node_id,
+                        "node_name": node_name,
+                        "chain_id": evidence.get("chain_id") or _chain_id_from_node_id(node_id),
+                        "mapping_confidence": conf,
+                        "mapping_status": status or evidence.get("status") or "pending_review",
+                        "mapping_source": evidence.get("mapping_source") or "company_chain_mapping",
+                        "evidence_gaps": evidence.get("evidence_gaps") or [],
+                    }
+                    mapping_context.setdefault(str(code), []).append(item)
+            except Exception as e:
+                logger.warning("供应链映射上下文加载失败: %s", e)
             pg.close()
         except Exception as e:
             logger.warning("PG: %s", e)
@@ -355,7 +433,8 @@ class SupplyChainEngine(StrategyEngine):
             if p["code"] not in seen:
                 seen[p["code"]] = p
         picks = [score_company_v4(p) for p in seen.values()]
-        picks = sorted(picks, key=lambda x: -x["total_score"])[:top_n]
+        picks = [_merge_mapping_context(p, mapping_context) for p in picks]
+        picks = sorted(picks, key=lambda x: -float(x.get("mapping_adjusted_score") or x["total_score"]))[:top_n]
         elapsed = time.time() - t0
         logger.info("产业链解构V4: %d picks, %d chains (%.1fs, trade_date=%s)",
                     len(picks), len(set(p["chain"] for p in picks)), elapsed, trade_date)

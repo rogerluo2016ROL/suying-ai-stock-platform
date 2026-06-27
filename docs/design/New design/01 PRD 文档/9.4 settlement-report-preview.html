@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 结算报告</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:16px 20px 28px}
+
+/* Pill Tabs */
+.pill-tabs{display:flex;gap:2px;background:var(--surface-2);border-radius:10px;padding:4px;margin-bottom:16px;width:fit-content}
+.pill-tab{padding:8px 18px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);white-space:nowrap}
+.pill-tab:hover{color:var(--fg)}
+.pill-tab.active{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+/* Report Header */
+.report-h{display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.report-h select{padding:8px 12px;padding-right:28px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font-sans);font-size:13.5px;font-weight:600;cursor:pointer;outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235e6a7d'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;transition:.12s}
+.report-h select:focus{border-color:var(--accent)}
+.report-h select:hover{border-color:var(--border-2)}
+.settlement-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 14px;border-radius:14px;background:rgba(94,106,125,0.10);border:1px solid rgba(94,106,125,0.20);color:#5e6a7d;font-size:11.5px;font-weight:600}
+
+/* Time Filter */
+.time-filter{display:flex;gap:6px;margin-bottom:16px}
+.time-chip{padding:5px 16px;border-radius:16px;border:1px solid var(--border);background:var(--surface);color:var(--fg-2);font-size:12px;cursor:pointer;transition:.12s;font-family:var(--font-sans)}
+.time-chip:hover{background:var(--surface-2);color:var(--fg)}
+.time-chip.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+
+/* Summary Cards */
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.summary-card .sc-label{font-size:10.5px;color:var(--muted);margin-bottom:4px}
+.summary-card .sc-value{font-size:20px;font-weight:720;font-family:var(--font-mono)}
+.summary-card .sc-sub{font-size:10.5px;color:var(--fg-2);margin-top:2px}
+
+/* Chart */
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+.chart-card .cc-h{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:650;color:var(--fg-2)}
+.chart-card .cc-body{padding:8px 0}
+.cc{width:100%;height:340px}
+
+/* Stock Detail Table */
+.detail-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+.detail-card .dc-h{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:650;color:var(--fg-2)}
+.detail-table{width:100%;border-collapse:collapse}
+.detail-table th{text-align:left;padding:7px 10px;font-size:10px;color:var(--muted);font-weight:600;border-bottom:2px solid var(--border);background:var(--surface-2)}
+.detail-table th.num{text-align:right}
+.detail-table td{padding:8px 10px;font-size:11.5px;border-bottom:1px solid var(--border)}
+.detail-table td.num{text-align:right;font-family:var(--font-mono)}
+.detail-table tr:hover td{background:var(--surface-2)}
+.detail-table .dt-code{font-family:var(--font-mono);font-weight:650;color:var(--accent)}
+.detail-table .dt-name{color:var(--fg)}
+.detail-table .dt-dir{font-weight:600}
+.detail-table .dt-dir.buy{color:var(--up)}
+.detail-table .dt-dir.sell{color:var(--down)}
+.detail-table .dt-pnl{font-weight:700;font-family:var(--font-mono)}
+.detail-table .dt-pnl.pos{color:var(--up)}
+.detail-table .dt-pnl.neg{color:var(--down)}
+.detail-table .dt-ret{font-family:var(--font-mono);font-weight:600}
+
+/* Footer */
+.footer-bar{display:flex;align-items:center;gap:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+
+@media(max-width:1100px){.summary-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.summary-grid{grid-template-columns:1fr}}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="plans" data-title="结算报告">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">操盘手</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">私有 Plan + 公共证据</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user/account?</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">启动前绑定账户</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<!-- Report Header: Plan Selector + Settlement Badge -->
+          <div class="report-h">
+            <select id="planSelect" onchange="switchReport()">
+              <option value="feiye-A" selected>FS-20260625-01A 匪爷短线-日常 A · 已结算 06-25</option>
+              <option value="feiye-B">FS-20260624-01A 匪爷短线-日常 B · 已结算 06-24</option>
+              <option value="dragon-C">LT-20260623-01A 龙头战法-周线 C · 已结算 06-23</option>
+              <option value="bishi-D">BS-20260620-01A 毕师傅趋势-月线 D · 已结算 06-20</option>
+            </select>
+            <span class="settlement-badge" id="settleBadge">FS-20260625-01A · 已结算 06-25</span>
+          </div>
+      
+          <!-- Time Filter -->
+          <div class="time-filter" id="timeFilter">
+            <button class="time-chip" onclick="setTimeFilter('week', this)">本周</button>
+            <button class="time-chip" onclick="setTimeFilter('month', this)">本月</button>
+            <button class="time-chip active" onclick="setTimeFilter('all', this)">全部</button>
+          </div>
+      
+          <!-- Summary Cards -->
+          <div class="summary-grid" id="summaryGrid">
+            <div class="summary-card">
+              <div class="sc-label">💰 总盈亏</div>
+              <div class="sc-value up">+12,580</div>
+              <div class="sc-sub">收益率 +3.2%</div>
+            </div>
+            <div class="summary-card">
+              <div class="sc-label">📈 胜率</div>
+              <div class="sc-value" style="color:var(--fg)">80%</div>
+              <div class="sc-sub">盈利 4 / 总计 5 只</div>
+            </div>
+            <div class="summary-card">
+              <div class="sc-label">📉 最大回撤</div>
+              <div class="sc-value warn">-2.1%</div>
+              <div class="sc-sub">持仓期间最大亏损幅度</div>
+            </div>
+            <div class="summary-card">
+              <div class="sc-label">📅 持仓天数</div>
+              <div class="sc-value" style="color:var(--fg)">5 天</div>
+              <div class="sc-sub">启动 06-21 → 结算 06-25</div>
+            </div>
+            <div class="summary-card">
+              <div class="sc-label">🔄 交易次数</div>
+              <div class="sc-value" style="color:var(--fg)">10 次</div>
+              <div class="sc-sub">5 买入 / 5 卖出</div>
+            </div>
+            <div class="summary-card">
+              <div class="sc-label">📊 夏普比率</div>
+              <div class="sc-value neu">1.85</div>
+              <div class="sc-sub">风险调整后收益</div>
+            </div>
+          </div>
+      
+          <!-- Return Curve Chart -->
+          <div class="chart-card">
+            <div class="cc-h">📈 收益曲线 — 结算周期内每日累计收益率</div>
+            <div class="cc-body"><div class="cc" id="chart-settlement"></div></div>
+          </div>
+      
+          <!-- Stock Detail Table -->
+          <div class="detail-card">
+            <div class="dc-h">📋 各标的盈亏明细</div>
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th>方向</th>
+                  <th class="num">买入均价</th>
+                  <th class="num">卖出均价</th>
+                  <th class="num">数量</th>
+                  <th class="num">个股盈亏</th>
+                  <th class="num">收益率</th>
+                </tr>
+              </thead>
+              <tbody id="stockDetailBody"></tbody>
+            </table>
+          </div>
+      
+          <!-- Footer -->
+          <div class="footer-bar">
+            <span>数据来源: strategy-service (:8003) · 结算记录归档于 PostgreSQL</span>
+            <span style="margin-left:auto">报告生成时间: 2026-06-26 14:32</span>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+(function(){
+// ---- Mock Data ----
+var reports = {
+  'feiye-A': {
+    code: 'FS-20260625-01A', name: '匪爷短线-日常 A',
+    settleDate: '06-25',
+    summary: {
+      totalPnl: '+12,580', totalPnlPct: '+3.2%',
+      winRate: '80%', winCount: 4, totalCount: 5,
+      maxDrawdown: '-2.1%', holdingDays: 5, tradeCount: 10,
+      sharpe: '1.85', startDate: '06-21', endDate: '06-25'
+    },
+    stocks: [
+      {code:'002594',name:'比亚迪',dir:'买入',buyPrice:268.00,sellPrice:288.50,qty:500,pnl:+10250,pnlPct:'+7.6%'},
+      {code:'601012',name:'隆基绿能',dir:'买入',buyPrice:32.80,sellPrice:34.20,qty:3000,pnl:+4200,pnlPct:'+4.3%'},
+      {code:'600000',name:'浦发银行',dir:'买入',buyPrice:10.20,sellPrice:10.50,qty:8000,pnl:+2400,pnlPct:'+2.9%'},
+      {code:'688981',name:'中芯国际',dir:'买入',buyPrice:65.50,sellPrice:68.00,qty:2000,pnl:+5000,pnlPct:'+3.8%'},
+      {code:'300750',name:'宁德时代',dir:'买入',buyPrice:218.50,sellPrice:215.20,qty:600,pnl:-1980,pnlPct:'-1.5%'}
+    ]
+  },
+  'feiye-B': {
+    code: 'FS-20260624-01A', name: '匪爷短线-日常 B',
+    settleDate: '06-24',
+    summary: {
+      totalPnl: '-3,200', totalPnlPct: '-0.8%', winRate: '40%', winCount: 2, totalCount: 5,
+      maxDrawdown: '-5.6%', holdingDays: 4, tradeCount: 8, sharpe: '0.68',
+      startDate: '06-21', endDate: '06-24'
+    },
+    stocks: [
+      {code:'600519',name:'贵州茅台',dir:'买入',buyPrice:1785.00,sellPrice:1802.00,qty:100,pnl:+1700,pnlPct:'+1.0%'},
+      {code:'000858',name:'五粮液',dir:'买入',buyPrice:148.30,sellPrice:145.00,qty:2000,pnl:-6600,pnlPct:'-2.2%'},
+      {code:'603986',name:'兆易创新',dir:'买入',buyPrice:152.00,sellPrice:155.50,qty:800,pnl:+2800,pnlPct:'+2.3%'},
+      {code:'300750',name:'宁德时代',dir:'买入',buyPrice:220.00,sellPrice:218.50,qty:500,pnl:-750,pnlPct:'-0.7%'},
+      {code:'002371',name:'北方华创',dir:'买入',buyPrice:385.00,sellPrice:382.30,qty:200,pnl:-540,pnlPct:'-0.7%'}
+    ]
+  },
+  'dragon-C': {
+    code: 'LT-20260623-01A', name: '龙头战法-周线 C',
+    settleDate: '06-23',
+    summary: {
+      totalPnl: '+32,500', totalPnlPct: '+8.5%', winRate: '100%', winCount: 3, totalCount: 3,
+      maxDrawdown: '-1.8%', holdingDays: 8, tradeCount: 6, sharpe: '2.45',
+      startDate: '06-16', endDate: '06-23'
+    },
+    stocks: [
+      {code:'603986',name:'兆易创新',dir:'买入',buyPrice:148.00,sellPrice:165.20,qty:5000,pnl:+86000,pnlPct:'+11.6%'},
+      {code:'002371',name:'北方华创',dir:'买入',buyPrice:375.00,sellPrice:410.50,qty:800,pnl:+28400,pnlPct:'+9.5%'},
+      {code:'688981',name:'中芯国际',dir:'买入',buyPrice:62.00,sellPrice:67.80,qty:3000,pnl:+17400,pnlPct:'+9.4%'}
+    ]
+  },
+  'bishi-D': {
+    code: 'BS-20260620-01A', name: '毕师傅趋势-月线 D',
+    settleDate: '06-20',
+    summary: {
+      totalPnl: '+18,600', totalPnlPct: '+5.2%', winRate: '75%', winCount: 3, totalCount: 4,
+      maxDrawdown: '-3.2%', holdingDays: 12, tradeCount: 8, sharpe: '1.52',
+      startDate: '06-09', endDate: '06-20'
+    },
+    stocks: [
+      {code:'600519',name:'贵州茅台',dir:'买入',buyPrice:1750.00,sellPrice:1820.00,qty:200,pnl:+14000,pnlPct:'+4.0%'},
+      {code:'000858',name:'五粮液',dir:'买入',buyPrice:142.00,sellPrice:150.50,qty:3000,pnl:+25500,pnlPct:'+6.0%'},
+      {code:'002594',name:'比亚迪',dir:'买入',buyPrice:260.00,sellPrice:255.00,qty:800,pnl:-4000,pnlPct:'-1.9%'},
+      {code:'601012',name:'隆基绿能',dir:'买入',buyPrice:31.50,sellPrice:33.20,qty:4000,pnl:+6800,pnlPct:'+5.4%'}
+    ]
+  }
+};
+
+// ---- Render Summary Cards ----
+function renderSummary(report){
+  var s = report.summary;
+  var pnlClass = s.totalPnl.indexOf('+') >= 0 ? 'up' : 'down';
+  document.getElementById('summaryGrid').innerHTML =
+    '<div class="summary-card"><div class="sc-label">💰 总盈亏</div><div class="sc-value ' + pnlClass + '">' + s.totalPnl + '</div><div class="sc-sub">收益率 ' + s.totalPnlPct + '</div></div>' +
+    '<div class="summary-card"><div class="sc-label">📈 胜率</div><div class="sc-value" style="color:var(--fg)">' + s.winRate + '</div><div class="sc-sub">盈利 ' + s.winCount + ' / 总计 ' + s.totalCount + ' 只</div></div>' +
+    '<div class="summary-card"><div class="sc-label">📉 最大回撤</div><div class="sc-value warn">' + s.maxDrawdown + '</div><div class="sc-sub">持仓期间最大亏损幅度</div></div>' +
+    '<div class="summary-card"><div class="sc-label">📅 持仓天数</div><div class="sc-value" style="color:var(--fg)">' + s.holdingDays + ' 天</div><div class="sc-sub">启动 ' + s.startDate + ' → 结算 ' + s.endDate + '</div></div>' +
+    '<div class="summary-card"><div class="sc-label">🔄 交易次数</div><div class="sc-value" style="color:var(--fg)">' + s.tradeCount + ' 次</div><div class="sc-sub">' + (s.tradeCount/2) + ' 买入 / ' + (s.tradeCount/2) + ' 卖出</div></div>' +
+    '<div class="summary-card"><div class="sc-label">📊 夏普比率</div><div class="sc-value neu">' + s.sharpe + '</div><div class="sc-sub">风险调整后收益</div></div>';
+}
+
+// ---- Render Stock Detail Table ----
+function renderStockTable(report){
+  var rows = '';
+  report.stocks.forEach(function(s){
+    var pnlCls = s.pnl >= 0 ? 'pos up' : 'neg down';
+    var retCls = s.pnlPct.indexOf('+') >= 0 ? 'up' : 'down';
+    var dirCls = s.dir === '买入' ? 'buy' : 'sell';
+    rows += '<tr>' +
+      '<td class="dt-code">' + s.code + '</td>' +
+      '<td class="dt-name">' + s.name + '</td>' +
+      '<td class="dt-dir ' + dirCls + '">' + s.dir + '</td>' +
+      '<td class="num mono">' + s.buyPrice.toFixed(2) + '</td>' +
+      '<td class="num mono">' + s.sellPrice.toFixed(2) + '</td>' +
+      '<td class="num mono">' + s.qty.toLocaleString() + '</td>' +
+      '<td class="num dt-pnl ' + pnlCls + '">' + (s.pnl >= 0 ? '+' : '') + s.pnl.toLocaleString() + '</td>' +
+      '<td class="num dt-ret ' + retCls + '">' + s.pnlPct + '</td>' +
+      '</tr>';
+  });
+  document.getElementById('stockDetailBody').innerHTML = rows;
+}
+
+// ---- Settlement Badge ----
+function renderBadge(report){
+  document.getElementById('settleBadge').textContent = report.code + ' · 已结算 ' + report.settleDate;
+}
+// Also update select value
+function updateSelect(planId){
+  document.getElementById('planSelect').value = planId;
+}
+
+// ---- ECharts Settlement ----
+var chartSettlement = echarts.init(document.getElementById('chart-settlement'));
+
+function buildSettlementChart(report){
+  var days = report.summary.holdingDays + 1;
+  var seed = 42;
+  function rnd(){ seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
+
+  var isPositive = report.summary.totalPnl.indexOf('+') >= 0;
+  var trend = isPositive ? 0.07 : -0.03;
+  var returns = [], cum = 0;
+  var maxVal = -Infinity, maxIdx = 0;
+  var minVal = Infinity, minIdx = 0;
+
+  for (var i = 0; i < days; i++){
+    cum += (rnd() - 0.48 + trend) * 0.8;
+    returns.push(Math.round(cum * 100) / 100);
+    if (returns[i] > maxVal){ maxVal = returns[i]; maxIdx = i; }
+    if (returns[i] < minVal){ minVal = returns[i]; minIdx = i; }
+  }
+
+  // Find max drawdown period
+  var ddStart = 0, ddEnd = days - 1, ddMax = 0;
+  for (var i = 0; i < returns.length; i++){
+    for (var j = i + 1; j < returns.length; j++){
+      var dd = returns[j] - returns[i];
+      if (dd < ddMax){ ddMax = dd; ddStart = i; ddEnd = j; }
+    }
+  }
+
+  var startDate = new Date(2026, 5, parseInt(report.summary.startDate.split('-')[1]));
+  var dates = [];
+  for (var i = 0; i < days; i++){
+    var d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    dates.push(('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2));
+  }
+
+  return {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross' },
+      formatter: function(params){
+        var v = params[0].value;
+        return '<b>' + params[0].axisValue + '</b><br/>累计收益率: ' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+      }
+    },
+    grid: { left: '8%', right: '6%', top: '10%', bottom: '6%' },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLabel: { fontSize: 9, color: '#5e6a7d' },
+      axisLine: { lineStyle: { color: '#1f2733' } }
+    },
+    yAxis: {
+      type: 'value',
+      scale: true,
+      axisLabel: { fontSize: 10, color: '#5e6a7d', formatter: '{value}%' },
+      splitLine: { lineStyle: { color: '#1f2733' } }
+    },
+    series: [{
+      name: '累计收益率',
+      type: 'line',
+      data: returns,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 4,
+      lineStyle: { color: '#3d8bff', width: 2.5 },
+      itemStyle: { color: '#3d8bff' },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0,0,0,1,[
+          {offset:0, color: 'rgba(61,139,255,0.14)'},
+          {offset:1, color: 'rgba(61,139,255,0.01)'}
+        ])
+      },
+      markLine: {
+        silent: true, symbol: 'none',
+        data: [{
+          yAxis: 0,
+          label: { formatter: '零轴', color: '#5e6a7d', fontSize: 10 },
+          lineStyle: { color: '#5e6a7d', type: 'dashed', width: 1 }
+        }]
+      },
+      markArea: {
+        silent: true,
+        data: [[
+          { xAxis: dates[ddStart], itemStyle: { color: 'rgba(255,77,79,0.06)' } },
+          { xAxis: dates[ddEnd] }
+        ]]
+      },
+      markPoint: {
+        data: [
+          { type: 'max', name: '最高点', symbol: 'pin', symbolSize: 36, itemStyle: { color: '#ff4d4f' }, label: { fontSize: 10, color: '#ff4d4f', fontWeight: 'bold' } },
+          { type: 'min', name: '最低点', symbol: 'pin', symbolSize: 36, itemStyle: { color: '#2ec27e' }, label: { fontSize: 10, color: '#2ec27e', fontWeight: 'bold' } }
+        ]
+      }
+    }]
+  };
+}
+
+// ---- Switch Report ----
+function switchReport(){
+  var planId = document.getElementById('planSelect').value;
+  var report = reports[planId];
+  renderSummary(report);
+  renderStockTable(report);
+  renderBadge(report);
+  chartSettlement.setOption(buildSettlementChart(report), true);
+}
+
+// ---- Time Filter ----
+function setTimeFilter(filter, btn){
+  document.querySelectorAll('.time-chip').forEach(function(c){ c.classList.remove('active'); });
+  btn.classList.add('active');
+
+  // Simulate filtering the plan dropdown options based on time range
+  var options = document.getElementById('planSelect').options;
+  var now = new Date(2026, 5, 26); // "today" June 26
+
+  for (var i = 0; i < options.length; i++){
+    var opt = options[i];
+    var dateStr = opt.textContent.match(/已结算 (\d{2}-\d{2})/);
+    if (!dateStr) continue;
+    var parts = dateStr[1].split('-');
+    var settleDate = new Date(2026, parseInt(parts[0]) - 1, parseInt(parts[1]));
+
+    var diffDays = Math.floor((now - settleDate) / (1000 * 60 * 60 * 24));
+    var show = true;
+    if (filter === 'week') show = diffDays <= 7;
+    else if (filter === 'month') show = diffDays <= 30;
+
+    opt.style.display = show ? '' : 'none';
+  }
+
+  // If current selection is hidden, select the first visible option
+  if (document.getElementById('planSelect').selectedOptions[0].style.display === 'none'){
+    for (var i = 0; i < options.length; i++){
+      if (options[i].style.display !== 'none'){
+        document.getElementById('planSelect').value = options[i].value;
+        break;
+      }
+    }
+    switchReport();
+  }
+}
+
+// ---- Init ----
+switchReport();
+
+window.addEventListener('resize', function(){ chartSettlement.resize(); });
+setTimeout(function(){ chartSettlement.resize(); }, 200);
+})();
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

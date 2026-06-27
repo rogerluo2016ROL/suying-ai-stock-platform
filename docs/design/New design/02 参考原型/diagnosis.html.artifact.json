@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "new-front-export/diagnosis.html",
+  "entry": "new-front-export/diagnosis.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-25T08:19:48.149Z",
+  "updatedAt": "2026-06-25T08:19:48.149Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

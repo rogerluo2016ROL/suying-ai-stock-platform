@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 开盘决策 — 信号扫描（验证工作台）</title>
+
+<style class="legacy-page-style">
+/* ===== Design Tokens ===== */
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+
+/* ===== App Shell ===== */
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.content{padding:18px 20px 32px}
+
+/* ===== Card ===== */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-h h3{font-size:13.5px;font-weight:650}
+.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
+.card-b{padding:16px}
+
+/* ===== Locked Sector Banner ===== */
+.locked-banner{display:flex;align-items:center;gap:10px;padding:9px 16px;margin-bottom:14px;
+  background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius)}
+.locked-banner .b-icon{font-size:14px;color:var(--accent);flex-shrink:0}
+.locked-banner .b-text{font-size:12.5px;color:var(--fg-2);font-weight:500;flex-shrink:0}
+.locked-banner .b-tags{display:flex;gap:6px;flex-wrap:wrap}
+.locked-banner .b-tag{font-size:11px;padding:3px 10px;border-radius:12px;background:rgba(61,139,255,0.18);
+  border:1px solid rgba(61,139,255,0.35);color:var(--accent);font-weight:600;cursor:default;
+  display:flex;align-items:center;gap:4px}
+.locked-banner .b-tag .count{font-size:10px;opacity:.7;font-family:var(--font-mono)}
+.locked-banner .b-tag .rm{font-size:10px;opacity:.5;cursor:pointer;margin-left:2px}
+.locked-banner .b-tag .rm:hover{opacity:1;color:var(--up)}
+.locked-banner .clear-btn{margin-left:auto;font-size:11.5px;color:var(--fg-2);cursor:pointer;padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:var(--surface-2);transition:.12s}
+.locked-banner .clear-btn:hover{background:var(--elevated);color:var(--fg)}
+
+/* ===== Filter Row ===== */
+.filter-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.filter-tabs{display:flex;gap:6px}
+.filter-btn{font-size:11.5px;padding:5px 14px;border-radius:14px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);cursor:pointer;transition:.12s}
+.filter-btn:hover{background:var(--elevated);color:var(--fg)}
+.filter-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+.sort-group{margin-left:auto;display:flex;align-items:center;gap:6px}
+.sort-group .sort-label{font-size:11px;color:var(--muted)}
+
+/* ===== Layout ===== */
+.layout-row{display:flex;gap:14px}
+.col-left{flex:6;min-width:0;display:flex;flex-direction:column}
+.col-right{flex:4;min-width:0;display:flex;flex-direction:column;gap:12px}
+
+/* ===== Verification Table (★ Core) ===== */
+.verify-table{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.verify-table thead{position:sticky;top:0;z-index:2}
+.verify-table thead th{background:var(--surface-2);color:var(--muted);font-size:11px;font-weight:600;padding:10px 12px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap}
+.verify-table thead th.th-actions{text-align:center}
+.verify-table tbody{max-height:340px;overflow-y:auto}
+.verify-table tbody tr{cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s}
+.verify-table tbody tr:hover{background:var(--elevated)}
+.verify-table tbody tr.selected{background:var(--accent-dim)}
+.verify-table tbody tr.confirmed{background:rgba(46,194,126,0.06)}
+.verify-table tbody tr.downgraded{background:rgba(245,166,35,0.06)}
+.verify-table tbody tr.excluded{background:rgba(255,77,79,0.04);opacity:.7}
+.verify-table tbody tr.excluded .cell-name{text-decoration:line-through}
+.verify-table tbody td{padding:9px 12px;white-space:nowrap}
+.verify-table .cell-code{font-family:var(--font-mono);font-size:12px;color:var(--muted);width:80px}
+.verify-table .cell-name{font-size:13px;font-weight:500;color:var(--fg);width:80px}
+.verify-table .cell-signal{width:90px}
+.verify-table .cell-score{font-family:var(--font-mono);font-size:17px;font-weight:700;text-align:center;width:55px}
+.verify-table .cell-score.high{color:var(--down)}
+.verify-table .cell-score.med{color:var(--warn)}
+.verify-table .cell-score.low{color:var(--up)}
+.verify-table .cell-kronos{font-family:var(--font-mono);font-size:12px;font-weight:600;width:130px}
+.verify-table .cell-kronos.k-up{color:var(--down)}
+.verify-table .cell-kronos.k-down{color:var(--up)}
+.verify-table .cell-kronos.k-flat{color:var(--muted)}
+.verify-table .cell-cons{width:90px}
+.verify-table .cell-risk{width:100px}
+.verify-table .cell-actions{width:210px;text-align:center}
+.verify-table .cell-actions .action-group{display:flex;gap:5px;justify-content:flex-start}
+
+/* Signal Tags */
+.signal-tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.signal-tag.strong-buy{background:rgba(255,77,79,0.12);color:#ff4d4f}
+.signal-tag.buy{background:rgba(250,140,22,0.12);color:#fa8c16}
+.signal-tag.hold{background:rgba(61,139,255,0.12);color:#3d8bff}
+.signal-tag.reduce{background:rgba(245,166,35,0.12);color:#f5a623}
+.signal-tag.sell{background:rgba(94,106,125,0.12);color:#5e6a7d}
+
+/* Consistency Badge (row) */
+.cons-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.cons-badge.confirmed{background:rgba(46,194,126,0.12);color:var(--down)}
+.cons-badge.conflict{background:rgba(255,77,79,0.12);color:var(--up)}
+.cons-badge.neutral{background:var(--surface-2);color:var(--muted)}
+
+/* Risk display */
+.risk-pass{color:var(--down);font-size:12px}
+.risk-warn{color:var(--warn);font-size:11px}
+.risk-danger{color:var(--up);font-size:11px}
+
+/* Action Buttons */
+.action-btn{padding:5px 10px;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;transition:.12s;white-space:nowrap;border:1px solid var(--border);background:transparent;color:var(--fg-2)}
+.action-btn:hover:not(:disabled){filter:brightness(1.2)}
+.action-btn:disabled{opacity:.4;cursor:not-allowed}
+/* Recommended (filled) */
+.action-btn.rec.confirm-btn{background:rgba(46,194,126,0.15);border-color:var(--down);color:var(--down);font-weight:700}
+.action-btn.rec.downgrade-btn{background:rgba(245,166,35,0.15);border-color:var(--warn);color:var(--warn);font-weight:700}
+.action-btn.rec.exclude-btn{background:rgba(255,77,79,0.15);border-color:var(--up);color:var(--up);font-weight:700}
+/* Decided state */
+.action-btn.confirmed-state{background:rgba(46,194,126,0.08);color:var(--down);border-color:transparent}
+.action-btn.downgraded-state{background:rgba(245,166,35,0.08);color:var(--warn);border-color:transparent}
+.action-btn.excluded-state{background:rgba(255,77,79,0.08);color:var(--up);border-color:transparent}
+
+/* ===== Summary Bar ===== */
+.summary-bar{display:flex;align-items:center;gap:16px;padding:6px 12px;font-size:11px;color:var(--muted);border-radius:var(--radius);background:var(--surface-2);margin-top:0}
+.summary-bar .s-num{font-weight:600;color:var(--fg-2)}
+.summary-bar .s-confirmed{color:var(--down)}
+.summary-bar .s-downgraded{color:var(--warn)}
+.summary-bar .s-excluded{color:var(--up)}
+
+/* ===== Batch Actions ===== */
+.batch-bar{display:flex;align-items:center;gap:8px;padding:8px 0;margin-top:8px;border-top:1px solid var(--border)}
+.batch-btn{font-size:11px;padding:4px 12px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);cursor:pointer;transition:.12s}
+.batch-btn:hover{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+
+/* ===== Right Panel ===== */
+
+/* Stock Head */
+.stock-head{display:flex;align-items:baseline;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:10px}
+.stock-head .sh-code{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.stock-head .sh-name{font-size:16px;font-weight:700;color:var(--fg)}
+.stock-head .sh-price{font-family:var(--font-mono);font-size:18px;font-weight:700;color:var(--fg);margin-left:auto}
+.signal-big-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:14px;font-size:11.5px;font-weight:600;margin-bottom:6px}
+.signal-big-tag.sb{background:rgba(255,77,79,0.12);color:#ff4d4f;border:1px solid rgba(255,77,79,0.3)}
+.signal-big-tag.by{background:rgba(250,140,22,0.12);color:#fa8c16;border:1px solid rgba(250,140,22,0.3)}
+.signal-big-tag.hd{background:rgba(61,139,255,0.12);color:#3d8bff;border:1px solid rgba(61,139,255,0.3)}
+.signal-big-tag.rd{background:rgba(245,166,35,0.12);color:#f5a623;border:1px solid rgba(245,166,35,0.3)}
+.signal-big-tag.sl{background:rgba(94,106,125,0.12);color:#5e6a7d;border:1px solid rgba(94,106,125,0.3)}
+
+/* Six Dim */
+.dim-row{display:flex;align-items:center;gap:6px;padding:3px 0}
+.dim-row .dim-label{width:46px;font-size:10.5px;color:var(--fg-2);text-align:right;flex-shrink:0}
+.dim-row .dim-score{width:28px;font-family:var(--font-mono);font-size:11.5px;text-align:right;font-weight:600;flex-shrink:0}
+.dim-row .dim-bar{flex:1;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.dim-row .dim-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+
+/* Kronos */
+.kronos-dir{display:flex;align-items:center;gap:10px;padding:6px 0}
+.kronos-dir .kd-icon{font-size:22px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0}
+.kronos-dir .kd-icon.k-up{background:var(--down-bg);color:var(--down)}
+.kronos-dir .kd-icon.k-down{background:var(--up-bg);color:var(--up)}
+.kronos-dir .kd-icon.k-flat{background:var(--surface-2);color:var(--muted)}
+.kronos-dir .kd-info{flex:1}
+.kronos-dir .kd-price{font-family:var(--font-mono);font-size:13px;color:var(--fg-2)}
+.kronos-dir .kd-price b{font-size:16px;font-weight:700;color:var(--fg)}
+.kronos-dir .kd-change{font-family:var(--font-mono);font-size:18px;font-weight:700}
+.kronos-dir .kd-change.k-up{color:var(--down)}
+.kronos-dir .kd-change.k-down{color:var(--up)}
+.spark{height:50px;display:flex;align-items:flex-end;gap:1px;margin-top:6px}
+
+/* Consensus Verdict */
+.verdict{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--radius);font-size:12px;font-weight:600}
+.verdict.confirmed{background:var(--down-bg);color:var(--down);border:2px solid var(--down)}
+.verdict.conflict{background:var(--up-bg);color:var(--up);border:2px solid var(--up)}
+.verdict.neutral{background:var(--surface-2);color:var(--muted);border:1px solid var(--border)}
+.verdict .vd-icon{font-size:20px;flex-shrink:0}
+
+/* Risk Check */
+.risk-row{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11px}
+.risk-row .rl{color:var(--fg-2);width:32px;text-align:right;flex-shrink:0}
+.risk-row .rs{font-weight:500}
+.risk-row .rs.pass{color:var(--down)}
+.risk-row .rs.fail{color:var(--up)}
+
+/* Decision Panel */
+.dec-section{padding:2px 0}
+.dec-section .ds-title{font-size:12px;font-weight:600;margin-bottom:4px}
+.dec-section .ds-title.cf{color:var(--down)}
+.dec-section .ds-title.dg{color:var(--warn)}
+.dec-section .ds-title.ex{color:var(--up)}
+.dec-section .ds-item{font-size:11px;padding:2px 0;color:var(--fg-2)}
+.dec-section .ds-item .d-code{font-family:var(--font-mono);margin-right:4px}
+
+/* Push */
+.push-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:13.5px;font-weight:650;cursor:pointer;transition:.12s;width:100%}
+.push-btn:hover{background:#529bff;box-shadow:0 2px 8px rgba(61,139,255,.3)}
+.push-btn:disabled{opacity:.4;cursor:not-allowed}
+.pool-link{display:flex;align-items:center;justify-content:center;gap:4px;padding:6px;font-size:11.5px;color:var(--accent);background:none;border:none;cursor:pointer;width:100%}
+.pool-link:hover{color:#529bff;text-decoration:underline}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--surface-2)}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+/* Pulse */
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 6px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--down);animation:pulse 1.8s infinite;margin-right:4px}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="opening-decision" data-title="开盘决策 — 信号扫描（验证工作台）">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">操盘手</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共竞价 + 私有候选</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">进入方案后绑定账户</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<!-- ===== Page Header ===== -->
+          <div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:12px">
+            <h1 style="font-size:21px;font-weight:700">⚡ 信号扫描</h1>
+            <span style="font-size:12px;color:var(--muted)">验证工作台 · 逐条确认信号 · Kronos 交叉验证 · 一键推送候选池</span>
+          </div>
+      
+          <!-- ===== Locked Sector Banner ===== -->
+          <div class="locked-banner" id="lockedBanner">
+            <span class="b-icon">🔒</span>
+            <span class="b-text">锁定板块:</span>
+            <div class="b-tags" id="lockedTags">
+              <span class="b-tag">半导体 <span class="count">12</span><span class="rm" onclick="removeLock('半导体')" title="移除锁定">×</span></span>
+              <span class="b-tag">新能源 <span class="count">9</span><span class="rm" onclick="removeLock('新能源')" title="移除锁定">×</span></span>
+            </div>
+            <button class="clear-btn" onclick="clearAllLocks()">清除锁定</button>
+          </div>
+      
+          <!-- ===== Filter + Sort Row ===== -->
+          <div class="filter-row">
+            <div class="filter-tabs">
+              <button class="filter-btn active" onclick="setFilter('all', this)">全部 <span class="mono" id="totalCount">6</span></button>
+              <button class="filter-btn" onclick="setFilter('buy', this)">仅买入 <span class="mono" id="buyCount">4</span></button>
+              <button class="filter-btn" onclick="setFilter('watchlist', this)">仅自选 <span class="mono" id="wlCount">3</span></button>
+            </div>
+            <div class="sort-group">
+              <span class="sort-label">排序:</span>
+              <button class="filter-btn active" onclick="setSort('score', this)" id="sortScore">信号评分 ▼</button>
+              <button class="filter-btn" onclick="setSort('consistency', this)" id="sortCons">一致性</button>
+              <button class="filter-btn" onclick="setSort('risk', this)" id="sortRisk">风险</button>
+            </div>
+          </div>
+      
+          <!-- ===== Main Content: Verification List (60%) + Detail Panel (40%) ===== -->
+          <div class="layout-row">
+      
+            <!-- ===== LEFT: Verification List ===== -->
+            <div class="col-left">
+              <table class="verify-table">
+                <thead>
+                  <tr>
+                    <th style="width:80px">代码</th>
+                    <th style="width:80px">名称</th>
+                    <th style="width:90px">信号</th>
+                    <th style="width:55px">评分</th>
+                    <th style="width:130px">Kronos预测</th>
+                    <th style="width:90px">一致性</th>
+                    <th style="width:100px">风险</th>
+                    <th style="width:210px">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="verifyBody"></tbody>
+              </table>
+      
+              <!-- Batch Actions -->
+              <div class="batch-bar">
+                <button class="batch-btn" onclick="batchConfirm()">📥 批量确认买入信号</button>
+                <button class="batch-btn" onclick="batchExclude()">⚠️ 一键排除风险标的</button>
+                <span style="font-size:10px;color:var(--muted);margin-left:auto">点击行查看详情 · 逐条确认决策</span>
+              </div>
+      
+              <!-- Summary Bar -->
+              <div class="summary-bar" id="summaryBar">
+                已处理 <span class="s-num" id="sProcessed">0</span>/<span id="sTotal">6</span> ·
+                已确认 <span class="s-num s-confirmed" id="sConfirmed">0</span> ·
+                已降级 <span class="s-num s-downgraded" id="sDowngraded">0</span> ·
+                已排除 <span class="s-num s-excluded" id="sExcluded">0</span>
+              </div>
+            </div>
+      
+            <!-- ===== RIGHT: Detail Panel ===== -->
+            <div class="col-right">
+      
+              <!-- Stock Detail + Six Dimensions -->
+              <div class="card" id="detailCard">
+                <div class="card-h"><h3>📌 选中股票</h3><span class="meta mono" id="detailCode">688981</span></div>
+                <div class="card-b" style="padding:12px 16px">
+                  <div class="stock-head">
+                    <span class="sh-code mono" id="dCode">688981</span>
+                    <span class="sh-name" id="dName">中芯国际</span>
+                    <span class="sh-price mono" id="dPrice">¥68.20</span>
+                  </div>
+                  <div class="signal-big-tag sb" id="dSignalTag">🟢 强买 <span id="dScore">78分</span></div>
+      
+                  <!-- Six Dimensions -->
+                  <div style="margin-top:12px">
+                    <div class="dim-row"><span class="dim-label">Kronos</span><span class="dim-score mono">78</span><div class="dim-bar"><div class="dim-bar-fill" style="width:78%;background:#3d8bff"></div></div></div>
+                    <div class="dim-row"><span class="dim-label">技术面</span><span class="dim-score mono">82</span><div class="dim-bar"><div class="dim-bar-fill" style="width:82%;background:#fa8c16"></div></div></div>
+                    <div class="dim-row"><span class="dim-label">资金面</span><span class="dim-score mono">65</span><div class="dim-bar"><div class="dim-bar-fill" style="width:65%;background:#52c41a"></div></div></div>
+                    <div class="dim-row"><span class="dim-label">基本面</span><span class="dim-score mono">70</span><div class="dim-bar"><div class="dim-bar-fill" style="width:70%;background:#722ed1"></div></div></div>
+                    <div class="dim-row"><span class="dim-label">事件</span><span class="dim-score mono">55</span><div class="dim-bar"><div class="dim-bar-fill" style="width:55%;background:#faad14"></div></div></div>
+                    <div class="dim-row"><span class="dim-label">市场</span><span class="dim-score mono">62</span><div class="dim-bar"><div class="dim-bar-fill" style="width:62%;background:#1677ff"></div></div></div>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- Kronos Prediction Card -->
+              <div class="card" id="kronosCard">
+                <div class="card-h"><h3>🤖 Kronos 30日预测</h3><span class="meta">模型 v2.3.1</span></div>
+                <div class="card-b" style="padding:12px 16px">
+                  <div class="kronos-dir">
+                    <div class="kd-icon k-up" id="kdIcon">↑</div>
+                    <div class="kd-info">
+                      <div class="kd-price">当前 <b id="kdCurr">68.20</b> → 目标 <b style="color:var(--down)" id="kdTarget">73.80</b></div>
+                      <div class="kd-change k-up" id="kdChange">+8.2% <span style="font-size:10.5px;color:var(--muted);font-weight:400">(5日)</span></div>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+                    <span style="font-size:10px;color:var(--fg-2)">置信度</span>
+                    <div style="flex:1;height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden"><div style="height:100%;border-radius:2px;background:var(--accent);width:78%" id="kdConfBar"></div></div>
+                    <span class="mono" style="font-size:10px;color:var(--muted)" id="kdConfVal">78%</span>
+                  </div>
+                  <div class="spark" id="sparkline"></div>
+                </div>
+              </div>
+      
+              <!-- Consistency Verdict -->
+              <div class="verdict confirmed" id="verdict">
+                <span class="vd-icon" id="vdIcon">✅</span>
+                <div style="flex:1"><div id="vdLabel" style="font-size:12px;font-weight:650">信号+预测 方向一致</div><div id="vdDesc" style="font-size:11px;font-weight:500;line-height:1.4">信号买入 + Kronos看涨，建议确认加入候选池</div></div>
+              </div>
+      
+              <!-- Risk Check -->
+              <div class="card" id="riskCard">
+                <div class="card-h"><h3>🛡️ 风险检查</h3></div>
+                <div class="card-b" style="padding:8px 16px" id="riskBody">
+                  <div class="risk-row"><span class="rl">审计</span><span class="rs pass">✅ 标准无保留</span></div>
+                  <div class="risk-row"><span class="rl">公告</span><span class="rs pass">✅ 无负面</span></div>
+                  <div class="risk-row"><span class="rl">ST</span><span class="rs pass">✅ 正常</span></div>
+                </div>
+              </div>
+      
+              <!-- Decision Summary Panel -->
+              <div class="card">
+                <div class="card-h"><h3>📊 决策分类</h3></div>
+                <div class="card-b" style="padding:8px 16px">
+                  <div class="dec-section">
+                    <div class="ds-title cf">✅ 已确认 (<span id="decConfirmed">2</span>)</div>
+                    <div class="ds-item" id="decConfirmedList"><span class="d-code mono">688981</span> 中芯 · <span class="d-code mono">300750</span> 宁德</div>
+                  </div>
+                  <div class="dec-section">
+                    <div class="ds-title dg">⬇ 降级 (<span id="decDowngraded">1</span>)</div>
+                    <div class="ds-item" id="decDowngradedList"><span class="d-code mono">603501</span> 韦尔</div>
+                  </div>
+                  <div class="dec-section">
+                    <div class="ds-title ex">❌ 排除 (<span id="decExcluded">1</span>)</div>
+                    <div class="ds-item" id="decExcludedList" style="text-decoration:line-through"><span class="d-code mono">000858</span> 五粮</div>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- Push Button -->
+              <button class="push-btn" onclick="pushToPool()">🚀 一键推送已确认 → 候选池</button>
+              <button class="pool-link" onclick="viewPool()">查看候选池 →</button>
+      
+            </div><!-- /col-right -->
+          </div><!-- /layout-row -->
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+// ===== Mock Data =====
+const ROWS = [
+  { code:'688981', name:'中芯', signal:'strong-buy', signalCn:'强买', signalEmoji:'🟢', score:78, predDir:'up',    predPct:8.2,  predTarget:73.80, predConf:78, price:68.20, cons:'confirmed', riskAllPass:true,  riskTags:[],                wl:true },
+  { code:'603501', name:'韦尔', signal:'strong-buy', signalCn:'强买', signalEmoji:'🟢', score:72, predDir:'flat', predPct:-1.2, predTarget:215.00,predConf:62, price:218.00,cons:'conflict',  riskAllPass:true,  riskTags:[],                wl:false },
+  { code:'603986', name:'兆易', signal:'strong-buy', signalCn:'强买', signalEmoji:'🟢', score:68, predDir:'up',    predPct:5.0,  predTarget:126.50,predConf:71, price:120.50,cons:'confirmed', riskAllPass:true,  riskTags:[],                wl:true },
+  { code:'300750', name:'宁德', signal:'strong-buy', signalCn:'强买', signalEmoji:'🟢', score:85, predDir:'up',    predPct:12.5, predTarget:242.30,predConf:82, price:218.50,cons:'confirmed', riskAllPass:true,  riskTags:[],                wl:true },
+  { code:'601012', name:'隆基', signal:'buy',       signalCn:'买入', signalEmoji:'🟡', score:65, predDir:'up',    predPct:3.2,  predTarget:28.60, predConf:68, price:27.70, cons:'confirmed', riskAllPass:true,  riskTags:[],                wl:false },
+  { code:'000858', name:'五粮', signal:'reduce',    signalCn:'减仓', signalEmoji:'🟠', score:32, predDir:'flat', predPct:-2.0, predTarget:132.00,predConf:45, price:135.00,cons:'neutral',   riskAllPass:false, riskTags:['stopLoss'],       wl:false },
+];
+
+let currentFilter = 'all';
+let currentSort = 'score';
+let selectedCode = '688981';
+let decisions = {}; // code -> 'confirmed' | 'downgraded' | 'excluded'
+let lockedSectors = new Set(['半导体','新能源']);
+
+// ===== Get recommended action =====
+function getRecommended(row) {
+  if (!row.riskAllPass) return 'excluded';
+  if (row.riskTags.includes('stopLoss')) return 'downgraded';
+  if (row.cons === 'conflict' || row.cons === 'neutral') return 'downgraded';
+  if (row.cons === 'confirmed') {
+    if (row.signal === 'strong-buy' || row.signal === 'buy') return 'confirmed';
+    return 'downgraded';
+  }
+  return 'downgraded';
+}
+
+// ===== Build action buttons HTML =====
+function actionButtons(row) {
+  if (decisions[row.code]) {
+    const map = { confirmed:'✓ 已确认', downgraded:'⬇ 已降级', excluded:'✗ 已排除' };
+    const cls = { confirmed:'confirmed-state', downgraded:'downgraded-state', excluded:'excluded-state' };
+    return `<button class="action-btn ${cls[decisions[row.code]]}" disabled>${map[decisions[row.code]]}</button>`;
+  }
+
+  const rec = getRecommended(row);
+  const btns = [
+    { action:'confirmed',  label:'✅ 确认', cls:'confirm-btn' },
+    { action:'downgraded', label:'⬇ 降级', cls:'downgrade-btn' },
+    { action:'excluded',   label:'❌ 排除', cls:'exclude-btn' },
+  ];
+
+  return btns.map(b => {
+    const isRec = b.action === rec ? ' rec ' + b.cls : '';
+    return `<button class="action-btn${isRec}" onclick="event.stopPropagation();doAction('${row.code}','${b.action}')">${b.label}</button>`;
+  }).join('');
+}
+
+// ===== Get risk display =====
+function riskDisplay(row) {
+  if (row.riskAllPass && row.riskTags.length === 0) return '<span class="risk-pass">✅</span>';
+  if (row.riskTags.includes('stopLoss')) return '<span class="risk-danger">⚠止损</span>';
+  return '<span class="risk-warn">⚠️</span>';
+}
+
+// ===== Kronos cell =====
+function kronosCell(row) {
+  const dir = row.predDir;
+  const cls = 'cell-kronos k-' + dir;
+  const arrow = dir === 'up' ? '↑' : (dir === 'down' ? '↓' : '→');
+  const sign = row.predPct >= 0 ? '+' : '';
+  return `<span class="${cls}">${arrow}${sign}${row.predPct.toFixed(1)}%</span>`;
+}
+
+// ===== Consistency badge =====
+function consBadge(row) {
+  const map = { confirmed:'✅双确认', conflict:'⚠️相悖', neutral:'➖中性' };
+  return `<span class="cons-badge ${row.cons}">${map[row.cons]}</span>`;
+}
+
+// ===== Score class =====
+function scoreClass(score) {
+  if (score >= 70) return 'high';
+  if (score >= 40) return 'med';
+  return 'low';
+}
+
+// ===== Signal tag =====
+function signalTag(row) {
+  return `<span class="signal-tag ${row.signal}">${row.signalEmoji} ${row.signalCn}</span>`;
+}
+
+// ===== Render verification table =====
+function renderTable() {
+  let rows = [...ROWS];
+
+  // Filter
+  if (currentFilter === 'buy') {
+    rows = rows.filter(r => r.signal === 'strong-buy' || r.signal === 'buy');
+  } else if (currentFilter === 'watchlist') {
+    rows = rows.filter(r => r.wl);
+  }
+
+  // Sort
+  if (currentSort === 'score') {
+    rows.sort((a,b) => b.score - a.score);
+  } else if (currentSort === 'consistency') {
+    const key = { confirmed:0, neutral:1, conflict:2 };
+    rows.sort((a,b) => (key[a.cons]||0) - (key[b.cons]||0));
+  } else if (currentSort === 'risk') {
+    rows.sort((a,b) => (a.riskAllPass === b.riskAllPass ? 0 : a.riskAllPass ? -1 : 1) || b.riskTags.length - a.riskTags.length);
+  }
+
+  document.getElementById('totalCount').textContent = ROWS.length;
+  document.getElementById('buyCount').textContent = ROWS.filter(r => r.signal === 'strong-buy' || r.signal === 'buy').length;
+  document.getElementById('wlCount').textContent = ROWS.filter(r => r.wl).length;
+
+  let html = '';
+  for (const r of rows) {
+    const dec = decisions[r.code];
+    const rowCls = (dec ? ' ' + dec : '') + (r.code === selectedCode ? ' selected' : '');
+    html += `<tr class="${rowCls.trim()}" onclick="selectRow('${r.code}')">
+      <td class="cell-code mono">${r.code}</td>
+      <td class="cell-name">${r.name}</td>
+      <td class="cell-signal">${signalTag(r)}</td>
+      <td class="cell-score ${scoreClass(r.score)}">${r.score}</td>
+      <td>${kronosCell(r)}</td>
+      <td class="cell-cons">${consBadge(r)}</td>
+      <td>${riskDisplay(r)}</td>
+      <td class="cell-actions"><div class="action-group">${actionButtons(r)}</div></td>
+    </tr>`;
+  }
+  document.getElementById('verifyBody').innerHTML = html;
+
+  updateSummary();
+}
+
+// ===== Select row =====
+function selectRow(code) {
+  selectedCode = code;
+  const row = ROWS.find(r => r.code === code);
+  if (!row) return;
+
+  document.getElementById('detailCode').textContent = code;
+  document.getElementById('dCode').textContent = code;
+  document.getElementById('dName').textContent = row.name;
+  document.getElementById('dPrice').textContent = '¥' + row.price.toFixed(2);
+
+  // Signal tag
+  const tagMap = { 'strong-buy':'sb', 'buy':'by', 'hold':'hd', 'reduce':'rd', 'sell':'sl' };
+  const tag = document.getElementById('dSignalTag');
+  tag.innerHTML = `${row.signalEmoji} ${row.signalCn} <span id="dScore">${row.score}分</span>`;
+  tag.className = 'signal-big-tag ' + (tagMap[row.signal] || '');
+
+  // Kronos
+  updateKronos(row);
+
+  // Verdict
+  updateVerdict(row);
+
+  // Risk detail
+  updateRiskDetail(row);
+
+  renderTable();
+}
+
+// ===== Update Kronos card =====
+function updateKronos(row) {
+  const dir = row.predDir;
+  const icon = document.getElementById('kdIcon');
+  icon.className = 'kd-icon k-' + dir;
+  icon.textContent = dir === 'up' ? '↑' : (dir === 'down' ? '↓' : '→');
+
+  document.getElementById('kdCurr').textContent = row.price.toFixed(2);
+  document.getElementById('kdTarget').textContent = row.predTarget.toFixed(2);
+
+  const change = document.getElementById('kdChange');
+  const sign = row.predPct >= 0 ? '+' : '';
+  change.className = 'kd-change mono k-' + dir;
+  change.innerHTML = `${sign}${row.predPct.toFixed(1)}% <span style="font-size:10.5px;color:var(--muted);font-weight:400">(5日)</span>`;
+
+  document.getElementById('kdConfBar').style.width = row.predConf + '%';
+  document.getElementById('kdConfVal').textContent = row.predConf + '%';
+
+  // Sparkline
+  const sparkEl = document.getElementById('sparkline');
+  let sparkHtml = '';
+  for (let i = 0; i < 25; i++) {
+    const h = 18 + Math.sin(i * 0.5) * 10 + (dir === 'up' ? i * 0.7 : (dir === 'down' ? -i * 0.5 : 0));
+    const pct = Math.max(8, Math.min(100, (h / 50) * 100));
+    const color = dir === 'up' ? '#2ec27e' : (dir === 'down' ? '#ff4d4f' : '#5e6a7d');
+    sparkHtml += `<div style="width:3px;height:${pct}%;background:${color};border-radius:1px;opacity:${0.35 + i/25 * 0.65};flex-shrink:0"></div>`;
+  }
+  sparkEl.innerHTML = sparkHtml;
+}
+
+// ===== Update verdict =====
+function updateVerdict(row) {
+  const verdict = document.getElementById('verdict');
+  const vdIcon = document.getElementById('vdIcon');
+  const vdLabel = document.getElementById('vdLabel');
+  const vdDesc = document.getElementById('vdDesc');
+
+  if (row.cons === 'confirmed') {
+    verdict.className = 'verdict confirmed';
+    vdIcon.textContent = '✅';
+    vdLabel.textContent = '信号+预测 方向一致';
+    vdDesc.textContent = '信号买入 + Kronos看涨，建议确认加入候选池';
+  } else if (row.cons === 'conflict') {
+    verdict.className = 'verdict conflict';
+    vdIcon.textContent = '⚠️';
+    vdLabel.textContent = '信号+预测 方向相悖';
+    vdDesc.textContent = '信号与Kronos预测方向相悖，请谨慎评估';
+  } else {
+    verdict.className = 'verdict neutral';
+    vdIcon.textContent = '➖';
+    vdLabel.textContent = '方向不明确';
+    vdDesc.textContent = 'Kronos震荡或信号中性，建议观望';
+  }
+}
+
+// ===== Update risk detail =====
+function updateRiskDetail(row) {
+  const body = document.getElementById('riskBody');
+  if (row.riskAllPass && row.riskTags.length === 0) {
+    body.innerHTML = `
+      <div class="risk-row"><span class="rl">审计</span><span class="rs pass">✅ 标准无保留</span></div>
+      <div class="risk-row"><span class="rl">公告</span><span class="rs pass">✅ 无负面</span></div>
+      <div class="risk-row"><span class="rl">ST</span><span class="rs pass">✅ 正常</span></div>`;
+  } else {
+    body.innerHTML = `
+      <div class="risk-row"><span class="rl">审计</span><span class="rs pass">✅ 标准无保留</span></div>
+      <div class="risk-row"><span class="rl">公告</span><span class="rs pass">✅ 无负面</span></div>
+      <div class="risk-row"><span class="rl">止损</span><span class="rs fail">⚠️ 触及止损位</span></div>`;
+  }
+}
+
+// ===== Perform action =====
+function doAction(code, action) {
+  const row = ROWS.find(r => r.code === code);
+  if (!row) return;
+
+  decisions[code] = action;
+
+  const messages = {
+    confirmed: `✅ ${row.code} ${row.name} 已确认 → 候选池\n\n信号: ${row.signalCn} ${row.score}分\nKronos: ${row.predDir === 'up' ? '↑' : row.predDir === 'down' ? '↓' : '→'}${row.predPct >= 0 ? '+' : ''}${row.predPct.toFixed(1)}%\n一致性: ${row.cons === 'confirmed' ? '双确认' : row.cons === 'conflict' ? '相悖' : '中性'}\n\n(预览模式模拟)`,
+    downgraded: `⬇ ${row.code} ${row.name} 已降低优先级\n\n暂不加入候选池，保留观察\n\n(预览模式模拟)`,
+    excluded: `❌ ${row.code} ${row.name} 已排除\n\n从当前验证列表中隐藏，刷新后恢复\n\n(预览模式模拟)`,
+  };
+  alert(messages[action]);
+
+  updateDecisionPanel();
+  renderTable();
+}
+
+// ===== Batch actions (alert only) =====
+function batchConfirm() {
+  const pending = ROWS.filter(r => !decisions[r.code] && (r.signal === 'strong-buy' || r.signal === 'buy'));
+  alert('📥 批量确认买入信号\n\n将 ' + pending.length + ' 只买入信号股票全部确认\n\n(预览模式模拟)');
+}
+function batchExclude() {
+  const risky = ROWS.filter(r => !decisions[r.code] && !r.riskAllPass);
+  alert('⚠️ 一键排除风险标的\n\n将 ' + risky.length + ' 只存在风险标记的股票全部排除\n\n(预览模式模拟)');
+}
+function pushToPool() {
+  const confirmed = ROWS.filter(r => decisions[r.code] === 'confirmed');
+  if (confirmed.length === 0) { alert('暂无已确认的股票'); return; }
+  alert('🚀 已推送 ' + confirmed.length + ' 只股票到候选池\n\n' + confirmed.map(r => r.code + ' ' + r.name).join('\n') + '\n\n(预览模式模拟)');
+}
+function viewPool() { alert('跳转到候选池 Tab\n\n/opening-decision?tab=candidate-pool\n\n(预览模式模拟)'); }
+
+// ===== Update decision panel =====
+function updateDecisionPanel() {
+  const confirmed = ROWS.filter(r => decisions[r.code] === 'confirmed');
+  const downgraded = ROWS.filter(r => decisions[r.code] === 'downgraded');
+  const excluded = ROWS.filter(r => decisions[r.code] === 'excluded');
+
+  document.getElementById('decConfirmed').textContent = confirmed.length;
+  document.getElementById('decDowngraded').textContent = downgraded.length;
+  document.getElementById('decExcluded').textContent = excluded.length;
+
+  document.getElementById('decConfirmedList').innerHTML = confirmed.length > 0
+    ? confirmed.map(r => `<span class="d-code mono">${r.code}</span> ${r.name}`).join(' · ')
+    : '<span style="color:var(--muted)">—</span>';
+
+  document.getElementById('decDowngradedList').innerHTML = downgraded.length > 0
+    ? downgraded.map(r => `<span class="d-code mono">${r.code}</span> ${r.name}`).join(' · ')
+    : '<span style="color:var(--muted)">—</span>';
+
+  document.getElementById('decExcludedList').innerHTML = excluded.length > 0
+    ? excluded.map(r => `<span class="d-code mono">${r.code}</span> ${r.name}`).join(' · ')
+    : '<span style="color:var(--muted)">—</span>';
+}
+
+// ===== Update summary bar =====
+function updateSummary() {
+  const total = ROWS.length;
+  const confirmed = ROWS.filter(r => decisions[r.code] === 'confirmed').length;
+  const downgraded = ROWS.filter(r => decisions[r.code] === 'downgraded').length;
+  const excluded = ROWS.filter(r => decisions[r.code] === 'excluded').length;
+  const processed = confirmed + downgraded + excluded;
+
+  document.getElementById('sProcessed').textContent = processed;
+  document.getElementById('sTotal').textContent = total;
+  document.getElementById('sConfirmed').textContent = confirmed;
+  document.getElementById('sDowngraded').textContent = downgraded;
+  document.getElementById('sExcluded').textContent = excluded;
+}
+
+// ===== Filter =====
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-tabs .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+// ===== Sort =====
+function setSort(sort, btn) {
+  currentSort = sort;
+  document.querySelectorAll('.sort-group .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+// ===== Locked sector management =====
+function removeLock(sector) {
+  lockedSectors.delete(sector);
+  updateLockedBanner();
+}
+function clearAllLocks() {
+  lockedSectors.clear();
+  updateLockedBanner();
+}
+function updateLockedBanner() {
+  const div = document.getElementById('lockedBanner');
+  if (lockedSectors.size === 0) { div.style.display = 'none'; return; }
+  div.style.display = 'flex';
+  const tags = [...lockedSectors].map(s => {
+    const count = s === '半导体' ? 12 : 9;
+    return `<span class="b-tag">${s} <span class="count">${count}</span><span class="rm" onclick="removeLock('${s}')" title="移除锁定">×</span></span>`;
+  });
+  document.getElementById('lockedTags').innerHTML = tags.join('');
+}
+
+// ===== Countdown =====
+let cd = 30;
+setInterval(() => { cd--; if (cd <= 0) cd = 30; document.getElementById('countdown').textContent = cd + 's'; }, 1000);
+
+// ===== Init =====
+function init() {
+  // Pre-set initial decisions for demo: 五粮 excluded, 韦尔 downgraded, 中芯+宁德 confirmed
+  decisions['000858'] = 'excluded';
+  decisions['603501'] = 'downgraded';
+  decisions['688981'] = 'confirmed';
+  decisions['300750'] = 'confirmed';
+
+  updateDecisionPanel();
+  renderTable();
+  updateKronos(ROWS.find(r => r.code === selectedCode));
+}
+window.addEventListener('DOMContentLoaded', init);
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

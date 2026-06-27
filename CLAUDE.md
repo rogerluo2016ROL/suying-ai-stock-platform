@@ -1,3 +1,10 @@
+# OpenWolf
+
+@.wolf/OPENWOLF.md
+
+This project uses OpenWolf for context management. Read and follow .wolf/OPENWOLF.md every session. Check .wolf/cerebrum.md before generating code. Check .wolf/anatomy.md before reading files.
+
+
 # 速赢AI — 证券投资管理平台
 
 > Agent 角色用裸名（`product-lead` / `backend-dev` …），项目 skill / slash command 保留 `agf-` 前缀。模板版本以根目录 `CHANGELOG.md` 为准；协议详见 `.claude/rules/team-mode.md`。

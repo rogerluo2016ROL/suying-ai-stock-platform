@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 智能选股</title>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.filter-bar .search{flex:1;min-width:200px;position:relative}
+.filter-bar .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--muted)}
+.filter-bar .search .inp{padding-left:34px}
+.mode-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.mode-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;transition:.15s;position:relative}
+.mode-card:hover{border-color:var(--accent)}
+.mode-card.on{border-color:var(--accent);background:var(--accent-dim)}
+.mode-card.on::after{content:"✓ 已选";position:absolute;top:12px;right:12px;font-size:10px;font-weight:700;color:var(--accent);letter-spacing:.04em}
+.mode-card .mc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.mode-card .mc-name{font-weight:650;font-size:14px}
+.mode-card .mc-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.mode-card .mc-hit{font-family:var(--font-mono);font-size:20px;font-weight:720}
+/* 评分因子分解条 */
+.score-cell{display:flex;align-items:center;gap:9px;justify-content:flex-end}
+.score-stack{width:64px;height:7px;border-radius:4px;overflow:hidden;display:flex;background:var(--border-2)}
+.score-stack i{height:100%}
+.score-stack .f-tech{background:var(--accent)}
+.score-stack .f-fund{background:var(--down)}
+.score-stack .f-money{background:var(--warn)}
+.score-num{font-family:var(--font-mono);font-weight:680;font-size:13px;width:22px;text-align:right}
+.score-legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-left:auto}
+.score-legend .sl{display:flex;align-items:center;gap:5px}
+.score-legend .sd{width:9px;height:9px;border-radius:2px}
+/* 排序表头 */
+.tbl th.sortable{cursor:pointer;user-select:none}
+.tbl th.sortable:hover{color:var(--fg)}
+.tbl th .arr{opacity:0;font-size:9px;margin-left:3px}
+.tbl th.sorted .arr{opacity:1;color:var(--accent)}
+/* 选择列 */
+.tbl td.sel-c,.tbl th.sel-c{width:34px;text-align:center}
+.ck{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border-2);background:var(--surface-2);cursor:pointer;display:inline-grid;place-items:center;vertical-align:middle;transition:.12s}
+.ck.on{background:var(--accent);border-color:var(--accent)}
+.ck svg{width:11px;height:11px;color:#fff;opacity:0}
+.ck.on svg{opacity:1}
+.tbl tbody tr.picked{background:var(--accent-dim)}
+/* 批量操作条 */
+.bulkbar{position:sticky;bottom:0;display:none;align-items:center;gap:14px;background:var(--surface-2);
+  border:1px solid var(--accent);border-radius:9px;padding:11px 16px;margin-top:12px;
+  box-shadow:0 -4px 20px rgba(0,0,0,.3)}
+.bulkbar.show{display:flex}
+.bulkbar .bb-cnt{font-size:13px}.bulkbar .bb-cnt b{color:var(--accent);font-family:var(--font-mono)}
+.bulkbar .bb-actions{margin-left:auto;display:flex;gap:8px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--elevated);
+  border:1px solid var(--down);color:var(--fg);padding:11px 20px;border-radius:8px;font-size:13px;opacity:0;
+  transition:.25s;z-index:200;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.linkage-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}
+.linkage-panel{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px}
+.linkage-panel h4{font-size:13px;margin:0 0 10px;color:var(--fg)}
+.linkage-list{display:grid;gap:9px}
+.linkage-row{display:grid;grid-template-columns:96px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)}
+.linkage-row:last-child{border-bottom:0}
+.risk-bars{display:grid;gap:8px}
+.risk-bar{display:grid;grid-template-columns:74px 1fr 42px;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.risk-bar i{height:6px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--warn));display:block}
+.linkage-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+@media(max-width:1180px){.mode-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:980px){.linkage-grid{grid-template-columns:1fr}.linkage-row{grid-template-columns:1fr}.linkage-row .tag{width:max-content}}
+
+/* ── 打磨 pass：可访问性 + 状态 ── */
+/* 复选框扩到 24px AA 触达下限（视觉仍 16，外扩透明热区） */
+.ck{position:relative}
+.ck::before{content:"";position:absolute;inset:-4px;border-radius:6px}
+/* 键盘焦点环：所有自定义可交互控件 */
+.ck:focus-visible,.chip:focus-visible,.mode-card:focus-visible,.toggle:focus-visible,
+.tbl th.sortable:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.tbl th.sortable:focus-visible{outline-offset:-2px}
+a:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 排序表头：升降序箭头随 aria-sort 状态 */
+.tbl th[aria-sort="ascending"] .arr,.tbl th[aria-sort="descending"] .arr{opacity:1;color:var(--accent)}
+/* 空状态行 */
+#emptyRow td{padding:36px 10px;text-align:center;color:var(--muted);font-size:12.5px}
+/* 减少动效兜底 */
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms!important;transition-duration:.001ms!important}
+  .toast{transition:opacity .001ms}
+}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+</style>
+</head>
+<body data-page="screener" data-title="智能选股">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>智能选股</h1><div class="sub">12 套策略并行扫描全市场 · 最近扫描 14:58 · 命中 42 只候选</div></div>
+        <div class="head-actions">
+          <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>导出 CSV</button>
+          <button class="btn primary" id="rescan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 4v5h-5"/></svg>重新扫描</button>
+        </div>
+      </div>
+
+      <!-- 策略模式卡：点击联动筛选下方候选股 -->
+      <div class="mode-grid" id="factor-modes">
+        <div class="mode-card" data-mode="短线打板"><div class="mc-top"><div><div class="mc-name">短线打板</div><div class="mc-meta">日线 · 激进</div></div><span class="tag t-up">激进</span></div><div class="mc-hit up">18</div><div class="mc-meta">命中候选</div></div>
+        <div class="mode-card" data-mode="趋势波段"><div class="mc-top"><div><div class="mc-name">趋势波段</div><div class="mc-meta">日线 · 稳健</div></div><span class="tag t-neu">稳健</span></div><div class="mc-hit neu">11</div><div class="mc-meta">命中候选</div></div>
+        <div class="mode-card" data-mode="低吸潜伏"><div class="mc-top"><div><div class="mc-name">低吸潜伏</div><div class="mc-meta">周线 · 价值</div></div><span class="tag t-mute">价值</span></div><div class="mc-hit">7</div><div class="mc-meta">命中候选</div></div>
+        <div class="mode-card" data-mode="产业链共振"><div class="mc-top"><div><div class="mc-name">产业链共振</div><div class="mc-meta">日线 · 主题</div></div><span class="tag t-warn">主题</span></div><div class="mc-hit" style="color:var(--warn)">6</div><div class="mc-meta">命中候选</div></div>
+      </div>
+
+      <div class="card" id="candidate-list">
+        <div class="card-h"><h3>候选股清单</h3><span class="meta" id="cnt">共 42 只 · 按综合评分排序</span>
+          <div class="score-legend">
+            <span class="sl"><span class="sd" style="background:var(--accent)"></span>技术</span>
+            <span class="sl"><span class="sd" style="background:var(--down)"></span>基本面</span>
+            <span class="sl"><span class="sd" style="background:var(--warn)"></span>资金</span>
+          </div>
+        </div>
+        <div class="card-b" style="padding:14px 16px">
+          <div class="filter-bar">
+            <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input class="inp" id="q" type="search" aria-label="搜索候选股（代码、名称或行业）" placeholder="搜索代码 / 名称 / 行业…" /></div>
+            <span class="chip active" data-f="all">全部</span>
+            <span class="chip" data-f="up">看涨</span>
+            <span class="chip" data-f="hot">热门行业</span>
+            <span class="chip" id="modeChip" style="display:none"></span>
+          </div>
+          <table class="tbl" id="tbl">
+            <thead><tr>
+              <th class="sel-c"><span class="ck" id="ckAll" role="checkbox" aria-checked="false" tabindex="0" aria-label="全选当前候选股"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></th>
+              <th scope="col">代码 / 名称</th><th scope="col">行业</th><th scope="col">策略命中</th>
+              <th class="r sortable" data-sort="price" scope="col" tabindex="0" role="button" aria-label="按现价排序">现价<span class="arr" aria-hidden="true">▼</span></th>
+              <th class="r sortable" data-sort="chg" scope="col" tabindex="0" role="button" aria-label="按涨跌幅排序">涨跌幅<span class="arr" aria-hidden="true">▼</span></th>
+              <th class="r sortable" data-sort="vr" scope="col" tabindex="0" role="button" aria-label="按量比排序">量比<span class="arr" aria-hidden="true">▼</span></th>
+              <th class="r sortable" data-sort="to" scope="col" tabindex="0" role="button" aria-label="按换手排序">换手<span class="arr" aria-hidden="true">▼</span></th>
+              <th class="c sortable sorted" data-sort="score" scope="col" tabindex="0" role="button" aria-sort="descending" aria-label="按综合评分排序">综合评分<span class="arr" aria-hidden="true">▼</span></th>
+              <th scope="col"><span class="sr-only">操作</span></th>
+            </tr></thead>
+            <tbody>
+              <tr data-up="1" data-hot="1" data-mode="短线打板" data-code="300308" data-nm="中际旭创" data-price="156.20" data-chg="4.81" data-vr="4.2" data-to="8.6" data-score="94" data-tech="42" data-fund="28" data-money="24"><td class="sel-c"><span class="ck" role="checkbox" aria-checked="false" tabindex="0" aria-label="选择该候选股"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td><td><span class="code">300308</span> <span class="nm">中际旭创</span></td><td>通信设备</td><td><span class="tag t-up">短线打板</span></td><td class="r mono">156.20</td><td class="r mono up">+4.81%</td><td class="r mono">4.2</td><td class="r mono">8.6%</td><td class="c"><span class="score-cell"><span class="score-stack"><i class="f-tech" style="width:45%"></i><i class="f-fund" style="width:30%"></i><i class="f-money" style="width:25%"></i></span><span class="score-num">94</span></span></td><td class="r"><a href="#diagnosis-linkage" data-focus-diagnosis>诊断</a></td></tr>
+              <tr data-up="1" data-hot="1" data-mode="短线打板" data-code="688256" data-nm="寒武纪" data-price="658.40" data-chg="6.20" data-vr="3.5" data-to="12.1" data-score="91" data-tech="40" data-fund="26" data-money="25"><td class="sel-c"><span class="ck" role="checkbox" aria-checked="false" tabindex="0" aria-label="选择该候选股"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td><td><span class="code">688256</span> <span class="nm">寒武纪</span></td><td>半导体</td><td><span class="tag t-up">主升加速</span></td><td class="r mono">658.40</td><td class="r mono up">+6.20%</td><td class="r mono">3.5</td><td class="r mono">12.1%</td><td class="c"><span class="score-cell"><span class="score-stack"><i class="f-tech" style="width:44%"></i><i class="f-fund" style="width:29%"></i><i class="f-money" style="width:27%"></i></span><span class="score-num">91</span></span></td><td class="r"><a href="#diagnosis-linkage" data-focus-diagnosis>诊断</a></td></tr>
+              <tr data-up="1" data-mode="趋势波段" data-code="300750" data-nm="宁德时代" data-price="241.80" data-chg="5.12" data-vr="2.8" data-to="3.4" data-score="88" data-tech="36" data-fund="32" data-money="20"><td class="sel-c"><span class="ck" role="checkbox" aria-checked="false" tabindex="0" aria-label="选择该候选股"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td><td><span class="code">300750</span> <span class="nm">宁德时代</span></td><td>电池</td><td><span class="tag t-neu">趋势波段</span></td><td class="r mono">241.80</td><td class="r mono up">+5.12%</td><td class="r mono">2.8</td><td class="r mono">3.4%</td><td class="c"><span class="score-cell"><span class="score-stack"><i class="f-tech" style="width:41%"></i><i class="f-fund" style="width:36%"></i><i class="f-money" style="width:23%"></i></span><span class="score-num">88</span></span></td><td class="r"><a href="#diagnosis-linkage" data-focus-diagnosis>诊断</a></td></tr>
+              <tr data-up="1" data-hot="1" data-mode="产业链共振" data-code="601138" data-nm="工业富联" data-price="28.66" data-chg="3.92" data-vr="2.6" data-to="2.1" data-score="85" data-tech="34" data-fund="30" data-money="21"><td class="sel-c"><span class="ck" role="checkbox" aria-checked="false" tabindex="0" aria-label="选择该候选股"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td><td><span class="code">601138</span> <span class="nm">工业富联</span></td><td>消费电子</td><td><span class="tag t-warn">产业链共振</span></td><td class="r mono">28.66</td><td class="r mono up">+3.92%</td><td class="r mono">2.6</td><td class="r mono">2.1%</td><td class="c"><span class="score-cell"><span class="score-stack"><i class="f-tech" style="width:40%"></i><i class="f-fund" style="width:35%"></i><i class="f-money" style="width:25%"></i></span><span class="score-num">85</span></span></td><td class="r"><a href="#diagnosis-linkage" data-focus-diagnosis>诊断</a></td></tr>
+              <tr data-up="1" data-mode="低吸潜伏" data-code="000858" data-nm="五粮液" data-price="142.30" data-chg="3.08" data-vr="1.9" data-to="1.2" data-score="81" data-tech="30" data-fund="36" data-money="15"><td class="sel-c"><span class="ck" role="checkbox" aria-checked="false" tabindex="0" aria-label="选择该候选股"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td><td><span class="code">000858</span> <span class="nm">五粮液</span></td><td>白酒</td><td><span class="tag t-mute">低吸潜伏</span></td><td class="r mono">142.30</td><td class="r mono up">+3.08%</td><td class="r mono">1.9</td><td class="r mono">1.2%</td><td class="c"><span class="score-cell"><span class="score-stack"><i class="f-tech" style="width:37%"></i><i class="f-fund" style="width:44%"></i><i class="f-money" style="width:19%"></i></span><span class="score-num">81</span></span></td><td class="r"><a href="#diagnosis-linkage" data-focus-diagnosis>诊断</a></td></tr>
+              <tr data-hot="1" data-mode="产业链共振" data-code="002475" data-nm="立讯精密" data-price="41.05" data-chg="2.10" data-vr="1.7" data-to="1.8" data-score="78" data-tech="32" data-fund="28" data-money="18"><td class="sel-c"><span class="ck" role="checkbox" aria-checked="false" tabindex="0" aria-label="选择该候选股"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td><td><span class="code">002475</span> <span class="nm">立讯精密</span></td><td>消费电子</td><td><span class="tag t-warn">产业链共振</span></td><td class="r mono">41.05</td><td class="r mono up">+2.10%</td><td class="r mono">1.7</td><td class="r mono">1.8%</td><td class="c"><span class="score-cell"><span class="score-stack"><i class="f-tech" style="width:41%"></i><i class="f-fund" style="width:36%"></i><i class="f-money" style="width:23%"></i></span><span class="score-num">78</span></span></td><td class="r"><a href="#diagnosis-linkage" data-focus-diagnosis>诊断</a></td></tr>
+              <tr data-mode="趋势波段" data-code="600519" data-nm="贵州茅台" data-price="1685.00" data-chg="2.34" data-vr="1.4" data-to="0.6" data-score="74" data-tech="26" data-fund="38" data-money="10"><td class="sel-c"><span class="ck" role="checkbox" aria-checked="false" tabindex="0" aria-label="选择该候选股"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td><td><span class="code">600519</span> <span class="nm">贵州茅台</span></td><td>白酒</td><td><span class="tag t-neu">趋势波段</span></td><td class="r mono">1,685.00</td><td class="r mono up">+2.34%</td><td class="r mono">1.4</td><td class="r mono">0.6%</td><td class="c"><span class="score-cell"><span class="score-stack"><i class="f-tech" style="width:35%"></i><i class="f-fund" style="width:51%"></i><i class="f-money" style="width:14%"></i></span><span class="score-num">74</span></span></td><td class="r"><a href="#diagnosis-linkage" data-focus-diagnosis>诊断</a></td></tr>
+              <tr data-mode="低吸潜伏" data-code="002142" data-nm="宁波银行" data-price="24.18" data-chg="-0.74" data-vr="0.9" data-to="0.4" data-score="66" data-tech="20" data-fund="34" data-money="12"><td class="sel-c"><span class="ck" role="checkbox" aria-checked="false" tabindex="0" aria-label="选择该候选股"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg></span></td><td><span class="code">002142</span> <span class="nm">宁波银行</span></td><td>城商行</td><td><span class="tag t-mute">低吸潜伏</span></td><td class="r mono">24.18</td><td class="r mono down">−0.74%</td><td class="r mono">0.9</td><td class="r mono">0.4%</td><td class="c"><span class="score-cell"><span class="score-stack"><i class="f-tech" style="width:30%"></i><i class="f-fund" style="width:52%"></i><i class="f-money" style="width:18%"></i></span><span class="score-num">66</span></span></td><td class="r"><a href="#diagnosis-linkage" data-focus-diagnosis>诊断</a></td></tr>
+            </tbody>
+            <tbody id="emptyBody" hidden><tr id="emptyRow"><td colspan="10">没有符合条件的候选股 · 试试清除筛选或换个策略</td></tr></tbody>
+          </table>
+
+          <!-- 批量操作条 -->
+          <div class="bulkbar" id="bulk-actions">
+            <span class="bb-cnt">已选 <b id="selN">0</b> 只</span>
+            <div class="bb-actions">
+              <button class="btn sm primary" id="addWatch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 6.5 7 .9-5 4.9 1.2 7L12 18l-6.4 3.3L6.8 14 2 9.4l7-.9z"/></svg>加入自选</button>
+              <a class="btn sm" href="trade.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/></svg>批量下单</a>
+              <button class="btn sm ghost" id="clearSel">取消选择</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt14" id="diagnosis-linkage">
+        <div class="card-h">
+          <h3>诊断联动</h3>
+          <span class="meta">选股结果先在本页做轻量诊断，再按需送入“个股诊断”深度页</span>
+        </div>
+        <div class="card-b">
+          <div class="linkage-grid">
+            <div class="linkage-panel">
+              <h4>候选诊断摘要</h4>
+              <div class="linkage-list" id="diagnosisQueue">
+                <div class="linkage-row">
+                  <span><span class="code">300308</span> 中际旭创</span>
+                  <span class="muted">资金强度高，短线拥挤度偏高；建议先按 2% 仓位试单。</span>
+                  <span class="tag t-warn">需复核</span>
+                </div>
+                <div class="linkage-row">
+                  <span><span class="code">688256</span> 寒武纪</span>
+                  <span class="muted">趋势延续强，但竞价溢价过高；等待 5 分钟回踩确认。</span>
+                  <span class="tag t-up">可观察</span>
+                </div>
+                <div class="linkage-row">
+                  <span><span class="code">300750</span> 宁德时代</span>
+                  <span class="muted">基本面权重更高，适合趋势波段池，不进入开盘抢筹队列。</span>
+                  <span class="tag t-neu">波段</span>
+                </div>
+              </div>
+            </div>
+            <div class="linkage-panel">
+              <h4>诊断回写规则</h4>
+              <div class="risk-bars">
+                <div class="risk-bar"><span>技术风险</span><i style="width:68%"></i><b class="mono">68</b></div>
+                <div class="risk-bar"><span>资金拥挤</span><i style="width:74%"></i><b class="mono">74</b></div>
+                <div class="risk-bar"><span>基本面偏离</span><i style="width:31%"></i><b class="mono">31</b></div>
+              </div>
+              <div class="sub mt14">诊断结果回写到候选清单的综合评分、风控标签和批量下单准入；不会在顶部页签里直接跳出当前模块。</div>
+              <div class="linkage-actions">
+                <button class="btn sm primary" id="sendDiagnosis">批量送诊</button>
+                <a class="btn sm" href="diagnosis.html">打开个股诊断</a>
+                <button class="btn sm ghost" id="writebackRule">仅回写风险标签</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 选股结果基于历史数据与因子模型，不构成投资建议</div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="assets/shell.js"></script>
+<script>
+const tbody=document.querySelector('#tbl tbody');
+const rows=[...tbody.querySelectorAll('tr')];
+let activeMode=null, sortKey='score', sortDir=-1;
+
+/* ── 筛选 ── */
+function apply(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const f=document.querySelector('.chip.active').dataset.f;
+  let n=0;
+  rows.forEach(r=>{
+    const txt=r.textContent.toLowerCase();
+    let ok=(!q||txt.includes(q));
+    if(f==='up')ok=ok&&r.dataset.up==='1';
+    if(f==='hot')ok=ok&&r.dataset.hot==='1';
+    if(activeMode)ok=ok&&r.dataset.mode===activeMode;
+    r.style.display=ok?'':'none';if(ok)n++;
+  });
+  document.getElementById('cnt').textContent='共 '+n+' 只 · 按'+({score:'综合评分',price:'现价',chg:'涨跌幅',vr:'量比',to:'换手'}[sortKey])+(sortDir<0?' 降序':' 升序');
+}
+document.getElementById('q').addEventListener('input',apply);
+document.querySelectorAll('.chip[data-f]').forEach(c=>c.addEventListener('click',()=>{
+  document.querySelectorAll('.chip[data-f]').forEach(x=>x.classList.remove('active'));c.classList.add('active');apply();
+}));
+
+/* ── 策略卡联动筛选 ── */
+const modeChip=document.getElementById('modeChip');
+document.querySelectorAll('.mode-card').forEach(m=>m.addEventListener('click',()=>{
+  const mode=m.dataset.mode;
+  if(activeMode===mode){activeMode=null;m.classList.remove('on');modeChip.style.display='none';}
+  else{
+    document.querySelectorAll('.mode-card').forEach(x=>x.classList.remove('on'));
+    m.classList.add('on');activeMode=mode;
+    modeChip.style.display='';modeChip.classList.add('active');
+    modeChip.innerHTML='策略：'+mode+' ✕';
+  }
+  apply();
+}));
+modeChip.addEventListener('click',()=>{activeMode=null;document.querySelectorAll('.mode-card').forEach(x=>x.classList.remove('on'));modeChip.style.display='none';apply();});
+
+/* ── 排序（接真逻辑）── */
+function sortRows(){
+  const sorted=[...rows].sort((a,b)=>{
+    const va=parseFloat(a.dataset[sortKey]),vb=parseFloat(b.dataset[sortKey]);
+    return (va-vb)*sortDir;
+  });
+  sorted.forEach(r=>tbody.appendChild(r));
+}
+document.querySelectorAll('th.sortable').forEach(th=>th.addEventListener('click',()=>{
+  const k=th.dataset.sort;
+  if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1;}
+  document.querySelectorAll('th.sortable').forEach(x=>{x.classList.remove('sorted');x.querySelector('.arr').textContent='▼';});
+  th.classList.add('sorted');th.querySelector('.arr').textContent=sortDir<0?'▼':'▲';
+  sortRows();apply();
+}));
+
+/* ── 多选 + 批量 ── */
+const bulkbar=document.getElementById('bulk-actions'),selN=document.getElementById('selN');
+function refreshSel(){
+  const picked=rows.filter(r=>r.classList.contains('picked')&&r.style.display!=='none');
+  selN.textContent=picked.length;
+  bulkbar.classList.toggle('show',picked.length>0);
+  const vis=rows.filter(r=>r.style.display!=='none');
+  document.getElementById('ckAll').classList.toggle('on',vis.length>0&&vis.every(r=>r.classList.contains('picked')));
+}
+rows.forEach(r=>{
+  r.querySelector('.ck').addEventListener('click',e=>{
+    e.stopPropagation();
+    const on=r.classList.toggle('picked');
+    r.querySelector('.ck').classList.toggle('on',on);
+    refreshSel();
+  });
+});
+document.getElementById('ckAll').addEventListener('click',function(){
+  const vis=rows.filter(r=>r.style.display!=='none');
+  const allOn=vis.every(r=>r.classList.contains('picked'));
+  vis.forEach(r=>{r.classList.toggle('picked',!allOn);r.querySelector('.ck').classList.toggle('on',!allOn);});
+  refreshSel();
+});
+document.getElementById('clearSel').addEventListener('click',()=>{
+  rows.forEach(r=>{r.classList.remove('picked');r.querySelector('.ck').classList.remove('on');});refreshSel();
+});
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
+document.getElementById('addWatch').addEventListener('click',()=>{
+  const names=rows.filter(r=>r.classList.contains('picked')).map(r=>r.dataset.nm);
+  toast('✓ 已将 '+names.length+' 只标的加入自选：'+names.slice(0,3).join('、')+(names.length>3?' 等':''));
+  rows.forEach(r=>{r.classList.remove('picked');r.querySelector('.ck').classList.remove('on');});refreshSel();
+});
+document.querySelectorAll('[data-focus-diagnosis]').forEach(a=>a.addEventListener('click',()=>{
+  const row=a.closest('tr');
+  if(row){
+    document.getElementById('diagnosisQueue').querySelector('.linkage-row').innerHTML=
+      '<span><span class="code">'+row.dataset.code+'</span> '+row.dataset.nm+'</span>'+
+      '<span class="muted">已载入候选股轻量诊断：评分 '+row.dataset.score+'，策略命中 '+row.dataset.mode+'，等待确认是否送入深度诊断。</span>'+
+      '<span class="tag t-warn">待送诊</span>';
+  }
+}));
+document.getElementById('sendDiagnosis').addEventListener('click',()=>{
+  const picked=rows.filter(r=>r.classList.contains('picked')&&r.style.display!=='none');
+  if(!picked.length){toast('请先在候选清单勾选需要送诊的标的');return;}
+  toast('✓ 已提交 '+picked.length+' 只候选股进入轻量诊断队列');
+});
+document.getElementById('writebackRule').addEventListener('click',()=>toast('✓ 诊断风险标签已回写到候选清单'));
+
+sortRows();
+</script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 模型训练</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+#lossChart{width:100%;height:280px}
+.run-row{display:flex;align-items:center;gap:13px;padding:12px 0;border-bottom:1px solid var(--border)}
+.run-row:last-child{border-bottom:none}
+.run-main{flex:1;min-width:0}
+.prog{width:160px}
+.prog .bar{height:6px}
+.prog .pt{font-size:11px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between}
+</style>
+</head>
+<body data-page="training" data-title="模型训练">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>模型训练</h1><div class="sub">训练、评估与调参 K线预测模型 · 管理员专用</div></div>
+        <div class="head-actions"><button class="btn primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z"/></svg>新建训练任务</button></div>
+      </div>
+
+      <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi"><div class="k-lbl">运行中任务</div><div class="k-val neu" style="margin-top:8px">2</div><div class="k-sub">GPU 占用 78%</div></div>
+        <div class="kpi"><div class="k-lbl">已完成模型</div><div class="k-val" style="margin-top:8px">14</div><div class="k-sub">本周 +3</div></div>
+        <div class="kpi"><div class="k-lbl">最佳验证 IC</div><div class="k-val mono up" style="margin-top:8px">0.087</div><div class="k-sub">Kronos-base v3</div></div>
+        <div class="kpi"><div class="k-lbl">训练样本</div><div class="k-val mono" style="margin-top:8px">2.4M</div><div class="k-sub">5000 标的 × 480 日</div></div>
+      </div>
+
+      <div class="row r-2-1 mt14">
+        <div class="card" id="loss-monitor">
+          <div class="card-h"><h3>训练损失曲线</h3><span class="meta">Kronos-base v4 · 进行中</span></div>
+          <div class="card-b">
+            <div id="lossChart"></div>
+            <div class="action-strip">
+              <div class="hint">损失曲线异常时只能暂停训练或标记复核，不能直接发布模型。</div>
+              <div class="inline-actions">
+                <button class="btn sm warn" type="button" data-toast="已暂停训练任务">暂停训练</button>
+                <button class="btn sm" type="button" data-toast="已标记本轮训练需复核">标记复核</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card" id="training-jobs">
+          <div class="card-h"><h3>当前任务</h3></div>
+          <div class="card-b" style="padding:8px 16px">
+            <div class="run-row">
+              <span class="led on"></span>
+              <div class="run-main"><div class="n" style="font-weight:600">Kronos-base v4</div><div class="s" style="font-size:11px;color:var(--muted)">Transformer · batch 256 · lr 3e-4</div></div>
+              <div class="prog"><div class="bar"><i style="width:64%"></i></div><div class="pt"><span>epoch 32/50</span><span class="up">IC 0.083</span></div></div>
+            </div>
+            <div class="run-row">
+              <span class="led on"></span>
+              <div class="run-main"><div class="n" style="font-weight:600">CatBoost-1440 v2</div><div class="s" style="font-size:11px;color:var(--muted)">梯度提升 · depth 8 · 2000 轮</div></div>
+              <div class="prog"><div class="bar"><i style="width:88%"></i></div><div class="pt"><span>1760/2000</span><span class="up">AUC 0.71</span></div></div>
+            </div>
+            <div class="run-row">
+              <span class="led off"></span>
+              <div class="run-main"><div class="n" style="font-weight:600">LSTM-attn v1</div><div class="s" style="font-size:11px;color:var(--muted)">排队中 · 等待 GPU</div></div>
+              <div class="prog"><div class="pt" style="justify-content:flex-start"><span class="tag t-mute">排队</span></div></div>
+            </div>
+            <div class="action-strip">
+              <div class="hint">训练任务可调整优先级，但发布必须经过数据校验和发布闸门。</div>
+              <div class="inline-actions">
+                <button class="btn sm" type="button" data-toast="训练队列优先级已调整">调整优先级</button>
+                <button class="btn sm ghost" type="button" data-toast="训练资源占用已刷新">刷新资源</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt14" id="dataset-check">
+        <div class="state-note" style="margin:12px 16px 0">
+          数据校验是发布闸门的前置条件，训练集缺失、行业偏移和标签延迟必须先通过校验。
+          <div class="action-strip">
+            <div class="hint">校验失败会阻止模型进入注册流程。</div>
+            <div class="inline-actions">
+              <button class="btn sm" type="button" data-toast="已重新校验训练数据">重新校验数据</button>
+              <button class="btn sm ghost" type="button" data-toast="数据校验报告已导出">导出校验报告</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-h" id="release-gate"><h3>训练历史</h3><span class="meta">最近 6 次</span></div>
+        <div class="card-b" style="padding:6px 16px">
+          <table class="tbl">
+            <thead><tr><th>模型</th><th>类型</th><th class="r">验证 IC</th><th class="r">AUC</th><th class="r">训练时长</th><th>完成时间</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td class="nm">Kronos-base v3</td><td>Transformer</td><td class="r mono up">0.087</td><td class="r mono">0.73</td><td class="r mono">4h 12m</td><td class="mono">06-23 18:40</td><td><span class="tag t-down">已上线</span></td></tr>
+              <tr><td class="nm">CatBoost-1440 v1</td><td>梯度提升</td><td class="r mono">0.071</td><td class="r mono">0.70</td><td class="r mono">1h 38m</td><td class="mono">06-22 14:05</td><td><span class="tag t-down">已上线</span></td></tr>
+              <tr><td class="nm">Kronos-base v2</td><td>Transformer</td><td class="r mono">0.069</td><td class="r mono">0.68</td><td class="r mono">3h 55m</td><td class="mono">06-20 09:12</td><td><span class="tag t-mute">已归档</span></td></tr>
+              <tr><td class="nm">LSTM-attn v0</td><td>循环网络</td><td class="r mono down">0.042</td><td class="r mono">0.61</td><td class="r mono">2h 20m</td><td class="mono">06-18 22:30</td><td><span class="tag t-mute">已废弃</span></td></tr>
+              <tr><td class="nm">ensemble v1</td><td>加权融合</td><td class="r mono up">0.091</td><td class="r mono">0.75</td><td class="r mono">—</td><td class="mono">06-24 11:00</td><td><span class="tag t-warn">评估中</span></td></tr>
+            </tbody>
+          </table>
+          <div class="action-strip">
+            <div class="hint">发布闸门要求验证 IC、AUC、样本覆盖和回测复核全部达标。</div>
+            <div class="inline-actions">
+              <button class="btn sm primary" type="button" data-toast="模型已提交发布闸门">提交发布闸门</button>
+              <a class="btn sm ghost" href="model-registry.html#deployment-stage">查看部署阶段</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 模型训练与评估指标用于内部研究</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+<script>
+let chart;
+function render(){
+  const dark=document.documentElement.getAttribute('data-theme')!=='light';
+  if(!chart)chart=echarts.init(document.getElementById('lossChart'));
+  const axisC=dark?'#2a3444':'#d4dbe6',txtC=dark?'#9aa7b8':'#52617a',gridC=dark?'#1f2733':'#e6eaf0';
+  const ep=[],tr=[],va=[];for(let i=1;i<=32;i++){ep.push(i);tr.push(+(0.9*Math.exp(-i/9)+0.12+Math.random()*0.01).toFixed(3));va.push(+(0.9*Math.exp(-i/11)+0.16+Math.random()*0.015).toFixed(3));}
+  chart.setOption({
+    grid:{left:44,right:16,top:18,bottom:28},
+    legend:{data:['训练损失','验证损失'],textStyle:{color:txtC},right:10,top:0,itemWidth:14,itemHeight:8},
+    tooltip:{trigger:'axis',backgroundColor:dark?'#161c28':'#fff',borderColor:axisC,textStyle:{color:dark?'#e8edf4':'#1a2230'}},
+    xAxis:{type:'category',data:ep,axisLine:{lineStyle:{color:axisC}},axisLabel:{color:txtC,fontSize:10,interval:3,formatter:v=>'e'+v},splitLine:{show:false}},
+    yAxis:{axisLine:{show:false},axisLabel:{color:txtC,fontSize:10},splitLine:{lineStyle:{color:gridC}}},
+    series:[
+      {name:'训练损失',type:'line',data:tr,smooth:true,symbol:'none',lineStyle:{color:'#3d8bff',width:2}},
+      {name:'验证损失',type:'line',data:va,smooth:true,symbol:'none',lineStyle:{color:'#f5a623',width:2}}
+    ]
+  });
+}
+render();
+window.addEventListener('resize',()=>chart&&chart.resize());
+window.addEventListener('od-theme-change',()=>setTimeout(render,50));
+</script>
+</body>
+</html>

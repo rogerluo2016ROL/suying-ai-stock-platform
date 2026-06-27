@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 风控交易看板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style class="legacy-page-style">
+/* ===== Design Tokens ===== */
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+
+/* ===== Shell ===== */
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--up),#ff7875);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--up)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.nav-item.warn-item{color:var(--warn)}
+.nav-item.warn-item .badge{background:var(--up);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:auto}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 6px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
+.content{padding:18px 20px 32px}
+
+/* ===== Cards & Grid ===== */
+.grid{display:grid;gap:14px}
+.row{display:grid;gap:14px}
+.r-3{grid-template-columns:repeat(3,1fr)}
+.r-2{grid-template-columns:repeat(2,1fr)}
+.r-7-5{grid-template-columns:7fr 5fr}
+.r-5-7{grid-template-columns:5fr 7fr}
+.mt14{margin-top:14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-h h3{font-size:13.5px;font-weight:650}
+.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
+.card-b{padding:16px}
+.card-b.compact{padding:12px 16px}
+
+/* ===== Page Head ===== */
+.page-head{display:flex;align-items:flex-end;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.page-head h1{font-size:21px;font-weight:700}
+.page-head .sub{font-size:12.5px;color:var(--muted)}
+.head-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+/* ===== Breaker Banner ===== */
+.breaker-banner{display:flex;align-items:center;gap:12px;padding:12px 20px;border-radius:var(--radius);margin-bottom:14px}
+.breaker-banner.normal{background:var(--down-bg);border:1px solid var(--down)}
+.breaker-banner.normal .status-dot{width:10px;height:10px;border-radius:50%;background:var(--down);animation:pulse 1.8s infinite}
+.breaker-banner.normal .status-text{font-weight:650;color:var(--down)}
+.breaker-banner.triggered{background:var(--up-bg);border:1px solid var(--up)}
+.breaker-banner.triggered .status-dot{width:10px;height:10px;border-radius:50%;background:var(--up)}
+.breaker-banner.half-open{background:var(--warn-bg);border:1px solid var(--warn)}
+.breaker-banner.half-open .status-dot{width:10px;height:10px;border-radius:50%;background:var(--warn)}
+.breaker-info{flex:1;font-size:12px;color:var(--fg-2);display:flex;gap:20px;flex-wrap:wrap}
+
+/* ===== KPI Row ===== */
+.kpis{display:grid;gap:14px;grid-template-columns:repeat(5,1fr)}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;position:relative;overflow:hidden}
+.kpi .kl{font-size:11px;color:var(--fg-2);font-weight:550;margin-bottom:6px}
+.kpi .kv{font-size:24px;font-weight:720;font-family:var(--font-mono);letter-spacing:-.02em}
+.kpi .ks{font-size:10.5px;color:var(--muted);margin-top:3px}
+.kpi.risk-high{border-left:3px solid var(--up)}
+.kpi.risk-mid{border-left:3px solid var(--warn)}
+.kpi.risk-low{border-left:3px solid var(--down)}
+.kpi.risk-info{border-left:3px solid var(--accent)}
+
+/* ===== Position Table ===== */
+.pos-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px}
+.pos-row:last-child{border-bottom:none}
+.pos-row:hover{background:var(--surface-2);margin:0 -16px;padding-left:16px;padding-right:16px;border-radius:4px}
+.pos-code{font-family:var(--font-mono);font-size:12px;font-weight:650;width:68px;flex-shrink:0}
+.pos-name{width:72px;flex-shrink:0;color:var(--fg-2);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pos-pnl{font-family:var(--font-mono);font-size:12px;font-weight:650;width:70px;text-align:right;flex-shrink:0}
+.pos-exposure{width:90px;flex-shrink:0;font-size:11px}
+.pos-sl-bar{flex:1;min-width:60px;height:6px;border-radius:3px;background:var(--surface-2);position:relative;overflow:hidden}
+.pos-sl-fill{position:absolute;left:0;top:0;height:100%;border-radius:3px;transition:width .4s}
+.pos-sl-marker{position:absolute;top:-3px;width:2px;height:12px;background:var(--fg);border-radius:1px}
+.pos-tags{display:flex;gap:4px;flex-shrink:0}
+.tag{padding:1px 7px;border-radius:4px;font-size:9.5px;font-weight:600}
+.tag-danger{background:var(--up-bg);color:var(--up)}
+.tag-warn{background:var(--warn-bg);color:var(--warn)}
+.tag-info{background:var(--accent-dim);color:var(--accent)}
+
+/* ===== Strategy Status ===== */
+.strat-card{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.strat-card:last-child{border-bottom:none}
+.strat-status{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.strat-status.active{background:var(--down);animation:pulse 1.8s infinite}
+.strat-status.paused{background:var(--warn)}
+.strat-status.stopped{background:var(--muted)}
+.strat-name{flex:1;font-size:12px;font-weight:550}
+.strat-meta{font-size:10.5px;color:var(--muted)}
+
+/* ===== Alert Timeline ===== */
+.alert-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:11.5px}
+.alert-item:last-child{border-bottom:none}
+.alert-time{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);white-space:nowrap;flex-shrink:0}
+.alert-icon{flex-shrink:0;font-size:14px}
+.alert-msg{flex:1;line-height:1.4}
+.alert-action{flex-shrink:0;font-size:10.5px;color:var(--accent);cursor:pointer}
+.alert-action:hover{text-decoration:underline}
+
+/* ===== Risk Radar Mini ===== */
+#radarChart{width:100%;height:280px}
+
+/* ===== Footer ===== */
+.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+
+/* ===== Breaker Shield Icon ===== */
+.shield-icon{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;font-size:20px}
+.shield-normal{background:var(--down-bg);color:var(--down)}
+.shield-triggered{background:var(--up-bg);color:var(--up)}
+.shield-half{background:var(--warn-bg);color:var(--warn)}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="risk-control" data-title="风控交易看板">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">风控/管理员</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共规则 + 私有判定</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/account</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">所有实盘强制经过</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<!-- Page Head -->
+          <div class="page-head">
+            <div>
+              <h1>🛡️ 风控中心</h1>
+              <div class="sub">熔断监控 · 持仓风险 · 策略状态 · 风控审计</div>
+            </div>
+          </div>
+      
+          <!-- ===== 熔断器状态横幅 (当前: 正常) ===== -->
+          <div class="breaker-banner normal">
+            <div class="shield-icon shield-normal">🛡️</div>
+            <div>
+              <div class="status-text" style="font-size:14px"><span class="status-dot" style="display:inline-block;margin-right:6px;vertical-align:middle"></span>熔断器：正常交易</div>
+              <div class="breaker-info">
+                <span>今日亏损: <b class="mono" style="color:var(--fg)">-0.82%</b></span>
+                <span>熔断阈值: <b class="mono">5.00%</b></span>
+                <span>剩余空间: <b class="mono" style="color:var(--down)">4.18%</b></span>
+                <span>总资产: <b class="mono" style="color:var(--fg)">¥1,285,600</b></span>
+                <span>可用资金: <b class="mono" style="color:var(--fg)">¥342,000</b></span>
+              </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div class="mono" style="font-size:28px;font-weight:720;color:var(--down)">82%</div>
+              <div style="font-size:9.5px;color:var(--muted)">亏损预算剩余</div>
+            </div>
+          </div>
+      
+          <!-- ===== KPI: 五张核心卡片 ===== -->
+          <div class="kpis">
+            <div class="kpi risk-mid">
+              <div class="kl">总仓位</div>
+              <div class="kv" style="color:var(--warn)">73.4<span style="font-size:14px">%</span></div>
+              <div class="ks">持仓 6 只 / 上限 80%</div>
+            </div>
+            <div class="kpi risk-info">
+              <div class="kl">持仓集中度</div>
+              <div class="kv" style="color:var(--accent)">18.2<span style="font-size:14px">%</span></div>
+              <div class="ks">最大单票 600519 / 上限 30%</div>
+            </div>
+            <div class="kpi risk-low">
+              <div class="kl">今日盈亏</div>
+              <div class="kv down">+12,580</div>
+              <div class="ks">收益率 +1.04% · 跑赢沪深300</div>
+            </div>
+            <div class="kpi risk-high">
+              <div class="kl">风险敞口</div>
+              <div class="kv up">2<span style="font-size:14px"> 只</span></div>
+              <div class="ks">接近止损线 · 需关注</div>
+            </div>
+            <div class="kpi risk-info">
+              <div class="kl">活跃策略</div>
+              <div class="kv neu">3/4</div>
+              <div class="ks">运行中 3 · 已暂停 1</div>
+            </div>
+          </div>
+      
+          <!-- ===== 主内容区 ===== -->
+          <div class="row r-7-5 mt14">
+      
+            <!-- 左列: 持仓风险 + 风控雷达 -->
+            <div class="grid">
+              <!-- 持仓风险清单 -->
+              <div class="card">
+                <div class="card-h">
+                  <h3>📋 持仓风险清单</h3>
+                  <span class="meta">实时止损监控 · 按风险排序</span>
+                </div>
+                <div class="card-b" style="padding:12px 16px">
+                  <!-- 表头 -->
+                  <div class="pos-row" style="font-size:10.5px;color:var(--muted);padding:6px 0;border-bottom:2px solid var(--border)">
+                    <span class="pos-code">代码</span>
+                    <span class="pos-name">名称</span>
+                    <span class="pos-pnl">浮盈/亏</span>
+                    <span class="pos-exposure">仓位占比</span>
+                    <span style="flex:1;min-width:60px;font-size:10.5px">距止损</span>
+                    <span style="width:80px;text-align:right;flex-shrink:0">风险标签</span>
+                  </div>
+      
+                  <!-- 持仓 1: 接近止损 -->
+                  <div class="pos-row" style="background:var(--up-bg);margin:0 -16px;padding:10px 16px;border-radius:0;border-bottom:1px solid var(--border)">
+                    <span class="pos-code up">000858</span>
+                    <span class="pos-name">五粮液</span>
+                    <span class="pos-pnl" style="color:var(--up)">-2.8%</span>
+                    <span class="pos-exposure">12.4%</span>
+                    <div class="pos-sl-bar">
+                      <div class="pos-sl-fill" style="width:93%;background:var(--up)"></div>
+                      <div class="pos-sl-marker" style="left:97%"></div>
+                    </div>
+                    <div class="pos-tags"><span class="tag tag-danger">距止损 0.7%</span></div>
+                  </div>
+      
+                  <!-- 持仓 2: 审计风险 -->
+                  <div class="pos-row" style="background:var(--warn-bg);margin:0 -16px;padding:10px 16px;border-radius:0;border-bottom:1px solid var(--border)">
+                    <span class="pos-code warn">600000</span>
+                    <span class="pos-name">浦发银行</span>
+                    <span class="pos-pnl" style="color:var(--down)">+1.2%</span>
+                    <span class="pos-exposure">8.7%</span>
+                    <div class="pos-sl-bar">
+                      <div class="pos-sl-fill" style="width:25%;background:var(--down)"></div>
+                      <div class="pos-sl-marker" style="left:97%"></div>
+                    </div>
+                    <div class="pos-tags"><span class="tag tag-warn">审计:保留意见</span><span class="tag tag-info">-15分</span></div>
+                  </div>
+      
+                  <!-- 持仓 3: 正常 -->
+                  <div class="pos-row">
+                    <span class="pos-code">600519</span>
+                    <span class="pos-name">贵州茅台</span>
+                    <span class="pos-pnl" style="color:var(--down)">+5.3%</span>
+                    <span class="pos-exposure">18.2%</span>
+                    <div class="pos-sl-bar">
+                      <div class="pos-sl-fill" style="width:15%;background:var(--down)"></div>
+                      <div class="pos-sl-marker" style="left:97%"></div>
+                    </div>
+                    <div class="pos-tags"><span class="tag tag-info">正常</span></div>
+                  </div>
+      
+                  <!-- 持仓 4: 公告风险 -->
+                  <div class="pos-row" style="background:var(--up-bg);margin:0 -16px;padding:10px 16px;border-radius:0;border-bottom:1px solid var(--border)">
+                    <span class="pos-code up">688981</span>
+                    <span class="pos-name">中芯国际</span>
+                    <span class="pos-pnl" style="color:var(--up)">-1.5%</span>
+                    <span class="pos-exposure">9.1%</span>
+                    <div class="pos-sl-bar">
+                      <div class="pos-sl-fill" style="width:30%;background:var(--warn)"></div>
+                      <div class="pos-sl-marker" style="left:97%"></div>
+                    </div>
+                    <div class="pos-tags"><span class="tag tag-danger">公告:立案调查</span><span class="tag tag-warn">强卖</span></div>
+                  </div>
+      
+                  <!-- 持仓 5 -->
+                  <div class="pos-row">
+                    <span class="pos-code">300750</span>
+                    <span class="pos-name">宁德时代</span>
+                    <span class="pos-pnl" style="color:var(--down)">+8.2%</span>
+                    <span class="pos-exposure">15.6%</span>
+                    <div class="pos-sl-bar">
+                      <div class="pos-sl-fill" style="width:8%;background:var(--down)"></div>
+                      <div class="pos-sl-marker" style="left:97%"></div>
+                    </div>
+                    <div class="pos-tags"><span class="tag tag-info">正常</span></div>
+                  </div>
+      
+                  <!-- 持仓 6 -->
+                  <div class="pos-row">
+                    <span class="pos-code">002594</span>
+                    <span class="pos-name">比亚迪</span>
+                    <span class="pos-pnl" style="color:var(--down)">+3.5%</span>
+                    <span class="pos-exposure">9.4%</span>
+                    <div class="pos-sl-bar">
+                      <div class="pos-sl-fill" style="width:18%;background:var(--down)"></div>
+                      <div class="pos-sl-marker" style="left:97%"></div>
+                    </div>
+                    <div class="pos-tags"><span class="tag tag-info">正常</span></div>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- 风控雷达图 -->
+              <div class="card">
+                <div class="card-h"><h3>🎯 风控态势雷达</h3><span class="meta">25维风险综合评估</span></div>
+                <div class="card-b" style="padding:8px 12px">
+                  <div id="radarChart"></div>
+                </div>
+              </div>
+            </div>
+      
+            <!-- 右列: 策略状态 + 风险事件 + 审计日志 -->
+            <div class="grid">
+              <!-- 策略执行状态 -->
+              <div class="card">
+                <div class="card-h"><h3>🤖 自动交易策略</h3><span class="meta">4 个策略 · 3 运行中</span></div>
+                <div class="card-b compact">
+                  <div class="strat-card">
+                    <div class="strat-status active"></div>
+                    <div class="strat-name">龙头战法-强势突破</div>
+                    <div class="strat-meta">日亏损 <b style="color:var(--down)">-0.31%</b> · 持仓2只</div>
+                  </div>
+                  <div class="strat-card">
+                    <div class="strat-status active"></div>
+                    <div class="strat-name">匪爷短线多因子</div>
+                    <div class="strat-meta">日亏损 <b style="color:var(--down)">+1.22%</b> · 持仓3只</div>
+                  </div>
+                  <div class="strat-card">
+                    <div class="strat-status active"></div>
+                    <div class="strat-name">长线价值定投</div>
+                    <div class="strat-meta">日亏损 <b style="color:var(--down)">+0.58%</b> · 持仓1只</div>
+                  </div>
+                  <div class="strat-card" style="border-bottom:none">
+                    <div class="strat-status paused"></div>
+                    <div class="strat-name">竞价超预期 V4.3</div>
+                    <div class="strat-meta" style="color:var(--warn)">⚠️ 已暂停 - 日亏损达 3.2% 触发熔断</div>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- 风险事件时间线 -->
+              <div class="card">
+                <div class="card-h"><h3>📢 今日风险事件</h3><span class="meta">8 条 · 2 条需处理</span></div>
+                <div class="card-b compact">
+                  <div class="alert-item">
+                    <span class="alert-time">14:32</span>
+                    <span class="alert-icon">🛑</span>
+                    <div class="alert-msg"><b style="color:var(--up)">竞价策略自动暂停</b><br><span style="color:var(--fg-2)">日亏损 3.2% 达到 RiskRule.daily_max_loss_pct (3%)</span></div>
+                    <span class="alert-action">查看 →</span>
+                  </div>
+                  <div class="alert-item">
+                    <span class="alert-time">14:30</span>
+                    <span class="alert-icon">⚠️</span>
+                    <div class="alert-msg"><b>中芯国际 公告风险触发强制卖出</b><br><span style="color:var(--fg-2)">关键词匹配: "立案调查" · 执行器自动平仓</span></div>
+                    <span class="alert-action">查看 →</span>
+                  </div>
+                  <div class="alert-item">
+                    <span class="alert-time">14:28</span>
+                    <span class="alert-icon">🔴</span>
+                    <div class="alert-msg"><b>五粮液 距止损仅 0.7%</b><br><span style="color:var(--fg-2)">现价 148.30 · 止损线 147.25 · ATR动态止損</span></div>
+                    <span class="alert-action">调整 →</span>
+                  </div>
+                  <div class="alert-item">
+                    <span class="alert-time">13:15</span>
+                    <span class="alert-icon">📋</span>
+                    <div class="alert-msg"><b>浦发银行 审计风险降级</b><br><span style="color:var(--fg-2)">保留意见 · 信号评分 -15 分 · 基本面 -10 分</span></div>
+                    <span class="alert-action">诊断 →</span>
+                  </div>
+                  <div class="alert-item">
+                    <span class="alert-time">11:05</span>
+                    <span class="alert-icon">📊</span>
+                    <div class="alert-msg"><b>大额交易确认</b><br><span style="color:var(--fg-2)">买入 贵州茅台 500股 ¥925,000 · 已确认通过</span></div>
+                  </div>
+                  <div class="alert-item">
+                    <span class="alert-time">09:45</span>
+                    <span class="alert-icon">🔄</span>
+                    <div class="alert-msg"><b>熔断器日重置</b><br><span style="color:var(--fg-2)">新交易日 · 电路从 HALF_OPEN 恢复为 NORMAL</span></div>
+                  </div>
+                  <div class="alert-item">
+                    <span class="alert-time">09:32</span>
+                    <span class="alert-icon">🔍</span>
+                    <div class="alert-msg"><b>风控预检全部通过</b><br><span style="color:var(--fg-2)">资金充足 · 仓位正常 · 涨跌停正常 · 无集中度风险</span></div>
+                  </div>
+                  <div class="alert-item" style="border-bottom:none">
+                    <span class="alert-time">09:30</span>
+                    <span class="alert-icon">✅</span>
+                    <div class="alert-msg"><b>市场风向: 偏牛 (NEUTRAL_BULL)</b><br><span style="color:var(--fg-2)">情绪指数 72 · 建议仓位 7-8成 · 无黑天鹅信号</span></div>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- 审计日志摘要 -->
+              <div class="card">
+                <div class="card-h"><h3>📜 今日审计摘要</h3><span class="meta">风控拦截记录</span></div>
+                <div class="card-b compact">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <div style="background:var(--surface-2);border-radius:6px;padding:10px 12px;text-align:center">
+                      <div class="mono" style="font-size:22px;font-weight:700;color:var(--fg)">12</div>
+                      <div style="font-size:10px;color:var(--muted)">下单通过</div>
+                    </div>
+                    <div style="background:var(--warn-bg);border-radius:6px;padding:10px 12px;text-align:center">
+                      <div class="mono" style="font-size:22px;font-weight:700;color:var(--warn)">3</div>
+                      <div style="font-size:10px;color:var(--muted)">大额确认</div>
+                    </div>
+                    <div style="background:var(--up-bg);border-radius:6px;padding:10px 12px;text-align:center">
+                      <div class="mono" style="font-size:22px;font-weight:700;color:var(--up)">2</div>
+                      <div style="font-size:10px;color:var(--muted)">风控拦截</div>
+                    </div>
+                    <div style="background:var(--surface-2);border-radius:6px;padding:10px 12px;text-align:center">
+                      <div class="mono" style="font-size:22px;font-weight:700;color:var(--down)">0</div>
+                      <div style="font-size:10px;color:var(--muted)">熔断触发</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+      
+          <!-- Footer -->
+          <div class="footer-bar">
+            <span>风控引擎: risk_gateway.py + circuit_breaker.py + auto_trading_executor.py</span>
+            <span class="sep"></span>
+            <span>风险维度: 资金·仓位·集中度·止损·熔断·审计·公告·市场风向 · 共 25 维</span>
+            <span class="sep"></span>
+            <span>⚠️ 风控为量化模型规则，不构成投资建议。熔断阈值可配置调整</span>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+// ===== ECharts 风控态势雷达图 =====
+(function(){
+  var dom = document.getElementById('radarChart')
+  var chart = echarts.init(dom, null, {devicePixelRatio:2})
+
+  chart.setOption({
+    radar: {
+      center: ['50%', '52%'],
+      radius: '68%',
+      indicator: [
+        { name:'市场风向\n(0=极熊 100=极牛)', max:100 },
+        { name:'仓位风险\n(越高越危险)', max:100 },
+        { name:'审计风险\n(3=正常 0=严重)', max:3 },
+        { name:'公告风险\n(无风险→有)', max:4 },
+        { name:'止损逼近\n(距离止损%)', max:5 },
+        { name:'策略健康\n(暂停/错误)', max:100 }
+      ],
+      axisName: { color:'#9aa7b8', fontSize:10, borderRadius:3,
+        padding:[2,4], backgroundColor:'rgba(17,22,31,0.8)' },
+      splitArea: { areaStyle:{ color:['rgba(61,139,255,0.02)','transparent'] } },
+      splitLine: { lineStyle:{ color:'#1f2733' } },
+      axisLine: { lineStyle:{ color:'#2a3444' } }
+    },
+    series: [{
+      type: 'radar',
+      data: [{
+        value: [72, 73, 2, 2, 0.7, 75],
+        name: '当前风控态势',
+        areaStyle: { color:'rgba(255,77,79,0.15)' },
+        lineStyle: { color:'var(--warn)', width:2 },
+        itemStyle: { color:'var(--warn)' }
+      }],
+      symbol: 'circle', symbolSize: 4
+    }],
+    backgroundColor: 'transparent'
+  })
+
+  window.addEventListener('resize', function(){ chart.resize() })
+})()
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

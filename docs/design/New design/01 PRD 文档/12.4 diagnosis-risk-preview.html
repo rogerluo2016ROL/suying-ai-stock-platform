@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 个股诊断 · 风险扫描</title>
+
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:18px 20px 32px}
+
+.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:4px;flex-wrap:wrap}
+.top-bar .page-title{font-size:21px;font-weight:700}
+
+.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
+.stb button{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans)}
+.stb button:hover{color:var(--fg)}
+.stb button.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+.breadcrumb{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-bottom:12px}
+.breadcrumb .bc-link{color:var(--fg-2);cursor:pointer;text-decoration:none}
+.breadcrumb .bc-link:hover{color:var(--accent)}
+.breadcrumb .bc-current{color:var(--accent);font-weight:600}
+
+.selector-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.selector-row input{padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font-mono);font-size:14px;outline:none;width:180px}
+.selector-row input:focus{border-color:var(--accent)}
+.selector-row .nav-btn{padding:6px 14px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--fg-2);cursor:pointer;font-size:12px;transition:.12s}
+.selector-row .nav-btn:hover{background:var(--elevated);color:var(--fg)}
+
+.risk-grid{display:flex;flex-direction:column;gap:12px}
+
+.risk-check-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;align-items:flex-start;gap:14px;transition:.12s;cursor:default}
+.risk-check-card:hover{background:var(--elevated);border-color:var(--border-2)}
+.risk-check-card .rc-icon{font-size:28px;width:48px;text-align:center;flex-shrink:0;line-height:1}
+.risk-check-card .rc-body{flex:1;min-width:0}
+.risk-check-card .rc-header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.risk-check-card .rc-title{font-size:14px;font-weight:650}
+.risk-check-card .rc-badge{padding:3px 10px;border-radius:6px;font-size:11px;font-weight:650}
+.risk-check-card.passed .rc-badge{background:var(--down-bg);color:var(--down)}
+.risk-check-card.warning .rc-badge{background:var(--warn-bg);color:var(--warn)}
+.risk-check-card.danger .rc-badge{background:var(--up-bg);color:var(--up)}
+.risk-check-card.positive .rc-badge{background:var(--down-bg);color:var(--down)}
+.risk-check-card .rc-detail{font-size:12px;color:var(--fg-2);line-height:1.8}
+.risk-check-card .rc-detail b{color:var(--fg);font-weight:600}
+.risk-check-card .rc-expand{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:var(--accent);cursor:pointer;margin-top:6px;transition:.12s}
+.risk-check-card .rc-expand:hover{opacity:.8}
+.risk-check-card .rc-expand .arrow{font-size:9px;transition:.2s;display:inline-block}
+.risk-check-card .rc-expand .arrow.open{transform:rotate(90deg)}
+.risk-check-card .rc-expanded{margin-top:10px;padding:12px 14px;background:var(--surface-2);border-radius:6px;border:1px solid var(--border);font-size:11px;color:var(--fg-2);line-height:1.7;display:none}
+.risk-check-card .rc-expanded.show{display:block}
+
+.qtrend-row{display:flex;gap:12px;margin-top:8px}
+.qtrend-item{display:flex;align-items:center;gap:4px;font-size:11px;padding:3px 10px;background:var(--surface-2);border-radius:4px}
+.qtrend-item.up{color:var(--down)}
+.qtrend-item.down{color:var(--up)}
+.qtrend-item.flat{color:var(--warn)}
+
+.overall-risk{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;gap:12px;margin-top:4px}
+.overall-risk.low{border-color:var(--down);background:var(--down-bg)}
+.overall-risk.med{border-color:var(--warn);background:var(--warn-bg)}
+.overall-risk.high{border-color:var(--up);background:var(--up-bg)}
+.overall-risk .or-icon{font-size:24px}
+.overall-risk .or-text{font-size:14px;font-weight:650;flex:1}
+.overall-risk .or-count{font-family:var(--font-mono);font-size:12px;opacity:.8}
+
+.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+
+.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="diagnosis" data-title="个股诊断 · 风险扫描">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">投资者/操盘</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共诊断 + 私有报告</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">不直接交易</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<div class="top-bar">
+            <span class="page-title">🏥 个股诊断</span>
+          </div>
+      
+          
+      
+          <div class="breadcrumb">
+            <span>← 来源:</span>
+            <a class="bc-link" href="2.4 candidate-pool-preview.html">候选池</a>
+            <span class="bc-sep">&gt;</span>
+            <span class="bc-current">300750 宁德时代 · 风险扫描</span>
+          </div>
+      
+          <div class="selector-row">
+            <input type="text" id="codeInput" value="300750" placeholder="输入股票代码..." onkeydown="if(event.key==='Enter')updateRisk(this.value)"/>
+            <button class="nav-btn" onclick="updateRisk('600519')">茅台</button>
+            <button class="nav-btn" onclick="updateRisk('688981')">中芯国际</button>
+            <button class="nav-btn" onclick="updateRisk('000002')">万科A (风险)</button>
+          </div>
+      
+          <div class="risk-grid" id="riskGrid">
+      
+            <!-- 1. Audit -->
+            <div class="risk-check-card passed" id="cardAudit">
+              <div class="rc-icon">✅</div>
+              <div class="rc-body">
+                <div class="rc-header">
+                  <span class="rc-title">🔍 审计意见</span>
+                  <span class="rc-badge" id="badgeAudit">✅ 标准无保留</span>
+                </div>
+                <div class="rc-detail" id="detailAudit">
+                  审计机构: <b>安永华明会计师事务所</b><br/>
+                  报告期间: <b>2025年报</b> ｜ 出具日期: <b>2026-03-15</b><br/>
+                  审计意见: 财务报表公允反映了公司财务状况和经营成果
+                </div>
+                <div class="rc-expand" onclick="toggleExpand('expAudit',this)"><span class="arrow">▸</span> 查看全文</div>
+                <div class="rc-expanded" id="expAudit">审计意见全文：我们认为，后附的财务报表在所有重大方面按照企业会计准则的规定编制，公允反映了宁德时代新能源科技股份有限公司2025年12月31日的合并及公司财务状况，以及2025年度的合并及公司经营成果和现金流量。</div>
+              </div>
+            </div>
+      
+            <!-- 2. Announcement -->
+            <div class="risk-check-card passed" id="cardAnnounce">
+              <div class="rc-icon">✅</div>
+              <div class="rc-body">
+                <div class="rc-header">
+                  <span class="rc-title">📋 公告检查</span>
+                  <span class="rc-badge" id="badgeAnnounce">✅ 近30日无风险</span>
+                </div>
+                <div class="rc-detail" id="detailAnnounce">
+                  检查范围: <b>2026-05-26 至 2026-06-26</b><br/>
+                  公告类型: 减持 / 质押 / 诉讼 / 违规 / ST警示<br/>
+                  检查结果: <b style="color:var(--down)">0 条风险公告</b>
+                </div>
+                <div class="rc-expand" onclick="toggleExpand('expAnnounce',this)"><span class="arrow">▸</span> 查看明细</div>
+                <div class="rc-expanded" id="expAnnounce">近30日公告明细：共计 12 条公司公告，包括定期报告 1 条、股东大会通知 3 条、董事会决议 5 条、投资者关系活动记录 3 条。无减持、质押、诉讼、违规、ST 警示类风险公告。</div>
+              </div>
+            </div>
+      
+            <!-- 3. ST Status -->
+            <div class="risk-check-card passed" id="cardST">
+              <div class="rc-icon">✅</div>
+              <div class="rc-body">
+                <div class="rc-header">
+                  <span class="rc-title">⚠️ ST 状态</span>
+                  <span class="rc-badge" id="badgeST">✅ 正常上市</span>
+                </div>
+                <div class="rc-detail" id="detailST">
+                  当前状态: <b>非 ST 股</b><br/>
+                  ST 历史: <b>近5年无 ST 记录</b><br/>
+                  退市风险: <b style="color:var(--down)">无</b>
+                </div>
+                <div class="rc-expand" onclick="toggleExpand('expST',this)"><span class="arrow">▸</span> ST 规则说明</div>
+                <div class="rc-expanded" id="expST">ST 规则：当上市公司出现财务状况异常或其他异常情况，交易所对其股票交易进行特别处理 (Special Treatment)。包括：连续两年亏损、审计意见为无法表示意见或否定意见、净资产为负、重大违法等。目前宁德时代无上述情形。</div>
+              </div>
+            </div>
+      
+            <!-- 4. Performance -->
+            <div class="risk-check-card passed" id="cardPerf">
+              <div class="rc-icon">🟢</div>
+              <div class="rc-body">
+                <div class="rc-header">
+                  <span class="rc-title">📊 业绩预告</span>
+                  <span class="rc-badge positive" id="badgePerf">🟢 预增</span>
+                </div>
+                <div class="rc-detail" id="detailPerf">
+                  2026Q1 营收: <b>258.4亿</b> 同比 <b style="color:var(--down)">+38.5%</b><br/>
+                  2026Q1 净利润: <b>42.6亿</b> 同比 <b style="color:var(--down)">+25.3%</b><br/>
+                  预告类型: <b>预增</b> ｜ 是否变脸: <b style="color:var(--down)">否</b>
+                </div>
+                <div class="qtrend-row" id="qtrendRow">
+                  <span class="qtrend-item up">🟢 2026Q1 <b>+38.5%</b></span>
+                  <span class="qtrend-item up">🟢 2025Q4 <b>+21.2%</b></span>
+                  <span class="qtrend-item up">🟢 2025Q3 <b>+18.3%</b></span>
+                  <span class="qtrend-item flat">🟡 2025Q2 <b>+6.8%</b></span>
+                </div>
+                <div class="rc-expand" onclick="toggleExpand('expPerf',this)"><span class="arrow">▸</span> 查看近8季趋势</div>
+                <div class="rc-expanded" id="expPerf">
+                  近8季度营收趋势：<br/>
+                  2026Q1: 258.4亿 (+38.5%) | 2025Q4: 312.8亿 (+21.2%) | 2025Q3: 251.2亿 (+18.3%) | 2025Q2: 225.6亿 (+6.8%)<br/>
+                  2025Q1: 186.8亿 (+42.3%) | 2024Q4: 258.1亿 (+15.2%) | 2024Q3: 212.4亿 (+12.1%) | 2024Q2: 212.7亿 (+8.5%)
+                </div>
+              </div>
+            </div>
+      
+          </div>
+      
+          <!-- Overall Risk Badge -->
+          <div class="overall-risk low" id="overallRisk">
+            <span class="or-icon" id="orIcon">✅</span>
+            <span class="or-text" id="orText">低风险 · 四项检查全部通过</span>
+            <span class="or-count" id="orCount">4/4 通过</span>
+          </div>
+      
+          <div class="footer-bar">
+            <span>数据源: diagnosis-service (:8009) · 交易所公告 · 审计报告</span>
+            <span class="sep"></span>
+            <span>更新时间: 2026-06-26 10:15:32</span>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+function showToast(msg){
+  var t=document.getElementById('toast');t.textContent=msg;t.className='toast show';
+  clearTimeout(t._tid);t._tid=setTimeout(function(){t.className='toast';},1800);
+}
+
+function toggleExpand(id,el){
+  var exp=document.getElementById(id);
+  var arrow=el.querySelector('.arrow');
+  var isOpen=exp.classList.contains('show');
+  exp.classList.toggle('show');
+  if(isOpen){arrow.classList.remove('open');arrow.textContent='▸';}
+  else{arrow.classList.add('open');arrow.textContent='▾';}
+}
+
+// Stock risk data
+var riskData={
+  '300750':{
+    name:'宁德时代',
+    audit:{passed:true,icon:'✅',badge:'✅ 标准无保留',auditor:'安永华明',period:'2025年报',date:'2026-03-15',summary:'财务报表公允反映了公司财务状况和经营成果',cls:'passed'},
+    announce:{passed:true,icon:'✅',badge:'✅ 近30日无风险',range:'2026-05-26 至 2026-06-26',count:0,cls:'passed'},
+    st:{passed:true,icon:'✅',badge:'✅ 正常上市',status:'非 ST 股',history:'近5年无 ST 记录',risk:'无',cls:'passed'},
+    perf:{passed:true,icon:'🟢',badge:'🟢 预增',revenue:'258.4亿',revYoY:'+38.5%',profit:'42.6亿',proYoY:'+25.3%',trend:'预增',face:'否',quarters:['Q1+38.5','Q4+21.2','Q3+18.3','Q2+6.8'],qicons:['up','up','up','flat'],cls:'passed'}
+  },
+  '600519':{
+    name:'贵州茅台',
+    audit:{passed:true,icon:'✅',badge:'✅ 标准无保留',auditor:'天健',period:'2025年报',date:'2026-03-28',summary:'财务报表公允反映了公司财务状况和经营成果',cls:'passed'},
+    announce:{passed:true,icon:'✅',badge:'✅ 近30日无风险',range:'2026-05-26 至 2026-06-26',count:0,cls:'passed'},
+    st:{passed:true,icon:'✅',badge:'✅ 正常上市',status:'非 ST 股',history:'近5年无 ST 记录',risk:'无',cls:'passed'},
+    perf:{passed:true,icon:'🟢',badge:'🟢 预增',revenue:'514.6亿',revYoY:'+12.8%',profit:'268.3亿',proYoY:'+14.1%',trend:'预增',face:'否',quarters:['Q1+12.8','Q4+11.5','Q3+10.2','Q2+9.8'],qicons:['up','up','up','up'],cls:'passed'}
+  },
+  '688981':{
+    name:'中芯国际',
+    audit:{passed:true,icon:'✅',badge:'✅ 标准无保留',auditor:'毕马威华振',period:'2025年报',date:'2026-03-20',summary:'财务报表公允反映了公司财务状况和经营成果',cls:'passed'},
+    announce:{passed:false,icon:'⚠️',badge:'⚠️ 1条关注公告',range:'2026-05-26 至 2026-06-26',count:1,cls:'warning'},
+    st:{passed:true,icon:'✅',badge:'✅ 正常上市',status:'非 ST 股',history:'近5年无 ST 记录',risk:'无',cls:'passed'},
+    perf:{passed:true,icon:'🟢',badge:'🟢 预增',revenue:'158.2亿',revYoY:'+23.5%',profit:'18.6亿',proYoY:'+38.2%',trend:'预增',face:'否',quarters:['Q1+23.5','Q4+18.2','Q3+15.1','Q2+12.3'],qicons:['up','up','up','up'],cls:'passed'}
+  },
+  '000002':{
+    name:'万科A',
+    audit:{passed:false,icon:'⚠️',badge:'⚠️ 保留意见',auditor:'普华永道中天',period:'2025年报',date:'2026-04-28',summary:'存在重大不确定性事项，持续经营能力存在疑虑',cls:'warning'},
+    announce:{passed:false,icon:'⚠️',badge:'⚠️ 3条风险公告',range:'2026-05-26 至 2026-06-26',count:3,cls:'warning'},
+    st:{passed:true,icon:'✅',badge:'✅ 正常上市',status:'非 ST 股',history:'近5年无 ST 记录',risk:'无',cls:'passed'},
+    perf:{passed:false,icon:'🔴',badge:'🔴 预亏',revenue:'215.8亿',revYoY:'-28.3%',profit:'-25.2亿',proYoY:'-186%',trend:'首亏',face:'是',quarters:['Q1-28.3','Q4-15.6','Q3-8.2','Q2+2.1'],qicons:['down','down','down','flat'],cls:'danger'}
+  }
+};
+
+var codes=['300750','600519','688981','000002'];
+var currentIdx=0;
+
+function updateRisk(code){
+  var d=riskData[code];if(!d){showToast('无该股票风险数据');return;}
+  document.getElementById('codeInput').value=code;
+
+  // Audit
+  var a=d.audit;
+  var cardA=document.getElementById('cardAudit');
+  cardA.className='risk-check-card '+a.cls;
+  cardA.querySelector('.rc-icon').textContent=a.icon;
+  document.getElementById('badgeAudit').textContent=a.badge;
+  document.getElementById('detailAudit').innerHTML='审计机构: <b>'+a.auditor+'会计师事务所</b><br/>报告期间: <b>'+a.period+'</b> ｜ 出具日期: <b>'+a.date+'</b><br/>审计意见: '+a.summary;
+
+  // Announcement
+  var an=d.announce;
+  var cardAn=document.getElementById('cardAnnounce');
+  cardAn.className='risk-check-card '+an.cls;
+  cardAn.querySelector('.rc-icon').textContent=an.icon;
+  document.getElementById('badgeAnnounce').textContent=an.badge;
+  document.getElementById('detailAnnounce').innerHTML='检查范围: <b>'+an.range+'</b><br/>公告类型: 减持 / 质押 / 诉讼 / 违规 / ST警示<br/>检查结果: <b style="color:'+(an.count===0?'var(--down)':'var(--warn)')+'">'+an.count+' 条风险公告</b>';
+
+  // ST
+  var s=d.st;
+  var cardS=document.getElementById('cardST');
+  cardS.className='risk-check-card '+s.cls;
+  cardS.querySelector('.rc-icon').textContent=s.icon;
+  document.getElementById('badgeST').textContent=s.badge;
+  document.getElementById('detailST').innerHTML='当前状态: <b>'+s.status+'</b><br/>ST 历史: <b>'+s.history+'</b><br/>退市风险: <b style="color:'+(s.risk==='无'?'var(--down)':'var(--up)')+'">'+s.risk+'</b>';
+
+  // Performance
+  var p=d.perf;
+  var cardP=document.getElementById('cardPerf');
+  cardP.className='risk-check-card '+p.cls;
+  cardP.querySelector('.rc-icon').textContent=p.icon;
+  document.getElementById('badgePerf').textContent=p.badge;
+  document.getElementById('detailPerf').innerHTML='2026Q1 营收: <b>'+p.revenue+'</b> 同比 <b style="color:'+(p.revYoY.startsWith('+')?'var(--down)':'var(--up)')+'">'+p.revYoY+'</b><br/>2026Q1 净利润: <b>'+p.profit+'</b> 同比 <b style="color:'+(p.proYoY.startsWith('+')?'var(--down)':'var(--up)')+'">'+p.proYoY+'</b><br/>预告类型: <b>'+p.trend+'</b> ｜ 是否变脸: <b style="color:'+(p.face==='否'?'var(--down)':'var(--up)')+'">'+p.face+'</b>';
+
+  var qHTML='';
+  for(var i=0;i<p.quarters.length;i++){
+    qHTML+='<span class="qtrend-item '+p.qicons[i]+'">'+p.quarters[i]+'</span>';
+  }
+  document.getElementById('qtrendRow').innerHTML=qHTML;
+
+  // Overall
+  var passedCount=(d.audit.passed?1:0)+(d.announce.passed?1:0)+(d.st.passed?1:0)+(d.perf.passed?1:0);
+  var or=document.getElementById('overallRisk');
+  var icon,text;
+  if(passedCount===4){or.className='overall-risk low';icon='✅';text='低风险 · 四项检查全部通过';}
+  else if(passedCount===3){or.className='overall-risk med';icon='⚠️';text='中风险 · '+(4-passedCount)+'项需关注';}
+  else{or.className='overall-risk high';icon='🔴';text='高风险 · '+(4-passedCount)+'项存在风险';}
+  document.getElementById('orIcon').textContent=icon;
+  document.getElementById('orText').textContent=text;
+  document.getElementById('orCount').textContent=passedCount+'/4 通过';
+}
+
+window.addEventListener('DOMContentLoaded',function(){updateRisk('300750')});
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

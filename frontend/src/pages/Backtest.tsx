@@ -20,8 +20,10 @@ const { Option } = Select
 // ── Types ──
 
 interface FactorItem {
-  id: string
+  id?: string
   name: string
+  category?: string
+  description?: string
 }
 
 interface BacktestDetail {
@@ -329,7 +331,9 @@ export default function Backtest() {
     setFactorsLoading(true)
     try {
       const r = await backtestApi.getFactors()
-      setFactors(r.data.factors || [])
+      const rawFactors = (r.data as { factors?: Array<{ name: string; category?: string; description?: string }> }).factors || []
+      // 为每个因子生成 id（使用 name 作为 id）
+      setFactors(rawFactors.map(f => ({ ...f, id: f.name })))
     } catch {
       // silent
     } finally {
@@ -355,7 +359,7 @@ export default function Backtest() {
         forward_days: values.forward_days ?? 60,
       })
 
-      const data: BacktestResult = r.data
+      const data = r.data as unknown as BacktestResult
       if (data.status === 'error') {
         setRunError(data.message || '回测数据不足')
         message.warning(data.message || '回测数据不足')
@@ -388,7 +392,7 @@ export default function Backtest() {
         end_date: values.date_range?.[1]?.format('YYYY-MM-DD'),
       })
 
-      const data: CompareResult = r.data
+      const data = r.data as unknown as CompareResult
       if (data.status === 'ok') {
         setCompareResult(data)
         message.success(`对比 ${data.strategies.length} 个策略完成`)
@@ -411,7 +415,7 @@ export default function Backtest() {
     setCalibrateLoading(true)
     try {
       const r = await backtestApi.calibrate('all')
-      const data: CalibrateResult = r.data
+      const data = r.data as CalibrateResult
       if (data.status === 'ok') {
         setCalibrateResult(data)
         message.success(`校准完成: ${data.factors.length} 个因子`)

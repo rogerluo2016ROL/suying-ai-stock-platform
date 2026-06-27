@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 方案管理</title>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+.scheme-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.scheme{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;transition:.14s}
+.scheme:hover{border-color:var(--border-2)}
+.scheme .st{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.scheme .sname{font-weight:650;font-size:15px}
+.scheme .sdesc{font-size:12px;color:var(--fg-2);line-height:1.5;margin-bottom:14px;min-height:36px}
+.scheme .smetrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.scheme .sm{background:var(--surface-2);border-radius:6px;padding:9px 11px}
+.scheme .sm .l{font-size:10.5px;color:var(--muted)} .scheme .sm .v{font-size:16px;font-weight:700;margin-top:2px;font-family:var(--font-mono)}
+.scheme .sfoot{display:flex;gap:8px}
+.toggle{width:38px;height:21px;border-radius:11px;background:var(--border-2);position:relative;cursor:pointer;transition:.15s;flex-shrink:0}
+.toggle.on{background:var(--down)}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:.15s}
+.toggle.on::after{left:19px}
+@media(max-width:1180px){.scheme-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-page="strategy" data-title="方案管理">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>方案管理</h1><div class="sub">保存、复用与监控你的选股 + 交易组合方案</div></div>
+        <div class="head-actions"><button class="btn primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>新建方案</button></div>
+      </div>
+
+      <div class="kpis" id="parameter-set" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi"><div class="k-lbl">运行中方案</div><div class="k-val neu" style="margin-top:8px">4</div><div class="k-sub">共 7 套已保存</div></div>
+        <div class="kpi"><div class="k-lbl">本月累计收益</div><div class="k-val up" style="margin-top:8px">+12.6%</div><div class="k-sub">基准沪深300 +3.1%</div></div>
+        <div class="kpi"><div class="k-lbl">在持标的</div><div class="k-val" style="margin-top:8px">23</div><div class="k-sub">分布于 4 套方案</div></div>
+        <div class="kpi"><div class="k-lbl">今日触发信号</div><div class="k-val" style="margin-top:8px;color:var(--warn)">9</div><div class="k-sub">买入 6 · 卖出 3</div></div>
+      </div>
+
+      <div class="scheme-grid mt14" id="strategy-list">
+        <div class="state-note" style="grid-column:1/-1">
+          当前策略库支持启停、回测、监控和编辑。批量上线前必须先通过参数组合与回测复核。
+          <div class="action-strip">
+            <div class="hint">批量操作只修改方案状态，不直接进入自动交易。</div>
+            <div class="inline-actions">
+              <button class="btn sm" type="button" data-toast="已提交选中方案复核">批量复核</button>
+              <button class="btn sm ghost" type="button" data-toast="策略库已导出">导出策略库</button>
+            </div>
+          </div>
+        </div>
+        <div class="scheme" id="execution-plan">
+          <div class="st"><span class="sname">AI 算力主线</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="sdesc">产业链共振 + 主升加速双因子，聚焦光模块 / 算力链龙头，日线持仓。</div>
+          <div class="smetrics"><div class="sm"><div class="l">累计收益</div><div class="v up">+28.4%</div></div><div class="sm"><div class="l">最大回撤</div><div class="v down">−9.2%</div></div></div>
+          <div class="sfoot"><a class="btn sm" href="backtest.html">回测</a><a class="btn sm" href="auto-trade.html">监控</a><button class="btn sm ghost">编辑</button></div>
+        </div>
+        <div class="scheme">
+          <div class="st"><span class="sname">白马价值底仓</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="sdesc">低吸潜伏，周线级别布局白酒 / 银行高股息标的，作为组合压舱石。</div>
+          <div class="smetrics"><div class="sm"><div class="l">累计收益</div><div class="v up">+9.7%</div></div><div class="sm"><div class="l">最大回撤</div><div class="v down">−4.1%</div></div></div>
+          <div class="sfoot"><a class="btn sm" href="backtest.html">回测</a><a class="btn sm" href="auto-trade.html">监控</a><button class="btn sm ghost">编辑</button></div>
+        </div>
+        <div class="scheme">
+          <div class="st"><span class="sname">短线打板</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="sdesc">竞价抢筹 + 连板高度，分时级别捕捉情绪龙头，T+1 快进快出。</div>
+          <div class="smetrics"><div class="sm"><div class="l">累计收益</div><div class="v up">+41.2%</div></div><div class="sm"><div class="l">最大回撤</div><div class="v down">−18.6%</div></div></div>
+          <div class="sfoot"><a class="btn sm" href="backtest.html">回测</a><a class="btn sm" href="auto-trade.html">监控</a><button class="btn sm ghost">编辑</button></div>
+        </div>
+        <div class="scheme">
+          <div class="st"><span class="sname">新能源车链</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+          <div class="sdesc">产业链共振，覆盖电池 / 电控 / 整车，趋势波段，已暂停运行。</div>
+          <div class="smetrics"><div class="sm"><div class="l">累计收益</div><div class="v down">−2.3%</div></div><div class="sm"><div class="l">最大回撤</div><div class="v down">−14.0%</div></div></div>
+          <div class="sfoot"><a class="btn sm" href="backtest.html">回测</a><a class="btn sm" href="auto-trade.html">监控</a><button class="btn sm ghost">编辑</button></div>
+        </div>
+        <div class="scheme">
+          <div class="st"><span class="sname">半导体设备</span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+          <div class="sdesc">国产替代主题，均线多头 + OBV 资金确认，日线持仓，待启用。</div>
+          <div class="smetrics"><div class="sm"><div class="l">累计收益</div><div class="v up">+15.8%</div></div><div class="sm"><div class="l">最大回撤</div><div class="v down">−11.3%</div></div></div>
+          <div class="sfoot"><a class="btn sm" href="backtest.html">回测</a><a class="btn sm" href="auto-trade.html">监控</a><button class="btn sm ghost">编辑</button></div>
+        </div>
+        <div class="scheme" style="border-style:dashed;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);cursor:pointer">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" style="margin-bottom:10px"><path d="M12 5v14M5 12h14"/></svg>
+          <div style="font-size:13px">从选股模式创建新方案</div>
+        </div>
+      </div>
+      <div class="card mt14" id="backtest-review">
+        <div class="card-h"><h3>回测复核</h3><span class="meta">方案上线前的收益、回撤、交易样本准入检查</span></div>
+        <div class="card-b">
+          <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+            <div class="kpi"><div class="k-lbl">最近回测</div><div class="k-val up">+18.4%</div><div class="k-sub">2024-01 至今</div></div>
+            <div class="kpi"><div class="k-lbl">最大回撤</div><div class="k-val down">−9.2%</div><div class="k-sub">低于 12% 准入线</div></div>
+            <div class="kpi"><div class="k-lbl">交易样本</div><div class="k-val">126</div><div class="k-sub">样本量通过</div></div>
+            <div class="kpi"><div class="k-lbl">准入状态</div><div class="k-val neu">待复核</div><div class="k-sub">需风控签名</div></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+            <button class="btn primary sm">提交上线复核</button>
+            <a class="btn sm" href="backtest.html">打开回测分析</a>
+            <button class="btn sm ghost">保存为草案</button>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 方案表现基于历史回测，过往业绩不代表未来收益</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+</body>
+</html>

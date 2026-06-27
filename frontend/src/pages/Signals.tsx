@@ -19,7 +19,7 @@ export default function Signals() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    signalApi.getLevels().then(r => setLevels(r.data.levels || [])).catch(() => {})
+    signalApi.getLevels().then(r => setLevels(r.data as unknown as string[])).catch(() => {})
   }, [])
 
   const analyzeSignal = async () => {

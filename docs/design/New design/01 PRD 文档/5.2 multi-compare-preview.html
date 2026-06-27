@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 多股对比</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:16px 20px 28px}
+
+/* Quick Select Bar */
+.qsb{display:flex;flex-direction:column;gap:5px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px}
+.qsb .r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.qsb .rl{font-size:10.5px;color:var(--muted);white-space:nowrap;min-width:52px}
+.qsc{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;font-size:11px;transition:.12s}
+.qsc:hover{background:var(--elevated);border-color:var(--border-2)}
+.qsc.active{background:var(--accent-dim);border-color:var(--accent)}
+.qsc .n{font-weight:600;color:var(--fg)}
+.qsc .c{font-family:var(--font-mono);font-size:10px;color:var(--fg-2)}
+.qsc .b{font-family:var(--font-mono);font-size:10px;font-weight:650;padding:1px 5px;border-radius:8px}
+.qsc .b.u{background:var(--up-bg);color:var(--up)}
+.qsc .b.d{background:var(--down-bg);color:var(--down)}
+.qsc .b.s{background:var(--accent-dim);color:var(--accent)}
+.qsb input{padding:3px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font-mono);font-size:11px;outline:none;width:140px}
+.qsb input:focus{border-color:var(--accent)}
+.qsb input::placeholder{color:var(--muted);font-family:var(--font-sans)}
+
+/* Sub Tab Bar */
+.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;margin-bottom:12px}
+.stb button{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans)}
+.stb button:hover{color:var(--fg)}
+.stb button.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+/* Cards */
+.psc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.psc-h{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:650}
+.psc-b{padding:14px}
+
+/* Compare Table */
+.ctbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.ctbl th{text-align:left;padding:8px 10px;color:var(--muted);font-weight:650;font-size:10.5px;border-bottom:1px solid var(--border);letter-spacing:.06em;text-transform:uppercase}
+.ctbl th.sorted{color:var(--accent)}
+.ctbl td{padding:9px 10px;border-bottom:1px solid var(--border);font-family:var(--font-mono)}
+.ctbl td.nm{font-family:var(--font-sans);font-weight:600}
+.ctbl tr:last-child td{border-bottom:none}
+.ctbl tbody tr{cursor:pointer;transition:background .1s}
+.ctbl tbody tr:hover td{background:var(--elevated)}
+.ctbl .star{color:var(--warn);font-family:var(--font-sans)}
+
+/* Chart */
+.pcw{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.ch{width:100%}
+
+/* Toolbar */
+.tbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.tbar .lbl{font-size:11px;color:var(--muted);white-space:nowrap}
+.tbar select{padding:5px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-size:11.5px;cursor:pointer;outline:none}
+.tbar select:focus{border-color:var(--accent)}
+.batch{display:flex;gap:6px}
+.batch button{padding:4px 12px;border-radius:6px;font-size:11px;color:var(--fg-2);cursor:pointer;background:var(--surface-2);border:1px solid var(--border);transition:.12s;font-family:var(--font-sans)}
+.batch button:hover{border-color:var(--accent);color:var(--accent)}
+.batch button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.batch button.primary:hover{background:#2d7ae0}
+
+@media(max-width:1100px){.tbar{flex-direction:column;align-items:flex-start}}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="predictions" data-title="多股对比">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">投资者/操盘</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共预测 + 私有关注</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">仅作依据</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<!-- Quick Select Bar -->
+                  <div class="qsb">
+                    <div class="r">
+                      <span class="rl">⭐ 自选</span>
+                      <div class="qsc active"><span class="n">宁德时代</span><span class="c">300750</span><span class="b u">+8.2%</span></div>
+                      <div class="qsc"><span class="n">中芯国际</span><span class="c">688981</span><span class="b u">+5.8%</span></div>
+                      <div class="qsc"><span class="n">贵州茅台</span><span class="c">600519</span><span class="b u">+3.1%</span></div>
+                      <div class="qsc"><span class="n">比亚迪</span><span class="c">002594</span><span class="b d">-2.1%</span></div>
+                    </div>
+                    <div class="r">
+                      <span class="rl">🎯 候选池</span>
+                      <div class="qsc"><span class="n">宁德时代</span><span class="c">300750</span><span class="b s">90</span></div>
+                      <div class="qsc"><span class="n">中芯国际</span><span class="c">688981</span><span class="b s">88</span></div>
+                      <div class="qsc"><span class="n">兆易创新</span><span class="c">603986</span><span class="b s">86</span></div>
+                      <div class="qsc"><span class="n">北方华创</span><span class="c">002371</span><span class="b s">89</span></div>
+                      <div class="qsc"><span class="n">隆基绿能</span><span class="c">601012</span><span class="b s">82</span></div>
+                    </div>
+                    <div class="r">
+                      <span class="rl">📋 最近</span>
+                      <div class="qsc"><span class="n">宁德时代</span><span class="c">300750</span></div>
+                      <div class="qsc"><span class="n">中国平安</span><span class="c">601318</span></div>
+                      <div class="qsc"><span class="n">五粮液</span><span class="c">000858</span></div>
+                      <div class="qsc"><span class="n">阳光电源</span><span class="c">300274</span></div>
+                      <input type="text" placeholder="🔍 搜索代码/名称...">
+                    </div>
+                  </div>
+<!-- Toolbar: Sort + Batch Actions -->
+                  <div class="tbar">
+                    <span class="lbl">排序:</span>
+                    <select id="sort-key">
+                      <option value="rating">综合评级 ▾</option>
+                      <option value="pct">预测涨幅 ▾</option>
+                      <option value="conf">置信度 ▾</option>
+                      <option value="sig">信号一致性 ▾</option>
+                    </select>
+                    <div style="flex:1"></div>
+                    <div class="batch">
+                      <button class="primary">➕ 加入自选</button>
+                      <button>🔔 批量预警</button>
+                      <button>📤 导出CSV</button>
+                    </div>
+                  </div>
+            
+                  <!-- Compare Table -->
+                  <div class="psc" style="margin-bottom:12px">
+                    <div class="psc-h">📋 核心指标对比 · 候选池 4 只</div>
+                    <div class="psc-b" style="padding:0;overflow-x:auto">
+                      <table class="ctbl">
+                        <thead><tr><th>代码</th><th>名称</th><th>当前价</th><th>预测价</th><th>涨幅</th><th>置信度</th><th>信号一致</th><th>准确率</th><th>评级</th></tr></thead>
+                        <tbody>
+                          <tr data-name="宁德时代"><td>300750</td><td class="nm">宁德时代</td><td>218.50</td><td class="up">242.30</td><td class="up">+12.5%</td><td>78%</td><td><span style="color:var(--down)">✅ 一致</span></td><td>72%</td><td class="star">⭐⭐⭐</td></tr>
+                          <tr data-name="中芯国际"><td>688981</td><td class="nm">中芯国际</td><td>68.20</td><td class="up">73.80</td><td class="up">+8.2%</td><td>72%</td><td><span style="color:var(--down)">✅ 一致</span></td><td>68%</td><td class="star">⭐⭐</td></tr>
+                          <tr data-name="兆易创新"><td>603986</td><td class="nm">兆易创新</td><td>152.00</td><td class="up">168.50</td><td class="up">+10.8%</td><td>75%</td><td><span style="color:var(--down)">✅ 一致</span></td><td>70%</td><td class="star">⭐⭐⭐</td></tr>
+                          <tr data-name="隆基绿能"><td>601012</td><td class="nm">隆基绿能</td><td>32.80</td><td class="up">35.20</td><td class="up">+7.3%</td><td>68%</td><td><span style="color:var(--warn)">⚠ 弱</span></td><td>65%</td><td class="star">⭐⭐</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+            
+                  <!-- Overlay Chart -->
+                  <div class="pcw">
+                    <div class="psc-h">📈 叠加预测曲线 (归一化涨跌幅%)</div>
+                    <div class="ch" id="chart-compare" style="height:380px"></div>
+                  </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+(function(){
+var compareColors=['#3d8bff','#ff4d4f','#2ec27e','#f5a623']
+
+function genCurve(seedOff,peak){
+  var s=42+seedOff*100,rs=[]
+  for(var i=0;i<30;i++){s=(s*16807+0)%2147483647;rs.push(Math.round(((i/30)*peak+((s-1)/2147483646*3-1.5))*100)/100)}
+  return rs
+}
+
+var compareStocks=[
+  {name:'宁德时代',curve:genCurve(0,12.5)},
+  {name:'中芯国际',curve:genCurve(-0.3,8.2)},
+  {name:'兆易创新',curve:genCurve(0.5,10.8)},
+  {name:'隆基绿能',curve:genCurve(1.0,7.3)}
+]
+
+var predDays=[]
+for(var i=0;i<30;i++)predDays.push('D'+(i+1))
+
+var chartCompare=echarts.init(document.getElementById('chart-compare'))
+var option={
+  backgroundColor:'transparent',
+  tooltip:{trigger:'axis',valueFormatter:function(v){return v+'%'}},
+  grid:{left:'8%',right:'6%',top:'10%',bottom:'12%'},
+  xAxis:{type:'category',data:predDays,axisLabel:{fontSize:10,color:'#5e6a7d'},axisLine:{lineStyle:{color:'#1f2733'}}},
+  yAxis:{type:'value',axisLabel:{formatter:'{value}%',fontSize:10,color:'#5e6a7d'},splitLine:{lineStyle:{color:'#1f2733'}},name:'涨跌幅%',nameTextStyle:{fontSize:10,color:'#5e6a7d'}},
+  legend:{data:compareStocks.map(function(s){return s.name}),bottom:0,textStyle:{color:'#9aa7b8',fontSize:11}},
+  series:compareStocks.map(function(s,i){return{name:s.name,type:'line',data:s.curve,smooth:true,lineStyle:{color:compareColors[i],width:2},symbol:'none'}})
+}
+chartCompare.setOption(option)
+
+// Sort
+document.getElementById('sort-key').addEventListener('change',function(){
+  var tbody=document.querySelector('.ctbl tbody')
+  var rows=Array.from(tbody.querySelectorAll('tr'))
+  var key=this.value
+  rows.sort(function(a,b){
+    var tdA=a.querySelectorAll('td'),tdB=b.querySelectorAll('td')
+    if(key==='rating'){var sa=tdA[8].textContent.length,sb=tdB[8].textContent.length;return sb-sa}
+    if(key==='pct'){var pa=parseFloat(tdA[4].textContent),pb=parseFloat(tdB[4].textContent);return pb-pa}
+    if(key==='conf'){var ca=parseInt(tdA[5].textContent),cb=parseInt(tdB[5].textContent);return cb-ca}
+    return 0
+  })
+  rows.forEach(function(r){tbody.appendChild(r)})
+})
+
+// Quick select
+document.querySelectorAll('.qsc').forEach(function(chip){
+  chip.addEventListener('click',function(){
+    document.querySelectorAll('.qsc').forEach(function(c){c.classList.remove('active')})
+    chip.classList.add('active')
+  })
+})
+
+window.addEventListener('resize',function(){chartCompare.resize()})
+setTimeout(function(){chartCompare.resize()},200)
+})()
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

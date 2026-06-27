@@ -1,0 +1,92 @@
+{
+  "kind": "critique-panel",
+  "workflow": "impeccable-design-polish-delivery-pass",
+  "score": 4,
+  "definition_of_good": {
+    "audience": "A股量化交易员、投研、风控与产品评审者",
+    "business_goal": "把AI智能看板、开盘决策、智能选股、预测、信号、交易、回测、模型和数据运维组织成可直接落地的前端产品体系",
+    "brand_posture": "白天优先的专业交易终端，保留夜间切换；A股红涨绿跌，信息密度优先，交互状态可信",
+    "polish_standard": "左侧菜单是一级模块；顶部横向菜单是当前模块内功能页签；每个页签落点必须有真实动作、数据结构或持久状态；关键加载、空态、错误和交易票状态必须留在页面上，不能只靠toast；跨模块联动只能作为内容区动作出现。",
+    "anti_patterns": [
+      "营销页式大标题",
+      "紫蓝渐变英雄区",
+      "装饰性卡片堆叠",
+      "设计器控制面板",
+      "只在toast中存在的错误状态",
+      "没有键盘焦点环、禁用态或减弱动态兜底",
+      "交易票没有持久状态说明和明确提交动作",
+      "共享外壳与独立工作台分叉",
+      "模块内顶部页签使用文件名加锚点导致预览环境跳到源码视图",
+      "把顶部功能页签做成跨模块页面跳转",
+      "页签下面只有静态图表或说明文字",
+      "市场情绪、竞价意图、信号、服务状态混放在同一功能域"
+    ]
+  },
+  "resources_used": {
+    "skills": [
+      "impeccable-design-polish",
+      "brainstorming",
+      "test-driven-development",
+      "systematic-debugging",
+      "verification-before-completion"
+    ],
+    "design_files": [
+      "workbench-redesign.html",
+      "suying-ai-workbench-redesign.html",
+      "index.html",
+      "predictions.html",
+      "supply-chain.html",
+      "signals.html",
+      "auto-trade.html",
+      "backtest.html",
+      "diagnosis.html",
+      "training.html",
+      "model-registry.html",
+      "data-update.html",
+      "assets/shell.js",
+      "assets/app.css",
+      "design-spec.md",
+      "scripts/check-homepage-default.mjs",
+      "scripts/check-workbench-polish.mjs",
+      "scripts/check-module-actionability.mjs",
+      "scripts/check-left-navigation.mjs",
+      "scripts/check-functional-taxonomy.mjs",
+      "scripts/check-product-readiness.mjs"
+    ],
+    "mcp": "未启用；本轮以本地设计文件、规范和回归检查为主",
+    "plugins": "未套用外部模板；保留速赢AI已确认的专业交易终端方向，并将默认主题切为白天模式"
+  },
+  "changes": [
+    "共享样式补齐键盘焦点、禁用按钮、加载按钮、状态横幅和prefers-reduced-motion兜底。",
+    "开盘决策舱增加行情刷新loading横幅、应急降级错误横幅、候选搜索清空动作和候选列表语义。",
+    "风控交易票增加持久live状态、明确提交复核单动作，并在降级模式下禁用提交。",
+    "服务降级不再只依赖toast，会同步服务卡、告警指标、错误横幅和交易票状态。",
+    "新增scripts/check-workbench-polish.mjs，防止工作台交付状态回退。",
+    "全局默认主题从夜间切换为白天，夜间主题改为用户显式切换后的可选模式。",
+    "明确默认首页为AI智能看板，对应index.html、workbench-redesign.html和dashboard页面元数据，并新增首页默认检查。",
+    "保留suying-ai-workbench-redesign.html作为开盘决策舱模块页，避免当前默认预览目标继续打开开盘决策舱。",
+    "修复顶部模块页签路由：模块内页签统一使用纯页内锚点，避免点击竞价意图等页签时被宿主解释为打开HTML源码。"
+  ],
+  "axes": {
+    "philosophy": {
+      "score": 5,
+      "notes": "继续坚持专业交易终端，而不是展示型原型；本轮重点把开盘决策舱的状态反馈从临时提示提升为可持续的交易工作台状态。"
+    },
+    "hierarchy": {
+      "score": 4,
+      "notes": "首屏仍围绕开盘闸门、候选决策、K线推演、风控交易和链路审计；交易票只保留一个主操作，降低误触风险。"
+    },
+    "execution": {
+      "score": 4,
+      "notes": "共享CSS补齐焦点、禁用、加载、状态横幅和减弱动态；工作台新增polish回归检查。"
+    },
+    "specificity": {
+      "score": 4,
+      "notes": "状态文案贴合真实交易链路：缓存候选、禁止自动下单、提交复核队列、保存草稿、导出审计。"
+    },
+    "restraint": {
+      "score": 4,
+      "notes": "没有引入新视觉主题或装饰性素材，修正集中在交付级状态、按钮层级和可访问性。"
+    }
+  }
+}

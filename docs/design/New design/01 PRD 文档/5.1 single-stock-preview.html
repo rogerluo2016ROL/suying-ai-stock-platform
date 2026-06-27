@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 单股预测</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:16px 20px 28px}
+
+/* Quick Select Bar */
+.qsb{display:flex;flex-direction:column;gap:5px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px}
+.qsb .r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.qsb .rl{font-size:10.5px;color:var(--muted);white-space:nowrap;min-width:52px}
+.qsc{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;font-size:11px;transition:.12s}
+.qsc:hover{background:var(--elevated);border-color:var(--border-2)}
+.qsc.active{background:var(--accent-dim);border-color:var(--accent)}
+.qsc .n{font-weight:600;color:var(--fg)}
+.qsc .c{font-family:var(--font-mono);font-size:10px;color:var(--fg-2)}
+.qsc .b{font-family:var(--font-mono);font-size:10px;font-weight:650;padding:1px 5px;border-radius:8px}
+.qsc .b.u{background:var(--up-bg);color:var(--up)}
+.qsc .b.d{background:var(--down-bg);color:var(--down)}
+.qsc .b.s{background:var(--accent-dim);color:var(--accent)}
+.qsb input{padding:3px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font-mono);font-size:11px;outline:none;width:140px}
+.qsb input:focus{border-color:var(--accent)}
+.qsb input::placeholder{color:var(--muted);font-family:var(--font-sans)}
+
+/* Sub Tab Bar */
+.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;margin-bottom:12px}
+.stb button{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans)}
+.stb button:hover{color:var(--fg)}
+.stb button.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+/* Main 60/40 */
+.pm{display:flex;gap:14px;min-height:500px}
+.pl{flex:60;min-width:0}
+.pr{flex:40;min-width:0;display:flex;flex-direction:column;gap:10px}
+
+/* Chart */
+.pcw{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.chart-top{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 14px;border-bottom:1px solid var(--border)}
+.chart-title{font-size:13px;font-weight:720;color:var(--fg)}
+.chart-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.chart-legend{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:10.5px;color:var(--fg-2)}
+.chart-legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.chart-legend i{width:16px;height:2px;border-radius:2px;background:var(--accent);display:inline-block}
+.chart-legend .hist i{background:var(--up)}
+.chart-legend .pred i{background:var(--accent);border-top:1px dashed var(--accent)}
+.chart-legend .band i{height:8px;background:rgba(61,139,255,.18)}
+.pcw .trs{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.range-tabs{display:flex;gap:4px}
+.pcw .tc{font-size:10.5px;padding:3px 12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border);color:var(--fg-2);cursor:pointer;transition:.12s}
+.pcw .tc:hover{background:var(--elevated);color:var(--fg)}
+.pcw .tc.on{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+.level-strip{display:flex;gap:8px;flex-wrap:wrap;font-size:10.5px}
+.level-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border)}
+.level-chip.up{color:var(--up);border-color:rgba(255,77,79,.28);background:var(--up-bg)}
+.level-chip.down{color:var(--down);border-color:rgba(46,194,126,.28);background:var(--down-bg)}
+.level-chip.warn{color:var(--warn);border-color:rgba(245,166,35,.28);background:var(--warn-bg)}
+.ch{width:100%;height:430px}
+.chart-fallback{display:none;padding:28px;text-align:center;color:var(--fg-2);font-size:12px;border-top:1px solid var(--border)}
+.chart-fallback strong{display:block;color:var(--fg);font-size:14px;margin-bottom:4px}
+
+/* Cards */
+.psc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.psc-h{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:650;cursor:pointer}
+.psc-h .arr{margin-left:auto;font-size:10px;color:var(--muted);transition:.2s}
+.psc-h .arr.open{transform:rotate(90deg)}
+.psc-b{padding:14px}
+.psc-b.fold{display:none}
+
+/* Prediction Summary */
+.ovw{text-align:center}
+.ovw .mv{font-size:10.5px;color:var(--muted);margin-bottom:4px}
+.ovw .arw{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:4px}
+.ovw .cp{font-family:var(--font-mono);font-size:28px;font-weight:700}
+.ovw .arrw{font-size:22px;color:var(--muted)}
+.ovw .tp{font-family:var(--font-mono);font-size:22px;font-weight:700}
+.ovw .chp{font-family:var(--font-mono);font-size:16px;font-weight:700;margin-bottom:10px}
+.ovw .cf{display:flex;align-items:center;gap:8px}
+.ovw .cf .lbl{font-size:10.5px;color:var(--muted);min-width:52px;text-align:left}
+.ovw .cf .tk{flex:1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.ovw .cf .fl{height:100%;border-radius:3px;transition:width .5s}
+.ovw .cf .vl{font-family:var(--font-mono);font-size:12px;font-weight:650;width:34px;text-align:right}
+
+/* Signal Badge */
+.sbd{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:600;width:100%;justify-content:center}
+.sbd.ok{background:var(--down-bg);color:var(--down)}
+.sbd.ng{background:var(--up-bg);color:var(--up)}
+.sbd.wk{background:var(--warn-bg);color:var(--warn)}
+
+/* Factor Contribution */
+.fcr{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11.5px}
+.fcr .flb{width:46px;color:var(--fg-2)}
+.fcr .ftk{flex:1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.fcr .ffl{height:100%;border-radius:3px}
+.fcr .fvl{font-family:var(--font-mono);font-size:11px;font-weight:650;width:32px;text-align:right;color:var(--fg-2)}
+.fcolors .t{background:var(--accent)} .fcolors .f{background:#7c3aed} .fcolors .b{background:var(--down)} .fcolors .s{background:var(--warn)}
+
+/* Action Buttons */
+.da{display:flex;gap:8px;margin-top:6px}
+.da .ab{flex:1;text-align:center;font-size:11.5px;padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--elevated);color:var(--fg-2);cursor:pointer;transition:.12s;font-family:var(--font-sans)}
+.da .ab:hover{background:var(--surface);color:var(--fg)}
+.da .ab.p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.da .ab.p:hover{background:#2d7ae0}
+
+@media(max-width:1100px){.pm{flex-direction:column}.ch{height:340px}.chart-top{align-items:flex-start;flex-direction:column}}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="predictions" data-title="单股预测">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">投资者/操盘</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共预测 + 私有关注</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">仅作依据</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<!-- Quick Select Bar -->
+                  <div class="qsb">
+                    <div class="r">
+                      <span class="rl">⭐ 自选</span>
+                      <div class="qsc active"><span class="n">宁德时代</span><span class="c">300750</span><span class="b u">+8.2%</span></div>
+                      <div class="qsc"><span class="n">中芯国际</span><span class="c">688981</span><span class="b u">+5.8%</span></div>
+                      <div class="qsc"><span class="n">贵州茅台</span><span class="c">600519</span><span class="b u">+3.1%</span></div>
+                      <div class="qsc"><span class="n">比亚迪</span><span class="c">002594</span><span class="b d">-2.1%</span></div>
+                    </div>
+                    <div class="r">
+                      <span class="rl">🎯 候选池</span>
+                      <div class="qsc"><span class="n">宁德时代</span><span class="c">300750</span><span class="b s">90</span></div>
+                      <div class="qsc"><span class="n">中芯国际</span><span class="c">688981</span><span class="b s">88</span></div>
+                      <div class="qsc"><span class="n">兆易创新</span><span class="c">603986</span><span class="b s">86</span></div>
+                      <div class="qsc"><span class="n">北方华创</span><span class="c">002371</span><span class="b s">89</span></div>
+                      <div class="qsc"><span class="n">隆基绿能</span><span class="c">601012</span><span class="b s">82</span></div>
+                    </div>
+                    <div class="r">
+                      <span class="rl">📋 最近</span>
+                      <div class="qsc"><span class="n">宁德时代</span><span class="c">300750</span></div>
+                      <div class="qsc"><span class="n">中国平安</span><span class="c">601318</span></div>
+                      <div class="qsc"><span class="n">五粮液</span><span class="c">000858</span></div>
+                      <div class="qsc"><span class="n">阳光电源</span><span class="c">300274</span></div>
+                      <input type="text" placeholder="🔍 搜索代码/名称...">
+                    </div>
+                  </div>
+<!-- Single Stock View -->
+                  <div class="pm">
+                    <div class="pl">
+                      <div class="pcw">
+                        <div class="chart-top">
+                          <div>
+                            <div class="chart-title">宁德时代 300750 · Kronos 30日路径</div>
+                            <div class="chart-sub">60日历史蜡烛 + 30日预测路径 + ±1σ置信区间</div>
+                          </div>
+                          <div class="chart-legend">
+                            <span class="hist"><i></i>历史K线</span>
+                            <span class="pred"><i></i>预测路径</span>
+                            <span class="band"><i></i>置信区间</span>
+                          </div>
+                        </div>
+                        <div class="trs">
+                          <div class="range-tabs">
+                            <span class="tc on">全部</span>
+                            <span class="tc">近30日</span>
+                            <span class="tc">预测30日</span>
+                          </div>
+                          <div class="level-strip">
+                            <span class="level-chip up">阻力 251.00</span>
+                            <span class="level-chip down">支撑 196.50</span>
+                            <span class="level-chip warn">止损 185.00</span>
+                          </div>
+                        </div>
+                        <div class="ch" id="chart-single"></div>
+                        <div class="chart-fallback" id="chart-single-fallback">
+                          <strong>K线图暂未加载</strong>
+                          请确认 ECharts 资源可访问，或刷新页面重新初始化图表。
+                        </div>
+                      </div>
+                    </div>
+                    <div class="pr">
+                      <!-- Prediction Summary -->
+                      <div class="psc">
+                        <div class="psc-h">📊 预测概览</div>
+                        <div class="psc-b">
+                          <div class="ovw">
+                            <div class="mv">Kronos V2.3</div>
+                            <div class="arw">
+                              <span class="cp">218.50</span>
+                              <span class="arrw">→</span>
+                              <span class="tp up">242.30</span>
+                            </div>
+                            <div class="chp up">↑ +12.5%</div>
+                            <div class="cf">
+                              <span class="lbl">置信度</span>
+                              <div class="tk"><div class="fl" style="width:78%;background:var(--accent)"></div></div>
+                              <span class="vl neu">78%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+            
+                      <!-- Signal Consistency -->
+                      <div class="psc">
+                        <div class="psc-h">📡 信号一致性</div>
+                        <div class="psc-b" style="text-align:center">
+                          <div class="sbd ok">✅ 信号方向一致</div>
+                          <div style="font-size:10.5px;color:var(--muted);margin-top:6px">信号强度: 🟢 强买 82分 · 多因子共振</div>
+                        </div>
+                      </div>
+            
+                      <!-- Factor Contribution -->
+                      <div class="psc">
+                        <div class="psc-h" onclick="toggleFold('fct')">📊 因子贡献 <span class="arr" id="arr-fct">▶</span></div>
+                        <div class="psc-b fcolors" id="body-fct">
+                          <div class="fcr"><span class="flb">技术面</span><div class="ftk"><div class="ffl t" style="width:45%"></div></div><span class="fvl">45%</span></div>
+                          <div class="fcr"><span class="flb">资金面</span><div class="ftk"><div class="ffl f" style="width:28%"></div></div><span class="fvl">28%</span></div>
+                          <div class="fcr"><span class="flb">基本面</span><div class="ftk"><div class="ffl b" style="width:15%"></div></div><span class="fvl">15%</span></div>
+                          <div class="fcr"><span class="flb">情绪面</span><div class="ftk"><div class="ffl s" style="width:12%"></div></div><span class="fvl">12%</span></div>
+                        </div>
+                      </div>
+            
+                      <!-- Historical Accuracy (collapsible) -->
+                      <div class="psc">
+                        <div class="psc-h" onclick="toggleFold('hac')">📈 历史准确率 <span class="arr" id="arr-hac">▶</span></div>
+                        <div class="psc-b fold" id="body-hac">
+                          <div style="text-align:center;font-size:24px;font-weight:700;font-family:var(--font-mono)" class="neu">72%</div>
+                          <div style="text-align:center;font-size:11px;color:var(--fg-2);margin-bottom:8px">近30次方向正确率</div>
+                          <div style="font-size:11px;color:var(--fg-2)">最近5次: ✅ ✅ ✅ ❌ ✅</div>
+                          <div style="font-size:11px;color:var(--fg-2);margin-top:4px">连对: 7次 | 连错: 1次</div>
+                          <div style="font-size:11px;color:var(--fg-2);margin-top:4px">平均偏离: ±6.5% | 最大偏离: 18.2%</div>
+                        </div>
+                      </div>
+            
+                      <!-- Model Info (collapsible) -->
+                      <div class="psc">
+                        <div class="psc-h" onclick="toggleFold('minfo')">🧠 模型信息 <span class="arr" id="arr-minfo">▶</span></div>
+                        <div class="psc-b fold" id="body-minfo">
+                          <div style="font-size:11px;color:var(--fg-2)">Kronos V2.3 · 训练于 2026-06-20</div>
+                          <div style="font-size:11px;color:var(--fg-2)">架构: Transformer + Multi-Head Attention</div>
+                          <div style="font-size:11px;color:var(--fg-2)">特征维度: 128 维</div>
+                          <div style="font-size:11px;color:var(--fg-2)">输入序列: 60 日 · 预测窗口: 30 日</div>
+                          <div style="font-size:11px;color:var(--fg-2)">训练数据: 2023-01 ~ 2026-06</div>
+                        </div>
+                      </div>
+            
+                      <!-- Action Buttons -->
+                      <div class="psc">
+                        <div class="psc-b">
+                          <div class="da">
+                            <button class="ab p">设预警 🔔</button>
+                            <button class="ab">跳转诊断 →</button>
+                            <button class="ab">交易中心 →</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var _seed = 42;
+  var PRED_START = 60;
+  var CURRENT = 218.50;
+  var TARGET = 242.30;
+  var SUPPORT = 196.50;
+  var RESISTANCE = 251.00;
+  var STOP = 185.00;
+
+  function rnd(){
+    _seed = (_seed * 16807) % 2147483647;
+    return (_seed - 1) / 2147483646;
+  }
+
+  function rndRange(a, b){
+    return a + rnd() * (b - a);
+  }
+
+  function round2(n){
+    return Math.round(n * 100) / 100;
+  }
+
+  function genCandles(){
+    var candles = [];
+    var p = 176;
+    for (var i = 0; i < 90; i++) {
+      var isPrediction = i >= PRED_START;
+      var drift = isPrediction ? 0.92 : 0.58;
+      var o = p + rndRange(-2.2, 2.4);
+      var c = o + drift + rndRange(-1.7, 2.8);
+      if (i === PRED_START - 1) c = CURRENT;
+      if (i === 89) c = TARGET;
+      var h = Math.max(o, c) + rndRange(0.8, 3.4);
+      var l = Math.min(o, c) - rndRange(0.8, 2.8);
+      var v = Math.floor(rndRange(3200, 14500));
+      candles.push({
+        open: round2(o),
+        close: round2(c),
+        low: round2(l),
+        high: round2(h),
+        volume: v,
+        isPrediction: isPrediction,
+        date: '06-' + String(i < PRED_START ? i + 1 : i - PRED_START + 1).padStart(2, '0')
+      });
+      p = c;
+    }
+    return candles;
+  }
+
+  function candleValue(c){
+    return [c.open, c.close, c.low, c.high];
+  }
+
+  var candles = genCandles();
+  var dates = candles.map(function(c, i){
+    return i < PRED_START ? c.date : 'P+' + String(i - PRED_START + 1).padStart(2, '0');
+  });
+  var maxHigh = Math.max.apply(null, candles.map(function(c){ return c.high; }));
+  var historicalCandles = candles.map(function(c, i){ return i < PRED_START ? candleValue(c) : '-'; });
+  var predictionCandles = candles.map(function(c, i){ return i >= PRED_START ? candleValue(c) : '-'; });
+  var predictionPath = candles.map(function(c, i){ return i >= PRED_START - 1 ? c.close : null; });
+  var lowerBounds = candles.map(function(c, i){ return i >= PRED_START - 1 ? round2(c.close * 0.918) : null; });
+  var upperDiff = candles.map(function(c, i){ return i >= PRED_START - 1 ? round2(c.close * 0.164) : null; });
+  var volumes = candles.map(function(c){ return c.volume; });
+
+  function showFallback(message){
+    var fallback = document.getElementById('chart-single-fallback');
+    if (!fallback) return;
+    fallback.style.display = 'block';
+    if (message) fallback.querySelector('strong').textContent = message;
+  }
+
+  function initSingleChart(){
+    var chartEl = document.getElementById('chart-single');
+    if (!chartEl) return;
+    if (!window.echarts) {
+      showFallback('ECharts 资源未加载');
+      return;
+    }
+    if (chartEl.clientHeight < 260) chartEl.style.minHeight = '430px';
+
+    var chartSingle = echarts.init(chartEl);
+    var option = {
+      backgroundColor: 'transparent',
+      animationDuration: 450,
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'cross' },
+        backgroundColor: 'rgba(17,22,31,.95)',
+        borderColor: '#2a3444',
+        textStyle: { color: '#e8edf4', fontSize: 11 }
+      },
+      grid: [
+        { left: 54, right: 24, top: 22, height: '62%' },
+        { left: 54, right: 24, top: '77%', height: '13%' }
+      ],
+      dataZoom: [
+        { type: 'inside', xAxisIndex: [0, 1], startValue: 0, endValue: candles.length - 1, zoomOnMouseWheel: false },
+        { type: 'slider', show: false, xAxisIndex: [0, 1], startValue: 0, endValue: candles.length - 1 }
+      ],
+      xAxis: [
+        {
+          type: 'category',
+          data: dates,
+          boundaryGap: true,
+          axisLabel: { fontSize: 10, color: '#5e6a7d', interval: 7 },
+          axisLine: { lineStyle: { color: '#1f2733' } },
+          splitLine: { show: true, lineStyle: { color: 'rgba(31,39,51,.45)' } }
+        },
+        { type: 'category', data: dates, gridIndex: 1, show: false }
+      ],
+      yAxis: [
+        {
+          type: 'value',
+          scale: true,
+          axisLabel: { fontSize: 10, color: '#5e6a7d' },
+          axisLine: { show: false },
+          splitLine: { lineStyle: { color: '#1f2733' } }
+        },
+        { type: 'value', gridIndex: 1, show: false }
+      ],
+      series: [
+        {
+          name: '预测窗口',
+          type: 'bar',
+          data: candles.map(function(c, i){
+            return i >= PRED_START ? { value: maxHigh * 1.08, itemStyle: { color: 'rgba(61,139,255,.035)' } } : null;
+          }),
+          barWidth: '98%',
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          silent: true,
+          animation: false
+        },
+        {
+          name: '置信区间下沿',
+          type: 'line',
+          data: lowerBounds,
+          lineStyle: { opacity: 0 },
+          symbol: 'none',
+          stack: 'confidence',
+          areaStyle: { opacity: 0 },
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          silent: true,
+          animation: false
+        },
+        {
+          name: '置信区间',
+          type: 'line',
+          data: upperDiff,
+          lineStyle: { opacity: 0 },
+          symbol: 'none',
+          stack: 'confidence',
+          areaStyle: { color: 'rgba(61,139,255,.12)' },
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          silent: true,
+          animation: false
+        },
+        {
+          name: '历史K线',
+          type: 'candlestick',
+          data: historicalCandles,
+          itemStyle: {
+            color: '#ff4d4f',
+            color0: '#2ec27e',
+            borderColor: '#ff4d4f',
+            borderColor0: '#2ec27e'
+          },
+          xAxisIndex: 0,
+          yAxisIndex: 0
+        },
+        {
+          name: '预测K线',
+          type: 'candlestick',
+          data: predictionCandles,
+          itemStyle: {
+            color: 'rgba(255,77,79,.38)',
+            color0: 'rgba(46,194,126,.38)',
+            borderColor: 'rgba(255,77,79,.5)',
+            borderColor0: 'rgba(46,194,126,.5)'
+          },
+          xAxisIndex: 0,
+          yAxisIndex: 0
+        },
+        {
+          name: '预测路径',
+          type: 'line',
+          data: predictionPath,
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 4,
+          connectNulls: false,
+          lineStyle: { color: '#3d8bff', width: 2, type: 'dashed' },
+          itemStyle: { color: '#3d8bff' },
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          markLine: {
+            silent: true,
+            symbol: 'none',
+            animation: false,
+            label: { fontSize: 10 },
+            data: [
+              { yAxis: RESISTANCE, label: { formatter: '阻力 ' + RESISTANCE, color: '#ff4d4f' }, lineStyle: { color: '#ff4d4f', type: 'dashed', width: 1 } },
+              { yAxis: SUPPORT, label: { formatter: '支撑 ' + SUPPORT, color: '#2ec27e' }, lineStyle: { color: '#2ec27e', type: 'dashed', width: 1 } },
+              { yAxis: STOP, label: { formatter: '止损 ' + STOP, color: '#f5a623' }, lineStyle: { color: '#f5a623', type: 'dashed', width: 1 } }
+            ]
+          },
+          markPoint: {
+            symbolKeepAspect: true,
+            data: [
+              { coord: [52, candles[52].close], value: '★ B', symbol: 'pin', symbolSize: 30, itemStyle: { color: '#ff4d4f' }, label: { show: true, fontSize: 10, color: '#fff', fontWeight: 'bold' } },
+              { coord: [62, candles[62].close], value: '拐点', symbol: 'triangle', symbolRotate: 180, symbolSize: 22, itemStyle: { color: '#f5a623' }, label: { show: true, fontSize: 9, color: '#f5a623', position: 'top' } },
+              { coord: [82, candles[82].close], value: '▼ S', symbol: 'pin', symbolSize: 28, itemStyle: { color: '#2ec27e' }, label: { show: true, fontSize: 10, color: '#fff', fontWeight: 'bold' } }
+            ]
+          }
+        },
+        {
+          name: '成交量',
+          type: 'bar',
+          data: volumes,
+          xAxisIndex: 1,
+          yAxisIndex: 1,
+          itemStyle: { color: 'rgba(61,139,255,.22)' }
+        }
+      ]
+    };
+
+    chartSingle.setOption(option, true);
+
+    document.querySelectorAll('.pcw .tc').forEach(function(el, i){
+      el.addEventListener('click', function(){
+        document.querySelectorAll('.pcw .tc').forEach(function(c){ c.classList.remove('on'); });
+        el.classList.add('on');
+        var last = candles.length - 1;
+        var start = 0;
+        if (i === 1) start = PRED_START - 30;
+        if (i === 2) start = PRED_START - 1;
+        chartSingle.dispatchAction({ type: 'dataZoom', startValue: start, endValue: last });
+      });
+    });
+
+    window.addEventListener('resize', function(){ chartSingle.resize(); });
+    setTimeout(function(){ chartSingle.resize(); }, 120);
+    setTimeout(function(){ chartSingle.resize(); }, 450);
+  }
+
+  document.querySelectorAll('.qsc').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      document.querySelectorAll('.qsc').forEach(function(c){ c.classList.remove('active'); });
+      chip.classList.add('active');
+    });
+  });
+
+  window.toggleFold = function(id){
+    var b = document.getElementById('body-' + id);
+    var a = document.getElementById('arr-' + id);
+    if (!b || !a) return;
+    b.classList.toggle('fold');
+    a.classList.toggle('open');
+  };
+
+  try {
+    initSingleChart();
+  } catch (err) {
+    console.error('single-stock chart failed', err);
+    showFallback('K线图初始化失败');
+  }
+});
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

@@ -105,7 +105,7 @@ export default function Diagnosis() {
     setHistoryLoading(true)
     try {
       const { data } = await diagnosisApi.getHistory()
-      const rawItems = data.items || []
+      const rawItems = (data as unknown as { items?: Record<string, unknown>[] }).items || []
       setHistory(rawItems.map(transformHistoryItem))
     } catch {
       message.error('历史记录加载失败，请稍后重试')
@@ -119,7 +119,7 @@ export default function Diagnosis() {
     setError(null)
     try {
       const res = await diagnosisApi.analyze(stockCode)
-      const transformed = transformDiagnosisReport(res.data)
+      const transformed = transformDiagnosisReport(res.data as unknown as DiagnosisReport)
       setResult(transformed)
       message.success(`诊断完成: ${transformed.grade_label}`)
       // Refresh history
@@ -136,7 +136,7 @@ export default function Diagnosis() {
     setHistoryDetailLoading(true)
     try {
       const res = await diagnosisApi.analyze(stockCode)
-      setHistoryDetail(transformDiagnosisReport(res.data))
+      setHistoryDetail(transformDiagnosisReport(res.data as unknown as DiagnosisReport))
     } catch {
       setHistoryDetail(null)
       message.error('加载诊断详情失败')
@@ -149,7 +149,7 @@ export default function Diagnosis() {
     setCompareLoading(true)
     try {
       const res = await diagnosisApi.compare(codes)
-      const stocks: DiagnosisReport[] = res.data.stocks || []
+      const stocks = (res.data as unknown as { stocks?: import('./diagnosis/types').DiagnosisReport[] }).stocks || []
       setCompareResults(stocks.map(transformDiagnosisReport))
     } catch {
       setCompareResults([])

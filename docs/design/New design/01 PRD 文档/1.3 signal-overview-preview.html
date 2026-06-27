@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 信号总览看板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style class="legacy-page-style">
+/* ===== Design Tokens ===== */
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;
+  -webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-0.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+
+/* ===== App Shell ===== */
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+  position:fixed;inset:0 auto 0 0;height:100vh;display:flex;flex-direction:column;z-index:40}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;
+  border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:14px}
+.brand .name{font-weight:680;font-size:15px;letter-spacing:.02em}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px 10px 4px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+  padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;
+  color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;
+  background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;
+  background:rgba(11,14,19,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:14px;padding:0 20px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 6px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
+.content{padding:18px 20px 40px}
+
+/* ===== Card ===== */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-h h3{font-size:13.5px;font-weight:650;letter-spacing:.01em}
+.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
+.card-b{padding:16px}
+
+/* ===== Layout Grid ===== */
+.layout-row{display:flex;gap:14px;margin-bottom:14px}
+.col-left{flex:1;min-width:0}
+.col-right{width:360px;flex-shrink:0}
+
+/* ===== Page Header ===== */
+.page-head{display:flex;align-items:flex-end;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.page-head h1{font-size:21px;font-weight:700;letter-spacing:-.01em}
+.page-head .sub{font-size:12.5px;color:var(--muted)}
+.head-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.refresh-chip{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--fg-2);
+  background:var(--surface);border:1px solid var(--border);padding:6px 12px;border-radius:7px}
+.refresh-chip .live{width:7px;height:7px;border-radius:50%;background:var(--down);animation:pulse 1.8s infinite}
+
+/* ===== Filter Bar ===== */
+.filter-bar{display:flex;gap:6px;margin-bottom:10px}
+.filter-btn{font-size:11.5px;padding:5px 14px;border-radius:14px;border:1px solid var(--border);
+  background:var(--surface-2);color:var(--fg-2);cursor:pointer;transition:.12s}
+.filter-btn:hover{background:var(--elevated);color:var(--fg)}
+.filter-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+
+/* ===== Signal Matrix ===== */
+.matrix-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+.matrix-container{overflow-x:auto;padding:8px 0}
+.matrix-container::-webkit-scrollbar{height:6px}
+.matrix-container::-webkit-scrollbar-track{background:var(--surface-2)}
+.matrix-container::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+.matrix-row{display:flex;align-items:center;padding:3px 0;min-height:21px}
+.matrix-row:hover{background:var(--surface-2)}
+.sector-label{
+  width:80px;min-width:80px;flex-shrink:0;
+  position:sticky;left:0;z-index:1;
+  background:var(--surface);padding:3px 8px;
+  font-size:11px;font-weight:600;color:var(--fg-2);
+  display:flex;align-items:center;gap:4px
+}
+.matrix-row:hover .sector-label{background:var(--surface-2)}
+.sector-label .sn{font-size:9px;color:var(--muted);font-weight:400}
+.cells-row{display:flex;gap:1px;flex-wrap:nowrap;align-items:center}
+
+/* ===== Signal Cell ===== */
+.signal-cell{
+  width:11px;height:11px;border-radius:2px;
+  cursor:pointer;flex-shrink:0;
+  transition:transform .1s ease,opacity .1s ease;
+}
+.signal-cell:hover{transform:scale(2.0);z-index:10;box-shadow:0 0 6px rgba(0,0,0,.5)}
+.signal-cell.buy-strong{background:#ff4d4f}
+.signal-cell.buy{background:#fa8c16}
+.signal-cell.hold{background:#3d8bff}
+.signal-cell.reduce{background:#faad14}
+.signal-cell.sell{background:#8c8c8c}
+.signal-cell.alert{background:#722ed1}
+
+/* ===== Cell depth based on score ===== */
+.signal-cell.lo{opacity:.35}
+.signal-cell.md{opacity:.65}
+.signal-cell.hi{opacity:1}
+
+/* ===== Tooltip ===== */
+.matrix-tooltip{
+  position:fixed;z-index:1050;
+  background:var(--elevated);border:1px solid var(--border-2);
+  border-radius:var(--radius);padding:12px 14px;
+  box-shadow:0 6px 24px rgba(0,0,0,.35);
+  pointer-events:none;min-width:220px;display:none
+}
+.matrix-tooltip.show{display:block}
+.tip-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.tip-name{font-weight:650;font-size:14px}
+.tip-code{font-family:var(--font-mono);font-size:11px;color:var(--fg-2)}
+.tip-level{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600;margin-left:auto}
+.tip-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0}
+.tip-row .lbl{color:var(--fg-2)}
+.tip-row .val{font-family:var(--font-mono);font-weight:600}
+.tip-components{margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+.tip-comp-label{font-size:10px;color:var(--muted);margin-bottom:4px}
+.tip-comp-row{display:flex;align-items:center;gap:6px;margin:3px 0}
+.tip-comp-row .cn{width:42px;font-size:10px;color:var(--fg-2);text-align:right;flex-shrink:0}
+.tip-comp-row .cb{flex:1;height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden}
+.tip-comp-row .cb-inner{height:100%;border-radius:2px}
+.tip-comp-row .cv{width:28px;font-family:var(--font-mono);font-size:10px;text-align:right;flex-shrink:0}
+
+/* ===== Signal Overview Card ===== */
+.sig-stat-row{display:flex;align-items:center;gap:10px;padding:6px 0}
+.sig-stat-row .sig-icon{width:14px;text-align:center;font-size:12px;flex-shrink:0}
+.sig-stat-row .sig-label{width:52px;font-size:11px;color:var(--fg-2);flex-shrink:0}
+.sig-stat-row .sig-count{font-family:var(--font-mono);font-size:13px;font-weight:650;width:32px;text-align:right;flex-shrink:0}
+.sig-stat-row .sig-pct{font-family:var(--font-mono);font-size:10px;color:var(--muted);width:36px;text-align:right;flex-shrink:0}
+.sig-stat-row .sig-bar{flex:1;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.sig-stat-row .sig-bar-fill{height:100%;border-radius:3px;transition:width .4s ease}
+
+.reso-block{margin-top:6px;padding-top:8px;border-top:1px solid var(--border)}
+.reso-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px}
+.reso-row .rn{color:var(--fg-2)} .reso-row .rv{font-family:var(--font-mono);font-weight:600}
+
+.watch-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;margin-top:6px}
+.watch-chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:10px;background:var(--accent-dim);color:var(--accent)}
+
+/* ===== Live Signal Stream ===== */
+.stream-wrap{max-height:300px;overflow-y:auto}
+.stream-wrap::-webkit-scrollbar{width:4px}
+.stream-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.stream-item{display:flex;align-items:center;gap:6px;padding:5px 0;font-size:11px;
+  border-bottom:1px solid var(--border)}
+.stream-item:last-child{border-bottom:none}
+.stream-item .st{font-family:var(--font-mono);font-size:10px;color:var(--muted);width:36px;flex-shrink:0}
+.stream-item .sc{font-family:var(--font-mono);font-size:11px;width:44px;flex-shrink:0}
+.stream-item .sn{font-size:11px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stream-item .ss{font-family:var(--font-mono);font-size:11px;font-weight:650;flex-shrink:0}
+.stream-item .si{font-size:10px;color:var(--muted);flex-shrink:0}
+
+/* ===== Top Signals ===== */
+.top-list{}
+.top-item{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11px;cursor:pointer;
+  border-bottom:1px solid var(--border);transition:.12s}
+.top-item:last-child{border-bottom:none}
+.top-item:hover{background:var(--surface-2);margin:0 -12px;padding:5px 12px}
+.top-item .tr{font-family:var(--font-mono);font-size:10px;color:var(--muted);width:14px;flex-shrink:0}
+.top-item .tc{font-family:var(--font-mono);font-size:11px;width:44px;flex-shrink:0}
+.top-item .tn{font-size:11px;flex:1}
+.top-item .ts{font-family:var(--font-mono);font-size:12px;font-weight:650;flex-shrink:0}
+.top-item .tb{font-size:10px;padding:1px 6px;border-radius:8px;font-weight:600;flex-shrink:0}
+
+/* ===== Charts Section ===== */
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.chart-card .card-b{padding:12px}
+.chart-box{width:100%;height:340px}
+
+/* ===== Footer ===== */
+.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;
+  border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+
+/* ===== Signal Level Tags ===== */
+.tag-sb{color:#ff4d4f;background:rgba(255,77,79,0.12)}  .tag-b{color:#fa8c16;background:rgba(250,140,22,0.12)}
+.tag-h{color:#3d8bff;background:rgba(61,139,255,0.12)}   .tag-r{color:#faad14;background:rgba(250,173,20,0.12)}
+.tag-s{color:#8c8c8c;background:rgba(140,140,140,0.12)}  .tag-a{color:#722ed1;background:rgba(114,46,209,0.12)}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="dashboard" data-title="信号总览看板">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">角色首页</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共行情 + 私有自选</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">摘要状态</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<!-- ===== Page Header ===== -->
+          <div class="page-head">
+            <div>
+              <h1>⚡ 信号总览</h1>
+              <div class="sub">全市场六维信号扫描 · 板块共振 · 历史趋势</div>
+            </div>
+            <div class="head-actions">
+              <button class="filter-btn active" onclick="refreshData()" style="font-size:11.5px">🔄 刷新</button>
+            </div>
+          </div>
+      
+          <!-- ===== Main Content: Matrix + Right Panel ===== -->
+          <div class="layout-row">
+      
+            <!-- ===== LEFT: Signal Matrix (Col:16) ===== -->
+            <div class="col-left">
+              <div class="filter-bar" id="filterBar">
+                <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">全部信号</button>
+                <button class="filter-btn" data-filter="buy" onclick="setFilter('buy',this)">仅买入</button>
+                <button class="filter-btn" data-filter="sell" onclick="setFilter('sell',this)">仅卖出</button>
+                <button class="filter-btn" data-filter="alert" onclick="setFilter('alert',this)">仅拐点</button>
+                <button class="filter-btn" data-filter="watchlist" onclick="setFilter('watchlist',this)">仅自选</button>
+              </div>
+      
+              <div class="matrix-wrap">
+                <div class="matrix-container" id="matrixContainer"></div>
+              </div>
+              <div class="footer-bar" style="margin-top:6px;border-top:none">
+                <span>每行 = 一个行业板块（按偏多程度降序）&nbsp;·&nbsp;每格 = 一只股票 &nbsp;·&nbsp;悬浮查看详情 &nbsp;·&nbsp;点击跳转诊断</span>
+              </div>
+            </div>
+      
+            <!-- ===== RIGHT Panel (Col:8) ===== -->
+            <div class="col-right" style="display:flex;flex-direction:column;gap:14px">
+      
+              <!-- Signal Overview Stats Card -->
+              <div class="card">
+                <div class="card-h"><h3>📊 今日信号概况</h3><span class="meta">已覆盖 3,852 只</span></div>
+                <div class="card-b" style="padding:10px 16px">
+                  <div class="sig-stat-row">
+                    <span class="sig-icon">🟢</span><span class="sig-label">强买</span>
+                    <span class="sig-count" style="color:#ff4d4f">76</span>
+                    <span class="sig-bar"><div class="sig-bar-fill" style="width:100%;background:#ff4d4f"></div></span>
+                    <span class="sig-pct">20%</span>
+                  </div>
+                  <div class="sig-stat-row">
+                    <span class="sig-icon">🟠</span><span class="sig-label">买入</span>
+                    <span class="sig-count" style="color:#fa8c16">148</span>
+                    <span class="sig-bar"><div class="sig-bar-fill" style="width:100%;background:#fa8c16"></div></span>
+                    <span class="sig-pct">38%</span>
+                  </div>
+                  <div class="sig-stat-row">
+                    <span class="sig-icon">🔵</span><span class="sig-label">持有</span>
+                    <span class="sig-count" style="color:#3d8bff">412</span>
+                    <span class="sig-bar"><div class="sig-bar-fill" style="width:100%;background:#3d8bff"></div></span>
+                    <span class="sig-pct">54%</span>
+                  </div>
+                  <div class="sig-stat-row">
+                    <span class="sig-icon">🟡</span><span class="sig-label">减仓</span>
+                    <span class="sig-count" style="color:#faad14">89</span>
+                    <span class="sig-bar"><div class="sig-bar-fill" style="width:100%;background:#faad14"></div></span>
+                    <span class="sig-pct">12%</span>
+                  </div>
+                  <div class="sig-stat-row">
+                    <span class="sig-icon">⚫</span><span class="sig-label">卖出</span>
+                    <span class="sig-count" style="color:#8c8c8c">35</span>
+                    <span class="sig-bar"><div class="sig-bar-fill" style="width:100%;background:#8c8c8c"></div></span>
+                    <span class="sig-pct">5%</span>
+                  </div>
+                  <div class="sig-stat-row">
+                    <span class="sig-icon">🟣</span><span class="sig-label">拐点</span>
+                    <span class="sig-count" style="color:#722ed1">12</span>
+                    <span class="sig-bar"><div class="sig-bar-fill" style="width:100%;background:#722ed1"></div></span>
+                    <span class="sig-pct">2%</span>
+                  </div>
+      
+                  <div class="reso-block">
+                    <div class="reso-row"><span class="rn">板块共振偏多</span><span class="rv" style="color:var(--up)">14 板块</span></div>
+                    <div class="reso-row"><span class="rn">板块共振偏空</span><span class="rv" style="color:var(--down)">3 板块</span></div>
+                    <div class="reso-row"><span class="rn">共振阈值</span><span class="rv" style="color:var(--fg-2)">≥3 只同向</span></div>
+                  </div>
+      
+                  <div class="watch-row">
+                    <span style="color:var(--fg-2)">自选股信号</span>
+                    <span class="watch-chip">5 / 12 已触发</span>
+                    <span style="font-size:10px;color:var(--muted);margin-left:auto;cursor:pointer">管理自选 →</span>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- Live Signal Stream -->
+              <div class="card">
+                <div class="card-h"><h3>⚡ 实时信号流</h3><span class="meta">最近 20 条</span></div>
+                <div class="card-b" style="padding:10px 16px">
+                  <div class="stream-wrap" id="streamContainer"></div>
+                </div>
+              </div>
+      
+              <!-- Top Signals TOP 8 -->
+              <div class="card">
+                <div class="card-h"><h3>🎯 最强信号 TOP 8</h3><span class="meta">当日买入/拐点信号</span></div>
+                <div class="card-b" style="padding:8px 16px">
+                  <div class="top-list" id="topSignalsContainer"></div>
+                </div>
+              </div>
+      
+            </div>
+          </div>
+      
+          <!-- ===== Bottom Charts Section ===== -->
+          <div class="layout-row">
+            <div class="col-left" style="width:50%">
+              <div class="chart-card">
+                <div class="card-h"><h3>📈 30 日信号趋势</h3><span class="meta">近 30 个交易日 · 买卖信号 + 多空比</span></div>
+                <div class="card-b"><div class="chart-box" id="trendChart"></div></div>
+              </div>
+            </div>
+            <div class="col-left" style="width:50%">
+              <div class="chart-card">
+                <div class="card-h"><h3>🏭 板块信号气泡图</h3><span class="meta">信号数量 × 平均评分 × 市值（气泡大小）</span></div>
+                <div class="card-b"><div class="chart-box" id="bubbleChart"></div></div>
+              </div>
+            </div>
+          </div>
+      
+          <!-- ===== Bottom Bar ===== -->
+          <div class="footer-bar">
+            数据来源: signal-service (signal_snapshots 缓存)
+            <span class="sep"></span>
+            信号模型: Kronos(20) + 技术(20) + 资金(12) + 基本面(15) + 事件(13) + 市场(20) = 100分
+            <span class="sep"></span>
+            免责声明: 本页信号为量化模型输出，不构成投资建议。历史数据不代表未来表现
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+// ===== Mock Data =====
+const LEVEL = { STRONG_BUY: 'buy-strong', BUY: 'buy', HOLD: 'hold', REDUCE: 'reduce', SELL: 'sell', TIMING_ALERT: 'alert' };
+const LEVEL_CN = { STRONG_BUY: '强买', BUY: '买入', HOLD: '持有', REDUCE: '减仓', SELL: '卖出', TIMING_ALERT: '拐点' };
+const LEVEL_COLOR = { STRONG_BUY: '#ff4d4f', BUY: '#fa8c16', HOLD: '#3d8bff', REDUCE: '#faad14', SELL: '#8c8c8c', TIMING_ALERT: '#722ed1' };
+
+const STOCK_NAMES = [
+  ['中芯国际','北方华创','韦尔股份','兆易创新','卓胜微','紫光国微','长电科技','华天科技','通富微电','晶方科技','汇顶科技','圣邦股份'],
+  ['宁德时代','比亚迪','隆基绿能','阳光电源','通威股份','亿纬锂能','天合光能','晶澳科技','福斯特','福莱特','固德威','锦浪科技'],
+  ['寒武纪','海光信息','中科曙光','浪潮信息','景嘉微','龙芯中科','芯原股份','复旦微电','拓尔思','三六零','科大讯飞','云从科技'],
+  ['立讯精密','歌尔股份','蓝思科技','欣旺达','领益智造','环旭电子','长盈精密','东山精密','鹏鼎控股','深南电路','景旺电子','胜宏科技'],
+  ['贵州茅台','五粮液','泸州老窖','洋河股份','山西汾酒','古井贡酒','今世缘','舍得酒业','酒鬼酒','老白干','金徽酒','水井坊'],
+  ['恒瑞医药','药明康德','迈瑞医疗','爱尔眼科','泰格医药','康龙化成','凯莱英','昭衍新药','百济神州','信达生物','君实生物','康希诺'],
+  ['长城汽车','吉利汽车','长安汽车','上汽集团','广汽集团','赛力斯','江淮汽车','北汽蓝谷','中通客车','安凯客车','一汽解放','中国重汽'],
+  ['万科A','保利发展','招商蛇口','金地集团','新城控股','滨江集团','华发股份','华侨城A','荣盛发展','阳光城','中南建设','金科股份']
+];
+
+const STOCK_CODES = [
+  ['688981','002371','603501','603986','300782','002049','600584','002185','002156','603005','603160','300661'],
+  ['300750','002594','601012','300274','600438','300014','688599','002459','603806','601865','688390','300763'],
+  ['688256','688041','603019','000977','300474','688047','688521','688385','300229','601360','002230','688327'],
+  ['002475','002241','300433','300207','002600','601231','300115','002384','002938','002916','603228','300476'],
+  ['600519','000858','000568','002304','600809','000596','603369','600702','000799','600559','603919','600779'],
+  ['600276','603259','300760','300015','300347','300759','002821','603127','688235','01801','688180','688185'],
+  ['601633','00175','000625','600104','601238','601127','600418','600733','000957','000868','600742','000951'],
+  ['000002','600048','001979','600383','601155','002244','600325','000069','002146','000671','000961','000656']
+];
+
+// Generate realistic signal levels per sector (sorted by bullish ratio)
+const SECTOR_SIGNAL_DIST = [
+  ['半导体',  [1,1,1,1, 2,2,2,2,2, 3,3, 6]],   // 4 StrongBuy, 5 Buy, 2 Hold, 1 Alert = 12
+  ['AI算力',   [1,1,1, 2,2,2,2, 3,3,3, 6,6]],  // 3 SB, 4 B, 3 H, 2 A = 12
+  ['新能源',   [1,1,1, 2,2,2, 3,3,3,3, 4,4]],   // 3 SB, 3 B, 4 H, 2 Reduce = 12
+  ['消费电子', [1,1, 2,2,2, 3,3,3,3, 4,4, 6]],  // 2 SB, 3 B, 4 H, 2 R, 1 A = 12
+  ['白酒',     [1,1, 2,2, 3,3,3,3,3, 4,4, 6]],  // 2 SB, 2 B, 5 H, 2 R, 1 A = 12
+  ['医药',     [1, 2,2, 3,3,3,3,3, 4,4, 5, 6]], // 1 SB, 2 B, 5 H, 2 R, 1 S, 1 A = 12
+  ['汽车',     [1, 2,2, 3,3,3,3, 4,4,4, 5,5]],  // 1 SB, 2 B, 4 H, 3 R, 2 S = 12
+  ['房地产',   [3,3,3, 4,4,4,4, 5,5,5,5, 6]]    // 3 H, 4 R, 4 S, 1 A = 12
+];
+
+const SCORE_RANGES = {
+  1: [78,92],   // STRONG_BUY
+  2: [65,78],   // BUY
+  3: [45,65],   // HOLD
+  4: [30,45],   // REDUCE
+  5: [15,30],   // SELL
+  6: [55,88]    // TIMING_ALERT (high variance)
+};
+
+const WATCHLIST_CODES = new Set(['688981','300750','300274','600519','000858','600276','603259','002594','601012','601633','000002','688256']);
+
+function levelForCode(code) {
+  for (let si = 0; si < 8; si++) {
+    const ci = STOCK_CODES[si].indexOf(code);
+    if (ci >= 0) return SECTOR_SIGNAL_DIST[si][1][ci];
+  }
+  return 3;
+}
+
+// Shuffle array in place
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Build signal data
+function buildSignalData() {
+  const signals = [];
+  for (let si = 0; si < 8; si++) {
+    const sectorName = SECTOR_SIGNAL_DIST[si][0];
+    const dist = SECTOR_SIGNAL_DIST[si][1];
+    const shuffled = [...dist];
+    // Instead of fully random shuffle, keep original ordering for reproducibility
+    for (let ci = 0; ci < dist.length; ci++) {
+      const level = dist[ci];
+      const [minS, maxS] = SCORE_RANGES[level];
+      const score = minS + Math.floor(Math.random() * (maxS - minS + 1));
+      const opacityClass = score >= 75 ? 'hi' : (score >= 50 ? 'md' : 'lo');
+      const price = (8 + Math.random() * 320).toFixed(2);
+      const changePct = (level <= 2 ? (Math.random() * 8 + 0.5) : (level >= 5 ? -(Math.random() * 5 + 0.3) : (Math.random() * 4 - 2))).toFixed(1);
+      const kronos = Math.max(15, Math.min(95, score + Math.floor(Math.random() * 20 - 10)));
+      const technical = Math.max(15, Math.min(95, score + Math.floor(Math.random() * 16 - 8)));
+      const fundFlow = Math.max(15, Math.min(95, score + Math.floor(Math.random() * 18 - 9)));
+      const fundamental = Math.max(15, Math.min(95, score + Math.floor(Math.random() * 14 - 7)));
+      const eventRisk = Math.max(15, Math.min(95, score + Math.floor(Math.random() * 24 - 12)));
+      const marketAdapt = Math.max(15, Math.min(95, score + Math.floor(Math.random() * 16 - 8)));
+
+      signals.push({
+        code: STOCK_CODES[si][ci],
+        name: STOCK_NAMES[si][ci],
+        industry: sectorName,
+        level: level,
+        score: score,
+        opacity: opacityClass,
+        price: parseFloat(price),
+        changePct: parseFloat(changePct),
+        components: { kronos, technical, fundFlow, fundamental, eventRisk, marketAdapt },
+        watchlist: WATCHLIST_CODES.has(STOCK_CODES[si][ci])
+      });
+    }
+  }
+  return signals;
+}
+
+const signalData = buildSignalData();
+
+// Group by sector, sorted by bullishness
+function getSectorRows(filter) {
+  const filtered = signalData.filter(s => {
+    if (filter === 'all') return true;
+    if (filter === 'buy') return s.level === 1 || s.level === 2 || s.level === 6;
+    if (filter === 'sell') return s.level === 4 || s.level === 5;
+    if (filter === 'alert') return s.level === 6;
+    if (filter === 'watchlist') return s.watchlist;
+    return true;
+  });
+
+  const grouped = {};
+  for (const s of filtered) {
+    if (!grouped[s.industry]) grouped[s.industry] = [];
+    grouped[s.industry].push(s);
+  }
+
+  // Sort each group: StrongBuy, Buy, Alert, Hold, Reduce, Sell
+  const levelOrder = { 1:0, 2:1, 6:2, 3:3, 4:4, 5:5 };
+  for (const key of Object.keys(grouped)) {
+    grouped[key].sort((a,b) => levelOrder[a.level] - levelOrder[b.level]);
+  }
+
+  // Calculate bullish ratio and sort rows
+  const rows = Object.entries(grouped).map(([sector, cells]) => {
+    const buyCount = cells.filter(c => c.level === 1 || c.level === 2).length;
+    const total = cells.length;
+    return { sector, cells, buyCount, bullishRatio: total > 0 ? buyCount / total : 0, total };
+  });
+
+  rows.sort((a, b) => b.bullishRatio - a.bullishRatio);
+  return rows;
+}
+
+// ===== Render Matrix =====
+let currentFilter = 'all';
+
+function renderMatrix() {
+  const container = document.getElementById('matrixContainer');
+  const rows = getSectorRows(currentFilter);
+
+  let html = '';
+  for (const row of rows) {
+    html += '<div class="matrix-row">';
+    html += `<div class="sector-label">${row.sector} <span class="sn">${row.total}只</span></div>`;
+    html += '<div class="cells-row">';
+    for (const cell of row.cells) {
+      const lvlClass = LEVEL[Object.keys(LEVEL)[cell.level - 1]];
+      const s = JSON.stringify(cell).replace(/"/g, '&quot;');
+      html += `<div class="signal-cell ${lvlClass} ${cell.opacity}"
+          data-signal='${s}'
+          onmouseenter="showTooltip(event, this)"
+          onmouseleave="hideTooltip()"
+          onclick="cellClick('${cell.code}')"
+          title="${cell.code} ${cell.name} ${LEVEL_CN[Object.keys(LEVEL)[cell.level - 1]]} ${cell.score}分"
+          role="button" tabindex="0"
+          aria-label="${cell.code} ${cell.name} ${LEVEL_CN[Object.keys(LEVEL)[cell.level - 1]]} ${cell.score}分"></div>`;
+    }
+    html += '</div></div>';
+  }
+
+  if (rows.length === 0) {
+    html = '<div style="padding:40px;text-align:center;color:var(--muted)">当前筛选条件下无匹配信号</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('#filterBar .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMatrix();
+}
+
+// ===== Tooltip =====
+function showTooltip(event, el) {
+  const d = JSON.parse(el.getAttribute('data-signal'));
+  const tt = document.getElementById('matrixTooltip');
+  const levelKey = Object.keys(LEVEL)[d.level - 1];
+  const lvlName = LEVEL_CN[levelKey];
+  const lvlColor = LEVEL_COLOR[levelKey];
+
+  let compHtml = '';
+  const compNames = { kronos:'Kronos', technical:'技术面', fundFlow:'资金面', fundamental:'基本面', eventRisk:'事件风险', marketAdapt:'市场适应' };
+  for (const [k, v] of Object.entries(d.components)) {
+    compHtml += `<div class="tip-comp-row">
+      <span class="cn">${compNames[k]}</span>
+      <div class="cb"><div class="cb-inner" style="width:${v}%;background:${getCompColor(v)}"></div></div>
+      <span class="cv mono">${v}</span>
+    </div>`;
+  }
+
+  const deltaClass = d.changePct >= 0 ? 'up' : 'down';
+  const deltaSign = d.changePct >= 0 ? '+' : '';
+
+  tt.innerHTML = `
+    <div class="tip-head">
+      <span class="tip-code mono">${d.code}</span>
+      <span class="tip-name">${d.name}</span>
+      <span class="tip-level tag-sb" style="color:${lvlColor}">${lvlName} ${d.score}分</span>
+    </div>
+    <div class="tip-row"><span class="lbl">现价</span><span class="val mono">¥${d.price.toFixed(2)}</span></div>
+    <div class="tip-row"><span class="lbl">涨跌幅</span><span class="val mono ${deltaClass}">${deltaSign}${d.changePct}%</span></div>
+    <div class="tip-row"><span class="lbl">板块</span><span class="val">${d.industry}</span></div>
+    <div class="tip-row"><span class="lbl">自选</span><span class="val">${d.watchlist ? '⭐ 是' : '否'}</span></div>
+    <div class="tip-components">
+      <div class="tip-comp-label">六维信号分解</div>
+      ${compHtml}
+    </div>`;
+
+  tt.classList.add('show');
+
+  // Position tooltip near mouse
+  let x = event.clientX + 16;
+  let y = event.clientY - 10;
+  if (x + 250 > window.innerWidth) x = event.clientX - 250;
+  if (y + 300 > window.innerHeight) y = window.innerHeight - 310;
+  tt.style.left = x + 'px';
+  tt.style.top = y + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('matrixTooltip').classList.remove('show');
+}
+
+function getCompColor(v) {
+  if (v >= 75) return '#ff4d4f';
+  if (v >= 55) return '#fa8c16';
+  if (v >= 40) return '#3d8bff';
+  if (v >= 25) return '#faad14';
+  return '#8c8c8c';
+}
+
+function cellClick(code) {
+  // Simulate opening diagnosis page
+  alert('跳转到诊断页面\ndiagnosis?code=' + code + '\n\n(预览模式下模拟)');
+}
+
+// ===== Render Live Signal Stream =====
+function renderStream() {
+  const container = document.getElementById('streamContainer');
+  const times = ['15:02','14:58','14:53','14:48','14:44','14:39','14:35','14:32','14:30','14:28','14:25','14:22','14:20','14:18','14:15','14:12','14:10','14:08','14:05','14:02'];
+
+  // Pick 20 random signals
+  const picked = [];
+  const indices = new Set();
+  while (picked.length < 20 && indices.size < signalData.length) {
+    const i = Math.floor(Math.random() * signalData.length);
+    if (!indices.has(i)) { indices.add(i); picked.push(signalData[i]); }
+  }
+
+  // Sort by time descending
+  picked.sort(() => Math.random() - 0.5); // Simulated random order
+
+  let html = '';
+  for (let i = 0; i < Math.min(20, picked.length); i++) {
+    const s = picked[i];
+    const levelKey = Object.keys(LEVEL)[s.level - 1];
+    const lvlName = LEVEL_CN[levelKey];
+    const tagClass = s.level === 1 ? 'tag-sb' : s.level === 2 ? 'tag-b' : s.level === 6 ? 'tag-a' : s.level === 4 ? 'tag-r' : s.level === 5 ? 'tag-s' : 'tag-h';
+    html += `<div class="stream-item">
+      <span class="st">${times[i]}</span>
+      <span class="sc mono">${s.code}</span>
+      <span class="sn">${s.name}</span>
+      <span class="si" style="color:${LEVEL_COLOR[levelKey]}">${lvlName}</span>
+      <span class="ss mono" style="color:${LEVEL_COLOR[levelKey]}">${s.score}</span>
+      <span class="si">${s.industry}</span>
+    </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+// ===== Render Top Signals =====
+function renderTopSignals() {
+  const container = document.getElementById('topSignalsContainer');
+  // Top 8 buy/alert signals sorted by score desc
+  const buySignals = signalData.filter(s => s.level === 1 || s.level === 2 || s.level === 6);
+  buySignals.sort((a,b) => b.score - a.score);
+  const top8 = buySignals.slice(0, 8);
+
+  let html = '';
+  for (let i = 0; i < top8.length; i++) {
+    const s = top8[i];
+    const levelKey = Object.keys(LEVEL)[s.level - 1];
+    const lvlName = LEVEL_CN[levelKey];
+    const resonanceCount = signalData.filter(x => x.industry === s.industry && (x.level <= 2 || x.level === 6)).length;
+    html += `<div class="top-item" onclick="cellClick('${s.code}')" style="cursor:pointer">
+      <span class="tr">${i+1}</span>
+      <span class="tc mono">${s.code}</span>
+      <span class="tn">${s.name}</span>
+      <span class="tb" style="color:${LEVEL_COLOR[levelKey]};background:${LEVEL_COLOR[levelKey]}18">${lvlName}</span>
+      <span class="ts mono" style="color:${LEVEL_COLOR[levelKey]}">${s.score}</span>
+      <span class="si">${s.industry}</span>
+      <span class="si mono" style="background:var(--accent-dim);color:var(--accent);padding:1px 5px;border-radius:6px;font-size:9px">共${resonanceCount}只</span>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+// ===== ECharts: 30-Day Signal Trend =====
+function renderTrendChart() {
+  const chartDom = document.getElementById('trendChart');
+  const chart = echarts.init(chartDom, null, { backgroundColor: 'transparent' });
+
+  const dates = [];
+  const buyData = [];
+  const sellData = [];
+  const ratioData = [];
+
+  const baseDate = new Date(2026, 5, 25);
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() - i);
+    const ds = `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    dates.push(ds);
+
+    // Simulate realistic trend: buy signals oscillating around 200-280, sells around 80-140
+    const trend = Math.sin(i * 0.3) * 40;
+    const buy = Math.round(230 + trend + Math.random() * 40 - 20);
+    const sell = Math.round(110 - trend * 0.4 + Math.random() * 25 - 12);
+    buyData.push(buy);
+    sellData.push(sell);
+    ratioData.push(sell > 0 ? parseFloat((buy / sell).toFixed(2)) : buy);
+  }
+
+  const option = {
+    grid: { left: 55, right: 55, top: 40, bottom: 40 },
+    xAxis: {
+      type: 'category', data: dates,
+      axisLabel: { fontSize: 10, color: '#9aa7b8', rotate: 30 },
+      axisLine: { lineStyle: { color: '#1f2733' } },
+      axisTick: { show: false }
+    },
+    yAxis: [
+      {
+        type: 'value', name: '信号数(只)', nameTextStyle: { fontSize: 10, color: '#5e6a7d' },
+        axisLabel: { fontSize: 10, color: '#9aa7b8' },
+        splitLine: { lineStyle: { color: '#1f2733' } }
+      },
+      {
+        type: 'value', name: '多空比', nameTextStyle: { fontSize: 10, color: '#5e6a7d' },
+        axisLabel: { fontSize: 10, color: '#5e6a7d' },
+        splitLine: { show: false }
+      }
+    ],
+    series: [
+      {
+        name: '买入信号', type: 'line', yAxisIndex: 0,
+        data: buyData,
+        lineStyle: { color: '#ff4d4f', width: 2 },
+        itemStyle: { color: '#ff4d4f' },
+        symbol: 'circle', symbolSize: 4,
+        smooth: true, showSymbol: false
+      },
+      {
+        name: '卖出信号', type: 'line', yAxisIndex: 0,
+        data: sellData,
+        lineStyle: { color: '#2ec27e', width: 2 },
+        itemStyle: { color: '#2ec27e' },
+        symbol: 'circle', symbolSize: 4,
+        smooth: true, showSymbol: false
+      },
+      {
+        name: '多空比', type: 'bar', yAxisIndex: 1,
+        data: ratioData,
+        itemStyle: {
+          color: function(params) {
+            const v = params.value;
+            if (v >= 3) return 'rgba(46,194,126,0.25)';
+            if (v <= 1) return 'rgba(255,77,79,0.25)';
+            return 'rgba(61,139,255,0.12)';
+          }
+        },
+        barWidth: '60%',
+        markLine: {
+          silent: true, symbol: 'none',
+          data: [{ yAxis: 3, name: '进攻阈值',
+            lineStyle: { color: '#5e6a7d', type: 'dashed', width: 1 },
+            label: { formatter: '进攻日 3.0', fontSize: 9, color: '#5e6a7d' }
+          }]
+        }
+      }
+    ],
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#1b2330',
+      borderColor: '#2a3444',
+      textStyle: { fontSize: 11, color: '#e8edf4' },
+      formatter: function(params) {
+        if (!params || params.length < 3) return '';
+        return `${params[0].axisValue}<br/>
+          <span style="color:#ff4d4f">●</span> 买入: ${params[0].value}只<br/>
+          <span style="color:#2ec27e">●</span> 卖出: ${params[1].value}只<br/>
+          <span style="color:#3d8bff">▬</span> 多空比: ${params[2].value}`;
+      }
+    },
+    legend: {
+      data: ['买入信号', '卖出信号', '多空比'],
+      bottom: 0,
+      textStyle: { fontSize: 11, color: '#9aa7b8' }
+    }
+  };
+
+  chart.setOption(option);
+  window.addEventListener('resize', () => chart.resize());
+  return chart;
+}
+
+// ===== ECharts: Sector Bubble Chart =====
+function renderBubbleChart() {
+  const chartDom = document.getElementById('bubbleChart');
+  const chart = echarts.init(chartDom, null, { backgroundColor: 'transparent' });
+
+  const sectorData = [];
+  const marketCaps = { '半导体': 4.2e12, 'AI算力': 3.8e12, '新能源': 5.6e12, '消费电子': 3.1e12, '白酒': 4.8e12, '医药': 5.2e12, '汽车': 3.9e12, '房地产': 2.8e12 };
+
+  for (const [sector, dist] of SECTOR_SIGNAL_DIST) {
+    const cells = signalData.filter(s => s.industry === sector);
+    const total = cells.length;
+    const buyCount = cells.filter(c => c.level <= 2 || c.level === 6).length;
+    const sellCount = cells.filter(c => c.level >= 4 && c.level <= 5).length;
+    const avgScore = cells.length > 0 ? cells.reduce((a,c) => a + c.score, 0) / cells.length : 0;
+    const ratio = sellCount > 0 ? buyCount / sellCount : (buyCount > 0 ? 5 : 1);
+    const cap = marketCaps[sector] || 1e12;
+
+    sectorData.push({
+      value: [total, parseFloat(avgScore.toFixed(1)), cap],
+      name: sector,
+      buyRatio: ratio,
+      buyCount, sellCount
+    });
+  }
+
+  const option = {
+    grid: { left: 70, right: 50, top: 40, bottom: 50 },
+    xAxis: {
+      type: 'value', name: '信号数(只)', nameTextStyle: { fontSize: 10, color: '#5e6a7d' },
+      axisLabel: { fontSize: 10, color: '#9aa7b8' },
+      splitLine: { lineStyle: { color: '#1f2733' } }
+    },
+    yAxis: {
+      type: 'value', name: '平均评分', nameTextStyle: { fontSize: 10, color: '#5e6a7d' },
+      min: 20, max: 80,
+      axisLabel: { fontSize: 10, color: '#9aa7b8' },
+      splitLine: { lineStyle: { color: '#1f2733' } }
+    },
+    series: [{
+      type: 'scatter',
+      data: sectorData.map(s => ({
+        value: s.value,
+        name: s.name,
+        itemStyle: {
+          color: (() => {
+            const r = s.buyRatio;
+            if (r >= 3) return '#2ec27e';
+            if (r >= 2) return '#52c41a';
+            if (r >= 1) return '#3d8bff';
+            if (r >= 0.5) return '#fa8c16';
+            return '#ff4d4f';
+          })(),
+          shadowBlur: 8,
+          shadowColor: 'rgba(0,0,0,0.3)'
+        }
+      })),
+      symbolSize: (val) => {
+        const cap = val[2];
+        return Math.max(22, Math.min(75, Math.sqrt(cap) / 1e8 * 20));
+      },
+      label: {
+        show: true,
+        formatter: '{b}',
+        position: 'right',
+        fontSize: 11,
+        color: '#9aa7b8',
+        fontFamily: '-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif'
+      },
+      emphasis: {
+        scale: 1.5,
+        label: { fontSize: 13, fontWeight: 600, color: '#e8edf4' }
+      }
+    }],
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#1b2330',
+      borderColor: '#2a3444',
+      textStyle: { fontSize: 11, color: '#e8edf4' },
+      formatter: function(params) {
+        const d = params.data;
+        const sd = sectorData.find(s => s.name === d.name);
+        return `<b>${d.name}</b><br/>
+          信号数: ${d.value[0]}只<br/>
+          均分: ${d.value[1].toFixed(1)}<br/>
+          市值: ${(d.value[2]/1e12).toFixed(2)}万亿<br/>
+          买卖比: ${sd ? sd.buyRatio.toFixed(1) : '-'}
+          (买${sd ? sd.buyCount : '?'}/卖${sd ? sd.sellCount : '?'})`;
+      }
+    }
+  };
+
+  chart.setOption(option);
+  window.addEventListener('resize', () => chart.resize());
+  return chart;
+}
+
+// ===== Refresh countdown =====
+let countdown = 30;
+function updateCountdown() {
+  countdown--;
+  if (countdown <= 0) countdown = 30;
+  document.getElementById('refreshCountdown').textContent = countdown + 's';
+}
+
+function refreshData() {
+  countdown = 30;
+  document.getElementById('refreshCountdown').textContent = '30s';
+  renderMatrix();
+  renderStream();
+  renderTopSignals();
+}
+
+// ===== Init =====
+function init() {
+  renderMatrix();
+  renderStream();
+  renderTopSignals();
+  renderTrendChart();
+  renderBubbleChart();
+  setInterval(updateCountdown, 1000);
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

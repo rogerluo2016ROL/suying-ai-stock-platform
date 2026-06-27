@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 产业链拆解</title>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+.chain-layout{display:grid;grid-template-columns:1fr 320px;gap:14px}
+.chain-canvas{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;min-height:520px;position:relative;overflow:auto}
+.chain-col{display:flex;flex-direction:column;gap:10px}
+.tier{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:650;margin-bottom:2px}
+.node{background:var(--surface-2);border:1px solid var(--border-2);border-radius:8px;padding:10px 13px;cursor:pointer;transition:.14s;position:relative}
+.node:hover{border-color:var(--accent);transform:translateX(2px)}
+.node.sel{border-color:var(--accent);background:var(--accent-dim)}
+.node .nn{font-weight:600;font-size:13px}
+.node .nm2{font-size:11px;color:var(--muted);margin-top:2px;display:flex;gap:8px}
+.node .conf{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-family:var(--font-mono);font-size:11px;color:var(--accent)}
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;align-items:start}
+.flow-arrow{position:absolute;color:var(--border-2)}
+.ev-item{padding:11px 0;border-bottom:1px solid var(--border)}
+.ev-item:last-child{border-bottom:none}
+.ev-item .eh{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.ev-item .src{font-size:10.5px;color:var(--muted);font-family:var(--font-mono)}
+.ev-item .quote{font-size:12px;color:var(--fg-2);line-height:1.55;padding-left:10px;border-left:2px solid var(--border-2)}
+@media(max-width:1180px){.chain-layout{grid-template-columns:1fr}.flow{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body data-page="supply-chain" data-title="产业链拆解">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>产业链拆解</h1><div class="sub">以 AI 大模型解析公司业务，下钻上下游环节、BOM 物料与受益标的</div></div>
+        <div class="head-actions">
+          <select class="inp" style="width:auto"><option>主题：AI 算力 / 光模块</option><option>新能源车</option><option>半导体设备</option><option>人形机器人</option></select>
+          <button class="btn primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3 2"/></svg>AI 重新拆解</button>
+        </div>
+      </div>
+
+      <div class="chain-layout">
+        <div class="chain-canvas" id="chain-map">
+          <div class="flow">
+            <div class="chain-col">
+              <div class="tier">上游 · 原材料 / 设备</div>
+              <div class="node"><div class="nn">光芯片 / EML</div><div class="nm2"><span>源杰科技</span><span class="up">+3.1%</span></div><span class="conf">0.88</span></div>
+              <div class="node"><div class="nn">高速 PCB</div><div class="nm2"><span>沪电股份</span><span class="up">+2.4%</span></div><span class="conf">0.81</span></div>
+              <div class="node"><div class="nn">陶瓷封装基座</div><div class="nm2"><span>博迁新材</span><span class="down">−0.6%</span></div><span class="conf">0.72</span></div>
+            </div>
+            <div class="chain-col">
+              <div class="tier">中游 · 光模块封装</div>
+              <div class="node sel"><div class="nn">800G 光模块</div><div class="nm2"><span>中际旭创</span><span class="up">+4.8%</span></div><span class="conf">0.95</span></div>
+              <div class="node"><div class="nn">硅光集成</div><div class="nm2"><span>新易盛</span><span class="up">+5.5%</span></div><span class="conf">0.90</span></div>
+              <div class="node"><div class="nn">光器件组装</div><div class="nm2"><span>天孚通信</span><span class="up">+3.7%</span></div><span class="conf">0.84</span></div>
+            </div>
+            <div class="chain-col">
+              <div class="tier">下游 · 设备集成</div>
+              <div class="node"><div class="nn">交换机 / 服务器</div><div class="nm2"><span>工业富联</span><span class="up">+3.9%</span></div><span class="conf">0.86</span></div>
+              <div class="node"><div class="nn">AI 服务器</div><div class="nm2"><span>浪潮信息</span><span class="up">+2.2%</span></div><span class="conf">0.79</span></div>
+            </div>
+            <div class="chain-col">
+              <div class="tier">终端 · 需求方</div>
+              <div class="node"><div class="nn">云厂商 CapEx</div><div class="nm2"><span>北美四大云</span></div><span class="conf">驱动</span></div>
+              <div class="node"><div class="nn">国产算力中心</div><div class="nm2"><span>运营商 / 国资</span></div><span class="conf">驱动</span></div>
+            </div>
+          </div>
+          <div class="action-strip">
+            <div class="hint">产业图谱节点先沉淀证据链，确认主题强度后再推送到选股模块。</div>
+            <div class="inline-actions">
+              <button class="btn sm" type="button" data-toast="已固定 800G 光模块节点">固定当前节点</button>
+              <button class="btn sm primary" type="button" data-toast="主题候选池已生成">生成主题候选池</button>
+              <button class="btn sm ghost" type="button" data-toast="产业证据链已保存">保存证据链</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card" id="leader-board">
+            <div class="card-h"><span class="ic" style="background:var(--accent-dim)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="5" r="2.4"/><circle cx="5" cy="19" r="2.4"/><circle cx="19" cy="19" r="2.4"/><path d="M12 7.4v4M12 11.4L5.8 17M12 11.4L18.2 17"/></svg></span>
+              <h3>中际旭创 · 节点详情</h3></div>
+            <div class="card-b">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+                <span class="tag t-up">核心受益</span><span class="tag t-mute">通信设备</span><span class="tag t-mute">市值 1,842 亿</span>
+              </div>
+              <div class="li-row"><div class="li-main"><div class="s">环节置信度</div></div><div class="mono neu" style="font-weight:650">0.95</div></div>
+              <div class="li-row"><div class="li-main"><div class="s">营收占比（光模块）</div></div><div class="mono" style="font-weight:650">92%</div></div>
+              <div class="li-row"><div class="li-main"><div class="s">800G 出货弹性</div></div><div class="mono up" style="font-weight:650">高</div></div>
+              <a class="btn primary sm" href="diagnosis.html" style="width:100%;justify-content:center;margin-top:12px">查看个股诊断 →</a>
+            </div>
+          </div>
+          <div class="card" id="risk-spread">
+            <div class="card-h"><h3>证据链</h3><span class="meta">3 条来源</span></div>
+            <div class="card-b" style="padding:8px 16px">
+              <div class="ev-item"><div class="eh"><span class="tag t-mute">年报</span><span class="src">2025-Q1</span></div><div class="quote">光模块业务收入同比增长 137%，800G 产品已实现规模量产并向北美客户批量交付。</div></div>
+              <div class="ev-item"><div class="eh"><span class="tag t-mute">调研纪要</span><span class="src">券商 · 06-12</span></div><div class="quote">公司确认 1.6T 产品送样进度领先，下半年产能将进一步爬坡。</div></div>
+              <div class="ev-item"><div class="eh"><span class="tag t-warn">AI 推断</span><span class="src">置信度 0.95</span></div><div class="quote">基于供应链交叉验证，判定为本主题中游核心环节、确定性最高的受益标的。</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card mt14" id="screener-bridge">
+        <div class="card-h"><h3>加入选股</h3><span class="meta">产业链主题先沉淀为本页候选池，再由明确动作推送到智能选股</span></div>
+        <div class="card-b">
+          <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+            <div class="kpi"><div class="k-lbl">主题候选</div><div class="k-val">18</div><div class="k-sub">AI 算力 / 光模块</div></div>
+            <div class="kpi"><div class="k-lbl">核心龙头</div><div class="k-val up">4</div><div class="k-sub">中际旭创 · 工业富联</div></div>
+            <div class="kpi"><div class="k-lbl">弹性标的</div><div class="k-val neu">7</div><div class="k-sub">二线供应链</div></div>
+            <div class="kpi"><div class="k-lbl">剔除风险</div><div class="k-val warn">3</div><div class="k-sub">拥挤 / 业绩 / 事件</div></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+            <button class="btn primary sm">生成主题选股池</button>
+            <a class="btn sm" href="screener.html">打开智能选股</a>
+            <button class="btn sm ghost">仅保存产业链名单</button>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 产业链关系由 AI 模型生成，证据来自公开披露，仅供研究参考</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+<script>
+document.querySelectorAll('.node').forEach(n=>n.addEventListener('click',()=>{
+  document.querySelectorAll('.node').forEach(x=>x.classList.remove('sel'));n.classList.add('sel');
+}));
+</script>
+</body>
+</html>

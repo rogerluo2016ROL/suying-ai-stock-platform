@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 交易中心 — 订单管理</title>
+
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:18px 20px 32px}
+
+.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
+.top-bar .page-title{font-size:21px;font-weight:700}
+.top-bar .stats{font-size:12.5px;color:var(--fg-2)}
+.top-bar .stats b{color:var(--fg);font-weight:650;font-family:var(--font-mono)}
+.top-bar .stats .sep{width:1px;height:12px;background:var(--border);margin:0 8px;display:inline-block;vertical-align:middle}
+
+/* SubTabBar */
+.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
+.stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
+.stb a:hover{color:var(--fg)}
+.stb a.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+/* Stats */
+.order-stats{display:flex;gap:16px;margin-bottom:12px;font-size:11px;color:var(--fg-2)}
+.order-stats b{color:var(--fg);font-weight:650;font-family:var(--font-mono)}
+
+/* Filter Pills */
+.filter-pills{display:flex;gap:6px;margin-bottom:14px}
+.filter-pill{display:flex;align-items:center;gap:5px;padding:4px 14px;border-radius:14px;font-size:11px;font-weight:500;cursor:pointer;transition:.12s;background:var(--surface-2);color:var(--fg-2);border:1px solid var(--border);font-family:var(--font-sans)}
+.filter-pill:hover{background:var(--elevated);color:var(--fg)}
+.filter-pill.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:650}
+.filter-pill .badge{font-family:var(--font-mono);font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(255,255,255,0.06)}
+
+/* Order Table */
+.order-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.ord-th{display:flex;padding:6px 10px;font-size:9.5px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);gap:4px;align-items:center}
+.ord-row{display:flex;padding:7px 10px;font-size:10.5px;border-bottom:1px solid var(--border);gap:4px;align-items:center;transition:.12s}
+.ord-row:last-child{border-bottom:none}
+.ord-row:hover{background:var(--surface-2)}
+.ord-row .or-time{font-family:var(--font-mono);width:34px;flex-shrink:0;color:var(--muted);font-size:9.5px}
+.ord-row .or-code{font-family:var(--font-mono);font-weight:650;color:var(--accent);width:58px;flex-shrink:0}
+.ord-row .or-name{width:30px;flex-shrink:0;color:var(--fg-2);font-size:9.5px}
+.ord-row .or-side{width:32px;flex-shrink:0;font-weight:600;text-align:center;font-size:10.5px}
+.ord-row .or-price{width:52px;flex-shrink:0;font-family:var(--font-mono);text-align:right}
+.ord-row .or-qty{width:34px;flex-shrink:0;font-family:var(--font-mono);text-align:right;color:var(--fg-2)}
+.ord-row .or-amt{width:60px;flex-shrink:0;font-family:var(--font-mono);text-align:right;font-size:10px}
+.ord-row .or-status{width:70px;flex-shrink:0;text-align:center;font-size:10px}
+.ord-row .or-actions{flex:1;display:flex;gap:4px;justify-content:flex-end}
+
+.status-tag{display:inline-flex;align-items:center;gap:2px;font-weight:600}
+.status-tag.filled{color:var(--down)}
+.status-tag.pending{color:var(--warn)}
+.status-tag.cancelled{color:var(--muted)}
+
+.btn-sm{font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);cursor:pointer;transition:.12s;font-family:var(--font-sans);white-space:nowrap}
+.btn-sm:hover{background:var(--elevated);color:var(--fg)}
+.btn-sm.btn-cancel{color:var(--up);border-color:var(--up);background:var(--up-bg)}
+.btn-sm.btn-cancel:hover{background:rgba(255,77,79,0.18)}
+.btn-sm.btn-edit{color:var(--accent);border-color:var(--accent);background:var(--accent-dim)}
+.btn-sm.btn-edit:hover{background:rgba(61,139,255,0.2)}
+
+/* Bulk */
+.bulk-row{display:flex;padding:10px}
+.btn-bulk{padding:8px 20px;border-radius:6px;border:1px solid var(--up);background:var(--up-bg);color:var(--up);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-sans);transition:.12s}
+.btn-bulk:hover{background:rgba(255,77,79,0.2)}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:400px;max-width:90vw}
+.modal-box h3{font-size:15px;font-weight:650;margin-bottom:14px}
+.modal-box .stock-ref{font-size:11px;color:var(--fg-2);margin-bottom:4px}
+.modal-box .cur-ref{font-size:10.5px;color:var(--muted);margin-bottom:14px;padding:6px 10px;background:var(--surface-2);border-radius:4px}
+.modal-box .field{margin-bottom:10px}
+.modal-box .field label{display:block;font-size:10.5px;color:var(--muted);margin-bottom:4px}
+.modal-box .field input{width:100%;padding:8px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;color:var(--fg);font-family:var(--font-mono);font-size:13px;outline:none}
+.modal-box .field input:focus{border-color:var(--accent)}
+.modal-box .preview{padding:8px 12px;background:var(--surface-2);border-radius:4px;font-size:10.5px;color:var(--fg-2);margin-bottom:16px}
+.modal-box .actions{display:flex;gap:8px;justify-content:flex-end}
+.modal-box .actions button{padding:7px 18px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-sans);transition:.12s}
+.modal-box .actions .btn-confirm{background:var(--accent);border:none;color:#fff}
+.modal-box .actions .btn-confirm:hover{background:#2d7ae0}
+.modal-box .actions .btn-cancel2{border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2)}
+.modal-box .actions .btn-cancel2:hover{background:var(--elevated);color:var(--fg)}
+
+.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{background:var(--down-bg);border-color:var(--down);color:var(--down)}
+
+.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="trade" data-title="交易中心 — 订单管理">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">操盘手</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">私有账户/订单/持仓</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/account/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">paper / QMT / adapter</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<div class="top-bar">
+            <span class="page-title">💼 交易中心</span>
+            <div class="stats">
+              <span>总资产</span><b>¥1,358,600</b>
+              <span class="sep"></span>
+              <span>可用</span><b class="neu">¥420,000</b>
+              <span class="sep"></span>
+              <span>日盈亏</span><b class="up">+¥12,400</b>
+            </div>
+          </div>
+<!-- Order Stats -->
+          <div class="order-stats">
+            <span>📋 今日 <b>5</b> 单</span>
+            <span>✅ 已成交 <b style="color:var(--down)">3</b></span>
+            <span>⏳ 待成交 <b style="color:var(--warn)">2</b></span>
+            <span>❌ 已撤单 <b style="color:var(--muted)">0</b></span>
+          </div>
+      
+          <!-- Filter Pills -->
+          <div class="filter-pills">
+            <span class="filter-pill active" onclick="setFilter('all', this)">全部<span class="badge">5</span></span>
+            <span class="filter-pill" onclick="setFilter('pending', this)">⏳ 待成交<span class="badge">2</span></span>
+            <span class="filter-pill" onclick="setFilter('filled', this)">✅ 已成交<span class="badge">3</span></span>
+            <span class="filter-pill" onclick="setFilter('cancelled', this)">❌ 已撤单<span class="badge">0</span></span>
+          </div>
+      
+          <!-- Order Table -->
+          <div class="order-table-wrap">
+            <div class="ord-th">
+              <span class="or-time">时间</span><span class="or-code">代码</span><span class="or-name">名称</span>
+              <span class="or-side">方向</span><span class="or-price">价格</span><span class="or-qty">数量</span>
+              <span class="or-amt">金额</span><span class="or-status">状态</span>
+              <span class="or-actions">操作</span>
+            </div>
+            <div id="ordList">
+              <div class="ord-row" data-status="filled">
+                <span class="or-time">09:32</span><span class="or-code">300750</span><span class="or-name">宁德</span>
+                <span class="or-side" style="color:var(--up)">买入↑</span>
+                <span class="or-price">218.50</span><span class="or-qty">4手</span>
+                <span class="or-amt">87,400</span>
+                <span class="or-status"><span class="status-tag filled">已成交 ✅</span></span>
+                <span class="or-actions"><span style="color:var(--muted);font-size:10px">—</span></span>
+              </div>
+              <div class="ord-row" data-status="filled">
+                <span class="or-time">09:33</span><span class="or-code">000858</span><span class="or-name">五粮</span>
+                <span class="or-side" style="color:var(--down)">卖出↓</span>
+                <span class="or-price">148.30</span><span class="or-qty">10手</span>
+                <span class="or-amt">148,300</span>
+                <span class="or-status"><span class="status-tag filled">已成交 ✅</span></span>
+                <span class="or-actions"><span style="color:var(--muted);font-size:10px">—</span></span>
+              </div>
+              <div class="ord-row" data-status="pending">
+                <span class="or-time">09:35</span><span class="or-code">688981</span><span class="or-name">中芯</span>
+                <span class="or-side" style="color:var(--up)">买入↑</span>
+                <span class="or-price">68.20</span><span class="or-qty">8手</span>
+                <span class="or-amt">54,560</span>
+                <span class="or-status"><span class="status-tag pending">待成交 ⏳</span></span>
+                <span class="or-actions">
+                  <button class="btn-sm btn-edit" onclick="openModify('688981','中芯国际','buy','68.20','8','56,560')">✏️ 改单</button>
+                  <button class="btn-sm btn-cancel" onclick="cancelOrder('003','688981')">✖️ 撤单</button>
+                </span>
+              </div>
+              <div class="ord-row" data-status="pending">
+                <span class="or-time">09:36</span><span class="or-code">600519</span><span class="or-name">茅台</span>
+                <span class="or-side" style="color:var(--up)">买入↑</span>
+                <span class="or-price">1,785</span><span class="or-qty">1手</span>
+                <span class="or-amt">178,500</span>
+                <span class="or-status"><span class="status-tag pending">待成交 ⏳</span></span>
+                <span class="or-actions">
+                  <button class="btn-sm btn-edit" onclick="openModify('600519','贵州茅台','buy','1785','1','178,500')">✏️ 改单</button>
+                  <button class="btn-sm btn-cancel" onclick="cancelOrder('004','600519')">✖️ 撤单</button>
+                </span>
+              </div>
+              <div class="ord-row" data-status="filled">
+                <span class="or-time">09:30</span><span class="or-code">601012</span><span class="or-name">隆基</span>
+                <span class="or-side" style="color:var(--up)">买入↑</span>
+                <span class="or-price">32.80</span><span class="or-qty">20手</span>
+                <span class="or-amt">65,600</span>
+                <span class="or-status"><span class="status-tag filled">已成交 ✅</span></span>
+                <span class="or-actions"><span style="color:var(--muted);font-size:10px">—</span></span>
+              </div>
+            </div>
+      
+            <!-- Bulk Cancel -->
+            <div class="bulk-row">
+              <button class="btn-bulk" onclick="cancelAll()">❌ 全部撤单</button>
+            </div>
+          </div>
+      
+          <div class="footer-bar">
+            <span>数据源: trade-service (:8006)</span>
+            <span class="sep"></span>
+            <span>改单仅限待成交订单 · 已成交/已撤单不可修改</span>
+            <span class="sep"></span>
+            <span>刷新: 每30s</span>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+var currentModifyOrder = null;
+
+function showToast(msg, type){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type||'');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(function(){ t.className = 'toast'; }, 2000);
+}
+
+function setFilter(filter, el){
+  document.querySelectorAll('.filter-pill').forEach(function(p){ p.classList.remove('active'); });
+  el.classList.add('active');
+  document.querySelectorAll('.ord-row').forEach(function(row){
+    if(filter === 'all'){ row.style.display = 'flex'; }
+    else if(filter === 'pending'){ row.style.display = row.dataset.status === 'pending' ? 'flex' : 'none'; }
+    else if(filter === 'filled'){ row.style.display = row.dataset.status === 'filled' ? 'flex' : 'none'; }
+    else if(filter === 'cancelled'){ row.style.display = row.dataset.status === 'cancelled' ? 'flex' : 'none'; }
+  });
+}
+
+function openModify(code, name, side, price, qty, amount){
+  currentModifyOrder = { code: code, name: name, side: side, price: price, qty: qty, amount: amount };
+  document.getElementById('modOrderId').textContent = code;
+  document.getElementById('modStockRef').textContent = code + ' ' + name + ' · 方向: ' + (side==='buy'?'买入':'卖出');
+  document.getElementById('modCurRef').textContent = '当前: 限价 ¥' + price + ' · ' + qty + ' 手 · 金额 ¥' + amount;
+  document.getElementById('modPrice').value = price;
+  document.getElementById('modQty').value = qty;
+  updateModPreview();
+  document.getElementById('modifyModal').classList.add('show');
+}
+
+function closeModify(){
+  document.getElementById('modifyModal').classList.remove('show');
+  currentModifyOrder = null;
+}
+
+function updateModPreview(){
+  var price = parseFloat(document.getElementById('modPrice').value) || 0;
+  var qty = parseInt(document.getElementById('modQty').value) || 0;
+  if(price && qty){
+    document.getElementById('modPreview').textContent = '修改后金额: ¥' + (price * qty * 100).toLocaleString()
+      + ' (原 ¥' + (currentModifyOrder ? (parseFloat(currentModifyOrder.price) * parseInt(currentModifyOrder.qty) * 100).toLocaleString() : '--') + ')';
+  } else {
+    document.getElementById('modPreview').textContent = '修改后金额: —';
+  }
+}
+
+function confirmModify(){
+  if(!currentModifyOrder) return;
+  var newPrice = document.getElementById('modPrice').value;
+  var newQty = document.getElementById('modQty').value;
+  if(!newPrice || !newQty){ showToast('请填写完整的价格和数量', ''); return; }
+  showToast('✅ 订单 ' + currentModifyOrder.code + ' 已修改 · 新价 ¥' + newPrice + ' · ' + newQty + '手', 'success');
+  closeModify();
+}
+
+function cancelOrder(id, code){
+  if(confirm('确认撤销订单 ' + code + '？')){
+    var row = event.target.closest('.ord-row');
+    if(row){
+      row.dataset.status = 'cancelled';
+      row.querySelector('.or-status').innerHTML = '<span class="status-tag cancelled">已撤单 ❌</span>';
+      row.querySelector('.or-actions').innerHTML = '<span style="color:var(--muted);font-size:10px">—</span>';
+    }
+    showToast('✅ 订单 ' + code + ' 已撤销');
+  }
+}
+
+function cancelAll(){
+  var pendingCount = document.querySelectorAll('.ord-row[data-status="pending"]').length;
+  if(pendingCount === 0){ showToast('没有待成交的订单可撤销', ''); return; }
+  if(confirm('确认撤销全部 ' + pendingCount + ' 笔待成交订单？')){
+    document.querySelectorAll('.ord-row[data-status="pending"]').forEach(function(row){
+      row.dataset.status = 'cancelled';
+      row.querySelector('.or-status').innerHTML = '<span class="status-tag cancelled">已撤单 ❌</span>';
+      row.querySelector('.or-actions').innerHTML = '<span style="color:var(--muted);font-size:10px">—</span>';
+    });
+    showToast('✅ 已撤销 ' + pendingCount + ' 笔订单');
+  }
+}
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

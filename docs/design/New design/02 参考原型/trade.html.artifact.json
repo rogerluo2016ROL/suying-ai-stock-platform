@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "new-front-export/trade.html",
+  "entry": "new-front-export/trade.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-06-25T08:19:48.154Z",
+  "updatedAt": "2026-06-25T08:19:48.154Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

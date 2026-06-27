@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 开盘决策 — 决策总览</title>
+
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:18px 20px 32px}
+
+.grid{display:grid;gap:14px}
+.row{display:grid;gap:14px}
+.r-2{grid-template-columns:1fr 1fr}
+.r-3{grid-template-columns:repeat(3,1fr)}
+.r-7-5{grid-template-columns:7fr 5fr}
+.mt14{margin-top:14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-h h3{font-size:13.5px;font-weight:650}
+.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
+.card-b{padding:16px}
+
+/* KPI */
+.kpis{display:grid;gap:12px;grid-template-columns:repeat(5,1fr)}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px}
+.kpi .kl{font-size:10.5px;color:var(--fg-2);font-weight:550;margin-bottom:5px}
+.kpi .kv{font-size:22px;font-weight:720;font-family:var(--font-mono)}
+.kpi .ks{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* News items */
+.news-item{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:11.5px}
+.news-item:last-child{border-bottom:none}
+.news-badge{font-size:9.5px;padding:1px 6px;border-radius:4px;font-weight:600;flex-shrink:0;margin-top:1px}
+.news-badge.announce{background:var(--up-bg);color:var(--up)}
+.news-badge.overseas{background:var(--accent-dim);color:var(--accent)}
+.news-badge.sentiment{background:rgba(114,46,209,0.12);color:#b37feb}
+.news-title{flex:1;line-height:1.4}
+.news-time{font-family:var(--font-mono);font-size:9.5px;color:var(--muted);flex-shrink:0}
+
+/* Countdown */
+.countdown-banner{display:flex;align-items:center;gap:12px;padding:14px 20px;background:linear-gradient(135deg,var(--warn-bg),var(--surface-2));border:1px solid var(--warn);border-radius:var(--radius);margin-bottom:14px}
+.countdown-time{font-family:var(--font-mono);font-size:36px;font-weight:720;color:var(--warn)}
+.countdown-info{flex:1}
+.countdown-info .title{font-size:14px;font-weight:650;color:var(--warn);margin-bottom:4px}
+.countdown-info .sub{font-size:11px;color:var(--muted)}
+
+/* Review stats */
+.review-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.review-stat{text-align:center;padding:10px 6px;background:var(--surface-2);border-radius:6px}
+.review-stat .lbl{font-size:9.5px;color:var(--muted);margin-bottom:3px}
+.review-stat .val{font-size:18px;font-weight:720;font-family:var(--font-mono)}
+
+/* Sector mini */
+.sector-mini{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:11px}
+.sector-mini .arrow{font-size:10px}
+
+/* Candidate preload */
+.candidate-group{margin-bottom:10px}
+.candidate-group .cg-title{font-size:11.5px;font-weight:600;margin-bottom:5px}
+.candidate-group .cg-stocks{display:flex;gap:6px;flex-wrap:wrap}
+.candidate-chip{font-size:10.5px;padding:3px 10px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);font-family:var(--font-mono);cursor:pointer}
+.candidate-chip.star3{border-color:var(--up);background:var(--up-bg)}
+.candidate-chip.star2{border-color:var(--warn);background:var(--warn-bg)}
+.candidate-chip.watchlist{border-color:var(--down)}
+.candidate-chip:hover{border-color:var(--accent)}
+
+/* Sentiment mini */
+.sentiment-mini{display:flex;align-items:center;gap:16px}
+.sentiment-gauge{width:80px;height:80px;border-radius:50%;border:6px solid;display:grid;place-items:center;flex-shrink:0}
+.sentiment-gauge.neutral-bull{border-color:var(--warn);color:var(--warn)}
+.sentiment-gauge .score{font-size:24px;font-weight:720;font-family:var(--font-mono)}
+.sentiment-info{flex:1}
+.sentiment-info .label{font-size:14px;font-weight:650;margin-bottom:4px}
+
+/* Op hint */
+.op-hint{padding:12px;background:var(--surface-2);border-radius:8px;border-left:3px solid var(--warn);margin-top:12px}
+.op-hint .title{font-size:12px;font-weight:650;color:var(--warn);margin-bottom:4px}
+.op-hint .desc{font-size:10.5px;color:var(--fg-2);line-height:1.5}
+
+/* Breaker */
+.breaker-status{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:6px;margin-top:10px}
+.breaker-status.ok{background:var(--down-bg);border:1px solid var(--down)}
+.breaker-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.breaker-dot.ok{background:var(--down);animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 6px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
+
+.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="opening-decision" data-title="开盘决策 — 决策总览">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">操盘手</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共竞价 + 私有候选</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">进入方案后绑定账户</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<!-- Countdown -->
+          <div class="countdown-banner">
+            <div class="countdown-time">12:45</div>
+            <div class="countdown-info">
+              <div class="title">距竞价数据采集</div>
+              <div class="sub">09:25 竞价撮合 · 数据源 Tushare stk_auction</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <span style="font-size:11px;color:var(--muted)">竞价开始后</span><br>
+              <span style="font-size:11px;color:var(--accent);cursor:pointer">☑ 自动切换到竞价分析</span>
+            </div>
+          </div>
+      
+          <!-- KPI Row -->
+          <div class="kpis" style="margin-bottom:14px">
+            <div class="kpi"><div class="kl">🌡️ 情绪指数</div><div class="kv" style="color:var(--warn)">72</div><div class="ks">偏牛 ▲+5</div></div>
+            <div class="kpi"><div class="kl">🛡️ 熔断器</div><div class="kv" style="color:var(--down)">正常</div><div class="ks">亏损预算 83.6%</div></div>
+            <div class="kpi"><div class="kl">📰 隔夜公告</div><div class="kv" style="color:var(--up)">2<span style="font-size:13px">条</span></div><div class="ks">1条需关注</div></div>
+            <div class="kpi"><div class="kl">🎯 候选池</div><div class="kv" style="color:var(--accent)">10<span style="font-size:13px">只</span></div><div class="ks">★★★3 ★★2 ★5</div></div>
+            <div class="kpi"><div class="kl">📊 数据状态</div><div class="kv" style="color:var(--down)">就绪</div><div class="ks">竞价待采集(09:25)</div></div>
+          </div>
+      
+          <!-- Main Content -->
+          <div class="row r-7-5">
+      
+            <!-- Left -->
+            <div class="grid">
+              <!-- Overnight News -->
+              <div class="card">
+                <div class="card-h"><h3>📰 隔夜新闻</h3><span class="meta">最近 12 小时</span></div>
+                <div class="card-b compact" style="padding:8px 16px">
+                  <div class="news-item">
+                    <span class="news-badge announce">公告</span>
+                    <span class="news-title" style="color:var(--up);font-weight:600">中芯国际: 收到证监会立案调查通知书</span>
+                    <span class="news-time">昨 20:35</span>
+                  </div>
+                  <div class="news-item">
+                    <span class="news-badge announce">公告</span>
+                    <span class="news-title">贵州茅台: 半年度业绩预增 15%-20%</span>
+                    <span class="news-time">昨 19:00</span>
+                  </div>
+                  <div class="news-item">
+                    <span class="news-badge overseas">外盘</span>
+                    <span class="news-title">美股三大指数收涨 · 道指<span style="color:var(--up)">+0.32%</span> · 纳指<span style="color:var(--up)">+1.15%</span></span>
+                    <span class="news-time">今 05:00</span>
+                  </div>
+                  <div class="news-item">
+                    <span class="news-badge overseas">期货</span>
+                    <span class="news-title">A50 指数期货 <span style="color:var(--up)">+0.28%</span> · 恒生期货 <span style="color:var(--up)">+0.45%</span></span>
+                    <span class="news-time">今 08:30</span>
+                  </div>
+                  <div class="news-item" style="border-bottom:none">
+                    <span class="news-badge sentiment">舆情</span>
+                    <span class="news-title">热词: <span style="color:var(--accent)">#降息预期</span> <span style="color:var(--up)">#半导体出口管制</span> <span style="color:var(--down)">#新能源政策</span></span>
+                    <span class="news-time">—</span>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- Yesterday Review -->
+              <div class="card">
+                <div class="card-h"><h3>📊 昨日复盘</h3><span class="meta">2026-06-25 周三</span></div>
+                <div class="card-b" style="padding:8px 16px">
+                  <div class="review-grid">
+                    <div class="review-stat">
+                      <div class="lbl">沪深300</div>
+                      <div class="val" style="color:var(--up)">-0.52%</div>
+                    </div>
+                    <div class="review-stat">
+                      <div class="lbl">涨 / 跌</div>
+                      <div class="val"><span style="color:var(--up)">1,320</span><span style="font-size:12px;color:var(--muted)"> / </span><span style="color:var(--down)">1,850</span></div>
+                    </div>
+                    <div class="review-stat">
+                      <div class="lbl">涨停 / 跌停</div>
+                      <div class="val"><span style="color:var(--up)">87</span><span style="font-size:12px;color:var(--muted)"> / </span><span style="color:var(--down)">14</span></div>
+                    </div>
+                    <div class="review-stat">
+                      <div class="lbl">封板率</div>
+                      <div class="val" style="color:var(--accent)">78.4%</div>
+                    </div>
+                  </div>
+                  <div style="font-size:11px;margin-top:8px">
+                    <div style="font-weight:600;margin-bottom:4px">🏭 板块表现</div>
+                    <div class="sector-mini"><span style="width:64px;text-align:right;color:var(--muted)">强势:</span><span style="color:var(--up)">半导体 +3.2%</span><span class="arrow" style="color:var(--up)">▲</span><span style="color:var(--up)">新能源 +2.8%</span><span class="arrow" style="color:var(--up)">▲</span><span style="color:var(--up)">AI算力 +2.5%</span></div>
+                    <div class="sector-mini"><span style="width:64px;text-align:right;color:var(--muted)">弱势:</span><span style="color:var(--down)">地产 -2.1%</span><span class="arrow" style="color:var(--down)">▼</span><span style="color:var(--down)">钢铁 -1.5%</span><span class="arrow" style="color:var(--down)">▼</span></div>
+                  </div>
+                  <div style="font-size:11px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+                    <span style="color:var(--muted)">⭐ 自选表现: </span>
+                    <span class="mono" style="color:var(--up)">6涨</span>
+                    <span class="mono" style="color:var(--muted)">/</span>
+                    <span class="mono" style="color:var(--down)">4跌</span>
+                    <span class="mono" style="color:var(--muted)">/ 均</span>
+                    <span class="mono" style="color:var(--up)">+1.2%</span>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- Candidate Preload -->
+              <div class="card">
+                <div class="card-h"><h3>🎯 候选池预加载</h3><span class="meta">昨日盘后选股 · 开盘后可补充竞价+信号</span></div>
+                <div class="card-b" style="padding:12px 16px">
+                  <div class="candidate-group">
+                    <div class="cg-title"><span style="color:var(--up)">★★★</span> 毕师傅趋势启动 V13 (3只)</div>
+                    <div class="cg-stocks">
+                      <span class="candidate-chip star3">300750 宁德</span>
+                      <span class="candidate-chip star3">688981 中芯</span>
+                      <span class="candidate-chip star3">002594 比亚迪</span>
+                    </div>
+                  </div>
+                  <div class="candidate-group">
+                    <div class="cg-title"><span style="color:var(--warn)">★★☆</span> 秋神盘后龙头 scalp (2只)</div>
+                    <div class="cg-stocks">
+                      <span class="candidate-chip star2">600519 茅台</span>
+                      <span class="candidate-chip star2">000858 五粮液</span>
+                    </div>
+                  </div>
+                  <div class="candidate-group">
+                    <div class="cg-title"><span style="color:var(--muted)">★☆☆</span> 匪爷短线多因子 (5只)</div>
+                    <div class="cg-stocks">
+                      <span class="candidate-chip">601012 隆基</span><span class="candidate-chip">603259 药明</span>
+                      <span class="candidate-chip">300274 阳光</span><span class="candidate-chip">601899 紫金</span>
+                      <span class="candidate-chip">603019 中科</span>
+                    </div>
+                  </div>
+                  <div class="candidate-group" style="margin-bottom:0">
+                    <div class="cg-title">⭐ 自选共振 (4/12 只)</div>
+                    <div class="cg-stocks">
+                      <span class="candidate-chip watchlist">300750</span>
+                      <span class="candidate-chip watchlist">688981</span>
+                      <span class="candidate-chip watchlist">600519</span>
+                      <span class="candidate-chip watchlist">000858</span>
+                    </div>
+                  </div>
+                  <div style="margin-top:10px;font-size:11px;color:var(--accent);cursor:pointer">查看全部候选池 →</div>
+                </div>
+              </div>
+            </div>
+      
+            <!-- Right -->
+            <div class="grid">
+              <!-- Sentiment + Risk -->
+              <div class="card">
+                <div class="card-h"><h3>🌡️ 今日情绪 + 风控</h3></div>
+                <div class="card-b" style="padding:16px">
+                  <div class="sentiment-mini">
+                    <div class="sentiment-gauge neutral-bull">
+                      <span class="score">72</span>
+                    </div>
+                    <div class="sentiment-info">
+                      <div class="label" style="color:var(--warn)">偏牛 ▲+5</div>
+                      <div style="font-size:11px;color:var(--fg-2)">趋势75 · 广度68 · 流动性72</div>
+                      <div style="font-size:11px;color:var(--fg-2)">风险事件80 · 低风险</div>
+                    </div>
+                  </div>
+                  <div class="breaker-status ok" style="margin-top:14px">
+                    <div class="breaker-dot ok"></div>
+                    <div>
+                      <div style="font-size:11.5px;font-weight:650;color:var(--down)">熔断器: 正常交易</div>
+                      <div style="font-size:10px;color:var(--muted)">日亏损 -0.82% · 阈值 5.00% · 剩余 83.6%</div>
+                    </div>
+                  </div>
+                  <div class="op-hint">
+                    <div class="title">操作基调: 偏牛 · 适度积极</div>
+                    <div class="desc">关注强势板块趋势延续机会。控制仓位 7-8 成，警惕情绪接近过热区间(≥80)。注意: 中芯国际立案调查公告 — 建议从候选池中排除。</div>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- Sector Preview -->
+              <div class="card">
+                <div class="card-h"><h3>🏭 昨日强势板块 (可能延续)</h3></div>
+                <div class="card-b" style="padding:12px 16px">
+                  <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+                    <span style="width:64px;font-size:11px;text-align:right">半导体</span>
+                    <div style="flex:1;height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden">
+                      <div style="width:85%;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--up),var(--warn))"></div>
+                    </div>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--up)">+3.2%</span>
+                    <span style="font-size:9.5px;color:var(--muted)">12只</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+                    <span style="width:64px;font-size:11px;text-align:right">新能源</span>
+                    <div style="flex:1;height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden">
+                      <div style="width:70%;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--warn),var(--accent))"></div>
+                    </div>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--up)">+2.8%</span>
+                    <span style="font-size:9.5px;color:var(--muted)">9只</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;padding:8px 0">
+                    <span style="width:64px;font-size:11px;text-align:right">AI算力</span>
+                    <div style="flex:1;height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden">
+                      <div style="width:62%;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--accent),#7db2ff)"></div>
+                    </div>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--up)">+2.5%</span>
+                    <span style="font-size:9.5px;color:var(--muted)">8只</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+      
+          <div class="footer-bar">
+            <span>开盘决策 · 决策总览 | 盘前 09:12</span>
+            <span class="sep"></span>
+            <span>隔夜新闻: stock_news + announcements + cctv_news</span>
+            <span class="sep"></span>
+            <span>候选池: CandidatePoolManager (screening_snapshots + watchlist)</span>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

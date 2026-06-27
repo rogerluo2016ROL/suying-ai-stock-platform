@@ -373,15 +373,21 @@ def get_st_codes_on(db, trade_date):
     return {r["code"] for r in rows}
 
 
-def run_backtest_day(db, trade_date, top_n=20, st_filter=True):
+def run_backtest_day(db, trade_date, top_n=20, st_filter=True, strategy="bi_trend"):
     """单日回测 V2.0 — 使用优化引擎+市场熔断 + ST 后置过滤 (AC-2).
 
     st_filter=True (默认): 选股结果按 trade_date JOIN st_history 剔除当时戴帽股
     (幸存者偏差修复). 不修改 strategy engine (铁律), 仅 backtest 口径过滤.
-    """
-    from kronos_factors.engine.bi_trend_launch import run_bi_screening
 
-    top, all_scores, market_info = run_bi_screening(db, trade_date, top_n=top_n)
+    strategy: "bi_trend" (默认, OBV+WR 技术规则) | "bi_alpha_v15" (横截面多因子).
+              V15 复用同一回测/风控口径, 仅换选股信号源 (走 run_alpha_screening).
+    """
+    if strategy == "bi_alpha_v15":
+        from kronos_factors.engine.bi_alpha_v15 import run_alpha_screening
+        top, all_scores, market_info = run_alpha_screening(db, trade_date, top_n=top_n)
+    else:
+        from kronos_factors.engine.bi_trend_launch import run_bi_screening
+        top, all_scores, market_info = run_bi_screening(db, trade_date, top_n=top_n)
     n_pre = len(top)
     n_st_removed = 0
     if st_filter:

@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 方案对比</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:16px 20px 28px}
+
+/* Pill Tabs */
+.pill-tabs{display:flex;gap:2px;background:var(--surface-2);border-radius:10px;padding:4px;margin-bottom:16px;width:fit-content}
+.pill-tab{padding:8px 18px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);white-space:nowrap}
+.pill-tab:hover{color:var(--fg)}
+.pill-tab.active{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+/* Plan Selector */
+.plan-selector{display:flex;align-items:center;gap:12px;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px}
+.plan-selector .vs-badge{font-size:14px;font-weight:700;color:var(--muted);padding:0 8px;flex-shrink:0}
+.plan-sel{flex:1;display:flex;flex-direction:column;gap:6px}
+.plan-sel .sel-label{font-size:10.5px;color:var(--muted);font-weight:650;letter-spacing:.06em}
+.plan-sel select{padding:8px 12px;padding-right:28px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font-sans);font-size:13px;cursor:pointer;outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235e6a7d'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;transition:.12s}
+.plan-sel select:focus{border-color:var(--accent)}
+.plan-sel select:hover{border-color:var(--border-2)}
+.plan-sel .sel-meta{font-size:10.5px;color:var(--fg-2);display:flex;gap:10px}
+.plan-sel .sel-meta span{display:flex;align-items:center;gap:3px}
+
+/* Comparison Grid */
+.compare-grid{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+.compare-grid .cg-h{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:650;color:var(--fg-2)}
+.cg-row{display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px}
+.cg-row:last-child{border-bottom:none}
+.cg-row:hover{background:var(--surface-2)}
+.cg-label{width:100px;flex-shrink:0;color:var(--fg-2);font-size:11.5px}
+.cg-val-a{width:120px;flex-shrink:0;text-align:right;font-family:var(--font-mono);font-weight:650;font-size:12.5px}
+.cg-val-b{width:120px;flex-shrink:0;text-align:right;font-family:var(--font-mono);font-weight:650;font-size:12.5px}
+.cg-delta{flex:1;text-align:right;font-family:var(--font-mono);font-size:10.5px;font-weight:600}
+.cg-delta.win{color:var(--down)}
+.cg-delta.lose{color:var(--up)}
+.cg-winner{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--accent-dim);border-top:1px solid var(--accent);font-size:11.5px}
+.cg-winner .win-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;background:var(--accent);color:#fff;font-weight:650;font-size:10.5px}
+
+/* Overlap Warning */
+.overlap-warn{background:var(--warn-bg);border:1px solid var(--warn);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px}
+.overlap-warn .ow-head{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:650;color:var(--warn)}
+.overlap-warn .ow-head .ow-icon{font-size:16px}
+.overlap-table{width:100%;border-collapse:collapse;font-size:11px}
+.overlap-table th{text-align:left;padding:5px 10px;color:var(--muted);font-weight:600;font-size:10.5px;border-bottom:1px solid rgba(245,166,35,0.2)}
+.overlap-table td{padding:6px 10px;border-bottom:1px solid rgba(245,166,35,0.08)}
+.overlap-table .ot-code{font-family:var(--font-mono);font-weight:650;color:var(--fg)}
+.overlap-table .ot-name{color:var(--fg-2)}
+.overlap-table .ot-alloc{font-family:var(--font-mono);text-align:right}
+
+/* Chart */
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+.chart-card .cc-h{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:650;color:var(--fg-2)}
+.chart-card .cc-body{padding:8px 0}
+.cc{width:100%;height:380px}
+
+/* Watermark */
+.watermark{position:fixed;top:calc(var(--header-h) + 80px);right:28px;font-size:18px;font-weight:700;color:rgba(61,139,255,0.06);pointer-events:none;z-index:50;transform:rotate(-12deg);user-select:none;letter-spacing:.1em;white-space:nowrap}
+
+/* Plan meta tags */
+.plan-tags{display:flex;gap:4px;margin-top:4px}
+.plan-tag{font-size:9.5px;padding:1px 7px;border-radius:8px;background:var(--surface-2);color:var(--fg-2)}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="plans" data-title="方案对比">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">操盘手</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">私有 Plan + 公共证据</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user/account?</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">启动前绑定账户</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<!-- Plan Selector -->
+          <div class="plan-selector">
+            <div class="plan-sel">
+              <span class="sel-label">方案 A</span>
+              <select id="selA" onchange="switchPlans()">
+                <option value="dragon" selected>LT-20260627-01A 龙头战法-开盘 A · 运行中</option>
+                <option value="bishi">BS-20260627-01A 毕师傅趋势-开盘 B · 运行中</option>
+                <option value="feiye">FS-20260625-01A 匪爷短线-日常 A · 已结算</option>
+              </select>
+              <div class="sel-meta" id="metaA">
+                <span>💰 <b class="mono up">+12,580</b></span>
+                <span>📊 <b class="mono neu">+3.2%</b></span>
+                <span>📈 胜率 <b class="mono">80%</b></span>
+                <span>📅 持仓 <b class="mono">5天</b></span>
+              </div>
+            </div>
+            <div class="vs-badge">VS</div>
+            <div class="plan-sel">
+              <span class="sel-label">方案 B</span>
+              <select id="selB" onchange="switchPlans()">
+                <option value="dragon">LT-20260627-01A 龙头战法-开盘 A · 运行中</option>
+                <option value="bishi" selected>BS-20260627-01A 毕师傅趋势-开盘 B · 运行中</option>
+                <option value="feiye">FS-20260625-01A 匪爷短线-日常 A · 已结算</option>
+              </select>
+              <div class="sel-meta" id="metaB">
+                <span>💰 <b class="mono down">+8,200</b></span>
+                <span>📊 <b class="mono neu">+1.8%</b></span>
+                <span>📈 胜率 <b class="mono">60%</b></span>
+                <span>📅 持仓 <b class="mono">3天</b></span>
+              </div>
+            </div>
+          </div>
+      
+          <!-- Comparison Grid -->
+          <div class="compare-grid" id="compareGrid">
+            <div class="cg-h">
+              <span class="cg-label">对比维度</span>
+              <span class="cg-val-a">方案 A</span>
+              <span class="cg-val-b">方案 B</span>
+              <span class="cg-delta" style="text-align:right">差异 Δ</span>
+            </div>
+            <!-- Rows injected by JS -->
+          </div>
+      
+          <!-- Overlap Warning -->
+          <div class="overlap-warn" id="overlapWarn">
+            <div class="ow-head"><span class="ow-icon">⚠️</span> 标的重叠告警</div>
+            <div style="font-size:11.5px;color:var(--fg-2);line-height:1.6">
+              两只方案都选中了 <b style="color:var(--warn)">宁德时代 (300750)</b>，仓位重合 <b style="color:var(--warn)">15%</b>。
+              请注意单一标的风险集中度。
+            </div>
+            <table class="overlap-table">
+              <thead><tr><th>代码</th><th>名称</th><th style="text-align:right">方案A仓位</th><th style="text-align:right">方案B仓位</th></tr></thead>
+              <tbody id="overlapBody"></tbody>
+            </table>
+          </div>
+      
+          <!-- Return Curve Chart -->
+          <div class="chart-card">
+            <div class="cc-h">📈 收益曲线叠加对比</div>
+            <div class="cc-body"><div class="cc" id="chart-compare"></div></div>
+          </div>
+      
+          <!-- Watermark -->
+          <div class="watermark">操盘手专用</div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+(function(){
+// ---- Mock Data ----
+var plans = {
+  dragon: {
+    id: 'dragon', code: 'LT-20260627-01A', name: '龙头战法-开盘 A', status: 'running',
+    totalPnl: '+12,580', totalPnlPct: '+3.2%', winRate: '80% (4/5)', maxDrawdown: '-2.1%', holdingDays: 5, stockCount: 4, sharpe: '1.85',
+    stocks: [
+      {code:'300750',name:'宁德时代',alloc:15},
+      {code:'688981',name:'中芯国际',alloc:12},
+      {code:'603986',name:'兆易创新',alloc:10},
+      {code:'002371',name:'北方华创',alloc:8}
+    ]
+  },
+  bishi: {
+    id: 'bishi', code: 'BS-20260627-01A', name: '毕师傅趋势-开盘 B', status: 'running',
+    totalPnl: '+8,200', totalPnlPct: '+1.8%', winRate: '60% (3/5)', maxDrawdown: '-4.5%', holdingDays: 3, stockCount: 3, sharpe: '1.22',
+    stocks: [
+      {code:'600519',name:'贵州茅台',alloc:14},
+      {code:'300750',name:'宁德时代',alloc:12},
+      {code:'000858',name:'五粮液',alloc:10}
+    ]
+  },
+  feiye: {
+    id: 'feiye', code: 'FS-20260625-01A', name: '匪爷短线-日常 A', status: 'closed',
+    totalPnl: '+5,600', totalPnlPct: '+1.2%', winRate: '75% (3/4)', maxDrawdown: '-3.8%', holdingDays: 6, stockCount: 4, sharpe: '1.45',
+    stocks: [
+      {code:'002594',name:'比亚迪',alloc:25},
+      {code:'601012',name:'隆基绿能',alloc:20},
+      {code:'600000',name:'浦发银行',alloc:18},
+      {code:'688981',name:'中芯国际',alloc:12}
+    ]
+  }
+};
+
+// ---- Comparison Grid ----
+var metrics = [
+  {label:'总盈亏', key:'totalPnl'},
+  {label:'收益率', key:'totalPnlPct'},
+  {label:'胜率', key:'winRate'},
+  {label:'最大回撤', key:'maxDrawdown'},
+  {label:'持仓天数', key:'holdingDays', unit:' 天'},
+  {label:'标的数量', key:'stockCount', unit:' 只'},
+  {label:'夏普比率', key:'sharpe'}
+];
+
+function renderGrid(a, b){
+  var html = '<div class="cg-h"><span class="cg-label">对比维度</span><span class="cg-val-a" title="' + a.name + '">' + a.code + '</span><span class="cg-val-b" title="' + b.name + '">' + b.code + '</span><span class="cg-delta" style="text-align:right">差异 Δ</span></div>';
+  metrics.forEach(function(m){
+    var va = a[m.key], vb = b[m.key];
+    var unit = m.unit || '';
+    html += '<div class="cg-row">' +
+      '<span class="cg-label">' + m.label + '</span>' +
+      '<span class="cg-val-a">' + va + unit + '</span>' +
+      '<span class="cg-val-b">' + vb + unit + '</span>' +
+      '<span class="cg-delta" style="text-align:right">—</span>' +
+      '</div>';
+  });
+  document.getElementById('compareGrid').innerHTML = html;
+}
+
+// ---- Overlap ----
+function renderOverlap(a, b){
+  var overlaps = [];
+  a.stocks.forEach(function(sa){
+    b.stocks.forEach(function(sb){
+      if (sa.code === sb.code){
+        overlaps.push({code:sa.code, name:sa.name, allocA:sa.alloc, allocB:sb.alloc});
+      }
+    });
+  });
+
+  var warnEl = document.getElementById('overlapWarn');
+  if (overlaps.length === 0){
+    warnEl.style.display = 'none';
+    return;
+  }
+  warnEl.style.display = 'flex';
+
+  var names = overlaps.map(function(o){ return o.name + '(' + o.code + ')'; }).join('、');
+  var maxOverlap = Math.max.apply(null, overlaps.map(function(o){ return Math.min(o.allocA, o.allocB); }));
+  warnEl.querySelector('.ow-head + div').innerHTML =
+    '两只方案都选中了 <b style="color:var(--warn)">' + names + '</b>，仓位重合 <b style="color:var(--warn)">' + maxOverlap + '%</b>。<br>请注意单一标的风险集中度。';
+
+  var tbody = document.getElementById('overlapBody');
+  var rows = '';
+  overlaps.forEach(function(o){
+    rows += '<tr>' +
+      '<td class="ot-code">' + o.code + '</td>' +
+      '<td class="ot-name">' + o.name + '</td>' +
+      '<td class="ot-alloc">' + o.allocA + '%</td>' +
+      '<td class="ot-alloc">' + o.allocB + '%</td>' +
+      '</tr>';
+  });
+  tbody.innerHTML = rows;
+}
+
+// ---- Meta ----
+function renderMeta(plan, metaId){
+  var el = document.getElementById(metaId);
+  el.innerHTML = '<span>💰 <b class="mono ' + (plan.totalPnl.indexOf('+')>=0?'up':'down') + '">' + plan.totalPnl + '</b></span>' +
+    '<span>📊 <b class="mono neu">' + plan.totalPnlPct + '</b></span>' +
+    '<span>📈 胜率 <b class="mono">' + plan.winRate + '</b></span>' +
+    '<span>📅 持仓 <b class="mono">' + plan.holdingDays + '天</b></span>';
+}
+
+// ---- ECharts ----
+var chartCompare = echarts.init(document.getElementById('chart-compare'));
+
+function genDailyReturns(days, baseReturn, volatility){
+  var data = [], cum = 0;
+  for (var i = 0; i < days; i++){
+    var r = (Math.random() - 0.5 + baseReturn) * volatility;
+    cum += r;
+    data.push(Math.round(cum * 1000) / 10);
+  }
+  return data;
+}
+
+function buildChartOption(planA, planB){
+  var seed = 42;
+  function rnd(){ seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
+  function genWithSeed(days, trend){
+    var data = [], cum = 0;
+    for (var i = 0; i < days; i++){
+      cum += (rnd() - 0.48 + trend) * 1.6;
+      data.push(Math.round(cum * 100) / 100);
+    }
+    return data;
+  }
+
+  var days = Math.max(planA.holdingDays, planB.holdingDays) + 1;
+  var dates = [];
+  for (var i = 0; i < days; i++){
+    var d = new Date(2026, 5, 21 + i);
+    dates.push(('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2));
+  }
+
+  seed = 42;
+  var retA = genWithSeed(days, 0.065);
+  seed = 99;
+  var retB = genWithSeed(days, 0.035);
+
+  return {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross' },
+      formatter: function(params){
+        var d = params[0].axisValue;
+        var lines = params.map(function(p){
+          var v = p.value;
+          return p.marker + ' ' + p.seriesName + ': ' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+        });
+        return '<b>' + d + '</b><br/>' + lines.join('<br/>');
+      }
+    },
+    legend: {
+      data: [planA.code + ' ' + planA.name, planB.code + ' ' + planB.name],
+      bottom: 4,
+      textStyle: { fontSize: 11, color: '#9aa7b8' }
+    },
+    grid: { left: '8%', right: '6%', top: '10%', bottom: '12%' },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLabel: { fontSize: 9, color: '#5e6a7d', interval: Math.max(1, Math.floor(days / 10)) },
+      axisLine: { lineStyle: { color: '#1f2733' } }
+    },
+    yAxis: {
+      type: 'value',
+      scale: true,
+      axisLabel: { fontSize: 10, color: '#5e6a7d', formatter: '{value}%' },
+      splitLine: { lineStyle: { color: '#1f2733' } }
+    },
+    series: [
+      {
+        name: planA.code + ' ' + planA.name,
+        type: 'line',
+        data: retA,
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { color: '#3d8bff', width: 2 },
+        itemStyle: { color: '#3d8bff' },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[
+          {offset:0, color:'rgba(61,139,255,0.12)'},
+          {offset:1, color:'rgba(61,139,255,0.01)'}
+        ])}
+      },
+      {
+        name: planB.code + ' ' + planB.name,
+        type: 'line',
+        data: retB,
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { color: '#f5a623', width: 2 },
+        itemStyle: { color: '#f5a623' },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[
+          {offset:0, color:'rgba(245,166,35,0.12)'},
+          {offset:1, color:'rgba(245,166,35,0.01)'}
+        ])}
+      }
+    ]
+  };
+}
+
+// ---- Switch Plans ----
+function switchPlans(){
+  var aId = document.getElementById('selA').value;
+  var bId = document.getElementById('selB').value;
+  var a = plans[aId], b = plans[bId];
+  renderGrid(a, b);
+  renderOverlap(a, b);
+  renderMeta(a, 'metaA');
+  renderMeta(b, 'metaB');
+  chartCompare.setOption(buildChartOption(a, b), true);
+}
+
+// ---- Init ----
+switchPlans();
+
+window.addEventListener('resize', function(){ chartCompare.resize(); });
+setTimeout(function(){ chartCompare.resize(); }, 200);
+})();
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

@@ -140,9 +140,9 @@ export default function CandidateFilterBar({
       onCandidatesChange(data.candidates)
       setTotalCount(data.total_count)
       setElapsedMs(data.elapsed_ms)
-      setLastFilterSummary(data.filter_summary)
-      setLastResonanceSummary(data.resonance_summary)
-      onSummaryChange?.(data.filter_summary, data.resonance_summary)
+      setLastFilterSummary(data.filter_summary as unknown as FilterSummary)
+      setLastResonanceSummary(data.resonance_summary as unknown as ResonanceSummary)
+      onSummaryChange?.(data.filter_summary as unknown as FilterSummary, data.resonance_summary as unknown as ResonanceSummary)
     } catch (error) {
       console.error('Failed to fetch chain candidates:', error)
       onCandidatesChange([])

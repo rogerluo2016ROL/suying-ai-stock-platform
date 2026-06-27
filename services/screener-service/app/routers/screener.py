@@ -35,6 +35,12 @@ class PolicyInterpretRequest(BaseModel):
     provider: str = Field(default="deepseek", description="LLM provider to use")
 
 
+class SupplyChainMappingReviewRequest(BaseModel):
+    decision: str = Field(..., description="verified, rejected, needs_more_evidence, or pending_review")
+    reviewer: str = Field(default="system", description="Reviewer name or operator id")
+    note: str = Field(default="", description="Short review note")
+
+
 class InterpretationResult(BaseModel):
     """Structured interpretation result from LLM."""
 
@@ -589,6 +595,246 @@ def _pg_connect():
         os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos"),
         connect_timeout=5,
     )
+
+
+def _mapping_source_from_evidence(evidence: object) -> str:
+    payload = _json_or_default(evidence, {})
+    if isinstance(payload, dict):
+        return str(payload.get("mapping_source") or payload.get("source") or "")
+    return ""
+
+
+def _mapping_evidence_items(evidence: object) -> list:
+    payload = _json_or_default(evidence, {})
+    if isinstance(payload, dict):
+        items = payload.get("evidence") or []
+        return items if isinstance(items, list) else [items]
+    return []
+
+
+def _mapping_evidence_gaps(evidence: object) -> list:
+    payload = _json_or_default(evidence, {})
+    if isinstance(payload, dict):
+        gaps = payload.get("evidence_gaps") or []
+        return gaps if isinstance(gaps, list) else [gaps]
+    return []
+
+
+def _mapping_review_priority(status: str, confidence: float, source: str) -> float:
+    status_base = {"pending_review": 45.0, "weak_evidence": 35.0, "needs_more_evidence": 40.0}.get(status, 10.0)
+    source_base = {"industry": 22.0, "introduction": 18.0, "research_report": 14.0, "main_business": 8.0}.get(source, 12.0)
+    confidence_gap = max(0.0, 1.0 - confidence) * 25.0
+    return round(status_base + source_base + confidence_gap, 2)
+
+
+def _query_supply_chain_mapping_review_queue(
+    status: str = "reviewable",
+    node_id: Optional[str] = None,
+    chain_id: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict:
+    statuses = ["pending_review", "weak_evidence"] if status == "reviewable" else [status]
+    safe_limit = max(1, min(int(limit or 50), 200))
+    safe_offset = max(0, int(offset or 0))
+    conditions = ["m.status = ANY(%s)"]
+    params: list[object] = [statuses]
+    if node_id:
+        conditions.append("m.node_id = %s")
+        params.append(node_id)
+    if chain_id:
+        conditions.append("COALESCE(n.chain_id, c.evidence->>'chain_id') = %s")
+        params.append(chain_id)
+    where = " AND ".join(conditions)
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+            cur.execute(
+                f"""
+                SELECT COUNT(*) OVER() AS total_count,
+                       m.code, COALESCE(s.name, m.code) AS name,
+                       m.node_id, COALESCE(n.name, cn.node_name, m.node_id) AS node_name,
+                       COALESCE(n.chain_id, c.evidence->>'chain_id') AS chain_id,
+                       m.product_name, m.material_name, m.confidence, m.status,
+                       c.evidence, m.updated_at
+                FROM company_bom_mapping m
+                LEFT JOIN stocks s ON s.code = m.code
+                LEFT JOIN supply_chain_bom_nodes n ON n.node_id = m.node_id
+                LEFT JOIN chain_nodes cn ON cn.node_id = m.node_id
+                LEFT JOIN company_chain_mapping c ON c.code = m.code AND c.node_id = m.node_id
+                WHERE {where}
+                ORDER BY
+                    CASE m.status WHEN 'pending_review' THEN 1 WHEN 'weak_evidence' THEN 2 ELSE 3 END,
+                    m.confidence DESC,
+                    m.updated_at DESC NULLS LAST
+                LIMIT %s OFFSET %s
+                """,
+                [*params, safe_limit, safe_offset],
+            )
+            rows = cur.fetchall()
+    except Exception as e:
+        logger.debug("supply_chain mapping review queue unavailable: %s", e)
+        return {"total": 0, "limit": safe_limit, "offset": safe_offset, "items": []}
+
+    total = int(rows[0][0] or 0) if rows else 0
+    items = []
+    for row in rows:
+        evidence = row[10]
+        confidence = _to_float(row[8], 0.0)
+        mapping_source = _mapping_source_from_evidence(evidence)
+        mapping_status = str(row[9] or "")
+        items.append({
+            "code": str(row[1] or ""),
+            "name": str(row[2] or ""),
+            "node_id": str(row[3] or ""),
+            "node_name": str(row[4] or ""),
+            "chain_id": str(row[5] or ""),
+            "product_name": row[6],
+            "material_name": row[7],
+            "confidence": confidence,
+            "status": mapping_status,
+            "mapping_source": mapping_source,
+            "evidence": _mapping_evidence_items(evidence),
+            "evidence_gaps": _mapping_evidence_gaps(evidence),
+            "updated_at": str(row[11] or ""),
+            "review_priority": _mapping_review_priority(mapping_status, confidence, mapping_source),
+        })
+    items.sort(key=lambda item: item["review_priority"], reverse=True)
+    return {"total": total, "limit": safe_limit, "offset": safe_offset, "items": items}
+
+
+def _query_supply_chain_mapping_quality() -> dict:
+    status_counts: dict[str, int] = {}
+    source_counts: dict[str, int] = {}
+    hotspot_nodes: list[dict] = []
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+            cur.execute("SELECT status, COUNT(*) FROM company_bom_mapping GROUP BY status")
+            for status, count in cur.fetchall():
+                status_counts[str(status or "")] = int(count or 0)
+
+            cur.execute("""
+                SELECT COALESCE(c.evidence->>'mapping_source', 'unknown') AS mapping_source, COUNT(*)
+                FROM company_bom_mapping m
+                LEFT JOIN company_chain_mapping c ON c.code = m.code AND c.node_id = m.node_id
+                GROUP BY mapping_source
+            """)
+            for source, count in cur.fetchall():
+                source_counts[str(source or "unknown")] = int(count or 0)
+
+            cur.execute("""
+                SELECT m.node_id,
+                       COALESCE(n.name, cn.node_name, m.node_id) AS node_name,
+                       COALESCE(n.chain_id, c.evidence->>'chain_id') AS chain_id,
+                       COUNT(*) FILTER (WHERE m.status = 'verified') AS verified,
+                       COUNT(*) FILTER (WHERE m.status = 'pending_review') AS pending_review,
+                       COUNT(*) FILTER (WHERE m.status = 'weak_evidence') AS weak_evidence,
+                       COUNT(*) FILTER (WHERE m.status = 'rejected') AS rejected
+                FROM company_bom_mapping m
+                LEFT JOIN supply_chain_bom_nodes n ON n.node_id = m.node_id
+                LEFT JOIN chain_nodes cn ON cn.node_id = m.node_id
+                LEFT JOIN company_chain_mapping c ON c.code = m.code AND c.node_id = m.node_id
+                GROUP BY m.node_id, n.name, cn.node_name, n.chain_id, c.evidence->>'chain_id'
+                ORDER BY
+                    (COUNT(*) FILTER (WHERE m.status IN ('pending_review', 'weak_evidence'))) DESC,
+                    m.node_id
+                LIMIT 50
+            """)
+            for row in cur.fetchall():
+                pending = int(row[4] or 0)
+                weak = int(row[5] or 0)
+                hotspot_nodes.append({
+                    "node_id": str(row[0] or ""),
+                    "node_name": str(row[1] or ""),
+                    "chain_id": str(row[2] or ""),
+                    "verified": int(row[3] or 0),
+                    "pending_review": pending,
+                    "weak_evidence": weak,
+                    "rejected": int(row[6] or 0),
+                    "review_pressure": pending + weak,
+                })
+    except Exception as e:
+        logger.debug("supply_chain mapping quality unavailable: %s", e)
+
+    return {
+        "mapping_count": sum(status_counts.values()),
+        "status_counts": status_counts,
+        "source_counts": source_counts,
+        "review_queue_count": status_counts.get("pending_review", 0) + status_counts.get("weak_evidence", 0),
+        "hotspot_nodes": hotspot_nodes,
+    }
+
+
+def _apply_supply_chain_mapping_review(
+    code: str,
+    node_id: str,
+    decision: str,
+    reviewer: str = "system",
+    note: str = "",
+) -> dict:
+    from psycopg2.extras import Json
+
+    status_by_decision = {
+        "verified": "verified",
+        "rejected": "rejected",
+        "needs_more_evidence": "weak_evidence",
+        "pending_review": "pending_review",
+    }
+    if decision not in status_by_decision:
+        return {"status": "error", "reason": f"unsupported decision: {decision}"}
+    mapping_status = status_by_decision[decision]
+    review = {
+        "decision": decision,
+        "reviewer": reviewer or "system",
+        "note": note or "",
+        "reviewed_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+            cur.execute(
+                """
+                UPDATE company_bom_mapping
+                SET status = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE code = %s AND node_id = %s
+                """,
+                (mapping_status, code, node_id),
+            )
+            if cur.rowcount == 0:
+                pg.rollback()
+                return {"status": "not_found", "reason": "mapping not found", "code": code, "node_id": node_id}
+
+            cur.execute(
+                """
+                SELECT id, evidence
+                FROM company_chain_mapping
+                WHERE code = %s AND node_id = %s
+                """,
+                (code, node_id),
+            )
+            for row_id, evidence in cur.fetchall():
+                payload = _json_or_default(evidence, {})
+                if not isinstance(payload, dict):
+                    payload = {}
+                payload["status"] = mapping_status
+                payload["review"] = review
+                cur.execute(
+                    "UPDATE company_chain_mapping SET evidence = %s WHERE id = %s",
+                    (Json(payload), row_id),
+                )
+            pg.commit()
+    except Exception as e:
+        logger.warning("supply_chain mapping review update failed: %s", e)
+        return {"status": "error", "reason": str(e), "code": code, "node_id": node_id}
+
+    return {
+        "status": "ok",
+        "code": code,
+        "node_id": node_id,
+        "mapping_status": mapping_status,
+        "review": review,
+    }
 
 
 def _query_latest_market_snapshots(codes: list[str], trade_date: Optional[str] = None) -> dict[str, dict]:
@@ -1154,6 +1400,48 @@ async def supply_chain_workbench(
         "resonance_model": {"dimensions": ["policy", "commercialization", "order_capacity", "performance", "market"]},
         "stage_options": ["预研验证", "中试", "小批量验证", "量产爬坡", "规模推广", "成熟"],
     }
+
+
+@router.get("/supply-chain/mapping-review/queue")
+async def supply_chain_mapping_review_queue(
+    status: str = Query("reviewable"),
+    node_id: Optional[str] = Query(None),
+    chain_id: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Return reviewable company-to-chain mappings sorted by review priority."""
+    allowed_statuses = {"reviewable", "pending_review", "weak_evidence", "verified", "rejected"}
+    if status not in allowed_statuses:
+        raise HTTPException(status_code=400, detail=f"Unsupported status '{status}'")
+    return _query_supply_chain_mapping_review_queue(status, node_id, chain_id, limit, offset)
+
+
+@router.get("/supply-chain/mapping-review/quality")
+async def supply_chain_mapping_review_quality():
+    """Return mapping quality counts and node-level review pressure."""
+    return _query_supply_chain_mapping_quality()
+
+
+@router.post("/supply-chain/mapping-review/{code}/{node_id}")
+async def supply_chain_mapping_review_decision(
+    code: str,
+    node_id: str,
+    payload: SupplyChainMappingReviewRequest,
+):
+    """Apply a human review decision to one company-node mapping."""
+    result = _apply_supply_chain_mapping_review(
+        code=code,
+        node_id=node_id,
+        decision=payload.decision,
+        reviewer=payload.reviewer,
+        note=payload.note,
+    )
+    if result.get("status") == "not_found":
+        raise HTTPException(status_code=404, detail=result.get("reason") or "mapping not found")
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("reason") or "mapping review failed")
+    return result
 
 
 @router.get("/supply-chain/node/{node_id}")

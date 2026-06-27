@@ -1,0 +1,154 @@
+/* ============================================================
+   速赢AI — 终端网格背景
+
+   来源：docs/design/new front/design-spec.md 第4.3节
+   用途：交易终端网格背景 + 单一低透明度蓝色光晕
+
+   使用规则：
+   - 网格透明度维持在 0.045 附近
+   - 只允许一处低透明度蓝色光晕
+   - 不能扩展成紫蓝渐变英雄区
+   - 面板圆角使用 8px
+   ============================================================ */
+
+/* ── 终端网格背景（深色模式） ── */
+:root:not([data-theme="light"]) body {
+  background:
+    /* 横向网格线 */
+    linear-gradient(
+      90deg,
+      var(--grid-color) 1px,
+      transparent 1px
+    ),
+    /* 纵向网格线 */
+    linear-gradient(
+      180deg,
+      var(--grid-color) 1px,
+      transparent 1px
+    ),
+    /* 单一蓝色光晕（低透明度） */
+    radial-gradient(
+      circle at var(--glow-position),
+      var(--glow-color),
+      transparent var(--glow-radius)
+    ),
+    /* 基础背景 */
+    var(--bg);
+
+  background-size:
+    var(--grid-size) var(--grid-size),
+    var(--grid-size) var(--grid-size),
+    auto auto,
+    auto auto;
+}
+
+/* ── 浅色网格背景 ── */
+:root[data-theme="light"] body {
+  background:
+    linear-gradient(
+      90deg,
+      var(--grid-color) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      180deg,
+      var(--grid-color) 1px,
+      transparent 1px
+    ),
+    radial-gradient(
+      circle at var(--glow-position),
+      var(--glow-color),
+      transparent var(--glow-radius)
+    ),
+    var(--bg);
+
+  background-size:
+    var(--grid-size) var(--grid-size),
+    var(--grid-size) var(--grid-size),
+    auto auto,
+    auto auto;
+}
+
+/* ── 禁止渐变英雄区（禁用清单第1项） ── */
+/*
+  以下模式不得使用：
+  ❌ linear-gradient(135deg, #7c3aed, #3b82f6) 紫蓝渐变
+  ❌ 大面积彩色光晕（如 radial-gradient(circle at 50% 50%, rgba(124,58,237,0.15), transparent 50%))
+  ❌ 多层渐变叠加造成炫彩效果
+*/
+
+/* ── 应用外壳容器 ── */
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  /* 网格背景继承自 body，这里仅做备用 */
+}
+
+/* ── 面板容器（统一圆角 8px） ── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  /* 避免大圆角卡片堆叠（禁用清单第2项） */
+  /* ❌ border-radius: 16px 或更大 */
+}
+
+/* ── 表格容器 ── */
+.table-container {
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* ── 卡片标题区（高度约 45px） ── */
+.panel-header {
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+/* ── 内容区 ── */
+.panel-body {
+  padding: 14px;
+  /* 禁止空面板、装饰面板（禁用清单第3项） */
+  min-height: 100px;
+}
+
+/* ── 响应式网格密度调整 ── */
+@media (max-width: 900px) {
+  :root body {
+    background-size:
+      32px 32px,
+      32px 32px,
+      auto auto,
+      auto auto;
+  }
+}
+
+@media (max-width: 560px) {
+  :root body {
+    /* 移动端保持网格但降低密度 */
+    background-size:
+      24px 24px,
+      24px 24px,
+      auto auto,
+      auto auto;
+  }
+}
+
+/* ── 打印时移除网格 ── */
+@media print {
+  body {
+    background: white;
+  }
+
+  .panel {
+    border: 1px solid #ccc;
+    background: white;
+  }
+}

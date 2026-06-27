@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 风控中心 — 持仓风险</title>
+
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--up),#ff7875);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--up)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 6px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
+.content{padding:18px 20px 32px}
+
+.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
+.stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
+.stb a:hover{color:var(--fg)}
+.stb a.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+.page-head h1{font-size:21px;font-weight:700;margin-bottom:4px}
+.page-head .sub{font-size:12.5px;color:var(--muted);margin-bottom:8px}
+
+.sort-bar{display:flex;gap:8px;margin-bottom:10px}
+.sort-btn{font-size:11px;padding:4px 14px;border-radius:14px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);cursor:pointer;transition:.12s;font-family:var(--font-sans)}
+.sort-btn:hover{background:var(--elevated);color:var(--fg)}
+.sort-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+
+.pos-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.pos-card .pc-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:2px solid var(--border)}
+.pos-card .pc-h h3{font-size:13.5px;font-weight:650}
+.pos-card .pc-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
+
+.pos-th{display:flex;align-items:center;gap:10px;padding:6px 16px;font-size:10.5px;color:var(--muted);font-weight:650;border-bottom:1px solid var(--border)}
+.pos-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;transition:.12s}
+.pos-row:last-child{border-bottom:none}
+.pos-row:hover{filter:brightness(1.15)}
+.pos-row.danger{background:var(--up-bg)}
+.pos-row.warning{background:var(--warn-bg)}
+.pos-code{font-family:var(--font-mono);font-size:12px;font-weight:650;width:68px;flex-shrink:0}
+.pos-name{width:72px;flex-shrink:0;color:var(--fg-2);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pos-pnl{font-family:var(--font-mono);font-size:12px;font-weight:650;width:70px;text-align:right;flex-shrink:0}
+.pos-exposure{width:90px;flex-shrink:0;font-size:11px}
+.pos-sl{flex:1;min-width:80px}
+.pos-sl .sl-label{font-size:9.5px;color:var(--muted);margin-bottom:3px}
+.pos-sl-bar{height:6px;border-radius:3px;background:var(--surface-2);position:relative;overflow:hidden}
+.pos-sl-fill{position:absolute;left:0;top:0;height:100%;border-radius:3px;transition:width .4s}
+.pos-sl-marker{position:absolute;top:-3px;width:2px;height:12px;background:var(--fg);border-radius:1px}
+.pos-tags{display:flex;gap:4px;flex-shrink:0;min-width:110px}
+.tag{padding:1px 7px;border-radius:4px;font-size:9.5px;font-weight:600;white-space:nowrap}
+.tag-danger{background:var(--up-bg);color:var(--up)}
+.tag-warn{background:var(--warn-bg);color:var(--warn)}
+.tag-info{background:var(--accent-dim);color:var(--accent)}
+.pos-actions{display:flex;gap:4px;flex-shrink:0}
+.btn-sm{padding:3px 10px;border-radius:4px;font-size:10.5px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--elevated);color:var(--fg);transition:.12s;font-family:var(--font-sans)}
+.btn-sm:hover{background:var(--surface)}
+.btn-sm.danger{color:var(--up);border-color:var(--up);background:var(--up-bg)}
+.btn-sm.danger:hover{background:rgba(255,77,79,0.18)}
+.btn-sm.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
+.btn-sm.warn:hover{background:rgba(245,166,35,0.18)}
+
+.batch-bar{display:flex;justify-content:flex-end;padding:10px 16px;border-top:1px solid var(--border)}
+.btn-danger{padding:8px 20px;border-radius:6px;font-size:12.5px;font-weight:650;cursor:pointer;color:var(--up);border:1px solid var(--up);background:var(--up-bg);transition:.12s;font-family:var(--font-sans)}
+.btn-danger:hover{background:rgba(255,77,79,0.18)}
+
+.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="risk-control" data-title="风控中心 — 持仓风险">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">风控/管理员</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共规则 + 私有判定</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/account</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">所有实盘强制经过</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<div class="page-head">
+            <h1>🛡️ 风控中心</h1>
+            <div class="sub">熔断监控 · 持仓风险 · 策略状态 · 风控审计</div>
+          </div>
+      
+          
+      
+          <!-- 排序 -->
+          <div class="sort-bar">
+            <span class="sort-btn active">风险分 ▼</span>
+            <span class="sort-btn">距止损</span>
+            <span class="sort-btn">亏损%</span>
+          </div>
+      
+          <!-- 持仓风险表 -->
+          <div class="pos-card">
+            <div class="pc-h">
+              <h3>📋 持仓风险清单</h3>
+              <span class="meta">持仓 6 只 · 风险 3 只</span>
+            </div>
+      
+            <div class="pos-th">
+              <span class="pos-code">代码</span>
+              <span class="pos-name">名称</span>
+              <span class="pos-pnl">浮盈/亏</span>
+              <span class="pos-exposure">仓位占比</span>
+              <span class="pos-sl">距止损</span>
+              <span class="pos-tags">风险标签</span>
+              <span class="pos-actions">操作</span>
+            </div>
+      
+            <!-- 持仓 1: 高风险 -->
+            <div class="pos-row danger">
+              <span class="pos-code up">000858</span>
+              <span class="pos-name">五粮液</span>
+              <span class="pos-pnl" style="color:var(--up)">-2.8%</span>
+              <span class="pos-exposure">12.4%</span>
+              <div class="pos-sl">
+                <div class="sl-label">距止损 <b style="color:var(--up)">0.7%</b></div>
+                <div class="pos-sl-bar">
+                  <div class="pos-sl-fill" style="width:93%;background:var(--up)"></div>
+                  <div class="pos-sl-marker" style="left:97%"></div>
+                </div>
+              </div>
+              <div class="pos-tags">
+                <span class="tag tag-danger">🔴 距止损</span>
+              </div>
+              <div class="pos-actions">
+                <span class="btn-sm danger">⏹ 止损</span>
+                <span class="btn-sm warn">减仓</span>
+              </div>
+            </div>
+      
+            <!-- 持仓 2: 高风险 -->
+            <div class="pos-row danger">
+              <span class="pos-code up">688981</span>
+              <span class="pos-name">中芯国际</span>
+              <span class="pos-pnl" style="color:var(--up)">-1.5%</span>
+              <span class="pos-exposure">9.1%</span>
+              <div class="pos-sl">
+                <div class="sl-label">距止损 <b style="color:var(--warn)">6.5%</b></div>
+                <div class="pos-sl-bar">
+                  <div class="pos-sl-fill" style="width:35%;background:var(--warn)"></div>
+                  <div class="pos-sl-marker" style="left:97%"></div>
+                </div>
+              </div>
+              <div class="pos-tags">
+                <span class="tag tag-danger">🔴 公告:立案调查</span>
+                <span class="tag tag-warn">强卖</span>
+              </div>
+              <div class="pos-actions">
+                <span class="btn-sm danger">⏹ 止损</span>
+                <span class="btn-sm warn">减仓</span>
+              </div>
+            </div>
+      
+            <!-- 持仓 3: 警告风险 -->
+            <div class="pos-row warning">
+              <span class="pos-code warn">600000</span>
+              <span class="pos-name">浦发银行</span>
+              <span class="pos-pnl" style="color:var(--down)">+1.1%</span>
+              <span class="pos-exposure">8.7%</span>
+              <div class="pos-sl">
+                <div class="sl-label">距止损 <b style="color:var(--down)">8.2%</b></div>
+                <div class="pos-sl-bar">
+                  <div class="pos-sl-fill" style="width:18%;background:var(--down)"></div>
+                  <div class="pos-sl-marker" style="left:97%"></div>
+                </div>
+              </div>
+              <div class="pos-tags">
+                <span class="tag tag-warn">🟡 审计:保留意见</span>
+              </div>
+              <div class="pos-actions">
+                <span class="btn-sm warn">减仓</span>
+              </div>
+            </div>
+      
+            <!-- 持仓 4: 正常 -->
+            <div class="pos-row">
+              <span class="pos-code">600519</span>
+              <span class="pos-name">贵州茅台</span>
+              <span class="pos-pnl" style="color:var(--down)">+5.3%</span>
+              <span class="pos-exposure">18.2%</span>
+              <div class="pos-sl">
+                <div class="sl-label">距止损 <b style="color:var(--down)">&gt;10%</b></div>
+                <div class="pos-sl-bar">
+                  <div class="pos-sl-fill" style="width:8%;background:var(--down)"></div>
+                  <div class="pos-sl-marker" style="left:97%"></div>
+                </div>
+              </div>
+              <div class="pos-tags">
+                <span class="tag tag-info">🟢 正常</span>
+              </div>
+              <div class="pos-actions">—</div>
+            </div>
+      
+            <!-- 持仓 5: 正常 -->
+            <div class="pos-row">
+              <span class="pos-code">300750</span>
+              <span class="pos-name">宁德时代</span>
+              <span class="pos-pnl" style="color:var(--down)">+8.2%</span>
+              <span class="pos-exposure">15.6%</span>
+              <div class="pos-sl">
+                <div class="sl-label">距止损 <b style="color:var(--down)">&gt;10%</b></div>
+                <div class="pos-sl-bar">
+                  <div class="pos-sl-fill" style="width:5%;background:var(--down)"></div>
+                  <div class="pos-sl-marker" style="left:97%"></div>
+                </div>
+              </div>
+              <div class="pos-tags">
+                <span class="tag tag-info">🟢 正常</span>
+              </div>
+              <div class="pos-actions">—</div>
+            </div>
+      
+            <!-- 持仓 6: 正常 -->
+            <div class="pos-row">
+              <span class="pos-code">002594</span>
+              <span class="pos-name">比亚迪</span>
+              <span class="pos-pnl" style="color:var(--down)">+3.5%</span>
+              <span class="pos-exposure">9.4%</span>
+              <div class="pos-sl">
+                <div class="sl-label">距止损 <b style="color:var(--down)">&gt;10%</b></div>
+                <div class="pos-sl-bar">
+                  <div class="pos-sl-fill" style="width:12%;background:var(--down)"></div>
+                  <div class="pos-sl-marker" style="left:97%"></div>
+                </div>
+              </div>
+              <div class="pos-tags">
+                <span class="tag tag-info">🟢 正常</span>
+              </div>
+              <div class="pos-actions">—</div>
+            </div>
+      
+            <!-- 一键平仓 -->
+            <div class="batch-bar">
+              <span class="btn-danger">⚠️ 一键平仓风险标的 (3只)</span>
+            </div>
+          </div>
+      
+          <div class="footer-bar">
+            <span>风控引擎: risk_gateway.py + circuit_breaker.py + auto_trading_executor.py</span>
+            <span class="sep"></span>
+            <span>风险维度: 资金·仓位·集中度·止损·熔断·审计·公告·市场风向 · 共 25 维</span>
+            <span class="sep"></span>
+            <span>⚠️ 风控为量化模型规则，不构成投资建议</span>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

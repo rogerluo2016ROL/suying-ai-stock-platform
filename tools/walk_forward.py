@@ -147,11 +147,13 @@ def shift_month(ym, delta):
     return f"{ny:04d}-{nm + 1:02d}"
 
 
-def run_month(db, month, top_n, cost_bps, progress_cb=None, frozen_defaults=None):
+def run_month(db, month, top_n, cost_bps, progress_cb=None, frozen_defaults=None,
+              strategy="bi_trend"):
     """跑单月回测 (多日持有 AC-1), 返回该月所有 pick 的 net_return / weighted_return 列表.
 
     frozen_defaults: AC-5 冻结参数模式 — 当 pick 缺 hold_days/tp/sl/weight 时
     (调参前版本如 V5.9 无个性化持有建议), 用此默认 dict 补全.
+    strategy: "bi_trend" | "bi_alpha_v15" — 透传到 run_backtest_day 切换信号源.
     """
     trading_days = get_trading_days(db, month)
     if not trading_days:
@@ -159,7 +161,7 @@ def run_month(db, month, top_n, cost_bps, progress_cb=None, frozen_defaults=None
     picks = []
     for i, td in enumerate(trading_days):
         try:
-            r = run_backtest_day(db, td, top_n=top_n)
+            r = run_backtest_day(db, td, top_n=top_n, strategy=strategy)
         except Exception as e:
             if progress_cb:
                 progress_cb(f"  {td} 选股失败: {e}")
@@ -233,6 +235,11 @@ def main():
                         help="AC-5 冻结参数模式: pick 缺 hold_days/tp/sl 时用 V5.9 调参前默认 "
                              "(hold=5, tp=15, stop=-10, weight=1.0). 需配合 git checkout 调参前 bi_trend_launch.py.")
     parser.add_argument("--export", type=str, default=None, help="导出JSON路径")
+    parser.add_argument("--strategy", type=str, default="bi_trend",
+                        choices=["bi_trend", "bi_alpha_v15"],
+                        help="选股信号源: bi_trend (OBV+WR技术规则) | "
+                             "bi_alpha_v15 (横截面多因子: 低换手+低PB+营收增长). "
+                             "V15 复用同一回测/风控/成本口径, 仅换信号源.")
     parser.add_argument("--strict-timeline", action="store_true",
                         help="M01-A 流程护栏: 启用后若策略 commit 日期晚于 --start 样本外起始月, "
                              "sys.exit(2) 硬阻断 (参数时序泄露, 拒绝跑). "
@@ -250,11 +257,16 @@ def main():
     from kronos_factors.scorer._db_stub import _get_db
 
     # M01: 显式记录本次样本外跑用的是哪个 commit 的策略模块, 避免"用未来参数测过去".
-    # walk_forward 的 run_month 调 HEAD 版本的 bi_trend_launch.py — 若 HEAD 带样本内调参,
+    # walk_forward 的 run_month 调 HEAD 版本的策略模块 — 若 HEAD 带样本内调参,
     # 就把未来参数泄漏到过去. 这里记录 commit + 日期, 若 commit 日期晚于样本外起始月则警告.
-    strategy_path = os.path.join(
-        _PROJ, "packages", "kronos-factors", "kronos_factors", "engine",
-        "bi_trend_launch.py")
+    if args.strategy == "bi_alpha_v15":
+        strategy_path = os.path.join(
+            _PROJ, "packages", "kronos-factors", "kronos_factors", "engine",
+            "bi_alpha_v15.py")
+    else:
+        strategy_path = os.path.join(
+            _PROJ, "packages", "kronos-factors", "kronos_factors", "engine",
+            "bi_trend_launch.py")
     strategy_info = _git_strategy_commit(strategy_path)
     print(f"📌 策略模块: {strategy_info['path']}")
     print(f"   commit: {strategy_info['commit'][:12]} ({strategy_info['date']}) — {strategy_info['subject']}")
@@ -293,7 +305,8 @@ def main():
         with _get_db() as db:
             picks, n_days = run_month(db, oos_month, args.top_n, args.cost_bps,
                                       progress_cb=lambda m: None,
-                                      frozen_defaults=frozen_defaults)
+                                      frozen_defaults=frozen_defaults,
+                                      strategy=args.strategy)
         stat = summarize_month(picks)
         elapsed = time.time() - t0
         if stat:

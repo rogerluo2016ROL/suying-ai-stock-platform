@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>速赢AI · 前端设计预览</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-2: #eef3f8;
+      --fg: #17202a;
+      --muted: #647184;
+      --border: #dbe3ee;
+      --accent: #1769ff;
+      --accent-soft: rgba(23, 105, 255, .1);
+      --up: #d92d20;
+      --down: #139a63;
+      --shadow: 0 18px 45px rgba(28, 43, 62, .12);
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      --mono: "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font: 14px/1.5 var(--font);
+      overflow: hidden;
+    }
+    .preview-shell {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: 292px minmax(0, 1fr);
+    }
+    .rail {
+      border-right: 1px solid var(--border);
+      background: linear-gradient(180deg, #fff, #f8fbff);
+      padding: 18px;
+      overflow: auto;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 14px;
+    }
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 760;
+      letter-spacing: -0.02em;
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+    .brand p {
+      margin: 2px 0 0;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+    .section-label {
+      margin: 18px 0 8px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+    .nav button {
+      width: 100%;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--fg);
+      border-radius: 8px;
+      padding: 9px 10px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .nav button:hover {
+      background: var(--surface-2);
+      border-color: var(--border);
+    }
+    .nav button.active {
+      background: var(--accent-soft);
+      border-color: rgba(23, 105, 255, .28);
+      color: #0d4fd7;
+      font-weight: 680;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--border);
+      flex: none;
+    }
+    .nav button.active .dot { background: var(--accent); }
+    .nav small {
+      margin-left: auto;
+      color: var(--muted);
+      font: 11px/1 var(--mono);
+    }
+    .stage {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      padding: 18px;
+      gap: 14px;
+    }
+    .toolbar {
+      background: rgba(255,255,255,.9);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .toolbar h2 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: -0.01em;
+    }
+    .toolbar p {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .chip, .actions a {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .chip strong { color: var(--down); }
+    .actions a.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .frame-wrap {
+      min-height: 0;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #fff;
+    }
+    .fallback {
+      position: absolute;
+      inset: auto 16px 16px 16px;
+      color: var(--muted);
+      font-size: 12px;
+      pointer-events: none;
+    }
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+      .preview-shell { min-height: 100vh; grid-template-columns: 1fr; }
+      .rail { border-right: 0; border-bottom: 1px solid var(--border); max-height: 42vh; }
+      .stage { height: 78vh; padding: 12px; }
+      .toolbar { align-items: flex-start; flex-direction: column; }
+      .actions { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-shell">
+    <aside class="rail">
+      <div class="brand">
+        <div class="mark">赢</div>
+        <div>
+          <h1>速赢AI 前端设计预览</h1>
+          <p>默认首页 · AI 智能看板</p>
+        </div>
+      </div>
+
+      <div class="section-label">行情决策</div>
+      <div class="nav" id="decisionNav"></div>
+
+      <div class="section-label">交易执行</div>
+      <div class="nav" id="tradeNav"></div>
+
+      <div class="section-label">模型 / 系统</div>
+      <div class="nav" id="systemNav"></div>
+    </aside>
+
+    <section class="stage">
+      <header class="toolbar">
+        <div>
+          <h2 id="pageTitle">AI 智能看板</h2>
+          <p id="pageDesc">市场情绪、竞价意图、交易信号、自选跟踪、运行状态。</p>
+        </div>
+        <div class="actions">
+          <span class="chip">白天主题 · <strong>A 股红涨绿跌</strong></span>
+          <a class="primary" id="openPage" href="index.html" target="_blank" rel="noreferrer">新窗口打开</a>
+        </div>
+      </header>
+      <div class="frame-wrap">
+        <iframe id="previewFrame" title="速赢AI 前端设计预览" src="index.html"></iframe>
+        <div class="fallback">如果预览区为空，请确认本文件与各 HTML 页面、assets 目录位于同一文件夹。</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const pages = [
+      { group: "decision", title: "AI 智能看板", file: "index.html", desc: "市场情绪、竞价意图、交易信号、自选跟踪、运行状态。" },
+      { group: "decision", title: "开盘决策舱", file: "suying-ai-workbench-redesign.html", desc: "开盘闸门、候选决策、K 线推演、风控交易、链路审计。" },
+      { group: "decision", title: "智能选股", file: "screener.html", desc: "策略入口、因子筛选、候选清单、批量动作、诊断联动。" },
+      { group: "decision", title: "产业链拆解", file: "supply-chain.html", desc: "产业图谱、链路证据、核心公司、风险传导、加入选股。" },
+      { group: "decision", title: "K线预测", file: "predictions.html", desc: "标的选择、K 线走势、概率路径、关键价位、生成信号。" },
+      { group: "decision", title: "方案管理", file: "strategy.html", desc: "方案列表、参数组合、执行计划、回测复核。" },
+      { group: "decision", title: "交易信号", file: "signals.html", desc: "信号总览、买入触发、风险提示、订阅策略。" },
+      { group: "trade", title: "交易中心", file: "trade.html", desc: "交易票、风控校验、持仓资金、委托回报。" },
+      { group: "trade", title: "量化交易", file: "auto-trade.html", desc: "策略实例、运行监控、风控开关、执行日志。" },
+      { group: "trade", title: "回测分析", file: "backtest.html", desc: "回测参数、收益曲线、交易拆解、失败样本。" },
+      { group: "trade", title: "个股诊断", file: "diagnosis.html", desc: "个股画像、风险雷达、历史信号、操作建议。" },
+      { group: "system", title: "模型训练", file: "training.html", desc: "训练任务、损失曲线、样本质量、发布闸门。" },
+      { group: "system", title: "模型注册", file: "model-registry.html", desc: "模型版本、发布记录、回滚策略、准入校验。" },
+      { group: "system", title: "数据更新", file: "data-update.html", desc: "数据源、同步任务、质量校验、失败重跑。" }
+    ];
+
+    const mountMap = {
+      decision: document.getElementById("decisionNav"),
+      trade: document.getElementById("tradeNav"),
+      system: document.getElementById("systemNav")
+    };
+    const title = document.getElementById("pageTitle");
+    const desc = document.getElementById("pageDesc");
+    const frame = document.getElementById("previewFrame");
+    const openPage = document.getElementById("openPage");
+
+    function selectPage(page, button) {
+      document.querySelectorAll(".nav button").forEach(el => el.classList.remove("active"));
+      button.classList.add("active");
+      title.textContent = page.title;
+      desc.textContent = page.desc;
+      frame.src = page.file;
+      openPage.href = page.file;
+    }
+
+    pages.forEach((page, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.innerHTML = `<span class="dot"></span><span>${page.title}</span><small>${String(index + 1).padStart(2, "0")}</small>`;
+      button.addEventListener("click", () => selectPage(page, button));
+      mountMap[page.group].appendChild(button);
+      if (index === 0) button.classList.add("active");
+    });
+  </script>
+</body>
+</html>

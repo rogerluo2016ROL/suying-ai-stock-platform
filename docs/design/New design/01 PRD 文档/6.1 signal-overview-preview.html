@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 交易信号 — 信号总览</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0;display:flex;flex-direction:column;height:100vh}
+.header{height:var(--header-h);flex-shrink:0;position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{flex:1;display:flex;flex-direction:column;padding:16px 20px 0;overflow:hidden}
+
+/* QuickSelectBar */
+.qsb{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);flex-shrink:0;flex-wrap:wrap}
+.qsb .qsb-label{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.qsb .qsb-chips{display:flex;gap:6px;flex-wrap:wrap}
+.qsc{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;font-size:11px;transition:.12s}
+.qsc:hover{background:var(--elevated);border-color:var(--border-2)}
+.qsc.active{background:var(--accent-dim);border-color:var(--accent)}
+.qsc .n{font-weight:600;color:var(--fg)}
+.qsc .c{font-family:var(--font-mono);font-size:10px;color:var(--fg-2)}
+.qsb input{padding:3px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font-mono);font-size:11px;outline:none;width:130px}
+.qsb input:focus{border-color:var(--accent)}
+.qsb input::placeholder{color:var(--muted);font-family:var(--font-sans)}
+
+/* Pill SubTabBar */
+.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin:10px 0}
+.stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
+.stb a:hover{color:var(--fg)}
+.stb a.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+/* Signal Verdict */
+.verdict{display:flex;align-items:center;gap:18px;padding:16px 24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);flex-shrink:0;margin-bottom:12px}
+.rb{display:inline-flex;align-items:center;gap:5px;padding:5px 16px;border-radius:20px;font-size:14px;font-weight:700}
+.rb.sb{background:rgba(255,77,79,0.12);color:#ff4d4f}
+.rb.b{background:rgba(245,166,35,0.12);color:#f5a623}
+.rb.h{background:rgba(61,139,255,0.12);color:#3d8bff}
+.rb.s{background:rgba(46,194,126,0.12);color:#2ec27e}
+.rb.ss{background:rgba(94,106,125,0.12);color:#5e6a7d}
+.verdict .score{font-family:var(--font-mono);font-size:52px;font-weight:700;line-height:1}
+.verdict .info .stock{font-size:14px;font-weight:650}
+.verdict .info .action{font-size:12px;color:var(--fg-2);margin-top:4px}
+.verdict .info .meta{font-size:10.5px;color:var(--muted);margin-top:2px}
+
+/* Main 55/45 */
+.sm{display:flex;gap:14px;flex:1;min-height:0;overflow:hidden}
+.sl{flex:55;min-width:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+.sr{flex:45;min-width:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+.sl::-webkit-scrollbar,.sr::-webkit-scrollbar{width:4px}
+.sl::-webkit-scrollbar-thumb,.sr::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:2px}
+
+/* Card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-h{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:650}
+.card-b{padding:14px}
+
+/* Radar */
+#radar-chart{width:100%;height:340px}
+
+/* Dim Bars */
+.db{display:flex;align-items:center;gap:8px;padding:6px 0}
+.db .di{width:22px;text-align:center;font-size:13px;flex-shrink:0}
+.db .dl{width:64px;font-size:11px;color:var(--fg-2);flex-shrink:0}
+.db .dw{width:44px;font-size:10px;color:var(--muted);flex-shrink:0;text-align:right}
+.db .dt{flex:1;height:7px;border-radius:3.5px;background:var(--surface-2);overflow:hidden}
+.db .df{height:100%;border-radius:3.5px;transition:width .5s}
+.db .dv{width:32px;font-family:var(--font-mono);font-size:12px;font-weight:650;text-align:right;flex-shrink:0}
+
+/* Fund Flow */
+.fr{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+.fr:last-child{border-bottom:none}
+.fr .fl{width:80px;color:var(--fg-2);font-size:11px}
+.fr .fa{font-family:var(--font-mono);font-weight:650;flex:1}
+.fr .fd{font-size:10px;color:var(--muted)}
+.fw{width:20px;text-align:center;font-weight:700}
+.fw.in{color:var(--up)} .fw.out{color:var(--down)}
+.fs{margin-top:10px;padding:8px 12px;background:var(--surface-2);border-radius:6px;font-size:11px;color:var(--fg-2);text-align:center}
+
+/* Trend */
+.ti{display:flex;align-items:center;gap:12px}
+.ti .ts{font-family:var(--font-mono);font-size:32px;font-weight:700}
+.ti .td{display:flex;flex-direction:column;gap:3px}
+.ti .td .dir{font-size:12px;font-weight:650}
+.ti .td .st{font-size:11px;color:var(--fg-2)}
+.ti .td .ma{font-size:10.5px;color:var(--muted);margin-top:2px}
+
+/* Quick Action Bar */
+.qa{display:flex;gap:8px;padding:10px 0 14px;border-top:1px solid var(--border);margin-top:auto;flex-shrink:0}
+.qa button{flex:1;text-align:center;font-size:11.5px;padding:7px 14px;border-radius:6px;border:1px solid var(--border);background:var(--elevated);color:var(--fg-2);cursor:pointer;transition:.12s;font-family:var(--font-sans)}
+.qa button:hover{background:var(--surface);color:var(--fg)}
+.qa button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.qa button.primary:hover{background:#2d7ae0}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="signals" data-title="交易信号 — 信号总览">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">操盘手</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共信号 + 私有处置</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">审单前依据</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<!-- QuickSelectBar -->
+                <div class="qsb">
+                  <span class="qsb-label">候选池:</span>
+                  <div class="qsb-chips">
+                    <span class="qsc active"><span class="n">宁德时代</span><span class="c">300750</span></span>
+                    <span class="qsc" onclick="switchStock('中芯国际','688981')"><span class="n">中芯国际</span><span class="c">688981</span></span>
+                    <span class="qsc" onclick="switchStock('北方华创','002371')"><span class="n">北方华创</span><span class="c">002371</span></span>
+                  </div>
+                  <span class="qsb-label" style="margin-left:8px">自选:</span>
+                  <div class="qsb-chips">
+                    <span class="qsc" onclick="switchStock('贵州茅台','600519')"><span class="n">贵州茅台</span><span class="c">600519</span></span>
+                    <span class="qsc" onclick="switchStock('平安银行','000001')"><span class="n">平安银行</span><span class="c">000001</span></span>
+                  </div>
+                  <span class="qsb-label" style="margin-left:8px">最近:</span>
+                  <div class="qsb-chips">
+                    <span class="qsc" onclick="switchStock('比亚迪','002594')"><span class="n">比亚迪</span><span class="c">002594</span></span>
+                  </div>
+                  <input type="text" placeholder="搜索代码/名称..." style="margin-left:auto">
+                </div>
+<!-- Signal Verdict -->
+                <div class="verdict">
+                  <span class="rb sb">🟢 STRONG_BUY</span>
+                  <span class="score" style="color:var(--up)" id="verdict-score">85</span>
+                  <div class="info">
+                    <div class="stock" id="verdict-name">宁德时代 · 300750.SZ</div>
+                    <div class="action">建议重仓买入 (15-20%)</div>
+                    <div class="meta">计算时间: 2026-06-27 14:30:15 · 数据新鲜度: 实时</div>
+                  </div>
+                </div>
+            
+                <!-- Main Row: Left 55% / Right 45% -->
+                <div class="sm">
+                  <!-- Left Column -->
+                  <div class="sl">
+                    <div class="card">
+                      <div class="card-h">📊 六维雷达图 <span style="margin-left:auto;font-size:11px;color:var(--muted)">综合加权评分</span></div>
+                      <div class="card-b"><div id="radar-chart"></div></div>
+                    </div>
+                    <div class="card">
+                      <div class="card-h">📈 趋势强度</div>
+                      <div class="card-b">
+                        <div class="ti">
+                          <span class="ts up">72</span>
+                          <div class="td">
+                            <span class="dir" style="color:var(--up)">上升趋势</span>
+                            <span class="st">均线多头排列</span>
+                            <span class="ma">MA5: <span class="mono up">412.50</span> &nbsp; MA10: <span class="mono up">398.20</span> &nbsp; MA20: <span class="mono up">385.60</span> &nbsp; MA60: <span class="mono up">345.30</span></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+            
+                  <!-- Right Column -->
+                  <div class="sr">
+                    <div class="card">
+                      <div class="card-h">📊 六维评分明细</div>
+                      <div class="card-b" id="dim-bars"></div>
+                    </div>
+                    <div class="card">
+                      <div class="card-h">💰 资金流向</div>
+                      <div class="card-b" id="fund-flow"></div>
+                    </div>
+                  </div>
+                </div>
+            
+                <!-- Quick Action Bar -->
+                <div class="qa">
+                  <button class="primary" onclick="action('pool')">📥 加入候选池</button>
+                  <button class="primary" onclick="action('trade')">📈 跳转交易中心下单</button>
+                  <button onclick="action('diagnosis')">🏥 查看诊断</button>
+                  <button onclick="action('alert')">🔔 设价格预警</button>
+                </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+// ── Quick select ──
+function switchStock(name, code) {
+  document.querySelectorAll('.qsc').forEach(el => el.classList.remove('active'))
+  if (event && event.target.closest('.qsc')) event.target.closest('.qsc').classList.add('active')
+  document.getElementById('verdict-name').textContent = name + ' · ' + code + '.SZ'
+  var scores = { '688981':72, '002371':68, '600519':78, '000001':55, '002594':62, '300750':85 }
+  document.getElementById('verdict-score').textContent = scores[code] || 85
+}
+
+// ── Action bar ──
+function action(type) {
+  var map = { pool:'已加入候选池', trade:'跳转交易中心...', diagnosis:'跳转个股诊断...', alert:'已设置价格预警' }
+  showToast(map[type] || type)
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast')
+  if (!t) {
+    t = document.createElement('div')
+    t.id = 'toast'
+    t.style.cssText = 'position:fixed;top:20px;right:20px;z-index:100;padding:10px 20px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none'
+    document.body.appendChild(t)
+  }
+  t.textContent = msg
+  t.style.opacity = '1'
+  t.style.transform = 'translateY(0)'
+  setTimeout(function(){ t.style.opacity = '0'; t.style.transform = 'translateY(-10px)' }, 1500)
+}
+
+// ── Radar Chart ──
+(function initRadar(){
+  var dom = document.getElementById('radar-chart')
+  var chart = echarts.init(dom, 'dark')
+  chart.setOption({
+    backgroundColor:'transparent',
+    radar:{
+      center:['50%','54%'], radius:'68%',
+      indicator:[
+        { name:'Kronos 78', max:100 },
+        { name:'技术 82', max:100 },
+        { name:'资金 65', max:100 },
+        { name:'基本面 70', max:100 },
+        { name:'事件 55', max:100 },
+        { name:'市场 62', max:100 },
+      ],
+      axisName:{ color:'#9aa7b8', fontSize:10 },
+      splitLine:{ lineStyle:{ color:'#1f2733' } },
+      axisLine:{ lineStyle:{ color:'#1f2733' } },
+    },
+    series:[{
+      type:'radar',
+      data:[{
+        value:[78,82,65,70,55,62],
+        name:'宁德时代',
+        areaStyle:{ color:'rgba(61,139,255,0.16)' },
+        lineStyle:{ color:'#3d8bff', width:2 },
+        itemStyle:{ color:'#3d8bff' },
+      }],
+      symbol:'circle', symbolSize:5,
+    }],
+  })
+  window.addEventListener('resize',function(){ chart.resize() })
+})()
+
+// ── Dim Bars ──
+(function renderDims(){
+  var dims = [
+    { icon:'🤖', label:'Kronos预测', weight:20, score:78, color:'#3d8bff' },
+    { icon:'📊', label:'技术分析',   weight:20, score:82, color:'#ff4d4f' },
+    { icon:'💰', label:'资金面',     weight:20, score:65, color:'#3d8bff' },
+    { icon:'🏢', label:'基本面',     weight:15, score:70, color:'#3d8bff' },
+    { icon:'⚡', label:'事件驱动',   weight:10, score:55, color:'#f5a623' },
+    { icon:'🌐', label:'市场情绪',   weight:15, score:62, color:'#3d8bff' },
+  ]
+  document.getElementById('dim-bars').innerHTML = dims.map(function(d){
+    return '<div class="db">'+
+      '<span class="di">'+d.icon+'</span>'+
+      '<span class="dl">'+d.label+'</span>'+
+      '<div class="dt"><div class="df" style="width:'+d.score+'%;background:'+d.color+'"></div></div>'+
+      '<span class="dv" style="color:'+d.color+'">'+d.score+'</span>'+
+      '<span class="dw">'+d.weight+'%</span>'+
+    '</div>'
+  }).join('')
+})()
+
+// ── Fund Flow ──
+(function renderFund(){
+  document.getElementById('fund-flow').innerHTML =
+    '<div class="fr">'+
+      '<span class="fl">北向净流入</span>'+
+      '<span class="fa up">+2.32亿</span>'+
+      '<span class="fw in">▲</span>'+
+      '<span class="fd">连续3日</span>'+
+    '</div>'+
+    '<div class="fr">'+
+      '<span class="fl">主力净流入</span>'+
+      '<span class="fa up">+1.50亿</span>'+
+      '<span class="fw in">▲</span>'+
+      '<span class="fd">大单净买</span>'+
+    '</div>'+
+    '<div class="fr">'+
+      '<span class="fl">融资净流入</span>'+
+      '<span class="fa up">+0.78亿</span>'+
+      '<span class="fw in">▲</span>'+
+      '<span class="fd">余额+3.2%</span>'+
+    '</div>'+
+    '<div class="fs">💡 资金面偏多，主力+北向共振流入，短期看多信号明确</div>'
+})()
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

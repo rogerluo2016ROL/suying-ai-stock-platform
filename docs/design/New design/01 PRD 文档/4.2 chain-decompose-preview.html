@@ -1,0 +1,1313 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 产业链解构</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --ck-red:#e84749; --ck-red-bg:rgba(232,71,73,0.12); --ck-red-border:rgba(232,71,73,0.4);
+  --ck-yellow:#f5a623; --ck-yellow-bg:rgba(245,166,35,0.11); --ck-yellow-border:rgba(245,166,35,0.35);
+  --ck-green:#2ec27e; --ck-green-bg:rgba(46,194,126,0.10); --ck-green-border:rgba(46,194,126,0.3);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* ── Sidebar ── */
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.nav-sub{padding-left:24px}
+.nav-sub .nav-item{font-size:12.5px;padding:6px 12px}
+
+/* ── Main ── */
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.header .h-title{font-weight:650;font-size:14px}
+.content{padding:18px 20px 32px}
+
+/* ── Context Bar ── */
+.ctx-bar{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;flex-wrap:wrap}
+.ctx-bar .ctx-path{display:flex;align-items:center;gap:8px;font-size:12px}
+.ctx-bar .ctx-path .b{color:var(--accent);font-weight:600}
+.ctx-bar .ctx-path .sep{color:var(--muted)}
+.ctx-bar .spacer{flex:1}
+.ctx-chips{display:flex;gap:6px}
+.ctx-chip{font-size:10.5px;padding:3px 10px;border-radius:12px;border:1px solid var(--border);color:var(--fg-2);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.ctx-chip .num{font-family:var(--font-mono);font-weight:650;color:var(--accent)}
+.ctx-back{font-size:11px;color:var(--accent);cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.ctx-back:hover{opacity:.8}
+
+/* ── Tab Navigation ── */
+.tab-nav{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:14px}
+.tab-nav .tab-item{flex:1;padding:9px 20px;border-radius:7px;font-size:13px;cursor:pointer;color:var(--fg-2);font-weight:500;text-align:center;transition:.12s;white-space:nowrap}
+.tab-nav .tab-item:hover{color:var(--fg);background:var(--surface-2)}
+.tab-nav .tab-item.active{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.toolbar .spacer{flex:1}
+.tool-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--fg-2);font-size:12px;cursor:pointer;transition:.12s;font-weight:500}
+.tool-btn:hover{background:var(--elevated);color:var(--fg);border-color:var(--border-2)}
+.toggle-row{display:flex;align-items:center;gap:8px}
+.toggle-switch{width:38px;height:22px;border-radius:11px;background:var(--border-2);cursor:pointer;position:relative;transition:.2s}
+.toggle-switch.on{background:var(--ck-red)}
+.toggle-switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}
+.toggle-switch.on::after{left:18px}
+.toggle-label{font-size:11px;color:var(--fg-2);cursor:pointer}
+.ck-badge{font-size:10px;padding:1px 8px;border-radius:10px;background:var(--ck-red-bg);color:var(--ck-red);font-weight:650;font-family:var(--font-mono);white-space:nowrap}
+.select-wrap{position:relative}
+.select-wrap select{appearance:none;padding:6px 28px 6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font-size:12px;cursor:pointer;outline:none;font-family:var(--font-sans)}
+.select-wrap select:focus{border-color:var(--accent)}
+.select-wrap::after{content:"▾";position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:10px}
+
+/* ── Decompose Modes ── */
+.decompose-toolbar{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;flex-wrap:wrap}
+.mode-label{font-size:11px;color:var(--muted);font-weight:650;white-space:nowrap}
+.mode-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.mode-tab{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);font-size:12px;font-weight:650;cursor:pointer;transition:.12s;font-family:var(--font-sans)}
+.mode-tab:hover{border-color:var(--border-2);color:var(--fg);background:var(--elevated)}
+.mode-tab.active{border-color:var(--accent);background:var(--accent-dim);color:var(--accent)}
+.mode-summary{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--fg-2);flex-wrap:wrap}
+.mode-summary b{color:var(--fg);font-family:var(--font-mono)}
+.mode-panel{display:none}
+.mode-panel.active{display:block}
+.mode-chart-box{height:430px;width:100%;padding:12px}
+.mode-note{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:0 16px 16px}
+.mode-note-card{background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:10px 12px}
+.mode-note-card .n{font-size:10px;color:var(--muted);margin-bottom:4px}
+.mode-note-card .v{font-size:14px;font-weight:700;color:var(--fg)}
+.mode-note-card .s{font-size:10px;color:var(--fg-2);margin-top:2px;line-height:1.5}
+.mode-chart-empty{height:430px;display:grid;place-items:center;color:var(--muted);font-size:12px}
+
+/* ── Section Headers ── */
+.section-h{display:flex;align-items:center;gap:8px;margin-bottom:12px;margin-top:20px;font-size:13px;font-weight:650;color:var(--fg)}
+.section-h:first-child{margin-top:0}
+
+/* ── Tree Chart Panel ── */
+.chart-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:auto;margin-bottom:20px;position:relative}
+.chart-panel-inner{padding:28px 24px 24px;min-width:max-content;min-height:400px;display:flex;flex-direction:column;align-items:center}
+
+/* ── Toggle Buttons ── */
+.org-toggle{width:20px;height:20px;min-width:20px;border-radius:50%;border:1.5px solid var(--border-2);background:var(--surface-2);color:var(--fg-2);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.12s;flex-shrink:0;line-height:1;padding:0;font-family:var(--font-mono)}
+.org-toggle:hover{background:var(--elevated);color:var(--fg);border-color:var(--fg-2)}
+.org-toggle-spacer{width:20px;min-width:20px;flex-shrink:0}
+
+/* ── Node Row ── */
+.org-node-row{display:flex;align-items:center;gap:6px}
+
+/* ── Tree Structure ── */
+.org-tree{display:flex;flex-direction:column;align-items:center}
+.org-branch{display:flex;flex-direction:column;align-items:center;position:relative}
+.org-children-wrap[data-expanded="false"]{display:none}
+.org-children-wrap{display:flex;flex-direction:column;align-items:center;position:relative}
+.org-conn{width:2px;height:18px;background:var(--border-2);flex-shrink:0}
+.org-row{display:flex;justify-content:center;align-items:flex-start;position:relative}
+.org-hline{position:absolute;top:9px;height:2px;background:var(--border-2);z-index:0}
+.org-row>.org-branch{position:relative;padding:0 14px}
+.org-row>.org-branch>.org-node-row::before{content:"";position:absolute;top:-18px;left:50%;width:2px;height:18px;background:var(--border-2);transform:translateX(-50%);pointer-events:none}
+
+/* ── Node Cards ── */
+.org-node{cursor:default;transition:all .15s}
+.industry-node{background:var(--accent-dim);border:1.5px solid var(--accent);color:var(--accent);padding:13px 36px;border-radius:12px;font-size:16px;font-weight:720;min-width:180px;text-align:center}
+.sector-node{background:var(--surface-2);border:1px solid var(--border-2);color:var(--fg-2);padding:10px 26px;border-radius:9px;font-size:13.5px;font-weight:650;min-width:110px;text-align:center}
+
+/* ── Sub-sector Node ── */
+.sub-node{position:relative}
+.sub-node .sub-label{padding:7px 16px;text-align:center;font-size:12px;color:var(--muted);border:1px dashed var(--border);border-radius:6px;background:var(--surface);min-width:72px;white-space:nowrap;transition:.12s}
+.sub-node:hover .sub-label{border-color:var(--border-2);color:var(--fg-2)}
+
+/* ── Sub-sector Detail Header (shown when expanded) ── */
+.sub-detail{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;margin:0 8px 10px;white-space:nowrap}
+.sub-detail .sd-name{font-size:13px;font-weight:650;color:var(--fg)}
+.sub-detail .sd-tech{font-size:10.5px;color:var(--muted);font-family:var(--font-mono)}
+.sub-detail .sd-count{font-size:10.5px;color:var(--fg-2);margin-left:auto}
+.ck-badge-sm{font-size:9.5px;padding:2px 8px;border-radius:8px;font-weight:650;font-family:var(--font-mono);flex-shrink:0}
+.ck-badge-sm.ck-r{background:var(--ck-red-bg);color:var(--ck-red);border:1px solid var(--ck-red-border)}
+.ck-badge-sm.ck-y{background:var(--ck-yellow-bg);color:var(--ck-yellow);border:1px solid var(--ck-yellow-border)}
+.ck-badge-sm.ck-g{background:var(--ck-green-bg);color:var(--ck-green);border:1px solid var(--ck-green-border)}
+
+/* ── Company Card (in tree) ── */
+.company-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:0;min-width:170px;cursor:pointer;overflow:hidden;text-align:left;transition:all .15s}
+.company-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.35)}
+.company-card.selected{box-shadow:0 0 0 2px var(--accent),0 6px 16px rgba(0,0,0,.35)}
+.company-card.ck-red{border-color:var(--ck-red-border);background:linear-gradient(135deg,var(--ck-red-bg),var(--surface))}
+.company-card.ck-yellow{border-color:var(--ck-yellow-border);background:linear-gradient(135deg,var(--ck-yellow-bg),var(--surface))}
+.company-card.ck-green{border-color:var(--ck-green-border);background:linear-gradient(135deg,var(--ck-green-bg),var(--surface))}
+.cc-head{display:flex;align-items:center;gap:6px;padding:8px 12px 6px;border-bottom:1px solid var(--border)}
+.cc-badge{font-size:9.5px;padding:2px 7px;border-radius:8px;font-weight:650;flex-shrink:0;white-space:nowrap}
+.cc-badge.ck-r{background:var(--ck-red-bg);color:var(--ck-red)}
+.cc-badge.ck-y{background:var(--ck-yellow-bg);color:var(--ck-yellow)}
+.cc-badge.ck-g{background:var(--ck-green-bg);color:var(--ck-green)}
+.cc-title{font-size:10.5px;color:var(--fg-2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-body{padding:6px 12px 8px}
+.cc-name{font-size:13px;font-weight:700;color:var(--fg)}
+.cc-code{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-left:5px}
+.cc-row{display:flex;gap:14px;margin-top:5px;font-size:10.5px}
+.cc-m{color:var(--fg-2)}
+.cc-mv{font-family:var(--font-mono);font-weight:650;color:var(--fg)}
+.cc-ml{color:var(--muted);font-size:9.5px}
+
+/* ── Related Companies List ── */
+.org-related-list{padding:8px 16px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;min-width:180px;margin:0 8px}
+.org-related-title{font-size:11px;color:var(--fg-2);padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:6px;font-weight:650}
+.org-related-item{font-size:11px;color:var(--fg-2);padding:3px 0;display:flex;align-items:center;gap:6px}
+.org-related-item .r-code{font-family:var(--font-mono);font-size:9.5px;color:var(--muted)}
+.org-related-item .r-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.org-related-item .r-dot.red{background:var(--ck-red)}
+.org-related-item .r-dot.yellow{background:var(--ck-yellow)}
+.org-related-item .r-dot.green{background:var(--ck-green)}
+
+/* ── Company List Table ── */
+.table-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.table-panel .tp-h{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.table-panel .tp-h h3{font-size:13px;font-weight:650}
+.table-panel .tp-h .meta{font-size:10.5px;color:var(--muted);margin-left:auto}
+.company-table{width:100%;border-collapse:collapse;font-size:12px}
+.company-table th{padding:9px 12px;text-align:left;font-weight:650;font-size:10.5px;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface-2);white-space:nowrap}
+.company-table th:first-child{padding-left:16px;width:32px}
+.company-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--fg-2)}
+.company-table td:first-child{padding-left:16px}
+.company-table tr:hover td{background:var(--surface-2)}
+.company-table tr.selected td{background:var(--accent-dim)}
+.company-table .ck-cell{font-size:10.5px;font-weight:650}
+.company-table .ck-r{color:var(--ck-red)}
+.company-table .ck-y{color:var(--ck-yellow)}
+.company-table .ck-g{color:var(--ck-green)}
+.company-table .code-cell{font-family:var(--font-mono);font-size:11px;color:var(--fg)}
+.company-table .name-cell{color:var(--fg);font-weight:600}
+.company-table .cap-cell{font-family:var(--font-mono);font-size:11px;color:var(--fg)}
+.company-table .seg-cell{font-size:10.5px;color:var(--accent);background:var(--accent-dim);padding:2px 8px;border-radius:4px;white-space:nowrap}
+.company-table .btn-sm{padding:4px 10px;border-radius:5px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:10.5px;cursor:pointer;transition:.12s;font-weight:500;white-space:nowrap}
+.company-table .btn-sm:hover{background:var(--accent);color:#fff}
+.company-table input[type="checkbox"]{width:15px;height:15px;cursor:pointer;accent-color:var(--accent)}
+.table-footer{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--border)}
+.table-footer .btn-send{padding:8px 18px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:.12s;white-space:nowrap}
+.table-footer .btn-send:hover{background:#2d7ae0}
+.table-footer .btn-outline{padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--fg-2);font-size:12px;cursor:pointer;transition:.12s;font-weight:500}
+.table-footer .btn-outline:hover{background:var(--elevated);color:var(--fg)}
+.table-footer .spacer{flex:1}
+.table-footer .sel-count{font-size:11px;color:var(--fg-2)}
+.table-footer .sel-count strong{color:var(--accent);font-family:var(--font-mono);font-size:14px}
+
+/* ── Company Detail Card ── */
+.detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:0}
+.detail-empty{display:flex;align-items:center;justify-content:center;padding:48px 20px;color:var(--muted);font-size:13px}
+.detail-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.detail-head .dh-name{font-size:15px;font-weight:700}
+.detail-head .dh-code{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-left:4px}
+.detail-badge{font-size:10px;padding:3px 10px;border-radius:10px;font-weight:650;flex-shrink:0;white-space:nowrap}
+.detail-badge.ck-r{background:var(--ck-red-bg);color:var(--ck-red);border:1px solid var(--ck-red-border)}
+.detail-badge.ck-y{background:var(--ck-yellow-bg);color:var(--ck-yellow);border:1px solid var(--ck-yellow-border)}
+.detail-badge.ck-g{background:var(--ck-green-bg);color:var(--ck-green);border:1px solid var(--ck-green-border)}
+.detail-subhead{display:flex;align-items:center;gap:8px;padding:8px 18px;border-bottom:1px solid var(--border);font-size:11px;color:var(--fg-2)}
+.detail-subhead .sep{color:var(--muted);font-size:9px}
+.detail-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.detail-meta-item{background:var(--surface);padding:12px 16px}
+.detail-meta-item .lbl{font-size:10px;color:var(--muted);margin-bottom:4px}
+.detail-meta-item .val{font-size:17px;font-weight:720;font-family:var(--font-mono)}
+.detail-meta-item .sub{font-size:10px;color:var(--muted);margin-top:2px}
+.detail-actions{display:flex;gap:8px;padding:14px 18px}
+.btn{padding:7px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:.12s;border:none}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#2d7ae0}
+.btn-outline{background:transparent;color:var(--fg-2);border:1px solid var(--border)}
+.btn-outline:hover{background:var(--elevated);color:var(--fg)}
+
+/* ── Progress Bar ── */
+.progress-bar{display:flex;align-items:center;gap:0;margin-bottom:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;overflow:hidden}
+.progress-step{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:6px;font-size:13px;font-weight:600;color:var(--fg-2);position:relative;cursor:pointer;transition:.15s}
+.progress-step:hover{background:var(--surface-2);color:var(--fg)}
+.progress-step.active{background:var(--accent-dim);color:var(--accent)}
+.progress-step.active .ps-dot{background:var(--accent);box-shadow:0 0 8px rgba(61,139,255,.4)}
+.progress-step.done{color:var(--down)}
+.progress-step.done .ps-dot{background:var(--down)}
+.progress-step .ps-dot{width:8px;height:8px;border-radius:50%;background:var(--border-2);flex-shrink:0}
+.progress-step .ps-num{font-family:var(--font-mono);font-size:10px;color:inherit;opacity:.6}
+.progress-arrow{color:var(--border-2);font-size:14px;flex-shrink:0}
+
+/* ── Context Bar ── */
+.context-bar{display:flex;align-items:center;gap:16px;padding:10px 20px;margin-top:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;color:var(--fg-2)}
+
+/* ── Card ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-h h3{font-size:13.5px;font-weight:650}
+.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
+.card-b{padding:16px}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .25s ease-out}
+
+@media(max-width:960px){
+  .mode-summary{width:100%;margin-left:0}
+  .mode-note{grid-template-columns:1fr}
+}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="supply-chain" data-title="产业链解构">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">研究/操盘</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共图谱 + 私有标注</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">输出候选</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+                  <div class="decompose-toolbar">
+                    <span class="mode-label">解构方法</span>
+                    <div class="mode-tabs" role="tablist" aria-label="产业链解构方法">
+                      <button class="mode-tab active" type="button" data-mode="upstream" onclick="switchDecomposeMode('upstream', this)">🔗 上下游拆解</button>
+                      <button class="mode-tab" type="button" data-mode="value" onclick="switchDecomposeMode('value', this)">💰 价值链拆解</button>
+                      <button class="mode-tab" type="button" data-mode="competition" onclick="switchDecomposeMode('competition', this)">🏰 竞争格局</button>
+                    </div>
+                    <div class="mode-summary">
+                      <span>当前行业 <b id="modeIndustry">半导体设备</b></span>
+                      <span>映射公司 <b id="modeCompanyCount">12</b> 家</span>
+                      <span>卡脖子相关 <b id="modeChokeCount">6</b> 个</span>
+                    </div>
+                  </div>
+
+                  <div class="toolbar" id="upstreamTools">
+                    <button class="tool-btn" onclick="expandAll()" title="展开所有节点">🔄 全部展开</button>
+                    <button class="tool-btn" onclick="collapseAll()" title="折叠所有节点">📁 全部折叠</button>
+                    <div class="toggle-row">
+                      <span class="toggle-label" onclick="toggleCK()" style="cursor:pointer">仅看卡脖子</span>
+                      <div class="toggle-switch" id="ckToggle" onclick="toggleCK()"></div>
+                      <span class="ck-badge" id="ckBadge">3个环节</span>
+                    </div>
+                    <span class="spacer"></span>
+                    <div class="select-wrap">
+                      <select id="industrySelect" onchange="switchIndustry(this.value)">
+                        <option value="semiconductor" selected>🏭 半导体设备</option>
+                        <option value="chip">🧠 AI芯片</option>
+                        <option value="material">🧪 半导体材料</option>
+                        <option value="eda">💻 EDA软件</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-h">
+                      <h3 id="chainChartTitle">🏗️ 上下游拆解图</h3>
+                      <span class="meta" id="chainChartMeta">半导体设备 · 原材料 / 零部件 / 设备</span>
+                    </div>
+                    <div class="chart-panel" id="chartPanel" style="border:none;border-radius:0;margin-bottom:0">
+                      <section class="mode-panel active" id="upstreamPanel" data-mode-panel="upstream">
+                        <div class="chart-panel-inner" id="orgTree"></div>
+                      </section>
+                      <section class="mode-panel" id="valuePanel" data-mode-panel="value">
+                        <div class="mode-chart-box" id="valueChart"></div>
+                        <div class="mode-note">
+                          <div class="mode-note-card"><div class="n">最高毛利环节</div><div class="v">核心零部件 45%</div><div class="s">物镜、光源、离子注入等环节技术壁垒最高。</div></div>
+                          <div class="mode-note-card"><div class="n">利润兑现</div><div class="v">设备制造 38%</div><div class="s">北方华创、中微公司、拓荆科技已形成订单兑现。</div></div>
+                          <div class="mode-note-card"><div class="n">低毛利环节</div><div class="v">封装测试 18%</div><div class="s">国产替代空间较清晰，但价格竞争更强。</div></div>
+                        </div>
+                      </section>
+                      <section class="mode-panel" id="competitionPanel" data-mode-panel="competition">
+                        <div class="mode-chart-box" id="competitionChart"></div>
+                        <div class="mode-note">
+                          <div class="mode-note-card"><div class="n">寡头垄断</div><div class="v">光刻系统</div><div class="s">ASML 全球份额约 80%，A 股映射以材料和配套设备为主。</div></div>
+                          <div class="mode-note-card"><div class="n">国产突破</div><div class="v">刻蚀 / PVD</div><div class="s">中微公司、北方华创进入高壁垒、高成长象限。</div></div>
+                          <div class="mode-note-card"><div class="n">分散竞争</div><div class="v">清洗 / 检测</div><div class="s">国产化率相对更高，适合按订单和利润率筛选。</div></div>
+                        </div>
+                      </section>
+                    </div>
+                  </div>
+            
+                  <!-- ═══ 候选公司清单 ═══ -->
+                  <div class="card">
+                    <div class="card-h">
+                      <h3>📋 候选公司清单</h3>
+                      <span class="meta" id="tableMeta">共 12 家公司</span>
+                    </div>
+                  <div class="table-panel" style="border:none;border-radius:0;margin-bottom:0">
+                    <div style="overflow-x:auto">
+                      <table class="company-table">
+                        <thead>
+                          <tr>
+                            <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="全选/取消全选"></th>
+                            <th>代码</th>
+                            <th>名称</th>
+                            <th>所处环节</th>
+                            <th>卡脖子</th>
+                            <th style="text-align:right">市值</th>
+                            <th style="text-align:right">毛利率</th>
+                            <th style="text-align:right">国产化率</th>
+                            <th>操作</th>
+                          </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                      </table>
+                    </div>
+                    <div class="table-footer">
+                      <button class="btn-outline" onclick="selectAllRows()">全选</button>
+                      <span class="spacer"></span>
+                      <span class="sel-count">已选 <strong id="selCount">0</strong> 只</span>
+                      <button class="btn-send">加入候选池 →</button>
+                    </div>
+                  </div>
+                  </div>
+            
+                  <!-- ═══ 公司详情 ═══ -->
+                  <div class="card">
+                    <div class="card-h">
+                      <h3>📊 公司详情</h3>
+                    </div>
+                  <div class="detail-panel" id="detailPanel" style="border:none;border-radius:0;margin-bottom:0">
+                    <div class="detail-empty" id="detailEmpty">👆 点击产业链中的公司卡片或上方清单行查看详情</div>
+                    <div id="detailContent" style="display:none">
+                      <div class="detail-head">
+                        <span class="dh-name" id="dName">--</span>
+                        <span class="dh-code mono" id="dCode">--</span>
+                        <span class="detail-badge" id="dBadge">--</span>
+                      </div>
+                      <div class="detail-subhead">
+                        <span id="dSeg">--</span>
+                        <span class="sep">·</span>
+                        <span id="dTech">--</span>
+                      </div>
+                      <div class="detail-meta">
+                        <div class="detail-meta-item">
+                          <div class="lbl">市值</div>
+                          <div class="val" id="dCap">--</div>
+                        </div>
+                        <div class="detail-meta-item">
+                          <div class="lbl">PE (TTM)</div>
+                          <div class="val" id="dPE">--</div>
+                        </div>
+                        <div class="detail-meta-item">
+                          <div class="lbl">ROE</div>
+                          <div class="val" id="dROE">--</div>
+                        </div>
+                        <div class="detail-meta-item">
+                          <div class="lbl">毛利率</div>
+                          <div class="val" id="dGM">--</div>
+                        </div>
+                        <div class="detail-meta-item">
+                          <div class="lbl">营收增速</div>
+                          <div class="val" id="dRG">--</div>
+                        </div>
+                        <div class="detail-meta-item">
+                          <div class="lbl">国产化率</div>
+                          <div class="val" id="dLR">--</div>
+                          <div class="sub" id="dLRSub"></div>
+                        </div>
+                        <div class="detail-meta-item">
+                          <div class="lbl">全球份额</div>
+                          <div class="val" id="dGS">--</div>
+                        </div>
+                        <div class="detail-meta-item">
+                          <div class="lbl">国内份额</div>
+                          <div class="val" id="dDS">--</div>
+                        </div>
+                        <div class="detail-meta-item">
+                          <div class="lbl">技术差距</div>
+                          <div class="val" id="dTG">--</div>
+                        </div>
+                        <div class="detail-meta-item">
+                          <div class="lbl">主要对手</div>
+                          <div class="val" style="font-size:11px;font-family:var(--font-sans);font-weight:500" id="dComp">--</div>
+                        </div>
+                        <div class="detail-meta-item">
+                          <div class="lbl">产能利用率</div>
+                          <div class="val" id="dCU">--</div>
+                        </div>
+                        <div class="detail-meta-item">
+                          <div class="lbl">净利率</div>
+                          <div class="val" id="dNM">--</div>
+                        </div>
+                      </div>
+                      <div class="detail-actions">
+                        <button class="btn btn-primary">🔍 个股诊断</button>
+                        <button class="btn btn-outline">📊 K线预测</button>
+                        <button class="btn btn-outline">⭐ 加入自选</button>
+                        <button class="btn btn-primary" style="margin-left:auto">🎯 加入候选池</button>
+                      </div>
+                    </div>
+                  </div>
+                  </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+// ═══════════════════ DATA ═══════════════════
+
+var companyDB = {
+  '沪硅产业':{code:'688126.SH',ck:'none',cap:'680亿',pe:'120.3',roe:'5.2%',gm:'22.0%',nm:'8.5%',rg:'+18.5%',
+    lr:'<10%',lrSub:'300mm抛光片·外延片',gs:'<2%',ds:'18%',tg:'3-4代',comp:'SUMCO, Siltronic, 环球晶圆',cu:'75%',
+    seg:'硅片',tech:'300mm大硅片'},
+  '立昂微':{code:'605358.SH',ck:'none',cap:'260亿',pe:'45.0',roe:'8.0%',gm:'28.0%',nm:'12.0%',rg:'+12.3%',
+    lr:'<5%',lrSub:'硅外延片·抛光片',gs:'<1%',ds:'8%',tg:'3-4代',comp:'SUMCO, 环球晶圆',cu:'68%',
+    seg:'硅片',tech:'硅外延片'},
+  '南大光电':{code:'300346.SZ',ck:'secondary',cap:'320亿',pe:'62.4',roe:'8.5%',gm:'38.0%',nm:'12.5%',rg:'+25.1%',
+    lr:'<10%',lrSub:'ArF干式/浸没式光刻胶',gs:'<1%',ds:'12%',tg:'2-3代',comp:'JSR, TOK, 信越化学',cu:'82%',
+    seg:'光刻胶',tech:'ArF/KrF光刻胶'},
+  '晶瑞电材':{code:'300655.SZ',ck:'none',cap:'180亿',pe:'52.0',roe:'6.5%',gm:'30.0%',nm:'10.0%',rg:'+15.8%',
+    lr:'15%',lrSub:'KrF光刻胶·超纯试剂',gs:'<1%',ds:'8%',tg:'2-3代',comp:'JSR, TOK',cu:'70%',
+    seg:'光刻胶',tech:'KrF光刻胶'},
+  '万业企业':{code:'600641.SH',ck:'secondary',cap:'280亿',pe:'42.0',roe:'10.0%',gm:'30.5%',nm:'15.0%',rg:'+32.0%',
+    lr:'<5%',lrSub:'离子注入机·刻蚀机',gs:'<1%',ds:'5%',tg:'2-3代',comp:'Axcelis, Nissin',cu:'78%',
+    seg:'光源/离子注入',tech:'极紫外光源·离子注入'},
+  '福晶科技':{code:'002222.SZ',ck:'none',cap:'150亿',pe:'42.0',roe:'11.2%',gm:'42.5%',nm:'20.0%',rg:'+20.5%',
+    lr:'<5%',lrSub:'LBO/BBO非线性晶体·光学元件',gs:'80%',ds:'90%',tg:'领先',comp:'Castech, Cristal Laser',cu:'85%',
+    seg:'物镜/光学',tech:'高NA物镜·非线性晶体'},
+  '中微公司':{code:'688012.SH',ck:'primary',cap:'1200亿',pe:'85.2',roe:'12.5%',gm:'45.2%',nm:'18.5%',rg:'+38.5%',
+    lr:'25%',lrSub:'5nm以下介质刻蚀·硅刻蚀',gs:'3%',ds:'25%',tg:'1-2代',comp:'LAM Research, TEL, AMAT',cu:'92%',
+    seg:'刻蚀机',tech:'5nm以下制程'},
+  '北方华创':{code:'002371.SZ',ck:'secondary',cap:'2100亿',pe:'55.8',roe:'15.2%',gm:'38.5%',nm:'16.8%',rg:'+42.0%',
+    lr:'35%',lrSub:'PVD·CVD·ALD·刻蚀',gs:'5%',ds:'35%',tg:'1-2代',comp:'AMAT, LAM Research, TEL',cu:'88%',
+    seg:'刻蚀机/PVD',tech:'PVD·CVD·ALD'},
+  '拓荆科技':{code:'688072.SH',ck:'secondary',cap:'500亿',pe:'68.3',roe:'12.1%',gm:'42.0%',nm:'18.5%',rg:'+45.2%',
+    lr:'15%',lrSub:'PECVD·SACVD·ALD',gs:'2%',ds:'15%',tg:'2-3代',comp:'AMAT, LAM Research',cu:'82%',
+    seg:'PVD设备',tech:'物理气相沉积'},
+  '盛美上海':{code:'688082.SH',ck:'none',cap:'420亿',pe:'48.2',roe:'14.8%',gm:'32.5%',nm:'14.2%',rg:'+30.5%',
+    lr:'55%',lrSub:'单片清洗·槽式清洗·电镀',gs:'8%',ds:'55%',tg:'1代',comp:'DNS, TEL',cu:'90%',
+    seg:'清洗设备',tech:'单片/槽式清洗'},
+  '至纯科技':{code:'603690.SH',ck:'none',cap:'180亿',pe:'35.0',roe:'9.5%',gm:'35.0%',nm:'16.0%',rg:'+28.0%',
+    lr:'40%',lrSub:'湿法清洗·高纯工艺系统',gs:'5%',ds:'40%',tg:'1-2代',comp:'DNS, TEL',cu:'80%',
+    seg:'清洗设备',tech:'湿法清洗系统'},
+  '精测电子':{code:'300567.SZ',ck:'none',cap:'160亿',pe:'35.6',roe:'9.8%',gm:'40.2%',nm:'15.8%',rg:'+22.0%',
+    lr:'20%',lrSub:'光学检测·膜厚量测·SEM',gs:'2%',ds:'20%',tg:'1-2代',comp:'KLA, Onto Innovation',cu:'76%',
+    seg:'检测设备',tech:'光学检测·量测'},
+  '芯源微':{code:'688037.SH',ck:'secondary',cap:'200亿',pe:'58.0',roe:'10.5%',gm:'38.0%',nm:'14.0%',rg:'+35.0%',
+    lr:'10%',lrSub:'涂胶显影·去胶设备',gs:'1%',ds:'10%',tg:'2-3代',comp:'TEL, DNS',cu:'72%',
+    seg:'光源/涂胶显影',tech:'极紫外光源配套'},
+};
+
+var treeData = {
+  name:'半导体设备', type:'industry',
+  children:[
+    {
+      name:'原材料', type:'sector',
+      children:[
+        {
+          name:'硅片', type:'sub', label:'300mm大硅片', ck:'none',
+          children:[
+            {name:'沪硅产业', type:'company'},
+            {name:'立昂微', type:'company'},
+          ]
+        },
+        {
+          name:'光刻胶', type:'sub', label:'ArF/KrF光刻胶', ck:'secondary',
+          children:[
+            {name:'南大光电', type:'company'},
+            {name:'晶瑞电材', type:'company'},
+          ]
+        }
+      ]
+    },
+    {
+      name:'零部件', type:'sector',
+      children:[
+        {
+          name:'光源', type:'sub', label:'极紫外光源·离子注入', ck:'primary',
+          children:[
+            {name:'万业企业', type:'company'},
+            {name:'芯源微', type:'company'},
+          ]
+        },
+        {
+          name:'物镜', type:'sub', label:'高NA物镜系统', ck:'primary',
+          children:[
+            {name:'福晶科技', type:'company'},
+          ]
+        }
+      ]
+    },
+    {
+      name:'设备', type:'sector',
+      children:[
+        {
+          name:'刻蚀机', type:'sub', label:'5nm以下制程', ck:'primary',
+          children:[
+            {
+              name:'中微公司', type:'company', related:[
+                {name:'中微公司', code:'688012', ck:'primary'},
+                {name:'北方华创', code:'002371', ck:'secondary'},
+                {name:'至纯科技', code:'603690', ck:'none'},
+              ]
+            },
+            {name:'北方华创', type:'company'},
+          ]
+        },
+        {
+          name:'PVD设备', type:'sub', label:'物理气相沉积·清洗', ck:'secondary',
+          children:[
+            {name:'拓荆科技', type:'company'},
+            {name:'盛美上海', type:'company'},
+            {name:'至纯科技', type:'company'},
+            {name:'精测电子', type:'company'},
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+var valueSegments = [
+  {name:'核心零部件', gm:45, nm:20, avg:31, revenue:21, company:'福晶科技 / 万业企业', ck:'primary', lr:'<5%', tech:'高NA物镜 / EUV光源', companies:['万业企业','福晶科技','芯源微'], note:'技术壁垒最高，国产替代难度最大，是卡脖子识别的重点。'},
+  {name:'制造设备', gm:38, nm:17, avg:31, revenue:42, company:'中微公司 / 北方华创', ck:'primary', lr:'25%', tech:'刻蚀 / PVD / CVD', companies:['中微公司','北方华创','拓荆科技'], note:'订单和业绩兑现最直接，是从政策受益走向利润兑现的核心环节。'},
+  {name:'原材料', gm:25, nm:10, avg:31, revenue:18, company:'沪硅产业 / 南大光电', ck:'secondary', lr:'12%', tech:'300mm硅片 / ArF光刻胶', companies:['沪硅产业','南大光电','晶瑞电材'], note:'受政策支持强，但高端材料仍依赖海外验证周期。'},
+  {name:'清洗检测', gm:34, nm:15, avg:31, revenue:11, company:'盛美上海 / 精测电子', ck:'none', lr:'45%', tech:'清洗 / 量测', companies:['盛美上海','精测电子','至纯科技'], note:'国产化率相对更高，竞争更偏交付能力和客户覆盖。'},
+  {name:'封装测试', gm:18, nm:8, avg:31, revenue:8, company:'先进封装链', ck:'none', lr:'55%', tech:'封装 / 测试', companies:['精测电子'], note:'毛利率最低，但会受先进封装投资周期带动。'}
+];
+
+var competitionNodes = [
+  {name:'光刻系统', share:80, tech:98, cap:20000, count:1, ck:'primary', top3:['ASML'], lr:'≈0%', note:'全球极高集中度，A股更多通过光刻胶、光学元件、配套设备参与。'},
+  {name:'刻蚀设备', share:15, tech:86, cap:3300, count:3, ck:'primary', top3:['中微公司','北方华创','LAM'], lr:'25%', note:'中微公司在介质刻蚀已具备全球竞争力，是国产替代主线之一。'},
+  {name:'薄膜沉积', share:12, tech:78, cap:2800, count:3, ck:'secondary', top3:['北方华创','拓荆科技','AMAT'], lr:'30%', note:'PVD/CVD/ALD 多线突破，订单兑现与扩产节奏最关键。'},
+  {name:'清洗设备', share:28, tech:58, cap:780, count:3, ck:'none', top3:['盛美上海','至纯科技','DNS'], lr:'55%', note:'国产化率较高，竞争格局从单点突破转向份额提升。'},
+  {name:'检测量测', share:9, tech:72, cap:520, count:2, ck:'secondary', top3:['精测电子','KLA'], lr:'20%', note:'高端量测仍有技术差距，但面板检测能力可迁移。'},
+  {name:'半导体材料', share:18, tech:63, cap:1160, count:4, ck:'secondary', top3:['南大光电','沪硅产业','晶瑞电材'], lr:'12%', note:'验证周期长，利润释放更依赖客户导入。'}
+];
+
+var onlyCK = false;
+var selectedCompany = null;
+var checkedRows = {};
+var activeMode = 'upstream';
+var valueChart = null;
+var competitionChart = null;
+
+// ═══════════════════ RENDER TREE ═══════════════════
+
+function renderBranch(node) {
+  var hasK = !!(node.children && node.children.length > 0);
+  var hasRelated = !!(node.related && node.related.length > 0);
+  var expandable = hasK || hasRelated;
+
+  var html = '<div class="org-branch" data-expanded="true" data-type="' + node.type + '"';
+  if (node.ck) html += ' data-ck="' + node.ck + '"';
+  if (node.name) html += ' data-name="' + escHtml(node.name) + '"';
+  html += '>';
+
+  // Node row
+  html += '<div class="org-node-row">';
+  if (expandable) {
+    html += '<button class="org-toggle" onclick="toggleBranch(this)" title="展开/折叠">[-]</button>';
+  } else {
+    html += '<span class="org-toggle-spacer"></span>';
+  }
+  html += renderNodeCard(node);
+  html += '</div>';
+
+  // Children
+  if (expandable) {
+    html += '<div class="org-children-wrap" data-expanded="true">';
+    html += '<div class="org-conn"></div>';
+
+    if (node.type === 'sub') {
+      // Sub-sector: show detail header then company cards
+      html += renderSubDetail(node);
+      html += '<div class="org-row"><div class="org-hline"></div>';
+      node.children.forEach(function(c){ html += renderBranch(c); });
+      html += '</div>';
+    } else if (hasRelated) {
+      // Company with related companies
+      html += '<div class="org-related-list">';
+      html += '<div class="org-related-title">关联上市公司(' + node.related.length + '家)</div>';
+      node.related.forEach(function(r){
+        var dotClass = r.ck === 'primary' ? 'red' : r.ck === 'secondary' ? 'yellow' : 'green';
+        html += '<div class="org-related-item"><span class="r-dot ' + dotClass + '"></span>' + r.name + ' <span class="r-code">' + r.code + '</span></div>';
+      });
+      html += '</div>';
+    } else {
+      // Standard children (industry → sectors, sector → subs)
+      html += '<div class="org-row"><div class="org-hline"></div>';
+      node.children.forEach(function(c){ html += renderBranch(c); });
+      html += '</div>';
+    }
+
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderSubDetail(node) {
+  var ckClass = node.ck === 'primary' ? 'ck-r' : node.ck === 'secondary' ? 'ck-y' : 'ck-g';
+  var info = companyDB[node.children[0] ? node.children[0].name : ''] || {};
+  var tech = node.label || info.tech || '';
+  var count = node.children ? node.children.length : 0;
+  return '<div class="sub-detail">' +
+    '<span class="ck-badge-sm ' + ckClass + '">' + (node.ck === 'primary' ? '🔴 一级' : node.ck === 'secondary' ? '🟡 二级' : '🟢 非') + '</span>' +
+    '<span class="sd-name">' + escHtml(node.name) + '</span>' +
+    '<span class="sd-tech">' + escHtml(tech) + '</span>' +
+    '<span class="sd-count">' + count + ' 家上市公司</span>' +
+    '</div>';
+}
+
+function renderNodeCard(node) {
+  if (node.type === 'industry') {
+    return '<div class="org-node industry-node">' + escHtml(node.name) + '</div>';
+  }
+  if (node.type === 'sector') {
+    return '<div class="org-node sector-node">' + escHtml(node.name) + '</div>';
+  }
+  if (node.type === 'sub') {
+    return '<div class="org-node sub-node"><div class="sub-label">' + escHtml(node.name) + '</div></div>';
+  }
+  if (node.type === 'company') {
+    var info = companyDB[node.name] || {};
+    var ckClass = info.ck === 'primary' ? 'ck-red' : info.ck === 'secondary' ? 'ck-yellow' : 'ck-green';
+    var badgeClass = info.ck === 'primary' ? 'ck-r' : info.ck === 'secondary' ? 'ck-y' : 'ck-g';
+    var badgeText = info.ck === 'primary' ? '🔴 一级卡脖子' : info.ck === 'secondary' ? '🟡 二级卡脖子' : '🟢 非卡脖子';
+    var hasRel = node.related && node.related.length > 0;
+    return '<div class="org-node company-card ' + ckClass + '" onclick="selectCompany(\'' + escJs(node.name) + '\')" data-name="' + escHtml(node.name) + '">' +
+      '<div class="cc-head"><span class="cc-badge ' + badgeClass + '">' + badgeText + '</span><span class="cc-title">' + escHtml(node.name) + '</span></div>' +
+      '<div class="cc-body"><span class="cc-name">' + escHtml(node.name) + '</span><span class="cc-code">' + info.code + '</span>' +
+      '<div class="cc-row"><span class="cc-m"><span class="cc-ml">市值 </span><span class="cc-mv">' + info.cap + '</span></span><span class="cc-m"><span class="cc-ml">毛利 </span><span class="cc-mv">' + info.gm + '</span></span><span class="cc-m"><span class="cc-ml">国产率 </span><span class="cc-mv">' + info.lr + '</span></span></div>' +
+      '</div></div>';
+  }
+  return '';
+}
+
+// ═══════════════════ TOGGLE BRANCH ═══════════════════
+
+function toggleBranch(btn) {
+  var branch = btn.closest('.org-branch');
+  var wrap = branch.querySelector(':scope > .org-children-wrap');
+  if (!wrap) return;
+  var expanded = wrap.dataset.expanded === 'true';
+  wrap.dataset.expanded = expanded ? 'false' : 'true';
+  branch.dataset.expanded = expanded ? 'false' : 'true';
+  btn.textContent = expanded ? '[+]' : '[-]';
+  relayout();
+}
+
+function expandAll() {
+  document.querySelectorAll('.org-children-wrap').forEach(function(w){ w.dataset.expanded = 'true'; });
+  document.querySelectorAll('.org-branch[data-expanded]').forEach(function(b){ b.dataset.expanded = 'true'; });
+  document.querySelectorAll('.org-toggle').forEach(function(b){ b.textContent = '[-]'; });
+  relayout();
+  refreshTable();
+}
+
+function collapseAll() {
+  document.querySelectorAll('.org-children-wrap').forEach(function(w){ w.dataset.expanded = 'false'; });
+  document.querySelectorAll('.org-branch[data-expanded]').forEach(function(b){ b.dataset.expanded = 'false'; });
+  document.querySelectorAll('.org-toggle').forEach(function(b){ b.textContent = '[+]'; });
+  relayout();
+  refreshTable();
+}
+
+// ═══════════════════ LAYOUT LINES ═══════════════════
+
+function layoutLines() {
+  document.querySelectorAll('.org-row').forEach(function(row){
+    var hline = row.querySelector(':scope > .org-hline');
+    if (!hline) return;
+    var branches = row.querySelectorAll(':scope > .org-branch');
+    var visible = [];
+    branches.forEach(function(b){
+      if (b.style.display !== 'none' && b.offsetWidth > 0) visible.push(b);
+    });
+    if (visible.length < 2) { hline.style.display = 'none'; return; }
+    hline.style.display = '';
+    var firstCard = visible[0].querySelector('.org-node-row > .org-node, .org-node-row > .company-card');
+    var lastCard = visible[visible.length-1].querySelector('.org-node-row > .org-node, .org-node-row > .company-card');
+    if (!firstCard || !lastCard) { hline.style.display = 'none'; return; }
+    var rowRect = row.getBoundingClientRect();
+    var r1 = firstCard.getBoundingClientRect();
+    var r2 = lastCard.getBoundingClientRect();
+    var left = r1.left + r1.width/2 - rowRect.left;
+    var right = rowRect.right - (r2.left + r2.width/2);
+    hline.style.left = left + 'px';
+    hline.style.right = right + 'px';
+  });
+}
+
+function relayout() {
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      layoutLines();
+      applyCKFilter();
+      updateCKContext();
+    });
+  });
+}
+
+// ═══════════════════ CK FILTER ═══════════════════
+
+function toggleCK() {
+  onlyCK = !onlyCK;
+  document.getElementById('ckToggle').classList.toggle('on', onlyCK);
+  applyCKFilter();
+  refreshActiveChart();
+}
+
+function applyCKFilter() {
+  document.querySelectorAll('.company-card').forEach(function(card){
+    var info = companyDB[card.dataset.name];
+    var ck = info ? info.ck : 'none';
+    if (onlyCK && ck === 'none') {
+      card.style.display = 'none';
+    } else {
+      card.style.display = '';
+    }
+  });
+
+  // Hide empty sub-sectors (where all company cards are hidden)
+  document.querySelectorAll('.org-branch[data-type="sub"]').forEach(function(branch){
+    var cards = branch.querySelectorAll('.company-card');
+    var hasVisible = false;
+    cards.forEach(function(c){ if (c.style.display !== 'none') hasVisible = true; });
+    if (cards.length > 0 && !hasVisible) {
+      branch.style.opacity = '0.3';
+    } else {
+      branch.style.opacity = '';
+    }
+  });
+
+  // Hide empty children wraps
+  document.querySelectorAll('.org-children-wrap').forEach(function(wrap){
+    var cards = wrap.querySelectorAll('.company-card');
+    var hasVisible = false;
+    cards.forEach(function(c){ if (c.style.display !== 'none') hasVisible = true; });
+    if (cards.length > 0 && !hasVisible) {
+      wrap.style.opacity = '0.25';
+    } else {
+      wrap.style.opacity = '';
+    }
+  });
+
+  updateCKContext();
+  layoutLines();
+  refreshTable();
+}
+
+function updateCKContext() {
+  var allCards = document.querySelectorAll('.company-card');
+  var visible = 0, ckr = 0, cky = 0;
+  allCards.forEach(function(card){
+    var info = companyDB[card.dataset.name];
+    if (!info) return;
+    var hidden = card.style.display === 'none';
+    if (!hidden) {
+      visible++;
+      if (info.ck === 'primary') ckr++;
+      else if (info.ck === 'secondary') cky++;
+    }
+  });
+  var ctxCount = document.getElementById('ctxCount');
+  var ctxCK1 = document.getElementById('ctxCK1');
+  if (ctxCount) ctxCount.textContent = visible;
+  if (ctxCK1) ctxCK1.textContent = (ckr + cky);
+  var badgeEl = document.getElementById('ckBadge');
+  if (badgeEl) badgeEl.textContent = (ckr + cky) + '个环节';
+  updateModeSummary();
+}
+
+// ═══════════════════ COMPANY TABLE ═══════════════════
+
+function collectCompaniesFromTree(node, parentSeg) {
+  var result = [];
+  if (node.type === 'company') {
+    result.push({name: node.name, seg: parentSeg || '', hasRelated: !!(node.related && node.related.length > 0)});
+  }
+  if (node.children) {
+    var seg = node.type === 'sub' ? node.name : parentSeg;
+    node.children.forEach(function(c){ result = result.concat(collectCompaniesFromTree(c, seg)); });
+  }
+  return result;
+}
+
+var allCompanies = collectCompaniesFromTree(treeData, '');
+
+function refreshTable() {
+  var tbody = document.getElementById('tableBody');
+  var visibleCount = 0;
+  var html = '';
+
+  allCompanies.forEach(function(comp, idx){
+    var info = companyDB[comp.name] || {};
+    // Check if company card is hidden by CK filter
+    var card = document.querySelector('.company-card[data-name="' + escJs(comp.name) + '"]');
+    var hidden = card && card.style.display === 'none';
+    var ckLabel = info.ck === 'primary' ? '🔴 一级卡脖子' : info.ck === 'secondary' ? '🟡 二级卡脖子' : '🟢 非卡脖子';
+    var ckClass = info.ck === 'primary' ? 'ck-r' : info.ck === 'secondary' ? 'ck-y' : 'ck-g';
+    var checked = checkedRows[comp.name] ? 'checked' : '';
+    var selClass = selectedCompany === comp.name ? 'selected' : '';
+
+    html += '<tr class="' + selClass + '" onclick="selectCompany(\'' + escJs(comp.name) + '\')" data-name="' + escHtml(comp.name) + '"' + (hidden ? ' style="display:none"' : '') + '>';
+    html += '<td><input type="checkbox" ' + checked + ' onclick="event.stopPropagation(); toggleRow(\'' + escJs(comp.name) + '\', this)" data-name="' + escHtml(comp.name) + '"></td>';
+    html += '<td class="code-cell">' + (info.code || '--') + '</td>';
+    html += '<td class="name-cell">' + escHtml(comp.name) + '</td>';
+    html += '<td><span class="seg-cell">' + escHtml(comp.seg || '--') + '</span></td>';
+    html += '<td class="ck-cell ' + ckClass + '">' + ckLabel + '</td>';
+    html += '<td class="cap-cell" style="text-align:right">' + (info.cap || '--') + '</td>';
+    html += '<td style="text-align:right;font-family:var(--font-mono)">' + (info.gm || '--') + '</td>';
+    html += '<td style="text-align:right;font-family:var(--font-mono)">' + (info.lr || '--') + '</td>';
+    html += '<td><button class="btn-sm" onclick="event.stopPropagation(); selectCompany(\'' + escJs(comp.name) + '\')">诊断</button></td>';
+    html += '</tr>';
+    if (!hidden) visibleCount++;
+  });
+
+  tbody.innerHTML = html;
+
+  document.getElementById('tableMeta').textContent = '共 ' + visibleCount + ' 家公司';
+  document.getElementById('selectAll').checked = (visibleCount > 0 && Object.keys(checkedRows).length >= visibleCount);
+  updateSelCount();
+}
+
+function toggleRow(name, cb) {
+  if (cb.checked) {
+    checkedRows[name] = true;
+  } else {
+    delete checkedRows[name];
+  }
+  updateSelCount();
+  document.getElementById('selectAll').checked = false;
+}
+
+function toggleSelectAll(cb) {
+  if (cb.checked) {
+    allCompanies.forEach(function(c){ checkedRows[c.name] = true; });
+  } else {
+    checkedRows = {};
+  }
+  refreshTable();
+}
+
+function selectAllRows() {
+  allCompanies.forEach(function(c){ checkedRows[c.name] = true; });
+  refreshTable();
+}
+
+function updateSelCount() {
+  var count = Object.keys(checkedRows).length;
+  document.getElementById('selCount').textContent = count;
+}
+
+// ═══════════════════ SELECT COMPANY ═══════════════════
+
+function selectCompany(name) {
+  selectedCompany = name;
+
+  // Update tree cards
+  document.querySelectorAll('.company-card').forEach(function(c){ c.classList.remove('selected'); });
+  var card = document.querySelector('.company-card[data-name="' + escJs(name) + '"]');
+  if (card) card.classList.add('selected');
+
+  // Update table
+  document.querySelectorAll('#tableBody tr').forEach(function(r){ r.classList.remove('selected'); });
+  var row = document.querySelector('#tableBody tr[data-name="' + escJs(name) + '"]');
+  if (row) row.classList.add('selected');
+
+  // Update detail card
+  var info = companyDB[name];
+  if (!info) {
+    document.getElementById('detailEmpty').style.display = 'flex';
+    document.getElementById('detailContent').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('detailEmpty').style.display = 'none';
+  document.getElementById('detailContent').style.display = 'block';
+  document.getElementById('dName').textContent = name;
+  document.getElementById('dCode').textContent = info.code;
+
+  var badge = document.getElementById('dBadge');
+  badge.className = 'detail-badge';
+  if (info.ck === 'primary') { badge.classList.add('ck-r'); badge.textContent = '🔴 一级卡脖子'; }
+  else if (info.ck === 'secondary') { badge.classList.add('ck-y'); badge.textContent = '🟡 二级卡脖子'; }
+  else { badge.classList.add('ck-g'); badge.textContent = '🟢 非卡脖子'; }
+
+  document.getElementById('dSeg').textContent = info.seg || '--';
+  document.getElementById('dTech').textContent = info.tech || '--';
+  document.getElementById('dCap').textContent = info.cap;
+  document.getElementById('dPE').textContent = info.pe;
+  document.getElementById('dROE').textContent = info.roe;
+  document.getElementById('dGM').textContent = info.gm;
+  document.getElementById('dRG').textContent = info.rg;
+  document.getElementById('dLR').textContent = info.lr;
+  document.getElementById('dLRSub').textContent = info.lrSub;
+  document.getElementById('dGS').textContent = info.gs;
+  document.getElementById('dDS').textContent = info.ds;
+  document.getElementById('dTG').textContent = info.tg;
+  document.getElementById('dComp').textContent = info.comp;
+  document.getElementById('dCU').textContent = info.cu;
+  document.getElementById('dNM').textContent = info.nm;
+}
+
+// ═══════════════════ DECOMPOSE MODES ═══════════════════
+
+function ckColor(level) {
+  if (level === 'primary') return '#e84749';
+  if (level === 'secondary') return '#f5a623';
+  return '#2ec27e';
+}
+
+function ckBg(level) {
+  if (level === 'primary') return 'rgba(232,71,73,0.18)';
+  if (level === 'secondary') return 'rgba(245,166,35,0.15)';
+  return 'rgba(46,194,126,0.12)';
+}
+
+function ckLabel(level) {
+  if (level === 'primary') return '🔴 一级卡脖子';
+  if (level === 'secondary') return '🟡 二级卡脖子';
+  return '🟢 非卡脖子';
+}
+
+function chartTextColor() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--fg-2').trim() || '#9aa7b8';
+}
+
+function chartGridColor() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#1f2733';
+}
+
+function switchDecomposeMode(mode, btn) {
+  activeMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(function(tab){
+    tab.classList.toggle('active', tab.dataset.mode === mode);
+  });
+  document.querySelectorAll('[data-mode-panel]').forEach(function(panel){
+    panel.classList.toggle('active', panel.dataset.modePanel === mode);
+  });
+
+  var titleMap = {
+    upstream: ['🏗️ 上下游拆解图', '半导体设备 · 原材料 / 零部件 / 设备'],
+    value: ['💰 价值链拆解', '毛利率 / 净利率 / 代表公司 / 卡脖子等级'],
+    competition: ['🏰 竞争格局', '市场份额 × 技术壁垒 × 市值气泡']
+  };
+  document.getElementById('chainChartTitle').textContent = titleMap[mode][0];
+  document.getElementById('chainChartMeta').textContent = titleMap[mode][1];
+  document.getElementById('upstreamTools').style.display = mode === 'upstream' ? 'flex' : 'none';
+
+  if (mode === 'value') {
+    renderValueChart();
+    selectValueSegment(valueSegments[0]);
+  } else if (mode === 'competition') {
+    renderCompetitionChart();
+    selectCompetitionNode(competitionNodes[1]);
+  } else {
+    relayout();
+    if (selectedCompany) selectCompany(selectedCompany);
+  }
+  updateModeSummary();
+}
+
+function renderValueChart() {
+  var el = document.getElementById('valueChart');
+  if (!el) return;
+  if (!window.echarts) {
+    el.innerHTML = '<div class="mode-chart-empty">ECharts 未加载，价值链拆解图无法渲染</div>';
+    return;
+  }
+  if (!valueChart) valueChart = echarts.init(el);
+  var visible = valueSegments;
+  valueChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: function(params){
+        var item = valueSegments[params[0].dataIndex];
+        return item.name + '<br/>毛利率: ' + item.gm + '%<br/>净利率: ' + item.nm + '%<br/>代表公司: ' + item.company;
+      }
+    },
+    grid: { left: 88, right: 70, top: 36, bottom: 38 },
+    xAxis: {
+      type: 'value',
+      name: '毛利率(%)',
+      max: 60,
+      axisLabel: { color: chartTextColor() },
+      axisLine: { lineStyle: { color: chartGridColor() } },
+      splitLine: { lineStyle: { color: chartGridColor(), type: 'dashed' } }
+    },
+    yAxis: {
+      type: 'category',
+      inverse: true,
+      data: visible.map(function(s){ return s.name; }),
+      axisLabel: { color: chartTextColor(), fontWeight: 650 },
+      axisLine: { lineStyle: { color: chartGridColor() } }
+    },
+    series: [
+      {
+        name: '毛利率',
+        type: 'bar',
+        barWidth: 24,
+        data: visible.map(function(s){
+          return {
+            value: s.gm,
+            itemStyle: {
+              color: onlyCK && s.ck === 'none' ? '#8a94a6' : ckColor(s.ck),
+              opacity: onlyCK && s.ck === 'none' ? 0.28 : 0.92,
+              borderRadius: [0, 5, 5, 0]
+            }
+          };
+        }),
+        label: { show: true, position: 'right', formatter: '{c}%', color: chartTextColor(), fontWeight: 700 },
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { color: '#5e6a7d', type: 'dashed' },
+          data: [{ xAxis: 31, name: '行业均值' }],
+          label: { formatter: '行业均值 31%', color: chartTextColor() }
+        }
+      },
+      {
+        name: '净利率',
+        type: 'bar',
+        barWidth: 10,
+        barGap: '-72%',
+        data: visible.map(function(s){ return s.nm; }),
+        itemStyle: { color: 'rgba(61,139,255,0.45)', borderRadius: [0, 4, 4, 0] }
+      }
+    ]
+  }, true);
+  valueChart.off('click');
+  valueChart.on('click', function(params){
+    selectValueSegment(valueSegments[params.dataIndex]);
+  });
+  setTimeout(function(){ valueChart.resize(); }, 30);
+}
+
+function renderCompetitionChart() {
+  var el = document.getElementById('competitionChart');
+  if (!el) return;
+  if (!window.echarts) {
+    el.innerHTML = '<div class="mode-chart-empty">ECharts 未加载，竞争格局图无法渲染</div>';
+    return;
+  }
+  if (!competitionChart) competitionChart = echarts.init(el);
+  var visible = onlyCK ? competitionNodes.filter(function(n){ return n.ck !== 'none'; }) : competitionNodes;
+  competitionChart.setOption({
+    tooltip: {
+      formatter: function(p){
+        var n = p.data.raw;
+        return n.name + '<br/>市场份额: ' + n.share + '%<br/>技术壁垒: ' + n.tech + '<br/>总市值: ' + n.cap + '亿<br/>Top: ' + n.top3.join(' / ');
+      }
+    },
+    grid: { left: 72, right: 36, top: 44, bottom: 54 },
+    xAxis: {
+      name: '技术壁垒',
+      min: 40,
+      max: 100,
+      axisLabel: { color: chartTextColor() },
+      nameTextStyle: { color: chartTextColor() },
+      splitLine: { lineStyle: { color: chartGridColor(), type: 'dashed' } }
+    },
+    yAxis: {
+      name: '市场份额(%)',
+      min: 0,
+      max: 90,
+      axisLabel: { color: chartTextColor() },
+      nameTextStyle: { color: chartTextColor() },
+      splitLine: { lineStyle: { color: chartGridColor(), type: 'dashed' } }
+    },
+    series: [{
+      type: 'scatter',
+      data: visible.map(function(n){
+        return {
+          name: n.name,
+          value: [n.tech, n.share, n.cap],
+          raw: n,
+          symbolSize: Math.max(38, Math.min(96, Math.sqrt(n.cap) * 1.1)),
+          itemStyle: {
+            color: ckBg(n.ck),
+            borderColor: ckColor(n.ck),
+            borderWidth: 2,
+            shadowBlur: 8,
+            shadowColor: ckColor(n.ck)
+          },
+          label: { show: true, formatter: n.name, color: chartTextColor(), fontSize: 10, fontWeight: 700 }
+        };
+      }),
+      emphasis: { scale: 1.16 }
+    }]
+  }, true);
+  competitionChart.off('click');
+  competitionChart.on('click', function(params){
+    selectCompetitionNode(params.data.raw);
+  });
+  setTimeout(function(){ competitionChart.resize(); }, 30);
+}
+
+function selectValueSegment(seg) {
+  if (!seg) return;
+  document.getElementById('detailEmpty').style.display = 'none';
+  document.getElementById('detailContent').style.display = 'block';
+  document.getElementById('dName').textContent = seg.name;
+  document.getElementById('dCode').textContent = 'VALUE';
+  var badge = document.getElementById('dBadge');
+  badge.className = 'detail-badge ' + (seg.ck === 'primary' ? 'ck-r' : seg.ck === 'secondary' ? 'ck-y' : 'ck-g');
+  badge.textContent = ckLabel(seg.ck);
+  document.getElementById('dSeg').textContent = '价值链环节';
+  document.getElementById('dTech').textContent = seg.tech;
+  document.getElementById('dCap').textContent = seg.revenue + '%';
+  document.getElementById('dPE').textContent = '代表';
+  document.getElementById('dROE').textContent = seg.avg + '%';
+  document.getElementById('dGM').textContent = seg.gm + '%';
+  document.getElementById('dRG').textContent = seg.nm + '%';
+  document.getElementById('dLR').textContent = seg.lr;
+  document.getElementById('dLRSub').textContent = '国产化率';
+  document.getElementById('dGS').textContent = seg.companies.length + '家';
+  document.getElementById('dDS').textContent = seg.company;
+  document.getElementById('dTG').textContent = seg.note;
+  document.getElementById('dComp').textContent = seg.companies.join(' / ');
+  document.getElementById('dCU').textContent = '价值链';
+  document.getElementById('dNM').textContent = seg.nm + '%';
+}
+
+function selectCompetitionNode(node) {
+  if (!node) return;
+  document.getElementById('detailEmpty').style.display = 'none';
+  document.getElementById('detailContent').style.display = 'block';
+  document.getElementById('dName').textContent = node.name;
+  document.getElementById('dCode').textContent = 'MAP';
+  var badge = document.getElementById('dBadge');
+  badge.className = 'detail-badge ' + (node.ck === 'primary' ? 'ck-r' : node.ck === 'secondary' ? 'ck-y' : 'ck-g');
+  badge.textContent = ckLabel(node.ck);
+  document.getElementById('dSeg').textContent = '竞争格局';
+  document.getElementById('dTech').textContent = '技术壁垒 ' + node.tech;
+  document.getElementById('dCap').textContent = node.cap + '亿';
+  document.getElementById('dPE').textContent = node.share + '%';
+  document.getElementById('dROE').textContent = node.count + '家';
+  document.getElementById('dGM').textContent = node.lr;
+  document.getElementById('dRG').textContent = node.tech;
+  document.getElementById('dLR').textContent = node.lr;
+  document.getElementById('dLRSub').textContent = '国产化率';
+  document.getElementById('dGS').textContent = node.share + '%';
+  document.getElementById('dDS').textContent = node.top3.slice(0,2).join(' / ');
+  document.getElementById('dTG').textContent = node.note;
+  document.getElementById('dComp').textContent = node.top3.join(' / ');
+  document.getElementById('dCU').textContent = '集中度';
+  document.getElementById('dNM').textContent = node.share + '%';
+}
+
+function updateModeSummary() {
+  var companyCountEl = document.getElementById('modeCompanyCount');
+  var chokeCountEl = document.getElementById('modeChokeCount');
+  var industryEl = document.getElementById('modeIndustry');
+  if (industryEl) industryEl.textContent = treeData.name;
+  if (companyCountEl) companyCountEl.textContent = allCompanies.length;
+  if (chokeCountEl) {
+    var count = 0;
+    allCompanies.forEach(function(c){
+      var info = companyDB[c.name];
+      if (info && info.ck !== 'none') count++;
+    });
+    chokeCountEl.textContent = count;
+  }
+}
+
+function refreshActiveChart() {
+  if (activeMode === 'value') renderValueChart();
+  if (activeMode === 'competition') renderCompetitionChart();
+}
+
+// ═══════════════════ PHASE NAVIGATION ═══════════════════
+
+function switchTab(phase) {
+  document.querySelectorAll('.tab-nav .tab-item').forEach(function(t,i){
+    t.classList.toggle('active', i === (phase === 'policy' ? 0 : phase === 'chain' ? 1 : 2));
+  });
+  document.querySelectorAll('.nav-sub .nav-item').forEach(function(item){
+    var txt = item.textContent.trim();
+    if (phase === 'policy' && txt.includes('政策梳理')) item.classList.add('active');
+    else if (phase === 'chain' && txt.includes('产业链解构')) item.classList.add('active');
+    else if (phase === 'analysis' && txt.includes('多维度分析')) item.classList.add('active');
+    else item.classList.remove('active');
+  });
+}
+
+function switchIndustry(val) {
+  var names = {semiconductor:'半导体设备', chip:'AI芯片', material:'半导体材料', eda:'EDA软件'};
+  treeData.name = names[val] || '半导体设备';
+  selectedCompany = null;
+  checkedRows = {};
+  document.getElementById('orgTree').innerHTML = render(treeData);
+  document.getElementById('detailEmpty').style.display = 'flex';
+  document.getElementById('detailContent').style.display = 'none';
+  var headerTitle = document.querySelector('.h-title');
+  if (headerTitle) headerTitle.textContent = '🔬 产业链解构 · ' + treeData.name;
+  allCompanies = collectCompaniesFromTree(treeData, '');
+  relayout();
+  refreshTable();
+  updateSelCount();
+  updateModeSummary();
+  refreshActiveChart();
+}
+
+// ═══════════════════ HELPERS ═══════════════════
+
+function render(node) {
+  return renderBranch(node);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escJs(s) {
+  return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"');
+}
+
+// ═══════════════════ INIT ═══════════════════
+
+document.getElementById('orgTree').innerHTML = render(treeData);
+
+requestAnimationFrame(function(){
+  requestAnimationFrame(function(){
+    layoutLines();
+    updateCKContext();
+  });
+});
+
+refreshTable();
+updateModeSummary();
+
+setTimeout(function(){ selectCompany('中微公司'); }, 400);
+
+document.getElementById('chartPanel').addEventListener('scroll', function(){
+  requestAnimationFrame(layoutLines);
+});
+
+window.addEventListener('resize', function(){
+  requestAnimationFrame(layoutLines);
+  if (valueChart) valueChart.resize();
+  if (competitionChart) competitionChart.resize();
+});
+
+window.addEventListener('suying-theme-change', function(){
+  if (valueChart) renderValueChart();
+  if (competitionChart) renderCompetitionChart();
+});
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

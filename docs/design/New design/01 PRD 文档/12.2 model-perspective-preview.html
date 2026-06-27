@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 模型视角 · 毕师傅</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:16px 20px 28px}
+
+/* Sub-Tab Bar */
+.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;margin-bottom:12px}
+.stb button{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans)}
+.stb button:hover{color:var(--fg)}
+.stb button.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+/* Breadcrumb */
+.breadcrumb{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-bottom:10px}
+.breadcrumb .bc-link{color:var(--fg-2);cursor:pointer;text-decoration:none}
+.breadcrumb .bc-link:hover{color:var(--accent)}
+.breadcrumb .bc-sep{color:var(--muted)}
+.breadcrumb .bc-current{color:var(--accent);font-weight:600}
+
+/* Model Selector */
+.model-selector{display:flex;gap:4px;margin-bottom:14px}
+.model-selector button{padding:6px 14px;border-radius:16px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:1px solid var(--border);background:var(--surface);transition:.12s;font-family:var(--font-sans)}
+.model-selector button:hover{background:var(--elevated);color:var(--fg)}
+.model-selector button.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:650}
+
+/* Chart Container */
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+.chart-card .ch-header{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:650;color:var(--fg-2)}
+.chart-card .ch-body{height:500px;padding:0}
+
+/* Indicator Cards */
+.indicator-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
+.ind-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;text-align:center;transition:.12s}
+.ind-card:hover{background:var(--elevated);border-color:var(--border-2)}
+.ind-card .ic-name{font-size:10.5px;color:var(--muted);margin-bottom:4px}
+.ind-card .ic-value{font-size:20px;font-weight:720;font-family:var(--font-mono);margin-bottom:2px}
+.ind-card .ic-status{font-size:10.5px;font-weight:600}
+.ind-card .ic-status.ok{color:var(--down)}
+.ind-card .ic-status.warn{color:var(--warn)}
+.ind-card.pos .ic-value{color:var(--down)}
+.ind-card.neg .ic-value{color:var(--up)}
+.ind-card.neutral .ic-value{color:var(--accent)}
+
+/* Commentary */
+.commentary{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+.commentary .cm-title{font-size:12px;font-weight:650;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.commentary .cm-text{font-size:13px;color:var(--fg);line-height:1.9}
+
+/* Actions */
+.action-bar{display:flex;gap:10px}
+.action-bar button{padding:8px 20px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;transition:.12s;font-family:var(--font-sans)}
+.btn-primary{background:var(--accent);border:none;color:#fff}
+.btn-primary:hover{background:#5a9ef7}
+.btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--fg-2)}
+.btn-secondary:hover{background:var(--elevated);color:var(--fg);border-color:var(--border-2)}
+
+/* Toast */
+.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+
+.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:4px;flex-wrap:wrap}
+.top-bar .page-title{font-size:21px;font-weight:700}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="diagnosis" data-title="模型视角 · 毕师傅">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">投资者/操盘</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共诊断 + 私有报告</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">不直接交易</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<div class="top-bar">
+            <span class="page-title">🏥 个股诊断</span>
+          </div>
+<!-- Breadcrumb -->
+          <div class="breadcrumb">
+            <span>← 来源:</span>
+            <a class="bc-link" href="2.4 candidate-pool-preview.html">候选池</a>
+            <span class="bc-sep">&gt;</span>
+            <span class="bc-current">300750 宁德时代</span>
+          </div>
+      
+          <!-- Model Selector -->
+          <div class="model-selector" id="modelSelector">
+            <button class="active" data-model="bishifu" onclick="switchModel('bishifu')">🔬 毕师傅</button>
+            <button data-model="longtou" onclick="switchModel('longtou')">🐲 龙头战法</button>
+            <button data-model="feiye" onclick="switchModel('feiye')">📊 匪爷短线</button>
+          </div>
+      
+          <!-- 3-Panel Chart -->
+          <div class="chart-card">
+            <div class="ch-header" id="chartHeader">🔬 毕师傅视角 · 300750 宁德时代 — 三板联动 K线+指标</div>
+            <div class="ch-body" id="mainChart"></div>
+          </div>
+      
+          <!-- Indicator Cards -->
+          <div class="indicator-row" id="indicatorCards">
+            <div class="ind-card pos">
+              <div class="ic-name">OBV趋势</div>
+              <div class="ic-value">82</div>
+              <div class="ic-status ok">✅ 突破</div>
+            </div>
+            <div class="ind-card pos">
+              <div class="ic-name">WR超卖</div>
+              <div class="ic-value">68</div>
+              <div class="ic-status ok">✅ 反弹</div>
+            </div>
+            <div class="ind-card neutral">
+              <div class="ic-name">量比(20日)</div>
+              <div class="ic-value">12.5x</div>
+              <div class="ic-status warn">⚠️ 放量明显</div>
+            </div>
+            <div class="ind-card pos">
+              <div class="ic-name">强动态分</div>
+              <div class="ic-value">8.5</div>
+              <div class="ic-status ok">✅ 趋势强</div>
+            </div>
+            <div class="ind-card neg">
+              <div class="ic-name">近20日涨幅</div>
+              <div class="ic-value">15.2%</div>
+              <div class="ic-status warn">⚠️ 涨幅偏高</div>
+            </div>
+            <div class="ind-card pos">
+              <div class="ic-name">波动率(60日)</div>
+              <div class="ic-value">22%</div>
+              <div class="ic-status ok">✅ 适中</div>
+            </div>
+          </div>
+      
+          <!-- Commentary -->
+          <div class="commentary" id="commentaryBox">
+            <div class="cm-title">🗣️ 毕师傅点评 · 趋势启动V13</div>
+            <div class="cm-text">OBV上穿MA10确认能量潮反转，WR连续3日处于-80以下超卖区后今日反弹至-68，量比12.5x放量明显。MA20开始走平，MA60仍下降但斜率收窄。OBV/MA10金叉 + WR超卖反弹 + 量能放大三重信号共振，符合"趋势启动"模型特征。近20日涨幅15.2%偏高，注意短期回调风险，建议分仓介入，止损设在今日低点-3%。</div>
+          </div>
+      
+          <!-- Action Buttons -->
+          <div class="action-bar">
+            <button class="btn-primary" onclick="showToast('跳转K线预测页...')">📈 查看K线预测</button>
+            <button class="btn-secondary" onclick="showToast('已加入候选池 ✅')">📋 加入候选池</button>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+function showToast(msg){
+  var t=document.getElementById('toast');t.textContent=msg;t.className='toast show';
+  clearTimeout(t._tid);t._tid=setTimeout(function(){t.className='toast';},1800);
+}
+
+// ─── Mock Data Generator ───
+
+function pad2(n){return n<10?'0'+n:''+n}
+
+function generateOHLC(count){
+  var dates=[], ohlc=[], closes=[], volumes=[];
+  var price=210;
+
+  // Generate a wave pattern: down → consolidation → strong up
+  for(var i=0;i<count;i++){
+    var d=new Date(2026,3,1); d.setDate(d.getDate()+i);
+    dates.push(d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()));
+
+    var phase=i/count;
+    // Period 1 (0-30%): slight decline
+    // Period 2 (30-60%): range-bound
+    // Period 3 (60-85%): rally
+    // Period 4 (85-100%): pullback
+    var trend=0;
+    if(phase<0.3) trend=(phase-0.15)*-2;
+    else if(phase<0.6) trend=0;
+    else if(phase<0.85) trend=(phase-0.6)*25;
+    else trend=(0.85-phase)*8;
+
+    var noise=(Math.random()-0.5)*4;
+    var open=price+noise;
+    var close=open+trend*0.8+(Math.random()-0.5)*3;
+    var high=Math.max(open,close)+Math.random()*3.5;
+    var low=Math.min(open,close)-Math.random()*3.5;
+
+    ohlc.push([+open.toFixed(2),+close.toFixed(2),+low.toFixed(2),+high.toFixed(2)]);
+    closes.push(close);
+    price=close;
+
+    var vol=8000000+Math.random()*20000000;
+    // Volume spike near end of rally
+    if(phase>0.7&&phase<0.88) vol*=1.8+Math.random()*1.5;
+    volumes.push(vol);
+  }
+
+  return {dates:dates, ohlc:ohlc, closes:closes, volumes:volumes};
+}
+
+function calcMA(data, period){
+  var result=[];
+  for(var i=0;i<data.length;i++){
+    if(i<period-1){result.push(null);continue;}
+    var sum=0;
+    for(var j=0;j<period;j++)sum+=data[i-j];
+    result.push(+(sum/period).toFixed(2));
+  }
+  return result;
+}
+
+function calcEMA(data, period){
+  var result=[];
+  var multiplier=2/(period+1);
+  var ema=data[0];
+  for(var i=0;i<data.length;i++){
+    if(i===0){result.push(+ema.toFixed(4));continue;}
+    ema=(data[i]-ema)*multiplier+ema;
+    result.push(+ema.toFixed(4));
+  }
+  return result;
+}
+
+function calcStd(data, period, maValues){
+  var result=[];
+  for(var i=0;i<data.length;i++){
+    if(i<period-1){result.push(null);continue;}
+    var sum=0;
+    for(var j=0;j<period;j++) sum+=Math.pow(data[i-j]-maValues[i],2);
+    result.push(+(Math.sqrt(sum/period)).toFixed(4));
+  }
+  return result;
+}
+
+// ─── Data for each model ───
+
+var raw=generateOHLC(60);
+var dates=raw.dates, ohlc=raw.ohlc, closes=raw.closes, volumes=raw.volumes;
+
+// MA
+var ma5=calcMA(closes,5);
+var ma10=calcMA(closes,10);
+var ma20=calcMA(closes,20);
+var ma60=calcMA(closes,60);
+
+// OBV
+var obv=[], obvVal=0;
+for(var i=0;i<closes.length;i++){
+  var prevClose=i>0?closes[i-1]:closes[0];
+  obvVal+=(closes[i]>=prevClose?1:-1)*volumes[i];
+  obv.push(+(obvVal/1000000).toFixed(1));
+}
+var obvMa10=calcMA(obv,10);
+
+// WR (Williams %R) — 14 period
+var wr=[];
+for(var i=0;i<closes.length;i++){
+  if(i<13){wr.push(null);continue;}
+  var hh=-Infinity, ll=Infinity;
+  for(var j=0;j<14;j++){hh=Math.max(hh,ohlc[i-j][3]);ll=Math.min(ll,ohlc[i-j][2]);}
+  wr.push(+((hh-closes[i])/(hh-ll)*-100).toFixed(1));
+}
+
+// Bollinger Bands
+var bbMa20=ma20;
+var std20=calcStd(closes,20,ma20);
+var bbUpper=[], bbLower=[];
+for(var i=0;i<closes.length;i++){
+  if(i<19){bbUpper.push(null);bbLower.push(null);continue;}
+  bbUpper.push(+(bbMa20[i]+2*std20[i]).toFixed(2));
+  bbLower.push(+(bbMa20[i]-2*std20[i]).toFixed(2));
+}
+
+// RSI(14)
+var rsi=[];
+for(var i=0;i<closes.length;i++){
+  if(i<14){rsi.push(null);continue;}
+  var avgGain=0, avgLoss=0;
+  for(var j=1;j<=14;j++){
+    var diff=closes[i-j+1]-closes[i-j];
+    if(diff>0)avgGain+=diff;
+    else avgLoss+=Math.abs(diff);
+  }
+  avgGain/=14; avgLoss/=14;
+  var rs=avgLoss===0?100:avgGain/avgLoss;
+  rsi.push(+(100-100/(1+rs)).toFixed(1));
+}
+
+// MACD
+var ema12=calcEMA(closes,12);
+var ema26=calcEMA(closes,26);
+var dif=[], dea=[], macdHist=[];
+for(var i=0;i<closes.length;i++){
+  dif.push(+(ema12[i]-ema26[i]).toFixed(3));
+  if(i===0){dea.push(dif[0]);macdHist.push(0);continue;}
+  dea.push(+(dea[i-1]*0.8+dif[i]*0.2).toFixed(3)); // EMA9 approx
+  macdHist.push(+((dif[i]-dea[i])*2).toFixed(3));
+}
+
+// VOL MA5
+var volMa5=calcMA(volumes,5).map(function(v){return v?+(v/10000).toFixed(0):null});
+
+// Detect OBV crossover points (OBV crosses above OBV MA10)
+var obvCrossPoints=[];
+for(var i=1;i<obv.length;i++){
+  if(obv[i-1]!==null&&obvMa10[i-1]!==null&&obv[i]!==null&&obvMa10[i]!==null){
+    if(obv[i-1]<=obvMa10[i-1]&&obv[i]>obvMa10[i]){
+      obvCrossPoints.push({coord:[i,obv[i]],value:obv[i]});
+    }
+  }
+}
+
+// Normalize volume for display
+var volDisplay=volumes.map(function(v){return +(v/10000).toFixed(0)});
+
+// ─── ECharts ───
+
+var chartDom=document.getElementById('mainChart');
+var chart=echarts.init(chartDom,null,{renderer:'svg'});
+
+var modelColors={
+  bishifu:['#ff4d4f','#2ec27e','#3d8bff','#f5a623','#5b9bd5','#ffc107','#9b59b6','#e74c3c','#27ae60','#9b59b6'],
+  longtou:['#ff4d4f','#2ec27e','#00bcd4','#9c27b0','#ff9800','#ffc107'],
+  feiye:  ['#ff4d4f','#2ec27e','#00bcd4','#9c27b0','#ff9800','#e74c3c','#27ae60']
+};
+
+var modelNames={
+  bishifu:'🔬 毕师傅视角',
+  longtou:'🐲 龙头战法视角',
+  feiye:'📊 匪爷短线视角'
+};
+
+var currentModel='bishifu';
+
+function buildOption(model){
+  if(model==='bishifu') return buildBishifuOption();
+  if(model==='longtou') return buildLongtouOption();
+  if(model==='feiye') return buildFeiyeOption();
+}
+
+function buildBishifuOption(){
+  return {
+    grid:[
+      {left:'10%',right:'3%',top:10,height:225},
+      {left:'10%',right:'3%',top:250,height:95},
+      {left:'10%',right:'3%',top:360,height:85}
+    ],
+    xAxis:[
+      {gridIndex:0,type:'category',data:dates,axisLabel:{show:false},axisTick:{show:false},axisLine:{lineStyle:{color:'#1f2733'}},splitLine:{show:false}},
+      {gridIndex:1,type:'category',data:dates,axisLabel:{fontSize:8,color:'#5e6a7d',interval:9},axisTick:{show:false},axisLine:{lineStyle:{color:'#1f2733'}},splitLine:{show:false}},
+      {gridIndex:2,type:'category',data:dates,axisLabel:{fontSize:8,color:'#5e6a7d',interval:9},axisTick:{show:false},axisLine:{lineStyle:{color:'#1f2733'}},splitLine:{show:false}}
+    ],
+    yAxis:[
+      {gridIndex:0,type:'value',scale:true,splitLine:{lineStyle:{color:'#1f2733'}},axisLabel:{fontSize:9,color:'#5e6a7d',formatter:'{value}'},position:'left'},
+      {gridIndex:1,type:'value',splitLine:{lineStyle:{color:'#1f2733'}},axisLabel:{fontSize:8,color:'#5e6a7d'},name:'万',nameTextStyle:{fontSize:8,color:'#5e6a7d'},scale:true},
+      {gridIndex:2,type:'value',max:0,min:-100,interval:20,splitLine:{lineStyle:{color:'#1f2733'}},axisLabel:{fontSize:8,color:'#5e6a7d',formatter:'{value}'}}
+    ],
+    dataZoom:[
+      {type:'slider',xAxisIndex:[0,1,2],bottom:0,height:28,borderColor:'#1f2733',backgroundColor:'#11161f',dataBackground:{lineStyle:{color:'#2a3444'},areaStyle:{color:'rgba(61,139,255,0.06)'}},selectedDataBackground:{lineStyle:{color:'#3d8bff'},areaStyle:{color:'rgba(61,139,255,0.1)'}},handleStyle:{color:'#5e6a7d',borderColor:'#3d8bff'},textStyle:{fontSize:9,color:'#5e6a7d'},fillerColor:'rgba(61,139,255,0.1)'},
+      {type:'inside',xAxisIndex:[0,1,2]}
+    ],
+    tooltip:{trigger:'axis',axisPointer:{type:'cross',crossStyle:{color:'#5e6a7d'}},backgroundColor:'rgba(17,22,31,0.95)',borderColor:'#2a3444',textStyle:{fontSize:11,color:'#e8edf4'}},
+    series:[
+      {
+        name:'K线',type:'candlestick',xAxisIndex:0,yAxisIndex:0,data:ohlc,
+        itemStyle:{color:'#ff4d4f',color0:'#2ec27e',borderColor:'#ff4d4f',borderColor0:'#2ec27e'},
+        markPoint:{symbol:'none'}
+      },
+      {
+        name:'MA20',type:'line',xAxisIndex:0,yAxisIndex:0,data:ma20,
+        lineStyle:{color:'#3d8bff',width:1.2},symbol:'none',smooth:false
+      },
+      {
+        name:'MA60',type:'line',xAxisIndex:0,yAxisIndex:0,data:ma60,
+        lineStyle:{color:'#f5a623',width:1.2},symbol:'none',smooth:false
+      },
+      {
+        name:'OBV',type:'line',xAxisIndex:1,yAxisIndex:1,data:obv,
+        lineStyle:{color:'#5b9bd5',width:1.2},symbol:'none',areaStyle:{color:'rgba(91,155,213,0.08)'}
+      },
+      {
+        name:'OBV MA10',type:'line',xAxisIndex:1,yAxisIndex:1,data:obvMa10,
+        lineStyle:{color:'#f5a623',width:1,type:'dashed'},symbol:'none',
+        markPoint:{symbol:'arrow',symbolSize:8,symbolRotate:180,itemStyle:{color:'#2ec27e'},label:{show:true,position:'top',fontSize:8,color:'#2ec27e',formatter:'金叉'},data:obvCrossPoints.slice(0,3)}
+      },
+      {
+        name:'WR',type:'line',xAxisIndex:2,yAxisIndex:2,data:wr,
+        lineStyle:{color:'#9b59b6',width:1.4},symbol:'none',
+        areaStyle:{
+          color:{
+            type:'linear',x:0,y:0,x2:0,y2:1,
+            colorStops:[
+              {offset:0.8,color:'rgba(155,89,182,0.12)'},
+              {offset:1,color:'rgba(46,194,126,0.18)'}
+            ]
+          }
+        },
+        markLine:{
+          silent:true,symbol:'none',
+          lineStyle:{type:'dashed',width:1},
+          label:{fontSize:9,fontWeight:600},
+          data:[
+            {yAxis:-20,lineStyle:{color:'#ff4d4f'},label:{formatter:'超买 -20',color:'#ff4d4f'}},
+            {yAxis:-80,lineStyle:{color:'#2ec27e'},label:{formatter:'超卖 -80',color:'#2ec27e'}}
+          ]
+        }
+      },
+      {
+        name:'WR 超卖填充',type:'line',xAxisIndex:2,yAxisIndex:2,
+        data:wr.map(function(v){return v!==null&&v<-80?v:-80}),
+        lineStyle:{opacity:0},symbol:'none',
+        areaStyle:{color:'rgba(46,194,126,0.15)'}
+      }
+    ],
+    backgroundColor:'transparent'
+  };
+}
+
+function buildLongtouOption(){
+  return {
+    grid:[
+      {left:'10%',right:'3%',top:10,height:225},
+      {left:'10%',right:'3%',top:250,height:95},
+      {left:'10%',right:'3%',top:360,height:85}
+    ],
+    xAxis:[
+      {gridIndex:0,type:'category',data:dates,axisLabel:{show:false},axisTick:{show:false},axisLine:{lineStyle:{color:'#1f2733'}},splitLine:{show:false}},
+      {gridIndex:1,type:'category',data:dates,axisLabel:{fontSize:8,color:'#5e6a7d',interval:9},axisTick:{show:false},axisLine:{lineStyle:{color:'#1f2733'}},splitLine:{show:false}},
+      {gridIndex:2,type:'category',data:dates,axisLabel:{fontSize:8,color:'#5e6a7d',interval:9},axisTick:{show:false},axisLine:{lineStyle:{color:'#1f2733'}},splitLine:{show:false}}
+    ],
+    yAxis:[
+      {gridIndex:0,type:'value',scale:true,splitLine:{lineStyle:{color:'#1f2733'}},axisLabel:{fontSize:9,color:'#5e6a7d'},position:'left'},
+      {gridIndex:1,type:'value',splitLine:{lineStyle:{color:'#1f2733'}},axisLabel:{fontSize:8,color:'#5e6a7d'},name:'手',nameTextStyle:{fontSize:8,color:'#5e6a7d'}},
+      {gridIndex:2,type:'value',min:0,max:100,splitLine:{lineStyle:{color:'#1f2733'}},axisLabel:{fontSize:8,color:'#5e6a7d'},name:'%',nameTextStyle:{fontSize:8,color:'#5e6a7d'}}
+    ],
+    dataZoom:[
+      {type:'slider',xAxisIndex:[0,1,2],bottom:0,height:28,borderColor:'#1f2733',backgroundColor:'#11161f',dataBackground:{lineStyle:{color:'#2a3444'},areaStyle:{color:'rgba(61,139,255,0.06)'}},selectedDataBackground:{lineStyle:{color:'#3d8bff'},areaStyle:{color:'rgba(61,139,255,0.1)'}},handleStyle:{color:'#5e6a7d',borderColor:'#3d8bff'},textStyle:{fontSize:9,color:'#5e6a7d'},fillerColor:'rgba(61,139,255,0.1)'},
+      {type:'inside',xAxisIndex:[0,1,2]}
+    ],
+    tooltip:{trigger:'axis',axisPointer:{type:'cross',crossStyle:{color:'#5e6a7d'}},backgroundColor:'rgba(17,22,31,0.95)',borderColor:'#2a3444',textStyle:{fontSize:11,color:'#e8edf4'}},
+    series:[
+      {
+        name:'K线',type:'candlestick',xAxisIndex:0,yAxisIndex:0,data:ohlc,
+        itemStyle:{color:'#ff4d4f',color0:'#2ec27e',borderColor:'#ff4d4f',borderColor0:'#2ec27e'}
+      },
+      {
+        name:'MA5',type:'line',xAxisIndex:0,yAxisIndex:0,data:ma5,
+        lineStyle:{color:'#00bcd4',width:1.2},symbol:'none'
+      },
+      {
+        name:'MA10',type:'line',xAxisIndex:0,yAxisIndex:0,data:ma10,
+        lineStyle:{color:'#9c27b0',width:1.2},symbol:'none'
+      },
+      {
+        name:'成交量',type:'bar',xAxisIndex:1,yAxisIndex:1,data:volDisplay,
+        itemStyle:{color:function(p){
+          if(p.dataIndex===0)return '#ff4d4f';
+          return ohlc[p.dataIndex][1]>=ohlc[p.dataIndex][0]?'#ff4d4f':'#2ec27e';
+        }}
+      },
+      {
+        name:'VOL MA5',type:'line',xAxisIndex:1,yAxisIndex:1,data:volMa5,
+        lineStyle:{color:'#ff9800',width:1,type:'dashed'},symbol:'none'
+      },
+      {
+        name:'竞价标记',type:'scatter',xAxisIndex:2,yAxisIndex:2,
+        data:[[dates.length-1,75],[dates.length-1,80]],
+        symbolSize:20,symbol:'pin',symbolRotate:180,
+        itemStyle:{color:'#ffc107'},
+        label:{show:true,position:'top',fontSize:9,fontWeight:600,color:'#ffc107',formatter:'竞价\n9:25'},
+        markLine:{
+          silent:true,symbol:'none',
+          lineStyle:{color:'#ffc107',type:'dashed',width:1},
+          data:[{xAxis:dates[dates.length-1],label:{formatter:'竞价时刻',fontSize:9,color:'#ffc107'}}]
+        }
+      }
+    ],
+    backgroundColor:'transparent'
+  };
+}
+
+function buildFeiyeOption(){
+  return {
+    grid:[
+      {left:'10%',right:'3%',top:10,height:225},
+      {left:'10%',right:'3%',top:250,height:95},
+      {left:'10%',right:'3%',top:360,height:85}
+    ],
+    xAxis:[
+      {gridIndex:0,type:'category',data:dates,axisLabel:{show:false},axisTick:{show:false},axisLine:{lineStyle:{color:'#1f2733'}},splitLine:{show:false}},
+      {gridIndex:1,type:'category',data:dates,axisLabel:{fontSize:8,color:'#5e6a7d',interval:9},axisTick:{show:false},axisLine:{lineStyle:{color:'#1f2733'}},splitLine:{show:false}},
+      {gridIndex:2,type:'category',data:dates,axisLabel:{fontSize:8,color:'#5e6a7d',interval:9},axisTick:{show:false},axisLine:{lineStyle:{color:'#1f2733'}},splitLine:{show:false}}
+    ],
+    yAxis:[
+      {gridIndex:0,type:'value',scale:true,splitLine:{lineStyle:{color:'#1f2733'}},axisLabel:{fontSize:9,color:'#5e6a7d'},position:'left'},
+      {gridIndex:1,type:'value',min:0,max:100,splitLine:{lineStyle:{color:'#1f2733'}},axisLabel:{fontSize:8,color:'#5e6a7d'}},
+      {gridIndex:2,type:'value',splitLine:{lineStyle:{color:'#1f2733'}},axisLabel:{fontSize:8,color:'#5e6a7d'}}
+    ],
+    dataZoom:[
+      {type:'slider',xAxisIndex:[0,1,2],bottom:0,height:28,borderColor:'#1f2733',backgroundColor:'#11161f',dataBackground:{lineStyle:{color:'#2a3444'},areaStyle:{color:'rgba(61,139,255,0.06)'}},selectedDataBackground:{lineStyle:{color:'#3d8bff'},areaStyle:{color:'rgba(61,139,255,0.1)'}},handleStyle:{color:'#5e6a7d',borderColor:'#3d8bff'},textStyle:{fontSize:9,color:'#5e6a7d'},fillerColor:'rgba(61,139,255,0.1)'},
+      {type:'inside',xAxisIndex:[0,1,2]}
+    ],
+    tooltip:{trigger:'axis',axisPointer:{type:'cross',crossStyle:{color:'#5e6a7d'}},backgroundColor:'rgba(17,22,31,0.95)',borderColor:'#2a3444',textStyle:{fontSize:11,color:'#e8edf4'}},
+    series:[
+      {
+        name:'K线',type:'candlestick',xAxisIndex:0,yAxisIndex:0,data:ohlc,
+        itemStyle:{color:'#ff4d4f',color0:'#2ec27e',borderColor:'#ff4d4f',borderColor0:'#2ec27e'}
+      },
+      {
+        name:'BB上轨',type:'line',xAxisIndex:0,yAxisIndex:0,data:bbUpper,
+        lineStyle:{color:'rgba(61,139,255,0.4)',width:1},symbol:'none'
+      },
+      {
+        name:'BB中轨',type:'line',xAxisIndex:0,yAxisIndex:0,data:bbMa20,
+        lineStyle:{color:'#3d8bff',width:1.2},symbol:'none'
+      },
+      {
+        name:'BB下轨',type:'line',xAxisIndex:0,yAxisIndex:0,data:bbLower,
+        lineStyle:{color:'rgba(61,139,255,0.4)',width:1},symbol:'none',
+        areaStyle:{color:'rgba(61,139,255,0.04)'}
+      },
+      {
+        name:'RSI',type:'line',xAxisIndex:1,yAxisIndex:1,data:rsi,
+        lineStyle:{color:'#9b59b6',width:1.4},symbol:'none',
+        markLine:{
+          silent:true,symbol:'none',
+          lineStyle:{type:'dashed',width:1},
+          label:{fontSize:9,fontWeight:600},
+          data:[
+            {yAxis:70,lineStyle:{color:'#ff4d4f'},label:{formatter:'超买 70',color:'#ff4d4f'}},
+            {yAxis:30,lineStyle:{color:'#2ec27e'},label:{formatter:'超卖 30',color:'#2ec27e'}}
+          ]
+        }
+      },
+      {
+        name:'DIF',type:'line',xAxisIndex:2,yAxisIndex:2,data:dif,
+        lineStyle:{color:'#00bcd4',width:1.2},symbol:'none'
+      },
+      {
+        name:'DEA',type:'line',xAxisIndex:2,yAxisIndex:2,data:dea,
+        lineStyle:{color:'#ff9800',width:1,type:'dashed'},symbol:'none'
+      },
+      {
+        name:'MACD柱',type:'bar',xAxisIndex:2,yAxisIndex:2,data:macdHist,
+        itemStyle:{color:function(p){return macdHist[p.dataIndex]>=0?'#ff4d4f':'#2ec27e'}},
+        markLine:{silent:true,symbol:'none',lineStyle:{color:'#5e6a7d',type:'solid',width:1},data:[{yAxis:0,label:{show:false}}]}
+      }
+    ],
+    backgroundColor:'transparent'
+  };
+}
+
+function updateIndicatorCards(model){
+  var cards=document.getElementById('indicatorCards');
+  if(model==='bishifu'){
+    cards.innerHTML=
+      '<div class="ind-card pos"><div class="ic-name">OBV趋势</div><div class="ic-value">82</div><div class="ic-status ok">✅ 突破</div></div>'+
+      '<div class="ind-card pos"><div class="ic-name">WR超卖</div><div class="ic-value">68</div><div class="ic-status ok">✅ 反弹</div></div>'+
+      '<div class="ind-card neutral"><div class="ic-name">量比(20日)</div><div class="ic-value">12.5x</div><div class="ic-status warn">⚠️ 放量明显</div></div>'+
+      '<div class="ind-card pos"><div class="ic-name">强动态分</div><div class="ic-value">8.5</div><div class="ic-status ok">✅ 趋势强</div></div>'+
+      '<div class="ind-card neg"><div class="ic-name">近20日涨幅</div><div class="ic-value">15.2%</div><div class="ic-status warn">⚠️ 涨幅偏高</div></div>'+
+      '<div class="ind-card pos"><div class="ic-name">波动率(60日)</div><div class="ic-value">22%</div><div class="ic-status ok">✅ 适中</div></div>';
+  }else if(model==='longtou'){
+    cards.innerHTML=
+      '<div class="ind-card pos"><div class="ic-name">高开幅度</div><div class="ic-value">+8.2%</div><div class="ic-status ok">✅ 强势</div></div>'+
+      '<div class="ind-card pos"><div class="ic-name">封单金额</div><div class="ic-value">1.2亿</div><div class="ic-status ok">✅ 封板</div></div>'+
+      '<div class="ind-card pos"><div class="ic-name">竞量比</div><div class="ic-value">15.3x</div><div class="ic-status ok">✅ 超强</div></div>'+
+      '<div class="ind-card pos"><div class="ic-name">Z-score</div><div class="ic-value">+2.8σ</div><div class="ic-status ok">✅ 异常</div></div>'+
+      '<div class="ind-card neutral"><div class="ic-name">一字板</div><div class="ic-value">是</div><div class="ic-status ok">✅ 确认</div></div>'+
+      '<div class="ind-card pos"><div class="ic-name">成交量</div><div class="ic-value">3.8亿</div><div class="ic-status ok">✅ 放量</div></div>';
+  }else{
+    cards.innerHTML=
+      '<div class="ind-card pos"><div class="ic-name">RSI(14)</div><div class="ic-value">62</div><div class="ic-status ok">✅ 中性偏强</div></div>'+
+      '<div class="ind-card pos"><div class="ic-name">MACD</div><div class="ic-value">金叉</div><div class="ic-status ok">✅ 多头</div></div>'+
+      '<div class="ind-card neutral"><div class="ic-name">BB宽度</div><div class="ic-value">8.5%</div><div class="ic-status warn">⚠️ 收窄</div></div>'+
+      '<div class="ind-card pos"><div class="ic-name">成交量</div><div class="ic-value">1.2x</div><div class="ic-status ok">✅ 温和</div></div>'+
+      '<div class="ind-card neg"><div class="ic-name">KDJ</div><div class="ic-value">88</div><div class="ic-status warn">⚠️ 超买</div></div>'+
+      '<div class="ind-card pos"><div class="ic-name">ATR(14)</div><div class="ic-value">5.2</div><div class="ic-status ok">✅ 适中</div></div>';
+  }
+}
+
+function updateCommentary(model){
+  var box=document.getElementById('commentaryBox');
+  if(model==='bishifu'){
+    box.innerHTML='<div class="cm-title">🗣️ 毕师傅点评 · 趋势启动V13</div><div class="cm-text">OBV上穿MA10确认能量潮反转，WR连续3日处于-80以下超卖区后今日反弹至-68，量比12.5x放量明显。MA20开始走平，MA60仍下降但斜率收窄。OBV/MA10金叉 + WR超卖反弹 + 量能放大三重信号共振，符合"趋势启动"模型特征。近20日涨幅15.2%偏高，注意短期回调风险，建议分仓介入，止损设在今日低点-3%。</div>';
+  }else if(model==='longtou'){
+    box.innerHTML='<div class="cm-title">🐲 龙头战法点评 · V4.3</div><div class="cm-text">今日高开+8.2%强势封板，封单1.2亿坚实。竞量比15.3x远超阈值(3x)，Z-score +2.8σ显著偏离均值，符合"龙头启动"特征。MA5与MA10多头排列，成交量连续放大。竞价阶段主力抢筹意图明显，一字板确认强度，短线有望延续强势。注意次日竞价变化，若封单大幅减弱则及时止盈。</div>';
+  }else{
+    box.innerHTML='<div class="cm-title">📊 匪爷短线点评 · V2.1</div><div class="cm-text">K线运行于布林带上轨附近，RSI(14)=62处于中性偏强区间，暂无超买风险。MACD两周前发生金叉，DIF/DEA均在零轴上方运行，多头信号确认。BB宽度收窄至8.5%暗示变盘在即，配合成交量温和放大，短线有望向上突破。KDJ=88接近超买区，设好止损博弈突破行情。建议止损在布林带中轨-2%处。</div>';
+  }
+}
+
+function switchModel(model){
+  currentModel=model;
+  document.querySelectorAll('.model-selector button').forEach(function(b){
+    b.classList.remove('active');
+    if(b.dataset.model===model) b.classList.add('active');
+  });
+  document.getElementById('chartHeader').textContent=modelNames[model]+' · 300750 宁德时代 — 三板联动 K线+指标';
+  chart.setOption(buildOption(model),true);
+  updateIndicatorCards(model);
+  updateCommentary(model);
+}
+
+window.addEventListener('DOMContentLoaded',function(){
+  chart.setOption(buildBishifuOption());
+  window.addEventListener('resize',function(){chart.resize()});
+});
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

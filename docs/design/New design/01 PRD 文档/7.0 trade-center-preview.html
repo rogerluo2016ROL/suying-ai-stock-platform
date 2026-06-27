@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 交易中心</title>
+
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:18px 20px 32px}
+
+.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.top-bar .page-title{font-size:21px;font-weight:700}
+.top-bar .stats{font-size:12.5px;color:var(--fg-2)}
+.top-bar .stats b{color:var(--fg);font-weight:650;font-family:var(--font-mono)}
+.top-bar .stats .sep{width:1px;height:12px;background:var(--border);margin:0 8px;display:inline-block;vertical-align:middle}
+
+.row{display:grid;gap:14px}
+.row-6-4{grid-template-columns:6fr 4fr;align-items:flex-start}
+
+/* 60% 下单面板 */
+.order-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.order-panel .section-title{font-size:13px;font-weight:650;color:var(--fg);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+.code-input{width:100%;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);color:var(--fg);font-family:var(--font-mono);font-size:15px;outline:none;transition:.12s;margin-bottom:14px}
+.code-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-dim)}
+.code-input::placeholder{color:var(--muted)}
+
+.stock-bar{display:flex;align-items:center;gap:14px;padding:10px 14px;background:var(--surface-2);border-radius:6px;margin-bottom:14px;font-size:13px}
+.stock-bar .sb-name{font-weight:650;color:var(--fg)}
+.stock-bar .sb-price{font-family:var(--font-mono);font-size:18px;font-weight:720}
+.stock-bar .sb-chg{font-family:var(--font-mono);font-size:12px;font-weight:600}
+.stock-bar .sb-limits{display:flex;gap:12px;font-size:10.5px;color:var(--muted);margin-left:auto}
+.stock-bar .sb-limits .hi{color:var(--up)} .stock-bar .sb-limits .lo{color:var(--down)}
+
+.dir-row{display:flex;gap:8px;margin-bottom:14px}
+.dir-btn{flex:1;padding:12px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);font-size:14px;font-weight:600;cursor:pointer;transition:.12s;text-align:center}
+.dir-btn:hover{background:var(--elevated);color:var(--fg)}
+.dir-btn.active.buy{background:var(--up-bg);border-color:var(--up);color:var(--up)}
+.dir-btn.active.sell{background:var(--down-bg);border-color:var(--down);color:var(--down)}
+
+.pq-row{display:flex;gap:14px;margin-bottom:14px}
+.pq-group{flex:1}
+.pq-group label{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600}
+.pq-group input{width:100%;padding:9px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font-mono);font-size:14px;outline:none}
+.pq-group input:focus{border-color:var(--accent)}
+.alloc-btns{display:flex;gap:6px;margin-top:6px}
+.alloc-btns button{font-size:10.5px;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);cursor:pointer;font-family:var(--font-mono);transition:.12s}
+.alloc-btns button:hover{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+
+.amount-box{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface-2);border-radius:6px;margin-bottom:14px}
+.amount-box .am-label{font-size:12px;color:var(--muted)}
+.amount-box .am-val{font-family:var(--font-mono);font-size:20px;font-weight:720;color:var(--fg)}
+.amount-box .am-fee{font-size:10.5px;color:var(--muted)}
+
+/* 风控预检 */
+.risk-box{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:16px}
+.risk-box .rk-title{font-size:11px;font-weight:650;color:var(--fg-2);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.risk-item{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11px;border-bottom:1px solid var(--border)}
+.risk-item:last-child{border-bottom:none}
+.risk-item .ri-icon{width:16px;flex-shrink:0;font-size:12px;text-align:center}
+.risk-item .ri-label{width:72px;flex-shrink:0;font-weight:600;color:var(--fg-2)}
+.risk-item .ri-msg{flex:1;color:var(--muted);font-size:10.5px}
+.risk-item.pass .ri-icon,.risk-item.pass .ri-label{color:var(--down)}
+.risk-item.fail .ri-icon,.risk-item.fail .ri-label{color:var(--up)}
+.risk-item.warn .ri-icon,.risk-item.warn .ri-label{color:var(--warn)}
+.risk-box .rk-overall{margin-top:8px;padding:6px 10px;border-radius:4px;font-size:11px;font-weight:600;text-align:center}
+.risk-box .rk-overall.pass{background:var(--down-bg);color:var(--down)}
+.risk-box .rk-overall.fail{background:var(--up-bg);color:var(--up)}
+.risk-box .rk-overall.warn{background:var(--warn-bg);color:var(--warn)}
+
+.submit-row{display:flex;gap:8px}
+.btn-confirm{flex:1;padding:12px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:650;cursor:pointer;transition:.12s}
+.btn-confirm:hover{background:#2d7ae0}
+.btn-confirm:disabled{opacity:.4;cursor:not-allowed}
+.btn-reset{padding:12px 24px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);font-size:14px;cursor:pointer;transition:.12s}
+.btn-reset:hover{background:var(--elevated);color:var(--fg)}
+
+/* 40% 面板 */
+.info-panel{display:flex;flex-direction:column;gap:14px}
+.info-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.info-card .ic-title{padding:12px 16px;font-size:12px;font-weight:650;color:var(--fg-2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px}
+.info-card .ic-title .cnt{margin-left:auto;font-family:var(--font-mono);font-size:10.5px;color:var(--muted)}
+
+.pos-th{display:flex;padding:5px 12px;font-size:9.5px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);gap:3px}
+.pos-row{display:flex;padding:7px 12px;border-bottom:1px solid var(--border);gap:3px;align-items:center;font-size:10.5px;transition:.12s;cursor:pointer}
+.pos-row:hover{background:var(--surface-2)} .pos-row:last-child{border-bottom:none}
+.pos-row .pr-code{font-family:var(--font-mono);font-weight:650;width:56px;flex-shrink:0}
+.pos-row .pr-name{width:34px;flex-shrink:0;color:var(--fg-2);font-size:10px}
+.pos-row .pr-hold{width:34px;flex-shrink:0;font-family:var(--font-mono);text-align:right}
+.pos-row .pr-price{width:44px;flex-shrink:0;font-family:var(--font-mono);text-align:right}
+.pos-row .pr-pnl{width:54px;flex-shrink:0;font-family:var(--font-mono);text-align:right;font-weight:600}
+.pos-row .pr-alloc{width:34px;flex-shrink:0;font-family:var(--font-mono);text-align:right;color:var(--fg-2)}
+
+.ord-th{display:flex;padding:5px 12px;font-size:9.5px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);gap:3px}
+.ord-row{display:flex;padding:6px 12px;border-bottom:1px solid var(--border);gap:3px;align-items:center;font-size:10px;transition:.12s}
+.ord-row:hover{background:var(--surface-2)} .ord-row:last-child{border-bottom:none}
+.ord-row .or-time{font-family:var(--font-mono);width:34px;flex-shrink:0;color:var(--muted);font-size:9.5px}
+.ord-row .or-code{font-family:var(--font-mono);font-weight:650;width:56px;flex-shrink:0}
+.ord-row .or-side{width:24px;flex-shrink:0;font-weight:600;text-align:center}
+.ord-row .or-price{width:42px;flex-shrink:0;font-family:var(--font-mono);text-align:right}
+.ord-row .or-qty{width:28px;flex-shrink:0;font-family:var(--font-mono);text-align:right;color:var(--fg-2)}
+.ord-row .or-amt{width:50px;flex-shrink:0;font-family:var(--font-mono);text-align:right;font-size:9.5px}
+.ord-row .or-status{flex:1;text-align:right;font-size:9.5px}
+
+.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;background:var(--down-bg);border:1px solid var(--down);color:var(--down);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.info{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+
+/* URL param indicator */
+.url-hint{display:none;padding:6px 12px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:6px;font-size:11px;color:var(--accent);margin-bottom:14px;font-weight:600}
+.url-hint.show{display:flex;align-items:center;gap:8px}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="trade" data-title="交易中心">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">操盘手</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">私有账户/订单/持仓</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/account/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">paper / QMT / adapter</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<div class="top-bar">
+            <span class="page-title">💼 交易中心</span>
+            <div class="stats">
+              <span>总资产</span><b>¥1,358,600</b>
+              <span class="sep"></span>
+              <span>可用</span><b style="color:var(--accent)">¥420,000</b>
+              <span class="sep"></span>
+              <span>市值</span><b>¥938,600</b>
+              <span class="sep"></span>
+              <span>日盈亏</span><b class="up" style="color:var(--up)">+¥12,400 (+1.3%)</b>
+            </div>
+          </div>
+      
+          <!-- URL Param Hint (from plan manager) -->
+          <div class="url-hint" id="urlHint">
+            📐 已从方案 <b>龙头战法-开盘A</b> 带入交易参数 · 请确认后下单
+            <span onclick="clearUrlParams()" style="cursor:pointer;margin-left:auto;font-size:10px;color:var(--fg-2)">✕ 清除</span>
+          </div>
+      
+          <div class="row row-6-4">
+            <!-- ===== LEFT: 下单面板 (60%) ===== -->
+            <div class="order-panel">
+              <div class="section-title">📝 下单</div>
+      
+              <input class="code-input" id="codeInput" type="text" placeholder="请输入股票代码或名称 (如 300750)" oninput="onCodeChange(this.value)"/>
+      
+              <div class="stock-bar" id="stockBar" style="display:none">
+                <span class="sb-name" id="sbName">宁德时代</span>
+                <span class="sb-price up" id="sbPrice">218.50</span>
+                <span class="sb-chg up" id="sbChg">+3.2%</span>
+                <span class="sb-limits">
+                  <span class="hi">涨停 262.20</span>
+                  <span class="lo">跌停 174.80</span>
+                </span>
+              </div>
+      
+              <div class="dir-row" id="dirRow">
+                <button class="dir-btn active buy" data-dir="buy" onclick="setDirection('buy')">🔴 买入</button>
+                <button class="dir-btn" data-dir="sell" onclick="setDirection('sell')">🟢 卖出</button>
+              </div>
+      
+              <div class="pq-row">
+                <div class="pq-group">
+                  <label>委托价 (¥)</label>
+                  <input id="priceInput" type="number" step="0.01" placeholder="218.50" value="218.50" oninput="recalcAmount()"/>
+                </div>
+                <div class="pq-group">
+                  <label>数量 (手)</label>
+                  <input id="qtyInput" type="number" min="1" placeholder="4" value="4" oninput="recalcAmount()"/>
+                  <div class="alloc-btns">
+                    <button onclick="setAlloc(25)">25%仓位</button>
+                    <button onclick="setAlloc(50)">50%仓位</button>
+                    <button onclick="setAlloc(75)">75%仓位</button>
+                    <button onclick="setAlloc(100)">全仓</button>
+                  </div>
+                </div>
+              </div>
+      
+              <div class="amount-box">
+                <span class="am-label">预计金额</span>
+                <span class="am-val" id="amountVal">¥87,400</span>
+                <span class="am-fee" id="feeVal">手续费估 ¥26.22</span>
+              </div>
+      
+              <!-- 风控预检 6项 -->
+              <div class="risk-box">
+                <div class="rk-title">🛡️ 风控预检 (6项)</div>
+                <div id="riskChecks">
+                  <div class="risk-item pass"><span class="ri-icon">✅</span><span class="ri-label">资金充足</span><span class="ri-msg">可用 ¥420,000 > 需 ¥87,426</span></div>
+                  <div class="risk-item pass"><span class="ri-icon">✅</span><span class="ri-label">持仓充足</span><span class="ri-msg">持有 500 股可卖</span></div>
+                  <div class="risk-item pass"><span class="ri-icon">✅</span><span class="ri-label">涨跌停正常</span><span class="ri-msg">当前价 ¥218.50 (涨停 ¥262.20 / 跌停 ¥174.80)</span></div>
+                  <div class="risk-item pass"><span class="ri-icon">✅</span><span class="ri-label">仓位上限</span><span class="ri-msg">本次仓位 6.4% < 单股上限 20%</span></div>
+                  <div class="risk-item pass"><span class="ri-icon">✅</span><span class="ri-label">单笔上限</span><span class="ri-msg">金额 ¥87,400 < 单笔上限 ¥200,000</span></div>
+                  <div class="risk-item warn"><span class="ri-icon">⚠️</span><span class="ri-label">大额交易</span><span class="ri-msg">> ¥50,000 · 需确认</span></div>
+                </div>
+                <div class="rk-overall warn" id="rkOverall">⚠️ 需人工确认 — 订单金额超过确认线 ¥50,000</div>
+              </div>
+      
+              <div class="submit-row">
+                <button class="btn-confirm" id="btnConfirm" onclick="confirmOrder()">确认下单</button>
+                <button class="btn-reset" onclick="resetForm()">重置</button>
+              </div>
+            </div>
+      
+            <!-- ===== RIGHT: 持仓 + 今日订单 (40%) ===== -->
+            <div class="info-panel">
+              <div class="info-card">
+                <div class="ic-title">📊 当前持仓 <span class="cnt" id="posCount">5 只</span></div>
+                <div class="pos-th">
+                  <span class="pr-code">代码</span><span class="pr-name">名称</span><span class="pr-hold">持仓</span><span class="pr-price">现价</span><span class="pr-pnl">浮盈</span><span class="pr-alloc">仓位</span>
+                </div>
+                <div id="posList">
+                  <div class="pos-row"><span class="pr-code" style="color:var(--accent)">300750</span><span class="pr-name">宁德</span><span class="pr-hold">500</span><span class="pr-price">218.50</span><span class="pr-pnl up" style="color:var(--up)">+¥4,250</span><span class="pr-alloc">15.2%</span></div>
+                  <div class="pos-row"><span class="pr-code" style="color:var(--accent)">600519</span><span class="pr-name">茅台</span><span class="pr-hold">100</span><span class="pr-price">1,785</span><span class="pr-pnl up" style="color:var(--up)">+¥3,200</span><span class="pr-alloc">13.1%</span></div>
+                  <div class="pos-row"><span class="pr-code" style="color:var(--accent)">688981</span><span class="pr-name">中芯</span><span class="pr-hold">800</span><span class="pr-price">68.20</span><span class="pr-pnl down" style="color:var(--down)">-¥1,120</span><span class="pr-alloc">4.0%</span></div>
+                  <div class="pos-row"><span class="pr-code" style="color:var(--accent)">603986</span><span class="pr-name">兆易</span><span class="pr-hold">300</span><span class="pr-price">152.00</span><span class="pr-pnl up" style="color:var(--up)">+¥2,800</span><span class="pr-alloc">3.3%</span></div>
+                  <div class="pos-row"><span class="pr-code" style="color:var(--accent)">002594</span><span class="pr-name">比亚迪</span><span class="pr-hold">200</span><span class="pr-price">268.00</span><span class="pr-pnl down" style="color:var(--down)">-¥860</span><span class="pr-alloc">3.9%</span></div>
+                </div>
+              </div>
+      
+              <div class="info-card">
+                <div class="ic-title">📋 今日订单 <span class="cnt" id="ordCount">8 笔</span></div>
+                <div class="ord-th">
+                  <span class="or-time">时间</span><span class="or-code">代码</span><span class="or-side">方向</span><span class="or-price">价格</span><span class="or-qty">量</span><span class="or-amt">金额</span><span class="or-status">状态</span>
+                </div>
+                <div id="ordList">
+                  <div class="ord-row"><span class="or-time">10:12</span><span class="or-code" style="color:var(--accent)">300750</span><span class="or-side" style="color:var(--up)">买入</span><span class="or-price">218.50</span><span class="or-qty">4</span><span class="or-amt">87,400</span><span class="or-status" style="color:var(--warn)">待成交 ⏳</span></div>
+                  <div class="ord-row"><span class="or-time">09:45</span><span class="or-code" style="color:var(--accent)">600519</span><span class="or-side" style="color:var(--up)">买入</span><span class="or-price">1,785</span><span class="or-qty">2</span><span class="or-amt">357,000</span><span class="or-status" style="color:var(--down)">已成交 ✅</span></div>
+                  <div class="ord-row"><span class="or-time">09:35</span><span class="or-code" style="color:var(--accent)">002594</span><span class="or-side" style="color:var(--down)">卖出</span><span class="or-price">272.50</span><span class="or-qty">1</span><span class="or-amt">27,250</span><span class="or-status" style="color:var(--down)">已成交 ✅</span></div>
+                  <div class="ord-row"><span class="or-time">09:32</span><span class="or-code" style="color:var(--accent)">688981</span><span class="or-side" style="color:var(--up)">买入</span><span class="or-price">68.20</span><span class="or-qty">5</span><span class="or-amt">34,100</span><span class="or-status" style="color:var(--down)">已成交 ✅</span></div>
+                  <div class="ord-row"><span class="or-time">09:30</span><span class="or-code" style="color:var(--accent)">603986</span><span class="or-side" style="color:var(--up)">买入</span><span class="or-price">152.00</span><span class="or-qty">3</span><span class="or-amt">45,600</span><span class="or-status" style="color:var(--down)">已成交 ✅</span></div>
+                  <div class="ord-row"><span class="or-time">09:28</span><span class="or-code" style="color:var(--accent)">000858</span><span class="or-side" style="color:var(--up)">买入</span><span class="or-price">148.30</span><span class="or-qty">6</span><span class="or-amt">88,980</span><span class="or-status" style="color:var(--down)">已成交 ✅</span></div>
+                  <div class="ord-row"><span class="or-time">09:25</span><span class="or-code" style="color:var(--accent)">601012</span><span class="or-side" style="color:var(--down)">卖出</span><span class="or-price">33.20</span><span class="or-qty">10</span><span class="or-amt">33,200</span><span class="or-status" style="color:var(--down)">已成交 ✅</span></div>
+                  <div class="ord-row"><span class="or-time">09:15</span><span class="or-code" style="color:var(--accent)">300750</span><span class="or-side" style="color:var(--down)">卖出</span><span class="or-price">215.00</span><span class="or-qty">2</span><span class="or-amt">43,000</span><span class="or-status" style="color:var(--muted)">已撤单 ❌</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+      
+          <div class="footer-bar">
+            <span>数据源: trade-service (:8006)</span>
+            <span class="sep"></span>
+            <span>风控规则: 仓位上限20% · 单笔上限¥200,000 · 大额确认线¥50,000</span>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+var direction = 'buy';
+
+// ---- Simulate URL params from plan manager ----
+function parseQuery(){var q={};location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi,function(_,k,v){q[k]=decodeURIComponent(v);});return q;}
+var qp = parseQuery();
+if(qp.plan && qp.code){
+  document.getElementById('urlHint').classList.add('show');
+  document.getElementById('urlHint').innerHTML = '📐 已从方案 <b>'+(qp.plan||'')+'</b> 带入交易参数 · 请确认后下单 <span onclick="clearUrlParams()" style="cursor:pointer;margin-left:auto;font-size:10px;color:var(--fg-2)">✕ 清除</span>';
+  document.getElementById('codeInput').value = qp.code||'';
+  document.getElementById('priceInput').value = qp.price||'218.50';
+  onCodeChange(qp.code||'300750');
+}
+
+function clearUrlParams(){
+  document.getElementById('urlHint').classList.remove('show');
+  document.getElementById('codeInput').value = '';
+  document.getElementById('stockBar').style.display = 'none';
+}
+
+// ---- Toast ----
+function showToast(msg, type){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show'+(type==='info'?' info':'');
+  clearTimeout(t._tid);t._tid=setTimeout(function(){t.className='toast';},2200);
+}
+
+// ---- Code input ----
+function onCodeChange(val){
+  var bar=document.getElementById('stockBar');
+  if(!val){bar.style.display='none';return;}
+  bar.style.display='flex';
+  document.getElementById('sbName').textContent='宁德时代';
+  document.getElementById('sbPrice').textContent='218.50';
+  document.getElementById('sbChg').textContent='+3.2%';
+  document.getElementById('priceInput').value='218.50';
+  recalcAmount();
+}
+
+// ---- Direction ----
+function setDirection(dir){
+  direction=dir;
+  document.querySelectorAll('.dir-btn').forEach(function(b){
+    b.classList.remove('active','buy','sell');
+    if(b.dataset.dir===dir){b.classList.add('active',dir);}
+  });
+}
+
+// ---- Alloc shortcuts ----
+function setAlloc(pct){
+  var totalAsset=1358600;
+  var price=parseFloat(document.getElementById('priceInput').value)||218.50;
+  var amount=totalAsset*pct/100;
+  var qty=Math.floor(amount/(price*100));
+  if(qty<1)qty=1;
+  document.getElementById('qtyInput').value=qty;
+  recalcAmount();
+}
+
+// ---- Recalc amount & risk checks ----
+function recalcAmount(){
+  var price=parseFloat(document.getElementById('priceInput').value)||218.50;
+  var qty=parseInt(document.getElementById('qtyInput').value)||4;
+  var amount=price*qty*100;
+  var fee=amount*0.0003;
+  document.getElementById('amountVal').textContent='¥'+amount.toLocaleString();
+  document.getElementById('feeVal').textContent='手续费估 ¥'+fee.toFixed(2);
+
+  // Update risk checks live
+  var checks=document.getElementById('riskChecks');
+  var overall=document.getElementById('rkOverall');
+  var items=checks.querySelectorAll('.risk-item');
+  var hasFail=false, hasWarn=amount>50000;
+
+  if(amount>200000){
+    items[4].className='risk-item fail';
+    items[4].querySelector('.ri-icon').textContent='❌';
+    items[4].querySelector('.ri-msg').textContent='金额 ¥'+amount.toLocaleString()+' > 单笔上限 ¥200,000';
+    hasFail=true;
+  }else{
+    items[4].className='risk-item pass';
+    items[4].querySelector('.ri-icon').textContent='✅';
+    items[4].querySelector('.ri-msg').textContent='金额 ¥'+amount.toLocaleString()+' < 单笔上限 ¥200,000';
+  }
+
+  items[5].className='risk-item '+(hasWarn?'warn':'pass');
+  items[5].querySelector('.ri-icon').textContent=hasWarn?'⚠️':'✅';
+  items[5].querySelector('.ri-msg').textContent=hasWarn?'> ¥50,000 · 需确认':'≤ ¥50,000';
+
+  if(hasFail){overall.className='rk-overall fail';overall.textContent='❌ 风控拒绝 — 单笔金额超限';}
+  else if(hasWarn){overall.className='rk-overall warn';overall.textContent='⚠️ 需人工确认 — 订单金额超过确认线 ¥50,000';}
+  else{overall.className='rk-overall pass';overall.textContent='✅ 风控通过 — 所有检查项正常';}
+
+  document.getElementById('btnConfirm').disabled=hasFail;
+}
+
+// ---- Confirm order ----
+function confirmOrder(){
+  var amountText=document.getElementById('amountVal').textContent;
+  if(parseInt(document.getElementById('qtyInput').value)<1){showToast('请输入有效数量','info');return;}
+
+  var amt=parseFloat(document.getElementById('amountVal').textContent.replace(/[^0-9.]/g,''));
+  if(amt>50000){
+    if(!confirm('订单金额 ¥'+amt.toLocaleString()+' 超过确认线 ¥50,000，确认下单？'))return;
+  }
+
+  // Simulate order submit
+  showToast('✅ 订单已提交 · 编号 #ORD-06143 · 待成交','');
+
+  // Add new pending order to top
+  var now=new Date();
+  var time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  var code='300750';
+  var price=document.getElementById('priceInput').value;
+  var qty=document.getElementById('qtyInput').value;
+  var amtVal=price*qty*100;
+
+  var ordList=document.getElementById('ordList');
+  var newRow=document.createElement('div');
+  newRow.className='ord-row';
+  newRow.innerHTML='<span class="or-time">'+time+'</span>'+
+    '<span class="or-code" style="color:var(--accent)">'+code+'</span>'+
+    '<span class="or-side" style="color:'+(direction==='buy'?'var(--up)':'var(--down)')+'">'+(direction==='buy'?'买入':'卖出')+'</span>'+
+    '<span class="or-price">'+price+'</span>'+
+    '<span class="or-qty">'+qty+'</span>'+
+    '<span class="or-amt">'+amtVal.toLocaleString()+'</span>'+
+    '<span class="or-status" style="color:var(--warn)">待成交 ⏳</span>';
+  ordList.insertBefore(newRow,ordList.firstChild);
+
+  var cnt=parseInt(document.getElementById('ordCount').textContent)+1;
+  document.getElementById('ordCount').textContent=cnt+' 笔';
+}
+
+function resetForm(){
+  document.getElementById('priceInput').value='218.50';
+  document.getElementById('qtyInput').value='4';
+  recalcAmount();
+}
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

@@ -72,7 +72,7 @@ export default function Predictions() {
     try {
       const { data } = await predictionApi.predict(code, 10)
       setResult(data)
-      message.success(`Kronos预测: ${data.pred_return_pct > 0 ? '📈' : '📉'} ${data.pred_return_pct > 0 ? '+' : ''}${data.pred_return_pct}%`)
+      message.success(`Kronos预测: ${(data.pred_return_pct ?? 0) > 0 ? '📈' : '📉'} ${(data.pred_return_pct ?? 0) > 0 ? '+' : ''}${data.pred_return_pct ?? 0}%`)
     } catch (e: any) {
       message.error(e.response?.data?.detail || '分析失败')
     } finally { setLoading(false) }
@@ -82,7 +82,7 @@ export default function Predictions() {
     <div>
       <div style={{ marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>
-          <LineChartOutlined style={{ marginRight: 8, color: '#1677ff' }} />
+          <LineChartOutlined style={{ marginRight: 8, color: 'var(--accent)' }} />
           Kronos AI 预测
         </Title>
         <Text type="secondary" style={{ fontSize: 13 }}>30日价格轨迹预测 · 拐点识别 · 风险量化</Text>
@@ -115,13 +115,13 @@ export default function Predictions() {
                   <Col span={6}>
                     <Card size="small" style={{ borderRadius: 8 }}>
                       <Statistic title="预测收盘" value={result.pred_last_close} prefix="¥"
-                                valueStyle={{ color: result.pred_return_pct >= 0 ? '#52c41a' : '#ff4d4f' }} />
+                                valueStyle={{ color: (result.pred_return_pct ?? 0) >= 0 ? 'var(--down)' : 'var(--up)' }} />
                     </Card>
                   </Col>
                   <Col span={6}>
                     <Card size="small" style={{ borderRadius: 8 }}>
                       <Statistic title="预期收益" value={`${result.pred_return_pct > 0 ? '+' : ''}${result.pred_return_pct}%`}
-                                valueStyle={{ color: result.pred_return_pct >= 0 ? '#52c41a' : '#ff4d4f' }} />
+                                valueStyle={{ color: (result.pred_return_pct ?? 0) >= 0 ? 'var(--down)' : 'var(--up)' }} />
                     </Card>
                   </Col>
                   <Col span={6}>
@@ -131,7 +131,7 @@ export default function Predictions() {
                   </Col>
                 </Row>
 
-                <Card title={<Space><LineChartOutlined style={{ color: '#1677ff' }} />Kronos 预测详情</Space>}
+                <Card title={<Space><LineChartOutlined style={{ color: 'var(--accent)' }} />Kronos 预测详情</Space>}
                       style={{ borderRadius: 8 }}>
                   <Descriptions column={2} size="small" bordered>
                     <Descriptions.Item label="预测区间">{result.pred_low} ~ {result.pred_high}</Descriptions.Item>
@@ -145,11 +145,11 @@ export default function Predictions() {
 
                 {trajectoryOption && (
                   <Card title="Kronos 预测K线图" style={{ borderRadius: 8, marginTop: 16 }}>
-                    <div style={{ background: '#1a1a2e', borderRadius: 8, padding: 16 }}>
+                    <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius)', padding: 16 }}>
                       <ReactECharts option={trajectoryOption} style={{ height: 280, width: '100%' }} notMerge />
                       <div style={{ display: 'flex', gap: 16, marginTop: 4, justifyContent: 'center' }}>
-                        <Space><span style={{ width: 10, height: 10, background: '#26a69a', borderRadius: 1, display: 'inline-block' }} /><Text style={{ color: '#aaa', fontSize: 10 }}>阳线</Text></Space>
-                        <Space><span style={{ width: 10, height: 10, background: '#ef5350', borderRadius: 1, display: 'inline-block' }} /><Text style={{ color: '#aaa', fontSize: 10 }}>阴线</Text></Space>
+                        <Space><span style={{ width: 10, height: 10, background: 'var(--down)', borderRadius: 1, display: 'inline-block' }} /><Text style={{ color: 'var(--muted)', fontSize: 10 }}>阳线</Text></Space>
+                        <Space><span style={{ width: 10, height: 10, background: 'var(--up)', borderRadius: 1, display: 'inline-block' }} /><Text style={{ color: 'var(--muted)', fontSize: 10 }}>阴线</Text></Space>
                       </div>
                     </div>
                   </Card>

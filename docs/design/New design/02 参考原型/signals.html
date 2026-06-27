@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 交易信号</title>
+<link rel="stylesheet" href="assets/app.css" />
+<style>
+.sig-layout{display:grid;grid-template-columns:1fr 300px;gap:14px}
+.sig-item{display:flex;gap:13px;padding:14px 0;border-bottom:1px solid var(--border)}
+.sig-item:last-child{border-bottom:none}
+.sig-ic{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
+.sig-ic svg{width:18px;height:18px}
+.sig-body{flex:1;min-width:0}
+.sig-top{display:flex;align-items:center;gap:9px;margin-bottom:4px;flex-wrap:wrap}
+.sig-top .t{font-weight:650;font-size:14px}
+.sig-time{font-size:11px;color:var(--muted);font-family:var(--font-mono)}
+.sig-reason{font-size:12.5px;color:var(--fg-2);line-height:1.55}
+.sig-actions{display:flex;gap:8px;margin-top:9px}
+.unread{position:relative}
+.unread::before{content:"";position:absolute;left:-13px;top:20px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+@media(max-width:1180px){.sig-layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-page="signals" data-title="交易信号">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <div class="page-head">
+        <div><h1>交易信号</h1><div class="sub">实时推送 AI 触发的买入 / 卖出 / 风险提示信号</div></div>
+        <div class="head-actions">
+          <div class="seg"><button class="s active">全部</button><button class="s">买入</button><button class="s">卖出</button><button class="s">风险</button></div>
+          <button class="btn sm">全部已读</button>
+        </div>
+      </div>
+
+      <div class="sig-layout">
+        <div class="card" id="signal-feed">
+          <div class="card-h"><h3>今日信号流</h3><span class="meta">9 条 · 3 条未读</span></div>
+          <div class="card-b" style="padding:4px 16px">
+            <div class="state-note" style="margin:8px 0 10px">
+              信号总览先处理未读、分级和归档；买入、卖出、风险提示再进入各自页签复核。
+              <div class="action-strip">
+                <div class="hint">总览动作不会直接下单，只改变信号处理状态。</div>
+                <div class="inline-actions">
+                  <button class="btn sm" type="button" data-toast="全部未读信号已标记">全部已读</button>
+                  <button class="btn sm ghost" type="button" data-toast="已导出今日信号流">导出信号流</button>
+                </div>
+              </div>
+            </div>
+            <div class="sig-item unread" id="buy-signals">
+              <div class="sig-ic" style="background:var(--up-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+              <div class="sig-body">
+                <div class="sig-top"><span class="t">买入信号 · 中际旭创</span><span class="code">300308</span><span class="tag t-up">强</span><span class="sig-time" style="margin-left:auto">14:32:08</span></div>
+                <div class="sig-reason">放量突破前高 156.8，MACD 二次金叉，量比 4.2，AI 模型 5 日目标 168.5（+7.9%）。建议分批建仓。</div>
+                <div class="sig-actions"><a class="btn up sm" href="trade.html">立即买入</a><a class="btn sm" href="predictions.html">看预测</a><button class="btn sm ghost">忽略</button></div>
+              </div>
+            </div>
+            <div class="sig-item unread" id="risk-signals">
+              <div class="sig-ic" style="background:var(--down-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--down)" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg></div>
+              <div class="sig-body">
+                <div class="sig-top"><span class="t">卖出信号 · 中国平安</span><span class="code">601318</span><span class="tag t-down">止损</span><span class="sig-time" style="margin-left:auto">14:05:51</span></div>
+                <div class="sig-reason">跌破 20 日均线且量价背离，持仓浮亏触及 −5% 止损线。建议清仓规避进一步下行。</div>
+                <div class="sig-actions"><a class="btn down sm" href="trade.html">立即卖出</a><button class="btn sm ghost">忽略</button></div>
+              </div>
+            </div>
+            <div class="sig-item unread">
+              <div class="sig-ic" style="background:var(--warn-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/></svg></div>
+              <div class="sig-body">
+                <div class="sig-top"><span class="t">风险提示 · 寒武纪</span><span class="code">688256</span><span class="tag t-warn">高位</span><span class="sig-time" style="margin-left:auto">13:48:20</span></div>
+                <div class="sig-reason">短期涨幅 62%，RSI 进入超买区(84)，注意高位回调风险，建议设置移动止盈。</div>
+                <div class="sig-actions"><a class="btn sm" href="diagnosis.html">查看诊断</a><button class="btn sm ghost">忽略</button></div>
+              </div>
+            </div>
+            <div class="sig-item">
+              <div class="sig-ic" style="background:var(--up-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+              <div class="sig-body">
+                <div class="sig-top"><span class="t">买入信号 · 五粮液</span><span class="code">000858</span><span class="tag t-up">中</span><span class="sig-time" style="margin-left:auto">11:20:14</span></div>
+                <div class="sig-reason">底部反转 + KDJ 金叉，回踩季线企稳，资金温和流入。低吸潜伏方案触发。</div>
+                <div class="sig-actions"><a class="btn up sm" href="trade.html">立即买入</a><button class="btn sm ghost">忽略</button></div>
+              </div>
+            </div>
+            <div class="sig-item">
+              <div class="sig-ic" style="background:var(--up-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+              <div class="sig-body">
+                <div class="sig-top"><span class="t">买入信号 · 宁德时代</span><span class="code">300750</span><span class="tag t-up">中</span><span class="sig-time" style="margin-left:auto">10:02:37</span></div>
+                <div class="sig-reason">行业共振 + 资金主升，突破平台整理，趋势波段方案确认买点。</div>
+                <div class="sig-actions"><a class="btn up sm" href="trade.html">立即买入</a><button class="btn sm ghost">忽略</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card" id="subscriptions">
+            <div class="card-h"><h3>今日统计</h3></div>
+            <div class="card-b">
+              <div class="li-row"><div class="li-main"><div class="n up">买入信号</div></div><div class="mono" style="font-weight:650">6</div></div>
+              <div class="li-row"><div class="li-main"><div class="n down">卖出信号</div></div><div class="mono" style="font-weight:650">3</div></div>
+              <div class="li-row"><div class="li-main"><div class="n" style="color:var(--warn)">风险提示</div></div><div class="mono" style="font-weight:650">2</div></div>
+              <div class="li-row"><div class="li-main"><div class="s">近30日信号命中率</div></div><div class="mono neu" style="font-weight:650">59.4%</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>信号订阅</h3></div>
+            <div class="card-b" style="padding:10px 16px">
+              <div class="li-row"><div class="li-main"><div class="n">AI 算力主线</div><div class="s">买卖 + 风险</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+              <div class="li-row"><div class="li-main"><div class="n">短线打板</div><div class="s">仅买入</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+              <div class="li-row"><div class="li-main"><div class="n">白马价值底仓</div><div class="s">仅风险</div></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+              <div class="action-strip">
+                <div class="hint">订阅变更会影响实时推送和交易票预填，不直接触发委托。</div>
+                <div class="inline-actions">
+                  <button class="btn sm primary" type="button" data-toast="订阅策略已保存">保存订阅</button>
+                  <button class="btn sm ghost" type="button" data-toast="已恢复默认订阅策略">恢复默认</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot">© 2026 速赢AI · 信号由量化模型自动生成，请结合自身判断决策</div>
+    </main>
+  </div>
+</div>
+<script src="assets/shell.js"></script>
+<style>.toggle{width:38px;height:21px;border-radius:11px;background:var(--border-2);position:relative;cursor:pointer;transition:.15s;flex-shrink:0}.toggle.on{background:var(--down)}.toggle::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:.15s}.toggle.on::after{left:19px}</style>
+<script>
+document.querySelectorAll('.seg .s').forEach(s=>s.addEventListener('click',()=>{document.querySelectorAll('.seg .s').forEach(x=>x.classList.remove('active'));s.classList.add('active');}));
+</script>
+</body>
+</html>

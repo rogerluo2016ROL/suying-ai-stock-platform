@@ -1,15 +1,15 @@
 """LLM extraction helpers for supply-chain BOM evidence.
 
 This module keeps the LLM boundary small: prompt construction, JSON parsing,
-usage normalization, and a guarded DeepSeek-compatible call path.
+usage normalization, and a guarded multi-provider call path.
 """
 
 import json
 import os
 import re
-import urllib.error
-import urllib.request
 from typing import Any
+
+from app.llm_multi_provider import ProviderConfigError, call_llm_sync
 
 
 DEFAULT_EXTRACTION: dict[str, Any] = {
@@ -96,44 +96,27 @@ def normalize_llm_usage(response: object) -> dict:
 
 
 def extract_supply_chain_facts(text: str, source: dict, provider: str = "deepseek") -> dict:
-    if provider != "deepseek":
-        return {"status": "disabled", "reason": f"unsupported provider: {provider}"}
-
-    api_key = os.environ.get("DEEPSEEK_API_KEY")
-    if not api_key:
-        return {"status": "disabled", "reason": "DEEPSEEK_API_KEY missing"}
-
     prompt = build_extraction_prompt(text, source)
-    body = json.dumps({
-        "model": os.environ.get("DEEPSEEK_MODEL", "deepseek-chat"),
-        "messages": [
-            {"role": "system", "content": "你只输出严格JSON对象。"},
-            {"role": "user", "content": prompt},
-        ],
-        "temperature": 0.1,
-    }).encode("utf-8")
+    messages = [
+        {"role": "system", "content": "你只输出严格JSON对象。"},
+        {"role": "user", "content": prompt},
+    ]
 
-    req = urllib.request.Request(
-        os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/chat/completions"),
-        data=body,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        return {"status": "error", "reason": exc.__class__.__name__}
+        response = call_llm_sync(messages, provider=provider, temperature=0.1)
+    except ProviderConfigError as e:
+        return {"status": "disabled", "reason": str(e)}
+    except Exception as e:
+        return {"status": "error", "reason": e.__class__.__name__}
 
-    content = ""
-    choices = payload.get("choices") if isinstance(payload, dict) else None
-    if choices:
-        content = choices[0].get("message", {}).get("content", "")
-
+    content = response.content
     data = parse_extraction_json(content)
     data["status"] = "ok" if "parse_error" not in data else "parse_error"
-    data["usage"] = normalize_llm_usage(payload)
+    data["usage"] = {
+        "prompt_tokens": response.usage.prompt_tokens,
+        "completion_tokens": response.usage.completion_tokens,
+        "total_tokens": response.usage.total_tokens,
+        "provider": response.usage.provider,
+        "model": response.usage.model,
+    }
     return data

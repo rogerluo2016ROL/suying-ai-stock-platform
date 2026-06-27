@@ -42,11 +42,27 @@ def _chain_codes() -> list:
     return sorted(codes)
 
 
+def _hardtech_codes() -> list:
+    """硬科技池 codes (复用 bi_trend 的 _is_hard_tech_stock, ~460 股).
+
+    V15 阶段A IC 速测发现营收增长 IC 最高 (+0.099) 但回填仅覆盖 chain 池,
+    硬科技池子集稀疏 (每季~220 非空). 此选项专为硬科技池回填 growth 字段.
+    """
+    from kronos_data.etl import _get_etl_db
+    from kronos_factors.engine.bi_trend_launch import _is_hard_tech_stock
+    db = _get_etl_db()
+    rows = db.execute(
+        "SELECT code, industry FROM stocks WHERE is_st=0 AND name NOT LIKE '%ST%'"
+    ).fetchall()
+    return sorted(r["code"] for r in rows if _is_hard_tech_stock(r["industry"] or ""))
+
+
 def main():
     ap = argparse.ArgumentParser(description="financial_indicator 历史回填 (P4 前置)")
     ap.add_argument("--start", default="2020Q1", help="起始季度 YYYYQN")
     ap.add_argument("--end", default="2025Q4", help="结束季度 YYYYQN")
-    ap.add_argument("--codes", default="chain", choices=["chain", "all"], help="chain=产业链候选池, all=全市场")
+    ap.add_argument("--codes", default="chain", choices=["chain", "hardtech", "all"],
+                    help="chain=产业链候选池, hardtech=硬科技池(V15), all=全市场")
     args = ap.parse_args()
 
     from kronos_data.etl import _sync_per_stock_financial, _get_all_codes, _get_etl_db
@@ -56,6 +72,8 @@ def main():
 
     if args.codes == "chain":
         codes = _chain_codes()
+    elif args.codes == "hardtech":
+        codes = _hardtech_codes()
     else:
         codes = _get_all_codes(_get_etl_db())
     print(f"回填股票: {len(codes)} 只 ({args.codes})", flush=True)

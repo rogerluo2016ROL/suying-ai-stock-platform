@@ -865,44 +865,8 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
 
     candidates.sort(key=_signal_rank)
 
-    # V14: 最低分散化强制 — 至少5只，同行业最多2只（放宽策略）
-    # 解决浓度风险：日均3-4只，单票暴雷=全军覆没
-    # 两阶段策略：先严格去重选出前批，如不足5只则放宽至3只/行业补充
-    top = []
-    sector_counts = defaultdict(int)
-
-    # 阶段1：严格去重（同行业最多2只）
-    for s in candidates:
-        ind = s["industry"]
-        if sector_counts[ind] < MAX_SAME_INDUSTRY:
-            top.append(s)
-            sector_counts[ind] += 1
-        if len(top) >= effective_n:
-            break
-
-    # 阶段2：如不足MIN_DIVERSIFICATION只，放宽至3只/行业补充
-    if len(top) < MIN_DIVERSIFICATION and len(candidates) >= MIN_DIVERSIFICATION:
-        for s in candidates:
-            if s in top:
-                continue  # 已入选跳过
-            ind = s["industry"]
-            if sector_counts[ind] < MAX_SAME_INDUSTRY + 1:  # 放宽至3只
-                top.append(s)
-                sector_counts[ind] += 1
-            if len(top) >= MIN_DIVERSIFICATION:
-                break
-
-    # V14: 分级仓位权重 — 解决S级悖论（S级降权60%，A级满仓100%，B级降权30%）
-    # M02 (audit-model-2026-06-22): 推回调参前统一持有参数.
-    # 统一 hold=5 / tp=15 / stop=-10 (调参前基线), 但仓位权重按评级分级.
-    for s in top:
-        grade = s.get("grade", "A")
-        # V14: 根据评级应用仓位权重（S级高波动降权，A级稳健满仓）
-        s["weight"] = GRADE_POSITION_WEIGHT.get(grade, 1.0)
-        s["hold_days"] = 5
-        # V14: 波动率分级止损 — 极端波动票收紧到 -8%, 限制单笔尾部亏损
-        s["stop_loss"] = VOL_TIERED_STOP_LOSS.get(s.get("vol_regime", "normal"), -10)
-        s["take_profit"] = 15
+    # V14: 最低分散化 + 分级仓位 + 分级止损 (抽为公共函数, bi_alpha_v15 共用)
+    top = apply_v14_risk_controls(candidates, effective_n)
 
     market_info = {
         "breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),
@@ -912,6 +876,56 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         "effective_n": effective_n,
     }
     return top, scores, market_info
+
+
+def apply_v14_risk_controls(candidates: list, effective_n: int) -> list:
+    """V14 风控公共函数 — 最低分散化 + 分级仓位 + 波动率分级止损.
+
+    与信号来源无关, 只依赖候选 dict 的 industry / grade / vol_regime 字段.
+    bi_trend (run_bi_screening) 与 bi_alpha_v15 共用, 保证风控一致.
+
+    Args:
+        candidates: 已按优先级排序的候选列表 (每个 dict 含 industry/grade/vol_regime).
+        effective_n: 目标选股数 (市场环境决定).
+
+    Returns:
+        top: 入选列表, 每个 dict 已写入 weight/hold_days/stop_loss/take_profit.
+    """
+    # 最低分散化强制 — 至少 MIN_DIVERSIFICATION 只, 同行业 ≤ MAX_SAME_INDUSTRY
+    # 两阶段: 先严格去重, 不足则放宽至 +1 只/行业补充
+    top = []
+    sector_counts = defaultdict(int)
+
+    # 阶段1: 严格去重
+    for s in candidates:
+        ind = s.get("industry") or "其他"
+        if sector_counts[ind] < MAX_SAME_INDUSTRY:
+            top.append(s)
+            sector_counts[ind] += 1
+        if len(top) >= effective_n:
+            break
+
+    # 阶段2: 不足 MIN_DIVERSIFICATION 则放宽补充
+    if len(top) < MIN_DIVERSIFICATION and len(candidates) >= MIN_DIVERSIFICATION:
+        for s in candidates:
+            if s in top:
+                continue
+            ind = s.get("industry") or "其他"
+            if sector_counts[ind] < MAX_SAME_INDUSTRY + 1:
+                top.append(s)
+                sector_counts[ind] += 1
+            if len(top) >= MIN_DIVERSIFICATION:
+                break
+
+    # 分级仓位 (S级悖论修复) + 波动率分级止损 (尾部风险) + 统一持有参数 (M02)
+    for s in top:
+        grade = s.get("grade", "A")
+        s["weight"] = GRADE_POSITION_WEIGHT.get(grade, 1.0)
+        s["hold_days"] = 5
+        s["stop_loss"] = VOL_TIERED_STOP_LOSS.get(s.get("vol_regime", "normal"), -10)
+        s["take_profit"] = 15
+
+    return top
 
 
 def _score_hard_tech_conviction(industry: str, hard_tech_track: str = "",

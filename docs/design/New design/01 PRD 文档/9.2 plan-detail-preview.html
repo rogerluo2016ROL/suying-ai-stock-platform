@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 方案详情 — LT-20260627-01A 龙头战法-开盘A</title>
+
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:18px 20px 32px;max-width:1100px}
+
+/* ===== Pill Tabs ===== */
+.pill-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.pill-tab{padding:6px 16px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--fg-2);font-size:12.5px;cursor:pointer;transition:all .12s;text-decoration:none}
+.pill-tab:hover{background:var(--surface-2);color:var(--fg)}
+.pill-tab.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+
+/* ===== Back Link ===== */
+.back-link{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);cursor:pointer;text-decoration:none;margin-bottom:12px;transition:color .12s}
+.back-link:hover{color:var(--accent)}
+
+/* ===== Status Badge & Dot ===== */
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-dot.running{background:var(--down);animation:dotPulse 1.8s infinite}
+.status-dot.paused{background:var(--warn)}
+.status-dot.draft{background:var(--fg-2)}
+.status-dot.closed{background:var(--muted)}
+@keyframes dotPulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 6px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.status-badge.running{background:var(--down-bg);color:var(--down);border:1px solid rgba(46,194,126,.25)}
+.status-badge.paused{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(245,166,35,.25)}
+.status-badge.draft{background:rgba(154,167,184,.12);color:#9aa7b8;border:1px solid rgba(154,167,184,.25)}
+.status-badge.closed{background:rgba(94,106,125,.10);color:#5e6a7d;border:1px solid rgba(94,106,125,.20)}
+
+/* ===== Plan Detail Header ===== */
+.plan-detail-header{padding:18px 20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px}
+.pdh-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.pdh-name{font-size:16px;font-weight:700;color:var(--fg)}
+.pdh-meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.pdh-meta .sep{width:1px;height:10px;background:var(--border)}
+.pdh-pnl{margin-left:auto;font-family:var(--font-mono);font-size:13px;font-weight:650;display:flex;align-items:center;gap:4px}
+.pdh-pnl .amount{font-size:11px;color:var(--fg-2)}
+.pdh-divider{height:1px;background:var(--border);margin-top:14px}
+
+/* ===== Section ===== */
+.section-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
+.section-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface)}
+.section-head .sh-title{font-size:12px;font-weight:650;color:var(--fg-2);display:flex;align-items:center;gap:6px}
+.section-head .sh-meta{font-size:10px;color:var(--muted);cursor:pointer;transition:color .12s}
+.section-head .sh-meta:hover{color:var(--accent)}
+.section-body{padding:0}
+
+/* ===== Stock Allocation Table ===== */
+.stock-table{width:100%}
+.stock-th{display:flex;align-items:center;gap:4px;padding:6px 16px;font-size:10px;color:var(--muted);font-weight:600;border-bottom:2px solid var(--border);background:var(--surface-2)}
+.stock-row{display:flex;align-items:center;gap:4px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:11.5px;transition:background .12s}
+.stock-row:last-child{border-bottom:none}
+.stock-row:hover{background:var(--surface-2)}
+.stock-row .sr-code{font-family:var(--font-mono);font-weight:650;color:var(--accent);width:62px;flex-shrink:0}
+.stock-row .sr-name{width:44px;flex-shrink:0;color:var(--fg-2)}
+.stock-row .sr-dir{width:30px;flex-shrink:0;font-weight:600;text-align:center}
+.stock-row .sr-dir.buy{color:var(--up)}
+.stock-row .sr-dir.sell{color:var(--down)}
+.stock-row .sr-price{font-family:var(--font-mono);width:58px;flex-shrink:0;text-align:right;font-size:11px}
+.stock-row .sr-alloc{width:46px;flex-shrink:0;text-align:right;font-family:var(--font-mono);font-weight:650}
+.stock-row .sr-stops{flex:1;display:flex;gap:8px;font-size:10px;color:var(--muted)}
+.stock-row .sr-stops .loss{color:var(--down)}
+.stock-row .sr-stops .profit{color:var(--up)}
+.stock-row .sr-pnl{width:90px;flex-shrink:0;text-align:right;font-family:var(--font-mono);font-size:11px;font-weight:650}
+.stock-row .sr-pnl.up{color:var(--up)}
+.stock-row .sr-pnl.down{color:var(--down)}
+.stock-row .sr-pnl.alert{animation:pnlPulse 1.2s infinite}
+@keyframes pnlPulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ===== Order Table ===== */
+.order-filters{display:flex;gap:4px;padding:10px 16px}
+.order-filters .of-btn{padding:3px 10px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--fg-2);font-size:10.5px;cursor:pointer;transition:.12s}
+.order-filters .of-btn:hover{background:var(--surface-2);color:var(--fg)}
+.order-filters .of-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+.order-th{display:flex;align-items:center;gap:4px;padding:6px 16px;font-size:10px;color:var(--muted);font-weight:600;border-bottom:2px solid var(--border);background:var(--surface-2)}
+.order-row{display:flex;align-items:center;gap:4px;padding:9px 16px;border-bottom:1px solid var(--border);font-size:11px;transition:background .12s}
+.order-row:last-child{border-bottom:none}
+.order-row:hover{background:var(--surface-2)}
+.order-row .oi-time{font-family:var(--font-mono);font-size:10px;color:var(--muted);width:38px;flex-shrink:0}
+.order-row .oi-code{font-family:var(--font-mono);font-weight:650;color:var(--accent);width:60px;flex-shrink:0}
+.order-row .oi-name{width:40px;flex-shrink:0;color:var(--fg-2)}
+.order-row .oi-side{width:30px;flex-shrink:0;font-weight:600;text-align:center}
+.order-row .oi-side.buy{color:var(--up)}
+.order-row .oi-side.sell{color:var(--down)}
+.order-row .oi-price{font-family:var(--font-mono);width:58px;flex-shrink:0;text-align:right}
+.order-row .oi-qty{font-family:var(--font-mono);width:40px;flex-shrink:0;text-align:right;color:var(--fg-2)}
+.order-row .oi-status{flex:1;text-align:right;font-size:10.5px}
+
+/* ===== Risk Summary ===== */
+.risk-bar-row{display:flex;align-items:center;gap:10px;padding:4px 16px 12px}
+.risk-bar-label{font-size:11px;color:var(--fg-2);width:50px;flex-shrink:0;font-weight:550}
+.risk-bar-track{flex:1;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.risk-bar-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.risk-bar-fill.safe{background:var(--accent)}
+.risk-bar-fill.warn{background:var(--warn)}
+.risk-bar-fill.danger{background:var(--up)}
+.risk-bar-value{font-family:var(--font-mono);font-size:14px;font-weight:720;width:40px;flex-shrink:0;text-align:right}
+.risk-bar-value.warn{color:var(--warn)}
+.risk-bar-value.danger{color:var(--up)}
+
+.risk-metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px 8px}
+.risk-metric-item{background:var(--surface-2);border-radius:6px;padding:10px 12px}
+.risk-metric-item .rmi-label{font-size:10px;color:var(--muted);margin-bottom:3px}
+.risk-metric-item .rmi-value{font-family:var(--font-mono);font-size:15px;font-weight:720}
+.risk-metric-item .rmi-value.alert{color:var(--up);animation:alertPulse 1.2s infinite}
+@keyframes alertPulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+.risk-check-bar{display:flex;align-items:center;gap:6px;padding:8px 16px 14px;font-size:11px;font-weight:600}
+.risk-check-bar.pass{color:var(--down)}
+.risk-check-bar.warn{color:var(--warn)}
+
+.risk-inline{display:flex;align-items:center;gap:8px;padding:0 16px 12px;font-size:11px;color:var(--fg-2)}
+.risk-inline .sep{width:1px;height:10px;background:var(--border)}
+.risk-inline b{color:var(--fg);font-weight:650;font-family:var(--font-mono)}
+
+/* ===== Action Panel ===== */
+.action-panel{display:flex;gap:8px;padding:14px 16px;border-top:1px solid var(--border);background:var(--surface);flex-wrap:wrap}
+.action-panel button{flex:1;min-width:90px;padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:var(--elevated);color:var(--fg-2);cursor:pointer;transition:.12s;font-size:12px;font-family:var(--font-sans);text-align:center;font-weight:550}
+.action-panel button:hover{background:var(--surface);color:var(--fg)}
+.action-panel button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.action-panel button.primary:hover{background:#2d7ae0;border-color:#2d7ae0}
+.action-panel button.settle{background:var(--down);border-color:var(--down);color:#fff}
+.action-panel button.settle:hover{background:#25a868;border-color:#25a868}
+.action-panel button.disabled{opacity:.4;pointer-events:none;cursor:not-allowed}
+
+/* ===== Toast ===== */
+.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;background:var(--down-bg);border:1px solid var(--down);color:var(--down);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.info{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+
+/* ===== Loading pulse ===== */
+@keyframes loadingPulse{0%,100%{opacity:1}50%{opacity:.5}}
+.loading{animation:loadingPulse 1.2s infinite;color:var(--muted);font-size:10px}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="plans" data-title="方案详情 — LT-20260627-01A 龙头战法-开盘A">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">操盘手</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">私有 Plan + 公共证据</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user/account?</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">启动前绑定账户</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+      <section class="p0-context-strip" data-p0-stage="plan">
+        <div class="ctx-block">
+          <div class="ctx-label">DecisionContext</div>
+          <div class="ctx-id">CTX-20260627-093201-FU01</div>
+          <div class="ctx-meta">tradeDate 2026-06-27 · source strategy_service/plan_detail</div>
+        </div>
+        <nav class="p0-flow" aria-label="P0 主链路">
+          <a href="2.4 candidate-pool-preview.html"><strong>01 候选池</strong><span>Candidate 收口</span></a>
+          <a class="active" href="9.2 plan-detail-preview.html"><strong>02 方案管理</strong><span>Plan 审核</span></a>
+          <a href="7.1 order-panel-preview.html"><strong>03 下单面板</strong><span>Order 预览</span></a>
+          <a href="10.1 risk-overview-preview.html"><strong>04 风控闸门</strong><span>RiskVerdict</span></a>
+          <a href="11.1 backtest-run-preview.html"><strong>05 回测复盘</strong><span>Backtest 写回</span></a>
+        </nav>
+        <div class="ctx-block">
+          <div class="ctx-label">当前对象</div>
+          <div class="p0-objects">
+            <span class="p0-obj active">Plan active</span>
+            <span class="p0-obj">Candidate refs × 6</span>
+            <span class="p0-obj">Order 0/3</span>
+            <span class="p0-obj">RiskVerdict pass</span>
+          </div>
+          <a class="p0-next" href="7.1 order-panel-preview.html">下一步：按 PlanItem 打开下单面板 -></a>
+        </div>
+      </section>
+<!-- ===== Back Link ===== -->
+          <a href="9.1 plan-list-preview.html" class="back-link">← 返回方案列表</a>
+      
+          <!-- ===== Plan Detail Header ===== -->
+          <div class="plan-detail-header">
+            <div class="pdh-top">
+              <span class="status-dot running"></span>
+              <span class="pdh-name" style="font-family:var(--font-mono);color:var(--accent);letter-spacing:.02em">LT-20260627-01A</span>
+              <span class="status-badge running">🟢 运行中</span>
+              <span class="pdh-pnl up">
+                +2.1%
+                <span class="amount">+¥2,140</span>
+              </span>
+            </div>
+            <div class="pdh-meta">
+              <span>龙头战法-开盘 A</span>
+              <span class="sep"></span>
+              <span>创建于 09:32:05</span>
+              <span class="sep"></span>
+              <span>来源: 候选池 · 龙头战法模型</span>
+              <span class="sep"></span>
+              <span>已运行 <b style="color:var(--fg);font-family:var(--font-mono)">43</b> 分钟</span>
+            </div>
+            <div class="pdh-divider"></div>
+          </div>
+      
+          <!-- ===== Stock Allocation Table ===== -->
+          <div class="section-wrap" id="stockSection">
+            <div class="section-head">
+              <span class="sh-title">📊 标的配置 · 3 只</span>
+              <span class="sh-meta loading" id="refreshHint">上次刷新: 10:15:00</span>
+            </div>
+            <div class="section-body">
+              <div class="stock-table">
+                <div class="stock-th">
+                  <span class="sr-code">代码</span>
+                  <span class="sr-name">名称</span>
+                  <span class="sr-dir">方向</span>
+                  <span class="sr-price">计划价</span>
+                  <span class="sr-alloc">仓位</span>
+                  <span class="sr-stops" style="flex:1">止损 / 止盈</span>
+                  <span class="sr-pnl">实时盈亏</span>
+                </div>
+                <div class="stock-row">
+                  <span class="sr-code">300750</span>
+                  <span class="sr-name">宁德</span>
+                  <span class="sr-dir buy">买入</span>
+                  <span class="sr-price">218.50</span>
+                  <span class="sr-alloc" style="color:var(--accent)">15%</span>
+                  <span class="sr-stops"><span class="loss">止损 196.50</span><span class="profit">止盈 251.00</span></span>
+                  <span class="sr-pnl up">+3.2% +¥1,050</span>
+                </div>
+                <div class="stock-row">
+                  <span class="sr-code">688981</span>
+                  <span class="sr-name">中芯</span>
+                  <span class="sr-dir buy">买入</span>
+                  <span class="sr-price">68.20</span>
+                  <span class="sr-alloc" style="color:var(--accent)">12%</span>
+                  <span class="sr-stops"><span class="loss">止损 61.38</span><span class="profit">止盈 78.40</span></span>
+                  <span class="sr-pnl down">-0.8% −¥330</span>
+                </div>
+                <div class="stock-row" style="background:rgba(255,77,79,0.04)">
+                  <span class="sr-code">603986</span>
+                  <span class="sr-name">兆易</span>
+                  <span class="sr-dir buy">买入</span>
+                  <span class="sr-price">152.00</span>
+                  <span class="sr-alloc" style="color:var(--accent)">10%</span>
+                  <span class="sr-stops"><span class="loss" style="animation:alertPulse 1.2s infinite">⚠ 止损 136.80</span><span class="profit">止盈 174.80</span></span>
+                  <span class="sr-pnl alert" style="color:var(--up)">-4.7% −¥760</span>
+                </div>
+              </div>
+            </div>
+          </div>
+      
+          <!-- ===== Order List ===== -->
+          <div class="section-wrap" id="orderSection">
+            <div class="section-head">
+              <span class="sh-title">📝 关联订单 · <span style="color:var(--accent);font-family:var(--font-mono)">3</span> 笔</span>
+            </div>
+            <div class="order-filters" id="orderFilters">
+              <button class="of-btn active" onclick="filterOrders('all',this)">全部</button>
+              <button class="of-btn" onclick="filterOrders('filled',this)">已成交</button>
+              <button class="of-btn" onclick="filterOrders('pending',this)">待成交</button>
+              <button class="of-btn" onclick="filterOrders('partial',this)">部成</button>
+              <button class="of-btn" onclick="filterOrders('cancelled',this)">已撤单</button>
+            </div>
+            <div class="section-body">
+              <div class="order-th">
+                <span class="oi-time">时间</span>
+                <span class="oi-code">代码</span>
+                <span class="oi-name">名称</span>
+                <span class="oi-side">方向</span>
+                <span class="oi-price">价格</span>
+                <span class="oi-qty">数量</span>
+                <span class="oi-status">状态</span>
+              </div>
+              <div class="order-row" data-status="filled">
+                <span class="oi-time">09:32</span>
+                <span class="oi-code">300750</span>
+                <span class="oi-name">宁德</span>
+                <span class="oi-side buy">买入</span>
+                <span class="oi-price">218.50</span>
+                <span class="oi-qty">200</span>
+                <span class="oi-status" style="color:var(--down)">已成交 ✅</span>
+              </div>
+              <div class="order-row" data-status="filled">
+                <span class="oi-time">09:33</span>
+                <span class="oi-code">688981</span>
+                <span class="oi-name">中芯</span>
+                <span class="oi-side buy">买入</span>
+                <span class="oi-price">68.20</span>
+                <span class="oi-qty">500</span>
+                <span class="oi-status" style="color:var(--down)">已成交 ✅</span>
+              </div>
+              <div class="order-row" data-status="partial">
+                <span class="oi-time">09:35</span>
+                <span class="oi-code">603986</span>
+                <span class="oi-name">兆易</span>
+                <span class="oi-side buy">买入</span>
+                <span class="oi-price">152.00</span>
+                <span class="oi-qty">100/300</span>
+                <span class="oi-status" style="color:var(--accent)">部成 🔄</span>
+              </div>
+            </div>
+          </div>
+      
+          <!-- ===== Risk Summary ===== -->
+          <div class="section-wrap" id="riskSection">
+            <div class="section-head">
+              <span class="sh-title">📊 风险概览</span>
+            </div>
+            <div class="section-body">
+      
+              <!-- 总仓位进度条 -->
+              <div style="padding:14px 16px 6px">
+                <div class="risk-bar-row">
+                  <span class="risk-bar-label">总仓位</span>
+                  <div class="risk-bar-track">
+                    <div class="risk-bar-fill safe" style="width:37%"></div>
+                  </div>
+                  <span class="risk-bar-value" style="color:var(--warn)">37%</span>
+                </div>
+                <div class="risk-inline">
+                  <span>总风险 <b class="down">-4.5%</b></span>
+                  <span class="sep"></span>
+                  <span>单票集中度 <b>15%</b></span>
+                  <span class="sep"></span>
+                  <span>止损覆盖率 <b>100%</b></span>
+                </div>
+              </div>
+      
+              <!-- 风险指标网格 -->
+              <div class="risk-metrics-grid">
+                <div class="risk-metric-item">
+                  <div class="rmi-label">预估最大回撤</div>
+                  <div class="rmi-value" style="color:var(--warn)">-8.2%</div>
+                </div>
+                <div class="risk-metric-item">
+                  <div class="rmi-label">盈亏比</div>
+                  <div class="rmi-value" style="color:var(--fg)">1:1.5</div>
+                </div>
+                <div class="risk-metric-item" style="border:1px solid rgba(255,77,79,0.3)">
+                  <div class="rmi-label">⚠ 止损逼近告警</div>
+                  <div class="rmi-value alert">兆易 -4.7%</div>
+                </div>
+              </div>
+      
+              <!-- 风控结论 -->
+              <div class="risk-check-bar pass">🛡️ 风控: ✅ 通过 — 总仓位/单票集中度在安全范围内</div>
+      
+            </div>
+          </div>
+      
+          <!-- ===== Action Buttons ===== -->
+          <div class="section-wrap" id="actionSection">
+            <div class="action-panel" id="actionPanel">
+              <button onclick="pausePlan()">⏸️ 暂停方案</button>
+              <button class="settle" onclick="settlePlan()">🏁 结算方案</button>
+              <button class="disabled">✏️ 编辑标的</button>
+            </div>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+// ===== Mock data =====
+var planStatus = 'running';
+var refreshCount = 0;
+
+// ===== Toast =====
+function showToast(msg, type){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type === 'info' ? ' info' : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(function(){ t.className = 'toast'; }, 2200);
+}
+
+// ===== Pause =====
+function pausePlan(){
+  planStatus = 'paused';
+
+  // Update status dot & badge
+  var dot = document.querySelector('.pdh-top .status-dot');
+  dot.className = 'status-dot paused';
+  var badge = document.querySelector('.pdh-top .status-badge');
+  badge.className = 'status-badge paused';
+  badge.textContent = '🟡 暂停';
+
+  // Update action buttons
+  document.getElementById('actionPanel').innerHTML =
+    '<button class="primary" onclick="resumePlan()">▶️ 恢复方案</button>' +
+    '<button class="settle" onclick="settlePlan()">🏁 结算方案</button>';
+
+  // Stop refresh hint
+  document.getElementById('refreshHint').textContent = '已暂停 · 数据冻结';
+  document.getElementById('refreshHint').classList.remove('loading');
+
+  showToast('⏸️ 方案已暂停 · 持仓保留 · 可恢复继续', 'info');
+}
+
+// ===== Resume =====
+function resumePlan(){
+  planStatus = 'running';
+
+  var dot = document.querySelector('.pdh-top .status-dot');
+  dot.className = 'status-dot running';
+  var badge = document.querySelector('.pdh-top .status-badge');
+  badge.className = 'status-badge running';
+  badge.textContent = '🟢 运行中';
+
+  document.getElementById('actionPanel').innerHTML =
+    '<button onclick="pausePlan()">⏸️ 暂停方案</button>' +
+    '<button class="settle" onclick="settlePlan()">🏁 结算方案</button>' +
+    '<button class="disabled">✏️ 编辑标的</button>';
+
+  document.getElementById('refreshHint').textContent = '上次刷新: 10:15:00';
+  document.getElementById('refreshHint').classList.add('loading');
+
+  showToast('▶️ 方案已恢复！执行器继续下单', '');
+}
+
+// ===== Settle =====
+function settlePlan(){
+  if (!confirm('确认结算方案？将对所有未平仓标的发起卖出订单并归档。')) return;
+
+  planStatus = 'closed';
+
+  var dot = document.querySelector('.pdh-top .status-dot');
+  dot.className = 'status-dot closed';
+  var badge = document.querySelector('.pdh-top .status-badge');
+  badge.className = 'status-badge closed';
+  badge.textContent = '✅ 已归档';
+
+  document.getElementById('actionPanel').innerHTML =
+    '<button onclick="showToast(\'结算报告开发中\',\'info\')">📋 查看结算报告</button>' +
+    '<button style="background:transparent;border-color:transparent;color:var(--fg-2)" onclick="showToast(\'回测记录开发中\',\'info\')">📋 回测记录</button>';
+
+  document.getElementById('refreshHint').textContent = '已结算 · 数据归档';
+  document.getElementById('refreshHint').classList.remove('loading');
+
+  showToast('🏁 方案已结算归档 · 最终收益 +2.1% · 归档可查看历史收益', 'info');
+}
+
+// ===== Order Filter =====
+function filterOrders(status, btn){
+  document.querySelectorAll('.order-filters .of-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+
+  document.querySelectorAll('.order-row').forEach(function(row){
+    if (status === 'all'){
+      row.style.display = '';
+    } else if (row.dataset.status === status){
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+}
+
+// ===== Simulate live refresh counter =====
+setInterval(function(){
+  if (planStatus !== 'running') return;
+  refreshCount++;
+  var now = new Date();
+  var ts = now.getHours().toString().padStart(2,'0') + ':' +
+            now.getMinutes().toString().padStart(2,'0') + ':' +
+            now.getSeconds().toString().padStart(2,'0');
+  var hint = document.getElementById('refreshHint');
+  hint.textContent = '实时刷新: ' + ts;
+  hint.classList.add('loading');
+  setTimeout(function(){ hint.classList.remove('loading'); }, 800);
+
+  // Simulate slight PnL changes
+  var pnlEl = document.querySelector('.pdh-pnl');
+  var r = (Math.random() * 0.4 - 0.1).toFixed(1);
+  if (parseFloat(r) >= 0){
+    pnlEl.className = 'pdh-pnl up';
+    pnlEl.innerHTML = '+' + (2.1 + parseFloat(r)).toFixed(1) + '%<span class="amount">+¥' + (2140 + Math.round(parseFloat(r)*100)).toLocaleString() + '</span>';
+  } else {
+    pnlEl.className = 'pdh-pnl down';
+    pnlEl.innerHTML = (2.1 + parseFloat(r)).toFixed(1) + '%<span class="amount">−¥' + (2140 + Math.abs(Math.round(parseFloat(r)*100))).toLocaleString() + '</span>';
+  }
+}, 15000);
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

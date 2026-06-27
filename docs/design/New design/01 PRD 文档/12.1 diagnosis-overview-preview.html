@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 个股诊断 · 综合诊断</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:18px 20px 32px}
+
+.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:4px;flex-wrap:wrap}
+.top-bar .page-title{font-size:21px;font-weight:700}
+
+/* SubTabBar */
+.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
+.stb button{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans)}
+.stb button:hover{color:var(--fg)}
+.stb button.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+.breadcrumb{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-bottom:12px}
+.breadcrumb .bc-link{color:var(--fg-2);cursor:pointer;text-decoration:none}
+.breadcrumb .bc-link:hover{color:var(--accent)}
+.breadcrumb .bc-sep{color:var(--muted)}
+.breadcrumb .bc-current{color:var(--accent);font-weight:600}
+
+.selector-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.selector-row input{padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font-mono);font-size:14px;outline:none;width:180px}
+.selector-row input:focus{border-color:var(--accent)}
+.selector-row .nav-btn{padding:6px 14px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--fg-2);cursor:pointer;font-size:12px;transition:.12s}
+.selector-row .nav-btn:hover{background:var(--elevated);color:var(--fg)}
+
+.row-diag{display:grid;grid-template-columns:14fr 10fr;gap:14px;align-items:flex-start}
+
+.radar-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;position:relative;margin-bottom:14px}
+.radar-card .rc-header{padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:650;color:var(--fg-2);display:flex;align-items:center;gap:6px}
+.radar-card .rc-body{height:380px;padding:10px;position:relative}
+
+.overall-score{position:absolute;top:50%;left:50%;transform:translate(-50%,-45%);text-align:center;pointer-events:none}
+.overall-score .os-value{font-size:46px;font-weight:780;font-family:var(--font-mono);line-height:1}
+.overall-score .os-label{font-size:11px;color:var(--fg-2);margin-top:4px;font-weight:600}
+.overall-score .os-action{font-size:10.5px;color:var(--accent);font-weight:650;margin-top:2px}
+
+.ai-badge{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;margin-bottom:14px}
+.ai-badge .ai-direction{font-size:18px;font-weight:700}
+.ai-badge .ai-change{font-family:var(--font-mono);font-weight:700;font-size:16px}
+.ai-badge .ai-conf{font-size:10.5px;color:var(--fg-2);margin-left:auto}
+
+.key-levels-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.key-levels-card .kl-title{font-size:12px;font-weight:650;color:var(--fg-2);margin-bottom:12px}
+.level-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.level-item{background:var(--surface-2);border-radius:6px;padding:10px 12px;text-align:center}
+.level-item .li-price{font-family:var(--font-mono);font-size:18px;font-weight:720;margin-bottom:2px}
+.level-item .li-label{font-size:10px;color:var(--muted)}
+.level-item.resistance .li-price{color:var(--up)}
+.level-item.support .li-price{color:var(--down)}
+.level-item.stop .li-price{color:var(--down)}
+
+/* 横向价位条 */
+.level-bar-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px}
+.level-bar-wrap .lb-title{font-size:12px;font-weight:650;color:var(--fg-2);margin-bottom:16px}
+.level-bar{position:relative;height:52px;margin:0 20px}
+.level-track{position:relative;height:100%}
+.level-track::before{content:"";position:absolute;top:50%;left:0;right:0;height:4px;background:var(--surface-2);border-radius:2px;transform:translateY(-50%)}
+.level-marker{position:absolute;top:50%;transform:translate(-50%,-50%);text-align:center}
+.level-marker .l-dot{width:8px;height:8px;border-radius:50%;background:var(--fg-2);margin:0 auto 4px}
+.level-marker .l-price{font-family:var(--font-mono);font-size:10.5px;font-weight:650;white-space:nowrap;margin-bottom:1px}
+.level-marker .l-label{font-size:9px;color:var(--muted);white-space:nowrap}
+.level-marker.resistance .l-dot{background:var(--up)}
+.level-marker.resistance .l-price{color:var(--up)}
+.level-marker.support .l-dot{background:var(--down)}
+.level-marker.support .l-price{color:var(--down)}
+.level-marker.stop .l-dot{background:var(--down)}
+.level-marker.stop .l-price{color:var(--down)}
+.level-marker.current{transform:translate(-50%,-50%)}
+.level-marker.current .l-dot{width:12px;height:12px;background:var(--accent);box-shadow:0 0 8px rgba(61,139,255,.5)}
+.level-marker.current .l-price{font-size:13px;color:var(--accent);font-weight:720}
+
+.detail-panel{display:flex;flex-direction:column;gap:14px;overflow-y:auto;max-height:calc(100vh - var(--header-h) - 200px)}
+.detail-panel::-webkit-scrollbar{width:5px}
+.detail-panel::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+.dim-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.dim-card .dc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.dim-card .dc-name{font-size:13px;font-weight:650}
+.dim-card .dc-weight{font-size:10px;color:var(--muted)}
+.dim-card .dc-score{font-family:var(--font-mono);font-size:14px;font-weight:720}
+.dim-card .dc-bar{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;margin-bottom:8px}
+.dim-card .dc-bar-fill{height:100%;border-radius:3px;transition:width .4s ease}
+.dim-card .dc-sub-items{display:flex;gap:6px;flex-wrap:wrap;font-size:10px}
+.dim-card .dc-sub-item{padding:2px 8px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border)}
+.dim-card .dc-sub-item.positive{color:var(--down);border-color:rgba(46,194,126,.25)}
+.dim-card .dc-sub-item.neutral{color:var(--fg-2)}
+.dim-card .dc-sub-item.negative{color:var(--up);border-color:rgba(255,77,79,.25)}
+
+.risk-checks-bar{display:flex;gap:16px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:11px}
+.risk-checks-bar span{display:flex;align-items:center;gap:4px}
+.risk-checks-bar .passed{color:var(--down)}
+
+.suggestion-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.suggestion-box .sb-title{font-size:11.5px;font-weight:650;color:var(--fg-2);margin-bottom:8px}
+.suggestion-box .sb-text{font-size:12px;color:var(--fg);line-height:1.8;margin-bottom:8px}
+.suggestion-box .sb-meta{display:flex;gap:14px;font-size:10.5px;color:var(--muted);flex-wrap:wrap}
+.suggestion-box .sb-meta b{color:var(--fg-2);font-weight:600}
+
+.action-row{display:flex;gap:8px}
+.action-row button{flex:1;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:.12s;font-family:var(--font-sans)}
+.btn-primary{background:var(--accent);border:none;color:#fff}
+.btn-primary:hover{background:#5a9ef7}
+.btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--fg-2)}
+.btn-secondary:hover{background:var(--elevated);color:var(--fg)}
+
+.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+
+.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="diagnosis" data-title="个股诊断 · 综合诊断">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">投资者/操盘</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共诊断 + 私有报告</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">不直接交易</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+<div class="top-bar">
+            <span class="page-title">🏥 个股诊断</span>
+          </div>
+<!-- Breadcrumb -->
+          <div class="breadcrumb">
+            <span>← 来源:</span>
+            <a class="bc-link" href="2.4 candidate-pool-preview.html">候选池</a>
+            <span class="bc-sep">&gt;</span>
+            <span class="bc-current">300750 宁德时代</span>
+          </div>
+      
+          <!-- Stock Code Input -->
+          <div class="selector-row">
+            <input type="text" id="codeInput" value="300750" placeholder="输入股票代码..." onkeydown="if(event.key==='Enter')searchStock(this.value)"/>
+            <button class="nav-btn" onclick="prevStock()">← 上一只</button>
+            <button class="nav-btn" onclick="nextStock()">下一只 →</button>
+          </div>
+      
+          <div class="row-diag" id="mainRow">
+            <!-- ===== Left: Radar + Key Levels ===== -->
+            <div>
+              <div class="radar-card">
+                <div class="rc-header">📊 五维诊断 — 宁德时代 300750</div>
+                <div class="rc-body">
+                  <div id="radarChart" style="width:100%;height:100%"></div>
+                  <div class="overall-score" id="overallScore">
+                    <div class="os-value" style="color:var(--down)" id="scoreValue">85</div>
+                    <div class="os-label">综合评分</div>
+                    <div class="os-action" id="scoreAction">🟢 优秀 · 强烈推荐</div>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- AI Prediction -->
+              <div class="ai-badge">
+                <span class="ai-direction up">📈</span>
+                <span class="ai-change up">↑ +12.5%</span>
+                <span style="color:var(--fg-2);font-size:11px">30日预测趋势</span>
+                <span class="ai-conf">置信度 72% | Kronos V3</span>
+              </div>
+      
+              <!-- Horizontal Price Bar -->
+              <div class="level-bar-wrap">
+                <div class="lb-title">🎯 关键价位水平条 (当前 ¥218.50)</div>
+                <div class="level-bar">
+                  <div class="level-track" id="levelTrack">
+                    <div class="level-marker stop" style="left:18%">
+                      <div class="l-dot"></div>
+                      <div class="l-price">185.00</div>
+                      <div class="l-label">止损 (-15.3%)</div>
+                    </div>
+                    <div class="level-marker support" style="left:32%">
+                      <div class="l-dot"></div>
+                      <div class="l-price">196.50</div>
+                      <div class="l-label">支撑 (-10.1%)</div>
+                    </div>
+                    <div class="level-marker current" style="left:55%">
+                      <div class="l-dot"></div>
+                      <div class="l-price">218.50</div>
+                      <div class="l-label">当前价</div>
+                    </div>
+                    <div class="level-marker resistance" style="left:78%">
+                      <div class="l-dot"></div>
+                      <div class="l-price">251.00</div>
+                      <div class="l-label">阻力 (+14.9%)</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+      
+              <!-- Key Levels Grid -->
+              <div class="key-levels-card">
+                <div class="kl-title">🎯 关键价位 (当前 ¥218.50)</div>
+                <div class="level-grid">
+                  <div class="level-item resistance">
+                    <div class="li-price">251.00</div>
+                    <div class="li-label">短线阻力 ⬆ +14.9%</div>
+                  </div>
+                  <div class="level-item support">
+                    <div class="li-price">196.50</div>
+                    <div class="li-label">强支撑 ⬇ -10.1%</div>
+                  </div>
+                  <div class="level-item stop">
+                    <div class="li-price">185.00</div>
+                    <div class="li-label">强制止损 ⬇ -15.3%</div>
+                  </div>
+                  <div class="level-item resistance">
+                    <div class="li-price">260.00</div>
+                    <div class="li-label">中期目标 ⬆ +19.0%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+      
+            <!-- ===== Right: Detail Panel ===== -->
+            <div class="detail-panel">
+              <!-- 技术面 -->
+              <div class="dim-card">
+                <div class="dc-header">
+                  <span class="dc-name">📈 技术面</span>
+                  <span class="dc-weight">权重 40%</span>
+                  <span class="dc-score" style="color:var(--accent)">82</span>
+                </div>
+                <div class="dc-bar"><div class="dc-bar-fill" style="width:82%;background:var(--accent)"></div></div>
+                <div class="dc-sub-items">
+                  <span class="dc-sub-item positive">均线多头 ✅</span>
+                  <span class="dc-sub-item positive">MACD金叉 ✅</span>
+                  <span class="dc-sub-item neutral">RSI中性</span>
+                  <span class="dc-sub-item negative">KDJ超买 ⚠️</span>
+                </div>
+              </div>
+      
+              <!-- 资金面 -->
+              <div class="dim-card">
+                <div class="dc-header">
+                  <span class="dc-name">💰 资金面</span>
+                  <span class="dc-weight">权重 25%</span>
+                  <span class="dc-score" style="color:var(--down)">85</span>
+                </div>
+                <div class="dc-bar"><div class="dc-bar-fill" style="width:85%;background:var(--down)"></div></div>
+                <div class="dc-sub-items">
+                  <span class="dc-sub-item positive">主力净流入 ✅</span>
+                  <span class="dc-sub-item positive">北向增持 ✅</span>
+                  <span class="dc-sub-item positive">大单活跃 ✅</span>
+                </div>
+              </div>
+      
+              <!-- 基本面 -->
+              <div class="dim-card">
+                <div class="dc-header">
+                  <span class="dc-name">📊 基本面</span>
+                  <span class="dc-weight">权重 20%</span>
+                  <span class="dc-score" style="color:var(--accent)">70</span>
+                </div>
+                <div class="dc-bar"><div class="dc-bar-fill" style="width:70%;background:var(--accent)"></div></div>
+                <div class="dc-sub-items">
+                  <span class="dc-sub-item positive">ROE 18% ✅</span>
+                  <span class="dc-sub-item neutral">PE 25x 合理</span>
+                  <span class="dc-sub-item positive">营收+12% ✅</span>
+                </div>
+              </div>
+      
+              <!-- AI预测 -->
+              <div class="dim-card">
+                <div class="dc-header">
+                  <span class="dc-name">🤖 AI预测</span>
+                  <span class="dc-weight">权重 10%</span>
+                  <span class="dc-score" style="color:var(--accent)">78</span>
+                </div>
+                <div class="dc-bar"><div class="dc-bar-fill" style="width:78%;background:var(--accent)"></div></div>
+                <div class="dc-sub-items">
+                  <span class="dc-sub-item positive">30日趋势 ↑ ✅</span>
+                  <span class="dc-sub-item neutral">置信度 72%</span>
+                  <span class="dc-sub-item neutral">模型: Kronos V3</span>
+                </div>
+              </div>
+      
+              <!-- 情绪面 -->
+              <div class="dim-card">
+                <div class="dc-header">
+                  <span class="dc-name">📰 情绪面</span>
+                  <span class="dc-weight">权重 5%</span>
+                  <span class="dc-score" style="color:var(--warn)">62</span>
+                </div>
+                <div class="dc-bar"><div class="dc-bar-fill" style="width:62%;background:var(--warn)"></div></div>
+                <div class="dc-sub-items">
+                  <span class="dc-sub-item neutral">正面新闻 60%</span>
+                  <span class="dc-sub-item neutral">社交媒体中性</span>
+                  <span class="dc-sub-item positive">研报买入 3家</span>
+                </div>
+              </div>
+      
+              <!-- Risk Checks -->
+              <div class="risk-checks-bar">
+                <span class="passed">✅ 审计 标准无保留</span>
+                <span class="passed">✅ 公告 近30日无</span>
+                <span class="passed">✅ ST 正常上市</span>
+                <span class="passed">🟢 业绩 Q1预增</span>
+              </div>
+      
+              <!-- Suggestion -->
+              <div class="suggestion-box">
+                <div class="sb-title">💡 操作建议</div>
+                <div class="sb-text">综合五维评分 85 分，技术面与资金面共振向上，MACD处于多头排列，北向资金持续流入。AI预测30日趋势 +12.5%，基本面 ROE 18% 高于行业均值。可在支撑位 196.50 附近逢低建仓，止损设 185.00，目标看至阻力位 251.00。建议仓位控制在 15% 以内。</div>
+                <div class="sb-meta">
+                  <span>风险等级: <b style="color:var(--down)">🟢 低风险</b></span>
+                  <span>建议操作: <b style="color:var(--accent)">逢低布局 · 仓位 ≤15%</b></span>
+                  <span>生成时间: <b>2026-06-26 10:15</b></span>
+                </div>
+              </div>
+      
+              <!-- Action Buttons -->
+              <div class="action-row">
+                <button class="btn-primary" onclick="showToast('跳转到K线预测...')">📈 K线预测</button>
+                <button class="btn-secondary" onclick="showToast('跳转到交易中心...')">💼 交易中心</button>
+                <button class="btn-secondary" onclick="showToast('已加入自选 ✅')">⭐ 加入自选</button>
+              </div>
+            </div>
+          </div>
+      
+          <div class="footer-bar">
+            <span>数据源: diagnosis-service (:8009) · screener (:8001) · prediction (:8002)</span>
+            <span class="sep"></span>
+            <span>更新时间: 2026-06-26 10:15:32</span>
+          </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script>
+function showToast(msg){
+  var t=document.getElementById('toast');t.textContent=msg;t.className='toast show';
+  clearTimeout(t._tid);t._tid=setTimeout(function(){t.className='toast';},1800);
+}
+
+var stocks=[
+  {code:'300750',name:'宁德时代',scores:[82,85,70,78,62],level:{current:218.5,stop:185,support:196.5,resistance:251,target:260}},
+  {code:'600519',name:'贵州茅台',scores:[80,65,75,60,70],level:{current:1680,stop:1580,support:1620,resistance:1750,target:1820}},
+  {code:'688981',name:'中芯国际',scores:[55,70,50,65,45],level:{current:68.5,stop:58,support:61.4,resistance:73.8,target:80}},
+  {code:'603986',name:'兆易创新',scores:[68,55,60,50,52],level:{current:95.2,stop:85,support:89,resistance:105,target:115}}
+];
+
+var currentIdx=0;
+var radarChart=null;
+
+function getStock(code){
+  for(var i=0;i<stocks.length;i++){if(stocks[i].code===code)return stocks[i];}
+  return stocks[0];
+}
+
+function renderStock(stock){
+  document.getElementById('codeInput').value=stock.code;
+  // Update level bar
+  var l=stock.level;
+  var positions={
+    stop: Math.max(5,Math.min(40,20 + ((l.stop-l.current)/l.current)*120)),
+    support: Math.max(10,Math.min(45,20 + ((l.support-l.current)/l.current)*120)),
+    current: 55,
+    resistance: Math.max(60,Math.min(90,55 + ((l.resistance-l.current)/l.current)*120))
+  };
+  var html='';
+  html+='<div class="level-marker stop" style="left:'+positions.stop+'%"><div class="l-dot"></div><div class="l-price">'+l.stop.toFixed(2)+'</div><div class="l-label">止损 ('+((l.stop/l.current-1)*100).toFixed(1)+'%)</div></div>';
+  html+='<div class="level-marker support" style="left:'+positions.support+'%"><div class="l-dot"></div><div class="l-price">'+l.support.toFixed(2)+'</div><div class="l-label">支撑 ('+((l.support/l.current-1)*100).toFixed(1)+'%)</div></div>';
+  html+='<div class="level-marker current" style="left:55%"><div class="l-dot"></div><div class="l-price">'+l.current.toFixed(2)+'</div><div class="l-label">当前价</div></div>';
+  html+='<div class="level-marker resistance" style="left:'+positions.resistance+'%"><div class="l-dot"></div><div class="l-price">'+l.resistance.toFixed(2)+'</div><div class="l-label">阻力 (+'+((l.resistance/l.current-1)*100).toFixed(1)+'%)</div></div>';
+  document.getElementById('levelTrack').innerHTML=html;
+
+  // Update key levels grid
+  var gridHTML='';
+  gridHTML+='<div class="level-item resistance"><div class="li-price">'+l.resistance.toFixed(2)+'</div><div class="li-label">短线阻力 ⬆ +'+((l.resistance/l.current-1)*100).toFixed(1)+'%</div></div>';
+  gridHTML+='<div class="level-item support"><div class="li-price">'+l.support.toFixed(2)+'</div><div class="li-label">强支撑 ⬇ '+((l.support/l.current-1)*100).toFixed(1)+'%</div></div>';
+  gridHTML+='<div class="level-item stop"><div class="li-price">'+l.stop.toFixed(2)+'</div><div class="li-label">强制止损 ⬇ '+((l.stop/l.current-1)*100).toFixed(1)+'%</div></div>';
+  gridHTML+='<div class="level-item resistance"><div class="li-price">'+l.target.toFixed(2)+'</div><div class="li-label">中期目标 ⬆ +'+((l.target/l.current-1)*100).toFixed(1)+'%</div></div>';
+  document.querySelector('.level-grid').innerHTML=gridHTML;
+
+  // Update overall score
+  var scores=stock.scores;
+  var total=0,weights=[0.4,0.25,0.2,0.1,0.05];
+  for(var i=0;i<5;i++)total+=scores[i]*weights[i];
+  total=+total.toFixed(0);
+  document.getElementById('scoreValue').textContent=total;
+  var rating='',color='',action='';
+  if(total>=80){rating='优秀';color='var(--down)';action='🟢 优秀 · 强烈推荐';}
+  else if(total>=60){rating='良好';color='var(--accent)';action='🔵 良好 · 建议关注';}
+  else if(total>=40){rating='一般';color='var(--warn)';action='🟡 一般 · 谨慎参与';}
+  else{rating='较差';color='var(--up)';action='🔴 较差 · 建议回避';}
+  document.getElementById('scoreValue').style.color=color;
+  document.getElementById('scoreAction').textContent=action;
+
+  // Update detail dim cards
+  var dims=['📈 技术面','💰 资金面','📊 基本面','🤖 AI预测','📰 情绪面'];
+  var wk=['权重 40%','权重 25%','权重 20%','权重 10%','权重 5%'];
+  var dimHTML='';
+  for(var i=0;i<dims.length;i++){
+    var c=scores[i]>=70?'var(--down)':scores[i]>=50?'var(--accent)':'var(--warn)';
+    dimHTML+='<div class="dim-card"><div class="dc-header"><span class="dc-name">'+dims[i]+'</span><span class="dc-weight">'+wk[i]+'</span><span class="dc-score" style="color:'+c+'">'+scores[i]+'</span></div><div class="dc-bar"><div class="dc-bar-fill" style="width:'+scores[i]+'%;background:'+c+'"></div></div><div class="dc-sub-items"><span class="dc-sub-item neutral">动态更新中</span></div></div>';
+  }
+  // keep risk checks and suggestion, only update dim cards
+  var detailPanel=document.querySelector('.detail-panel');
+  var dimCards=detailPanel.querySelectorAll('.dim-card');
+  var firstNonDim=detailPanel.querySelector('.risk-checks-bar');
+  dimCards.forEach(function(c){c.remove()});
+  var temp=document.createElement('div');temp.innerHTML=dimHTML;
+  var frag=document.createDocumentFragment();
+  while(temp.firstChild)frag.appendChild(temp.firstChild);
+  detailPanel.insertBefore(frag,firstNonDim);
+
+  // Update radar chart
+  if(radarChart){
+    radarChart.setOption({
+      radar:{center:['50%','52%'],radius:'65%',indicator:[{name:'技术面',max:100},{name:'资金面',max:100},{name:'基本面',max:100},{name:'AI预测',max:100},{name:'情绪面',max:100}],axisName:{fontSize:11,color:'#9aa7b8',fontWeight:600},splitArea:{areaStyle:{color:['rgba(61,139,255,.02)','rgba(61,139,255,.02)','rgba(61,139,255,.04)','rgba(61,139,255,.04)','rgba(61,139,255,.06)']}},axisLine:{lineStyle:{color:'#1f2733'}},splitLine:{lineStyle:{color:'#1f2733'}}},
+      series:[{type:'radar',data:[{name:stock.name,value:scores,areaStyle:{color:'rgba(61,139,255,.15)'},lineStyle:{color:'#3d8bff',width:2},itemStyle:{color:'#3d8bff'},label:{show:true,formatter:function(p){return p.value},fontSize:10,fontFamily:'var(--font-mono)',color:'#e8edf4'}}]}],
+      backgroundColor:'transparent'
+    });
+  }
+}
+
+function searchStock(code){
+  var s=getStock(code);
+  for(var i=0;i<stocks.length;i++){if(stocks[i].code===s.code)currentIdx=i;}
+  renderStock(s);
+}
+
+function prevStock(){
+  currentIdx=(currentIdx-1+stocks.length)%stocks.length;
+  renderStock(stocks[currentIdx]);
+}
+
+function nextStock(){
+  currentIdx=(currentIdx+1)%stocks.length;
+  renderStock(stocks[currentIdx]);
+}
+
+window.addEventListener('DOMContentLoaded',function(){
+  radarChart=echarts.init(document.getElementById('radarChart'),null,{renderer:'svg'});
+  renderStock(stocks[0]);
+  window.addEventListener('resize',function(){if(radarChart)radarChart.resize()});
+});
+</script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

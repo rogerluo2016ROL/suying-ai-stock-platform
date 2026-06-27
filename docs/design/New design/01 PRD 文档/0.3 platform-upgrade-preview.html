@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 平台化改版</title>
+<style class="legacy-page-style">
+:root{
+  --bg:#f5f8fd;--surface:#fff;--surface-2:#f7faff;--border:#dfe8f5;--border-2:#c8d7ea;
+  --fg:#1e293b;--fg-2:#64748b;--muted:#94a3b8;--accent:#3d8bff;--accent-dim:rgba(61,139,255,.12);
+  --up:#ff4d4f;--up-bg:rgba(255,77,79,.1);--down:#2ec27e;--down-bg:rgba(46,194,126,.1);--warn:#f5a623;--warn-bg:rgba(245,166,35,.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;--font-mono:"SF Mono","JetBrains Mono",ui-monospace,monospace;
+  --sidebar-w:232px;--header-h:52px;--radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5}
+.app{display:flex;min-height:100vh}.main{flex:1;margin-left:var(--sidebar-w);min-width:0}.content{padding:16px 20px 28px}
+.hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(420px,.8fr);gap:14px;margin-bottom:12px}
+.hero-main{padding:18px 20px;border:1px solid var(--border);border-radius:var(--radius);background:linear-gradient(135deg,rgba(61,139,255,.14),rgba(46,194,126,.08))}
+.hero-main h1{font-size:25px;margin-bottom:8px}.hero-main p{color:var(--fg-2)}
+.doc-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.doc-links a{height:32px;display:inline-flex;align-items:center;padding:0 11px;border-radius:7px;border:1px solid var(--border);background:var(--surface);text-decoration:none;color:var(--fg);font-weight:700;font-size:12px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}.panel-h{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid var(--border);font-weight:730}.panel-b{padding:14px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}.kpi{border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:12px}.kpi .l{font-size:11px;color:var(--muted)}.kpi .v{font-size:22px;font-weight:780;margin-top:4px}.kpi .s{font-size:11px;color:var(--fg-2)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px}.card h3{font-size:16px;margin-bottom:8px}.card p{color:var(--fg-2);font-size:12.5px}.card ul{margin-top:10px;padding-left:18px;color:var(--fg-2);font-size:12px}
+.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.step{border:1px solid var(--border);border-radius:8px;background:var(--surface-2);padding:12px}.step b{display:block;color:var(--accent);margin-bottom:5px}.step span{font-size:11.5px;color:var(--fg-2)}
+.table{width:100%;border-collapse:collapse;font-size:12px}.table th,.table td{height:38px;border-bottom:1px solid var(--border);text-align:left}.table th{color:var(--muted);font-weight:700}.pill{display:inline-flex;padding:3px 8px;border-radius:14px;border:1px solid var(--border);background:var(--surface-2);font-size:11px;font-weight:700}.pill.blue{background:var(--accent-dim);border-color:rgba(61,139,255,.25);color:var(--accent)}.pill.green{background:var(--down-bg);border-color:rgba(46,194,126,.25);color:var(--down)}.pill.orange{background:var(--warn-bg);border-color:rgba(245,166,35,.25);color:var(--warn)}
+@media(max-width:1180px){.hero,.grid{grid-template-columns:1fr}.flow{grid-template-columns:repeat(2,1fr)}.kpis{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){:root{--sidebar-w:0}.main{margin-left:0}.content{padding:14px 12px}.kpis,.flow{grid-template-columns:1fr}}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="dashboard" data-title="平台化改版">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">平台总览</div><div class="scope-s">操盘手 / 个人投资者 / 管理员三入口</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共 + 私有 + 审计</div><div class="scope-s">市场和模型共享，方案和交易隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/account/user</div><div class="scope-s">云端开放的底层边界</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">paper / QMT / adapter</div><div class="scope-s">BrokerAdapter + 风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">设计基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">0.3 总体需求</a></div><div class="scope-s">等待下一步工程对接</div></div>
+      </section>
+
+      <section class="hero">
+        <div class="hero-main">
+          <h1>平台化云端多租户改版</h1>
+          <p>把速赢AI从内部投研交易工具升级为可开放给操盘手、个人投资者和系统管理员的云端量化投资平台。</p>
+          <div class="doc-links">
+            <a href="0.3 平台化云端多租户总体需求设计.md">总体需求</a>
+            <a href="0.4 平台化云端多券商架构设计.md">架构设计</a>
+            <a href="0.5 平台化详细方案设计.md">详细方案</a>
+            <a href="0.2 p0-main-flow-preview.html">P0 主链路</a>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><span>平台化目标</span><span class="pill blue">Cloud Ready</span></div>
+          <div class="panel-b">
+            <div class="kpis">
+              <div class="kpi"><div class="l">角色入口</div><div class="v">3</div><div class="s">trader / investor / admin</div></div>
+              <div class="kpi"><div class="l">数据域</div><div class="v">5</div><div class="s">公共、私有、交易、审计、模型</div></div>
+              <div class="kpi"><div class="l">券商适配</div><div class="v">N</div><div class="s">QMT 优先，多券商扩展</div></div>
+              <div class="kpi"><div class="l">主链路</div><div class="v">P0</div><div class="s">候选到复盘闭环</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h3>操盘手工作台</h3>
+          <p>围绕 P0 主链路组织信息，强调交易机会、方案承接、审单风控、实盘状态和复盘闭环。</p>
+          <ul><li>顶部固定账户/券商/风控状态</li><li>候选池、方案、下单、复盘共享 DecisionContext</li><li>实盘动作强确认与审计</li></ul>
+        </article>
+        <article class="card">
+          <h3>个人投资者助理</h3>
+          <p>弱化复杂模型和后台能力，突出自选解释、个股诊断、风险提醒和模拟交易。</p>
+          <ul><li>默认模拟盘</li><li>隐藏训练、注册、全量数据表</li><li>所有建议带解释和风险说明</li></ul>
+        </article>
+        <article class="card">
+          <h3>系统管理员控制台</h3>
+          <p>管理租户、用户、权限、数据、模型、券商通道和审计，面向平台运营而非投资决策。</p>
+          <ul><li>跨租户操作必须留痕</li><li>模型发布、数据同步、券商网关集中治理</li><li>服务健康和任务调度全量可见</li></ul>
+        </article>
+      </section>
+
+      <section class="panel mt14">
+        <div class="panel-h"><span>云端多券商链路</span><span class="pill orange">QMT gateway first</span></div>
+        <div class="panel-b">
+          <div class="flow">
+            <div class="step"><b>01 Auth</b><span>JWT + tenant context + role permissions</span></div>
+            <div class="step"><b>02 Decision</b><span>公共模型输出进入私有候选/方案</span></div>
+            <div class="step"><b>03 RiskGate</b><span>候选、方案、订单、策略统一风控</span></div>
+            <div class="step"><b>04 BrokerAdapter</b><span>paper / xtquant_qmt / future broker</span></div>
+            <div class="step"><b>05 Audit</b><span>订单、风控、券商连接不可变审计</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel mt14">
+        <div class="panel-h"><span>数据域规则</span><span>所有模块继承</span></div>
+        <div class="panel-b">
+          <table class="table">
+            <thead><tr><th>数据</th><th>归属</th><th>例子</th><th>页面提示</th></tr></thead>
+            <tbody>
+              <tr><td><span class="pill blue">公共</span></td><td>platform</td><td>行情、行业、公共模型评分、策略模板</td><td>可共享，只读引用</td></tr>
+              <tr><td><span class="pill green">私有</span></td><td>tenant/user/account</td><td>自选、候选池、方案、订单、持仓、回测结果</td><td>默认仅本人或授权账户可见</td></tr>
+              <tr><td><span class="pill orange">审计</span></td><td>append-only</td><td>登录、权限、下单、风控放行、券商连接</td><td>管理员可查，不可修改</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>

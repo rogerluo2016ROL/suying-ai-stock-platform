@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢AI · 多维度分析</title>
+
+<style class="legacy-page-style">
+:root{
+  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
+  --border:#1f2733; --border-2:#2a3444;
+  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
+  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
+  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
+  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
+  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
+  --purple:#a371f7; --purple-dim:rgba(163,113,247,0.12);
+  --cyan:#39d9d0; --cyan-dim:rgba(57,217,208,0.12);
+  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
+  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sidebar-w:232px; --header-h:52px; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)} .purple{color:var(--purple)} .cyan{color:var(--cyan)}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
+.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand .name{font-weight:680;font-size:15px}
+.brand .name b{color:var(--accent)}
+.nav{flex:1;overflow-y:auto;padding:10px}
+.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
+.nav-item:hover{background:var(--elevated);color:var(--fg)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.nav-sub{padding-left:24px}
+.nav-sub .nav-item{font-size:12.5px;padding:6px 12px}
+
+/* ── Progress Bar ── */
+.progress-bar{display:flex;align-items:center;gap:0;margin-bottom:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;overflow:hidden}
+.progress-step{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:6px;font-size:13px;font-weight:600;color:var(--fg-2);position:relative;cursor:pointer;transition:.15s}
+.progress-step:hover{background:var(--surface-2);color:var(--fg)}
+.progress-step.active{background:var(--accent-dim);color:var(--accent)}
+.progress-step.active .ps-dot{background:var(--accent);box-shadow:0 0 8px rgba(61,139,255,.4)}
+.progress-step.done{color:var(--down)}
+.progress-step.done .ps-dot{background:var(--down)}
+.progress-step .ps-dot{width:8px;height:8px;border-radius:50%;background:var(--border-2);flex-shrink:0}
+.progress-step .ps-num{font-family:var(--font-mono);font-size:10px;color:inherit;opacity:.6}
+.progress-arrow{color:var(--border-2);font-size:14px;flex-shrink:0}
+
+/* ── Tab Navigation ── */
+.tab-nav{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:14px}
+.tab-nav .tab-item{flex:1;padding:9px 20px;border-radius:7px;font-size:13px;cursor:pointer;color:var(--fg-2);font-weight:500;text-align:center;transition:.12s;white-space:nowrap}
+.tab-nav .tab-item:hover{color:var(--fg);background:var(--surface-2)}
+.tab-nav .tab-item.active{background:var(--accent-dim);color:var(--accent);font-weight:650}
+
+.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
+.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
+.content{padding:18px 20px 32px}
+
+/* Top Bar */
+.sc-top{display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
+.sc-top .page-title{font-size:21px;font-weight:700}
+.sc-phase{display:flex;align-items:center;gap:6px;margin-left:auto}
+.sc-phase .ph{font-size:11px;padding:4px 12px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);color:var(--fg-2);cursor:pointer;transition:.12s}
+.sc-phase .ph.done{color:var(--down);border-color:var(--down);background:var(--down-bg)}
+.sc-phase .ph.active{color:var(--accent);border-color:var(--accent);background:var(--accent-dim);font-weight:600}
+.sc-phase .ph-sep{color:var(--muted);font-size:10px}
+
+/* Context Bar */
+.ctx-bar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--elevated);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;font-size:12.5px}
+.ctx-bar .ctx-icon{font-size:16px}
+.ctx-bar .ctx-stat{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:12px;font-weight:600}
+.ctx-bar .ctx-stat.triple{background:var(--down-bg);color:var(--down)}
+.ctx-bar .ctx-stat.waiting{background:var(--warn-bg);color:var(--warn)}
+.ctx-bar .ctx-stat.total{color:var(--fg-2)}
+.ctx-bar .ctx-hint{margin-left:auto;font-size:11px;color:var(--muted)}
+
+/* Card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px}
+.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-h h3{font-size:13.5px;font-weight:650}
+.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
+.card-b{padding:16px;overflow-x:auto}
+
+/* Moat Table */
+.moat-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.moat-table th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:600;white-space:nowrap}
+.moat-table th.rc{text-align:center}
+.moat-table th.rr{text-align:right}
+.moat-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.moat-table tr:last-child td{border-bottom:none}
+.moat-table tr:hover td{background:var(--surface-2)}
+.moat-table .cn{font-weight:650;color:var(--fg);white-space:nowrap}
+.moat-table .cc{font-family:var(--font-mono);font-size:10.5px;color:var(--fg-2)}
+.moat-table .score{font-family:var(--font-mono);font-weight:720;text-align:center}
+.moat-table .score.high{color:var(--down)}
+.moat-table .score.mid{color:var(--accent)}
+.moat-table .score.low{color:var(--muted)}
+.moat-table .composite{font-family:var(--font-mono);font-weight:720;font-size:14px;text-align:right}
+.moat-table .composite.high{color:var(--down)}
+.moat-table .composite.mid{color:var(--accent)}
+.moat-table .composite.low{color:var(--fg-2)}
+.stars{color:var(--warn);letter-spacing:1px}
+.stars .off{color:var(--border-2)}
+
+/* Bar row */
+.bar-cell{width:80px}
+.bar-wrap{height:4px;border-radius:2px;background:var(--surface-2);overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;transition:width .4s}
+
+/* Tag */
+.tag{display:inline-block;font-size:9.5px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);white-space:nowrap}
+.tag.ir{color:var(--purple);border-color:var(--purple);background:var(--purple-dim)}
+.tag.sub{color:var(--cyan);border-color:var(--cyan);background:var(--cyan-dim)}
+.tag.ck{color:var(--up);border-color:var(--up);background:var(--up-bg)}
+.tag.ac{color:var(--accent);border-color:var(--accent);background:var(--accent-dim)}
+.tag.green{color:var(--down);border-color:var(--down);background:var(--down-bg)}
+
+/* Bottleneck Panel */
+.bn-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.bn-col{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px}
+.bn-col.l1{border-color:rgba(255,77,79,0.3)}
+.bn-col.l2{border-color:rgba(245,166,35,0.3)}
+.bn-col.l0{border-color:rgba(46,194,126,0.3)}
+.bn-col-header{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-weight:650;font-size:13px}
+.bn-col-header .bn-count{font-family:var(--font-mono);margin-left:auto;font-size:11px;color:var(--muted)}
+.bn-item{padding:7px 10px;margin:4px 0;background:var(--surface);border-radius:5px;cursor:pointer;transition:.12s;display:flex;align-items:center;gap:8px}
+.bn-item:hover{background:var(--elevated)}
+.bn-item .bni-name{font-size:12px;font-weight:600;color:var(--fg)}
+.bn-item .bni-code{font-family:var(--font-mono);font-size:10px;color:var(--fg-2)}
+.bn-item .bni-rate{font-family:var(--font-mono);font-size:10px;margin-left:auto;color:var(--muted)}
+.bn-detail{padding:8px 10px;font-size:11px;color:var(--muted);line-height:1.6;border-top:1px dashed var(--border);margin-top:4px}
+
+/* Commercialization Table */
+.comm-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.comm-table th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:600;white-space:nowrap}
+.comm-table td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.comm-table tr:last-child td{border-bottom:none}
+.comm-table tr:hover td{background:var(--surface-2)}
+.comm-table .cn{font-weight:650;color:var(--fg);white-space:nowrap}
+.comm-table .cc{font-family:var(--font-mono);font-size:10.5px;color:var(--fg-2)}
+.comm-phase{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap}
+.comm-phase.growth{background:var(--down-bg);color:var(--down)}
+.comm-phase.intro{background:var(--warn-bg);color:var(--warn)}
+.comm-phase.mature{background:var(--accent-dim);color:var(--accent)}
+
+/* Resonance Badge */
+.res-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap}
+.res-badge.triple{background:var(--down-bg);color:var(--down);border:1px solid var(--down)}
+.res-badge.waiting{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn)}
+.res-badge.none{background:var(--surface-2);color:var(--muted);border:1px solid var(--border)}
+.res-score{font-family:var(--font-mono);font-size:11px;font-weight:650;color:var(--fg-2)}
+
+/* Decision Output */
+.dec-bar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--elevated);border:1px solid var(--border);border-radius:var(--radius)}
+.dec-bar .dec-selected{font-size:13px;color:var(--fg);font-weight:600}
+.dec-bar .dec-selected span{color:var(--accent);font-family:var(--font-mono)}
+.dec-bar .dec-hint{font-size:11px;color:var(--muted);margin-right:auto}
+.dec-btn{padding:6px 14px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--fg-2);font-size:12px;font-weight:600;cursor:pointer;transition:.12s;white-space:nowrap}
+.dec-btn:hover{background:var(--elevated);color:var(--fg);border-color:var(--border-2)}
+.dec-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.dec-btn.primary:hover{background:#2d7ae0}
+.dec-btn.danger{background:var(--up);border-color:var(--up);color:#fff}
+.dec-btn.danger:hover{background:#e04345}
+.dec-btn.link{background:var(--purple-dim);border-color:var(--purple);color:var(--purple)}
+.dec-btn.link:hover{background:rgba(163,113,247,0.25)}
+
+/* Checkbox */
+.cb-wrap{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--fg-2)}
+.cb-wrap input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
+
+/* Tooltip style */
+.tip{display:flex;align-items:center;gap:4px;padding:6px 12px;margin-top:8px;background:var(--accent-dim);border-left:3px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;font-size:11px;color:var(--fg-2)}
+.tip.warn{border-left-color:var(--warn);background:var(--warn-bg)}
+</style>
+<link rel="stylesheet" href="assets/app.css" />
+<link rel="stylesheet" href="assets/preview-adapter.css" />
+</head>
+<body class="legacy-preview" data-page="supply-chain" data-title="多维度分析">
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div id="header-mount"></div>
+    <main class="content">
+      <section class="platform-scope-strip" data-platform-scope="mixed">
+        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">研究/操盘</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
+        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共图谱 + 私有标注</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
+        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
+        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">输出候选</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
+        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
+      </section>
+            <div style="margin-bottom:14px">
+              <a href="4.2 chain-decompose-preview.html" style="font-size:12px;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:4px">⏪ 返回产业链解构</a>
+              <span style="font-size:11px;color:var(--muted);margin-left:12px">当前行业: <b style="color:var(--accent)">半导体设备</b> · 候选: <b style="color:var(--fg);font-family:var(--font-mono)">12</b> 家</span>
+            </div>
+
+            <div class="card">
+              <div class="card-h">
+                <h3>🏰 护城河 + 不可替代性评分</h3>
+                <span class="meta">权重: 护城河30% · 增长力20% · 利润率15% · 不可替代25% · 国产替代10%</span>
+              </div>
+              <div class="card-b">
+                <table class="moat-table">
+                  <thead>
+                    <tr>
+                      <th>公司</th>
+                      <th>代码</th>
+                      <th class="rc">🏰 护城河<br/><span style="font-weight:400;color:var(--muted)">30%</span></th>
+                      <th class="rc">📈 增长力<br/><span style="font-weight:400;color:var(--muted)">20%</span></th>
+                      <th class="rc">💰 利润率<br/><span style="font-weight:400;color:var(--muted)">15%</span></th>
+                      <th class="rc">⭐ 不可替代<br/><span style="font-weight:400;color:var(--muted)">25%</span></th>
+                      <th class="rc">🇨🇳 国产替代<br/><span style="font-weight:400;color:var(--muted)">10%</span></th>
+                      <th class="rr">综合分</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="cn">中微公司</td>
+                      <td class="cc">688012.SH</td>
+                      <td class="rc"><span class="stars">★★★★★</span><br><span class="score high">92</span></td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score high">85</span></td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score high">82</span></td>
+                      <td class="rc">
+                        <span class="stars">★★★★★</span><br>
+                        <span class="score high">95</span>
+                        <span class="tag ir" style="margin-left:4px">核心</span>
+                      </td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score mid">78</span><span class="tag sub" style="margin-left:4px">进行中</span></td>
+                      <td class="rr"><span class="composite high">91</span></td>
+                    </tr>
+                    <!-- 北方华创 -->
+                    <tr>
+                      <td class="cn">北方华创</td>
+                      <td class="cc">002371.SZ</td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score high">88</span></td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score high">83</span></td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score high">80</span></td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score high">90</span><span class="tag ir" style="margin-left:4px">核心</span></td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score high">82</span><span class="tag sub" style="margin-left:4px">进行中</span></td>
+                      <td class="rr"><span class="composite high">88</span></td>
+                    </tr>
+                    <!-- 沪硅产业 -->
+                    <tr>
+                      <td class="cn">沪硅产业</td>
+                      <td class="cc">688126.SH</td>
+                      <td class="rc"><span class="stars">★★★<span class="off">★★</span></span><br><span class="score mid">62</span></td>
+                      <td class="rc"><span class="stars">★★★<span class="off">★★</span></span><br><span class="score mid">58</span></td>
+                      <td class="rc"><span class="stars">★★<span class="off">★★★</span></span><br><span class="score low">42</span></td>
+                      <td class="rc"><span class="stars">★★★<span class="off">★★</span></span><br><span class="score mid">55</span><span class="tag" style="margin-left:4px">部分</span></td>
+                      <td class="rc"><span class="stars">★★★<span class="off">★★</span></span><br><span class="score mid">60</span><span class="tag sub" style="margin-left:4px">尝试中</span></td>
+                      <td class="rr"><span class="composite mid">62</span></td>
+                    </tr>
+                    <!-- 南大光电 -->
+                    <tr>
+                      <td class="cn">南大光电</td>
+                      <td class="cc">300346.SZ</td>
+                      <td class="rc"><span class="stars">★★★<span class="off">★★</span></span><br><span class="score mid">65</span></td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score high">78</span></td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score high">75</span></td>
+                      <td class="rc"><span class="stars">★★★<span class="off">★★</span></span><br><span class="score mid">60</span><span class="tag" style="margin-left:4px">部分</span></td>
+                      <td class="rc"><span class="stars">★★★<span class="off">★★</span></span><br><span class="score mid">65</span><span class="tag sub" style="margin-left:4px">尝试中</span></td>
+                      <td class="rr"><span class="composite mid">68</span></td>
+                    </tr>
+                    <!-- 长电科技 -->
+                    <tr>
+                      <td class="cn">长电科技</td>
+                      <td class="cc">600584.SH</td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score high">80</span></td>
+                      <td class="rc"><span class="stars">★★★<span class="off">★★</span></span><br><span class="score mid">68</span></td>
+                      <td class="rc"><span class="stars">★★★<span class="off">★★</span></span><br><span class="score mid">55</span></td>
+                      <td class="rc"><span class="stars">★★★<span class="off">★★</span></span><br><span class="score mid">65</span><span class="tag" style="margin-left:4px">部分</span></td>
+                      <td class="rc"><span class="stars">★★★★<span class="off">★</span></span><br><span class="score high">75</span><span class="tag sub" style="margin-left:4px">进行中</span></td>
+                      <td class="rr"><span class="composite mid">72</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+      
+                <div class="tip">
+                  💡 综合分 = 护城河×0.30 + 增长力×0.20 + 利润率×0.15 + 不可替代×0.25 + 国产替代×0.10 &nbsp;|&nbsp;
+                  <span style="color:var(--down)">≥85</span> 绿色 ·
+                  <span style="color:var(--accent)">≥70</span> 蓝色 ·
+                  <span style="color:var(--muted)">&lt;70</span> 灰色
+                </div>
+              </div>
+            </div>
+      
+            <!-- ========== 分析二：卡脖子分级 ========== -->
+            <div class="card">
+              <div class="card-h">
+                <h3>🔴 卡脖子分级</h3>
+                <span class="meta">三级分类：一级卡脖子 · 二级卡脖子 · 非卡脖子</span>
+              </div>
+              <div class="card-b">
+                <div class="bn-grid">
+                  <!-- 一级卡脖子 -->
+                  <div class="bn-col l1">
+                    <div class="bn-col-header">
+                      🔴 一级卡脖子 <span class="bn-count">3 只</span>
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">中微公司</span>
+                      <span class="bni-code">688012.SH</span>
+                      <span class="bni-rate">国产化率 8%</span>
+                    </div>
+                    <div class="bn-detail">
+                      ├ 节点：刻蚀机（5nm以下）<br>
+                      ├ 垄断方：应用材料 / 泛林<br>
+                      └ 技术差距：≥ 2 代，5nm 刻蚀仍依赖进口
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">南大光电</span>
+                      <span class="bni-code">300346.SZ</span>
+                      <span class="bni-rate">国产化率 5%</span>
+                    </div>
+                    <div class="bn-detail">
+                      ├ 节点：高端 ArF 光刻胶<br>
+                      ├ 垄断方：JSR / 东京应化<br>
+                      └ 技术差距：1-2 代，ArF 干法已突破，浸没式仍在研
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">晶瑞电材</span>
+                      <span class="bni-code">300655.SZ</span>
+                      <span class="bni-rate">国产化率 6%</span>
+                    </div>
+                    <div class="bn-detail">
+                      ├ 节点：高端光刻胶辅材<br>
+                      ├ 垄断方：巴斯夫 / 陶氏<br>
+                      └ 技术差距：≥ 2 代
+                    </div>
+                  </div>
+      
+                  <!-- 二级卡脖子 -->
+                  <div class="bn-col l2">
+                    <div class="bn-col-header">
+                      🟡 二级卡脖子 <span class="bn-count">3 只</span>
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">北方华创</span>
+                      <span class="bni-code">002371.SZ</span>
+                      <span class="bni-rate">国产化率 25%</span>
+                    </div>
+                    <div class="bn-detail">
+                      ├ 节点：薄膜沉积 / 炉管设备<br>
+                      ├ 已突破：28nm 以上成熟制程<br>
+                      └ 差距：14nm 以下仍在追赶
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">沪硅产业</span>
+                      <span class="bni-code">688126.SH</span>
+                      <span class="bni-rate">国产化率 30%</span>
+                    </div>
+                    <div class="bn-detail">
+                      ├ 节点：300mm 大硅片<br>
+                      ├ 已突破：部分规格量产<br>
+                      └ 差距：良率 vs 信越/SUMCO
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">华大九天</span>
+                      <span class="bni-code">301269.SZ</span>
+                      <span class="bni-rate">国产化率 20%</span>
+                    </div>
+                    <div class="bn-detail">
+                      ├ 节点：EDA 工具<br>
+                      ├ 已突破：模拟/面板 EDA<br>
+                      └ 差距：数字全流程仍在补齐
+                    </div>
+                  </div>
+      
+                  <!-- 非卡脖子 -->
+                  <div class="bn-col l0">
+                    <div class="bn-col-header">
+                      🟢 非卡脖子 <span class="bn-count">6 只</span>
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">长电科技</span>
+                      <span class="bni-code">600584.SH</span>
+                      <span class="bni-rate">国产化率 85%</span>
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">通富微电</span>
+                      <span class="bni-code">002156.SZ</span>
+                      <span class="bni-rate">国产化率 80%</span>
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">华天科技</span>
+                      <span class="bni-code">002185.SZ</span>
+                      <span class="bni-rate">国产化率 90%</span>
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">圣邦股份</span>
+                      <span class="bni-code">300661.SZ</span>
+                      <span class="bni-rate">自主可控</span>
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">兆易创新</span>
+                      <span class="bni-code">603986.SH</span>
+                      <span class="bni-rate">自主可控</span>
+                    </div>
+                    <div class="bn-item">
+                      <span class="bni-name">韦尔股份</span>
+                      <span class="bni-code">603501.SH</span>
+                      <span class="bni-rate">自主可控</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+      
+            <!-- ========== 分析三：商业化进程（三重共振） ========== -->
+            <div class="card">
+              <div class="card-h">
+                <h3>⏱️ 商业化进程 · 三重共振</h3>
+                <span class="meta">共振分 = 产业周期 × 政策强度 × 业绩兑现</span>
+              </div>
+              <div class="card-b">
+                <table class="comm-table">
+                  <thead>
+                    <tr>
+                      <th><input type="checkbox" checked style="accent-color:var(--accent)"></th>
+                      <th>公司</th>
+                      <th>代码</th>
+                      <th>🏭 产业周期</th>
+                      <th>📋 政策支持</th>
+                      <th>💵 业绩兑现</th>
+                      <th>共振分</th>
+                      <th>共振判断</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><input type="checkbox" checked></td>
+                      <td class="cn">中微公司</td>
+                      <td class="cc">688012.SH</td>
+                      <td><span class="comm-phase growth">成长期</span></td>
+                      <td><span style="color:var(--down);font-weight:650">★★★★★</span> 强力 5/5</td>
+                      <td><span class="tag green">已兑现</span> 净利润+35%</td>
+                      <td class="res-score" style="color:var(--down)">0.80</td>
+                      <td><span class="res-badge triple">✅ 三重共振</span></td>
+                    </tr>
+                    <tr>
+                      <td><input type="checkbox" checked></td>
+                      <td class="cn">北方华创</td>
+                      <td class="cc">002371.SZ</td>
+                      <td><span class="comm-phase growth">成长期</span></td>
+                      <td><span style="color:var(--down);font-weight:650">★★★★★</span> 强力 5/5</td>
+                      <td><span class="tag green">已兑现</span> 净利润+28%</td>
+                      <td class="res-score" style="color:var(--down)">0.80</td>
+                      <td><span class="res-badge triple">✅ 三重共振</span></td>
+                    </tr>
+                    <tr>
+                      <td><input type="checkbox"></td>
+                      <td class="cn">沪硅产业</td>
+                      <td class="cc">688126.SH</td>
+                      <td><span class="comm-phase intro">导入期</span></td>
+                      <td><span style="color:var(--accent);font-weight:650">★★★★<span style="color:var(--border-2)">★</span></span> 强力 4/5</td>
+                      <td><span class="tag" style="color:var(--warn);border-color:var(--warn);background:var(--warn-bg)">亏损中</span> 净利润-12%</td>
+                      <td class="res-score" style="color:var(--warn)">0.16</td>
+                      <td><span class="res-badge waiting">⚠️ 等待拐点</span></td>
+                    </tr>
+                    <tr>
+                      <td><input type="checkbox" checked></td>
+                      <td class="cn">南大光电</td>
+                      <td class="cc">300346.SZ</td>
+                      <td><span class="comm-phase growth">成长期</span></td>
+                      <td><span style="color:var(--accent);font-weight:650">★★★★<span style="color:var(--border-2)">★</span></span> 强力 4/5</td>
+                      <td><span class="tag green">已兑现</span> 净利润+22%</td>
+                      <td class="res-score" style="color:var(--down)">0.64</td>
+                      <td><span class="res-badge triple">✅ 三重共振</span></td>
+                    </tr>
+                    <tr>
+                      <td><input type="checkbox"></td>
+                      <td class="cn">长电科技</td>
+                      <td class="cc">600584.SH</td>
+                      <td><span class="comm-phase mature">成熟期</span></td>
+                      <td><span style="color:var(--accent);font-weight:650">★★★<span style="color:var(--border-2)">★★</span></span> 适中 3/5</td>
+                      <td><span class="tag green">已兑现</span> 净利润+8%</td>
+                      <td class="res-score" style="color:var(--warn)">0.25</td>
+                      <td><span class="res-badge waiting">⚠️ 等待拐点</span></td>
+                    </tr>
+                    <tr>
+                      <td><input type="checkbox" checked></td>
+                      <td class="cn">圣邦股份</td>
+                      <td class="cc">300661.SZ</td>
+                      <td><span class="comm-phase growth">成长期</span></td>
+                      <td><span style="color:var(--accent);font-weight:650">★★★★<span style="color:var(--border-2)">★</span></span> 强力 4/5</td>
+                      <td><span class="tag green">已兑现</span> 净利润+18%</td>
+                      <td class="res-score" style="color:var(--down)">0.64</td>
+                      <td><span class="res-badge triple">✅ 三重共振</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+      
+                <div class="tip">
+                  💡 产品开始量产，才是爆发的源动力 &nbsp;|&nbsp;
+                  共振 ≥ 0.40 → <span style="color:var(--down);font-weight:650">✅ 三重共振</span> ·
+                  0.15 ~ 0.40 → <span style="color:var(--warn);font-weight:650">⚠️ 等待拐点</span> ·
+                  &lt; 0.15 → <span style="color:var(--muted)">❌ 暂不共振</span>
+                </div>
+              </div>
+            </div>
+      
+            <!-- ========== 决策输出 ========== -->
+            <div class="card">
+              <div class="card-h">
+                <h3>📋 决策输出</h3>
+                <span class="meta">勾选目标公司后执行操作</span>
+              </div>
+              <div class="card-b">
+                <div style="display:flex;flex-direction:column;gap:10px">
+      
+                  <!-- 已选中 -->
+                  <div class="dec-bar">
+                    <span class="dec-selected">已选 <span>4</span> 只</span>
+                    <span style="font-size:11px;color:var(--fg-2)">
+                      中微公司(688012) · 北方华创(002371) · 南大光电(300346) · 圣邦股份(300661)
+                    </span>
+                    <span class="dec-hint">操作后将写入候选池/自选表</span>
+                  </div>
+      
+                  <!-- 操作按钮 -->
+                  <div class="dec-bar">
+                    <button class="dec-btn primary">➕ 加入候选池</button>
+                    <button class="dec-btn">⭐ 加入自选</button>
+                    <button class="dec-btn">📄 导出报告</button>
+                    <button class="dec-btn link">🔗 关联开盘决策</button>
+                    <span style="font-size:10.5px;color:var(--muted);margin-left:auto">
+                      关联后将跳转到 /open-decision?from=sc&codes=688012,002371,...
+                    </span>
+                  </div>
+      
+                  <!-- 操作提示 -->
+                  <div class="tip warn">
+                    ⚡ [加入候选池] 将同时携带综合评分、共振标签、卡脖子级别至开盘决策候选池（板块2.4）
+                  </div>
+                </div>
+              </div>
+            </div>
+</div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="assets/shell.js"></script>
+
+<script src="assets/preview-interactions.js"></script>
+</body>
+</html>
