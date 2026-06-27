@@ -15,10 +15,12 @@ import {
 import { useAuth, type Role } from './contexts/AuthContext'
 import { useTheme } from './contexts/ThemeContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import { PlatformContextBar } from './components/layout'
 import ErrorBoundary from './components/ErrorBoundary'
-import { alertApi } from './api/client'
+import { alertApi, clearPlatformContext, injectPlatformContext } from './api/client'
 import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
+import { buildPlatformSessionFromUser } from './types/platform'
 
 // P1-03: code-split the 14 page bundles so the initial download only carries
 // the layout + auth pages; ECharts-heavy pages (Diagnosis/Backtest/Training/
@@ -124,6 +126,19 @@ export default function App() {
     () => filterMenu(bottomMenuItems, user?.role ?? null),
     [user?.role],
   )
+  const platformSession = useMemo(
+    () => buildPlatformSessionFromUser(user),
+    [user],
+  )
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      clearPlatformContext()
+      return
+    }
+    injectPlatformContext(() => platformSession)
+    return () => clearPlatformContext()
+  }, [isAuthenticated, platformSession])
 
   // Poll unread alerts only when authenticated
   // P1-04: go through alertApi (axios) so the request carries the Authorization
@@ -271,6 +286,8 @@ export default function App() {
             </Dropdown>
           </Space>
         </Header>
+
+        <PlatformContextBar session={platformSession} />
 
         {/* ── Page Style Settings Drawer (P1-05: live controls, persisted) ── */}
         <Drawer title="页面风格设置" open={settingsOpen} onClose={() => setSettingsOpen(false)} width={280}>

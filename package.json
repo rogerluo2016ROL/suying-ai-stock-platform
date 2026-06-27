@@ -1,4 +1,10 @@
 {
+  "scripts": {
+    "codex:du": "bash tools/codex-lowio.sh du",
+    "test:py:lowio": "bash tools/codex-lowio.sh py",
+    "test:frontend:lowio": "bash tools/codex-lowio.sh fe-test",
+    "typecheck:frontend:lowio": "bash tools/codex-lowio.sh fe-typecheck"
+  },
   "dependencies": {
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",

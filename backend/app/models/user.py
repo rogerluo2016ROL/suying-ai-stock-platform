@@ -41,6 +41,12 @@ class User(Base):
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
         "RefreshToken", back_populates="user", cascade="all, delete-orphan"
     )
+    memberships: Mapped[list["Membership"]] = relationship(
+        "Membership", back_populates="user", cascade="all, delete-orphan"
+    )
+    broker_accounts: Mapped[list["BrokerAccount"]] = relationship(
+        "BrokerAccount", back_populates="owner", cascade="all, delete-orphan"
+    )
 
 
 class RefreshToken(Base):

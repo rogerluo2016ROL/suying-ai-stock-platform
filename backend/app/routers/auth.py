@@ -1,6 +1,7 @@
 """Auth API routes — register, login, refresh, logout, me. PRD v1.1 compliant."""
 
 import os
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,6 +45,75 @@ REFRESH_COOKIE_SECURE = os.environ.get(
 
 def _role_name(user: User) -> str:
     return user.role.name if user.role else "user"
+
+
+def _role_defaults(role: str) -> dict[str, str | None]:
+    if role == "admin":
+        return {
+            "tenant_id": "platform",
+            "tenant_name": "平台运营",
+            "default_trade_account_id": None,
+            "trade_mode": "paper",
+            "broker_adapter": "paper",
+        }
+    return {
+        "tenant_id": "tenant-default",
+        "tenant_name": "默认租户",
+        "default_trade_account_id": "paper-default",
+        "trade_mode": "paper",
+        "broker_adapter": "paper",
+    }
+
+
+def _select_default(items: Any) -> Any | None:
+    if not items:
+        return None
+    values = list(items)
+    return next((item for item in values if getattr(item, "is_default", False)), values[0])
+
+
+def _loaded_relation(user: User, name: str) -> Any:
+    return getattr(user, "__dict__", {}).get(name)
+
+
+def _platform_profile(user: User) -> dict[str, str | None]:
+    profile = _role_defaults(_role_name(user))
+    membership = _select_default(_loaded_relation(user, "memberships"))
+    tenant = getattr(membership, "tenant", None)
+    if tenant is not None:
+        profile["tenant_id"] = str(getattr(tenant, "slug", None) or getattr(tenant, "id", profile["tenant_id"]))
+        profile["tenant_name"] = getattr(tenant, "name", None) or profile["tenant_name"]
+
+    account = _select_default(_loaded_relation(user, "broker_accounts"))
+    if account is not None:
+        profile["default_trade_account_id"] = getattr(account, "account_id", None)
+        profile["trade_mode"] = getattr(account, "trade_mode", None) or profile["trade_mode"]
+        profile["broker_adapter"] = getattr(account, "adapter", None) or profile["broker_adapter"]
+
+    return profile
+
+
+def build_token_user_response(user: User) -> TokenUserResponse:
+    return TokenUserResponse(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        role=_role_name(user),
+        **_platform_profile(user),
+    )
+
+
+def build_user_response(user: User) -> UserResponse:
+    return UserResponse(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        role=_role_name(user),
+        is_active=user.is_active,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        **_platform_profile(user),
+    )
 
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
@@ -96,12 +166,7 @@ async def register(
     return RegisterResponse(
         access_token=access_token,
         expires_in=JWT_ACCESS_EXPIRE_SECONDS,
-        user=TokenUserResponse(
-            id=user.id,
-            name=user.name,
-            email=user.email,
-            role=_role_name(user),
-        ),
+        user=build_token_user_response(user),
     )
 
 
@@ -133,12 +198,7 @@ async def login(
     return LoginResponse(
         access_token=access_token,
         expires_in=JWT_ACCESS_EXPIRE_SECONDS,
-        user=TokenUserResponse(
-            id=user.id,
-            name=user.name,
-            email=user.email,
-            role=_role_name(user),
-        ),
+        user=build_token_user_response(user),
     )
 
 
@@ -195,15 +255,7 @@ async def me(
     current_user: User = Depends(get_current_user),
 ):
     """Return the current authenticated user's profile."""
-    return UserResponse(
-        id=current_user.id,
-        name=current_user.name,
-        email=current_user.email,
-        role=_role_name(current_user),
-        is_active=current_user.is_active,
-        created_at=current_user.created_at,
-        updated_at=current_user.updated_at,
-    )
+    return build_user_response(current_user)
 
 
 @router.put("/me", response_model=UserResponse)
@@ -223,12 +275,4 @@ async def update_me(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    return UserResponse(
-        id=user.id,
-        name=user.name,
-        email=user.email,
-        role=_role_name(user),
-        is_active=user.is_active,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-    )
+    return build_user_response(user)

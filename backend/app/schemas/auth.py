@@ -73,6 +73,11 @@ class UserResponse(BaseModel):
     is_active: bool = True
     created_at: datetime
     updated_at: datetime
+    tenant_id: str | None = None
+    tenant_name: str | None = None
+    default_trade_account_id: str | None = None
+    trade_mode: str | None = None
+    broker_adapter: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -83,6 +88,11 @@ class TokenUserResponse(BaseModel):
     name: str
     email: str
     role: str
+    tenant_id: str | None = None
+    tenant_name: str | None = None
+    default_trade_account_id: str | None = None
+    trade_mode: str | None = None
+    broker_adapter: str | None = None
 
 
 class AuthTokenResponse(BaseModel):

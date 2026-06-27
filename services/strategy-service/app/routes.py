@@ -2,11 +2,12 @@
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Body, Query, HTTPException, Depends
+from fastapi import APIRouter, Body, Header, Query, HTTPException, Depends
 from kronos_auth import require_role
 from pydantic import BaseModel, Field
 
 from app.plan_store import get_store
+from app.platform_scope import plan_to_dict, resolve_platform_scope
 from app.auto_trading_engine import (
     generate_strategy_from_scheme,
     create_custom_strategy,
@@ -25,19 +26,19 @@ async def create_plan(
     capital: float = Query(1_000_000, ge=100_000),
     max_positions: int = Query(5, ge=1, le=20),
     single_max_pct: float = Query(0.2, ge=0.05, le=0.5),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Create a new draft plan."""
+    scope = resolve_platform_scope(user, tenant_id=tenant_id, account_id=account_id, data_scope=data_scope)
     plan = store.create(name=name, picks=[], model_name=model_name,
-                        capital=capital, max_positions=max_positions)
+                        capital=capital, max_positions=max_positions,
+                        **scope)
     plan.single_max_pct = single_max_pct
     return {
-        "plan": {
-            "id": plan.id, "name": plan.name, "status": plan.status,
-            "picks_count": len(plan.picks), "capital": plan.capital,
-            "max_positions": plan.max_positions,
-            "created_at": plan.created_at,
-        },
+        "plan": plan_to_dict(plan),
         "message": f"方案 {plan.id} 创建成功",
     }
 
@@ -46,10 +47,14 @@ async def create_plan(
 async def add_picks(
     plan_id: str,
     picks: list[dict],
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Add screening picks to a plan."""
-    plan = store.get(plan_id)
+    scope = resolve_platform_scope(user, tenant_id=tenant_id, account_id=account_id, data_scope=data_scope)
+    plan = store.get_for_scope(plan_id, **scope)
     if not plan: raise HTTPException(404, "方案不存在")
     plan.picks = picks
     plan.updated_at = datetime.now(timezone.utc).isoformat()
@@ -58,16 +63,16 @@ async def add_picks(
 
 @router.get("/plans")
 async def list_plans(
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
     user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
 ):
     """List all plans."""
-    plans = store.list_all()
+    scope = resolve_platform_scope(user, tenant_id=tenant_id, account_id=account_id, data_scope=data_scope)
+    plans = store.list_for_scope(**scope)
     return {
-        "plans": [{
-            "id": p.id, "name": p.name, "status": p.status,
-            "picks_count": len(p.picks), "model_name": p.model_name,
-            "capital": p.capital, "created_at": p.created_at,
-        } for p in plans],
+        "plans": [plan_to_dict(p) for p in plans],
         "total": len(plans),
     }
 
@@ -75,16 +80,22 @@ async def list_plans(
 @router.get("/plans/{plan_id}")
 async def get_plan(
     plan_id: str,
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
     user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
 ):
     """Get plan detail with picks."""
-    plan = store.get(plan_id)
+    scope = resolve_platform_scope(user, tenant_id=tenant_id, account_id=account_id, data_scope=data_scope)
+    plan = store.get_for_scope(plan_id, **scope)
     if not plan: raise HTTPException(404, "方案不存在")
     return {
         "id": plan.id, "name": plan.name, "status": plan.status,
         "model_name": plan.model_name, "capital": plan.capital,
         "max_positions": plan.max_positions, "single_max_pct": plan.single_max_pct,
         "picks": plan.picks, "created_at": plan.created_at, "updated_at": plan.updated_at,
+        "tenant_id": plan.tenant_id, "owner_user_id": plan.owner_user_id,
+        "account_id": plan.account_id, "visibility": plan.visibility, "data_scope": plan.data_scope,
     }
 
 
@@ -93,10 +104,14 @@ async def update_plan(
     plan_id: str,
     name: str = None,
     status: str = None,
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Update plan name or status."""
-    plan = store.get(plan_id)
+    scope = resolve_platform_scope(user, tenant_id=tenant_id, account_id=account_id, data_scope=data_scope)
+    plan = store.get_for_scope(plan_id, **scope)
     if not plan: raise HTTPException(404, "方案不存在")
     updates = {}
     if name: updates["name"] = name
@@ -111,9 +126,15 @@ async def update_plan(
 @router.delete("/plans/{plan_id}")
 async def delete_plan(
     plan_id: str,
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Delete a plan."""
+    scope = resolve_platform_scope(user, tenant_id=tenant_id, account_id=account_id, data_scope=data_scope)
+    if not store.get_for_scope(plan_id, **scope):
+        raise HTTPException(404, "方案不存在")
     if store.delete(plan_id):
         return {"plan_id": plan_id, "status": "deleted"}
     raise HTTPException(404, "方案不存在")
@@ -122,9 +143,15 @@ async def delete_plan(
 @router.post("/plans/{plan_id}/confirm")
 async def confirm_plan(
     plan_id: str,
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Confirm a plan → generates report + trading signals."""
+    scope = resolve_platform_scope(user, tenant_id=tenant_id, account_id=account_id, data_scope=data_scope)
+    if not store.get_for_scope(plan_id, **scope):
+        raise HTTPException(404, "方案不存在")
     plan = store.confirm(plan_id)
     if not plan: raise HTTPException(404, "方案不存在")
     return {

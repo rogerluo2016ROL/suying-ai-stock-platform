@@ -21,6 +21,7 @@ from app.config import (
     ARGON2_PARALLELISM,
 )
 from app.models.user import User, Role, RefreshToken
+from app.models.platform import Membership
 
 # ── Argon2id hasher ──
 _ph = PasswordHasher(
@@ -117,7 +118,13 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> User
     from sqlalchemy.orm import selectinload
 
     result = await db.execute(
-        select(User).where(User.email == email).options(selectinload(User.role))
+        select(User)
+        .where(User.email == email)
+        .options(
+            selectinload(User.role),
+            selectinload(User.memberships).selectinload(Membership.tenant),
+            selectinload(User.broker_accounts),
+        )
     )
     user = result.scalar_one_or_none()
 
@@ -133,7 +140,13 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
     from sqlalchemy.orm import selectinload
 
     result = await db.execute(
-        select(User).where(User.id == user_id).options(selectinload(User.role))
+        select(User)
+        .where(User.id == user_id)
+        .options(
+            selectinload(User.role),
+            selectinload(User.memberships).selectinload(Membership.tenant),
+            selectinload(User.broker_accounts),
+        )
     )
     return result.scalar_one_or_none()
 

@@ -42,6 +42,7 @@ async def lifespan(app: FastAPI):
 
     # Import here to avoid circular deps
     from app.services.auth_service import seed_roles
+    from app.services.platform_service import ensure_platform_defaults
     from app.config import ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME
 
     async with AsyncSessionLocal() as db:
@@ -65,6 +66,8 @@ async def lifespan(app: FastAPI):
             )
             db.add(admin_user)
             await db.commit()
+
+        await ensure_platform_defaults(db)
 
     yield
 

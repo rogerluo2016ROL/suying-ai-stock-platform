@@ -10,6 +10,11 @@ export interface User {
   name: string
   email: string
   role: Role
+  tenantId?: string
+  tenantName?: string
+  defaultTradeAccountId?: string
+  tradeMode?: 'paper' | 'live'
+  brokerAdapter?: 'paper' | 'xtquant_qmt' | 'broker_rest'
 }
 
 export interface AuthState {
@@ -24,6 +29,27 @@ export interface AuthContextValue extends AuthState {
   register: (name: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   hasRole: (...roles: Role[]) => boolean
+}
+
+type RawAuthUserPayload = Record<string, unknown>
+
+function readString(payload: RawAuthUserPayload, camelKey: string, snakeKey?: string): string | undefined {
+  const value = payload[camelKey] ?? (snakeKey ? payload[snakeKey] : undefined)
+  return typeof value === 'string' ? value : undefined
+}
+
+export function normalizeAuthUserPayload(payload: RawAuthUserPayload): User {
+  return {
+    id: Number(payload.id),
+    name: readString(payload, 'name') || '',
+    email: readString(payload, 'email') || '',
+    role: (readString(payload, 'role') || 'user') as Role,
+    tenantId: readString(payload, 'tenantId', 'tenant_id'),
+    tenantName: readString(payload, 'tenantName', 'tenant_name'),
+    defaultTradeAccountId: readString(payload, 'defaultTradeAccountId', 'default_trade_account_id'),
+    tradeMode: readString(payload, 'tradeMode', 'trade_mode') as User['tradeMode'],
+    brokerAdapter: readString(payload, 'brokerAdapter', 'broker_adapter') as User['brokerAdapter'],
+  }
 }
 
 // ── Context ──
@@ -72,12 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!meRes.ok) return null
       const meData = await meRes.json()
       if (isCancelled?.()) return null
-      setUser({
-        id: meData.id,
-        name: meData.name,
-        email: meData.email,
-        role: meData.role,
-      })
+      setUser(normalizeAuthUserPayload(meData))
       return token
     } catch {
       return null
@@ -131,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const data = await res.json()
     setAccessToken(data.access_token)
-    setUser(data.user)
+    setUser(normalizeAuthUserPayload(data.user))
   }, [])
 
   // ── register ──
@@ -149,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const data = await res.json()
     setAccessToken(data.access_token)
-    setUser(data.user)
+    setUser(normalizeAuthUserPayload(data.user))
   }, [])
 
   // ── logout ──

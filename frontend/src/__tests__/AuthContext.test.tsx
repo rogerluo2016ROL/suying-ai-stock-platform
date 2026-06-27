@@ -99,6 +99,41 @@ describe('AuthContext', () => {
     }))
   })
 
+  it('refresh 成功时兼容后端 snake_case 平台字段', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access_token: 'refreshed-token', token_type: 'bearer', expires_in: 900 }),
+    })
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 8,
+        name: '平台用户',
+        email: 'platform@t.com',
+        role: 'internal_analyst',
+        tenant_id: 'tenant-alpha',
+        tenant_name: 'Alpha 机构',
+        default_trade_account_id: 'qmt-880001',
+        trade_mode: 'live',
+        broker_adapter: 'xtquant_qmt',
+      }),
+    })
+
+    const { result } = renderHook(() => useAuth(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(result.current.user).toMatchObject({
+      tenantId: 'tenant-alpha',
+      tenantName: 'Alpha 机构',
+      defaultTradeAccountId: 'qmt-880001',
+      tradeMode: 'live',
+      brokerAdapter: 'xtquant_qmt',
+    })
+  })
+
   it('StrictMode 下 refresh 成功仍恢复登录态', async () => {
     mockRefreshSuccess()
     const { result } = renderHook(() => useAuth(), { wrapper: strictWrapper })

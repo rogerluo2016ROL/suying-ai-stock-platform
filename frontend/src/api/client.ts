@@ -38,6 +38,7 @@ import type {
   SyncSchedulesResponse,
   TriggerSyncResponse,
 } from './types'
+import type { PlatformSession } from '../types/platform'
 
 // ── 保留部分内联类型（与 types.ts 兼容） ──
 /** A screener pick passed to strategy generation / plan picks. */
@@ -85,6 +86,7 @@ const api = axios.create({
 let _getAccessToken: (() => string | null) | null = null
 let _onRefreshToken: (() => Promise<string | null>) | null = null
 let _onForceLogout: (() => void) | null = null
+let _getPlatformSession: (() => PlatformSession | null) | null = null
 
 export function injectAuth(
   getToken: () => string | null,
@@ -102,12 +104,30 @@ export function clearAuth() {
   _onForceLogout = null
 }
 
-// ── Request interceptor: attach Authorization header ──
+export function injectPlatformContext(getSession: () => PlatformSession | null) {
+  _getPlatformSession = getSession
+}
+
+export function clearPlatformContext() {
+  _getPlatformSession = null
+}
+
+// ── Request interceptor: attach Authorization + platform boundary headers ──
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = _getAccessToken?.()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  const platformSession = _getPlatformSession?.()
+  if (platformSession?.tenantId) {
+    config.headers['X-Tenant-Id'] = platformSession.tenantId
+  }
+  if (platformSession?.accountId) {
+    config.headers['X-Trade-Account-Id'] = platformSession.accountId
+  }
+  if (platformSession?.dataScope) {
+    config.headers['X-Data-Scope'] = platformSession.dataScope
   }
   return config
 })
