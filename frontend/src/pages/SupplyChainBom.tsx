@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Checkbox, Col, Empty, Input, message, Row, Space, Statistic, Table, Tag, Typography } from 'antd'
+import { Alert, Button, Checkbox, Col, Empty, Input, message, Row, Space, Statistic, Table, Tag, Typography } from 'antd'
 import { ApartmentOutlined, EyeOutlined, FileTextOutlined, ScanOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { screenerApi, chainApi, type PolicyInterpretResponse, type ChainDeconstructResponse, type ChainNode, type ChainCandidate, type FilterSummary, type ResonanceSummary, type SupplyChainMappingQuality, type SupplyChainMappingReviewDecision } from '../api/client'
 import type { SupplyChainTheme, SupplyChainNode } from '../api/types'
-import { MetricCard, PrototypePage, PrototypePageHeader, PrototypeTabs } from '../components/prototype'
+import { DataFreshnessBar, MetricCard, PrototypePage, PrototypePageHeader, PrototypeTabs } from '../components/prototype'
 import CandidateCompanyTable from './supply-chain-bom/CandidateCompanyTable'
 import CompanyResearchDrawer from './supply-chain-bom/CompanyResearchDrawer'
 import NodeThesisPanel from './supply-chain-bom/NodeThesisPanel'
@@ -66,6 +66,18 @@ function researchCollectionColor(status?: string) {
   if (status === 'local_catalog_available') return 'blue'
   if (status === 'llm_key_missing') return 'gold'
   return 'orange'
+}
+
+function endpointStatus(error: unknown) {
+  return (error as { response?: { status?: number } })?.response?.status
+}
+
+function mappingQualityErrorText(error: unknown) {
+  const status = endpointStatus(error)
+  if (status === 404) {
+    return '当前服务未暴露 /api/v1/screener/supply-chain/mapping-review/quality，请重建或更新 screener-service；图谱和候选池仍可继续查看。'
+  }
+  return '映射质量报告加载失败，请检查 screener-service 和网关状态。'
 }
 
 function chainMethodSummary(method: ChainMethod) {
@@ -168,6 +180,7 @@ export default function SupplyChainBom() {
   const [filterSummary, setFilterSummary] = useState<FilterSummary | null>(null)
   const [resonanceSummary, setResonanceSummary] = useState<ResonanceSummary | null>(null)
   const [showBubbleChart, setShowBubbleChart] = useState(true)
+  const [mappingQualityError, setMappingQualityError] = useState('')
 
   const applyWorkbenchPayload = (data: any, replaceCatalog = false) => {
     const nextThemes = data.themes || data.policy_themes || []
@@ -187,9 +200,13 @@ export default function SupplyChainBom() {
   }
 
   const refreshMappingQuality = () => {
+    setMappingQualityError('')
     screenerApi.getSupplyChainMappingQuality()
       .then(resp => setMappingQuality(resp.data))
-      .catch(() => setMappingQuality(null))
+      .catch((err) => {
+        setMappingQuality(null)
+        setMappingQualityError(mappingQualityErrorText(err))
+      })
   }
 
   useEffect(() => {
@@ -531,6 +548,13 @@ export default function SupplyChainBom() {
       <PrototypePageHeader
         title={`产业链拆解 - ${activeModuleTab.label}`}
         subtitle="政策证据 · 三模式解构 · 公司映射 · 研究闭环"
+        dataFreshness={(
+          <DataFreshnessBar
+            tradeDate={dataFreshness.market?.latest_trade_date}
+            updatedAt={dataFreshness.research_reports?.latest_pub_date || dataFreshness.market?.latest_trade_date}
+            source="screener/supply-chain/workbench"
+          />
+        )}
         actions={[
           { key: 'public', label: '公共产业图谱', active: true, tone: 'neutral' },
           { key: 'private', label: '账户私有观察池', tone: 'up' },
@@ -543,6 +567,16 @@ export default function SupplyChainBom() {
         <MetricCard label="BOM 节点" value={nodes.length} sub={`当前模式：${methodSummary.title}`} tone="muted" />
         <MetricCard label="数据更新" value={dataFreshness.market?.latest_trade_date || '--'} sub={dataFreshness.research_reports?.latest_pub_date ? `研报 ${dataFreshness.research_reports.latest_pub_date}` : '等待数据同步'} tone="warn" />
       </div>
+
+      {mappingQualityError && (
+        <Alert
+          type="warning"
+          showIcon
+          message="映射质量接口不可用"
+          description={mappingQualityError}
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       <SupplyChainResearchWorkbench
         themes={themes}

@@ -12,6 +12,7 @@ export interface PrototypePageHeaderProps {
   title: ReactNode
   subtitle?: ReactNode
   actions?: PageHeaderAction[]
+  dataFreshness?: ReactNode
 }
 
 function actionToneClass(tone?: PageHeaderAction['tone']) {
@@ -21,12 +22,13 @@ function actionToneClass(tone?: PageHeaderAction['tone']) {
   return 't-mute'
 }
 
-export function PrototypePageHeader({ title, subtitle, actions = [] }: PrototypePageHeaderProps) {
+export function PrototypePageHeader({ title, subtitle, actions = [], dataFreshness }: PrototypePageHeaderProps) {
   return (
     <header className="page-head">
       <div className="prototype-page-title">
         <h1>{title}</h1>
         {subtitle && <div className="sub">{subtitle}</div>}
+        {dataFreshness && <div className="prototype-page-freshness">{dataFreshness}</div>}
       </div>
       {actions.length > 0 && (
         <div className="head-actions">

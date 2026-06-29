@@ -201,6 +201,7 @@ export interface SectorResonance {
 
 /** 选股运行响应 */
 export interface ScreenerRunResponse extends ServiceContractFields {
+  trade_date?: string | null;
   picks: ScreenerPick[];
   total_scored: number;
   total_excluded: number;
@@ -214,6 +215,9 @@ export interface ScreenerRunResponse extends ServiceContractFields {
 export interface ScreenerModesResponse {
   modes: ScreenerMode[];
   total: number;
+  latest_trade_date?: string | null;
+  latest_dates?: Record<string, string | null | undefined>;
+  data_freshness?: DataFreshness;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

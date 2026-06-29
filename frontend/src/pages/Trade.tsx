@@ -4,6 +4,8 @@ import { ApiOutlined, SafetyCertificateOutlined, WalletOutlined } from '@ant-des
 import { P0WorkflowNav } from '../components/layout'
 import {
   DataDomainBadge,
+  DataFreshnessBar,
+  EmptyState,
   LineageChips,
   MetricCard,
   PrototypeCard,
@@ -14,6 +16,7 @@ import {
   SegmentTabs,
   SideRail,
 } from '../components/prototype'
+import { tradeApi } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import { useLiveTrade, type OrderParams, type PreCheckResult } from '../hooks/useLiveTrade'
 
@@ -26,16 +29,6 @@ const tabs = [
   { key: 'orders', path: '/trade/orders', label: '订单管理', subLabel: '委托 / 成交' },
   { key: 'account', path: '/trade/account', label: '账户总览', subLabel: '券商资金' },
   { key: 'brokers', path: '/trade/brokers', label: '券商管理', subLabel: 'QMT / 模拟' },
-]
-
-const positions = [
-  { code: '300750', name: '宁德时代', volume: 100, cost: 218.5, pnl: 8.2 },
-  { code: '688981', name: '中芯国际', volume: 200, cost: 68.2, pnl: 5.8 },
-]
-
-const orders = [
-  { id: 'ORD-001', code: '300750', direction: 'BUY', volume: 100, status: 'filled' },
-  { id: 'ORD-002', code: '688981', direction: 'BUY', volume: 200, status: 'pending' },
 ]
 
 function activeKey(pathname: string) {
@@ -63,6 +56,17 @@ function getRiskChecks(record: unknown): Array<{ rule?: string; level?: string; 
 function textValue(value: unknown, fallback = '---') {
   if (value == null || value === '') return fallback
   return String(value)
+}
+
+function rowsFromResponse(data: any, key: string) {
+  const rows = data?.[key] || data?.records || data?.items || []
+  return Array.isArray(rows) ? rows : []
+}
+
+function numberValue(value: unknown, fallback = '--') {
+  if (typeof value === 'number') return String(value)
+  if (typeof value === 'string' && value !== '') return value
+  return fallback
 }
 
 function buildRiskQuery({
@@ -102,13 +106,37 @@ export default function Trade() {
   const [candidateId, setCandidateId] = useState(query.get('candidate_id') || '')
   const [planId, setPlanId] = useState(query.get('plan_id') || '')
   const [error, setError] = useState('')
+  const [dataError, setDataError] = useState('')
+  const [account, setAccount] = useState<Record<string, any> | null>(null)
+  const [positions, setPositions] = useState<any[]>([])
+  const [orders, setOrders] = useState<any[]>([])
   const [riskVerdict, setRiskVerdict] = useState<RiskVerdictLike | null>(null)
-  const accountId = user?.defaultTradeAccountId || 'paper-u-default'
+  const accountId = account?.account_id || user?.defaultTradeAccountId || '暂无账户'
   const riskChecks = getRiskChecks(riskVerdict)
+  const latestTradeUpdate = orders[0]?.updated_at || orders[0]?.created_at || positions[0]?.updated_at || account?.updated_at
 
   useEffect(() => {
     if (liveTrade.mode !== 'paper') liveTrade.setMode('paper')
-  }, [liveTrade])
+  }, [liveTrade.mode, liveTrade.setMode])
+
+  useEffect(() => {
+    let mounted = true
+    Promise.allSettled([
+      tradeApi.getAccount(),
+      tradeApi.getPositions(),
+      tradeApi.getOrders(),
+    ]).then(([accountResult, positionsResult, ordersResult]) => {
+      if (!mounted) return
+      if (accountResult.status === 'fulfilled') setAccount(accountResult.value.data as Record<string, any>)
+      if (positionsResult.status === 'fulfilled') setPositions(rowsFromResponse(positionsResult.value.data, 'positions'))
+      if (ordersResult.status === 'fulfilled') setOrders(rowsFromResponse(ordersResult.value.data, 'orders'))
+      const failed = [accountResult, positionsResult, ordersResult].filter(result => result.status === 'rejected').length
+      setDataError(failed > 0 ? `${failed} 个交易数据接口暂不可用` : '')
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const submitOrder = async (event: FormEvent) => {
     event.preventDefault()
@@ -165,6 +193,7 @@ export default function Trade() {
       <PrototypePageHeader
         title={`交易中心 - ${activeTab.label}`}
         subtitle="下单面板 · 持仓资金 · 委托回报 · 券商通道"
+        dataFreshness={<DataFreshnessBar updatedAt={latestTradeUpdate} source="trade-service" />}
         actions={[
           { key: 'paper', label: '模拟盘安全', active: true },
           { key: 'live', label: '实盘锁定', tone: 'warn' },
@@ -174,11 +203,12 @@ export default function Trade() {
       <P0WorkflowNav currentStep="order" />
 
       <div className="kpis">
-        <MetricCard label="交易模式" value="Paper" sub="默认模拟盘" tone="accent" />
-        <MetricCard label="待风控" value="3" sub="订单前置检查" tone="warn" />
-        <MetricCard label="今日委托" value={String(orders.length)} sub="模拟账户" tone="muted" />
-        <MetricCard label="实盘通道" value="Gate" sub="需人工放行" tone="down" />
+        <MetricCard label="交易模式" value={liveTrade.mode === 'live' ? 'Live' : 'Paper'} sub="hook 状态" tone="accent" />
+        <MetricCard label="风控规则" value={String(riskChecks.length)} sub="最近一次预检" tone="warn" />
+        <MetricCard label="今日委托" value={String(orders.length)} sub="trade/orders" tone="muted" />
+        <MetricCard label="券商状态" value={liveTrade.brokerStatus} sub="broker/status" tone={liveTrade.brokerStatus === 'connected' ? 'up' : 'down'} />
       </div>
+      {dataError && <RiskBanner status="warn" title="交易数据接口异常" detail={dataError} />}
 
       {(active === 'overview' || active === 'order') && (
         <div className="row r-6-4">
@@ -271,13 +301,22 @@ export default function Trade() {
               <thead><tr><th>代码</th><th>名称</th><th className="r">数量</th><th className="r">成本</th><th className="r">浮盈</th></tr></thead>
               <tbody>
                 {positions.map(row => (
-                  <tr key={row.code}><td className="code">{row.code}</td><td className="nm">{row.name}</td><td className="r mono">{row.volume}</td><td className="r mono">{row.cost}</td><td className="r up">+{row.pnl}%</td></tr>
+                  <tr key={row.code || row.symbol || row.stock_code}>
+                    <td className="code">{textValue(row.code || row.symbol || row.stock_code)}</td>
+                    <td className="nm">{textValue(row.name || row.stock_name)}</td>
+                    <td className="r mono">{numberValue(row.volume || row.quantity || row.current_volume || row.available_volume)}</td>
+                    <td className="r mono">{numberValue(row.cost || row.cost_price || row.avg_cost)}</td>
+                    <td className="r up">{numberValue(row.pnl_pct || row.profit_rate || row.pnl)}</td>
+                  </tr>
                 ))}
+                {positions.length === 0 && (
+                  <tr><td colSpan={5} className="prototype-panel-note">暂无持仓数据。</td></tr>
+                )}
               </tbody>
             </table>
           </PrototypeCard>
           <SideRail title="持仓风控" meta="Account">
-            <RiskBanner status="pass" title="模拟盘持仓正常" detail="当前账户展示集中度、止损线、可用资金和单票仓位约束。" />
+            <RiskBanner status={positions.length > 0 ? 'review' : 'warn'} title={positions.length > 0 ? '持仓来自交易服务' : '暂无持仓'} detail="持仓集中度、止损线和可用资金以后端账户数据为准。" />
           </SideRail>
         </div>
       )}
@@ -286,7 +325,20 @@ export default function Trade() {
         <PrototypeCard title="订单管理" icon={<SafetyCertificateOutlined />} meta="Order">
           <table className="tbl">
             <thead><tr><th>订单</th><th>代码</th><th>方向</th><th className="r">数量</th><th className="r">状态</th></tr></thead>
-            <tbody>{orders.map(row => <tr key={row.id}><td className="code">{row.id}</td><td className="code">{row.code}</td><td>{row.direction}</td><td className="r mono">{row.volume}</td><td className="r">{row.status}</td></tr>)}</tbody>
+            <tbody>
+              {orders.map(row => (
+                <tr key={row.order_id || row.id}>
+                  <td className="code">{textValue(row.order_id || row.id)}</td>
+                  <td className="code">{textValue(row.code || row.symbol || row.stock_code)}</td>
+                  <td>{textValue(row.direction || row.side)}</td>
+                  <td className="r mono">{numberValue(row.volume || row.quantity)}</td>
+                  <td className="r">{textValue(row.status)}</td>
+                </tr>
+              ))}
+              {orders.length === 0 && (
+                <tr><td colSpan={5} className="prototype-panel-note">暂无订单数据。</td></tr>
+              )}
+            </tbody>
           </table>
         </PrototypeCard>
       )}
@@ -294,10 +346,19 @@ export default function Trade() {
       {active === 'account' && (
         <div className="row r-6-4">
           <PrototypeCard title="账户总览" icon={<WalletOutlined />} meta={accountId}>
-            <div className="op-hint">
-              <div className="pos warn">Paper</div>
-              <div><div className="op-title">模拟账户可用</div><div className="op-desc">资金、持仓、委托均按账户维度隔离；实盘通道默认锁定。</div></div>
-            </div>
+            {account ? (
+              <div className="op-hint">
+                <div className="pos warn">{liveTrade.mode === 'live' ? 'Live' : 'Paper'}</div>
+                <div>
+                  <div className="op-title">{textValue(account.account_name || account.account_id, accountId)}</div>
+                  <div className="op-desc">
+                    总资产 {numberValue(account.total_capital || account.total_assets)}，可用 {numberValue(account.available)}，市值 {numberValue(account.market_value)}。
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <EmptyState title="暂无账户数据" detail="trade/account 当前未返回账户详情。" />
+            )}
           </PrototypeCard>
           <SideRail title="数据域" meta="tenant/user/account">
             <DataDomainBadge domain="account" label="账户私有交易数据" />
@@ -310,8 +371,10 @@ export default function Trade() {
         <PrototypeCard title="券商管理" icon={<ApiOutlined />} meta="QMT / MockBroker">
           <table className="tbl">
             <tbody>
-              <tr><td>MockBroker</td><td><span className="tag t-neu">模拟盘可用</span></td><td className="r">默认启用</td></tr>
-              <tr><td>Xtquant QMT</td><td><span className="tag t-warn">实盘锁定</span></td><td className="r">需配置、风控、人工放行</td></tr>
+              <tr><td>当前模式</td><td><span className="tag t-neu">{liveTrade.mode}</span></td><td className="r">{accountId}</td></tr>
+              <tr><td>券商状态</td><td><span className="tag t-warn">{liveTrade.brokerStatus}</span></td><td className="r">来自 broker/status</td></tr>
+              <tr><td>风控配置</td><td><span className="tag t-neu">{liveTrade.riskConfig ? '已加载' : '未返回'}</span></td><td className="r">{liveTrade.riskConfig?.max_single_amount ?? '--'}</td></tr>
+              <tr><td>熔断状态</td><td><span className="tag t-neu">{liveTrade.circuitBreaker?.status || '未返回'}</span></td><td className="r">{liveTrade.circuitBreaker?.date || '--'}</td></tr>
             </tbody>
           </table>
         </PrototypeCard>

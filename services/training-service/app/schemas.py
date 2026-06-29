@@ -59,6 +59,7 @@ class JobStatus(str, Enum):
 
 class ModelStage(str, Enum):
     NONE = "none"
+    CANDIDATE = "candidate"
     STAGING = "staging"
     PRODUCTION = "production"
     ARCHIVED = "archived"

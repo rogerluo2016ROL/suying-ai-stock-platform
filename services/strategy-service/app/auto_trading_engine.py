@@ -178,6 +178,11 @@ class StrategyStore:
             self._strategies[strategy.id] = strategy
             return strategy
 
+    def upsert(self, strategy: StrategyConfig) -> StrategyConfig:
+        with self._lock:
+            self._strategies[strategy.id] = strategy
+            return strategy
+
     def get(self, strategy_id: str) -> StrategyConfig | None:
         return self._strategies.get(strategy_id)
 

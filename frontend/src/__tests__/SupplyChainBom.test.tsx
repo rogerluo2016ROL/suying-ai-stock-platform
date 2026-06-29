@@ -392,6 +392,17 @@ describe('SupplyChainBom', () => {
     expect(screen.getAllByText('电子级玻璃布').length).toBeGreaterThan(0)
   })
 
+  it('shows an explicit unavailable state when mapping quality endpoint is missing', async () => {
+    vi.mocked((screenerApi as any).getSupplyChainMappingQuality).mockRejectedValue({
+      response: { status: 404 },
+    })
+
+    renderSupplyChain()
+
+    expect(await screen.findByText('映射质量接口不可用')).toBeInTheDocument()
+    expect(screen.getByText(/mapping-review\/quality/)).toBeInTheDocument()
+  })
+
   it('renders the three-column research workbench on the first screen', async () => {
     renderSupplyChain()
 

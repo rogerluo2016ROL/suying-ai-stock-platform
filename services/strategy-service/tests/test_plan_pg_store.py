@@ -1,7 +1,6 @@
+import asyncio
 from datetime import datetime, timezone
 import json
-
-import pytest
 
 from app import plan_pg_store
 from app.plan_store import Plan
@@ -59,8 +58,7 @@ class _FakeDb:
         )
 
 
-@pytest.mark.asyncio
-async def test_record_plan_persists_scope_and_candidate_snapshot():
+def test_record_plan_persists_scope_and_candidate_snapshot():
     db = _FakeDb()
     plan = Plan(
         id="PLAN-1",
@@ -75,7 +73,7 @@ async def test_record_plan_persists_scope_and_candidate_snapshot():
         data_scope="account",
     )
 
-    row_id = await plan_pg_store.record(db, plan=plan)
+    row_id = asyncio.run(plan_pg_store.record(db, plan=plan))
 
     sql, params = db.calls[0]
     assert row_id == 501
@@ -86,17 +84,20 @@ async def test_record_plan_persists_scope_and_candidate_snapshot():
     assert json.loads(params["picks"])[0]["candidate_id"] == "CAND-1"
 
 
-@pytest.mark.asyncio
-async def test_query_plans_filters_private_scope():
+def test_query_plans_filters_private_scope():
     db = _FakeDb()
 
-    result = await plan_pg_store.query(
-        db,
-        tenant_id="tenant-alpha",
-        owner_user_id="7",
-        account_id="paper-u7",
-        page=1,
-        page_size=20,
+    result = asyncio.run(
+        plan_pg_store.query(
+            db,
+            tenant_id="tenant-alpha",
+            owner_user_id="7",
+            account_id="paper-u7",
+            visibility="private",
+            data_scope="account",
+            page=1,
+            page_size=20,
+        )
     )
 
     count_sql, count_params = db.calls[0]

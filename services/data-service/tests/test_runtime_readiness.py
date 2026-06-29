@@ -125,3 +125,22 @@ def test_readiness_reports_components_and_latest_auction(monkeypatch):
     assert result["components"]["tushare_configured"] is False
     assert result["last_auction_status"]["last_status"] == "skipped"
     assert result["runtime_config"]["tushare"]["env"] == "TUSHARE_TOKEN"
+
+
+def test_trigger_table_backfill_runs_registered_handler(monkeypatch):
+    router = importlib.import_module("app.routers.data")
+    monkeypatch.setenv("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+    router._job_status.clear()
+
+    def fake_backfill(days_back: int):
+        return {"status": "ok", "table": "top_list", "written": days_back + 2}
+
+    monkeypatch.setitem(router._BACKFILL_MAP, "top_list", fake_backfill)
+
+    result = asyncio.run(router.trigger_table_backfill("top_list", 5))
+
+    assert result["status"] == "ok"
+    assert result["table_key"] == "top_list"
+    assert result["written"] == 7
+    assert result["pg_written"] == 7
+    assert router._job_status["manual_backfill:top_list"]["last_status"] == "ok"

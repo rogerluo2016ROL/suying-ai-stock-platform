@@ -1,9 +1,12 @@
-import { useMemo } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { BarChartOutlined, FileTextOutlined, FundOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { strategyApi, type StrategyPlan } from '../api/client'
 import { P0WorkflowNav } from '../components/layout'
 import {
   DataDomainBadge,
+  DataFreshnessBar,
+  EmptyState,
   LineageChips,
   MetricCard,
   PrototypeCard,
@@ -26,10 +29,14 @@ interface PlanPick {
 interface PlanRow {
   id: string
   name: string
+  modelName?: string
   status: string
+  maxPositions: number
   capital: number
   risk: string
-  expectedReturn: number
+  expectedReturn?: number
+  createdAt?: string
+  updatedAt?: string
   picks: PlanPick[]
 }
 
@@ -54,32 +61,6 @@ const tabs = [
   { key: 'reports', path: '/strategy/reports', label: '结算报告', subLabel: '复盘输出' },
 ]
 
-const plans: PlanRow[] = [
-  {
-    id: 'PLAN-B3',
-    name: '半导体竞价共振',
-    status: '待风控',
-    capital: 1_000_000,
-    risk: '中',
-    expectedReturn: 8.6,
-    picks: [
-      { code: '300750', name: '宁德时代', candidate_id: 'CAND-leader_auction-300750', source_mode: 'leader_auction', entry_price: 218.5, score: 92 },
-      { code: '688981', name: '中芯国际', candidate_id: 'CAND-chain-688981', source_mode: 'chain', entry_price: 68.2, score: 88 },
-    ],
-  },
-  {
-    id: 'PLAN-V2',
-    name: '价值回撤低吸',
-    status: '回测通过',
-    capital: 800_000,
-    risk: '低',
-    expectedReturn: 5.4,
-    picks: [
-      { code: '600519', name: '贵州茅台', source_mode: 'value', entry_price: 1785, score: 81 },
-    ],
-  },
-]
-
 function activeKey(pathname: string) {
   if (pathname.endsWith('/detail')) return 'detail'
   if (pathname.endsWith('/compare')) return 'compare'
@@ -91,12 +72,66 @@ function money(value: number) {
   return `${Math.round(value / 10000)}万`
 }
 
+function formatReturn(value?: number) {
+  if (typeof value !== 'number') return '--'
+  return `${value > 0 ? '+' : ''}${value}%`
+}
+
+function riskLabel(riskScore?: number) {
+  if (riskScore === undefined) return '待评估'
+  if (riskScore >= 70) return '高'
+  if (riskScore >= 40) return '中'
+  return '低'
+}
+
+function normalisePlan(plan: StrategyPlan): PlanRow {
+  return {
+    id: plan.id,
+    name: plan.name,
+    modelName: plan.model_name,
+    status: plan.status || 'draft',
+    maxPositions: plan.max_positions || 0,
+    capital: plan.capital || 0,
+    risk: riskLabel(plan.risk_score),
+    expectedReturn: plan.expected_return,
+    createdAt: plan.created_at,
+    updatedAt: plan.updated_at,
+    picks: plan.picks || [],
+  }
+}
+
 export default function Strategy() {
   const location = useLocation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const active = activeKey(location.pathname)
   const activeTab = useMemo(() => tabs.find(tab => tab.key === active) ?? tabs[0], [active])
-  const selectedPlan = plans[0]
+  const [plans, setPlans] = useState<PlanRow[]>([])
+  const [loadError, setLoadError] = useState('')
+
+  useEffect(() => {
+    let mounted = true
+    strategyApi.getPlans()
+      .then(response => {
+        if (!mounted) return
+        setPlans((response.data?.plans || []).map(normalisePlan))
+        setLoadError('')
+      })
+      .catch(() => {
+        if (!mounted) return
+        setPlans([])
+        setLoadError('方案服务暂不可用')
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const selectedPlan = plans.find(plan => plan.id === searchParams.get('plan_id')) ?? plans[0]
+  const totalPicks = plans.reduce((sum, item) => sum + item.picks.length, 0)
+  const riskPending = plans.filter(plan => plan.status === 'draft' || plan.risk === '待评估').length
+  const tradable = plans.filter(plan => plan.status === 'confirmed' || plan.status === 'active').length
+  const latestPlanUpdate = selectedPlan?.updatedAt || selectedPlan?.createdAt || plans[0]?.updatedAt || plans[0]?.createdAt
 
   return (
     <PrototypePage>
@@ -112,6 +147,7 @@ export default function Strategy() {
       <PrototypePageHeader
         title={`方案管理 - ${activeTab.label}`}
         subtitle="账户私有方案 · 候选快照 · 风控前置 · 结算复盘"
+        dataFreshness={<DataFreshnessBar updatedAt={latestPlanUpdate} source="strategy-service" />}
         actions={[
           { key: 'account', label: '账户私有', active: true },
           { key: 'paper', label: '模拟盘方案', tone: 'neutral' },
@@ -121,11 +157,12 @@ export default function Strategy() {
       <P0WorkflowNav currentStep="plan" />
 
       <div className="kpis">
-        <MetricCard label="活跃方案" value={String(plans.length)} sub="账户私有" tone="accent" />
-        <MetricCard label="待风控" value="1" sub="进入下单前置" tone="warn" />
-        <MetricCard label="可下单" value="1" sub="回测通过" tone="up" />
-        <MetricCard label="候选快照" value={String(plans.reduce((sum, item) => sum + item.picks.length, 0))} sub="Candidate" tone="muted" />
+        <MetricCard label="活跃方案" value={String(plans.length)} sub="策略服务" tone="accent" />
+        <MetricCard label="待风控" value={String(riskPending)} sub="进入下单前置" tone="warn" />
+        <MetricCard label="可下单" value={String(tradable)} sub="已确认方案" tone="up" />
+        <MetricCard label="候选快照" value={String(totalPicks)} sub="Candidate" tone="muted" />
       </div>
+      {loadError && <RiskBanner status="warn" title="方案服务异常" detail={loadError} />}
 
       {active === 'list' && (
         <div className="row r-6-4">
@@ -139,12 +176,17 @@ export default function Strategy() {
                     <td><span className="tag t-neu">{plan.status}</span></td>
                     <td>{plan.risk}</td>
                     <td className="r mono">{money(plan.capital)}</td>
-                    <td className="r up">+{plan.expectedReturn}%</td>
+                    <td className="r up">{formatReturn(plan.expectedReturn)}</td>
                     <td className="r">
-                      <button type="button" className="btn sm" onClick={() => navigate('/strategy/detail')}>详情</button>
+                      <button type="button" className="btn sm" onClick={() => navigate(`/strategy/detail?plan_id=${encodeURIComponent(plan.id)}`)}>详情</button>
                     </td>
                   </tr>
                 ))}
+                {plans.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="prototype-panel-note">暂无策略服务返回的方案。</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </PrototypeCard>
@@ -152,8 +194,8 @@ export default function Strategy() {
             <DataDomainBadge domain="account" label="账户私有方案" />
             <LineageChips
               items={[
-                { label: 'Plan', value: selectedPlan.id },
-                { label: 'Candidate', value: selectedPlan.picks.length },
+                { label: 'Plan', value: selectedPlan?.id || '暂无' },
+                { label: 'Candidate', value: selectedPlan?.picks.length || 0 },
                 { label: 'RiskVerdict', value: '待生成', tone: 'warn' },
               ]}
             />
@@ -164,34 +206,45 @@ export default function Strategy() {
 
       {active === 'detail' && (
         <div className="row r-6-4">
-          <PrototypeCard title="方案详情" icon={<FundOutlined />} meta={selectedPlan.id}>
-            <div className="op-hint">
-              <div className="pos warn">{selectedPlan.risk}</div>
-              <div>
-                <div className="op-title">{selectedPlan.name}</div>
-                <div className="op-desc">资金 {money(selectedPlan.capital)}，最大持仓 5，只提交模拟盘订单草稿。</div>
-              </div>
-            </div>
-            <table className="tbl mt14">
-              <thead><tr><th>代码</th><th>名称</th><th>Candidate</th><th className="r">入场价</th><th className="r">评分</th><th className="r">下单</th></tr></thead>
-              <tbody>
-                {selectedPlan.picks.map(pick => (
-                  <tr key={pick.code}>
-                    <td className="code">{pick.code}</td>
-                    <td className="nm">{pick.name}</td>
-                    <td className="code">{pick.candidate_id || `CAND-${pick.code}`}</td>
-                    <td className="r mono">{pick.entry_price}</td>
-                    <td className="r mono">{pick.score}</td>
-                    <td className="r"><button type="button" className="btn sm primary" onClick={() => navigate(buildTradeUrlForPick(selectedPlan.id, pick))}>下单</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <PrototypeCard title="方案详情" icon={<FundOutlined />} meta={selectedPlan?.id || 'Plan'}>
+            {selectedPlan ? (
+              <>
+                <div className="op-hint">
+                  <div className="pos warn">{selectedPlan.risk}</div>
+                  <div>
+                    <div className="op-title">{selectedPlan.name}</div>
+                    <div className="op-desc">
+                      资金 {money(selectedPlan.capital)}，最大持仓 {selectedPlan.maxPositions || '--'}，模型 {selectedPlan.modelName || '--'}。
+                    </div>
+                  </div>
+                </div>
+                <table className="tbl mt14">
+                  <thead><tr><th>代码</th><th>名称</th><th>Candidate</th><th className="r">入场价</th><th className="r">评分</th><th className="r">下单</th></tr></thead>
+                  <tbody>
+                    {selectedPlan.picks.map(pick => (
+                      <tr key={pick.code}>
+                        <td className="code">{pick.code}</td>
+                        <td className="nm">{pick.name}</td>
+                        <td className="code">{pick.candidate_id || `CAND-${pick.code}`}</td>
+                        <td className="r mono">{pick.entry_price}</td>
+                        <td className="r mono">{pick.score}</td>
+                        <td className="r"><button type="button" className="btn sm primary" onClick={() => navigate(buildTradeUrlForPick(selectedPlan.id, pick))}>下单</button></td>
+                      </tr>
+                    ))}
+                    {selectedPlan.picks.length === 0 && (
+                      <tr><td colSpan={6} className="prototype-panel-note">该方案暂无候选快照。</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </>
+            ) : (
+              <EmptyState title="暂无可查看的方案详情" detail="strategy/plans 当前没有返回方案。" />
+            )}
           </PrototypeCard>
           <SideRail title="风控准备" meta="DecisionContext">
             <LineageChips
               items={[
-                { label: 'DecisionContext', value: `CTX-${selectedPlan.id}` },
+                { label: 'DecisionContext', value: selectedPlan ? `CTX-${selectedPlan.id}` : '暂无' },
                 { label: 'Order', value: '草稿', tone: 'warn' },
               ]}
             />
@@ -204,21 +257,25 @@ export default function Strategy() {
         <div className="row r-6-4">
           <PrototypeCard title="方案对比" icon={<BarChartOutlined />} meta="组合比较">
             <table className="tbl">
-              <thead><tr><th>方案</th><th className="r">预期收益</th><th className="r">最大回撤</th><th className="r">换手</th></tr></thead>
+              <thead><tr><th>方案</th><th>状态</th><th>风险</th><th className="r">候选数</th><th className="r">预期收益</th></tr></thead>
               <tbody>
-                {plans.map((plan, index) => (
+                {plans.map(plan => (
                   <tr key={plan.id}>
                     <td className="nm">{plan.name}</td>
-                    <td className="r up">+{plan.expectedReturn}%</td>
-                    <td className="r down">-{index === 0 ? '4.2' : '2.8'}%</td>
-                    <td className="r mono">{index === 0 ? '38%' : '21%'}</td>
+                    <td>{plan.status}</td>
+                    <td>{plan.risk}</td>
+                    <td className="r mono">{plan.picks.length}</td>
+                    <td className="r up">{formatReturn(plan.expectedReturn)}</td>
                   </tr>
                 ))}
+                {plans.length === 0 && (
+                  <tr><td colSpan={5} className="prototype-panel-note">暂无可对比方案。</td></tr>
+                )}
               </tbody>
             </table>
           </PrototypeCard>
           <SideRail title="对比结论" meta="Backtest">
-            <RiskBanner status="pass" title="模拟盘优先" detail="高波动方案先进入回测复盘，暂不开放实盘自动执行。" />
+            <RiskBanner status="review" title="仅展示策略服务字段" detail="当前 strategy/plans 未返回最大回撤和换手率，页面不再展示固定演示指标。" />
           </SideRail>
         </div>
       )}
@@ -229,8 +286,17 @@ export default function Strategy() {
             <table className="tbl">
               <thead><tr><th>报告</th><th>关联方案</th><th>结论</th><th className="r">生成时间</th></tr></thead>
               <tbody>
-                <tr><td className="nm">半导体竞价复盘</td><td className="code">PLAN-B3</td><td>胜率稳定，需控制追高</td><td className="r mono">2026-06-28</td></tr>
-                <tr><td className="nm">价值低吸复盘</td><td className="code">PLAN-V2</td><td>回撤低，收益慢</td><td className="r mono">2026-06-27</td></tr>
+                {plans.map(plan => (
+                  <tr key={plan.id}>
+                    <td className="nm">{plan.name} 复盘</td>
+                    <td className="code">{plan.id}</td>
+                    <td>{plan.status === 'confirmed' ? '已确认，等待交易回填' : '等待风控与回测补充'}</td>
+                    <td className="r mono">{plan.updatedAt || plan.createdAt || '--'}</td>
+                  </tr>
+                ))}
+                {plans.length === 0 && (
+                  <tr><td colSpan={4} className="prototype-panel-note">暂无方案复盘记录。</td></tr>
+                )}
               </tbody>
             </table>
           </PrototypeCard>

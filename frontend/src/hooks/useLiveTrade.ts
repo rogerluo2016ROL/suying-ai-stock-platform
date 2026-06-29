@@ -201,12 +201,17 @@ export function useLiveTrade(): UseLiveTradeReturn {
         message.warning(w.message)
       })
     } catch (err: any) {
+      const status = err?.response?.status
+      if (effectiveMode === 'paper' && (status === 404 || status === 405)) {
+        message.warning('独立预检接口不可用，将由下单接口执行风控')
+      } else {
       const detail = err?.response?.data?.detail
       const errMsg = typeof detail === 'string'
         ? detail
         : detail?.detail || '风控检查服务异常'
       message.error(errMsg)
       return { success: false, error: errMsg }
+      }
     }
 
     // Step 2: Large order confirmation (live mode only, only when backend config loaded)

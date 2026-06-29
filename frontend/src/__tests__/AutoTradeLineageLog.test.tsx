@@ -7,24 +7,28 @@ import AutoTrade from '../pages/AutoTrade'
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
+  post: vi.fn(),
 }))
 
 vi.mock('../api/client', () => ({
-  default: {
-    get: mocks.get,
-    post: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-  },
-}))
+    default: {
+      get: mocks.get,
+      post: mocks.post,
+      put: vi.fn(),
+      delete: vi.fn(),
+    },
+  }))
 
-function renderAutoTrade() {
+function renderAutoTrade(initialEntries = ['/auto-trade']) {
   return render(
     <ConfigProvider locale={zhCN}>
       <AntdApp>
-        <MemoryRouter initialEntries={['/auto-trade']}>
+        <MemoryRouter initialEntries={initialEntries}>
           <Routes>
             <Route path="/auto-trade" element={<AutoTrade />} />
+            <Route path="/auto-trade/config" element={<AutoTrade />} />
+            <Route path="/auto-trade/monitor" element={<AutoTrade />} />
+            <Route path="/auto-trade/logs" element={<AutoTrade />} />
             <Route path="/trade/risk-verdicts" element={<div>风控闸门页</div>} />
             <Route path="/trade/decision-contexts" element={<div>决策上下文页</div>} />
           </Routes>
@@ -37,6 +41,8 @@ function renderAutoTrade() {
 describe('AutoTrade 自动执行日志 lineage', () => {
   beforeEach(() => {
     mocks.get.mockReset()
+    mocks.post.mockReset()
+    mocks.post.mockResolvedValue({ data: { status: 'running', message: '策略已启动' } })
     mocks.get.mockImplementation((url: string) => {
       if (url === '/strategy/list') {
         return Promise.resolve({
@@ -116,5 +122,32 @@ describe('AutoTrade 自动执行日志 lineage', () => {
     await user.click(screen.getByRole('button', { name: '风控' }))
 
     expect(screen.getByText('风控闸门页')).toBeInTheDocument()
+  })
+
+  it('策略列表失败时不回退演示策略', async () => {
+    mocks.get.mockRejectedValue(new Error('strategy down'))
+    renderAutoTrade()
+
+    expect(await screen.findByText('暂无自动交易策略。')).toBeInTheDocument()
+    expect(screen.queryByText('模拟趋势策略')).not.toBeInTheDocument()
+  })
+
+  it('配置页展示策略服务返回的规则', async () => {
+    renderAutoTrade(['/auto-trade/config'])
+
+    expect(await screen.findByText('自动龙头策略')).toBeInTheDocument()
+    expect(screen.getByText('1000000')).toBeInTheDocument()
+    expect(screen.getByText('0.2')).toBeInTheDocument()
+    expect(screen.getByText('0.03')).toBeInTheDocument()
+  })
+
+  it('启动动作调用策略执行接口', async () => {
+    const user = userEvent.setup()
+    renderAutoTrade()
+
+    await user.click(await screen.findByRole('button', { name: '启动' }))
+
+    await waitFor(() => expect(mocks.post).toHaveBeenCalledWith('/strategy/strat-lineage/start?mode=paper'))
+    expect(await screen.findByText('策略已启动')).toBeInTheDocument()
   })
 })

@@ -34,6 +34,7 @@ import type {
   SupplyChainBomResponse,
   MappingReviewQueueResponse,
   MappingQualityResponse,
+  ChainCandidate,
   ChainCandidatesResponse,
   SyncSchedulesResponse,
   TriggerSyncResponse,
@@ -331,6 +332,9 @@ export const predictionApi = {
   getStatus: (): Promise<AxiosResponse<PredictionStatus>> =>
     api.get('/prediction/status'),
 
+  getOverview: (): Promise<AxiosResponse<Record<string, unknown>>> =>
+    api.get('/prediction/overview'),
+
   predict: (code: string, predDays = 10): Promise<AxiosResponse<PredictionResponse>> =>
     api.post(`/prediction/${code}?pred_days=${predDays}`),
 
@@ -339,6 +343,12 @@ export const predictionApi = {
 
   predictBatch: (codes: string[], days = 30): Promise<AxiosResponse<BatchPredictionResponse>> =>
     api.post(`/prediction/${codes[0]}/meta?pred_days=${days}`, codes),
+
+  compare: (codes: string[], predDays = 20): Promise<AxiosResponse<Record<string, unknown>>> =>
+    api.post(`/prediction/compare?pred_days=${predDays}`, codes),
+
+  getAccuracyBacktest: (): Promise<AxiosResponse<Record<string, unknown>>> =>
+    api.get('/prediction/accuracy-backtest'),
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -366,6 +376,98 @@ export const strategyApi = {
 
   deletePlan: (planId: string): Promise<AxiosResponse<void>> =>
     api.delete(`/strategy/plans/${planId}`),
+}
+
+export interface TrainingModelRecord {
+  id: string
+  name: string
+  version: number
+  model_type: string
+  stage: string
+  run_id?: string | null
+  experiment_id?: string | null
+  metrics?: Record<string, number>
+  artifact_uri?: string | null
+  deployed_at?: string | null
+  deployed_by?: string | null
+  created_by: string
+  created_at: string
+  updated_at?: string | null
+  notes?: string | null
+}
+
+export interface TrainingModelsResponse {
+  models: TrainingModelRecord[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface TrainingHistoryRecord {
+  job_id: string
+  model_type: string
+  status: string
+  params?: Record<string, unknown> | null
+  final_metrics?: Record<string, number> | null
+  model_uri?: string | null
+  created_by: string
+  created_at: string
+  started_at?: string | null
+  completed_at?: string | null
+  duration_seconds?: number | null
+}
+
+export interface TrainingHistoryResponse {
+  jobs: TrainingHistoryRecord[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface TrainingScheduleResponse {
+  enabled: boolean
+  cron: string
+  model_type: string
+  params?: Record<string, unknown> | null
+  auto_deploy: boolean
+  next_run?: string | null
+  last_run?: string | null
+  last_job_id?: string | null
+  last_job_status?: string | null
+}
+
+export interface TrainingModelActionResponse {
+  model_id: string
+  message: string
+  stage?: string
+  deployed_at?: string
+  previous_production_version?: number | null
+  new_production_version?: number
+  rolled_back_from?: number
+  reason?: string
+}
+
+export const trainingApi = {
+  getModels: (params: { page?: number; page_size?: number; model_type?: string; stage?: string } = {}): Promise<AxiosResponse<TrainingModelsResponse>> =>
+    api.get('/training/models', { params: { page: 1, page_size: 20, ...params } }),
+
+  getModel: (modelId: string): Promise<AxiosResponse<TrainingModelRecord>> =>
+    api.get(`/training/models/${modelId}`),
+
+  deployModel: (modelId: string, body: { force?: boolean; notes?: string } = {}): Promise<AxiosResponse<TrainingModelActionResponse>> =>
+    api.post(`/training/models/${modelId}/deploy`, body),
+
+  rollbackModel: (modelId: string, body: { target_version: number; reason?: string }): Promise<AxiosResponse<TrainingModelActionResponse>> =>
+    api.post(`/training/models/${modelId}/rollback`, body),
+
+  archiveModel: (modelId: string, body: { reason: string }): Promise<AxiosResponse<TrainingModelActionResponse>> =>
+    api.post(`/training/models/${modelId}/archive`, body),
+
+  getHistory: (params: { page?: number; page_size?: number; model_type?: string; status?: string } = {}): Promise<AxiosResponse<TrainingHistoryResponse>> =>
+    api.get('/training/history', { params: { page: 1, page_size: 20, ...params } }),
+
+  getSchedule: (): Promise<AxiosResponse<TrainingScheduleResponse>> =>
+    api.get('/training/schedule'),
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -630,10 +732,28 @@ export const chainApi = {
     trade_date?: string
   } = {}): Promise<AxiosResponse<ChainCandidatesResponse>> => {
     const { filter = 'all', resonance_level, top_n = 30, trade_date } = params
-    const qs = new URLSearchParams({ filter, top_n: String(top_n) })
-    if (resonance_level) qs.set('resonance_level', resonance_level)
-    if (trade_date) qs.set('trade_date', trade_date)
-    return api.get(`/screener/chain/candidates?${qs.toString()}`)
+    const workbenchPath = buildSupplyChainWorkbenchPath({ topN: top_n })
+    return api.get(workbenchPath).then((response) => {
+      const body = response.data as {
+        candidates?: ChainCandidate[]
+        candidate_count?: number
+        filter_summary?: Record<string, number>
+        resonance_summary?: Record<string, number>
+      }
+      return {
+        ...response,
+        data: {
+          filter,
+          resonance_level,
+          trade_date,
+          total_count: body.candidate_count ?? body.candidates?.length ?? 0,
+          candidates: body.candidates || [],
+          filter_summary: body.filter_summary || {},
+          resonance_summary: body.resonance_summary || {},
+          elapsed_ms: 0,
+        },
+      } as AxiosResponse<ChainCandidatesResponse>
+    })
   },
 }
 

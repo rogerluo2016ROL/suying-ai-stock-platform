@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChartOutlined,
@@ -10,7 +10,9 @@ import {
   SafetyCertificateOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons'
-import { MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs, SegmentTabs } from '../components/prototype'
+import { chainApi, signalApi, tradeApi } from '../api/client'
+import type { ChainCandidate, DecisionContextRecord, Position, RiskVerdictRecord, StockSignal, TradeAccount, TradeOrder } from '../api/types'
+import { DataFreshnessBar, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs, SegmentTabs } from '../components/prototype'
 
 const tabs = [
   { key: 'overview', path: '/open-decision', label: '决策总览', subLabel: '开盘闸门' },
@@ -20,62 +22,6 @@ const tabs = [
   { key: 'execution', path: '/open-decision/execution', label: '执行监控', subLabel: '链路状态' },
 ]
 
-const auctionBullishRows = [
-  { code: '688981', name: '中芯国际', industry: '半导体', gap: 5.56, vol: 13.5, score: 92, intent: '强烈抢筹' },
-  { code: '300750', name: '宁德时代', industry: '新能源', gap: 4.58, vol: 11.1, score: 88, intent: '强烈抢筹' },
-  { code: '000001', name: '平安银行', industry: '金融', gap: 4.17, vol: 12.3, score: 85, intent: '强烈抢筹' },
-  { code: '002415', name: '海康威视', industry: 'AI算力', gap: 3.66, vol: 10.5, score: 82, intent: '强烈抢筹' },
-  { code: '601012', name: '隆基绿能', industry: '新能源', gap: 4.69, vol: 9.8, score: 81, intent: '强烈抢筹' },
-  { code: '002230', name: '科大讯飞', industry: 'AI算力', gap: 3.9, vol: 9.2, score: 80, intent: '强烈抢筹' },
-  { code: '002371', name: '北方华创', industry: '半导体设备', gap: 4.2, vol: 8.9, score: 79, intent: '偏多抢筹' },
-  { code: '603986', name: '兆易创新', industry: '存储芯片', gap: 3.5, vol: 8.1, score: 78, intent: '偏多抢筹' },
-]
-
-const auctionBearishRows = [
-  { code: '600000', name: '浦发银行', drop: -5.27, vol: 15.2, score: 18, intent: '强烈出货' },
-  { code: '000858', name: '五粮液', drop: -2.82, vol: 10.2, score: 20, intent: '强烈出货' },
-  { code: '000002', name: '万科A', drop: -4.23, vol: 9.8, score: 22, intent: '强烈出货' },
-  { code: '601398', name: '工商银行', drop: -3.12, vol: 11.5, score: 24, intent: '强烈出货' },
-  { code: '600031', name: '三一重工', drop: -2.41, vol: 7.8, score: 26, intent: '偏空出货' },
-]
-
-const sectorRows = [
-  { name: '半导体', count: 12, change: 3.2, lead: '中芯+5.8% / 韦尔+4.2%', width: 92 },
-  { name: '新能源', count: 9, change: 2.8, lead: '宁德+8.2% / 隆基+4.5%', width: 78 },
-  { name: 'AI算力', count: 8, change: 2.5, lead: '浪潮+3.1% / 中科+3.5%', width: 70 },
-  { name: '消费电子', count: 6, change: 1.8, lead: '立讯+2.8% / 歌尔+2.1%', width: 56 },
-  { name: '白酒', count: 5, change: 1.5, lead: '茅台+3.2% / 五粮+2.1%', width: 46 },
-]
-
-const signalRows = [
-  { code: '688981', name: '中芯', price: '68.20', signal: '强买', score: 78, kronos: '+8.2%', target: '73.80', confidence: 78, consistency: '双确认', risk: '通过', action: '确认买入', watchlist: true },
-  { code: '603501', name: '韦尔', price: '218.00', signal: '强买', score: 72, kronos: '-1.2%', target: '215.00', confidence: 62, consistency: '相悖', risk: '通过', action: '降低优先级', watchlist: false },
-  { code: '603986', name: '兆易', price: '120.50', signal: '强买', score: 68, kronos: '+5.0%', target: '126.50', confidence: 71, consistency: '双确认', risk: '通过', action: '确认买入', watchlist: true },
-  { code: '300750', name: '宁德', price: '218.50', signal: '强买', score: 85, kronos: '+12.5%', target: '242.30', confidence: 82, consistency: '双确认', risk: '通过', action: '确认买入', watchlist: true },
-  { code: '601012', name: '隆基', price: '27.70', signal: '买入', score: 65, kronos: '+3.2%', target: '28.60', confidence: 68, consistency: '双确认', risk: '通过', action: '确认买入', watchlist: false },
-  { code: '000858', name: '五粮', price: '135.00', signal: '减仓', score: 32, kronos: '-2.0%', target: '132.00', confidence: 45, consistency: '中性', risk: '止损', action: '排除', watchlist: false },
-]
-
-const candidateRows = [
-  { code: '688981', name: '中芯国际', source: '竞价+信号', score: 92, risk: '通过', size: '30%' },
-  { code: '300750', name: '宁德时代', source: '自选+Kronos', score: 90, risk: '通过', size: '25%' },
-  { code: '002371', name: '北方华创', source: '板块共振', score: 87, risk: '通过', size: '20%' },
-  { code: '603986', name: '兆易创新', source: '信号扫描', score: 84, risk: '仓位复核', size: '15%' },
-]
-
-const orders = [
-  { time: '09:31:05', code: '688981', name: '中芯国际', dir: '买入', price: '68.20', qty: '2,000', status: '已成交' },
-  { time: '09:32:18', code: '300750', name: '宁德时代', dir: '买入', price: '218.50', qty: '600', status: '已成交' },
-  { time: '09:34:42', code: '002371', name: '北方华创', dir: '买入', price: '305.80', qty: '400', status: '待成交' },
-  { time: '09:40:11', code: '603986', name: '兆易创新', dir: '买入', price: '153.00', qty: '800', status: '待确认' },
-]
-
-const positions = [
-  { code: '688981', name: '中芯国际', value: '13.6万', pnl: '+5.8%', weight: '18%' },
-  { code: '300750', name: '宁德时代', value: '13.1万', pnl: '+8.2%', weight: '17%' },
-  { code: '002371', name: '北方华创', value: '12.2万', pnl: '+4.2%', weight: '16%' },
-]
-
 const overnightNews = [
   { type: '公告', tone: 'danger', title: '中芯国际: 收到证监会立案调查通知书', impact: '影响: 高 · 竞价强度需复核', time: '昨 20:35' },
   { type: '公告', tone: 'danger', title: '贵州茅台: 半年度业绩预增 15%-20%', impact: '影响: 中 · 白酒高位分歧', time: '昨 19:00' },
@@ -83,6 +29,298 @@ const overnightNews = [
   { type: '期货', tone: 'accent', title: 'A50 指数期货 +0.28% · 恒生期货 +0.45%', impact: '影响: 正向 · 开盘资金承接观察', time: '今 08:30' },
   { type: '舆情', tone: 'warn', title: '热词: #降息预期 #半导体出口管制 #新能源政策', impact: '影响: 主题催化 · 纳入情绪模型', time: '-' },
 ]
+
+interface AuctionRow {
+  code: string
+  name: string
+  industry?: string
+  gap?: number
+  drop?: number
+  vol: number
+  score: number
+  intent: string
+}
+
+interface DashboardAuctionPick {
+  code?: string
+  name?: string
+  industry?: string
+  gap_pct?: number
+  chg_pct?: number
+  score?: number
+  vol_ratio?: number
+  volume_ratio?: number
+  vol_z?: number
+  intent?: string
+}
+
+interface SectorRow {
+  name: string
+  count: number
+  change: number
+  lead: string
+  width: number
+}
+
+interface SignalRow {
+  code: string
+  name: string
+  price: string
+  signal: string
+  score: number
+  kronos: string
+  target: string
+  confidence: number
+  consistency: string
+  risk: string
+  action: string
+  watchlist: boolean
+  dimensions: Array<{ label: string; value: number }>
+}
+
+interface CandidateRow {
+  code: string
+  name: string
+  source: string
+  score: number
+  risk: string
+  size: string
+}
+
+interface OrderRow {
+  time: string
+  code: string
+  name: string
+  dir: string
+  price: string
+  qty: string
+  status: string
+}
+
+interface PositionRow {
+  code: string
+  name: string
+  value: string
+  pnl: string
+  weight: string
+}
+
+interface OpenDecisionState {
+  liveSignals: StockSignal[]
+  liveTradeDate?: string
+  candidates: ChainCandidate[]
+  account?: TradeAccount
+  positions: Position[]
+  orders: TradeOrder[]
+  verdicts: RiskVerdictRecord[]
+  contexts: DecisionContextRecord[]
+  auction: Record<string, unknown>
+  loading: boolean
+  error: string
+}
+
+const emptyState: OpenDecisionState = {
+  liveSignals: [],
+  liveTradeDate: undefined,
+  candidates: [],
+  positions: [],
+  orders: [],
+  verdicts: [],
+  contexts: [],
+  auction: {},
+  loading: true,
+  error: '',
+}
+
+function num(value: unknown, fallback = 0) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function formatMoney(value?: number) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
+  if (Math.abs(value) >= 10000) return `${(value / 10000).toFixed(1)}万`
+  return value.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+}
+
+function formatPct(value?: number) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
+  const normalized = Math.abs(value) <= 1 ? value * 100 : value
+  return `${normalized >= 0 ? '+' : ''}${normalized.toFixed(1)}%`
+}
+
+function signalLabel(level: StockSignal['level']) {
+  const labels: Record<StockSignal['level'], string> = {
+    strong_buy: '强买',
+    buy: '买入',
+    hold: '观察',
+    sell: '减仓',
+    strong_sell: '强卖',
+  }
+  return labels[level] || level
+}
+
+function signalLabelFromApi(signal: StockSignal) {
+  if (signal.level) return signalLabel(signal.level)
+  const raw = String((signal as StockSignal & { signal?: string }).signal || '').toLowerCase()
+  if (raw.includes('bear') || raw.includes('sell') || raw.includes('空')) return '减仓'
+  if (raw.includes('bull') || raw.includes('buy') || raw.includes('多')) return '买入'
+  return '观察'
+}
+
+function orderStatusLabel(status?: string) {
+  const labels: Record<string, string> = {
+    pending: '待成交',
+    filled: '已成交',
+    partial: '部分成交',
+    cancelled: '已撤单',
+    rejected: '已拒绝',
+  }
+  return labels[String(status || '')] || String(status || '-')
+}
+
+function candidateRisk(candidate: ChainCandidate, verdicts: RiskVerdictRecord[]) {
+  const verdict = verdicts.find(item => item.symbol === candidate.code || item.candidate_id === candidate.candidate_id)
+  if (!verdict) return '待风控'
+  if (verdict.result === 'pass') return '通过'
+  if (verdict.result === 'warn' || verdict.result === 'manual_review') return '仓位复核'
+  return '止损'
+}
+
+function sectorRowsFromCandidates(candidates: ChainCandidate[]): SectorRow[] {
+  const buckets = new Map<string, ChainCandidate[]>()
+  candidates.forEach(candidate => {
+    const sector = candidate.industry || candidate.resonance_level || '未分组'
+    buckets.set(sector, [...(buckets.get(sector) || []), candidate])
+  })
+  return Array.from(buckets.entries())
+    .map(([name, rows]) => {
+      const avg = rows.reduce((sum, row) => sum + num(row.last_change_pct ?? row.change_pct), 0) / Math.max(rows.length, 1)
+      const lead = rows
+        .slice(0, 2)
+        .map(row => `${row.name || row.code} ${formatPct(row.last_change_pct ?? row.change_pct)}`)
+        .join(' / ')
+      return { name, count: rows.length, change: Number(avg.toFixed(1)), lead: lead || '-', width: Math.min(96, Math.max(16, Math.round(avg * 12 + 48))) }
+    })
+    .sort((a, b) => b.count - a.count || b.change - a.change)
+}
+
+function signalRowsFromApi(signals: StockSignal[], verdicts: RiskVerdictRecord[]): SignalRow[] {
+  return signals.map(signal => {
+    const score = Math.round(num(signal.score ?? signal.confidence, 0))
+    const fallbackReason = (signal as StockSignal & { fallback_reason?: string }).fallback_reason
+    const dimensions = [
+      { label: '技术面', value: Math.round(num(signal.dimensions?.technical, score)) },
+      { label: '资金面', value: Math.round(num(signal.dimensions?.money_flow, score)) },
+      { label: '基本面', value: Math.round(num(signal.dimensions?.fundamental, score)) },
+      { label: '情绪', value: Math.round(num(signal.dimensions?.sentiment, score)) },
+      { label: '置信度', value: Math.round(num(signal.confidence, score)) },
+      { label: '风控', value: verdicts.some(item => item.symbol === signal.code && item.result !== 'pass') ? 45 : 78 },
+    ]
+    const risk = verdicts.some(item => item.symbol === signal.code && item.result === 'reject')
+      ? '止损'
+      : verdicts.some(item => item.symbol === signal.code && (item.result === 'warn' || item.result === 'manual_review'))
+        ? '仓位复核'
+        : '通过'
+    return {
+      code: signal.code,
+      name: signal.name || signal.code,
+      price: typeof (signal as StockSignal & { price?: number }).price === 'number'
+        ? String((signal as StockSignal & { price?: number }).price)
+        : '-',
+      signal: signalLabelFromApi(signal),
+      score,
+      kronos: fallbackReason ? '模型不可用' : '-',
+      target: '-',
+      confidence: Math.round(num(signal.confidence, score)),
+      consistency: fallbackReason ? '待确认' : '双确认',
+      risk,
+      action: risk === '止损' ? '排除' : risk === '仓位复核' ? '降低优先级' : '确认买入',
+      watchlist: false,
+      dimensions,
+    }
+  })
+}
+
+function candidateRowsFromApi(candidates: ChainCandidate[], verdicts: RiskVerdictRecord[]): CandidateRow[] {
+  return candidates.map(candidate => ({
+    code: candidate.code,
+    name: candidate.name || candidate.code,
+    source: candidate.trade_signal || candidate.resonance_level || '产业链候选',
+    score: Math.round(num(candidate.score ?? candidate.resonance_score ?? candidate.chokepoint_score, 0)),
+    risk: candidateRisk(candidate, verdicts),
+    size: `${Math.max(5, Math.min(30, Math.round(num(candidate.score ?? 50, 50) / 4)))}%`,
+  }))
+}
+
+function auctionRowsFromSignals(signals: SignalRow[], candidates: CandidateRow[]): AuctionRow[] {
+  const source = signals.length
+    ? signals.map(row => ({ code: row.code, name: row.name, score: row.score, gap: Math.max(0, Math.round((row.score - 50) / 8)), vol: Math.max(1, Number((row.confidence / 12).toFixed(1))), intent: row.score >= 75 ? '强烈抢筹' : '偏多抢筹' }))
+    : candidates.map(row => ({ code: row.code, name: row.name, score: row.score, gap: Math.max(0, Math.round((row.score - 50) / 8)), vol: Math.max(1, Number((row.score / 12).toFixed(1))), intent: row.score >= 75 ? '强烈抢筹' : '偏多抢筹' }))
+  return source.sort((a, b) => b.score - a.score)
+}
+
+function auctionIntentFromScore(score: number) {
+  if (score >= 75) return '强烈抢筹'
+  if (score >= 60) return '偏多抢筹'
+  if (score >= 40) return '中性观察'
+  if (score >= 25) return '偏空出货'
+  return '强烈出货'
+}
+
+function auctionRowsFromDashboard(auction: Record<string, unknown>) {
+  const picks = Array.isArray(auction.picks) ? auction.picks as DashboardAuctionPick[] : []
+  const rows = picks
+    .filter(pick => pick.code)
+    .map(pick => {
+      const score = Math.round(num(pick.score, 0))
+      const gap = num(pick.gap_pct ?? pick.chg_pct, 0)
+      const vol = Math.max(0.1, Number(num(pick.vol_ratio ?? pick.volume_ratio ?? pick.vol_z, 1).toFixed(1)))
+      return {
+        code: String(pick.code),
+        name: pick.name || String(pick.code),
+        industry: pick.industry,
+        gap,
+        vol,
+        score,
+        intent: pick.intent || auctionIntentFromScore(score),
+      }
+    })
+    .sort((a, b) => b.score - a.score)
+
+  return {
+    bullish: rows.filter(row => row.score >= 40 || num(row.gap, 0) >= 0).slice(0, 10),
+    bearish: rows.filter(row => row.score < 40 && num(row.gap, 0) < 0).slice(0, 10),
+  }
+}
+
+function bearishRowsFromSignals(signals: SignalRow[]): AuctionRow[] {
+  return signals
+    .filter(row => (row.signal || '').includes('减') || (row.signal || '').includes('卖') || row.risk !== '通过')
+    .map(row => ({ code: row.code, name: row.name, score: row.score, drop: -Math.max(1, Math.round((60 - row.score) / 8)), vol: Math.max(1, Number((row.confidence / 15).toFixed(1))), intent: row.risk === '止损' ? '强烈出货' : '偏空出货' }))
+}
+
+function orderRowsFromApi(rows: TradeOrder[]): OrderRow[] {
+  return rows.map(row => ({
+    time: (row.created_at || row.filled_at || '-').slice(11, 19) || '-',
+    code: row.code,
+    name: row.name || row.code,
+    dir: String(row.direction).toLowerCase() === 'sell' ? '卖出' : '买入',
+    price: String(row.filled_price ?? row.price ?? '-'),
+    qty: Number(row.filled_volume ?? row.volume ?? 0).toLocaleString('zh-CN'),
+    status: orderStatusLabel(row.status),
+  }))
+}
+
+function positionRowsFromApi(rows: Position[], totalMarketValue?: number): PositionRow[] {
+  const total = totalMarketValue || rows.reduce((sum, row) => sum + num(row.market_value), 0)
+  return rows.map(row => ({
+    code: row.code,
+    name: row.name || row.code,
+    value: formatMoney(row.market_value),
+    pnl: formatPct(row.pnl_pct),
+    weight: total ? `${Math.round((num(row.market_value) / total) * 100)}%` : '-',
+  }))
+}
 
 function activeKey(pathname: string) {
   if (pathname.endsWith('/auction')) return 'auction'
@@ -110,6 +348,87 @@ export default function OpenDecision() {
   const navigate = useNavigate()
   const active = activeKey(location.pathname)
   const activeTab = useMemo(() => tabs.find(tab => tab.key === active) ?? tabs[0], [active])
+  const [state, setState] = useState<OpenDecisionState>(emptyState)
+
+  useEffect(() => {
+    let mounted = true
+    Promise.allSettled([
+      signalApi.getDashboardAuction(),
+      signalApi.getLive('intra'),
+      chainApi.getCandidates({ filter: 'all', top_n: 20 }),
+      tradeApi.getAccount(),
+      tradeApi.getPositions(),
+      tradeApi.getOrders(),
+      tradeApi.getRiskVerdicts({ page: 1, page_size: 20 }),
+      tradeApi.getDecisionContexts({ page: 1, page_size: 20 }),
+    ]).then(results => {
+      if (!mounted) return
+      const [auction, live, candidates, account, positions, orders, verdicts, contexts] = results
+      const rejected = results.filter(result => result.status === 'rejected').length
+      setState({
+        auction: auction.status === 'fulfilled' ? auction.value.data || {} : {},
+        liveSignals: live.status === 'fulfilled' ? live.value.data?.signals || [] : [],
+        liveTradeDate: live.status === 'fulfilled'
+          ? (live.value.data as typeof live.value.data & { trade_date?: string })?.trade_date || live.value.data?.data_freshness?.as_of || undefined
+          : undefined,
+        candidates: candidates.status === 'fulfilled' ? candidates.value.data?.candidates || [] : [],
+        account: account.status === 'fulfilled' ? account.value.data?.account : undefined,
+        positions: positions.status === 'fulfilled' ? positions.value.data?.positions || [] : [],
+        orders: orders.status === 'fulfilled' ? orders.value.data?.orders || [] : [],
+        verdicts: verdicts.status === 'fulfilled' ? verdicts.value.data?.records || [] : [],
+        contexts: contexts.status === 'fulfilled' ? contexts.value.data?.records || [] : [],
+        loading: false,
+        error: rejected ? `${rejected} 个接口暂不可用，页面已保留可用数据。` : '',
+      })
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const signalRows = useMemo(() => signalRowsFromApi(state.liveSignals, state.verdicts), [state.liveSignals, state.verdicts])
+  const candidateRows = useMemo(() => candidateRowsFromApi(state.candidates, state.verdicts), [state.candidates, state.verdicts])
+  const sectors = useMemo(() => sectorRowsFromCandidates(state.candidates), [state.candidates])
+  const dashboardAuctionRows = useMemo(() => auctionRowsFromDashboard(state.auction), [state.auction])
+  const bullishRows = useMemo(
+    () => dashboardAuctionRows.bullish.length ? dashboardAuctionRows.bullish : auctionRowsFromSignals(signalRows, candidateRows),
+    [dashboardAuctionRows.bullish, signalRows, candidateRows],
+  )
+  const bearishRows = useMemo(
+    () => dashboardAuctionRows.bearish.length ? dashboardAuctionRows.bearish : bearishRowsFromSignals(signalRows),
+    [dashboardAuctionRows.bearish, signalRows],
+  )
+  const orderRows = useMemo(() => orderRowsFromApi(state.orders), [state.orders])
+  const positionRows = useMemo(() => positionRowsFromApi(state.positions, state.account?.market_value), [state.positions, state.account?.market_value])
+  const auctionTradeDate = typeof state.auction.trade_date === 'string'
+    ? state.auction.trade_date
+    : (typeof state.auction.date === 'string' ? state.auction.date : undefined)
+  const candidateTradeDates = state.candidates
+    .map(candidate => candidate.last_trade_date)
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .sort()
+  const candidatesTradeDate = candidateTradeDates[candidateTradeDates.length - 1]
+  const freshnessTradeDate = active === 'signals'
+    ? state.liveTradeDate || auctionTradeDate
+    : active === 'candidates'
+      ? candidatesTradeDate || auctionTradeDate
+      : auctionTradeDate
+  const freshnessSource = active === 'execution'
+    ? 'trade-service'
+    : active === 'signals'
+      ? 'signal/live'
+      : active === 'candidates'
+        ? 'supply-chain/workbench'
+        : 'dashboard/auction'
+  const auctionUpdatedAt = typeof state.auction.updated_at === 'string'
+    ? state.auction.updated_at
+    : (typeof state.auction.refreshed_at === 'string' ? state.auction.refreshed_at : undefined)
+  const firstOrder = state.orders[0] as (TradeOrder & { updated_at?: string; created_at?: string }) | undefined
+  const latestRuntimeUpdate = auctionUpdatedAt
+    || firstOrder?.updated_at
+    || firstOrder?.created_at
+    || state.contexts[0]?.created_at
+    || state.verdicts[0]?.created_at
 
   return (
     <PrototypePage>
@@ -122,18 +441,36 @@ export default function OpenDecision() {
         }}
         items={tabs.map((tab, index) => ({ key: tab.key, label: tab.label, subLabel: tab.subLabel, number: String(index + 1).padStart(2, '0') }))}
       />
-      <PrototypePageHeader title={`开盘决策 - ${activeTab.label}`} subtitle={decisionHeader(activeTab.label)} />
+      <PrototypePageHeader
+        title={`开盘决策 - ${activeTab.label}`}
+        subtitle={decisionHeader(activeTab.label)}
+        dataFreshness={<DataFreshnessBar tradeDate={freshnessTradeDate} updatedAt={latestRuntimeUpdate} source={freshnessSource} />}
+      />
 
-      {active === 'overview' && <DecisionOverview />}
-      {active === 'auction' && <AuctionAnalysis />}
-      {active === 'signals' && <SignalScan />}
-      {active === 'candidates' && <CandidatePool />}
-      {active === 'execution' && <ExecutionMonitor />}
+      {active === 'overview' && <DecisionOverview loading={state.loading} error={state.error} signalRows={signalRows} candidateRows={candidateRows} sectorRows={sectors} />}
+      {active === 'auction' && <AuctionAnalysis loading={state.loading} error={state.error} bullishRows={bullishRows} bearishRows={bearishRows} candidateRows={candidateRows} sectorRows={sectors} auction={state.auction} />}
+      {active === 'signals' && <SignalScan loading={state.loading} error={state.error} signalRows={signalRows} />}
+      {active === 'candidates' && <CandidatePool loading={state.loading} error={state.error} candidateRows={candidateRows} verdicts={state.verdicts} />}
+      {active === 'execution' && <ExecutionMonitor loading={state.loading} error={state.error} account={state.account} orderRows={orderRows} positionRows={positionRows} contexts={state.contexts} />}
     </PrototypePage>
   )
 }
 
-function DecisionOverview() {
+function DecisionOverview({
+  loading,
+  error,
+  signalRows,
+  candidateRows,
+  sectorRows,
+}: {
+  loading: boolean
+  error: string
+  signalRows: SignalRow[]
+  candidateRows: CandidateRow[]
+  sectorRows: SectorRow[]
+}) {
+  const avgScore = signalRows.length ? Math.round(signalRows.reduce((sum, row) => sum + row.score, 0) / signalRows.length) : 0
+  const strongSignals = signalRows.filter(row => row.score >= 70 && row.risk === '通过').length
   return (
     <>
       <section className="od-countdown card">
@@ -146,11 +483,11 @@ function DecisionOverview() {
       </section>
 
       <div className="kpis od-kpis-5">
-        <MetricCard label="情绪指数" value="72" sub="偏牛 +5" tone="warn" />
-        <MetricCard label="熔断器" value="正常" sub="亏损预算 83.6%" tone="down" />
+        <MetricCard label="情绪指数" value={avgScore ? String(avgScore) : '-'} sub="signal/live" tone="warn" />
+        <MetricCard label="熔断器" value={error ? '复核' : '正常'} sub={error || '接口在线'} tone={error ? 'warn' : 'down'} />
         <MetricCard label="隔夜公告" value="2条" sub="1条需关注" tone="up" />
-        <MetricCard label="候选池" value="10只" sub="强信号 4 只" tone="accent" />
-        <MetricCard label="数据状态" value="就绪" sub="竞价待采集 (09:25)" tone="down" />
+        <MetricCard label="候选池" value={`${candidateRows.length}只`} sub={`强信号 ${strongSignals} 只`} tone="accent" />
+        <MetricCard label="数据状态" value={loading ? '加载中' : '已刷新'} sub="signal + trade + chain" tone="down" />
       </div>
 
       <div className="row r-6-4">
@@ -189,18 +526,19 @@ function DecisionOverview() {
           <PrototypeCard title="候选池预加载" icon={<ThunderboltOutlined />} meta="开盘前预热">
             <div className="chips">
               {candidateRows.map(row => <span className="chip active" key={row.code}>{row.name} {row.score}</span>)}
+              {candidateRows.length === 0 && <span className="prototype-panel-note">暂无候选池数据，等待 chain/candidates 返回。</span>}
             </div>
-            <div className="prototype-panel-note mt14">来自自选、昨日强势板块、Kronos 预测和竞价待采集任务，开盘后进入去重与风控。</div>
+            <div className="prototype-panel-note mt14">来自产业链候选、实时信号和风控判定，开盘后进入去重与风控。</div>
           </PrototypeCard>
         </div>
 
         <div className="grid">
           <PrototypeCard title="今日情绪 + 风控" icon={<SafetyCertificateOutlined />} meta="开盘前">
             <div className="op-hint">
-              <div className="pos warn">7成</div>
+              <div className="pos warn">{avgScore ? `${Math.min(9, Math.max(1, Math.round(avgScore / 10)))}成` : '-'}</div>
               <div>
-                <div className="op-title warn">偏牛但不追高</div>
-                <div className="op-desc">半导体、新能源、AI算力共振，优先选择竞价强且风控通过的候选。</div>
+                <div className="op-title warn">{strongSignals ? '信号已触发，需逐条确认' : '等待实时信号'}</div>
+                <div className="op-desc">优先选择信号强、风控通过、候选来源清晰的标的。</div>
               </div>
             </div>
           </PrototypeCard>
@@ -213,6 +551,7 @@ function DecisionOverview() {
                 <b className="up">+{row.change}%</b>
               </div>
             ))}
+            {sectorRows.length === 0 && <div className="prototype-panel-note">暂无板块共振数据。</div>}
           </PrototypeCard>
         </div>
       </div>
@@ -228,7 +567,25 @@ function DecisionOverview() {
   )
 }
 
-function AuctionAnalysis() {
+function AuctionAnalysis({
+  loading,
+  error,
+  bullishRows,
+  bearishRows,
+  candidateRows,
+  sectorRows,
+  auction,
+}: {
+  loading: boolean
+  error: string
+  bullishRows: AuctionRow[]
+  bearishRows: AuctionRow[]
+  candidateRows: CandidateRow[]
+  sectorRows: SectorRow[]
+  auction: Record<string, unknown>
+}) {
+  const totalCount = num(auction.total_count ?? auction.total ?? auction.count, bullishRows.length + bearishRows.length)
+  const firstBullish = bullishRows[0]
   return (
     <div className="od-auction-layout">
       <div className="od-auction-main">
@@ -236,12 +593,12 @@ function AuctionAnalysis() {
           <div>
             <span className="led on" />
             <strong>竞价分析引擎</strong>
-            <span className="mono">auction_intent_v2.4</span>
-            <span className="tag t-down">09:25 集合竞价完成</span>
-            <span className="tag t-neu">328 只标的</span>
+            <span className="mono">dashboard/auction</span>
+            <span className="tag t-down">{loading ? '加载中' : '已刷新'}</span>
+            <span className="tag t-neu">{totalCount} 只标的</span>
           </div>
           <div>
-            <span className="prototype-panel-note">最近刷新 09:25:42</span>
+            <span className="prototype-panel-note">{error || '最近刷新来自 dashboard/auction 与 signal/live'}</span>
             <button type="button" className="btn sm ghost">刷新</button>
           </div>
         </section>
@@ -273,12 +630,12 @@ function AuctionAnalysis() {
         </div>
 
         <div className="kpis od-auction-kpis">
-          <MetricCard label="分析标的" value="328" sub="沪深竞价池" tone="muted" />
-          <MetricCard label="强烈抢筹" value="45" sub="评分 >= 75" tone="up" />
-          <MetricCard label="偏多抢筹" value="89" sub="评分 60-74" tone="warn" />
-          <MetricCard label="中性观察" value="120" sub="等待开盘确认" tone="accent" />
-          <MetricCard label="出货预警" value="74" sub="偏空/强出货" tone="down" />
-          <MetricCard label="候选池" value="5" sub="已入池待复核" tone="accent" />
+          <MetricCard label="分析标的" value={String(totalCount)} sub="dashboard/auction" tone="muted" />
+          <MetricCard label="强烈抢筹" value={String(bullishRows.filter(row => row.score >= 75).length)} sub="评分 >= 75" tone="up" />
+          <MetricCard label="偏多抢筹" value={String(bullishRows.filter(row => row.score < 75).length)} sub="评分 60-74" tone="warn" />
+          <MetricCard label="中性观察" value={String(Math.max(0, totalCount - bullishRows.length - bearishRows.length))} sub="等待开盘确认" tone="accent" />
+          <MetricCard label="出货预警" value={String(bearishRows.length)} sub="偏空/强出货" tone="down" />
+          <MetricCard label="候选池" value={String(candidateRows.length)} sub="已入池待复核" tone="accent" />
         </div>
 
         <div className="row r-1-1">
@@ -286,17 +643,18 @@ function AuctionAnalysis() {
             <table className="tbl">
               <thead><tr><th>#</th><th>代码</th><th>名称</th><th className="r">涨幅</th><th className="r">竞量比</th><th className="r">评分</th><th>意图</th></tr></thead>
               <tbody>
-                {auctionBullishRows.map((row, index) => (
+                {bullishRows.map((row, index) => (
                   <tr key={row.code}>
                     <td>{index + 1}</td>
                     <td className="code">{row.code}</td>
                     <td className="nm">{row.name}</td>
-                    <td className="r up">+{row.gap}%</td>
+                    <td className="r up">+{row.gap ?? 0}%</td>
                     <td className="r mono">{row.vol}x</td>
                     <td className="r up">{row.score}</td>
                     <td><span className="tag t-up">{row.intent}</span></td>
                   </tr>
                 ))}
+                {bullishRows.length === 0 && <tr><td colSpan={7} className="prototype-panel-note">暂无抢筹数据，等待 signal/live 或 chain/candidates。</td></tr>}
               </tbody>
             </table>
             <div className="od-selection-bar">
@@ -310,7 +668,7 @@ function AuctionAnalysis() {
             <table className="tbl">
               <thead><tr><th>#</th><th>代码</th><th>名称</th><th className="r">涨幅</th><th className="r">竞量比</th><th className="r">评分</th><th>意图</th></tr></thead>
               <tbody>
-                {auctionBearishRows.map((row, index) => (
+                {bearishRows.map((row, index) => (
                   <tr key={row.code}>
                     <td>{index + 1}</td>
                     <td className="code">{row.code}</td>
@@ -321,6 +679,7 @@ function AuctionAnalysis() {
                     <td><span className="tag t-down">{row.intent}</span></td>
                   </tr>
                 ))}
+                {bearishRows.length === 0 && <tr><td colSpan={7} className="prototype-panel-note">暂无出货预警。</td></tr>}
               </tbody>
             </table>
             <div className="od-selection-bar">
@@ -355,9 +714,9 @@ function AuctionAnalysis() {
               ))}
             </div>
             <div className="od-stock-info">
-              <span className="code">000001</span>
-              <b>平安银行</b>
-              <span className="tag t-up">强烈抢筹</span>
+              <span className="code">{firstBullish?.code || '-'}</span>
+              <b>{firstBullish?.name || '暂无标的'}</b>
+              <span className="tag t-up">{firstBullish?.intent || '等待信号'}</span>
             </div>
           </PrototypeCard>
         </div>
@@ -371,6 +730,7 @@ function AuctionAnalysis() {
                 <small>{row.count} 只 · {row.lead}</small>
               </button>
             ))}
+            {sectorRows.length === 0 && <div className="prototype-panel-note">暂无板块热度。</div>}
           </div>
         </PrototypeCard>
 
@@ -378,17 +738,18 @@ function AuctionAnalysis() {
           <table className="tbl">
             <thead><tr><th>代码</th><th>名称</th><th>板块</th><th className="r">竞价涨跌</th><th className="r">竞量比</th><th className="r">评分</th><th>意图</th></tr></thead>
             <tbody>
-              {[...auctionBullishRows.slice(0, 5), ...auctionBearishRows.slice(0, 2)].map(row => (
+              {[...bullishRows.slice(0, 5), ...bearishRows.slice(0, 2)].map(row => (
                 <tr key={row.code}>
                   <td className="code">{row.code}</td>
                   <td className="nm">{row.name}</td>
-                  <td>{'industry' in row ? row.industry : '风险观察'}</td>
+                  <td>{row.industry || '风险观察'}</td>
                   <td className={`r ${'gap' in row ? 'up' : 'down'}`}>{'gap' in row ? `+${row.gap}%` : `${row.drop}%`}</td>
                   <td className="r mono">{row.vol}x</td>
                   <td className="r mono">{row.score}</td>
                   <td><span className={`tag ${'gap' in row ? 't-up' : 't-down'}`}>{row.intent}</span></td>
                 </tr>
               ))}
+              {bullishRows.length + bearishRows.length === 0 && <tr><td colSpan={7} className="prototype-panel-note">暂无竞价明细。</td></tr>}
             </tbody>
           </table>
         </PrototypeCard>
@@ -406,33 +767,32 @@ function AuctionAnalysis() {
               <button type="button" className="btn sm primary">选股-&gt;</button>
             </div>
           ))}
+          {sectorRows.length === 0 && <div className="prototype-panel-note">暂无板块共振详情。</div>}
         </PrototypeCard>
 
         <PrototypeCard title="板块强势标的" icon={<FireOutlined />}>
-          {auctionBullishRows.slice(0, 4).map(row => (
+          {bullishRows.slice(0, 4).map(row => (
             <div className="li-row" key={row.code}>
               <span className="li-badge up">{row.score}</span>
-              <div className="li-main"><div className="n">{row.name}</div><div className="s">{row.industry} · +{row.gap}% · {row.intent}</div></div>
+              <div className="li-main"><div className="n">{row.name}</div><div className="s">{row.industry || '信号候选'} · +{row.gap ?? 0}% · {row.intent}</div></div>
             </div>
           ))}
+          {bullishRows.length === 0 && <div className="prototype-panel-note">暂无强势标的。</div>}
         </PrototypeCard>
 
         <PrototypeCard title="候选池预览" icon={<FundOutlined />}>
-          <div className="pool-count">5<span className="unit"> 只</span></div>
+          <div className="pool-count">{candidateRows.length}<span className="unit"> 只</span></div>
           <div className="chips mt14">
-            <span className="chip active">300750 宁德</span>
-            <span className="chip active">688981 中芯</span>
-            <span className="chip">000001 平安</span>
-            <span className="chip">002594 比亚迪</span>
-            <span className="chip">600519 茅台</span>
+            {candidateRows.slice(0, 5).map((row, index) => <span className={index < 2 ? 'chip active' : 'chip'} key={row.code}>{row.code} {row.name}</span>)}
+            {candidateRows.length === 0 && <span className="prototype-panel-note">暂无候选。</span>}
           </div>
           <button type="button" className="btn sm ghost mt14">查看全部候选池 -&gt;</button>
         </PrototypeCard>
 
         <PrototypeCard title="已锁定板块" icon={<CheckCircleOutlined />}>
           <div className="chips">
-            <span className="chip active">半导体 (12)</span>
-            <span className="chip active">新能源 (9)</span>
+            {sectorRows.slice(0, 2).map(row => <span className="chip active" key={row.name}>{row.name} ({row.count})</span>)}
+            {sectorRows.length === 0 && <span className="prototype-panel-note">暂无锁定板块。</span>}
           </div>
           <button type="button" className="btn primary mt14" style={{ width: '100%', justifyContent: 'center' }}>锁定板块 -&gt; 信号扫描</button>
         </PrototypeCard>
@@ -454,31 +814,41 @@ function AuctionAnalysis() {
   )
 }
 
-function SignalScan() {
+function SignalScan({
+  loading,
+  error,
+  signalRows,
+}: {
+  loading: boolean
+  error: string
+  signalRows: SignalRow[]
+}) {
   const selected = signalRows[0]
-  const dimensions = [
-    { label: 'Kronos', value: 78 },
-    { label: '技术面', value: 82 },
-    { label: '资金面', value: 65 },
-    { label: '基本面', value: 70 },
-    { label: '事件', value: 55 },
-    { label: '市场', value: 62 },
+  const dimensions = selected?.dimensions || [
+    { label: '技术面', value: 0 },
+    { label: '资金面', value: 0 },
+    { label: '基本面', value: 0 },
+    { label: '情绪', value: 0 },
+    { label: '置信度', value: 0 },
+    { label: '风控', value: 0 },
   ]
+  const buyCount = signalRows.filter(row => row.signal.includes('买')).length
+  const watchCount = signalRows.filter(row => row.watchlist).length
 
   return (
     <>
       <section className="od-locked-banner">
         <strong>锁定板块:</strong>
-        <span className="chip active">半导体 <b>12</b></span>
-        <span className="chip active">新能源 <b>9</b></span>
+        <span className="chip active">实时信号 <b>{signalRows.length}</b></span>
+        <span className="chip active">买入候选 <b>{buyCount}</b></span>
         <button type="button" className="btn sm ghost">清除锁定</button>
       </section>
 
       <section className="od-signal-filter-row">
         <div className="signal-filter-bar">
-          <button type="button" className="filter-btn active">全部 <span className="mono">6</span></button>
-          <button type="button" className="filter-btn">仅买入 <span className="mono">4</span></button>
-          <button type="button" className="filter-btn">仅自选 <span className="mono">3</span></button>
+          <button type="button" className="filter-btn active">全部 <span className="mono">{signalRows.length}</span></button>
+          <button type="button" className="filter-btn">仅买入 <span className="mono">{buyCount}</span></button>
+          <button type="button" className="filter-btn">仅自选 <span className="mono">{watchCount}</span></button>
         </div>
         <div className="signal-filter-bar">
           <span className="sort-label">排序:</span>
@@ -495,7 +865,7 @@ function SignalScan() {
             <thead><tr><th>代码</th><th>名称</th><th>信号</th><th className="r">评分</th><th>Kronos预测</th><th>一致性</th><th>风险</th><th className="r">操作</th></tr></thead>
             <tbody>
               {signalRows.map(row => (
-                <tr className={row.code === selected.code ? 'picked' : ''} key={row.code}>
+                <tr className={row.code === selected?.code ? 'picked' : ''} key={row.code}>
                   <td className="code">{row.code}</td>
                   <td className="nm">{row.name}{row.watchlist && <span className="in-pool-tag">自选</span>}</td>
                   <td><span className={row.score >= 70 ? 'tag t-up' : row.score >= 60 ? 'tag t-warn' : 'tag t-mute'}>{row.signal}</span></td>
@@ -506,6 +876,7 @@ function SignalScan() {
                   <td className="r"><button type="button" className="btn sm ghost">{row.action}</button></td>
                 </tr>
               ))}
+              {signalRows.length === 0 && <tr><td colSpan={8} className="prototype-panel-note">{loading ? '实时信号加载中。' : error || '暂无实时信号。'}</td></tr>}
             </tbody>
           </table>
           <div className="od-batch-bar">
@@ -515,7 +886,7 @@ function SignalScan() {
             <b>逐条确认决策</b>
           </div>
           <div className="od-summary-bar">
-            已处理 <b>0</b>/<span>6</span> · 已确认 <b className="down">0</b> · 已降级 <b className="warn">0</b> · 已排除 <b className="up">0</b>
+            已处理 <b>0</b>/<span>{signalRows.length}</span> · 已确认 <b className="down">0</b> · 已降级 <b className="warn">0</b> · 已排除 <b className="up">0</b>
           </div>
         </PrototypeCard>
 
@@ -533,13 +904,13 @@ function SignalScan() {
       </div>
 
       <aside className="od-signal-rail">
-        <PrototypeCard title="选中股票" icon={<FundOutlined />} meta={selected.code}>
+        <PrototypeCard title="选中股票" icon={<FundOutlined />} meta={selected?.code || '-'}>
           <div className="od-selected-stock">
-            <span className="code">{selected.code}</span>
-            <b>{selected.name}</b>
-            <span className="mono">¥{selected.price}</span>
+            <span className="code">{selected?.code || '-'}</span>
+            <b>{selected?.name || '暂无信号'}</b>
+            <span className="mono">¥{selected?.price || '-'}</span>
           </div>
-          <div className="od-signal-big-tag">强买 <span>{selected.score}分</span></div>
+          <div className="od-signal-big-tag">{selected?.signal || '等待'} <span>{selected?.score || 0}分</span></div>
           <div className="od-detail-title">六维评分</div>
           {dimensions.map(item => (
             <div className="watch-sector-bar" key={item.label}>
@@ -550,16 +921,16 @@ function SignalScan() {
           ))}
         </PrototypeCard>
 
-        <PrototypeCard title="Kronos 30日预测" icon={<LineChartOutlined />} meta="300750 宁德时代">
+        <PrototypeCard title="Kronos 30日预测" icon={<LineChartOutlined />} meta={selected ? `${selected.code} ${selected.name}` : '暂无信号'}>
           <div className="od-kronos-dir">
             <span>↗</span>
             <div>
-              <b className="mono">218.50 -&gt; <span className="up">242.30</span></b>
-              <strong>模型 v2.3.1 · 预测收益 +12.5%</strong>
+              <b className="mono">{selected?.price || '-'} -&gt; <span className="up">{selected?.target || '-'}</span></b>
+              <strong>{selected?.kronos || '模型预测需等待 prediction 服务返回'}</strong>
             </div>
           </div>
-          <div className="bar mt14"><i style={{ width: '78%' }} /></div>
-          <div className="prototype-panel-note mt14">置信度 78% · 方向与强买信号一致</div>
+          <div className="bar mt14"><i style={{ width: `${selected?.confidence || 0}%` }} /></div>
+          <div className="prototype-panel-note mt14">置信度 {selected?.confidence || 0}% · {selected?.consistency || '等待信号'}</div>
         </PrototypeCard>
 
         <PrototypeCard title="信号+预测 方向一致" icon={<CheckCircleOutlined />}>
@@ -567,16 +938,21 @@ function SignalScan() {
             <span>✓</span>
             <div>
               <strong>方向一致</strong>
-              <p>信号强度: 强买 82分 · 多因子共振 · 通过风控</p>
+              <p>信号强度: {selected?.signal || '-'} {selected?.score || 0}分 · 多因子共振 · {selected?.risk || '待风控'}</p>
             </div>
           </div>
         </PrototypeCard>
 
         <PrototypeCard title="风险检查" icon={<SafetyCertificateOutlined />} meta="RiskVerdict">
-          {['ST/退市风险: 通过', '公告黑名单: 通过', '单票仓位: 需低于 20%', '板块集中度: 38%'].map((item, index) => (
+          {[
+            `信号风险: ${selected?.risk || '待风控'}`,
+            `置信度: ${selected?.confidence || 0}%`,
+            `操作建议: ${selected?.action || '-'}`,
+            `一致性: ${selected?.consistency || '-'}`,
+          ].map((item, index) => (
             <div className="od-risk-row" key={item}>
               <span>{index + 1}. {item}</span>
-              <b>{index < 2 ? '自动通过' : '执行前复核'}</b>
+              <b>{selected?.risk === '通过' && index === 0 ? '自动通过' : '执行前复核'}</b>
             </div>
           ))}
         </PrototypeCard>
@@ -594,7 +970,19 @@ function SignalScan() {
   )
 }
 
-function CandidatePool() {
+function CandidatePool({
+  loading,
+  error,
+  candidateRows,
+  verdicts,
+}: {
+  loading: boolean
+  error: string
+  candidateRows: CandidateRow[]
+  verdicts: RiskVerdictRecord[]
+}) {
+  const passed = candidateRows.filter(row => row.risk === '通过').length
+  const planPosition = candidateRows.reduce((sum, row) => sum + Number(row.size.replace('%', '')), 0)
   return (
     <>
       <section className="workflow-nav">
@@ -610,9 +998,9 @@ function CandidatePool() {
       <div className="row r-6-4">
         <PrototypeCard title="多源候选池" icon={<FundOutlined />} meta="Candidate 对象预览 · 多源融合去重">
           <table className="tbl">
-            <thead><tr><th>#</th><th>代码</th><th>名称</th><th>来源</th><th className="r">综合评分</th><th>风控</th><th className="r">建议仓位</th></tr></thead>
-            <tbody>
-              {candidateRows.map((row, index) => (
+              <thead><tr><th>#</th><th>代码</th><th>名称</th><th>来源</th><th className="r">综合评分</th><th>风控</th><th className="r">建议仓位</th></tr></thead>
+              <tbody>
+                {candidateRows.map((row, index) => (
                 <tr key={row.code}>
                   <td>{index + 1}</td>
                   <td className="code">{row.code}</td>
@@ -623,13 +1011,14 @@ function CandidatePool() {
                   <td className="r mono">{row.size}</td>
                 </tr>
               ))}
+              {candidateRows.length === 0 && <tr><td colSpan={7} className="prototype-panel-note">{loading ? '候选池加载中。' : error || '暂无候选池数据。'}</td></tr>}
             </tbody>
           </table>
         </PrototypeCard>
 
         <div className="grid">
           <PrototypeCard title="风控排查" icon={<SafetyCertificateOutlined />} meta="RiskVerdict">
-            {['审计风险: 通过', '重大公告: 通过', 'ST/退市: 通过', '止损预算: 通过'].map((item, index) => (
+            {(verdicts.length ? verdicts.slice(0, 4).map(item => `${item.symbol || item.candidate_id || item.scope}: ${item.result}`) : ['暂无风控判定']).map((item, index) => (
               <div className="li-row" key={item}>
                 <span className="li-badge down">{index + 1}</span>
                 <div className="li-main"><div className="n">{item}</div><div className="s">已写入候选对象风险字段</div></div>
@@ -639,8 +1028,8 @@ function CandidatePool() {
 
           <PrototypeCard title="交易方案预览" icon={<DollarOutlined />} meta="Plan 草稿">
             <div className="risk-banner safe">
-              <strong>风控预检: 全部通过</strong>
-              <span>4只候选 · 计划仓位 70% · 最大单票 30% · 禁止追高价差 &gt; 2%</span>
+              <strong>风控预检: {candidateRows.length ? `${passed}/${candidateRows.length} 通过` : '等待候选'}</strong>
+              <span>{candidateRows.length}只候选 · 计划仓位 {planPosition}% · 最大单票 30% · 禁止追高价差 &gt; 2%</span>
             </div>
             <div className="od-actions mt14">
               <button type="button" className="btn primary">生成方案</button>
@@ -653,15 +1042,31 @@ function CandidatePool() {
   )
 }
 
-function ExecutionMonitor() {
+function ExecutionMonitor({
+  loading,
+  error,
+  account,
+  orderRows,
+  positionRows,
+  contexts,
+}: {
+  loading: boolean
+  error: string
+  account?: TradeAccount
+  orderRows: OrderRow[]
+  positionRows: PositionRow[]
+  contexts: DecisionContextRecord[]
+}) {
+  const filledOrders = orderRows.filter(row => row.status === '已成交').length
+  const pendingOrders = orderRows.length - filledOrders
   return (
     <>
       <section className="od-account-bar card">
         {[
-          ['总资产', '1,280,000', '账户 account.paper'],
-          ['可用', '386,000', '可下单资金'],
-          ['今日盈亏', '+23,500', '+1.86%'],
-          ['总仓位', '68%', '风险阈值 75%'],
+          ['总资产', formatMoney(account?.total_assets), '账户 account.paper'],
+          ['可用', formatMoney(account?.available), '可下单资金'],
+          ['今日盈亏', formatMoney(account?.total_pnl), 'trade/account'],
+          ['总仓位', account?.market_value && account?.total_assets ? `${Math.round((account.market_value / account.total_assets) * 100)}%` : '-', '风险阈值 75%'],
         ].map(([label, value, sub]) => (
           <div key={label}>
             <span>{label}</span>
@@ -673,11 +1078,11 @@ function ExecutionMonitor() {
 
       <div className="row r-6-4">
         <div className="grid">
-          <PrototypeCard title="今日订单" icon={<DollarOutlined />} meta="5单 · 成交3 · 待成交2">
+          <PrototypeCard title="今日订单" icon={<DollarOutlined />} meta={`${orderRows.length}单 · 成交${filledOrders} · 待成交${pendingOrders}`}>
             <table className="tbl">
               <thead><tr><th>时间</th><th>代码</th><th>名称</th><th>方向</th><th className="r">价格</th><th className="r">数量</th><th>状态</th></tr></thead>
               <tbody>
-                {orders.map(row => (
+                {orderRows.map(row => (
                   <tr key={`${row.time}-${row.code}`}>
                     <td className="mono">{row.time}</td>
                     <td className="code">{row.code}</td>
@@ -688,6 +1093,7 @@ function ExecutionMonitor() {
                     <td><span className={`tag ${row.status === '已成交' ? 't-down' : row.status === '待成交' ? 't-warn' : 't-neu'}`}>{row.status}</span></td>
                   </tr>
                 ))}
+                {orderRows.length === 0 && <tr><td colSpan={7} className="prototype-panel-note">{loading ? '订单加载中。' : error || '暂无订单。'}</td></tr>}
               </tbody>
             </table>
           </PrototypeCard>
@@ -696,7 +1102,7 @@ function ExecutionMonitor() {
             <table className="tbl">
               <thead><tr><th>代码</th><th>名称</th><th className="r">市值</th><th className="r">盈亏</th><th className="r">权重</th></tr></thead>
               <tbody>
-                {positions.map(row => (
+                {positionRows.map(row => (
                   <tr key={row.code}>
                     <td className="code">{row.code}</td>
                     <td className="nm">{row.name}</td>
@@ -705,6 +1111,7 @@ function ExecutionMonitor() {
                     <td className="r mono">{row.weight}</td>
                   </tr>
                 ))}
+                {positionRows.length === 0 && <tr><td colSpan={5} className="prototype-panel-note">{loading ? '持仓加载中。' : '暂无持仓。'}</td></tr>}
               </tbody>
             </table>
           </PrototypeCard>
@@ -712,7 +1119,7 @@ function ExecutionMonitor() {
 
         <div className="grid">
           <PrototypeCard title="自动交易策略" icon={<ThunderboltOutlined />} meta="paper">
-            {['开盘竞价强势策略: 运行中', '单票最大仓位: 30%', '板块集中度上限: 45%', '异常熔断: 未触发'].map((item, index) => (
+            {(contexts.length ? contexts.slice(0, 4).map(item => `${item.source_type}: ${item.intent}`) : ['暂无执行上下文']).map((item, index) => (
               <div className="li-row" key={item}>
                 <span className={`li-badge ${index === 0 ? 'down' : 'neu'}`}>{index + 1}</span>
                 <div className="li-main"><div className="n">{item}</div><div className="s">StrategyExecutionContext 已记录</div></div>
@@ -720,10 +1127,10 @@ function ExecutionMonitor() {
             ))}
           </PrototypeCard>
 
-          <PrototypeCard title="今日方案" icon={<CheckCircleOutlined />} meta="Plan-OPEN-0925">
+          <PrototypeCard title="今日方案" icon={<CheckCircleOutlined />} meta={contexts[0]?.plan_id || '暂无方案'}>
             <div className="risk-banner accent">
-              <strong>开盘决策方案已生成</strong>
-              <span>候选 4 只 · 已下单 3 只 · 待确认 1 只</span>
+              <strong>{contexts.length ? '开盘决策上下文已记录' : '等待方案生成'}</strong>
+              <span>上下文 {contexts.length} 条 · 已下单 {orderRows.length} 只 · 待确认 {pendingOrders} 只</span>
             </div>
             <div className="od-actions mt14">
               <button type="button" className="btn primary">一键启动自动交易</button>

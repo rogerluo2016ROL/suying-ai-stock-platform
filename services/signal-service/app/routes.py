@@ -10,6 +10,19 @@ router = APIRouter(prefix="/api/v1/signal", tags=["signal"])
 store = get_store()
 
 
+def _trigger_sync_via_data_service(table_key: str, days: int) -> dict | None:
+    """Proxy manual sync to data-service so Tushare/PG runtime env stays single-source."""
+    import json
+    import urllib.parse
+    import urllib.request
+
+    base = os.environ.get("DATA_SERVICE_URL", "http://127.0.0.1:8010/api/v1/data").rstrip("/")
+    query = urllib.parse.urlencode({"table_key": table_key, "days": days})
+    req = urllib.request.Request(f"{base}/sync/backfill?{query}", method="POST")
+    with urllib.request.urlopen(req, timeout=300) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
 def _signal_model_metadata(mode: str) -> dict:
     return {
         "name": "signal-six-dimension-v2",
@@ -101,6 +114,301 @@ _DASHBOARD_SERVICES = [
 ]
 
 
+def _dashboard_market_sentiment_sql() -> str:
+    return """
+        WITH latest AS (
+            SELECT trade_date
+            FROM daily_kline
+            WHERE close IS NOT NULL
+            ORDER BY trade_date DESC
+            LIMIT 1
+        ),
+        latest_rows AS (
+            SELECT d.trade_date,
+                   COALESCE(
+                       d.change_pct,
+                       (d.close / NULLIF(prev.close, 0) - 1) * 100
+                   ) AS effective_change_pct
+            FROM daily_kline d
+            CROSS JOIN LATERAL (
+                SELECT close
+                FROM daily_kline p
+                WHERE p.code = d.code
+                  AND p.trade_date < d.trade_date
+                  AND p.close IS NOT NULL
+                  AND p.close > 0
+                ORDER BY p.trade_date DESC
+                LIMIT 1
+            ) prev
+            WHERE d.trade_date = (SELECT trade_date FROM latest)
+              AND d.close IS NOT NULL
+        )
+        SELECT AVG(effective_change_pct) as avg_chg,
+               SUM(CASE WHEN effective_change_pct > 0 THEN 1 ELSE 0 END) as up_count,
+               SUM(CASE WHEN effective_change_pct < 0 THEN 1 ELSE 0 END) as down_count,
+               COUNT(*) as total,
+               MAX(trade_date) as trade_date
+        FROM latest_rows
+        WHERE effective_change_pct IS NOT NULL
+    """
+
+
+def _dashboard_signal_movers_sql() -> str:
+    return """
+        WITH latest AS (
+            SELECT trade_date
+            FROM daily_kline
+            WHERE close IS NOT NULL
+            ORDER BY trade_date DESC
+            LIMIT 1
+        ),
+        latest_rows AS (
+            SELECT d.code,
+                   COALESCE(s.name, d.code) as name,
+                   d.close as price,
+                   COALESCE(
+                       d.change_pct,
+                       (d.close / NULLIF(prev.close, 0) - 1) * 100
+                   ) AS change_pct,
+                   d.volume,
+                   d.amount
+            FROM daily_kline d
+            CROSS JOIN LATERAL (
+                SELECT close
+                FROM daily_kline p
+                WHERE p.code = d.code
+                  AND p.trade_date < d.trade_date
+                  AND p.close IS NOT NULL
+                  AND p.close > 0
+                ORDER BY p.trade_date DESC
+                LIMIT 1
+            ) prev
+            LEFT JOIN stocks s ON d.code = s.code
+            WHERE d.trade_date = (SELECT trade_date FROM latest)
+              AND d.close IS NOT NULL
+        )
+        SELECT code, name, price, change_pct, volume, amount
+        FROM latest_rows
+        WHERE change_pct IS NOT NULL
+        ORDER BY ABS(change_pct) DESC
+        LIMIT 10
+    """
+
+
+def _dashboard_auction_sql() -> str:
+    return """
+        WITH latest_auction AS (
+            SELECT trade_date FROM stk_auction_o ORDER BY trade_date DESC LIMIT 1
+        ),
+        auction_data AS (
+            SELECT a.trade_date, a.code, a.close as auction_price, a.open, a.high, a.low,
+                   a.vol, a.amount, a.vwap,
+                   prev.close as prev_close,
+                   (a.close / NULLIF(prev.close, 0) - 1) * 100 as chg_pct,
+                   (a.open / NULLIF(a.close, 0) - 1) * 100 as open_gap,
+                   (a.close / NULLIF(a.vwap, 0) - 1) * 100 as vs_vwap
+            FROM stk_auction_o a
+            CROSS JOIN LATERAL (
+                SELECT close FROM daily_kline
+                WHERE code = a.code AND trade_date < a.trade_date
+                ORDER BY trade_date DESC LIMIT 1
+            ) prev
+            WHERE a.trade_date = (SELECT trade_date FROM latest_auction)
+              AND a.vol > 0
+        ),
+        vol_avg AS (
+            SELECT code, AVG(volume) as avg_vol
+            FROM daily_kline
+            WHERE trade_date > (SELECT MAX(trade_date) FROM daily_kline) - INTERVAL '30 days'
+              AND trade_date < (SELECT MAX(trade_date) FROM daily_kline)
+            GROUP BY code
+        )
+        SELECT ad.trade_date,
+               ad.code,
+               COALESCE(s.name, ad.code) as name,
+               ad.auction_price, ad.open, ad.vwap, ad.vol, ad.amount,
+               ad.prev_close,
+               ROUND(ad.chg_pct::numeric, 2) as chg_pct,
+               ROUND(ad.open_gap::numeric, 2) as open_gap,
+               ROUND(ad.vs_vwap::numeric, 2) as vs_vwap,
+               ROUND((ad.vol / NULLIF(va.avg_vol, 0))::numeric, 2) as vol_ratio
+        FROM auction_data ad
+        LEFT JOIN stocks s ON ad.code = s.code
+        LEFT JOIN vol_avg va ON ad.code = va.code
+        ORDER BY ad.vol DESC
+        LIMIT 100
+    """
+
+
+def _dashboard_volume_alerts_sql() -> str:
+    return """
+        WITH latest AS (
+            SELECT trade_date
+            FROM daily_kline
+            WHERE close IS NOT NULL
+            ORDER BY trade_date DESC
+            LIMIT 1
+        ),
+        latest_rows AS (
+            SELECT d.code,
+                   d.trade_date,
+                   d.close,
+                   COALESCE(
+                       d.change_pct,
+                       (d.close / NULLIF(prev.close, 0) - 1) * 100
+                   ) AS change_pct,
+                   d.volume
+            FROM daily_kline d
+            CROSS JOIN LATERAL (
+                SELECT close
+                FROM daily_kline p
+                WHERE p.code = d.code
+                  AND p.trade_date < d.trade_date
+                  AND p.close IS NOT NULL
+                  AND p.close > 0
+                ORDER BY p.trade_date DESC
+                LIMIT 1
+            ) prev
+            WHERE d.trade_date = (SELECT trade_date FROM latest)
+              AND d.close IS NOT NULL
+        ),
+        vol_avg AS (
+            SELECT code, AVG(volume) as avg_vol
+            FROM daily_kline
+            WHERE trade_date > (SELECT trade_date FROM latest) - INTERVAL '30 days'
+              AND trade_date < (SELECT trade_date FROM latest)
+            GROUP BY code
+        )
+        SELECT d.code, COALESCE(s.name, d.code) as name, d.close as price,
+               d.change_pct, d.volume, va.avg_vol,
+               CASE WHEN d.change_pct > 0 THEN 'Bullish' ELSE 'Bearish' END as direction
+        FROM latest_rows d
+        JOIN vol_avg va ON d.code = va.code
+        LEFT JOIN stocks s ON d.code = s.code
+        WHERE d.change_pct IS NOT NULL
+          AND d.volume > va.avg_vol * 3 AND va.avg_vol > 0
+        ORDER BY d.volume / va.avg_vol DESC
+        LIMIT 5
+    """
+
+
+def _dashboard_limit_alerts_sql() -> str:
+    return """
+        WITH latest_kline AS (
+            SELECT trade_date
+            FROM daily_kline
+            WHERE close IS NOT NULL
+            ORDER BY trade_date DESC
+            LIMIT 1
+        ),
+        latest_limit AS (
+            SELECT trade_date FROM stk_limit ORDER BY trade_date DESC LIMIT 1
+        ),
+        latest_rows AS (
+            SELECT d.code,
+                   d.trade_date,
+                   d.close,
+                   COALESCE(
+                       d.change_pct,
+                       (d.close / NULLIF(prev.close, 0) - 1) * 100
+                   ) AS change_pct
+            FROM daily_kline d
+            CROSS JOIN LATERAL (
+                SELECT close
+                FROM daily_kline p
+                WHERE p.code = d.code
+                  AND p.trade_date < d.trade_date
+                  AND p.close IS NOT NULL
+                  AND p.close > 0
+                ORDER BY p.trade_date DESC
+                LIMIT 1
+            ) prev
+            WHERE d.trade_date = (SELECT trade_date FROM latest_kline)
+              AND d.close IS NOT NULL
+        )
+        SELECT l.code, COALESCE(s.name, l.code) as name,
+               d.close as price, l.up_limit, l.down_limit, d.change_pct
+        FROM stk_limit l
+        JOIN latest_rows d ON l.code = d.code
+        LEFT JOIN stocks s ON l.code = s.code
+        WHERE l.trade_date = (SELECT trade_date FROM latest_limit)
+          AND l.up_limit > 0 AND d.close > 0
+          AND ( ABS(l.up_limit - d.close) / d.close < 0.03
+             OR ABS(d.close - l.down_limit) / d.close < 0.03 )
+        ORDER BY ABS(d.close / l.up_limit - 1) ASC
+        LIMIT 5
+    """
+
+
+def _dashboard_row_change_pct(row: dict) -> float:
+    value = row.get("change_pct")
+    if value is None:
+        value = row.get("pct_chg")
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _dashboard_pg_url() -> str:
+    return os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+
+
+def _fetch_dashboard_auction_rows() -> list[dict]:
+    import psycopg2
+    import psycopg2.extras
+
+    conn = psycopg2.connect(_dashboard_pg_url(), connect_timeout=5)
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(_dashboard_auction_sql())
+            return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def _signal_live_sql() -> str:
+    return """
+        WITH latest AS (
+            SELECT trade_date
+            FROM daily_kline
+            WHERE close IS NOT NULL
+            ORDER BY trade_date DESC
+            LIMIT 1
+        ),
+        latest_rows AS (
+            SELECT d.code,
+                   COALESCE(s.name, d.code) as name,
+                   d.close,
+                   COALESCE(
+                       d.change_pct,
+                       (d.close / NULLIF(prev.close, 0) - 1) * 100
+                   ) AS change_pct,
+                   d.volume,
+                   d.trade_date
+            FROM daily_kline d
+            CROSS JOIN LATERAL (
+                SELECT close
+                FROM daily_kline p
+                WHERE p.code = d.code
+                  AND p.trade_date < d.trade_date
+                  AND p.close IS NOT NULL
+                  AND p.close > 0
+                ORDER BY p.trade_date DESC
+                LIMIT 1
+            ) prev
+            LEFT JOIN stocks s ON d.code = s.code
+            WHERE d.trade_date = (SELECT trade_date FROM latest)
+              AND d.close IS NOT NULL
+        )
+        SELECT code, name, close, change_pct, volume, trade_date
+        FROM latest_rows
+        WHERE change_pct IS NOT NULL
+        ORDER BY ABS(change_pct) DESC
+        LIMIT 20
+    """
+
+
 @router.get("/dashboard-summary")
 async def dashboard_summary():
     """Aggregated endpoint for the Dashboard page.
@@ -116,18 +424,7 @@ async def dashboard_summary():
     # ── 1. Market Sentiment (aggregate from recent K-line changes) ──
     try:
         with _get_db() as d:
-            # Use the latest trade_date that has non-NULL change_pct
-            sentiment_rows = d.execute(
-                "WITH latest AS ("
-                "  SELECT trade_date FROM daily_kline WHERE change_pct IS NOT NULL "
-                "  ORDER BY trade_date DESC LIMIT 1"
-                ") "
-                "SELECT AVG(change_pct) as avg_chg, "
-                "SUM(CASE WHEN change_pct>0 THEN 1 ELSE 0 END) as up_count, "
-                "SUM(CASE WHEN change_pct<0 THEN 1 ELSE 0 END) as down_count, "
-                "COUNT(*) as total, MAX(trade_date) as trade_date "
-                "FROM daily_kline WHERE trade_date=(SELECT trade_date FROM latest)"
-            ).fetchone()
+            sentiment_rows = d.execute(_dashboard_market_sentiment_sql()).fetchone()
             if sentiment_rows and sentiment_rows.get("total", 0) > 0:
                 avg_chg = float(sentiment_rows.get("avg_chg") or 0)
                 up = int(sentiment_rows.get("up_count") or 0)
@@ -163,31 +460,21 @@ async def dashboard_summary():
     # ── 2. Signal stocks (top movers with largest absolute change) ──
     try:
         with _get_db() as d:
-            # Use same date as sentiment (latest with non-NULL change_pct)
-            movers = d.execute(
-                "WITH latest AS ("
-                "  SELECT trade_date FROM daily_kline WHERE change_pct IS NOT NULL "
-                "  ORDER BY trade_date DESC LIMIT 1"
-                ") "
-                "SELECT d.code, COALESCE(s.name, d.code) as name, d.close as price, "
-                "d.change_pct, d.volume, d.amount "
-                "FROM daily_kline d LEFT JOIN stocks s ON d.code=s.code "
-                "WHERE d.trade_date=(SELECT trade_date FROM latest) "
-                "AND d.change_pct IS NOT NULL "
-                "ORDER BY ABS(d.change_pct) DESC LIMIT 10"
-            ).fetchall()
-        result["signal_stocks"] = [
-            {"code": r.get("code",""), "name": r.get("name",""),
-             "price": round(float(r.get("price") or 0), 2),
-             "change_pct": round(float(r.get("change_pct") or 0), 2),
-             "volume": int(float(r.get("volume") or 0)),
-             "signal": "Bullish" if float(r.get("change_pct") or 0) > 1
-                       else ("Bearish" if float(r.get("change_pct") or 0) < -1 else "consolidation"),
-             "desc": f"{'放量' if float(r.get('volume') or 0)>1e7 else ''}"
-                     f"{'上涨' if float(r.get('change_pct') or 0)>0 else '下跌'}",
-             "market": "A股"}
-            for r in movers
-        ]
+            movers = d.execute(_dashboard_signal_movers_sql()).fetchall()
+        signal_stocks = []
+        for r in movers:
+            chg = _dashboard_row_change_pct(r)
+            volume = float(r.get("volume") or 0)
+            signal_stocks.append({
+                "code": r.get("code",""), "name": r.get("name",""),
+                "price": round(float(r.get("price") or 0), 2),
+                "change_pct": round(chg, 2),
+                "volume": int(volume),
+                "signal": "Bullish" if chg > 1 else ("Bearish" if chg < -1 else "consolidation"),
+                "desc": f"{'放量' if volume>1e7 else ''}{'上涨' if chg>0 else '下跌'}",
+                "market": "A股",
+            })
+        result["signal_stocks"] = signal_stocks
     except Exception as e:
         logger.warning("Signal stocks query failed: %s", e)
         result["signal_stocks"] = []
@@ -267,58 +554,16 @@ async def dashboard_summary():
     try:
         with _get_db() as d:
             # 7a. Abnormal volume (> 3x 20-day average volume)
-            vol_alerts = d.execute("""
-                WITH latest AS (
-                    SELECT trade_date FROM daily_kline WHERE change_pct IS NOT NULL
-                    ORDER BY trade_date DESC LIMIT 1
-                ),
-                vol_avg AS (
-                    SELECT code, AVG(volume) as avg_vol
-                    FROM daily_kline
-                    WHERE trade_date > (SELECT trade_date FROM latest) - INTERVAL '30 days'
-                      AND trade_date < (SELECT trade_date FROM latest)
-                    GROUP BY code
-                )
-                SELECT d.code, COALESCE(s.name, d.code) as name, d.close as price,
-                       d.change_pct, d.volume, va.avg_vol,
-                       CASE WHEN d.change_pct > 0 THEN 'Bullish' ELSE 'Bearish' END as direction
-                FROM daily_kline d
-                JOIN vol_avg va ON d.code = va.code
-                LEFT JOIN stocks s ON d.code = s.code
-                WHERE d.trade_date = (SELECT trade_date FROM latest)
-                  AND d.volume > va.avg_vol * 3 AND va.avg_vol > 0
-                ORDER BY d.volume / va.avg_vol DESC
-                LIMIT 5
-            """).fetchall()
+            vol_alerts = d.execute(_dashboard_volume_alerts_sql()).fetchall()
 
             # 7b. Near limit-up/down (price within 3% of limit)
-            limit_alerts = d.execute("""
-                WITH latest_kline AS (
-                    SELECT trade_date FROM daily_kline WHERE change_pct IS NOT NULL
-                    ORDER BY trade_date DESC LIMIT 1
-                ),
-                latest_limit AS (
-                    SELECT trade_date FROM stk_limit ORDER BY trade_date DESC LIMIT 1
-                )
-                SELECT l.code, COALESCE(s.name, l.code) as name,
-                       d.close as price, l.up_limit, l.down_limit, d.change_pct
-                FROM stk_limit l
-                JOIN daily_kline d ON l.code = d.code
-                    AND d.trade_date = (SELECT trade_date FROM latest_kline)
-                LEFT JOIN stocks s ON l.code = s.code
-                WHERE l.trade_date = (SELECT trade_date FROM latest_limit)
-                  AND l.up_limit > 0 AND d.close > 0
-                  AND ( ABS(l.up_limit - d.close) / d.close < 0.03
-                     OR ABS(d.close - l.down_limit) / d.close < 0.03 )
-                ORDER BY ABS(d.close / l.up_limit - 1) ASC
-                LIMIT 5
-            """).fetchall()
+            limit_alerts = d.execute(_dashboard_limit_alerts_sql()).fetchall()
 
         alert_signals = []
 
         for r in vol_alerts:
             vol_ratio = round(float(r.get("volume") or 1) / max(float(r.get("avg_vol") or 1), 1), 1)
-            chg = round(float(r.get("change_pct") or 0), 2)
+            chg = round(_dashboard_row_change_pct(r), 2)
             direction = "放量上涨" if chg > 0 else "放量下跌"
             alert_signals.append({
                 "type": "volume",
@@ -335,7 +580,7 @@ async def dashboard_summary():
             price = float(r.get("price") or 0)
             up_lmt = float(r.get("up_limit") or 0)
             down_lmt = float(r.get("down_limit") or 0)
-            chg = round(float(r.get("change_pct") or 0), 2)
+            chg = round(_dashboard_row_change_pct(r), 2)
             # Calculate absolute distance to limit
             dist_up = round(abs(up_lmt - price) / price * 100, 1) if up_lmt > 0 and price > 0 else 999
             dist_down = round(abs(price - down_lmt) / price * 100, 1) if down_lmt > 0 and price > 0 else 999
@@ -384,48 +629,7 @@ async def dashboard_summary():
 
     # ── 9. Auction intent (开盘竞价意图分析) ──
     try:
-        with _get_db() as d:
-            auction_results = d.execute("""
-                WITH latest_auction AS (
-                    SELECT trade_date FROM stk_auction_o ORDER BY trade_date DESC LIMIT 1
-                ),
-                auction_data AS (
-                    SELECT a.code, a.close as auction_price, a.open, a.high, a.low,
-                           a.vol, a.amount, a.vwap,
-                           prev.close as prev_close,
-                           (a.close / NULLIF(prev.close, 0) - 1) * 100 as chg_pct,
-                           (a.open / NULLIF(a.close, 0) - 1) * 100 as open_gap,
-                           (a.close / NULLIF(a.vwap, 0) - 1) * 100 as vs_vwap
-                    FROM stk_auction_o a
-                    CROSS JOIN LATERAL (
-                        SELECT close FROM daily_kline
-                        WHERE code = a.code AND trade_date < a.trade_date
-                        ORDER BY trade_date DESC LIMIT 1
-                    ) prev
-                    WHERE a.trade_date = (SELECT trade_date FROM latest_auction)
-                      AND a.vol > 0
-                ),
-                vol_avg AS (
-                    SELECT code, AVG(volume) as avg_vol
-                    FROM daily_kline
-                    WHERE trade_date > (SELECT MAX(trade_date) FROM daily_kline) - INTERVAL '30 days'
-                      AND trade_date < (SELECT MAX(trade_date) FROM daily_kline)
-                    GROUP BY code
-                )
-                SELECT ad.code,
-                       COALESCE(s.name, ad.code) as name,
-                       ad.auction_price, ad.open, ad.vwap, ad.vol, ad.amount,
-                       ad.prev_close,
-                       ROUND(ad.chg_pct::numeric, 2) as chg_pct,
-                       ROUND(ad.open_gap::numeric, 2) as open_gap,
-                       ROUND(ad.vs_vwap::numeric, 2) as vs_vwap,
-                       ROUND((ad.vol / NULLIF(va.avg_vol, 0))::numeric, 2) as vol_ratio
-                FROM auction_data ad
-                LEFT JOIN stocks s ON ad.code = s.code
-                LEFT JOIN vol_avg va ON ad.code = va.code
-                ORDER BY ad.vol DESC
-                LIMIT 100
-            """).fetchall()
+        auction_results = _fetch_dashboard_auction_rows()
 
         intent_list = []
         for r in auction_results:
@@ -481,14 +685,22 @@ async def dashboard_summary():
             })
 
         # Summary counts
-        bullish = [i for i in intent_list if i["level"] == "bullish"]
-        bearish = [i for i in intent_list if i["level"] == "bearish"]
+        strong_bullish = [i for i in intent_list if i["score"] >= 75]
+        moderate_bullish = [i for i in intent_list if 60 <= i["score"] < 75]
         neutral = [i for i in intent_list if i["level"] == "neutral"]
+        moderate_bearish = [i for i in intent_list if 25 <= i["score"] < 40]
+        strong_bearish = [i for i in intent_list if i["score"] < 25]
+        bullish = strong_bullish + moderate_bullish
+        bearish = moderate_bearish + strong_bearish
 
         result["auction_intent"] = {
             "trade_date": str(auction_results[0].get("trade_date", "")) if auction_results else "",
             "total_analyzed": len(intent_list),
+            "strong_bullish_count": len(strong_bullish),
+            "moderate_bullish_count": len(moderate_bullish),
             "bullish_count": len(bullish),
+            "moderate_bearish_count": len(moderate_bearish),
+            "strong_bearish_count": len(strong_bearish),
             "bearish_count": len(bearish),
             "neutral_count": len(neutral),
             "top_bullish": bullish[:5],
@@ -1085,6 +1297,47 @@ _SYNC_MAP = {
     }
 
 
+def _default_sync_schedules() -> list[dict]:
+    """Build executable default schedules from the supported sync map."""
+    schedules = []
+    for table_key, (mode, days_default, desc) in _SYNC_MAP.items():
+        if mode in ("stk_auction_o",):
+            interval_minutes = 0
+            daily_at = "09:30"
+            next_sync_at = "09:30"
+        elif mode in ("rt_sw_k",):
+            interval_minutes = 5
+            daily_at = None
+            next_sync_at = "交易时段每 5 分钟"
+        elif mode in ("stk_mins",):
+            interval_minutes = 0
+            daily_at = "18:00"
+            next_sync_at = "18:00"
+        elif mode in ("stock_news",):
+            interval_minutes = 30
+            daily_at = None
+            next_sync_at = "交易时段每 30 分钟"
+        else:
+            interval_minutes = 0
+            daily_at = "18:00"
+            next_sync_at = "18:00"
+        schedules.append({
+            "table_key": table_key,
+            "mode": mode,
+            "desc": desc,
+            "days_back": days_default,
+            "interval_minutes": interval_minutes,
+            "daily_at": daily_at,
+            "enabled": True,
+            "last_sync_at": "",
+            "next_sync_at": next_sync_at,
+            "created_at": "",
+            "updated_at": "",
+            "source": "default_sync_map",
+        })
+    return schedules
+
+
 @router.get("/data-status")
 async def data_status():
     """Return comprehensive data source status with metadata."""
@@ -1122,13 +1375,8 @@ async def data_status():
         conn.autocommit = True
         cur = conn.cursor()
 
-        # Refresh PG stats (in autocommit, no transaction issues)
-        try:
-            cur.execute("ANALYZE")
-        except Exception:
-            pass
-
-        # Get row counts
+        # Get estimated row counts. Do not run ANALYZE here: this endpoint is
+        # page-facing and must stay lightweight on 100M+ row databases.
         cur.execute("SELECT relname, n_live_tup FROM pg_stat_user_tables")
         pg_stats = {r[0]: int(r[1]) for r in cur.fetchall()}
 
@@ -1209,6 +1457,20 @@ async def trigger_sync(
     logger.info("Trigger sync: %s (mode=%s, days=%d)", table_key, mode, days)
 
     try:
+        proxied = _trigger_sync_via_data_service(table_key, days)
+        if proxied is not None:
+            return {
+                **proxied,
+                "table_key": table_key,
+                "mode": mode,
+                "desc": desc,
+                "days": days,
+                "source": "data-service",
+            }
+    except Exception as e:
+        logger.warning("Data-service manual sync proxy failed for %s, fallback to subprocess: %s", table_key, e)
+
+    try:
         import subprocess, sys
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
         packages_path = os.pathsep.join([
@@ -1263,13 +1525,21 @@ async def get_sync_schedules():
                 "daily_at": r.get("daily_at") or None,
                 "enabled": bool(r.get("enabled", True)),
                 "last_sync_at": str(r.get("last_sync_at") or ""),
+                "next_sync_at": str(r.get("next_sync_at") or ""),
                 "created_at": str(r.get("created_at") or ""),
                 "updated_at": str(r.get("updated_at") or ""),
+                "source": "sync_schedules",
             })
+        if not schedules:
+            schedules = _default_sync_schedules()
         return {"status": "ok", "schedules": schedules}
     except Exception as e:
         logger.warning("Get schedules failed: %s", e)
-        return {"status": "error", "message": str(e)[:100], "schedules": []}
+        return {
+            "status": "ok",
+            "message": f"sync_schedules 未初始化，展示默认调度: {str(e)[:80]}",
+            "schedules": _default_sync_schedules(),
+        }
 
 
 @router.post("/sync-schedules")
@@ -1322,18 +1592,14 @@ async def signal_live(session: str = Query("intra", description="intra | post | 
     from kronos_factors.scorer._db_stub import _get_db as _db
 
     signals = []
+    trade_date = ""
     try:
         with _db() as d:
             # Fetch top 20 stocks with strongest recent momentum as live signals
-            rows = d.execute(
-                "SELECT code, name, close, change_pct, volume "
-                "FROM daily_kline "
-                "WHERE trade_date=(SELECT MAX(trade_date) FROM daily_kline WHERE change_pct IS NOT NULL) "
-                "AND change_pct IS NOT NULL "
-                "ORDER BY ABS(change_pct) DESC LIMIT 20"
-            ).fetchall()
+            rows = d.execute(_signal_live_sql()).fetchall()
             for r in rows:
-                chg = float(r["change_pct"] or 0)
+                chg = _dashboard_row_change_pct(r)
+                trade_date = str(r.get("trade_date") or trade_date)
                 signal = "Bullish" if chg > 3 else ("Bearish" if chg < -3 else "Neutral")
                 desc = (
                     f"强势上涨 {chg:.1f}%" if chg > 3 else
@@ -1357,7 +1623,17 @@ async def signal_live(session: str = Query("intra", description="intra | post | 
     except Exception as e:
         logger.warning("Live signals query failed: %s", e)
 
-    return {"session": session, "signals": signals, "count": len(signals)}
+    return {
+        "session": session,
+        "signals": signals,
+        "count": len(signals),
+        "trade_date": trade_date,
+        "data_freshness": {
+            "status": "fresh" if trade_date else "unknown",
+            "as_of": trade_date or None,
+            "source": "PG daily_kline",
+        },
+    }
 
 
 # ═══════════════════════════════════════════════════════════════

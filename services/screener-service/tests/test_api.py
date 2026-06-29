@@ -81,6 +81,28 @@ class TestScreenerModes:
             assert "cycle" in mode
             assert "style" in mode
 
+    def test_modes_include_latest_trade_date(self, client, monkeypatch):
+        """Verify the frontend can initialize its date picker from real data."""
+        import app.routers.screener as screener_router
+
+        monkeypatch.setattr(
+            screener_router,
+            "_query_screener_latest_dates",
+            lambda: {
+                "daily_kline": "2026-06-26",
+                "stk_auction_o": "2026-06-29",
+            },
+        )
+
+        response = client.get("/api/v1/screener/modes")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["latest_trade_date"] == "2026-06-26"
+        assert data["latest_dates"]["stk_auction_o"] == "2026-06-29"
+        assert data["data_freshness"]["as_of"] == "2026-06-26"
+        assert data["data_freshness"]["source"] == "daily_kline"
+
 
 class TestScreenerRun:
     """Test the screening run endpoint (basic validation)."""
@@ -140,6 +162,31 @@ class TestScreenerRun:
 
         with pytest.raises(RuntimeError, match="latest trade date unavailable"):
             screener_router._resolve_trade_date("latest")
+
+    def test_with_screener_contract_uses_resolved_result_trade_date(self, monkeypatch):
+        """Verify contract freshness follows the actual date used by the model."""
+        import app.routers.screener as screener_router
+
+        monkeypatch.setattr(
+            screener_router,
+            "_get_factor_db",
+            lambda: _FakeDb({"max": "2026-06-26"}),
+        )
+
+        payload = {"mode": "short", "picks": []}
+        result = screener_router._with_screener_contract(payload, mode="short", trade_date=None)
+
+        assert result["trade_date"] == "2026-06-26"
+        assert result["data_freshness"]["as_of"] == "2026-06-26"
+
+    def test_with_screener_contract_uses_mode_data_source(self):
+        """Verify freshness source matches the model's real input table."""
+        import app.routers.screener as screener_router
+
+        payload = {"mode": "leader_auction", "trade_date": "2026-06-29", "picks": []}
+        result = screener_router._with_screener_contract(payload, mode="leader_auction")
+
+        assert result["data_freshness"]["source"] == "stk_auction_o"
 
 
 class TestHealthEndpoint:

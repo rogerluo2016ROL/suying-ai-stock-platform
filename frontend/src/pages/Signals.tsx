@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { BarChartOutlined, HistoryOutlined, SafetyCertificateOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import {
   DataDomainBadge,
+  DataFreshnessBar,
   EmptyState,
   LineageChips,
   MetricCard,
@@ -25,6 +26,9 @@ interface SignalRow {
   score?: number
   reason?: string
   risk?: string
+  trade_date?: string
+  date?: string
+  updated_at?: string
 }
 
 interface SignalHistoryRow extends SignalRow {
@@ -47,18 +51,6 @@ const tabs = [
   { key: 'overview', path: '/signals/overview', label: '信号总览', subLabel: '强弱分布' },
   { key: 'history', path: '/signals/history', label: '信号历史', subLabel: '命中回看' },
   { key: 'risk', path: '/signals/risk', label: '风险扫描', subLabel: '交易前置' },
-]
-
-const fallbackSignals: SignalRow[] = [
-  { code: '300750', name: '宁德时代', signal: '买入', level: 'buy', strength: 82, confidence: 78, reason: '竞价强 + 资金共振', risk: '低' },
-  { code: '688981', name: '中芯国际', signal: '强买', level: 'strong_buy', strength: 78, confidence: 74, reason: '半导体共振', risk: '中' },
-  { code: '600519', name: '贵州茅台', signal: '观察', level: 'hold', strength: 63, confidence: 66, reason: '资金回补但量能不足', risk: '低' },
-]
-
-const fallbackHistory: SignalHistoryRow[] = [
-  { code: '300750', name: '宁德时代', signal: '买入', date: '2026-06-25', hit: true, return_pct: 8.2, strength: 82 },
-  { code: '688981', name: '中芯国际', signal: '强买', date: '2026-06-24', hit: true, return_pct: 5.8, strength: 78 },
-  { code: '002594', name: '比亚迪', signal: '卖出', date: '2026-06-21', hit: false, return_pct: -2.1, strength: 68 },
 ]
 
 function activeKey(pathname: string) {
@@ -100,22 +92,25 @@ export default function Signals() {
   const navigate = useNavigate()
   const active = activeKey(location.pathname)
   const activeTab = useMemo(() => tabs.find(tab => tab.key === active) ?? tabs[0], [active])
-  const [signals, setSignals] = useState<SignalRow[]>(fallbackSignals)
-  const [history, setHistory] = useState<SignalHistoryRow[]>(fallbackHistory)
+  const [signals, setSignals] = useState<SignalRow[]>([])
+  const [history, setHistory] = useState<SignalHistoryRow[]>([])
   const [riskResult, setRiskResult] = useState<RiskScanResult | undefined>()
-  const [selectedCode, setSelectedCode] = useState(fallbackSignals[0].code)
+  const [selectedCode, setSelectedCode] = useState('')
+  const [lastRefresh, setLastRefresh] = useState('')
 
   useEffect(() => {
     signalApi.getLive('intra')
       .then(response => {
         const data = response.data as unknown as { signals?: SignalRow[], items?: SignalRow[] }
         const nextSignals = data.signals || data.items || []
-        if (nextSignals.length > 0) {
-          setSignals(nextSignals)
-          setSelectedCode(nextSignals[0].code)
-        }
+        setSignals(nextSignals)
+        setSelectedCode(nextSignals[0]?.code ?? '')
+        setLastRefresh(new Date().toISOString())
       })
-      .catch(() => undefined)
+      .catch(() => {
+        setSignals([])
+        setSelectedCode('')
+      })
   }, [])
 
   useEffect(() => {
@@ -124,19 +119,24 @@ export default function Signals() {
       .then(response => {
         const data = response.data as unknown as { history?: SignalHistoryRow[], signals?: SignalHistoryRow[], items?: SignalHistoryRow[] }
         const nextHistory = data.history || data.signals || data.items || []
-        if (nextHistory.length > 0) setHistory(nextHistory)
+        setHistory(nextHistory)
+        setLastRefresh(new Date().toISOString())
       })
-      .catch(() => undefined)
+      .catch(() => setHistory([]))
   }, [active])
 
   useEffect(() => {
     if (active !== 'risk') return
+    if (!selectedCode) {
+      setRiskResult(undefined)
+      return
+    }
     signalApi.analyzeCode(selectedCode)
       .then(response => setRiskResult(response.data as unknown as RiskScanResult))
       .catch(() => setRiskResult(undefined))
   }, [active, selectedCode])
 
-  const selectedSignal = signals.find(item => item.code === selectedCode) ?? signals[0] ?? fallbackSignals[0]
+  const selectedSignal = signals.find(item => item.code === selectedCode) ?? signals[0]
   const riskItems = riskResult?.blockers || riskResult?.risk_alerts || []
   const strongCount = signals.filter(item => ['强买', '买入'].includes(signalLabel(item))).length
   const warnCount = signals.filter(item => item.risk && item.risk !== '低').length
@@ -144,6 +144,9 @@ export default function Signals() {
   const avgHitReturn = history.length > 0
     ? history.reduce((sum, item) => sum + (item.return_pct || 0), 0) / history.length
     : 0
+  const freshnessRow = active === 'history' ? history[0] : selectedSignal
+  const freshnessTradeDate = freshnessRow?.trade_date || freshnessRow?.date
+  const freshnessUpdatedAt = freshnessRow?.updated_at || lastRefresh
 
   return (
     <PrototypePage>
@@ -159,6 +162,7 @@ export default function Signals() {
       <PrototypePageHeader
         title={`交易信号 - ${activeTab.label}`}
         subtitle="实时触发 · 证据链 · 历史命中 · 交易前风控"
+        dataFreshness={<DataFreshnessBar tradeDate={freshnessTradeDate} updatedAt={freshnessUpdatedAt} source={active === 'history' ? 'signal/history' : 'signal/live'} />}
         actions={[
           { key: 'public', label: '公共信号源' },
           { key: 'account', label: '账户订阅', active: true, tone: 'neutral' },
@@ -186,47 +190,57 @@ export default function Signals() {
                 风险扫描
               </button>
             </div>
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>代码</th>
-                  <th>名称</th>
-                  <th>触发信号</th>
-                  <th className="r">强度</th>
-                  <th className="r">风险</th>
-                  <th>证据</th>
-                </tr>
-              </thead>
-              <tbody>
-                {signals.map(row => (
-                  <tr
-                    key={row.code}
-                    className={selectedCode === row.code ? 'sel' : ''}
-                    onClick={() => setSelectedCode(row.code)}
-                  >
-                    <td className="code">{row.code}</td>
-                    <td className="nm">{row.name || '--'}</td>
-                    <td><span className="tag t-neu">{signalLabel(row)}</span></td>
-                    <td className="r mono">{signalStrength(row)}</td>
-                    <td className={`r ${row.risk === '高' ? 'down' : row.risk === '中' ? 'warn' : 'up'}`}>{row.risk || '低'}</td>
-                    <td>{row.reason || '技术面 + 资金面共振'}</td>
+            {signals.length > 0 ? (
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>代码</th>
+                    <th>名称</th>
+                    <th>触发信号</th>
+                    <th className="r">强度</th>
+                    <th className="r">风险</th>
+                    <th>证据</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {signals.map(row => (
+                    <tr
+                      key={row.code}
+                      className={selectedCode === row.code ? 'sel' : ''}
+                      onClick={() => setSelectedCode(row.code)}
+                    >
+                      <td className="code">{row.code}</td>
+                      <td className="nm">{row.name || '--'}</td>
+                      <td><span className="tag t-neu">{signalLabel(row)}</span></td>
+                      <td className="r mono">{signalStrength(row)}</td>
+                      <td className={`r ${row.risk === '高' ? 'down' : row.risk === '中' ? 'warn' : 'up'}`}>{row.risk || '低'}</td>
+                      <td>{row.reason || '技术面 + 资金面共振'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <EmptyState title="暂无实时信号" detail="signal-service 当前没有返回可交易信号，页面不会展示演示股票。" />
+            )}
           </PrototypeCard>
 
           <SideRail title="候选联动" meta="Candidate / Plan">
             <DataDomainBadge domain="account" label="账户订阅信号" />
-            <LineageChips
-              items={[
-                { label: 'DecisionContext', value: `DC-${selectedSignal.code}` },
-                { label: 'Candidate', value: `CAND-${selectedSignal.code}`, tone: 'accent' },
-                { label: 'RiskVerdict', value: '待预检', tone: 'warn' },
-              ]}
-            />
-            <RiskBanner status="review" title="进入候选前预检" detail={`${selectedSignal.name || selectedSignal.code} 的信号需通过账户资金、仓位和黑名单规则。`} />
-            <EmptyState title="等待入池动作" detail="确认后写入账户私有候选池，并保留信号证据链。" actionLabel="加入候选池" />
+            {selectedSignal ? (
+              <>
+                <LineageChips
+                  items={[
+                    { label: 'DecisionContext', value: `DC-${selectedSignal.code}` },
+                    { label: 'Candidate', value: `CAND-${selectedSignal.code}`, tone: 'accent' },
+                    { label: 'RiskVerdict', value: '待预检', tone: 'warn' },
+                  ]}
+                />
+                <RiskBanner status="review" title="进入候选前预检" detail={`${selectedSignal.name || selectedSignal.code} 的信号需通过账户资金、仓位和黑名单规则。`} />
+                <EmptyState title="等待入池动作" detail="候选池写入接口未接入，暂时只保留信号证据链展示。" />
+              </>
+            ) : (
+              <EmptyState title="暂无候选联动" detail="需要先有实时信号，才能生成候选池和风控预检链路。" />
+            )}
           </SideRail>
         </div>
       )}
@@ -260,30 +274,34 @@ export default function Signals() {
       {active === 'history' && (
         <div className="row r-6-4">
           <PrototypeCard title="命中率回看" icon={<HistoryOutlined />} meta="Signal History">
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>日期</th>
-                  <th>代码</th>
-                  <th>名称</th>
-                  <th>信号</th>
-                  <th className="r">结果</th>
-                  <th className="r">收益</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map(row => (
-                  <tr key={`${row.code}-${row.date}`}>
-                    <td className="mono">{row.date || '--'}</td>
-                    <td className="code">{row.code}</td>
-                    <td className="nm">{row.name || '--'}</td>
-                    <td>{signalLabel(row)}</td>
-                    <td className={`r ${row.hit ? 'up' : 'down'}`}>{row.hit ? '命中' : '未命中'}</td>
-                    <td className={`r mono ${(row.return_pct || 0) >= 0 ? 'up' : 'down'}`}>{formatReturn(row.return_pct)}</td>
+            {history.length > 0 ? (
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>日期</th>
+                    <th>代码</th>
+                    <th>名称</th>
+                    <th>信号</th>
+                    <th className="r">结果</th>
+                    <th className="r">收益</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {history.map(row => (
+                    <tr key={`${row.code}-${row.date}`}>
+                      <td className="mono">{row.date || '--'}</td>
+                      <td className="code">{row.code}</td>
+                      <td className="nm">{row.name || '--'}</td>
+                      <td>{signalLabel(row)}</td>
+                      <td className={`r ${row.hit ? 'up' : 'down'}`}>{row.hit ? '命中' : '未命中'}</td>
+                      <td className={`r mono ${(row.return_pct || 0) >= 0 ? 'up' : 'down'}`}>{formatReturn(row.return_pct)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <EmptyState title="暂无历史信号" detail="signal-service 暂未返回历史命中记录，历史统计保持为空。" />
+            )}
           </PrototypeCard>
           <SideRail title="回测复盘" meta="Backtest">
             <LineageChips
@@ -301,9 +319,11 @@ export default function Signals() {
       {active === 'risk' && (
         <div className="row r-6-4">
           <PrototypeCard title="RiskVerdict 预检" icon={<SafetyCertificateOutlined />} meta="Risk">
+            {selectedSignal ? (
+              <>
             <div className="op-hint">
               <div className={`pos ${riskStatus(riskResult) === 'reject' ? 'down' : riskStatus(riskResult) === 'warn' ? 'warn' : 'up'}`}>
-                {riskResult?.risk_score ?? 28}
+                {riskResult?.risk_score ?? '--'}
               </div>
               <div>
                 <div className="op-title">{selectedSignal.name || selectedSignal.code} · {signalLabel(selectedSignal)}</div>
@@ -330,21 +350,27 @@ export default function Signals() {
                 </div>
               </div>
             )}
+              </>
+            ) : (
+              <EmptyState title="暂无可扫描信号" detail="signal-service 当前没有返回实时信号，无法调用单股风险扫描。" />
+            )}
           </PrototypeCard>
           <SideRail title="风控结论" meta="Order Gate">
             <DataDomainBadge domain="account" label="账户级风控" />
             <RiskBanner
               status={riskStatus(riskResult)}
               title={riskStatus(riskResult) === 'pass' ? '可进入下单面板' : '需要人工复核'}
-              detail={riskResult?.recommendation || '预检结果会随 Order 草稿一起写入 RiskVerdict。'}
+              detail={selectedSignal ? (riskResult?.recommendation || '预检结果会随 Order 草稿一起写入 RiskVerdict。') : '暂无实时信号，风控预检未触发。'}
             />
-            <LineageChips
-              items={[
-                { label: 'Signal', value: selectedSignal.code },
-                { label: 'Plan', value: '待选择', tone: 'warn' },
-                { label: 'Order', value: '未生成', tone: 'warn' },
-              ]}
-            />
+            {selectedSignal && (
+              <LineageChips
+                items={[
+                  { label: 'Signal', value: selectedSignal.code },
+                  { label: 'Plan', value: '待选择', tone: 'warn' },
+                  { label: 'Order', value: '未生成', tone: 'warn' },
+                ]}
+              />
+            )}
           </SideRail>
         </div>
       )}

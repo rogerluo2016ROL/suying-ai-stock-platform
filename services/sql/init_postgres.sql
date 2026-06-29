@@ -466,6 +466,110 @@ CREATE TABLE IF NOT EXISTS rt_sw_k (
 
 -- ── 应用层表 ──
 
+CREATE TABLE IF NOT EXISTS candidate_pools (
+    id BIGSERIAL PRIMARY KEY,
+    pool_id VARCHAR(100) NOT NULL,
+    tenant_id VARCHAR(100) NOT NULL,
+    owner_user_id VARCHAR(64),
+    account_id VARCHAR(100),
+    visibility VARCHAR(20) NOT NULL DEFAULT 'private',
+    data_scope VARCHAR(20) NOT NULL DEFAULT 'account',
+    source_module VARCHAR(40) NOT NULL,
+    source_mode VARCHAR(60) NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    candidates JSONB NOT NULL DEFAULT '[]'::jsonb,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_candidate_pools_pool_id UNIQUE(pool_id),
+    CONSTRAINT ck_candidate_pools_visibility CHECK (visibility IN ('private', 'tenant_shared', 'public')),
+    CONSTRAINT ck_candidate_pools_data_scope CHECK (data_scope IN ('public', 'tenant', 'user', 'account'))
+);
+CREATE INDEX IF NOT EXISTS idx_candidate_pools_pool_id ON candidate_pools(pool_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_pools_scope_updated ON candidate_pools(tenant_id, owner_user_id, account_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_candidate_pools_source ON candidate_pools(source_module, source_mode, updated_at);
+
+CREATE TABLE IF NOT EXISTS strategy_plans (
+    id BIGSERIAL PRIMARY KEY,
+    plan_id VARCHAR(100) NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'draft',
+    model_name VARCHAR(80) NOT NULL DEFAULT 'all',
+    capital NUMERIC(18,2) NOT NULL DEFAULT 1000000,
+    max_positions INTEGER NOT NULL DEFAULT 5,
+    single_max_pct NUMERIC(8,4) NOT NULL DEFAULT 0.2,
+    tenant_id VARCHAR(100) NOT NULL,
+    owner_user_id VARCHAR(64),
+    account_id VARCHAR(100),
+    visibility VARCHAR(20) NOT NULL DEFAULT 'private',
+    data_scope VARCHAR(20) NOT NULL DEFAULT 'account',
+    picks JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_strategy_plans_plan_id UNIQUE(plan_id),
+    CONSTRAINT ck_strategy_plans_status CHECK (status IN ('draft', 'predicting', 'backtesting', 'confirmed', 'active', 'archived')),
+    CONSTRAINT ck_strategy_plans_visibility CHECK (visibility IN ('private', 'tenant_shared', 'public')),
+    CONSTRAINT ck_strategy_plans_data_scope CHECK (data_scope IN ('public', 'tenant', 'user', 'account'))
+);
+CREATE INDEX IF NOT EXISTS idx_strategy_plans_plan_id ON strategy_plans(plan_id);
+CREATE INDEX IF NOT EXISTS idx_strategy_plans_scope_updated ON strategy_plans(tenant_id, owner_user_id, account_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_strategy_plans_status ON strategy_plans(status);
+
+CREATE TABLE IF NOT EXISTS auto_trading_strategies (
+    id BIGSERIAL PRIMARY KEY,
+    strategy_id VARCHAR(100) NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    status VARCHAR(30) NOT NULL DEFAULT 'draft',
+    source_type VARCHAR(30) NOT NULL DEFAULT 'custom',
+    source_scheme_id VARCHAR(100) NOT NULL DEFAULT '',
+    buy_conditions JSONB NOT NULL DEFAULT '[]'::jsonb,
+    sell_conditions JSONB NOT NULL DEFAULT '[]'::jsonb,
+    position_rules JSONB NOT NULL DEFAULT '{}'::jsonb,
+    risk_rules JSONB NOT NULL DEFAULT '{}'::jsonb,
+    trade_mode VARCHAR(20) NOT NULL DEFAULT 'paper',
+    check_interval_sec INTEGER NOT NULL DEFAULT 300,
+    capital NUMERIC(18,2) NOT NULL DEFAULT 1000000,
+    picks JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_auto_trading_strategies_strategy_id UNIQUE(strategy_id),
+    CONSTRAINT ck_auto_trading_strategies_status CHECK (status IN ('draft', 'active', 'paused', 'stopped', 'archived')),
+    CONSTRAINT ck_auto_trading_strategies_source_type CHECK (source_type IN ('scheme', 'custom')),
+    CONSTRAINT ck_auto_trading_strategies_trade_mode CHECK (trade_mode IN ('paper', 'live'))
+);
+CREATE INDEX IF NOT EXISTS idx_auto_trading_strategies_strategy_id ON auto_trading_strategies(strategy_id);
+CREATE INDEX IF NOT EXISTS idx_auto_trading_strategies_status_updated ON auto_trading_strategies(status, updated_at);
+
+CREATE TABLE IF NOT EXISTS screening_snapshots (
+    id BIGSERIAL PRIMARY KEY,
+    model_key TEXT NOT NULL,
+    trade_date DATE NOT NULL,
+    stock_code TEXT NOT NULL,
+    time_slot TEXT,
+    factors JSONB,
+    total_score DOUBLE PRECISION,
+    grade TEXT,
+    rank_in_day INTEGER,
+    next_day_return DOUBLE PRECISION,
+    is_win BOOLEAN,
+    outcome_at TIMESTAMP,
+    ret_3d DOUBLE PRECISION,
+    ret_5d DOUBLE PRECISION,
+    ret_10d DOUBLE PRECISION,
+    ret_20d DOUBLE PRECISION,
+    is_win_3d BOOLEAN,
+    is_win_5d BOOLEAN,
+    is_win_10d BOOLEAN,
+    ret_3d_at TIMESTAMP,
+    ret_5d_at TIMESTAMP,
+    ret_10d_at TIMESTAMP,
+    ret_20d_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_screening_snapshots_code_date ON screening_snapshots(stock_code, trade_date);
+CREATE INDEX IF NOT EXISTS idx_screening_snapshots_model ON screening_snapshots(model_key, trade_date);
+
 CREATE TABLE IF NOT EXISTS screening_scores (
     id SERIAL PRIMARY KEY,
     batch_id TEXT NOT NULL,

@@ -35,6 +35,7 @@ def upgrade():
     op.execute("CREATE INDEX IF NOT EXISTS idx_screening_snapshots_code_date ON screening_snapshots(stock_code, trade_date)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_screening_snapshots_model ON screening_snapshots(model_key, trade_date)")
     for col, dtype in [
+        ("outcome_at", sa.DateTime),
         ("ret_3d", sa.Double), ("ret_5d", sa.Double),
         ("ret_10d", sa.Double), ("ret_20d", sa.Double),
         ("is_win_3d", sa.Boolean), ("is_win_5d", sa.Boolean),
@@ -46,7 +47,7 @@ def upgrade():
 
 
 def downgrade():
-    for col in ["ret_3d", "ret_5d", "ret_10d", "ret_20d",
+    for col in ["outcome_at", "ret_3d", "ret_5d", "ret_10d", "ret_20d",
                 "is_win_3d", "is_win_5d", "is_win_10d",
                 "ret_3d_at", "ret_5d_at", "ret_10d_at", "ret_20d_at"]:
         op.execute(f"ALTER TABLE screening_snapshots DROP COLUMN IF EXISTS {col}")

@@ -1,5 +1,6 @@
 """Strategy API — plan management CRUD + auto-trading strategy engine + executor."""
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Body, Header, Query, HTTPException, Depends
@@ -7,7 +8,7 @@ from kronos_auth import require_role
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import plan_pg_store
+from app import auto_strategy_pg_store, plan_pg_store
 from app.database import get_db
 from app.plan_store import get_store
 from app.platform_scope import plan_to_dict, resolve_platform_scope
@@ -20,6 +21,7 @@ from app.auto_trading_executor import get_executor_manager, run_strategy
 
 router = APIRouter(prefix="/api/v1/strategy", tags=["strategy"])
 store = get_store()
+logger = logging.getLogger("strategy-service.routes")
 
 
 async def _plan_record_safe(db: AsyncSession, plan) -> None:
@@ -28,10 +30,11 @@ async def _plan_record_safe(db: AsyncSession, plan) -> None:
     try:
         await plan_pg_store.record(db, plan=plan)
         await db.commit()
-    except Exception:
+    except Exception as exc:
         await db.rollback()
         # PG is the durable target, but routes keep the in-memory store as the
         # fallback so local development and tests do not lose existing behavior.
+        logger.warning("Failed to persist strategy plan %s: %s", getattr(plan, "id", ""), exc)
         return
 
 
@@ -40,8 +43,56 @@ async def _plan_query_safe(db: AsyncSession, **filters):
         return None
     try:
         return await plan_pg_store.query(db, **filters)
+    except Exception as exc:
+        logger.warning("Failed to query strategy plans from DB: filters=%s error=%s", filters, exc)
+        return None
+
+
+async def _strategy_record_safe(db: AsyncSession | None, strategy) -> None:
+    if db is None:
+        return
+    try:
+        await auto_strategy_pg_store.record(db, strategy=strategy)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        return
+
+
+async def _strategy_list_safe(db: AsyncSession | None):
+    if db is None:
+        return None
+    try:
+        return await auto_strategy_pg_store.list_all(db)
     except Exception:
         return None
+
+
+async def _strategy_get_safe(db: AsyncSession | None, strategy_id: str):
+    if db is None:
+        return None
+    try:
+        return await auto_strategy_pg_store.get(db, strategy_id)
+    except Exception:
+        return None
+
+
+async def _strategy_delete_safe(db: AsyncSession | None, strategy_id: str) -> bool:
+    if db is None:
+        return False
+    try:
+        deleted = await auto_strategy_pg_store.delete(db, strategy_id)
+        await db.commit()
+        return deleted
+    except Exception:
+        await db.rollback()
+        return False
+
+
+def _hydrate_strategy(strategy):
+    if strategy is not None:
+        get_strategy_store().upsert(strategy)
+    return strategy
 
 
 @router.post("/plans")
@@ -349,6 +400,7 @@ class StrategyUpdateRequest(BaseModel):
 @router.post("/generate-from-scheme/{scheme_id}")
 async def api_generate_strategy_from_scheme(
     scheme_id: str,
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """PRD AC-10.6: Generate a StrategyConfig from a confirmed trading plan.
@@ -363,6 +415,7 @@ async def api_generate_strategy_from_scheme(
     except ValueError as e:
         raise HTTPException(400, str(e))
 
+    await _strategy_record_safe(db, strategy)
     return {
         "strategy": strategy.to_dict(),
         "message": f"策略 {strategy.id} 已从方案 {scheme_id} 生成",
@@ -372,6 +425,7 @@ async def api_generate_strategy_from_scheme(
 @router.post("/custom")
 async def api_create_custom_strategy(
     body: CustomStrategyRequest,
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """PRD AC-10.7: Create a fully custom auto-trading strategy."""
@@ -391,6 +445,7 @@ async def api_create_custom_strategy(
     except Exception as e:
         raise HTTPException(400, str(e))
 
+    await _strategy_record_safe(db, strategy)
     return {
         "strategy": strategy.to_dict(),
         "message": f"自定义策略 {strategy.id} 创建成功",
@@ -401,11 +456,24 @@ async def api_create_custom_strategy(
 
 @router.get("/list")
 async def api_list_strategies(
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
 ):
     """PRD AC-10.8: List all auto-trading strategies."""
     store = get_strategy_store()
+    pg_strategies = await _strategy_list_safe(db)
+    if pg_strategies:
+        for strategy in pg_strategies:
+            store.upsert(strategy)
+        return {
+            "strategies": [s.to_dict() for s in pg_strategies],
+            "total": len(pg_strategies),
+        }
+
     strategies = store.list_all()
+    if strategies and db is not None:
+        for strategy in strategies:
+            await _strategy_record_safe(db, strategy)
     return {
         "strategies": [s.to_dict() for s in strategies],
         "total": len(strategies),
@@ -415,11 +483,12 @@ async def api_list_strategies(
 @router.get("/{strategy_id}")
 async def api_get_strategy(
     strategy_id: str,
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
 ):
     """Get strategy detail by ID."""
     store = get_strategy_store()
-    strategy = store.get(strategy_id)
+    strategy = _hydrate_strategy(await _strategy_get_safe(db, strategy_id)) or store.get(strategy_id)
     if not strategy:
         raise HTTPException(404, "策略不存在")
     return strategy.to_dict()
@@ -429,11 +498,12 @@ async def api_get_strategy(
 async def api_update_strategy(
     strategy_id: str,
     body: StrategyUpdateRequest,
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """PRD AC-10.8: Edit an existing strategy."""
     store = get_strategy_store()
-    strategy = store.get(strategy_id)
+    strategy = store.get(strategy_id) or _hydrate_strategy(await _strategy_get_safe(db, strategy_id))
     if not strategy:
         raise HTTPException(404, "策略不存在")
 
@@ -489,6 +559,8 @@ async def api_update_strategy(
 
     store.update(strategy_id, **updates)
     updated = store.get(strategy_id)
+    if updated:
+        await _strategy_record_safe(db, updated)
     return {
         "strategy": updated.to_dict() if updated else None,
         "message": "策略已更新",
@@ -498,6 +570,7 @@ async def api_update_strategy(
 @router.delete("/{strategy_id}")
 async def api_delete_strategy(
     strategy_id: str,
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """PRD AC-10.8: Delete a strategy. Stops execution if running."""
@@ -510,7 +583,9 @@ async def api_delete_strategy(
             pass
 
     store = get_strategy_store()
-    if store.delete(strategy_id):
+    deleted_memory = store.delete(strategy_id)
+    deleted_db = await _strategy_delete_safe(db, strategy_id)
+    if deleted_memory or deleted_db:
         return {"strategy_id": strategy_id, "status": "deleted"}
     raise HTTPException(404, "策略不存在")
 
@@ -521,6 +596,7 @@ async def api_delete_strategy(
 async def api_start_strategy(
     strategy_id: str,
     mode: str = Query("paper", description="paper | live"),
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """PRD AC-11.5: Start executing a strategy.
@@ -531,11 +607,17 @@ async def api_start_strategy(
       3. Place orders via trade-service
       4. Repeat at the configured interval (default 5 min)
     """
+    if get_strategy_store().get(strategy_id) is None:
+        _hydrate_strategy(await _strategy_get_safe(db, strategy_id))
+
     try:
         state = run_strategy(strategy_id, mode=mode)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
+    strategy = get_strategy_store().get(strategy_id)
+    if strategy:
+        await _strategy_record_safe(db, strategy)
     return {
         "strategy_id": strategy_id,
         "status": state.status,
@@ -606,6 +688,7 @@ async def api_stop_strategy(
 @router.get("/{strategy_id}/status")
 async def api_get_strategy_status(
     strategy_id: str,
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
 ):
     """PRD AC-11.6: Get execution status for a strategy."""
@@ -615,7 +698,7 @@ async def api_get_strategy_status(
     if state is None:
         # Check if strategy exists but hasn't been started
         store = get_strategy_store()
-        strategy = store.get(strategy_id)
+        strategy = store.get(strategy_id) or _hydrate_strategy(await _strategy_get_safe(db, strategy_id))
         if strategy is None:
             raise HTTPException(404, "策略不存在")
         return {

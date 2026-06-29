@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {
+  DataFreshnessBar,
   DataDomainBadge,
   EmptyState,
   LineageChips,
@@ -30,6 +31,35 @@ describe('prototype shared components', () => {
     expect(screen.getByText('八维风向感知模型')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '过热(80+)' })).toBeInTheDocument()
     expect(screen.queryByText('公共+私有隔离')).not.toBeInTheDocument()
+  })
+
+  it('renders page header data freshness so users know which date is loaded', () => {
+    render(
+      <PrototypePage>
+        <PrototypePageHeader
+          title="竞价意图"
+          subtitle="四维评分模型"
+          dataFreshness={(
+            <DataFreshnessBar
+              tradeDate="2026-06-25"
+              updatedAt="2026-06-25T09:25:42+08:00"
+              source="dashboard/auction"
+            />
+          )}
+        />
+      </PrototypePage>,
+    )
+
+    expect(screen.getByText('交易日：2026-06-25')).toBeInTheDocument()
+    expect(screen.getByText('数据更新：09:25:42')).toBeInTheDocument()
+    expect(screen.getByText('来源：dashboard/auction')).toBeInTheDocument()
+  })
+
+  it('makes missing backend trade date explicit', () => {
+    render(<DataFreshnessBar updatedAt="2026-06-25T10:30:00+08:00" source="prediction-service" />)
+
+    expect(screen.getByText('交易日：后端未返回数据日期')).toBeInTheDocument()
+    expect(screen.getByText('来源：prediction-service')).toBeInTheDocument()
   })
 
   it('renders navigable prototype tabs', async () => {

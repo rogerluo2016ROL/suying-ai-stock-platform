@@ -13,7 +13,7 @@ import {
   LineChartOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons'
-import { MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs } from '../components/prototype'
+import { DataFreshnessBar, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs } from '../components/prototype'
 import { signalApi } from '../api/client'
 
 interface SignalStock {
@@ -96,13 +96,21 @@ interface DashboardData {
   }
   alert_signals?: AlertSignal[]
   auction_intent?: {
+    trade_date?: string
+    data_source?: string
     total_analyzed: number
+    strong_bullish_count?: number
+    moderate_bullish_count?: number
     bullish_count: number
+    moderate_bearish_count?: number
+    strong_bearish_count?: number
     bearish_count: number
+    neutral_count?: number
     top_bullish?: AuctionIntentItem[]
     top_bearish?: AuctionIntentItem[]
   }
   watchlist?: WatchlistItem[]
+  data_sources?: Record<string, string>
 }
 
 const dashboardTabs = [
@@ -142,39 +150,6 @@ const fallbackSectors = [
   ['农业', 38, 36, -0.8], ['有色', 36, 32, -1.0], ['化工', 34, 30, -0.6], ['钢铁', 30, 22, -1.5],
 ]
 
-const fallbackAuctionBullish: AuctionIntentItem[] = [
-  { code: '688981', name: '中芯国际', industry: '半导体', chg_pct: 5.56, vol_ratio: 13.5, buy_sell_ratio: 42, score: 92, intent: '🔥强烈抢筹' },
-  { code: '300750', name: '宁德时代', industry: '新能源', chg_pct: 4.58, vol_ratio: 11.1, buy_sell_ratio: 38, score: 88, intent: '🔥强烈抢筹' },
-  { code: '000001', name: '平安银行', industry: '金融', chg_pct: 4.17, vol_ratio: 12.3, buy_sell_ratio: 35, score: 85, intent: '🔥强烈抢筹' },
-  { code: '002415', name: '海康威视', industry: 'AI算力', chg_pct: 3.66, vol_ratio: 10.5, buy_sell_ratio: 30, score: 82, intent: '🔥强烈抢筹' },
-  { code: '601012', name: '隆基绿能', industry: '光伏', chg_pct: 4.69, vol_ratio: 9.8, buy_sell_ratio: 28, score: 81, intent: '🔥强烈抢筹' },
-  { code: '002230', name: '科大讯飞', industry: 'AI算力', chg_pct: 3.9, vol_ratio: 9.2, buy_sell_ratio: 27, score: 80, intent: '🔥强烈抢筹' },
-]
-
-const fallbackAuctionBearish: AuctionIntentItem[] = [
-  { code: '600000', name: '浦发银行', industry: '银行', chg_pct: -5.27, vol_ratio: 15.2, score: 18, intent: '⚠️强烈出货' },
-  { code: '000858', name: '五粮液', industry: '白酒', chg_pct: -2.82, vol_ratio: 10.2, score: 20, intent: '⚠️强烈出货' },
-  { code: '000002', name: '万科A', industry: '地产', chg_pct: -4.23, vol_ratio: 9.8, score: 22, intent: '⚠️强烈出货' },
-  { code: '601398', name: '工商银行', industry: '银行', chg_pct: -3.12, vol_ratio: 11.5, score: 24, intent: '⚠️强烈出货' },
-  { code: '600031', name: '三一重工', industry: '机械', chg_pct: -2.41, vol_ratio: 7.8, score: 26, intent: '⚠️强烈出货' },
-  { code: '600036', name: '招商银行', industry: '银行', chg_pct: -3.29, vol_ratio: 8.3, score: 28, intent: '📉偏空出货' },
-]
-
-const fallbackWatchlist: WatchlistItem[] = [
-  { code: '300750', name: '宁德时代', industry: '新能源', market_cap: 9850, price: 218.5, change_pct: 8.21, signal: '强买', score: 82 },
-  { code: '688981', name: '中芯国际', industry: '半导体', market_cap: 5420, price: 68.2, change_pct: 5.82, signal: '强买', score: 78 },
-  { code: '600519', name: '贵州茅台', industry: '白酒', market_cap: 22400, price: 1785, change_pct: 3.15, signal: '买入', score: 68 },
-  { code: '601012', name: '隆基绿能', industry: '光伏', market_cap: 2180, price: 32.8, change_pct: 4.53, signal: '买入', score: 65 },
-  { code: '002594', name: '比亚迪', industry: '汽车', market_cap: 8320, price: 285.3, change_pct: 1.22, signal: '持有', score: 52 },
-  { code: '603259', name: '药明康德', industry: '医药', market_cap: 2680, price: 68.5, change_pct: 0.85, signal: '持有', score: 48 },
-  { code: '603019', name: '中科曙光', industry: 'AI算力', market_cap: 1150, price: 52.4, change_pct: 0.38, signal: '持有', score: 45 },
-  { code: '000858', name: '五粮液', industry: '白酒', market_cap: 5760, price: 148.3, change_pct: -2.81, signal: '减仓', score: 32, stop_distance: 0.7 },
-  { code: '600000', name: '浦发银行', industry: '金融', market_cap: 2180, price: 8.92, change_pct: 1.13, signal: '审计风险', score: 35, risk_note: '保留意见' },
-  { code: '601899', name: '紫金矿业', industry: '有色', market_cap: 4120, price: 16.82, change_pct: 2.31, signal: '持有', score: 55 },
-  { code: '601318', name: '中国平安', industry: '金融', market_cap: 9520, price: 52.4, change_pct: 0.58, signal: '持有', score: 50 },
-  { code: '300274', name: '阳光电源', industry: '光伏', market_cap: 1850, price: 88.6, change_pct: 3.42, signal: '持有', score: 58 },
-]
-
 type SignalLevelKey = 'STRONG_BUY' | 'BUY' | 'HOLD' | 'REDUCE' | 'SELL' | 'TIMING_ALERT'
 
 interface SignalMatrixItem {
@@ -197,43 +172,13 @@ const signalLevelMeta: Record<SignalLevelKey, { label: string; color: string; cl
   TIMING_ALERT: { label: '拐点', color: '#722ed1', className: 'alert' },
 }
 
-const fallbackSignalMatrix: SignalMatrixItem[] = [
-  { code: '688981', name: '中芯国际', industry: '半导体', level: 'STRONG_BUY', score: 92, price: 68.2, changePct: 5.56, watchlist: true },
-  { code: '002371', name: '北方华创', industry: '半导体', level: 'STRONG_BUY', score: 88, price: 312.4, changePct: 4.2 },
-  { code: '603986', name: '兆易创新', industry: '半导体', level: 'BUY', score: 76, price: 153.0, changePct: 3.1 },
-  { code: '002156', name: '通富微电', industry: '半导体', level: 'TIMING_ALERT', score: 71, price: 26.8, changePct: 2.8 },
-  { code: '300750', name: '宁德时代', industry: '新能源', level: 'STRONG_BUY', score: 90, price: 218.5, changePct: 8.2, watchlist: true },
-  { code: '002594', name: '比亚迪', industry: '新能源', level: 'BUY', score: 82, price: 98.5, changePct: 4.5, watchlist: true },
-  { code: '601012', name: '隆基绿能', industry: '新能源', level: 'BUY', score: 78, price: 32.8, changePct: 4.7, watchlist: true },
-  { code: '300274', name: '阳光电源', industry: '新能源', level: 'HOLD', score: 61, price: 77.2, changePct: 1.9, watchlist: true },
-  { code: '688256', name: '寒武纪', industry: 'AI算力', level: 'STRONG_BUY', score: 87, price: 425.8, changePct: 6.3, watchlist: true },
-  { code: '603019', name: '中科曙光', industry: 'AI算力', level: 'BUY', score: 79, price: 56.4, changePct: 3.5 },
-  { code: '000977', name: '浪潮信息', industry: 'AI算力', level: 'TIMING_ALERT', score: 74, price: 43.6, changePct: 3.1 },
-  { code: '002230', name: '科大讯飞', industry: 'AI算力', level: 'BUY', score: 80, price: 58.2, changePct: 3.9 },
-  { code: '002475', name: '立讯精密', industry: '消费电子', level: 'BUY', score: 73, price: 31.9, changePct: 2.8 },
-  { code: '002241', name: '歌尔股份', industry: '消费电子', level: 'HOLD', score: 58, price: 18.2, changePct: 1.3 },
-  { code: '300433', name: '蓝思科技', industry: '消费电子', level: 'REDUCE', score: 41, price: 14.6, changePct: -0.8 },
-  { code: '002938', name: '鹏鼎控股', industry: '消费电子', level: 'TIMING_ALERT', score: 67, price: 36.1, changePct: 1.6 },
-  { code: '600519', name: '贵州茅台', industry: '白酒', level: 'BUY', score: 72, price: 1785.0, changePct: 3.2, watchlist: true },
-  { code: '000858', name: '五粮液', industry: '白酒', level: 'REDUCE', score: 38, price: 152.0, changePct: -2.1, watchlist: true },
-  { code: '000568', name: '泸州老窖', industry: '白酒', level: 'HOLD', score: 55, price: 168.7, changePct: 0.6 },
-  { code: '600276', name: '恒瑞医药', industry: '医药', level: 'HOLD', score: 62, price: 45.3, changePct: 1.1, watchlist: true },
-  { code: '603259', name: '药明康德', industry: '医药', level: 'SELL', score: 24, price: 69.4, changePct: -1.5, watchlist: true },
-  { code: '300760', name: '迈瑞医疗', industry: '医药', level: 'BUY', score: 70, price: 285.6, changePct: 2.4 },
-  { code: '601633', name: '长城汽车', industry: '汽车', level: 'HOLD', score: 53, price: 27.5, changePct: 0.9, watchlist: true },
-  { code: '000625', name: '长安汽车', industry: '汽车', level: 'REDUCE', score: 36, price: 18.6, changePct: -0.9 },
-  { code: '000002', name: '万科A', industry: '房地产', level: 'SELL', score: 18, price: 8.2, changePct: -4.2, watchlist: true },
-  { code: '600048', name: '保利发展', industry: '房地产', level: 'REDUCE', score: 33, price: 9.4, changePct: -1.8 },
-  { code: '601155', name: '新城控股', industry: '房地产', level: 'SELL', score: 20, price: 11.1, changePct: -3.2 },
-]
-
-const signalStats = [
-  { key: 'STRONG_BUY' as SignalLevelKey, icon: '●', count: 76, pct: '20%' },
-  { key: 'BUY' as SignalLevelKey, icon: '●', count: 148, pct: '38%' },
-  { key: 'HOLD' as SignalLevelKey, icon: '●', count: 412, pct: '54%' },
-  { key: 'REDUCE' as SignalLevelKey, icon: '●', count: 89, pct: '12%' },
-  { key: 'SELL' as SignalLevelKey, icon: '●', count: 35, pct: '5%' },
-  { key: 'TIMING_ALERT' as SignalLevelKey, icon: '●', count: 12, pct: '2%' },
+const signalStatsMeta = [
+  { key: 'STRONG_BUY' as SignalLevelKey, icon: '●' },
+  { key: 'BUY' as SignalLevelKey, icon: '●' },
+  { key: 'HOLD' as SignalLevelKey, icon: '●' },
+  { key: 'REDUCE' as SignalLevelKey, icon: '●' },
+  { key: 'SELL' as SignalLevelKey, icon: '●' },
+  { key: 'TIMING_ALERT' as SignalLevelKey, icon: '●' },
 ]
 
 function activeTabFromPath(pathname: string) {
@@ -398,10 +343,25 @@ function auctionScore(item: AuctionIntentItem, fallback: number) {
   return Number.isFinite(score) ? score : fallback
 }
 
+function auctionBucketPct(count: number, total: number) {
+  if (!total) return '0%'
+  return `${((count / total) * 100).toFixed(1)}%`
+}
+
+function auctionIntentLabel(item: AuctionIntentItem, fallbackScore: number) {
+  if (item.intent) return item.intent
+  const score = auctionScore(item, fallbackScore)
+  if (score >= 75) return '强烈抢筹'
+  if (score >= 60) return '偏多抢筹'
+  if (score >= 40) return '中性'
+  if (score >= 25) return '偏空出货'
+  return '强烈出货'
+}
+
 function mergeWatchlistRows(primary?: WatchlistItem[]) {
   const seen = new Set<string>()
   const normalizedPrimary = Array.isArray(primary) ? primary : []
-  return [...normalizedPrimary, ...fallbackWatchlist].filter(item => {
+  return normalizedPrimary.filter(item => {
     if (!item.code || seen.has(item.code)) return false
     seen.add(item.code)
     return true
@@ -461,7 +421,7 @@ function mergeSignalMatrix(signalStocks: SignalStock[]): SignalMatrixItem[] {
     }
   })
   const seen = new Set<string>()
-  return [...apiRows, ...fallbackSignalMatrix].filter(item => {
+  return apiRows.filter(item => {
     if (!item.code || seen.has(item.code)) return false
     seen.add(item.code)
     return true
@@ -491,6 +451,18 @@ function signalSectorRows(items: SignalMatrixItem[]) {
       return { sector, cells, bullish, bearish, ratio: bullish / Math.max(bearish, 1) }
     })
     .sort((a, b) => b.ratio - a.ratio || b.bullish - a.bullish)
+}
+
+function buildSignalStats(items: SignalMatrixItem[]) {
+  const total = Math.max(items.length, 1)
+  return signalStatsMeta.map(meta => {
+    const count = items.filter(item => item.level === meta.key).length
+    return {
+      ...meta,
+      count,
+      pct: `${Math.round((count / total) * 100)}%`,
+    }
+  })
 }
 
 function buildSignalTrendOption(): EChartsOption {
@@ -609,6 +581,7 @@ export default function Dashboard() {
   const warnSignalCount = watchlist.filter(item => ['减仓', '风险'].some(label => item.signal?.includes(label))).length
   const avgWatchReturn = watchlist.reduce((sum, item) => sum + Number(item.change_pct ?? 0), 0) / Math.max(watchlist.length, 1)
   const signalMatrix = useMemo(() => mergeSignalMatrix(signalStocks), [signalStocks])
+  const signalStats = useMemo(() => buildSignalStats(signalMatrix), [signalMatrix])
   const visibleSignals = useMemo(() => filterSignalMatrix(signalMatrix, signalFilter), [signalMatrix, signalFilter])
   const signalRows = useMemo(() => signalSectorRows(visibleSignals), [visibleSignals])
   const topSignals = useMemo(
@@ -617,14 +590,28 @@ export default function Dashboard() {
   )
   const signalTrendOption = useMemo(() => buildSignalTrendOption(), [])
   const signalBubbleOption = useMemo(() => buildSignalBubbleOption(signalMatrix), [signalMatrix])
-  const auctionCandidates = auctionPicks.length
-    ? auctionPicks
-    : (data?.auction_intent?.top_bullish?.length ? data.auction_intent.top_bullish : screeningPicks)
-  const bullishAuctionRows = mergeAuctionRows(auctionCandidates, fallbackAuctionBullish)
-  const bearishAuctionRows = mergeAuctionRows(data?.auction_intent?.top_bearish || [], fallbackAuctionBearish)
-  const analyzedCount = (data?.auction_intent?.total_analyzed || 0) >= 100 ? data?.auction_intent?.total_analyzed : 328
-  const strongBullishCount = (data?.auction_intent?.bullish_count || 0) >= 10 ? data?.auction_intent?.bullish_count : 45
-  const bearishCount = (data?.auction_intent?.bearish_count || 0) >= 10 ? data?.auction_intent?.bearish_count : 22
+  const auctionCandidates = data?.auction_intent?.top_bullish?.length
+    ? data.auction_intent.top_bullish
+    : (auctionPicks.length ? auctionPicks : screeningPicks)
+  const bullishAuctionRows = mergeAuctionRows(auctionCandidates, [])
+  const bearishAuctionRows = mergeAuctionRows(data?.auction_intent?.top_bearish || [], [])
+  const visibleAuctionRows = [...bullishAuctionRows, ...bearishAuctionRows]
+  const analyzedCount = data?.auction_intent?.total_analyzed ?? visibleAuctionRows.length
+  const strongBullishCount = data?.auction_intent?.strong_bullish_count ?? visibleAuctionRows.filter(item => auctionScore(item, 0) >= 75).length
+  const moderateBullishCount = data?.auction_intent?.moderate_bullish_count ?? visibleAuctionRows.filter(item => {
+    const score = auctionScore(item, 0)
+    return score >= 60 && score < 75
+  }).length
+  const neutralAuctionCount = data?.auction_intent?.neutral_count ?? visibleAuctionRows.filter(item => {
+    const score = auctionScore(item, 0)
+    return score >= 40 && score < 60
+  }).length
+  const moderateBearishCount = data?.auction_intent?.moderate_bearish_count ?? visibleAuctionRows.filter(item => {
+    const score = auctionScore(item, 0)
+    return score >= 25 && score < 40
+  }).length
+  const strongBearishCount = data?.auction_intent?.strong_bearish_count ?? visibleAuctionRows.filter(item => auctionScore(item, 0) < 25).length
+  const updatedAt = data?.refreshed_at || lastRefresh
 
   return (
     <PrototypePage>
@@ -643,6 +630,13 @@ export default function Dashboard() {
           <PrototypePageHeader
             title="市场情绪"
             subtitle="八维风向感知模型 · 历史回溯 · 板块分化"
+            dataFreshness={(
+              <DataFreshnessBar
+                tradeDate={sentiment.trade_date}
+                updatedAt={updatedAt}
+                source={data?.limit_stocks?.data_source || data?.data_sources?.signal_stocks || 'signal-service'}
+              />
+            )}
             actions={[
               { key: 'hot', label: '过热(80+)' },
               { key: 'ice', label: '冰点(20-)' },
@@ -757,18 +751,24 @@ export default function Dashboard() {
           <PrototypePageHeader
             title="竞价意图"
             subtitle="四维评分模型 · 撮合价走势 · 一字定方向 · 全量明细"
+            dataFreshness={(
+              <DataFreshnessBar
+                tradeDate={data?.auction_intent?.trade_date || sentiment.trade_date}
+                updatedAt={updatedAt}
+                source={data?.auction_intent?.data_source || 'dashboard/auction'}
+              />
+            )}
             actions={[
-              { key: 'updated', label: '数据更新 09:25:42' },
               { key: 'refresh', label: '手动刷新', active: true, tone: 'neutral' },
             ]}
           />
           <div className="kpis">
             <MetricCard label="分析标的" value={analyzedCount} sub="覆盖沪深两市竞价" tone="muted" />
-            <MetricCard label="强烈抢筹" value={strongBullishCount} sub="评分 ≥ 75 · 占比 13.7%" tone="down" />
-            <MetricCard label="偏多抢筹" value="89" sub="评分 60-74 · 占比 27.1%" tone="warn" />
-            <MetricCard label="中性" value="120" sub="评分 25-59 · 占比 36.6%" tone="accent" />
-            <MetricCard label="偏空出货" value="52" sub="评分 15-24 · 占比 15.9%" tone="muted" />
-            <MetricCard label="强烈出货" value={bearishCount} sub="评分 < 15 · 占比 6.7%" tone="up" />
+            <MetricCard label="强烈抢筹" value={strongBullishCount} sub={`评分 ≥ 75 · 占比 ${auctionBucketPct(strongBullishCount, analyzedCount)}`} tone="down" />
+            <MetricCard label="偏多抢筹" value={moderateBullishCount} sub={`评分 60-74 · 占比 ${auctionBucketPct(moderateBullishCount, analyzedCount)}`} tone="warn" />
+            <MetricCard label="中性" value={neutralAuctionCount} sub={`评分 40-59 · 占比 ${auctionBucketPct(neutralAuctionCount, analyzedCount)}`} tone="accent" />
+            <MetricCard label="偏空出货" value={moderateBearishCount} sub={`评分 25-39 · 占比 ${auctionBucketPct(moderateBearishCount, analyzedCount)}`} tone="muted" />
+            <MetricCard label="强烈出货" value={strongBearishCount} sub={`评分 < 25 · 占比 ${auctionBucketPct(strongBearishCount, analyzedCount)}`} tone="up" />
           </div>
           <div className="row r-1-1">
             <PrototypeCard title="抢筹 TOP 10" icon={<FireOutlined />} meta="评分从高到低 · 点击选中个股">
@@ -783,9 +783,12 @@ export default function Dashboard() {
                       <td className="r up">+{Math.abs(auctionChange(item)).toFixed(2)}%</td>
                       <td className="r mono">{Number(item.vol_ratio ?? 9 + index / 2).toFixed(1)}x</td>
                       <td className="r mono up">{auctionScore(item, 90 - index)}</td>
-                      <td><span className="tag t-warn">{item.intent || '🔥强烈抢筹'}</span></td>
+                      <td><span className="tag t-warn">{auctionIntentLabel(item, 90 - index)}</span></td>
                     </tr>
                   ))}
+                  {bullishAuctionRows.length === 0 && (
+                    <tr><td colSpan={7} className="prototype-panel-note">暂无抢筹数据，等待 dashboard/auction 或 signal/dashboard-summary 返回。</td></tr>
+                  )}
                 </tbody>
               </table>
             </PrototypeCard>
@@ -805,6 +808,9 @@ export default function Dashboard() {
                       <td><span className="tag t-neu">{item.intent || '⚠️强烈出货'}</span></td>
                     </tr>
                   ))}
+                  {bearishAuctionRows.length === 0 && (
+                    <tr><td colSpan={7} className="prototype-panel-note">暂无出货预警。</td></tr>
+                  )}
                 </tbody>
               </table>
             </PrototypeCard>
@@ -817,6 +823,13 @@ export default function Dashboard() {
           <PrototypePageHeader
             title="信号总览"
             subtitle="全市场六维信号扫描 · 板块共振 · 历史趋势"
+            dataFreshness={(
+              <DataFreshnessBar
+                tradeDate={sentiment.trade_date}
+                updatedAt={updatedAt}
+                source={data?.data_sources?.signal_stocks || 'signal-service'}
+              />
+            )}
             actions={[{ key: 'refresh', label: '刷新', active: true, tone: 'neutral' }]}
           />
 
@@ -868,6 +881,9 @@ export default function Dashboard() {
                       </div>
                     </div>
                   ))}
+                  {signalRows.length === 0 && (
+                    <div className="prototype-panel-note">暂无实时信号数据。</div>
+                  )}
                 </div>
                 <div className="footer-bar signal-help">
                   <span>每行 = 一个行业板块（按偏多程度降序） · 每格 = 一只股票 · 悬浮查看详情 · 点击跳转诊断</span>
@@ -917,6 +933,7 @@ export default function Dashboard() {
                       </div>
                     )
                   })}
+                  {topSignals.length === 0 && <div className="prototype-panel-note">暂无买入或拐点信号。</div>}
                 </div>
               </PrototypeCard>
 
@@ -937,6 +954,7 @@ export default function Dashboard() {
                       </div>
                     )
                   })}
+                  {topSignals.length === 0 && <div className="prototype-panel-note">暂无强信号。</div>}
                 </div>
               </PrototypeCard>
             </aside>
@@ -965,7 +983,14 @@ export default function Dashboard() {
         <>
           <PrototypePageHeader
             title="自选跟踪"
-            subtitle="12 只自选 · 实时行情 · 信号监控 · 盈亏分析"
+            subtitle={`${watchlist.length} 只自选 · 实时行情 · 信号监控 · 盈亏分析`}
+            dataFreshness={(
+              <DataFreshnessBar
+                tradeDate={sentiment.trade_date}
+                updatedAt={updatedAt}
+                source={data?.data_sources?.watchlist || 'watchlist'}
+              />
+            )}
             actions={[
               { key: 'sort', label: '排序: 涨跌幅', active: true, tone: 'neutral' },
               { key: 'signal', label: '信号' },
@@ -978,9 +1003,9 @@ export default function Dashboard() {
             <MetricCard label="自选等权盈亏" value={`${avgWatchReturn >= 0 ? '+' : ''}${avgWatchReturn.toFixed(2)}%`} sub={`${watchlistWinners}涨 · ${watchlistLosers}跌`} tone="down" />
             <MetricCard label="今日最强" value={`${strongestWatch?.code ?? '--'} ${strongestWatch?.name?.slice(0, 2) ?? '--'}`} sub={`${Number(strongestWatch?.change_pct ?? 0) >= 0 ? '+' : ''}${Number(strongestWatch?.change_pct ?? 0).toFixed(1)}% · 评分 ${strongestWatch?.score ?? '--'}`} tone="up" />
             <MetricCard label="今日最弱" value={`${weakestWatch?.code ?? '--'} ${weakestWatch?.name?.slice(0, 2) ?? '--'}`} sub={`${Number(weakestWatch?.change_pct ?? 0).toFixed(1)}% · 距止损 ${weakestWatch?.stop_distance ?? 0.7}%`} tone="down" />
-            <MetricCard label="买入信号" value={`${buySignalCount} 只`} sub="强买2 · 买入2 · 拐点0" tone="up" />
-            <MetricCard label="卖出/警报" value={`${warnSignalCount} 只`} sub="减仓1 · 审计风险1" tone="warn" />
-            <MetricCard label="板块覆盖" value={`${watchlistSectorStats.length} 个`} sub={`${watchlistSectorStats[0]?.[0] ?? '半导体'}最集中 (${watchlistSectorStats[0]?.[1] ?? 3}只)`} tone="accent" />
+            <MetricCard label="买入信号" value={`${buySignalCount} 只`} sub="来自 watchlist.signal" tone="up" />
+            <MetricCard label="卖出/警报" value={`${warnSignalCount} 只`} sub="减仓 / 风险标签" tone="warn" />
+            <MetricCard label="板块覆盖" value={`${watchlistSectorStats.length} 个`} sub={watchlistSectorStats[0] ? `${watchlistSectorStats[0][0]}最集中 (${watchlistSectorStats[0][1]}只)` : '暂无自选'} tone="accent" />
           </div>
 
           <div className="watchlist-layout">
@@ -1019,6 +1044,7 @@ export default function Dashboard() {
                     </div>
                   )
                 })}
+                {watchlist.length === 0 && <div className="prototype-panel-note">暂无自选股数据。</div>}
               </div>
             </PrototypeCard>
 
@@ -1032,8 +1058,9 @@ export default function Dashboard() {
                       <b>{count}只</b>
                     </div>
                   ))}
+                  {watchlistSectorStats.length === 0 && <div className="prototype-panel-note">暂无行业分布。</div>}
                 </div>
-                <div className="zit">半导体集中度 25% · 建议分散</div>
+                <div className="zit">{watchlistSectorStats[0] ? `${watchlistSectorStats[0][0]}集中度 ${Math.round(watchlistSectorStats[0][1] / Math.max(watchlist.length, 1) * 100)}% · 建议分散` : '等待自选股数据'}</div>
               </PrototypeCard>
 
               <PrototypeCard title="盈亏贡献" icon={<DollarOutlined />} meta="按涨跌排序">
@@ -1048,23 +1075,28 @@ export default function Dashboard() {
                       </div>
                     )
                   })}
+                  {watchlist.length === 0 && <div className="prototype-panel-note">暂无盈亏贡献。</div>}
                 </div>
                 <div className="watch-avg-row"><span>等权平均</span><b className="up">{avgWatchReturn >= 0 ? '+' : ''}{avgWatchReturn.toFixed(2)}%</b></div>
               </PrototypeCard>
 
               <PrototypeCard title="信号联动" icon={<ThunderboltOutlined />} meta="自选股信号触发">
                 <div className="watch-alert-list">
-                  {[
-                    ['宁德时代 强买 82分', 'Kronos78/技术82/板块共振9只 · 今日竞价高开3.2%', 'up'],
-                    ['中芯国际 强买 78分', '技术80/资金68 · 北向连续3日净流入', 'up'],
-                    ['五粮液 距止损仅0.7%', '现价148.30 · 止损147.25 · 建议关注', 'warn'],
-                    ['浦发银行 审计:保留意见', '信号评分 -15分 · 基本面降级', 'warn'],
-                  ].map(([title, detail, tone]) => (
+                  {watchlist
+                    .filter(item => item.signal || item.risk_note || typeof item.stop_distance === 'number')
+                    .slice(0, 6)
+                    .map(item => {
+                      const tone = item.signal?.includes('减仓') || item.signal?.includes('风险') || item.risk_note ? 'warn' : 'up'
+                      const title = `${item.name} ${signalDisplay(item)}`
+                      const detail = item.risk_note || `现价 ${item.price ?? '-'} · 评分 ${item.score ?? '-'} · 行业 ${item.industry ?? '未知'}`
+                      return (
                     <div className="watch-alert-row" key={title}>
                       <span className={`led ${tone === 'up' ? 'on' : 'warn'}`} />
                       <div><b className={tone === 'up' ? 'up' : 'warn'}>{title}</b><small>{detail}</small></div>
                     </div>
-                  ))}
+                      )
+                    })}
+                  {watchlist.length === 0 && <div className="prototype-panel-note">暂无自选信号联动。</div>}
                 </div>
               </PrototypeCard>
             </div>

@@ -135,6 +135,32 @@ describe('P0-01: placeOrder 鉴权口径统一', () => {
     expect(outcome?.success).toBe(false)
     expect(outcome?.error).toBe('余额不足')
   })
+
+  it('paper 模式独立预检接口不可用时，继续交给下单接口内置风控处理', async () => {
+    let orderRequested = false
+    server.use(
+      http.post('/api/v1/trade/order/pre-check', () => {
+        return HttpResponse.json({ detail: 'Method Not Allowed' }, { status: 405 })
+      }),
+      http.post('/api/v1/trade/order', async () => {
+        orderRequested = true
+        return HttpResponse.json({ message: '下单成功', order_id: 'p-405' })
+      }),
+    )
+
+    const { result } = renderHook(() => useLiveTrade(), { wrapper })
+
+    let outcome: { success: boolean; data?: unknown; error?: string } | undefined
+    await act(async () => {
+      outcome = await result.current.placeOrder(
+        { code: '600000', direction: 'buy', price: 10.5, volume: 100, trade_mode: 'paper' },
+        {},
+      )
+    })
+
+    expect(orderRequested).toBe(true)
+    expect(outcome).toEqual(expect.objectContaining({ success: true }))
+  })
 })
 
 describe('B8: 券商 sandbox 连接配置', () => {

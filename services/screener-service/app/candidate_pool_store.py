@@ -6,8 +6,14 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+try:
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import AsyncSession
+except ModuleNotFoundError:
+    AsyncSession = Any  # type: ignore[misc,assignment]
+
+    def text(sql: str) -> str:
+        return sql
 
 TABLE_CANDIDATE_POOLS = "candidate_pools"
 

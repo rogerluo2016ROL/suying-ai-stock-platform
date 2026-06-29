@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ClockCircleOutlined, DatabaseOutlined, ReloadOutlined, TableOutlined } from '@ant-design/icons'
 import { signalApi } from '../api/client'
 import type { DataStatusResponse, SyncSchedule } from '../api/types'
 import {
   DataDomainBadge,
+  DataFreshnessBar,
   MetricCard,
   PrototypeCard,
   PrototypePage,
@@ -130,31 +131,62 @@ export default function DataUpdate() {
   const [schedules, setSchedules] = useState<SyncSchedule[]>([])
   const [filter, setFilter] = useState('all')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [syncingKey, setSyncingKey] = useState('')
+  const [syncMessage, setSyncMessage] = useState('')
+
+  const loadStatus = useCallback(async (cancelled?: () => boolean) => {
+    setLoading(true)
+    try {
+      const [dataStatus, syncSchedules] = await Promise.all([
+      signalApi.getDataStatus(),
+      signalApi.getSyncSchedules(),
+      ])
+      if (cancelled?.()) return
+      setStatus(normalizeDataStatus(dataStatus.data))
+      setSchedules(Array.isArray(syncSchedules.data?.schedules) ? syncSchedules.data.schedules : [])
+      setError('')
+    } catch (err) {
+      if (cancelled?.()) return
+      const message = err instanceof Error ? err.message.toLowerCase() : ''
+      if (message.includes('abort') || message.includes('cancel')) return
+      setStatus(fallbackStatus)
+      setSchedules([])
+      setError('数据服务连接异常，当前展示最近一次可用状态。')
+    } finally {
+      if (!cancelled?.()) setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
 
-    Promise.all([
-      signalApi.getDataStatus(),
-      signalApi.getSyncSchedules(),
-    ])
-      .then(([dataStatus, syncSchedules]) => {
-        if (cancelled) return
-        setStatus(normalizeDataStatus(dataStatus.data))
-        setSchedules(Array.isArray(syncSchedules.data?.schedules) ? syncSchedules.data.schedules : [])
-        setError('')
-      })
-      .catch(() => {
-        if (cancelled) return
-        setStatus(fallbackStatus)
-        setSchedules([])
-        setError('数据服务连接异常，当前展示最近一次可用状态。')
-      })
+    loadStatus(() => cancelled)
 
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [loadStatus])
+
+  const runManualSync = async (tableKey: string, label: string) => {
+    const days = status.sync_map[tableKey]?.days_default || 30
+    setSyncingKey(tableKey)
+    setSyncMessage('')
+    try {
+      const response = await signalApi.triggerSync(tableKey, days)
+      if (response.data?.status === 'ok') {
+        setSyncMessage(`${tableKey} 同步已触发：${label}`)
+        await loadStatus()
+      } else {
+        setSyncMessage(`${tableKey} 同步失败：${response.data?.message || response.data?.stderr || '后端未返回原因'}`)
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '请求失败'
+      setSyncMessage(`${tableKey} 同步失败：${message}`)
+    } finally {
+      setSyncingKey('')
+    }
+  }
 
   const tab = useMemo(() => tabs.find(item => item.key === active) ?? tabs[0], [active])
   const visibleSources = useMemo(() => {
@@ -162,6 +194,11 @@ export default function DataUpdate() {
     return status.sources.filter(source => source.status === filter || source.category === filter)
   }, [filter, status.sources])
   const normalSummary = `${status.active_tables}/${status.total_tables} 表正常`
+  const latestSource = status.sources.find(source => source.key === 'daily_kline')
+    ?? status.sources
+      .filter(source => source.category === '行情' && source.max_date && source.max_date !== '-')
+      .sort((a, b) => String(b.max_date).localeCompare(String(a.max_date)))[0]
+  const latestSchedule = schedules.find(item => (item as SyncSchedule & { last_run_at?: string; last_run?: string }).last_run_at || (item as SyncSchedule & { last_run_at?: string; last_run?: string }).last_run) as (SyncSchedule & { last_run_at?: string; last_run?: string }) | undefined
 
   return (
     <PrototypePage>
@@ -175,6 +212,13 @@ export default function DataUpdate() {
       <PrototypePageHeader
         title={`数据更新 - ${tab.label}`}
         subtitle="同步总览 · 全表管理 · 调度计划 · 数据质量修复"
+        dataFreshness={(
+          <DataFreshnessBar
+            tradeDate={latestSource?.max_date}
+            updatedAt={latestSchedule?.last_run_at || latestSchedule?.last_run || latestSource?.max_date}
+            source={latestSource ? `${latestSource.key}/${latestSource.source}` : 'signal/data-status'}
+          />
+        )}
         actions={[
           { key: 'public', label: '公共数据', active: true, tone: 'up' },
           { key: 'pg', label: 'PostgreSQL 优先', tone: 'neutral' },
@@ -182,6 +226,7 @@ export default function DataUpdate() {
       />
 
       {error && <RiskBanner status="warn" title="数据连接提醒" detail={error} />}
+      {syncMessage && <RiskBanner status={syncMessage.includes('失败') ? 'warn' : 'pass'} title="手动同步结果" detail={syncMessage} />}
 
       <div className="kpis">
         <MetricCard label="正常表" value={status.active_tables} sub={normalSummary} tone="up" />
@@ -218,6 +263,7 @@ export default function DataUpdate() {
                     <th className="r">行数</th>
                     <th>日期范围</th>
                     <th>状态</th>
+                    <th className="r">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -230,6 +276,16 @@ export default function DataUpdate() {
                       <td className="r">{formatRows(source.rows)}</td>
                       <td>{source.min_date} / {source.max_date}</td>
                       <td className={source.status === 'active' ? 'down' : 'up'}>{source.status === 'active' ? '正常' : '待修复'}</td>
+                      <td className="r">
+                        <button
+                          type="button"
+                          className="action-btn text"
+                          onClick={() => runManualSync(source.key, source.name)}
+                          disabled={!status.sync_map[source.key] || syncingKey === source.key}
+                        >
+                          {syncingKey === source.key ? '同步中...' : `同步${source.name}`}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -277,6 +333,21 @@ export default function DataUpdate() {
             detail="业务页面会携带数据时点与质量提示，私有方案不写入公共数据域。"
           />
           <PrototypeCard title="同步动作" icon={<ReloadOutlined />}>
+            <div className="batch-actions" style={{ marginBottom: 12 }}>
+              <button type="button" className="action-btn primary" onClick={() => loadStatus()} disabled={loading}>
+                {loading ? '刷新中...' : '刷新状态'}
+              </button>
+              {latestSource && (
+                <button
+                  type="button"
+                  className="action-btn"
+                  onClick={() => runManualSync(latestSource.key, latestSource.name)}
+                  disabled={!status.sync_map[latestSource.key] || syncingKey === latestSource.key}
+                >
+                  {syncingKey === latestSource.key ? '同步中...' : `同步${latestSource.name}`}
+                </button>
+              )}
+            </div>
             <div className="li-row">
               <div className="li-badge">D</div>
               <div className="li-main">

@@ -14,12 +14,15 @@ from kronos_factors.engine.supply_chain_bom_v5 import (
 )
 
 
-CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / "supply_chain_bom_v4.json"
+CONFIG_NAME = "supply_chain_bom_v4.json"
+PACKAGE_CONFIG_PATH = Path(__file__).resolve().parents[1] / "configs" / CONFIG_NAME
+LEGACY_CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / CONFIG_NAME
 
 
 def load_bom_config(path: str | Path | None = None) -> dict[str, Any]:
     """Load the V4 policy/BOM seed config."""
-    config_path = Path(path) if path else CONFIG_PATH
+    candidates = [Path(path)] if path else [PACKAGE_CONFIG_PATH, LEGACY_CONFIG_PATH]
+    config_path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
     data = json.loads(config_path.read_text(encoding="utf-8"))
     data.setdefault("themes", [])
     data.setdefault("nodes", [])

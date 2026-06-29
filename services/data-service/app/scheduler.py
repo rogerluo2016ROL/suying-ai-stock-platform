@@ -940,6 +940,11 @@ def _extract_pg_status(result) -> tuple:
         if "pg_written" in result:
             pg_total += int(result["pg_written"] or 0)
             has_pg_field = True
+        # kronos_data.etl 的 PG-aware 通用写入函数历史上只返回 written。
+        # data-service 运行态设置 KRONOS_PG_URL 时，written 即为 PG 落库数。
+        elif os.environ.get("KRONOS_PG_URL") and "written" in result:
+            pg_total += int(result["written"] or 0)
+            has_pg_field = True
         # 嵌套: {"table_name": {"pg_written": N, ...}, ...}
         for v in result.values():
             if isinstance(v, dict) and "pg_written" in v:

@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BarChartOutlined, FundOutlined, RadarChartOutlined } from '@ant-design/icons'
 import {
   DataDomainBadge,
+  DataFreshnessBar,
   LineageChips,
   PrototypeCard,
   PrototypePage,
+  PrototypePageHeader,
   PrototypeTabs,
   RiskBanner,
   SideRail,
@@ -65,148 +67,12 @@ const modelGroups = [
   },
 ]
 
-const fallbackPicks: ScreenerPick[] = [
-  {
-    code: '300750',
-    name: '宁德时代',
-    industry: '电力设备',
-    price: 218.5,
-    score: 92.5,
-    grade: 'S',
-    market_cap: 8942,
-    hard_tech: { track: '新能源', tier: 'core' },
-    entry_reason: '硬科技: 新能源(core)；强势: 竞价共振、资金流入',
-    risk_flags: ['高位震荡'],
-    power_flags: ['板块共振'],
-    factor_breakdown: { startup_quality: 8, ignition_power: 6, hard_tech_conviction: 5 },
-  },
-  {
-    code: '688981',
-    name: '中芯国际',
-    industry: '半导体',
-    price: 68.2,
-    score: 88,
-    grade: 'A',
-    market_cap: 4832,
-    hard_tech: { track: 'AI算力', tier: 'strategic' },
-    entry_reason: '硬科技: AI算力(strategic)；国产替代主题强化',
-    risk_flags: ['估值扩张'],
-    power_flags: ['主题催化'],
-    factor_breakdown: { startup_quality: 5, ignition_power: 7, hard_tech_conviction: 6 },
-  },
-  {
-    code: '002371',
-    name: '北方华创',
-    industry: '半导体设备',
-    price: 318.2,
-    score: 89,
-    grade: 'A',
-    market_cap: 1698,
-    hard_tech: { track: '半导体', tier: 'core' },
-    entry_reason: '国产半导体设备主线增强，订单和政策共振。',
-    risk_flags: ['估值扩张'],
-    power_flags: ['国产替代'],
-    factor_breakdown: { startup_quality: 6, ignition_power: 6, hard_tech_conviction: 8 },
-  },
-  {
-    code: '002594',
-    name: '比亚迪',
-    industry: '汽车',
-    price: 248,
-    score: 88.3,
-    grade: 'A',
-    market_cap: 7215,
-    hard_tech: { track: '新能源车', tier: 'strategic' },
-    entry_reason: '新能源车产业链强势，量价结构保持高位。',
-    risk_flags: [],
-    power_flags: ['趋势延续'],
-    factor_breakdown: { startup_quality: 7, ignition_power: 6, hard_tech_conviction: 6 },
-  },
-  {
-    code: '603986',
-    name: '兆易创新',
-    industry: '电子',
-    price: 120.5,
-    score: 78.1,
-    grade: 'B',
-    market_cap: 1058,
-    hard_tech: { track: '半导体', tier: 'supply' },
-    entry_reason: '存储链条回暖，主题催化增强。',
-    risk_flags: ['高位股'],
-    power_flags: ['主题催化'],
-    factor_breakdown: { startup_quality: 4, ignition_power: 5, hard_tech_conviction: 7 },
-  },
-  {
-    code: '601012',
-    name: '隆基绿能',
-    industry: '电力设备',
-    price: 27.7,
-    score: 76.4,
-    grade: 'B',
-    market_cap: 2456,
-    hard_tech: { track: '光伏', tier: 'supply' },
-    entry_reason: '光伏板块反弹，估值处于修复区间。',
-    risk_flags: [],
-    power_flags: ['低位修复'],
-    factor_breakdown: { startup_quality: 4, ignition_power: 4, hard_tech_conviction: 5 },
-  },
-  {
-    code: '600519',
-    name: '贵州茅台',
-    industry: '食品饮料',
-    price: 1785,
-    score: 74.2,
-    grade: 'B',
-    market_cap: 21340,
-    hard_tech: { track: '消费', tier: 'supply' },
-    entry_reason: '消费龙头稳健，但非当前强主题主线。',
-    risk_flags: [],
-    power_flags: ['防御属性'],
-    factor_breakdown: { startup_quality: 3, ignition_power: 2, hard_tech_conviction: 1 },
-  },
-  {
-    code: '300274',
-    name: '阳光电源',
-    industry: '电力设备',
-    price: 68.7,
-    score: 72.8,
-    grade: 'B',
-    market_cap: 1876,
-    hard_tech: { track: '储能', tier: 'strategic' },
-    entry_reason: '储能景气回升，趋势进入观察区。',
-    risk_flags: ['波动放大'],
-    power_flags: ['赛道修复'],
-    factor_breakdown: { startup_quality: 5, ignition_power: 4, hard_tech_conviction: 6 },
-  },
-  {
-    code: '000858',
-    name: '五粮液',
-    industry: '食品饮料',
-    price: 135,
-    score: 64.3,
-    grade: 'C',
-    market_cap: 6893,
-    hard_tech: { track: '消费', tier: 'supply' },
-    entry_reason: '资金关注度一般，暂列观察。',
-    risk_flags: [],
-    power_flags: [],
-    factor_breakdown: { startup_quality: 2, ignition_power: 2, hard_tech_conviction: 1 },
-  },
-  {
-    code: '000001',
-    name: '平安银行',
-    industry: '银行',
-    price: 12.86,
-    score: 61.8,
-    grade: 'C',
-    market_cap: 2496,
-    hard_tech: { track: '金融', tier: 'supply' },
-    entry_reason: '低估值修复观察，非当前强动量主线。',
-    risk_flags: ['动量不足'],
-    power_flags: ['低估值'],
-    factor_breakdown: { startup_quality: 2, ignition_power: 1, hard_tech_conviction: 1 },
-  },
-]
+type DetailItem = [string, number, string, string]
+
+type DetailGroup = {
+  name: string
+  items: DetailItem[]
+}
 
 function activeKey(pathname: string) {
   if (pathname.endsWith('/models')) return 'models'
@@ -250,6 +116,55 @@ function scoreTone(score?: number) {
   return ''
 }
 
+function finiteNumber(value: unknown) {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function barWidth(value: number, scale = 1) {
+  return Math.max(4, Math.min(100, Math.abs(value) * scale))
+}
+
+function factorColor(value: number) {
+  if (value < 0) return 'var(--down)'
+  if (value === 0) return 'var(--warn)'
+  return 'var(--accent)'
+}
+
+function scoreColor(value: number) {
+  if (value >= 85) return 'var(--up)'
+  if (value >= 70) return 'var(--warn)'
+  return 'var(--accent)'
+}
+
+function pushMetric(items: DetailItem[], label: string, rawValue: unknown, unit = '', scale = 1) {
+  const value = finiteNumber(rawValue)
+  if (value === null) return
+  items.push([label, barWidth(value, scale), value < 0 ? 'var(--down)' : 'var(--accent)', `${formatScore(value)}${unit}`])
+}
+
+function buildFactorItems(pick: ScreenerPick): DetailItem[] {
+  return Object.entries(pick.factor_breakdown || {})
+    .map(([key, rawValue]) => {
+      const value = finiteNumber(rawValue)
+      if (value === null) return null
+      return [factorLabel(key), barWidth(value, Math.abs(value) <= 10 ? 10 : 1), factorColor(value), formatScore(value)] as DetailItem
+    })
+    .filter((item): item is DetailItem => Boolean(item))
+}
+
+function buildMetricItems(pick: ScreenerPick): DetailItem[] {
+  const items: DetailItem[] = []
+  const score = finiteNumber(pick.score)
+  if (score !== null) {
+    items.push(['综合评分', barWidth(score), scoreColor(score), formatScore(score)])
+  }
+  pushMetric(items, '共振分', pick.resonance_score)
+  pushMetric(items, '量比', pick.volume_ratio, 'x', 10)
+  pushMetric(items, '换手率', pick.turnover_rate, '%')
+  return items
+}
+
 function detailTitleForModel(modelId: string) {
   const titles: Record<string, string> = {
     bi_trend_launch: '毕师傅趋势启动分析',
@@ -270,48 +185,14 @@ function detailTitleForModel(modelId: string) {
   return titles[modelId] || '模型选股分析'
 }
 
-function detailGroupsForModel(modelId: string, pick?: ScreenerPick) {
-  const volumeRatio = Number(pick?.volume_ratio || 2.3)
-  if (['leader_auction', 'leader_scalp', 'leader_intraday'].includes(modelId)) {
-    return [
-      { name: '竞价指标', items: [['高开%', 72, 'var(--up)', '+4.6%'], ['封单(亿)', 68, 'var(--warn)', '1.2亿'], ['竞量比', 82, 'var(--up)', '8.5x']] },
-      { name: '板块背景', items: [['板块共振', 80, 'var(--up)', '12只'], ['龙头确认', 76, 'var(--accent)', '显著'], ['延续概率', 64, 'var(--warn)', '64']] },
-    ]
-  }
-  if (modelId === 'leader_afternoon' || modelId === 'leader_afternoon_trend_full' || modelId === 'leader_closing') {
-    return [
-      { name: '午后强度', items: [['资金回流', 78, 'var(--up)', '78'], ['尾盘承接', 70, 'var(--accent)', '70'], ['量能延续', 66, 'var(--warn)', '66']] },
-      { name: '次日预期', items: [['板块热度', 82, 'var(--up)', '82'], ['龙头位置', 76, 'var(--accent)', '核心'], ['冲高风险', 34, 'var(--down)', '34']] },
-    ]
-  }
-  if (modelId === 'short') {
-    return [
-      { name: '五因子雷达', items: [['动量', 78, 'var(--up)', '78'], ['量能', 72, 'var(--accent)', '72'], ['技术', 69, 'var(--accent)', '69']] },
-      { name: '风险约束', items: [['质量', 66, 'var(--down)', '66'], ['风险暴露', 31, 'var(--warn)', '31'], ['综合均衡', 74, 'var(--accent)', '74']] },
-    ]
-  }
-  if (modelId === 'supply_chain') {
-    return [
-      { name: '链路位置', items: [['政策相关度', 84, 'var(--up)', '84'], ['链主带动', 75, 'var(--accent)', '75'], ['国产替代', 80, 'var(--up)', '80']] },
-      { name: '基本面确认', items: [['订单景气', 70, 'var(--accent)', '70'], ['研发壁垒', 68, 'var(--accent)', '68'], ['估值压力', 36, 'var(--down)', '36']] },
-    ]
-  }
-  if (modelId === 'chokepoint') {
-    return [
-      { name: '主题匹配', items: [['国产替代', 86, 'var(--up)', '86'], ['技术壁垒', 78, 'var(--accent)', '78'], ['政策支持', 73, 'var(--warn)', '73']] },
-      { name: '研发强度', items: [['研发占比', 70, 'var(--up)', '12%'], ['供应链地位', 76, 'var(--accent)', '核心'], ['催化事件', 64, 'var(--warn)', '2条']] },
-    ]
-  }
-  if (modelId === 'cb_floor' || modelId === 'cb_intraday' || modelId === 'cb_auction') {
-    return [
-      { name: '债底分析', items: [['纯债价值', 88, 'var(--up)', '98.5'], ['转股溢价率', 18, 'var(--down)', '18%'], ['到期收益率', 35, 'var(--warn)', '-2.2%']] },
-      { name: '正股弹性', items: [['正股趋势', 58, 'var(--accent)', '58'], ['防守空间', 82, 'var(--up)', '82'], ['流动性', 62, 'var(--accent)', '62']] },
-    ]
-  }
+function detailGroupsForModel(_modelId: string, pick?: ScreenerPick): DetailGroup[] {
+  if (!pick) return []
+  const factorItems = buildFactorItems(pick)
+  const metricItems = buildMetricItems(pick)
   return [
-    { name: '技术指标', items: [['OBV趋势强度', 85, 'var(--up)', '85'], ['WR超卖程度', 72, 'var(--accent)', '72'], ['量比(20日)', 58, 'var(--accent)', `${volumeRatio}x`]] },
-    { name: '质量信号', items: [['强动态分', 90, 'var(--up)', '9.0'], ['近20日涨幅', 44, 'var(--warn)', '22.0%'], ['波动率(60d)', 32, 'var(--down)', '19.2%']] },
-  ]
+    factorItems.length > 0 ? { name: '后端因子', items: factorItems } : null,
+    metricItems.length > 0 ? { name: '结果指标', items: metricItems } : null,
+  ].filter((group): group is DetailGroup => Boolean(group))
 }
 
 function evaluationForModel(modelId: string, pick?: ScreenerPick) {
@@ -334,27 +215,86 @@ function syncPlanForMode(modelId: string) {
   return { tableKey: 'daily_kline', days: 30, label: '日线行情' }
 }
 
+function normalizeLatestDates(value: Record<string, string | null | undefined> | undefined) {
+  return Object.fromEntries(
+    Object.entries(value || {})
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0)
+      .map(([key, date]) => [key, date.slice(0, 10)]),
+  )
+}
+
 export default function Screener() {
   const location = useLocation()
   const navigate = useNavigate()
   const active = activeKey(location.pathname)
   const [selectedMode, setSelectedMode] = useState(modelGroups[0].modes[0].id)
   const [selectedGroup, setSelectedGroup] = useState(modelGroups[0].key)
-  const [selectedCode, setSelectedCode] = useState(fallbackPicks[0].code)
+  const [selectedCode, setSelectedCode] = useState('')
+  const [selectedCodes, setSelectedCodes] = useState<string[]>([])
   const [picks, setPicks] = useState<ScreenerPick[]>([])
   const [hasRun, setHasRun] = useState(false)
-  const [tradeDate, setTradeDate] = useState('2026-06-26')
+  const [tradeDate, setTradeDate] = useState('')
   const [topN, setTopN] = useState(20)
   const [runStage, setRunStage] = useState<'idle' | 'data' | 'model' | 'output' | 'done' | 'error'>('idle')
-  const [runMessage, setRunMessage] = useState('选择模型、日期和 Top 后即可运行真实选股链路')
+  const [runMessage, setRunMessage] = useState('正在读取最新可用交易日')
+  const [lastRunAt, setLastRunAt] = useState('')
+  const [freshnessSource, setFreshnessSource] = useState('screener-service')
+  const [latestDates, setLatestDates] = useState<Record<string, string>>({})
   const [expanded, setExpanded] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const visiblePicks = hasRun ? picks : fallbackPicks
+  const visiblePicks = picks
   const selectedPick = visiblePicks.find(item => item.code === selectedCode) || visiblePicks[0]
   const selectedGroupConfig = modelGroups.find(item => item.key === selectedGroup) || modelGroups[0]
   const selectedModeConfig = selectedGroupConfig.modes.find(item => item.id === selectedMode) || selectedGroupConfig.modes[0]
   const detailGroups = detailGroupsForModel(selectedMode, selectedPick)
+  const selectedCount = selectedCodes.length
+  const canUseResults = visiblePicks.length > 0
+  const selectedPicks = selectedCodes.length > 0
+    ? visiblePicks.filter(item => selectedCodes.includes(item.code))
+    : visiblePicks
+
+  useEffect(() => {
+    let cancelled = false
+
+    screenerApi.getModes()
+      .then(response => {
+        if (cancelled) return
+        const freshness = response.data?.data_freshness
+        const nextLatestDates = normalizeLatestDates({
+          daily_kline: response.data?.latest_trade_date || freshness?.as_of,
+          ...response.data?.latest_dates,
+        })
+        setLatestDates(nextLatestDates)
+        const syncPlan = syncPlanForMode(selectedMode)
+        const latestTradeDate = nextLatestDates[syncPlan.tableKey] || nextLatestDates.daily_kline || ''
+        if (latestTradeDate) {
+          const normalizedDate = String(latestTradeDate).slice(0, 10)
+          setTradeDate(normalizedDate)
+          setRunMessage(`已加载最新可用交易日：${normalizedDate}`)
+        } else {
+          setRunMessage('后端未返回最新交易日，请手动选择日期后运行')
+        }
+        setFreshnessSource(latestTradeDate ? syncPlan.tableKey : freshness?.source || 'screener/modes')
+      })
+      .catch(() => {
+        if (cancelled) return
+        setRunMessage('最新交易日读取失败，请手动选择日期后运行')
+        setFreshnessSource('screener/modes')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const syncPlan = syncPlanForMode(selectedMode)
+    const latestTradeDate = latestDates[syncPlan.tableKey] || latestDates.daily_kline
+    if (!latestTradeDate) return
+    setTradeDate(latestTradeDate)
+    setFreshnessSource(syncPlan.tableKey)
+  }, [latestDates, selectedMode])
 
   const runScreener = async () => {
     setLoading(true)
@@ -370,25 +310,72 @@ export default function Screener() {
       }
       setRunStage('model')
       setRunMessage(`正在运行 ${selectedModeConfig.name}，输出 Top ${topN}`)
-      const response = await screenerApi.run(selectedMode, topN, tradeDate)
+      const runTradeDate = tradeDate || undefined
+      const response = await screenerApi.run(selectedMode, topN, runTradeDate)
       const nextPicks = response.data?.picks || []
+      const actualTradeDate = response.data?.trade_date || response.data?.data_freshness?.as_of || tradeDate
       setRunStage('output')
       setRunMessage(`模型完成，正在整理 ${nextPicks.length} 只候选股票`)
       setHasRun(true)
       setPicks(nextPicks)
+      setSelectedCodes(nextPicks[0]?.code ? [nextPicks[0].code] : [])
       setSelectedCode(nextPicks[0]?.code || '')
+      if (actualTradeDate) setTradeDate(String(actualTradeDate).slice(0, 10))
+      setFreshnessSource(response.data?.data_freshness?.source || selectedMode)
       setRunStage('done')
-      setRunMessage(`已完成：${tradeDate} · ${selectedModeConfig.name} · 返回 ${nextPicks.length} 只`)
+      setLastRunAt(new Date().toISOString())
+      setRunMessage(`已完成：${actualTradeDate || '后端未返回日期'} · ${selectedModeConfig.name} · 返回 ${nextPicks.length} 只`)
     } catch (error) {
       const message = error instanceof Error ? error.message : '运行失败，请检查后端服务和数据同步状态'
       setRunStage('error')
       setRunMessage(message)
       setHasRun(true)
       setPicks([])
+      setSelectedCodes([])
       setSelectedCode('')
+      setLastRunAt(new Date().toISOString())
     } finally {
       setLoading(false)
     }
+  }
+
+  const selectPick = (pick: ScreenerPick) => {
+    setSelectedCode(pick.code)
+    setSelectedCodes([pick.code])
+  }
+
+  const selectAllPicks = () => {
+    setSelectedCodes(visiblePicks.map(item => item.code).filter(Boolean))
+    setSelectedCode(visiblePicks[0]?.code || '')
+  }
+
+  const clearSelectedPicks = () => {
+    setSelectedCodes([])
+    setSelectedCode('')
+  }
+
+  const exportCsv = () => {
+    if (selectedPicks.length === 0) return
+    const columns = ['代码', '名称', '行业', '评分', '等级', '入选理由']
+    const escapeCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
+    const rows = selectedPicks.map(pick => [
+      pick.code,
+      pick.name,
+      pick.industry || pick.hard_tech?.track || '',
+      formatScore(pick.score),
+      pick.grade || '',
+      pick.entry_reason || '',
+    ])
+    const csv = [columns, ...rows].map(row => row.map(escapeCell).join(',')).join('\n')
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `screener-${tradeDate}-${selectedMode}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
   }
 
   const stageState = (stage: 'data' | 'model' | 'output') => {
@@ -410,6 +397,11 @@ export default function Screener() {
           if (tab) navigate(tab.path)
         }}
         items={tabs.map((tab, index) => ({ ...tab, number: String(index + 1).padStart(2, '0') }))}
+      />
+      <PrototypePageHeader
+        title={`智能选股 - ${tabs.find(tab => tab.key === active)?.label || '选股工作台'}`}
+        subtitle="模型选择 · 交易日参数 · 数据同步 · 候选输出"
+        dataFreshness={<DataFreshnessBar tradeDate={tradeDate} updatedAt={lastRunAt} source={freshnessSource} />}
       />
       {active === 'workbench' && (
         <>
@@ -463,7 +455,10 @@ export default function Screener() {
               className="param-input"
               aria-label="选股日期"
               value={tradeDate}
-              onChange={event => setTradeDate(event.target.value)}
+              onChange={event => {
+                setTradeDate(event.target.value)
+                setFreshnessSource('手动选择')
+              }}
             />
             <span className="psep" />
             <span className="plabel">Top</span>
@@ -511,21 +506,22 @@ export default function Screener() {
                 {visiblePicks.length === 0 && (
                   <div className="wb-empty">
                     <b>暂无选股结果</b>
-                    <span>请换一个交易日、Top 数量或模型后重新运行。</span>
+                    <span>{hasRun ? '请换一个交易日、Top 数量或模型后重新运行。' : '选择模型、日期和 Top 后点击运行选股。'}</span>
                   </div>
                 )}
                 {visiblePicks.map((pick, index) => {
-                  const selected = pick.code === selectedPick?.code
+                  const activePick = pick.code === selectedPick?.code
+                  const selected = selectedCodes.includes(pick.code)
                   return (
                     <button
                       type="button"
-                      className={`wb-tr${selected ? ' selected' : ''}`}
+                      className={`wb-tr${activePick ? ' selected' : ''}`}
                       key={pick.code || index}
-                      onClick={() => setSelectedCode(pick.code)}
+                      onClick={() => selectPick(pick)}
                     >
                       <span className="wb-rank">{index + 1}</span>
                       <span className={`wb-cb ${selected ? 'neu' : ''}`}>{selected ? '☑' : '☐'}</span>
-                      <span className={`wb-code ${selected ? 'neu' : ''}`}>{pick.code}</span>
+                      <span className={`wb-code ${activePick ? 'neu' : ''}`}>{pick.code}</span>
                       <span className="wb-name">{pick.name}</span>
                       <span className={`wb-score ${scoreTone(pick.score)}`}>{formatScore(pick.score)}</span>
                       <span className="wb-grade"><span className={`grade-tag ${gradeClass(pick.grade)}`}>{pick.grade || 'B'}</span></span>
@@ -537,14 +533,14 @@ export default function Screener() {
               </div>
 
               <div className="batch-actions">
-                <button type="button" className="action-btn text">全选</button>
-                <button type="button" className="action-btn text">清除</button>
+                <button type="button" className="action-btn text" onClick={selectAllPicks} disabled={!canUseResults}>全选</button>
+                <button type="button" className="action-btn text" onClick={clearSelectedPicks} disabled={selectedCount === 0}>清除</button>
                 <span className="prototype-panel-note">已选</span>
-                <span className="sel-cnt">1</span>
+                <span className="sel-cnt">{selectedCount}</span>
                 <span className="prototype-panel-note">只</span>
-                <button type="button" className="action-btn primary">加入候选池 →</button>
-                <button type="button" className="action-btn">加入自选</button>
-                <button type="button" className="action-btn text">导出 CSV</button>
+                <button type="button" className="action-btn primary" disabled title="候选池写入接口未接入">加入候选池 →</button>
+                <button type="button" className="action-btn" disabled title="自选股写入接口未接入">加入自选</button>
+                <button type="button" className="action-btn text" onClick={exportCsv} disabled={!canUseResults}>导出 CSV</button>
               </div>
             </div>
 
@@ -552,11 +548,13 @@ export default function Screener() {
               <div className="detail-card">
                 <div className="detail-h">
                   {detailTitleForModel(selectedMode)}
-                  <span className="stock-meta">
-                    <span className="mono neu">{selectedPick?.code}</span>
-                    <span>标的 {selectedPick?.name}</span>
-                    <span className={`mono ${scoreTone(selectedPick?.score)}`}>{formatScore(selectedPick?.score)}</span>
-                  </span>
+                  {selectedPick && (
+                    <span className="stock-meta">
+                      <span className="mono neu">{selectedPick.code}</span>
+                      <span>标的 {selectedPick.name}</span>
+                      <span className={`mono ${scoreTone(selectedPick.score)}`}>{formatScore(selectedPick.score)}</span>
+                    </span>
+                  )}
                 </div>
                 <div className="detail-b">
                   {!selectedPick && (
@@ -594,9 +592,21 @@ export default function Screener() {
                     {(selectedPick?.risk_flags || []).map(flag => <div className="risk-item warn" key={flag}>需复核: {flag}</div>)}
                   </div>
                   <div className="detail-actions">
-                    <button type="button" className="action-btn primary">加入候选池</button>
-                    <button type="button" className="action-btn">触发回测</button>
-                    <button type="button" className="action-btn">查看诊断</button>
+                    <button type="button" className="action-btn primary" disabled title="候选池写入接口未接入">加入候选池</button>
+                    <button
+                      type="button"
+                      className="action-btn"
+                      onClick={() => navigate(`/backtest?code=${encodeURIComponent(selectedPick.code)}&mode=${encodeURIComponent(selectedMode)}`)}
+                    >
+                      触发回测
+                    </button>
+                    <button
+                      type="button"
+                      className="action-btn"
+                      onClick={() => navigate(`/diagnosis?code=${encodeURIComponent(selectedPick.code)}`)}
+                    >
+                      查看诊断
+                    </button>
                   </div>
                   <button type="button" className="action-btn text screener-expand-btn" onClick={() => setExpanded(value => !value)}>
                     {expanded ? '收起四轴解释' : '展开四轴解释'}

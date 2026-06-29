@@ -19,17 +19,37 @@ vi.mock('../api/client', () => ({
   },
 }))
 
+function renderScreener(route = '/screener') {
+  return render(
+    <ConfigProvider locale={zhCN}>
+      <MemoryRouter initialEntries={[route]}>
+        <Screener />
+      </MemoryRouter>
+    </ConfigProvider>,
+  )
+}
+
 describe('Screener', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.mocked(screenerApi.getModes).mockResolvedValue({
       data: {
         modes: [
           { id: 'bi_trend_launch', name: '毕师傅趋势启动', cycle: '短线' },
         ],
+        total: 1,
+        latest_trade_date: '2026-06-26',
+        latest_dates: {
+          daily_kline: '2026-06-26',
+          stk_auction_o: '2026-06-26',
+        },
+        data_freshness: { status: 'fresh', as_of: '2026-06-26', source: 'daily_kline', quality_score: 96 },
       },
     } as any)
     vi.mocked(screenerApi.run).mockResolvedValue({
       data: {
+        trade_date: '2026-06-26',
+        data_freshness: { status: 'fresh', as_of: '2026-06-26', source: 'stk_auction_o', quality_score: 96 },
         market_env: 'neutral',
         total_scored: 1,
         total_excluded: 0,
@@ -64,15 +84,9 @@ describe('Screener', () => {
   })
 
   it('shows Bi trend hard-tech track, reason, and four-axis flags', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <MemoryRouter>
-          <Screener />
-        </MemoryRouter>
-      </ConfigProvider>,
-    )
+    renderScreener()
 
-    fireEvent.change(screen.getByLabelText('选股日期'), { target: { value: '2026-06-26' } })
+    fireEvent.change(await screen.findByLabelText('选股日期'), { target: { value: '2026-06-26' } })
     fireEvent.change(screen.getByLabelText('Top 数量'), { target: { value: '30' } })
     fireEvent.click(screen.getByRole('button', { name: /开始选股/ }))
 
@@ -96,13 +110,7 @@ describe('Screener', () => {
   })
 
   it('matches the screener workbench prototype structure', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <MemoryRouter>
-          <Screener />
-        </MemoryRouter>
-      </ConfigProvider>,
-    )
+    renderScreener()
 
     expect(screen.getByLabelText('模型分类页签')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /趋势 \/ 秋神/ })).toBeInTheDocument()
@@ -112,7 +120,7 @@ describe('Screener', () => {
     expect(screen.getByText('秋神午后选股模型')).toBeInTheDocument()
     expect(screen.getByText('毕师傅全市场 V1.0')).toBeInTheDocument()
     expect(screen.getByText('日期')).toBeInTheDocument()
-    expect(screen.getByLabelText('选股日期')).toHaveValue('2026-06-26')
+    expect(await screen.findByLabelText('选股日期')).toHaveValue('2026-06-26')
     expect(screen.getByLabelText('Top 数量')).toHaveValue('20')
     expect(screen.getByRole('button', { name: /运行选股/ })).toBeInTheDocument()
     expect(screen.getByText('数据更新')).toBeInTheDocument()
@@ -120,9 +128,64 @@ describe('Screener', () => {
     expect(screen.getByText('输出股票')).toBeInTheDocument()
     expect(screen.getByText('市值(亿)')).toBeInTheDocument()
     expect(screen.getByText('秋神竞价超预期分析')).toBeInTheDocument()
-    expect(screen.getByText('竞价指标')).toBeInTheDocument()
-    expect(screen.getByText('高开%')).toBeInTheDocument()
-    expect(screen.getByText(/ST风险: 通过/)).toBeInTheDocument()
+    expect(screen.getByText('等待模型输出')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '加入候选池 →' })).toBeInTheDocument()
+  })
+
+  it('initializes the date picker from the selected model data source', async () => {
+    vi.mocked(screenerApi.getModes).mockResolvedValueOnce({
+      data: {
+        modes: [],
+        total: 0,
+        latest_trade_date: '2026-06-26',
+        latest_dates: {
+          daily_kline: '2026-06-26',
+          stk_auction_o: '2026-06-29',
+        },
+        data_freshness: { status: 'fresh', as_of: '2026-06-26', source: 'daily_kline', quality_score: 96 },
+      },
+    } as any)
+
+    renderScreener()
+
+    expect(await screen.findByDisplayValue('2026-06-29')).toBeInTheDocument()
+    expect(await screen.findByText('交易日：2026-06-29')).toBeInTheDocument()
+    expect(screen.getByText('来源：stk_auction_o')).toBeInTheDocument()
+  })
+
+  it('shows the actual backend run date after model execution', async () => {
+    vi.mocked(screenerApi.getModes).mockResolvedValueOnce({
+      data: {
+        modes: [],
+        total: 0,
+        latest_trade_date: '2026-06-26',
+        latest_dates: {
+          daily_kline: '2026-06-26',
+          stk_auction_o: '2026-06-29',
+        },
+        data_freshness: { status: 'fresh', as_of: '2026-06-26', source: 'daily_kline', quality_score: 96 },
+      },
+    } as any)
+    vi.mocked(screenerApi.run).mockResolvedValueOnce({
+      data: {
+        trade_date: '2026-06-29',
+        data_freshness: { status: 'fresh', as_of: '2026-06-29', source: 'stk_auction_o', quality_score: 96 },
+        picks: [
+          { code: '600171', name: '上海贝岭', score: 88, grade: 'A', industry: '半导体', market_cap: 120 },
+        ],
+        total_scored: 1,
+        total_excluded: 0,
+        elapsed: 0.1,
+      },
+    } as any)
+    renderScreener()
+
+    fireEvent.click(await screen.findByRole('button', { name: /运行选股/ }))
+
+    await waitFor(() => {
+      expect(screenerApi.run).toHaveBeenCalledWith('leader_auction', 20, '2026-06-29')
+    })
+    expect(await screen.findByText('交易日：2026-06-29')).toBeInTheDocument()
+    expect(await screen.findByText('上海贝岭')).toBeInTheDocument()
   })
 })

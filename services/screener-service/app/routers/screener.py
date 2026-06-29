@@ -12,13 +12,11 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, Query, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
-
 import numpy as np
 
 from app import candidate_pool_store
 from app.config import AVAILABLE_MODES, DEFAULT_TOP_N, MAX_TOP_N
-from app.database import get_db
+from app.database import AsyncSession, get_db
 
 logger = logging.getLogger("screener.routes")
 
@@ -129,19 +127,32 @@ def _screener_data_freshness(trade_date: str | None = None, source: str = "daily
     }
 
 
+def _screener_source_for_mode(mode: str) -> str:
+    if "auction" in mode:
+        return "stk_auction_o"
+    if mode == "leader_intraday":
+        return "rt_sw_k"
+    if mode == "cb_intraday":
+        return "stk_mins"
+    return "daily_kline"
+
+
 def _with_screener_contract(
     payload: dict[str, Any],
     *,
     mode: str,
     trade_date: str | None = None,
     fallback_reason: str | None = None,
-    source: str = "daily_kline",
+    source: str | None = None,
 ) -> dict[str, Any]:
     enriched = dict(payload)
+    if not enriched.get("trade_date") or enriched.get("trade_date") == "latest":
+        enriched["trade_date"] = _resolve_trade_date(trade_date)
     enriched["model_metadata"] = _screener_model_metadata(mode)
+    freshness_source = source or _screener_source_for_mode(mode)
     enriched["data_freshness"] = _screener_data_freshness(
-        trade_date or enriched.get("trade_date"),
-        source=source,
+        enriched.get("trade_date"),
+        source=freshness_source,
     )
     enriched["fallback_reason"] = fallback_reason
     return enriched
@@ -322,6 +333,30 @@ def _resolve_trade_date(trade_date: Optional[str]) -> str:
     if not value:
         raise RuntimeError("latest trade date unavailable")
     return str(value)
+
+
+def _query_screener_latest_dates() -> dict[str, str]:
+    """Return the latest available date for each screener data source."""
+    queries = {
+        "daily_kline": "SELECT MAX(trade_date) FROM daily_kline",
+        "stk_auction_o": "SELECT MAX(trade_date) FROM stk_auction_o",
+        "rt_sw_k": "SELECT MAX(trade_date) FROM rt_sw_k",
+        "stk_mins": "SELECT MAX(trade_time)::date FROM stk_mins",
+    }
+    latest_dates: dict[str, str] = {}
+    with _get_factor_db() as db:
+        for source, sql in queries.items():
+            try:
+                row = db.execute(sql).fetchone()
+                if isinstance(row, dict):
+                    value = next(iter(row.values()), None)
+                else:
+                    value = row[0] if row and len(row) else None
+                if value:
+                    latest_dates[source] = str(value)[:10]
+            except Exception as e:
+                logger.warning("latest date lookup failed for %s: %s", source, e)
+    return latest_dates
 
 
 def _row_get(row, key, default=None):
@@ -1427,7 +1462,17 @@ def _persist_policy_interpretation(
 @router.get("/modes")
 async def list_modes():
     """List available screening modes with descriptions."""
+    latest_dates: dict[str, str] = {}
+    latest_trade_date = None
+    try:
+        latest_dates = _query_screener_latest_dates()
+        latest_trade_date = latest_dates.get("daily_kline")
+    except Exception as e:
+        logger.warning("screener modes latest trade date unavailable: %s", e)
     return {
+        "latest_trade_date": latest_trade_date,
+        "latest_dates": latest_dates,
+        "data_freshness": _screener_data_freshness(latest_trade_date, source="daily_kline"),
         "modes": [
             {"id": "leader_auction",  "name": "🔥秋神龙头竞价超预期战法 V4.3", "cycle": "1-3天",  "style": "竞价"},
             {"id": "leader_scalp",    "name": "秋神龙头战法-盘后", "cycle": "1-5天",  "style": "激进"},
@@ -1916,6 +1961,8 @@ async def run_screening(
         raise HTTPException(status_code=500, detail=f"Screening failed: {err}")
 
     result["elapsed"] = round(time.time() - t0, 1)
+    if not result.get("trade_date") or result.get("trade_date") == "latest":
+        result["trade_date"] = _resolve_trade_date(trade_date)
 
     # ── Sanitize numpy types across all modes ──
     if "picks" in result and result["picks"]:
@@ -2019,7 +2066,7 @@ def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> 
     engine = SupplyChainEngine()
     result = engine.run(top_n=top_n, trade_date=trade_date)
 
-    picks = result.picks
+    picks = result.get("picks", []) if isinstance(result, dict) else getattr(result, "picks", [])
     picks = _sanitize_picks(picks)
     # Normalize: total_score→score, preserve chain/layer/moat fields
     for p in picks:

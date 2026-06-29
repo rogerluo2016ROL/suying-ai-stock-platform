@@ -51,6 +51,34 @@ describe('Signals prototype pages', () => {
     expect(screen.queryByText('信号页面骨架')).not.toBeInTheDocument()
   })
 
+  it('does not fall back to hard-coded live signals when the API returns empty data', async () => {
+    vi.mocked(signalApi.getLive).mockResolvedValue({ data: { signals: [] } } as any)
+
+    renderSignals('/signals')
+
+    expect(await screen.findByText('暂无实时信号')).toBeInTheDocument()
+    expect(screen.queryByText('宁德时代')).not.toBeInTheDocument()
+    expect(screen.queryByText('中芯国际')).not.toBeInTheDocument()
+  })
+
+  it('does not fall back to hard-coded history when the history API returns empty data', async () => {
+    vi.mocked(signalApi.getHistory).mockResolvedValue({ data: { history: [] } } as any)
+
+    renderSignals('/signals/history')
+
+    expect(await screen.findByText('暂无历史信号')).toBeInTheDocument()
+    expect(screen.queryByText('比亚迪')).not.toBeInTheDocument()
+  })
+
+  it('does not run risk scan without a real live signal', async () => {
+    vi.mocked(signalApi.getLive).mockResolvedValue({ data: { signals: [] } } as any)
+
+    renderSignals('/signals/risk')
+
+    expect(await screen.findByText('暂无可扫描信号')).toBeInTheDocument()
+    expect(signalApi.analyzeCode).not.toHaveBeenCalled()
+  })
+
   it('switches to history and risk scan views with prototype content', async () => {
     renderSignals('/signals')
 
@@ -64,4 +92,3 @@ describe('Signals prototype pages', () => {
     expect(screen.getByText('RiskVerdict 预检')).toBeInTheDocument()
   })
 })
-

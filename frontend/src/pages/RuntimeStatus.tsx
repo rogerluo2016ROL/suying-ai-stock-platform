@@ -1,31 +1,100 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ApiOutlined, CheckCircleOutlined, ClockCircleOutlined, DatabaseOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
-import { DataDomainBadge, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, RiskBanner, SideRail } from '../components/prototype'
+import { healthApi } from '../api/client'
+import { DataDomainBadge, DataFreshnessBar, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, RiskBanner, SideRail } from '../components/prototype'
 
-const services = [
-  ['api-gateway', '8080', '在线', '统一入口 / 鉴权透传'],
-  ['backend-auth', '9001', '在线', 'JWT / RBAC / tenant'],
-  ['prediction-service', '8002', '在线', 'Kronos 预测'],
-  ['signal-service', '8004', '在线', '交易信号'],
-  ['trade-service', '8006', '在线', '模拟盘交易'],
-  ['training-service', '8008', '同步中', '训练队列'],
+const serviceChecks = [
+  { key: 'gateway', name: 'api-gateway', port: '18080', duty: '统一入口 / 鉴权透传' },
+  { key: 'auth', name: 'backend-auth', port: '19001', duty: 'JWT / RBAC / tenant' },
+  { key: 'prediction', name: 'prediction-service', port: '18002', duty: 'Kronos 预测' },
+  { key: 'strategy', name: 'strategy-service', port: '18003', duty: '方案 / 自动策略' },
+  { key: 'signal', name: 'signal-service', port: '18004', duty: '交易信号' },
+  { key: 'trade', name: 'trade-service', port: '18006', duty: '模拟盘交易' },
+  { key: 'backtest', name: 'backtest-service', port: '18007', duty: '回测复盘' },
+  { key: 'training', name: 'training-service', port: '18008', duty: '训练队列' },
+  { key: 'diagnosis', name: 'diagnosis-service', port: '18009', duty: '个股诊断' },
 ]
 
+interface RuntimeServiceRow {
+  key: string
+  name: string
+  port: string
+  status: string
+  version?: string
+  duty: string
+}
+
+function isHealthy(status: string) {
+  return ['healthy', 'online', 'ok'].includes(status)
+}
+
 export default function RuntimeStatus() {
+  const [services, setServices] = useState<RuntimeServiceRow[]>(
+    serviceChecks.map(service => ({ ...service, status: 'checking' })),
+  )
+  const [lastCheckedAt, setLastCheckedAt] = useState('')
+
+  const loadServices = useCallback(async () => {
+    setServices(serviceChecks.map(service => ({ ...service, status: 'checking' })))
+    const rows = await Promise.all(serviceChecks.map(async service => {
+      try {
+        const response = service.key === 'gateway'
+          ? await healthApi.gateway()
+          : await healthApi.check(service.key)
+        return {
+          ...service,
+          status: String(response.data?.status || 'unknown'),
+          version: response.data?.version,
+        }
+      } catch {
+        return { ...service, status: 'offline' }
+      }
+    }))
+    setServices(rows)
+    setLastCheckedAt(new Date().toISOString())
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    loadServices().finally(() => {
+      if (!mounted) return
+    })
+    return () => {
+      mounted = false
+    }
+  }, [loadServices])
+
+  const summary = useMemo(() => {
+    const online = services.filter(service => isHealthy(service.status)).length
+    const checking = services.filter(service => service.status === 'checking').length
+    const offline = services.length - online - checking
+    return { online, checking, offline }
+  }, [services])
+
+  const serviceStatus = useMemo(() => {
+    return Object.fromEntries(services.map(service => [service.key, service.status])) as Record<string, string>
+  }, [services])
+
+  const modelHealthy = isHealthy(serviceStatus.prediction || '') && isHealthy(serviceStatus.training || '')
+  const tradeHealthy = isHealthy(serviceStatus.trade || '')
+
   return (
     <PrototypePage>
       <PrototypePageHeader
         title="运行状态 - 服务健康"
         subtitle="服务健康 · 数据延迟 · 模型任务 · 交易链路"
+        dataFreshness={<DataFreshnessBar updatedAt={lastCheckedAt} source="health-api" />}
         actions={[
           { key: 'admin', label: '管理员视图', active: true, tone: 'neutral' },
+          { key: 'refresh', label: '刷新健康', tone: 'neutral', onClick: () => void loadServices() },
           { key: 'paper', label: '实盘默认关闭', tone: 'warn' },
         ]}
       />
       <div className="kpis">
-        <MetricCard label="在线服务" value="11/11" sub="UAT 网关可达" tone="up" />
-        <MetricCard label="数据延迟" value="12s" sub="行情缓存" tone="accent" />
-        <MetricCard label="模型任务" value="3" sub="1 个训练中" tone="warn" />
-        <MetricCard label="交易链路" value="Paper" sub="实盘默认关闭" tone="muted" />
+        <MetricCard label="在线服务" value={`${summary.online}/${services.length}`} sub={`异常 ${summary.offline}`} tone={summary.offline ? 'warn' : 'up'} />
+        <MetricCard label="检查中" value={String(summary.checking)} sub="服务健康" tone="accent" />
+        <MetricCard label="模型服务" value={modelHealthy ? 'OK' : '异常'} sub="prediction + training" tone={modelHealthy ? 'up' : 'warn'} />
+        <MetricCard label="交易链路" value={tradeHealthy ? 'Paper' : '异常'} sub="trade health" tone={tradeHealthy ? 'muted' : 'warn'} />
       </div>
       <div className="r r-2-1">
         <PrototypeCard
@@ -43,16 +112,16 @@ export default function RuntimeStatus() {
               </tr>
             </thead>
             <tbody>
-              {services.map(([name, port, status, duty]) => (
-                <tr key={name}>
-                  <td className="nm">{name}</td>
-                  <td className="mono">{port}</td>
+              {services.map(service => (
+                <tr key={service.key}>
+                  <td className="nm">{service.name}</td>
+                  <td className="mono">{service.port}</td>
                   <td>
-                    {status === '在线'
-                      ? <CheckCircleOutlined className="down" />
-                      : <ClockCircleOutlined style={{ color: 'var(--warn)' }} />} {status}
+                    {isHealthy(service.status)
+                      ? <CheckCircleOutlined className="up" />
+                      : <ClockCircleOutlined style={{ color: 'var(--warn)' }} />} {service.status}
                   </td>
-                  <td>{duty}</td>
+                  <td>{service.duty}{service.version ? ` / ${service.version}` : ''}</td>
                 </tr>
               ))}
             </tbody>
@@ -61,9 +130,9 @@ export default function RuntimeStatus() {
 
         <SideRail title="运行闸门" meta="Ops">
           <RiskBanner
-            status="pass"
-            title="模拟盘链路可用"
-            detail="交易服务、风控中心、回测复盘均可在 paper 模式下联动。"
+            status={summary.online === services.length ? 'pass' : 'warn'}
+            title={summary.online === services.length ? '服务健康通过' : '存在服务异常'}
+            detail={`health API 当前在线 ${summary.online} 个，异常 ${summary.offline} 个，检查中 ${summary.checking} 个。`}
           />
           <PrototypeCard title="数据与模型" icon={<DatabaseOutlined />}>
             <div className="li-row">
@@ -76,8 +145,8 @@ export default function RuntimeStatus() {
             <div className="li-row">
               <div className="li-badge">ML</div>
               <div className="li-main">
-                <div className="n">模型服务在线</div>
-                <div className="s">预测、信号、诊断输出带模型版本</div>
+                <div className="n">{modelHealthy ? '模型服务在线' : '模型服务异常'}</div>
+                <div className="s">prediction={serviceStatus.prediction || 'checking'} / training={serviceStatus.training || 'checking'}</div>
               </div>
             </div>
           </PrototypeCard>

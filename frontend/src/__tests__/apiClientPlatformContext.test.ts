@@ -127,7 +127,7 @@ describe('api platform context headers', () => {
       '/api/v1/trade/orders',
       '/api/v1/backtest/factors',
       '/api/v1/diagnosis/history',
-      '/api/v1/screener/chain/candidates',
+      '/api/v1/screener/supply-chain/workbench',
     ]))
   })
 

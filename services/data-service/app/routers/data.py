@@ -4,7 +4,14 @@ import logging
 from datetime import date
 from fastapi import APIRouter, Query, HTTPException
 
-from app.scheduler import get_job_status, _run_job, _job_status, collect_auction_snapshot
+from app.scheduler import (
+    get_job_status,
+    _run_job,
+    _job_status,
+    _BACKFILL_MAP,
+    _extract_pg_status,
+    collect_auction_snapshot,
+)
 from app.sync.rt_min import collect_rt_min
 from app.sync.tushare import sync_post_market_core, sync_post_market_ext
 from app.sync.stocks import sync_stock_list
@@ -143,6 +150,52 @@ async def trigger_stocks_sync():
         result = sync_stock_list()
         return {"status": "ok", **result}
     except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@router.post("/sync/backfill")
+async def trigger_table_backfill(
+    table_key: str = Query(..., description="Backfill table key, e.g. top_list, daily_kline"),
+    days: int = Query(30, ge=1, le=3650, description="Days back to sync"),
+):
+    """手动触发指定数据表回补，复用 scheduler 的真实回补函数表."""
+    fn = _BACKFILL_MAP.get(table_key)
+    if fn is None:
+        raise HTTPException(
+            400,
+            {
+                "detail": f"不支持的表: {table_key}",
+                "supported": sorted(_BACKFILL_MAP.keys()),
+            },
+        )
+
+    try:
+        result = fn(days_back=days)
+        pg_status, pg_written = _extract_pg_status(result)
+        result_status = result.get("status") if isinstance(result, dict) else None
+        status = result_status if result_status in {"ok", "skipped", "error"} else "ok"
+        payload = {
+            "status": "error" if status in {"skipped", "error"} else "ok",
+            "table_key": table_key,
+            "days": days,
+            "result": result,
+            "pg_write_status": pg_status,
+            "pg_written": pg_written,
+            "written": int((result or {}).get("pg_written") or (result or {}).get("written") or pg_written)
+            if isinstance(result, dict) else pg_written,
+        }
+        if status in {"skipped", "error"} and isinstance(result, dict):
+            payload["message"] = result.get("reason") or result.get("message") or status
+        _job_status[f"manual_backfill:{table_key}"] = {
+            "last_run": date.today().isoformat(),
+            "last_status": status,
+            "result": str(result)[:300],
+            "pg_write_status": pg_status,
+            "pg_written": pg_written,
+        }
+        return payload
+    except Exception as e:
+        logger.exception("Manual backfill failed for %s", table_key)
         raise HTTPException(500, str(e))
 
 

@@ -22,6 +22,7 @@ vi.mock('../api/client', () => {
       run: vi.fn().mockResolvedValue({ data: { picks: [] } }),
     },
     strategyApi: {
+      getPlans: vi.fn().mockResolvedValue({ data: { plans: [] } }),
       createPlan: vi.fn().mockResolvedValue({ data: { plan: { id: 'PLAN-1' } } }),
       addPicks: vi.fn().mockResolvedValue({ data: {} }),
     },

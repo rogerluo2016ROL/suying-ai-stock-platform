@@ -1,6 +1,24 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import OpenDecision from '../pages/OpenDecision'
+import { chainApi, signalApi, tradeApi } from '../api/client'
+
+vi.mock('../api/client', () => ({
+  signalApi: {
+    getDashboardAuction: vi.fn(),
+    getLive: vi.fn(),
+  },
+  chainApi: {
+    getCandidates: vi.fn(),
+  },
+  tradeApi: {
+    getAccount: vi.fn(),
+    getPositions: vi.fn(),
+    getOrders: vi.fn(),
+    getRiskVerdicts: vi.fn(),
+    getDecisionContexts: vi.fn(),
+  },
+}))
 
 function renderOpenDecision(route = '/open-decision') {
   return render(
@@ -15,6 +33,81 @@ function expectPrototypeText(label: string) {
 }
 
 describe('OpenDecision prototype pages', () => {
+  beforeEach(() => {
+    vi.mocked(signalApi.getDashboardAuction).mockResolvedValue({ data: { total_count: 328 } } as any)
+    vi.mocked(signalApi.getLive).mockResolvedValue({
+      data: {
+        session: 'intra',
+        signals: [
+          {
+            code: '300750',
+            name: '宁德时代',
+            level: 'strong_buy',
+            score: 85,
+            confidence: 82,
+            dimensions: { technical: 86, fundamental: 80, money_flow: 78, sentiment: 88 },
+          },
+          {
+            code: '000858',
+            name: '五粮液',
+            level: 'sell',
+            score: 32,
+            confidence: 45,
+            dimensions: { technical: 35, fundamental: 62, money_flow: 28, sentiment: 30 },
+          },
+        ],
+      },
+    } as any)
+    vi.mocked(chainApi.getCandidates).mockResolvedValue({
+      data: {
+        filter: 'all',
+        total_count: 2,
+        candidates: [
+          { code: '300750', name: '宁德时代', industry: '新能源', score: 90, resonance_level: '强启动', last_change_pct: 8.2 },
+          { code: '688981', name: '中芯国际', industry: '半导体', score: 88, resonance_level: '启动', last_change_pct: 5.8 },
+        ],
+        filter_summary: {},
+        resonance_summary: {},
+        elapsed_ms: 12,
+      },
+    } as any)
+    vi.mocked(tradeApi.getAccount).mockResolvedValue({
+      data: { account: { total_capital: 1280000, total_assets: 1280000, market_value: 894000, available: 386000, total_pnl: 23500 } },
+    } as any)
+    vi.mocked(tradeApi.getPositions).mockResolvedValue({
+      data: {
+        positions: [{ code: '300750', name: '宁德时代', volume: 600, avg_cost: 210, current_price: 218.5, market_value: 131100, pnl: 5100, pnl_pct: 0.082 }],
+        total_market_value: 131100,
+        total_pnl: 5100,
+      },
+    } as any)
+    vi.mocked(tradeApi.getOrders).mockResolvedValue({
+      data: {
+        orders: [{ id: 'ORD-1', code: '300750', name: '宁德时代', direction: 'buy', price: 218.5, volume: 600, status: 'filled', created_at: '2026-06-29T09:32:18Z' }],
+        total: 1,
+      },
+    } as any)
+    vi.mocked(tradeApi.getRiskVerdicts).mockResolvedValue({
+      data: {
+        total: 2,
+        page: 1,
+        page_size: 20,
+        records: [
+          { id: 1, verdict_id: 'RV-1', tenant_id: 't1', result: 'pass', scope: 'candidate', trade_mode: 'paper', symbol: '300750', details: {}, created_at: '2026-06-29T09:20:00Z' },
+          { id: 2, verdict_id: 'RV-2', tenant_id: 't1', result: 'reject', scope: 'candidate', trade_mode: 'paper', symbol: '000858', details: {}, created_at: '2026-06-29T09:21:00Z' },
+        ],
+      },
+    } as any)
+    vi.mocked(tradeApi.getDecisionContexts).mockResolvedValue({
+      data: {
+        total: 1,
+        page: 1,
+        page_size: 20,
+        records: [{ id: 1, decision_context_id: 'DC-1', tenant_id: 't1', source_type: 'strategy', symbol: '300750', plan_id: 'PLAN-OPEN-0925', intent: '开盘强势策略', payload: {}, created_at: '2026-06-29T09:25:00Z' }],
+      },
+    } as any)
+  })
+
   it.each([
     [
       '/open-decision',
@@ -51,14 +144,16 @@ describe('OpenDecision prototype pages', () => {
     expect(screen.getByText('抢筹 TOP 10')).toBeInTheDocument()
     expect(screen.getByText('板块共振详情')).toBeInTheDocument()
     expect(screen.getByText('已锁定板块')).toBeInTheDocument()
-    expect(screen.getAllByText('宁德时代').length).toBeGreaterThan(0)
+    return screen.findAllByText('宁德时代').then(items => {
+      expect(items.length).toBeGreaterThan(0)
+    })
   })
 
   it('matches the auction prototype workbench hierarchy', () => {
     renderOpenDecision('/open-decision/auction')
 
     expect(screen.getByText('竞价风险提示 · 高开过热板块需二次确认')).toBeInTheDocument()
-    expect(screen.getByText('最近刷新 09:25:42')).toBeInTheDocument()
+    expect(screen.getByText('最近刷新来自 dashboard/auction 与 signal/live')).toBeInTheDocument()
     expect(screen.getByText('中性观察')).toBeInTheDocument()
     expect(screen.getByText('四维评分')).toBeInTheDocument()
     expect(screen.getByText('工作流引导')).toBeInTheDocument()
@@ -94,5 +189,98 @@ describe('OpenDecision prototype pages', () => {
     fireEvent.click(screen.getByRole('tab', { name: /候选池/ }))
     expect(screen.getByRole('heading', { name: '开盘决策 - 候选池' })).toBeInTheDocument()
     expectPrototypeText('Candidate 对象预览')
+  })
+
+  it('loads open decision data from signal, chain and trade APIs', async () => {
+    renderOpenDecision('/open-decision/execution')
+
+    expect(await screen.findByText('1单 · 成交1 · 待成交0')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(signalApi.getDashboardAuction).toHaveBeenCalled()
+      expect(signalApi.getLive).toHaveBeenCalledWith('intra')
+      expect(chainApi.getCandidates).toHaveBeenCalledWith({ filter: 'all', top_n: 20 })
+      expect(tradeApi.getAccount).toHaveBeenCalled()
+      expect(tradeApi.getPositions).toHaveBeenCalled()
+      expect(tradeApi.getOrders).toHaveBeenCalled()
+      expect(tradeApi.getRiskVerdicts).toHaveBeenCalledWith({ page: 1, page_size: 20 })
+      expect(tradeApi.getDecisionContexts).toHaveBeenCalledWith({ page: 1, page_size: 20 })
+    })
+  })
+
+  it('uses dashboard auction date for the open decision freshness bar', async () => {
+    vi.mocked(signalApi.getDashboardAuction).mockResolvedValue({
+      data: { date: '2026-06-29', total: 1, picks: [] },
+    } as any)
+
+    renderOpenDecision('/open-decision/auction')
+
+    expect(await screen.findByText('交易日：2026-06-29')).toBeInTheDocument()
+  })
+
+  it('uses dashboard auction picks before derived signal rows on the auction tab', async () => {
+    vi.mocked(signalApi.getDashboardAuction).mockResolvedValue({
+      data: {
+        date: '2026-06-29',
+        total: 1,
+        picks: [
+          {
+            code: '600171',
+            name: '上海贝岭',
+            industry: '半导体',
+            gap_pct: 1.67,
+            score: 51.3,
+            vol_z: 0.88,
+          },
+        ],
+      },
+    } as any)
+    vi.mocked(signalApi.getLive).mockResolvedValue({ data: { session: 'intra', signals: [] } } as any)
+    vi.mocked(chainApi.getCandidates).mockResolvedValue({ data: { candidates: [] } } as any)
+
+    renderOpenDecision('/open-decision/auction')
+
+    expect((await screen.findAllByText('上海贝岭')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('宁德时代')).not.toBeInTheDocument()
+  })
+
+  it('handles backend live signal shape without crashing', async () => {
+    vi.mocked(signalApi.getDashboardAuction).mockResolvedValue({ data: { date: '2026-06-29', total: 0, picks: [] } } as any)
+    vi.mocked(signalApi.getLive).mockResolvedValue({
+      data: {
+        session: 'intra',
+        trade_date: '2026-06-26',
+        signals: [
+          {
+            code: '002898',
+            name: '赛隆退',
+            price: 0.35,
+            change_pct: -95.78,
+            signal: 'Bearish',
+            confidence: 72,
+          },
+        ],
+      },
+    } as any)
+    vi.mocked(chainApi.getCandidates).mockResolvedValue({ data: { candidates: [] } } as any)
+
+    renderOpenDecision('/open-decision/signals')
+
+    expect((await screen.findAllByText('赛隆退')).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('减仓').length).toBeGreaterThan(0)
+  })
+
+  it('shows signal live trade date on the signal scan tab', async () => {
+    vi.mocked(signalApi.getDashboardAuction).mockResolvedValue({ data: { date: '2026-06-29', total: 0, picks: [] } } as any)
+    vi.mocked(signalApi.getLive).mockResolvedValue({
+      data: {
+        session: 'intra',
+        trade_date: '2026-06-26',
+        signals: [],
+      },
+    } as any)
+
+    renderOpenDecision('/open-decision/signals')
+
+    expect(await screen.findByText('交易日：2026-06-26')).toBeInTheDocument()
   })
 })

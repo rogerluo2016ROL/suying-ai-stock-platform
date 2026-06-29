@@ -1,3 +1,4 @@
+export * from './DataFreshnessBar'
 export * from './MetricCard'
 export * from './PrototypeLayout'
 export * from './PrototypePrimitives'

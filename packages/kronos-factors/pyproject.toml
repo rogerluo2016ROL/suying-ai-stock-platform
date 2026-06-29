@@ -22,3 +22,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["kronos_factors*"]
+
+[tool.setuptools.package-data]
+kronos_factors = ["configs/*.json"]

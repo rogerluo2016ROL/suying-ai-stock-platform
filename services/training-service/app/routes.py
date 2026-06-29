@@ -345,8 +345,8 @@ async def api_list_models(
                         updated_at=d.get("updated_at"),
                         notes=d.get("notes"),
                     ))
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to query model registry from DB: %s", exc)
 
     total = len(records)
     start = (page - 1) * page_size

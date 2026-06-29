@@ -19,6 +19,15 @@ from app.plan_store import Plan
 TABLE_STRATEGY_PLANS = "strategy_plans"
 
 
+def _coerce_datetime(value: Any, fallback: datetime) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str) and value:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return fallback
+
+
 async def record(db: AsyncSession, *, plan: Plan) -> int | None:
     now = datetime.now(timezone.utc)
     result = await db.execute(
@@ -64,7 +73,7 @@ async def record(db: AsyncSession, *, plan: Plan) -> int | None:
             "visibility": plan.visibility,
             "data_scope": plan.data_scope,
             "picks": json.dumps(plan.picks, ensure_ascii=False),
-            "created_at": plan.created_at or now,
+            "created_at": _coerce_datetime(plan.created_at, now),
             "updated_at": now,
         },
     )
@@ -78,6 +87,8 @@ async def query(
     tenant_id: str | None = None,
     owner_user_id: str | None = None,
     account_id: str | None = None,
+    visibility: str | None = None,
+    data_scope: str | None = None,
     plan_id: str | None = None,
     status: str | None = None,
     page: int = 1,
