@@ -17,7 +17,7 @@ const statusConfig: Record<BrokerStatusType, {
 
 interface BrokerStatusProps {
   status: BrokerStatusType
-  onConnect: () => void
+  onConnect: () => void | Promise<void>
 }
 
 export default function BrokerStatus({ status, onConnect }: BrokerStatusProps) {

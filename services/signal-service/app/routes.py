@@ -10,6 +10,80 @@ router = APIRouter(prefix="/api/v1/signal", tags=["signal"])
 store = get_store()
 
 
+def _signal_model_metadata(mode: str) -> dict:
+    return {
+        "name": "signal-six-dimension-v2",
+        "version": "signal-v2.0",
+        "provider": "signal-service",
+        "inference_mode": mode,
+    }
+
+
+def _coerce_iso_date(value) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "date"):
+        return value.date().isoformat()
+    text = str(value)
+    if not text:
+        return None
+    return text[:10]
+
+
+def _signal_data_freshness(data=None, source: str = "daily_kline") -> dict:
+    as_of = None
+    try:
+        if data is not None and len(data) > 0:
+            if hasattr(data, "columns") and "trade_date" in data.columns:
+                as_of = _coerce_iso_date(data["trade_date"].iloc[-1])
+            elif hasattr(data, "index") and len(data.index) > 0:
+                as_of = _coerce_iso_date(data.index[-1])
+    except Exception:
+        as_of = None
+
+    if not as_of:
+        return {
+            "status": "unknown",
+            "as_of": None,
+            "source": source,
+            "quality_score": 0,
+        }
+
+    try:
+        as_date = datetime.fromisoformat(as_of).date()
+        lag_days = max(0, (datetime.now(timezone.utc).date() - as_date).days)
+    except Exception:
+        lag_days = 999
+
+    if lag_days <= 10:
+        status, quality_score = "fresh", 96
+    elif lag_days <= 30:
+        status, quality_score = "stale", 72
+    else:
+        status, quality_score = "outdated", 35
+    return {
+        "status": status,
+        "as_of": as_of,
+        "source": source,
+        "quality_score": quality_score,
+    }
+
+
+def _with_signal_contract(
+    payload: dict,
+    *,
+    mode: str,
+    data=None,
+    fallback_reason: str | None = None,
+    source: str = "daily_kline",
+) -> dict:
+    enriched = dict(payload)
+    enriched["model_metadata"] = _signal_model_metadata(mode)
+    enriched["data_freshness"] = _signal_data_freshness(data, source)
+    enriched["fallback_reason"] = fallback_reason
+    return enriched
+
+
 # ═══════════════════════════════════════════════════════════════
 # Dashboard aggregation endpoint — one-shot fetch for AI 看板
 # ═══════════════════════════════════════════════════════════════
@@ -530,7 +604,13 @@ async def dashboard_summary():
         result["cctv_headlines"] = []
         result["monetary_policy"] = None
 
-    return result
+    return _with_signal_contract(
+        result,
+        mode="dashboard-summary",
+        data=None,
+        fallback_reason=result.get("market_sentiment", {}).get("error"),
+        source="signal.dashboard",
+    )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -694,7 +774,7 @@ async def auction_intent(limit: int = Query(50, ge=10, le=200)):
 @router.get("/levels")
 async def signal_levels():
     """Five-level signal classification."""
-    return {
+    payload = {
         "levels": [
             {"level": "STRONG_BUY", "icon": "🟢", "min_score": 80, "action": "重仓买入 (15-20%)"},
             {"level": "BUY",        "icon": "🟡", "min_score": 60, "action": "标准买入 (8-12%)"},
@@ -705,6 +785,7 @@ async def signal_levels():
         ],
         "signal_formula": "Kronos x0.3 + FactorResonance x0.3 + RuleMatch x0.2 + MarketAdapt x0.2",
     }
+    return _with_signal_contract(payload, mode="levels", source="signal.rules")
 
 
 @router.get("/analyze/{code}")
@@ -718,7 +799,13 @@ async def analyze_signal(code: str):
 
     df = _get_market_data().get_kline_df(code, lookback=400)
     if df is None or len(df) < 30:
-        raise HTTPException(404, f"No K-line data for {code}")
+        raise HTTPException(
+            404,
+            {
+                "message": f"No K-line data for {code}",
+                "fallback_reason": "source data missing: daily_kline has fewer than 30 rows",
+            },
+        )
 
     ff = score_five_factor(df)
     mf = score_money_flow(df)
@@ -807,7 +894,7 @@ async def analyze_signal(code: str):
     store.record(code=code, level=level, icon=icon, score=round(signal_score, 1),
                  reason=f"技术{tech_score:.0f}/资金{money_score:.0f}/趋势{trend_score:.0f}")
 
-    return {
+    payload = {
         "code": code,
         "signal": {"level": level, "icon": icon, "score": round(signal_score, 1)},
         "components": {
@@ -831,6 +918,7 @@ async def analyze_signal(code: str):
         "audit_risk": audit_risk,
         "generated_at": __import__("datetime").datetime.now().isoformat(),
     }
+    return _with_signal_contract(payload, mode="analyze", data=df)
 
 
 @router.post("/batch")

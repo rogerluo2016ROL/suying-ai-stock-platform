@@ -4,7 +4,7 @@ export type RoleView = 'trader' | 'investor' | 'admin'
 export type Visibility = 'private' | 'tenant_shared' | 'public'
 export type DataScope = 'public' | 'tenant' | 'user' | 'account'
 export type TradeMode = 'paper' | 'live'
-export type BrokerAdapter = 'paper' | 'xtquant_qmt' | 'broker_rest'
+export type BrokerAdapter = 'paper' | 'mock_qmt' | 'xtquant_qmt' | 'broker_rest'
 
 export interface PlatformScope {
   tenantId: string

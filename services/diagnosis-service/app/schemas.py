@@ -98,6 +98,27 @@ class DiagnosisReport(BaseModel):
     kronos_available: bool = Field(default=True, description="Kronos prediction availability")
     degraded: bool = Field(default=False, description="Whether diagnosis ran in degraded mode")
     degraded_dimensions: List[str] = Field(default_factory=list, description="Dimensions that were degraded/unavailable")
+    model_metadata: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "diagnosis_model": "five-dimension-weighted-v2",
+            "prediction_model": {
+                "name": "Kronos-mini",
+                "version": "kronos-mini",
+                "checkpoint_status": "unknown",
+            },
+        },
+        description="Model lineage for diagnosis and downstream prediction.",
+    )
+    data_freshness: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            "status": "unknown",
+            "as_of": None,
+            "source": "diagnosis-service",
+            "quality_score": 0,
+        },
+        description="Freshness summary used by the new UI contract.",
+    )
+    fallback_reason: Optional[str] = Field(default=None, description="Reason when diagnosis used degraded data/model path.")
     created_at: Optional[datetime] = Field(default=None)
 
 

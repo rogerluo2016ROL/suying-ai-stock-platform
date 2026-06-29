@@ -42,6 +42,22 @@ export interface PredictionPoint {
   low: number
 }
 
+export interface ModelMetadata {
+  name: string
+  version?: string
+  provider?: string
+  inference_mode?: string
+  checkpoint_status?: string
+  [key: string]: unknown
+}
+
+export interface DataFreshness {
+  status: 'fresh' | 'stale' | 'fallback' | 'unknown' | 'missing' | 'outdated'
+  as_of?: string | null
+  source?: string
+  quality_score?: number
+}
+
 // ── Backend-aligned interfaces (matching Pydantic DiagnosisReport) ──
 
 export interface DimensionScore {
@@ -85,6 +101,9 @@ export interface DiagnosisReport {
   kronos_available: boolean
   degraded: boolean
   degraded_dimensions: string[]
+  model_metadata?: ModelMetadata
+  data_freshness?: DataFreshness
+  fallback_reason?: string | null
   created_at?: string
 }
 

@@ -10,12 +10,15 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter, Body, Query, HTTPException
+from fastapi import APIRouter, Body, Depends, Header, Query, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import numpy as np
 
+from app import candidate_pool_store
 from app.config import AVAILABLE_MODES, DEFAULT_TOP_N, MAX_TOP_N
+from app.database import get_db
 
 logger = logging.getLogger("screener.routes")
 
@@ -82,6 +85,68 @@ class PolicyInterpretResponse(BaseModel):
 router = APIRouter(prefix="/api/v1/screener", tags=["screener"])
 
 
+def _screener_model_metadata(mode: str) -> dict[str, Any]:
+    if mode.startswith("chain:") or mode == "supply_chain":
+        return {
+            "name": "supply-chain-deconstruct-v5",
+            "version": "supply-chain-v5.0",
+            "provider": "screener-service",
+            "inference_mode": mode,
+        }
+    return {
+        "name": "screener-multi-strategy-v2",
+        "version": "screener-contract-v2",
+        "provider": "screener-service",
+        "inference_mode": mode,
+    }
+
+
+def _screener_data_freshness(trade_date: str | None = None, source: str = "daily_kline") -> dict[str, Any]:
+    if not trade_date:
+        return {
+            "status": "unknown",
+            "as_of": None,
+            "source": source,
+            "quality_score": 0,
+        }
+    as_of = str(trade_date)[:10]
+    try:
+        as_date = datetime.fromisoformat(as_of).date()
+        lag_days = max(0, (datetime.now().date() - as_date).days)
+    except Exception:
+        lag_days = 999
+    if lag_days <= 10:
+        status, quality_score = "fresh", 96
+    elif lag_days <= 30:
+        status, quality_score = "stale", 72
+    else:
+        status, quality_score = "outdated", 35
+    return {
+        "status": status,
+        "as_of": as_of,
+        "source": source,
+        "quality_score": quality_score,
+    }
+
+
+def _with_screener_contract(
+    payload: dict[str, Any],
+    *,
+    mode: str,
+    trade_date: str | None = None,
+    fallback_reason: str | None = None,
+    source: str = "daily_kline",
+) -> dict[str, Any]:
+    enriched = dict(payload)
+    enriched["model_metadata"] = _screener_model_metadata(mode)
+    enriched["data_freshness"] = _screener_data_freshness(
+        trade_date or enriched.get("trade_date"),
+        source=source,
+    )
+    enriched["fallback_reason"] = fallback_reason
+    return enriched
+
+
 def _normalize_picks(picks: list, mode: str) -> list:
     """Normalize engine-specific field names to frontend-expected fields.
 
@@ -89,6 +154,14 @@ def _normalize_picks(picks: list, mode: str) -> list:
     Different engines use different names, so we normalize here.
     """
     for p in picks:
+        code = str(p.get("code") or p.get("ts_code") or "").strip().upper()
+        if code:
+            p["candidate_id"] = p.get("candidate_id") or f"CAND-{mode}-{code}"
+        p["source_module"] = p.get("source_module") or "screener"
+        p["source_mode"] = p.get("source_mode") or mode
+        p["visibility"] = p.get("visibility") or "public"
+        p["data_scope"] = p.get("data_scope") or "public"
+
         # Normalize price
         if "price" not in p:
             if "close" in p:
@@ -1254,6 +1327,57 @@ def _auto_save_snapshot(result: dict, mode: str):
         logger.warning("Recorder save failed (PG may not be available): %s", e)
 
 
+async def _candidate_pool_record_safe(
+    db: AsyncSession | None,
+    *,
+    result: dict,
+    mode: str,
+    top_n: int,
+    tenant_id: str | None,
+    owner_user_id: str | None,
+    account_id: str | None,
+    data_scope: str | None,
+) -> None:
+    if db is None:
+        return
+
+    picks = result.get("picks") or []
+    if not picks:
+        return
+
+    resolved_tenant = tenant_id or "tenant-default"
+    resolved_scope = data_scope or ("account" if account_id or owner_user_id else "public")
+    visibility = "public" if resolved_scope == "public" else "private"
+    trade_date = result.get("trade_date") or datetime.now().strftime("%Y-%m-%d")
+    time_slot = result.get("time_slot") or datetime.now().strftime("%H:%M")
+    pool_id = f"POOL-{mode}-{trade_date}-{time_slot.replace(':', '')}-{account_id or owner_user_id or 'public'}"
+
+    try:
+        await candidate_pool_store.record(
+            db,
+            pool_id=pool_id,
+            tenant_id=resolved_tenant,
+            owner_user_id=owner_user_id,
+            account_id=account_id,
+            source_module="screener",
+            source_mode=mode,
+            name=f"{mode} 候选池",
+            candidates=picks,
+            metadata={
+                "trade_date": trade_date,
+                "time_slot": time_slot,
+                "top_n": top_n,
+                "elapsed": result.get("elapsed"),
+            },
+            visibility=visibility,
+            data_scope=resolved_scope,
+        )
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.warning("CandidatePool save failed (PG may not be available): %s", e)
+
+
 def _persist_policy_interpretation(
     text: str,
     source: dict[str, Any] | None,
@@ -1722,6 +1846,11 @@ async def run_screening(
     mode: str = Query("short", description="Screening mode"),
     top_n: int = Query(DEFAULT_TOP_N, ge=5, le=MAX_TOP_N, description="Top N picks"),
     trade_date: Optional[str] = Query(None, description="Trade date (YYYY-MM-DD), defaults to latest"),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    owner_user_id: str | None = Header(default=None, alias="X-Owner-User-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
+    db: AsyncSession | None = Depends(get_db),
 ):
     """Run stock screening with the specified mode.
 
@@ -1744,7 +1873,7 @@ async def run_screening(
         if cached:
             cached["cached"] = True
             cached["elapsed"] = round(time.time() - t0, 1)
-            return cached
+            return _with_screener_contract(cached, mode=mode, trade_date=trade_date)
     except Exception:
         pass  # cache miss or Redis unavailable → proceed normally
 
@@ -1795,6 +1924,16 @@ async def run_screening(
 
     # ── Auto-save snapshot (JSON file + PG) — before cache to ensure persistence ──
     _auto_save_snapshot(result, mode)
+    await _candidate_pool_record_safe(
+        db,
+        result=result,
+        mode=mode,
+        top_n=top_n,
+        tenant_id=tenant_id,
+        owner_user_id=owner_user_id,
+        account_id=account_id,
+        data_scope=data_scope,
+    )
 
     # ── Redis cache write (L4: screener results, TTL 1h) ──
     try:
@@ -1803,7 +1942,7 @@ async def run_screening(
     except Exception:
         pass
 
-    return result
+    return _with_screener_contract(result, mode=mode, trade_date=trade_date)
 
 
 def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
@@ -2073,7 +2212,11 @@ async def chain_deconstruct(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return result
+    return _with_screener_contract(
+        result,
+        mode=f"chain:{method}",
+        source="chain_nodes",
+    )
 
 
 @router.get("/chain/node/{node_id}/companies")

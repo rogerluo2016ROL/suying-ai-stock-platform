@@ -3,11 +3,11 @@
    ============================================================ */
 
 export { Navigation } from './Navigation'
-export { WorkflowNav } from './WorkflowNav'
+export { WorkflowNav, P0WorkflowNav, P0_WORKFLOW_STEPS } from './WorkflowNav'
 export { TradingContextBar } from './TradingContextBar'
 export { PlatformContextBar } from './PlatformContextBar'
 
 export type { NavigationProps } from './Navigation'
-export type { WorkflowNavProps, WorkflowStep } from './WorkflowNav'
+export type { WorkflowNavProps, WorkflowStep, P0WorkflowNavProps } from './WorkflowNav'
 export type { TradingContextBarProps, TradingContext } from './TradingContextBar'
 export type { PlatformContextBarProps } from './PlatformContextBar'

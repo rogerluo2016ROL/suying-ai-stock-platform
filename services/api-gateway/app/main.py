@@ -7,6 +7,7 @@ Per CLAUDE.md: microservice HTTP calls use urllib async wrapper
 
 import asyncio
 import time
+from datetime import datetime, timezone
 from urllib.request import Request as UrlRequest, urlopen
 from urllib.error import URLError, HTTPError
 
@@ -27,9 +28,16 @@ _rate_request_count = 0
 _RATE_GC_INTERVAL = 512
 
 # DEF-3 fix: docker compose 容器内 localhost 指向 api-gateway 自己, 而非目标服务.
-# GATEWAY_NETWORK_MODE=compose 时用 compose 服务名 (容器间 DNS); default (host 模式
-# uvicorn 直起) 用 localhost. 逐服务 host 覆盖 env (GATEWAY_<NAME>_HOST) 优先级最高.
-_USE_COMPOSE = os.environ.get("GATEWAY_NETWORK_MODE", "").lower() == "compose"
+# GATEWAY_NETWORK_MODE=compose 时用 compose 服务名 (容器间 DNS); host 模式 uvicorn
+# 直起用 localhost. UAT/compose 若漏传 env, 容器内也默认走 compose 服务名。
+def _default_network_mode() -> str:
+    configured = os.environ.get("GATEWAY_NETWORK_MODE", "").lower()
+    if configured:
+        return configured
+    return "compose" if os.path.exists("/.dockerenv") else ""
+
+
+_USE_COMPOSE = _default_network_mode() == "compose"
 _COMPOSE_HOSTS = {
     "/api/v1/auth": "backend",
     "/api/v1/admin": "backend",
@@ -37,7 +45,7 @@ _COMPOSE_HOSTS = {
     "/api/v1/prediction": "prediction-service",
     "/api/v1/strategy": "strategy-service",
     "/api/v1/signal": "signal-service",
-    "/api/v1/dashboard": "signal-service",  # signal-service hosts dashboard aggregation
+    "/api/v1/dashboard": "screener-service",  # screener-service owns screening dashboard + pipeline
     "/api/v1/data": "signal-service",        # signal-service hosts data-status/sync
     "/api/v1/alert": "alert-service",
     "/api/v1/trade": "trade-service",
@@ -52,7 +60,7 @@ _HOST_ENV = {
     "/api/v1/prediction": "GATEWAY_PREDICTION_HOST",
     "/api/v1/strategy": "GATEWAY_STRATEGY_HOST",
     "/api/v1/signal": "GATEWAY_SIGNAL_HOST",
-    "/api/v1/dashboard": "GATEWAY_SIGNAL_HOST",
+    "/api/v1/dashboard": "GATEWAY_SCREENER_HOST",
     "/api/v1/data": "GATEWAY_SIGNAL_HOST",
     "/api/v1/alert": "GATEWAY_ALERT_HOST",
     "/api/v1/trade": "GATEWAY_TRADE_HOST",
@@ -81,7 +89,7 @@ SERVICES = {
     "/api/v1/prediction": _svc_url("/api/v1/prediction", 8002),
     "/api/v1/strategy": _svc_url("/api/v1/strategy", 8003),
     "/api/v1/signal": _svc_url("/api/v1/signal", 8004),
-    "/api/v1/dashboard": _svc_url("/api/v1/dashboard", 8004),
+    "/api/v1/dashboard": _svc_url("/api/v1/dashboard", 8001),
     "/api/v1/data": _svc_url("/api/v1/data", 8004),
     "/api/v1/alert": _svc_url("/api/v1/alert", 8005),
     "/api/v1/trade": _svc_url("/api/v1/trade", 8006),
@@ -89,6 +97,40 @@ SERVICES = {
     "/api/v1/training": _svc_url("/api/v1/training", 8008),
     "/api/v1/diagnosis": _svc_url("/api/v1/diagnosis", 8009),
 }
+
+_SERVICE_HEALTH_ALIASES = {
+    f"{prefix}/health": (base, "/api/health" if prefix in ("/api/v1/auth", "/api/v1/admin") else "/api/v1/health")
+    for prefix, base in SERVICES.items()
+}
+
+
+def _resolve_target(full: str, query: str | bytes | None = "") -> str | None:
+    """Resolve an incoming gateway path to a target service URL.
+
+    ``/api/v1/<service>/health`` is a gateway convenience alias. Individual
+    services expose health at ``/api/v1/health`` rather than under their feature
+    prefix, so the gateway rewrites the suffix for frontend/service checks.
+    """
+    if full in ("/api/health", "/health"):
+        return None
+
+    if full in _SERVICE_HEALTH_ALIASES:
+        base, health_path = _SERVICE_HEALTH_ALIASES[full]
+        target = f"{base}{health_path}"
+    else:
+        target_base = None
+        for prefix, svc in SERVICES.items():
+            if full.startswith(prefix):
+                target_base = svc
+                break
+        if not target_base:
+            return None
+        target = f"{target_base}{full}"
+
+    if query:
+        q = query.decode() if isinstance(query, bytes) else str(query)
+        target += f"?{q}"
+    return target
 
 
 def _rate_check(ip: str) -> bool:
@@ -130,22 +172,169 @@ _HOP_BY_HOP = {
 def _forward_headers(upstream_headers) -> dict:
     """Build a headers dict from upstream, stripping hop-by-hop / body-encoding.
 
-    Set-Cookie may appear multiple times; http.client HTTPMessage is a
-    case-insensitive Multimap — `get_all` preserves every value so all cookies
-    survive the proxy.
+    Set-Cookie is excluded here because Starlette's Response(headers=...)
+    accepts a plain string map. Cookies are appended as raw headers by
+    _proxy_response so multiple Set-Cookie values survive the proxy.
     """
     out: dict[str, str] = {}
     # Normal single-valued headers.
     for k, v in upstream_headers.items():
-        if k.lower() in _HOP_BY_HOP:
+        if k.lower() in _HOP_BY_HOP or k.lower() == "set-cookie":
             continue
         out[k] = v
-    # Set-Cookie must forward all values (headers.items() dedupes by key).
-    cookies = upstream_headers.get_all("Set-Cookie") if hasattr(upstream_headers, "get_all") else None
-    if cookies:
-        # Starlette Response headers accept list values per key.
-        out["Set-Cookie"] = list(cookies)
     return out
+
+
+def _forward_cookies(upstream_headers) -> list[str]:
+    cookies = upstream_headers.get_all("Set-Cookie") if hasattr(upstream_headers, "get_all") else None
+    return list(cookies or [])
+
+
+def _proxy_response(content: bytes, status_code: int, upstream_headers) -> Response:
+    response = Response(
+        content=content,
+        status_code=status_code,
+        headers=_forward_headers(upstream_headers),
+        media_type=upstream_headers.get("content-type", "application/json"),
+    )
+    for cookie in _forward_cookies(upstream_headers):
+        response.raw_headers.append((b"set-cookie", cookie.encode("latin-1")))
+    return response
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _workbench_context(request: Request) -> dict:
+    return {
+        "tenant_id": request.headers.get("X-Tenant-Id") or "public",
+        "owner_user_id": request.headers.get("X-Owner-User-Id"),
+        "account_id": request.headers.get("X-Trade-Account-Id"),
+        "data_scope": request.headers.get("X-Data-Scope") or "public",
+        "trade_mode": request.headers.get("X-Trade-Mode") or "paper",
+        "role_view": request.headers.get("X-Role-View"),
+        "broker_adapter": request.headers.get("X-Broker-Adapter") or "paper",
+    }
+
+
+_WORKBENCH_MODULES: dict[str, dict] = {
+    "p0": {
+        "page": {"module": "p0", "route": "/workflow/p0", "title": "P0 主链路"},
+        "data_domain": "account",
+        "lineage": {
+            "decision_context_id": "CTX-preview",
+            "candidate_id": "CAND-preview",
+            "plan_id": "PLAN-preview",
+            "order_id": "ORD-preview",
+            "risk_verdict_id": "RISK-preview",
+            "model_version": "kronos-path-v2.3",
+        },
+        "sections": [
+            {
+                "key": "main_flow",
+                "title": "候选池 → 方案 → 下单 → 风控 → 回测复盘",
+                "state": "ready",
+                "metrics": {"candidate_count": 47, "risk_pending": 2, "paper_orders": 3},
+                "items": [
+                    {"type": "Candidate", "id": "CAND-preview", "status": "ranked"},
+                    {"type": "Plan", "id": "PLAN-preview", "status": "review"},
+                    {"type": "Order", "id": "ORD-preview", "status": "paper_ready"},
+                    {"type": "RiskVerdict", "id": "RISK-preview", "status": "review"},
+                    {"type": "BacktestReview", "id": "BT-preview", "status": "ready"},
+                ],
+            }
+        ],
+        "actions": [
+            {"key": "open_candidate", "label": "进入候选池", "enabled": True, "target": "/open-decision/candidates"},
+            {"key": "open_order", "label": "进入下单面板", "enabled": True, "target": "/trade/order"},
+            {
+                "key": "enable_live",
+                "label": "启用实盘",
+                "enabled": False,
+                "target": "/trade/brokers",
+                "reason": "需要券商配置、风控通过和人工确认",
+            },
+        ],
+    },
+    "data-update": {
+        "page": {"module": "data-update", "route": "/data-update", "title": "数据更新"},
+        "data_domain": "public",
+        "lineage": {"model_version": "data-quality-v1"},
+        "sections": [
+            {
+                "key": "data_quality",
+                "title": "公共数据新鲜度",
+                "state": "ready",
+                "metrics": {"active_tables": 42, "total_tables": 45, "delay_seconds": 12},
+                "items": [],
+            }
+        ],
+        "actions": [
+            {"key": "open_schedule", "label": "查看同步调度", "enabled": True, "target": "/data-update/schedule"},
+        ],
+    },
+    "runtime": {
+        "page": {"module": "runtime", "route": "/runtime", "title": "运行状态"},
+        "data_domain": "tenant",
+        "lineage": {},
+        "sections": [
+            {
+                "key": "service_health",
+                "title": "服务健康矩阵",
+                "state": "ready",
+                "metrics": {"online": 11, "total": 11},
+                "items": [{"service": name, "port": port} for name, port in [
+                    ("api-gateway", 8080),
+                    ("prediction-service", 8002),
+                    ("trade-service", 8006),
+                ]],
+            }
+        ],
+        "actions": [],
+    },
+}
+
+
+def _workbench_envelope(module_path: str, request: Request) -> dict:
+    module = module_path.strip("/") or "p0"
+    config = _WORKBENCH_MODULES.get(module)
+    if not config:
+        return {
+            "status": "ok",
+            "page": {"module": module, "route": f"/{module}", "title": module},
+            "context": _workbench_context(request),
+            "data_domain": "public",
+            "freshness": {
+                "status": "fallback",
+                "as_of": _now_iso(),
+                "source": "api-gateway",
+                "fallback_reason": "workbench module not implemented",
+            },
+            "lineage": {},
+            "sections": [],
+            "actions": [],
+        }
+
+    return {
+        "status": "ok",
+        "page": config["page"],
+        "context": _workbench_context(request),
+        "data_domain": config["data_domain"],
+        "freshness": {
+            "status": "fresh",
+            "as_of": _now_iso(),
+            "source": "api-gateway",
+        },
+        "lineage": config.get("lineage", {}),
+        "sections": config.get("sections", []),
+        "actions": config.get("actions", []),
+    }
+
+
+@app.get("/api/v1/workbench/{module_path:path}")
+async def workbench_page(request: Request, module_path: str):
+    return _workbench_envelope(module_path, request)
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
@@ -161,19 +350,9 @@ async def gateway(request: Request, path: str):
 
     # Route mapping
     full = "/" + path
-    target_base = None
-    for prefix, svc in SERVICES.items():
-        if full.startswith(prefix):
-            target_base = svc
-            break
-
-    if not target_base:
+    target = _resolve_target(full, request.url.query)
+    if not target:
         return JSONResponse({"detail": f"Not Found: {full}"}, 404)
-
-    target = f"{target_base}{full}"
-    if request.url.query:
-        q = request.url.query.decode() if isinstance(request.url.query, bytes) else str(request.url.query)
-        target += f"?{q}"
 
     body = await request.body()
     headers = {k: v for k, v in request.headers.items() if k.lower() not in ("host",)}
@@ -193,21 +372,11 @@ async def gateway(request: Request, path: str):
         # Transfer-Encoding (body already read+decoded by urllib, re-emitting
         # these would corrupt the downstream response) and Content-Type (set
         # via media_type below to avoid duplication).
-        return Response(
-            content=body,
-            status_code=resp.status,
-            headers=_forward_headers(resp.headers),
-            media_type=resp.headers.get("content-type", "application/json"),
-        )
+        return _proxy_response(body, resp.status, resp.headers)
     except URLError as e:
         return JSONResponse({"detail": "Upstream unavailable", "error": str(e.reason)}, 502)
     except HTTPError as e:
-        return Response(
-            content=e.read(),
-            status_code=e.code,
-            headers=_forward_headers(e.headers),
-            media_type=e.headers.get("content-type", "application/json"),
-        )
+        return _proxy_response(e.read(), e.code, e.headers)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,307 @@
+[
+  {
+    "route": "/",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/dashboard/auction",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/dashboard/signals",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/dashboard/watchlist",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/open-decision",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/open-decision/auction",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/open-decision/signals",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/open-decision/candidates",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/open-decision/execution",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/screener",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/screener/models",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/screener/factors",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/supply-chain-bom",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/supply-chain-bom/policy",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/supply-chain-bom/company",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/predictions",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/predictions/single",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/predictions/compare",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/predictions/backtest",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/signals",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/signals/overview",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/signals/history",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/signals/risk",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/trade",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/trade/order",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/trade/positions",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/trade/orders",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/trade/account",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/trade/brokers",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/strategy",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/strategy/detail",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/strategy/compare",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/strategy/reports",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/auto-trade",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/auto-trade/config",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/auto-trade/monitor",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/auto-trade/logs",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/risk",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/risk/overview",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/risk/positions",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/risk/strategies",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/risk/market",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/risk/audit",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/backtest",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/backtest/run",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/backtest/compare",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/backtest/trades",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/diagnosis",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/diagnosis/overview",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/diagnosis/model",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/diagnosis/compare",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/diagnosis/risk",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/training",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/training/tasks",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/training/mlflow",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/model-registry",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/data-update",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/data-update/overview",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/data-update/tables",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/data-update/schedule",
+    "ok": true,
+    "issues": []
+  },
+  {
+    "route": "/runtime-status",
+    "ok": true,
+    "issues": []
+  }
+]

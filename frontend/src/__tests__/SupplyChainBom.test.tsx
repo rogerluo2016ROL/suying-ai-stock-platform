@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
+import { MemoryRouter } from 'react-router-dom'
 import SupplyChainBom from '../pages/SupplyChainBom'
 import { screenerApi, chainApi } from '../api/client'
 
@@ -275,6 +276,16 @@ const policyInterpretResponse = {
   persisted: false,
 }
 
+function renderSupplyChain(initialRoute = '/supply-chain-bom') {
+  return render(
+    <ConfigProvider locale={zhCN}>
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <SupplyChainBom />
+      </MemoryRouter>
+    </ConfigProvider>,
+  )
+}
+
 describe('SupplyChainBom', () => {
   beforeEach(() => {
     vi.mocked(screenerApi.getSupplyChainThemes).mockResolvedValue({ data: { themes } } as any)
@@ -311,12 +322,11 @@ describe('SupplyChainBom', () => {
   })
 
   it('renders policy themes and drills into a BOM node', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
+    expect(screen.getByRole('tab', { name: /政策梳理/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /产业链解构/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /多维度分析/ })).toBeInTheDocument()
     expect((await screen.findAllByText('未来产业主攻方向')).length).toBeGreaterThan(0)
     expect(screen.getByTestId('tree-chart')).toBeInTheDocument()
     expect(screen.getByTestId('graph-chart')).toBeInTheDocument()
@@ -333,11 +343,7 @@ describe('SupplyChainBom', () => {
   })
 
   it('shows candidate companies with selection reason, commercialization stage, and resonance', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
     expect(await screen.findByText('候选公司池')).toBeInTheDocument()
     expect(screen.getAllByText('中际旭创').length).toBeGreaterThan(0)
@@ -352,15 +358,12 @@ describe('SupplyChainBom', () => {
   })
 
   it('shows data freshness, report ingestion status, and policy interpretation', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
-    expect(await screen.findByText('行情更新至 2026-06-22')).toBeInTheDocument()
-    expect(screen.getByText('研报更新至 2026-06-09')).toBeInTheDocument()
-    expect(screen.getByText('研报库已接入')).toBeInTheDocument()
+    expect(await screen.findByText('数据更新')).toBeInTheDocument()
+    expect(screen.getAllByText('2026-06-22').length).toBeGreaterThan(0)
+    expect(screen.getByText('研报 2026-06-09')).toBeInTheDocument()
+    expect(screen.getAllByText('研报库已接入').length).toBeGreaterThan(0)
     expect(screen.getByText('未来产业主攻方向强调前瞻布局，重点寻找可能形成新赛道和新动能的硬科技产业。')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '新质生产力' }))
@@ -368,11 +371,7 @@ describe('SupplyChainBom', () => {
   })
 
   it('shows upstream influence observation candidates outside the downstream sector board', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
     expect(await screen.findByText('上游影响观察池')).toBeInTheDocument()
     expect(screen.getAllByText('世名科技').length).toBeGreaterThan(0)
@@ -385,11 +384,7 @@ describe('SupplyChainBom', () => {
   })
 
   it('shows the mapping review workbench with hotspot and queue rows', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
     expect(await screen.findByText('映射复核')).toBeInTheDocument()
     expect(screen.getByText('高端制造/集成')).toBeInTheDocument()
@@ -398,11 +393,7 @@ describe('SupplyChainBom', () => {
   })
 
   it('renders the three-column research workbench on the first screen', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
     const workbenchRegion = await screen.findByLabelText('产业链拆解工作台')
     expect(within(workbenchRegion).getByText('节点下钻、候选横评、证据复核集中处理')).toBeInTheDocument()
@@ -434,11 +425,7 @@ describe('SupplyChainBom', () => {
       return Promise.resolve({ data: workbench })
     })
 
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
     fireEvent.click(await screen.findByRole('button', { name: 'apartment具身智能' }))
 
@@ -478,11 +465,7 @@ describe('SupplyChainBom', () => {
       return Promise.resolve({ data: workbench })
     })
 
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
     fireEvent.click(await screen.findByRole('button', { name: 'apartment量子科技' }))
 
@@ -493,11 +476,7 @@ describe('SupplyChainBom', () => {
   it('opens a company research card with products, financials, score, moat and resonance', async () => {
     vi.mocked(screenerApi.getSupplyChainCompany).mockResolvedValue({ data: greenHarmonic } as any)
 
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
     fireEvent.click(await screen.findByRole('button', { name: 'eye中际旭创' }))
 
@@ -511,11 +490,7 @@ describe('SupplyChainBom', () => {
 
   // P2-08: Policy interpretation tests (replaces LLM extraction)
   it('submits policy text to the interpretation endpoint', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
     const input = await screen.findByPlaceholderText('粘贴政策文件、公告、新闻稿文本，LLM将自动解读并提取产业主题与投资逻辑...')
     fireEvent.change(input, { target: { value: '政策文件：重点发展量子科技产业' } })
@@ -536,11 +511,7 @@ describe('SupplyChainBom', () => {
   })
 
   it('can request persisting interpreted records for review', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
     const input = await screen.findByPlaceholderText('粘贴政策文件、公告、新闻稿文本，LLM将自动解读并提取产业主题与投资逻辑...')
     fireEvent.change(input, { target: { value: '政策文件：重点发展量子科技产业' } })
@@ -562,11 +533,7 @@ describe('SupplyChainBom', () => {
   })
 
   it('shows interpretation result with summary, themes and investment logic', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
     const input = await screen.findByPlaceholderText('粘贴政策文件、公告、新闻稿文本，LLM将自动解读并提取产业主题与投资逻辑...')
     fireEvent.change(input, { target: { value: '政策文件：重点发展量子科技产业' } })
@@ -588,11 +555,7 @@ describe('SupplyChainBom', () => {
 
   // P2-08: Method selector tests
   it('shows three view tabs and triggers chain deconstruct on method change', async () => {
-    render(
-      <ConfigProvider locale={zhCN}>
-        <SupplyChainBom />
-      </ConfigProvider>,
-    )
+    renderSupplyChain()
 
     // Wait for initial load and chain deconstruct call
     await waitFor(() => {

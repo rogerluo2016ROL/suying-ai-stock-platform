@@ -1,6 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider, useAuth } from '../contexts/AuthContext'
+import api, { clearAuth } from '../api/client'
 import React, { type ReactNode } from 'react'
 
 // ── Mock fetch ──
@@ -68,6 +69,10 @@ describe('AuthContext', () => {
     resetFetch()
   })
 
+  afterEach(() => {
+    clearAuth()
+  })
+
   // ── AC-28: 初始化时检查 refreshToken ──
 
   it('初始状态 isLoading=true', () => {
@@ -116,6 +121,13 @@ describe('AuthContext', () => {
         default_trade_account_id: 'qmt-880001',
         trade_mode: 'live',
         broker_adapter: 'xtquant_qmt',
+        broker_connect_config: {
+          broker_name: 'mock_qmt',
+          account_id: 'qmt-880001',
+          server_ip: '127.0.0.1',
+          server_port: 16001,
+          environment: 'sandbox',
+        },
       }),
     })
 
@@ -131,6 +143,13 @@ describe('AuthContext', () => {
       defaultTradeAccountId: 'qmt-880001',
       tradeMode: 'live',
       brokerAdapter: 'xtquant_qmt',
+      brokerConnectConfig: {
+        broker_name: 'mock_qmt',
+        account_id: 'qmt-880001',
+        server_ip: '127.0.0.1',
+        server_port: 16001,
+        environment: 'sandbox',
+      },
     })
   })
 
@@ -196,6 +215,49 @@ describe('AuthContext', () => {
       method: 'POST',
       credentials: 'include',
     }))
+  })
+
+  it('login 返回后立即发出的 api 请求也携带 Authorization', async () => {
+    mockRefreshFailure()
+    const { result } = renderHook(() => useAuth(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        access_token: 'login-token',
+        token_type: 'bearer',
+        expires_in: 900,
+        user: { id: 2, name: '张三', email: 'zhang@t.com', role: 'admin' },
+      }),
+    })
+
+    const originalAdapter = api.defaults.adapter
+    let authorization: unknown
+    api.defaults.adapter = async (config) => {
+      authorization = config.headers?.Authorization
+      return {
+        data: { ok: true },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      }
+    }
+
+    try {
+      await act(async () => {
+        await result.current.login('zhang@t.com', 'Abc12345')
+        await api.get('/auth-header-check')
+      })
+    } finally {
+      api.defaults.adapter = originalAdapter
+    }
+
+    expect(authorization).toBe('Bearer login-token')
   })
 
   // ── AC-24: 登录失败 ──

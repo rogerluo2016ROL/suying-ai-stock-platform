@@ -21,25 +21,8 @@ describe('PlatformContextBar', () => {
     expect(roleToRoleView('user')).toBe('investor')
   })
 
-  it('renders deterministic platform defaults for an admin user', () => {
-    renderBar({
-      id: 1,
-      name: '罗杰',
-      email: 'admin@suying.ai',
-      role: 'admin',
-    })
-
-    expect(screen.getByText('系统管理员')).toBeInTheDocument()
-    expect(screen.getByText('平台运营')).toBeInTheDocument()
-    expect(screen.getByText('platform')).toBeInTheDocument()
-    expect(screen.getByText('未绑定交易账户')).toBeInTheDocument()
-    expect(screen.getByText('公共+私有隔离')).toBeInTheDocument()
-    expect(screen.getByText('模拟盘')).toBeInTheDocument()
-    expect(screen.getByText('paper')).toBeInTheDocument()
-  })
-
-  it('renders tenant, account, live mode and broker adapter when backend supplies platform fields', () => {
-    renderBar({
+  it('does not render the removed global platform explanation strip', () => {
+    const { container } = renderBar({
       id: 8,
       name: '操盘手A',
       email: 'trader@suying.ai',
@@ -51,11 +34,9 @@ describe('PlatformContextBar', () => {
       brokerAdapter: 'xtquant_qmt',
     })
 
-    expect(screen.getByText('操盘手')).toBeInTheDocument()
-    expect(screen.getByText('Alpha 量化组')).toBeInTheDocument()
-    expect(screen.getByText('tenant-alpha')).toBeInTheDocument()
-    expect(screen.getByText('acct-qmt-01')).toBeInTheDocument()
-    expect(screen.getByText('实盘')).toBeInTheDocument()
-    expect(screen.getByText('xtquant_qmt')).toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryByText('操盘手')).not.toBeInTheDocument()
+    expect(screen.queryByText('公共+私有隔离')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cloud Ready')).not.toBeInTheDocument()
   })
 })

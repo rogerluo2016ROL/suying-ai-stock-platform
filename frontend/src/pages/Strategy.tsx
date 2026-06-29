@@ -1,311 +1,244 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Card, Button, Steps, Space, Typography, Tag, message, Table, Modal, Descriptions, List, Row, Col } from 'antd'
-import { BulbOutlined, PlayCircleOutlined, FileTextOutlined, DeleteOutlined, CheckCircleOutlined, EyeOutlined, FundOutlined, ExperimentOutlined, RobotOutlined, ThunderboltOutlined, SafetyOutlined, BankOutlined } from '@ant-design/icons'
-import api, { backtestApi } from '../api/client'
-
-const { Title, Text } = Typography
-
-// ── Types ──
+import { useMemo } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { BarChartOutlined, FileTextOutlined, FundOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { P0WorkflowNav } from '../components/layout'
+import {
+  DataDomainBadge,
+  LineageChips,
+  MetricCard,
+  PrototypeCard,
+  PrototypePage,
+  PrototypePageHeader,
+  PrototypeTabs,
+  RiskBanner,
+  SideRail,
+} from '../components/prototype'
 
 interface PlanPick {
   code: string
-  name: string
-  price: number
-  score: number
-  grade: string
+  name?: string
+  candidate_id?: string
+  source_mode?: string
   entry_price?: number
-  stop_loss?: number
-  target_price?: number
+  score?: number
 }
 
-interface Plan {
+interface PlanRow {
   id: string
   name: string
   status: string
-  picks_count: number
-  model_name: string
   capital: number
-  max_positions: number
-  single_max_pct: number
-  picks: PlanPick[]
-  created_at: string
-  updated_at: string
-}
-
-interface PlanReport {
-  title: string
-  generated_at: string
-  plan: { id: string; name: string; model: string; capital: number; max_positions: number }
-  picks: Array<{
-    code: string; name: string; price: number; score: number; grade: string
-    entry_price?: number; stop_loss?: number; target_price?: number
-    operation?: { entry_price: number; stop_loss: number; target_price: number; position_pct: number }
-  }>
-  quant_strategy?: { buy_conditions: string[]; sell_conditions: string[]; execution_mode: string }
-  risk_warnings?: string[]
-}
-
-interface StrategyTemplate {
-  id: string
-  name: string
   risk: string
-  max_positions: number
-  single_max: number
+  expectedReturn: number
+  picks: PlanPick[]
 }
 
-const planSteps = [
-  { title: '选股', description: '运行模型' },
-  { title: '预方案', description: '勾选标的' },
-  { title: '预测验证', description: 'Kronos预测' },
-  { title: '回测验证', description: '历史回测' },
-  { title: '确认方案', description: '生成报告' },
-  { title: '执行交易', description: '模拟/实盘' },
+export function buildTradeUrlForPick(planId: string, pick: Pick<PlanPick, 'code' | 'candidate_id' | 'source_mode' | 'entry_price'>) {
+  const sourceMode = pick.source_mode || 'manual'
+  const candidateId = pick.candidate_id || `CAND-${sourceMode}-${pick.code}`
+  const decisionContextId = `CTX-${planId}-${sourceMode}-${pick.code}`
+  const params = new URLSearchParams({
+    code: pick.code,
+    price: String(pick.entry_price || 0),
+    plan_id: planId,
+    candidate_id: candidateId,
+    decision_context_id: decisionContextId,
+  })
+  return `/trade?${params.toString()}`
+}
+
+const tabs = [
+  { key: 'list', path: '/strategy', label: '方案列表', subLabel: '生命周期' },
+  { key: 'detail', path: '/strategy/detail', label: '方案详情', subLabel: '参数 / 候选' },
+  { key: 'compare', path: '/strategy/compare', label: '方案对比', subLabel: '组合比较' },
+  { key: 'reports', path: '/strategy/reports', label: '结算报告', subLabel: '复盘输出' },
 ]
 
-const statusColors: Record<string, string> = {
-  draft: 'blue', confirmed: 'green', active: 'red', archived: 'default',
+const plans: PlanRow[] = [
+  {
+    id: 'PLAN-B3',
+    name: '半导体竞价共振',
+    status: '待风控',
+    capital: 1_000_000,
+    risk: '中',
+    expectedReturn: 8.6,
+    picks: [
+      { code: '300750', name: '宁德时代', candidate_id: 'CAND-leader_auction-300750', source_mode: 'leader_auction', entry_price: 218.5, score: 92 },
+      { code: '688981', name: '中芯国际', candidate_id: 'CAND-chain-688981', source_mode: 'chain', entry_price: 68.2, score: 88 },
+    ],
+  },
+  {
+    id: 'PLAN-V2',
+    name: '价值回撤低吸',
+    status: '回测通过',
+    capital: 800_000,
+    risk: '低',
+    expectedReturn: 5.4,
+    picks: [
+      { code: '600519', name: '贵州茅台', source_mode: 'value', entry_price: 1785, score: 81 },
+    ],
+  },
+]
+
+function activeKey(pathname: string) {
+  if (pathname.endsWith('/detail')) return 'detail'
+  if (pathname.endsWith('/compare')) return 'compare'
+  if (pathname.endsWith('/reports')) return 'reports'
+  return 'list'
+}
+
+function money(value: number) {
+  return `${Math.round(value / 10000)}万`
 }
 
 export default function Strategy() {
+  const location = useLocation()
   const navigate = useNavigate()
-  const [plans, setPlans] = useState<Plan[]>([])
-  const [templates, setTemplates] = useState<StrategyTemplate[]>([])
-  const [loading, setLoading] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [detailPlan, setDetailPlan] = useState<Plan | null>(null)
-  const [report, setReport] = useState<PlanReport | null>(null)
-
-  const loadPlans = () => {
-    setLoading(true)
-    api.get('/strategy/plans').then(({ data: d }) => {
-      setPlans(d.plans || d.items || [])
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }
-
-  const loadTemplates = () => {
-    api.get('/strategy/templates').then(({ data: d }) => {
-      setTemplates(d.templates || [])
-    }).catch(() => {})
-  }
-
-  const createFromTemplate = async (template: StrategyTemplate) => {
-    setCreating(true)
-    try {
-      const params = new URLSearchParams({
-        name: `${template.name}方案-${Date.now().toString(36)}`,
-        model_name: 'template',
-        capital: '1000000',
-        max_positions: String(template.max_positions || 5),
-        single_max_pct: String(template.single_max || 0.2),
-      })
-      await api.post(`/strategy/plans?${params.toString()}`)
-      message.success(`已基于"${template.name}"创建方案`)
-      loadPlans()
-    } catch (e: any) {
-      message.error(e.response?.data?.detail || '创建失败')
-    } finally { setCreating(false) }
-  }
-
-  useEffect(() => { loadPlans(); loadTemplates() }, [])
-
-  const confirmPlan = async (id: string) => {
-    try {
-      await api.post(`/strategy/plans/${id}/confirm`)
-      message.success('方案已确认')
-      loadPlans()
-    } catch (e: any) {
-      message.error(e.response?.data?.detail || '确认失败')
-    }
-  }
-
-  const deletePlan = async (id: string) => {
-    try {
-      await api.delete(`/strategy/plans/${id}`)
-      message.success('方案已删除')
-      loadPlans()
-    } catch (e: any) {
-      message.error(e.response?.data?.detail || '删除失败')
-    }
-  }
-
-  const viewPlan = async (id: string) => {
-    try {
-      const { data } = await api.get(`/strategy/plans/${id}`)
-      setDetailPlan(data)
-    } catch {
-      message.error('方案不存在或已被删除')
-    }
-  }
-
-  const viewReport = async (id: string) => {
-    try {
-      const { data } = await api.get(`/strategy/plans/${id}/report`)
-      if (data.title) setReport(data)
-    } catch {
-      message.error('报告生成失败，请先确认方案')
-    }
-  }
-
-  const runBacktestOnPlan = async (id: string) => {
-    message.loading('回测运行中...')
-    try {
-      await backtestApi.run({ mode: 'all' })
-      message.success('回测完成, 请查看回测分析页面')
-    } catch { message.error('回测服务未连接') }
-  }
-
-  const generateQuantStrategy = async (id: string) => {
-    message.loading('正在生成量化策略...')
-    try {
-      await api.post(`/strategy/generate-from-scheme/${id}`)
-      message.success('量化策略生成成功')
-      navigate('/auto-trade')
-    } catch (e: any) {
-      message.error(e.response?.data?.detail || '生成失败')
-    }
-  }
-
-  const columns = [
-    { title: '方案ID', dataIndex: 'id', width: 140, render: (v: string) => <Text code style={{fontSize:11}}>{v}</Text> },
-    { title: '名称', dataIndex: 'name', width: 160 },
-    { title: '状态', dataIndex: 'status', width: 80,
-      render: (v: string) => <Tag color={statusColors[v] || 'default'}>{v}</Tag> },
-    { title: '标的数', dataIndex: 'picks_count', width: 60 },
-    { title: '资金', dataIndex: 'capital', width: 90, render: (v: number) => `¥${(v/10000).toFixed(0)}万` },
-    { title: '创建时间', dataIndex: 'created_at', width: 110, render: (v: string) => v?.slice(0,16) },
-    { title: '操作', dataIndex: 'id', width: 280, render: (id: string, record: Plan) => (
-      <Space size="small">
-        <Button size="small" icon={<EyeOutlined />} onClick={() => viewPlan(id)}>查看</Button>
-        {record.status === 'draft' && (
-          <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={() => confirmPlan(id)}>确认</Button>
-        )}
-        {record.status === 'confirmed' && (
-          <>
-            <Button size="small" icon={<FundOutlined />} onClick={() => viewReport(id)}>报告</Button>
-            <Button size="small" icon={<ExperimentOutlined />} onClick={() => runBacktestOnPlan(id)}>回测</Button>
-            <Button size="small" type="primary" icon={<RobotOutlined />} onClick={() => generateQuantStrategy(id)}>量化策略</Button>
-          </>
-        )}
-        <Button size="small" danger icon={<DeleteOutlined />} onClick={() => deletePlan(id)} />
-      </Space>
-    )},
-  ]
+  const active = activeKey(location.pathname)
+  const activeTab = useMemo(() => tabs.find(tab => tab.key === active) ?? tabs[0], [active])
+  const selectedPlan = plans[0]
 
   return (
-    <div>
-      <div style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          <BulbOutlined style={{ marginRight: 8, color: '#1677ff' }} />
-          方案管理
-        </Title>
-        <Text type="secondary">方案生命周期: 草稿 → 预测验证 → 回测验证 → 确认 → 执行</Text>
+    <PrototypePage>
+      <PrototypeTabs
+        ariaLabel="方案管理页签"
+        activeKey={active}
+        onChange={(key) => {
+          const tab = tabs.find(item => item.key === key)
+          if (tab) navigate(tab.path)
+        }}
+        items={tabs.map((tab, index) => ({ ...tab, number: String(index + 1).padStart(2, '0') }))}
+      />
+      <PrototypePageHeader
+        title={`方案管理 - ${activeTab.label}`}
+        subtitle="账户私有方案 · 候选快照 · 风控前置 · 结算复盘"
+        actions={[
+          { key: 'account', label: '账户私有', active: true },
+          { key: 'paper', label: '模拟盘方案', tone: 'neutral' },
+          { key: 'risk', label: '下单前风控', tone: 'warn' },
+        ]}
+      />
+      <P0WorkflowNav currentStep="plan" />
+
+      <div className="kpis">
+        <MetricCard label="活跃方案" value={String(plans.length)} sub="账户私有" tone="accent" />
+        <MetricCard label="待风控" value="1" sub="进入下单前置" tone="warn" />
+        <MetricCard label="可下单" value="1" sub="回测通过" tone="up" />
+        <MetricCard label="候选快照" value={String(plans.reduce((sum, item) => sum + item.picks.length, 0))} sub="Candidate" tone="muted" />
       </div>
 
-      <Card style={{ borderRadius: 8, marginBottom: 16 }}>
-        <Steps current={plans.length > 0 ? 2 : 0} size="small" items={planSteps} />
-      </Card>
+      {active === 'list' && (
+        <div className="row r-6-4">
+          <PrototypeCard title="方案列表" icon={<FileTextOutlined />} meta="Plan lifecycle">
+            <table className="tbl">
+              <thead><tr><th>方案</th><th>状态</th><th>风险</th><th className="r">资金</th><th className="r">预期</th><th className="r">动作</th></tr></thead>
+              <tbody>
+                {plans.map(plan => (
+                  <tr key={plan.id}>
+                    <td className="nm">{plan.name}<div className="prototype-panel-note">{plan.id}</div></td>
+                    <td><span className="tag t-neu">{plan.status}</span></td>
+                    <td>{plan.risk}</td>
+                    <td className="r mono">{money(plan.capital)}</td>
+                    <td className="r up">+{plan.expectedReturn}%</td>
+                    <td className="r">
+                      <button type="button" className="btn sm" onClick={() => navigate('/strategy/detail')}>详情</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </PrototypeCard>
+          <SideRail title="方案动作" meta="Plan / Order">
+            <DataDomainBadge domain="account" label="账户私有方案" />
+            <LineageChips
+              items={[
+                { label: 'Plan', value: selectedPlan.id },
+                { label: 'Candidate', value: selectedPlan.picks.length },
+                { label: 'RiskVerdict', value: '待生成', tone: 'warn' },
+              ]}
+            />
+            <RiskBanner status="warn" title="下单前置未完成" detail="方案必须绑定候选快照、资金参数和 DecisionContext 后进入下单面板。" />
+          </SideRail>
+        </div>
+      )}
 
-      <Card
-        title={<Space><ThunderboltOutlined style={{color:'#fa8c16'}} />预设策略模板</Space>}
-        style={{ borderRadius: 8, marginBottom: 16 }}
-        styles={{ body: { padding: '16px 24px' } }}
-      >
-        <Row gutter={16}>
-          {templates.map((tpl: StrategyTemplate) => {
-            const icons: Record<string, React.ReactNode> = { aggressive: <ThunderboltOutlined />, balanced: <SafetyOutlined />, conservative: <BankOutlined /> }
-            const colors: Record<string, string> = { aggressive: '#ff4d4f', balanced: '#1677ff', conservative: '#52c41a' }
-            const descs: Record<string, string> = {
-              aggressive: '高收益高风险，最多3只标的，单票上限20%',
-              balanced: '收益风险均衡，最多5只标的，单票上限12%',
-              conservative: '稳健低风险，最多8只标的，单票上限8%',
-            }
-            return (
-              <Col span={8} key={tpl.id}>
-                <Card
-                  hoverable
-                  size="small"
-                  style={{ borderRadius: 8, borderTop: `3px solid ${colors[tpl.id] || '#1677ff'}` }}
-                  onClick={() => createFromTemplate(tpl)}
-                >
-                  <Space direction="vertical" size={4} style={{width:'100%'}}>
-                    <Space>
-                      <span style={{fontSize:20, color: colors[tpl.id]}}>{icons[tpl.id]}</span>
-                      <Text strong style={{fontSize:16}}>{tpl.name}</Text>
-                      <Tag color={colors[tpl.id]} style={{margin:0}}>{tpl.risk === 'high' ? '高风险' : tpl.risk === 'medium' ? '中风险' : '低风险'}</Tag>
-                    </Space>
-                    <Text type="secondary" style={{fontSize:12}}>{descs[tpl.id] || '自定义策略模板'}</Text>
-                    <Button type="link" size="small" loading={creating} style={{padding:0}}>使用此模板 →</Button>
-                  </Space>
-                </Card>
-              </Col>
-            )
-          })}
-          {templates.length === 0 && (
-            <Col span={24}><Text type="secondary">模板加载中...</Text></Col>
-          )}
-        </Row>
-      </Card>
+      {active === 'detail' && (
+        <div className="row r-6-4">
+          <PrototypeCard title="方案详情" icon={<FundOutlined />} meta={selectedPlan.id}>
+            <div className="op-hint">
+              <div className="pos warn">{selectedPlan.risk}</div>
+              <div>
+                <div className="op-title">{selectedPlan.name}</div>
+                <div className="op-desc">资金 {money(selectedPlan.capital)}，最大持仓 5，只提交模拟盘订单草稿。</div>
+              </div>
+            </div>
+            <table className="tbl mt14">
+              <thead><tr><th>代码</th><th>名称</th><th>Candidate</th><th className="r">入场价</th><th className="r">评分</th><th className="r">下单</th></tr></thead>
+              <tbody>
+                {selectedPlan.picks.map(pick => (
+                  <tr key={pick.code}>
+                    <td className="code">{pick.code}</td>
+                    <td className="nm">{pick.name}</td>
+                    <td className="code">{pick.candidate_id || `CAND-${pick.code}`}</td>
+                    <td className="r mono">{pick.entry_price}</td>
+                    <td className="r mono">{pick.score}</td>
+                    <td className="r"><button type="button" className="btn sm primary" onClick={() => navigate(buildTradeUrlForPick(selectedPlan.id, pick))}>下单</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </PrototypeCard>
+          <SideRail title="风控准备" meta="DecisionContext">
+            <LineageChips
+              items={[
+                { label: 'DecisionContext', value: `CTX-${selectedPlan.id}` },
+                { label: 'Order', value: '草稿', tone: 'warn' },
+              ]}
+            />
+            <RiskBanner status="review" title="等待订单预检" detail="进入交易中心后由交易服务生成 RiskVerdict。" />
+          </SideRail>
+        </div>
+      )}
 
-      <Card title={<Space><FileTextOutlined />我的方案 ({plans.length})</Space>}
-            style={{ borderRadius: 8 }}
-            extra={<Button icon={<PlayCircleOutlined />} onClick={loadPlans} loading={loading}>刷新</Button>}>
-        <Table columns={columns} dataSource={plans} rowKey="id" size="small"
-               pagination={{ pageSize: 10 }}
-               locale={{ emptyText: '暂无方案。请在智能选股页面运行选股后，勾选标的生成预方案。' }} />
-      </Card>
+      {active === 'compare' && (
+        <div className="row r-6-4">
+          <PrototypeCard title="方案对比" icon={<BarChartOutlined />} meta="组合比较">
+            <table className="tbl">
+              <thead><tr><th>方案</th><th className="r">预期收益</th><th className="r">最大回撤</th><th className="r">换手</th></tr></thead>
+              <tbody>
+                {plans.map((plan, index) => (
+                  <tr key={plan.id}>
+                    <td className="nm">{plan.name}</td>
+                    <td className="r up">+{plan.expectedReturn}%</td>
+                    <td className="r down">-{index === 0 ? '4.2' : '2.8'}%</td>
+                    <td className="r mono">{index === 0 ? '38%' : '21%'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </PrototypeCard>
+          <SideRail title="对比结论" meta="Backtest">
+            <RiskBanner status="pass" title="模拟盘优先" detail="高波动方案先进入回测复盘，暂不开放实盘自动执行。" />
+          </SideRail>
+        </div>
+      )}
 
-      <Modal title="选股报告" open={!!report} onCancel={() => setReport(null)} footer={null} width={700}>
-        {report && (
-          <>
-            <Descriptions column={2} size="small" bordered style={{ marginBottom: 12 }}>
-              <Descriptions.Item label="方案">{report.plan?.name}</Descriptions.Item>
-              <Descriptions.Item label="模型">{report.plan?.model}</Descriptions.Item>
-              <Descriptions.Item label="资金">¥{(report.plan?.capital/10000).toFixed(0)}万</Descriptions.Item>
-              <Descriptions.Item label="最大持仓">{report.plan?.max_positions}只</Descriptions.Item>
-            </Descriptions>
-            <Typography.Title level={5}>推荐标的</Typography.Title>
-            <List size="small" dataSource={report.picks || []} renderItem={(p: PlanReport['picks'][number]) => (
-              <List.Item>
-                <Space direction="vertical" size={0}>
-                  <Space><Tag color="blue">{p.code}</Tag><Text strong>{p.name}</Text><Tag>{p.grade}级</Tag></Space>
-                  <Text type="secondary" style={{fontSize:12}}>
-                    入场:{p.operation?.entry_price} | 止损:{p.operation?.stop_loss} | 目标:{p.operation?.target_price} | 仓位:{p.operation?.position_pct}%
-                  </Text>
-                </Space>
-              </List.Item>
-            )} />
-            <Typography.Title level={5}>量化策略</Typography.Title>
-            <Descriptions column={2} size="small">
-              <Descriptions.Item label="买入条件">{report.quant_strategy?.buy_conditions?.join(' / ')}</Descriptions.Item>
-              <Descriptions.Item label="卖出条件">{report.quant_strategy?.sell_conditions?.join(' / ')}</Descriptions.Item>
-              <Descriptions.Item label="执行模式">{report.quant_strategy?.execution_mode}</Descriptions.Item>
-            </Descriptions>
-            <Typography.Title level={5} style={{marginTop:12}}>风险提示</Typography.Title>
-            {report.risk_warnings?.map((w: string) => <Tag key={w} color="orange" style={{marginBottom:4}}>{w}</Tag>)}
-          </>
-        )}
-      </Modal>
-
-      <Modal title="方案详情" open={!!detailPlan} onCancel={() => setDetailPlan(null)} footer={null} width={600}>
-        {detailPlan && (
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="方案ID">{detailPlan.id}</Descriptions.Item>
-            <Descriptions.Item label="名称">{detailPlan.name}</Descriptions.Item>
-            <Descriptions.Item label="状态"><Tag color={statusColors[detailPlan.status]}>{detailPlan.status}</Tag></Descriptions.Item>
-            <Descriptions.Item label="选股模型">{detailPlan.model_name}</Descriptions.Item>
-            <Descriptions.Item label="资金">¥{(detailPlan.capital/10000).toFixed(0)}万</Descriptions.Item>
-            <Descriptions.Item label="最大持仓">{detailPlan.max_positions}只</Descriptions.Item>
-            <Descriptions.Item label="标的列表">
-              {(detailPlan.picks || []).map((p: PlanPick) => (
-                <Tag key={p.code}>{p.code} {p.name} {p.score?.toFixed(1)}分</Tag>
-              ))}
-              {detailPlan.picks?.length === 0 && '暂未添加标的'}
-            </Descriptions.Item>
-          </Descriptions>
-        )}
-      </Modal>
-    </div>
+      {active === 'reports' && (
+        <div className="row r-6-4">
+          <PrototypeCard title="结算报告" icon={<SafetyCertificateOutlined />} meta="Review">
+            <table className="tbl">
+              <thead><tr><th>报告</th><th>关联方案</th><th>结论</th><th className="r">生成时间</th></tr></thead>
+              <tbody>
+                <tr><td className="nm">半导体竞价复盘</td><td className="code">PLAN-B3</td><td>胜率稳定，需控制追高</td><td className="r mono">2026-06-28</td></tr>
+                <tr><td className="nm">价值低吸复盘</td><td className="code">PLAN-V2</td><td>回撤低，收益慢</td><td className="r mono">2026-06-27</td></tr>
+              </tbody>
+            </table>
+          </PrototypeCard>
+          <SideRail title="复盘链路" meta="Order / RiskVerdict">
+            <RiskBanner status="review" title="等待交易回填" detail="成交、风控和 DecisionContext 汇总后生成正式结算报告。" />
+          </SideRail>
+        </div>
+      )}
+    </PrototypePage>
   )
 }

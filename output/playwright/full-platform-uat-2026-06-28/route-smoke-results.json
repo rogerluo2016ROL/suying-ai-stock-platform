@@ -1,0 +1,544 @@
+{
+  "baseUrl": "http://127.0.0.1:3002",
+  "routeCount": 67,
+  "generatedAt": "2026-06-28T07:36:59.501Z",
+  "failures": [],
+  "records": [
+    {
+      "route": "/",
+      "status": 200,
+      "shell": 1,
+      "textLength": 1097,
+      "screenshot": "01-root.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/dashboard/auction",
+      "status": 200,
+      "shell": 1,
+      "textLength": 219,
+      "screenshot": "02-dashboard-auction.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/dashboard/signals",
+      "status": 200,
+      "shell": 1,
+      "textLength": 137,
+      "screenshot": "03-dashboard-signals.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/dashboard/watchlist",
+      "status": 200,
+      "shell": 1,
+      "textLength": 194,
+      "screenshot": "04-dashboard-watchlist.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/open-decision",
+      "status": 200,
+      "shell": 1,
+      "textLength": 314,
+      "screenshot": "05-open-decision.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/open-decision/auction",
+      "status": 200,
+      "shell": 1,
+      "textLength": 541,
+      "screenshot": "06-open-decision-auction.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/open-decision/signals",
+      "status": 200,
+      "shell": 1,
+      "textLength": 272,
+      "screenshot": "07-open-decision-signals.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/open-decision/candidates",
+      "status": 200,
+      "shell": 1,
+      "textLength": 242,
+      "screenshot": "08-open-decision-candidates.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/open-decision/execution",
+      "status": 200,
+      "shell": 1,
+      "textLength": 321,
+      "screenshot": "09-open-decision-execution.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/screener",
+      "status": 200,
+      "shell": 1,
+      "textLength": 518,
+      "screenshot": "10-screener.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/screener/models",
+      "status": 200,
+      "shell": 1,
+      "textLength": 468,
+      "screenshot": "11-screener-models.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/screener/factors",
+      "status": 200,
+      "shell": 1,
+      "textLength": 272,
+      "screenshot": "12-screener-factors.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/supply-chain-bom",
+      "status": 200,
+      "shell": 1,
+      "textLength": 1196,
+      "screenshot": "13-supply-chain-bom.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/supply-chain-bom/policy",
+      "status": 200,
+      "shell": 1,
+      "textLength": 1195,
+      "screenshot": "14-supply-chain-bom-policy.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/supply-chain-bom/company",
+      "status": 200,
+      "shell": 1,
+      "textLength": 1196,
+      "screenshot": "15-supply-chain-bom-company.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/predictions",
+      "status": 200,
+      "shell": 1,
+      "textLength": 306,
+      "screenshot": "16-predictions.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/predictions/single",
+      "status": 200,
+      "shell": 1,
+      "textLength": 292,
+      "screenshot": "17-predictions-single.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/predictions/compare",
+      "status": 200,
+      "shell": 1,
+      "textLength": 252,
+      "screenshot": "18-predictions-compare.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/predictions/backtest",
+      "status": 200,
+      "shell": 1,
+      "textLength": 218,
+      "screenshot": "19-predictions-backtest.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/signals",
+      "status": 200,
+      "shell": 1,
+      "textLength": 500,
+      "screenshot": "20-signals.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/signals/overview",
+      "status": 200,
+      "shell": 1,
+      "textLength": 304,
+      "screenshot": "21-signals-overview.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/signals/history",
+      "status": 200,
+      "shell": 1,
+      "textLength": 422,
+      "screenshot": "22-signals-history.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/signals/risk",
+      "status": 200,
+      "shell": 1,
+      "textLength": 421,
+      "screenshot": "23-signals-risk.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/trade",
+      "status": 200,
+      "shell": 1,
+      "textLength": 426,
+      "screenshot": "24-trade.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/trade/order",
+      "status": 200,
+      "shell": 1,
+      "textLength": 426,
+      "screenshot": "25-trade-order.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/trade/positions",
+      "status": 200,
+      "shell": 1,
+      "textLength": 402,
+      "screenshot": "26-trade-positions.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/trade/orders",
+      "status": 200,
+      "shell": 1,
+      "textLength": 362,
+      "screenshot": "27-trade-orders.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/trade/account",
+      "status": 200,
+      "shell": 1,
+      "textLength": 398,
+      "screenshot": "28-trade-account.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/trade/brokers",
+      "status": 200,
+      "shell": 1,
+      "textLength": 348,
+      "screenshot": "29-trade-brokers.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/trade/audit-log",
+      "status": 200,
+      "shell": 1,
+      "textLength": 109,
+      "screenshot": "30-trade-audit-log.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/trade/risk-verdicts",
+      "status": 200,
+      "shell": 1,
+      "textLength": 157,
+      "screenshot": "31-trade-risk-verdicts.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/trade/decision-contexts",
+      "status": 200,
+      "shell": 1,
+      "textLength": 106,
+      "screenshot": "32-trade-decision-contexts.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/auto-trade",
+      "status": 200,
+      "shell": 1,
+      "textLength": 295,
+      "screenshot": "33-auto-trade.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/auto-trade/config",
+      "status": 200,
+      "shell": 1,
+      "textLength": 367,
+      "screenshot": "34-auto-trade-config.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/auto-trade/monitor",
+      "status": 200,
+      "shell": 1,
+      "textLength": 295,
+      "screenshot": "35-auto-trade-monitor.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/auto-trade/logs",
+      "status": 200,
+      "shell": 1,
+      "textLength": 295,
+      "screenshot": "36-auto-trade-logs.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/strategy",
+      "status": 200,
+      "shell": 1,
+      "textLength": 465,
+      "screenshot": "37-strategy.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/strategy/detail",
+      "status": 200,
+      "shell": 1,
+      "textLength": 499,
+      "screenshot": "38-strategy-detail.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/strategy/compare",
+      "status": 200,
+      "shell": 1,
+      "textLength": 356,
+      "screenshot": "39-strategy-compare.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/strategy/reports",
+      "status": 200,
+      "shell": 1,
+      "textLength": 406,
+      "screenshot": "40-strategy-reports.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/risk",
+      "status": 200,
+      "shell": 1,
+      "textLength": 434,
+      "screenshot": "41-risk.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/risk/overview",
+      "status": 200,
+      "shell": 1,
+      "textLength": 323,
+      "screenshot": "42-risk-overview.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/risk/positions",
+      "status": 200,
+      "shell": 1,
+      "textLength": 347,
+      "screenshot": "43-risk-positions.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/risk/strategies",
+      "status": 200,
+      "shell": 1,
+      "textLength": 342,
+      "screenshot": "44-risk-strategies.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/risk/market",
+      "status": 200,
+      "shell": 1,
+      "textLength": 307,
+      "screenshot": "45-risk-market.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/risk/audit",
+      "status": 200,
+      "shell": 1,
+      "textLength": 518,
+      "screenshot": "46-risk-audit.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/backtest",
+      "status": 200,
+      "shell": 1,
+      "textLength": 343,
+      "screenshot": "47-backtest.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/backtest/run",
+      "status": 200,
+      "shell": 1,
+      "textLength": 291,
+      "screenshot": "48-backtest-run.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/backtest/compare",
+      "status": 200,
+      "shell": 1,
+      "textLength": 320,
+      "screenshot": "49-backtest-compare.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/backtest/trades",
+      "status": 200,
+      "shell": 1,
+      "textLength": 360,
+      "screenshot": "50-backtest-trades.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/diagnosis",
+      "status": 200,
+      "shell": 1,
+      "textLength": 480,
+      "screenshot": "51-diagnosis.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/diagnosis/overview",
+      "status": 200,
+      "shell": 1,
+      "textLength": 477,
+      "screenshot": "52-diagnosis-overview.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/diagnosis/model",
+      "status": 200,
+      "shell": 1,
+      "textLength": 538,
+      "screenshot": "53-diagnosis-model.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/diagnosis/compare",
+      "status": 200,
+      "shell": 1,
+      "textLength": 461,
+      "screenshot": "54-diagnosis-compare.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/diagnosis/risk",
+      "status": 200,
+      "shell": 1,
+      "textLength": 476,
+      "screenshot": "55-diagnosis-risk.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/training",
+      "status": 200,
+      "shell": 1,
+      "textLength": 536,
+      "screenshot": "56-training.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/training/tasks",
+      "status": 200,
+      "shell": 1,
+      "textLength": 536,
+      "screenshot": "57-training-tasks.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/training/mlflow",
+      "status": 200,
+      "shell": 1,
+      "textLength": 463,
+      "screenshot": "58-training-mlflow.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/model-registry",
+      "status": 200,
+      "shell": 1,
+      "textLength": 581,
+      "screenshot": "59-model-registry.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/data-update",
+      "status": 200,
+      "shell": 1,
+      "textLength": 642,
+      "screenshot": "60-data-update.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/data-update/overview",
+      "status": 200,
+      "shell": 1,
+      "textLength": 642,
+      "screenshot": "61-data-update-overview.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/data-update/tables",
+      "status": 200,
+      "shell": 1,
+      "textLength": 642,
+      "screenshot": "62-data-update-tables.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/data-update/schedule",
+      "status": 200,
+      "shell": 1,
+      "textLength": 482,
+      "screenshot": "63-data-update-schedule.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/runtime",
+      "status": 200,
+      "shell": 1,
+      "textLength": 535,
+      "screenshot": "64-runtime.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/runtime-status",
+      "status": 200,
+      "shell": 1,
+      "textLength": 535,
+      "screenshot": "65-runtime-status.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/workflow/p0",
+      "status": 200,
+      "shell": 1,
+      "textLength": 763,
+      "screenshot": "66-workflow-p0.png",
+      "pageErrors": []
+    },
+    {
+      "route": "/platform/upgrade",
+      "status": 200,
+      "shell": 1,
+      "textLength": 621,
+      "screenshot": "67-platform-upgrade.png",
+      "pageErrors": []
+    }
+  ]
+}

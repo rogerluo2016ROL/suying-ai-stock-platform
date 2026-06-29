@@ -1,23 +1,22 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Button, Space, Badge, Avatar, Dropdown, Drawer, Switch, Typography, Radio, Spin } from 'antd'
-import type { ItemType } from 'antd/es/menu/interface'
+import { Badge, Avatar, Dropdown, Drawer, Switch, Typography, Radio, Spin } from 'antd'
 import {
   SearchOutlined, LineChartOutlined, ThunderboltOutlined,
   BellOutlined, DollarOutlined, ExperimentOutlined,
   FundOutlined, DashboardOutlined, BulbOutlined,
   SettingOutlined, UserOutlined, ReloadOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined,
-  GlobalOutlined, StockOutlined, RobotOutlined,
-  GithubOutlined, MailOutlined, LogoutOutlined,
+  StockOutlined, RobotOutlined,
+  LogoutOutlined,
   ApiOutlined, ClockCircleOutlined, ApartmentOutlined,
 } from '@ant-design/icons'
 import { useAuth, type Role } from './contexts/AuthContext'
 import { useTheme } from './contexts/ThemeContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
-import { PlatformContextBar } from './components/layout'
 import ErrorBoundary from './components/ErrorBoundary'
 import { alertApi, clearPlatformContext, injectPlatformContext } from './api/client'
+import { liveTradeApi } from './api/liveTrade'
 import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
 import { buildPlatformSessionFromUser } from './types/platform'
@@ -26,22 +25,28 @@ import { buildPlatformSessionFromUser } from './types/platform'
 // the layout + auth pages; ECharts-heavy pages (Diagnosis/Backtest/Training/
 // ModelRegistry/Predictions) load on demand.
 const Dashboard = lazy(() => import('./pages/Dashboard'))
+const OpenDecision = lazy(() => import('./pages/OpenDecision'))
 const Screener = lazy(() => import('./pages/Screener'))
 const SupplyChainBom = lazy(() => import('./pages/SupplyChainBom'))
 const Predictions = lazy(() => import('./pages/Predictions'))
 const Signals = lazy(() => import('./pages/Signals'))
 const Trade = lazy(() => import('./pages/Trade'))
 const AuditLog = lazy(() => import('./pages/AuditLog'))
+const RiskVerdicts = lazy(() => import('./pages/RiskVerdicts'))
+const DecisionContexts = lazy(() => import('./pages/DecisionContexts'))
 const Diagnosis = lazy(() => import('./pages/Diagnosis'))
 const Backtest = lazy(() => import('./pages/Backtest'))
 const Strategy = lazy(() => import('./pages/Strategy'))
 const AutoTrade = lazy(() => import('./pages/AutoTrade'))
+const RiskControl = lazy(() => import('./pages/RiskControl'))
 const Training = lazy(() => import('./pages/Training'))
 const ModelRegistry = lazy(() => import('./pages/ModelRegistry'))
 const DataUpdate = lazy(() => import('./pages/DataUpdate'))
+const RuntimeStatus = lazy(() => import('./pages/RuntimeStatus'))
+const P0Workflow = lazy(() => import('./pages/P0Workflow'))
+const PlatformUpgrade = lazy(() => import('./pages/PlatformUpgrade'))
 
-const { Header, Sider, Content, Footer } = Layout
-const { Text, Link } = Typography
+const { Text } = Typography
 
 // Suspense fallback for lazy page loads
 const pageFallback = (
@@ -57,51 +62,167 @@ interface MenuItemWithRoles {
   icon: React.ReactNode
   label: string
   roles: Role[]
+  group: '行情决策' | '交易执行' | '模型 / 系统'
+  target?: string
+  badge?: string
 }
 
 const allMenuItems: MenuItemWithRoles[] = [
-  { key: '/',            icon: <DashboardOutlined />,    label: 'AI 智能看板', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/screener',    icon: <SearchOutlined />,       label: '智能选股',   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/supply-chain-bom', icon: <ApartmentOutlined />, label: '产业链拆解', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/predictions', icon: <LineChartOutlined />,    label: 'K线预测',    roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/strategy',    icon: <BulbOutlined />,         label: '方案管理',   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/signals',     icon: <ThunderboltOutlined />,  label: '交易信号',   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/trade',       icon: <DollarOutlined />,       label: '交易中心',   roles: ['admin', 'internal_analyst', 'user'] },
-  { key: '/auto-trade',  icon: <RobotOutlined />,        label: '量化交易',   roles: ['admin', 'internal_analyst', 'user'] },
-  { key: '/backtest',    icon: <ExperimentOutlined />,   label: '回测分析',   roles: ['admin', 'internal_analyst', 'external_analyst'] },
-  { key: '/diagnosis',   icon: <FundOutlined />,         label: '个股诊断',   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/training',        icon: <ExperimentOutlined />, label: '模型训练',   roles: ['admin'] },
-  { key: '/model-registry',  icon: <ApiOutlined />,        label: '模型注册',   roles: ['admin'] },
-  { key: '/data-update',     icon: <ClockCircleOutlined />, label: '数据更新',   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/',            icon: <DashboardOutlined />,    label: '智能看板',   group: '行情决策', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/open-decision', icon: <LineChartOutlined />,  label: '开盘决策',   group: '行情决策', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/screener',    icon: <SearchOutlined />,       label: '智能选股',   group: '行情决策', badge: '12', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/supply-chain-bom', icon: <ApartmentOutlined />, label: '产业链拆解', group: '行情决策', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/predictions', icon: <LineChartOutlined />,    label: 'K线预测',    group: '行情决策', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/signals',     icon: <ThunderboltOutlined />,  label: '交易信号',   group: '行情决策', badge: '3', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/trade',       icon: <DollarOutlined />,       label: '交易中心',   group: '交易执行', roles: ['admin', 'internal_analyst', 'user'] },
+  { key: '/auto-trade',  icon: <RobotOutlined />,        label: '量化交易',   group: '交易执行', roles: ['admin', 'internal_analyst', 'user'] },
+  { key: '/strategy',    icon: <BulbOutlined />,         label: '方案管理',   group: '交易执行', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/risk',        icon: <BellOutlined />,         label: '风控中心',   group: '交易执行', roles: ['admin', 'internal_analyst', 'user'] },
+  { key: '/backtest',    icon: <ExperimentOutlined />,   label: '回测分析',   group: '交易执行', roles: ['admin', 'internal_analyst', 'external_analyst'] },
+  { key: '/diagnosis',   icon: <FundOutlined />,         label: '个股诊断',   group: '交易执行', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/training',        icon: <ExperimentOutlined />, label: '模型训练', group: '模型 / 系统', roles: ['admin'] },
+  { key: '/model-registry',  icon: <ApiOutlined />,        label: '模型注册', group: '模型 / 系统', roles: ['admin'] },
+  { key: '/data-update',     icon: <ClockCircleOutlined />, label: '数据更新', group: '模型 / 系统', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/runtime-status',  icon: <ApiOutlined />,         label: '运行状态', group: '模型 / 系统', roles: ['admin'] },
 ]
 
-const bottomMenuItems: MenuItemWithRoles[] = [
-  { key: '/settings', icon: <SettingOutlined />, label: '系统设置', roles: ['admin'] },
+const marketTapeItems = [
+  { label: '上证', value: '3,486.32', change: '+0.74%', tone: 'up' },
+  { label: '深成', value: '10,612.5', change: '+1.12%', tone: 'up' },
+  { label: '创业板', value: '2,108.7', change: '-0.43%', tone: 'down' },
+  { label: '北证50', value: '1,042.1', change: '+0.31%', tone: 'up' },
 ]
 
 // ── Protected route config ──
 
 const protectedRoutes: { path: string; element: React.ReactNode; roles: Role[] }[] = [
   { path: '/',            element: <Dashboard />,    roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/dashboard/auction', element: <Dashboard />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/dashboard/signals', element: <Dashboard />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/dashboard/watchlist', element: <Dashboard />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/open-decision', element: <OpenDecision />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/open-decision/auction', element: <OpenDecision />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/open-decision/signals', element: <OpenDecision />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/open-decision/candidates', element: <OpenDecision />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/open-decision/execution', element: <OpenDecision />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/screener',    element: <Screener />,      roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/screener/models', element: <Screener />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/screener/factors', element: <Screener />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/supply-chain-bom', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/supply-chain-bom/policy', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/supply-chain-bom/company', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/predictions', element: <Predictions />,   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/predictions/single', element: <Predictions />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/predictions/compare', element: <Predictions />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/predictions/backtest', element: <Predictions />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/strategy',    element: <Strategy />,      roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/strategy/detail', element: <Strategy />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/strategy/compare', element: <Strategy />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/strategy/reports', element: <Strategy />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/signals',     element: <Signals />,       roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/signals/overview', element: <Signals />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/signals/history', element: <Signals />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/signals/risk', element: <Signals />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/trade',       element: <Trade />,         roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/trade/order', element: <Trade />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/trade/positions', element: <Trade />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/trade/orders', element: <Trade />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/trade/account', element: <Trade />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/trade/brokers', element: <Trade />, roles: ['admin', 'internal_analyst', 'user'] },
   { path: '/trade/audit-log', element: <AuditLog />,  roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/trade/risk-verdicts', element: <RiskVerdicts />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/trade/decision-contexts', element: <DecisionContexts />, roles: ['admin', 'internal_analyst', 'user'] },
   { path: '/auto-trade',  element: <AutoTrade />,     roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/auto-trade/config', element: <AutoTrade />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/auto-trade/monitor', element: <AutoTrade />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/auto-trade/logs', element: <AutoTrade />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/risk', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/risk/overview', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/risk/positions', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/risk/strategies', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/risk/market', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
+  { path: '/risk/audit', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
   { path: '/backtest',       element: <Backtest />,       roles: ['admin', 'internal_analyst', 'external_analyst'] },
+  { path: '/backtest/run', element: <Backtest />, roles: ['admin', 'internal_analyst', 'external_analyst'] },
+  { path: '/backtest/compare', element: <Backtest />, roles: ['admin', 'internal_analyst', 'external_analyst'] },
+  { path: '/backtest/trades', element: <Backtest />, roles: ['admin', 'internal_analyst', 'external_analyst'] },
   { path: '/diagnosis',      element: <Diagnosis />,      roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/diagnosis/overview', element: <Diagnosis />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/diagnosis/model', element: <Diagnosis />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/diagnosis/compare', element: <Diagnosis />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/diagnosis/risk', element: <Diagnosis />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/training',       element: <Training />,       roles: ['admin'] },
+  { path: '/training/tasks', element: <Training />, roles: ['admin'] },
+  { path: '/training/mlflow', element: <Training />, roles: ['admin'] },
   { path: '/model-registry', element: <ModelRegistry />,  roles: ['admin'] },
   { path: '/data-update',    element: <DataUpdate />,     roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/data-update/overview', element: <DataUpdate />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/data-update/tables', element: <DataUpdate />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/data-update/schedule', element: <DataUpdate />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/runtime', element: <RuntimeStatus />, roles: ['admin'] },
+  { path: '/runtime-status', element: <RuntimeStatus />, roles: ['admin'] },
+  { path: '/workflow/p0', element: <P0Workflow />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/platform/upgrade', element: <PlatformUpgrade />, roles: ['admin'] },
 ]
 
-function filterMenu(items: MenuItemWithRoles[], role: Role | null): ItemType[] {
+const menuGroups: MenuItemWithRoles['group'][] = ['行情决策', '交易执行', '模型 / 系统']
+
+function filterMenu(items: MenuItemWithRoles[], role: Role | null): MenuItemWithRoles[] {
   return items
     .filter(item => role && item.roles.includes(role))
-    .map(({ key, icon, label }) => ({ key, icon, label }))
+}
+
+function routeTitle(pathname: string): string {
+  if (pathname.startsWith('/dashboard')) return '智能看板'
+  if (pathname.startsWith('/open-decision')) return '开盘决策'
+  if (pathname.startsWith('/trade/risk-verdicts')) return '风控闸门'
+  if (pathname.startsWith('/trade/decision-contexts')) return '决策上下文'
+  if (pathname.startsWith('/trade/audit-log')) return '交易审计'
+  if (pathname.startsWith('/risk')) return '风控中心'
+  if (pathname.startsWith('/runtime')) return '运行状态'
+  if (pathname.startsWith('/workflow/p0')) return 'P0 主链路'
+  if (pathname.startsWith('/platform/upgrade')) return '平台升级'
+  const selectedKey = '/' + pathname.split('/')[1]
+  return allMenuItems.find(item => item.key === selectedKey)?.label || '智能看板'
+}
+
+function selectedMenuKey(pathname: string): string {
+  if (pathname === '/' || pathname.startsWith('/dashboard')) return '/'
+  if (pathname.startsWith('/runtime')) return '/runtime-status'
+  return '/' + pathname.split('/')[1]
+}
+
+function roleViewLabel(roleView: ReturnType<typeof buildPlatformSessionFromUser>['roleView']): string {
+  if (roleView === 'admin') return '管理员视图'
+  if (roleView === 'trader') return '操盘手视图'
+  return '投资者视图'
+}
+
+function tradeModeLabel(mode: ReturnType<typeof buildPlatformSessionFromUser>['tradeMode']): string {
+  return mode === 'live' ? '实盘' : '模拟盘'
+}
+
+type HeaderBrokerConnection = {
+  status: 'paper' | 'connected' | 'disconnected' | 'connecting' | 'error'
+  accountId: string
+  brokerName: string
+}
+
+function brokerConnectionText(connection: HeaderBrokerConnection): string {
+  const statusText = {
+    paper: '模拟引擎',
+    connected: '券商已连接',
+    disconnected: '券商未连接',
+    connecting: '券商连接中',
+    error: '券商异常',
+  }[connection.status]
+  return connection.accountId ? `${statusText} · ${connection.accountId}` : statusText
+}
+
+function brokerConnectionClass(connection: HeaderBrokerConnection): string {
+  if (connection.status === 'paper' || connection.status === 'connected') return 'safe'
+  if (connection.status === 'connecting') return 'primary'
+  return 'danger'
 }
 
 export default function App() {
@@ -114,21 +235,26 @@ export default function App() {
   const { mode: themeMode, setMode: setThemeMode } = useTheme()
   const [compactMode, setCompactMode] = useState(false)
   const [multiTab, setMultiTab] = useState(false)
+  const [brokerConnection, setBrokerConnection] = useState<HeaderBrokerConnection>({
+    status: 'paper',
+    accountId: '',
+    brokerName: 'paper',
+  })
 
-  const selectedKey = '/' + location.pathname.split('/')[1]
+  const selectedKey = selectedMenuKey(location.pathname)
 
   // Filter menu items by role
   const mainMenu = useMemo(
     () => filterMenu(allMenuItems, user?.role ?? null),
     [user?.role],
   )
-  const bottomMenu = useMemo(
-    () => filterMenu(bottomMenuItems, user?.role ?? null),
-    [user?.role],
-  )
   const platformSession = useMemo(
     () => buildPlatformSessionFromUser(user),
     [user],
+  )
+  const currentRouteTitle = useMemo(
+    () => routeTitle(location.pathname),
+    [location.pathname],
   )
 
   useEffect(() => {
@@ -155,6 +281,61 @@ export default function App() {
     const timer = setInterval(poll, 30000)
     return () => clearInterval(timer)
   }, [isAuthenticated])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    let cancelled = false
+
+    const refreshBrokerConnection = () => {
+      if (platformSession.tradeMode !== 'live') {
+        setBrokerConnection({
+          status: 'paper',
+          accountId: platformSession.accountId || '',
+          brokerName: platformSession.brokerAdapter || 'paper',
+        })
+        return
+      }
+
+      liveTradeApi.getBrokerStatus()
+        .then(r => {
+          if (cancelled) return
+          const data = r.data || {}
+          const status: HeaderBrokerConnection['status'] = data.status === 'connected'
+            ? 'connected'
+            : data.status === 'connecting'
+              ? 'connecting'
+              : data.status === 'error'
+                ? 'error'
+                : 'disconnected'
+          setBrokerConnection({
+            status,
+            accountId: data.account_id || platformSession.accountId || '',
+            brokerName: data.broker_name || platformSession.brokerAdapter || 'paper',
+          })
+        })
+        .catch(() => {
+          if (cancelled) return
+          setBrokerConnection({
+            status: 'error',
+            accountId: platformSession.accountId || '',
+            brokerName: platformSession.brokerAdapter || 'paper',
+          })
+        })
+    }
+
+    refreshBrokerConnection()
+    if (platformSession.tradeMode !== 'live') return () => { cancelled = true }
+    const timer = setInterval(refreshBrokerConnection, 10000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [
+    isAuthenticated,
+    platformSession.accountId,
+    platformSession.brokerAdapter,
+    platformSession.tradeMode,
+  ])
 
   const handleLogout = async () => {
     await logout()
@@ -194,102 +375,124 @@ export default function App() {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      {/* ── Sidebar ── */}
-      <Sider
-        trigger={null}
-        collapsible
-        collapsed={collapsed}
-        width={256}
-        style={{
-          overflow: 'auto', height: '100vh', position: 'fixed', left: 0, zIndex: 100,
-          background: '#fff', boxShadow: '2px 0px 8px 0px rgba(29, 35, 41, 0.05)',
-        }}
-      >
-        {/* Logo */}
-        <div style={{
-          height: 64, display: 'flex', alignItems: 'center',
-          padding: collapsed ? '0 8px' : '0 24px',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-        }}>
-          <StockOutlined style={{ fontSize: 24, color: '#1677ff' }} />
-          {!collapsed && (
-            <span style={{ marginLeft: 12, fontSize: 16, fontWeight: 600, color: '#000000d9', whiteSpace: 'nowrap' }}>
-              速赢AI
-            </span>
-          )}
+    <div className={`app suying-shell${collapsed ? ' is-collapsed' : ''}`} data-testid="app-shell">
+      <aside className="sidebar" aria-label="主导航">
+        <div className="brand">
+          <span className="logo" aria-hidden="true">
+            <StockOutlined />
+          </span>
+          <span className="name"><span>速赢</span><b>AI</b></span>
         </div>
 
-        {/* Main Menu */}
-        <Menu
-          mode="inline"
-          selectedKeys={[selectedKey]}
-          items={mainMenu}
-          onClick={({ key }) => navigate(key)}
-          style={{
-            border: 'none',
-            background: '#fff',
-          }}
-        />
+        <nav className="nav">
+          {menuGroups.map(group => {
+            const items = mainMenu.filter(item => item.group === group)
+            if (items.length === 0) return null
+            return (
+              <section key={group} className="nav-section">
+                <div className="nav-group">
+                  <span>{group}</span>
+                  {group === '模型 / 系统' && <span className="nav-admin">ADMIN</span>}
+                </div>
+                {items.map(item => {
+                  const active = selectedKey === item.key || (selectedKey === '/' && item.key === '/')
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={`nav-item${active ? ' active' : ''}`}
+                      onClick={() => navigate(item.target || item.key)}
+                    >
+                      {item.icon}
+                      <span className="nav-label">{item.label}</span>
+                      {item.badge && <span className="pill">{item.badge}</span>}
+                    </button>
+                  )
+                })}
+              </section>
+            )
+          })}
+        </nav>
 
-        {/* Bottom Menu */}
-        {bottomMenu.length > 0 && (
-          <div style={{ position: 'absolute', bottom: 0, width: '100%' }}>
-            <Menu
-              mode="inline"
-              selectable={false}
-              items={bottomMenu}
-              onClick={({ key }) => navigate(key)}
-              style={{
-                border: 'none',
-                background: '#fff',
-              }}
-            />
+        <div className="nav nav-bottom">
+          <button type="button" className="nav-item" onClick={() => setSettingsOpen(true)}>
+            <SettingOutlined />
+            <span className="nav-label">系统设置</span>
+          </button>
+        </div>
+      </aside>
+
+      <div className="main">
+        <header className="header">
+          <button
+            type="button"
+            className="hbtn"
+            aria-label={collapsed ? '展开导航' : '收起导航'}
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          </button>
+
+          <div className="crumb">
+            <b>{currentRouteTitle}</b>
           </div>
-        )}
-      </Sider>
 
-      {/* ── Main Layout ── */}
-      <Layout style={{ marginLeft: collapsed ? 80 : 256, transition: 'margin-left 0.2s' }}>
-        {/* ── Top Header Bar ── */}
-        <Header style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 24px', height: 48, lineHeight: '48px',
-          background: '#fff',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          position: 'sticky', top: 0, zIndex: 99,
-        }}>
-          <Space>
-            <Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                    onClick={() => setCollapsed(!collapsed)}
-            />
-            <Button type="text" icon={<ReloadOutlined />} title="刷新页面"
-                    onClick={() => window.location.reload()} />
-          </Space>
+          <div className="mkt-ticker" aria-label="市场行情">
+            {marketTapeItems.map(item => (
+              <span className="tk" key={item.label}>
+                <span className="lbl">{item.label}</span>
+                <span className={`val mono ${item.tone}`}>{item.value}</span>
+                <span className={`mono ${item.tone}`}>{item.change}</span>
+              </span>
+            ))}
+          </div>
 
-          <Space size="middle">
+          <div className="platform-context-compact" aria-label="当前平台上下文">
+            <span className="ctx-pill primary">{roleViewLabel(platformSession.roleView)}</span>
+            <span className="ctx-pill">{platformSession.tenantName}</span>
+            <span className="ctx-pill mono">{platformSession.accountId || '未绑定账户'}</span>
+            <span className={`ctx-pill ${platformSession.tradeMode === 'live' ? 'danger' : 'safe'}`}>
+              {tradeModeLabel(platformSession.tradeMode)}
+            </span>
+            <span className="ctx-pill mono">{platformSession.brokerAdapter}</span>
+            <span
+              className={`ctx-pill mono ${brokerConnectionClass(brokerConnection)}`}
+              aria-label="券商连接状态"
+              title={brokerConnection.brokerName}
+            >
+              {brokerConnectionText(brokerConnection)}
+            </span>
+          </div>
+
+          <div className="header-right">
+            <button type="button" className="hbtn" title="刷新页面" onClick={() => window.location.reload()}>
+              <ReloadOutlined />
+            </button>
             <Badge count={unreadAlerts} size="small" offset={[-2, 2]}>
-              <Button type="text" icon={<BellOutlined />} title="交易信号"
-                      onClick={() => navigate('/signals')} />
+              <button type="button" className="hbtn" title="交易信号" onClick={() => navigate('/signals')}>
+                <BellOutlined />
+              </button>
             </Badge>
-            <Button type="text" icon={<GlobalOutlined />} title="多语言（开发中）" disabled />
-            <Button type="text" icon={<SettingOutlined />} title="页面设置"
-                    onClick={() => setSettingsOpen(true)} />
+            <button type="button" className="hbtn" title="页面设置" onClick={() => setSettingsOpen(true)}>
+              <SettingOutlined />
+            </button>
             <Dropdown menu={{ items: [
+              {
+                key: 'tenant',
+                disabled: true,
+                label: `${platformSession.tenantName} · ${platformSession.tradeMode === 'live' ? '实盘' : '模拟盘'}`,
+              },
               { key: 'profile', icon: <UserOutlined />, label: '个人中心' },
               { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout },
             ]}} placement="bottomRight">
-              <Space style={{ cursor: 'pointer' }}>
-                <Avatar size={28} icon={<UserOutlined />} style={{ backgroundColor: '#1677ff' }} />
-                <span style={{ fontSize: 13 }}>{user?.name || '未登录'}</span>
-              </Space>
+              <button type="button" className="user">
+                <Avatar size={26} icon={<UserOutlined />} className="av" />
+                <span className="un">{user?.name || '未登录'}</span>
+              </button>
             </Dropdown>
-          </Space>
-        </Header>
+          </div>
+        </header>
 
-        <PlatformContextBar session={platformSession} />
-
-        {/* ── Page Style Settings Drawer (P1-05: live controls, persisted) ── */}
         <Drawer title="页面风格设置" open={settingsOpen} onClose={() => setSettingsOpen(false)} width={280}>
           <Typography.Title level={5} style={{ marginTop: 0 }}>主题模式</Typography.Title>
           <Radio.Group
@@ -314,14 +517,11 @@ export default function App() {
             <Switch size="small" checked={multiTab} onChange={setMultiTab} />
           </div>
           <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
-            注：紧凑模式/多标签页为偏好记录，后续迭代接入布局。
+            偏好记录保存在本地，用于保持当前设备的操作习惯。
           </Typography.Text>
         </Drawer>
 
-        {/* ── Content ── */}
-        <Content style={{ margin: 16, minHeight: 'calc(100vh - 48px - 180px)' }}>
-          {/* P1-02: per-route error boundary so a single page throw doesn't white-screen the app;
-              P1-03: Suspense wraps the lazy-loaded page bundles. */}
+        <main className="content">
           <ErrorBoundary>
             <Suspense fallback={pageFallback}>
               <Routes>
@@ -336,36 +536,9 @@ export default function App() {
               </Routes>
             </Suspense>
           </ErrorBoundary>
-        </Content>
-
-        {/* ── Footer ── */}
-        <Footer style={{ textAlign: 'center', padding: '24px 50px', background: '#f5f5f5' }}>
-          <div style={{ marginBottom: 12 }}>
-            <Space size="large">
-              <span style={{ fontWeight: 600, color: '#00000073' }}>联系我们</span>
-              <Link href="mailto:support@suying.ai"><MailOutlined /> Email</Link>
-            </Space>
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <Space size="middle">
-              <GithubOutlined />
-              <GlobalOutlined />
-              <MailOutlined />
-            </Space>
-          </div>
-          <div>
-            <Space split={<span style={{ color: '#d9d9d9' }}>|</span>}>
-              <Link style={{ fontSize: 12 }}>用户协议</Link>
-              <Link style={{ fontSize: 12 }}>隐私政策</Link>
-            </Space>
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              © 2026 速赢AI. All rights reserved. V1.0.0
-            </Text>
-          </div>
-        </Footer>
-      </Layout>
-    </Layout>
+          <div className="page-foot">© 2026 速赢AI · V1.0.0</div>
+        </main>
+      </div>
+    </div>
   )
 }

@@ -49,6 +49,88 @@ export interface PaginatedResponse<T> {
   items: T[];
 }
 
+export type WorkbenchDataDomain = 'public' | 'tenant' | 'user' | 'account';
+export type WorkbenchFreshnessStatus = 'fresh' | 'stale' | 'fallback' | 'unknown' | 'missing' | 'outdated';
+
+export interface ModelMetadata {
+  name: string;
+  version?: string;
+  provider?: string;
+  inference_mode?: string;
+  checkpoint_status?: string;
+  loaded?: boolean;
+  [key: string]: unknown;
+}
+
+export interface DataFreshness {
+  status: WorkbenchFreshnessStatus;
+  as_of?: string | null;
+  source?: string;
+  quality_score?: number;
+  fallback_reason?: string | null;
+}
+
+export interface ServiceContractFields {
+  model_metadata?: ModelMetadata;
+  data_freshness?: DataFreshness;
+  fallback_reason?: string | null;
+}
+
+export interface WorkbenchPageMeta {
+  module: string;
+  route: string;
+  title: string;
+}
+
+export interface WorkbenchContext {
+  tenant_id?: string;
+  owner_user_id?: string;
+  account_id?: string;
+  data_scope?: WorkbenchDataDomain;
+  trade_mode?: 'paper' | 'live' | string;
+  role_view?: string;
+}
+
+export interface WorkbenchFreshness extends DataFreshness {}
+
+export interface WorkbenchLineage {
+  decision_context_id?: string | null;
+  candidate_id?: string | null;
+  plan_id?: string | null;
+  order_id?: string | null;
+  risk_verdict_id?: string | null;
+  model_version?: string | null;
+}
+
+export interface WorkbenchSection {
+  key: string;
+  title: string;
+  state: 'ready' | 'empty' | 'fallback' | 'loading' | 'error';
+  metrics?: Record<string, string | number | boolean | null>;
+  items?: Array<Record<string, unknown>>;
+  fallback_reason?: string;
+}
+
+export interface WorkbenchAction {
+  key: string;
+  label: string;
+  enabled: boolean;
+  target?: string;
+  reason?: string;
+}
+
+export interface WorkbenchPageEnvelope<TSection extends WorkbenchSection = WorkbenchSection> {
+  status: 'ok' | 'error';
+  page: WorkbenchPageMeta;
+  context: WorkbenchContext;
+  data_domain: WorkbenchDataDomain;
+  freshness: WorkbenchFreshness;
+  lineage: WorkbenchLineage;
+  sections: TSection[];
+  actions: WorkbenchAction[];
+  message?: string;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Screener（智能选股）
 // ═══════════════════════════════════════════════════════════════════════════
@@ -86,6 +168,11 @@ export interface Flags {
 
 /** 单只候选股（后端已通过 _normalize_picks() 统一字段名） */
 export interface ScreenerPick extends StockBase, NumericValue {
+  candidate_id?: string;
+  source_module?: string;
+  source_mode?: string;
+  visibility?: 'private' | 'tenant_shared' | 'public';
+  data_scope?: 'public' | 'tenant' | 'user' | 'account';
   industry?: string;
   grade?: string; // S / A / B / C
   resonance_score?: number;
@@ -113,7 +200,7 @@ export interface SectorResonance {
 }
 
 /** 选股运行响应 */
-export interface ScreenerRunResponse {
+export interface ScreenerRunResponse extends ServiceContractFields {
   picks: ScreenerPick[];
   total_scored: number;
   total_excluded: number;
@@ -134,10 +221,10 @@ export interface ScreenerModesResponse {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /** 预测状态 */
-export interface PredictionStatus {
+export interface PredictionStatus extends ServiceContractFields {
   status: 'online' | 'offline' | 'loading';
   model_path?: string;
-  checkpoint_status?: 'base_public' | 'finetuned';
+  checkpoint_status?: 'base_public' | 'finetuned' | 'not_loaded' | 'unknown';
   last_prediction_time?: string;
 }
 
@@ -152,7 +239,7 @@ export interface PredictionPoint {
 }
 
 /** K线预测响应 */
-export interface PredictionResponse {
+export interface PredictionResponse extends ServiceContractFields {
   status: 'ok' | 'error' | 'no_data';
   code: string;
   predictions: PredictionPoint[];
@@ -175,7 +262,7 @@ export interface FastPredictionResponse extends PredictionResponse {
 }
 
 /** 批量预测响应 */
-export interface BatchPredictionResponse {
+export interface BatchPredictionResponse extends ServiceContractFields {
   status: 'ok' | 'error';
   predictions: Record<string, PredictionResponse>;
   total_codes: number;
@@ -205,7 +292,7 @@ export interface StockSignal extends StockBase {
 }
 
 /** 信号实时响应 */
-export interface SignalLiveResponse {
+export interface SignalLiveResponse extends ServiceContractFields {
   session: 'intra' | 'daily';
   signals: StockSignal[];
   summary?: {
@@ -220,7 +307,7 @@ export interface SignalLiveResponse {
 }
 
 /** 信号历史响应 */
-export interface SignalHistoryResponse {
+export interface SignalHistoryResponse extends ServiceContractFields {
   signals: StockSignal[];
   total: number;
   date_range?: {
@@ -230,14 +317,14 @@ export interface SignalHistoryResponse {
 }
 
 /** 信号分析响应（单股深度） */
-export interface SignalAnalyzeResponse extends StockSignal {
+export interface SignalAnalyzeResponse extends StockSignal, ServiceContractFields {
   detail_factors?: Record<string, number>;
   recommendation?: string;
   risk_alerts?: string[];
 }
 
 /** Dashboard 汇总响应 */
-export interface DashboardSummaryResponse {
+export interface DashboardSummaryResponse extends ServiceContractFields {
   market_sentiment?: {
     score: number;
     label: string;
@@ -266,14 +353,29 @@ export interface DashboardSummaryResponse {
 
 /** 数据状态响应 */
 export interface DataStatusResponse {
-  tables: Record<string, {
-    last_update?: string;
-    rows?: number;
-    status: 'fresh' | 'stale' | 'offline';
-    lag_minutes?: number;
+  status: 'ok' | 'error';
+  refreshed_at?: string;
+  total_tables: number;
+  active_tables: number;
+  total_rows: number;
+  categories?: string[];
+  sources: Array<{
+    key: string;
+    name: string;
+    category: string;
+    source: string;
+    update: string;
+    note: string;
+    rows: number;
+    min_date: string;
+    max_date: string;
+    status: 'active' | 'empty' | 'error';
   }>;
-  overall_status: 'healthy' | 'degraded' | 'offline';
-  next_sync?: string;
+  sync_map: Record<string, {
+    mode: string;
+    days_default: number;
+    desc: string;
+  }>;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -330,11 +432,12 @@ export interface StrategyTemplatesResponse {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /** 交易方向 */
-export type TradeDirection = 'buy' | 'sell';
+export type TradeDirection = 'buy' | 'sell' | 'BUY' | 'SELL';
 
 /** 交易订单 */
 export interface TradeOrder {
   id: string | number;
+  order_id?: string;
   code: string;
   name?: string;
   direction: TradeDirection;
@@ -347,6 +450,15 @@ export interface TradeOrder {
   commission?: number;
   filled_price?: number;
   filled_volume?: number;
+  tenant_id?: string;
+  owner_user_id?: string;
+  account_id?: string;
+  trade_mode?: 'paper' | 'live' | string;
+  decision_context_id?: string | null;
+  candidate_id?: string | null;
+  plan_id?: string | null;
+  order_scope?: Record<string, unknown>;
+  risk_verdict?: RiskVerdict | Record<string, unknown>;
 }
 
 /** 交易账户 */
@@ -384,21 +496,194 @@ export interface PlaceOrderRequest {
   direction: TradeDirection;
   volume: number;
   price?: number;
+  trade_mode?: 'paper' | 'live';
+  decision_context_id?: string;
+  candidate_id?: string;
+  plan_id?: string;
+}
+
+export interface BrokerConnectRequest {
+  broker_name: 'mock_qmt' | 'xtquant';
+  account_id: string;
+  server_ip: string;
+  server_port: number;
+  environment: 'sandbox' | 'live';
+  trade_password?: string;
 }
 
 /** 下单响应 */
+export interface RiskCheckItem {
+  rule: string;
+  level: 'pass' | 'warn' | 'reject' | string;
+  message?: string;
+  detail?: Record<string, unknown>;
+}
+
+export interface RiskCheckPayload {
+  passed: boolean;
+  requires_confirmation?: boolean;
+  confirm_reason?: string;
+  checks: RiskCheckItem[];
+}
+
+export interface RiskVerdict {
+  verdict_id: string;
+  tenant_id: string;
+  owner_user_id: string;
+  account_id: string;
+  visibility: 'private' | 'tenant_shared' | 'public';
+  data_scope: 'public' | 'tenant' | 'user' | 'account';
+  scope: 'candidate' | 'plan' | 'order' | 'strategy' | 'account' | string;
+  result: 'pass' | 'warn' | 'reject' | 'manual_review' | string;
+  symbol: string;
+  trade_mode: 'paper' | 'live' | string;
+  decision_context_id?: string;
+  candidate_id?: string;
+  plan_id?: string;
+  order_id?: string | null;
+  risk_check: RiskCheckPayload;
+}
+
+export interface RiskVerdictRecord {
+  id: string | number;
+  verdict_id: string;
+  tenant_id: string;
+  owner_user_id?: string | null;
+  account_id?: string | null;
+  result: RiskVerdict['result'];
+  scope: RiskVerdict['scope'];
+  trade_mode: RiskVerdict['trade_mode'];
+  symbol?: string | null;
+  order_id?: string | null;
+  plan_id?: string | null;
+  candidate_id?: string | null;
+  decision_context_id?: string | null;
+  details: RiskVerdict | Record<string, unknown>;
+  created_at?: string | null;
+}
+
+export interface RiskVerdictQuery {
+  result?: 'pass' | 'warn' | 'reject' | 'manual_review';
+  trade_mode?: 'paper' | 'live';
+  code?: string;
+  decision_context_id?: string;
+  order_id?: string;
+  plan_id?: string;
+  candidate_id?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface RiskVerdictsResponse {
+  total: number;
+  page: number;
+  page_size: number;
+  records: RiskVerdictRecord[];
+}
+
+export interface DecisionContextRecord {
+  id: string | number;
+  decision_context_id: string;
+  tenant_id: string;
+  owner_user_id?: string | null;
+  account_id?: string | null;
+  source_type: 'candidate' | 'plan' | 'order' | 'strategy' | 'manual' | string;
+  symbol?: string | null;
+  plan_id?: string | null;
+  candidate_id?: string | null;
+  intent: string;
+  payload: Record<string, unknown>;
+  created_at?: string | null;
+}
+
+export interface DecisionContextQuery {
+  decision_context_id?: string;
+  code?: string;
+  plan_id?: string;
+  candidate_id?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface DecisionContextsResponse {
+  total: number;
+  page: number;
+  page_size: number;
+  records: DecisionContextRecord[];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P0 公共对象契约
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** 所有用户可产生对象的归属边界。公共行情可为 public，账户对象必须至少 account scope。 */
+export interface PlatformObjectScope {
+  tenant_id?: string;
+  owner_user_id?: string | number | null;
+  account_id?: string | null;
+  visibility?: 'private' | 'tenant_shared' | 'public';
+  data_scope?: 'public' | 'tenant' | 'user' | 'account';
+}
+
+/** P0 主链路对象之间的可追溯字段。 */
+export interface PlatformLineage {
+  decision_context_id?: string | null;
+  candidate_id?: string | null;
+  plan_id?: string | null;
+  order_id?: string | null;
+  risk_verdict_id?: string | null;
+}
+
+/** 决策上下文：记录一次模型/用户/系统动作的输入、意图和证据。 */
+export type DecisionContext = DecisionContextRecord & PlatformObjectScope & PlatformLineage;
+
+/** 候选标的：由选股、信号、产业链或人工加入，进入方案前必须可追踪来源。 */
+export type Candidate = ScreenerPick & PlatformObjectScope & PlatformLineage;
+
+/** 投资方案：用户/账户私有或租户共享的组合计划。 */
+export type Plan = StrategyPlan & PlatformObjectScope & PlatformLineage;
+
+/** 交易订单：仅账户域对象，实盘订单必须关联风控判定。 */
+export type Order = TradeOrder & PlatformObjectScope & PlatformLineage;
+
+/** 风控判定：候选、方案、订单、账户动作的放行/拦截结论。 */
+export type RiskVerdictObject = RiskVerdictRecord & PlatformObjectScope & PlatformLineage;
+
 export interface PlaceOrderResponse {
-  order: TradeOrder;
-  risk_check?: {
-    passed: boolean;
-    warnings?: string[];
+  order?: TradeOrder;
+  order_id?: string;
+  broker_order_id?: string | null;
+  code?: string;
+  direction?: TradeDirection | string;
+  price?: number;
+  volume?: number;
+  status?: string;
+  message?: string;
+  tenant_id?: string;
+  owner_user_id?: string;
+  account_id?: string;
+  visibility?: 'private' | 'tenant_shared' | 'public';
+  data_scope?: 'public' | 'tenant' | 'user' | 'account';
+  decision_context_id?: string;
+  candidate_id?: string;
+  plan_id?: string;
+  order_scope?: {
+    tenant_id: string;
+    owner_user_id: string;
+    account_id: string;
+    visibility: string;
+    data_scope: string;
   };
+  risk_verdict?: RiskVerdict;
+  risk_check?: RiskCheckPayload;
 }
 
 /** 订单列表响应 */
 export interface OrdersResponse {
   orders: TradeOrder[];
   total: number;
+  page?: number;
+  page_size?: number;
 }
 
 /** 持仓列表响应 */
@@ -726,7 +1011,7 @@ export interface MappingReviewDecision {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /** 训练任务 */
-export interface TrainingTask {
+export interface TrainingTask extends ServiceContractFields {
   id: string;
   model_name: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
@@ -737,7 +1022,7 @@ export interface TrainingTask {
 }
 
 /** 训练任务列表响应 */
-export interface TrainingTasksResponse {
+export interface TrainingTasksResponse extends ServiceContractFields {
   tasks: TrainingTask[];
   total: number;
 }
@@ -747,7 +1032,7 @@ export interface TrainingTasksResponse {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /** 注册模型 */
-export interface RegisteredModel {
+export interface RegisteredModel extends ServiceContractFields {
   id: string;
   name: string;
   version: string;
@@ -758,7 +1043,7 @@ export interface RegisteredModel {
 }
 
 /** 模型列表响应 */
-export interface ModelsResponse {
+export interface ModelsResponse extends ServiceContractFields {
   models: RegisteredModel[];
   total: number;
 }
@@ -780,20 +1065,32 @@ export interface SyncTaskStatus {
 /** 同步调度 */
 export interface SyncSchedule {
   table_key: string;
-  cron: string;
+  days_back: number;
+  interval_minutes: number;
+  daily_at: string | null;
   enabled: boolean;
-  last_run?: string;
-  next_run?: string;
+  last_sync_at?: string;
+  next_sync_at?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /** 同步调度列表响应 */
 export interface SyncSchedulesResponse {
+  status: 'ok' | 'error';
+  message?: string;
   schedules: SyncSchedule[];
 }
 
 /** 触发同步响应 */
 export interface TriggerSyncResponse {
-  task_id: string;
-  status: 'started' | 'skipped';
+  status: 'ok' | 'error';
+  table_key: string;
+  mode?: string;
+  desc?: string;
+  days?: number;
+  returncode?: number;
+  output?: string[];
+  stderr?: string;
   message?: string;
 }

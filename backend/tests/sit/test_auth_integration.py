@@ -50,6 +50,9 @@ class TestRegister:
         assert body["user"]["name"] == "sit_test_user"
         assert body["user"]["email"] == "sit_r@test.com"
         assert body["user"]["role"] == "user"
+        assert body["user"]["tenant_id"] == "tenant-default"
+        assert body["user"]["default_trade_account_id"].startswith("paper-u")
+        assert body["user"]["trade_mode"] == "paper"
         # refresh_token should NOT be in body — in Set-Cookie
         assert "refresh_token" not in body
 
@@ -99,6 +102,8 @@ class TestLogin:
         assert body["expires_in"] == 900
         assert body["user"]["name"] == "sit_test_user"
         assert body["user"]["role"] == "user"
+        assert body["user"]["tenant_id"] == "tenant-default"
+        assert body["user"]["default_trade_account_id"].startswith("paper-u")
         # refresh_token must NOT be in response body
         assert "refresh_token" not in body
 
@@ -191,6 +196,8 @@ class TestMe:
         body = resp.json()
         assert body["name"] == "sit_test_user"
         assert body["email"] == "sit_r@test.com"
+        assert body["tenant_id"] == "tenant-default"
+        assert body["default_trade_account_id"].startswith("paper-u")
 
     async def test_no_auth_header_returns_401(self, client):
         resp = await client.get("/api/v1/auth/me")

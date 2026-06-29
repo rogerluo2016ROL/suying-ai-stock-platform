@@ -5,6 +5,12 @@ import { MemoryRouter } from 'react-router-dom'
 import Dashboard from '../pages/Dashboard'
 import api, { signalApi } from '../api/client'
 
+vi.mock('echarts-for-react', () => ({
+  default: ({ className, style }: { className?: string; style?: React.CSSProperties }) => (
+    <div data-testid="mock-chart" className={className} style={style} />
+  ),
+}))
+
 vi.mock('../api/client', () => ({
   default: {
     get: vi.fn(),
@@ -12,6 +18,8 @@ vi.mock('../api/client', () => ({
   },
   signalApi: {
     getDashboardSummary: vi.fn(),
+    getScreeningDashboardSummary: vi.fn(),
+    getDashboardAuction: vi.fn(),
   },
 }))
 
@@ -93,10 +101,10 @@ const dashboardSummary = {
   },
 }
 
-function renderDashboard() {
+function renderDashboard(initialRoute = '/') {
   return render(
     <ConfigProvider locale={zhCN}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialRoute]}>
         <Dashboard />
       </MemoryRouter>
     </ConfigProvider>,
@@ -106,7 +114,7 @@ function renderDashboard() {
 async function findSmartDashboardTabs() {
   return waitFor(() => {
     const tablist = screen.getAllByRole('tablist').find(item => (
-      within(item).queryByRole('tab', { name: '市场情绪' })
+      within(item).queryByRole('tab', { name: /市场情绪/ })
     ))
     expect(tablist).toBeTruthy()
     return tablist!
@@ -116,13 +124,9 @@ async function findSmartDashboardTabs() {
 describe('Dashboard', () => {
   beforeEach(() => {
     vi.mocked(signalApi.getDashboardSummary).mockResolvedValue({ data: dashboardSummary } as any)
+    vi.mocked(signalApi.getScreeningDashboardSummary).mockResolvedValue({ data: { status: 'no_data' } } as any)
+    vi.mocked(signalApi.getDashboardAuction).mockResolvedValue({ data: { picks: [], sectors: [] } } as any)
     vi.mocked(api.get).mockImplementation((url: string) => {
-      if (url.startsWith('/dashboard/summary')) {
-        return Promise.resolve({ data: { status: 'no_data' } })
-      }
-      if (url === '/dashboard/auction') {
-        return Promise.resolve({ data: { picks: [], sectors: [] } })
-      }
       return Promise.resolve({ data: {} })
     })
     vi.mocked(api.post).mockResolvedValue({ data: { status: 'ok' } } as any)
@@ -133,13 +137,110 @@ describe('Dashboard', () => {
 
     const dashboardTabs = await findSmartDashboardTabs()
 
-    expect(within(dashboardTabs).getByRole('tab', { name: '市场情绪' })).toBeInTheDocument()
-    expect(within(dashboardTabs).getByRole('tab', { name: '竞价意图' })).toBeInTheDocument()
-    expect(within(dashboardTabs).getByRole('tab', { name: '信号总览' })).toBeInTheDocument()
-    expect(within(dashboardTabs).getByRole('tab', { name: '自选跟踪' })).toBeInTheDocument()
+    expect(within(dashboardTabs).getByRole('tab', { name: /市场情绪/ })).toBeInTheDocument()
+    expect(within(dashboardTabs).getByRole('tab', { name: /竞价意图/ })).toBeInTheDocument()
+    expect(within(dashboardTabs).getByRole('tab', { name: /信号总览/ })).toBeInTheDocument()
+    expect(within(dashboardTabs).getByRole('tab', { name: /自选跟踪/ })).toBeInTheDocument()
 
-    fireEvent.click(within(dashboardTabs).getByRole('tab', { name: '自选跟踪' }))
+    fireEvent.click(within(dashboardTabs).getByRole('tab', { name: /自选跟踪/ }))
     expect(await screen.findByText('中际旭创')).toBeInTheDocument()
+  })
+
+  it('loads screening dashboard and auction data through the unified API facade', async () => {
+    vi.mocked(signalApi.getScreeningDashboardSummary).mockResolvedValue({
+      data: {
+        status: 'ok',
+        dual_consensus: [{ code: '300750', name: '宁德时代', consensus: 2, best_score: 92, best_grade: 'S', sources: ['trend', 'value'] }],
+        merged: [],
+        predictions: [{ code: '300750', name: '宁德时代', pred_return_pct: 8.2, current_price: 218.5 }],
+        summary: { total_picks: 1, consensus_dual: 1, strategies_run: 2, predictions_total: 1, predictions_up: 1, predictions_down: 0 },
+        elapsed: 18,
+        date: '2026-06-27',
+      },
+    } as any)
+    vi.mocked(signalApi.getDashboardAuction).mockResolvedValue({
+      data: {
+        picks: [{ code: '688981', name: '中芯国际', gap_pct: 5.8, score: 88, price: 68.2, industry: '半导体' }],
+        sectors: [{ name: '半导体', count: 5 }],
+      },
+    } as any)
+
+    renderDashboard()
+
+    const dashboardTabs = await findSmartDashboardTabs()
+    fireEvent.click(within(dashboardTabs).getByRole('tab', { name: /竞价意图/ }))
+    expect(await screen.findByText('抢筹 TOP 10')).toBeInTheDocument()
+    expect(screen.getByText('出货预警 TOP 10')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByText('中芯国际').length).toBeGreaterThan(0))
+    expect(signalApi.getScreeningDashboardSummary).toHaveBeenCalled()
+    expect(signalApi.getDashboardAuction).toHaveBeenCalled()
+    expect(api.get).not.toHaveBeenCalledWith(expect.stringContaining('/dashboard/summary'))
+    expect(api.get).not.toHaveBeenCalledWith('/dashboard/auction')
+  })
+
+  it('renders auction intent as the full prototype dashboard, not a sparse candidate preview', async () => {
+    vi.mocked(signalApi.getDashboardAuction).mockResolvedValue({
+      data: {
+        picks: [{ code: '300750', name: '宁德时代', chg_pct: 8.2, gap_pct: 8.2, score: 90, price: 218.5, industry: '新能源' }],
+        sectors: [],
+      },
+    } as any)
+
+    renderDashboard('/dashboard/auction')
+
+    expect(await screen.findByRole('heading', { name: '竞价意图' })).toBeInTheDocument()
+    expect(screen.getByText('四维评分模型 · 撮合价走势 · 一字定方向 · 全量明细')).toBeInTheDocument()
+    expect(screen.getByText('强烈抢筹')).toBeInTheDocument()
+    expect(screen.getByText('偏多抢筹')).toBeInTheDocument()
+    expect(screen.getByText('偏空出货')).toBeInTheDocument()
+    expect(screen.getByText('强烈出货')).toBeInTheDocument()
+    expect(screen.getByText('抢筹 TOP 10')).toBeInTheDocument()
+    expect(screen.getByText('出货预警 TOP 10')).toBeInTheDocument()
+    expect(screen.queryByText('竞价候选预览')).not.toBeInTheDocument()
+  })
+
+  it('renders signal overview as the full prototype matrix dashboard, not sparse empty lists', async () => {
+    renderDashboard('/dashboard/signals')
+
+    expect(await screen.findByRole('heading', { name: '信号总览' })).toBeInTheDocument()
+    expect(screen.getByText('全市场六维信号扫描 · 板块共振 · 历史趋势')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '全部信号' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '仅买入' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '仅卖出' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '仅拐点' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '仅自选' })).toBeInTheDocument()
+    expect(screen.getByText('今日信号概况')).toBeInTheDocument()
+    expect(screen.getByText('实时信号流')).toBeInTheDocument()
+    expect(screen.getByText('最强信号 TOP 8')).toBeInTheDocument()
+    expect(screen.getByText('30 日信号趋势')).toBeInTheDocument()
+    expect(screen.getByText('板块信号气泡图')).toBeInTheDocument()
+    expect(screen.getByText(/信号模型: Kronos\(20\)/)).toBeInTheDocument()
+    expect(screen.queryByText('今日交易信号')).not.toBeInTheDocument()
+    expect(screen.queryByText('暂无信号数据')).not.toBeInTheDocument()
+  })
+
+  it('renders watchlist tracking as the full prototype dashboard even when backend watchlist is empty', async () => {
+    vi.mocked(signalApi.getDashboardSummary).mockResolvedValue({
+      data: {
+        ...dashboardSummary,
+        watchlist: [],
+      },
+    } as any)
+
+    renderDashboard('/dashboard/watchlist')
+
+    expect(await screen.findByRole('heading', { name: '自选跟踪' })).toBeInTheDocument()
+    expect(screen.getByText('12 只自选 · 实时行情 · 信号监控 · 盈亏分析')).toBeInTheDocument()
+    expect(screen.getByText('自选等权盈亏')).toBeInTheDocument()
+    expect(screen.getByText('今日最强')).toBeInTheDocument()
+    expect(screen.getByText('买入信号')).toBeInTheDocument()
+    expect(screen.getByText('卖出/警报')).toBeInTheDocument()
+    expect(screen.getByText('自选清单')).toBeInTheDocument()
+    expect(screen.getAllByText('宁德时代').length).toBeGreaterThan(0)
+    expect(screen.getByText('行业分布')).toBeInTheDocument()
+    expect(screen.getByText('盈亏贡献')).toBeInTheDocument()
+    expect(screen.getByText('信号联动')).toBeInTheDocument()
+    expect(screen.queryByText('暂无自选股数据')).not.toBeInTheDocument()
   })
 
   it('renders market_regime_v2 and empty dashboard states without staying in loading copy', async () => {
@@ -169,10 +270,12 @@ describe('Dashboard', () => {
     expect(await screen.findByText('79.5')).toBeInTheDocument()
     expect(screen.getByText('[BULL] 牛市 - 积极做多')).toBeInTheDocument()
 
-    fireEvent.click(within(dashboardTabs).getByRole('tab', { name: '信号总览' }))
-    expect(await screen.findByText('暂无信号数据')).toBeInTheDocument()
+    fireEvent.click(within(dashboardTabs).getByRole('tab', { name: /信号总览/ }))
+    expect(await screen.findByText('今日信号概况')).toBeInTheDocument()
+    expect(screen.getByText('行业信号矩阵')).toBeInTheDocument()
 
-    fireEvent.click(within(dashboardTabs).getByRole('tab', { name: '自选跟踪' }))
-    expect(await screen.findByText('暂无自选股数据')).toBeInTheDocument()
+    fireEvent.click(within(dashboardTabs).getByRole('tab', { name: /自选跟踪/ }))
+    expect(await screen.findByText('自选清单')).toBeInTheDocument()
+    expect(screen.queryByText('暂无自选股数据')).not.toBeInTheDocument()
   })
 })

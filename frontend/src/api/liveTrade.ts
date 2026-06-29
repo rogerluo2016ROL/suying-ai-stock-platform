@@ -1,4 +1,5 @@
 import api from './client'
+import type { BrokerConnectRequest, PlaceOrderRequest } from './types'
 
 // ── Live Trade API (实盘交易) ──
 
@@ -9,16 +10,16 @@ export const liveTradeApi = {
   getOrders: () => api.get('/trade/orders'),
 
   // Order
-  placeOrder: (code: string, direction: string, volume: number, price = 0) =>
-    api.post('/trade/order', { code, direction, volume, price }),
+  placeOrder: (order: PlaceOrderRequest) =>
+    api.post('/trade/order', order),
 
   // Pre-check (risk control check before order)
-  preCheck: (params: { code: string; direction: string; price: number; volume: number }) =>
+  preCheck: (params: Partial<PlaceOrderRequest> & { code: string; direction: string; price: number; volume: number }) =>
     api.post('/trade/order/pre-check', params),
 
   // Broker connection
   getBrokerStatus: () => api.get('/trade/broker/status'),
-  connectBroker: () => api.post('/trade/broker/connect'),
+  connectBroker: (config: BrokerConnectRequest) => api.post('/trade/broker/connect', config),
 
   // Risk config
   getRiskConfig: () => api.get('/trade/risk-config'),

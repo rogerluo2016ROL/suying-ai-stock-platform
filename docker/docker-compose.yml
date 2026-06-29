@@ -246,6 +246,7 @@ services:
       - "${DIAGNOSIS_PORT:-8009}:8009"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+      - DATABASE_URL=postgresql+asyncpg://kronos:kronos@postgres:5432/kronos
       # DEF-4 fix: 跨服务 JWT 验签须与 backend 同 secret (原缺 env → fallback default → 验签失败)
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set (kronos-auth prod-gate)}
     depends_on:

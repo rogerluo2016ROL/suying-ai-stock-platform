@@ -47,7 +47,7 @@ def _role_name(user: User) -> str:
     return user.role.name if user.role else "user"
 
 
-def _role_defaults(role: str) -> dict[str, str | None]:
+def _role_defaults(role: str, user_id: int | None = None) -> dict[str, str | None]:
     if role == "admin":
         return {
             "tenant_id": "platform",
@@ -59,7 +59,7 @@ def _role_defaults(role: str) -> dict[str, str | None]:
     return {
         "tenant_id": "tenant-default",
         "tenant_name": "默认租户",
-        "default_trade_account_id": "paper-default",
+        "default_trade_account_id": f"paper-u{user_id}" if user_id is not None else "paper-default",
         "trade_mode": "paper",
         "broker_adapter": "paper",
     }
@@ -76,8 +76,8 @@ def _loaded_relation(user: User, name: str) -> Any:
     return getattr(user, "__dict__", {}).get(name)
 
 
-def _platform_profile(user: User) -> dict[str, str | None]:
-    profile = _role_defaults(_role_name(user))
+def _platform_profile(user: User) -> dict[str, Any]:
+    profile = _role_defaults(_role_name(user), user.id)
     membership = _select_default(_loaded_relation(user, "memberships"))
     tenant = getattr(membership, "tenant", None)
     if tenant is not None:
@@ -89,6 +89,19 @@ def _platform_profile(user: User) -> dict[str, str | None]:
         profile["default_trade_account_id"] = getattr(account, "account_id", None)
         profile["trade_mode"] = getattr(account, "trade_mode", None) or profile["trade_mode"]
         profile["broker_adapter"] = getattr(account, "adapter", None) or profile["broker_adapter"]
+
+    account_id = profile.get("default_trade_account_id")
+    profile["broker_connect_config"] = (
+        {
+            "broker_name": "mock_qmt",
+            "account_id": account_id,
+            "server_ip": "127.0.0.1",
+            "server_port": 16001,
+            "environment": "sandbox",
+        }
+        if account_id
+        else None
+    )
 
     return profile
 

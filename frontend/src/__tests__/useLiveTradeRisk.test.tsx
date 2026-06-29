@@ -99,15 +99,17 @@ describe('P2-09: useLiveTrade 风控分支', () => {
     expect(outcome?.error).toBe('风控检查未通过')
   })
 
-  it('paper 模式不触发预检/大额确认（直接下单）', async () => {
+  it('paper 模式先做预检，通过后直接下单且不触发大额确认', async () => {
+    let preCheckCalled = false
     let orderCalled = false
     server.use(
+      http.post('/api/v1/trade/order/pre-check', () => {
+        preCheckCalled = true
+        return HttpResponse.json({ passed: true, requires_confirmation: false, checks: [] })
+      }),
       http.post('/api/v1/trade/order', () => {
         orderCalled = true
         return HttpResponse.json({ message: 'ok' })
-      }),
-      http.post('/api/v1/trade/order/pre-check', () => {
-        throw new Error('pre-check should NOT be called in paper mode')
       }),
     )
 
@@ -124,6 +126,7 @@ describe('P2-09: useLiveTrade 风控分支', () => {
       )
     })
 
+    expect(preCheckCalled).toBe(true)
     expect(orderCalled).toBe(true)
     expect(confirmSpy).not.toHaveBeenCalled()
     expect(preCheckSpy).not.toHaveBeenCalled()

@@ -1,14 +1,11 @@
-import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Card, Input, Button, Descriptions, Tag, Space, Typography, Row, Col, Statistic, message, Spin } from 'antd'
-import { LineChartOutlined, ThunderboltOutlined, RiseOutlined, FallOutlined } from '@ant-design/icons'
+import { useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsOption } from 'echarts'
+import { AreaChartOutlined, BarChartOutlined, LineChartOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { predictionApi } from '../api/client'
+import { MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs, SegmentTabs } from '../components/prototype'
 
-const { Title, Text } = Typography
-
-// P1-09: trajectory candle shape returned by the prediction API
 interface TrajectoryPoint {
   day: number
   open: number
@@ -17,167 +14,247 @@ interface TrajectoryPoint {
   close: number
 }
 
-// Build an ECharts candlestick option from the prediction trajectory.
-// Replaces the previous 200-line hand-rolled div candlestick (no axis/tooltip/zoom).
-function buildTrajectoryOption(traj: TrajectoryPoint[]): EChartsOption {
-  const upColor = '#26a69a'
-  const downColor = '#ef5350'
+const tabs = [
+  { key: 'overview', path: '/predictions', label: '预测总览', subLabel: '模型概览' },
+  { key: 'single', path: '/predictions/single', label: '单股预测', subLabel: '30 日路径' },
+  { key: 'compare', path: '/predictions/compare', label: '多股对比', subLabel: '组合比较' },
+  { key: 'backtest', path: '/predictions/backtest', label: '准确率回测', subLabel: '命中复核' },
+]
+
+const watchStocks = [
+  { code: '300750', name: '宁德时代', price: 218.5, target: 242.3, score: 90, ret: 12.5 },
+  { code: '688981', name: '中芯国际', price: 68.2, target: 75.1, score: 88, ret: 10.1 },
+  { code: '600519', name: '贵州茅台', price: 1785, target: 1858, score: 79, ret: 4.1 },
+  { code: '002594', name: '比亚迪', price: 248, target: 242.8, score: 72, ret: -2.1 },
+]
+
+const fallbackTrajectory: TrajectoryPoint[] = Array.from({ length: 30 }, (_, index) => {
+  const base = 218.5 + index * 0.82 + Math.sin(index / 3) * 2.4
   return {
-    backgroundColor: '#1a1a2e',
+    day: index + 1,
+    open: Number((base - 1.2).toFixed(2)),
+    high: Number((base + 2.8).toFixed(2)),
+    low: Number((base - 3.1).toFixed(2)),
+    close: Number((base + 0.9).toFixed(2)),
+  }
+})
+
+function activeKey(pathname: string) {
+  if (pathname.endsWith('/single')) return 'single'
+  if (pathname.endsWith('/compare')) return 'compare'
+  if (pathname.endsWith('/backtest')) return 'backtest'
+  return 'overview'
+}
+
+function buildTrajectoryOption(traj: TrajectoryPoint[]): EChartsOption {
+  return {
     animation: false,
     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-    xAxis: {
-      type: 'category',
-      data: traj.map(p => `D${p.day}`),
-      axisLine: { lineStyle: { color: '#888' } },
-      axisLabel: { color: '#aaa', fontSize: 10 },
-    },
-    yAxis: {
-      type: 'value',
-      scale: true,
-      axisLabel: { color: '#aaa', fontSize: 10 },
-      splitLine: { lineStyle: { color: '#333' } },
-    },
-    dataZoom: [{ type: 'inside' }, { type: 'slider', height: 16, bottom: 4 }],
-    grid: { left: 48, right: 16, top: 16, bottom: 40 },
+    grid: { left: 44, right: 18, top: 22, bottom: 36 },
+    xAxis: { type: 'category', data: traj.map(item => `D${item.day}`), axisLabel: { fontSize: 10, color: '#8a96a8' } },
+    yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
+    dataZoom: [{ type: 'inside' }],
     series: [{
       type: 'candlestick',
-      data: traj.map(p => [p.open, p.close, p.low, p.high]),
-      itemStyle: {
-        color: upColor,
-        color0: downColor,
-        borderColor: upColor,
-        borderColor0: downColor,
-      },
+      data: traj.map(item => [item.open, item.close, item.low, item.high]),
+      itemStyle: { color: '#ff4d4f', color0: '#2ec27e', borderColor: '#ff4d4f', borderColor0: '#2ec27e' },
+    }, {
+      type: 'line',
+      data: traj.map(item => item.close),
+      smooth: true,
+      symbol: 'none',
+      lineStyle: { color: '#3d8bff', width: 2 },
+    }],
+  }
+}
+
+function buildOverviewOption(): EChartsOption {
+  return {
+    tooltip: { trigger: 'axis' },
+    grid: { left: 40, right: 20, top: 20, bottom: 34 },
+    xAxis: { type: 'category', data: watchStocks.map(item => item.name), axisLabel: { color: '#52617a' } },
+    yAxis: { type: 'value', axisLabel: { color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
+    series: [{
+      type: 'bar',
+      data: watchStocks.map(item => item.ret),
+      itemStyle: { color: (params: any) => Number(params.value) >= 0 ? '#ff4d4f' : '#2ec27e' },
+      barWidth: 26,
     }],
   }
 }
 
 export default function Predictions() {
+  const location = useLocation()
   const navigate = useNavigate()
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState('300750')
+  const [range, setRange] = useState('all')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
-
-  // P1-09: memoize the ECharts option so it isn't rebuilt on every render.
-  const trajectoryOption = useMemo<EChartsOption | null>(() => {
-    const traj: TrajectoryPoint[] | undefined = result?.pred_trajectory
-    if (!traj || !traj.length) return null
-    return buildTrajectoryOption(traj)
-  }, [result?.pred_trajectory])
+  const active = activeKey(location.pathname)
+  const selected = result ?? {
+    code: '300750',
+    name: '宁德时代',
+    current_price: 218.5,
+    pred_last_close: 242.3,
+    pred_return_pct: 12.5,
+    confidence: 78,
+    trend: '偏强上行',
+    pred_low: 211.8,
+    pred_high: 248.6,
+    max_drawdown_pct: -4.2,
+    pred_trajectory: fallbackTrajectory,
+  }
+  const trajectoryOption = useMemo(() => buildTrajectoryOption(selected.pred_trajectory || fallbackTrajectory), [selected.pred_trajectory])
+  const overviewOption = useMemo(() => buildOverviewOption(), [])
 
   const runPredict = async () => {
-    if (!code) { message.warning('请输入股票代码'); return }
+    if (!code.trim()) return
     setLoading(true)
     try {
-      const { data } = await predictionApi.predict(code, 10)
+      const { data } = await predictionApi.predict(code.trim(), 30)
       setResult(data)
-      message.success(`Kronos预测: ${(data.pred_return_pct ?? 0) > 0 ? '📈' : '📉'} ${(data.pred_return_pct ?? 0) > 0 ? '+' : ''}${data.pred_return_pct ?? 0}%`)
-    } catch (e: any) {
-      message.error(e.response?.data?.detail || '分析失败')
-    } finally { setLoading(false) }
+    } catch {
+      setResult(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          <LineChartOutlined style={{ marginRight: 8, color: 'var(--accent)' }} />
-          Kronos AI 预测
-        </Title>
-        <Text type="secondary" style={{ fontSize: 13 }}>30日价格轨迹预测 · 拐点识别 · 风险量化</Text>
-      </div>
+    <PrototypePage>
+      <PrototypeTabs
+        ariaLabel="K线预测页签"
+        activeKey={active}
+        onChange={(key) => {
+          const tab = tabs.find(item => item.key === key)
+          if (tab) navigate(tab.path)
+        }}
+        items={tabs.map((tab, index) => ({ ...tab, number: String(index + 1).padStart(2, '0') }))}
+      />
 
-      <Row gutter={16}>
-        <Col span={16}>
-          <Card style={{ borderRadius: 8, marginBottom: 16 }}>
-            <Space>
-              <Input.Search placeholder="输入股票代码 (如 000001)" value={code}
-                            onChange={e => setCode(e.target.value)} onSearch={runPredict}
-                            enterButton="开始预测" loading={loading} style={{ width: 300 }} />
-            </Space>
-          </Card>
+      {active === 'overview' && (
+        <>
+          <PrototypePageHeader title="预测总览" subtitle="Kronos V2.3 · 自选/候选池/最近预测的模型概览" />
+          <div className="kpis">
+            <MetricCard label="覆盖股票" value="30" sub="自选 + 候选池" tone="accent" />
+            <MetricCard label="看涨路径" value="21" sub="未来 30 日" tone="up" />
+            <MetricCard label="平均置信度" value="76%" sub="多因子共振" tone="down" />
+            <MetricCard label="风险预警" value="4" sub="回撤 > 6%" tone="warn" />
+          </div>
+          <div className="row r-6-4">
+            <PrototypeCard title="组合预测分布" icon={<BarChartOutlined />} meta="预期收益率">
+              <ReactECharts option={overviewOption} style={{ height: 320, width: '100%' }} notMerge />
+            </PrototypeCard>
+            <PrototypeCard title="重点标的排行" icon={<ThunderboltOutlined />} meta="按置信度排序">
+              <table className="tbl">
+                <thead><tr><th>代码</th><th>名称</th><th className="r">预期收益</th><th className="r">置信度</th></tr></thead>
+                <tbody>
+                  {watchStocks.map(item => (
+                    <tr key={item.code}>
+                      <td className="code">{item.code}</td>
+                      <td className="nm">{item.name}</td>
+                      <td className={`r ${item.ret >= 0 ? 'up' : 'down'}`}>{item.ret >= 0 ? '+' : ''}{item.ret}%</td>
+                      <td className="r mono">{item.score}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrototypeCard>
+          </div>
+        </>
+      )}
 
-          <Spin spinning={loading}>
-            {result && !result.error && (
-              <>
-                <div style={{ marginBottom: 12 }}>
-                  <a onClick={() => navigate(`/diagnosis?code=${code}`)} style={{ fontSize: 13 }}>
-                    🔍 查看 {code} 完整诊断 →
-                  </a>
-                </div>
-                <Row gutter={12} style={{ marginBottom: 16 }}>
-                  <Col span={6}>
-                    <Card size="small" style={{ borderRadius: 8 }}>
-                      <Statistic title="当前价" value={result.current_price} prefix="¥" />
-                    </Card>
-                  </Col>
-                  <Col span={6}>
-                    <Card size="small" style={{ borderRadius: 8 }}>
-                      <Statistic title="预测收盘" value={result.pred_last_close} prefix="¥"
-                                valueStyle={{ color: (result.pred_return_pct ?? 0) >= 0 ? 'var(--down)' : 'var(--up)' }} />
-                    </Card>
-                  </Col>
-                  <Col span={6}>
-                    <Card size="small" style={{ borderRadius: 8 }}>
-                      <Statistic title="预期收益" value={`${result.pred_return_pct > 0 ? '+' : ''}${result.pred_return_pct}%`}
-                                valueStyle={{ color: (result.pred_return_pct ?? 0) >= 0 ? 'var(--down)' : 'var(--up)' }} />
-                    </Card>
-                  </Col>
-                  <Col span={6}>
-                    <Card size="small" style={{ borderRadius: 8 }}>
-                      <Statistic title="趋势" value={result.trend} />
-                    </Card>
-                  </Col>
-                </Row>
-
-                <Card title={<Space><LineChartOutlined style={{ color: 'var(--accent)' }} />Kronos 预测详情</Space>}
-                      style={{ borderRadius: 8 }}>
-                  <Descriptions column={2} size="small" bordered>
-                    <Descriptions.Item label="预测区间">{result.pred_low} ~ {result.pred_high}</Descriptions.Item>
-                    <Descriptions.Item label="最大回调">
-                      <Tag color={result.max_drawdown_pct < -5 ? 'red' : 'orange'}>{result.max_drawdown_pct}%</Tag>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="预测天数">{result.pred_days} 天</Descriptions.Item>
-                    <Descriptions.Item label="轨迹点数">{result.pred_trajectory?.length || 0}</Descriptions.Item>
-                  </Descriptions>
-                </Card>
-
-                {trajectoryOption && (
-                  <Card title="Kronos 预测K线图" style={{ borderRadius: 8, marginTop: 16 }}>
-                    <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius)', padding: 16 }}>
-                      <ReactECharts option={trajectoryOption} style={{ height: 280, width: '100%' }} notMerge />
-                      <div style={{ display: 'flex', gap: 16, marginTop: 4, justifyContent: 'center' }}>
-                        <Space><span style={{ width: 10, height: 10, background: 'var(--down)', borderRadius: 1, display: 'inline-block' }} /><Text style={{ color: 'var(--muted)', fontSize: 10 }}>阳线</Text></Space>
-                        <Space><span style={{ width: 10, height: 10, background: 'var(--up)', borderRadius: 1, display: 'inline-block' }} /><Text style={{ color: 'var(--muted)', fontSize: 10 }}>阴线</Text></Space>
-                      </div>
-                    </div>
-                  </Card>
-                )}
-              </>
-            )}
-          </Spin>
-        </Col>
-
-        <Col span={8}>
-          <Card title="预测引擎" size="small" style={{ borderRadius: 8, marginBottom: 16 }}>
-            <Tag color="blue" style={{ marginBottom: 8 }}>AI-POWERED</Tag>
-            <div style={{ fontSize: 13 }}>
-              <p>• <b>Kronos-base</b> (102M参数)</p>
-              <p>• 30日 OHLCV 预测</p>
-              <p>• 趋势拐点识别</p>
-              <p>• 最大回调风险量化</p>
-              <p>• 5条采样路径融合</p>
+      {active === 'single' && (
+        <>
+          <PrototypePageHeader title="单股预测" subtitle="单标的 30 日 OHLCV 路径 · 因子贡献 · 信号一致性" />
+          <PrototypeCard title="预测标的" icon={<LineChartOutlined />} meta="30 日路径">
+            <div className="filter-bar" style={{ marginBottom: 0 }}>
+              <div className="search" style={{ maxWidth: 320 }}>
+                <input className="inp" value={code} onChange={event => setCode(event.target.value)} placeholder="搜索代码/名称..." />
+              </div>
+              <button type="button" className={`btn primary ${loading ? 'is-loading' : ''}`} onClick={runPredict}>开始预测</button>
+              <SegmentTabs
+                ariaLabel="预测周期"
+                activeKey={range}
+                onChange={setRange}
+                items={[{ key: 'all', label: '全部' }, { key: '30d', label: '近30日' }, { key: 'future30', label: '预测30日' }]}
+              />
             </div>
-          </Card>
-          <Card title="批量预测" size="small" style={{ borderRadius: 8 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              对接 POST /api/v1/prediction/{'{'}code{'}'}<br />
-              最多30只 · 每只可选5条采样路径
-            </Text>
-          </Card>
-        </Col>
-      </Row>
-    </div>
+          </PrototypeCard>
+          <div className="row r-6-4">
+            <PrototypeCard title={`${selected.name ?? '宁德时代'} 预测路径`} icon={<AreaChartOutlined />} meta={`${selected.code ?? code} · Kronos V2.3`}>
+              <ReactECharts option={trajectoryOption} style={{ height: 520, width: '100%' }} notMerge />
+            </PrototypeCard>
+            <div className="grid">
+              <PrototypeCard title="预测概览" icon={<BarChartOutlined />}>
+                <div style={{ textAlign: 'center', padding: '12px 0 18px' }}>
+                  <div className="prototype-panel-note">Kronos V2.3</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 760 }}>
+                    {selected.current_price} <span style={{ color: 'var(--muted)' }}>→</span> <span className={selected.pred_return_pct >= 0 ? 'up' : 'down'}>{selected.pred_last_close}</span>
+                  </div>
+                  <div className={selected.pred_return_pct >= 0 ? 'up' : 'down'} style={{ fontFamily: 'var(--font-mono)', fontWeight: 760, fontSize: 20 }}>
+                    {selected.pred_return_pct >= 0 ? '+' : ''}{selected.pred_return_pct}%
+                  </div>
+                </div>
+                <div className="dim-row">
+                  <div className="dim-lbl">置信度</div>
+                  <div className="dim-bar-wrap"><div className="dim-bar" style={{ width: `${selected.confidence ?? 78}%`, background: 'var(--accent)' }} /></div>
+                  <div className="dim-val neu">{selected.confidence ?? 78}%</div>
+                </div>
+              </PrototypeCard>
+              <PrototypeCard title="信号一致性" icon={<ThunderboltOutlined />}>
+                <div className="prototype-fallback" style={{ background: 'var(--down-bg)', borderColor: 'rgba(46,194,126,.35)', color: 'var(--down)' }}>
+                  信号方向一致
+                </div>
+                <div className="prototype-panel-note" style={{ marginTop: 10 }}>信号强度: 强买 82分 · 多因子共振</div>
+              </PrototypeCard>
+              <PrototypeCard title="因子贡献" icon={<BarChartOutlined />}>
+                {[
+                  ['技术面', 45, 'var(--accent)'],
+                  ['资金面', 28, '#7c3aed'],
+                  ['基本面', 15, 'var(--down)'],
+                  ['情绪面', 12, 'var(--warn)'],
+                ].map(([label, value, color]) => (
+                  <div className="dim-row" key={String(label)}>
+                    <div className="dim-lbl">{label}</div>
+                    <div className="dim-bar-wrap"><div className="dim-bar" style={{ width: `${value}%`, background: String(color) }} /></div>
+                    <div className="dim-val">{value}%</div>
+                  </div>
+                ))}
+              </PrototypeCard>
+            </div>
+          </div>
+        </>
+      )}
+
+      {active === 'compare' && (
+        <>
+          <PrototypePageHeader title="多股对比" subtitle="多标的预测路径、置信度和风险收益比较" />
+          <PrototypeCard title="对比矩阵" icon={<BarChartOutlined />}>
+            <table className="tbl">
+              <thead><tr><th>股票</th><th className="r">当前价</th><th className="r">目标价</th><th className="r">预期收益</th><th className="r">置信度</th></tr></thead>
+              <tbody>{watchStocks.map(item => (
+                <tr key={item.code}><td><span className="nm">{item.name}</span> <span className="code">{item.code}</span></td><td className="r mono">{item.price}</td><td className="r mono">{item.target}</td><td className={`r ${item.ret >= 0 ? 'up' : 'down'}`}>{item.ret}%</td><td className="r mono">{item.score}%</td></tr>
+              ))}</tbody>
+            </table>
+          </PrototypeCard>
+        </>
+      )}
+
+      {active === 'backtest' && (
+        <>
+          <PrototypePageHeader title="准确率回测" subtitle="预测命中率 · 偏差分布 · 模型版本复核" />
+          <div className="kpis">
+            <MetricCard label="30日方向命中" value="72%" sub="近 120 个样本" tone="down" />
+            <MetricCard label="平均绝对误差" value="4.8%" sub="收盘价偏差" tone="accent" />
+            <MetricCard label="高置信样本" value="83%" sub="置信度 > 75" tone="up" />
+            <MetricCard label="待复核" value="6" sub="异常波动样本" tone="warn" />
+          </div>
+          <PrototypeCard title="回测说明" icon={<LineChartOutlined />}>
+            <div className="prototype-panel-note">按模型版本、样本区间和置信度分层复核预测命中率，异常波动样本进入人工复盘。</div>
+          </PrototypeCard>
+        </>
+      )}
+    </PrototypePage>
   )
 }

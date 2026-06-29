@@ -1,900 +1,193 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { BarChartOutlined, LineChartOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { P0WorkflowNav } from '../components/layout'
 import {
-  Card, Button, Table, Tag, Typography, Space, message, Row, Col, Statistic,
-  Select, InputNumber, Form, Tabs, Divider, Empty, Popconfirm, Slider,
-} from 'antd'
-import {
-  ExperimentOutlined, PlayCircleOutlined, ReloadOutlined,
-  RiseOutlined, FallOutlined, SwapOutlined, ThunderboltOutlined,
-  CalendarOutlined, StockOutlined, FundOutlined, TrophyOutlined,
-  AimOutlined, DashboardOutlined, BarChartOutlined,
-} from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
-import ReactECharts from 'echarts-for-react'
-import dayjs from 'dayjs'
-import { backtestApi } from '../api/client'
+  MetricCard,
+  PrototypeCard,
+  PrototypePage,
+  PrototypePageHeader,
+  PrototypeTabs,
+  RiskBanner,
+  SideRail,
+} from '../components/prototype'
+import { backtestApi, tradeApi } from '../api/client'
+import type { RiskVerdictRecord } from '../api/types'
 
-const { Title, Text } = Typography
-const { Option } = Select
-
-// ── Types ──
-
-interface FactorItem {
-  id?: string
-  name: string
-  category?: string
-  description?: string
+interface ReviewRow {
+  orderId: string
+  verdictId: string
+  decisionContextId: string
+  planId: string
+  candidateId: string
+  reason: string
 }
 
-interface BacktestDetail {
-  window: number
-  start_date: string
-  end_date: string
-  forward_end: string
-  picks: number
-  avg_return_pct: number
-  hit_rate_pct: number
-  benchmark_pct: number
-  excess_return: number
-  ic: number
+const tabs = [
+  { key: 'overview', path: '/backtest', label: '回测总览', subLabel: '收益 / 回撤' },
+  { key: 'run', path: '/backtest/run', label: '运行回测', subLabel: '参数执行' },
+  { key: 'compare', path: '/backtest/compare', label: '策略对比', subLabel: '组合比较' },
+  { key: 'trades', path: '/backtest/trades', label: '交易复盘', subLabel: '交易拆解' },
+]
+
+function activeKey(pathname: string) {
+  if (pathname.endsWith('/run')) return 'run'
+  if (pathname.endsWith('/compare')) return 'compare'
+  if (pathname.endsWith('/trades')) return 'trades'
+  return 'overview'
 }
-
-interface BacktestSummary {
-  avg_ic: number
-  icir: number
-  avg_hit_rate: number
-  avg_excess_return: number
-  total_windows: number
-}
-
-interface BacktestResult {
-  status: string
-  mode: string
-  windows: number
-  top_n: number
-  forward_days: number
-  summary: BacktestSummary
-  details: BacktestDetail[]
-  data_source?: string
-  message?: string
-}
-
-interface CompareItem {
-  strategy: string
-  avg_return: number
-  samples: number
-  period: string
-}
-
-interface CompareResult {
-  status: string
-  start_date: string
-  end_date: string
-  strategies: CompareItem[]
-}
-
-interface CalibrateFactor {
-  factor_id: string
-  factor_name: string
-  ic_proxy: number
-  suggested_weight: number
-}
-
-interface CalibrateResult {
-  status: string
-  mode: string
-  factors: CalibrateFactor[]
-  message: string
-}
-
-// ── Constants ──
-
-type BacktestMode = 'all' | 'long' | 'short'
-
-const MODE_LABELS: Record<BacktestMode, string> = {
-  all: '全市场选股',
-  long: '多头策略',
-  short: '空头策略',
-}
-
-// ── Helpers: Sharpe & Max Drawdown ──
-
-function computeSharpe(returns: number[], forwardDays = 60): number {
-  if (returns.length < 2) return 0
-  const mean = returns.reduce((a, b) => a + b, 0) / returns.length
-  const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / (returns.length - 1)
-  const std = Math.sqrt(variance)
-  if (std === 0) return 0
-  return (mean / std) * Math.sqrt(252 / forwardDays)
-}
-
-function computeMaxDrawdown(returns: number[]): number {
-  let peak = -Infinity
-  let maxDD = 0
-  let cum = 0
-  for (const r of returns) {
-    cum += r
-    if (cum > peak) peak = cum
-    const dd = peak - cum
-    if (dd > maxDD) maxDD = dd
-  }
-  return maxDD
-}
-
-const STRATEGY_OPTIONS = Object.entries({
-  momentum: '五因子-动量',
-  volume: '五因子-量能',
-  quality: '五因子-质量',
-  composite: '综合评分',
-  technical: '五因子-技术',
-  margin: '融资融券',
-  moneyflow: '资金流向',
-  daily_basic: '每日指标',
-  financial: '财报质量',
-  hard_tech: '硬科技',
-  growth: '成长性',
-  short_term: '短线技术',
-  long_term: '长线价值',
-  por: 'POR估值',
-}).map(([value, label]) => ({ value, label }))
-
-// ── Chart Options ──
-
-function buildReturnChartOption(details: BacktestDetail[]): object {
-  if (!details.length) return {}
-  const benchmarkLabel = '市场基准'
-  return {
-    tooltip: {
-      trigger: 'axis',
-      formatter: (params: any) => {
-        const p = Array.isArray(params) ? params : [params]
-        return p.map((item: any) =>
-          `${item.marker} ${item.seriesName}: ${Number(item.value).toFixed(2)}%`
-        ).join('<br/>')
-      },
-    },
-    legend: { data: ['策略收益', benchmarkLabel, '超额收益'], bottom: 0 },
-    grid: { left: '3%', right: '4%', bottom: '12%', containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: details.map(d => `窗口${d.window}`),
-      axisLabel: { fontSize: 11 },
-    },
-    yAxis: { type: 'value', name: '收益率 (%)', axisLabel: { formatter: '{value}%' } },
-    series: [
-      {
-        name: '策略收益',
-        type: 'line',
-        data: details.map(d => +d.avg_return_pct.toFixed(2)),
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        lineStyle: { color: '#1677ff', width: 2 },
-        itemStyle: { color: '#1677ff' },
-      },
-      {
-        name: benchmarkLabel,
-        type: 'line',
-        data: details.map(d => +d.benchmark_pct.toFixed(2)),
-        smooth: true,
-        symbol: 'diamond',
-        symbolSize: 6,
-        lineStyle: { color: '#fa8c16', width: 2, type: 'dashed' },
-        itemStyle: { color: '#fa8c16' },
-      },
-      {
-        name: '超额收益',
-        type: 'bar',
-        data: details.map(d => +d.excess_return.toFixed(2)),
-        barWidth: 16,
-        itemStyle: {
-          color: (params: any) =>
-            details[params.dataIndex].excess_return >= 0 ? '#52c41a' : '#ff4d4f',
-          borderRadius: [4, 4, 0, 0],
-        },
-      },
-    ],
-  }
-}
-
-function buildIcChartOption(details: BacktestDetail[]): object {
-  if (!details.length) return {}
-  const icData = details.map(d => +d.ic.toFixed(4))
-  return {
-    tooltip: { trigger: 'axis' },
-    grid: { left: '3%', right: '4%', bottom: '8%', containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: details.map(d => `窗口${d.window}`),
-      axisLabel: { fontSize: 11 },
-    },
-    yAxis: { type: 'value', name: 'IC' },
-    series: [
-      {
-        name: 'IC',
-        type: 'bar',
-        data: icData,
-        itemStyle: {
-          color: (params: { dataIndex: number }) =>
-            icData[params.dataIndex] >= 0 ? '#52c41a' : '#ff4d4f',
-          borderRadius: [4, 4, 0, 0],
-        },
-      },
-      {
-        name: 'IC',
-        type: 'line',
-        data: icData,
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        lineStyle: { color: '#1677ff', width: 2 },
-        itemStyle: { color: '#1677ff' },
-      },
-    ],
-  }
-}
-
-function buildHitRateGaugeOption(hitRate: number): object {
-  return {
-    series: [
-      {
-        type: 'gauge',
-        startAngle: 210,
-        endAngle: -30,
-        center: ['50%', '60%'],
-        radius: '90%',
-        min: 0,
-        max: 100,
-        splitNumber: 10,
-        axisLine: {
-          show: true,
-          lineStyle: {
-            width: 20,
-            color: [
-              [0.3, '#ff4d4f'],
-              [0.5, '#faad14'],
-              [0.7, '#1677ff'],
-              [1, '#52c41a'],
-            ],
-          },
-        },
-        pointer: { length: '60%', width: 6 },
-        detail: {
-          valueAnimation: true,
-          formatter: '{value}%',
-          fontSize: 20,
-          offsetCenter: [0, '70%'],
-        },
-        data: [{ value: +hitRate.toFixed(1) }],
-      },
-    ],
-  }
-}
-
-function buildCompareChartOption(strategies: CompareItem[]): object {
-  if (!strategies.length) return {}
-  return {
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['平均收益'], bottom: 0 },
-    grid: { left: '5%', right: '4%', bottom: '12%', containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: strategies.map(s => STRATEGY_OPTIONS.find(o => o.value === s.strategy)?.label || s.strategy),
-      axisLabel: { fontSize: 11, rotate: 20 },
-    },
-    yAxis: { type: 'value', name: '收益率 (%)' },
-    series: [
-      {
-        name: '平均收益',
-        type: 'bar',
-        data: strategies.map(s => +s.avg_return.toFixed(2)),
-        itemStyle: {
-          color: (params: { dataIndex: number }) =>
-            strategies[params.dataIndex].avg_return >= 0 ? '#52c41a' : '#ff4d4f',
-          borderRadius: [4, 4, 0, 0],
-        },
-        label: { show: true, position: 'top', fontSize: 11 },
-      },
-    ],
-  }
-}
-
-// ── Component ──
 
 export default function Backtest() {
-  // ── State ──
-  const [activeTab, setActiveTab] = useState('run')
+  const location = useLocation()
+  const navigate = useNavigate()
+  const active = activeKey(location.pathname)
+  const activeTab = useMemo(() => tabs.find(tab => tab.key === active) ?? tabs[0], [active])
+  const [reviewRows, setReviewRows] = useState<ReviewRow[]>([])
 
-  // Run backtest
-  const [runLoading, setRunLoading] = useState(false)
-  const [form] = Form.useForm()
-  const [result, setResult] = useState<BacktestResult | null>(null)
-  const [runError, setRunError] = useState('')
-
-  // Factors
-  const [factors, setFactors] = useState<FactorItem[]>([])
-  const [factorsLoading, setFactorsLoading] = useState(false)
-
-  // Compare
-  const [compareLoading, setCompareLoading] = useState(false)
-  const [compareForm] = Form.useForm()
-  const [compareResult, setCompareResult] = useState<CompareResult | null>(null)
-  const [compareError, setCompareError] = useState('')
-
-  // Calibrate
-  const [calibrateLoading, setCalibrateLoading] = useState(false)
-  const [calibrateResult, setCalibrateResult] = useState<CalibrateResult | null>(null)
-
-  // ── Load Factors ──
-
-  const loadFactors = useCallback(async () => {
-    setFactorsLoading(true)
-    try {
-      const r = await backtestApi.getFactors()
-      const rawFactors = (r.data as { factors?: Array<{ name: string; category?: string; description?: string }> }).factors || []
-      // 为每个因子生成 id（使用 name 作为 id）
-      setFactors(rawFactors.map(f => ({ ...f, id: f.name })))
-    } catch {
-      // silent
-    } finally {
-      setFactorsLoading(false)
-    }
+  useEffect(() => {
+    backtestApi.getFactors().catch(() => undefined)
   }, [])
 
-  useEffect(() => { loadFactors() }, [loadFactors])
-
-  // ── Run Backtest ──
-
-  const handleRun = useCallback(async () => {
-    try {
-      const values = await form.validateFields()
-      setRunLoading(true)
-      setRunError('')
-      setResult(null)
-
-      const r = await backtestApi.run({
-        mode: values.mode || 'all',
-        windows: values.windows ?? 3,
-        top_n: values.top_n ?? 30,
-        forward_days: values.forward_days ?? 60,
+  useEffect(() => {
+    if (active !== 'trades') return
+    Promise.all([
+      tradeApi.getOrders(),
+      tradeApi.getRiskVerdicts({ page: 1, page_size: 50 }),
+      tradeApi.getDecisionContexts({ page: 1, page_size: 50 }),
+    ])
+      .then(([ordersResponse, verdictsResponse, contextsResponse]) => {
+        const orders = (ordersResponse.data as any)?.orders || []
+        const verdicts = (verdictsResponse.data as any)?.records || []
+        const contexts = (contextsResponse.data as any)?.records || []
+        const nextRows = orders.map((order: any) => {
+          const verdict = verdicts.find((item: RiskVerdictRecord) => item.order_id === (order.order_id || order.id))
+            || verdicts.find((item: RiskVerdictRecord) => item.decision_context_id === order.decision_context_id)
+            || {}
+          const context = contexts.find((item: any) => item.decision_context_id === (order.decision_context_id || verdict.decision_context_id))
+            || {}
+          return {
+            orderId: order.order_id || order.id || '---',
+            verdictId: verdict.verdict_id || '---',
+            decisionContextId: order.decision_context_id || verdict.decision_context_id || context.decision_context_id || '---',
+            planId: order.plan_id || verdict.plan_id || context.plan_id || '---',
+            candidateId: order.candidate_id || verdict.candidate_id || context.candidate_id || '---',
+            reason: context.payload?.reason || '等待复盘归因',
+          }
+        })
+        setReviewRows(nextRows)
       })
-
-      const data = r.data as unknown as BacktestResult
-      if (data.status === 'error') {
-        setRunError(data.message || '回测数据不足')
-        message.warning(data.message || '回测数据不足')
-      } else {
-        setResult(data)
-        message.success(`回测完成: ${data.summary.total_windows} 个窗口`)
-        setActiveTab('run')
-      }
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.message || '回测请求失败'
-      setRunError(msg)
-      message.error(msg)
-    } finally {
-      setRunLoading(false)
-    }
-  }, [form])
-
-  // ── Compare Strategies ──
-
-  const handleCompare = useCallback(async () => {
-    try {
-      const values = await compareForm.validateFields()
-      setCompareLoading(true)
-      setCompareError('')
-      setCompareResult(null)
-
-      const r = await backtestApi.compare({
-        strategy_ids: values.strategy_ids || ['momentum', 'quality'],
-        start_date: values.date_range?.[0]?.format('YYYY-MM-DD'),
-        end_date: values.date_range?.[1]?.format('YYYY-MM-DD'),
-      })
-
-      const data = r.data as unknown as CompareResult
-      if (data.status === 'ok') {
-        setCompareResult(data)
-        message.success(`对比 ${data.strategies.length} 个策略完成`)
-      } else {
-        setCompareError('对比失败')
-        message.warning('对比失败')
-      }
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.message || '对比请求失败'
-      setCompareError(msg)
-      message.error(msg)
-    } finally {
-      setCompareLoading(false)
-    }
-  }, [compareForm])
-
-  // ── Calibrate ──
-
-  const handleCalibrate = useCallback(async () => {
-    setCalibrateLoading(true)
-    try {
-      const r = await backtestApi.calibrate('all')
-      const data = r.data as CalibrateResult
-      if (data.status === 'ok') {
-        setCalibrateResult(data)
-        message.success(`校准完成: ${data.factors.length} 个因子`)
-      } else {
-        message.warning('校准失败')
-      }
-    } catch (err: any) {
-      message.error(err?.response?.data?.detail || '校准请求失败')
-    } finally {
-      setCalibrateLoading(false)
-    }
-  }, [])
-
-  // ── Detail Table Columns ──
-
-  const detailColumns: ColumnsType<BacktestDetail> = [
-    { title: '窗口', dataIndex: 'window', width: 60, render: (v: number) => <Tag color="blue">{v}</Tag> },
-    { title: '起始日期', dataIndex: 'start_date', width: 110, render: (v: string) => <Text code>{v}</Text> },
-    { title: '结束日期', dataIndex: 'end_date', width: 110, render: (v: string) => <Text code>{v}</Text> },
-    { title: '预测截止', dataIndex: 'forward_end', width: 110, render: (v: string) => <Text code>{v}</Text> },
-    { title: '入选数', dataIndex: 'picks', width: 70, render: (v: number) => <Tag>{v}</Tag> },
-    {
-      title: '平均收益', dataIndex: 'avg_return_pct', width: 100,
-      render: (v: number) => (
-        <Text type={v >= 0 ? 'success' : 'danger'} strong>
-          {v >= 0 ? '+' : ''}{v.toFixed(2)}%
-        </Text>
-      ),
-    },
-    {
-      title: '命中率', dataIndex: 'hit_rate_pct', width: 90,
-      render: (v: number) => (
-        <Text type={v >= 50 ? 'success' : 'warning'}>{v.toFixed(1)}%</Text>
-      ),
-    },
-    { title: '市场基准', dataIndex: 'benchmark_pct', width: 100, render: (v: number) => `${v.toFixed(2)}%` },
-    {
-      title: '超额收益', dataIndex: 'excess_return', width: 100,
-      render: (v: number) => (
-        <Text type={v >= 0 ? 'success' : 'danger'} strong>
-          {v >= 0 ? '+' : ''}{v.toFixed(2)}%
-        </Text>
-      ),
-    },
-    {
-      title: 'IC', dataIndex: 'ic', width: 90,
-      render: (v: number) => {
-        const color = v > 0.03 ? 'green' : v > 0 ? 'blue' : 'red'
-        return <Tag color={color}>{v.toFixed(4)}</Tag>
-      },
-    },
-  ]
-
-  const factorColumns: ColumnsType<FactorItem> = [
-    {
-      title: '因子 ID', dataIndex: 'id', width: 150,
-      render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
-    },
-    { title: '因子名称', dataIndex: 'name', width: 200 },
-    {
-      title: '操作', width: 100,
-      render: (_: unknown, record: FactorItem) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
-      ),
-    },
-  ]
-
-  const calibrateColumns: ColumnsType<CalibrateFactor> = [
-    {
-      title: '因子 ID', dataIndex: 'factor_id', width: 140,
-      render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
-    },
-    { title: '因子名称', dataIndex: 'factor_name', width: 160 },
-    {
-      title: 'IC 代理值', dataIndex: 'ic_proxy', width: 100,
-      render: (v: number) => <Tag color={v >= 0 ? 'green' : 'red'}>{v.toFixed(4)}</Tag>,
-    },
-    {
-      title: '建议权重', dataIndex: 'suggested_weight', width: 100,
-      render: (v: number) => <Text strong style={{ color: '#1677ff' }}>{v.toFixed(1)}</Text>,
-    },
-  ]
-
-  const compareColumns: ColumnsType<CompareItem> = [
-    {
-      title: '策略', dataIndex: 'strategy', width: 150,
-      render: (v: string) => {
-        const label = STRATEGY_OPTIONS.find(o => o.value === v)?.label || v
-        return <Tag color="blue">{label}</Tag>
-      },
-    },
-    {
-      title: '平均收益', dataIndex: 'avg_return', width: 120,
-      render: (v: number) => (
-        <Text type={v >= 0 ? 'success' : 'danger'} strong>
-          {v >= 0 ? '+' : ''}{v.toFixed(2)}%
-        </Text>
-      ),
-    },
-    { title: '样本数', dataIndex: 'samples', width: 100 },
-    { title: '回测区间', dataIndex: 'period', ellipsis: true },
-  ]
-
-  // ── Render ──
-
-  const summary = result?.summary
+      .catch(() => setReviewRows([]))
+  }, [active])
 
   return (
-    <div>
-      {/* ── Page Header ── */}
-      <div style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>
-          <ExperimentOutlined style={{ marginRight: 8, color: '#1677ff' }} />
-          回测分析
-        </Title>
-        <Text type="secondary">
-          滚动窗口前向回测 · IC/ICIR 验证 · 策略绩效评估 · 因子权重校准
-        </Text>
+    <PrototypePage>
+      <PrototypeTabs
+        ariaLabel="回测分析页签"
+        activeKey={active}
+        onChange={(key) => {
+          const tab = tabs.find(item => item.key === key)
+          if (tab) navigate(tab.path)
+        }}
+        items={tabs.map((tab, index) => ({ ...tab, number: String(index + 1).padStart(2, '0') }))}
+      />
+      <PrototypePageHeader
+        title={`回测分析 - ${activeTab.label}`}
+        subtitle="参数运行 · 收益曲线 · 策略对比 · 交易拆解"
+        actions={[
+          { key: 'plan', label: '方案关联', active: true },
+          { key: 'review', label: '复盘可追踪', tone: 'neutral' },
+          { key: 'risk', label: '关联风控', tone: 'warn' },
+        ]}
+      />
+      <P0WorkflowNav currentStep="review" />
+
+      <div className="kpis">
+        <MetricCard label="最近回测" value="23" sub="方案关联" tone="accent" />
+        <MetricCard label="平均收益" value="+8.5%" sub="近 30 日" tone="up" />
+        <MetricCard label="最大回撤" value="-4.2%" sub="需复核" tone="warn" />
+        <MetricCard label="复盘样本" value={String(reviewRows.length || 9)} sub="Order/Risk" tone="muted" />
       </div>
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab} type="card" style={{ marginTop: 8 }}>
-        {/* ── Tab 1: Run Backtest ── */}
-        <Tabs.TabPane tab={<span><PlayCircleOutlined /> 回测运行</span>} key="run">
-          {/* ── Parameter Config (AC-306.1) ── */}
-          <Card
-            title={<Space><CalendarOutlined style={{ color: '#1677ff' }} />回测参数配置</Space>}
-            style={{ borderRadius: 8, marginBottom: 16 }}
-            extra={
-              <Space>
-                <Button icon={<ReloadOutlined />} onClick={() => { setResult(null); setRunError(''); form.resetFields() }}>
-                  重置
-                </Button>
-                <Button type="primary" icon={<PlayCircleOutlined />} loading={runLoading} onClick={handleRun}>
-                  运行回测
-                </Button>
-              </Space>
-            }
-          >
-            <Form
-              form={form}
-              layout="inline"
-              initialValues={{ mode: 'all', windows: 5, top_n: 30, forward_days: 60 }}
-              style={{ flexWrap: 'wrap', gap: 12 }}
-            >
-              <Form.Item name="mode" label="策略模式" rules={[{ required: true }]}>
-                <Select style={{ width: 150 }}>
-                  <Option value="all">全市场选股</Option>
-                  <Option value="long">多头策略</Option>
-                  <Option value="short">空头策略</Option>
-                </Select>
-              </Form.Item>
-
-              <Form.Item name="windows" label="回测窗口">
-                <InputNumber min={1} max={12} style={{ width: 120 }} />
-              </Form.Item>
-
-              <Form.Item name="top_n" label="每窗口选股数">
-                <InputNumber min={10} max={100} step={10} style={{ width: 120 }} />
-              </Form.Item>
-
-              <Form.Item name="forward_days" label="前瞻天数">
-                <InputNumber min={20} max={252} step={10} style={{ width: 120 }} />
-              </Form.Item>
-            </Form>
-
-            <Divider style={{ margin: '12px 0 4px' }} />
-            <Row gutter={16}>
-              <Col span={8}>
-                <Text type="secondary" style={{ fontSize: 11 }}>窗口数</Text>
-                <Slider min={1} max={12} marks={{ 1: '1', 3: '3', 6: '6', 9: '9', 12: '12' }}
-                  value={form.getFieldValue('windows') ?? 5}
-                  onChange={v => form.setFieldsValue({ windows: v })} />
-              </Col>
-              <Col span={8}>
-                <Text type="secondary" style={{ fontSize: 11 }}>选股数</Text>
-                <Slider min={10} max={100} step={10} marks={{ 10: '10', 30: '30', 50: '50', 100: '100' }}
-                  value={form.getFieldValue('top_n') ?? 30}
-                  onChange={v => form.setFieldsValue({ top_n: v })} />
-              </Col>
-              <Col span={8}>
-                <Text type="secondary" style={{ fontSize: 11 }}>前瞻天数</Text>
-                <Slider min={20} max={252} step={20} marks={{ 20: '20', 60: '60', 120: '120', 252: '252' }}
-                  value={form.getFieldValue('forward_days') ?? 60}
-                  onChange={v => form.setFieldsValue({ forward_days: v })} />
-              </Col>
-            </Row>
-          </Card>
-
-          {/* ── Error ── */}
-          {runError && (
-            <Card style={{ marginBottom: 16, borderRadius: 8, borderColor: '#ff4d4f' }}>
-              <Text type="danger">{runError}</Text>
-            </Card>
-          )}
-
-          {/* ── Summary Cards (AC-306.2) ── */}
-          {summary && result?.details && (() => {
-            const detailReturns = result.details.map(d => d.avg_return_pct)
-            const fwdDays = result.forward_days || 60
-            const totalReturn = detailReturns.reduce((a, b) => a + b, 0)
-            const sharpe = computeSharpe(detailReturns, fwdDays)
-            const maxDD = computeMaxDrawdown(detailReturns)
-            return (
-            <Row gutter={12} style={{ marginBottom: 16 }}>
-              <Col span={4}>
-                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
-                  <Statistic
-                    title="累计收益"
-                    value={totalReturn}
-                    precision={2}
-                    suffix="%"
-                    valueStyle={{ color: totalReturn >= 0 ? '#52c41a' : '#ff4d4f', fontSize: 24 }}
-                    prefix={totalReturn >= 0 ? <RiseOutlined /> : <FallOutlined />}
-                  />
-                </Card>
-              </Col>
-              <Col span={4}>
-                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
-                  <Statistic
-                    title="夏普比率"
-                    value={sharpe}
-                    precision={2}
-                    valueStyle={{ color: sharpe >= 1 ? '#52c41a' : sharpe >= 0 ? '#faad14' : '#ff4d4f', fontSize: 24 }}
-                    prefix={<TrophyOutlined />}
-                  />
-                </Card>
-              </Col>
-              <Col span={4}>
-                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
-                  <Statistic
-                    title="最大回撤"
-                    value={maxDD}
-                    precision={2}
-                    suffix="%"
-                    valueStyle={{ color: '#ff4d4f', fontSize: 24 }}
-                    prefix={<FallOutlined />}
-                  />
-                </Card>
-              </Col>
-              <Col span={4}>
-                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
-                  <Statistic
-                    title="胜率"
-                    value={summary.avg_hit_rate}
-                    precision={1}
-                    suffix="%"
-                    valueStyle={{ color: summary.avg_hit_rate >= 50 ? '#52c41a' : '#ff4d4f', fontSize: 24 }}
-                    prefix={<DashboardOutlined />}
-                  />
-                </Card>
-              </Col>
-              <Col span={4}>
-                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
-                  <Statistic
-                    title="平均 IC"
-                    value={summary.avg_ic}
-                    precision={4}
-                    valueStyle={{ color: summary.avg_ic > 0.02 ? '#52c41a' : '#1677ff', fontSize: 24 }}
-                    prefix={<AimOutlined />}
-                  />
-                </Card>
-              </Col>
-              <Col span={4}>
-                <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
-                  <Statistic
-                    title="ICIR"
-                    value={summary.icir}
-                    precision={2}
-                    valueStyle={{ color: summary.icir > 0.5 ? '#52c41a' : '#faad14', fontSize: 24 }}
-                    prefix={<ThunderboltOutlined />}
-                  />
-                </Card>
-              </Col>
-            </Row>
-            )
-          })()}
-
-          {/* ── Charts (AC-306.2) ── */}
-          {result?.details && result.details.length > 0 && (
-            <Row gutter={12} style={{ marginBottom: 16 }}>
-              <Col span={12}>
-                <Card
-                  title={<Space><BarChartOutlined style={{ color: '#1677ff' }} />收益曲线</Space>}
-                  style={{ borderRadius: 8 }}
-                  size="small"
-                >
-                  <ReactECharts option={buildReturnChartOption(result.details)} style={{ height: 320 }} />
-                </Card>
-              </Col>
-              <Col span={12}>
-                <Card
-                  title={<Space><FundOutlined style={{ color: '#1677ff' }} />IC 滚动验证</Space>}
-                  style={{ borderRadius: 8 }}
-                  size="small"
-                >
-                  <ReactECharts option={buildIcChartOption(result.details)} style={{ height: 320 }} />
-                </Card>
-              </Col>
-            </Row>
-          )}
-
-          {/* ── Hit Rate Gauge ── */}
-          {summary && (
-            <Card
-              title={<Space><AimOutlined style={{ color: '#1677ff' }} />命中率仪表盘</Space>}
-              style={{ borderRadius: 8, marginBottom: 16 }}
-              size="small"
-            >
-              <ReactECharts option={buildHitRateGaugeOption(summary.avg_hit_rate)} style={{ height: 220 }} />
-            </Card>
-          )}
-
-          {/* ── Details Table ── */}
-          {result?.details && result.details.length > 0 && (
-            <Card
-              title={<Space><ExperimentOutlined style={{ color: '#1677ff' }} />回测明细 ({result.details.length} 窗口)</Space>}
-              style={{ borderRadius: 8 }}
-              size="small"
-            >
-              <Table
-                dataSource={result.details}
-                columns={detailColumns}
-                rowKey="window"
-                size="small"
-                pagination={{ pageSize: 10, showSizeChanger: true, showTotal: t => `共 ${t} 个窗口` }}
-                locale={{ emptyText: '暂无回测数据' }}
-                scroll={{ x: 1000 }}
-              />
-            </Card>
-          )}
-
-          {/* ── Empty State ── */}
-          {!result && !runLoading && !runError && (
-            <Card style={{ borderRadius: 8 }}>
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  <div>
-                    <Text type="secondary">点击"运行回测"开始滚动窗口前向回测</Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      系统将使用 PostgreSQL 真实日线数据，按滑动窗口计算 IC/ICIR、命中率和超额收益
-                    </Text>
-                  </div>
-                }
-              />
-            </Card>
-          )}
-        </Tabs.TabPane>
-
-        {/* ── Tab 2: Factor List ── */}
-        <Tabs.TabPane tab={<span><ThunderboltOutlined /> 因子列表 ({factors.length})</span>} key="factors">
-          <Card
-            title={<Space><ThunderboltOutlined style={{ color: '#1677ff' }} />回测因子 ({factors.length})</Space>}
-            style={{ borderRadius: 8, marginBottom: 16 }}
-            extra={
-              <Button icon={<ReloadOutlined />} loading={factorsLoading} onClick={loadFactors}>
-                刷新
-              </Button>
-            }
-          >
-            <Table
-              dataSource={factors}
-              columns={factorColumns}
-              rowKey="id"
-              size="small"
-              loading={factorsLoading}
-              pagination={{ pageSize: 10, showTotal: t => `共 ${t} 个因子` }}
-              locale={{ emptyText: '暂无因子数据' }}
-            />
-          </Card>
-
-          {/* ── Calibrate ── */}
-          <Card
-            title={<Space><FundOutlined style={{ color: '#1677ff' }} />因子权重校准</Space>}
-            style={{ borderRadius: 8 }}
-            extra={
-              <Popconfirm
-                title="确认校准"
-                description="将基于近期 IC 代理值重新计算所有因子建议权重"
-                onConfirm={handleCalibrate}
-                okText="确认"
-                cancelText="取消"
-              >
-                <Button type="primary" icon={<SwapOutlined />} loading={calibrateLoading}>
-                  执行校准
-                </Button>
-              </Popconfirm>
-            }
-          >
-            {calibrateResult ? (
-              <div>
-                <Text type="success" style={{ display: 'block', marginBottom: 12 }}>
-                  {calibrateResult.message}
-                </Text>
-                <Table
-                  dataSource={calibrateResult.factors}
-                  columns={calibrateColumns}
-                  rowKey="factor_id"
-                  size="small"
-                  pagination={{ pageSize: 10 }}
-                />
+      {active === 'overview' && (
+        <div className="row r-6-4">
+          <PrototypeCard title="收益曲线摘要" icon={<LineChartOutlined />} meta="Backtest">
+            {[
+              ['累计收益', 68, 'var(--down)'],
+              ['胜率', 72, 'var(--accent)'],
+              ['回撤控制', 54, 'var(--warn)'],
+              ['换手稳定', 61, 'var(--up)'],
+            ].map(([label, value, color]) => (
+              <div className="dim-row" key={String(label)}>
+                <div className="dim-lbl">{label}</div>
+                <div className="dim-bar-wrap"><div className="dim-bar" style={{ width: `${value}%`, background: String(color) }} /></div>
+                <div className="dim-val">{value}</div>
               </div>
-            ) : (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="点击「执行校准」基于近期 IC 代理值计算因子建议权重"
-              />
-            )}
-          </Card>
-        </Tabs.TabPane>
+            ))}
+          </PrototypeCard>
+          <SideRail title="复盘链路" meta="Plan / Backtest">
+            <RiskBanner status="review" title="等待订单回填" detail="正式复盘需要关联订单、风控判定和决策上下文。" />
+          </SideRail>
+        </div>
+      )}
 
-        {/* ── Tab 3: Strategy Compare ── */}
-        <Tabs.TabPane tab={<span><SwapOutlined /> 策略对比</span>} key="compare">
-          <Card
-            title={<Space><SwapOutlined style={{ color: '#1677ff' }} />多策略对比</Space>}
-            style={{ borderRadius: 8, marginBottom: 16 }}
-            extra={
-              <Button type="primary" icon={<SwapOutlined />} loading={compareLoading} onClick={handleCompare}>
-                开始对比
-              </Button>
-            }
-          >
-            <Form
-              form={compareForm}
-              layout="inline"
-              initialValues={{ strategy_ids: ['momentum', 'quality', 'composite'] }}
-              style={{ flexWrap: 'wrap', gap: 12, marginBottom: 16 }}
-            >
-              <Form.Item name="strategy_ids" label="对比策略" rules={[{ required: true, type: 'array', min: 1 }]}>
-                <Select mode="multiple" style={{ minWidth: 400 }} maxTagCount={4} placeholder="选择 2-5 个策略">
-                  {STRATEGY_OPTIONS.map(s => (
-                    <Option key={s.value} value={s.value}>{s.label}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Form>
+      {active === 'run' && (
+        <PrototypeCard title="运行回测" icon={<BarChartOutlined />} meta="参数执行">
+          <div className="row r-3">
+            {['时间窗口 60 日', 'Top 30 候选', '前向收益 20 日'].map(item => (
+              <div className="prototype-fallback" key={item}>{item}</div>
+            ))}
+          </div>
+          <button type="button" className="btn primary mt14">运行回测</button>
+        </PrototypeCard>
+      )}
 
-            <Divider style={{ margin: '8px 0 16px' }} />
+      {active === 'compare' && (
+        <PrototypeCard title="策略对比" icon={<BarChartOutlined />} meta="组合比较">
+          <table className="tbl">
+            <thead><tr><th>策略</th><th className="r">收益</th><th className="r">最大回撤</th><th className="r">IC</th></tr></thead>
+            <tbody>
+              <tr><td className="nm">半导体竞价共振</td><td className="r up">+12.1%</td><td className="r down">-4.2%</td><td className="r mono">0.18</td></tr>
+              <tr><td className="nm">价值回撤低吸</td><td className="r up">+6.4%</td><td className="r down">-2.1%</td><td className="r mono">0.12</td></tr>
+            </tbody>
+          </table>
+        </PrototypeCard>
+      )}
 
-            {compareError && (
-              <Text type="danger" style={{ display: 'block', marginBottom: 12 }}>{compareError}</Text>
-            )}
-
-            {compareResult ? (
-              <div>
-                <Row gutter={12} style={{ marginBottom: 16 }}>
-                  <Col span={24}>
-                    <Card size="small" style={{ borderRadius: 8 }}>
-                      <ReactECharts option={buildCompareChartOption(compareResult.strategies)} style={{ height: 300 }} />
-                    </Card>
-                  </Col>
-                </Row>
-                <Table
-                  dataSource={compareResult.strategies}
-                  columns={compareColumns}
-                  rowKey="strategy"
-                  size="small"
-                  pagination={false}
-                  locale={{ emptyText: '暂无对比数据' }}
-                />
+      {active === 'trades' && (
+        <div className="row r-6-4">
+          <PrototypeCard title="交易复盘链路" icon={<LineChartOutlined />} meta="Order / RiskVerdict / DecisionContext">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>RiskVerdict</th>
+                  <th>DecisionContext</th>
+                  <th>Plan</th>
+                  <th>Candidate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reviewRows.map(row => (
+                  <tr key={row.orderId}>
+                    <td className="code">{row.orderId}</td>
+                    <td className="code">{row.verdictId}</td>
+                    <td className="code">{row.decisionContextId}</td>
+                    <td className="code">{row.planId}</td>
+                    <td className="code">{row.candidateId}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </PrototypeCard>
+          <PrototypeCard title="复盘归因" icon={<SafetyCertificateOutlined />} meta="Lineage reason">
+            {reviewRows.map(row => (
+              <div className="prototype-fallback" key={`${row.orderId}-reason`} style={{ marginBottom: 10 }}>
+                {row.reason}
               </div>
-            ) : (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  <div>
-                    <Text type="secondary">选择 2-5 个策略进行横向对比</Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      系统将在相同时间区间内比较各策略的平均收益表现
-                    </Text>
-                  </div>
-                }
-              />
-            )}
-          </Card>
-        </Tabs.TabPane>
-      </Tabs>
-    </div>
+            ))}
+          </PrototypeCard>
+        </div>
+      )}
+    </PrototypePage>
   )
 }

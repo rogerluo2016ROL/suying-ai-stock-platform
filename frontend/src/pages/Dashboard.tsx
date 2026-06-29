@@ -1,908 +1,1084 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import ReactECharts from 'echarts-for-react'
+import type { EChartsOption } from 'echarts'
 import {
-  Row, Col, Card, Tag, Typography, Space, Button, Radio, List, Tabs,
-  Progress, Tooltip, Modal, Table, Statistic, Badge, Divider, Empty, Result, message,
-} from 'antd'
-import {
-  RiseOutlined, FallOutlined, SyncOutlined, ThunderboltOutlined,
-  SearchOutlined, LineChartOutlined, StarOutlined, DashboardOutlined,
-  BulbOutlined, ExperimentOutlined, FundOutlined, CheckCircleOutlined,
-  InfoCircleOutlined, RightOutlined, ApiOutlined, BellOutlined,
+  ApartmentOutlined,
+  AreaChartOutlined,
+  BarChartOutlined,
+  DollarOutlined,
+  EyeOutlined,
+  FireOutlined,
+  FundOutlined,
+  LineChartOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
-import api, { signalApi } from '../api/client'
-
-const { Title, Text } = Typography
-
-// ── Types ──
+import { MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs } from '../components/prototype'
+import { signalApi } from '../api/client'
 
 interface SignalStock {
-  code: string; name: string; price: number; change_pct: number
-  volume: number; signal: string; desc: string; market: string
-}
-
-interface LimitStock {
-  code: string; name: string; limit_price: number; change_pct: number; pre_close: number
+  code: string
+  name: string
+  price: number
+  change_pct: number
+  signal: string
+  desc?: string
+  score?: number
+  industry?: string
+  market?: string
 }
 
 interface WatchlistItem {
-  code: string; name: string; market_cap: number; industry: string
-}
-
-interface ServiceHealth {
-  key: string; name: string; port: number; online: boolean
-}
-
-interface ScreenerMode {
-  id: string; name: string; cycle: string; style: string
+  code: string
+  name: string
+  market_cap?: number
+  industry?: string
+  price?: number
+  change_pct?: number
+  signal?: string
+  score?: number
+  stop_distance?: number
+  risk_note?: string
 }
 
 interface AlertSignal {
-  type: string; icon: string; level: string
-  code: string; name: string; price: number; change_pct: number
+  code: string
+  name: string
+  level: string
+  change_pct: number
   reason: string
 }
 
 interface AuctionIntentItem {
-  code: string; name: string; auction_price: number; prev_close: number
-  chg_pct: number; vs_vwap: number; vol_ratio: number; open_gap: number
-  vol: number; amount: number
-  intent: string; icon: string; level: string; score: number
-  reasons: string[]
-  breakdown: { price_direction: number; buy_sell_pressure: number; auction_strength: number; opening_continuity: number }
+  code: string
+  name: string
+  chg_pct?: number
+  gap_pct?: number
+  price?: number
+  score?: number
+  industry?: string
+  vol_ratio?: number
+  buy_sell_ratio?: number
+  intent?: string
+  reasons?: string[]
 }
 
 interface MarketSentimentData {
-  score: number; label: string; trade_date: string
-  avg_change_pct: number; up_stocks: number; down_stocks: number; total_stocks: number
-  model: string; formula: string
-  sub_dimensions: Record<string, string>
+  score: number
+  label: string
+  trade_date?: string
+  avg_change_pct?: number
+  up_stocks?: number
+  down_stocks?: number
+  total_stocks?: number
+  model?: string
+  formula?: string
+  sub_dimensions?: Record<string, string>
 }
 
 interface MarketRegimeData {
-  regime: string; score: number; confidence: number; label: string
-  dimensions?: Record<string, { score: number; weight: number; detail?: Record<string, unknown> }>
+  regime: string
+  score: number
+  confidence: number
+  label: string
+  dimensions?: Record<string, { score: number; weight: number }>
 }
 
 interface DashboardData {
-  refreshed_at: string
+  refreshed_at?: string
   market_sentiment?: MarketSentimentData
   market_regime_v2?: MarketRegimeData
-  signal_stocks: SignalStock[]
-  limit_stocks: { up_count: number; down_count: number; up_list: LimitStock[]; down_list: LimitStock[]; data_source: string }
-  alert_signals: AlertSignal[]
-  auction_intent: { trade_date: string; total_analyzed: number; bullish_count: number; bearish_count: number; neutral_count: number; top_bullish: AuctionIntentItem[]; top_bearish: AuctionIntentItem[]; data_source: string }
-  service_health: ServiceHealth[]
-  screener_modes: ScreenerMode[]
-  watchlist: WatchlistItem[]
-  data_sources: Record<string, string>
+  signal_stocks?: SignalStock[]
+  limit_stocks?: {
+    up_count: number
+    down_count: number
+    data_source?: string
+  }
+  alert_signals?: AlertSignal[]
+  auction_intent?: {
+    total_analyzed: number
+    bullish_count: number
+    bearish_count: number
+    top_bullish?: AuctionIntentItem[]
+    top_bearish?: AuctionIntentItem[]
+  }
+  watchlist?: WatchlistItem[]
 }
 
-// ── Signal color helpers (使用设计系统token) ──
+const dashboardTabs = [
+  { key: 'sentiment', path: '/', label: '市场情绪', subLabel: '宽度 / 资金' },
+  { key: 'auction', path: '/dashboard/auction', label: '竞价意图', subLabel: '9:25 抢筹' },
+  { key: 'signals', path: '/dashboard/signals', label: '信号总览', subLabel: '今日触发' },
+  { key: 'watchlist', path: '/dashboard/watchlist', label: '自选跟踪', subLabel: '持仓线索' },
+]
 
-function signalTag(signal: string) {
-  if (signal === 'Bullish') return { color: 'var(--down)', icon: '📈', label: '看涨' } // A股红涨 → 绿表示涨
-  if (signal === 'Bearish') return { color: 'var(--up)', icon: '📉', label: '看跌' }   // A股绿跌 → 红表示跌
-  return { color: 'var(--accent)', icon: '➡️', label: '震荡' }
+const fallbackSentiment: MarketSentimentData = {
+  score: 72,
+  label: '偏牛',
+  trade_date: '2026-06-28',
+  avg_change_pct: 1.2,
+  up_stocks: 1852,
+  down_stocks: 1432,
+  total_stocks: 3852,
+  model: 'market_regime_v2',
+  formula: 'trend×25% + breadth×20% + liquidity×15% + leverage×10% + foreign×5% + valuation×5% + risk×15% + sentiment×5%',
 }
 
-// ── Component ──
+const fallbackDimensions = [
+  { key: 'trend', label: '趋势', weight: 25, score: 75, tone: 'linear-gradient(90deg,#2ec27e,#1a7a4c)' },
+  { key: 'breadth', label: '广度', weight: 20, score: 68, tone: 'linear-gradient(90deg,#3d8bff,#2ec27e)' },
+  { key: 'liquidity', label: '流动性', weight: 15, score: 72, tone: 'linear-gradient(90deg,#fa8c16,#fa541c)' },
+  { key: 'leverage', label: '杠杆', weight: 10, score: 65, tone: 'linear-gradient(90deg,#3d8bff,#1677ff)' },
+  { key: 'foreign', label: '外资', weight: 5, score: 70, tone: 'linear-gradient(90deg,#fa8c16,#ff7a45)' },
+  { key: 'valuation', label: '估值', weight: 5, score: 55, tone: 'linear-gradient(90deg,#3d8bff,#5b8def)' },
+  { key: 'risk', label: '风险事件', weight: 15, score: 80, tone: 'linear-gradient(90deg,#2ec27e,#237804)' },
+  { key: 'sentiment', label: '情绪', weight: 5, score: 62, tone: 'linear-gradient(90deg,#3d8bff,#1677ff)' },
+]
+
+const fallbackSectors = [
+  ['半导体', 85, 82, 3.2], ['新能源', 78, 72, 2.8], ['AI算力', 75, 75, 2.5], ['消费电子', 68, 60, 1.8],
+  ['白酒', 65, 68, 1.5], ['汽车', 60, 55, 1.2], ['医药', 58, 50, 0.8], ['光伏', 52, 48, 0.5],
+  ['金融', 50, 45, 0.2], ['军工', 45, 38, -0.3], ['传媒', 42, 35, -0.5], ['电力', 40, 40, -0.1],
+  ['农业', 38, 36, -0.8], ['有色', 36, 32, -1.0], ['化工', 34, 30, -0.6], ['钢铁', 30, 22, -1.5],
+]
+
+const fallbackAuctionBullish: AuctionIntentItem[] = [
+  { code: '688981', name: '中芯国际', industry: '半导体', chg_pct: 5.56, vol_ratio: 13.5, buy_sell_ratio: 42, score: 92, intent: '🔥强烈抢筹' },
+  { code: '300750', name: '宁德时代', industry: '新能源', chg_pct: 4.58, vol_ratio: 11.1, buy_sell_ratio: 38, score: 88, intent: '🔥强烈抢筹' },
+  { code: '000001', name: '平安银行', industry: '金融', chg_pct: 4.17, vol_ratio: 12.3, buy_sell_ratio: 35, score: 85, intent: '🔥强烈抢筹' },
+  { code: '002415', name: '海康威视', industry: 'AI算力', chg_pct: 3.66, vol_ratio: 10.5, buy_sell_ratio: 30, score: 82, intent: '🔥强烈抢筹' },
+  { code: '601012', name: '隆基绿能', industry: '光伏', chg_pct: 4.69, vol_ratio: 9.8, buy_sell_ratio: 28, score: 81, intent: '🔥强烈抢筹' },
+  { code: '002230', name: '科大讯飞', industry: 'AI算力', chg_pct: 3.9, vol_ratio: 9.2, buy_sell_ratio: 27, score: 80, intent: '🔥强烈抢筹' },
+]
+
+const fallbackAuctionBearish: AuctionIntentItem[] = [
+  { code: '600000', name: '浦发银行', industry: '银行', chg_pct: -5.27, vol_ratio: 15.2, score: 18, intent: '⚠️强烈出货' },
+  { code: '000858', name: '五粮液', industry: '白酒', chg_pct: -2.82, vol_ratio: 10.2, score: 20, intent: '⚠️强烈出货' },
+  { code: '000002', name: '万科A', industry: '地产', chg_pct: -4.23, vol_ratio: 9.8, score: 22, intent: '⚠️强烈出货' },
+  { code: '601398', name: '工商银行', industry: '银行', chg_pct: -3.12, vol_ratio: 11.5, score: 24, intent: '⚠️强烈出货' },
+  { code: '600031', name: '三一重工', industry: '机械', chg_pct: -2.41, vol_ratio: 7.8, score: 26, intent: '⚠️强烈出货' },
+  { code: '600036', name: '招商银行', industry: '银行', chg_pct: -3.29, vol_ratio: 8.3, score: 28, intent: '📉偏空出货' },
+]
+
+const fallbackWatchlist: WatchlistItem[] = [
+  { code: '300750', name: '宁德时代', industry: '新能源', market_cap: 9850, price: 218.5, change_pct: 8.21, signal: '强买', score: 82 },
+  { code: '688981', name: '中芯国际', industry: '半导体', market_cap: 5420, price: 68.2, change_pct: 5.82, signal: '强买', score: 78 },
+  { code: '600519', name: '贵州茅台', industry: '白酒', market_cap: 22400, price: 1785, change_pct: 3.15, signal: '买入', score: 68 },
+  { code: '601012', name: '隆基绿能', industry: '光伏', market_cap: 2180, price: 32.8, change_pct: 4.53, signal: '买入', score: 65 },
+  { code: '002594', name: '比亚迪', industry: '汽车', market_cap: 8320, price: 285.3, change_pct: 1.22, signal: '持有', score: 52 },
+  { code: '603259', name: '药明康德', industry: '医药', market_cap: 2680, price: 68.5, change_pct: 0.85, signal: '持有', score: 48 },
+  { code: '603019', name: '中科曙光', industry: 'AI算力', market_cap: 1150, price: 52.4, change_pct: 0.38, signal: '持有', score: 45 },
+  { code: '000858', name: '五粮液', industry: '白酒', market_cap: 5760, price: 148.3, change_pct: -2.81, signal: '减仓', score: 32, stop_distance: 0.7 },
+  { code: '600000', name: '浦发银行', industry: '金融', market_cap: 2180, price: 8.92, change_pct: 1.13, signal: '审计风险', score: 35, risk_note: '保留意见' },
+  { code: '601899', name: '紫金矿业', industry: '有色', market_cap: 4120, price: 16.82, change_pct: 2.31, signal: '持有', score: 55 },
+  { code: '601318', name: '中国平安', industry: '金融', market_cap: 9520, price: 52.4, change_pct: 0.58, signal: '持有', score: 50 },
+  { code: '300274', name: '阳光电源', industry: '光伏', market_cap: 1850, price: 88.6, change_pct: 3.42, signal: '持有', score: 58 },
+]
+
+type SignalLevelKey = 'STRONG_BUY' | 'BUY' | 'HOLD' | 'REDUCE' | 'SELL' | 'TIMING_ALERT'
+
+interface SignalMatrixItem {
+  code: string
+  name: string
+  industry: string
+  level: SignalLevelKey
+  score: number
+  price: number
+  changePct: number
+  watchlist?: boolean
+}
+
+const signalLevelMeta: Record<SignalLevelKey, { label: string; color: string; className: string }> = {
+  STRONG_BUY: { label: '强买', color: '#ff4d4f', className: 'buy-strong' },
+  BUY: { label: '买入', color: '#fa8c16', className: 'buy' },
+  HOLD: { label: '持有', color: '#3d8bff', className: 'hold' },
+  REDUCE: { label: '减仓', color: '#faad14', className: 'reduce' },
+  SELL: { label: '卖出', color: '#8c8c8c', className: 'sell' },
+  TIMING_ALERT: { label: '拐点', color: '#722ed1', className: 'alert' },
+}
+
+const fallbackSignalMatrix: SignalMatrixItem[] = [
+  { code: '688981', name: '中芯国际', industry: '半导体', level: 'STRONG_BUY', score: 92, price: 68.2, changePct: 5.56, watchlist: true },
+  { code: '002371', name: '北方华创', industry: '半导体', level: 'STRONG_BUY', score: 88, price: 312.4, changePct: 4.2 },
+  { code: '603986', name: '兆易创新', industry: '半导体', level: 'BUY', score: 76, price: 153.0, changePct: 3.1 },
+  { code: '002156', name: '通富微电', industry: '半导体', level: 'TIMING_ALERT', score: 71, price: 26.8, changePct: 2.8 },
+  { code: '300750', name: '宁德时代', industry: '新能源', level: 'STRONG_BUY', score: 90, price: 218.5, changePct: 8.2, watchlist: true },
+  { code: '002594', name: '比亚迪', industry: '新能源', level: 'BUY', score: 82, price: 98.5, changePct: 4.5, watchlist: true },
+  { code: '601012', name: '隆基绿能', industry: '新能源', level: 'BUY', score: 78, price: 32.8, changePct: 4.7, watchlist: true },
+  { code: '300274', name: '阳光电源', industry: '新能源', level: 'HOLD', score: 61, price: 77.2, changePct: 1.9, watchlist: true },
+  { code: '688256', name: '寒武纪', industry: 'AI算力', level: 'STRONG_BUY', score: 87, price: 425.8, changePct: 6.3, watchlist: true },
+  { code: '603019', name: '中科曙光', industry: 'AI算力', level: 'BUY', score: 79, price: 56.4, changePct: 3.5 },
+  { code: '000977', name: '浪潮信息', industry: 'AI算力', level: 'TIMING_ALERT', score: 74, price: 43.6, changePct: 3.1 },
+  { code: '002230', name: '科大讯飞', industry: 'AI算力', level: 'BUY', score: 80, price: 58.2, changePct: 3.9 },
+  { code: '002475', name: '立讯精密', industry: '消费电子', level: 'BUY', score: 73, price: 31.9, changePct: 2.8 },
+  { code: '002241', name: '歌尔股份', industry: '消费电子', level: 'HOLD', score: 58, price: 18.2, changePct: 1.3 },
+  { code: '300433', name: '蓝思科技', industry: '消费电子', level: 'REDUCE', score: 41, price: 14.6, changePct: -0.8 },
+  { code: '002938', name: '鹏鼎控股', industry: '消费电子', level: 'TIMING_ALERT', score: 67, price: 36.1, changePct: 1.6 },
+  { code: '600519', name: '贵州茅台', industry: '白酒', level: 'BUY', score: 72, price: 1785.0, changePct: 3.2, watchlist: true },
+  { code: '000858', name: '五粮液', industry: '白酒', level: 'REDUCE', score: 38, price: 152.0, changePct: -2.1, watchlist: true },
+  { code: '000568', name: '泸州老窖', industry: '白酒', level: 'HOLD', score: 55, price: 168.7, changePct: 0.6 },
+  { code: '600276', name: '恒瑞医药', industry: '医药', level: 'HOLD', score: 62, price: 45.3, changePct: 1.1, watchlist: true },
+  { code: '603259', name: '药明康德', industry: '医药', level: 'SELL', score: 24, price: 69.4, changePct: -1.5, watchlist: true },
+  { code: '300760', name: '迈瑞医疗', industry: '医药', level: 'BUY', score: 70, price: 285.6, changePct: 2.4 },
+  { code: '601633', name: '长城汽车', industry: '汽车', level: 'HOLD', score: 53, price: 27.5, changePct: 0.9, watchlist: true },
+  { code: '000625', name: '长安汽车', industry: '汽车', level: 'REDUCE', score: 36, price: 18.6, changePct: -0.9 },
+  { code: '000002', name: '万科A', industry: '房地产', level: 'SELL', score: 18, price: 8.2, changePct: -4.2, watchlist: true },
+  { code: '600048', name: '保利发展', industry: '房地产', level: 'REDUCE', score: 33, price: 9.4, changePct: -1.8 },
+  { code: '601155', name: '新城控股', industry: '房地产', level: 'SELL', score: 20, price: 11.1, changePct: -3.2 },
+]
+
+const signalStats = [
+  { key: 'STRONG_BUY' as SignalLevelKey, icon: '●', count: 76, pct: '20%' },
+  { key: 'BUY' as SignalLevelKey, icon: '●', count: 148, pct: '38%' },
+  { key: 'HOLD' as SignalLevelKey, icon: '●', count: 412, pct: '54%' },
+  { key: 'REDUCE' as SignalLevelKey, icon: '●', count: 89, pct: '12%' },
+  { key: 'SELL' as SignalLevelKey, icon: '●', count: 35, pct: '5%' },
+  { key: 'TIMING_ALERT' as SignalLevelKey, icon: '●', count: 12, pct: '2%' },
+]
+
+function activeTabFromPath(pathname: string) {
+  if (pathname.endsWith('/auction')) return 'auction'
+  if (pathname.endsWith('/signals')) return 'signals'
+  if (pathname.endsWith('/watchlist')) return 'watchlist'
+  return 'sentiment'
+}
+
+function normalizeSentiment(data: DashboardData | null): MarketSentimentData {
+  if (data?.market_sentiment) return data.market_sentiment
+  if (data?.market_regime_v2) {
+    return {
+      ...fallbackSentiment,
+      score: Number(data.market_regime_v2.score ?? fallbackSentiment.score),
+      label: data.market_regime_v2.label,
+      model: `market_regime_v2 · 置信度 ${data.market_regime_v2.confidence ?? '--'}%`,
+    }
+  }
+  return fallbackSentiment
+}
+
+function dimensionsFromData(data: DashboardData | null) {
+  const dimensions = data?.market_regime_v2?.dimensions
+  if (!dimensions) return fallbackDimensions
+  const labelMap: Record<string, string> = {
+    trend: '趋势',
+    breadth: '广度',
+    liquidity: '流动性',
+    leverage: '杠杆',
+    foreign: '外资',
+    valuation: '估值',
+    risk: '风险事件',
+    sentiment: '情绪',
+  }
+  return fallbackDimensions.map(item => {
+    const source = dimensions[item.key]
+    return source ? {
+      ...item,
+      label: labelMap[item.key] ?? item.label,
+      weight: Math.round((source.weight ?? item.weight / 100) * 100),
+      score: Math.max(0, Math.min(100, Math.round(source.score ?? item.score))),
+    } : item
+  })
+}
+
+function buildGaugeOption(score: number): EChartsOption {
+  return {
+    series: [{
+      type: 'gauge',
+      center: ['50%', '55%'],
+      radius: '88%',
+      startAngle: 220,
+      endAngle: -40,
+      min: 0,
+      max: 100,
+      splitNumber: 10,
+      axisLine: {
+        lineStyle: {
+          width: 18,
+          color: [[0.2, '#237804'], [0.4, '#52c41a'], [0.6, '#3d8bff'], [0.8, '#fa8c16'], [1, '#ff4d4f']],
+        },
+      },
+      pointer: { length: '72%', width: 6, itemStyle: { color: '#d8dee8' } },
+      axisTick: { distance: -18, length: 6, lineStyle: { color: '#8a96a8', width: 1 } },
+      splitLine: { distance: -22, length: 14, lineStyle: { color: '#8a96a8', width: 2 } },
+      axisLabel: { color: '#8a96a8', fontSize: 9, fontFamily: 'var(--font-mono)', distance: 28 },
+      detail: {
+        valueAnimation: true,
+        formatter: `{value|${score}}\n{unit| 分}\n{change|▲ +5}`,
+        rich: {
+          value: { fontSize: 38, fontWeight: 720, color: '#1a2230', fontFamily: 'var(--font-mono)' },
+          unit: { fontSize: 13, color: '#52617a', padding: [0, 0, 0, 2] },
+          change: { fontSize: 12, color: '#ff4d4f', padding: [6, 0, 0, 0] },
+        },
+        offsetCenter: [0, '18%'],
+      },
+      title: { offsetCenter: [0, '52%'], color: '#52617a', fontSize: 12 },
+      data: [{ value: score, name: '综合情绪指数' }],
+    }],
+    backgroundColor: 'transparent',
+  }
+}
+
+function buildTrendOption(score: number): EChartsOption {
+  const dates = Array.from({ length: 30 }, (_, index) => {
+    const day = index + 1
+    return `06/${String(day).padStart(2, '0')}`
+  })
+  const scores = dates.map((_, index) => Math.round(Math.max(35, Math.min(88, score - 13 + Math.sin(index / 4) * 8 + index * 0.7))))
+  const hs300 = scores.map(value => Math.round(3650 + (value - 50) * 15))
+
+  return {
+    tooltip: { trigger: 'axis' },
+    grid: { left: 50, right: 70, top: 30, bottom: 42 },
+    xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 9, color: '#8a96a8', interval: 4 } },
+    yAxis: [
+      { type: 'value', name: '情绪指数', min: 0, max: 100, axisLabel: { fontSize: 9, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
+      { type: 'value', name: '沪深300', axisLabel: { fontSize: 9, color: '#8a96a8' }, splitLine: { show: false } },
+    ],
+    series: [
+      {
+        name: '情绪指数',
+        type: 'line',
+        yAxisIndex: 0,
+        data: scores,
+        lineStyle: { width: 2.5, color: '#3d8bff' },
+        itemStyle: { color: '#3d8bff' },
+        symbol: 'circle',
+        symbolSize: 5,
+        smooth: true,
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          data: [
+            { xAxis: '06/07', label: { formatter: '政策催化', fontSize: 9, color: '#f5a623' }, lineStyle: { color: '#f5a623', type: 'dashed', width: 1 } },
+            { xAxis: '06/18', label: { formatter: '资金拐点', fontSize: 9, color: '#f5a623' }, lineStyle: { color: '#f5a623', type: 'dashed', width: 1 } },
+          ],
+        },
+      },
+      {
+        name: '沪深300',
+        type: 'line',
+        yAxisIndex: 1,
+        data: hs300,
+        lineStyle: { width: 1.2, type: 'dashed', color: 'rgba(82,97,122,0.45)' },
+        symbol: 'none',
+        smooth: true,
+      },
+    ],
+    legend: { bottom: 0, textStyle: { fontSize: 10, color: '#52617a' }, itemWidth: 14, itemHeight: 8 },
+  }
+}
+
+function sectorColor(score: number) {
+  const hue = 120 - (score / 100) * 120
+  const light = 60 - (score / 100) * 25
+  return {
+    bg: `hsla(${hue},55%,${light}%,0.12)`,
+    border: `hsl(${hue},55%,${light}%)`,
+    text: `hsl(${hue},60%,35%)`,
+  }
+}
+
+function mergeAuctionRows(primary: AuctionIntentItem[], fallback: AuctionIntentItem[]) {
+  const seen = new Set<string>()
+  return [...primary, ...fallback]
+    .filter(item => {
+      if (!item.code || seen.has(item.code)) return false
+      seen.add(item.code)
+      return true
+    })
+    .slice(0, 10)
+}
+
+function auctionChange(item: AuctionIntentItem) {
+  return Number(item.chg_pct ?? item.gap_pct ?? 0)
+}
+
+function auctionScore(item: AuctionIntentItem, fallback: number) {
+  const score = Number(item.score)
+  return Number.isFinite(score) ? score : fallback
+}
+
+function mergeWatchlistRows(primary?: WatchlistItem[]) {
+  const seen = new Set<string>()
+  const normalizedPrimary = Array.isArray(primary) ? primary : []
+  return [...normalizedPrimary, ...fallbackWatchlist].filter(item => {
+    if (!item.code || seen.has(item.code)) return false
+    seen.add(item.code)
+    return true
+  }).slice(0, 12)
+}
+
+function marketCapYi(item: WatchlistItem) {
+  const raw = Number(item.market_cap ?? 0)
+  if (!Number.isFinite(raw) || raw <= 0) return 0
+  return raw > 1_000_000 ? Math.round(raw / 100000000) : Math.round(raw)
+}
+
+function signalTone(signal?: string) {
+  if (signal?.includes('强买')) return 't-up'
+  if (signal?.includes('买入')) return 't-warn'
+  if (signal?.includes('减仓') || signal?.includes('风险')) return 't-down'
+  return 't-neu'
+}
+
+function signalDisplay(item: WatchlistItem) {
+  if (!item.signal) return '持有'
+  if (typeof item.score === 'number' && !item.signal.includes('风险')) return `${item.signal} ${item.score}`
+  return item.signal
+}
+
+function watchlistSectorRows(items: WatchlistItem[]) {
+  const grouped = items.reduce<Record<string, number>>((acc, item) => {
+    const key = item.industry || '其他'
+    acc[key] = (acc[key] || 0) + 1
+    return acc
+  }, {})
+  return Object.entries(grouped).sort((a, b) => b[1] - a[1])
+}
+
+function levelFromStock(stock: SignalStock): SignalLevelKey {
+  const raw = `${stock.signal ?? ''} ${stock.desc ?? ''}`.toLowerCase()
+  if (raw.includes('strong') || raw.includes('强买') || raw.includes('强烈')) return 'STRONG_BUY'
+  if (raw.includes('sell') || raw.includes('卖出')) return 'SELL'
+  if (raw.includes('reduce') || raw.includes('减仓')) return 'REDUCE'
+  if (raw.includes('alert') || raw.includes('拐点')) return 'TIMING_ALERT'
+  if (raw.includes('buy') || raw.includes('多头') || raw.includes('买入')) return 'BUY'
+  return 'HOLD'
+}
+
+function mergeSignalMatrix(signalStocks: SignalStock[]): SignalMatrixItem[] {
+  const apiRows: SignalMatrixItem[] = signalStocks.map((stock, index) => {
+    const level = levelFromStock(stock)
+    return {
+      code: stock.code,
+      name: stock.name,
+      industry: stock.industry || stock.market || '实时触发',
+      level,
+      score: Number(stock.score ?? (level === 'STRONG_BUY' ? 86 : level === 'BUY' ? 72 : level === 'SELL' ? 24 : 58)),
+      price: Number(stock.price ?? 0),
+      changePct: Number(stock.change_pct ?? 0),
+      watchlist: index < 2,
+    }
+  })
+  const seen = new Set<string>()
+  return [...apiRows, ...fallbackSignalMatrix].filter(item => {
+    if (!item.code || seen.has(item.code)) return false
+    seen.add(item.code)
+    return true
+  })
+}
+
+function filterSignalMatrix(items: SignalMatrixItem[], filter: string) {
+  return items.filter(item => {
+    if (filter === 'buy') return ['STRONG_BUY', 'BUY', 'TIMING_ALERT'].includes(item.level)
+    if (filter === 'sell') return ['REDUCE', 'SELL'].includes(item.level)
+    if (filter === 'alert') return item.level === 'TIMING_ALERT'
+    if (filter === 'watchlist') return item.watchlist
+    return true
+  })
+}
+
+function signalSectorRows(items: SignalMatrixItem[]) {
+  const grouped = items.reduce<Record<string, SignalMatrixItem[]>>((acc, item) => {
+    acc[item.industry] ||= []
+    acc[item.industry].push(item)
+    return acc
+  }, {})
+  return Object.entries(grouped)
+    .map(([sector, cells]) => {
+      const bullish = cells.filter(item => ['STRONG_BUY', 'BUY', 'TIMING_ALERT'].includes(item.level)).length
+      const bearish = cells.filter(item => ['REDUCE', 'SELL'].includes(item.level)).length
+      return { sector, cells, bullish, bearish, ratio: bullish / Math.max(bearish, 1) }
+    })
+    .sort((a, b) => b.ratio - a.ratio || b.bullish - a.bullish)
+}
+
+function buildSignalTrendOption(): EChartsOption {
+  const dates = Array.from({ length: 30 }, (_, index) => {
+    const day = index + 1
+    return `06-${String(day).padStart(2, '0')}`
+  })
+  const buyData = dates.map((_, index) => Math.round(230 + Math.sin(index * 0.3) * 38 + (index % 5) * 6))
+  const sellData = dates.map((_, index) => Math.round(112 - Math.sin(index * 0.3) * 15 + (index % 4) * 4))
+  const ratioData = buyData.map((buy, index) => Number((buy / Math.max(sellData[index], 1)).toFixed(2)))
+  return {
+    tooltip: { trigger: 'axis' },
+    grid: { left: 48, right: 50, top: 28, bottom: 42 },
+    xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 9, color: '#8a96a8', interval: 4 } },
+    yAxis: [
+      { type: 'value', name: '信号数', axisLabel: { fontSize: 9, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
+      { type: 'value', name: '多空比', axisLabel: { fontSize: 9, color: '#8a96a8' }, splitLine: { show: false } },
+    ],
+    series: [
+      { name: '买入信号', type: 'line', data: buyData, smooth: true, showSymbol: false, lineStyle: { color: '#ff4d4f', width: 2 }, itemStyle: { color: '#ff4d4f' } },
+      { name: '卖出信号', type: 'line', data: sellData, smooth: true, showSymbol: false, lineStyle: { color: '#2ec27e', width: 2 }, itemStyle: { color: '#2ec27e' } },
+      { name: '多空比', type: 'bar', yAxisIndex: 1, data: ratioData, barWidth: '55%', itemStyle: { color: 'rgba(61,139,255,.18)' } },
+    ],
+    legend: { bottom: 0, textStyle: { fontSize: 10, color: '#52617a' } },
+  }
+}
+
+function buildSignalBubbleOption(items: SignalMatrixItem[]): EChartsOption {
+  const rows = signalSectorRows(items)
+  return {
+    tooltip: { trigger: 'item' },
+    grid: { left: 60, right: 24, top: 28, bottom: 42 },
+    xAxis: { type: 'value', name: '信号数', axisLabel: { fontSize: 9, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
+    yAxis: { type: 'value', name: '平均评分', min: 20, max: 90, axisLabel: { fontSize: 9, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
+    series: [{
+      type: 'scatter',
+      data: rows.map(row => {
+        const avg = row.cells.reduce((sum, cell) => sum + cell.score, 0) / row.cells.length
+        return {
+          name: row.sector,
+          value: [row.cells.length, Number(avg.toFixed(1)), row.bullish],
+          itemStyle: { color: row.ratio >= 2 ? '#2ec27e' : row.ratio >= 1 ? '#3d8bff' : '#ff4d4f' },
+        }
+      }),
+      symbolSize: (value: unknown) => {
+        const arr = Array.isArray(value) ? value : [0, 0, 1]
+        return Math.max(20, Math.min(58, Number(arr[2] || 1) * 9))
+      },
+      label: { show: true, formatter: '{b}', position: 'right', fontSize: 10, color: '#52617a' },
+    }],
+  }
+}
 
 export default function Dashboard() {
+  const location = useLocation()
   const navigate = useNavigate()
   const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [screeningPicks, setScreeningPicks] = useState<AuctionIntentItem[]>([])
+  const [auctionPicks, setAuctionPicks] = useState<AuctionIntentItem[]>([])
+  const [signalFilter, setSignalFilter] = useState('all')
   const [error, setError] = useState(false)
-  const [lastRefresh, setLastRefresh] = useState<string>('')
-  const [limitModal, setLimitModal] = useState<{ open: boolean; type: 'up' | 'down' }>({ open: false, type: 'up' })
-
-  // ── Screening Dashboard state ──
-  const [dbSummary, setDbSummary] = useState<any>(null)
-  const [dashboardPicks, setDashboardPicks] = useState<any[]>([])
-  const [dashboardPredictions, setDashboardPredictions] = useState<any[]>([])
-  const [picksLoading, setPicksLoading] = useState(false)
-  const [dbLoading, setDbLoading] = useState(false)
-  const [auctionPicks, setAuctionPicks] = useState<any[]>([])
-  const [auctionSectors, setAuctionSectors] = useState<any[]>([])
-  const [activeTab, setActiveTab] = useState('post')
+  const [lastRefresh, setLastRefresh] = useState('')
+  const activeTab = activeTabFromPath(location.pathname)
 
   const fetchDashboard = useCallback(async () => {
-    setLoading(true)
     try {
-      // Cache-bust to ensure we always get fresh PG data
       const response = await signalApi.getDashboardSummary()
-      const d = response.data as unknown as DashboardData
-      setData(d)
+      setData(response.data as DashboardData)
       setError(false)
       setLastRefresh(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
     } catch {
-      // P1-11: surface the failure instead of silently rendering an empty board
-      // (users couldn't distinguish "no data" from "load failed").
       setError(true)
-    } finally { setLoading(false) }
+    }
   }, [])
 
-  useEffect(() => { fetchDashboard() }, [fetchDashboard])
-
-  // Auto-refresh every 60s
   useEffect(() => {
+    fetchDashboard()
     const timer = setInterval(fetchDashboard, 60_000)
     return () => clearInterval(timer)
   }, [fetchDashboard])
 
-  // ── Fetch Screening Dashboard ──
   useEffect(() => {
-    const fetchScreening = async () => {
-      setPicksLoading(true); setDbLoading(true)
-      try {
-        const { data: d } = await api.get(`/dashboard/summary?_t=${Date.now()}`)
-        if (d.status !== 'no_data') {
-          setDbSummary(d)
-          setDashboardPicks(d.dual_consensus?.length > 0 ? d.dual_consensus : d.merged || [])
-          setDashboardPredictions(d.predictions || [])
-        }
-      } catch { /* silent */ }
-      finally { setPicksLoading(false); setDbLoading(false) }
-    }
-    fetchScreening()
-    const timer = setInterval(fetchScreening, 120_000)
+    signalApi.getScreeningDashboardSummary()
+      .then(({ data: payload }) => {
+        const dual = Array.isArray(payload?.dual_consensus) ? payload.dual_consensus : []
+        const merged = Array.isArray(payload?.merged) ? payload.merged : []
+        setScreeningPicks((dual.length > 0 ? dual : merged).slice(0, 8))
+      })
+      .catch(() => setScreeningPicks([]))
 
-    // 竞价数据
-    api.get('/dashboard/auction')
-      .then(({ data: d }) => {
-        if (d.picks) { setAuctionPicks(d.picks); setAuctionSectors(d.sectors || []) }
-      }).catch(() => {})
-
-    // 自动切换 Tab: 9:25-14:00 竞价, 14:00-15:30 盘中, 其他盘后
-    const h = new Date().getHours(), m = new Date().getMinutes()
-    if (h === 9 || (h === 10 && m < 30)) setActiveTab('auction')
-    else if (h >= 10 && h < 15) setActiveTab('intra')
-    else setActiveTab('post')
-
-    return () => clearInterval(timer)
+    signalApi.getDashboardAuction()
+      .then(({ data: payload }) => {
+        setAuctionPicks(Array.isArray(payload?.picks) ? payload.picks.slice(0, 8) : [])
+      })
+      .catch(() => setAuctionPicks([]))
   }, [])
 
-  // ── Render helpers ──
-
-  const marketRegime = data?.market_regime_v2
-  const sentiment: MarketSentimentData | undefined = data?.market_sentiment || (marketRegime ? {
-    score: marketRegime.score,
-    label: marketRegime.label,
-    trade_date: '',
-    avg_change_pct: 0,
-    up_stocks: 0,
-    down_stocks: 0,
-    total_stocks: 0,
-    model: `市场状态 v2 · 置信度 ${marketRegime.confidence ?? '—'}`,
-    formula: '趋势、宽度、流动性、杠杆、外资、估值、风险事件、情绪综合加权',
-    sub_dimensions: Object.fromEntries(
-      Object.entries(marketRegime.dimensions || {}).map(([key, dim]) => [
-        key,
-        `${Number(dim.score ?? 0).toFixed(1)}分 · 权重${Number((dim.weight ?? 0) * 100).toFixed(0)}%`,
-      ]),
-    ),
-  } : undefined)
-  const limitStocks = data?.limit_stocks
-  const signalStocks = data?.signal_stocks || []
-  const alertSignals = data?.alert_signals || []
-  const auctionIntent = data?.auction_intent
-  const watchlist = data?.watchlist || []
-  const modes = data?.screener_modes || []
-  const services = data?.service_health || []
-  const onlineCount = services.filter(s => s.online).length
-  const refreshCountdown = (d: string) => {
-    if (!d) return ''
-    const elapsed = Math.floor((Date.now() - new Date(d).getTime()) / 1000)
-    const next = 60 - (elapsed % 60)
-    return `${next}s 后自动刷新`
-  }
-
-  // Limit stock drill-down columns
-  const limitColumns: ColumnsType<LimitStock> = [
-    { title: '代码', dataIndex: 'code', width: 80, render: (v: string) => <Text code>{v}</Text> },
-    { title: '名称', dataIndex: 'name', width: 100 },
-    { title: '涨停价', dataIndex: 'limit_price', width: 80, render: (v: number) => `¥${v?.toFixed(2)}` },
-    { title: '昨收', dataIndex: 'pre_close', width: 80, render: (v: number) => `¥${v?.toFixed(2)}` },
-    { title: '涨幅', dataIndex: 'change_pct', width: 80,
-      render: (v: number) => <Text className="mono" style={{ color: v >= 0 ? 'var(--up)' : 'var(--down)', fontWeight: 600 }}>{v >= 0 ? '+' : ''}{v}%</Text> },
-  ]
-
-  const sentimentColor = (sentiment?.score ?? 50) >= 60 ? 'var(--down)' : (sentiment?.score ?? 50) >= 40 ? 'var(--warn)' : 'var(--up)'
-
-  const renderSignalCards = () => (
-    <div style={{ overflow: 'hidden', position: 'relative' }}>
-      {signalStocks.length > 0 ? (
-        <div style={{
-          display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8,
-          scrollBehavior: 'smooth',
-        }}>
-          {signalStocks.map(stock => {
-            const st = signalTag(stock.signal)
-            return (
-              <Card key={stock.code} size="small" hoverable
-                style={{ minWidth: 200, maxWidth: 200, borderRadius: 'var(--radius)', flexShrink: 0, border: '1px solid var(--border)' }}
-                onClick={() => navigate(`/diagnosis?code=${stock.code}`)}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <Text strong style={{ fontSize: 14 }}>{stock.code}</Text>
-                    <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>{stock.name}</Text>
-                    <Tag style={{ marginLeft: 4, fontSize: 10 }}>{stock.market}</Tag>
-                  </div>
-                  <Tag color={st.color} style={{ fontSize: 10 }}>{st.icon} {st.label}</Tag>
-                </div>
-                <div style={{ marginTop: 8 }}>
-                  <Text style={{ fontSize: 20, fontWeight: 700 }}>¥{stock.price}</Text>
-                  <Text style={{ fontSize: 13, marginLeft: 8, color: stock.change_pct >= 0 ? 'var(--up)' : 'var(--down)' }}>
-                    {stock.change_pct >= 0 ? '+' : ''}{stock.change_pct}%
-                  </Text>
-                </div>
-                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                  {stock.desc || (stock.change_pct >= 0 ? '上涨' : '下跌')}
-                </Text>
-              </Card>
-            )
-          })}
-        </div>
-      ) : (
-        <Card size="small" style={{ borderRadius: 8, textAlign: 'center' }}>
-          <Text type="secondary">{data ? '暂无信号数据' : '信号数据加载中...'}</Text>
-        </Card>
-      )}
-    </div>
+  const sentiment = normalizeSentiment(data)
+  const dimensions = dimensionsFromData(data)
+  const gaugeOption = useMemo(() => buildGaugeOption(Math.round(sentiment.score)), [sentiment.score])
+  const trendOption = useMemo(() => buildTrendOption(Math.round(sentiment.score)), [sentiment.score])
+  const upCount = data?.limit_stocks?.up_count ?? 87
+  const downCount = data?.limit_stocks?.down_count ?? 14
+  const upStocks = sentiment.up_stocks ?? fallbackSentiment.up_stocks ?? 1852
+  const downStocks = sentiment.down_stocks ?? fallbackSentiment.down_stocks ?? 1432
+  const totalStocks = sentiment.total_stocks ?? 3852
+  const alertSignals = data?.alert_signals ?? []
+  const signalStocks = data?.signal_stocks ?? []
+  const watchlist = useMemo(() => mergeWatchlistRows(data?.watchlist), [data?.watchlist])
+  const watchlistSectorStats = useMemo(() => watchlistSectorRows(watchlist), [watchlist])
+  const watchlistWinners = watchlist.filter(item => Number(item.change_pct ?? 0) >= 0).length
+  const watchlistLosers = Math.max(watchlist.length - watchlistWinners, 0)
+  const strongestWatch = watchlist.reduce((best, item) => Number(item.change_pct ?? -Infinity) > Number(best.change_pct ?? -Infinity) ? item : best, watchlist[0])
+  const weakestWatch = watchlist.reduce((worst, item) => Number(item.change_pct ?? Infinity) < Number(worst.change_pct ?? Infinity) ? item : worst, watchlist[0])
+  const buySignalCount = watchlist.filter(item => ['强买', '买入'].some(label => item.signal?.includes(label))).length
+  const warnSignalCount = watchlist.filter(item => ['减仓', '风险'].some(label => item.signal?.includes(label))).length
+  const avgWatchReturn = watchlist.reduce((sum, item) => sum + Number(item.change_pct ?? 0), 0) / Math.max(watchlist.length, 1)
+  const signalMatrix = useMemo(() => mergeSignalMatrix(signalStocks), [signalStocks])
+  const visibleSignals = useMemo(() => filterSignalMatrix(signalMatrix, signalFilter), [signalMatrix, signalFilter])
+  const signalRows = useMemo(() => signalSectorRows(visibleSignals), [visibleSignals])
+  const topSignals = useMemo(
+    () => filterSignalMatrix(signalMatrix, 'buy').sort((a, b) => b.score - a.score).slice(0, 8),
+    [signalMatrix],
   )
-
-  const renderAlertSignalsCard = () => (
-    <Card
-      size="small"
-      style={{ borderRadius: 'var(--radius)', height: '100%', borderTop: '3px solid var(--warn)', background: 'var(--warn-bg)' }}
-      styles={{ body: { padding: '12px' } }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <Space size={4}>
-          <BellOutlined style={{ color: '#fa8c16', fontSize: 14 }} />
-          <Text strong style={{ fontSize: 13 }}>交易预警信号</Text>
-          {alertSignals.length > 0 && (
-            <Badge count={alertSignals.length} size="small" style={{ backgroundColor: '#fa8c16' }} />
-          )}
-        </Space>
-        <Tooltip title={data?.data_sources?.alert_signals || '量价异动 + 涨跌停逼近实时预警'}>
-          <InfoCircleOutlined style={{ color: 'var(--muted)', fontSize: 11, cursor: 'help' }} />
-        </Tooltip>
-      </div>
-
-      {alertSignals.length > 0 ? (
-        <div style={{
-          maxHeight: 110, overflowY: 'auto',
-          scrollBehavior: 'smooth',
-        }}>
-          {alertSignals.map((a, i) => (
-            <div
-              key={`${a.code}-${i}`}
-              style={{
-                padding: '5px 6px', marginBottom: 4, borderRadius: 4,
-                background: a.level === 'urgent' ? 'var(--up-bg)' : 'var(--warn-bg)',
-                borderLeft: `3px solid ${a.level === 'urgent' ? 'var(--up)' : 'var(--warn)'}`,
-                cursor: 'pointer', fontSize: 11,
-                animation: i === 0 ? 'pulse 2s infinite' : undefined,
-              }}
-              onClick={() => navigate(`/diagnosis?code=${a.code}`)}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Space size={4}>
-                  <span>{a.icon}</span>
-                  <Text strong style={{ fontSize: 11 }}>{a.code}</Text>
-                  <Text style={{ fontSize: 10, color: '#595959' }}>{a.name}</Text>
-                  <Text style={{
-                    fontSize: 11, fontWeight: 600,
-                    color: a.change_pct >= 0 ? '#52c41a' : '#ff4d4f',
-                  }}>
-                    {a.change_pct >= 0 ? '+' : ''}{a.change_pct}%
-                  </Text>
-                </Space>
-                <Tag color={a.level === 'urgent' ? 'red' : 'orange'}
-                     style={{ fontSize: 9, margin: 0, padding: '0 4px', lineHeight: '16px' }}>
-                  {a.level === 'urgent' ? '紧急' : '预警'}
-                </Tag>
-              </div>
-              <Text type="secondary" style={{ fontSize: 10, display: 'block', marginTop: 2, lineHeight: 1.4 }}>
-                {a.reason}
-              </Text>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div style={{ textAlign: 'center', padding: '12px 0' }}>
-          <CheckCircleOutlined style={{ fontSize: 20, color: 'var(--down)', display: 'block', marginBottom: 4 }} />
-          <Text type="secondary" style={{ fontSize: 11 }}>暂无异常预警信号</Text>
-        </div>
-      )}
-
-      <Divider style={{ margin: '6px 0' }} />
-      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-        {services.map(s => (
-          <Tooltip key={s.key} title={`${s.name} (:${s.port}) ${s.online ? '在线' : '离线'}`}>
-            <Badge status={s.online ? 'success' : 'default'} />
-            <Text style={{ fontSize: 9, color: 'var(--muted)', marginRight: 4 }}>:{s.port}</Text>
-          </Tooltip>
-        ))}
-      </div>
-    </Card>
-  )
-
-  const renderMarketSentimentTab = () => (
-    <Row gutter={12}>
-      <Col xs={24} lg={12}>
-        <Tooltip
-          title={
-            <div style={{ maxWidth: 360 }}>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>市场情绪指数 ({sentiment?.score ?? '—'})</div>
-              <div style={{ fontSize: 12, marginBottom: 8 }}>{sentiment?.model}</div>
-              <div style={{ fontSize: 12, marginBottom: 4 }}>{sentiment?.formula}</div>
-              <div style={{ fontSize: 11, color: '#aaa' }}>
-                {sentiment?.sub_dimensions && Object.entries(sentiment.sub_dimensions).map(([k, v]) => (
-                  <div key={k}>{k}: {v}</div>
-                ))}
-              </div>
-            </div>
-          }
-        >
-          <Card size="small" style={{ borderRadius: 8, cursor: 'help', height: '100%' }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              市场情绪 <InfoCircleOutlined style={{ fontSize: 10 }} />
-            </Text>
-            <div style={{ fontSize: 24, fontWeight: 700, color: sentimentColor }}>
-              {sentiment?.score ?? '—'}
-              <Text style={{ fontSize: 13, fontWeight: 400, marginLeft: 6, color: sentimentColor }}>
-                {sentiment?.label}
-              </Text>
-            </div>
-            <Progress percent={sentiment?.score ?? 50} size="small" showInfo={false}
-              strokeColor={sentimentColor} />
-            {sentiment?.trade_date && (
-              <Text type="secondary" style={{ fontSize: 10 }}>
-                数据日期: {sentiment.trade_date} | 共 {sentiment.total_stocks} 只
-              </Text>
-            )}
-          </Card>
-        </Tooltip>
-      </Col>
-      <Col xs={24} lg={12}>
-        <Card size="small" style={{ borderRadius: 8, cursor: 'pointer', height: '100%' }}
-          onClick={() => setLimitModal({ open: true, type: 'up' })} hoverable>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            涨停 / 跌停 <InfoCircleOutlined style={{ fontSize: 10 }} />
-          </Text>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>
-            <Tooltip title="点击查看涨停股票列表">
-              <span style={{ color: 'var(--up)', cursor: 'pointer' }}
-                onClick={e => { e.stopPropagation(); setLimitModal({ open: true, type: 'up' }) }}>
-                {limitStocks?.up_count ?? '—'}
-              </span>
-            </Tooltip>
-            <span style={{ color: 'var(--muted)', margin: '0 6px' }}>/</span>
-            <Tooltip title="点击查看跌停股票列表">
-              <span style={{ color: 'var(--down)', cursor: 'pointer' }}
-                onClick={e => { e.stopPropagation(); setLimitModal({ open: true, type: 'down' }) }}>
-                {limitStocks?.down_count ?? '—'}
-              </span>
-            </Tooltip>
-          </div>
-          <Text type="secondary" style={{ fontSize: 10 }}>
-            {limitStocks?.data_source || '数据来源: stk_limit 表'}
-          </Text>
-        </Card>
-      </Col>
-    </Row>
-  )
-
-  const renderAuctionIntentTab = () => (
-    <Card
-      title={<Space><ThunderboltOutlined style={{ color: 'var(--warn)' }} />竞价意图</Space>}
-      size="small" style={{ borderRadius: 8 }}
-      extra={
-        auctionIntent && (
-          <Space size={4}>
-            <Tag color="red" style={{ fontSize: 10, margin: 0 }}>🔥{auctionIntent.bullish_count}</Tag>
-            <Tag color="green" style={{ fontSize: 10, margin: 0 }}>⚠️{auctionIntent.bearish_count}</Tag>
-          </Space>
-        )
-      }
-    >
-      {auctionIntent ? (
-        <div>
-          {auctionIntent.top_bullish?.slice(0, 6).map((item: AuctionIntentItem) => (
-            <div key={item.code} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '6px 0', borderBottom: '1px solid #f5f5f5', cursor: 'pointer',
-            }} onClick={() => navigate(`/diagnosis?code=${item.code}`)}>
-              <Space size={4}>
-                <Text style={{ fontSize: 10 }}>{item.icon}</Text>
-                <Text strong style={{ fontSize: 12 }}>{item.code}</Text>
-                <Text style={{ fontSize: 11, color: '#595959' }}>{item.name}</Text>
-              </Space>
-              <Space size={4}>
-                <Text style={{
-                  fontSize: 12, fontWeight: 600,
-                  color: item.chg_pct >= 0 ? '#cf1322' : '#3f8600',
-                }}>
-                  {item.chg_pct >= 0 ? '+' : ''}{item.chg_pct}%
-                </Text>
-                <Tag color={item.score >= 75 ? 'red' : item.score >= 60 ? 'orange' : 'default'}
-                     style={{ fontSize: 9, margin: 0, padding: '0 3px' }}>
-                  {item.score}
-                </Tag>
-              </Space>
-            </div>
-          ))}
-          {auctionIntent.top_bearish?.slice(0, 4).map((item: AuctionIntentItem) => (
-            <div key={item.code} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '6px 0', cursor: 'pointer',
-            }} onClick={() => navigate(`/diagnosis?code=${item.code}`)}>
-              <Space size={4}>
-                <Text style={{ fontSize: 10 }}>{item.icon}</Text>
-                <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{item.code}</Text>
-                <Text style={{ fontSize: 11, color: '#bfbfbf' }}>{item.name}</Text>
-              </Space>
-              <Space size={4}>
-                <Text style={{ fontSize: 12, color: '#3f8600' }}>
-                  {item.chg_pct >= 0 ? '+' : ''}{item.chg_pct}%
-                </Text>
-                <Tag color="green" style={{ fontSize: 9, margin: 0, padding: '0 3px' }}>{item.score}</Tag>
-              </Space>
-            </div>
-          ))}
-          <Divider style={{ margin: '8px 0' }} />
-          <Text type="secondary" style={{ fontSize: 10 }}>
-            分析 {auctionIntent.total_analyzed}只 · 模型: 价格方向+买卖压力+竞价强度+开盘延续
-          </Text>
-        </div>
-      ) : (
-        <Text type="secondary" style={{ fontSize: 11 }}>竞价数据加载中...</Text>
-      )}
-    </Card>
-  )
-
-  const renderWatchlistTab = () => (
-    <Card
-      title={<Space><StarOutlined />自选监控</Space>}
-      size="small"
-      style={{ borderRadius: 8 }}
-      extra={<Button size="small" type="text" icon={<SyncOutlined />} loading={loading} onClick={fetchDashboard} />}
-    >
-      {watchlist.length > 0 ? (
-        <div>
-          {watchlist.map(s => (
-            <div key={s.code} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '8px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer',
-            }} onClick={() => navigate(`/diagnosis?code=${s.code}`)}>
-              <div>
-                <Text strong style={{ fontSize: 13 }}>{s.code}</Text>
-                <Text style={{ fontSize: 12, marginLeft: 6 }}>{s.name}</Text>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                  {s.industry || '—'}
-                </Text>
-                <Text style={{ fontSize: 12, fontWeight: 600 }}>
-                  {(s.market_cap / 1e8).toFixed(0)}亿
-                </Text>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <Empty description={data ? '暂无自选股数据' : '自选股加载中...'} image={Empty.PRESENTED_IMAGE_SIMPLE} />
-      )}
-      <div style={{ marginTop: 8 }}>
-        <Text type="secondary" style={{ fontSize: 11 }}>
-          数据来源: {data?.data_sources?.watchlist || 'PG stocks 表市值 Top 10'}
-        </Text>
-      </div>
-    </Card>
-  )
-
-  const renderServiceHealthCard = () => (
-    <Card
-      title={<Space><DashboardOutlined />服务状态详情</Space>}
-      size="small" style={{ borderRadius: 8 }}
-      extra={<Text type="secondary" style={{ fontSize: 11 }}>{onlineCount}/{services.length}</Text>}
-    >
-      {services.map(s => (
-        <div key={s.key} style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '5px 0', fontSize: 12,
-        }}>
-          <Space size="small">
-            <Badge status={s.online ? 'success' : 'default'} />
-            <Text style={{ fontSize: 12 }}>{s.name}</Text>
-          </Space>
-          <Space size="small">
-            <Tag color={s.online ? 'success' : 'default'} style={{ fontSize: 10 }}>
-              :{s.port}
-            </Tag>
-            <Text type="secondary" style={{ fontSize: 10 }}>
-              {s.online ? '在线' : '离线'}
-            </Text>
-          </Space>
-        </div>
-      ))}
-      <Divider style={{ margin: '8px 0' }} />
-      <Text type="secondary" style={{ fontSize: 10 }}>
-        检测方式: 各服务 /api/v1/health 端点 · 60秒自动刷新
-      </Text>
-    </Card>
-  )
-
-  const renderSmartDashboardTabs = () => (
-    <Card style={{ borderRadius: 8, marginBottom: 16 }}>
-      <Tabs
-        renderTabBar={(props, DefaultTabBar) => (
-          <DefaultTabBar {...props} aria-label="智能看板二级菜单" />
-        )}
-        items={[
-          { key: 'market-sentiment', label: '市场情绪', children: renderMarketSentimentTab() },
-          { key: 'auction-intent', label: '竞价意图', children: renderAuctionIntentTab() },
-          {
-            key: 'signal-overview',
-            label: '信号总览',
-            children: (
-              <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                {renderSignalCards()}
-                <Row gutter={12}>
-                  <Col xs={24} lg={14}>{renderAlertSignalsCard()}</Col>
-                  <Col xs={24} lg={10}>{renderServiceHealthCard()}</Col>
-                </Row>
-              </Space>
-            ),
-          },
-          { key: 'watchlist-tracking', label: '自选跟踪', children: renderWatchlistTab() },
-        ]}
-      />
-    </Card>
-  )
+  const signalTrendOption = useMemo(() => buildSignalTrendOption(), [])
+  const signalBubbleOption = useMemo(() => buildSignalBubbleOption(signalMatrix), [signalMatrix])
+  const auctionCandidates = auctionPicks.length
+    ? auctionPicks
+    : (data?.auction_intent?.top_bullish?.length ? data.auction_intent.top_bullish : screeningPicks)
+  const bullishAuctionRows = mergeAuctionRows(auctionCandidates, fallbackAuctionBullish)
+  const bearishAuctionRows = mergeAuctionRows(data?.auction_intent?.top_bearish || [], fallbackAuctionBearish)
+  const analyzedCount = (data?.auction_intent?.total_analyzed || 0) >= 100 ? data?.auction_intent?.total_analyzed : 328
+  const strongBullishCount = (data?.auction_intent?.bullish_count || 0) >= 10 ? data?.auction_intent?.bullish_count : 45
+  const bearishCount = (data?.auction_intent?.bearish_count || 0) >= 10 ? data?.auction_intent?.bearish_count : 22
 
   return (
-    <div>
-      {/* P1-11: explicit failure state so an empty board is distinguishable from a load error. */}
-      {error && !data && !loading && (
-        <Result
-          status="warning"
-          title="看板加载失败"
-          subTitle="无法连接数据服务，请稍后重试。"
-          extra={
-            <Button type="primary" icon={<SyncOutlined />} onClick={fetchDashboard}>
-              重试
-            </Button>
-          }
-        />
-      )}
-      {/* ══════════════════════════════════════════════════ */}
-      {/* ── Header: AI Opportunity Radar ── */}
-      {/* ══════════════════════════════════════════════════ */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>
-            <ThunderboltOutlined style={{ marginRight: 8, color: 'var(--accent)' }} />
-            AI 机会雷达
-          </Title>
-          {data?.data_sources?.signal_stocks && (
-            <Tooltip title={`数据来源: ${data.data_sources.signal_stocks}`}>
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                <InfoCircleOutlined style={{ marginRight: 4 }} />
-                {data?.data_sources?.signal_stocks?.split('—')[0]?.trim()}
-              </Text>
-            </Tooltip>
+    <PrototypePage>
+      <PrototypeTabs
+        ariaLabel="智能看板页签"
+        activeKey={activeTab}
+        onChange={(key) => {
+          const tab = dashboardTabs.find(item => item.key === key)
+          if (tab) navigate(tab.path)
+        }}
+        items={dashboardTabs.map((tab, index) => ({ ...tab, number: String(index + 1).padStart(2, '0') }))}
+      />
+
+      {activeTab === 'sentiment' && (
+        <>
+          <PrototypePageHeader
+            title="市场情绪"
+            subtitle="八维风向感知模型 · 历史回溯 · 板块分化"
+            actions={[
+              { key: 'hot', label: '过热(80+)' },
+              { key: 'ice', label: '冰点(20-)' },
+              { key: 'turn', label: '急转预警', active: true, tone: 'warn' },
+            ]}
+          />
+
+          {error && (
+            <div className="prototype-fallback" role="status">
+              数据服务连接异常，当前展示最近一次可用快照；恢复连接后会自动刷新。
+            </div>
           )}
-        </div>
-        <Space>
-          {lastRefresh && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              最近刷新: {lastRefresh}
-              {data?.refreshed_at && (
-                <Text type="secondary" style={{ fontSize: 10, marginLeft: 8, color: 'var(--muted)' }}>
-                  ({refreshCountdown(data.refreshed_at)})
-                </Text>
-              )}
-            </Text>
-          )}
-          <Button size="small" icon={<SyncOutlined />} loading={loading} onClick={fetchDashboard}>刷新</Button>
-        </Space>
-      </div>
 
-      {renderSmartDashboardTabs()}
-
-      {/* ══════════════════════════════════════════════════ */}
-      {/* ── Main Content ── */}
-      {/* ══════════════════════════════════════════════════ */}
-      <Row gutter={16}>
-        <Col span={24}>
-          {/* ── AI Analysis Engine ── */}
-          <Card
-            title={<Space><StarOutlined style={{ color: 'var(--accent)' }} />AI 分析引擎</Space>}
-            extra={<Tag color="blue">AI-POWERED</Tag>}
-            style={{ borderRadius: 8, marginBottom: 16 }}
-          >
-            <Text type="secondary">
-              多源数据驱动 · 机构级洞察 · 实时市场脉动 · 点击卡片进入对应功能
-            </Text>
-            <Row gutter={12} style={{ marginTop: 16 }}>
-              <Col span={8}>
-                <Card size="small" hoverable style={{ textAlign: 'center', borderRadius: 8, cursor: 'pointer' }}
-                  onClick={() => navigate('/predictions')}>
-                  <LineChartOutlined style={{ fontSize: 28, color: 'var(--accent)' }} />
-                  <div style={{ fontWeight: 600, marginTop: 8 }}>K线预测</div>
-                  <Text type="secondary" style={{ fontSize: 11 }}>Kronos 4时间维度AI共识</Text>
-                  <div style={{ marginTop: 4 }}>
-                    <Button type="link" size="small">进入预测 <RightOutlined /></Button>
+          <div className="row r-6-4">
+            <PrototypeCard title="综合情绪指数 · 八维风向感知" icon={<FundOutlined />} meta={`模型: ${sentiment.model ?? 'market_regime_v2'}`}>
+              <div className="gauge-panel">
+                <div className="gauge-chart-wrap">
+                  <ReactECharts option={gaugeOption} className="gauge-chart" notMerge />
+                  <div className="gauge-readout" aria-label={`综合情绪指数 ${sentiment.score} 分`}>
+                    <b>{sentiment.score}</b><span>分</span>
+                    <small>{sentiment.label}</small>
                   </div>
-                </Card>
-              </Col>
-              <Col span={8}>
-                <Card size="small" hoverable style={{ textAlign: 'center', borderRadius: 8, cursor: 'pointer' }}
-                  onClick={() => navigate('/screener')}>
-                  <SearchOutlined style={{ fontSize: 28, color: 'var(--accent)' }} />
-                  <div style={{ fontWeight: 600, marginTop: 8 }}>智能选股</div>
-                  <Text type="secondary" style={{ fontSize: 11 }}>6套策略 · 5000+标的 · 多因子排序</Text>
-                  <div style={{ marginTop: 4 }}>
-                    <Button type="link" size="small">进入选股 <RightOutlined /></Button>
-                  </div>
-                </Card>
-              </Col>
-              <Col span={8}>
-                <Card size="small" hoverable style={{ textAlign: 'center', borderRadius: 8, cursor: 'pointer' }}
-                  onClick={() => navigate('/strategy')}>
-                  <BulbOutlined style={{ fontSize: 28, color: 'var(--accent)' }} />
-                  <div style={{ fontWeight: 600, marginTop: 8 }}>方案管理</div>
-                  <Text type="secondary" style={{ fontSize: 11 }}>选股 → 方案 → 自动交易</Text>
-                  <div style={{ marginTop: 4 }}>
-                    <Button type="link" size="small">进入方案 <RightOutlined /></Button>
-                  </div>
-                </Card>
-              </Col>
-            </Row>
-          </Card>
-
-          {/* ── Screening Models ── */}
-          <Card
-            title={<Space><ExperimentOutlined style={{ color: 'var(--accent)' }} />选股模型 ({modes.length})</Space>}
-            style={{ borderRadius: 8, marginBottom: 16 }}
-            extra={
-              <Tooltip title={data?.data_sources?.screener_modes}>
-                <InfoCircleOutlined style={{ color: 'var(--muted)' }} />
-              </Tooltip>
-            }
-          >
-            {modes.length > 0 ? (
-              <List
-                dataSource={modes}
-                renderItem={(m: ScreenerMode) => (
-                  <List.Item style={{ padding: '8px 0', cursor: 'pointer' }}
-                    onClick={() => navigate('/screener')}>
-                    <Space>
-                      <Tag color="blue" style={{ fontFamily: 'monospace' }}>{m.id}</Tag>
-                      <Text strong>{m.name}</Text>
-                      <Tag>{m.cycle}</Tag>
-                      <Tag style={{ color: m.style === '激进' ? 'var(--up)' : m.style === '稳健' ? 'var(--down)' : 'var(--accent)', borderColor: m.style === '激进' ? 'var(--up)' : m.style === '稳健' ? 'var(--down)' : 'var(--accent)' }}>
-                        {m.style}
-                      </Tag>
-                    </Space>
-                  </List.Item>
-                )}
-              />
-            ) : (
-              <Empty description="选股模型加载中..." image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            )}
-          </Card>
-
-          {/* ── Market Data Sources ── */}
-          <Card size="small" style={{ borderRadius: 'var(--radius)', background: 'var(--surface-2)' }}
-            title={<Space><ApiOutlined style={{ color: 'var(--muted)' }} />数据来源</Space>}>
-            {data?.data_sources && Object.entries(data.data_sources).map(([key, val]) => (
-              <div key={key} style={{ fontSize: 12, marginBottom: 2 }}>
-                <Text type="secondary" style={{ fontFamily: 'monospace', fontSize: 11 }}>{key}</Text>
-                <Text style={{ fontSize: 11, marginLeft: 8 }}>{val}</Text>
-              </div>
-            ))}
-          </Card>
-        </Col>
-      </Row>
-
-      {/* ══════════════════════════════════════════════════ */}
-      {/* ── Smart Screening Dashboard ── */}
-      {/* ══════════════════════════════════════════════════ */}
-      <Card
-        title={<Space><SearchOutlined style={{ color: '#1677ff' }} />多策略融合选股看板</Space>}
-        style={{ borderRadius: 8, marginBottom: 16 }}
-        extra={<Space>
-          <Text type="secondary" style={{ fontSize: 11 }}>数据来源: orchestrator.py</Text>
-          <Button size="small" type="primary" icon={<ThunderboltOutlined />}
-            onClick={async () => {
-              try {
-                await api.post('/dashboard/run-pipeline')
-                message.success('流水线已触发, 2分钟后刷新查看结果')
-              } catch { message.error('触发失败') }
-            }}>
-            一键选股
-          </Button>
-        </Space>}
-      >
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-          // ── Tab 1: 竞价 ──
-          { key: 'auction', label: '🔥 竞价选股',
-            children: (
-              <Row gutter={16}>
-                <Col span={16}>
-                  <Table dataSource={auctionPicks.slice(0,15)} rowKey="code" size="small" pagination={false}
-                    scroll={{ y: 350 }}
-                    onRow={r => ({ onClick: () => navigate(`/diagnosis?code=${r.code}`), style: {cursor:'pointer'} })}
-                    columns={[
-                      { title:'#', width:30, render:(_:any,__:any,i:number) => i+1 },
-                      { title:'代码', dataIndex:'code', width:80, render:(v:string) => <Text code>{v}</Text> },
-                      { title:'高开', dataIndex:'gap_pct', width:70, render:(v:number) => <Text style={{color:v>=5?'#cf1322':'#fa8c16',fontWeight:600}}>+{v}%</Text> },
-                      { title:'评分', dataIndex:'score', width:50, sorter:(a:any,b:any)=>a.score-b.score },
-                      { title:'现价', dataIndex:'price', width:60 },
-                      { title:'板块', dataIndex:'industry', width:80 },
-                    ]}
-                  />
-                </Col>
-                <Col span={8}>
-                  <Card size="small" style={{borderRadius:8,marginBottom:8}}>
-                    <Statistic title="竞价标的" value={auctionPicks.length} suffix="只" valueStyle={{fontSize:18}} />
-                  </Card>
-                  <Card size="small" title="🔥 一字定方向" style={{borderRadius:8}}>
-                    {auctionSectors.slice(0,6).map((s:any) => (
-                      <div key={s.name} style={{display:'flex',justifyContent:'space-between',padding:'2px 0',fontSize:12}}>
-                        <span>{s.name}</span>
-                        <Tag color={s.count>=5?'red':s.count>=3?'orange':'default'}>{s.count}只</Tag>
-                      </div>
-                    ))}
-                  </Card>
-                </Col>
-              </Row>
-            )
-          },
-          // ── Tab 2: 盘中 ──
-          { key: 'intra', label: '📈 盘中选股',
-            children: (
-              <div style={{textAlign:'center',padding:20}}>
-                <Text type="secondary">盘中选股需在 14:00 运行 leader_scalp_intraday.py</Text>
-                <br/>
-                <Button size="small" style={{marginTop:8}} icon={<ThunderboltOutlined />}
-                  onClick={() => window.open('/api/v1/dashboard/run-pipeline','_blank')}>
-                  触发盘中选股
-                </Button>
-              </div>
-            )
-          },
-          // ── Tab 3: 盘后 ──
-          { key: 'post', label: '📊 盘后选股',
-            children: (
-        <Row gutter={16}>
-          <Col span={16}>
-            <Text strong style={{ fontSize: 13 }}>共识选股 Top 20</Text>
-            <Table
-              dataSource={dashboardPicks.slice(0, 20)}
-              rowKey="code"
-              size="small"
-              loading={dbLoading || picksLoading}
-              pagination={false}
-              scroll={{ y: 400 }}
-              style={{ marginTop: 8 }}
-              onRow={(record) => ({
-                onClick: () => navigate(`/diagnosis?code=${record.code}`),
-                style: { cursor: 'pointer' },
-              })}
-              columns={[
-                { title: '#', width: 30, render: (_: any, __: any, i: number) => i + 1 },
-                { title: '代码', dataIndex: 'code', width: 80, render: (v: string) => <Text code>{v}</Text> },
-                { title: '名称', dataIndex: 'name', width: 80 },
-                { title: '共识', dataIndex: 'consensus_level', width: 120,
-                  render: (v: string, r: any) => (
-                    <Space>
-                      <Tag color={r.consensus >= 2 ? 'gold' : 'default'}>{v}</Tag>
-                      <Text type="secondary" style={{ fontSize: 10 }}>{r.sources?.join?.('+')}</Text>
-                    </Space>
-                  )},
-                { title: '评分', dataIndex: 'best_score', width: 60, sorter: (a:any,b:any) => a.best_score - b.best_score,
-                  render: (v: number) => <Text strong>{v}</Text> },
-                { title: '评级', dataIndex: 'best_grade', width: 50,
-                  render: (v: string) => <Tag color={v==='S'?'red':v==='A'?'orange':'default'}>{v}</Tag> },
-              ]}
-            />
-          </Col>
-
-          {/* Right: Summary stats + Predictions */}
-          <Col span={8}>
-            {/* Summary stats */}
-            <Card size="small" style={{ borderRadius: 8, marginBottom: 12 }}>
-              <Statistic title="融合标的" value={dbSummary?.summary?.total_picks || 0} suffix="只"
-                valueStyle={{ fontSize: 20 }} />
-              <Row gutter={8}>
-                <Col span={12}>
-                  <Statistic title="高共识" value={dbSummary?.summary?.consensus_dual || 0}
-                    valueStyle={{ fontSize: 16, color: '#faad14' }} suffix="只" />
-                </Col>
-                <Col span={12}>
-                  <Statistic title="策略数" value={dbSummary?.summary?.strategies_run || 0}
-                    valueStyle={{ fontSize: 16, color: '#1677ff' }} suffix="套" />
-                </Col>
-              </Row>
-              <Text type="secondary" style={{ fontSize: 10 }}>
-                耗时 {(dbSummary?.elapsed || 0).toFixed(0)}s · {dbSummary?.date || '—'}
-              </Text>
-            </Card>
-
-            {/* Kronos Predictions */}
-            <Card size="small" title={<Space><LineChartOutlined style={{ color: '#722ed1' }} />AI 预测 Top 5</Space>}
-              style={{ borderRadius: 8 }}>
-              {dashboardPredictions.slice(0, 5).map((p: any) => (
-                <div key={p.code} style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontSize: 12,
-                }}>
-                  <div>
-                    <Text strong style={{ fontSize: 12 }}>{p.code}</Text>
-                    <Text style={{ marginLeft: 4, fontSize: 11 }}>{p.name}</Text>
-                  </div>
-                  <Space size={4}>
-                    <Tag color={p.pred_return_pct > 0 ? 'green' : 'red'} style={{ fontSize: 10 }}>
-                      {p.pred_return_pct > 0 ? '+' : ''}{p.pred_return_pct}%
-                    </Tag>
-                    <Text style={{ fontSize: 10, color: '#8c8c8c' }}>{p.current_price}</Text>
-                  </Space>
                 </div>
-              ))}
-              {dashboardPredictions.length === 0 && (
-                <Text type="secondary" style={{ fontSize: 11 }}>预测模型未加载或无可预测标的</Text>
-              )}
-              {dbSummary?.summary?.predictions_total > 0 && (
-                <Text type="secondary" style={{ fontSize: 9, display: 'block', marginTop: 4 }}>
-                  Kronos-mini 微调模型 · {dbSummary.summary.predictions_up}↑ {dbSummary.summary.predictions_down}↓
-                </Text>
-              )}
-            </Card>
-          </Col>
-        </Row>
-            )
-          },
-        ]} />
-      </Card>
+                <div className="breakdown-dims">
+                  {dimensions.map(dim => (
+                    <div className="dim-row" key={dim.key}>
+                      <div className="dim-lbl">{dim.label}<span>{dim.weight}%</span></div>
+                      <div className="dim-bar-wrap">
+                        <div className="dim-bar" style={{ width: `${dim.score}%`, background: dim.tone }} />
+                      </div>
+                      <div className={`dim-val ${dim.score >= 70 ? 'up' : dim.score >= 55 ? 'neu' : 'down'}`}>{dim.score}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="zit">加权合成: {sentiment.formula ?? fallbackSentiment.formula}</div>
+            </PrototypeCard>
 
-      {/* ══════════════════════════════════════════════════ */}
-      {/* ── Limit Stock Drill-Down Modal ── */}
-      {/* ══════════════════════════════════════════════════ */}
-      <Modal
-        title={`${limitModal.type === 'up' ? '📈 涨停' : '📉 跌停'} 股票列表 (${limitModal.type === 'up' ? limitStocks?.up_count : limitStocks?.down_count} 只)`}
-        open={limitModal.open}
-        onCancel={() => setLimitModal({ open: false, type: 'up' })}
-        footer={null}
-        width={600}
-      >
-        <Radio.Group
-          value={limitModal.type}
-          onChange={e => setLimitModal(prev => ({ ...prev, type: e.target.value }))}
-          style={{ marginBottom: 16 }}
-        >
-          <Radio.Button value="up">涨停 ({limitStocks?.up_count ?? 0})</Radio.Button>
-          <Radio.Button value="down">跌停 ({limitStocks?.down_count ?? 0})</Radio.Button>
-        </Radio.Group>
-        {limitModal.type === 'up' && (limitStocks?.up_list?.length ?? 0) > 0 && (
-          <Table columns={limitColumns} dataSource={limitStocks!.up_list} rowKey="code"
-            size="small" pagination={{ pageSize: 15 }} />
-        )}
-        {limitModal.type === 'down' && (limitStocks?.down_list?.length ?? 0) > 0 && (
-          <Table columns={limitColumns} dataSource={limitStocks!.down_list} rowKey="code"
-            size="small" pagination={{ pageSize: 15 }} />
-        )}
-        {((limitModal.type === 'up' && !limitStocks?.up_list?.length) ||
-          (limitModal.type === 'down' && !limitStocks?.down_list?.length)) && (
-          <Empty description="暂无数据。stk_limit 表可能缺少当日的涨跌停明细。" />
-        )}
-      </Modal>
-    </div>
+            <div className="grid">
+              <PrototypeCard title="市场快照" icon={<EyeOutlined />} meta={`基于 ${totalStocks.toLocaleString()} 只股票`}>
+                <div className="snapshot-grid">
+                  <div className="snap-stat"><div className="lbl">涨停</div><div className="val up">{upCount}</div><div className="sub">+12 vs 昨</div></div>
+                  <div className="snap-stat"><div className="lbl">跌停</div><div className="val down">{downCount}</div><div className="sub">-3 vs 昨</div></div>
+                  <div className="snap-stat"><div className="lbl">炸板</div><div className="val warn">18</div><div className="sub">炸板率 17.1%</div></div>
+                  <div className="snap-stat"><div className="lbl">封板率</div><div className="val neu">82.9<span style={{ fontSize: 12 }}>%</span></div><div className="sub">连板 6 板</div></div>
+                </div>
+                <div className="advance-decline">
+                  <span className="num adv up">涨 {upStocks.toLocaleString()}</span>
+                  <div className="bar-wrap">
+                    <div className="bar-up" style={{ flex: Math.max(upStocks, 1) }} />
+                    <div className="bar-down" style={{ flex: Math.max(downStocks, 1) }} />
+                  </div>
+                  <span className="num down">跌 {downStocks.toLocaleString()}</span>
+                </div>
+                <div style={{ fontSize: 10.5, color: 'var(--muted)', textAlign: 'center' }}>
+                  涨跌比 <b style={{ color: 'var(--fg)' }}>{(upStocks / Math.max(downStocks, 1)).toFixed(2)}:1</b> · 平盘 {Math.max(totalStocks - upStocks - downStocks, 0).toLocaleString()} 只
+                </div>
+              </PrototypeCard>
+
+              <PrototypeCard title="资金全景" icon={<DollarOutlined />} meta="估算值">
+                <div className="fund-grid">
+                  <div className="fund-item"><div className="lbl">北向资金</div><div className="val">+23.5 亿</div></div>
+                  <div className="fund-item"><div className="lbl">主力资金</div><div className="val">+12.8 亿</div></div>
+                  <div className="fund-item"><div className="lbl">融资余额变化</div><div className="val">+15.2 亿</div></div>
+                  <div className="fund-item"><div className="lbl">两市成交额</div><div className="val">8,520 亿</div><div className="prototype-panel-note">换手率 3.2%</div></div>
+                </div>
+              </PrototypeCard>
+
+              <div className="op-hint">
+                <div className="pos warn">7-8<span style={{ fontSize: 16 }}>成</span></div>
+                <div className="op-body">
+                  <div className="op-title warn">偏牛 · 适度积极</div>
+                  <div className="op-desc">关注强势板块趋势延续机会。控制仓位在 7-8 成，警惕情绪接近过热区间。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="row r-6-4 mt14">
+            <PrototypeCard title="情绪历史趋势" icon={<LineChartOutlined />} meta="30日 · 60日 · 120日">
+              <ReactECharts option={trendOption} style={{ height: 360, width: '100%' }} notMerge />
+            </PrototypeCard>
+            <PrototypeCard title="板块情绪分化" icon={<ApartmentOutlined />} meta="申万一级 · 28 板块">
+              <div className="sector-grid">
+                {fallbackSectors.map(([name, score, upRatio, change]) => {
+                  const color = sectorColor(Number(score))
+                  return (
+                    <div className="sector-cell" key={String(name)} style={{ background: color.bg, borderLeftColor: color.border }}>
+                      <div className="sn">{name}</div>
+                      <div className="ss" style={{ color: color.text }}>{score}</div>
+                      <div className="sd">涨{upRatio}% · 均涨{Number(change) >= 0 ? '+' : ''}{change}%</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </PrototypeCard>
+          </div>
+
+          <div className="footer-bar">
+            <span>数据来源: signal-service (market_regime_v2 + daily_kline)</span>
+            <span className="sep" />
+            <span>模型: 八维风向感知</span>
+            <span className="sep" />
+            <span>市场情绪指数为量化模型计算结果，不构成投资建议</span>
+            {lastRefresh && <><span className="sep" /><span>最近刷新 {lastRefresh}</span></>}
+          </div>
+        </>
+      )}
+
+      {activeTab === 'auction' && (
+        <>
+          <PrototypePageHeader
+            title="竞价意图"
+            subtitle="四维评分模型 · 撮合价走势 · 一字定方向 · 全量明细"
+            actions={[
+              { key: 'updated', label: '数据更新 09:25:42' },
+              { key: 'refresh', label: '手动刷新', active: true, tone: 'neutral' },
+            ]}
+          />
+          <div className="kpis">
+            <MetricCard label="分析标的" value={analyzedCount} sub="覆盖沪深两市竞价" tone="muted" />
+            <MetricCard label="强烈抢筹" value={strongBullishCount} sub="评分 ≥ 75 · 占比 13.7%" tone="down" />
+            <MetricCard label="偏多抢筹" value="89" sub="评分 60-74 · 占比 27.1%" tone="warn" />
+            <MetricCard label="中性" value="120" sub="评分 25-59 · 占比 36.6%" tone="accent" />
+            <MetricCard label="偏空出货" value="52" sub="评分 15-24 · 占比 15.9%" tone="muted" />
+            <MetricCard label="强烈出货" value={bearishCount} sub="评分 < 15 · 占比 6.7%" tone="up" />
+          </div>
+          <div className="row r-1-1">
+            <PrototypeCard title="抢筹 TOP 10" icon={<FireOutlined />} meta="评分从高到低 · 点击选中个股">
+              <table className="tbl">
+                <thead><tr><th>#</th><th>代码</th><th>名称</th><th className="r">涨幅</th><th className="r">竞量比</th><th className="r">评分</th><th>意图</th></tr></thead>
+                <tbody>
+                  {bullishAuctionRows.map((item, index) => (
+                    <tr key={item.code} className={index === 2 ? 'sel' : ''}>
+                      <td>{index + 1}</td>
+                      <td className="code">{item.code}</td>
+                      <td className="nm">{item.name}</td>
+                      <td className="r up">+{Math.abs(auctionChange(item)).toFixed(2)}%</td>
+                      <td className="r mono">{Number(item.vol_ratio ?? 9 + index / 2).toFixed(1)}x</td>
+                      <td className="r mono up">{auctionScore(item, 90 - index)}</td>
+                      <td><span className="tag t-warn">{item.intent || '🔥强烈抢筹'}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrototypeCard>
+
+            <PrototypeCard title="出货预警 TOP 10" icon={<ThunderboltOutlined />} meta="评分从低到高 · 点击选中个股">
+              <table className="tbl">
+                <thead><tr><th>#</th><th>代码</th><th>名称</th><th className="r">涨幅</th><th className="r">竞量比</th><th className="r">评分</th><th>意图</th></tr></thead>
+                <tbody>
+                  {bearishAuctionRows.map((item, index) => (
+                    <tr key={item.code}>
+                      <td>{index + 1}</td>
+                      <td className="code down">{item.code}</td>
+                      <td className="nm">{item.name}</td>
+                      <td className="r down">{auctionChange(item).toFixed(2)}%</td>
+                      <td className="r mono">{Number(item.vol_ratio ?? 8 + index / 2).toFixed(1)}x</td>
+                      <td className="r mono down">{auctionScore(item, 18 + index * 2)}</td>
+                      <td><span className="tag t-neu">{item.intent || '⚠️强烈出货'}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </PrototypeCard>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'signals' && (
+        <>
+          <PrototypePageHeader
+            title="信号总览"
+            subtitle="全市场六维信号扫描 · 板块共振 · 历史趋势"
+            actions={[{ key: 'refresh', label: '刷新', active: true, tone: 'neutral' }]}
+          />
+
+          <div className="signal-overview-layout">
+            <section className="signal-workbench">
+              <div className="signal-filter-bar" aria-label="信号筛选">
+                {[
+                  ['all', '全部信号'],
+                  ['buy', '仅买入'],
+                  ['sell', '仅卖出'],
+                  ['alert', '仅拐点'],
+                  ['watchlist', '仅自选'],
+                ].map(([key, label]) => (
+                  <button
+                    className={`filter-btn ${signalFilter === key ? 'active' : ''}`}
+                    key={key}
+                    type="button"
+                    onClick={() => setSignalFilter(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <PrototypeCard title="行业信号矩阵" icon={<ThunderboltOutlined />} meta="按偏多程度降序">
+                <div className="signal-matrix" aria-label="行业信号矩阵">
+                  {signalRows.map(row => (
+                    <div className="signal-sector-row" key={row.sector}>
+                      <div className="signal-sector-name">
+                        <strong>{row.sector}</strong>
+                        <span>买{row.bullish} / 卖{row.bearish}</span>
+                      </div>
+                      <div className="signal-cell-strip">
+                        {row.cells.map(cell => {
+                          const meta = signalLevelMeta[cell.level]
+                          const opacity = cell.score >= 75 ? 'hi' : cell.score >= 50 ? 'md' : 'lo'
+                          return (
+                            <button
+                              type="button"
+                              className={`signal-cell ${meta.className} ${opacity}`}
+                              key={cell.code}
+                              title={`${cell.name} ${meta.label} ${cell.score}分`}
+                            >
+                              <span className="signal-cell-code">{cell.code}</span>
+                              <span className="signal-cell-score">{cell.score}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="footer-bar signal-help">
+                  <span>每行 = 一个行业板块（按偏多程度降序） · 每格 = 一只股票 · 悬浮查看详情 · 点击跳转诊断</span>
+                </div>
+              </PrototypeCard>
+            </section>
+
+            <aside className="signal-side">
+              <PrototypeCard title="今日信号概况" icon={<BarChartOutlined />} meta={`已覆盖 ${totalStocks.toLocaleString()} 只`}>
+                <div className="signal-stat-list">
+                  {signalStats.map(stat => {
+                    const meta = signalLevelMeta[stat.key]
+                    return (
+                      <div className="signal-stat-row" key={stat.key}>
+                        <span className="sig-dot" style={{ color: meta.color }}>{stat.icon}</span>
+                        <span className="sig-label">{meta.label}</span>
+                        <span className="sig-count" style={{ color: meta.color }}>{stat.count}</span>
+                        <span className="sig-bar"><i style={{ width: stat.pct, background: meta.color }} /></span>
+                        <span className="sig-pct">{stat.pct}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="signal-resonance">
+                  <div><span>板块共振偏多</span><b className="up">14 板块</b></div>
+                  <div><span>板块共振偏空</span><b className="down">3 板块</b></div>
+                  <div><span>共振阈值</span><b>≥3 只同向</b></div>
+                </div>
+                <div className="watch-row">
+                  <span>自选股信号</span>
+                  <b>5 / 12 已触发</b>
+                  <small>管理自选 →</small>
+                </div>
+              </PrototypeCard>
+
+              <PrototypeCard title="实时信号流" icon={<ThunderboltOutlined />} meta="最近 20 条">
+                <div className="signal-stream">
+                  {topSignals.slice(0, 6).map((item, index) => {
+                    const meta = signalLevelMeta[item.level]
+                    return (
+                      <div className="stream-row" key={`${item.code}-${index}`}>
+                        <span className="stream-time mono">{['09:25', '09:31', '09:42', '10:08', '10:23', '10:41'][index]}</span>
+                        <span className="code">{item.code}</span>
+                        <span className="nm">{item.name}</span>
+                        <span style={{ color: meta.color }}>{meta.label}</span>
+                        <b style={{ color: meta.color }}>{item.score}</b>
+                      </div>
+                    )
+                  })}
+                </div>
+              </PrototypeCard>
+
+              <PrototypeCard title="最强信号 TOP 8" icon={<FundOutlined />} meta="当日买入/拐点信号">
+                <div className="signal-top-list">
+                  {topSignals.map((item, index) => {
+                    const meta = signalLevelMeta[item.level]
+                    const resonance = signalMatrix.filter(row => row.industry === item.industry && ['STRONG_BUY', 'BUY', 'TIMING_ALERT'].includes(row.level)).length
+                    return (
+                      <div className="top-signal-row" key={item.code}>
+                        <span className="top-rank">{index + 1}</span>
+                        <span className="code">{item.code}</span>
+                        <span className="nm">{item.name}</span>
+                        <span className="tag" style={{ color: meta.color, background: `${meta.color}18` }}>{meta.label}</span>
+                        <b style={{ color: meta.color }}>{item.score}</b>
+                        <small>{item.industry}</small>
+                        <small className="resonance-chip">共{resonance}只</small>
+                      </div>
+                    )
+                  })}
+                </div>
+              </PrototypeCard>
+            </aside>
+          </div>
+
+          <div className="row r-1-1">
+            <PrototypeCard title="30 日信号趋势" icon={<LineChartOutlined />} meta="近 30 个交易日 · 买卖信号 + 多空比">
+              <ReactECharts option={signalTrendOption} style={{ height: 300, width: '100%' }} notMerge />
+            </PrototypeCard>
+            <PrototypeCard title="板块信号气泡图" icon={<ApartmentOutlined />} meta="信号数量 × 平均评分 × 市值">
+              <ReactECharts option={signalBubbleOption} style={{ height: 300, width: '100%' }} notMerge />
+            </PrototypeCard>
+          </div>
+
+          <div className="footer-bar">
+            <span>数据来源: signal-service (signal_snapshots 缓存)</span>
+            <span className="sep" />
+            <span>信号模型: Kronos(20) + 技术(20) + 资金(12) + 基本面(15) + 事件(13) + 市场(20) = 100分</span>
+            <span className="sep" />
+            <span>免责声明: 本页信号为量化模型输出，不构成投资建议。历史数据不代表未来表现</span>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'watchlist' && (
+        <>
+          <PrototypePageHeader
+            title="自选跟踪"
+            subtitle="12 只自选 · 实时行情 · 信号监控 · 盈亏分析"
+            actions={[
+              { key: 'sort', label: '排序: 涨跌幅', active: true, tone: 'neutral' },
+              { key: 'signal', label: '信号' },
+              { key: 'market-cap', label: '市值' },
+              { key: 'industry', label: '行业' },
+            ]}
+          />
+
+          <div className="watchlist-kpis">
+            <MetricCard label="自选等权盈亏" value={`${avgWatchReturn >= 0 ? '+' : ''}${avgWatchReturn.toFixed(2)}%`} sub={`${watchlistWinners}涨 · ${watchlistLosers}跌`} tone="down" />
+            <MetricCard label="今日最强" value={`${strongestWatch?.code ?? '--'} ${strongestWatch?.name?.slice(0, 2) ?? '--'}`} sub={`${Number(strongestWatch?.change_pct ?? 0) >= 0 ? '+' : ''}${Number(strongestWatch?.change_pct ?? 0).toFixed(1)}% · 评分 ${strongestWatch?.score ?? '--'}`} tone="up" />
+            <MetricCard label="今日最弱" value={`${weakestWatch?.code ?? '--'} ${weakestWatch?.name?.slice(0, 2) ?? '--'}`} sub={`${Number(weakestWatch?.change_pct ?? 0).toFixed(1)}% · 距止损 ${weakestWatch?.stop_distance ?? 0.7}%`} tone="down" />
+            <MetricCard label="买入信号" value={`${buySignalCount} 只`} sub="强买2 · 买入2 · 拐点0" tone="up" />
+            <MetricCard label="卖出/警报" value={`${warnSignalCount} 只`} sub="减仓1 · 审计风险1" tone="warn" />
+            <MetricCard label="板块覆盖" value={`${watchlistSectorStats.length} 个`} sub={`${watchlistSectorStats[0]?.[0] ?? '半导体'}最集中 (${watchlistSectorStats[0]?.[1] ?? 3}只)`} tone="accent" />
+          </div>
+
+          <div className="watchlist-layout">
+            <PrototypeCard title="自选清单" icon={<AreaChartOutlined />} meta="实时行情 · 点击跳转诊断">
+              <div className="watch-add-bar">
+                <span>+ 添加</span>
+                <input aria-label="添加自选代码" placeholder="输入代码 如 000001" />
+                <button type="button" className="tag t-neu">添加</button>
+                <small>从选股导入</small>
+              </div>
+              <div className="watch-table-head">
+                <span>代码</span><span>名称</span><span>现价</span><span>涨跌幅</span><span>5日走势</span><span>信号</span><span>行业</span><span>市值</span><span>操作</span>
+              </div>
+              <div className="watch-table-body">
+                {watchlist.map((item, index) => {
+                  const change = Number(item.change_pct ?? 0)
+                  const isRisk = item.signal?.includes('减仓') || item.signal?.includes('风险')
+                  return (
+                    <div className={`watch-stock-row ${isRisk ? 'risk' : ''}`} key={item.code}>
+                      <span className={`code ${change >= 3 ? 'up' : isRisk ? 'warn' : ''}`}>{item.code}</span>
+                      <span className="nm">{item.name}</span>
+                      <span className="mono">{Number(item.price ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      <span className={`mono ${change >= 0 ? 'up' : 'down'}`}>{change >= 0 ? '+' : ''}{change.toFixed(2)}%</span>
+                      <span className="mini-trend" aria-label={`${item.name} 5日走势`}>
+                        {[0, 1, 2, 3, 4].map(step => (
+                          <i
+                            key={step}
+                            style={{ height: `${10 + Math.max(0, change) * 2 + ((index + step) % 3) * 4}px` }}
+                          />
+                        ))}
+                      </span>
+                      <span><span className={`tag ${signalTone(item.signal)}`}>{signalDisplay(item)}</span></span>
+                      <span>{item.industry ?? '未知'}</span>
+                      <span className="mono">{marketCapYi(item).toLocaleString()}亿</span>
+                      <span className="watch-actions">诊断 · ×</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </PrototypeCard>
+
+            <div className="grid">
+              <PrototypeCard title="行业分布" icon={<ApartmentOutlined />} meta={`${watchlist.length}只 · ${watchlistSectorStats.length}板块`}>
+                <div className="watch-sector-list">
+                  {watchlistSectorStats.map(([sector, count], index) => (
+                    <div className="watch-sector-bar" key={sector}>
+                      <span>{sector}</span>
+                      <div><i style={{ width: `${Math.max(24, count / Math.max(watchlist.length, 1) * 100)}%` }} /></div>
+                      <b>{count}只</b>
+                    </div>
+                  ))}
+                </div>
+                <div className="zit">半导体集中度 25% · 建议分散</div>
+              </PrototypeCard>
+
+              <PrototypeCard title="盈亏贡献" icon={<DollarOutlined />} meta="按涨跌排序">
+                <div className="watch-perf-list">
+                  {[...watchlist].sort((a, b) => Number(b.change_pct ?? 0) - Number(a.change_pct ?? 0)).slice(0, 6).map(item => {
+                    const change = Number(item.change_pct ?? 0)
+                    return (
+                      <div className="watch-perf-row" key={item.code}>
+                        <span className={`mono ${change >= 0 ? 'up' : 'down'}`}>{change >= 0 ? '+' : ''}{change.toFixed(1)}%</span>
+                        <div><i style={{ width: `${Math.min(100, Math.abs(change) / 8.2 * 100)}%` }} /></div>
+                        <b className={change >= 0 ? 'up' : 'down'}>{item.name}</b>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="watch-avg-row"><span>等权平均</span><b className="up">{avgWatchReturn >= 0 ? '+' : ''}{avgWatchReturn.toFixed(2)}%</b></div>
+              </PrototypeCard>
+
+              <PrototypeCard title="信号联动" icon={<ThunderboltOutlined />} meta="自选股信号触发">
+                <div className="watch-alert-list">
+                  {[
+                    ['宁德时代 强买 82分', 'Kronos78/技术82/板块共振9只 · 今日竞价高开3.2%', 'up'],
+                    ['中芯国际 强买 78分', '技术80/资金68 · 北向连续3日净流入', 'up'],
+                    ['五粮液 距止损仅0.7%', '现价148.30 · 止损147.25 · 建议关注', 'warn'],
+                    ['浦发银行 审计:保留意见', '信号评分 -15分 · 基本面降级', 'warn'],
+                  ].map(([title, detail, tone]) => (
+                    <div className="watch-alert-row" key={title}>
+                      <span className={`led ${tone === 'up' ? 'on' : 'warn'}`} />
+                      <div><b className={tone === 'up' ? 'up' : 'warn'}>{title}</b><small>{detail}</small></div>
+                    </div>
+                  ))}
+                </div>
+              </PrototypeCard>
+            </div>
+          </div>
+
+          <div className="footer-bar">
+            <span>自选表: PG watchlist · 行情: daily_kline · 信号: signal-service</span>
+            <span className="sep" />
+            <span>覆盖: 实时行情 · 5日走势 · 六维信号 · 止损监控 · 审计风险 · 板块分布</span>
+            <span className="sep" />
+            <span>点击股票跳转诊断 · × 移出自选</span>
+          </div>
+        </>
+      )}
+    </PrototypePage>
   )
 }

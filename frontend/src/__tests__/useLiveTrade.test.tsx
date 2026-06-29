@@ -15,6 +15,14 @@ const server = setupServer(
   http.get('/api/v1/trade/risk-config', () => {
     return HttpResponse.json({})
   }),
+  http.post('/api/v1/trade/order/pre-check', () => {
+    return HttpResponse.json({
+      passed: true,
+      requires_confirmation: false,
+      confirm_reason: '',
+      checks: [],
+    })
+  }),
 )
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
@@ -40,9 +48,21 @@ function wrapper({ children }: { children: ReactNode }) {
 
 describe('P0-01: placeOrder 鉴权口径统一', () => {
   it('paper 模式下单走 /api/v1/trade/order（不再是裸 fetch）', async () => {
+    let preCheckRequested = false
+    let preCheckBody: unknown = null
     let orderRequested = false
     let orderBody: unknown = null
     server.use(
+      http.post('/api/v1/trade/order/pre-check', async ({ request }) => {
+        preCheckRequested = true
+        preCheckBody = await request.json()
+        return HttpResponse.json({
+          passed: true,
+          requires_confirmation: false,
+          confirm_reason: '',
+          checks: [],
+        })
+      }),
       http.post('/api/v1/trade/order', async ({ request }) => {
         orderRequested = true
         orderBody = await request.json()
@@ -57,13 +77,41 @@ describe('P0-01: placeOrder 鉴权口径统一', () => {
     let outcome: { success: boolean; data?: unknown; error?: string } | undefined
     await act(async () => {
       outcome = await result.current.placeOrder(
-        { code: '600000', direction: 'buy', price: 10.5, volume: 100 },
+        {
+          code: '600000',
+          direction: 'buy',
+          price: 10.5,
+          volume: 100,
+          decision_context_id: 'CTX-1',
+          candidate_id: 'CAND-1',
+          plan_id: 'PLAN-1',
+        },
         {},
       )
     })
 
+    expect(preCheckRequested).toBe(true)
+    expect(preCheckBody).toEqual({
+      code: '600000',
+      direction: 'buy',
+      price: 10.5,
+      volume: 100,
+      trade_mode: 'paper',
+      decision_context_id: 'CTX-1',
+      candidate_id: 'CAND-1',
+      plan_id: 'PLAN-1',
+    })
     expect(orderRequested).toBe(true)
-    expect(orderBody).toEqual({ code: '600000', direction: 'buy', price: 10.5, volume: 100 })
+    expect(orderBody).toEqual({
+      code: '600000',
+      direction: 'buy',
+      price: 10.5,
+      volume: 100,
+      trade_mode: 'paper',
+      decision_context_id: 'CTX-1',
+      candidate_id: 'CAND-1',
+      plan_id: 'PLAN-1',
+    })
     expect(outcome).toEqual(expect.objectContaining({ success: true }))
   })
 
@@ -86,6 +134,45 @@ describe('P0-01: placeOrder 鉴权口径统一', () => {
 
     expect(outcome?.success).toBe(false)
     expect(outcome?.error).toBe('余额不足')
+  })
+})
+
+describe('B8: 券商 sandbox 连接配置', () => {
+  it('connectBroker 发送 mock_qmt sandbox 账户配置', async () => {
+    let connectBody: unknown = null
+    server.use(
+      http.post('/api/v1/trade/broker/connect', async ({ request }) => {
+        connectBody = await request.json()
+        return HttpResponse.json({
+          broker_name: 'mock_qmt',
+          account_id: 'sandbox-qmt-001',
+          status: 'connected',
+          environment: 'sandbox',
+          trade_mode: 'paper',
+        })
+      }),
+    )
+
+    const { result } = renderHook(() => useLiveTrade(), { wrapper })
+
+    await act(async () => {
+      await result.current.connectBroker({
+        broker_name: 'mock_qmt',
+        account_id: 'sandbox-qmt-001',
+        server_ip: '127.0.0.1',
+        server_port: 16001,
+        environment: 'sandbox',
+      })
+    })
+
+    expect(connectBody).toEqual({
+      broker_name: 'mock_qmt',
+      account_id: 'sandbox-qmt-001',
+      server_ip: '127.0.0.1',
+      server_port: 16001,
+      environment: 'sandbox',
+    })
+    expect(result.current.brokerStatus).toBe('connected')
   })
 })
 

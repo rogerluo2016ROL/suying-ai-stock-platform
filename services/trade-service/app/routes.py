@@ -18,11 +18,17 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query, Depends, Body
+from fastapi import APIRouter, Header, HTTPException, Query, Depends, Body
 from kronos_auth import require_role
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit_log import record as record_audit, query as query_audit
+from app.decision_context_store import (
+    record_once as record_decision_context_once,
+    query as query_decision_contexts,
+)
+from app.order_store import record as record_trade_order, query as query_trade_orders
+from app.risk_verdict_store import record as record_risk_verdict, query as query_risk_verdicts
 from app.database import get_db
 from app.engine import get_engine
 from app.broker_interface import (
@@ -33,7 +39,13 @@ from app.broker_interface import (
 )
 from app.risk_gateway import pre_check
 from app.circuit_breaker import check_daily_loss, reset, get_state, can_trade, record_probe
-from app.schemas import PlaceOrderRequest
+from app.schemas import PlaceOrderRequest, BrokerConnectRequest
+from app.platform_scope import (
+    build_order_scope,
+    build_paper_account_view,
+    build_risk_verdict,
+    resolve_trade_scope,
+)
 
 logger = logging.getLogger("trade-service.routes")
 
@@ -123,15 +135,20 @@ class _PaperEngineAdapter:
 # Existing paper-trading routes (unchanged)
 # ═══════════════════════════════════════════════════════════════════════
 
-@router.post("/order")
-async def place_order(
+@router.post("/order/pre-check")
+async def pre_check_order(
     body: PlaceOrderRequest = Body(...),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
-    """Place a trading order — paper or live."""
+    """Run the same pre-trade risk gate used by order submission."""
     if body.direction.upper() not in ("BUY", "SELL"):
         raise HTTPException(400, "direction must be BUY or SELL")
+    requested_mode = (body.trade_mode or _current_mode or "paper").lower()
+    if requested_mode not in ("paper", "live"):
+        raise HTTPException(400, detail={"detail": "trade_mode must be paper or live", "error_code": "INVALID_TRADE_MODE"})
 
     order_req = OrderRequest(
         symbol=body.code.upper(),
@@ -141,34 +158,261 @@ async def place_order(
         price=body.price,
     )
 
-    # Determine broker
-    if body.trade_mode == "live" and _live_broker is not None:
+    scope = resolve_trade_scope(user, tenant_id=tenant_id, account_id=account_id)
+    order_scope = build_order_scope(**scope)
+    if requested_mode == "live":
+        if _live_broker is None:
+            await _audit_record_safe(
+                db,
+                action="BROKER_NOT_CONNECTED",
+                mode="live",
+                user=user,
+                details={
+                    "order_scope": order_scope,
+                    "decision_context_id": body.decision_context_id,
+                    "candidate_id": body.candidate_id,
+                    "plan_id": body.plan_id,
+                    "request": {
+                        "code": body.code,
+                        "direction": body.direction,
+                        "price": body.price,
+                        "volume": body.volume,
+                    },
+                    "error_code": "BROKER_NOT_CONNECTED",
+                },
+                symbol=body.code,
+            )
+            raise HTTPException(
+                503,
+                detail={
+                    "detail": "实盘券商未连接，请先连接 QMT/券商网关",
+                    "error_code": "BROKER_NOT_CONNECTED",
+                },
+            )
         broker = _live_broker
     else:
         broker = _PaperEngineAdapter(engine)
 
-    # Risk check (only for live mode)
-    risk_result = None
-    is_probe = False
-    if body.trade_mode == "live":
-        acct = await broker.get_account()
-        positions = await broker.get_positions()
-        risk_result = await pre_check(order_req, acct, positions)
-        if not risk_result.passed:
+    acct = await broker.get_account()
+    positions = await broker.get_positions()
+    risk_result = await pre_check(order_req, acct, positions)
+    risk_verdict = build_risk_verdict(
+        risk_result,
+        **scope,
+        symbol=order_req.symbol,
+        trade_mode=requested_mode,
+        decision_context_id=body.decision_context_id,
+        candidate_id=body.candidate_id,
+        plan_id=body.plan_id,
+    )
+    action = (
+        "RISK_REJECT"
+        if not risk_result.passed
+        else "MANUAL_REVIEW"
+        if risk_result.requires_confirmation
+        else "RISK_PASS"
+    )
+    await _audit_record_safe(
+        db,
+        action=action,
+        mode=requested_mode,
+        user=user,
+        details={
+            "order_scope": order_scope,
+            "decision_context_id": body.decision_context_id,
+            "candidate_id": body.candidate_id,
+            "plan_id": body.plan_id,
+            "request": {
+                "code": body.code,
+                "direction": body.direction,
+                "price": body.price,
+                "volume": body.volume,
+                "order_type": order_req.order_type.value,
+            },
+            "risk_verdict": risk_verdict,
+            "risk_check": risk_result.to_dict(),
+        },
+        symbol=body.code,
+    )
+    return {
+        **risk_result.to_dict(),
+        "trade_mode": requested_mode,
+        "order_scope": order_scope,
+        "risk_verdict": risk_verdict,
+    }
+
+
+@router.post("/order")
+async def place_order(
+    body: PlaceOrderRequest = Body(...),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
+    """Place a trading order — paper or live."""
+    if body.direction.upper() not in ("BUY", "SELL"):
+        raise HTTPException(400, "direction must be BUY or SELL")
+    requested_mode = (body.trade_mode or _current_mode or "paper").lower()
+    if requested_mode not in ("paper", "live"):
+        raise HTTPException(400, detail={"detail": "trade_mode must be paper or live", "error_code": "INVALID_TRADE_MODE"})
+
+    order_req = OrderRequest(
+        symbol=body.code.upper(),
+        side=OrderSide(body.direction.upper()),
+        order_type=OrderType.LIMIT if body.price > 0 else OrderType.MARKET,
+        quantity=body.volume,
+        price=body.price,
+    )
+
+    scope = resolve_trade_scope(user, tenant_id=tenant_id, account_id=account_id)
+    order_scope = build_order_scope(**scope)
+    if requested_mode == "live":
+        if _live_broker is None:
+            await _audit_record_safe(
+                db,
+                action="BROKER_NOT_CONNECTED",
+                mode="live",
+                user=user,
+                details={
+                    "order_scope": order_scope,
+                    "decision_context_id": body.decision_context_id,
+                    "candidate_id": body.candidate_id,
+                    "plan_id": body.plan_id,
+                    "request": {
+                        "code": body.code,
+                        "direction": body.direction,
+                        "price": body.price,
+                        "volume": body.volume,
+                    },
+                    "error_code": "BROKER_NOT_CONNECTED",
+                },
+                symbol=body.code,
+            )
             raise HTTPException(
-                400,
+                503,
                 detail={
-                    "detail": risk_result.reject_reason,
-                    "error_code": "RISK_REJECT",
-                    "extra": risk_result.to_dict(),
+                    "detail": "实盘券商未连接，请先连接 QMT/券商网关",
+                    "error_code": "BROKER_NOT_CONNECTED",
                 },
             )
+        broker = _live_broker
+    else:
+        broker = _PaperEngineAdapter(engine)
 
+    if body.decision_context_id:
+        await _decision_context_record_safe(
+            db,
+            decision_context_id=body.decision_context_id,
+            tenant_id=scope["tenant_id"],
+            owner_user_id=scope["owner_user_id"],
+            account_id=scope["account_id"],
+            symbol=body.code,
+            plan_id=body.plan_id,
+            candidate_id=body.candidate_id,
+            payload={
+                "source": "trade_order",
+                "trade_mode": requested_mode,
+                "plan_id": body.plan_id,
+                "candidate_id": body.candidate_id,
+                "request": {
+                    "code": body.code,
+                    "direction": body.direction,
+                    "price": body.price,
+                    "volume": body.volume,
+                },
+            },
+        )
+
+    # Risk check for both paper and live modes. Paper orders use the same
+    # verdict contract so the frontend and audit trail can rely on one shape.
+    acct = await broker.get_account()
+    positions = await broker.get_positions()
+    risk_result = await pre_check(order_req, acct, positions)
+    risk_verdict = build_risk_verdict(
+        risk_result,
+        **scope,
+        symbol=order_req.symbol,
+        trade_mode=requested_mode,
+        decision_context_id=body.decision_context_id,
+        candidate_id=body.candidate_id,
+        plan_id=body.plan_id,
+    )
+    if not risk_result.passed:
+        await _risk_verdict_record_safe(
+            db,
+            verdict=risk_verdict,
+            symbol=body.code,
+        )
+        await _audit_record_safe(
+            db,
+            action="RISK_REJECT",
+            mode=requested_mode,
+            user=user,
+            details={
+                "order_scope": order_scope,
+                "decision_context_id": body.decision_context_id,
+                "candidate_id": body.candidate_id,
+                "plan_id": body.plan_id,
+                "request": {
+                    "code": body.code, "direction": body.direction, "price": body.price,
+                    "volume": body.volume, "order_type": order_req.order_type.value,
+                },
+                "risk_verdict": risk_verdict,
+            },
+            symbol=body.code,
+        )
+        raise HTTPException(
+            400,
+            detail={
+                "detail": risk_result.reject_reason,
+                "error_code": "RISK_REJECT",
+                "extra": risk_verdict,
+            },
+        )
+    await _audit_record_safe(
+        db,
+        action="RISK_PASS",
+        mode=requested_mode,
+        user=user,
+        details={
+            "order_scope": order_scope,
+            "decision_context_id": body.decision_context_id,
+            "candidate_id": body.candidate_id,
+            "plan_id": body.plan_id,
+            "request": {
+                "code": body.code, "direction": body.direction, "price": body.price,
+                "volume": body.volume, "order_type": order_req.order_type.value,
+            },
+            "risk_verdict": risk_verdict,
+            "risk_check": risk_result.to_dict(),
+        },
+        symbol=body.code,
+    )
+
+    is_probe = False
+    if requested_mode == "live":
         # Circuit breaker check (supports HALF_OPEN probing)
-        acct_id = _broker_config.get("account_id", "default")
+        acct_id = scope["account_id"] or _broker_config.get("account_id", "default")
         await check_daily_loss(acct_id, daily_pnl=acct.daily_pnl)
         trade_allowed, block_reason = await can_trade(acct_id)
         if not trade_allowed:
+            await _audit_record_safe(
+                db,
+                action="CIRCUIT_BREAKER_BLOCK",
+                mode=requested_mode,
+                user=user,
+                details={
+                    "order_scope": order_scope,
+                    "decision_context_id": body.decision_context_id,
+                    "candidate_id": body.candidate_id,
+                    "plan_id": body.plan_id,
+                    "block_reason": block_reason,
+                    "risk_verdict": risk_verdict,
+                    "error_code": "CIRCUIT_BREAKER_OPEN",
+                },
+                symbol=body.code,
+            )
             raise HTTPException(
                 409,
                 detail={
@@ -188,7 +432,7 @@ async def place_order(
     try:
         result = await broker.place_order(order_req)
     except Exception:
-        if body.trade_mode == "live" and is_probe:
+        if requested_mode == "live" and is_probe:
             try:
                 await record_probe(acct_id, success=False)
             except Exception:
@@ -196,17 +440,48 @@ async def place_order(
         raise
 
     # HALF_OPEN probing: record the result
-    if body.trade_mode == "live" and is_probe:
+    if requested_mode == "live" and is_probe:
         probe_success = result.status.value not in ("REJECTED", "FAILED")
         await record_probe(acct_id, success=probe_success)
+
+    risk_verdict["order_id"] = result.order_id
+
+    await _risk_verdict_record_safe(
+        db,
+        verdict=risk_verdict,
+        order_id=result.order_id,
+        symbol=body.code,
+    )
+    await _order_record_safe(
+        db,
+        order_id=result.order_id,
+        tenant_id=scope["tenant_id"],
+        owner_user_id=scope["owner_user_id"],
+        account_id=scope["account_id"],
+        trade_mode=requested_mode,
+        code=order_req.symbol,
+        direction=order_req.side.value,
+        price=result.filled_avg_price,
+        volume=order_req.quantity,
+        status=result.status.value,
+        decision_context_id=body.decision_context_id,
+        candidate_id=body.candidate_id,
+        plan_id=body.plan_id,
+        order_scope=order_scope,
+        risk_verdict=risk_verdict,
+    )
 
     # Audit log (best-effort)
     await _audit_record_safe(
         db,
         action="PLACE_ORDER",
-        mode=body.trade_mode,
+        mode=requested_mode,
         user=user,
         details={
+            "order_scope": order_scope,
+            "decision_context_id": body.decision_context_id,
+            "candidate_id": body.candidate_id,
+            "plan_id": body.plan_id,
             "request": {
                 "code": body.code, "direction": body.direction, "price": body.price,
                 "volume": body.volume, "order_type": order_req.order_type.value,
@@ -218,7 +493,8 @@ async def place_order(
                 "filled_qty": result.filled_qty,
                 "filled_avg_price": result.filled_avg_price,
             },
-            "risk_check": risk_result.to_dict() if risk_result else None,
+            "risk_verdict": risk_verdict,
+            "risk_check": risk_result.to_dict(),
         },
         symbol=body.code,
         order_id=result.order_id,
@@ -233,26 +509,107 @@ async def place_order(
         "volume": order_req.quantity,
         "status": result.status.value,
         "message": result.message,
-        "risk_check": risk_result.to_dict() if risk_result else None,
+        "tenant_id": order_scope["tenant_id"],
+        "owner_user_id": order_scope["owner_user_id"],
+        "account_id": order_scope["account_id"],
+        "visibility": order_scope["visibility"],
+        "data_scope": order_scope["data_scope"],
+        "decision_context_id": body.decision_context_id,
+        "candidate_id": body.candidate_id,
+        "plan_id": body.plan_id,
+        "order_scope": order_scope,
+        "risk_verdict": risk_verdict,
+        "risk_check": risk_result.to_dict(),
     }
 
 
 @router.delete("/order/{order_id}")
 async def cancel_order(
     order_id: str,
+    trade_mode: str = Query("paper", description="paper | live"),
+    db: AsyncSession = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
-    ok = engine.cancel_order(order_id)
-    return {"order_id": order_id, "status": "cancelled" if ok else "not_found"}
+    requested_mode = (trade_mode or _current_mode or "paper").lower()
+    if requested_mode not in ("paper", "live"):
+        raise HTTPException(400, detail={"detail": "trade_mode must be paper or live", "error_code": "INVALID_TRADE_MODE"})
+
+    if requested_mode == "live":
+        if _live_broker is None:
+            await _audit_record_safe(
+                db,
+                action="BROKER_NOT_CONNECTED",
+                mode="live",
+                user=user,
+                details={"order_id": order_id, "operation": "cancel", "error_code": "BROKER_NOT_CONNECTED"},
+                order_id=order_id,
+            )
+            raise HTTPException(
+                503,
+                detail={
+                    "detail": "实盘券商未连接，请先连接 QMT/券商网关",
+                    "error_code": "BROKER_NOT_CONNECTED",
+                },
+            )
+        result = await _live_broker.cancel_order(order_id)
+        ok = result.success
+    else:
+        ok = engine.cancel_order(order_id)
+
+    status = "cancelled" if ok else "not_found"
+    await _audit_record_safe(
+        db,
+        action="CANCEL_ORDER",
+        mode=requested_mode,
+        user=user,
+        details={"order_id": order_id, "status": status},
+        order_id=order_id,
+    )
+    return {"order_id": order_id, "status": status, "trade_mode": requested_mode}
 
 
 @router.get("/orders")
 async def list_orders(
+    trade_mode: str | None = Query(None, description="paper | live"),
+    code: str | None = Query(None, description="Stock code"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    db: AsyncSession = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
-    return {"orders": [{"id": o.id, "code": o.code, "direction": o.direction,
-            "price": o.filled_price, "volume": o.volume, "status": o.status,
-            "created": o.created_at} for o in engine.get_orders()]}
+    scope = resolve_trade_scope(user, tenant_id=tenant_id, account_id=account_id)
+    try:
+        return await query_trade_orders(
+            db,
+            tenant_id=scope["tenant_id"],
+            account_id=scope["account_id"],
+            trade_mode=trade_mode,
+            code=code,
+            page=page,
+            page_size=page_size,
+        )
+    except Exception:
+        await db.rollback()
+        logger.exception("Trade order ledger query failed; falling back to paper engine orders")
+        orders = [
+            {
+                "id": o.id,
+                "order_id": o.id,
+                "code": o.code,
+                "direction": o.direction,
+                "price": o.filled_price,
+                "volume": o.volume,
+                "status": o.status,
+                "created": o.created_at,
+                "tenant_id": scope["tenant_id"],
+                "owner_user_id": scope["owner_user_id"],
+                "account_id": scope["account_id"],
+            }
+            for o in engine.get_orders()
+        ]
+        return {"orders": orders, "total": len(orders), "page": page, "page_size": page_size}
 
 
 @router.get("/positions")
@@ -289,6 +646,8 @@ async def get_positions(
 async def get_account(
     trade_mode: str = Query("paper", description="paper | live"),
     sync: bool = Query(False, description="Sync from broker first"),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     if trade_mode == "live" and _live_broker is not None:
@@ -315,14 +674,8 @@ async def get_account(
         }
 
     acct = engine.get_account()
-    return {
-        "trade_mode": "paper",
-        "total_capital": acct.total_capital,
-        "available": acct.available,
-        "market_value": acct.market_value,
-        "total_pnl": round(acct.total_pnl, 2),
-        "daily_pnl": round(acct.daily_pnl, 2),
-    }
+    scope = resolve_trade_scope(user, tenant_id=tenant_id, account_id=account_id)
+    return build_paper_account_view(acct, **scope)
 
 
 @router.get("/pnl")
@@ -389,15 +742,19 @@ async def switch_mode(
 
 @router.post("/broker/connect")
 async def broker_connect(
-    broker_name: str = Query("xtquant"),
-    account_id: str = Query(..., description="Broker account ID"),
+    body: BrokerConnectRequest | None = Body(default=None),
+    broker_name: str | None = Query(default=None),
+    account_id: str | None = Query(default=None, description="Broker account ID"),
     server_ip: str = Query("127.0.0.1"),
     server_port: int = Query(6001),
-    trade_password: str = Body("", embed=True),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(require_role("admin")),
 ):
-    """Connect to the live broker (xtquant/QMT)."""
+    """Connect to a broker adapter.
+
+    ``mock_qmt`` is a sandbox-only adapter for UI/API integration. It never
+    imports Xtquant and keeps the effective trade mode as paper.
+    """
     global _live_broker, _broker_config, _broker_connected_at
 
     if _live_broker is not None:
@@ -409,6 +766,20 @@ async def broker_connect(
             },
         )
 
+    if body is None:
+        if not account_id:
+            raise HTTPException(400, "account_id is required")
+        body = BrokerConnectRequest(
+            broker_name=broker_name or "xtquant",
+            account_id=account_id,
+            server_ip=server_ip,
+            server_port=server_port,
+            environment="live",
+        )
+
+    if body.environment not in ("sandbox", "live"):
+        raise HTTPException(400, "environment must be sandbox or live")
+
     # P1-6 (audit): do NOT persist the plaintext trade_password into the
     # module-level _broker_config dict (real-money credential; would survive in
     # process memory until restart and leak on any future logger.debug of the
@@ -418,21 +789,50 @@ async def broker_connect(
     # out of scope here for GC. If a future broker needs the password, pass it
     # as a local variable to the constructor (never store on _broker_config).
     _broker_config = {
-        "broker_name": broker_name,
-        "account_id": account_id,
-        "server_ip": server_ip,
-        "server_port": server_port,
-        "trade_password_provided": bool(trade_password),
+        "broker_name": body.broker_name,
+        "account_id": body.account_id,
+        "server_ip": body.server_ip,
+        "server_port": body.server_port,
+        "environment": body.environment,
+        "adapter": "mock" if body.broker_name == "mock_qmt" else body.broker_name,
+        "trade_password_provided": bool(body.trade_password),
     }
 
-    if broker_name != "xtquant":
-        raise HTTPException(400, f"Unsupported broker: {broker_name}")
+    if body.broker_name == "mock_qmt":
+        if body.environment != "sandbox":
+            raise HTTPException(400, "mock_qmt only supports sandbox environment")
+        _live_broker = _PaperEngineAdapter(engine)
+        _broker_connected_at = datetime.now(timezone.utc)
+        await _audit_record_safe(
+            db,
+            action="BROKER_CONNECT",
+            mode="paper",
+            user=user,
+            details={
+                "broker_name": body.broker_name,
+                "account_id": body.account_id,
+                "environment": body.environment,
+                "adapter": "mock",
+            },
+        )
+        return {
+            "broker_name": body.broker_name,
+            "account_id": body.account_id,
+            "status": "connected",
+            "environment": body.environment,
+            "adapter": "mock",
+            "trade_mode": "paper",
+            "connected_at": _broker_connected_at.isoformat(),
+        }
+
+    if body.broker_name != "xtquant":
+        raise HTTPException(400, f"Unsupported broker: {body.broker_name}")
 
     from app.xtquant_broker import XtquantBroker
 
     broker = XtquantBroker(
         path=os.environ.get("QMT_USERDATA_PATH", ""),
-        account=account_id,
+        account=body.account_id,
     )
     connected = await broker.connect()
     if not connected:
@@ -452,13 +852,20 @@ async def broker_connect(
         action="BROKER_CONNECT",
         mode="live",
         user=user,
-        details={"broker_name": broker_name, "account_id": account_id},
+        details={
+            "broker_name": body.broker_name,
+            "account_id": body.account_id,
+            "environment": body.environment,
+        },
     )
 
     return {
-        "broker_name": broker_name,
-        "account_id": account_id,
+        "broker_name": body.broker_name,
+        "account_id": body.account_id,
         "status": "connected",
+        "environment": body.environment,
+        "adapter": body.broker_name,
+        "trade_mode": "live",
         "connected_at": _broker_connected_at.isoformat(),
     }
 
@@ -471,6 +878,9 @@ async def broker_status(user: dict = Depends(require_role("admin", "internal_ana
         "connected": connected,
         "broker_name": _broker_config.get("broker_name", "xtquant"),
         "account_id": _broker_config.get("account_id", None),
+        "environment": _broker_config.get("environment", "live"),
+        "adapter": _broker_config.get("adapter", _broker_config.get("broker_name", "xtquant")),
+        "trade_mode": "paper" if _broker_config.get("environment") == "sandbox" else _current_mode,
         "status": "connected" if connected else "disconnected",
         "last_heartbeat": None,
         "heartbeat_interval_sec": int(os.environ.get("BROKER_HEARTBEAT_INTERVAL_SEC", "30")),
@@ -574,6 +984,71 @@ async def get_audit_logs(
     )
 
 
+@router.get("/risk-verdicts")
+async def get_risk_verdicts(
+    result: str | None = Query(None, description="pass | warn | reject | manual_review"),
+    trade_mode: str | None = Query(None, description="paper | live"),
+    code: str | None = Query(None, description="Stock code"),
+    decision_context_id: str | None = Query(None, description="DecisionContext id"),
+    order_id: str | None = Query(None, description="Order id"),
+    plan_id: str | None = Query(None, description="Plan id"),
+    candidate_id: str | None = Query(None, description="Candidate id"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
+    """Query persisted RiskVerdicts for the current tenant/account scope."""
+    scope = resolve_trade_scope(user, tenant_id=tenant_id, account_id=account_id)
+    try:
+        return await query_risk_verdicts(
+            db,
+            tenant_id=scope["tenant_id"],
+            account_id=scope["account_id"],
+            result=result,
+            trade_mode=trade_mode,
+            symbol=code,
+            decision_context_id=decision_context_id,
+            order_id=order_id,
+            plan_id=plan_id,
+            candidate_id=candidate_id,
+            page=page,
+            page_size=page_size,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.get("/decision-contexts")
+async def get_decision_contexts(
+    decision_context_id: str | None = Query(None, description="DecisionContext id"),
+    code: str | None = Query(None, description="Stock code"),
+    plan_id: str | None = Query(None, description="Plan id"),
+    candidate_id: str | None = Query(None, description="Candidate id"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
+    """Query persisted DecisionContext snapshots for the current account."""
+    scope = resolve_trade_scope(user, tenant_id=tenant_id, account_id=account_id)
+    return await query_decision_contexts(
+        db,
+        tenant_id=scope["tenant_id"],
+        account_id=scope["account_id"],
+        decision_context_id=decision_context_id,
+        symbol=code,
+        plan_id=plan_id,
+        candidate_id=candidate_id,
+        page=page,
+        page_size=page_size,
+    )
+
+
 # ── Helpers ────────────────────────────────────────────────────────────
 
 def _uid(user: dict | None) -> int | None:
@@ -628,3 +1103,114 @@ async def _audit_record_safe(
             "AUDIT write failed (non-fatal) action=%s mode=%s symbol=%s order=%s",
             action, mode, symbol, order_id,
         )
+
+
+async def _risk_verdict_record_safe(
+    db: AsyncSession,
+    *,
+    verdict: dict,
+    order_id: str | None = None,
+    symbol: str | None = None,
+) -> None:
+    """Best-effort RiskVerdict write — never blocks order processing."""
+    try:
+        await record_risk_verdict(
+            db,
+            verdict=verdict,
+            order_id=order_id,
+            symbol=symbol,
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception(
+            "RiskVerdict write failed (non-fatal) verdict=%s symbol=%s order=%s",
+            verdict.get("verdict_id"), symbol, order_id,
+        )
+
+
+async def _decision_context_record_safe(
+    db: AsyncSession,
+    *,
+    decision_context_id: str,
+    tenant_id: str,
+    owner_user_id: str | None,
+    account_id: str | None,
+    symbol: str | None = None,
+    plan_id: str | None = None,
+    candidate_id: str | None = None,
+    intent: str = "manual_order",
+    payload: dict | None = None,
+) -> None:
+    """Best-effort DecisionContext snapshot write — never blocks orders."""
+    try:
+        await record_decision_context_once(
+            db,
+            decision_context_id=decision_context_id,
+            tenant_id=tenant_id,
+            owner_user_id=owner_user_id,
+            account_id=account_id,
+            source_type="order",
+            symbol=symbol,
+            plan_id=plan_id,
+            candidate_id=candidate_id,
+            intent=intent,
+            payload=payload
+            or {
+                "plan_id": plan_id,
+                "candidate_id": candidate_id,
+                "symbol": symbol,
+            },
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception(
+            "DecisionContext write failed (non-fatal) context=%s symbol=%s plan=%s",
+            decision_context_id, symbol, plan_id,
+        )
+
+
+async def _order_record_safe(
+    db: AsyncSession,
+    *,
+    order_id: str,
+    tenant_id: str,
+    owner_user_id: str | None,
+    account_id: str | None,
+    trade_mode: str,
+    code: str,
+    direction: str,
+    price: float | None,
+    volume: int,
+    status: str,
+    decision_context_id: str | None = None,
+    candidate_id: str | None = None,
+    plan_id: str | None = None,
+    order_scope: dict | None = None,
+    risk_verdict: dict | None = None,
+) -> None:
+    """Best-effort order ledger write — never blocks order processing."""
+    try:
+        await record_trade_order(
+            db,
+            order_id=order_id,
+            tenant_id=tenant_id,
+            owner_user_id=owner_user_id,
+            account_id=account_id,
+            trade_mode=trade_mode,
+            code=code,
+            direction=direction,
+            price=price,
+            volume=volume,
+            status=status,
+            decision_context_id=decision_context_id,
+            candidate_id=candidate_id,
+            plan_id=plan_id,
+            order_scope=order_scope,
+            risk_verdict=risk_verdict,
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception("TradeOrder write failed (non-fatal) order=%s symbol=%s", order_id, code)

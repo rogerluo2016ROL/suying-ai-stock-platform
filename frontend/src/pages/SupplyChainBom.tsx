@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button, Checkbox, Col, Empty, Input, message, Row, Space, Statistic, Table, Tag, Typography } from 'antd'
 import { ApartmentOutlined, EyeOutlined, FileTextOutlined, ScanOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { screenerApi, chainApi, type PolicyInterpretResponse, type ChainDeconstructResponse, type ChainNode, type ChainCandidate, type FilterSummary, type ResonanceSummary, type SupplyChainMappingQuality, type SupplyChainMappingReviewDecision } from '../api/client'
 import type { SupplyChainTheme, SupplyChainNode } from '../api/types'
+import { MetricCard, PrototypePage, PrototypePageHeader, PrototypeTabs } from '../components/prototype'
 import CandidateCompanyTable from './supply-chain-bom/CandidateCompanyTable'
 import CompanyResearchDrawer from './supply-chain-bom/CompanyResearchDrawer'
 import NodeThesisPanel from './supply-chain-bom/NodeThesisPanel'
@@ -28,6 +30,18 @@ import { formatNumber } from './supply-chain-bom/formatters'
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
 
+const supplyChainTabs = [
+  { key: 'policy', path: '/supply-chain-bom/policy', label: '政策梳理', subLabel: '政策证据' },
+  { key: 'chain', path: '/supply-chain-bom', label: '产业链解构', subLabel: '三种模式' },
+  { key: 'company', path: '/supply-chain-bom/company', label: '多维度分析', subLabel: '公司对比' },
+]
+
+function activeSupplyChainTab(pathname: string) {
+  if (pathname.startsWith('/supply-chain-bom/policy')) return 'policy'
+  if (pathname.startsWith('/supply-chain-bom/company')) return 'company'
+  return 'chain'
+}
+
 interface WorkbenchModel {
   name?: string
   philosophy?: string
@@ -42,7 +56,7 @@ function formatChangePct(value?: number) {
 
 function researchCollectionLabel(status?: string) {
   if (status === 'enabled') return '研报自动采集已启用'
-  if (status === 'llm_key_missing') return '研报采集待接入LLM'
+  if (status === 'llm_key_missing') return '等待研报智能解读授权'
   if (status === 'local_catalog_available') return '研报库已接入'
   return '研报源未配置'
 }
@@ -52,6 +66,40 @@ function researchCollectionColor(status?: string) {
   if (status === 'local_catalog_available') return 'blue'
   if (status === 'llm_key_missing') return 'gold'
   return 'orange'
+}
+
+function chainMethodSummary(method: ChainMethod) {
+  if (method === 'value_chain') {
+    return {
+      title: '价值链拆解',
+      desc: '按原材料、核心零部件、制造设备、封装测试拆分利润池，突出毛利率、议价权和国产替代空间。',
+      stats: [
+        ['最高毛利环节', '核心零部件 45%'],
+        ['利润弹性', '制造设备 38%'],
+        ['短板约束', '封装测试 18%'],
+      ],
+    }
+  }
+  if (method === 'competition') {
+    return {
+      title: '竞争格局',
+      desc: '按市场份额、技术壁垒、市值体量和客户绑定关系评估公司位置，区分龙头、跟随者和卡位标的。',
+      stats: [
+        ['龙头份额', 'ASML 80%'],
+        ['国产替代', '中微公司 15%'],
+        ['技术壁垒', '光刻/刻蚀高'],
+      ],
+    }
+  }
+  return {
+    title: '上下游拆解',
+    desc: '从政策主题向上游材料、核心部件、制造设备、下游应用逐层展开，定位可跟踪节点和映射公司。',
+    stats: [
+      ['上游节点', '硅片/光刻胶'],
+      ['核心节点', '光源/物镜'],
+      ['下游应用', '晶圆厂/设备商'],
+    ],
+  }
 }
 
 // Convert ChainNode from API to BomNode for display
@@ -82,6 +130,8 @@ function flattenChainNodes(node: ChainNode, themeId: string, result: BomNode[] =
 }
 
 export default function SupplyChainBom() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [themes, setThemes] = useState<ThemeRow[]>([])
   const [nodes, setNodes] = useState<BomNode[]>([])
   const [edges, setEdges] = useState<any[]>([])
@@ -209,6 +259,9 @@ export default function SupplyChainBom() {
   }, [nodes, selectedThemeId])
 
   const activeCandidates = selectedNodeId ? nodeCandidates : candidates
+  const methodSummary = useMemo(() => chainMethodSummary(chainMethod), [chainMethod])
+  const activeModuleKey = activeSupplyChainTab(location.pathname)
+  const activeModuleTab = supplyChainTabs.find(tab => tab.key === activeModuleKey) || supplyChainTabs[1]
 
   const selectTheme = (themeId: string) => {
     setSelectedThemeId(themeId)
@@ -465,27 +518,30 @@ export default function SupplyChainBom() {
   ]
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>产业链拆解</Title>
-          <Text type="secondary">{model.name || '大葱产业链解构选股模型 V4'}</Text>
-        </div>
-        <Space wrap>
-          <Tag color="blue">BOM V4</Tag>
-          <Tag color="green">{selectedTheme?.name || selectedNode?.policy_theme || '政策主题'}</Tag>
-          <Tag color="gold">候选 {activeCandidates.length}</Tag>
-          {!!upstreamCandidates.length && <Tag color="cyan">上游观察 {upstreamCandidates.length}</Tag>}
-          {dataFreshness.market?.latest_trade_date && (
-            <Tag color="red">行情更新至 {dataFreshness.market.latest_trade_date}</Tag>
-          )}
-          {dataFreshness.research_reports?.latest_pub_date && (
-            <Tag color="purple">研报更新至 {dataFreshness.research_reports.latest_pub_date}</Tag>
-          )}
-          {dataFreshness.broker_recommend?.latest_month && (
-            <Tag>券商评级 {dataFreshness.broker_recommend.latest_month}</Tag>
-          )}
-        </Space>
+    <PrototypePage className="supply-chain-prototype">
+      <PrototypeTabs
+        ariaLabel="产业链拆解页签"
+        activeKey={activeModuleKey}
+        onChange={(key) => {
+          const tab = supplyChainTabs.find(item => item.key === key)
+          if (tab) navigate(tab.path)
+        }}
+        items={supplyChainTabs.map((tab, index) => ({ ...tab, number: String(index + 1).padStart(2, '0') }))}
+      />
+      <PrototypePageHeader
+        title={`产业链拆解 - ${activeModuleTab.label}`}
+        subtitle="政策证据 · 三模式解构 · 公司映射 · 研究闭环"
+        actions={[
+          { key: 'public', label: '公共产业图谱', active: true, tone: 'neutral' },
+          { key: 'private', label: '账户私有观察池', tone: 'up' },
+          { key: 'research', label: researchCollectionLabel(researchIngestion.auto_collection_status), tone: 'warn' },
+        ]}
+      />
+      <div className="kpis">
+        <MetricCard label="当前主题" value={selectedTheme?.name || selectedNode?.policy_theme || '政策主题'} sub={model.name || '产业链解构选股模型 V4'} tone="accent" />
+        <MetricCard label="候选公司" value={activeCandidates.length} sub={upstreamCandidates.length ? `上游观察 ${upstreamCandidates.length}` : '全局观察池'} tone="up" />
+        <MetricCard label="BOM 节点" value={nodes.length} sub={`当前模式：${methodSummary.title}`} tone="muted" />
+        <MetricCard label="数据更新" value={dataFreshness.market?.latest_trade_date || '--'} sub={dataFreshness.research_reports?.latest_pub_date ? `研报 ${dataFreshness.research_reports.latest_pub_date}` : '等待数据同步'} tone="warn" />
       </div>
 
       <SupplyChainResearchWorkbench
@@ -544,7 +600,7 @@ export default function SupplyChainBom() {
             </div>
             <ReactECharts
               option={graphOption}
-              style={{ height: 306 }}
+              style={{ height: 214 }}
               onEvents={{
                 click: (params: any) => {
                   const nextNode = nodes.find(node => node.node_id === params?.data?.id)
@@ -552,6 +608,27 @@ export default function SupplyChainBom() {
                 },
               }}
             />
+            <div style={{ borderTop: '1px solid #f0f0f0', padding: '10px 12px' }}>
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                <Space align="baseline" style={{ justifyContent: 'space-between', width: '100%' }}>
+                  <Text strong>{methodSummary.title}</Text>
+                  <Tag color={chainMethod === 'value_chain' ? 'gold' : chainMethod === 'competition' ? 'purple' : 'blue'}>
+                    {chainLoading ? '加载中' : '已切换'}
+                  </Tag>
+                </Space>
+                <Text type="secondary" style={{ fontSize: 12 }}>{methodSummary.desc}</Text>
+                <Row gutter={8}>
+                  {methodSummary.stats.map(([label, value]) => (
+                    <Col span={8} key={label}>
+                      <div style={{ background: '#f7f9fc', border: '1px solid #eef2f8', borderRadius: 6, padding: 8 }}>
+                        <div style={{ fontSize: 11, color: '#8a96a8' }}>{label}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#1a2230' }}>{value}</div>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+              </Space>
+            </div>
           </div>
         </Col>
 
@@ -809,6 +886,6 @@ export default function SupplyChainBom() {
         company={companyDetail}
         onClose={() => setCompanyOpen(false)}
       />
-    </div>
+    </PrototypePage>
   )
 }

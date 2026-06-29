@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { message } from 'antd'
 import axios from 'axios'
 import { liveTradeApi } from '../api/liveTrade'
+import type { BrokerConnectRequest, PlaceOrderRequest } from '../api/types'
 
 export type TradeMode = 'paper' | 'live'
 export type BrokerStatus = 'connected' | 'disconnected' | 'connecting' | 'error'
@@ -39,9 +40,13 @@ export interface PreCheckResult {
 
 export interface OrderParams {
   code: string
-  direction: string
+  direction: PlaceOrderRequest['direction']
   price: number
   volume: number
+  trade_mode?: TradeMode
+  decision_context_id?: string
+  candidate_id?: string
+  plan_id?: string
 }
 
 export interface UseLiveTradeReturn {
@@ -51,7 +56,7 @@ export interface UseLiveTradeReturn {
   riskConfig: RiskConfig | null
   circuitBreaker: CircuitBreakerState | null
   apiPrefix: string
-  connectBroker: () => Promise<void>
+  connectBroker: (config: BrokerConnectRequest) => Promise<void>
   placeOrder: (
     params: OrderParams,
     callbacks: {
@@ -155,13 +160,13 @@ export function useLiveTrade(): UseLiveTradeReturn {
   }, [mode])
 
   // Connect to broker
-  const connectBroker = useCallback(async () => {
+  const connectBroker = useCallback(async (config: BrokerConnectRequest) => {
     setBrokerStatus('connecting')
     try {
-      const r = await liveTradeApi.connectBroker()
+      const r = await liveTradeApi.connectBroker(config)
       setBrokerStatus(r.data?.status || 'connected')
       if (r.data?.status === 'connected') {
-        message.success('券商连接成功')
+        message.success(config.environment === 'sandbox' ? 'QMT Sandbox 已连接' : '券商连接成功')
       }
     } catch {
       setBrokerStatus('error')
@@ -177,32 +182,36 @@ export function useLiveTrade(): UseLiveTradeReturn {
       onLargeOrderConfirm?: (params: OrderParams) => Promise<boolean>
     },
   ): Promise<{ success: boolean; data?: any; error?: string }> => {
-    // Step 1: Risk pre-check (live mode only)
-    if (mode === 'live') {
-      try {
-        const checkResult = await liveTradeApi.preCheck(params)
-        const preCheck: PreCheckResult = checkResult.data
+    const effectiveMode = params.trade_mode || mode
 
-        if (!preCheck.passed) {
-          callbacks.onPreCheckFailed?.(preCheck)
-          return { success: false, error: '风控检查未通过' }
-        }
+    // Step 1: Risk pre-check for both paper and live modes. The backend owns the
+    // same verdict contract in both paths, so the UI can present one risk gate.
+    try {
+      const checkResult = await liveTradeApi.preCheck({ ...params, trade_mode: effectiveMode })
+      const preCheck: PreCheckResult = checkResult.data
 
-        // Show non-blocking warnings (level === 'warn')
-        const warnings = preCheck.checks?.filter(c => c.level === 'warn') || []
-        warnings.forEach(w => {
-          message.warning(w.message)
-        })
-      } catch (err: any) {
-        const errMsg = err?.response?.data?.detail || '风控检查服务异常'
-        message.error(errMsg)
-        return { success: false, error: errMsg }
+      if (!preCheck.passed) {
+        callbacks.onPreCheckFailed?.(preCheck)
+        return { success: false, error: '风控检查未通过' }
       }
+
+      // Show non-blocking warnings (level === 'warn')
+      const warnings = preCheck.checks?.filter(c => c.level === 'warn') || []
+      warnings.forEach(w => {
+        message.warning(w.message)
+      })
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail
+      const errMsg = typeof detail === 'string'
+        ? detail
+        : detail?.detail || '风控检查服务异常'
+      message.error(errMsg)
+      return { success: false, error: errMsg }
     }
 
-    // Step 2: Large order check (live mode only, only when backend config loaded)
+    // Step 2: Large order confirmation (live mode only, only when backend config loaded)
     const largeOrderThreshold = riskConfig?.large_order_threshold
-    if (mode === 'live' && largeOrderThreshold != null) {
+    if (effectiveMode === 'live' && largeOrderThreshold != null) {
       const estimatedAmount = params.price > 0
         ? params.price * params.volume
         : 0 // Market order - cannot estimate, always confirm
@@ -222,7 +231,7 @@ export function useLiveTrade(): UseLiveTradeReturn {
     // go through the single axios instance so the auth contract is consistent. The
     // backend decides paper vs live from its own account/broker config.
     try {
-      const r = await liveTradeApi.placeOrder(params.code, params.direction, params.volume, params.price)
+      const r = await liveTradeApi.placeOrder({ ...params, trade_mode: effectiveMode })
       const data = r.data
       message.success(data.message || '下单成功')
       return { success: true, data }

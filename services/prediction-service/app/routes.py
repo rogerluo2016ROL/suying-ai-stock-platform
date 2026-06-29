@@ -38,6 +38,71 @@ def _resolve_db_path() -> str:
 DB_PATH = _resolve_db_path()
 
 
+def _model_metadata(inference_mode: str) -> dict:
+    """Stable model contract consumed by new UI pages and downstream services."""
+    checkpoint_status = getattr(_m, "_model_checkpoint_status", "not_loaded")
+    loaded = bool(getattr(_m, "_model_loaded", False) and getattr(_m, "_predictor", None) is not None)
+    return {
+        "name": "Kronos-mini",
+        "version": "kronos-mini",
+        "provider": "prediction-service",
+        "inference_mode": inference_mode,
+        "checkpoint_status": checkpoint_status,
+        "loaded": loaded,
+    }
+
+
+def _data_freshness(x_ts, data_source: str = "postgresql.daily_kline") -> dict:
+    if x_ts is None or len(x_ts) == 0:
+        return {
+            "status": "missing",
+            "as_of": None,
+            "source": data_source,
+            "quality_score": 0,
+        }
+
+    last_ts = pd.to_datetime(x_ts.iloc[-1])
+    as_of = last_ts.date().isoformat()
+    lag_days = max(0, (pd.Timestamp.utcnow().tz_localize(None).date() - last_ts.date()).days)
+    if lag_days <= 10:
+        status, quality_score = "fresh", 96
+    elif lag_days <= 30:
+        status, quality_score = "stale", 72
+    else:
+        status, quality_score = "outdated", 35
+    return {
+        "status": status,
+        "as_of": as_of,
+        "source": data_source,
+        "quality_score": quality_score,
+    }
+
+
+def _prediction_fallback_reason(used_baseline: bool) -> str | None:
+    if not used_baseline:
+        return None
+    if not bool(getattr(_m, "_model_loaded", False)):
+        return "model checkpoint unavailable; using baseline predictor"
+    return "model inference unavailable; using baseline predictor"
+
+
+def _with_prediction_contract(
+    payload: dict,
+    *,
+    code: str,
+    mode: str,
+    x_ts,
+    used_baseline: bool,
+    data_source: str = "postgresql.daily_kline",
+) -> dict:
+    enriched = dict(payload)
+    enriched.setdefault("code", code)
+    enriched["model_metadata"] = _model_metadata(mode)
+    enriched["data_freshness"] = _data_freshness(x_ts, data_source)
+    enriched["fallback_reason"] = _prediction_fallback_reason(used_baseline)
+    return enriched
+
+
 # ── P3: 辅助特征 (多模态后处理) ──
 
 def _get_auxiliary_features(code: str) -> dict | None:
@@ -246,9 +311,138 @@ def _baseline_predict(df: pd.DataFrame, pred_days: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _sanitize_prediction_df(
+    pred_df: pd.DataFrame,
+    current_price: float,
+    max_step_pct: float = 0.12,
+) -> pd.DataFrame:
+    """Repair model-generated OHLC rows into valid, bounded K-line candles."""
+    rows = []
+    previous_close = float(current_price)
+    required = ["open", "high", "low", "close"]
+    numeric = pred_df.copy()
+    for col in required:
+        if col not in numeric:
+            numeric[col] = previous_close
+        numeric[col] = pd.to_numeric(numeric[col], errors="coerce")
+
+    for _, raw in numeric.iterrows():
+        raw_lower_bound = previous_close * (1 - max_step_pct)
+        raw_upper_bound = previous_close * (1 + max_step_pct)
+        display_rounding_guard = 0.005
+        if raw_upper_bound - raw_lower_bound > display_rounding_guard * 2:
+            lower_bound = raw_lower_bound + display_rounding_guard
+            upper_bound = raw_upper_bound - display_rounding_guard
+        else:
+            lower_bound = raw_lower_bound
+            upper_bound = raw_upper_bound
+
+        open_ = float(raw["open"]) if np.isfinite(raw["open"]) else previous_close
+        close = float(raw["close"]) if np.isfinite(raw["close"]) else previous_close
+        open_ = float(np.clip(open_, lower_bound, upper_bound))
+        close = float(np.clip(close, lower_bound, upper_bound))
+
+        candle_top = max(open_, close)
+        candle_bottom = min(open_, close)
+        high_raw = float(raw["high"]) if np.isfinite(raw["high"]) else candle_top
+        low_raw = float(raw["low"]) if np.isfinite(raw["low"]) else candle_bottom
+        high = max(candle_top, min(high_raw, candle_top * (1 + max_step_pct)))
+        low = min(candle_bottom, max(low_raw, candle_bottom * (1 - max_step_pct)))
+
+        open_ = round(open_, 2)
+        close = round(close, 2)
+        high = round(max(high, open_, close), 2)
+        low = round(min(low, open_, close), 2)
+
+        rows.append({"open": open_, "high": high, "low": low, "close": close})
+        previous_close = close
+
+    return pd.DataFrame(rows)
+
+
 @router.get("/status")
 async def model_status():
-    return {"model_loaded": _m._model_loaded, "model": "Kronos-small", "device": "cpu"}
+    return {
+        "model_loaded": bool(getattr(_m, "_model_loaded", False)),
+        "model": "Kronos-mini",
+        "device": "cpu",
+        "model_metadata": _model_metadata("status"),
+    }
+
+
+@router.get("/overview")
+async def prediction_overview():
+    return {
+        "page": {"module": "prediction", "view": "overview", "title": "K线预测 - 预测总览"},
+        "model_metadata": _model_metadata("overview"),
+        "data_freshness": {
+            "status": "unknown",
+            "as_of": None,
+            "source": "daily_kline",
+            "quality_score": 0,
+        },
+        "fallback_reason": _prediction_fallback_reason(not bool(getattr(_m, "_model_loaded", False))),
+        "sections": [
+            {"id": "forecast-market", "title": "预测市场", "endpoint": "/api/v1/prediction/{code}"},
+            {"id": "model-health", "title": "模型健康", "endpoint": "/api/v1/prediction/status"},
+            {"id": "accuracy-backtest", "title": "准确率回测", "endpoint": "/api/v1/prediction/accuracy-backtest"},
+        ],
+    }
+
+
+@router.post("/single/{code}")
+async def prediction_single_stock(
+    code: str,
+    pred_days: int = Query(20, ge=5, le=30),
+):
+    return await predict_stock(code, pred_days)
+
+
+@router.post("/compare")
+async def prediction_compare(
+    codes: list[str],
+    pred_days: int = Query(20, ge=5, le=30),
+):
+    if not codes:
+        raise HTTPException(400, "codes is required")
+    results = []
+    for code in codes[:10]:
+        try:
+            item = await predict_stock_fast(code, min(pred_days, 30))
+            results.append(item)
+        except HTTPException as e:
+            results.append({
+                "code": code,
+                "error": e.detail,
+                "model_metadata": _model_metadata("compare"),
+                "data_freshness": _data_freshness(None),
+                "fallback_reason": "source data missing or prediction failed",
+            })
+    return {
+        "mode": "multi_compare",
+        "pred_days": pred_days,
+        "model_metadata": _model_metadata("compare"),
+        "items": results,
+    }
+
+
+@router.get("/accuracy-backtest")
+async def prediction_accuracy_backtest():
+    return {
+        "mode": "accuracy_backtest",
+        "model_metadata": _model_metadata("accuracy-backtest"),
+        "data_freshness": {
+            "status": "unknown",
+            "as_of": None,
+            "source": "backtest.prediction_accuracy",
+            "quality_score": 0,
+        },
+        "fallback_reason": "accuracy backtest awaits persisted prediction labels",
+        "metrics": [
+            {"window": "近30日", "direction_accuracy": 0.0, "sample_size": 0},
+            {"window": "近90日", "direction_accuracy": 0.0, "sample_size": 0},
+        ],
+    }
 
 
 @router.post("/{code}/fast")
@@ -259,7 +453,13 @@ async def predict_stock_fast(
     """🔥 V2 快速预测: 单样本+低延迟，适合实时诊断 (延迟 ~300ms vs 标准 ~1s)。"""
     kline = _get_kline(code)
     if kline is None:
-        raise HTTPException(404, f"No K-line data for {code} (need ≥30 rows)")
+        raise HTTPException(
+            404,
+            {
+                "message": f"No K-line data for {code} (need ≥30 rows)",
+                "fallback_reason": "source data missing: daily_kline has fewer than 30 rows",
+            },
+        )
 
     df, x_ts = kline
     lookback = min(len(df), 400)
@@ -270,7 +470,9 @@ async def predict_stock_fast(
     y_ts = pd.bdate_range(start=last_date + pd.Timedelta(days=1), periods=pred_days)
     y_timestamp = pd.Series(y_ts)
 
-    if not _m._model_loaded or _m._predictor is None:
+    used_baseline = False
+    if not getattr(_m, "_model_loaded", False) or getattr(_m, "_predictor", None) is None:
+        used_baseline = True
         pred_df = _baseline_predict(x_df, pred_days)
     else:
         try:
@@ -282,6 +484,7 @@ async def predict_stock_fast(
             raise HTTPException(500, f"Prediction failed: {e}")
 
     current_price = float(df["close"].iloc[-1])
+    pred_df = _sanitize_prediction_df(pred_df, current_price)
     pred_close = float(pred_df["close"].iloc[-1])
     pred_return = round((pred_close / current_price - 1) * 100, 2)
 
@@ -298,7 +501,7 @@ async def predict_stock_fast(
     except Exception:
         pass
 
-    return {
+    payload = {
         "code": code, "mode": "fast",
         "current_price": round(current_price, 2),
         "pred_days": pred_days,
@@ -315,6 +518,13 @@ async def predict_stock_fast(
             for i in range(min(pred_days, len(pred_df)))
         ],
     }
+    return _with_prediction_contract(
+        payload,
+        code=code,
+        mode="fast",
+        x_ts=x_timestamp,
+        used_baseline=used_baseline,
+    )
 
 
 @router.post("/{code}")
@@ -325,7 +535,13 @@ async def predict_stock(
     """Run real Kronos prediction for a single stock."""
     kline = _get_kline(code)
     if kline is None:
-        raise HTTPException(404, f"No K-line data for {code} (need ≥30 rows)")
+        raise HTTPException(
+            404,
+            {
+                "message": f"No K-line data for {code} (need ≥30 rows)",
+                "fallback_reason": "source data missing: daily_kline has fewer than 30 rows",
+            },
+        )
 
     df, x_ts = kline
     lookback = min(len(df), 400)
@@ -337,7 +553,9 @@ async def predict_stock(
     y_ts = pd.bdate_range(start=last_date + pd.Timedelta(days=1), periods=pred_days)
     y_timestamp = pd.Series(y_ts)
 
-    if not _m._model_loaded or _m._predictor is None:
+    used_baseline = False
+    if not getattr(_m, "_model_loaded", False) or getattr(_m, "_predictor", None) is None:
+        used_baseline = True
         pred_df = _baseline_predict(x_df, pred_days)
     else:
         try:
@@ -350,6 +568,7 @@ async def predict_stock(
             raise HTTPException(500, f"Prediction failed: {e}")
 
     current_price = float(df["close"].iloc[-1])
+    pred_df = _sanitize_prediction_df(pred_df, current_price)
     pred_close = float(pred_df["close"].iloc[-1])
     pred_return = round((pred_close / current_price - 1) * 100, 2)
     pred_high = round(float(pred_df["high"].max()), 2)
@@ -369,7 +588,7 @@ async def predict_stock(
     except Exception:
         pass
 
-    return {
+    payload = {
         "code": code,
         "current_price": round(current_price, 2),
         "pred_days": pred_days,
@@ -389,6 +608,13 @@ async def predict_stock(
             for i in range(min(pred_days, len(pred_df)))
         ],
     }
+    return _with_prediction_contract(
+        payload,
+        code=code,
+        mode="single",
+        x_ts=x_timestamp,
+        used_baseline=used_baseline,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -400,7 +626,14 @@ async def predict_stock_meta(code: str, pred_days: int = Query(20, ge=5, le=30))
     """P4: Kronos 元模型融合 — 20维辅助特征加权."""
     if not _m._model_loaded: raise HTTPException(503, "Model not loaded")
     kline = _get_kline(code)
-    if kline is None: raise HTTPException(404, f"No data for {code}")
+    if kline is None:
+        raise HTTPException(
+            404,
+            {
+                "message": f"No data for {code}",
+                "fallback_reason": "source data missing: daily_kline has fewer than 30 rows",
+            },
+        )
     df, x_ts = kline
     x_df = df.iloc[-min(len(df),400):]
     x_ts2 = x_ts.iloc[-min(len(df),400):].reset_index(drop=True)
@@ -410,11 +643,19 @@ async def predict_stock_meta(code: str, pred_days: int = Query(20, ge=5, le=30))
             y_timestamp=pd.Series(y_ts), pred_len=pred_days, verbose=False)
     except Exception as e: raise HTTPException(500, str(e))
     cp = float(df["close"].iloc[-1])
+    pred_df = _sanitize_prediction_df(pred_df, cp)
     pc = float(pred_df["close"].iloc[-1])
     pr = round((pc/cp-1)*100, 2)
     feats = _get_auxiliary_features(code) or {}
     aux = _compute_auxiliary_score(feats) if feats else {"score":5,"signals":[]}
     vb = 2.0 if (5<(feats.get("pe",0)<25) and (feats.get("pb",0)<3)) else (-2.0 if feats.get("pe",0)>100 else 0)
     mr = round(pr*0.60 + (aux["score"]-5)*0.5*0.25 + vb*0.15, 2)
-    return {"code":code,"mode":"meta","current_price":round(cp,2),
+    payload = {"code":code,"mode":"meta","current_price":round(cp,2),
         "kronos_return_pct":pr,"meta_return_pct":mr,"auxiliary":aux}
+    return _with_prediction_contract(
+        payload,
+        code=code,
+        mode="meta",
+        x_ts=x_ts2,
+        used_baseline=False,
+    )

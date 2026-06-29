@@ -5,7 +5,10 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Body, Header, Query, HTTPException, Depends
 from kronos_auth import require_role
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import plan_pg_store
+from app.database import get_db
 from app.plan_store import get_store
 from app.platform_scope import plan_to_dict, resolve_platform_scope
 from app.auto_trading_engine import (
@@ -19,6 +22,28 @@ router = APIRouter(prefix="/api/v1/strategy", tags=["strategy"])
 store = get_store()
 
 
+async def _plan_record_safe(db: AsyncSession, plan) -> None:
+    if db is None:
+        return
+    try:
+        await plan_pg_store.record(db, plan=plan)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        # PG is the durable target, but routes keep the in-memory store as the
+        # fallback so local development and tests do not lose existing behavior.
+        return
+
+
+async def _plan_query_safe(db: AsyncSession, **filters):
+    if db is None:
+        return None
+    try:
+        return await plan_pg_store.query(db, **filters)
+    except Exception:
+        return None
+
+
 @router.post("/plans")
 async def create_plan(
     name: str = Query("未命名方案"),
@@ -29,6 +54,7 @@ async def create_plan(
     tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
     account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
     data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Create a new draft plan."""
@@ -37,6 +63,7 @@ async def create_plan(
                         capital=capital, max_positions=max_positions,
                         **scope)
     plan.single_max_pct = single_max_pct
+    await _plan_record_safe(db, plan)
     return {
         "plan": plan_to_dict(plan),
         "message": f"方案 {plan.id} 创建成功",
@@ -50,6 +77,7 @@ async def add_picks(
     tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
     account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
     data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Add screening picks to a plan."""
@@ -58,6 +86,7 @@ async def add_picks(
     if not plan: raise HTTPException(404, "方案不存在")
     plan.picks = picks
     plan.updated_at = datetime.now(timezone.utc).isoformat()
+    await _plan_record_safe(db, plan)
     return {"plan_id": plan_id, "picks_count": len(plan.picks), "message": f"已添加 {len(picks)} 只标的"}
 
 
@@ -66,10 +95,14 @@ async def list_plans(
     tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
     account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
     data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
 ):
     """List all plans."""
     scope = resolve_platform_scope(user, tenant_id=tenant_id, account_id=account_id, data_scope=data_scope)
+    pg_result = await _plan_query_safe(db, **scope)
+    if pg_result and pg_result["total"] > 0:
+        return {"plans": pg_result["plans"], "total": pg_result["total"]}
     plans = store.list_for_scope(**scope)
     return {
         "plans": [plan_to_dict(p) for p in plans],
@@ -83,10 +116,14 @@ async def get_plan(
     tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
     account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
     data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
 ):
     """Get plan detail with picks."""
     scope = resolve_platform_scope(user, tenant_id=tenant_id, account_id=account_id, data_scope=data_scope)
+    pg_result = await _plan_query_safe(db, plan_id=plan_id, **scope)
+    if pg_result and pg_result["plans"]:
+        return pg_result["plans"][0]
     plan = store.get_for_scope(plan_id, **scope)
     if not plan: raise HTTPException(404, "方案不存在")
     return {
@@ -107,6 +144,7 @@ async def update_plan(
     tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
     account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
     data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Update plan name or status."""
@@ -119,7 +157,9 @@ async def update_plan(
         if status not in ("draft", "confirmed", "archived"):
             raise HTTPException(400, f"Invalid status: {status}")
         updates["status"] = status
-    store.update(plan_id, **updates)
+    plan = store.update(plan_id, **updates)
+    if plan:
+        await _plan_record_safe(db, plan)
     return {"plan_id": plan_id, "updates": updates, "status": "ok"}
 
 
@@ -129,15 +169,18 @@ async def delete_plan(
     tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
     account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
     data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Delete a plan."""
     scope = resolve_platform_scope(user, tenant_id=tenant_id, account_id=account_id, data_scope=data_scope)
     if not store.get_for_scope(plan_id, **scope):
-        raise HTTPException(404, "方案不存在")
+        pg_result = await _plan_query_safe(db, plan_id=plan_id, **scope)
+        if not (pg_result and pg_result["plans"]):
+            raise HTTPException(404, "方案不存在")
     if store.delete(plan_id):
         return {"plan_id": plan_id, "status": "deleted"}
-    raise HTTPException(404, "方案不存在")
+    return {"plan_id": plan_id, "status": "delete_pending_pg"}
 
 
 @router.post("/plans/{plan_id}/confirm")
@@ -146,6 +189,7 @@ async def confirm_plan(
     tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
     account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
     data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
+    db: AsyncSession | None = Depends(get_db),
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Confirm a plan → generates report + trading signals."""
@@ -154,6 +198,7 @@ async def confirm_plan(
         raise HTTPException(404, "方案不存在")
     plan = store.confirm(plan_id)
     if not plan: raise HTTPException(404, "方案不存在")
+    await _plan_record_safe(db, plan)
     return {
         "plan_id": plan_id, "status": "confirmed",
         "picks_count": len(plan.picks),

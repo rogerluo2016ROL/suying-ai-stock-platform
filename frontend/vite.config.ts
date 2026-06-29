@@ -3,6 +3,31 @@ import react from '@vitejs/plugin-react'
 import { resolveProxyTargets } from './proxyTargets'
 
 const proxyTargets = resolveProxyTargets(process.env)
+const serviceHealthTargets: Record<string, string> = {
+  auth: proxyTargets.auth,
+  admin: proxyTargets.auth,
+  screener: proxyTargets.screener,
+  prediction: proxyTargets.prediction,
+  strategy: proxyTargets.strategy,
+  signal: proxyTargets.signal,
+  dashboard: proxyTargets.screener,
+  data: proxyTargets.signal,
+  alert: proxyTargets.alert,
+  trade: proxyTargets.trade,
+  backtest: proxyTargets.backtest,
+  training: proxyTargets.training,
+  diagnosis: proxyTargets.diagnosis,
+}
+const serviceHealthProxy = Object.fromEntries(
+  Object.entries(serviceHealthTargets).map(([service, target]) => [
+    `/api/v1/${service}/health`,
+    {
+      target,
+      changeOrigin: true,
+      rewrite: () => (service === 'auth' || service === 'admin' ? '/api/health' : '/api/v1/health'),
+    },
+  ]),
+)
 
 /// <reference types="vitest/config" />
 // P2 测试加固（FE-P1 review S-2 同批）：tests/sit/auth-flow.test.tsx 在单 worker
@@ -25,8 +50,9 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
+      ...serviceHealthProxy,
       '/api/v1/screener':    { target: proxyTargets.screener, changeOrigin: true, timeout: 600000 },
-      '/api/v1/dashboard':   { target: proxyTargets.signal, changeOrigin: true },
+      '/api/v1/dashboard':   { target: proxyTargets.screener, changeOrigin: true },
       '/api/v1/prediction':  { target: proxyTargets.prediction, changeOrigin: true },
       '/api/v1/strategy':    { target: proxyTargets.strategy, changeOrigin: true },
       '/api/v1/signal':      { target: proxyTargets.signal, changeOrigin: true },

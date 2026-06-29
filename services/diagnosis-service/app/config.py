@@ -59,8 +59,16 @@ JWT_ALGORITHM = "HS256"
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 # ── Kronos prediction service ──
+def _default_kronos_prediction_url() -> str:
+    if os.environ.get("KRONOS_PREDICTION_URL"):
+        return os.environ["KRONOS_PREDICTION_URL"]
+    if os.path.exists("/.dockerenv"):
+        return "http://prediction-service:8002/api/v1/prediction"
+    return "http://localhost:8002/api/v1/prediction"
+
+
 KRONOS_PREDICTION_URL = os.environ.get(
-    "KRONOS_PREDICTION_URL", "http://localhost:8001/api/v1/prediction"
+    "KRONOS_PREDICTION_URL", _default_kronos_prediction_url()
 )
 KRONOS_PREDICTION_TIMEOUT = int(os.environ.get("KRONOS_PREDICTION_TIMEOUT", "8"))
 

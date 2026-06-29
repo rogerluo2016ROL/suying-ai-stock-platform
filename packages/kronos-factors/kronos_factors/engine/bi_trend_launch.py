@@ -865,8 +865,14 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
 
     candidates.sort(key=_signal_rank)
 
-    # V14: 最低分散化 + 分级仓位 + 分级止损 (抽为公共函数, bi_alpha_v15 共用)
+    # V14: 最低分散化 (抽为公共函数, bi_alpha_v15 共用)
     top = apply_v14_risk_controls(candidates, effective_n)
+    # M02: run_bi_screening 保持 V5.9 调参前统一交易参数, 禁止样本内个股教训覆盖。
+    for s in top:
+        s["hold_days"] = 5
+        s["take_profit"] = 15
+        s["stop_loss"] = -10
+        s["weight"] = 1.0
 
     market_info = {
         "breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1),

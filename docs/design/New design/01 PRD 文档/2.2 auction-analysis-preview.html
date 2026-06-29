@@ -242,14 +242,175 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
   <div class="main">
     <div id="header-mount"></div>
     <main class="content">
-      <section class="platform-scope-strip" data-platform-scope="mixed">
-        <div class="scope-item"><div class="scope-k">角色视图</div><div class="scope-v accent">操盘手</div><div class="scope-s">操盘手 / 个人投资者 / 管理员按权限裁剪</div></div>
-        <div class="scope-item"><div class="scope-k">数据域</div><div class="scope-v">公共竞价 + 私有候选</div><div class="scope-s">公共数据可共享，私有数据强隔离</div></div>
-        <div class="scope-item"><div class="scope-k">账户隔离</div><div class="scope-v down">tenant/user</div><div class="scope-s">所有私有对象携带归属字段</div></div>
-        <div class="scope-item"><div class="scope-k">券商模式</div><div class="scope-v warn">进入方案后绑定账户</div><div class="scope-s">实盘动作必须风控 + 审计</div></div>
-        <div class="scope-item"><div class="scope-k">云端基线</div><div class="scope-v"><a href="0.3 平台化云端多租户总体需求设计.md">多租户设计</a></div><div class="scope-s">下一步对接前后端/模型</div></div>
-      </section>
-<div class="right-panel">
+      <div class="content-left">
+        <div class="engine-bar">
+          <span class="eng-dot ok"></span>
+          <span class="eng-name">竞价分析引擎 <span class="eng-ver">auction_intent_v2.4</span></span>
+          <span class="tag tag-red">09:25 集合竞价完成</span>
+          <span class="tag tag-blue">328 只标的</span>
+          <span class="eng-time">最近刷新 09:25:42</span>
+          <button class="eng-retry" onclick="alert('已刷新竞价分析数据')">刷新</button>
+        </div>
+
+        <div class="risk-banner">
+          <div class="risk-icon">⚠️</div>
+          <div class="risk-content">
+            <div class="risk-title">竞价风险提示 · <span class="stock">高开过热板块需二次确认</span></div>
+            <div class="risk-summary">半导体、新能源板块竞价共振较强；若开盘 5 分钟量价不能延续，候选池标的进入信号扫描复核，不直接下单。</div>
+            <div class="risk-actions">
+              <button class="sel-btn" onclick="switchSubTab('intent')">查看意图全景</button>
+              <button class="sel-btn primary" onclick="switchSubTab('stock')">进入竞价选股</button>
+            </div>
+          </div>
+          <button class="risk-close" onclick="this.closest('.risk-banner').style.display='none'">×</button>
+        </div>
+
+        <div class="subtab-bar">
+          <div class="subtab-item active" id="st-intent" onclick="switchSubTab('intent')">竞价意图全景</div>
+          <div class="subtab-item" id="st-stock" onclick="switchSubTab('stock')">竞价选股</div>
+          <div class="subtab-item" id="st-bond" onclick="switchSubTab('bond')">可转债竞价</div>
+          <div class="subtab-item" id="st-detail" onclick="switchSubTab('detail')">全量明细</div>
+        </div>
+
+        <section class="subtab-panel visible" id="panel-intent">
+          <div class="kpis">
+            <div class="kpi"><div class="kl">分析标的</div><div class="kv">328</div><div class="ks">沪深竞价池</div></div>
+            <div class="kpi bl-red"><div class="kl">强烈抢筹</div><div class="kv up">45</div><div class="ks">评分 ≥ 75</div></div>
+            <div class="kpi bl-orange"><div class="kl">偏多抢筹</div><div class="kv warn">89</div><div class="ks">评分 60-74</div></div>
+            <div class="kpi bl-blue"><div class="kl">中性观察</div><div class="kv neu">120</div><div class="ks">等待开盘确认</div></div>
+            <div class="kpi bl-green"><div class="kl">出货预警</div><div class="kv down">74</div><div class="ks">偏空/强出货</div></div>
+            <div class="kpi bl-blue"><div class="kl">候选池</div><div class="kv neu">5</div><div class="ks">已入池待复核</div></div>
+          </div>
+
+          <div class="row r-1-1">
+            <div class="card">
+              <div class="card-h" style="border-left:3px solid var(--up)">
+                <h3>🔥 抢筹 TOP 10</h3>
+                <span class="meta">勾选后加入候选池</span>
+              </div>
+              <div class="table-header">
+                <span style="width:16px"></span><span class="st-rank">#</span><span class="st-code">代码</span><span class="st-name">名称</span><span class="st-chg">涨幅</span><span class="st-vr">竞量比</span><span class="st-score">评分</span><span class="st-intent">意图</span>
+              </div>
+              <div class="stock-pick-table" id="bullishTable"></div>
+              <div class="selection-bar">
+                <span class="sel-count">已选 <strong>0</strong></span>
+                <button class="sel-btn" onclick="selectAllBullish()">全选可用</button>
+                <button class="sel-btn primary" onclick="addToCandidatePool('bullish')">加入候选池</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h" style="border-left:3px solid var(--down)">
+                <h3>⚠️ 出货预警 TOP 10</h3>
+                <span class="meta">规避或反向观察</span>
+              </div>
+              <div class="table-header">
+                <span style="width:16px"></span><span class="st-rank">#</span><span class="st-code">代码</span><span class="st-name">名称</span><span class="st-chg">涨幅</span><span class="st-vr">竞量比</span><span class="st-score">评分</span><span class="st-intent">意图</span>
+              </div>
+              <div class="bond-pick-table" id="bearishTable"></div>
+              <div class="selection-bar">
+                <span class="sel-count">预警样本</span>
+                <button class="sel-btn" onclick="selectAllBearish()">全选可用</button>
+                <button class="sel-btn danger" onclick="addToCandidatePool('bearish')">加入观察</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="row r-16-8 mt14">
+            <div class="card">
+              <div class="card-h">
+                <h3>📈 竞价撮合价走势</h3>
+                <span class="meta">09:15-09:25 撮合价/匹配量</span>
+              </div>
+              <div class="card-b">
+                <div id="timelineChart"></div>
+                <div class="zit">撮合价持续上移且匹配量放大时，优先进入信号扫描复核。</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h">
+                <h3>🎯 四维评分</h3>
+                <span class="meta">价格方向 / 买卖压力 / 竞价强度 / 开盘延续</span>
+              </div>
+              <div class="card-b">
+                <div id="radarChart"></div>
+                <div class="stock-info">
+                  <div class="si-code">000001</div>
+                  <div class="si-name">平安银行</div>
+                  <div class="si-row"><span class="si-lbl">竞价价</span><span class="si-val up">12.50</span></div>
+                  <div class="si-row"><span class="si-lbl">涨幅</span><span class="si-val up">+4.17%</span></div>
+                  <div class="si-row"><span class="si-lbl">意图</span><span class="si-val"><span class="tag tag-red">强烈抢筹</span></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mt14">
+            <div class="card-h">
+              <h3>🏭 一字定方向</h3>
+              <span class="meta">板块竞价热度 · 点击板块查看强势股与转债</span>
+            </div>
+            <div class="card-b">
+              <div class="sector-grid" id="sectorGrid"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="subtab-panel" id="panel-stock">
+          <div class="card">
+            <div class="card-h">
+              <h3>📌 竞价选股引擎</h3>
+              <span class="meta">过滤已入池标的 · 默认按竞价分排序</span>
+            </div>
+            <div class="table-header">
+              <span style="width:16px"></span><span class="st-rank">#</span><span class="st-code">代码</span><span class="st-name">名称</span><span class="st-chg">高开</span><span style="width:44px;text-align:right">评分</span><span style="width:72px;text-align:right">封单</span><span class="st-intent">板块</span><span style="width:40px;text-align:center">形态</span>
+            </div>
+            <div class="stock-pick-table" id="stockPickTableBody"></div>
+            <div class="selection-bar">
+              <span class="sel-count">已选 <strong id="stockPickCount">3</strong></span>
+              <button class="sel-btn" onclick="toggleAllStockPicks()">全选/反选</button>
+              <button class="sel-btn" onclick="clearStockPicksSelection()">清空</button>
+              <button class="sel-btn primary" onclick="addToCandidatePool('stock')">加入候选池</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="subtab-panel" id="panel-bond">
+          <div class="card">
+            <div class="card-h">
+              <h3>💵 可转债竞价</h3>
+              <span class="meta">溢价率 + 正股竞价强度联动</span>
+            </div>
+            <div class="table-header">
+              <span style="width:16px"></span><span class="st-rank">#</span><span style="width:66px">转债代码</span><span class="st-name">名称</span><span style="width:56px;text-align:center">概念</span><span style="width:54px;text-align:right">溢价</span><span style="width:54px;text-align:right">涨幅</span><span style="width:44px;text-align:right">评分</span><span style="width:66px">正股</span><span style="width:50px;text-align:right">正股涨</span>
+            </div>
+            <div class="bond-pick-table" id="bondPickTableBody"></div>
+            <div class="selection-bar">
+              <span class="sel-count">已选 <strong id="bondPickCount">2</strong></span>
+              <button class="sel-btn" onclick="toggleAllBondPicks()">全选/反选</button>
+              <button class="sel-btn" onclick="clearBondPicksSelection()">清空</button>
+              <button class="sel-btn primary" onclick="addToCandidatePool('bond')">加入候选池</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="subtab-panel" id="panel-detail">
+          <div class="card">
+            <div class="card-h">
+              <h3>📋 全量竞价明细</h3>
+              <span class="meta">共 328 只 · 第 1-12 条</span>
+              <button class="sel-btn primary" onclick="addToCandidatePool('detail')">加入候选池</button>
+            </div>
+            <div class="detail-header">
+              <span style="width:16px"></span><span class="d-col-code">代码</span><span class="d-col-name">名称</span><span class="d-col-chg">涨幅</span><span class="d-col-aprice">竞价价</span><span class="d-col-prev">昨收</span><span class="d-col-vr">竞量比</span><span class="d-col-wb">委比</span><span class="d-col-score">评分</span><span class="d-col-intent">意图</span><span class="d-col-sector">板块</span>
+            </div>
+            <div style="max-height:560px;overflow-y:auto" id="detailTableBody"></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="right-panel">
             
                     <!-- NEW: 板块共振详情 -->
                     <div class="rp-card">

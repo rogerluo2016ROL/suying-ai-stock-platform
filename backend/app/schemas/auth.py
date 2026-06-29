@@ -78,6 +78,7 @@ class UserResponse(BaseModel):
     default_trade_account_id: str | None = None
     trade_mode: str | None = None
     broker_adapter: str | None = None
+    broker_connect_config: dict[str, str | int] | None = None
 
     model_config = {"from_attributes": True}
 
@@ -93,6 +94,7 @@ class TokenUserResponse(BaseModel):
     default_trade_account_id: str | None = None
     trade_mode: str | None = None
     broker_adapter: str | None = None
+    broker_connect_config: dict[str, str | int] | None = None
 
 
 class AuthTokenResponse(BaseModel):

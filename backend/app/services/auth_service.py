@@ -22,6 +22,7 @@ from app.config import (
 )
 from app.models.user import User, Role, RefreshToken
 from app.models.platform import Membership
+from app.services.platform_service import ensure_user_platform_defaults
 
 # ── Argon2id hasher ──
 _ph = PasswordHasher(
@@ -110,7 +111,10 @@ async def create_user(
     await db.refresh(user)
     # Eager-load role
     await db.refresh(user, attribute_names=["role"])
-    return user
+    await ensure_user_platform_defaults(db, user)
+    await db.commit()
+    loaded_user = await get_user_by_id(db, user.id)
+    return loaded_user or user
 
 
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> User | None:

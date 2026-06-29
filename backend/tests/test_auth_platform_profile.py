@@ -24,9 +24,16 @@ def test_token_user_response_has_platform_defaults_for_investor():
 
     assert response.tenant_id == "tenant-default"
     assert response.tenant_name == "默认租户"
-    assert response.default_trade_account_id == "paper-default"
+    assert response.default_trade_account_id == "paper-u9"
     assert response.trade_mode == "paper"
     assert response.broker_adapter == "paper"
+    assert response.broker_connect_config == {
+        "broker_name": "mock_qmt",
+        "account_id": "paper-u9",
+        "server_ip": "127.0.0.1",
+        "server_port": 16001,
+        "environment": "sandbox",
+    }
 
 
 def test_user_response_uses_default_membership_and_broker_account_when_present():
@@ -52,6 +59,13 @@ def test_user_response_uses_default_membership_and_broker_account_when_present()
     assert response.default_trade_account_id == "qmt-880001"
     assert response.trade_mode == "live"
     assert response.broker_adapter == "xtquant_qmt"
+    assert response.broker_connect_config == {
+        "broker_name": "mock_qmt",
+        "account_id": "qmt-880001",
+        "server_ip": "127.0.0.1",
+        "server_port": 16001,
+        "environment": "sandbox",
+    }
 
 
 def test_admin_defaults_to_platform_scope_without_trade_account():

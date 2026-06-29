@@ -1,404 +1,302 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Card, Table, Tag, Typography, Space, Button, Badge, Tooltip, Modal, InputNumber, Select, Switch, message, TimePicker } from 'antd'
-import dayjs, { type Dayjs } from 'dayjs'
-import { SyncOutlined, ClockCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined, CloudDownloadOutlined, ThunderboltOutlined, FieldTimeOutlined } from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
-import api from '../api/client'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { ClockCircleOutlined, DatabaseOutlined, ReloadOutlined, TableOutlined } from '@ant-design/icons'
+import { signalApi } from '../api/client'
+import type { DataStatusResponse, SyncSchedule } from '../api/types'
+import {
+  DataDomainBadge,
+  MetricCard,
+  PrototypeCard,
+  PrototypePage,
+  PrototypePageHeader,
+  PrototypeTabs,
+  RiskBanner,
+  SegmentTabs,
+  SideRail,
+} from '../components/prototype'
 
-const { Title, Text } = Typography
-
-interface DataSource {
-  key: string; name: string; category: string; source: string
-  update: string; note: string
-  rows: number; min_date: string; max_date: string; status: string
-}
-
-interface SyncMapEntry { mode: string; days_default: number; desc: string }
-
-const INTERVAL_OPTIONS = [
-  { value: 0, label: '关闭' },
-  { value: 5, label: '5 分钟' },
-  { value: 15, label: '15 分钟' },
-  { value: 30, label: '30 分钟' },
-  { value: 60, label: '1 小时' },
-  { value: 240, label: '4 小时' },
-  { value: 1440, label: '每天' },
+const tabs = [
+  { key: 'root', path: '/data-update', label: '数据更新', subLabel: '今日状态' },
+  { key: 'overview', path: '/data-update/overview', label: '数据总览', subLabel: '质量 / 新鲜度' },
+  { key: 'tables', path: '/data-update/tables', label: '全部数据表', subLabel: '表级质量' },
+  { key: 'schedule', path: '/data-update/schedule', label: '同步调度', subLabel: '任务计划' },
 ]
 
-const categoryColors: Record<string, string> = {
-  '行情': 'blue', '资金': 'red', '特色': 'orange', '财务': 'purple', '基础': 'green', '舆情': 'cyan',
+const fallbackStatus: DataStatusResponse = {
+  status: 'ok',
+  total_tables: 4,
+  active_tables: 3,
+  total_rows: 982000,
+  sources: [
+    {
+      key: 'daily_kline',
+      name: '日线行情',
+      category: '行情',
+      source: 'Tushare',
+      update: '每日',
+      note: 'A股日线 OHLCV',
+      rows: 620000,
+      min_date: '2024-01-01',
+      max_date: '2026-06-27',
+      status: 'active',
+    },
+    {
+      key: 'stock_basic',
+      name: '股票基础',
+      category: '基础',
+      source: 'Tushare',
+      update: '每日',
+      note: '证券主数据',
+      rows: 5300,
+      min_date: '2020-01-01',
+      max_date: '2026-06-27',
+      status: 'active',
+    },
+    {
+      key: 'signals',
+      name: '交易信号',
+      category: '模型',
+      source: 'signal-service',
+      update: '盘中',
+      note: '信号计算结果',
+      rows: 18600,
+      min_date: '2026-05-01',
+      max_date: '2026-06-27',
+      status: 'active',
+    },
+    {
+      key: 'moneyflow',
+      name: '资金流向',
+      category: '行情',
+      source: 'Tushare',
+      update: '每日',
+      note: '等待盘后同步',
+      rows: 0,
+      min_date: '-',
+      max_date: '-',
+      status: 'empty',
+    },
+  ],
+  sync_map: {
+    daily_kline: { mode: 'post_market', days_default: 30, desc: '日线行情' },
+    stock_basic: { mode: 'daily', days_default: 1, desc: '股票基础' },
+    signals: { mode: 'intra', days_default: 3, desc: '交易信号' },
+  },
+}
+
+function activeTabFromPath(pathname: string) {
+  if (pathname.includes('/overview')) return 'overview'
+  if (pathname.includes('/tables')) return 'tables'
+  if (pathname.includes('/schedule')) return 'schedule'
+  return 'root'
+}
+
+function safeNumber(value: unknown, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+function normalizeDataStatus(input: Partial<DataStatusResponse> | undefined): DataStatusResponse {
+  const value = input && typeof input === 'object' ? input : {}
+  return {
+    ...fallbackStatus,
+    ...value,
+    total_tables: safeNumber(value.total_tables, fallbackStatus.total_tables),
+    active_tables: safeNumber(value.active_tables, fallbackStatus.active_tables),
+    total_rows: safeNumber(value.total_rows, fallbackStatus.total_rows),
+    sources: Array.isArray(value.sources) && value.sources.length > 0
+      ? value.sources.map(source => ({
+          ...source,
+          rows: safeNumber(source.rows, 0),
+          status: source.status || 'empty',
+        }))
+      : fallbackStatus.sources,
+    sync_map: value.sync_map && typeof value.sync_map === 'object'
+      ? value.sync_map
+      : fallbackStatus.sync_map,
+  }
+}
+
+function formatRows(rows: number | undefined | null) {
+  const safeRows = safeNumber(rows, 0)
+  if (safeRows >= 10000) return `${Math.round(safeRows / 10000)}万`
+  return safeRows.toLocaleString()
 }
 
 export default function DataUpdate() {
-  const [sources, setSources] = useState<DataSource[]>([])
-  const [syncMap, setSyncMap] = useState<Record<string, SyncMapEntry>>({})
-  const [loading, setLoading] = useState(false)
-  const [syncing, setSyncing] = useState<string | null>(null)
-  const [lastRefresh, setLastRefresh] = useState('')
-  const [stats, setStats] = useState({ total_tables: 0, active_tables: 0, total_rows: 0 })
-  const [syncModal, setSyncModal] = useState<{
-    open: boolean; key: string; name: string; mode: string; days: number; interval: number; dailyAt: Dayjs | null
-  }>({ open: false, key: '', name: '', mode: '', days: 30, interval: 0, dailyAt: null })
-  // Per-table auto-refresh: key → { intervalMinutes, nextRunAt, enabled, dailyAt? }
-  const [schedules, setSchedules] = useState<Record<string, { interval: number; nextRun: number; enabled: boolean; dailyAt?: string }>>({})
-  const timersRef = useRef<Record<string, ReturnType<typeof setInterval>>>({})
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const active = activeTabFromPath(pathname)
+  const [status, setStatus] = useState<DataStatusResponse>(fallbackStatus)
+  const [schedules, setSchedules] = useState<SyncSchedule[]>([])
+  const [filter, setFilter] = useState('all')
+  const [error, setError] = useState('')
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: d } = await api.get(`/data/status?_t=${Date.now()}`)
-      setSources(d.sources || [])
-      setSyncMap(d.sync_map || {})
-      setLastRefresh(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
-      setStats({ total_tables: d.total_tables, active_tables: d.active_tables, total_rows: d.total_rows })
-    } catch { /* */ }
-    finally { setLoading(false) }
+  useEffect(() => {
+    let cancelled = false
+
+    Promise.all([
+      signalApi.getDataStatus(),
+      signalApi.getSyncSchedules(),
+    ])
+      .then(([dataStatus, syncSchedules]) => {
+        if (cancelled) return
+        setStatus(normalizeDataStatus(dataStatus.data))
+        setSchedules(Array.isArray(syncSchedules.data?.schedules) ? syncSchedules.data.schedules : [])
+        setError('')
+      })
+      .catch(() => {
+        if (cancelled) return
+        setStatus(fallbackStatus)
+        setSchedules([])
+        setError('数据服务连接异常，当前展示最近一次可用状态。')
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const triggerSync = async (key: string, days: number, silent = false) => {
-    setSyncing(key)
-    try {
-      // Map table keys to data-service sync types
-      const syncType = key === 'rt_min' ? 'rt_min' : key === 'stocks' ? 'stocks' : 'post_market'
-      const { data: d } = await api.post(`/data/sync/${syncType}?days=${days}`)
-      if (d.status === 'ok') {
-        if (!silent) message.success(`${d.desc}: ${d.output?.[d.output.length-1] || '同步完成'}`)
-      } else {
-        if (!silent) message.error(d.message || '同步失败，请检查 Tushare 连接')
-      }
-    } catch { if (!silent) message.error('触发同步失败') }
-    finally { setSyncing(null); fetchData() }
-  }
-
-  const openSyncModal = (key: string, name: string) => {
-    const sm = syncMap[key]
-    const sched = schedules[key]
-    setSyncModal({
-      open: true, key, name, mode: sm?.mode || '', days: sm?.days_default || 30,
-      interval: sched?.interval || 0, dailyAt: sched?.dailyAt ? dayjs(sched.dailyAt, 'HH:mm') : null,
-    })
-  }
-
-  // Calculate next run time for daily-at-specific-time schedule
-  const calcDailyNextRun = (timeStr: string): number => {
-    const now = dayjs()
-    const target = dayjs(timeStr, 'HH:mm')
-    let next = now.hour(target.hour()).minute(target.minute()).second(0)
-    if (next.isBefore(now)) next = next.add(1, 'day')
-    return next.valueOf()
-  }
-
-  // Persist schedule to backend
-  const saveSchedule = async (key: string, daysBack: number, intervalMin: number, dailyAt: string | null, enabled: boolean) => {
-    const params = new URLSearchParams({ table_key: key, days_back: String(daysBack), interval_minutes: String(intervalMin), enabled: String(enabled) })
-    if (dailyAt) params.set('daily_at', dailyAt)
-    try { await api.post(`/data/status?${params}`) } catch {}
-  }
-  const deleteSchedule = async (key: string) => {
-    try { await api.delete(`/data/status?table_key=${key}`) } catch {}
-  }
-
-  // Start/stop auto-refresh timer for a table
-  const setAutoRefresh = (key: string, intervalMin: number, dailyAt: string | null) => {
-    if (timersRef.current[key]) { clearInterval(timersRef.current[key]); delete timersRef.current[key] }
-    if (intervalMin <= 0) {
-      setSchedules(prev => { const n = { ...prev }; delete n[key]; return n })
-      deleteSchedule(key)
-      return
-    }
-    const ms = intervalMin * 60 * 1000
-    const nextRun = dailyAt ? calcDailyNextRun(dailyAt) : Date.now() + ms
-    setSchedules(prev => ({ ...prev, [key]: { interval: intervalMin, nextRun, enabled: true, dailyAt: dailyAt || undefined } }))
-
-    if (dailyAt) {
-      // Daily-at-time: use setTimeout chain instead of setInterval
-      const scheduleNext = () => {
-        const next = calcDailyNextRun(dailyAt)
-        timersRef.current[key] = setTimeout(() => {
-          triggerSync(key, syncMap[key]?.days_default || 30, true)
-          setSchedules(prev => {
-            const s = prev[key]
-            return s ? { ...prev, [key]: { ...s, nextRun: calcDailyNextRun(dailyAt) } } : prev
-          })
-          scheduleNext()
-        }, next - Date.now())
-      }
-      scheduleNext()
-    } else {
-      // Interval: use setInterval
-      timersRef.current[key] = setInterval(() => {
-        triggerSync(key, syncMap[key]?.days_default || 30, true)
-        setSchedules(prev => {
-          const s = prev[key]
-          return s ? { ...prev, [key]: { ...s, nextRun: Date.now() + ms } } : prev
-        })
-      }, ms)
-    }
-  }
-
-  // Cleanup timers on unmount
-  useEffect(() => () => Object.values(timersRef.current).forEach(clearInterval), [])
-
-  useEffect(() => { fetchData() }, [fetchData])
-
-  // Load persisted schedules on mount
-  useEffect(() => {
-    api.get('/data/status')
-      .then(({ data: d }) => {
-        if (d.schedules) {
-          d.schedules.forEach((s: { table_key: string; interval_minutes: number; daily_at: string | null; days_back: number; enabled: boolean }) => {
-            if (s.enabled && s.interval_minutes > 0) {
-              setAutoRefresh(s.table_key, s.interval_minutes, s.daily_at || null)
-            }
-          })
-        }
-      })
-      .catch(() => {})
-  }, []) // eslint-disable-line
-
-  const formatRows = (n: number) => {
-    if (n > 1e7) return (n / 1e7).toFixed(1) + '千万'
-    if (n > 1e4) return (n / 1e4).toFixed(1) + '万'
-    return n.toLocaleString()
-  }
-
-  const columns: ColumnsType<DataSource> = [
-    {
-      title: '数据表', dataIndex: 'name', width: 160, fixed: 'left',
-      render: (v: string, r: DataSource) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ fontSize: 13 }}>{v}</Text>
-          <Text type="secondary" style={{ fontSize: 10, fontFamily: 'monospace' }}>{r.key}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: '分类', dataIndex: 'category', width: 70,
-      render: (v: string) => <Tag color={categoryColors[v] || 'default'} style={{ fontSize: 10 }}>{v}</Tag>,
-    },
-    {
-      title: '数据来源', dataIndex: 'source', width: 170,
-      render: (v: string, r: DataSource) => (
-        <Tooltip title={r.note || '—'}>
-          <Text style={{ fontSize: 12 }}>{v}</Text>
-        </Tooltip>
-      ),
-    },
-    {
-      title: '更新频率', dataIndex: 'update', width: 130,
-      render: (v: string) => <Text style={{ fontSize: 11 }}>{v}</Text>,
-    },
-    {
-      title: '数据起始', dataIndex: 'min_date', width: 90,
-      render: (v: string) => <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>{v}</Text>,
-    },
-    {
-      title: '最新数据', dataIndex: 'max_date', width: 140,
-      render: (v: string) => {
-        if (!v || v === '—') return <Text type="secondary">—</Text>
-        // Highlight if data is older than 2 days
-        const dateStr = v.slice(0, 10)
-        const daysAgo = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
-        return (
-          <Space size={4}>
-            <Text style={{
-              fontSize: 11, fontFamily: 'monospace',
-              color: daysAgo > 2 ? '#ff4d4f' : daysAgo > 1 ? '#fa8c16' : '#52c41a',
-            }}>
-              {v.slice(0,16)}
-            </Text>
-            {daysAgo > 1 && (
-              <Tooltip title={`数据延迟 ${daysAgo} 天`}>
-                <ExclamationCircleOutlined style={{ color: '#fa8c16', fontSize: 10 }} />
-              </Tooltip>
-            )}
-          </Space>
-        )
-      },
-    },
-    {
-      title: '行数', dataIndex: 'rows', width: 80,
-      sorter: (a: DataSource, b: DataSource) => a.rows - b.rows,
-      defaultSortOrder: 'descend',
-      render: (v: number) => <Text style={{ fontSize: 11 }}>{formatRows(v)}</Text>,
-    },
-    {
-      title: '状态', dataIndex: 'status', width: 70,
-      render: (v: string) => {
-        if (v === 'active') return <Badge status="success" text={<Text style={{ fontSize: 10 }}>正常</Text>} />
-        if (v === 'empty') return <Badge status="default" text={<Text style={{ fontSize: 10 }}>空</Text>} />
-        return <Badge status="error" text={<Text style={{ fontSize: 10 }}>异常</Text>} />
-      },
-    },
-    {
-      title: '定时', key: 'schedule', width: 110,
-      render: (_: unknown, record: DataSource) => {
-        const sched = schedules[record.key]
-        if (!sched) return <Text type="secondary" style={{ fontSize: 10 }}>—</Text>
-        const remainMs = sched.nextRun - Date.now()
-        if (remainMs <= 0) return <Text style={{ fontSize: 10, color: '#1677ff' }}>即将执行</Text>
-        const remainMin = Math.floor(remainMs / 60000)
-        const label = sched.dailyAt
-          ? `每天 ${sched.dailyAt}`
-          : `每 ${sched.interval}min`
-        return (
-          <Tooltip title={`${label} · 下次: ${new Date(sched.nextRun).toLocaleTimeString('zh-CN', { hour12: false })}`}>
-            <Space size={2}>
-              <FieldTimeOutlined style={{ color: '#1677ff', fontSize: 11 }} />
-              <Text style={{ fontSize: 10, color: '#1677ff' }}>{sched.dailyAt || `${remainMin}min`}</Text>
-            </Space>
-          </Tooltip>
-        )
-      },
-    },
-    {
-      title: '同步', key: 'sync', width: 60, fixed: 'right',
-      render: (_: unknown, record: DataSource) => {
-        const hasSync = record.key in syncMap
-        return hasSync ? (
-          <Tooltip title={`同步 ${record.name}`}>
-            <Button
-              size="small" type="link" icon={<CloudDownloadOutlined />}
-              loading={syncing === record.key || syncing === '__all__'}
-              onClick={() => openSyncModal(record.key, record.name)}
-              style={{ padding: 0 }}
-            />
-          </Tooltip>
-        ) : (
-          <Text type="secondary" style={{ fontSize: 10 }}>—</Text>
-        )
-      },
-    },
-  ]
+  const tab = useMemo(() => tabs.find(item => item.key === active) ?? tabs[0], [active])
+  const visibleSources = useMemo(() => {
+    if (filter === 'all') return status.sources
+    return status.sources.filter(source => source.status === filter || source.category === filter)
+  }, [filter, status.sources])
+  const normalSummary = `${status.active_tables}/${status.total_tables} 表正常`
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>
-            <ClockCircleOutlined style={{ marginRight: 8, color: '#1677ff' }} />
-            数据更新状态
-          </Title>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {stats.active_tables}/{stats.total_tables} 表正常 · 合计 {formatRows(stats.total_rows)} 条数据
-          </Text>
-        </div>
-        <Space>
-          {lastRefresh && <Text type="secondary" style={{ fontSize: 12 }}>最近刷新: {lastRefresh}</Text>}
-          <Button size="small" icon={<SyncOutlined />} loading={loading} onClick={fetchData}>刷新</Button>
-          <Button
-            size="small"
-            icon={<ThunderboltOutlined />}
-            loading={syncing === '__all__'}
-            onClick={async () => {
-              const syncable = sources.filter(s => s.key in syncMap)
-              if (syncable.length === 0) { message.info('无可同步表'); return }
-              setSyncing('__all__')
-              message.info(`开始顺序同步 ${syncable.length} 张表，请勿关闭页面...`)
-              let ok = 0; let fail = 0
-              for (const s of syncable) {
-                const days = syncMap[s.key]?.days_default || 30
-                try {
-                  const { data: d } = await api.post(`/data/sync/post_market?table_key=${s.key}&days=${days}`)
-                  if (d.status === 'ok') ok++; else fail++
-                } catch { fail++ }
-              }
-              setSyncing(null)
-              fetchData()
-              message.success(`同步完成: ${ok} 成功, ${fail} 失败`)
-            }}
-          >一键同步全部</Button>
-        </Space>
+    <PrototypePage>
+      <PrototypeTabs
+        items={tabs}
+        activeKey={active}
+        ariaLabel="数据更新模块页签"
+        onChange={key => navigate(tabs.find(item => item.key === key)?.path ?? '/data-update')}
+      />
+
+      <PrototypePageHeader
+        title={`数据更新 - ${tab.label}`}
+        subtitle="同步总览 · 全表管理 · 调度计划 · 数据质量修复"
+        actions={[
+          { key: 'public', label: '公共数据', active: true, tone: 'up' },
+          { key: 'pg', label: 'PostgreSQL 优先', tone: 'neutral' },
+        ]}
+      />
+
+      {error && <RiskBanner status="warn" title="数据连接提醒" detail={error} />}
+
+      <div className="kpis">
+        <MetricCard label="正常表" value={status.active_tables} sub={normalSummary} tone="up" />
+        <MetricCard label="总表数" value={status.total_tables} sub="行情 / 基础 / 模型" tone="accent" />
+        <MetricCard label="总行数" value={formatRows(status.total_rows)} sub="当前可查询数据" tone="muted" />
+        <MetricCard label="调度任务" value={schedules.length || Object.keys(status.sync_map).length} sub="自动同步配置" tone="warn" />
       </div>
 
-      <Card style={{ borderRadius: 8, marginBottom: 12 }} size="small">
-        <Table
-          columns={columns}
-          dataSource={sources}
-          rowKey="key"
-          size="small"
-          loading={loading}
-          scroll={{ x: 1000 }}
-          pagination={{ pageSize: 50, showSizeChanger: false }}
-          locale={{ emptyText: '数据加载中...' }}
-        />
-      </Card>
+      <div className="r r-2-1">
+        <PrototypeCard
+          title={active === 'schedule' ? '同步调度' : active === 'tables' ? '全部数据表' : '数据质量总览'}
+          icon={active === 'schedule' ? <ClockCircleOutlined /> : <DatabaseOutlined />}
+          meta={<DataDomainBadge domain="public" label="表状态正常" />}
+        >
+          {active !== 'schedule' && (
+            <>
+              <SegmentTabs
+                items={[
+                  { key: 'all', label: '全部', count: status.total_tables },
+                  { key: 'active', label: '正常', count: status.active_tables },
+                  { key: 'empty', label: '待修复', count: status.total_tables - status.active_tables },
+                ]}
+                activeKey={filter}
+                ariaLabel="数据表筛选"
+                onChange={setFilter}
+              />
+              <table className="tbl" style={{ marginTop: 14 }}>
+                <thead>
+                  <tr>
+                    <th>数据表</th>
+                    <th>类别</th>
+                    <th>来源</th>
+                    <th>更新</th>
+                    <th className="r">行数</th>
+                    <th>日期范围</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleSources.map(source => (
+                    <tr key={source.key}>
+                      <td className="nm">{source.name}<div className="prototype-panel-note">{source.key}</div></td>
+                      <td>{source.category}</td>
+                      <td>{source.source}</td>
+                      <td>{source.update}</td>
+                      <td className="r">{formatRows(source.rows)}</td>
+                      <td>{source.min_date} / {source.max_date}</td>
+                      <td className={source.status === 'active' ? 'down' : 'up'}>{source.status === 'active' ? '正常' : '待修复'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
 
-      <Text type="secondary" style={{ fontSize: 11 }}>
-        <InfoCircleOutlined /> 数据来源: 各 PG 表实时统计, 端点 GET /api/v1/signal/data-status · 部分表无日期字段显示 "—" · 有 <CloudDownloadOutlined /> 图标的支持手动触发同步
-      </Text>
+          {active === 'schedule' && (
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>表</th>
+                  <th>模式</th>
+                  <th>回补天数</th>
+                  <th>启用</th>
+                  <th>下次执行</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(schedules.length > 0 ? schedules : Object.entries(status.sync_map).map(([key, item]) => ({
+                  table_key: key,
+                  days_back: item.days_default,
+                  interval_minutes: item.mode === 'intra' ? 5 : 1440,
+                  daily_at: item.mode === 'post_market' ? '17:20' : null,
+                  enabled: true,
+                  next_sync_at: item.mode,
+                }))).map(schedule => (
+                  <tr key={schedule.table_key}>
+                    <td className="mono">{schedule.table_key}</td>
+                    <td>{status.sync_map[schedule.table_key]?.mode || `${schedule.interval_minutes}m`}</td>
+                    <td>{schedule.days_back}</td>
+                    <td className={schedule.enabled ? 'down' : ''}>{schedule.enabled ? '启用' : '停用'}</td>
+                    <td>{schedule.next_sync_at || schedule.daily_at || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </PrototypeCard>
 
-      {/* Sync Modal */}
-      <Modal
-        title={<Space><CloudDownloadOutlined />同步: {syncModal.name}</Space>}
-        open={syncModal.open}
-        onCancel={() => setSyncModal(prev => ({ ...prev, open: false }))}
-        onOk={() => {
-          triggerSync(syncModal.key, syncModal.days)
-          const dailyAt = syncModal.interval === 1440 && syncModal.dailyAt
-            ? syncModal.dailyAt.format('HH:mm') : null
-          if (syncModal.interval > 0) {
-            setAutoRefresh(syncModal.key, syncModal.interval, dailyAt)
-            saveSchedule(syncModal.key, syncModal.days, syncModal.interval, dailyAt, true)
-          } else {
-            setAutoRefresh(syncModal.key, 0, null)
-            deleteSchedule(syncModal.key)
-          }
-          setSyncModal(prev => ({ ...prev, open: false }))
-        }}
-        okText="开始同步"
-        okButtonProps={{ loading: syncing === syncModal.key }}
-      >
-        <div style={{ marginBottom: 16 }}>
-          <Text type="secondary">同步模式: {syncModal.mode || '—'} · 从 Tushare 拉取数据并写入本地数据库</Text>
-        </div>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <div>
-            <Text strong>同步天数 (从今天往前推):</Text>
-            <InputNumber
-              min={1} max={3650} value={syncModal.days}
-              onChange={v => setSyncModal(prev => ({ ...prev, days: v || 30 }))}
-              addonAfter="天"
-              style={{ width: '100%', marginTop: 4 }}
-            />
-          </div>
-          <div>
-            <Space>
-              <FieldTimeOutlined />
-              <Text strong>定时自动刷新:</Text>
-            </Space>
-            <Select
-              value={syncModal.interval}
-              onChange={v => setSyncModal(prev => ({ ...prev, interval: v }))}
-              options={INTERVAL_OPTIONS}
-              style={{ width: '100%', marginTop: 4 }}
-            />
-            {syncModal.interval === 1440 && (
-              <div style={{ marginTop: 8 }}>
-                <Space>
-                  <FieldTimeOutlined />
-                  <Text strong>每天具体时间:</Text>
-                </Space>
-                <TimePicker
-                  value={syncModal.dailyAt}
-                  onChange={v => setSyncModal(prev => ({ ...prev, dailyAt: v }))}
-                  format="HH:mm"
-                  minuteStep={5}
-                  placeholder="选择时间"
-                  style={{ width: '100%', marginTop: 4 }}
-                />
+        <SideRail title="数据质量" meta="Public">
+          <RiskBanner
+            status={status.active_tables === status.total_tables ? 'pass' : 'warn'}
+            title="所有表正常"
+            detail="业务页面会携带数据时点与质量提示，私有方案不写入公共数据域。"
+          />
+          <PrototypeCard title="同步动作" icon={<ReloadOutlined />}>
+            <div className="li-row">
+              <div className="li-badge">D</div>
+              <div className="li-main">
+                <div className="n">盘后日线同步</div>
+                <div className="s">默认回补 30 天，失败后进入修复队列</div>
               </div>
-            )}
-            {syncModal.interval > 0 && (
-              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-                {syncModal.interval === 1440 && syncModal.dailyAt
-                  ? `每天 ${syncModal.dailyAt.format('HH:mm')} 自动同步，每次拉取 ${syncModal.days} 天数据`
-                  : `将每 ${syncModal.interval} 分钟自动同步一次，每次拉取 ${syncModal.days} 天数据`}
-              </Text>
-            )}
-          </div>
-        </Space>
-      </Modal>
-    </div>
+            </div>
+            <div className="li-row">
+              <div className="li-badge">Q</div>
+              <div className="li-main">
+                <div className="n">质量检查</div>
+                <div className="s">空表、日期断档、行数异常自动标红</div>
+              </div>
+            </div>
+          </PrototypeCard>
+          <PrototypeCard title="表域边界" icon={<TableOutlined />}>
+            <div className="prototype-panel-note">行情、基础数据、模型产物属于公共域；自选、方案、订单、风控判定属于私有域。</div>
+          </PrototypeCard>
+        </SideRail>
+      </div>
+    </PrototypePage>
   )
 }

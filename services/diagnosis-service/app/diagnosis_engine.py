@@ -429,7 +429,7 @@ async def _score_fundamental(code: str, db) -> FundamentalDimension:
             # Try querying from daily_basic as fallback
             db_result = await db.execute(
                 sa_text(
-                    "SELECT pe, pe_ttm, pb, total_mv "
+                    "SELECT pe, pb, total_mv "
                     "FROM daily_basic WHERE code = :code ORDER BY trade_date DESC LIMIT 1"
                 ),
                 {"code": code},
@@ -599,20 +599,20 @@ class _HttpException(Exception):
         self.body = body
 
 
-async def _http_get_json(url: str, headers: dict, timeout: int) -> dict:
+async def _http_get_json(url: str, headers: dict, timeout: int, method: str = "GET") -> dict:
     """Async GET returning parsed JSON (P1-1: urllib wrapper, no aiohttp).
 
     Raises ``_HttpException`` on non-200 so callers can map status codes
     (e.g. 401 → auth failure). Network/parse errors raise ValueError.
     """
     return await asyncio.get_running_loop().run_in_executor(
-        None, _sync_get_json, url, headers, timeout
+        None, _sync_get_json, url, headers, timeout, method
     )
 
 
-def _sync_get_json(url: str, headers: dict, timeout: int) -> dict:
+def _sync_get_json(url: str, headers: dict, timeout: int, method: str = "GET") -> dict:
     """Synchronous urllib GET (runs in executor thread)."""
-    req = urllib.request.Request(url, headers=headers)
+    req = urllib.request.Request(url, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
@@ -657,22 +657,48 @@ async def _get_kronos_prediction(
     # CLAUDE.md "微服务间 HTTP 调用使用 urllib async wrapper，不引入 httpx/aiohttp").
     from app.config import KRONOS_PREDICTION_URL, KRONOS_PREDICTION_TIMEOUT
 
-    kr_url = f"{KRONOS_PREDICTION_URL}/predict/{code}"
+    kr_url = f"{KRONOS_PREDICTION_URL.rstrip('/')}/{code}/fast?pred_days=10"
     headers = {"Authorization": f"Bearer {auth_token}", "Accept": "application/json"}
 
     try:
-        data = await _http_get_json(kr_url, headers, KRONOS_PREDICTION_TIMEOUT)
+        data = await _http_get_json(kr_url, headers, KRONOS_PREDICTION_TIMEOUT, method="POST")
     except _HttpException as e:
         if e.status == 401:
             raise ValueError("Kronos authentication failed (401) — check JWT token")
         raise ValueError(f"Kronos returned {e.status}")
 
+    current_price = float(data.get("current_price") or 0)
+    pred_trajectory = data.get("pred_trajectory") or []
+    trajectory_lows = [
+        float(point.get("low"))
+        for point in pred_trajectory
+        if isinstance(point, dict) and point.get("low") is not None
+    ]
+    if data.get("max_drawdown_pct") is not None:
+        max_drawdown_pct = float(data.get("max_drawdown_pct"))
+    elif current_price > 0 and trajectory_lows:
+        max_drawdown_pct = round((min(trajectory_lows) / current_price - 1) * 100, 2)
+    else:
+        max_drawdown_pct = -5.0
+
     result = {
         "pred_return_pct": float(data.get("pred_return_pct", 0)),
-        "pred_30d_close": float(data.get("pred_30d_close", 0)),
-        "confidence": float(data.get("confidence", 0.5)),
+        "pred_30d_close": float(data.get("pred_30d_close") or data.get("pred_last_close") or 0),
+        "confidence": float(data.get("confidence", 0.65)),
         "inflection_days": data.get("inflection_days", []),
-        "max_drawdown_pct": float(data.get("max_drawdown_pct", -5)),
+        "max_drawdown_pct": max_drawdown_pct,
+        "model_metadata": data.get("model_metadata") or {
+            "name": "Kronos-mini",
+            "version": "kronos-mini",
+            "checkpoint_status": "unknown",
+        },
+        "data_freshness": data.get("data_freshness") or {
+            "status": "unknown",
+            "as_of": None,
+            "source": "prediction-service",
+            "quality_score": 0,
+        },
+        "fallback_reason": data.get("fallback_reason"),
         "from_cache": False,
     }
 
@@ -721,6 +747,9 @@ async def _score_ai_predict(
                 "pred_return_pct": round(pred_return, 2),
                 "confidence": round(confidence, 3),
                 "max_drawdown_pct": round(max_dd, 2),
+                "model_metadata": pred.get("model_metadata"),
+                "data_freshness": pred.get("data_freshness"),
+                "fallback_reason": pred.get("fallback_reason"),
                 "from_cache": pred.get("from_cache", False),
             },
             signals=[f"预测收益 {pred_return:+.1f}% (置信度 {confidence:.0%})"],
@@ -734,7 +763,22 @@ async def _score_ai_predict(
             weight=WEIGHTS["ai_predict"],
             grade="C",
             status=DimensionStatus.UNAVAILABLE,
-            details={"error": str(e), "note": "Kronos 服务暂不可用"},
+            details={
+                "error": str(e),
+                "note": "Kronos 服务暂不可用",
+                "model_metadata": {
+                    "name": "Kronos-mini",
+                    "version": "kronos-mini",
+                    "checkpoint_status": "unavailable",
+                },
+                "data_freshness": {
+                    "status": "unknown",
+                    "as_of": None,
+                    "source": "prediction-service",
+                    "quality_score": 0,
+                },
+                "fallback_reason": str(e),
+            },
             signals=["AI 预测暂不可用"],
         )
 
@@ -1238,6 +1282,22 @@ async def diagnose(
         if dims["ai_predict"].max_drawdown < -15:
             risk_warnings.append(f"AI 预测最大回撤较大 ({dims['ai_predict'].max_drawdown:.1f}%)")
 
+    ai_details = dims["ai_predict"].details or {}
+    prediction_model = ai_details.get("model_metadata") or {
+        "name": "Kronos-mini",
+        "version": "kronos-mini",
+        "checkpoint_status": "unknown",
+    }
+    data_freshness = ai_details.get("data_freshness") or {
+        "status": "unknown",
+        "as_of": None,
+        "source": "diagnosis-service",
+        "quality_score": 0,
+    }
+    fallback_reason = ai_details.get("fallback_reason")
+    if not fallback_reason and degraded_dims:
+        fallback_reason = "degraded dimensions: " + ", ".join(degraded_dims)
+
     report = DiagnosisReport(
         code=code,
         overall_score=overall,
@@ -1250,6 +1310,13 @@ async def diagnose(
         kronos_available=kronos_available,
         degraded=len(degraded_dims) > 0,
         degraded_dimensions=degraded_dims,
+        model_metadata={
+            "diagnosis_model": "five-dimension-weighted-v2",
+            "prediction_model": prediction_model,
+            "weights": effective_weights,
+        },
+        data_freshness=data_freshness,
+        fallback_reason=fallback_reason,
         created_at=datetime.now(timezone.utc),
     )
 

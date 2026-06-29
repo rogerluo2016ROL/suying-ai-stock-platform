@@ -37,12 +37,23 @@ import type {
   ChainCandidatesResponse,
   SyncSchedulesResponse,
   TriggerSyncResponse,
+  PlaceOrderRequest,
+  RiskVerdictQuery,
+  RiskVerdictsResponse,
+  DecisionContextQuery,
+  DecisionContextsResponse,
+  WorkbenchPageEnvelope,
 } from './types'
 import type { PlatformSession } from '../types/platform'
 
 // ── 保留部分内联类型（与 types.ts 兼容） ──
 /** A screener pick passed to strategy generation / plan picks. */
 export interface StrategyPick {
+  candidate_id?: string
+  source_module?: string
+  source_mode?: string
+  visibility?: 'private' | 'tenant_shared' | 'public'
+  data_scope?: 'public' | 'tenant' | 'user' | 'account'
   code: string
   name?: string
   price?: number
@@ -76,6 +87,13 @@ export interface TradeAccount {
 
 const api = axios.create({
   baseURL: '/api/v1',
+  timeout: 30000,
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+})
+
+const rootApi = axios.create({
+  baseURL: '',
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
@@ -123,11 +141,23 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (platformSession?.tenantId) {
     config.headers['X-Tenant-Id'] = platformSession.tenantId
   }
+  if (platformSession?.ownerUserId) {
+    config.headers['X-Owner-User-Id'] = platformSession.ownerUserId
+  }
   if (platformSession?.accountId) {
     config.headers['X-Trade-Account-Id'] = platformSession.accountId
   }
   if (platformSession?.dataScope) {
     config.headers['X-Data-Scope'] = platformSession.dataScope
+  }
+  if (platformSession?.roleView) {
+    config.headers['X-Role-View'] = platformSession.roleView
+  }
+  if (platformSession?.tradeMode) {
+    config.headers['X-Trade-Mode'] = platformSession.tradeMode
+  }
+  if (platformSession?.brokerAdapter) {
+    config.headers['X-Broker-Adapter'] = platformSession.brokerAdapter
   }
   return config
 })
@@ -358,6 +388,12 @@ export const signalApi = {
   getDashboardSummary: (): Promise<AxiosResponse<DashboardSummaryResponse>> =>
     api.get(`/signal/dashboard-summary?_t=${Date.now()}`),
 
+  getScreeningDashboardSummary: (): Promise<AxiosResponse<Record<string, unknown>>> =>
+    api.get(`/dashboard/summary?_t=${Date.now()}`),
+
+  getDashboardAuction: (): Promise<AxiosResponse<Record<string, unknown>>> =>
+    api.get('/dashboard/auction'),
+
   getDataStatus: (): Promise<AxiosResponse<DataStatusResponse>> =>
     api.get(`/signal/data-status?_t=${Date.now()}`),
 
@@ -372,6 +408,18 @@ export const signalApi = {
 
   deleteSyncSchedule: (key: string): Promise<AxiosResponse<void>> =>
     api.delete(`/signal/sync-schedules?table_key=${key}`),
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Workbench BFF API（页面级 ViewModel）
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const workbenchApi = {
+  getPage: (modulePath: string): Promise<AxiosResponse<WorkbenchPageEnvelope>> => {
+    const normalized = modulePath.replace(/^\/+/, '')
+    const path = normalized.split('/').filter(Boolean).map(encodeURIComponent).join('/')
+    return api.get(`/workbench/${path}`)
+  },
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -403,8 +451,14 @@ export const tradeApi = {
   getOrders: (): Promise<AxiosResponse<OrdersResponse>> =>
     api.get('/trade/orders'),
 
-  placeOrder: (code: string, direction: string, volume: number, price = 0): Promise<AxiosResponse<PlaceOrderResponse>> =>
-    api.post('/trade/order', { code, direction, volume, price }),
+  placeOrder: (order: PlaceOrderRequest): Promise<AxiosResponse<PlaceOrderResponse>> =>
+    api.post('/trade/order', order),
+
+  getRiskVerdicts: (params: RiskVerdictQuery = {}): Promise<AxiosResponse<RiskVerdictsResponse>> =>
+    api.get('/trade/risk-verdicts', { params }),
+
+  getDecisionContexts: (params: DecisionContextQuery = {}): Promise<AxiosResponse<DecisionContextsResponse>> =>
+    api.get('/trade/decision-contexts', { params }),
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -479,14 +533,15 @@ export const healthApi = {
     }),
 
   gateway: (): Promise<AxiosResponse<HealthCheckResponse>> =>
-    api.get('/health').catch((err: unknown) => {
+    rootApi.get('/health').catch((err: unknown) => {
       throw new HealthCheckError('gateway', err)
     }),
 
   checkOnline: async (service: string): Promise<boolean> => {
     try {
       const res = await api.get<HealthCheckResponse>(`/${service}/health`)
-      return res.data?.status === 'online'
+      const status = String(res.data?.status ?? '')
+      return status === 'online' || status === 'healthy'
     } catch {
       return false
     }
@@ -600,6 +655,11 @@ export type {
   AccountResponse,
   PositionsResponse,
   OrdersResponse,
+  RiskVerdictsResponse,
+  DecisionContextsResponse,
+  WorkbenchPageEnvelope,
+  WorkbenchSection,
+  WorkbenchAction,
   PlaceOrderResponse,
   HealthCheckResponse,
   ServiceHealth,

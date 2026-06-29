@@ -61,14 +61,19 @@ def _resolve_risk_db_url() -> str:
     return url
 
 
-_risk_engine = create_async_engine(
-    _resolve_risk_db_url(),
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=2,
-    max_overflow=3,
-    pool_timeout=5,
-)
+_risk_engine_init_error: Exception | None = None
+try:
+    _risk_engine = create_async_engine(
+        _resolve_risk_db_url(),
+        echo=False,
+        pool_pre_ping=True,
+        pool_size=2,
+        max_overflow=3,
+        pool_timeout=5,
+    )
+except ModuleNotFoundError as e:
+    _risk_engine = None
+    _risk_engine_init_error = e
 
 
 class RiskCheckUnavailable(RuntimeError):
@@ -79,6 +84,12 @@ class RiskCheckUnavailable(RuntimeError):
     ADR-007: connection failure is treated as a systemic risk, not a
     per-stock verdict.
     """
+
+
+def _require_risk_engine():
+    if _risk_engine is None:
+        raise RiskCheckUnavailable(f"risk DB driver unavailable: {_risk_engine_init_error}")
+    return _risk_engine
 
 # ── Service URLs (configurable via env) ──────────────────────────────────
 TRADE_SERVICE_URL = os.environ.get("TRADE_SERVICE_URL", "http://localhost:8006")
@@ -370,17 +381,19 @@ async def _run_one_check(state: ExecutorState, strategy: StrategyConfig) -> None
                     f"触发事件止损: {code} — {announcement_reason}",
                     {"code": code, "reason": announcement_reason, "source": "announcement_risk"},
                 )
+                lineage = _build_auto_order_lineage(strategy, code, "SELL")
                 result = await _place_order(
                     symbol=code,
                     direction="SELL",
                     volume=pos.get("volume", 0),
                     trade_mode=strategy.trade_mode,
+                    **lineage,
                 )
                 state.orders_placed += 1
                 state.add_log(
                     "SELL",
                     f"事件止损卖单已提交: {code}",
-                    {"code": code, "order_id": result.get("order_id")},
+                    {"code": code, "order_id": result.get("order_id"), **lineage},
                 )
                 continue  # 跳过常规卖出条件
 
@@ -395,17 +408,19 @@ async def _run_one_check(state: ExecutorState, strategy: StrategyConfig) -> None
                     f"触发卖出条件: {code} — {sell_reason}",
                     {"code": code, "reason": sell_reason, "pnl_pct": pos.get("pnl_pct", 0)},
                 )
+                lineage = _build_auto_order_lineage(strategy, code, "SELL")
                 result = await _place_order(
                     symbol=code,
                     direction="SELL",
                     volume=pos.get("volume", 0),
                     trade_mode=strategy.trade_mode,
+                    **lineage,
                 )
                 state.orders_placed += 1
                 state.add_log(
                     "SELL",
                     f"卖单已提交: {code} — order_id={result.get('order_id', '?')}",
-                    {"code": code, "order_id": result.get("order_id")},
+                    {"code": code, "order_id": result.get("order_id"), **lineage},
                 )
 
         # ── Check BUY conditions for picks not yet held ──
@@ -461,12 +476,14 @@ async def _run_one_check(state: ExecutorState, strategy: StrategyConfig) -> None
                     {"code": code, "reason": buy_reason, "price": entry_price, "volume": volume},
                 )
 
+                lineage = _build_auto_order_lineage(strategy, code, "BUY", pick)
                 result = await _place_order(
                     symbol=code,
                     direction="BUY",
                     price=entry_price,
                     volume=volume,
                     trade_mode=strategy.trade_mode,
+                    **lineage,
                 )
                 state.orders_placed += 1
                 current_positions_count += 1
@@ -474,7 +491,7 @@ async def _run_one_check(state: ExecutorState, strategy: StrategyConfig) -> None
                 state.add_log(
                     "BUY",
                     f"买单已提交: {code} — order_id={result.get('order_id', '?')}",
-                    {"code": code, "order_id": result.get("order_id")},
+                    {"code": code, "order_id": result.get("order_id"), **lineage},
                 )
     except RiskCheckUnavailable as e:
         logger.error(
@@ -554,7 +571,7 @@ async def _check_announcement_risk(code: str) -> tuple[bool, str]:
         the loop — never return a neutral default, per AC-10).
     """
     try:
-        async with _risk_engine.connect() as conn:
+        async with _require_risk_engine().connect() as conn:
             result = await conn.execute(
                 sa_text(
                     "SELECT title, ann_date FROM announcements "
@@ -590,7 +607,7 @@ async def _get_atr_stop_loss(code: str) -> float:
     """
     import numpy as np
     try:
-        async with _risk_engine.connect() as conn:
+        async with _require_risk_engine().connect() as conn:
             result = await conn.execute(
                 sa_text(
                     "SELECT high, low, close FROM daily_kline WHERE code = :code "
@@ -636,7 +653,7 @@ async def _check_forecast_risk(code: str) -> str:
         the loop — never return "" which would allow buying, per AC-10).
     """
     try:
-        async with _risk_engine.connect() as conn:
+        async with _require_risk_engine().connect() as conn:
             result = await conn.execute(
                 sa_text(
                     # NOTE: forecast_data has no change_reason column (schema
@@ -761,6 +778,22 @@ def _eval_op(value: float, operator: str, threshold: float) -> bool:
 # HTTP clients (async wrappers over urllib)
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _build_auto_order_lineage(
+    strategy: StrategyConfig,
+    symbol: str,
+    direction: str,
+    pick: dict | None = None,
+) -> dict:
+    """Build lineage IDs for strategy-service submitted orders."""
+    source_plan_id = (pick or {}).get("plan_id") or strategy.source_scheme_id or strategy.id
+    candidate_id = (pick or {}).get("candidate_id") or (pick or {}).get("id")
+    context_suffix = int(time.time())
+    return {
+        "decision_context_id": f"CTX-auto-{strategy.id}-{symbol}-{context_suffix}",
+        "candidate_id": candidate_id,
+        "plan_id": source_plan_id,
+    }
+
 async def _http_get(url: str, timeout: int = 10) -> dict:
     """Async HTTP GET returning parsed JSON."""
     try:
@@ -816,6 +849,38 @@ def _sync_post_query(url: str, params: dict, timeout: int) -> dict:
         return {"error": str(e)}
 
 
+async def _http_post_json(url: str, payload: dict, timeout: int = 10) -> dict:
+    """Async HTTP POST with JSON body, returning parsed JSON."""
+    try:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, _sync_post_json, url, payload, timeout)
+    except Exception as e:
+        logger.warning("HTTP POST %s failed: %s", url, e)
+        return {"error": str(e)}
+
+
+def _sync_post_json(url: str, payload: dict, timeout: int) -> dict:
+    """Synchronous urllib POST with JSON body."""
+    body = json.dumps({k: v for k, v in payload.items() if v is not None}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={"Accept": "application/json", "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = resp.read().decode("utf-8")
+            return json.loads(data)
+    except urllib.error.HTTPError as e:
+        body_text = e.read().decode("utf-8") if e.fp else ""
+        logger.warning("HTTP POST %s → %s: %s", url, e.code, body_text)
+        return {"error": f"HTTP {e.code}", "detail": body_text}
+    except Exception as e:
+        logger.warning("HTTP POST failed (%s): %s", url, e)
+        return {"error": str(e)}
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Service-specific fetch helpers
 # ═══════════════════════════════════════════════════════════════════════════
@@ -844,6 +909,9 @@ async def _place_order(
     volume: int,
     trade_mode: str,
     price: float = 0,
+    decision_context_id: str | None = None,
+    candidate_id: str | None = None,
+    plan_id: str | None = None,
 ) -> dict:
     """Place an order via trade-service."""
     params = {
@@ -852,9 +920,12 @@ async def _place_order(
         "price": price,
         "volume": volume,
         "trade_mode": trade_mode,
+        "decision_context_id": decision_context_id,
+        "candidate_id": candidate_id,
+        "plan_id": plan_id,
     }
     url = f"{TRADE_SERVICE_URL}/api/v1/trade/order"
-    return await _http_post_query(url, params)
+    return await _http_post_json(url, params)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -7,7 +7,9 @@ dependencies = [
     "numpy>=1.24",
     "pandas>=2.0",
     "torch>=2.0",
+    "einops>=0.7",
     "huggingface-hub>=0.16",
+    "safetensors>=0.4",
     "tqdm>=4.60",
 ]
 

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { injectAuth } from '../api/client'
+import type { BrokerConnectRequest } from '../api/types'
 
 // ── Types ──
 
@@ -14,7 +15,8 @@ export interface User {
   tenantName?: string
   defaultTradeAccountId?: string
   tradeMode?: 'paper' | 'live'
-  brokerAdapter?: 'paper' | 'xtquant_qmt' | 'broker_rest'
+  brokerAdapter?: 'paper' | 'mock_qmt' | 'xtquant_qmt' | 'broker_rest'
+  brokerConnectConfig?: BrokerConnectRequest
 }
 
 export interface AuthState {
@@ -38,6 +40,25 @@ function readString(payload: RawAuthUserPayload, camelKey: string, snakeKey?: st
   return typeof value === 'string' ? value : undefined
 }
 
+function readBrokerConnectConfig(payload: RawAuthUserPayload): BrokerConnectRequest | undefined {
+  const value = payload.brokerConnectConfig ?? payload.broker_connect_config
+  if (!value || typeof value !== 'object') return undefined
+
+  const record = value as Record<string, unknown>
+  const brokerName = record.broker_name === 'xtquant' ? 'xtquant' : 'mock_qmt'
+  const environment = record.environment === 'live' ? 'live' : 'sandbox'
+  const accountId = typeof record.account_id === 'string' ? record.account_id : ''
+  if (!accountId) return undefined
+
+  return {
+    broker_name: brokerName,
+    account_id: accountId,
+    server_ip: typeof record.server_ip === 'string' ? record.server_ip : '127.0.0.1',
+    server_port: typeof record.server_port === 'number' ? record.server_port : 16001,
+    environment,
+  }
+}
+
 export function normalizeAuthUserPayload(payload: RawAuthUserPayload): User {
   return {
     id: Number(payload.id),
@@ -49,6 +70,7 @@ export function normalizeAuthUserPayload(payload: RawAuthUserPayload): User {
     defaultTradeAccountId: readString(payload, 'defaultTradeAccountId', 'default_trade_account_id'),
     tradeMode: readString(payload, 'tradeMode', 'trade_mode') as User['tradeMode'],
     brokerAdapter: readString(payload, 'brokerAdapter', 'broker_adapter') as User['brokerAdapter'],
+    brokerConnectConfig: readBrokerConnectConfig(payload),
   }
 }
 
@@ -62,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const accessTokenRef = useRef<string | null>(null)
 
   const isAuthenticated = !!user && !!accessToken
 
@@ -70,6 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // must remain usable by the second setup instead of being cancelled forever.
   const mountedRef = useRef(false)
   const initRefreshPromiseRef = useRef<Promise<string | null> | null>(null)
+
+  const setAuthAccessToken = useCallback((token: string | null) => {
+    accessTokenRef.current = token
+    setAccessToken(token)
+  }, [])
 
   // ── Token refresh function (used by interceptor too) ──
   // P1-06: accept an optional mounted-guard so the mount effect can prevent
@@ -89,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const refreshData = await refreshRes.json()
       const token: string = refreshData.access_token
       if (isCancelled?.()) return null
-      setAccessToken(token)
+      setAuthAccessToken(token)
 
       // Fetch full user profile after token refresh
       const meRes = await fetch('/api/v1/auth/me', {
@@ -109,18 +137,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const doForceLogout = useCallback(() => {
     setUser(null)
-    setAccessToken(null)
-  }, [])
+    setAuthAccessToken(null)
+  }, [setAuthAccessToken])
 
   // ── Wire axios interceptor ──
 
   useEffect(() => {
     injectAuth(
-      () => accessToken,
+      () => accessTokenRef.current,
       doRefresh,
       doForceLogout,
     )
-  }, [accessToken, doRefresh, doForceLogout])
+  }, [doRefresh, doForceLogout])
 
   // ── Initialization: try refresh on mount ──
 
@@ -151,9 +179,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(err.detail || '登录失败')
     }
     const data = await res.json()
-    setAccessToken(data.access_token)
+    setAuthAccessToken(data.access_token)
     setUser(normalizeAuthUserPayload(data.user))
-  }, [])
+  }, [setAuthAccessToken])
 
   // ── register ──
 
@@ -169,9 +197,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(err.detail || '注册失败')
     }
     const data = await res.json()
-    setAccessToken(data.access_token)
+    setAuthAccessToken(data.access_token)
     setUser(normalizeAuthUserPayload(data.user))
-  }, [])
+  }, [setAuthAccessToken])
 
   // ── logout ──
 
@@ -187,9 +215,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
     } finally {
       setUser(null)
-      setAccessToken(null)
+      setAuthAccessToken(null)
     }
-  }, [accessToken])
+  }, [accessToken, setAuthAccessToken])
 
   // ── hasRole ──
 

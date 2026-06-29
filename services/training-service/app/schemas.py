@@ -10,6 +10,33 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
+def _training_model_metadata() -> Dict[str, Any]:
+    return {
+        "name": "training-orchestrator",
+        "version": "training-contract-v2",
+        "provider": "training-service",
+        "inference_mode": "run",
+    }
+
+
+def _model_registry_metadata() -> Dict[str, Any]:
+    return {
+        "name": "model-registry",
+        "version": "registry-contract-v2",
+        "provider": "training-service",
+        "inference_mode": "registry",
+    }
+
+
+def _freshness(source: str) -> Dict[str, Any]:
+    return {
+        "status": "unknown",
+        "as_of": None,
+        "source": source,
+        "quality_score": 0,
+    }
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Enums
 # ═══════════════════════════════════════════════════════════════════════════
@@ -125,6 +152,9 @@ class TrainingJob(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     error_message: Optional[str] = None
+    model_metadata: Dict[str, Any] = Field(default_factory=_training_model_metadata)
+    data_freshness: Dict[str, Any] = Field(default_factory=lambda: _freshness("training.dataset"))
+    fallback_reason: Optional[str] = None
 
 
 class TrainRequest(BaseModel):
@@ -141,6 +171,9 @@ class TrainResponse(BaseModel):
     job_id: str
     status: JobStatus
     created_at: datetime
+    model_metadata: Dict[str, Any] = Field(default_factory=_training_model_metadata)
+    data_freshness: Dict[str, Any] = Field(default_factory=lambda: _freshness("training.dataset"))
+    fallback_reason: Optional[str] = None
 
 
 class JobStatusResponse(BaseModel):
@@ -154,6 +187,9 @@ class JobStatusResponse(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     error_message: Optional[str] = None
+    model_metadata: Dict[str, Any] = Field(default_factory=_training_model_metadata)
+    data_freshness: Dict[str, Any] = Field(default_factory=lambda: _freshness("training.dataset"))
+    fallback_reason: Optional[str] = None
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -183,6 +219,9 @@ class ModelRecord(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     notes: Optional[str] = Field(default=None, description="Notes / failure reason")
+    model_metadata: Dict[str, Any] = Field(default_factory=_model_registry_metadata)
+    data_freshness: Dict[str, Any] = Field(default_factory=lambda: _freshness("model_registry"))
+    fallback_reason: Optional[str] = None
 
 
 class CompareResult(BaseModel):
@@ -211,6 +250,9 @@ class ModelCompareResponse(BaseModel):
         ...,
         description="Action recommendation"
     )
+    model_metadata: Dict[str, Any] = Field(default_factory=_model_registry_metadata)
+    data_freshness: Dict[str, Any] = Field(default_factory=lambda: _freshness("model_registry"))
+    fallback_reason: Optional[str] = None
 
 
 class DeployRequest(BaseModel):
@@ -253,6 +295,9 @@ class PaginatedModelsResponse(BaseModel):
     total: int
     page: int
     page_size: int
+    model_metadata: Dict[str, Any] = Field(default_factory=_model_registry_metadata)
+    data_freshness: Dict[str, Any] = Field(default_factory=lambda: _freshness("model_registry"))
+    fallback_reason: Optional[str] = None
 
 
 # ═══════════════════════════════════════════════════════════════════════════

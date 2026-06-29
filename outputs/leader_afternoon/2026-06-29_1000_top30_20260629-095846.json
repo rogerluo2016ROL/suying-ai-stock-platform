@@ -1,0 +1,13 @@
+{
+  "mode": "leader_afternoon",
+  "name": "秋神龙头战法-午后选股 V1.0",
+  "trade_date": "2026-06-29",
+  "time_slot": "10:00",
+  "data_max_trade_time": "2026-06-29 09:55:00",
+  "note": "current intraday pre-run; true 14:30 afternoon data is not available yet",
+  "top_n": 30,
+  "generated_at": "2026-06-29T09:58:46",
+  "total_picks": 0,
+  "sector_resonance": [],
+  "picks": []
+}

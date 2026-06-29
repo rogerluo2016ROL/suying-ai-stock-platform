@@ -103,6 +103,9 @@ class TestChainDeconstruct:
 
         assert data["view"] == "value_chain"
         assert "value_chain" in data
+        assert data["model_metadata"]["inference_mode"] == "chain:value_chain"
+        assert data["data_freshness"]["source"] == "chain_nodes"
+        assert data["fallback_reason"] is None
         assert isinstance(data["value_chain"], dict)
 
         # Each node should have margin/pricing_power/value_added/note
