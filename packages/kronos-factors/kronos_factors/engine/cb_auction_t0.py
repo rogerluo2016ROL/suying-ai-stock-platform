@@ -12,7 +12,7 @@ from datetime import date
 from typing import Any
 
 
-FD_AMOUNT_MIN = 1_000_000_000
+FD_AMOUNT_MIN = 700_000_000
 AUCTION_FIRST_TIME_MAX = "09:30:00"
 AUCTION_FIRST_TIME_MAX_COMPACT = "093000"
 
@@ -281,7 +281,7 @@ class CbAuctionT0Engine:
                 continue
             fd_value = float(fd_amount)
             if fd_value <= FD_AMOUNT_MIN:
-                rejections.append({"code": stock_code, "name": name, "reason": "封单金额不足10亿"})
+                rejections.append({"code": stock_code, "name": name, "reason": "封单金额不足7亿"})
                 continue
             if prev_was_limit_up:
                 rejections.append({"code": stock_code, "name": name, "reason": "昨日已涨停"})

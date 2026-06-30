@@ -384,9 +384,9 @@ def test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up():
         def fetchall(self):
             return [
                 ("300001.SZ", "封单缺失", None, "09:25:00", False),
-                ("300002.SZ", "封单不足", 1_000_000_000, "09:25:00", False),
+                ("300002.SZ", "封单不足", 700_000_000, "09:25:00", False),
                 ("300003.SZ", "昨日涨停", 1_500_000_000, "09:25:00", True),
-                ("300004.SZ", "有效触发", 1_500_000_000, "09:25:00", False),
+                ("300004.SZ", "有效触发", 750_000_000, "09:25:00", False),
             ]
 
     triggers, rejections = engine._fetch_trigger_stocks(
@@ -399,15 +399,15 @@ def test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up():
         {
             "trigger_stock_code": "300004",
             "trigger_stock_name": "有效触发",
-            "fd_amount": 1_500_000_000.0,
-            "fd_amount_yi": 15.0,
+            "fd_amount": 750_000_000.0,
+            "fd_amount_yi": 7.5,
             "first_time": "09:25:00",
             "prev_was_limit_up": False,
         }
     ]
     assert rejections == [
         {"code": "300001", "name": "封单缺失", "reason": "封单金额缺失"},
-        {"code": "300002", "name": "封单不足", "reason": "封单金额不足10亿"},
+        {"code": "300002", "name": "封单不足", "reason": "封单金额不足7亿"},
         {"code": "300003", "name": "昨日涨停", "reason": "昨日已涨停"},
     ]
 
