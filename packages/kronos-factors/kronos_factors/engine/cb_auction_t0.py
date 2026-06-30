@@ -14,6 +14,7 @@ from typing import Any
 
 FD_AMOUNT_MIN = 1_000_000_000
 AUCTION_FIRST_TIME_MAX = "09:30:00"
+AUCTION_FIRST_TIME_MAX_COMPACT = "093000"
 
 NOISE_CONCEPT_KEYWORDS = (
     "同花顺",
@@ -264,11 +265,11 @@ class CbAuctionT0Engine:
             WHERE (l.trade_date::text = %s OR REPLACE(l.trade_date::text, '-', '') = %s)
               AND l.limit_type = 'U'
               AND l.first_time IS NOT NULL
-              AND l.first_time <= %s
+              AND LPAD(REPLACE(l.first_time, ':', ''), 6, '0') <= %s
               AND COALESCE(l.name, s.name, '') NOT LIKE '%%ST%%'
             ORDER BY l.fd_amount DESC NULLS LAST
             """,
-            (prev_key, prev_key_compact, trade_key, trade_key_compact, AUCTION_FIRST_TIME_MAX),
+            (prev_key, prev_key_compact, trade_key, trade_key_compact, AUCTION_FIRST_TIME_MAX_COMPACT),
         )
 
         triggers: list[dict[str, Any]] = []

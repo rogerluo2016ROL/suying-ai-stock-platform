@@ -352,6 +352,28 @@ def test_fetch_trigger_stocks_uses_limit_list_ts_code_schema():
     assert rejections == []
 
 
+def test_fetch_trigger_stocks_normalizes_hhmmss_first_time_in_sql():
+    engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+    captured = {}
+
+    class TimeCheckingCursor:
+        def execute(self, sql, params):
+            captured["sql"] = sql
+            captured["params"] = params
+
+        def fetchall(self):
+            return []
+
+    engine._fetch_trigger_stocks(
+        TimeCheckingCursor(),
+        "2026-06-30",
+        "2026-06-29",
+    )
+
+    assert "LPAD(REPLACE(l.first_time, ':', ''), 6, '0') <= %s" in captured["sql"]
+    assert captured["params"][-1] == "093000"
+
+
 def test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up():
     engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
 
