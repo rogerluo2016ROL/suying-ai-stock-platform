@@ -13,8 +13,8 @@
   ],
   "concepts": [
     {
-      "concept_code": "885834.TI",
-      "concept_name": "华为汽车",
+      "concept_code": "884096.TI",
+      "concept_name": "光学元件",
       "trigger_stock_count": 1,
       "concept_fd_amount": 779032373.0,
       "concept_fd_amount_yi": 7.79,
@@ -22,13 +22,13 @@
         "002273"
       ],
       "concept_size": 1,
-      "concept_strength": 0.17218025626227362,
+      "concept_strength": 0.7389309318959825,
       "concept_strength_source": "auction_avg",
-      "auction_sample_count": 170
+      "auction_sample_count": 25
     },
     {
-      "concept_code": "886061.TI",
-      "concept_name": "长安汽车概念",
+      "concept_code": "885376.TI",
+      "concept_name": "苹果概念",
       "trigger_stock_count": 1,
       "concept_fd_amount": 779032373.0,
       "concept_fd_amount_yi": 7.79,
@@ -36,987 +36,293 @@
         "002273"
       ],
       "concept_size": 1,
-      "concept_strength": 0.09757361630516367,
+      "concept_strength": 0.21041241661424145,
       "concept_strength_source": "auction_avg",
-      "auction_sample_count": 222
+      "auction_sample_count": 139
     }
   ],
   "bonds": [
     {
-      "cb_code": "128020.SZ",
-      "cb_name": "水晶转债",
-      "stk_code": "002273",
-      "stk_name": "水晶光电",
+      "cb_code": "110101.SH",
+      "cb_name": "宝钛转债",
+      "stk_code": "600456",
+      "stk_name": "宝钛股份",
       "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
       ],
-      "matched_concept_count": 2,
+      "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
       "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2020-02-24",
-      "call_status": "安全",
-      "is_direct_trigger": true,
-      "theme_score": 1217.7903,
-      "risk_notes": [
-        "退市日期2020-02-24"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "128020.SZ",
-      "name": "水晶转债",
-      "relation_reason": "正股为触发股，命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "111004.SH",
-      "cb_name": "明新转债",
-      "stk_code": "605068",
-      "stk_name": "明新旭腾",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": 4702.5163,
-      "remain_size": 671505000.0,
+      "remain_size": 3500000000.0,
       "delist_date": null,
       "call_status": "安全",
       "is_direct_trigger": false,
-      "theme_score": 217.7903,
+      "theme_score": 117.7903,
       "risk_notes": [
-        "成交额偏低0.5万"
+        "剩余规模35.00亿"
       ],
-      "remain_size_yi": 6.72,
-      "code": "111004.SH",
-      "name": "明新转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
+      "remain_size_yi": 35.0,
+      "code": "110101.SH",
+      "name": "宝钛转债",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "113012.SH",
-      "cb_name": "骆驼转债",
-      "stk_code": "601311",
-      "stk_name": "骆驼股份",
+      "cb_code": "111012.SH",
+      "cb_name": "福新转债",
+      "stk_code": "605488",
+      "stk_name": "福莱新材",
       "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
       ],
-      "matched_concept_count": 2,
+      "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2021-09-03",
-      "call_status": "安全",
+      "cb_amount": 153262.097,
+      "remain_size": 101691038.78,
+      "delist_date": null,
+      "call_status": "公告不强赎",
       "is_direct_trigger": false,
-      "theme_score": 217.7903,
+      "theme_score": 117.7903,
       "risk_notes": [
-        "退市日期2021-09-03"
+        "成交额偏低15.3万"
       ],
-      "remain_size_yi": 0.0,
-      "code": "113012.SH",
-      "name": "骆驼转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
+      "remain_size_yi": 1.02,
+      "code": "111012.SH",
+      "name": "福新转债",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "113626.SH",
-      "cb_name": "伯特转债",
-      "stk_code": "603596",
-      "stk_name": "伯特利",
+      "cb_code": "113046.SH",
+      "cb_name": "金田转债",
+      "stk_code": "601609",
+      "stk_name": "金田股份",
       "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
       ],
-      "matched_concept_count": 2,
+      "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2023-10-31",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2023-10-31"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113626.SH",
-      "name": "伯特转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113629.SH",
-      "cb_name": "泉峰转债",
-      "stk_code": "603982",
-      "stk_name": "泉峰汽车",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-07-30",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2025-07-30"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113629.SH",
-      "name": "泉峰转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113662.SH",
-      "cb_name": "豪能转债",
-      "stk_code": "603809",
-      "stk_name": "豪能股份",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2024-12-12",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2024-12-12"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113662.SH",
-      "name": "豪能转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113690.SH",
-      "cb_name": "豪24转债",
-      "stk_code": "603809",
-      "stk_name": "豪能股份",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-10-13",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2025-10-13"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113690.SH",
-      "name": "豪24转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113696.SH",
-      "cb_name": "伯25转债",
-      "stk_code": "603596",
-      "stk_name": "伯特利",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": 12251.0124,
-      "remain_size": 2801800252.08,
+      "cb_amount": 11820.8945,
+      "remain_size": 1499196048.18,
       "delist_date": null,
       "call_status": "安全",
       "is_direct_trigger": false,
-      "theme_score": 217.7903,
+      "theme_score": 117.7903,
       "risk_notes": [
         "成交额偏低1.2万",
-        "剩余规模28.02亿"
+        "剩余规模14.99亿"
       ],
-      "remain_size_yi": 28.02,
-      "code": "113696.SH",
-      "name": "伯25转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
+      "remain_size_yi": 14.99,
+      "code": "113046.SH",
+      "name": "金田转债",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "113698.SH",
-      "cb_name": "凯众转债",
-      "stk_code": "603037",
-      "stk_name": "凯众股份",
+      "cb_code": "118024.SH",
+      "cb_name": "冠宇转债",
+      "stk_code": "688772",
+      "stk_name": "珠海冠宇",
       "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
       ],
-      "matched_concept_count": 2,
+      "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": 7928.4809,
-      "remain_size": 308346115.08,
+      "cb_amount": 18844.875,
+      "remain_size": 3088929047.06,
       "delist_date": null,
       "call_status": "安全",
       "is_direct_trigger": false,
-      "theme_score": 217.7903,
+      "theme_score": 117.7903,
       "risk_notes": [
-        "成交额偏低0.8万"
+        "成交额偏低1.9万",
+        "剩余规模30.89亿"
       ],
-      "remain_size_yi": 3.08,
-      "code": "113698.SH",
-      "name": "凯众转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
+      "remain_size_yi": 30.89,
+      "code": "118024.SH",
+      "name": "冠宇转债",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "113705.SH",
-      "cb_name": "豪26转债",
-      "stk_code": "603809",
-      "stk_name": "豪能股份",
+      "cb_code": "118061.SH",
+      "cb_name": "茂莱转债",
+      "stk_code": "688502",
+      "stk_name": "茂莱光学",
       "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
+        "光学元件"
       ],
       "trigger_sources": [
         "002273"
       ],
-      "matched_concept_count": 2,
+      "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.7389309318959825,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 1800000000.0,
+      "cb_amount": 298377.4334,
+      "remain_size": 562238380.42,
       "delist_date": null,
       "call_status": "安全",
       "is_direct_trigger": false,
-      "theme_score": 217.7903,
+      "theme_score": 117.7903,
       "risk_notes": [
-        "剩余规模18.00亿"
+        "成交额偏低29.8万"
       ],
-      "remain_size_yi": 18.0,
-      "code": "113705.SH",
-      "name": "豪26转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
+      "remain_size_yi": 5.62,
+      "code": "118061.SH",
+      "name": "茂莱转债",
+      "relation_reason": "命中光学元件",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.74%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "123011.SZ",
-      "cb_name": "德尔转债",
-      "stk_code": "300473",
-      "stk_name": "德尔股份",
+      "cb_code": "118062.SH",
+      "cb_name": "天准转债",
+      "stk_code": "688003",
+      "stk_name": "天准科技",
       "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
       ],
-      "matched_concept_count": 2,
+      "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2024-07-19",
-      "call_status": "公告到期赎回",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "公告到期赎回",
-        "退市日期2024-07-19"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123011.SZ",
-      "name": "德尔转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123134.SZ",
-      "cb_name": "卡倍转债",
-      "stk_code": "300863",
-      "stk_name": "卡倍亿",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2023-03-23",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2023-03-23"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123134.SZ",
-      "name": "卡倍转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123174.SZ",
-      "cb_name": "精锻转债",
-      "stk_code": "300258",
-      "stk_name": "精锻科技",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-08-08",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2025-08-08"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123174.SZ",
-      "name": "精锻转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123187.SZ",
-      "cb_name": "超达转债",
-      "stk_code": "301186",
-      "stk_name": "超达装备",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": 30367.3534,
-      "remain_size": 224184000.0,
+      "cb_amount": 132167.0678,
+      "remain_size": 871934276.3,
       "delist_date": null,
-      "call_status": "公告不强赎",
+      "call_status": "安全",
       "is_direct_trigger": false,
-      "theme_score": 217.7903,
+      "theme_score": 117.7903,
       "risk_notes": [
-        "成交额偏低3.0万"
+        "成交额偏低13.2万"
       ],
-      "remain_size_yi": 2.24,
-      "code": "123187.SZ",
-      "name": "超达转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
+      "remain_size_yi": 8.72,
+      "code": "118062.SH",
+      "name": "天准转债",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "123222.SZ",
-      "cb_name": "博俊转债",
-      "stk_code": "300926",
-      "stk_name": "博俊科技",
+      "cb_code": "118066.SH",
+      "cb_name": "统联转债",
+      "stk_code": "688210",
+      "stk_name": "统联精密",
       "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
       ],
-      "matched_concept_count": 2,
+      "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": 3942.5,
-      "remain_size": 243822300.0,
+      "cb_amount": 4315.1052,
+      "remain_size": 576000000.0,
       "delist_date": null,
-      "call_status": "公告不强赎",
+      "call_status": "安全",
       "is_direct_trigger": false,
-      "theme_score": 217.7903,
+      "theme_score": 117.7903,
       "risk_notes": [
         "成交额偏低0.4万"
       ],
-      "remain_size_yi": 2.44,
-      "code": "123222.SZ",
-      "name": "博俊转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
+      "remain_size_yi": 5.76,
+      "code": "118066.SH",
+      "name": "统联转债",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "123230.SZ",
-      "cb_name": "金钟转债",
-      "stk_code": "301133",
-      "stk_name": "金钟股份",
+      "cb_code": "123138.SZ",
+      "cb_name": "丝路转债",
+      "stk_code": "300556",
+      "stk_name": "丝路视觉",
       "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
       ],
-      "matched_concept_count": 2,
+      "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2026-01-28",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2026-01-28"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123230.SZ",
-      "name": "金钟转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123238.SZ",
-      "cb_name": "卡倍转02",
-      "stk_code": "300863",
-      "stk_name": "卡倍亿",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-01-23",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2025-01-23"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123238.SZ",
-      "name": "卡倍转02",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123242.SZ",
-      "cb_name": "赛龙转债",
-      "stk_code": "301131",
-      "stk_name": "聚赛龙",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2026-03-13",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2026-03-13"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123242.SZ",
-      "name": "赛龙转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123253.SZ",
-      "cb_name": "永贵转债",
-      "stk_code": "300351",
-      "stk_name": "永贵电器",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": 7317.7296,
-      "remain_size": 979753400.0,
+      "cb_amount": 2400.0258,
+      "remain_size": 239337200.0,
       "delist_date": null,
       "call_status": "安全",
       "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "成交额偏低0.7万"
-      ],
-      "remain_size_yi": 9.8,
-      "code": "123253.SZ",
-      "name": "永贵转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "125887.SZ",
-      "cb_name": "中鼎转债",
-      "stk_code": "000887",
-      "stk_name": "中鼎股份",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2014-08-11",
-      "call_status": "安全",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "退市日期2014-08-11"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "125887.SZ",
-      "name": "中鼎转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "127011.SZ",
-      "cb_name": "中鼎转2",
-      "stk_code": "000887",
-      "stk_name": "中鼎股份",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2022-03-04",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2022-03-04"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "127011.SZ",
-      "name": "中鼎转2",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "127036.SZ",
-      "cb_name": "三花转债",
-      "stk_code": "002050",
-      "stk_name": "三花智控",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2023-08-09",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2023-08-09"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "127036.SZ",
-      "name": "三花转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "127037.SZ",
-      "cb_name": "银轮转债",
-      "stk_code": "002126",
-      "stk_name": "银轮股份",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": 58336.2781,
-      "remain_size": 505524700.0,
-      "delist_date": null,
-      "call_status": "公告不强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "成交额偏低5.8万"
-      ],
-      "remain_size_yi": 5.06,
-      "code": "127037.SZ",
-      "name": "银轮转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "128011.SZ",
-      "cb_name": "汽模转债",
-      "stk_code": "002510",
-      "stk_name": "天汽模",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2017-08-17",
-      "call_status": "安全",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "退市日期2017-08-17"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "128011.SZ",
-      "name": "汽模转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "128023.SZ",
-      "cb_name": "亚太转债",
-      "stk_code": "002284",
-      "stk_name": "亚太股份",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2023-12-05",
-      "call_status": "公告到期赎回",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "公告到期赎回",
-        "退市日期2023-12-05"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "128023.SZ",
-      "name": "亚太转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "128056.SZ",
-      "cb_name": "今飞转债",
-      "stk_code": "002863",
-      "stk_name": "今飞凯达",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-03-03",
-      "call_status": "公告到期赎回",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "公告到期赎回",
-        "退市日期2025-03-03"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "128056.SZ",
-      "name": "今飞转债",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "128090.SZ",
-      "cb_name": "汽模转2",
-      "stk_code": "002510",
-      "stk_name": "天汽模",
-      "matched_concepts": [
-        "华为汽车",
-        "长安汽车概念"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 2,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2024-12-27",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 217.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2024-12-27"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "128090.SZ",
-      "name": "汽模转2",
-      "relation_reason": "命中华为汽车、长安汽车概念",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "110058.SH",
-      "cb_name": "永鼎转债",
-      "stk_code": "600105",
-      "stk_name": "永鼎股份",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2024-12-20",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
       "theme_score": 117.7903,
       "risk_notes": [
-        "强赎中",
-        "退市日期2024-12-20"
+        "成交额偏低0.2万"
       ],
-      "remain_size_yi": 0.0,
-      "code": "110058.SH",
-      "name": "永鼎转债",
-      "relation_reason": "命中华为汽车",
+      "remain_size_yi": 2.39,
+      "code": "123138.SZ",
+      "name": "丝路转债",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "110418.SH",
-      "cb_name": "江淮转债",
-      "stk_code": "600418",
-      "stk_name": "江淮汽车",
+      "cb_code": "123176.SZ",
+      "cb_name": "精测转2",
+      "stk_code": "300567",
+      "stk_name": "精测电子",
       "matched_concepts": [
-        "华为汽车"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
@@ -1024,403 +330,34 @@
       "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2006-07-18",
-      "call_status": "安全",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "退市日期2006-07-18"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "110418.SH",
-      "name": "江淮转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "111008.SH",
-      "cb_name": "沿浦转债",
-      "stk_code": "605128",
-      "stk_name": "上海沿浦",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-04-03",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2025-04-03"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "111008.SH",
-      "name": "沿浦转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "111011.SH",
-      "cb_name": "冠盛转债",
-      "stk_code": "605088",
-      "stk_name": "冠盛股份",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-07-29",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2025-07-29"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "111011.SH",
-      "name": "冠盛转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113009.SH",
-      "cb_name": "广汽转债",
-      "stk_code": "601238",
-      "stk_name": "广汽集团",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2022-01-24",
-      "call_status": "公告到期赎回",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "公告到期赎回",
-        "退市日期2022-01-24"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113009.SH",
-      "name": "广汽转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113016.SH",
-      "cb_name": "小康转债",
-      "stk_code": "601127",
-      "stk_name": "赛力斯",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2023-06-26",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2023-06-26"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113016.SH",
-      "name": "小康转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113040.SH",
-      "cb_name": "星宇转债",
-      "stk_code": "601799",
-      "stk_name": "星宇股份",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2021-08-03",
-      "call_status": "安全",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "退市日期2021-08-03"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113040.SH",
-      "name": "星宇转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113061.SH",
-      "cb_name": "拓普转债",
-      "stk_code": "601689",
-      "stk_name": "拓普集团",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-03-14",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2025-03-14"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113061.SH",
-      "name": "拓普转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113537.SH",
-      "cb_name": "文灿转债",
-      "stk_code": "603348",
-      "stk_name": "文灿股份",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2024-12-18",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2024-12-18"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113537.SH",
-      "name": "文灿转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113550.SH",
-      "cb_name": "常汽转债",
-      "stk_code": "603035",
-      "stk_name": "常熟汽饰",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2022-04-19",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2022-04-19"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113550.SH",
-      "name": "常汽转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113552.SH",
-      "cb_name": "克来转债",
-      "stk_code": "603960",
-      "stk_name": "克来机电",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2020-08-07",
-      "call_status": "安全",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "退市日期2020-08-07"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113552.SH",
-      "name": "克来转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113577.SH",
-      "cb_name": "春秋转债",
-      "stk_code": "603890",
-      "stk_name": "春秋电子",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-11-07",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2025-11-07"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "113577.SH",
-      "name": "春秋转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "113667.SH",
-      "cb_name": "春23转债",
-      "stk_code": "603890",
-      "stk_name": "春秋电子",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": 127084.4897,
-      "remain_size": 569652111.7,
+      "cb_amount": 198153.2792,
+      "remain_size": 1275291300.0,
       "delist_date": null,
       "call_status": "公告不强赎",
       "is_direct_trigger": false,
       "theme_score": 117.7903,
       "risk_notes": [
-        "成交额偏低12.7万"
+        "成交额偏低19.8万",
+        "剩余规模12.75亿"
       ],
-      "remain_size_yi": 5.7,
-      "code": "113667.SH",
-      "name": "春23转债",
-      "relation_reason": "命中华为汽车",
+      "remain_size_yi": 12.75,
+      "code": "123176.SZ",
+      "name": "精测转2",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "113692.SH",
-      "cb_name": "保隆转债",
-      "stk_code": "603197",
-      "stk_name": "保隆科技",
+      "cb_code": "123193.SZ",
+      "cb_name": "海能转债",
+      "stk_code": "300787",
+      "stk_name": "海能实业",
       "matched_concepts": [
-        "华为汽车"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
@@ -1428,33 +365,33 @@
       "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": 7995.8698,
-      "remain_size": 1389697047.0,
+      "cb_amount": 2851.9857,
+      "remain_size": 599743400.0,
       "delist_date": null,
       "call_status": "安全",
       "is_direct_trigger": false,
       "theme_score": 117.7903,
       "risk_notes": [
-        "成交额偏低0.8万",
-        "剩余规模13.90亿"
+        "成交额偏低0.3万"
       ],
-      "remain_size_yi": 13.9,
-      "code": "113692.SH",
-      "name": "保隆转债",
-      "relation_reason": "命中华为汽车",
+      "remain_size_yi": 6.0,
+      "code": "123193.SZ",
+      "name": "海能转债",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "118028.SH",
-      "cb_name": "会通转债",
-      "stk_code": "688219",
-      "stk_name": "会通股份",
+      "cb_code": "123237.SZ",
+      "cb_name": "佳禾转债",
+      "stk_code": "300793",
+      "stk_name": "佳禾智能",
       "matched_concepts": [
-        "华为汽车"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
@@ -1462,33 +399,33 @@
       "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-07-25",
-      "call_status": "公告实施强赎",
+      "cb_amount": 3984.1459,
+      "remain_size": 431447700.0,
+      "delist_date": null,
+      "call_status": "公告不强赎",
       "is_direct_trigger": false,
       "theme_score": 117.7903,
       "risk_notes": [
-        "强赎中",
-        "退市日期2025-07-25"
+        "成交额偏低0.4万"
       ],
-      "remain_size_yi": 0.0,
-      "code": "118028.SH",
-      "name": "会通转债",
-      "relation_reason": "命中华为汽车",
+      "remain_size_yi": 4.31,
+      "code": "123237.SZ",
+      "name": "佳禾转债",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "118040.SH",
-      "cb_name": "宏微转债",
-      "stk_code": "688711",
-      "stk_name": "宏微科技",
+      "cb_code": "123262.SZ",
+      "cb_name": "神宇转债",
+      "stk_code": "300563",
+      "stk_name": "神宇股份",
       "matched_concepts": [
-        "华为汽车"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
@@ -1496,32 +433,33 @@
       "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": 121769.4994,
-      "remain_size": 428745054.93,
+      "cb_amount": 30620.8222,
+      "remain_size": 499938200.0,
       "delist_date": null,
       "call_status": "安全",
       "is_direct_trigger": false,
       "theme_score": 117.7903,
       "risk_notes": [
-        "成交额偏低12.2万"
+        "成交额偏低3.1万"
       ],
-      "remain_size_yi": 4.29,
-      "code": "118040.SH",
-      "name": "宏微转债",
-      "relation_reason": "命中华为汽车",
+      "remain_size_yi": 5.0,
+      "code": "123262.SZ",
+      "name": "神宇转债",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     },
     {
-      "cb_code": "123013.SZ",
-      "cb_name": "横河转债",
-      "stk_code": "300539",
-      "stk_name": "横河精密",
+      "cb_code": "128136.SZ",
+      "cb_name": "立讯转债",
+      "stk_code": "002475",
+      "stk_name": "立讯精密",
       "matched_concepts": [
-        "华为汽车"
+        "苹果概念"
       ],
       "trigger_sources": [
         "002273"
@@ -1529,230 +467,29 @@
       "matched_concept_count": 1,
       "trigger_stock_count_sum": 1,
       "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
+      "matched_concept_strength": 0.21041241661424145,
       "concept_size_min": 1,
       "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2024-07-29",
-      "call_status": "公告到期赎回",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "公告到期赎回",
-        "退市日期2024-07-29"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123013.SZ",
-      "name": "横河转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123022.SZ",
-      "cb_name": "长信转债",
-      "stk_code": "300088",
-      "stk_name": "长信科技",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-03-19",
-      "call_status": "公告到期赎回",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "公告到期赎回",
-        "退市日期2025-03-19"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123022.SZ",
-      "name": "长信转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123038.SZ",
-      "cb_name": "联得转债",
-      "stk_code": "300545",
-      "stk_name": "联得装备",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-08-20",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2025-08-20"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123038.SZ",
-      "name": "联得转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123075.SZ",
-      "cb_name": "贝斯转债",
-      "stk_code": "300580",
-      "stk_name": "贝斯特",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2023-08-07",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2023-08-07"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123075.SZ",
-      "name": "贝斯转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123165.SZ",
-      "cb_name": "回天转债",
-      "stk_code": "300041",
-      "stk_name": "回天新材",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": 9704.5538,
-      "remain_size": 849728800.0,
+      "cb_amount": 40094.6308,
+      "remain_size": 2984858000.0,
       "delist_date": null,
       "call_status": "安全",
       "is_direct_trigger": false,
       "theme_score": 117.7903,
       "risk_notes": [
-        "成交额偏低1.0万"
+        "成交额偏低4.0万",
+        "剩余规模29.85亿"
       ],
-      "remain_size_yi": 8.5,
-      "code": "123165.SZ",
-      "name": "回天转债",
-      "relation_reason": "命中华为汽车",
+      "remain_size_yi": 29.85,
+      "code": "128136.SZ",
+      "name": "立讯转债",
+      "relation_reason": "命中苹果概念",
       "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123200.SZ",
-      "cb_name": "海泰转债",
-      "stk_code": "301022",
-      "stk_name": "海泰科",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-10-16",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2025-10-16"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123200.SZ",
-      "name": "海泰转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
-    },
-    {
-      "cb_code": "123201.SZ",
-      "cb_name": "纽泰转债",
-      "stk_code": "301229",
-      "stk_name": "纽泰格",
-      "matched_concepts": [
-        "华为汽车"
-      ],
-      "trigger_sources": [
-        "002273"
-      ],
-      "matched_concept_count": 1,
-      "trigger_stock_count_sum": 1,
-      "matched_fd_amount": 779032373.0,
-      "matched_concept_strength": 0.17218025626227362,
-      "concept_size_min": 1,
-      "premium_rate": null,
-      "cb_amount": null,
-      "remain_size": 0.0,
-      "delist_date": "2025-11-14",
-      "call_status": "公告实施强赎",
-      "is_direct_trigger": false,
-      "theme_score": 117.7903,
-      "risk_notes": [
-        "强赎中",
-        "退市日期2025-11-14"
-      ],
-      "remain_size_yi": 0.0,
-      "code": "123201.SZ",
-      "name": "纽泰转债",
-      "relation_reason": "命中华为汽车",
-      "quality_tier": "A",
-      "quality_tier_reason": "概念竞价强度0.17%"
+      "quality_tier_reason": "概念竞价强度0.21%",
+      "list_type": "主买"
     }
   ],
+  "observation_bonds": [],
   "rejections": [
     {
       "code": "000603",
@@ -1760,244 +497,219 @@
       "reason": "封单金额不足7亿"
     },
     {
-      "cb_code": "110028.SH",
-      "cb_name": "冠城转债",
-      "stk_code": "600067",
-      "stk_name": "冠城新材",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "110081.SH",
+      "cb_name": "闻泰转债",
+      "stk_code": "600745",
+      "stk_name": "*ST闻泰",
+      "reason": "ST正股剔除"
     },
     {
-      "cb_code": "110807.SH",
-      "cb_name": "动力定01",
-      "stk_code": "600482",
-      "stk_name": "中国动力",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "110800.SH",
+      "cb_name": "赛腾定转",
+      "stk_code": "603283",
+      "stk_name": "赛腾股份",
+      "delist_date": "2021-05-31",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "110808.SH",
-      "cb_name": "动力定02",
-      "stk_code": "600482",
-      "stk_name": "中国动力",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "113045.SH",
+      "cb_name": "环旭转债",
+      "stk_code": "601231",
+      "stk_name": "环旭电子",
+      "delist_date": "2026-01-29",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "111016.SH",
-      "cb_name": "神通转债",
-      "stk_code": "605228",
-      "stk_name": "神通科技",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "113064.SH",
+      "cb_name": "东材转债",
+      "stk_code": "601208",
+      "stk_name": "东材科技",
+      "delist_date": "2025-09-08",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "113019.SH",
-      "cb_name": "玲珑转债",
-      "stk_code": "601966",
-      "stk_name": "玲珑轮胎",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "113068.SH",
+      "cb_name": "金铜转债",
+      "stk_code": "601609",
+      "stk_name": "金田股份",
+      "delist_date": "2025-08-26",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "113063.SH",
-      "cb_name": "赛轮转债",
-      "stk_code": "601058",
-      "stk_name": "赛轮轮胎",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "113521.SH",
+      "cb_name": "科森转债",
+      "stk_code": "603626",
+      "stk_name": "科森科技",
+      "delist_date": "2020-11-27",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "113673.SH",
-      "cb_name": "岱美转债",
-      "stk_code": "603730",
-      "stk_name": "岱美股份",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "113573.SH",
+      "cb_name": "纵横转债",
+      "stk_code": "603602",
+      "stk_name": "纵横通信",
+      "delist_date": "2024-12-05",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "113684.SH",
-      "cb_name": "湘泵转债",
-      "stk_code": "603319",
-      "stk_name": "美湖股份",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "113672.SH",
+      "cb_name": "福蓉转债",
+      "stk_code": "603327",
+      "stk_name": "福蓉科技",
+      "delist_date": "2026-01-29",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "118072.SH",
-      "cb_name": "鼎通转债",
-      "stk_code": "688668",
-      "stk_name": "鼎通科技",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "118003.SH",
+      "cb_name": "华兴转债",
+      "stk_code": "688001",
+      "stk_name": "华兴源创",
+      "delist_date": "2026-05-19",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "123045.SZ",
-      "cb_name": "雷迪转债",
-      "stk_code": "300652",
-      "stk_name": "雷迪克",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "118043.SH",
+      "cb_name": "福立转债",
+      "stk_code": "688678",
+      "stk_name": "福立旺",
+      "delist_date": "2026-02-11",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "123070.SZ",
-      "cb_name": "鹏辉转债",
-      "stk_code": "300438",
-      "stk_name": "鹏辉能源",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "123003.SZ",
+      "cb_name": "蓝思转债",
+      "stk_code": "300433",
+      "stk_name": "蓝思科技",
+      "delist_date": "2020-02-19",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "123097.SZ",
-      "cb_name": "美力转债",
-      "stk_code": "300611",
-      "stk_name": "美力科技",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "123016.SZ",
+      "cb_name": "洲明转债",
+      "stk_code": "300232",
+      "stk_name": "洲明科技",
+      "delist_date": "2020-03-20",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "123202.SZ",
-      "cb_name": "祥源转债",
-      "stk_code": "300980",
-      "stk_name": "祥源新材",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "123022.SZ",
+      "cb_name": "长信转债",
+      "stk_code": "300088",
+      "stk_name": "长信科技",
+      "delist_date": "2025-03-19",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "123212.SZ",
-      "cb_name": "立中转债",
-      "stk_code": "300428",
-      "stk_name": "立中集团",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "123025.SZ",
+      "cb_name": "精测转债",
+      "stk_code": "300567",
+      "stk_name": "精测电子",
+      "delist_date": "2025-03-31",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "123227.SZ",
-      "cb_name": "雅创转债",
-      "stk_code": "301099",
-      "stk_name": "雅创电子",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "123038.SZ",
+      "cb_name": "联得转债",
+      "stk_code": "300545",
+      "stk_name": "联得装备",
+      "delist_date": "2025-08-20",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "123249.SZ",
-      "cb_name": "英搏转债",
-      "stk_code": "300681",
-      "stk_name": "英搏尔",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "123058.SZ",
+      "cb_name": "欣旺转债",
+      "stk_code": "300207",
+      "stk_name": "欣旺达",
+      "delist_date": "2021-07-14",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "123254.SZ",
-      "cb_name": "亿纬转债",
-      "stk_code": "300014",
-      "stk_name": "亿纬锂能",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "125969.SZ",
+      "cb_name": "安泰转债",
+      "stk_code": "000969",
+      "stk_name": "安泰科技",
+      "delist_date": "2010-06-23",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "123272.SZ",
-      "cb_name": "中汽转债",
-      "stk_code": "301215",
-      "stk_name": "中汽股份",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "127026.SZ",
+      "cb_name": "超声转债",
+      "stk_code": "000823",
+      "stk_name": "超声电子",
+      "delist_date": "2026-06-24",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "127013.SZ",
-      "cb_name": "创维转债",
-      "stk_code": "000810",
-      "stk_name": "创维数字",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "127051.SZ",
+      "cb_name": "博杰转债",
+      "stk_code": "002975",
+      "stk_name": "博杰股份",
+      "delist_date": "2025-05-08",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "127068.SZ",
-      "cb_name": "顺博转债",
-      "stk_code": "002996",
-      "stk_name": "顺博合金",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "127107.SZ",
+      "cb_name": "领益转债",
+      "stk_code": "002600",
+      "stk_name": "领益智造",
+      "delist_date": "2025-10-23",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "127074.SZ",
-      "cb_name": "麦米转2",
-      "stk_code": "002851",
-      "stk_name": "麦格米特",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "128009.SZ",
+      "cb_name": "歌尔转债",
+      "stk_code": "002241",
+      "stk_name": "歌尔股份",
+      "delist_date": "2017-07-10",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "127097.SZ",
-      "cb_name": "三羊转债",
-      "stk_code": "001317",
-      "stk_name": "三羊马",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "128020.SZ",
+      "cb_name": "水晶转债",
+      "stk_code": "002273",
+      "stk_name": "水晶光电",
+      "delist_date": "2020-02-24",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "128018.SZ",
-      "cb_name": "时达转债",
-      "stk_code": "002527",
-      "stk_name": "新时达",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "128035.SZ",
+      "cb_name": "大族转债",
+      "stk_code": "002008",
+      "stk_name": "大族激光",
+      "delist_date": "2024-02-07",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "128028.SZ",
-      "cb_name": "赣锋转债",
-      "stk_code": "002460",
-      "stk_name": "赣锋锂业",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "128088.SZ",
+      "cb_name": "深南转债",
+      "stk_code": "002916",
+      "stk_name": "深南电路",
+      "delist_date": "2020-09-11",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "128068.SZ",
-      "cb_name": "和而转债",
-      "stk_code": "002402",
-      "stk_name": "和而泰",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "128101.SZ",
+      "cb_name": "联创转债",
+      "stk_code": "002036",
+      "stk_name": "联创电子",
+      "delist_date": "2026-03-17",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "128075.SZ",
-      "cb_name": "远东转债",
-      "stk_code": "002406",
-      "stk_name": "远东传动",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "128112.SZ",
+      "cb_name": "歌尔转2",
+      "stk_code": "002241",
+      "stk_name": "歌尔股份",
+      "delist_date": "2021-03-11",
+      "reason": "已退市转债剔除"
     },
     {
-      "cb_code": "128086.SZ",
-      "cb_name": "国轩转债",
-      "stk_code": "002074",
-      "stk_name": "国轩高科",
-      "quality_tier": "B",
-      "reason": "非A档观察"
-    },
-    {
-      "cb_code": "128089.SZ",
-      "cb_name": "麦米转债",
-      "stk_code": "002851",
-      "stk_name": "麦格米特",
-      "quality_tier": "B",
-      "reason": "非A档观察"
-    },
-    {
-      "cb_code": "128126.SZ",
-      "cb_name": "赣锋转2",
-      "stk_code": "002460",
-      "stk_name": "赣锋锂业",
-      "quality_tier": "B",
-      "reason": "非A档观察"
-    },
-    {
-      "cb_code": "128143.SZ",
-      "cb_name": "锋龙转债",
-      "stk_code": "002931",
-      "stk_name": "锋龙股份",
-      "quality_tier": "B",
-      "reason": "非A档观察"
+      "cb_code": "128118.SZ",
+      "cb_name": "瀛通转债",
+      "stk_code": "002861",
+      "stk_name": "瀛通通讯",
+      "delist_date": "2024-12-27",
+      "reason": "已退市转债剔除"
     }
   ]
 }

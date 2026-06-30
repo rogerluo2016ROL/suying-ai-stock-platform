@@ -226,6 +226,17 @@ class TestScreenerRun:
                             "quality_tier": "A",
                         }
                     ],
+                    "observation_bonds": [
+                        {
+                            "cb_code": "123002.SZ",
+                            "cb_name": "竞价V21观察转债",
+                            "stk_code": "300002",
+                            "stk_name": "观察科技",
+                            "theme_score": 88.0,
+                            "quality_tier": "B",
+                            "observation_reason": "非A档观察",
+                        }
+                    ],
                 }
 
             def close(self):
@@ -242,6 +253,9 @@ class TestScreenerRun:
         assert result["picks"][0]["name"] == "竞价V21转债"
         assert result["picks"][0]["quality_tier"] == "A"
         assert result["picks"][0]["source_mode"] == "cb_auction_t0_v2_1"
+        assert result["observation_picks"][0]["code"] == "123002.SZ"
+        assert result["observation_picks"][0]["name"] == "竞价V21观察转债"
+        assert result["observation_picks"][0]["source_mode"] == "cb_auction_t0_v2_1"
 
     def test_resolve_trade_date_replaces_latest_with_pg_date(self, monkeypatch):
         """Verify leader modes never pass the literal latest token into PG date filters."""

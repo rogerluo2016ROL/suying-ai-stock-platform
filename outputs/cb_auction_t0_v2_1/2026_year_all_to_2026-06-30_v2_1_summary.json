@@ -1,0 +1,13 @@
+{
+  "model": "cb_auction_t0_v2_1",
+  "period": "2026-01-01 to 2026-06-30",
+  "trade_days": 116,
+  "pick_days": 4,
+  "trigger_stock_days": 17,
+  "raw_bond_rows": 22,
+  "evaluable_trades": 20,
+  "wins": 16,
+  "win_rate": 80.0,
+  "avg_return_pct": 3.256,
+  "median_return_pct": 2.1011
+}

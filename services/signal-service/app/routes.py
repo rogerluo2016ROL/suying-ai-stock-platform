@@ -17,6 +17,10 @@ def _trigger_sync_via_data_service(table_key: str, days: int) -> dict | None:
     import urllib.request
 
     base = os.environ.get("DATA_SERVICE_URL", "http://127.0.0.1:8010/api/v1/data").rstrip("/")
+    if table_key == "stocks":
+        req = urllib.request.Request(f"{base}/sync/stocks", method="POST")
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            return json.loads(resp.read().decode("utf-8"))
     query = urllib.parse.urlencode({"table_key": table_key, "days": days})
     req = urllib.request.Request(f"{base}/sync/backfill?{query}", method="POST")
     with urllib.request.urlopen(req, timeout=300) as resp:
@@ -1265,7 +1269,7 @@ _DATA_SOURCES = [
     {"key": "index_basic",    "name": "指数基本信息",       "category": "基础", "source": "Tushare index_basic","update":"不定期",       "note": ""},
     {"key": "ths_member",     "name": "同花顺概念成分",     "category": "基础", "source": "Tushare ths_member","update":"不定期",       "note": ""},
     {"key": "stock_news_tushare","name":"股票新闻",         "category": "舆情", "source": "Tushare news",      "update": "每日盘后",        "note": ""},
-    {"key": "research_reports","name":"研究报告",           "category": "舆情", "source": "Tushare research_report","update":"每日盘后","note": ""},
+    {"key": "research_reports_tushare","name":"研究报告",   "category": "舆情", "source": "Tushare research_report","update":"每日盘后","note": ""},
 ]
 
 # ETL 同步映射: table_key → (sync_mode, days_default, description)
@@ -1296,12 +1300,63 @@ _SYNC_MAP = {
         "cyq_chips": ("cyq_chips", 30, "筹码分布"),
         "broker_recommend": ("broker_recommend", 30, "券商推荐"),
         "stk_auction_o": ("stk_auction_o", 1, "集合竞价"),
+        "stk_factor_pro": ("stk_factor_pro", 7, "技术因子"),
+        "stocks": ("stocks", 30, "股票列表"),
         "rt_sw_k": ("rt_sw_k", 1, "申万实时行情"),
         "stock_news_tushare": ("stock_news", 30, "股票新闻"),
-        "research_reports": ("research_report", 30, "研究报告"),
+        "research_reports_tushare": ("research_report", 30, "研究报告"),
         "sw_daily": ("sw_daily", 365, "申万行业指数"),
         "limit_list_d": ("limit_list", 30, "涨跌停明细"),
     }
+
+
+DATA_STATUS_DATE_COLUMNS = {
+    "daily_kline": ("trade_date",),
+    "weekly_kline": ("trade_date",),
+    "monthly_kline": ("trade_date",),
+    "stk_mins": ("trade_time",),
+    "stk_auction_o": ("trade_date",),
+    "moneyflow": ("trade_date",),
+    "stk_limit": ("trade_date",),
+    "daily_basic": ("trade_date",),
+    "adj_factor": ("trade_date",),
+    "index_daily": ("trade_date",),
+    "sw_daily": ("trade_date",),
+    "top_list": ("trade_date",),
+    "top_inst": ("trade_date",),
+    "margin_detail": ("trade_date",),
+    "margin_summary": ("trade_date",),
+    "moneyflow_hsgt": ("trade_date",),
+    "hk_holdings": ("trade_date",),
+    "block_trade_data": ("trade_date",),
+    "limit_list_d": ("trade_date",),
+    "cyq_chips": ("trade_date",),
+    "rt_sw_k": ("trade_date",),
+    "financial_indicator": ("end_date",),
+    "financial_income": ("end_date",),
+    "financial_balance": ("end_date",),
+    "financial_cashflow": ("end_date",),
+    "forecast_data": ("end_date",),
+    "dividend_data": ("ex_date",),
+    "broker_recommend": ("month",),
+    "stk_factor_pro": ("trade_date",),
+    "stock_news_tushare": ("pub_time",),
+    "research_reports_tushare": ("pub_date",),
+}
+
+DATA_STATUS_FALLBACK_DATE_COLUMNS = (
+    "trade_date",
+    "end_date",
+    "ann_date",
+    "pub_date",
+    "pub_time",
+    "month",
+    "trade_time",
+    "f_ann_date",
+    "datetime",
+    "report_date",
+    "updated_at",
+)
 
 
 def _default_sync_schedules() -> list[dict]:
@@ -1316,6 +1371,14 @@ def _default_sync_schedules() -> list[dict]:
             interval_minutes = 5
             daily_at = None
             next_sync_at = "交易时段每 5 分钟"
+        elif mode in ("stk_factor_pro",):
+            interval_minutes = 0
+            daily_at = "16:05"
+            next_sync_at = "16:05"
+        elif mode in ("stocks",):
+            interval_minutes = 0
+            daily_at = "02:00"
+            next_sync_at = "02:00"
         elif mode in ("stk_mins",):
             interval_minutes = 0
             daily_at = "18:00"
@@ -1350,29 +1413,6 @@ async def data_status():
     """Return comprehensive data source status with metadata."""
     from kronos_factors.scorer._db_stub import _get_db as _db
 
-    # Date column per table (specific to avoid trial-and-error overhead)
-    _DATE_COL_MAP = {
-        "daily_kline": ("trade_date",), "weekly_kline": ("trade_date",), "monthly_kline": ("trade_date",),
-        "stk_mins": ("trade_time",), "stk_auction_o": ("trade_date",), "moneyflow": ("trade_date",),
-        "stk_limit": ("trade_date",), "daily_basic": ("trade_date",), "adj_factor": ("trade_date",),
-        "index_daily": ("trade_date",), "sw_daily": ("trade_date",), "top_list": ("trade_date",),
-        "top_inst": ("trade_date",), "margin_detail": ("trade_date",), "margin_summary": ("trade_date",),
-        "moneyflow_hsgt": ("trade_date",), "hk_holdings": ("trade_date",),
-        "block_trade_data": ("trade_date",), "limit_list_d": ("trade_date",),
-        "cyq_chips": ("trade_date",), "rt_sw_k": ("trade_date",),
-        # Financial tables use end_date / ann_date
-        "financial_indicator": ("end_date",), "financial_income": ("end_date",),
-        "financial_balance": ("f_ann_date",), "financial_cashflow": ("end_date",),
-        "forecast_data": ("end_date",), "dividend_data": ("end_date",),
-        # Misc
-        "broker_recommend": ("ann_date",), "stk_factor_pro": ("trade_date",),
-        "stock_news_tushare": ("ann_date",), "research_reports": ("ann_date",),
-    }
-
-    # Generic fallback date columns to try for tables not in the explicit map
-    _FALLBACK_DATE_COLS = ("trade_date", "end_date", "ann_date", "trade_time",
-                           "f_ann_date", "datetime", "report_date", "updated_at")
-
     sources = []
     pg_stats = {}; date_cache = {}
     try:
@@ -1396,7 +1436,7 @@ async def data_status():
         from psycopg2.sql import SQL, Identifier
         all_table_keys = {s["key"] for s in _DATA_SOURCES}
         for key in all_table_keys:
-            cols_to_try = list(_DATE_COL_MAP.get(key, _FALLBACK_DATE_COLS))
+            cols_to_try = list(DATA_STATUS_DATE_COLUMNS.get(key, DATA_STATUS_FALLBACK_DATE_COLUMNS))
             for col in cols_to_try:
                 try:
                     cur.execute(

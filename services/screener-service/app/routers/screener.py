@@ -2098,26 +2098,36 @@ def _run_cb_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
 
     if mode in ("cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1") and isinstance(raw_result, dict):
         trade_date = str(raw_result.get("trade_date") or trade_date or "")
-        picks = []
-        for bond in raw_result.get("bonds", []):
-            item = dict(bond)
-            item["code"] = item.get("code") or item.get("cb_code")
-            item["name"] = item.get("name") or item.get("cb_name")
-            item["score"] = item.get("score") or item.get("theme_score")
-            item["entry_reason"] = item.get("entry_reason") or item.get("relation_reason")
-            item["risk_flags"] = item.get("risk_flags") or item.get("risk_notes") or []
-            picks.append(item)
+        def map_bonds(bonds: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            mapped = []
+            for bond in bonds:
+                item = dict(bond)
+                item["code"] = item.get("code") or item.get("cb_code")
+                item["name"] = item.get("name") or item.get("cb_name")
+                item["score"] = item.get("score") or item.get("theme_score")
+                item["entry_reason"] = item.get("entry_reason") or item.get("relation_reason")
+                item["risk_flags"] = item.get("risk_flags") or item.get("risk_notes") or []
+                mapped.append(item)
+            return mapped
+
+        picks = map_bonds(raw_result.get("bonds", []))
+        observation_picks = map_bonds(raw_result.get("observation_bonds", []))
     else:
         picks = raw_result
+        observation_picks = []
 
     picks = _sanitize_picks(picks)
     picks = _normalize_picks(picks, mode)
+    observation_picks = _sanitize_picks(observation_picks)
+    observation_picks = _normalize_picks(observation_picks, mode)
 
     return {
         "mode": mode,
         "trade_date": trade_date,
         "total_picks": len(picks),
         "picks": picks,
+        "observation_picks": observation_picks,
+        "total_observation_picks": len(observation_picks),
     }
 
 

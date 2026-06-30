@@ -99,6 +99,12 @@ def _is_st_stock_name(name: str | None) -> bool:
     return "ST" in str(name).upper()
 
 
+def _is_past_delisted(delist_date: Any, trade_date: str) -> bool:
+    if not delist_date:
+        return False
+    return str(delist_date)[:10] <= str(trade_date)[:10]
+
+
 def _risk_notes(row: dict[str, Any]) -> list[str]:
     notes: list[str] = []
     call_status = row.get("call_status") or ""
@@ -140,7 +146,9 @@ class CbAuctionT0Engine:
     weak_concept_names: set[str] = set()
     assign_quality_tier = False
     output_quality_tiers: set[str] | None = None
+    collect_observation_bonds = False
     exclude_st_underlying = False
+    exclude_past_delisted = False
     rolling_weak_concept_window = 0
     rolling_weak_concept_strength_max = 0.0
     rolling_weak_concept_min_samples = 0
@@ -211,6 +219,7 @@ class CbAuctionT0Engine:
                 )
 
         bonds: list[dict[str, Any]] = []
+        observation_bonds: list[dict[str, Any]] = []
         for row in merged.values():
             row["is_direct_trigger"] = _normalize_stock_code(row.get("stk_code")) in trigger_codes
             row["matched_concept_count"] = len(row.get("matched_concepts") or [])
@@ -239,32 +248,54 @@ class CbAuctionT0Engine:
                     }
                 )
                 continue
-            if self.output_quality_tiers is not None and row.get("quality_tier") not in self.output_quality_tiers:
+            if self.exclude_past_delisted and _is_past_delisted(row.get("delist_date"), trade_date):
                 result_rejections.append(
                     {
                         "cb_code": row.get("cb_code"),
                         "cb_name": row.get("cb_name"),
                         "stk_code": row.get("stk_code"),
                         "stk_name": row.get("stk_name"),
-                        "quality_tier": row.get("quality_tier"),
-                        "reason": "非A档观察",
+                        "delist_date": row.get("delist_date"),
+                        "reason": "已退市转债剔除",
                     }
                 )
                 continue
+            if self.output_quality_tiers is not None and row.get("quality_tier") not in self.output_quality_tiers:
+                if self.collect_observation_bonds:
+                    observation = dict(row)
+                    observation["list_type"] = "观察"
+                    observation["observation_reason"] = "非A档观察"
+                    observation_bonds.append(observation)
+                else:
+                    result_rejections.append(
+                        {
+                            "cb_code": row.get("cb_code"),
+                            "cb_name": row.get("cb_name"),
+                            "stk_code": row.get("stk_code"),
+                            "stk_name": row.get("stk_name"),
+                            "quality_tier": row.get("quality_tier"),
+                            "reason": "非A档观察",
+                        }
+                    )
+                continue
+            row["list_type"] = "主买"
             bonds.append(row)
 
         # 排序规则按题材相关性定义：直接触发优先，题材/触发权重高者靠前；theme_score 仅用于展示。
-        bonds.sort(
-            key=lambda row: (
+        def sort_key(row: dict[str, Any]) -> tuple:
+            return (
                 not row.get("is_direct_trigger"),
                 -int(row.get("matched_concept_count") or 0),
                 -int(row.get("trigger_stock_count_sum") or 0),
                 -float(row.get("matched_fd_amount") or 0),
                 row.get("cb_code") or "",
             )
-        )
+
+        bonds.sort(key=sort_key)
+        observation_bonds.sort(key=sort_key)
         if top_n is not None:
             bonds = bonds[:top_n]
+            observation_bonds = observation_bonds[:top_n]
 
         return {
             "model": self.model_id,
@@ -272,6 +303,7 @@ class CbAuctionT0Engine:
             "trigger_stocks": triggers,
             "concepts": concepts,
             "bonds": bonds,
+            "observation_bonds": observation_bonds,
             "rejections": result_rejections,
         }
 
@@ -707,13 +739,11 @@ class CbAuctionT0V21Engine(CbAuctionT0V2Engine):
     """竞价选债 T+0 优化版 V2.1 稳健版.
 
     V2.1 keeps V2's trigger timing and adds non-forward-looking guardrails:
-    A-tier main picks only, ST underlying exclusion, and rolling weak concept
-    filtering based only on prior auction concept strength.
+    A-tier main picks only and ST underlying exclusion.
     """
 
     model_id = "cb_auction_t0_v2_1"
     output_quality_tiers = {"A"}
+    collect_observation_bonds = True
     exclude_st_underlying = True
-    rolling_weak_concept_window = V21_ROLLING_WEAK_CONCEPT_WINDOW
-    rolling_weak_concept_strength_max = V21_ROLLING_WEAK_CONCEPT_STRENGTH_MAX
-    rolling_weak_concept_min_samples = V21_ROLLING_WEAK_CONCEPT_MIN_SAMPLES
+    exclude_past_delisted = True

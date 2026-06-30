@@ -1,6 +1,7 @@
 import asyncio
 import re
 import sys
+import urllib.request
 from pathlib import Path
 
 import pandas as pd
@@ -110,6 +111,37 @@ def test_data_status_sources_use_tushare_report_table():
     assert "research_reports_tushare" in source_keys
     assert "research_reports" not in source_keys
     assert routes._SYNC_MAP["research_reports_tushare"] == ("research_report", 30, "研究报告")
+
+
+def test_sync_map_covers_service_side_data_sources():
+    assert routes._SYNC_MAP["stocks"] == ("stocks", 30, "股票列表")
+    assert routes._SYNC_MAP["stk_factor_pro"] == ("stk_factor_pro", 7, "技术因子")
+
+
+def test_data_service_proxy_routes_stocks_to_dedicated_endpoint(monkeypatch):
+    calls = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"status":"ok","table_key":"stocks","pg_written":1}'
+
+    def fake_urlopen(req, timeout):
+        calls.append((req.full_url, req.get_method(), timeout))
+        return FakeResponse()
+
+    monkeypatch.setenv("DATA_SERVICE_URL", "http://data-service/api/v1/data")
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    result = routes._trigger_sync_via_data_service("stocks", 30)
+
+    assert result["status"] == "ok"
+    assert calls == [("http://data-service/api/v1/data/sync/stocks", "POST", 300)]
 
 
 def test_trigger_sync_prefers_data_service_proxy(monkeypatch):

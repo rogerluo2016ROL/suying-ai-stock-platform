@@ -46,6 +46,7 @@ def write_outputs(result: dict, output_dir: str) -> tuple[str, str]:
     )
 
     fields = [
+        "list_type",
         "cb_code",
         "cb_name",
         "stk_code",
@@ -61,11 +62,13 @@ def write_outputs(result: dict, output_dir: str) -> tuple[str, str]:
         "risk_notes",
         "quality_tier",
         "quality_tier_reason",
+        "observation_reason",
     ]
     with csv_path.open("w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
-        for bond in result.get("bonds", []):
+        output_bonds = list(result.get("bonds", [])) + list(result.get("observation_bonds", []))
+        for bond in output_bonds:
             row = {key: bond.get(key) for key in fields}
             row["matched_concepts"] = "、".join(bond.get("matched_concepts") or [])
             row["trigger_sources"] = "、".join(bond.get("trigger_sources") or [])
@@ -87,6 +90,7 @@ def print_summary(result: dict) -> None:
         "触发股票: "
         f"{len(result.get('trigger_stocks', []))} | 概念: {len(result.get('concepts', []))} | 转债: "
         f"{len(result.get('bonds', []))}"
+        f" | 观察: {len(result.get('observation_bonds', []))}"
     )
     print("-" * 120)
     print(
@@ -103,6 +107,21 @@ def print_summary(result: dict) -> None:
             f"{concepts:<24} "
             f"{risks}"
         )
+    observation_bonds = result.get("observation_bonds", [])
+    if observation_bonds:
+        print("\n观察清单")
+        print("-" * 120)
+        for idx, bond in enumerate(observation_bonds[:50], 1):
+            concepts = "、".join(bond.get("matched_concepts") or [])[:24]
+            risks = "；".join(bond.get("risk_notes") or [])
+            print(
+                f"{idx:<3} "
+                f"{bond.get('cb_name', ''):<12} "
+                f"{bond.get('stk_name', ''):<10} "
+                f"{bond.get('quality_tier', ''):<4} "
+                f"{concepts:<24} "
+                f"{bond.get('observation_reason', '')} {risks}"
+            )
 
 
 def main(argv: list[str] | None = None) -> int:

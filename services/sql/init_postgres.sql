@@ -138,7 +138,13 @@ CREATE TABLE IF NOT EXISTS moneyflow (
 CREATE TABLE IF NOT EXISTS moneyflow_hsgt (
     trade_date DATE PRIMARY KEY,
     north_net_inflow DOUBLE PRECISION,
-    south_net_inflow DOUBLE PRECISION
+    south_net_inflow DOUBLE PRECISION,
+    ggt_ss DOUBLE PRECISION,
+    ggt_sz DOUBLE PRECISION,
+    hgt DOUBLE PRECISION,
+    sgt DOUBLE PRECISION,
+    north_money DOUBLE PRECISION,
+    south_money DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS hk_holdings (

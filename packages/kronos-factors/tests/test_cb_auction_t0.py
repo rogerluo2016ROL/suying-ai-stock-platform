@@ -572,7 +572,7 @@ def test_v2_assemble_result_adds_quality_tiers_from_concept_strength():
     assert [bond["quality_tier"] for bond in result["bonds"]] == ["A", "B", "C"]
 
 
-def test_v21_assemble_result_keeps_only_a_tier_and_excludes_st_underlying():
+def test_v21_assemble_result_keeps_a_tier_main_and_non_a_observation():
     engine = CbAuctionT0V21Engine(pg_url="postgresql://unit/unit")
     raw_bonds = [
         {
@@ -602,6 +602,19 @@ def test_v21_assemble_result_keeps_only_a_tier_and_excludes_st_underlying():
             "matched_concept_strength": 0.05,
         },
         {
+            "cb_code": "123005.SZ",
+            "cb_name": "负概念转债",
+            "stk_code": "300105",
+            "stk_name": "负概念题材",
+            "matched_concepts": ["弱概念"],
+            "trigger_sources": ["300001"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 800_000_000,
+            "concept_size_min": 20,
+            "matched_concept_strength": -0.03,
+        },
+        {
             "cb_code": "123003.SZ",
             "cb_name": "ST转债",
             "stk_code": "300103",
@@ -614,6 +627,20 @@ def test_v21_assemble_result_keeps_only_a_tier_and_excludes_st_underlying():
             "concept_size_min": 20,
             "matched_concept_strength": 0.2,
         },
+        {
+            "cb_code": "123004.SZ",
+            "cb_name": "已退转债",
+            "stk_code": "300104",
+            "stk_name": "退市题材",
+            "matched_concepts": ["强概念"],
+            "trigger_sources": ["300001"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 800_000_000,
+            "concept_size_min": 20,
+            "matched_concept_strength": 0.2,
+            "delist_date": "2026-06-01",
+        },
     ]
 
     result = engine._assemble_result("2026-06-30", [], [], raw_bonds, top_n=None)
@@ -621,11 +648,19 @@ def test_v21_assemble_result_keeps_only_a_tier_and_excludes_st_underlying():
     assert result["model"] == "cb_auction_t0_v2_1"
     assert [bond["cb_code"] for bond in result["bonds"]] == ["123001.SZ"]
     assert result["bonds"][0]["quality_tier"] == "A"
-    assert {item["reason"] for item in result["rejections"]} == {"非A档观察", "ST正股剔除"}
+    assert [bond["cb_code"] for bond in result["observation_bonds"]] == ["123002.SZ", "123005.SZ"]
+    assert [bond["list_type"] for bond in result["observation_bonds"]] == ["观察", "观察"]
+    assert [bond["observation_reason"] for bond in result["observation_bonds"]] == ["非A档观察", "非A档观察"]
+    assert {item["reason"] for item in result["rejections"]} == {"ST正股剔除", "已退市转债剔除"}
 
 
-def test_v21_filters_rolling_weak_concepts_without_current_day_data():
-    engine = CbAuctionT0V21Engine(pg_url="postgresql://unit/unit")
+def test_rolling_weak_concept_filter_uses_prior_calendar_when_enabled():
+    class RollingWeakConceptEngine(CbAuctionT0V21Engine):
+        rolling_weak_concept_window = 20
+        rolling_weak_concept_strength_max = -0.2
+        rolling_weak_concept_min_samples = 5
+
+    engine = RollingWeakConceptEngine(pg_url="postgresql://unit/unit")
     captured_params = []
     captured_sql = []
 
@@ -724,6 +759,23 @@ def test_cli_write_outputs_creates_json_and_csv(tmp_path):
                 "call_status": "公告实施强赎",
                 "risk_notes": ["强赎中", "高溢价85.0%"],
                 "relation_reason": "正股为触发股，命中机器人",
+                "list_type": "主买",
+            }
+        ],
+        "observation_bonds": [
+            {
+                "cb_code": "123002.SZ",
+                "cb_name": "观察转债",
+                "stk_code": "300002",
+                "stk_name": "观察科技",
+                "matched_concepts": ["机器人"],
+                "trigger_sources": ["300001"],
+                "theme_score": 11.0,
+                "risk_notes": [],
+                "quality_tier": "B",
+                "quality_tier_reason": "概念竞价强度0.05%",
+                "list_type": "观察",
+                "observation_reason": "非A档观察",
             }
         ],
         "rejections": [],
@@ -737,6 +789,10 @@ def test_cli_write_outputs_creates_json_and_csv(tmp_path):
     assert data["bonds"][0]["risk_notes"] == ["强赎中", "高溢价85.0%"]
     csv_text = Path(csv_path).read_text(encoding="utf-8-sig")
     assert "触发转债" in csv_text
+    assert "观察转债" in csv_text
+    assert "主买" in csv_text
+    assert "观察" in csv_text
+    assert "非A档观察" in csv_text
     assert "公告实施强赎" in csv_text
     assert "高溢价85.0%" in csv_text
     assert "85.0" in csv_text
@@ -848,3 +904,4 @@ def test_engine_package_exports_cb_auction_t0():
     assert v2_engine.model_id == "cb_auction_t0_v2"
     v21_engine = CbAuctionT0V21Engine(pg_url="postgresql://unit/unit")
     assert v21_engine.model_id == "cb_auction_t0_v2_1"
+    assert v21_engine.rolling_weak_concept_window == 0
