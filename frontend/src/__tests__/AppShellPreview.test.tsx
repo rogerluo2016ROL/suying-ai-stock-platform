@@ -72,6 +72,13 @@ describe('App shell preview baseline', () => {
         defaultTradeAccountId: 'paper-admin',
         tradeMode: 'paper',
         brokerAdapter: 'paper',
+        permissions: [
+          'dashboard', 'open_decision', 'screener', 'supply_chain_bom', 'predictions',
+          'signals', 'trade', 'auto_trade', 'strategy', 'risk', 'backtest', 'diagnosis',
+          'training', 'model_registry', 'data_update', 'runtime_status', 'p0_workflow',
+          'platform_upgrade', 'admin_permissions', 'admin_memberships',
+        ],
+        membership: { status: 'inactive', isMember: false },
       },
       accessToken: 'token',
       isAuthenticated: true,
@@ -80,6 +87,7 @@ describe('App shell preview baseline', () => {
       register: vi.fn(),
       logout: vi.fn(),
       hasRole: (...roles) => roles.includes('admin'),
+      hasPermission: () => true,
     })
   })
 
@@ -126,10 +134,9 @@ describe('App shell preview baseline', () => {
     const platformContext = within(banner).getByLabelText('当前平台上下文')
 
     expect(within(platformContext).getByText('管理员视图')).toBeInTheDocument()
-    expect(within(platformContext).getByText('平台运营')).toBeInTheDocument()
     expect(within(platformContext).getByText('paper-admin')).toBeInTheDocument()
     expect(within(platformContext).getByText('模拟盘')).toBeInTheDocument()
-    expect(within(platformContext).getByText('paper')).toBeInTheDocument()
+    expect(within(platformContext).getByText('非会员')).toBeInTheDocument()
     expect(screen.queryByText('角色视图')).not.toBeInTheDocument()
     expect(screen.queryByText('云端基线')).not.toBeInTheDocument()
   })

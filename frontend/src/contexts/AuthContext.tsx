@@ -5,6 +5,18 @@ import type { BrokerConnectRequest } from '../api/types'
 // ── Types ──
 
 export type Role = 'admin' | 'internal_analyst' | 'external_analyst' | 'user'
+export type PermissionKey = string
+
+export interface MembershipInfo {
+  status: string
+  plan?: string | null
+  startsAt?: string | null
+  endsAt?: string | null
+  source?: string | null
+  note?: string | null
+  isMember: boolean
+  daysRemaining?: number | null
+}
 
 export interface User {
   id: number
@@ -17,6 +29,8 @@ export interface User {
   tradeMode?: 'paper' | 'live'
   brokerAdapter?: 'paper' | 'mock_qmt' | 'xtquant_qmt' | 'broker_rest'
   brokerConnectConfig?: BrokerConnectRequest
+  permissions?: PermissionKey[]
+  membership?: MembershipInfo | null
 }
 
 export interface AuthState {
@@ -31,6 +45,7 @@ export interface AuthContextValue extends AuthState {
   register: (name: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   hasRole: (...roles: Role[]) => boolean
+  hasPermission: (permission: PermissionKey) => boolean
 }
 
 type RawAuthUserPayload = Record<string, unknown>
@@ -38,6 +53,33 @@ type RawAuthUserPayload = Record<string, unknown>
 function readString(payload: RawAuthUserPayload, camelKey: string, snakeKey?: string): string | undefined {
   const value = payload[camelKey] ?? (snakeKey ? payload[snakeKey] : undefined)
   return typeof value === 'string' ? value : undefined
+}
+
+function readNumber(payload: RawAuthUserPayload, camelKey: string, snakeKey?: string): number | undefined {
+  const value = payload[camelKey] ?? (snakeKey ? payload[snakeKey] : undefined)
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function readStringArray(payload: RawAuthUserPayload, key: string): string[] {
+  const value = payload[key]
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string')
+}
+
+function readMembershipInfo(payload: RawAuthUserPayload): MembershipInfo | null {
+  const value = payload.membership
+  if (!value || typeof value !== 'object') return null
+  const record = value as RawAuthUserPayload
+  return {
+    status: readString(record, 'status') || 'inactive',
+    plan: readString(record, 'plan') ?? null,
+    startsAt: readString(record, 'startsAt', 'starts_at') ?? null,
+    endsAt: readString(record, 'endsAt', 'ends_at') ?? null,
+    source: readString(record, 'source') ?? null,
+    note: readString(record, 'note') ?? null,
+    isMember: record.isMember === true || record.is_member === true,
+    daysRemaining: readNumber(record, 'daysRemaining', 'days_remaining') ?? null,
+  }
 }
 
 function readBrokerConnectConfig(payload: RawAuthUserPayload): BrokerConnectRequest | undefined {
@@ -71,6 +113,8 @@ export function normalizeAuthUserPayload(payload: RawAuthUserPayload): User {
     tradeMode: readString(payload, 'tradeMode', 'trade_mode') as User['tradeMode'],
     brokerAdapter: readString(payload, 'brokerAdapter', 'broker_adapter') as User['brokerAdapter'],
     brokerConnectConfig: readBrokerConnectConfig(payload),
+    permissions: readStringArray(payload, 'permissions'),
+    membership: readMembershipInfo(payload),
   }
 }
 
@@ -226,6 +270,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user],
   )
 
+  const hasPermission = useCallback(
+    (permission: PermissionKey) => !!user?.permissions?.includes(permission),
+    [user],
+  )
+
   const value: AuthContextValue = {
     user,
     accessToken,
@@ -235,6 +284,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     logout,
     hasRole,
+    hasPermission,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

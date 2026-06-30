@@ -10,8 +10,9 @@ import {
   StockOutlined, RobotOutlined,
   LogoutOutlined,
   ApiOutlined, ClockCircleOutlined, ApartmentOutlined,
+  CrownOutlined, DownOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons'
-import { useAuth, type Role } from './contexts/AuthContext'
+import { useAuth, type PermissionKey, type Role } from './contexts/AuthContext'
 import { useTheme } from './contexts/ThemeContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -45,6 +46,8 @@ const DataUpdate = lazy(() => import('./pages/DataUpdate'))
 const RuntimeStatus = lazy(() => import('./pages/RuntimeStatus'))
 const P0Workflow = lazy(() => import('./pages/P0Workflow'))
 const PlatformUpgrade = lazy(() => import('./pages/PlatformUpgrade'))
+const AdminPermissions = lazy(() => import('./pages/AdminPermissions'))
+const MembershipManagement = lazy(() => import('./pages/MembershipManagement'))
 
 const { Text } = Typography
 
@@ -62,28 +65,31 @@ interface MenuItemWithRoles {
   icon: React.ReactNode
   label: string
   roles: Role[]
-  group: '行情决策' | '交易执行' | '模型 / 系统'
+  group: '行情决策' | '交易执行' | '模型 / 系统' | '平台管理'
+  permission: PermissionKey
   target?: string
   badge?: string
 }
 
 const allMenuItems: MenuItemWithRoles[] = [
-  { key: '/',            icon: <DashboardOutlined />,    label: '智能看板',   group: '行情决策', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/open-decision', icon: <LineChartOutlined />,  label: '开盘决策',   group: '行情决策', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/screener',    icon: <SearchOutlined />,       label: '智能选股',   group: '行情决策', badge: '12', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/supply-chain-bom', icon: <ApartmentOutlined />, label: '产业链拆解', group: '行情决策', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/predictions', icon: <LineChartOutlined />,    label: 'K线预测',    group: '行情决策', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/signals',     icon: <ThunderboltOutlined />,  label: '交易信号',   group: '行情决策', badge: '3', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/trade',       icon: <DollarOutlined />,       label: '交易中心',   group: '交易执行', roles: ['admin', 'internal_analyst', 'user'] },
-  { key: '/auto-trade',  icon: <RobotOutlined />,        label: '量化交易',   group: '交易执行', roles: ['admin', 'internal_analyst', 'user'] },
-  { key: '/strategy',    icon: <BulbOutlined />,         label: '方案管理',   group: '交易执行', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/risk',        icon: <BellOutlined />,         label: '风控中心',   group: '交易执行', roles: ['admin', 'internal_analyst', 'user'] },
-  { key: '/backtest',    icon: <ExperimentOutlined />,   label: '回测分析',   group: '交易执行', roles: ['admin', 'internal_analyst', 'external_analyst'] },
-  { key: '/diagnosis',   icon: <FundOutlined />,         label: '个股诊断',   group: '交易执行', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/training',        icon: <ExperimentOutlined />, label: '模型训练', group: '模型 / 系统', roles: ['admin'] },
-  { key: '/model-registry',  icon: <ApiOutlined />,        label: '模型注册', group: '模型 / 系统', roles: ['admin'] },
-  { key: '/data-update',     icon: <ClockCircleOutlined />, label: '数据更新', group: '模型 / 系统', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/runtime-status',  icon: <ApiOutlined />,         label: '运行状态', group: '模型 / 系统', roles: ['admin'] },
+  { key: '/',            icon: <DashboardOutlined />,    label: '智能看板',   group: '行情决策', permission: 'dashboard', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/open-decision', icon: <LineChartOutlined />,  label: '开盘决策',   group: '行情决策', permission: 'open_decision', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/screener',    icon: <SearchOutlined />,       label: '智能选股',   group: '行情决策', permission: 'screener', badge: '12', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/supply-chain-bom', icon: <ApartmentOutlined />, label: '产业链拆解', group: '行情决策', permission: 'supply_chain_bom', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/predictions', icon: <LineChartOutlined />,    label: 'K线预测',    group: '行情决策', permission: 'predictions', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/signals',     icon: <ThunderboltOutlined />,  label: '交易信号',   group: '行情决策', permission: 'signals', badge: '3', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/trade',       icon: <DollarOutlined />,       label: '交易中心',   group: '交易执行', permission: 'trade', roles: ['admin', 'internal_analyst', 'user'] },
+  { key: '/auto-trade',  icon: <RobotOutlined />,        label: '量化交易',   group: '交易执行', permission: 'auto_trade', roles: ['admin', 'internal_analyst', 'user'] },
+  { key: '/strategy',    icon: <BulbOutlined />,         label: '方案管理',   group: '交易执行', permission: 'strategy', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/risk',        icon: <BellOutlined />,         label: '风控中心',   group: '交易执行', permission: 'risk', roles: ['admin', 'internal_analyst', 'user'] },
+  { key: '/backtest',    icon: <ExperimentOutlined />,   label: '回测分析',   group: '交易执行', permission: 'backtest', roles: ['admin', 'internal_analyst', 'external_analyst'] },
+  { key: '/diagnosis',   icon: <FundOutlined />,         label: '个股诊断',   group: '交易执行', permission: 'diagnosis', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/training',        icon: <ExperimentOutlined />, label: '模型训练', group: '模型 / 系统', permission: 'training', roles: ['admin'] },
+  { key: '/model-registry',  icon: <ApiOutlined />,        label: '模型注册', group: '模型 / 系统', permission: 'model_registry', roles: ['admin'] },
+  { key: '/data-update',     icon: <ClockCircleOutlined />, label: '数据更新', group: '模型 / 系统', permission: 'data_update', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { key: '/runtime-status',  icon: <ApiOutlined />,         label: '运行状态', group: '模型 / 系统', permission: 'runtime_status', roles: ['admin'] },
+  { key: '/admin/permissions', icon: <SafetyCertificateOutlined />, label: '权限授权', group: '平台管理', permission: 'admin_permissions', roles: ['admin'] },
+  { key: '/admin/memberships', icon: <CrownOutlined />, label: '会员管理', group: '平台管理', permission: 'admin_memberships', roles: ['admin'] },
 ]
 
 const marketTapeItems = [
@@ -163,13 +169,25 @@ const protectedRoutes: { path: string; element: React.ReactNode; roles: Role[] }
   { path: '/runtime-status', element: <RuntimeStatus />, roles: ['admin'] },
   { path: '/workflow/p0', element: <P0Workflow />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/platform/upgrade', element: <PlatformUpgrade />, roles: ['admin'] },
+  { path: '/admin/permissions', element: <AdminPermissions />, roles: ['admin'] },
+  { path: '/admin/memberships', element: <MembershipManagement />, roles: ['admin'] },
 ]
 
-const menuGroups: MenuItemWithRoles['group'][] = ['行情决策', '交易执行', '模型 / 系统']
+const menuGroups: MenuItemWithRoles['group'][] = ['行情决策', '交易执行', '模型 / 系统', '平台管理']
 
-function filterMenu(items: MenuItemWithRoles[], role: Role | null): MenuItemWithRoles[] {
+function filterMenu(
+  items: MenuItemWithRoles[],
+  role: Role | null,
+  permissions: PermissionKey[] | undefined,
+): MenuItemWithRoles[] {
+  const permissionSet = new Set(permissions || [])
+  const hasBackendPermissions = permissionSet.size > 0
   return items
-    .filter(item => role && item.roles.includes(role))
+    .filter(item => {
+      if (!role) return false
+      if (hasBackendPermissions) return permissionSet.has(item.permission)
+      return item.roles.includes(role)
+    })
 }
 
 function routeTitle(pathname: string): string {
@@ -182,6 +200,8 @@ function routeTitle(pathname: string): string {
   if (pathname.startsWith('/runtime')) return '运行状态'
   if (pathname.startsWith('/workflow/p0')) return 'P0 主链路'
   if (pathname.startsWith('/platform/upgrade')) return '平台升级'
+  if (pathname.startsWith('/admin/permissions')) return '权限授权'
+  if (pathname.startsWith('/admin/memberships')) return '会员管理'
   const selectedKey = '/' + pathname.split('/')[1]
   return allMenuItems.find(item => item.key === selectedKey)?.label || '智能看板'
 }
@@ -189,7 +209,33 @@ function routeTitle(pathname: string): string {
 function selectedMenuKey(pathname: string): string {
   if (pathname === '/' || pathname.startsWith('/dashboard')) return '/'
   if (pathname.startsWith('/runtime')) return '/runtime-status'
+  if (pathname.startsWith('/admin/permissions')) return '/admin/permissions'
+  if (pathname.startsWith('/admin/memberships')) return '/admin/memberships'
   return '/' + pathname.split('/')[1]
+}
+
+function routePermission(pathname: string): PermissionKey | undefined {
+  if (pathname === '/' || pathname.startsWith('/dashboard')) return 'dashboard'
+  if (pathname.startsWith('/open-decision')) return 'open_decision'
+  if (pathname.startsWith('/screener')) return 'screener'
+  if (pathname.startsWith('/supply-chain-bom')) return 'supply_chain_bom'
+  if (pathname.startsWith('/predictions')) return 'predictions'
+  if (pathname.startsWith('/signals')) return 'signals'
+  if (pathname.startsWith('/trade')) return 'trade'
+  if (pathname.startsWith('/auto-trade')) return 'auto_trade'
+  if (pathname.startsWith('/strategy')) return 'strategy'
+  if (pathname.startsWith('/risk')) return 'risk'
+  if (pathname.startsWith('/backtest')) return 'backtest'
+  if (pathname.startsWith('/diagnosis')) return 'diagnosis'
+  if (pathname.startsWith('/training')) return 'training'
+  if (pathname.startsWith('/model-registry')) return 'model_registry'
+  if (pathname.startsWith('/data-update')) return 'data_update'
+  if (pathname.startsWith('/runtime')) return 'runtime_status'
+  if (pathname.startsWith('/workflow/p0')) return 'p0_workflow'
+  if (pathname.startsWith('/platform/upgrade')) return 'platform_upgrade'
+  if (pathname.startsWith('/admin/permissions')) return 'admin_permissions'
+  if (pathname.startsWith('/admin/memberships')) return 'admin_memberships'
+  return undefined
 }
 
 function roleViewLabel(roleView: ReturnType<typeof buildPlatformSessionFromUser>['roleView']): string {
@@ -219,10 +265,21 @@ function brokerConnectionText(connection: HeaderBrokerConnection): string {
   return connection.accountId ? `${statusText} · ${connection.accountId}` : statusText
 }
 
-function brokerConnectionClass(connection: HeaderBrokerConnection): string {
-  if (connection.status === 'paper' || connection.status === 'connected') return 'safe'
-  if (connection.status === 'connecting') return 'primary'
-  return 'danger'
+function membershipText(user: ReturnType<typeof useAuth>['user']): string {
+  const membership = user?.membership
+  if (!membership || !membership.isMember) return '非会员'
+  const plan = membership.plan ? `${membership.plan} · ` : ''
+  const days = typeof membership.daysRemaining === 'number'
+    ? `剩余 ${membership.daysRemaining} 天`
+    : '长期有效'
+  return `${plan}${days}`
+}
+
+function membershipTone(user: ReturnType<typeof useAuth>['user']): 'safe' | 'warn' | 'danger' {
+  const membership = user?.membership
+  if (!membership || !membership.isMember) return 'danger'
+  if (typeof membership.daysRemaining === 'number' && membership.daysRemaining <= 7) return 'warn'
+  return 'safe'
 }
 
 export default function App() {
@@ -231,7 +288,7 @@ export default function App() {
   const [unreadAlerts, setUnreadAlerts] = useState(0)
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, isAuthenticated, isLoading, logout, hasRole } = useAuth()
+  const { user, isAuthenticated, isLoading, logout } = useAuth()
   const { mode: themeMode, setMode: setThemeMode } = useTheme()
   const [compactMode, setCompactMode] = useState(false)
   const [multiTab, setMultiTab] = useState(false)
@@ -245,13 +302,28 @@ export default function App() {
 
   // Filter menu items by role
   const mainMenu = useMemo(
-    () => filterMenu(allMenuItems, user?.role ?? null),
-    [user?.role],
+    () => filterMenu(allMenuItems, user?.role ?? null, user?.permissions),
+    [user?.permissions, user?.role],
   )
   const platformSession = useMemo(
     () => buildPlatformSessionFromUser(user),
     [user],
   )
+  const platformContextMenuItems = useMemo(() => [
+    { key: 'role', disabled: true, label: `角色：${roleViewLabel(platformSession.roleView)}` },
+    { key: 'tenant', disabled: true, label: `租户：${platformSession.tenantName}` },
+    { key: 'account', disabled: true, label: `账户：${platformSession.accountId || '未绑定账户'}` },
+    { key: 'mode', disabled: true, label: `盘别：${tradeModeLabel(platformSession.tradeMode)}` },
+    { key: 'broker', disabled: true, label: `券商：${brokerConnectionText(brokerConnection)}` },
+    { key: 'membership', disabled: true, label: `会员：${membershipText(user)}` },
+  ], [
+    brokerConnection,
+    platformSession.accountId,
+    platformSession.roleView,
+    platformSession.tenantName,
+    platformSession.tradeMode,
+    user,
+  ])
   const currentRouteTitle = useMemo(
     () => routeTitle(location.pathname),
     [location.pathname],
@@ -392,7 +464,7 @@ export default function App() {
               <section key={group} className="nav-section">
                 <div className="nav-group">
                   <span>{group}</span>
-                  {group === '模型 / 系统' && <span className="nav-admin">ADMIN</span>}
+                  {(group === '模型 / 系统' || group === '平台管理') && <span className="nav-admin">ADMIN</span>}
                 </div>
                 {items.map(item => {
                   const active = selectedKey === item.key || (selectedKey === '/' && item.key === '/')
@@ -447,22 +519,17 @@ export default function App() {
             ))}
           </div>
 
-          <div className="platform-context-compact" aria-label="当前平台上下文">
-            <span className="ctx-pill primary">{roleViewLabel(platformSession.roleView)}</span>
-            <span className="ctx-pill">{platformSession.tenantName}</span>
-            <span className="ctx-pill mono">{platformSession.accountId || '未绑定账户'}</span>
-            <span className={`ctx-pill ${platformSession.tradeMode === 'live' ? 'danger' : 'safe'}`}>
-              {tradeModeLabel(platformSession.tradeMode)}
-            </span>
-            <span className="ctx-pill mono">{platformSession.brokerAdapter}</span>
-            <span
-              className={`ctx-pill mono ${brokerConnectionClass(brokerConnection)}`}
-              aria-label="券商连接状态"
-              title={brokerConnection.brokerName}
-            >
-              {brokerConnectionText(brokerConnection)}
-            </span>
-          </div>
+          <Dropdown menu={{ items: platformContextMenuItems }} placement="bottomRight" trigger={['click']}>
+            <button type="button" className="platform-context-compact" aria-label="当前平台上下文">
+              <span className="ctx-pill primary">{roleViewLabel(platformSession.roleView)}</span>
+              <span className={`ctx-pill ${platformSession.tradeMode === 'live' ? 'danger' : 'safe'}`}>
+                {tradeModeLabel(platformSession.tradeMode)}
+              </span>
+              <span className="ctx-pill mono">{platformSession.accountId || '未绑定账户'}</span>
+              <span className={`ctx-pill ${membershipTone(user)}`}>{membershipText(user)}</span>
+              <DownOutlined className="ctx-more" />
+            </button>
+          </Dropdown>
 
           <div className="header-right">
             <button type="button" className="hbtn" title="刷新页面" onClick={() => window.location.reload()}>
@@ -480,7 +547,7 @@ export default function App() {
               {
                 key: 'tenant',
                 disabled: true,
-                label: `${platformSession.tenantName} · ${platformSession.tradeMode === 'live' ? '实盘' : '模拟盘'}`,
+                label: `${platformSession.tenantName} · ${tradeModeLabel(platformSession.tradeMode)} · ${membershipText(user)}`,
               },
               { key: 'profile', icon: <UserOutlined />, label: '个人中心' },
               { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout },
@@ -529,7 +596,11 @@ export default function App() {
                   <Route
                     key={path}
                     path={path}
-                    element={<ProtectedRoute roles={roles}>{element}</ProtectedRoute>}
+                    element={
+                      <ProtectedRoute roles={roles} permission={routePermission(path)}>
+                        {element}
+                      </ProtectedRoute>
+                    }
                   />
                 ))}
                 <Route path="*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

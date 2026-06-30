@@ -23,6 +23,7 @@ from app.config import (
 from app.models.user import User, Role, RefreshToken
 from app.models.platform import Membership
 from app.services.platform_service import ensure_user_platform_defaults
+from app.services.rbac_service import seed_role_permissions
 
 # ── Argon2id hasher ──
 _ph = PasswordHasher(
@@ -126,6 +127,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> User
         .where(User.email == email)
         .options(
             selectinload(User.role),
+            selectinload(User.role).selectinload(Role.permissions),
             selectinload(User.memberships).selectinload(Membership.tenant),
             selectinload(User.broker_accounts),
         )
@@ -148,6 +150,7 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> User | None:
         .where(User.id == user_id)
         .options(
             selectinload(User.role),
+            selectinload(User.role).selectinload(Role.permissions),
             selectinload(User.memberships).selectinload(Membership.tenant),
             selectinload(User.broker_accounts),
         )
@@ -190,6 +193,7 @@ async def seed_roles(db: AsyncSession) -> dict[str, Role]:
             role_map[name] = role
 
     await db.commit()
+    await seed_role_permissions(db)
     return role_map
 
 
@@ -341,7 +345,11 @@ async def list_users(
     """Paginated user listing with optional filters."""
     from sqlalchemy.orm import selectinload
 
-    query = select(User).options(selectinload(User.role))
+    query = select(User).options(
+        selectinload(User.role).selectinload(Role.permissions),
+        selectinload(User.memberships).selectinload(Membership.tenant),
+        selectinload(User.broker_accounts),
+    )
     count_query = select(func.count(User.id))
 
     if role:
@@ -384,8 +392,8 @@ async def update_user_role(
     target_user.role_id = role.id
     target_user.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    await db.refresh(target_user, attribute_names=["role"])
-    return target_user
+    loaded = await get_user_by_id(db, target_user.id)
+    return loaded or target_user
 
 
 async def set_user_active(db: AsyncSession, target_user: User, is_active: bool) -> User:
@@ -393,5 +401,5 @@ async def set_user_active(db: AsyncSession, target_user: User, is_active: bool) 
     target_user.is_active = is_active
     target_user.updated_at = datetime.now(timezone.utc)
     await db.commit()
-    await db.refresh(target_user, attribute_names=["role"])
-    return target_user
+    loaded = await get_user_by_id(db, target_user.id)
+    return loaded or target_user

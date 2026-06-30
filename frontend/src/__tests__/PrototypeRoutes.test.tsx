@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ConfigProvider, App as AntdApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { MemoryRouter } from 'react-router-dom'
@@ -58,6 +58,8 @@ vi.mock('../pages/DataUpdate', () => ({ default: () => <div>DataUpdate page</div
 vi.mock('../pages/RuntimeStatus', () => ({ default: () => <div>RuntimeStatus page</div> }))
 vi.mock('../pages/P0Workflow', () => ({ default: () => <div>P0Workflow page</div> }))
 vi.mock('../pages/PlatformUpgrade', () => ({ default: () => <div>PlatformUpgrade page</div> }))
+vi.mock('../pages/AdminPermissions', () => ({ default: () => <div>AdminPermissions page</div> }))
+vi.mock('../pages/MembershipManagement', () => ({ default: () => <div>MembershipManagement page</div> }))
 
 const routes = [
   '/', '/dashboard/auction', '/dashboard/signals', '/dashboard/watchlist',
@@ -77,6 +79,14 @@ const routes = [
   '/model-registry',
   '/data-update', '/data-update/overview', '/data-update/tables', '/data-update/schedule',
   '/runtime', '/runtime-status', '/workflow/p0', '/platform/upgrade',
+  '/admin/permissions', '/admin/memberships',
+]
+
+const adminPermissions = [
+  'dashboard', 'open_decision', 'screener', 'supply_chain_bom', 'predictions',
+  'signals', 'trade', 'auto_trade', 'strategy', 'risk', 'backtest', 'diagnosis',
+  'training', 'model_registry', 'data_update', 'runtime_status', 'p0_workflow',
+  'platform_upgrade', 'admin_permissions', 'admin_memberships',
 ]
 
 const pageSources = import.meta.glob('../pages/*.tsx', {
@@ -114,6 +124,8 @@ describe('prototype route coverage', () => {
         defaultTradeAccountId: 'paper-admin',
         tradeMode: 'paper',
         brokerAdapter: 'paper',
+        permissions: adminPermissions,
+        membership: { status: 'inactive', isMember: false },
       },
       accessToken: 'token',
       isAuthenticated: true,
@@ -122,6 +134,7 @@ describe('prototype route coverage', () => {
       register: vi.fn(),
       logout: vi.fn(),
       hasRole: (...roles) => roles.includes('admin'),
+      hasPermission: (permission) => adminPermissions.includes(permission),
     })
   })
 
@@ -133,7 +146,7 @@ describe('prototype route coverage', () => {
   })
 
   it('covers every preview route from the Phase 0 matrix plus existing trade integration routes', () => {
-    expect(routes).toHaveLength(67)
+    expect(routes).toHaveLength(69)
   })
 
   it('does not route production pages through the generic NewUiModulePage fallback', () => {
@@ -164,6 +177,8 @@ describe('prototype route coverage', () => {
         defaultTradeAccountId: 'qmt-880001',
         tradeMode: 'live',
         brokerAdapter: 'xtquant_qmt',
+        permissions: adminPermissions,
+        membership: { status: 'inactive', isMember: false },
       },
       accessToken: 'token',
       isAuthenticated: true,
@@ -172,12 +187,13 @@ describe('prototype route coverage', () => {
       register: vi.fn(),
       logout: vi.fn(),
       hasRole: (...roles) => roles.includes('admin'),
+      hasPermission: (permission) => adminPermissions.includes(permission),
     })
 
     renderRoute('/trade')
 
-    const brokerStatus = await screen.findByLabelText('券商连接状态')
-    await waitFor(() => expect(brokerStatus).toHaveTextContent('券商已连接'))
-    expect(brokerStatus).toHaveTextContent('qmt-880001')
+    const platformContext = await screen.findByLabelText('当前平台上下文')
+    fireEvent.click(platformContext)
+    await waitFor(() => expect(screen.getByText(/券商：券商已连接 · qmt-880001/)).toBeInTheDocument())
   })
 })

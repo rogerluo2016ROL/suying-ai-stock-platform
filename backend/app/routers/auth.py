@@ -32,6 +32,7 @@ from app.services.auth_service import (
     revoke_user_tokens,
     update_user,
 )
+from app.services.rbac_service import role_permissions_for_user, summarize_membership
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -102,6 +103,8 @@ def _platform_profile(user: User) -> dict[str, Any]:
         if account_id
         else None
     )
+    profile["permissions"] = role_permissions_for_user(user)
+    profile["membership"] = summarize_membership(membership)
 
     return profile
 

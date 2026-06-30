@@ -65,6 +65,17 @@ class UpdateUserRequest(BaseModel):
 
 # ── Response schemas ──
 
+class MembershipInfoResponse(BaseModel):
+    status: str = "inactive"
+    plan: str | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    source: str | None = None
+    note: str | None = None
+    is_member: bool = False
+    days_remaining: int | None = None
+
+
 class UserResponse(BaseModel):
     id: int
     name: str
@@ -79,6 +90,8 @@ class UserResponse(BaseModel):
     trade_mode: str | None = None
     broker_adapter: str | None = None
     broker_connect_config: dict[str, str | int] | None = None
+    permissions: list[str] = Field(default_factory=list)
+    membership: MembershipInfoResponse | None = None
 
     model_config = {"from_attributes": True}
 
@@ -95,6 +108,8 @@ class TokenUserResponse(BaseModel):
     trade_mode: str | None = None
     broker_adapter: str | None = None
     broker_connect_config: dict[str, str | int] | None = None
+    permissions: list[str] = Field(default_factory=list)
+    membership: MembershipInfoResponse | None = None
 
 
 class AuthTokenResponse(BaseModel):

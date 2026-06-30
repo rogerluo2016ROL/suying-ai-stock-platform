@@ -86,6 +86,86 @@ export interface TradeAccount {
   [key: string]: unknown
 }
 
+export interface MembershipInfo {
+  status: string
+  plan?: string | null
+  starts_at?: string | null
+  ends_at?: string | null
+  source?: string | null
+  note?: string | null
+  is_member: boolean
+  days_remaining?: number | null
+}
+
+export interface AdminUser {
+  id: number
+  name: string
+  email: string
+  role: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  permissions?: string[]
+  membership?: MembershipInfo | null
+}
+
+export interface AdminUsersResponse {
+  total: number
+  page: number
+  page_size: number
+  users: AdminUser[]
+}
+
+export interface PermissionItem {
+  key: string
+  label: string
+  group: string
+  description: string
+  enabled: boolean
+}
+
+export interface RolePermissions {
+  role: string
+  label: string
+  description?: string | null
+  permissions: PermissionItem[]
+}
+
+export interface RolePermissionsListResponse {
+  roles: RolePermissions[]
+}
+
+export interface MembershipUser {
+  id: number
+  name: string
+  email: string
+  role: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  membership: MembershipInfo
+}
+
+export interface MembershipsResponse {
+  total: number
+  page: number
+  page_size: number
+  members: MembershipUser[]
+}
+
+export interface UserAuthorizationPayload {
+  role?: string
+  is_active?: boolean
+  membership?: {
+    status?: string
+    plan?: string | null
+    starts_at?: string | null
+    ends_at?: string | null
+    source?: string | null
+    note?: string | null
+  }
+}
+
 const api = axios.create({
   baseURL: '/api/v1',
   timeout: 30000,
@@ -537,6 +617,46 @@ export const alertApi = {
 
   getUnreadCount: (): Promise<AxiosResponse<UnreadAlertCountResponse>> =>
     api.get('/alert/unread-count'),
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Admin RBAC / Membership API
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const adminApi = {
+  getUsers: (params: {
+    page?: number
+    page_size?: number
+    role?: string
+    is_active?: boolean
+    q?: string
+  } = {}): Promise<AxiosResponse<AdminUsersResponse>> =>
+    api.get('/admin/users', { params }),
+
+  getRolePermissions: (): Promise<AxiosResponse<RolePermissionsListResponse>> =>
+    api.get('/admin/permissions/roles'),
+
+  updateRolePermissions: (
+    role: string,
+    permissionKeys: string[],
+  ): Promise<AxiosResponse<RolePermissions>> =>
+    api.put(`/admin/permissions/roles/${encodeURIComponent(role)}`, {
+      permission_keys: permissionKeys,
+    }),
+
+  updateUserAuthorization: (
+    userId: number,
+    payload: UserAuthorizationPayload,
+  ): Promise<AxiosResponse<AdminUser>> =>
+    api.put(`/admin/users/${userId}/authorization`, payload),
+
+  getMemberships: (params: {
+    page?: number
+    page_size?: number
+    status?: string
+    q?: string
+  } = {}): Promise<AxiosResponse<MembershipsResponse>> =>
+    api.get('/admin/memberships', { params }),
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-30T01:04:33.097Z
-> Files: 512 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-30T02:29:33.642Z
+> Files: 520 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -799,3 +799,26 @@
 
 - `screener-optimization-design.md` — 速赢AI 选股模型优化 — 设计文档 (~5563 tok)
 - `Suying-AI-Screener-Optimization-2026-06-30.md` — 速赢AI 选股模型优化报告 (~6105 tok)
+
+## packages/kronos-factors/config/
+
+- `mode_profiles.json` (~1942 tok)
+
+## packages/kronos-factors/kronos_factors/engine/
+
+- `multi_index.py` — MultiIndexEngine — 宽基指数成分股超额收益挖掘. (~1881 tok)
+- `risk_parity.py` — RiskParityAllocator — 风险平价仓位分配器. (~1729 tok)
+- `sector_heatmap.py` — SectorHeatmapEngine — 板块实时热度引擎. (~2922 tok)
+- `weighted_fusion.py` — WeightedFusionEngine — V5.0 加权融合引擎. (~3616 tok)
+
+## packages/kronos-factors/kronos_factors/engine/llm_intelligence/
+
+- `__init__.py` — LLMIntelligenceEngine — 实时情绪情报引擎. (~3539 tok)
+
+## packages/kronos-factors/tests/
+
+- `test_v5_engines.py` — Unit tests for V5.0 new screening engines. (~5536 tok)
+
+## services/screener-service/app/
+
+- `orchestrator.py` — Mode Orchestrator — V5.0 multi-strategy fusion + Kronos prediction + pipeline. (~5576 tok)
