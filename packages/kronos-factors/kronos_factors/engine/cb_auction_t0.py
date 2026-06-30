@@ -418,11 +418,11 @@ class CbAuctionT0Engine:
         cur.execute(
             """
             WITH prior_days AS (
-                SELECT trade_date
+                SELECT cal_date
                 FROM trade_cal
                 WHERE is_open = 1
-                  AND trade_date < %s
-                ORDER BY trade_date DESC
+                  AND cal_date < %s
+                ORDER BY cal_date DESC
                 LIMIT %s
             ),
             concept_daily AS (
@@ -432,7 +432,7 @@ class CbAuctionT0Engine:
                 FROM ths_member m
                 JOIN stk_auction_o a
                   ON a.code = SPLIT_PART(m.con_code, '.', 1)
-                JOIN prior_days td ON td.trade_date = a.trade_date
+                JOIN prior_days td ON td.cal_date = a.trade_date
                 WHERE LEFT(m.ts_code, 3) IN ('881', '882', '883', '884', '885', '886')
                   AND a.open > 0
                   AND a.close > 0

@@ -1,6 +1,13 @@
 from datetime import date
+import importlib.util
+from pathlib import Path
 
-from services.sql.audit import tushare_data_catalog as catalog
+
+_MODULE_PATH = Path(__file__).with_name("tushare_data_catalog.py")
+_SPEC = importlib.util.spec_from_file_location("tushare_data_catalog", _MODULE_PATH)
+catalog = importlib.util.module_from_spec(_SPEC)
+assert _SPEC and _SPEC.loader
+_SPEC.loader.exec_module(catalog)
 
 
 def test_parse_tushare_reference_apis_from_markdown_table():
