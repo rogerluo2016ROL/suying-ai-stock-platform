@@ -1941,3 +1941,59 @@ $ curl -s "http://localhost:8001/api/v1/screener/chain/candidates?filter=high_pr
 **质量门**: Unit ✅ 12 passed / schema tests ✅ 2 passed / py_compile ✅ / real DB smoke ✅ / code-review 复审待更新。
 
 **下一步**: 等待 code-reviewer 复核 smoke fix + schema SSOT 修复；通过后进入最终全量验证。
+
+---
+
+## 竞价选债 T+0 — Final SIT: 完整业务 AC 验证 - 2026-06-30
+
+**状态**: 已完成
+**Skills**: agf-running-sit-tests / test-driven-development
+
+**任务**: 按用户最终确认规则验证 `cb_auction_t0` 模型完整链路：股票竞价触发、THS 概念推导、转债清单、风险只提示、题材相关性排序、导出和服务接入。
+
+**SIT 证据**（按 AC 列；行首 `[x]/[ ]` 同时表达 AC 自验勾选）:
+- [x] AC-1 ✅ 从股票竞价触发，不从转债反推；触发条件为 `limit_type='U'`、`first_time <= 09:30:00`、`fd_amount > 10亿`
+    - 命令: `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+    - 输出: `..............                                                           [100%]`
+    - 证据: `test_fetch_trigger_stocks_uses_limit_list_ts_code_schema` 固化 `limit_list_d.ts_code` schema；`test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up` 覆盖封单缺失、封单不足 10 亿、昨日已涨停拒绝，以及一条有效触发。
+- [x] AC-2 ✅ 前一交易日涨停排除，拒绝原因可复盘
+    - 命令: `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+    - 输出: `..............                                                           [100%]`
+    - 证据: `test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up` 明确返回 `昨日已涨停`、`封单金额缺失`、`封单金额不足10亿`；`test_run_assembles_fetcher_outputs_without_postgres` 验证 `rejections` 会进入最终结果。
+- [x] AC-3 ✅ 通过同花顺概念推导题材，过滤非题材噪音标签
+    - 命令: `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+    - 输出: `..............                                                           [100%]`
+    - 证据: `test_noise_concept_filter_removes_style_and_region_labels` 覆盖昨日涨停、百日新高、地区标签过滤；`test_run_assembles_fetcher_outputs_without_postgres` 用触发股、机器人概念、转债的非空 fixture 验证完整组装路径。
+- [x] AC-4 ✅ 风险不过滤，只在清单中提示
+    - 命令: `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+    - 输出: `..............                                                           [100%]`
+    - 证据: `test_risk_notes_are_annotations` 覆盖强赎、高溢价、成交额偏低、剩余规模、退市日期提示；`test_theme_score_ignores_risk_fields` 证明风险字段不进入题材分；`test_assemble_result_sorts_by_theme_relevance_and_keeps_risky_bond` 证明高风险债仍保留在清单。
+- [x] AC-5 ✅ 转债按题材相关性排序，不按交易便利性排序
+    - 命令: `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+    - 输出: `..............                                                           [100%]`
+    - 证据: `test_assemble_result_sorts_by_theme_relevance_and_keeps_risky_bond` 验证直接触发股转债优先；`test_theme_score_ignores_risk_fields` 证明溢价率/强赎不影响排序分。
+- [x] AC-6 ✅ JSON/CSV 导出可靠，风险提示字段保留
+    - 命令: `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+    - 输出: `..............                                                           [100%]`
+    - 证据: `test_cli_write_outputs_creates_json_and_csv` 验证 JSON/CSV 产物存在，且 CSV 含 `公告实施强赎`、`高溢价85.0%`、溢价率和剩余规模。
+- [x] AC-7 ✅ CLI 参数边界清晰，`--top-n` 负数不会触发反直觉切片
+    - 命令: `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+    - 输出: `..............                                                           [100%]`
+    - 证据: `test_cli_rejects_negative_top_n_before_running_engine` 验证 `--top-n -1` 在进入引擎前报参数错误。
+- [x] AC-8 ✅ schema 与写入路径对齐真实 `limit_list_d` 口径
+    - 命令: `bash tools/codex-lowio.sh py services/data-service/tests/test_limit_list_d_schema.py -q`
+    - 输出: `..                                                                       [100%]`
+    - 证据: 初始化 SQL 和 `write_limit_list_d()` 均使用 `ts_code, trade_date, limit_type`，避免 fresh DB 再出现 `limit_list_d.code` 漂移。
+- [x] AC-9 ✅ Python 入口编译通过，服务接入不破坏旧 CB 模式
+    - 命令: `python3 -m py_compile services/data-service/app/sync/pg_writer.py packages/kronos-factors/kronos_factors/engine/cb_auction_t0.py tools/cb_auction_t0_picks.py services/backtest-service/app/routes.py`
+    - 输出: 退出码 0，无语法错误输出。
+    - 证据: `services/backtest-service/app/routes.py` 新增独立 `mode == "cb_auction_t0"` 分支，旧 `cb_floor` / `cb_intraday` / 默认 `cb_auction` 分支保留。
+- [x] AC-10 ✅ 真实 PG 当前日冒烟通过，空结果按真实数据解释并导出
+    - 命令: `KRONOS_PG_URL="postgresql://kronos:kronos@localhost:6432/kronos" python3 tools/cb_auction_t0_picks.py 2026-06-30 --top-n 50`
+    - 输出: `竞价选债 T+0 | 2026-06-30`；`触发股票: 0 | 概念: 0 | 转债: 0`
+    - 产物: `outputs/cb_auction_t0/2026-06-30_cb_auction_t0.json`、`outputs/cb_auction_t0/2026-06-30_cb_auction_t0.csv`
+    - 解释: 当前真实数据没有满足“竞价封板 + 封单金额 > 10 亿 + 前日非涨停”的触发股票；fixture 单测已覆盖非空路径。
+
+**质量门**: Unit ✅ 14 passed / schema tests ✅ 2 passed / py_compile ✅ / real DB smoke ✅ / Final SIT 证据完整。
+
+**下一步**: 等待 final code-review 复核；通过后可作为本轮实现完成。

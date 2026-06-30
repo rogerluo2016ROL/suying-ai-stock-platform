@@ -1,3 +1,5 @@
+import pytest
+
 from kronos_factors.engine.cb_auction_t0 import (
     _is_noise_concept,
     _normalize_stock_code,
@@ -350,6 +352,44 @@ def test_fetch_trigger_stocks_uses_limit_list_ts_code_schema():
     assert rejections == []
 
 
+def test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up():
+    engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+
+    class DummyCursor:
+        def execute(self, sql, params):
+            pass
+
+        def fetchall(self):
+            return [
+                ("300001.SZ", "封单缺失", None, "09:25:00", False),
+                ("300002.SZ", "封单不足", 1_000_000_000, "09:25:00", False),
+                ("300003.SZ", "昨日涨停", 1_500_000_000, "09:25:00", True),
+                ("300004.SZ", "有效触发", 1_500_000_000, "09:25:00", False),
+            ]
+
+    triggers, rejections = engine._fetch_trigger_stocks(
+        DummyCursor(),
+        "2026-06-30",
+        "2026-06-29",
+    )
+
+    assert triggers == [
+        {
+            "trigger_stock_code": "300004",
+            "trigger_stock_name": "有效触发",
+            "fd_amount": 1_500_000_000.0,
+            "fd_amount_yi": 15.0,
+            "first_time": "09:25:00",
+            "prev_was_limit_up": False,
+        }
+    ]
+    assert rejections == [
+        {"code": "300001", "name": "封单缺失", "reason": "封单金额缺失"},
+        {"code": "300002", "name": "封单不足", "reason": "封单金额不足10亿"},
+        {"code": "300003", "name": "昨日涨停", "reason": "昨日已涨停"},
+    ]
+
+
 def test_cli_write_outputs_creates_json_and_csv(tmp_path):
     import json
     import importlib.util
@@ -396,6 +436,28 @@ def test_cli_write_outputs_creates_json_and_csv(tmp_path):
     assert "高溢价85.0%" in csv_text
     assert "85.0" in csv_text
     assert "20.0" in csv_text
+
+
+def test_cli_rejects_negative_top_n_before_running_engine(tmp_path, monkeypatch, capsys):
+    import importlib.util
+    from pathlib import Path
+
+    tool_path = Path("tools/cb_auction_t0_picks.py")
+    spec = importlib.util.spec_from_file_location("cb_auction_t0_picks_negative", tool_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    class DummyEngine:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("engine should not run when --top-n is invalid")
+
+    monkeypatch.setattr(module, "CbAuctionT0Engine", DummyEngine)
+
+    with pytest.raises(SystemExit) as exc:
+        module.main(["2026-06-30", "--top-n", "-1", "--output-dir", str(tmp_path)])
+
+    assert exc.value.code == 2
+    assert "--top-n must be >= 0" in capsys.readouterr().err
 
 
 def test_engine_package_exports_cb_auction_t0():

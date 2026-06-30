@@ -92,7 +92,10 @@ def print_summary(result: dict) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.top_n < 0:
+        parser.error("--top-n must be >= 0")
     engine = CbAuctionT0Engine(pg_url=os.environ.get("KRONOS_PG_URL"))
     try:
         result = engine.run(trade_date=args.trade_date, top_n=args.top_n)
