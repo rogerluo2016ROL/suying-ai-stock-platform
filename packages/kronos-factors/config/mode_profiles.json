@@ -1,245 +1,68 @@
 {
-  "version": "1.0",
-  "generated_date": "2026-06-30",
-  "description": "11 个选股模式的历史画像（precision/recall/style）",
-  "models": {
-    "leader_scalp": {
-      "precision": 0.72,
-      "recall": 0.43,
-      "speed": "fast",
-      "style": "momentum",
-      "primary_factors": ["gain_quality", "sector_leader", "intraday_leadership"],
-      "risk_preference": "aggressive",
-      "env_affinity": {
-        "bull": 1.3,
-        "neutral": 1.0,
-        "bear": 0.5
-      },
-      "estimated_impact_on_fusion": "+5",
-      "note": "7-12% 日涨跌幅龙头战法，精确度高但覆盖率低"
-    },
-    "leader_auction": {
-      "precision": 0.65,
-      "recall": 0.35,
-      "speed": "very_fast",
-      "style": "event_driven",
-      "primary_factors": ["gap_surprise", "volume_surprise", "yizi_direction"],
-      "risk_preference": "conservative",
-      "env_affinity": {
-        "bull": 1.1,
-        "neutral": 1.0,
-        "bear": 0.6
-      },
-      "estimated_impact_on_fusion": "+4",
-      "note": "竞价超预期 + 一字板封单，适合事件驱动"
-    },
-    "leader_intraday": {
-      "precision": 0.68,
-      "recall": 0.40,
-      "speed": "fast",
-      "style": "momentum",
-      "primary_factors": ["afternoon_strength", "intraday_leadership", "sector_leader"],
-      "risk_preference": "aggressive",
-      "env_affinity": {
-        "bull": 1.2,
-        "neutral": 0.9,
-        "bear": 0.4
-      },
-      "estimated_impact_on_fusion": "+5",
-      "note": "盘中龙头战法，14:00 实时选股"
-    },
-    "leader_afternoon": {
-      "precision": 0.55,
-      "recall": 0.52,
-      "speed": "medium",
-      "style": "trend",
-      "primary_factors": ["obv_trend", "wr_pullback", "volume_contract"],
-      "risk_preference": "moderate",
-      "env_affinity": {
-        "bull": 0.9,
-        "neutral": 1.0,
-        "bear": 1.2
-      },
-      "estimated_impact_on_fusion": "+3",
-      "note": "午后趋势启动，资金流向驱动"
-    },
-    "leader_closing": {
-      "precision": 0.60,
-      "recall": 0.38,
-      "speed": "medium",
-      "style": "momentum",
-      "primary_factors": ["gain_quality", "sector_momentum", "resonance"],
-      "risk_preference": "aggressive",
-      "env_affinity": {
-        "bull": 1.0,
-        "neutral": 1.0,
-        "bear": 0.3
-      },
-      "estimated_impact_on_fusion": "+2",
-      "note": "尾盘顺势选股，次日套利"
-    },
-    "bi_trend_launch": {
-      "precision": 0.55,
-      "recall": 0.78,
-      "speed": "slow",
-      "style": "trend",
-      "primary_factors": ["obv_trend", "wr_pullback", "volume_contract"],
-      "risk_preference": "moderate",
-      "env_affinity": {
-        "bull": 0.9,
-        "neutral": 1.1,
-        "bear": 1.2
-      },
-      "estimated_impact_on_fusion": "+4",
-      "note": "趋势启动战法，OBV 均线 + WR 回踩，回测-1.075%/月（作样本外保留）"
-    },
-    "bi_trend_full_market": {
-      "precision": 0.50,
-      "recall": 0.82,
-      "speed": "slow",
-      "style": "trend",
-      "primary_factors": ["obv_trend", "wr_pullback", "volume_contract"],
-      "risk_preference": "moderate",
-      "env_affinity": {
-        "bull": 0.8,
-        "neutral": 1.2,
-        "bear": 1.3
-      },
-      "estimated_impact_on_fusion": "+3",
-      "note": "全市场趋势启动，样本外验证稳定性较差"
-    },
-    "short_mode": {
-      "precision": 0.48,
-      "recall": 0.62,
-      "speed": "medium",
-      "style": "statistical",
-      "primary_factors": ["revenue_growth", "roe", "pe_reversion", "margin_chg"],
-      "risk_preference": "moderate",
-      "env_affinity": {
-        "bull": 0.8,
-        "neutral": 1.0,
-        "bear": 1.3
-      },
-      "estimated_impact_on_fusion": "+2",
-      "note": "多因子指数化 + Alpha 因子，统计显著性"
-    },
-    "chokepoint": {
-      "precision": 0.60,
-      "recall": 0.52,
-      "speed": "slow",
-      "style": "theme",
-      "primary_factors": ["rating_quality", "cover_count", "institution_holding"],
-      "risk_preference": "conservative",
-      "env_affinity": {
-        "bull": 1.0,
-        "neutral": 1.0,
-        "bear": 0.8
-      },
-      "estimated_impact_on_fusion": "+3",
-      "note": "卡脖子识别，产业链垂直挖掘"
-    },
-    "supply_chain": {
-      "precision": 0.60,
-      "recall": 0.52,
-      "speed": "slow",
-      "style": "theme",
-      "primary_factors": ["rating_quality", "cover_count", "institution_holding"],
-      "risk_preference": "conservative",
-      "env_affinity": {
-        "bull": 1.1,
-        "neutral": 1.0,
-        "bear": 0.8
-      },
-      "estimated_impact_on_fusion": "+3",
-      "note": "产业研报直查 + 行业关键词匹配"
-    },
-    "cb_floor": {
-      "precision": 0.45,
-      "recall": 0.55,
-      "speed": "medium",
-      "style": "statistical",
-      "primary_factors": ["premium_rate", "cb_factor_rsi_6", "cb_factor_macd"],
-      "risk_preference": "conservative",
-      "env_affinity": {
-        "bull": 0.7,
-        "neutral": 1.0,
-        "bear": 1.2
-      },
-      "estimated_impact_on_fusion": "+2",
-      "note": "匪爷可转债底价选债，12 因子加权"
-    },
-    "cb_intraday": {
-      "precision": 0.40,
-      "recall": 0.48,
-      "speed": "fast",
-      "style": "momentum",
-      "primary_factors": ["cb_factor_rsi_6", "cb_factor_macd", "turnover"],
-      "risk_preference": "aggressive",
-      "env_affinity": {
-        "bull": 0.8,
-        "neutral": 1.0,
-        "bear": 0.5
-      },
-      "estimated_impact_on_fusion": "+1",
-      "note": "可转债盘中战法，适合短线"
-    },
-    "cb_auction": {
-      "precision": 0.38,
-      "recall": 0.42,
-      "speed": "very_fast",
-      "style": "event_driven",
-      "primary_factors": ["gap_surprise", "volume_surprise", "cb_factor_rsi_6"],
-      "risk_preference": "conservative",
-      "env_affinity": {
-        "bull": 0.6,
-        "neutral": 1.0,
-        "bear": 0.7
-      },
-      "estimated_impact_on_fusion": "+1",
-      "note": "可转债竞价战法，风险偏好低"
-    }
+  "short": {
+    "mode": "short",
+    "precision": 0.781,
+    "recall": 1.0,
+    "speed": "fast",
+    "style": "statistical",
+    "primary_factors": ["multi_factor", "alpha"],
+    "risk_preference": "moderate",
+    "env_affinity": {"bull": 0.859, "neutral": 0.781, "bear": 0.664},
+    "note": "Calibrated June 2026: avg_5d=+16.59%, wr=78.1%, 30picks/day"
   },
-  "fusion_weights_default": {
-    "strategy_combination": [
-      "leader_scalp",
-      "leader_auction",
-      "bi_trend_launch",
-      "short_mode"
-    ],
-    "min_consolidation_count": 2,
-    "boost_per_extra_mode": 10,
-    "leader_scalp_bonus": 5
+  "chokepoint": {
+    "mode": "chokepoint",
+    "precision": 0.724,
+    "recall": 1.0,
+    "speed": "fast",
+    "style": "theme",
+    "primary_factors": ["supply_chain_vertical", "chokepoint"],
+    "risk_preference": "moderate",
+    "env_affinity": {"bull": 0.796, "neutral": 0.724, "bear": 0.615},
+    "note": "Calibrated June 2026: avg_5d=+9.98%, wr=72.4%, 30picks/day"
   },
-  "phase_selection": {
-    "Phase_1_WeightedFusion": {
-      "name": "WeightedFusionEngine (V5.0)",
-      "status": "in_progress",
-      "target_pct_improvement": 10,
-      "implementation_priority": "P0"
-    },
-    "Phase_2_SectorHeatmap": {
-      "name": "SectorHeatmapEngine",
-      "status": "pending",
-      "expected_rate_harvest": 28,
-      "implementation_priority": "P1"
-    },
-    "Phase_3_LLMIntelligence": {
-      "name": "LLMIntelligenceEngine",
-      "status": "pending",
-      "risk_signal_advance": 30,
-      "implementation_priority": "P1"
-    },
-    "Phase_4_Parity": {
-      "name": "RiskParityAllocator",
-      "status": "pending",
-      "single_position_limit_1": 15,
-      "implementation_priority": "P2"
-    },
-    "Phase_5_MultiIndex": {
-      "name": "MultiIndexEngine",
-      "status": "pending",
-      "policy_alignment": "openai_prep_ETF",
-      "implementation_priority": "P2"
-    }
+  "supply_chain": {
+    "mode": "supply_chain",
+    "precision": 0.671,
+    "recall": 1.0,
+    "speed": "fast",
+    "style": "theme",
+    "primary_factors": ["industry_chain", "research_report"],
+    "risk_preference": "moderate",
+    "env_affinity": {"bull": 0.738, "neutral": 0.671, "bear": 0.570},
+    "note": "Calibrated June 2026: avg_5d=+9.64%, wr=67.1%, 30picks/day"
+  },
+  "bi_trend_launch": {
+    "mode": "bi_trend_launch",
+    "precision": 0.607,
+    "recall": 0.17,
+    "speed": "slow",
+    "style": "trend",
+    "primary_factors": ["obv_trend", "wr_pullback", "hard_tech"],
+    "risk_preference": "conservative",
+    "env_affinity": {"bull": 0.668, "neutral": 0.607, "bear": 0.516},
+    "note": "Calibrated June 2026: avg_5d=+7.84%, wr=60.7%, ~5picks/day=17% coverage"
+  },
+  "leader_scalp": {
+    "mode": "leader_scalp",
+    "precision": 0.50,
+    "recall": 0.001,
+    "speed": "slow",
+    "style": "momentum",
+    "primary_factors": ["gain_quality", "sector_leader"],
+    "risk_preference": "aggressive",
+    "env_affinity": {"bull": 0.60, "neutral": 0.50, "bear": 0.40},
+    "note": "June 2026: 0 picks all days (filters too strict in weak market)"
+  },
+  "leader_afternoon": {
+    "mode": "leader_afternoon",
+    "precision": 0.385,
+    "recall": 0.77,
+    "speed": "medium",
+    "style": "momentum",
+    "primary_factors": ["afternoon_trend", "intraday_snapshot"],
+    "risk_preference": "aggressive",
+    "env_affinity": {"bull": 0.45, "neutral": 0.385, "bear": 0.30},
+    "note": "Calibrated June 2026: avg_5d=+0.28%, wr=38.5%, ~23picks/day on active days"
   }
 }
