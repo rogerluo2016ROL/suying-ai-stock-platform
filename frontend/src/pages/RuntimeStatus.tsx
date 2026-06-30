@@ -3,7 +3,15 @@ import { ApiOutlined, CheckCircleOutlined, ClockCircleOutlined, DatabaseOutlined
 import { healthApi } from '../api/client'
 import { DataDomainBadge, DataFreshnessBar, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, RiskBanner, SideRail } from '../components/prototype'
 
-const serviceChecks = [
+interface RuntimeServiceConfig {
+  key: string
+  name: string
+  port: string
+  duty: string
+  enabled?: boolean
+}
+
+const serviceChecks: RuntimeServiceConfig[] = [
   { key: 'gateway', name: 'api-gateway', port: '18080', duty: '统一入口 / 鉴权透传' },
   { key: 'auth', name: 'backend-auth', port: '19001', duty: 'JWT / RBAC / tenant' },
   { key: 'prediction', name: 'prediction-service', port: '18002', duty: 'Kronos 预测' },
@@ -15,17 +23,17 @@ const serviceChecks = [
   { key: 'diagnosis', name: 'diagnosis-service', port: '18009', duty: '个股诊断' },
 ]
 
-interface RuntimeServiceRow {
-  key: string
-  name: string
-  port: string
+interface RuntimeServiceRow extends RuntimeServiceConfig {
   status: string
   version?: string
-  duty: string
 }
 
 function isHealthy(status: string) {
   return ['healthy', 'online', 'ok'].includes(status)
+}
+
+function isEnabled(service: RuntimeServiceRow) {
+  return service.enabled !== false
 }
 
 export default function RuntimeStatus() {
@@ -37,6 +45,9 @@ export default function RuntimeStatus() {
   const loadServices = useCallback(async () => {
     setServices(serviceChecks.map(service => ({ ...service, status: 'checking' })))
     const rows = await Promise.all(serviceChecks.map(async service => {
+      if (service.enabled === false) {
+        return { ...service, status: '未启用' }
+      }
       try {
         const response = service.key === 'gateway'
           ? await healthApi.gateway()
@@ -65,17 +76,21 @@ export default function RuntimeStatus() {
   }, [loadServices])
 
   const summary = useMemo(() => {
-    const online = services.filter(service => isHealthy(service.status)).length
-    const checking = services.filter(service => service.status === 'checking').length
-    const offline = services.length - online - checking
-    return { online, checking, offline }
+    const activeServices = services.filter(isEnabled)
+    const online = activeServices.filter(service => isHealthy(service.status)).length
+    const checking = activeServices.filter(service => service.status === 'checking').length
+    const offline = activeServices.length - online - checking
+    return { online, checking, offline, total: activeServices.length }
   }, [services])
 
   const serviceStatus = useMemo(() => {
     return Object.fromEntries(services.map(service => [service.key, service.status])) as Record<string, string>
   }, [services])
 
-  const modelHealthy = isHealthy(serviceStatus.prediction || '') && isHealthy(serviceStatus.training || '')
+  const trainingEnabled = services.find(service => service.key === 'training')?.enabled !== false
+  const modelHealthy = isHealthy(serviceStatus.prediction || '') && (
+    !trainingEnabled || isHealthy(serviceStatus.training || '')
+  )
   const tradeHealthy = isHealthy(serviceStatus.trade || '')
 
   return (
@@ -83,7 +98,7 @@ export default function RuntimeStatus() {
       <PrototypePageHeader
         title="运行状态 - 服务健康"
         subtitle="服务健康 · 数据延迟 · 模型任务 · 交易链路"
-        dataFreshness={<DataFreshnessBar updatedAt={lastCheckedAt} source="health-api" />}
+        dataFreshness={<DataFreshnessBar tradeDate={lastCheckedAt} updatedAt={lastCheckedAt} source="health-api" currentTradeDate={lastCheckedAt} />}
         actions={[
           { key: 'admin', label: '管理员视图', active: true, tone: 'neutral' },
           { key: 'refresh', label: '刷新健康', tone: 'neutral', onClick: () => void loadServices() },
@@ -91,9 +106,9 @@ export default function RuntimeStatus() {
         ]}
       />
       <div className="kpis">
-        <MetricCard label="在线服务" value={`${summary.online}/${services.length}`} sub={`异常 ${summary.offline}`} tone={summary.offline ? 'warn' : 'up'} />
+        <MetricCard label="在线服务" value={`${summary.online}/${summary.total}`} sub={`异常 ${summary.offline}`} tone={summary.offline ? 'warn' : 'up'} />
         <MetricCard label="检查中" value={String(summary.checking)} sub="服务健康" tone="accent" />
-        <MetricCard label="模型服务" value={modelHealthy ? 'OK' : '异常'} sub="prediction + training" tone={modelHealthy ? 'up' : 'warn'} />
+        <MetricCard label="模型服务" value={modelHealthy ? 'OK' : '异常'} sub={trainingEnabled ? 'prediction + training' : 'prediction'} tone={modelHealthy ? 'up' : 'warn'} />
         <MetricCard label="交易链路" value={tradeHealthy ? 'Paper' : '异常'} sub="trade health" tone={tradeHealthy ? 'muted' : 'warn'} />
       </div>
       <div className="r r-2-1">
@@ -130,8 +145,8 @@ export default function RuntimeStatus() {
 
         <SideRail title="运行闸门" meta="Ops">
           <RiskBanner
-            status={summary.online === services.length ? 'pass' : 'warn'}
-            title={summary.online === services.length ? '服务健康通过' : '存在服务异常'}
+            status={summary.online === summary.total ? 'pass' : 'warn'}
+            title={summary.online === summary.total ? '服务健康通过' : '存在服务异常'}
             detail={`health API 当前在线 ${summary.online} 个，异常 ${summary.offline} 个，检查中 ${summary.checking} 个。`}
           />
           <PrototypeCard title="数据与模型" icon={<DatabaseOutlined />}>
@@ -146,7 +161,7 @@ export default function RuntimeStatus() {
               <div className="li-badge">ML</div>
               <div className="li-main">
                 <div className="n">{modelHealthy ? '模型服务在线' : '模型服务异常'}</div>
-                <div className="s">prediction={serviceStatus.prediction || 'checking'} / training={serviceStatus.training || 'checking'}</div>
+                <div className="s">prediction={serviceStatus.prediction || 'checking'} / training={trainingEnabled ? serviceStatus.training || 'checking' : '未启用'}</div>
               </div>
             </div>
           </PrototypeCard>

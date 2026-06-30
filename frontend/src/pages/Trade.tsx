@@ -111,7 +111,9 @@ export default function Trade() {
   const [positions, setPositions] = useState<any[]>([])
   const [orders, setOrders] = useState<any[]>([])
   const [riskVerdict, setRiskVerdict] = useState<RiskVerdictLike | null>(null)
-  const accountId = account?.account_id || user?.defaultTradeAccountId || '暂无账户'
+  const rawAccountId = account?.account_id || user?.defaultTradeAccountId || ''
+  const accountId = rawAccountId || '暂无账户'
+  const canSubmitOrder = Boolean(rawAccountId)
   const riskChecks = getRiskChecks(riskVerdict)
   const latestTradeUpdate = orders[0]?.updated_at || orders[0]?.created_at || positions[0]?.updated_at || account?.updated_at
 
@@ -131,7 +133,7 @@ export default function Trade() {
       if (positionsResult.status === 'fulfilled') setPositions(rowsFromResponse(positionsResult.value.data, 'positions'))
       if (ordersResult.status === 'fulfilled') setOrders(rowsFromResponse(ordersResult.value.data, 'orders'))
       const failed = [accountResult, positionsResult, ordersResult].filter(result => result.status === 'rejected').length
-      setDataError(failed > 0 ? `${failed} 个交易数据接口暂不可用` : '')
+      setDataError(failed > 0 ? `${failed} 个交易数据接口连接异常` : '')
     })
     return () => {
       mounted = false
@@ -141,6 +143,10 @@ export default function Trade() {
   const submitOrder = async (event: FormEvent) => {
     event.preventDefault()
     setError('')
+    if (!canSubmitOrder) {
+      setError('下单前必须先绑定模拟盘账户或券商账户。')
+      return
+    }
     const numericVolume = Number(volume)
     if (!/^\d{6}$/.test(code)) {
       setError('股票代码为 6 位数字')
@@ -252,9 +258,12 @@ export default function Trade() {
                 <label>Plan</label>
                 <input className="inp mono" placeholder="PLAN-" value={planId} onChange={event => setPlanId(event.target.value)} />
               </div>
+              {!canSubmitOrder && (
+                <RiskBanner status="warn" title="账户未绑定" detail="下单前必须先绑定模拟盘账户或券商账户。" />
+              )}
               {error && <div className="tag t-warn" style={{ marginBottom: 12 }}>{error}</div>}
               <div className="chips">
-                <button type="submit" className="btn primary">下单</button>
+                <button type="submit" className="btn primary" disabled={!canSubmitOrder}>下单</button>
                 <button type="button" className="btn ghost" onClick={() => navigate('/trade/risk-verdicts')}>进入风控中心</button>
               </div>
             </form>

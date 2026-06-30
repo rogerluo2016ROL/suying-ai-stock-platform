@@ -92,8 +92,8 @@ describe('Screener', () => {
 
     expect(await screen.findByText('光迅科技')).toBeInTheDocument()
     await waitFor(() => {
-      expect(signalApi.triggerSync).toHaveBeenCalledWith('stk_auction_o', 1)
-      expect(screenerApi.run).toHaveBeenCalledWith('leader_auction', 30, '2026-06-26')
+      expect(signalApi.triggerSync).toHaveBeenCalledWith('daily_kline', 30)
+      expect(screenerApi.run).toHaveBeenCalledWith('leader_scalp', 30, '2026-06-26')
     })
     expect(screen.getByText('AI算力')).toBeInTheDocument()
     expect(screen.getByText('core')).toBeInTheDocument()
@@ -127,7 +127,8 @@ describe('Screener', () => {
     expect(screen.getByText('模型选股')).toBeInTheDocument()
     expect(screen.getByText('输出股票')).toBeInTheDocument()
     expect(screen.getByText('市值(亿)')).toBeInTheDocument()
-    expect(screen.getByText('秋神竞价超预期分析')).toBeInTheDocument()
+    expect(screen.getByText(/leader_scalp/)).toBeInTheDocument()
+    expect(screen.getByText('秋神盘后龙头分析')).toBeInTheDocument()
     expect(screen.getByText('等待模型输出')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '加入候选池 →' })).toBeInTheDocument()
   })
@@ -148,9 +149,9 @@ describe('Screener', () => {
 
     renderScreener()
 
-    expect(await screen.findByDisplayValue('2026-06-29')).toBeInTheDocument()
-    expect(await screen.findByText('交易日：2026-06-29')).toBeInTheDocument()
-    expect(screen.getByText('来源：stk_auction_o')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('2026-06-26')).toBeInTheDocument()
+    expect(await screen.findByText('交易日：2026-06-26')).toBeInTheDocument()
+    expect(screen.getByText('来源：daily_kline')).toBeInTheDocument()
   })
 
   it('shows the actual backend run date after model execution', async () => {
@@ -183,9 +184,28 @@ describe('Screener', () => {
     fireEvent.click(await screen.findByRole('button', { name: /运行选股/ }))
 
     await waitFor(() => {
-      expect(screenerApi.run).toHaveBeenCalledWith('leader_auction', 20, '2026-06-29')
+      expect(screenerApi.run).toHaveBeenCalledWith('leader_scalp', 20, '2026-06-26')
     })
     expect(await screen.findByText('交易日：2026-06-29')).toBeInTheDocument()
     expect(await screen.findByText('上海贝岭')).toBeInTheDocument()
+  })
+
+  it('explains a zero-pick run instead of only showing an empty table', async () => {
+    vi.mocked(screenerApi.run).mockResolvedValueOnce({
+      data: {
+        trade_date: '2026-06-26',
+        data_freshness: { status: 'fresh', as_of: '2026-06-26', source: 'daily_kline', quality_score: 96 },
+        picks: [],
+        total_scored: 58,
+        total_excluded: 58,
+        elapsed: 0.1,
+      },
+    } as any)
+    renderScreener()
+
+    fireEvent.click(await screen.findByRole('button', { name: /运行选股/ }))
+
+    expect(await screen.findByText('当前模型返回 0 只')).toBeInTheDocument()
+    expect(screen.getByText(/请检查交易日、实时快照或切换到盘后龙头/)).toBeInTheDocument()
   })
 })

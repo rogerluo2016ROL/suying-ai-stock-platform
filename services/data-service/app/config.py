@@ -22,7 +22,20 @@ SQLITE_FALLBACK_ENABLED = os.environ.get("DATA_SQLITE_FALLBACK", "false").lower(
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:7379/0")
 
 # ── Tushare ──
-TUSHARE_TOKEN = os.environ.get("TUSHARE_TOKEN", "").strip()
+TUSHARE_TOKEN_FILE = os.environ.get("TUSHARE_TOKEN_FILE", "").strip()
+
+
+def _read_secret_file(path: str) -> str:
+    if not path:
+        return ""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+TUSHARE_TOKEN = _read_secret_file(TUSHARE_TOKEN_FILE) or os.environ.get("TUSHARE_TOKEN", "").strip()
 
 
 def is_tushare_configured() -> bool:
@@ -35,8 +48,9 @@ def get_runtime_config_status() -> dict:
     return {
         "tushare": {
             "configured": is_tushare_configured(),
-            "env": "TUSHARE_TOKEN",
-            "action": "set TUSHARE_TOKEN before enabling market-data jobs",
+            "env": "TUSHARE_TOKEN_FILE or TUSHARE_TOKEN",
+            "source": "file" if _read_secret_file(TUSHARE_TOKEN_FILE) else ("env" if os.environ.get("TUSHARE_TOKEN") else None),
+            "action": "set TUSHARE_TOKEN_FILE or TUSHARE_TOKEN before enabling market-data jobs",
         },
         "sqlite_fallback": {
             "enabled": SQLITE_FALLBACK_ENABLED,

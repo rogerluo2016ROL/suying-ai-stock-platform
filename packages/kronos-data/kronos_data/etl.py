@@ -50,11 +50,24 @@ def _rate_limit():
     _CALL_TIMES.append(time.time())
 
 
+def _get_secret(name: str) -> str:
+    file_path = os.environ.get(f"{name}_FILE", "").strip()
+    if file_path:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                value = f.read().strip()
+            if value:
+                return value
+        except OSError:
+            pass
+    return os.environ.get(name, "").strip()
+
+
 def _get_pro():
-    """Lazy-init Tushare pro_api. Returns None if TUSHARE_TOKEN not set."""
-    token = os.environ.get("TUSHARE_TOKEN", "")
+    """Lazy-init Tushare pro_api. Returns None if Tushare credentials are missing."""
+    token = _get_secret("TUSHARE_TOKEN")
     if not token:
-        print("  TUSHARE_TOKEN not set — skipping")
+        print("  TUSHARE_TOKEN_FILE/TUSHARE_TOKEN not set — skipping")
         return None
     try:
         import tushare as ts
@@ -93,6 +106,14 @@ def _ts_code(code: str) -> str:
 def _code_from_ts(ts_code: str) -> str:
     """Extract 6-digit code from Tushare ts_code (000001.SZ → 000001)."""
     return str(ts_code).split(".")[0][:6]
+
+
+def _date_from_tushare(value) -> str:
+    """Normalize Tushare YYYYMMDD dates to PG-friendly YYYY-MM-DD."""
+    text = str(value or "").strip()
+    if len(text) == 8 and text.isdigit():
+        return f"{text[:4]}-{text[4:6]}-{text[6:8]}"
+    return text
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1780,17 +1801,16 @@ def sync_daily_kline(days_back: int = 30) -> dict:
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
     db = _get_etl_db(); total = written = 0
-    cols = ["ts_code", "trade_date", "open", "high", "low", "close",
-            "pre_close", "change", "pct_chg", "vol", "amount"]
+    cols = ["code", "trade_date", "open", "high", "low", "close",
+            "volume", "amount", "change_pct"]
     for td in dates:
         try:
             df = pro.daily(trade_date=td)
             _rate_limit()
             if df is None or df.empty: continue
-            rows = [(str(r["ts_code"]), str(r["trade_date"]),
+            rows = [(_code_from_ts(str(r["ts_code"])), _date_from_tushare(r["trade_date"]),
                      r.get("open"), r.get("high"), r.get("low"), r.get("close"),
-                     r.get("pre_close"), r.get("change"), r.get("pct_chg"),
-                     r.get("vol"), r.get("amount")) for _, r in df.iterrows()]
+                     r.get("vol"), r.get("amount"), r.get("pct_chg")) for _, r in df.iterrows()]
             total += len(rows)
             written += _insert_rows(db, "daily_kline", cols, rows)
         except Exception as e:

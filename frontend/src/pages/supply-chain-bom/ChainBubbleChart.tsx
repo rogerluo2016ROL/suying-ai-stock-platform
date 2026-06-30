@@ -177,7 +177,9 @@ export default function ChainBubbleChart({
     >
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
-          <Spin tip="加载中..." />
+          <Spin tip="加载中...">
+            <div style={{ width: 120, height: 48 }} />
+          </Spin>
         </div>
       ) : bubbleData.length === 0 ? (
         <Empty

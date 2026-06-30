@@ -1,4 +1,4 @@
-"""Adapters for backtest-service — PG-first with SQLite fallback."""
+"""Adapters for backtest-service — PG-first, explicit legacy SQLite fallback."""
 
 import os, sys, logging
 
@@ -8,7 +8,7 @@ logger = logging.getLogger("backtest-service.adapters")
 def inject_adapters():
     """Inject DB adapter into kronos-factors for backtest operations.
 
-    Priority: PG (KRONOS_PG_URL) > SQLite (KRONOS_DB_PATH) > None (auto-init).
+    Priority: PG (KRONOS_PG_URL) > explicit SQLite fallback > None.
     """
     pg_url = os.environ.get('KRONOS_PG_URL', '')
     if pg_url:
@@ -23,7 +23,11 @@ def inject_adapters():
         except Exception as e:
             logger.warning("Backtest PG adapter failed: %s", e)
 
-    # Fallback: SQLite
+    if os.environ.get("KRONOS_ALLOW_SQLITE_FALLBACK", "").lower() not in {"1", "true", "yes", "on"}:
+        logger.warning("Backtest DB: SQLite fallback disabled")
+        return
+
+    # Legacy fallback: SQLite
     db_path = os.environ.get("KRONOS_DB_PATH",
         os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.dirname(os.path.abspath(__file__)))), "Kronos", "data", "kronos.db")))

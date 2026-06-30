@@ -31,6 +31,13 @@ def test_signal_contract_wraps_model_metadata_freshness_and_fallback():
     assert result["fallback_reason"] is None
 
 
+def test_signal_data_freshness_accepts_trade_date_dict():
+    result = routes._signal_data_freshness({"trade_date": "2026-06-29"}, "PG daily_kline")
+
+    assert result["as_of"] == "2026-06-29"
+    assert result["source"] == "PG daily_kline"
+
+
 def test_signal_levels_endpoint_includes_contract_fields():
     result = asyncio.run(routes.signal_levels())
 

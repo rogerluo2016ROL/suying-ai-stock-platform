@@ -246,4 +246,15 @@ describe('P1-07: Trade 下单表单校验', () => {
 
     expect(await screen.findByRole('button', { name: /风控闸门/ })).toBeInTheDocument()
   })
+
+  it('账户未绑定时禁用下单并说明原因', async () => {
+    mocks.authUser.defaultTradeAccountId = ''
+    renderTrade()
+
+    const orderButton = await screen.findByRole('button', { name: /^下单$/ })
+    expect(orderButton).toBeDisabled()
+    expect(screen.getByText('下单前必须先绑定模拟盘账户或券商账户。')).toBeInTheDocument()
+
+    mocks.authUser.defaultTradeAccountId = 'qmt-880001'
+  })
 })

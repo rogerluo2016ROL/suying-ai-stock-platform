@@ -9,14 +9,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ && rm -rf /var/lib/apt/lists/*
 
-# Copy and install packages
+# Copy and install packages actually used by screener-service.
 COPY packages/kronos-factors /app/packages/kronos-factors
-COPY packages/kronos-core /app/packages/kronos-core
-COPY packages/kronos-data /app/packages/kronos-data
-RUN pip install --no-cache-dir \
-    /app/packages/kronos-factors \
-    /app/packages/kronos-core \
-    /app/packages/kronos-data
+RUN pip install --no-cache-dir /app/packages/kronos-factors
 
 # Copy service
 COPY services/screener-service /app/service

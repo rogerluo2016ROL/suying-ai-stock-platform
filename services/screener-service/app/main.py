@@ -36,8 +36,9 @@ async def lifespan(app: FastAPI):
     """Startup: inject DB adapters. Shutdown: cleanup."""
     logger.info("Starting Screener Service...")
     try:
-        # Try PG first, fall back to SQLite
+        # Try PG first. SQLite is legacy-only and must be explicitly enabled.
         pg_url = os.environ.get('KRONOS_PG_URL', '')
+        allow_sqlite = os.environ.get("KRONOS_ALLOW_SQLITE_FALLBACK", "").lower() in {"1", "true", "yes", "on"}
         if pg_url:
             import socket
             socket.setdefaulttimeout(5)  # Prevent PG connection from hanging startup
@@ -52,16 +53,19 @@ async def lifespan(app: FastAPI):
                 else:
                     raise RuntimeError("create_pg_adapter returned None")
             except Exception as e:
-                logger.warning("PG unavailable (%s), falling back to SQLite", e)
-                from app.adapters import inject_adapters
-                inject_adapters(DB_PATH)
-                logger.info("Using SQLite: %s", DB_PATH)
+                logger.warning("PG unavailable (%s); SQLite fallback disabled unless explicitly enabled", e)
+                if allow_sqlite:
+                    from app.adapters import inject_adapters
+                    inject_adapters(DB_PATH)
+                    logger.info("Using SQLite fallback: %s", DB_PATH)
             finally:
                 socket.setdefaulttimeout(None)
-        else:
+        elif allow_sqlite:
             from app.adapters import inject_adapters
             inject_adapters(DB_PATH)
-            logger.info("Using SQLite: %s", DB_PATH)
+            logger.info("Using SQLite fallback: %s", DB_PATH)
+        else:
+            logger.warning("No KRONOS_PG_URL configured and SQLite fallback disabled")
     except Exception as e:
         logger.warning("DB adapter injection skipped: %s", e)
 

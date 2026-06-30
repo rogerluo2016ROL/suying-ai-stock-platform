@@ -127,8 +127,9 @@ def _chain_id_from_node_id(node_id: str | None) -> str:
     return ""
 
 
-# ── 产业链配置加载 (P3): 优先 configs/supply_chains.json, 失败/缺失 fallback 内置默认 ──
-_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "configs" / "supply_chains.json"
+# ── 产业链配置加载 (P3): 优先包内 configs/supply_chains.json, 失败/缺失 fallback 内置默认 ──
+_CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs" / "supply_chains.json"
+_LEGACY_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "configs" / "supply_chains.json"
 
 
 def _load_chains_config():
@@ -138,7 +139,8 @@ def _load_chains_config():
     moat_kw: {类型: (pattern, score)}. JSON 缺失/损坏/不完整时退回内置默认.
     """
     try:
-        data = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+        config_path = _CONFIG_PATH if _CONFIG_PATH.exists() else _LEGACY_CONFIG_PATH
+        data = json.loads(config_path.read_text(encoding="utf-8"))
         chains, layer_kw = {}, {}
         for name, cd in data.get("chains", {}).items():
             chains[name] = {"industries": cd.get("industries", []), "layers": cd.get("layers", [])}

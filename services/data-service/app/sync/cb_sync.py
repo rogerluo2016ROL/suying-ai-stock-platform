@@ -25,10 +25,23 @@ PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6
 
 # ── helpers ──
 
+def _get_secret(name: str) -> str:
+    file_path = os.environ.get(f"{name}_FILE", "").strip()
+    if file_path:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                value = f.read().strip()
+            if value:
+                return value
+        except OSError:
+            pass
+    return os.environ.get(name, "").strip()
+
+
 def _get_pro():
     """Lazy-init Tushare pro_api."""
     import tushare as ts
-    token = os.environ.get("TUSHARE_TOKEN", "")
+    token = _get_secret("TUSHARE_TOKEN")
     if not token:
         return None
     ts.set_token(token)

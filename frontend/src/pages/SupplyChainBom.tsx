@@ -80,6 +80,13 @@ function mappingQualityErrorText(error: unknown) {
   return '映射质量报告加载失败，请检查 screener-service 和网关状态。'
 }
 
+function chainDeconstructErrorText(error: unknown) {
+  const status = endpointStatus(error)
+  if (status === 500) return '拆解接口返回 500，当前图谱可能是旧数据或默认目录。请检查 screener-service 后重试。'
+  if (status === 404) return '拆解接口不存在，当前图谱可能来自默认目录。请确认后端路由是否启用。'
+  return '拆解接口连接异常，当前图谱可能是旧数据或默认目录。'
+}
+
 function chainMethodSummary(method: ChainMethod) {
   if (method === 'value_chain') {
     return {
@@ -173,6 +180,7 @@ export default function SupplyChainBom() {
   const [chainMethod, setChainMethod] = useState<ChainMethod>('upstream_downstream')
   const [chainDeconstructResult, setChainDeconstructResult] = useState<ChainDeconstructResponse | null>(null)
   const [chainLoading, setChainLoading] = useState(false)
+  const [chainDeconstructError, setChainDeconstructError] = useState('')
 
   // Phase 3: V6 chain candidates state (from CandidateFilterBar)
   const [chainCandidates, setChainCandidates] = useState<CandidateCompany[]>([])
@@ -236,11 +244,13 @@ export default function SupplyChainBom() {
     if (!selectedThemeId) return
     let mounted = true
     setChainLoading(true)
+    setChainDeconstructError('')
     chainApi.deconstructChain({ theme_id: selectedThemeId, method: chainMethod })
       .then(resp => {
         if (!mounted) return
         const data = resp.data as ChainDeconstructResponse
         setChainDeconstructResult(data)
+        setChainDeconstructError('')
         // Convert chain nodes to BomNodes for display
         if (data.tree) {
           const bomNodes = flattenChainNodes(data.tree as SupplyChainNode, selectedThemeId)
@@ -250,6 +260,7 @@ export default function SupplyChainBom() {
       .catch(err => {
         if (!mounted) return
         console.error('Chain deconstruct failed:', err)
+        setChainDeconstructError(chainDeconstructErrorText(err))
         message.warning('产业链拆解加载失败，使用默认数据')
       })
       .finally(() => {
@@ -574,6 +585,16 @@ export default function SupplyChainBom() {
           showIcon
           message="映射质量接口不可用"
           description={mappingQualityError}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {chainDeconstructError && (
+        <Alert
+          type="error"
+          showIcon
+          message="产业链拆解接口不可用"
+          description={chainDeconstructError}
           style={{ marginBottom: 16 }}
         />
       )}

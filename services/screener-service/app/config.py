@@ -2,6 +2,19 @@
 
 import os
 
+
+def _read_secret(name: str) -> str:
+    file_path = os.environ.get(f"{name}_FILE", "").strip()
+    if file_path:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                value = f.read().strip()
+            if value:
+                return value
+        except OSError:
+            pass
+    return os.environ.get(name, "").strip()
+
 # ── Server ──
 HOST = os.environ.get("SCREENER_HOST", "0.0.0.0")
 PORT = int(os.environ.get("SCREENER_PORT", "8001"))
@@ -10,7 +23,7 @@ DEBUG = os.environ.get("SCREENER_DEBUG", "false").lower() in ("1", "true", "yes"
 # ── Data ──
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 DB_PATH = os.environ.get("KRONOS_DB_PATH", os.path.join(_REPO_ROOT, "Kronos", "data", "kronos.db"))
-TUSHARE_TOKEN = os.environ.get("TUSHARE_TOKEN", "")
+TUSHARE_TOKEN = _read_secret("TUSHARE_TOKEN")
 
 # ── Default screening config ──
 DEFAULT_TOP_N = int(os.environ.get("SCREENER_DEFAULT_TOP_N", "30"))

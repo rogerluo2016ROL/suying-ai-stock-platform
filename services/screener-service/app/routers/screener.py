@@ -292,6 +292,43 @@ def _load_supply_chain_bom_payload() -> dict:
     }
 
 
+def _seed_chain_nodes_for_deconstruct(theme_id: str) -> tuple[list[dict[str, Any]], str | None]:
+    """Return BOM seed nodes in the shape expected by chain_deconstruct."""
+    payload = _load_supply_chain_bom_payload()
+    themes = payload.get("themes", [])
+    theme = next((item for item in themes if item.get("theme_id") == theme_id), None)
+    if not theme:
+        return [], None
+
+    level_order = {
+        "theme": 0,
+        "chain": 1,
+        "industry": 1,
+        "component": 2,
+        "material": 2,
+        "equipment": 3,
+        "application": 4,
+    }
+
+    nodes = []
+    for node in payload.get("nodes", []):
+        if node.get("theme_id") != theme_id:
+            continue
+        level = str(node.get("level") or node.get("node_type") or "").lower()
+        nodes.append({
+            "node_id": str(node.get("node_id") or ""),
+            "theme_id": str(node.get("theme_id") or ""),
+            "node_name": str(node.get("name") or node.get("node_name") or ""),
+            "layer": level_order.get(level, 1),
+            "parent_node_id": node.get("parent_node_id") or None,
+            "upstream_nodes": node.get("upstream_nodes") or [],
+            "downstream_nodes": node.get("downstream_nodes") or [],
+            "value_chain": node.get("value_chain") or {},
+            "competition": node.get("competition") or {},
+        })
+    return nodes, str(theme.get("name") or theme_id)
+
+
 def _json_or_default(value, default):
     if value is None:
         return default
@@ -754,6 +791,7 @@ def _query_supply_chain_mapping_review_queue(
         conditions.append("COALESCE(n.chain_id, c.evidence->>'chain_id') = %s")
         params.append(chain_id)
     where = " AND ".join(conditions)
+    fallback_reason = None
     try:
         with _pg_connect() as pg:
             cur = pg.cursor()
@@ -2221,31 +2259,38 @@ async def chain_deconstruct(
             )
             rows = cur.fetchall()
             if not rows:
-                raise HTTPException(status_code=404, detail=f"Theme '{theme_id}' not found in chain_nodes")
+                nodes, theme_name = _seed_chain_nodes_for_deconstruct(theme_id)
+                if not nodes:
+                    raise HTTPException(status_code=404, detail=f"Theme '{theme_id}' not found in chain_nodes")
+                fallback_reason = "chain_nodes is empty; using bundled BOM seed config"
+                logger.info(
+                    "chain_deconstruct fallback to bundled BOM seed for theme_id=%s",
+                    theme_id,
+                )
+            else:
+                # Get theme_name from industry_themes
+                cur.execute(
+                    "SELECT theme_name FROM industry_themes WHERE theme_id = %s",
+                    (theme_id,),
+                )
+                theme_row = cur.fetchone()
+                theme_name = str(theme_row[0]) if theme_row else theme_id
 
-            # Get theme_name from industry_themes
-            cur.execute(
-                "SELECT theme_name FROM industry_themes WHERE theme_id = %s",
-                (theme_id,),
-            )
-            theme_row = cur.fetchone()
-            theme_name = str(theme_row[0]) if theme_row else theme_id
-
-            # Build nodes list for deconstruct_chain
-            nodes = []
-            for row in rows:
-                node = {
-                    "node_id": str(row[0] or ""),
-                    "theme_id": str(row[1] or ""),
-                    "node_name": str(row[2] or ""),
-                    "layer": int(row[3] or 0),
-                    "parent_node_id": str(row[4] or "") if row[4] else None,
-                    "upstream_nodes": _json_or_default(row[5], []),
-                    "downstream_nodes": _json_or_default(row[6], []),
-                    "value_chain": _json_or_default(row[7], {}),
-                    "competition": _json_or_default(row[8], {}),
-                }
-                nodes.append(node)
+                # Build nodes list for deconstruct_chain
+                nodes = []
+                for row in rows:
+                    node = {
+                        "node_id": str(row[0] or ""),
+                        "theme_id": str(row[1] or ""),
+                        "node_name": str(row[2] or ""),
+                        "layer": int(row[3] or 0),
+                        "parent_node_id": str(row[4] or "") if row[4] else None,
+                        "upstream_nodes": _json_or_default(row[5], []),
+                        "downstream_nodes": _json_or_default(row[6], []),
+                        "value_chain": _json_or_default(row[7], {}),
+                        "competition": _json_or_default(row[8], {}),
+                    }
+                    nodes.append(node)
 
     except HTTPException:
         raise
@@ -2262,6 +2307,7 @@ async def chain_deconstruct(
     return _with_screener_contract(
         result,
         mode=f"chain:{method}",
+        fallback_reason=fallback_reason,
         source="chain_nodes",
     )
 

@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.routers.screener import _seed_chain_nodes_for_deconstruct
 
 
 client = TestClient(app)
@@ -40,6 +41,20 @@ def test_node_id():
 
 class TestChainDeconstruct:
     """Tests for GET /chain/deconstruct endpoint."""
+
+    def test_seed_bom_can_feed_deconstruct_when_pg_chain_nodes_empty(self):
+        """Bundled BOM seed config should be usable when chain_nodes is empty."""
+        nodes, theme_name = _seed_chain_nodes_for_deconstruct("future_industry_core")
+
+        assert theme_name == "未来产业主攻方向"
+        assert {node["node_id"] for node in nodes} >= {
+            "embodied_ai_core",
+            "bom_reducer",
+        }
+        reducer = next(node for node in nodes if node["node_id"] == "bom_reducer")
+        assert reducer["node_name"] == "减速器"
+        assert reducer["parent_node_id"] == "embodied_ai_core"
+        assert reducer["layer"] > 0
 
     def test_returns_200_for_valid_theme_id(self, test_theme_id):
         """[AC-4] Valid theme_id should return 200."""

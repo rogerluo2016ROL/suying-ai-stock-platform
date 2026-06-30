@@ -11,6 +11,7 @@ if str(SERVICE_ROOT) not in sys.path:
 
 
 def _reload_config(monkeypatch, token: str | None):
+    monkeypatch.delenv("TUSHARE_TOKEN_FILE", raising=False)
     if token is None:
         monkeypatch.delenv("TUSHARE_TOKEN", raising=False)
     else:
@@ -25,9 +26,24 @@ def test_runtime_config_status_marks_tushare_missing(monkeypatch):
     status = config.get_runtime_config_status()
 
     assert status["tushare"]["configured"] is False
-    assert status["tushare"]["env"] == "TUSHARE_TOKEN"
-    assert status["tushare"]["action"] == "set TUSHARE_TOKEN before enabling market-data jobs"
+    assert status["tushare"]["env"] == "TUSHARE_TOKEN_FILE or TUSHARE_TOKEN"
+    assert status["tushare"]["action"] == "set TUSHARE_TOKEN_FILE or TUSHARE_TOKEN before enabling market-data jobs"
     assert status["sqlite_fallback"]["enabled"] is False
+
+
+def test_runtime_config_status_accepts_tushare_token_file(monkeypatch, tmp_path):
+    token_file = tmp_path / "tushare_token"
+    token_file.write_text("file-token\n", encoding="utf-8")
+    monkeypatch.delenv("TUSHARE_TOKEN", raising=False)
+    monkeypatch.setenv("TUSHARE_TOKEN_FILE", str(token_file))
+    sys.modules.pop("app.config", None)
+
+    config = importlib.import_module("app.config")
+    status = config.get_runtime_config_status()
+
+    assert config.TUSHARE_TOKEN == "file-token"
+    assert status["tushare"]["configured"] is True
+    assert status["tushare"]["source"] == "file"
 
 
 def test_collect_rt_min_skips_before_opening_data_source_when_tushare_missing(monkeypatch):
@@ -124,7 +140,7 @@ def test_readiness_reports_components_and_latest_auction(monkeypatch):
     assert result["components"]["pg_ok"] is True
     assert result["components"]["tushare_configured"] is False
     assert result["last_auction_status"]["last_status"] == "skipped"
-    assert result["runtime_config"]["tushare"]["env"] == "TUSHARE_TOKEN"
+    assert result["runtime_config"]["tushare"]["env"] == "TUSHARE_TOKEN_FILE or TUSHARE_TOKEN"
 
 
 def test_trigger_table_backfill_runs_registered_handler(monkeypatch):
@@ -144,3 +160,27 @@ def test_trigger_table_backfill_runs_registered_handler(monkeypatch):
     assert result["written"] == 7
     assert result["pg_written"] == 7
     assert router._job_status["manual_backfill:top_list"]["last_status"] == "ok"
+
+
+def test_trigger_table_backfill_marks_idempotent_latest_kline_ok(monkeypatch):
+    router = importlib.import_module("app.routers.data")
+    monkeypatch.setenv("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+    router._job_status.clear()
+
+    def fake_backfill(days_back: int):
+        return {"status": "ok", "table": "daily_kline", "fetched": 5510, "written": 0}
+
+    monkeypatch.setitem(router._BACKFILL_MAP, "daily_kline", fake_backfill)
+    monkeypatch.setattr(
+        router,
+        "_sync_required_dependencies",
+        lambda table_key: {"dependency": "stocks", "pg_written": 0},
+    )
+    monkeypatch.setattr(router, "_has_latest_completed_trade_day", lambda table_key: True)
+
+    result = asyncio.run(router.trigger_table_backfill("daily_kline", 1))
+
+    assert result["status"] == "ok"
+    assert result["pg_write_status"] == "ok"
+    assert result["written"] == 0
+    assert result["noop_reason"] == "already_up_to_date"

@@ -378,7 +378,7 @@ export default function OpenDecision() {
         verdicts: verdicts.status === 'fulfilled' ? verdicts.value.data?.records || [] : [],
         contexts: contexts.status === 'fulfilled' ? contexts.value.data?.records || [] : [],
         loading: false,
-        error: rejected ? `${rejected} 个接口暂不可用，页面已保留可用数据。` : '',
+        error: rejected ? `${rejected} 个接口连接异常，页面已保留可用数据。` : '',
       })
     })
     return () => {

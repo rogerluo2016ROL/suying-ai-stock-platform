@@ -9,7 +9,7 @@ Env vars (all optional):
     DATA_SCHEDULE_RT_MIN="*/1 9-15 * * 1-5"
     DATA_SCHEDULE_CORE="30 15 * * 1-5"
     KRONOS_DB_PATH=/path/to/stock_screening.db
-    TUSHARE_TOKEN=xxx
+    TUSHARE_TOKEN_FILE=/run/secrets/tushare_token
 """
 
 import logging, sys, os

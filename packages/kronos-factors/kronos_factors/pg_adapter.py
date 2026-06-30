@@ -12,8 +12,16 @@ import pandas as pd
 logger = logging.getLogger("kronos-factors.pg")
 
 
+def _allow_sqlite_fallback() -> bool:
+    return os.environ.get("KRONOS_ALLOW_SQLITE_FALLBACK", "").lower() in {"1", "true", "yes", "on"}
+
+
 def create_pg_adapter(pg_url: str = None):
-    """Create a PG-based DB adapter. Falls back to SQLite if PG unavailable."""
+    """Create a PG-based DB adapter.
+
+    SQLite fallback is legacy-only and must be explicitly enabled with
+    KRONOS_ALLOW_SQLITE_FALLBACK=true.
+    """
     pg_url = pg_url or os.environ.get('KRONOS_PG_URL', '')
     sqlite_path = os.environ.get('KRONOS_SQLITE_PATH', '')
 
@@ -23,11 +31,17 @@ def create_pg_adapter(pg_url: str = None):
             import psycopg2.extras
             return _PgAdapter(pg_url)
         except ImportError:
-            logger.warning("psycopg2 not installed, falling back to SQLite")
+            logger.warning("psycopg2 not installed")
         except Exception as e:
-            logger.warning("PG connection failed: %s, falling back to SQLite", e)
+            logger.warning("PG connection failed: %s", e)
 
     if sqlite_path:
+        if not _allow_sqlite_fallback():
+            logger.warning(
+                "KRONOS_SQLITE_PATH is set but SQLite fallback is disabled; "
+                "set KRONOS_ALLOW_SQLITE_FALLBACK=true for legacy tools"
+            )
+            return None
         return _SqliteFallbackAdapter(sqlite_path)
 
     return None

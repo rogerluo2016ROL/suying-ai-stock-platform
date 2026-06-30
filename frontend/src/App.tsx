@@ -87,10 +87,10 @@ const allMenuItems: MenuItemWithRoles[] = [
 ]
 
 const marketTapeItems = [
-  { label: '上证', value: '3,486.32', change: '+0.74%', tone: 'up' },
-  { label: '深成', value: '10,612.5', change: '+1.12%', tone: 'up' },
-  { label: '创业板', value: '2,108.7', change: '-0.43%', tone: 'down' },
-  { label: '北证50', value: '1,042.1', change: '+0.31%', tone: 'up' },
+  { label: '上证', value: '--', change: '待同步', tone: 'muted' },
+  { label: '深成', value: '--', change: '待同步', tone: 'muted' },
+  { label: '创业板', value: '--', change: '待同步', tone: 'muted' },
+  { label: '北证50', value: '--', change: '待同步', tone: 'muted' },
 ]
 
 // ── Protected route config ──

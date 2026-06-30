@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-27T13:29:17.374Z
-> Files: 510 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-30T01:04:33.097Z
+> Files: 512 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -794,3 +794,8 @@
 - `console-2026-06-11T04-05-14-307Z.log` (~261 tok)
 - `console-2026-06-11T04-05-33-747Z.log` (~311 tok)
 - `console-2026-06-11T04-06-36-422Z.log` (~2617 tok)
+
+## docs/screener/
+
+- `screener-optimization-design.md` — 速赢AI 选股模型优化 — 设计文档 (~5563 tok)
+- `Suying-AI-Screener-Optimization-2026-06-30.md` — 速赢AI 选股模型优化报告 (~6105 tok)

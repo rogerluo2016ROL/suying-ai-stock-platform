@@ -62,6 +62,25 @@ describe('prototype shared components', () => {
     expect(screen.getByText('来源：prediction-service')).toBeInTheDocument()
   })
 
+  it('warns when the loaded trade date is older than the current trading date', () => {
+    render(
+      <DataFreshnessBar
+        tradeDate="2026-06-25"
+        updatedAt="2026-06-29T15:00:00+08:00"
+        source="daily_kline"
+        currentTradeDate="2026-06-30"
+      />,
+    )
+
+    expect(screen.getByText('状态：数据过期')).toBeInTheDocument()
+  })
+
+  it('warns when the backend omits the trade date', () => {
+    render(<DataFreshnessBar updatedAt="" source="screener-service" currentTradeDate="2026-06-30" />)
+
+    expect(screen.getByText('状态：缺少交易日')).toBeInTheDocument()
+  })
+
   it('renders navigable prototype tabs', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

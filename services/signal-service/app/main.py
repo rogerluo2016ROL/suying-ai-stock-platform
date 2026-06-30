@@ -30,16 +30,22 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Signal Service...")
     try:
         pg_url = os.environ.get('KRONOS_PG_URL', '')
+        allow_sqlite = os.environ.get("KRONOS_ALLOW_SQLITE_FALLBACK", "").lower() in {"1", "true", "yes", "on"}
         if pg_url:
             from kronos_factors.pg_adapter import create_pg_adapter
             from kronos_factors.scorer._db_stub import set_db_adapter, set_market_data_adapter
             adapter = create_pg_adapter(pg_url)
-            set_db_adapter(adapter); set_market_data_adapter(adapter)
+            if adapter is None:
+                raise RuntimeError("create_pg_adapter returned None")
+            set_db_adapter(adapter)
+            set_market_data_adapter(adapter)
             logger.info("Using PostgreSQL")
-        else:
+        elif allow_sqlite:
             from app.adapters import inject_adapters
             inject_adapters(_DB_PATH)
-            logger.info("Using SQLite: %s", _DB_PATH)
+            logger.info("Using SQLite fallback: %s", _DB_PATH)
+        else:
+            logger.warning("No KRONOS_PG_URL configured and SQLite fallback disabled")
     except Exception as e:
         logger.warning("DB adapter injection skipped: %s", e)
     yield

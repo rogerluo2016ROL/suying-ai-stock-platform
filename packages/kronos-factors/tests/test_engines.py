@@ -104,3 +104,27 @@ def test_pg_adapter_creation():
     # Without PG URL, should return None
     adapter = create_pg_adapter("")
     assert adapter is None
+
+
+def test_sqlite_fallback_requires_explicit_opt_in(monkeypatch, tmp_path):
+    from kronos_factors.pg_adapter import create_pg_adapter
+
+    sqlite_path = tmp_path / "legacy.db"
+    sqlite_path.touch()
+    monkeypatch.setenv("KRONOS_SQLITE_PATH", str(sqlite_path))
+    monkeypatch.delenv("KRONOS_ALLOW_SQLITE_FALLBACK", raising=False)
+
+    assert create_pg_adapter("") is None
+
+
+def test_sqlite_fallback_can_be_enabled_for_legacy_tools(monkeypatch, tmp_path):
+    from kronos_factors.pg_adapter import create_pg_adapter
+
+    sqlite_path = tmp_path / "legacy.db"
+    sqlite_path.touch()
+    monkeypatch.setenv("KRONOS_SQLITE_PATH", str(sqlite_path))
+    monkeypatch.setenv("KRONOS_ALLOW_SQLITE_FALLBACK", "true")
+
+    adapter = create_pg_adapter("")
+    assert adapter is not None
+    assert adapter.__class__.__name__ == "_SqliteFallbackAdapter"

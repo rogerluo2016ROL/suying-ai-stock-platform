@@ -120,7 +120,7 @@ export default function Strategy() {
       .catch(() => {
         if (!mounted) return
         setPlans([])
-        setLoadError('方案服务暂不可用')
+        setLoadError('方案服务连接异常')
       })
     return () => {
       mounted = false

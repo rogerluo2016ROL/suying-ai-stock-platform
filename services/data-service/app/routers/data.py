@@ -1,7 +1,7 @@
 """Data Service REST API — 手动触发 + 状态查询."""
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 from fastapi import APIRouter, Query, HTTPException
 
 from app.scheduler import (
@@ -21,6 +21,56 @@ from app.config import get_runtime_config_status
 
 logger = logging.getLogger("data-service.api")
 router = APIRouter(prefix="/api/v1/data", tags=["data"])
+
+_STOCKS_REQUIRED_BACKFILLS = {"daily_kline", "weekly_kline", "monthly_kline"}
+
+
+def _latest_completed_weekday() -> date:
+    day = date.today() - timedelta(days=1)
+    while day.weekday() >= 5:
+        day -= timedelta(days=1)
+    return day
+
+
+def _sync_required_dependencies(table_key: str) -> dict | None:
+    if table_key not in _STOCKS_REQUIRED_BACKFILLS:
+        return None
+
+    result = sync_stock_list()
+    if result.get("status") == "error":
+        raise HTTPException(
+            502,
+            {
+                "detail": "stocks dependency sync failed",
+                "dependency": "stocks",
+                "result": result,
+            },
+        )
+    return {"dependency": "stocks", **result}
+
+
+def _has_latest_completed_trade_day(table_key: str) -> bool:
+    if table_key not in _STOCKS_REQUIRED_BACKFILLS:
+        return False
+
+    try:
+        import psycopg2
+
+        conn = psycopg2.connect(PG_URL, connect_timeout=3)
+        cur = conn.cursor()
+        try:
+            cur.execute("SELECT MAX(cal_date) FROM trade_cal WHERE is_open=1 AND cal_date < CURRENT_DATE")
+            expected = cur.fetchone()[0] or _latest_completed_weekday()
+        except Exception:
+            conn.rollback()
+            expected = _latest_completed_weekday()
+        cur.execute(f"SELECT MAX(trade_date) FROM {table_key}")
+        actual = cur.fetchone()[0]
+        conn.close()
+        return bool(expected and actual and actual >= expected)
+    except Exception as e:
+        logger.debug("latest completed trade day check failed for %s: %s", table_key, e)
+        return False
 
 
 def _check_pg_connection() -> dict:
@@ -170,10 +220,15 @@ async def trigger_table_backfill(
         )
 
     try:
+        dependency_sync = _sync_required_dependencies(table_key)
         result = fn(days_back=days)
         pg_status, pg_written = _extract_pg_status(result)
         result_status = result.get("status") if isinstance(result, dict) else None
         status = result_status if result_status in {"ok", "skipped", "error"} else "ok"
+        noop_reason = None
+        if status == "ok" and pg_status == "partial" and _has_latest_completed_trade_day(table_key):
+            pg_status = "ok"
+            noop_reason = "already_up_to_date"
         payload = {
             "status": "error" if status in {"skipped", "error"} else "ok",
             "table_key": table_key,
@@ -184,6 +239,10 @@ async def trigger_table_backfill(
             "written": int((result or {}).get("pg_written") or (result or {}).get("written") or pg_written)
             if isinstance(result, dict) else pg_written,
         }
+        if dependency_sync is not None:
+            payload["dependency_sync"] = dependency_sync
+        if noop_reason is not None:
+            payload["noop_reason"] = noop_reason
         if status in {"skipped", "error"} and isinstance(result, dict):
             payload["message"] = result.get("reason") or result.get("message") or status
         _job_status[f"manual_backfill:{table_key}"] = {

@@ -253,9 +253,22 @@ def _fetch_kline_akshare(code: str, from_date: str) -> Optional[pd.DataFrame]:
 
 # ── Tushare (primary) ──────────────────────────────────────────────
 
+def _get_secret(name: str) -> str:
+    file_path = os.environ.get(f"{name}_FILE", "").strip()
+    if file_path:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                value = f.read().strip()
+            if value:
+                return value
+        except OSError:
+            pass
+    return os.environ.get(name, "").strip()
+
+
 def _get_tushare_pro():
     """Lazy-init Tushare pro_api. Returns None if token not set."""
-    token = os.environ.get("TUSHARE_TOKEN", "")
+    token = _get_secret("TUSHARE_TOKEN")
     if not token:
         return None
     try:
@@ -438,7 +451,7 @@ class MarketDataService:
         t0 = time.time()
 
         # Try Tushare daily_basic table first
-        if os.environ.get("TUSHARE_TOKEN"):
+        if _get_secret("TUSHARE_TOKEN"):
             from webui.services.database import get_db as _get_db
             updated = 0
             failed = 0

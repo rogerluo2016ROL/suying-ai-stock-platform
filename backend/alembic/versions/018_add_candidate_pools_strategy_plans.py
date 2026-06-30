@@ -17,7 +17,41 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _has_table(table_name: str) -> bool:
+    bind = op.get_bind()
+    return sa.inspect(bind).has_table(table_name)
+
+
+def _create_indexes() -> None:
+    op.execute("CREATE INDEX IF NOT EXISTS idx_candidate_pools_pool_id ON candidate_pools (pool_id)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_candidate_pools_scope_updated "
+        "ON candidate_pools (tenant_id, owner_user_id, account_id, updated_at)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_candidate_pools_source "
+        "ON candidate_pools (source_module, source_mode, updated_at)"
+    )
+    op.execute("CREATE INDEX IF NOT EXISTS idx_strategy_plans_plan_id ON strategy_plans (plan_id)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_strategy_plans_scope_updated "
+        "ON strategy_plans (tenant_id, owner_user_id, account_id, updated_at)"
+    )
+    op.execute("CREATE INDEX IF NOT EXISTS idx_strategy_plans_status ON strategy_plans (status)")
+
+
 def upgrade() -> None:
+    candidate_pools_exists = _has_table("candidate_pools")
+    strategy_plans_exists = _has_table("strategy_plans")
+
+    if not candidate_pools_exists:
+        _create_candidate_pools()
+    if not strategy_plans_exists:
+        _create_strategy_plans()
+    _create_indexes()
+
+
+def _create_candidate_pools() -> None:
     op.create_table(
         "candidate_pools",
         sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
@@ -45,20 +79,9 @@ def upgrade() -> None:
             name="ck_candidate_pools_data_scope",
         ),
     )
-    op.create_index("idx_candidate_pools_pool_id", "candidate_pools", ["pool_id"])
-    op.create_index(
-        "idx_candidate_pools_scope_updated",
-        "candidate_pools",
-        ["tenant_id", "owner_user_id", "account_id", "updated_at"],
-        postgresql_using="btree",
-    )
-    op.create_index(
-        "idx_candidate_pools_source",
-        "candidate_pools",
-        ["source_module", "source_mode", "updated_at"],
-        postgresql_using="btree",
-    )
 
+
+def _create_strategy_plans() -> None:
     op.create_table(
         "strategy_plans",
         sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
@@ -92,14 +115,6 @@ def upgrade() -> None:
             name="ck_strategy_plans_data_scope",
         ),
     )
-    op.create_index("idx_strategy_plans_plan_id", "strategy_plans", ["plan_id"])
-    op.create_index(
-        "idx_strategy_plans_scope_updated",
-        "strategy_plans",
-        ["tenant_id", "owner_user_id", "account_id", "updated_at"],
-        postgresql_using="btree",
-    )
-    op.create_index("idx_strategy_plans_status", "strategy_plans", ["status"])
 
 
 def downgrade() -> None:

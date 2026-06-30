@@ -16,16 +16,16 @@ export interface ProxyTargets {
 
 export function resolveProxyTargets(env: Env): ProxyTargets {
   return {
-    auth: env.VITE_AUTH_SERVICE_URL || 'http://localhost:9001',
-    screener: env.VITE_SCREENER_SERVICE_URL || 'http://localhost:8001',
-    prediction: env.VITE_PREDICTION_SERVICE_URL || 'http://localhost:8002',
-    strategy: env.VITE_STRATEGY_SERVICE_URL || 'http://localhost:8003',
-    signal: env.VITE_SIGNAL_SERVICE_URL || 'http://localhost:8004',
-    alert: env.VITE_ALERT_SERVICE_URL || 'http://localhost:8005',
-    trade: env.VITE_TRADE_SERVICE_URL || 'http://localhost:8006',
-    backtest: env.VITE_BACKTEST_SERVICE_URL || 'http://localhost:8007',
-    training: env.VITE_TRAINING_SERVICE_URL || 'http://localhost:8008',
-    diagnosis: env.VITE_DIAGNOSIS_SERVICE_URL || 'http://localhost:8009',
-    gateway: env.VITE_GATEWAY_SERVICE_URL || 'http://localhost:8080',
+    auth: env.VITE_AUTH_SERVICE_URL || 'http://127.0.0.1:19001',
+    screener: env.VITE_SCREENER_SERVICE_URL || 'http://127.0.0.1:18001',
+    prediction: env.VITE_PREDICTION_SERVICE_URL || 'http://127.0.0.1:18002',
+    strategy: env.VITE_STRATEGY_SERVICE_URL || 'http://127.0.0.1:18003',
+    signal: env.VITE_SIGNAL_SERVICE_URL || 'http://127.0.0.1:18004',
+    alert: env.VITE_ALERT_SERVICE_URL || 'http://127.0.0.1:18005',
+    trade: env.VITE_TRADE_SERVICE_URL || 'http://127.0.0.1:18006',
+    backtest: env.VITE_BACKTEST_SERVICE_URL || 'http://127.0.0.1:18007',
+    training: env.VITE_TRAINING_SERVICE_URL || 'http://127.0.0.1:18008',
+    diagnosis: env.VITE_DIAGNOSIS_SERVICE_URL || 'http://127.0.0.1:18009',
+    gateway: env.VITE_GATEWAY_SERVICE_URL || 'http://127.0.0.1:18080',
   }
 }

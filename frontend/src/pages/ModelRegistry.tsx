@@ -57,7 +57,7 @@ export default function ModelRegistry() {
     } catch {
       setModels([])
       setSelectedId('')
-      setLoadError('模型注册服务暂不可用')
+      setLoadError('模型注册服务连接异常')
     }
   }, [])
 

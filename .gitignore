@@ -52,6 +52,7 @@ node_modules/.vite/
 
 # UAT/dev env files (contain secrets)
 docker/.env.*
+docker/secrets/*
 
 # agent/build/run artifacts — PlatformFixTeam follow-up, 避免误 commit 工具/构建/运行产物
 .agents/

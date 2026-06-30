@@ -149,7 +149,7 @@ export default function Backtest() {
       .catch(() => {
         if (!mounted) return
         setCompareResult(null)
-        setLoadError('策略对比接口暂不可用')
+        setLoadError('策略对比接口连接异常')
       })
     return () => {
       mounted = false

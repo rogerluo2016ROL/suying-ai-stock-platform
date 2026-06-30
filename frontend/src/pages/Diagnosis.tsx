@@ -109,7 +109,7 @@ export default function Diagnosis() {
       .catch(() => {
         if (!mounted) return
         setHistory([])
-        setLoadError('诊断服务暂不可用')
+        setLoadError('诊断服务连接异常')
       })
     return () => {
       mounted = false

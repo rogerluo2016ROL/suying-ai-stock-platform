@@ -46,11 +46,15 @@ def _coerce_iso_date(value) -> str | None:
 def _signal_data_freshness(data=None, source: str = "daily_kline") -> dict:
     as_of = None
     try:
-        if data is not None and len(data) > 0:
+        if isinstance(data, dict):
+            as_of = _coerce_iso_date(data.get("trade_date") or data.get("as_of") or data.get("date"))
+        elif data is not None and len(data) > 0:
             if hasattr(data, "columns") and "trade_date" in data.columns:
                 as_of = _coerce_iso_date(data["trade_date"].iloc[-1])
             elif hasattr(data, "index") and len(data.index) > 0:
                 as_of = _coerce_iso_date(data.index[-1])
+            elif isinstance(data, (list, tuple)) and isinstance(data[-1], dict):
+                as_of = _coerce_iso_date(data[-1].get("trade_date") or data[-1].get("as_of") or data[-1].get("date"))
     except Exception:
         as_of = None
 
@@ -819,9 +823,9 @@ async def dashboard_summary():
     return _with_signal_contract(
         result,
         mode="dashboard-summary",
-        data=None,
+        data={"trade_date": result.get("market_sentiment", {}).get("trade_date")},
         fallback_reason=result.get("market_sentiment", {}).get("error"),
-        source="signal.dashboard",
+        source="PG daily_kline",
     )
 
 

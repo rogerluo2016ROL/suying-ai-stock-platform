@@ -16,6 +16,7 @@ croniter>=6.0
 # Web Framework
 fastapi>=0.100
 uvicorn>=0.20
+PyJWT>=2.8
 
 # Database
 sqlalchemy>=2.0

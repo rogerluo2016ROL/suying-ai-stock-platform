@@ -87,7 +87,7 @@ export default function RiskControl() {
         }
         if (configResponse.status === 'fulfilled') setRiskConfig((configResponse.value.data as RiskConfig) || {})
         const failed = [verdictResponse, contextResponse, auditResponse, configResponse].filter(result => result.status === 'rejected').length
-        setLoadError(failed > 0 ? `${failed} 个风控数据接口暂不可用` : '')
+        setLoadError(failed > 0 ? `${failed} 个风控数据接口连接异常` : '')
       })
     return () => {
       mounted = false

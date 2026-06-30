@@ -90,7 +90,7 @@ export default function Training() {
         if (modelsResponse.status === 'fulfilled') setModels(modelsResponse.value.data?.models || [])
         if (scheduleResponse.status === 'fulfilled') setSchedule(scheduleResponse.value.data || null)
         const failed = [historyResponse, modelsResponse, scheduleResponse].filter(result => result.status === 'rejected').length
-        setLoadError(failed > 0 ? `${failed} 个训练数据接口暂不可用` : '')
+        setLoadError(failed > 0 ? `${failed} 个训练数据接口连接异常` : '')
       })
     return () => {
       mounted = false

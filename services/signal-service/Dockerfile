@@ -8,11 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ && rm -
 
 # Install packages
 COPY packages/kronos-factors /app/packages/kronos-factors
-COPY packages/kronos-core /app/packages/kronos-core
 COPY packages/kronos-data /app/packages/kronos-data
 RUN pip install --no-cache-dir \
     /app/packages/kronos-factors \
-    /app/packages/kronos-core \
     /app/packages/kronos-data
 
 # Install service

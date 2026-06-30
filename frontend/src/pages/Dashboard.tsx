@@ -86,6 +86,13 @@ interface MarketRegimeData {
 
 interface DashboardData {
   refreshed_at?: string
+  data_freshness?: {
+    status?: string
+    as_of?: string | null
+    source?: string
+    quality_score?: number
+  }
+  next_trading_day?: string | null
   market_sentiment?: MarketSentimentData
   market_regime_v2?: MarketRegimeData
   signal_stocks?: SignalStock[]
@@ -349,13 +356,17 @@ function auctionBucketPct(count: number, total: number) {
 }
 
 function auctionIntentLabel(item: AuctionIntentItem, fallbackScore: number) {
-  if (item.intent) return item.intent
+  const rawIntent = String(item.intent ?? '').toLowerCase()
+  if (rawIntent) {
+    if (rawIntent.includes('bear') || rawIntent.includes('sell') || rawIntent.includes('出货')) return '出货'
+    if (rawIntent.includes('neutral') || rawIntent.includes('中性')) return '中性'
+    if (rawIntent.includes('bull') || rawIntent.includes('buy') || rawIntent.includes('抢筹')) return '抢筹'
+    return String(item.intent)
+  }
   const score = auctionScore(item, fallbackScore)
-  if (score >= 75) return '强烈抢筹'
-  if (score >= 60) return '偏多抢筹'
+  if (score >= 60) return '抢筹'
   if (score >= 40) return '中性'
-  if (score >= 25) return '偏空出货'
-  return '强烈出货'
+  return '出货'
 }
 
 function mergeWatchlistRows(primary?: WatchlistItem[]) {
@@ -590,9 +601,9 @@ export default function Dashboard() {
   )
   const signalTrendOption = useMemo(() => buildSignalTrendOption(), [])
   const signalBubbleOption = useMemo(() => buildSignalBubbleOption(signalMatrix), [signalMatrix])
-  const auctionCandidates = data?.auction_intent?.top_bullish?.length
-    ? data.auction_intent.top_bullish
-    : (auctionPicks.length ? auctionPicks : screeningPicks)
+  const auctionCandidates = auctionPicks.length
+    ? auctionPicks
+    : (data?.auction_intent?.top_bullish?.length ? data.auction_intent.top_bullish : screeningPicks)
   const bullishAuctionRows = mergeAuctionRows(auctionCandidates, [])
   const bearishAuctionRows = mergeAuctionRows(data?.auction_intent?.top_bearish || [], [])
   const visibleAuctionRows = [...bullishAuctionRows, ...bearishAuctionRows]
@@ -612,6 +623,7 @@ export default function Dashboard() {
   }).length
   const strongBearishCount = data?.auction_intent?.strong_bearish_count ?? visibleAuctionRows.filter(item => auctionScore(item, 0) < 25).length
   const updatedAt = data?.refreshed_at || lastRefresh
+  const currentDataDate = data?.data_freshness?.as_of || data?.refreshed_at
 
   return (
     <PrototypePage>
@@ -635,6 +647,7 @@ export default function Dashboard() {
                 tradeDate={sentiment.trade_date}
                 updatedAt={updatedAt}
                 source={data?.limit_stocks?.data_source || data?.data_sources?.signal_stocks || 'signal-service'}
+                currentTradeDate={currentDataDate}
               />
             )}
             actions={[
@@ -756,6 +769,7 @@ export default function Dashboard() {
                 tradeDate={data?.auction_intent?.trade_date || sentiment.trade_date}
                 updatedAt={updatedAt}
                 source={data?.auction_intent?.data_source || 'dashboard/auction'}
+                currentTradeDate={currentDataDate}
               />
             )}
             actions={[
@@ -805,7 +819,7 @@ export default function Dashboard() {
                       <td className="r down">{auctionChange(item).toFixed(2)}%</td>
                       <td className="r mono">{Number(item.vol_ratio ?? 8 + index / 2).toFixed(1)}x</td>
                       <td className="r mono down">{auctionScore(item, 18 + index * 2)}</td>
-                      <td><span className="tag t-neu">{item.intent || '⚠️强烈出货'}</span></td>
+                      <td><span className="tag t-neu">{auctionIntentLabel(item, 18 + index * 2)}</span></td>
                     </tr>
                   ))}
                   {bearishAuctionRows.length === 0 && (
@@ -828,6 +842,7 @@ export default function Dashboard() {
                 tradeDate={sentiment.trade_date}
                 updatedAt={updatedAt}
                 source={data?.data_sources?.signal_stocks || 'signal-service'}
+                currentTradeDate={currentDataDate}
               />
             )}
             actions={[{ key: 'refresh', label: '刷新', active: true, tone: 'neutral' }]}

@@ -586,4 +586,16 @@ describe('SupplyChainBom', () => {
       })
     })
   })
+
+  it('keeps a visible error state when chain deconstruct fails', async () => {
+    vi.mocked(chainApi.deconstructChain).mockRejectedValue({
+      response: { status: 500 },
+      message: 'Request failed with status code 500',
+    })
+
+    renderSupplyChain()
+
+    expect(await screen.findByText('产业链拆解接口不可用')).toBeInTheDocument()
+    expect(screen.getByText('拆解接口返回 500，当前图谱可能是旧数据或默认目录。请检查 screener-service 后重试。')).toBeInTheDocument()
+  })
 })

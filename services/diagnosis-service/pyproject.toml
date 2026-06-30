@@ -10,8 +10,6 @@ dependencies = [
     "sqlalchemy>=2.0",
     "asyncpg",
     "kronos-factors",
-    "kronos-core",
-    "kronos-data",
 ]
 
 [project.optional-dependencies]

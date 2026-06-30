@@ -69,7 +69,7 @@ export default function P0Workflow() {
         signals: signalResult.status === 'fulfilled' ? signalResult.value.data?.signals || [] : [],
         factorCount: factorResult.status === 'fulfilled' ? factorResult.value.data?.factors?.length || 0 : 0,
         loading: false,
-        error: failed ? `${failed} 个链路接口暂不可用` : '',
+        error: failed ? `${failed} 个链路接口连接异常` : '',
       })
     })
     return () => {

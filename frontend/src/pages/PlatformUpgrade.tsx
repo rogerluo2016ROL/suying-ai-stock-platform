@@ -81,7 +81,7 @@ export default function PlatformUpgrade() {
         brokerStatus: broker.status === 'fulfilled' ? broker.value.data || {} : {},
         riskConfig: risk.status === 'fulfilled' ? risk.value.data || {} : {},
         loading: false,
-        error: failed ? `${failed} 个治理接口暂不可用` : '',
+        error: failed ? `${failed} 个治理接口连接异常` : '',
         updatedAt: new Date().toISOString(),
       })
     })

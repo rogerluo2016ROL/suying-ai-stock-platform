@@ -28,13 +28,13 @@ const modelGroups = [
     label: '趋势 / 秋神',
     count: 7,
     note: '覆盖竞价超预期、盘中、午后、尾盘、盘后和趋势启动模型。',
-    defaultModel: '秋神竞价超预期选股',
+    defaultModel: '秋神盘后龙头',
     modes: [
+      { id: 'leader_scalp', name: '秋神盘后龙头', tags: ['盘后', '1-5天'] },
       { id: 'leader_auction', name: '秋神竞价超预期选股', tags: ['9:25', '竞价'] },
       { id: 'leader_afternoon', name: '秋神午后选股模型', tags: ['14:30', '午后'] },
       { id: 'leader_intraday', name: '秋神盘中龙头 V7.0', tags: ['盘中', '1-2天'] },
       { id: 'leader_closing', name: '秋神尾盘顺势 V2.0', tags: ['尾盘', '顺势'] },
-      { id: 'leader_scalp', name: '秋神盘后龙头', tags: ['盘后', '1-5天'] },
       { id: 'bi_trend_launch', name: '毕师傅趋势启动 V13', tags: ['硬科技', '日频'] },
       { id: 'bi_trend_full_market', name: '毕师傅全市场 V1.0', tags: ['全市场', '日频'] },
     ],
@@ -253,6 +253,10 @@ export default function Screener() {
   const selectedPicks = selectedCodes.length > 0
     ? visiblePicks.filter(item => selectedCodes.includes(item.code))
     : visiblePicks
+  const emptyResultTitle = hasRun ? '当前模型返回 0 只' : '暂无选股结果'
+  const emptyResultDetail = hasRun
+    ? '请检查交易日、实时快照或切换到盘后龙头、趋势启动等日线模型后重新运行。'
+    : '选择模型、日期和 Top 后点击运行选股。'
 
   useEffect(() => {
     let cancelled = false
@@ -505,8 +509,8 @@ export default function Screener() {
                 </div>
                 {visiblePicks.length === 0 && (
                   <div className="wb-empty">
-                    <b>暂无选股结果</b>
-                    <span>{hasRun ? '请换一个交易日、Top 数量或模型后重新运行。' : '选择模型、日期和 Top 后点击运行选股。'}</span>
+                    <b>{emptyResultTitle}</b>
+                    <span>{emptyResultDetail}</span>
                   </div>
                 )}
                 {visiblePicks.map((pick, index) => {
@@ -635,7 +639,7 @@ export default function Screener() {
           <div className="footer-bar">
             <span>智能选股 · 选股工作台 | 盘后 16:18</span>
             <span className="sep" />
-            <span>模型: {selectedModeConfig.name} | 结果: {visiblePicks.length}只</span>
+            <span>模型: {selectedModeConfig.name}（{selectedMode}） | 结果: {visiblePicks.length}只</span>
             <span className="sep" />
             <span>数据来源: screener-service + Kronos 模型引擎</span>
           </div>

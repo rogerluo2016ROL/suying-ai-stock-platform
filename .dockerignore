@@ -1,10 +1,18 @@
 # Build context 优化 — 排除大目录避免镜像膨胀(backend 曾 16.6GB) + build 加速
 # 根因: COPY backend/COPY services/<x> 把 .venv/node_modules/Kronos 打进 context
+.venv
+backend/.venv
 **/.venv
+node_modules
+frontend/node_modules
 **/node_modules
 Kronos
 .git
+.codegraph
+docker/secrets
 **/outputs
+outputs
+output
 progress
 docs
 **/__pycache__
@@ -13,7 +21,11 @@ docs
 **/.ruff_cache
 **/.mypy_cache
 **/dist
+frontend/dist
 **/build
+**/*.db
+**/*.sqlite
+**/*.sqlite3
 *.log
 **/.DS_Store
 **/tool-results

@@ -70,7 +70,7 @@ export default function AutoTrade() {
       .catch(() => {
         setStrategies([])
         setSelectedStrategy(null)
-        setLoadError('策略列表接口暂不可用')
+        setLoadError('策略列表接口连接异常')
       })
   }, [])
 
@@ -96,7 +96,7 @@ export default function AutoTrade() {
     setActionMessage('')
     const suffix = action === 'start' ? 'start?mode=paper' : action
     const response = await api.post(`/strategy/${strategy.id}/${suffix}`).catch((error: any) => {
-      setActionMessage(error?.response?.data?.detail || `${action} 接口暂不可用`)
+      setActionMessage(error?.response?.data?.detail || `${action} 接口连接异常`)
       return null
     })
     if (!response?.data) return
