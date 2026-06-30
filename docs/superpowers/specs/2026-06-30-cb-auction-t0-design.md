@@ -151,3 +151,23 @@
 新增独立引擎，例如 `CbAuctionT0Engine`，避免影响现有 `CbAuctionEngine`。工具入口可以新增 `tools/cb_auction_t0_picks.py`，服务层后续再接入智能选股接口。
 
 实现时先完成命令行版本和 20 日回放，再决定是否接入前端。这样可以先验证数据口径，避免界面先行导致模型逻辑被固化。
+
+## 实现后的运行命令
+
+当前日清单：
+
+```bash
+KRONOS_PG_URL="postgresql://kronos:kronos@localhost:6432/kronos" \
+python tools/cb_auction_t0_picks.py 2026-06-30 --top-n 50
+```
+
+历史日期回放：
+
+```bash
+for d in 2026-06-10 2026-06-11 2026-06-12; do
+  KRONOS_PG_URL="postgresql://kronos:kronos@localhost:6432/kronos" \
+  python tools/cb_auction_t0_picks.py "$d" --top-n 50 --json-only
+done
+```
+
+20 个交易日验证时，先确认 PostgreSQL 已启动，且 `limit_list_d`、`ths_member`、`ths_index`、`cb_basic`、`cb_daily`、`cb_call` 均有目标日期附近数据。
