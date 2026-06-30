@@ -1,0 +1,132 @@
+"""竞价选债 T+0 model.
+
+The model starts from stock limit-up auction events, maps trigger stocks to
+THS concepts, and returns related convertible bonds sorted by theme relevance.
+Risk fields are annotations only.
+"""
+
+from __future__ import annotations
+
+import os
+from datetime import date
+from typing import Any
+
+
+FD_AMOUNT_MIN = 1_000_000_000
+AUCTION_FIRST_TIME_MAX = "09:30:00"
+
+NOISE_CONCEPT_KEYWORDS = (
+    "同花顺",
+    "(A股)",
+    "昨日",
+    "百日",
+    "首板",
+    "重仓",
+    "新高",
+    "减持",
+    "盈利",
+    "股息",
+    "估值",
+    "动量",
+    "大盘",
+    "小盘",
+    "主板",
+    "全A",
+    "均衡",
+)
+NOISE_CONCEPT_NAMES = {
+    "浙江",
+    "江苏",
+    "广东",
+    "上海",
+    "北京",
+    "深圳",
+    "山东",
+    "福建",
+    "安徽",
+    "四川",
+    "湖北",
+    "湖南",
+    "河南",
+    "河北",
+}
+
+
+def _normalize_stock_code(value: str | None) -> str:
+    if not value:
+        return ""
+    raw = str(value).strip()
+    return raw.split(".", 1)[0] if "." in raw else raw
+
+
+def _is_noise_concept(name: str | None) -> bool:
+    if not name:
+        return True
+    text = str(name).strip()
+    if text in NOISE_CONCEPT_NAMES:
+        return True
+    return any(keyword in text for keyword in NOISE_CONCEPT_KEYWORDS)
+
+
+def _risk_notes(row: dict[str, Any]) -> list[str]:
+    notes: list[str] = []
+    call_status = row.get("call_status") or ""
+    premium_rate = row.get("premium_rate")
+    cb_amount = row.get("cb_amount")
+    remain_size = row.get("remain_size")
+    delist_date = row.get("delist_date")
+
+    if call_status in {"公告实施强赎", "公告提示强赎", "已满足强赎条件", "公告到期赎回"}:
+        notes.append("强赎中" if call_status == "公告实施强赎" else call_status)
+    if premium_rate is not None and float(premium_rate) >= 50:
+        notes.append(f"高溢价{float(premium_rate):.1f}%")
+    if cb_amount is not None and float(cb_amount) < 10_000_000:
+        notes.append(f"成交额偏低{float(cb_amount) / 10_000:.1f}万")
+    if remain_size is not None and float(remain_size) >= 1_000_000_000:
+        notes.append(f"剩余规模{float(remain_size) / 100_000_000:.2f}亿")
+    if delist_date:
+        notes.append(f"退市日期{delist_date}")
+    return notes
+
+
+def _theme_score(row: dict[str, Any]) -> float:
+    direct = 1000.0 if row.get("is_direct_trigger") else 0.0
+    concept_hits = float(row.get("matched_concept_count") or 0) * 100.0
+    trigger_count = float(row.get("trigger_stock_count_sum") or 0) * 10.0
+    fd_amount = min(float(row.get("matched_fd_amount") or 0) / 100_000_000, 100.0)
+    concept_size = float(row.get("concept_size_min") or 9999)
+    narrow_bonus = max(0.0, 50.0 - min(concept_size, 50.0))
+    return round(direct + concept_hits + trigger_count + fd_amount + narrow_bonus, 4)
+
+
+class CbAuctionT0Engine:
+    """竞价选债 T+0 engine."""
+
+    def __init__(self, pg_url: str | None = None):
+        self.pg_url = pg_url or os.environ.get(
+            "KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos"
+        )
+        self._conn = None
+
+    @property
+    def db(self):
+        if self._conn is None or getattr(self._conn, "closed", False):
+            import psycopg2
+
+            self._conn = psycopg2.connect(self.pg_url)
+        return self._conn
+
+    def close(self) -> None:
+        if self._conn and not getattr(self._conn, "closed", True):
+            self._conn.close()
+
+    def run(self, top_n: int = 50, trade_date: str | None = None, **kwargs) -> dict[str, Any]:
+        effective_date = trade_date or date.today().strftime("%Y-%m-%d")
+        return {
+            "model": "cb_auction_t0",
+            "trade_date": effective_date,
+            "trigger_stocks": [],
+            "concepts": [],
+            "bonds": [],
+            "rejections": [],
+        }
