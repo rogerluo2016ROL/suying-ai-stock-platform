@@ -373,3 +373,10 @@ def test_cli_write_outputs_creates_json_and_csv(tmp_path):
     assert "高溢价85.0%" in csv_text
     assert "85.0" in csv_text
     assert "20.0" in csv_text
+
+
+def test_engine_package_exports_cb_auction_t0():
+    from kronos_factors.engine import CbAuctionT0Engine
+
+    engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+    assert engine.pg_url == "postgresql://unit/unit"

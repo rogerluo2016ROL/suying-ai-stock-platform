@@ -420,7 +420,7 @@ async def run_leader_backtest(
 
 @router.post("/run-cb")
 async def run_cb_backtest(
-    mode: str = Query("cb_floor", description="cb_floor/cb_intraday/cb_auction"),
+    mode: str = Query("cb_floor", description="cb_floor/cb_intraday/cb_auction/cb_auction_t0"),
     windows: int = Query(3, ge=1, le=12),
     top_n: int = Query(20, ge=5, le=50),
     forward_days: int = Query(5, ge=1, le=20),
@@ -443,7 +443,6 @@ async def run_cb_backtest(
         step = max(5, (len(dates) - forward_days - 20) // windows)
         results, all_returns = [], []
 
-        engine_cls = {"cb_floor": "CbFloorEngine", "cb_intraday": "CbIntradayEngine", "cb_auction": "CbAuctionEngine"}
         for i in range(windows):
             idx = i * step
             if idx + forward_days + 20 >= len(dates):
@@ -458,11 +457,15 @@ async def run_cb_backtest(
                 elif mode == "cb_intraday":
                     from kronos_factors.engine.cb_intraday import CbIntradayEngine
                     engine = CbIntradayEngine()
+                elif mode == "cb_auction_t0":
+                    from kronos_factors.engine.cb_auction_t0 import CbAuctionT0Engine
+                    engine = CbAuctionT0Engine()
                 else:
                     from kronos_factors.engine.cb_auction import CbAuctionEngine
                     engine = CbAuctionEngine()
-                picks = engine.run(trade_date=str(sel_date), top_n=top_n)
+                raw_result = engine.run(trade_date=str(sel_date), top_n=top_n)
                 engine.close()
+                picks = raw_result.get("bonds", []) if mode == "cb_auction_t0" and isinstance(raw_result, dict) else raw_result
                 if not picks:
                     continue
             except Exception as e:
@@ -661,4 +664,3 @@ async def ic_decay_tracking(
         return result
     except Exception as e:
         raise HTTPException(500, str(e))
-
