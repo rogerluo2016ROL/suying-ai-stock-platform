@@ -13,9 +13,15 @@ from typing import Any
 
 
 FD_AMOUNT_MIN = 500_000_000
+FD_AMOUNT_MIN_V2 = 700_000_000
 AUCTION_FIRST_TIME_MAX = "09:30:00"
 AUCTION_FIRST_TIME_MAX_COMPACT = "093000"
 TOP_CONCEPT_LIMIT = 2
+V2_TIER_A_STRENGTH_MIN = 0.1
+V2_TIER_B_STRENGTH_MIN = 0.0
+V21_ROLLING_WEAK_CONCEPT_WINDOW = 20
+V21_ROLLING_WEAK_CONCEPT_STRENGTH_MAX = -0.2
+V21_ROLLING_WEAK_CONCEPT_MIN_SAMPLES = 5
 
 NOISE_CONCEPT_KEYWORDS = (
     "同花顺",
@@ -59,6 +65,16 @@ NOISE_CONCEPT_NAMES = {
     "河南",
     "河北",
 }
+V2_WEAK_CONCEPT_KEYWORDS = (
+    "沪深300",
+    "低市盈率",
+    "生态农业",
+    "人民币贬值受益",
+    "金属回收",
+)
+V2_WEAK_CONCEPT_NAMES = {
+    "云南",
+}
 
 
 def _normalize_stock_code(value: str | None) -> str:
@@ -75,6 +91,12 @@ def _is_noise_concept(name: str | None) -> bool:
     if text in NOISE_CONCEPT_NAMES:
         return True
     return any(keyword in text for keyword in NOISE_CONCEPT_KEYWORDS)
+
+
+def _is_st_stock_name(name: str | None) -> bool:
+    if not name:
+        return False
+    return "ST" in str(name).upper()
 
 
 def _risk_notes(row: dict[str, Any]) -> list[str]:
@@ -109,6 +131,20 @@ def _theme_score(row: dict[str, Any]) -> float:
 class CbAuctionT0Engine:
     """竞价选债 T+0 engine."""
 
+    model_id = "cb_auction_t0"
+    fd_amount_min = FD_AMOUNT_MIN
+    fd_amount_min_yi_label = "5亿"
+    fd_amount_min_inclusive = False
+    top_concept_limit = TOP_CONCEPT_LIMIT
+    weak_concept_keywords: tuple[str, ...] = ()
+    weak_concept_names: set[str] = set()
+    assign_quality_tier = False
+    output_quality_tiers: set[str] | None = None
+    exclude_st_underlying = False
+    rolling_weak_concept_window = 0
+    rolling_weak_concept_strength_max = 0.0
+    rolling_weak_concept_min_samples = 0
+
     def __init__(self, pg_url: str | None = None):
         self.pg_url = pg_url or os.environ.get(
             "KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos"
@@ -137,6 +173,7 @@ class CbAuctionT0Engine:
         rejections: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         trigger_codes = {_normalize_stock_code(row.get("trigger_stock_code")) for row in triggers}
+        result_rejections = list(rejections or [])
         merged: dict[str, dict[str, Any]] = {}
 
         for row in raw_bonds:
@@ -163,6 +200,11 @@ class CbAuctionT0Engine:
                     float(current.get("matched_fd_amount") or 0),
                     float(row.get("matched_fd_amount") or 0),
                 )
+                if row.get("matched_concept_strength") is not None:
+                    current["matched_concept_strength"] = max(
+                        float(current.get("matched_concept_strength") or -999.0),
+                        float(row.get("matched_concept_strength")),
+                    )
                 current["concept_size_min"] = min(
                     int(current.get("concept_size_min") or 9999),
                     int(row.get("concept_size_min") or 9999),
@@ -182,6 +224,33 @@ class CbAuctionT0Engine:
             row["code"] = row["cb_code"]
             row["name"] = row["cb_name"]
             row["relation_reason"] = self._relation_reason(row)
+            if self.assign_quality_tier:
+                tier, reason = self._quality_tier(row)
+                row["quality_tier"] = tier
+                row["quality_tier_reason"] = reason
+            if self.exclude_st_underlying and _is_st_stock_name(row.get("stk_name")):
+                result_rejections.append(
+                    {
+                        "cb_code": row.get("cb_code"),
+                        "cb_name": row.get("cb_name"),
+                        "stk_code": row.get("stk_code"),
+                        "stk_name": row.get("stk_name"),
+                        "reason": "ST正股剔除",
+                    }
+                )
+                continue
+            if self.output_quality_tiers is not None and row.get("quality_tier") not in self.output_quality_tiers:
+                result_rejections.append(
+                    {
+                        "cb_code": row.get("cb_code"),
+                        "cb_name": row.get("cb_name"),
+                        "stk_code": row.get("stk_code"),
+                        "stk_name": row.get("stk_name"),
+                        "quality_tier": row.get("quality_tier"),
+                        "reason": "非A档观察",
+                    }
+                )
+                continue
             bonds.append(row)
 
         # 排序规则按题材相关性定义：直接触发优先，题材/触发权重高者靠前；theme_score 仅用于展示。
@@ -198,13 +267,25 @@ class CbAuctionT0Engine:
             bonds = bonds[:top_n]
 
         return {
-            "model": "cb_auction_t0",
+            "model": self.model_id,
             "trade_date": trade_date,
             "trigger_stocks": triggers,
             "concepts": concepts,
             "bonds": bonds,
-            "rejections": rejections or [],
+            "rejections": result_rejections,
         }
+
+    @staticmethod
+    def _quality_tier(row: dict[str, Any]) -> tuple[str, str]:
+        strength = row.get("matched_concept_strength")
+        if strength is None:
+            return "C", "缺少概念竞价强度"
+        value = float(strength)
+        if value >= V2_TIER_A_STRENGTH_MIN:
+            return "A", f"概念竞价强度{value:.2f}%"
+        if value >= V2_TIER_B_STRENGTH_MIN:
+            return "B", f"概念竞价强度{value:.2f}%"
+        return "C", f"概念竞价强度{value:.2f}%"
 
     @staticmethod
     def _relation_reason(row: dict[str, Any]) -> str:
@@ -252,6 +333,19 @@ class CbAuctionT0Engine:
 
         cur.execute(
             """
+            WITH candidate_limits AS (
+                SELECT DISTINCT ON (SPLIT_PART(l.ts_code, '.', 1))
+                    l.*
+                FROM limit_list_d l
+                WHERE (l.trade_date::text = %s OR REPLACE(l.trade_date::text, '-', '') = %s)
+                  AND l.limit_type = 'U'
+                  AND l.first_time IS NOT NULL
+                  AND LPAD(REPLACE(l.first_time, ':', ''), 6, '0') <= %s
+                ORDER BY
+                    SPLIT_PART(l.ts_code, '.', 1),
+                    l.fd_amount DESC NULLS LAST,
+                    LPAD(REPLACE(l.first_time, ':', ''), 6, '0') ASC
+            )
             SELECT
                 SPLIT_PART(l.ts_code, '.', 1) AS code,
                 COALESCE(l.name, s.name, '') AS name,
@@ -265,16 +359,12 @@ class CbAuctionT0Engine:
                       AND SPLIT_PART(p.ts_code, '.', 1)
                           = SPLIT_PART(l.ts_code, '.', 1)
                 ) AS prev_was_limit_up
-            FROM limit_list_d l
+            FROM candidate_limits l
             LEFT JOIN stocks s ON s.code = SPLIT_PART(l.ts_code, '.', 1)
-            WHERE (l.trade_date::text = %s OR REPLACE(l.trade_date::text, '-', '') = %s)
-              AND l.limit_type = 'U'
-              AND l.first_time IS NOT NULL
-              AND LPAD(REPLACE(l.first_time, ':', ''), 6, '0') <= %s
-              AND COALESCE(l.name, s.name, '') NOT LIKE '%%ST%%'
+            WHERE COALESCE(l.name, s.name, '') NOT LIKE '%%ST%%'
             ORDER BY l.fd_amount DESC NULLS LAST
             """,
-            (prev_key, prev_key_compact, trade_key, trade_key_compact, AUCTION_FIRST_TIME_MAX_COMPACT),
+            (trade_key, trade_key_compact, AUCTION_FIRST_TIME_MAX_COMPACT, prev_key, prev_key_compact),
         )
 
         triggers: list[dict[str, Any]] = []
@@ -285,8 +375,19 @@ class CbAuctionT0Engine:
                 rejections.append({"code": stock_code, "name": name, "reason": "封单金额缺失"})
                 continue
             fd_value = float(fd_amount)
-            if fd_value <= FD_AMOUNT_MIN:
-                rejections.append({"code": stock_code, "name": name, "reason": "封单金额不足5亿"})
+            below_min = (
+                fd_value < self.fd_amount_min
+                if self.fd_amount_min_inclusive
+                else fd_value <= self.fd_amount_min
+            )
+            if below_min:
+                rejections.append(
+                    {
+                        "code": stock_code,
+                        "name": name,
+                        "reason": f"封单金额不足{self.fd_amount_min_yi_label}",
+                    }
+                )
                 continue
             if prev_was_limit_up:
                 rejections.append({"code": stock_code, "name": name, "reason": "昨日已涨停"})
@@ -303,6 +404,62 @@ class CbAuctionT0Engine:
             )
         return triggers, rejections
 
+    def _is_weak_concept(self, name: str | None) -> bool:
+        if not name:
+            return True
+        text = str(name).strip()
+        if text in self.weak_concept_names:
+            return True
+        return any(keyword in text for keyword in self.weak_concept_keywords)
+
+    def _fetch_rolling_weak_concepts(self, cur, trade_date: str | None) -> set[str]:
+        if not trade_date or self.rolling_weak_concept_window <= 0:
+            return set()
+        cur.execute(
+            """
+            WITH prior_days AS (
+                SELECT trade_date
+                FROM trade_cal
+                WHERE is_open = 1
+                  AND trade_date < %s
+                ORDER BY trade_date DESC
+                LIMIT %s
+            ),
+            concept_daily AS (
+                SELECT
+                    m.ts_code AS concept_code,
+                    AVG((a.open / NULLIF(a.close, 0) - 1) * 100) AS concept_strength
+                FROM ths_member m
+                JOIN stk_auction_o a
+                  ON a.code = SPLIT_PART(m.con_code, '.', 1)
+                JOIN prior_days td ON td.trade_date = a.trade_date
+                WHERE LEFT(m.ts_code, 3) IN ('881', '882', '883', '884', '885', '886')
+                  AND a.open > 0
+                  AND a.close > 0
+                GROUP BY m.ts_code, a.trade_date
+            )
+            SELECT cd.concept_code, i.name
+            FROM concept_daily cd
+            JOIN ths_index i ON i.ts_code = cd.concept_code
+            GROUP BY cd.concept_code, i.name
+            HAVING AVG(cd.concept_strength) <= %s
+               AND COUNT(*) >= %s
+            """,
+            (
+                trade_date,
+                self.rolling_weak_concept_window,
+                self.rolling_weak_concept_strength_max,
+                self.rolling_weak_concept_min_samples,
+            ),
+        )
+        weak: set[str] = set()
+        for concept_code, concept_name in cur.fetchall():
+            if concept_code:
+                weak.add(str(concept_code))
+            if concept_name:
+                weak.add(str(concept_name))
+        return weak
+
     def _fetch_concepts(
         self,
         cur,
@@ -316,6 +473,7 @@ class CbAuctionT0Engine:
         codes = list(trigger_map.keys())
         holders = ",".join(["%s"] * len(codes))
         trade_key, trade_key_compact = self._date_keys(trade_date) if trade_date else ("", "")
+        rolling_weak_concepts = self._fetch_rolling_weak_concepts(cur, trade_date)
         cur.execute(
             f"""
             WITH concept_auction AS (
@@ -359,7 +517,12 @@ class CbAuctionT0Engine:
             concept_strength,
             auction_sample_count,
         ) in cur.fetchall():
-            if _is_noise_concept(concept_name):
+            if (
+                _is_noise_concept(concept_name)
+                or self._is_weak_concept(concept_name)
+                or concept_code in rolling_weak_concepts
+                or concept_name in rolling_weak_concepts
+            ):
                 continue
             stocks_with_concepts.add(stock_code)
             trigger = trigger_map[stock_code]
@@ -410,7 +573,7 @@ class CbAuctionT0Engine:
                 item.get("concept_code") or "",
             ),
         )
-        return concepts[:TOP_CONCEPT_LIMIT], rejections
+        return concepts[: self.top_concept_limit], rejections
 
     def _fetch_bonds(
         self,
@@ -484,6 +647,7 @@ class CbAuctionT0Engine:
                     "matched_concept_count": 1,
                     "trigger_stock_count_sum": int(concept["trigger_stock_count"]),
                     "matched_fd_amount": float(concept["concept_fd_amount"]),
+                    "matched_concept_strength": concept.get("concept_strength"),
                     "concept_size_min": int(concept.get("concept_size") or 9999),
                     "premium_rate": float(premium_rate) if premium_rate is not None else None,
                     "cb_amount": float(cb_amount) if cb_amount is not None else None,
@@ -521,3 +685,35 @@ class CbAuctionT0Engine:
             top_n=top_n,
             rejections=trigger_rejections + concept_rejections + bond_rejections,
         )
+
+
+class CbAuctionT0V2Engine(CbAuctionT0Engine):
+    """竞价选债 T+0 优化版 V2.
+
+    V2 keeps the same data timing as V1, but tightens the trigger stock quality
+    and tags output bonds by concept auction strength.
+    """
+
+    model_id = "cb_auction_t0_v2"
+    fd_amount_min = FD_AMOUNT_MIN_V2
+    fd_amount_min_yi_label = "7亿"
+    fd_amount_min_inclusive = True
+    weak_concept_keywords = V2_WEAK_CONCEPT_KEYWORDS
+    weak_concept_names = V2_WEAK_CONCEPT_NAMES
+    assign_quality_tier = True
+
+
+class CbAuctionT0V21Engine(CbAuctionT0V2Engine):
+    """竞价选债 T+0 优化版 V2.1 稳健版.
+
+    V2.1 keeps V2's trigger timing and adds non-forward-looking guardrails:
+    A-tier main picks only, ST underlying exclusion, and rolling weak concept
+    filtering based only on prior auction concept strength.
+    """
+
+    model_id = "cb_auction_t0_v2_1"
+    output_quality_tiers = {"A"}
+    exclude_st_underlying = True
+    rolling_weak_concept_window = V21_ROLLING_WEAK_CONCEPT_WINDOW
+    rolling_weak_concept_strength_max = V21_ROLLING_WEAK_CONCEPT_STRENGTH_MAX
+    rolling_weak_concept_min_samples = V21_ROLLING_WEAK_CONCEPT_MIN_SAMPLES

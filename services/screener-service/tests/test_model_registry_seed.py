@@ -19,6 +19,8 @@ EXPECTED_MODEL_NAMES = {
     "supply_chain_bom_v5",
     "cb_auction_v1",
     "cb_auction_t0_v1",
+    "cb_auction_t0_v2",
+    "cb_auction_t0_v2_1",
     "cb_floor_v1",
     "cb_floor_v3",
     "cb_intraday_v1",

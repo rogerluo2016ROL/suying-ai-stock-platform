@@ -420,7 +420,7 @@ async def run_leader_backtest(
 
 @router.post("/run-cb")
 async def run_cb_backtest(
-    mode: str = Query("cb_floor", description="cb_floor/cb_intraday/cb_auction/cb_auction_t0"),
+    mode: str = Query("cb_floor", description="cb_floor/cb_intraday/cb_auction/cb_auction_t0/cb_auction_t0_v2/cb_auction_t0_v2_1"),
     windows: int = Query(3, ge=1, le=12),
     top_n: int = Query(20, ge=5, le=50),
     forward_days: int = Query(5, ge=1, le=20),
@@ -460,12 +460,18 @@ async def run_cb_backtest(
                 elif mode == "cb_auction_t0":
                     from kronos_factors.engine.cb_auction_t0 import CbAuctionT0Engine
                     engine = CbAuctionT0Engine()
+                elif mode == "cb_auction_t0_v2":
+                    from kronos_factors.engine.cb_auction_t0 import CbAuctionT0V2Engine
+                    engine = CbAuctionT0V2Engine()
+                elif mode == "cb_auction_t0_v2_1":
+                    from kronos_factors.engine.cb_auction_t0 import CbAuctionT0V21Engine
+                    engine = CbAuctionT0V21Engine()
                 else:
                     from kronos_factors.engine.cb_auction import CbAuctionEngine
                     engine = CbAuctionEngine()
                 raw_result = engine.run(trade_date=str(sel_date), top_n=top_n)
                 engine.close()
-                picks = raw_result.get("bonds", []) if mode == "cb_auction_t0" and isinstance(raw_result, dict) else raw_result
+                picks = raw_result.get("bonds", []) if mode in ("cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1") and isinstance(raw_result, dict) else raw_result
                 if not picks:
                     continue
             except Exception as e:

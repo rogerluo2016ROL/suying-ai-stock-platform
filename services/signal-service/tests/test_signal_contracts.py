@@ -96,6 +96,22 @@ def test_default_sync_schedules_cover_sync_map():
     assert by_key["rt_sw_k"]["interval_minutes"] == 5
 
 
+def test_data_status_date_columns_match_real_pg_tables():
+    assert routes.DATA_STATUS_DATE_COLUMNS["financial_balance"] == ("end_date",)
+    assert routes.DATA_STATUS_DATE_COLUMNS["stock_news_tushare"] == ("pub_time",)
+    assert routes.DATA_STATUS_DATE_COLUMNS["research_reports_tushare"] == ("pub_date",)
+    assert routes.DATA_STATUS_DATE_COLUMNS["broker_recommend"] == ("month",)
+    assert routes.DATA_STATUS_DATE_COLUMNS["dividend_data"] == ("ex_date",)
+
+
+def test_data_status_sources_use_tushare_report_table():
+    source_keys = {item["key"] for item in routes._DATA_SOURCES}
+
+    assert "research_reports_tushare" in source_keys
+    assert "research_reports" not in source_keys
+    assert routes._SYNC_MAP["research_reports_tushare"] == ("research_report", 30, "研究报告")
+
+
 def test_trigger_sync_prefers_data_service_proxy(monkeypatch):
     def fake_proxy(table_key: str, days: int):
         return {"status": "ok", "table_key": table_key, "written": 12, "pg_written": 12}

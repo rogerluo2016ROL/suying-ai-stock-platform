@@ -18,7 +18,11 @@ from kronos_factors.engine.leader_afternoon import (
 from kronos_factors.engine.modes import (
     ChokepointEngine, ShortModeEngine, LongModeEngine, AllModeEngine,
 )
-from kronos_factors.engine.cb_auction_t0 import CbAuctionT0Engine
+from kronos_factors.engine.cb_auction_t0 import (
+    CbAuctionT0Engine,
+    CbAuctionT0V21Engine,
+    CbAuctionT0V2Engine,
+)
 from kronos_factors.engine.supply_chain import (
     SupplyChainEngine,
 )
@@ -38,7 +42,7 @@ __all__ = [
     # Multi-factor modes
     "ChokepointEngine", "ShortModeEngine", "LongModeEngine", "AllModeEngine",
     # CB Auction T0
-    "CbAuctionT0Engine",
+    "CbAuctionT0Engine", "CbAuctionT0V2Engine", "CbAuctionT0V21Engine",
     # Supply Chain
     "SupplyChainEngine",
 ]

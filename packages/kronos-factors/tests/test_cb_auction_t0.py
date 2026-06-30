@@ -1,12 +1,13 @@
 import pytest
 
 from kronos_factors.engine.cb_auction_t0 import (
+    CbAuctionT0V21Engine,
     _is_noise_concept,
     _normalize_stock_code,
     _risk_notes,
     _theme_score,
 )
-from kronos_factors.engine.cb_auction_t0 import CbAuctionT0Engine
+from kronos_factors.engine.cb_auction_t0 import CbAuctionT0Engine, CbAuctionT0V2Engine
 
 
 def test_normalize_stock_code_handles_suffix_and_plain_code():
@@ -426,7 +427,8 @@ def test_fetch_trigger_stocks_normalizes_hhmmss_first_time_in_sql():
     )
 
     assert "LPAD(REPLACE(l.first_time, ':', ''), 6, '0') <= %s" in captured["sql"]
-    assert captured["params"][-1] == "093000"
+    assert "SELECT DISTINCT ON (SPLIT_PART(l.ts_code, '.', 1))" in captured["sql"]
+    assert "093000" in captured["params"]
 
 
 def test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up():
@@ -465,6 +467,198 @@ def test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up():
         {"code": "300002", "name": "封单不足", "reason": "封单金额不足5亿"},
         {"code": "300003", "name": "昨日涨停", "reason": "昨日已涨停"},
     ]
+
+
+def test_v2_fetch_trigger_stocks_requires_seven_yi_fd_amount():
+    engine = CbAuctionT0V2Engine(pg_url="postgresql://unit/unit")
+
+    class DummyCursor:
+        def execute(self, sql, params):
+            pass
+
+        def fetchall(self):
+            return [
+                ("300002.SZ", "六亿封单", 650_000_000, "09:25:00", False),
+                ("300004.SZ", "七亿封单", 710_000_000, "09:25:00", False),
+            ]
+
+    triggers, rejections = engine._fetch_trigger_stocks(
+        DummyCursor(),
+        "2026-06-30",
+        "2026-06-29",
+    )
+
+    assert [row["trigger_stock_code"] for row in triggers] == ["300004"]
+    assert rejections == [{"code": "300002", "name": "六亿封单", "reason": "封单金额不足7亿"}]
+
+
+def test_v2_filters_weak_theme_concepts_before_selecting_top_two():
+    engine = CbAuctionT0V2Engine(pg_url="postgresql://unit/unit")
+
+    class DummyCursor:
+        def execute(self, sql, params):
+            pass
+
+        def fetchall(self):
+            return [
+                ("881001.TI", "沪深300样本股", "300001", 300, 3.0, 300),
+                ("886001.TI", "机器人", "300001", 40, 0.2, 40),
+                ("886002.TI", "低市盈率", "300001", 120, 0.5, 120),
+            ]
+
+    concepts, rejections = engine._fetch_concepts(
+        DummyCursor(),
+        [
+            {
+                "trigger_stock_code": "300001",
+                "trigger_stock_name": "触发科技",
+                "fd_amount": 800_000_000,
+            }
+        ],
+        "2026-06-30",
+    )
+
+    assert [row["concept_name"] for row in concepts] == ["机器人"]
+    assert rejections == []
+
+
+def test_v2_assemble_result_adds_quality_tiers_from_concept_strength():
+    engine = CbAuctionT0V2Engine(pg_url="postgresql://unit/unit")
+    raw_bonds = [
+        {
+            "cb_code": "123001.SZ",
+            "cb_name": "A档转债",
+            "stk_code": "300101",
+            "stk_name": "强题材",
+            "matched_concepts": ["强概念"],
+            "trigger_sources": ["300001"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 800_000_000,
+            "concept_size_min": 20,
+            "matched_concept_strength": 0.12,
+        },
+        {
+            "cb_code": "123002.SZ",
+            "cb_name": "B档转债",
+            "stk_code": "300102",
+            "stk_name": "普通题材",
+            "matched_concepts": ["普通概念"],
+            "trigger_sources": ["300001"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 800_000_000,
+            "concept_size_min": 20,
+            "matched_concept_strength": 0.05,
+        },
+        {
+            "cb_code": "123003.SZ",
+            "cb_name": "C档转债",
+            "stk_code": "300103",
+            "stk_name": "弱题材",
+            "matched_concepts": ["弱概念"],
+            "trigger_sources": ["300001"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 800_000_000,
+            "concept_size_min": 20,
+            "matched_concept_strength": -0.01,
+        },
+    ]
+
+    result = engine._assemble_result("2026-06-30", [], [], raw_bonds, top_n=None)
+
+    assert result["model"] == "cb_auction_t0_v2"
+    assert [bond["quality_tier"] for bond in result["bonds"]] == ["A", "B", "C"]
+
+
+def test_v21_assemble_result_keeps_only_a_tier_and_excludes_st_underlying():
+    engine = CbAuctionT0V21Engine(pg_url="postgresql://unit/unit")
+    raw_bonds = [
+        {
+            "cb_code": "123001.SZ",
+            "cb_name": "A档转债",
+            "stk_code": "300101",
+            "stk_name": "强题材",
+            "matched_concepts": ["强概念"],
+            "trigger_sources": ["300001"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 800_000_000,
+            "concept_size_min": 20,
+            "matched_concept_strength": 0.12,
+        },
+        {
+            "cb_code": "123002.SZ",
+            "cb_name": "B档转债",
+            "stk_code": "300102",
+            "stk_name": "普通题材",
+            "matched_concepts": ["普通概念"],
+            "trigger_sources": ["300001"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 800_000_000,
+            "concept_size_min": 20,
+            "matched_concept_strength": 0.05,
+        },
+        {
+            "cb_code": "123003.SZ",
+            "cb_name": "ST转债",
+            "stk_code": "300103",
+            "stk_name": "*ST题材",
+            "matched_concepts": ["强概念"],
+            "trigger_sources": ["300001"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 800_000_000,
+            "concept_size_min": 20,
+            "matched_concept_strength": 0.2,
+        },
+    ]
+
+    result = engine._assemble_result("2026-06-30", [], [], raw_bonds, top_n=None)
+
+    assert result["model"] == "cb_auction_t0_v2_1"
+    assert [bond["cb_code"] for bond in result["bonds"]] == ["123001.SZ"]
+    assert result["bonds"][0]["quality_tier"] == "A"
+    assert {item["reason"] for item in result["rejections"]} == {"非A档观察", "ST正股剔除"}
+
+
+def test_v21_filters_rolling_weak_concepts_without_current_day_data():
+    engine = CbAuctionT0V21Engine(pg_url="postgresql://unit/unit")
+    captured_params = []
+    captured_sql = []
+
+    class DummyCursor:
+        def execute(self, sql, params):
+            captured_sql.append(sql)
+            captured_params.append(params)
+
+        def fetchall(self):
+            if len(captured_params) == 1:
+                return [("886001.TI", "历史弱概念")]
+            return [
+                ("886001.TI", "历史弱概念", "300001", 20, 0.5, 20),
+                ("886002.TI", "当日强概念", "300001", 20, 0.4, 20),
+            ]
+
+    concepts, rejections = engine._fetch_concepts(
+        DummyCursor(),
+        [
+            {
+                "trigger_stock_code": "300001",
+                "trigger_stock_name": "触发科技",
+                "fd_amount": 800_000_000,
+            }
+        ],
+        "2026-06-30",
+    )
+
+    assert captured_params[0] == ("2026-06-30", 20, -0.2, 5)
+    assert "SELECT cal_date" in captured_sql[0]
+    assert "td.cal_date = a.trade_date" in captured_sql[0]
+    assert [row["concept_name"] for row in concepts] == ["当日强概念"]
+    assert rejections == []
 
 
 def test_fetch_concepts_keeps_top_two_by_auction_strength_without_size_tiebreak():
@@ -571,8 +765,86 @@ def test_cli_rejects_negative_top_n_before_running_engine(tmp_path, monkeypatch,
     assert "--top-n must be >= 0" in capsys.readouterr().err
 
 
+def test_cli_model_v2_uses_optimized_engine(tmp_path, monkeypatch, capsys):
+    import importlib.util
+    import json
+    from pathlib import Path
+
+    tool_path = Path("tools/cb_auction_t0_picks.py")
+    spec = importlib.util.spec_from_file_location("cb_auction_t0_picks_v2", tool_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    class DummyV2Engine:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def run(self, trade_date=None, top_n=50):
+            return {
+                "model": "cb_auction_t0_v2",
+                "trade_date": trade_date,
+                "trigger_stocks": [],
+                "concepts": [],
+                "bonds": [],
+                "rejections": [],
+            }
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(module, "CbAuctionT0V2Engine", DummyV2Engine)
+
+    assert module.main(["2026-06-30", "--model", "v2", "--output-dir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out
+    json_path = output.split("JSON: ", 1)[1].splitlines()[0]
+    data = json.loads(Path(json_path).read_text(encoding="utf-8"))
+    assert data["model"] == "cb_auction_t0_v2"
+
+
+def test_cli_model_v21_uses_steady_engine(tmp_path, monkeypatch, capsys):
+    import importlib.util
+    import json
+    from pathlib import Path
+
+    tool_path = Path("tools/cb_auction_t0_picks.py")
+    spec = importlib.util.spec_from_file_location("cb_auction_t0_picks_v21", tool_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    class DummyV21Engine:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def run(self, trade_date=None, top_n=50):
+            return {
+                "model": "cb_auction_t0_v2_1",
+                "trade_date": trade_date,
+                "trigger_stocks": [],
+                "concepts": [],
+                "bonds": [],
+                "rejections": [],
+            }
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(module, "CbAuctionT0V21Engine", DummyV21Engine)
+
+    assert module.main(["2026-06-30", "--model", "v2.1", "--output-dir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out
+    json_path = output.split("JSON: ", 1)[1].splitlines()[0]
+    data = json.loads(Path(json_path).read_text(encoding="utf-8"))
+    assert data["model"] == "cb_auction_t0_v2_1"
+
+
 def test_engine_package_exports_cb_auction_t0():
-    from kronos_factors.engine import CbAuctionT0Engine
+    from kronos_factors.engine import CbAuctionT0Engine, CbAuctionT0V21Engine, CbAuctionT0V2Engine
 
     engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
     assert engine.pg_url == "postgresql://unit/unit"
+    v2_engine = CbAuctionT0V2Engine(pg_url="postgresql://unit/unit")
+    assert v2_engine.model_id == "cb_auction_t0_v2"
+    v21_engine = CbAuctionT0V21Engine(pg_url="postgresql://unit/unit")
+    assert v21_engine.model_id == "cb_auction_t0_v2_1"

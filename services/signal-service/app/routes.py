@@ -535,6 +535,8 @@ async def dashboard_summary():
         {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
         {"id": "cb_auction",     "name": "秋神竞价概念选债模型",       "cycle": "1-2天",  "style": "竞价"},
         {"id": "cb_auction_t0",  "name": "竞价选债 T+0 模型",          "cycle": "T+0",    "style": "竞价"},
+        {"id": "cb_auction_t0_v2", "name": "竞价选债 T+0 优化版 V2",   "cycle": "T+0",    "style": "竞价优化"},
+        {"id": "cb_auction_t0_v2_1", "name": "竞价选债 T+0 优化版 V2.1 稳健版", "cycle": "T+0", "style": "稳健优化"},
     ]
 
     # ── 6. Watchlist (top 10 stocks by market cap) ──

@@ -71,6 +71,8 @@ class TestScreenerModes:
         assert "cb_intraday" in mode_ids
         assert "cb_auction" in mode_ids
         assert "cb_auction_t0" in mode_ids
+        assert "cb_auction_t0_v2" in mode_ids
+        assert "cb_auction_t0_v2_1" in mode_ids
 
     def test_modes_have_required_fields(self, client):
         """Verify each mode has id, name, cycle, style."""
@@ -170,6 +172,76 @@ class TestScreenerRun:
         assert result["picks"][0]["code"] == "123001.SZ"
         assert result["picks"][0]["name"] == "竞价转债"
         assert result["picks"][0]["source_mode"] == "cb_auction_t0"
+
+    def test_cb_auction_t0_v2_mode_is_registered_for_run(self, monkeypatch):
+        """Verify cb_auction_t0_v2 is a runnable CB screener mode."""
+        import app.routers.screener as screener_router
+
+        class DummyEngine:
+            def run(self, trade_date=None, top_n=50):
+                return {
+                    "trade_date": trade_date or "2026-06-30",
+                    "bonds": [
+                        {
+                            "cb_code": "123001.SZ",
+                            "cb_name": "竞价V2转债",
+                            "stk_code": "300001",
+                            "stk_name": "触发科技",
+                            "theme_score": 117.0,
+                            "quality_tier": "A",
+                        }
+                    ],
+                }
+
+            def close(self):
+                pass
+
+        monkeypatch.setattr(screener_router, "_CB_AUCTION_T0_V2_ENGINE", DummyEngine)
+
+        result = screener_router._run_cb_mode("cb_auction_t0_v2", 5, "2026-06-30")
+
+        assert result["mode"] == "cb_auction_t0_v2"
+        assert result["trade_date"] == "2026-06-30"
+        assert result["total_picks"] == 1
+        assert result["picks"][0]["code"] == "123001.SZ"
+        assert result["picks"][0]["name"] == "竞价V2转债"
+        assert result["picks"][0]["quality_tier"] == "A"
+        assert result["picks"][0]["source_mode"] == "cb_auction_t0_v2"
+
+    def test_cb_auction_t0_v21_mode_is_registered_for_run(self, monkeypatch):
+        """Verify cb_auction_t0_v2_1 is a runnable CB screener mode."""
+        import app.routers.screener as screener_router
+
+        class DummyEngine:
+            def run(self, trade_date=None, top_n=50):
+                return {
+                    "trade_date": trade_date or "2026-06-30",
+                    "bonds": [
+                        {
+                            "cb_code": "123001.SZ",
+                            "cb_name": "竞价V21转债",
+                            "stk_code": "300001",
+                            "stk_name": "触发科技",
+                            "theme_score": 117.0,
+                            "quality_tier": "A",
+                        }
+                    ],
+                }
+
+            def close(self):
+                pass
+
+        monkeypatch.setattr(screener_router, "_CB_AUCTION_T0_V21_ENGINE", DummyEngine)
+
+        result = screener_router._run_cb_mode("cb_auction_t0_v2_1", 5, "2026-06-30")
+
+        assert result["mode"] == "cb_auction_t0_v2_1"
+        assert result["trade_date"] == "2026-06-30"
+        assert result["total_picks"] == 1
+        assert result["picks"][0]["code"] == "123001.SZ"
+        assert result["picks"][0]["name"] == "竞价V21转债"
+        assert result["picks"][0]["quality_tier"] == "A"
+        assert result["picks"][0]["source_mode"] == "cb_auction_t0_v2_1"
 
     def test_resolve_trade_date_replaces_latest_with_pg_date(self, monkeypatch):
         """Verify leader modes never pass the literal latest token into PG date filters."""

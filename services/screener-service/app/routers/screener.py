@@ -82,6 +82,8 @@ class PolicyInterpretResponse(BaseModel):
 
 router = APIRouter(prefix="/api/v1/screener", tags=["screener"])
 _CB_AUCTION_T0_ENGINE = None
+_CB_AUCTION_T0_V2_ENGINE = None
+_CB_AUCTION_T0_V21_ENGINE = None
 
 
 def _screener_model_metadata(mode: str) -> dict[str, Any]:
@@ -1525,6 +1527,8 @@ async def list_modes():
             {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
             {"id": "cb_auction",     "name": "秋神竞价概念选债模型",       "cycle": "1-2天",  "style": "竞价"},
             {"id": "cb_auction_t0",  "name": "竞价选债 T+0 模型",          "cycle": "T+0",    "style": "竞价"},
+            {"id": "cb_auction_t0_v2", "name": "竞价选债 T+0 优化版 V2",   "cycle": "T+0",    "style": "竞价优化"},
+            {"id": "cb_auction_t0_v2_1", "name": "竞价选债 T+0 优化版 V2.1 稳健版", "cycle": "T+0", "style": "稳健优化"},
             {"id": "bi_trend_launch","name": "毕师傅硬核科技趋势启动 V13", "cycle": "5-20天", "style": "趋势"},
             {"id": "bi_trend_full_market","name": "毕师傅全市场趋势启动 V1.0", "cycle": "5-20天", "style": "全市场"},
             {"id": "supply_chain",  "name": "大葱产业链解构选股", "cycle": "3-12月", "style": "中长线"},
@@ -1971,7 +1975,7 @@ async def run_screening(
             result = await loop.run_in_executor(
                 _executor, _run_afternoon_mode, mode, top_n, trade_date
             )
-        elif mode in ("cb_floor", "cb_intraday", "cb_auction", "cb_auction_t0"):
+        elif mode in ("cb_floor", "cb_intraday", "cb_auction", "cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1"):
             result = await loop.run_in_executor(
                 _executor, _run_cb_mode, mode, top_n, trade_date
             )
@@ -2077,20 +2081,22 @@ def _run_cb_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
     from kronos_factors.engine.cb_floor import CbFloorEngine
     from kronos_factors.engine.cb_intraday import CbIntradayEngine
     from kronos_factors.engine.cb_auction import CbAuctionEngine
-    from kronos_factors.engine.cb_auction_t0 import CbAuctionT0Engine
+    from kronos_factors.engine.cb_auction_t0 import CbAuctionT0Engine, CbAuctionT0V21Engine, CbAuctionT0V2Engine
 
     engine_map = {
         "cb_floor": CbFloorEngine,
         "cb_intraday": CbIntradayEngine,
         "cb_auction": CbAuctionEngine,
         "cb_auction_t0": _CB_AUCTION_T0_ENGINE or CbAuctionT0Engine,
+        "cb_auction_t0_v2": _CB_AUCTION_T0_V2_ENGINE or CbAuctionT0V2Engine,
+        "cb_auction_t0_v2_1": _CB_AUCTION_T0_V21_ENGINE or CbAuctionT0V21Engine,
     }
     engine = engine_map[mode]()
 
     raw_result = engine.run(trade_date=trade_date, top_n=top_n)
     engine.close()
 
-    if mode == "cb_auction_t0" and isinstance(raw_result, dict):
+    if mode in ("cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1") and isinstance(raw_result, dict):
         trade_date = str(raw_result.get("trade_date") or trade_date or "")
         picks = []
         for bond in raw_result.get("bonds", []):

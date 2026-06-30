@@ -13,12 +13,17 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "packages" / "kronos-factors"))
 
-from kronos_factors.engine.cb_auction_t0 import CbAuctionT0Engine
+from kronos_factors.engine.cb_auction_t0 import (
+    CbAuctionT0Engine,
+    CbAuctionT0V21Engine,
+    CbAuctionT0V2Engine,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="竞价选债 T+0 模型")
     parser.add_argument("trade_date", nargs="?", help="交易日，格式 YYYY-MM-DD")
+    parser.add_argument("--model", choices=["v1", "v2", "v2.1"], default="v1", help="模型版本")
     parser.add_argument("--top-n", type=int, default=50, help="最多输出转债数量")
     parser.add_argument(
         "--output-dir",
@@ -32,8 +37,9 @@ def write_outputs(result: dict, output_dir: str) -> tuple[str, str]:
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     trade_date = result.get("trade_date") or "unknown"
-    json_path = out_dir / f"{trade_date}_cb_auction_t0.json"
-    csv_path = out_dir / f"{trade_date}_cb_auction_t0.csv"
+    model = result.get("model") or "cb_auction_t0"
+    json_path = out_dir / f"{trade_date}_{model}.json"
+    csv_path = out_dir / f"{trade_date}_{model}.csv"
 
     json_path.write_text(
         json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
@@ -53,6 +59,8 @@ def write_outputs(result: dict, output_dir: str) -> tuple[str, str]:
         "remain_size_yi",
         "call_status",
         "risk_notes",
+        "quality_tier",
+        "quality_tier_reason",
     ]
     with csv_path.open("w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
@@ -68,7 +76,13 @@ def write_outputs(result: dict, output_dir: str) -> tuple[str, str]:
 
 
 def print_summary(result: dict) -> None:
-    print(f"竞价选债 T+0 | {result.get('trade_date')}")
+    model_names = {
+        "cb_auction_t0": "竞价选债 T+0",
+        "cb_auction_t0_v2": "竞价选债 T+0 优化版 V2",
+        "cb_auction_t0_v2_1": "竞价选债 T+0 优化版 V2.1 稳健版",
+    }
+    model_name = model_names.get(result.get("model"), "竞价选债 T+0")
+    print(f"{model_name} | {result.get('trade_date')}")
     print(
         "触发股票: "
         f"{len(result.get('trigger_stocks', []))} | 概念: {len(result.get('concepts', []))} | 转债: "
@@ -96,7 +110,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.top_n < 0:
         parser.error("--top-n must be >= 0")
-    engine = CbAuctionT0Engine(pg_url=os.environ.get("KRONOS_PG_URL"))
+    engine_map = {
+        "v1": CbAuctionT0Engine,
+        "v2": CbAuctionT0V2Engine,
+        "v2.1": CbAuctionT0V21Engine,
+    }
+    engine_cls = engine_map[args.model]
+    engine = engine_cls(pg_url=os.environ.get("KRONOS_PG_URL"))
     try:
         result = engine.run(trade_date=args.trade_date, top_n=args.top_n)
     finally:

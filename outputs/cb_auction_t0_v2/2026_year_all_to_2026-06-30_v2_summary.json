@@ -1,0 +1,88 @@
+{
+  "model": "cb_auction_t0_v2",
+  "model_name": "竞价选债 T+0 优化版 V2",
+  "period": "2026-01-01~2026-06-30",
+  "trade_days": 116,
+  "pick_days": 16,
+  "trigger_stock_days": 17,
+  "raw_bond_rows": 497,
+  "evaluable_trades": 116,
+  "wins": 76,
+  "win_rate": 65.5172,
+  "avg_return_pct": 0.9917,
+  "median_return_pct": 0.745,
+  "months": [
+    {
+      "period": "2026-01",
+      "trade_days": 20,
+      "pick_days": 7,
+      "trigger_stock_days": 8,
+      "raw_bond_rows": 224,
+      "evaluable_trades": 51,
+      "wins": 30,
+      "win_rate": 58.8235,
+      "avg_return_pct": 0.0765,
+      "median_return_pct": 0.3309
+    },
+    {
+      "period": "2026-02",
+      "trade_days": 14,
+      "pick_days": 0,
+      "trigger_stock_days": 0,
+      "raw_bond_rows": 0,
+      "evaluable_trades": 0,
+      "wins": 0,
+      "win_rate": null,
+      "avg_return_pct": null,
+      "median_return_pct": null
+    },
+    {
+      "period": "2026-03",
+      "trade_days": 22,
+      "pick_days": 2,
+      "trigger_stock_days": 2,
+      "raw_bond_rows": 54,
+      "evaluable_trades": 20,
+      "wins": 11,
+      "win_rate": 55.0,
+      "avg_return_pct": 0.2798,
+      "median_return_pct": 0.1401
+    },
+    {
+      "period": "2026-04",
+      "trade_days": 21,
+      "pick_days": 2,
+      "trigger_stock_days": 2,
+      "raw_bond_rows": 61,
+      "evaluable_trades": 9,
+      "wins": 9,
+      "win_rate": 100.0,
+      "avg_return_pct": 1.9157,
+      "median_return_pct": 2.3076
+    },
+    {
+      "period": "2026-05",
+      "trade_days": 18,
+      "pick_days": 3,
+      "trigger_stock_days": 3,
+      "raw_bond_rows": 68,
+      "evaluable_trades": 9,
+      "wins": 2,
+      "win_rate": 22.2222,
+      "avg_return_pct": -2.1329,
+      "median_return_pct": -1.4502
+    },
+    {
+      "period": "2026-06",
+      "trade_days": 21,
+      "pick_days": 2,
+      "trigger_stock_days": 2,
+      "raw_bond_rows": 90,
+      "evaluable_trades": 27,
+      "wins": 24,
+      "win_rate": 88.8889,
+      "avg_return_pct": 3.9811,
+      "median_return_pct": 3.2
+    }
+  ]
+}
