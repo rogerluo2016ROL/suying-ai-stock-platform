@@ -690,7 +690,8 @@ Add these methods to `CbAuctionT0Engine`:
             LEFT JOIN stocks s ON s.code = SPLIT_PART(COALESCE(l.ts_code, l.code), '.', 1)
             WHERE (l.trade_date::text = %s OR REPLACE(l.trade_date::text, '-', '') = %s)
               AND l.limit_type = 'U'
-              AND COALESCE(l.first_time, '') <= %s
+              AND l.first_time IS NOT NULL
+              AND l.first_time <= %s
               AND COALESCE(l.name, s.name, '') NOT LIKE '%%ST%%'
             ORDER BY l.fd_amount DESC NULLS LAST
             """,
@@ -735,7 +736,8 @@ Add concept and bond fetchers:
             SELECT
                 m.ts_code AS concept_code,
                 i.name AS concept_name,
-                SPLIT_PART(m.con_code, '.', 1) AS stock_code
+                SPLIT_PART(m.con_code, '.', 1) AS stock_code,
+                COUNT(*) OVER (PARTITION BY m.ts_code) AS concept_size
             FROM ths_member m
             JOIN ths_index i ON i.ts_code = m.ts_code
             WHERE SPLIT_PART(m.con_code, '.', 1) IN ({holders})
@@ -747,7 +749,7 @@ Add concept and bond fetchers:
         grouped: dict[str, dict[str, Any]] = {}
         rejections: list[dict[str, Any]] = []
         stocks_with_concepts: set[str] = set()
-        for concept_code, concept_name, stock_code in cur.fetchall():
+        for concept_code, concept_name, stock_code, concept_size in cur.fetchall():
             if _is_noise_concept(concept_name):
                 continue
             stocks_with_concepts.add(stock_code)
@@ -759,7 +761,7 @@ Add concept and bond fetchers:
                 "concept_fd_amount": 0.0,
                 "concept_fd_amount_yi": 0.0,
                 "trigger_sources": [],
-                "concept_size": 9999,
+                "concept_size": int(concept_size or 9999),
             })
             if stock_code not in item["trigger_sources"]:
                 item["trigger_sources"].append(stock_code)
