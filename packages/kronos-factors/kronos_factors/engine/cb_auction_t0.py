@@ -129,7 +129,7 @@ class CbAuctionT0Engine:
         top_n: int | None,
         rejections: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        trigger_codes = {row["trigger_stock_code"] for row in triggers}
+        trigger_codes = {_normalize_stock_code(row.get("trigger_stock_code")) for row in triggers}
         merged: dict[str, dict[str, Any]] = {}
 
         for row in raw_bonds:
@@ -177,6 +177,7 @@ class CbAuctionT0Engine:
             row["relation_reason"] = self._relation_reason(row)
             bonds.append(row)
 
+        # 排序规则按题材相关性定义：直接触发优先，题材/触发权重高者靠前；theme_score 仅用于展示。
         bonds.sort(
             key=lambda row: (
                 not row.get("is_direct_trigger"),
@@ -187,7 +188,7 @@ class CbAuctionT0Engine:
                 row.get("cb_code") or "",
             )
         )
-        if top_n:
+        if top_n is not None:
             bonds = bonds[:top_n]
 
         return {

@@ -158,3 +158,87 @@ def test_assemble_result_dedupes_same_bond_and_merges_concepts():
     assert len(result["bonds"]) == 1
     assert result["bonds"][0]["matched_concepts"] == ["减速器", "机器人"]
     assert result["bonds"][0]["trigger_sources"] == ["300001", "300004"]
+
+
+def test_assemble_result_normalizes_trigger_stock_code_for_direct_match():
+    engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+    triggers = [
+        {
+            "trigger_stock_code": "300001.SZ",
+            "trigger_stock_name": "触发科技",
+        }
+    ]
+    concepts = []
+    raw_bonds = [
+        {
+            "cb_code": "123001.SZ",
+            "cb_name": "直接转债",
+            "stk_code": "300001",
+            "stk_name": "触发科技",
+            "matched_concepts": ["机器人"],
+            "trigger_sources": ["300001.SZ"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 1_100_000_000,
+            "concept_size_min": 3,
+        },
+        {
+            "cb_code": "123002.SZ",
+            "cb_name": "非直接转债",
+            "stk_code": "300002",
+            "stk_name": "跟随科技",
+            "matched_concepts": ["机器人"],
+            "trigger_sources": ["300001.SZ"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 1_200_000_000,
+            "concept_size_min": 3,
+        },
+    ]
+
+    result = engine._assemble_result("2026-06-30", triggers, concepts, raw_bonds, top_n=10)
+
+    assert result["bonds"][0]["cb_code"] == "123001.SZ"
+    assert result["bonds"][0]["is_direct_trigger"] is True
+    assert result["bonds"][1]["is_direct_trigger"] is False
+
+
+def test_assemble_result_top_n_zero_and_none():
+    engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+    triggers = [
+        {
+            "trigger_stock_code": "300001",
+            "trigger_stock_name": "触发科技",
+        }
+    ]
+    concepts = []
+    raw_bonds = [
+        {
+            "cb_code": "123001.SZ",
+            "cb_name": "第一只转债",
+            "stk_code": "300001",
+            "matched_concepts": ["机器人"],
+            "trigger_sources": ["300001"],
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 1_500_000_000,
+            "concept_size_min": 3,
+            "matched_concept_count": 1,
+        },
+        {
+            "cb_code": "123002.SZ",
+            "cb_name": "第二只转债",
+            "stk_code": "300002",
+            "matched_concepts": ["机器人"],
+            "trigger_sources": ["300001"],
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 1_400_000_000,
+            "concept_size_min": 3,
+            "matched_concept_count": 1,
+        },
+    ]
+
+    zero = engine._assemble_result("2026-06-30", triggers, concepts, raw_bonds, top_n=0)
+    all_bonds = engine._assemble_result("2026-06-30", triggers, concepts, raw_bonds, top_n=None)
+
+    assert zero["bonds"] == []
+    assert len(all_bonds["bonds"]) == 2

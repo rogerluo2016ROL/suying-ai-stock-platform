@@ -33,3 +33,18 @@
 
 ## 疑虑
 - 当前 `CbAuctionT0Engine.run()` 仍是空壳返回，仍需后续 Task 3/4 用真实触发与题材数据接入 `_assemble_result`。
+
+## 修复补充（Review 回归修复）
+
+- 已修复 `trigger_stock_code` 归一化缺失问题：
+  - 修改 `trigger_codes` 生成方式为
+    `trigger_codes = {_normalize_stock_code(row.get("trigger_stock_code")) for row in triggers}`，
+    避免 `300001.SZ` 与 `300001` 未命中直接触发判断。
+- 已修复 `top_n` 边界处理问题：
+  - 改为 `if top_n is not None: bonds = bonds[:top_n]`，确保 `top_n=0` 返回 0 条，`top_n=None` 返回全部。
+- 新增测试：
+  - `test_assemble_result_normalizes_trigger_stock_code_for_direct_match`
+  - `test_assemble_result_top_n_zero_and_none`
+- 复测命令：
+  - `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+- 复测结果：`8 passed in ...`（本次运行显示 `........ [100%]`）。
