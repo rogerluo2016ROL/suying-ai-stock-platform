@@ -327,6 +327,29 @@ def test_run_assembles_fetcher_outputs_without_postgres(monkeypatch):
     assert result["rejections"] == [{"code": "300009", "reason": "封单金额缺失"}]
 
 
+def test_fetch_trigger_stocks_uses_limit_list_ts_code_schema():
+    engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+
+    class SchemaCheckingCursor:
+        def execute(self, sql, params):
+            assert "l.code" not in sql
+            assert "p.code" not in sql
+            assert "l.ts_code" in sql
+            assert "p.ts_code" in sql
+
+        def fetchall(self):
+            return []
+
+    triggers, rejections = engine._fetch_trigger_stocks(
+        SchemaCheckingCursor(),
+        "2026-06-30",
+        "2026-06-29",
+    )
+
+    assert triggers == []
+    assert rejections == []
+
+
 def test_cli_write_outputs_creates_json_and_csv(tmp_path):
     import json
     import importlib.util

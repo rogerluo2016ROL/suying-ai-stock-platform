@@ -247,7 +247,7 @@ class CbAuctionT0Engine:
         cur.execute(
             """
             SELECT
-                SPLIT_PART(COALESCE(l.ts_code, l.code), '.', 1) AS code,
+                SPLIT_PART(l.ts_code, '.', 1) AS code,
                 COALESCE(l.name, s.name, '') AS name,
                 l.fd_amount,
                 l.first_time,
@@ -256,11 +256,11 @@ class CbAuctionT0Engine:
                     FROM limit_list_d p
                     WHERE (p.trade_date::text = %s OR REPLACE(p.trade_date::text, '-', '') = %s)
                       AND p.limit_type = 'U'
-                      AND SPLIT_PART(COALESCE(p.ts_code, p.code), '.', 1)
-                          = SPLIT_PART(COALESCE(l.ts_code, l.code), '.', 1)
+                      AND SPLIT_PART(p.ts_code, '.', 1)
+                          = SPLIT_PART(l.ts_code, '.', 1)
                 ) AS prev_was_limit_up
             FROM limit_list_d l
-            LEFT JOIN stocks s ON s.code = SPLIT_PART(COALESCE(l.ts_code, l.code), '.', 1)
+            LEFT JOIN stocks s ON s.code = SPLIT_PART(l.ts_code, '.', 1)
             WHERE (l.trade_date::text = %s OR REPLACE(l.trade_date::text, '-', '') = %s)
               AND l.limit_type = 'U'
               AND l.first_time IS NOT NULL
