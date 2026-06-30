@@ -16,6 +16,38 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-06-30T02:23:14.983Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-06-30T03:22:25.529Z",
+      "error_message": "Significant refactor of ",
+      "file": "packages/kronos-factors/backtest_all_models_june.py",
+      "root_cause": "6 lines replaced/restructured",
+      "fix": "Rewrote 10→5 lines (6 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-30T03:22:25.529Z"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-06-30T04:07:22.837Z",
+      "error_message": "Significant refactor of ",
+      "file": "packages/kronos-factors/backtest_all_models_june.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 16→21 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-30T04:07:22.837Z"
     }
   ]
 }

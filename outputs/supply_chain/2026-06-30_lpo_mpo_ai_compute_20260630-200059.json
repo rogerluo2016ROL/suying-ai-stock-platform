@@ -1,0 +1,3710 @@
+{
+  "mode": "supply_chain",
+  "chain": "AI算力",
+  "focus": "LPO/MPO/光模块/光通信/连接器相关",
+  "trade_date": "2026-06-30",
+  "generated_at": "2026-06-30T20:00:59",
+  "keywords": [
+    "LPO",
+    "MPO",
+    "CPO",
+    "800G",
+    "1.6T",
+    "线性驱动",
+    "线性直驱",
+    "Linear",
+    "光模块",
+    "高速光模块",
+    "光通信",
+    "光器件",
+    "光芯片",
+    "硅光",
+    "光互连",
+    "光连接",
+    "连接器",
+    "高速连接器",
+    "光纤连接器",
+    "光纤",
+    "光电",
+    "光收发",
+    "收发模块",
+    "数据中心"
+  ],
+  "source_total_picks": 467,
+  "related_count": 50,
+  "picks": [
+    {
+      "code": "300394",
+      "name": "天孚通信",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 62.6,
+      "grade": "A",
+      "moat_score": 23,
+      "moat_signals": [
+        "行业龙头",
+        "16券商"
+      ],
+      "growth_score": 30,
+      "profit_score": 10.0,
+      "rating_score": 9.8,
+      "consensus_score": 5,
+      "revenue_growth": 40.8243,
+      "profit_growth": 493192417.72,
+      "roe": 8.5709,
+      "gross_margin": 56.6039,
+      "report_count": 57,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "中",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 11.5,
+        "growth": 15.0,
+        "profit": 6.7,
+        "commercialization": 5.2,
+        "market": 10.0,
+        "risk": 0
+      },
+      "v4_score": 62.6,
+      "rating": "C",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 62.6,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.45,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 59.47,
+      "lpo_mpo_hits": [
+        "MPO",
+        "CPO",
+        "1.6T",
+        "光模块",
+        "高速光模块",
+        "光通信",
+        "光器件",
+        "连接器",
+        "光纤",
+        "光电",
+        "光收发",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "MPO",
+        "CPO",
+        "1.6T",
+        "高速光模块",
+        "光模块"
+      ],
+      "evidence_text": "5G；QFII重仓；专精特新；人民币贬值受益；信息技术(A股)；先进封装；光纤概念；共封装光学(CPO)；华为概念；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺大盘；同花顺大盘股；同花顺新质50；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺金仓100；同花顺金仓100全收益；同花顺金仓200；同花顺金仓200全收益；同花顺金仓30；同花顺金仓30全收益；同花顺金仓50；同花顺金仓50全收益；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；同花顺高盈利；大盘股；技术硬件与设备(A股)；数据中心；无人驾驶；昨日成交前十；昨日资金前十；昨日高振幅；机构重仓股；江苏；沪深300样本股；深股通；深股通成交前十；百元股；百日新高；英伟达概念；融资融券；近期强势；近期新高；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；高市净率；太平洋_业绩持续高增，CPO产业化重塑增长空间_20260531.pdf；东吴证券_2026年一季报点评：AI需求驱动业绩高增，拟H股上市打开全球化成长空间_20260421.pdf；东吴证券_2025年年报点评：业绩延续高增态势，H股上市契机推进全球产能协同布局_20260408.pdf；东莞证券_2025年半年报点评：有源和无源产品线增长，营收与利润实现双增_2025-09-08.pdf；华龙证券_2024年三季报点评报告：高速光器件需求持续",
+      "relevance_score": 39
+    },
+    {
+      "code": "300308",
+      "name": "中际旭创",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 72.4,
+      "grade": "S",
+      "moat_score": 40,
+      "moat_signals": [
+        "行业龙头",
+        "25券商"
+      ],
+      "growth_score": 30,
+      "profit_score": 12.0,
+      "rating_score": 9.9,
+      "consensus_score": 5,
+      "revenue_growth": 192.1169,
+      "profit_growth": 5717748340.78,
+      "roe": 17.5495,
+      "gross_margin": 46.0581,
+      "report_count": 99,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "高",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 20.0,
+        "growth": 15.0,
+        "profit": 8.0,
+        "commercialization": 5.2,
+        "market": 10.0,
+        "risk": 0
+      },
+      "v4_score": 72.4,
+      "rating": "B",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 72.4,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.85,
+      "mapping_status": "verified",
+      "mapping_source": "main_business",
+      "evidence_gaps": [],
+      "mapping_quality_weight": 1.0,
+      "mapping_adjusted_score": 72.4,
+      "lpo_mpo_hits": [
+        "CPO",
+        "800G",
+        "1.6T",
+        "光模块",
+        "高速光模块",
+        "光通信",
+        "光互连",
+        "光连接",
+        "光电",
+        "收发模块",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO",
+        "800G",
+        "1.6T",
+        "高速光模块",
+        "光模块"
+      ],
+      "evidence_text": "2025年报预增；5G；F5G概念；QFII重仓；中国AI 50；人民币贬值受益；信息技术(A股)；共封装光学(CPO)；减持新规(不可减持)；创投；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺大盘；同花顺大盘股；同花顺新质50；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺热股；同花顺超大盘股；同花顺金仓100；同花顺金仓100全收益；同花顺金仓200；同花顺金仓200全收益；同花顺金仓30；同花顺金仓30全收益；同花顺金仓50；同花顺金仓50全收益；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；同花顺高盈利；基金重仓股；大盘股；山东；技术硬件与设备(A股)；数据中心；无人驾驶；昨日成交前十；昨日资金前十；昨日高振幅；机构重仓股；汽车电子；沪深300样本股；液冷服务器；深股通；深股通成交前十；百元股；百日新高；芯片概念；融资融券；行业龙头；近期强势；近期新高；近期解禁；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；高市净率；太平洋_业绩持续超预期增长，光互连全栈布局成型_20260624.pdf；山西证券_龙头交付优势充分体现，Scaleup光连接产品有望继续保持领先_20260527.pdf；西南证券_2026年一季报点评：800G放量驱动业绩兑现，1.6T开启新一轮成长接力_20260508.pdf；华龙证券_2026年一季报点评报告：全球算力投资持",
+      "relevance_score": 37
+    },
+    {
+      "code": "300502",
+      "name": "新易盛",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 62.6,
+      "grade": "A",
+      "moat_score": 23,
+      "moat_signals": [
+        "行业龙头",
+        "21券商"
+      ],
+      "growth_score": 30,
+      "profit_score": 10.0,
+      "rating_score": 9.4,
+      "consensus_score": 5,
+      "revenue_growth": 105.7595,
+      "profit_growth": 2767975248.13,
+      "roe": 14.5175,
+      "gross_margin": 49.161,
+      "report_count": 27,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "中",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 11.5,
+        "growth": 15.0,
+        "profit": 6.7,
+        "commercialization": 5.2,
+        "market": 10.0,
+        "risk": 0
+      },
+      "v4_score": 62.6,
+      "rating": "C",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 62.6,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.85,
+      "mapping_status": "verified",
+      "mapping_source": "main_business",
+      "evidence_gaps": [],
+      "mapping_quality_weight": 1.0,
+      "mapping_adjusted_score": 62.6,
+      "lpo_mpo_hits": [
+        "LPO",
+        "CPO",
+        "800G",
+        "1.6T",
+        "光模块",
+        "高速光模块",
+        "光通信",
+        "光器件",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "LPO",
+        "CPO",
+        "800G",
+        "1.6T",
+        "高速光模块",
+        "光模块"
+      ],
+      "evidence_text": "2025年报预增；5G；中国AI 50；人民币贬值受益；信息技术(A股)；共封装光学(CPO)；减持新规(不可减持)；创历史新高；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺大盘；同花顺大盘股；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺热股；同花顺超大盘股；同花顺金仓100；同花顺金仓100全收益；同花顺金仓200；同花顺金仓200全收益；同花顺金仓30；同花顺金仓30全收益；同花顺金仓50；同花顺金仓50全收益；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；同花顺高盈利；四川；基金重仓股；大盘股；技术硬件与设备(A股)；数据中心；昨日成交前十；昨日资金前十；昨日高振幅；沪深300样本股；深股通；深股通成交前十；电子设备、仪器和元件(A股)；百元股；百日新高；股权分散；芯片概念；融资融券；行业龙头；西部大开发；近期强势；近期新高；通信网络设备及器件；通信设备；高市净率；山西证券_1.6T环比上量将加快，盈利能力继续维持行业领先水平_20260527.pdf；开源证券_公司信息更新报告：业绩稳步增长，静待1.6T放量_20260426.pdf；国金证券_1Q物料与汇兑承压，看好后续1.6T产能释放带来利润增长_20260426.pdf；群益证券_全年利润持续高速增长，800G光模块市场份额预计快速提升_20260202.pdf；中国银河_3Q25业绩点评：营",
+      "relevance_score": 36
+    },
+    {
+      "code": "300548",
+      "name": "长芯博创",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 43.7,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 8.0,
+      "rating_score": 7.9,
+      "consensus_score": 2.0,
+      "revenue_growth": 24.5308,
+      "profit_growth": 127654983.87,
+      "roe": 6.415,
+      "gross_margin": 49.2219,
+      "report_count": 14,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 5.3,
+        "commercialization": 5.2,
+        "market": 4.0,
+        "risk": 0
+      },
+      "v4_score": 43.7,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 43.7,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 41.52,
+      "lpo_mpo_hits": [
+        "CPO",
+        "800G",
+        "光模块",
+        "光通信",
+        "光器件",
+        "硅光",
+        "光纤",
+        "光电",
+        "光收发",
+        "收发模块",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO",
+        "800G",
+        "硅光",
+        "光模块"
+      ],
+      "evidence_text": "2025年报预增；5G；F5G概念；专精特新；中证500成份股；信息技术(A股)；光纤概念；共封装光学(CPO)；减持计划；华为概念；同花顺中盘；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡投资；同花顺大盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺金仓100；同花顺金仓100全收益；同花顺金仓200；同花顺金仓200全收益；同花顺金仓50；同花顺金仓50全收益；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；同花顺高盈利；基金重仓股；技术硬件与设备(A股)；抖音概念(字节概念)；数据中心；昨日高振幅；机器人概念；机器视觉；浙江；深股通；电子设备、仪器和元件(A股)；百元股；股东户数减少；芯片概念；融资融券；近期并购重组；通信网络设备及器件；通信设备；铜缆高速连接；长三角一体化；高市净率；高贝塔值；华鑫证券_公司动态研究报告：博创注入长芯盛“芯”力量，有望整合资源和优势_2025-01-12.pdf；山西证券_业绩增长放缓，高速硅光与CPO赋能长期增长_2023-08-21.pdf；西南证券_业绩符合预期，硅光产品未来可期_2023-08-21.pdf；民生证券_2023年半年报点评：传统主业保持平稳，数通领域积极推进静待突破_2023-08-21.pdf；华金证券_净利润大幅增长，400G-DR4硅光模块已量产出货_2023-08-20.pdf；中邮证券_接入网产品需",
+      "relevance_score": 34
+    },
+    {
+      "code": "603083",
+      "name": "剑桥科技",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 38.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 6.0,
+      "rating_score": 4.2,
+      "consensus_score": 0.0,
+      "revenue_growth": 43.9813,
+      "profit_growth": 116923697.09,
+      "roe": 1.5765,
+      "gross_margin": 29.3292,
+      "report_count": 4,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 38.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 38.4,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 36.48,
+      "lpo_mpo_hits": [
+        "CPO",
+        "800G",
+        "1.6T",
+        "光模块",
+        "高速光模块",
+        "光纤"
+      ],
+      "strong_hits": [
+        "CPO",
+        "800G",
+        "1.6T",
+        "高速光模块",
+        "光模块"
+      ],
+      "evidence_text": "2025年报预增；5G；F5G概念；WiFi6；一带一路；上海(除浦东)；上证380成份股；人民币贬值受益；保险重仓；信息技术(A股)；共封装光学(CPO)；减持计划；华为概念；同花顺中盘；同花顺主板；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺大盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺激进投资；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；同花顺高盈利；工业互联网；技术硬件与设备(A股)；昨日打板表现；昨日打首板表现；昨日炸板股；昨日资金前十；昨日非ST打板；昨日非ST炸板；昨日高振幅；智能家居；沪股通；液冷服务器；物联网；百元股；社保新进；社保重仓；融资融券；通信终端及配件；通信设备；通信设备Ⅲ(A股)；华鑫证券_公司事件点评报告：全年业绩预增，深度绑定核心客户，1.6T光模块放量在即_20260125.pdf；华鑫证券_公司动态研究报告：800G及400G系列新品量产，光模块需求爆发推动利润高增_2025-06-12.pdf；开源证券_公司信息更新报告：有序整合待拐点释放，未来业绩有望边际改善_2020-09-02.pdf；中银国际_收购全球领先企业资产， 光模块新锐再现锋芒_2019-03-06.pdf；公司主营业务为基于合作模式(主要为JDM和ODM模式)进行家庭、企业及工业应用类ICT终端领域产品的研发、生产和销售 上海剑桥科技股份有限公司是一家主要",
+      "relevance_score": 27
+    },
+    {
+      "code": "688313",
+      "name": "仕佳光子",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 63.4,
+      "grade": "S",
+      "moat_score": 34,
+      "moat_signals": [
+        "进口替代"
+      ],
+      "growth_score": 30,
+      "profit_score": 6.0,
+      "rating_score": 7.6,
+      "consensus_score": 4.0,
+      "revenue_growth": 32.1833,
+      "profit_growth": 107223009.55,
+      "roe": 7.2443,
+      "gross_margin": 34.1319,
+      "report_count": 8,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "高",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 17.0,
+        "growth": 15.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 8.0,
+        "risk": 0
+      },
+      "v4_score": 63.4,
+      "rating": "C",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 63.4,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.85,
+      "mapping_status": "verified",
+      "mapping_source": "main_business",
+      "evidence_gaps": [],
+      "mapping_quality_weight": 1.0,
+      "mapping_adjusted_score": 63.4,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光通信",
+        "光器件",
+        "光芯片",
+        "连接器",
+        "光纤连接器",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO",
+        "光芯片"
+      ],
+      "evidence_text": "2025年报预增；5G；F5G概念；专精特新；中证500成份股；信息技术(A股)；光纤概念；共封装光学(CPO)；同花顺中盘；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除金融、石油石化)；同花顺大盘；同花顺沪深全A；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺激进投资；同花顺陆股通；同花顺高估值；同花顺高动量；同花顺高盈利；技术硬件与设备(A股)；数据中心；昨日高振幅；沪股通；河南；电子设备、仪器和元件(A股)；百元股；芯片概念；融资融券；通信网络设备及器件；通信设备；高市净率；开源证券_公司深度报告：光芯片和光互联领军企业不断破圈成长_20260601.pdf；中邮证券_算力时代的光芯引擎，IDM全链自主可控_20260227.pdf；群益证券_全年业绩持续高速增长，AI发展显著拉动光芯片需求_20260128.pdf；华鑫证券_公司动态研究报告：净利润显著高增，有源、无源产品多场景协同发展_2025-09-25.pdf；民生证券_2025年半年报点评：业绩超预期，AI显著拉动光器件产品需求_2025-08-01.pdf；民生证券_2023年年报及2024年一季报点评：24Q1业绩扭亏为盈，持续加强研发聚焦新品突破_2024-04-14.pdf；国金证券_国产替代正当时，双平台自主IDM能力共振_2022-12-19.pdf；开源证券_公司首次覆盖报告：自主可控芯来到，领军者蓄势待发_2020-09-03.pdf；覆盖光芯片及器件、室内光缆、线缆材料三大板块 公司聚焦光通信行业，主营",
+      "relevance_score": 24
+    },
+    {
+      "code": "300570",
+      "name": "太辰光",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 37.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 20.0,
+      "profit_score": 9.0,
+      "rating_score": 7.2,
+      "consensus_score": 1.0,
+      "revenue_growth": -8.0396,
+      "profit_growth": 61605670.4,
+      "roe": 3.7843,
+      "gross_margin": 37.7955,
+      "report_count": 11,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 10.0,
+        "profit": 6.0,
+        "commercialization": 5.2,
+        "market": 2.0,
+        "risk": 0
+      },
+      "v4_score": 37.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 37.4,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.45,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 35.53,
+      "lpo_mpo_hits": [
+        "MPO",
+        "CPO",
+        "光通信",
+        "光器件",
+        "光连接",
+        "连接器",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "MPO",
+        "CPO"
+      ],
+      "evidence_text": "5G；F5G概念；QFII重仓；中证500成份股；人民币贬值受益；传感器；信息技术(A股)；光纤概念；共封装光学(CPO)；创历史新高；同花顺中盘；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺大盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺陆股通；同花顺高估值；同花顺高动量；同花顺高盈利；技术硬件与设备(A股)；数据中心；昨日打板表现；昨日打首板表现；昨日炸板股；昨日非ST打板；昨日非ST炸板；昨日高振幅；深圳；深股通；电子设备、仪器和元件(A股)；百元股；百日新高；社保重仓；股权分散；芯片概念；融资融券；近期异动；近期新高；通信网络设备及器件；通信设备；铜缆高速连接；高市净率；高贝塔值；国金证券_MPO有望逐季放量，CPO新技术驱动成长_20260426.pdf；国金证券_盈利能力略有承压，产品矩阵向FAU、AWG等拓展_20260403.pdf；群益证券_康宁再接META大额订单，公司有望承接部分采购_20260129.pdf；中国银河_3Q25业绩点评：业绩持续增长，看好产能释放新动能_2025-11-04.pdf；群益证券_MPO产业具备先发优势，产能持续爬坡释放_2025-09-24.pdf；国金证券_光连接器件领军，CPO交换机核心标的_2025-07-01.pdf；华鑫证券_公司事件点评报告：AI算力建设拉动光器件，CPO技术发展带来新",
+      "relevance_score": 24
+    },
+    {
+      "code": "301205",
+      "name": "联特科技",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 34.7,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 20.0,
+      "profit_score": 8.0,
+      "rating_score": 1.7,
+      "consensus_score": 0.0,
+      "revenue_growth": -9.5649,
+      "profit_growth": 801289.35,
+      "roe": 0.1876,
+      "gross_margin": 43.4381,
+      "report_count": 0,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 10.0,
+        "profit": 5.3,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 34.7,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 34.7,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 32.97,
+      "lpo_mpo_hits": [
+        "CPO",
+        "800G",
+        "光模块",
+        "光通信",
+        "收发模块",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO",
+        "800G",
+        "光模块"
+      ],
+      "evidence_text": "5G；QFII重仓；人民币贬值受益；信息技术(A股)；共封装光学(CPO)；减持新规(不可减持)；创历史新高；同花顺中盘；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡盈利；同花顺大盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；技术硬件与设备(A股)；数据中心；昨日高振幅；深股通；湖北；百元股；百日新高；芯片概念；融资融券；近期异动；近期强势；近期新高；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；高市净率；高市盈率；高贝塔值；光通信收发模块的研发、生产和销售 武汉联特科技股份有限公司（以下简称“联特科技”、公司）成立于2011年，坐落在武汉中国光谷，是专业从事研发、生产和销售光模块的制造商。通过几年高速发展，公司已跻身全球光模块主流供应商行列，被认定为高新技术企业和东湖新技术开发区瞪羚企业，是中国光谷骨干企业之一。自成立以来，联特科技一直专注10G/25G/40G/100G/200G/400G/800G光模块的开发，产品种类齐全，包括:QSFP56,SFP56,SFP+,XFP,QSFP+, QSFP28,OSFP,QSFP28-DD,",
+      "relevance_score": 21
+    },
+    {
+      "code": "002281",
+      "name": "光迅科技",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 68.4,
+      "grade": "S",
+      "moat_score": 40,
+      "moat_signals": [
+        "进口替代",
+        "行业龙头",
+        "技术壁垒",
+        "7券商"
+      ],
+      "growth_score": 30,
+      "profit_score": 6.0,
+      "rating_score": 9.1,
+      "consensus_score": 5,
+      "revenue_growth": 24.7949,
+      "profit_growth": 227777420.56,
+      "roe": 2.3491,
+      "gross_margin": 26.8326,
+      "report_count": 28,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "高",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 20.0,
+        "growth": 15.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 10.0,
+        "risk": 0
+      },
+      "v4_score": 68.4,
+      "rating": "B",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 68.4,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 64.98,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光通信",
+        "光器件",
+        "光芯片",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO",
+        "光芯片"
+      ],
+      "evidence_text": "5G；6G概念；F5G概念；QFII重仓；东数西算(算力)；中证500成份股；信息技术(A股)；光纤概念；共封装光学(CPO)；华为概念；同花顺主板；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡动量；同花顺大盘；同花顺大盘股；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺热股；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高盈利；国企改革；增发募集指数；大盘股；央企国企改革；技术硬件与设备(A股)；抖音概念(字节概念)；数据中心；昨日资金前十；液冷服务器；深市新主板；深股通；湖北；百元股；百度概念；社保重仓；股权转让(并购重组)；腾讯概念；芯片概念；融资融券；近期强势；近期解禁；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；量子科技；阿里巴巴概念；国信证券_自研光芯片垂直布局，受益国内AI算力发展_2025-12-29.pdf；中国银河_2025年半年报业绩点评：数通贡献业绩高增，垂直集成优势持续兑现_2025-09-04.pdf；中国银河_光迅科技公司首次覆盖报告：全光产业链布局，行至将远未来可期_2025-03-05.pdf；国信证券_国产光器件领先企业，自主可控受益国产算力发展_2024-05-17.pdf；华安证券_Q3业绩表现稳健，公司近期推出激光雷达光源等新品_2022-11-21.pdf；华安证券_三季度毛利率短暂承压，传输基本盘稳定数通成长性好_2021-",
+      "relevance_score": 20
+    },
+    {
+      "code": "688205",
+      "name": "德科立",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 44.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 9.0,
+      "rating_score": 6.0,
+      "consensus_score": 2.0,
+      "revenue_growth": 27.9698,
+      "profit_growth": 14135300.0,
+      "roe": 0.8431,
+      "gross_margin": 25.734,
+      "report_count": 4,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 6.0,
+        "commercialization": 5.2,
+        "market": 4.0,
+        "risk": 0
+      },
+      "v4_score": 44.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 44.4,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "research_report",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 42.18,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光模块",
+        "光通信",
+        "光器件",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO",
+        "光模块"
+      ],
+      "evidence_text": "5G；F5G概念；专精特新；东数西算(算力)；信息技术(A股)；光纤概念；共封装光学(CPO)；同花顺中盘；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除金融、石油石化)；同花顺均衡投资；同花顺均衡盈利；同花顺大盘；同花顺沪深全A；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺金仓100；同花顺金仓100全收益；同花顺金仓200；同花顺金仓200全收益；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；技术硬件与设备(A股)；数据中心；昨日高振幅；江苏；沪股通；百元股；芯片概念；融资融券；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；高市盈率；高贝塔值；中航证券_DCI放量正当时，OCS布局筑先机_20260617.pdf；山西证券_收入增长提速，DCI配套器件和非相干光模块是增长主力_20260527.pdf；华鑫证券_公司动态研究报告：盈利能力短期承压，数通市场产品高速增长_2025-11-30.pdf；华金证券_新股专题覆盖：德科立（2022年第79期）_2022-07-22.pdf；光电子器件的研发、生产和销售 无锡市德科立光电子技术股份有限公司,前身是无锡市中兴光电子技术有限公司,是一家专业从事光电子产品的研究、开发及生产和销售的高新技术企业,拥有一系列自主知识产权的先进技术和产品。公司于2000年落户无锡国家高新开发区内,占地面积60000平方米。公司自成立以来承担过国家火炬创新项目、国家光电子示范工程项目、国家863项目、国家重大科技成果转化项目,公司“WDM超长距",
+      "relevance_score": 20
+    },
+    {
+      "code": "920045",
+      "name": "蘅东光",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 45.1,
+      "grade": "B",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 13.0,
+      "rating_score": 6.6,
+      "consensus_score": 1.0,
+      "revenue_growth": 68.4954,
+      "profit_growth": 106.4715,
+      "roe": 38.3943,
+      "gross_margin": 26.4792,
+      "report_count": 7,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 8.7,
+        "commercialization": 5.2,
+        "market": 2.0,
+        "risk": 0
+      },
+      "v4_score": 45.1,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 45.1,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 42.84,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光模块",
+        "光通信",
+        "光器件",
+        "光纤",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO",
+        "光模块"
+      ],
+      "evidence_text": "2025年报预增；人民币贬值受益；信息技术(A股)；光纤概念；共封装光学(CPO)；减持新规(不可减持)；减持计划；同花顺中盘；同花顺全A(加权)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺高价股；技术硬件与设备(A股)；数据中心；新股与次新股；无人驾驶；昨日高振幅；深圳；电子设备、仪器和元件(A股)；百元股；粤港澳大湾区；融资融券；远端次新股；通信网络设备及器件；通信设备；高市净率；华源证券_数据中心基建推动无源光器件收入yoy+61.5%，布线产品与光器件有望持续迭代升级_20260514.pdf；开源证券_北交所信息更新：深耕光模块布局CPO+6912芯数新品研发完成，2025年归母净利润同比+106%_20260507.pdf；东吴证券_2025年报暨2026一季报点评：业绩高速增长、稳享光通信行业红利_20260506.pdf；华源证券_AI算力核心光器件供应商，绑定全球头部光通信品牌成长可期_20260124.pdf；东吴证券_光通信精密器件供应商，产能扩张抢先机_2025-12-31.pdf；山西证券_光通信领域的国家级“专精特新”小巨人_2025-12-30.pdf；中国银河_蘅东光新股报告：光器件小巨人，受益AI应用业绩爆发增长_2025-12-26.pdf；光通信领域无源光器件产品的研发、制造与销售。 蘅东光通讯技术(深圳)股份有限公司聚焦于光通信领域无源光器件产品的研发、制造与销售，主要业务板块包括无源光纤布线、无源内连光器件及相关配套业务三大板块，主要产品包括光纤跳线、光纤柔性线路产品、",
+      "relevance_score": 18
+    },
+    {
+      "code": "300252",
+      "name": "金信诺",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 30.7,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 16.0,
+      "profit_score": 5.0,
+      "rating_score": 3.4,
+      "consensus_score": 0.0,
+      "revenue_growth": 19.6584,
+      "profit_growth": -9041238.49,
+      "roe": 0.9619,
+      "gross_margin": 18.9879,
+      "report_count": 2,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 8.0,
+        "profit": 3.3,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 30.7,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 30.7,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 29.16,
+      "lpo_mpo_hits": [
+        "CPO",
+        "连接器",
+        "高速连接器",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO",
+        "高速连接器"
+      ],
+      "evidence_text": "5G；6G概念；F5G概念；PCB概念；WiFi6；东数西算(算力)；人工智能；信息技术(A股)；光纤概念；共封装光学(CPO)；军工；军工电子；军工电子Ⅲ；军民融合；减持新规(不可减持)；华为概念；卫星导航；同花顺低盈利；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡估值；同花顺均衡动量；同花顺均衡投资；同花顺大盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺陆股通；商业航天；国产航母；增发募集指数；富士康概念；技术硬件与设备(A股)；数据中心；新能源汽车；无线耳机；毫米波雷达；汽车电子；深圳；深股通；物联网；粤港澳大湾区；芯片概念；车联网(车路协同)；通信设备Ⅲ(A股)；铜缆高速连接；民生证券_业绩增长稳定，布局5G+军工_2019-02-10.pdf；民生证券_通讯+军工双线发力，业绩有望快速增长_2018-12-06.pdf；中高端射频同轴电缆的研发、生产和销售,主导产品包括半柔电缆、低损电缆、稳相电缆、军标系列电缆、半刚电缆、轧纹电缆等,广泛应用于移动通信、微波通信、广播电视、隧道通信、通信终端、军用电子、航空航天等领域。 深圳金信诺高新技术股份有限公司成立于2002年4月,是一家集研发、生产和销售于一体的高科技民营上市公司(股票代码:300252),专注通过践行军民融合的持续创新以及基于5G智联网的前瞻布局为全球多行业、多领域的核心客户提供实现从普通连接到有效连接转型、",
+      "relevance_score": 18
+    },
+    {
+      "code": "600498",
+      "name": "烽火通信",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 40.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 26.0,
+      "profit_score": 6.0,
+      "rating_score": 8.1,
+      "consensus_score": 2.0,
+      "revenue_growth": 11.4026,
+      "profit_growth": 34697868.43,
+      "roe": 0.2187,
+      "gross_margin": 26.4445,
+      "report_count": 16,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 13.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 4.0,
+        "risk": 0
+      },
+      "v4_score": 40.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 40.4,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.85,
+      "mapping_status": "verified",
+      "mapping_source": "main_business",
+      "evidence_gaps": [],
+      "mapping_quality_weight": 1.0,
+      "mapping_adjusted_score": 40.4,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光模块",
+        "光通信",
+        "光纤",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO",
+        "光模块"
+      ],
+      "evidence_text": "5G；6G概念；AI智能体；DeepSeek概念；F5G概念；MCU芯片；WiFi6；一带一路；上证380成份股；东数西算(算力)；中证500成份股；云计算；人工智能；信息技术(A股)；光纤概念；共封装光学(CPO)；创历史新高；创投；华为昇腾；华为鲲鹏；卫星导航；同花顺中盘；同花顺主板；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡估值；同花顺均衡动量；同花顺均衡投资；同花顺均衡盈利；同花顺大盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺热股；同花顺金仓200；同花顺金仓200全收益；同花顺陆股通；商业航天；国企改革；国资云；央企国企改革；技术硬件与设备(A股)；数字乡村；数据中心；数据安全；数据要素；昨日打板表现；昨日打首板表现；昨日炸板股；昨日资金前十；昨日非ST打板；昨日非ST炸板；昨日高振幅；智慧城市；智慧政务；智能医疗；汽车芯片；沪股通；海工装备；液冷服务器；湖北；特高压；百日新高；社保新进；社保重仓；网络安全；芯片概念；融资融券；近期新高；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；华鑫证券_公司事件点评报告：经营性现金流好转，聚焦重点客户及重点领域_20260520.pdf；华金证券_疫情导致Q1亏损，全年需求向好_2020-05-07.pdf；东吴证券_5G承载规模招标开启，业绩增长有望逐季恢复_2020-05-05.pdf；中国银河_5G SA承载需",
+      "relevance_score": 16
+    },
+    {
+      "code": "600522",
+      "name": "中天科技",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 66.7,
+      "grade": "S",
+      "moat_score": 38,
+      "moat_signals": [
+        "行业龙头",
+        "13券商"
+      ],
+      "growth_score": 30,
+      "profit_score": 5.0,
+      "rating_score": 9.1,
+      "consensus_score": 5,
+      "revenue_growth": 34.7112,
+      "profit_growth": 824931171.27,
+      "roe": 2.4331,
+      "gross_margin": 15.5814,
+      "report_count": 26,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "高",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 19.0,
+        "growth": 15.0,
+        "profit": 3.3,
+        "commercialization": 5.2,
+        "market": 10.0,
+        "risk": 0
+      },
+      "v4_score": 66.7,
+      "rating": "B",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 66.7,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 63.37,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光通信",
+        "连接器",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；6G概念；DeepSeek概念；PCB概念；PET铜箔；QFII重仓；一带一路；上证180成份股；东数西算(算力)；低空经济；信息技术(A股)；储能；光伏概念；光纤概念；共封装光学(CPO)；创历史新高；华为概念；可控核聚变；同花顺主板；同花顺低估值；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡动量；同花顺均衡投资；同花顺大盘；同花顺大盘股；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺热股；同花顺金仓100；同花顺金仓100全收益；同花顺金仓200；同花顺金仓200全收益；同花顺金仓50；同花顺金仓50全收益；同花顺陆股通；同花顺高盈利；商业航天；固态电池；基金重仓股；大盘股；工业互联网；技术硬件与设备(A股)；数字经济；数据中心；数据要素；新能源汽车；昨日成交前十；昨日打板表现；昨日打首板表现；昨日炸板股；昨日资金前十；昨日非ST打板；昨日非ST炸板；昨日高振幅；智能电网；机器人概念；机构重仓股；柔性直流输电；核电；氢能源；江苏；汽车电子；沪深300样本股；沪股通；沪股通成交前十；海工装备；液冷服务器；特高压；百日新高；碳中和；绿色电力；芯片概念；融资融券；证金持股；超导概念；超级电容；近期新高；通信线缆及配套；通信设备；通信设备Ⅲ(A股)；量子科技；钙钛矿电池；铜缆高速连接；锂电池概念；阿里巴巴概念；风电；高贝塔值；中邮证券_AI驱动光通信需求，空芯光纤实现商业化突",
+      "relevance_score": 15
+    },
+    {
+      "code": "600487",
+      "name": "亨通光电",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 59.2,
+      "grade": "A",
+      "moat_score": 23,
+      "moat_signals": [
+        "行业龙头",
+        "13券商"
+      ],
+      "growth_score": 30,
+      "profit_score": 5.0,
+      "rating_score": 9.4,
+      "consensus_score": 5,
+      "revenue_growth": 34.0867,
+      "profit_growth": 1133293686.59,
+      "roe": 3.4441,
+      "gross_margin": 15.9795,
+      "report_count": 32,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "中",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 11.5,
+        "growth": 15.0,
+        "profit": 3.3,
+        "commercialization": 5.2,
+        "market": 10.0,
+        "risk": 0
+      },
+      "v4_score": 59.2,
+      "rating": "C",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 59.2,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.45,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 56.24,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光通信",
+        "光器件",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；6G概念；DeepSeek概念；F5G概念；一带一路；上证380成份股；中证500成份股；人形机器人；保险重仓；信息技术(A股)；光纤概念；共封装光学(CPO)；军工；减持新规(不可减持)；创历史新高；创投；华为概念；同花顺主板；同花顺低估值；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺出海50；同花顺均衡动量；同花顺大盘；同花顺大盘股；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺激进投资；同花顺热股；同花顺金仓100；同花顺金仓100全收益；同花顺金仓200；同花顺金仓200全收益；同花顺金仓30；同花顺金仓30全收益；同花顺金仓50；同花顺金仓50全收益；同花顺陆股通；同花顺高盈利；基金重仓股；大盘股；太赫兹；小米汽车；技术硬件与设备(A股)；数据中心；新能源汽车；无人驾驶；昨日成交前十；昨日打板表现；昨日打首板表现；昨日涨停表现；昨日资金前十；昨日非ST打板；昨日非ST涨停表现；昨日非ST首板；昨日首板表现；昨日高振幅；智慧城市；智能电网；最近多板；机器人概念；柔性直流输电；水利；江苏；沪深主板昨日涨停；沪股通；沪股通成交前十；海工装备；液冷服务器；特高压；百元股；百日新高；社保重仓；网络安全；芯片概念；融资融券；近期强势；近期新高；近期解禁；通信线缆及配套；通信设备；通信设备Ⅲ(A股)；量子科技；长三角一体化；风电；高贝塔值；中国银河_业绩稳健增长，能源互联在手订单",
+      "relevance_score": 15
+    },
+    {
+      "code": "600105",
+      "name": "永鼎股份",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "软件",
+      "total_score": 46.4,
+      "grade": "C",
+      "moat_score": 4,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 6.0,
+      "rating_score": 6.6,
+      "consensus_score": 3.0,
+      "revenue_growth": 41.9166,
+      "profit_growth": 160776201.2,
+      "roe": 4.8904,
+      "gross_margin": 26.1967,
+      "report_count": 5,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "软件"
+      ],
+      "company_product_map": {
+        "products": [
+          "软件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 2.0,
+        "growth": 15.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 6.0,
+        "risk": 0
+      },
+      "v4_score": 46.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 46.4,
+      "node_id": "ai_compute_software",
+      "node_name": "软件",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 44.08,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光通信",
+        "光器件",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "2025年报预增；3D打印；5G；QFII重仓；一带一路；专精特新；东数西算(算力)；中证500成份股；低空经济；信息技术(A股)；光纤概念；共封装光学(CPO)；军工；创历史新高；华为概念；华为汽车；参股银行；可控核聚变；同花顺中盘；同花顺主板；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺大盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺激进投资；同花顺热股；同花顺金仓100；同花顺金仓100全收益；同花顺金仓200；同花顺金仓200全收益；同花顺陆股通；同花顺高估值；同花顺高动量；同花顺高盈利；商业航天；工业互联网；技术硬件与设备(A股)；数据中心；数据安全；新能源汽车；昨日打板表现；昨日打首板表现；昨日涨停表现；昨日炸板股；昨日非ST打板；昨日非ST涨停表现；昨日非ST炸板；昨日非ST首板；昨日首板表现；核电；比亚迪概念；江苏；沪深主板昨日涨停；沪股通；海工装备；百日新高；网络安全；芯片概念；融资融券；超导概念；近期新高；通信线缆及配套；通信设备；通信设备Ⅲ(A股)；长三角一体化；风电；高市净率；高市盈率；高贝塔值；民生证券_2022年年报点评：光通信全产业链布局，信新能源汽车线束持续扩张_2023-04-20.pdf；民生证券_2022年业绩预告点评：光纤光缆与汽车线束双轮驱动，扣非净利高增_2023-01-19.pdf；西南证券_股权激励彰显信心，海外业务静待开花_20",
+      "relevance_score": 15
+    },
+    {
+      "code": "002792",
+      "name": "通宇通讯",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 40.2,
+      "grade": "C",
+      "moat_score": 15,
+      "moat_signals": [
+        "行业龙头"
+      ],
+      "growth_score": 16.0,
+      "profit_score": 8.0,
+      "rating_score": 5.2,
+      "consensus_score": 0.0,
+      "revenue_growth": 11.5707,
+      "profit_growth": -23014841.46,
+      "roe": -0.458,
+      "gross_margin": 19.2044,
+      "report_count": 7,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 7.5,
+        "growth": 8.0,
+        "profit": 5.3,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 40.2,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 40.2,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 38.19,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光模块",
+        "光通信",
+        "光电"
+      ],
+      "strong_hits": [
+        "CPO",
+        "光模块"
+      ],
+      "evidence_text": "5G；6G概念；F5G概念；QFII重仓；WiFi6；一带一路；中俄贸易概念；乡村振兴；人工智能；低空经济；信息技术(A股)；储能；共封装光学(CPO)；华为概念；华为汽车；卫星导航；同花顺主板；同花顺低盈利；同花顺保守投资；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡动量；同花顺大盘；同花顺小盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺陆股通；同花顺高估值；商业航天；广东(除深圳)；技术硬件与设备(A股)；换电概念；数字乡村；无人驾驶；毫米波雷达；汽车电子；消费电子概念；深市新主板；深股通；粤港澳大湾区；虚拟电厂；融资融券；近期并购重组；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；铜缆高速连接；高市盈率；中国银河_通宇通讯首次覆盖报告：双轮驱动，5-6G+卫星互联网产业未来可期_2025-11-27.pdf；世纪证券_2020及2021Q1财报点评：业绩恢复，进一步强化光通信布局_2021-04-29.pdf；世纪证券_2020年三季报点评：Q3业绩暂阻，5G基建恢复可期_2020-11-03.pdf；世纪证券_2020年中报点评：二季度业绩好转，将受益5G基建_2020-09-01.pdf；太平洋_借物联东风，迎业绩拐点_2017-08-23.pdf；国元证券_基站天线小龙头，长期趋势向好_2017-02-22.pdf；信达证券_中标中国电信大单，4.5G布网助",
+      "relevance_score": 14
+    },
+    {
+      "code": "001267",
+      "name": "汇绿生态",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 38.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 6.0,
+      "rating_score": 3.4,
+      "consensus_score": 0.0,
+      "revenue_growth": 25.184,
+      "profit_growth": 14059098.07,
+      "roe": 0.9094,
+      "gross_margin": 21.595,
+      "report_count": 2,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 38.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 38.4,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 36.48,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光模块",
+        "光通信",
+        "光电"
+      ],
+      "strong_hits": [
+        "CPO",
+        "光模块"
+      ],
+      "evidence_text": "乡村振兴；共封装光学(CPO)；同花顺中盘；同花顺主板；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡盈利；同花顺大盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺陆股通；同花顺高估值；同花顺高动量；土壤修复；增发预案指数；密集调研；工业(A股)；建筑与工程Ⅲ(A股)；建筑与工程Ⅳ(A股)；新型城镇化；污水处理；深市新主板；深股通；湖北；社保重仓；股权转让(并购重组)；资本品(A股)；通信网络设备及器件；通信设备；铜缆高速连接；高市净率；高市盈率；民生证券_公司点评：增资优质光模块公司武汉钧恒，持股比例将提升至35%_2024-10-02.pdf；民生证券_公司动态报告：切入高成长光模块赛道，未来大有可为_2024-08-12.pdf；城市园林行业,计算机服务业 公司成立于1990年，注册资金7.79亿元，是一家综合性生态环境建设企业，集规划设计、环境修复为一体，专注绿色环保、水生态及环境治理服务，匠心营造城市人居环境，是中国环境建设先进企业。业务涵盖生态环保、生态景观、生态旅游等，拥有集策划、规划、设计、研发、建设、生产、资源循环利用及运营等为一体的全产业链，为客户在生态环境建设方面提供整体解决方案。公司致力于在生态环境业务领域打造多元化业务平台，助力国家生态文明建设。目前已形成了以园林工程施工、园林景观设计、精品苗木种植为核心的完整园林景观建",
+      "relevance_score": 14
+    },
+    {
+      "code": "300620",
+      "name": "光库科技",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 40.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 6.0,
+      "rating_score": 6.3,
+      "consensus_score": 1.0,
+      "revenue_growth": 60.7961,
+      "profit_growth": 35806560.83,
+      "roe": 2.0451,
+      "gross_margin": 36.6331,
+      "report_count": 6,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 2.0,
+        "risk": 0
+      },
+      "v4_score": 40.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 40.4,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 38.38,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光通信",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "2025年报预增；2026一季报预增；3D打印；5G；QFII重仓；一带一路；中证500成份股；信息技术(A股)；光纤概念；共封装光学(CPO)；创历史新高；卫星导航；同花顺中盘；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡盈利；同花顺大盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；商业航天；国企改革；增发预案指数；广东(除深圳)；技术硬件与设备(A股)；数据中心；无人驾驶；昨日资金前十；昨日高振幅；机构重仓股；横琴新区；海工装备；深股通；珠海；电子设备、仪器和元件(A股)；百元股；百日新高；粤港澳大湾区；股权转让(并购重组)；芯片概念；融资融券；近期强势；近期新高；通信网络设备及器件；通信设备；量子科技；高市净率；高贝塔值；华龙证券_2024年三季报点评报告：积极开拓市场，收入大幅提升_2024-11-09.pdf；西南证券_光纤器件领先企业，薄膜铌酸锂未来可期_2023-08-18.pdf；民生证券_公司点评报告：设立泰国生产基地，优化境外产能布局_2023-06-11.pdf；国信证券_股权激励深度绑定核心骨干，助力公司长期发展_2022-05-27.pdf；民生证券_公司点评：股权激励提振成长动力，业绩目标彰显长期发展信心_2022-05-26.pdf；民生证券_公司点评报告：业绩超预期，铌酸锂和激光雷达",
+      "relevance_score": 13
+    },
+    {
+      "code": "002902",
+      "name": "铭普光磁",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 39.9,
+      "grade": "C",
+      "moat_score": 15,
+      "moat_signals": [
+        "行业龙头"
+      ],
+      "growth_score": 22.0,
+      "profit_score": 3.0,
+      "rating_score": 4.9,
+      "consensus_score": 0.0,
+      "revenue_growth": 34.9429,
+      "profit_growth": -22277194.22,
+      "roe": -3.7075,
+      "gross_margin": 15.6678,
+      "report_count": 6,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 7.5,
+        "growth": 11.0,
+        "profit": 2.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 39.9,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 39.9,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 37.9,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光通信",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；F5G概念；QFII重仓；一带一路；体育产业；信息技术(A股)；储能；充电桩；光伏概念；共封装光学(CPO)；华为概念；华为海思概念股；同花顺主板；同花顺低动量；同花顺低盈利；同花顺保守投资；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺小盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺陆股通；同花顺高估值；商业航天；工业互联网；广东(除深圳)；技术硬件与设备(A股)；数字经济；数据中心；新能源汽车；昨日高振幅；智能穿戴；汽车电子；海工装备；消费电子概念；深市新主板；深股通；电子设备、仪器和元件(A股)；第三代半导体；粤港澳大湾区；芯片概念；融资融券；跨境电商；车联网(车路协同)；通信网络设备及器件；通信设备；铜缆高速连接；露营经济；民生证券_首次覆盖报告：光磁元器件小龙头，光通信与新能源业务并进_2023-11-14.pdf；万联证券_季报点评报告：5G发展带动光磁通信元器件需求攀升，公司Q3营收稳定增长_2020-10-31.pdf；万联证券_半年报点评报告：光磁通信元器件制造商有望重点受益5G建设加速_2020-08-04.pdf；万联证券_点评报告：轻装上阵，2019Q1盈利同比增长可期_2019-04-09.pdf；万联证券_首次覆盖：光、磁业务双驱动，5G建设的核心标的_2019-03-12.pdf；华鑫证券_新股询价报告_2017-09-12.pdf；光磁通信元器件产品的研发、",
+      "relevance_score": 13
+    },
+    {
+      "code": "300913",
+      "name": "兆龙互连",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 38.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 26.0,
+      "profit_score": 9.0,
+      "rating_score": 1.7,
+      "consensus_score": 0.0,
+      "revenue_growth": 13.4681,
+      "profit_growth": 47625203.51,
+      "roe": 1.8457,
+      "gross_margin": 21.07,
+      "report_count": 0,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 13.0,
+        "profit": 6.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 38.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 38.4,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 36.48,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光通信",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；QFII重仓；人民币贬值受益；光伏概念；光纤概念；共封装光学(CPO)；减持计划；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺大盘；同花顺小盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺陆股通；同花顺高估值；同花顺高动量；同花顺高盈利；工业(A股)；数据中心；新型工业化；机器人概念；机器视觉；浙江；深股通；电气设备(A股)；电气部件与设备(A股)；百日新高；股东户数增加；融资融券；资本品(A股)；通信线缆及配套；通信设备；铜缆高速连接；数据电缆、专用电缆和连接产品设计、制造与销售。 兆龙互连创建于 1993 年，是一家制造数据线缆及连接组件的高新技术企业，是中国通信标准化协会全权会员、数据电缆国家标准起草单公司与国内著名高校院所建立了紧密的产学研合作，与上海电缆研究所共建科研生产基地，与清华大学合作开展材料处理技术的研究，与浙江大学共建信号完整性与电磁兼容联合实验室。公司占地133亩，生产车间建筑面积6万平方米，在建车间5万平方米。公司建有省级企业研究院、省级企业技术中心、省级高新技术企业研究开发中心等创新平台，研发中心具备齐全的高频传输性能、机",
+      "relevance_score": 13
+    },
+    {
+      "code": "000070",
+      "name": "特发信息",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 27.9,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 13.0,
+      "profit_score": 3.0,
+      "rating_score": 5.4,
+      "consensus_score": 0.0,
+      "revenue_growth": 5.0588,
+      "profit_growth": -11423619.77,
+      "roe": -0.9468,
+      "gross_margin": 19.2478,
+      "report_count": 8,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 6.5,
+        "profit": 2.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 27.9,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 27.9,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 26.5,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光器件",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；6G概念；F5G概念；QFII重仓；一带一路；东数西算(算力)；人工智能；传感器；低空经济；信创；信息技术(A股)；光伏概念；光纤概念；共封装光学(CPO)；军工；军工信息化；减持新规(不可减持)；创投；华为概念；卫星导航；同花顺主板；同花顺低盈利；同花顺保守投资；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺大盘；同花顺小盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺陆股通；同花顺高估值；同花顺高动量；国企改革；国资云；大飞机；成飞概念；技术硬件与设备(A股)；抖音概念(字节概念)；摘帽；数据中心；无人机；昨日打板表现；昨日打首板表现；昨日炸板股；昨日非ST打板；昨日非ST炸板；智慧城市；智慧灯杆；智能电网；深圳；深圳国企改革；深市新主板；深股通；物业管理；特高压；百度概念；算力租赁；粤港澳大湾区；绿色电力；腾讯概念；通信线缆及配套；通信设备；通信设备Ⅲ(A股)；阿里巴巴概念；高铁；中邮证券_信息赋能，数字未来_20260526.pdf；中邮证券_信息赋能，数字未来_20260526.pdf；东吴证券_业务平稳发展，市场份额持续改善_2018-08-17.pdf；西南证券_2018年半年报点评：业绩符合预期，看好军工信息化发展潜力_2018-08-16.pdf；东吴证券_拟并购军用计算机优秀标的，进一步强化军工信息化业务_2018-07-13.pdf；东吴证券_拟发行可转",
+      "relevance_score": 13
+    },
+    {
+      "code": "603220",
+      "name": "中贝通信",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 27.7,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 10.0,
+      "profit_score": 5.0,
+      "rating_score": 3.4,
+      "consensus_score": 0.0,
+      "revenue_growth": -11.7967,
+      "profit_growth": -3980209.88,
+      "roe": -0.0001,
+      "gross_margin": 16.8602,
+      "report_count": 2,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 5.0,
+        "profit": 3.3,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 27.7,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 27.7,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "research_report",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 26.31,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光通信",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；6G概念；AI应用；AI智能体；DeepSeek概念；F5G概念；QFII重仓；一带一路；东数西算(算力)；人工智能；低空经济；信息技术(A股)；储能；充电桩；光伏概念；光纤概念；共享单车；共封装光学(CPO)；华为昇腾；华为概念；卫星导航；同花顺主板；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡动量；同花顺均衡投资；同花顺均衡盈利；同花顺大盘；同花顺小盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺陆股通；同花顺高估值；含可转债；技术硬件与设备(A股)；数据中心；新能源汽车；智慧城市；智慧政务；沪股通；湖北；算力租赁；融资融券；车联网(车路协同)；通信工程及服务；通信服务；通信设备Ⅲ(A股)；锂电池概念；华鑫证券_公司事件点评报告：主业经营稳定，算力业务开始发力_2025-05-11.pdf；民生证券_公司点评：再拓AI算力客户，算力租赁商业模式逐渐清晰_2023-09-19.pdf；5G新基建业务、智算业务、智慧城市及其他 中贝通信集团股份有限公司（原武汉贝斯特），1992年成立，2018年11月在上海证券交易所主板上市（贝通信 603220），是专业从事通信网络技术服务的高新技术企业，业务以通信网络建设为主，同时兼顾通信与信息化系统集成、通信网络优化与维护、通信网络规划与设计业务。公司客户以中国移动、中国电信、中国联通等三大电信运营商为主，为中国铁塔、南水北调、中",
+      "relevance_score": 13
+    },
+    {
+      "code": "301165",
+      "name": "锐捷网络",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 45.9,
+      "grade": "B",
+      "moat_score": 15,
+      "moat_signals": [
+        "行业龙头"
+      ],
+      "growth_score": 30,
+      "profit_score": 6.0,
+      "rating_score": 4.2,
+      "consensus_score": 0.0,
+      "revenue_growth": 18.2616,
+      "profit_growth": 111879844.28,
+      "roe": 2.4288,
+      "gross_margin": 35.6968,
+      "report_count": 4,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 7.5,
+        "growth": 15.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 45.9,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 45.9,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 43.6,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光模块",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO",
+        "光模块"
+      ],
+      "evidence_text": "5G；6G概念；AIGC概念；AI应用；AI智能体；WiFi6；一带一路；东数西算(算力)；中国AI 50；云办公；人工智能；信创；信息技术(A股)；共封装光学(CPO)；同花顺中盘；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡投资；同花顺大盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺陆股通；同花顺高估值；同花顺高动量；同花顺高盈利；国企改革；国资云；小米概念；工业互联网；快手概念；技术硬件与设备(A股)；抖音概念(字节概念)；数字经济；数据中心；新型工业化；智能医疗；机构重仓股；沪深300样本股；液冷服务器；深股通；百度概念；福建；网络安全；腾讯概念；蚂蚁集团概念；融资融券；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；阿里巴巴概念；开源证券_公司首次覆盖报告：从高端交换机到光模块全链条布局的网络设备龙头_20260602.pdf；海通国际_锐捷网络2025年三季报点评：Q3业务维持景气，利润受计提奖金影响_2025-11-04.pdf；民生证券_2024年年报点评：净利润实现较快增长，数据中心交换机需求强劲_2025-04-04.pdf；国信证券_企业网设备新贵，中小客户解决方案能力强_2022-12-19.pdf；网络设备、网络安全产品及云桌面解决方案的研发、设计和销售。 锐捷网络，行业领先的ICT基础设施及行业解决方案提供商，主营业务为网络设备、网络安全产品及云桌",
+      "relevance_score": 12
+    },
+    {
+      "code": "688668",
+      "name": "鼎通科技",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 52.4,
+      "grade": "B",
+      "moat_score": 8,
+      "moat_signals": [
+        "7券商"
+      ],
+      "growth_score": 30,
+      "profit_score": 6.0,
+      "rating_score": 7.4,
+      "consensus_score": 5,
+      "revenue_growth": 20.7846,
+      "profit_growth": 76636211.42,
+      "roe": 3.9806,
+      "gross_margin": 32.3924,
+      "report_count": 6,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 4.0,
+        "growth": 15.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 10.0,
+        "risk": 0
+      },
+      "v4_score": 52.4,
+      "rating": "C",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 52.4,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "research_report",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 49.78,
+      "lpo_mpo_hits": [
+        "光模块",
+        "连接器",
+        "光纤",
+        "光电"
+      ],
+      "strong_hits": [
+        "光模块"
+      ],
+      "evidence_text": "2025年报预增；5G；信息技术(A股)；光纤概念；创历史新高；同花顺中盘；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除金融、石油石化)；同花顺大盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺激进投资；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；同花顺高盈利；商业航天；广东(除深圳)；技术硬件与设备(A股)；新能源汽车；昨日高振幅；机器视觉；比亚迪概念；沪股通；液冷服务器；电子设备、仪器和元件(A股)；百元股；百日新高；社保新进；社保重仓；股东户数增加；英伟达概念；融资融券；近期强势；近期新高；通信网络设备及器件；通信设备；铜缆高速连接；长安汽车概念；高市净率；高贝塔值；山西证券_CAGE持续扩产上量，光模块液冷迎来渗透率快速提升_20260225.pdf；民生证券_事件点评：股权激励方案出台，彰显信心增长可期_2024-03-16.pdf；民生证券_2023年半年报点评：Q2业绩短期承压，加码车载业务布局_2023-08-18.pdf；华安证券_全年业绩符合预期，通信与汽车新料号持续扩张_2023-01-15.pdf；民生证券_2022年度业绩预告点评：公司业绩整体符合预期，客户合作持续深化_2023-01-12.pdf；民生证券_深度报告：精密制造筑底蕴，车载产品谱新篇_2022-08-24.pdf；公司是一家专注于研发、生产、销售通讯连接器精密组件和汽车连接器精密组件的高新技术企业。 东莞市鼎通精密科技股份有限公司(以下简称“鼎通精密",
+      "relevance_score": 11
+    },
+    {
+      "code": "688143",
+      "name": "长盈通",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 41.7,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 11.0,
+      "rating_score": 3.8,
+      "consensus_score": 0.0,
+      "revenue_growth": 29.5365,
+      "profit_growth": 3713292.39,
+      "roe": 0.4363,
+      "gross_margin": 46.3431,
+      "report_count": 3,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 7.3,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 41.7,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 41.7,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 39.62,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光器件",
+        "光纤",
+        "光电"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "DeepSeek概念；专精特新；信息技术(A股)；光纤概念；共封装光学(CPO)；军工；减持计划；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除金融、石油石化)；同花顺均衡盈利；同花顺小盘；同花顺沪深全A；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺激进投资；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；商业航天；增持计划；技术硬件与设备(A股)；昨日高振幅；汽车热管理；沪股通；海工装备；湖北；特高压；电子设备、仪器和元件(A股)；百元股；百日新高；芯片概念；融资融券；近期强势；近期新高；通信线缆及配套；通信设备；高市盈率；高贝塔值；民生证券_2024年年报点评：2024年营收同比增长50%；强链补链赋能长期发展_2025-04-11.pdf；东亚前海证券_公司首次覆盖报告：光纤环产业链综合解决方案提供商_2022-12-20.pdf；华金证券_新股覆盖研究：长盈通_2022-11-21.pdf；光纤陀螺核心器件光纤环及其综合解决方案研发、生产、销售和服务 武汉长盈通光电技术股份有限公司坐落于东湖之滨的中国·光谷，是一家以光电子技术为核心的高新技术企业。公司主要从事特种光纤光缆、特种光器件、新型材料、高端装备和光电系统等五大领域产品的研发、生产和销售，并为客户提供光电子一级计量站计量校准和测试服务。公司坚持“5+1聚焦同心圆”的产业战略，核心产品是应用于光纤陀螺的光纤环，实现微产业链完整配套，拥有多项核心技术和发明专利，各类产品广泛应用于航空航天、智能电网和海洋监测等行业。公司",
+      "relevance_score": 11
+    },
+    {
+      "code": "301172",
+      "name": "君逸数码",
+      "industry": "软件服务",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 40.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 9.0,
+      "rating_score": 1.7,
+      "consensus_score": 0.0,
+      "revenue_growth": 184.7994,
+      "profit_growth": 865878.99,
+      "roe": 0.15,
+      "gross_margin": 25.1041,
+      "report_count": 0,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 6.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 40.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 40.4,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 38.38,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光通信",
+        "光纤",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "AIGC概念；AI应用；AI智能体；DeepSeek概念；IT服务；IT服务Ⅲ；QFII重仓；乡村振兴；人工智能；低空经济；信创；信息技术(A股)；信息技术服务(A股)；光纤概念；共封装光学(CPO)；军工；减持计划；区块链；华为昇腾；华为概念；华为鲲鹏；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡估值；同花顺均衡动量；同花顺均衡投资；同花顺均衡盈利；同花顺小盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；四川；地下管网；安防；数字乡村；数字经济；数据中心；数据要素；新型城镇化；时空大数据；智慧城市；智慧政务；智能医疗；机器人概念；水利；海峡两岸；物联网；空间计算；网络安全；腾讯概念；融资融券；西部大开发；软件与服务(A股)；鸿蒙概念；为智慧城市领域客户提供系统集成服务、运维服务和自研产品销售等产品和服务。 四川君逸数码科技股份有限公司一家专业的智慧城市综合解决方案提供商，主营业务是为智慧城市领域客户提供系统集成服务、运维服务和自研产品销售等产品和服务。公司主要采用物联网、云计算、大数据、人工智能、BIM等新一代信息应用技术，为客户提供集“应用软件定制开发”和“智能化、信息化系统集成服务”为一体的智慧城市行业综合解决方案，业务环节涵盖智慧城市项目的技术咨询、方案设计、软硬件的开发、系统集成、项目实施和运营维护等。公司以智能视频分析技术、音视频接入",
+      "relevance_score": 11
+    },
+    {
+      "code": "002313",
+      "name": "日海智能",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "软件",
+      "total_score": 34.2,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 23.0,
+      "profit_score": 5.0,
+      "rating_score": 2.7,
+      "consensus_score": 0.0,
+      "revenue_growth": 9.4118,
+      "profit_growth": 3789290.03,
+      "roe": 14.0864,
+      "gross_margin": 13.5906,
+      "report_count": 1,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "软件"
+      ],
+      "company_product_map": {
+        "products": [
+          "软件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 11.5,
+        "profit": 3.3,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 34.2,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 34.2,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 32.49,
+      "lpo_mpo_hits": [
+        "光模块",
+        "连接器",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "光模块"
+      ],
+      "evidence_text": "5G；DeepSeek概念；QFII重仓；东数西算(算力)；人工智能；信息技术(A股)；储能；充电桩；减持新规(不可减持)；华为概念；卫星导航；同花顺主板；同花顺低动量；同花顺低盈利；同花顺保守投资；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺小市值1000；同花顺小市值1500；同花顺小盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺高估值；国企改革；小米概念；工业互联网；技术硬件与设备(A股)；数据中心；新疆振兴；无人机；无人驾驶；智慧城市；智慧灯杆；智能家居；智能座舱；机器人概念；比亚迪概念；汽车电子；液冷服务器；深圳；深市新主板；物联网；粤港澳大湾区；股权转让(并购重组)；车联网(车路协同)；通信终端及配件；通信设备；通信设备Ⅲ(A股)；阿里巴巴概念；高商誉；高市净率；西南证券_多方优势合作，掘金智慧城市_2019-01-07.pdf；智能物联网业务(物联网模组产品、物联网解决方案、云平台技术服务等)和通信网络基础设施产品、通信工程服务等。 日海智能科技股份有限公司成立于2003年,是一家在深交所上市的国家高新技术企业。日海智能为国内外电信运营商、ICT设备商、系统集成商以及各行业客户提供包括终端、云平台、多行业解决方案在内的物联网端到端产品和服务,以及通信网络基础设施、设备和通信服务。日海智能将建成“智慧连接万物”的日海人工智能物联网(SunseaAIoT)作为公司战略目标,致力于成为行业领先的人工",
+      "relevance_score": 11
+    },
+    {
+      "code": "601869",
+      "name": "长飞光纤",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 62.7,
+      "grade": "S",
+      "moat_score": 34,
+      "moat_signals": [
+        "行业龙头"
+      ],
+      "growth_score": 30,
+      "profit_score": 8.0,
+      "rating_score": 7.8,
+      "consensus_score": 3.0,
+      "revenue_growth": 27.7014,
+      "profit_growth": 461220234.0,
+      "roe": 3.5319,
+      "gross_margin": 41.5146,
+      "report_count": 11,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "高",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 17.0,
+        "growth": 15.0,
+        "profit": 5.3,
+        "commercialization": 5.2,
+        "market": 6.0,
+        "risk": 0
+      },
+      "v4_score": 62.7,
+      "rating": "C",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 62.7,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.45,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 59.56,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光纤",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；一带一路；上证380成份股；专精特新；东数西算(算力)；中证500成份股；人形机器人；信息技术(A股)；光纤概念；共封装光学(CPO)；减持计划；创历史新高；创投；同花顺主板；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺出海50；同花顺均衡盈利；同花顺大盘；同花顺大盘股；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺激进投资；同花顺热股；同花顺金仓200；同花顺金仓200全收益；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；大盘股；太赫兹；工业互联网；技术硬件与设备(A股)；抖音概念(字节概念)；数据中心；新能源汽车；昨日打板表现；昨日打首板表现；昨日涨停表现；昨日非ST打板；昨日非ST涨停表现；昨日非ST首板；昨日首板表现；昨日高振幅；智能电网；机器人概念；机构重仓股；沪深主板昨日涨停；沪股通；海工装备；湖北；特高压；百元股；百日新高；第三代半导体；芯片概念；融资融券；近期新高；通信线缆及配套；通信设备；通信设备Ⅲ(A股)；量子科技；铜缆高速连接；风电；高市净率；高贝塔值；华鑫证券_公司动态研究报告：主营业务提质增效，大力拓展新型光纤研发应用_2025-10-08.pdf；民生证券_2025年半年报点评：业绩短期承压，关注新型光纤产品应用_2025-09-04.pdf；东兴证券_光纤光缆主业地位稳固，海外及多元化战略持续推进_2024-10-15.pdf；华通证券",
+      "relevance_score": 9
+    },
+    {
+      "code": "603803",
+      "name": "瑞斯康达",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 41.1,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 10.0,
+      "rating_score": 1.7,
+      "consensus_score": 0.0,
+      "revenue_growth": 17.2495,
+      "profit_growth": 5671177.43,
+      "roe": 0.4459,
+      "gross_margin": 43.1099,
+      "report_count": 0,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 6.7,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 41.1,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 41.1,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 39.05,
+      "lpo_mpo_hits": [
+        "CPO",
+        "光纤",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；6G概念；F5G概念；QFII重仓；WiFi6；东数西算(算力)；信息技术(A股)；共封装光学(CPO)；减持新规(不可减持)；减持计划；北京；同花顺主板；同花顺低盈利；同花顺保守投资；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡估值；同花顺均衡动量；同花顺小盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；工业互联网；技术硬件与设备(A股)；数据中心；数据安全；新型城镇化；新型工业化；无人驾驶；智慧城市；智能电网；物联网；网络安全；芯片概念；融资融券；车联网(车路协同)；通信终端及配件；通信设备；通信设备Ⅲ(A股)；量子科技；电信网络接入产品的研发、生产和销售,以光传输和以太网技术为核心,为客户提供各种网络接入设备产品以及全面的网络接入解决方案。 瑞斯康达科技发展股份有限公司作为国内光纤通信接入设备的领军企业，致力于为全球电信运营商、广电运营商及行业专网用户，提供接入层网络解决方案，帮助客户改善收益、提升网络运营效率，降低运营成本，实现商业成功。自1999年成立以来，瑞斯康达在有线接入网、光传输网、无线接入网络等方面均有良好表现，曾连续三年被评为亚太地区“高科技、高成长500强”企业，常年位列“中国光传输与网络接入设备最具竞争力企业10",
+      "relevance_score": 9
+    },
+    {
+      "code": "002316",
+      "name": "亚联发展",
+      "industry": "软件服务",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 31.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 20.0,
+      "profit_score": 3.0,
+      "rating_score": 1.7,
+      "consensus_score": 0.0,
+      "revenue_growth": -22.2084,
+      "profit_growth": 205146.91,
+      "roe": 1.841,
+      "gross_margin": 15.7858,
+      "report_count": 0,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 10.0,
+        "profit": 2.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 31.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 31.4,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 29.83,
+      "lpo_mpo_hits": [
+        "MPO",
+        "光通信",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "MPO"
+      ],
+      "evidence_text": "ETC；QFII重仓；人工智能；减持新规(不可减持)；区块链；医疗器械概念；华为概念；合成生物；吉林；同花顺主板；同花顺保守投资；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺小市值1000；同花顺小市值1500；同花顺小市值200；同花顺小市值400；同花顺小市值600；同花顺小市值800；同花顺小盘；同花顺微盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺高估值；同花顺高动量；同花顺高盈利；微盘股；摘帽；数据中心；智慧城市；智能电网；深市新主板；特高压；独角兽概念；粮食概念；网络安全；通信工程及服务；通信服务；金融(A股)；金融服务Ⅱ(A股)；金融服务Ⅲ(A股)；高市净率；高市盈率；高比例质押；专网通信技术解决方案业务与金融科技业务 公司是国内领先的专网通信信息技术解决方案提供商,2009年在深圳证券交易所挂牌上市,股票代码:002316。成立以来,公司致力于为能源、交通等行业的企业提供专网通信技术解决方案,包括相关软硬件产品的研发、制造及相关技术服务。2017年内,公司重大资产重组顺利实施,上海即富资产负债表自2017年9月30日起纳入公司合并范围,利润表和现金流量表自2017年10月份开始纳入公司合并范围。公司主营业务由专网通信技术解决方案业务,变更为专网通信技术解决方案业务与金融科技业务双主业。金融",
+      "relevance_score": 9
+    },
+    {
+      "code": "601138",
+      "name": "工业富联",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 67.7,
+      "grade": "S",
+      "moat_score": 40,
+      "moat_signals": [
+        "行业龙头",
+        "16券商"
+      ],
+      "growth_score": 30,
+      "profit_score": 5.0,
+      "rating_score": 9.6,
+      "consensus_score": 5,
+      "revenue_growth": 56.5178,
+      "profit_growth": 10249511000.0,
+      "roe": 6.1778,
+      "gross_margin": 7.3505,
+      "report_count": 41,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "高",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 20.0,
+        "growth": 15.0,
+        "profit": 3.3,
+        "commercialization": 5.2,
+        "market": 10.0,
+        "risk": 0
+      },
+      "v4_score": 67.7,
+      "rating": "B",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 67.7,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 64.31,
+      "lpo_mpo_hits": [
+        "CPO",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "2025年报预增；5G；上证180成份股；东数西算(算力)；云计算；人工智能；信息技术(A股)；共封装光学(CPO)；创投；医疗器械概念；同花顺主板；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺出海50；同花顺大盘；同花顺大盘股；同花顺新质50；同花顺果指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺漂亮100；同花顺激进投资；同花顺热股；同花顺超大盘股；同花顺陆股通；同花顺高估值；同花顺高动量；同花顺高盈利；大盘股；富士康概念；工业互联网；技术硬件与设备(A股)；数据中心；新能源汽车；昨日成交前十；昨日资金前十；智慧城市；机器人概念；机构重仓股；沪深300样本股；沪股通；沪股通成交前十；海峡两岸；消费电子；消费电子零部件及组装；液冷服务器；深圳；物联网；百日新高；算力租赁；股东户数增加；芯片概念；英伟达概念；苹果概念；虚拟现实；融资融券；行业龙头；通信设备Ⅲ(A股)；阿里巴巴概念；金元证券_AI服务器销售占比提升，毛利预期持续改善_20260618.pdf；信达证券_工业富联26Q1业绩点评：业绩实现翻倍增长，CPO交换机开始出货_20260430.pdf；中银证券_25Q4利润亮眼，AI基础设施增长动能充沛_20260130.pdf；信达证券_工业富联2025业绩预增点评：Q4业绩继续高增，AI驱动进入加速兑现期_20260130.pdf；中邮证券_GPU+ASIC机柜齐发力，交换机高速增",
+      "relevance_score": 7
+    },
+    {
+      "code": "002396",
+      "name": "星网锐捷",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 59.2,
+      "grade": "A",
+      "moat_score": 23,
+      "moat_signals": [
+        "行业龙头",
+        "5券商"
+      ],
+      "growth_score": 26.0,
+      "profit_score": 8.0,
+      "rating_score": 8.6,
+      "consensus_score": 5,
+      "revenue_growth": 12.0238,
+      "profit_growth": 9042531.11,
+      "roe": 0.5321,
+      "gross_margin": 31.9208,
+      "report_count": 16,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "中",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 11.5,
+        "growth": 13.0,
+        "profit": 5.3,
+        "commercialization": 5.2,
+        "market": 10.0,
+        "risk": 0
+      },
+      "v4_score": 59.2,
+      "rating": "C",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 59.2,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 56.24,
+      "lpo_mpo_hits": [
+        "CPO",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；AIGC概念；AI应用；DeepSeek概念；F5G概念；WiFi6；互联网金融；人工智能；信创；信息技术(A股)；共封装光学(CPO)；华为概念；同花顺主板；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡估值；同花顺均衡投资；同花顺均衡盈利；同花顺大盘；同花顺小盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺陆股通；同花顺高动量；国企改革；在线教育；技术硬件与设备(A股)；抖音概念(字节概念)；数字货币；数据中心；文化传媒概念；智能家居；机器人概念；海峡两岸；深市新主板；深股通；物联网；社保重仓；福建；福建自贸区；移动支付；网络安全；脑机接口；腾讯概念；融资融券；证金持股；车联网(车路协同)；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；阿里巴巴概念；鸿蒙概念；民生证券_2022年一季报点评：淡季不淡，营收增速领先行业，盈利能力显著提升_2022-05-24.pdf；民生证券_2021年年度报告点评：受益数字经济+东数西算，数通龙头增长动能强劲_2022-03-25.pdf；民生证券_盈利环比改善，云网终端需求持续向好_2021-10-28.pdf；开源证券_公司信息更新报告：2020H1受疫情影响可控，未来业绩有望边际改善_2020-09-01.pdf；西南证券_Q2业绩企稳回升，业务未来空间巨大_2020-08-31.pdf；申港证券_乘云而上 双擎驱动_202",
+      "relevance_score": 7
+    },
+    {
+      "code": "000938",
+      "name": "紫光股份",
+      "industry": "IT设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 58.4,
+      "grade": "A",
+      "moat_score": 40,
+      "moat_signals": [
+        "行业龙头",
+        "12券商"
+      ],
+      "growth_score": 10.0,
+      "profit_score": 6.0,
+      "rating_score": 9.5,
+      "consensus_score": 5,
+      "revenue_growth": 0.0,
+      "profit_growth": 0.0,
+      "roe": 5.2052,
+      "gross_margin": 30.0,
+      "report_count": 36,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "高",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 20.0,
+        "growth": 5.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 10.0,
+        "risk": 0
+      },
+      "v4_score": 58.4,
+      "rating": "C",
+      "trade_signal": "观察",
+      "evidence": [],
+      "score": 58.4,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 55.48,
+      "lpo_mpo_hits": [
+        "CPO",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；6G概念；AIGC概念；AI应用；AI智能体；DeepSeek概念；IT服务；IT服务Ⅲ；WiFi6；东数西算(算力)；中国AI 50；云计算；人工智能；信息技术(A股)；信托重仓；储能；共封装光学(CPO)；减持新规(不可减持)；北京；同花顺中盘；同花顺主板；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡动量；同花顺大盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺陆股通；同花顺高估值；同花顺高盈利；国产操作系统；国资云；增发预案指数；技术硬件与设备(A股)；抖音概念(字节概念)；数字乡村；数字孪生；数据中心；数据安全；数据要素；智慧城市；智慧政务；机器人概念；沪深300样本股；液冷服务器；深市新主板；深股通；物联网；电子设备、仪器和元件(A股)；算力租赁；网络安全；芯片概念；英伟达概念；融资融券；行业龙头；车联网(车路协同)；近期并购重组；阿里巴巴概念；高商誉；华鑫证券_公司事件点评报告：公司业绩高增，AI解决方案领导者深度受益于算力红利_20260505.pdf；国金证券_新华三增收增利，积极备货支撑全年交付_20260505.pdf；海通国际_紫光股份2025年三季报点评：新华三营收继续加速，利润重回双位数增长_2025-11-25.pdf；国金证券_ICT领军，AI服务器与交换机齐放量_2025-06-12.pdf；山西证券_ICT龙头企业，深化全栈智算能力_2",
+      "relevance_score": 7
+    },
+    {
+      "code": "301085",
+      "name": "亚康股份",
+      "industry": "软件服务",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 41.1,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 7.0,
+      "rating_score": 3.2,
+      "consensus_score": 1.0,
+      "revenue_growth": 26.8666,
+      "profit_growth": 23766804.51,
+      "roe": 2.5141,
+      "gross_margin": 18.5049,
+      "report_count": 0,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 4.7,
+        "commercialization": 5.2,
+        "market": 2.0,
+        "risk": 0
+      },
+      "v4_score": 41.1,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 41.1,
+      "node_id": "ai_compute_hardware",
+      "node_name": "硬件",
+      "mapping_confidence": 0.8,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 39.05,
+      "lpo_mpo_hits": [
+        "CPO",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "AI应用；AI智能体；DeepSeek概念；IT服务；IT服务Ⅲ；QFII重仓；一带一路；东数西算(算力)；京津冀一体化；信息技术(A股)；信息技术服务(A股)；共封装光学(CPO)；北京；华为昇腾；华为概念；华为鲲鹏；同花顺低动量；同花顺低盈利；同花顺保守投资；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡估值；同花顺小盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺陆股通；富士康概念；小红书概念；快手概念；抖音概念(字节概念)；数字经济；数据中心；智慧政务；深股通；百度概念；算力租赁；腾讯概念；融资融券；软件与服务(A股)；近期并购重组；阿里巴巴概念；为大中型互联网公司和云厂商提供IT设备销售及运维服务。 总部位于北京市，在中国大陆和中国香港以及新加坡、美国、加拿大拥有分支机构；通过“C+4S（顾问Consultant、销售Sale、运维服务Service、备件Sparepart、反馈Survey）”服务模式，具备数据中心产业链上下游整合能力，覆盖数据中心全生命周期的一体化服务能力，为数据中心产业链的上下游的客户提供数据中心相关的系统部署、系统集成、IT运维、产品售后等服务业务；作为国家高新技术企业，拥有知识产权50多项，先后获得质量管理、IT服务管理、信息安全",
+      "relevance_score": 7
+    },
+    {
+      "code": "300857",
+      "name": "协创数据",
+      "industry": "IT设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 41.1,
+      "grade": "C",
+      "moat_score": 4,
+      "moat_signals": [],
+      "growth_score": 10.0,
+      "profit_score": 10.0,
+      "rating_score": 8.3,
+      "consensus_score": 4.0,
+      "revenue_growth": 0.0,
+      "profit_growth": 0.0,
+      "roe": 15.661,
+      "gross_margin": 30.0,
+      "report_count": 12,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 2.0,
+        "growth": 5.0,
+        "profit": 6.7,
+        "commercialization": 5.2,
+        "market": 8.0,
+        "risk": 0
+      },
+      "v4_score": 41.1,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 41.1,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 39.05,
+      "lpo_mpo_hits": [
+        "CPO",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "2025年报预增；2026一季报预增；5G；AIGC概念；AI应用；AI智能体；AI眼镜；DeepSeek概念；EDR概念；QFII重仓；Sora概念(文生视频)；东数西算(算力)；中证500成份股；云游戏；云计算；人工智能；人形机器人；人民币贬值受益；人脸识别；信息技术(A股)；共封装光学(CPO)；其他计算机设备；净水概念；减持新规(不可减持)；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺大盘；同花顺大盘股；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺金仓200；同花顺金仓200全收益；同花顺陆股通；同花顺高价股；同花顺高估值；同花顺高动量；同花顺高盈利；大盘股；存储芯片；安防；家用电器；小米概念；技术硬件与设备(A股)；数据中心；智能家居；智能穿戴；智能音箱；机器人概念；汽车电子；消费电子概念；深圳；深股通；物联网；电子设备、仪器和元件(A股)；百元股；短剧游戏；算力租赁；粤港澳大湾区；网络游戏；腾讯概念；芯片概念；英伟达概念；融资融券；计算机设备；跨境电商；车联网(车路协同)；高市净率；华鑫证券_公司事件点评报告：公司业绩表现亮眼，AI算力硬件与AI算力服务业务双轮驱动_20260205.pdf；中航证券_存储基业固本，智算服务开新_2025-11-07.pdf；山西证券_Q3收入持续高增长，算力业务布局持续加码_2025-11-06.pdf；太平洋_Q3收入",
+      "relevance_score": 7
+    },
+    {
+      "code": "300310",
+      "name": "宜通世纪",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 36.6,
+      "grade": "C",
+      "moat_score": 15,
+      "moat_signals": [
+        "行业龙头"
+      ],
+      "growth_score": 10.0,
+      "profit_score": 7.0,
+      "rating_score": 6.1,
+      "consensus_score": 0.0,
+      "revenue_growth": -17.6842,
+      "profit_growth": -5952184.84,
+      "roe": -0.2694,
+      "gross_margin": 8.6093,
+      "report_count": 15,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 7.5,
+        "growth": 5.0,
+        "profit": 4.7,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 36.6,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 36.6,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 34.77,
+      "lpo_mpo_hits": [
+        "CPO",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；AIGC概念；AI智能体；DeepSeek概念；低空经济；信创；信息技术(A股)；储能；充电桩；光伏概念；共封装光学(CPO)；减持新规(不可减持)；创投；华为概念；同花顺低动量；同花顺低盈利；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡估值；同花顺均衡投资；同花顺小盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺陆股通；工业互联网；广东(除深圳)；技术硬件与设备(A股)；数据中心；智慧灯杆；机器人概念；深股通；物联网；算力租赁；粤港澳大湾区；股权分散；融资融券；车联网(车路协同)；通信工程及服务；通信服务；通信设备Ⅲ(A股)；国元证券_积极布局物联网产业，顺利实现战略转型_2018-05-07.pdf；民生证券_2017年年报点评：传统业务稳定增长，物联网平台迎快速发展_2018-04-12.pdf；信达证券_深度报告：四大板块支撑转型，布局物联网潜力市场_2018-02-06.pdf；广证恒生证券研究所_点评报告：业绩稳定增长，入股中国联通物联网业务进入快速发展期_2018-02-01.pdf；西南证券_与联通战略合作签订，夯实向好发展基础_2017-11-20.pdf；华金证券_股权激励凝聚军心，期待公司外延内生齐头并进_2017-10-18.pdf；中银国际_宜通世纪2017年3季度业绩点评：物联领域高增长，股权激励显信心_2017-10-18.pdf；民生证券_平",
+      "relevance_score": 7
+    },
+    {
+      "code": "603118",
+      "name": "共进股份",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 36.2,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 23.0,
+      "profit_score": 5.0,
+      "rating_score": 7.2,
+      "consensus_score": 1.0,
+      "revenue_growth": 6.2565,
+      "profit_growth": 18961280.82,
+      "roe": 0.4828,
+      "gross_margin": 10.6985,
+      "report_count": 11,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 11.5,
+        "profit": 3.3,
+        "commercialization": 5.2,
+        "market": 2.0,
+        "risk": 0
+      },
+      "v4_score": 36.2,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 36.2,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.45,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 34.39,
+      "lpo_mpo_hits": [
+        "CPO",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；6G概念；F5G概念；PCB概念；QFII重仓；WiFi6；东数西算(算力)；人民币贬值受益；传感器；信息技术(A股)；充电桩；先进封装；共封装光学(CPO)；华为概念；华为海思概念股；同花顺主板；同花顺低估值；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡盈利；同花顺大盘；同花顺拟回购指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺激进投资；同花顺陆股通；同花顺高动量；回购计划；国企改革；基因测序；工业互联网；技术硬件与设备(A股)；数据中心；无人驾驶；智能医疗；智能家居；智能座舱；机器人概念；毫米波雷达；汽车电子；汽车芯片；沪股通；深圳；物联网；粤港澳大湾区；网络安全；股权转让(并购重组)；芯片概念；虚拟现实；融资融券；通信终端及配件；通信设备；通信设备Ⅲ(A股)；中国银河_2024Q3单季盈利能力企稳回升，数通前景广阔_2024-11-07.pdf；东兴证券_2024H1业绩预告点评：Q2收入与毛利率环比改善，下半年订单有望转好_2024-07-17.pdf；西南证券_业绩短期承压，AI拉动数通产品放量_2023-11-14.pdf；民生证券_2022年年报和2023年一季报点评：盈利能力增强，传统及创新业务势能向好_2023-05-15.pdf；华金证券_业绩整体向好，汽车+5G布局助推未来发展_2023-04-24.pdf；民生证券_2022年三季报点评：受益汇兑业绩高增，汽",
+      "relevance_score": 7
+    },
+    {
+      "code": "300287",
+      "name": "飞利信",
+      "industry": "软件服务",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 29.1,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 10.0,
+      "profit_score": 7.0,
+      "rating_score": 4.0,
+      "consensus_score": 0.0,
+      "revenue_growth": -36.903,
+      "profit_growth": -30002263.61,
+      "roe": -2.8462,
+      "gross_margin": 12.3294,
+      "report_count": 3,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 5.0,
+        "profit": 4.7,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 29.1,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 29.1,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 27.64,
+      "lpo_mpo_hits": [
+        "CPO",
+        "数据中心"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；AIGC概念；AI智能体；DeepSeek概念；IT服务；IT服务Ⅲ；MCU芯片；Web3.0；东数西算(算力)；乡村振兴；京津冀一体化；人工智能；低空经济；信创；信息技术(A股)；元宇宙；共封装光学(CPO)；军工；减持新规(不可减持)；北京；华为概念；华为鲲鹏；卫星导航；同花顺低动量；同花顺低盈利；同花顺保守投资；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺大盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺陆股通；同花顺高估值；在线教育；数字孪生；数字经济；数据中心；数据要素；时空大数据；智慧城市；智慧政务；智能电网；机器人概念；深股通；物联网；算力租赁；网络安全；芯片概念；虚拟数字人；虚拟现实；融资融券；软件(A股)；软件与服务(A股)；食品安全；鸿蒙概念；东吴证券_18Q1为全年高增长奠定基调，大数据业务持续开花结果_2018-05-08.pdf；东吴证券_点评报告：开启员工持股计划，后续增长动力十足_2017-05-23.pdf；东吴证券_点评报告：利润确认保守，并表助力业绩大幅增长_2017-02-20.pdf；向用户提供智能会议系统整体解决方案及相关服务,按其具体内容可以划分为智能会议系统整体解决方案、电子政务信息管理系统、建筑智能化工程和信息系统集成、IT产品销售。 北京飞利信科技股份有限公司(BeijingPhilisenseTechnologyCo.,Ltd",
+      "relevance_score": 7
+    },
+    {
+      "code": "300101",
+      "name": "振芯科技",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 45.6,
+      "grade": "B",
+      "moat_score": 25,
+      "moat_signals": [
+        "行业龙头",
+        "进口替代"
+      ],
+      "growth_score": 10.0,
+      "profit_score": 10.0,
+      "rating_score": 7.2,
+      "consensus_score": 1.0,
+      "revenue_growth": -26.6178,
+      "profit_growth": -5714773.81,
+      "roe": -0.2315,
+      "gross_margin": 58.7469,
+      "report_count": 11,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "中",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 12.5,
+        "growth": 5.0,
+        "profit": 6.7,
+        "commercialization": 5.2,
+        "market": 2.0,
+        "risk": 0
+      },
+      "v4_score": 45.6,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 45.6,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 43.32,
+      "lpo_mpo_hits": [
+        "CPO"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；专精特新；人工智能；信息技术(A股)；共封装光学(CPO)；军工；军工电子；军工电子Ⅲ；军民融合；半导体产品与设备Ⅱ(A股)；半导体产品与设备Ⅲ(A股)；卫星导航；同花顺低动量；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡盈利；同花顺大盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺陆股通；同花顺高估值；商业航天；四川；回购增持再贷款概念；国产航母；增持计划；无人机；时空大数据；智慧城市；机器人概念；机器视觉；深股通；物联网；社保重仓；芯片概念；融资融券；西部大开发；高市盈率；川财证券_公司深度报告：技术纯正，行业发展稳健，公司有望实现持续性增长_2022-05-29.pdf；中航证券_2021年中报点评：经营效率改善明显，业绩提升加速_2021-08-01.pdf；中国银河_数模集成电路隐形冠军，半年度业绩增长超预期_2021-07-30.pdf；中航证券_2020年报点评：营收和归母净利润双创历史新高_2021-03-28.pdf；中航证券_2018年年报点评：加大研发投入，培育核心竞争力_2019-04-10.pdf；中航证券_2018年三季报点评：三季度营收高速增长，股权问题尚待解决_2018-11-05.pdf；中航证券_2018年半年报点评：研发投入持续增长，核心器件收入快速增长_2018-09-05.pdf；东兴证券_深度报告：自主可控芯片龙头",
+      "relevance_score": 5
+    },
+    {
+      "code": "301419",
+      "name": "阿莱德",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 40.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 9.0,
+      "rating_score": 3.4,
+      "consensus_score": 0.0,
+      "revenue_growth": 25.0283,
+      "profit_growth": 12041714.26,
+      "roe": 1.2804,
+      "gross_margin": 36.1448,
+      "report_count": 2,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 6.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 40.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 40.4,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.45,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 38.38,
+      "lpo_mpo_hits": [
+        "CPO"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；QFII重仓；上海(除浦东)；人形机器人；人民币贬值受益；信息技术(A股)；共封装光学(CPO)；创业科创板昨日涨停；创历史新高；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡估值；同花顺均衡动量；同花顺均衡投资；同花顺均衡盈利；同花顺小盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；存储芯片；富士康概念；技术硬件与设备(A股)；昨日打板表现；昨日打首板表现；昨日涨停表现；昨日非ST打板；昨日非ST涨停表现；昨日非ST首板；昨日首板表现；昨日高振幅；机器人概念；汽车热管理；液冷服务器；百日新高；融资融券；近期并购重组；近期强势；近期新高；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；高贝塔值；龙虎榜指数；民生证券_首次覆盖报告：通信设备零部件新晋之秀，高性能导热材料注入增长新动能_2023-09-19.pdf；华金证券_新股覆盖研究：阿莱德_2023-01-17.pdf；射频与透波防护器件、EMI及IP防护器件和电子导热散热器件等用于移动通信基站设备内、外部的零部件产品的研发、生产和销售 公司成立于2004年6月，是一家高分子材料通信设备零部件供应商，为客户提供射频与透波防护器件、EMI及IP防护器件和电子导热散热器件等用于移动通信基站设备内、外部的零部件产品，以及包括前期研发设计介入、中期产品开发、后期生产制造和最终产品验证在内的零部件整体解决方案（股票简称：阿莱德，股票代",
+      "relevance_score": 5
+    },
+    {
+      "code": "002380",
+      "name": "科远智慧",
+      "industry": "软件服务",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 39.6,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 23.0,
+      "profit_score": 10.0,
+      "rating_score": 5.9,
+      "consensus_score": 1.0,
+      "revenue_growth": 5.7187,
+      "profit_growth": 71473721.17,
+      "roe": 3.1832,
+      "gross_margin": 42.279,
+      "report_count": 4,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 11.5,
+        "profit": 6.7,
+        "commercialization": 5.2,
+        "market": 2.0,
+        "risk": 0
+      },
+      "v4_score": 39.6,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 39.6,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 37.62,
+      "lpo_mpo_hits": [
+        "MPO"
+      ],
+      "strong_hits": [
+        "MPO"
+      ],
+      "evidence_text": "AI应用；AI智能体；IT服务；IT服务Ⅲ；QFII重仓；一带一路；专精特新；人工智能；传感器；信创；信息技术(A股)；信息技术服务(A股)；储能；光热发电；减持计划；华为概念；同花顺主板；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡估值；同花顺均衡投资；同花顺小盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺陆股通；同花顺高动量；同花顺高盈利；垃圾分类；工业互联网；数字经济；数据要素；新型工业化；智慧城市；智能电网；机器人概念；机器视觉；核电；江苏；深市新主板；深股通；电力物联网；碳中和；社保重仓；虚拟电厂；超超临界发电；软件与服务(A股)；西南证券_行业景气度无忧，业绩加速释放_2024-08-12.pdf；中邮证券_火电DCS领军，受益设备更新需求_2024-03-14.pdf；东吴证券_Q2单季度收入高增长，EmpoworX工业互联网平台未来可期_2020-08-06.pdf；东吴证券_业绩稳健增长，成功中标工信部智能制造系统解决方案供应商_2019-10-31.pdf；热工自动化和电厂信息化产品研发、生产、销售和服务。 科远智慧创立于1993年5月，是全方位智慧产业解决方案领导者，领先的智慧工业解决方案供应商、中国工业自动化与信息化规模与品牌价值前三强，工业自动化和信息化产品、技术、服务首选供应商。2010年3月31日，科远智慧正式在深圳股票交易所上市，股票代码00",
+      "relevance_score": 5
+    },
+    {
+      "code": "002796",
+      "name": "世嘉科技",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 30.6,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 13.0,
+      "profit_score": 7.0,
+      "rating_score": 3.8,
+      "consensus_score": 0.0,
+      "revenue_growth": 8.0447,
+      "profit_growth": -22808811.48,
+      "roe": -2.755,
+      "gross_margin": 6.6389,
+      "report_count": 3,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 6.5,
+        "profit": 4.7,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 30.6,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 30.6,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.45,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 29.07,
+      "lpo_mpo_hits": [
+        "CPO"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；6G概念；QFII重仓；一带一路；信息技术(A股)；储能；共封装光学(CPO)；军工；减持新规(不可减持)；减持计划；医疗器械概念；同花顺主板；同花顺低盈利；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡投资；同花顺小盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺高估值；同花顺高动量；技术硬件与设备(A股)；江苏；深市新主板；融资融券；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；民生证券_2019年中报点评：5G业务初现规模，介质波导积极布局_2019-07-31.pdf；东吴证券_受益4G低频重耕及5G试验网的逐步部署，上半年业绩高增，布局5G陶瓷滤波器，拓展北美海外市场，构筑未来增长之基_2019-07-31.pdf；国元证券_2019年半年报点评：传统业务企稳，通信业务快速发展_2019-07-31.pdf；专门从中各类电、扶梯装潢设计、制造及各类钣金加工。 苏州市世嘉科技股份有限公司成立于1990年,总部位于苏州市国家高新技术产业区,是一家集研发与生产于一体的综合性企业,占地面积100余亩,下辖两家全资子公司:中山市亿泰纳精密制造科技有限公司、苏州世嘉新精密冲压有限公司。公司注册资本8,000万元,于2016年5月10日在深圳证券交易所中小板上市。\r\n目前,公司为国内外近百家优秀的电梯企业提供配套服务,拥有一批国内外一流的客户,如迅达、通力、蒂森克虏伯、奥的斯、康力、江",
+      "relevance_score": 5
+    },
+    {
+      "code": "002194",
+      "name": "武汉凡谷",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 30.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 10.0,
+      "profit_score": 9.0,
+      "rating_score": 1.7,
+      "consensus_score": 0.0,
+      "revenue_growth": -7.3783,
+      "profit_growth": -3972769.48,
+      "roe": -0.0592,
+      "gross_margin": 20.3176,
+      "report_count": 0,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 5.0,
+        "profit": 6.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 30.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 30.4,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 28.88,
+      "lpo_mpo_hits": [
+        "CPO"
+      ],
+      "strong_hits": [
+        "CPO"
+      ],
+      "evidence_text": "5G；6G概念；QFII重仓；信息技术(A股)；共封装光学(CPO)；军工；减持计划；创投；华为概念；卫星导航；同花顺主板；同花顺低盈利；同花顺保守投资；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡估值；同花顺均衡动量；同花顺大盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺陆股通；商业航天；技术硬件与设备(A股)；昨日打板表现；昨日打首板表现；昨日涨停表现；昨日炸板股；昨日非ST打板；昨日非ST涨停表现；昨日非ST炸板；昨日非ST首板；昨日首板表现；昨日高振幅；毫米波雷达；汽车电子；沪深主板昨日涨停；深市新主板；深股通；湖北；职业教育；芯片概念；融资融券；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；高贝塔值；移动通信天馈系统射频子系统及器件的研制、生产、销售和服务。 武汉凡谷电子技术股份有限公司(股票代码:002194)的前身是成立于1989年的武汉凡谷电子技术研究所。本公司是近年跻身国际一流的移动通信天馈系统射频器件独立供应商。\r\n公司始终以“以不断满足客户需求为拉动力,以不断激发员工成功愿望为推动力”,“不断发展壮大、始终奉献社会”为理念。形成了以“技术创新,服务通信,核心业务,集中取胜,相邻业务,优选发展”宗旨的发展路线。\r\n公司长期专注于发展移动通信天馈系统射频器件的核心技术,主要产品和解决方案有合路器、塔顶放",
+      "relevance_score": 5
+    },
+    {
+      "code": "002491",
+      "name": "通鼎互联",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 38.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 6.0,
+      "rating_score": 1.7,
+      "consensus_score": 0.0,
+      "revenue_growth": 61.133,
+      "profit_growth": 102828643.59,
+      "roe": 2.0555,
+      "gross_margin": 26.9569,
+      "report_count": 0,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 38.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 38.4,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.45,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 36.48,
+      "lpo_mpo_hits": [
+        "光通信",
+        "光器件",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [],
+      "evidence_text": "5G；QFII重仓；专精特新；信息技术(A股)；储能；光纤概念；减持新规(不可减持)；同花顺中盘；同花顺主板；同花顺低盈利；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡估值；同花顺均衡动量；同花顺均衡投资；同花顺大盘；同花顺小盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺热股；同花顺陆股通；固态电池；技术硬件与设备(A股)；数字水印；数据中心；数据安全；昨日高振幅；江苏；深市新主板；深股通；独角兽概念；百日新高；网络安全；融资融券；近期异动；近期强势；近期新高；通信线缆及配套；通信设备；通信设备Ⅲ(A股)；长三角一体化；龙虎榜指数；市内通信电缆、光缆和铁路信号电缆的生产和销售。 通鼎互联信息股份有限公司是通鼎集团旗下核心子公司。公司专业从事光棒光纤光缆、通信电缆、铁路信号电缆、城市轨道交通电缆、RF电缆、特种光电缆、光器件仪器仪表、机电通信设备、线缆及配套产品的研发、生产、销售和工程服务,并涉足互联网应用、物联网等多元领域的民营企业。公司于2010年10月在深交所成功上市(股票简称:通鼎互联,股票代码:002491)。\r公司相继通过ISO9001:2008质量管理体系认证、ISO14001:2004环境管理体系、T28001-2011职业健康",
+      "relevance_score": 10
+    },
+    {
+      "code": "688635",
+      "name": "长进光子",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 41.1,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 30,
+      "profit_score": 10.0,
+      "rating_score": 2.7,
+      "consensus_score": 0.0,
+      "revenue_growth": 20.6193,
+      "profit_growth": 19125309.44,
+      "roe": 3.1186,
+      "gross_margin": 62.291,
+      "report_count": 1,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 15.0,
+        "profit": 6.7,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 41.1,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 41.1,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.45,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 39.05,
+      "lpo_mpo_hits": [
+        "光通信",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [],
+      "evidence_text": "上市首五日；专精特新；东数西算(算力)；光纤概念；军工；减持新规(不可减持)；华为概念；同花顺全A(沪深)；同花顺全A(沪深京)；商业航天；数据中心；新股与次新股；昨日换手前十；昨日高振幅；注册制次新股；湖北；百元股；科创次新股；融资融券；近期异动；近期新高；近端次新股；通信线缆及配套；通信设备；高市净率；高市盈率；华金证券_新股覆盖研究：长进光子_20260514.pdf；公司是国内领先的特种光纤厂商，具备高性能、多品类特种光纤研发与产业化能力，有力推动我国特种光纤的技术自主可控及国产化进程。 武汉长进光子技术股份有限公司是一家主要从事特种光纤的研发、生产和销售的高新技术企业。公司经过多年深耕专业领域和持续技术积累，形成了自主可控的核心技术体系。公司拥有涵盖掺稀土光纤及其他特种光纤的完备研发实力与体系，掌握从光纤设计、光纤预制棒制备、光纤拉丝到光纤性能表征的全部核心工艺技术，具备高品质、高性能、高一致性的特种光纤批量交付能力。公司主要聚焦有源光纤研究与应用的瓶颈问题，助力推动光纤激光",
+      "relevance_score": 8
+    },
+    {
+      "code": "300698",
+      "name": "万马科技",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "硬件",
+      "total_score": 40.4,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 26.0,
+      "profit_score": 6.0,
+      "rating_score": 6.4,
+      "consensus_score": 2.0,
+      "revenue_growth": 11.879,
+      "profit_growth": 5989600.18,
+      "roe": 1.139,
+      "gross_margin": 27.8056,
+      "report_count": 5,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "硬件"
+      ],
+      "company_product_map": {
+        "products": [
+          "硬件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 13.0,
+        "profit": 4.0,
+        "commercialization": 5.2,
+        "market": 4.0,
+        "risk": 0
+      },
+      "v4_score": 40.4,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 40.4,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.45,
+      "mapping_status": "pending_review",
+      "mapping_source": "introduction",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 38.38,
+      "lpo_mpo_hits": [
+        "光通信",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [],
+      "evidence_text": "5G；DeepSeek概念；一带一路；东数西算(算力)；云计算；人工智能；信息技术(A股)；光纤概念；华为昇腾；卫星导航；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡动量；同花顺小市值1500；同花顺小盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺深股通；同花顺激进投资；同花顺陆股通；同花顺高估值；同花顺高盈利；技术硬件与设备(A股)；数据中心；数据要素；无人驾驶；智能医疗；智能物流；比亚迪概念；浙江；液冷服务器；深股通；物联网；百度概念；社保重仓；算力租赁；网约车；英伟达概念；车联网(车路协同)；通信网络设备及器件；通信设备；通信设备Ⅲ(A股)；阿里巴巴概念；太平洋_收入高速增长，RoboX商业化加速_2025-11-04.pdf；太平洋_车联网收入快速增长，积极布局Robotaxi_2025-09-05.pdf；华安证券_战略合作天翼云，智驾能力赋能具身智能和低空出行_2025-03-14.pdf；西南证券_与东风乘用车战略合作，车联网业务再下一城_2022-12-25.pdf；西南证券_车联网市场快速发展，外延收购切入优质赛道_2022-09-26.pdf；通信与信息化设备的研发、生产、系统集成与销售,包括通信网络配线及信息化机柜产品和医疗信息化产品两大类。 万马科技股份有限公司成立于1997年,注册资金13400万元。是国内著名的通信电子、通讯物理连接设备的生产厂商之一。集研发、生产",
+      "relevance_score": 8
+    },
+    {
+      "code": "300597",
+      "name": "吉大通信",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 30.6,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 13.0,
+      "profit_score": 7.0,
+      "rating_score": 1.7,
+      "consensus_score": 0.0,
+      "revenue_growth": 8.9757,
+      "profit_growth": -5257162.87,
+      "roe": -0.5596,
+      "gross_margin": 15.546,
+      "report_count": 0,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 6.5,
+        "profit": 4.7,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 30.6,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 30.6,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 29.07,
+      "lpo_mpo_hits": [
+        "光通信",
+        "光纤",
+        "光电",
+        "数据中心"
+      ],
+      "strong_hits": [],
+      "evidence_text": "5G；AI应用；DeepSeek概念；一带一路；东数西算(算力)；信息技术(A股)；信息技术服务(A股)；养老概念；军工；军工信息化；创投；吉林；同花顺低动量；同花顺低盈利；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺均衡估值；同花顺均衡投资；同花顺小市值1000；同花顺小市值1500；同花顺小市值400；同花顺小市值600；同花顺小市值800；同花顺小盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；数据中心；新型城镇化；无人机；智慧政务；网络安全；车联网(车路协同)；软件与服务(A股)；通信工程及服务；通信服务；通信网络设计服务及通信网络工程服务 吉林吉大通信设计院股份有限公司原隶属于长春邮电学院,现隶属吉林大学,是专业从事通信工程项目咨询、勘察、设计的企业,具有国家住房和城乡建设部批准的甲级勘察、设计资质;国家发展和改革委员会批准的通信信息专业甲级工程咨询资质;中国通信企业协会批准的通信信息网络系统集成甲级资质。公司成立于1985年4月,2002年通过了ISO9001:2000质量管理体系认证;2016年9月通过了GB/T24001-ISO14001环境管理体系认证和GB/T28001-2011职业健康安全管理体系认证,",
+      "relevance_score": 8
+    },
+    {
+      "code": "300504",
+      "name": "天邑股份",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "应用",
+      "total_score": 36.9,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 23.0,
+      "profit_score": 9.0,
+      "rating_score": 4.9,
+      "consensus_score": 0.0,
+      "revenue_growth": 8.7239,
+      "profit_growth": 18771177.31,
+      "roe": 1.0981,
+      "gross_margin": 20.1381,
+      "report_count": 6,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "应用"
+      ],
+      "company_product_map": {
+        "products": [
+          "应用"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 11.5,
+        "profit": 6.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 36.9,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 36.9,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 35.05,
+      "lpo_mpo_hits": [
+        "光通信",
+        "光纤",
+        "光电"
+      ],
+      "strong_hits": [],
+      "evidence_text": "5G；AI眼镜；F5G概念；QFII重仓；WiFi6；信息技术(A股)；光纤概念；华为概念；华为海思概念股；同花顺低估值；同花顺低动量；同花顺低盈利；同花顺保守投资；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺创指；同花顺小盘；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；商业航天；四川；技术硬件与设备(A股)；星闪概念；智能家居；物联网；百日新高；虚拟现实；西部大开发；近期新高；通信终端及配件；通信设备；通信设备Ⅲ(A股)；鸿蒙概念；中国银河_3Q25业绩点评：业绩拐点初现，看好未来万兆光网+出海共振_2025-11-09.pdf；民生证券_2022年年报和2023年一季报点评：Q1业绩承压，中长期海内外需求增长可期_2023-05-15.pdf；华金证券_受益双千兆建设加速，业绩稳定增长_2023-04-22.pdf；民生证券_2022年三季报点评：受益千兆渗透率提升，业绩持续高速增长_2022-10-25.pdf；川财证券_WiFi6与5G周期共振，有望重回增长轨道_2020-04-30.pdf；华鑫证券_新股询价定价报告：天邑股份_2018-03-13.pdf；从事宽带网络终端设备、通信网络物理连接与保护设备、移动通信网络优化系统设备等的研发、生产、销售和服务 四川天邑康和通信股份有限公司(以下简称“天邑通信”或“公司”)成立于2001年,系由四川天邑康和光电子有限公司以整体变更方式设立的股份有限公司,公司位",
+      "relevance_score": 6
+    },
+    {
+      "code": "603206",
+      "name": "嘉环科技",
+      "industry": "通信设备",
+      "chain": "AI算力",
+      "layer": "软件",
+      "total_score": 32.9,
+      "grade": "C",
+      "moat_score": 0,
+      "moat_signals": [],
+      "growth_score": 23.0,
+      "profit_score": 3.0,
+      "rating_score": 1.7,
+      "consensus_score": 0.0,
+      "revenue_growth": 0.1775,
+      "profit_growth": 9639214.77,
+      "roe": 0.6385,
+      "gross_margin": 12.9472,
+      "report_count": 0,
+      "policy_theme": "未来产业主攻方向",
+      "bom_path": [
+        "AI算力",
+        "软件"
+      ],
+      "company_product_map": {
+        "products": [
+          "软件"
+        ],
+        "materials": []
+      },
+      "commercialization_stage": "证据待抽取",
+      "chokepoint_level": "观察",
+      "dimension_scores": {
+        "policy": 5.2,
+        "bom": 9.0,
+        "chokepoint": 0.0,
+        "growth": 11.5,
+        "profit": 2.0,
+        "commercialization": 5.2,
+        "market": 0.0,
+        "risk": 0
+      },
+      "v4_score": 32.9,
+      "rating": "D",
+      "trade_signal": "风险回避",
+      "evidence": [],
+      "score": 32.9,
+      "node_id": "ai_compute_application",
+      "node_name": "应用",
+      "mapping_confidence": 0.5,
+      "mapping_status": "pending_review",
+      "mapping_source": "main_business",
+      "evidence_gaps": [
+        "是否有明确客户或供应链认证",
+        "是否有量产、扩产、订单或定点公告",
+        "该产品收入占比是否足够高",
+        "是否存在国产替代或卡脖子稀缺性证据"
+      ],
+      "mapping_quality_weight": 0.95,
+      "mapping_adjusted_score": 31.25,
+      "lpo_mpo_hits": [
+        "光通信",
+        "光纤",
+        "数据中心"
+      ],
+      "strong_hits": [],
+      "evidence_text": "5G；AI应用；AI智能体；DeepSeek概念；东数西算(算力)；云计算；人工智能；信息技术(A股)；信息技术服务(A股)；储能；充电桩；华为概念；卫星导航；同花顺主板；同花顺低动量；同花顺全A(加权)；同花顺全A(沪深)；同花顺全A(沪深京)；同花顺全A(沪深京等权)；同花顺全A(沪深等权)；同花顺全A(除科创板)；同花顺全A(除金融、石油石化)；同花顺均衡估值；同花顺均衡盈利；同花顺小盘；同花顺情绪指数；同花顺沪深全A；同花顺沪深全A(除科创板)；同花顺沪深全A(除金融、石油石化)；同花顺沪股通；同花顺激进投资；同花顺陆股通；商业航天；工业互联网；数字经济；数据中心；新型工业化；昨日打板表现；昨日打首板表现；昨日涨停表现；昨日非ST打板；昨日非ST涨停表现；昨日非ST首板；昨日首板表现；昨日高振幅；智慧城市；智慧政务；智慧灯杆；智能家居；江苏；沪深主板昨日涨停；沪股通；物联网；碳中和；算力租赁；职业教育；软件与服务(A股)；通信工程及服务；通信服务；阿里巴巴概念；高贝塔值；鸿蒙概念；龙虎榜指数；网络建设服务、网络运维服务、信息通信系统软件调试服务、政企行业智能化服务、网络优化服务及ICT教育培训业务。 嘉环科技股份有限公司创立于1998 年，国家级高新技术企业，专注于ICT 技术服务，以服务构建产业最佳连接，成为智能世界一站式服务平台。目前拥有员工7000多人，业务覆盖全国31个省。主营业务为：信息通信系统综合服务、智能化综合服务、教育培训综合服务，为主流设备厂商，中国移动、中国电信、中国联通、中国铁塔、广电等运营商，政企行业客户等提供端到端全业务、全技术、全国落地，标准",
+      "relevance_score": 6
+    }
+  ]
+}

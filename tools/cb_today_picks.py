@@ -1,11 +1,88 @@
 #!/usr/bin/env python3
 """今日选股 + 详细理由"""
-import sys,os,pickle,numpy as np,psycopg2
+import argparse, sys,os,pickle,numpy as np,psycopg2
 _PROJ=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0,os.path.join(_PROJ,'packages','kronos-factors'));sys.path.insert(0,_PROJ)
 from kronos_factors.engine.cb_intraday import CbIntradayEngine
 
 PG=os.environ.get('KRONOS_PG_URL','postgresql://kronos:kronos@localhost:6432/kronos')
+
+
+def _format_reason(p):
+    reasons = []
+    if p.get("price_gap") is not None:
+        reasons.append(f"价差{p['price_gap']:.2f}元")
+    if p.get("premium_rate") is not None:
+        reasons.append(f"溢价率{p['premium_rate']:.2f}%")
+    if p.get("route") in ("A低溢价题材", "A+B共振"):
+        reasons.append("低溢价题材路线")
+    if p.get("route") in ("B下修事件", "A+B共振"):
+        reasons.append("下修事件路线")
+    if p.get("maturity_days_left") is not None:
+        reasons.append(f"剩余{p['maturity_days_left']}天")
+    return " / ".join(reasons) if reasons else "底价安全垫候选"
+
+
+def _format_risk(p):
+    risks = list(p.get("risk_flags") or [])
+    missing = p.get("missing_fields") or []
+    if "ownership_nature" in missing:
+        risks.append("控股属性缺失")
+    if "rating" in missing:
+        risks.append("评级字段缺失")
+    if "maturity_call_price" in missing:
+        risks.append("到期赎回价使用代理值")
+    return " / ".join(dict.fromkeys(risks)) if risks else "无显著字段风险"
+
+
+def print_cb_floor_picks(trade_date=None, top_n=20):
+    from kronos_factors.engine.cb_floor import CbFloorEngine
+
+    engine = CbFloorEngine(pg_url=PG)
+    try:
+        picks = engine.run(trade_date=trade_date, top_n=top_n)
+    finally:
+        engine.close()
+
+    if not picks:
+        print("No cb_floor picks: 当前没有满足底价安全垫门槛的转债")
+        return
+
+    date_label = trade_date or "latest"
+    print(f"""
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║  可转债底价安全垫选债 | 选债日: {date_label} | Top {top_n}
+╚══════════════════════════════════════════════════════════════════════════════════╝""")
+
+    route_order = ("A+B共振", "A低溢价题材", "B下修事件", "底价观察")
+    for route in route_order:
+        group = [p for p in picks if p.get("route") == route]
+        if not group:
+            continue
+        print(f"\n[{route}]")
+        print(f"{'#':<3} {'转债':<10} {'价格':<8} {'价差':<8} {'溢价%':<8} {'剩余天':<8} {'质押%':<8} {'A线':<6} {'B线':<6} {'总分':<6} {'等级':<3}")
+        print("-" * 108)
+        for i, p in enumerate(group, 1):
+            print(
+                f"{i:<3} {p.get('name', p.get('code','')):<10} "
+                f"{str(p.get('price')):<8} {str(p.get('price_gap')):<8} "
+                f"{str(p.get('premium_rate')):<8} {str(p.get('maturity_days_left')):<8} "
+                f"{str(p.get('pledge_total_ratio')):<8} {p.get('route_a_score',0):<6} "
+                f"{p.get('route_b_score',0):<6} {p.get('total_score',0):<6} {p.get('grade',''):<3}"
+            )
+            print(f"    入选原因: {_format_reason(p)}")
+            print(f"    风险提示: {_format_risk(p)}")
+
+
+if "--mode" in sys.argv:
+    parser = argparse.ArgumentParser(description="CB today picks")
+    parser.add_argument("date", nargs="?", default=None, help="Trade date YYYY-MM-DD")
+    parser.add_argument("--mode", choices=["cb_floor", "cb_intraday"], default="cb_intraday")
+    parser.add_argument("--top-n", type=int, default=20)
+    args = parser.parse_args()
+    if args.mode == "cb_floor":
+        print_cb_floor_picks(args.date, args.top_n)
+        sys.exit(0)
 
 ml_models={}
 for n in ['rf','lightgbm','catboost']:

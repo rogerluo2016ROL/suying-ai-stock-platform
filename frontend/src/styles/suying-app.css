@@ -395,6 +395,82 @@ a{color:var(--accent);text-decoration:none}
 .sector-cell .sn{font-size:11px;font-weight:600;color:var(--fg);margin-bottom:4px}
 .sector-cell .ss{font-size:22px;font-weight:720;font-family:var(--font-mono)}
 .sector-cell .sd{font-size:9.5px;color:var(--muted);margin-top:2px}
+.market-subnav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.market-subtab{min-height:62px;display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);
+  border-radius:8px;background:var(--surface);text-align:left;color:var(--fg-2);cursor:pointer;transition:.14s}
+.market-subtab:hover{border-color:rgba(61,139,255,.42);background:var(--elevated);color:var(--fg)}
+.market-subtab.active{background:var(--accent-dim);border-color:rgba(61,139,255,.62);color:var(--fg)}
+.market-subtab-no{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;flex-shrink:0;
+  background:var(--surface-2);border:1px solid var(--border);font-family:var(--font-mono);font-weight:760;font-size:12px;color:var(--fg-2)}
+.market-subtab.active .market-subtab-no{background:var(--accent);border-color:var(--accent);color:#fff}
+.market-subtab-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.market-subtab-text strong{font-size:13px;font-weight:760;line-height:1.1;color:inherit}
+.market-subtab-text small{font-size:11px;line-height:1.2;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.market-page{display:flex;flex-direction:column;gap:14px}
+.ai-sentiment-card{margin-top:12px;padding:14px;border:1px solid rgba(61,139,255,.28);border-radius:8px;background:linear-gradient(180deg,#fbfdff,#f5f8ff)}
+.ai-title{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ai-title span{font-weight:760;font-size:13px;color:var(--fg)}
+.ai-title em{margin-left:auto;font-style:normal;font-size:11px;color:var(--accent);border:1px solid rgba(61,139,255,.28);
+  background:rgba(61,139,255,.08);border-radius:999px;padding:3px 8px}
+.ai-sentiment-card p{margin:0 0 10px;color:var(--fg-2);font-size:13px;line-height:1.75}
+.ai-sentiment-card p b{color:#c96f00}
+.ai-reason-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.ai-reason-grid div{border:1px solid rgba(61,139,255,.18);background:#f7faff;border-radius:7px;padding:10px;min-height:92px}
+.ai-reason-grid strong{display:block;font-size:11.5px;color:#2557a7;margin-bottom:6px}
+.ai-reason-grid span{display:block;font-size:12px;line-height:1.65;color:var(--fg-2)}
+.insight-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.history-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.7fr);gap:14px}
+.history-side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.similar-list{display:flex;flex-direction:column;gap:9px}
+.similar-item{border:1px solid var(--border);background:var(--surface-2);border-radius:7px;padding:10px}
+.similar-item b{display:block;font-family:var(--font-mono);font-size:12px;color:var(--fg);margin-bottom:4px}
+.similar-item span{display:block;font-size:12px;color:var(--fg-2);line-height:1.55}
+.tbl.compact td,.tbl.compact th{padding:9px 8px;font-size:12px}
+.sector-top5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.top-sector-card{min-height:116px;border-radius:8px;border:1px solid var(--border);background:var(--surface);padding:14px;text-align:left;
+  display:flex;flex-direction:column;gap:7px;cursor:pointer;transition:.14s;color:var(--fg)}
+.top-sector-card:hover,.top-sector-card.active{transform:translateY(-1px);box-shadow:0 10px 22px rgba(26,34,48,.08)}
+.top-sector-card.hot{background:var(--up-bg);border-color:rgba(255,77,79,.42)}
+.top-sector-card.strong{background:var(--warn-bg);border-color:rgba(245,166,35,.46)}
+.top-sector-card.follow{background:var(--down-bg);border-color:rgba(46,194,126,.38)}
+.top-sector-card span{font-family:var(--font-mono);font-size:11px;color:var(--accent);font-weight:760}
+.top-sector-card small{font-size:11px;color:var(--muted)}
+.top-sector-card strong{font-size:17px;line-height:1.25;color:var(--fg)}
+.top-sector-card em{font-style:normal;font-size:11.5px;line-height:1.45;color:var(--fg-2)}
+.resonance-note{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.resonance-note div{border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:12px 14px;
+  color:var(--fg-2);font-size:12.5px;line-height:1.65}
+.resonance-note b{color:var(--fg)}
+.sector-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(360px,.65fr);gap:14px;align-items:start}
+.sector-side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.resonance-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.resonance-grid .sector-cell{min-height:126px;border:1px solid var(--border);border-left-width:4px;text-align:left}
+.resonance-grid .sector-cell.active{outline:2px solid rgba(61,139,255,.32);box-shadow:0 10px 22px rgba(26,34,48,.08)}
+.sector-cell.hot{border-color:rgba(255,77,79,.28)}
+.sector-cell.strong{border-color:rgba(245,166,35,.34)}
+.sector-cell.follow{border-color:rgba(46,194,126,.28)}
+.sector-cell.neutral{border-color:rgba(61,139,255,.26)}
+.sector-cell.weak{border-color:var(--border)}
+.sector-detail-card h3{margin:0 0 4px;font-size:22px}
+.sector-detail-card p{margin:0 0 14px;color:var(--muted);font-size:12px}
+.detail-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.detail-kpis div{border:1px solid var(--border);border-radius:7px;background:var(--surface-2);padding:10px}
+.detail-kpis span{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
+.detail-kpis b{font-family:var(--font-mono);font-size:18px;color:var(--fg)}
+.analysis-box{border-radius:7px;background:var(--surface-2);padding:10px 12px;font-size:12.5px;line-height:1.65;color:var(--fg-2);margin-bottom:12px}
+.analysis-box b{color:var(--fg)}
+.sector-stock-section{margin:12px 0}
+.sector-stock-section h4{margin:0 0 8px;font-size:13px;color:var(--fg)}
+.sector-stock-table{min-width:0}
+.sector-stock-table .code{font-family:var(--font-mono);font-size:12px}
+.sector-stock-table .nm{font-weight:650;color:var(--fg)}
+.sector-drawer-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.sector-drawer-summary div{border:1px solid var(--border);border-radius:8px;background:var(--surface-2);padding:12px}
+.sector-drawer-summary span{display:block;font-size:11px;color:var(--muted);margin-bottom:6px}
+.sector-drawer-summary b{font-family:var(--font-mono);font-size:20px;color:var(--fg)}
+.ai-resonance{display:flex;flex-direction:column;gap:10px}
+.ai-resonance p{margin:0;padding:12px;border-radius:7px;background:var(--surface-2);font-size:12.5px;line-height:1.7;color:var(--fg-2)}
+.ai-resonance b{color:var(--fg)}
 .footer-bar{display:flex;align-items:center;gap:20px;margin-top:2px;padding-top:12px;border-top:1px solid var(--border);
   font-size:10.5px;color:var(--muted);flex-wrap:wrap}
 .footer-bar .sep{width:1px;height:12px;background:var(--border)}
@@ -811,6 +887,10 @@ a{color:var(--accent);text-decoration:none}
   .signal-overview-layout{grid-template-columns:1fr}
   .watchlist-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
   .watchlist-layout{grid-template-columns:1fr}
+  .market-subnav,.history-layout,.sector-layout,.resonance-note{grid-template-columns:1fr}
+  .sector-top5{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .insight-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ai-reason-grid{grid-template-columns:1fr}
   .od-account-bar{grid-template-columns:repeat(2,minmax(0,1fr))}
   .od-account-bar div:nth-child(2){border-right:0}
   .watch-table-head,.watch-stock-row{grid-template-columns:68px minmax(78px,1fr) 64px 70px 82px 88px 68px 72px 60px}
@@ -829,6 +909,7 @@ a{color:var(--accent);text-decoration:none}
   .od-risk-actions{justify-content:flex-start}
   .od-sector-grid{grid-template-columns:1fr 1fr}
   .watchlist-kpis{grid-template-columns:1fr 1fr}
+  .sector-top5,.resonance-grid{grid-template-columns:1fr 1fr}
   .od-account-bar{grid-template-columns:1fr}
   .od-account-bar div{border-right:0;border-bottom:1px solid var(--border);padding-bottom:10px}
   .od-account-bar div:last-child{border-bottom:0;padding-bottom:0}

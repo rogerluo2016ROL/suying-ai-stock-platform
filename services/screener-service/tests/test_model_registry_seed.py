@@ -18,6 +18,7 @@ EXPECTED_MODEL_NAMES = {
     "bi_trend_full_market_v1",
     "supply_chain_bom_v5",
     "cb_auction_v1",
+    "cb_auction_t0_v1",
     "cb_floor_v1",
     "cb_intraday_v1",
 }

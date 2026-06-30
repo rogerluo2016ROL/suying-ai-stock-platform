@@ -18,6 +18,14 @@ def test_normalize_stock_code_handles_suffix_and_plain_code():
 def test_noise_concept_filter_removes_style_and_region_labels():
     assert _is_noise_concept("昨日涨停") is True
     assert _is_noise_concept("百日新高") is True
+    assert _is_noise_concept("近期强势") is True
+    assert _is_noise_concept("上证380成份股") is True
+    assert _is_noise_concept("中证500成份股") is True
+    assert _is_noise_concept("沪股通") is True
+    assert _is_noise_concept("最近多板") is True
+    assert _is_noise_concept("增持计划") is True
+    assert _is_noise_concept("社保新进") is True
+    assert _is_noise_concept("融资融券") is True
     assert _is_noise_concept("浙江") is True
     assert _is_noise_concept("机器人") is False
     assert _is_noise_concept("固态电池") is False
@@ -54,6 +62,53 @@ def test_theme_score_ignores_risk_fields():
     risky = dict(safe, premium_rate=80.0, call_status="公告实施强赎")
 
     assert _theme_score(safe) == _theme_score(risky)
+
+
+def test_theme_score_does_not_reward_narrow_concepts():
+    wide = {
+        "is_direct_trigger": False,
+        "matched_concept_count": 1,
+        "trigger_stock_count_sum": 1,
+        "matched_fd_amount": 600_000_000,
+        "concept_size_min": 80,
+    }
+    narrow = dict(wide, concept_size_min=2)
+
+    assert _theme_score(wide) == _theme_score(narrow)
+
+
+def test_assemble_result_does_not_sort_by_concept_size():
+    engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+    raw_bonds = [
+        {
+            "cb_code": "123001.SZ",
+            "cb_name": "宽概念转债",
+            "stk_code": "300101",
+            "stk_name": "宽概念",
+            "matched_concepts": ["强势概念"],
+            "trigger_sources": ["300001"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 600_000_000,
+            "concept_size_min": 80,
+        },
+        {
+            "cb_code": "123002.SZ",
+            "cb_name": "窄概念转债",
+            "stk_code": "300102",
+            "stk_name": "窄概念",
+            "matched_concepts": ["强势概念"],
+            "trigger_sources": ["300001"],
+            "matched_concept_count": 1,
+            "trigger_stock_count_sum": 1,
+            "matched_fd_amount": 600_000_000,
+            "concept_size_min": 2,
+        },
+    ]
+
+    result = engine._assemble_result("2026-06-30", [], [], raw_bonds, top_n=None)
+
+    assert [bond["cb_code"] for bond in result["bonds"]] == ["123001.SZ", "123002.SZ"]
 
 
 def test_assemble_result_sorts_by_theme_relevance_and_keeps_risky_bond():
@@ -284,7 +339,7 @@ def test_run_assembles_fetcher_outputs_without_postgres(monkeypatch):
     monkeypatch.setattr(
         engine,
         "_fetch_concepts",
-        lambda cur, triggers: (
+        lambda cur, triggers, trade_date=None: (
             [
                 {
                     "concept_code": "886001.TI",
@@ -384,9 +439,9 @@ def test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up():
         def fetchall(self):
             return [
                 ("300001.SZ", "封单缺失", None, "09:25:00", False),
-                ("300002.SZ", "封单不足", 700_000_000, "09:25:00", False),
+                ("300002.SZ", "封单不足", 500_000_000, "09:25:00", False),
                 ("300003.SZ", "昨日涨停", 1_500_000_000, "09:25:00", True),
-                ("300004.SZ", "有效触发", 750_000_000, "09:25:00", False),
+                ("300004.SZ", "有效触发", 510_000_000, "09:25:00", False),
             ]
 
     triggers, rejections = engine._fetch_trigger_stocks(
@@ -399,17 +454,51 @@ def test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up():
         {
             "trigger_stock_code": "300004",
             "trigger_stock_name": "有效触发",
-            "fd_amount": 750_000_000.0,
-            "fd_amount_yi": 7.5,
+            "fd_amount": 510_000_000.0,
+            "fd_amount_yi": 5.1,
             "first_time": "09:25:00",
             "prev_was_limit_up": False,
         }
     ]
     assert rejections == [
         {"code": "300001", "name": "封单缺失", "reason": "封单金额缺失"},
-        {"code": "300002", "name": "封单不足", "reason": "封单金额不足7亿"},
+        {"code": "300002", "name": "封单不足", "reason": "封单金额不足5亿"},
         {"code": "300003", "name": "昨日涨停", "reason": "昨日已涨停"},
     ]
+
+
+def test_fetch_concepts_keeps_top_two_by_auction_strength_without_size_tiebreak():
+    engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+    trigger_stocks = [
+        {
+            "trigger_stock_code": "300001",
+            "trigger_stock_name": "触发科技",
+            "fd_amount": 600_000_000,
+        }
+    ]
+
+    class DummyCursor:
+        def execute(self, sql, params):
+            assert "stk_auction_o" in sql
+            assert "ths_daily" not in sql
+            assert "(a.open / NULLIF(a.close, 0) - 1) * 100" in sql
+            assert "COUNT(*) OVER (PARTITION BY m.ts_code) AS concept_size" in sql
+
+        def fetchall(self):
+            return [
+                ("886001.TI", "弱势窄概念", "300001", 3, 1.0, 10),
+                ("886002.TI", "最强概念", "300001", 80, 8.0, 20),
+                ("886003.TI", "次强概念", "300001", 60, 6.0, 15),
+                ("886004.TI", "第三概念", "300001", 2, 5.0, 5),
+            ]
+
+    concepts, rejections = engine._fetch_concepts(DummyCursor(), trigger_stocks)
+
+    assert [item["concept_name"] for item in concepts] == ["最强概念", "次强概念"]
+    assert [item["concept_strength"] for item in concepts] == [8.0, 6.0]
+    assert [item["concept_strength_source"] for item in concepts] == ["auction_avg", "auction_avg"]
+    assert [item["auction_sample_count"] for item in concepts] == [20, 15]
+    assert rejections == []
 
 
 def test_cli_write_outputs_creates_json_and_csv(tmp_path):

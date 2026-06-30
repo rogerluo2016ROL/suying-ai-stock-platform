@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsOption } from 'echarts'
+import { Drawer } from 'antd'
 import {
   ApartmentOutlined,
   AreaChartOutlined,
@@ -63,6 +64,31 @@ interface AuctionIntentItem {
   reasons?: string[]
 }
 
+interface LimitStockItem {
+  code: string
+  name?: string
+  price?: number
+  change_pct?: number
+  chg_pct?: number
+  score?: number
+  industry?: string
+  sector?: string
+  board?: string
+  concept?: string
+  signal?: string
+  desc?: string
+}
+
+type LimitStocksPayload = LimitStockItem[] | {
+  up_count?: number
+  down_count?: number
+  data_source?: string
+  up_list?: LimitStockItem[]
+  down_list?: LimitStockItem[]
+  list?: LimitStockItem[]
+  stocks?: LimitStockItem[]
+}
+
 interface MarketSentimentData {
   score: number
   label: string
@@ -96,11 +122,7 @@ interface DashboardData {
   market_sentiment?: MarketSentimentData
   market_regime_v2?: MarketRegimeData
   signal_stocks?: SignalStock[]
-  limit_stocks?: {
-    up_count: number
-    down_count: number
-    data_source?: string
-  }
+  limit_stocks?: LimitStocksPayload
   alert_signals?: AlertSignal[]
   auction_intent?: {
     trade_date?: string
@@ -150,12 +172,51 @@ const fallbackDimensions = [
   { key: 'sentiment', label: '情绪', weight: 5, score: 62, tone: 'linear-gradient(90deg,#3d8bff,#1677ff)' },
 ]
 
-const fallbackSectors = [
-  ['半导体', 85, 82, 3.2], ['新能源', 78, 72, 2.8], ['AI算力', 75, 75, 2.5], ['消费电子', 68, 60, 1.8],
-  ['白酒', 65, 68, 1.5], ['汽车', 60, 55, 1.2], ['医药', 58, 50, 0.8], ['光伏', 52, 48, 0.5],
-  ['金融', 50, 45, 0.2], ['军工', 45, 38, -0.3], ['传媒', 42, 35, -0.5], ['电力', 40, 40, -0.1],
-  ['农业', 38, 36, -0.8], ['有色', 36, 32, -1.0], ['化工', 34, 30, -0.6], ['钢铁', 30, 22, -1.5],
+type SentimentPageKey = 'today' | 'history' | 'sector'
+
+const sentimentPages: Array<{ key: SentimentPageKey; number: string; label: string; desc: string }> = [
+  { key: 'today', number: '01', label: '今日市场', desc: '当天情绪、资金、涨跌快照' },
+  { key: 'history', number: '02', label: '历史情绪', desc: '30/60/120 日情绪回溯' },
+  { key: 'sector', number: '03', label: '板块共振', desc: '强势板块、分化和共振方向' },
 ]
+
+interface SectorResonance {
+  name: string
+  score: number
+  upRatio: number
+  change: number
+  fund: number
+}
+
+interface SectorStockDetail {
+  code: string
+  name: string
+  industry: string
+  price: number
+  changePct: number
+  score: number
+  signal: string
+  source: string
+}
+
+const fallbackSectors = [
+  { name: '半导体', score: 85, upRatio: 82, change: 3.2, fund: 32.6 },
+  { name: '新能源', score: 78, upRatio: 72, change: 2.8, fund: 18.4 },
+  { name: 'AI算力', score: 75, upRatio: 75, change: 2.5, fund: 15.9 },
+  { name: '消费电子', score: 68, upRatio: 60, change: 1.8, fund: 8.1 },
+  { name: '白酒', score: 65, upRatio: 68, change: 1.5, fund: 5.6 },
+  { name: '汽车', score: 60, upRatio: 55, change: 1.2, fund: 4.8 },
+  { name: '医药', score: 58, upRatio: 50, change: 0.8, fund: 3.2 },
+  { name: '光伏', score: 52, upRatio: 48, change: 0.5, fund: 2.1 },
+  { name: '金融', score: 50, upRatio: 45, change: 0.2, fund: 1.6 },
+  { name: '军工', score: 45, upRatio: 38, change: -0.3, fund: -0.8 },
+  { name: '传媒', score: 42, upRatio: 35, change: -0.5, fund: -1.2 },
+  { name: '电力', score: 40, upRatio: 40, change: -0.1, fund: -0.5 },
+  { name: '农业', score: 38, upRatio: 36, change: -0.8, fund: -1.8 },
+  { name: '有色', score: 36, upRatio: 32, change: -1.0, fund: -2.4 },
+  { name: '化工', score: 34, upRatio: 30, change: -0.6, fund: -1.5 },
+  { name: '钢铁', score: 30, upRatio: 22, change: -1.5, fund: -3.2 },
+] satisfies SectorResonance[]
 
 type SignalLevelKey = 'STRONG_BUY' | 'BUY' | 'HOLD' | 'REDUCE' | 'SELL' | 'TIMING_ALERT'
 
@@ -321,13 +382,145 @@ function buildTrendOption(score: number): EChartsOption {
 }
 
 function sectorColor(score: number) {
-  const hue = 120 - (score / 100) * 120
-  const light = 60 - (score / 100) * 25
-  return {
-    bg: `hsla(${hue},55%,${light}%,0.12)`,
-    border: `hsl(${hue},55%,${light}%)`,
-    text: `hsl(${hue},60%,35%)`,
+  if (score >= 80) {
+    return { bg: 'var(--up-bg)', border: 'var(--up)', text: 'var(--up)', level: '主线', className: 'hot' }
   }
+  if (score >= 70) {
+    return { bg: 'var(--warn-bg)', border: 'var(--warn)', text: '#b75d00', level: '强势', className: 'strong' }
+  }
+  if (score >= 60) {
+    return { bg: 'var(--down-bg)', border: 'var(--down)', text: '#237804', level: '跟随', className: 'follow' }
+  }
+  if (score >= 50) {
+    return { bg: 'var(--accent-dim)', border: 'var(--accent)', text: 'var(--accent)', level: '中性', className: 'neutral' }
+  }
+  return {
+    bg: 'rgba(138,150,168,.08)',
+    border: 'var(--border-2)',
+    text: '#5f6b7a',
+    level: '偏弱',
+    className: 'weak',
+  }
+}
+
+function normalizeSectorName(value?: string) {
+  return (value || '').replace(/\s+/g, '').toLowerCase()
+}
+
+function sectorMatches(industry: string, sectorName: string) {
+  const normalizedIndustry = normalizeSectorName(industry)
+  const normalizedSector = normalizeSectorName(sectorName)
+  if (!normalizedIndustry || !normalizedSector) return false
+  return normalizedIndustry.includes(normalizedSector) || normalizedSector.includes(normalizedIndustry)
+}
+
+function formatSignedPct(value: number) {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
+}
+
+function limitStockRows(payload?: LimitStocksPayload): SectorStockDetail[] {
+  if (!payload) return []
+  const rows = Array.isArray(payload)
+    ? payload
+    : [
+      ...(payload.up_list ?? []),
+      ...(payload.down_list ?? []),
+      ...(payload.list ?? []),
+      ...(payload.stocks ?? []),
+    ]
+  return rows.map(item => ({
+    code: item.code,
+    name: item.name || item.code,
+    industry: item.industry || item.sector || item.board || item.concept || '',
+    price: Number(item.price ?? 0),
+    changePct: Number(item.change_pct ?? item.chg_pct ?? 0),
+    score: Number(item.score ?? 0),
+    signal: item.signal || item.desc || '涨跌明细',
+    source: '涨跌明细',
+  }))
+}
+
+function limitStockCount(payload: LimitStocksPayload | undefined, key: 'up' | 'down', fallback: number) {
+  if (!payload) return fallback
+  if (Array.isArray(payload)) return key === 'up' ? payload.length : fallback
+  const explicit = key === 'up' ? payload.up_count : payload.down_count
+  if (typeof explicit === 'number' && Number.isFinite(explicit)) return explicit
+  const list = key === 'up' ? payload.up_list : payload.down_list
+  return Array.isArray(list) ? list.length : fallback
+}
+
+function limitStockSource(payload?: LimitStocksPayload) {
+  return payload && !Array.isArray(payload) ? payload.data_source : undefined
+}
+
+function sectorStockRows(
+  sector: SectorResonance,
+  signalStocks: SignalStock[],
+  auctionRows: AuctionIntentItem[],
+  limitRows: SectorStockDetail[],
+): SectorStockDetail[] {
+  const rows: SectorStockDetail[] = [
+    ...limitRows,
+    ...signalStocks.map(stock => ({
+      code: stock.code,
+      name: stock.name,
+      industry: stock.industry || stock.market || '',
+      price: Number(stock.price ?? 0),
+      changePct: Number(stock.change_pct ?? 0),
+      score: Number(stock.score ?? 0),
+      signal: stock.signal || stock.desc || '信号',
+      source: '信号',
+    })),
+    ...auctionRows.map(item => ({
+      code: item.code,
+      name: item.name,
+      industry: item.industry || '',
+      price: Number(item.price ?? 0),
+      changePct: auctionChange(item),
+      score: auctionScore(item, 0),
+      signal: auctionIntentLabel(item, auctionScore(item, 0)),
+      source: '竞价',
+    })),
+  ]
+  const seen = new Set<string>()
+  return rows
+    .filter(row => row.code && !seen.has(row.code) && sectorMatches(row.industry, sector.name))
+    .filter(row => {
+      seen.add(row.code)
+      return true
+    })
+    .sort((a, b) => b.changePct - a.changePct || b.score - a.score)
+    .slice(0, 12)
+}
+
+function SectorStockTable({ rows }: { rows: SectorStockDetail[] }) {
+  if (rows.length === 0) {
+    return (
+      <div className="prototype-empty-state">
+        <strong>暂无该板块股票明细</strong>
+        <span>等待 signal_stocks 或 dashboard/auction 返回带 industry 的个股数据后自动联动。</span>
+      </div>
+    )
+  }
+  return (
+    <table className="tbl compact sector-stock-table">
+      <thead>
+        <tr><th>代码</th><th>名称</th><th className="r">涨幅</th><th className="r">价格</th><th className="r">评分</th><th>来源</th></tr>
+      </thead>
+      <tbody>
+        {rows.map(row => (
+          <tr key={row.code}>
+            <td className="code">{row.code}</td>
+            <td className="nm">{row.name}</td>
+            <td className={`r ${row.changePct >= 0 ? 'up' : 'down'}`}>{formatSignedPct(row.changePct)}</td>
+            <td className="r mono">{row.price > 0 ? row.price.toFixed(2) : '--'}</td>
+            <td className="r mono">{row.score > 0 ? row.score : '--'}</td>
+            <td><span className={`tag ${row.source === '竞价' ? 't-warn' : 't-neu'}`}>{row.source}</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
 }
 
 function mergeAuctionRows(primary: AuctionIntentItem[], fallback: AuctionIntentItem[]) {
@@ -534,6 +727,9 @@ export default function Dashboard() {
   const [screeningPicks, setScreeningPicks] = useState<AuctionIntentItem[]>([])
   const [auctionPicks, setAuctionPicks] = useState<AuctionIntentItem[]>([])
   const [signalFilter, setSignalFilter] = useState('all')
+  const [sentimentPage, setSentimentPage] = useState<SentimentPageKey>('today')
+  const [selectedSectorIndex, setSelectedSectorIndex] = useState(0)
+  const [sectorDetailOpen, setSectorDetailOpen] = useState(false)
   const [error, setError] = useState(false)
   const [lastRefresh, setLastRefresh] = useState('')
   const activeTab = activeTabFromPath(location.pathname)
@@ -575,13 +771,17 @@ export default function Dashboard() {
   const dimensions = dimensionsFromData(data)
   const gaugeOption = useMemo(() => buildGaugeOption(Math.round(sentiment.score)), [sentiment.score])
   const trendOption = useMemo(() => buildTrendOption(Math.round(sentiment.score)), [sentiment.score])
-  const upCount = data?.limit_stocks?.up_count ?? 87
-  const downCount = data?.limit_stocks?.down_count ?? 14
+  const sectorRows = useMemo(() => fallbackSectors, [])
+  const topSectorRows = useMemo(() => sectorRows.slice(0, 5), [sectorRows])
+  const selectedSector = sectorRows[selectedSectorIndex] ?? { name: '半导体', score: 85, upRatio: 82, change: 3.2, fund: 32.6 }
+  const upCount = limitStockCount(data?.limit_stocks, 'up', 87)
+  const downCount = limitStockCount(data?.limit_stocks, 'down', 14)
   const upStocks = sentiment.up_stocks ?? fallbackSentiment.up_stocks ?? 1852
   const downStocks = sentiment.down_stocks ?? fallbackSentiment.down_stocks ?? 1432
   const totalStocks = sentiment.total_stocks ?? 3852
   const alertSignals = data?.alert_signals ?? []
   const signalStocks = data?.signal_stocks ?? []
+  const limitRows = useMemo(() => limitStockRows(data?.limit_stocks), [data?.limit_stocks])
   const watchlist = useMemo(() => mergeWatchlistRows(data?.watchlist), [data?.watchlist])
   const watchlistSectorStats = useMemo(() => watchlistSectorRows(watchlist), [watchlist])
   const watchlistWinners = watchlist.filter(item => Number(item.change_pct ?? 0) >= 0).length
@@ -607,6 +807,10 @@ export default function Dashboard() {
   const bullishAuctionRows = mergeAuctionRows(auctionCandidates, [])
   const bearishAuctionRows = mergeAuctionRows(data?.auction_intent?.top_bearish || [], [])
   const visibleAuctionRows = [...bullishAuctionRows, ...bearishAuctionRows]
+  const selectedSectorStocks = useMemo(
+    () => sectorStockRows(selectedSector, signalStocks, visibleAuctionRows, limitRows),
+    [selectedSector, signalStocks, visibleAuctionRows, limitRows],
+  )
   const analyzedCount = data?.auction_intent?.total_analyzed ?? visibleAuctionRows.length
   const strongBullishCount = data?.auction_intent?.strong_bullish_count ?? visibleAuctionRows.filter(item => auctionScore(item, 0) >= 75).length
   const moderateBullishCount = data?.auction_intent?.moderate_bullish_count ?? visibleAuctionRows.filter(item => {
@@ -646,7 +850,7 @@ export default function Dashboard() {
               <DataFreshnessBar
                 tradeDate={sentiment.trade_date}
                 updatedAt={updatedAt}
-                source={data?.limit_stocks?.data_source || data?.data_sources?.signal_stocks || 'signal-service'}
+                source={limitStockSource(data?.limit_stocks) || data?.data_sources?.signal_stocks || 'signal-service'}
                 currentTradeDate={currentDataDate}
               />
             )}
@@ -663,90 +867,249 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="row r-6-4">
-            <PrototypeCard title="综合情绪指数 · 八维风向感知" icon={<FundOutlined />} meta={`模型: ${sentiment.model ?? 'market_regime_v2'}`}>
-              <div className="gauge-panel">
-                <div className="gauge-chart-wrap">
-                  <ReactECharts option={gaugeOption} className="gauge-chart" notMerge />
-                  <div className="gauge-readout" aria-label={`综合情绪指数 ${sentiment.score} 分`}>
-                    <b>{sentiment.score}</b><span>分</span>
-                    <small>{sentiment.label}</small>
-                  </div>
-                </div>
-                <div className="breakdown-dims">
-                  {dimensions.map(dim => (
-                    <div className="dim-row" key={dim.key}>
-                      <div className="dim-lbl">{dim.label}<span>{dim.weight}%</span></div>
-                      <div className="dim-bar-wrap">
-                        <div className="dim-bar" style={{ width: `${dim.score}%`, background: dim.tone }} />
+          <nav className="market-subnav" role="tablist" aria-label="市场情绪子页签">
+            {sentimentPages.map(page => (
+              <button
+                key={page.key}
+                type="button"
+                role="tab"
+                aria-selected={sentimentPage === page.key}
+                className={`market-subtab ${sentimentPage === page.key ? 'active' : ''}`}
+                onClick={() => setSentimentPage(page.key)}
+              >
+                <span className="market-subtab-no">{page.number}</span>
+                <span className="market-subtab-text">
+                  <strong>{page.label}</strong>
+                  <small>{page.desc}</small>
+                </span>
+              </button>
+            ))}
+          </nav>
+
+          {sentimentPage === 'today' && (
+            <section className="market-page" aria-label="今日市场">
+              <div className="row r-6-4">
+                <PrototypeCard title="综合情绪指数 · 八维风向感知" icon={<FundOutlined />} meta={`模型: ${sentiment.model ?? 'market_regime_v2'}`}>
+                  <div className="gauge-panel">
+                    <div className="gauge-chart-wrap">
+                      <ReactECharts option={gaugeOption} className="gauge-chart" notMerge />
+                      <div className="gauge-readout" aria-label={`综合情绪指数 ${sentiment.score} 分`}>
+                        <b>{sentiment.score}</b><span>分</span>
+                        <small>{sentiment.label}</small>
                       </div>
-                      <div className={`dim-val ${dim.score >= 70 ? 'up' : dim.score >= 55 ? 'neu' : 'down'}`}>{dim.score}</div>
                     </div>
-                  ))}
-                </div>
-              </div>
-              <div className="zit">加权合成: {sentiment.formula ?? fallbackSentiment.formula}</div>
-            </PrototypeCard>
-
-            <div className="grid">
-              <PrototypeCard title="市场快照" icon={<EyeOutlined />} meta={`基于 ${totalStocks.toLocaleString()} 只股票`}>
-                <div className="snapshot-grid">
-                  <div className="snap-stat"><div className="lbl">涨停</div><div className="val up">{upCount}</div><div className="sub">+12 vs 昨</div></div>
-                  <div className="snap-stat"><div className="lbl">跌停</div><div className="val down">{downCount}</div><div className="sub">-3 vs 昨</div></div>
-                  <div className="snap-stat"><div className="lbl">炸板</div><div className="val warn">18</div><div className="sub">炸板率 17.1%</div></div>
-                  <div className="snap-stat"><div className="lbl">封板率</div><div className="val neu">82.9<span style={{ fontSize: 12 }}>%</span></div><div className="sub">连板 6 板</div></div>
-                </div>
-                <div className="advance-decline">
-                  <span className="num adv up">涨 {upStocks.toLocaleString()}</span>
-                  <div className="bar-wrap">
-                    <div className="bar-up" style={{ flex: Math.max(upStocks, 1) }} />
-                    <div className="bar-down" style={{ flex: Math.max(downStocks, 1) }} />
+                    <div className="breakdown-dims">
+                      {dimensions.map(dim => (
+                        <div className="dim-row" key={dim.key}>
+                          <div className="dim-lbl">{dim.label}<span>{dim.weight}%</span></div>
+                          <div className="dim-bar-wrap">
+                            <div className="dim-bar" style={{ width: `${dim.score}%`, background: dim.tone }} />
+                          </div>
+                          <div className={`dim-val ${dim.score >= 70 ? 'up' : dim.score >= 55 ? 'neu' : 'down'}`}>{dim.score}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <span className="num down">跌 {downStocks.toLocaleString()}</span>
-                </div>
-                <div style={{ fontSize: 10.5, color: 'var(--muted)', textAlign: 'center' }}>
-                  涨跌比 <b style={{ color: 'var(--fg)' }}>{(upStocks / Math.max(downStocks, 1)).toFixed(2)}:1</b> · 平盘 {Math.max(totalStocks - upStocks - downStocks, 0).toLocaleString()} 只
-                </div>
-              </PrototypeCard>
+                  <div className="zit">加权合成: {sentiment.formula ?? fallbackSentiment.formula}</div>
+                  <div className="ai-sentiment-card">
+                    <div className="ai-title"><span>AI 大模型情绪解读</span><em>由大模型生成</em></div>
+                    <p>今日市场情绪判断为 <b>偏牛、但未进入过热。</b> 指数趋势和资金面形成主要支撑，赚钱效应扩散到多数股票，但炸板率仍提示短线追高风险。</p>
+                    <div className="ai-reason-grid">
+                      <div><strong>支撑原因 1 · 趋势</strong><span>上证、深成指同步走强，趋势分 75，说明指数环境对做多更友好。</span></div>
+                      <div><strong>支撑原因 2 · 资金</strong><span>北向和主力资金均为净流入，两市成交额维持活跃，流动性分 72。</span></div>
+                      <div><strong>支撑原因 3 · 赚钱效应</strong><span>上涨家数多于下跌家数，涨停 {upCount} 家，封板率 82.9%，情绪扩散较好。</span></div>
+                    </div>
+                    <div className="risk-banner warn"><strong>风险提醒</strong><span>若综合情绪继续接近 80 分，或炸板率明显抬升，应从积极进攻转为控制仓位。</span></div>
+                  </div>
+                </PrototypeCard>
 
-              <PrototypeCard title="资金全景" icon={<DollarOutlined />} meta="估算值">
-                <div className="fund-grid">
-                  <div className="fund-item"><div className="lbl">北向资金</div><div className="val">+23.5 亿</div></div>
-                  <div className="fund-item"><div className="lbl">主力资金</div><div className="val">+12.8 亿</div></div>
-                  <div className="fund-item"><div className="lbl">融资余额变化</div><div className="val">+15.2 亿</div></div>
-                  <div className="fund-item"><div className="lbl">两市成交额</div><div className="val">8,520 亿</div><div className="prototype-panel-note">换手率 3.2%</div></div>
-                </div>
-              </PrototypeCard>
+                <div className="grid">
+                  <PrototypeCard title="市场快照" icon={<EyeOutlined />} meta={`基于 ${totalStocks.toLocaleString()} 只股票`}>
+                    <div className="snapshot-grid">
+                      <div className="snap-stat"><div className="lbl">涨停</div><div className="val up">{upCount}</div><div className="sub">+12 vs 昨</div></div>
+                      <div className="snap-stat"><div className="lbl">跌停</div><div className="val down">{downCount}</div><div className="sub">-3 vs 昨</div></div>
+                      <div className="snap-stat"><div className="lbl">炸板</div><div className="val warn">18</div><div className="sub">炸板率 17.1%</div></div>
+                      <div className="snap-stat"><div className="lbl">封板率</div><div className="val neu">82.9<span style={{ fontSize: 12 }}>%</span></div><div className="sub">连板 6 板</div></div>
+                    </div>
+                    <div className="advance-decline">
+                      <span className="num adv up">涨 {upStocks.toLocaleString()}</span>
+                      <div className="bar-wrap">
+                        <div className="bar-up" style={{ flex: Math.max(upStocks, 1) }} />
+                        <div className="bar-down" style={{ flex: Math.max(downStocks, 1) }} />
+                      </div>
+                      <span className="num down">跌 {downStocks.toLocaleString()}</span>
+                    </div>
+                    <div style={{ fontSize: 10.5, color: 'var(--muted)', textAlign: 'center' }}>
+                      涨跌比 <b style={{ color: 'var(--fg)' }}>{(upStocks / Math.max(downStocks, 1)).toFixed(2)}:1</b> · 平盘 {Math.max(totalStocks - upStocks - downStocks, 0).toLocaleString()} 只
+                    </div>
+                  </PrototypeCard>
 
-              <div className="op-hint">
-                <div className="pos warn">7-8<span style={{ fontSize: 16 }}>成</span></div>
-                <div className="op-body">
-                  <div className="op-title warn">偏牛 · 适度积极</div>
-                  <div className="op-desc">关注强势板块趋势延续机会。控制仓位在 7-8 成，警惕情绪接近过热区间。</div>
+                  <PrototypeCard title="资金全景" icon={<DollarOutlined />} meta="估算值">
+                    <div className="fund-grid">
+                      <div className="fund-item"><div className="lbl">北向资金</div><div className="val">+23.5 亿</div></div>
+                      <div className="fund-item"><div className="lbl">主力资金</div><div className="val">+12.8 亿</div></div>
+                      <div className="fund-item"><div className="lbl">融资余额变化</div><div className="val">+15.2 亿</div></div>
+                      <div className="fund-item"><div className="lbl">两市成交额</div><div className="val">8,520 亿</div><div className="prototype-panel-note">换手率 3.2%</div></div>
+                    </div>
+                  </PrototypeCard>
+
+                  <div className="op-hint">
+                    <div className="pos warn">7-8<span style={{ fontSize: 16 }}>成</span></div>
+                    <div className="op-body">
+                      <div className="op-title warn">偏牛 · 适度积极</div>
+                      <div className="op-desc">关注强势板块趋势延续机会。控制仓位在 7-8 成，警惕情绪接近过热区间。</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </section>
+          )}
 
-          <div className="row r-6-4 mt14">
-            <PrototypeCard title="情绪历史趋势" icon={<LineChartOutlined />} meta="30日 · 60日 · 120日">
-              <ReactECharts option={trendOption} style={{ height: 360, width: '100%' }} notMerge />
-            </PrototypeCard>
-            <PrototypeCard title="板块情绪分化" icon={<ApartmentOutlined />} meta="申万一级 · 28 板块">
-              <div className="sector-grid">
-                {fallbackSectors.map(([name, score, upRatio, change]) => {
-                  const color = sectorColor(Number(score))
-                  return (
-                    <div className="sector-cell" key={String(name)} style={{ background: color.bg, borderLeftColor: color.border }}>
-                      <div className="sn">{name}</div>
-                      <div className="ss" style={{ color: color.text }}>{score}</div>
-                      <div className="sd">涨{upRatio}% · 均涨{Number(change) >= 0 ? '+' : ''}{change}%</div>
+          {sentimentPage === 'history' && (
+            <section className="market-page" aria-label="历史情绪">
+              <div className="insight-grid">
+                <MetricCard label="当前分位" value="72%" sub="近 120 日偏高，但未极端" tone="warn" />
+                <MetricCard label="情绪斜率" value="+5" sub="连续 3 日抬升" tone="down" />
+                <MetricCard label="回撤风险" value="中" sub="高位追涨需降速" tone="accent" />
+                <MetricCard label="历史相似" value="8 次" sub="5 次继续走强，3 次回落" tone="muted" />
+              </div>
+              <div className="history-layout">
+                <PrototypeCard title="情绪历史趋势" icon={<LineChartOutlined />} meta="30日 · 60日 · 120日">
+                  <ReactECharts option={trendOption} style={{ height: 420, width: '100%' }} notMerge />
+                </PrototypeCard>
+                <div className="history-side">
+                  <PrototypeCard title="历史相似场景" icon={<EyeOutlined />} meta="按相似度排序">
+                    <div className="similar-list">
+                      {[
+                        ['2026-05-22', '情绪 71，半导体主线启动，随后 3 日继续走强。'],
+                        ['2026-04-18', '资金净流入但炸板率抬升，次日高开低走。'],
+                        ['2026-03-29', '趋势与广度同步改善，强势板块轮动扩散。'],
+                      ].map(([date, desc]) => (
+                        <div className="similar-item" key={date}>
+                          <b>{date}</b>
+                          <span>{desc}</span>
+                        </div>
+                      ))}
                     </div>
+                  </PrototypeCard>
+                  <PrototypeCard title="周期状态表" icon={<BarChartOutlined />} meta="模型判断">
+                    <table className="tbl compact">
+                      <tbody>
+                        <tr><td>短线</td><td className="warn">升温</td><td>追高风险增加</td></tr>
+                        <tr><td>中线</td><td className="up">偏强</td><td>主线仍有延续</td></tr>
+                        <tr><td>长线</td><td className="neu">修复</td><td>估值压力可控</td></tr>
+                      </tbody>
+                    </table>
+                  </PrototypeCard>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {sentimentPage === 'sector' && (
+            <section className="market-page" aria-label="板块共振">
+              <div className="sector-top5">
+                {topSectorRows.map((sector, index) => {
+                  const color = sectorColor(sector.score)
+                  return (
+                    <button
+                      key={sector.name}
+                      type="button"
+                      className={`top-sector-card ${color.className} ${selectedSector.name === sector.name ? 'active' : ''}`}
+                      onClick={() => {
+                        setSelectedSectorIndex(index)
+                        setSectorDetailOpen(true)
+                      }}
+                    >
+                      <span>TOP {index + 1}</span>
+                      <small>{color.level}</small>
+                      <strong>{sector.name} {sector.score}</strong>
+                      <em>资金 {sector.fund >= 0 ? '+' : ''}{sector.fund} 亿，涨 {sector.upRatio}%，今日{index === 0 ? '最强' : '靠前'}。</em>
+                    </button>
                   )
                 })}
               </div>
-            </PrototypeCard>
-          </div>
+
+              <div className="resonance-note">
+                <div><b>结论：</b>今日不是普涨行情，主线集中在科技链。半导体、新能源、AI 算力同时具备资金净流入、上涨占比和情绪分抬升。</div>
+                <div><b>用户最该看：</b>点击 Top5 或热力格子，查看该板块二级方向、龙头样本、补涨线和弱分支。</div>
+                <div><b>下一步：</b>若明日科技链继续保持前三共振排名，优先跟踪强势龙头和低位补涨。</div>
+              </div>
+
+              <div className="sector-layout">
+                <PrototypeCard title="板块共振热力图" icon={<ApartmentOutlined />} meta="分数越高，共振越强">
+                  <div className="sector-grid resonance-grid">
+                    {sectorRows.map((sector, index) => {
+                      const color = sectorColor(sector.score)
+                      return (
+                        <button
+                          type="button"
+                          className={`sector-cell ${color.className} ${selectedSector.name === sector.name ? 'active' : ''}`}
+                          key={sector.name}
+                          style={{ background: color.bg, borderLeftColor: color.border }}
+                          onClick={() => {
+                            setSelectedSectorIndex(index)
+                          }}
+                        >
+                          <div className="sn">{sector.name}</div>
+                          <div className="ss" style={{ color: color.text }}>{sector.score}</div>
+                          <div className="sd">涨{sector.upRatio}% · 均涨{sector.change >= 0 ? '+' : ''}{sector.change}% · {sector.fund >= 0 ? '+' : ''}{sector.fund}亿</div>
+                          <span className={`tag t-${sector.score >= 70 ? 'warn' : sector.score >= 60 ? 'up' : sector.score >= 50 ? 'accent' : 'neu'}`}>{color.level}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </PrototypeCard>
+
+                <div className="sector-side">
+                  <PrototypeCard title="选中板块详情" icon={<EyeOutlined />} meta="点击左侧格子切换">
+                    <div className="sector-detail-card">
+                      <h3>{selectedSector.name}</h3>
+                      <p>二级方向、成分股涨幅、资金共振和操作线索。</p>
+                      <div className="detail-kpis">
+                        <div><span>共振分</span><b>{selectedSector.score}</b></div>
+                        <div><span>上涨占比</span><b>{selectedSector.upRatio}%</b></div>
+                        <div><span>资金</span><b>{selectedSector.fund >= 0 ? '+' : ''}{selectedSector.fund}亿</b></div>
+                      </div>
+                      <div className="analysis-box"><b>看点：</b>下钻重点看二级方向是否集中、龙头是否继续封板、低位补涨是否扩散。</div>
+                      <div className="sector-stock-section">
+                        <h4>板块股票涨幅明细</h4>
+                        <SectorStockTable rows={selectedSectorStocks} />
+                      </div>
+                      <table className="tbl compact">
+                        <thead><tr><th>二级方向</th><th className="r">强度</th><th>动作</th></tr></thead>
+                        <tbody>
+                          <tr><td>设备 / 材料</td><td className="r up">强</td><td>主线跟踪</td></tr>
+                          <tr><td>封测 / 模组</td><td className="r warn">中强</td><td>找补涨</td></tr>
+                          <tr><td>低位分支</td><td className="r neu">观察</td><td>等放量</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </PrototypeCard>
+                  <PrototypeCard title="AI 共振结论" icon={<FundOutlined />} meta="由大模型生成">
+                    <div className="ai-resonance">
+                      <p><b>结论：</b>主线集中在科技链，强度最高的是 {topSectorRows[0]?.name}，其次是 {topSectorRows[1]?.name} 和 {topSectorRows[2]?.name}。</p>
+                      <p><b>注意：</b>如果前排板块排名快速下滑，说明资金从进攻切换到防守，应降低追高仓位。</p>
+                    </div>
+                  </PrototypeCard>
+                </div>
+              </div>
+            </section>
+          )}
+
+          <Drawer
+            title={`${selectedSector.name} 股票涨幅明细`}
+            open={sentimentPage === 'sector' && sectorDetailOpen}
+            onClose={() => setSectorDetailOpen(false)}
+            width={620}
+          >
+            <div className="sector-drawer-summary">
+              <div><span>共振分</span><b>{selectedSector.score}</b></div>
+              <div><span>上涨占比</span><b>{selectedSector.upRatio}%</b></div>
+              <div><span>资金</span><b>{selectedSector.fund >= 0 ? '+' : ''}{selectedSector.fund}亿</b></div>
+            </div>
+            <SectorStockTable rows={selectedSectorStocks} />
+          </Drawer>
 
           <div className="footer-bar">
             <span>数据来源: signal-service (market_regime_v2 + daily_kline)</span>

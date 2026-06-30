@@ -59,6 +59,7 @@ INSERT INTO model_registry (model_name, display_name, category, factor_keys) VAL
     ('bi_trend_full_market_v1', '毕师傅全市场趋势启动 V1.0', '毕师傅', ARRAY['obv_score','wr_score','vol_score','ma_score','adx_score','sm_score','startup_quality_score','ignition_power_score','hard_tech_conviction','chokepoint_score','checklist_score','freshness_bonus','rebound_strength_bonus','obv_accel_score']),
     ('supply_chain_bom_v5', '大葱产业链解构选股模型 V5',  '大葱', ARRAY['moat_score','growth_score','profit_score','rating_score','consensus_score','revenue_growth','profit_growth','roe','gross_margin','report_count']),
     ('cb_auction_v1',       '秋神竞价概念选债 V1.0',     '秋神', ARRAY['premium_rate','scale_score','concept_strength','auction_strength']),
+    ('cb_auction_t0_v1',    '竞价选债 T+0 模型 V1.0',   '竞价', ARRAY['fd_amount_yi','auction_strength','concept_strength','theme_score','matched_concept_count','trigger_stock_count','risk_notes']),
     ('cb_floor_v1',         '匪爷可转债底价选债模型 V1.0', '匪爷', ARRAY['premium_score','rsi_score','ytm_score','macd_score','revision_score','theme_score','boll_score','history_score','size_score','volume_score','sector_bonus','rating_penalty','call_penalty']),
     ('cb_intraday_v1',      '匪爷可转债日内投机博弈模型 V1.0', '匪爷', ARRAY['sector_score','premium_score','momentum_score','liquidity_score','rev_bonus','call_penalty','premium_rate','yesterday_pct','cb_amount_wan'])
 ON CONFLICT (model_name) DO NOTHING;

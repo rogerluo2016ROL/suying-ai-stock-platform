@@ -18,6 +18,28 @@ import psycopg2
 PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
 
 
+def parse_forward_days(raw: str | int | list[int] | tuple[int, ...]) -> list[int]:
+    """Parse CLI forward day list, e.g. '5,10,20'."""
+    if isinstance(raw, (list, tuple)):
+        return [int(x) for x in raw if int(x) > 0]
+    if isinstance(raw, int):
+        return [raw] if raw > 0 else []
+    days = []
+    for part in str(raw).split(","):
+        part = part.strip()
+        if not part:
+            continue
+        value = int(part)
+        if value <= 0:
+            raise ValueError("--forward-days must contain positive integers")
+        days.append(value)
+    return sorted(set(days))
+
+
+def horizon_label(days: int) -> str:
+    return {5: "1周", 10: "2周", 20: "4周"}.get(days, f"{days}日")
+
+
 def get_trade_dates(conn, days_back: int) -> list[str]:
     """Get last N trading dates from cb_daily."""
     cur = conn.cursor()
@@ -44,18 +66,20 @@ def get_future_prices(conn, ts_code: str, base_date: str, days: int) -> dict:
     return {str(r[0]): float(r[1]) for r in rows if r[1]}
 
 
-def run_backtest(mode: str, days_back: int = 30, top_n: int = 10):
+def run_backtest(mode: str, days_back: int = 30, top_n: int = 10, forward_days=None):
     """Run historical backtest for a CB screening mode."""
+    horizons = parse_forward_days(forward_days or [5, 10, 20])
     conn = psycopg2.connect(PG_URL)
     trade_dates = get_trade_dates(conn, days_back)
 
     print(f"回测模式: {mode}")
     print(f"回测天数: {len(trade_dates)} 个交易日")
     print(f"每期选债: Top {top_n}")
+    print(f"收益周期: {', '.join(horizon_label(h) for h in horizons)}")
     print(f"{'='*80}")
 
     all_picks = []  # [(trade_date, code, name, score, grade)]
-    returns_1d, returns_3d, returns_5d, returns_10d = [], [], [], []
+    returns_by_horizon = {h: [] for h in horizons}
 
     for td in trade_dates:
         if mode == "cb_floor":
@@ -76,37 +100,30 @@ def run_backtest(mode: str, days_back: int = 30, top_n: int = 10):
             name = p.get("name", code)
             score = p.get("total_score", 0)
             grade = p.get("grade", "C")
+            route = p.get("route", p.get("combined_route", "未分组"))
             entry_price = p.get("price")
 
-            future_prices = get_future_prices(conn, code, td, 10)
+            future_prices = get_future_prices(conn, code, td, max(horizons))
             future_dates = sorted(future_prices.keys())
 
-            # Calculate returns
-            r1, r3, r5, r10 = None, None, None, None
+            returns = {}
             if entry_price and entry_price > 0:
-                if len(future_dates) >= 1:
-                    r1 = (future_prices[future_dates[0]] / entry_price - 1) * 100
-                if len(future_dates) >= 3:
-                    r3 = (future_prices[future_dates[2]] / entry_price - 1) * 100
-                if len(future_dates) >= 5:
-                    r5 = (future_prices[future_dates[4]] / entry_price - 1) * 100
-                if len(future_dates) >= 10:
-                    r10 = (future_prices[future_dates[min(9, len(future_dates)-1)]] / entry_price - 1) * 100
+                for h in horizons:
+                    if len(future_dates) >= h:
+                        returns[h] = (future_prices[future_dates[h - 1]] / entry_price - 1) * 100
+                    else:
+                        returns[h] = None
 
             all_picks.append({
                 "date": td, "code": code, "name": name,
-                "score": score, "grade": grade, "entry_price": entry_price,
-                "r1": r1, "r3": r3, "r5": r5, "r10": r10,
+                "score": score, "grade": grade, "route": route,
+                "entry_price": entry_price,
+                "returns": returns,
             })
 
-            if r1 is not None:
-                returns_1d.append(r1)
-            if r3 is not None:
-                returns_3d.append(r3)
-            if r5 is not None:
-                returns_5d.append(r5)
-            if r10 is not None:
-                returns_10d.append(r10)
+            for h, value in returns.items():
+                if value is not None:
+                    returns_by_horizon[h].append(value)
 
     conn.close()
 
@@ -128,29 +145,58 @@ def run_backtest(mode: str, days_back: int = 30, top_n: int = 10):
                 f"最大={max(values):+.2f}%  最小={min(values):+.2f}%  "
                 f"样本={len(values)}")
 
-    print(stats("1日收益", returns_1d))
-    print(stats("3日收益", returns_3d))
-    print(stats("5日收益", returns_5d))
-    print(stats("10日收益", returns_10d))
+    for h in horizons:
+        print(stats(f"{horizon_label(h)}收益", returns_by_horizon[h]))
 
     # ── Grade breakdown ──
     print(f"\n{'─'*60}")
     print("按等级分布:")
-    grade_stats = defaultdict(lambda: {"count": 0, "r1": [], "r3": [], "r5": []})
+    grade_stats = defaultdict(lambda: {"count": 0, **{f"r{h}": [] for h in horizons}})
     for p in all_picks:
         g = grade_stats[p["grade"]]
         g["count"] += 1
-        if p["r1"] is not None: g["r1"].append(p["r1"])
-        if p["r3"] is not None: g["r3"].append(p["r3"])
-        if p["r5"] is not None: g["r5"].append(p["r5"])
+        for h in horizons:
+            value = p["returns"].get(h)
+            if value is not None:
+                g[f"r{h}"].append(value)
 
     for g in ["S", "A", "B", "C"]:
         if g not in grade_stats:
             continue
         gs = grade_stats[g]
-        r1_avg = sum(gs["r1"]) / len(gs["r1"]) if gs["r1"] else 0
-        print(f"  {g}级: {gs['count']}只  1日均值={r1_avg:+.2f}%  "
-              f"3日均值={(sum(gs['r3'])/len(gs['r3']) if gs['r3'] else 0):+.2f}%")
+        parts = []
+        for h in horizons:
+            values = gs[f"r{h}"]
+            avg = sum(values) / len(values) if values else 0
+            parts.append(f"{horizon_label(h)}均值={avg:+.2f}%")
+        print(f"  {g}级: {gs['count']}只  " + "  ".join(parts))
+
+    # ── Route breakdown ──
+    print(f"\n{'─'*60}")
+    print("按路线分布:")
+    route_stats = defaultdict(lambda: {"count": 0, **{f"r{h}": [] for h in horizons}})
+    for p in all_picks:
+        rs = route_stats[p["route"]]
+        rs["count"] += 1
+        for h in horizons:
+            value = p["returns"].get(h)
+            if value is not None:
+                rs[f"r{h}"].append(value)
+
+    for route in ("A低溢价题材", "B下修事件", "A+B共振", "底价观察", "未分组"):
+        if route not in route_stats:
+            continue
+        rs = route_stats[route]
+        parts = []
+        for h in horizons:
+            values = rs[f"r{h}"]
+            if values:
+                avg = sum(values) / len(values)
+                hit = sum(1 for v in values if v > 0) / len(values) * 100
+                parts.append(f"{horizon_label(h)}={avg:+.2f}%/胜率{hit:.1f}%")
+            else:
+                parts.append(f"{horizon_label(h)}=无数据")
+        print(f"  {route}: {rs['count']}只  " + "  ".join(parts))
 
     # ── Top picks detail ──
     print(f"\n{'─'*60}")
@@ -158,11 +204,13 @@ def run_backtest(mode: str, days_back: int = 30, top_n: int = 10):
     last_date = max(p["date"] for p in all_picks) if all_picks else ""
     last_picks = [p for p in all_picks if p["date"] == last_date]
     for i, p in enumerate(last_picks[:top_n], 1):
-        r1_str = f"{p['r1']:+.2f}%" if p['r1'] is not None else "N/A"
-        r3_str = f"{p['r3']:+.2f}%" if p['r3'] is not None else "N/A"
+        ret_parts = []
+        for h in horizons:
+            value = p["returns"].get(h)
+            ret_parts.append(f"{horizon_label(h)}:{value:+.2f}%" if value is not None else f"{horizon_label(h)}:N/A")
         print(f"  {i}. {p['name']}({p['code']})  "
               f"入场:{p['entry_price']}  得分:{p['score']}  {p['grade']}  "
-              f"1日:{r1_str}  3日:{r3_str}")
+              f"路线:{p['route']}  {'  '.join(ret_parts)}")
 
 
 if __name__ == "__main__":
@@ -170,6 +218,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", choices=["cb_floor", "cb_intraday"], default="cb_floor")
     parser.add_argument("--days", type=int, default=20, help="回测天数")
     parser.add_argument("--top-n", type=int, default=10)
+    parser.add_argument("--forward-days", default="5,10,20", help="收益观察周期, 例如 5,10,20")
     args = parser.parse_args()
 
-    run_backtest(args.mode, args.days, args.top_n)
+    run_backtest(args.mode, args.days, args.top_n, args.forward_days)

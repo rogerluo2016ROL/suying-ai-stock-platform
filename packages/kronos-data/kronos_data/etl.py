@@ -1900,7 +1900,7 @@ def sync_cb_basic(days_back: int = 0) -> dict:
 
     _rate_limit()
     try:
-        df = pro.cb_basic()
+        df = pro.cb_basic(fields=",".join(cols))
     except Exception as e:
         db.close()
         return {"status": "error", "reason": str(e)}
@@ -1913,7 +1913,16 @@ def sync_cb_basic(days_back: int = 0) -> dict:
     for _, r in df.iterrows():
         rows.append(tuple(_safe_val(c, r.get(c)) for c in cols))
 
-    written = _insert_rows(db, "cb_basic", cols, rows)
+    written = _insert_rows(
+        db,
+        "cb_basic",
+        cols,
+        rows,
+        conflict_action="update",
+        conflict_cols=["ts_code"],
+        update_cols=[c for c in cols if c != "ts_code"],
+        now_cols=["updated_at"],
+    )
 
     db.commit()
     db.close()

@@ -1,0 +1,231 @@
+{
+  "return_basis": "T+0 open_to_close: (cb_daily.close - cb_daily.open) / cb_daily.open",
+  "summary": {
+    "dates": [
+      "2026-06-29",
+      "2026-06-26",
+      "2026-06-25",
+      "2026-06-24",
+      "2026-06-23"
+    ],
+    "total_picks": 0,
+    "evaluable": 0,
+    "wins": 0,
+    "win_rate": null,
+    "avg_ret": null,
+    "best_ret": null,
+    "worst_ret": null
+  },
+  "daily": [
+    {
+      "date": "2026-06-29",
+      "trigger_count": 0,
+      "concept_count": 0,
+      "pick_count": 0,
+      "evaluable_count": 0,
+      "missing_count": 0,
+      "win_count": 0,
+      "win_rate": null,
+      "avg_ret": null,
+      "best_ret": null,
+      "worst_ret": null,
+      "rejection_count": 6,
+      "picks": [],
+      "rejections": [
+        {
+          "code": "002407",
+          "name": "多氟多",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "688689",
+          "name": "银河微电",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "002549",
+          "name": "凯美特气",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "301520",
+          "name": "万邦医药",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "001237",
+          "name": "惠康科技",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "000521",
+          "name": "长虹美菱",
+          "reason": "封单金额不足10亿"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-26",
+      "trigger_count": 0,
+      "concept_count": 0,
+      "pick_count": 0,
+      "evaluable_count": 0,
+      "missing_count": 0,
+      "win_count": 0,
+      "win_rate": null,
+      "avg_ret": null,
+      "best_ret": null,
+      "worst_ret": null,
+      "rejection_count": 5,
+      "picks": [],
+      "rejections": [
+        {
+          "code": "002674",
+          "name": "兴业科技",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "600228",
+          "name": "返利科技",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "000823",
+          "name": "超声电子",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "002568",
+          "name": "百润股份",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "603956",
+          "name": "威派格",
+          "reason": "封单金额不足10亿"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-25",
+      "trigger_count": 0,
+      "concept_count": 0,
+      "pick_count": 0,
+      "evaluable_count": 0,
+      "missing_count": 0,
+      "win_count": 0,
+      "win_rate": null,
+      "avg_ret": null,
+      "best_ret": null,
+      "worst_ret": null,
+      "rejection_count": 5,
+      "picks": [],
+      "rejections": [
+        {
+          "code": "600667",
+          "name": "太极实业",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "002674",
+          "name": "兴业科技",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "600228",
+          "name": "返利科技",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "605366",
+          "name": "宏柏新材",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "603929",
+          "name": "亚翔集成",
+          "reason": "封单金额不足10亿"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-24",
+      "trigger_count": 0,
+      "concept_count": 0,
+      "pick_count": 0,
+      "evaluable_count": 0,
+      "missing_count": 0,
+      "win_count": 0,
+      "win_rate": null,
+      "avg_ret": null,
+      "best_ret": null,
+      "worst_ret": null,
+      "rejection_count": 0,
+      "picks": [],
+      "rejections": []
+    },
+    {
+      "date": "2026-06-23",
+      "trigger_count": 0,
+      "concept_count": 0,
+      "pick_count": 0,
+      "evaluable_count": 0,
+      "missing_count": 0,
+      "win_count": 0,
+      "win_rate": null,
+      "avg_ret": null,
+      "best_ret": null,
+      "worst_ret": null,
+      "rejection_count": 9,
+      "picks": [],
+      "rejections": [
+        {
+          "code": "002648",
+          "name": "卫星化学",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "002674",
+          "name": "兴业科技",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "002167",
+          "name": "东方锆业",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "603407",
+          "name": "长裕集团",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "600777",
+          "name": "新潮能源",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "603757",
+          "name": "大元泵业",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "605069",
+          "name": "正和生态",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "300665",
+          "name": "飞鹿股份",
+          "reason": "封单金额不足10亿"
+        },
+        {
+          "code": "600397",
+          "name": "江钨装备",
+          "reason": "封单金额不足10亿"
+        }
+      ]
+    }
+  ],
+  "rows": []
+}

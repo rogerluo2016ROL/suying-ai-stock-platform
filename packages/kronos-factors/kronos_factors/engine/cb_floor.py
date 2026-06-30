@@ -24,7 +24,7 @@ V3 优化:
 import logging
 import os
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 logger = logging.getLogger("screener.cb_floor")
 
@@ -53,6 +53,199 @@ class CbFloorEngine:
                 pass
 
     # ── Factor scoring helpers ──
+
+    @staticmethod
+    def _rating_passes(rating: str | None) -> bool:
+        if not rating:
+            return False
+        r = str(rating).upper().strip()
+        return r.startswith(("AAA", "AA", "A"))
+
+    @staticmethod
+    def _parse_maturity_call_price(raw) -> float | None:
+        if raw is None:
+            return None
+        if isinstance(raw, (int, float)):
+            return float(raw)
+        import re
+        m = re.search(r"(\d+(?:\.\d+)?)", str(raw))
+        return float(m.group(1)) if m else None
+
+    @staticmethod
+    def _estimate_maturity_call_price(par, coupon_rate, rate_clause: str | None) -> float | None:
+        if par is None:
+            return None
+        par = float(par)
+        import re
+        rates = [float(x) for x in re.findall(r"票面利率[:：]\s*(\d+(?:\.\d+)?)%", str(rate_clause or ""))]
+        if rates:
+            return round(par + sum(rates), 2)
+        return round(par + float(coupon_rate or 0), 2)
+
+    @staticmethod
+    def _resolve_maturity_call_price(
+        announced_call_price,
+        raw_maturity_call_price,
+        par,
+        coupon_rate,
+        rate_clause,
+    ) -> tuple[float | None, str | None]:
+        if announced_call_price is not None:
+            return float(announced_call_price), "cb_call.call_price"
+        parsed = CbFloorEngine._parse_maturity_call_price(raw_maturity_call_price)
+        if parsed is not None:
+            return parsed, "cb_basic.maturity_call_price"
+        estimated = CbFloorEngine._estimate_maturity_call_price(par, coupon_rate, rate_clause)
+        if estimated is not None:
+            return estimated, "rate_clause_estimate"
+        return None, None
+
+    @staticmethod
+    def _price_gap_score(close, maturity_call_price) -> tuple[bool, float, float | None]:
+        if close is None or maturity_call_price is None:
+            return False, 0.0, None
+        gap = float(close) - float(maturity_call_price)
+        if gap < 0:
+            return True, 100.0, round(gap, 2)
+        if gap > 5:
+            return False, 0.0, round(gap, 2)
+        return True, max(0.0, 100.0 - gap * 20.0), round(gap, 2)
+
+    @staticmethod
+    def _price_floor_passes(close) -> bool:
+        return close is not None and float(close) > 108.0
+
+    @staticmethod
+    def _days_to_maturity(maturity_date_, today: date) -> int | None:
+        if maturity_date_ is None:
+            return None
+        if isinstance(maturity_date_, str):
+            maturity_date_ = datetime.strptime(maturity_date_, "%Y-%m-%d").date()
+        return (maturity_date_ - today).days
+
+    @staticmethod
+    def _route_a_theme_score(premium_score: float, theme_score: float, liquidity_score: float) -> float:
+        return round(premium_score * 0.35 + theme_score * 0.50 + liquidity_score * 0.15, 1)
+
+    @staticmethod
+    def _route_b_revision_score(
+        revision_countdown_score: float,
+        revision_history_score: float,
+        governance_score: float,
+    ) -> float:
+        return round(revision_countdown_score * 0.50 + revision_history_score * 0.20 + governance_score * 0.30, 1)
+
+    @staticmethod
+    def _combined_route(route_a: float, route_b: float) -> str:
+        if route_a >= 70 and route_b >= 70:
+            return "A+B共振"
+        if route_a >= 70:
+            return "A低溢价题材"
+        if route_b >= 70:
+            return "B下修事件"
+        return "底价观察"
+
+    @staticmethod
+    def _pledge_score(pledge_total_ratio) -> float:
+        if pledge_total_ratio is None:
+            return 50.0
+        ratio = float(pledge_total_ratio)
+        if ratio <= 10:
+            return 100.0
+        if ratio <= 30:
+            return 100.0 - (ratio - 10) * 3.0
+        if ratio <= 50:
+            return 40.0 - (ratio - 30) * 0.5
+        return 20.0
+
+    @staticmethod
+    def _liquidity_proxy_score(amount, remain_size) -> float:
+        if amount is None:
+            return 50.0
+        amount = float(amount)
+        if remain_size and remain_size > 0:
+            turnover_proxy = amount / float(remain_size)
+            if turnover_proxy >= 0.10:
+                return 100.0
+            if turnover_proxy >= 0.01:
+                return round(50.0 + (turnover_proxy - 0.01) / 0.09 * 50.0, 1)
+        if amount >= 20_000_000:
+            return 90.0
+        if amount >= 2_000_000:
+            return 50.0
+        if amount >= 100_000:
+            return 20.0
+        return 5.0
+
+    @staticmethod
+    def _premium_revision_gate(premium_rate, revision_countdown_score: float, revision_history_score: float) -> bool:
+        if premium_rate is None:
+            return False
+        if float(premium_rate) <= 30:
+            return True
+        return revision_countdown_score >= 70
+
+    @staticmethod
+    def _revision_countdown_score_from_closes(stock_closes: list[float], conv_price) -> float:
+        if not stock_closes or not conv_price or float(conv_price) <= 0:
+            return 30.0
+        threshold = float(conv_price) * 0.85
+        hits = sum(1 for close in stock_closes[-30:] if close is not None and float(close) < threshold)
+        if hits >= 15:
+            return 60.0
+        if hits >= 12:
+            return 50.0
+        return 30.0
+
+    @staticmethod
+    def _revision_announcement_signal(titles: list[str]) -> str:
+        text = " ".join(str(t or "") for t in titles)
+        if "本次不向下修正" in text or "本次不下修" in text:
+            return "neutral"
+        if "不向下修正" in text or "不下修" in text:
+            return "no_revision"
+        if "预计触发" in text and ("向下修正" in text or "下修" in text or "转股价格修正" in text):
+            return "expected_trigger"
+        if "提议向下修正" in text or "董事会提议下修" in text:
+            return "expected_trigger"
+        return "neutral"
+
+    @staticmethod
+    def _revision_countdown_score(announcement_signal: str, price_trigger_score: float) -> float:
+        if announcement_signal == "no_revision":
+            return 0.0
+        if announcement_signal == "expected_trigger":
+            return 90.0
+        return price_trigger_score
+
+    @staticmethod
+    def _revision_signal_allows_pick(announcement_signal: str) -> bool:
+        return announcement_signal != "no_revision"
+
+    @staticmethod
+    def _is_strong_redemption_call(is_call) -> bool:
+        return "强赎" in str(is_call or "")
+
+    @staticmethod
+    def _is_bank_industry(industry) -> bool:
+        return "银行" in str(industry or "")
+
+    @staticmethod
+    def _detect_state_control(*texts) -> bool:
+        text = " ".join(str(t or "") for t in texts)
+        state_keywords = (
+            "国资委", "国务院国资", "地方国资", "国有资产",
+            "央企", "中央企业", "地方国企", "国有控股", "国资控股",
+        )
+        return any(kw in text for kw in state_keywords)
+
+    @staticmethod
+    def _is_state_control(stk_code: str, *texts) -> bool:
+        state_control_code_overrides = {
+            "000401",  # 金隅冀东 / 冀东转债: user-confirmed 国资委控股
+        }
+        code = (stk_code or "").split(".")[0]
+        return code in state_control_code_overrides or CbFloorEngine._detect_state_control(*texts)
 
     @staticmethod
     def _premium_score(premium_rate: float) -> float:
@@ -175,15 +368,44 @@ class CbFloorEngine:
             cb.ts_code, cb.bond_short_name, cb.stk_code, cb.stk_short_name,
             cb.maturity_date, cb.coupon_rate, cb.remain_size,
             cb.newest_rating, cb.issue_rating, cb.par,
-            cb.conv_price, cb.list_date,
+            cb.conv_price, cb.list_date, cb.maturity_call_price, cb.reset_clause, cb.rate_clause,
             d.close, d.cb_over_rate, d.pct_chg, d.amount,
             s.industry,
             sk.close AS stock_close,
-            sk.change_pct AS stock_pct_chg
+            sk.change_pct AS stock_pct_chg,
+            fa.audit_result,
+            pd.pledge_total_ratio,
+            sp.full_name AS stock_full_name,
+            sp.introduction AS stock_introduction,
+            mc.call_price AS announced_maturity_call_price
         FROM cb_basic cb
         LEFT JOIN cb_daily d ON cb.ts_code = d.ts_code AND d.trade_date = %s
         LEFT JOIN stocks s ON SPLIT_PART(cb.stk_code, '.', 1) = s.code
+        LEFT JOIN stock_profiles sp ON SPLIT_PART(cb.stk_code, '.', 1) = sp.code
         LEFT JOIN daily_kline sk ON SPLIT_PART(cb.stk_code, '.', 1) = sk.code AND sk.trade_date = %s
+        LEFT JOIN LATERAL (
+            SELECT audit_result
+            FROM fina_audit fa
+            WHERE fa.code = SPLIT_PART(cb.stk_code, '.', 1)
+            ORDER BY fa.end_date DESC NULLS LAST, fa.ann_date DESC NULLS LAST
+            LIMIT 1
+        ) fa ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT pledge_total_ratio
+            FROM pledge_detail pd
+            WHERE pd.code = SPLIT_PART(cb.stk_code, '.', 1)
+            ORDER BY pd.ann_date DESC NULLS LAST
+            LIMIT 1
+        ) pd ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT call_price
+            FROM cb_call cc
+            WHERE cc.ts_code = cb.ts_code
+              AND (cc.call_type = '到赎' OR cc.is_call = '公告到期赎回')
+              AND cc.call_price IS NOT NULL
+            ORDER BY cc.call_date DESC NULLS LAST, cc.ann_date DESC NULLS LAST
+            LIMIT 1
+        ) mc ON TRUE
         WHERE cb.delist_date IS NULL OR cb.delist_date > %s::date
         """
         cur.execute(query, (trade_date, trade_date, trade_date))
@@ -261,8 +483,10 @@ class CbFloorEngine:
         try:
             cur.execute(
                 "SELECT ts_code, is_call, call_date, call_price, call_reg_date FROM cb_call "
-                "WHERE call_date >= CURRENT_DATE - INTERVAL '30 days' "
-                "ORDER BY ts_code, call_date DESC"
+                "WHERE ann_date <= %s::date "
+                "AND (call_date IS NULL OR call_date >= %s::date - INTERVAL '30 days') "
+                "ORDER BY ts_code, call_date DESC NULLS LAST, ann_date DESC NULLS LAST",
+                (trade_date, trade_date),
             )
             for r in cur.fetchall():
                 if r[0] not in call_risk_map:
@@ -326,23 +550,70 @@ class CbFloorEngine:
                     ts_code, name, stk_code_ts, stk_name,
                     maturity_date_, coupon_rate, remain_size,
                     newest_rating, issue_rating, par,
-                    conv_price, list_date_,
+                    conv_price, list_date_, maturity_call_price, reset_clause, rate_clause,
                     close, cb_over_rate, pct_chg, amount,
                     industry,
                     stock_close, stock_pct_chg,
+                    audit_result,
+                    pledge_total_ratio,
+                    stock_full_name,
+                    stock_introduction,
+                    announced_maturity_call_price,
                 ) = r
 
                 stk_code_raw = _strip_code(stk_code_ts or "")
+                missing_fields = []
+                proxy_fields = [
+                    "turnover_rate uses amount/remain_size proxy",
+                    "revision_countdown uses reset_clause and cb_price_chg proxy",
+                ]
+                risk_flags = []
+                rating = newest_rating or issue_rating or ""
+                if rating and not self._rating_passes(rating):
+                    continue
+                if not rating:
+                    missing_fields.append("rating")
+                    risk_flags.append("评级字段缺失")
 
-                # ── Opt 3: Liquidity pre-filter (<10万成交额不入) ──
+                if not self._price_floor_passes(close):
+                    continue
+
+                if audit_result and "标准无保留" not in str(audit_result):
+                    continue
+
+                if self._is_bank_industry(industry):
+                    continue
+
+                days_left = self._days_to_maturity(maturity_date_, date.today())
+                if days_left is None or days_left > 365 * 3:
+                    continue
+
+                maturity_call, maturity_call_source = self._resolve_maturity_call_price(
+                    announced_maturity_call_price,
+                    maturity_call_price,
+                    par,
+                    coupon_rate,
+                    rate_clause,
+                )
+                if maturity_call_source == "rate_clause_estimate":
+                    missing_fields.append("maturity_call_price")
+                    proxy_fields.append("maturity_call_price uses par + coupon schedule proxy")
+                gap_pass, price_gap_score, price_gap = self._price_gap_score(close, maturity_call)
+                if not gap_pass:
+                    continue
+
+                # ── Liquidity pre-filter: cb_daily.amount unit is provider-dependent.
+                # Keep only zero/extremely tiny turnover out; scoring handles the rest.
                 cb_daily_amount = amount
-                if cb_daily_amount is not None and cb_daily_amount < 10e4:  # <10万
+                if cb_daily_amount is not None and cb_daily_amount <= 0:
                     continue
 
                 # ── Check 强赎 risk ──
                 call_info = call_risk_map.get(ts_code, {})
                 call_risk = "安全"
                 call_penalty = 0.0
+                if self._is_strong_redemption_call(call_info.get("is_call")):
+                    continue
                 if call_info.get("is_call") == "公告实施强赎":
                     call_risk = "强赎中"
                     reg_date = call_info.get("call_reg_date")
@@ -363,16 +634,6 @@ class CbFloorEngine:
                     call_risk = "提示强赎"
                     call_penalty = -3.0
 
-                # ── Hard exclude: maturity < 3 months ──
-                if maturity_date_:
-                    if isinstance(maturity_date_, str):
-                        mat_dt = datetime.strptime(maturity_date_, "%Y-%m-%d").date()
-                    else:
-                        mat_dt = maturity_date_
-                    days_left = (mat_dt - date.today()).days
-                    if days_left < 90:
-                        continue
-
                 # ── Calculate premium rate ──
                 if cb_over_rate is None and conv_price and stock_close and close and conv_price > 0 and stock_close > 0:
                     conv_value = 100.0 / float(conv_price) * float(stock_close)
@@ -382,25 +643,19 @@ class CbFloorEngine:
                 # ── Factor 1: Premium rate (25%) ──
                 premium_score = self._premium_score(cb_over_rate)
 
-                # ── Factor 2: RSI Trend (15%) from cb_factor ──
+                # ── Technical context retained for explainability, not direct V3 core weight ──
                 factors = cb_factor_map.get(ts_code, {})
                 rsi_6 = factors.get("rsi_6")
                 rsi_score = self._score_rsi(rsi_6)
-                # RSI oversold bonus
-                rsi_bonus = 10.0 if rsi_6 is not None and rsi_6 < 30 else 0.0
 
                 # ── Factor 3: YTM (10%) ──
                 ytm_score = self._score_ytm(close, coupon_rate, par, maturity_date_)
 
-                # ── Factor 4: MACD Momentum (10%) from cb_factor ──
+                # ── MACD context ──
                 macd_val = factors.get("macd")
                 macd_dif = factors.get("macd_dif")
                 macd_dea = factors.get("macd_dea")
                 macd_score = self._score_macd(macd_val, macd_dif, macd_dea)
-                # MACD golden cross bonus
-                macd_bonus = 8.0 if (macd_dif is not None and macd_dea is not None
-                                      and macd_dif > macd_dea
-                                      and macd_val is not None and macd_val > 0) else 0.0
 
                 # ── Factor 5: Recent downward revision (10%) ──
                 revision_score = self._score_recent_revision(ts_code, price_chg_map)
@@ -422,37 +677,73 @@ class CbFloorEngine:
                 # ── Factor 9: Size (5%) ──
                 size_score = self._size_score(remain_size)
 
-                # ── Factor 10: Volume activity (5%) from cb_factor ──
+                # ── Factor 10: Liquidity activity ──
                 cb_vol = factors.get("vol")
                 volume_score = self._score_vol(cb_vol)
-
-                # ── Factor 11: Rating soft penalty ──
-                rating = newest_rating or issue_rating or ""
-                rating_penalty = self._rating_penalty(rating)
+                liquidity_score = max(volume_score, self._liquidity_proxy_score(amount, remain_size))
 
                 # ── Round 2: Auction sector bonus (direction anchor) ──
                 sector_bonus = 0.0
                 if industry and industry in sector_score_map:
                     sector_bonus = sector_score_map[industry] * 0.05  # 5% weight
+                theme_hot_score = min(100.0, theme_score + sector_bonus)
 
-                # ── Weighted total V4 ──
-                total = (
-                    premium_score * 0.28
-                    + rsi_score * 0.18
-                    + ytm_score * 0.10
-                    + macd_score * 0.05
-                    + revision_score * 0.14
-                    + theme_score * 0.04
-                    + boll_score * 0.04
-                    + history_score * 0.04
-                    + size_score * 0.04
-                    + volume_score * 0.04
-                    + sector_bonus
-                    + rating_penalty
-                    + call_penalty
-                    + rsi_bonus
-                    + macd_bonus
+                pledge_score = self._pledge_score(pledge_total_ratio)
+                governance_score = round((80.0 + pledge_score + 50.0) / 3, 1)
+                maturity_score = 100.0 if days_left <= 365 else (80.0 if days_left <= 365 * 2 else 60.0)
+                floor_safety_score = round(
+                    price_gap_score * 0.45
+                    + ytm_score * 0.20
+                    + size_score * 0.15
+                    + pledge_score * 0.10
+                    + maturity_score * 0.10,
+                    1,
                 )
+                cur.execute(
+                    "SELECT close FROM daily_kline WHERE code=%s AND trade_date <= %s "
+                    "AND close IS NOT NULL ORDER BY trade_date DESC LIMIT 30",
+                    (stk_code_raw, trade_date),
+                )
+                stock_closes = [row[0] for row in reversed(cur.fetchall())]
+                price_revision_score = self._revision_countdown_score_from_closes(stock_closes, conv_price)
+                revision_titles = self._get_revision_announcement_titles(cur, stk_code_raw, trade_date)
+                revision_announcement_signal = self._revision_announcement_signal(revision_titles)
+                if not self._revision_signal_allows_pick(revision_announcement_signal):
+                    continue
+                revision_countdown_score = self._revision_countdown_score(
+                    revision_announcement_signal,
+                    price_revision_score,
+                )
+                if not self._premium_revision_gate(cb_over_rate, revision_countdown_score, history_score):
+                    continue
+                state_control = self._is_state_control(stk_code_raw, stock_full_name, stock_introduction)
+                if state_control:
+                    continue
+                equity_flex_score = round(premium_score * 0.70 + revision_countdown_score * 0.30, 1)
+                route_a_score = self._route_a_theme_score(premium_score, theme_hot_score, liquidity_score)
+                route_b_score = self._route_b_revision_score(revision_countdown_score, history_score, governance_score)
+                route = self._combined_route(route_a_score, route_b_score)
+
+                total = (
+                    floor_safety_score * 0.45
+                    + equity_flex_score * 0.25
+                    + theme_hot_score * 0.10
+                    + liquidity_score * 0.10
+                    + governance_score * 0.10
+                    + call_penalty
+                )
+
+                if not audit_result:
+                    missing_fields.append("audit_result")
+                    risk_flags.append("审计字段缺失")
+                if pledge_total_ratio is None:
+                    missing_fields.append("pledge_total_ratio")
+                elif pledge_total_ratio > 30:
+                    risk_flags.append("质押率偏高")
+                if not state_control:
+                    missing_fields.append("ownership_nature")
+                if call_risk != "安全":
+                    risk_flags.append(call_risk)
 
                 # Grade (adjusted thresholds V2)
                 if total >= 75:
@@ -474,7 +765,14 @@ class CbFloorEngine:
                     "premium_rate": round(cb_over_rate, 2) if cb_over_rate else None,
                     "remain_size_yi": round(remain_size / 1e8, 2) if remain_size else None,
                     "maturity_date": str(maturity_date_) if maturity_date_ else None,
+                    "maturity_days_left": days_left,
+                    "maturity_call_price": round(maturity_call, 2) if maturity_call else None,
+                    "maturity_call_price_source": maturity_call_source,
+                    "price_gap": price_gap,
                     "rating": rating,
+                    "audit_result": audit_result,
+                    "pledge_total_ratio": round(float(pledge_total_ratio), 2) if pledge_total_ratio is not None else None,
+                    "state_control": state_control,
                     "call_risk": call_risk,
                     "call_date": str(call_info.get("call_date")) if call_info.get("call_date") else None,
                     "call_price": round(call_info["call_price"], 2) if call_info.get("call_price") else None,
@@ -483,20 +781,37 @@ class CbFloorEngine:
                     "macd_val": round(macd_val, 3) if macd_val else None,
                     "total_score": round(total, 1),
                     "grade": grade,
+                    "route": route,
+                    "route_a_theme": round(route_a_score, 1),
+                    "route_b_revision": round(route_b_score, 1),
+                    "combined_route": route,
+                    "route_a_score": round(route_a_score, 1),
+                    "route_b_score": round(route_b_score, 1),
+                    "floor_safety_score": floor_safety_score,
+                    "equity_flex_score": equity_flex_score,
+                    "theme_hot_score": round(theme_hot_score, 1),
+                    "liquidity_score": round(liquidity_score, 1),
+                    "governance_score": governance_score,
+                    "missing_fields": missing_fields,
+                    "proxy_fields": proxy_fields,
+                    "risk_flags": risk_flags,
                     "details": {
+                        "price_gap_score": round(price_gap_score, 1),
                         "premium_score": round(premium_score, 1),
                         "rsi_score": round(rsi_score, 1),
                         "ytm_score": round(ytm_score, 1),
                         "macd_score": round(macd_score, 1),
                         "revision_score": round(revision_score, 1),
+                        "price_revision_score": round(price_revision_score, 1),
+                        "revision_countdown_score": round(revision_countdown_score, 1),
+                        "revision_announcement_signal": revision_announcement_signal,
                         "theme_score": round(theme_score, 1),
                         "boll_score": round(boll_score, 1),
                         "history_score": round(history_score, 1),
                         "size_score": round(size_score, 1),
                         "volume_score": round(volume_score, 1),
-                        "rating_penalty": round(rating_penalty, 1),
-                        "rsi_bonus": round(rsi_bonus, 1),
-                        "macd_bonus": round(macd_bonus, 1),
+                        "pledge_score": round(pledge_score, 1),
+                        "maturity_score": round(maturity_score, 1),
                         "sector_bonus": round(sector_bonus, 1),
                     },
                 })
@@ -659,6 +974,54 @@ class CbFloorEngine:
         if downward_count >= 1:
             return 70.0
         return 20.0
+
+    def _get_revision_announcement_titles(self, cur, stk_code: str, trade_date: str, days_back: int = 180) -> list[str]:
+        if not stk_code:
+            return []
+        try:
+            trade_dt = datetime.strptime(str(trade_date), "%Y-%m-%d").date()
+        except Exception:
+            trade_dt = date.today()
+        start_dt = trade_dt - timedelta(days=days_back)
+        titles = []
+        try:
+            cur.execute(
+                "SELECT title FROM announcements WHERE code=%s AND ann_date BETWEEN %s AND %s "
+                "AND (title LIKE '%%下修%%' OR title LIKE '%%向下修正%%' OR title LIKE '%%不向下修正%%' "
+                "OR title LIKE '%%转股价格%%') ORDER BY ann_date DESC LIMIT 20",
+                (stk_code, start_dt, trade_dt),
+            )
+            titles = [r[0] for r in cur.fetchall() if r and r[0]]
+        except Exception:
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+        if titles:
+            return titles
+        token = os.environ.get("TUSHARE_TOKEN", "")
+        if not token:
+            return []
+        try:
+            import tushare as ts
+            pro = ts.pro_api(token)
+            ts_code = stk_code + (".SH" if stk_code.startswith("6") else ".SZ")
+            df = pro.anns_d(
+                ts_code=ts_code,
+                start_date=start_dt.strftime("%Y%m%d"),
+                end_date=trade_dt.strftime("%Y%m%d"),
+            )
+            if df is None or df.empty or "title" not in df.columns:
+                return []
+            titles = [
+                str(t)
+                for t in df["title"].dropna().tolist()
+                if any(kw in str(t) for kw in ("下修", "向下修正", "不向下修正", "转股价格"))
+            ]
+            return titles[:20]
+        except Exception as e:
+            logger.debug("revision announcement fetch failed for %s: %s", stk_code, e)
+            return []
 
     def _score_ownership(self, cur, stk_code) -> float:
         """Non-SOE = higher score. 0-100."""

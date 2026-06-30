@@ -12,9 +12,10 @@ from datetime import date
 from typing import Any
 
 
-FD_AMOUNT_MIN = 700_000_000
+FD_AMOUNT_MIN = 500_000_000
 AUCTION_FIRST_TIME_MAX = "09:30:00"
 AUCTION_FIRST_TIME_MAX_COMPACT = "093000"
+TOP_CONCEPT_LIMIT = 2
 
 NOISE_CONCEPT_KEYWORDS = (
     "同花顺",
@@ -34,6 +35,13 @@ NOISE_CONCEPT_KEYWORDS = (
     "主板",
     "全A",
     "均衡",
+    "成份股",
+    "近期强势",
+    "股通",
+    "多板",
+    "增持",
+    "社保",
+    "融资融券",
 )
 NOISE_CONCEPT_NAMES = {
     "浙江",
@@ -95,9 +103,7 @@ def _theme_score(row: dict[str, Any]) -> float:
     concept_hits = float(row.get("matched_concept_count") or 0) * 100.0
     trigger_count = float(row.get("trigger_stock_count_sum") or 0) * 10.0
     fd_amount = min(float(row.get("matched_fd_amount") or 0) / 100_000_000, 100.0)
-    concept_size = float(row.get("concept_size_min") or 9999)
-    narrow_bonus = max(0.0, 50.0 - min(concept_size, 50.0))
-    return round(direct + concept_hits + trigger_count + fd_amount + narrow_bonus, 4)
+    return round(direct + concept_hits + trigger_count + fd_amount, 4)
 
 
 class CbAuctionT0Engine:
@@ -185,7 +191,6 @@ class CbAuctionT0Engine:
                 -int(row.get("matched_concept_count") or 0),
                 -int(row.get("trigger_stock_count_sum") or 0),
                 -float(row.get("matched_fd_amount") or 0),
-                int(row.get("concept_size_min") or 9999),
                 row.get("cb_code") or "",
             )
         )
@@ -281,7 +286,7 @@ class CbAuctionT0Engine:
                 continue
             fd_value = float(fd_amount)
             if fd_value <= FD_AMOUNT_MIN:
-                rejections.append({"code": stock_code, "name": name, "reason": "封单金额不足7亿"})
+                rejections.append({"code": stock_code, "name": name, "reason": "封单金额不足5亿"})
                 continue
             if prev_was_limit_up:
                 rejections.append({"code": stock_code, "name": name, "reason": "昨日已涨停"})
@@ -302,6 +307,7 @@ class CbAuctionT0Engine:
         self,
         cur,
         trigger_stocks: list[dict[str, Any]],
+        trade_date: str | None = None,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         if not trigger_stocks:
             return [], []
@@ -309,25 +315,50 @@ class CbAuctionT0Engine:
         trigger_map = {row["trigger_stock_code"]: row for row in trigger_stocks}
         codes = list(trigger_map.keys())
         holders = ",".join(["%s"] * len(codes))
+        trade_key, trade_key_compact = self._date_keys(trade_date) if trade_date else ("", "")
         cur.execute(
             f"""
+            WITH concept_auction AS (
+                SELECT
+                    m2.ts_code AS concept_code,
+                    AVG((a.open / NULLIF(a.close, 0) - 1) * 100) AS concept_strength,
+                    COUNT(a.code) AS auction_sample_count
+                FROM ths_member m2
+                JOIN stk_auction_o a
+                  ON a.code = SPLIT_PART(m2.con_code, '.', 1)
+                 AND (a.trade_date::text = %s OR REPLACE(a.trade_date::text, '-', '') = %s)
+                 AND a.open > 0
+                 AND a.close > 0
+                WHERE LEFT(m2.ts_code, 3) IN ('881', '882', '883', '884', '885', '886')
+                GROUP BY m2.ts_code
+            )
             SELECT
                 m.ts_code AS concept_code,
                 i.name AS concept_name,
                 SPLIT_PART(m.con_code, '.', 1) AS stock_code,
-                COUNT(*) OVER (PARTITION BY m.ts_code) AS concept_size
+                COUNT(*) OVER (PARTITION BY m.ts_code) AS concept_size,
+                ca.concept_strength,
+                ca.auction_sample_count
             FROM ths_member m
             JOIN ths_index i ON i.ts_code = m.ts_code
+            LEFT JOIN concept_auction ca ON ca.concept_code = m.ts_code
             WHERE SPLIT_PART(m.con_code, '.', 1) IN ({holders})
               AND LEFT(m.ts_code, 3) IN ('881', '882', '883', '884', '885', '886')
             """,
-            codes,
+            [trade_key, trade_key_compact] + codes,
         )
 
         grouped: dict[str, dict[str, Any]] = {}
         rejections: list[dict[str, Any]] = []
         stocks_with_concepts: set[str] = set()
-        for concept_code, concept_name, stock_code, concept_size in cur.fetchall():
+        for (
+            concept_code,
+            concept_name,
+            stock_code,
+            concept_size,
+            concept_strength,
+            auction_sample_count,
+        ) in cur.fetchall():
             if _is_noise_concept(concept_name):
                 continue
             stocks_with_concepts.add(stock_code)
@@ -342,6 +373,13 @@ class CbAuctionT0Engine:
                     "concept_fd_amount_yi": 0.0,
                     "trigger_sources": [],
                     "concept_size": int(concept_size or 9999),
+                    "concept_strength": (
+                        float(concept_strength) if concept_strength is not None else None
+                    ),
+                    "concept_strength_source": "auction_avg"
+                    if concept_strength is not None
+                    else None,
+                    "auction_sample_count": int(auction_sample_count or 0),
                 },
             )
             if stock_code not in item["trigger_sources"]:
@@ -363,7 +401,16 @@ class CbAuctionT0Engine:
                     }
                 )
 
-        return list(grouped.values()), rejections
+        concepts = sorted(
+            grouped.values(),
+            key=lambda item: (
+                item.get("concept_strength") is None,
+                -float(item.get("concept_strength") or 0),
+                -float(item.get("concept_fd_amount") or 0),
+                item.get("concept_code") or "",
+            ),
+        )
+        return concepts[:TOP_CONCEPT_LIMIT], rejections
 
     def _fetch_bonds(
         self,
@@ -463,7 +510,7 @@ class CbAuctionT0Engine:
         prev_trade_date = self._fetch_previous_trade_date(cur, effective_date)
 
         triggers, trigger_rejections = self._fetch_trigger_stocks(cur, effective_date, prev_trade_date)
-        concepts, concept_rejections = self._fetch_concepts(cur, triggers)
+        concepts, concept_rejections = self._fetch_concepts(cur, triggers, effective_date)
         bonds, bond_rejections = self._fetch_bonds(cur, effective_date, concepts)
 
         return self._assemble_result(

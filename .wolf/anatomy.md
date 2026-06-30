@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-30T02:29:33.642Z
-> Files: 520 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-30T06:13:58.982Z
+> Files: 523 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -800,9 +800,15 @@
 - `screener-optimization-design.md` — 速赢AI 选股模型优化 — 设计文档 (~5563 tok)
 - `Suying-AI-Screener-Optimization-2026-06-30.md` — 速赢AI 选股模型优化报告 (~6105 tok)
 
+## packages/kronos-factors/
+
+- `backtest_all_models_june.py` — Backtest all screening models on June 2026 data. (~5119 tok)
+- `backtest_fusion_calibrated.py` — Calibrate mode_profiles.json from June 2026 backtest data, then re-run V4 vs V5. (~4458 tok)
+- `backtest_fusion_v4_vs_v5.py` — Backtest V4.0 merge_picks vs V5.0 WeightedFusionEngine on June 2026. (~4205 tok)
+
 ## packages/kronos-factors/config/
 
-- `mode_profiles.json` (~1942 tok)
+- `mode_profiles.json` (~664 tok)
 
 ## packages/kronos-factors/kronos_factors/engine/
 

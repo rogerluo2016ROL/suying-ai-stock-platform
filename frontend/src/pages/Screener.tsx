@@ -56,13 +56,14 @@ const modelGroups = [
     key: 'bond',
     icon: '💰',
     label: '可转债',
-    count: 3,
-    note: '用于筛选债底保护、日内博弈和竞价概念选债。',
+    count: 4,
+    note: '用于筛选债底保护、日内博弈和竞价 T+0 题材选债。',
     defaultModel: '底价选债',
     modes: [
       { id: 'cb_floor', name: '底价选债', tags: ['可转债', '日频'] },
       { id: 'cb_intraday', name: '匪爷日内投机博弈', tags: ['日内', '激进'] },
       { id: 'cb_auction', name: '秋神竞价概念选债', tags: ['竞价', '1-2天'] },
+      { id: 'cb_auction_t0', name: '竞价选债 T+0', tags: ['竞价', 'T+0'] },
     ],
   },
 ]
@@ -181,6 +182,7 @@ function detailTitleForModel(modelId: string) {
     cb_floor: '底价选债分析',
     cb_intraday: '可转债日内博弈分析',
     cb_auction: '秋神竞价概念选债分析',
+    cb_auction_t0: '竞价选债 T+0 分析',
   }
   return titles[modelId] || '模型选股分析'
 }
@@ -204,7 +206,7 @@ function evaluationForModel(modelId: string, pick?: ScreenerPick) {
   if (modelId === 'short') return `动量与量能双强，技术面健康，${track}短线弹性较好；若放量不足，需要降低仓位或等待回踩确认。`
   if (modelId === 'chokepoint') return `国产替代、技术壁垒和政策支持形成共振，${track}主题确认度高，但需关注估值扩张。`
   if (modelId === 'supply_chain') return `产业链位置和政策主题形成匹配，${track}具备中长期链路价值，适合进入方案管理做更长周期跟踪。`
-  if (modelId === 'cb_floor' || modelId === 'cb_intraday' || modelId === 'cb_auction') return `债底保护和正股弹性具备攻守平衡特征，适合进入可转债候选池，不直接混入股票下单池。`
+  if (modelId === 'cb_floor' || modelId === 'cb_intraday' || modelId === 'cb_auction' || modelId === 'cb_auction_t0') return `债底保护和正股弹性具备攻守平衡特征，适合进入可转债候选池，不直接混入股票下单池。`
   return `OBV趋势突破、量能放大与${track}方向共振，当前适合进入候选池复核。`
 }
 

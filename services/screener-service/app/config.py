@@ -44,5 +44,6 @@ AVAILABLE_MODES = [
     "cb_floor",           # 匪爷可转债底价选债模型
     "cb_intraday",        # 匪爷可转债日内投机博弈模型
     "cb_auction",         # 秋神竞价概念选债模型
+    "cb_auction_t0",      # 竞价选债 T+0 模型
     "supply_chain",       # 大葱产业链解构选股 (中长线)
 ]

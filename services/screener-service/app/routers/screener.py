@@ -81,6 +81,7 @@ class PolicyInterpretResponse(BaseModel):
 
 
 router = APIRouter(prefix="/api/v1/screener", tags=["screener"])
+_CB_AUCTION_T0_ENGINE = None
 
 
 def _screener_model_metadata(mode: str) -> dict[str, Any]:
@@ -1523,6 +1524,7 @@ async def list_modes():
             {"id": "cb_floor",       "name": "匪爷可转债底价选债模型",   "cycle": "1-4周",  "style": "稳健"},
             {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
             {"id": "cb_auction",     "name": "秋神竞价概念选债模型",       "cycle": "1-2天",  "style": "竞价"},
+            {"id": "cb_auction_t0",  "name": "竞价选债 T+0 模型",          "cycle": "T+0",    "style": "竞价"},
             {"id": "bi_trend_launch","name": "毕师傅硬核科技趋势启动 V13", "cycle": "5-20天", "style": "趋势"},
             {"id": "bi_trend_full_market","name": "毕师傅全市场趋势启动 V1.0", "cycle": "5-20天", "style": "全市场"},
             {"id": "supply_chain",  "name": "大葱产业链解构选股", "cycle": "3-12月", "style": "中长线"},
@@ -1969,7 +1971,7 @@ async def run_screening(
             result = await loop.run_in_executor(
                 _executor, _run_afternoon_mode, mode, top_n, trade_date
             )
-        elif mode in ("cb_floor", "cb_intraday", "cb_auction"):
+        elif mode in ("cb_floor", "cb_intraday", "cb_auction", "cb_auction_t0"):
             result = await loop.run_in_executor(
                 _executor, _run_cb_mode, mode, top_n, trade_date
             )
@@ -2071,20 +2073,36 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
 
 
 def _run_cb_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run convertible bond screening (cb_floor / cb_intraday / cb_auction)."""
+    """Run convertible bond screening modes."""
     from kronos_factors.engine.cb_floor import CbFloorEngine
     from kronos_factors.engine.cb_intraday import CbIntradayEngine
     from kronos_factors.engine.cb_auction import CbAuctionEngine
+    from kronos_factors.engine.cb_auction_t0 import CbAuctionT0Engine
 
     engine_map = {
         "cb_floor": CbFloorEngine,
         "cb_intraday": CbIntradayEngine,
         "cb_auction": CbAuctionEngine,
+        "cb_auction_t0": _CB_AUCTION_T0_ENGINE or CbAuctionT0Engine,
     }
     engine = engine_map[mode]()
 
-    picks = engine.run(trade_date=trade_date, top_n=top_n)
+    raw_result = engine.run(trade_date=trade_date, top_n=top_n)
     engine.close()
+
+    if mode == "cb_auction_t0" and isinstance(raw_result, dict):
+        trade_date = str(raw_result.get("trade_date") or trade_date or "")
+        picks = []
+        for bond in raw_result.get("bonds", []):
+            item = dict(bond)
+            item["code"] = item.get("code") or item.get("cb_code")
+            item["name"] = item.get("name") or item.get("cb_name")
+            item["score"] = item.get("score") or item.get("theme_score")
+            item["entry_reason"] = item.get("entry_reason") or item.get("relation_reason")
+            item["risk_flags"] = item.get("risk_flags") or item.get("risk_notes") or []
+            picks.append(item)
+    else:
+        picks = raw_result
 
     picks = _sanitize_picks(picks)
     picks = _normalize_picks(picks, mode)

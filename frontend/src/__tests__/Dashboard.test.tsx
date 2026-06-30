@@ -146,6 +146,115 @@ describe('Dashboard', () => {
     expect((await screen.findAllByText('中际旭创')).length).toBeGreaterThan(0)
   })
 
+  it('renders market sentiment as three dedicated sub-pages', async () => {
+    renderDashboard()
+
+    expect(await screen.findByRole('heading', { name: '市场情绪' })).toBeInTheDocument()
+    const sentimentTabs = screen.getByRole('tablist', { name: '市场情绪子页签' })
+
+    expect(within(sentimentTabs).getByRole('tab', { name: /今日市场/ })).toHaveAttribute('aria-selected', 'true')
+    expect(within(sentimentTabs).getByRole('tab', { name: /历史情绪/ })).toBeInTheDocument()
+    expect(within(sentimentTabs).getByRole('tab', { name: /板块共振/ })).toBeInTheDocument()
+    expect(screen.getByText('综合情绪指数 · 八维风向感知')).toBeInTheDocument()
+    expect(screen.getByText('市场快照')).toBeInTheDocument()
+    expect(screen.queryByText('情绪历史趋势')).not.toBeInTheDocument()
+
+    fireEvent.click(within(sentimentTabs).getByRole('tab', { name: /历史情绪/ }))
+    expect(within(sentimentTabs).getByRole('tab', { name: /历史情绪/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('情绪历史趋势')).toBeInTheDocument()
+    expect(screen.getByText('历史相似场景')).toBeInTheDocument()
+    expect(screen.getByText('周期状态表')).toBeInTheDocument()
+    expect(screen.queryByText('市场快照')).not.toBeInTheDocument()
+
+    fireEvent.click(within(sentimentTabs).getByRole('tab', { name: /板块共振/ }))
+    expect(within(sentimentTabs).getByRole('tab', { name: /板块共振/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('TOP 1')).toBeInTheDocument()
+    expect(screen.getByText('板块共振热力图')).toBeInTheDocument()
+    expect(screen.getByText('选中板块详情')).toBeInTheDocument()
+    expect(screen.getByText('AI 共振结论')).toBeInTheDocument()
+    expect(screen.queryByText('综合情绪指数 · 八维风向感知')).not.toBeInTheDocument()
+  })
+
+  it('links sector cards to stock change details and opens the detail drawer', async () => {
+    vi.mocked(signalApi.getDashboardSummary).mockResolvedValue({
+      data: {
+        ...dashboardSummary,
+        signal_stocks: [
+          { code: '688981', name: '中芯国际', price: 68.2, change_pct: 5.8, signal: 'Bullish', industry: '半导体', score: 88 },
+          { code: '300750', name: '宁德时代', price: 218.5, change_pct: 8.2, signal: 'Bullish', industry: '新能源', score: 92 },
+          { code: '300274', name: '阳光电源', price: 87.6, change_pct: 4.6, signal: 'Bullish', industry: '新能源', score: 81 },
+        ],
+      },
+    } as any)
+
+    renderDashboard()
+
+    expect(await screen.findByRole('heading', { name: '市场情绪' })).toBeInTheDocument()
+    const sentimentTabs = screen.getByRole('tablist', { name: '市场情绪子页签' })
+    fireEvent.click(within(sentimentTabs).getByRole('tab', { name: /板块共振/ }))
+
+    expect(await screen.findByText('中芯国际')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /TOP 2.*新能源 78/ }))
+
+    expect(await screen.findByText('新能源 股票涨幅明细')).toBeInTheDocument()
+    expect(screen.getAllByText('宁德时代').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('阳光电源').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('+8.20%').length).toBeGreaterThan(0)
+    expect(screen.queryByText('中芯国际')).not.toBeInTheDocument()
+  })
+
+  it('uses real limit stock lists for sector drawer details', async () => {
+    vi.mocked(signalApi.getDashboardSummary).mockResolvedValue({
+      data: {
+        ...dashboardSummary,
+        signal_stocks: [],
+        limit_stocks: {
+          up_count: 2,
+          down_count: 0,
+          data_source: 'stk_limit',
+          up_list: [
+            { code: '688981', name: '中芯国际', price: 68.2, change_pct: 10.01, industry: '半导体', score: 86 },
+            { code: '603986', name: '兆易创新', price: 86.35, change_pct: 9.98, industry: '半导体', score: 83 },
+          ],
+        },
+      },
+    } as any)
+
+    renderDashboard()
+
+    expect(await screen.findByRole('heading', { name: '市场情绪' })).toBeInTheDocument()
+    const sentimentTabs = screen.getByRole('tablist', { name: '市场情绪子页签' })
+    fireEvent.click(within(sentimentTabs).getByRole('tab', { name: /板块共振/ }))
+    fireEvent.click(screen.getByRole('button', { name: /TOP 1.*半导体 85/ }))
+
+    expect(await screen.findByText('半导体 股票涨幅明细')).toBeInTheDocument()
+    expect(screen.getAllByText('中芯国际').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('兆易创新').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('+10.01%').length).toBeGreaterThan(0)
+  })
+
+  it('updates the side sector detail without opening drawer when clicking the heatmap', async () => {
+    vi.mocked(signalApi.getDashboardSummary).mockResolvedValue({
+      data: {
+        ...dashboardSummary,
+        signal_stocks: [
+          { code: '300750', name: '宁德时代', price: 218.5, change_pct: 8.2, signal: 'Bullish', industry: '新能源', score: 92 },
+        ],
+      },
+    } as any)
+
+    renderDashboard()
+
+    expect(await screen.findByRole('heading', { name: '市场情绪' })).toBeInTheDocument()
+    const sentimentTabs = screen.getByRole('tablist', { name: '市场情绪子页签' })
+    fireEvent.click(within(sentimentTabs).getByRole('tab', { name: /板块共振/ }))
+    fireEvent.click(screen.getByRole('button', { name: /新能源 78 涨72%/ }))
+
+    expect(await screen.findByRole('heading', { name: '新能源' })).toBeInTheDocument()
+    expect(screen.getByText('宁德时代')).toBeInTheDocument()
+    expect(screen.queryByText('新能源 股票涨幅明细')).not.toBeInTheDocument()
+  })
+
   it('loads screening dashboard and auction data through the unified API facade', async () => {
     vi.mocked(signalApi.getScreeningDashboardSummary).mockResolvedValue({
       data: {
