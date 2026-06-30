@@ -328,6 +328,7 @@ def test_run_assembles_fetcher_outputs_without_postgres(monkeypatch):
 
 
 def test_cli_write_outputs_creates_json_and_csv(tmp_path):
+    import json
     import importlib.util
     from pathlib import Path
 
@@ -364,4 +365,11 @@ def test_cli_write_outputs_creates_json_and_csv(tmp_path):
 
     assert Path(json_path).exists()
     assert Path(csv_path).exists()
-    assert "触发转债" in Path(csv_path).read_text(encoding="utf-8-sig")
+    data = json.loads(Path(json_path).read_text(encoding="utf-8"))
+    assert data["bonds"][0]["risk_notes"] == ["强赎中", "高溢价85.0%"]
+    csv_text = Path(csv_path).read_text(encoding="utf-8-sig")
+    assert "触发转债" in csv_text
+    assert "公告实施强赎" in csv_text
+    assert "高溢价85.0%" in csv_text
+    assert "85.0" in csv_text
+    assert "20.0" in csv_text

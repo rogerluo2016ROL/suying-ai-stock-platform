@@ -35,7 +35,9 @@ def write_outputs(result: dict, output_dir: str) -> tuple[str, str]:
     json_path = out_dir / f"{trade_date}_cb_auction_t0.json"
     csv_path = out_dir / f"{trade_date}_cb_auction_t0.csv"
 
-    json_path.write_text(json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    json_path.write_text(
+        json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+    )
 
     fields = [
         "cb_code",
