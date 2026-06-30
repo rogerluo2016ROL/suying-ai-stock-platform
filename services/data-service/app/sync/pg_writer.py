@@ -174,25 +174,22 @@ def write_index_daily(rows: list[tuple]) -> int:
 
 
 def write_limit_list_d(rows: list[tuple]) -> int:
-    """写入 limit_list_d (ts_code→code, trade_date_str→trade_date)."""
+    """写入 limit_list_d 盘后 U 类型数据."""
     if not rows:
         return 0
     mapped = []
     for r in rows:
         trade_date_str = str(r[0])
-        trade_date = (f"{trade_date_str[:4]}-{trade_date_str[4:6]}-{trade_date_str[6:8]}"
-                      if len(trade_date_str) == 8 else trade_date_str)
         ts_code = str(r[1])
-        code = ts_code.split(".")[0] if "." in ts_code else ts_code
-        mapped.append((code, trade_date, ts_code, str(r[2]),
+        mapped.append((trade_date_str, ts_code, "U", str(r[2]),
                        r[3], r[4], r[5], r[6], r[7],
                        r[8] or 0, str(r[9] or ""), str(r[10] or ""),
                        r[11] or 0, str(r[12] or ""), r[13] or 0))
     return _pg_write("limit_list_d",
-                     ["code", "trade_date", "ts_code", "name", "close", "pct_chg", "amount",
+                     ["trade_date", "ts_code", "limit_type", "name", "close", "pct_chg", "amount",
                       "float_mv", "turnover_ratio", "fd_amount", "first_time", "last_time",
                       "open_times", "up_stat", "limit_times"],
-                     ["code", "trade_date"], mapped)
+                     ["ts_code", "trade_date", "limit_type"], mapped)
 
 
 def write_ths_daily(rows: list[tuple]) -> int:

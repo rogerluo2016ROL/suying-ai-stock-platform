@@ -684,12 +684,13 @@ CREATE INDEX IF NOT EXISTS idx_stk_mins_time ON stk_mins(trade_time);
 
 -- 涨跌停列表 (limit_list_d, 来自 Tushare limit_list_d API)
 CREATE TABLE IF NOT EXISTS limit_list_d (
-    code TEXT NOT NULL,
-    trade_date DATE NOT NULL,
-    ts_code TEXT,
+    id SERIAL PRIMARY KEY,
+    trade_date TEXT NOT NULL,
+    ts_code TEXT NOT NULL,
+    limit_type TEXT NOT NULL,
     name TEXT,
+    industry TEXT,
     close DOUBLE PRECISION,
-    pct_chg DOUBLE PRECISION,
     amount DOUBLE PRECISION,
     float_mv DOUBLE PRECISION,
     turnover_ratio DOUBLE PRECISION,
@@ -699,7 +700,15 @@ CREATE TABLE IF NOT EXISTS limit_list_d (
     open_times INTEGER,
     up_stat TEXT,
     limit_times INTEGER,
-    PRIMARY KEY(code, trade_date)
+    up_limit DOUBLE PRECISION,
+    down_limit DOUBLE PRECISION,
+    pre_close DOUBLE PRECISION,
+    open DOUBLE PRECISION,
+    pct_chg DOUBLE PRECISION,
+    total_mv DOUBLE PRECISION,
+    limit_amount DOUBLE PRECISION,
+    "limit" DOUBLE PRECISION,
+    UNIQUE(ts_code, trade_date, limit_type)
 );
 
 -- 同花顺每日指标 (ths_daily, 来自 Tushare pro.ths_daily API)

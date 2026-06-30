@@ -1906,3 +1906,38 @@ $ curl -s "http://localhost:8001/api/v1/screener/chain/candidates?filter=high_pr
 **质量门**: Unit ✅ 11 passed / py_compile ✅ / code-review 代码结论 ✅ approve；SIT 证据已补落本段。
 
 **下一步**: 等待 code-reviewer 复核 SIT Audit；通过后继续 Task #6 文档运行命令和最终验证。
+
+---
+
+## 竞价选债 T+0 — Smoke Fix: limit_list_d schema 兼容 - 2026-06-30
+
+**状态**: 已完成
+**Skills**: systematic-debugging / test-driven-development / agf-running-sit-tests
+
+**任务**: 修复真实 CLI 冒烟暴露的 `limit_list_d.code` 不存在问题，并同步 `limit_list_d` 初始化 schema 与 PG 写入 helper，避免 fresh DB 再次漂移。
+
+**SIT 证据**（按 AC 列；行首 `[x]/[ ]` 同时表达 AC 自验勾选）:
+- [x] AC-1 ✅ 回归测试先红灯，能抓住 `_fetch_trigger_stocks` SQL 误用 `l.code` / `p.code`
+    - 命令: `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py::test_fetch_trigger_stocks_uses_limit_list_ts_code_schema -q`
+    - 修复前输出: `FAILED ... AssertionError: assert 'l.code' not in ... COALESCE(l.ts_code, l.code)`
+    - 验证: 失败点与真实 DB 冒烟错误 `column l.code does not exist` 同源。
+- [x] AC-2 ✅ 模型 SQL 只引用真实存在的 `limit_list_d.ts_code`，不再引用不存在的 `code` 兜底列
+    - 命令: `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+    - 输出: `............                                                             [100%]`
+    - 验证: 新增回归测试通过，新模型测试 12 个用例全绿。
+- [x] AC-3 ✅ `limit_list_d` 初始化 schema 与盘后 PG 写入 helper 对齐 `ts_code/trade_date/limit_type`
+    - 命令: `bash tools/codex-lowio.sh py services/data-service/tests/test_limit_list_d_schema.py -q`
+    - 输出: `..                                                                       [100%]`
+    - 验证: `write_limit_list_d()` 写入列为 `trade_date, ts_code, limit_type...`，冲突键为 `ts_code, trade_date, limit_type`；`init_postgres.sql` 不再定义旧 `code` 主键。
+- [x] AC-4 ✅ 相关 Python 入口语法检查通过
+    - 命令: `python3 -m py_compile services/data-service/app/sync/pg_writer.py packages/kronos-factors/kronos_factors/engine/cb_auction_t0.py tools/cb_auction_t0_picks.py services/backtest-service/app/routes.py`
+    - 输出: 退出码 0，无语法错误输出。
+- [x] AC-5 ✅ 真实 PostgreSQL CLI 冒烟通过并导出 JSON/CSV
+    - 命令: `KRONOS_PG_URL="postgresql://kronos:kronos@localhost:6432/kronos" python3 tools/cb_auction_t0_picks.py 2026-06-30 --top-n 50`
+    - 输出: `竞价选债 T+0 | 2026-06-30`；`触发股票: 0 | 概念: 0 | 转债: 0`
+    - 产物: `outputs/cb_auction_t0/2026-06-30_cb_auction_t0.json`、`outputs/cb_auction_t0/2026-06-30_cb_auction_t0.csv`
+    - 解释: 2026-06-30 当前数据下没有符合“竞价一字板 + 封单金额 > 10 亿 + 前日非涨停”的触发股票；这是空结果，不是程序失败。
+
+**质量门**: Unit ✅ 12 passed / schema tests ✅ 2 passed / py_compile ✅ / real DB smoke ✅ / code-review 复审待更新。
+
+**下一步**: 等待 code-reviewer 复核 smoke fix + schema SSOT 修复；通过后进入最终全量验证。
