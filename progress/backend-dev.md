@@ -1879,3 +1879,30 @@ $ curl -s "http://localhost:8001/api/v1/screener/chain/candidates?filter=high_pr
 **下游解封**: Task #3(前端筛选器组件) / Task #5(前端候选分析页面集成) 可开始
 
 **下一步**: 等待 code-review（含 SIT Audit）
+
+---
+
+## 竞价选债 T+0 — Task #5: 模型接入注册 - 2026-06-30
+
+**状态**: 已完成
+**Skills**: subagent-driven-development / agf-running-sit-tests
+
+**任务**: 将 `CbAuctionT0Engine` 暴露给包级导入，并在回测服务 CB mode 分支中接入 `mode="cb_auction_t0"`。
+
+**SIT 证据**（按 AC 列；行首 `[x]/[ ]` 同时表达 AC 自验勾选）:
+- [x] AC-1 ✅ `CbAuctionT0Engine` 可从 `kronos_factors.engine` 包级导入
+    - 命令: `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+    - 输出: `...........                                                              [100%]`
+    - 验证: 测试集包含 `test_engine_package_exports_cb_auction_t0`，覆盖包级导出。
+- [x] AC-2 ✅ `mode="cb_auction_t0"` 接入回测服务 CB mode 分支，且不改写既有 `cb_floor` / `cb_intraday` / 默认 `cb_auction`
+    - 命令: `python3 -m py_compile tools/cb_auction_t0_picks.py services/backtest-service/app/routes.py packages/kronos-factors/kronos_factors/engine/cb_auction_t0.py`
+    - 输出: 退出码 0，无语法错误输出。
+    - 验证: CodeGraph 读取 `services/backtest-service/app/routes.py:454` 到 `468`，新增分支为独立 `elif mode == "cb_auction_t0"`，既有 CB 分支保留。
+- [x] AC-3 ✅ `CbAuctionT0Engine.run()` 的 dict 结果可转换为回测服务需要的 `picks`
+    - 命令: `python3 -m py_compile tools/cb_auction_t0_picks.py services/backtest-service/app/routes.py packages/kronos-factors/kronos_factors/engine/cb_auction_t0.py`
+    - 输出: 退出码 0，无语法错误输出。
+    - 验证: `cb_auction_t0` 路径使用 `raw_result.get("bonds", [])`；空清单继续跳过当前窗口，风险提示仍由模型输出保留在债券行。
+
+**质量门**: Unit ✅ 11 passed / py_compile ✅ / code-review 代码结论 ✅ approve；SIT 证据已补落本段。
+
+**下一步**: 等待 code-reviewer 复核 SIT Audit；通过后继续 Task #6 文档运行命令和最终验证。
