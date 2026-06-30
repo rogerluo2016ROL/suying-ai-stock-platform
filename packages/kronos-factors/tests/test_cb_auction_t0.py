@@ -242,3 +242,86 @@ def test_assemble_result_top_n_zero_and_none():
 
     assert zero["bonds"] == []
     assert len(all_bonds["bonds"]) == 2
+
+
+def test_run_assembles_fetcher_outputs_without_postgres(monkeypatch):
+    engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+
+    class DummyCursor:
+        pass
+
+    class DummyConn:
+        closed = False
+
+        def cursor(self):
+            return DummyCursor()
+
+        def close(self):
+            self.closed = True
+
+    engine._conn = DummyConn()
+    monkeypatch.setattr(engine, "_fetch_effective_trade_date", lambda cur, trade_date: "2026-06-30")
+    monkeypatch.setattr(engine, "_fetch_previous_trade_date", lambda cur, trade_date: "2026-06-29")
+    monkeypatch.setattr(
+        engine,
+        "_fetch_trigger_stocks",
+        lambda cur, trade_date, prev_trade_date: (
+            [
+                {
+                    "trigger_stock_code": "300001",
+                    "trigger_stock_name": "触发科技",
+                    "fd_amount": 1_500_000_000,
+                    "fd_amount_yi": 15.0,
+                    "first_time": "09:25:00",
+                    "prev_was_limit_up": False,
+                }
+            ],
+            [{"code": "300009", "reason": "封单金额缺失"}],
+        ),
+    )
+    monkeypatch.setattr(
+        engine,
+        "_fetch_concepts",
+        lambda cur, triggers: (
+            [
+                {
+                    "concept_code": "886001.TI",
+                    "concept_name": "机器人",
+                    "trigger_stock_count": 1,
+                    "concept_fd_amount": 1_500_000_000,
+                    "concept_fd_amount_yi": 15.0,
+                    "trigger_sources": ["300001"],
+                    "concept_size": 2,
+                }
+            ],
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        engine,
+        "_fetch_bonds",
+        lambda cur, trade_date, concepts: (
+            [
+                {
+                    "cb_code": "123001.SZ",
+                    "cb_name": "触发转债",
+                    "stk_code": "300001",
+                    "stk_name": "触发科技",
+                    "matched_concepts": ["机器人"],
+                    "trigger_sources": ["300001"],
+                    "matched_concept_count": 1,
+                    "trigger_stock_count_sum": 1,
+                    "matched_fd_amount": 1_500_000_000,
+                    "concept_size_min": 2,
+                }
+            ],
+            [],
+        ),
+    )
+
+    result = engine.run(top_n=5)
+
+    assert result["trade_date"] == "2026-06-30"
+    assert result["trigger_stocks"][0]["trigger_stock_code"] == "300001"
+    assert result["bonds"][0]["cb_code"] == "123001.SZ"
+    assert result["rejections"] == [{"code": "300009", "reason": "封单金额缺失"}]
