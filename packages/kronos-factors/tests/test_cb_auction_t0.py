@@ -325,3 +325,43 @@ def test_run_assembles_fetcher_outputs_without_postgres(monkeypatch):
     assert result["trigger_stocks"][0]["trigger_stock_code"] == "300001"
     assert result["bonds"][0]["cb_code"] == "123001.SZ"
     assert result["rejections"] == [{"code": "300009", "reason": "封单金额缺失"}]
+
+
+def test_cli_write_outputs_creates_json_and_csv(tmp_path):
+    import importlib.util
+    from pathlib import Path
+
+    tool_path = Path("tools/cb_auction_t0_picks.py")
+    spec = importlib.util.spec_from_file_location("cb_auction_t0_picks", tool_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    result = {
+        "trade_date": "2026-06-30",
+        "trigger_stocks": [],
+        "concepts": [],
+        "bonds": [
+            {
+                "cb_code": "123001.SZ",
+                "cb_name": "触发转债",
+                "stk_code": "300001",
+                "stk_name": "触发科技",
+                "matched_concepts": ["机器人"],
+                "trigger_sources": ["300001"],
+                "theme_score": 111.0,
+                "premium_rate": 85.0,
+                "cb_amount": 1_000_000,
+                "remain_size_yi": 20.0,
+                "call_status": "公告实施强赎",
+                "risk_notes": ["强赎中", "高溢价85.0%"],
+                "relation_reason": "正股为触发股，命中机器人",
+            }
+        ],
+        "rejections": [],
+    }
+
+    json_path, csv_path = module.write_outputs(result, str(tmp_path))
+
+    assert Path(json_path).exists()
+    assert Path(csv_path).exists()
+    assert "触发转债" in Path(csv_path).read_text(encoding="utf-8-sig")
