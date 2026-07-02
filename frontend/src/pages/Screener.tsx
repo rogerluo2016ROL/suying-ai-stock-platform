@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BarChartOutlined, FundOutlined, RadarChartOutlined } from '@ant-design/icons'
+import { message } from 'antd'
 import {
   DataDomainBadge,
   DataFreshnessBar,
@@ -292,6 +293,7 @@ export default function Screener() {
   const [modelComparePicks, setModelComparePicks] = useState<ScreenerPick[]>([])
   const [modelCompareLoading, setModelCompareLoading] = useState(false)
   const [modelCompareMessage, setModelCompareMessage] = useState('等待模型对比运行')
+  const [recordingPool, setRecordingPool] = useState(false)
 
   const visiblePicks = picks
   const selectedPick = visiblePicks.find(item => item.code === selectedCode) || visiblePicks[0]
@@ -499,6 +501,40 @@ export default function Screener() {
     URL.revokeObjectURL(url)
   }
 
+  // 加入候选池：调 M0 recordCandidatePool 写入选中候选股（无显式选中时写全部 visiblePicks）。
+  // scope 走 client 拦截器头（X-Tenant/Owner/Trade-Account），前端不传明文 tenant/owner/account。
+  const addToCandidatePool = async () => {
+    if (recordingPool || selectedPicks.length === 0) return
+    const candidates = selectedPicks.map((pick, index) => ({
+      code: pick.code,
+      name: pick.name,
+      score: Number.isFinite(Number(pick.score)) ? Number(pick.score) : undefined,
+      grade: pick.grade,
+      rank: index + 1,
+    }))
+    const payload = {
+      source_module: 'screener',
+      source_mode: selectedMode,
+      name: `选股-${selectedMode}-${tradeDate || latestDates.daily_kline || '最新'}`,
+      candidates,
+      trade_date: resolveTradeDateForMode(selectedMode),
+    }
+    setRecordingPool(true)
+    try {
+      const response = await screenerApi.recordCandidatePool(payload)
+      const poolId = response.data?.pool_id
+      message.success(`已写入候选池${poolId ? `（${poolId}）` : ''}：${candidates.length} 只`)
+      // 刷新侧栏计数（失败不阻断主链路）
+      screenerApi.queryCandidatePool({ source_module: 'screener', source_mode: selectedMode }).catch(() => {})
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      message.error(detail || '候选池写入失败，请稍后重试')
+    } finally {
+      setRecordingPool(false)
+    }
+  }
+
+
   const stageState = (stage: 'data' | 'model' | 'output') => {
     const order = { idle: 0, data: 1, model: 2, output: 3, done: 4, error: 4 }
     const stageOrder = { data: 1, model: 2, output: 3 }
@@ -659,8 +695,8 @@ export default function Screener() {
                 <span className="prototype-panel-note">已选</span>
                 <span className="sel-cnt">{selectedCount}</span>
                 <span className="prototype-panel-note">只</span>
-                <button type="button" className="action-btn primary" disabled title="候选池写入接口未接入">加入候选池 →</button>
-                <button type="button" className="action-btn" disabled title="自选股写入接口未接入">加入自选</button>
+                <button type="button" className="action-btn primary" onClick={addToCandidatePool} disabled={!canUseResults || recordingPool} title={recordingPool ? '正在写入候选池…' : '写入选中候选股到候选池'}>{recordingPool ? '写入中…' : '加入候选池 →'}</button>
+                <button type="button" className="action-btn" disabled title="watchlist 待 Batch B">加入自选</button>
                 <button type="button" className="action-btn text" onClick={exportCsv} disabled={!canUseResults}>导出 CSV</button>
               </div>
             </div>
@@ -735,7 +771,7 @@ export default function Screener() {
                     {(selectedPick?.risk_flags || []).map(flag => <div className="risk-item warn" key={flag}>需复核: {flag}</div>)}
                   </div>
                   <div className="detail-actions">
-                    <button type="button" className="action-btn primary" disabled title="候选池写入接口未接入">加入候选池</button>
+                    <button type="button" className="action-btn primary" onClick={addToCandidatePool} disabled={recordingPool} title={recordingPool ? '正在写入候选池…' : '写入选中候选股到候选池'}>{recordingPool ? '写入中…' : '加入候选池'}</button>
                     <button
                       type="button"
                       className="action-btn"

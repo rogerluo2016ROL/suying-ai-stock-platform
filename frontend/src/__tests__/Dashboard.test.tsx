@@ -175,6 +175,25 @@ describe('Dashboard', () => {
     expect(screen.queryByText('综合情绪指数 · 八维风向感知')).not.toBeInTheDocument()
   })
 
+  it('shows fallback_reason placeholders for the history page when backend fields are missing', async () => {
+    renderDashboard()
+
+    expect(await screen.findByRole('heading', { name: '市场情绪' })).toBeInTheDocument()
+    const sentimentTabs = screen.getByRole('tablist', { name: '市场情绪子页签' })
+    fireEvent.click(within(sentimentTabs).getByRole('tab', { name: /历史情绪/ }))
+
+    // 4 MetricCard 占位（情绪分位/斜率/回撤/历史相似）—— 缺数据不空白，显式 fallback_reason
+    expect(screen.getByText('当前分位')).toBeInTheDocument()
+    expect(screen.getByText('情绪斜率')).toBeInTheDocument()
+    expect(screen.getByText('回撤风险')).toBeInTheDocument()
+    expect(screen.getByText('历史相似')).toBeInTheDocument()
+    expect(screen.getAllByText(/fallback_reason/).length).toBeGreaterThanOrEqual(4)
+
+    // 历史相似场景 / 周期状态表 用 EmptyState 而非空白
+    expect(screen.getByText('历史相似场景待接入')).toBeInTheDocument()
+    expect(screen.getByText('周期状态表待接入')).toBeInTheDocument()
+  })
+
   it('links sector cards to stock change details and opens the detail drawer', async () => {
     vi.mocked(signalApi.getDashboardSummary).mockResolvedValue({
       data: {

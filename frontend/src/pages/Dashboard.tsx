@@ -14,8 +14,9 @@ import {
   LineChartOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons'
-import { DataFreshnessBar, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs } from '../components/prototype'
+import { DataFreshnessBar, EmptyState, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs } from '../components/prototype'
 import { signalApi } from '../api/client'
+import { lightTokens } from '../styles/tokens'
 
 interface SignalStock {
   code: string
@@ -161,15 +162,17 @@ const fallbackSentiment: MarketSentimentData = {
   formula: '',
 }
 
+const fallbackDimTone = `linear-gradient(90deg,${lightTokens.border2},${lightTokens.border2})`
+
 const fallbackDimensions = [
-  { key: 'trend', label: '趋势', weight: 25, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
-  { key: 'breadth', label: '广度', weight: 20, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
-  { key: 'liquidity', label: '流动性', weight: 15, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
-  { key: 'leverage', label: '杠杆', weight: 10, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
-  { key: 'foreign', label: '外资', weight: 5, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
-  { key: 'valuation', label: '估值', weight: 5, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
-  { key: 'risk', label: '风险事件', weight: 15, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
-  { key: 'sentiment', label: '情绪', weight: 5, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
+  { key: 'trend', label: '趋势', weight: 25, score: 0, tone: fallbackDimTone },
+  { key: 'breadth', label: '广度', weight: 20, score: 0, tone: fallbackDimTone },
+  { key: 'liquidity', label: '流动性', weight: 15, score: 0, tone: fallbackDimTone },
+  { key: 'leverage', label: '杠杆', weight: 10, score: 0, tone: fallbackDimTone },
+  { key: 'foreign', label: '外资', weight: 5, score: 0, tone: fallbackDimTone },
+  { key: 'valuation', label: '估值', weight: 5, score: 0, tone: fallbackDimTone },
+  { key: 'risk', label: '风险事件', weight: 15, score: 0, tone: fallbackDimTone },
+  { key: 'sentiment', label: '情绪', weight: 5, score: 0, tone: fallbackDimTone },
 ]
 
 type SentimentPageKey = 'today' | 'history' | 'sector'
@@ -213,9 +216,9 @@ interface SignalMatrixItem {
 }
 
 const signalLevelMeta: Record<SignalLevelKey, { label: string; color: string; className: string }> = {
-  STRONG_BUY: { label: '强买', color: '#ff4d4f', className: 'buy-strong' },
+  STRONG_BUY: { label: '强买', color: lightTokens.up, className: 'buy-strong' },
   BUY: { label: '买入', color: '#fa8c16', className: 'buy' },
-  HOLD: { label: '持有', color: '#3d8bff', className: 'hold' },
+  HOLD: { label: '持有', color: lightTokens.accent, className: 'hold' },
   REDUCE: { label: '减仓', color: '#faad14', className: 'reduce' },
   SELL: { label: '卖出', color: '#8c8c8c', className: 'sell' },
   TIMING_ALERT: { label: '拐点', color: '#722ed1', className: 'alert' },
@@ -237,6 +240,56 @@ function activeTabFromPath(pathname: string) {
   return 'sentiment'
 }
 
+interface SentimentReason {
+  title: string
+  detail: string
+  fallback: boolean
+}
+
+/**
+ * 从已返回的 market_sentiment / market_regime_v2 八维分数 + 市场快照派生 3 条 AI 解读支撑原因。
+ * 后端尚未提供结构化 `reasons` 字段，这里用真实接口值推导文案，缺字段时标注 fallback_reason，
+ * 不引入演示数据，不空白。
+ */
+function buildSentimentReasons(
+  sentiment: MarketSentimentData,
+  dimensions: Array<{ key: string; label: string; score: number; weight: number }>,
+  snapshot: { upStocks: number; downStocks: number; upCount: number; downCount: number; totalStocks: number },
+): SentimentReason[] {
+  const dimBy = (key: string) => dimensions.find(item => item.key === key)
+  const hasSnapshot = snapshot.totalStocks > 0 || snapshot.upCount > 0 || snapshot.downCount > 0
+
+  const trend = dimBy('trend')
+  const liquidity = dimBy('liquidity')
+  const breadth = dimBy('breadth')
+
+  const reasons: SentimentReason[] = [
+    {
+      title: trend ? `支撑原因 1 · ${trend.label}` : '支撑原因 1 · 趋势',
+      detail: trend
+        ? `${trend.label}维度评分 ${trend.score}（权重 ${trend.weight}%），反映指数层面趋势环境${trend.score >= 60 ? '对做多更友好' : '仍需观察确认'}。`
+        : '后端未返回趋势维度分数，暂无法量化指数趋势环境。',
+      fallback: !trend,
+    },
+    {
+      title: liquidity ? `支撑原因 2 · ${liquidity.label}` : '支撑原因 2 · 资金',
+      detail: liquidity
+        ? `${liquidity.label}维度评分 ${liquidity.score}（权重 ${liquidity.weight}%），近似资金面与成交活跃度${liquidity.score >= 60 ? '处于活跃区间' : '偏中性'}。`
+        : '实时资金（北向/主力/融资）字段未接入，资金支撑原因待后端补齐。',
+      fallback: !liquidity,
+    },
+    {
+      title: '支撑原因 3 · 赚钱效应',
+      detail: hasSnapshot
+        ? `上涨 ${snapshot.upStocks.toLocaleString()} 只 / 下跌 ${snapshot.downStocks.toLocaleString()} 只，涨停 ${snapshot.upCount}、跌停 ${snapshot.downCount}，赚钱效应${snapshot.upStocks >= snapshot.downStocks ? '扩散较好' : '尚未扩散'}。`
+        : '涨跌家数与涨停跌停未返回，赚钱效应扩散度待市场快照补齐。',
+      fallback: !hasSnapshot,
+    },
+  ]
+
+  return reasons
+}
+
 function normalizeSentiment(data: DashboardData | null): MarketSentimentData {
   if (data?.market_sentiment) return data.market_sentiment
   if (data?.market_regime_v2) {
@@ -248,6 +301,13 @@ function normalizeSentiment(data: DashboardData | null): MarketSentimentData {
     }
   }
   return fallbackSentiment
+}
+
+function toneFromScore(score: number) {
+  if (score >= 70) return `linear-gradient(90deg,${lightTokens.down},#1a7a4c)`
+  if (score >= 55) return `linear-gradient(90deg,${lightTokens.accent},${lightTokens.down})`
+  if (score >= 40) return `linear-gradient(90deg,${lightTokens.accent},${lightTokens.accent})`
+  return `linear-gradient(90deg,${lightTokens.up},${lightTokens.warn})`
 }
 
 function dimensionsFromData(data: DashboardData | null) {
@@ -265,12 +325,15 @@ function dimensionsFromData(data: DashboardData | null) {
   }
   return fallbackDimensions.map(item => {
     const source = dimensions[item.key]
-    return source ? {
+    if (!source) return item
+    const score = Math.max(0, Math.min(100, Math.round(source.score ?? item.score)))
+    return {
       ...item,
       label: labelMap[item.key] ?? item.label,
       weight: Math.round((source.weight ?? item.weight / 100) * 100),
-      score: Math.max(0, Math.min(100, Math.round(source.score ?? item.score))),
-    } : item
+      score,
+      tone: toneFromScore(score),
+    }
   })
 }
 
@@ -288,24 +351,24 @@ function buildGaugeOption(score: number): EChartsOption {
       axisLine: {
         lineStyle: {
           width: 18,
-          color: [[0.2, '#237804'], [0.4, '#52c41a'], [0.6, '#3d8bff'], [0.8, '#fa8c16'], [1, '#ff4d4f']],
+          color: [[0.2, '#237804'], [0.4, '#52c41a'], [0.6, lightTokens.accent], [0.8, '#fa8c16'], [1, lightTokens.up]],
         },
       },
-      pointer: { length: '72%', width: 6, itemStyle: { color: '#d8dee8' } },
-      axisTick: { distance: -18, length: 6, lineStyle: { color: '#8a96a8', width: 1 } },
-      splitLine: { distance: -22, length: 14, lineStyle: { color: '#8a96a8', width: 2 } },
-      axisLabel: { color: '#8a96a8', fontSize: 9, fontFamily: 'var(--font-mono)', distance: 28 },
+      pointer: { length: '72%', width: 6, itemStyle: { color: lightTokens.border2 } },
+      axisTick: { distance: -18, length: 6, lineStyle: { color: lightTokens.muted, width: 1 } },
+      splitLine: { distance: -22, length: 14, lineStyle: { color: lightTokens.muted, width: 2 } },
+      axisLabel: { color: lightTokens.muted, fontSize: 9, fontFamily: 'var(--font-mono)', distance: 28 },
       detail: {
         valueAnimation: true,
         formatter: `{value|${score}}\n{unit| 分}`,
         rich: {
-          value: { fontSize: 38, fontWeight: 720, color: '#1a2230', fontFamily: 'var(--font-mono)' },
-          unit: { fontSize: 13, color: '#52617a', padding: [0, 0, 0, 2] },
-          change: { fontSize: 12, color: '#ff4d4f', padding: [6, 0, 0, 0] },
+          value: { fontSize: 38, fontWeight: 720, color: lightTokens.fg, fontFamily: 'var(--font-mono)' },
+          unit: { fontSize: 13, color: lightTokens.fg2, padding: [0, 0, 0, 2] },
+          change: { fontSize: 12, color: lightTokens.up, padding: [6, 0, 0, 0] },
         },
         offsetCenter: [0, '18%'],
       },
-      title: { offsetCenter: [0, '52%'], color: '#52617a', fontSize: 12 },
+      title: { offsetCenter: [0, '52%'], color: lightTokens.fg2, fontSize: 12 },
       data: [{ value: score, name: '综合情绪指数' }],
     }],
     backgroundColor: 'transparent',
@@ -316,10 +379,10 @@ function buildTrendOption(): EChartsOption {
   return {
     tooltip: { trigger: 'axis' },
     grid: { left: 50, right: 70, top: 30, bottom: 42 },
-    xAxis: { type: 'category', data: [], axisLabel: { fontSize: 9, color: '#8a96a8', interval: 4 } },
+    xAxis: { type: 'category', data: [], axisLabel: { fontSize: 9, color: lightTokens.muted, interval: 4 } },
     yAxis: [
-      { type: 'value', name: '情绪指数', min: 0, max: 100, axisLabel: { fontSize: 9, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
-      { type: 'value', name: '沪深300', axisLabel: { fontSize: 9, color: '#8a96a8' }, splitLine: { show: false } },
+      { type: 'value', name: '情绪指数', min: 0, max: 100, axisLabel: { fontSize: 9, color: lightTokens.fg2 }, splitLine: { lineStyle: { color: lightTokens.border } } },
+      { type: 'value', name: '沪深300', axisLabel: { fontSize: 9, color: lightTokens.muted }, splitLine: { show: false } },
     ],
     series: [
       {
@@ -327,8 +390,8 @@ function buildTrendOption(): EChartsOption {
         type: 'line',
         yAxisIndex: 0,
         data: [],
-        lineStyle: { width: 2.5, color: '#3d8bff' },
-        itemStyle: { color: '#3d8bff' },
+        lineStyle: { width: 2.5, color: lightTokens.accent },
+        itemStyle: { color: lightTokens.accent },
         symbol: 'circle',
         symbolSize: 5,
         smooth: true,
@@ -343,7 +406,7 @@ function buildTrendOption(): EChartsOption {
         smooth: true,
       },
     ],
-    legend: { bottom: 0, textStyle: { fontSize: 10, color: '#52617a' }, itemWidth: 14, itemHeight: 8 },
+    legend: { bottom: 0, textStyle: { fontSize: 10, color: lightTokens.fg2 }, itemWidth: 14, itemHeight: 8 },
   }
 }
 
@@ -363,7 +426,7 @@ function sectorColor(score: number) {
   return {
     bg: 'rgba(138,150,168,.08)',
     border: 'var(--border-2)',
-    text: '#5f6b7a',
+    text: lightTokens.fg2,
     level: '偏弱',
     className: 'weak',
   }
@@ -691,17 +754,17 @@ function buildSignalTrendOption(): EChartsOption {
   return {
     tooltip: { trigger: 'axis' },
     grid: { left: 48, right: 50, top: 28, bottom: 42 },
-    xAxis: { type: 'category', data: [], axisLabel: { fontSize: 9, color: '#8a96a8', interval: 4 } },
+    xAxis: { type: 'category', data: [], axisLabel: { fontSize: 9, color: lightTokens.muted, interval: 4 } },
     yAxis: [
-      { type: 'value', name: '信号数', axisLabel: { fontSize: 9, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
-      { type: 'value', name: '多空比', axisLabel: { fontSize: 9, color: '#8a96a8' }, splitLine: { show: false } },
+      { type: 'value', name: '信号数', axisLabel: { fontSize: 9, color: lightTokens.fg2 }, splitLine: { lineStyle: { color: lightTokens.border } } },
+      { type: 'value', name: '多空比', axisLabel: { fontSize: 9, color: lightTokens.muted }, splitLine: { show: false } },
     ],
     series: [
-      { name: '买入信号', type: 'line', data: [], smooth: true, showSymbol: false, lineStyle: { color: '#ff4d4f', width: 2 }, itemStyle: { color: '#ff4d4f' } },
-      { name: '卖出信号', type: 'line', data: [], smooth: true, showSymbol: false, lineStyle: { color: '#2ec27e', width: 2 }, itemStyle: { color: '#2ec27e' } },
+      { name: '买入信号', type: 'line', data: [], smooth: true, showSymbol: false, lineStyle: { color: lightTokens.up, width: 2 }, itemStyle: { color: lightTokens.up } },
+      { name: '卖出信号', type: 'line', data: [], smooth: true, showSymbol: false, lineStyle: { color: lightTokens.down, width: 2 }, itemStyle: { color: lightTokens.down } },
       { name: '多空比', type: 'bar', yAxisIndex: 1, data: [], barWidth: '55%', itemStyle: { color: 'rgba(61,139,255,.18)' } },
     ],
-    legend: { bottom: 0, textStyle: { fontSize: 10, color: '#52617a' } },
+    legend: { bottom: 0, textStyle: { fontSize: 10, color: lightTokens.fg2 } },
   }
 }
 
@@ -710,8 +773,8 @@ function buildSignalBubbleOption(items: SignalMatrixItem[]): EChartsOption {
   return {
     tooltip: { trigger: 'item' },
     grid: { left: 60, right: 24, top: 28, bottom: 42 },
-    xAxis: { type: 'value', name: '信号数', axisLabel: { fontSize: 9, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
-    yAxis: { type: 'value', name: '平均评分', min: 20, max: 90, axisLabel: { fontSize: 9, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
+    xAxis: { type: 'value', name: '信号数', axisLabel: { fontSize: 9, color: lightTokens.fg2 }, splitLine: { lineStyle: { color: lightTokens.border } } },
+    yAxis: { type: 'value', name: '平均评分', min: 20, max: 90, axisLabel: { fontSize: 9, color: lightTokens.fg2 }, splitLine: { lineStyle: { color: lightTokens.border } } },
     series: [{
       type: 'scatter',
       data: rows.map(row => {
@@ -719,14 +782,14 @@ function buildSignalBubbleOption(items: SignalMatrixItem[]): EChartsOption {
         return {
           name: row.sector,
           value: [row.cells.length, Number(avg.toFixed(1)), row.bullish],
-          itemStyle: { color: row.ratio >= 2 ? '#2ec27e' : row.ratio >= 1 ? '#3d8bff' : '#ff4d4f' },
+          itemStyle: { color: row.ratio >= 2 ? lightTokens.down : row.ratio >= 1 ? lightTokens.accent : lightTokens.up },
         }
       }),
       symbolSize: (value: unknown) => {
         const arr = Array.isArray(value) ? value : [0, 0, 1]
         return Math.max(20, Math.min(58, Number(arr[2] || 1) * 9))
       },
-      label: { show: true, formatter: '{b}', position: 'right', fontSize: 10, color: '#52617a' },
+      label: { show: true, formatter: '{b}', position: 'right', fontSize: 10, color: lightTokens.fg2 },
     }],
   }
 }
@@ -787,6 +850,10 @@ export default function Dashboard() {
   const upStocks = sentiment.up_stocks ?? 0
   const downStocks = sentiment.down_stocks ?? 0
   const totalStocks = sentiment.total_stocks ?? 0
+  const sentimentReasons = useMemo(
+    () => buildSentimentReasons(sentiment, dimensions, { upStocks, downStocks, upCount, downCount, totalStocks }),
+    [sentiment, dimensions, upStocks, downStocks, upCount, downCount, totalStocks],
+  )
   const alertSignals = data?.alert_signals ?? []
   const signalStocks = data?.signal_stocks ?? []
   const limitRows = useMemo(() => limitStockRows(data?.limit_stocks), [data?.limit_stocks])
@@ -929,8 +996,11 @@ export default function Dashboard() {
                     <div className="ai-title"><span>实时指标解读</span><em>基于接口返回</em></div>
                     <p>当前市场情绪为 <b>{sentiment.label}</b>，综合分 <b>{sentiment.score}</b>。上涨 {upStocks.toLocaleString()} 只，下跌 {downStocks.toLocaleString()} 只，涨停 {upCount} 只，跌停 {downCount} 只。</p>
                     <div className="ai-reason-grid">
-                      {dimensions.slice(0, 3).map(dim => (
-                        <div key={dim.key}><strong>{dim.label}</strong><span>接口评分 {dim.score}，权重 {dim.weight}%。</span></div>
+                      {sentimentReasons.map((reason, index) => (
+                        <div key={index}>
+                          <strong>{reason.title}{reason.fallback ? ' · 待补齐' : ''}</strong>
+                          <span>{reason.detail}</span>
+                        </div>
                       ))}
                     </div>
                     <div className="risk-banner warn"><strong>风险提醒</strong><span>本区只使用接口返回字段；缺失的资金、炸板率和历史归因不会用演示数据补齐。</span></div>
@@ -959,7 +1029,16 @@ export default function Dashboard() {
                   </PrototypeCard>
 
                   <PrototypeCard title="资金全景" icon={<DollarOutlined />} meta="实时字段">
-                    <div className="prototype-fallback">暂无实时资金字段；已停止展示估算演示值。</div>
+                    <div className="snapshot-grid">
+                      <div className="snap-stat"><div className="lbl">北向资金</div><div className="val neu">--</div><div className="sub">暂无实时字段</div></div>
+                      <div className="snap-stat"><div className="lbl">主力资金</div><div className="val neu">--</div><div className="sub">暂无实时字段</div></div>
+                      <div className="snap-stat"><div className="lbl">融资余额</div><div className="val neu">--</div><div className="sub">暂无实时字段</div></div>
+                      <div className="snap-stat"><div className="lbl">两市成交</div><div className="val neu">--</div><div className="sub">暂无实时字段</div></div>
+                    </div>
+                    <div className="prototype-empty-state">
+                      <strong>资金全景待接入实时字段</strong>
+                      <span>fallback_reason：北向 / 主力净流入、融资余额变化、两市成交额均需后端新增实时接口；前端不展示估算演示值，避免误导仓位判断。</span>
+                    </div>
                   </PrototypeCard>
 
                   <div className="op-hint">
@@ -977,10 +1056,10 @@ export default function Dashboard() {
           {sentimentPage === 'history' && (
             <section className="market-page" aria-label="历史情绪">
               <div className="insight-grid">
-                <MetricCard label="当前分位" value="-" sub="暂无历史分位接口" tone="warn" />
-                <MetricCard label="情绪斜率" value="-" sub="暂无连续变化接口" tone="down" />
-                <MetricCard label="回撤风险" value="-" sub="暂无历史风险接口" tone="accent" />
-                <MetricCard label="历史相似" value="-" sub="暂无相似样本接口" tone="muted" />
+                <MetricCard label="当前分位" value="--" sub="fallback_reason：后端暂无历史分位接口，补齐后将显示近 60 日分位（如 72/偏高）。" tone="warn" />
+                <MetricCard label="情绪斜率" value="--" sub="fallback_reason：后端暂无连续情绪序列，无法计算 3 日斜率变化。" tone="down" />
+                <MetricCard label="回撤风险" value="--" sub="fallback_reason：后端暂无历史回撤接口，补齐后将显示低/中/高风险评级。" tone="accent" />
+                <MetricCard label="历史相似" value="--" sub="fallback_reason：后端暂无相似样本匹配接口，补齐后将显示相似次数与胜率。" tone="muted" />
               </div>
               <div className="history-layout">
                 <PrototypeCard title="情绪历史趋势" icon={<LineChartOutlined />} meta="30日 · 60日 · 120日">
@@ -988,10 +1067,16 @@ export default function Dashboard() {
                 </PrototypeCard>
                 <div className="history-side">
                   <PrototypeCard title="历史相似场景" icon={<EyeOutlined />} meta="按相似度排序">
-                    <div className="prototype-fallback">暂无历史相似场景接口；不展示演示历史样本。</div>
+                    <EmptyState
+                      title="历史相似场景待接入"
+                      detail="fallback_reason：后端暂无相似样本接口，不展示演示历史样本，避免误导周期判断。"
+                    />
                   </PrototypeCard>
                   <PrototypeCard title="周期状态表" icon={<BarChartOutlined />} meta="模型判断">
-                    <div className="prototype-fallback">暂无周期状态接口；不展示固定判断。</div>
+                    <EmptyState
+                      title="周期状态表待接入"
+                      detail="fallback_reason：后端暂无周期判定接口，不展示固定的冰点/中性/偏牛/过热分档。"
+                    />
                   </PrototypeCard>
                 </div>
               </div>

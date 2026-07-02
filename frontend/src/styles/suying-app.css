@@ -389,6 +389,26 @@ a{color:var(--accent);text-decoration:none}
 .op-hint .pos{font-size:32px;font-weight:720;font-family:var(--font-mono);flex-shrink:0;min-width:100px;text-align:center}
 .op-hint .op-title{font-size:13px;font-weight:650;margin-bottom:4px}
 .op-hint .op-desc{font-size:11.5px;color:var(--fg-2);line-height:1.5}
+/* Signals 页：纵向卡片栈（6.2 history 趋势图 + 回看表） */
+.col-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+/* Signals 6.3 risk-scan：4 项检查卡网格 */
+.risk-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.risk-check-card{border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;background:var(--surface)}
+.risk-check-card.pass{border-left:3px solid var(--down)}
+.risk-check-card.warn{border-left:3px solid var(--warn)}
+.risk-check-card.reject{border-left:3px solid var(--up)}
+.risk-check-card .rc-head{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:650;margin-bottom:6px}
+.risk-check-card .rc-icon{font-size:14px}
+.risk-check-card .rc-title{flex:1}
+.risk-check-card .rc-badge{font-size:10.5px;padding:2px 9px;border-radius:10px;font-weight:600}
+.risk-check-card .rc-badge.pass{background:rgba(46,194,126,.12);color:var(--down)}
+.risk-check-card .rc-badge.warn{background:rgba(245,166,35,.12);color:var(--warn)}
+.risk-check-card .rc-badge.reject{background:rgba(255,77,79,.12);color:var(--up)}
+.risk-check-card .rc-detail{font-size:11.5px;color:var(--fg-2);line-height:1.6}
+.risk-check-card .rc-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.risk-check-card .rc-tags .chip.sm{font-size:10.5px;padding:2px 8px;border-radius:8px}
+/* 信号详情 6.0：触发队列筛选条 */
+.signal-queue-filter{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .sector-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .sector-cell{border-radius:6px;padding:10px;border-left:3px solid;cursor:pointer;transition:transform .15s,box-shadow .15s}
 .sector-cell:hover{transform:scale(1.04);box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:2}

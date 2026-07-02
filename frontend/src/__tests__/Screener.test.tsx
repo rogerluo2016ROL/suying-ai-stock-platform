@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { ConfigProvider } from 'antd'
+import { ConfigProvider, message } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { MemoryRouter } from 'react-router-dom'
 import Screener from '../pages/Screener'
@@ -9,6 +9,8 @@ vi.mock('../api/client', () => ({
   screenerApi: {
     getModes: vi.fn(),
     run: vi.fn(),
+    recordCandidatePool: vi.fn(),
+    queryCandidatePool: vi.fn(),
   },
   signalApi: {
     triggerSync: vi.fn(),
@@ -83,10 +85,17 @@ describe('Screener', () => {
     vi.mocked(signalApi.triggerSync).mockResolvedValue({
       data: { status: 'ok' },
     } as any)
+    vi.mocked(screenerApi.recordCandidatePool).mockResolvedValue({
+      data: { pool_id: 'POOL-leader_scalp-2026-06-26', id: 7, created_at: '2026-06-26T15:00:00Z' },
+    } as any)
+    vi.mocked(screenerApi.queryCandidatePool).mockResolvedValue({
+      data: { total: 1, page: 1, page_size: 20, records: [] },
+    } as any)
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    message.destroy()
   })
 
   it('shows Bi trend hard-tech track, reason, and four-axis flags', async () => {
@@ -115,6 +124,33 @@ describe('Screener', () => {
     expect(screen.getByText('启动质量 -7.0')).toBeInTheDocument()
   })
 
+  it('writes selected picks to the candidate pool via recordCandidatePool on button click', async () => {
+    renderScreener()
+
+    fireEvent.change(await screen.findByLabelText('选股日期'), { target: { value: '2026-06-26' } })
+    fireEvent.click(screen.getByRole('button', { name: /开始选股/ }))
+
+    expect(await screen.findByText('光迅科技')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^加入候选池 →$/ }))
+
+    await waitFor(() => {
+      expect(screenerApi.recordCandidatePool).toHaveBeenCalledTimes(1)
+    })
+    const payload = vi.mocked(screenerApi.recordCandidatePool).mock.calls[0][0]
+    expect(payload.source_module).toBe('screener')
+    expect(payload.source_mode).toBe('leader_scalp')
+    expect(payload.name).toContain('leader_scalp')
+    expect(payload.candidates).toHaveLength(1)
+    expect(payload.candidates[0]).toMatchObject({
+      code: '002281',
+      name: '光迅科技',
+      score: 86,
+      grade: 'S',
+      rank: 1,
+    })
+  })
+
   it('matches the screener workbench prototype structure', async () => {
     renderScreener()
 
@@ -133,7 +169,7 @@ describe('Screener', () => {
     expect(screen.getByText('模型选股')).toBeInTheDocument()
     expect(screen.getByText('输出股票')).toBeInTheDocument()
     expect(screen.getByText('市值(亿)')).toBeInTheDocument()
-    expect(screen.getByText(/leader_scalp/)).toBeInTheDocument()
+    expect(screen.getByText(/模型: .*leader_scalp/)).toBeInTheDocument()
     expect(screen.getByText('秋神盘后龙头分析')).toBeInTheDocument()
     expect(screen.getByText('等待模型输出')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '加入候选池 →' })).toBeInTheDocument()

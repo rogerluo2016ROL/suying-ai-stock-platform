@@ -29,6 +29,11 @@ vi.mock('../api/client', () => ({
   alertApi: {
     getUnreadCount: vi.fn().mockResolvedValue({ data: { unread: 0 } }),
   },
+  // App.tsx refreshMarketTape 调 marketApi.getIndexQuotes()（9f02b734 引入），
+  // mock 需提供，否则 App shell mount 时 marketApi 为 undefined → 70 route 用例全挂
+  marketApi: {
+    getIndexQuotes: vi.fn().mockResolvedValue({ data: { data: { diff: [] } } }),
+  },
   clearPlatformContext: vi.fn(),
   injectPlatformContext: vi.fn(),
 }))
