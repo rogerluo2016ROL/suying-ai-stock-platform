@@ -6,6 +6,11 @@ import type {
   CandidatePoolRecordRequest,
   CandidatePoolQueryParams,
   CandidatePoolRecordResponse,
+  WatchlistAddRequest,
+  WatchlistAddResponse,
+  WatchlistDeleteResponse,
+  WatchlistQueryParams,
+  WatchlistQueryResponse,
   CandidatePoolQueryResponse,
   ScreenerModesResponse,
   ScreenerRunResponse,
@@ -434,6 +439,24 @@ export const screenerApi = {
     if (params.page_size) qs.set('page_size', String(params.page_size))
     const query = qs.toString()
     return api.get(query ? `/screener/candidate-pool?${query}` : '/screener/candidate-pool')
+  },
+
+  // watchlist（自选股，Batch B #11）—— scope 走拦截器头，前端不传明文（契约§9.3）
+  addWatchlist: (payload: WatchlistAddRequest): Promise<AxiosResponse<WatchlistAddResponse>> =>
+    api.post('/screener/watchlist', payload),
+  listWatchlist: (params: WatchlistQueryParams = {}): Promise<AxiosResponse<WatchlistQueryResponse>> => {
+    const qs = new URLSearchParams()
+    if (params.code) qs.set('code', params.code)
+    if (params.page) qs.set('page', String(params.page))
+    if (params.page_size) qs.set('page_size', String(params.page_size))
+    const query = qs.toString()
+    return api.get(query ? `/screener/watchlist?${query}` : '/screener/watchlist')
+  },
+  removeWatchlist: (key: { code?: string; id?: number }): Promise<AxiosResponse<WatchlistDeleteResponse>> => {
+    const qs = new URLSearchParams()
+    if (key.code) qs.set('code', key.code)
+    if (key.id) qs.set('id', String(key.id))
+    return api.delete(`/screener/watchlist?${qs.toString()}`)
   },
 }
 

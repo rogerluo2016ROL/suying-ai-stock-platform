@@ -1203,3 +1203,57 @@ export interface CandidatePoolQueryResponse extends ServiceContractFields {
   /** 无数据时的空态（契约：缺数据返同 shape + reason，前端不空白） */
   empty_state?: { reason: string };
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Watchlist（自选股，Batch B #11）—— scope 走 Header，前端不传明文（契约§9.3）
+// ═══════════════════════════════════════════════════════════════════════════
+export interface WatchlistAddRequest {
+  code: string;
+  name?: string;
+  notes?: string;
+  sort_order?: number;
+  watchlist_metadata?: Record<string, unknown>;
+  visibility?: 'private' | 'tenant_shared' | 'public';
+  data_scope?: 'account' | 'tenant' | 'user' | 'public';
+}
+
+export interface WatchlistItem {
+  id: number;
+  tenant_id: string;
+  owner_user_id?: string | null;
+  account_id?: string | null;
+  visibility: string;
+  data_scope: string;
+  code: string;
+  name?: string | null;
+  notes?: string | null;
+  sort_order: number;
+  added_at?: string | null;
+  updated_at?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface WatchlistAddResponse extends ServiceContractFields {
+  record: WatchlistItem | null;
+}
+
+export interface WatchlistQueryParams {
+  code?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface WatchlistQueryResponse extends ServiceContractFields {
+  total: number;
+  page: number;
+  page_size: number;
+  records: WatchlistItem[];
+  /** 无数据时的空态 */
+  empty_state?: { reason: string };
+}
+
+export interface WatchlistDeleteResponse extends ServiceContractFields {
+  deleted: number;
+  code?: string | null;
+  id?: number | null;
+}
