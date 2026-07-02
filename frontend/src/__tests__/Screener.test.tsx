@@ -31,6 +31,8 @@ function renderScreener(route = '/screener') {
 
 describe('Screener', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-07-02T10:00:00+08:00'))
     vi.clearAllMocks()
     vi.mocked(screenerApi.getModes).mockResolvedValue({
       data: {
@@ -83,6 +85,10 @@ describe('Screener', () => {
     } as any)
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('shows Bi trend hard-tech track, reason, and four-axis flags', async () => {
     renderScreener()
 
@@ -120,7 +126,7 @@ describe('Screener', () => {
     expect(screen.getByText('秋神午后选股模型')).toBeInTheDocument()
     expect(screen.getByText('毕师傅全市场 V1.0')).toBeInTheDocument()
     expect(screen.getByText('日期')).toBeInTheDocument()
-    expect(await screen.findByLabelText('选股日期')).toHaveValue('2026-06-26')
+    expect(await screen.findByLabelText('选股日期')).toHaveValue('2026-07-02')
     expect(screen.getByLabelText('Top 数量')).toHaveValue('20')
     expect(screen.getByRole('button', { name: /运行选股/ })).toBeInTheDocument()
     expect(screen.getByText('数据更新')).toBeInTheDocument()
@@ -149,9 +155,9 @@ describe('Screener', () => {
 
     renderScreener()
 
-    expect(await screen.findByDisplayValue('2026-06-26')).toBeInTheDocument()
-    expect(await screen.findByText('交易日：2026-06-26')).toBeInTheDocument()
-    expect(screen.getByText('来源：daily_kline')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('2026-07-02')).toBeInTheDocument()
+    expect(await screen.findByText('交易日：2026-07-02')).toBeInTheDocument()
+    expect(screen.getByText('来源：默认当天')).toBeInTheDocument()
   })
 
   it('shows the actual backend run date after model execution', async () => {

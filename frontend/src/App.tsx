@@ -16,7 +16,7 @@ import { useAuth, type PermissionKey, type Role } from './contexts/AuthContext'
 import { useTheme } from './contexts/ThemeContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
-import { alertApi, clearPlatformContext, injectPlatformContext } from './api/client'
+import { alertApi, clearPlatformContext, injectPlatformContext, marketApi } from './api/client'
 import { liveTradeApi } from './api/liveTrade'
 import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
@@ -98,6 +98,34 @@ const marketTapeItems = [
   { label: '创业板', value: '--', change: '待同步', tone: 'muted' },
   { label: '北证50', value: '--', change: '待同步', tone: 'muted' },
 ]
+
+type MarketTapeItem = typeof marketTapeItems[number]
+
+const marketTapeLabels: Record<string, string> = {
+  '000001': '上证',
+  '399001': '深成',
+  '399006': '创业板',
+  '899050': '北证50',
+}
+
+function formatMarketNumber(value: unknown) {
+  const number = Number(value)
+  return Number.isFinite(number) ? number.toFixed(2) : '--'
+}
+
+function formatMarketChange(value: unknown) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return '待同步'
+  return `${number >= 0 ? '+' : ''}${number.toFixed(2)}%`
+}
+
+function toneForChange(value: unknown): MarketTapeItem['tone'] {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return 'muted'
+  if (number > 0) return 'up'
+  if (number < 0) return 'down'
+  return 'muted'
+}
 
 // ── Protected route config ──
 
@@ -292,6 +320,7 @@ export default function App() {
   const { mode: themeMode, setMode: setThemeMode } = useTheme()
   const [compactMode, setCompactMode] = useState(false)
   const [multiTab, setMultiTab] = useState(false)
+  const [marketTape, setMarketTape] = useState<MarketTapeItem[]>(marketTapeItems)
   const [brokerConnection, setBrokerConnection] = useState<HeaderBrokerConnection>({
     status: 'paper',
     accountId: '',
@@ -352,6 +381,44 @@ export default function App() {
     poll()
     const timer = setInterval(poll, 30000)
     return () => clearInterval(timer)
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    let cancelled = false
+
+    const refreshMarketTape = () => {
+      marketApi.getIndexQuotes()
+        .then(response => {
+          if (cancelled) return
+          const rows = response.data?.data?.diff || []
+          const byLabel = new Map(
+            rows
+              .map(row => {
+                const label = marketTapeLabels[String(row.f12 || '')]
+                if (!label) return null
+                return [label, {
+                  label,
+                  value: formatMarketNumber(row.f2),
+                  change: formatMarketChange(row.f3),
+                  tone: toneForChange(row.f3),
+                }] as const
+              })
+              .filter((item): item is readonly [string, MarketTapeItem] => Boolean(item)),
+          )
+          setMarketTape(marketTapeItems.map(item => byLabel.get(item.label) || item))
+        })
+        .catch(() => {
+          if (!cancelled) setMarketTape(marketTapeItems)
+        })
+    }
+
+    refreshMarketTape()
+    const timer = setInterval(refreshMarketTape, 30000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
   }, [isAuthenticated])
 
   useEffect(() => {
@@ -510,7 +577,7 @@ export default function App() {
           </div>
 
           <div className="mkt-ticker" aria-label="市场行情">
-            {marketTapeItems.map(item => (
+            {marketTape.map(item => (
               <span className="tk" key={item.label}>
                 <span className="lbl">{item.label}</span>
                 <span className={`val mono ${item.tone}`}>{item.value}</span>

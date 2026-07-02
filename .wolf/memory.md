@@ -87,3 +87,21 @@
 
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
+
+## Session: 2026-07-02 11:26
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 14:40 | 盘点资金/机构因子能力地图(暗盘+机构活跃度可行性评估) | moneyflow/top_inst/block_trade + advanced_factors.py:875 | 结论:能做且已部分实现,缺L2+盘中rt_moneyflow | ~9k |
+| 15:10 | 实测Tushare L2:realtime_tick拿逐笔+主买主卖(000001算出暗盘+0.384亿大单净),rt_tick五档;历史逐笔/十档拿不到;xtquant未装macOS跑不了 | ts.realtime_tick/pro.rt_tick | 盘中暗盘可做,历史L2/十档不能 | ~6k |
+| 15:25 | 实测机构活跃度8数据源:7维健康(茅台股东户数-5%筹码集中/002636龙虎榜4天),基金持仓仅60行/2024Q4待补,机构调研未采,code格式跨表不统一 | top_inst/stk_holdernumber/hk_holdings等 | 多数能算,需补采+治理 | ~7k |
+| 15:50 | 跑通机构活跃度Top20(5维percentile),修3坑+发现第4坑hk_holdings code损坏;Top:中国巨石82/东山精密75/云南锗业73 | top_inst/hk_holdings/stk_holdernumber | 主线电子+新材料 | ~9k |
+| 16:10 | 北向终极结论:2024-08政策停止,hk_hold/hsgt_top10全断,Tushare无解;定稿5维+增持仓Top20(中国巨石领) | hk_hold/hsgt_top10/stock_hsgt | 北向个股弃用 | ~10k |
+| 15:10 | Edited packages/kronos-data/kronos_data/etl.py | modified sync_hk_hold() | ~141 |
+| 15:12 | Created tools/institutional_activity_top.py | — | ~2870 |
+| 16:30 | 完成机构活跃度三步:①修sync_hk_hold注释(南向+北向停)②固化tools/institutional_activity_top.py(5维)③交叉午后选股发现翔鹭钨业/章源钨业双共振 | etl.py+tools/institutional_activity_top.py | 三步交付 | ~8k |
+| 15:15 | Session end: 2 writes across 2 files (etl.py, institutional_activity_top.py) | 1 reads | ~3011 tok |
+| 16:48 | Created tools/backtest_institutional_activity.py | — | ~1542 |
+| 16:50 | Edited tools/backtest_institutional_activity.py | 8→13 lines | ~178 |
+| 17:00 | 机构活跃度因子IC回测36月:IC+0.056/胜率70%但Top组年化-52%(追高回落),非线性,不能单边做多Top;判定逻辑已修正 | tools/backtest_institutional_activity.py | 因子有信息量但需组合用 | ~9k |
+| 16:52 | Session end: 4 writes across 3 files (etl.py, institutional_activity_top.py, backtest_institutional_activity.py) | 1 reads | ~4731 tok |

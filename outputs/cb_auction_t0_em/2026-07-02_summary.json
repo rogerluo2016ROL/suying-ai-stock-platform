@@ -1,0 +1,139 @@
+{
+  "trade_date": "2026-07-02",
+  "run_time": "2026-07-02T17:32:54+08:00",
+  "eastmoney_rows": 93,
+  "filtered_rows": 6,
+  "trigger_rows": 6,
+  "prev_day_limitup_rows": 0,
+  "aux_checks": {
+    "stk_auction_o": 5467,
+    "stk_limit": 0,
+    "limit_list_d": 0,
+    "kpl_list": 0
+  },
+  "models": {
+    "v1": {
+      "json": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_em/v1/2026-07-02_cb_auction_t0.json",
+      "csv": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_em/v1/2026-07-02_cb_auction_t0.csv",
+      "trigger_stocks": [],
+      "concepts": [],
+      "bonds": [],
+      "observation_bonds": [],
+      "rejections": [
+        {
+          "code": "000595",
+          "name": "宝塔实业",
+          "reason": "封单金额不足5亿"
+        },
+        {
+          "code": "000656",
+          "name": "金科股份",
+          "reason": "封单金额不足5亿"
+        },
+        {
+          "code": "002020",
+          "name": "京新药业",
+          "reason": "封单金额不足5亿"
+        },
+        {
+          "code": "002808",
+          "name": "恒久退",
+          "reason": "封单金额不足5亿"
+        },
+        {
+          "code": "002979",
+          "name": "雷赛智能",
+          "reason": "封单金额不足5亿"
+        },
+        {
+          "code": "002998",
+          "name": "优彩资源",
+          "reason": "封单金额不足5亿"
+        }
+      ],
+      "pending_confirmation_stocks": []
+    },
+    "v2": {
+      "json": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_em/v2/2026-07-02_cb_auction_t0_v2.json",
+      "csv": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_em/v2/2026-07-02_cb_auction_t0_v2.csv",
+      "trigger_stocks": [],
+      "concepts": [],
+      "bonds": [],
+      "observation_bonds": [],
+      "rejections": [
+        {
+          "code": "000595",
+          "name": "宝塔实业",
+          "reason": "封单金额不足7亿"
+        },
+        {
+          "code": "000656",
+          "name": "金科股份",
+          "reason": "封单金额不足7亿"
+        },
+        {
+          "code": "002020",
+          "name": "京新药业",
+          "reason": "封单金额不足7亿"
+        },
+        {
+          "code": "002808",
+          "name": "恒久退",
+          "reason": "封单金额不足7亿"
+        },
+        {
+          "code": "002979",
+          "name": "雷赛智能",
+          "reason": "封单金额不足7亿"
+        },
+        {
+          "code": "002998",
+          "name": "优彩资源",
+          "reason": "封单金额不足7亿"
+        }
+      ],
+      "pending_confirmation_stocks": []
+    },
+    "v2.1": {
+      "json": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_em/v2.1/2026-07-02_cb_auction_t0_v2_1.json",
+      "csv": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_em/v2.1/2026-07-02_cb_auction_t0_v2_1.csv",
+      "trigger_stocks": [],
+      "concepts": [],
+      "bonds": [],
+      "observation_bonds": [],
+      "rejections": [
+        {
+          "code": "000595",
+          "name": "宝塔实业",
+          "reason": "封单金额不足7亿"
+        },
+        {
+          "code": "000656",
+          "name": "金科股份",
+          "reason": "封单金额不足7亿"
+        },
+        {
+          "code": "002020",
+          "name": "京新药业",
+          "reason": "封单金额不足7亿"
+        },
+        {
+          "code": "002808",
+          "name": "恒久退",
+          "reason": "封单金额不足7亿"
+        },
+        {
+          "code": "002979",
+          "name": "雷赛智能",
+          "reason": "封单金额不足7亿"
+        },
+        {
+          "code": "002998",
+          "name": "优彩资源",
+          "reason": "封单金额不足7亿"
+        }
+      ],
+      "pending_confirmation_stocks": []
+    }
+  }
+}

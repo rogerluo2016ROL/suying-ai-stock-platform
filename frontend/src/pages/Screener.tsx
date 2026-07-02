@@ -77,6 +77,20 @@ type DetailGroup = {
   items: DetailItem[]
 }
 
+type ModelCompareRow = {
+  modeId: string
+  name: string
+  tradeDate: string
+  source: string
+  count: number
+  avgScore: number | null
+  topPick?: ScreenerPick
+}
+
+type ModelCompareRunRow = ModelCompareRow & {
+  picks: ScreenerPick[]
+}
+
 type ScreeningTraceStep = NonNullable<ScreenerRunResponse['screening_trace']>[number]
 type RejectionSummaryItem = NonNullable<ScreenerRunResponse['rejection_summary']>[number]
 
@@ -232,6 +246,26 @@ function normalizeLatestDates(value: Record<string, string | null | undefined> |
   )
 }
 
+function todayDateInputValue() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const modelCompareModes = ['leader_scalp', 'leader_closing', 'leader_intraday', 'bi_trend_full_market']
+
+function modelNameById(modeId: string) {
+  return modelGroups.flatMap(group => group.modes).find(mode => mode.id === modeId)?.name || modeId
+}
+
+function averageScore(picks: ScreenerPick[]) {
+  const scores = picks.map(pick => Number(pick.score)).filter(Number.isFinite)
+  if (scores.length === 0) return null
+  return scores.reduce((sum, score) => sum + score, 0) / scores.length
+}
+
 export default function Screener() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -242,7 +276,7 @@ export default function Screener() {
   const [selectedCodes, setSelectedCodes] = useState<string[]>([])
   const [picks, setPicks] = useState<ScreenerPick[]>([])
   const [hasRun, setHasRun] = useState(false)
-  const [tradeDate, setTradeDate] = useState('')
+  const [tradeDate, setTradeDate] = useState(todayDateInputValue)
   const [topN, setTopN] = useState(20)
   const [runStage, setRunStage] = useState<'idle' | 'data' | 'model' | 'output' | 'done' | 'error'>('idle')
   const [runMessage, setRunMessage] = useState('正在读取最新可用交易日')
@@ -254,6 +288,10 @@ export default function Screener() {
   const [rejectionSummary, setRejectionSummary] = useState<RejectionSummaryItem[]>([])
   const [expanded, setExpanded] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [modelCompareRows, setModelCompareRows] = useState<ModelCompareRow[]>([])
+  const [modelComparePicks, setModelComparePicks] = useState<ScreenerPick[]>([])
+  const [modelCompareLoading, setModelCompareLoading] = useState(false)
+  const [modelCompareMessage, setModelCompareMessage] = useState('等待模型对比运行')
 
   const visiblePicks = picks
   const selectedPick = visiblePicks.find(item => item.code === selectedCode) || visiblePicks[0]
@@ -265,10 +303,17 @@ export default function Screener() {
   const selectedPicks = selectedCodes.length > 0
     ? visiblePicks.filter(item => selectedCodes.includes(item.code))
     : visiblePicks
+  const modelRankingPicks = active === 'models' ? modelComparePicks : visiblePicks
   const emptyResultTitle = hasRun ? '当前模型返回 0 只' : '暂无选股结果'
   const emptyResultDetail = hasRun
     ? noResultReason || '请检查交易日、实时快照或切换到盘后龙头、趋势启动等日线模型后重新运行。'
     : '选择模型、日期和 Top 后点击运行选股。'
+  const resolveTradeDateForMode = (modeId: string, requestedDate = tradeDate) => {
+    const syncPlan = syncPlanForMode(modeId)
+    const latestForSource = latestDates[syncPlan.tableKey]
+    if (latestForSource && (!requestedDate || latestForSource < requestedDate)) return latestForSource
+    return requestedDate || latestForSource || latestDates.daily_kline || undefined
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -283,15 +328,15 @@ export default function Screener() {
         })
         setLatestDates(nextLatestDates)
         const syncPlan = syncPlanForMode(selectedMode)
+        const today = todayDateInputValue()
         const latestTradeDate = nextLatestDates[syncPlan.tableKey] || nextLatestDates.daily_kline || ''
-        if (latestTradeDate) {
-          const normalizedDate = String(latestTradeDate).slice(0, 10)
-          setTradeDate(normalizedDate)
-          setRunMessage(`已加载最新可用交易日：${normalizedDate}`)
+        if (today) {
+          setTradeDate(current => current || today)
+          setRunMessage(`默认使用当天交易日：${today}`)
         } else {
           setRunMessage('后端未返回最新交易日，请手动选择日期后运行')
         }
-        setFreshnessSource(latestTradeDate ? syncPlan.tableKey : freshness?.source || 'screener/modes')
+        setFreshnessSource(latestTradeDate === today ? syncPlan.tableKey : '默认当天')
       })
       .catch(() => {
         if (cancelled) return
@@ -308,9 +353,57 @@ export default function Screener() {
     const syncPlan = syncPlanForMode(selectedMode)
     const latestTradeDate = latestDates[syncPlan.tableKey] || latestDates.daily_kline
     if (!latestTradeDate) return
-    setTradeDate(latestTradeDate)
-    setFreshnessSource(syncPlan.tableKey)
-  }, [latestDates, selectedMode])
+    setFreshnessSource(latestTradeDate === tradeDate ? syncPlan.tableKey : '默认当天')
+  }, [latestDates, selectedMode, tradeDate])
+
+  useEffect(() => {
+    if (active !== 'models') return
+    if (Object.keys(latestDates).length === 0) return
+    let cancelled = false
+    setModelCompareLoading(true)
+    setModelCompareMessage('正在按最新可用数据运行模型对比')
+
+    Promise.allSettled(
+      modelCompareModes.map(async (modeId): Promise<ModelCompareRunRow> => {
+        const runDate = resolveTradeDateForMode(modeId)
+        const response = await screenerApi.run(modeId, 10, runDate)
+        const nextPicks = response.data?.picks || []
+        const row: ModelCompareRunRow = {
+          modeId,
+          name: modelNameById(modeId),
+          tradeDate: String(response.data?.trade_date || response.data?.data_freshness?.as_of || runDate || '').slice(0, 10),
+          source: response.data?.data_freshness?.source || syncPlanForMode(modeId).tableKey,
+          count: nextPicks.length,
+          avgScore: averageScore(nextPicks),
+          picks: nextPicks.map(pick => ({
+            ...pick,
+            entry_reason: `${modelNameById(modeId)}；${pick.entry_reason || ''}`,
+          })),
+        }
+        if (nextPicks[0]) row.topPick = nextPicks[0]
+        return row
+      }),
+    ).then(results => {
+      if (cancelled) return
+      const rows = results
+        .filter((result): result is PromiseFulfilledResult<ModelCompareRunRow> => result.status === 'fulfilled')
+        .map(result => result.value)
+      setModelCompareRows(rows)
+      setModelComparePicks(rows.flatMap(row => row.picks).slice(0, 30))
+      setModelCompareMessage(rows.length > 0 ? '模型对比完成' : '模型对比未返回可用结果')
+    }).catch(error => {
+      if (cancelled) return
+      setModelCompareRows([])
+      setModelComparePicks([])
+      setModelCompareMessage(error instanceof Error ? error.message : '模型对比运行失败')
+    }).finally(() => {
+      if (!cancelled) setModelCompareLoading(false)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [active, latestDates, tradeDate])
 
   const runScreener = async () => {
     setLoading(true)
@@ -329,7 +422,7 @@ export default function Screener() {
       }
       setRunStage('model')
       setRunMessage(`正在运行 ${selectedModeConfig.name}，输出 Top ${topN}`)
-      const runTradeDate = tradeDate || undefined
+      const runTradeDate = resolveTradeDateForMode(selectedMode)
       const response = await screenerApi.run(selectedMode, topN, runTradeDate)
       const nextPicks = response.data?.picks || []
       const actualTradeDate = response.data?.trade_date || response.data?.data_freshness?.as_of || tradeDate
@@ -683,7 +776,7 @@ export default function Screener() {
           </div>
 
           <div className="footer-bar">
-            <span>智能选股 · 选股工作台 | 盘后 16:18</span>
+            <span>智能选股 · 选股工作台 | {lastRunAt ? `最近运行 ${new Date(lastRunAt).toLocaleTimeString('zh-CN', { hour12: false })}` : '等待运行'}</span>
             <span className="sep" />
             <span>模型: {selectedModeConfig.name}（{selectedMode}） | 结果: {visiblePicks.length}只</span>
             <span className="sep" />
@@ -696,25 +789,41 @@ export default function Screener() {
         <div className="row r-6-4">
           <div className="grid">
             <PrototypeCard title="模型评分差异" icon={<BarChartOutlined />} meta="3.2 模型对比">
-            <table className="tbl">
-              <thead><tr><th>模型</th><th>偏好</th><th className="r">命中</th><th className="r">说明</th></tr></thead>
-              <tbody>
-                {[
-                  ['趋势启动 V13', '动量/竞价', '72%', '短线启动更敏感'],
-                  ['多因子价值 V7', '估值/质量', '65%', '回撤更低'],
-                  ['产业链增强 V4', '链路/主题', '69%', '适合主题行情'],
-                ].map(row => (
-                  <tr key={row[0]}><td className="nm">{row[0]}</td><td>{row[1]}</td><td className="r mono">{row[2]}</td><td className="r">{row[3]}</td></tr>
-                ))}
-              </tbody>
-            </table>
+              {modelCompareRows.length > 0 ? (
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th>模型</th>
+                      <th>数据日</th>
+                      <th>数据源</th>
+                      <th className="r">候选</th>
+                      <th className="r">均分</th>
+                      <th>第一名</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modelCompareRows.map(row => (
+                      <tr key={row.modeId}>
+                        <td>{row.name}</td>
+                        <td className="mono">{row.tradeDate || '--'}</td>
+                        <td>{row.source}</td>
+                        <td className="r mono">{row.count}</td>
+                        <td className="r mono">{row.avgScore === null ? '--' : formatScore(row.avgScore)}</td>
+                        <td>{row.topPick ? `${row.topPick.code} ${row.topPick.name || ''}` : '无候选'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="prototype-fallback">{modelCompareLoading ? '正在运行模型对比...' : modelCompareMessage}</div>
+              )}
             </PrototypeCard>
             <PrototypeCard title="候选池排行" icon={<FundOutlined />} meta="Candidate">
               <table className="tbl">
                 <thead><tr><th>代码</th><th>名称</th><th>来源模型</th><th className="r">评分</th></tr></thead>
                 <tbody>
-                  {visiblePicks.map(pick => (
-                    <tr key={pick.code}>
+                  {modelRankingPicks.map((pick, index) => (
+                    <tr key={`${pick.code}-${index}`}>
                       <td className="code">{pick.code}</td>
                       <td className="nm">{pick.name}</td>
                       <td>{pick.entry_reason?.split('；')[0] || '模型共识'}</td>
@@ -723,11 +832,18 @@ export default function Screener() {
                   ))}
                 </tbody>
               </table>
+              {modelRankingPicks.length === 0 && <div className="prototype-fallback">模型已运行，但当前没有候选股票。</div>}
             </PrototypeCard>
           </div>
           <SideRail title="模型结论" meta="公共模型">
             <DataDomainBadge domain="public" label="公共模型输出" />
-            <RiskBanner status="review" title="趋势模型占优" detail="短线启动模型对竞价和动量更敏感；价值模型回撤更低，适合做组合约束。" />
+            <RiskBanner
+              status={modelCompareRows.some(row => row.count > 0) ? 'pass' : 'review'}
+              title={modelCompareRows.some(row => row.count > 0) ? '模型对比已完成' : '等待可用候选'}
+              detail={modelCompareRows.some(row => row.count > 0)
+                ? `共运行 ${modelCompareRows.length} 个模型，候选池合计 ${modelComparePicks.length} 只。`
+                : modelCompareMessage}
+            />
           </SideRail>
         </div>
       )}
@@ -735,29 +851,18 @@ export default function Screener() {
       {active === 'factors' && (
         <div className="row r-6-4">
           <PrototypeCard title="因子暴露" icon={<RadarChartOutlined />} meta="3.3 因子分析">
-            {[
-              ['启动质量', 78, 'var(--accent)'],
-              ['点火强度', 65, 'var(--warn)'],
-              ['硬科技确认', 82, 'var(--down)'],
-              ['流动性风险', 31, 'var(--up)'],
-            ].map(([label, value, color]) => (
+            {selectedPick ? buildFactorItems(selectedPick).map(([label, width, color, value]) => (
               <div className="dim-row" key={String(label)}>
                 <div className="dim-lbl">{label}</div>
-                <div className="dim-bar-wrap"><div className="dim-bar" style={{ width: `${value}%`, background: String(color) }} /></div>
+                <div className="dim-bar-wrap"><div className="dim-bar" style={{ width: `${width}%`, background: String(color) }} /></div>
                 <div className="dim-val">{value}</div>
               </div>
-            ))}
+            )) : <div className="prototype-fallback">暂无模型因子暴露。</div>}
+            {selectedPick && buildFactorItems(selectedPick).length === 0 && <div className="prototype-fallback">后端未返回因子明细。</div>}
           </PrototypeCard>
           <SideRail title="因子解释" meta="IC / 暴露">
             <DataDomainBadge domain="public" label="公共因子" />
-            <LineageChips
-              items={[
-                { label: 'IC', value: '0.12', tone: 'accent' },
-                { label: 'ICIR', value: '1.8', tone: 'safe' },
-                { label: '风险暴露', value: '31', tone: 'warn' },
-              ]}
-            />
-            <RiskBanner status="pass" title="因子组合可用" detail="启动质量和硬科技确认贡献最高，流动性风险保持在可控区间。" />
+            <RiskBanner status="review" title="等待因子统计" detail="IC、ICIR 和风险暴露需由后端统计接口返回。" />
           </SideRail>
         </div>
       )}

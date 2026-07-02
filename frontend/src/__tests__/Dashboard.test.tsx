@@ -171,7 +171,7 @@ describe('Dashboard', () => {
     expect(screen.getByText('TOP 1')).toBeInTheDocument()
     expect(screen.getByText('板块共振热力图')).toBeInTheDocument()
     expect(screen.getByText('选中板块详情')).toBeInTheDocument()
-    expect(screen.getByText('AI 共振结论')).toBeInTheDocument()
+    expect(screen.getByText('实时共振结论')).toBeInTheDocument()
     expect(screen.queryByText('综合情绪指数 · 八维风向感知')).not.toBeInTheDocument()
   })
 
@@ -194,7 +194,7 @@ describe('Dashboard', () => {
     fireEvent.click(within(sentimentTabs).getByRole('tab', { name: /板块共振/ }))
 
     expect(await screen.findByText('中芯国际')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /TOP 2.*新能源 78/ }))
+    fireEvent.click(screen.getByRole('button', { name: /TOP 2.*新能源 87/ }))
 
     expect(await screen.findByText('新能源 股票涨幅明细')).toBeInTheDocument()
     expect(screen.getAllByText('宁德时代').length).toBeGreaterThan(0)
@@ -248,7 +248,7 @@ describe('Dashboard', () => {
     expect(await screen.findByRole('heading', { name: '市场情绪' })).toBeInTheDocument()
     const sentimentTabs = screen.getByRole('tablist', { name: '市场情绪子页签' })
     fireEvent.click(within(sentimentTabs).getByRole('tab', { name: /板块共振/ }))
-    fireEvent.click(screen.getByRole('button', { name: /新能源 78 涨72%/ }))
+    fireEvent.click(screen.getByRole('button', { name: /新能源 92 涨100%/ }))
 
     expect(await screen.findByRole('heading', { name: '新能源' })).toBeInTheDocument()
     expect(screen.getByText('宁德时代')).toBeInTheDocument()
@@ -325,7 +325,7 @@ describe('Dashboard', () => {
     expect(screen.getByText('最强信号 TOP 8')).toBeInTheDocument()
     expect(screen.getByText('30 日信号趋势')).toBeInTheDocument()
     expect(screen.getByText('板块信号气泡图')).toBeInTheDocument()
-    expect(screen.getByText(/信号模型: Kronos\(20\)/)).toBeInTheDocument()
+    expect(screen.getByText('信号模型权重以后端返回为准；前端不展示固定权重。')).toBeInTheDocument()
     expect(screen.queryByText('今日交易信号')).not.toBeInTheDocument()
     expect(screen.queryByText('暂无信号数据')).not.toBeInTheDocument()
   })
@@ -377,8 +377,8 @@ describe('Dashboard', () => {
     renderDashboard()
 
     const dashboardTabs = await findSmartDashboardTabs()
-    expect(await screen.findByText('79.5')).toBeInTheDocument()
-    expect(screen.getByText('[BULL] 牛市 - 积极做多')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByText('79.5').length).toBeGreaterThan(0))
+    expect(screen.getAllByText('[BULL] 牛市 - 积极做多').length).toBeGreaterThan(0)
 
     fireEvent.click(within(dashboardTabs).getByRole('tab', { name: /信号总览/ }))
     expect(await screen.findByText('今日信号概况')).toBeInTheDocument()

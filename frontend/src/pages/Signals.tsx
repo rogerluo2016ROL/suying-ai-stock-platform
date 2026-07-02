@@ -330,18 +330,6 @@ export default function Signals() {
                 <div className="op-desc">账户仓位、黑名单、流动性、涨跌停距离和模拟/实盘模式预检。</div>
               </div>
             </div>
-            <div className="grid mt14">
-              {[
-                ['仓位闸门', '通过', '单票目标仓位低于上限'],
-                ['流动性', riskStatus(riskResult) === 'reject' ? '拒绝' : '通过', '成交额满足最小阈值'],
-                ['审计留痕', '通过', '预检结果随订单草稿保存'],
-              ].map(([name, result, detail]) => (
-                <div className="li-row" key={name}>
-                  <span className={`li-badge ${result === '拒绝' ? 'up' : 'neu'}`}>{result === '拒绝' ? '!' : '✓'}</span>
-                  <div className="li-main"><div className="n">{name}</div><div className="s">{detail}</div></div>
-                </div>
-              ))}
-            </div>
             {riskItems.length > 0 && (
               <div className="prototype-fallback mt14">
                 <strong>阻断项</strong>
@@ -349,6 +337,9 @@ export default function Signals() {
                   {riskItems.map(item => <span className="chip" key={item}>{item}</span>)}
                 </div>
               </div>
+            )}
+            {riskItems.length === 0 && (
+              <div className="prototype-fallback mt14">暂无风险预检明细；不展示固定通过项。</div>
             )}
               </>
             ) : (

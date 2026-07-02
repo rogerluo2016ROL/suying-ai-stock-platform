@@ -441,7 +441,16 @@ def sync_moneyflow(days_back: int = 30) -> dict:
 
 
 def sync_hk_hold(days_back: int = 30) -> dict:
-    """Sync pro.hk_hold() — north-bound holding details."""
+    """Sync pro.hk_hold() — 港股通南向持股 (south-bound HK Stock Connect).
+
+    hk_hold 的 exchange 参数区分南北向: 'SH'/'SZ'=北向A股, 'HK'=南向港股。
+    本函数不传 exchange, Tushare 默认返回南向港股(.HK 5位码), 入 hk_holdings 表。
+
+    ⚠️ 北向(exchange='SH'/'SZ')自 2024-08-19 交易所停止披露个股持股后返回空,
+    2024-07 起已无数据 (实测 2023-12-29 北向仍有 SH 1513/SZ 1758 行)。
+    如需北向历史回溯: 加 exchange='SH'+'SZ' 参数 + 限定 trade_date < '20240701'。
+    近期北向个股资金流只能用 hsgt_top10 上榜名单(2024-08 后 net_amount 亦为空)。
+    """
     pro = _get_pro()
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}

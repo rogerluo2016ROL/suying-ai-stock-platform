@@ -234,6 +234,31 @@ export interface ScreenerModesResponse {
   data_freshness?: DataFreshness;
 }
 
+export interface MarketIndexQuote {
+  code: string;
+  name: string;
+  price: number | null;
+  change_pct: number | null;
+  change_amount?: number | null;
+  amount?: number | null;
+}
+
+export interface MarketIndexQuotesResponse {
+  source?: string;
+  as_of?: string | null;
+  fallback_reason?: string | null;
+  data?: {
+    diff?: Array<{
+      f2?: number | string;
+      f3?: number | string;
+      f4?: number | string;
+      f6?: number | string;
+      f12?: string;
+      f14?: string;
+    }>;
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Prediction（K线预测）
 // ═══════════════════════════════════════════════════════════════════════════

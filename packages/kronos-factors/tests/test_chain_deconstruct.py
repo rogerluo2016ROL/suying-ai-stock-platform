@@ -11,6 +11,7 @@ AC verification:
 import pytest
 
 from kronos_factors.engine.chain_deconstruct import (
+    build_bom_tree,
     build_competition_tree,
     build_upstream_downstream_tree,
     build_value_chain_tree,
@@ -254,6 +255,28 @@ class TestBuildCompetitionTree:
         assert result["competition"]["test_node"]["note"] == "无数据"
 
 
+class TestBuildBomTree:
+    """Tests for build_bom_tree function."""
+
+    def test_empty_nodes_returns_empty_bom_layers(self):
+        """Empty input should return empty L1-L8 BOM layer coverage."""
+        result = build_bom_tree([])
+
+        assert result["node_id"] == "root"
+        assert result["children"] == []
+        assert set(result["bom_layers"].keys()) == {f"L{i}" for i in range(1, 9)}
+        assert all(items == [] for items in result["bom_layers"].values())
+
+    def test_returns_bom_layers_and_paths(self):
+        """BOM view should expose L1-L8 layer buckets and node paths."""
+        result = build_bom_tree(SAMPLE_NODES)
+
+        assert "bom_layers" in result
+        assert "bom_paths" in result
+        assert result["bom_layers"]["L1"]
+        assert any(path[-1]["node_id"] == "consumer_electronics" for path in result["bom_paths"])
+
+
 class TestDeconstructChain:
     """Tests for deconstruct_chain function."""
 
@@ -318,9 +341,20 @@ class TestDeconstructChain:
         assert comp["silicon"]["barrier"] == 5.0
         assert comp["silicon"]["threat"] == 2.0
 
+    def test_bom_returns_layered_structure(self):
+        """BOM method returns L1-L8 layer coverage and node paths."""
+        result = deconstruct_chain("semiconductor", "bom", SAMPLE_NODES)
+
+        assert result["theme"]["id"] == "semiconductor"
+        assert result["view"] == "bom"
+        assert "tree" in result
+        assert "bom_layers" in result
+        assert "bom_paths" in result
+        assert set(result["bom_layers"].keys()) == {f"L{i}" for i in range(1, 9)}
+
     def test_empty_nodes_returns_empty_structure(self):
         """[AC-5] Empty nodes returns correct empty structure for each method."""
-        for method in ("upstream_downstream", "value_chain", "competition"):
+        for method in ("upstream_downstream", "value_chain", "competition", "bom"):
             result = deconstruct_chain("test", method, [])
 
             assert result["theme"]["id"] == "test"
@@ -332,6 +366,9 @@ class TestDeconstructChain:
                 assert result["value_chain"] == {}
             elif method == "competition":
                 assert result["competition"] == {}
+            elif method == "bom":
+                assert result["bom_layers"] == {f"L{i}": [] for i in range(1, 9)}
+                assert result["bom_paths"] == []
 
     def test_accepts_theme_name_override(self):
         """Should accept theme_name parameter for display."""

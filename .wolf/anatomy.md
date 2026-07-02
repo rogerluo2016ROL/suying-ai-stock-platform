@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-30T06:13:58.982Z
-> Files: 523 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-02T08:50:33.336Z
+> Files: 526 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -800,6 +800,10 @@
 - `screener-optimization-design.md` — 速赢AI 选股模型优化 — 设计文档 (~5563 tok)
 - `Suying-AI-Screener-Optimization-2026-06-30.md` — 速赢AI 选股模型优化报告 (~6105 tok)
 
+## packages/kronos-data/kronos_data/
+
+- `etl.py` — Tushare premium data sync — batch-fetch and persist to SQLite. (~26623 tok)
+
 ## packages/kronos-factors/
 
 - `backtest_all_models_june.py` — Backtest all screening models on June 2026 data. (~5119 tok)
@@ -828,3 +832,8 @@
 ## services/screener-service/app/
 
 - `orchestrator.py` — Mode Orchestrator — V5.0 multi-strategy fusion + Kronos prediction + pipeline. (~5576 tok)
+
+## tools/
+
+- `backtest_institutional_activity.py` — 机构活跃度因子 — 月频 IC + 分组多空回测。 (~1636 tok)
+- `institutional_activity_top.py` — 全市场机构活跃度评分 — 5 维 percentile 加权。 (~2870 tok)

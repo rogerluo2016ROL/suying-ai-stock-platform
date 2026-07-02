@@ -111,7 +111,7 @@ describe('OpenDecision prototype pages', () => {
   it.each([
     [
       '/open-decision',
-      ['距竞价数据采集', '隔夜新闻', '昨日复盘', '候选池预加载', '昨日强势板块 (可能延续)'],
+      ['当前时间', '隔夜新闻', '昨日复盘', '候选池预加载', '实时板块共振'],
     ],
     [
       '/open-decision/auction',
@@ -173,14 +173,13 @@ describe('OpenDecision prototype pages', () => {
     expect(screen.getByText('一键推送已确认 -> 候选池')).toBeInTheDocument()
   })
 
-  it('renders overnight news as a market news feed instead of a numbered task list', () => {
+  it('does not render static overnight news without a live news feed', () => {
     renderOpenDecision('/open-decision')
 
-    expect(screen.getByText('中芯国际: 收到证监会立案调查通知书')).toBeInTheDocument()
-    expect(screen.getAllByText('公告').length).toBeGreaterThan(0)
-    expect(screen.getByText('外盘')).toBeInTheDocument()
-    expect(screen.getByText('昨 20:35')).toBeInTheDocument()
-    expect(screen.getByText('全部还原 LLM原始结果')).toBeInTheDocument()
+    expect(screen.queryByText('中芯国际: 收到证监会立案调查通知书')).not.toBeInTheDocument()
+    expect(screen.queryByText('外盘')).not.toBeInTheDocument()
+    expect(screen.getByText('暂无隔夜新闻实时接口；不展示演示新闻。')).toBeInTheDocument()
+    expect(screen.getByText('等待新闻/舆情接口返回后生成摘要')).toBeInTheDocument()
   })
 
   it('switches to candidate pool without falling back to a placeholder', () => {

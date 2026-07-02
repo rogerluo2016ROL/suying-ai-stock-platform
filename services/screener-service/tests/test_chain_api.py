@@ -151,6 +151,40 @@ class TestChainDeconstruct:
             assert "threat" in comp_data
             assert "note" in comp_data
 
+    def test_bom_method_returns_layered_bom_data(self, test_theme_id):
+        """method='bom' should return L1-L8 BOM layers and paths."""
+        response = client.get(
+            "/api/v1/screener/chain/deconstruct",
+            params={"theme_id": test_theme_id, "method": "bom"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["view"] == "bom"
+        assert "bom_layers" in data
+        assert "bom_paths" in data
+        assert set(data["bom_layers"].keys()) == {f"L{i}" for i in range(1, 9)}
+        assert data["model_metadata"]["inference_mode"] == "chain:bom"
+
+
+class TestSupplyChainDataReadiness:
+    """Tests for V2 data readiness endpoint."""
+
+    def test_data_readiness_reports_v2_layer_and_source_status(self):
+        """Data readiness should expose L1-L8 coverage and source readiness."""
+        response = client.get("/api/v1/screener/supply-chain/data-readiness")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["version"] == "supply-chain-v2-readiness"
+        assert set(data["layer_coverage"].keys()) == {f"L{i}" for i in range(1, 9)}
+        assert "business_segments" in data
+        assert "announcement_body" in data
+        assert "research_body" in data
+        assert "evidence_events" in data
+        assert data["implementation_gates"]["core_pool_requires_business_evidence"] is True
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # AC-2: GET /chain/node/{node_id}/companies returns company list with resonance

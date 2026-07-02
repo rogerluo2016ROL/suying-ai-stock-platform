@@ -2,12 +2,12 @@
   "version": 1,
   "created_at": "2026-06-26T17:13:46.116Z",
   "lifetime": {
-    "total_tokens_estimated": 696696,
-    "total_reads": 141,
-    "total_writes": 139,
-    "total_sessions": 7,
+    "total_tokens_estimated": 704438,
+    "total_reads": 147,
+    "total_writes": 145,
+    "total_sessions": 8,
     "anatomy_hits": 89,
-    "anatomy_misses": 52,
+    "anatomy_misses": 58,
     "repeated_reads_blocked": 131,
     "estimated_savings_vs_bare_cli": 598171
   },
@@ -2020,6 +2020,138 @@
         "writes_count": 8,
         "repeated_reads_blocked": 12,
         "anatomy_lookups": 8
+      }
+    },
+    {
+      "id": "session-2026-07-02-0959",
+      "started": "2026-07-02T01:59:13.750Z",
+      "ended": "2026-07-02T03:16:54.298Z",
+      "reads": [
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/tools/run_today_afternoon.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/tools/_autumn_top10_no_fuse.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [],
+      "totals": {
+        "input_tokens_estimated": 0,
+        "output_tokens_estimated": 0,
+        "reads_count": 2,
+        "writes_count": 0,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 0
+      }
+    },
+    {
+      "id": "session-2026-07-02-0959",
+      "started": "2026-07-02T01:59:13.750Z",
+      "ended": "2026-07-02T03:20:29.621Z",
+      "reads": [
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/tools/run_today_afternoon.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/tools/_autumn_top10_no_fuse.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [],
+      "totals": {
+        "input_tokens_estimated": 0,
+        "output_tokens_estimated": 0,
+        "reads_count": 2,
+        "writes_count": 0,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 0
+      }
+    },
+    {
+      "id": "session-2026-07-02-1126",
+      "started": "2026-07-02T03:26:41.120Z",
+      "ended": "2026-07-02T07:15:55.960Z",
+      "reads": [
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/packages/kronos-data/kronos_data/etl.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/packages/kronos-data/kronos_data/etl.py",
+          "tokens_estimated": 141,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/tools/institutional_activity_top.py",
+          "tokens_estimated": 2870,
+          "action": "create"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 0,
+        "output_tokens_estimated": 3011,
+        "reads_count": 1,
+        "writes_count": 2,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 0
+      }
+    },
+    {
+      "id": "session-2026-07-02-1126",
+      "started": "2026-07-02T03:26:41.120Z",
+      "ended": "2026-07-02T08:52:02.040Z",
+      "reads": [
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/packages/kronos-data/kronos_data/etl.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/packages/kronos-data/kronos_data/etl.py",
+          "tokens_estimated": 141,
+          "action": "edit"
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/tools/institutional_activity_top.py",
+          "tokens_estimated": 2870,
+          "action": "create"
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/tools/backtest_institutional_activity.py",
+          "tokens_estimated": 1542,
+          "action": "create"
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/tools/backtest_institutional_activity.py",
+          "tokens_estimated": 178,
+          "action": "edit"
+        }
+      ],
+      "totals": {
+        "input_tokens_estimated": 0,
+        "output_tokens_estimated": 4731,
+        "reads_count": 1,
+        "writes_count": 4,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 0
       }
     }
   ],

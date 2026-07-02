@@ -150,26 +150,26 @@ const dashboardTabs = [
 ]
 
 const fallbackSentiment: MarketSentimentData = {
-  score: 72,
-  label: '偏牛',
-  trade_date: '2026-06-28',
-  avg_change_pct: 1.2,
-  up_stocks: 1852,
-  down_stocks: 1432,
-  total_stocks: 3852,
+  score: 0,
+  label: '暂无数据',
+  trade_date: '',
+  avg_change_pct: 0,
+  up_stocks: 0,
+  down_stocks: 0,
+  total_stocks: 0,
   model: 'market_regime_v2',
-  formula: 'trend×25% + breadth×20% + liquidity×15% + leverage×10% + foreign×5% + valuation×5% + risk×15% + sentiment×5%',
+  formula: '',
 }
 
 const fallbackDimensions = [
-  { key: 'trend', label: '趋势', weight: 25, score: 75, tone: 'linear-gradient(90deg,#2ec27e,#1a7a4c)' },
-  { key: 'breadth', label: '广度', weight: 20, score: 68, tone: 'linear-gradient(90deg,#3d8bff,#2ec27e)' },
-  { key: 'liquidity', label: '流动性', weight: 15, score: 72, tone: 'linear-gradient(90deg,#fa8c16,#fa541c)' },
-  { key: 'leverage', label: '杠杆', weight: 10, score: 65, tone: 'linear-gradient(90deg,#3d8bff,#1677ff)' },
-  { key: 'foreign', label: '外资', weight: 5, score: 70, tone: 'linear-gradient(90deg,#fa8c16,#ff7a45)' },
-  { key: 'valuation', label: '估值', weight: 5, score: 55, tone: 'linear-gradient(90deg,#3d8bff,#5b8def)' },
-  { key: 'risk', label: '风险事件', weight: 15, score: 80, tone: 'linear-gradient(90deg,#2ec27e,#237804)' },
-  { key: 'sentiment', label: '情绪', weight: 5, score: 62, tone: 'linear-gradient(90deg,#3d8bff,#1677ff)' },
+  { key: 'trend', label: '趋势', weight: 25, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
+  { key: 'breadth', label: '广度', weight: 20, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
+  { key: 'liquidity', label: '流动性', weight: 15, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
+  { key: 'leverage', label: '杠杆', weight: 10, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
+  { key: 'foreign', label: '外资', weight: 5, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
+  { key: 'valuation', label: '估值', weight: 5, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
+  { key: 'risk', label: '风险事件', weight: 15, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
+  { key: 'sentiment', label: '情绪', weight: 5, score: 0, tone: 'linear-gradient(90deg,#d8dee8,#d8dee8)' },
 ]
 
 type SentimentPageKey = 'today' | 'history' | 'sector'
@@ -198,25 +198,6 @@ interface SectorStockDetail {
   signal: string
   source: string
 }
-
-const fallbackSectors = [
-  { name: '半导体', score: 85, upRatio: 82, change: 3.2, fund: 32.6 },
-  { name: '新能源', score: 78, upRatio: 72, change: 2.8, fund: 18.4 },
-  { name: 'AI算力', score: 75, upRatio: 75, change: 2.5, fund: 15.9 },
-  { name: '消费电子', score: 68, upRatio: 60, change: 1.8, fund: 8.1 },
-  { name: '白酒', score: 65, upRatio: 68, change: 1.5, fund: 5.6 },
-  { name: '汽车', score: 60, upRatio: 55, change: 1.2, fund: 4.8 },
-  { name: '医药', score: 58, upRatio: 50, change: 0.8, fund: 3.2 },
-  { name: '光伏', score: 52, upRatio: 48, change: 0.5, fund: 2.1 },
-  { name: '金融', score: 50, upRatio: 45, change: 0.2, fund: 1.6 },
-  { name: '军工', score: 45, upRatio: 38, change: -0.3, fund: -0.8 },
-  { name: '传媒', score: 42, upRatio: 35, change: -0.5, fund: -1.2 },
-  { name: '电力', score: 40, upRatio: 40, change: -0.1, fund: -0.5 },
-  { name: '农业', score: 38, upRatio: 36, change: -0.8, fund: -1.8 },
-  { name: '有色', score: 36, upRatio: 32, change: -1.0, fund: -2.4 },
-  { name: '化工', score: 34, upRatio: 30, change: -0.6, fund: -1.5 },
-  { name: '钢铁', score: 30, upRatio: 22, change: -1.5, fund: -3.2 },
-] satisfies SectorResonance[]
 
 type SignalLevelKey = 'STRONG_BUY' | 'BUY' | 'HOLD' | 'REDUCE' | 'SELL' | 'TIMING_ALERT'
 
@@ -261,7 +242,7 @@ function normalizeSentiment(data: DashboardData | null): MarketSentimentData {
   if (data?.market_regime_v2) {
     return {
       ...fallbackSentiment,
-      score: Number(data.market_regime_v2.score ?? fallbackSentiment.score),
+      score: Number(data.market_regime_v2.score ?? 0),
       label: data.market_regime_v2.label,
       model: `market_regime_v2 · 置信度 ${data.market_regime_v2.confidence ?? '--'}%`,
     }
@@ -316,7 +297,7 @@ function buildGaugeOption(score: number): EChartsOption {
       axisLabel: { color: '#8a96a8', fontSize: 9, fontFamily: 'var(--font-mono)', distance: 28 },
       detail: {
         valueAnimation: true,
-        formatter: `{value|${score}}\n{unit| 分}\n{change|▲ +5}`,
+        formatter: `{value|${score}}\n{unit| 分}`,
         rich: {
           value: { fontSize: 38, fontWeight: 720, color: '#1a2230', fontFamily: 'var(--font-mono)' },
           unit: { fontSize: 13, color: '#52617a', padding: [0, 0, 0, 2] },
@@ -331,18 +312,11 @@ function buildGaugeOption(score: number): EChartsOption {
   }
 }
 
-function buildTrendOption(score: number): EChartsOption {
-  const dates = Array.from({ length: 30 }, (_, index) => {
-    const day = index + 1
-    return `06/${String(day).padStart(2, '0')}`
-  })
-  const scores = dates.map((_, index) => Math.round(Math.max(35, Math.min(88, score - 13 + Math.sin(index / 4) * 8 + index * 0.7))))
-  const hs300 = scores.map(value => Math.round(3650 + (value - 50) * 15))
-
+function buildTrendOption(): EChartsOption {
   return {
     tooltip: { trigger: 'axis' },
     grid: { left: 50, right: 70, top: 30, bottom: 42 },
-    xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 9, color: '#8a96a8', interval: 4 } },
+    xAxis: { type: 'category', data: [], axisLabel: { fontSize: 9, color: '#8a96a8', interval: 4 } },
     yAxis: [
       { type: 'value', name: '情绪指数', min: 0, max: 100, axisLabel: { fontSize: 9, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
       { type: 'value', name: '沪深300', axisLabel: { fontSize: 9, color: '#8a96a8' }, splitLine: { show: false } },
@@ -352,26 +326,18 @@ function buildTrendOption(score: number): EChartsOption {
         name: '情绪指数',
         type: 'line',
         yAxisIndex: 0,
-        data: scores,
+        data: [],
         lineStyle: { width: 2.5, color: '#3d8bff' },
         itemStyle: { color: '#3d8bff' },
         symbol: 'circle',
         symbolSize: 5,
         smooth: true,
-        markLine: {
-          silent: true,
-          symbol: 'none',
-          data: [
-            { xAxis: '06/07', label: { formatter: '政策催化', fontSize: 9, color: '#f5a623' }, lineStyle: { color: '#f5a623', type: 'dashed', width: 1 } },
-            { xAxis: '06/18', label: { formatter: '资金拐点', fontSize: 9, color: '#f5a623' }, lineStyle: { color: '#f5a623', type: 'dashed', width: 1 } },
-          ],
-        },
       },
       {
         name: '沪深300',
         type: 'line',
         yAxisIndex: 1,
-        data: hs300,
+        data: [],
         lineStyle: { width: 1.2, type: 'dashed', color: 'rgba(82,97,122,0.45)' },
         symbol: 'none',
         smooth: true,
@@ -440,13 +406,13 @@ function limitStockRows(payload?: LimitStocksPayload): SectorStockDetail[] {
   }))
 }
 
-function limitStockCount(payload: LimitStocksPayload | undefined, key: 'up' | 'down', fallback: number) {
-  if (!payload) return fallback
-  if (Array.isArray(payload)) return key === 'up' ? payload.length : fallback
+function limitStockCount(payload: LimitStocksPayload | undefined, key: 'up' | 'down') {
+  if (!payload) return 0
+  if (Array.isArray(payload)) return key === 'up' ? payload.length : 0
   const explicit = key === 'up' ? payload.up_count : payload.down_count
   if (typeof explicit === 'number' && Number.isFinite(explicit)) return explicit
   const list = key === 'up' ? payload.up_list : payload.down_list
-  return Array.isArray(list) ? list.length : fallback
+  return Array.isArray(list) ? list.length : 0
 }
 
 function limitStockSource(payload?: LimitStocksPayload) {
@@ -657,6 +623,58 @@ function signalSectorRows(items: SignalMatrixItem[]) {
     .sort((a, b) => b.ratio - a.ratio || b.bullish - a.bullish)
 }
 
+function buildSectorResonanceRows(
+  limitRows: SectorStockDetail[],
+  signalItems: SignalMatrixItem[],
+  auctionRows: AuctionIntentItem[],
+): SectorResonance[] {
+  const details: SectorStockDetail[] = [
+    ...limitRows,
+    ...signalItems.map(item => ({
+      code: item.code,
+      name: item.name,
+      industry: item.industry,
+      price: item.price,
+      changePct: item.changePct,
+      score: item.score,
+      signal: item.level,
+      source: '信号',
+    })),
+    ...auctionRows.map(item => ({
+      code: item.code,
+      name: item.name,
+      industry: item.industry || '',
+      price: Number(item.price ?? 0),
+      changePct: auctionChange(item),
+      score: auctionScore(item, 0),
+      signal: auctionIntentLabel(item, auctionScore(item, 0)),
+      source: '竞价',
+    })),
+  ].filter(item => item.industry)
+
+  const grouped = details.reduce<Record<string, SectorStockDetail[]>>((acc, item) => {
+    acc[item.industry] ||= []
+    acc[item.industry].push(item)
+    return acc
+  }, {})
+
+  return Object.entries(grouped)
+    .map(([name, rows]) => {
+      const upCount = rows.filter(row => row.changePct > 0).length
+      const avgChange = rows.reduce((sum, row) => sum + row.changePct, 0) / Math.max(rows.length, 1)
+      const avgScore = rows.reduce((sum, row) => sum + row.score, 0) / Math.max(rows.length, 1)
+      return {
+        name,
+        score: Math.round(Math.max(0, Math.min(100, avgScore || upCount * 10))),
+        upRatio: Math.round((upCount / Math.max(rows.length, 1)) * 100),
+        change: Number(avgChange.toFixed(2)),
+        fund: 0,
+      }
+    })
+    .sort((a, b) => b.score - a.score || b.upRatio - a.upRatio || b.change - a.change)
+    .slice(0, 16)
+}
+
 function buildSignalStats(items: SignalMatrixItem[]) {
   const total = Math.max(items.length, 1)
   return signalStatsMeta.map(meta => {
@@ -670,25 +688,18 @@ function buildSignalStats(items: SignalMatrixItem[]) {
 }
 
 function buildSignalTrendOption(): EChartsOption {
-  const dates = Array.from({ length: 30 }, (_, index) => {
-    const day = index + 1
-    return `06-${String(day).padStart(2, '0')}`
-  })
-  const buyData = dates.map((_, index) => Math.round(230 + Math.sin(index * 0.3) * 38 + (index % 5) * 6))
-  const sellData = dates.map((_, index) => Math.round(112 - Math.sin(index * 0.3) * 15 + (index % 4) * 4))
-  const ratioData = buyData.map((buy, index) => Number((buy / Math.max(sellData[index], 1)).toFixed(2)))
   return {
     tooltip: { trigger: 'axis' },
     grid: { left: 48, right: 50, top: 28, bottom: 42 },
-    xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 9, color: '#8a96a8', interval: 4 } },
+    xAxis: { type: 'category', data: [], axisLabel: { fontSize: 9, color: '#8a96a8', interval: 4 } },
     yAxis: [
       { type: 'value', name: '信号数', axisLabel: { fontSize: 9, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
       { type: 'value', name: '多空比', axisLabel: { fontSize: 9, color: '#8a96a8' }, splitLine: { show: false } },
     ],
     series: [
-      { name: '买入信号', type: 'line', data: buyData, smooth: true, showSymbol: false, lineStyle: { color: '#ff4d4f', width: 2 }, itemStyle: { color: '#ff4d4f' } },
-      { name: '卖出信号', type: 'line', data: sellData, smooth: true, showSymbol: false, lineStyle: { color: '#2ec27e', width: 2 }, itemStyle: { color: '#2ec27e' } },
-      { name: '多空比', type: 'bar', yAxisIndex: 1, data: ratioData, barWidth: '55%', itemStyle: { color: 'rgba(61,139,255,.18)' } },
+      { name: '买入信号', type: 'line', data: [], smooth: true, showSymbol: false, lineStyle: { color: '#ff4d4f', width: 2 }, itemStyle: { color: '#ff4d4f' } },
+      { name: '卖出信号', type: 'line', data: [], smooth: true, showSymbol: false, lineStyle: { color: '#2ec27e', width: 2 }, itemStyle: { color: '#2ec27e' } },
+      { name: '多空比', type: 'bar', yAxisIndex: 1, data: [], barWidth: '55%', itemStyle: { color: 'rgba(61,139,255,.18)' } },
     ],
     legend: { bottom: 0, textStyle: { fontSize: 10, color: '#52617a' } },
   }
@@ -770,15 +781,12 @@ export default function Dashboard() {
   const sentiment = normalizeSentiment(data)
   const dimensions = dimensionsFromData(data)
   const gaugeOption = useMemo(() => buildGaugeOption(Math.round(sentiment.score)), [sentiment.score])
-  const trendOption = useMemo(() => buildTrendOption(Math.round(sentiment.score)), [sentiment.score])
-  const sectorRows = useMemo(() => fallbackSectors, [])
-  const topSectorRows = useMemo(() => sectorRows.slice(0, 5), [sectorRows])
-  const selectedSector = sectorRows[selectedSectorIndex] ?? { name: '半导体', score: 85, upRatio: 82, change: 3.2, fund: 32.6 }
-  const upCount = limitStockCount(data?.limit_stocks, 'up', 87)
-  const downCount = limitStockCount(data?.limit_stocks, 'down', 14)
-  const upStocks = sentiment.up_stocks ?? fallbackSentiment.up_stocks ?? 1852
-  const downStocks = sentiment.down_stocks ?? fallbackSentiment.down_stocks ?? 1432
-  const totalStocks = sentiment.total_stocks ?? 3852
+  const trendOption = useMemo(() => buildTrendOption(), [])
+  const upCount = limitStockCount(data?.limit_stocks, 'up')
+  const downCount = limitStockCount(data?.limit_stocks, 'down')
+  const upStocks = sentiment.up_stocks ?? 0
+  const downStocks = sentiment.down_stocks ?? 0
+  const totalStocks = sentiment.total_stocks ?? 0
   const alertSignals = data?.alert_signals ?? []
   const signalStocks = data?.signal_stocks ?? []
   const limitRows = useMemo(() => limitStockRows(data?.limit_stocks), [data?.limit_stocks])
@@ -807,6 +815,12 @@ export default function Dashboard() {
   const bullishAuctionRows = mergeAuctionRows(auctionCandidates, [])
   const bearishAuctionRows = mergeAuctionRows(data?.auction_intent?.top_bearish || [], [])
   const visibleAuctionRows = [...bullishAuctionRows, ...bearishAuctionRows]
+  const sectorRows = useMemo(
+    () => buildSectorResonanceRows(limitRows, signalMatrix, visibleAuctionRows),
+    [limitRows, signalMatrix, visibleAuctionRows],
+  )
+  const topSectorRows = useMemo(() => sectorRows.slice(0, 5), [sectorRows])
+  const selectedSector = sectorRows[selectedSectorIndex] ?? { name: '暂无板块', score: 0, upRatio: 0, change: 0, fund: 0 }
   const selectedSectorStocks = useMemo(
     () => sectorStockRows(selectedSector, signalStocks, visibleAuctionRows, limitRows),
     [selectedSector, signalStocks, visibleAuctionRows, limitRows],
@@ -910,26 +924,26 @@ export default function Dashboard() {
                       ))}
                     </div>
                   </div>
-                  <div className="zit">加权合成: {sentiment.formula ?? fallbackSentiment.formula}</div>
+                  <div className="zit">加权合成: {sentiment.formula || '后端未返回模型公式'}</div>
                   <div className="ai-sentiment-card">
-                    <div className="ai-title"><span>AI 大模型情绪解读</span><em>由大模型生成</em></div>
-                    <p>今日市场情绪判断为 <b>偏牛、但未进入过热。</b> 指数趋势和资金面形成主要支撑，赚钱效应扩散到多数股票，但炸板率仍提示短线追高风险。</p>
+                    <div className="ai-title"><span>实时指标解读</span><em>基于接口返回</em></div>
+                    <p>当前市场情绪为 <b>{sentiment.label}</b>，综合分 <b>{sentiment.score}</b>。上涨 {upStocks.toLocaleString()} 只，下跌 {downStocks.toLocaleString()} 只，涨停 {upCount} 只，跌停 {downCount} 只。</p>
                     <div className="ai-reason-grid">
-                      <div><strong>支撑原因 1 · 趋势</strong><span>上证、深成指同步走强，趋势分 75，说明指数环境对做多更友好。</span></div>
-                      <div><strong>支撑原因 2 · 资金</strong><span>北向和主力资金均为净流入，两市成交额维持活跃，流动性分 72。</span></div>
-                      <div><strong>支撑原因 3 · 赚钱效应</strong><span>上涨家数多于下跌家数，涨停 {upCount} 家，封板率 82.9%，情绪扩散较好。</span></div>
+                      {dimensions.slice(0, 3).map(dim => (
+                        <div key={dim.key}><strong>{dim.label}</strong><span>接口评分 {dim.score}，权重 {dim.weight}%。</span></div>
+                      ))}
                     </div>
-                    <div className="risk-banner warn"><strong>风险提醒</strong><span>若综合情绪继续接近 80 分，或炸板率明显抬升，应从积极进攻转为控制仓位。</span></div>
+                    <div className="risk-banner warn"><strong>风险提醒</strong><span>本区只使用接口返回字段；缺失的资金、炸板率和历史归因不会用演示数据补齐。</span></div>
                   </div>
                 </PrototypeCard>
 
                 <div className="grid">
                   <PrototypeCard title="市场快照" icon={<EyeOutlined />} meta={`基于 ${totalStocks.toLocaleString()} 只股票`}>
                     <div className="snapshot-grid">
-                      <div className="snap-stat"><div className="lbl">涨停</div><div className="val up">{upCount}</div><div className="sub">+12 vs 昨</div></div>
-                      <div className="snap-stat"><div className="lbl">跌停</div><div className="val down">{downCount}</div><div className="sub">-3 vs 昨</div></div>
-                      <div className="snap-stat"><div className="lbl">炸板</div><div className="val warn">18</div><div className="sub">炸板率 17.1%</div></div>
-                      <div className="snap-stat"><div className="lbl">封板率</div><div className="val neu">82.9<span style={{ fontSize: 12 }}>%</span></div><div className="sub">连板 6 板</div></div>
+                      <div className="snap-stat"><div className="lbl">涨停</div><div className="val up">{upCount}</div><div className="sub">limit_stocks</div></div>
+                      <div className="snap-stat"><div className="lbl">跌停</div><div className="val down">{downCount}</div><div className="sub">limit_stocks</div></div>
+                      <div className="snap-stat"><div className="lbl">炸板</div><div className="val warn">--</div><div className="sub">暂无实时字段</div></div>
+                      <div className="snap-stat"><div className="lbl">封板率</div><div className="val neu">--</div><div className="sub">暂无实时字段</div></div>
                     </div>
                     <div className="advance-decline">
                       <span className="num adv up">涨 {upStocks.toLocaleString()}</span>
@@ -944,20 +958,15 @@ export default function Dashboard() {
                     </div>
                   </PrototypeCard>
 
-                  <PrototypeCard title="资金全景" icon={<DollarOutlined />} meta="估算值">
-                    <div className="fund-grid">
-                      <div className="fund-item"><div className="lbl">北向资金</div><div className="val">+23.5 亿</div></div>
-                      <div className="fund-item"><div className="lbl">主力资金</div><div className="val">+12.8 亿</div></div>
-                      <div className="fund-item"><div className="lbl">融资余额变化</div><div className="val">+15.2 亿</div></div>
-                      <div className="fund-item"><div className="lbl">两市成交额</div><div className="val">8,520 亿</div><div className="prototype-panel-note">换手率 3.2%</div></div>
-                    </div>
+                  <PrototypeCard title="资金全景" icon={<DollarOutlined />} meta="实时字段">
+                    <div className="prototype-fallback">暂无实时资金字段；已停止展示估算演示值。</div>
                   </PrototypeCard>
 
                   <div className="op-hint">
-                    <div className="pos warn">7-8<span style={{ fontSize: 16 }}>成</span></div>
+                    <div className="pos warn">--</div>
                     <div className="op-body">
-                      <div className="op-title warn">偏牛 · 适度积极</div>
-                      <div className="op-desc">关注强势板块趋势延续机会。控制仓位在 7-8 成，警惕情绪接近过热区间。</div>
+                      <div className="op-title warn">{sentiment.label}</div>
+                      <div className="op-desc">仓位建议需等待交易策略服务返回；本页不使用静态仓位建议。</div>
                     </div>
                   </div>
                 </div>
@@ -968,10 +977,10 @@ export default function Dashboard() {
           {sentimentPage === 'history' && (
             <section className="market-page" aria-label="历史情绪">
               <div className="insight-grid">
-                <MetricCard label="当前分位" value="72%" sub="近 120 日偏高，但未极端" tone="warn" />
-                <MetricCard label="情绪斜率" value="+5" sub="连续 3 日抬升" tone="down" />
-                <MetricCard label="回撤风险" value="中" sub="高位追涨需降速" tone="accent" />
-                <MetricCard label="历史相似" value="8 次" sub="5 次继续走强，3 次回落" tone="muted" />
+                <MetricCard label="当前分位" value="-" sub="暂无历史分位接口" tone="warn" />
+                <MetricCard label="情绪斜率" value="-" sub="暂无连续变化接口" tone="down" />
+                <MetricCard label="回撤风险" value="-" sub="暂无历史风险接口" tone="accent" />
+                <MetricCard label="历史相似" value="-" sub="暂无相似样本接口" tone="muted" />
               </div>
               <div className="history-layout">
                 <PrototypeCard title="情绪历史趋势" icon={<LineChartOutlined />} meta="30日 · 60日 · 120日">
@@ -979,27 +988,10 @@ export default function Dashboard() {
                 </PrototypeCard>
                 <div className="history-side">
                   <PrototypeCard title="历史相似场景" icon={<EyeOutlined />} meta="按相似度排序">
-                    <div className="similar-list">
-                      {[
-                        ['2026-05-22', '情绪 71，半导体主线启动，随后 3 日继续走强。'],
-                        ['2026-04-18', '资金净流入但炸板率抬升，次日高开低走。'],
-                        ['2026-03-29', '趋势与广度同步改善，强势板块轮动扩散。'],
-                      ].map(([date, desc]) => (
-                        <div className="similar-item" key={date}>
-                          <b>{date}</b>
-                          <span>{desc}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <div className="prototype-fallback">暂无历史相似场景接口；不展示演示历史样本。</div>
                   </PrototypeCard>
                   <PrototypeCard title="周期状态表" icon={<BarChartOutlined />} meta="模型判断">
-                    <table className="tbl compact">
-                      <tbody>
-                        <tr><td>短线</td><td className="warn">升温</td><td>追高风险增加</td></tr>
-                        <tr><td>中线</td><td className="up">偏强</td><td>主线仍有延续</td></tr>
-                        <tr><td>长线</td><td className="neu">修复</td><td>估值压力可控</td></tr>
-                      </tbody>
-                    </table>
+                    <div className="prototype-fallback">暂无周期状态接口；不展示固定判断。</div>
                   </PrototypeCard>
                 </div>
               </div>
@@ -1009,6 +1001,7 @@ export default function Dashboard() {
           {sentimentPage === 'sector' && (
             <section className="market-page" aria-label="板块共振">
               <div className="sector-top5">
+                {topSectorRows.length === 0 && <div className="prototype-fallback">暂无板块共振数据；等待实时信号、涨停或竞价数据返回行业字段。</div>}
                 {topSectorRows.map((sector, index) => {
                   const color = sectorColor(sector.score)
                   return (
@@ -1024,16 +1017,16 @@ export default function Dashboard() {
                       <span>TOP {index + 1}</span>
                       <small>{color.level}</small>
                       <strong>{sector.name} {sector.score}</strong>
-                      <em>资金 {sector.fund >= 0 ? '+' : ''}{sector.fund} 亿，涨 {sector.upRatio}%，今日{index === 0 ? '最强' : '靠前'}。</em>
+                      <em>上涨占比 {sector.upRatio}% · 均涨 {sector.change >= 0 ? '+' : ''}{sector.change}%</em>
                     </button>
                   )
                 })}
               </div>
 
               <div className="resonance-note">
-                <div><b>结论：</b>今日不是普涨行情，主线集中在科技链。半导体、新能源、AI 算力同时具备资金净流入、上涨占比和情绪分抬升。</div>
-                <div><b>用户最该看：</b>点击 Top5 或热力格子，查看该板块二级方向、龙头样本、补涨线和弱分支。</div>
-                <div><b>下一步：</b>若明日科技链继续保持前三共振排名，优先跟踪强势龙头和低位补涨。</div>
+                <div><b>结论：</b>{topSectorRows.length ? `当前最强板块为 ${topSectorRows[0].name}，共振分 ${topSectorRows[0].score}。` : '暂无实时板块共振结论。'}</div>
+                <div><b>数据来源：</b>涨跌明细、实时信号、竞价看多/看空列表。</div>
+                <div><b>说明：</b>没有接口字段的二级方向、资金净流入和补涨判断不会用静态文案补齐。</div>
               </div>
 
               <div className="sector-layout">
@@ -1063,33 +1056,26 @@ export default function Dashboard() {
 
                 <div className="sector-side">
                   <PrototypeCard title="选中板块详情" icon={<EyeOutlined />} meta="点击左侧格子切换">
-                    <div className="sector-detail-card">
-                      <h3>{selectedSector.name}</h3>
-                      <p>二级方向、成分股涨幅、资金共振和操作线索。</p>
+                  <div className="sector-detail-card">
+                    <h3>{selectedSector.name}</h3>
+                      <p>基于接口返回的行业字段聚合。</p>
                       <div className="detail-kpis">
                         <div><span>共振分</span><b>{selectedSector.score}</b></div>
                         <div><span>上涨占比</span><b>{selectedSector.upRatio}%</b></div>
                         <div><span>资金</span><b>{selectedSector.fund >= 0 ? '+' : ''}{selectedSector.fund}亿</b></div>
                       </div>
-                      <div className="analysis-box"><b>看点：</b>下钻重点看二级方向是否集中、龙头是否继续封板、低位补涨是否扩散。</div>
+                      <div className="analysis-box"><b>看点：</b>仅展示接口返回股票明细；二级方向和补涨线等待后端接口接入。</div>
                       <div className="sector-stock-section">
                         <h4>板块股票涨幅明细</h4>
                         <SectorStockTable rows={selectedSectorStocks} />
                       </div>
-                      <table className="tbl compact">
-                        <thead><tr><th>二级方向</th><th className="r">强度</th><th>动作</th></tr></thead>
-                        <tbody>
-                          <tr><td>设备 / 材料</td><td className="r up">强</td><td>主线跟踪</td></tr>
-                          <tr><td>封测 / 模组</td><td className="r warn">中强</td><td>找补涨</td></tr>
-                          <tr><td>低位分支</td><td className="r neu">观察</td><td>等放量</td></tr>
-                        </tbody>
-                      </table>
+                      <div className="prototype-fallback mt14">暂无二级方向实时接口。</div>
                     </div>
                   </PrototypeCard>
-                  <PrototypeCard title="AI 共振结论" icon={<FundOutlined />} meta="由大模型生成">
+                  <PrototypeCard title="实时共振结论" icon={<FundOutlined />} meta="基于接口聚合">
                     <div className="ai-resonance">
-                      <p><b>结论：</b>主线集中在科技链，强度最高的是 {topSectorRows[0]?.name}，其次是 {topSectorRows[1]?.name} 和 {topSectorRows[2]?.name}。</p>
-                      <p><b>注意：</b>如果前排板块排名快速下滑，说明资金从进攻切换到防守，应降低追高仓位。</p>
+                      <p><b>结论：</b>{topSectorRows.length ? `强度最高的是 ${topSectorRows[0]?.name}。` : '暂无可聚合板块。'}</p>
+                      <p><b>注意：</b>本结论只来自当前接口数据，不包含未接入的资金流或二级方向判断。</p>
                     </div>
                   </PrototypeCard>
                 </div>
@@ -1286,13 +1272,13 @@ export default function Dashboard() {
                   })}
                 </div>
                 <div className="signal-resonance">
-                  <div><span>板块共振偏多</span><b className="up">14 板块</b></div>
-                  <div><span>板块共振偏空</span><b className="down">3 板块</b></div>
+                  <div><span>板块共振偏多</span><b className="up">{signalRows.filter(row => row.bullish > row.bearish).length} 板块</b></div>
+                  <div><span>板块共振偏空</span><b className="down">{signalRows.filter(row => row.bearish > row.bullish).length} 板块</b></div>
                   <div><span>共振阈值</span><b>≥3 只同向</b></div>
                 </div>
                 <div className="watch-row">
                   <span>自选股信号</span>
-                  <b>5 / 12 已触发</b>
+                  <b>{signalMatrix.filter(item => item.watchlist).length} / {signalMatrix.length} 已触发</b>
                   <small>管理自选 →</small>
                 </div>
               </PrototypeCard>
@@ -1303,7 +1289,7 @@ export default function Dashboard() {
                     const meta = signalLevelMeta[item.level]
                     return (
                       <div className="stream-row" key={`${item.code}-${index}`}>
-                        <span className="stream-time mono">{['09:25', '09:31', '09:42', '10:08', '10:23', '10:41'][index]}</span>
+                        <span className="stream-time mono">实时</span>
                         <span className="code">{item.code}</span>
                         <span className="nm">{item.name}</span>
                         <span style={{ color: meta.color }}>{meta.label}</span>
@@ -1341,6 +1327,7 @@ export default function Dashboard() {
           <div className="row r-1-1">
             <PrototypeCard title="30 日信号趋势" icon={<LineChartOutlined />} meta="近 30 个交易日 · 买卖信号 + 多空比">
               <ReactECharts option={signalTrendOption} style={{ height: 300, width: '100%' }} notMerge />
+              <div className="prototype-panel-note">暂无历史信号趋势接口；图表不展示模拟曲线。</div>
             </PrototypeCard>
             <PrototypeCard title="板块信号气泡图" icon={<ApartmentOutlined />} meta="信号数量 × 平均评分 × 市值">
               <ReactECharts option={signalBubbleOption} style={{ height: 300, width: '100%' }} notMerge />
@@ -1350,7 +1337,7 @@ export default function Dashboard() {
           <div className="footer-bar">
             <span>数据来源: signal-service (signal_snapshots 缓存)</span>
             <span className="sep" />
-            <span>信号模型: Kronos(20) + 技术(20) + 资金(12) + 基本面(15) + 事件(13) + 市场(20) = 100分</span>
+            <span>信号模型权重以后端返回为准；前端不展示固定权重。</span>
             <span className="sep" />
             <span>免责声明: 本页信号为量化模型输出，不构成投资建议。历史数据不代表未来表现</span>
           </div>

@@ -48,6 +48,12 @@ interface WorkbenchModel {
   score_dimensions?: ScoreDimension[]
 }
 
+interface ChainMethodSummary {
+  title: string
+  desc: string
+  stats: Array<[string, string]>
+}
+
 function formatChangePct(value?: number) {
   const n = Number(value)
   if (!Number.isFinite(n)) return '--'
@@ -87,37 +93,25 @@ function chainDeconstructErrorText(error: unknown) {
   return '拆解接口连接异常，当前图谱可能是旧数据或默认目录。'
 }
 
-function chainMethodSummary(method: ChainMethod) {
+function chainMethodSummary(method: ChainMethod): ChainMethodSummary {
   if (method === 'value_chain') {
     return {
       title: '价值链拆解',
       desc: '按原材料、核心零部件、制造设备、封装测试拆分利润池，突出毛利率、议价权和国产替代空间。',
-      stats: [
-        ['最高毛利环节', '核心零部件 45%'],
-        ['利润弹性', '制造设备 38%'],
-        ['短板约束', '封装测试 18%'],
-      ],
+      stats: [],
     }
   }
   if (method === 'competition') {
     return {
       title: '竞争格局',
       desc: '按市场份额、技术壁垒、市值体量和客户绑定关系评估公司位置，区分龙头、跟随者和卡位标的。',
-      stats: [
-        ['龙头份额', 'ASML 80%'],
-        ['国产替代', '中微公司 15%'],
-        ['技术壁垒', '光刻/刻蚀高'],
-      ],
+      stats: [],
     }
   }
   return {
     title: '上下游拆解',
     desc: '从政策主题向上游材料、核心部件、制造设备、下游应用逐层展开，定位可跟踪节点和映射公司。',
-    stats: [
-      ['上游节点', '硅片/光刻胶'],
-      ['核心节点', '光源/物镜'],
-      ['下游应用', '晶圆厂/设备商'],
-    ],
+    stats: [],
   }
 }
 
@@ -681,6 +675,11 @@ export default function SupplyChainBom() {
                       </div>
                     </Col>
                   ))}
+                  {methodSummary.stats.length === 0 && (
+                    <Col span={24}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>暂无该拆解模式的实时统计指标。</Text>
+                    </Col>
+                  )}
                 </Row>
               </Space>
             </div>

@@ -1,0 +1,60 @@
+{
+  "model": "v2.1",
+  "trigger_stocks": [],
+  "concepts": [],
+  "bonds": [],
+  "observation_bonds": [],
+  "pending_confirmation_stocks": [],
+  "rejections": [],
+  "summary": {
+    "trade_date": "2026-07-02",
+    "observed_at": "2026-07-02T17:32:00",
+    "source": "akshare.stock_zt_pool_em(date=20260702)",
+    "source_rows": 93,
+    "yesterday_rows": 152,
+    "gate_counts": {
+      "first_time_le_092500": 6,
+      "seal_amt_gt_5e8": 1,
+      "seal_amt_ge_7e8": 0,
+      "prev_day_not_zt": 74,
+      "v1_eligible": 0,
+      "v2_eligible": 0,
+      "v21_eligible": 0
+    },
+    "aux_sources": {
+      "stk_auction_o": "checked via current monitor; pg unavailable",
+      "stk_limit": "checked via current monitor; pg unavailable",
+      "limit_list_d": "unavailable",
+      "kpl_list": "unavailable"
+    },
+    "models": {
+      "v1": {
+        "model": "v1",
+        "trigger_stocks": [],
+        "concepts": [],
+        "bonds": [],
+        "observation_bonds": [],
+        "pending_confirmation_stocks": [],
+        "rejections": []
+      },
+      "v2": {
+        "model": "v2",
+        "trigger_stocks": [],
+        "concepts": [],
+        "bonds": [],
+        "observation_bonds": [],
+        "pending_confirmation_stocks": [],
+        "rejections": []
+      },
+      "v2.1": {
+        "model": "v2.1",
+        "trigger_stocks": [],
+        "concepts": [],
+        "bonds": [],
+        "observation_bonds": [],
+        "pending_confirmation_stocks": [],
+        "rejections": []
+      }
+    }
+  }
+}

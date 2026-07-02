@@ -26,6 +26,20 @@ vi.mock('../api/client', () => ({
   alertApi: {
     getUnreadCount: vi.fn().mockResolvedValue({ data: { unread: 3 } }),
   },
+  marketApi: {
+    getIndexQuotes: vi.fn().mockResolvedValue({
+      data: {
+        data: {
+          diff: [
+            { f12: '000001', f2: 4075.5, f3: -0.9 },
+            { f12: '399001', f2: 15794.7, f3: -2.01 },
+            { f12: '399006', f2: 4121.09, f3: -3.28 },
+            { f12: '899050', f2: 1294.82, f3: 2.36 },
+          ],
+        },
+      },
+    }),
+  },
   clearPlatformContext: vi.fn(),
   injectPlatformContext: vi.fn(),
 }))
@@ -105,6 +119,8 @@ describe('App shell preview baseline', () => {
     expect(within(marketTape).getByText('深成')).toBeInTheDocument()
     expect(within(marketTape).getByText('创业板')).toBeInTheDocument()
     expect(within(marketTape).getByText('北证50')).toBeInTheDocument()
+    expect(await within(marketTape).findByText('4075.50')).toBeInTheDocument()
+    expect(within(marketTape).getByText('+2.36%')).toBeInTheDocument()
 
     expect(within(navigation).getByText('智能看板')).toBeInTheDocument()
     expect(within(navigation).getByText('开盘决策')).toBeInTheDocument()

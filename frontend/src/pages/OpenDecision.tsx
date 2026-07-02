@@ -22,13 +22,7 @@ const tabs = [
   { key: 'execution', path: '/open-decision/execution', label: '执行监控', subLabel: '链路状态' },
 ]
 
-const overnightNews = [
-  { type: '公告', tone: 'danger', title: '中芯国际: 收到证监会立案调查通知书', impact: '影响: 高 · 竞价强度需复核', time: '昨 20:35' },
-  { type: '公告', tone: 'danger', title: '贵州茅台: 半年度业绩预增 15%-20%', impact: '影响: 中 · 白酒高位分歧', time: '昨 19:00' },
-  { type: '外盘', tone: 'accent', title: '美股三大指数收涨 · 道指 +0.32% · 纳指 +1.15%', impact: '影响: 正向 · AI算力风险偏好回暖', time: '今 05:00' },
-  { type: '期货', tone: 'accent', title: 'A50 指数期货 +0.28% · 恒生期货 +0.45%', impact: '影响: 正向 · 开盘资金承接观察', time: '今 08:30' },
-  { type: '舆情', tone: 'warn', title: '热词: #降息预期 #半导体出口管制 #新能源政策', impact: '影响: 主题催化 · 纳入情绪模型', time: '-' },
-]
+const overnightNews: Array<{ type: string; tone: string; title: string; impact: string; time: string }> = []
 
 interface AuctionRow {
   code: string
@@ -146,6 +140,10 @@ function formatPct(value?: number) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
   const normalized = Math.abs(value) <= 1 ? value * 100 : value
   return `${normalized >= 0 ? '+' : ''}${normalized.toFixed(1)}%`
+}
+
+function currentTimeText() {
+  return new Date().toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' })
 }
 
 function signalLabel(level: StockSignal['level']) {
@@ -471,13 +469,14 @@ function DecisionOverview({
 }) {
   const avgScore = signalRows.length ? Math.round(signalRows.reduce((sum, row) => sum + row.score, 0) / signalRows.length) : 0
   const strongSignals = signalRows.filter(row => row.score >= 70 && row.risk === '通过').length
+  const nowText = currentTimeText()
   return (
     <>
       <section className="od-countdown card">
         <div>
-          <div className="od-time mono">12:45</div>
-          <strong>距竞价数据采集</strong>
-          <span>09:25 竞价撮合 · 数据源 Tushare stk_auction</span>
+          <div className="od-time mono">{nowText}</div>
+          <strong>当前时间</strong>
+          <span>竞价数据以 dashboard/auction 与 signal/live 返回为准</span>
         </div>
         <div className="prototype-panel-note">竞价开始后自动切换到竞价分析</div>
       </section>
@@ -485,7 +484,7 @@ function DecisionOverview({
       <div className="kpis od-kpis-5">
         <MetricCard label="情绪指数" value={avgScore ? String(avgScore) : '-'} sub="signal/live" tone="warn" />
         <MetricCard label="熔断器" value={error ? '复核' : '正常'} sub={error || '接口在线'} tone={error ? 'warn' : 'down'} />
-        <MetricCard label="隔夜公告" value="2条" sub="1条需关注" tone="up" />
+        <MetricCard label="隔夜公告" value="-" sub="暂无实时接口" tone="up" />
         <MetricCard label="候选池" value={`${candidateRows.length}只`} sub={`强信号 ${strongSignals} 只`} tone="accent" />
         <MetricCard label="数据状态" value={loading ? '加载中' : '已刷新'} sub="signal + trade + chain" tone="down" />
       </div>
@@ -504,23 +503,19 @@ function DecisionOverview({
                   <time className="mono">{item.time}</time>
                 </div>
               ))}
+              {overnightNews.length === 0 && <div className="prototype-panel-note">暂无隔夜新闻实时接口；不展示演示新闻。</div>}
             </div>
             <div className="od-news-summary">
               <div>
                 <span>摘要</span>
-                <strong>半导体与AI算力偏正向，白酒高位分歧需降权</strong>
+                <strong>等待新闻/舆情接口返回后生成摘要</strong>
               </div>
-              <button type="button" className="btn sm ghost">全部还原 LLM原始结果</button>
+              <button type="button" className="btn sm ghost" disabled>暂无原始结果</button>
             </div>
           </PrototypeCard>
 
           <PrototypeCard title="昨日复盘" icon={<LineChartOutlined />} meta="回看强势线索">
-            <div className="od-review-grid">
-              <div><b className="up mono">+2.8%</b><span>半导体延续</span></div>
-              <div><b className="up mono">+1.9%</b><span>新能源反弹</span></div>
-              <div><b className="warn mono">72</b><span>情绪偏牛</span></div>
-              <div><b className="down mono">83.6%</b><span>风控余量</span></div>
-            </div>
+            <div className="prototype-panel-note">暂无昨日复盘实时接口；不展示固定复盘样例。</div>
           </PrototypeCard>
 
           <PrototypeCard title="候选池预加载" icon={<ThunderboltOutlined />} meta="开盘前预热">
@@ -543,7 +538,7 @@ function DecisionOverview({
             </div>
           </PrototypeCard>
 
-          <PrototypeCard title="昨日强势板块 (可能延续)" icon={<BarChartOutlined />} meta="按共振强度">
+          <PrototypeCard title="实时板块共振" icon={<BarChartOutlined />} meta="按接口聚合">
             {sectorRows.slice(0, 4).map(row => (
               <div className="watch-sector-bar" key={row.name}>
                 <span>{row.name}</span>
@@ -557,7 +552,7 @@ function DecisionOverview({
       </div>
 
       <div className="footer-bar">
-        <span>开盘决策 · 决策总览 | 盘前 09:12</span>
+        <span>开盘决策 · 决策总览 | 当前 {nowText}</span>
         <span className="sep" />
         <span>隔夜新闻: stock_news + announcements + cctv_news</span>
         <span className="sep" />
@@ -607,7 +602,11 @@ function AuctionAnalysis({
           <div className="od-risk-icon">!</div>
           <div>
             <div className="od-risk-title">竞价风险提示 · 高开过热板块需二次确认</div>
-            <div className="prototype-panel-note">半导体、新能源板块竞价共振较强；若开盘 5 分钟量价不能延续，候选池标的进入信号扫描复核，不直接下单。</div>
+            <div className="prototype-panel-note">
+              {sectorRows.length
+                ? `${sectorRows.slice(0, 2).map(row => row.name).join('、')} 当前竞价共振靠前；若开盘 5 分钟量价不能延续，候选池标的进入信号扫描复核。`
+                : '暂无实时板块共振，等待 dashboard/auction 与 signal/live 返回。'}
+            </div>
           </div>
           <div className="od-risk-actions">
             <button type="button" className="btn sm ghost">查看意图全景</button>
@@ -692,27 +691,27 @@ function AuctionAnalysis({
 
         <div className="row r-16-8 mt14">
           <PrototypeCard title="竞价撮合价走势" icon={<LineChartOutlined />} meta="09:15-09:25 撮合价/匹配量">
-            <div className="od-trend-bars">
-              {[35, 46, 42, 58, 64, 79, 74, 88, 83, 96].map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}
-            </div>
-            <div className="prototype-panel-note mt14">撮合价持续上移且匹配量放大时，优先进入信号扫描复核。</div>
+            <div className="prototype-panel-note">暂无 09:15-09:25 分笔撮合序列接口；不展示模拟走势柱。</div>
           </PrototypeCard>
 
           <PrototypeCard title="四维评分" icon={<BarChartOutlined />} meta="价格方向 / 买卖压力 / 竞价强度 / 开盘延续">
-            <div className="od-score-bars">
-              {[
-                ['价格方向', 92],
-                ['买卖压力', 86],
-                ['竞价强度', 88],
-                ['开盘延续', 74],
-              ].map(([label, value]) => (
-                <div className="watch-sector-bar" key={label}>
-                  <span>{label}</span>
-                  <div><i style={{ width: `${value}%` }} /></div>
-                  <b className="up">{value}</b>
-                </div>
-              ))}
-            </div>
+            {firstBullish ? (
+              <div className="od-score-bars">
+                {[
+                  ['综合评分', firstBullish.score],
+                  ['竞价涨幅', Math.max(0, Math.min(100, Number(firstBullish.gap ?? 0) * 10))],
+                  ['量能强度', Math.max(0, Math.min(100, Number(firstBullish.vol ?? 0) * 10))],
+                ].map(([label, value]) => (
+                  <div className="watch-sector-bar" key={label}>
+                    <span>{label}</span>
+                    <div><i style={{ width: `${value}%` }} /></div>
+                    <b className="up">{value}</b>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="prototype-panel-note">暂无竞价评分标的。</div>
+            )}
             <div className="od-stock-info">
               <span className="code">{firstBullish?.code || '-'}</span>
               <b>{firstBullish?.name || '暂无标的'}</b>
@@ -734,7 +733,7 @@ function AuctionAnalysis({
           </div>
         </PrototypeCard>
 
-        <PrototypeCard title="全量竞价明细" icon={<BarChartOutlined />} meta="共 328 只 · 第 1-12 条" className="mt14">
+        <PrototypeCard title="全量竞价明细" icon={<BarChartOutlined />} meta={`共 ${bullishRows.length + bearishRows.length} 只 · 当前展示 ${Math.min(7, bullishRows.length + bearishRows.length)} 条`} className="mt14">
           <table className="tbl">
             <thead><tr><th>代码</th><th>名称</th><th>板块</th><th className="r">竞价涨跌</th><th className="r">竞量比</th><th className="r">评分</th><th>意图</th></tr></thead>
             <tbody>
@@ -1066,7 +1065,7 @@ function ExecutionMonitor({
           ['总资产', formatMoney(account?.total_assets), '账户 account.paper'],
           ['可用', formatMoney(account?.available), '可下单资金'],
           ['今日盈亏', formatMoney(account?.total_pnl), 'trade/account'],
-          ['总仓位', account?.market_value && account?.total_assets ? `${Math.round((account.market_value / account.total_assets) * 100)}%` : '-', '风险阈值 75%'],
+          ['总仓位', account?.market_value && account?.total_assets ? `${Math.round((account.market_value / account.total_assets) * 100)}%` : '-', '阈值以后端风控返回为准'],
         ].map(([label, value, sub]) => (
           <div key={label}>
             <span>{label}</span>
@@ -1140,12 +1139,13 @@ function ExecutionMonitor({
           </PrototypeCard>
 
           <PrototypeCard title="需关注" icon={<SafetyCertificateOutlined />}>
-            {['北方华创未完全成交，10:00 前复核', '白酒高位分歧，不进入追涨队列', '若仓位超过 70%，暂停新增订单'].map((item, index) => (
-              <div className="li-row" key={item}>
+            {orderRows.filter(row => row.status !== '已成交').map((row, index) => (
+              <div className="li-row" key={row.code}>
                 <span className="li-badge warn">{index + 1}</span>
-                <div className="li-main"><div className="n">{item}</div><div className="s">执行前提醒</div></div>
+                <div className="li-main"><div className="n">{row.name} {row.status}</div><div className="s">来自订单接口</div></div>
               </div>
             ))}
+            {orderRows.filter(row => row.status !== '已成交').length === 0 && <div className="prototype-panel-note">暂无执行提醒。</div>}
           </PrototypeCard>
         </div>
       </div>

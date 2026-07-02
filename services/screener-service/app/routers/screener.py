@@ -401,6 +401,65 @@ def _query_screener_latest_dates() -> dict[str, str]:
     return latest_dates
 
 
+def _query_index_close_quotes(trade_date: Optional[str] = None) -> dict[str, Any]:
+    """Return index close quotes from local index_daily as a post-market fallback."""
+    code_labels = {
+        "000001": "上证",
+        "399001": "深成",
+        "399006": "创业板",
+        "899050": "北证50",
+    }
+    codes_sql = ", ".join(f"'{code}'" for code in code_labels)
+    date_filter = ""
+    if trade_date:
+        safe_date = str(trade_date)[:10].replace("'", "")
+        date_filter = f"AND trade_date <= '{safe_date}'"
+
+    with _get_factor_db() as db:
+        date_row = db.execute(
+            f"""
+            SELECT MAX(trade_date)
+            FROM index_daily
+            WHERE code IN ({codes_sql})
+            {date_filter}
+            """
+        ).fetchone()
+        latest_date = _row_get(date_row, 0)
+        if not latest_date:
+            return {
+                "source": "index_daily",
+                "as_of": None,
+                "data": {"diff": []},
+            }
+
+        rows = db.execute(
+            f"""
+            SELECT code, close, change_pct, trade_date
+            FROM index_daily
+            WHERE trade_date = '{str(latest_date)[:10]}'
+              AND code IN ({codes_sql})
+            ORDER BY code
+            """
+        ).fetchall()
+
+    diff = []
+    for row in rows:
+        code = str(_row_get(row, "code") or _row_get(row, 0) or "")
+        diff.append({
+            "f12": code,
+            "f14": code_labels.get(code, code),
+            "f2": _row_get(row, "close") or _row_get(row, 1),
+            "f3": _row_get(row, "change_pct") or _row_get(row, 2),
+            "f4": None,
+            "f6": None,
+        })
+    return {
+        "source": "index_daily_close",
+        "as_of": str(latest_date)[:10],
+        "data": {"diff": diff},
+    }
+
+
 def _row_get(row, key, default=None):
     try:
         return row[key]
@@ -1536,6 +1595,25 @@ async def list_modes():
             {"id": "supply_chain",  "name": "大葱产业链解构选股", "cycle": "3-12月", "style": "中长线"},
         ]
     }
+
+
+@router.get("/market/index-quotes")
+async def market_index_quotes(trade_date: Optional[str] = Query(None)):
+    """Index quotes for the header tape.
+
+    Real-time index quote vendors can be unavailable after close. This endpoint
+    returns the latest local index_daily close snapshot at or before trade_date.
+    """
+    try:
+        return _query_index_close_quotes(trade_date)
+    except Exception as e:
+        logger.warning("index close quote lookup failed: %s", e)
+        return {
+            "source": "index_daily_close",
+            "as_of": None,
+            "data": {"diff": []},
+            "fallback_reason": str(e),
+        }
 
 
 @router.get("/supply-chain/themes")

@@ -1,5 +1,4 @@
 {
-  "version": 1,
   "bugs": [
     {
       "id": "bug-001",
@@ -48,6 +47,43 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-06-30T04:07:22.837Z"
+    },
+    {
+      "id": "bug-004",
+      "timestamp": "2026-07-02",
+      "error_message": "hk_holdings北向持股表code存储5位(933/935行), 沪市6开头code整体缺失(06-30 LIKE '6%'空), 无法join 6位A股码表",
+      "file": "packages/kronos-data/kronos_data/etl.py (sync_hk_hold)",
+      "root_cause": "【2026-07-02修正】非code损坏。hk_hold接口exchange值是SH/SZ(非SSE), sync_hk_hold没传exchange默认拿了南向港股(.HK码5位)。但关键:北向(exchange=SH/SZ)自2024-08交易所停止披露个股持股后, 2024-07起返回空(2023-12-29仍有1513/1758行)。即北向个股持股数据源已不可得(政策限制),非ETL bug。",
+      "fix": "【修正】不可修sync_hk_hold拿北向(数据源停止)。正确: ①hk_holdings保留南向, 注释改为south-bound; ②机构活跃度北向维度改用hsgt_top10(每日十大成交net_amount, 收盘后仍公布); ③北向个股持股如需回测只能用2024-08前历史。",
+      "tags": [
+        "hk_holdings",
+        "northbound",
+        "code-format",
+        "etl",
+        "institutional-activity",
+        "policy-stop",
+        "2024-08",
+        "exchange-param"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-02"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-07-02T08:50:33.345Z",
+      "error_message": "Significant refactor of ",
+      "file": "tools/backtest_institutional_activity.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 8→13 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-02T08:50:33.345Z"
     }
   ]
 }
