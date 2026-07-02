@@ -227,6 +227,66 @@ describe('Predictions', () => {
 
     expect(await screen.findByText('近30日')).toBeInTheDocument()
     expect((predictionApi as any).getAccuracyBacktest).toHaveBeenCalled()
-    expect(screen.getByText(/awaits persisted prediction labels/)).toBeInTheDocument()
+    // fallback_reason 现同时在「预测 vs 实际走势」EmptyState 与「回测说明」面板出现（5.3 多处诚实降级）
+    expect(screen.getAllByText(/awaits persisted prediction labels/).length).toBeGreaterThan(0)
+  })
+
+  // 5.1 单股预测：专属渲染对齐 preview —— 30 日 K线路径 + 置信区间 + 信号一致性 + 因子贡献卡片。
+  // 后端字段未齐时三卡片走 EmptyState + fallback_reason 不空白（AC③ + AC⑧）。
+  it('5.1 single: 渲染预测路径图 + 信号一致性/因子贡献 EmptyState（后端字段未齐诚实降级）', async () => {
+    renderPredictions('/predictions/single')
+
+    expect(screen.getByRole('heading', { name: '单股预测' })).toBeInTheDocument()
+    // 信号一致性卡片（专属渲染，非通用壳）
+    expect(await screen.findByText('信号一致性')).toBeInTheDocument()
+    expect(screen.getByText('信号一致性待补齐')).toBeInTheDocument()
+    // 因子贡献卡片
+    expect(screen.getByText('因子贡献')).toBeInTheDocument()
+    expect(screen.getByText('因子贡献待补齐')).toBeInTheDocument()
+    // 触发预测后渲染路径图（mock-chart）
+    fireEvent.click(screen.getByRole('button', { name: '开始预测' }))
+    const charts = await screen.findAllByTestId('mock-chart')
+    expect(charts.length).toBeGreaterThanOrEqual(1)
+  })
+
+  // 5.2 多股对比：专属渲染对齐 preview —— 对比矩阵 + 置信度列 + 叠加预测曲线。
+  it('5.2 compare: 运行对比后渲染对比矩阵 + 置信度列 + 叠加预测曲线图', async () => {
+    renderPredictions('/predictions/compare')
+
+    fireEvent.click(await screen.findByRole('button', { name: '运行对比' }))
+
+    await waitFor(() => {
+      expect((predictionApi as any).compare).toHaveBeenCalledWith(['300750', '000001', '002594'], 20)
+    })
+    // 对比矩阵含置信度列头
+    expect(await screen.findByText('置信度')).toBeInTheDocument()
+    // 叠加预测曲线卡片 + 图表
+    expect(screen.getByText('叠加预测曲线（归一化涨跌幅%）')).toBeInTheDocument()
+    expect(screen.getAllByTestId('mock-chart').length).toBeGreaterThanOrEqual(1)
+  })
+
+  // 5.2 多股对比：空结果走 EmptyState（不空白）
+  it('5.2 compare: 未运行对比 → 对比矩阵与叠加曲线均走 EmptyState', async () => {
+    renderPredictions('/predictions/compare')
+
+    expect(await screen.findByText('暂无对比结果')).toBeInTheDocument()
+    expect(screen.getByText('叠加曲线待对比')).toBeInTheDocument()
+  })
+
+  // 5.3 准确率回测：专属渲染对齐 preview —— 4 项统计 + 预测vs实际 EmptyState + 命中序列 EmptyState。
+  // 后端逐日序列/逐次命中字段未齐 → 多处 EmptyState + fallback_reason（AC③ + AC⑧）。
+  it('5.3 backtest: 渲染预测vs实际 + 命中序列 EmptyState（后端字段未齐诚实降级，不展示假图）', async () => {
+    renderPredictions('/predictions/backtest')
+
+    expect(await screen.findByText('预测路径 vs 实际走势 · 偏离区间范围')).toBeInTheDocument()
+    // 预测 vs 实际 EmptyState
+    expect(screen.getByText('预测 vs 实际走势待补齐')).toBeInTheDocument()
+    // 命中序列卡片 + EmptyState
+    expect(screen.getByText('最近命中序列')).toBeInTheDocument()
+    expect(screen.getByText('命中序列待补齐')).toBeInTheDocument()
+    // 平均/最大误差/连对三档 '--' + fallback（不展示假数）
+    expect(screen.getAllByText('平均误差').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('最大误差').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('最长连对').length).toBeGreaterThanOrEqual(1)
   })
 })

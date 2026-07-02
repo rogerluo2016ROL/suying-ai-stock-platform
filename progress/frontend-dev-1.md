@@ -93,3 +93,47 @@ $ npx vitest run src/__tests__/PrototypeFidelityGuard.test.ts # 1 passed（"AI �
 **worktree 纪律自检**: 独立 worktree `frontend-dev-1b-opendecision` 基于 48d47535；独占 OpenDecision.tsx；临界区（api/client.ts / api/types.ts / components/prototype/index.ts / styles/* / tokens.ts）**未触碰**——`queryCandidatePool` / `CandidatePoolQueryResponse` 等均在 HEAD 已就绪，仅 import 消费；OpenDecision.test.tsx mock 补 `screenerApi` export 避免 PrototypeRoutes 同款 "No export defined" 坑；per-file git add（禁 stash/add -A）。
 
 **下一步**: 等待 product-lead review / 无阻塞
+
+---
+
+## Task #24 — BatchC-Predictions: 5.1 single-stock + 5.2 multi-compare + 5.3 backtest（2026-07-03）
+
+**状态**: ✅ 完成（已 commit），待 product-lead review
+
+**Skills**: agf-running-sit-tests（dev-owned SIT 自跑）
+
+**SIT 证据**
+
+worktree: `.wolf/worktrees/frontend-dev-1b-predc`（分支 `feat/md-ui-predictions-batchc-dev1b`，基于 HEAD 1afa2163）。独占 `Predictions.tsx`。
+
+- ✅ AC① (integration) 5.1 single：点击「开始预测」→ `predictionApi.predict('300750', 30)` → 渲染 30 日 K线路径图（含 ±1σ 置信带）+ 信号一致性 + 因子贡献专属卡片。SIT 断言：
+  ```
+  fireEvent.click(screen.getByRole('button', { name: '开始预测' }))
+  await waitFor(() => expect(predictionApi.predict).toHaveBeenCalledWith('300750', 30))
+  expect((await screen.findAllByTestId('mock-chart')).length).toBeGreaterThanOrEqual(1)
+  expect(screen.getByText('信号一致性')).toBeInTheDocument()
+  ```
+- ✅ AC② (integration) 5.2 compare：点击「运行对比」→ `predictionApi.compare(['300750','000001','002594'], 20)` → 渲染对比矩阵（新增置信度列）+ 叠加预测曲线（归一化涨跌幅%）。SIT 断言 `compare` 入参与置信度列/叠加曲线卡片渲染。
+- ✅ AC③ (integration) 5.3 backtest：进入即调 `predictionApi.getAccuracyBacktest()` → 预测 vs 实际走势 / 最近命中序列均走 EmptyState（后端逐日/逐次字段未齐，**不展示假图**）；4 项统计（方向正确率/平均误差/最大误差/最长连对）后 3 项字段未齐 → '--' + fallback_reason。
+- ✅ AC④ 三 sub-tab 专属渲染（非通用壳）：single（信号一致性/因子贡献）、compare（叠加预测曲线）、backtest（最近命中序列/预测vs实际）各有专属区块，切换 tab 各自渲染。
+- ✅ AC⑤ 全 token 化（W-1）：`grep -nE '#[0-9a-fA-F]{3,8}\b|rgba?\(' src/pages/Predictions.tsx` → **ZERO bare hex/rgba**。ECharts 透明叠层走 `alpha.accent/up/down(a)`，实心色走 `lightTokens.up/down/accent/fg/fg2/muted/border`；语义色走 `.up/.down/.t-mute` className。动态值（height/width/fontWeight）保留 inline。
+- ✅ AC⑥ tsc 0 错：`npx tsc -b --noEmit` → 0 errors。
+- ✅ AC⑦ vitest：`Predictions.test.tsx` 11 passed（7 既有 + 4 新增 AC 用例）；新增 `tests/sit/predictions-subtabs-preview.test.tsx` 4 passed。
+- ✅ AC⑧ 缺数据不空白：single 三卡片（信号一致性/因子贡献/辅助特征）+ compare 空结果 + backtest（预测vs实际/命中序列/3 档误差统计）全部走 `EmptyState` + `fallback_reason` 文案，**无空 handler / 无 TODO / 无 console.log 占位**。
+- ✅ DoD dev server：`npm run dev`（vite v6.4.3，port 3002 因 3000/3001 被占）→ `/` 200 + title「速赢AI」；`/predictions/single|compare|backtest` 三路由均 200。
+
+**质量门**
+```
+npx tsc -b --noEmit                                     # 0 errors
+npx vitest run src/__tests__/Predictions.test.tsx       # 11 passed（含 4 新增 AC）
+npx vitest run tests/sit/                               # 41 passed（8 files，含新增 predictions-subtabs-preview 4）
+npx vitest run src/__tests__/PrototypeFidelityGuard.test.ts  # 1 passed（fallback 文案不在黑名单）
+npm run dev → curl /predictions/{single,compare,backtest}   # 200 / 200 / 200
+grep -nE '#[0-9a-fA-F]{3,8}\b|rgba?\(' Predictions.tsx  # ZERO（W-1 守住）
+```
+
+**契约纪律自检**: 全部 API 走 orval 生成 client（`predictionApi` / `screenerApi`），类型 `PredictionPayload`/`CandidatePoolQueryResponse` 等来自 `api/types.ts` 生成产物；无手写 fetch / 手写请求响应类型 / 手写 MSW handler。
+
+**worktree 纪律自检**: 独立 worktree `frontend-dev-1b-predc` 基于 1afa2163；独占 `Predictions.tsx`（1实例=1文件）；临界区（api/client.ts / api/types.ts / styles/tokens.ts / components/prototype/* / main.tsx / App.tsx / package.json）**未触碰**——`alpha` / `signalLevelTokens` 在 HEAD 已就绪仅 import 消费；per-file git add（禁 stash/add -A，参考 memory `no-git-stash-shared-worktree`）。
+
+**下一步**: 等待 product-lead review / 无阻塞

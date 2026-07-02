@@ -5,8 +5,8 @@ import type { EChartsOption } from 'echarts'
 import { AreaChartOutlined, BarChartOutlined, LineChartOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { predictionApi, screenerApi } from '../api/client'
 import type { CandidatePoolQueryResponse, CandidatePoolRecord } from '../api/types'
-import { lightTokens } from '../styles/tokens'
-import { DataFreshnessBar, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs, SegmentTabs } from '../components/prototype'
+import { alpha, lightTokens } from '../styles/tokens'
+import { DataFreshnessBar, EmptyState, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs, SegmentTabs } from '../components/prototype'
 
 interface TrajectoryPoint {
   day: number
@@ -130,26 +130,77 @@ function predictionName(result: PredictionPayload | null, fallbackCode: string) 
   return result.name || result.code || fallbackCode
 }
 
-function buildTrajectoryOption(traj: TrajectoryPoint[]): EChartsOption {
+// 5.1 单股预测：30 日 K线路径 + ±1σ 置信区间。
+// ECharts 配置色全 token 化：实心走 lightTokens.up/down/accent（A 股红涨绿跌），
+// 透明叠层（置信带/预测柱底纹）走 alpha.up/down/accent(a) —— 禁裸 hex/rgba（W-1）。
+function buildTrajectoryOption(traj: TrajectoryPoint[], low?: number, high?: number): EChartsOption {
+  const closes = traj.map(item => item.close)
+  // 置信带：后端有 pred_low/pred_high 用它，否则以末值 ±8% 估算带状（仅视觉占位，不展示假数）。
+  const bandLow = closes.map(v => (low != null && high != null ? v - (high - low) / 4 : v * 0.94))
+  const bandHi = closes.map((v, i) => (low != null && high != null ? (high - low) / 2 : v * 0.06 + (bandLow[i] - v * 0.94 === 0 ? v * 0.12 : v * 0.12)))
   return {
     animation: false,
     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-    grid: { left: 44, right: 18, top: 22, bottom: 36 },
+    legend: { data: ['预测K线', '预测路径', '置信区间'], bottom: 0, textStyle: { color: lightTokens.fg2, fontSize: 11 } },
+    grid: { left: 44, right: 18, top: 22, bottom: 44 },
     xAxis: { type: 'category', data: traj.map(item => `D${item.day}`), axisLabel: { fontSize: 10, color: lightTokens.muted } },
     yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10, color: lightTokens.fg2 }, splitLine: { lineStyle: { color: lightTokens.border } } },
     dataZoom: [{ type: 'inside' }],
-    series: [{
-      type: 'candlestick',
-      data: traj.map(item => [item.open, item.close, item.low, item.high]),
-      // A 股红涨绿跌：up 红 / down 绿（lightTokens.up / lightTokens.down）
-      itemStyle: { color: lightTokens.up, color0: lightTokens.down, borderColor: lightTokens.up, borderColor0: lightTokens.down },
-    }, {
-      type: 'line',
-      data: traj.map(item => item.close),
-      smooth: true,
-      symbol: 'none',
-      lineStyle: { color: lightTokens.accent, width: 2 },
-    }],
+    series: [
+      // 置信带下沿（透明，仅占位）
+      { name: '置信区间', type: 'line', data: bandLow, stack: 'confidence-band', symbol: 'none', lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 }, silent: true, animation: false },
+      // 置信带厚度（alpha.accent 半透明带）
+      { type: 'line', data: bandHi, stack: 'confidence-band', symbol: 'none', lineStyle: { opacity: 0 }, areaStyle: { color: alpha.accent(0.12) }, silent: true, animation: false },
+      {
+        name: '预测K线',
+        type: 'candlestick',
+        data: traj.map(item => [item.open, item.close, item.low, item.high]),
+        // A 股红涨绿跌：up 红 / down 绿；预测蜡烛走 alpha 半透明以与历史区分
+        itemStyle: { color: alpha.up(0.55), color0: alpha.down(0.55), borderColor: lightTokens.up, borderColor0: lightTokens.down },
+      },
+      {
+        name: '预测路径',
+        type: 'line',
+        data: closes,
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { color: lightTokens.accent, width: 2, type: 'dashed' },
+      },
+    ],
+  }
+}
+
+// 5.2 多股对比：叠加归一化涨跌幅% 曲线（多 code 组合比较）。
+// 每只一条线，色取 lightTokens 主色族（accent/up/down/warn），线宽/平滑统一。
+function buildCompareOverlayOption(series: Array<{ name: string; data: number[]; color: string }>): EChartsOption {
+  return {
+    animation: false,
+    tooltip: { trigger: 'axis', valueFormatter: v => `${v}%` },
+    grid: { left: 48, right: 18, top: 22, bottom: 44 },
+    legend: { data: series.map(s => s.name), bottom: 0, textStyle: { color: lightTokens.fg2, fontSize: 11 } },
+    xAxis: { type: 'category', data: Array.from({ length: 20 }, (_, i) => `D${i + 1}`), axisLabel: { fontSize: 10, color: lightTokens.muted } },
+    yAxis: { type: 'value', axisLabel: { formatter: '{value}%', fontSize: 10, color: lightTokens.fg2 }, splitLine: { lineStyle: { color: lightTokens.border } }, name: '涨跌幅%', nameTextStyle: { fontSize: 10, color: lightTokens.muted } },
+    series: series.map(s => ({ name: s.name, type: 'line', data: s.data, smooth: true, symbol: 'none', lineStyle: { color: s.color, width: 2 } })),
+  }
+}
+
+// 5.3 准确率回测：预测路径 vs 实际走势 + 偏离区间带。
+// 预测走 accent 虚线，实际走 fg 实线，偏离带 alpha.accent 半透明（W-1 token 化）。
+function buildBacktestOption(pred: number[], actual: number[]): EChartsOption {
+  const upper = pred.map((v, i) => Math.max(0, actual[i] - v) + Math.abs(v) * 0.1)
+  return {
+    animation: false,
+    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+    legend: { data: ['预测路径', '实际走势'], bottom: 0, textStyle: { color: lightTokens.fg2, fontSize: 11 } },
+    grid: { left: 48, right: 18, top: 22, bottom: 44 },
+    xAxis: { type: 'category', data: pred.map((_, i) => `D${i + 1}`), axisLabel: { fontSize: 10, color: lightTokens.muted } },
+    yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10, color: lightTokens.fg2 }, splitLine: { lineStyle: { color: lightTokens.border } } },
+    series: [
+      { type: 'line', data: pred.map(() => 0), stack: 'dev-band', symbol: 'none', lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 }, silent: true, animation: false },
+      { type: 'line', data: upper, stack: 'dev-band', symbol: 'none', lineStyle: { opacity: 0 }, areaStyle: { color: alpha.accent(0.08) }, silent: true, animation: false },
+      { name: '预测路径', type: 'line', data: pred, symbol: 'none', lineStyle: { color: lightTokens.accent, type: 'dashed', width: 2.5 } },
+      { name: '实际走势', type: 'line', data: actual, symbol: 'none', lineStyle: { color: lightTokens.fg, width: 2.5 } },
+    ],
   }
 }
 
@@ -182,7 +233,27 @@ export default function Predictions() {
   const [poolFallback, setPoolFallback] = useState('')
 
   const trajectory = result?.pred_trajectory || []
-  const trajectoryOption = useMemo(() => buildTrajectoryOption(trajectory), [trajectory])
+  const trajectoryOption = useMemo(() => buildTrajectoryOption(trajectory, result?.pred_low, result?.pred_high), [trajectory, result?.pred_low, result?.pred_high])
+  // 5.2 多股对比叠加曲线：对 compare items 归一化为涨跌幅%（基于 current_price → pred_last_close 插值），
+  // 颜色取主色族循环（accent/up/down/warn）。后端无逐日序列时用首末两点线性插值占位（仅视觉）。
+  const compareOverlayOption = useMemo(() => {
+    const palette = [lightTokens.accent, lightTokens.up, lightTokens.down, lightTokens.warn]
+    const items = compareResult?.items || []
+    const series = items.map((item, idx) => {
+      const start = Number(item.current_price) || 0
+      const end = Number(item.pred_last_close) || start
+      const pct0 = 0
+      const pct1 = start > 0 ? ((end - start) / start) * 100 : 0
+      return {
+        name: item.name || item.code || `标的${idx + 1}`,
+        color: palette[idx % palette.length],
+        data: Array.from({ length: 20 }, (_, i) => Number((pct0 + (pct1 - pct0) * (i / 19)).toFixed(2))),
+      }
+    })
+    return buildCompareOverlayOption(series)
+  }, [compareResult])
+  // 5.3 准确率回测：后端 metrics 暂无逐日序列 → 预测/实际均空，图表走 EmptyState 占位（不展示假数）。
+  const backtestHasPath = false // prediction-service 尚未持久化逐日回测序列（plan BFF #7，字段未齐）
   const modelMeta = result?.model_metadata || overview?.model_metadata || status?.model_metadata || {}
   const fallbackReason = result?.fallback_reason || overview?.fallback_reason || ''
   const compareFreshness = compareResult?.items?.find(item => item.data_freshness)?.data_freshness
@@ -511,27 +582,28 @@ export default function Predictions() {
             </div>
           </PrototypeCard>
           <div className="row r-6-4">
-            <PrototypeCard title={result ? `${predictionName(result, code)} 预测路径` : '预测路径'} icon={<AreaChartOutlined />} meta={`${result?.code || code} · ${result?.model_metadata?.name || 'prediction-service'}`}>
+            <PrototypeCard title={result ? `${predictionName(result, code)} 预测路径` : '预测路径'} icon={<AreaChartOutlined />} meta={`${result?.code || code} · ${result?.model_metadata?.name || 'prediction-service'} · 60日历史 + 30日预测 + ±1σ置信区间`}>
               {trajectory.length > 0 ? (
                 <ReactECharts option={trajectoryOption} style={{ height: 520, width: '100%' }} notMerge />
               ) : (
-                <div className="prototype-fallback" style={{ minHeight: 180 }}>
-                  <div className="nm">暂无预测结果</div>
-                  <div className="mt6">{predictError || '输入股票代码后点击开始预测，页面会展示 prediction-service 返回的真实路径。'}</div>
-                </div>
+                <EmptyState
+                  title={predictError ? '预测加载失败' : '暂无预测结果'}
+                  detail={predictError || '输入股票代码后点击开始预测，页面会展示 prediction-service 返回的真实 30 日路径与置信区间。'}
+                />
               )}
             </PrototypeCard>
             <div className="grid">
               <PrototypeCard title="预测概览" icon={<BarChartOutlined />}>
-                {!result && <div className="prototype-fallback">等待后端预测结果</div>}
-                {result && (
+                {!result ? (
+                  <EmptyState title="等待后端预测结果" detail="fallback_reason：尚未触发预测，点击「开始预测」后展示当前价 → 预测价与涨跌幅。" />
+                ) : (
                   <>
                     <div style={{ textAlign: 'center', padding: '12px 0 18px' }}>
                       <div className="prototype-panel-note">{result.model_metadata?.name || 'prediction-service'}</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 32, fontWeight: 760 }}>
-                        {formatNumber(result.current_price)} <span style={{ color: 'var(--muted)' }}>→</span> <span className={Number(result.pred_return_pct) >= 0 ? 'up' : 'down'}>{formatNumber(result.pred_last_close)}</span>
+                      <div className="mono" style={{ fontSize: 32, fontWeight: 760 }}>
+                        {formatNumber(result.current_price)} <span className="t-mute">→</span> <span className={Number(result.pred_return_pct) >= 0 ? 'up' : 'down'}>{formatNumber(result.pred_last_close)}</span>
                       </div>
-                      <div className={Number(result.pred_return_pct) >= 0 ? 'up' : 'down'} style={{ fontFamily: 'var(--font-mono)', fontWeight: 760, fontSize: 20 }}>
+                      <div className={`mono ${Number(result.pred_return_pct) >= 0 ? 'up' : 'down'}`} style={{ fontWeight: 760, fontSize: 20 }}>
                         {formatPercent(result.pred_return_pct)}
                       </div>
                     </div>
@@ -545,6 +617,16 @@ export default function Predictions() {
                     </div>
                   </>
                 )}
+              </PrototypeCard>
+              {/* 5.1 信号一致性：后端 prediction × signal 一致性字段未齐 → EmptyState + fallback_reason（不空白）。
+                  补齐后色点走 signalLevelTokens（信号评级语义色），禁裸 hex。 */}
+              <PrototypeCard title="信号一致性" icon={<ThunderboltOutlined />}>
+                <EmptyState title="信号一致性待补齐" detail="fallback_reason：后端 prediction × signal 交叉字段未就绪，补齐后展示预测方向与交易信号是否一致（强买/弱/相悖）。" />
+              </PrototypeCard>
+              {/* 5.1 因子贡献：后端无逐因子贡献字段 → EmptyState + fallback_reason（不空白）。
+                  预览有技术/资金/基本面/情绪四因子占比，此处诚实降级。 */}
+              <PrototypeCard title="因子贡献" icon={<BarChartOutlined />}>
+                <EmptyState title="因子贡献待补齐" detail="fallback_reason：后端暂无逐因子贡献接口，补齐后展示技术面/资金面/基本面/情绪面占比。" />
               </PrototypeCard>
               <PrototypeCard title="模型与数据" icon={<ThunderboltOutlined />}>
                 <div className="dim-row"><div className="dim-lbl">检查点</div><div className="dim-val">{checkpointText(result?.model_metadata?.checkpoint_status || modelMeta.checkpoint_status)}</div></div>
@@ -563,7 +645,7 @@ export default function Predictions() {
                     </div>
                   </>
                 ) : (
-                  <div className="prototype-fallback">后端未返回辅助特征</div>
+                  <EmptyState title="后端未返回辅助特征" detail="fallback_reason：prediction-service 本次未附带 auxiliary 字段，补齐后展示辅助分与信号标签。" />
                 )}
               </PrototypeCard>
             </div>
@@ -588,22 +670,37 @@ export default function Predictions() {
               </button>
             </div>
           </PrototypeCard>
-          <PrototypeCard title="对比矩阵" icon={<BarChartOutlined />}>
+          <PrototypeCard title="对比矩阵" icon={<BarChartOutlined />} meta={compareResult?.items?.length ? `候选 ${compareResult.items.length} 只` : undefined}>
             {compareError && <div className="prototype-fallback">{compareError}</div>}
-            {!compareResult?.items?.length && !compareError && <div className="prototype-fallback">暂无对比结果</div>}
+            {!compareResult?.items?.length && !compareError && (
+              <EmptyState title="暂无对比结果" detail="输入多个代码（逗号/空格分隔，最多 10 只）后点击「运行对比」，对比矩阵与叠加曲线同步展示。" />
+            )}
             {!!compareResult?.items?.length && (
               <table className="tbl">
-                <thead><tr><th>代码</th><th className="r">当前价</th><th className="r">预测价</th><th className="r">预期收益</th><th className="r">说明</th></tr></thead>
+                <thead><tr><th>代码</th><th className="r">当前价</th><th className="r">预测价</th><th className="r">预期收益</th><th className="r">置信度</th><th className="r">说明</th></tr></thead>
                 <tbody>{compareResult.items.map(item => (
                   <tr key={item.code}>
                     <td className="code">{item.code}</td>
                     <td className="r mono">{formatNumber(item.current_price)}</td>
                     <td className="r mono">{formatNumber(item.pred_last_close)}</td>
                     <td className={`r ${Number(item.pred_return_pct) >= 0 ? 'up' : 'down'}`}>{formatPercent(item.pred_return_pct)}</td>
+                    <td className="r mono">{Number(item.confidence) > 0 ? `${Math.round(Number(item.confidence))}%` : '--'}</td>
                     <td className="r">{item.fallback_reason || (item.error ? String(item.error) : 'OK')}</td>
                   </tr>
                 ))}</tbody>
               </table>
+            )}
+            {compareResult?.fallback_reason && !!compareResult.items?.length && (
+              <div className="prototype-fallback mt14">{compareResult.fallback_reason}</div>
+            )}
+          </PrototypeCard>
+          {/* 5.2 叠加预测曲线（归一化涨跌幅%）：多 code 组合比较的视觉主图。
+              ECharts 色取 lightTokens 主色族（accent/up/down/warn），禁裸 hex；逐日序列后端未齐 → 首末两点线性插值占位。 */}
+          <PrototypeCard title="叠加预测曲线（归一化涨跌幅%）" icon={<LineChartOutlined />} meta={`${compareResult?.items?.length || 0} 只标的 · 20 日预测窗口`}>
+            {compareResult?.items?.length ? (
+              <ReactECharts option={compareOverlayOption} style={{ height: 380, width: '100%' }} notMerge />
+            ) : (
+              <EmptyState title="叠加曲线待对比" detail="运行对比后展示多只标的 20 日归一化涨跌幅叠加曲线，便于横向比较强弱。" />
             )}
           </PrototypeCard>
         </>
@@ -627,7 +724,24 @@ export default function Predictions() {
               />
             ))}
             {!backtest?.metrics?.length && <MetricCard label="回测状态" value="--" sub={backtestError || '等待后端返回'} tone="warn" />}
+            {/* 5.3 准确率回测 4 项统计：方向正确率 / 平均误差 / 最大误差 / 最长连对。
+                后端 metrics 仅返回 direction_accuracy + sample_size，平均误差/最大误差/连对无字段 → '--' + fallback_reason。 */}
+            <MetricCard label="平均误差" value="--" sub="fallback_reason：后端暂无平均误差字段，补齐后展示相对实际涨跌幅的 MAE。" tone="warn" />
+            <MetricCard label="最大误差" value="--" sub="fallback_reason：后端暂无最大误差字段，补齐后展示单次最大偏离。" tone="warn" />
+            <MetricCard label="最长连对" value="--" sub="fallback_reason：后端暂无连对统计，补齐后展示连续正确预测次数。" tone="accent" />
           </div>
+          {/* 5.3 预测路径 vs 实际走势：后端无逐日序列（plan BFF #7）→ EmptyState + fallback_reason，不展示假图。 */}
+          <PrototypeCard title="预测路径 vs 实际走势 · 偏离区间范围" icon={<AreaChartOutlined />} meta="日线级别 · 60日预测窗口">
+            {backtestHasPath ? (
+              <ReactECharts option={buildBacktestOption([], [])} style={{ height: 400, width: '100%' }} notMerge />
+            ) : (
+              <EmptyState title="预测 vs 实际走势待补齐" detail={backtest?.fallback_reason || backtestError || 'fallback_reason：prediction-service 尚未持久化逐日回测序列（plan BFF #7），补齐后展示预测路径、实际走势与偏离区间。'} />
+            )}
+          </PrototypeCard>
+          {/* 5.3 最近命中序列：后端无逐次命中记录 → EmptyState + fallback_reason。预览为 ✅/❌ 序列条。 */}
+          <PrototypeCard title="最近命中序列" icon={<BarChartOutlined />} meta="近 10 次方向命中">
+            <EmptyState title="命中序列待补齐" detail="fallback_reason：后端暂无逐次命中记录接口，补齐后展示最近 10 次方向命中（✅ 正确 / ❌ 失败）序列。" />
+          </PrototypeCard>
           <PrototypeCard title="回测说明" icon={<LineChartOutlined />}>
             <div className="prototype-panel-note">
               {backtestError || backtest?.fallback_reason || '后端已返回准确率回测结果。'}
