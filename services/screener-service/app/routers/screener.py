@@ -15,7 +15,7 @@ from fastapi import APIRouter, Body, Depends, Header, Query, HTTPException
 from pydantic import BaseModel, Field
 import numpy as np
 
-from app import candidate_pool_store
+from app import candidate_pool_store, watchlist_store
 from app.config import AVAILABLE_MODES, DEFAULT_TOP_N, MAX_TOP_N
 from app.database import AsyncSession, get_db
 
@@ -7152,4 +7152,242 @@ async def query_candidate_pool(
             records=[],
             empty_state={"hint": "query_failed", "suggestion": str(e)},
             fallback_reason=f"query_failed: {e}",
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Watchlist REST API — 自选股（POST 加自选 / GET 查列表 / DELETE 移除）
+#
+# 解禁前端 Screener / OpenDecision 的"加入自选"按钮。完全仿 candidate-pool：
+# scope（tenant_id / owner_user_id / account_id）全部从认证头注入，前端绝不传明文。
+# ─────────────────────────────────────────────────────────────────────────────
+
+class WatchlistAddRequest(BaseModel):
+    """POST /screener/watchlist 入参。scope 字段不在 body（Header 注入）。"""
+
+    code: str = Field(..., description="股票代码，如 300750 / 600519")
+    name: Optional[str] = Field(default=None, description="股票名称")
+    notes: Optional[str] = Field(default=None, description="自选备注")
+    sort_order: int = Field(default=0, description="排序权重，升序")
+    watchlist_metadata: dict[str, Any] = Field(
+        default_factory=dict, description="附加元数据"
+    )
+    visibility: str = Field(default="private", description="可见性：private / tenant_shared / public")
+    data_scope: str = Field(default="account", description="数据范围：account / tenant / user / public")
+
+
+class WatchlistItemResponse(BaseModel):
+    """单条自选记录（add 返回体 + list.records 元素 shape）。"""
+
+    id: int = Field(..., description="行 id")
+    tenant_id: str = Field(..., description="租户 id")
+    owner_user_id: Optional[str] = Field(default=None)
+    account_id: Optional[str] = Field(default=None)
+    visibility: str
+    data_scope: str
+    code: str
+    name: Optional[str] = None
+    notes: Optional[str] = None
+    sort_order: int
+    added_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class WatchlistAddResponse(BaseModel):
+    """POST /screener/watchlist 响应。"""
+
+    record: Optional[WatchlistItemResponse] = None
+    fallback_reason: Optional[str] = Field(
+        default=None, description="非空表示降级（PG 不可用、db 未注入、持久化失败）"
+    )
+
+
+class WatchlistQueryResponse(BaseModel):
+    """GET /screener/watchlist 响应。"""
+
+    total: int
+    page: int
+    page_size: int
+    records: list[WatchlistItemResponse] = Field(default_factory=list)
+    empty_state: Optional[dict[str, Any]] = None
+    fallback_reason: Optional[str] = None
+
+
+class WatchlistDeleteResponse(BaseModel):
+    """DELETE /screener/watchlist 响应。"""
+
+    deleted: int = Field(..., description="实际删除行数（0 表示无权限或不存在）")
+    code: Optional[str] = None
+    id: Optional[int] = None
+    fallback_reason: Optional[str] = None
+
+
+@router.post(
+    "/watchlist",
+    response_model=WatchlistAddResponse,
+    operation_id="add_watchlist",
+    summary="加入自选股（scope 从认证头注入）",
+)
+async def add_watchlist(
+    payload: WatchlistAddRequest,
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    owner_user_id: str | None = Header(default=None, alias="X-Owner-User-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    db: AsyncSession | None = Depends(get_db),
+):
+    """加入自选股（UPSERT：同一 scope + code 重复加只更新 name/notes/sort_order）。
+
+    PG 不可用或 db 未注入时降级返回 `fallback_reason`，不抛 500。
+    """
+    if db is None:
+        return WatchlistAddResponse(fallback_reason="db_session_unavailable")
+
+    resolved_tenant = tenant_id or "tenant-default"
+    resolved_scope = payload.data_scope or (
+        "account" if (account_id or owner_user_id) else "public"
+    )
+    visibility = "public" if resolved_scope == "public" else (
+        payload.visibility if payload.visibility in ("private", "tenant_shared", "public") else "private"
+    )
+
+    try:
+        record = await watchlist_store.add(
+            db,
+            tenant_id=resolved_tenant,
+            owner_user_id=owner_user_id,
+            account_id=account_id,
+            code=payload.code,
+            name=payload.name,
+            notes=payload.notes,
+            sort_order=payload.sort_order,
+            metadata=payload.watchlist_metadata,
+            visibility=visibility,
+            data_scope=resolved_scope,
+        )
+        await db.commit()
+        return WatchlistAddResponse(record=WatchlistItemResponse(**record))
+    except Exception as e:
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        logger.warning("Watchlist REST add failed: %s", e)
+        return WatchlistAddResponse(fallback_reason=f"persist_failed: {e}")
+
+
+@router.get(
+    "/watchlist",
+    response_model=WatchlistQueryResponse,
+    operation_id="list_watchlist",
+    summary="查询自选股列表（scope 从认证头注入自动过滤）",
+)
+async def list_watchlist(
+    code: Optional[str] = Query(default=None, description="按股票代码过滤"),
+    page: int = Query(default=1, ge=1, description="页码，从 1 起"),
+    page_size: int = Query(default=100, ge=1, le=500, description="每页大小，上限 500"),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    owner_user_id: str | None = Header(default=None, alias="X-Owner-User-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    db: AsyncSession | None = Depends(get_db),
+):
+    """查询当前 scope 可见的自选股列表，按 sort_order 升序 + added_at 降序。"""
+    if db is None:
+        return WatchlistQueryResponse(
+            total=0,
+            page=page,
+            page_size=page_size,
+            records=[],
+            empty_state={"hint": "db_session_unavailable", "suggestion": "稍后重试或联系管理员"},
+            fallback_reason="db_session_unavailable",
+        )
+
+    try:
+        result = await watchlist_store.query(
+            db,
+            tenant_id=tenant_id,
+            owner_user_id=owner_user_id,
+            account_id=account_id,
+            code=code,
+            page=page,
+            page_size=page_size,
+        )
+        records = [
+            WatchlistItemResponse(**r) for r in result.get("records", [])
+        ]
+        empty_state = None
+        if not records:
+            empty_state = {
+                "hint": "no_visible_stocks",
+                "suggestion": "在 Screener/OpenDecision 点击「加入自选」，或检查 X-Tenant-Id / X-Owner-User-Id / X-Trade-Account-Id 头是否正确",
+            }
+        return WatchlistQueryResponse(
+            total=result.get("total", 0),
+            page=result.get("page", page),
+            page_size=result.get("page_size", page_size),
+            records=records,
+            empty_state=empty_state,
+        )
+    except Exception as e:
+        logger.warning("Watchlist REST list failed: %s", e)
+        return WatchlistQueryResponse(
+            total=0,
+            page=page,
+            page_size=page_size,
+            records=[],
+            empty_state={"hint": "query_failed", "suggestion": str(e)},
+            fallback_reason=f"query_failed: {e}",
+        )
+
+
+@router.delete(
+    "/watchlist",
+    response_model=WatchlistDeleteResponse,
+    operation_id="remove_watchlist",
+    summary="移除自选股（按 code 或 id，scope 校验归属）",
+)
+async def remove_watchlist(
+    code: Optional[str] = Query(default=None, description="按股票代码移除"),
+    id: Optional[int] = Query(default=None, description="按行 id 移除"),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    owner_user_id: str | None = Header(default=None, alias="X-Owner-User-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    db: AsyncSession | None = Depends(get_db),
+):
+    """移除自选股。code 与 id 二选一；store 层用 scope WHERE 校验归属，
+    scope 不可见 → deleted=0（不泄露存在性）。"""
+    if code is None and id is None:
+        raise HTTPException(status_code=400, detail="必须提供 code 或 id 查询参数之一")
+    if code is not None and id is not None:
+        raise HTTPException(status_code=400, detail="code 与 id 不能同时提供")
+    if db is None:
+        return WatchlistDeleteResponse(deleted=0, code=code, id=id, fallback_reason="db_session_unavailable")
+
+    try:
+        if id is not None:
+            deleted = await watchlist_store.remove_by_id(
+                db,
+                tenant_id=tenant_id,
+                owner_user_id=owner_user_id,
+                account_id=account_id,
+                row_id=id,
+            )
+        else:
+            deleted = await watchlist_store.remove_by_code(
+                db,
+                tenant_id=tenant_id,
+                owner_user_id=owner_user_id,
+                account_id=account_id,
+                code=code,  # type: ignore[arg-type]
+            )
+        await db.commit()
+        return WatchlistDeleteResponse(deleted=deleted, code=code, id=id)
+    except Exception as e:
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        logger.warning("Watchlist REST remove failed: %s", e)
+        return WatchlistDeleteResponse(
+            deleted=0, code=code, id=id, fallback_reason=f"remove_failed: {e}"
         )

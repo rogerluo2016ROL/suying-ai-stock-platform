@@ -1,3 +1,56 @@
+## BatchB — watchlist 表 + REST（POST/GET/DELETE，解禁自选股按钮）- 2026-07-03
+**状态**: 代码完成 + Unit/SIT 自跑全绿（12/12 新测试 + 真实 PG SIT round-trip 通过；全量回归 185 passed / 5 pre-existing 失败与本次改动无关）
+**Skills**: agf-running-sit-tests
+
+**改动文件**:
+- `backend/alembic/versions/022_watchlist.py`（新）：migration 022（down_revision=021），幂等——若 DB 已有 4 列 legacy `watchlist`(id/code/added_at/note) 表则 ADD COLUMN 补全 scope+业务字段并把 added_at 升级为 timestamptz，否则 create_table；含 3 查询索引 + 1 account-scope 唯一索引；upgrade/downgrade 真实 PG 验证可逆
+- `services/screener-service/app/watchlist_store.py`（新）：`add()/query()/find_one()/remove_by_id()/remove_by_code()`，内置 scope 过滤（仿 candidate_pool_store，visibility/data_scope 同款矩阵）
+- `services/screener-service/app/routers/screener.py`：新增 3 端点 + 4 Pydantic 模型（尾部追加），scope 从 `X-Tenant-Id`/`X-Owner-User-Id`/`X-Trade-Account-Id` Header 注入
+- `services/screener-service/tests/test_watchlist_api.py`（新）：12 个测试
+
+**SIT 证据**（按 AC 列；行首 `[x]/[ ]` 同时表达 AC 自验勾选）:
+
+- [x] **AC-① migration 022 建 watchlist 表**：`alembic history` 确认 021 为 head，022 down_revision=021；含 scope 字段（tenant_id/owner_user_id/account_id/visibility/data_scope）+ 业务字段（code/name/notes/sort_order/added_at/updated_at/metadata）。**发现并处理 latent bug**：DB 已存在 4 列 legacy `watchlist` 表，migration 改为幂等 ADD COLUMN + alter_column(added_at→timestamptz) 而非 create_table（否则 CREATE INDEX 因列不存在炸）。真实 PG 验证 schema 正确：
+  ```
+  $ alembic upgrade head  # 021 -> 022 ✓
+  $ alembic downgrade -1 && alembic upgrade head  # round-trip 可逆 ✓
+  added_at type: timestamp with time zone ✓
+  indexes: watchlist_pkey, idx_watchlist_scope_sort, idx_watchlist_code, idx_watchlist_visibility, uq_watchlist_account_code
+  ```
+- [x] **AC-② POST /api/v1/screener/watchlist**：入参 `{code,name?,notes?,sort_order?,watchlist_metadata?,visibility?,data_scope?}`（scope 不在 body）；scope 从 Header；UPSERT（同 scope+code 重加只更新 name/notes/sort_order，store 层 find_one 读后写 + account-scope 唯一索引兜底）；返回 `{record:{id,...,added_at}}` 或 `fallback_reason`（db 未注入→`db_session_unavailable`；持久化异常→`persist_failed: <e>`）
+  ```
+  POST body 不含 scope fields（OpenAPI 验证 WatchlistAddRequest props = code/data_scope/name/notes/sort_order/visibility/watchlist_metadata）
+  ```
+- [x] **AC-③ GET /api/v1/screener/watchlist**：入参 `code?`/`page`(ge=1)/`page_size`(1-500)；scope 自动过滤；返回 `{total,page,page_size,records,empty_state?,fallback_reason?}`；无数据时 `empty_state={hint:"no_visible_stocks",suggestion:...}`
+- [x] **AC-④ DELETE /api/v1/screener/watchlist**：按 `code` 或 `id` 查询参数移除（二选一，都给→400）；store 层 scope WHERE 校验归属，scope 不可见→`deleted=0`（不泄露存在性）；返回 `{deleted,code?,id?,fallback_reason?}`
+- [x] **AC-⑤ pytest 含 scope 隔离断言**：
+  ```
+  $ pytest tests/test_watchlist_api.py -v → 12 passed in 0.47s
+  - 账户 A 加 private 自选 → 账户 B 查 total=0（test_get_scope_isolation_account_a_invisible_to_account_b）
+  - visibility=public 跨账户可见（test_get_public_visibility_cross_account_visible）
+  - 账户 A 加的，账户 B 删不掉 deleted=0（test_delete_by_code_blocked_for_other_scope）
+  ```
+- [x] **真实 PG SIT round-trip**（migration 022 已 apply 到本地 PG）：
+  ```
+  ADD: 300750_sit 宁德SIT id= 1
+  UPSERT: id same? True | name= 宁德SIT改 | sort= 2     # 重加同 scope+code → 原地更新不插重
+  A query total (expect 1): 1
+  B query total (expect 0): 0                            # private scope 隔离
+  A delete (expect 1): 1
+  SIT OK
+  ```
+- [x] **AC-⑥ 前端 client.ts 临界区**：**未擅改 client.ts**，3 端点契约已就绪（OpenAPI operationId 齐全），前端 watchlistApi 由 team-lead 串行排队加（已附 patch 建议）
+
+**OpenAPI 契约（前端 orval 友好）**:
+- POST `operationId=add_watchlist` + `response_model=WatchlistAddResponse`
+- GET `operationId=list_watchlist` + `response_model=WatchlistQueryResponse`
+- DELETE `operationId=remove_watchlist` + `response_model=WatchlistDeleteResponse`，params=`[code?, id?, X-Tenant-Id, X-Owner-User-Id, X-Trade-Account-Id]`
+- `/openapi.json` 已验证可导出，请求/响应 schema 规范，body 无 scope 明文字段
+
+**质量门**: syntax ✅ (3 文件 ast.parse OK) / unit ✅ (12/12 新测试) / SIT ✅ (真实 PG migration 可逆 + store round-trip + scope 隔离)
+
+**下一步**: 等 code-review（含 SIT Audit）；前端 watchlistApi 接入由 team-lead 串行加 client.ts
+
 ## M0-后端 — 解封 candidate-pool REST 端点（POST/GET）- 2026-07-02
 **状态**: 代码完成 + Unit/SIT 自跑全绿（9/9 新测试通过；全量回归 5 失败均为 pre-existing 与本次改动无关）
 **Skills**: agf-running-sit-tests
