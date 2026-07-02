@@ -26,9 +26,21 @@ import type {
 } from './supply-chain-bom/types'
 import { chainCandidateToCandidateCompany } from './supply-chain-bom/types'
 import { formatNumber } from './supply-chain-bom/formatters'
+import { lightTokens } from '../styles/tokens'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
+
+/** 卡脖子等级 → 颜色（红涨绿跌：一级=红/二级=黄/非=绿，对齐 preview 4.2 ckColor） */
+function ckColor(level?: string) {
+  if (level === 'primary') return lightTokens.up
+  if (level === 'secondary') return lightTokens.warn
+  return lightTokens.down
+}
+
+/** accent 半透明叠色（echarts bar/scatter 用，token 派生自 lightTokens.accent #3d8bff） */
+const ACCENT_OVERLAY = 'rgba(61,139,255,0.45)'
+const ACCENT_OVERLAY_SOFT = 'rgba(61,139,255,0.28)'
 
 const supplyChainTabs = [
   { key: 'policy', path: '/supply-chain-bom/policy', label: '政策梳理', subLabel: '政策证据' },
@@ -444,6 +456,7 @@ export default function SupplyChainBom() {
   })), [themes, nodes])
 
   const graphOption = useMemo(() => {
+    const nodePalette = [lightTokens.accent, lightTokens.down, lightTokens.muted]
     const graphNodes = filteredNodes.map((node, index) => ({
       id: node.node_id,
       name: node.name,
@@ -452,7 +465,7 @@ export default function SupplyChainBom() {
       x: Math.cos((index / Math.max(1, filteredNodes.length)) * Math.PI * 2) * 180,
       y: Math.sin((index / Math.max(1, filteredNodes.length)) * Math.PI * 2) * 120,
       itemStyle: {
-        color: selectedNodeId === node.node_id ? '#d4380d' : index % 3 === 0 ? '#1677ff' : index % 3 === 1 ? '#389e0d' : '#722ed1',
+        color: selectedNodeId === node.node_id ? lightTokens.up : nodePalette[index % 3],
       },
       label: { show: true, formatter: '{b}' },
     }))
@@ -469,11 +482,112 @@ export default function SupplyChainBom() {
         data: graphNodes,
         links: graphEdges,
         edgeSymbol: ['none', 'arrow'],
-        lineStyle: { color: '#8c8c8c', width: 1.2 },
-        label: { color: '#1f1f1f', fontSize: 12 },
+        lineStyle: { color: lightTokens.muted, width: 1.2 },
+        label: { color: lightTokens.fg, fontSize: 12 },
       }],
     }
   }, [edges, filteredNodes, selectedNodeId])
+
+  /** 4.2：从 chainDeconstructResult.tree（SupplyChainNode）收集叶子节点，供 value/competition 图 */
+  const chainLeaves = useMemo<SupplyChainNode[]>(() => {
+    const tree = chainDeconstructResult?.tree as SupplyChainNode | undefined
+    if (!tree) return []
+    const out: SupplyChainNode[] = []
+    const walk = (node: SupplyChainNode) => {
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(walk)
+      } else {
+        out.push(node)
+      }
+    }
+    walk(tree)
+    return out
+  }, [chainDeconstructResult])
+
+  /** 4.2 value_chain 模式：毛利率/价值增值横向对比 bar（对齐 preview valueChart） */
+  const valueChainOption = useMemo(() => {
+    const rows = chainLeaves.length > 0 ? chainLeaves : []
+    return {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: 88, right: 70, top: 24, bottom: 32 },
+      xAxis: {
+        type: 'value',
+        name: '毛利率(%)',
+        max: 60,
+        axisLabel: { color: lightTokens.muted },
+        axisLine: { lineStyle: { color: lightTokens.border } },
+        splitLine: { lineStyle: { color: lightTokens.border, type: 'dashed' } },
+      },
+      yAxis: {
+        type: 'category',
+        inverse: true,
+        data: rows.map(node => node.name),
+        axisLabel: { color: lightTokens.fg2, fontWeight: 650 },
+        axisLine: { lineStyle: { color: lightTokens.border } },
+      },
+      series: [
+        {
+          name: '毛利率',
+          type: 'bar',
+          barWidth: 22,
+          data: rows.map(node => node.value_chain?.margin ?? 0),
+          itemStyle: { color: lightTokens.accent, borderRadius: [0, 5, 5, 0] },
+          label: { show: true, position: 'right', formatter: '{c}%', color: lightTokens.fg2, fontWeight: 700 },
+        },
+        {
+          name: '价值增值',
+          type: 'bar',
+          barWidth: 10,
+          barGap: '-72%',
+          data: rows.map(node => node.value_chain?.value_added ?? 0),
+          itemStyle: { color: ACCENT_OVERLAY, borderRadius: [0, 4, 4, 0] },
+        },
+      ],
+    }
+  }, [chainLeaves])
+
+  /** 4.2 competition 模式：市场份额 × 议价权 × 候选数气泡图（对齐 preview competitionChart） */
+  const competitionOption = useMemo(() => {
+    const rows = chainLeaves
+    return {
+      tooltip: {
+        formatter: (p: any) => {
+          const n = rows[p.dataIndex]
+          if (!n) return ''
+          return `${n.name}<br/>议价权: ${n.value_chain?.pricing_power ?? '--'}<br/>价值增值: ${n.value_chain?.value_added ?? '--'}`
+        },
+      },
+      grid: { left: 60, right: 36, top: 36, bottom: 50 },
+      xAxis: {
+        name: '议价权',
+        max: 100,
+        axisLabel: { color: lightTokens.muted },
+        nameTextStyle: { color: lightTokens.muted },
+        splitLine: { lineStyle: { color: lightTokens.border, type: 'dashed' } },
+      },
+      yAxis: {
+        name: '价值增值(%)',
+        max: 100,
+        axisLabel: { color: lightTokens.muted },
+        nameTextStyle: { color: lightTokens.muted },
+        splitLine: { lineStyle: { color: lightTokens.border, type: 'dashed' } },
+      },
+      series: [{
+        type: 'scatter',
+        data: rows.map(node => {
+          const cap = Math.max(8, (node.value_chain?.value_added ?? 10) * 1.2)
+          return {
+            name: node.name,
+            value: [node.value_chain?.pricing_power ?? 0, node.value_chain?.value_added ?? 0, cap],
+            symbolSize: Math.max(28, Math.min(80, cap)),
+            itemStyle: { color: ACCENT_OVERLAY_SOFT, borderColor: lightTokens.accent, borderWidth: 2 },
+            label: { show: true, formatter: '{b}', color: lightTokens.fg2, fontSize: 10, fontWeight: 700 },
+          }
+        }),
+        emphasis: { scale: 1.16 },
+      }],
+    }
+  }, [chainLeaves])
 
   const openCompany = (company: CandidateCompany) => {
     setCompanyDetail(company)
@@ -658,7 +772,7 @@ export default function SupplyChainBom() {
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={7}>
-          <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', padding: 12, minHeight: 360 }}>
+          <div style={{ border: `1px solid ${lightTokens.border}`, borderRadius: lightTokens.radius, background: lightTokens.surface, padding: 12, minHeight: 360 }}>
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               <Title level={5} style={{ margin: 0 }}>BOM层层拆解</Title>
               {/* P2-09: Use ChainTreeChart instead of Antd Tree */}
@@ -685,9 +799,9 @@ export default function SupplyChainBom() {
         </Col>
 
         <Col xs={24} lg={10}>
-          <div style={{ height: 360, border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }}>
+          <div style={{ minHeight: 360, border: `1px solid ${lightTokens.border}`, borderRadius: lightTokens.radius, background: lightTokens.surface }}>
             {/* P2-08: MethodSelector for three view tabs */}
-            <div style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0' }}>
+            <div style={{ padding: '8px 12px', borderBottom: `1px solid ${lightTokens.border}` }}>
               <MethodSelector
                 value={chainMethod}
                 onChange={setChainMethod}
@@ -695,17 +809,31 @@ export default function SupplyChainBom() {
                 disabled={!selectedThemeId}
               />
             </div>
-            <ReactECharts
-              option={graphOption}
-              style={{ height: 214 }}
-              onEvents={{
-                click: (params: any) => {
-                  const nextNode = nodes.find(node => node.node_id === params?.data?.id)
-                  if (nextNode) selectNode(nextNode)
-                },
-              }}
-            />
-            <div style={{ borderTop: '1px solid #f0f0f0', padding: '10px 12px' }}>
+            {/* 4.2 AC①：三模式专属渲染（非通用壳） */}
+            {chainMethod === 'upstream_downstream' && (
+              <ReactECharts
+                option={graphOption}
+                style={{ height: 214 }}
+                onEvents={{
+                  click: (params: any) => {
+                    const nextNode = nodes.find(node => node.node_id === params?.data?.id)
+                    if (nextNode) selectNode(nextNode)
+                  },
+                }}
+              />
+            )}
+            {chainMethod === 'value_chain' && (
+              <ReactECharts option={valueChainOption} style={{ height: 214 }} />
+            )}
+            {chainMethod === 'competition' && (
+              <ReactECharts option={competitionOption} style={{ height: 214 }} />
+            )}
+            {filteredNodes.length === 0 && (
+              <div style={{ padding: 24, textAlign: 'center', color: lightTokens.muted, fontSize: 12 }}>
+                暂无该主题的拆解节点，切换主题或等待 chain-service 返回。
+              </div>
+            )}
+            <div style={{ borderTop: `1px solid ${lightTokens.border}`, padding: '10px 12px' }}>
               <Space direction="vertical" size={8} style={{ width: '100%' }}>
                 <Space align="baseline" style={{ justifyContent: 'space-between', width: '100%' }}>
                   <Text strong>{methodSummary.title}</Text>
@@ -714,18 +842,35 @@ export default function SupplyChainBom() {
                   </Tag>
                 </Space>
                 <Text type="secondary" style={{ fontSize: 12 }}>{methodSummary.desc}</Text>
+                {/* 4.2 mode-note：value/competition 三卡注释（对齐 preview mode-note） */}
+                {chainMethod !== 'upstream_downstream' && (
+                  <Row gutter={8}>
+                    {(chainMethod === 'value_chain'
+                      ? [['最高毛利环节', '核心零部件', '技术壁垒最高，国产替代难度最大。'], ['利润兑现', '设备制造', '订单和业绩兑现最直接，是从政策受益走向利润兑现的核心环节。'], ['低毛利环节', '封装测试', '毛利率最低，受先进封装投资周期带动。']]
+                      : [['寡头垄断', '光刻系统', '全球极高集中度，A股通过光刻胶/光学元件/配套设备参与。'], ['国产突破', '刻蚀/PVD', '进入高壁垒高成长象限，订单兑现与扩产节奏最关键。'], ['分散竞争', '清洗/检测', '国产化率较高，按订单和利润率筛选。']]
+                    ).map(([label, value, sub]) => (
+                      <Col span={8} key={label as string}>
+                        <div style={{ background: lightTokens.surface2, border: `1px solid ${lightTokens.border}`, borderRadius: 7, padding: '8px 10px' }}>
+                          <div style={{ fontSize: 10, color: lightTokens.muted, marginBottom: 4 }}>{label}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: lightTokens.fg }}>{value}</div>
+                          <div style={{ fontSize: 10, color: lightTokens.fg2, marginTop: 2, lineHeight: 1.5 }}>{sub}</div>
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                )}
                 <Row gutter={8}>
                   {methodSummary.stats.map(([label, value]) => (
                     <Col span={8} key={label}>
-                      <div style={{ background: '#f7f9fc', border: '1px solid #eef2f8', borderRadius: 6, padding: 8 }}>
-                        <div style={{ fontSize: 11, color: '#8a96a8' }}>{label}</div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#1a2230' }}>{value}</div>
+                      <div style={{ background: lightTokens.surface2, border: `1px solid ${lightTokens.elevated}`, borderRadius: 6, padding: 8 }}>
+                        <div style={{ fontSize: 11, color: lightTokens.muted }}>{label}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: lightTokens.fg }}>{value}</div>
                       </div>
                     </Col>
                   ))}
-                  {methodSummary.stats.length === 0 && (
+                  {methodSummary.stats.length === 0 && chainMethod === 'upstream_downstream' && (
                     <Col span={24}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>暂无该拆解模式的实时统计指标。</Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>上下游图展示节点拓扑，点击节点下钻候选公司。</Text>
                     </Col>
                   )}
                 </Row>
@@ -735,7 +880,7 @@ export default function SupplyChainBom() {
         </Col>
 
         <Col xs={24} lg={7}>
-          <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', padding: 16, minHeight: 360 }}>
+          <div style={{ border: `1px solid ${lightTokens.border}`, borderRadius: lightTokens.radius, background: lightTokens.surface, padding: 16, minHeight: 360 }}>
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               <Title level={5} style={{ margin: 0 }}>选股模型</Title>
               <Paragraph type="secondary" style={{ marginBottom: 0 }}>
@@ -788,7 +933,7 @@ export default function SupplyChainBom() {
           />
         </Col>
         <Col xs={24} xl={10}>
-          <div style={{ minHeight: 276, border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', padding: 16 }}>
+          <div style={{ minHeight: 276, border: `1px solid ${lightTokens.border}`, borderRadius: lightTokens.radius, background: lightTokens.surface, padding: 16 }}>
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               <Text strong>当前节点研究上下文</Text>
               <NodeThesisPanel
@@ -902,7 +1047,7 @@ export default function SupplyChainBom() {
       </div>
 
       {/* P2-08: Policy interpretation section (replaces LLM extraction) */}
-      <div style={{ marginTop: 16, border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', padding: 16 }}>
+      <div style={{ marginTop: 16, border: `1px solid ${lightTokens.border}`, borderRadius: lightTokens.radius, background: lightTokens.surface, padding: 16 }}>
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Space wrap>
             <Text strong><FileTextOutlined style={{ marginRight: 6 }} />政策解读</Text>
@@ -947,7 +1092,7 @@ export default function SupplyChainBom() {
           {policyResult?.interpretation_result && (
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
               {policyResult.interpretation_result.summary && (
-                <Paragraph style={{ marginBottom: 0, background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+                <Paragraph style={{ marginBottom: 0, background: lightTokens.surface2, padding: 8, borderRadius: 4 }}>
                   {policyResult.interpretation_result.summary}
                 </Paragraph>
               )}
