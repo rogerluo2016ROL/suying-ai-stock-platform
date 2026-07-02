@@ -8,10 +8,31 @@ AC verification:
 """
 
 import pytest
+import json
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.routers.screener import _seed_chain_nodes_for_deconstruct
+from app.routers import screener as screener_router
+from app.routers.screener import (
+    BusinessTagBatchScoreRequest,
+    SupplyChainInferredMaterializeRequest,
+    SupplyChainRefreshWorkflowRequest,
+    _batch_score_business_tags,
+    _build_l8_evidence_status_records,
+    _build_l8_source_evidence_events,
+    _calculate_business_tag_expectation_gap_score,
+    _calculate_business_tag_three_high_score,
+    _build_inferred_business_tag_materialization,
+    _calculate_company_expectation_gap_rankings,
+    _calculate_company_value_rankings,
+    _materialize_supply_chain_inferred_data,
+    _refresh_supply_chain_tracking_workflow,
+    _seed_chain_nodes_for_deconstruct,
+    _infer_business_tag_evidence_event,
+    _source_record_matches_mapping,
+    _stage_from_evidence_events,
+    _stage_record_from_reviewed_event,
+)
 
 
 client = TestClient(app)
@@ -166,6 +187,26 @@ class TestChainDeconstruct:
         assert set(data["bom_layers"].keys()) == {f"L{i}" for i in range(1, 9)}
         assert data["model_metadata"]["inference_mode"] == "chain:bom"
 
+    def test_bom_method_returns_completed_semantic_table(self, test_theme_id):
+        """method='bom' should expose completed L1-L8 rows without placeholder gaps."""
+        response = client.get(
+            "/api/v1/screener/chain/deconstruct",
+            params={"theme_id": test_theme_id, "method": "bom"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["bom_table"]
+        for layer in (f"L{i}" for i in range(1, 9)):
+            assert data["bom_layers"][layer], f"{layer} should not be empty"
+
+        table_text = json.dumps(data["bom_table"], ensure_ascii=False)
+        assert "待拆" not in table_text
+        assert "待挂接" not in table_text
+        assert "业务" in table_text
+        assert "客户验证" in table_text
+
 
 class TestSupplyChainDataReadiness:
     """Tests for V2 data readiness endpoint."""
@@ -183,7 +224,990 @@ class TestSupplyChainDataReadiness:
         assert "announcement_body" in data
         assert "research_body" in data
         assert "evidence_events" in data
+        assert "business_tag_mapping" in data["target_tables"]
+        assert "business_tag_evidence_events" in data["target_tables"]
         assert data["implementation_gates"]["core_pool_requires_business_evidence"] is True
+
+
+class TestSupplyChainLayers:
+    """Tests for V2 L1-L8 hierarchy endpoints."""
+
+    def test_layers_returns_l1_to_l8_contract(self):
+        response = client.get("/api/v1/screener/supply-chain/layers")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["version"] == "supply-chain-v2-layers"
+        assert set(data["layers"].keys()) == {f"L{i}" for i in range(1, 9)}
+        assert isinstance(data["nodes"], list)
+        assert isinstance(data["tree"], list)
+        assert data["node_count"] == len(data["nodes"])
+
+    def test_layer_detail_returns_node_context(self):
+        layers_response = client.get("/api/v1/screener/supply-chain/layers")
+        first_node = layers_response.json()["nodes"][0]
+
+        response = client.get(f"/api/v1/screener/supply-chain/layer/{first_node['layer_node_id']}")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["node"]["layer_node_id"] == first_node["layer_node_id"]
+        assert "ancestors" in data
+        assert "children" in data
+
+
+class TestSupplyChainCompanyBusinessTags:
+    """Tests for V2 company business-tag endpoint."""
+
+    def test_company_business_tags_returns_stable_card_contract(self):
+        """Company business-tags endpoint should be safe before V2 tables are populated."""
+        response = client.get("/api/v1/screener/supply-chain/company/000001/business-tags")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["version"] == "supply-chain-v2-business-tags"
+        assert data["normalized_code"] == "000001"
+        assert "source_status" in data
+        assert "tag_count" in data
+        assert isinstance(data["tags"], list)
+        assert isinstance(data["limitations"], list)
+
+
+class TestSupplyChainBusinessTagEvidenceAndStage:
+    """Tests for V2 business-tag evidence and stage endpoints."""
+
+    def test_stage_inference_uses_approved_event_stage_after(self):
+        stage = _stage_from_evidence_events([
+            {
+                "event_id": "EV-1",
+                "review_status": "approved",
+                "stage_after": {
+                    "research_stage": "R3",
+                    "commercialization_stage": "C2",
+                },
+                "title": "产品完成客户验证",
+            },
+            {
+                "event_id": "EV-2",
+                "review_status": "pending_review",
+                "stage_after": {
+                    "research_stage": "R6",
+                    "commercialization_stage": "C6",
+                },
+            },
+        ])
+
+        assert stage["research_stage"] == "R3"
+        assert stage["commercialization_stage"] == "C2"
+        assert stage["stage_confirmed"] is True
+        assert stage["source_event_id"] == "EV-1"
+
+    def test_business_tag_evidence_returns_timeline_contract(self):
+        response = client.get("/api/v1/screener/supply-chain/business-tag/demo-mapping/evidence")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["version"] == "supply-chain-v2-evidence"
+        assert data["mapping_id"] == "demo-mapping"
+        assert "source_status" in data
+        assert isinstance(data["events"], list)
+        assert data["event_count"] == len(data["events"])
+        assert data["review_gate"]["approved_events_enter_scoring"] is True
+
+    def test_business_tag_stage_returns_default_stage_contract(self):
+        response = client.get("/api/v1/screener/supply-chain/business-tag/demo-mapping/stage")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["version"] == "supply-chain-v2-stage"
+        assert data["mapping_id"] == "demo-mapping"
+        assert data["current_stage"]["research_stage"].startswith("R")
+        assert data["current_stage"]["commercialization_stage"].startswith("C")
+        assert data["current_stage"]["stage_confirmed"] is False
+        assert isinstance(data["history"], list)
+        assert data["stage_gate"]["stage_change_requires_evidence"] is True
+
+
+class TestSupplyChainEvidenceReview:
+    """Tests for V2 evidence review write endpoint."""
+
+    def test_review_endpoint_accepts_approved_evidence_payload(self, monkeypatch):
+        def fake_review(event_id, request):
+            return {
+                "version": "supply-chain-v2-evidence-review",
+                "event_id": event_id,
+                "review_status": request.review_status,
+                "stage_updated": True,
+            }
+
+        monkeypatch.setattr(screener_router, "_review_business_tag_evidence", fake_review)
+
+        response = client.post(
+            "/api/v1/screener/supply-chain/evidence/EV-001/review",
+            json={
+                "review_status": "approved",
+                "reviewer": "pm",
+                "note": "客户验证证据可信",
+                "stage_after": {
+                    "research_stage": "R3",
+                    "commercialization_stage": "C2",
+                },
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-evidence-review"
+        assert data["event_id"] == "EV-001"
+        assert data["review_status"] == "approved"
+        assert data["stage_updated"] is True
+
+    def test_stage_record_only_created_for_approved_stage_event(self):
+        approved_record = _stage_record_from_reviewed_event(
+            {
+                "event_id": "EV-001",
+                "mapping_id": "MAP-001",
+                "event_date": "2026-07-02",
+                "title": "产品完成客户验证",
+                "stage_after": {
+                    "research_stage": "R3",
+                    "commercialization_stage": "C2",
+                },
+            },
+            review_status="approved",
+        )
+        pending_record = _stage_record_from_reviewed_event(
+            {
+                "event_id": "EV-002",
+                "mapping_id": "MAP-001",
+                "stage_after": {
+                    "research_stage": "R6",
+                    "commercialization_stage": "C6",
+                },
+            },
+            review_status="pending_review",
+        )
+
+        assert approved_record is not None
+        assert approved_record["stage_id"] == "STAGE-MAP-001-EV-001"
+        assert approved_record["research_stage"] == "R3"
+        assert approved_record["commercialization_stage"] == "C2"
+        assert approved_record["source_event_id"] == "EV-001"
+        assert pending_record is None
+
+
+class TestSupplyChainEvidenceExtraction:
+    """Tests for V2 candidate evidence extraction endpoint."""
+
+    def test_source_record_must_match_mapping_terms_or_evidence_keywords(self):
+        mapping = {
+            "tag_name": "减速器",
+            "node_id": "bom_reducer",
+            "l1_l8_path": [{"name": "具身智能"}, {"name": "减速器"}],
+        }
+        matched_source = {
+            "title": "公司减速器产品完成客户验证",
+            "excerpt": "客户验证顺利推进",
+        }
+        unrelated_source = {
+            "title": "公司地产项目完成交付",
+            "excerpt": "与产业链标签无关",
+        }
+
+        assert _source_record_matches_mapping(matched_source, mapping) is True
+        assert _source_record_matches_mapping(unrelated_source, mapping) is False
+
+    def test_infer_evidence_event_marks_candidate_as_pending_review(self):
+        event = _infer_business_tag_evidence_event(
+            mapping_id="MAP-001",
+            mapping={
+                "code": "000001",
+                "node_id": "bom_test",
+                "tag_name": "测试业务",
+            },
+            source={
+                "source_type": "announcement_title",
+                "source_id": "ANN-001",
+                "title": "公司产品完成客户验证并获得小批量订单",
+                "excerpt": "客户验证、小批量订单",
+                "event_date": "2026-07-02",
+            },
+        )
+
+        assert event["mapping_id"] == "MAP-001"
+        assert event["review_status"] == "pending_review"
+        assert event["evidence_type"] in {"customer_validation", "order"}
+        assert event["stage_after"]["research_stage"].startswith("R")
+        assert event["stage_after"]["commercialization_stage"].startswith("C")
+
+    def test_extract_endpoint_returns_candidate_event_contract(self, monkeypatch):
+        def fake_extract(mapping_id, request):
+            return {
+                "version": "supply-chain-v2-evidence-extract",
+                "mapping_id": mapping_id,
+                "persisted": True,
+                "event": {
+                    "event_id": "EV-MAP-001-123",
+                    "review_status": "pending_review",
+                    "evidence_type": "customer_validation",
+                },
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_extract_business_tag_evidence_event", fake_extract)
+
+        response = client.post(
+            "/api/v1/screener/supply-chain/business-tag/MAP-001/evidence/extract",
+            json={
+                "source_type": "announcement_title",
+                "source_id": "ANN-001",
+                "title": "公司产品完成客户验证并获得小批量订单",
+                "excerpt": "客户验证、小批量订单",
+                "event_date": "2026-07-02",
+                "persist": True,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-evidence-extract"
+        assert data["mapping_id"] == "MAP-001"
+        assert data["persisted"] is True
+        assert data["event"]["review_status"] == "pending_review"
+
+    def test_batch_extract_endpoint_returns_pending_review_summary(self, monkeypatch):
+        def fake_batch(request):
+            return {
+                "version": "supply-chain-v2-evidence-batch-extract",
+                "source_status": "ok",
+                "mapping_count": 1,
+                "candidate_source_count": 2,
+                "created_event_count": 2,
+                "events": [
+                    {"event_id": "EV-MAP-001-a", "review_status": "pending_review"},
+                    {"event_id": "EV-MAP-001-b", "review_status": "pending_review"},
+                ],
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_batch_extract_business_tag_evidence", fake_batch)
+
+        response = client.post(
+            "/api/v1/screener/supply-chain/evidence/batch-extract",
+            json={
+                "mapping_id": "MAP-001",
+                "source_types": ["announcement_title", "research_title", "irm_qa"],
+                "limit": 20,
+                "persist": True,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-evidence-batch-extract"
+        assert data["mapping_count"] == 1
+        assert data["created_event_count"] == 2
+        assert {event["review_status"] for event in data["events"]} == {"pending_review"}
+
+
+class TestSupplyChainThreeHighScores:
+    """Tests for V2 business-tag three-high score calculation."""
+
+    def test_inferred_materialization_builds_l1_l8_evidence_and_three_high_baseline(self):
+        materialized = _build_inferred_business_tag_materialization(
+            {
+                "mapping_id": "auto_300308_ai_compute_hardware",
+                "code": "300308",
+                "company_name": "中际旭创",
+                "node_id": "ai_compute_hardware",
+                "node_name": "硬件",
+                "theme_id": "future_industry_core",
+                "theme_name": "未来产业主攻方向",
+                "chain_id": "ai_compute",
+                "product_name": "光模块",
+                "material_name": "",
+                "status": "verified",
+                "confidence": 0.85,
+                "mapping_keywords": ["光模块"],
+                "mapping_source": "main_business",
+            },
+            trade_date="2026-07-02",
+        )
+
+        mapping = materialized["mapping"]
+        event = materialized["evidence_event"]
+        stage = materialized["stage"]
+        score = materialized["three_high_score"]
+
+        assert mapping["mapping_id"] == "auto_300308_ai_compute_hardware"
+        assert [item["layer"] for item in mapping["l1_l8_path"]] == [f"L{i}" for i in range(1, 9)]
+        assert mapping["l1_l8_path"][1]["name"] == "AI算力"
+        assert mapping["l1_l8_path"][4]["name"] == "光模块"
+        assert mapping["l1_l8_path"][6]["name"] == "公司业务标签：光模块业务"
+        assert mapping["l1_l8_path"][4]["name"] != mapping["l1_l8_path"][6]["name"]
+        assert [item["dimension_id"] for item in mapping["l1_l8_path"][7]["dimensions"]] == [
+            "research_progress",
+            "prototype_delivery",
+            "customer_validation",
+            "order_award",
+            "capacity_mass_production",
+            "revenue_margin",
+            "patent_standard",
+        ]
+        assert event["source_type"] == "rule_inference"
+        assert event["review_status"] == "candidate"
+        assert "不是公告或研报原文" in event["excerpt"]
+        assert stage["review_status"] == "candidate"
+        assert len(materialized["l8_evidence_statuses"]) == 7
+        assert materialized["l8_evidence_statuses"][0]["dimension_name"] == "研发进展"
+        assert score["score_detail"]["inference_only"] is True
+        assert score["score_detail"]["requires_original_evidence"] is True
+        assert score["profit_score"] is None
+        assert score["growth_score"] > 0
+        assert score["moat_score"] > 0
+        assert event["event_id"] in score["evidence_ids"]
+
+    def test_l8_source_events_are_structured_by_dimension(self):
+        mapping = {
+            "mapping_id": "auto_300308_ai_compute_hardware",
+            "code": "300308",
+            "node_id": "ai_compute_hardware",
+            "tag_name": "光模块业务",
+        }
+
+        events = _build_l8_source_evidence_events(
+            mapping_id=mapping["mapping_id"],
+            mapping=mapping,
+            source={
+                "source_type": "research_title",
+                "source_id": "RPT-001",
+                "title": "AI算力需求推动业绩高增，1.6T光模块出货进展顺利",
+                "excerpt": "",
+                "event_date": "2026-04-01",
+            },
+        )
+        statuses = _build_l8_evidence_status_records(
+            mapping=mapping,
+            l8_source_events=events,
+            trade_date="2026-07-02",
+        )
+
+        assert {event["evidence_type"] for event in events} >= {
+            "capacity_mass_production",
+            "revenue_margin",
+        }
+        revenue_status = next(item for item in statuses if item["dimension_id"] == "revenue_margin")
+        assert revenue_status["source_status"] == "matched"
+        assert revenue_status["evidence_count"] >= 1
+        patent_status = next(item for item in statuses if item["dimension_id"] == "patent_standard")
+        assert patent_status["source_status"] == "missing"
+
+    def test_inferred_materialize_endpoint_returns_persist_summary(self, monkeypatch):
+        def fake_materialize(request):
+            assert request.node_id == "ai_compute_hardware"
+            assert request.persist is True
+            return {
+                "version": "supply-chain-v2-inferred-materialize",
+                "source_status": "ready",
+                "persisted": True,
+                "mapping_count": 2,
+                "written": {
+                    "business_tag_mapping": 2,
+                    "business_tag_evidence_events": 2,
+                    "business_tag_three_high_scores": 2,
+                },
+                "limitations": ["推导证据不能替代公告或研报原文"],
+            }
+
+        monkeypatch.setattr(screener_router, "_materialize_supply_chain_inferred_data", fake_materialize)
+
+        response = client.post(
+            "/api/v1/screener/supply-chain/inferred-data/materialize",
+            json={"node_id": "ai_compute_hardware", "persist": True, "limit": 2},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-inferred-materialize"
+        assert data["persisted"] is True
+        assert data["written"]["business_tag_three_high_scores"] == 2
+
+    def test_three_high_score_uses_business_tag_evidence_and_marks_missing_profit(self):
+        score = _calculate_business_tag_three_high_score(
+            mapping={
+                "mapping_id": "MAP-001",
+                "code": "000001",
+                "confidence": 0.8,
+                "revenue_ratio": 0.25,
+                "gross_profit_ratio": None,
+            },
+            stage={
+                "research_stage": "R3",
+                "commercialization_stage": "C2",
+            },
+            events=[
+                {
+                    "event_id": "EV-ORDER",
+                    "review_status": "approved",
+                    "evidence_type": "order",
+                    "confidence": 0.8,
+                    "impact_dimensions": ["growth"],
+                },
+                {
+                    "event_id": "EV-MOAT-PENDING",
+                    "review_status": "pending_review",
+                    "evidence_type": "moat",
+                    "confidence": 0.9,
+                    "impact_dimensions": ["moat"],
+                },
+            ],
+            trade_date="2026-07-02",
+        )
+
+        assert score["mapping_id"] == "MAP-001"
+        assert score["growth_score"] > 0
+        assert score["profit_score"] is None
+        assert score["moat_score"] == 0
+        assert score["score_detail"]["profit_score_status"] == "unavailable"
+        assert score["score_detail"]["approved_evidence_count"] == 1
+        assert "EV-ORDER" in score["evidence_ids"]
+        assert "EV-MOAT-PENDING" not in score["evidence_ids"]
+        assert score["total_score"] <= 80
+
+    def test_three_high_score_endpoint_returns_business_tag_score_contract(self, monkeypatch):
+        def fake_score(mapping_id, request):
+            return {
+                "version": "supply-chain-v2-three-high-score",
+                "mapping_id": mapping_id,
+                "persisted": request.persist,
+                "score": {
+                    "growth_score": 70,
+                    "profit_score": None,
+                    "moat_score": 30,
+                    "total_score": 52,
+                    "score_detail": {"profit_score_status": "unavailable"},
+                },
+            }
+
+        monkeypatch.setattr(screener_router, "_score_business_tag_three_high", fake_score)
+
+        response = client.post(
+            "/api/v1/screener/supply-chain/business-tag/MAP-001/three-high/score",
+            json={"trade_date": "2026-07-02", "persist": True},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-three-high-score"
+        assert data["mapping_id"] == "MAP-001"
+        assert data["persisted"] is True
+        assert data["score"]["profit_score"] is None
+
+    def test_three_high_score_query_endpoint_returns_latest_contract(self, monkeypatch):
+        def fake_query(mapping_id):
+            return {
+                "version": "supply-chain-v2-three-high-score",
+                "mapping_id": mapping_id,
+                "source_status": "ready",
+                "score": {
+                    "growth_score": 70,
+                    "profit_score": None,
+                    "moat_score": 30,
+                    "total_score": 52,
+                },
+            }
+
+        monkeypatch.setattr(screener_router, "_query_business_tag_three_high_score", fake_query)
+
+        response = client.get("/api/v1/screener/supply-chain/business-tag/MAP-001/three-high/score")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-three-high-score"
+        assert data["mapping_id"] == "MAP-001"
+        assert data["source_status"] == "ready"
+        assert data["score"]["total_score"] == 52
+
+
+class TestSupplyChainExpectationGapScores:
+    """Tests for V2 business-tag expectation-gap score calculation."""
+
+    def test_expectation_gap_score_uses_stage_evidence_expectation_and_risk(self):
+        score = _calculate_business_tag_expectation_gap_score(
+            mapping={
+                "mapping_id": "MAP-001",
+                "code": "000001",
+                "confidence": 0.85,
+                "market_expectation_score": 45,
+            },
+            stage={
+                "research_stage": "R4",
+                "commercialization_stage": "C3",
+            },
+            events=[
+                {
+                    "event_id": "EV-ORDER",
+                    "review_status": "approved",
+                    "evidence_type": "order",
+                    "confidence": 0.8,
+                    "impact_dimensions": ["growth"],
+                },
+                {
+                    "event_id": "EV-RISK",
+                    "review_status": "approved",
+                    "evidence_type": "risk",
+                    "confidence": 0.6,
+                    "impact_dimensions": ["risk"],
+                },
+                {
+                    "event_id": "EV-PENDING",
+                    "review_status": "pending_review",
+                    "evidence_type": "commercialization",
+                    "confidence": 1.0,
+                    "impact_dimensions": ["growth"],
+                },
+            ],
+            trade_date="2026-07-02",
+        )
+
+        assert score["gap_id"] == "GAP-MAP-001-2026-07-02"
+        assert score["mapping_id"] == "MAP-001"
+        assert score["actual_progress_score"] > score["market_expectation_score"]
+        assert score["evidence_delta_score"] > 0
+        assert score["risk_penalty_score"] > 0
+        assert score["expectation_gap_score"] > 0
+        assert score["gap_type"] == "positive"
+        assert score["score_detail"]["approved_evidence_count"] == 2
+        assert "EV-ORDER" in score["evidence_ids"]
+        assert "EV-PENDING" not in score["evidence_ids"]
+
+    def test_expectation_gap_score_endpoint_returns_business_tag_score_contract(self, monkeypatch):
+        def fake_score(mapping_id, request):
+            return {
+                "version": "supply-chain-v2-expectation-gap-score",
+                "mapping_id": mapping_id,
+                "persisted": request.persist,
+                "score": {
+                    "actual_progress_score": 80,
+                    "market_expectation_score": 45,
+                    "evidence_delta_score": 65,
+                    "risk_penalty_score": 10,
+                    "expectation_gap_score": 48,
+                    "gap_type": "positive",
+                },
+            }
+
+        monkeypatch.setattr(screener_router, "_score_business_tag_expectation_gap", fake_score)
+
+        response = client.post(
+            "/api/v1/screener/supply-chain/business-tag/MAP-001/expectation-gap/score",
+            json={"trade_date": "2026-07-02", "persist": True},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-expectation-gap-score"
+        assert data["mapping_id"] == "MAP-001"
+        assert data["persisted"] is True
+        assert data["score"]["gap_type"] == "positive"
+
+    def test_expectation_gap_score_query_endpoint_returns_latest_contract(self, monkeypatch):
+        def fake_query(mapping_id):
+            return {
+                "version": "supply-chain-v2-expectation-gap-score",
+                "mapping_id": mapping_id,
+                "source_status": "ready",
+                "score": {
+                    "expectation_gap_score": 48,
+                    "gap_type": "positive",
+                },
+            }
+
+        monkeypatch.setattr(screener_router, "_query_business_tag_expectation_gap_score", fake_query)
+
+        response = client.get("/api/v1/screener/supply-chain/business-tag/MAP-001/expectation-gap/score")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-expectation-gap-score"
+        assert data["mapping_id"] == "MAP-001"
+        assert data["source_status"] == "ready"
+        assert data["score"]["gap_type"] == "positive"
+
+
+class TestSupplyChainBatchScores:
+    """Tests for V2 batch scoring across business-tag mappings."""
+
+    def test_batch_score_runs_selected_scores_for_each_mapping(self, monkeypatch):
+        def fake_mappings(request):
+            assert request.code == "000001"
+            return [
+                {"mapping_id": "MAP-001", "code": "000001", "tag_name": "减速器"},
+                {"mapping_id": "MAP-002", "code": "000001", "tag_name": "机器人"},
+            ]
+
+        def fake_three_high(mapping_id, request):
+            return {
+                "mapping_id": mapping_id,
+                "persisted": request.persist,
+                "score": {"total_score": 52},
+                "limitations": [],
+            }
+
+        def fake_expectation_gap(mapping_id, request):
+            return {
+                "mapping_id": mapping_id,
+                "persisted": request.persist,
+                "score": {"expectation_gap_score": 48, "gap_type": "positive"},
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_query_business_tag_mappings_for_batch_score", fake_mappings)
+        monkeypatch.setattr(screener_router, "_score_business_tag_three_high", fake_three_high)
+        monkeypatch.setattr(screener_router, "_score_business_tag_expectation_gap", fake_expectation_gap)
+
+        result = _batch_score_business_tags(BusinessTagBatchScoreRequest(
+            code="000001",
+            score_types=["three_high", "expectation_gap"],
+            trade_date="2026-07-02",
+            persist=True,
+            limit=20,
+        ))
+
+        assert result["version"] == "supply-chain-v2-batch-score"
+        assert result["mapping_count"] == 2
+        assert result["score_count"] == 4
+        assert result["error_count"] == 0
+        assert result["results"][0]["scores"]["three_high"]["total_score"] == 52
+        assert result["results"][0]["scores"]["expectation_gap"]["gap_type"] == "positive"
+
+    def test_batch_score_endpoint_returns_summary_contract(self, monkeypatch):
+        def fake_batch(request):
+            return {
+                "version": "supply-chain-v2-batch-score",
+                "source_status": "ready",
+                "mapping_count": 1,
+                "score_count": 2,
+                "error_count": 0,
+                "results": [
+                    {
+                        "mapping_id": "MAP-001",
+                        "scores": {
+                            "three_high": {"total_score": 52},
+                            "expectation_gap": {"expectation_gap_score": 48},
+                        },
+                    }
+                ],
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_batch_score_business_tags", fake_batch)
+
+        response = client.post(
+            "/api/v1/screener/supply-chain/business-tags/batch-score",
+            json={
+                "code": "000001",
+                "score_types": ["three_high", "expectation_gap"],
+                "trade_date": "2026-07-02",
+                "persist": True,
+                "limit": 20,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-batch-score"
+        assert data["mapping_count"] == 1
+        assert data["score_count"] == 2
+
+
+class TestSupplyChainRefreshWorkflow:
+    """Tests for one-click supply-chain tracking refresh workflow."""
+
+    def test_refresh_workflow_runs_extract_score_and_rankings(self, monkeypatch):
+        def fake_extract(request):
+            assert request.code == "000001"
+            return {
+                "version": "supply-chain-v2-evidence-batch-extract",
+                "source_status": "ok",
+                "mapping_count": 1,
+                "created_event_count": 2,
+                "events": [{"event_id": "EV-1"}, {"event_id": "EV-2"}],
+                "limitations": ["candidate evidence requires review"],
+            }
+
+        def fake_batch_score(request):
+            assert request.code == "000001"
+            assert request.score_types == ["three_high", "expectation_gap"]
+            return {
+                "version": "supply-chain-v2-batch-score",
+                "source_status": "ready",
+                "mapping_count": 1,
+                "score_count": 2,
+                "error_count": 0,
+                "results": [{"mapping_id": "MAP-001", "scores": {}}],
+                "limitations": [],
+            }
+
+        def fake_rankings(rank_type, top_n, trade_date):
+            return {
+                "version": "supply-chain-v2-rankings",
+                "rank_type": rank_type,
+                "trade_date": trade_date,
+                "source_status": "ready",
+                "items": [{"rank": 1, "code": "000001"}],
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_batch_extract_business_tag_evidence", fake_extract)
+        monkeypatch.setattr(screener_router, "_batch_score_business_tags", fake_batch_score)
+        monkeypatch.setattr(screener_router, "_query_supply_chain_rankings", fake_rankings)
+
+        result = _refresh_supply_chain_tracking_workflow(SupplyChainRefreshWorkflowRequest(
+            code="000001",
+            source_types=["announcement_title", "research_title"],
+            score_types=["three_high", "expectation_gap"],
+            rank_types=["value", "expectation_gap"],
+            trade_date="2026-07-02",
+            include_evidence_extract=True,
+            include_scores=True,
+            include_rankings=True,
+            persist=True,
+            evidence_limit=20,
+            score_limit=20,
+            top_n=10,
+        ))
+
+        assert result["version"] == "supply-chain-v2-refresh-workflow"
+        assert result["source_status"] == "ready"
+        assert result["steps"]["evidence_extract"]["created_event_count"] == 2
+        assert result["steps"]["human_review"]["review_required_count"] == 2
+        assert result["steps"]["batch_score"]["score_count"] == 2
+        assert result["rankings"]["value"]["items"][0]["code"] == "000001"
+        assert result["rankings"]["expectation_gap"]["rank_type"] == "expectation_gap"
+
+    def test_refresh_workflow_endpoint_returns_summary_contract(self, monkeypatch):
+        def fake_refresh(request):
+            return {
+                "version": "supply-chain-v2-refresh-workflow",
+                "source_status": "ready",
+                "steps": {
+                    "evidence_extract": {"created_event_count": 1},
+                    "human_review": {"review_required_count": 1},
+                    "batch_score": {"score_count": 2},
+                },
+                "rankings": {"value": {"items": [{"code": "000001"}]}},
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_refresh_supply_chain_tracking_workflow", fake_refresh)
+
+        response = client.post(
+            "/api/v1/screener/supply-chain/refresh-workflow",
+            json={
+                "code": "000001",
+                "source_types": ["announcement_title"],
+                "score_types": ["three_high", "expectation_gap"],
+                "rank_types": ["value"],
+                "trade_date": "2026-07-02",
+                "include_evidence_extract": True,
+                "include_scores": True,
+                "include_rankings": True,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-refresh-workflow"
+        assert data["steps"]["batch_score"]["score_count"] == 2
+        assert data["rankings"]["value"]["items"][0]["code"] == "000001"
+
+
+class TestSupplyChainValueRankings:
+    """Tests for V2 company value ranking from business-tag scores."""
+
+    def test_value_ranking_aggregates_only_attributed_business_tag_scores(self):
+        rankings = _calculate_company_value_rankings([
+            {
+                "code": "000001",
+                "name": "样例公司",
+                "mapping_id": "MAP-CORE",
+                "tag_name": "减速器",
+                "total_score": 80,
+                "revenue_ratio": 0.3,
+                "gross_profit_ratio": None,
+                "confidence": 0.8,
+                "evidence_score": 80,
+            },
+            {
+                "code": "000001",
+                "name": "样例公司",
+                "mapping_id": "MAP-THEME",
+                "tag_name": "机器人",
+                "total_score": 90,
+                "revenue_ratio": None,
+                "gross_profit_ratio": None,
+                "confidence": 0.9,
+                "evidence_score": 90,
+            },
+            {
+                "code": "000002",
+                "name": "弱归因公司",
+                "mapping_id": "MAP-WEAK",
+                "tag_name": "材料",
+                "total_score": 75,
+                "revenue_ratio": None,
+                "gross_profit_ratio": None,
+                "confidence": 0.7,
+                "evidence_score": 60,
+            },
+        ])
+
+        assert rankings[0]["code"] == "000001"
+        assert rankings[0]["rank_status"] == "rankable"
+        assert rankings[0]["value_score"] > 0
+        assert rankings[0]["business_tags"][0]["mapping_id"] == "MAP-CORE"
+        assert rankings[0]["business_tags"][0]["contribution_score"] > 0
+        assert rankings[0]["business_tags"][1]["mapping_id"] == "MAP-THEME"
+        assert rankings[0]["business_tags"][1]["rank_status"] == "theme_only"
+        assert rankings[1]["code"] == "000002"
+        assert rankings[1]["rank_status"] == "theme_only"
+        assert rankings[1]["value_score"] == 0
+
+    def test_value_ranking_endpoint_returns_rank_contract(self, monkeypatch):
+        def fake_rankings(rank_type, top_n, trade_date):
+            return {
+                "version": "supply-chain-v2-rankings",
+                "rank_type": rank_type,
+                "trade_date": trade_date,
+                "source_status": "ready",
+                "items": [
+                    {
+                        "rank": 1,
+                        "code": "000001",
+                        "name": "样例公司",
+                        "value_score": 18.0,
+                        "rank_status": "rankable",
+                        "business_tags": [{"mapping_id": "MAP-CORE"}],
+                    }
+                ],
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_query_supply_chain_rankings", fake_rankings)
+
+        response = client.get(
+            "/api/v1/screener/supply-chain/rankings",
+            params={"rank_type": "value", "top_n": 20, "trade_date": "2026-07-02"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-rankings"
+        assert data["rank_type"] == "value"
+        assert data["items"][0]["business_tags"][0]["mapping_id"] == "MAP-CORE"
+
+
+class TestSupplyChainExpectationGapRankings:
+    """Tests for V2 company expectation-gap ranking from business-tag gap scores."""
+
+    def test_expectation_gap_ranking_aggregates_attributed_positive_gaps(self):
+        rankings = _calculate_company_expectation_gap_rankings([
+            {
+                "code": "000001",
+                "name": "样例公司",
+                "mapping_id": "MAP-GAP",
+                "tag_name": "减速器",
+                "expectation_gap_score": 75,
+                "actual_progress_score": 85,
+                "market_expectation_score": 45,
+                "evidence_delta_score": 80,
+                "risk_penalty_score": 10,
+                "gap_type": "positive",
+                "revenue_ratio": 0.4,
+                "gross_profit_ratio": None,
+                "confidence": 0.9,
+            },
+            {
+                "code": "000001",
+                "name": "样例公司",
+                "mapping_id": "MAP-THEME-GAP",
+                "tag_name": "机器人",
+                "expectation_gap_score": 90,
+                "actual_progress_score": 90,
+                "market_expectation_score": 20,
+                "evidence_delta_score": 90,
+                "risk_penalty_score": 0,
+                "gap_type": "positive",
+                "revenue_ratio": None,
+                "gross_profit_ratio": None,
+                "confidence": 0.8,
+            },
+            {
+                "code": "000002",
+                "name": "弱归因公司",
+                "mapping_id": "MAP-WEAK-GAP",
+                "tag_name": "材料",
+                "expectation_gap_score": 88,
+                "actual_progress_score": 80,
+                "market_expectation_score": 30,
+                "evidence_delta_score": 70,
+                "risk_penalty_score": 5,
+                "gap_type": "positive",
+                "revenue_ratio": None,
+                "gross_profit_ratio": None,
+                "confidence": 0.7,
+            },
+        ])
+
+        assert rankings[0]["code"] == "000001"
+        assert rankings[0]["rank_status"] == "rankable"
+        assert rankings[0]["expectation_gap_score"] > 0
+        assert rankings[0]["business_tags"][0]["mapping_id"] == "MAP-GAP"
+        assert rankings[0]["business_tags"][0]["gap_contribution_score"] > 0
+        assert rankings[0]["business_tags"][0]["gap_type"] == "positive"
+        assert rankings[0]["business_tags"][1]["rank_status"] == "theme_only"
+        assert rankings[1]["code"] == "000002"
+        assert rankings[1]["rank_status"] == "theme_only"
+        assert rankings[1]["expectation_gap_score"] == 0
+
+    def test_expectation_gap_ranking_endpoint_returns_rank_contract(self, monkeypatch):
+        def fake_rankings(rank_type, top_n, trade_date):
+            return {
+                "version": "supply-chain-v2-rankings",
+                "rank_type": rank_type,
+                "trade_date": trade_date,
+                "source_status": "ready",
+                "items": [
+                    {
+                        "rank": 1,
+                        "code": "000001",
+                        "name": "样例公司",
+                        "expectation_gap_score": 27.0,
+                        "rank_status": "rankable",
+                        "business_tags": [{"mapping_id": "MAP-GAP", "gap_type": "positive"}],
+                    }
+                ],
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_query_supply_chain_rankings", fake_rankings)
+
+        response = client.get(
+            "/api/v1/screener/supply-chain/rankings",
+            params={"rank_type": "expectation_gap", "top_n": 20, "trade_date": "2026-07-02"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-v2-rankings"
+        assert data["rank_type"] == "expectation_gap"
+        assert data["items"][0]["business_tags"][0]["gap_type"] == "positive"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

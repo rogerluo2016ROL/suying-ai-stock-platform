@@ -169,6 +169,29 @@ def test_supply_chain_workbench_returns_candidate_pool_with_model_context(monkey
     assert candidate["dimension_scores"]["commercialization"] == 13.0
 
 
+def test_supply_chain_workbench_returns_catalog_when_candidate_pool_unavailable(monkeypatch):
+    def unavailable_candidate_pool(top_n, trade_date=None):
+        raise RuntimeError("model data source unavailable")
+
+    monkeypatch.setattr(
+        screener_router,
+        "_get_supply_chain_candidate_pool",
+        unavailable_candidate_pool,
+        raising=False,
+    )
+
+    r = _client().get("/api/v1/screener/supply-chain/workbench?top_n=10")
+
+    assert r.status_code == 200
+    body = r.json()
+    assert any(t["name"] == "未来产业主攻方向" for t in body["themes"])
+    assert any(n["node_id"] == "embodied_ai_core" for n in body["nodes"])
+    assert body["candidate_count"] == 0
+    assert body["candidates"] == []
+    assert body["data_status"]["candidate_pool"] == "unavailable"
+    assert body["warnings"][0]["code"] == "candidate_pool_unavailable"
+
+
 def test_supply_chain_workbench_model_dimensions_match_v5_scorer(monkeypatch):
     monkeypatch.setattr(
         screener_router,

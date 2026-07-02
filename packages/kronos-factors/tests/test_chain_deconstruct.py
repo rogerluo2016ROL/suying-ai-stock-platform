@@ -276,6 +276,40 @@ class TestBuildBomTree:
         assert result["bom_layers"]["L1"]
         assert any(path[-1]["node_id"] == "consumer_electronics" for path in result["bom_paths"])
 
+    def test_bom_view_returns_completed_semantic_eight_layer_table(self):
+        """BOM view should fill L1-L8 semantic table rows, not placeholder gaps."""
+        result = deconstruct_chain(
+            "future_industry_core",
+            "bom",
+            [
+                {
+                    "node_id": "quantum_core",
+                    "theme_id": "future_industry_core",
+                    "chain_id": "quantum",
+                    "node_name": "量子科技",
+                    "layer": 1,
+                    "parent_node_id": None,
+                    "keywords": ["量子计算", "量子通信", "量子测量"],
+                }
+            ],
+            theme_name="未来产业主攻方向",
+        )
+
+        assert result["bom_layers"]["L1"][0]["name"] == "未来产业主攻方向"
+        assert result["bom_layers"]["L2"][0]["name"] == "量子科技"
+        for layer in ("L3", "L4", "L5", "L6", "L7", "L8"):
+            assert result["bom_layers"][layer], f"{layer} should not be empty"
+
+        assert result["bom_table"]
+        row = result["bom_table"][0]
+        assert row["L1"] == "未来产业主攻方向"
+        assert row["L2"] == "量子科技"
+        assert "量子计算" in row["L6"]
+        assert "业务" in row["L7"]
+        assert "客户验证" in row["L8"]
+        assert "待拆" not in "".join(str(value) for value in row.values())
+        assert "待挂接" not in "".join(str(value) for value in row.values())
+
 
 class TestDeconstructChain:
     """Tests for deconstruct_chain function."""

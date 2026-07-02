@@ -105,3 +105,8 @@
 | 16:50 | Edited tools/backtest_institutional_activity.py | 8→13 lines | ~178 |
 | 17:00 | 机构活跃度因子IC回测36月:IC+0.056/胜率70%但Top组年化-52%(追高回落),非线性,不能单边做多Top;判定逻辑已修正 | tools/backtest_institutional_activity.py | 因子有信息量但需组合用 | ~9k |
 | 16:52 | Session end: 4 writes across 3 files (etl.py, institutional_activity_top.py, backtest_institutional_activity.py) | 1 reads | ~4731 tok |
+
+## Session: 2026-07-02 21:23
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|

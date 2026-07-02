@@ -125,6 +125,8 @@ describe('App shell preview baseline', () => {
     expect(within(navigation).getByText('智能看板')).toBeInTheDocument()
     expect(within(navigation).getByText('开盘决策')).toBeInTheDocument()
     expect(within(navigation).getByText('智能选股')).toBeInTheDocument()
+    expect(within(navigation).getByText('产业链拆解')).toBeInTheDocument()
+    expect(within(navigation).queryByText('标签跟踪')).not.toBeInTheDocument()
     expect(within(navigation).getByText('交易中心')).toBeInTheDocument()
     expect(within(navigation).getByText('回测分析')).toBeInTheDocument()
 
@@ -140,6 +142,14 @@ describe('App shell preview baseline', () => {
     const banner = screen.getByRole('banner')
     expect(within(banner).getByText('风控闸门')).toBeInTheDocument()
     expect(within(banner).queryByText(/^交易中心$/)).not.toBeInTheDocument()
+  })
+
+  it('uses the supply-chain UI prototype for legacy BOM URLs', async () => {
+    renderShell('/supply-chain-bom/policy')
+
+    await waitFor(() => expect(screen.getByTestId('app-shell')).toBeInTheDocument())
+    expect(screen.getByText('产业链内容')).toBeInTheDocument()
+    expect(within(screen.getByRole('banner')).getByText('产业链拆解')).toBeInTheDocument()
   })
 
   it('shows compact platform context in the header instead of page-body explainer cards', async () => {

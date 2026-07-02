@@ -163,6 +163,8 @@ export default function SupplyChainBom() {
   const [loading, setLoading] = useState(false)
   const [candidateLoading, setCandidateLoading] = useState(false)
   const [mappingQuality, setMappingQuality] = useState<SupplyChainMappingQuality | null>(null)
+  const [workbenchError, setWorkbenchError] = useState('')
+  const [catalogSource, setCatalogSource] = useState('screener/supply-chain/workbench')
 
   // P2-08: Policy interpretation state (replaces LLM extraction)
   const [policyText, setPolicyText] = useState('')
@@ -185,8 +187,14 @@ export default function SupplyChainBom() {
   const [mappingQualityError, setMappingQualityError] = useState('')
 
   const applyWorkbenchPayload = (data: any, replaceCatalog = false) => {
-    const nextThemes = data.themes || data.policy_themes || []
-    const nextNodes = data.nodes || data.graph_nodes || []
+    const nextThemes = (data.themes || data.policy_themes || []).map((theme: any) => ({
+      ...theme,
+      theme_id: theme.theme_id || theme.id,
+    }))
+    const nextNodes = (data.nodes || data.graph_nodes || []).map((node: any) => ({
+      ...node,
+      theme_id: node.theme_id || node.themeId || data.selected_theme_id || node.chain_id,
+    }))
     if (replaceCatalog) {
       setThemes(nextThemes)
       setNodes(nextNodes)
@@ -213,20 +221,50 @@ export default function SupplyChainBom() {
 
   useEffect(() => {
     let mounted = true
-    setLoading(true)
-    screenerApi.getSupplyChainWorkbench({ topN: 30 })
-      .then(resp => {
+
+    const selectInitialCatalog = (data: any) => {
+      const nextThemes = (data.themes || data.policy_themes || []) as (SupplyChainTheme & { theme_id?: string })[]
+      const firstTheme = nextThemes[0]
+      setSelectedThemeId((data as { selected_theme_id?: string }).selected_theme_id || firstTheme?.theme_id || firstTheme?.id || '')
+      setSelectedNodeId((data as { selected_node_id?: string }).selected_node_id || '')
+    }
+
+    const loadInitialWorkbench = async () => {
+      setLoading(true)
+      setWorkbenchError('')
+      setCatalogSource('screener/supply-chain/workbench')
+      try {
+        const resp = await screenerApi.getSupplyChainWorkbench({ topN: 30 })
         if (!mounted) return
         const data = resp.data || {}
         applyWorkbenchPayload(data, true)
-        const nextThemes = (data as unknown as { themes?: (SupplyChainTheme & { theme_id?: string })[]; policy_themes?: (SupplyChainTheme & { theme_id?: string })[] }).themes || (data as unknown as { policy_themes?: (SupplyChainTheme & { theme_id?: string })[] }).policy_themes || []
-        const firstTheme = nextThemes[0]
-        setSelectedThemeId((data as unknown as { selected_theme_id?: string }).selected_theme_id || firstTheme?.id || firstTheme?.theme_id || '')
-        setSelectedNodeId((data as unknown as { selected_node_id?: string }).selected_node_id || '')
-      })
-      .finally(() => {
+        selectInitialCatalog(data)
+      } catch (err) {
+        if (!mounted) return
+        setWorkbenchError('workbench 返回异常，已改用真实 screener/supply-chain/bom 图谱数据；候选池和数据新鲜度需要 workbench 恢复后刷新。')
+        setCatalogSource('screener/supply-chain/bom')
+        try {
+          const resp = await screenerApi.getSupplyChainBom()
+          if (!mounted) return
+          const data = {
+            ...(resp.data || {}),
+            candidates: [],
+            node_candidate_companies: [],
+            upstream_influence_candidates: [],
+            selected_node_thesis: {},
+          }
+          applyWorkbenchPayload(data, true)
+          selectInitialCatalog(data)
+        } catch (fallbackErr) {
+          if (!mounted) return
+          message.error('产业链真实图谱加载失败，请检查 screener-service')
+        }
+      } finally {
         if (mounted) setLoading(false)
-      })
+      }
+    }
+
+    loadInitialWorkbench()
     refreshMappingQuality()
     return () => {
       mounted = false
@@ -557,7 +595,7 @@ export default function SupplyChainBom() {
           <DataFreshnessBar
             tradeDate={dataFreshness.market?.latest_trade_date}
             updatedAt={dataFreshness.research_reports?.latest_pub_date || dataFreshness.market?.latest_trade_date}
-            source="screener/supply-chain/workbench"
+            source={catalogSource}
           />
         )}
         actions={[
@@ -572,6 +610,16 @@ export default function SupplyChainBom() {
         <MetricCard label="BOM 节点" value={nodes.length} sub={`当前模式：${methodSummary.title}`} tone="muted" />
         <MetricCard label="数据更新" value={dataFreshness.market?.latest_trade_date || '--'} sub={dataFreshness.research_reports?.latest_pub_date ? `研报 ${dataFreshness.research_reports.latest_pub_date}` : '等待数据同步'} tone="warn" />
       </div>
+
+      {workbenchError && (
+        <Alert
+          type="warning"
+          showIcon
+          message="组合工作台接口不可用"
+          description={workbenchError}
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       {mappingQualityError && (
         <Alert

@@ -342,6 +342,30 @@ describe('SupplyChainBom', () => {
     })
   })
 
+  it('falls back to the real BOM catalog when the workbench endpoint is unavailable', async () => {
+    vi.mocked((screenerApi as any).getSupplyChainWorkbench).mockRejectedValueOnce(new Error('workbench 500'))
+    vi.mocked((screenerApi as any).getSupplyChainBom).mockResolvedValueOnce({
+      data: {
+        version: '4.0',
+        source: 'screener/supply-chain/bom',
+        themes,
+        nodes,
+        edges: [],
+      },
+    })
+
+    renderSupplyChain('/supply-chain-bom/policy')
+
+    await waitFor(() => {
+      expect((screenerApi as any).getSupplyChainBom).toHaveBeenCalled()
+    })
+    await screen.findByText('组合工作台接口不可用')
+    expect(screen.getAllByText('未来产业主攻方向').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('量子科技').length).toBeGreaterThan(0)
+    expect(screen.getByText('组合工作台接口不可用')).toBeInTheDocument()
+    expect(screen.getAllByText(/screener\/supply-chain\/bom/).length).toBeGreaterThan(0)
+  })
+
   it('shows candidate companies with selection reason, commercialization stage, and resonance', async () => {
     renderSupplyChain()
 
