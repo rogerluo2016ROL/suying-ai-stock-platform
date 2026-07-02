@@ -26,7 +26,7 @@ function renderWithProvider(initialStorage: string | null = null) {
   }
   return render(
     <ConfigProvider locale={zhCN}>
-      <ThemeProvider baseToken={{}} baseComponents={{}}>
+      <ThemeProvider>
         <ThemeProbe />
       </ThemeProvider>
     </ConfigProvider>,

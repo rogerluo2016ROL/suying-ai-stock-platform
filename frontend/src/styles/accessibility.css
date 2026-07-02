@@ -168,7 +168,7 @@ a:focus-visible {
 }
 
 /* ── 颜色对比度增强（AA级最低 4.5:1） ── */
-/* 已在 design-tokens.css 中设计，这里仅做备用检查 */
+/* 已在 suying-app.css 中设计，这里仅做备用检查 */
 @media (prefers-contrast: more) {
   body {
     --fg: #ffffff;

@@ -1137,3 +1137,69 @@ export interface TriggerSyncResponse {
   stderr?: string;
   message?: string;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Candidate Pool（候选池 · account-scoped 私有对象，契约 §公共对象字段契约）
+// scope(tenant/owner/account) 由前端拦截器注入请求头，前端类型/请求体均不含明文 scope。
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** 候选池候选股条目 */
+export interface CandidatePoolCandidate {
+  code: string;
+  name?: string;
+  score?: number;
+  grade?: string;
+  rank?: number;
+  [key: string]: unknown;
+}
+
+/** 候选池记录（持久化形态，含 scope 归属——查询响应里带回） */
+export interface CandidatePoolRecord {
+  pool_id: string;
+  source_module: string; // screener / supply-chain / open-decision
+  source_mode: string; // leader_scalp / cb_auction_t0 / ...
+  name: string;
+  candidates: CandidatePoolCandidate[];
+  metadata?: Record<string, unknown> | null;
+  visibility?: 'private' | 'tenant_shared' | 'public';
+  data_scope?: 'public' | 'tenant' | 'user' | 'account';
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** POST /screener/candidate-pool 入参 */
+export interface CandidatePoolRecordRequest {
+  source_module: string;
+  source_mode: string;
+  name: string;
+  candidates: CandidatePoolCandidate[];
+  // 后端 body 字段名为 candidate_pool_metadata（与 OpenAPI 一致；勿简写为 metadata）
+  candidate_pool_metadata?: Record<string, unknown>;
+  visibility?: 'private' | 'tenant_shared' | 'public';
+  data_scope?: 'public' | 'tenant' | 'user' | 'account';
+  /** pool_id 生成辅助（后端拼 POOL-{mode}-{trade_date}-{time_slot}-{scope}） */
+  trade_date?: string;
+  time_slot?: string;
+}
+
+export interface CandidatePoolRecordResponse extends ServiceContractFields {
+  pool_id: string;
+  id?: number;
+  created_at?: string;
+}
+
+export interface CandidatePoolQueryParams {
+  source_module?: string;
+  source_mode?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface CandidatePoolQueryResponse extends ServiceContractFields {
+  total: number;
+  page: number;
+  page_size: number;
+  records: CandidatePoolRecord[];
+  /** 无数据时的空态（契约：缺数据返同 shape + reason，前端不空白） */
+  empty_state?: { reason: string };
+}
