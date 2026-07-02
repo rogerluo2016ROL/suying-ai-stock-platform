@@ -6945,3 +6945,211 @@ async def chain_candidates(
         "resonance_summary": resonance_summary,
         "elapsed": round(time.time() - t0, 2),
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Candidate Pool REST API — 解封"选股 → 加候选池 → 决策"咽喉
+#
+# Scope（tenant_id / owner_user_id / account_id）全部从认证头注入，前端绝不传明文。
+# pool_id 由后端按 POOL-{mode}-{trade_date}-{time_slot}-{scope} 生成（幂等 UPSERT）。
+# ─────────────────────────────────────────────────────────────────────────────
+
+class CandidatePoolRecordRequest(BaseModel):
+    """POST /screener/candidate-pool 入参。
+
+    scope 字段（tenant/owner/account）不在此处——由后端从认证头注入。
+    """
+
+    source_module: str = Field(..., description="来源模块，如 screener / strategy / signal")
+    source_mode: str = Field(..., description="来源模式，如 leader_auction / bi_trend_launch")
+    name: str = Field(..., description="候选池名称")
+    candidates: list[dict[str, Any]] = Field(
+        default_factory=list, description="候选快照列表（每项含 candidate_id/code/score 等）"
+    )
+    candidate_pool_metadata: dict[str, Any] = Field(
+        default_factory=dict, description="附加元数据（trade_date/time_slot/top_n 等）"
+    )
+    visibility: str = Field(default="private", description="可见性：private / tenant_shared / public")
+    data_scope: str = Field(default="account", description="数据范围：account / tenant / public")
+    trade_date: Optional[str] = Field(default=None, description="交易日 YYYY-MM-DD，用于 pool_id 生成")
+    time_slot: Optional[str] = Field(default=None, description="时段 HH:MM，用于 pool_id 生成")
+
+
+class CandidatePoolRecordResponse(BaseModel):
+    """POST /screener/candidate-pool 响应。"""
+
+    pool_id: str = Field(..., description="后端生成的候选池 ID")
+    id: Optional[int] = Field(default=None, description="数据库行 id（PG 不可用时为 None）")
+    created_at: Optional[str] = Field(default=None, description="创建时间 ISO（PG 不可用时为 None）")
+    fallback_reason: Optional[str] = Field(
+        default=None, description="非空表示降级（如 PG 不可用、db 未注入），已忽略写入"
+    )
+
+
+class CandidatePoolQueryResponse(BaseModel):
+    """GET /screener/candidate-pool 响应。"""
+
+    total: int = Field(..., description="满足 scope 过滤的总记录数")
+    page: int = Field(..., description="当前页码")
+    page_size: int = Field(..., description="每页大小")
+    records: list[dict[str, Any]] = Field(default_factory=list, description="候选池记录列表")
+    empty_state: Optional[dict[str, Any]] = Field(
+        default=None, description="无数据时的空态提示（含 hint / suggestion）"
+    )
+    fallback_reason: Optional[str] = Field(
+        default=None, description="非空表示降级（如 PG 不可用、db 未注入）"
+    )
+
+
+@router.post(
+    "/candidate-pool",
+    response_model=CandidatePoolRecordResponse,
+    operation_id="record_candidate_pool",
+    summary="记录候选池快照（scope 从认证头注入）",
+)
+async def record_candidate_pool(
+    payload: CandidatePoolRecordRequest,
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    owner_user_id: str | None = Header(default=None, alias="X-Owner-User-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    db: AsyncSession | None = Depends(get_db),
+):
+    """记录一次候选池快照。pool_id 后端生成，scope 从 Header 取，幂等 UPSERT。
+
+    PG 不可用或 db 未注入时降级返回 `fallback_reason`，不抛 500。
+    """
+    if db is None:
+        return CandidatePoolRecordResponse(
+            pool_id="",
+            fallback_reason="db_session_unavailable",
+        )
+
+    resolved_tenant = tenant_id or "tenant-default"
+    resolved_scope = payload.data_scope or (
+        "account" if (account_id or owner_user_id) else "public"
+    )
+    visibility = "public" if resolved_scope == "public" else (
+        payload.visibility if payload.visibility in ("private", "tenant_shared", "public") else "private"
+    )
+    trade_date = payload.trade_date or datetime.now().strftime("%Y-%m-%d")
+    time_slot = payload.time_slot or datetime.now().strftime("%H:%M")
+    scope_key = account_id or owner_user_id or "public"
+    pool_id = (
+        f"POOL-{payload.source_mode}-{trade_date}-{time_slot.replace(':', '')}-{scope_key}"
+    )
+
+    try:
+        row_id = await candidate_pool_store.record(
+            db,
+            pool_id=pool_id,
+            tenant_id=resolved_tenant,
+            owner_user_id=owner_user_id,
+            account_id=account_id,
+            source_module=payload.source_module,
+            source_mode=payload.source_mode,
+            name=payload.name,
+            candidates=payload.candidates,
+            metadata=payload.candidate_pool_metadata,
+            visibility=visibility,
+            data_scope=resolved_scope,
+        )
+        await db.commit()
+        # 回查 created_at（record 返回 id，created_at 由 DB 默认值填充）
+        created_at: Optional[str] = None
+        if row_id is not None:
+            try:
+                from sqlalchemy import text as _text
+                ts_row = await db.execute(
+                    _text("SELECT created_at FROM candidate_pools WHERE id = :id"),
+                    {"id": row_id},
+                )
+                ts_val = ts_row.scalar()
+                if hasattr(ts_val, "isoformat"):
+                    created_at = ts_val.isoformat()
+                elif ts_val is not None:
+                    created_at = str(ts_val)
+            except Exception:
+                pass
+        return CandidatePoolRecordResponse(
+            pool_id=pool_id,
+            id=row_id,
+            created_at=created_at,
+        )
+    except Exception as e:
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        logger.warning("CandidatePool REST record failed: %s", e)
+        return CandidatePoolRecordResponse(
+            pool_id=pool_id,
+            fallback_reason=f"persist_failed: {e}",
+        )
+
+
+@router.get(
+    "/candidate-pool",
+    response_model=CandidatePoolQueryResponse,
+    operation_id="query_candidate_pool",
+    summary="查询候选池（scope 从认证头注入自动过滤）",
+)
+async def query_candidate_pool(
+    source_module: Optional[str] = Query(default=None, description="按来源模块过滤"),
+    source_mode: Optional[str] = Query(default=None, description="按来源模式过滤"),
+    page: int = Query(default=1, ge=1, description="页码，从 1 起"),
+    page_size: int = Query(default=50, ge=1, le=200, description="每页大小，上限 200"),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    owner_user_id: str | None = Header(default=None, alias="X-Owner-User-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    db: AsyncSession | None = Depends(get_db),
+):
+    """查询当前 scope 可见的候选池快照。
+
+    store.query 内置 scope 过滤（private 仅 owner/同账户、tenant_shared 同租户、public 全局）。
+    PG 不可用或 db 未注入时降级返回 `fallback_reason` + 空 records。
+    """
+    if db is None:
+        return CandidatePoolQueryResponse(
+            total=0,
+            page=page,
+            page_size=page_size,
+            records=[],
+            empty_state={"hint": "db_session_unavailable", "suggestion": "稍后重试或联系管理员"},
+            fallback_reason="db_session_unavailable",
+        )
+
+    try:
+        result = await candidate_pool_store.query(
+            db,
+            tenant_id=tenant_id,
+            owner_user_id=owner_user_id,
+            account_id=account_id,
+            source_module=source_module,
+            source_mode=source_mode,
+            page=page,
+            page_size=page_size,
+        )
+        records = result.get("records", [])
+        empty_state = None
+        if not records:
+            empty_state = {
+                "hint": "no_visible_pools",
+                "suggestion": "运行选股后自动落库，或检查 X-Tenant-Id / X-Owner-User-Id / X-Trade-Account-Id 头是否正确",
+            }
+        return CandidatePoolQueryResponse(
+            total=result.get("total", 0),
+            page=result.get("page", page),
+            page_size=result.get("page_size", page_size),
+            records=records,
+            empty_state=empty_state,
+        )
+    except Exception as e:
+        logger.warning("CandidatePool REST query failed: %s", e)
+        return CandidatePoolQueryResponse(
+            total=0,
+            page=page,
+            page_size=page_size,
+            records=[],
+            empty_state={"hint": "query_failed", "suggestion": str(e)},
+            fallback_reason=f"query_failed: {e}",
+        )

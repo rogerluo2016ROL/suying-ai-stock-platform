@@ -1,3 +1,45 @@
+## M0-后端 — 解封 candidate-pool REST 端点（POST/GET）- 2026-07-02
+**状态**: 代码完成 + Unit/SIT 自跑全绿（9/9 新测试通过；全量回归 5 失败均为 pre-existing 与本次改动无关）
+**Skills**: agf-running-sit-tests
+
+**改动文件**:
+- `services/screener-service/app/routers/screener.py`：新增 2 端点（POST/GET `/api/v1/screener/candidate-pool`）+ 3 Pydantic 模型（CandidatePoolRecordRequest/Response、CandidatePoolQueryResponse），复用 `candidate_pool_store.record/query`，scope 全部从 `X-Tenant-Id`/`X-Owner-User-Id`/`X-Trade-Account-Id` Header 注入
+- `services/screener-service/tests/test_candidate_pool_api.py`（新）：9 个测试覆盖 scope 隔离契约
+
+**SIT 证据**（按 AC 列；行首 `[x]/[ ]` 同时表达 AC 自验勾选）:
+
+- [x] **AC-1 POST /candidate-pool**：入参 `source_module/source_mode/name/candidates/candidate_pool_metadata/visibility/data_scope/trade_date/time_slot`；pool_id 后端生成 `POOL-{source_mode}-{trade_date}-{time_slot(去:)}-{account_id or owner_user_id or public}`；scope 从 Header 取；返回 `{pool_id,id,created_at}` 或 `fallback_reason`（db 未注入→`db_session_unavailable`；持久化异常→`persist_failed: <e>`）
+  ```
+  POST /api/v1/screener/candidate-pool
+  headers: X-Tenant-Id,X-Owner-User-Id:7,X-Trade-Account-Id:paper-u7
+  body: {source_module:screener,source_mode:leader_auction,name:开盘候选池,candidates:[...],
+         candidate_pool_metadata:{...},visibility:private,data_scope:account,
+         trade_date:2026-07-02,time_slot:09:25}
+  → 200 {pool_id:"POOL-leader_auction-2026-07-02-0925-paper-u7", id:1001, created_at:"2026-07-02T09:25..."}
+  ```
+- [x] **AC-2 GET /candidate-pool**：入参 `source_module/source_mode/page/page_size`（均 optional）；scope 从 Header 自动过滤；返回 store.query 同 shape `{total,page,page_size,records}` + 无数据时 `empty_state={hint:"no_visible_pools",suggestion:...}`
+- [x] **AC-3 scope 全部 router 层从 Header 取**：`CandidatePoolRecordRequest` schema props 不含 `tenant_id/owner_user_id/account_id`（测试 `test_post_body_has_no_plaintext_scope_fields` 断言）；OpenAPI 验证 GET parameters 含 `X-Tenant-Id/X-Owner-User-Id/X-Trade-Account-Id`（Header），POST body props 全是业务字段
+- [x] **AC-4 db session 注入用 Depends(get_db)**：与 `run_screening` 同款 `db: AsyncSession | None = Depends(get_db)`
+- [x] **AC-5 pytest 全过 + 新增 test_candidate_pool_api.py**：scope 隔离断言 — 账户 A 写入 private 池，账户 B 查询 total=0（`test_get_scope_isolation_account_a_invisible_to_account_b`）；public visibility 跨账户可见（`test_get_public_visibility_cross_account_readable`）
+  ```
+  $ pytest services/screener-service/tests/test_candidate_pool_api.py -v
+  9 passed in 0.31s
+  $ pytest services/screener-service/tests/ -q
+  173 passed, 5 failed  ← 5 失败 pre-existing（见下）
+  ```
+  **5 pre-existing 失败（与本次改动无关，stash 验证）**：
+  - `test_candidate_contract.py::test_screener_contract_adds_model_metadata_freshness_and_fallback` — 硬编码 trade_date=2026-06-21，今天 2026-07-02 触发 `data_freshness=stale`（日期漂移，非逻辑回归）
+  - `test_llm_multi_provider.py` ×4 — 环境无 `openai` 包 + `APIConnectionError(request=...)` kwarg 在本 Python/mock 组合下 `TypeError`（stash 后 collection 直接 `ModuleNotFoundError: No module named 'openai'`）
+
+**OpenAPI 契约（前端 orval 友好）**:
+- POST `operationId=record_candidate_pool` + `response_model=CandidatePoolRecordResponse`
+- GET `operationId=query_candidate_pool` + `response_model=CandidatePoolQueryResponse`
+- `/openapi.json` 已验证可导出，请求/响应 schema 规范
+
+**质量门**: syntax ✅ (screener.py ast.parse OK) / unit ✅ (9/9 新测试) / SIT ✅ (scope 隔离 + 降级路径 + OpenAPI 契约)
+
+**下一步**: 等待 code-review（含 SIT Audit）+ frontend-dev 拉或val 生成 client
+
 ## 阶段0 — T-005 AC-1/2/3 认证密钥分级 raise + AC-8 docker 跑 alembic - 2026-06-21
 **状态**: 代码完成（backend-dev 改码 config×2 + 测试×2 + compose；PL 补 Dockerfile AC-8 + PL 代跑 SIT verify）；AC-2 curl 待 UAT 实测
 **Skills**: agf-running-sit-tests（PL 代跑 verify）
