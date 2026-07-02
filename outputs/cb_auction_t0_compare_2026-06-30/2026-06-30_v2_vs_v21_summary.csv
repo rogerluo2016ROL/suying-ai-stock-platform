@@ -1,0 +1,4 @@
+﻿model,list_type,trigger_count,concepts,raw_bonds,evaluable_trades,wins,win_rate,avg_return_pct,median_return_pct
+V2.0,主买,1,光学元件(0.7389)、苹果概念(0.2104),40,13,12,92.3077,4.7141,3.2
+V2.1,主买,1,光学元件(0.7389)、苹果概念(0.2104),13,12,12,100.0,5.4423,3.2996
+V2.1,观察,1,光学元件(0.7389)、苹果概念(0.2104),0,0,0,,,

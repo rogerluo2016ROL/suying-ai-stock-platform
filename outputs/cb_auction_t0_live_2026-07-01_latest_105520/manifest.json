@@ -1,0 +1,30 @@
+{
+  "date": "2026-07-01",
+  "out_dir": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_latest_105520",
+  "files": [
+    "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_latest_105520/2026-07-01_cb_auction_t0.csv",
+    "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_latest_105520/2026-07-01_cb_auction_t0.json",
+    "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_latest_105520/2026-07-01_cb_auction_t0_pending_confirmation.csv",
+    "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_latest_105520/2026-07-01_cb_auction_t0_v2.csv",
+    "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_latest_105520/2026-07-01_cb_auction_t0_v2.json",
+    "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_latest_105520/2026-07-01_cb_auction_t0_v2_1.csv",
+    "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_latest_105520/2026-07-01_cb_auction_t0_v2_1.json",
+    "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_latest_105520/2026-07-01_cb_auction_t0_v2_1_pending_confirmation.csv",
+    "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_latest_105520/2026-07-01_cb_auction_t0_v2_pending_confirmation.csv"
+  ],
+  "results": [
+    {
+      "model": "v1",
+      "returncode": 0
+    },
+    {
+      "model": "v2",
+      "returncode": 0
+    },
+    {
+      "model": "v2.1",
+      "returncode": 0
+    }
+  ],
+  "run_at": "2026-07-01T10:55:32.420348"
+}

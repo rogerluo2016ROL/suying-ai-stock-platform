@@ -82,3 +82,8 @@
 | 17:14 | Session end: 8 writes across 4 files (backtest_all_models_june.py, backtest_fusion_v4_vs_v5.py, backtest_fusion_calibrated.py, mode_profiles.json) | 10 reads | ~44616 tok |
 | 17:36 | Session end: 8 writes across 4 files (backtest_all_models_june.py, backtest_fusion_v4_vs_v5.py, backtest_fusion_calibrated.py, mode_profiles.json) | 10 reads | ~44616 tok |
 | 18:16 | Session end: 8 writes across 4 files (backtest_all_models_june.py, backtest_fusion_v4_vs_v5.py, backtest_fusion_calibrated.py, mode_profiles.json) | 11 reads | ~44616 tok |
+
+## Session: 2026-07-02 09:59
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|

@@ -1,0 +1,2 @@
+﻿trigger_stock_code,trigger_stock_name,fd_amount_yi,first_time,last_time,open_times,industry,limit_stat,trigger_data_source
+002979,雷赛智能,7.53,09:25:00,09:25:00,0,自动化设,1/1,eastmoney_zt_pool

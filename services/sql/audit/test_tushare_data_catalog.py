@@ -154,6 +154,30 @@ def test_build_full_api_directory_rows_includes_every_reference_api():
     assert directory_rows[1].governance_status == "unclassified"
 
 
+def test_build_full_api_directory_rows_marks_raw_landed_api():
+    reference_apis = {
+        "fund_daily": catalog.TushareApiRef("fund_daily", "ETF日线", "ETF专题", "url-fund", ""),
+    }
+    raw_status = {
+        "fund_daily": catalog.RawApiIngestStatus(
+            api="fund_daily",
+            table_name="ts_raw_fund_daily",
+            status="collected",
+            rows_fetched=100,
+            rows_inserted=90,
+            columns=("ts_code", "trade_date", "close"),
+            error="",
+        )
+    }
+
+    directory_rows = catalog.build_full_api_directory_rows(reference_apis, [], raw_status)
+
+    assert directory_rows[0].project_status == "raw_landed"
+    assert directory_rows[0].governance_status == "collected"
+    assert directory_rows[0].pg_table == "ts_raw_fund_daily"
+    assert directory_rows[0].rows == 90
+
+
 def test_render_markdown_does_not_omit_uncovered_reference_apis():
     reference_apis = {
         f"api_{i}": catalog.TushareApiRef(f"api_{i}", f"接口{i}", "测试", f"url-{i}", "")

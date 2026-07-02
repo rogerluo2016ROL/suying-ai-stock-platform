@@ -203,12 +203,26 @@ export interface SectorResonance {
 export interface ScreenerRunResponse extends ServiceContractFields {
   trade_date?: string | null;
   picks: ScreenerPick[];
+  observation_picks?: ScreenerPick[];
+  total_picks?: number;
+  total_observation_picks?: number;
   total_scored: number;
   total_excluded: number;
   elapsed: number;
   sector_resonance?: SectorResonance[];
   market_env?: string;
   timestamp?: string;
+  no_result_reason?: string | null;
+  process_summary?: Record<string, number>;
+  screening_trace?: Array<{
+    step: string;
+    status: string;
+    detail: string;
+  }>;
+  rejection_summary?: Array<{
+    reason: string;
+    count: number;
+  }>;
 }
 
 /** 选股模式列表响应 */

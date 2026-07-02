@@ -1,0 +1,765 @@
+{
+  "model": "cb_auction_t0_v2",
+  "trade_date": "2026-07-01",
+  "trigger_stocks": [
+    {
+      "trigger_stock_code": "000733",
+      "trigger_stock_name": "振华科技",
+      "fd_amount": 999798561.0,
+      "fd_amount_yi": 10.0,
+      "first_time": "09:30:00",
+      "last_time": "09:30:00",
+      "open_times": 0,
+      "prev_was_limit_up": false,
+      "trigger_data_source": "eastmoney_zt_pool",
+      "industry": "军工电子",
+      "limit_stat": "1/1"
+    },
+    {
+      "trigger_stock_code": "603137",
+      "trigger_stock_name": "恒尚节能",
+      "fd_amount": 996926364.0,
+      "fd_amount_yi": 9.97,
+      "first_time": "09:25:02",
+      "last_time": "09:25:02",
+      "open_times": 0,
+      "prev_was_limit_up": false,
+      "trigger_data_source": "eastmoney_zt_pool",
+      "industry": "装修装饰",
+      "limit_stat": "2/2"
+    },
+    {
+      "trigger_stock_code": "603738",
+      "trigger_stock_name": "泰晶科技",
+      "fd_amount": 795550671.0,
+      "fd_amount_yi": 7.96,
+      "first_time": "09:25:03",
+      "last_time": "09:25:03",
+      "open_times": 0,
+      "prev_was_limit_up": false,
+      "trigger_data_source": "eastmoney_zt_pool",
+      "industry": "元件",
+      "limit_stat": "1/1"
+    },
+    {
+      "trigger_stock_code": "002635",
+      "trigger_stock_name": "安洁科技",
+      "fd_amount": 709216762.0,
+      "fd_amount_yi": 7.09,
+      "first_time": "09:25:00",
+      "last_time": "09:25:00",
+      "open_times": 0,
+      "prev_was_limit_up": false,
+      "trigger_data_source": "eastmoney_zt_pool",
+      "industry": "消费电子",
+      "limit_stat": "1/1"
+    }
+  ],
+  "concepts": [
+    {
+      "concept_code": "884093.TI",
+      "concept_name": "被动元件",
+      "trigger_stock_count": 1,
+      "concept_fd_amount": 795550671.0,
+      "concept_fd_amount_yi": 7.96,
+      "trigger_sources": [
+        "603738"
+      ],
+      "concept_size": 1,
+      "concept_strength": 3.2359733654943694,
+      "concept_strength_source": "auction_avg",
+      "auction_sample_count": 16
+    },
+    {
+      "concept_code": "885886.TI",
+      "concept_name": "超级电容",
+      "trigger_stock_count": 1,
+      "concept_fd_amount": 999798561.0,
+      "concept_fd_amount_yi": 10.0,
+      "trigger_sources": [
+        "000733"
+      ],
+      "concept_size": 1,
+      "concept_strength": 0.781492815506797,
+      "concept_strength_source": "auction_avg",
+      "auction_sample_count": 43
+    }
+  ],
+  "bonds": [
+    {
+      "cb_code": "113503.SH",
+      "cb_name": "泰晶转债",
+      "stk_code": "603738",
+      "stk_name": "泰晶科技",
+      "matched_concepts": [
+        "被动元件"
+      ],
+      "trigger_sources": [
+        "603738"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 795550671.0,
+      "matched_concept_strength": 3.2359733654943694,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-05-27",
+      "call_status": "安全",
+      "is_direct_trigger": true,
+      "theme_score": 1117.9555,
+      "risk_notes": [
+        "退市日期2020-05-27"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113503.SH",
+      "name": "泰晶转债",
+      "relation_reason": "正股为触发股，命中被动元件",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度3.24%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "110051.SH",
+      "cb_name": "中天转债",
+      "stk_code": "600522",
+      "stk_name": "中天科技",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2021-12-17",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "退市日期2021-12-17"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "110051.SH",
+      "name": "中天转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "111025.SH",
+      "cb_name": "圣泉转债",
+      "stk_code": "605589",
+      "stk_name": "圣泉集团",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 2500000000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "剩余规模25.00亿"
+      ],
+      "remain_size_yi": 25.0,
+      "code": "111025.SH",
+      "name": "圣泉转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113554.SH",
+      "cb_name": "仙鹤转债",
+      "stk_code": "603733",
+      "stk_name": "仙鹤股份",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-09-11",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "退市日期2020-09-11"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113554.SH",
+      "name": "仙鹤转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113582.SH",
+      "cb_name": "火炬转债",
+      "stk_code": "603678",
+      "stk_name": "火炬电子",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-04-23",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2025-04-23"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113582.SH",
+      "name": "火炬转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113632.SH",
+      "cb_name": "鹤21转债",
+      "stk_code": "603733",
+      "stk_name": "仙鹤股份",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1698447749.23,
+      "delist_date": null,
+      "call_status": "公告提示强赎",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "公告提示强赎",
+        "剩余规模16.98亿"
+      ],
+      "remain_size_yi": 16.98,
+      "code": "113632.SH",
+      "name": "鹤21转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113701.SH",
+      "cb_name": "祥和转债",
+      "stk_code": "603500",
+      "stk_name": "祥和实业",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 400000000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [],
+      "remain_size_yi": 4.0,
+      "code": "113701.SH",
+      "name": "祥和转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123012.SZ",
+      "cb_name": "万顺转债",
+      "stk_code": "300057",
+      "stk_name": "万顺新材",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-07-22",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2024-07-22"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123012.SZ",
+      "name": "万顺转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123085.SZ",
+      "cb_name": "万顺转2",
+      "stk_code": "300057",
+      "stk_name": "万顺新材",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-05-26",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2026-05-26"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123085.SZ",
+      "name": "万顺转2",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123125.SZ",
+      "cb_name": "元力转债",
+      "stk_code": "300174",
+      "stk_name": "元力股份",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2023-01-17",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2023-01-17"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123125.SZ",
+      "name": "元力转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123158.SZ",
+      "cb_name": "宙邦转债",
+      "stk_code": "300037",
+      "stk_name": "新宙邦",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1804598900.0,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "剩余规模18.05亿"
+      ],
+      "remain_size_yi": 18.05,
+      "code": "123158.SZ",
+      "name": "宙邦转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "127040.SZ",
+      "cb_name": "国泰转债",
+      "stk_code": "002091",
+      "stk_name": "江苏国泰",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 3986259900.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "剩余规模39.86亿"
+      ],
+      "remain_size_yi": 39.86,
+      "code": "127040.SZ",
+      "name": "国泰转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "127061.SZ",
+      "cb_name": "美锦转债",
+      "stk_code": "000723",
+      "stk_name": "美锦能源",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 2788975600.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "剩余规模27.89亿"
+      ],
+      "remain_size_yi": 27.89,
+      "code": "127061.SZ",
+      "name": "美锦转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "127074.SZ",
+      "cb_name": "麦米转2",
+      "stk_code": "002851",
+      "stk_name": "麦格米特",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-12-16",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2024-12-16"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "127074.SZ",
+      "name": "麦米转2",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128001.SZ",
+      "cb_name": "泰尔转债",
+      "stk_code": "002347",
+      "stk_name": "泰尔股份",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2014-11-21",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "退市日期2014-11-21"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128001.SZ",
+      "name": "泰尔转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128082.SZ",
+      "cb_name": "华锋转债",
+      "stk_code": "002806",
+      "stk_name": "华锋股份",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-07-30",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2025-07-30"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128082.SZ",
+      "name": "华锋转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128089.SZ",
+      "cb_name": "麦米转债",
+      "stk_code": "002851",
+      "stk_name": "麦格米特",
+      "matched_concepts": [
+        "超级电容"
+      ],
+      "trigger_sources": [
+        "000733"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 999798561.0,
+      "matched_concept_strength": 0.781492815506797,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-09-10",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 119.998,
+      "risk_notes": [
+        "退市日期2020-09-10"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128089.SZ",
+      "name": "麦米转债",
+      "relation_reason": "命中超级电容",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.78%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113504.SH",
+      "cb_name": "艾华转债",
+      "stk_code": "603989",
+      "stk_name": "艾华集团",
+      "matched_concepts": [
+        "被动元件"
+      ],
+      "trigger_sources": [
+        "603738"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 795550671.0,
+      "matched_concept_strength": 3.2359733654943694,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-03-04",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 117.9555,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2024-03-04"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113504.SH",
+      "name": "艾华转债",
+      "relation_reason": "命中被动元件",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度3.24%",
+      "list_type": "主买"
+    }
+  ],
+  "observation_bonds": [],
+  "pending_confirmation_stocks": [],
+  "rejections": [
+    {
+      "code": "000601",
+      "name": "韶能股份",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 268171356.0,
+      "data_source": "eastmoney_zt_pool"
+    },
+    {
+      "code": "002273",
+      "name": "水晶光电",
+      "reason": "昨日已涨停",
+      "fd_amount": 783273359.0,
+      "data_source": "eastmoney_zt_pool"
+    },
+    {
+      "code": "002458",
+      "name": "益生股份",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 143498925.0,
+      "data_source": "eastmoney_zt_pool"
+    },
+    {
+      "code": "002559",
+      "name": "亚威股份",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 550271673.0,
+      "data_source": "eastmoney_zt_pool"
+    },
+    {
+      "code": "600233",
+      "name": "圆通速递",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 449298637.0,
+      "data_source": "eastmoney_zt_pool"
+    },
+    {
+      "code": "600509",
+      "name": "天富能源",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 298160790.0,
+      "data_source": "eastmoney_zt_pool"
+    },
+    {
+      "code": "002468",
+      "name": "申通快递",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 102858012.0,
+      "data_source": "eastmoney_zt_pool"
+    }
+  ],
+  "external_source": "eastmoney_zt_pool",
+  "external_source_note": "东方财富涨停池: 封板资金->fd_amount, 首次封板时间->first_time",
+  "eastmoney_pool_rows": 124,
+  "prev_trade_date": "2026-06-30"
+}

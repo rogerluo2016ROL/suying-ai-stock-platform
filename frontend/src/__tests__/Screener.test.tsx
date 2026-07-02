@@ -196,6 +196,15 @@ describe('Screener', () => {
         trade_date: '2026-06-26',
         data_freshness: { status: 'fresh', as_of: '2026-06-26', source: 'daily_kline', quality_score: 96 },
         picks: [],
+        no_result_reason: '2026-07-01 未找到符合竞价 T+0 条件的触发股。常见原因是当日竞价/涨停数据未入库。',
+        screening_trace: [
+          { step: '交易日确认', status: 'ok', detail: '使用交易日 2026-07-01' },
+          { step: '触发股筛选', status: 'empty', detail: '竞价触发股 0 只' },
+          { step: '概念映射', status: 'skipped', detail: '有效概念 0 个' },
+        ],
+        rejection_summary: [
+          { reason: '封单金额不足7亿', count: 3 },
+        ],
         total_scored: 58,
         total_excluded: 58,
         elapsed: 0.1,
@@ -206,6 +215,10 @@ describe('Screener', () => {
     fireEvent.click(await screen.findByRole('button', { name: /运行选股/ }))
 
     expect(await screen.findByText('当前模型返回 0 只')).toBeInTheDocument()
-    expect(screen.getByText(/请检查交易日、实时快照或切换到盘后龙头/)).toBeInTheDocument()
+    expect(screen.getAllByText(/未找到符合竞价 T\+0 条件的触发股/).length).toBeGreaterThan(0)
+    expect(screen.getByText('选债过程')).toBeInTheDocument()
+    expect(screen.getByText(/触发股筛选/)).toBeInTheDocument()
+    expect(screen.getByText(/竞价触发股 0 只/)).toBeInTheDocument()
+    expect(screen.getByText('封单金额不足7亿：3')).toBeInTheDocument()
   })
 })

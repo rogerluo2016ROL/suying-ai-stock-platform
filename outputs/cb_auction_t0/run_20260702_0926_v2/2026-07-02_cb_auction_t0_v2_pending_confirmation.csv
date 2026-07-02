@@ -1,0 +1,5 @@
+﻿trigger_stock_code,trigger_stock_name,auction_price,up_limit,auction_amount,auction_amount_yi,confirmation_status,data_source
+002020,京新药业,14.66,14.66,58204598.0,0.58,待确认真实封单金额,stk_auction+stk_limit
+002979,雷赛智能,63.23,63.23,43103891.0,0.43,待确认真实封单金额,stk_auction+stk_limit
+002998,优彩资源,7.65,7.65,14367465.0,0.14,待确认真实封单金额,stk_auction+stk_limit
+603137,恒尚节能,15.65,15.65,677019.0,0.01,待确认真实封单金额,stk_auction+stk_limit

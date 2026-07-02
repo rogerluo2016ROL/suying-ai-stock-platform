@@ -92,6 +92,17 @@ class ApiDirectoryRow:
     url: str
 
 
+@dataclass(frozen=True)
+class RawApiIngestStatus:
+    api: str
+    table_name: str
+    status: str
+    rows_fetched: int
+    rows_inserted: int
+    columns: tuple[str, ...]
+    error: str
+
+
 def parse_tushare_reference_apis(text: str) -> dict[str, TushareApiRef]:
     """Parse the bundled Tushare markdown API index."""
     apis: dict[str, TushareApiRef] = {}
@@ -293,6 +304,47 @@ def introspect_pg_tables(
     return stats
 
 
+def introspect_raw_ingest_status(pg_url: str | None = None) -> dict[str, RawApiIngestStatus]:
+    pg_url = pg_url or os.environ.get("KRONOS_PG_URL")
+    if not pg_url:
+        return {}
+    import psycopg2
+
+    try:
+        conn = psycopg2.connect(pg_url, connect_timeout=5)
+    except Exception:
+        return {}
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT to_regclass('public.tushare_api_ingest_status')")
+        if not cur.fetchone()[0]:
+            conn.close()
+            return {}
+        cur.execute(
+            """
+            SELECT api, table_name, status, rows_fetched, rows_inserted, columns, COALESCE(error, '')
+            FROM tushare_api_ingest_status
+            """
+        )
+        statuses: dict[str, RawApiIngestStatus] = {}
+        for api, table_name, status, rows_fetched, rows_inserted, columns, error in cur.fetchall():
+            statuses[api] = RawApiIngestStatus(
+                api=api,
+                table_name=table_name,
+                status=status,
+                rows_fetched=int(rows_fetched or 0),
+                rows_inserted=int(rows_inserted or 0),
+                columns=tuple(columns or ()),
+                error=error or "",
+            )
+        conn.close()
+        return statuses
+    except Exception:
+        conn.rollback()
+        conn.close()
+        return {}
+
+
 def build_catalog_rows(
     data_sources: list[dict[str, Any]],
     sync_map: dict[str, tuple],
@@ -345,8 +397,10 @@ def uncovered_reference_apis(
 def build_full_api_directory_rows(
     reference_apis: dict[str, TushareApiRef],
     catalog_rows: list[CatalogRow],
+    raw_status: dict[str, RawApiIngestStatus] | None = None,
 ) -> list[ApiDirectoryRow]:
     """Return one directory row for every Tushare reference API."""
+    raw_status = raw_status or {}
     by_api: dict[str, CatalogRow] = {}
     for row in catalog_rows:
         if row.tushare_api and row.tushare_api not in by_api:
@@ -373,6 +427,28 @@ def build_full_api_directory_rows(
                     max_date=row.max_date,
                     history_status=row.history_status,
                     issues=row.issues,
+                    url=api.url,
+                )
+            )
+        elif api.name in raw_status:
+            raw = raw_status[api.name]
+            directory.append(
+                ApiDirectoryRow(
+                    api=api.name,
+                    title=api.title,
+                    api_category=api.category,
+                    project_status="raw_landed" if raw.status == "collected" else "raw_table_created",
+                    governance_status=raw.status,
+                    table_key="",
+                    pg_table=raw.table_name,
+                    sync_mode="raw_bulk_ingest",
+                    monitored=False,
+                    date_col="",
+                    rows=raw.rows_inserted,
+                    min_date=None,
+                    max_date=None,
+                    history_status="raw_unverified",
+                    issues=() if raw.status == "collected" else (raw.status,),
                     url=api.url,
                 )
             )
@@ -404,14 +480,18 @@ def render_markdown(
     rows: list[CatalogRow],
     reference_apis: dict[str, TushareApiRef],
     uncovered: list[TushareApiRef],
+    raw_status: dict[str, RawApiIngestStatus] | None = None,
     generated_at: datetime | None = None,
 ) -> str:
     generated_at = generated_at or datetime.now()
-    directory_rows = build_full_api_directory_rows(reference_apis, rows)
+    raw_status = raw_status or {}
+    directory_rows = build_full_api_directory_rows(reference_apis, rows, raw_status)
     covered = sum(1 for row in rows if row.coverage_status == "covered")
     ten_year = sum(1 for row in rows if row.history_status == "10y_ok")
     issue_rows = sum(1 for row in rows if row.issues)
     unclassified = sum(1 for row in directory_rows if row.governance_status == "unclassified")
+    raw_landed = sum(1 for row in directory_rows if row.project_status == "raw_landed")
+    raw_table_created = sum(1 for row in directory_rows if row.project_status == "raw_table_created")
     lines = [
         "# Tushare 数据资产目录",
         "",
@@ -425,6 +505,8 @@ def render_markdown(
         f"- 10 年跨度达标: {ten_year}",
         f"- 存在字段/覆盖问题的数据源: {issue_rows}",
         f"- 全量 API 目录行数: {len(directory_rows)}",
+        f"- 原始层已采集 API: {raw_landed}",
+        f"- 原始层已建表但需补参数/权限/API 支持的 API: {raw_table_created}",
         f"- 尚未分类治理结论的 API: {unclassified}",
         f"- 尚未实现 PG/ETL 的 API: {len(uncovered)}",
         "",
@@ -508,8 +590,9 @@ def main() -> int:
     args = parser.parse_args()
 
     rows, reference_apis, uncovered = build_catalog(pg_url=args.pg_url)
+    raw_status = introspect_raw_ingest_status(args.pg_url)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(render_markdown(rows, reference_apis, uncovered), "utf-8")
+    args.output.write_text(render_markdown(rows, reference_apis, uncovered, raw_status), "utf-8")
     print(f"OK {args.output} | sources={len(rows)} reference_apis={len(reference_apis)} uncovered={len(uncovered)}")
     return 0
 

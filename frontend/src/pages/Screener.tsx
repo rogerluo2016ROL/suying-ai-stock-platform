@@ -13,7 +13,7 @@ import {
   SideRail,
 } from '../components/prototype'
 import { screenerApi, signalApi } from '../api/client'
-import type { ScreenerPick } from '../api/types'
+import type { ScreenerPick, ScreenerRunResponse } from '../api/types'
 
 const tabs = [
   { key: 'workbench', path: '/screener', label: '选股工作台', subLabel: '策略入口' },
@@ -60,7 +60,7 @@ const modelGroups = [
     note: '用于筛选债底保护、日内博弈和竞价 T+0 题材选债。',
     defaultModel: '底价选债',
     modes: [
-      { id: 'cb_floor', name: '底价选债', tags: ['可转债', '日频'] },
+      { id: 'cb_floor', name: '底价安全垫选债 V3.0', tags: ['可转债', '日频'] },
       { id: 'cb_intraday', name: '匪爷日内投机博弈', tags: ['日内', '激进'] },
       { id: 'cb_auction', name: '秋神竞价概念选债', tags: ['竞价', '1-2天'] },
       { id: 'cb_auction_t0', name: '竞价选债 T+0', tags: ['竞价', 'T+0'] },
@@ -76,6 +76,9 @@ type DetailGroup = {
   name: string
   items: DetailItem[]
 }
+
+type ScreeningTraceStep = NonNullable<ScreenerRunResponse['screening_trace']>[number]
+type RejectionSummaryItem = NonNullable<ScreenerRunResponse['rejection_summary']>[number]
 
 function activeKey(pathname: string) {
   if (pathname.endsWith('/models')) return 'models'
@@ -181,7 +184,7 @@ function detailTitleForModel(modelId: string) {
     short: '匪爷短线分析',
     chokepoint: '大葱卡脖子主题分析',
     supply_chain: '大葱产业链解构分析',
-    cb_floor: '底价选债分析',
+    cb_floor: '底价安全垫选债 V3.0 分析',
     cb_intraday: '可转债日内博弈分析',
     cb_auction: '秋神竞价概念选债分析',
     cb_auction_t0: '竞价选债 T+0 分析',
@@ -246,6 +249,9 @@ export default function Screener() {
   const [lastRunAt, setLastRunAt] = useState('')
   const [freshnessSource, setFreshnessSource] = useState('screener-service')
   const [latestDates, setLatestDates] = useState<Record<string, string>>({})
+  const [noResultReason, setNoResultReason] = useState('')
+  const [screeningTrace, setScreeningTrace] = useState<ScreeningTraceStep[]>([])
+  const [rejectionSummary, setRejectionSummary] = useState<RejectionSummaryItem[]>([])
   const [expanded, setExpanded] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -261,7 +267,7 @@ export default function Screener() {
     : visiblePicks
   const emptyResultTitle = hasRun ? '当前模型返回 0 只' : '暂无选股结果'
   const emptyResultDetail = hasRun
-    ? '请检查交易日、实时快照或切换到盘后龙头、趋势启动等日线模型后重新运行。'
+    ? noResultReason || '请检查交易日、实时快照或切换到盘后龙头、趋势启动等日线模型后重新运行。'
     : '选择模型、日期和 Top 后点击运行选股。'
 
   useEffect(() => {
@@ -309,6 +315,9 @@ export default function Screener() {
   const runScreener = async () => {
     setLoading(true)
     setRunStage('data')
+    setNoResultReason('')
+    setScreeningTrace([])
+    setRejectionSummary([])
     const syncPlan = syncPlanForMode(selectedMode)
     setRunMessage(`正在同步 ${syncPlan.label} 数据：${syncPlan.tableKey}`)
     try {
@@ -324,10 +333,16 @@ export default function Screener() {
       const response = await screenerApi.run(selectedMode, topN, runTradeDate)
       const nextPicks = response.data?.picks || []
       const actualTradeDate = response.data?.trade_date || response.data?.data_freshness?.as_of || tradeDate
+      const nextNoResultReason = response.data?.no_result_reason || ''
+      const nextScreeningTrace = response.data?.screening_trace || []
+      const nextRejectionSummary = response.data?.rejection_summary || []
       setRunStage('output')
       setRunMessage(`模型完成，正在整理 ${nextPicks.length} 只候选股票`)
       setHasRun(true)
       setPicks(nextPicks)
+      setNoResultReason(nextNoResultReason)
+      setScreeningTrace(nextScreeningTrace)
+      setRejectionSummary(nextRejectionSummary)
       setSelectedCodes(nextPicks[0]?.code ? [nextPicks[0].code] : [])
       setSelectedCode(nextPicks[0]?.code || '')
       if (actualTradeDate) setTradeDate(String(actualTradeDate).slice(0, 10))
@@ -341,6 +356,9 @@ export default function Screener() {
       setRunMessage(message)
       setHasRun(true)
       setPicks([])
+      setNoResultReason('')
+      setScreeningTrace([])
+      setRejectionSummary([])
       setSelectedCodes([])
       setSelectedCode('')
       setLastRunAt(new Date().toISOString())
@@ -567,10 +585,32 @@ export default function Screener() {
                   )}
                 </div>
                 <div className="detail-b">
+                  {screeningTrace.length > 0 && (
+                    <div className="prototype-fallback">
+                      <div className="nm">选债过程</div>
+                      <div className="risk-list mt14">
+                        {screeningTrace.map(item => (
+                          <div
+                            className={`risk-item ${item.status === 'ok' ? 'ok' : item.status === 'review' ? 'warn' : ''}`}
+                            key={`${item.step}-${item.detail}`}
+                          >
+                            {item.step}: {item.detail}
+                          </div>
+                        ))}
+                      </div>
+                      {rejectionSummary.length > 0 && (
+                        <div className="chips mt14">
+                          {rejectionSummary.map(item => (
+                            <span className="chip" key={item.reason}>{item.reason}：{item.count}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {!selectedPick && (
                     <div className="prototype-fallback">
-                      <div className="nm">等待模型输出</div>
-                      <div className="mt6">当前没有可展示的股票明细，运行成功后这里会展示首只候选的指标、风险和模型评价。</div>
+                      <div className="nm">{hasRun ? '当日无模型输出' : '等待模型输出'}</div>
+                      <div className="mt6">{hasRun ? emptyResultDetail : '当前没有可展示的股票明细，运行成功后这里会展示首只候选的指标、风险和模型评价。'}</div>
                     </div>
                   )}
                   {selectedPick && (

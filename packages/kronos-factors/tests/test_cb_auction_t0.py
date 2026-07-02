@@ -387,9 +387,13 @@ def test_run_assembles_fetcher_outputs_without_postgres(monkeypatch):
 
 def test_fetch_trigger_stocks_uses_limit_list_ts_code_schema():
     engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+    engine.use_kpl_list_fallback = False
 
     class SchemaCheckingCursor:
+        calls = 0
+
         def execute(self, sql, params):
+            self.calls += 1
             assert "l.code" not in sql
             assert "p.code" not in sql
             assert "l.ts_code" in sql
@@ -410,10 +414,14 @@ def test_fetch_trigger_stocks_uses_limit_list_ts_code_schema():
 
 def test_fetch_trigger_stocks_normalizes_hhmmss_first_time_in_sql():
     engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+    engine.use_kpl_list_fallback = False
     captured = {}
 
     class TimeCheckingCursor:
+        calls = 0
+
         def execute(self, sql, params):
+            self.calls += 1
             captured["sql"] = sql
             captured["params"] = params
 
@@ -440,10 +448,10 @@ def test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up():
 
         def fetchall(self):
             return [
-                ("300001.SZ", "封单缺失", None, "09:25:00", False),
-                ("300002.SZ", "封单不足", 500_000_000, "09:25:00", False),
-                ("300003.SZ", "昨日涨停", 1_500_000_000, "09:25:00", True),
-                ("300004.SZ", "有效触发", 510_000_000, "09:25:00", False),
+                ("300001.SZ", "封单缺失", None, "09:25:00", "limit_list_d", False),
+                ("300002.SZ", "封单不足", 500_000_000, "09:25:00", "limit_list_d", False),
+                ("300003.SZ", "昨日涨停", 1_500_000_000, "09:25:00", "limit_list_d", True),
+                ("300004.SZ", "有效触发", 510_000_000, "09:25:00", "limit_list_d", False),
             ]
 
     triggers, rejections = engine._fetch_trigger_stocks(
@@ -460,6 +468,7 @@ def test_fetch_trigger_stocks_rejects_missing_small_and_yesterday_limit_up():
             "fd_amount_yi": 5.1,
             "first_time": "09:25:00",
             "prev_was_limit_up": False,
+            "trigger_data_source": "limit_list_d",
         }
     ]
     assert rejections == [
@@ -478,8 +487,8 @@ def test_v2_fetch_trigger_stocks_requires_seven_yi_fd_amount():
 
         def fetchall(self):
             return [
-                ("300002.SZ", "六亿封单", 650_000_000, "09:25:00", False),
-                ("300004.SZ", "七亿封单", 710_000_000, "09:25:00", False),
+                ("300002.SZ", "六亿封单", 650_000_000, "09:25:00", "limit_list_d", False),
+                ("300004.SZ", "七亿封单", 710_000_000, "09:25:00", "limit_list_d", False),
             ]
 
     triggers, rejections = engine._fetch_trigger_stocks(
@@ -490,6 +499,89 @@ def test_v2_fetch_trigger_stocks_requires_seven_yi_fd_amount():
 
     assert [row["trigger_stock_code"] for row in triggers] == ["300004"]
     assert rejections == [{"code": "300002", "name": "六亿封单", "reason": "封单金额不足7亿"}]
+
+
+def test_fetch_trigger_stocks_falls_back_to_kpl_list_limit_order_when_limit_list_empty():
+    engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+
+    class FallbackCursor:
+        def __init__(self):
+            self.calls = 0
+
+        def execute(self, sql, params):
+            self.calls += 1
+            if self.calls == 1:
+                assert "FROM limit_list_d l" in sql
+            else:
+                assert "FROM kpl_list k" in sql
+                assert "k.limit_order AS fd_amount" in sql
+
+        def fetchall(self):
+            if self.calls == 1:
+                return []
+            return [
+                ("300010.SZ", "开盘啦触发", 900_000_000, "09:25:00", "kpl_list", False),
+            ]
+
+    triggers, rejections = engine._fetch_trigger_stocks(
+        FallbackCursor(),
+        "2026-06-30",
+        "2026-06-29",
+    )
+
+    assert triggers == [
+        {
+            "trigger_stock_code": "300010",
+            "trigger_stock_name": "开盘啦触发",
+            "fd_amount": 900_000_000.0,
+            "fd_amount_yi": 9.0,
+            "first_time": "09:25:00",
+            "prev_was_limit_up": False,
+            "trigger_data_source": "kpl_list",
+        }
+    ]
+    assert rejections == [
+        {
+            "reason": "limit_list_d为空，使用kpl_list.limit_order作为封单金额",
+            "data_source": "kpl_list",
+        }
+    ]
+
+
+def test_fetch_pending_confirmation_stocks_uses_auction_price_and_limit_price_only():
+    engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
+
+    class PendingCursor:
+        def execute(self, sql, params):
+            assert "FROM stk_auction_o a" in sql
+            assert "JOIN stk_limit l" in sql
+            assert "l.code = a.code" in sql
+            assert "a.open >= l.up_limit" in sql
+
+        def fetchall(self):
+            return [
+                ("300020.SZ", "待确认一字", 11.0, 120_000_000, 11.0, False),
+                ("300021.SZ", "昨日涨停", 12.0, 80_000_000, 12.0, True),
+            ]
+
+    pending = engine._fetch_pending_confirmation_stocks(
+        PendingCursor(),
+        "2026-06-30",
+        "2026-06-29",
+    )
+
+    assert pending == [
+        {
+            "trigger_stock_code": "300020",
+            "trigger_stock_name": "待确认一字",
+            "auction_price": 11.0,
+            "auction_amount": 120_000_000.0,
+            "auction_amount_yi": 1.2,
+            "up_limit": 11.0,
+            "confirmation_status": "待确认真实封单金额",
+            "data_source": "stk_auction+stk_limit",
+        }
+    ]
 
 
 def test_v2_filters_weak_theme_concepts_before_selecting_top_two():

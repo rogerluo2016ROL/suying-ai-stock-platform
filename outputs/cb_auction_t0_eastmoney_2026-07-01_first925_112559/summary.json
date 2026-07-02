@@ -1,0 +1,92 @@
+{
+  "date": "2026-07-01",
+  "source": "eastmoney_zt_pool",
+  "first_time_max": "09:25:00",
+  "summary": [
+    {
+      "model": "cb_auction_t0",
+      "triggers": 2,
+      "concepts": 2,
+      "bonds": 43,
+      "observation": 0,
+      "json": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_eastmoney_2026-07-01_first925_112559/2026-07-01_cb_auction_t0_eastmoney_first925.json",
+      "csv": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_eastmoney_2026-07-01_first925_112559/2026-07-01_cb_auction_t0_eastmoney_first925.csv",
+      "triggers_list": [
+        {
+          "trigger_stock_code": "002635",
+          "trigger_stock_name": "安洁科技",
+          "fd_amount": 707835262.0,
+          "fd_amount_yi": 7.08,
+          "first_time": "09:25:00",
+          "last_time": "09:25:00",
+          "open_times": 0,
+          "prev_was_limit_up": false,
+          "trigger_data_source": "eastmoney_zt_pool",
+          "industry": "消费电子",
+          "limit_stat": "1/1"
+        },
+        {
+          "trigger_stock_code": "002559",
+          "trigger_stock_name": "亚威股份",
+          "fd_amount": 512332050.0,
+          "fd_amount_yi": 5.12,
+          "first_time": "09:25:00",
+          "last_time": "09:25:00",
+          "open_times": 0,
+          "prev_was_limit_up": false,
+          "trigger_data_source": "eastmoney_zt_pool",
+          "industry": "通用设备",
+          "limit_stat": "4/2"
+        }
+      ]
+    },
+    {
+      "model": "cb_auction_t0_v2",
+      "triggers": 1,
+      "concepts": 2,
+      "bonds": 50,
+      "observation": 0,
+      "json": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_eastmoney_2026-07-01_first925_112559/2026-07-01_cb_auction_t0_v2_eastmoney_first925.json",
+      "csv": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_eastmoney_2026-07-01_first925_112559/2026-07-01_cb_auction_t0_v2_eastmoney_first925.csv",
+      "triggers_list": [
+        {
+          "trigger_stock_code": "002635",
+          "trigger_stock_name": "安洁科技",
+          "fd_amount": 707835262.0,
+          "fd_amount_yi": 7.08,
+          "first_time": "09:25:00",
+          "last_time": "09:25:00",
+          "open_times": 0,
+          "prev_was_limit_up": false,
+          "trigger_data_source": "eastmoney_zt_pool",
+          "industry": "消费电子",
+          "limit_stat": "1/1"
+        }
+      ]
+    },
+    {
+      "model": "cb_auction_t0_v2_1",
+      "triggers": 1,
+      "concepts": 2,
+      "bonds": 14,
+      "observation": 0,
+      "json": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_eastmoney_2026-07-01_first925_112559/2026-07-01_cb_auction_t0_v2_1_eastmoney_first925.json",
+      "csv": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_eastmoney_2026-07-01_first925_112559/2026-07-01_cb_auction_t0_v2_1_eastmoney_first925.csv",
+      "triggers_list": [
+        {
+          "trigger_stock_code": "002635",
+          "trigger_stock_name": "安洁科技",
+          "fd_amount": 707835262.0,
+          "fd_amount_yi": 7.08,
+          "first_time": "09:25:00",
+          "last_time": "09:25:00",
+          "open_times": 0,
+          "prev_was_limit_up": false,
+          "trigger_data_source": "eastmoney_zt_pool",
+          "industry": "消费电子",
+          "limit_stat": "1/1"
+        }
+      ]
+    }
+  ]
+}

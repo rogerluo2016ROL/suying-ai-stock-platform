@@ -1,0 +1,66 @@
+{
+  "model": "cb_auction_t0_v2_1",
+  "trade_date": "2026-07-01",
+  "trigger_stocks": [],
+  "concepts": [],
+  "bonds": [],
+  "observation_bonds": [],
+  "pending_confirmation_stocks": [],
+  "rejections": [
+    {
+      "code": "000004",
+      "name": "国华退",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 126421.0
+    },
+    {
+      "code": "000601",
+      "name": "韶能股份",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 154630196.0
+    },
+    {
+      "code": "002273",
+      "name": "水晶光电",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 569820553.0
+    },
+    {
+      "code": "002458",
+      "name": "益生股份",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 66998885.0
+    },
+    {
+      "code": "002559",
+      "name": "亚威股份",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 253264476.0
+    },
+    {
+      "code": "002635",
+      "name": "安洁科技",
+      "reason": "封单金额不足7亿",
+      "fd_amount": 346026465.0
+    }
+  ],
+  "external_source": "live_eastmoney",
+  "fetch_error": null,
+  "first_time_max": "09:25:00",
+  "concept_source": "ths_member/ths_index",
+  "concept_logic": "过滤地域/指数/风格/融资融券/社保，业务题材优先，再按概念竞价强度排序",
+  "time_filtered_candidates": [
+    {
+      "code": "603137",
+      "name": "恒尚节能",
+      "fd_amount_yi": 6.07,
+      "first_time": "09:25:02"
+    },
+    {
+      "code": "002407",
+      "name": "多氟多",
+      "fd_amount_yi": 8.13,
+      "first_time": "09:31:30"
+    }
+  ]
+}

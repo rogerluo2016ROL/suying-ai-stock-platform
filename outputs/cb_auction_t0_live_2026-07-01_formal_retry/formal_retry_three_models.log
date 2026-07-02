@@ -1,0 +1,132 @@
+[2026-07-01 09:35:17] 正式重跑：更新数据 + T+0 三模型
+[2026-07-01 09:35:17] RUN: python3 -c 
+import os, psycopg2, json
+conn=psycopg2.connect(os.environ['KRONOS_PG_URL'])
+cur=conn.cursor()
+out={}
+for t,col in [('limit_list_d','trade_date'),('stk_auction_o','trade_date'),('cb_daily','trade_date'),('daily_kline','trade_date')]:
+    cur.execute(f"select max({col}), count(*) from {t}")
+    out[t]=[str(x) for x in cur.fetchone()]
+for t,col in [('limit_list_d','trade_date'),('stk_auction_o','trade_date')]:
+    cur.execute(f"select count(*) from {t} where {col} in (%s,%s)", ('2026-07-01','20260701'))
+    out[t+'_today_rows']=cur.fetchone()[0]
+cur.execute("SELECT limit_type, COUNT(*) FROM limit_list_d WHERE trade_date::text IN (%s,%s) GROUP BY limit_type ORDER BY limit_type", ('2026-07-01','20260701'))
+out['limit_list_d_today_by_type']=[list(x) for x in cur.fetchall()]
+print(json.dumps(out,ensure_ascii=False,default=str))
+conn.close()
+
+[2026-07-01 09:35:18] OUT: {"limit_list_d": ["20260630", "82921"], "stk_auction_o": ["2026-07-01", "2928171"], "cb_daily": ["2026-06-30", "233137"], "daily_kline": ["2026-06-30", "8598868"], "limit_list_d_today_rows": 0, "stk_auction_o_today_rows": 5410, "limit_list_d_today_by_type": []}
+[2026-07-01 09:35:18] EXIT: 0
+[2026-07-01 09:35:18] 开始更新：stk_auction_o + limit_list_d
+[2026-07-01 09:35:18] RUN: docker exec data-service python -c from app.scheduler import collect_auction_snapshot, sync_limit_list_d_intraday; print('auction=', collect_auction_snapshot()); print('limit=', sync_limit_list_d_intraday())
+[2026-07-01 09:35:20] OUT:   stk_auction_o: 5410 fetched, 0 written (20260701) [src=stk_auction]
+[2026-07-01 09:35:20] OUT: auction= {'status': 'ok', 'source': 'tushare_stk_auction', 'date': '2026-07-01', 'stocks': 5410}
+[2026-07-01 09:35:20] OUT: limit= {'table': 'limit_list_d', 'written': 0, 'note': 'no intraday data'}
+[2026-07-01 09:35:20] EXIT: 0
+[2026-07-01 09:35:20] RUN: python3 -c 
+import os, psycopg2, json
+conn=psycopg2.connect(os.environ['KRONOS_PG_URL'])
+cur=conn.cursor()
+out={}
+for t,col in [('limit_list_d','trade_date'),('stk_auction_o','trade_date'),('cb_daily','trade_date'),('daily_kline','trade_date')]:
+    cur.execute(f"select max({col}), count(*) from {t}")
+    out[t]=[str(x) for x in cur.fetchone()]
+for t,col in [('limit_list_d','trade_date'),('stk_auction_o','trade_date')]:
+    cur.execute(f"select count(*) from {t} where {col} in (%s,%s)", ('2026-07-01','20260701'))
+    out[t+'_today_rows']=cur.fetchone()[0]
+cur.execute("SELECT limit_type, COUNT(*) FROM limit_list_d WHERE trade_date::text IN (%s,%s) GROUP BY limit_type ORDER BY limit_type", ('2026-07-01','20260701'))
+out['limit_list_d_today_by_type']=[list(x) for x in cur.fetchall()]
+print(json.dumps(out,ensure_ascii=False,default=str))
+conn.close()
+
+[2026-07-01 09:35:20] OUT: {"limit_list_d": ["20260630", "82921"], "stk_auction_o": ["2026-07-01", "2928171"], "cb_daily": ["2026-06-30", "233137"], "daily_kline": ["2026-06-30", "8598868"], "limit_list_d_today_rows": 0, "stk_auction_o_today_rows": 5410, "limit_list_d_today_by_type": []}
+[2026-07-01 09:35:20] EXIT: 0
+[2026-07-01 09:35:20] 开始跑 V1 (v1)
+[2026-07-01 09:35:20] RUN: python3 tools/cb_auction_t0_picks.py 2026-07-01 --model v1 --top-n 50 --output-dir /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_formal_retry
+[2026-07-01 09:35:21] OUT: 竞价选债 T+0 | 2026-07-01
+[2026-07-01 09:35:21] OUT: 触发股票: 0 | 概念: 0 | 转债: 0 | 观察: 0
+[2026-07-01 09:35:21] OUT: ------------------------------------------------------------------------------------------------------------------------
+[2026-07-01 09:35:21] OUT: #   转债           正股             题材分 概念                       风险提示
+[2026-07-01 09:35:21] OUT: 
+[2026-07-01 09:35:21] OUT: JSON: /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_formal_retry/2026-07-01_cb_auction_t0.json
+[2026-07-01 09:35:21] OUT: CSV:  /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_formal_retry/2026-07-01_cb_auction_t0.csv
+[2026-07-01 09:35:21] EXIT: 0
+[2026-07-01 09:35:21] 开始跑 V2.0 (v2)
+[2026-07-01 09:35:21] RUN: python3 tools/cb_auction_t0_picks.py 2026-07-01 --model v2 --top-n 50 --output-dir /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_formal_retry
+[2026-07-01 09:35:21] OUT: 竞价选债 T+0 优化版 V2 | 2026-07-01
+[2026-07-01 09:35:21] OUT: 触发股票: 0 | 概念: 0 | 转债: 0 | 观察: 0
+[2026-07-01 09:35:21] OUT: ------------------------------------------------------------------------------------------------------------------------
+[2026-07-01 09:35:21] OUT: #   转债           正股             题材分 概念                       风险提示
+[2026-07-01 09:35:21] OUT: 
+[2026-07-01 09:35:21] OUT: JSON: /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_formal_retry/2026-07-01_cb_auction_t0_v2.json
+[2026-07-01 09:35:21] OUT: CSV:  /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_formal_retry/2026-07-01_cb_auction_t0_v2.csv
+[2026-07-01 09:35:21] EXIT: 0
+[2026-07-01 09:35:21] 开始跑 V2.1 (v2.1)
+[2026-07-01 09:35:21] RUN: python3 tools/cb_auction_t0_picks.py 2026-07-01 --model v2.1 --top-n 50 --output-dir /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_formal_retry
+[2026-07-01 09:35:21] OUT: 竞价选债 T+0 优化版 V2.1 稳健版 | 2026-07-01
+[2026-07-01 09:35:21] OUT: 触发股票: 0 | 概念: 0 | 转债: 0 | 观察: 0
+[2026-07-01 09:35:21] OUT: ------------------------------------------------------------------------------------------------------------------------
+[2026-07-01 09:35:21] OUT: #   转债           正股             题材分 概念                       风险提示
+[2026-07-01 09:35:21] OUT: 
+[2026-07-01 09:35:21] OUT: JSON: /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_formal_retry/2026-07-01_cb_auction_t0_v2_1.json
+[2026-07-01 09:35:21] OUT: CSV:  /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_formal_retry/2026-07-01_cb_auction_t0_v2_1.csv
+[2026-07-01 09:35:21] EXIT: 0
+[2026-07-01 09:35:21] RUN: python3 -c 
+import json
+from pathlib import Path
+import pandas as pd
+out=Path('outputs/cb_auction_t0_live_2026-07-01_formal_retry')
+rows=[]
+summary=[]
+for path in sorted(out.glob('2026-07-01_cb_auction_t0*.json')):
+    data=json.loads(path.read_text(encoding='utf-8'))
+    model=data.get('model')
+    trigger_text='、'.join(f"{s.get('trigger_stock_name')}({s.get('trigger_stock_code')},封单{s.get('fd_amount_yi')}亿)" for s in data.get('trigger_stocks',[]))
+    concept_text='、'.join(f"{c.get('concept_name')}({round(float(c.get('concept_strength') or 0),4)})" for c in data.get('concepts',[]))
+    summary.append({
+        'model': model,
+        'trigger_count': len(data.get('trigger_stocks', [])),
+        'triggers': trigger_text,
+        'concepts': concept_text,
+        'main_bonds': len(data.get('bonds', [])),
+        'observation_bonds': len(data.get('observation_bonds', [])),
+        'rejections': json.dumps(data.get('rejections', [])[:10], ensure_ascii=False),
+    })
+    for list_type,key in [('主买','bonds'),('观察','observation_bonds')]:
+        for i,b in enumerate(data.get(key,[]) or [],1):
+            rows.append({
+                'model': model,
+                'list_type': list_type,
+                'rank': i,
+                'trigger_stocks': trigger_text,
+                'selected_concepts': concept_text,
+                'cb_code': b.get('cb_code'),
+                'cb_name': b.get('cb_name'),
+                'stk_name': b.get('stk_name'),
+                'matched_concepts': '、'.join(b.get('matched_concepts') or []),
+                'quality_tier': b.get('quality_tier'),
+                'observation_reason': b.get('observation_reason'),
+                'risk_notes': '；'.join(b.get('risk_notes') or []),
+            })
+sm=pd.DataFrame(summary)
+sm.to_csv(out/'2026-07-01_formal_three_models_summary.csv',index=False,encoding='utf-8-sig')
+print('SUMMARY')
+print(sm.to_string(index=False))
+if rows:
+    df=pd.DataFrame(rows)
+    df.to_csv(out/'2026-07-01_formal_three_models_detail.csv',index=False,encoding='utf-8-sig')
+    print('\nDETAIL')
+    print(df.to_string(index=False))
+else:
+    pd.DataFrame(rows).to_csv(out/'2026-07-01_formal_three_models_detail.csv',index=False,encoding='utf-8-sig')
+    print('\nDETAIL: no bonds')
+
+[2026-07-01 09:35:21] OUT: SUMMARY
+[2026-07-01 09:35:21] OUT:              model  trigger_count triggers concepts  main_bonds  observation_bonds rejections
+[2026-07-01 09:35:21] OUT:      cb_auction_t0              0                             0                  0         []
+[2026-07-01 09:35:21] OUT:   cb_auction_t0_v2              0                             0                  0         []
+[2026-07-01 09:35:21] OUT: cb_auction_t0_v2_1              0                             0                  0         []
+[2026-07-01 09:35:21] OUT: 
+[2026-07-01 09:35:21] OUT: DETAIL: no bonds
+[2026-07-01 09:35:21] EXIT: 0
+[2026-07-01 09:35:21] 完成。输出目录：/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_live_2026-07-01_formal_retry

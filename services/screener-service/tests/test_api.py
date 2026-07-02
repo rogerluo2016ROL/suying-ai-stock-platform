@@ -116,6 +116,13 @@ class TestScreenerRun:
         assert response.status_code == 400
         assert "Unknown mode" in response.json()["detail"]
 
+    @pytest.mark.parametrize("mode", ["cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1"])
+    def test_cb_t0_freshness_source_mentions_limit_trigger_source(self, mode):
+        """Verify CB T+0 modes expose the limit-up trigger source, not only auction snapshots."""
+        import app.routers.screener as screener_router
+
+        assert screener_router._screener_source_for_mode(mode) == "limit_list_d + stk_auction_o"
+
     def test_run_top_n_out_of_range(self, client):
         """Verify top_n < 5 returns validation error."""
         response = client.post("/api/v1/screener/run?mode=short&top_n=3")
@@ -256,6 +263,85 @@ class TestScreenerRun:
         assert result["observation_picks"][0]["code"] == "123002.SZ"
         assert result["observation_picks"][0]["name"] == "竞价V21观察转债"
         assert result["observation_picks"][0]["source_mode"] == "cb_auction_t0_v2_1"
+
+    def test_cb_auction_t0_empty_result_explains_screening_process(self, monkeypatch):
+        """Verify empty T+0 CB runs return process steps and a concrete no-pick reason."""
+        import app.routers.screener as screener_router
+
+        class DummyEngine:
+            def run(self, trade_date=None, top_n=50):
+                return {
+                    "trade_date": trade_date or "2026-07-01",
+                    "trigger_stocks": [],
+                    "concepts": [],
+                    "bonds": [],
+                    "observation_bonds": [],
+                    "rejections": [],
+                }
+
+            def close(self):
+                pass
+
+        monkeypatch.setattr(screener_router, "_CB_AUCTION_T0_ENGINE", DummyEngine)
+
+        result = screener_router._run_cb_mode("cb_auction_t0", 10, "2026-07-01")
+
+        assert result["mode"] == "cb_auction_t0"
+        assert result["total_picks"] == 0
+        assert result["no_result_reason"]
+        assert "触发股" in result["no_result_reason"]
+        assert result["process_summary"] == {
+            "trigger_stock_count": 0,
+            "concept_count": 0,
+            "main_pick_count": 0,
+            "observation_pick_count": 0,
+            "rejection_count": 0,
+        }
+        assert [step["step"] for step in result["screening_trace"]] == [
+            "交易日确认",
+            "触发股筛选",
+            "概念映射",
+            "转债匹配",
+            "输出分层",
+        ]
+        assert result["screening_trace"][1]["status"] == "empty"
+        assert result["screening_trace"][2]["status"] == "skipped"
+
+    def test_cb_auction_t0_v21_empty_main_picks_points_to_observation_pool(self, monkeypatch):
+        """Verify V2.1 explains when strict A-tier rules leave only observation bonds."""
+        import app.routers.screener as screener_router
+
+        class DummyEngine:
+            def run(self, trade_date=None, top_n=50):
+                return {
+                    "trade_date": trade_date or "2026-07-01",
+                    "trigger_stocks": [{"trigger_stock_code": "300001", "trigger_stock_name": "触发科技"}],
+                    "concepts": [{"concept_code": "881001", "concept_name": "强题材"}],
+                    "bonds": [],
+                    "observation_bonds": [
+                        {
+                            "cb_code": "123002.SZ",
+                            "cb_name": "观察转债",
+                            "theme_score": 88.0,
+                            "quality_tier": "B",
+                            "observation_reason": "非A档观察",
+                        }
+                    ],
+                    "rejections": [],
+                }
+
+            def close(self):
+                pass
+
+        monkeypatch.setattr(screener_router, "_CB_AUCTION_T0_V21_ENGINE", DummyEngine)
+
+        result = screener_router._run_cb_mode("cb_auction_t0_v2_1", 10, "2026-07-01")
+
+        assert result["total_picks"] == 0
+        assert result["total_observation_picks"] == 1
+        assert "观察池" in result["no_result_reason"]
+        assert result["process_summary"]["observation_pick_count"] == 1
+        assert result["screening_trace"][-1]["status"] == "review"
 
     def test_resolve_trade_date_replaces_latest_with_pg_date(self, monkeypatch):
         """Verify leader modes never pass the literal latest token into PG date filters."""

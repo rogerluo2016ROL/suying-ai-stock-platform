@@ -1,0 +1,14 @@
+﻿observed_at,trade_date,tushare_limit_list_d_rows,tushare_kpl_list_rows,tushare_kpl_list_latest_date,pg_limit_list_d_rows,pg_limit_list_d_u_rows,pg_kpl_list_table,pg_kpl_list_rows,limit_list_d_available,kpl_list_available
+2026-07-02T09:01:49,20260702,,,,,,,,False,False
+2026-07-02T09:01:50,20260702,0,0,20260701,0,0,kpl_list,0,False,False
+2026-07-02T09:02:29,20260702,0,0,20260701,0,0,kpl_list,0,False,False
+2026-07-02T09:07:34,20260702,0,0,20260701,0,0,kpl_list,0,False,False
+2026-07-02T09:11:08,20260702,0,0,20260701,0,0,kpl_list,0,False,False
+2026-07-02T09:16:47,20260702,0,0,20260701,0,0,kpl_list,0,False,False
+2026-07-02T09:21:10,20260702,0,0,20260701,0,0,kpl_list,0,False,False
+2026-07-02T09:26:20,20260702,0,0,20260701,0,0,kpl_list,0,False,False
+2026-07-02T09:31:18,20260702,0,0,20260701,0,0,kpl_list,0,False,False
+2026-07-02T09:37:14,20260702,0,0,20260701,0,0,kpl_list,0,False,False
+2026-07-02T09:41:40,20260702,0,0,20260701,0,0,kpl_list,0,False,False
+2026-07-02T09:46:14,20260702,0,0,20260701,0,0,kpl_list,0,False,False
+2026-07-02T09:51:23,20260702,0,0,20260701,0,0,kpl_list,0,False,False

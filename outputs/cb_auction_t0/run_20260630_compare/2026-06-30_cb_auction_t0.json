@@ -1,0 +1,1357 @@
+{
+  "model": "cb_auction_t0",
+  "trade_date": "2026-06-30",
+  "trigger_stocks": [
+    {
+      "trigger_stock_code": "002273",
+      "trigger_stock_name": "水晶光电",
+      "fd_amount": 779032373.0,
+      "fd_amount_yi": 7.79,
+      "first_time": "93000",
+      "prev_was_limit_up": false
+    }
+  ],
+  "concepts": [
+    {
+      "concept_code": "884096.TI",
+      "concept_name": "光学元件",
+      "trigger_stock_count": 1,
+      "concept_fd_amount": 779032373.0,
+      "concept_fd_amount_yi": 7.79,
+      "trigger_sources": [
+        "002273"
+      ],
+      "concept_size": 1,
+      "concept_strength": 0.7389309318959824,
+      "concept_strength_source": "auction_avg",
+      "auction_sample_count": 25
+    },
+    {
+      "concept_code": "885376.TI",
+      "concept_name": "苹果概念",
+      "trigger_stock_count": 1,
+      "concept_fd_amount": 779032373.0,
+      "concept_fd_amount_yi": 7.79,
+      "trigger_sources": [
+        "002273"
+      ],
+      "concept_size": 1,
+      "concept_strength": 0.2104124166142415,
+      "concept_strength_source": "auction_avg",
+      "auction_sample_count": 139
+    }
+  ],
+  "bonds": [
+    {
+      "cb_code": "128020.SZ",
+      "cb_name": "水晶转债",
+      "stk_code": "002273",
+      "stk_name": "水晶光电",
+      "matched_concepts": [
+        "光学元件",
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.7389309318959824,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-02-24",
+      "call_status": "安全",
+      "is_direct_trigger": true,
+      "theme_score": 1217.7903,
+      "risk_notes": [
+        "退市日期2020-02-24"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128020.SZ",
+      "name": "水晶转债",
+      "relation_reason": "正股为触发股，命中光学元件、苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128101.SZ",
+      "cb_name": "联创转债",
+      "stk_code": "002036",
+      "stk_name": "联创电子",
+      "matched_concepts": [
+        "光学元件",
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.7389309318959824,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-03-17",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 217.7903,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2026-03-17"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128101.SZ",
+      "name": "联创转债",
+      "relation_reason": "命中光学元件、苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "110081.SH",
+      "cb_name": "闻泰转债",
+      "stk_code": "600745",
+      "stk_name": "*ST闻泰",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 65470.6801,
+      "remain_size": 8063308739.02,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低6.5万",
+        "剩余规模80.63亿"
+      ],
+      "remain_size_yi": 80.63,
+      "code": "110081.SH",
+      "name": "闻泰转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "110101.SH",
+      "cb_name": "宝钛转债",
+      "stk_code": "600456",
+      "stk_name": "宝钛股份",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 3500000000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "剩余规模35.00亿"
+      ],
+      "remain_size_yi": 35.0,
+      "code": "110101.SH",
+      "name": "宝钛转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "110800.SH",
+      "cb_name": "赛腾定转",
+      "stk_code": "603283",
+      "stk_name": "赛腾股份",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2021-05-31",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "退市日期2021-05-31"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "110800.SH",
+      "name": "赛腾定转",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "111012.SH",
+      "cb_name": "福新转债",
+      "stk_code": "605488",
+      "stk_name": "福莱新材",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 153262.097,
+      "remain_size": 101691038.78,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低15.3万"
+      ],
+      "remain_size_yi": 1.02,
+      "code": "111012.SH",
+      "name": "福新转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113045.SH",
+      "cb_name": "环旭转债",
+      "stk_code": "601231",
+      "stk_name": "环旭电子",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-01-29",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2026-01-29"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113045.SH",
+      "name": "环旭转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113046.SH",
+      "cb_name": "金田转债",
+      "stk_code": "601609",
+      "stk_name": "金田股份",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 11820.8945,
+      "remain_size": 1499196048.18,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低1.2万",
+        "剩余规模14.99亿"
+      ],
+      "remain_size_yi": 14.99,
+      "code": "113046.SH",
+      "name": "金田转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113064.SH",
+      "cb_name": "东材转债",
+      "stk_code": "601208",
+      "stk_name": "东材科技",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-09-08",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2025-09-08"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113064.SH",
+      "name": "东材转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113068.SH",
+      "cb_name": "金铜转债",
+      "stk_code": "601609",
+      "stk_name": "金田股份",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-08-26",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2025-08-26"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113068.SH",
+      "name": "金铜转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113521.SH",
+      "cb_name": "科森转债",
+      "stk_code": "603626",
+      "stk_name": "科森科技",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-11-27",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "退市日期2020-11-27"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113521.SH",
+      "name": "科森转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113573.SH",
+      "cb_name": "纵横转债",
+      "stk_code": "603602",
+      "stk_name": "纵横通信",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-12-05",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2024-12-05"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113573.SH",
+      "name": "纵横转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113672.SH",
+      "cb_name": "福蓉转债",
+      "stk_code": "603327",
+      "stk_name": "福蓉科技",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-01-29",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2026-01-29"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113672.SH",
+      "name": "福蓉转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "118003.SH",
+      "cb_name": "华兴转债",
+      "stk_code": "688001",
+      "stk_name": "华兴源创",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-05-19",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2026-05-19"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "118003.SH",
+      "name": "华兴转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "118024.SH",
+      "cb_name": "冠宇转债",
+      "stk_code": "688772",
+      "stk_name": "珠海冠宇",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 18844.875,
+      "remain_size": 3088929047.06,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低1.9万",
+        "剩余规模30.89亿"
+      ],
+      "remain_size_yi": 30.89,
+      "code": "118024.SH",
+      "name": "冠宇转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "118043.SH",
+      "cb_name": "福立转债",
+      "stk_code": "688678",
+      "stk_name": "福立旺",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-02-11",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2026-02-11"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "118043.SH",
+      "name": "福立转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "118061.SH",
+      "cb_name": "茂莱转债",
+      "stk_code": "688502",
+      "stk_name": "茂莱光学",
+      "matched_concepts": [
+        "光学元件"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.7389309318959824,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 298377.4334,
+      "remain_size": 562238380.42,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低29.8万"
+      ],
+      "remain_size_yi": 5.62,
+      "code": "118061.SH",
+      "name": "茂莱转债",
+      "relation_reason": "命中光学元件",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "118062.SH",
+      "cb_name": "天准转债",
+      "stk_code": "688003",
+      "stk_name": "天准科技",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 132167.0678,
+      "remain_size": 871934276.3,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低13.2万"
+      ],
+      "remain_size_yi": 8.72,
+      "code": "118062.SH",
+      "name": "天准转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "118066.SH",
+      "cb_name": "统联转债",
+      "stk_code": "688210",
+      "stk_name": "统联精密",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 4315.1052,
+      "remain_size": 576000000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低0.4万"
+      ],
+      "remain_size_yi": 5.76,
+      "code": "118066.SH",
+      "name": "统联转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123003.SZ",
+      "cb_name": "蓝思转债",
+      "stk_code": "300433",
+      "stk_name": "蓝思科技",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-02-19",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "退市日期2020-02-19"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123003.SZ",
+      "name": "蓝思转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123016.SZ",
+      "cb_name": "洲明转债",
+      "stk_code": "300232",
+      "stk_name": "洲明科技",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-03-20",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "退市日期2020-03-20"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123016.SZ",
+      "name": "洲明转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123022.SZ",
+      "cb_name": "长信转债",
+      "stk_code": "300088",
+      "stk_name": "长信科技",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-03-19",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2025-03-19"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123022.SZ",
+      "name": "长信转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123025.SZ",
+      "cb_name": "精测转债",
+      "stk_code": "300567",
+      "stk_name": "精测电子",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-03-31",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2025-03-31"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123025.SZ",
+      "name": "精测转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123038.SZ",
+      "cb_name": "联得转债",
+      "stk_code": "300545",
+      "stk_name": "联得装备",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-08-20",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2025-08-20"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123038.SZ",
+      "name": "联得转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123058.SZ",
+      "cb_name": "欣旺转债",
+      "stk_code": "300207",
+      "stk_name": "欣旺达",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2021-07-14",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "退市日期2021-07-14"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123058.SZ",
+      "name": "欣旺转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123138.SZ",
+      "cb_name": "丝路转债",
+      "stk_code": "300556",
+      "stk_name": "丝路视觉",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 2400.0258,
+      "remain_size": 239337200.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低0.2万"
+      ],
+      "remain_size_yi": 2.39,
+      "code": "123138.SZ",
+      "name": "丝路转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123176.SZ",
+      "cb_name": "精测转2",
+      "stk_code": "300567",
+      "stk_name": "精测电子",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 198153.2792,
+      "remain_size": 1275291300.0,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低19.8万",
+        "剩余规模12.75亿"
+      ],
+      "remain_size_yi": 12.75,
+      "code": "123176.SZ",
+      "name": "精测转2",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123193.SZ",
+      "cb_name": "海能转债",
+      "stk_code": "300787",
+      "stk_name": "海能实业",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 2851.9857,
+      "remain_size": 599743400.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低0.3万"
+      ],
+      "remain_size_yi": 6.0,
+      "code": "123193.SZ",
+      "name": "海能转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123237.SZ",
+      "cb_name": "佳禾转债",
+      "stk_code": "300793",
+      "stk_name": "佳禾智能",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 3984.1459,
+      "remain_size": 431447700.0,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低0.4万"
+      ],
+      "remain_size_yi": 4.31,
+      "code": "123237.SZ",
+      "name": "佳禾转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123262.SZ",
+      "cb_name": "神宇转债",
+      "stk_code": "300563",
+      "stk_name": "神宇股份",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 30620.8222,
+      "remain_size": 499938200.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低3.1万"
+      ],
+      "remain_size_yi": 5.0,
+      "code": "123262.SZ",
+      "name": "神宇转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "125969.SZ",
+      "cb_name": "安泰转债",
+      "stk_code": "000969",
+      "stk_name": "安泰科技",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2010-06-23",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "退市日期2010-06-23"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "125969.SZ",
+      "name": "安泰转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "127026.SZ",
+      "cb_name": "超声转债",
+      "stk_code": "000823",
+      "stk_name": "超声电子",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-06-24",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2026-06-24"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "127026.SZ",
+      "name": "超声转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "127051.SZ",
+      "cb_name": "博杰转债",
+      "stk_code": "002975",
+      "stk_name": "博杰股份",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-05-08",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2025-05-08"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "127051.SZ",
+      "name": "博杰转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "127107.SZ",
+      "cb_name": "领益转债",
+      "stk_code": "002600",
+      "stk_name": "领益智造",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-10-23",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2025-10-23"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "127107.SZ",
+      "name": "领益转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128009.SZ",
+      "cb_name": "歌尔转债",
+      "stk_code": "002241",
+      "stk_name": "歌尔股份",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2017-07-10",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "退市日期2017-07-10"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128009.SZ",
+      "name": "歌尔转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128035.SZ",
+      "cb_name": "大族转债",
+      "stk_code": "002008",
+      "stk_name": "大族激光",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-02-07",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2024-02-07"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128035.SZ",
+      "name": "大族转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128088.SZ",
+      "cb_name": "深南转债",
+      "stk_code": "002916",
+      "stk_name": "深南电路",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-09-11",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "退市日期2020-09-11"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128088.SZ",
+      "name": "深南转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128112.SZ",
+      "cb_name": "歌尔转2",
+      "stk_code": "002241",
+      "stk_name": "歌尔股份",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2021-03-11",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "退市日期2021-03-11"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128112.SZ",
+      "name": "歌尔转2",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128118.SZ",
+      "cb_name": "瀛通转债",
+      "stk_code": "002861",
+      "stk_name": "瀛通通讯",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-12-27",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2024-12-27"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128118.SZ",
+      "name": "瀛通转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128136.SZ",
+      "cb_name": "立讯转债",
+      "stk_code": "002475",
+      "stk_name": "立讯精密",
+      "matched_concepts": [
+        "苹果概念"
+      ],
+      "trigger_sources": [
+        "002273"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 779032373.0,
+      "matched_concept_strength": 0.2104124166142415,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": 40094.6308,
+      "remain_size": 2984858000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.7903,
+      "risk_notes": [
+        "成交额偏低4.0万",
+        "剩余规模29.85亿"
+      ],
+      "remain_size_yi": 29.85,
+      "code": "128136.SZ",
+      "name": "立讯转债",
+      "relation_reason": "命中苹果概念",
+      "list_type": "主买"
+    }
+  ],
+  "observation_bonds": [],
+  "rejections": [
+    {
+      "code": "000603",
+      "name": "盛达资源",
+      "reason": "封单金额不足5亿"
+    }
+  ]
+}

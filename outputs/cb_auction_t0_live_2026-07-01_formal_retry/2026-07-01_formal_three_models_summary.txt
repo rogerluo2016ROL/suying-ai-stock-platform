@@ -1,0 +1,7 @@
+SUMMARY
+             model  trigger_count triggers concepts  main_bonds  observation_bonds rejections
+     cb_auction_t0              0                             0                  0         []
+  cb_auction_t0_v2              0                             0                  0         []
+cb_auction_t0_v2_1              0                             0                  0         []
+
+DETAIL: no bonds

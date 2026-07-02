@@ -75,6 +75,25 @@ def write_outputs(result: dict, output_dir: str) -> tuple[str, str]:
             row["risk_notes"] = "；".join(bond.get("risk_notes") or [])
             writer.writerow(row)
 
+    pending = result.get("pending_confirmation_stocks") or []
+    if pending:
+        pending_path = out_dir / f"{trade_date}_{model}_pending_confirmation.csv"
+        pending_fields = [
+            "trigger_stock_code",
+            "trigger_stock_name",
+            "auction_price",
+            "up_limit",
+            "auction_amount",
+            "auction_amount_yi",
+            "confirmation_status",
+            "data_source",
+        ]
+        with pending_path.open("w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.DictWriter(f, fieldnames=pending_fields)
+            writer.writeheader()
+            for row in pending:
+                writer.writerow({key: row.get(key) for key in pending_fields})
+
     return str(json_path), str(csv_path)
 
 
@@ -91,6 +110,7 @@ def print_summary(result: dict) -> None:
         f"{len(result.get('trigger_stocks', []))} | 概念: {len(result.get('concepts', []))} | 转债: "
         f"{len(result.get('bonds', []))}"
         f" | 观察: {len(result.get('observation_bonds', []))}"
+        f" | 待确认: {len(result.get('pending_confirmation_stocks', []))}"
     )
     print("-" * 120)
     print(
@@ -121,6 +141,22 @@ def print_summary(result: dict) -> None:
                 f"{bond.get('quality_tier', ''):<4} "
                 f"{concepts:<24} "
                 f"{bond.get('observation_reason', '')} {risks}"
+            )
+    pending = result.get("pending_confirmation_stocks", [])
+    if pending:
+        print("\n待确认池（不进主买/观察，等待真实封单金额）")
+        print("-" * 120)
+        for idx, stock in enumerate(pending[:50], 1):
+            amount_yi = stock.get("auction_amount_yi")
+            amount_text = f"{amount_yi:.2f}亿" if isinstance(amount_yi, (int, float)) else ""
+            print(
+                f"{idx:<3} "
+                f"{stock.get('trigger_stock_name', ''):<10} "
+                f"{stock.get('trigger_stock_code', ''):<8} "
+                f"竞价价={stock.get('auction_price', '')} "
+                f"涨停价={stock.get('up_limit', '')} "
+                f"竞价额={amount_text} "
+                f"{stock.get('confirmation_status', '')}"
             )
 
 

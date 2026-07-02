@@ -149,6 +149,8 @@ class CbAuctionT0Engine:
     collect_observation_bonds = False
     exclude_st_underlying = False
     exclude_past_delisted = False
+    use_kpl_list_fallback = True
+    collect_pending_confirmation = True
     rolling_weak_concept_window = 0
     rolling_weak_concept_strength_max = 0.0
     rolling_weak_concept_min_samples = 0
@@ -179,6 +181,7 @@ class CbAuctionT0Engine:
         raw_bonds: list[dict[str, Any]],
         top_n: int | None,
         rejections: list[dict[str, Any]] | None = None,
+        pending_confirmation_stocks: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         trigger_codes = {_normalize_stock_code(row.get("trigger_stock_code")) for row in triggers}
         result_rejections = list(rejections or [])
@@ -304,6 +307,7 @@ class CbAuctionT0Engine:
             "concepts": concepts,
             "bonds": bonds,
             "observation_bonds": observation_bonds,
+            "pending_confirmation_stocks": list(pending_confirmation_stocks or []),
             "rejections": result_rejections,
         }
 
@@ -354,12 +358,12 @@ class CbAuctionT0Engine:
         row = cur.fetchone()
         return str(row[0])[:10] if row and row[0] else None
 
-    def _fetch_trigger_stocks(
+    def _fetch_limit_list_trigger_rows(
         self,
         cur,
         trade_date: str,
         prev_trade_date: str | None,
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    ) -> list[tuple[Any, ...]]:
         trade_key, trade_key_compact = self._date_keys(trade_date)
         prev_key, prev_key_compact = self._date_keys(prev_trade_date) if prev_trade_date else ("", "")
 
@@ -383,6 +387,7 @@ class CbAuctionT0Engine:
                 COALESCE(l.name, s.name, '') AS name,
                 l.fd_amount,
                 l.first_time,
+                'limit_list_d' AS trigger_data_source,
                 EXISTS (
                     SELECT 1
                     FROM limit_list_d p
@@ -398,10 +403,69 @@ class CbAuctionT0Engine:
             """,
             (trade_key, trade_key_compact, AUCTION_FIRST_TIME_MAX_COMPACT, prev_key, prev_key_compact),
         )
+        return list(cur.fetchall())
 
+    def _fetch_kpl_list_trigger_rows(
+        self,
+        cur,
+        trade_date: str,
+        prev_trade_date: str | None,
+    ) -> list[tuple[Any, ...]]:
+        trade_key, trade_key_compact = self._date_keys(trade_date)
+        prev_key, prev_key_compact = self._date_keys(prev_trade_date) if prev_trade_date else ("", "")
+
+        try:
+            cur.execute(
+                """
+                WITH candidate_limits AS (
+                    SELECT DISTINCT ON (SPLIT_PART(k.ts_code, '.', 1))
+                        k.*
+                    FROM kpl_list k
+                    WHERE (k.trade_date::text = %s OR REPLACE(k.trade_date::text, '-', '') = %s)
+                      AND k.tag = '涨停'
+                      AND k.lu_time IS NOT NULL
+                      AND LPAD(REPLACE(k.lu_time, ':', ''), 6, '0') <= %s
+                    ORDER BY
+                        SPLIT_PART(k.ts_code, '.', 1),
+                        k.limit_order DESC NULLS LAST,
+                        LPAD(REPLACE(k.lu_time, ':', ''), 6, '0') ASC
+                )
+                SELECT
+                    SPLIT_PART(k.ts_code, '.', 1) AS code,
+                    COALESCE(k.name, s.name, '') AS name,
+                    k.limit_order AS fd_amount,
+                    k.lu_time AS first_time,
+                    'kpl_list' AS trigger_data_source,
+                    EXISTS (
+                        SELECT 1
+                        FROM limit_list_d p
+                        WHERE (p.trade_date::text = %s OR REPLACE(p.trade_date::text, '-', '') = %s)
+                          AND p.limit_type = 'U'
+                          AND SPLIT_PART(p.ts_code, '.', 1)
+                              = SPLIT_PART(k.ts_code, '.', 1)
+                    ) AS prev_was_limit_up
+                FROM candidate_limits k
+                LEFT JOIN stocks s ON s.code = SPLIT_PART(k.ts_code, '.', 1)
+                WHERE COALESCE(k.name, s.name, '') NOT LIKE '%%ST%%'
+                ORDER BY k.limit_order DESC NULLS LAST
+                """,
+                (trade_key, trade_key_compact, AUCTION_FIRST_TIME_MAX_COMPACT, prev_key, prev_key_compact),
+            )
+            return list(cur.fetchall())
+        except Exception:
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+            return []
+
+    def _build_trigger_stocks_from_rows(
+        self,
+        rows: list[tuple[Any, ...]],
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         triggers: list[dict[str, Any]] = []
         rejections: list[dict[str, Any]] = []
-        for code, name, fd_amount, first_time, prev_was_limit_up in cur.fetchall():
+        for code, name, fd_amount, first_time, trigger_data_source, prev_was_limit_up in rows:
             stock_code = _normalize_stock_code(code)
             if fd_amount is None:
                 rejections.append({"code": stock_code, "name": name, "reason": "封单金额缺失"})
@@ -432,9 +496,95 @@ class CbAuctionT0Engine:
                     "fd_amount_yi": round(fd_value / 100_000_000, 2),
                     "first_time": first_time,
                     "prev_was_limit_up": False,
+                    "trigger_data_source": trigger_data_source,
                 }
             )
         return triggers, rejections
+
+    def _fetch_trigger_stocks(
+        self,
+        cur,
+        trade_date: str,
+        prev_trade_date: str | None,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        rows = self._fetch_limit_list_trigger_rows(cur, trade_date, prev_trade_date)
+        source_rejections: list[dict[str, Any]] = []
+        if not rows and self.use_kpl_list_fallback:
+            rows = self._fetch_kpl_list_trigger_rows(cur, trade_date, prev_trade_date)
+            if rows:
+                source_rejections.append(
+                    {
+                        "reason": "limit_list_d为空，使用kpl_list.limit_order作为封单金额",
+                        "data_source": "kpl_list",
+                    }
+                )
+        triggers, rejections = self._build_trigger_stocks_from_rows(rows)
+        return triggers, source_rejections + rejections
+
+    def _fetch_pending_confirmation_stocks(
+        self,
+        cur,
+        trade_date: str,
+        prev_trade_date: str | None,
+    ) -> list[dict[str, Any]]:
+        if not self.collect_pending_confirmation:
+            return []
+        trade_key, trade_key_compact = self._date_keys(trade_date)
+        prev_key, prev_key_compact = self._date_keys(prev_trade_date) if prev_trade_date else ("", "")
+        try:
+            cur.execute(
+                """
+                SELECT
+                    a.code AS code,
+                    COALESCE(s.name, '') AS name,
+                    a.open AS price,
+                    a.amount,
+                    l.up_limit,
+                    EXISTS (
+                        SELECT 1
+                        FROM limit_list_d p
+                        WHERE (p.trade_date::text = %s OR REPLACE(p.trade_date::text, '-', '') = %s)
+                          AND p.limit_type = 'U'
+                          AND SPLIT_PART(p.ts_code, '.', 1) = a.code
+                    ) AS prev_was_limit_up
+                FROM stk_auction_o a
+                JOIN stk_limit l
+                  ON l.code = a.code
+                 AND (l.trade_date::text = %s OR REPLACE(l.trade_date::text, '-', '') = %s)
+                LEFT JOIN stocks s ON s.code = a.code
+                WHERE (a.trade_date::text = %s OR REPLACE(a.trade_date::text, '-', '') = %s)
+                  AND a.open >= l.up_limit
+                  AND COALESCE(s.name, '') NOT LIKE '%%ST%%'
+                ORDER BY a.amount DESC NULLS LAST
+                """,
+                (prev_key, prev_key_compact, trade_key, trade_key_compact, trade_key, trade_key_compact),
+            )
+        except Exception:
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+            return []
+
+        pending: list[dict[str, Any]] = []
+        for code, name, price, amount, up_limit, prev_was_limit_up in cur.fetchall():
+            if prev_was_limit_up:
+                continue
+            pending.append(
+                {
+                    "trigger_stock_code": _normalize_stock_code(code),
+                    "trigger_stock_name": name,
+                    "auction_price": float(price) if price is not None else None,
+                    "auction_amount": float(amount) if amount is not None else None,
+                    "auction_amount_yi": round(float(amount) / 100_000_000, 2)
+                    if amount is not None
+                    else None,
+                    "up_limit": float(up_limit) if up_limit is not None else None,
+                    "confirmation_status": "待确认真实封单金额",
+                    "data_source": "stk_auction+stk_limit",
+                }
+            )
+        return pending
 
     def _is_weak_concept(self, name: str | None) -> bool:
         if not name:
@@ -706,6 +856,11 @@ class CbAuctionT0Engine:
         prev_trade_date = self._fetch_previous_trade_date(cur, effective_date)
 
         triggers, trigger_rejections = self._fetch_trigger_stocks(cur, effective_date, prev_trade_date)
+        pending_confirmation_stocks = (
+            self._fetch_pending_confirmation_stocks(cur, effective_date, prev_trade_date)
+            if not triggers
+            else []
+        )
         concepts, concept_rejections = self._fetch_concepts(cur, triggers, effective_date)
         bonds, bond_rejections = self._fetch_bonds(cur, effective_date, concepts)
 
@@ -716,6 +871,7 @@ class CbAuctionT0Engine:
             bonds,
             top_n=top_n,
             rejections=trigger_rejections + concept_rejections + bond_rejections,
+            pending_confirmation_stocks=pending_confirmation_stocks,
         )
 
 

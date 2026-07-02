@@ -535,7 +535,7 @@ async def dashboard_summary():
         {"id": "long",            "name": "长线价值",         "cycle": "3-12月", "style": "稳健"},
         {"id": "all",             "name": "综合多因子",       "cycle": "1-6月",  "style": "中性"},
         {"id": "chokepoint",      "name": "大葱卡脖子选股模型",       "cycle": "1-3月",  "style": "主题"},
-        {"id": "cb_floor",       "name": "匪爷可转债底价选债模型",   "cycle": "1-4周",  "style": "稳健"},
+        {"id": "cb_floor",       "name": "匪爷可转债底价安全垫选债模型 V3.0",   "cycle": "1-4周",  "style": "稳健"},
         {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
         {"id": "cb_auction",     "name": "秋神竞价概念选债模型",       "cycle": "1-2天",  "style": "竞价"},
         {"id": "cb_auction_t0",  "name": "竞价选债 T+0 模型",          "cycle": "T+0",    "style": "竞价"},

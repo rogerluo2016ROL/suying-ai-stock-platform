@@ -362,6 +362,38 @@ CREATE TABLE IF NOT EXISTS stock_news_tushare (
     title TEXT, content TEXT, source TEXT
 );
 
+-- Tushare 数据源文档元数据: 更新时间点 / 更新频率 / 文档证据
+CREATE TABLE IF NOT EXISTS tushare_api_update_metadata (
+    api TEXT PRIMARY KEY,
+    update_time TEXT NOT NULL,
+    update_frequency TEXT NOT NULL,
+    doc_url TEXT NOT NULL,
+    extraction_status TEXT NOT NULL,
+    evidence TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Tushare 原始层采集状态: 每个 API 一行, 对应 ts_raw_<api> 原始表.
+CREATE TABLE IF NOT EXISTS tushare_api_ingest_status (
+    api TEXT PRIMARY KEY,
+    title TEXT,
+    category TEXT,
+    table_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    rows_fetched BIGINT NOT NULL DEFAULT 0,
+    rows_inserted BIGINT NOT NULL DEFAULT 0,
+    windows_attempted INTEGER NOT NULL DEFAULT 0,
+    columns JSONB NOT NULL DEFAULT '[]'::jsonb,
+    update_time TEXT,
+    update_frequency TEXT,
+    doc_url TEXT,
+    update_metadata_status TEXT,
+    error TEXT,
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ── 其他 (11 张表) ──
 
 -- 交易日历 (trade_cal, 外部维护/手动导入; _trading_days_between 读此表算真实交易日数)

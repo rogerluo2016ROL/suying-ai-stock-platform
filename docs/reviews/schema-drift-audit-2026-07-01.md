@@ -3,11 +3,11 @@
 
 ## §1 审计范围
 
-- DB 117张 | init_sql 73张 | 审计 96张 | 排除 22张
+- DB 309张 | init_sql 73张 | 审计 96张 | 排除 22张
 - P1-4 已纳入审计的数据管道表 (原 EXCLUDED): sw_daily, pledge_detail, rt_sw_k, top_list, cyq_chips
 - ADR-008~011 已修仍排除表 (不重复扫): ths_daily, top_inst (top_inst 索引见 §6)
 - 应用层排除表 (auth/training/diagnosis/screening/prediction/backtest/factor): 20 张
-- high=6 medium=17 low=73
+- high=5 medium=18 low=73
 - MONITORED双缺(DB+init均无): 无
 ### 审计表清单 (96张)
 
@@ -63,7 +63,7 @@
 |48|`metrics`|4|0|low|init||
 |49|`model_versions`|8|0|low|init||
 |50|`moneyflow`|11|11|medium|=|y|
-|51|`moneyflow_hsgt`|9|3|high|=|y|
+|51|`moneyflow_hsgt`|9|9|medium|=|y|
 |52|`monthly_kline`|9|9|low|=|y|
 |53|`mp_report`|6|6|low|=|y|
 |54|`params`|3|0|low|init||
@@ -114,7 +114,7 @@
 
 ### `candidate_pools` — high MON=no
 
-- 类型(11): data_scope(character varying/varchar(20));pool_id(character varying/varchar(100));created_at(timestamp with time zone/timestamptz);tenant_id(character varying/varchar(100));owner_user_id(character varying/varchar(64));source_mode(character varying/varchar(60));source_module(character varying/varchar(40));updated_at(timestamp with time zone/timestamptz);name(character varying/varchar(120));account_id(character varying/varchar(100));visibility(character varying/varchar(20))
+- 类型(11): owner_user_id(character varying/varchar(64));pool_id(character varying/varchar(100));source_mode(character varying/varchar(60));account_id(character varying/varchar(100));visibility(character varying/varchar(20));source_module(character varying/varchar(40));created_at(timestamp with time zone/timestamptz);name(character varying/varchar(120));updated_at(timestamp with time zone/timestamptz);tenant_id(character varying/varchar(100));data_scope(character varying/varchar(20))
 
 ### `limit_list_d` — high MON=yes
 
@@ -124,11 +124,6 @@
 - UQ差: DB+[['trade_date', 'ts_code', 'up_stat']] init+[]
 - legacy索引: idx_limit_list_d_date
 
-### `moneyflow_hsgt` — high MON=yes
-
-- 仅DB[6]: ggt_ss,ggt_sz,hgt,north_money,sgt,south_money
-- legacy索引: idx_moneyflow_hsgt_date
-
 ### `stk_mins` — high MON=yes
 
 - 类型(1): trade_time(text/timestamp)
@@ -137,7 +132,7 @@
 
 ### `strategy_plans` — high MON=no
 
-- 类型(13): data_scope(character varying/varchar(20));model_name(character varying/varchar(80));tenant_id(character varying/varchar(100));created_at(timestamp with time zone/timestamptz);owner_user_id(character varying/varchar(64));capital(numeric/numeric(18,2));status(character varying/varchar(30));updated_at(timestamp with time zone/timestamptz);plan_id(character varying/varchar(100));single_max_pct(numeric/numeric(8,4));name(character varying/varchar(120));account_id(character varying/varchar(100));visibility(character varying/varchar(20))
+- 类型(13): plan_id(character varying/varchar(100));owner_user_id(character varying/varchar(64));account_id(character varying/varchar(100));capital(numeric/numeric(18,2));visibility(character varying/varchar(20));single_max_pct(numeric/numeric(8,4));model_name(character varying/varchar(80));created_at(timestamp with time zone/timestamptz);name(character varying/varchar(120));updated_at(timestamp with time zone/timestamptz);tenant_id(character varying/varchar(100));data_scope(character varying/varchar(20));status(character varying/varchar(30))
 
 ### `ths_concept_map` — high MON=no
 
@@ -187,6 +182,10 @@
 
 - legacy索引: idx_moneyflow_date
 
+### `moneyflow_hsgt` — medium MON=yes
+
+- legacy索引: idx_moneyflow_hsgt_date
+
 ### `rt_k` — medium MON=yes
 
 - 仅DB[1]: code
@@ -225,7 +224,7 @@
 
 ### ADR-14.1: `candidate_pools`
 - DB列14 vs init_sql14 | 涉及下游(MONITORED): no
-- 关键 diff: 类型(11): data_scope(character varying/varchar(20));pool_id(character varying/varchar(100));created_at(timestamp with time zone/timestamptz);tenant_id(character varying/varchar(100));owner_user_id(character varying/varchar(64));source_mode(character varying/varchar(60));source_module(character varying/varchar(40));updated_at(timestamp with time zone/timestamptz);name(character varying/varchar(120));account_id(character varying/varchar(100));visibility(character varying/varchar(20))
+- 关键 diff: 类型(11): owner_user_id(character varying/varchar(64));pool_id(character varying/varchar(100));source_mode(character varying/varchar(60));account_id(character varying/varchar(100));visibility(character varying/varchar(20));source_module(character varying/varchar(40));created_at(timestamp with time zone/timestamptz);name(character varying/varchar(120));updated_at(timestamp with time zone/timestamptz);tenant_id(character varying/varchar(100));data_scope(character varying/varchar(20))
 - 建议: 按 ADR-008~013 同型骨架拆子 ADR (sync 函数对账 + init_sql 反向追认 + alembic 迁移)
 
 ### ADR-14.2: `limit_list_d`
@@ -237,25 +236,19 @@
 - 关键 diff: legacy索引: idx_limit_list_d_date
 - 建议: 按 ADR-008~013 同型骨架拆子 ADR (sync 函数对账 + init_sql 反向追认 + alembic 迁移)
 
-### ADR-14.3: `moneyflow_hsgt`
-- DB列9 vs init_sql3 | 涉及下游(MONITORED): yes
-- 关键 diff: 仅DB[6]: ggt_ss,ggt_sz,hgt,north_money,sgt,south_money
-- 关键 diff: legacy索引: idx_moneyflow_hsgt_date
-- 建议: 按 ADR-008~013 同型骨架拆子 ADR (sync 函数对账 + init_sql 反向追认 + alembic 迁移)
-
-### ADR-14.4: `stk_mins`
+### ADR-14.3: `stk_mins`
 - DB列10 vs init_sql10 | 涉及下游(MONITORED): yes
 - 关键 diff: 类型(1): trade_time(text/timestamp)
 - 关键 diff: legacy索引: idx_stk_mins_code_time
 - 关键 diff: 缺索引: idx_stk_mins_code
 - 建议: 按 ADR-008~013 同型骨架拆子 ADR (sync 函数对账 + init_sql 反向追认 + alembic 迁移)
 
-### ADR-14.5: `strategy_plans`
+### ADR-14.4: `strategy_plans`
 - DB列16 vs init_sql16 | 涉及下游(MONITORED): no
-- 关键 diff: 类型(13): data_scope(character varying/varchar(20));model_name(character varying/varchar(80));tenant_id(character varying/varchar(100));created_at(timestamp with time zone/timestamptz);owner_user_id(character varying/varchar(64));capital(numeric/numeric(18,2));status(character varying/varchar(30));updated_at(timestamp with time zone/timestamptz);plan_id(character varying/varchar(100));single_max_pct(numeric/numeric(8,4));name(character varying/varchar(120));account_id(character varying/varchar(100));visibility(character varying/varchar(20))
+- 关键 diff: 类型(13): plan_id(character varying/varchar(100));owner_user_id(character varying/varchar(64));account_id(character varying/varchar(100));capital(numeric/numeric(18,2));visibility(character varying/varchar(20));single_max_pct(numeric/numeric(8,4));model_name(character varying/varchar(80));created_at(timestamp with time zone/timestamptz);name(character varying/varchar(120));updated_at(timestamp with time zone/timestamptz);tenant_id(character varying/varchar(100));data_scope(character varying/varchar(20));status(character varying/varchar(30))
 - 建议: 按 ADR-008~013 同型骨架拆子 ADR (sync 函数对账 + init_sql 反向追认 + alembic 迁移)
 
-### ADR-14.6: `ths_concept_map`
+### ADR-14.5: `ths_concept_map`
 - DB列4 vs init_sql5 | 涉及下游(MONITORED): no
 - 关键 diff: 仅DB[3]: list_date,name,type
 - 关键 diff: 仅init[4]: concept_code,concept_name,id,trade_date
@@ -298,6 +291,7 @@
 - `metrics` (low MON=no): init独有(DB缺)
 - `model_versions` (low MON=no): init独有(DB缺)
 - `moneyflow` (medium MON=yes): legacy索引: idx_moneyflow_date
+- `moneyflow_hsgt` (medium MON=yes): legacy索引: idx_moneyflow_hsgt_date
 - `params` (low MON=no): init独有(DB缺)
 - `policy_interpretations` (low MON=no): init独有(DB缺)
 - `policy_sources` (low MON=no): init独有(DB缺)

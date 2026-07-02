@@ -1,0 +1,296 @@
+{
+  "model": "cb_auction_snapshot_emergency",
+  "trade_date": "2026-07-01",
+  "trigger_stocks": [
+    {
+      "trigger_stock_code": "300943",
+      "trigger_stock_name": "春晖智控",
+      "fd_amount": 29866942.0,
+      "fd_amount_yi": 0.3,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 11.28,
+      "auction_amount_wan": 2986.7
+    },
+    {
+      "trigger_stock_code": "920981",
+      "trigger_stock_name": "晶赛科技",
+      "fd_amount": 14994443.32,
+      "fd_amount_yi": 0.15,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 11.19,
+      "auction_amount_wan": 1499.4
+    },
+    {
+      "trigger_stock_code": "000601",
+      "trigger_stock_name": "韶能股份",
+      "fd_amount": 20671112.0,
+      "fd_amount_yi": 0.21,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 10.09,
+      "auction_amount_wan": 2067.1
+    },
+    {
+      "trigger_stock_code": "600509",
+      "trigger_stock_name": "天富能源",
+      "fd_amount": 45521640.0,
+      "fd_amount_yi": 0.46,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 10.06,
+      "auction_amount_wan": 4552.2
+    },
+    {
+      "trigger_stock_code": "002458",
+      "trigger_stock_name": "益生股份",
+      "fd_amount": 67839898.05,
+      "fd_amount_yi": 0.68,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 10.04,
+      "auction_amount_wan": 6784.0
+    },
+    {
+      "trigger_stock_code": "600233",
+      "trigger_stock_name": "圆通速递",
+      "fd_amount": 13089349.0,
+      "fd_amount_yi": 0.13,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 10.03,
+      "auction_amount_wan": 1308.9
+    },
+    {
+      "trigger_stock_code": "002635",
+      "trigger_stock_name": "安洁科技",
+      "fd_amount": 35923500.0,
+      "fd_amount_yi": 0.36,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 10.02,
+      "auction_amount_wan": 3592.3
+    },
+    {
+      "trigger_stock_code": "603738",
+      "trigger_stock_name": "泰晶科技",
+      "fd_amount": 99856957.0,
+      "fd_amount_yi": 1.0,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 10.01,
+      "auction_amount_wan": 9985.7
+    },
+    {
+      "trigger_stock_code": "002559",
+      "trigger_stock_name": "亚威股份",
+      "fd_amount": 132161328.0,
+      "fd_amount_yi": 1.32,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 9.99,
+      "auction_amount_wan": 13216.1
+    },
+    {
+      "trigger_stock_code": "002120",
+      "trigger_stock_name": "韵达股份",
+      "fd_amount": 20839070.31,
+      "fd_amount_yi": 0.21,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 9.91,
+      "auction_amount_wan": 2083.9
+    },
+    {
+      "trigger_stock_code": "002468",
+      "trigger_stock_name": "申通快递",
+      "fd_amount": 22488336.0,
+      "fd_amount_yi": 0.22,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 9.82,
+      "auction_amount_wan": 2248.8
+    },
+    {
+      "trigger_stock_code": "000733",
+      "trigger_stock_name": "振华科技",
+      "fd_amount": 127106200.0,
+      "fd_amount_yi": 1.27,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 9.46,
+      "auction_amount_wan": 12710.6
+    },
+    {
+      "trigger_stock_code": "688106",
+      "trigger_stock_name": "金宏气体",
+      "fd_amount": 87221483.0,
+      "fd_amount_yi": 0.87,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "emergency_source": "stk_auction_o",
+      "auction_gap_pct": 8.46,
+      "auction_amount_wan": 8722.1
+    }
+  ],
+  "concepts": [
+    {
+      "concept_code": "884276.TI",
+      "concept_name": "肉鸡养殖",
+      "trigger_stock_count": 1,
+      "concept_fd_amount": 67839898.05,
+      "concept_fd_amount_yi": 0.68,
+      "trigger_sources": [
+        "002458"
+      ],
+      "concept_size": 1,
+      "concept_strength": 3.8781611092941284,
+      "concept_strength_source": "auction_avg",
+      "auction_sample_count": 7
+    },
+    {
+      "concept_code": "884093.TI",
+      "concept_name": "被动元件",
+      "trigger_stock_count": 2,
+      "concept_fd_amount": 114851400.32,
+      "concept_fd_amount_yi": 1.15,
+      "trigger_sources": [
+        "603738",
+        "920981"
+      ],
+      "concept_size": 2,
+      "concept_strength": 3.2359733654943694,
+      "concept_strength_source": "auction_avg",
+      "auction_sample_count": 16
+    }
+  ],
+  "bonds": [
+    {
+      "cb_code": "123189.SZ",
+      "cb_name": "晓鸣转债",
+      "stk_code": "300967",
+      "stk_name": "晓鸣股份",
+      "matched_concepts": [
+        "肉鸡养殖"
+      ],
+      "trigger_sources": [
+        "002458"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 67839898.05,
+      "matched_concept_strength": 3.8781611092941284,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 328628100.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 110.6784,
+      "risk_notes": [],
+      "remain_size_yi": 3.29,
+      "code": "123189.SZ",
+      "name": "晓鸣转债",
+      "relation_reason": "命中肉鸡养殖",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度3.88%",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "127060.SZ",
+      "cb_name": "湘佳转债",
+      "stk_code": "002982",
+      "stk_name": "湘佳股份",
+      "matched_concepts": [
+        "肉鸡养殖"
+      ],
+      "trigger_sources": [
+        "002458"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 67839898.05,
+      "matched_concept_strength": 3.8781611092941284,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 639889500.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 110.6784,
+      "risk_notes": [],
+      "remain_size_yi": 6.4,
+      "code": "127060.SZ",
+      "name": "湘佳转债",
+      "relation_reason": "命中肉鸡养殖",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度3.88%",
+      "list_type": "主买"
+    }
+  ],
+  "observation_bonds": [],
+  "rejections": [
+    {
+      "code": "300518",
+      "name": "新迅达",
+      "reason": "昨日已涨停"
+    },
+    {
+      "code": "002273",
+      "name": "水晶光电",
+      "reason": "昨日已涨停"
+    },
+    {
+      "code": "603928",
+      "name": "兴业股份",
+      "reason": "昨日已涨停"
+    },
+    {
+      "code": "002407",
+      "name": "多氟多",
+      "reason": "昨日已涨停"
+    },
+    {
+      "code": "300873",
+      "name": "海晨股份",
+      "reason": "昨日已涨停"
+    },
+    {
+      "code": "002738",
+      "name": "中矿资源",
+      "reason": "昨日已涨停"
+    },
+    {
+      "cb_code": "113503.SH",
+      "cb_name": "泰晶转债",
+      "stk_code": "603738",
+      "stk_name": "泰晶科技",
+      "delist_date": "2020-05-27",
+      "reason": "已退市转债剔除"
+    },
+    {
+      "cb_code": "113504.SH",
+      "cb_name": "艾华转债",
+      "stk_code": "603989",
+      "stk_name": "艾华集团",
+      "delist_date": "2024-03-04",
+      "reason": "已退市转债剔除"
+    }
+  ],
+  "note": "临时口径: limit_list_d 未更新时，使用 stk_auction_o 竞价涨幅和成交额触发。"
+}

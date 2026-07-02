@@ -131,6 +131,8 @@ def _screener_data_freshness(trade_date: str | None = None, source: str = "daily
 
 
 def _screener_source_for_mode(mode: str) -> str:
+    if mode in ("cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1"):
+        return "limit_list_d + stk_auction_o"
     if "auction" in mode:
         return "stk_auction_o"
     if mode == "leader_intraday":
@@ -1523,7 +1525,7 @@ async def list_modes():
             {"id": "leader_afternoon_trend_full","name": "🔥秋神趋势启动午后全量版选股", "cycle": "1-3天",  "style": "午后全量"},
             {"id": "short",           "name": "匪爷短线多因子选股模型",       "cycle": "1-4周",  "style": "积极"},
             {"id": "chokepoint",      "name": "大葱卡脖子选股模型",       "cycle": "1-3月",  "style": "主题"},
-            {"id": "cb_floor",       "name": "匪爷可转债底价选债模型",   "cycle": "1-4周",  "style": "稳健"},
+            {"id": "cb_floor",       "name": "匪爷可转债底价安全垫选债模型 V3.0",   "cycle": "1-4周",  "style": "稳健"},
             {"id": "cb_intraday",    "name": "匪爷可转债日内投机博弈模型", "cycle": "1-2天",  "style": "激进"},
             {"id": "cb_auction",     "name": "秋神竞价概念选债模型",       "cycle": "1-2天",  "style": "竞价"},
             {"id": "cb_auction_t0",  "name": "竞价选债 T+0 模型",          "cycle": "T+0",    "style": "竞价"},
@@ -2121,13 +2123,104 @@ def _run_cb_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
     observation_picks = _sanitize_picks(observation_picks)
     observation_picks = _normalize_picks(observation_picks, mode)
 
-    return {
+    result = {
         "mode": mode,
         "trade_date": trade_date,
         "total_picks": len(picks),
         "picks": picks,
         "observation_picks": observation_picks,
         "total_observation_picks": len(observation_picks),
+    }
+    if mode in ("cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1") and isinstance(raw_result, dict):
+        result.update(_build_cb_t0_process(mode, trade_date, raw_result, picks, observation_picks))
+    return result
+
+
+def _build_cb_t0_process(
+    mode: str,
+    trade_date: str,
+    raw_result: dict[str, Any],
+    picks: list[dict[str, Any]],
+    observation_picks: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Summarize CB T+0 screening steps for transparent empty-result UI."""
+    triggers = raw_result.get("trigger_stocks") or []
+    concepts = raw_result.get("concepts") or []
+    rejections = raw_result.get("rejections") or []
+    trigger_count = len(triggers)
+    concept_count = len(concepts)
+    main_count = len(picks)
+    observation_count = len(observation_picks)
+    rejection_count = len(rejections)
+
+    rejection_summary: dict[str, int] = {}
+    for item in rejections:
+        reason = str(item.get("reason") or "未说明原因")
+        rejection_summary[reason] = rejection_summary.get(reason, 0) + 1
+
+    if trigger_count == 0:
+        no_result_reason = (
+            f"{trade_date} 未找到符合竞价 T+0 条件的触发股。"
+            "常见原因是当日竞价/涨停数据未入库，或没有封单金额达到模型阈值的正股。"
+        )
+    elif concept_count == 0:
+        no_result_reason = "触发股存在，但未映射到有效同花顺概念，无法继续匹配转债。"
+    elif main_count == 0 and observation_count > 0:
+        no_result_reason = "稳健主买规则筛选后无可买入债，候选只进入观察池。"
+    elif main_count == 0 and rejection_summary:
+        top_reason = max(rejection_summary.items(), key=lambda item: item[1])[0]
+        no_result_reason = f"转债候选被风控规则剔除，主要原因：{top_reason}。"
+    elif main_count == 0:
+        no_result_reason = "触发概念下未匹配到满足条件的可转债。"
+    else:
+        no_result_reason = None
+
+    screening_trace = [
+        {
+            "step": "交易日确认",
+            "status": "ok",
+            "detail": f"使用交易日 {trade_date}",
+        },
+        {
+            "step": "触发股筛选",
+            "status": "ok" if trigger_count else "empty",
+            "detail": f"竞价触发股 {trigger_count} 只",
+        },
+        {
+            "step": "概念映射",
+            "status": "ok" if concept_count else ("skipped" if trigger_count == 0 else "empty"),
+            "detail": f"有效概念 {concept_count} 个",
+        },
+        {
+            "step": "转债匹配",
+            "status": "ok" if main_count or observation_count else ("skipped" if concept_count == 0 else "empty"),
+            "detail": f"主买 {main_count} 只，观察 {observation_count} 只",
+        },
+        {
+            "step": "输出分层",
+            "status": "ok" if main_count else ("review" if observation_count else "empty"),
+            "detail": (
+                f"{mode} 输出主买 {main_count} 只"
+                + (f"，观察池 {observation_count} 只" if observation_count else "")
+                + (f"，剔除 {rejection_count} 条" if rejection_count else "")
+            ),
+        },
+    ]
+
+    return {
+        "process_summary": {
+            "trigger_stock_count": trigger_count,
+            "concept_count": concept_count,
+            "main_pick_count": main_count,
+            "observation_pick_count": observation_count,
+            "rejection_count": rejection_count,
+        },
+        "screening_trace": screening_trace,
+        "rejection_summary": [
+            {"reason": reason, "count": count}
+            for reason, count in sorted(rejection_summary.items(), key=lambda item: (-item[1], item[0]))
+        ],
+        "no_result_reason": no_result_reason,
     }
 
 

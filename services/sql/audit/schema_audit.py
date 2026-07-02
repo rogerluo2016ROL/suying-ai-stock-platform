@@ -23,6 +23,9 @@ MONITORED = {"daily_kline","moneyflow","stk_limit","daily_basic","ths_daily","sw
     "financial_income","financial_balance","financial_cashflow","fina_mainbz","fina_audit","research_reports_tushare",
     "stock_news_tushare","announcements","weekly_kline","monthly_kline","stk_holdernumber","repurchase",
     "broker_recommend","stock_profiles","interact_qa","policy_law","mp_report","cctv_news"}
+RAW_LANDING_PREFIXES = ("ts_raw_",)
+RAW_LANDING_TABLES = {"tushare_api_ingest_status"}
+IGNORED_COLUMN_PREFIXES = ("_tushare_",)
 
 def parse_init_sql(path):
     text = Path(path).read_text("utf-8"); meta = {}
@@ -83,7 +86,8 @@ def diff_tbl(d,i):
     r={"db":False,"init":False,"oc":[],"ic":[],"tm":[],"pk":None,"uq":None,"il":[],"im":[],"sev":"low"}
     if not d: r["db"]=True; return r
     if not i: r["init"]=True; return r
-    dc={c[0]:c[1] for c in d.get("cols",[])}; ic={c[0]:c[1] for c in i.get("cols",[])}
+    dc={c[0]:c[1] for c in d.get("cols",[]) if not c[0].startswith(IGNORED_COLUMN_PREFIXES)}
+    ic={c[0]:c[1] for c in i.get("cols",[]) if not c[0].startswith(IGNORED_COLUMN_PREFIXES)}
     ds,is_=set(dc),set(ic); r["oc"]=sorted(ds-is_); r["ic"]=sorted(is_-ds)
     for c in ds&is_:
         dt,it=TN.get(dc[c],dc[c]),TN.get(ic[c],ic[c])
@@ -172,7 +176,10 @@ def render(diffs,im,dbm,mm,path):
 
 if __name__=="__main__":
     conn=psycopg2.connect(PG_URL); im=parse_init_sql(INIT_SQL); dbm=introspect_db(conn); conn.close()
-    all_t=(set(dbm)|set(im))-EXCLUDED
+    all_t={
+        t for t in (set(dbm)|set(im))-EXCLUDED
+        if t not in RAW_LANDING_TABLES and not any(t.startswith(prefix) for prefix in RAW_LANDING_PREFIXES)
+    }
     diffs={t:diff_tbl(dbm.get(t,{}),im.get(t,{})) for t in sorted(all_t)}
     mm=MONITORED-set(dbm)-set(im)
     # 把 MONITORED 双缺表追加为 high severity 发现 (scheduler 监控会失败 → 必须拆子 ADR)

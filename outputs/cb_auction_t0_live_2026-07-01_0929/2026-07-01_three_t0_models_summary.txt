@@ -1,0 +1,23 @@
+2026-07-01_cb_auction_t0.json
+  model= cb_auction_t0
+  triggers= 0 []
+  concepts= []
+  main_bonds= 0
+  observation_bonds= 0
+  rejections= []
+2026-07-01_cb_auction_t0_v2.json
+  model= cb_auction_t0_v2
+  triggers= 0 []
+  concepts= []
+  main_bonds= 0
+  observation_bonds= 0
+  rejections= []
+2026-07-01_cb_auction_t0_v2_1.json
+  model= cb_auction_t0_v2_1
+  triggers= 0 []
+  concepts= []
+  main_bonds= 0
+  observation_bonds= 0
+  rejections= []
+
+DETAIL: no bonds

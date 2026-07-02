@@ -1,0 +1,5 @@
+﻿trigger_stock_code,trigger_stock_name,fd_amount_yi,first_time,last_time,open_times,industry,limit_stat,trigger_data_source
+000733,振华科技,10.0,09:30:00,09:30:00,0,军工电子,1/1,eastmoney_zt_pool
+603137,恒尚节能,9.97,09:25:02,09:25:02,0,装修装饰,2/2,eastmoney_zt_pool
+603738,泰晶科技,7.96,09:25:03,09:25:03,0,元件,1/1,eastmoney_zt_pool
+002635,安洁科技,7.09,09:25:00,09:25:00,0,消费电子,1/1,eastmoney_zt_pool

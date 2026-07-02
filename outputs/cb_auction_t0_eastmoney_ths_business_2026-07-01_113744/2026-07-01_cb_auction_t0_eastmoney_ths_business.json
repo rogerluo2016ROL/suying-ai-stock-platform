@@ -1,0 +1,828 @@
+{
+  "model": "cb_auction_t0",
+  "trade_date": "2026-07-01",
+  "trigger_stocks": [
+    {
+      "trigger_stock_code": "002635",
+      "trigger_stock_name": "安洁科技",
+      "fd_amount": 707835262.0,
+      "fd_amount_yi": 7.08,
+      "first_time": "09:25:00",
+      "last_time": "09:25:00",
+      "open_times": 0,
+      "prev_was_limit_up": false,
+      "trigger_data_source": "eastmoney_zt_pool",
+      "industry": "消费电子",
+      "limit_stat": "1/1"
+    },
+    {
+      "trigger_stock_code": "002559",
+      "trigger_stock_name": "亚威股份",
+      "fd_amount": 512332050.0,
+      "fd_amount_yi": 5.12,
+      "first_time": "09:25:00",
+      "last_time": "09:25:00",
+      "open_times": 0,
+      "prev_was_limit_up": false,
+      "trigger_data_source": "eastmoney_zt_pool",
+      "industry": "通用设备",
+      "limit_stat": "4/2"
+    }
+  ],
+  "concepts": [
+    {
+      "concept_code": "881124.TI",
+      "concept_name": "消费电子",
+      "trigger_stock_count": 1,
+      "concept_fd_amount": 707835262.0,
+      "concept_fd_amount_yi": 7.08,
+      "trigger_sources": [
+        "002635"
+      ],
+      "concept_size": 1,
+      "concept_strength": 0.4993915409891788,
+      "concept_strength_source": "auction_avg",
+      "auction_sample_count": 91
+    },
+    {
+      "concept_code": "884098.TI",
+      "concept_name": "消费电子零部件及组装",
+      "trigger_stock_count": 1,
+      "concept_fd_amount": 707835262.0,
+      "concept_fd_amount_yi": 7.08,
+      "trigger_sources": [
+        "002635"
+      ],
+      "concept_size": 1,
+      "concept_strength": 0.49047946929239167,
+      "concept_strength_source": "auction_avg",
+      "auction_sample_count": 81
+    }
+  ],
+  "bonds": [
+    {
+      "cb_code": "113045.SH",
+      "cb_name": "环旭转债",
+      "stk_code": "601231",
+      "stk_name": "环旭电子",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-01-29",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2026-01-29"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113045.SH",
+      "name": "环旭转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113521.SH",
+      "cb_name": "科森转债",
+      "stk_code": "603626",
+      "stk_name": "科森科技",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-11-27",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "退市日期2020-11-27"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113521.SH",
+      "name": "科森转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113577.SH",
+      "cb_name": "春秋转债",
+      "stk_code": "603890",
+      "stk_name": "春秋电子",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-11-07",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2025-11-07"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113577.SH",
+      "name": "春秋转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113667.SH",
+      "cb_name": "春23转债",
+      "stk_code": "603890",
+      "stk_name": "春秋电子",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 569652111.7,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [],
+      "remain_size_yi": 5.7,
+      "code": "113667.SH",
+      "name": "春23转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113672.SH",
+      "cb_name": "福蓉转债",
+      "stk_code": "603327",
+      "stk_name": "福蓉科技",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-01-29",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2026-01-29"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113672.SH",
+      "name": "福蓉转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "118043.SH",
+      "cb_name": "福立转债",
+      "stk_code": "688678",
+      "stk_name": "福立旺",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-02-11",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2026-02-11"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "118043.SH",
+      "name": "福立转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "118066.SH",
+      "cb_name": "统联转债",
+      "stk_code": "688210",
+      "stk_name": "统联精密",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 576000000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [],
+      "remain_size_yi": 5.76,
+      "code": "118066.SH",
+      "name": "统联转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123003.SZ",
+      "cb_name": "蓝思转债",
+      "stk_code": "300433",
+      "stk_name": "蓝思科技",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-02-19",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "退市日期2020-02-19"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123003.SZ",
+      "name": "蓝思转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123081.SZ",
+      "cb_name": "精研转债",
+      "stk_code": "300709",
+      "stk_name": "精研科技",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2021-12-28",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "退市日期2021-12-28"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123081.SZ",
+      "name": "精研转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123100.SZ",
+      "cb_name": "朗科转债",
+      "stk_code": "300543",
+      "stk_name": "朗科智能",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-04-16",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2025-04-16"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123100.SZ",
+      "name": "朗科转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123143.SZ",
+      "cb_name": "胜蓝转债",
+      "stk_code": "300843",
+      "stk_name": "胜蓝股份",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-12-13",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2024-12-13"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123143.SZ",
+      "name": "胜蓝转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123153.SZ",
+      "cb_name": "英力转债",
+      "stk_code": "300956",
+      "stk_name": "英力股份",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-07-29",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2024-07-29"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "123153.SZ",
+      "name": "英力转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123193.SZ",
+      "cb_name": "海能转债",
+      "stk_code": "300787",
+      "stk_name": "海能实业",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 599743400.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [],
+      "remain_size_yi": 6.0,
+      "code": "123193.SZ",
+      "name": "海能转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123237.SZ",
+      "cb_name": "佳禾转债",
+      "stk_code": "300793",
+      "stk_name": "佳禾智能",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 431447700.0,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [],
+      "remain_size_yi": 4.31,
+      "code": "123237.SZ",
+      "name": "佳禾转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123258.SZ",
+      "cb_name": "胜蓝转02",
+      "stk_code": "300843",
+      "stk_name": "胜蓝股份",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 449843100.0,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [],
+      "remain_size_yi": 4.5,
+      "code": "123258.SZ",
+      "name": "胜蓝转02",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "127107.SZ",
+      "cb_name": "领益转债",
+      "stk_code": "002600",
+      "stk_name": "领益智造",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-10-23",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2025-10-23"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "127107.SZ",
+      "name": "领益转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128009.SZ",
+      "cb_name": "歌尔转债",
+      "stk_code": "002241",
+      "stk_name": "歌尔股份",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2017-07-10",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "退市日期2017-07-10"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128009.SZ",
+      "name": "歌尔转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128058.SZ",
+      "cb_name": "拓邦转债",
+      "stk_code": "002139",
+      "stk_name": "拓邦股份",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-12-07",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "退市日期2020-12-07"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128058.SZ",
+      "name": "拓邦转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128112.SZ",
+      "cb_name": "歌尔转2",
+      "stk_code": "002241",
+      "stk_name": "歌尔股份",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2021-03-11",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "退市日期2021-03-11"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128112.SZ",
+      "name": "歌尔转2",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128118.SZ",
+      "cb_name": "瀛通转债",
+      "stk_code": "002861",
+      "stk_name": "瀛通通讯",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-12-27",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2024-12-27"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128118.SZ",
+      "name": "瀛通转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128136.SZ",
+      "cb_name": "立讯转债",
+      "stk_code": "002475",
+      "stk_name": "立讯精密",
+      "matched_concepts": [
+        "消费电子",
+        "消费电子零部件及组装"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 2984858000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 217.0784,
+      "risk_notes": [
+        "剩余规模29.85亿"
+      ],
+      "remain_size_yi": 29.85,
+      "code": "128136.SZ",
+      "name": "立讯转债",
+      "relation_reason": "命中消费电子、消费电子零部件及组装",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "123257.SZ",
+      "cb_name": "安克转债",
+      "stk_code": "300866",
+      "stk_name": "安克创新",
+      "matched_concepts": [
+        "消费电子"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1104660800.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.0784,
+      "risk_notes": [
+        "剩余规模11.05亿"
+      ],
+      "remain_size_yi": 11.05,
+      "code": "123257.SZ",
+      "name": "安克转债",
+      "relation_reason": "命中消费电子",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128059.SZ",
+      "cb_name": "视源转债",
+      "stk_code": "002841",
+      "stk_name": "视源股份",
+      "matched_concepts": [
+        "消费电子"
+      ],
+      "trigger_sources": [
+        "002635"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 707835262.0,
+      "matched_concept_strength": 0.4993915409891788,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-09-08",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 117.0784,
+      "risk_notes": [
+        "退市日期2020-09-08"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128059.SZ",
+      "name": "视源转债",
+      "relation_reason": "命中消费电子",
+      "list_type": "主买"
+    }
+  ],
+  "observation_bonds": [],
+  "pending_confirmation_stocks": [],
+  "rejections": [],
+  "external_source": "eastmoney_zt_pool_saved",
+  "first_time_max": "09:25:00",
+  "concept_source": "ths_member/ths_index",
+  "concept_logic": "过滤地域/指数/风格/融资融券/社保，业务题材优先，再按概念竞价强度排序",
+  "source_file": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_eastmoney_2026-07-01_first925_112559/2026-07-01_cb_auction_t0_eastmoney_first925.json"
+}

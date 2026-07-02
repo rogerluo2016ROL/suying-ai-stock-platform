@@ -1,0 +1,34 @@
+{
+  "date": "2026-07-01",
+  "source": "live_eastmoney",
+  "fetch_error": null,
+  "summary": [
+    {
+      "model": "cb_auction_t0",
+      "triggers": 0,
+      "concepts": [],
+      "bonds": 0,
+      "observation": 0,
+      "csv": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_today_three_models_2026-07-01_230715/2026-07-01_cb_auction_t0_today_t0.csv",
+      "json": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_today_three_models_2026-07-01_230715/2026-07-01_cb_auction_t0_today_t0.json"
+    },
+    {
+      "model": "cb_auction_t0_v2",
+      "triggers": 0,
+      "concepts": [],
+      "bonds": 0,
+      "observation": 0,
+      "csv": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_today_three_models_2026-07-01_230715/2026-07-01_cb_auction_t0_v2_today_t0.csv",
+      "json": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_today_three_models_2026-07-01_230715/2026-07-01_cb_auction_t0_v2_today_t0.json"
+    },
+    {
+      "model": "cb_auction_t0_v2_1",
+      "triggers": 0,
+      "concepts": [],
+      "bonds": 0,
+      "observation": 0,
+      "csv": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_today_three_models_2026-07-01_230715/2026-07-01_cb_auction_t0_v2_1_today_t0.csv",
+      "json": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_t0_today_three_models_2026-07-01_230715/2026-07-01_cb_auction_t0_v2_1_today_t0.json"
+    }
+  ]
+}
