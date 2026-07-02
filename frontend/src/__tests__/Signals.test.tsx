@@ -72,6 +72,15 @@ describe('Signals prototype pages', () => {
     expect(screen.queryByText('信号页面骨架')).not.toBeInTheDocument()
   })
 
+  it('DEF-4: candidate-pool empty state reflects that writing is wired (not "未接入")', async () => {
+    renderSignals('/signals')
+
+    expect(await screen.findByText('等待入池动作')).toBeInTheDocument()
+    // 旧过时文案已移除；新文案反映候选池写入已接入
+    expect(screen.queryByText(/候选池写入接口未接入/)).not.toBeInTheDocument()
+    expect(screen.getByText(/候选池写入已接入/)).toBeInTheDocument()
+  })
+
   it('does not fall back to hard-coded live signals when the API returns empty data', async () => {
     vi.mocked(signalApi.getLive).mockResolvedValue({ data: { signals: [] } } as any)
 

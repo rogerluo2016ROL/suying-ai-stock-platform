@@ -13,6 +13,8 @@ vi.mock('../api/client', () => ({
   },
   screenerApi: {
     queryCandidatePool: vi.fn(),
+    addWatchlist: vi.fn(),
+    listWatchlist: vi.fn(),
   },
   tradeApi: {
     getAccount: vi.fn(),
@@ -348,6 +350,26 @@ describe('OpenDecision prototype pages', () => {
 
     expect(await screen.findByText('候选池暂无数据')).toBeInTheDocument()
     expect(screen.getByText('今日盘前候选池尚未写入，等待选股与竞价。')).toBeInTheDocument()
+  })
+
+  // DEF-3: 后端实际返 empty_state {hint, suggestion}（types.ts 标 {reason}）；最小侵入兼容三者
+  it('DEF-3: shows backend empty_state.hint/suggestion (not just reason) when pool empty', async () => {
+    vi.mocked(screenerApi.queryCandidatePool).mockResolvedValue({
+      data: {
+        total: 0,
+        page: 1,
+        page_size: 50,
+        records: [],
+        empty_state: { hint: '今日无新候选', suggestion: '建议盘后跑 leader_scalp 后再来。' },
+      },
+    } as any)
+    vi.mocked(chainApi.getCandidates).mockResolvedValue({ data: { candidates: [] } } as any)
+
+    renderOpenDecision('/open-decision/candidates')
+
+    expect(await screen.findByText('候选池暂无数据')).toBeInTheDocument()
+    // hint 优先于 reason；suggestion 作为 fallback 兜底
+    expect(screen.getByText('今日无新候选')).toBeInTheDocument()
   })
 
   // AC③ 决策概览 AI 解读 3 支撑原因（缺字段显式 fallback_reason，不空白）

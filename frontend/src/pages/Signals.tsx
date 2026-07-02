@@ -350,7 +350,7 @@ export default function Signals() {
                   ]}
                 />
                 <RiskBanner status="review" title="进入候选前预检" detail={`${selectedSignal.name || selectedSignal.code} 的信号需通过账户资金、仓位和黑名单规则。`} />
-                <EmptyState title="等待入池动作" detail="候选池写入接口未接入，暂时只保留信号证据链展示。" />
+                <EmptyState title="等待入池动作" detail="候选池写入已接入（选股工作台/决策页可一键写入），本侧暂时只保留信号证据链展示。" />
               </>
             ) : (
               <EmptyState title="暂无候选联动" detail="需要先有实时信号，才能生成候选池和风控预检链路。" />

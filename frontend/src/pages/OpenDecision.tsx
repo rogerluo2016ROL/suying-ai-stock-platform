@@ -11,6 +11,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons'
 import { chainApi, screenerApi, signalApi, tradeApi } from '../api/client'
+import { message } from 'antd'
 import type { ChainCandidate, CandidatePoolQueryResponse, CandidatePoolRecord, DecisionContextRecord, Position, RiskVerdictRecord, StockSignal, TradeAccount, TradeOrder } from '../api/types'
 import { lightTokens } from '../styles/tokens'
 import { DataFreshnessBar, EmptyState, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs, SegmentTabs } from '../components/prototype'
@@ -476,7 +477,9 @@ export default function OpenDecision() {
     })
   }, [chainCandidateRows, poolCandidateRows])
   const candidatePoolTotal = state.candidatePool?.total ?? 0
-  const candidatePoolEmptyReason = state.candidatePool?.empty_state?.reason
+  // DEF-3: 后端实际返 empty_state {hint, suggestion}（types.ts 标 {reason}）；最小侵入兼容三者，不碰临界区 types.ts
+  const candidatePoolEmptyState = state.candidatePool?.empty_state as { reason?: string; hint?: string; suggestion?: string } | undefined
+  const candidatePoolEmptyReason = candidatePoolEmptyState?.reason || candidatePoolEmptyState?.hint || candidatePoolEmptyState?.suggestion
   const sectors = useMemo(() => sectorRowsFromCandidates(state.candidates), [state.candidates])
   const dashboardAuctionRows = useMemo(() => auctionRowsFromDashboard(state.auction), [state.auction])
   const bullishRows = useMemo(
@@ -1094,6 +1097,29 @@ function CandidatePool({
   const passed = candidateRows.filter(row => row.risk === '通过').length
   const planPosition = candidateRows.reduce((sum, row) => sum + Number(row.size.replace('%', '')), 0)
   const empty = candidateRows.length === 0
+  const [watchingCode, setWatchingCode] = useState('')
+  // DEF-1: 加入自选——调 watchlistApi.addWatchlist({code,name})，成功/失败(fallback_reason) toast + listWatchlist 刷新
+  const handleWatch = async (code: string, name?: string) => {
+    if (watchingCode) return
+    setWatchingCode(code)
+    try {
+      const response = await screenerApi.addWatchlist({ code, name })
+      const fallback = response.data?.fallback_reason
+      if (response.data?.record) {
+        message.success(`已加入自选：${code} ${name || ''}`.trim())
+      } else if (fallback) {
+        message.error(fallback)
+      } else {
+        message.success(`已加入自选：${code}`)
+      }
+      screenerApi.listWatchlist().catch(() => {})
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      message.error(detail || '加入自选失败，请稍后重试')
+    } finally {
+      setWatchingCode('')
+    }
+  }
   return (
     <>
       <section className="workflow-nav">
@@ -1121,7 +1147,7 @@ function CandidatePool({
             />
           ) : (
             <table className="tbl">
-              <thead><tr><th>#</th><th>代码</th><th>名称</th><th>来源</th><th className="r">综合评分</th><th>风控</th><th className="r">建议仓位</th></tr></thead>
+              <thead><tr><th>#</th><th>代码</th><th>名称</th><th>来源</th><th className="r">综合评分</th><th>风控</th><th className="r">建议仓位</th><th>操作</th></tr></thead>
               <tbody>
                 {candidateRows.map((row, index) => (
                 <tr key={row.code}>
@@ -1132,6 +1158,7 @@ function CandidatePool({
                   <td className="r up">{row.score}</td>
                   <td><span className={`tag ${toneForRisk(row.risk)}`}>{row.risk}</span></td>
                   <td className="r mono">{row.size}</td>
+                  <td className="r"><button type="button" className="btn sm ghost" onClick={() => handleWatch(row.code, row.name)} disabled={watchingCode === row.code} title="加入自选">{watchingCode === row.code ? '加入中…' : '加入自选'}</button></td>
                 </tr>
               ))}
               </tbody>

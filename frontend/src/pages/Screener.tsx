@@ -294,6 +294,7 @@ export default function Screener() {
   const [modelCompareLoading, setModelCompareLoading] = useState(false)
   const [modelCompareMessage, setModelCompareMessage] = useState('等待模型对比运行')
   const [recordingPool, setRecordingPool] = useState(false)
+  const [watchingCode, setWatchingCode] = useState('')
 
   const visiblePicks = picks
   const selectedPick = visiblePicks.find(item => item.code === selectedCode) || visiblePicks[0]
@@ -535,6 +536,32 @@ export default function Screener() {
   }
 
 
+  // 加入自选：调 watchlistApi.addWatchlist({code,name}) 写入选中候选股首只（或全部）。
+  // 成功提示 + listWatchlist 刷新侧栏；fallback_reason 走 toast.error。
+  const addToWatchlist = async () => {
+    if (watchingCode || selectedPicks.length === 0) return
+    const pick = selectedPicks[0]
+    setWatchingCode(pick.code)
+    try {
+      const response = await screenerApi.addWatchlist({ code: pick.code, name: pick.name })
+      const fallback = response.data?.fallback_reason
+      if (response.data?.record) {
+        message.success(`已加入自选：${pick.code} ${pick.name || ''}`)
+      } else if (fallback) {
+        message.error(fallback)
+      } else {
+        message.success(`已加入自选：${pick.code}`)
+      }
+      screenerApi.listWatchlist().catch(() => {})
+    } catch (error) {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      message.error(detail || '加入自选失败，请稍后重试')
+    } finally {
+      setWatchingCode('')
+    }
+  }
+
+
   const stageState = (stage: 'data' | 'model' | 'output') => {
     const order = { idle: 0, data: 1, model: 2, output: 3, done: 4, error: 4 }
     const stageOrder = { data: 1, model: 2, output: 3 }
@@ -696,7 +723,7 @@ export default function Screener() {
                 <span className="sel-cnt">{selectedCount}</span>
                 <span className="prototype-panel-note">只</span>
                 <button type="button" className="action-btn primary" onClick={addToCandidatePool} disabled={!canUseResults || recordingPool} title={recordingPool ? '正在写入候选池…' : '写入选中候选股到候选池'}>{recordingPool ? '写入中…' : '加入候选池 →'}</button>
-                <button type="button" className="action-btn" disabled title="watchlist 待 Batch B">加入自选</button>
+                <button type="button" className="action-btn" onClick={addToWatchlist} disabled={!canUseResults || Boolean(watchingCode)} title={watchingCode ? '正在加入自选…' : '加入自选'}>{watchingCode ? '加入中…' : '加入自选'}</button>
                 <button type="button" className="action-btn text" onClick={exportCsv} disabled={!canUseResults}>导出 CSV</button>
               </div>
             </div>

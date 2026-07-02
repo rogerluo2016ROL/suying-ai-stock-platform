@@ -11,6 +11,8 @@ vi.mock('../api/client', () => ({
     run: vi.fn(),
     recordCandidatePool: vi.fn(),
     queryCandidatePool: vi.fn(),
+    addWatchlist: vi.fn(),
+    listWatchlist: vi.fn(),
   },
   signalApi: {
     triggerSync: vi.fn(),
@@ -91,6 +93,12 @@ describe('Screener', () => {
     vi.mocked(screenerApi.queryCandidatePool).mockResolvedValue({
       data: { total: 1, page: 1, page_size: 20, records: [] },
     } as any)
+    vi.mocked(screenerApi.addWatchlist).mockResolvedValue({
+      data: { record: { id: 1, code: '002281', name: '光迅科技', sort_order: 0 } },
+    } as any)
+    vi.mocked(screenerApi.listWatchlist).mockResolvedValue({
+      data: { total: 1, page: 1, page_size: 20, records: [] },
+    } as any)
   })
 
   afterEach(() => {
@@ -149,6 +157,26 @@ describe('Screener', () => {
       grade: 'S',
       rank: 1,
     })
+  })
+
+  it('DEF-1: 加入自选 button calls screenerApi.addWatchlist with first selected pick', async () => {
+    renderScreener()
+
+    fireEvent.change(await screen.findByLabelText('选股日期'), { target: { value: '2026-06-26' } })
+    fireEvent.click(screen.getByRole('button', { name: /开始选股/ }))
+    expect(await screen.findByText('光迅科技')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^加入自选$/ }))
+
+    await waitFor(() => {
+      expect(screenerApi.addWatchlist).toHaveBeenCalledTimes(1)
+    })
+    expect(vi.mocked(screenerApi.addWatchlist).mock.calls[0][0]).toMatchObject({
+      code: '002281',
+      name: '光迅科技',
+    })
+    // 刷新侧栏（失败不阻断）
+    expect(screenerApi.listWatchlist).toHaveBeenCalled()
   })
 
   it('matches the screener workbench prototype structure', async () => {
