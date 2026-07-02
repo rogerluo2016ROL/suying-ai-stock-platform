@@ -10,9 +10,10 @@ import {
   SafetyCertificateOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons'
-import { chainApi, signalApi, tradeApi } from '../api/client'
-import type { ChainCandidate, DecisionContextRecord, Position, RiskVerdictRecord, StockSignal, TradeAccount, TradeOrder } from '../api/types'
-import { DataFreshnessBar, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs, SegmentTabs } from '../components/prototype'
+import { chainApi, screenerApi, signalApi, tradeApi } from '../api/client'
+import type { ChainCandidate, CandidatePoolQueryResponse, CandidatePoolRecord, DecisionContextRecord, Position, RiskVerdictRecord, StockSignal, TradeAccount, TradeOrder } from '../api/types'
+import { lightTokens } from '../styles/tokens'
+import { DataFreshnessBar, EmptyState, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs, SegmentTabs } from '../components/prototype'
 
 const tabs = [
   { key: 'overview', path: '/open-decision', label: '决策总览', subLabel: '开盘闸门' },
@@ -103,6 +104,7 @@ interface OpenDecisionState {
   liveSignals: StockSignal[]
   liveTradeDate?: string
   candidates: ChainCandidate[]
+  candidatePool?: CandidatePoolQueryResponse
   account?: TradeAccount
   positions: Position[]
   orders: TradeOrder[]
@@ -117,6 +119,7 @@ const emptyState: OpenDecisionState = {
   liveSignals: [],
   liveTradeDate: undefined,
   candidates: [],
+  candidatePool: undefined,
   positions: [],
   orders: [],
   verdicts: [],
@@ -250,6 +253,78 @@ function candidateRowsFromApi(candidates: ChainCandidate[], verdicts: RiskVerdic
   }))
 }
 
+/**
+ * 把 screener 持久化候选池记录（queryCandidatePool 返回）摊平成 CandidateRow。
+ * 契约 §9.3：scope 不走明文入参，由后端拦截器头（X-Tenant/Owner/Trade-Account）注入；
+ * 前端只透传 source_module / source_mode 等查询参数。
+ */
+function candidateRowsFromPool(records: CandidatePoolRecord[], verdicts: RiskVerdictRecord[]): CandidateRow[] {
+  const seen = new Set<string>()
+  return records.flatMap(record => {
+    const sourceLabel = `${record.source_module}/${record.source_mode}`
+    return (record.candidates || []).map(item => {
+      if (!item.code || seen.has(item.code)) return null
+      seen.add(item.code)
+      const verdict = verdicts.find(v => v.symbol === item.code)
+      const risk = !verdict ? '待风控'
+        : verdict.result === 'pass' ? '通过'
+        : (verdict.result === 'warn' || verdict.result === 'manual_review') ? '仓位复核'
+        : '止损'
+      return {
+        code: item.code,
+        name: item.name || item.code,
+        source: sourceLabel,
+        score: Math.round(num(item.score, 0)),
+        risk,
+        size: `${Math.max(5, Math.min(30, Math.round(num(item.score, 50) / 4)))}%`,
+      }
+    }).filter((row): row is CandidateRow => row !== null)
+  })
+}
+
+interface AiSentimentReason {
+  title: string
+  detail: string
+  fallback: boolean
+}
+
+/**
+ * 决策概览的 AI 解读：3 条支撑原因（趋势 / 资金 / 信号-候选共振）。
+ * 后端尚未返回独立 AI reasons 字段时，从 signal/live + 候选池派生，缺字段显式 fallback_reason，不空白。
+ */
+function buildAiSentimentReasons(input: {
+  avgScore: number
+  strongSignals: number
+  candidateCount: number
+  sectors: SectorRow[]
+}): AiSentimentReason[] {
+  const { avgScore, strongSignals, candidateCount, sectors } = input
+  const topSector = sectors[0]
+  return [
+    {
+      title: '支撑原因 1 · 情绪趋势',
+      detail: avgScore > 0
+        ? `signal/live 平均评分 ${avgScore}，处于${avgScore >= 70 ? '偏强区间，趋势环境对做多友好' : avgScore >= 50 ? '中性区间，需开盘确认方向' : '偏弱区间，建议谨慎'}。`
+        : 'fallback_reason：signal/live 未返回有效评分，情绪趋势暂无法量化，待实时信号补齐。',
+      fallback: avgScore === 0,
+    },
+    {
+      title: '支撑原因 2 · 资金面',
+      detail: topSector
+        ? `${topSector.name} 板块共振居前（+${topSector.change}%），资金面倾向${topSector.change >= 2 ? '活跃流入' : '温和参与'}；实时北向/主力净流入字段未接入，本条仅以板块聚合推断。`
+        : 'fallback_reason：暂无板块共振与实时资金接口，资金面支撑原因待后端补齐。',
+      fallback: !topSector,
+    },
+    {
+      title: '支撑原因 3 · 信号-候选共振',
+      detail: (strongSignals > 0 || candidateCount > 0)
+        ? `强信号 ${strongSignals} 只 × 候选池 ${candidateCount} 只，共振${strongSignals >= 2 ? '较强' : '一般'}；开盘后结合竞价意图进一步收敛。`
+        : 'fallback_reason：signal/live 与候选池均无数据，信号-候选共振待接口返回。',
+      fallback: strongSignals === 0 && candidateCount === 0,
+    },
+  ]
+}
+
 function auctionRowsFromSignals(signals: SignalRow[], candidates: CandidateRow[]): AuctionRow[] {
   const source = signals.length
     ? signals.map(row => ({ code: row.code, name: row.name, score: row.score, gap: Math.max(0, Math.round((row.score - 50) / 8)), vol: Math.max(1, Number((row.confidence / 12).toFixed(1))), intent: row.score >= 75 ? '强烈抢筹' : '偏多抢筹' }))
@@ -354,6 +429,8 @@ export default function OpenDecision() {
       signalApi.getDashboardAuction(),
       signalApi.getLive('intra'),
       chainApi.getCandidates({ filter: 'all', top_n: 20 }),
+      // 候选池（M0 持久化）：scope 不走明文入参，由拦截器头注入（契约 §9.3）
+      screenerApi.queryCandidatePool({ source_module: 'open-decision', page: 1, page_size: 50 }),
       tradeApi.getAccount(),
       tradeApi.getPositions(),
       tradeApi.getOrders(),
@@ -361,7 +438,7 @@ export default function OpenDecision() {
       tradeApi.getDecisionContexts({ page: 1, page_size: 20 }),
     ]).then(results => {
       if (!mounted) return
-      const [auction, live, candidates, account, positions, orders, verdicts, contexts] = results
+      const [auction, live, candidates, candidatePool, account, positions, orders, verdicts, contexts] = results
       const rejected = results.filter(result => result.status === 'rejected').length
       setState({
         auction: auction.status === 'fulfilled' ? auction.value.data || {} : {},
@@ -370,6 +447,7 @@ export default function OpenDecision() {
           ? (live.value.data as typeof live.value.data & { trade_date?: string })?.trade_date || live.value.data?.data_freshness?.as_of || undefined
           : undefined,
         candidates: candidates.status === 'fulfilled' ? candidates.value.data?.candidates || [] : [],
+        candidatePool: candidatePool.status === 'fulfilled' ? candidatePool.value.data : undefined,
         account: account.status === 'fulfilled' ? account.value.data?.account : undefined,
         positions: positions.status === 'fulfilled' ? positions.value.data?.positions || [] : [],
         orders: orders.status === 'fulfilled' ? orders.value.data?.orders || [] : [],
@@ -385,7 +463,20 @@ export default function OpenDecision() {
   }, [])
 
   const signalRows = useMemo(() => signalRowsFromApi(state.liveSignals, state.verdicts), [state.liveSignals, state.verdicts])
-  const candidateRows = useMemo(() => candidateRowsFromApi(state.candidates, state.verdicts), [state.candidates, state.verdicts])
+  const chainCandidateRows = useMemo(() => candidateRowsFromApi(state.candidates, state.verdicts), [state.candidates, state.verdicts])
+  const poolRecords = useMemo(() => state.candidatePool?.records ?? [], [state.candidatePool])
+  const poolCandidateRows = useMemo(() => candidateRowsFromPool(poolRecords, state.verdicts), [poolRecords, state.verdicts])
+  // 多源融合去重：chain 候选优先，候选池补齐（按 code 去重）
+  const candidateRows = useMemo(() => {
+    const seen = new Set<string>()
+    return [...chainCandidateRows, ...poolCandidateRows].filter(row => {
+      if (seen.has(row.code)) return false
+      seen.add(row.code)
+      return true
+    })
+  }, [chainCandidateRows, poolCandidateRows])
+  const candidatePoolTotal = state.candidatePool?.total ?? 0
+  const candidatePoolEmptyReason = state.candidatePool?.empty_state?.reason
   const sectors = useMemo(() => sectorRowsFromCandidates(state.candidates), [state.candidates])
   const dashboardAuctionRows = useMemo(() => auctionRowsFromDashboard(state.auction), [state.auction])
   const bullishRows = useMemo(
@@ -448,7 +539,7 @@ export default function OpenDecision() {
       {active === 'overview' && <DecisionOverview loading={state.loading} error={state.error} signalRows={signalRows} candidateRows={candidateRows} sectorRows={sectors} />}
       {active === 'auction' && <AuctionAnalysis loading={state.loading} error={state.error} bullishRows={bullishRows} bearishRows={bearishRows} candidateRows={candidateRows} sectorRows={sectors} auction={state.auction} />}
       {active === 'signals' && <SignalScan loading={state.loading} error={state.error} signalRows={signalRows} />}
-      {active === 'candidates' && <CandidatePool loading={state.loading} error={state.error} candidateRows={candidateRows} verdicts={state.verdicts} />}
+      {active === 'candidates' && <CandidatePool loading={state.loading} error={state.error} candidateRows={candidateRows} verdicts={state.verdicts} poolTotal={candidatePoolTotal} poolEmptyReason={candidatePoolEmptyReason} />}
       {active === 'execution' && <ExecutionMonitor loading={state.loading} error={state.error} account={state.account} orderRows={orderRows} positionRows={positionRows} contexts={state.contexts} />}
     </PrototypePage>
   )
@@ -470,6 +561,10 @@ function DecisionOverview({
   const avgScore = signalRows.length ? Math.round(signalRows.reduce((sum, row) => sum + row.score, 0) / signalRows.length) : 0
   const strongSignals = signalRows.filter(row => row.score >= 70 && row.risk === '通过').length
   const nowText = currentTimeText()
+  const aiReasons = useMemo(
+    () => buildAiSentimentReasons({ avgScore, strongSignals, candidateCount: candidateRows.length, sectors: sectorRows }),
+    [avgScore, strongSignals, candidateRows.length, sectorRows],
+  )
   return (
     <>
       <section className="od-countdown card">
@@ -535,6 +630,18 @@ function DecisionOverview({
                 <div className="op-title warn">{strongSignals ? '信号已触发，需逐条确认' : '等待实时信号'}</div>
                 <div className="op-desc">优先选择信号强、风控通过、候选来源清晰的标的。</div>
               </div>
+            </div>
+            <div className="ai-sentiment-card mt14">
+              <div className="ai-title"><span>AI 开盘解读</span><em>基于 signal/live + 候选池</em></div>
+              <div className="ai-reason-grid">
+                {aiReasons.map(reason => (
+                  <div key={reason.title}>
+                    <strong>{reason.title}{reason.fallback ? ' · 待补齐' : ''}</strong>
+                    <span>{reason.detail}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="risk-banner warn"><strong>风险提醒</strong><span>本解读只使用接口返回字段；缺失的资金/竞价/历史归因不会用演示数据补齐。</span></div>
             </div>
           </PrototypeCard>
 
@@ -974,14 +1081,19 @@ function CandidatePool({
   error,
   candidateRows,
   verdicts,
+  poolTotal,
+  poolEmptyReason,
 }: {
   loading: boolean
   error: string
   candidateRows: CandidateRow[]
   verdicts: RiskVerdictRecord[]
+  poolTotal: number
+  poolEmptyReason?: string
 }) {
   const passed = candidateRows.filter(row => row.risk === '通过').length
   const planPosition = candidateRows.reduce((sum, row) => sum + Number(row.size.replace('%', '')), 0)
+  const empty = candidateRows.length === 0
   return (
     <>
       <section className="workflow-nav">
@@ -995,8 +1107,20 @@ function CandidatePool({
       </section>
 
       <div className="row r-6-4">
-        <PrototypeCard title="多源候选池" icon={<FundOutlined />} meta="Candidate 对象预览 · 多源融合去重">
-          <table className="tbl">
+        <PrototypeCard
+          title="多源候选池"
+          icon={<FundOutlined />}
+          meta={poolTotal > 0 ? `Candidate 对象预览 · 候选池 ${poolTotal} 条已持久化` : 'Candidate 对象预览 · chain + screener 多源融合去重'}
+        >
+          {empty ? (
+            <EmptyState
+              title={loading ? '候选池加载中' : '候选池暂无数据'}
+              detail={loading
+                ? '正在拉取 chain/candidates 与 screener/candidate-pool。'
+                : error || poolEmptyReason || 'fallback_reason：chain 与 screener 候选池均无数据，等待选股 / 竞价 / 信号写入候选池后展示。'}
+            />
+          ) : (
+            <table className="tbl">
               <thead><tr><th>#</th><th>代码</th><th>名称</th><th>来源</th><th className="r">综合评分</th><th>风控</th><th className="r">建议仓位</th></tr></thead>
               <tbody>
                 {candidateRows.map((row, index) => (
@@ -1010,9 +1134,9 @@ function CandidatePool({
                   <td className="r mono">{row.size}</td>
                 </tr>
               ))}
-              {candidateRows.length === 0 && <tr><td colSpan={7} className="prototype-panel-note">{loading ? '候选池加载中。' : error || '暂无候选池数据。'}</td></tr>}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          )}
         </PrototypeCard>
 
         <div className="grid">

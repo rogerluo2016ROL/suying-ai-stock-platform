@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import OpenDecision from '../pages/OpenDecision'
-import { chainApi, signalApi, tradeApi } from '../api/client'
+import { chainApi, screenerApi, signalApi, tradeApi } from '../api/client'
 
 vi.mock('../api/client', () => ({
   signalApi: {
@@ -10,6 +10,9 @@ vi.mock('../api/client', () => ({
   },
   chainApi: {
     getCandidates: vi.fn(),
+  },
+  screenerApi: {
+    queryCandidatePool: vi.fn(),
   },
   tradeApi: {
     getAccount: vi.fn(),
@@ -104,6 +107,15 @@ describe('OpenDecision prototype pages', () => {
         page: 1,
         page_size: 20,
         records: [{ id: 1, decision_context_id: 'DC-1', tenant_id: 't1', source_type: 'strategy', symbol: '300750', plan_id: 'PLAN-OPEN-0925', intent: '开盘强势策略', payload: {}, created_at: '2026-06-29T09:25:00Z' }],
+      },
+    } as any)
+    vi.mocked(screenerApi.queryCandidatePool).mockResolvedValue({
+      data: {
+        total: 0,
+        page: 1,
+        page_size: 50,
+        records: [],
+        empty_state: { reason: '候选池为空，等待选股/竞价/信号写入。' },
       },
     } as any)
   })
@@ -281,5 +293,72 @@ describe('OpenDecision prototype pages', () => {
     renderOpenDecision('/open-decision/signals')
 
     expect(await screen.findByText('交易日：2026-06-26')).toBeInTheDocument()
+  })
+
+  // AC② 候选池消费 screenerApi.queryCandidatePool（M0 API，scope 不走明文入参，契约 §9.3）
+  it('renders the persisted candidate pool from screenerApi.queryCandidatePool on the candidates tab', async () => {
+    vi.mocked(screenerApi.queryCandidatePool).mockResolvedValue({
+      data: {
+        total: 1,
+        page: 1,
+        page_size: 50,
+        records: [
+          {
+            pool_id: 'POOL-open-decision-2026-06-29-am',
+            source_module: 'open-decision',
+            source_mode: 'leader_scalp',
+            name: '盘前候选',
+            candidates: [
+              { code: '002475', name: '立讯精密', score: 84, grade: 'A', rank: 1 },
+            ],
+          },
+        ],
+      },
+    } as any)
+    vi.mocked(chainApi.getCandidates).mockResolvedValue({ data: { candidates: [] } } as any)
+
+    renderOpenDecision('/open-decision/candidates')
+
+    expect(await screen.findByText('立讯精密')).toBeInTheDocument()
+    expect(screen.getByText(/open-decision\/leader_scalp/)).toBeInTheDocument()
+    // scope 不走明文：queryCandidatePool 入参只含 source_module / 分页，不含 scope/tenant/owner
+    await waitFor(() => {
+      expect(screenerApi.queryCandidatePool).toHaveBeenCalledWith({
+        source_module: 'open-decision',
+        page: 1,
+        page_size: 50,
+      })
+    })
+  })
+
+  // AC⑧ 缺数据不空白：候选池空 + 后端返 empty_state.reason，走 EmptyState 不留白
+  it('shows an EmptyState with backend empty_state.reason when the candidate pool is empty', async () => {
+    vi.mocked(screenerApi.queryCandidatePool).mockResolvedValue({
+      data: {
+        total: 0,
+        page: 1,
+        page_size: 50,
+        records: [],
+        empty_state: { reason: '今日盘前候选池尚未写入，等待选股与竞价。' },
+      },
+    } as any)
+    vi.mocked(chainApi.getCandidates).mockResolvedValue({ data: { candidates: [] } } as any)
+
+    renderOpenDecision('/open-decision/candidates')
+
+    expect(await screen.findByText('候选池暂无数据')).toBeInTheDocument()
+    expect(screen.getByText('今日盘前候选池尚未写入，等待选股与竞价。')).toBeInTheDocument()
+  })
+
+  // AC③ 决策概览 AI 解读 3 支撑原因（缺字段显式 fallback_reason，不空白）
+  it('renders AI open-market interpretation with 3 supporting reasons on the overview tab', async () => {
+    renderOpenDecision('/open-decision')
+
+    expect(await screen.findByText('AI 开盘解读')).toBeInTheDocument()
+    expect(screen.getByText(/支撑原因 1/)).toBeInTheDocument()
+    expect(screen.getByText(/支撑原因 2/)).toBeInTheDocument()
+    expect(screen.getByText(/支撑原因 3/)).toBeInTheDocument()
+    // signal/live 返回了评分 → 趋势原因不含 fallback_reason；资金/共振仍可能 fallback，但 3 条结构齐全不空白
+    expect(screen.getAllByText(/fallback_reason|趋势环境|资金面|信号-候选共振/).length).toBeGreaterThan(0)
   })
 })

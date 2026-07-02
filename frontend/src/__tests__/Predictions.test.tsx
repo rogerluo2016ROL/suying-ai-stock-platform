@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Predictions from '../pages/Predictions'
-import { predictionApi } from '../api/client'
+import { predictionApi, screenerApi } from '../api/client'
 
 vi.mock('echarts-for-react', () => ({
   default: ({ style }: { style?: React.CSSProperties }) => <div data-testid="mock-chart" style={style} />,
@@ -15,6 +15,9 @@ vi.mock('../api/client', () => ({
     predictFast: vi.fn(),
     compare: vi.fn(),
     getAccuracyBacktest: vi.fn(),
+  },
+  screenerApi: {
+    queryCandidatePool: vi.fn(),
   },
 }))
 
@@ -105,16 +108,65 @@ describe('Predictions', () => {
         ],
       },
     } as any)
+    // 5.0 概览候选池预测排行：默认返回空候选池（走 EmptyState）
+    vi.mocked(screenerApi.queryCandidatePool).mockResolvedValue({
+      data: { total: 0, page: 1, page_size: 20, records: [], empty_state: { reason: '候选池暂无记录' } },
+    } as any)
   })
 
   it('loads prediction service status on the overview page', async () => {
     renderPredictions('/predictions')
 
-    expect(await screen.findByRole('heading', { name: '预测总览' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'K线预测总览' })).toBeInTheDocument()
     expect(predictionApi.getStatus).toHaveBeenCalled()
     expect((predictionApi as any).getOverview).toHaveBeenCalled()
     expect(screen.getAllByText('Kronos-mini').length).toBeGreaterThan(0)
     expect(screen.getByText(/baseline predictor/)).toBeInTheDocument()
+  })
+
+  // 5.0 prediction-overview：候选池预测排行消费 screenerApi.queryCandidatePool，
+  // 渲染候选标的 + 预警摘要；后端命中率/预测价字段未齐走 fallback（不展示假数）。
+  it('renders candidate-pool ranking + alert summary from queryCandidatePool on overview', async () => {
+    vi.mocked(screenerApi.queryCandidatePool).mockResolvedValue({
+      data: {
+        total: 2,
+        page: 1,
+        page_size: 20,
+        records: [{
+          pool_id: 'POOL-leader_scalp-2026-06-26',
+          source_module: 'screener',
+          source_mode: 'leader_scalp',
+          name: '选股-leader_scalp-2026-06-26',
+          candidates: [
+            { code: '300750', name: '宁德时代', score: 86, grade: 'S', rank: 1 },
+            { code: '002594', name: '比亚迪', score: 61, grade: 'C', rank: 2 },
+          ],
+        }],
+      },
+    } as any)
+
+    renderPredictions('/predictions')
+
+    expect(await screen.findByRole('heading', { name: 'K线预测总览' })).toBeInTheDocument()
+    expect(screenerApi.queryCandidatePool).toHaveBeenCalledWith({ source_module: 'screener', page_size: 20 })
+    // 候选池预测排行表渲染候选标的
+    expect(screen.getByText('宁德时代')).toBeInTheDocument()
+    expect(screen.getByText('比亚迪')).toBeInTheDocument()
+    // 今日预测任务 KPI 反映候选计数（2 只）
+    expect(screen.getByText('2')).toBeInTheDocument()
+    // 预警摘要按 grade 生成（S→信号增强 / C→方向相悖）
+    expect(screen.getByText(/宁德时代 信号增强/)).toBeInTheDocument()
+    expect(screen.getByText(/比亚迪 方向相悖/)).toBeInTheDocument()
+  })
+
+  it('shows EmptyState when candidate pool has no records on overview', async () => {
+    renderPredictions('/predictions')
+
+    expect(await screen.findByText('暂无候选池预测排行')).toBeInTheDocument()
+    // 2 KPI（命中率/预测数）后端字段未齐 → 值 '--'，不展示假数
+    expect(screen.getAllByText('--').length).toBeGreaterThan(0)
+    // 预警摘要 EmptyState
+    expect(screen.getByText('暂无预警')).toBeInTheDocument()
   })
 
   it('keeps single-stock prediction empty until a real prediction runs', async () => {

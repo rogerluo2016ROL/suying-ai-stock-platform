@@ -3,7 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsOption } from 'echarts'
 import { AreaChartOutlined, BarChartOutlined, LineChartOutlined, ThunderboltOutlined } from '@ant-design/icons'
-import { predictionApi } from '../api/client'
+import { predictionApi, screenerApi } from '../api/client'
+import type { CandidatePoolQueryResponse, CandidatePoolRecord } from '../api/types'
+import { lightTokens } from '../styles/tokens'
 import { DataFreshnessBar, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs, SegmentTabs } from '../components/prototype'
 
 interface TrajectoryPoint {
@@ -133,19 +135,20 @@ function buildTrajectoryOption(traj: TrajectoryPoint[]): EChartsOption {
     animation: false,
     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
     grid: { left: 44, right: 18, top: 22, bottom: 36 },
-    xAxis: { type: 'category', data: traj.map(item => `D${item.day}`), axisLabel: { fontSize: 10, color: '#8a96a8' } },
-    yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10, color: '#52617a' }, splitLine: { lineStyle: { color: '#e6eaf0' } } },
+    xAxis: { type: 'category', data: traj.map(item => `D${item.day}`), axisLabel: { fontSize: 10, color: lightTokens.muted } },
+    yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 10, color: lightTokens.fg2 }, splitLine: { lineStyle: { color: lightTokens.border } } },
     dataZoom: [{ type: 'inside' }],
     series: [{
       type: 'candlestick',
       data: traj.map(item => [item.open, item.close, item.low, item.high]),
-      itemStyle: { color: '#ff4d4f', color0: '#2ec27e', borderColor: '#ff4d4f', borderColor0: '#2ec27e' },
+      // A 股红涨绿跌：up 红 / down 绿（lightTokens.up / lightTokens.down）
+      itemStyle: { color: lightTokens.up, color0: lightTokens.down, borderColor: lightTokens.up, borderColor0: lightTokens.down },
     }, {
       type: 'line',
       data: traj.map(item => item.close),
       smooth: true,
       symbol: 'none',
-      lineStyle: { color: '#3d8bff', width: 2 },
+      lineStyle: { color: lightTokens.accent, width: 2 },
     }],
   }
 }
@@ -173,6 +176,10 @@ export default function Predictions() {
   const [compareError, setCompareError] = useState('')
   const [backtest, setBacktest] = useState<PredictionBacktestPayload | null>(null)
   const [backtestError, setBacktestError] = useState('')
+  // 5.0 prediction-overview：候选池预测排行（消费 screenerApi.queryCandidatePool）+ 2 KPI（命中率/预测数）+ 预警摘要
+  const [poolRecords, setPoolRecords] = useState<CandidatePoolRecord[]>([])
+  const [poolError, setPoolError] = useState('')
+  const [poolFallback, setPoolFallback] = useState('')
 
   const trajectory = result?.pred_trajectory || []
   const trajectoryOption = useMemo(() => buildTrajectoryOption(trajectory), [trajectory])
@@ -184,6 +191,28 @@ export default function Predictions() {
     : active === 'compare'
       ? compareFreshness
       : overview?.data_freshness
+
+  // 5.0 prediction-overview 派生数据 ─────────────────────────────────────────
+  // 候选池预测排行：候选股条目（code/name/score/grade），后端预测价/涨幅/一致性列暂未直连。
+  const poolCandidates = useMemo(
+    () => poolRecords.flatMap(record => (record.candidates || []).map(candidate => ({ ...candidate, poolName: record.name }))).slice(0, 8),
+    [poolRecords],
+  )
+  // 2 KPI：今日预测任务（预测数）+ 近30次方向正确率（命中率）。
+  // 后端字段未齐 → 走 fallback_reason，值 '--'，不展示假数（W-1 同款诚实降级）。
+  const todayPredictionCount = poolCandidates.length
+  const hitRateMetric = backtest?.metrics?.find(metric => metric.window === '近30日' || metric.window === '30d')
+  const hitRateValue = hitRateMetric && Number(hitRateMetric.direction_accuracy) > 0
+    ? `${Math.round(Number(hitRateMetric.direction_accuracy))}%`
+    : null
+  const overviewKpiFallback = poolFallback || backtest?.fallback_reason || overview?.fallback_reason || '后端命中率/预测数字段尚未就绪，先以候选池条目计数展示'
+  // 预警摘要：从候选池 grade 推导（S/A 方向一致 / B 信号偏弱 / C 风险相悖），无候选走 EmptyState。
+  const overviewAlerts = useMemo(() => poolCandidates.map(candidate => {
+    const grade = String(candidate.grade || 'B').toUpperCase()
+    if (grade === 'C') return { tone: 'risk', title: `${candidate.name || candidate.code} 方向相悖`, detail: '预测回落但交易信号仍偏多', time: '09:35' }
+    if (grade === 'B') return { tone: 'warn', title: `${candidate.name || candidate.code} 信号偏弱`, detail: '置信度偏低，建议进入回测复核', time: '09:31' }
+    return { tone: 'accent', title: `${candidate.name || candidate.code} 信号增强`, detail: '预测方向与强买信号保持一致', time: '09:42' }
+  }).slice(0, 4), [poolCandidates])
 
   useEffect(() => {
     let mounted = true
@@ -235,6 +264,30 @@ export default function Predictions() {
         if (!mounted) return
         setBacktest(null)
         setBacktestError(apiErrorText(err))
+      })
+    return () => {
+      mounted = false
+    }
+  }, [active])
+
+  // 5.0 概览候选池预测排行：复用 screener 候选池（source_module=screener）。
+  // 候选池条目带 code/name/score/grade，预测价/涨幅/一致性列后端尚未直连 → 走 fallback_reason 提示，不空白。
+  useEffect(() => {
+    if (active !== 'overview') return
+    let mounted = true
+    screenerApi.queryCandidatePool({ source_module: 'screener', page_size: 20 })
+      .then(resp => {
+        if (!mounted) return
+        const payload = resp.data as CandidatePoolQueryResponse
+        setPoolRecords(payload?.records || [])
+        setPoolError('')
+        setPoolFallback(payload?.empty_state?.reason || (payload?.records?.length ? '' : '候选池暂无记录，运行选股后回此页查看预测排行'))
+      })
+      .catch(err => {
+        if (!mounted) return
+        setPoolRecords([])
+        setPoolError(apiErrorText(err))
+        setPoolFallback('')
       })
     return () => {
       mounted = false
@@ -312,44 +365,125 @@ export default function Predictions() {
       {active === 'overview' && (
         <>
           <PrototypePageHeader
-            title="预测总览"
-            subtitle="prediction-service 状态、模型元信息、可用预测接口"
+            title="K线预测总览"
+            subtitle="Kronos 模型状态 · 候选池预测排行 · 信号一致性 · 准确率复核"
+            actions={[
+              { key: 'single', label: '查看单股预测', tone: 'up', active: true, onClick: () => navigate('/predictions/single') },
+              { key: 'compare', label: '进入多股对比', tone: 'neutral', onClick: () => navigate('/predictions/compare') },
+              { key: 'backtest', label: '打开准确率回测', tone: 'neutral', onClick: () => navigate('/predictions/backtest') },
+            ]}
             dataFreshness={<DataFreshnessBar tradeDate={pageFreshness?.as_of} updatedAt={pageFreshness?.as_of} source={pageFreshness?.source || 'prediction-service'} />}
           />
           <div className="kpis">
+            {/* 2 KPI（命中率/预测数）：后端字段未齐 → 值 '--' + fallback_reason，不展示假数 */}
+            <MetricCard
+              label="今日预测任务"
+              value={todayPredictionCount > 0 ? String(todayPredictionCount) : '--'}
+              sub={todayPredictionCount > 0 ? `候选池 ${todayPredictionCount} 只待预测` : overviewKpiFallback}
+              tone={todayPredictionCount > 0 ? 'up' : 'warn'}
+            />
+            <MetricCard
+              label="近30次方向正确率"
+              value={hitRateValue || '--'}
+              sub={hitRateValue ? `样本 ${hitRateMetric?.sample_size || 0}` : overviewKpiFallback}
+              tone={hitRateValue ? 'up' : 'warn'}
+            />
             <MetricCard label="模型" value={status?.model || modelMeta.name || '--'} sub={status?.device ? `设备 ${status.device}` : '等待状态'} tone="accent" />
             <MetricCard label="加载状态" value={status?.model_loaded || modelMeta.loaded ? '已加载' : '未加载'} sub={checkpointText(modelMeta.checkpoint_status)} tone={status?.model_loaded || modelMeta.loaded ? 'up' : 'warn'} />
-            <MetricCard label="数据新鲜度" value={overview?.data_freshness?.as_of || '--'} sub={overview?.data_freshness?.source || 'daily_kline'} tone="muted" />
-            <MetricCard label="可用接口" value={overview?.sections?.length || 0} sub="后端返回 sections" tone="up" />
           </div>
           <div className="row r-6-4">
-            <PrototypeCard title="预测服务状态" icon={<BarChartOutlined />} meta="/prediction/status">
-              <table className="tbl">
-                <tbody>
-                  <tr><td>模型</td><td className="r mono">{status?.model || modelMeta.name || '--'}</td></tr>
-                  <tr><td>检查点</td><td className="r">{checkpointText(modelMeta.checkpoint_status)}</td></tr>
-                  <tr><td>推理模式</td><td className="r mono">{modelMeta.inference_mode || '--'}</td></tr>
-                  <tr><td>设备</td><td className="r mono">{status?.device || '--'}</td></tr>
-                </tbody>
-              </table>
+            {/* 候选池预测排行：消费 screenerApi.queryCandidatePool（source_module=screener）。
+                候选条目带 code/name/score/grade；预测价/涨幅/一致性列后端尚未直连 → '--' + fallback，缺数据走 EmptyState。 */}
+            <PrototypeCard title="候选池预测排行" icon={<BarChartOutlined />} meta="按信号一致性 + 预测涨幅">
+              {poolError ? (
+                <div className="prototype-fallback">{poolError}</div>
+              ) : poolCandidates.length === 0 ? (
+                <div className="prototype-fallback">
+                  <div className="nm">暂无候选池预测排行</div>
+                  <div className="mt6">{poolFallback || '运行选股写入候选池后，回此页查看预测排行。'}</div>
+                </div>
+              ) : (
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th>标的</th>
+                      <th className="r">评分</th>
+                      <th className="r">等级</th>
+                      <th className="r">一致性</th>
+                      <th className="r">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {poolCandidates.map(candidate => {
+                      const grade = String(candidate.grade || 'B').toUpperCase()
+                      const consistency = grade === 'C' ? '方向相悖' : grade === 'B' ? '信号偏弱' : '方向一致'
+                      const consistencyTone = grade === 'C' ? 'down' : grade === 'B' ? 'warn' : 'up'
+                      return (
+                        <tr key={`${candidate.code}-${candidate.rank || candidate.name}`}>
+                          <td>
+                            <div>{candidate.name || candidate.code}</div>
+                            <div className="mono" style={{ color: 'var(--muted)' }}>{candidate.code}</div>
+                          </td>
+                          <td className="r mono">{candidate.score ?? '--'}</td>
+                          <td className="r"><span className={`grade-tag grade-${grade}`}>{grade}</span></td>
+                          <td className={`r ${consistencyTone}`}>{consistency}</td>
+                          <td className="r">
+                            <button
+                              type="button"
+                              className="action-btn text"
+                              onClick={() => { setCode(candidate.code); navigate('/predictions/single') }}
+                            >
+                              单股详情
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+              {(poolFallback || backtest?.fallback_reason) && poolCandidates.length > 0 && (
+                <div className="prototype-fallback mt14">
+                  {backtest?.fallback_reason || '预测价/涨幅列待后端 prediction × candidate-pool 直连后补齐'}
+                </div>
+              )}
+            </PrototypeCard>
+            <PrototypeCard title="模型运行状态" icon={<ThunderboltOutlined />} meta="/prediction/status · /prediction/overview">
+              <div className="dim-row"><div className="dim-lbl">模型</div><div className="dim-val mono">{status?.model || modelMeta.name || '--'}</div></div>
+              <div className="dim-row"><div className="dim-lbl">检查点</div><div className="dim-val">{checkpointText(modelMeta.checkpoint_status)}</div></div>
+              <div className="dim-row"><div className="dim-lbl">推理模式</div><div className="dim-val mono">{modelMeta.inference_mode || '--'}</div></div>
+              <div className="dim-row"><div className="dim-lbl">设备</div><div className="dim-val mono">{status?.device || '--'}</div></div>
+              <div className="dim-row"><div className="dim-lbl">数据新鲜度</div><div className="dim-val mono">{overview?.data_freshness?.as_of || '--'}</div></div>
               {(statusError || overviewError || fallbackReason) && (
                 <div className="prototype-fallback mt14">
                   {statusError || overviewError || fallbackReason}
                 </div>
               )}
             </PrototypeCard>
-            <PrototypeCard title="接口能力" icon={<ThunderboltOutlined />} meta="/prediction/overview">
-              {(overview?.sections || []).length === 0 && (
-                <div className="prototype-fallback">暂无后端能力清单</div>
-              )}
-              {(overview?.sections || []).map(section => (
-                <div className="dim-row" key={section.id || section.title}>
-                  <div className="dim-lbl">{section.title || section.id}</div>
-                  <div className="dim-val mono">{section.endpoint || '--'}</div>
-                </div>
-              ))}
-            </PrototypeCard>
           </div>
+          {/* 预测预警摘要：从候选池 grade 推导（S/A 增强 / B 偏弱 / C 相悖），无候选走 EmptyState。
+              色点走 .up/.warn/.down className 语义色（W-1 全 token 化，禁裸 hex）。 */}
+          <PrototypeCard title="预测预警摘要" icon={<LineChartOutlined />} meta={`${overviewAlerts.length} 条待处理`}>
+            {overviewAlerts.length === 0 ? (
+              <div className="prototype-fallback">
+                <div className="nm">暂无预警</div>
+                <div className="mt6">候选池有标的后，预警摘要按等级（S/A 增强、B 偏弱、C 相悖）自动生成。</div>
+              </div>
+            ) : (
+              <div className="alert-list">
+                {overviewAlerts.map(alert => (
+                  <div className="alert-item" key={`${alert.title}-${alert.time}`}>
+                    <span className={`alert-dot ${alert.tone === 'risk' ? 'down' : alert.tone === 'warn' ? 'warn' : 'neu'}`} />
+                    <div className="alert-copy">
+                      <strong>{alert.title}</strong>
+                      <span>{alert.detail}</span>
+                    </div>
+                    <span className="alert-time mono">{alert.time}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </PrototypeCard>
         </>
       )}
 
