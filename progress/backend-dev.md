@@ -1,3 +1,45 @@
+## UAT 阻塞-fix — init_postgres.sql vs alembic schema 双重定义冲突（治标 A 幂等）- 2026-07-03
+**状态**: 修复完成 + 真实 PG 正向路径（init SQL + alembic upgrade head）全通，backend lifespan seed admin OK，/health 200。UAT crash-loop 解除。
+**Skills**: agf-running-sit-tests
+**根因**: `services/sql/init_postgres.sql` 容器启动时预建业务表（screening_snapshots 全部多周期列 + pledge_detail PRIMARY KEY 等），alembic migration 006/008 又无条件 `op.add_column` / `ADD CONSTRAINT pkey` 重复定义 → DuplicateColumn / multiple primary keys → 迁移事务回滚 → 无 alembic_version 戳、无 auth 表 → backend lifespan seed admin 失败 → ExitCode=3 crash-loop。诊断细节见 deploy-engineer `docs/deploy/batch-a-uioverhaul-uat-2026-07-03.md`。
+
+**改动文件**（治标 A，最小侵入，init SQL 预建表保留不删）:
+- `backend/alembic/versions/006_multi_horizon_snapshots.py`：多周期列循环从裸 `op.add_column`（非幂等）改为 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS <col> <pgtype>`，PG 类型映射（Double→DOUBLE PRECISION / Boolean→BOOLEAN / DateTime→TIMESTAMP）
+- `backend/alembic/versions/008_pledge_rtsw_toplist_align.py`：`pledge_detail` 加 PK 用 `DO $$ ... IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE contype='p')` 守卫（PG 的 ADD CONSTRAINT 不支持 IF NOT EXISTS，故 DO 块）—— init SQL 已预建 `PRIMARY KEY(code, ann_date)`，守卫后正向路径不再撞 multiple primary keys
+
+**SIT 证据**（真实 PG，fresh scratch db 跑完整正向路径 init SQL → alembic upgrade head → backend lifespan）:
+```
+# 1. fresh scratch db
+DROP/CREATE DATABASE scratch_schema_test
+
+# 2. load init_postgres.sql（容器启动等价）
+$ psql ... -d scratch_schema_test -f services/sql/init_postgres.sql    # 无 error
+
+# 3. alembic upgrade head（之前崩在 006，现全通 001→022）
+Running upgrade  -> 001  (auth tables)
+Running upgrade 005 -> 006  (multi-horizon cols，原 DuplicateColumn 已消)
+Running upgrade 007 -> 008  (pledge PK，原 multiple primary keys 已消)
+...
+Running upgrade 021 -> 022  (watchlist)
+
+# 4. 验证
+alembic_version: 022                                    ← 戳到位（之前不存在）
+auth tables: ['alembic_version','audit_logs','refresh_tokens','roles','users']  ← auth 表齐
+outcome_at present: True                                ← 006 多周期列在
+pledge_detail PK: ('pledge_detail_pkey',)               ← 008 PK 在
+
+# 5. backend lifespan 起服务（端口 9913）
+$ uvicorn app.main:app --port 9913
+GET /api/health → HTTP 200 {"status":"healthy"}        ← crash-loop 解除
+admin user seeded: ('admin@suying.ai', 'admin')        ← seed admin OK
+```
+
+**质量门**: 治标 A 幂等修复 ✅ / 不破坏 init SQL 预建表（data-service 依赖保留）✅ / 全正向路径 init SQL + alembic upgrade head 跑通 ✅ / backend seed admin + /health 200 ✅
+
+**治本 B（follow-up，不在本 task）**: init_postgres.sql 不再预建业务表，由 alembic 全权建表（消除 schema 双重定义 SSOT 漂移）。issue body 已发 team-lead 由其按 skill `agf-writing-github-issue` 建单。
+
+**下一步**: deploy-engineer 复用 suying-uat 栈 `docker compose -p suying-uat up -d --build backend` 重建 backend 镜像 + 重跑 alembic 冒烟；然后回 task #11 watchlist（migration 022 基于修复后 alembic 链）
+
 ## BatchB — watchlist 表 + REST（POST/GET/DELETE，解禁自选股按钮）- 2026-07-03
 **状态**: 代码完成 + Unit/SIT 自跑全绿（12/12 新测试 + 真实 PG SIT round-trip 通过；全量回归 185 passed / 5 pre-existing 失败与本次改动无关）
 **Skills**: agf-running-sit-tests

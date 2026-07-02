@@ -14,8 +14,10 @@ depends_on = None
 
 
 def upgrade():
-    # screening_snapshots 建表：核心业务表（recorder INSERT / signal SELECT），此前无 migration/init SQL 创建（schema gap）。
-    # schema 取自 recorder.py INSERT 列 + backfill next_day_return/is_win + id PK。IF NOT EXISTS 保证 dev/UAT 都安全。
+    # screening_snapshots 建表：核心业务表（recorder INSERT / signal SELECT）。
+    # IF NOT EXISTS 保证两条路径都安全：
+    #   - 正向（UAT/部署）：services/sql/init_postgres.sql 容器启动时先建表 + 全部多周期列
+    #   - 反向（dev 无 init SQL）：alembic 单独建表 + 补列
     op.execute("""
     CREATE TABLE IF NOT EXISTS screening_snapshots (
         id BIGSERIAL PRIMARY KEY,
@@ -34,16 +36,21 @@ def upgrade():
     """)
     op.execute("CREATE INDEX IF NOT EXISTS idx_screening_snapshots_code_date ON screening_snapshots(stock_code, trade_date)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_screening_snapshots_model ON screening_snapshots(model_key, trade_date)")
-    for col, dtype in [
-        ("outcome_at", sa.DateTime),
-        ("ret_3d", sa.Double), ("ret_5d", sa.Double),
-        ("ret_10d", sa.Double), ("ret_20d", sa.Double),
-        ("is_win_3d", sa.Boolean), ("is_win_5d", sa.Boolean),
-        ("is_win_10d", sa.Boolean),
-        ("ret_3d_at", sa.DateTime), ("ret_5d_at", sa.DateTime),
-        ("ret_10d_at", sa.DateTime), ("ret_20d_at", sa.DateTime),
+    # 多周期列：必须用 ADD COLUMN IF NOT EXISTS（init_postgres.sql:594 已预建这些列），
+    # 否则 init SQL + alembic upgrade 正向路径撞 DuplicateColumn → 迁移回滚 → 无 alembic_version/auth 表。
+    # PG 类型映射：sa.Double→double precision / sa.Boolean→boolean / sa.DateTime→timestamp。
+    for col, pgtype in [
+        ("outcome_at", "TIMESTAMP"),
+        ("ret_3d", "DOUBLE PRECISION"), ("ret_5d", "DOUBLE PRECISION"),
+        ("ret_10d", "DOUBLE PRECISION"), ("ret_20d", "DOUBLE PRECISION"),
+        ("is_win_3d", "BOOLEAN"), ("is_win_5d", "BOOLEAN"),
+        ("is_win_10d", "BOOLEAN"),
+        ("ret_3d_at", "TIMESTAMP"), ("ret_5d_at", "TIMESTAMP"),
+        ("ret_10d_at", "TIMESTAMP"), ("ret_20d_at", "TIMESTAMP"),
     ]:
-        op.add_column('screening_snapshots', sa.Column(col, dtype(), nullable=True))
+        op.execute(
+            f"ALTER TABLE screening_snapshots ADD COLUMN IF NOT EXISTS {col} {pgtype}"
+        )
 
 
 def downgrade():

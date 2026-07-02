@@ -44,10 +44,22 @@ def upgrade():
             ADD COLUMN IF NOT EXISTS pledge_total_ratio DOUBLE PRECISION
     """)
     # 加 PK(code, ann_date): 修无 PK 导致 ON CONFLICT DO NOTHING 退化为普通 INSERT 累积重复行的问题
-    # 必须在 TRUNCATE 之后执行 (执行顺序: 先 TRUNCATE → upgrade → 回补), 否则重复行阻塞 ADD CONSTRAINT
+    # 必须在 TRUNCATE 之后执行 (执行顺序: 先 TRUNCATE → upgrade → 回补), 否则重复行阻塞 ADD CONSTRAINT。
+    # 幂等守卫：init_postgres.sql 已为 pledge_detail 预建 PRIMARY KEY(code, ann_date)，PG 的 ADD CONSTRAINT
+    # 不支持 IF NOT EXISTS，故用 DO 块检测 pg_constraint —— 防 init SQL + alembic 正向路径撞 "multiple primary keys"。
     op.execute("""
-        ALTER TABLE pledge_detail
-            ADD CONSTRAINT pledge_detail_pkey PRIMARY KEY (code, ann_date)
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conrelid = 'pledge_detail'::regclass
+                  AND contype = 'p'
+            ) THEN
+                ALTER TABLE pledge_detail
+                    ADD CONSTRAINT pledge_detail_pkey PRIMARY KEY (code, ann_date);
+            END IF;
+        END
+        $$
     """)
 
     # ── rt_sw_k (ADR §决策2) ──
