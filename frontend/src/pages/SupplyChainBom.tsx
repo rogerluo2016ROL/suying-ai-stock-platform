@@ -26,7 +26,7 @@ import type {
 } from './supply-chain-bom/types'
 import { chainCandidateToCandidateCompany } from './supply-chain-bom/types'
 import { formatNumber } from './supply-chain-bom/formatters'
-import { lightTokens } from '../styles/tokens'
+import { lightTokens, alpha } from '../styles/tokens'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -39,8 +39,8 @@ function ckColor(level?: string) {
 }
 
 /** accent 半透明叠色（echarts bar/scatter 用，token 派生自 lightTokens.accent #3d8bff） */
-const ACCENT_OVERLAY = 'rgba(61,139,255,0.45)'
-const ACCENT_OVERLAY_SOFT = 'rgba(61,139,255,0.28)'
+const ACCENT_OVERLAY = alpha.accent(0.45)
+const ACCENT_OVERLAY_SOFT = alpha.accent(0.28)
 
 const supplyChainTabs = [
   { key: 'policy', path: '/supply-chain-bom/policy', label: '政策梳理', subLabel: '政策证据' },

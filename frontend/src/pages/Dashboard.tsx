@@ -16,7 +16,7 @@ import {
 } from '@ant-design/icons'
 import { DataFreshnessBar, EmptyState, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs } from '../components/prototype'
 import { signalApi } from '../api/client'
-import { lightTokens } from '../styles/tokens'
+import { lightTokens, signalLevelTokens } from '../styles/tokens'
 
 interface SignalStock {
   code: string
@@ -216,12 +216,12 @@ interface SignalMatrixItem {
 }
 
 const signalLevelMeta: Record<SignalLevelKey, { label: string; color: string; className: string }> = {
-  STRONG_BUY: { label: '强买', color: lightTokens.up, className: 'buy-strong' },
-  BUY: { label: '买入', color: '#fa8c16', className: 'buy' },
-  HOLD: { label: '持有', color: lightTokens.accent, className: 'hold' },
-  REDUCE: { label: '减仓', color: '#faad14', className: 'reduce' },
-  SELL: { label: '卖出', color: '#8c8c8c', className: 'sell' },
-  TIMING_ALERT: { label: '拐点', color: '#722ed1', className: 'alert' },
+  STRONG_BUY: { label: '强买', color: signalLevelTokens.STRONG_BUY, className: 'buy-strong' },
+  BUY: { label: '买入', color: signalLevelTokens.BUY, className: 'buy' },
+  HOLD: { label: '持有', color: signalLevelTokens.HOLD, className: 'hold' },
+  REDUCE: { label: '减仓', color: signalLevelTokens.REDUCE, className: 'reduce' },
+  SELL: { label: '卖出', color: signalLevelTokens.SELL, className: 'sell' },
+  TIMING_ALERT: { label: '拐点', color: signalLevelTokens.TIMING_ALERT, className: 'alert' },
 }
 
 const signalStatsMeta = [

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { BarChartOutlined, HistoryOutlined, SafetyCertificateOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { BarChartOutlined, CheckCircleOutlined, HistoryOutlined, SafetyCertificateOutlined, ThunderboltOutlined, WarningOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsOption } from 'echarts'
 import {
@@ -17,7 +17,7 @@ import {
   SideRail,
 } from '../components/prototype'
 import { signalApi, tradeApi } from '../api/client'
-import { lightTokens } from '../styles/tokens'
+import { lightTokens, alpha } from '../styles/tokens'
 
 interface SignalRow {
   code: string
@@ -52,7 +52,7 @@ interface RiskScanResult {
 /** 风险扫描 4 项检查卡（对齐 6.3 preview：审计 / 公告 / ST退市 / 业绩） */
 interface RiskCheckCard {
   key: string
-  icon: string
+  icon: ReactNode
   title: string
   status: 'pass' | 'warn' | 'reject'
   detail: string
@@ -138,7 +138,7 @@ function buildHistoryTrendOption(rows: SignalHistoryRow[]): EChartsOption {
       data: scores,
       smooth: true,
       lineStyle: { color: lightTokens.accent, width: 2 },
-      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(61,139,255,0.18)' }, { offset: 1, color: 'rgba(61,139,255,0)' }] } },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: alpha.accent(0.18) }, { offset: 1, color: alpha.accent(0) }] } },
       symbol: 'circle',
       symbolSize: 4,
       itemStyle: { color: (param) => pointColors[param.dataIndex] ?? lightTokens.accent },
@@ -146,9 +146,9 @@ function buildHistoryTrendOption(rows: SignalHistoryRow[]): EChartsOption {
         silent: true,
         symbol: 'none',
         data: [
-          { yAxis: 80, lineStyle: { color: 'rgba(255,77,79,0.35)', type: 'dashed' }, label: { formatter: '强买 80', fontSize: 9, color: lightTokens.up } },
-          { yAxis: 60, lineStyle: { color: 'rgba(245,166,35,0.35)', type: 'dashed' }, label: { formatter: '买入 60', fontSize: 9, color: lightTokens.warn } },
-          { yAxis: 40, lineStyle: { color: 'rgba(61,139,255,0.35)', type: 'dashed' }, label: { formatter: '持有 40', fontSize: 9, color: lightTokens.accent } },
+          { yAxis: 80, lineStyle: { color: alpha.up(0.35), type: 'dashed' }, label: { formatter: '强买 80', fontSize: 9, color: lightTokens.up } },
+          { yAxis: 60, lineStyle: { color: alpha.warn(0.35), type: 'dashed' }, label: { formatter: '买入 60', fontSize: 9, color: lightTokens.warn } },
+          { yAxis: 40, lineStyle: { color: alpha.accent(0.35), type: 'dashed' }, label: { formatter: '持有 40', fontSize: 9, color: lightTokens.accent } },
         ],
       },
     }],
@@ -158,7 +158,7 @@ function buildHistoryTrendOption(rows: SignalHistoryRow[]): EChartsOption {
 /** 6.3 preview：把单股 risk verdict 的 checks 映射成 4 项检查卡（审计 / 公告 / ST退市 / 业绩） */
 function mapRiskCheckCards(checks: RiskVerdictCheck[]): RiskCheckCard[] {
   const find = (keys: string[]) => checks.find(c => keys.some(k => c.rule.toLowerCase().includes(k)))
-  const card = (keys: string[], icon: string, title: string, fallback: string): RiskCheckCard => {
+  const card = (keys: string[], icon: ReactNode, title: string, fallback: string): RiskCheckCard => {
     const hit = find(keys)
     const level = (hit?.level ?? 'pass') as RiskCheckCard['status']
     return {
@@ -171,10 +171,10 @@ function mapRiskCheckCards(checks: RiskVerdictCheck[]): RiskCheckCard[] {
     }
   }
   return [
-    card(['audit', '审计'], '✅', '审计检查', '标准无保留意见 · 年报已出具'),
-    card(['announce', 'disclosure', '公告'], '⚠️', '公告检查', '近 30 天无退市 / ST / 立案调查公告'),
-    card(['st', 'delist', '退市'], '✅', 'ST/退市检查', '正常上市 · 非 ST · 无退市风险'),
-    card(['earning', 'finance', '业绩'], '🟢', '业绩检查', '最新报告期业绩已披露'),
+    card(['audit', '审计'], <CheckCircleOutlined />, '审计检查', '标准无保留意见 · 年报已出具'),
+    card(['announce', 'disclosure', '公告'], <WarningOutlined />, '公告检查', '近 30 天无退市 / ST / 立案调查公告'),
+    card(['st', 'delist', '退市'], <SafetyCertificateOutlined />, 'ST/退市检查', '正常上市 · 非 ST · 无退市风险'),
+    card(['earning', 'finance', '业绩'], <BarChartOutlined />, '业绩检查', '最新报告期业绩已披露'),
   ]
 }
 

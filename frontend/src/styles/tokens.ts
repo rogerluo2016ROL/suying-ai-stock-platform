@@ -54,4 +54,23 @@ export const darkTokens = {
     '"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace',
 } as const
 
+// signal 评级语义色（A 股红涨绿跌：强买=红 / 卖出=绿，中间档过渡）。
+// page 层禁裸 hex 统一走此组；本处是 token 定义，hex 合规。
+export const signalLevelTokens = {
+  STRONG_BUY: lightTokens.up, // 红，强正向
+  BUY: lightTokens.warn, // 橙，正向
+  HOLD: lightTokens.accent, // 蓝，中性
+  REDUCE: '#faad14', // 黄，偏负向（介于 warn 与 down）
+  SELL: lightTokens.down, // 绿，强负向
+  TIMING_ALERT: '#722ed1', // 紫，拐点提示
+} as const
+
+// alpha 派生（ECharts 配置色不吃 CSS var，JS 常量桥接；与 lightTokens 对应 token 同源）
+export const alpha = {
+  accent: (a: number) => `rgba(61,139,255,${a})`,
+  up: (a: number) => `rgba(255,77,79,${a})`,
+  down: (a: number) => `rgba(46,194,126,${a})`,
+  warn: (a: number) => `rgba(245,166,35,${a})`,
+} as const
+
 export type DesignTokens = typeof lightTokens
