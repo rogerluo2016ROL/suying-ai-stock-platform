@@ -9,6 +9,7 @@ dependencies = [
     "kronos-factors",
     "kronos-core",
     "kronos-data",
+    "lark-oapi>=1.7.0",
 ]
 
 [project.optional-dependencies]
