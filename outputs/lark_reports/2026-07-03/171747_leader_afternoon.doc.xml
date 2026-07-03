@@ -1,0 +1,100 @@
+<h1>秋神午后选股分析报告（2026-07-03 17:17）</h1>
+<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="1200" height="780" viewBox="0 0 1200 780">
+<rect width="1200" height="780" rx="28" fill="#f7f8fa"/>
+<rect x="42" y="36" width="1116" height="92" rx="20" fill="#ffffff" stroke="#d7dbe3" stroke-width="2"/>
+<text x="76" y="95" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="40" font-weight="700" fill="#1769ff">秋神午后选股分析报告</text>
+<text x="920" y="92" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#5f6673">2026-07-03 17:17</text>
+<text x="60" y="178" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="30" font-weight="700" fill="#15181d">一、市场状态诊断</text>
+<rect x="60" y="214" width="1030" height="54" fill="#eef2f7" stroke="#d7dbe3" stroke-width="2"/>
+<text x="72" y="249" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#15181d">指标</text>
+<line x1="60" y1="214" x2="60" y2="268" stroke="#d7dbe3" stroke-width="1"/>
+<text x="242" y="249" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#15181d">数据</text>
+<line x1="230" y1="214" x2="230" y2="268" stroke="#d7dbe3" stroke-width="1"/>
+<text x="452" y="249" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#15181d">判断</text>
+<line x1="440" y1="214" x2="440" y2="268" stroke="#d7dbe3" stroke-width="1"/>
+<line x1="1090" y1="214" x2="1090" y2="268" stroke="#d7dbe3" stroke-width="1"/>
+<rect x="60" y="268" width="1030" height="54" fill="#ffffff" stroke="#d7dbe3" stroke-width="1"/>
+<text x="72" y="303" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">数据刷新</text>
+<line x1="60" y1="268" x2="60" y2="322" stroke="#d7dbe3" stroke-width="1"/>
+<text x="242" y="303" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">ok</text>
+<line x1="230" y1="268" x2="230" y2="322" stroke="#d7dbe3" stroke-width="1"/>
+<text x="452" y="303" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">数据刷新正常</text>
+<line x1="440" y1="268" x2="440" y2="322" stroke="#d7dbe3" stroke-width="1"/>
+<line x1="1090" y1="268" x2="1090" y2="322" stroke="#d7dbe3" stroke-width="1"/>
+<rect x="60" y="322" width="1030" height="54" fill="#fbfcff" stroke="#d7dbe3" stroke-width="1"/>
+<text x="72" y="357" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">入选数量</text>
+<line x1="60" y1="322" x2="60" y2="376" stroke="#d7dbe3" stroke-width="1"/>
+<text x="242" y="357" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">1只</text>
+<line x1="230" y1="322" x2="230" y2="376" stroke="#d7dbe3" stroke-width="1"/>
+<text x="452" y="357" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">机会稀缺，适合小仓位精选</text>
+<line x1="440" y1="322" x2="440" y2="376" stroke="#d7dbe3" stroke-width="1"/>
+<line x1="1090" y1="322" x2="1090" y2="376" stroke="#d7dbe3" stroke-width="1"/>
+<rect x="60" y="376" width="1030" height="54" fill="#ffffff" stroke="#d7dbe3" stroke-width="1"/>
+<text x="72" y="411" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">平均评分</text>
+<line x1="60" y1="376" x2="60" y2="430" stroke="#d7dbe3" stroke-width="1"/>
+<text x="242" y="411" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">82.5</text>
+<line x1="230" y1="376" x2="230" y2="430" stroke="#d7dbe3" stroke-width="1"/>
+<text x="452" y="411" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">模型均分中强</text>
+<line x1="440" y1="376" x2="440" y2="430" stroke="#d7dbe3" stroke-width="1"/>
+<line x1="1090" y1="376" x2="1090" y2="430" stroke="#d7dbe3" stroke-width="1"/>
+<rect x="60" y="430" width="1030" height="54" fill="#fbfcff" stroke="#d7dbe3" stroke-width="1"/>
+<text x="72" y="465" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">最强板块</text>
+<line x1="60" y1="430" x2="60" y2="484" stroke="#d7dbe3" stroke-width="1"/>
+<text x="242" y="465" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">具身智能 1只，...</text>
+<line x1="230" y1="430" x2="230" y2="484" stroke="#d7dbe3" stroke-width="1"/>
+<text x="452" y="465" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">标的较分散</text>
+<line x1="440" y1="430" x2="440" y2="484" stroke="#d7dbe3" stroke-width="1"/>
+<line x1="1090" y1="430" x2="1090" y2="484" stroke="#d7dbe3" stroke-width="1"/>
+<text x="60" y="518" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="700" fill="#1769ff">市场结论</text>
+<text x="60" y="556" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" fill="#15181d">本次机会较少，重点看高分个股和是否有明确板块共振</text>
+<text x="60" y="590" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" fill="#15181d">。</text>
+<line x1="60" y1="640" x2="1140" y2="640" stroke="#d7dbe3" stroke-width="2"/>
+<text x="60" y="684" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="30" font-weight="700" fill="#15181d">二、选股清单 Top 1</text>
+<rect x="60" y="718" width="930" height="54" fill="#eef2f7" stroke="#d7dbe3" stroke-width="2"/>
+<text x="72" y="753" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#15181d">#</text>
+<line x1="60" y1="718" x2="60" y2="772" stroke="#d7dbe3" stroke-width="1"/>
+<text x="142" y="753" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#15181d">代码</text>
+<line x1="130" y1="718" x2="130" y2="772" stroke="#d7dbe3" stroke-width="1"/>
+<text x="302" y="753" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#15181d">名称</text>
+<line x1="290" y1="718" x2="290" y2="772" stroke="#d7dbe3" stroke-width="1"/>
+<text x="492" y="753" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#15181d">涨幅</text>
+<line x1="480" y1="718" x2="480" y2="772" stroke="#d7dbe3" stroke-width="1"/>
+<text x="612" y="753" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#15181d">板块</text>
+<line x1="600" y1="718" x2="600" y2="772" stroke="#d7dbe3" stroke-width="1"/>
+<text x="892" y="753" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#15181d">评分</text>
+<line x1="880" y1="718" x2="880" y2="772" stroke="#d7dbe3" stroke-width="1"/>
+<line x1="990" y1="718" x2="990" y2="772" stroke="#d7dbe3" stroke-width="1"/>
+<rect x="60" y="772" width="930" height="54" fill="#ffffff" stroke="#d7dbe3" stroke-width="1"/>
+<text x="72" y="807" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">1</text>
+<line x1="60" y1="772" x2="60" y2="826" stroke="#d7dbe3" stroke-width="1"/>
+<text x="142" y="807" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">300000</text>
+<line x1="130" y1="772" x2="130" y2="826" stroke="#d7dbe3" stroke-width="1"/>
+<text x="302" y="807" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">画板自检</text>
+<line x1="290" y1="772" x2="290" y2="826" stroke="#d7dbe3" stroke-width="1"/>
+<text x="492" y="807" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">6.78%</text>
+<line x1="480" y1="772" x2="480" y2="826" stroke="#d7dbe3" stroke-width="1"/>
+<text x="612" y="807" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">具身智能</text>
+<line x1="600" y1="772" x2="600" y2="826" stroke="#d7dbe3" stroke-width="1"/>
+<text x="892" y="807" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" fill="#15181d">82.5</text>
+<line x1="880" y1="772" x2="880" y2="826" stroke="#d7dbe3" stroke-width="1"/>
+<line x1="990" y1="772" x2="990" y2="826" stroke="#d7dbe3" stroke-width="1"/>
+<text x="60" y="702" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="700" fill="#15181d">三、板块/概念共振</text>
+<text x="60" y="738" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#5f6673">具身智能: 入选 1 只，共振均分 89.5</text>
+</svg></whiteboard>
+<h2>一、数据更新时间和日期</h2>
+<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-03 17:17</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>1只</td></tr></tbody></table>
+<h2>二、市场状态诊断</h2>
+<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>1只</td><td>机会稀缺，适合小仓位精选</td></tr><tr><td>平均评分</td><td>82.5</td><td>模型均分中强</td></tr><tr><td>最强板块</td><td>具身智能 1只，均分82.5</td><td>标的较分散</td></tr></tbody></table>
+<p><b>市场结论：</b>本次机会较少，重点看高分个股和是否有明确板块共振。</p>
+<h2>三、选股清单</h2>
+<table><thead><tr><th background-color="light-gray">序号</th><th background-color="light-gray">代码</th><th background-color="light-gray">名称</th><th background-color="light-gray">现价</th><th background-color="light-gray">涨幅</th><th background-color="light-gray">目标价</th><th background-color="light-gray">止损价</th><th background-color="light-gray">板块</th><th background-color="light-gray">评分</th><th background-color="light-gray">选股原因</th></tr></thead><tbody><tr><td>1</td><td>300000</td><td>画板自检</td><td>12.34</td><td>6.78%</td><td>-</td><td>-</td><td>具身智能</td><td>82.5</td><td>个股涨幅6.78%；板块具身智能；主要因子: 板块共振91.0、板块动量88.0、资金确认73.0；同板块跟随12只</td></tr></tbody></table>
+<h2>四、板块共振</h2>
+<ul><li>具身智能: 入选 1 只，共振均分 89.5</li></ul>
+<h2>五、风险提示</h2>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+<ul>
+<li>本报告是模型筛选结果，不是自动买入指令。</li>
+<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
+<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
+</ul>
+</callout>

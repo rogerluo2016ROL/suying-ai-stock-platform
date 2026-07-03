@@ -492,6 +492,24 @@ def _resolve_trade_date(trade_date: Optional[str]) -> str:
     return str(value)
 
 
+def _resolve_intraday_trade_date(trade_date: Optional[str]) -> str:
+    """Resolve intraday/default trade_date from stk_mins first, then daily_kline."""
+    if trade_date and trade_date != "latest":
+        return trade_date
+    try:
+        with _get_factor_db() as db:
+            row = db.execute("SELECT MAX(trade_time)::date FROM stk_mins").fetchone()
+            if isinstance(row, dict):
+                value = next(iter(row.values()), None)
+            else:
+                value = row[0] if row and len(row) else None
+            if value:
+                return str(value)[:10]
+    except Exception as e:
+        logger.warning("latest intraday trade_date lookup failed: %s", e)
+    return _resolve_trade_date(trade_date)
+
+
 def _query_screener_latest_dates() -> dict[str, str]:
     """Return the latest available date for each screener data source."""
     queries = {
@@ -6918,7 +6936,7 @@ def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
         run_leader_screening, run_intraday_screening,
         generate_execution_plan, generate_intraday_plan,
     )
-    td = _resolve_trade_date(trade_date)
+    td = _resolve_intraday_trade_date(trade_date) if mode in {"leader_intraday", "leader_closing"} else _resolve_trade_date(trade_date)
 
     if mode == "leader_auction":
         from kronos_factors.engine.leader_auction import AuctionScalpEngine
@@ -7102,8 +7120,9 @@ def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> 
     """Run 大葱产业链解构选股 (中长线)."""
     from kronos_factors.engine.supply_chain import SupplyChainEngine
 
+    resolved_trade_date = _resolve_trade_date(trade_date)
     engine = SupplyChainEngine()
-    result = engine.run(top_n=top_n, trade_date=trade_date)
+    result = engine.run(top_n=top_n, trade_date=resolved_trade_date)
 
     picks = result.get("picks", []) if isinstance(result, dict) else getattr(result, "picks", [])
     picks = _sanitize_picks(picks)
@@ -7121,7 +7140,7 @@ def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> 
 
     return {
         "mode": mode,
-        "trade_date": trade_date,
+        "trade_date": resolved_trade_date,
         "total_picks": len(picks),
         "picks": picks,
     }
@@ -7157,8 +7176,9 @@ def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict
     """Run 毕师傅趋势启动战法 V13 (OBV+WR trend launch screening + 黑天鹅防护 + 止损降权分散 + 智能卖出决策树)."""
     from kronos_factors.engine.bi_trend_launch import BiTrendLaunchEngine, generate_bi_plan
 
+    resolved_trade_date = _resolve_trade_date(trade_date)
     engine = BiTrendLaunchEngine()
-    picks = engine.run(top_n=top_n, trade_date=trade_date)
+    picks = engine.run(top_n=top_n, trade_date=resolved_trade_date)
 
     picks = _sanitize_picks(picks)
     picks = _normalize_picks(picks, mode)
@@ -7169,7 +7189,7 @@ def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict
 
     return {
         "mode": mode,
-        "trade_date": trade_date,
+        "trade_date": resolved_trade_date,
         "total_picks": len(picks),
         "picks": picks,
         "execution_plans": plans,
@@ -7204,11 +7224,15 @@ def _run_afternoon_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dic
         AfternoonLeaderEngine,
         AfternoonTrendFullEngine,
         build_sector_resonance_summary,
+        resolve_afternoon_trade_date,
     )
 
     is_full = mode == "leader_afternoon_trend_full"
     engine = AfternoonTrendFullEngine() if is_full else AfternoonLeaderEngine()
     run_top_n = max(top_n, 30) if is_full else top_n
+    if trade_date is None:
+        with _get_factor_db() as db:
+            trade_date = resolve_afternoon_trade_date(db)
     picks = engine.run(top_n=run_top_n, trade_date=trade_date, time_slot="14:30")
 
     picks = _sanitize_picks(picks)

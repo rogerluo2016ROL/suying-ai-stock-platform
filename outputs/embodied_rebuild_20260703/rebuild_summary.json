@@ -1,0 +1,10 @@
+{
+  "candidates": 30,
+  "nodes": 26,
+  "evidence_rows": 2328,
+  "recommendations": 30,
+  "outputs": {
+    "excel": "outputs/embodied_rebuild_20260703/embodied_rebuild_recommendations_2026-07-03.xlsx",
+    "csv": "outputs/embodied_rebuild_20260703/embodied_rebuild_recommendations.csv"
+  }
+}

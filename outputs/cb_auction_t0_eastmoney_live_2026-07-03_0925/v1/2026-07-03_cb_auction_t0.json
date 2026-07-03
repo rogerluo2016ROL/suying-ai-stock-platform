@@ -1,0 +1,741 @@
+{
+  "model": "cb_auction_t0",
+  "trade_date": "2026-07-03",
+  "trigger_stocks": [
+    {
+      "trigger_stock_code": "002396",
+      "trigger_stock_name": "星网锐捷",
+      "fd_amount": 1451792862.0,
+      "fd_amount_yi": 14.52,
+      "first_time": "09:25:00",
+      "prev_was_limit_up": false,
+      "trigger_data_source": "eastmoney_zt_pool"
+    },
+    {
+      "trigger_stock_code": "603137",
+      "trigger_stock_name": "恒尚节能",
+      "fd_amount": 4123005264.0,
+      "fd_amount_yi": 41.23,
+      "first_time": "09:25:03",
+      "prev_was_limit_up": false,
+      "trigger_data_source": "eastmoney_zt_pool"
+    }
+  ],
+  "concepts": [
+    {
+      "concept_code": "881116.TI",
+      "concept_name": "建筑装饰",
+      "trigger_stock_count": 1,
+      "concept_fd_amount": 4123005264.0,
+      "concept_fd_amount_yi": 41.23,
+      "trigger_sources": [
+        "603137"
+      ],
+      "concept_size": 1,
+      "concept_strength": null,
+      "concept_strength_source": null,
+      "auction_sample_count": 0
+    },
+    {
+      "concept_code": "883938.TI",
+      "concept_name": "股性不活跃",
+      "trigger_stock_count": 1,
+      "concept_fd_amount": 4123005264.0,
+      "concept_fd_amount_yi": 41.23,
+      "trigger_sources": [
+        "603137"
+      ],
+      "concept_size": 1,
+      "concept_strength": null,
+      "concept_strength_source": null,
+      "auction_sample_count": 0
+    }
+  ],
+  "bonds": [
+    {
+      "cb_code": "127083.SZ",
+      "cb_name": "山路转债",
+      "stk_code": "000498",
+      "stk_name": "山东路桥",
+      "matched_concepts": [
+        "建筑装饰",
+        "股性不活跃"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 4835889600.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 251.2301,
+      "risk_notes": [
+        "剩余规模48.36亿"
+      ],
+      "remain_size_yi": 48.36,
+      "code": "127083.SZ",
+      "name": "山路转债",
+      "relation_reason": "命中建筑装饰、股性不活跃",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "128107.SZ",
+      "cb_name": "交科转债",
+      "stk_code": "002061",
+      "stk_name": "浙江交科",
+      "matched_concepts": [
+        "建筑装饰",
+        "股性不活跃"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2022-07-18",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 251.2301,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2022-07-18"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "128107.SZ",
+      "name": "交科转债",
+      "relation_reason": "命中建筑装饰、股性不活跃",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "110024.SH",
+      "cb_name": "隧道转债",
+      "stk_code": "600820",
+      "stk_name": "隧道股份",
+      "matched_concepts": [
+        "建筑装饰"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2014-12-18",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "退市日期2014-12-18"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "110024.SH",
+      "name": "隧道转债",
+      "relation_reason": "命中建筑装饰",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "110043.SH",
+      "cb_name": "无锡转债",
+      "stk_code": "600908",
+      "stk_name": "无锡银行",
+      "matched_concepts": [
+        "股性不活跃"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-01-31",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2024-01-31"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "110043.SH",
+      "name": "无锡转债",
+      "relation_reason": "命中股性不活跃",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "110057.SH",
+      "cb_name": "现代转债",
+      "stk_code": "600420",
+      "stk_name": "国药现代",
+      "matched_concepts": [
+        "股性不活跃"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2023-06-16",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2023-06-16"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "110057.SH",
+      "name": "现代转债",
+      "relation_reason": "命中股性不活跃",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "110064.SH",
+      "cb_name": "建工转债",
+      "stk_code": "600939",
+      "stk_name": "重庆建工",
+      "matched_concepts": [
+        "建筑装饰"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-12-22",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2025-12-22"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "110064.SH",
+      "name": "建工转债",
+      "relation_reason": "命中建筑装饰",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "110077.SH",
+      "cb_name": "洪城转债",
+      "stk_code": "600461",
+      "stk_name": "洪城环境",
+      "matched_concepts": [
+        "股性不活跃"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 668463017.12,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [],
+      "remain_size_yi": 6.68,
+      "code": "110077.SH",
+      "name": "洪城转债",
+      "relation_reason": "命中股性不活跃",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "110086.SH",
+      "cb_name": "精工转债",
+      "stk_code": "600496",
+      "stk_name": "精工钢构",
+      "matched_concepts": [
+        "建筑装饰"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1999915007.42,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "剩余规模20.00亿"
+      ],
+      "remain_size_yi": 20.0,
+      "code": "110086.SH",
+      "name": "精工转债",
+      "relation_reason": "命中建筑装饰",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "110100.SH",
+      "cb_name": "龙建转债",
+      "stk_code": "600853",
+      "stk_name": "龙建股份",
+      "matched_concepts": [
+        "建筑装饰"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1000000000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "剩余规模10.00亿"
+      ],
+      "remain_size_yi": 10.0,
+      "code": "110100.SH",
+      "name": "龙建转债",
+      "relation_reason": "命中建筑装饰",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "111023.SH",
+      "cb_name": "利柏转债",
+      "stk_code": "605167",
+      "stk_name": "利柏特",
+      "matched_concepts": [
+        "建筑装饰"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-06-24",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2026-06-24"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "111023.SH",
+      "name": "利柏转债",
+      "relation_reason": "命中建筑装饰",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113024.SH",
+      "cb_name": "核建转债",
+      "stk_code": "601611",
+      "stk_name": "中国核建",
+      "matched_concepts": [
+        "建筑装饰"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2025-04-08",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2025-04-08"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113024.SH",
+      "name": "核建转债",
+      "relation_reason": "命中建筑装饰",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113028.SH",
+      "cb_name": "环境转债",
+      "stk_code": "601200",
+      "stk_name": "上海环境",
+      "matched_concepts": [
+        "股性不活跃"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-09-18",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "退市日期2020-09-18"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113028.SH",
+      "name": "环境转债",
+      "relation_reason": "命中股性不活跃",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113036.SH",
+      "cb_name": "宁建转债",
+      "stk_code": "601789",
+      "stk_name": "宁波建工",
+      "matched_concepts": [
+        "建筑装饰"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2022-04-12",
+      "call_status": "公告实施强赎",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "强赎中",
+        "退市日期2022-04-12"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113036.SH",
+      "name": "宁建转债",
+      "relation_reason": "命中建筑装饰",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113037.SH",
+      "cb_name": "紫银转债",
+      "stk_code": "601860",
+      "stk_name": "紫金银行",
+      "matched_concepts": [
+        "股性不活跃"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 4499440026.5,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "剩余规模44.99亿"
+      ],
+      "remain_size_yi": 44.99,
+      "code": "113037.SH",
+      "name": "紫银转债",
+      "relation_reason": "命中股性不活跃",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113516.SH",
+      "cb_name": "苏农转债",
+      "stk_code": "603323",
+      "stk_name": "苏农银行",
+      "matched_concepts": [
+        "股性不活跃"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-08-02",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2024-08-02"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113516.SH",
+      "name": "苏农转债",
+      "relation_reason": "命中股性不活跃",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113544.SH",
+      "cb_name": "桃李转债",
+      "stk_code": "603866",
+      "stk_name": "桃李面包",
+      "matched_concepts": [
+        "股性不活跃"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2020-09-18",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "退市日期2020-09-18"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113544.SH",
+      "name": "桃李转债",
+      "relation_reason": "命中股性不活跃",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113557.SH",
+      "cb_name": "森特转债",
+      "stk_code": "603098",
+      "stk_name": "森特股份",
+      "matched_concepts": [
+        "建筑装饰"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2021-04-30",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "退市日期2021-04-30"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113557.SH",
+      "name": "森特转债",
+      "relation_reason": "命中建筑装饰",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113563.SH",
+      "cb_name": "柳药转债",
+      "stk_code": "603368",
+      "stk_name": "柳药集团",
+      "matched_concepts": [
+        "股性不活跃"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-01-16",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2026-01-16"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113563.SH",
+      "name": "柳药转债",
+      "relation_reason": "命中股性不活跃",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113578.SH",
+      "cb_name": "全筑转债",
+      "stk_code": "603030",
+      "stk_name": "全筑股份",
+      "matched_concepts": [
+        "建筑装饰"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2024-01-30",
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "退市日期2024-01-30"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113578.SH",
+      "name": "全筑转债",
+      "relation_reason": "命中建筑装饰",
+      "list_type": "主买"
+    },
+    {
+      "cb_code": "113579.SH",
+      "cb_name": "健友转债",
+      "stk_code": "603707",
+      "stk_name": "健友股份",
+      "matched_concepts": [
+        "股性不活跃"
+      ],
+      "trigger_sources": [
+        "603137"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 4123005264.0,
+      "matched_concept_strength": null,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 0.0,
+      "delist_date": "2026-04-23",
+      "call_status": "公告到期赎回",
+      "is_direct_trigger": false,
+      "theme_score": 151.2301,
+      "risk_notes": [
+        "公告到期赎回",
+        "退市日期2026-04-23"
+      ],
+      "remain_size_yi": 0.0,
+      "code": "113579.SH",
+      "name": "健友转债",
+      "relation_reason": "命中股性不活跃",
+      "list_type": "主买"
+    }
+  ],
+  "observation_bonds": [],
+  "pending_confirmation_stocks": [],
+  "rejections": [
+    {
+      "reason": "使用东方财富涨停池备用触发源",
+      "data_source": "eastmoney_zt_pool"
+    },
+    {
+      "code": "000595",
+      "name": "宝塔实业",
+      "reason": "封单金额不足5亿"
+    },
+    {
+      "code": "000656",
+      "name": "金科股份",
+      "reason": "封单金额不足5亿"
+    },
+    {
+      "code": "002148",
+      "name": "北纬科技",
+      "reason": "封单金额不足5亿"
+    },
+    {
+      "code": "002979",
+      "name": "雷赛智能",
+      "reason": "封单金额不足5亿"
+    },
+    {
+      "code": "600376",
+      "name": "首开股份",
+      "reason": "封单金额不足5亿"
+    }
+  ],
+  "data_source": "eastmoney_zt_pool",
+  "note": "备用口径：Tushare 9:25 竞价/封单源为空时，使用东方财富涨停池 fund/fbt 作为触发源；未写入正式 limit_list_d/kpl_list。"
+}

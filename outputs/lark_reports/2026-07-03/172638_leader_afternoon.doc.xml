@@ -1,0 +1,93 @@
+<h1>秋神午后选股分析报告（2026-07-03 17:26）</h1>
+<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+<defs>
+<linearGradient id="hero" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#7c3aed"/></linearGradient>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.14"/></filter>
+</defs>
+<rect width="1200" height="900" rx="34" fill="#f5f7fb"/>
+<circle cx="1060" cy="72" r="116" fill="#ffffff" opacity="0.16"/>
+<circle cx="104" cy="804" r="150" fill="#e8eefc" opacity="0.72"/>
+<rect x="44" y="36" width="1112" height="188" rx="30" fill="url(#hero)" filter="url(#shadow)"/>
+<text x="78" y="82" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#e0f2fe">SUYING AI 投研海报</text>
+<text x="78" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ffffff">秋神午后选股分析报告</text>
+<text x="78" y="178" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" fill="#eaf2ff">2026-07-03  ·  17:26  ·  选股</text>
+<rect x="866" y="70" width="244" height="54" rx="27" fill="#ffffff" opacity="0.20"/>
+<text x="890" y="105" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="700" fill="#ffffff">候选较多</text>
+<rect x="60" y="248" width="250" height="126" rx="22" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<text x="82" y="282" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">入选数量</text>
+<text x="82" y="324" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="32" font-weight="800" fill="#2563eb">20只</text>
+<text x="82" y="356" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#475569">候选较多，需控制仓...</text>
+<rect x="340" y="248" width="250" height="126" rx="22" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<text x="362" y="282" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">平均评分</text>
+<text x="362" y="324" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="32" font-weight="800" fill="#2563eb">87.7</text>
+<text x="362" y="356" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#475569">模型均分强</text>
+<rect x="620" y="248" width="250" height="126" rx="22" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<text x="642" y="282" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">最强板块</text>
+<text x="642" y="324" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="32" font-weight="800" fill="#2563eb">汽车配件 3只，...</text>
+<text x="642" y="356" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#475569">板块共振较明显</text>
+<rect x="900" y="248" width="250" height="126" rx="22" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<text x="922" y="282" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">数据刷新</text>
+<text x="922" y="324" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="32" font-weight="800" fill="#2563eb">ok</text>
+<text x="922" y="356" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#475569">数据刷新正常</text>
+<rect x="60" y="398" width="1080" height="98" rx="24" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<text x="92" y="438" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#2563eb">市场结论</text>
+<text x="92" y="472" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#253044">本次候选较多，不能平均买入，应按评分、板块和风险标签二次</text>
+<text x="92" y="502" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#253044">过滤。</text>
+<text x="60" y="548" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="30" font-weight="800" fill="#111827">Top 3 选股清单</text>
+<rect x="60" y="574" width="338" height="176" rx="26" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="96" cy="612" r="20" fill="#2563eb"/>
+<text x="89" y="620" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#ffffff">1</text>
+<text x="132" y="609" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#111827">岱美股份</text>
+<text x="132" y="641" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#64748b">603730</text>
+<rect x="284" y="602" width="84" height="36" rx="18" fill="#eef6ff"/>
+<text x="302" y="626" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="800" fill="#2563eb">99.0</text>
+<text x="86" y="678" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#334155">汽车配件</text>
+<text x="86" y="710" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">8.63%</text>
+<text x="86" y="736" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="17" fill="#64748b">个股涨幅8.63%；板块汽车配件...</text>
+<rect x="426" y="574" width="338" height="176" rx="26" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="462" cy="612" r="20" fill="#2563eb"/>
+<text x="455" y="620" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#ffffff">2</text>
+<text x="498" y="609" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#111827">恒勃股份</text>
+<text x="498" y="641" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#64748b">301225</text>
+<rect x="650" y="602" width="84" height="36" rx="18" fill="#eef6ff"/>
+<text x="668" y="626" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="800" fill="#2563eb">95.0</text>
+<text x="452" y="678" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#334155">汽车配件</text>
+<text x="452" y="710" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">15.40%</text>
+<text x="452" y="736" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="17" fill="#64748b">个股涨幅15.40%；板块汽车配件...</text>
+<rect x="792" y="574" width="338" height="176" rx="26" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="828" cy="612" r="20" fill="#2563eb"/>
+<text x="821" y="620" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#ffffff">3</text>
+<text x="864" y="609" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#111827">肇民科技</text>
+<text x="864" y="641" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#64748b">301000</text>
+<rect x="1016" y="602" width="84" height="36" rx="18" fill="#eef6ff"/>
+<text x="1034" y="626" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="800" fill="#2563eb">94.0</text>
+<text x="818" y="678" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#334155">汽车配件</text>
+<text x="818" y="710" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">9.52%</text>
+<text x="818" y="736" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="17" fill="#64748b">个股涨幅9.52%；板块汽车配件...</text>
+<text x="60" y="798" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#111827">共振与风险</text>
+<rect x="60" y="824" width="330" height="42" rx="21" fill="#ffffff" stroke="#d8dee9" stroke-width="2"/>
+<text x="78" y="852" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#374151">汽车配件: 入选 3 只，板块...</text>
+<rect x="404" y="824" width="330" height="42" rx="21" fill="#ffffff" stroke="#d8dee9" stroke-width="2"/>
+<text x="422" y="852" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#374151">机械基件: 入选 3 只，板块...</text>
+<rect x="748" y="824" width="330" height="42" rx="21" fill="#ffffff" stroke="#d8dee9" stroke-width="2"/>
+<text x="766" y="852" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#374151">航空: 入选 2 只，板块涨幅 ...</text>
+<text x="60" y="884" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
+<text x="955" y="884" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#94a3b8">Suying AI</text>
+</svg></whiteboard>
+<h2>一、数据更新时间和日期</h2>
+<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-03 17:26</td></tr><tr><td>数据更新时点</td><td>stk_mins=2026-07-03 15:00:00；daily_kline=2026-07-03</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 5.8s；分钟线 ok/PG 0；日线PG 0；指数PG 0；涨停价PG 0</td></tr><tr><td>入选数量</td><td>20只</td></tr></tbody></table>
+<h2>二、市场状态诊断</h2>
+<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>20只</td><td>候选较多，需控制仓位和去弱留强</td></tr><tr><td>平均评分</td><td>87.7</td><td>模型均分强</td></tr><tr><td>最强板块</td><td>汽车配件 3只，均分96.0</td><td>板块共振较明显</td></tr></tbody></table>
+<p><b>市场结论：</b>本次候选较多，不能平均买入，应按评分、板块和风险标签二次过滤。</p>
+<h2>三、选股清单</h2>
+<table><thead><tr><th background-color="light-gray">序号</th><th background-color="light-gray">代码</th><th background-color="light-gray">名称</th><th background-color="light-gray">现价</th><th background-color="light-gray">涨幅</th><th background-color="light-gray">目标价</th><th background-color="light-gray">止损价</th><th background-color="light-gray">板块</th><th background-color="light-gray">评分</th><th background-color="light-gray">选股原因</th></tr></thead><tbody><tr><td>1</td><td>603730</td><td>岱美股份</td><td>12.84</td><td>8.63%</td><td>-</td><td>-</td><td>汽车配件</td><td>99.0</td><td>个股涨幅8.63%；板块汽车配件涨幅4.43%；主要因子: 涨幅强度18.0、板块共振15.0、板块龙头强度12.0、板块动量10.0；同板块跟随79只；距涨停1.26%；校准信号: supportive_industry；风险提示: 即将封板</td></tr><tr><td>2</td><td>301225</td><td>恒勃股份</td><td>96.24</td><td>15.40%</td><td>-</td><td>-</td><td>汽车配件</td><td>95.0</td><td>个股涨幅15.40%；板块汽车配件涨幅4.43%；主要因子: 涨幅强度16.0、板块共振15.0、板块龙头强度12.0、板块动量10.0；同板块跟随79只；距涨停3.99%；校准信号: supportive_industry；风险提示: 接近涨停</td></tr><tr><td>3</td><td>301000</td><td>肇民科技</td><td>36.00</td><td>9.52%</td><td>-</td><td>-</td><td>汽车配件</td><td>94.0</td><td>个股涨幅9.52%；板块汽车配件涨幅4.43%；主要因子: 板块共振15.0、涨幅强度14.0、板块龙头强度12.0、板块动量10.0；同板块跟随79只；距涨停9.57%；校准信号: supportive_industry；风险提示: 距涨停较远</td></tr><tr><td>4</td><td>688523</td><td>航天环宇</td><td>58.99</td><td>16.63%</td><td>-</td><td>-</td><td>航空</td><td>93.0</td><td>个股涨幅16.63%；板块航空涨幅4.67%；主要因子: 涨幅强度16.0、板块共振15.0、板块龙头强度12.0、板块动量10.0；同板块跟随24只；距涨停2.89%；风险提示: 接近涨停</td></tr><tr><td>5</td><td>300817</td><td>双飞集团</td><td>19.03</td><td>17.61%</td><td>-</td><td>-</td><td>机械基件</td><td>91.0</td><td>个股涨幅17.61%；板块机械基件涨幅3.64%；主要因子: 涨幅强度16.0、板块共振15.0、板块龙头强度12.0、板块动量10.0；同板块跟随30只；距涨停2.03%；风险提示: 接近涨停</td></tr><tr><td>6</td><td>301368</td><td>丰立智能</td><td>50.05</td><td>14.24%</td><td>-</td><td>-</td><td>机械基件</td><td>91.0</td><td>个股涨幅14.24%；板块机械基件涨幅3.64%；主要因子: 涨幅强度16.0、板块共振15.0、板块龙头强度12.0、板块动量10.0；同板块跟随30只；距涨停5.04%；风险提示: 拉升中</td></tr><tr><td>7</td><td>688114</td><td>华大智造</td><td>61.17</td><td>17.84%</td><td>-</td><td>-</td><td>医疗保健</td><td>90.5</td><td>个股涨幅17.84%；板块医疗保健涨幅2.17%；主要因子: 涨幅强度16.0、板块共振12.0、板块龙头强度12.0、资金确认10.0；同板块跟随12只；距涨停1.83%；风险提示: 即将封板</td></tr><tr><td>8</td><td>688017</td><td>绿的谐波</td><td>479.78</td><td>16.16%</td><td>-</td><td>-</td><td>机械基件</td><td>89.0</td><td>个股涨幅16.16%；板块机械基件涨幅3.64%；主要因子: 涨幅强度16.0、板块共振15.0、板块龙头强度12.0、板块动量10.0；同板块跟随30只；距涨停3.31%；校准信号: high_turnover_crowding、weak_capital_confirmation；风险提示: 接近涨停</td></tr><tr><td>9</td><td>603135</td><td>中重科技</td><td>14.85</td><td>8.16%</td><td>-</td><td>-</td><td>专用机械</td><td>87.5</td><td>个股涨幅8.16%；板块专用机械涨幅2.02%；主要因子: 涨幅强度16.0、板块共振12.0、板块龙头强度12.0、资金确认10.0；同板块跟随45只；距涨停1.70%；风险提示: 即将封板</td></tr><tr><td>10</td><td>002860</td><td>星帅尔</td><td>15.98</td><td>7.97%</td><td>-</td><td>-</td><td>家用电器</td><td>86.5</td><td>个股涨幅7.97%；板块家用电器涨幅2.38%；主要因子: 板块共振12.0、板块龙头强度12.0、涨幅强度12.0、资金确认10.0；同板块跟随17只；距涨停1.88%；风险提示: 即将封板</td></tr><tr><td>11</td><td>300403</td><td>汉宇集团</td><td>11.62</td><td>17.14%</td><td>-</td><td>-</td><td>家用电器</td><td>85.5</td><td>个股涨幅17.14%；板块家用电器涨幅2.38%；主要因子: 涨幅强度16.0、板块共振12.0、板块龙头强度12.0、资金确认10.0；同板块跟随17只；距涨停2.44%；风险提示: 接近涨停</td></tr><tr><td>12</td><td>301051</td><td>信濠光电</td><td>22.68</td><td>16.61%</td><td>-</td><td>-</td><td>元器件</td><td>85.5</td><td>个股涨幅16.61%；板块元器件涨幅0.61%；主要因子: 涨幅强度16.0、板块龙头强度12.0、板块共振10.0、资金确认10.0；同板块跟随44只；距涨停2.91%；校准信号: supportive_industry；风险提示: 接近涨停</td></tr><tr><td>13</td><td>600547</td><td>山东黄金</td><td>26.09</td><td>7.90%</td><td>-</td><td>-</td><td>黄金</td><td>85.0</td><td>个股涨幅7.90%；板块黄金涨幅8.08%；主要因子: 板块共振15.0、板块龙头强度12.0、涨幅强度12.0、板块动量10.0；同板块跟随9只；距涨停1.95%；校准信号: high_turnover_crowding；风险提示: 即将封板</td></tr><tr><td>14</td><td>603903</td><td>中持股份</td><td>14.17</td><td>8.25%</td><td>-</td><td>-</td><td>环境保护</td><td>84.5</td><td>个股涨幅8.25%；板块环境保护涨幅1.05%；主要因子: 涨幅强度14.0、板块龙头强度12.0、板块共振10.0、资金确认10.0；同板块跟随10只；距涨停1.62%；风险提示: 即将封板</td></tr><tr><td>15</td><td>002294</td><td>信立泰</td><td>39.61</td><td>8.70%</td><td>-</td><td>-</td><td>化学制药</td><td>83.5</td><td>个股涨幅8.70%；板块化学制药涨幅1.54%；主要因子: 涨幅强度16.0、板块共振12.0、板块龙头强度12.0、资金确认10.0；同板块跟随9只；距涨停1.20%；校准信号: high_turnover_crowding、weak_capital_confirmation；风险提示: 即将封板</td></tr><tr><td>16</td><td>301520</td><td>万邦医药</td><td>34.98</td><td>11.40%</td><td>-</td><td>-</td><td>生物制药</td><td>83.5</td><td>个股涨幅11.40%；板块生物制药涨幅2.07%；主要因子: 涨幅强度16.0、板块共振12.0、板块龙头强度12.0、资金确认10.0；同板块跟随12只；距涨停7.72%；校准信号: supportive_industry；风险提示: 距涨停较远</td></tr><tr><td>17</td><td>300900</td><td>广联航空</td><td>41.63</td><td>9.04%</td><td>-</td><td>-</td><td>航空</td><td>83.0</td><td>个股涨幅9.04%；板块航空涨幅4.67%；主要因子: 板块共振15.0、涨幅强度14.0、板块龙头强度12.0、板块动量10.0；同板块跟随24只；距涨停10.06%；校准信号: high_turnover_crowding、weak_capital_confirmation；风险提示: 距涨停较远</td></tr><tr><td>18</td><td>002266</td><td>浙富控股</td><td>5.34</td><td>7.01%</td><td>-</td><td>-</td><td>环境保护</td><td>82.5</td><td>个股涨幅7.01%；板块环境保护涨幅1.05%；主要因子: 板块龙头强度12.0、涨幅强度12.0、板块共振10.0、资金确认10.0；同板块跟随10只；距涨停2.79%；风险提示: 接近涨停</td></tr><tr><td>19</td><td>688192</td><td>迪哲医药</td><td>48.40</td><td>10.93%</td><td>-</td><td>-</td><td>生物制药</td><td>82.5</td><td>个股涨幅10.93%；板块生物制药涨幅2.07%；主要因子: 板块共振12.0、板块龙头强度12.0、涨幅强度12.0、资金确认10.0；同板块跟随12只；距涨停8.17%；校准信号: supportive_industry；风险提示: 距涨停较远</td></tr><tr><td>20</td><td>688513</td><td>苑东生物</td><td>57.30</td><td>9.46%</td><td>-</td><td>-</td><td>化学制药</td><td>82.5</td><td>个股涨幅9.46%；板块化学制药涨幅1.54%；主要因子: 涨幅强度14.0、板块共振12.0、板块龙头强度12.0、资金确认10.0；同板块跟随9只；距涨停9.63%；风险提示: 距涨停较远</td></tr></tbody></table>
+<h2>四、板块共振</h2>
+<ul><li>汽车配件: 入选 3 只，板块涨幅 4.43%，共振均分 12.3</li><li>机械基件: 入选 3 只，板块涨幅 3.64%，共振均分 12.3</li><li>航空: 入选 2 只，板块涨幅 4.67%，共振均分 12.3</li><li>家用电器: 入选 2 只，板块涨幅 2.38%，共振均分 10.3</li><li>化学制药: 入选 2 只，板块涨幅 1.54%，共振均分 10.3</li></ul>
+<h2>五、风险提示</h2>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+<ul>
+<li>本报告是模型筛选结果，不是自动买入指令。</li>
+<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
+<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
+</ul>
+</callout>

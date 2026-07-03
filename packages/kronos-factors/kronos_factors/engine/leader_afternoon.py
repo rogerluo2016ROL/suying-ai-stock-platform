@@ -395,14 +395,48 @@ def get_moneyflow(db, code, trade_date):
     return row
 
 
+def _row_value(row, *keys, default=None):
+    """Read a value from dict-like or tuple-like DB rows."""
+    if not row:
+        return default
+    if isinstance(row, dict):
+        for key in keys:
+            if key in row and row[key] is not None:
+                return row[key]
+        return default
+    try:
+        return row[0]
+    except Exception:
+        return default
+
+
+def resolve_afternoon_trade_date(db):
+    """Prefer today's intraday snapshot date, then fall back to latest daily date."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    try:
+        row = db.execute(
+            "SELECT COUNT(*) as cnt FROM stk_mins WHERE trade_time LIKE ?",
+            (f"{today}%",),
+        ).fetchone()
+        if int(_row_value(row, "cnt", default=0) or 0) > 100:
+            return today
+    except Exception:
+        pass
+
+    row = db.execute("SELECT MAX(trade_date) as max_date FROM daily_kline").fetchone()
+    val = _row_value(row, "max_date", "max")
+    return val.strftime("%Y-%m-%d") if hasattr(val, "strftime") else str(val)[:10] if val else None
+
+
 def get_shanghai_index(db, trade_date):
     """上证指数涨跌幅 — 兼容 PG adapter 的列名翻译 (change_pct→pct_chg)."""
     row = db.execute(
         "SELECT change_pct FROM index_daily WHERE code='000001' AND trade_date=?",
         (trade_date,)
     ).fetchone()
-    if row and row.get("pct_chg") is not None:  # PG adapter 翻译后 key 是 pct_chg
-        return float(row["pct_chg"])
+    val = _row_value(row, "pct_chg", "change_pct")
+    if val is not None:
+        return float(val)
     return 0.0
 
 
@@ -483,9 +517,10 @@ def assess_market_env(db, trade_date):
     for i in range(len(prev_dates) - 1):
         d = list(prev_dates[i].values())[0] if isinstance(prev_dates[i], dict) else prev_dates[i][0]
         pd_row = db.execute(
-            "SELECT pct_chg FROM index_daily WHERE code='000001' AND trade_date=?", (d,)
+            "SELECT change_pct FROM index_daily WHERE code='000001' AND trade_date=?", (d,)
         ).fetchone()
-        if pd_row and pd_row.get("pct_chg") and pd_row["pct_chg"] < 0:
+        pct = _row_value(pd_row, "pct_chg", "change_pct", default=0)
+        if pct and float(pct) < 0:
             cons_drops += 1
         else:
             break
@@ -1072,8 +1107,7 @@ class AfternoonLeaderEngine:
     def run(self, top_n: int = 20, trade_date: str = None, time_slot: str = "14:30", **kwargs):
         if trade_date is None:
             with _get_db(readonly=True) as db:
-                row = db.execute("SELECT MAX(trade_date) FROM daily_kline").fetchone()
-                trade_date = row["max"] if row else None
+                trade_date = resolve_afternoon_trade_date(db)
         top, all_scores = run_afternoon_screening(trade_date, time_slot=time_slot, top_n=top_n)
         return top
 
@@ -1087,8 +1121,7 @@ class AfternoonTrendFullEngine:
     def run(self, top_n: int = 30, trade_date: str = None, time_slot: str = "14:30", **kwargs):
         if trade_date is None:
             with _get_db(readonly=True) as db:
-                row = db.execute("SELECT MAX(trade_date) FROM daily_kline").fetchone()
-                trade_date = row["max"] if row else None
+                trade_date = resolve_afternoon_trade_date(db)
         top, _ = run_afternoon_screening(
             trade_date,
             time_slot=time_slot,
@@ -1126,8 +1159,7 @@ def main():
     trade_date = args.date
     if trade_date is None:
         with _get_db(readonly=True) as db:
-            row = db.execute("SELECT MAX(trade_date) FROM daily_kline").fetchone()
-            trade_date = str(row["max"]) if row else None
+            trade_date = resolve_afternoon_trade_date(db)
         if not trade_date:
             print("No trade date found"); return
 

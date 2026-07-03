@@ -1,0 +1,92 @@
+<h1>秋神午后选股分析报告（2026-07-03 17:24）</h1>
+<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+<defs>
+<linearGradient id="hero" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#7c3aed"/></linearGradient>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.14"/></filter>
+</defs>
+<rect width="1200" height="900" rx="34" fill="#f5f7fb"/>
+<circle cx="1060" cy="72" r="116" fill="#ffffff" opacity="0.16"/>
+<circle cx="104" cy="804" r="150" fill="#e8eefc" opacity="0.72"/>
+<rect x="44" y="36" width="1112" height="188" rx="30" fill="url(#hero)" filter="url(#shadow)"/>
+<text x="78" y="82" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" fill="#e0f2fe">SUYING AI 投研海报</text>
+<text x="78" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ffffff">秋神午后选股分析报告</text>
+<text x="78" y="178" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" fill="#eaf2ff">2026-07-03  ·  17:24  ·  选股</text>
+<rect x="866" y="70" width="244" height="54" rx="27" fill="#ffffff" opacity="0.20"/>
+<text x="890" y="105" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="700" fill="#ffffff">机会稀缺</text>
+<rect x="60" y="248" width="250" height="126" rx="22" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<text x="82" y="282" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">入选数量</text>
+<text x="82" y="324" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="32" font-weight="800" fill="#2563eb">3只</text>
+<text x="82" y="356" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#475569">机会稀缺，适合小仓...</text>
+<rect x="340" y="248" width="250" height="126" rx="22" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<text x="362" y="282" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">平均评分</text>
+<text x="362" y="324" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="32" font-weight="800" fill="#2563eb">86.3</text>
+<text x="362" y="356" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#475569">模型均分强</text>
+<rect x="620" y="248" width="250" height="126" rx="22" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<text x="642" y="282" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">最强板块</text>
+<text x="642" y="324" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="32" font-weight="800" fill="#2563eb">具身智能 1只，...</text>
+<text x="642" y="356" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#475569">标的较分散</text>
+<rect x="900" y="248" width="250" height="126" rx="22" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<text x="922" y="282" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">数据刷新</text>
+<text x="922" y="324" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="32" font-weight="800" fill="#2563eb">ok</text>
+<text x="922" y="356" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#475569">数据刷新正常</text>
+<rect x="60" y="398" width="1080" height="98" rx="24" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<text x="92" y="438" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#2563eb">市场结论</text>
+<text x="92" y="472" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#253044">本次机会较少，重点看高分个股和是否有明确板块共振。</text>
+<text x="60" y="548" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="30" font-weight="800" fill="#111827">Top 3 选股清单</text>
+<rect x="60" y="574" width="338" height="176" rx="26" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="96" cy="612" r="20" fill="#2563eb"/>
+<text x="89" y="620" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#ffffff">1</text>
+<text x="132" y="609" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#111827">具身智能A</text>
+<text x="132" y="641" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#64748b">300000</text>
+<rect x="284" y="602" width="84" height="36" rx="18" fill="#eef6ff"/>
+<text x="302" y="626" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="800" fill="#2563eb">91.0</text>
+<text x="86" y="678" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#334155">具身智能</text>
+<text x="86" y="710" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">6.78%</text>
+<text x="86" y="736" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="17" fill="#64748b">个股涨幅6.78%；板块具身智能...</text>
+<rect x="426" y="574" width="338" height="176" rx="26" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="462" cy="612" r="20" fill="#2563eb"/>
+<text x="455" y="620" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#ffffff">2</text>
+<text x="498" y="609" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#111827">机器人B</text>
+<text x="498" y="641" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#64748b">300001</text>
+<rect x="650" y="602" width="84" height="36" rx="18" fill="#eef6ff"/>
+<text x="668" y="626" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="800" fill="#2563eb">86.0</text>
+<text x="452" y="678" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#334155">机器人</text>
+<text x="452" y="710" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">4.56%</text>
+<text x="452" y="736" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="17" fill="#64748b">个股涨幅4.56%；板块机器人；...</text>
+<rect x="792" y="574" width="338" height="176" rx="26" fill="#ffffff" stroke="#e1e6ef" stroke-width="2" filter="url(#shadow)"/>
+<circle cx="828" cy="612" r="20" fill="#2563eb"/>
+<text x="821" y="620" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="800" fill="#ffffff">3</text>
+<text x="864" y="609" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#111827">半导体C</text>
+<text x="864" y="641" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#64748b">300002</text>
+<rect x="1016" y="602" width="84" height="36" rx="18" fill="#eef6ff"/>
+<text x="1034" y="626" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" font-weight="800" fill="#2563eb">82.0</text>
+<text x="818" y="678" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#334155">半导体</text>
+<text x="818" y="710" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">3.21%</text>
+<text x="818" y="736" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="17" fill="#64748b">个股涨幅3.21%；板块半导体；...</text>
+<text x="60" y="798" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#111827">共振与风险</text>
+<rect x="60" y="824" width="330" height="42" rx="21" fill="#ffffff" stroke="#d8dee9" stroke-width="2"/>
+<text x="78" y="852" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#374151">具身智能: 入选 1 只，共振...</text>
+<rect x="404" y="824" width="330" height="42" rx="21" fill="#ffffff" stroke="#d8dee9" stroke-width="2"/>
+<text x="422" y="852" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#374151">机器人: 入选 1 只，共振均...</text>
+<rect x="748" y="824" width="330" height="42" rx="21" fill="#ffffff" stroke="#d8dee9" stroke-width="2"/>
+<text x="766" y="852" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#374151">半导体: 入选 1 只，共振均...</text>
+<text x="60" y="884" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#64748b">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
+<text x="955" y="884" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#94a3b8">Suying AI</text>
+</svg></whiteboard>
+<h2>一、数据更新时间和日期</h2>
+<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-03 17:24</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>3只</td></tr></tbody></table>
+<h2>二、市场状态诊断</h2>
+<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>3只</td><td>机会稀缺，适合小仓位精选</td></tr><tr><td>平均评分</td><td>86.3</td><td>模型均分强</td></tr><tr><td>最强板块</td><td>具身智能 1只，均分91.0</td><td>标的较分散</td></tr></tbody></table>
+<p><b>市场结论：</b>本次机会较少，重点看高分个股和是否有明确板块共振。</p>
+<h2>三、选股清单</h2>
+<table><thead><tr><th background-color="light-gray">序号</th><th background-color="light-gray">代码</th><th background-color="light-gray">名称</th><th background-color="light-gray">现价</th><th background-color="light-gray">涨幅</th><th background-color="light-gray">目标价</th><th background-color="light-gray">止损价</th><th background-color="light-gray">板块</th><th background-color="light-gray">评分</th><th background-color="light-gray">选股原因</th></tr></thead><tbody><tr><td>1</td><td>300000</td><td>具身智能A</td><td>12.34</td><td>6.78%</td><td>-</td><td>-</td><td>具身智能</td><td>91.0</td><td>个股涨幅6.78%；板块具身智能；主要因子: 板块共振95.0、板块动量88.0、资金确认82.0；同板块跟随12只</td></tr><tr><td>2</td><td>300001</td><td>机器人B</td><td>22.18</td><td>4.56%</td><td>-</td><td>-</td><td>机器人</td><td>86.0</td><td>个股涨幅4.56%；板块机器人；主要因子: 板块共振84.0、板块动量80.0、资金确认78.0；同板块跟随8只</td></tr><tr><td>3</td><td>300002</td><td>半导体C</td><td>39.60</td><td>3.21%</td><td>-</td><td>-</td><td>半导体</td><td>82.0</td><td>个股涨幅3.21%；板块半导体；主要因子: 板块共振79.0、板块动量75.0、资金确认70.0；同板块跟随5只</td></tr></tbody></table>
+<h2>四、板块共振</h2>
+<ul><li>具身智能: 入选 1 只，共振均分 91.5</li><li>机器人: 入选 1 只，共振均分 82.0</li><li>半导体: 入选 1 只，共振均分 77.0</li></ul>
+<h2>五、风险提示</h2>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+<ul>
+<li>本报告是模型筛选结果，不是自动买入指令。</li>
+<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
+<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
+</ul>
+</callout>

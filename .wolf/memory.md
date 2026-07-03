@@ -445,3 +445,32 @@
 | 14:53 | Edited frontend/src/pages/OpenDecision.tsx | modified catch() | ~76 |
 | 14:55 | 清 W-2/W-3 P1 warning：proxyTargets dev-stack warn + OpenDecision 3 处 catch 不静默 | proxyTargets.ts, OpenDecision.tsx | tsc0/vitest387全绿/dev:3000 200 | ~8k |
 | 14:55 | Session end: 7 writes across 6 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 7 reads | ~31597 tok |
+| 15:16 | Session end: 7 writes across 6 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 7 reads | ~31597 tok |
+| 15:17 | Session end: 7 writes across 6 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 7 reads | ~31597 tok |
+| 15:25 | Session end: 7 writes across 6 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 7 reads | ~31597 tok |
+| 15:29 | Session end: 7 writes across 6 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 7 reads | ~31597 tok |
+| 15:33 | Session end: 7 writes across 6 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 7 reads | ~31597 tok |
+| 15:46 | Created services/alert-service/app/feishu_notifier.py | — | ~1415 |
+| 15:47 | Edited services/alert-service/app/routes.py | added 1 import(s) | ~31 |
+| 15:47 | Edited services/alert-service/app/routes.py | expanded (+11 lines) | ~271 |
+| 15:47 | Edited services/alert-service/app/routes.py | 6→7 lines | ~130 |
+| 15:47 | Edited services/alert-service/app/routes.py | 6→7 lines | ~101 |
+| 15:47 | Edited services/alert-service/pyproject.toml | 7→8 lines | ~42 |
+| 15:48 | Created services/alert-service/tests/test_feishu_notifier.py | — | ~1186 |
+| 15:49 | Session end: 14 writes across 10 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 9 reads | ~34872 tok |
+| 15:51 | 飞书推送集成完成: alert-service 加 feishu_notifier.py(lark-oapi send_text/send_alert_card/notify 交互卡片 级别配色urgent=red/important=orange/info=blue) + routes trigger多渠道(逗号分隔含feishu) + pyproject lark-oapi>=1.7.0 + 8单测(mock lark)全绿; commit a38b8e9d push; UAT部署(docker cp site-packages+/app/service/app + pip install lark-oapi + restart); 验证channels显示feishu enabled=false(未配env降级) trigger channel=feishu返回feishu.enabled=false不阻断主流程 cooldown工作 | services/alert-service/app/feishu_notifier.py + routes.py | 用户配FEISHU_APP_ID/SECRET/CHAT_ID后enabled=true真实推送 | - |
+| 15:52 | Session end: 14 writes across 10 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 9 reads | ~34872 tok |
+| 15:57 | Created tools/send_bishifu_feishu.py | — | ~920 |
+| 15:58 | Session end: 15 writes across 11 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 9 reads | ~35792 tok |
+| 16:01 | Session end: 15 writes across 11 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 9 reads | ~35792 tok |
+| 16:13 | Session end: 15 writes across 11 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 9 reads | ~35792 tok |
+| 16:15 | Session end: 15 writes across 11 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 9 reads | ~35792 tok |
+| 16:18 | Edited tools/send_bishifu_feishu.py | modified exists() | ~170 |
+| 16:19 | Session end: 16 writes across 11 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 9 reads | ~35962 tok |
+| 16:23 | Session end: 16 writes across 11 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 9 reads | ~35962 tok |
+| 16:24 | Session end: 16 writes across 11 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 9 reads | ~35962 tok |
+
+## Session: 2026-07-03 17:10
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|

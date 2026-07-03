@@ -1,0 +1,24 @@
+{
+  "fetched_at": "2026-07-03T08:47:30",
+  "stock_count": 19,
+  "api_rows": {
+    "stock_basic": 19,
+    "daily": 6745,
+    "daily_basic": 6745,
+    "fina_indicator": 721,
+    "income": 226,
+    "forecast": 71,
+    "fina_mainbz_product": 397,
+    "irm_qa": 1952,
+    "anns_d": 6586,
+    "stock_company": 19
+  },
+  "db_updated": {
+    "daily_kline": 6745,
+    "stocks": 19,
+    "financial_indicator": 721,
+    "stock_profiles": 19
+  },
+  "errors": [],
+  "output_dir": "outputs/embodied_latest_refresh_20260703"
+}

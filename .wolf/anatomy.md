@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-03T06:53:19.289Z
-> Files: 573 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-03T08:18:54.765Z
+> Files: 578 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -920,6 +920,19 @@
 - `frontend-dev.md` — 前端重构状态评估 - 2026-06-12 (~8000 tok)
 - `qa-engineer.md` — QA Engineer Progress — 测试覆盖债务审计 (~5060 tok)
 
+## services/alert-service/
+
+- `pyproject.toml` — FastAPI alert service — multi-channel trade alert & notification (~147 tok)
+
+## services/alert-service/app/
+
+- `feishu_notifier.py` — 飞书（Lark）消息推送 — alert-service 多渠道通知之一。 (~1415 tok)
+- `routes.py` — Alert API routes — real notification system. (~918 tok)
+
+## services/alert-service/tests/
+
+- `test_feishu_notifier.py` — feishu_notifier 单测 — mock lark client，不真实调飞书。 (~1186 tok)
+
 ## services/screener-service/app/
 
 - `orchestrator.py` — Mode Orchestrator — V5.0 multi-strategy fusion + Kronos prediction + pipeline. (~5576 tok)
@@ -938,3 +951,4 @@
 
 - `backtest_institutional_activity.py` — 机构活跃度因子 — 月频 IC + 分组多空回测。 (~1636 tok)
 - `institutional_activity_top.py` — 全市场机构活跃度评分 — 5 维 percentile 加权。 (~2870 tok)
+- `send_bishifu_feishu.py` — 跑毕师傅硬核科技选股 + 推送飞书群（AI 投研分析）。 (~1028 tok)

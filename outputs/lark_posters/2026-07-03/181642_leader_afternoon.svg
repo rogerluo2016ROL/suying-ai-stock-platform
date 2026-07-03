@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
+<defs>
+<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
+<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
+</defs>
+<rect width="900" height="1400" fill="#050403"/>
+<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
+<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
+<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
+<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
+<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
+<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
+<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
+<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 18:16  ·  选股</text>
+<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：结构性机会</text>
+<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
+<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">8只</text>
+<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">结构性机会，需按评分和板...</text>
+<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
+<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">92.1</text>
+<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">模型均分强</text>
+<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
+<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">汽车配件 3只，...</text>
+<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">板块共振较明显</text>
+<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
+<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
+<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
+<rect x="56" y="532" width="788" height="94" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="84" y="570" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
+<text x="84" y="604" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次存在结构性机会，优先选择评分高</text>
+<text x="84" y="633" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">且处于强共振板块的标的。</text>
+<text x="62" y="690" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 8</text>
+<rect x="56" y="718" width="742" height="464" rx="16" fill="#11100d" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
+<rect x="56" y="718" width="742" height="48" rx="16" fill="#caa85a" opacity="0.72"/>
+<rect x="56" y="742" width="742" height="24" fill="#caa85a" opacity="0.72"/>
+<text x="68" y="749" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">序号</text>
+<text x="126" y="749" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">代码</text>
+<text x="244" y="749" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">名称</text>
+<text x="390" y="749" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">板块</text>
+<text x="594" y="749" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">评分</text>
+<text x="698" y="749" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">涨幅</text>
+<rect x="56" y="766" width="742" height="52" fill="#17140f" opacity="0.96"/>
+<text x="68" y="799" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">1</text>
+<text x="126" y="799" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">603730</text>
+<text x="244" y="799" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">岱美股份</text>
+<text x="390" y="799" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">汽车配件</text>
+<text x="594" y="799" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">99.0</text>
+<text x="698" y="799" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">8.63%</text>
+<line x1="56" y1="818" x2="798" y2="818" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="818" width="742" height="52" fill="#0f0d0a" opacity="0.96"/>
+<text x="68" y="851" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">2</text>
+<text x="126" y="851" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">301225</text>
+<text x="244" y="851" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">恒勃股份</text>
+<text x="390" y="851" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">汽车配件</text>
+<text x="594" y="851" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">95.0</text>
+<text x="698" y="851" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">15.40%</text>
+<line x1="56" y1="870" x2="798" y2="870" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="870" width="742" height="52" fill="#17140f" opacity="0.96"/>
+<text x="68" y="903" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">3</text>
+<text x="126" y="903" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">301000</text>
+<text x="244" y="903" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">肇民科技</text>
+<text x="390" y="903" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">汽车配件</text>
+<text x="594" y="903" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">94.0</text>
+<text x="698" y="903" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">9.52%</text>
+<line x1="56" y1="922" x2="798" y2="922" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="922" width="742" height="52" fill="#0f0d0a" opacity="0.96"/>
+<text x="68" y="955" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">4</text>
+<text x="126" y="955" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">688523</text>
+<text x="244" y="955" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">航天环宇</text>
+<text x="390" y="955" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">航空</text>
+<text x="594" y="955" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">93.0</text>
+<text x="698" y="955" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">16.63%</text>
+<line x1="56" y1="974" x2="798" y2="974" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="974" width="742" height="52" fill="#17140f" opacity="0.96"/>
+<text x="68" y="1007" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">5</text>
+<text x="126" y="1007" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">300000</text>
+<text x="244" y="1007" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">测试股份</text>
+<text x="390" y="1007" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">具身智能</text>
+<text x="594" y="1007" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">91.0</text>
+<text x="698" y="1007" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">7.10%</text>
+<line x1="56" y1="1026" x2="798" y2="1026" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="1026" width="742" height="52" fill="#0f0d0a" opacity="0.96"/>
+<text x="68" y="1059" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">6</text>
+<text x="126" y="1059" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">300458</text>
+<text x="244" y="1059" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">全志科技</text>
+<text x="390" y="1059" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">硬核科技</text>
+<text x="594" y="1059" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">90.0</text>
+<text x="698" y="1059" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">5.40%</text>
+<line x1="56" y1="1078" x2="798" y2="1078" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="1078" width="742" height="52" fill="#17140f" opacity="0.96"/>
+<text x="68" y="1111" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">7</text>
+<text x="126" y="1111" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">002428</text>
+<text x="244" y="1111" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">云南锗业</text>
+<text x="390" y="1111" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">小金属</text>
+<text x="594" y="1111" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">88.0</text>
+<text x="698" y="1111" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">10.00%</text>
+<line x1="56" y1="1130" x2="798" y2="1130" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="1130" width="742" height="52" fill="#0f0d0a" opacity="0.96"/>
+<text x="68" y="1163" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">8</text>
+<text x="126" y="1163" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">603663</text>
+<text x="244" y="1163" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">三祥新材</text>
+<text x="390" y="1163" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">小金属</text>
+<text x="594" y="1163" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">87.0</text>
+<text x="698" y="1163" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">9.90%</text>
+<line x1="56" y1="1182" x2="798" y2="1182" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<text x="62" y="1190" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
+<rect x="64" y="1211" width="10" height="10" fill="#ead89b"/>
+<text x="88" y="1230" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">汽车配件: 入选 3 只</text>
+<rect x="64" y="1245" width="10" height="10" fill="#ead89b"/>
+<text x="88" y="1264" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">小金属: 入选 2 只</text>
+<rect x="64" y="1279" width="10" height="10" fill="#ead89b"/>
+<text x="88" y="1298" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">航空: 入选 1 只</text>
+<rect x="64" y="1313" width="10" height="10" fill="#ead89b"/>
+<text x="88" y="1332" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">具身智能: 入选 1 只</text>
+<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
+<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
+<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
+</svg>
