@@ -327,6 +327,15 @@ describe('Dashboard', () => {
     expect(screen.getByText('抢筹 TOP 10')).toBeInTheDocument()
     expect(screen.getByText('出货预警 TOP 10')).toBeInTheDocument()
     expect(screen.queryByText('竞价候选预览')).not.toBeInTheDocument()
+    // 1.2 专属渲染：撮合价走势 + 四维评分 + 一字定方向 + 全量明细（task #25）
+    expect(screen.getByText('竞价撮合价走势')).toBeInTheDocument()
+    expect(screen.getByText('四维评分')).toBeInTheDocument()
+    expect(screen.getByText('一字定方向')).toBeInTheDocument()
+    expect(screen.getByText('全量竞价明细')).toBeInTheDocument()
+    // 选中个股信息卡渲染（宁德时代，TOP10 表/明细表/信息卡多处出现，用 getAllByText）
+    expect(screen.getAllByText('宁德时代').length).toBeGreaterThan(0)
+    // 一字定方向板块热度（新能源，明细表行业列同名，用 getAllByText）
+    expect(screen.getAllByText('新能源').length).toBeGreaterThan(0)
   })
 
   it('renders signal overview as the full prototype matrix dashboard, not sparse empty lists', async () => {

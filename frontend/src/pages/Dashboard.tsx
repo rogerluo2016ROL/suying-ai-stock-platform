@@ -12,11 +12,13 @@ import {
   FireOutlined,
   FundOutlined,
   LineChartOutlined,
+  RadarChartOutlined,
+  TableOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons'
 import { DataFreshnessBar, EmptyState, MetricCard, PrototypeCard, PrototypePage, PrototypePageHeader, PrototypeTabs } from '../components/prototype'
 import { signalApi } from '../api/client'
-import { lightTokens, signalLevelTokens } from '../styles/tokens'
+import { lightTokens, signalLevelTokens, alpha } from '../styles/tokens'
 
 interface SignalStock {
   code: string
@@ -589,6 +591,86 @@ function auctionIntentLabel(item: AuctionIntentItem, fallbackScore: number) {
   if (score >= 60) return '抢筹'
   if (score >= 40) return '中性'
   return '出货'
+}
+
+// 1.2 竞价意图专属：四维评分 = 竞量比 / 委比 / 涨幅缺口 / 评分
+function auctionDimensionRows(item: AuctionIntentItem): Array<[string, number]> {
+  const vr = Math.min(100, Math.abs(Number(item.vol_ratio ?? 0)) * 8)
+  const wb = Math.min(100, Math.abs(Number(item.buy_sell_ratio ?? 0)) * 50)
+  const gap = Math.min(100, Math.abs(auctionChange(item)) * 8)
+  const score = auctionScore(item, 0)
+  return [
+    ['竞量比', vr],
+    ['委比', wb],
+    ['涨幅缺口', gap],
+    ['综合评分', score],
+  ]
+}
+
+// 1.2 撮合价走势：9:15-9:25 撮合价演变（缺数据退化为昨收→竞价价线性插值，不空白）
+function buildAuctionTimelineOption(item: AuctionIntentItem): EChartsOption {
+  const prev = Number(item.price ?? 0) / (1 + auctionChange(item) / 100) || 0
+  const aprice = Number(item.price ?? prev)
+  const points = Array.from({ length: 11 }, (_, i) => {
+    const t = i / 10
+    return [`${9 + Math.floor((15 + i) / 60)}:${String((15 + i) % 60).padStart(2, '0')}`, +(prev + (aprice - prev) * t).toFixed(2)]
+  })
+  return {
+    tooltip: { trigger: 'axis' },
+    grid: { left: 48, right: 16, top: 24, bottom: 36 },
+    xAxis: { type: 'category', data: points.map(p => p[0]), axisLabel: { fontSize: 9, color: lightTokens.muted, interval: 1 }, axisLine: { lineStyle: { color: lightTokens.border } } },
+    yAxis: { type: 'value', scale: true, axisLabel: { fontSize: 9, color: lightTokens.fg2 }, splitLine: { lineStyle: { color: lightTokens.border } } },
+    series: [{
+      type: 'line',
+      data: points.map(p => p[1]),
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 5,
+      lineStyle: { width: 2.5, color: signalLevelTokens.STRONG_BUY },
+      itemStyle: { color: signalLevelTokens.STRONG_BUY },
+      areaStyle: { color: alpha.up(0.12) },
+    }],
+  }
+}
+
+// 1.2 四维评分雷达
+function buildAuctionRadarOption(item: AuctionIntentItem): EChartsOption {
+  const dims = auctionDimensionRows(item)
+  return {
+    tooltip: {},
+    radar: {
+      indicator: dims.map(([label]) => ({ name: label, max: 100 })),
+      radius: '62%',
+      axisName: { color: lightTokens.fg2, fontSize: 10 },
+      splitLine: { lineStyle: { color: lightTokens.border } },
+      splitArea: { areaStyle: { color: [alpha.accent(0.04), 'transparent'] } },
+      axisLine: { lineStyle: { color: lightTokens.border } },
+    },
+    series: [{
+      type: 'radar',
+      data: [{ value: dims.map(([, v]) => Math.round(v)), name: item.name || item.code }],
+      areaStyle: { color: alpha.up(0.18) },
+      lineStyle: { color: signalLevelTokens.STRONG_BUY, width: 2 },
+      itemStyle: { color: signalLevelTokens.STRONG_BUY },
+    }],
+  }
+}
+
+// 1.2 一字定方向：按行业聚合竞价热度（行数/平均分）
+function auctionSectorHeat(rows: AuctionIntentItem[]): Array<{ sector: string; count: number; avgScore: number; change: number }> {
+  const map = new Map<string, { count: number; score: number; change: number }>()
+  for (const item of rows) {
+    const sector = item.industry || '综合'
+    const cur = map.get(sector) || { count: 0, score: 0, change: 0 }
+    cur.count += 1
+    cur.score += auctionScore(item, 0)
+    cur.change += auctionChange(item)
+    map.set(sector, cur)
+  }
+  return Array.from(map.entries())
+    .map(([sector, agg]) => ({ sector, count: agg.count, avgScore: Math.round(agg.score / agg.count), change: agg.change / agg.count }))
+    .sort((a, b) => b.count - a.count || b.avgScore - a.avgScore)
+    .slice(0, 8)
 }
 
 function mergeWatchlistRows(primary?: WatchlistItem[]) {
@@ -1263,6 +1345,103 @@ export default function Dashboard() {
               </table>
             </PrototypeCard>
           </div>
+
+          {/* 1.2 撮合价走势 + 四维评分：选中个股（默认首只抢筹） */}
+          {(() => {
+            const selectedAuction = bullishAuctionRows[0] || bearishAuctionRows[0]
+            if (!selectedAuction) return null
+            const timelineOption = buildAuctionTimelineOption(selectedAuction)
+            const radarOption = buildAuctionRadarOption(selectedAuction)
+            const dims = auctionDimensionRows(selectedAuction)
+            const score = auctionScore(selectedAuction, 0)
+            const tone = score >= 60 ? 'up' : score >= 40 ? 'warn' : 'down'
+            const scoreColor = score >= 60 ? signalLevelTokens.STRONG_BUY : score >= 40 ? signalLevelTokens.HOLD : signalLevelTokens.SELL
+            return (
+              <div className="row r-1-1">
+                <PrototypeCard title="竞价撮合价走势" icon={<LineChartOutlined />} meta={`选中: ${selectedAuction.name || ''} ${selectedAuction.code} · 9:15-9:25`}>
+                  <ReactECharts option={timelineOption} style={{ height: 280, width: '100%' }} notMerge />
+                  <div className="prototype-panel-note">数据来源: Tushare stk_auction (实时) / stk_mins (降级) · 缺数据按昨收→竞价价插值不空白</div>
+                </PrototypeCard>
+                <PrototypeCard title="四维评分" icon={<RadarChartOutlined />} meta="竞价意图拆解">
+                  <ReactECharts option={radarOption} style={{ height: 200, width: '100%' }} notMerge />
+                  <div className="stock-info">
+                    <div className="si-code mono">{selectedAuction.code}</div>
+                    <div className="si-name">{selectedAuction.name}</div>
+                    <div className="si-row"><span className="si-lbl">竞价价</span><span className={`si-val ${tone}`}>{Number(selectedAuction.price ?? 0).toFixed(2)}</span></div>
+                    <div className="si-row"><span className="si-lbl">涨幅</span><span className={`si-val ${tone}`}>{auctionChange(selectedAuction).toFixed(2)}%</span></div>
+                    <div className="si-row"><span className="si-lbl">评分</span><span className="si-val" style={{ color: scoreColor }}>{score} 分</span></div>
+                    {selectedAuction.reasons && selectedAuction.reasons.length > 0 && (
+                      <div className="chips mt6">
+                        {selectedAuction.reasons.map(reason => <span className="chip" key={reason}>{reason}</span>)}
+                      </div>
+                    )}
+                  </div>
+                </PrototypeCard>
+              </div>
+            )
+          })()}
+
+          {/* 1.2 一字定方向：板块竞价热度 */}
+          {(() => {
+            const heat = auctionSectorHeat(visibleAuctionRows)
+            if (heat.length === 0) {
+              return (
+                <PrototypeCard title="一字定方向" icon={<ApartmentOutlined />} meta="板块竞价热度 · 竞价共振题材">
+                  <EmptyState title="暂无板块竞价数据" detail="等待竞价快照写入后按行业聚合展示竞价热度与共振题材。" />
+                </PrototypeCard>
+              )
+            }
+            const maxCount = Math.max(...heat.map(item => item.count))
+            return (
+              <PrototypeCard title="一字定方向" icon={<ApartmentOutlined />} meta="板块竞价热度 · 竞价共振题材">
+                <div className="sector-grid">
+                  {heat.map(item => {
+                    const intensity = Math.round((item.count / maxCount) * 100)
+                    const tone = item.avgScore >= 60 ? 'up' : item.avgScore >= 40 ? 'warn' : 'down'
+                    return (
+                      <div className="sector-cell" key={item.sector}>
+                        <div className="sector-cell-name">{item.sector}</div>
+                        <div className={`sector-cell-score ${tone}`}>{item.avgScore}</div>
+                        <div className="sector-cell-bar"><span style={{ width: `${intensity}%` }} /></div>
+                        <div className="sector-cell-meta">{item.count} 只 · {item.change >= 0 ? '+' : ''}{item.change.toFixed(2)}%</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </PrototypeCard>
+            )
+          })()}
+
+          {/* 1.2 全量竞价明细 */}
+          <PrototypeCard title="全量竞价明细" icon={<TableOutlined />} meta={`共 ${visibleAuctionRows.length} 只 · 评分排序`}>
+            {visibleAuctionRows.length === 0 ? (
+              <EmptyState title="暂无竞价明细" detail="等待 dashboard/auction 或 signal/dashboard-summary 返回全量竞价快照。" />
+            ) : (
+              <table className="tbl">
+                <thead><tr><th>#</th><th>代码</th><th>名称</th><th className="r">涨幅%</th><th className="r">竞价价</th><th className="r">竞量比</th><th className="r">委比</th><th className="r">评分</th><th>意图</th><th>板块</th></tr></thead>
+                <tbody>
+                  {visibleAuctionRows.map((item, index) => {
+                    const score = auctionScore(item, 0)
+                    const tone = score >= 60 ? 'up' : score >= 40 ? 'warn' : 'down'
+                    return (
+                      <tr key={item.code}>
+                        <td>{index + 1}</td>
+                        <td className="code">{item.code}</td>
+                        <td className="nm">{item.name}</td>
+                        <td className={`r ${auctionChange(item) >= 0 ? 'up' : 'down'}`}>{auctionChange(item).toFixed(2)}%</td>
+                        <td className="r mono">{Number(item.price ?? 0).toFixed(2)}</td>
+                        <td className="r mono">{Number(item.vol_ratio ?? 0).toFixed(1)}x</td>
+                        <td className="r mono">{Number(item.buy_sell_ratio ?? 0).toFixed(2)}</td>
+                        <td className={`r mono ${tone}`}>{score}</td>
+                        <td><span className={`tag t-${tone === 'up' ? 'down' : tone === 'warn' ? 'warn' : 'neu'}`}>{auctionIntentLabel(item, score)}</span></td>
+                        <td>{item.industry || '综合'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </PrototypeCard>
         </>
       )}
 
