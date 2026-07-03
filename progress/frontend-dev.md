@@ -513,3 +513,94 @@ cd frontend && npm run build
 
 **剩余提示**
 - `npm run build` 仍提示 `echarts`、`antd` chunks 超过 500 kB，这是既有打包体积提示，非本次功能失败。
+
+---
+
+## 行情决策板块前端进程清理 + API 路径对齐 + 按钮链路验证 — 2026-07-02
+
+### 状态: 完成 — 进程清理 ✅ / API 路径对齐 ✅ / 6 页面按钮链路 ✅（OpenDecision 死按钮全修）/ proxyTargets 默认值 ✅ 改 89xx（durable）/ dev:uat ✅ 删 / 回归全绿
+
+**Skills**: agf-running-sit-tests, codegraph explore
+
+**SIT 证据**（AC 自验勾选同行）
+- [x] AC-1（:3000 唯一主仓实例）: ✅ kill 45464/75974（worktree 残留 frontend-dev-3b-predictions / frontend-dev-1b-predc）；新起主仓 `npm run dev`（vite --port 3000）PID 29579 占 :3000。`$ lsof -tiTCP:3000 -sTCP:LISTEN` → 29579（单 PID）；`$ curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/` → 200，`<title>速赢AI - 智能证券投资管理平台</title>`。偏差：PL 标的 86012 实际监听 :3980（非 :3000，启动参数 `--port 3000 --port 3980 --strictPort` 非 package.json 的 `vite --port 3000`，疑似历史遗留），按 PL 指令保留在 :3980，属冗余第二主仓实例，建议后续 kill。
+- [x] AC-2（client.ts market-decision API 路径与后端路由对齐）: ✅ codegraph + grep 逐条核对 screener / prediction / signal / diagnosis / backtest / dashboard 全部路由——前端调用路径与后端 @router 装饰器路径全对齐：`/prediction/accuracy-backtest`(backend routes.py:429) / `/diagnosis/analyze` POST(routes.py:63) / `/diagnosis/compare` POST(:167) / `/diagnosis/report/{code}/pdf` GET(:327) / `/screener/candidate-pool` POST(:7340)+GET(:7426) / `/screener/watchlist` POST(:7562)+GET(:7615)+DELETE(:7679) / `/screener/policy/interpret` POST(:6299) / `/screener/chain/deconstruct`+`/chain/node/{node_id}/companies` / `/dashboard/summary`+`/dashboard/auction`（dashboard.py:83/211，prefix /api/v1/dashboard） / `/backtest/factors|run|calibrate|compare`（backtest routes.py:56/65/231/291）。无 client.ts 改动。
+- [x] AC-3（6 主路由按钮 onClick→api 链路）: ✅ 全 6 页通过。Dashboard / Signals / Screener / Predictions / SupplyChainBom 所有交互控件绑有效 handler 且调对 API；**OpenDecision 死按钮全修**（PL 直接授权 + 对照 docs/design/New design/01 PRD 文档/2.2 auction-analysis-preview.html）：AuctionAnalysis 组件加 5 state（auctionSubTab / selectedBullish / selectedBearish / selectedSector / refreshing+recordingPool+watchingCode）+ refreshData 抽 callback。逐按钮：707 刷新→handleRefresh 调 refreshData（reload 9 接口）；722 查看意图全景→navigate('/signals')；723 进入竞价选股→setAuctionSubTab('stock')；731 SegmentTabs→activeKey/onChange 绑 state（去掉硬编码+()=>undefined）；771/796 全选可用→setSelected*(全 Set)；772 加入候选池→screenerApi.recordCandidatePool(source_module:'open-decision',source_mode:'auction_bullish')；797 加入观察→screenerApi.addWatchlist（PL 定 addWatchlist）；836 od-sector-tile / 876 选股->→selectSector(name) 锁板块+跳 stock 子页签；898 查看全部候选池->→navigate('/open-decision/candidates')；1013 锁定板块->信号扫描→navigate('/signals')。表行加 checkbox 列。**无死按钮残留**：`$ sed -n '675,1015p' frontend/src/pages/OpenDecision.tsx | grep -E "<button[^>]*>" | grep -v "onClick\|disabled"` → 空。DoD 交互测试硬门已补（见下）。
+- [x] AC-4（proxyTargets 指向正确环境）: ✅ durable 根因修复（PL 批临界区）。`frontend/proxyTargets.ts` 默认值 180xx → suying-uat 89xx（auth:8900/screener:8901/prediction:8902/strategy:8903/signal:8904/alert:8905/trade:8906/backtest:8907/training:8908/diagnosis:8909/gateway:8980）；删 `package.json` dev:uat（让 npm run dev 直接指 suying-uat）。**免 env 验证**：`$ curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/v1/screener/modes` → 200（重启 dev server 不带任何 VITE_*，靠新默认值指 8901）。strategy:8903/training:8908 suying-uat 未起 → ECONNREFUSED 非致命（行情决策板块不调，仅 proxy 日志告警，页面 200）。
+
+**deploy-engineer 报的两个前端 code bug 复核（直连 screener 8901 实测）**:
+- Bug1 POST /screener/candidate-pool → 422 缺 source_module/source_mode/name: **主仓代码无此 bug**。两处调用点（Screener.tsx:716 addConsensusToPool + :930 addToCandidatePool）均发 source_module/source_mode/name/candidates/trade_date 完整 body（types.ts:1172 CandidatePoolRecordRequest 强制前三字段 required）。worktree 3b 的 payload（:515-521）与主仓一致亦完整。422 系 stale worktree build（已 kill）或 deploy-engineer 手测空 body 确认后端契约——无需前端修。
+- Bug2 GET /screener/results → 404: **主仓代码无此 call**。`$ grep -rnE "['\"\`]/results|screener/results" frontend/src/ frontend/tests/` → 空；worktree 3b 同样无。frontend 不调 /results，404 系后端确无此路由——无需前端修。
+
+**质量门**: lint N/A（项目无 lint script） / typecheck ✅（`$ npx tsc -b --noEmit` exit 0） / unit ✅（`$ npx vitest run src/__tests__/ tests/sit/` → Test Files 60 passed (60) / Tests 385 passed (385)，含 tests/sit/ 10 文件 + OpenDecision 新增 2 交互测试） / SIT ✅（vitest 385 + tsc 0 全绿；AC-3 死按钮全修 + AC-4 proxyTargets durable 改完） / dev server ✅（:3000 200 OK，主仓单实例 PID 51969，**免 env** 靠 proxyTargets.ts 新默认值指 suying-uat 89xx，curl screener/modes 200；OpenDecision.tsx 经 vite transform HTTP 200 证明服务端编译通过）
+
+**实际改动文件**（PL 批准临界区 + OpenDecision fix，per-file git add，未 commit）:
+- `frontend/proxyTargets.ts`：默认值 180xx → suying-uat 89xx（auth:8900/screener:8901/prediction:8902/strategy:8903/signal:8904/alert:8905/trade:8906/backtest:8907/training:8908/diagnosis:8909/gateway:8980），加注释说明 scheme。
+- `frontend/package.json`：删 `dev:uat` 脚本（原指 19001/18001 断链 + port 3002），`npm run dev` 直接指 suying-uat 89xx。
+- `frontend/src/__tests__/vite-config.test.ts`：默认值断言 19001/18001/18006/18009 → 8900/8901/8906/8909（第二个 env 覆盖用例的 env 值同步 89xx）。
+- `frontend/src/pages/OpenDecision.tsx`：AuctionAnalysis 组件修死按钮 —— 抽 refreshData useCallback + onRefresh prop；加 5 state + recordCandidatePool/addWatchlist/selectSector/handleRefresh handler；7 按钮 + SegmentTabs + 2 表 checkbox 列全接（详见 AC-3）。1 处 (a) 类（611 disabled 占位）保留。
+- `frontend/src/__tests__/OpenDecision.test.tsx`：screenerApi mock 加 recordCandidatePool；补 2 交互测试（全选+加入候选池→断言 recordCandidatePool 正确 payload；全选+加入观察→断言 addWatchlist 调 000858）。OpenDecision 用例 19→21 全绿。
+
+**下一步**: 本 task 全部完成，等 PL spawn code-reviewer（backend 6e757bb4 + 本批前端改动一起审）。
+
+---
+
+## OpenDecision 死按钮修复方案（待 PL 审，审过改）— 2026-07-03
+
+**设计依据**：`docs/design/New design/01 PRD 文档/2.2 auction-analysis-preview.html`（prototype-page-map.md 映射 OpenDecision/auction → 此 preview）。preview 是静态原型，onclick 是 alert/视觉 stub（无真实 API），故"接什么"由 preview 结构意图 + 本仓已有 API 共同决定，不猜。
+
+**分类原则（PL 指示）**：(a) disabled 占位 = 无数据禁用，合理 UX，保留不修；(b) 看似可点无 onClick = 需接 API/跳转。
+
+| 行 | 按钮 | 类 | 接什么（设计意图 → 本仓 API/跳转） |
+|---|---|---|---|
+| 611 | `暂无原始结果` disabled | (a) | 保留。空数据禁用占位。 |
+| 707 | `刷新` | (b) | 把现有 `useEffect(...,[])`（行427 fetch 9 接口）抽成 `refreshAuction()`，onClick 调它重拉 dashboard/auction+signal/live+候选池+trade。loading 态由现有 `state.loading` 驱动按钮 disabled+文案"刷新中…"。 |
+| 722 | `查看意图全景` | (b) | preview `switchSubTab('intent')`。本仓竞价子页签当前硬编码 activeKey="overview" + onChange 空操作（行730-731）。**需先引入子页签 state** `auctionSubTab`（useState，默认 'overview'），SegmentTabs activeKey/onChange 接它；此按钮 setAuctionSubTab('overview')。 |
+| 723 | `进入竞价选股` | (b) | preview `switchSubTab('stock')`。setAuctionSubTab('stock')。 |
+| 731 | SegmentTabs `onChange={() => undefined}` | (b) | 改 `onChange={setAuctionSubTab}`，activeKey={auctionSubTab}。子页签切换是纯前端 state（preview 同此），不调 API。 |
+| 771 | 抢筹表 `全选可用` | (b) | 引入 `selectedBullish: Set<string>` state（key=code）。onClick 全选 bullishRows 全部 code。表行加 checkbox 列绑定 toggle。 |
+| 772 | 抢筹表 `加入候选池` | (b) | preview `addToCandidatePool('bullish')`。调 `screenerApi.recordCandidatePool({ source_module:'open-decision', source_mode:'auction_bullish', name:\`竞价抢筹-${tradeDate}\`, candidates: selectedBullish 映射, trade_date })`（复用 Screener.tsx:930 payload shape + types.ts:1172 契约）。成功后 message.success + queryCandidatePool 刷新计数。 |
+| 796 | 出货表 `全选可用` | (b) | 同 771，`selectedBearish: Set<string>`。 |
+| 797 | 出货表 `加入观察` | (b) | preview `addToCandidatePool('bearish')` 但语义=加入自选观察。调 `screenerApi.addWatchlist`（复用本页 handleWatch:1102 模式）对 selectedBearish 逐只 addWatchlist；或批量 recordCandidatePool source_mode='auction_bearish'。**待 PL 定**：加入观察=自选(addWatchlist) 还是 候选池观察列表(recordCandidatePool)？倾向 addWatchlist（与"观察"语义一致 + 本页已有 handleWatch）。 |
+| 836 | `od-sector-tile` 板块卡 | (b) | preview `selectSector(name)`。点击=锁定该板块。setSelectedSector(name) 进右侧 "已锁定板块" 卡片（行901 已有 chips 展示）；同时 setAuctionSubTab('stock') 跳竞价选股页签预览该板块标的。纯前端 state（preview 同）。 |
+| 876 | 右栏 `选股->` | (b) | preview `selectSector(row.name)`。同 836：锁定该板块 + 跳 stock 子页签。 |
+| 898 | `查看全部候选池 ->`（右栏，原 grep 未列但同类） | (b) | navigate('/open-decision/candidates')（route 已存在，prototype-page-map 映射候选池 Tab）。 |
+
+**新增 state**（OpenDecision.tsx 顶部）：`auctionSubTab`('overview')、`selectedBullish`(Set)、`selectedBearish`(Set)、`selectedSector`(string?)、`refreshing`(bool)。**新增函数**：`refreshAuction()`（抽出现 effect）、`addToPoolFromAuction(mode, rows)`（recordCandidatePool）、复用 `handleWatch`。
+
+**测试影响**：OpenDecision.test.tsx 9 call assertions（现有 mount-time fetch mock）不受影响（refresh/subtab 是用户触发，mount 用例不点这些按钮）。新增死按钮 fix 后**补** ≥1 个用例：点"加入候选池"→断言 recordCandidatePool 以正确 payload 调用（DoD 交互测试硬门）。
+
+**不修的**：611 disabled 占位（a 类）；preview 里 "×" 关闭风险横幅（本仓无此元素）；preview 的 可转债/全量明细 子表（本仓未渲染，无对应死按钮）。
+
+**风险**：竞价撮合价走势（行803）preview 有模拟柱，本仓注明"无分笔撮合接口"保留 prototype-panel-note —— 不属死按钮（是 PrototypeCard 内容占位，非可交互控件），不修。
+
+---
+
+## code-review P1 warning 清理（W-2 / W-3）— 2026-07-03
+
+### 状态: 完成 — W-2 ✅ / W-3 ✅ / 回归全绿 / 新 commit 待 PL 合
+
+**上下文**：code-reviewer 审 00860035 后留 2 个 P1 frontend warning，PL 趁 qa 17:41 恢复前清完收尾。W-1（backend wait_for 不取消线程）= follow-up 不本 task。
+
+### W-2: proxyTargets.ts dev 栈切换防护
+- **问题**：89xx 默认值（=suying-uat 远程栈）无防护——本机若另起 180xx dev 栈忘设 VITE_* env，前端静默连 UAT。
+- **修法**：加 `hasAnyViteOverride(env)` helper（检查 11 个 VITE_*_SERVICE_URL 任一是否设）+ `import.meta.env.DEV` 下若无任一覆盖则 `console.warn('[proxyTargets] 默认连 suying-uat 远程栈（89xx）。若本机另起 dev 栈，请设 VITE_*_SERVICE_URL 指向本地端口。')`。prod build（DEV=false）不 warn。
+- **测试影响**：vite-config.test.ts 两用例不受影响（{} → 触发 warn 但断言 89xx 默认值仍成立；2 个 VITE_* → 不触发 warn）。
+
+### W-3: OpenDecision 写入成功后刷新 fire-and-forget 静默吞错
+- **问题**：3 处 `.catch(() => {})`（763 queryCandidatePool / 788 listWatchlist / 1229 listWatchlist）写入成功后刷新计数静默吞错，UI 无感知。
+- **修法**：3 处全改为 `.catch(err => message.error('刷新候选池计数失败，请手动刷新'))` / `'刷新自选列表失败，请手动刷新'`。`grep -c "\.catch(() => {})"` → 0（清零）。
+- **测试影响**：OpenDecision.test.tsx 21 用例不受影响（mock 全 resolvedValue，不进 catch；catch 改为 message.error 不改调用断言）。
+
+### 质量门
+- lint N/A（项目无 eslint config / lint script；PL 上轮"lint 全过"=tsc）
+- typecheck ✅：`$ cd frontend && npx tsc -b --noEmit` → exit 0
+- unit ✅：`$ npx vitest run src/__tests__/OpenDecision.test.tsx src/__tests__/vite-config.test.ts` → 2 files / 23 tests passed；`$ npx vitest run`（全量）→ 61 files / 387 tests passed
+- dev server ✅：:3000 root 200 / screener/modes 200 / OpenDecision.tsx vite transform 200（PID 60809 免 env 指 89xx）
+
+### 实际改动文件
+- `frontend/proxyTargets.ts`：+26 行（hasAnyViteOverride helper + DEV-mode warn + 注释）
+- `frontend/src/pages/OpenDecision.tsx`：3 处 `.catch(() => {})` → `.catch(() => message.error(...))`（763/788/1229）
+
+### SIT 结论
+W-2 dev 栈防护 + W-3 fire-and-forget 不静默，tsc 0 / vitest 61 files 387 tests 全绿 / dev:3000 三路径 200。本 task 收尾，新 commit 待 PL 合（W-1 backend follow-up 不本 task）。

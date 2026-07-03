@@ -241,3 +241,49 @@ const response = await screenerApi.addWatchlist({ code: pick.code, name: pick.na
 ## Batch C 一句话回 team-lead
 
 **Pass** — #23/#24 临界区零越界 (NewUiModulePage.test.tsx 是断言文本对齐 preview 非改 critical 渲染壳, 在 __tests__/ 允许范围); 两 commit blob diff 零新增 API 调用 (3.2/3.3 + 5.1/5.2/5.3 纯本地 state 渲染消费既有 run/overview 返回), scope §9.3 N/A 无可泄; #23 CSS/inline 零裸 hex token 合规。契约+安全维度放行。
+
+---
+
+## Batch B 补 6 — #25 Dashboard 1.2 + #26 OpenDecision sit + #27 SupplyChainBom 4.1/4.3 (契约+安全)
+
+**commits**: 746ff6cd (#25, 4 文件 +332) / e3fb8ad4 (#26, 2 文件 +235) / 7e7d1dbe (#27, 1 文件 +175)
+**维度**: 契约 + 安全 (team-lead Batch B 补 6 派单)
+**日期**: 2026-07-03
+
+### Verdict: ✅ Pass (三 commit 全放行)
+
+---
+
+### #25 Dashboard 1.2 auction (746ff6cd)
+
+**1. 临界区越界** — ✅ 仅改 `frontend/src/pages/Dashboard.tsx` + `__tests__/Dashboard.test.tsx` + `tests/sit/auction-dashboard-preview.test.tsx` + `progress/frontend-dev-3.md`。未碰 critical 文件。
+
+**2. scope (§9.3)** — ✅ **N/A (纯展示)**。blob diff `^\+.*Api\.|tenant_id|owner_user_id|account_id` 零命中。1.2 全量竞价明细是 10 列表 + EmptyState 兜底, 消费既有 auction 本地 state, 零新增请求。
+
+**3. token 合规** — ✅ 新增行零裸 `#hex`/`rgba` (grep 排除注释/token 后空), 走 signalLevelTokens + alpha + lightTokens。
+
+---
+
+### #26 OpenDecision sit test (e3fb8ad4)
+
+**1. 临界区越界** — ✅ **只 sit test + progress**, 未改任何 page/critical 文件。dev 自述"page 代码在 HEAD 已就绪, 本 commit 仅补 SIT 测试覆盖" 复核属实: `git show e3fb8ad4:frontend/src/pages/OpenDecision.tsx` 在 ~line 543-546 已有 `AuctionAnalysis` / `SignalScan` / `ExecutionMonitor` / `CandidatePool` / `DecisionOverview` 五 sub-tab 渲染 (按 `active` 切换), dev server `/open-decision/{auction,signals,execution}` 200/200/200 印证。本 commit 仅加 `tests/sit/opendecision-subtabs-preview.test.tsx` 覆盖既有渲染, 非改 page。
+
+**2. scope (§9.3)** — ✅ **N/A (纯测试)**。无生产代码改动, 无 API 调用变更。
+
+**3. token 合规** — ✅ commit msg 自述 "OpenDecision.tsx 全文零裸 #hex/rgba (grep 验证)" — page 未改, 无新增样式风险。
+
+---
+
+### #27 SupplyChainBom 4.1/4.3 (7e7d1dbe)
+
+**1. 临界区越界** — ✅ 仅改 `frontend/src/pages/SupplyChainBom.tsx` (+175/-1)。**注意: 本 commit 无 sit test + 无 progress** (dev-5 worktree 写代码后 429 限额未 commit/SIT, PL 接手验证采纳: tsc 0 + SupplyChainBom.test.tsx 16/16 绿)。sit 缺口记 follow-up, 非契约/安全 finding。
+
+**2. scope (§9.3)** — ✅ **N/A (纯展示)**。blob diff `^\+.*Api\.|tenant_id|owner_user_id|account_id` 零命中。4.1 政策梳理 (policy tab 政策证据) + 4.3 多维度分析 (company tab 公司对比) 消费既有 chainDeconstructResult 本地 state, 零新增请求。
+
+**3. token 合规** — ✅ 新增行零裸 `#hex`/`rgba`, 走 signalLevelTokens/alpha/lightTokens, 守 W-1。
+
+---
+
+## Batch B 补 6 一句话回 team-lead
+
+**Pass** — #25/#26/#27 临界区零越界 (无 App.tsx/main.tsx/client.ts/types.ts/components/prototype 触碰); #26 dev 自述"page 在 HEAD 已就绪" 复核属实 (line 543-546 已有 AuctionAnalysis/SignalScan/ExecutionMonitor 等 5 sub-tab 渲染, 本 commit 仅补 SIT); 三 commit scope §9.3 全 N/A (纯本地 state 展示, blob diff 零新增 API 调用 + 零 scope 明文); token 合规 (新增行零裸 hex/rgba, 走 lightTokens/signalLevelTokens)。#27 sit test 缺口 (dev 429 限额) 记 follow-up, 非契约/安全 finding。契约+安全维度放行。

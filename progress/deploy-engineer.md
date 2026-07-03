@@ -2,6 +2,116 @@
 
 ---
 
+## 2026-07-03 — screener 镜像重建（方式2，P0 fix 生效）+ UAT 数据底座缺口实证：❌ D1 仍筛 0（数据问题，非 deploy/代码问题）
+
+**Task**: team-lead 指示方式2 — 用 backend-dev worktree fix（`fix/screener-run-timeout-mdready` @ `fd4d76fc`）build screener 镜像，重建 UAT 容器，验 leader_scalp D1 通否。
+**Fix 内容**: leader_scalp/intraday/closing 的 `'000001.SH'`→`'000001'`（PG index_daily.code 存无后缀）+ 板块门硬淘汰→软降权（score_stock F14）。
+**Model**: glm-5.2
+
+### 重建执行（方式2，不动主仓）
+- worktree `.wolf/worktrees/backend-dev-mdready` 干净、HEAD `fd4d76fc`、build context=仓库根含 packages/kronos-factors。
+- `DOCKER_BUILDKIT=0 docker compose -p suying-uat --env-file <主仓>docker/.env.uat build screener-service` → 镜像 `suing-uat-screener-service:latest` @ `f14ab70f1ef6` build 成功。
+- **fix 进容器实证**：容器内 leader_scalp.py `ts_code='000001'` 出现 3 次、`ts_code='000001.SH'` 0 次 → 新代码确实打进镜像。
+- 重建容器（screener + 把误改的 postgres/redis 拉回 89xx），health 200。
+
+### ⚠️ 过程中的端口混乱与修正（自修，隔离恢复）
+首轮 `up -d` 只用了主仓 `.env.uat`（内含 adr013 的 18xxx 端口变量），未 export 89xx 覆盖 → postgres/redis/screener 误跑到 16432/17379/18001。**数据无损**（卷 suying-uat_pgdata 持久化，candidate_pools=2 / daily_kline 07-02 / alembic 022 全在）。修正：export 89xx 端口变量集后 force-recreate，端口回归 6332/8279/8901。**教训**：suying-uat 起栈必须 export 89xx 变量覆盖 .env.uat 的 adr013 默认值（.env.uat 文件本身是 adr013 配置）。
+
+### 冒烟结果：D1 leader_scalp **仍 total_picks=0**（07-01 + 07-02 均如此）
+```
+POST /run?mode=leader_scalp&trade_date=2026-07-02 → HTTP 200 total_picks=0 fallback=None
+POST /run?mode=leader_scalp&trade_date=2026-07-01 → HTTP 200 total_picks=0 fallback=None
+```
+
+### 根因（因果闭环，三重实证）—— 数据底座问题，非 deploy/代码问题
+- fix 生效确认：容器内 `'000001'` 3 次 / `'000001.SH'` 0 次。
+- **但 UAT 库 6332 的 index_daily = 0 行**（host 直连 + 容器内 asyncpg + 容器名核对三重确认）→ fix 的 `'000001'` 查询在 UAT 上仍查不到行 → `get_shanghai_index` 返 0 → sh_pct=0 → 市场环境判定空 → 板块门 + 打分筛 0。
+- 对照：backend-dev 本地验 0→20 picks 用的是 **dev 库 6432**（index_daily=10409 行、moneyflow=14M、daily_basic=10M、ths_daily=2M），其 AC5 的 `get_shanghai_index=0.4408` 只可能来自 6432。**fix 从未在 UAT 6332 验过。**
+- UAT 6332 数据缺口：index_daily / moneyflow / daily_basic / ths_daily / limit_list_d 全 0（仅 daily_kline 93692 + stocks 5534 + stk_limit 7677 + candidate_pools 2 有）。
+
+### Gate
+❌ **D1 验证失败（数据底座问题，非 deploy 失败）**——镜像重建正确（fix 进容器实证）、隔离恢复、数据无损；但 UAT 库缺 index_daily 等表，fix 无法体现效果，leader_scalp 仍筛 0。归类 = **数据问题**（退回 PL 决策补数据），非 deploy/代码问题。
+
+### 给 PL 的决策点
+D1 要通 = UAT 6332 至少需补 index_daily（市场环境）+ 理想再补 moneyflow/daily_basic/ths_daily（打分维度）。源：dev 库 6432 有全量。补法：`pg_dump -h 127.0.0.1 -p 6432 -U kronos -d kronos -t index_daily -t moneyflow ... | psql -h 127.0.0.1 -p 6332`（deploy 配置操作，不改源码）。等 PL 拍板补哪些表。
+
+---
+
+## 2026-07-03 — 行情决策板块运行时环境收口 (P0)：✅ 部署成功（冒烟通过，suying-uat 为唯一正确环境）
+
+**Task**: team-lead P0 — 三套 docker 并存（suying-uat/uat-adr013/docker）+ 前端默认指向断链的 uat-adr013 → 选定唯一正确环境 + 验证 8 服务健康 + DB/迁移/数据及时性 + 输出前端端口清单
+**Commit**: main @ 9f02b734（UAT 栈 suying-uat 已基于此运行，5–11h up）
+**Model**: glm-5.2
+
+### 环境选定结论
+**唯一正确环境 = `suying-uat`（89xx 带，gateway=8980/screener=8901/postgres=6332）。**
+- uat-adr013（180xx）：网络内 **无 postgres 容器** → screener 日志 `could not translate host name "postgres" to address` → DB 依赖服务 liveness 200 但数据查询全断（"service 活≠能用"陷阱）。无 backend/auth。
+- suying-uat：自包含 12 容器（PG+Redis+auth 齐全），alembic 022，真实数据回流。
+
+### 服务健康矩阵（suying-uat，逐个 curl /api/v1/health 实证）
+```
+gateway:8980(/health) 200 | backend:8900(/api/health) 200 | screener:8901 200
+prediction:8902 200 (model_loaded=false, base_public 预期) | signal:8904 200
+diagnosis:8909 200 | backtest:8907 200 | trade:8906 200 (mode=paper) | alert:8905 200
+data-service:8910 200
+strategy:8903 / training:8908 → 未起（不在 team-lead 行情决策 8 服务范围）
+```
+
+### DB / 迁移 / 数据及时性（suying-uat-postgres @ 6332）
+```
+alembic_version = 022  | candidate_pools ✓(018) | watchlist ✓(022) | strategy_plans ✓
+stocks=5534  | trade_cal=0 行(非阻塞)  | daily_kline_max=2026-07-02  | stk_mins_max=2026-07-03 11:30
+stk_mins_today_rows=124925 (vs 昨日 4999) → 日内实时数据正常回流
+```
+**"candidate_pool 表不存在" 已澄清**: 实际表名复数 `candidate_pools`（`candidate_pool_store.py:18`），表存在；screener GET 200 返回空列表（未跑选股落库），无 DB 连接矛盾。
+**"数据停在昨天" 已澄清**: daily_kline 是 EOD 数据，12:20 CST 盘中停在昨日是预期（收盘后才采），stk_mins 今日早盘已采 12.5 万行 → **未停滞，无需回填**。
+
+### 502 根因 — 纠偏（PL + frontend-dev 双向复核后修正；首轮判断有误）
+
+**C1/C2 均非前端代码缺陷，不退回 frontend-dev。** 真因 = 前端默认指向断链 uat-adr013（180xx），切到 suying-uat 后即消失。三方一致实证：
+- **C1 POST candidate-pool 422**：screener.py:7400 `CandidatePoolRecordRequest` 强制 `source_module/source_mode/name`。首轮用**自制残缺 body**测 → 422（测试体缺陷）。改完整 body 实测 → HTTP 200 `id=3 fallback_reason=null`（gateway 8980 + 直连 8901 一致）。frontend-dev 确认主仓 3 处调用（Screener.tsx:716/948 + OpenDecision.tsx:753）均发完整强类型 payload（types.ts:1171）。
+- **C2 GET /screener/results 404**：screener 确无此路由，但**前端不调**（client.ts:486 用 POST `/screener/run`；全仓 grep `/screener/results` 全空）。404 与前端无关。
+- gateway 8980 `/dashboard/overview` 502（上游 404）= 后端 dashboard 聚合路由归属问题，转 backend-dev + PL 对齐。
+
+### 前端应指向的端口清单（已 SendMessage frontend-dev）
+```
+VITE_AUTH_SERVICE_URL=http://127.0.0.1:8900
+VITE_GATEWAY_SERVICE_URL=http://127.0.0.1:8980
+VITE_SCREENER_SERVICE_URL=http://127.0.0.1:8901
+VITE_PREDICTION_SERVICE_URL=http://127.0.0.1:8902
+VITE_SIGNAL_SERVICE_URL=http://127.0.0.1:8904
+VITE_ALERT_SERVICE_URL=http://127.0.0.1:8905
+VITE_TRADE_SERVICE_URL=http://127.0.0.1:8906
+VITE_BACKTEST_SERVICE_URL=http://127.0.0.1:8907
+VITE_DIAGNOSIS_SERVICE_URL=http://127.0.0.1:8909
+VITE_STRATEGY_SERVICE_URL=http://127.0.0.1:8903   # 未起，策略页才需要
+VITE_TRAINING_SERVICE_URL=http://127.0.0.1:8908   # 未起，训练页才需要
+```
+附 vite 进程收口（frontend-dev 处理）：`:3000` 被 worktree 残留 PID 45464(`frontend-dev-3b-predictions`)/75974(`frontend-dev-1b-predc`) 占用，主仓 frontend/(86012) 被挤到 `:3980` → 用户访问 :3000 命中 worktree。需 kill worktree vite 后重启主仓占 :3000。
+
+### 退回 dev 的问题（deploy-only 硬边界，不修源码）
+| C1 | ~~前端 POST candidate-pool 缺必填字段~~ **撤回** — 测试体缺陷，前端无此 bug（见 502 纠偏段） | — |
+| C2 | ~~前端 GET /screener/results 调不存在路由~~ **撤回** — 前端不调此路径（见 502 纠偏段） | — |
+| C3 | data-service daily_kline FK daily_kline_code_fkey（部分 code 不在 stocks）| backend-dev/data |
+| C4 | data-service stk_mins 批次低量（Tushare 权限/API）| backend-dev/data |
+| C5 | data-service stock_news_tushare code null | backend-dev/data |
+| C6 | gateway `/dashboard/overview` 502（上游 404）— dashboard 聚合路由历史残留；**前端不调此路径**（client.ts L630/L633 只调 `/dashboard/summary` + `/dashboard/auction`，PL codegraph+grep 双确认）。PL 裁定：开 follow-up issue 记录，**不阻断本 task，不派 backend 修** | follow-up issue |
+
+### uat-adr013 下线（PL 授权，已执行）
+前置检查：180xx 无 ESTABLISHED 客户端连接（frontend-dev 已 kill worktree vite，主仓切 89xx）。执行 `docker rm -f $(docker ps -aq --filter name=uat-adr013-)` → 11 容器(+3 exited) 全移除。`docker compose ls` 不再有 uat-adr013；18001/18080 LISTEN=0（端口释放）。suying-uat 复核仍 12 容器全活。
+残留：`uat-adr013_default` 网络未删（`docker-redis-1` 仍挂载，属 `docker` 项目跨网遗留，无害；如需清：`docker network disconnect uat-adr013_default docker-redis-1 && docker network rm uat-adr013_default`）。
+
+### follow-up
+- strategy-service(8903)/training-service(8908) suying-uat 未起容器；行情决策板块前端不调（client.ts 无 strategy/training 调用），不阻断。需时补起（strategy=方案生成 DeepSeek，training=模型训练）。
+
+### Gate
+✅ 部署成功（冒烟通过）— suying-uat 行情决策 8 服务全活，PG/Redis/auth 齐全，迁移 022，日内实时数据回流（signal/live 返回真实盘中信号 920221 易实精密 16.62）。前端"无法使用"根因 = proxyTargets 默认指向断链 uat-adr013（已由 frontend-dev 切 89xx 落地）；非环境/前端代码问题。uat-adr013 已下线。dashboard/overview 502 为历史聚合路由残留，前端不调，开 follow-up issue，不阻断。
+
+### Hand-off
+已 SendMessage team-lead（状态 + 产物路径）+ frontend-dev（端口清单 89xx，已落地）。deploy 侧 P0 环境收口闭环，待命。完整 SIT 证据见本节。
+
+---
+
 ## 2026-07-03 — Batch A (md-ui-overhaul) UAT 部署：✅ 成功（schema 修复 `3e7a13c5` 后复用栈，冒烟全过）
 
 **Task**: 行情决策 Batch A + Batch B #11/#12 — Dashboard/OpenDecision/Screener/Predictions/Signals/SupplyChainBom + watchlist + candidate-pool

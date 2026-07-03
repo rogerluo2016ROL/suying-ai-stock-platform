@@ -178,6 +178,22 @@ def fetch_all(cur, sql: str, params=()):
     return cur.fetchall()
 
 
+def batch_event_delete_sql(chain_scoped: bool) -> str:
+    chain_filter = "AND m.chain_id = %s" if chain_scoped else ""
+    return f"""
+            DELETE FROM business_tag_evidence_events e
+            USING business_tag_mapping m
+            WHERE e.mapping_id = m.mapping_id
+              {chain_filter}
+              AND e.source_type LIKE 'batch_10y_%%'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM evidence_extracted_facts f
+                  WHERE f.evidence_event_id = e.event_id
+              )
+            """
+
+
 def event(
     mapping: dict[str, Any],
     evidence_type: str,
@@ -683,16 +699,7 @@ def main() -> None:
             """,
             mapping_params,
         )
-        cur.execute(
-            f"""
-            DELETE FROM business_tag_evidence_events e
-            USING business_tag_mapping m
-            WHERE e.mapping_id = m.mapping_id
-              {"AND m.chain_id = %s" if chain_id else ""}
-              AND e.source_type LIKE 'batch_10y_%%'
-            """,
-            mapping_params,
-        )
+        cur.execute(batch_event_delete_sql(chain_scoped=bool(chain_id)), mapping_params)
 
         psycopg2.extras.execute_batch(
             cur,

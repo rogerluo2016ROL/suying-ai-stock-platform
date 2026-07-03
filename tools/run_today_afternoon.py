@@ -102,7 +102,7 @@ def get_pre_close_map(db, trade_date):
         "SELECT code, pre_close FROM stk_limit WHERE trade_date=?", (trade_date,)
     ).fetchall()
     out = {r["code"]: float(r["pre_close"] or 0) for r in rows if r["pre_close"] and float(r["pre_close"]) > 0}
-    if out:
+    if len(out) >= 1000:
         return out
     # Fallback: daily_kline 前一交易日 close
     rows = db.execute(

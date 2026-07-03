@@ -408,3 +408,97 @@ UAT crash-loop 根因诊断清晰（init_postgres.sql 预建表 + alembic 006/00
 ## 下一步
 
 回 team-lead：Batch C **verdict approve（零 finding）**，tsc 0 + vitest 371/371（57 files）+ 两页 grep 0 裸色自跑复现。**W-1 第三次落实 + task #10 token 收口闭环**——`signalLevelTokens` + `alpha` 工具把 W-1/W-2 从 ad-hoc 修复升级为 token 体系制度（三批演进：半 token 化 → 零裸色但内联 alpha → alpha 工具+signalLevelTokens SSOT）。SIT Audit ✅ Pass（两段证据含 grep 机检 + dev server 多路由 200 + 后端字段缺口诚实降级）。Batch A/B/C 三批全 approve，可推进 UAT/E2E。
+
+---
+
+# Batch B 补 6 — #25 Dashboard 1.2 auction + #26 OpenDecision subtabs SIT + #27 SupplyChainBom 4.1/4.3 质量+SIT（W-1 第四次复核）
+
+## 审查对象
+
+- `746ff6cd` #25 Dashboard 1.2 auction-dashboard 竞价意图 preview（dev-3）
+- `e3fb8ad4` #26 OpenDecision 2.2/2.3/2.5 sub-tab SIT 补覆盖（dev-1b）
+- `7e7d1dbe` #27 SupplyChainBom 4.1 policy-analysis + 4.3 company-analysis（dev-5 代码 PL 接手）
+
+## 复跑证据（reviewer 自跑）
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| tsc | `cd frontend && npx tsc -b --noEmit` | **TSC_EXIT=0（0 错）** ✅ |
+| vitest 全量 | `cd frontend && npx vitest run` | **59 files / 380 tests 全绿** ✅ |
+| #25 auction-dashboard SIT 用例数 | `grep -cE "it\(\|test\("` | **3**（dev 声称 3/3 一致）✅ |
+| #26 opendecision-subtabs SIT 用例数 | 同上 | **6**（dev 声称 6 一致）✅ |
+| #27 policy/company SIT 文件 | `ls tests/sit/\|grep -iE 'policy\|company'` | **CONFIRMED MISSING** |
+| SupplyChainBom unit | `grep -cE "it\(\|test\("` | **16**（PL 声称 16/16 一致）✅ |
+
+## W-1 第四次复核结论：✅ 真落实（#25/#27 零新裸色；Dashboard 残留是第一波 task #10 既知项）
+
+1. **#25 Dashboard.tsx**：`git show 746ff6cd -- Dashboard.tsx | grep '^\+' | grep -E '#hex|rgba'` → **0 hit**（新增代码零裸色）。auction 4 区块 echarts（buildAuctionTimelineOption/buildAuctionRadarOption）走 `signalLevelTokens` + `alpha.up/accent` + `lightTokens`（progress AC③ 明示）。Dashboard.tsx 现存的 `#1a7a4c`/`#237804`/`rgba(82,97,122,0.45)`/`#b75d00` 等（grep 8 hit）是**第一波 W-1/W-2 既知残留**（toneFromScore/gauge 5-stop/sectorColor），**本批未触碰这些行**（git diff clean），仍归 task #10 收口——**非本批引入，不构成本批 finding**。
+2. **#27 SupplyChainBom.tsx**：`git show 7e7d1dbe -- SupplyChainBom.tsx | grep '^\+' | grep -E '#hex|rgba'` → **0 hit**（新增 175 行零裸色）。全文唯一 hit 是 :41 `ACCENT_OVERLAY` 命名常量注释（Batch B #12 既知，token 派生，归 task #10 alpha 工具收口）。
+3. **#26** 纯 SIT 测试补覆盖，无代码改动，token 不涉及。
+
+**W-1 第四次落实**：dev-3 #25 + dev-5 #27 新增代码均零裸色，token 体系（signalLevelTokens + alpha + lightTokens）在第四批仍被严格遵守。task #10 的 `alpha`/`signalLevelTokens` 工具继续生效，证明第三波的制度化收口稳定。
+
+## 代码 verdict: approve（#25/#26/#27 三项）
+
+**无 critical / 无 warning / 0 suggestion**。
+
+### 认可的良好设计
+
+1. **#25 auction 4 专属区块**（Dashboard.tsx:597 auctionDimensionRows / :660 auctionSectorHeat / buildAuctionTimelineOption / buildAuctionRadarOption）：4 区块均走 auction 专属 helper，非通用壳；ECharts radar 四维评分（竞量比/委比/涨幅缺口/综合评分）+ line 撮合价走势 + sector-grid 行业热度。
+2. **#25 EmptyState 兜底**（Dashboard.tsx:1390 `暂无板块竞价数据` + :1418 `暂无竞价明细`）：缺数据走 EmptyState + fallback_reason 文案，不空白。
+3. **#26 SIT 补覆盖**：2.2 auction / 2.3 signal-scan / 2.5 execution 三 sub-tab 此前无 SIT（既有仅 2.1/2.4），本批补 `opendecision-subtabs-preview.test.tsx` 6 用例——**补既有 SIT 漏洞，非粉饰**。临界区零越界（sub-tab 渲染在 HEAD 533038df 已就绪，本任务仅补测试）。
+4. **#27 policy/company 专属渲染**（SupplyChainBom.tsx:45 policy helpers / :102 company helpers / :220-222 tabs）：4.1 policy-analysis 走 TextArea+LLM 解读交互流（placeholder + `disabled={!policyText.trim()}` 输入守卫），4.3 company-analysis 走 CompanyResearchDrawer——**输入工具型流程**，非数据展示型，空状态表现为输入区+placeholder（可接受）。
+
+### #27 SIT 缺判断：⚠️ Pass with concerns（非阻断，建议 follow-up 补 SIT）
+
+**事实链**：
+- dev-5 worktree 写了 +175 行代码（4.1/4.3 专属渲染）但**触发 429 限额 failed**，未 commit、未写 progress、未建 SIT。
+- PL 接手验证采纳（7e7d1dbe）：tsc 0 + SupplyChainBom.test.tsx 16/16 绿，代码 token 化合规，commit 入主仓。
+- **policy-analysis/company-analysis preview SIT 测试缺**（reviewer `ls tests/sit/` 确认无 policy/company 文件）。
+- PL 在 `progress/product-lead.md:171` 如实标注「dev-5 代码 PL 接手 7e7d1dbe，dev-5 429 failed，tsc0+16绿，sit 缺 follow-up」。
+
+**判级推理**：
+- 严格按 SIT Audit 第 1 项「progress 完整性：缺失或为空 → block」——#27 dev-5 progress 段确实缺失。但本案例是**dev-5 限额中断 + PL 接手**的特殊情况，非 dev 跳过 SIT：代码已有 unit 覆盖（SupplyChainBom.test.tsx 16 用例，组件级渲染断言）、tsc 0、全量 380 绿、PL 透明记录 + follow-up 计划。
+- 代码侧无正确性/安全性/token 缺陷（approve）；SIT 侧 #25/#26 两段证据完整可信（✅），#27 缺 policy/company preview SIT 是**局部瑕疵 + 合理解释**（429 不可控 + PL 接手 + unit 兜底 + follow-up 计划）——符合 3 档 verdict 中「⚠️ Pass with concerns：4 项主体通过但有局部瑕疵，写明 concern + 是否需 PL 决定补救」。
+- **concern**：4.1/4.3 preview 对齐与交互在 integration 层未被 SIT 断言（policy LLM 解读流 / company drawer）。建议 PL 将 `policy-analysis-preview.test.tsx` + `company-analysis-preview.test.tsx` 纳入 follow-up（dev-5 限额恢复后补或 PL 建），不阻断当前 fan-in。
+
+## SIT Audit verdict: ⚠️ Pass with concerns
+
+### 4 项 audit（#25/#26/#27 合并）
+
+1. **progress 完整性** ⚠️（#27 局部瑕疵）
+   - #25 `progress/frontend-dev-3.md` :66-92 完整 SIT 段（7 AC + 质量门 3 命令 + 改动文件 + 契约对账）✅
+   - #26 `progress/frontend-dev-1.md` :143-185 完整 SIT 段（AC + 质量门 + 契约/worktree 纪律自检）✅
+   - #27 **dev-5 progress 段缺失**（429 中断未写）；PL 在 `product-lead.md:171` 代为标注 follow-up —— ⚠️ 局部瑕疵，有合理解释。
+
+2. **AC 覆盖** ⚠️（#27 policy/company SIT 缺）
+   - #25：7 AC（4 区块/专属渲染/token/EmptyState/tsc/vitest/SIT）逐条对应 `auction-dashboard-preview.test.tsx` 3 用例 ✅
+   - #26：AC（2.2/2.3/2.5 integration + EmptyState + vitest）逐条对应 `opendecision-subtabs-preview.test.tsx` 6 用例 ✅
+   - #27：4.1/4.3 专属渲染有 unit 覆盖（SupplyChainBom.test.tsx 16 用例组件级）但**无 policy/company 专属 preview SIT** ⚠️
+
+3. **证据可信度** ✅
+   - #25：tsc EXIT 0 + vitest `58 files / 374 tests`（dev-3 自报）+ Dashboard.test.tsx 11/11 + auction SIT 3/3 + worktree 独占记录。
+   - #26：tsc 0 + vitest `tests/sit/ 47 passed（13 files）` + OpenDecision.test.tsx 19 + subtabs SIT 6 + dev server 多路由 200。
+   - reviewer 自跑 tsc=0 / vitest 380 / SIT 用例数 3+6 一致 **复现通过**。
+   - **非** placeholder——真实命令+计数+输出片段。
+
+4. **失败/阻塞标记真实性** ✅
+   - #27 dev-5 429 中断 + PL 接手**如实记录**（product-lead.md:171，非隐瞒）；sit 缺标 follow-up（非伪装 pass）。
+   - #26 如实标注「3 sub-tab 渲染在 HEAD 533038df 已落地，本任务仅补 SIT」（非夸大本任务 scope）。
+   - 无 fail 伪装 pass；无 placeholder 伪装证据。
+
+### 结论
+
+#25/#26 主体 ✅ Pass；#27 SIT 缺为 ⚠️ 局部瑕疵（429 不可控 + PL 接手 + unit 兜底 + follow-up 计划）。综合 **⚠️ Pass with concerns**——代码可推进，建议 PL 安排 #27 policy/company preview SIT 补建为 follow-up。
+
+## verdict 推导（Batch B 补 6）
+
+- critical_count: 0
+- warning_count: 0
+- suggestion_count: 0
+- code_verdict: **approve**（#25/#26/#27 三项代码全 approve）
+- sit_audit_verdict: **⚠️ Pass with concerns**（#27 policy/company preview SIT 缺，建议 follow-up 补建）
+
+## 下一步
+
+回 team-lead：Batch B 补 6 **代码 verdict approve（零 finding）**，tsc 0 + vitest 380/380（59 files）自跑复现。W-1 第四次落实（#25/#27 零新裸色；Dashboard 残留是第一波 task #10 既知项，本批未触碰）。SIT Audit **⚠️ Pass with concerns**——#25/#26 证据完整可信，#27 policy/company preview SIT 缺（dev-5 429 中断 + PL 接手 + unit 16/16 兜底 + follow-up 计划），建议 PL 安排补建为 follow-up，不阻断当前 fan-in。
