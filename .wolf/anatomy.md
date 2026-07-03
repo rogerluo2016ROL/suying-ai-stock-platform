@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-03T08:18:54.765Z
-> Files: 578 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-03T12:10:55.610Z
+> Files: 579 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -21,6 +21,7 @@
 
 - `data-service-scheduler-architecture.md` (~641 tok)
 - `edit-abs-path-lands-main-not-worktree.md` (~227 tok)
+- `iloveppt-upstream-state.md` (~381 tok)
 - `in-process-agent-edit-absolute-path-main-repo.md` (~298 tok)
 - `md-ui-worktree-cwd-confusion.md` (~406 tok)
 - `MEMORY.md` (~597 tok)

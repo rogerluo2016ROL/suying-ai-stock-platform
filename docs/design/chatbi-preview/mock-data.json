@@ -1,0 +1,142 @@
+{
+  "meta": {
+    "title": "速赢 AI ChatBI 静态预览",
+    "trade_date": "2026-07-03",
+    "data_status": "mock_preview",
+    "reuse_sources": [
+      "docs/design/new front/",
+      "chatBI/ai 前端.zip",
+      "chatBI/AI 后端.zip",
+      "K线大模型产业链拆解设计"
+    ]
+  },
+  "hot_questions": [
+    "今天所有模型结果汇总",
+    "AI算力候选公司 Top5",
+    "中际旭创产业链证据链",
+    "今天匪爷竞价选债为什么没票",
+    "生成中际旭创产业链拆解报告"
+  ],
+  "chat_flow": [
+    {
+      "node": "问题识别",
+      "node_type": "intent_recognition",
+      "model_id": "deepseek-chat",
+      "prompt_version_id": "chatbi_intent_router:v1",
+      "elapsed_ms": 286,
+      "status": "done"
+    },
+    {
+      "node": "工具选择",
+      "node_type": "query_planning",
+      "model_id": "deepseek-chat",
+      "prompt_version_id": "query_planner:v1",
+      "elapsed_ms": 412,
+      "status": "done"
+    },
+    {
+      "node": "数据查询",
+      "node_type": "data_query_assist",
+      "tool_id": "supply_chain_candidate_ranking",
+      "elapsed_ms": 821,
+      "status": "done"
+    },
+    {
+      "node": "答案生成",
+      "node_type": "answer_generation",
+      "model_id": "deepseek-chat",
+      "prompt_version_id": "supply_chain_answer:v1",
+      "elapsed_ms": 1680,
+      "status": "done"
+    }
+  ],
+  "candidates": [
+    {
+      "code": "300308",
+      "name": "中际旭创",
+      "chain": "AI算力 / 光模块 / 800G",
+      "score": 92.6,
+      "stage": "商用放量",
+      "high_tech": 91,
+      "high_growth": 94,
+      "high_profit": 86,
+      "price": 188.42,
+      "change_pct": 4.82
+    },
+    {
+      "code": "300502",
+      "name": "新易盛",
+      "chain": "AI算力 / 光模块 / 硅光",
+      "score": 90.1,
+      "stage": "商用放量",
+      "high_tech": 89,
+      "high_growth": 93,
+      "high_profit": 84,
+      "price": 142.30,
+      "change_pct": 5.51
+    },
+    {
+      "code": "300394",
+      "name": "天孚通信",
+      "chain": "AI算力 / 光器件",
+      "score": 87.8,
+      "stage": "商用放量",
+      "high_tech": 86,
+      "high_growth": 88,
+      "high_profit": 90,
+      "price": 98.16,
+      "change_pct": 3.72
+    }
+  ],
+  "evidence": [
+    {
+      "title": "800G 光模块规模交付",
+      "source": "年报/公告",
+      "date": "2026-04-28",
+      "tag_l8": "AI算力 > 网络互联 > 光模块 > 800G",
+      "business_stage": "商用放量",
+      "three_high": ["高技术壁垒", "高成长"],
+      "summary": "公司披露高速光模块产品已向重点客户批量交付，800G 需求维持高景气。",
+      "confidence": 0.92
+    },
+    {
+      "title": "1.6T 产品送样和产能爬坡",
+      "source": "券商研报",
+      "date": "2026-06-12",
+      "tag_l8": "AI算力 > 网络互联 > 光模块 > 1.6T",
+      "business_stage": "研发/送样",
+      "three_high": ["高技术壁垒"],
+      "summary": "研报跟踪显示公司 1.6T 产品处于送样和验证阶段，后续关注客户认证和量产节奏。",
+      "confidence": 0.86
+    }
+  ],
+  "model_bindings": [
+    {
+      "node_type": "intent_recognition",
+      "label": "语义识别",
+      "primary_model_id": "deepseek-chat",
+      "fallback_model_ids": ["glm-5.2"],
+      "prompt_version_id": "chatbi_intent_router:v1"
+    },
+    {
+      "node_type": "evidence_extraction",
+      "label": "证据抽取",
+      "primary_model_id": "glm-5.2",
+      "fallback_model_ids": ["deepseek-chat"],
+      "prompt_version_id": "company_evidence_extract:v1"
+    },
+    {
+      "node_type": "report_generation",
+      "label": "报告生成",
+      "primary_model_id": "glm-5.2",
+      "fallback_model_ids": ["deepseek-chat"],
+      "prompt_version_id": "report_writer:v1"
+    }
+  ],
+  "report_template": {
+    "template_id": "company_deep_report",
+    "version": "v1",
+    "status": "published",
+    "sections": ["投资结论", "产业链位置", "三高证据", "研发和商用进度", "竞争态势", "交易信号", "风险提示"]
+  }
+}

@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>速赢 AI · ChatBI 原型预览</title>
+<style>
+:root{
+  --bg:#0b0e14;--surface:#101620;--surface-2:#151d2a;--surface-3:#1a2433;
+  --fg:#e8edf4;--fg-2:#a8b3c3;--muted:#667286;--border:rgba(255,255,255,.09);
+  --border-2:rgba(255,255,255,.16);--accent:#3d8bff;--accent-dim:rgba(61,139,255,.14);
+  --up:#ff4d4f;--down:#2ec27e;--warn:#f5a623;--ok:#49d17d;--radius:8px;
+  --font:"SF Pro Text","PingFang SC",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --mono:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:13px}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background:
+  linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:32px 32px;opacity:.55}
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh;position:relative}
+.side{border-right:1px solid var(--border);background:#0d121b;padding:16px 12px;position:sticky;top:0;height:100vh}
+.brand{display:flex;gap:10px;align-items:center;font-weight:750;margin-bottom:22px}.logo{width:32px;height:32px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:800}
+.nav-sec{color:var(--muted);font-size:11px;font-weight:700;margin:18px 10px 8px}.nav a{display:flex;align-items:center;gap:9px;padding:10px;border-radius:8px;color:var(--fg-2);text-decoration:none}
+.nav a.active{background:var(--accent-dim);color:var(--fg);box-shadow:inset 3px 0 0 var(--accent)}.dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}.active .dot{background:var(--accent)}
+.main{min-width:0}.top{height:58px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:rgba(16,22,32,.88);backdrop-filter:blur(10px);position:sticky;top:0;z-index:5}
+.ticker{display:flex;gap:18px;align-items:center;color:var(--fg-2);font-family:var(--mono)}.up{color:var(--up)}.down{color:var(--down)}.ok{color:var(--ok)}.warn{color:var(--warn)}
+.top-actions{display:flex;gap:8px;align-items:center}.pill{border:1px solid var(--border-2);background:var(--surface-2);border-radius:999px;padding:6px 10px;color:var(--fg-2);font-size:12px}
+.content{padding:18px;max-width:1680px;margin:auto}.head{display:flex;justify-content:space-between;gap:18px;margin-bottom:14px}.head h1{margin:0 0 5px;font-size:22px}.sub{color:var(--fg-2)}
+.tabs{display:flex;gap:8px;margin:10px 0 14px;overflow:auto}.tab{border:1px solid var(--border);background:var(--surface);color:var(--fg-2);padding:9px 13px;border-radius:8px;cursor:pointer;white-space:nowrap}.tab.active{background:var(--accent-dim);border-color:var(--accent);color:var(--fg)}
+.grid{display:grid;gap:14px}.grid-3{grid-template-columns:1.1fr 1.7fr 1fr}.grid-2{grid-template-columns:1fr 1fr}.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.card-h{min-height:44px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 14px}.card h3{margin:0;font-size:14px}.meta{color:var(--muted);font-size:12px}.card-b{padding:14px}
+.btn{border:1px solid var(--border-2);background:var(--surface-2);color:var(--fg);border-radius:8px;padding:8px 11px;cursor:pointer;font-size:12px}.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.warn{border-color:rgba(245,166,35,.35);color:var(--warn)}
+.input{width:100%;background:var(--surface-2);border:1px solid var(--border-2);color:var(--fg);border-radius:8px;padding:10px 11px;outline:none}.textarea{min-height:72px;resize:vertical}
+.hot{display:flex;flex-wrap:wrap;gap:8px}.tag{border:1px solid var(--border);background:var(--surface-2);border-radius:999px;padding:5px 8px;color:var(--fg-2);font-size:12px}.tag.blue{border-color:rgba(61,139,255,.38);color:#80b6ff}.tag.green{border-color:rgba(46,194,126,.38);color:#72dda1}.tag.yellow{border-color:rgba(245,166,35,.38);color:#f8c36e}.tag.red{border-color:rgba(255,77,79,.38);color:#ff8c8f}
+.sessions{display:grid;gap:8px}.session{padding:10px;border:1px solid var(--border);background:var(--surface-2);border-radius:8px}.session b{display:block;margin-bottom:4px}.session span{color:var(--muted);font-size:12px}
+.chat{display:grid;gap:12px}.bubble{padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);line-height:1.65}.bubble.user{background:var(--accent-dim);border-color:rgba(61,139,255,.35)}
+.nodes{display:grid;gap:8px}.node{display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:start;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2)}.num{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(73,209,125,.14);color:var(--ok);font-family:var(--mono);font-size:11px}.node small{display:block;color:var(--muted);font-family:var(--mono);margin-top:3px}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}th{color:var(--muted);font-weight:650;background:rgba(255,255,255,.02)}.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}.table-wrap{overflow:auto}
+.evidence{display:grid;gap:10px}.ev{border:1px solid var(--border);background:var(--surface-2);border-radius:8px;padding:12px}.ev-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:7px}.quote{color:var(--fg-2);line-height:1.6;border-left:2px solid var(--border-2);padding-left:10px}
+.report{display:grid;grid-template-columns:240px 1fr 280px;gap:14px}.toc{display:grid;gap:8px}.toc div{padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2)}.doc{background:#f7f9fc;color:#111827;border-radius:8px;padding:22px;line-height:1.65;min-height:420px}.doc h2{margin:0 0 10px;color:#0f172a}.doc .muted{color:#64748b}
+.config{display:grid;gap:10px}.cfg-row{display:grid;grid-template-columns:150px 1fr 1fr 1fr auto;gap:8px;align-items:center;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);padding:9px}
+.pane{display:none}.pane.active{display:block}.footer{color:var(--muted);font-size:12px;margin-top:14px}.reuse{display:flex;flex-wrap:wrap;gap:8px}
+@media(max-width:1180px){.app{grid-template-columns:1fr}.side{display:none}.grid-3,.grid-2,.report{grid-template-columns:1fr}.top{position:static}.content{padding:12px}.cfg-row{grid-template-columns:1fr}.head{display:block}.ticker{overflow:auto}.chat-input{position:sticky;bottom:0;background:var(--bg);padding-top:10px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="logo">AI</div><div>速赢 AI<br><span class="meta">高密度投研工作台</span></div></div>
+    <div class="nav-sec">行情决策</div>
+    <nav class="nav">
+      <a href="#"><span class="dot"></span>智能看板</a>
+      <a href="#"><span class="dot"></span>智能选股</a>
+      <a href="#"><span class="dot"></span>产业链拆解</a>
+      <a class="active" href="#"><span class="dot"></span>智能投研 ChatBI</a>
+      <a href="#"><span class="dot"></span>交易信号</a>
+    </nav>
+    <div class="nav-sec">模型 / 系统</div>
+    <nav class="nav">
+      <a href="#"><span class="dot"></span>模型训练</a>
+      <a href="#"><span class="dot"></span>数据更新</a>
+      <a href="#"><span class="dot"></span>运行状态</a>
+    </nav>
+  </aside>
+
+  <section class="main">
+    <header class="top">
+      <div class="ticker">
+        <span>上证 <b class="down">4028.90 -2.03%</b></span>
+        <span>深成 <b class="down">15498.81 -3.85%</b></span>
+        <span>创业板 <b class="down">4017.27 -5.71%</b></span>
+        <span>交易日 <b>2026-07-03</b></span>
+      </div>
+      <div class="top-actions">
+        <span class="pill">管理员视图</span>
+        <span class="pill">模拟盘</span>
+        <span class="pill">模型在线</span>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="head">
+        <div>
+          <h1>智能投研 ChatBI</h1>
+          <div class="sub">复用原 ChatBI 聊天交互 + 速赢 AI 新工作台壳 + K线大模型投研工具</div>
+        </div>
+        <div class="reuse">
+          <span class="tag blue">复用新 UI Shell</span>
+          <span class="tag green">复用聊天/历史/反馈</span>
+          <span class="tag yellow">复用 Java 会话与智能体概念</span>
+        </div>
+      </div>
+
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-pane="chat">问答工作台</button>
+        <button class="tab" data-pane="evidence">证据链分析</button>
+        <button class="tab" data-pane="model">模型解释</button>
+        <button class="tab" data-pane="report">报告生成</button>
+        <button class="tab" data-pane="config">配置中心</button>
+      </div>
+
+      <section class="pane active" id="chat">
+        <div class="grid grid-3">
+          <div class="card">
+            <div class="card-h"><h3>热门问题</h3><span class="meta">复用 ai/index.vue</span></div>
+            <div class="card-b">
+              <div class="hot">
+                <span class="tag blue">AI算力候选 Top5</span>
+                <span class="tag">中际旭创证据链</span>
+                <span class="tag">今日所有模型汇总</span>
+                <span class="tag">匪爷竞价选债无票原因</span>
+                <span class="tag">生成公司报告</span>
+              </div>
+              <div class="sessions" style="margin-top:14px">
+                <div class="session"><b>中际旭创的产业链证据链</b><span>产业链助手 · 13:40 · 已完成</span></div>
+                <div class="session"><b>AI算力候选公司 Top20</b><span>总入口助手 · 11:12 · 已完成</span></div>
+                <div class="session"><b>今天为什么没有债？</b><span>选债助手 · 09:35 · 已完成</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h3>问答流</h3><span class="meta">复用 module1.vue / Markdown.vue / SSE 节点</span></div>
+            <div class="card-b chat">
+              <div class="bubble user">帮我看 AI 算力候选公司 Top5，并解释中际旭创的证据链。</div>
+              <div class="nodes">
+                <div class="node"><span class="num">1</span><div><b>问题识别</b><small>intent_recognition · deepseek-chat · 286ms</small></div><span class="tag green">done</span></div>
+                <div class="node"><span class="num">2</span><div><b>工具选择</b><small>query_planning · supply_chain_candidate_ranking</small></div><span class="tag green">done</span></div>
+                <div class="node"><span class="num">3</span><div><b>数据查询</b><small>trade_date=2026-07-03 · mock 数据</small></div><span class="tag green">done</span></div>
+                <div class="node"><span class="num">4</span><div><b>答案生成</b><small>answer_generation · deepseek-chat · prompt v1</small></div><span class="tag green">done</span></div>
+              </div>
+              <div class="bubble">结论：AI 算力链条中，光模块仍是确定性较强的环节。中际旭创处在 800G 光模块商用放量阶段，三高表现集中在高成长和高技术壁垒，但需要持续跟踪 1.6T 送样、客户订单和毛利率变化。</div>
+              <div class="chat-input">
+                <textarea class="input textarea">继续追问：请拆出中际旭创 L8 证据，并生成报告</textarea>
+                <div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary">发送</button><button class="btn">停止生成</button><button class="btn">导出报告</button><button class="btn">赞 / 踩</button></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><h3>候选表格</h3><span class="meta">artifact: table</span></div>
+            <div class="card-b table-wrap">
+              <table>
+                <thead><tr><th>代码</th><th>公司</th><th>分数</th><th>阶段</th><th>涨幅</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono">300308</td><td>中际旭创</td><td class="mono">92.6</td><td>商用放量</td><td class="mono up">+4.82%</td></tr>
+                  <tr><td class="mono">300502</td><td>新易盛</td><td class="mono">90.1</td><td>商用放量</td><td class="mono up">+5.51%</td></tr>
+                  <tr><td class="mono">300394</td><td>天孚通信</td><td class="mono">87.8</td><td>商用放量</td><td class="mono up">+3.72%</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane" id="evidence">
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-h"><h3>中际旭创 · 标签级证据</h3><span class="meta">不使用公司整体情况冒充标签证据</span></div>
+            <div class="card-b">
+              <div class="hot">
+                <span class="tag blue">L8: 800G 光模块</span><span class="tag green">商用放量</span><span class="tag yellow">高技术壁垒</span><span class="tag yellow">高成长</span>
+              </div>
+              <div class="evidence" style="margin-top:12px">
+                <div class="ev"><div class="ev-head"><b>800G 光模块规模交付</b><span class="tag">年报/公告 · 2026-04-28</span></div><div class="quote">公司披露高速光模块产品已向重点客户批量交付，800G 需求维持高景气。置信度 0.92。</div></div>
+                <div class="ev"><div class="ev-head"><b>1.6T 产品送样和产能爬坡</b><span class="tag">券商研报 · 2026-06-12</span></div><div class="quote">1.6T 产品处于送样和验证阶段，后续关注客户认证和量产节奏。置信度 0.86。</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>L1-L8 层级</h3><span class="meta">产业链拆解视角</span></div>
+            <div class="card-b">
+              <table>
+                <tbody>
+                  <tr><th>L1</th><td>AI 算力</td></tr>
+                  <tr><th>L2</th><td>网络互联</td></tr>
+                  <tr><th>L3</th><td>光通信</td></tr>
+                  <tr><th>L4</th><td>光模块</td></tr>
+                  <tr><th>L5</th><td>高速光模块产品</td></tr>
+                  <tr><th>L6</th><td>800G / 1.6T</td></tr>
+                  <tr><th>L7</th><td>客户交付 / 送样验证</td></tr>
+                  <tr><th>L8</th><td>公告、研报、订单、产能、毛利率证据</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane" id="model">
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-h"><h3>模型无票原因</h3><span class="meta">model_no_pick_diagnosis</span></div>
+            <div class="card-b table-wrap">
+              <table>
+                <thead><tr><th>过滤层</th><th>输入</th><th>通过</th><th>原因</th></tr></thead>
+                <tbody>
+                  <tr><td>基础流动性</td><td class="mono">536</td><td class="mono">128</td><td>成交额不足、价格异常</td></tr>
+                  <tr><td>竞价强度</td><td class="mono">128</td><td class="mono">24</td><td>集合竞价动能不足</td></tr>
+                  <tr><td>正股约束</td><td class="mono">24</td><td class="mono">3</td><td>正股未形成共振</td></tr>
+                  <tr><td>风控闸门</td><td class="mono">3</td><td class="mono">0</td><td>溢价率和回撤风险未通过</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>共振解释</h3><span class="meta">产业链 + 模型 + 证据</span></div>
+            <div class="card-b">
+              <div class="node"><span class="num">A</span><div><b>产业链命中</b><small>AI算力、光模块、800G、1.6T</small></div><span class="tag green">4 标签</span></div>
+              <div class="node" style="margin-top:8px"><span class="num">B</span><div><b>三高命中</b><small>高技术壁垒 91 / 高成长 94 / 高盈利 86</small></div><span class="tag yellow">强</span></div>
+              <div class="node" style="margin-top:8px"><span class="num">C</span><div><b>交易信号</b><small>短线强势，但需关注高位波动和北美订单预期差</small></div><span class="tag red">需复核</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane" id="report">
+        <div class="report">
+          <div class="card"><div class="card-h"><h3>模板</h3><span class="meta">published</span></div><div class="card-b toc">
+            <div>公司深度报告 v1</div><div>产业链拆解报告 v1</div><div>模型复盘报告 v1</div><div>债券模型报告 v1</div>
+          </div></div>
+          <div class="doc">
+            <h2>中际旭创产业链拆解报告</h2>
+            <p class="muted">模板：公司深度报告 v1 · 数据日期：2026-07-03 · 预览 mock</p>
+            <h3>1. 投资结论</h3>
+            <p>公司位于 AI 算力网络互联的光模块核心环节，800G 产品已进入商用放量阶段，1.6T 处于送样验证阶段。</p>
+            <h3>2. 三高证据</h3>
+            <p>高技术壁垒来自高速光模块设计、封装、客户认证和产能爬坡；高成长来自云厂商资本开支；高盈利需结合毛利率变化持续验证。</p>
+            <h3>3. 风险提示</h3>
+            <p>客户集中、订单节奏、价格竞争、技术替代和高位估值波动。</p>
+          </div>
+          <div class="card"><div class="card-h"><h3>生成参数</h3><span class="meta">report_generation</span></div><div class="card-b">
+            <label>标的</label><input class="input" value="中际旭创 300308" />
+            <label style="display:block;margin-top:10px">模型</label><input class="input" value="glm-5.2" />
+            <label style="display:block;margin-top:10px">格式</label><div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary">Word</button><button class="btn">Markdown</button><button class="btn">Excel</button></div>
+          </div></div>
+        </div>
+      </section>
+
+      <section class="pane" id="config">
+        <div class="grid">
+          <div class="card">
+            <div class="card-h"><h3>节点级模型配置</h3><span class="meta">复用 AiAgentTypeDifyController 概念，去掉 Dify 依赖</span></div>
+            <div class="card-b config">
+              <div class="cfg-row"><b>语义识别</b><span>deepseek-chat</span><span>fallback: glm-5.2</span><span>chatbi_intent_router:v1</span><button class="btn">测试</button></div>
+              <div class="cfg-row"><b>查询规划</b><span>deepseek-chat</span><span>fallback: glm-5.2</span><span>query_planner:v1</span><button class="btn">测试</button></div>
+              <div class="cfg-row"><b>证据抽取</b><span>glm-5.2</span><span>fallback: deepseek-chat</span><span>company_evidence_extract:v1</span><button class="btn">测试</button></div>
+              <div class="cfg-row"><b>报告生成</b><span>glm-5.2</span><span>fallback: deepseek-chat</span><span>report_writer:v1</span><button class="btn">测试</button></div>
+            </div>
+          </div>
+          <div class="grid grid-2">
+            <div class="card"><div class="card-h"><h3>提示词管理</h3><span class="meta">draft / reviewing / published</span></div><div class="card-b">
+              <table><tbody><tr><td>chatbi_intent_router</td><td><span class="tag green">published v1</span></td></tr><tr><td>supply_chain_answer</td><td><span class="tag green">published v1</span></td></tr><tr><td>report_writer</td><td><span class="tag yellow">reviewing v2</span></td></tr></tbody></table>
+            </div></div>
+            <div class="card"><div class="card-h"><h3>报告模板管理</h3><span class="meta">template_version_id 追踪</span></div><div class="card-b">
+              <table><tbody><tr><td>company_deep_report</td><td><span class="tag green">published v1</span></td></tr><tr><td>supply_chain_report</td><td><span class="tag green">published v1</span></td></tr><tr><td>model_resonance_report</td><td><span class="tag">draft v1</span></td></tr></tbody></table>
+            </div></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer">静态预览文件：docs/design/chatbi-preview/index.html。当前不接真实后端，先用于确认原型方向和复用策略。</div>
+    </main>
+  </section>
+</div>
+<script>
+document.querySelectorAll(".tab").forEach(function(tab){
+  tab.addEventListener("click",function(){
+    document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active")});
+    document.querySelectorAll(".pane").forEach(function(p){p.classList.remove("active")});
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.pane).classList.add("active");
+  });
+});
+</script>
+</body>
+</html>

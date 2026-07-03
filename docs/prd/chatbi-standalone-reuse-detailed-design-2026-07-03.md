@@ -3,7 +3,7 @@
 - **Date**: 2026-07-03
 - **Status**: Draft
 - **Based on PRD**: `docs/prd/chatbi-standalone-reuse-2026-07-03.md`
-- **Scope**: 复用原 Vue 前端与 Java/Spring Boot 后端，不接 Dify，接入 K线大模型投研工具；纳入模型供应商配置、提示词管理和报告模板管理；预留飞书、钉钉、企业微信挂载能力。
+- **Scope**: 复用原 Vue 前端与 Java/Spring Boot 后端，不接 Dify，接入 K线大模型投研工具；纳入模型供应商配置、节点级模型配置、提示词管理和报告模板管理；预留飞书、钉钉、企业微信挂载能力。
 
 ## 1. 设计结论
 
@@ -18,7 +18,9 @@ K线大模型 FastAPI 服务：负责产业链、选股、选债、行情、证�
 
 Java 后端不直接查 K线 PostgreSQL 业务表，避免重复实现数据权限、模型逻辑和证据口径。所有投研查询通过白名单工具接口调用。
 
-模型调用统一走 `LLM Gateway`。管理员可以配置 DeepSeek、GLM5.2 等供应商和模型版本，智能体绑定默认模型、fallback 模型、提示词版本和报告模板版本。业务代码不直接写死模型 key、base_url 或 prompt 内容。
+模型调用统一走 `LLM Gateway`。管理员可以配置 DeepSeek、GLM5.2 等供应商和模型版本，并按智能体的执行节点绑定默认模型、fallback 模型、提示词版本和报告模板版本。比如语义识别可以用低成本快速模型，报告生成可以用长文本能力更强的模型。业务代码不直接写死模型 key、base_url 或 prompt 内容。
+
+工程实施前必须先完成全套设计。第一步完成前端原型设计和预览设计，用于确认页面结构、交互路径、信息密度、证据卡片、节点过程、模型配置、提示词和报告模板管理如何展示；第二步完成后端设计、接口契约、工具契约、数据模型、系统架构、安全和可观测性设计。全部设计验收通过后，才进入后端、前端和数据库实施。
 
 ## 2. 复用资产评估
 
@@ -34,11 +36,12 @@ Java 后端不直接查 K线 PostgreSQL 业务表，避免重复实现数据权�
 
 | 模块 | 复用方式 |
 |---|---|
-| `ai/index.vue` | 保留首页、热门关键词、热门问题入口 |
-| `module1.vue` | 保留聊天输入、流式输出、思考节点、停止生成 |
-| `Markdown.vue` | 保留 Markdown 渲染，后续增强表格和证据卡片 |
-| `componentsHistory.vue` | 保留历史会话入口 |
-| `feedback.vue` | 保留赞/踩和意见反馈 |
+| `ai/index.vue` | 代码优先原样复用，保留首页、热门关键词、热门问题入口 |
+| `module1.vue` | 代码优先适配复用，保留聊天输入、流式输出、思考节点、停止生成 |
+| `Markdown.vue` | 代码优先适配复用，保留 Markdown 渲染，新增 artifact renderer |
+| `componentsHistory.vue` | 代码优先原样或轻量适配复用，保留历史会话入口 |
+| `feedback.vue` | 代码优先原样或轻量适配复用，保留赞/踩和意见反馈 |
+| `feedView.vue` | 代码优先适配复用，作为反馈结果和意见展示基础 |
 
 需要改造：
 
@@ -61,12 +64,15 @@ Java 后端不直接查 K线 PostgreSQL 业务表，避免重复实现数据权�
 
 | 模块 | 复用方式 |
 |---|---|
-| `GacDifyAIController` | 改名或保留兼容路由，转发到 ChatBI 服务 |
-| `AiHistoryController` | 保留历史会话查询 |
-| `AiAgentTypeDifyController` | 改造成 ChatBI 智能体配置 |
-| `AiHistoryMapper.xml` | 保留会话消息存储思路 |
-| `GacDifyData` | 保留前端兼容事件结构 |
-| `GacRAGFlowAIRequestVO` | 扩展为 ChatBI 请求对象 |
+| `GacDifyAIController` | 适配复用，保留兼容路由和 SSE 出口，内部从 Dify 转发改为 ChatBI Orchestrator |
+| `AiHistoryController` | 原样或轻量适配复用，保留历史会话查询 |
+| `AiAgentTypeDifyController` | 适配复用，改造成 ChatBI 智能体和节点级模型配置入口 |
+| `AiHistoryMapper.xml` | 适配复用，保留会话消息存储思路，必要时扩展字段 |
+| `GacDifyData` | 原样或轻量适配复用，保留前端兼容事件结构 |
+| `GacRAGFlowAIRequestVO` | 适配复用，扩展为 ChatBI 请求对象 |
+| `AiHistoryEntity` | 适配复用，保留会话、问题、答案和节点记录基础字段 |
+| `AiFeedbackRequestVO` | 原样或轻量适配复用，保留用户反馈请求结构 |
+| RuoYi `BaseController` / `AjaxResult` / 权限注解 | 原样复用，保持后台管理和权限风格 |
 
 必须清理：
 
@@ -77,6 +83,122 @@ Java 后端不直接查 K线 PostgreSQL 业务表，避免重复实现数据权�
 | `.idea` | 不进入新工程 |
 | 数据库账号、密码、内部 URL | 删除并轮换 |
 | Dify key、Dify path | 删除或迁移为安全配置 |
+
+### 2.3 代码复用分级
+
+工程实施前必须先形成代码复用清单：
+
+```text
+docs/reviews/chatbi-code-reuse-inventory-2026-07-03.md
+```
+
+复用分级如下：
+
+| 分级 | 含义 | 处理原则 |
+|---|---|---|
+| 原样复用 | 不改业务逻辑，只调整路径或构建配置 | 优先保留，减少风险 |
+| 适配复用 | 保留主体代码，替换接口路径、字段映射或样式壳 | 第一版主要方式 |
+| 扩展复用 | 保留原组件/类，新增 artifact、节点模型、报告模板等能力 | 用新增文件或小范围修改实现 |
+| 替换 | 原逻辑依赖 Dify、明文密钥或不符合安全边界 | 必须说明替换原因 |
+| 废弃 | `.git`、`target`、IDE 文件、无用构建产物或敏感配置 | 不进入新工程 |
+
+前端代码复用原则：
+
+```text
+优先保留原 Vue 文件结构。
+优先在原 module1.vue 的聊天流里接入新 SSE 事件。
+优先扩展 Markdown.vue，而不是重写回答渲染。
+优先复用 componentsHistory.vue 和 feedback.vue。
+新增配置中心、artifact renderer、报告预览可以新建组件，但必须接入原有页面结构。
+```
+
+后端代码复用原则：
+
+```text
+优先保留 RuoYi 项目结构、Controller 风格、AjaxResult、权限和日志体系。
+优先保留 AiHistoryController、AiHistoryEntity、AiHistoryMapper.xml 的会话存储基础。
+优先保留 AiAgentTypeDifyController 的智能体配置入口，字段语义改为 ChatBI agent。
+优先保留 GacDifyAIController 的兼容路由，内部调用 ChatBIOrchestrator。
+只替换 Dify HTTP 调用、Dify key、workflow path、明文配置和不安全的外部地址。
+```
+
+### 2.4 原型和预览设计交付物
+
+第一阶段先做设计，不直接写业务代码。
+
+| 交付物 | 路径 | 说明 |
+|---|---|---|
+| 原型说明 | `docs/design/chatbi-prototype-spec-2026-07-03.md` | 页面清单、布局、主要交互、移动端适配 |
+| 预览说明 | `docs/design/chatbi-preview-spec-2026-07-03.md` | 用 mock 数据预览问答、证据链、报告和配置页 |
+| 前端评审清单 | `docs/design/chatbi-prototype-review-2026-07-03.md` | 记录原型通过项、修改项和是否允许进入后端/架构设计 |
+| 静态预览 | `docs/design/chatbi-preview/index.html` | 可打开查看的静态预览，不依赖真实后端 |
+| 后端设计 | `docs/design/chatbi-backend-design-2026-07-03.md` | 后端模块边界、服务职责、编排流程 |
+| API 契约 | `docs/design/chatbi-api-contract-2026-07-03.md` | 前后端接口、请求响应、错误码、权限、审计字段 |
+| 工具契约 | `docs/design/chatbi-tool-contract-2026-07-03.md` | K线大模型工具输入输出、数据日期、证据来源和空状态 |
+| 数据模型设计 | `docs/design/chatbi-data-model-design-2026-07-03.md` | ChatBI 自有表、索引、唯一约束、敏感字段和保留策略 |
+| 架构设计 | `docs/design/chatbi-architecture-design-2026-07-03.md` | 前端、Java 后端、FastAPI 工具服务、LLM Gateway 和企业 WebView 链路 |
+| 安全观测设计 | `docs/design/chatbi-security-observability-design-2026-07-03.md` | 密钥、权限、白名单、日志、token 成本、告警和审计 |
+| 总体验收 | `docs/design/chatbi-design-acceptance-2026-07-03.md` | 全部设计是否允许进入工程实施 |
+
+设计复用优先级：
+
+| 优先级 | 复用对象 | 复用方式 |
+|---|---|---|
+| P0 | `docs/design/new front/` 新 UI 工作台原型 | 复用左侧导航、顶部状态栏、模块页签、卡片密度、表格和状态表达 |
+| P0 | `chatBI/ai 前端.zip` | 复用首页、聊天页、Markdown、历史会话、反馈、流式过程的信息结构 |
+| P0 | `chatBI/AI 后端.zip` | 复用会话、历史、智能体配置、流式事件、反馈和 RuoYi 管理后台基础概念 |
+| P1 | 当前 K线大模型产业链页面 | 复用产业链、证据链、模型解释、数据日期和空状态表达 |
+
+禁止事项：
+
+```text
+不重新设计一套与速赢 AI 不一致的聊天 UI。
+不新造后端概念替代已有会话、历史、智能体和反馈模型。
+不先写大量说明文档再给用户看，Design Gate B 必须先输出可打开的预览文件。
+```
+
+原型必须覆盖：
+
+| 页面 | 必须展示的内容 |
+|---|---|
+| 首页 | 热门问题、历史会话、输入框、智能体入口 |
+| 问答页 | 流式回答、节点过程、停止生成、重新生成、反馈 |
+| 结构化结果 | 表格、证据链、公司卡片、模型过滤门槛 |
+| 节点级模型配置 | 语义识别、查询规划、数据查询辅助、证据抽取、答案生成、报告生成分别配置模型 |
+| 提示词管理 | 版本列表、草稿、发布、回滚、预览 |
+| 报告模板管理 | 模板列表、模板版本、导出格式、预览 |
+| 报告生成预览 | Markdown/Word/Excel 的章节结构和数据块 |
+| 企业 WebView | 飞书、钉钉、企业微信内的输入、滚动、表格展示 |
+
+预览必须使用固定 mock 数据，至少覆盖：
+
+```text
+AI算力候选公司 Top5
+中际旭创证据链
+某模型无票原因
+节点级模型配置示例
+报告模板导出示例
+```
+
+前端原型评审通过标准：
+
+```text
+关键页面没有缺失。
+表格、证据链和报告预览的信息层级清楚。
+移动端不遮挡输入框和关键按钮。
+节点级模型配置入口明确。
+提示词和报告模板的发布状态可识别。
+评审记录明确写出“允许进入后端设计和架构设计”。
+```
+
+全设计验收通过标准：
+
+```text
+前端原型、静态预览、后端设计、API 契约、工具契约、数据模型、架构设计、安全观测设计均已落盘。
+PRD AC-1 到 AC-21 都能映射到页面、接口、工具、数据表、日志或验收方法。
+没有待定字段、待定接口、待定表结构和待定权限。
+验收记录明确写出“允许进入工程实施”。
+```
 
 ## 3. 业务架构
 
@@ -311,7 +433,7 @@ GET  /api/v1/chatbi/sessions/{session_id}
 | `report_export` | 生成报告、导出、Word、Excel |
 | `data_quality` | 数据更新、缺口、日期、同步 |
 
-LLM 意图识别必须使用已发布提示词版本，并记录 `provider_id`、`model_id`、`prompt_version_id`、token 用量和耗时。
+LLM 意图识别必须使用已发布提示词版本，并记录 `llm_node_type`、`provider_id`、`model_id`、`prompt_version_id`、token 用量和耗时。
 
 ### 5.4 大模型供应商配置
 
@@ -322,6 +444,32 @@ LLM 意图识别必须使用已发布提示词版本，并记录 `provider_id`�
 | DeepSeek | 默认中文投研问答和总结 |
 | GLM5.2 | 备选中文模型、长文本报告生成 |
 | OpenAI-compatible | 兼容未来私有化或代理模型 |
+
+模型不是只按智能体配置，而是按智能体下的执行节点配置。第一版节点如下：
+
+| node_type | 节点 | 推荐策略 |
+|---|---|---|
+| `intent_recognition` | 语义识别 | 用低成本、低延迟模型，负责意图分类和参数抽取 |
+| `query_planning` | 查询规划 | 复杂问题才调用模型，普通问题走规则 |
+| `data_query_assist` | 数据查询辅助 | 只生成受控工具参数，不生成自由 SQL |
+| `evidence_extraction` | 证据抽取 | 用长上下文模型处理公告、研报、新闻摘要 |
+| `answer_generation` | 答案生成 | 用中文表达稳定的模型组织最终回答 |
+| `report_generation` | 报告生成 | 用长文本能力强的模型生成 Markdown、Word、Excel 报告正文 |
+
+节点级配置字段：
+
+| 字段 | 说明 |
+|---|---|
+| `binding_id` | 配置 ID |
+| `agent_id` | 智能体 ID |
+| `node_type` | 执行节点 |
+| `primary_model_id` | 主模型 |
+| `fallback_model_ids` | 备用模型列表 |
+| `prompt_version_id` | 该节点使用的提示词版本 |
+| `temperature` | 温度 |
+| `max_output_tokens` | 最大输出 |
+| `timeout_seconds` | 超时 |
+| `enabled` | 是否启用 |
 
 供应商配置字段：
 
@@ -354,12 +502,13 @@ LLM 意图识别必须使用已发布提示词版本，并记录 `provider_id`�
 调用策略：
 
 ```text
-1. 读取智能体默认 model_id。
-2. 检查供应商状态、限流和权限。
-3. 获取 published 提示词版本。
-4. 调用模型。
-5. 失败时按 fallback_order 切换。
-6. 记录 token、耗时、错误和 fallback 原因。
+1. 根据 `agent_id + node_type` 读取节点级模型配置。
+2. 如果节点未配置，回退到智能体默认模型配置。
+3. 检查供应商状态、限流和权限。
+4. 获取该节点 published 提示词版本。
+5. 调用模型。
+6. 失败时按节点 `fallback_model_ids` 切换。
+7. 记录 `llm_node_type`、token、耗时、错误和 fallback 原因。
 ```
 
 ### 5.5 提示词管理
@@ -507,6 +656,7 @@ ChatBI 自有库只保存交互和配置，不复制投研事实数据。
 | `chatbi_messages` | `message_id`、`session_id`、`question`、`answer`、`status`、`elapsed_ms` |
 | `chatbi_message_events` | `event_id`、`message_id`、`event_type`、`payload`、`created_at` |
 | `chatbi_agents` | `agent_id`、`name`、`agent_type`、`status` |
+| `chatbi_agent_model_bindings` | `agent_id`、`node_type`、`primary_model_id`、`fallback_model_ids`、`prompt_version_id` |
 | `chatbi_agent_tools` | `agent_id`、`tool_id`、`enabled` |
 | `chatbi_tool_calls` | `call_id`、`message_id`、`tool_id`、`status`、`elapsed_ms` |
 | `chatbi_feedback` | `message_id`、`rating`、`reason`、`comment` |
@@ -658,7 +808,7 @@ ChatBI 不接受用户 SQL。所有数据访问必须走工具白名单。
 日志要求：
 
 ```text
-每次问答记录 session_id、message_id、user_id、intent、tool_id、provider_id、model_id、prompt_version_id、status、elapsed_ms。
+每次问答记录 session_id、message_id、user_id、intent、tool_id、llm_node_type、provider_id、model_id、prompt_version_id、status、elapsed_ms。
 不记录明文密钥。
 投资答案保留数据日期和证据来源。
 ```
@@ -744,6 +894,7 @@ chatbi-tool-gateway
 
 ```text
 提示词 A/B 测试
+节点级模型自动评测和自动路由
 报告模板市场和共享模板
 自动日报推送
 平台机器人消息
