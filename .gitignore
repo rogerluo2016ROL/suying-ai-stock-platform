@@ -79,3 +79,4 @@ outputs/intraday_v8_2026-06-23_*.json
 calibrated_weights.json
 supply_chain_oos_report.json
 .claude/scheduled_tasks.lock
+outputs/ai_compute_complete_data_*/
