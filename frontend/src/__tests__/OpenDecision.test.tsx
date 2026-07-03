@@ -13,6 +13,7 @@ vi.mock('../api/client', () => ({
   },
   screenerApi: {
     queryCandidatePool: vi.fn(),
+    recordCandidatePool: vi.fn(),
     addWatchlist: vi.fn(),
     listWatchlist: vi.fn(),
   },
@@ -382,5 +383,50 @@ describe('OpenDecision prototype pages', () => {
     expect(screen.getByText(/支撑原因 3/)).toBeInTheDocument()
     // signal/live 返回了评分 → 趋势原因不含 fallback_reason；资金/共振仍可能 fallback，但 3 条结构齐全不空白
     expect(screen.getAllByText(/fallback_reason|趋势环境|资金面|信号-候选共振/).length).toBeGreaterThan(0)
+  })
+
+  // 死按钮修复（DoD 交互测试硬门）：抢筹表 全选可用 + 加入候选池 → 以正确 payload 调 recordCandidatePool
+  it('writes selected bullish auction rows to candidate pool via recordCandidatePool on button click', async () => {
+    vi.mocked(screenerApi.recordCandidatePool).mockResolvedValue({
+      data: { pool_id: 'POOL-open-decision-auction-bullish-2026-06-29', records: [] },
+    } as any)
+
+    renderOpenDecision('/open-decision/auction')
+
+    // 默认 beforeEach 的 signal/live 有 strong_buy 300750 宁德时代 → 抢筹表有行
+    await screen.findByText('抢筹 TOP 10')
+    // 第一个「全选可用」属于抢筹表（出货表也有同名按钮）
+    fireEvent.click(screen.getAllByRole('button', { name: '全选可用' })[0])
+    fireEvent.click(screen.getByRole('button', { name: '加入候选池' }))
+
+    await waitFor(() => {
+      expect(screenerApi.recordCandidatePool).toHaveBeenCalledTimes(1)
+    })
+    const payload = vi.mocked(screenerApi.recordCandidatePool).mock.calls[0][0]
+    expect(payload.source_module).toBe('open-decision')
+    expect(payload.source_mode).toBe('auction_bullish')
+    expect(payload.name).toMatch(/^竞价抢筹-/)
+    expect(payload.candidates.length).toBeGreaterThan(0)
+    expect(payload.candidates[0]).toMatchObject({ code: expect.any(String) })
+  })
+
+  // 死按钮修复：出货表 加入观察 → 调 addWatchlist
+  it('adds selected bearish auction rows to watchlist via addWatchlist on button click', async () => {
+    vi.mocked(screenerApi.addWatchlist).mockResolvedValue({
+      data: { record: { code: '000858' } },
+    } as any)
+
+    renderOpenDecision('/open-decision/auction')
+
+    await screen.findByText('出货预警 TOP 10')
+    // 默认 signal/live 有 sell 000858 五粮液 → 出货表有行
+    fireEvent.click(screen.getAllByRole('button', { name: '全选可用' })[1])
+    fireEvent.click(screen.getByRole('button', { name: '加入观察' }))
+
+    await waitFor(() => {
+      expect(screenerApi.addWatchlist).toHaveBeenCalled()
+    })
+    const call = vi.mocked(screenerApi.addWatchlist).mock.calls[0][0]
+    expect(call.code).toBe('000858')
   })
 })

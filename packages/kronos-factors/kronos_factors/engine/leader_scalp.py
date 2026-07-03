@@ -48,8 +48,11 @@ def assess_market_env(db, trade_date):
               "consecutive_drops": 0, "reason": ""}
 
     # 1. 上证指数表现
+    # NOTE: PG index_daily.code stores bare '000001' (no .SH suffix); the inline literal
+    # is NOT routed through pg_adapter._translate_params (only bound params are), so the
+    # historical '000001.SH' literal never matched and sh_pct silently returned 0.
     sh_row = db.execute(
-        "SELECT pct_chg FROM index_daily WHERE ts_code='000001.SH' AND trade_date=?",
+        "SELECT pct_chg FROM index_daily WHERE ts_code='000001' AND trade_date=?",
         (trade_date,)
     ).fetchone()
     sh_pct = float(sh_row["pct_chg"]) if sh_row and sh_row["pct_chg"] is not None else 0
@@ -107,7 +110,7 @@ def assess_market_env(db, trade_date):
         prev_sh = []
         for i, pd_row in enumerate(prev_dates[1:4]):  # last 3 days before today
             pr = db.execute(
-                "SELECT pct_chg FROM index_daily WHERE ts_code='000001.SH' AND trade_date=?",
+                "SELECT pct_chg FROM index_daily WHERE ts_code='000001' AND trade_date=?",
                 (pd_row["trade_date"],)
             ).fetchone()
             prev_sh.append(float(pr["pct_chg"]) if pr and pr["pct_chg"] is not None else 0)
@@ -381,9 +384,14 @@ def get_sector_index(db, industry, trade_date, code=None):
 
 
 def get_shanghai_index(db, trade_date):
-    """Get Shanghai Composite performance."""
+    """Get Shanghai Composite performance.
+
+    PG index_daily.code stores bare '000001' (no .SH suffix). The inline literal is
+    NOT routed through pg_adapter._translate_params (only bound params are), so it must
+    match PG's stored value verbatim — the old '000001.SH' literal always returned 0.
+    """
     row = db.execute(
-        "SELECT pct_chg FROM index_daily WHERE ts_code='000001.SH' AND trade_date=?",
+        "SELECT pct_chg FROM index_daily WHERE ts_code='000001' AND trade_date=?",
         (trade_date,)
     ).fetchone()
     return row["pct_chg"] if row else 0
@@ -1119,19 +1127,34 @@ def score_stock(code, info, db, trade_date):
     sector_change = sector_pct["pct_change"] if sector_pct and sector_pct["pct_change"] is not None else 0
     sector_amount = sector_pct["amount"] if sector_pct else 0
 
+    # P0 fix (2026-07-03): 历史上 F14-1/F14-3/末支三处 `return None` 系统性淘汰了所有
+    # 「板块弱 + 孤立涨停」个股。当 get_shanghai_index 因 '000001.SH' 硬编码 bug 返回 0 时，
+    # 板块门的多条件 AND 几乎无人能通过 → leader_scalp 在 114 涨停日返回 0 候选。
+    # 此处按 PL 授权改为「软降权」：保留候选（resonance_score 最低档）+ 标注 resonance_risk，
+    # 让龙头至少进池供后续 ranking / 人工决策，而非被静默吞掉。
+    # ⚠️ 注意：IC 校准的 peer_count/sector_change 数值阈值**未改动**——策略精调（阈值收紧/
+    # 重校准）是独立 follow-up，须由 ml-engineer 跑 1-6 月样本外回测验证 IC 不漂移后再定
+    # （参 memory bi-trend-net-backtest-finding / phase1-sample-out-conclusion：禁盲目基于6月调参）。
+    resonance_score = 3  # 默认最低档（逆势/弱支撑）；下列分支覆盖提升
+    resonance_risk = ""
+
     # F14-1: 孤立行情 — 同板块只有自己1只涨7%+, 且板块不涨
+    # (原硬淘汰 → 软降权：留池 + 标 risk)
     if peer_count <= 1 and sector_change <= 0:
-        return None  # 板块推演术: 没有板块支撑的独立行情=一日游, 淘汰
+        resonance_score = 2  # 板块推演术: 没有板块支撑的独立行情=一日游风险
+        resonance_risk = "孤立行情:无板块支撑,疑似一日游"
 
     # F14-2: 板块弱+个股唯一涨 → 淘汰
-    if peer_count <= 1 and sector_change < 1:
+    elif peer_count <= 1 and sector_change < 1:
         resonance_score = 3  # 板块勉强, 非龙头
 
     elif sector_pct is None:
         # No sector data at all → treat as missing support
         if peer_count <= 2:
-            return None  # F14-3: 无板块数据+少同伙=无法确认板块效应, 淘汰
-        resonance_score = 5  # 有多个同伙但无板块数据, 降级
+            resonance_score = 2  # F14-3: 无板块数据+少同伙=无法确认板块效应
+            resonance_risk = "无板块数据:无法确认板块效应"
+        else:
+            resonance_score = 5  # 有多个同伙但无板块数据, 降级
     elif sector_change > 0 and sh_pct < 0:
         resonance_score = 15  # 独立行情!
     elif sector_change > 0 and sh_pct > 0 and (sector_change - sh_pct) > 3:
@@ -1145,7 +1168,9 @@ def score_stock(code, info, db, trade_date):
     elif sector_change < 0 and sh_pct > 0:
         resonance_score = 3  # 逆势
     else:
-        return None  # 板块更弱 → 淘汰
+        # 板块更弱（原硬淘汰 → 软降权）
+        resonance_score = 2
+        resonance_risk = "板块更弱:逆势涨停风险"
 
     # ── 优化B: 板块涨幅因子 (IC=+0.14, 5-6月最强宏观信号) ──
     if sector_change > 3:
@@ -1206,6 +1231,7 @@ def score_stock(code, info, db, trade_date):
         "volume_score": volume_score,
         "capital_score": capital_score,
         "resonance_score": resonance_score,
+        "resonance_risk": resonance_risk,
         "seal_score": seal_score,
         "is_limit_up": is_limit_up,
         "board_rank": board_rank,

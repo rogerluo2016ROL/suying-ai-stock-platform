@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChartOutlined,
@@ -424,9 +424,10 @@ export default function OpenDecision() {
   const activeTab = useMemo(() => tabs.find(tab => tab.key === active) ?? tabs[0], [active])
   const [state, setState] = useState<OpenDecisionState>(emptyState)
 
-  useEffect(() => {
-    let mounted = true
-    Promise.allSettled([
+  // refreshData 抽成 callback：供 mount effect + AuctionAnalysis「刷新」按钮共用。
+  // loading 由各调用方按需置位（mount 用 state.loading，刷新按钮用各自局部 refreshing）。
+  const refreshData = useCallback(async () => {
+    const results = await Promise.allSettled([
       signalApi.getDashboardAuction(),
       signalApi.getLive('intra'),
       chainApi.getCandidates({ filter: 'all', top_n: 20 }),
@@ -437,31 +438,30 @@ export default function OpenDecision() {
       tradeApi.getOrders(),
       tradeApi.getRiskVerdicts({ page: 1, page_size: 20 }),
       tradeApi.getDecisionContexts({ page: 1, page_size: 20 }),
-    ]).then(results => {
-      if (!mounted) return
-      const [auction, live, candidates, candidatePool, account, positions, orders, verdicts, contexts] = results
-      const rejected = results.filter(result => result.status === 'rejected').length
-      setState({
-        auction: auction.status === 'fulfilled' ? auction.value.data || {} : {},
-        liveSignals: live.status === 'fulfilled' ? live.value.data?.signals || [] : [],
-        liveTradeDate: live.status === 'fulfilled'
-          ? (live.value.data as typeof live.value.data & { trade_date?: string })?.trade_date || live.value.data?.data_freshness?.as_of || undefined
-          : undefined,
-        candidates: candidates.status === 'fulfilled' ? candidates.value.data?.candidates || [] : [],
-        candidatePool: candidatePool.status === 'fulfilled' ? candidatePool.value.data : undefined,
-        account: account.status === 'fulfilled' ? account.value.data?.account : undefined,
-        positions: positions.status === 'fulfilled' ? positions.value.data?.positions || [] : [],
-        orders: orders.status === 'fulfilled' ? orders.value.data?.orders || [] : [],
-        verdicts: verdicts.status === 'fulfilled' ? verdicts.value.data?.records || [] : [],
-        contexts: contexts.status === 'fulfilled' ? contexts.value.data?.records || [] : [],
-        loading: false,
-        error: rejected ? `${rejected} 个接口连接异常，页面已保留可用数据。` : '',
-      })
+    ])
+    const [auction, live, candidates, candidatePool, account, positions, orders, verdicts, contexts] = results
+    const rejected = results.filter(result => result.status === 'rejected').length
+    setState({
+      auction: auction.status === 'fulfilled' ? auction.value.data || {} : {},
+      liveSignals: live.status === 'fulfilled' ? live.value.data?.signals || [] : [],
+      liveTradeDate: live.status === 'fulfilled'
+        ? (live.value.data as typeof live.value.data & { trade_date?: string })?.trade_date || live.value.data?.data_freshness?.as_of || undefined
+        : undefined,
+      candidates: candidates.status === 'fulfilled' ? candidates.value.data?.candidates || [] : [],
+      candidatePool: candidatePool.status === 'fulfilled' ? candidatePool.value.data : undefined,
+      account: account.status === 'fulfilled' ? account.value.data?.account : undefined,
+      positions: positions.status === 'fulfilled' ? positions.value.data?.positions || [] : [],
+      orders: orders.status === 'fulfilled' ? orders.value.data?.orders || [] : [],
+      verdicts: verdicts.status === 'fulfilled' ? verdicts.value.data?.records || [] : [],
+      contexts: contexts.status === 'fulfilled' ? contexts.value.data?.records || [] : [],
+      loading: false,
+      error: rejected ? `${rejected} 个接口连接异常，页面已保留可用数据。` : '',
     })
-    return () => {
-      mounted = false
-    }
   }, [])
+
+  useEffect(() => {
+    refreshData()
+  }, [refreshData])
 
   const signalRows = useMemo(() => signalRowsFromApi(state.liveSignals, state.verdicts), [state.liveSignals, state.verdicts])
   const chainCandidateRows = useMemo(() => candidateRowsFromApi(state.candidates, state.verdicts), [state.candidates, state.verdicts])
@@ -540,7 +540,7 @@ export default function OpenDecision() {
       />
 
       {active === 'overview' && <DecisionOverview loading={state.loading} error={state.error} signalRows={signalRows} candidateRows={candidateRows} sectorRows={sectors} />}
-      {active === 'auction' && <AuctionAnalysis loading={state.loading} error={state.error} bullishRows={bullishRows} bearishRows={bearishRows} candidateRows={candidateRows} sectorRows={sectors} auction={state.auction} />}
+      {active === 'auction' && <AuctionAnalysis loading={state.loading} error={state.error} bullishRows={bullishRows} bearishRows={bearishRows} candidateRows={candidateRows} sectorRows={sectors} auction={state.auction} tradeDate={freshnessTradeDate} onRefresh={refreshData} />}
       {active === 'signals' && <SignalScan loading={state.loading} error={state.error} signalRows={signalRows} />}
       {active === 'candidates' && <CandidatePool loading={state.loading} error={state.error} candidateRows={candidateRows} verdicts={state.verdicts} poolTotal={candidatePoolTotal} poolEmptyReason={candidatePoolEmptyReason} />}
       {active === 'execution' && <ExecutionMonitor loading={state.loading} error={state.error} account={state.account} orderRows={orderRows} positionRows={positionRows} contexts={state.contexts} />}
@@ -680,6 +680,8 @@ function AuctionAnalysis({
   candidateRows,
   sectorRows,
   auction,
+  tradeDate,
+  onRefresh,
 }: {
   loading: boolean
   error: string
@@ -688,9 +690,115 @@ function AuctionAnalysis({
   candidateRows: CandidateRow[]
   sectorRows: SectorRow[]
   auction: Record<string, unknown>
+  tradeDate?: string
+  onRefresh: () => Promise<void>
 }) {
+  const navigate = useNavigate()
   const totalCount = num(auction.total_count ?? auction.total ?? auction.count, bullishRows.length + bearishRows.length)
   const firstBullish = bullishRows[0]
+
+  // 竞价子页签：纯前端 state 切换，对照 preview switchSubTab。overview/stock 有内容；
+  // bond/detail 暂无内容面板，点击仅切高亮（preview 同此，不调 API）。
+  const [auctionSubTab, setAuctionSubTab] = useState('overview')
+  // 表格行勾选：抢筹表 / 出货表分别维护 Set<code>。
+  const [selectedBullish, setSelectedBullish] = useState<Set<string>>(new Set())
+  const [selectedBearish, setSelectedBearish] = useState<Set<string>>(new Set())
+  // 已锁定板块（点板块卡/右栏选股-> 写入）。
+  const [selectedSector, setSelectedSector] = useState<string | null>(null)
+  // 局部刷新 / 候选池写入 / 自选写入 三态。
+  const [refreshing, setRefreshing] = useState(false)
+  const [recordingPool, setRecordingPool] = useState(false)
+  const [watchingCode, setWatchingCode] = useState<string>('')
+
+  const handleRefresh = async () => {
+    if (refreshing) return
+    setRefreshing(true)
+    try {
+      await onRefresh()
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const toggleBullish = (code: string) => {
+    setSelectedBullish(prev => {
+      const next = new Set(prev)
+      if (next.has(code)) next.delete(code)
+      else next.add(code)
+      return next
+    })
+  }
+  const toggleBearish = (code: string) => {
+    setSelectedBearish(prev => {
+      const next = new Set(prev)
+      if (next.has(code)) next.delete(code)
+      else next.add(code)
+      return next
+    })
+  }
+
+  // 加入候选池：抢筹表选中标的 → screenerApi.recordCandidatePool（payload 参 Screener.tsx:930 + types.ts:1172 契约）。
+  const handleAddBullishToPool = async () => {
+    if (recordingPool || selectedBullish.size === 0) return
+    const picks = bullishRows.filter(row => selectedBullish.has(row.code))
+    const candidates = picks.map((row, index) => ({
+      code: row.code,
+      name: row.name,
+      score: Number(row.score) || undefined,
+      grade: 'A',
+      rank: index + 1,
+    }))
+    setRecordingPool(true)
+    try {
+      const response = await screenerApi.recordCandidatePool({
+        source_module: 'open-decision',
+        source_mode: 'auction_bullish',
+        name: `竞价抢筹-${tradeDate || '最新'}`,
+        candidates,
+        trade_date: tradeDate,
+      })
+      const poolId = response.data?.pool_id
+      message.success(`已写入候选池${poolId ? `（${poolId}）` : ''}：${candidates.length} 只`)
+      setSelectedBullish(new Set())
+      screenerApi.queryCandidatePool({ source_module: 'open-decision', page: 1, page_size: 50 }).catch(() => {})
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      message.error(detail || '候选池写入失败，请稍后重试')
+    } finally {
+      setRecordingPool(false)
+    }
+  }
+
+  // 加入观察：出货表选中标的 → screenerApi.addWatchlist（参 CandidatePool handleWatch:1102 模式）。
+  const handleAddBearishToWatch = async () => {
+    if (watchingCode || selectedBearish.size === 0) return
+    const picks = bearishRows.filter(row => selectedBearish.has(row.code))
+    setWatchingCode('batch')
+    try {
+      let ok = 0
+      let lastReason = ''
+      for (const row of picks) {
+        const response = await screenerApi.addWatchlist({ code: row.code, name: row.name })
+        if (response.data?.record) ok += 1
+        else if (response.data?.fallback_reason) lastReason = response.data.fallback_reason
+      }
+      if (ok > 0) message.success(`已加入自选：${ok} 只`)
+      if (lastReason) message.error(lastReason)
+      setSelectedBearish(new Set())
+      screenerApi.listWatchlist().catch(() => {})
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      message.error(detail || '加入自选失败，请稍后重试')
+    } finally {
+      setWatchingCode('')
+    }
+  }
+
+  const selectSector = (name: string) => {
+    setSelectedSector(name)
+    setAuctionSubTab('stock')
+  }
+
   return (
     <div className="od-auction-layout">
       <div className="od-auction-main">
@@ -704,7 +812,7 @@ function AuctionAnalysis({
           </div>
           <div>
             <span className="prototype-panel-note">{error || '最近刷新来自 dashboard/auction 与 signal/live'}</span>
-            <button type="button" className="btn sm ghost">刷新</button>
+            <button type="button" className="btn sm ghost" onClick={handleRefresh} disabled={refreshing} title={refreshing ? '刷新中…' : '重新拉取竞价数据'}>{refreshing ? '刷新中…' : '刷新'}</button>
           </div>
         </section>
 
@@ -719,16 +827,16 @@ function AuctionAnalysis({
             </div>
           </div>
           <div className="od-risk-actions">
-            <button type="button" className="btn sm ghost">查看意图全景</button>
-            <button type="button" className="btn sm primary">进入竞价选股</button>
+            <button type="button" className="btn sm ghost" onClick={() => navigate('/signals')} title="跳转信号总览查看全盘意图">查看意图全景</button>
+            <button type="button" className="btn sm primary" onClick={() => setAuctionSubTab('stock')} title="切到竞价选股子页签">进入竞价选股</button>
           </div>
         </section>
 
         <div className="od-subtabs">
           <SegmentTabs
             ariaLabel="竞价分析子页签"
-            activeKey="overview"
-            onChange={() => undefined}
+            activeKey={auctionSubTab}
+            onChange={setAuctionSubTab}
             items={[
               { key: 'overview', label: '竞价意图全景' },
               { key: 'stock', label: '竞价选股' },
@@ -750,10 +858,11 @@ function AuctionAnalysis({
         <div className="row r-1-1">
           <PrototypeCard title="抢筹 TOP 10" icon={<FireOutlined />} meta="勾选后加入候选池" className="od-card-up">
             <table className="tbl">
-              <thead><tr><th>#</th><th>代码</th><th>名称</th><th className="r">涨幅</th><th className="r">竞量比</th><th className="r">评分</th><th>意图</th></tr></thead>
+              <thead><tr><th>选</th><th>#</th><th>代码</th><th>名称</th><th className="r">涨幅</th><th className="r">竞量比</th><th className="r">评分</th><th>意图</th></tr></thead>
               <tbody>
                 {bullishRows.map((row, index) => (
                   <tr key={row.code}>
+                    <td><input type="checkbox" aria-label={`选择 ${row.code}`} checked={selectedBullish.has(row.code)} onChange={() => toggleBullish(row.code)} /></td>
                     <td>{index + 1}</td>
                     <td className="code">{row.code}</td>
                     <td className="nm">{row.name}</td>
@@ -763,22 +872,23 @@ function AuctionAnalysis({
                     <td><span className="tag t-up">{row.intent}</span></td>
                   </tr>
                 ))}
-                {bullishRows.length === 0 && <tr><td colSpan={7} className="prototype-panel-note">暂无抢筹数据，等待 signal/live 或 chain/candidates。</td></tr>}
+                {bullishRows.length === 0 && <tr><td colSpan={8} className="prototype-panel-note">暂无抢筹数据，等待 signal/live 或 chain/candidates。</td></tr>}
               </tbody>
             </table>
             <div className="od-selection-bar">
-              <span>已选 <b>0</b></span>
-              <button type="button" className="btn sm ghost">全选可用</button>
-              <button type="button" className="btn sm primary">加入候选池</button>
+              <span>已选 <b>{selectedBullish.size}</b></span>
+              <button type="button" className="btn sm ghost" onClick={() => setSelectedBullish(new Set(bullishRows.map(row => row.code)))} disabled={bullishRows.length === 0}>全选可用</button>
+              <button type="button" className="btn sm primary" onClick={handleAddBullishToPool} disabled={recordingPool || selectedBullish.size === 0} title={recordingPool ? '写入中…' : '把选中抢筹标的写入候选池'}>{recordingPool ? '写入中…' : '加入候选池'}</button>
             </div>
           </PrototypeCard>
 
           <PrototypeCard title="出货预警 TOP 10" icon={<SafetyCertificateOutlined />} meta="规避或反向观察" className="od-card-down">
             <table className="tbl">
-              <thead><tr><th>#</th><th>代码</th><th>名称</th><th className="r">涨幅</th><th className="r">竞量比</th><th className="r">评分</th><th>意图</th></tr></thead>
+              <thead><tr><th>选</th><th>#</th><th>代码</th><th>名称</th><th className="r">涨幅</th><th className="r">竞量比</th><th className="r">评分</th><th>意图</th></tr></thead>
               <tbody>
                 {bearishRows.map((row, index) => (
                   <tr key={row.code}>
+                    <td><input type="checkbox" aria-label={`选择 ${row.code}`} checked={selectedBearish.has(row.code)} onChange={() => toggleBearish(row.code)} /></td>
                     <td>{index + 1}</td>
                     <td className="code">{row.code}</td>
                     <td className="nm">{row.name}</td>
@@ -788,13 +898,13 @@ function AuctionAnalysis({
                     <td><span className="tag t-down">{row.intent}</span></td>
                   </tr>
                 ))}
-                {bearishRows.length === 0 && <tr><td colSpan={7} className="prototype-panel-note">暂无出货预警。</td></tr>}
+                {bearishRows.length === 0 && <tr><td colSpan={8} className="prototype-panel-note">暂无出货预警。</td></tr>}
               </tbody>
             </table>
             <div className="od-selection-bar">
-              <span>预警样本</span>
-              <button type="button" className="btn sm ghost">全选可用</button>
-              <button type="button" className="btn sm down">加入观察</button>
+              <span>已选 <b>{selectedBearish.size}</b></span>
+              <button type="button" className="btn sm ghost" onClick={() => setSelectedBearish(new Set(bearishRows.map(row => row.code)))} disabled={bearishRows.length === 0}>全选可用</button>
+              <button type="button" className="btn sm down" onClick={handleAddBearishToWatch} disabled={watchingCode !== '' || selectedBearish.size === 0} title={watchingCode ? '加入中…' : '把选中出货标的加入自选观察'}>{watchingCode ? '加入中…' : '加入观察'}</button>
             </div>
           </PrototypeCard>
         </div>
@@ -830,10 +940,10 @@ function AuctionAnalysis({
           </PrototypeCard>
         </div>
 
-        <PrototypeCard title="一字定方向" icon={<BarChartOutlined />} meta="板块竞价热度 · 点击板块查看强势股与转债" className="mt14">
+        <PrototypeCard title="一字定方向" icon={<BarChartOutlined />} meta="板块竞价热度 · 点击板块锁定并跳竞价选股" className="mt14">
           <div className="od-sector-grid">
             {sectorRows.map(row => (
-              <button type="button" className="od-sector-tile" key={row.name}>
+              <button type="button" className={`od-sector-tile${selectedSector === row.name ? ' active' : ''}`} key={row.name} onClick={() => selectSector(row.name)} title={`锁定板块「${row.name}」并跳转竞价选股`}>
                 <span>{row.name}</span>
                 <b className="up">+{row.change}%</b>
                 <small>{row.count} 只 · {row.lead}</small>
@@ -873,7 +983,7 @@ function AuctionAnalysis({
                 <span>{row.count}只 · 领涨: {row.lead}</span>
               </div>
               <b className="up">+{row.change}%</b>
-              <button type="button" className="btn sm primary">选股-&gt;</button>
+              <button type="button" className="btn sm primary" onClick={() => selectSector(row.name)} title={`锁定板块「${row.name}」并跳转竞价选股`}>选股-&gt;</button>
             </div>
           ))}
           {sectorRows.length === 0 && <div className="prototype-panel-note">暂无板块共振详情。</div>}
@@ -895,15 +1005,17 @@ function AuctionAnalysis({
             {candidateRows.slice(0, 5).map((row, index) => <span className={index < 2 ? 'chip active' : 'chip'} key={row.code}>{row.code} {row.name}</span>)}
             {candidateRows.length === 0 && <span className="prototype-panel-note">暂无候选。</span>}
           </div>
-          <button type="button" className="btn sm ghost mt14">查看全部候选池 -&gt;</button>
+          <button type="button" className="btn sm ghost mt14" onClick={() => navigate('/open-decision/candidates')} title="跳转候选池页签查看全部">查看全部候选池 -&gt;</button>
         </PrototypeCard>
 
         <PrototypeCard title="已锁定板块" icon={<CheckCircleOutlined />}>
           <div className="chips">
-            {sectorRows.slice(0, 2).map(row => <span className="chip active" key={row.name}>{row.name} ({row.count})</span>)}
-            {sectorRows.length === 0 && <span className="prototype-panel-note">暂无锁定板块。</span>}
+            {selectedSector
+              ? <span className="chip active">{selectedSector}</span>
+              : sectorRows.slice(0, 2).map(row => <span className="chip" key={row.name}>{row.name} ({row.count})</span>)}
+            {!selectedSector && sectorRows.length === 0 && <span className="prototype-panel-note">暂无锁定板块。</span>}
           </div>
-          <button type="button" className="btn primary mt14" style={{ width: '100%', justifyContent: 'center' }}>锁定板块 -&gt; 信号扫描</button>
+          <button type="button" className="btn primary mt14" style={{ width: '100%', justifyContent: 'center' }} onClick={() => navigate('/signals')} disabled={!selectedSector} title={selectedSector ? `带着已锁定板块「${selectedSector}」跳转信号扫描` : '先点上方板块锁定'}>锁定板块 -&gt; 信号扫描</button>
         </PrototypeCard>
 
         <PrototypeCard title="工作流引导" icon={<CheckCircleOutlined />}>

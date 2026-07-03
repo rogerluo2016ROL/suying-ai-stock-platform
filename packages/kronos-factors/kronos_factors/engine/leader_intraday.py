@@ -368,8 +368,9 @@ def get_sector_index(db, industry, trade_date, code=None, concept_code=None):
 
 
 def get_shanghai_index(db, trade_date):
+    # PG index_daily.code stores bare '000001'; inline literal isn't translated by pg_adapter.
     row = db.execute(
-        "SELECT pct_chg FROM index_daily WHERE ts_code='000001.SH' AND trade_date=?", (trade_date,)
+        "SELECT pct_chg FROM index_daily WHERE ts_code='000001' AND trade_date=?", (trade_date,)
     ).fetchone()
     return row["pct_chg"] if row else 0
 
