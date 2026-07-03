@@ -2134,3 +2134,50 @@ $ curl -s "http://localhost:8001/api/v1/screener/chain/candidates?filter=high_pr
 **质量门**: Unit ✅ 14 passed / schema tests ✅ 2 passed / py_compile ✅ / real DB smoke ✅ / Final SIT 证据完整。
 
 **下一步**: 等待 final code-review 复核；通过后可作为本轮实现完成。
+
+---
+
+## supply-chain-evidence-chain 后端落地 — 2026-07-03
+
+**状态**: 已完成（2 commits）
+**Skills**: agf-running-sit-tests
+
+**任务**: 落地 supply-chain-evidence-chain 特性的后端层（REST + migration + tools + kronos 引擎 wiring），对应 PRD `docs/prd/supply-chain-evidence-chain-*-2026-07-03.md`。
+
+**改动文件**（2 commits，per-file git add，未触碰 frontend/progress/其他角色文件）:
+
+Commit `a07388fc` — feat(screener): supply-chain evidence pipeline REST + migration 023
+- `backend/alembic/versions/023_supply_chain_evidence_pipeline.py`（+188）：6 张证据表（source_catalog / raw_documents / extracted_facts / business_tag_mapping / evidence_freshness / gap_tracking）+ CHECK 约束 + 幂等 CREATE IF NOT EXISTS，down_revision=022
+- `services/screener-service/app/routers/screener.py`（+443）：business_tag_mapping 候选查询、证据 CRUD、freshness/gap 端点（参数化查询 + `_pg_table_exists` 防御性 join）
+- `services/screener-service/tests/test_chain_api.py`（+84）
+- `services/screener-service/tests/test_supply_chain_v2_migration_contract.py`（+42）
+
+Commit `a3323b44` — feat(supply-chain): evidence pipeline tools + kronos mapping_id join
+- `tools/supply_chain_evidence_pipeline.py`（+1563）：证据源元数据 / 文档摄入 / 事实抽取 / 新鲜度 / 阶段转换 CLI
+- `tools/run_18chains_incremental_refresh.py`（+339）：18 链增量刷新 runner
+- `packages/kronos-factors/kronos_factors/engine/supply_chain.py`（+14/-3）：join `business_tag_mapping` → `mapping_id`，`to_regclass` 守护 fresh DB（无 migration 023 时降级）
+- `tools/tests/test_supply_chain_evidence_pipeline.py`（+176）
+- `tools/tests/test_18chains_incremental_refresh.py`（+80）
+
+**SIT 证据**:
+- [x] AC-1 ✅ Python 入口语法检查全过
+  - 命令: `python3 -m py_compile services/screener-service/app/routers/screener.py backend/alembic/versions/023_supply_chain_evidence_pipeline.py tools/supply_chain_evidence_pipeline.py tools/run_18chains_incremental_refresh.py packages/kronos-factors/kronos_factors/engine/supply_chain.py`
+  - 输出: 退出码 0，全部 SYNTAX OK
+- [x] AC-2 ✅ alembic migration 023 已应用（head=023）
+  - 命令: `cd backend && alembic current`
+  - 输出: `023 (head)`
+- [x] AC-3 ✅ screener REST 测试全绿
+  - 命令: `cd services/screener-service && pytest tests/test_chain_api.py tests/test_supply_chain_v2_migration_contract.py -q`
+  - 输出: `53 passed, 1 warning in 1.10s`
+- [x] AC-4 ✅ tools 单测全绿
+  - 命令: `cd tools && pytest tests/test_supply_chain_evidence_pipeline.py tests/test_18chains_incremental_refresh.py -q`
+  - 输出: `18 passed in 0.04s`
+- [x] AC-5 ✅ kronos 引擎回归全绿（mapping_id join 不破坏既有 chain_deconstruct）
+  - 命令: `cd packages/kronos-factors && pytest tests/test_chain_deconstruct.py -q`
+  - 输出: `23 passed in 0.31s`
+- [x] AC-6 ✅ lint 全过（pre-commit 链调 roles SSOT drift / JSON / YAML）
+  - 输出: `✅ Lint 全过`（两个 commit 均通过）
+
+**质量门**: py_compile ✅ / alembic head=023 ✅ / pytest 94 passed（53 screener + 18 tools + 23 kronos）✅ / lint ✅ / per-file add 零越界 ✅
+
+**下一步**: 等待 code-reviewer 复核 2 commits；前端 EvidenceChainPanel/StageTimelinePanel（frontend-dev）+ PRD/UAT（PL/qa）独立提交。
