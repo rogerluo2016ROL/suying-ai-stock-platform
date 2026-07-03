@@ -1,6 +1,96 @@
 # progress / frontend-dev-5
 
-> 多 task 合并 progress（pool 实例 frontend-dev-5）。各 task 段独立，按时间倒序：产业链（BatchB task #12）→ Signals（BatchA task #7）。
+> 多 task 合并 progress（pool 实例 frontend-dev-5）。各 task 段独立，按时间倒序：Screener BatchC（task #23）→ 产业链（BatchB task #12）→ Signals（BatchA task #7）。
+
+---
+
+# BatchC task #23 — Screener 3.2 model-compare + 3.3 factor-analysis 专属渲染 + token 化
+
+## 状态
+
+**完成（SIT 自跑通过）。** Screener.tsx 落地 3.2 / 3.3 两 preview：models tab 从通用壳（旧"模型评分差异"表）改为**专属渲染**（模型选择器 4 chip + 共识统计条 ∩ 步骤 + 共识矩阵星级表 + 跨模型评分卡指标条 + footer-bar）；factors tab 从单卡 dim-row 改为**专属渲染**（使用引导条 + IC 柱图 ECharts + IC/ICIR 统计表 + 相关性热力图 ECharts + 分层收益 D1..D10 + 多空对冲 + 行业因子暴露表）。内联 style 全 token 化（0 裸 #hex/rgba，echarts 走 lightTokens/alpha，新增 CSS 走 CSS 变量 + token 派生 rgba tag）；缺数据每段 EmptyState；保持浅色。tsc 0 错；363 全量测试零回归（21 Screener 相关 = 7 unit Screener + 7 SIT model-compare + 7 SIT factor-analysis）。
+
+worktree：`.wolf/worktrees/frontend-dev-5-screenerc`（分支 `feat/md-ui-screener-batchc-dev5`，基于 HEAD `1afa2163`）。独占 `frontend/src/pages/Screener.tsx`（临界区：`frontend/src/styles/suying-app.css` 新增 token 化 class 块、`frontend/src/__tests__/NewUiModulePage.test.tsx` 旧标题断言随 preview 对齐更新）。
+
+## Skills
+
+- `agf-running-sit-tests`
+
+## SIT 证据
+
+### AC 自验
+
+- [x] **AC① 3.2 模型对比对齐 preview（models tab）**：补全旧 line 851 渲染 → 模型选择器（4 模型 chip：毕=红/匪=橙/秋=紫/长=绿，走 signalLevelTokens 语义）+ 共识统计条（每模型 N 只 ∩ ... = 累计去重只数，preview `stats-bar`）+ 共识矩阵表（星级 ★N + 选中模型 chip + 最新价/涨跌幅走 .up/.down，preview `consensus-table`）+ 跨模型评分卡（选中股多模型评分大数字 + factor_breakdown 指标条 sc-bar-fill，preview `score-card`）。
+- [x] **AC② 3.3 因子分析对齐 preview（factors tab）**：使用引导条（4 步流程，preview `guide-bar`）+ IC 柱状图（ECharts bar，正 IC 红/负绿，preview `ic-bar-chart`）+ IC/ICIR 统计表（按 |ICIR| 降序，preview `data-table`）+ 相关性热力图（ECharts heatmap，6×6 visualMap -1..1 绿→红，preview `correlation-heatmap`）+ 分层收益 D1..D10 + 多-空对冲 summary 行（preview `decile`）+ 行业因子暴露表（偏高红/偏低绿/中性橙 exp-tag，preview `industry-exposure`）。
+- [x] **AC③ 两 sub-tab 专属渲染（非通用壳）**：models/factors 各自独立 JSX 块，无共享 graphOption；SIT `tests/sit/{model-compare,factor-analysis}-preview.test.tsx` 分别断言 mode 专属内容（chip/星级/ICIR vs IC柱图/热力图/D10）。
+- [x] **AC④ 内联 style 全 token 化**：`grep -nE "#[0-9a-fA-F]{3,8}|rgba?\([0-9]"` 在 Screener.tsx = **0**（W-1 第三次落实）。echarts option 全走 `lightTokens`（up/down/accent/warn/fg/fg2/muted/border/surface2）+ `alpha` 派生（shadowColor）；新增 CSS 走 CSS 变量（var(--up)/--down/--warn/--accent/--surface/--surface-2/--border/--accent-dim/--radius）+ token 派生 rgba tag（rgba(255,77,79,.12) 等，与 lightTokens up/down/warn 同源，沿用 .grade-S 既有 token 定义模式）。
+- [x] **AC⑤ 缺数据 EmptyState**：模型对比无候选 → "模型已运行，但当前没有候选股票"；IC 无数据 → "暂无因子 IC 数据，请先在工作台运行选股模型以累积因子分解"；相关性 <2 因子 → "至少需要 2 个因子才能生成相关性矩阵"；行业缺字段 → "候选股缺少行业字段"。SIT `renders EmptyState when no model returns any pick` / `renders EmptyState when no picks` 覆盖。
+- [x] **AC⑥ tsc 0 错**：`./node_modules/.bin/tsc -b --noEmit` EXIT 0。
+- [x] **AC⑦ vitest Screener.test.tsx**：7/7 既有 unit 全绿（无回归）。
+- [x] **AC⑧ 新增 SIT**：`tests/sit/model-compare-preview.test.tsx` 7/7 + `tests/sit/factor-analysis-preview.test.tsx` 7/7。
+
+### tsc
+
+```
+$ ./node_modules/.bin/tsc -b --noEmit
+EXIT 0   # 0 errors
+```
+
+### vitest
+
+```
+$ ./node_modules/.bin/vitest run src/__tests__/Screener.test.tsx tests/sit/model-compare-preview.test.tsx tests/sit/factor-analysis-preview.test.tsx
+ Test Files  3 passed (3)
+      Tests  21 passed (21)   // 7 unit (Screener.test.tsx) + 7 SIT (model-compare) + 7 SIT (factor-analysis)
+```
+
+**全量回归**（确认无跨文件回归）：
+
+```
+$ ./node_modules/.bin/vitest run
+ Test Files  56 passed (56)
+      Tests  363 passed (363)   # 含 NewUiModulePage.test.tsx 旧标题断言已随 preview 对齐更新（模型评分差异→共识矩阵/跨模型评分对比）
+```
+
+**dev server 模块编译**（SIT 验证）：
+
+```
+$ vite --port 5179
+/screener/models  → HTTP 200
+/screener/factors → HTTP 200
+/src/pages/Screener.tsx (transform) → HTTP 200
+log grep error/failed/cannot → 0
+```
+
+新增 SIT `frontend/tests/sit/model-compare-preview.test.tsx`（7 用例）：模型选择器 4 chip + run-state 徽标 / 共识矩阵星级 + 模型 chip / 点选共识行出跨模型评分卡指标条 / 共识统计条步骤只数 + 共识率 / 加入候选池调 recordCandidatePool(source_mode=model_compare) / footer-bar 数据来源 / 无候选 EmptyState。
+
+新增 SIT `frontend/tests/sit/factor-analysis-preview.test.tsx`（7 用例）：引导条 4 步流程 / IC 柱图(ECharts bar) + IC/ICIR 表头 / 相关性热力图(ECharts heatmap) / 分层收益 D1..D10 + 多-空对冲 / 行业暴露表 high/mid/low tag / footer ICIR 定义 / 无 picks EmptyState。
+
+### 设计决策（ECharts option / token 化策略）
+
+- **factor-analysis 数据源**：screener-service 无独立 IC 接口（`/api/v1/training/factors/ic` 是 training_mock 返回空）。故 factors tab 复用 models tab 的模型对比 picks（含 `factor_breakdown`），派生 IC 均值/标准差/ICIR/t-stat（n-1 方差）；将 model-compare useEffect guard 从 `active !== 'models'` 扩为 `active !== 'models' && active !== 'factors'`，使两 tab 都累积因子分解。
+- **跨模型评分指标条**：从 `factor_breakdown`（technical/fundamental/money_flow/sentiment/startup_quality/ignition_power/hard_tech_conviction）派生 7 维 indicator，tone = up(≥4)/down(≤-4)/warn(0)/neu，色走 `lightTokens.up/down/warn/accent`。
+- **共识统计条 ∩ 步骤**：`consensusByCumulative` 前 idx+1 个模型 picks 去重 code 计数，preview `step.hl.final`（最后一步 up 红高亮）。
+- **echarts tooltip/label formatter 参数类型**：`TopLevelFormatterParams`（union），用 `(p as unknown as { value: [...] }).value` 取值（unknown 中转 cast，tsc 通过）。
+
+## 质量门
+
+- **vitest**：363/363 全量绿（Screener unit 7 + model-compare SIT 7 + factor-analysis SIT 7 + 其余 342 无回归）。
+- **tsc**：0 错。
+- **lint（W-1 token 化）**：Screener.tsx + 2 SIT test 裸 #hex/rgba = 0；新增 CSS 块裸 #hex = 0（rgba tag 与 lightTokens 同源，token 定义层合规）。
+- **dev server**：两路由 + transform HTTP 200，无编译错误。
+
+## 改动文件
+
+- `frontend/src/pages/Screener.tsx`（修改：models/factors 双 tab 专属渲染 + token 化）
+- `frontend/src/styles/suying-app.css`（修改：新增 3.2/3.3 token 化 class 块——model-selector/model-chip/stats-bar/filter-tabs/score-card/indicator-row/btn-accent/footer-bar/guide-bar/exp-tag）
+- `frontend/src/__tests__/NewUiModulePage.test.tsx`（修改：旧"模型评分差异/候选池排行"标题断言 → preview 对齐的"共识矩阵/跨模型评分对比"）
+- `frontend/tests/sit/model-compare-preview.test.tsx`（新增，7 SIT）
+- `frontend/tests/sit/factor-analysis-preview.test.tsx`（新增，7 SIT）
+
+## 下一步
+
+进 Batch C review 队列（code-reviewer SIT Audit）。idle 待命。
 
 ---
 

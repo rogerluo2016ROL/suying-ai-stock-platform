@@ -420,6 +420,90 @@ a{color:var(--accent);text-decoration:none}
 .risk-check-card .rc-detail{font-size:11.5px;color:var(--fg-2);line-height:1.6}
 .risk-check-card .rc-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .risk-check-card .rc-tags .chip.sm{font-size:10.5px;padding:2px 8px;border-radius:8px}
+
+/* ===== 3.2 model-compare：模型选择器 / 共识统计 / 矩阵 / 评分卡 ===== */
+.model-selector{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px}
+.model-selector .check{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--fg-2);cursor:default}
+.model-selector .check input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px}
+.model-selector .run-state{margin-left:auto;padding:6px 18px;border-radius:var(--radius);font-size:11px;font-weight:600}
+/* 模型简称 chip（毕=红/匪=橙/秋=紫/长=绿，preview 4 档色，走 A 股语义 token） */
+.model-chip{display:inline-block;min-width:18px;text-align:center;padding:1px 6px;border-radius:4px;margin-right:3px;
+  font-size:10px;font-weight:700;font-family:var(--font-mono)}
+.model-chip.bi{background:rgba(255,77,79,.12);color:var(--up)}
+.model-chip.fe{background:rgba(245,166,35,.14);color:var(--warn)}
+.model-chip.qs{background:rgba(114,46,209,.14);color:var(--neu)}
+.model-chip.cx{background:rgba(46,194,126,.14);color:var(--down)}
+.model-chip.sm{margin-right:0;padding:0 5px}
+
+/* 共识统计条 ∩ 步骤 */
+.stats-bar{padding:12px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);
+  margin-bottom:14px;font-size:12px;color:var(--fg-2);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.stats-bar .stats-group{display:inline-flex;align-items:center;gap:6px}
+.stats-bar .step{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;font-size:11px}
+.stats-bar .step .count{font-family:var(--font-mono);font-weight:650;color:var(--fg)}
+.stats-bar .step.hl{border-color:var(--accent);background:var(--accent-dim)}
+.stats-bar .step.hl .count{color:var(--accent)}
+.stats-bar .step.hl.final{border-color:var(--up);background:rgba(255,77,79,.08)}
+.stats-bar .step.hl.final .count{color:var(--up)}
+.stats-bar .sep-icon{color:var(--accent);font-size:14px;font-weight:700}
+.stats-bar .rate{margin-left:auto;font-size:11px;color:var(--muted)}
+.stats-bar .rate .val{font-weight:650;font-family:var(--font-mono)}
+
+/* 共识矩阵筛选 tab */
+.filter-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 12px;margin-bottom:4px}
+.filter-tab{padding:7px 14px;font-size:12px;color:var(--fg-2);cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:.12s}
+.filter-tab:hover{color:var(--fg)}
+.filter-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+
+/* 共识矩阵星级（A 股红涨，warn 橙表正向共识度） */
+.tbl td.stars,.tbl th.stars{color:var(--warn);letter-spacing:1px;font-size:12px;text-align:center}
+.tbl-scroll{overflow-x:auto}
+
+/* 跨模型评分卡 */
+.score-panel{display:flex;flex-direction:column;gap:0}
+.score-panel .stock-header{padding:12px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px}
+.score-panel .stock-header .stk-code{font-size:15px;font-weight:650;color:var(--fg)}
+.score-panel .stock-header .stk-name{font-size:12.5px;color:var(--fg-2)}
+.score-panel .stock-header .stk-price{font-size:18px;font-weight:720;margin-left:auto}
+.score-card{padding:11px 16px;border-bottom:1px solid var(--border)}
+.score-card:last-of-type{border-bottom:none}
+.score-card .sc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.score-card .sc-model{font-size:12px;font-weight:650;color:var(--fg);display:inline-flex;align-items:center;gap:4px}
+.score-card .sc-score{font-family:var(--font-mono);font-size:24px;font-weight:720;color:var(--accent)}
+.indicator-row{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:10.5px}
+.indicator-row .sc-lbl{width:66px;text-align:right;color:var(--fg-2);flex-shrink:0}
+.indicator-row .sc-bar{flex:1;height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.indicator-row .sc-bar-fill{height:100%;border-radius:3px;transition:width .3s}
+.indicator-row .sc-val{width:30px;font-family:var(--font-mono);font-size:10px;color:var(--fg-2);text-align:right}
+
+/* 通用 accent 按钮 + 满宽块 */
+.btn-accent{padding:8px 20px;border-radius:var(--radius);background:var(--accent);color:var(--surface);
+  border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-sans);transition:opacity .12s}
+.btn-accent:hover{opacity:.85}
+.btn-accent.btn-block{display:block;width:calc(100% - 32px);margin:12px 16px}
+
+/* footer-bar（preview 底部说明条） */
+.footer-bar{display:flex;align-items:center;gap:18px;margin-top:16px;padding-top:12px;
+  border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+.footer-bar .sep{width:1px;height:12px;background:var(--border)}
+
+/* ===== 3.3 factor-analysis：引导条 + 暴露 tag ===== */
+.guide-bar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;font-size:11px;color:var(--fg-2);
+  flex-wrap:wrap}
+.guide-bar .guide-lead{font-weight:600}
+.guide-bar .arrow.muted{color:var(--muted)}
+/* 行业暴露 tag（偏高=红/偏低=绿/中性=橙，A 股语义） */
+.exp-tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-family:var(--font-mono);font-weight:600}
+.exp-tag.high{background:rgba(255,77,79,.12);color:var(--up)}
+.exp-tag.low{background:rgba(46,194,126,.12);color:var(--down)}
+.exp-tag.mid{background:rgba(245,166,35,.14);color:var(--warn)}
+.tbl td.strong,.tbl .neu.strong{font-weight:700}
+.tbl .c{text-align:center}
 /* 信号详情 6.0：触发队列筛选条 */
 .signal-queue-filter{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .sector-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}

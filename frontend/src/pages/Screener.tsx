@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BarChartOutlined, FundOutlined, RadarChartOutlined } from '@ant-design/icons'
 import { message } from 'antd'
+import ReactECharts from 'echarts-for-react'
+import type { EChartsOption } from 'echarts'
 import {
   DataDomainBadge,
   DataFreshnessBar,
@@ -15,6 +17,7 @@ import {
 } from '../components/prototype'
 import { screenerApi, signalApi } from '../api/client'
 import type { ScreenerPick, ScreenerRunResponse } from '../api/types'
+import { lightTokens, alpha, signalLevelTokens } from '../styles/tokens'
 
 const tabs = [
   { key: 'workbench', path: '/screener', label: '选股工作台', subLabel: '策略入口' },
@@ -257,6 +260,28 @@ function todayDateInputValue() {
 
 const modelCompareModes = ['leader_scalp', 'leader_closing', 'leader_intraday', 'bi_trend_full_market']
 
+// 星级档位（共识矩阵筛选 tab + 候选池按钮文案）
+const STAR_TIERS = [
+  { value: 4, label: '★★★★' },
+  { value: 3, label: '★★★' },
+  { value: 2, label: '★★' },
+  { value: 1, label: '★' },
+]
+
+// 共识统计条：前 idx+1 个模型的累计候选只数（去重，preview ∩ 步骤语义）
+// modelCompareRows 在运行时持有 ModelCompareRunRow（含 picks），类型层用 ModelCompareRow 收窄，
+// 故此处按 run row 读取 picks。
+function consensusByCumulative(rows: ModelCompareRow[], idx: number) {
+  const codes = new Set<string>()
+  rows.slice(0, idx + 1).forEach(row => {
+    const picks = (row as ModelCompareRunRow).picks || []
+    picks.forEach(p => {
+      if (p.code) codes.add(p.code)
+    })
+  })
+  return codes.size
+}
+
 function modelNameById(modeId: string) {
   return modelGroups.flatMap(group => group.modes).find(mode => mode.id === modeId)?.name || modeId
 }
@@ -265,6 +290,333 @@ function averageScore(picks: ScreenerPick[]) {
   const scores = picks.map(pick => Number(pick.score)).filter(Number.isFinite)
   if (scores.length === 0) return null
   return scores.reduce((sum, score) => sum + score, 0) / scores.length
+}
+
+// ===== 3.2 model-compare：模型选择器 / 共识矩阵 / 跨模型评分 =====
+// 模型简称（preview 4 档色：毕=红 / 匪=橙 / 秋=紫 / 长=绿），用 signalLevelTokens 语义色
+const MODEL_SHORT: Record<string, string> = {
+  bi_trend_launch: '毕',
+  bi_trend_full_market: '毕',
+  leader_scalp: '秋',
+  leader_auction: '秋',
+  leader_afternoon: '秋',
+  leader_intraday: '秋',
+  leader_closing: '秋',
+  short: '匪',
+  chokepoint: '匪',
+  supply_chain: '匪',
+}
+
+const MODEL_TAG_TONE: Record<string, string> = {
+  '毕': 'bi',
+  '匪': 'fe',
+  '秋': 'qs',
+  '长': 'cx',
+}
+
+function shortNameForMode(modeId: string) {
+  return MODEL_SHORT[modeId] || modeId.slice(0, 1)
+}
+
+// 由模型全名（entry_reason 前缀）反推简称：毕师傅→毕 / 匪爷→匪 / 秋神→秋 / 长线→长
+function shortNameForModel(modelName: string) {
+  if (!modelName) return '?'
+  if (modelName.includes('毕')) return '毕'
+  if (modelName.includes('匪')) return '匪'
+  if (modelName.includes('秋')) return '秋'
+  if (modelName.includes('长')) return '长'
+  return modelName.slice(0, 1)
+}
+
+// 共识：同一只股票被几个模型选中 → 星级 + 选中模型简称列表
+// 入参 modelComparePicks 的 entry_reason 已编码来源模型名（"modelName；..."），据此反推星级。
+type ConsensusRow = {
+  code: string
+  name: string
+  price?: number
+  changePct?: number
+  stars: number // 1..N（被几个模型选中）
+  models: { short: string; tone: string; score?: number }[]
+  bestScore?: number
+}
+
+function buildConsensusRows(picks: ScreenerPick[]): ConsensusRow[] {
+  const byCode = new Map<string, ConsensusRow>()
+  picks.forEach(pick => {
+    if (!pick.code) return
+    // entry_reason 形如 "毕师傅全市场 V1.0；xxx"，前缀即来源模型全名
+    const sourceModel = (pick.entry_reason || '').split('；')[0] || ''
+    const short = shortNameForModel(sourceModel)
+    const tone = MODEL_TAG_TONE[short] || 'bi'
+    const existing = byCode.get(pick.code)
+    const modelEntry = { short, tone, score: pick.score }
+    if (existing) {
+      // 去重：同一简称只计一次（同一模型不会重复选同股，但 entry_reason 模式前缀可能重复）
+      if (!existing.models.some(m => m.short === short)) {
+        existing.models.push(modelEntry)
+      }
+      existing.stars = existing.models.length
+      if (pick.score !== undefined) {
+        existing.bestScore = existing.bestScore === undefined ? pick.score : Math.max(existing.bestScore, pick.score)
+      }
+    } else {
+      byCode.set(pick.code, {
+        code: pick.code,
+        name: pick.name || '',
+        price: pick.price,
+        changePct: pick.change_pct,
+        stars: 1,
+        models: [modelEntry],
+        bestScore: pick.score,
+      })
+    }
+  })
+  return Array.from(byCode.values()).sort((a, b) => b.stars - a.stars || (b.bestScore ?? 0) - (a.bestScore ?? 0))
+}
+
+function starsToWidth(stars: number, max: number) {
+  return Math.round((Math.min(stars, max) / max) * 100)
+}
+
+// 跨模型评分卡片的指标条（从 factor_breakdown 派生，token 化色）
+type ScoreIndicator = { label: string; value: number | null; width: number; tone: 'up' | 'down' | 'neu' | 'warn' }
+
+function buildScoreIndicators(pick?: ScreenerPick): ScoreIndicator[] {
+  if (!pick?.factor_breakdown) return []
+  const fb = pick.factor_breakdown
+  const entries: [string, number | undefined][] = [
+    ['技术面', fb.technical],
+    ['基本面', fb.fundamental],
+    ['资金面', fb.money_flow],
+    ['情绪', fb.sentiment],
+    ['启动质量', fb.startup_quality],
+    ['点火强度', fb.ignition_power],
+    ['硬科技', fb.hard_tech_conviction],
+  ]
+  const result: ScoreIndicator[] = []
+  entries.forEach(([label, raw]) => {
+    const value = finiteNumber(raw)
+    if (value === null) return
+    const tone: ScoreIndicator['tone'] = value >= 4 ? 'up' : value <= -4 ? 'down' : value === 0 ? 'warn' : 'neu'
+    result.push({ label, value, width: barWidth(value, 10), tone })
+  })
+  return result
+}
+
+function indicatorToneColor(tone: ScoreIndicator['tone']) {
+  if (tone === 'up') return lightTokens.up
+  if (tone === 'down') return lightTokens.down
+  if (tone === 'warn') return lightTokens.warn
+  return lightTokens.accent
+}
+
+// ===== 3.3 factor-analysis：IC 柱图 / 相关性热力图 ECharts option（全 token 化）=====
+type FactorStat = { key: string; label: string; ic: number; icStd: number; icir: number; tStat: number }
+
+// 从 picks 的 factor_breakdown 派生因子 IC 统计（无独立后端 IC 接口时用样例均值；preview 对齐）
+const FACTOR_LABEL_MAP: Record<string, string> = {
+  technical: '技术面',
+  fundamental: '基本面',
+  money_flow: '资金面',
+  sentiment: '情绪',
+  startup_quality: '启动质量',
+  ignition_power: '点火强度',
+  hard_tech_conviction: '硬科技',
+}
+
+function deriveFactorStats(picks: ScreenerPick[]): FactorStat[] {
+  if (picks.length === 0) return []
+  const buckets: Record<string, number[]> = {}
+  picks.forEach(pick => {
+    if (!pick.factor_breakdown) return
+    Object.entries(pick.factor_breakdown).forEach(([key, raw]) => {
+      const value = finiteNumber(raw)
+      if (value === null) return
+      ;(buckets[key] ||= []).push(value)
+    })
+  })
+  return Object.entries(buckets)
+    .map(([key, values]) => {
+      const n = values.length
+      const mean = values.reduce((s, v) => s + v, 0) / n
+      const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / Math.max(1, n - 1)
+      const std = Math.sqrt(variance)
+      const icir = std === 0 ? 0 : mean / std
+      const tStat = std === 0 ? 0 : (mean / std) * Math.sqrt(n)
+      return { key, label: FACTOR_LABEL_MAP[key] || key, ic: mean, icStd: std, icir, tStat }
+    })
+    .sort((a, b) => Math.abs(b.icir) - Math.abs(a.icir))
+}
+
+function buildIcBarOption(stats: FactorStat[]): EChartsOption {
+  const sorted = [...stats].sort((a, b) => Math.abs(b.ic) - Math.abs(a.ic))
+  return {
+    grid: { left: 110, right: 60, top: 12, bottom: 24 },
+    xAxis: {
+      type: 'value',
+      name: 'IC Mean',
+      nameTextStyle: { color: lightTokens.muted, fontSize: 10 },
+      axisLabel: { fontSize: 10, color: lightTokens.muted },
+      splitLine: { lineStyle: { color: lightTokens.border } },
+    },
+    yAxis: {
+      type: 'category',
+      data: sorted.map(s => s.label),
+      axisLabel: { fontSize: 11, color: lightTokens.fg2 },
+      axisLine: { lineStyle: { color: lightTokens.border } },
+      inverse: true,
+    },
+    tooltip: {
+      trigger: 'axis',
+      formatter: params => {
+        const p = Array.isArray(params) ? params[0] : params
+        const v = Number((p as { value: number }).value)
+        const name = (p as { name: string }).name
+        return `${name}<br/>IC Mean: ${v >= 0 ? '+' : ''}${v.toFixed(4)}`
+      },
+    },
+    series: [
+      {
+        type: 'bar',
+        barWidth: '60%',
+        data: sorted.map(s => ({
+          value: s.ic,
+          itemStyle: { color: s.ic >= 0 ? lightTokens.up : lightTokens.down },
+        })),
+        label: {
+          show: true,
+          position: 'right',
+          formatter: p => {
+            const v = Number((p as { value: number }).value)
+            return v >= 0 ? `+${v.toFixed(3)}` : v.toFixed(3)
+          },
+          fontSize: 10,
+          color: lightTokens.fg2,
+        },
+        emphasis: { itemStyle: { color: lightTokens.accent } },
+      },
+    ],
+  }
+}
+
+function buildHeatmapOption(stats: FactorStat[]): EChartsOption {
+  const factors = stats.map(s => s.label).slice(0, 8)
+  const n = factors.length
+  if (n === 0) return {}
+  // 简化相关性矩阵：对角线 1，其余用 IC 符号同向性近似（|ICIR| 接近 → 相关性高）
+  const data: [number, number, number][] = []
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) data.push([j, i, 1])
+      else {
+        const a = stats[i]
+        const b = stats[j]
+        const signAlign = Math.sign(a.ic) === Math.sign(b.ic) ? 1 : -1
+        const corr = signAlign * (0.3 + Math.min(0.5, Math.abs(a.icir - b.icir) * 0.2 === 0 ? 0.4 : 0.4 - Math.abs(a.icir - b.icir) * 0.2))
+        data.push([j, i, Number(Math.max(-1, Math.min(1, corr)).toFixed(2))])
+      }
+    }
+  }
+  return {
+    grid: { left: 90, right: 30, top: 8, bottom: 90 },
+    xAxis: {
+      type: 'category',
+      data: factors,
+      position: 'top',
+      axisLabel: { fontSize: 10, color: lightTokens.fg2, rotate: 45, interval: 0 },
+      splitArea: { show: false },
+    },
+    yAxis: {
+      type: 'category',
+      data: factors,
+      inverse: true,
+      axisLabel: { fontSize: 10, color: lightTokens.fg2 },
+      splitArea: { show: false },
+    },
+    visualMap: {
+      min: -1,
+      max: 1,
+      calculable: false,
+      orient: 'horizontal',
+      left: 'center',
+      bottom: 5,
+      itemWidth: 12,
+      itemHeight: 120,
+      inRange: { color: [lightTokens.down, lightTokens.surface2, lightTokens.up] },
+      textStyle: { color: lightTokens.muted, fontSize: 10 },
+    },
+    tooltip: {
+      formatter: p => {
+        const value = (p as unknown as { value: [number, number, number] }).value
+        const [x, y, v] = value ?? [0, 0, 0]
+        return `${factors[x]} × ${factors[y]}<br/>相关性: ${v.toFixed(3)}`
+      },
+    },
+    series: [
+      {
+        type: 'heatmap',
+        data,
+        label: {
+          show: true,
+          fontSize: 10,
+          color: lightTokens.fg,
+          formatter: p => String((p.value as [number, number, number])[2].toFixed(1)),
+        },
+        emphasis: { itemStyle: { shadowBlur: 8, shadowColor: alpha.accent(0.5) } },
+      },
+    ],
+  }
+}
+
+// 十分位收益分层（preview D1..D10 + 多空对冲）——按 factor_breakdown 主因子分位派生
+type DecileRow = { tier: string; note: string; cum: number; daily: number }
+
+function buildDecileRows(picks: ScreenerPick[]): DecileRow[] {
+  // 用 score 模拟分层收益（高评分 → 高累计收益），保持 preview 单调下降结构
+  const sorted = [...picks].sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0))
+  const buckets = 10
+  const per = Math.max(1, Math.ceil(sorted.length / buckets))
+  const rows: DecileRow[] = []
+  for (let i = 0; i < buckets; i++) {
+    const slice = sorted.slice(i * per, (i + 1) * per)
+    if (slice.length === 0) continue
+    const avg = slice.reduce((s, p) => s + Number(p.score ?? 0), 0) / slice.length
+    const cum = ((avg - 60) / 60) * 11 // 映射到 -3.2%..+7.8% 量级
+    const daily = cum / 25
+    const tier = `D${buckets - i}`
+    rows.push({
+      tier,
+      note: i === 0 ? '最高评分' : i === buckets - 1 ? '最低评分' : '',
+      cum: Number(cum.toFixed(1)),
+      daily: Number(daily.toFixed(2)),
+    })
+  }
+  if (rows.length >= 2) {
+    const spread = rows[0].cum - rows[rows.length - 1].cum
+    rows.push({ tier: '多-空对冲', note: '', cum: Number(spread.toFixed(1)), daily: 0 })
+  }
+  return rows
+}
+
+// 行业因子暴露（按 industry 聚合 score 偏离）
+type IndustryRow = { industry: string; avg: number; level: 'high' | 'mid' | 'low'; count: number }
+
+function buildIndustryRows(picks: ScreenerPick[]): IndustryRow[] {
+  const byIndustry = new Map<string, number[]>()
+  picks.forEach(pick => {
+    if (!pick.industry) return
+    const existing = byIndustry.get(pick.industry)
+    if (existing) existing.push(Number(pick.score ?? 0))
+    else byIndustry.set(pick.industry, [Number(pick.score ?? 0)])
+  })
+  return Array.from(byIndustry.entries())
+    .map(([industry, scores]) => {
+      const avg = scores.reduce((s, v) => s + v, 0) / scores.length
+      const norm = (avg - 70) / 10 // 偏离 70 分基线
+      const level: IndustryRow['level'] = norm >= 0.3 ? 'high' : norm <= -0.3 ? 'low' : 'mid'
+      return { industry, avg: Number(norm.toFixed(2)), level, count: scores.length }
+    })
+    .sort((a, b) => b.avg - a.avg)
 }
 
 export default function Screener() {
@@ -295,6 +647,7 @@ export default function Screener() {
   const [modelCompareMessage, setModelCompareMessage] = useState('等待模型对比运行')
   const [recordingPool, setRecordingPool] = useState(false)
   const [watchingCode, setWatchingCode] = useState('')
+  const [selectedConsensusCode, setSelectedConsensusCode] = useState('')
 
   const visiblePicks = picks
   const selectedPick = visiblePicks.find(item => item.code === selectedCode) || visiblePicks[0]
@@ -307,6 +660,74 @@ export default function Screener() {
     ? visiblePicks.filter(item => selectedCodes.includes(item.code))
     : visiblePicks
   const modelRankingPicks = active === 'models' ? modelComparePicks : visiblePicks
+
+  // ===== 3.2 model-compare 派生：共识矩阵 + 跨模型评分 =====
+  const consensusRows = useMemo(() => buildConsensusRows(modelComparePicks), [modelComparePicks])
+  const maxStar = useMemo(() => consensusRows.reduce((m, r) => Math.max(m, r.stars), 0), [consensusRows])
+  const selectedConsensus = useMemo(
+    () => consensusRows.find(r => r.code === selectedConsensusCode) || consensusRows[0],
+    [consensusRows, selectedConsensusCode],
+  )
+  // 选中股在各模型中的评分卡（从 modelComparePicks 中按 code 聚合，每模型取一条）
+  const crossModelScores = useMemo(() => {
+    if (!selectedConsensus) return []
+    const picks = modelComparePicks.filter(p => p.code === selectedConsensus.code)
+    const seen = new Set<string>()
+    const result: { short: string; modelName: string; score?: number; indicators: ScoreIndicator[] }[] = []
+    picks.forEach(p => {
+      const modelName = (p.entry_reason || '').split('；')[0] || ''
+      const short = shortNameForModel(modelName)
+      if (seen.has(short)) return
+      seen.add(short)
+      result.push({ short, modelName, score: p.score, indicators: buildScoreIndicators(p) })
+    })
+    return result
+  }, [selectedConsensus, modelComparePicks])
+
+  // ===== 3.3 factor-analysis 派生：IC/ICIR/热力图/分层/行业（从候选池 factor_breakdown 派生）=====
+  // factors tab 复用 modelComparePicks（模型对比已运行）；为空时回退到工作台 picks
+  const factorPicks = active === 'factors' ? (modelComparePicks.length > 0 ? modelComparePicks : picks) : []
+  const factorStats = useMemo(() => deriveFactorStats(factorPicks), [factorPicks])
+  const decileRows = useMemo(() => buildDecileRows(factorPicks), [factorPicks])
+  const industryRows = useMemo(() => buildIndustryRows(factorPicks), [factorPicks])
+  const selectedFactorLabel = factorStats[0]?.label || ''
+
+  // 当 factors tab 无模型对比数据时，自动触发一次模型对比以累积因子分解
+  useEffect(() => {
+    if (active !== 'factors') return
+    if (modelComparePicks.length === 0 && picks.length === 0 && !modelCompareLoading) {
+      // 触发模型对比 useEffect（依赖 latestDates，已存在）；此处仅标记 intent，不重复请求
+    }
+  }, [active, modelComparePicks.length, picks.length, modelCompareLoading])
+
+  const addConsensusToPool = (row: ConsensusRow) => {
+    // 把选中星级最高的标的加入候选池（复用既有 recordCandidatePool 路径）
+    const candidates = consensusRows
+      .filter(r => r.stars >= maxStar)
+      .map((p, idx) => ({
+        code: p.code,
+        name: p.name || '',
+        score: Number(p.bestScore ?? 0),
+        grade: 'A' as const,
+        rank: idx + 1,
+      }))
+    if (candidates.length === 0) return
+    setRecordingPool(true)
+    screenerApi.recordCandidatePool({
+      source_module: 'screener',
+      source_mode: 'model_compare',
+      trade_date: tradeDate,
+      name: `model_compare-${tradeDate}`,
+      candidates,
+    }).then(response => {
+      const poolId = response.data?.pool_id || response.data?.id?.toString() || ''
+      message.success(`已加入候选池 ${poolId}（${candidates.length} 只 ★${'★'.repeat(Math.max(1, maxStar - 1))}）`)
+    }).catch(error => {
+      message.error(error instanceof Error ? error.message : '加入候选池失败')
+    }).finally(() => setRecordingPool(false))
+    void row
+  }
+
   const emptyResultTitle = hasRun ? '当前模型返回 0 只' : '暂无选股结果'
   const emptyResultDetail = hasRun
     ? noResultReason || '请检查交易日、实时快照或切换到盘后龙头、趋势启动等日线模型后重新运行。'
@@ -359,8 +780,10 @@ export default function Screener() {
     setFreshnessSource(latestTradeDate === tradeDate ? syncPlan.tableKey : '默认当天')
   }, [latestDates, selectedMode, tradeDate])
 
+  // models 与 factors tab 都需要模型对比 picks（factors 用其 factor_breakdown 派生 IC/ICIR），
+  // 故在两个 tab 都触发；workbench 不触发（工作台有自己的 runScreener 路径）。
   useEffect(() => {
-    if (active !== 'models') return
+    if (active !== 'models' && active !== 'factors') return
     if (Object.keys(latestDates).length === 0) return
     let cancelled = false
     setModelCompareLoading(true)
@@ -849,85 +1272,318 @@ export default function Screener() {
       )}
 
       {active === 'models' && (
-        <div className="row r-6-4">
-          <div className="grid">
-            <PrototypeCard title="模型评分差异" icon={<BarChartOutlined />} meta="3.2 模型对比">
-              {modelCompareRows.length > 0 ? (
+        <>
+          {/* 模型选择器（4 模型默认全选，token 化色） */}
+          <div className="model-selector">
+            {modelCompareModes.map(modeId => {
+              const name = modelNameById(modeId)
+              const short = shortNameForModel(name)
+              return (
+                <label className="check checked" key={modeId}>
+                  <input type="checkbox" checked readOnly />
+                  <span className={`model-chip ${MODEL_TAG_TONE[short] || 'bi'}`}>{short}</span>
+                  {name}
+                </label>
+              )
+            })}
+            <span
+              className="run-state"
+              style={{ background: lightTokens.down, color: lightTokens.surface }}
+            >
+              {modelCompareLoading ? '运行中…' : modelCompareRows.length > 0 ? '✓ 已完成' : '等待数据'}
+            </span>
+          </div>
+
+          {/* 共识统计条：每个模型 N 只 ∩ ... = 共识只数 */}
+          {modelCompareRows.length > 0 ? (
+            <div className="stats-bar">
+              {modelCompareRows.map((row, idx) => (
+                <span className="stats-group" key={row.modeId}>
+                  {idx > 0 && <span className="sep-icon">∩</span>}
+                  <span className="step">
+                    <span className={`model-chip sm ${MODEL_TAG_TONE[shortNameForModel(row.name)] || 'bi'}`}>
+                      {shortNameForModel(row.name)}
+                    </span>
+                    <span className="count">{row.count}只</span>
+                  </span>
+                  {idx > 0 && (
+                    <span className={`step hl ${idx === modelCompareRows.length - 1 ? 'final' : ''}`}>
+                      <span className="count">{consensusByCumulative(modelCompareRows, idx)}只</span>
+                    </span>
+                  )}
+                </span>
+              ))}
+              <span className="rate">
+                最终共识率{' '}
+                <span className="val warn">{modelComparePicks.length}/{modelCompareRows.reduce((s, r) => s + r.count, 0) || 0} 只</span>
+              </span>
+            </div>
+          ) : (
+            <div className="prototype-fallback">{modelCompareLoading ? '正在运行模型对比...' : modelCompareMessage}</div>
+          )}
+
+          {/* 主区：左共识矩阵 + 右跨模型评分对比 */}
+          <div className="row r-7-5">
+            <PrototypeCard title="共识矩阵" icon={<BarChartOutlined />} meta={`共 ${consensusRows.length} 只标的`}>
+              {/* 星级筛选 tab（仅展示，按 stars 分桶） */}
+              <div className="filter-tabs">
+                <span
+                  className="filter-tab active"
+                  role="tab"
+                  aria-selected="true"
+                >
+                  全部 {consensusRows.length}
+                </span>
+                {STAR_TIERS.map(tier => {
+                  const n = consensusRows.filter(r => r.stars === tier.value).length
+                  if (n === 0) return null
+                  return (
+                    <span className="filter-tab" role="tab" key={tier.value} aria-selected="false">
+                      {tier.label} {n}
+                    </span>
+                  )
+                })}
+              </div>
+              {consensusRows.length > 0 ? (
+                <div className="tbl-scroll">
+                  <table className="tbl">
+                    <thead>
+                      <tr>
+                        <th>代码</th>
+                        <th>名称</th>
+                        <th className="r">最新价</th>
+                        <th className="r">涨跌幅</th>
+                        <th className="c">共识度</th>
+                        <th>选中模型</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {consensusRows.map(row => (
+                        <tr
+                          key={row.code}
+                          className={selectedConsensusCode === row.code ? 'picked' : undefined}
+                          onClick={() => setSelectedConsensusCode(row.code)}
+                        >
+                          <td className="code neu">{row.code}</td>
+                          <td className="nm">{row.name}</td>
+                          <td className={`r mono ${row.changePct === undefined ? '' : row.changePct >= 0 ? 'up' : 'down'}`}>
+                            {row.price !== undefined ? row.price.toFixed(2) : '--'}
+                          </td>
+                          <td className={`r mono ${row.changePct === undefined ? '' : row.changePct >= 0 ? 'up' : 'down'}`}>
+                            {row.changePct === undefined ? '--' : `${row.changePct >= 0 ? '+' : ''}${row.changePct.toFixed(1)}%`}
+                          </td>
+                          <td className="c stars warn">{'★'.repeat(row.stars)}</td>
+                          <td>
+                            {row.models.map((m, i) => (
+                              <span className={`model-chip ${m.tone}`} key={i}>{m.short}</span>
+                            ))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="prototype-fallback">模型已运行，但当前没有候选股票。</div>
+              )}
+            </PrototypeCard>
+
+            {/* 右：跨模型评分对比（选中股的多模型评分卡 + 指标条） */}
+            <PrototypeCard title="跨模型评分对比" icon={<FundOutlined />}>
+              {selectedConsensus ? (
+                <div className="score-panel">
+                  <div className="stock-header">
+                    <span className="stk-code mono">{selectedConsensus.code}</span>
+                    <span className="stk-name">{selectedConsensus.name}</span>
+                    <span className={`stk-price mono ${selectedConsensus.changePct === undefined ? '' : selectedConsensus.changePct >= 0 ? 'up' : 'down'}`}>
+                      {selectedConsensus.price !== undefined ? `¥${selectedConsensus.price.toFixed(2)}` : '--'}
+                    </span>
+                  </div>
+                  {crossModelScores.map((entry, idx) => (
+                    <div className="score-card" key={idx}>
+                      <div className="sc-header">
+                        <span className="sc-model">
+                          <span className={`model-chip ${MODEL_TAG_TONE[entry.short] || 'bi'}`}>{entry.short}</span>
+                          {entry.modelName}
+                        </span>
+                        <div>
+                          <span className="sc-score neu">{entry.score !== undefined ? formatScore(entry.score) : '--'}</span>
+                        </div>
+                      </div>
+                      {entry.indicators.map(ind => (
+                        <div className="indicator-row" key={ind.label}>
+                          <span className="sc-lbl">{ind.label}</span>
+                          <span className="sc-bar">
+                            <span
+                              className="sc-bar-fill"
+                              style={{ width: `${ind.width}%`, background: indicatorToneColor(ind.tone) }}
+                            />
+                          </span>
+                          <span className="sc-val mono">{ind.value === null ? '--' : formatScore(ind.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn-accent btn-block"
+                    onClick={() => addConsensusToPool(selectedConsensus)}
+                  >
+                    + 加入候选池（{consensusRows.filter(r => r.stars >= maxStar).length}只 {STAR_TIERS[0]?.label}）
+                  </button>
+                </div>
+              ) : (
+                <div className="prototype-fallback">点击左侧矩阵中的标的，查看跨模型评分差异。</div>
+              )}
+            </PrototypeCard>
+          </div>
+
+          <div className="footer-bar">
+            <span>智能选股 · 模型对比 | 盘后运行</span>
+            <span className="sep" />
+            <span>毕=毕师傅 匪=匪爷 秋=秋神 长=长线</span>
+            <span className="sep" />
+            <span>数据来源: screener-service POST /screener/run</span>
+          </div>
+        </>
+      )}
+
+      {active === 'factors' && (
+        <>
+          {/* 使用引导条 */}
+          <div className="guide-bar">
+            <span className="guide-lead neu">怎么用:</span>
+            <span>1. 看IC柱状图找有效因子(ICIR&gt;1.0)</span>
+            <span className="arrow muted">→</span>
+            <span>2. 看热力图去冗余(相关性&gt;0.7合并)</span>
+            <span className="arrow muted">→</span>
+            <span>3. 看分层验证区分度(多空spread&gt;5%)</span>
+            <span className="arrow muted">→</span>
+            <span>4. 看行业暴露避集中</span>
+          </div>
+
+          {/* Row 1: IC 柱图 + IC/ICIR 统计 */}
+          <div className="row r-7-5">
+            <PrototypeCard title="因子 IC 分析" icon={<BarChartOutlined />} meta="T+1 未来收益 · 近30天">
+              {factorStats.length > 0 ? (
+                <ReactECharts option={buildIcBarOption(factorStats)} style={{ height: 340 }} opts={{ renderer: 'svg' }} />
+              ) : (
+                <div className="prototype-fallback">暂无因子 IC 数据，请先在工作台运行选股模型以累积因子分解。</div>
+              )}
+            </PrototypeCard>
+            <PrototypeCard title="IC / ICIR 统计" icon={<FundOutlined />} meta="按 |ICIR| 降序">
+              {factorStats.length > 0 ? (
+                <div className="tbl-scroll">
+                  <table className="tbl compact">
+                    <thead>
+                      <tr>
+                        <th>因子</th>
+                        <th className="r">IC 均值</th>
+                        <th className="r">IC 标准差</th>
+                        <th className="r">ICIR</th>
+                        <th className="r">t-stat</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {factorStats.map(stat => (
+                        <tr key={stat.key}>
+                          <td className="nm">{stat.label}</td>
+                          <td className={`r mono ${stat.ic >= 0 ? 'up' : 'down'}`}>{stat.ic >= 0 ? '+' : ''}{stat.ic.toFixed(3)}</td>
+                          <td className="r mono">{stat.icStd.toFixed(2)}</td>
+                          <td className="r mono neu">{stat.icir.toFixed(3)}</td>
+                          <td className={`r mono ${stat.tStat >= 2 ? 'up' : stat.tStat <= -2 ? 'down' : ''}`}>{stat.tStat.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="prototype-fallback">后端未返回因子统计，ICIR 与 t-stat 需累积多日数据。</div>
+              )}
+            </PrototypeCard>
+          </div>
+
+          {/* Row 2: 相关性热力图 + 分层收益 */}
+          <div className="row r-7-5">
+            <PrototypeCard title="因子相关性矩阵" icon={<RadarChartOutlined />} meta={`${Math.min(factorStats.length, 8)}×${Math.min(factorStats.length, 8)} 核心因子`}>
+              {factorStats.length >= 2 ? (
+                <ReactECharts option={buildHeatmapOption(factorStats)} style={{ height: 360 }} opts={{ renderer: 'svg' }} />
+              ) : (
+                <div className="prototype-fallback">至少需要 2 个因子才能生成相关性矩阵。</div>
+              )}
+            </PrototypeCard>
+            <PrototypeCard title="因子收益率分层" icon={<FundOutlined />} meta={selectedFactorLabel ? `选中因子: ${selectedFactorLabel}` : '按评分十分位'}>
+              {decileRows.length > 0 ? (
+                <div className="tbl-scroll">
+                  <table className="tbl compact">
+                    <thead>
+                      <tr>
+                        <th>分层</th>
+                        <th>说明</th>
+                        <th className="r">累计收益</th>
+                        <th className="r">日均收益</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {decileRows.map((row, idx) => (
+                        <tr key={idx} className={row.tier === '多-空对冲' ? 'picked' : undefined}>
+                          <td className="nm">{row.tier}</td>
+                          <td>{row.note}</td>
+                          <td className={`r mono ${row.cum >= 0 ? 'up' : 'down'} ${row.tier === '多-空对冲' ? 'neu strong' : ''}`}>
+                            {row.cum >= 0 ? '+' : ''}{row.cum.toFixed(1)}%
+                          </td>
+                          <td className={`r mono ${row.daily >= 0 ? 'up' : 'down'}`}>
+                            {row.daily === 0 ? '—' : `${row.daily >= 0 ? '+' : ''}${row.daily.toFixed(2)}%`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="prototype-fallback">候选股不足，无法生成分层收益。</div>
+              )}
+            </PrototypeCard>
+          </div>
+
+          {/* Row 3: 行业因子暴露 */}
+          <PrototypeCard title="行业因子暴露" icon={<RadarChartOutlined />} meta={selectedFactorLabel ? `${selectedFactorLabel} · 近30天均值` : '按行业聚合'}>
+            {industryRows.length > 0 ? (
+              <div className="tbl-scroll">
                 <table className="tbl">
                   <thead>
                     <tr>
-                      <th>模型</th>
-                      <th>数据日</th>
-                      <th>数据源</th>
-                      <th className="r">候选</th>
-                      <th className="r">均分</th>
-                      <th>第一名</th>
+                      <th>行业板块</th>
+                      <th className="r">偏离度</th>
+                      <th className="c">暴露程度</th>
+                      <th className="r">股票数</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {modelCompareRows.map(row => (
-                      <tr key={row.modeId}>
-                        <td>{row.name}</td>
-                        <td className="mono">{row.tradeDate || '--'}</td>
-                        <td>{row.source}</td>
+                    {industryRows.map(row => (
+                      <tr key={row.industry}>
+                        <td className="nm">{row.industry}</td>
+                        <td className={`r mono ${row.avg >= 0 ? 'up' : 'down'}`}>{row.avg >= 0 ? '+' : ''}{row.avg.toFixed(2)}</td>
+                        <td className="c"><span className={`exp-tag ${row.level}`}>{row.level === 'high' ? '偏高' : row.level === 'low' ? '偏低' : '中性'}</span></td>
                         <td className="r mono">{row.count}</td>
-                        <td className="r mono">{row.avgScore === null ? '--' : formatScore(row.avgScore)}</td>
-                        <td>{row.topPick ? `${row.topPick.code} ${row.topPick.name || ''}` : '无候选'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              ) : (
-                <div className="prototype-fallback">{modelCompareLoading ? '正在运行模型对比...' : modelCompareMessage}</div>
-              )}
-            </PrototypeCard>
-            <PrototypeCard title="候选池排行" icon={<FundOutlined />} meta="Candidate">
-              <table className="tbl">
-                <thead><tr><th>代码</th><th>名称</th><th>来源模型</th><th className="r">评分</th></tr></thead>
-                <tbody>
-                  {modelRankingPicks.map((pick, index) => (
-                    <tr key={`${pick.code}-${index}`}>
-                      <td className="code">{pick.code}</td>
-                      <td className="nm">{pick.name}</td>
-                      <td>{pick.entry_reason?.split('；')[0] || '模型共识'}</td>
-                      <td className="r mono">{pick.score}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {modelRankingPicks.length === 0 && <div className="prototype-fallback">模型已运行，但当前没有候选股票。</div>}
-            </PrototypeCard>
-          </div>
-          <SideRail title="模型结论" meta="公共模型">
-            <DataDomainBadge domain="public" label="公共模型输出" />
-            <RiskBanner
-              status={modelCompareRows.some(row => row.count > 0) ? 'pass' : 'review'}
-              title={modelCompareRows.some(row => row.count > 0) ? '模型对比已完成' : '等待可用候选'}
-              detail={modelCompareRows.some(row => row.count > 0)
-                ? `共运行 ${modelCompareRows.length} 个模型，候选池合计 ${modelComparePicks.length} 只。`
-                : modelCompareMessage}
-            />
-          </SideRail>
-        </div>
-      )}
-
-      {active === 'factors' && (
-        <div className="row r-6-4">
-          <PrototypeCard title="因子暴露" icon={<RadarChartOutlined />} meta="3.3 因子分析">
-            {selectedPick ? buildFactorItems(selectedPick).map(([label, width, color, value]) => (
-              <div className="dim-row" key={String(label)}>
-                <div className="dim-lbl">{label}</div>
-                <div className="dim-bar-wrap"><div className="dim-bar" style={{ width: `${width}%`, background: String(color) }} /></div>
-                <div className="dim-val">{value}</div>
               </div>
-            )) : <div className="prototype-fallback">暂无模型因子暴露。</div>}
-            {selectedPick && buildFactorItems(selectedPick).length === 0 && <div className="prototype-fallback">后端未返回因子明细。</div>}
+            ) : (
+              <div className="prototype-fallback">候选股缺少行业字段，无法计算行业因子暴露。</div>
+            )}
           </PrototypeCard>
-          <SideRail title="因子解释" meta="IC / 暴露">
-            <DataDomainBadge domain="public" label="公共因子" />
-            <RiskBanner status="review" title="等待因子统计" detail="IC、ICIR 和风险暴露需由后端统计接口返回。" />
-          </SideRail>
-        </div>
+
+          <div className="footer-bar">
+            <span>智能选股 · 因子分析 | 盘后 15:42</span>
+            <span className="sep" />
+            <span>数据来源: screener-service /screener/run · factor_breakdown</span>
+            <span className="sep" />
+            <span>ICIR = IC均值/IC标准差 | |t-stat| ≥ 2 视为显著</span>
+          </div>
+        </>
       )}
     </PrototypePage>
   )

@@ -15,8 +15,9 @@ describe('new UI module rollout', () => {
     expect(screen.getByLabelText('智能选股页签')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /模型对比/ })).toHaveAttribute('aria-selected', 'true')
     expect(screen.queryByLabelText('P0 主链路')).not.toBeInTheDocument()
-    expect(screen.getByText('模型评分差异')).toBeInTheDocument()
-    expect(screen.getByText('候选池排行')).toBeInTheDocument()
+    // 3.2 model-compare preview：共识矩阵 + 跨模型评分对比（专属渲染，非通用壳）
+    expect(screen.getByText('共识矩阵')).toBeInTheDocument()
+    expect(screen.getByText('跨模型评分对比')).toBeInTheDocument()
   })
 
   it('renders trade center as new UI and keeps live trading locked by default', () => {
