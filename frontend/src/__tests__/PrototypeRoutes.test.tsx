@@ -70,7 +70,7 @@ const routes = [
   '/', '/dashboard/auction', '/dashboard/signals', '/dashboard/watchlist',
   '/open-decision', '/open-decision/auction', '/open-decision/signals', '/open-decision/candidates', '/open-decision/execution',
   '/screener', '/screener/models', '/screener/factors',
-  '/supply-chain-bom', '/supply-chain-bom/policy', '/supply-chain-bom/company',
+  '/supply-chain-bom', '/supply-chain-bom/policy', '/supply-chain-bom/company', '/supply-chain-bom/ranking',
   '/predictions', '/predictions/single', '/predictions/compare', '/predictions/backtest',
   '/signals', '/signals/overview', '/signals/history', '/signals/risk',
   '/trade', '/trade/order', '/trade/positions', '/trade/orders', '/trade/account', '/trade/brokers',
@@ -151,7 +151,7 @@ describe('prototype route coverage', () => {
   })
 
   it('covers every preview route from the Phase 0 matrix plus existing trade integration routes', () => {
-    expect(routes).toHaveLength(69)
+    expect(routes).toHaveLength(70)
   })
 
   it('does not route production pages through the generic NewUiModulePage fallback', () => {

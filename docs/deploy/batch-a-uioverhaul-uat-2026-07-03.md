@@ -1,8 +1,8 @@
-# UAT 部署报告 — 行情决策 Batch A (md-ui-overhaul) [+ Batch B #11/#12]
+# UAT 部署报告 — 行情决策 Batch A (md-ui-overhaul) [+ Batch B #11/#12, Batch B 补6/C, #10 W-2, #27 SIT]
 
 - **Date**: 2026-07-03
 - **Deployer**: deploy-engineer (glm-5.2)
-- **部署 commit (merged main)**: `3aa950ff`（HEAD；含 Batch A `223189b6` + watchlist `610c1c00` + schema 修复 `3e7a13c5` + 产业链 #12 `aa78d31f` + watchlist 前端 `3aa950ff`）
+- **部署 commit (merged main)**: `77734259`（HEAD；累进含 Batch A `223189b6` + watchlist `610c1c00` + schema 修复 `3e7a13c5` + 产业链 #12 `aa78d31f` + watchlist 前端 `3aa950ff` + Batch B 补6/C + #10 Dashboard W-2 + #27 SIT 全上）
 - **Compose project**: `suying-uat`（独立 project，与 dev `docker` / 旧 `uat-adr013` 物理隔离）
 - **端口偏移**: +900 带（PG 6332 / backend 8900 / screener 8901 / prediction 8902 / signal 8904 / trade 8906 / gateway 8980 / redis 8279 / 其余 8903/8905/8907/8909/8910）
 - **frontend dev**: `http://localhost:3980`（3000 被 dev worktree `frontend-dev-3b-predictions` 占用 → 选 3980；vite proxy 经 `VITE_*_SERVICE_URL` 指向 UAT +900 服务）
@@ -88,6 +88,25 @@ DELETE /api/v1/screener/watchlist?code=600519
 
 > watchlist 端点冒烟结论：**3 端点全可达 + scope 头注入正确 + 优雅降级**（POST 的 FK 失败被正确包成 `fallback_reason` 而非 500，证明链路通）。POST 写入需 `stocks` 表有数据（见下）。
 
+### 11 新 sub-tab 路由（frontend :3980，HEAD `77734259`，frontend dev 重启用最新代码）
+> 主分支推进到 `77734259`（Batch B 补6/C + #10 Dashboard W-2 + #27 SIT），重启 :3980 dev server 后冒烟。
+
+```
+/dashboard/auction                → HTTP 200   (1.2)
+/open-decision/auction             → HTTP 200   (2.2)
+/open-decision/signals             → HTTP 200   (2.3)
+/open-decision/execution           → HTTP 200   (2.5)
+/screener/models                   → HTTP 200   (3.2)
+/screener/factors                  → HTTP 200   (3.3)
+/predictions/single                → HTTP 200   (5.1)
+/predictions/compare               → HTTP 200   (5.2)
+/predictions/backtest              → HTTP 200   (5.3)
+/supply-chain-bom/policy           → HTTP 200   (4.1)
+/supply-chain-bom/company          → HTTP 200   (4.3)
+```
+
+11 新 sub-tab 全 200；6 主路由复测仍全 200；candidate-pool GET 复测仍 200；backend `/api/health` 仍 200。栈容器无 restart/unhealthy。
+
 ## 迁移结果（容器内，lifespan 自动）
 
 ```
@@ -136,7 +155,22 @@ npm run dev -- --port 3980 --strictPort
 2. **Redis +900 端口**：首轮误用 97379（>65535 invalid）→ 改 8279（base 7379 + 900）。
 3. **build 时 DNS 间歇失败**（trade-service pypi tuna 拉不到）→ 用已 build 镜像 up -d 绕过。
 4. **frontend 端口冲突**：3000 被 dev worktree `frontend-dev-3b-predictions` 占 → 选 3980。
-5. **frontend vite dev server 进程易掉（qa 注意）**：vite 是宿主进程（非 docker，无 `restart: unless-stopped` 自愈）。部署 ✅ 后曾被发现自行退出（日志无 error，疑似 harness 回收 idle 后台任务 / SIGHUP）→ :3980 空连。**qa E2E 中若 :3980 突然连不上 ≠ UAT 后端/栈问题**，是前端 dev 进程掉了 → 叫 deploy-engineer 重启即可（docker 栈自愈，不受影响）。重启命令见上"隔离起栈 / 复用命令"frontend 段。
+5. **frontend vite dev server 进程易掉（qa 注意）**：vite 是宿主进程（非 docker，无 `restart: unless-stopped` 自愈）。部署 ✅ 后多次自行退出（日志无 error，harness 回收 idle 后台任务 / SIGHUP）→ :3980 空连。**qa E2E 中若 :3980 突然连不上 ≠ UAT 后端/栈问题**，是前端 dev 进程掉了 → 叫 deploy-engineer 重启即可（docker 栈自愈，不受影响）。
+
+   **保活重启法（已验证 PPID=1 脱离 harness，比 harness-managed 后台任务稳）**：
+   ```bash
+   cd frontend
+   export VITE_AUTH_SERVICE_URL='http://127.0.0.1:8900' VITE_SCREENER_SERVICE_URL='http://127.0.0.1:8901' \
+          VITE_PREDICTION_SERVICE_URL='http://127.0.0.1:8902' VITE_SIGNAL_SERVICE_URL='http://127.0.0.1:8904' \
+          VITE_TRADE_SERVICE_URL='http://127.0.0.1:8906' VITE_GATEWAY_SERVICE_URL='http://127.0.0.1:8980'
+   nohup npm run dev -- --port 3980 --strictPort > /tmp/uat-frontend-3980.log 2>&1 &
+   disown
+   echo $! > /tmp/uat-frontend-3980.pid
+   ```
+   - `nohup`（ignore SIGHUP）+ `disown`（移出 shell job table）→ vite 被 init/launchd 收养（PPID=1），harness 回收 idle 后台任务不再波及。
+   - macOS 无 `setsid`；`nohup`+`disown` 已足够（实测 PPID=1，存活）。
+   - 重启前先 `kill $(cat /tmp/uat-frontend-3980.pid)` 清旧进程；harness 管理的 `run_in_background` 后台任务**不要再用**（正是被回收的根源）。
+   - 日志 `/tmp/uat-frontend-3980.log`；PID 文件 `/tmp/uat-frontend-3980.pid`。
 
 ## Hand-off
 

@@ -145,6 +145,7 @@ const protectedRoutes: { path: string; element: React.ReactNode; roles: Role[] }
   { path: '/supply-chain-bom', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/supply-chain-bom/policy', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/supply-chain-bom/company', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
+  { path: '/supply-chain-bom/ranking', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/predictions', element: <Predictions />,   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/predictions/single', element: <Predictions />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
   { path: '/predictions/compare', element: <Predictions />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
