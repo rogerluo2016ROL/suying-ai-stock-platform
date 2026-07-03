@@ -760,7 +760,9 @@ function AuctionAnalysis({
       const poolId = response.data?.pool_id
       message.success(`已写入候选池${poolId ? `（${poolId}）` : ''}：${candidates.length} 只`)
       setSelectedBullish(new Set())
-      screenerApi.queryCandidatePool({ source_module: 'open-decision', page: 1, page_size: 50 }).catch(() => {})
+      screenerApi
+        .queryCandidatePool({ source_module: 'open-decision', page: 1, page_size: 50 })
+        .catch(err => message.error('刷新候选池计数失败，请手动刷新'))
     } catch (err) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       message.error(detail || '候选池写入失败，请稍后重试')
@@ -785,7 +787,7 @@ function AuctionAnalysis({
       if (ok > 0) message.success(`已加入自选：${ok} 只`)
       if (lastReason) message.error(lastReason)
       setSelectedBearish(new Set())
-      screenerApi.listWatchlist().catch(() => {})
+      screenerApi.listWatchlist().catch(() => message.error('刷新自选列表失败，请手动刷新'))
     } catch (err) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       message.error(detail || '加入自选失败，请稍后重试')
@@ -1224,7 +1226,7 @@ function CandidatePool({
       } else {
         message.success(`已加入自选：${code}`)
       }
-      screenerApi.listWatchlist().catch(() => {})
+      screenerApi.listWatchlist().catch(() => message.error('刷新自选列表失败，请手动刷新'))
     } catch (error) {
       const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       message.error(detail || '加入自选失败，请稍后重试')
