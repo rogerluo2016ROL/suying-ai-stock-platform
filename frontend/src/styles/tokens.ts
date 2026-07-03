@@ -20,6 +20,8 @@ export const lightTokens = {
   accentDim: 'rgba(61,139,255,0.10)',
   up: '#ff4d4f',
   down: '#2ec27e',
+  downDeep: '#1a7a4c',
+  warnDeep: '#b75d00',
   warn: '#f5a623',
   neutral: '#6b7a90',
   radius: 8,
@@ -45,6 +47,8 @@ export const darkTokens = {
   accentDim: 'rgba(61,139,255,0.14)',
   up: '#ff4d4f',
   down: '#2ec27e',
+  downDeep: '#1a7a4c',
+  warnDeep: '#b75d00',
   warn: '#f5a623',
   neutral: '#6b7a90',
   radius: 8,
@@ -71,6 +75,8 @@ export const alpha = {
   up: (a: number) => `rgba(255,77,79,${a})`,
   down: (a: number) => `rgba(46,194,126,${a})`,
   warn: (a: number) => `rgba(245,166,35,${a})`,
+  fg2: (a: number) => `rgba(82,97,122,${a})`,
+  muted: (a: number) => `rgba(138,150,168,${a})`,
 } as const
 
 export type DesignTokens = typeof lightTokens

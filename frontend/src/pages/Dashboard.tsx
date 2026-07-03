@@ -306,7 +306,7 @@ function normalizeSentiment(data: DashboardData | null): MarketSentimentData {
 }
 
 function toneFromScore(score: number) {
-  if (score >= 70) return `linear-gradient(90deg,${lightTokens.down},#1a7a4c)`
+  if (score >= 70) return `linear-gradient(90deg,${lightTokens.down},${lightTokens.downDeep})`
   if (score >= 55) return `linear-gradient(90deg,${lightTokens.accent},${lightTokens.down})`
   if (score >= 40) return `linear-gradient(90deg,${lightTokens.accent},${lightTokens.accent})`
   return `linear-gradient(90deg,${lightTokens.up},${lightTokens.warn})`
@@ -353,7 +353,7 @@ function buildGaugeOption(score: number): EChartsOption {
       axisLine: {
         lineStyle: {
           width: 18,
-          color: [[0.2, '#237804'], [0.4, '#52c41a'], [0.6, lightTokens.accent], [0.8, '#fa8c16'], [1, lightTokens.up]],
+          color: [[0.2, lightTokens.downDeep], [0.4, lightTokens.down], [0.6, lightTokens.accent], [0.8, lightTokens.warn], [1, lightTokens.up]],
         },
       },
       pointer: { length: '72%', width: 6, itemStyle: { color: lightTokens.border2 } },
@@ -403,7 +403,7 @@ function buildTrendOption(): EChartsOption {
         type: 'line',
         yAxisIndex: 1,
         data: [],
-        lineStyle: { width: 1.2, type: 'dashed', color: 'rgba(82,97,122,0.45)' },
+        lineStyle: { width: 1.2, type: 'dashed', color: alpha.fg2(0.45) },
         symbol: 'none',
         smooth: true,
       },
@@ -417,16 +417,16 @@ function sectorColor(score: number) {
     return { bg: 'var(--up-bg)', border: 'var(--up)', text: 'var(--up)', level: '主线', className: 'hot' }
   }
   if (score >= 70) {
-    return { bg: 'var(--warn-bg)', border: 'var(--warn)', text: '#b75d00', level: '强势', className: 'strong' }
+    return { bg: 'var(--warn-bg)', border: 'var(--warn)', text: lightTokens.warnDeep, level: '强势', className: 'strong' }
   }
   if (score >= 60) {
-    return { bg: 'var(--down-bg)', border: 'var(--down)', text: '#237804', level: '跟随', className: 'follow' }
+    return { bg: 'var(--down-bg)', border: 'var(--down)', text: lightTokens.downDeep, level: '跟随', className: 'follow' }
   }
   if (score >= 50) {
     return { bg: 'var(--accent-dim)', border: 'var(--accent)', text: 'var(--accent)', level: '中性', className: 'neutral' }
   }
   return {
-    bg: 'rgba(138,150,168,.08)',
+    bg: alpha.muted(0.08),
     border: 'var(--border-2)',
     text: lightTokens.fg2,
     level: '偏弱',
@@ -844,7 +844,7 @@ function buildSignalTrendOption(): EChartsOption {
     series: [
       { name: '买入信号', type: 'line', data: [], smooth: true, showSymbol: false, lineStyle: { color: lightTokens.up, width: 2 }, itemStyle: { color: lightTokens.up } },
       { name: '卖出信号', type: 'line', data: [], smooth: true, showSymbol: false, lineStyle: { color: lightTokens.down, width: 2 }, itemStyle: { color: lightTokens.down } },
-      { name: '多空比', type: 'bar', yAxisIndex: 1, data: [], barWidth: '55%', itemStyle: { color: 'rgba(61,139,255,.18)' } },
+      { name: '多空比', type: 'bar', yAxisIndex: 1, data: [], barWidth: '55%', itemStyle: { color: alpha.accent(0.18) } },
     ],
     legend: { bottom: 0, textStyle: { fontSize: 10, color: lightTokens.fg2 } },
   }
