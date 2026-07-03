@@ -137,3 +137,51 @@ grep -nE '#[0-9a-fA-F]{3,8}\b|rgba?\(' Predictions.tsx  # ZERO（W-1 守住）
 **worktree 纪律自检**: 独立 worktree `frontend-dev-1b-predc` 基于 1afa2163；独占 `Predictions.tsx`（1实例=1文件）；临界区（api/client.ts / api/types.ts / styles/tokens.ts / components/prototype/* / main.tsx / App.tsx / package.json）**未触碰**——`alpha` / `signalLevelTokens` 在 HEAD 已就绪仅 import 消费；per-file git add（禁 stash/add -A，参考 memory `no-git-stash-shared-worktree`）。
 
 **下一步**: 等待 product-lead review / 无阻塞
+
+---
+
+## Task #26 — BatchB-OpenDecision: 2.2 auction-analysis + 2.3 signal-scan + 2.5 execution-monitor（2026-07-03）
+
+**状态**: ✅ 完成（已 commit），待 product-lead review
+
+**Skills**: agf-running-sit-tests（dev-owned SIT 自跑）
+
+**任务定位**: 评估 OpenDecision.tsx 现状后发现 3 sub-tab 专属渲染**已在 HEAD 533038df 完整落地**（`AuctionAnalysis` line 675 / `SignalScan` line 926 / `ExecutionMonitor` line 1195），signal-scan tab key=`signals`（path `/open-decision/signals`，line 22）已存在**无需补 tab/路由**，临界区零越界。本任务为**收口+测试覆盖**：补 2.2/2.3/2.5 三 sub-tab 的 SIT 证据（此前 SIT 仅覆盖 2.1/2.4）。
+
+**SIT 证据**
+
+worktree: `.wolf/worktrees/frontend-dev-1b-odb`（分支 `feat/md-ui-opendecision-batchb-dev1b`，基于 HEAD 533038df）。
+
+- ✅ AC① (integration) 2.2 auction-analysis：挂载 `/open-decision/auction` → `signalApi.getDashboardAuction()` 被调 → 渲染竞价引擎条 + 抢筹 TOP10 + 出货预警 TOP10 + 四维评分 + 一字定方向 + 全量竞价明细专属区块。SIT 断言：
+  ```
+  await waitFor(() => expect(signalApi.getDashboardAuction).toHaveBeenCalled())
+  expect(screen.getAllByText(/竞价分析引擎/).length).toBeGreaterThan(0)
+  expect(screen.getAllByText(/328/).length).toBeGreaterThan(0)  // total_count
+  expect(screen.getAllByText('抢筹 TOP 10').length).toBeGreaterThan(0)
+  expect(screen.getAllByText('四维评分').length).toBeGreaterThan(0)
+  ```
+- ✅ AC① (integration) 2.3 signal-scan：挂载 `/open-decision/signals` → `signalApi.getLive()` 被调 → 渲染验证工作台 + 批量确认 + 选中股票 + Kronos 30日预测 + 风险检查 + 决策分类专属区块；信号行来自 getLive signals（宁德时代/中芯国际）。
+- ✅ AC① (integration) 2.5 execution-monitor：挂载 `/open-decision/execution` → `tradeApi.getAccount/getOrders/getPositions/getDecisionContexts` 四契约被调 → 渲染账户条（总资产/可用/今日盈亏/总仓位）+ 今日订单 + 持仓 + 今日方案（plan_id PLAN-OPEN-0925）+ 需关注专属区块。
+- ✅ AC④ 三 sub-tab 专属渲染（非通用壳）：auction 独占「抢筹 TOP 10」、signals 独占「验证工作台」、execution 独占「今日订单」，切换 tab 各自渲染且互不串（queryByText 断言非活跃 tab 区块 not.toBeInTheDocument）。
+- ✅ AC③ EmptyState：2.2 auction 无抢筹/出货数据 → prototype-panel-note 诚实降级（`暂无抢筹数据`/`暂无出货预警`）；2.5 execution 无订单/持仓 → `暂无订单`/`暂无持仓`，不空白。
+- ✅ AC② 全 token 化（W-1）：`grep -nE '#[0-9a-fA-F]{3,8}\b|rgba?\(' src/pages/OpenDecision.tsx` → **ZERO bare hex/rgba**。语义色走 `.up/.down/.warn/.neu/.t-up/.t-down/.t-warn/.t-mute` className + `lightTokens`/`alpha`/`signalLevelTokens`（已在 HEAD import 消费）。
+- ✅ AC④ tsc 0 错：`npx tsc -b --noEmit` → 0 errors。
+- ✅ AC⑤ vitest：`OpenDecision.test.tsx` 19 passed（既有，含 auction/signal-scan/execution 5 路由 it.each）；新增 `tests/sit/opendecision-subtabs-preview.test.tsx` 6 passed（2.2×1 + 2.3×1 + 2.5×1 + AC④×1 + AC③×2）。
+- ✅ DoD dev server：`npm run dev`（vite v6.4.3，port 3001）→ `/open-decision/{auction,signals,execution}` 三路由均 200。
+
+**质量门**
+```
+npx tsc -b --noEmit                                                          # 0 errors
+npx vitest run src/__tests__/OpenDecision.test.tsx                           # 19 passed（既有）
+npx vitest run tests/sit/                                                    # 47 passed（13 files，含新增 opendecision-subtabs 6）
+npx vitest run src/__tests__/PrototypeFidelityGuard.test.ts                  # 1 passed
+npm run dev → curl /open-decision/{auction,signals,execution}               # 200 / 200 / 200
+grep -nE '#[0-9a-fA-F]{3,8}\b|rgba?\(' OpenDecision.tsx                      # ZERO（W-1 守住）
+git diff --stat HEAD -- App.tsx main.tsx api/ styles/ components/prototype/  # 空（临界区零越界）
+```
+
+**契约纪律自检**: 全部 API 走 orval 生成 client（`signalApi`/`chainApi`/`screenerApi`/`tradeApi`），类型由 `api/types.ts` 生成产物承载；无手写 fetch / 手写请求响应类型 / 手写 MSW handler。
+
+**worktree 纪律自检**: 独立 worktree `frontend-dev-1b-odb` 基于 533038df；OpenDecision.tsx 在 HEAD 已完整落地三 sub-tab 专属渲染，本任务仅补 SIT 测试覆盖（新增 `tests/sit/opendecision-subtabs-preview.test.tsx`）；临界区（App.tsx / main.tsx / api/client.ts / api/types.ts / styles/* / components/prototype/* / package.json）**未触碰**——signal-scan tab key=`signals` 已存在无需补 tab/路由；per-file git add（禁 stash/add -A）。
+
+**下一步**: 等待 product-lead review / 无阻塞
