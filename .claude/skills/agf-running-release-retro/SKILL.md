@@ -38,7 +38,7 @@ Copy `docs/reviews/retro-_TEMPLATE.md` to `docs/reviews/retro-vX.Y.Z-YYYY-MM-DD.
 
 - Title with version and one-sentence release summary
 - Release date (from git tag annotated date or `gh release view --json createdAt`)
-- Link to CHANGELOG `[vX.Y.Z](../../CHANGELOG.md)`
+- Link to CHANGELOG `vX.Y.Z`
 
 ### 2. Draft §1 (Progress)
 
@@ -64,7 +64,7 @@ Read each returned self-report and integrate into:
 
 - §1: update with timeline/blocker insights
 - §2: add quality metrics (code-review severity, test failure counts, production gaps)
-- §3: 摘 `/usage` 的 4 类 token 字段（`input_tokens` / `output_tokens` / `cache_creation_input_tokens` / `cache_read_input_tokens`）+ 总 cost + cache hit ratio，按 [`cost-budget.md`](../../standards/cost-budget.md) 分档明确写"本 release 落 Small / Medium / Large 哪档"（或"不涉 cost"）。这是跨 release 对比与 sweet-spot 判定的唯一数据来源。
+- §3: 摘 `/usage` 的 4 类 token 字段（`input_tokens` / `output_tokens` / `cache_creation_input_tokens` / `cache_read_input_tokens`）+ 总 cost + cache hit ratio，按 `cost-budget.md` 分档明确写"本 release 落 Small / Medium / Large 哪档"（或"不涉 cost"）。这是跨 release 对比与 sweet-spot 判定的唯一数据来源。
   **`/usage` 实数强制**：4 类实数由**用户**在会话里跑 `/usage` 贴给 product-lead（`/usage` 是 Claude Code 交互命令，agent 无法自跑）；§3 缺任一实数则本 retro **不得标记完成、不得进 Step 7**——SendMessage 用户索要后等待。
 - §4: note workflow frictions and template improvements
 

@@ -10,11 +10,12 @@
 #   bash .claude/scripts/agf-matrix.sh --type=qa --feature=<slug>
 #
 # 解析策略:
-#   - progress: 扫 progress/*.md，提 5 段格式的 `**字段**:` 标记
-#   - review:   扫 docs/reviews/<feature>-*.md，解析 YAML frontmatter（结构化 verdict + 计数）
-#   - qa:       扫 docs/qa/<feature>-*.md，解析 YAML frontmatter（stage / verdict / pass^2 计数）
+#   - progress: 扫 progress/*.md，提 5 段格式的 `**字段**:` 标记（bash + awk，本文件内）
+#   - review:   委托 agf-verdict.py matrix --type=review（robust YAML 解析，frontmatter 单一 SSOT）
+#   - qa:       委托 agf-verdict.py matrix --type=qa（同上）
 #
-# YAML frontmatter 解析: 简易 awk 实现，不需 yq 依赖（bash 3.2 + POSIX awk 兼容 macOS）
+# review/qa 的 frontmatter 解析已收敛到 .claude/scripts/agf-verdict.py（结构化 verdict 契约的 SSOT
+# 解析器，见 spec structured-verdict-contract）；本文件 progress 分支仍用 awk（5 段格式，非该契约）。
 
 set -uo pipefail
 
@@ -45,37 +46,6 @@ if [[ -z "$TYPE" ]]; then
 fi
 
 # === 通用工具 ===
-# 从 YAML frontmatter 提单值（仅支持顶层简单字段，不解析嵌套 / 数组）
-# bash 3.2 + POSIX awk 兼容；不依赖 yq
-extract_frontmatter_field() {
-  local file="$1"
-  local field="$2"
-  awk -v field="$field" '
-    BEGIN { in_fm=0 }
-    NR==1 && /^---$/ { in_fm=1; next }
-    in_fm && /^---$/ { exit }
-    in_fm {
-      # 用 split 拆 "field: value"
-      idx = index($0, ":")
-      if (idx == 0) next
-      key = substr($0, 1, idx-1)
-      # trim 前后空白
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-      if (key != field) next
-      v = substr($0, idx+1)
-      # 去尾部注释（# 之后）
-      sub(/[[:space:]]+#.*$/, "", v)
-      # trim 前后空白
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
-      # 去外层引号（双 / 单）
-      sub(/^"/, "", v); sub(/"$/, "", v)
-      sub(/^'\''/, "", v); sub(/'\''$/, "", v)
-      print v
-      exit
-    }
-  ' "$file" 2>/dev/null
-}
-
 # 列文件（bash 3.2 兼容；按字典序）
 list_files() {
   local pattern="$1"
@@ -150,71 +120,35 @@ matrix_progress() {
   done
 }
 
-# === Review matrix（解析 frontmatter）===
+# === verdict.py 委托（review/qa frontmatter 解析的 SSOT）===
+# agf-verdict.py matrix 复刻原 bash 表的列（Task 1 已核对），输出不变；它从 CWD 下 docs/reviews|docs/qa
+# 扫文件（默认 --docs-root=.），本脚本在仓库根跑，无需额外 flag。无 python3 时降级提示（fail-soft）。
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERDICT_PY="${SCRIPT_DIR}/agf-verdict.py"
+
+delegate_verdict_matrix() {
+  local kind="$1"
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "⚠️ 需要 python3 来生成 ${kind} matrix（frontmatter 解析已收敛到 agf-verdict.py）；未找到 python3，跳过本表。" >&2
+    return 0
+  fi
+  python3 "$VERDICT_PY" matrix --type="$kind" --feature="$FEATURE"
+}
+
+# === Review matrix（委托 agf-verdict.py）===
 matrix_review() {
   if [[ -z "$FEATURE" ]]; then
     echo "需要 --feature=<slug>" >&2; return 1
   fi
-  list_files "docs/reviews/${FEATURE}-*.md" "_TEMPLATE|retro-"
-  if [[ ${#FILES[@]} -eq 0 ]]; then
-    echo "（docs/reviews/${FEATURE}-*.md 暂无 review 报告）"; return 0
-  fi
-
-  echo "| Reviewer 实例 | 代码 Verdict | SIT Audit | Critical | Warning | 报告路径 |"
-  echo "|---|---|---|---|---|---|"
-
-  local FILE REVIEWER CODE_VERDICT SIT_VERDICT CRIT WARN
-  for FILE in "${FILES[@]}"; do
-    REVIEWER=$(extract_frontmatter_field "$FILE" "reviewer")
-    CODE_VERDICT=$(extract_frontmatter_field "$FILE" "code_verdict")
-    SIT_VERDICT=$(extract_frontmatter_field "$FILE" "sit_audit_verdict")
-    CRIT=$(extract_frontmatter_field "$FILE" "critical_count")
-    WARN=$(extract_frontmatter_field "$FILE" "warning_count")
-
-    REVIEWER="${REVIEWER:-code-reviewer}"
-    CODE_VERDICT="${CODE_VERDICT:--}"
-    SIT_VERDICT="${SIT_VERDICT:--}"
-    CRIT="${CRIT:-0}"
-    WARN="${WARN:-0}"
-
-    echo "| $REVIEWER | ${CODE_VERDICT//|/\\|} | ${SIT_VERDICT//|/\\|} | $CRIT | $WARN | $FILE |"
-  done
+  delegate_verdict_matrix review
 }
 
-# === QA matrix（解析 frontmatter）===
+# === QA matrix（委托 agf-verdict.py）===
 matrix_qa() {
   if [[ -z "$FEATURE" ]]; then
     echo "需要 --feature=<slug>" >&2; return 1
   fi
-  list_files "docs/qa/${FEATURE}-*.md" "_TEMPLATE|process-log"
-  if [[ ${#FILES[@]} -eq 0 ]]; then
-    echo "（docs/qa/${FEATURE}-*.md 暂无 E2E/UAT 报告）"; return 0
-  fi
-
-  echo "| QA 实例 | 阶段 | 报告级 Verdict | UAT 业务签字 | pass^2 (P0) | 报告路径 |"
-  echo "|---|---|---|---|---|---|"
-
-  local FILE TESTER STAGE REPORT_V UAT_SIGN P0_TOTAL P0_OK PASS2
-  for FILE in "${FILES[@]}"; do
-    TESTER=$(extract_frontmatter_field "$FILE" "tester")
-    STAGE=$(extract_frontmatter_field "$FILE" "stage")
-    REPORT_V=$(extract_frontmatter_field "$FILE" "report_verdict")
-    UAT_SIGN=$(extract_frontmatter_field "$FILE" "uat_signoff_verdict")
-    P0_TOTAL=$(extract_frontmatter_field "$FILE" "p0_pass2_total")
-    P0_OK=$(extract_frontmatter_field "$FILE" "p0_pass2_ok")
-
-    TESTER="${TESTER:-qa-engineer}"
-    STAGE="${STAGE:--}"
-    REPORT_V="${REPORT_V:--}"
-    UAT_SIGN="${UAT_SIGN:-N/A}"
-    if [[ -n "${P0_TOTAL:-}" && "$P0_TOTAL" != "0" ]]; then
-      PASS2="${P0_OK:-0}/${P0_TOTAL}"
-    else
-      PASS2="-"
-    fi
-
-    echo "| $TESTER | $STAGE | ${REPORT_V//|/\\|} | ${UAT_SIGN//|/\\|} | $PASS2 | $FILE |"
-  done
+  delegate_verdict_matrix qa
 }
 
 # === 主分发 ===

@@ -1,5 +1,6 @@
 #!/bin/bash
-# PreToolUse hook: block destructive Bash commands.
+# PreToolUse hook: block destructive Bash commands (rm -rf / DROP TABLE / force-push /
+# hard-reset / curl|sh download-pipe-execute).
 # Exit 2 = block + show stderr message; Exit 0 = allow.
 #
 # Design (precision hardening, revised):
@@ -73,10 +74,22 @@ COMMAND_FLAT=$(printf '%s' "$COMMAND" | tr '\n\r' '  ')
 #   per `.claude/standards/security.md` "No Equivalent Bypass".
 COMMAND_STRIPPED=$(printf '%s' "$COMMAND_FLAT" | sed -E 's/"[^"]*"/ /g; s/'\''[^'\'']*'\''/ /g')
 
+# Command-line prefixes that don't change the executed verb and must be
+# transparently skipped between the boundary and the dangerous verb. Without
+# this, `sudo rm -rf`, `FOO=bar rm -rf`, `GIT_SSH=x git push --force` all
+# bypass the anchor (verb no longer at segment start). Covered:
+#   - sudo / doas, with their flags and positional args (`-E`, `-u root`, …)
+#   - one or more environment-variable assignments (`VAR=val `)
+# Both groups are optional and match zero-width when absent, so commands
+# without a prefix anchor exactly as before (no regression, fail-positive
+# only — a leading word can never *remove* a real dangerous match).
+PREFIX='((sudo|doas)[[:space:]]+(-[A-Za-z]+[[:space:]]+|[A-Za-z0-9_.@:/-]+[[:space:]]+)*)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*[[:space:]]+)*'
+
 # Anchor: position at the very start of the command or immediately after a
-# chain operator. Single `&` matches both `&` (background) and the first
-# `&` of `&&` — both are real command boundaries.
-ANCHOR='(^|;|&&|&|\|\||\|)[[:space:]]*'
+# chain operator, then skip any transparent command prefix (see PREFIX above).
+# Single `&` matches both `&` (background) and the first `&` of `&&` — both
+# are real command boundaries.
+ANCHOR="(^|;|&&|&|\|\||\|)[[:space:]]*${PREFIX}"
 
 # SQL client gate — used by rule #4 (defined here for fast path).
 SQL_CLIENT='(psql|mysql|mariadb|sqlite|sqlite3|sqlcmd|mongo|mongosh|clickhouse-client|cqlsh)'
@@ -91,6 +104,7 @@ FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}rm[[:space:]]+-[a-zA-Z]*f[a-zA-Z]*[rR]"
 FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}git[[:space:]]+push\b([^;&|]*[[:space:]])?-[a-z]{0,3}f[a-z]{0,3}\b"
 FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}git[[:space:]]+push\b[^;&|]*--force([[:space:];&|]|$)"
 FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}git[[:space:]]+reset[[:space:]]+--hard\b"
+FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}(curl|wget)\b[^;&]*\|[[:space:]]*(sudo[[:space:]]+)?(sh|bash|zsh|ksh|dash)\b"
 FAST_FLAT="${ANCHOR}${SQL_CLIENT}\b[^;&|]*\bDROP[[:space:]]+(TABLE|DATABASE|SCHEMA)\b"
 
 if ! printf '%s' "$COMMAND_STRIPPED" | grep -qE "$FAST_STRIPPED" \
@@ -150,6 +164,22 @@ fi
 if printf '%s' "$COMMAND_FLAT" | grep -qiE \
   "${ANCHOR}${SQL_CLIENT}\b[^;&|]*\bDROP[[:space:]]+(TABLE|DATABASE|SCHEMA)\b"; then
   echo "Blocked: schema drop requires manual execution." >&2
+  exit 2
+fi
+
+# 5) Download-pipe-execute (curl|sh / wget|bash). Runs against COMMAND_STRIPPED so a
+# quoted mention (commit message / doc text) does not match. Anchored: curl/wget must be
+# a segment-leading verb, piped into a shell interpreter. URL variable/option/protocol/
+# space variants are irrelevant — the curl…|…sh *shape* is what matches, which the
+# (now-removed) fragile `Bash(curl *|*sh*)` permission glob could NOT reliably do
+# (official: Bash permission rules that constrain command arguments are fragile —
+# https://code.claude.com/docs/en/permissions). KNOWN LIMITATION: download-then-
+# separately-execute (`curl x -o f && sh f`) is not caught — that is the data-flow
+# boundary documented in security.md "Hook Coverage Boundary"; covered by No Equivalent
+# Bypass discipline, not by string match.
+if printf '%s' "$COMMAND_STRIPPED" | grep -qE \
+  "${ANCHOR}(curl|wget)\b[^;&]*\|[[:space:]]*(sudo[[:space:]]+)?(sh|bash|zsh|ksh|dash)\b"; then
+  echo "Blocked: piping a network download straight into a shell (curl|sh) is not allowed. Download to a file, review it, then run it — or use WebFetch." >&2
   exit 2
 fi
 

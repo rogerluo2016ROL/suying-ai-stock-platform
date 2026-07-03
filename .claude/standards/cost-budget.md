@@ -1,6 +1,6 @@
 # Cost & Token Budget Baseline
 
-Agent Team 是吞 token 最快的协作形态——多个 teammate 各持独立上下文 × 长会话 × 多轮对话，单功能消耗很容易冲到几百万 token；官方实测多 agent 系统均价消耗单 agent 的 **3–10×**（claude.com/blog «When to use multi-agent systems»，开销来自上下文复制 + 协调消息 + 交接摘要）——这是 [`workflow.md` Session Entry](workflow.md)「单 agent 优先 + 升级判据」的成本依据。本基线规定团队必须遵守的预算纪律与可验证的事后核账机制。
+Agent Team 是吞 token 最快的协作形态——多个 teammate 各持独立上下文 × 长会话 × 多轮对话，单功能消耗很容易冲到几百万 token；官方实测多 agent 系统均价消耗单 agent 的 **3–10×**（claude.com/blog «When to use multi-agent systems»，开销来自上下文复制 + 协调消息 + 交接摘要）——这是 `workflow.md` Session Entry「单 agent 优先 + 升级判据」的成本依据。本基线规定团队必须遵守的预算纪律与可验证的事后核账机制。
 
 ## 预算分级（默认值；项目可在 CLAUDE.md 覆盖）
 
@@ -24,7 +24,7 @@ Agent Team 是吞 token 最快的协作形态——多个 teammate 各持独立�
 - 优化路径：把不常变的内容下沉到 skill / `.claude/standards/`、避免在 CLAUDE.md 反复改大段
 - **测量闭环**：cache 利用率没有独立查询工具，统一在 release retro 时由用户跑 `/usage` 贴 4 类 token 实数核账（见 skill `agf-running-release-retro` 的 /usage 强制段）——目标不再悬空
 - Sub-agent progress summaries 走 prompt cache（`cache_creation` ~3× 减少），且 idle subagent 不重复触发——Parallel Dispatch 多 teammate 场景的成本基线因此偏低，历史账单中 sub-agent 占比下降属正常
-- 参考：[Anthropic Prompt Caching](https://docs.claude.com/en/docs/build-with-claude/prompt-caching)、[Reduce Token Usage](https://code.claude.com/docs/en/costs#reduce-token-usage)
+- 参考：Anthropic Prompt Caching、Reduce Token Usage
 
 ## 模型降级路径（建议）
 
@@ -37,6 +37,8 @@ Agent Team 是吞 token 最快的协作形态——多个 teammate 各持独立�
 | 文本提取 / 简单格式化 / 测试样板 | Haiku |
 
 降级是工具，不是义务——若 Sonnet 多次产出不达预期，立即升回 Opus 别硬撑。
+
+> 以上是**人为主动降级**（按任务难度选模型）。另有一层**自动过载降级**：`.claude/settings.json` 的 `fallbackModel`（当前 `["claude-sonnet-4-6", "claude-haiku-4-5-20251001"]`）——任一角色主模型 **overloaded / unavailable** 时自动切到链中下一个并继续本回合，保团队批量跑不因单点过载中断（官方语义：最多 3 个、不跨设置文件合并、由最高优先级文件提供整条链）。两层正交：人为降级控成本、`fallbackModel` 控可用性。
 
 ## Agent 默认 Model 路由（基线）
 
@@ -79,7 +81,7 @@ Agent Team 是吞 token 最快的协作形态——多个 teammate 各持独立�
 
 ### ⚠️ effort 在各路径的生效情况
 
-路径生效矩阵唯一来源是 [`team-roles.md`](team-roles.md) frontmatter 能力表（`effort` / `model` 行），此处不重复。effort 特有的操作结论：
+路径生效矩阵唯一来源是 `team-roles.md` frontmatter 能力表（`effort` / `model` 行），此处不重复。effort 特有的操作结论：
 
 - **Agent Team teammate 路径不 honor frontmatter `effort`**，且当前无 per-role 设置手段——**不要给 teammate 角色文件加 `effort:`**（会重蹈 A2 死字段）。某子任务需深推时，由 PL 自己接（高 effort）或拆成更小的明确步骤交 teammate。
 - effort 路由现阶段主要落在 **PL（lead）** 与 **sub-agent / headless** 两条路径；teammate 的成本/质量控制仍以 **model 档**（上表）为主。
@@ -91,7 +93,7 @@ Opus 4.8 的 Fast mode：**2× 费率换 2.5× 速度**。适合 PL 在赶工的
 
 ## Pool 模式下成本预算（ADR-001 落地）
 
-[ADR-001](../../docs/adr/001-multi-instance-worker-pool.md) + [`workflow.md` §Multi-instance Worker Pool](workflow.md) 引入同 type 多实例并发；本节定义 pool 模式的成本约束。
+ADR-001 + `workflow.md` §Multi-instance Worker Pool 引入同 type 多实例并发；本节定义 pool 模式的成本约束。
 
 ### Token 倍数预期（Anthropic 实证）
 
@@ -101,17 +103,19 @@ Opus 4.8 的 Fast mode：**2× 费率换 2.5× 速度**。适合 PL 在赶工的
 | pool=auto / 默认 cap=5 | 15（5 dev + 5 reviewer + 5 qa）| 3-5× | 0.3-0.5×（节省 50-70%）|
 | pool=auto / 高峰 cap=7 | 21 | 6-8× | 0.2-0.3×（节省 70-80%）|
 
-参考 Anthropic [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)：multi-agent ≈ 15× chat × 4× single-agent；并行加速最多 90%。
+参考 Anthropic How we built our multi-agent research system：multi-agent ≈ 15× chat × 4× single-agent；并行加速最多 90%。
 
 ### Pool 上限按预算分档自动调
 
-| 预算档 | Token 实测倍数 | Pool 上限（覆盖 [`team-roles.md`](team-roles.md) 默认）|
+| 预算档 | Token 实测倍数 | Pool 上限（覆盖 `team-roles.md` 默认）|
 |---|---|---|
 | **Small** (≤ 100K token / feature) | ≤ 3× | 上限 3 |
 | **Medium** (> 100K, ≤ 500K / feature) | ≤ 5× | 上限 5（默认）|
 | **Large** (> 500K / feature) | ≤ 8× | 上限 7 |
 
 PL 在 Step 3 派单时按 PRD 复杂度选档。**判定规则（单一决策树，表中倍数即该档上限 cap）**：feature 收口时 `实测倍数 ≤ 所选档 cap` → 正常；`> cap` → 超档，retro §3 token 段必须记录原因；`> 8×`（绝对上限，与选档无关）→ 强制 retro 复盘是否过度并发。不存在"区间内自行判断"的模糊地带。
+
+> **规模档 → 交付 lane（ADR-011 决策 3）**：同一 Small/Medium/Large 档也喂 lane 选择——**Small + PATCH + 非高风险**可由 PL 显式选 **fast lane**（尾部门只减不跳）；Medium/Large 或任何高风险一律 **full**。lane SSOT 见 `workflow.md` §交付 lane。
 
 ### 触发审查的硬阈值
 
@@ -126,7 +130,7 @@ PL 在 Step 3 派单时按 PRD 复杂度选档。**判定规则（单一决策�
 - **显式触发 + PL 批**：禁默认开 `ultracode`（会把每个任务都编排成 workflow）；只在大 PR / 审计由 PL 按规模批准后调。
 - **预算档**：≥ Medium 档（> 100k）的 workflow run **必须** PL 事前批 + 进 retro §3 记录实测倍数。
 - **看成本**：`/workflows` 进度视图每 phase 带 token total；`/usage` 的 subagents 分类含 workflow agent。
-- **降级**：研究预览期，`disableWorkflows` / `/config` 一键停 → 回 Pool（详 [ADR-002](../../docs/adr/002-dynamic-workflows-adoption.md)）。
+- **降级**：研究预览期，`disableWorkflows` / `/config` 一键停 → 回 Pool（详 ADR-002）。
 
 ### Spawn 成本可控的实践
 
@@ -143,6 +147,6 @@ PL 在 Step 3 派单时按 PRD 复杂度选档。**判定规则（单一决策�
 
 ## 参考
 
-- [Claude Code Costs](https://code.claude.com/docs/en/costs)
-- [Agent Team Token Costs](https://code.claude.com/docs/en/costs#agent-team-token-costs)
-- [Datadog Claude Code Monitoring](https://www.datadoghq.com/blog/claude-code-monitoring/)
+- Claude Code Costs
+- Agent Team Token Costs
+- Datadog Claude Code Monitoring

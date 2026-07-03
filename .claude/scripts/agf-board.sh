@@ -9,8 +9,9 @@
 #   bash .claude/scripts/agf-board.sh --out /tmp/board.html
 #
 # 数据源（全部现成，零新状态）:
-#   ~/.claude/tasks/<team>/*.json   task 卡片（id/subject/status/activeForm/blockedBy；无 owner 字段，
-#                                   角色从 description 匹配 15 角色名 best-effort 提取）
+#   ~/.claude/tasks/<team>/*.json   task 卡片（id/subject/status/activeForm/blockedBy/owner；
+#                                   角色归属 owner 直读优先【含 pool 实例名 -N】，缺 owner 的旧卡
+#                                   才从 description 匹配 19 角色名 best-effort 兜底）
 #   docs/reviews|deploy|qa/<feature>-*  阶段门 chips（frontmatter / gate 行，--feature 时启用）
 # 输出: progress/board.html（默认；已 gitignore，运行时产物不入库）
 # 实时机制: file:// 下 fetch 受 CORS 限制 → 不起 server，--watch 循环重生成 + 页面 <meta refresh>
@@ -39,16 +40,26 @@ done
 
 command -v jq >/dev/null 2>&1 || { echo "error: 需要 jq（brew install jq）" >&2; exit 1; }
 
-# 默认 team = 最近修改的 task 目录（不跳过空目录：新 team 总是先建目录、后派单，
-# 宁可显示"等待派单"的诚实空板，也不回退到陈旧 team）；watch 每轮重解析，
+# 默认 team = 项目亲和优先：取「有 team config 且成员 cwd 命中本仓库（含 worktree 子路径）」
+# 的最新 task 目录——防跨项目串台 / solo session UUID 列表被当 team；无命中才退回全局最新
+# （此时 header 标注 ⚠ 非本项目，自我揭示）。不跳过空目录：新 team 总是先建目录、后派单，
+# 宁可显示"等待派单"的诚实空板，也不回退到陈旧 team。watch 每轮重解析，
 # 且连续 2 轮指向同一新 team 才切换（防目录 mtime 抖动来回横跳）；显式传 team 则固定不切
 PENDING_TEAM=""
+team_cwd_match() {  # $1=team 目录名 → 0=该 team 任一成员 cwd 命中本仓库
+  local c="$TEAMS_BASE/$1/config.json"
+  [[ -f "$c" ]] || return 1
+  jq -e --arg r "$ROOT" '[.members[]?.cwd // empty] | any(. == $r or startswith($r + "/"))' "$c" >/dev/null 2>&1
+}
 resolve_team() {
   [[ "$TEAM_EXPLICIT" -eq 1 ]] && return 0
-  local d cand=""
+  local d cand="" first=""
   for d in $(ls -t "$TASKS_BASE" 2>/dev/null); do
-    [[ -d "$TASKS_BASE/$d" ]] && { cand="$d"; break; }
+    [[ -d "$TASKS_BASE/$d" ]] || continue
+    [[ -z "$first" ]] && first="$d"
+    team_cwd_match "$d" && { cand="$d"; break; }
   done
+  [[ -z "$cand" ]] && cand="$first"
   if [[ -z "$cand" || "$cand" == "$TEAM" ]]; then PENDING_TEAM=""; return 0; fi
   if [[ -z "$TEAM" || "$cand" == "$PENDING_TEAM" ]]; then  # 首轮直选；其后需连续两轮确认
     [[ -n "$TEAM" ]] && echo "board: team 切换 → $cand" >&2
@@ -80,7 +91,7 @@ fi
 html_escape() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
 attr_escape() { html_escape | sed 's/"/\&quot;/g'; }   # 用于 HTML 属性值（title tooltip）
 
-# 15 角色 → 品牌色（与 team-capability-map 一致）；未匹配 → 灰
+# 19 角色 → 品牌色；未匹配（自定义 agentType 如 Explore）→ 灰
 role_color() {
   case "$1" in
     product-lead) echo "#f97316" ;;  tech-lead) echo "#3b82f6" ;;
@@ -90,12 +101,16 @@ role_color() {
     code-reviewer) echo "#eab308" ;; miniapp-code-reviewer) echo "#f59e0b" ;;
     qa-engineer) echo "#ef4444" ;;   miniapp-qa-engineer) echo "#f43f5e" ;;
     deploy-engineer) echo "#64748b" ;; content-writer) echo "#a78bfa" ;;
-    growth-analyst) echo "#6366f1" ;; *) echo "#8b949e" ;;
+    growth-analyst) echo "#6366f1" ;;
+    apple-dev) echo "#0ea5e9" ;;     apple-code-reviewer) echo "#d97706" ;;
+    apple-qa-engineer) echo "#e11d48" ;; apple-release-engineer) echo "#475569" ;;
+    *) echo "#8b949e" ;;
   esac
 }
 
 detect_role() {  # $1=description → 首个命中的角色名（保留 -N 实例号显示；配色按 base）
-  printf '%s' "$1" | grep -oE '(product-lead|tech-lead|uiux-designer|frontend-dev|backend-dev|ai-agent-dev|ml-engineer|miniapp-dev|miniapp-code-reviewer|miniapp-qa-engineer|code-reviewer|qa-engineer|deploy-engineer|content-writer|growth-analyst)(-[0-9]+)?' | head -1
+  # apple-* 必须在 code-reviewer / qa-engineer 之前：apple-qa-engineer 的子串会命中 qa-engineer
+  printf '%s' "$1" | grep -oE '(apple-dev|apple-code-reviewer|apple-qa-engineer|apple-release-engineer|product-lead|tech-lead|uiux-designer|frontend-dev|backend-dev|ai-agent-dev|ml-engineer|miniapp-dev|miniapp-code-reviewer|miniapp-qa-engineer|code-reviewer|qa-engineer|deploy-engineer|content-writer|growth-analyst)(-[0-9]+)?' | head -1
 }
 role_base() { printf '%s' "$1" | sed 's/-[0-9]*$//'; }
 
@@ -114,7 +129,7 @@ build_members() {  # 入参经全局 DOING_MAP（"id|role_base" 行）关联"谁
   MEMBERS_HTML=""
   local conf="$TEAMS_BASE/$TEAM/config.json"
   [[ -f "$conf" ]] || return 0
-  local name atype state hint color dot cls cur curid
+  local name atype state hint color dot cls cur curid ib comm
   while IFS='|' read -r name atype state hint; do
     [[ -z "$name" ]] && continue
     color="$(role_color "$(role_base "$atype")")"
@@ -122,15 +137,21 @@ build_members() {  # 入参经全局 DOING_MAP（"id|role_base" 行）关联"谁
     if [[ "$state" == "lead" ]]; then dot="◆"; cls="on"
     elif [[ "$state" == "true" ]]; then
       dot="●"; cls="on"
-      curid="$(printf '%s\n' "$DOING_MAP" | awk -F'|' -v r="$atype" '$2==r{print $1; exit}')"
+      # 关联在办卡：成员名 == 卡 owner 全名精确匹配优先（pool 实例不串卡），无 owner 旧卡退 agentType base
+      curid="$(printf '%s\n' "$DOING_MAP" | awk -F'|' -v n="$name" '$2==n{print $1; exit}')"
+      [[ -z "$curid" ]] && curid="$(printf '%s\n' "$DOING_MAP" | awk -F'|' -v r="$atype" '$2==r{print $1; exit}')"
     else dot="○"; cls="off"; fi
     if [[ -n "$curid" ]]; then
       cur=" <em>→ #${curid}</em>"                       # 有进行中的卡 → 卡号是当下事实
     elif [[ "$cls" == "on" && "$state" == "true" && -n "$hint" ]]; then
-      # 工作中但无卡片（review / 临时指派等不走 task 的工作）→ 退而显示 spawn prompt 摘要
-      cur=" <em class=\"hint\" title=\"初始任务: $(printf '%s' "$hint" | attr_escape)\">· $(printf '%s' "$hint" | cut -c1-42 | html_escape)…</em>"
+      # 工作中但无卡片（review / 临时指派等不走 task 的工作）→ 退而显示 spawn 初始 prompt 摘要；
+      # 它只是入队时的任务，可能早被后续 SendMessage 改派——以 spawn: 前缀明示，勿当现状
+      cur=" <em class=\"hint\" title=\"spawn 初始任务（可能已改派）: $(printf '%s' "$hint" | attr_escape)\">spawn: $(printf '%s' "$hint" | cut -c1-42 | html_escape)…</em>"
     else cur=""; fi
-    MEMBERS_HTML="$MEMBERS_HTML<span class=\"mem $cls\"><i style=\"background:$color\"></i>$dot $name$cur</span>"
+    # 最后通信时间 = 该成员 inbox 文件 mtime（收消息 / 读队列都会刷新）——僵尸 ● 自我揭穿
+    ib="$TEAMS_BASE/$TEAM/inboxes/$name.json"; comm=""
+    [[ -f "$ib" ]] && comm="$(card_age "$ib")"
+    MEMBERS_HTML="$MEMBERS_HTML<span class=\"mem $cls\"><i style=\"background:$color\"></i>$dot $name$cur${comm:+ <span class=\"age\">· 通信 $comm</span>}</span>"
   done < <(jq -r '.leadAgentId as $l | .members[] | "\(.name)|\(.agentType // "?")|\(if .agentId == $l then "lead" else ((.isActive // false) | tostring) end)|\(.prompt // "" | gsub("[\n\r|]"; " ") | .[0:160])"' "$conf" 2>/dev/null)
   return 0
 }
@@ -142,7 +163,8 @@ gate_chip() {  # $1=label $2=state(ok|run|bad|none)
   printf '<span class="gate %s">%s %s</span>' "$cls" "$icon" "$1"
 }
 fm_val() { sed -n '/^---$/,/^---$/p' "$1" 2>/dev/null | grep "^$2:" | head -1 | sed "s/^$2:[[:space:]]*//; s/[\"']//g"; }
-latest_doc() { ls -t $1 2>/dev/null | grep -v '_TEMPLATE' | head -1; }
+# 排除 uat-cases：用例文档与 UAT 报告同前缀且执行期一直在回填（mtime 总最新），verdict 只在报告里
+latest_doc() { ls -t $1 2>/dev/null | grep -v '_TEMPLATE' | grep -v 'uat-cases' | head -1; }
 
 build_gates() {
   local impl="run" cr="none" dep="none" e2e="none" uat="none"
@@ -176,7 +198,7 @@ build_gates() {
 # ---- 生成一次 ----
 generate() {
   resolve_team; TASK_DIR="$TASKS_BASE/$TEAM"
-  local PEND="" DOING="" DONE_C="" f id status subject desc active blocked role color summary chips age
+  local PEND="" DOING="" DONE_C="" f id status subject desc active blocked owner role color summary chips age
   N_TOTAL=0; N_DONE=0; N_DOING=0; N_PEND=0; DOING_MAP=""
 
   local names
@@ -186,15 +208,16 @@ generate() {
     f="$TASK_DIR/$name"
     id="$(jq -r '.id // ""' "$f")"
     status="$(jq -r '.status // "pending"' "$f")"
-    subject="$(jq -r '.subject // (.description | split("\n")[0]) // ""' "$f" | html_escape)"
+    subject="$(jq -r '.subject // ((.description // "") | split("\n")[0]) // ""' "$f" | html_escape)"
     desc="$(jq -r '.description // ""' "$f")"
     active="$(jq -r '.activeForm // ""' "$f" | html_escape)"
     blocked="$(jq -r '.blockedBy // [] | join(" ")' "$f")"
-    role="$(detect_role "$desc $subject $active")"
+    owner="$(jq -r '.owner // ""' "$f")"
+    role="${owner:-$(detect_role "$desc $subject $active")}"   # owner 直读优先（含 -N 实例名），缺 owner 旧卡才正则兜底
     color="$(role_color "$(role_base "$role")")"
     [[ -z "$role" ]] && role="unassigned"
     age="$(card_age "$f")"
-    [[ "$status" == "in_progress" && "$role" != "unassigned" ]] && DOING_MAP="$DOING_MAP$id|$(role_base "$role")
+    [[ "$status" == "in_progress" && "$role" != "unassigned" ]] && DOING_MAP="$DOING_MAP$id|$role
 "
     summary="$(printf '%s' "$desc" | sed -n '2,3p' | tr '\n' ' ' | cut -c1-140 | html_escape)"
 
@@ -225,6 +248,12 @@ generate() {
 
   build_gates
   build_members
+  # 跨项目揭示：选中 team 的成员 cwd 不在本仓库下时明示（fallback 选中别项目 team 不静默冒充）
+  local PROJ_NOTE="" proj=""
+  if [[ -f "$TEAMS_BASE/$TEAM/config.json" ]]; then
+    proj="$(jq -r '([.members[]?.cwd // empty] | map(select(length>0)) | .[0]) // ""' "$TEAMS_BASE/$TEAM/config.json" 2>/dev/null)"
+    [[ -n "$proj" && "$proj" != "$ROOT" && "$proj" != "$ROOT"/* ]] && PROJ_NOTE=" · ⚠ 非本项目 team（cwd: $(printf '%s' "$proj" | html_escape)）"
+  fi
   local META="" TS
   TS="$(date '+%H:%M:%S')"
   [[ "$WATCH" -eq 1 ]] && META="<meta http-equiv=\"refresh\" content=\"$INTERVAL\">"
@@ -268,7 +297,7 @@ generate() {
  .mem em{font-style:normal;color:#58a6ff;font-weight:600}
  .mem em.hint{color:#8b949e;font-weight:400;cursor:help}
 </style></head><body>
-<header><h1>AGF Board</h1><span class="dim">team: $TEAM${FEATURE:+ · feature: $FEATURE}</span>
+<header><h1>AGF Board</h1><span class="dim">team: $TEAM${FEATURE:+ · feature: $FEATURE}$PROJ_NOTE</span>
 <span class="dim">$N_DONE/$N_TOTAL 完成$( [[ "$N_TOTAL" -eq 0 ]] && printf ' · ⏳ 等待派单（team 暂无 task，创建后自动上板）' ) · 更新 $TS$( [[ "$WATCH" -eq 1 ]] && printf ' · 自动刷新 %ss' "$INTERVAL" )</span></header>
 <div class="gates">$GATES_HTML</div>
 ${MEMBERS_HTML:+<div class=\"team\">$MEMBERS_HTML</div>}

@@ -39,11 +39,11 @@ description: 用 python-pptx 写"现代化中文制度 / 党政 / 企业宣贯 P
 
 | 场景 | 必读（Read 全文） |
 |---|---|
-| 走"基于模板 + python-pptx 混合"路径（动手前） | [`references/template-based-generation.md`](./references/template-based-generation.md)（7 步流程 / 模板分析三件套 / Placeholder vs Shape / 关键文件指针）+ 对应 `template-*-guide.md`（如 [`template-team-guide.md`](./template-team-guide.md)）|
-| 写 helper / 设计 token / 字号 layout / 品牌色板（任何写代码前） | [`references/design-tokens-and-techniques.md`](./references/design-tokens-and-techniques.md)（设计 token + 12 个关键技巧完整代码 + 品牌色获取 3 步）+ [`template.py`](./template.py)（可直接 `python3 template.py` 跑样例）|
-| deck 缺架构 / 流程 / 矩阵图（走 draw.io 前） | [`diagram-generation-guide.md`](./diagram-generation-guide.md)（500 行：安装 CLI / mxGraph 模板 / AGF token / 字号体系 / 8 大致丑坑 / 批量工作流 / 嵌入链路）|
-| mermaid 出图嵌 PPT / 多 PNG 合 PDF 提报 / 查外部资源链接与沉淀来源 | [`references/rendering-and-embedding.md`](./references/rendering-and-embedding.md) |
-| 操作 .pptx 底层（unpack / thumbnail / pack） | [`.claude/skills/pptx/SKILL.md`](../pptx/SKILL.md)（Anthropic 低层 skill）|
+| 走"基于模板 + python-pptx 混合"路径（动手前） | `references/template-based-generation.md`（7 步流程 / 模板分析三件套 / Placeholder vs Shape / 关键文件指针）+ 对应 `template-*-guide.md`（如 `template-team-guide.md`）|
+| 写 helper / 设计 token / 字号 layout / 品牌色板（任何写代码前） | `references/design-tokens-and-techniques.md`（设计 token + 12 个关键技巧完整代码 + 品牌色获取 3 步）+ `template.py`（可直接 `python3 template.py` 跑样例）|
+| deck 缺架构 / 流程 / 矩阵图（走 draw.io 前） | `diagram-generation-guide.md`（500 行：安装 CLI / mxGraph 模板 / AGF token / 字号体系 / 8 大致丑坑 / 批量工作流 / 嵌入链路）|
+| mermaid 出图嵌 PPT / 多 PNG 合 PDF 提报 / 查外部资源链接与沉淀来源 | `references/rendering-and-embedding.md` |
+| 操作 .pptx 底层（unpack / thumbnail / pack） | `.claude/skills/pptx/SKILL.md`（Anthropic 低层 skill）|
 
 ## 工具链（macOS 实测）
 

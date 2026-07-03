@@ -31,22 +31,32 @@ git log --oneline --grep="<feature>" | head # commit 历史
 
 ### 前后端契约纪律（含 frontend 的 feature 必读）
 
-前后端契约的单一来源是后端 **OpenAPI**（FastAPI 自动生成）；前端调用层全部由 **orval** 从 OpenAPI 生成，杜绝"口头契约 + 手写漂移"。决策与流程见 [ADR-006](../../docs/adr/006-frontend-backend-contract-sync.md)，执行硬约束：
+前后端契约的单一来源是后端 **OpenAPI**（FastAPI 自动生成）；前端调用层全部由 **orval** 从 OpenAPI 生成，杜绝"口头契约 + 手写漂移"。决策与流程见 ADR-006，执行硬约束：
 
 - **前端禁手写**：API 的请求/响应 TypeScript 类型、HTTP client、TanStack Query hooks、MSW mock handler **一律用 orval 生成产物**（约定目录 `frontend/src/api/generated/`），业务代码只 import 生成物；禁手写 `fetch` + 禁手写类型 + 禁手写 mock。契约不一致由 `tsc` 在编译期暴露。
 - **后端保证 schema 规范**：FastAPI 路由必须声明 `response_model`、给 operation 合理的 `operationId` / tags（orval 据此生成 hook 名与类型；schema 不规范 → 生成物难用）。这是 orval 生成质量的隐性前置，backend-dev 不可只盯自己的 API 而漏掉。
 - **orval 版本下限**：pin `orval ≥ 8.0.3`（CVE-2026-24132 mock 值未转义已在此版修复；取当时最新 8.x，建议 `^8.16.0`）。
 - **契约变更闭环**：后端改契约 → 重新导出 OpenAPI + 重跑 orval → 生成产物随 PR 提交；CI `git diff --exit-code` 挡未重生成的漂移。
-- 完整测试侧覆盖（SIT mock 来源 / E2E 真后端边界 / 交互完整性）见 [`testing.md` 前后端对接强制覆盖项](testing.md)。
+- 完整测试侧覆盖（SIT mock 来源 / E2E 真后端边界 / 交互完整性）见 `testing.md` 前后端对接强制覆盖项。
 
 ### Apple 客户端契约纪律（含 apple/ 调后端 API 的 feature 必读）
 
-同一份 OpenAPI 契约在 Apple 侧的对应纪律（决策见 [ADR-008](../../docs/adr/008-apple-backend-contract-sync.md)，是 ADR-006 的 Apple 对应版）：
+同一份 OpenAPI 契约在 Apple 侧的对应纪律（决策见 ADR-008，是 ADR-006 的 Apple 对应版）：
 
 - **Apple 客户端禁手写**：URLSession 请求、请求/响应 Codable DTO、JSON mock **一律走 swift-openapi-generator 生成**（SPM build plugin 构建期生成，产物不进库）；业务代码只用生成的 `Client` / `APIProtocol`。契约不一致由 `swift build` 在编译期暴露。
 - **SIT mock**：实现生成的 `APIProtocol` 协议做类型安全 fake server，禁手写 JSON fixture。
 - **契约变更闭环**：后端重新导出 `openapi.json` 进库 → apple 侧下次构建自动重生成；CI 对 `openapi.json` 跑「重导出 + `git diff --exit-code`」。
-- 执行细则见 [`apple-native.md`](apple-native.md)；后端 schema 规范责任与 Web 轨同一条（上节），不重复。
+- 执行细则见 `apple-native.md`；后端 schema 规范责任与 Web 轨同一条（上节），不重复。
+
+### 设计 token 纪律（含前端样式的 feature 必读）
+
+项目视觉系统的单一来源是 `docs/design/DESIGN.md`（设计 token SSOT，维护者 uiux-designer）。前端样式与各 feature spec 只引用 token，杜绝"散点硬编码 + 设计漂移"：
+
+- **禁硬编码视觉值**：颜色 hex、字号、间距、圆角一律引用 DESIGN.md token（落到 Tailwind / CSS 变量，如 `var(--color-primary)`）；业务 / 样式代码里裸 `#RRGGBB`、`padding: 13px` 之类即 finding。
+- **on-* 配对取色**：背景色与文本色成对取 `(color.x, color.on-x)`，对比度满足 WCAG AA（正文 ≥ 4.5:1）；新增主色先在 DESIGN.md 补 `on-*` 再用。
+- **token 变更闭环**：需要新 token → 先改 DESIGN.md 再在 spec / 代码引用；不在 feature 局部另立一套色板 / 间距。
+- 审查侧由 code-reviewer「设计 token 审查项」逐条核（见 `code-reviewer.md`）。
+- **审美层（不在本节）**：AI Tells / 三刻度 / Design Read 属审美判断（非 token 值），承载于 skill `agf-design-discipline`（三层治理见 ADR-013）；机械初筛 `agf-design-precheck.sh`，code-reviewer 按「审美纪律审查项」人审。本节只管 token 引用纪律，审美判断不在此重复。
 
 ## AI Development Guidelines
 
@@ -77,7 +87,7 @@ git log --oneline --grep="<feature>" | head # commit 历史
 碰到的代码"看着不顺眼"——格式不一致、命名能更好、注释能补全、import 能整理——**只要不在本任务范围内，一律不改**。理由：
 
 - diff 噪声拖慢 review、放大冲突
-- 跨实例并行时的临界区风险（见 [`workflow.md` Parallel Dispatch](workflow.md)）
+- 跨实例并行时的临界区风险（见 `workflow.md` Parallel Dispatch）
 - 小改良容易夹带未自验的副作用
 
 例外：你**自己改动**导致的 orphan（unused import / 未引用的本次新增变量）必须清。

@@ -1,9 +1,12 @@
 ---
 name: agf-writing-prd
-description: Use when product-lead is about to draft a PRD for a new feature. Provides the 10-section PRD structure, AC quality bar, must-have fields, and the verification gate before sign-off. Replaces ad-hoc Read of docs/prd/_TEMPLATE.md.
+description: "[DEPRECATED since v6.9.0 → removed in v7.0.0; use agf-writing-change instead] Legacy PRD intake. Use when product-lead is about to draft a PRD for a new feature. Provides the 10-section PRD structure, AC quality bar, must-have fields, and the verification gate before sign-off."
 ---
 
 # Writing a PRD (Product Requirements Document)
+
+> ⚠️ **Deprecated since v6.9.0, will be removed in v7.0.0. Migrate to: `docs/changes/` + skill `agf-writing-change`**（变更文件夹入口，决策见 ADR-012）。
+> PRD 仍可用作 fallback，但**新需求一律走变更文件夹**——它把需求表达成对活规格的 delta，交付后 merge 进 `docs/specs/`，让「系统当前有哪些行为」永远有 SSOT；PRD 是一次性快照、交付后沉底。
 
 Use this skill when:
 

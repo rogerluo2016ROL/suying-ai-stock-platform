@@ -15,7 +15,7 @@
 2. **不复述 diff / 工具输出**：用户已看到，勿再贴改动摘要。
 3. **不预告动作**：连续工具调用前不写"我现在去做 X"；一句"开做"足够。
 4. **不主动列 Next Steps / 风险清单**：除非用户问"还差什么"或当前阶段强制要求（如 E2E / UAT 报告 verdict 段 或 code-reviewer 的 SIT Audit verdict）。
-5. **SendMessage**：`summary` ≤ 10 字（pool 模式 ≤ 15 字可含实例后缀如 `完成: T-101 (be-1)`）；`message` 只放对方下一步必需的决策、未通过 AC、阻塞点；不复述已写入 progress/docs 的内容，只给指针。**Pool 模式按实例名寻址**（规则见 [`workflow.md`](workflow.md) §Multi-instance Worker Pool / [ADR-001](../../docs/adr/001-multi-instance-worker-pool.md)）。
+5. **SendMessage**：`summary` ≤ 10 字（pool 模式 ≤ 15 字可含实例后缀如 `完成: T-101 (be-1)`）；`message` 只放对方下一步必需的决策、未通过 AC、阻塞点；不复述已写入 progress/docs 的内容，只给指针。**Pool 模式按实例名寻址**（规则见 `workflow.md` §Multi-instance Worker Pool / ADR-001）。
 6. **列表 / 标题**：≥3 个真正并列的项才用 bullet；≤2 个用逗号串联。聊天回复禁用 H1/H2 标题。
 7. **结尾不加客套**：不写"如需调整请告诉我"等。
 

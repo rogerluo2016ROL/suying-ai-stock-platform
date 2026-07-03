@@ -7,7 +7,7 @@
 
 ## 适用范围
 
-> **与 SIT Audit 的分工**（防同一证据被验两遍）：SIT Audit（code review 阶段，见 [`workflow.md`](workflow.md)）审**开发阶段集成验证**证据，不要求容器重建；本 SOP 只管 **P0/P1 issue close 前的部署后端到端实证**（容器重建 + 真实 curl）。dev 不需要在 progress SIT 证据段重复提交 close-verify 级证据，反之亦然。
+> **与 SIT Audit 的分工**（防同一证据被验两遍）：SIT Audit（code review 阶段，见 `workflow.md`）审**开发阶段集成验证**证据，不要求容器重建；本 SOP 只管 **P0/P1 issue close 前的部署后端到端实证**（容器重建 + 真实 curl）。dev 不需要在 progress SIT 证据段重复提交 close-verify 级证据，反之亦然。
 
 | 严重度 | Close 前必须本 SOP | 备注 |
 |---|---|---|

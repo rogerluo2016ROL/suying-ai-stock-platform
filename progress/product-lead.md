@@ -112,3 +112,53 @@ Code review verdict: ⚠️ Approve with Changes (2 fixes needed, 4 suggestions,
 - 删：`frontend/src/styles/design-tokens.css`（孤儿）
 
 **下一步**：Batch A（10 preview）fan-out。
+
+## Batch A 第一波 code-review verdict（commit 48d47535，2026-07-03）
+
+- **code-reviewer-1（契约+安全）**：✅ **Pass** — 临界区零越界（12 文件全在 pages/__tests__/tests/sit/suying-app.css/progress）/ scope 全 Header 注入（Screener payload grep tenant_id|owner_user_id|account_id 零命中）/ candidate_pool_metadata 前后端对齐无回退。
+- **code-reviewer-2（质量+SIT）**：✅ **approve with changes** — tsc 0 + vitest 327/327 自跑复现 / SIT Audit Pass（dev-1/dev-5 证据完整；dev-3 无独立 SIT 段但被 Screener.test.tsx + 全量 vitest 覆盖，不阻断）/ EmptyState 全覆盖 / Screener 零硬编码。**3 token warning（W-1 Dashboard signalLevelMeta 6档半token化 / W-2 Signals ECharts rgba + Dashboard gauge stops / W-3 suying-app.css .rc-badge 裸rgba）+ 1 审美建议（S-1 Signals emoji icon）**，不阻断，进 Batch B 收口（task #10）。
+
+**第一波 verdict**：实质通过（contract Pass + quality approve-with-changes 不阻断）。启第二波（OpenDecision 2.1/2.4 + Predictions 5.0），token 收口进 Batch B。
+
+## M1 Batch A 全 10 preview review 双通过（2026-07-03）
+
+- **第一波** commit 48d47535（Dashboard 1.1/1.3 + Screener 3.1 + Signals 6.0-6.3）：reviewer-1 Pass + reviewer-2 approve-with-changes（3 token warning 进 #10 Batch B）
+- **第二波** commit 223189b6（OpenDecision 2.1/2.4 + Predictions 5.0）：reviewer-1 Pass + reviewer-2 **approve 零 finding**（W-1 真落实：OpenDecision/Predictions 全文 0 裸色，ECharts 6 处 hex→lightTokens，suying-app.css 全 var()，第一波 W-1/W-2/W-3 第二波未复现）
+- **Batch A 全过**：tsc 0 + vitest 341/341 绿，临界区零越界，scope 全 Header 零明文，EmptyState 全覆盖，W-1 教训真内化
+
+**M1 达成**：行情决策板块 Batch A 10 preview 全 Verified（代码层）。启 UAT（deploy-engineer 起隔离栈 → qa-engineer P0 e2e + 截图 vs preview 比对）。
+
+## qa UAT 完成 — 行情决策 Batch A+B Conditional promote（2026-07-03）
+
+qa-engineer E2E/UAT 完成（`docs/qa/batch-ab-uat-2026-07-03.md` + evidence/）：
+- **5 passed / 1 conditional / 0 failed**，无 P0/P1 critical/high bug
+- P0×3 全 pass^2：6 主路由专属渲染 / EmptyState 兜底 / candidate-pool 写读隔离闭环（POST 写入+GET 回读+scope 隔离，契约§9.3 合规）
+- P1×2 pass：产业链 3 模式（upstream/value_chain/competition 互不相同）/ 浅色主题+A股红涨绿跌（.up#ff4d4f/.down#2ec27e 与 preview token 逐字一致）
+- P1×1 conditional：watchlist 3 端点 curl 通+优雅降级，前端按钮 disabled（DEF-1）
+- 4 Low defect follow-up：DEF-1 watchlist 按钮 disabled / DEF-2 gateway 502 包装 / DEF-3 empty_state 字段名不匹配（前端 reason vs 后端 hint,suggestion）/ DEF-4 Signals 文案过时
+- 测试数据清理干净
+
+**PL 签字**：⚠️ **Conditional promote**（P0 全过达可交付基线）。DEF-1/3/4 派前端修（完全可用闭环，task #22），DEF-2 follow-up issue。
+
+## 🎯 行情决策板块前端完全可用 — PL 签字（2026-07-03）
+
+DEF-1/3/4 修上主分支（`d7a72963` cherry-pick），全量 tsc 0 + vitest 349/349 绿（54 files），无回归。
+
+**交付清单**：
+- **Batch A**（10 preview）+ **Batch B**（#11 watchlist + #12 产业链 + #13 schema fix）全 **review 双通过**（reviewer-1 Pass + reviewer-2 approve 零 finding）
+- **qa UAT Conditional promote**（P0×3 pass^2 + P1×2 pass，0 critical/high）+ **DEF-1/3/4 全修**
+- 6 主路由（Dashboard/OpenDecision/Screener/Predictions/Signals/SupplyChainBom）全真实 API
+- candidate-pool 写读隔离闭环 + watchlist 自选股 CRUD（按钮解禁 + 3 端点 scope Header）+ 产业链 3 模式专属渲染 + 浅色 token 收口（lightTokens 单一真值源）+ A股红涨绿跌 + EmptyState 兜底
+
+**PL 签字**：✅ 行情决策板块前端完全可用。
+
+**follow-up**（不阻断）：#10 token 收口（W-1/W-2/W-3 alpha 派生常量 + S-1 emoji）/ DEF-2 gateway 502 issue / 治本 B schema issue / Batch C（5 深化 preview）/ data-service 回填 stocks 后 watchlist CRUD 写入闭环 + 真实数据链路。
+
+## Batch C review 双通过 — 17/23 preview Verified（代码层）（2026-07-03）
+
+Batch C #23（Screener 3.2/3.3 `47422493`）+ #24（Predictions 5.1/5.2/5.3 `533038df`）fan-in，tsc 0 + vitest 371/371 绿（57 files）。
+- reviewer-1 Pass（临界区零越界——NewUiModulePage.test.tsx test 文本对齐；scope §9.3 N/A——5 sub-tab 纯本地 state 零新增 API）
+- reviewer-2 approve 零 finding（W-1 第三次落实 + task #10 token 收口闭环：signalLevelTokens 6 档 + alpha 工具 SSOT；三批演进 ad-hoc→命名常量→token 体系）
+
+**17/23 preview Verified**：Batch A 10 + Batch B 2（watchlist 1.4 + 产业链 4.2）+ Batch C 5（3.2/3.3/5.1/5.2/5.3）。Batch B 剩 6 sub-tab（1.2 auction / 2.2 auction-analysis / 2.3 signal-scan / 2.5 execution-monitor / 4.1 policy-analysis / 4.3 company-analysis）未做。
+**核心目标达成**：行情决策板块 6 主路由完全可用（UAT P0 pass^2 + DEF 全修 + token 收口）。HEAD 533038df。

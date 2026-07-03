@@ -1,5 +1,5 @@
-// 4A 评审决议书 docx 生成器 — 阅读友好版 v2
-// v2: 页边距收窄 / 表格列宽放大避免换行 / 段前段后收紧
+// 4A 评审决议书 docx 生成器 — 阅读友好版
+// 页边距收窄 / 表格列宽放大避免换行 / 段前段后收紧
 
 const fs = require('fs');
 const path = require('path');
@@ -57,7 +57,7 @@ const txt = (text, opts = {}) => new TextRun({
   italics: !!opts.italics,
 });
 
-// 段落 spacing 全局收紧（v2: before/after 默认 40，line 280）
+// 段落 spacing 全局收紧（before/after 默认 40，line 280）
 const p = (children, opts = {}) => new Paragraph({
   alignment: opts.align || AlignmentType.LEFT,
   spacing: { before: opts.before ?? 40, after: opts.after ?? 40, line: opts.line ?? 280 },
@@ -85,7 +85,7 @@ const h3 = (text) => new Paragraph({
   children: [new TextRun({ text, font: FONT, size: 23, bold: true, color: COLOR.MUTED })],
 });
 
-// cell margins 收紧（v2: 60/60/100/100）
+// cell margins 收紧（60/60/100/100）
 const cellOf = (content, opts = {}) => {
   const para = Array.isArray(content) ? content : [content];
   const children = para.map(c => {
@@ -137,7 +137,7 @@ const tableOf = (headers, rows, widthsBefore, opts = {}) => {
   });
 };
 
-// callout 框（v2: 宽度跟随 CONTENT_WIDTH）
+// callout 框（宽度跟随 CONTENT_WIDTH）
 const callout = (lines, opts = {}) => {
   const paras = lines.map((line, i) => {
     if (typeof line === 'string') {
@@ -773,7 +773,7 @@ const doc = new Document({
 const target = '/Users/pc2026/Documents/DevApps/TopConsultant/docs/4a-review/LA-20260511-001/08-final-decision.docx';
 Packer.toBuffer(doc).then(buf => {
   fs.writeFileSync(target, buf);
-  console.log(`✓ 已生成 v2: ${target} (${(buf.length / 1024).toFixed(1)} KB)`);
+  console.log(`✓ 已生成: ${target} (${(buf.length / 1024).toFixed(1)} KB)`);
 }).catch(err => {
   console.error('生成失败:', err);
   process.exit(1);

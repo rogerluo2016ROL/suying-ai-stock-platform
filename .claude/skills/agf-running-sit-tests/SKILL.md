@@ -77,7 +77,7 @@ Format authority: `.claude/standards/ac-lifecycle.md` → **完整条目格式**
 
 ## Hand-off
 
-完成 SIT 自跑后：
+完成 SIT 自跑后，**先自检再报告**——跑 `bash .claude/scripts/agf-sit-precheck.sh progress/<role>.md` 机筛 placeholder / 漏证据 / pass 含失败 token / 质量门矛盾（advisory，不阻断），把 flag 的修掉再 SendMessage，省一轮 code-review 打回（同一脚本是 code-reviewer 的 SIT Audit step 0，ADR-011 决策 2）。然后：
 
 - **All AC pass**: SendMessage product-lead — "Implementation + SIT done, ready for code-review"，引用 `progress/<role>.md` 条目路径 + 时间戳
 - **Some AC fail / blocked**: 仍写完 `progress/<role>.md` 的 SIT 段（如实记录 fail / blocked），但 SendMessage 写明阻塞原因与影响范围，由 product-lead 决定本轮是否就修

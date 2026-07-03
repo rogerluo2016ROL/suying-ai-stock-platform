@@ -12,28 +12,29 @@
 | **UAT** | PRD 验收标准（业务视角） | 全部真实 | qa-engineer 执行 + product-lead 判定 | E2E 脚本 + 人工确认 | E2E 通过后 |
 
 - **开发者职责**：Unit + SIT 都随代码提交（Unit 走 Mock，集成层走 API+DB+external 单边集成），不转包给测试角色
-- **前端 SIT mock 来源**：含前端的 feature，前端 SIT 的 MSW mock 必须来自 orval 生成产物（`*.msw.ts`，禁手写）——契约同步机制见下文「前后端对接强制覆盖项」节 + [ADR-006](../../docs/adr/006-frontend-backend-contract-sync.md)
-- **Apple 轨**：`apple-dev` 同样承担 Unit（Swift Testing，`swift test`）+ SIT（`xcodebuild test` + 模拟器）自跑，流程按 skill `agf-running-apple-sit`；E2E（XCUITest 对签名分发包）/ UAT 由 `apple-qa-engineer` 执行——完整测试矩阵见 [`apple-native.md` §9](apple-native.md)，SIT mock 必须实现生成的 `APIProtocol`（禁手写 JSON fixture，见 [ADR-008](../../docs/adr/008-apple-backend-contract-sync.md)）
+- **前端 SIT mock 来源**：含前端的 feature，前端 SIT 的 MSW mock 必须来自 orval 生成产物（`*.msw.ts`，禁手写）——契约同步机制见下文「前后端对接强制覆盖项」节 + ADR-006
+- **Apple 轨**：`apple-dev` 同样承担 Unit（Swift Testing，`swift test`）+ SIT（`xcodebuild test` + 模拟器）自跑，流程按 skill `agf-running-apple-sit`；E2E（XCUITest 对签名分发包）/ UAT 由 `apple-qa-engineer` 执行——完整测试矩阵见 `apple-native.md` §9，SIT mock 必须实现生成的 `APIProtocol`（禁手写 JSON fixture，见 ADR-008）
 - **UAT 判定权**：唯一由 product-lead 对照 PRD AC 签字，qa-engineer 只执行并出报告
 - **测试报告**：SIT 证据写入 `progress/<role>.md` 的 `**SIT 证据**` 段（不再单独产 `docs/qa/[feature]-sit-*.md`）；E2E / UAT 完成后分别输出至 `docs/qa/[feature]-[e2e|uat]-[YYYY-MM-DD].md`
 - **阶段门槛 / 失败回退**：code-review (含 SIT Audit) 通过 → E2E → UAT；任一阶段失败由 product-lead 重新分派执行层修复，qa-engineer 和 code-reviewer 不直接改实现
-- **TDD 是核心纪律**（非建议）：新功能 / bugfix 任务必须按 red → green → refactor 顺序，PR commit history 能看出 test commit 早于 impl commit；详见 [`ac-lifecycle.md` DoD](./ac-lifecycle.md) + skill `superpowers:test-driven-development`；纯重构 / 文档 / 配置任务可跳过
+- **交付 lane（ADR-011 决策 3）**：PL 派单时按规模 + 风险选 lane——**full**（默认；Medium/Large feature、MINOR/MAJOR、或**任何高风险变更**）走本文件全套门；**fast**（仅 Small + PATCH + 非高风险，PL 显式选 + 记录风险接受）**只减不跳**：E2E 缩到「冒烟 + 改动面目标 AC 抽核 + **受影响界面**渲染核查」、UAT 用例沿用 PATCH 豁免，但**仍部署 + 冒烟、P0 仍 pass²、受影响界面渲染核查仍必做**。高风险变更（auth / schema migration / LLM 切换 / cross-cutting，清单见 `workflow.md` §例外）**无论规模一律 full**。lane SSOT + 选择协议见 `workflow.md` §交付 lane
+- **TDD 是核心纪律**（非建议）：新功能 / bugfix 任务必须按 red → green → refactor 顺序，PR commit history 能看出 test commit 早于 impl commit；详见 `ac-lifecycle.md` DoD + skill `superpowers:test-driven-development`；纯重构 / 文档 / 配置任务可跳过
 
 ## UAT 用例文档（用户审核 gate）
 
-> UAT 用例不再隐含在"qa 读 AC 直接测"里——**先成文、用户审核确认、再执行**。本节是该 gate 的 SSOT；骨架在模板 [`docs/qa/uat-cases-_TEMPLATE.md`](../../docs/qa/uat-cases-_TEMPLATE.md)，执行编排见 `qa-engineer.md` UAT 节 + `product-lead.md` Step 3.4。
+> UAT 用例不再隐含在"qa 读 AC 直接测"里——**先成文、用户审核确认、再执行**。本节是该 gate 的 SSOT；骨架在模板 `docs/qa/uat-cases-_TEMPLATE.md`，执行编排见 `qa-engineer.md` UAT 节 + `product-lead.md` Step 3.4。
 
-- **产物**：`docs/qa/[feature]-uat-cases-[YYYY-MM-DD].md`（全 feature 单份，pool 多实例共享），E2E 通过后、UAT 执行前由 qa-engineer 生成。
+- **产物**：`docs/qa/[feature]-uat-cases-[YYYY-MM-DD].md`（全 feature 单份，pool 多实例共享）。**起草时机（ADR-011 决策 1）：qa-engineer 在 dev 实现期即可并行起草**——用例只依赖 PRD AC + design spec、不依赖运行代码，把"写用例 + 等用户审核"挪出尾部关键路径；**实际结果 / 截图证据仍在 UAT 执行时回填**（不变）。
 - **每条用例 6 字段，独立执行、独立判定**：① 用例 ID / 标题（关联 PRD AC 编号，如 ← AC-3，保证可追溯）② 前置条件（数据准备 / 环境状态）③ 触发条件（"当…时"，对齐 AC 可测试性硬标准）④ 操作步骤（可复现：命令 / API 调用 / UI 操作）⑤ 预期结果（必须可观察："显示…"/"返回…"/"跳转至…"，禁"功能正常"）⑥ 实际结果 + 证据（执行后回填：真实命令 + 输出 / 截图；**涉及用户可见界面的用例，真渲染截图 + 读图四查结论为必选、纯 API / DB 输出不构成 Pass**——见下文「UAT 界面渲染核查」节；fail 必须展开 命令 + 真实输出 + 偏差；只写"已通过"无效）。
 - **AC 覆盖矩阵**：每条 AC ≥ 1 个用例，矩阵缺行即漏。
 - **界面渲染核查矩阵**：每个用户可见界面 ≥ 1 行（执行时回填真渲染截图 + 读图四查），缺行即漏；纯后端 / CLI feature 标"不适用"——细则见下文「UAT 界面渲染核查」节。
-- **用户审核 gate（MAJOR / MINOR 强制）**：用例文档 frontmatter `status: Approved`（用户审核确认 + 署名）之前**不得开始 UAT 执行**；PATCH 级 hotfix 可由 product-lead 显式豁免（豁免理由写进 UAT 报告）。
+- **用户审核 gate（MAJOR / MINOR 强制，gate 本身不变）**：用例文档 frontmatter `status: Approved`（用户审核确认 + 署名）之前**不得开始 UAT 执行**；PATCH 级 hotfix 可由 product-lead 显式豁免（豁免理由写进 UAT 报告）。**因用例已在 dev 期起草（见上），用户审核与 dev / review / deploy / E2E 并行消化，到 UAT 执行前批完即可——审批不再串在关键路径尾部。**
 - **与 UAT 报告分工**：证据 SSOT 在用例文档（执行时回填）；UAT 报告（skill `agf-writing-qa-report`）引用用例 ID + 汇总 verdict，不重复粘贴证据。
 - P0 用例 pass^2（连续 2 次都过）不变。
 
 ## UAT 界面渲染核查（真渲染 + 截图 + 读图四查）
 
-> 触发来源：UAT 仅凭 API 断言 / curl 输出即判 Pass——接口 200 但界面层缺陷（导航缺失、布局裁切、控件点不动、观感劣化）直达用户现场。**UIUX 是用户对产品最直接的感受，界面质量本身就是交付标准**。本节是 UAT 界面证据的 SSOT；矩阵骨架在 [`docs/qa/uat-cases-_TEMPLATE.md`](../../docs/qa/uat-cases-_TEMPLATE.md)，执行落点 `qa-engineer.md` UAT 节 + skill `agf-writing-qa-report`。
+> 触发来源：UAT 仅凭 API 断言 / curl 输出即判 Pass——接口 200 但界面层缺陷（导航缺失、布局裁切、控件点不动、观感劣化）直达用户现场。**UIUX 是用户对产品最直接的感受，界面质量本身就是交付标准**。本节是 UAT 界面证据的 SSOT；矩阵骨架在 `docs/qa/uat-cases-_TEMPLATE.md`，执行落点 `qa-engineer.md` UAT 节 + skill `agf-writing-qa-report`。
 
 ### 适用范围
 
@@ -50,7 +51,7 @@ feature 含任何用户可见界面（页面 / 弹窗 / 抽屉 / 浮层）即触
    - **导航**：该界面应有的全局导航 / 入口 / 返回路径可见且指向正确；
    - **裁切**：无文本截断、元素溢出、相互遮挡；
    - **控件可点**：该界面关键可交互控件真实点击 / 输入并产生可观测后果（断言标准复用下文强制覆盖项 ③）；
-   - **视觉达标**：对照 `docs/design/[feature]/spec.md` + `index.html` 原型核还原度——对齐 / 间距 / 配色 / 字体层级 / 文案完整 / 空态与加载态观感；判准 = **这张截图敢不敢直接交付给用户**。
+   - **视觉达标**：对照 `docs/design/[feature]/spec.md` + `index.html` 原型核还原度——对齐 / 间距 / 配色 / 字体层级 / 文案完整 / 全状态观感（default/loading/empty/error/permission/disabled，对照 spec「页面/模块状态覆盖」）；判准 = **这张截图敢不敢直接交付给用户**。
 
 ### 证据效力（不可绕过）
 
@@ -60,11 +61,11 @@ feature 含任何用户可见界面（页面 / 弹窗 / 抽屉 / 浮层）即触
 
 ## 前后端对接强制覆盖项（缺陷 A 契约 + 缺陷 B 交互完整性）
 
-> 触发来源：下游反复反馈「前端与后端 API 接不上 / 页面按钮点击无反应」。两类缺陷——**A 契约漂移**（字段/路径/类型/method 前后端对不上）、**B UI 有控件但无有效行为**（按钮没绑 handler / 没真调 API）。契约机制选型与根因见 [ADR-006](../../docs/adr/006-frontend-backend-contract-sync.md)。本节是这两类缺陷的**测试侧 SSOT**，各 agent DoD 指向本节，不重复细则。
+> 触发来源：下游反复反馈「前端与后端 API 接不上 / 页面按钮点击无反应」。两类缺陷——**A 契约漂移**（字段/路径/类型/method 前后端对不上）、**B UI 有控件但无有效行为**（按钮没绑 handler / 没真调 API）。契约机制选型与根因见 ADR-006。本节是这两类缺陷的**测试侧 SSOT**，各 agent DoD 指向本节，不重复细则。
 
 ### 适用范围
 
-任何含 `frontend/`（或 `miniapp/` / `apple/`）调用 `backend/` API 的 feature。纯后端 / 纯文档 feature 不触发。Apple 侧的 ①②③ 对应物（生成 client 禁手写 / 控件绑定 handler / XCUITest 控件遍历）细则见 [`apple-native.md`](apple-native.md) + [ADR-008](../../docs/adr/008-apple-backend-contract-sync.md)，原则与本节同源不另立。
+任何含 `frontend/`（或 `miniapp/` / `apple/`）调用 `backend/` API 的 feature。纯后端 / 纯文档 feature 不触发。Apple 侧的 ①②③ 对应物（生成 client 禁手写 / 控件绑定 handler / XCUITest 控件遍历）细则见 `apple-native.md` + ADR-008，原则与本节同源不另立。
 
 ### 强制覆盖项（缺一不可）
 

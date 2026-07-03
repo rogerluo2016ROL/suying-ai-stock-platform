@@ -29,7 +29,7 @@
 | **数据可视化**（柱 / 雷达 / 仪表盘） | matplotlib | draw.io 静态 | 数据驱动用 mpl；演示静态用 draw.io |
 | **卡片墙**（≥ 4 张卡片 grid） | draw.io | python-pptx 直接画 | 提前生成 PNG 比 slide 内画稳定 |
 
-**经验规则**：deck 总图数 ≤ 10 → 全 Mermaid 即可；> 10 张或要"视觉一致" → 全 draw.io 沉本到底；混搭只会增加视觉割裂感。
+**经验规则**：deck 总图数 ≤ 10 → 全 Mermaid；> 10 张或要"视觉一致" → 全 draw.io 沉本到底；混搭只会增加视觉割裂。
 
 ## 2. draw.io 工作流（重点）
 
@@ -128,7 +128,7 @@ green   #2E8B57   pass / 成功（如 TDD 绿、UAT 签字）
 灰色文 #999999   次要文本 / 占位 dash
 ```
 
-7-8 色覆盖 90% 场景。**不要超过 12 色**（与 PPT skill 同规则）。
+7-8 色覆盖 90% 场景。**别超过 12 色**（与 PPT skill 同规则）。
 
 ### 字体 — 一律 PingFang SC
 
@@ -136,7 +136,7 @@ green   #2E8B57   pass / 成功（如 TDD 绿、UAT 签字）
 fontFamily=PingFang SC
 ```
 
-⚠️ 原 spec 用 Heiti SC 视觉"老派"，2026-05-16 全局切换到 PingFang SC。**与 PPT 嵌入字体一致**，确保跨页面无字体跳变。
+⚠️ Heiti SC 视觉"老派"，全局用 PingFang SC。**与 PPT 嵌入字体一致**，确保跨页面无字体跳变。
 
 draw.io 通过 SVG `<foreignObject>` 写入 font-family，渲染时调 Chromium 找系统字体 → macOS 找到 PingFang SC 即生效。
 
@@ -156,7 +156,7 @@ draw.io 通过 SVG `<foreignObject>` 写入 font-family，渲染时调 Chromium 
 
 ### 画布尺寸
 
-**统一 1600×900**（16:9，与 PPT slide 比例一致）。所有图保持等比，嵌 PPT 时 `add_picture(height=Inches(N))` 等比缩放不变形。
+**统一 1600×900**（16:9，与 PPT slide 比例一致）。所有图保持等比，嵌 PPT 时 `add_picture(height=Inches(N))` 缩放不变形。
 
 ## 4. 8 大致丑坑（必须主动避开）
 
@@ -219,9 +219,9 @@ flowchart LR
 
 ## 6. matplotlib 工作流（数据驱动图）
 
-仅当**数据从 CSV / 实验结果**动态生成图时用 matplotlib。本 guide 沉淀来源的 41 张图里 F 类 3 张（雷达 / 柱状 / 仪表盘）都是**演示数据静态画**——用 draw.io 反而省一次工具切换。
+仅当**数据从 CSV / 实验结果**动态生成图时用 matplotlib。本 guide 来源的 41 张图里 F 类 3 张（雷达 / 柱状 / 仪表盘）都是**演示数据静态画**——用 draw.io 反而省一次工具切换。
 
-如果你确实需要 mpl：
+确实需要 mpl 时：
 ```bash
 pip3 install --user --break-system-packages matplotlib
 ```
@@ -286,7 +286,7 @@ slide.shapes.add_picture(
 
 **3200px 宽 PNG → 缩到 5" 高 slide**：分辨率充裕（5" × 200 DPI = 1000px），不会糊。
 
-如果一页要放 2 张图（左右并列）：每张 `height=Inches(4.5)`，左 `left=Inches(0.55)`，右 `left=Inches(7.0)`。
+一页放 2 张图（左右并列）：每张 `height=Inches(4.5)`，左 `left=Inches(0.55)`，右 `left=Inches(7.0)`。
 
 ## 9. draw.io vs Mermaid vs matplotlib 选型对照（一图速查）
 
@@ -304,7 +304,7 @@ slide.shapes.add_picture(
 
 ## 10. Anti-prompt — 让 Claude 不要做的事
 
-把下面这段拷给 Claude 避免它走弯路：
+把下面这段拷给 Claude 避免走弯路：
 
 ```
 - 不要把 Heiti SC 作为默认字体 — macOS 10.11+ 用 PingFang SC（更现代）

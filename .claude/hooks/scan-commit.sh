@@ -60,8 +60,10 @@ m=$(echo "$ADDED" | grep -E '\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b|\bgithub
 m=$(echo "$ADDED" | grep -E '\bsk-ant-[A-Za-z0-9_-]{20,}\b' | head -1 || true)
 [ -n "$m" ] && report "Anthropic API key (sk-ant-)" "$m"
 
-# 4) OpenAI-style key (excluding Anthropic prefix)
-m=$(echo "$ADDED" | grep -E '\bsk-(proj-|svcacct-)?[A-Za-z0-9_-]{32,}\b' | grep -vE '\bsk-ant-' | head -1 || true)
+# 4) OpenAI-style key — exclude Anthropic sk-ant- PER MATCH (extract tokens,
+# drop sk-ant- ones), not per LINE: a line with both a real OpenAI key and the
+# literal "sk-ant-" must still be caught. Mirrors scan-secrets.sh rule #4.
+m=$(echo "$ADDED" | grep -oE '\bsk-(proj-|svcacct-)?[A-Za-z0-9_-]{32,}\b' | grep -vE '^sk-ant-' | head -1 || true)
 [ -n "$m" ] && report "OpenAI-style key (sk-...)" "$m"
 
 # 5) Google API key

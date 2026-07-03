@@ -15,7 +15,7 @@ argument-hint: <feature-slug>（必须已通过 apple code review（含 SIT Audi
    - `docs/reviews/$ARGUMENTS-apple-*.md` 存在（含 pool 实例 `-r<N>-`）；**所有** match 文件 frontmatter `code_verdict` ≠ `block` 且 `sit_audit_verdict` ∈ {`Pass`, `Pass with concerns`}；用 `bash .claude/scripts/agf-matrix.sh --type=review --feature=$ARGUMENTS` 一眼看全部
    - 对应代码**已合并到 main**（`git log main --oneline` 可见合并提交）；记录构建 commit SHA
    - 目标为 **Apple 原生链路**（`apple/` 工程）；若是 Web feature → **拒绝**：走 `/agf-deploy-uat`；小程序 → 归 miniapp 轨
-   - PRD 已声明分发渠道（TestFlight / App Store / macOS 直发 DMG / 企业内部），映射 lane 见 [`deployment.md` §7.2](../standards/deployment.md)
+   - PRD 已声明分发渠道（TestFlight / App Store / macOS 直发 DMG / 企业内部），映射 lane 见 `deployment.md` §7.2
    - 任一不满足 → **拒绝启动**，告诉用户缺什么
 2. **派单**（派 `apple-release-engineer`；**Pool 上限 = 1，禁 fan-out**——唯一签名身份 + App Store Connect，并发构建必撞 build number / match 仓）：
    - `apple-release-engineer` — initial task: 按 skill `agf-releasing-apple` 从合并后 main 构建：match 同步签名材料 → 按渠道跑对应 lane（`beta` / `release_appstore` / `release_dmg` / `release_internal`）→ 公证 / TestFlight 处理**等到完成状态** → 冒烟自检（真实输出：`spctl -a -vv` / "Ready to Test" 状态 / 实际装包启动），落发布报告到 `docs/deploy/$ARGUMENTS-apple-[YYYY-MM-DD].md`，SendMessage product-lead 附分发包定位

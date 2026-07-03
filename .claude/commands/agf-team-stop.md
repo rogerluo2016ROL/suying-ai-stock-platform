@@ -16,9 +16,9 @@ argument-hint: 无参数（自动识别 alive teammate）
 # 执行步骤
 
 1. **确认 UAT 已签字**：
-   - 在 `docs/prd/*.md`（active）与 `docs/prd/archive/*.md` 找最近 feature 的 §10 Sign-offs
+   - 确认最近 feature 的 UAT 业务签字态：变更文件夹 `docs/changes/<change>/proposal.md` 的签字记录 / qa UAT 报告 `docs/qa/<feature>-uat-*.md` frontmatter（PRD §10 Sign-offs 为 fallback）
    - 业务侧 ≥ 1 个 `approve` → 继续
-   - 否则 **abort**：`"UAT 未签字（PRD §10 Sign-offs 缺业务侧 approve），先 /agf-uat <feature> 完成验收。"`
+   - 否则 **abort**：`"UAT 未签字（缺业务侧 approve），先 /agf-uat <feature> 完成验收。"`
 
 2. **读 team config 列出待关 teammate**：
    - team-name 取自当前 session 上下文（agent team 模式下 PL session 必有）；无法确定时 `ls ~/.claude/teams/` 取最近修改
@@ -47,11 +47,11 @@ argument-hint: 无参数（自动识别 alive teammate）
    - 🟢 剩余 alive：`<name>`(<agentType>), ...（至少含 `product-lead`）
    - 下一步建议：
      - 若 progress 未归档 → `bash .claude/scripts/archive-progress.sh <feature>`
-     - 若 PRD 未 mv → `mv docs/prd/<feature>-*.md docs/prd/archive/`
+     - 若需求入口未归档 → `bash .claude/scripts/agf-spec-archive.sh <change> <YYYY-MM-DD>`（变更文件夹 delta merge 进活规格 + 移 archive；PRD fallback 才 `mv docs/prd/<feature>-*.md docs/prd/archive/`）
      - 继续给 PL 派新需求即可
 
 # 任务规模过小怎么办
 
 - 没有命中类型的 teammate alive → `"无可关闭 teammate（PL / 单实例角色不在默认关闭范围）。"` 退出
 - 不在 agent team 模式（无 `~/.claude/teams/<team-name>/` 目录）→ `"当前会话不是 agent team 模式，无 teammate 可关闭。"` 退出
-- 用户想连 PL / 长期角色一起关 → 不在本命令范围；告诉用户：`"PL 默认保留以接续后续需求；如确需全 team 解散，先手动 SendMessage shutdown_request 给 PL，然后 TeamDelete。"`
+- 用户想连 PL / 长期角色一起关 → 不在本命令范围；告诉用户：`"PL 默认保留以接续后续需求；如确需全 team 解散，先手动 SendMessage shutdown_request 给 PL，PL 退出后 team 目录随 session 结束自动清理（v2.1.178 起 TeamCreate / TeamDelete 工具已移除，无需手动操作）。"`

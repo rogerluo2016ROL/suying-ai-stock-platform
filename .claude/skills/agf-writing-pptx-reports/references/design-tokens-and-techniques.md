@@ -1,10 +1,10 @@
 # 设计 token + 12 个关键技巧 + 品牌色获取流程
 
-> 从 `SKILL.md` 下沉的完整参考。写 helper / 调样式 / 定色板前**必读本文全文**；可直接跑的 helper 集合在 [`../template.py`](../template.py)。
+> 从 `SKILL.md` 下沉的完整参考。写 helper / 调样式 / 定色板前**必读本文全文**；可直接跑的 helper 集合在 `../template.py`。
 
 ## 设计 token（直接拷贝到脚本头部）
 
-完整 helper + 色板放在 [`template.py`](../template.py)，直接 `python3 template.py` 可跑出一份样例 deck。要点：
+完整 helper + 色板放在 `template.py`，直接 `python3 template.py` 可跑出一份样例 deck。要点：
 
 - **单一品牌色**：1 主深 + 1 主标准 + 1 主淡 + 1 强调 + 5 灰阶 = 7 个色变量，**不超 12 个**
 - **字体**：`PingFang SC`（macOS 原生）+ Windows/Linux fallback `Microsoft YaHei` / `Source Han Sans CN`
@@ -35,7 +35,7 @@ def set_font(run, *, name="PingFang SC", size=14, bold=False, color=RGBColor(0,0
         elem.set('typeface', name)
 ```
 
-完整版见 [`template.py`](../template.py) `set_font()`。
+完整版见 `template.py` `set_font()`。
 
 **⚠️ Placeholder 单独需要 `_fix_ph_font()`**：
 
@@ -52,7 +52,7 @@ ph.text = "我的标题"
 T._fix_ph_font(ph, name="Heiti SC", size_pt=28, bold=True, color=NAVY)
 ```
 
-`_fix_ph_font` 完整实现见 [`template.py`](../template.py)；何时用哪个见 [`template-based-generation.md`](./template-based-generation.md) `Step 2 — Placeholder vs Shape 概念区分`。
+`_fix_ph_font` 完整实现见 `template.py`；何时用哪个见 `template-based-generation.md` `Step 2 — Placeholder vs Shape 概念区分`。
 
 ### 2. textbox 必须显式归零默认 margin
 
@@ -241,8 +241,8 @@ WHITE          = RGBColor(0xFF, 0xFF, 0xFF)
 | 来源 | 适用 |
 |---|---|
 | 公司官网 → "品牌识别" / "VI 手册" / "Brand Guidelines" | 优先 |
-| [BrandColorCode.com](https://www.brandcolorcode.com) | 一般企业 |
-| [Brandfetch.com](https://brandfetch.com) | 国际品牌 |
+| BrandColorCode.com | 一般企业 |
+| Brandfetch.com | 国际品牌 |
 | Pantone 色卡 | 严格设计场景 |
 
 ### Step 2 — 衍生色板
@@ -256,7 +256,7 @@ WHITE          = RGBColor(0xFF, 0xFF, 0xFF)
 主色 → 原色 → 强调警示（ACCENT_BRAND）
 ```
 
-用 [coolors.co](https://coolors.co) 或 [paletton.com](https://paletton.com) 一键生成调和色板。
+用 coolors.co 或 paletton.com 一键生成调和色板。
 
 ### Step 3 — 党政红 / 汽车风惯用搭配
 

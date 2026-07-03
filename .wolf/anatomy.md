@@ -1,12 +1,24 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-02T08:50:33.336Z
-> Files: 526 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-02T23:38:52.244Z
+> Files: 559 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
 - `analyze_main_force_300539.py` — 分析 横河精密(300539) 主力出货迹象. (~2618 tok)
 - `analyze_main_force_600268.py` — 分析 国电南自(600268) 主力出货迹象. (~3079 tok)
+
+## ../../.claude/plans/
+
+- `shimmying-swinging-stonebraker.md` — 行情决策板块前端整体优化 — 23 preview 全 Verified (~1902 tok)
+
+## ../../.claude/projects/-Users-rogerluo------K----/memory/
+
+- `edit-abs-path-lands-main-not-worktree.md` (~227 tok)
+- `in-process-agent-edit-absolute-path-main-repo.md` (~298 tok)
+- `md-ui-worktree-cwd-confusion.md` (~406 tok)
+- `MEMORY.md` (~510 tok)
+- `uat-init-sql-alembic-schema-conflict.md` (~532 tok)
 
 ## ./
 
@@ -281,7 +293,7 @@
 
 ## .claude/
 
-- `settings.json` (~1608 tok)
+- `settings.json` (~1687 tok)
 - `settings.local.json` (~680 tok)
 
 ## .claude/agent-memory/product-lead/
@@ -795,10 +807,59 @@
 - `console-2026-06-11T04-05-33-747Z.log` (~311 tok)
 - `console-2026-06-11T04-06-36-422Z.log` (~2617 tok)
 
+## backend/alembic/versions/
+
+- `006_multi_horizon_snapshots.py` — Add multi-horizon return columns to screening_snapshots. (~690 tok)
+- `008_pledge_rtsw_toplist_align.py` — pledge_detail / rt_sw_k / top_list schema 批量对齐（3 表）. (~1465 tok)
+- `022_watchlist.py` — Bring watchlist to full scope-aware schema (tenant/owner/account/visibility/data_scope). (~2272 tok)
+
+## docs/deploy/
+
+- `batch-a-uioverhaul-uat-2026-07-03.md` — UAT 部署报告 — 行情决策 Batch A (md-ui-overhaul) [+ Batch B #11/#12] (~2051 tok)
+
+## docs/qa/
+
+- `batch-ab-uat-2026-07-03.md` — QA Report — 行情决策 Batch A (md-ui-overhaul) + Batch B (watchlist/产业链) — UAT (~3200 tok)
+
+## docs/reviews/
+
+- `cb-auction-t0-final-review-2026-06-30.md` (~94 tok)
+
 ## docs/screener/
 
 - `screener-optimization-design.md` — 速赢AI 选股模型优化 — 设计文档 (~5563 tok)
 - `Suying-AI-Screener-Optimization-2026-06-30.md` — 速赢AI 选股模型优化报告 (~6105 tok)
+
+## frontend/src/
+
+- `main.tsx` — ThemedRoot (~550 tok)
+
+## frontend/src/__tests__/
+
+- `PrototypeRoutes.test.tsx` — mockUseAuth (~2404 tok)
+- `Screener.test.tsx` — renderScreener (~2780 tok)
+- `ThemeContext.test.tsx` — A consumer that renders the current mode + a switch, mirroring the Settings Drawer usage. (~635 tok)
+
+## frontend/src/api/
+
+- `client.ts` — A screener pick passed to strategy generation / plan picks. (~9169 tok)
+- `types.ts` — 股票基础信息（代码 + 名称） (~8877 tok)
+
+## frontend/src/contexts/
+
+- `ThemeContext.tsx` — antd ConfigProvider theme config derived from mode (for the caller). (~922 tok)
+
+## frontend/src/pages/
+
+- `Dashboard.tsx` — 从已返回的 market_sentiment / market_regime_v2 八维分数 + 市场快照派生 3 条 AI 解读支撑原因。 (~19669 tok)
+- `Screener.tsx` — tabs (~11214 tok)
+- `Signals.tsx` — 风险扫描 4 项检查卡（对齐 6.3 preview：审计 / 公告 / ST退市 / 业绩） (~6187 tok)
+- `SupplyChainBom.tsx` — 卡脖子等级 → 颜色（红涨绿跌：一级=红/二级=黄/非=绿，对齐 preview 4.2 ckColor） (~13063 tok)
+
+## frontend/src/styles/
+
+- `accessibility.css` — Styles: 21 rules, 2 vars (~1065 tok)
+- `tokens.ts` — 设计 token 单一真值源（JS 侧）。与 src/styles/suying-app.css 的 :root 段一一对应。 (~680 tok)
 
 ## packages/kronos-data/kronos_data/
 
@@ -829,9 +890,26 @@
 
 - `test_v5_engines.py` — Unit tests for V5.0 new screening engines. (~5536 tok)
 
+## progress/
+
+- `backend-dev.md` — UAT 阻塞-fix — init_postgres.sql vs alembic schema 双重定义冲突（治标 A 幂等）- 2026-07-03 (~33474 tok)
+- `code-reviewer-1.md` — code-reviewer-1 — 行情决策 Batch A 第一波 fan-in 审查 (~486 tok)
+- `code-reviewer-2.md` — progress / code-reviewer-2 — Batch A 第一波 质量+SIT Audit (~1673 tok)
+- `deploy-engineer.md` — deploy-engineer 状态 (~1694 tok)
+
 ## services/screener-service/app/
 
 - `orchestrator.py` — Mode Orchestrator — V5.0 multi-strategy fusion + Kronos prediction + pipeline. (~5576 tok)
+- `watchlist_store.py` — Watchlist persistence for platform-scoped self-selected stocks. (~2759 tok)
+
+## services/screener-service/app/routers/
+
+- `screener.py` — Screener API routes — 12 screening modes via unified endpoint with Redis caching. (~84510 tok)
+
+## services/screener-service/tests/
+
+- `test_candidate_pool_api.py` — Tests for candidate-pool REST endpoints (POST/GET /api/v1/screener/candidate-pool). (~3941 tok)
+- `test_watchlist_api.py` — Tests for watchlist REST endpoints (POST/GET/DELETE /api/v1/screener/watchlist). (~3710 tok)
 
 ## tools/
 

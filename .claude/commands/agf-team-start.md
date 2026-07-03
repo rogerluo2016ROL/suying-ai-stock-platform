@@ -3,7 +3,7 @@ description: 启动 Agent Team 完成多角色产品/功能交付
 argument-hint: <产品或功能描述> [--pool=auto|off|N] [--dry-run]
 ---
 
-参考 `CLAUDE.md` "Team Mode" 节、`.claude/standards/workflow.md` 与 [ADR-001 Multi-instance Worker Pool](../../docs/adr/001-multi-instance-worker-pool.md)。
+参考 `CLAUDE.md` "Team Mode" 节、`.claude/standards/workflow.md` 与 ADR-001 Multi-instance Worker Pool。
 
 # 任务
 
@@ -124,7 +124,7 @@ claude --agent qa-engineer    --bg "为 <feature> 写 E2E 用例：AC 见 docs/p
 claude agents
 ```
 
-面板里：`Space` peek、`Enter` attach、`Ctrl+X` 停 session（再按一次删除并清 worktree）、`←` 在空 prompt 上一键 background + 切回面板。
+面板里：`Space` peek、`Enter` attach、`Ctrl+X` 停 session（再按一次删除并清 worktree）、`←` 在空 prompt 上一键 background + 切回面板；跑并行子项（subagent / 后台命令）的行还显示 `done/total` 计数（如 `2/5`，v2.1.161+），peek 面板列出最长运行的子项。
 
 ## 注意事项
 
@@ -134,7 +134,7 @@ claude agents
 - **Sub-agent / teammate 不在面板里列**：只列 top-level background session
 - **不能替代 product-lead 协调**：本路径**不做** PRD 演化 / UAT 签字 / 跨 worker 冲突仲裁；这些仍需 `/agf-team-start` 走 Agent Team 路径
 - **本路径不写 progress/<role>.md**：Self-Reporting Pattern（`.claude/standards/ac-lifecycle.md`）默认绑定 Agent Team；如需底稿，在各 `--bg` prompt 里显式要求 worker 完成时 append 到 `progress/<role>.md`
-- **`permissionMode: auto` / `bypassPermissions` 的 agent 不能直接 `--bg`**：[Claude Code 安全门](https://code.claude.com/docs/en/agent-view#permission-mode-and-settings)规定，未在交互模式接受过该 mode 前 `--bg` 启动这两类 agent 会被拒。名单以 `.claude/standards/team-roles.md` "Team Roles" 表 `Permission` 列为准（不在此复述，避免双写）。规避：先 `claude --agent <name>` 交互跑一次接受弹窗，之后即可 `--bg` 派工
+- **`permissionMode: auto` / `bypassPermissions` 的 agent 不能直接 `--bg`**：Claude Code 安全门规定，未在交互模式接受过该 mode 前 `--bg` 启动这两类 agent 会被拒。名单以 `.claude/standards/team-roles.md` "Team Roles" 表 `Permission` 列为准（不在此复述，避免双写）。规避：先 `claude --agent <name>` 交互跑一次接受弹窗，之后即可 `--bg` 派工
 - **`--bg` 启动的是 sub-agent 形态**：frontmatter 行为与 Agent Team 路径不同，详见 `.claude/standards/team-roles.md` 能力对照表
 
 ## 选哪条路：一句话决策表

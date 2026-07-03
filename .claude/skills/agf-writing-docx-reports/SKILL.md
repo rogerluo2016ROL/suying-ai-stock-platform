@@ -32,7 +32,7 @@ description: 用 docx-js 写"阅读友好的中文 docx 报告"（决议书 / �
 
 | 场景 | 必读（Read 全文） |
 |---|---|
-| 动手写任何 docx-js 生成脚本前 | [`references/design-tokens-and-helpers.md`](./references/design-tokens-and-helpers.md)——设计 token / spacing 收紧数值 / 9 个可复用 helper + 用法示例 / 文档外壳模板 / 结构化数据→表格技巧 / 装配顺序，全套粘贴即用 |
+| 动手写任何 docx-js 生成脚本前 | `references/design-tokens-and-helpers.md`——设计 token / spacing 收紧数值 / 9 个可复用 helper + 用法示例 / 文档外壳模板 / 结构化数据→表格技巧 / 装配顺序，全套粘贴即用 |
 
 ## 配色铁律
 

@@ -27,6 +27,19 @@ Use this skill when:
 ## Required sections (in order)
 
 ```markdown
+---
+# frontmatter 是 verdict 数据的唯一 SSOT（agf-verdict.py 解析；validate-verdict hook 校客观底线、agf-matrix.sh fan-in 都读这里）
+feature: [feature-slug]
+date: YYYY-MM-DD
+tester: qa-engineer
+stage: E2E                     # E2E | UAT
+report_verdict: Promote        # Promote | Conditional promote | Block
+critical_defect_count: 0       # 客观底线事实（>0 时 report_verdict 必须为 Block）
+p0_pass2_total: 0              # P0 用例数（需 pass²）
+p0_pass2_ok: 0                # 连续 2 次都过的 P0 数
+uat_signoff_verdict: N/A       # approve | request changes | N/A（仅 UAT 阶段有值；不推导）
+---
+
 # QA Report — [Feature] — [E2E|UAT]
 
 - **Date**: YYYY-MM-DD
@@ -117,6 +130,15 @@ Severity 标准:
 P0 全 Pass，P1 部分 Fail        → ⚠️ Conditional（P1 失败必须建跟踪 issue）
 有 P0 = Blocked（环境问题）     → ⚠️ Block + 升级 product-lead
 ```
+
+### 客观底线硬校验（frontmatter，退出时 hook 拦）
+
+`report_verdict` 的定性选择（Promote vs Conditional）**不**套公式，但两条**客观底线**由 `validate-verdict.sh`（委托 `agf-verdict.py`，ADR-010）退出时重算、违反即 exit 2 打回——填 frontmatter 前自查：
+
+- `critical_defect_count > 0` → `report_verdict` **必须为 Block**（有 critical defect 却 Promote/Conditional = 不可能组合）。
+- `p0_pass2_ok < p0_pass2_total`（P0 未全部 pass²）→ `report_verdict` **不得为 Promote**（P0 没连过 2 次不准晋级）。
+
+> 这两条只拦"客观不可能组合"，不强定 Promote/Conditional 档；极保守 fail-open（缺字段 / 坏 yaml 一律放行 + WARN）。`uat_signoff_verdict` 仅结构化记录、不推导。
 
 ## Evidence 质量条
 

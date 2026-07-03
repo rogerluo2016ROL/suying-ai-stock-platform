@@ -82,5 +82,5 @@ for try await line in bytes.lines {
 ## References
 
 - 后端 provider 封装 / env 契约 / fallback：skill `agf-wiring-multi-llm-sdk`（服务端 SSOT，本 skill 不重复）
-- 契约纪律与豁免边界：[ADR-008](../../../docs/adr/008-apple-backend-contract-sync.md)
+- 契约纪律与豁免边界：ADR-008
 - Apple Foundation Models framework：developer.apple.com（接入前 WebFetch 当前文档，API 迭代快）

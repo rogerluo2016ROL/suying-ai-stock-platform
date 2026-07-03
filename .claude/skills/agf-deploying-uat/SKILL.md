@@ -5,7 +5,7 @@ description: Use when deploy-engineer is about to deploy the merged-to-main code
 
 # Deploying to the isolated UAT stack
 
-把**合并到 main 后的干净代码**部署到与所有 dev worktree 物理隔离的本地 UAT 栈，冒烟自检通过后交接 qa-engineer。本 skill 是 deploy-engineer 的分步 runbook；隔离契约的单一来源是 [`deployment.md`](../../standards/deployment.md) "UAT 环境部署" 节。
+把**合并到 main 后的干净代码**部署到与所有 dev worktree 物理隔离的本地 UAT 栈，冒烟自检通过后交接 qa-engineer。本 skill 是 deploy-engineer 的分步 runbook；隔离契约的单一来源是 `deployment.md` "UAT 环境部署" 节。
 
 ## 适用门
 
@@ -52,7 +52,7 @@ docker compose -p "$COMPOSE_PROJECT_NAME" exec backend alembic upgrade head
 
 ## 冒烟（真实输出，非 dry-run）
 
-复用 [`deployment.md`](../../standards/deployment.md) "P0/P1 修复 Close 前的强制门" 节 Step 2「curl 实证 AC 边界（真实输出，非 dry-run）」的实证原则——**只接受真实响应**，拒绝 "dry-run pass" / "本地 unit 已过" / "代码看着对"。
+复用 `deployment.md` "P0/P1 修复 Close 前的强制门" 节 Step 2「curl 实证 AC 边界（真实输出，非 dry-run）」的实证原则——**只接受真实响应**，拒绝 "dry-run pass" / "本地 unit 已过" / "代码看着对"。
 
 - **backend 健康/核心端点**：
   ```bash

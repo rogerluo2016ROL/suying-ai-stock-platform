@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # validate-task-schema.sh
 #
-# PreToolUse(TaskCreate) hook — fires before a TaskCreate tool call is sent.
+# TaskCreated hook — fires when a task is being created (via the TaskCreate tool).
 # 目的：强制 product-lead 在跨 teammate 派单的 Task description 里写齐 6 段契约（hand-off 契约 + 上游产物传播），
 #       缺任一段 → exit 2 阻断 TaskCreate 并把缺失项反馈给 lead 让其重试。
 # 行为：
@@ -11,7 +11,8 @@
 #   - 缺段 → exit 2 + stderr 列出缺失段
 #   - 6 段齐 → exit 0
 #
-# 注册位置：.claude/settings.json → hooks.PreToolUse (matcher: TaskCreate)
+# 注册位置：.claude/settings.json → hooks.TaskCreated（官方专用事件；exit 2 阻止任务创建。
+#           payload 字段位置随事件而变 → 下方 extract_first_nonempty 多路径防御式提取兜底）
 # Schema 定义：.claude/agents/product-lead.md "Step 2：分配任务给执行层"
 
 set -uo pipefail

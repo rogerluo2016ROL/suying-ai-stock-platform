@@ -2,7 +2,7 @@
 
 > 适用对象：`uiux-designer`（在 Apple Mode 下）/ `apple-dev` / `apple-code-reviewer` / `apple-qa-engineer` / `apple-release-engineer`。
 > 与 `coding.md` / `security.md` / `testing.md` 并列；通用规则仍在原文件，不重复。
-> 技术选型**决策与理由**唯一来源是 [ADR-007](../../docs/adr/007-apple-native-stack.md)（栈）/ [ADR-008](../../docs/adr/008-apple-backend-contract-sync.md)（契约）/ [ADR-009](../../docs/adr/009-apple-release-pipeline.md)（发布）；本文件只放执行细则。
+> 技术选型**决策与理由**唯一来源是 ADR-007（栈）/ ADR-008（契约）/ ADR-009（发布）；本文件只放执行细则。
 
 ## 1. 目录结构约定（按 ADR-007）
 
@@ -126,3 +126,14 @@ xcrun xcresulttool get --path TestResults.xcresult --format json
 - **交付对象**：通过 SendMessage 交付给 `apple-dev`（非 `frontend-dev`），路径替换为 `[feature]-apple/`
 
 > 设计意图：本节集中 Designer 在 Apple 模式下的所有附加规则；preset 裁剪时可连同本文件整体移除——单一来源 + 干净裁剪。
+
+## 13. 推荐叠加 plugin：swift-lsp（SourceKit-LSP 代码智能）
+
+> 与 CLAUDE.md「Tool Boundaries」第 5 层 `security-guidance` 同一定位——**推荐叠加、非 AGF 自有、优雅降级**。
+
+`swift-lsp`（官方 plugin）把 SourceKit-LSP 接入 Claude Code，为 `.swift` 文件提供跳转定义 / 诊断 / 引用查找等代码智能，提升 `apple-dev` 编码与 `apple-code-reviewer` 审查的精度。
+
+- **形态**：它是 **LSP 能力（session 级）**，**不是 skill、不进 `roles.yaml`**——所有处理 `.swift` 的 session 自动生效，无 per-role 白名单（区别于 XcodeBuildMCP 那种走 `.mcp.json` + tools 白名单两道门的 MCP server）。
+- **安装**：`/plugin install swift-lsp@claude-plugins-official`。
+- **前置**：Swift toolchain（`sourcekit-lsp` 在 PATH——装 Xcode 或 `brew install swift`；Apple 轨开发者本就具备）。
+- **优雅降级**：未装不影响 Apple 轨任何流程（apple-dev / apple-code-reviewer 仍可用 XcodeBuildMCP + 常规读码），只是少了 LSP 级符号智能。

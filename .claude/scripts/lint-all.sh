@@ -112,6 +112,32 @@ else
   echo "  （无 .yaml/.yml 文件）"
 fi
 
+# === roles SSOT drift 检查 ===
+# 跑 gen-roles.py --check（check-only，绝不改文件 / git add）。drift 时生成器自己
+# 打印 spec §8 提示语（"✗ roles drift: <file> 与 roles.yaml 不一致" + 同步 hint），
+# 这里只起 banner + 传播 exit。生成器 / roles.yaml 缺失时优雅降级（不崩溃整条 lint）。
+echo ""
+echo "=== roles SSOT drift 检查 ==="
+GEN_ROLES=".claude/scripts/gen-roles.py"
+ROLES_YAML=".claude/agents/roles.yaml"
+if [[ ! -f "$GEN_ROLES" ]]; then
+  echo "  ⚠️ 跳过（缺 $GEN_ROLES）"
+elif [[ ! -f "$ROLES_YAML" ]]; then
+  echo "  ⚠️ 跳过（缺 $ROLES_YAML）"
+elif ! command -v python3 >/dev/null 2>&1; then
+  echo "  ⚠️ 跳过（无 python3）"
+else
+  if python3 "$GEN_ROLES" --check >/dev/null 2>/tmp/_genroles.err; then
+    echo "  ✅ roles 一致（无 drift）"
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "  ❌ roles drift" >&2
+    cat /tmp/_genroles.err >&2
+    FAIL=$((FAIL + 1))
+  fi
+  rm -f /tmp/_genroles.err
+fi
+
 # === Hook 测试套（全部 test-*.sh）===
 if [[ "$PRE_COMMIT_MODE" -eq 0 ]]; then
   shopt -s nullglob

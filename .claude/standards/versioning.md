@@ -2,7 +2,7 @@
 
 ## SemVer 应用细则
 
-按 [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html)。本仓库是 AI 团队模板（产物 ≠ 传统代码 API），下表把 "public API change" 具象化为模板特定触发器。
+按 SemVer 2.0.0。本仓库是 AI 团队模板（产物 ≠ 传统代码 API），下表把 "public API change" 具象化为模板特定触发器。
 
 ### MAJOR — `vX.0.0`（标题必加 `(BREAKING)`）
 
@@ -48,7 +48,7 @@
 
 ## CHANGELOG 格式
 
-遵循 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/)：
+遵循 Keep a Changelog 1.1.0：
 
 - 顶部 `# Changelog` + 一句格式说明
 - 每个版本一节：`## [vX.Y.Z] — YYYY-MM-DD — 一句话标题`

@@ -10,7 +10,7 @@
 
 不适合：制度 / 党政 / 财报评审等严肃场景（卡通装饰风格冲突）+ 30+ 页量级（仅 6 layouts 重复用易乏味）。
 
-经验：**AGF 培训 deck 系列就选 Template.pptx**（coral 与我们 diagram 设计 token 撞色，跨页面视觉一致）。
+经验：**AGF 培训 deck 系列就选 Template.pptx**（coral 与 diagram 设计 token 撞色，跨页面视觉一致）。
 
 ## 1. 模板基础事实
 
@@ -27,7 +27,7 @@ theme    theme1 主 + theme2 + 3 themeOverride
 体积     997 KB
 ```
 
-**关键观察**：仅 6 layouts，64% slide 都用 `layout[3] "仅标题页"`——靠 `add_shape` 自定义内容。
+**关键观察**：仅 6 layouts，64% slide 都用 `layout[3] "仅标题页"`——靠 `add_shape` 填自定义内容。
 
 ## 2. 6 Layouts 详细拆解
 
@@ -68,7 +68,7 @@ for ph in s.placeholders:
 | 13 | OBJECT | body（多级文本）|
 | 10/11/12 | DATE/FOOTER/SLIDE_NUMBER | 页脚三件套 |
 
-**陷阱**：模板自己没用这个 layout（所有内容页用 layout[3]）。但你可以用它做"纯文本多级 bullets"页（如目录 / 章节 outline）。
+**陷阱**：模板自己没用这个 layout（所有内容页用 layout[3]）。但可以用它做"纯文本多级 bullets"页（如目录 / 章节 outline）。
 
 ### layout[2] "节标题" — **章节扉页**（用量 5）
 
@@ -77,7 +77,7 @@ for ph in s.placeholders:
 | 0 | TITLE | "Section Header Here" |
 | 1 | BODY | 副标题 / 章节描述 |
 
-**关键视觉**：模板自带"左 coral 色条 + /0X 编号 + 中央 'Section Header Here' + 右侧卡通 TEAM 装饰图"已嵌入 layout（不是 placeholder，是 master 级 shape）→ 你只需改 title + body 文字，编号 /01-/05 自动来自 master。
+**关键视觉**：模板自带"左 coral 色条 + /0X 编号 + 中央 'Section Header Here' + 右侧卡通 TEAM 装饰图"已嵌入 layout（不是 placeholder，是 master 级 shape）→ 只需改 title + body 文字，编号 /01-/05 自动来自 master。
 
 ```python
 s = prs.slides.add_slide(prs.slide_layouts[2])
@@ -202,9 +202,9 @@ for i, label in enumerate(STEPS):
 
 大插图占左半 + 右半放数据/描述。
 
-⚠️ **模板自带 TEAM 卡通图风格强**——如果你的内容是技术架构（如 Hook / Skill 系统），卡通插图会**风格冲突**。建议：
+⚠️ **模板自带 TEAM 卡通图风格强**——内容若是技术架构（如 Hook / Skill 系统），卡通插图会**风格冲突**。建议：
 - (a) 删除模板装饰图，仅用版面框架
-- (b) 替换为你的架构图（draw.io 出 PNG，见 [`diagram-generation-guide.md`](./diagram-generation-guide.md)）
+- (b) 替换为你的架构图（draw.io 出 PNG，见 `diagram-generation-guide.md`）
 - (c) 保留模板插图但只在"温度类内容"用（如团队介绍 / 退场感谢页）
 
 ### 模式 F — 数据 / icon 装饰大数（典型 slide 30）
@@ -242,7 +242,7 @@ WHITE        = RGBColor(0xFF, 0xFF, 0xFF)
 
 ## 5. 装饰元素策略（TEAM 卡通图怎么处理）
 
-模板每个章节扉页 + 封面 + 末尾都有"卡通团队 + TEAM 大字"装饰，**强商务 + 团队主题感**。对 AGF 培训 deck 的取舍：
+模板每个章节扉页 + 封面 + 末尾都有"卡通团队 + TEAM 大字"装饰，**强商务 + 团队主题感**。AGF 培训 deck 的取舍：
 
 | 场景 | 处理 |
 |---|---|
@@ -321,7 +321,7 @@ docs/training/
 └── specs/2026-05-16-agf-training-deck-design.md  # spec v2.2
 ```
 
-3+ 章节并行时按 [`.claude/standards/workflow.md`](../../standards/workflow.md) "Parallel Dispatch" 走 worktree（防 build_main.py 合并冲突）。
+3+ 章节并行时按 `.claude/standards/workflow.md` "Parallel Dispatch" 走 worktree（防 build_main.py 合并冲突）。
 
 ## 9. 沉淀来源
 
@@ -330,5 +330,5 @@ docs/training/
 - 工具：`.claude/skills/pptx/scripts/thumbnail.py` + `unpack.py` + python-pptx dump 脚本
 - 时长：~30min（含 2 张 thumbnail.jpg 视觉评估 + layout dump + slide-layout 映射统计）
 - 上下游：
-  - 配套画图 [`diagram-generation-guide.md`](./diagram-generation-guide.md)（41 张 draw.io 图）
-  - 主 skill [`SKILL.md`](./SKILL.md) §★ 基于已有 .pptx 模板生成
+  - 配套画图 `diagram-generation-guide.md`（41 张 draw.io 图）
+  - 主 skill `SKILL.md` §★ 基于已有 .pptx 模板生成

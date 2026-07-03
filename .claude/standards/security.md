@@ -25,8 +25,8 @@
 
 | 层 | 时机 | 文件 | 行为 | 防御目标 |
 |---|---|---|---|---|
-| 1. Bash 拦截 | `PreToolUse` (matcher: `Bash`) | `.claude/hooks/block-dangerous-bash.sh` | exit 2 硬阻断 | 防 agent 跑出毁灭性命令（`rm -rf`、`DROP TABLE/DATABASE/SCHEMA`、`git push --force`、`git reset --hard`） |
-| 2. Secret 扫描 | `UserPromptSubmit` | `.claude/hooks/scan-secrets.sh` | exit 2 硬阻断 | 防用户把 API key / Token / PEM 私钥粘进对话；模式覆盖 AWS / GitHub / OpenAI / Anthropic / Google / Slack / DeepSeek / Doubao / Qwen / MiniMax / Apple 签名材料（App Store Connect API key `.p8`、`.mobileprovision`、`.p12`，见 ADR-009 安全约束） |
+| 1. Bash 拦截 | `PreToolUse` (matcher: `Bash`) | `.claude/hooks/block-dangerous-bash.sh` | exit 2 硬阻断 | 防 agent 跑出毁灭性命令（`rm -rf`、`DROP TABLE/DATABASE/SCHEMA`、`git push --force`、`git reset --hard`、`curl\|sh` 下载即执行） |
+| 2. Secret 扫描 | `UserPromptSubmit` | `.claude/hooks/scan-secrets.sh` | exit 2 硬阻断 | 防用户把 API key / Token / PEM 私钥粘进对话；模式覆盖 AWS / GitHub / OpenAI / Anthropic / Google / Slack / DeepSeek / Doubao / Qwen / MiniMax / Apple 签名材料（ASC API key / match 密码 / fastlane session 的 inline `KEY=value` 形式 + `.p8` 的 PEM 内容经第 7 行 PEM 规则，见 ADR-009）。**注**：`.p12` / `.mobileprovision` 是二进制（PKCS#12 / plist），文本正则**无法**匹配 → 不在本层扫描覆盖内，改由 `.claude/settings.json` 的 `permissions.deny` 按扩展名**拦读**（`Read(./**/*.p12)` / `*.mobileprovision` / `*.p8`），别误以为粘贴二进制签名文件会被本层挡 |
 | 3. 工具输出净化 | `PostToolUse` (matcher: `WebFetch\|WebSearch\|Read\|Bash\|mcp__.*`) | `.claude/hooks/sanitize-tool-output.sh` | exit 0 + stderr WARNING（软告警，不阻断） | 防外部内容夹带的 prompt injection 指令被 agent 当成系统提示执行（含所有 MCP 工具输出） |
 
 **回归测试**（统一在 `.claude/hooks/tests/`，由 `lint-all.sh` 跑全部 `test-*.sh`）：
@@ -40,7 +40,7 @@
 
 `.claude/hooks/scan-commit.sh` 复用 `scan-secrets.sh` 同一套正则，对 `git diff --staged` 的新增行扫描。**这是必须的补防线**——`UserPromptSubmit` 只看 prompt，agent 用 `Edit`/`Write` 直接落盘的内容不经 prompt，会绕过第 2 层。
 
-**安装（每个 clone 跑一次）**：
+**安装**：`setup/init-team.sh` 已自动检测并安装此 symlink（缺失即建链、已存在但非 scan-commit 即告警，见其 §3b），**跑过 `init-team.sh` / `agf-install.sh` 的项目无需手动**。下面命令仅为手动补装 / 排障备用（每个 clone 一次）：
 
 ```bash
 ln -sf ../../.claude/hooks/scan-commit.sh .git/hooks/pre-commit
@@ -61,7 +61,7 @@ git config core.hooksPath .claude/hooks/git-hooks  # 进阶：把 git-hooks/ 单
 
 ### 第 5 层（推荐叠加）：`security-guidance` plugin — 代码级危险模式（Anthropic 原生 · 免费）
 
-上面四层是 AGF 自有 hook，覆盖**毁灭性命令 / 密钥 / 注入文本 / commit 落盘**；但**代码级危险模式**——`eval` / `new Function`、XSS（`dangerouslySetInnerHTML` / `innerHTML`）、Python `pickle` 反序列化、`os.system` / `child_process.exec`、GitHub Actions 命令注入——AGF 的 bash/secret hook **不覆盖**。Anthropic 官方 `security-guidance` plugin 正好补这一层：它是 `PreToolUse` hook，拦 Write/Edit/MultiEdit，**应用前**扫这些模式 + 给修复建议（编辑时 / AI 改完 / commit 时多层），与 AGF 的 hook 防御**同一套机制、零冲突**。
+上面四层是 AGF 自有 hook，覆盖**毁灭性命令 / 密钥 / 注入文本 / commit 落盘**；但**代码级危险模式**——`eval` / `new Function`、XSS（`dangerouslySetInnerHTML` / `innerHTML`）、Python `pickle` 反序列化、`os.system` / `child_process.exec`、GitHub Actions 命令注入——AGF 的 bash/secret hook **不覆盖**。Anthropic 官方 `security-guidance` plugin 正好补这一层：它注册 `PostToolUse`（`Edit` / `Write` / `NotebookEdit`），**编辑落地后**即时按模式扫描并把告警**追加进 Claude 的下一步上下文**（**不阻断写入 / 提交**——官方明示「None of the layers block writes or commits」，见 security-guidance），给修复建议；价值是**减少流向下游 review 的危险代码量**而非硬门，与 AGF 的 hook 防御**同机制、零冲突**。
 
 **安装（强烈推荐，每个 clone 一次）**：
 
@@ -73,7 +73,13 @@ git config core.hooksPath .claude/hooks/git-hooks  # 进阶：把 git-hooks/ 单
 
 ### Permission Deny 清单（settings.json）
 
-`.claude/settings.json` 的 `permissions.deny` 已禁读以下敏感路径：`./.env*`、`./secrets/**`、`~/.ssh/**`、`~/.aws/**`、`~/.gnupg/**`、`~/.kube/config`、`~/.config/gcloud/**`、`~/.docker/config.json`、`~/.netrc`、`~/.pgpass`；并禁 `curl|sh` / `wget|sh` / `eval` 等远程执行链路。新增敏感路径时同步该清单。
+`.claude/settings.json` 的 `permissions.deny` 已禁读以下敏感路径：`./.env*`、`./secrets/**`、`~/.ssh/**`、`~/.aws/**`、`~/.gnupg/**`、`~/.kube/config`、`~/.config/gcloud/**`、`~/.docker/config.json`、`~/.netrc`、`~/.pgpass` + Apple 签名材料二进制 `./**/*.p12`、`./**/*.mobileprovision`、`./**/*.p8`（PKCS#12 / plist / PEM key 文件，文本扫描抓不到 → 按扩展名拦读，见 §2 注）；并禁 `eval` 等远程执行链路。新增敏感路径时同步该清单。
+
+> **`curl|sh`「下载即执行」改由第 1 层 hook 拦，不再放 deny 清单**：官方明示 `Bash(curl *|*sh*)` 这类**约束命令参数**的权限 glob **脆弱**——可被变量（`URL=x && curl $URL|sh`）/ 协议 / 无空格 / 多管道变体绕过，且 `|` 在单条规则里非「逻辑或」语义（见 permissions "Bash permission patterns that try to constrain command arguments are fragile"）。故已从 `permissions.deny` 移除这 4 条 glob，下沉到 `block-dangerous-bash.sh` 的 **anchored + quote-strip** 规则（rule #5，可靠匹配 `curl…|…sh` shape、不误伤健康检查 / `curl|jq` / 引号内文档，回归用例 AC-2e/AC-6f）。
+>
+> **残留边界（需知会）**：该 hook 仍只挡**命令行** `curl…|…sh` shape；「下载到文件再单独执行」（`curl x -o f && sh f`）属 **data-flow 边界**、不拦（见下「Hook Coverage Boundary」），靠 No Equivalent Bypass 纪律兜底。`Read(./.env*)` 等 deny 也**不拦子进程间接读**（`python -c "open('.env')"`）、不覆盖父目录——需 **OS 级硬隔离**时叠加官方 `/sandbox`（filesystem / network 边界），deny 清单不等于 OS 边界。
+
+**细粒度 spawn 护栏（可选，v2.1.178+）**：Claude Code 支持 `Tool(param:value)` 权限语法（按工具入参匹配、含 `*` 通配），如 `Agent(model:opus)` 拦截 spawn opus 类 subagent/teammate、`Agent(name:foo)` 限定可 spawn 的命名 teammate。**AGF 模板默认不加此类 deny**——盲加 `Agent(model:opus)` 会误伤合法 opus 角色（`product-lead` / `tech-lead` / `ai-agent-dev`）；per-role 模型/工具管控已由 `roles.yaml` 的 `tools` 白名单 + `cost-budget.md` model 路由覆盖。maintainer 如需临时封锁特定 spawn（成本应急 / 调试），可针对性加 `Agent(...)` 规则，属一次性运维动作、非模板基线。
 
 > 模板复用提示：若把 `standards/` 抽出作跨项目模板，本节应留下，但 hook 文件本身、settings.json 的 hook 注册块、CLAUDE.md 的 "Tool Boundaries" 节会随项目走，需新项目重新建立。
 

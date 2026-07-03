@@ -88,7 +88,7 @@ SendMessage({to: "product-lead", message: "系统架构已确定\nADR: docs/adr/
 
 ## 架构决策记录（ADR）
 
-涉及技术选型或架构设计时先创建 ADR 文件再 SendMessage 通知 product-lead。完整模板（含「版本与查证」表 + 反模式 + hand-off）+ 路径规范 + 写 ADR / 不写 ADR 边界由 [`Skill({skill: "agf-writing-adr"})`](../skills/agf-writing-adr/SKILL.md) 提供。
+涉及技术选型或架构设计时先创建 ADR 文件再 SendMessage 通知 product-lead。完整模板（含「版本与查证」表 + 反模式 + hand-off）+ 路径规范 + 写 ADR / 不写 ADR 边界由 `Skill({skill: "agf-writing-adr"})` 提供。
 
 完成 ADR 后通知 product-lead：
 ```

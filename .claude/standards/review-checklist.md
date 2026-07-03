@@ -130,7 +130,29 @@ PR labels 含 `area:frontend` 或 PR 描述声明"前端接入"。
 | A07 Auth Failures | 新 endpoint 无遗漏认证 |
 | 硬编码凭证 | 无 API key / secret / password literal |
 
-> **辅助工具**：核对本表前，可先用内置 `/security-review` 对当前 diff 跑一遍自动安全扫描（OWASP 维度），把发现作为逐项核对的输入——不替代人工核对，只缩小搜索面。CI / 非交互场景的整体 review 走 `claude ultrareview`（详 [`workflow.md`](workflow.md) §Fan-out 硬约束）。
+> **辅助工具**：核对本表前，可先用内置 `/security-review` 对当前 diff 跑一遍自动安全扫描（OWASP 维度），把发现作为逐项核对的输入——不替代人工核对，只缩小搜索面。CI / 非交互场景的整体 review 走 `claude ultrareview`（详 `workflow.md` §Fan-out 硬约束）。
+
+---
+
+## 6. Verdict 数据载体与 SIT 推导（写报告时必遵）
+
+> **载体翻转（ADR-003 → ADR-010）**：verdict 数据的唯一机读 SSOT 是报告**顶部 YAML frontmatter**，**不再有文末 `<!-- agf-verdict -->` 注释块**。`agf-verdict.py` 解析 frontmatter、`validate-verdict.sh` 退出时重算守门、`agf-matrix.sh --type=review` 聚合——三方共用同一份 frontmatter，无双载体手维护。正文的 findings 表 / Security checklist / `## SIT Audit` 段保留给人读。
+
+### 必填原子事实（frontmatter）
+
+| 字段 | 取值 | 说明 |
+|---|---|---|
+| `code_verdict` | `approve` / `approve with changes` / `block` | 必从下面计数推导 |
+| `critical_count` / `warning_count` / `suggestion_count` | 整数 | findings 三档计数（miniapp/apple 的 Important 填 `warning_count`，hook/py 两者都认） |
+| `sit_audit_verdict` | `Pass` / `Pass with concerns` / `Redo SIT` | 必从 `sit_checks` 推导 |
+| `sit_checks`（4 子项 `progress` / `ac_coverage` / `evidence` / `fail_marking`）| 各 ∈ `pass` / `concerns` / `fail` | SIT Audit 4 检查的结构化版（同一判断，换个位置记） |
+
+### 推导规则（与 `agf-verdict.py` 单处 SSOT 一致，声明≠推导 → exit 2）
+
+- **代码 verdict**：`critical_count>0 → block`；否则 `warning_count>0 → approve with changes`；否则 `approve`。
+- **SIT Audit verdict**：`sit_checks` 任一 == `fail` → `Redo SIT`；否则任一 == `concerns` → `Pass with concerns`；否则（全 `pass`）→ `Pass`。
+
+> 退出时 `validate-verdict.sh`（薄 bash 包装，委托 `agf-verdict.py`）重算 code + SIT 两套，任一声明与推导不符 → exit 2 打回。极保守 fail-open（缺字段 / 坏 yaml / 缺 python yaml 一律放行 + WARN）。
 
 ---
 
@@ -139,3 +161,4 @@ PR labels 含 `area:frontend` 或 PR 描述声明"前端接入"。
 | 日期 | 变更 | 触发 issue | 作者 |
 |---|---|---|---|
 | 2026-05-17 | 初始建立 — CHK-F1/F2/F3/F4 双 endpoint 覆盖检查；Cron-Driven / FE 接入 / 铁律合规检查 / OWASP 快查 | #47（#13 教训落地） | code-reviewer |
+| 2026-06-16 | §6 新增 — verdict 数据载体翻转（注释块 → frontmatter SSOT）+ code/SIT 推导规则（ADR-010） | 结构化 verdict 数据契约 | tech-lead |

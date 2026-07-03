@@ -72,11 +72,14 @@ if printf '%s' "$PROMPT_FLAT" | grep -qE '\bsk-ant-[A-Za-z0-9_-]{20,}\b'; then
   exit 2
 fi
 
-# 4) OpenAI API keys (sk- + 32+ chars, sk-proj- variant, sk-svcacct- variant)
-# Negative lookahead is not POSIX, so we explicitly exclude sk-ant- via a separate
-# anchor check.
-if printf '%s' "$PROMPT_FLAT" | grep -qE '\bsk-(proj-|svcacct-)?[A-Za-z0-9_-]{32,}\b' \
-   && ! printf '%s' "$PROMPT_FLAT" | grep -qE '\bsk-ant-'; then
+# 4) OpenAI API keys (sk- + 32+ chars, sk-proj- variant, sk-svcacct- variant).
+# Exclude Anthropic sk-ant- keys PER MATCH, not whole-prompt: extract every sk-
+# token and keep only those NOT starting with sk-ant-. A whole-prompt
+# `! grep sk-ant-` (the prior approach) let a real OpenAI key escape whenever the
+# literal "sk-ant-" appeared anywhere else in the same prompt. Real sk-ant- keys
+# are already blocked by rule #3 above (runs first, more specific message).
+if printf '%s' "$PROMPT_FLAT" | grep -oE '\bsk-(proj-|svcacct-)?[A-Za-z0-9_-]{32,}\b' \
+     | grep -qvE '^sk-ant-'; then
   echo "Blocked: prompt contains an OpenAI-style API key (sk-...). Remove the secret and use env vars." >&2
   exit 2
 fi

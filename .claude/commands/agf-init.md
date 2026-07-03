@@ -32,7 +32,7 @@ argument-hint: 无需参数（自动探测安装产物）
 
 > ⚠️ **本步最易瞎编技术栈**。三道硬约束**不可省、不可走捷径**——宁可慢，不可猜：
 > 1. **brownfield 必须先 `/agf-understand` 扫描出理解地图后才动 ADR-000**——禁止凭目录名 / 文件后缀 / 印象直接断言技术栈；没有理解地图就没有 ADR-000。
-> 2. **verify before assert**（[`coding.md`](../standards/coding.md) 同名纪律）：写进 ADR-000 / CLAUDE.md 的**每一条**技术栈结论（语言 / 框架 / 版本 / DB / 外部服务）必须先 `grep` 或读实际文件（`package.json` / `pyproject.toml` / `requirements.txt` / `go.mod` / lockfile / 实际 import）**逐条核实**，不接受"看起来像 / 通常是 / 默认应该"；核实不到的标 `待确认`，不臆断填值。
+> 2. **verify before assert**（`coding.md` 同名纪律）：写进 ADR-000 / CLAUDE.md 的**每一条**技术栈结论（语言 / 框架 / 版本 / DB / 外部服务）必须先 `grep` 或读实际文件（`package.json` / `pyproject.toml` / `requirements.txt` / `go.mod` / lockfile / 实际 import）**逐条核实**，不接受"看起来像 / 通常是 / 默认应该"；核实不到的标 `待确认`，不臆断填值。
 > 3. **ADR-000 一律派 `tech-lead` 写，不由主 session 顺手写**——tech-lead 带版本查证 + ADR 撰写的专门约束，降低"边 init 边随手编"的风险。
 
 `docs/adr/000-system-architecture.md.agf-template` 是模板默认栈（React + FastAPI + Postgres），**大概率不是本项目**。分两种情况：

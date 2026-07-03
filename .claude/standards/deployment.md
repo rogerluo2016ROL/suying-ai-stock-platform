@@ -61,17 +61,17 @@ docker compose up -d --build <service-name>  # backend / worker / frontend / cad
 - 容器重建 commit-sha 与代码 commit 不同步时在 `### 修复定位` 段分列两条
 - "未覆盖 scope" 写到 `### Notes（可选）` 段
 
-完整模板与禁用 Evidence 形式见 [`.claude/standards/qa-close-verify.md`](./qa-close-verify.md) §2.2 / §3。
+完整模板与禁用 Evidence 形式见 `.claude/standards/qa-close-verify.md` §2.2 / §3。
 
 ## 3. cron-driven feature 容器验证（与 testing.md E2E 节配套）
 
-cron / scheduled task 类 feature（定义与示例见 [`testing.md`](./testing.md) cron-driven feature 节）的容器验证额外要求：
+cron / scheduled task 类 feature（定义与示例见 `testing.md` cron-driven feature 节）的容器验证额外要求：
 
 1. **cron 注册实证**：`docker compose exec worker python -c "from app.workers import scheduler; print(scheduler.tasks)"` 或等效命令，confirm 新 task 名出现在 registered 列表
 2. **手动触发 tick**：用 `docker compose exec backend python -m app.cli ...` 或 taskiq client / Redis enqueue API **手动 push 一次** task，**不要**等真实 cron tick（cron 周期通常 ≥ 1h，等不起也漏不出来）
 3. **消费链路 assertion**：tick 后 `docker compose logs worker --since 30s` 或查目标表 / Redis key，confirm 副作用已写入（**正是 #16 漏的层**——schema 过 SIT 但 cron tick + 消费链路零覆盖）
 
-详细测试规范见 [`.claude/standards/testing.md`](./testing.md) "Cron-Driven Feature E2E" 节。
+详细测试规范见 `.claude/standards/testing.md` "Cron-Driven Feature E2E" 节。
 
 ## 4. 反例 / 历史 incident
 
@@ -91,7 +91,7 @@ cron / scheduled task 类 feature（定义与示例见 [`testing.md`](./testing.
 
 ## 6. UAT 环境部署（隔离栈契约）
 
-> 本节是**隔离 UAT 栈契约的单一来源**，由 `deploy-engineer` 在 code review（含 SIT Audit）通过 **+ 合并到 main 后**执行。分步 runbook（前置检查 / 起栈 / 迁移 / 冒烟 / 交接 / 报告骨架）**不在此复述**，见 skill [`agf-deploying-uat`](../skills/agf-deploying-uat/SKILL.md)——单一来源：**契约在此 standard，runbook 在 skill**。交付链路位置与失败回路见 [`workflow.md`](workflow.md) "部署门" 节。
+> 本节是**隔离 UAT 栈契约的单一来源**，由 `deploy-engineer` 在 code review（含 SIT Audit）通过 **+ 合并到 main 后**执行。分步 runbook（前置检查 / 起栈 / 迁移 / 冒烟 / 交接 / 报告骨架）**不在此复述**，见 skill `agf-deploying-uat`——单一来源：**契约在此 standard，runbook 在 skill**。交付链路位置与失败回路见 `workflow.md` "部署门" 节。
 
 ### 6.1 为什么要隔离
 
@@ -114,7 +114,7 @@ docker compose -p "$COMPOSE_PROJECT_NAME" --env-file .env.uat up -d --build
   | Backend (API) | 8900 |
   | Frontend (caddy) | 8980 |
 
-- **端口带不重叠**：dev 用 base、QA pool 用 base+N×100（N=1..7，见 [`workflow.md` §Worktree 与 Docker 隔离](workflow.md)）、**UAT 固定 +900**，三者互不重叠（即便 QA pool 升到 Large=7，base+700 仍 < +900，安全）。
+- **端口带不重叠**：dev 用 base、QA pool 用 base+N×100（N=1..7，见 `workflow.md` §Worktree 与 Docker 隔离）、**UAT 固定 +900**，三者互不重叠（即便 QA pool 升到 Large=7，base+700 仍 < +900，安全）。
 - **下游约定**：当前模板无 app 代码 → 上述是未来 `docker-compose.yml` 必须满足的契约——**端口由 env 驱动**（消费 `UAT_PORT_OFFSET`）+ **支持 `-p` project name 隔离**。
 
 ### 6.3 `.env.uat`（UAT 专用环境变量，不入库）
@@ -129,7 +129,7 @@ docker compose -p "$COMPOSE_PROJECT_NAME" --env-file .env.uat up -d --build
 
 ## 7. Apple 发布（签名分发契约，与 §6 docker UAT 并列）
 
-> Apple 轨的"部署"是**构建签名分发包**，不是起容器栈。本节是该契约的单一来源；流水线选型与渠道矩阵见 [ADR-009](../../docs/adr/009-apple-release-pipeline.md)，分步 runbook 在 skill [`agf-releasing-apple`](../skills/agf-releasing-apple/SKILL.md)——单一来源：**契约在此 standard，决策在 ADR，runbook 在 skill**。
+> Apple 轨的"部署"是**构建签名分发包**，不是起容器栈。本节是该契约的单一来源；流水线选型与渠道矩阵见 ADR-009，分步 runbook 在 skill `agf-releasing-apple`——单一来源：**契约在此 standard，决策在 ADR，runbook 在 skill**。
 
 ### 7.1 触发与责任
 

@@ -15,7 +15,7 @@
 
 判断不清时**先按低一档起步，卡住再升级**——升级时要能说出命中哪条判据。
 
-**Headless / CI 入口**：在 CI 或脚本里以 `claude -p --agent <name> "<prompt>"` 触发某个 agent 时，该角色 frontmatter 的工具白名单与权限模式不因 headless 失效——例如 `claude -p --agent code-reviewer "review HEAD"` 直接得到该角色的工具集与 `auto` 模式。逐字段生效细节见 [`team-roles.md`](team-roles.md) frontmatter 能力表。
+**Headless / CI 入口**：在 CI 或脚本里以 `claude -p --agent <name> "<prompt>"` 触发某个 agent 时，该角色 frontmatter 的工具白名单与权限模式不因 headless 失效——例如 `claude -p --agent code-reviewer "review HEAD"` 直接得到该角色的工具集与 `auto` 模式。逐字段生效细节见 `team-roles.md` frontmatter 能力表。
 
 ## Workflow
 
@@ -43,7 +43,7 @@ USER → [product-lead] ──技术咨询──→ [tech-lead]（顾问，按�
              [product-lead]（业务签字）→ USER
 ```
 
-- **product-lead** 是唯一协调者：挖掘需求 → 输出 PRD（`docs/prd/`）→ 直接分配任务给执行层 → 触发 code review (含 SIT Audit) → 推进 E2E / UAT → 验收 → 汇报
+- **product-lead** 是唯一协调者：挖掘需求 → 建立变更文件夹（`docs/changes/`，需求入口；PRD 已弃用 v6.9.0）→ 用户对齐 proposal+delta → `agf-spec-validate` 自检 → 直接分配任务给执行层 → 触发 code review (含 SIT Audit) → 推进 E2E / UAT → 验收 → archive（`agf-spec-archive` 把 delta merge 进 `docs/specs/` 活规格）→ 汇报
 - **tech-lead** 是条件触发的技术顾问：不在默认主链路上；仅在以下情况必须介入：项目或新模块尚无 ADR / Tech Stack 基线、发生新技术选型、code-reviewer 升级重大架构风险
 - 执行层完成后**直接报告 product-lead**，不经过 tech-lead；执行层负责 Unit + SIT，SIT 证据写入 `progress/<role>.md`
 - **code-reviewer** 负责代码审查 + SIT 证据 audit，不直接修复源码；发现重大架构问题时同步通知 product-lead 并升级到 tech-lead（本文件 ASCII 流程图省略此虚线以保持主链路简洁，完整虚线见 `docs/team-capability-map.md` 的 Mermaid 图）
@@ -53,16 +53,20 @@ USER → [product-lead] ──技术咨询──→ [tech-lead]（顾问，按�
     3. 证据可信度：fail/blocked 内嵌的命令 + 真实输出是否可信（非 placeholder）
     4. 失败标记真实性：fail/blocked 是否如实标记
   - **3 档 verdict**：`✅ Pass / ⚠️ Pass with concerns / ❌ Redo SIT`
-  - **范围边界**：SIT Audit 审的是**开发阶段集成验证**证据（API + DB 层，dev worktree 内），**不要求容器重建 / 部署后实证**——那是部署门冒烟（deploy-engineer）与 P0/P1 issue close（[`qa-close-verify.md`](qa-close-verify.md)）的职责，同一证据不两边重复提交
+  - **范围边界**：SIT Audit 审的是**开发阶段集成验证**证据（API + DB 层，dev worktree 内），**不要求容器重建 / 部署后实证**——那是部署门冒烟（deploy-engineer）与 P0/P1 issue close（`qa-close-verify.md`）的职责，同一证据不两边重复提交
 
 ### Verdict 词表（4 套各管各，不互相替代）
 
+> **定性声明（❗官方事实 vs 💭AGF 自创）**：本节 verdict 词表 + 阶段门 + verdict 守门 hook 链是 **AGF 自创的交付治理层**（灵感源 sibling 项目 iLovePPT 的 verdict-from-scores），**非 Anthropic 官方编排规范**。官方对多 agent 仅给方向性建议（如「阶段签字属人在环、应各自成 workflow」，见 workflows），既不规定固定交付链路、也不规定 verdict gate；AGF 是在官方 hook 原语（exit 2 反馈）之上自建本治理层。引用时勿把它当成官方要求。
+
 | 维度 | 角色 | 词表 |
 |---|---|---|
-| **代码 Verdict** | code-reviewer / miniapp-code-reviewer | `approve` / `approve with changes` / `block` —— **必从 findings 推导**：`critical>0→block`；否则中间档`>0→approve with changes`；否则 `approve`。reviewer 在报告末尾出 `agf-verdict` 机读块，退出时 `validate-review-verdict.sh` 重算守门，声明≠推导 exit 2 打回（[ADR-003](../../docs/adr/003-verdict-from-findings.md)） |
+| **代码 Verdict** | code-reviewer / miniapp-code-reviewer | `approve` / `approve with changes` / `block` —— **必从 findings 推导**：`critical>0→block`；否则中间档`>0→approve with changes`；否则 `approve` |
 | **SIT Audit Verdict** | code-reviewer / miniapp-code-reviewer | `✅ Pass` / `⚠️ Pass with concerns` / `❌ Redo SIT` |
 | **QA 报告级 Verdict** | qa-engineer / miniapp-qa-engineer（自有词表）| `✅ Promote to next stage` / `❌ Block` / `⚠️ Conditional promote` |
 | **UAT 业务签字 Verdict** | product-lead（最终业务判定）| `approve` / `request changes` |
+
+> **结构化载体（ADR-003 → ADR-010）**：词表不变，但 verdict 数据的唯一机读 SSOT 是**报告顶部 frontmatter**（无 `agf-verdict` 注释块）。退出时 `validate-verdict.sh`（薄 bash 包装，委托 `agf-verdict.py`）从 frontmatter 重算并守门，三套推导指针——**代码**（`critical_count>0→block`；否则 `warning_count>0→approve with changes`；否则 `approve`，硬拦）、**SIT Audit**（`sit_checks` 任一 `fail→Redo SIT`；否则任一 `concerns→Pass with concerns`；否则 `Pass`，硬拦）、**QA 客观底线**（`critical_defect_count>0` 却非 `Block`、或 P0 未全 pass² 却 `Promote` → 违规，只拦不可能组合不强定档）。UAT 业务签字保持人工定性，仅结构化记录 `uat_signoff_verdict`，不推导。极保守 fail-open。
 
 阶段门转换规则：
 - code-review 阶段由同一 reviewer 同时产出**代码 verdict × SIT Audit verdict**，组合结果按下表一格一个结论（不再各自论证）：
@@ -79,7 +83,7 @@ USER → [product-lead] ──技术咨询──→ [tech-lead]（顾问，按�
 
 后两段回退路径：`❌ Block` / `request changes` 任一命中 → 同样回 **product-lead** 重新分派。Pool 模式下"verdict 通过" = `agf-matrix.sh` 输出**全部** ≥ ⚠️（即任一实例 ❌ 即整个 batch fail）。
 
-- **回派熔断（max-iteration，防震荡空转）**：同一 task 被**同一阶段门连续打回 2 次**后，product-lead **不得第三次原样重派**——必须升级用户决策，三选一：① **缩范围**（拆出可过门的子集先交付）② **换思路**（重写实现方案 / 换执行角色 / 升级 tech-lead 出方案）③ **带 caveat 终止**（记录已知缺陷，显式放弃本轮）。依据：generator-verifier 循环无迭代上限会震荡不收敛（claude.com/blog «Multi-agent coordination patterns»）；与 retro「Action 继承 ≥2 必须硬着陆」同一纪律。
+- **回派熔断（max-iteration，防震荡空转）**：同一 task 被**同一阶段门连续打回 2 次**后，product-lead **不得第三次原样重派**——必须升级用户决策，三选一：① **缩范围**（拆出可过门的子集先交付）② **换思路**（重写实现方案 / 换执行角色 / 升级 tech-lead 出方案）③ **带 caveat 终止**（记录已知缺陷，显式放弃本轮）。**选 ①/③ 时归档前 PL 必须先把变更文件夹的 delta 裁到实际交付范围（未交付 Requirement 留新 change 续作）再跑 `agf-spec-archive`，避免活规格 over-claim 未交付行为（ADR-012）。** 依据：generator-verifier 循环无迭代上限会震荡不收敛（claude.com/blog «Multi-agent coordination patterns»）；与 retro「Action 继承 ≥2 必须硬着陆」同一纪律。
 - **qa-engineer** 只执行 E2E / UAT；不替代开发者做 Unit 与集成自验（已由 dev 在实现阶段完成），不替代 product-lead 做最终业务验收
 - 阶段门槛固定为：实现 + SIT 完成 → code review (含 SIT Audit) → UAT 部署（deploy-engineer 部署隔离栈 + 冒烟）→ E2E → UAT → product-lead 签字
 - **部署门（二元 gate，非 verdict 词表）**：code review 通过后，product-lead **合并到 main** → **提示用户**「是否拉取合并代码部署 UAT?」→ 确认则派 `deploy-engineer` 从合并后的 main 起隔离 UAT 栈并冒烟自检。门只有两态：`✅ 部署成功（冒烟通过）` / `❌ 部署失败`——**不进上文 Verdict 词表（保持 4 套不变）**，文字描述即足够。
@@ -87,12 +91,24 @@ USER → [product-lead] ──技术咨询──→ [tech-lead]（顾问，按�
   - **行为变更**：E2E / UAT 改为对 deploy-engineer 部署的**共享 UAT 栈**测（测试目标 URL 取自 `docs/deploy/<feature>-uat-<date>.md` 部署报告），不再对 dev worktree。QA pool 多实例并发测**同一** UAT 栈（各自只读 / 自清理）；qa-engineer 现有「每实例自起 docker + 端口偏移」机制降级为 legacy 兜底（仅无共享栈时回退）。
 - **小程序交付链路**：`uiux-designer（MiniApp Mode）→ miniapp-dev → miniapp-code-reviewer → miniapp-qa-engineer → product-lead`。设计阶段由 `uiux-designer` 在 MiniApp Mode 下完成（见 `agents/uiux-designer.md`）；开发、审查、QA 由 3 个 `miniapp-*` 专项角色负责。`backend-dev` / `ai-agent-dev` / `ml-engineer` 跨链路共用。详见 `.claude/standards/miniapp.md`
 
+### 交付 lane（full / fast，ADR-011 决策 3）
+
+PL 在 Step 3 派单时按**规模 + 风险**显式选 lane，写进 task「上下文」段 + 部署/UAT 报告（含风险接受记录）。**不自动降级**——必须 PL 显式决策；lane 只调尾部门的**深度/时序**，不改阶段顺序与 4 套 verdict 词表。
+
+| Lane | 适用 | 尾部门（部署 → E2E → UAT）|
+|---|---|---|
+| **full**（默认）| Medium/Large feature、MINOR/MAJOR、**或任何高风险变更** | 全套：隔离 UAT 栈 + 全 E2E 控件遍历 + UAT 用例 gate + P0 pass² + 全界面渲染核查 |
+| **fast** | 仅 **Small + PATCH + 非高风险**（PL 显式选 + 记录风险接受）| **只减不跳**：仍部署 + 冒烟自检；E2E 缩到「冒烟 + 改动面目标 AC 抽核 + 受影响界面渲染核查」；UAT 用例沿用 PATCH 豁免；**P0 仍 pass²、受影响界面渲染核查仍必做** |
+
+**硬护栏**：高风险变更（auth / 鉴权链路 / DB schema migration / LLM 切换·prompt 重构 / cross-cutting concerns，清单 SSOT 见本文件 §例外 + `coding.md` 高风险定义）**无论规模一律 full lane**，PL 不得选 fast。"PL 显式选 + 高风险硬护栏"双重挡 fast lane 误把"该全测的小 diff"放过。
+
 **Skills 触发点速查**：
 - product-lead 接需求 → `brainstorming`；分配前 → `writing-plans`；并行派 ≥2 execution teammate → `using-git-worktrees`（强制）
 - 开发者实现前 → `test-driven-development`；开发者完成 Unit 后、code-review 前 → `agf-running-sit-tests`（dev 自跑集成测试，与 TDD 并列）
-- 写 PRD → `agf-writing-prd`；写 ADR → `agf-writing-adr`
+- 建变更文件夹（需求入口）→ `agf-writing-change`（含 delta 格式 + `agf-spec-validate` 自检 + `agf-spec-archive` 归档；PRD 入口 `agf-writing-prd` 已弃用 v6.9.0）；写 ADR → `agf-writing-adr`
 - 部署 UAT → `agf-deploying-uat`（deploy-engineer，合并到 main 后、触发 E2E 前起隔离栈 + 冒烟）
 - 测试报告（E2E / UAT）→ `agf-writing-qa-report`（SIT 证据由 dev 自写到 `progress/<role>.md`，无独立 SIT 报告）
+- UAT 用例文档 → qa-engineer **dev 实现期并行起草**（只依赖 AC+design，审批移出关键路径，ADR-011 决策 1）；SIT 证据 dev 报告前 + reviewer audit step 0 跑 `agf-sit-precheck.sh` 机筛（决策 2）
 - 完成前 → `verification-before-completion`；遇 bug → `systematic-debugging`；送审前 → `requesting-code-review`；收到审查/打回 → `receiving-code-review`
 
 详见 `.claude/standards/superpowers.md`。
@@ -115,7 +131,7 @@ USER → [product-lead] ──技术咨询──→ [tech-lead]（顾问，按�
 
 ### 派发协议
 
-并行派任务消息中，除 [`product-lead.md` Step 2 的 6 段 Task description schema](../agents/product-lead.md)（任务描述 / 任务类型 / 上下文 / 上游产物 / 验收标准 / 预期产物；hook `validate-task-schema.sh` 强制）外，**必须额外声明**：
+并行派任务消息中，除 `product-lead.md` Step 2 的 6 段 Task description schema（任务描述 / 任务类型 / 上下文 / 上游产物 / 验收标准 / 预期产物；hook `validate-task-schema.sh` 强制）外，**必须额外声明**：
 
 - **文件归属**：列出本实例**唯一拥有**的目录前缀或文件路径，例如：
   - 实例 1：`backend/app/users/**`
@@ -146,7 +162,7 @@ USER → [product-lead] ──技术咨询──→ [tech-lead]（顾问，按�
 
 ## Multi-instance Worker Pool（Dev / Reviewer / QA 三层 pool）
 
-> **决策依据**：[ADR-001 multi-instance-worker-pool](../../docs/adr/001-multi-instance-worker-pool.md)。
+> **决策依据**：ADR-001 multi-instance-worker-pool。
 >
 > §"Parallel Dispatch" 是 **Dev pool 的具体规则**（按模块切分 / 文件归属 / 临界区清单）；本节是覆盖 Dev / Reviewer / QA **三层 pool 的通用规则**，与 Parallel Dispatch 协同（dev 层兼用两节）。
 
@@ -166,13 +182,13 @@ USER → [product-lead] ──技术咨询──→ [tech-lead]（顾问，按�
 
 并行实例的 fan-out **只能由 `product-lead`（lead）发起**——由它调 `Agent` 工具起 `<type>-N`。两条硬禁止（官方限制 + 安全）：
 
-- ❌ **单个 worker 不得自 spawn 子 worker**：subagent 不能再 spawn subagent、teammate 不能 spawn teammate（[官方限制](https://code.claude.com/docs/en/agent-teams#limitations)）。要并行 review N 块代码，是 PL 起 N 个 `code-reviewer-N`，**不是** 1 个 reviewer 内部再分裂。reviewer / dev / qa 的 `tools` 均不含 `Agent`（仅 `product-lead` 含）——这是有意的。
+- ❌ **单个 worker 不得自 spawn 子 worker**：**teammate 不能 spawn teammate** 是官方现行硬限制（no nested teams）；**subagent 自 Claude Code v2.1.172 起已可嵌套**（深度上限 5，sub-agents），但 AGF **主动不授予** dev / reviewer / qa 的 `tools` 以 `Agent`（仅 `product-lead` 含）——以**工具门控**维持单编排者纪律，**不依赖**「官方禁止 subagent 嵌套」这条**已过时**的前提。要并行 review N 块代码，是 PL 起 N 个 `code-reviewer-N`，**不是** 1 个 reviewer 内部再分裂。
 - ❌ **teammate 不得用 bash shell-out `claude --agent ...`** 自起独立进程绕过框架：那会脱离共享任务表 / mailbox / worktree 管理、独立计费、并绕过 `block-dangerous-bash` 与 pool 隔离。CI / 自动化的非交互 review 走 `claude ultrareview [target]` 或 `.github/workflows/claude-code.yml`，**不在 team 内 shell-out**。
 
 ### 何时用 Workflow（vs Pool / Agent Team）
 
 > 判定规则一句话：**任务需要对话（协商 / 签字 / 回派）→ Team/Pool；不需要且机器可验证 → Workflow**。
-> 按阶段嵌入边界详 [ADR-005 Workflow 阶段嵌入](../../docs/adr/005-workflow-stage-embedding.md)（扩展自 [ADR-002 窄引入](../../docs/adr/002-dynamic-workflows-adoption.md)，后者仍是安全/成本基底）。
+> 按阶段嵌入边界详 ADR-005 Workflow 阶段嵌入（扩展自 ADR-002 窄引入，后者仍是安全/成本基底）。
 
 | 交付阶段 | 用 | 说明 |
 |---|---|---|
@@ -183,11 +199,11 @@ USER → [product-lead] ──技术咨询──→ [tech-lead]（顾问，按�
 | 测试 | 生成类（E2E case 扇出）可 **Workflow**；**执行留 qa-engineer** 对共享 UAT 栈 | P0 pass² 等签字语义不进 workflow |
 | 审计 / 复盘类（issue audit / source audit）| **Workflow** | 只读、多视角、对抗验证天然契合 |
 
-**Workflow agent 卫生约束**（2026-06-10 探针 `agf-stop-hook-probe` 实证，详 ADR-005）：
+**Workflow agent 卫生约束**（探针 `agf-stop-hook-probe` 实证，详 ADR-005）：
 
 - `agentType` 限**只读角色**（`code-reviewer` / `Explore`），禁止戴执行层 dev 角色帽——会全量预载该角色 frontmatter skills（token + 行为污染），且有被 `check-progress-file.sh` 误判阻断的风险
 - workflow agent 的 `label` **禁用执行层角色名及 `<role>-<N>` 形态**（SubagentStop hook 的 role 提取会优先命中 label）
-- 不得在 `docs/reviews/` 留下自不一致的 `agf-verdict` 块文件（`validate-review-verdict.sh` 兜底读最新报告，会错误归因阻断后续 workflow reviewer agent）
+- 不得在 `docs/reviews/` 留下自不一致的 verdict 报告文件（`validate-verdict.sh` 兜底读最新报告的 frontmatter，会错误归因阻断后续 workflow reviewer agent）
 - **显式触发**（调 saved workflow 命令），**禁默认开 `ultracode`**；成本走 `cost-budget.md` Workflow 门、PL 批
 - workflow subagent 已实测被 AGF PreToolUse hook（`block-dangerous-bash`）覆盖（ADR-002 探针 `agf-hook-probe`）；SubagentStop hooks 同样触发（ADR-005 探针）
 
@@ -208,8 +224,8 @@ USER → [product-lead] ──技术咨询──→ [tech-lead]（顾问，按�
 
 ### 池上限（per type）
 
-- 默认 **5 / type**；按 [`cost-budget.md`](cost-budget.md) §Pool 上限按预算分档自动调 调整（Small / Medium / Large 档具体上限以该表为准）
-- 具体上限按 type 在 [`team-roles.md`](team-roles.md) "Pool 上限" 列覆盖
+- 默认 **5 / type**；按 `cost-budget.md` §Pool 上限按预算分档自动调 调整（Small / Medium / Large 档具体上限以该表为准）
+- 具体上限按 type 在 `team-roles.md` "Pool 上限" 列覆盖
 - 超上限的 task 进 PL 的 pending queue，前序实例完成后下个 batch 处理
 
 ### 例外（强制单实例，不进 pool）
@@ -219,16 +235,18 @@ USER → [product-lead] ──技术咨询──→ [tech-lead]（顾问，按�
 - **同文件改动**：多个 task 改同一份代码文件（worktree 合并冲突）
 - **DB schema migration chain**：必须按 migration 顺序 review，并发会跳号
 - **Auth / 鉴权链路** 修改
-- **LLM 切换 / prompt 重构** 类高风险变更（详见 [`coding.md`](coding.md) 高风险变更定义）
+- **LLM 切换 / prompt 重构** 类高风险变更（详见 `coding.md` 高风险变更定义）
 - **Cross-cutting concerns**：影响多模块的横切关注点（日志框架 / error handler 等）
 
 PL 在 Step 3 派单时识别上述场景，明确写入 task description 的"上下文"段："**本 task 强制单实例处理，理由：...**"。
+
+> **原生 plan 审批流叠加（v2.1.178+）**：对这些高风险单实例 task，PL spawn teammate 时可叠加官方 **require plan approval**——teammate 在只读 plan 模式出方案、PL 批准后才进实现（拒绝则带反馈重修）。这是 `CLAUDE.md` "dev 高风险变更先进 Plan Mode 拿授权" 约定的 **lead 侧强制手段**：dev 自律 + lead 把关二者互补。PL 可在 spawn 指令里给批准标准（如"只批含测试覆盖的方案"）。
 
 ### Worktree 与 Docker 隔离
 
 | Pool | Worktree | Docker / Env |
 |---|---|---|
-| Dev pool | 必须独立（按 [§Parallel Dispatch §规模与隔离](#规模与隔离)）| 可选（看 task 是否启服务）|
+| Dev pool | 必须独立（按 §Parallel Dispatch §规模与隔离）| 可选（看 task 是否启服务）|
 | Review pool | **可共享**（read-only 操作），review 报告独立 commit | 不需要 |
 | QA pool | 必须独立 | **强制**端口偏移 —— 通过 `POOL_INSTANCE=N` env，docker-compose 端口 = base + N×100（详 `docker-compose.yml`）|
 

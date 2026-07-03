@@ -59,7 +59,7 @@
 
 - 本地：`docker compose` 起 Jaeger / Grafana / Prometheus
 - 团队：Datadog AI Agents Console、Honeycomb、Phoenix（开源）
-- 参考：[ColeMurray/claude-code-otel](https://github.com/ColeMurray/claude-code-otel)
+- 参考：ColeMurray/claude-code-otel
 
 ## 验收标准
 

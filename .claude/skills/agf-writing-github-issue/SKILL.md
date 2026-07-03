@@ -13,7 +13,7 @@ Use this skill when any of the following:
 - qa-engineer 在 E2E / UAT 中发现 P0 / P1 问题（**特殊路径，见下**）
 - 主 Claude / 任意 agent 准备调用 `gh issue create`
 
-> **拼 body / 写命令前必读** [`references/templates-and-examples.md`](./references/templates-and-examples.md)：Body 模板（feature + bug 增补段）、gh CLI HEREDOC 正确写法、3 个完整例子（feature / bug / dev SIT 自动路径，含 RolexOps 实例需替换为本项目实际值）。
+> **拼 body / 写命令前必读** `references/templates-and-examples.md`：Body 模板（feature + bug 增补段）、gh CLI HEREDOC 正确写法、3 个完整例子（feature / bug / dev SIT 自动路径，含 RolexOps 实例需替换为本项目实际值）。
 
 ## 最小输入模式（用户授权 / 2026-05-13）
 
@@ -98,7 +98,7 @@ release:vX.Y   # release 关联标签，按项目实际 milestone 替换（模�
 
 ## gh CLI 写法红线
 
-正确写法 = HEREDOC `--body "$(cat <<'EOF' ... EOF)"`（完整模板见 [`references/templates-and-examples.md`](./references/templates-and-examples.md)）。**错误做法**（禁止）：
+正确写法 = HEREDOC `--body "$(cat <<'EOF' ... EOF)"`（完整模板见 `references/templates-and-examples.md`）。**错误做法**（禁止）：
 
 - ❌ `gh issue create --body "..."` 含换行 / 反引号 / 中文引号 —— shell 转义噩梦
 - ❌ `--label "P0"` —— 不带 `priority:` 前缀

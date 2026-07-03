@@ -3,7 +3,7 @@
 ## AC 验收生命周期
 
 ```
-product-lead 定义 AC（PRD）→ 任务分配时把具体 AC 写进 SendMessage
+product-lead 定义 AC（变更文件夹 tasks.md 的 AC↔scenario 映射；PRD fallback 仍可）→ 任务分配时把具体 AC 写进 SendMessage
        ↓
 开发者实现 + Unit + SIT（API+DB+external 单边集成）→ 逐条自验 AC → append 到 progress/<role>.md → SendMessage 完成报告
        ↓
@@ -18,6 +18,8 @@ product-lead 对照 AC 最终判定 → 汇报用户（业务签字）→ 归档
 
 **AC 可测试性标准**：每条 AC 必须有触发条件（"当…时"）+ 可观察结果（"显示…"/"返回…"/"跳转至…"）。**交互类 AC 写成可点击因果链**——"点击 X 控件 → 发出 `<method path>` → 成功后 UI 显示 Z"，把控件、API 调用、可观测后果串进一条 AC（防"按钮没事件 / 前后端接不上"在 AC 层就无法验收）。
 
+**AC 来源（v6.9.0+，ADR-012 决策 4）**：AC 的语义来源是变更文件夹 delta 里的 `#### Scenario`（GIVEN/WHEN/THEN，天生可测）；`docs/changes/<change>/tasks.md` 维护 `AC-N ↔ <capability>/Requirement/Scenario` 映射。**编号 `AC-N`、优先级、本节可测试性标准、下文 self-reporting / progress 5 段格式 / SIT hook 全不变**——只是 AC 从哪来变了（PRD 第 4 节 → delta scenario）。PRD fallback 路径下仍可从 PRD 第 4 节取 AC。
+
 ## Self-Reporting Pattern（自报告模式）
 
 **核心思想**：teammate 完成任务时，先把过程证据**追加写入 `progress/<role>.md`**（持久化），再 SendMessage 给 product-lead 一份摘要。这样 lead session 关闭、压缩、跨机器恢复后，仍能从文件系统读出"做到哪了 / 跑过什么 / 验过什么"。行业等价物：Anthropic Agent Teams 文档的 idle notification + SendMessage + shared task list 组合（官方未单独命名）。
@@ -30,7 +32,7 @@ product-lead 对照 AC 最终判定 → 汇报用户（业务签字）→ 归档
 **强制约束**：
 - 适用对象：所有执行层 teammate（`backend-dev` / `frontend-dev` / `ai-agent-dev` / `ml-engineer` / `miniapp-dev`）
 - 强制时机：每完成一个 task 单（不论是否阻塞），先 append 到 `progress/<role>.md`，再 SendMessage
-- Hook 兜底：`SubagentStop` 与 `TeammateIdle` 触发 [`check-progress-file.sh`](../hooks/check-progress-file.sh)；该 role 的 `progress/<role>.md` 不存在或空 → exit 2 阻断退出
+- Hook 兜底：`SubagentStop` 与 `TeammateIdle` 触发 `check-progress-file.sh`；该 role 的 `progress/<role>.md` 不存在或空 → exit 2 阻断退出
 - 豁免：当前 team 没有 pending/in_progress task 分给该 role 时（standby 角色）放行
 - 其他角色（`product-lead` / `code-reviewer` / `qa-engineer` / `tech-lead` / `uiux-designer` / `content-writer` / `growth-analyst` / `miniapp-code-reviewer` / `miniapp-qa-engineer`）由各自产物（`docs/{prd,reviews,qa,design,content,growth}/`）兜底，不强制写 `progress/`，写了也不会被 hook 拦
 
@@ -38,7 +40,7 @@ product-lead 对照 AC 最终判定 → 汇报用户（业务签字）→ 归档
 
 > **设计原则**：可读性优先——pass 单行扫读，fail/blocked 才展开。原 9 段（状态 / 任务类型 / Skills used / 验证命令 / 验证输出 / SIT 证据 / AC 自验 / 涉及文件 / 下一步）压缩为 5 段：状态 / Skills / SIT 证据（含 AC 自验勾选）/ 质量门 / 下一步。被砍字段说明见本节末。
 >
-> **Pool 模式**（[ADR-001](../../docs/adr/001-multi-instance-worker-pool.md)）：进度文件命名 `progress/<role>-<N>.md`（pool 实例 N）或 `progress/<role>.md`（单实例），格式相同。
+> **Pool 模式**（ADR-001）：进度文件命名 `progress/<role>-<N>.md`（pool 实例 N）或 `progress/<role>.md`（单实例），格式相同。
 
 每完成一个 task 单 append 一段，格式如下：
 
@@ -62,7 +64,7 @@ product-lead 对照 AC 最终判定 → 汇报用户（业务签字）→ 归档
 **字段约束**：
 - **状态**：仅 `已完成` / `阻塞` 两值；不再写 `进行中`（idle 退出时进行中即视为阻塞）
 - **Skills**：1 行内列完，逗号分隔；用于 retro 检视 skill 触发率
-- **SIT 证据**：pass 单行结论即可（≤ 80 字），fail / blocked 才内嵌命令 + 输出 + 偏差三行（≤ 5 行）。code-reviewer 在 audit 时按 SIT Audit 4 项检查核对（定义见 [`workflow.md` SIT Audit](workflow.md) / `code-reviewer.md` SIT Audit 段）
+- **SIT 证据**：pass 单行结论即可（≤ 80 字），fail / blocked 才内嵌命令 + 输出 + 偏差三行（≤ 5 行）。**格式须可机检（ADR-011 决策 2）**：每条 AC 行带状态标记（`[x]/[ ]` + `✅/❌/⚠️`），fail/blocked 行必内嵌 `$ 命令` + 输出——dev 在 SendMessage 前可自跑 `bash .claude/scripts/agf-sit-precheck.sh progress/<role>.md` 自检（flag placeholder / 漏证据 / 标记矛盾，advisory，修掉省一轮 review 打回）。code-reviewer audit 时先跑同一脚本（SIT Audit **step 0**）再按 4 项检查核对（定义见 `workflow.md` SIT Audit / `code-reviewer.md` SIT Audit 段）
 - **质量门**：1 行内打 `lint / typecheck / unit / SIT` 4 项 ✅/⚠️/❌；任一非 ✅ 在括号内 ≤ 30 字简注
 - **下一步**：阻塞场景必须写明阻塞点 + 已尝试 + 需要什么；**勿在阻塞状态下继续 SendMessage 假装在推进**
 
@@ -97,7 +99,7 @@ SendMessage({to: "product-lead", message: "完成: [功能名]\n\nProgress 详�
 - [ ] 完成前已调用 `superpowers:verification-before-completion`
 - [ ] **已 append 一条完整条目到 `progress/<role>.md`**（5 段精简格式：状态 / Skills / SIT 证据（含 AC 自验勾选）/ 质量门 / 下一步）
 - [ ] SendMessage 完成报告引用了 `progress/<role>.md` 对应条目
-- [ ] 依次通过 code-review（含 SIT Audit）→ E2E → UAT 各阶段门才算交付完成（各档 verdict 取值 + 阶段门转换规则见 [`workflow.md` §Verdict 词表](workflow.md)，本条不重复）
+- [ ] 依次通过 code-review（含 SIT Audit）→ E2E → UAT 各阶段门才算交付完成（各档 verdict 取值 + 阶段门转换规则见 `workflow.md` §Verdict 词表，本条不重复）
 - [ ] UAT 报告提交后，必须由 product-lead 对照 PRD AC 做最终业务签字才算交付完成
 
 #### 通用 DoD（所有执行层 dev 必做）
@@ -112,4 +114,4 @@ SendMessage({to: "product-lead", message: "完成: [功能名]\n\nProgress 详�
 
 ### 归档（UAT 签字后由 product-lead 执行）
 
-UAT 业务签字 → product-lead 跑 `bash .claude/scripts/archive-progress.sh <feature>`，脚本自动按 base role 分组 + 组内按 N 升序合并 `progress/<role>{-<N>}.md` 到 `docs/qa/<feature>-process-log.md`（pool 多实例自动归组），再 `git rm progress/*.md` 留 `.gitkeep` + `README.md`。详见 [`product-lead.md` Step 5](../agents/product-lead.md) + [`archive-progress.sh`](../scripts/archive-progress.sh)。
+UAT 业务签字 → product-lead 跑 `bash .claude/scripts/archive-progress.sh <feature>`，脚本自动按 base role 分组 + 组内按 N 升序合并 `progress/<role>{-<N>}.md` 到 `docs/qa/<feature>-process-log.md`（pool 多实例自动归组），再 `git rm progress/*.md` 留 `.gitkeep` + `README.md`。详见 `product-lead.md` Step 5 + `archive-progress.sh`。

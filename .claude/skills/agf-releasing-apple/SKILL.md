@@ -5,7 +5,7 @@ description: Use when apple-release-engineer is about to build the signed distri
 
 # Releasing the Apple distributable (sign → notarize → package → smoke)
 
-把**合并到 main 后的干净代码**构建成签名分发包，冒烟自检通过后交接 apple-qa-engineer。本 skill 是 apple-release-engineer 的分步 runbook；契约 SSOT 是 [`deployment.md` §7](../../standards/deployment.md)，流水线决策是 [ADR-009](../../../docs/adr/009-apple-release-pipeline.md)。
+把**合并到 main 后的干净代码**构建成签名分发包，冒烟自检通过后交接 apple-qa-engineer。本 skill 是 apple-release-engineer 的分步 runbook；契约 SSOT 是 `deployment.md` §7，流水线决策是 ADR-009。
 
 ## 适用门
 

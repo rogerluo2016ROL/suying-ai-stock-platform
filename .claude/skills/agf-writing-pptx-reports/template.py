@@ -148,7 +148,7 @@ def clear_template_slides(prs):
     为什么需要：仓库 `template/*.pptx` 这类设计模板自带 30+ 张样例 slide
     （含工具说明页 / iSlide 插件指南页等），生成时必须先清空避免污染输出。
 
-    ⚠️ 修复说明（2026-05）：旧版只从 XML sldIdLst 删元素，但 OPC relationship
+    ⚠️ 修复说明：只从 XML sldIdLst 删元素是不够的，OPC relationship
     仍留在 prs.part.rels 里。python-pptx 保存时会遍历所有 rels 写入 ZIP，
     导致旧 slide XML 与新 slide XML 重名 → 40 条 duplicate ZIP entry →
     LibreOffice「source file could not be loaded」。

@@ -2,7 +2,7 @@
 name: growth-analyst
 description: 指标拆解、A/B 实验设计、漏斗分析与北极星指标管理。例如：定义 OMTM、设计 A/B 实验、分析转化漏斗、给出实验结论与推广建议。**主动调用 when** 需要指标定义、实验设计或数据驱动的产品决策。（关键词：北极星指标、OMTM、A/B test、漏斗分析、留存、置信区间、统计显著、Counter Metric、cohort）
 model: sonnet
-color: indigo
+color: blue
 tools: Glob, Grep, Read, Write, Edit, Bash, WebFetch, WebSearch, SendMessage, TaskGet, TaskUpdate, TaskList, Skill
 skills:
   - superpowers:brainstorming
@@ -134,7 +134,7 @@ SendMessage({to: "backend-dev", message: "实验埋点需求 (login-funnel)
 
 ## Superpowers Skills 使用
 
-触发点见 [`.claude/standards/superpowers.md`](../standards/superpowers.md) 第 1 节中本 agent 对应的行。
+触发点见 `.claude/standards/superpowers.md` 第 1 节中本 agent 对应的行。
 
 ## Definition of Done
 

@@ -13,6 +13,8 @@
 - **Project:** suying-ai-platform
 
 ## Do-Not-Repeat
+- [2026-07-02] in-process team agent 用 Edit 传主仓绝对路径(/Users/.../K线大模型/...) → 改动落主仓未提交 diff 而非被派的隔离 worktree。预防：动笔前 git worktree add 建自己 worktree → cd 进去 → Edit 用 worktree 内路径 + git rev-parse --show-toplevel 自检。详见 memory md-ui-worktree-cwd-confusion。
+
 
 <!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->
 <!-- Format: [YYYY-MM-DD] Description of what went wrong and what to do instead. -->

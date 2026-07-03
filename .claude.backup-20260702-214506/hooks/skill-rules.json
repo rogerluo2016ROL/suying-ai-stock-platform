@@ -1,0 +1,194 @@
+{
+  "_comment": "Rule engine for .claude/hooks/skill-suggester.sh. Each rule fires when ANY of its 'prompt_regex' patterns matches the user prompt OR any of its 'path_patterns' matches a file path in the prompt. Soft warning only — never blocks.",
+  "rules": [
+    {
+      "id": "prd",
+      "matches": {
+        "prompt_regex": [
+          "(?i)\\b(prd|product[ -]?requirement|需求文档|产品需求)\\b",
+          "(?i)\\b(写一份|起草|草拟).*(prd|需求)\\b"
+        ],
+        "path_patterns": [
+          "docs/prd/.*\\.md"
+        ]
+      },
+      "suggest": {
+        "skill": "agf-writing-prd",
+        "reason": "PRD 工作建议先用此 skill 拿到 10-section 结构 + AC 质量条 + 完成前自检清单"
+      }
+    },
+    {
+      "id": "adr",
+      "matches": {
+        "prompt_regex": [
+          "(?i)\\b(adr|architecture[ -]?decision|架构决策|技术选型)\\b",
+          "(?i)\\b(选型|换技术栈|换数据库|换框架|引入新依赖)\\b"
+        ],
+        "path_patterns": [
+          "docs/adr/.*\\.md"
+        ]
+      },
+      "suggest": {
+        "skill": "agf-writing-adr",
+        "reason": "ADR 工作建议先用此 skill 拿到结构 + 强制备选方案 + 版本查证段格式"
+      }
+    },
+    {
+      "id": "sit_dev_owned",
+      "matches": {
+        "prompt_regex": [
+          "(?i)\\b(sit|集成测试|集成层测试)\\b"
+        ]
+      },
+      "suggest": {
+        "skill": "agf-running-sit-tests",
+        "reason": "SIT 由 execution-layer dev 自跑（Unit 完成后、code-review 前），证据落 progress/<role>.md；qa-engineer 不再覆盖 SIT"
+      }
+    },
+    {
+      "id": "e2e_uat_report",
+      "matches": {
+        "prompt_regex": [
+          "(?i)\\b(e2e|uat|端到端测试|验收测试)\\b",
+          "(?i)\\b(qa[ -]report|测试报告)\\b"
+        ],
+        "path_patterns": [
+          "docs/qa/.*\\.md"
+        ]
+      },
+      "suggest": {
+        "skill": "agf-writing-qa-report",
+        "reason": "qa-engineer / miniapp-qa-engineer 写 E2E / UAT 报告时使用；SIT 不在此 skill 覆盖范围（见 agf-running-sit-tests）"
+      }
+    },
+    {
+      "id": "multi_llm",
+      "matches": {
+        "prompt_regex": [
+          "(?i)\\b(deepseek|doubao|豆包|qwen|通义|minimax|火山方舟|dashscope)\\b",
+          "(?i)\\b(切换.*(llm|模型|厂商)|llm.*(fallback|降级|备份))\\b",
+          "(?i)\\b(prompt[ -]?cach|缓存命中)\\b"
+        ],
+        "path_patterns": [
+          "backend/app/agents/.*\\.py",
+          "backend/app/llm.*"
+        ]
+      },
+      "suggest": {
+        "skill": "agf-wiring-multi-llm-sdk",
+        "reason": "多 LLM 厂商切换/接入要按统一 OpenAI-兼容适配模式，避免 SDK 散落"
+      }
+    },
+    {
+      "id": "miniapp",
+      "matches": {
+        "prompt_regex": [
+          "(?i)\\b(微信小程序|wechat[ -]?miniapp|miniapp|wxml|wxss|wx\\.[a-z])\\b"
+        ],
+        "path_patterns": [
+          "miniapp/.*"
+        ]
+      },
+      "suggest": {
+        "skill": "(查 .claude/standards/miniapp.md)",
+        "reason": "小程序工作必须先查 4 条审核红线 + setData 性能 + 主包/分包体积约束"
+      }
+    },
+    {
+      "id": "parallel_team",
+      "matches": {
+        "prompt_regex": [
+          "(?i)\\b(并行|同时跑|parallel.*(agent|teammate)|多个.*(backend|frontend|teammate))\\b"
+        ]
+      },
+      "suggest": {
+        "skill": "superpowers:using-git-worktrees + superpowers:dispatching-parallel-agents",
+        "reason": "≥2 execution teammate 并行强制走 worktree（见 .claude/standards/workflow.md \"Parallel Dispatch\" 节）"
+      }
+    },
+    {
+      "id": "brainstorm",
+      "matches": {
+        "prompt_regex": [
+          "(?i)\\b(头脑风暴|brainstorm|还没想清楚|拿不准|要不要做)\\b"
+        ]
+      },
+      "suggest": {
+        "skill": "superpowers:brainstorming",
+        "reason": "需求模糊时先 brainstorm 再写 PRD/计划，避免基于模糊前提投入"
+      }
+    },
+    {
+      "id": "tdd_or_bug",
+      "matches": {
+        "prompt_regex": [
+          "(?i)\\b(test[ -]?driven|tdd|red[ -]green[ -]refactor)\\b"
+        ]
+      },
+      "suggest": {
+        "skill": "superpowers:test-driven-development",
+        "reason": "实现新功能/修 bug 前先写失败测试（红→绿→重构），尤其是后端业务逻辑"
+      }
+    },
+    {
+      "id": "debugging",
+      "matches": {
+        "prompt_regex": [
+          "(?i)\\b(为什么.*(失败|不工作|崩溃|报错)|这个 bug|debug|不知道为什么)\\b"
+        ]
+      },
+      "suggest": {
+        "skill": "superpowers:systematic-debugging",
+        "reason": "用结构化方法（再现 → 缩小 → 假设 → 验证）替代 \"看着改\""
+      }
+    },
+    {
+      "id": "github_issue",
+      "matches": {
+        "prompt_regex": [
+          "(写|提|创建|起|开).*(issue|ticket|工单)|gh issue|github.*issue|报\\s*bug|track\\s*一下"
+        ]
+      },
+      "suggest": {
+        "skill": "agf-writing-github-issue",
+        "reason": "在仓库提 GitHub issue（最小输入模式 + 标签锁定 + dev/qa 自动 path）"
+      }
+    },
+    {
+      "id": "docx_report",
+      "matches": {
+        "prompt_regex": [
+          "(写|生成|做|出).*(docx|Word\\s*文档|决议书|评审报告|管理办法|投标书)"
+        ]
+      },
+      "suggest": {
+        "skill": "agf-writing-docx-reports",
+        "reason": "程序化生成中文 docx 高密度报告（决议书 / 评审 / 投标书等），用 docx-js helper 库"
+      }
+    },
+    {
+      "id": "pptx_deck",
+      "matches": {
+        "prompt_regex": [
+          "(写|生成|做|出).*(pptx|ppt|deck|幻灯片|演示文稿|宣贯|培训)|deck\\s*(太丑|老土|不专业)"
+        ]
+      },
+      "suggest": {
+        "skill": "agf-writing-pptx-reports",
+        "reason": "程序化生成中文 pptx 现代化 deck（制度 / 党政 / 培训宣贯），用 python-pptx + 内置模板"
+      }
+    },
+    {
+      "id": "release_retro",
+      "matches": {
+        "prompt_regex": [
+          "/agf-release-retro|release\\s*retro|发布复盘|MAJOR\\s*release|MINOR\\s*release"
+        ]
+      },
+      "suggest": {
+        "skill": "agf-running-release-retro",
+        "reason": "MAJOR / MINOR release 后强制走 7 步 retro；PATCH 自动 abort"
+      }
+    }
+  ]
+}

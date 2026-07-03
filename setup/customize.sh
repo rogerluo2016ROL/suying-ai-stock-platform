@@ -25,8 +25,8 @@ set -uo pipefail
 # 本脚本位于 setup/，内部用相对路径（.claude/agents/ 等）→ 先 cd 到项目根，无论从哪调用都对
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
-# 颜色
-if [[ -t 1 ]]; then
+# 颜色（AGF_FORCE_COLOR=1 时管道内也保色，供 agf-install TUI 沟槽透传）
+if [[ -t 1 || "${AGF_FORCE_COLOR:-}" == "1" ]]; then
   R=$'\033[0;31m'; G=$'\033[0;32m'; Y=$'\033[0;33m'; B=$'\033[0;34m'; D=$'\033[0;90m'; N=$'\033[0m'
 else
   R= G= Y= B= D= N=

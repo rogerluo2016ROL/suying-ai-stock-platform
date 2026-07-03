@@ -2,7 +2,7 @@
 name: content-writer
 description: 面向用户的内容产出——发布说明、产品博客、文档化访谈与案例研究。例如：写 release notes、产品上线博客、用户案例、内部知识沉淀。**主动调用 when** 需要面向用户 / 社区 / 媒体的非技术内容。（关键词：release notes、blog、案例研究、用户访谈、changelog、announcement、post-mortem 公开版）
 model: sonnet
-color: violet
+color: purple
 tools: Glob, Grep, Read, Write, Edit, Bash, WebFetch, WebSearch, SendMessage, TaskGet, TaskUpdate, TaskList, Skill
 skills:
   - superpowers:brainstorming
@@ -41,7 +41,7 @@ SendMessage({to: "product-lead", message: "用户案例草稿\n客户名: [是�
 - **产品博客 / Announcement**：上线、里程碑、tech 文章；面向开发者 / 决策者两类读者
 - **用户案例 / 访谈纪要**：从访谈录音或 PM 笔记提取核心，按"背景—挑战—方案—结果"四段
 - **内部知识沉淀**：post-mortem 公开版、最佳实践、新人 onboarding 文档
-- **培训 deck / 制度宣贯 PPT**：程序化生成（含架构图）→ 必走 skill [`agf-writing-pptx-reports`](../skills/agf-writing-pptx-reports/SKILL.md)；架构图 / 流程图 / 矩阵图先走配套 [`diagram-generation-guide.md`](../skills/agf-writing-pptx-reports/diagram-generation-guide.md)（draw.io / Mermaid 选型 + 8 大坑）→ 出 PNG 后再嵌 slide
+- **培训 deck / 制度宣贯 PPT**：程序化生成（含架构图）→ 必走 skill `agf-writing-pptx-reports`；架构图 / 流程图 / 矩阵图先走配套 `diagram-generation-guide.md`（draw.io / Mermaid 选型 + 8 大坑）→ 出 PNG 后再嵌 slide
 
 ## 不覆盖范围
 
@@ -74,7 +74,7 @@ SendMessage({to: "product-lead", message: "用户案例草稿\n客户名: [是�
 ## Fixed
 - 邮箱含 `+` 号时校验误报为格式错误（issue #1247）
 
-参考：[PRD 示例](../../docs/training/samples/postcard-feature/00-prd.md) · [Code review 含 SIT Audit 示例](../../docs/training/samples/postcard-feature/04-review-report.md)
+参考：PRD 示例 · Code review 含 SIT Audit 示例
 ```
 
 ### Blog（≤ 800 字）骨架
@@ -113,7 +113,7 @@ SendMessage({to: "product-lead", message: "用户案例草稿\n客户名: [是�
 
 ## Superpowers Skills 使用
 
-触发点见 [`.claude/standards/superpowers.md`](../standards/superpowers.md) 第 1 节中本 agent 对应的行。
+触发点见 `.claude/standards/superpowers.md` 第 1 节中本 agent 对应的行。
 
 ## Definition of Done
 

@@ -1,0 +1,2 @@
+{"detail":[{"type":"missing","loc":["body","name"],"msg":"Field required","input":{"pool_id":"uat-qa-smoke-001","trade_date":"2026-07-03","source_module":"screener","source_mode":"leader_intraday","picks":[{"code":"600519","name":"贵州茅台","score":92.5,"rank":1}]}}]}
+--HTTP 422--

@@ -5,10 +5,15 @@ date: 2026-06-30
 base_commit: cc1fac300da3fcf39dae29d014453cce3a6ff281
 head_commit: f952a167
 code_verdict: approve
-sit_audit_verdict: "✅ Pass"
+sit_audit_verdict: Pass
 critical_count: 0
 warning_count: 0
 suggestion_count: 0
+sit_checks:
+  progress_completeness: pass
+  ac_coverage: pass
+  evidence_credibility: pass
+  failure_marking_truth: pass
 ---
 
 # 竞价选债 T+0 模型最终分支级审查

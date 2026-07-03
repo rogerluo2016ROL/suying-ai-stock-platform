@@ -31,18 +31,18 @@ with tempfile.TemporaryDirectory() as tmp:
 ## 资源链接
 
 **本仓库内**（优先看）：
-- [`template/Template.pptx`](../../../../template/) — 1 个 coral 团队风 .pptx 模板（39 slides / 6 layouts / 1 MB；详 `template-team-guide.md` 内 6 layouts + 6 类版面拆解）
-- [`template-team-guide.md`](../template-team-guide.md) — Template.pptx 完整使用指南（39 slides / 6 layouts / 6 类版面 / 6 个踩坑）
-- [`template.py`](../template.py) — 本 skill 自带的 helper 集合（含 `_fix_ph_font` / `clear_template_slides` / `card` / `bullets` / `table_modern` 等）
-- [`.claude/skills/pptx/SKILL.md`](../../pptx/SKILL.md) — Anthropic 提供的低层 .pptx 读写 skill（unpack / thumbnail / clean / pack 脚本）
+- `template/Template.pptx` — 1 个 coral 团队风 .pptx 模板（39 slides / 6 layouts / 1 MB；详 `template-team-guide.md` 内 6 layouts + 6 类版面拆解）
+- `template-team-guide.md` — Template.pptx 完整使用指南（39 slides / 6 layouts / 6 类版面 / 6 个踩坑）
+- `template.py` — 本 skill 自带的 helper 集合（含 `_fix_ph_font` / `clear_template_slides` / `card` / `bullets` / `table_modern` 等）
+- `.claude/skills/pptx/SKILL.md` — Anthropic 提供的低层 .pptx 读写 skill（unpack / thumbnail / clean / pack 脚本）
 
 **外部资源**：
-- [python-pptx 官方文档](https://python-pptx.readthedocs.io/)
-- [python-pptx Issue #503 — .potx 模板讨论](https://github.com/scanny/python-pptx/issues/503)
-- [pptx-ea-font](https://github.com/AndersonBY/pptx-ea-font) — 手写 EA 字段的封装库（不装也行，本 skill 已展示手写法）
-- [SlidesCarnival](https://www.slidescarnival.com/tag/minimalist) — 严肃极简风免费模板（视觉参考）
-- [BrandColorCode](https://www.brandcolorcode.com) — 企业品牌色查询
-- [Mermaid Live Editor](https://mermaid.live) — 在线调试 mermaid 图
+- python-pptx 官方文档
+- python-pptx Issue #503 — .potx 模板讨论
+- pptx-ea-font — 手写 EA 字段的封装库（不装也行，本 skill 已展示手写法）
+- SlidesCarnival — 严肃极简风免费模板（视觉参考）
+- BrandColorCode — 企业品牌色查询
+- Mermaid Live Editor — 在线调试 mermaid 图
 
 ## 本 skill 的沉淀来源
 

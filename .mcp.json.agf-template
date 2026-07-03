@@ -9,6 +9,11 @@
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"],
       "alwaysLoad": true
+    },
+    "xcodebuild": {
+      "command": "npx",
+      "args": ["-y", "xcodebuildmcp@latest"],
+      "alwaysLoad": true
     }
   }
 }
