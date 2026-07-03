@@ -106,6 +106,7 @@ def _merge_mapping_context(pick: dict, mapping_context: dict[str, dict]) -> dict
         enriched["mapping_adjusted_score"] = round(float(enriched.get("total_score") or 0) * weight, 2)
         return enriched
     enriched.update({
+        "mapping_id": context.get("mapping_id"),
         "node_id": context.get("node_id"),
         "node_name": context.get("node_name"),
         "mapping_confidence": context.get("mapping_confidence"),
@@ -309,17 +310,27 @@ class SupplyChainEngine(StrategyEngine):
             for r in cur.fetchall():
                 peers[r[0]] = r[1]
             try:
-                cur.execute("""
+                cur.execute("SELECT to_regclass('public.business_tag_mapping') IS NOT NULL")
+                has_business_tag_mapping = bool(cur.fetchone()[0])
+                mapping_id_select = "m.mapping_id" if has_business_tag_mapping else "NULL::text AS mapping_id"
+                mapping_id_join = """
+                    LEFT JOIN business_tag_mapping m
+                      ON m.node_id = c.node_id
+                     AND regexp_replace(m.code, '\\.(SZ|SH|BJ)$', '') = regexp_replace(c.code, '\\.(SZ|SH|BJ)$', '')
+                """ if has_business_tag_mapping else ""
+                cur.execute(f"""
                     SELECT c.code, c.node_id, n.node_name,
-                           b.confidence, b.status, c.evidence
+                           b.confidence, b.status, c.evidence, {mapping_id_select}
                     FROM company_chain_mapping c
                     LEFT JOIN company_bom_mapping b ON b.code = c.code AND b.node_id = c.node_id
                     LEFT JOIN chain_nodes n ON n.node_id = c.node_id
+                    {mapping_id_join}
                 """)
-                for code, node_id, node_name, confidence, status, evidence in cur.fetchall():
+                for code, node_id, node_name, confidence, status, evidence, mapping_id in cur.fetchall():
                     evidence = evidence or {}
                     conf = float(confidence or evidence.get("confidence") or 0)
                     item = {
+                        "mapping_id": mapping_id or evidence.get("business_tag_mapping_id") or evidence.get("mapping_id"),
                         "node_id": node_id,
                         "node_name": node_name,
                         "chain_id": evidence.get("chain_id") or _chain_id_from_node_id(node_id),
