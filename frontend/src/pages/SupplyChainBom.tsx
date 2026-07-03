@@ -15,6 +15,7 @@ import CandidateFilterBar from './supply-chain-bom/CandidateFilterBar'
 import ChainBubbleChart from './supply-chain-bom/ChainBubbleChart'
 import SupplyChainMappingReviewPanel from './supply-chain-bom/SupplyChainMappingReviewPanel'
 import SupplyChainResearchWorkbench from './supply-chain-bom/SupplyChainResearchWorkbench'
+import SupplyChainCandidateRankingPanel from './supply-chain-bom/SupplyChainCandidateRankingPanel'
 import type {
   BomNode,
   CandidateCompany,
@@ -220,11 +221,13 @@ const supplyChainTabs = [
   { key: 'policy', path: '/supply-chain-bom/policy', label: '政策梳理', subLabel: '政策证据' },
   { key: 'chain', path: '/supply-chain-bom', label: '产业链解构', subLabel: '三种模式' },
   { key: 'company', path: '/supply-chain-bom/company', label: '多维度分析', subLabel: '公司对比' },
+  { key: 'ranking', path: '/supply-chain-bom/ranking', label: '候选总榜', subLabel: '真实排序' },
 ]
 
 function activeSupplyChainTab(pathname: string) {
   if (pathname.startsWith('/supply-chain-bom/policy')) return 'policy'
   if (pathname.startsWith('/supply-chain-bom/company')) return 'company'
+  if (pathname.startsWith('/supply-chain-bom/ranking')) return 'ranking'
   return 'chain'
 }
 
@@ -929,20 +932,24 @@ export default function SupplyChainBom() {
         />
       )}
 
-      <SupplyChainResearchWorkbench
-        themes={themes}
-        nodes={nodes}
-        candidates={activeCandidates}
-        selectedThemeId={selectedThemeId}
-        selectedNodeId={selectedNodeId}
-        selectedNodeThesis={selectedNodeThesis}
-        mappingQuality={mappingQuality}
-        loading={loading || candidateLoading}
-        onSelectTheme={selectTheme}
-        onSelectNode={selectNodeById}
-        onOpenCompany={openCompany}
-        onReviewMapping={reviewMapping}
-      />
+      {activeModuleKey === 'ranking' ? (
+        <SupplyChainCandidateRankingPanel onOpenCompany={openCompany} />
+      ) : (
+        <>
+          <SupplyChainResearchWorkbench
+            themes={themes}
+            nodes={nodes}
+            candidates={activeCandidates}
+            selectedThemeId={selectedThemeId}
+            selectedNodeId={selectedNodeId}
+            selectedNodeThesis={selectedNodeThesis}
+            mappingQuality={mappingQuality}
+            loading={loading || candidateLoading}
+            onSelectTheme={selectTheme}
+            onSelectNode={selectNodeById}
+            onOpenCompany={openCompany}
+            onReviewMapping={reviewMapping}
+          />
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={7}>
@@ -1193,12 +1200,12 @@ export default function SupplyChainBom() {
         </Space>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <SupplyChainMappingReviewPanel />
-      </div>
+          <div style={{ marginTop: 16 }}>
+            <SupplyChainMappingReviewPanel />
+          </div>
 
-      <div style={{ marginTop: 16 }}>
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <div style={{ marginTop: 16 }}>
+            <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
             <Space wrap>
               <Title level={5} style={{ margin: 0 }}>上游影响观察池</Title>
@@ -1217,12 +1224,12 @@ export default function SupplyChainBom() {
               emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无上游影响观察候选" />,
             }}
           />
-        </Space>
-      </div>
+            </Space>
+          </div>
 
-      {/* P2-08: Policy interpretation section (replaces LLM extraction) */}
-      <div style={{ marginTop: 16, border: `1px solid ${lightTokens.border}`, borderRadius: lightTokens.radius, background: lightTokens.surface, padding: 16 }}>
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          {/* P2-08: Policy interpretation section (replaces LLM extraction) */}
+          <div style={{ marginTop: 16, border: `1px solid ${lightTokens.border}`, borderRadius: lightTokens.radius, background: lightTokens.surface, padding: 16 }}>
+            <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Space wrap>
             <Text strong><FileTextOutlined style={{ marginRight: 6 }} />政策解读</Text>
             <Tag color={researchCollectionColor(researchIngestion.auto_collection_status)}>
@@ -1299,8 +1306,10 @@ export default function SupplyChainBom() {
               )}
             </Space>
           )}
-        </Space>
-      </div>
+            </Space>
+          </div>
+        </>
+      )}
 
       <CompanyResearchDrawer
         open={companyOpen}

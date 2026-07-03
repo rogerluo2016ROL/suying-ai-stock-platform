@@ -4621,6 +4621,278 @@ def _query_supply_chain_rankings(
     return payload
 
 
+def _candidate_rank_clamp(value: Any, low: float = 0.0, high: float = 100.0) -> float:
+    try:
+        numeric = float(value or 0.0)
+    except Exception:
+        numeric = 0.0
+    return max(low, min(high, numeric))
+
+
+def _normalize_candidate_expectation_gap(value: Any) -> float:
+    return _candidate_rank_clamp((_to_float(value, 0.0) + 100.0) / 2.0)
+
+
+def _normalize_candidate_momentum(value: Any) -> float:
+    return _candidate_rank_clamp((_to_float(value, 0.0) + 20.0) / 60.0 * 100.0)
+
+
+def _score_supply_chain_candidate_row(row: dict[str, Any]) -> dict[str, Any]:
+    three_high = _candidate_rank_clamp(row.get("three_high_total"))
+    moat = _candidate_rank_clamp(row.get("moat_score"))
+    stage = _candidate_rank_clamp(row.get("stage_score"))
+    evidence = _candidate_rank_clamp(row.get("evidence_score"))
+    l8 = _candidate_rank_clamp(_to_float(row.get("l8_match_rate"), 0.0) * 100.0)
+    fresh = _candidate_rank_clamp(_to_float(row.get("fresh_rate"), 0.0) * 100.0)
+    gap = _normalize_candidate_expectation_gap(row.get("expectation_gap_score"))
+    momentum = _normalize_candidate_momentum(row.get("change_20d_pct"))
+    rank_score = round(
+        three_high * 0.35
+        + moat * 0.15
+        + stage * 0.12
+        + evidence * 0.12
+        + l8 * 0.10
+        + fresh * 0.08
+        + gap * 0.06
+        + momentum * 0.02,
+        2,
+    )
+    if rank_score >= 80 and fresh >= 70 and l8 >= 50:
+        signal = "重点候选"
+    elif rank_score >= 65:
+        signal = "观察"
+    else:
+        signal = "暂缓"
+    item = dict(row)
+    item.update({
+        "rank_score": rank_score,
+        "signal": signal,
+        "score_parts": {
+            "three_high": round(three_high, 2),
+            "moat": round(moat, 2),
+            "stage": round(stage, 2),
+            "evidence": round(evidence, 2),
+            "l8": round(l8, 2),
+            "freshness": round(fresh, 2),
+            "expectation_gap": round(gap, 2),
+            "momentum": round(momentum, 2),
+        },
+    })
+    return item
+
+
+def _aggregate_supply_chain_candidate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for row in rows:
+        grouped.setdefault((str(row.get("chain_id") or ""), str(row.get("code") or "")), []).append(row)
+    aggregated: list[dict[str, Any]] = []
+    for (chain_id, code), items in grouped.items():
+        best = max(items, key=lambda item: _to_float(item.get("rank_score"), 0.0))
+        sorted_items = sorted(items, key=lambda item: -_to_float(item.get("rank_score"), 0.0))
+        avg_rank = sum(_to_float(item.get("rank_score"), 0.0) for item in items) / max(len(items), 1)
+        aggregated.append({
+            "chain_id": chain_id,
+            "code": code,
+            "name": str(best.get("name") or code),
+            "industry": str(best.get("industry") or ""),
+            "rank_score": round(_to_float(best.get("rank_score"), 0.0), 2),
+            "avg_rank_score": round(avg_rank, 2),
+            "signal": best.get("signal"),
+            "tag_count": len({item.get("mapping_id") for item in items}),
+            "best_mapping_id": best.get("mapping_id"),
+            "best_tag_name": best.get("tag_name"),
+            "node_id": best.get("node_id"),
+            "mapping_status": best.get("mapping_status"),
+            "three_high_total": round(_to_float(best.get("three_high_total"), 0.0), 2),
+            "growth_score": round(_to_float(best.get("growth_score"), 0.0), 2),
+            "profit_score": round(_to_float(best.get("profit_score"), 0.0), 2),
+            "moat_score": round(_to_float(best.get("moat_score"), 0.0), 2),
+            "stage_score": round(_to_float(best.get("stage_score"), 0.0), 2),
+            "evidence_score": round(_to_float(best.get("evidence_score"), 0.0), 2),
+            "expectation_gap_score": round(_to_float(best.get("expectation_gap_score"), 0.0), 2),
+            "gap_type": str(best.get("gap_type") or ""),
+            "research_stage": str(best.get("research_stage") or ""),
+            "commercialization_stage": str(best.get("commercialization_stage") or ""),
+            "l8_match_rate": round(_to_float(best.get("l8_match_rate"), 0.0), 4),
+            "fresh_rate": round(_to_float(best.get("fresh_rate"), 0.0), 4),
+            "freshness_status": str(best.get("freshness_status") or "unknown"),
+            "fact_count": int(sum(int(item.get("fact_count") or 0) for item in items)),
+            "latest_price": _to_float(best.get("latest_price"), None),
+            "latest_trade_date": str(best.get("latest_trade_date") or ""),
+            "change_1d_pct": _to_float(best.get("change_1d_pct"), None),
+            "change_20d_pct": _to_float(best.get("change_20d_pct"), None),
+            "mapping_ids": [item.get("mapping_id") for item in sorted_items[:8]],
+            "tag_names": [item.get("tag_name") for item in sorted_items[:8]],
+        })
+    aggregated.sort(key=lambda item: (-_to_float(item.get("rank_score"), 0.0), item.get("chain_id") or "", item.get("code") or ""))
+    for idx, item in enumerate(aggregated, start=1):
+        item["rank"] = idx
+    return aggregated
+
+
+def _query_supply_chain_candidate_ranking(
+    top_n: int = 100,
+    chain_id: Optional[str] = None,
+    signal: Optional[str] = None,
+) -> dict[str, Any]:
+    safe_top_n = min(200, max(1, int(top_n or 100)))
+    safe_chain_id = str(chain_id or "").strip() or None
+    safe_signal = str(signal or "").strip() or None
+    payload: dict[str, Any] = {
+        "version": "supply-chain-candidate-ranking-v1",
+        "source_status": "unknown",
+        "filters": {"top_n": safe_top_n, "chain_id": safe_chain_id, "signal": safe_signal},
+        "summary": {},
+        "items": [],
+        "by_chain": {},
+        "limitations": [
+            "候选总榜不是买入建议；交易层仍需结合行情、风控和买卖点模型。",
+            "20日涨幅只占2%权重，排序核心是业务标签级证据。",
+        ],
+    }
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+            required = [
+                "business_tag_mapping",
+                "business_tag_three_high_scores",
+                "business_tag_expectation_gap_scores",
+                "business_tag_l8_evidence_status",
+                "business_tag_evidence_freshness",
+                "daily_kline",
+            ]
+            missing = [table for table in required if not _pg_table_exists(cur, table)]
+            if missing:
+                payload["source_status"] = "missing_tables"
+                payload["limitations"].append(f"缺少表：{', '.join(missing)}")
+                return payload
+            cur.execute(
+                """
+                WITH mapping_base AS (
+                    SELECT mapping_id, split_part(code, '.', 1) AS code, chain_id, node_id, tag_name, status AS mapping_status
+                    FROM business_tag_mapping
+                    WHERE chain_id IS NOT NULL
+                      AND COALESCE(status, '') <> 'rejected'
+                ),
+                latest_score AS (
+                    SELECT DISTINCT ON (mapping_id)
+                        mapping_id, trade_date, growth_score, profit_score, moat_score,
+                        stage_score, evidence_score, total_score
+                    FROM business_tag_three_high_scores
+                    ORDER BY mapping_id, trade_date DESC, created_at DESC
+                ),
+                latest_gap AS (
+                    SELECT DISTINCT ON (mapping_id)
+                        mapping_id, expectation_gap_score, gap_type
+                    FROM business_tag_expectation_gap_scores
+                    ORDER BY mapping_id, trade_date DESC, created_at DESC
+                ),
+                latest_stage AS (
+                    SELECT DISTINCT ON (mapping_id)
+                        mapping_id, research_stage, commercialization_stage
+                    FROM business_tag_stage_tracking
+                    ORDER BY mapping_id, trade_date DESC, created_at DESC
+                ),
+                l8 AS (
+                    SELECT mapping_id, count(*) AS l8_total,
+                           count(*) FILTER (WHERE source_status = 'matched') AS l8_matched,
+                           sum(coalesce(evidence_count, 0)) AS l8_evidence_count
+                    FROM business_tag_l8_evidence_status
+                    GROUP BY mapping_id
+                ),
+                facts AS (
+                    SELECT mapping_id, count(*) AS fact_count
+                    FROM evidence_extracted_facts
+                    GROUP BY mapping_id
+                ),
+                market_latest AS (
+                    SELECT DISTINCT ON (code)
+                        code, trade_date AS latest_trade_date, close AS latest_price, change_pct AS change_1d_pct
+                    FROM daily_kline
+                    ORDER BY code, trade_date DESC
+                ),
+                market_20d AS (
+                    SELECT code,
+                           max(close) FILTER (WHERE rn = 1) AS latest_close,
+                           max(close) FILTER (WHERE rn = 20) AS close_20d
+                    FROM (
+                        SELECT code, trade_date, close,
+                               row_number() OVER (PARTITION BY code ORDER BY trade_date DESC) AS rn
+                        FROM daily_kline
+                    ) x
+                    WHERE rn IN (1, 20)
+                    GROUP BY code
+                )
+                SELECT
+                    b.mapping_id, b.code, coalesce(s.name, b.code) AS name, coalesce(s.industry, '') AS industry,
+                    b.chain_id, b.node_id, b.tag_name, b.mapping_status,
+                    coalesce(sc.growth_score, 0) AS growth_score,
+                    coalesce(sc.profit_score, 0) AS profit_score,
+                    coalesce(sc.moat_score, 0) AS moat_score,
+                    coalesce(sc.stage_score, 0) AS stage_score,
+                    coalesce(sc.evidence_score, 0) AS evidence_score,
+                    coalesce(sc.total_score, 0) AS three_high_total,
+                    coalesce(g.expectation_gap_score, 0) AS expectation_gap_score,
+                    coalesce(g.gap_type, '') AS gap_type,
+                    coalesce(st.research_stage, '') AS research_stage,
+                    coalesce(st.commercialization_stage, '') AS commercialization_stage,
+                    coalesce(l8.l8_total, 0) AS l8_total,
+                    coalesce(l8.l8_matched, 0) AS l8_matched,
+                    CASE WHEN coalesce(l8.l8_total, 0) = 0 THEN 0
+                         ELSE coalesce(l8.l8_matched, 0)::float / l8.l8_total END AS l8_match_rate,
+                    coalesce(l8.l8_evidence_count, 0) AS l8_evidence_count,
+                    coalesce(f.fact_count, 0) AS fact_count,
+                    CASE WHEN fr.freshness_status = 'fresh' THEN 1.0
+                         WHEN fr.freshness_status = 'stale' THEN 0.6
+                         WHEN fr.freshness_status = 'expired' THEN 0.2
+                         ELSE 0.0 END AS fresh_rate,
+                    coalesce(fr.freshness_status, 'unknown') AS freshness_status,
+                    ml.latest_trade_date, ml.latest_price, ml.change_1d_pct,
+                    CASE WHEN m20.close_20d IS NULL OR m20.close_20d = 0 THEN NULL
+                         ELSE (m20.latest_close / m20.close_20d - 1) * 100 END AS change_20d_pct
+                FROM mapping_base b
+                LEFT JOIN stocks s ON s.code = b.code
+                LEFT JOIN latest_score sc ON sc.mapping_id = b.mapping_id
+                LEFT JOIN latest_gap g ON g.mapping_id = b.mapping_id
+                LEFT JOIN latest_stage st ON st.mapping_id = b.mapping_id
+                LEFT JOIN l8 ON l8.mapping_id = b.mapping_id
+                LEFT JOIN facts f ON f.mapping_id = b.mapping_id
+                LEFT JOIN business_tag_evidence_freshness fr ON fr.mapping_id = b.mapping_id
+                LEFT JOIN market_latest ml ON ml.code = b.code
+                LEFT JOIN market_20d m20 ON m20.code = b.code
+                """,
+            )
+            columns = [desc[0] for desc in cur.description]
+            scored = [_score_supply_chain_candidate_row(dict(zip(columns, row))) for row in cur.fetchall()]
+            aggregated = _aggregate_supply_chain_candidate_rows(scored)
+            if safe_chain_id:
+                aggregated = [item for item in aggregated if item.get("chain_id") == safe_chain_id]
+            if safe_signal:
+                aggregated = [item for item in aggregated if item.get("signal") == safe_signal]
+            by_chain: dict[str, list[dict[str, Any]]] = {}
+            for item in aggregated:
+                by_chain.setdefault(str(item.get("chain_id")), [])
+                if len(by_chain[str(item.get("chain_id"))]) < safe_top_n:
+                    by_chain[str(item.get("chain_id"))].append(item)
+            signal_distribution: dict[str, int] = {}
+            for item in aggregated:
+                signal_distribution[str(item.get("signal"))] = signal_distribution.get(str(item.get("signal")), 0) + 1
+            payload["source_status"] = "ready" if aggregated else "empty"
+            payload["summary"] = {
+                "mapping_rows": len(scored),
+                "company_chain_rows": len(aggregated),
+                "chain_count": len({item.get("chain_id") for item in aggregated}),
+                "signal_distribution": signal_distribution,
+            }
+            payload["items"] = aggregated[:safe_top_n]
+            payload["by_chain"] = by_chain
+    except Exception as e:
+        payload["source_status"] = "degraded"
+        payload["error"] = str(e)
+        payload["limitations"].append("PostgreSQL candidate ranking lookup failed")
+    return payload
+
+
 def _review_business_tag_evidence(
     event_id: str,
     request: BusinessTagEvidenceReviewRequest,
@@ -6121,6 +6393,16 @@ async def supply_chain_rankings(
 ):
     """Return company rankings aggregated from business-tag scores."""
     return _query_supply_chain_rankings(rank_type, top_n, trade_date)
+
+
+@router.get("/supply-chain/candidate-ranking")
+async def supply_chain_candidate_ranking(
+    top_n: int = Query(100, ge=1, le=200),
+    chain_id: Optional[str] = Query(None),
+    signal: Optional[str] = Query(None),
+):
+    """Return evidence-first company ranking from business-tag, L8, stage, freshness, and market data."""
+    return _query_supply_chain_candidate_ranking(top_n=top_n, chain_id=chain_id, signal=signal)
 
 
 @router.get("/supply-chain/workbench")

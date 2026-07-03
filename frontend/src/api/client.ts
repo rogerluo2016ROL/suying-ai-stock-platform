@@ -311,6 +311,12 @@ type SupplyChainWorkbenchParams = number | {
   nodeId?: string
 }
 
+export interface SupplyChainCandidateRankingParams {
+  topN?: number
+  chainId?: string
+  signal?: string
+}
+
 export type SupplyChainMappingReviewStatus = 'reviewable' | 'pending_review' | 'weak_evidence' | 'verified' | 'rejected'
 
 export interface SupplyChainMappingReviewQueueParams {
@@ -361,6 +367,151 @@ export interface SupplyChainMappingReviewDecision {
   note?: string
 }
 
+export interface EvidenceChainDocument {
+  doc_id: string
+  source_id?: string
+  source_type?: string
+  title?: string
+  publish_time?: string
+  crawl_time?: string
+  url?: string
+  source_level?: string
+  doc_status?: string
+  license_status?: string
+}
+
+export interface EvidenceChainFact {
+  fact_id: string
+  mapping_id?: string
+  fact_type?: string
+  fact_nature?: string
+  fact_value?: string
+  original_quote?: string
+  source_level?: string
+  confidence?: number
+  validation_status?: string
+  research_stage_signal?: string
+  commercial_stage_signal?: string
+  growth_signal?: boolean
+  profit_signal?: boolean
+  moat_signal?: boolean
+  risk_signal?: boolean
+  created_at?: string
+}
+
+export interface EvidenceChainFreshness {
+  mapping_id?: string
+  freshness_status?: string
+  days_since_update?: number
+  last_strong_evidence_date?: string
+  last_mid_evidence_date?: string
+  last_weak_signal_date?: string
+  last_any_evidence_date?: string
+  next_review_date?: string
+  stale_reason?: string
+  updated_at?: string
+}
+
+export interface EvidenceChainStageTransition {
+  transition_id: string
+  mapping_id?: string
+  old_research_stage?: string
+  new_research_stage?: string
+  old_commercial_stage?: string
+  new_commercial_stage?: string
+  trigger_fact_id?: string
+  review_status?: string
+  change_reason?: string
+  created_at?: string
+}
+
+export interface EvidenceChainExpectation {
+  monitor_id: string
+  mapping_id?: string
+  claim_text?: string
+  claim_source_type?: string
+  expected_result?: string
+  actual_progress?: string
+  gap_status?: string
+  expected_date?: string
+  review_status?: string
+  created_at?: string
+}
+
+export interface EvidenceChainResponse {
+  version: string
+  mapping_id: string
+  source_status: string
+  documents: EvidenceChainDocument[]
+  facts: EvidenceChainFact[]
+  freshness: EvidenceChainFreshness | Record<string, never>
+  stage_transitions: EvidenceChainStageTransition[]
+  expectations: EvidenceChainExpectation[]
+  limitations?: string[]
+}
+
+export interface EvidenceReviewQueueResponse {
+  version: string
+  queue: Array<Record<string, unknown>>
+  counts: Record<string, number>
+  limitations?: string[]
+}
+
+export interface SupplyChainCandidateRankingItem {
+  rank: number
+  chain_id: string
+  code: string
+  name?: string
+  industry?: string
+  rank_score: number
+  avg_rank_score?: number
+  signal: string
+  tag_count: number
+  best_mapping_id: string
+  best_tag_name: string
+  node_id?: string
+  mapping_status?: string
+  three_high_total?: number
+  growth_score?: number
+  profit_score?: number
+  moat_score?: number
+  stage_score?: number
+  evidence_score?: number
+  expectation_gap_score?: number
+  gap_type?: string
+  research_stage?: string
+  commercialization_stage?: string
+  l8_match_rate?: number
+  fresh_rate?: number
+  freshness_status?: string
+  fact_count?: number
+  latest_price?: number
+  latest_trade_date?: string
+  change_1d_pct?: number
+  change_20d_pct?: number
+  mapping_ids?: string[]
+  tag_names?: string[]
+}
+
+export interface SupplyChainCandidateRankingResponse {
+  version: string
+  source_status: string
+  filters: {
+    top_n: number
+    chain_id?: string | null
+    signal?: string | null
+  }
+  summary: {
+    mapping_rows?: number
+    company_chain_rows?: number
+    chain_count?: number
+    signal_distribution?: Record<string, number>
+  }
+  items: SupplyChainCandidateRankingItem[]
+  by_chain: Record<string, SupplyChainCandidateRankingItem[]>
+  limitations?: string[]
+}
+
 const buildSupplyChainWorkbenchPath = (params: SupplyChainWorkbenchParams = {}) => {
   const topN = typeof params === 'number' ? params : params.topN ?? 30
   const search = new URLSearchParams({ top_n: String(topN) })
@@ -380,6 +531,15 @@ const buildSupplyChainMappingReviewQueuePath = (params: SupplyChainMappingReview
   if (params.nodeId) search.set('node_id', params.nodeId)
   if (params.chainId) search.set('chain_id', params.chainId)
   return `/screener/supply-chain/mapping-review/queue?${search.toString()}`
+}
+
+const buildSupplyChainCandidateRankingPath = (params: SupplyChainCandidateRankingParams = {}) => {
+  const search = new URLSearchParams({
+    top_n: String(params.topN ?? 100),
+  })
+  if (params.chainId) search.set('chain_id', params.chainId)
+  if (params.signal) search.set('signal', params.signal)
+  return `/screener/supply-chain/candidate-ranking?${search.toString()}`
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -405,6 +565,9 @@ export const screenerApi = {
   getSupplyChainWorkbench: (params: SupplyChainWorkbenchParams = {}): Promise<AxiosResponse<unknown>> =>
     api.get(buildSupplyChainWorkbenchPath(params)),
 
+  getSupplyChainCandidateRanking: (params: SupplyChainCandidateRankingParams = {}): Promise<AxiosResponse<SupplyChainCandidateRankingResponse>> =>
+    api.get(buildSupplyChainCandidateRankingPath(params)),
+
   getSupplyChainNode: (nodeId: string): Promise<AxiosResponse<unknown>> =>
     api.get(`/screener/supply-chain/node/${encodeURIComponent(nodeId)}`),
 
@@ -416,6 +579,12 @@ export const screenerApi = {
 
   getSupplyChainMappingReviewQueue: (params: SupplyChainMappingReviewQueueParams = {}): Promise<AxiosResponse<MappingReviewQueueResponse>> =>
     api.get(buildSupplyChainMappingReviewQueuePath(params)),
+
+  getSupplyChainEvidenceChain: (mappingId: string): Promise<AxiosResponse<EvidenceChainResponse>> =>
+    api.get(`/screener/supply-chain/business-tag/${encodeURIComponent(mappingId)}/evidence-chain`),
+
+  getSupplyChainEvidenceReviewQueue: (limit = 50): Promise<AxiosResponse<EvidenceReviewQueueResponse>> =>
+    api.get(`/screener/supply-chain/evidence-review/queue?limit=${encodeURIComponent(String(limit))}`),
 
   reviewSupplyChainMapping: (code: string, nodeId: string, decision: SupplyChainMappingReviewDecision): Promise<AxiosResponse<void>> =>
     api.post(

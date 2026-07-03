@@ -1294,6 +1294,39 @@ class TestSupplyChainExpectationGapRankings:
         assert data["items"][0]["business_tags"][0]["gap_type"] == "positive"
 
 
+class TestSupplyChainCandidateRanking:
+    """Tests for evidence-first candidate ranking API."""
+
+    def test_candidate_ranking_endpoint_returns_global_and_chain_top(self, monkeypatch):
+        def fake_candidate_ranking(top_n, chain_id=None, signal=None):
+            assert top_n == 20
+            assert chain_id == "ai_compute"
+            assert signal == "观察"
+            return {
+                "version": "supply-chain-candidate-ranking-v1",
+                "source_status": "ready",
+                "filters": {"top_n": top_n, "chain_id": chain_id, "signal": signal},
+                "summary": {"chain_count": 18, "company_chain_rows": 1219},
+                "items": [{"code": "300308", "name": "中际旭创", "rank_score": 71.04}],
+                "by_chain": {"ai_compute": [{"code": "300308", "name": "中际旭创"}]},
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_query_supply_chain_candidate_ranking", fake_candidate_ranking)
+
+        response = client.get(
+            "/api/v1/screener/supply-chain/candidate-ranking",
+            params={"top_n": 20, "chain_id": "ai_compute", "signal": "观察"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-candidate-ranking-v1"
+        assert data["source_status"] == "ready"
+        assert data["items"][0]["code"] == "300308"
+        assert data["by_chain"]["ai_compute"][0]["name"] == "中际旭创"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # AC-2: GET /chain/node/{node_id}/companies returns company list with resonance
 # ─────────────────────────────────────────────────────────────────────────────

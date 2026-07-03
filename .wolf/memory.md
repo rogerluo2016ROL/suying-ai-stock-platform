@@ -300,3 +300,148 @@
 | 08:04 | Session end: 23 writes across 12 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 23 reads | ~82381 tok |
 | 08:06 | Batch C review 双通过(reviewer-1 Pass + reviewer-2 approve零finding); 17/23 preview Verified(代码层) Batch A10+B2+C5; W-1 三批演进闭环(signalLevelTokens+alpha SSOT, 制度沉淀); tsc0+vitest371/371 | HEAD 533038df | Batch B剩6 sub-tab未做(1.2/2.2/2.3/2.5/4.1/4.3) | - |
 | 08:12 | Session end: 23 writes across 12 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 23 reads | ~82381 tok |
+| 08:48 | Session end: 23 writes across 12 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 26 reads | ~82381 tok |
+| 08:55 | 🎯 23/23 preview 全 Verified(代码层) plan终极目标达成: Batch B补6 fan-in(746ff6cd#25+e3fb8ad4#26+7e7d1dbe#27); tsc0+vitest380/380(59files); dev-3#25+dev-1b#26(判断正确page已就绪)+PL接手#27(dev-5 failed); 23=BatchA10+B8+C5 | HEAD e3fb8ad4 | 23/23 Verified, #27 sit follow-up | - |
+| 08:57 | Session end: 23 writes across 12 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 26 reads | ~82381 tok |
+| 08:59 | Session end: 23 writes across 12 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~82381 tok |
+| 09:12 | Session end: 23 writes across 12 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~82381 tok |
+| 09:22 | Edited frontend/src/styles/tokens.ts | 3→5 lines | ~34 |
+| 09:22 | Edited frontend/src/styles/tokens.ts | 3→5 lines | ~34 |
+| 09:22 | Edited frontend/src/styles/tokens.ts | 2→4 lines | ~44 |
+| 09:22 | Edited frontend/src/pages/Dashboard.tsx | "linear-gradient(90deg,${l" → "linear-gradient(90deg,${l" | ~27 |
+| 09:22 | Edited frontend/src/pages/Dashboard.tsx | inline fix | ~42 |
+| 09:22 | Edited frontend/src/pages/Dashboard.tsx | inline fix | ~22 |
+| 09:22 | Edited frontend/src/pages/Dashboard.tsx | inline fix | ~35 |
+| 09:22 | Edited frontend/src/pages/Dashboard.tsx | inline fix | ~35 |
+| 09:22 | Edited frontend/src/pages/Dashboard.tsx | inline fix | ~7 |
+| 09:22 | Edited frontend/src/pages/Dashboard.tsx | inline fix | ~34 |
+| 09:25 | Created frontend/tests/sit/policy-company-preview.test.tsx | — | ~928 |
+| 09:26 | 🎯 plan终极目标完整达成: A方案收尾 concerns 全收口(#10 Dashboard W-2 残留8处→token ca5aefef + #27 policy/company SIT补建 77734259); 全量 tsc0+vitest383/383(60files); 23/23 preview完整Verified(代码+review+SIT+token零裸色) | HEAD 77734259 | 板块完全可用+23 Verified, plan完成 | - |
+| 09:27 | Session end: 34 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~83623 tok |
+| 10:00 | data-service 自动回填 stocks5534+daily_kline93692(Tushare token); watchlist CRUD 闭环验证(POST id=3+GET 回读+DELETE 清理, scope 隔离, FK 通); gh issue #6 治本B/#7 DEF-2 建立 | - | follow-up 几乎全完成, 仅 qa UAT 复验中 | - |
+| 09:59 | Session end: 34 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~83623 tok |
+| 10:00 | Edited docs/deploy/batch-a-uioverhaul-uat-2026-07-03.md | 8→8 lines | ~207 |
+| 10:00 | Edited docs/deploy/batch-a-uioverhaul-uat-2026-07-03.md | expanded (+19 lines) | ~269 |
+| 10:01 | Session end: 36 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84226 tok |
+| 10:01 | Session end: 36 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84226 tok |
+| 10:01 | Session end: 36 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84226 tok |
+| 10:51 | Session end: 36 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84226 tok |
+| 10:54 | Session end: 36 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84226 tok |
+| 10:55 | 🎯 全任务完成: Batch C/B 补 UAT PL签字(qa卡 PL接手, 强证据: 11 sub-tab路由200+review双通过+SIT383+真实数据); 23/23 Verified+token零裸色+UAT P0+DEF全修+gh issue#6/#7+data-service回填+watchlist CRUD闭环; qa截图follow-up | HEAD 77734259 | 全任务完成 | - |
+| 10:55 | Edited docs/deploy/batch-a-uioverhaul-uat-2026-07-03.md | expanded (+15 lines) | ~312 |
+| 10:56 | Session end: 37 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84781 tok |
+| 10:58 | Session end: 37 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84781 tok |
+| 11:02 | Session end: 37 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84781 tok |
+| 11:23 | Session end: 37 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84781 tok |
+| 11:27 | Session end: 37 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84781 tok |
+| 11:28 | Session end: 37 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84781 tok |
+| 11:28 | Session end: 37 writes across 13 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 27 reads | ~84781 tok |
+| 11:39 | Edited ../../.claude/statusline-context.sh | — | ~758 |
+| 11:40 | Edited ../../.claude/settings.json | 2→6 lines | ~37 |
+| 11:41 | Edited ../../.claude/settings.json | inline fix | ~16 |
+| 11:42 | Session end: 40 writes across 15 files (008_pledge_rtsw_toplist_align.py, backend-dev.md, client.ts, types.ts, batch-a-uioverhaul-uat-2026-07-03.md) | 29 reads | ~87333 tok |
+
+## Session: 2026-07-03 12:07
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:15 | Spawned MarketDecisionReadyTeam (deploy/backend/frontend/qa 4 teammates) 审计根因=运行时环境混乱(3 vite抢:3000+3套docker并存+proxy指向uat-adr013有TimeoutError+数据停07-02+部分API502/404) 非代码缺失 | teams/MarketDecisionReadyTeam | team 启动并行修 | - |
+| 12:20 | Edited progress/qa-engineer.md | expanded (+133 lines) | ~2044 |
+| 12:22 | Session end: 1 writes across 1 files (qa-engineer.md) | 15 reads | ~100258 tok |
+| 12:22 | Session end: 1 writes across 1 files (qa-engineer.md) | 15 reads | ~100258 tok |
+| 12:22 | Session end: 1 writes across 1 files (qa-engineer.md) | 15 reads | ~100258 tok |
+| 12:24 | Edited progress/deploy-engineer.md | added optional chaining | ~918 |
+| 12:27 | Edited progress/frontend-dev.md | expanded (+18 lines) | ~820 |
+| 12:28 | Edited progress/frontend-dev.md | 4→4 lines | ~434 |
+| 12:28 | Edited progress/frontend-dev.md | inline fix | ~13 |
+| 12:29 | 前端进程清理: kill worktree 45464/75974, 主仓 npm run dev PID 29579 占 :3000 (200 OK); 86012 实际在 :3980 非 :3000 保留; API 路径 client.ts vs 后端路由全对齐(无改动); OpenDecision 9 处死按钮+1 onChange 空操作待 PL 定夺; proxyTargets blocked 待 deploy-engineer 端口清单 | progress/frontend-dev.md, frontend/proxyTargets.ts, frontend/src/pages/OpenDecision.tsx | 部分完成, SIT ⚠️ vitest 383+tsc 0 全绿 | ~18k |
+| 12:40 | fix screener /run 502/timeout: add asyncio.wait_for(25s)+503 fallback; audit routes (no missing); DB truth待deploy确认 | services/screener-service/app/routers/screener.py, tests/test_api.py | commit 6e757bb4 @ worktree backend-dev-mdready; 22/22 test_api pass, 186/191 full (5 pre-existing) | ~18k |
+| 12:31 | Session end: 5 writes across 3 files (qa-engineer.md, deploy-engineer.md, frontend-dev.md) | 20 reads | ~137839 tok |
+| 12:31 | backend-dev 502修复: screener/run加asyncio.wait_for(25s)+503降级 commit 6e757bb4 22/22绿; 路由对账全对齐; KRONOS_PG_URL寻址已澄清(postgres:5432→suying-uat-postgres migration022表已建实测POST id=2); daily_kline今日不回填(EOD预期,选股用stk_mins实时11:30) | worktree backend-dev-mdready | 待code review | - |
+| 12:32 | Session end: 5 writes across 3 files (qa-engineer.md, deploy-engineer.md, frontend-dev.md) | 20 reads | ~137839 tok |
+| 12:33 | Session end: 5 writes across 3 files (qa-engineer.md, deploy-engineer.md, frontend-dev.md) | 20 reads | ~137839 tok |
+| 12:34 | Edited progress/frontend-dev.md | 5→9 lines | ~528 |
+| 12:34 | Session end: 6 writes across 3 files (qa-engineer.md, deploy-engineer.md, frontend-dev.md) | 20 reads | ~145125 tok |
+| 12:41 | Edited frontend/proxyTargets.ts | modified resolveProxyTargets() | ~338 |
+| 12:42 | Edited frontend/package.json | 3→2 lines | ~20 |
+| 12:43 | Edited frontend/src/__tests__/vite-config.test.ts | 20→20 lines | ~218 |
+| 12:43 | Session end: 9 writes across 6 files (qa-engineer.md, deploy-engineer.md, frontend-dev.md, proxyTargets.ts, package.json) | 22 reads | ~145840 tok |
+| 12:45 | Session end: 9 writes across 6 files (qa-engineer.md, deploy-engineer.md, frontend-dev.md, proxyTargets.ts, package.json) | 22 reads | ~146107 tok |
+| 12:45 | Edited progress/frontend-dev.md | expanded (+36 lines) | ~1124 |
+| 12:47 | Session end: 10 writes across 6 files (qa-engineer.md, deploy-engineer.md, frontend-dev.md, proxyTargets.ts, package.json) | 22 reads | ~147311 tok |
+| 12:48 | Session end: 10 writes across 6 files (qa-engineer.md, deploy-engineer.md, frontend-dev.md, proxyTargets.ts, package.json) | 22 reads | ~147311 tok |
+| 12:48 | Edited frontend/src/pages/OpenDecision.tsx | inline fix | ~19 |
+| 12:48 | Edited frontend/src/pages/OpenDecision.tsx | 38→38 lines | ~610 |
+| 12:49 | Edited frontend/src/pages/OpenDecision.tsx | inline fix | ~80 |
+| 12:49 | Edited frontend/src/pages/OpenDecision.tsx | added error handling | ~1214 |
+| 12:49 | Session end: 14 writes across 7 files (qa-engineer.md, deploy-engineer.md, frontend-dev.md, proxyTargets.ts, package.json) | 22 reads | ~149234 tok |
+| 12:49 | Edited frontend/src/pages/OpenDecision.tsx | 2→2 lines | ~84 |
+| 12:49 | Edited frontend/src/pages/OpenDecision.tsx | 4→4 lines | ~95 |
+| 12:49 | Edited frontend/src/pages/OpenDecision.tsx | 11→9 lines | ~91 |
+| 12:49 | Edited frontend/src/pages/OpenDecision.tsx | 24→25 lines | ~520 |
+| 12:50 | Edited frontend/src/pages/OpenDecision.tsx | 24→25 lines | ~516 |
+| 12:50 | Edited frontend/src/pages/OpenDecision.tsx | 12→12 lines | ~206 |
+| 12:50 | Edited frontend/src/pages/OpenDecision.tsx | 13→13 lines | ~190 |
+| 12:50 | Edited frontend/src/pages/OpenDecision.tsx | 10→12 lines | ~268 |
+| 12:51 | Edited frontend/src/pages/OpenDecision.tsx | 2→3 lines | ~53 |
+| 12:51 | Edited frontend/src/pages/OpenDecision.tsx | 9→11 lines | ~108 |
+| 12:52 | Edited frontend/src/__tests__/OpenDecision.test.tsx | CSS: recordCandidatePool | ~41 |
+| 12:53 | Edited frontend/src/__tests__/OpenDecision.test.tsx | expanded (+44 lines) | ~566 |
+| 12:53 | Edited frontend/src/__tests__/OpenDecision.test.tsx | 4→5 lines | ~80 |
+| 12:55 | Edited progress/frontend-dev.md | inline fix | ~33 |
+| 12:55 | Session end: 28 writes across 8 files (qa-engineer.md, deploy-engineer.md, frontend-dev.md, proxyTargets.ts, package.json) | 23 reads | ~174861 tok |
+| 12:55 | Edited progress/frontend-dev.md | 2→2 lines | ~437 |
+| 12:56 | Edited progress/frontend-dev.md | 8→10 lines | ~411 |
+
+## Session: 2026-07-03 12:58
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 13:02 | Created docs/reviews/md-ready-2026-07-03.md | — | ~2496 |
+| 13:02 | Session end: 1 writes across 1 files (md-ready-2026-07-03.md) | 2 reads | ~87185 tok |
+| 13:03 | Session end: 1 writes across 1 files (md-ready-2026-07-03.md) | 2 reads | ~87185 tok |
+| 13:03 | Edited progress/deploy-engineer.md | 7→6 lines | ~188 |
+| 13:03 | Edited progress/deploy-engineer.md | expanded (+8 lines) | ~408 |
+| 13:05 | Session end: 3 writes across 2 files (md-ready-2026-07-03.md, deploy-engineer.md) | 5 reads | ~93991 tok |
+| 13:06 | Edited progress/deploy-engineer.md | inline fix | ~66 |
+| 13:06 | Edited progress/qa-engineer.md | expanded (+41 lines) | ~632 |
+| 13:06 | Edited progress/deploy-engineer.md | 5→5 lines | ~104 |
+
+## Session: 2026-07-03 13:07
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 13:40 | P0 leader_scalp total_picks=0 根因: get_shanghai_index 硬编码 000001.SH(PG存000001)+板块门过严; trade_date非忽略; amount正常 | packages/kronos-factors/engine/leader_scalp.py | 未修-需PL决策(代码bug+策略层) | ~30k |
+| 13:21 | Edited progress/qa-engineer.md | 3→3 lines | ~51 |
+| 13:21 | Edited progress/qa-engineer.md | expanded (+38 lines) | ~743 |
+| 13:21 | Edited progress/qa-engineer.md | expanded (+16 lines) | ~309 |
+| 13:23 | Created docs/qa/market-decision-e2e-2026-07-03.md | — | ~3208 |
+| 13:21 | backend P0根因: leader_scalp选股返回0=复合根因(5处硬编码'000001.SH'但PG存'000001'无.SH→上证涨幅sh_pct恒0 + 板块门sector_change<0&sh_pct=0系统性淘汰所有165涨停股); qa澄清两误判(trade_date没被忽略是result字段回填/amount数据正常); 授权A直修5处字面量+B板块门最小放宽(降权非淘汰,阈值精调follow-up ml-engineer参memory禁盲目6月调参); C回测follow-up | leader_scalp.py:386/52/110 + leader_closing.py:349 + leader_intraday.py:372 | 待backend修完PL验D维度 | - |
+| 13:32 | qa 429配额上限(5h用尽)暂停到17:41; PL接手D维度API验证(选股修复后curl验total_picks>0 token少); B死按钮扫描等qa恢复或PL抽查; qa已产A1/A2截图+门槛4/5✅+D4✅(17模式) | - | E2E部分推进PL补关键项 | - |
+| 13:38 | Session end: 4 writes across 2 files (qa-engineer.md, market-decision-e2e-2026-07-03.md) | 8 reads | ~103117 tok |
+| 13:44 | Session end: 4 writes across 2 files (qa-engineer.md, market-decision-e2e-2026-07-03.md) | 8 reads | ~103117 tok |
+| 13:44 | Session end: 4 writes across 2 files (qa-engineer.md, market-decision-e2e-2026-07-03.md) | 8 reads | ~103117 tok |
+
+## Session: 2026-07-03 13:44
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 13:45 | PL查suing-uat-postgres: 106/120表行数=0(moneyflow/daily_basic/financial_*/cb_*/cyq_chips/block_trade/adj_factor/top_inst等) 只采了daily_kline/stk_mins/stocks/index_daily核心表; 根因=data-service采集任务没跑全(调度寄生FastAPI进程参data-service-scheduler-architecture); 影响评估: 不阻断行情决策核心(选股daily_kline有114涨停/index_daily有000001/dashboard按钮跳转不依赖) 仅次要维度(信号资金面/诊断基本面/可转债)显空fallback; DEF-1=follow-up开issue不阻断本task | suying-uat-postgres | data-service补采集follow-up | - |
+| 13:51 | Edited ../../.claude/projects/-Users-rogerluo------K----/memory/data-service-scheduler-architecture.md | 1→3 lines | ~163 |
+| 13:53 | Session end: 1 writes across 1 files (data-service-scheduler-architecture.md) | 1 reads | ~175 tok |
+| 13:56 | Session end: 1 writes across 1 files (data-service-scheduler-architecture.md) | 1 reads | ~175 tok |
+| 14:00 | P0 leader_scalp total_picks=0 修复(5处000001.SH硬编码+板块门软降权) | packages/kronos-factors/.../leader_*.py | 修后20 picks(原0),commit 563dc828等4个 | ~28k |
+| 14:00 | Created ../../.claude/projects/-Users-rogerluo------K----/memory/pg-adapter-no-inline-literal-translation.md | — | ~288 |
+| 14:00 | Edited ../../.claude/projects/-Users-rogerluo------K----/memory/MEMORY.md | 1→2 lines | ~93 |
+| 14:06 | Session end: 3 writes across 3 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md) | 2 reads | ~582 tok |
+| 14:07 | Session end: 3 writes across 3 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md) | 2 reads | ~582 tok |
+| 14:12 | Session end: 3 writes across 3 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md) | 2 reads | ~582 tok |
+| 14:17 | Edited progress/deploy-engineer.md | expanded (+35 lines) | ~700 |
+| 14:40 | MarketDecisionReady收口: 代码层全完成(环境/502/proxyTargets/OpenDecision死按钮/选股bug) review approve(P0:0/P1:3) 本地选股0→20picks; UAT选股仍0=DEF-1数据底座缺106表 用户选B data-service followup; qa 429暂停17:41; deploy failed; UAT签字Conditional 落progress/product-lead.md | progress/product-lead.md | 待Bash恢复开followup issues+commit | - |
+| 14:48 | Session end: 4 writes across 4 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md) | 4 reads | ~4213 tok |
+| 14:52 | Session end: 4 writes across 4 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md) | 4 reads | ~4213 tok |
+| 14:52 | Edited frontend/proxyTargets.ts | added 1 condition(s) | ~436 |
+| 14:53 | Edited frontend/src/pages/OpenDecision.tsx | modified catch() | ~420 |
+| 14:53 | Edited frontend/src/pages/OpenDecision.tsx | modified catch() | ~76 |
+| 14:55 | 清 W-2/W-3 P1 warning：proxyTargets dev-stack warn + OpenDecision 3 处 catch 不静默 | proxyTargets.ts, OpenDecision.tsx | tsc0/vitest387全绿/dev:3000 200 | ~8k |
+| 14:55 | Session end: 7 writes across 6 files (data-service-scheduler-architecture.md, pg-adapter-no-inline-literal-translation.md, MEMORY.md, deploy-engineer.md, proxyTargets.ts) | 7 reads | ~31597 tok |

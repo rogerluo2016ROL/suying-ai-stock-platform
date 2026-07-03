@@ -1,12 +1,17 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-02T23:38:52.244Z
-> Files: 559 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-03T06:53:19.289Z
+> Files: 573 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
 - `analyze_main_force_300539.py` — 分析 横河精密(300539) 主力出货迹象. (~2618 tok)
 - `analyze_main_force_600268.py` — 分析 国电南自(600268) 主力出货迹象. (~3079 tok)
+
+## ../../.claude/
+
+- `settings.json` (~184 tok)
+- `statusline-context.sh` — Claude Code statusline: context usage progress bar + model (~758 tok)
 
 ## ../../.claude/plans/
 
@@ -14,10 +19,12 @@
 
 ## ../../.claude/projects/-Users-rogerluo------K----/memory/
 
+- `data-service-scheduler-architecture.md` (~641 tok)
 - `edit-abs-path-lands-main-not-worktree.md` (~227 tok)
 - `in-process-agent-edit-absolute-path-main-repo.md` (~298 tok)
 - `md-ui-worktree-cwd-confusion.md` (~406 tok)
-- `MEMORY.md` (~510 tok)
+- `MEMORY.md` (~597 tok)
+- `pg-adapter-no-inline-literal-translation.md` (~290 tok)
 - `uat-init-sql-alembic-schema-conflict.md` (~532 tok)
 
 ## ./
@@ -815,20 +822,27 @@
 
 ## docs/deploy/
 
-- `batch-a-uioverhaul-uat-2026-07-03.md` — UAT 部署报告 — 行情决策 Batch A (md-ui-overhaul) [+ Batch B #11/#12] (~2051 tok)
+- `batch-a-uioverhaul-uat-2026-07-03.md` — UAT 部署报告 — 行情决策 Batch A (md-ui-overhaul) [+ Batch B #11/#12, Batch B 补6/C, #10 W-2, #27 SIT] (~2511 tok)
 
 ## docs/qa/
 
 - `batch-ab-uat-2026-07-03.md` — QA Report — 行情决策 Batch A (md-ui-overhaul) + Batch B (watchlist/产业链) — UAT (~3200 tok)
+- `market-decision-e2e-2026-07-03.md` — QA Report — 行情决策板块（Market Decision） — E2E (~3008 tok)
 
 ## docs/reviews/
 
 - `cb-auction-t0-final-review-2026-06-30.md` (~94 tok)
+- `md-ready-2026-07-03.md` — Code Review — 行情决策板块（MarketDecisionReady）修复 (~2340 tok)
 
 ## docs/screener/
 
 - `screener-optimization-design.md` — 速赢AI 选股模型优化 — 设计文档 (~5563 tok)
 - `Suying-AI-Screener-Optimization-2026-06-30.md` — 速赢AI 选股模型优化报告 (~6105 tok)
+
+## frontend/
+
+- `package.json` — Node.js package manifest (~290 tok)
+- `proxyTargets.ts` — Exports ProxyTargets, resolveProxyTargets (~672 tok)
 
 ## frontend/src/
 
@@ -836,9 +850,11 @@
 
 ## frontend/src/__tests__/
 
+- `OpenDecision.test.tsx` — renderOpenDecision (~4586 tok)
 - `PrototypeRoutes.test.tsx` — mockUseAuth (~2404 tok)
 - `Screener.test.tsx` — renderScreener (~2780 tok)
 - `ThemeContext.test.tsx` — A consumer that renders the current mode + a switch, mirroring the Settings Drawer usage. (~635 tok)
+- `vite-config.test.ts` — Declares targets (~248 tok)
 
 ## frontend/src/api/
 
@@ -851,7 +867,8 @@
 
 ## frontend/src/pages/
 
-- `Dashboard.tsx` — 从已返回的 market_sentiment / market_regime_v2 八维分数 + 市场快照派生 3 条 AI 解读支撑原因。 (~19669 tok)
+- `Dashboard.tsx` — 从已返回的 market_sentiment / market_regime_v2 八维分数 + 市场快照派生 3 条 AI 解读支撑原因。 (~22333 tok)
+- `OpenDecision.tsx` — 把 screener 持久化候选池记录（queryCandidatePool 返回）摊平成 CandidateRow。 (~18041 tok)
 - `Screener.tsx` — tabs (~11214 tok)
 - `Signals.tsx` — 风险扫描 4 项检查卡（对齐 6.3 preview：审计 / 公告 / ST退市 / 业绩） (~6187 tok)
 - `SupplyChainBom.tsx` — 卡脖子等级 → 颜色（红涨绿跌：一级=红/二级=黄/非=绿，对齐 preview 4.2 ckColor） (~13063 tok)
@@ -859,7 +876,11 @@
 ## frontend/src/styles/
 
 - `accessibility.css` — Styles: 21 rules, 2 vars (~1065 tok)
-- `tokens.ts` — 设计 token 单一真值源（JS 侧）。与 src/styles/suying-app.css 的 :root 段一一对应。 (~680 tok)
+- `tokens.ts` — 设计 token 单一真值源（JS 侧）。与 src/styles/suying-app.css 的 :root 段一一对应。 (~733 tok)
+
+## frontend/tests/sit/
+
+- `policy-company-preview.test.tsx` — SIT scope：SupplyChainBom 4.1 policy-analysis + 4.3 company-analysis tab 渲染 + 缺数据兜底。 (~928 tok)
 
 ## packages/kronos-data/kronos_data/
 
@@ -895,7 +916,9 @@
 - `backend-dev.md` — UAT 阻塞-fix — init_postgres.sql vs alembic schema 双重定义冲突（治标 A 幂等）- 2026-07-03 (~33474 tok)
 - `code-reviewer-1.md` — code-reviewer-1 — 行情决策 Batch A 第一波 fan-in 审查 (~486 tok)
 - `code-reviewer-2.md` — progress / code-reviewer-2 — Batch A 第一波 质量+SIT Audit (~1673 tok)
-- `deploy-engineer.md` — deploy-engineer 状态 (~1694 tok)
+- `deploy-engineer.md` — deploy-engineer 状态 (~3513 tok)
+- `frontend-dev.md` — 前端重构状态评估 - 2026-06-12 (~8000 tok)
+- `qa-engineer.md` — QA Engineer Progress — 测试覆盖债务审计 (~5060 tok)
 
 ## services/screener-service/app/
 

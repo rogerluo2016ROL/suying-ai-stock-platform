@@ -976,6 +976,7 @@ export interface SupplyChainBomResponse {
 
 /** 产业链候选股 */
 export interface ChainCandidate extends ScreenerPick {
+  mapping_id?: string;
   chokepoint_score?: number;
   resonance_factors?: number;
   resonance_level?: '强启动' | '启动' | '关注' | '观察';

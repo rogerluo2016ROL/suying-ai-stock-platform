@@ -45,6 +45,7 @@ export interface CandidateCompany {
   rating?: string
   trade_signal?: string
   mapping_confidence?: number
+  mapping_id?: string
   mapping_status?: string
   mapping_source?: string
   mapping_quality_weight?: number
@@ -172,6 +173,7 @@ export function chainCandidateToCandidateCompany(candidate: ChainCandidate): Can
   return {
     code: candidate.code,
     name: candidate.name,
+    mapping_id: candidate.mapping_id,
     score: candidate.score,
     rating: candidate.chokepoint_score?.toString() || '',
     trade_signal: tradeSignal,
