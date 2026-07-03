@@ -912,6 +912,105 @@ def _get_supply_chain_candidate_pool(top_n: int = 30, trade_date: Optional[str] 
     return [_enrich_supply_chain_candidate(pick, idx) for idx, pick in enumerate(picks[:top_n], start=1)]
 
 
+def _query_business_tag_mapping_candidates(top_n: int = 30, node_id: Optional[str] = None) -> list[dict]:
+    safe_top_n = min(MAX_TOP_N, max(1, int(top_n or 30)))
+    conditions = ["COALESCE(m.status, '') <> 'rejected'"]
+    params: list[Any] = []
+    if node_id:
+        conditions.append("m.node_id = %s")
+        params.append(node_id)
+    where = " AND ".join(conditions)
+
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+            if not _pg_table_exists(cur, "business_tag_mapping"):
+                return []
+            facts_join = """
+                LEFT JOIN (
+                    SELECT mapping_id,
+                           COUNT(*) AS fact_count,
+                           MAX(created_at) AS latest_fact_at,
+                           MAX(research_stage_signal) FILTER (WHERE research_stage_signal IS NOT NULL) AS research_stage_signal,
+                           MAX(commercial_stage_signal) FILTER (WHERE commercial_stage_signal IS NOT NULL) AS commercial_stage_signal
+                    FROM evidence_extracted_facts
+                    GROUP BY mapping_id
+                ) f ON f.mapping_id = m.mapping_id
+            """ if _pg_table_exists(cur, "evidence_extracted_facts") else "LEFT JOIN (SELECT NULL::text AS mapping_id, 0::int AS fact_count, NULL::timestamp AS latest_fact_at, NULL::text AS research_stage_signal, NULL::text AS commercial_stage_signal) f ON FALSE"
+            freshness_join = """
+                LEFT JOIN business_tag_evidence_freshness fr ON fr.mapping_id = m.mapping_id
+            """ if _pg_table_exists(cur, "business_tag_evidence_freshness") else "LEFT JOIN (SELECT NULL::text AS mapping_id, NULL::text AS freshness_status, NULL::int AS days_since_update) fr ON FALSE"
+            cur.execute(
+                f"""
+                SELECT m.mapping_id, m.code, COALESCE(s.name, m.code) AS name,
+                       m.node_id, COALESCE(n.name, cn.node_name, m.node_id) AS node_name,
+                       m.chain_id, m.theme_id, m.tag_name, m.confidence, m.status,
+                       m.revenue_ratio, m.gross_profit_ratio,
+                       COALESCE(f.fact_count, 0) AS fact_count,
+                       f.latest_fact_at, f.research_stage_signal, f.commercial_stage_signal,
+                       fr.freshness_status, fr.days_since_update, m.updated_at
+                FROM business_tag_mapping m
+                LEFT JOIN stocks s
+                  ON regexp_replace(s.code, '\\.(SZ|SH|BJ)$', '') = regexp_replace(m.code, '\\.(SZ|SH|BJ)$', '')
+                LEFT JOIN supply_chain_bom_nodes n ON n.node_id = m.node_id
+                LEFT JOIN chain_nodes cn ON cn.node_id = m.node_id
+                {facts_join}
+                {freshness_join}
+                WHERE {where}
+                ORDER BY COALESCE(f.fact_count, 0) DESC,
+                         m.confidence DESC NULLS LAST,
+                         m.updated_at DESC NULLS LAST
+                LIMIT %s
+                """,
+                [*params, safe_top_n],
+            )
+            rows = cur.fetchall()
+    except Exception as e:
+        logger.warning("business_tag mapping fallback candidates unavailable: %s", e)
+        return []
+
+    candidates: list[dict] = []
+    for idx, row in enumerate(rows, start=1):
+        confidence = _to_float(row[8], 0.0)
+        fact_count = int(row[12] or 0)
+        freshness_status = str(row[16] or "unknown")
+        evidence_gaps = [] if fact_count > 0 else ["该业务标签暂无结构化证据事实"]
+        if freshness_status in {"unknown", "stale", "expired"}:
+            evidence_gaps.append("证据新鲜度不足，需要补充最新公告、研报或新闻")
+        candidates.append({
+            "rank": idx,
+            "mapping_id": str(row[0]),
+            "code": str(row[1] or ""),
+            "name": str(row[2] or row[1] or ""),
+            "node_id": str(row[3] or ""),
+            "node_name": str(row[4] or ""),
+            "chain": str(row[5] or ""),
+            "policy_theme": str(row[6] or ""),
+            "products": [str(row[7])] if row[7] else [],
+            "materials": [],
+            "mapping_confidence": confidence,
+            "mapping_status": str(row[9] or "pending_review"),
+            "mapping_source": "business_tag_mapping",
+            "mapping_quality_weight": confidence,
+            "score": round(confidence * 100 + min(fact_count, 20), 2),
+            "mapping_adjusted_score": round(confidence * 100 + min(fact_count, 20), 2),
+            "rating": "证据充分" if fact_count >= 3 else "待补证据",
+            "trade_signal": "观察",
+            "financial_indicators": {
+                "revenue_ratio": _to_float(row[10], None),
+                "gross_profit_ratio": _to_float(row[11], None),
+            },
+            "commercialization_stage": row[15] or "待证据确认",
+            "commercialization_cycle": row[14] or "待证据确认",
+            "selection_reason": f"来自业务标签映射，结构化事实 {fact_count} 条",
+            "evidence": [f"结构化事实 {fact_count} 条", f"新鲜度 {freshness_status}"],
+            "evidence_gaps": evidence_gaps,
+            "candidate_source": "business_tag_mapping_fallback",
+            "last_trade_date": str(row[18]) if row[18] else None,
+        })
+    return candidates
+
+
 def _pg_connect():
     import psycopg2
 
@@ -4735,6 +4834,327 @@ def _query_business_tag_stage(mapping_id: str) -> dict[str, Any]:
     return payload
 
 
+def _query_business_tag_evidence_chain(mapping_id: str) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "version": "supply-chain-evidence-chain-v1",
+        "mapping_id": mapping_id,
+        "source_status": "unknown",
+        "documents": [],
+        "facts": [],
+        "freshness": {},
+        "stage_transitions": [],
+        "expectations": [],
+        "limitations": [],
+    }
+    if not mapping_id:
+        payload["source_status"] = "invalid_mapping_id"
+        payload["limitations"].append("mapping_id is empty")
+        return payload
+
+    required_tables = [
+        "raw_evidence_documents",
+        "evidence_extracted_facts",
+        "business_tag_evidence_freshness",
+        "business_tag_stage_transition_log",
+        "business_tag_expectation_monitor",
+    ]
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+            missing = [table for table in required_tables if not _pg_table_exists(cur, table)]
+            if missing:
+                payload["source_status"] = "table_missing"
+                payload["limitations"].append(f"missing evidence-chain tables: {', '.join(missing)}")
+                return payload
+
+            cur.execute(
+                """
+                SELECT f.fact_id, f.doc_id, f.company_code, f.chain_id, f.l5_tag,
+                       f.l6_route, f.business_segment, f.fact_type, f.fact_nature,
+                       f.fact_value, f.original_quote, f.source_level, f.confidence,
+                       f.confidence_cap, f.research_stage_signal,
+                       f.commercial_stage_signal, f.growth_signal, f.profit_signal,
+                       f.moat_signal, f.risk_signal, f.validation_status,
+                       f.evidence_event_id, f.metadata, f.created_at
+                FROM evidence_extracted_facts f
+                WHERE f.mapping_id = %s
+                ORDER BY f.created_at DESC
+                LIMIT 200
+                """,
+                (mapping_id,),
+            )
+            fact_rows = cur.fetchall()
+            payload["facts"] = [
+                {
+                    "fact_id": str(row[0]),
+                    "doc_id": row[1],
+                    "company_code": row[2],
+                    "chain_id": row[3],
+                    "l5_tag": row[4],
+                    "l6_route": row[5],
+                    "business_segment": row[6],
+                    "fact_type": row[7],
+                    "fact_nature": row[8],
+                    "fact_value": row[9],
+                    "original_quote": row[10],
+                    "source_level": row[11],
+                    "confidence": _to_float(row[12], 0.0),
+                    "confidence_cap": _to_float(row[13], 0.0),
+                    "research_stage_signal": row[14],
+                    "commercial_stage_signal": row[15],
+                    "growth_signal": bool(row[16]),
+                    "profit_signal": bool(row[17]),
+                    "moat_signal": bool(row[18]),
+                    "risk_signal": bool(row[19]),
+                    "validation_status": row[20],
+                    "evidence_event_id": row[21],
+                    "metadata": _json_or_default(row[22], {}),
+                    "created_at": str(row[23]) if row[23] else None,
+                }
+                for row in fact_rows
+            ]
+
+            doc_ids = [row[1] for row in fact_rows if row[1]]
+            if doc_ids:
+                cur.execute(
+                    """
+                    SELECT doc_id, source_id, source_type, source_level, company_code,
+                           company_name, title, publish_time, crawl_time, url,
+                           content_hash, doc_status, license_status, metadata
+                    FROM raw_evidence_documents
+                    WHERE doc_id = ANY(%s)
+                    ORDER BY COALESCE(publish_time, crawl_time) DESC
+                    LIMIT 200
+                    """,
+                    (doc_ids,),
+                )
+                payload["documents"] = [
+                    {
+                        "doc_id": str(row[0]),
+                        "source_id": row[1],
+                        "source_type": row[2],
+                        "source_level": row[3],
+                        "company_code": row[4],
+                        "company_name": row[5],
+                        "title": row[6],
+                        "publish_time": str(row[7]) if row[7] else None,
+                        "crawl_time": str(row[8]) if row[8] else None,
+                        "url": row[9],
+                        "content_hash": row[10],
+                        "doc_status": row[11],
+                        "license_status": row[12],
+                        "metadata": _json_or_default(row[13], {}),
+                    }
+                    for row in cur.fetchall()
+                ]
+
+            cur.execute(
+                """
+                SELECT last_strong_evidence_date, last_mid_evidence_date,
+                       last_weak_signal_date, last_any_evidence_date,
+                       days_since_update, freshness_status, next_review_date,
+                       stale_reason, updated_at
+                FROM business_tag_evidence_freshness
+                WHERE mapping_id = %s
+                LIMIT 1
+                """,
+                (mapping_id,),
+            )
+            row = cur.fetchone()
+            if row:
+                payload["freshness"] = {
+                    "last_strong_evidence_date": str(row[0]) if row[0] else None,
+                    "last_mid_evidence_date": str(row[1]) if row[1] else None,
+                    "last_weak_signal_date": str(row[2]) if row[2] else None,
+                    "last_any_evidence_date": str(row[3]) if row[3] else None,
+                    "days_since_update": row[4],
+                    "freshness_status": row[5],
+                    "next_review_date": str(row[6]) if row[6] else None,
+                    "stale_reason": row[7],
+                    "updated_at": str(row[8]) if row[8] else None,
+                }
+
+            cur.execute(
+                """
+                SELECT transition_id, old_research_stage, new_research_stage,
+                       old_commercial_stage, new_commercial_stage, trigger_fact_id,
+                       trigger_event_id, change_reason, review_status, created_at
+                FROM business_tag_stage_transition_log
+                WHERE mapping_id = %s
+                ORDER BY created_at DESC
+                LIMIT 100
+                """,
+                (mapping_id,),
+            )
+            payload["stage_transitions"] = [
+                {
+                    "transition_id": str(row[0]),
+                    "old_research_stage": row[1],
+                    "new_research_stage": row[2],
+                    "old_commercial_stage": row[3],
+                    "new_commercial_stage": row[4],
+                    "trigger_fact_id": row[5],
+                    "trigger_event_id": row[6],
+                    "change_reason": row[7],
+                    "review_status": row[8],
+                    "created_at": str(row[9]) if row[9] else None,
+                }
+                for row in cur.fetchall()
+            ]
+
+            cur.execute(
+                """
+                SELECT monitor_id, claim_text, claim_date, claim_source_type,
+                       expected_result, expected_date, actual_progress,
+                       gap_status, market_price_change, evidence_ids,
+                       source_doc_id, review_status, metadata, created_at
+                FROM business_tag_expectation_monitor
+                WHERE mapping_id = %s
+                ORDER BY created_at DESC
+                LIMIT 100
+                """,
+                (mapping_id,),
+            )
+            payload["expectations"] = [
+                {
+                    "monitor_id": str(row[0]),
+                    "claim_text": row[1],
+                    "claim_date": str(row[2]) if row[2] else None,
+                    "claim_source_type": row[3],
+                    "expected_result": row[4],
+                    "expected_date": str(row[5]) if row[5] else None,
+                    "actual_progress": row[6],
+                    "gap_status": row[7],
+                    "market_price_change": _to_float(row[8], None),
+                    "evidence_ids": _json_or_default(row[9], []),
+                    "source_doc_id": row[10],
+                    "review_status": row[11],
+                    "metadata": _json_or_default(row[12], {}),
+                    "created_at": str(row[13]) if row[13] else None,
+                }
+                for row in cur.fetchall()
+            ]
+
+            payload["source_status"] = "ready"
+    except Exception as e:
+        payload["source_status"] = "degraded"
+        payload["error"] = str(e)
+        payload["limitations"].append("PostgreSQL evidence-chain lookup failed")
+    return payload
+
+
+def _query_evidence_review_queue(limit: int = 50) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "version": "supply-chain-evidence-review-queue-v1",
+        "queue": [],
+        "counts": {
+            "stage_transitions": 0,
+            "stale_evidence": 0,
+            "expectations": 0,
+        },
+        "limitations": [],
+    }
+    capped_limit = max(1, min(int(limit or 50), 200))
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+            required_tables = [
+                "business_tag_stage_transition_log",
+                "business_tag_evidence_freshness",
+                "business_tag_expectation_monitor",
+            ]
+            missing = [table for table in required_tables if not _pg_table_exists(cur, table)]
+            if missing:
+                payload["limitations"].append(f"missing evidence review tables: {', '.join(missing)}")
+                return payload
+
+            cur.execute(
+                """
+                SELECT transition_id, mapping_id, new_research_stage,
+                       new_commercial_stage, change_reason, review_status, created_at
+                FROM business_tag_stage_transition_log
+                WHERE review_status = 'pending_review'
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (capped_limit,),
+            )
+            stage_items = [
+                {
+                    "queue_type": "stage_transition",
+                    "id": str(row[0]),
+                    "mapping_id": row[1],
+                    "title": f"阶段待复核 {row[2] or ''}/{row[3] or ''}".strip(),
+                    "summary": row[4],
+                    "review_status": row[5],
+                    "created_at": str(row[6]) if row[6] else None,
+                }
+                for row in cur.fetchall()
+            ]
+            payload["counts"]["stage_transitions"] = len(stage_items)
+
+            cur.execute(
+                """
+                SELECT mapping_id, freshness_status, days_since_update,
+                       stale_reason, next_review_date, updated_at
+                FROM business_tag_evidence_freshness
+                WHERE freshness_status IN ('stale','expired','unknown')
+                ORDER BY
+                    CASE freshness_status WHEN 'expired' THEN 0 WHEN 'unknown' THEN 1 ELSE 2 END,
+                    next_review_date ASC NULLS FIRST
+                LIMIT %s
+                """,
+                (capped_limit,),
+            )
+            freshness_items = [
+                {
+                    "queue_type": "evidence_freshness",
+                    "id": str(row[0]),
+                    "mapping_id": row[0],
+                    "title": f"证据状态 {row[1]}",
+                    "summary": row[3],
+                    "freshness_status": row[1],
+                    "days_since_update": row[2],
+                    "next_review_date": str(row[4]) if row[4] else None,
+                    "created_at": str(row[5]) if row[5] else None,
+                }
+                for row in cur.fetchall()
+            ]
+            payload["counts"]["stale_evidence"] = len(freshness_items)
+
+            cur.execute(
+                """
+                SELECT monitor_id, mapping_id, claim_text, gap_status,
+                       review_status, created_at
+                FROM business_tag_expectation_monitor
+                WHERE gap_status = 'pending'
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (capped_limit,),
+            )
+            expectation_items = [
+                {
+                    "queue_type": "expectation_monitor",
+                    "id": str(row[0]),
+                    "mapping_id": row[1],
+                    "title": "预期差待验证",
+                    "summary": row[2],
+                    "gap_status": row[3],
+                    "review_status": row[4],
+                    "created_at": str(row[5]) if row[5] else None,
+                }
+                for row in cur.fetchall()
+            ]
+            payload["counts"]["expectations"] = len(expectation_items)
+
+            payload["queue"] = (stage_items + freshness_items + expectation_items)[:capped_limit]
+    except Exception as e:
+        payload["error"] = str(e)
+        payload["limitations"].append("PostgreSQL evidence review queue lookup failed")
+    return payload
+
+
 def _mapping_source_from_evidence(evidence: object) -> str:
     payload = _json_or_default(evidence, {})
     if isinstance(payload, dict):
@@ -5599,6 +6019,12 @@ async def supply_chain_business_tag_evidence(mapping_id: str):
     return _query_business_tag_evidence(mapping_id)
 
 
+@router.get("/supply-chain/business-tag/{mapping_id}/evidence-chain")
+async def supply_chain_business_tag_evidence_chain(mapping_id: str):
+    """Return raw documents, extracted facts, freshness, stage transitions, and expectations."""
+    return _query_business_tag_evidence_chain(mapping_id)
+
+
 @router.get("/supply-chain/business-tag/{mapping_id}/stage")
 async def supply_chain_business_tag_stage(mapping_id: str):
     """Return research and commercialization stages for one business-tag mapping."""
@@ -5629,6 +6055,14 @@ async def supply_chain_evidence_review(
 ):
     """Review one evidence event and optionally update business-tag stage."""
     return _review_business_tag_evidence(event_id, request)
+
+
+@router.get("/supply-chain/evidence-review/queue")
+async def supply_chain_evidence_review_queue(
+    limit: int = Query(50, ge=1, le=200),
+):
+    """Return evidence-chain review queue from stage, freshness, and expectation monitors."""
+    return _query_evidence_review_queue(limit)
 
 
 @router.post("/supply-chain/business-tag/{mapping_id}/three-high/score")
@@ -5736,6 +6170,15 @@ async def supply_chain_workbench(
     selected_node = node_by_id.get(node_id or "")
     if node_id and not selected_node:
         raise HTTPException(status_code=404, detail=f"Unknown BOM node '{node_id}'")
+    if not candidates:
+        fallback_candidates = _query_business_tag_mapping_candidates(top_n, selected_node.get("node_id") if selected_node else None)
+        if fallback_candidates:
+            candidates = _attach_market_snapshots(fallback_candidates, trade_date)
+            data_status["candidate_pool"] = "mapping_fallback"
+            warnings.append({
+                "code": "candidate_pool_mapping_fallback",
+                "message": "模型候选池为空，已改用 business_tag_mapping 真实业务标签映射作为候选公司清单。",
+            })
     node_candidates = _filter_candidates_for_node(candidates, selected_node) if selected_node else []
     return {
         "version": payload["version"],

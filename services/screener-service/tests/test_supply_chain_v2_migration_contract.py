@@ -19,6 +19,14 @@ L8_STATUS_MIGRATION_PATH = (
     / "021_business_tag_l8_evidence_status.py"
 )
 
+EVIDENCE_PIPELINE_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "023_supply_chain_evidence_pipeline.py"
+)
+
 
 def test_supply_chain_v2_migration_defines_required_tables():
     sql = MIGRATION_PATH.read_text(encoding="utf-8")
@@ -69,3 +77,37 @@ def test_l8_evidence_status_migration_defines_per_dimension_table():
     assert "dimension_name TEXT NOT NULL" in sql
     assert "evidence_event_ids JSONB NOT NULL DEFAULT '[]'" in sql
     assert "UNIQUE (mapping_id, dimension_id)" in sql
+
+
+def test_supply_chain_evidence_pipeline_migration_defines_source_document_fact_tables():
+    sql = EVIDENCE_PIPELINE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    required_tables = [
+        "evidence_source_catalog",
+        "raw_evidence_documents",
+        "evidence_extracted_facts",
+        "business_tag_stage_transition_log",
+        "business_tag_evidence_freshness",
+        "business_tag_expectation_monitor",
+    ]
+
+    for table_name in required_tables:
+        assert f"CREATE TABLE IF NOT EXISTS {table_name}" in sql
+
+    required_columns = [
+        "source_level TEXT NOT NULL",
+        "source_reliability_score DOUBLE PRECISION",
+        "confidence_cap DOUBLE PRECISION",
+        "requires_cross_validation BOOLEAN NOT NULL DEFAULT FALSE",
+        "content_hash TEXT NOT NULL",
+        "fact_nature TEXT NOT NULL",
+        "validation_status TEXT NOT NULL DEFAULT 'pending'",
+        "research_stage_signal TEXT",
+        "commercial_stage_signal TEXT",
+        "last_strong_evidence_date DATE",
+        "freshness_status TEXT NOT NULL DEFAULT 'unknown'",
+        "gap_status TEXT NOT NULL DEFAULT 'pending'",
+    ]
+
+    for column_contract in required_columns:
+        assert column_contract in sql

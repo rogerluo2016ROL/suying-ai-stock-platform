@@ -63,6 +63,43 @@ def test_node_id():
 class TestChainDeconstruct:
     """Tests for GET /chain/deconstruct endpoint."""
 
+    def test_workbench_uses_business_tag_mapping_fallback_when_model_candidates_empty(self, monkeypatch):
+        """Workbench should still return real mapping candidates when model pool is empty."""
+        monkeypatch.setattr(
+            screener_router,
+            "_load_supply_chain_bom_payload",
+            lambda: {"version": "test", "source": "test", "themes": [], "nodes": [], "edges": []},
+        )
+        monkeypatch.setattr(screener_router, "_get_supply_chain_candidate_pool", lambda top_n, trade_date: [])
+        monkeypatch.setattr(
+            screener_router,
+            "_query_business_tag_mapping_candidates",
+            lambda top_n, node_id=None: [
+                {
+                    "mapping_id": "MAP-TEST-1",
+                    "code": "000001",
+                    "name": "测试公司",
+                    "node_id": "ai_compute_hardware",
+                    "mapping_status": "verified",
+                    "candidate_source": "business_tag_mapping_fallback",
+                }
+            ],
+        )
+        monkeypatch.setattr(screener_router, "_attach_market_snapshots", lambda candidates, trade_date=None: candidates)
+        monkeypatch.setattr(screener_router, "_query_upstream_influence_candidates", lambda limit, trade_date: [])
+        monkeypatch.setattr(screener_router, "_query_supply_chain_data_freshness", lambda: {})
+        monkeypatch.setattr(screener_router, "_query_research_ingestion_status", lambda: {})
+
+        response = client.get("/api/v1/screener/supply-chain/workbench", params={"top_n": 5})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["candidate_count"] == 1
+        assert data["data_status"]["candidate_pool"] == "mapping_fallback"
+        assert data["candidates"][0]["mapping_id"] == "MAP-TEST-1"
+        assert data["candidates"][0]["candidate_source"] == "business_tag_mapping_fallback"
+        assert any(w["code"] == "candidate_pool_mapping_fallback" for w in data["warnings"])
+
     def test_seed_bom_can_feed_deconstruct_when_pg_chain_nodes_empty(self):
         """Bundled BOM seed config should be usable when chain_nodes is empty."""
         nodes, theme_name = _seed_chain_nodes_for_deconstruct("future_industry_core")
@@ -331,6 +368,53 @@ class TestSupplyChainBusinessTagEvidenceAndStage:
         assert data["current_stage"]["stage_confirmed"] is False
         assert isinstance(data["history"], list)
         assert data["stage_gate"]["stage_change_requires_evidence"] is True
+
+    def test_business_tag_evidence_chain_returns_tracking_contract(self, monkeypatch):
+        def fake_query(mapping_id):
+            return {
+                "version": "supply-chain-evidence-chain-v1",
+                "mapping_id": mapping_id,
+                "documents": [],
+                "facts": [],
+                "freshness": {},
+                "stage_transitions": [],
+                "expectations": [],
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_query_business_tag_evidence_chain", fake_query)
+
+        response = client.get("/api/v1/screener/supply-chain/business-tag/demo-mapping/evidence-chain")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-evidence-chain-v1"
+        assert data["mapping_id"] == "demo-mapping"
+        assert isinstance(data["documents"], list)
+        assert isinstance(data["facts"], list)
+        assert isinstance(data["stage_transitions"], list)
+        assert isinstance(data["expectations"], list)
+        assert "limitations" in data
+
+    def test_evidence_review_queue_returns_tracking_contract(self, monkeypatch):
+        def fake_query(limit=50):
+            return {
+                "version": "supply-chain-evidence-review-queue-v1",
+                "queue": [],
+                "counts": {"stage_transitions": 0, "stale_evidence": 0, "expectations": 0},
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_query_evidence_review_queue", fake_query)
+
+        response = client.get("/api/v1/screener/supply-chain/evidence-review/queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "supply-chain-evidence-review-queue-v1"
+        assert isinstance(data["queue"], list)
+        assert "counts" in data
+        assert "limitations" in data
 
 
 class TestSupplyChainEvidenceReview:
