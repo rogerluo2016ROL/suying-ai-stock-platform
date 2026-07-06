@@ -84,3 +84,4 @@ outputs/ai_compute_complete_data_*/
 # 飞书/密钥 env
 .env
 .env.*
+chatBI/AI 后端.zip
