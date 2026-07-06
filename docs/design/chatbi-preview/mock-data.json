@@ -1,21 +1,49 @@
 {
   "meta": {
-    "title": "速赢 AI ChatBI 静态预览",
+    "title": "速赢 AI 移动 ChatBI 会话原型",
     "trade_date": "2026-07-03",
     "data_status": "mock_preview",
+    "target": "standalone_mobile_chatbi_app",
+    "reference_logic": [
+      "移动端应用内 AI 助手首页",
+      "欢迎语 + 热门关键词 + 近期热门话题",
+      "底部输入框作为唯一输入入口",
+      "左侧抽屉承载搜索和历史会话",
+      "AI 会话页用户气泡 + 思考过程 + 结构化表格",
+      "快速回答命中模板化查询，深度思考调用大模型分析",
+      "底部固定输入框 + 快速回答/深度思考 + 附件/语音 + 停止生成",
+      "不使用底部多页签导航"
+    ],
     "reuse_sources": [
-      "docs/design/new front/",
       "chatBI/ai 前端.zip",
       "chatBI/AI 后端.zip",
+      "docs/design/new front/ 作为视觉参考，不作为 PC 壳目标",
       "K线大模型产业链拆解设计"
     ]
   },
+  "hot_keywords": ["AI算力", "光模块", "中际旭创", "三高", "具身智能"],
+  "answer_modes": [
+    {
+      "mode": "quick",
+      "label": "快速回答",
+      "description": "直接命中模板化查询，只返回结果，不展开分析。",
+      "path": "template_query",
+      "nodes": ["模板识别", "参数提取", "结构化结果返回"]
+    },
+    {
+      "mode": "deep",
+      "label": "深度思考",
+      "description": "通过大模型组织证据链、三高和交易信号，输出详细分析。",
+      "path": "llm_orchestrated_analysis",
+      "nodes": ["问题识别", "知识检索", "关键数据检索", "数据获取", "数据口径说明", "答案生成"]
+    }
+  ],
   "hot_questions": [
-    "今天所有模型结果汇总",
-    "AI算力候选公司 Top5",
-    "中际旭创产业链证据链",
-    "今天匪爷竞价选债为什么没票",
-    "生成中际旭创产业链拆解报告"
+    "AI算力候选公司 Top20 及三高排序",
+    "中际旭创产业链证据链和商用进度",
+    "具身智能产业链卡脖子公司清单",
+    "今天所有选股、选债模型结果汇总",
+    "匪爷竞价选债为什么没票"
   ],
   "chat_flow": [
     {
@@ -47,6 +75,21 @@
       "model_id": "deepseek-chat",
       "prompt_version_id": "supply_chain_answer:v1",
       "elapsed_ms": 1680,
+      "status": "done"
+    },
+    {
+      "node": "数据口径说明",
+      "node_type": "data_lineage",
+      "tool_id": "data_freshness_explain",
+      "elapsed_ms": 10601,
+      "status": "done"
+    },
+    {
+      "node": "生成完成",
+      "node_type": "final_generation",
+      "model_id": "deepseek-chat",
+      "prompt_version_id": "supply_chain_answer:v1",
+      "elapsed_ms": 6,
       "status": "done"
     }
   ],
@@ -86,6 +129,18 @@
       "high_profit": 90,
       "price": 98.16,
       "change_pct": 3.72
+    },
+    {
+      "code": "688498",
+      "name": "源杰科技",
+      "chain": "AI算力 / 光模块 / 激光器芯片",
+      "score": 84.5,
+      "stage": "验证放量",
+      "high_tech": 92,
+      "high_growth": 82,
+      "high_profit": 70,
+      "price": 126.80,
+      "change_pct": 2.14
     }
   ],
   "evidence": [

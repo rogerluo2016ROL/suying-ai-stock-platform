@@ -931,6 +931,70 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-03T07:47:26.318Z"
+    },
+    {
+      "id": "bug-055",
+      "timestamp": "2026-07-03T14:25:52.833Z",
+      "error_message": "Incorrect value in code",
+      "file": "../../.claude/projects/-Users-rogerluo------K----/memory/iloveppt-upstream-state.md",
+      "root_cause": "Had `.agents/`",
+      "fix": "Changed to `.codex/`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-03T14:25:52.833Z"
+    },
+    {
+      "id": "bug-056",
+      "timestamp": "2026-07-06T01:16:31.565Z",
+      "error_message": "Significant refactor of ",
+      "file": "packages/kronos-factors/kronos_factors/configs/supply_chains.json",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 11→24 lines (5 removed) | Also: \"先进封测\": [\"混合键合\", \"Hybrid Bonding\", \"XDFOI\", \"Chipl; \"封测设备\": [\"ALD\", \"PECVD\", \"薄膜沉积\", \"混合键合设备\", \"临时键合\",",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-06T01:19:18.092Z"
+    },
+    {
+      "id": "bug-057",
+      "timestamp": "2026-07-06T03:35:21.225Z",
+      "error_message": "Significant refactor of ",
+      "file": "packages/kronos-factors/kronos_factors/engine/chain_deconstruct.py",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 10→32 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-06T03:35:21.225Z"
+    },
+    {
+      "id": "bug-058",
+      "timestamp": "2026-07-06T06:14:36.597Z",
+      "error_message": "Significant refactor of ",
+      "file": "packages/kronos-factors/kronos_factors/engine/supply_chain_trend.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 13→24 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-06T06:14:36.597Z"
     }
   ]
 }

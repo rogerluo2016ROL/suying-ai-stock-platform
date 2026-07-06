@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ds.cockpit.screen.system.mapper.SystemBuryingPointMapper">
+
+    <resultMap id="SystemBuryingPointRecordResult" type="SystemBuryingPointRecordEntity">
+        <result property="dim" column="dim" jdbcType="VARCHAR"/>
+        <result property="userId" column="user_id" jdbcType="VARCHAR"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="dates" column="dates" jdbcType="VARCHAR"/>
+        <result property="department" column="department" jdbcType="VARCHAR"/>
+        <result property="numbers" column="numbers" jdbcType="VARCHAR"/>
+        <result property="environment" column="environment" jdbcType="VARCHAR"/>
+        <result property="lengthOfStay" column="length_of_stay" jdbcType="VARCHAR"/>
+        <result property="homePage" column="home_page" jdbcType="VARCHAR"/>
+        <result property="fieldPage" column="field_page" jdbcType="VARCHAR"/>
+        <result property="indicatorPage" column="indicator_page" jdbcType="VARCHAR"/>
+        <result property="insertTime" column="insert_time" jdbcType="VARCHAR"/>
+        <result property="domain" column="domain" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <insert id="insertEntity" parameterType="com.ds.cockpit.screen.common.core.domain.entity.vo.BuryingPointRequestVO">
+        INSERT INTO
+            system_burying_point_record
+            (`dim`,`name`,`user_id`,`dates`,`department`,`environment`,`length_of_stay`,
+            `home_page`,`field_page`,`indicator_page`,`insert_time`,`domain`)
+        VALUES (#{vo.dim},#{vo.name},#{vo.userId},#{vo.dates},#{vo.department},#{vo.environment},#{vo.lengthOfStay},
+                #{vo.homePage},#{vo.fieldPage},#{vo.indicatorPage},#{vo.insertTime},#{vo.domain});
+
+    </insert>
+
+    <update id="updateEntity" parameterType="com.ds.cockpit.screen.common.core.domain.entity.vo.BuryingPointRequestVO">
+        update system_burying_point_record
+        set numbers=numbers+1 ,
+            length_of_stay=length_of_stay+#{vo.lengthOfStay},
+            insert_time=#{vo.insertTime}
+        where  user_id=#{vo.userId} and dates = #{vo.dates}
+                and environment=#{vo.environment}  and dim= #{vo.dim}
+                and home_page=#{vo.homePage} and field_page=#{vo.fieldPage}
+                and indicator_page=#{vo.indicatorPage} ;
+
+            </update>
+
+    <select id="getDetailsBy" resultMap="SystemBuryingPointRecordResult">
+        select * from 
+        system_burying_point_record
+        WHERE user_id = #{vo.userId} and dates = #{vo.dates}
+                and environment = #{vo.environment}
+                and dim = #{vo.dim} and home_page = #{vo.homePage}
+                and field_page = #{vo.fieldPage} and indicator_page = #{vo.indicatorPage}
+    </select>
+
+    <select id="getDetails" resultType="integer">
+        select count(*) from
+        system_burying_point_record
+    </select>
+
+    <select id="getBurying" resultType="com.ds.cockpit.screen.common.core.domain.entity.vo.BuryingResponseVo">
+        SELECT COUNT(*) AS numbers,dates AS dates FROM system_burying_point_record
+        where environment=#{vo.environment} and field_page=#{vo.field_page}
+        and dates  BETWEEN DATE_FORMAT( DATE_SUB(#{vo.dates}, INTERVAL 30 DAY ), '%Y-%m-%d' ) and DATE_FORMAT(#{vo.dates},'%Y-%m-%d')
+        -- and department!='日报制支持'  and department!='测试部门'
+        GROUP BY dates  ORDER BY dates
+    </select>
+
+    <select id="getBuryingHits"
+            parameterType="com.ds.cockpit.screen.common.core.domain.entity.vo.BuryingPointRequestVO"
+            resultType="com.ds.cockpit.screen.common.core.domain.entity.vo.BuryingResponseVo">
+        SELECT
+        <choose>
+        <when test="vo.type == 1">
+            sum(numbers) AS numbers,
+            indicator_page AS indicators
+        FROM
+            system_burying_point_record
+        WHERE
+              dim = #{vo.dim}
+          AND dates = #{vo.dates}
+          AND environment = #{vo.environment}
+            -- AND department != '日报制支持'
+            -- AND department != '测试部门'
+            GROUP BY
+            indicator_page
+        ORDER BY
+            numbers DESC
+        </when>
+            <when test="vo.type == 2">
+                sum(numbers) AS numbers
+                FROM
+                system_burying_point_record
+                WHERE
+                dim !=0
+                AND dates = #{vo.dates}
+                AND environment = #{vo.environment}
+                -- AND department != '日报制支持'
+                -- AND department != '测试部门'
+                UNION ALL
+                SELECT
+                sum(numbers) AS numbers
+                FROM
+                system_burying_point_record
+                WHERE
+                dim ='1'
+                AND dates = #{vo.dates}
+                AND environment = #{vo.environment}
+                -- AND department != '日报制支持'
+                -- AND department != '测试部门'
+                UNION ALL
+                SELECT
+                sum(numbers) AS numbers
+                FROM
+                system_burying_point_record
+                WHERE
+                dim ='2'
+                AND dates = #{vo.dates}
+                AND environment = #{vo.environment}
+                -- AND department != '日报制支持'
+                -- AND department != '测试部门'
+            </when>
+        </choose>
+
+    </select>
+
+
+    <select id="getBuryingpointBy" resultMap="SystemBuryingPointRecordResult">
+        select * from
+            system_burying_point_record
+        WHERE environment = #{environment}
+          and dates <![CDATA[ >= ]]> #{startTime} and dates <![CDATA[ <= ]]> #{endTime}
+        ORDER BY dates
+    </select>
+</mapper>

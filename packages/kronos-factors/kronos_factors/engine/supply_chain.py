@@ -384,6 +384,17 @@ class SupplyChainEngine(StrategyEngine):
                     elif pc <= 10:
                         moat = min(40, moat + 5); moat_sigs.append(f"{pc}家寡头")
 
+                    # 战略护城河补偿: FPGA/ASIC/自主可控CPU/特种IC 国产替代稀缺性
+                    # 这些公司前期ROE可能为负, 但战略价值驱动长期护城河
+                    strategic_kw = ["FPGA", "ASIC", "自主可控CPU", "特种集成电路",
+                                    "高可靠集成电路", "嵌入式CPU", "可编程逻辑",
+                                    "处理器及配套", "相控阵"]
+                    biz_text = (main_business.get(code, "") or "") + " " + name
+                    if any(kw in biz_text for kw in strategic_kw):
+                        strategic_bonus = 8
+                        moat = min(40, moat + strategic_bonus)
+                        moat_sigs.append("战略芯片")
+
                     # 2. Growth (30%)
                     rg = fd.get("revenue_growth", 0); pg = fd.get("profit_growth", 0)
                     growth = 10.0

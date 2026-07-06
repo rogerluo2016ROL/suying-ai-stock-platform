@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-03T12:10:55.610Z
-> Files: 579 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-06T06:14:50.059Z
+> Files: 588 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -21,12 +21,16 @@
 
 - `data-service-scheduler-architecture.md` (~641 tok)
 - `edit-abs-path-lands-main-not-worktree.md` (~227 tok)
-- `iloveppt-upstream-state.md` (~381 tok)
+- `iloveppt-upstream-state.md` (~485 tok)
 - `in-process-agent-edit-absolute-path-main-repo.md` (~298 tok)
 - `md-ui-worktree-cwd-confusion.md` (~406 tok)
 - `MEMORY.md` (~597 tok)
 - `pg-adapter-no-inline-literal-translation.md` (~290 tok)
 - `uat-init-sql-alembic-schema-conflict.md` (~532 tok)
+
+## ../iLovePPT/
+
+- `.gitignore` — Git ignore rules (~419 tok)
 
 ## ./
 
@@ -825,6 +829,11 @@
 
 - `batch-a-uioverhaul-uat-2026-07-03.md` — UAT 部署报告 — 行情决策 Batch A (md-ui-overhaul) [+ Batch B #11/#12, Batch B 补6/C, #10 W-2, #27 SIT] (~2511 tok)
 
+## docs/design/
+
+- `tao-law-architecture.html` — 华为韬定律 2.0 — 8层BOM产业链架构图 (~6725 tok)
+- `tao-law-bom-tree.html` — 华为韬定律2.0 — BOM结构拆解 (~5354 tok)
+
 ## docs/qa/
 
 - `batch-ab-uat-2026-07-03.md` — QA Report — 行情决策 Batch A (md-ui-overhaul) + Batch B (watchlist/产业链) — UAT (~3200 tok)
@@ -897,11 +906,19 @@
 
 - `mode_profiles.json` (~664 tok)
 
+## packages/kronos-factors/kronos_factors/configs/
+
+- `supply_chains.json` (~2706 tok)
+
 ## packages/kronos-factors/kronos_factors/engine/
 
+- `chain_deconstruct.py` — Industry chain deconstruct module for multi-method chain analysis. (~8473 tok)
 - `multi_index.py` — MultiIndexEngine — 宽基指数成分股超额收益挖掘. (~1881 tok)
 - `risk_parity.py` — RiskParityAllocator — 风险平价仓位分配器. (~1729 tok)
 - `sector_heatmap.py` — SectorHeatmapEngine — 板块实时热度引擎. (~2922 tok)
+- `supply_chain_foundation.py` — Data foundation builders for the 大葱产业链解构模型. (~3877 tok)
+- `supply_chain_trend.py` — 产业链趋势启动选股 — 硬核科技 × 产业链位置 × 量价择时. (~5972 tok)
+- `supply_chain.py` — 大葱产业链解构选股 — PG研报直查 + 五维评级. (~7002 tok)
 - `weighted_fusion.py` — WeightedFusionEngine — V5.0 加权融合引擎. (~3616 tok)
 
 ## packages/kronos-factors/kronos_factors/engine/llm_intelligence/
@@ -941,7 +958,7 @@
 
 ## services/screener-service/app/routers/
 
-- `screener.py` — Screener API routes — 12 screening modes via unified endpoint with Redis caching. (~84510 tok)
+- `screener.py` — Screener API routes — 12 screening modes via unified endpoint with Redis caching. (~94836 tok)
 
 ## services/screener-service/tests/
 
@@ -951,5 +968,6 @@
 ## tools/
 
 - `backtest_institutional_activity.py` — 机构活跃度因子 — 月频 IC + 分组多空回测。 (~1636 tok)
+- `build_supply_chain_foundation.py` — Build 大葱产业链 data-foundation nodes, edges, mappings and report. (~2792 tok)
 - `institutional_activity_top.py` — 全市场机构活跃度评分 — 5 维 percentile 加权。 (~2870 tok)
 - `send_bishifu_feishu.py` — 跑毕师傅硬核科技选股 + 推送飞书群（AI 投研分析）。 (~1028 tok)

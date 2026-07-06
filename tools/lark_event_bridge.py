@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import urllib.request
 
 
@@ -37,6 +38,17 @@ def main() -> int:
         default="http://127.0.0.1:18001/api/v1/lark/events",
         help="Local screener-service event endpoint",
     )
+    parser.add_argument(
+        "--consume-timeout",
+        default=os.environ.get("LARK_EVENT_CONSUME_TIMEOUT", "24h"),
+        help="Restart lark-cli after this bounded consume duration; bounded mode survives stdin EOF.",
+    )
+    parser.add_argument(
+        "--restart-delay",
+        type=float,
+        default=float(os.environ.get("LARK_EVENT_RESTART_DELAY_SEC", "5")),
+        help="Seconds to wait before restarting lark-cli after it exits.",
+    )
     args = parser.parse_args()
 
     cmd = [
@@ -46,28 +58,39 @@ def main() -> int:
         "im.message.receive_v1",
         "--as",
         "bot",
+        "--timeout",
+        args.consume_timeout,
     ]
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=sys.stderr,
-        text=True,
-        bufsize=1,
-    )
-    assert proc.stdout is not None
     try:
-        for line in proc.stdout:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                event = json.loads(line)
-                post_event(args.endpoint, event)
-            except Exception as exc:
-                print(f"[bridge] failed to forward event: {exc}", file=sys.stderr)
-    finally:
-        proc.terminate()
-    return proc.wait()
+        while True:
+            print(f"[bridge] starting: {' '.join(cmd)}", file=sys.stderr, flush=True)
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=sys.stderr,
+                text=True,
+                bufsize=1,
+            )
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    event = json.loads(line)
+                    post_event(args.endpoint, event)
+                except Exception as exc:
+                    print(f"[bridge] failed to forward event: {exc}", file=sys.stderr, flush=True)
+
+            code = proc.wait()
+            print(
+                f"[bridge] lark-cli exited code={code}; restarting in {args.restart_delay}s",
+                file=sys.stderr,
+                flush=True,
+            )
+            time.sleep(args.restart_delay)
+    except KeyboardInterrupt:
+        return 130
 
 
 if __name__ == "__main__":

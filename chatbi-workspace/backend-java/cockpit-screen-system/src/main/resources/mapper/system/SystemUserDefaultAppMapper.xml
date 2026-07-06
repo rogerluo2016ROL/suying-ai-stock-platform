@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ds.cockpit.screen.system.mapper.SystemUserDefaultAppMapper">
+
+    <resultMap id="SystemUserDefaultAppResult" type="com.ds.cockpit.screen.common.core.domain.entity.SystemUserDefaultAppEntity">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="userId" column="user_id" jdbcType="VARCHAR"/>
+            <result property="userName" column="user_name" jdbcType="VARCHAR"/>
+            <result property="userDept" column="user_dept" jdbcType="VARCHAR"/>
+            <result property="availability" column="availability" jdbcType="INTEGER"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="descriptions" column="descriptions" jdbcType="VARCHAR"/>
+            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+            <result property="appName" column="app_name" jdbcType="VARCHAR"/>
+            <result property="appId" column="app_id" jdbcType="BIGINT"/>
+            <result property="showName" column="show_name" jdbcType="VARCHAR"/>
+            <result property="appCode" column="app_code" jdbcType="VARCHAR"/>
+            <result property="terminalType" column="terminal_type" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,user_id,user_name,user_dept,availability,create_time,descriptions,update_time,
+        app_name,app_id,show_name,app_code,terminal_type
+    </sql>
+
+    <select id="getSystemUserDefaultApp" resultMap="SystemUserDefaultAppResult">
+        SELECT id,user_id,user_name,user_dept,availability,create_time,descriptions,update_time,
+                app_name,app_id,show_name,app_code,terminal_type
+        FROM system_user_default_app
+        WHERE availability = 1
+            <if test="entity.userId != null and entity.userId != ''">
+                AND user_id = #{entity.userId}
+            </if>
+            <if test="entity.userName != null and entity.userName != ''">
+                AND user_name = #{entity.userName}
+            </if>
+            <if test="entity.userDept != null and entity.userDept != ''">
+                AND user_dept = #{entity.userDept}
+            </if>
+            <if test="entity.descriptions != null and entity.descriptions != ''">
+                AND descriptions = #{entity.descriptions}
+            </if>
+    </select>
+
+    <insert id="insertEntity" parameterType="com.ds.cockpit.screen.common.core.domain.entity.SystemUserDefaultAppEntity">
+        insert into system_user_default_app(
+        <if test="userId != null and userId != ''">user_id,</if>
+        <if test="userName != null and userName != ''">user_name,</if>
+        <if test="userDept != null and userDept != ''">user_dept,</if>
+        <if test="descriptions != null and descriptions != ''">descriptions,</if>
+        <if test="appName != null and appName != ''">app_name,</if>
+        <if test="appId != null ">app_id,</if>
+        <if test="showName != null and showName != ''">show_name,</if>
+        <if test="appCode != null and appCode != ''">app_code,</if>
+        <if test="terminalType != null and terminalType != ''">terminal_type,</if>
+        update_time
+        )values(
+        <if test="userId != null and userId != ''">#{userId},</if>
+        <if test="userName != null and userName != ''">#{userName},</if>
+        <if test="userDept != null and userDept != ''">#{userDept},</if>
+        <if test="descriptions != null and descriptions != ''">#{descriptions},</if>
+        <if test="appName != null and appName != ''">#{appName},</if>
+        <if test="appId != null ">#{appId},</if>
+        <if test="showName != null and showName != ''">#{showName},</if>
+        <if test="appCode != null and appCode != ''">#{appCode},</if>
+        <if test="terminalType != null and terminalType != ''">#{terminalType},</if>
+        sysdate()
+        )
+    </insert>
+
+    <update id="unAvailability">
+        update system_user_default_app un
+        <set>
+            <if test="id != null ">
+                un.availability = 0 ,
+            </if>
+            <if test="id != null ">
+                un.update_time = sysdate()
+            </if>
+        </set>
+        where un.id = #{id,jdbcType=BIGINT}
+    </update>
+
+</mapper>

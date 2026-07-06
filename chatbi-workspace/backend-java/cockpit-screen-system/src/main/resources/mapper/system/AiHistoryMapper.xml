@@ -1,0 +1,431 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ds.cockpit.screen.system.mapper.AiHistoryMapper">
+
+    <resultMap id="AiHistoryResult" type="AiHistoryEntity">
+        <id     property="id"     column="id"      jdbcType="BIGINT"/>
+        <result property="userId" column="user_id" jdbcType="VARCHAR"/>
+        <result property="userName" column="user_name" jdbcType="VARCHAR"/>
+        <result property="conversationId" column="conversation_id" jdbcType="VARCHAR"/>
+        <result property="agentId" column="agent_id" jdbcType="VARCHAR"/>
+        <result property="agentName" column="agent_name" jdbcType="VARCHAR"/>
+        <result property="fenciSessionId" column="fenci_session_id" jdbcType="VARCHAR"/>
+        <result property="fenciAgentId" column="fenci_agent_id" jdbcType="VARCHAR"/>
+        <result property="fenciAgentName" column="fenci_agent_name" jdbcType="VARCHAR"/>
+        <result property="question" column="question" jdbcType="VARCHAR"/>
+        <result property="actualQuestion" column="actual_question" jdbcType="VARCHAR"/>
+        <result property="splitWords" column="split_words" jdbcType="VARCHAR"/>
+        <result property="answer" column="answer" jdbcType="VARCHAR"/>
+        <result property="answerAll" column="answer_all" jdbcType="VARCHAR"/>
+        <result property="permission" column="permission" jdbcType="VARCHAR"/>
+        <result property="isDeep" column="is_deep" jdbcType="VARCHAR"/>
+        <result property="isGood" column="is_good" jdbcType="VARCHAR"/>
+        <result property="answerTime" column="answer_time" jdbcType="VARCHAR"/>
+        <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+        <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+        <result property="questionFeedback" column="question_feedback" jdbcType="VARCHAR"/>
+        <result property="answerFeedback" column="answer_feedback" jdbcType="VARCHAR"/>
+        <result property="opinionFeedback" column="opinion_feedback" jdbcType="VARCHAR"/>
+        <result property="remarks" column="remarks" jdbcType="VARCHAR"/>
+        <result property="descriptions" column="descriptions" jdbcType="VARCHAR"/>
+        <result property="environment" column="environment" jdbcType="VARCHAR"/>
+        <result property="sessionUuid" column="session_uuid" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="AiHistoryResult">
+        select
+        id, user_id, user_name, conversation_id, agent_id, agent_name,
+        fenci_session_id, fenci_agent_id, fenci_agent_name,
+        question, actual_question, split_words, answer, answer_all,
+        permission, is_deep, is_good, answer_time,session_uuid,
+        question_feedback, answer_feedback, opinion_feedback, remarks, descriptions, environment,  create_time, update_time
+        from
+            ai_history_message
+        where id = #{id}
+    </select>
+
+    <insert id="addHistoryRecord" parameterType="AiHistoryEntity" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_history_message (
+        <if test="userId != null and userId != ''">user_id,</if>
+        <if test="userName != null and userName != ''">user_name,</if>
+        <if test="conversationId != null and conversationId != ''">conversation_id,</if>
+        <if test="agentId != null and agentId != ''">agent_id,</if>
+        <if test="agentName != null and agentName != ''">agent_name,</if>
+        <if test="fenciSessionId != null and fenciSessionId != ''">fenci_session_id,</if>
+        <if test="fenciAgentId != null and fenciAgentId != ''">fenci_agent_id,</if>
+        <if test="fenciAgentName != null and fenciAgentName != ''">fenci_agent_name,</if>
+        <if test="question != null and question != ''">question,</if>
+        <if test="actualQuestion != null and actualQuestion != ''">actual_question,</if>
+        <if test="splitWords != null and splitWords != ''">split_words,</if>
+        <if test="answer != null and answer != ''">answer,</if>
+        <if test="answerAll != null and answerAll != ''">answer_all,</if>
+        <if test="permission != null and permission != ''">permission,</if>
+        <if test="isDeep != null and isDeep != ''">is_deep,</if>
+        <if test="isGood != null and isGood != ''">is_good,</if>
+        <if test="answerTime != null and answerTime != ''">answer_time,</if>
+        <if test="questionFeedback != null and questionFeedback != ''">question_feedback,</if>
+        <if test="answerFeedback != null and answerFeedback != ''">answer_feedback,</if>
+        <if test="opinionFeedback != null and opinionFeedback != ''">opinion_feedback,</if>
+        <if test="remarks != null and remarks != ''">remarks,</if>
+        <if test="descriptions != null and descriptions != ''">descriptions,</if>
+        <if test="environment != null and environment != ''">environment,</if>
+        <if test="sessionUuid != null and sessionUuid != ''">session_uuid,</if>
+        create_time
+        )values(
+        <if test="userId != null and userId != ''">#{userId},</if>
+        <if test="userName != null and userName != ''">#{userName},</if>
+        <if test="conversationId != null and conversationId != ''">#{conversationId},</if>
+        <if test="agentId != null and agentId != ''">#{agentId},</if>
+        <if test="agentName != null and agentName != ''">#{agentName},</if>
+        <if test="fenciSessionId != null and fenciSessionId != ''">#{fenciSessionId},</if>
+        <if test="fenciAgentId != null and fenciAgentId != ''">#{fenciAgentId},</if>
+        <if test="fenciAgentName != null and fenciAgentName != ''">#{fenciAgentName},</if>
+        <if test="question != null and question != ''">#{question},</if>
+        <if test="actualQuestion != null and actualQuestion != ''">#{actualQuestion},</if>
+        <if test="splitWords != null and splitWords != ''">#{splitWords},</if>
+        <if test="answer != null and answer != ''">#{answer},</if>
+        <if test="answerAll != null and answerAll != ''">#{answerAll},</if>
+        <if test="permission != null and permission != ''">#{permission},</if>
+        <if test="isDeep != null and isDeep != ''">#{isDeep},</if>
+        <if test="isGood != null and isGood != ''">#{isGood},</if>
+        <if test="answerTime != null and answerTime != ''">#{answerTime},</if>
+        <if test="questionFeedback != null and questionFeedback != ''">#{questionFeedback},</if>
+        <if test="answerFeedback != null and answerFeedback != ''">#{answerFeedback},</if>
+        <if test="opinionFeedback != null and opinionFeedback != ''">#{opinionFeedback},</if>
+        <if test="remarks != null and remarks != ''">#{remarks},</if>
+        <if test="descriptions != null and descriptions != ''">#{descriptions},</if>
+        <if test="environment != null and environment != ''">#{environment},</if>
+        <if test="sessionUuid != null and sessionUuid != ''">#{sessionUuid},</if>
+        sysdate()
+        )
+    </insert>
+
+    <update id="updateHistoryRecord" parameterType="AiHistoryEntity" keyProperty="id">
+        update ai_history_message
+        <set>
+            <if test="userId != null and userId != ''">
+                    user_id = #{userId, jdbcType=VARCHAR},
+            </if>
+            <if test="userName != null and userName != ''">
+                user_name = #{userName, jdbcType=VARCHAR},
+            </if>
+            <if test="conversationId != null and conversationId != ''">
+                conversation_id = #{conversationId, jdbcType=VARCHAR},
+            </if>
+            <if test="agentId != null and agentId != ''">
+                agent_id = #{agentId, jdbcType=VARCHAR},
+            </if>
+            <if test="agentName != null and agentName != ''">
+                agent_name = #{agentName, jdbcType=VARCHAR},
+            </if>
+            <if test="fenciSessionId != null and fenciSessionId != ''">
+                fenci_session_id = #{fenciSessionId, jdbcType=VARCHAR},
+            </if>
+            <if test="fenciAgentId != null and fenciAgentId != ''">
+                fenci_agent_id = #{fenciAgentId, jdbcType=VARCHAR},
+            </if>
+            <if test="fenciAgentName != null and fenciAgentName != ''">
+                fenci_agent_name = #{fenciAgentName, jdbcType=VARCHAR},
+            </if>
+            <if test="question != null and question != ''">
+                question = #{question, jdbcType=VARCHAR},
+            </if>
+            <if test="actualQuestion != null and actualQuestion != ''">
+                actual_question = #{actualQuestion, jdbcType=VARCHAR},
+            </if>
+            <if test="splitWords != null and splitWords != ''">
+                split_words = #{splitWords, jdbcType=VARCHAR},
+            </if>
+            <if test="answer != null and answer != ''">
+                answer = #{answer, jdbcType=VARCHAR},
+            </if>
+            <if test="answerAll != null and answerAll != ''">
+                answer_all = #{answerAll, jdbcType=VARCHAR},
+            </if>
+            <if test="permission != null and permission != ''">
+                permission = #{permission, jdbcType=VARCHAR},
+            </if>
+            <if test="isDeep != null and isDeep != ''">
+                is_deep = #{isDeep, jdbcType=VARCHAR},
+            </if>
+            <if test="isGood != null and isGood != ''">
+                is_good = #{isGood, jdbcType=VARCHAR},
+            </if>
+            <if test="answerTime != null and answerTime != ''">
+                answer_time = #{answerTime, jdbcType=VARCHAR},
+            </if>
+            <if test="questionFeedback != null and questionFeedback != ''">
+                question_feedback = #{questionFeedback, jdbcType=VARCHAR},
+            </if>
+            <if test="answerFeedback != null and answerFeedback != ''">
+                answer_feedback = #{answerFeedback, jdbcType=VARCHAR},
+            </if>
+            <if test="opinionFeedback != null and opinionFeedback != ''">
+                opinion_feedback = #{opinionFeedback, jdbcType=VARCHAR},
+            </if>
+            <if test="remarks != null and remarks != ''">
+                remarks = #{remarks, jdbcType=VARCHAR},
+            </if>
+            <if test="descriptions != null and descriptions != ''">
+                descriptions = #{descriptions, jdbcType=VARCHAR},
+            </if>
+            <if test="environment != null and environment != ''">
+                environment = #{environment, jdbcType=VARCHAR},
+            </if>
+            <if test="sessionUuid != null and sessionUuid != ''">
+                session_uuid = #{sessionUuid, jdbcType=VARCHAR},
+            </if>
+            update_time = sysdate()
+        </set>
+        where id = #{id, jdbcType=BIGINT}
+    </update>
+
+    <select id="getHistoryRecordList"
+            parameterType = "com.ds.cockpit.screen.common.core.domain.entity.vo.AiHistoryRequestVO"
+            resultType="com.ds.cockpit.screen.common.core.domain.entity.vo.AiHistoryResponseVo">
+        SELECT
+            conversation_id as conversationId,
+            session_uuid as sessionUuid,
+            user_id as userId,
+            question,
+            MIN(create_time) AS createTime
+        FROM ai_history_message
+        where user_id = #{vo.userId}
+        GROUP BY
+            session_uuid
+        order by create_time
+    </select>
+
+    <select id="getHistoryDetailsListNotNull"
+            parameterType = "com.ds.cockpit.screen.common.core.domain.entity.vo.AiHistoryRequestVO"
+            resultMap="AiHistoryResult">
+        SELECT
+            id, user_id, user_name, conversation_id, agent_id, agent_name,
+            fenci_session_id, fenci_agent_id, fenci_agent_name,
+            question, actual_question, split_words, answer, answer_all,
+            permission, is_deep, is_good, answer_time,session_uuid,
+            question_feedback, answer_feedback, opinion_feedback, remarks, descriptions, environment,  create_time, update_time
+        FROM ai_history_message
+        WHERE (question_feedback is not null AND question_feedback != '')
+            OR (answer_feedback is not null AND answer_feedback != '')
+            OR (opinion_feedback is not null AND opinion_feedback != '')
+            AND DATE_FORMAT(create_time, '%Y-%m') = #{vo.times}
+        order by create_time
+    </select>
+
+    <select id="getHistoryDetailsList"
+            parameterType = "com.ds.cockpit.screen.common.core.domain.entity.vo.AiHistoryRequestVO"
+            resultType="com.ds.cockpit.screen.common.core.domain.entity.vo.AiHistoryResponseVo">
+        SELECT
+            id,
+            user_name as userName,
+            conversation_id as conversationId,
+            session_uuid as sessionUuid,
+            question,
+            answer,
+            answer_time as answerTime,
+            is_good as isGood,
+            question_feedback as questionFeedback,
+            answer_feedback as answerFeedback,
+            opinion_feedback as opinionFeedback,
+            create_time as createTime
+        FROM ai_history_message
+        where DATE_FORMAT(create_time, '%Y-%m') = #{vo.times}
+        order by create_time
+    </select>
+
+    <select id="getHistory"
+            parameterType = "com.ds.cockpit.screen.common.core.domain.entity.vo.AiHistoryRequestVO"
+            resultMap="AiHistoryResult">
+        SELECT
+            id, user_id, user_name, conversation_id, agent_id, agent_name,
+            fenci_session_id, fenci_agent_id, fenci_agent_name,
+            question, actual_question, split_words, answer, answer_all,
+            permission, is_deep, is_good, answer_time,session_uuid,
+            question_feedback, answer_feedback, opinion_feedback, remarks, descriptions, environment,  create_time, update_time
+        FROM ai_history_message
+        where user_id = #{vo.userId} and session_uuid = #{vo.sessionUuid}
+        ORDER BY create_time
+    </select>
+
+    <select id="getAiHistoryList" parameterType="AiHistoryEntity" resultMap="AiHistoryResult">
+        SELECT
+            id, user_id, user_name, conversation_id, agent_id, agent_name,
+            fenci_session_id, fenci_agent_id, fenci_agent_name,
+            question, actual_question, split_words, answer, answer_all,
+            permission, is_deep, is_good, answer_time,session_uuid,
+            question_feedback, answer_feedback, opinion_feedback, remarks, descriptions, environment,  create_time, update_time
+        FROM ai_history_message
+        where 1=1
+        <if test="userId != null and userId != ''">
+            and user_id = #{userId, jdbcType=VARCHAR}
+        </if>
+        <if test="userName != null and userName != ''">
+            and user_name = #{userName, jdbcType=VARCHAR}
+        </if>
+        <if test="conversationId != null and conversationId != ''">
+            and conversation_id = #{conversationId, jdbcType=VARCHAR}
+        </if>
+        <if test="agentId != null and agentId != ''">
+            and agent_id = #{agentId, jdbcType=VARCHAR}
+        </if>
+        <if test="agentName != null and agentName != ''">
+            and agent_name = #{agentName, jdbcType=VARCHAR}
+        </if>
+        <if test="fenciSessionId != null and fenciSessionId != ''">
+            and fenci_session_id = #{fenciSessionId, jdbcType=VARCHAR}
+        </if>
+        <if test="fenciAgentId != null and fenciAgentId != ''">
+            and fenci_agent_id = #{fenciAgentId, jdbcType=VARCHAR}
+        </if>
+        <if test="fenciAgentName != null and fenciAgentName != ''">
+            and fenci_agent_name = #{fenciAgentName, jdbcType=VARCHAR}
+        </if>
+        <if test="question != null and question != ''">
+            and question = #{question, jdbcType=VARCHAR}
+        </if>
+        <if test="actualQuestion != null and actualQuestion != ''">
+            and actual_question = #{actualQuestion, jdbcType=VARCHAR}
+        </if>
+        <if test="splitWords != null and splitWords != ''">
+            and split_words = #{splitWords, jdbcType=VARCHAR}
+        </if>
+        <if test="answer != null and answer != ''">
+            and answer = #{answer, jdbcType=VARCHAR}
+        </if>
+        <if test="answerAll != null and answerAll != ''">
+            and answer_all = #{answerAll, jdbcType=VARCHAR}
+        </if>
+        <if test="permission != null and permission != ''">
+            and permission = #{permission, jdbcType=VARCHAR}
+        </if>
+        <if test="isDeep != null and isDeep != ''">
+            and is_deep = #{isDeep, jdbcType=VARCHAR}
+        </if>
+        <if test="isGood != null and isGood != ''">
+            and is_good = #{isGood, jdbcType=VARCHAR}
+        </if>
+        <if test="answerTime != null and answerTime != ''">
+            and answer_time = #{answerTime, jdbcType=VARCHAR}
+        </if>
+        <if test="questionFeedback != null and questionFeedback != ''">
+            and question_feedback = #{questionFeedback, jdbcType=VARCHAR}
+        </if>
+        <if test="answerFeedback != null and answerFeedback != ''">
+            and answer_feedback = #{answerFeedback, jdbcType=VARCHAR}
+        </if>
+        <if test="opinionFeedback != null and opinionFeedback != ''">
+            and opinion_feedback = #{opinionFeedback, jdbcType=VARCHAR}
+        </if>
+        <if test="remarks != null and remarks != ''">
+            and remarks = #{remarks, jdbcType=VARCHAR}
+        </if>
+        <if test="descriptions != null and descriptions != ''">
+            and descriptions = #{descriptions, jdbcType=VARCHAR}
+        </if>
+        <if test="environment != null and environment != ''">
+            and environment = #{environment, jdbcType=VARCHAR}
+        </if>
+        <if test="sessionUuid != null and sessionUuid != ''">
+            and session_uuid = #{sessionUuid, jdbcType=VARCHAR}
+        </if>
+        ORDER BY create_time
+    </select>
+
+
+    <select id="getKeyWordTOP" resultType="java.util.Map">
+        SELECT
+            TRIM(SUBSTRING_INDEX(SUBSTRING_INDEX(
+                REPLACE(a.split_words, '，', ','),
+                ',',
+                n.n
+                ), ',', -1)) AS word,
+            COUNT(*) AS counts
+        FROM
+            ai_history_message a
+        JOIN
+            (
+            SELECT 1 AS n UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL
+            SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL
+            SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10
+            ) n
+        ON
+            n.n &lt;=
+            LENGTH(REPLACE(a.split_words, '，', ',')) -
+            LENGTH(REPLACE(REPLACE(a.split_words, '，', ','), ',', '')) + 1
+        WHERE
+            a.split_words IS NOT NULL
+        AND a.split_words != ''
+        AND TRIM(SUBSTRING_INDEX(SUBSTRING_INDEX(
+            REPLACE(a.split_words, '，', ','),
+            ',',
+            n.n
+            ), ',', -1)) NOT REGEXP '[0-9]{4}年|[0-9]{1,2}月|[0-9]{1,2}日|年|月|日'
+        GROUP BY word
+        ORDER BY counts DESC
+        LIMIT 5
+    </select>
+
+
+    <select id="getQuestionTop" resultType="java.util.Map">
+        SELECT t1.question, t1.split_words as word , sum(t2.counts) as counts  FROM ai_history_message t1
+        JOIN (
+          SELECT
+            REPLACE(REPLACE(REPLACE(split_words, '，', ','), ' ,', ','), ', ', ',') AS norm_words,
+            MAX(update_time) AS max_time,
+            COUNT(*) AS counts
+          FROM ai_history_message
+          WHERE split_words IS NOT NULL AND split_words != ''
+          GROUP BY norm_words
+        ) t2 ON
+          REPLACE(REPLACE(REPLACE(t1.split_words, '，', ','), ' ,', ','), ', ', ',') = t2.norm_words
+          AND t1.update_time = t2.max_time
+        group by t1.question
+        ORDER BY t2.counts DESC
+        LIMIT 5
+    </select>
+
+    <select id="getQuestionKeyTop" resultType="java.util.Map" parameterType="String">
+        SELECT t1.question, t1.split_words as word , sum(t2.counts) as counts  FROM ai_history_message t1
+        JOIN (
+          SELECT
+            REPLACE(REPLACE(REPLACE(split_words, '，', ','), ' ,', ','), ', ', ',') AS norm_words,
+            MAX(update_time) AS max_time,
+            COUNT(*) AS counts
+          FROM ai_history_message
+          WHERE split_words IS NOT NULL AND split_words != ''
+          GROUP BY norm_words
+        ) t2 ON
+          REPLACE(REPLACE(REPLACE(t1.split_words, '，', ','), ' ,', ','), ', ', ',') = t2.norm_words
+          AND t1.update_time = t2.max_time
+        WHERE t1.question like concat('%', #{question}, '%')
+        GROUP by t1.question
+        ORDER BY t2.counts DESC
+        LIMIT 5
+    </select>
+
+    <select id="getAIAnswerNode" resultMap="AiHistoryResult" parameterType="String">
+        SELECT
+        id, user_id, user_name, question, answer,
+        answer_time,create_time, update_time
+        FROM ai_history_message
+        WHERE create_time <![CDATA[ > ]]> #{startTime} and create_time <![CDATA[ < ]]> #{endTime}
+        ORDER BY create_time
+    </select>
+
+
+    <select id="getAiHistoryNotSplitWordsList" parameterType="AiHistoryEntity" resultMap="AiHistoryResult">
+        SELECT
+        id, user_id, user_name, conversation_id, agent_id, agent_name,
+        fenci_session_id, fenci_agent_id,
+        question, actual_question, split_words,
+        permission, is_deep, is_good, answer_time,session_uuid,
+        question_feedback, answer_feedback, opinion_feedback, environment,  create_time, update_time
+        FROM ai_history_message
+        where split_words is null or split_words = ''
+        ORDER BY create_time
+    </select>
+
+</mapper>

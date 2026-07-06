@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ChatBI 模型配置</title>
+  <style>
+    :root{--blue:#2563eb;--cyan:#1098ad;--text:#111827;--sub:#6b7280;--line:#e5e7eb;--bg:#f4f7fb;--card:#fff;font-family:"PingFang SC",-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}
+    .wrap{max-width:980px;margin:0 auto;padding:18px 16px 40px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.top h1{font-size:22px;margin:0}.top a{color:var(--blue);text-decoration:none;font-weight:700}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px}@media(min-width:860px){.grid{grid-template-columns:1fr 1fr}.wide{grid-column:1/-1}}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 8px 24px rgba(15,23,42,.05)}.card h2{font-size:17px;margin:0 0 12px}.muted{color:var(--sub);font-size:13px;line-height:1.5}
+    label{display:block;font-size:12px;color:var(--sub);margin:9px 0 5px}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff;color:var(--text)}textarea{min-height:66px;resize:vertical}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.btn{border:0;border-radius:8px;background:var(--blue);color:#fff;padding:9px 13px;font-weight:800;cursor:pointer}.btn.secondary{background:#eef5ff;color:#1d4ed8}.btn.warn{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa}
+    table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid var(--line);padding:9px 7px;text-align:left;vertical-align:top}th{color:var(--sub);font-weight:700;background:#fafafa}.pill{display:inline-flex;border-radius:999px;padding:2px 8px;background:#eef5ff;color:#1d4ed8;font-weight:700;font-size:12px}
+    .status{white-space:pre-wrap;background:#0f172a;color:#e5e7eb;border-radius:10px;padding:12px;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;min-height:48px;overflow:auto}.ok{color:#16a34a}.bad{color:#dc2626}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>ChatBI 模型配置</h1>
+    <a id="chatLink" href="./chatbi-mobile-uat.html">返回问答</a>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>模型供应商</h2>
+      <div class="muted">API Key 不在前端保存，只填写环境变量引用名。</div>
+      <label>供应商</label>
+      <select id="providerSelect"></select>
+      <div class="row">
+        <div><label>名称</label><input id="providerName" /></div>
+        <div><label>类型</label><select id="providerType"><option>deepseek</option><option>glm</option><option>openai_compatible</option></select></div>
+      </div>
+      <label>Base URL</label><input id="providerBaseUrl" />
+      <div class="row">
+        <div><label>Key 环境变量</label><input id="providerKeyRef" placeholder="DEEPSEEK_API_KEY" /></div>
+        <div><label>状态</label><select id="providerStatus"><option>active</option><option>disabled</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>超时秒数</label><input id="providerTimeout" type="number" min="1" /></div>
+        <div><label>每分钟限流</label><input id="providerRate" type="number" min="1" /></div>
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="saveProvider()">保存供应商</button>
+        <button class="btn secondary" onclick="testProvider()">测试 Key</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>模型版本</h2>
+      <label>模型 ID</label><input id="modelId" placeholder="deepseek-chat" />
+      <div class="row">
+        <div><label>供应商</label><select id="modelProvider"></select></div>
+        <div><label>模型名称</label><input id="modelName" placeholder="deepseek-chat" /></div>
+      </div>
+      <div class="row">
+        <div><label>上下文窗口</label><input id="modelContext" type="number" value="64000" /></div>
+        <div><label>最大输出</label><input id="modelOutput" type="number" value="4000" /></div>
+      </div>
+      <div class="row">
+        <div><label>回退顺序</label><input id="modelOrder" type="number" value="100" /></div>
+        <div><label>状态</label><select id="modelStatus"><option>active</option><option>disabled</option></select></div>
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="saveModel()">保存模型</button>
+        <button class="btn secondary" onclick="loadAll()">刷新</button>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <h2>节点模型配置</h2>
+      <div class="muted">这里配置每个节点优先使用哪个模型，失败后按回退模型继续尝试。</div>
+      <div style="overflow:auto;margin-top:10px">
+        <table>
+          <thead><tr><th>节点</th><th>主模型</th><th>回退模型，逗号分隔</th><th>温度</th><th>输出</th><th>启用</th></tr></thead>
+          <tbody id="bindingsBody"></tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="saveBindings()">保存节点配置</button>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <h2>当前配置</h2>
+      <div id="status" class="status">加载中...</div>
+    </section>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const apiBase = params.get("api") || "http://127.0.0.1:8088/ds-cockpit-screen/api/v1/chatbi";
+document.getElementById("chatLink").href = "./chatbi-mobile-uat.html?api=" + encodeURIComponent(apiBase);
+let providers = [];
+let models = [];
+let bindings = [];
+
+function setStatus(data){document.getElementById("status").textContent = typeof data === "string" ? data : JSON.stringify(data,null,2)}
+async function api(path, options){
+  const res = await fetch(apiBase + path, options || {});
+  const text = await res.text();
+  let json;
+  try{json = JSON.parse(text)}catch(e){throw new Error(text || res.status)}
+  if(!res.ok || json.code >= 400) throw new Error(json.msg || text);
+  return json.data;
+}
+function optionList(items, valueKey, labelKey){
+  return items.map(x=>`<option value="${x[valueKey]}">${x[labelKey] || x[valueKey]}</option>`).join("");
+}
+function fillProviderForm(){
+  const id = document.getElementById("providerSelect").value;
+  const p = providers.find(x=>x.provider_id===id) || providers[0] || {};
+  document.getElementById("providerName").value = p.provider_name || "";
+  document.getElementById("providerType").value = p.provider_type || "openai_compatible";
+  document.getElementById("providerBaseUrl").value = p.base_url || "";
+  document.getElementById("providerKeyRef").value = p.api_key_ref || "";
+  document.getElementById("providerStatus").value = p.status || "active";
+  document.getElementById("providerTimeout").value = p.timeout_seconds || 30;
+  document.getElementById("providerRate").value = p.rate_limit_qpm || 60;
+}
+function renderBindings(){
+  const modelOptions = optionList(models, "model_id", "model_name");
+  document.getElementById("bindingsBody").innerHTML = bindings.map((b,i)=>`
+    <tr>
+      <td><span class="pill">${b.node_type}</span></td>
+      <td><select data-i="${i}" data-k="primary_model_id">${modelOptions}</select></td>
+      <td><input data-i="${i}" data-k="fallback_model_ids" value="${b.fallback_model_ids || ""}" /></td>
+      <td><input data-i="${i}" data-k="temperature" type="number" step="0.1" value="${b.temperature || 0.2}" /></td>
+      <td><input data-i="${i}" data-k="max_output_tokens" type="number" value="${b.max_output_tokens || 1200}" /></td>
+      <td><select data-i="${i}" data-k="enabled"><option value="true">是</option><option value="false">否</option></select></td>
+    </tr>`).join("");
+  document.querySelectorAll("[data-i]").forEach(el=>{
+    const b = bindings[Number(el.dataset.i)];
+    const v = b[el.dataset.k];
+    if(v !== undefined && v !== null) el.value = String(v);
+    el.onchange = el.oninput = () => {
+      bindings[Number(el.dataset.i)][el.dataset.k] = el.dataset.k === "enabled" ? el.value === "true" : el.value;
+    };
+  });
+}
+async function loadAll(){
+  try{
+    const summary = await api("/config/summary");
+    providers = await api("/model-providers");
+    models = await api("/model-versions");
+    bindings = await api("/agents/supply_chain/model-bindings");
+    document.getElementById("providerSelect").innerHTML = optionList(providers, "provider_id", "provider_name");
+    document.getElementById("modelProvider").innerHTML = optionList(providers, "provider_id", "provider_name");
+    document.getElementById("providerSelect").onchange = fillProviderForm;
+    fillProviderForm();
+    renderBindings();
+    setStatus({summary, providers, models, bindings});
+  }catch(e){setStatus("加载失败：" + e.message)}
+}
+async function saveProvider(){
+  const id = document.getElementById("providerSelect").value || document.getElementById("providerType").value;
+  const body = {
+    provider_id:id,
+    provider_name:document.getElementById("providerName").value,
+    provider_type:document.getElementById("providerType").value,
+    base_url:document.getElementById("providerBaseUrl").value,
+    api_key_ref:document.getElementById("providerKeyRef").value,
+    status:document.getElementById("providerStatus").value,
+    timeout_seconds:Number(document.getElementById("providerTimeout").value || 30),
+    rate_limit_qpm:Number(document.getElementById("providerRate").value || 60)
+  };
+  try{setStatus(await api("/model-providers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})); await loadAll()}catch(e){setStatus("保存失败：" + e.message)}
+}
+async function testProvider(){
+  const id = document.getElementById("providerSelect").value;
+  try{setStatus(await api("/model-providers/"+encodeURIComponent(id)+"/test",{method:"POST"}))}catch(e){setStatus("测试失败：" + e.message)}
+}
+async function saveModel(){
+  const body = {
+    model_id:document.getElementById("modelId").value,
+    provider_id:document.getElementById("modelProvider").value,
+    model_name:document.getElementById("modelName").value,
+    context_window:Number(document.getElementById("modelContext").value || 32000),
+    max_output_tokens:Number(document.getElementById("modelOutput").value || 4000),
+    fallback_order:Number(document.getElementById("modelOrder").value || 100),
+    status:document.getElementById("modelStatus").value
+  };
+  try{setStatus(await api("/model-versions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})); await loadAll()}catch(e){setStatus("保存失败：" + e.message)}
+}
+async function saveBindings(){
+  const body = {bindings: bindings.map(b=>({
+    node_type:b.node_type,
+    primary_model_id:b.primary_model_id,
+    fallback_model_ids:b.fallback_model_ids,
+    prompt_version_id:b.prompt_version_id || "default_prompt_v1",
+    temperature:Number(b.temperature || 0.2),
+    max_output_tokens:Number(b.max_output_tokens || 1200),
+    timeout_seconds:Number(b.timeout_seconds || 30),
+    enabled:b.enabled !== false
+  }))};
+  try{setStatus(await api("/agents/supply_chain/model-bindings",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})); await loadAll()}catch(e){setStatus("保存失败：" + e.message)}
+}
+loadAll();
+</script>
+</body>
+</html>

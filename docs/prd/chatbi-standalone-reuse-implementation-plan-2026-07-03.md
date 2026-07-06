@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 复用原 ChatBI Vue 前端和 Java/Spring Boot 后端，移除 Dify 依赖，接入 K线大模型投研工具，并预留飞书、钉钉、企业微信挂载能力。
+**Goal:** 复用原 ChatBI Vue 前端和 Java/Spring Boot 后端，移除 Dify 依赖，接入 K线大模型投研工具，做成独立移动端 ChatBI H5 应用，并预留飞书、钉钉、企业微信挂载能力。
 
-**Architecture:** 第一版先完成前端原型设计和预览设计，再完成后端设计、数据设计、接口契约和整体架构设计；所有设计文档通过验收后，才进入工程实施。工程侧保留原 ChatBI 的前端交互、会话历史和反馈能力；后端把 Dify 流式转发替换为 ChatBI Orchestrator；投研数据通过 K线大模型 FastAPI 工具接口访问，不直接查核心 PostgreSQL 表。
+**Architecture:** 第一版先完成移动端前端原型设计和预览设计，再完成后端设计、数据设计、接口契约和整体架构设计；所有设计文档通过验收后，才进入工程实施。工程侧保留原 ChatBI 的前端交互、会话历史和反馈能力；后端把 Dify 流式转发替换为 ChatBI Orchestrator；投研数据通过 K线大模型 FastAPI 工具接口访问，不直接查核心 PostgreSQL 表。
 
 **Tech Stack:** Vue + Java Spring Boot/RuoYi + MyBatis/MySQL 或 PostgreSQL 会话库 + FastAPI 工具服务 + SSE + H5 企业应用 WebView。
 
@@ -21,9 +21,11 @@
 - 生产问答只能使用 published 提示词版本和 published 报告模板版本。
 - SSE 首包 P95 ≤ 3 秒；普通工具查询 P95 ≤ 2 秒；长任务必须返回节点进度。
 - 投资相关回答必须显示数据日期、模型版本或证据来源。
-- 后端、前端和数据库实施前，必须先完成前端原型、静态预览、后端设计、架构设计、接口契约、数据模型和总体验收记录，并同步更新 PRD、详细设计和实施计划。
+- 后端、前端和数据库实施前，必须先完成移动端前端原型、静态预览、后端设计、架构设计、接口契约、数据模型和总体验收记录，并同步更新 PRD、详细设计和实施计划。
 - Phase 0 只允许做源码审计、安全清理和工程边界确认，不写业务实现；Phase 1 和 Phase 2 完成前，不进入任何后端、前端、数据库或平台接入实施。
 - 工程实现必须最大化复用 `chatBI/ai 前端.zip` 和 `chatBI/AI 后端.zip` 的源码；无法复用的文件或模块必须写入代码复用清单并说明原因。
+- 移动端 ChatBI 必须独立目录、独立构建、独立路由；不得修改现有 PC 端页面、路由、左侧导航、业务组件和既有接口契约。
+- 如后续需要 PC 端入口，只允许新增隔离外链或独立管理入口，并且必须先单独确认；不能改变原 PC 页面布局、菜单结构和数据逻辑。
 
 ---
 
@@ -42,7 +44,7 @@
 
 **目标:** 把可复用源码从压缩包中提取出来，剔除 `.git`、`target`、IDE 文件和敏感配置。
 
-- [ ] **Step 1: 解压到隔离目录**
+- [x] **Step 1: 解压到隔离目录**
 
 ```bash
 mkdir -p chatbi-workspace/raw
@@ -52,7 +54,7 @@ unzip -q "chatBI/AI 后端.zip" -d chatbi-workspace/raw/backend
 
 预期：`chatbi-workspace/raw/frontend/ai` 和 `chatbi-workspace/raw/backend/cockpit-screen` 存在。
 
-- [ ] **Step 2: 复制可用源码**
+- [x] **Step 2: 复制可用源码**
 
 ```bash
 mkdir -p chatbi-workspace/frontend-vue chatbi-workspace/backend-java
@@ -62,7 +64,7 @@ rsync -a --exclude='.git' --exclude='.idea' --exclude='target' chatbi-workspace/
 
 预期：干净目录中没有 `.git`、`.idea`、`target`。
 
-- [ ] **Step 3: 扫描敏感信息**
+- [x] **Step 3: 扫描敏感信息**
 
 ```bash
 rg -n "password|passwd|secret|agentKey|agent_key|Bearer|jdbc:mysql|10\\.|app-" chatbi-workspace/backend-java chatbi-workspace/frontend-vue
@@ -70,7 +72,7 @@ rg -n "password|passwd|secret|agentKey|agent_key|Bearer|jdbc:mysql|10\\.|app-" c
 
 预期：输出所有疑似密钥和内部地址，写入审计报告。
 
-- [ ] **Step 4: 形成审计报告**
+- [x] **Step 4: 形成审计报告**
 
 报告必须包含：
 
@@ -83,7 +85,7 @@ rg -n "password|passwd|secret|agentKey|agent_key|Bearer|jdbc:mysql|10\\.|app-" c
 是否允许进入后续开发
 ```
 
-- [ ] **Step 5: 形成代码复用清单**
+- [x] **Step 5: 形成代码复用清单**
 
 复用清单必须覆盖前端：
 
@@ -122,7 +124,7 @@ RuoYi 权限和审计相关基础类
 风险
 ```
 
-- [ ] **Step 6: 验证**
+- [x] **Step 6: 验证**
 
 ```bash
 test ! -d chatbi-workspace/backend-java/.git
@@ -132,6 +134,14 @@ rg -n "原样复用|适配复用|扩展复用|替换|废弃" docs/reviews/chatbi
 ```
 
 预期：目录清理命令返回 0；代码复用清单至少覆盖上述前端文件和后端模块。
+
+- [x] **Step 7: 确认没有触碰现有 PC 端**
+
+```bash
+git diff --name-only -- frontend src docs/design docs/prd | rg "frontend/src|src/pages|router|menu|layout" || true
+```
+
+预期：本阶段不出现现有 PC 端页面、路由、菜单、布局和业务组件改动；如出现，必须退回并说明原因。
 
 ### Task 2: 密钥和配置治理
 
@@ -144,7 +154,7 @@ rg -n "原样复用|适配复用|扩展复用|替换|废弃" docs/reviews/chatbi
 
 **目标:** 删除包内明文账号、密码、内部 URL 和 Dify key，把运行配置改为环境变量。
 
-- [ ] **Step 1: 把数据库配置改为环境变量**
+- [x] **Step 1: 把数据库配置改为环境变量**
 
 配置示例：
 
@@ -158,7 +168,7 @@ spring:
         password: ${CHATBI_DB_PASSWORD}
 ```
 
-- [ ] **Step 2: 删除 Dify 配置**
+- [x] **Step 2: 删除 Dify 配置**
 
 删除或废弃：
 
@@ -178,7 +188,7 @@ chatbi:
   streamTimeoutSeconds: ${CHATBI_STREAM_TIMEOUT_SECONDS:60}
 ```
 
-- [ ] **Step 3: 创建 `.env.example`**
+- [x] **Step 3: 创建 `.env.example`**
 
 必须包含：
 
@@ -190,7 +200,7 @@ CHATBI_TOOL_GATEWAY_BASE_URL=
 CHATBI_PLATFORM_SECRET=
 ```
 
-- [ ] **Step 4: 记录密钥轮换**
+- [x] **Step 4: 记录密钥轮换**
 
 文档记录：
 
@@ -204,6 +214,8 @@ CHATBI_PLATFORM_SECRET=
 ```
 
 - [ ] **Step 5: 验证**
+
+当前配置文件层面的旧密钥、旧内网 URL、旧 Dify/RAGFlow key 已清理；验证命令仍命中 `agentKey` 字段名和旧服务代码中的 `getAgentKey()` 调用。它们不是明文生产密钥，但代表旧 Dify/RAGFlow 调用链仍未替换，需在 Phase 3 `ChatBI Orchestrator` 改造时消除。
 
 ```bash
 rg -n "jdbc:mysql://|password: '.+'|agentKey|Bearer app-|10\\.30\\." chatbi-workspace/backend-java
@@ -286,14 +298,14 @@ L8 证据明细
 - Create: `docs/design/chatbi-preview/mock-data.json`
 - Create: `docs/design/chatbi-preview-spec-2026-07-03.md`
 
-**目标:** 先输出可打开的静态预览文件给产品评审，再补齐预览说明。预览必须优先复用现有新前端工作台设计、原 ChatBI 前端交互和原 Java 后端会话/智能体/反馈设计，不重新发明一套 UI 或后端概念。
+**目标:** 先输出可打开的移动端静态预览文件给产品评审，再补齐预览说明。预览必须优先复用原 ChatBI 前端交互和原 Java 后端会话/智能体/反馈设计；`docs/design/new front/` 只作为视觉参考，不把 ChatBI 做成现有 PC 工作台页面。
 
 - [x] **Step 1: 制作静态预览文件**
 
 `index.html` 必须能直接打开，并展示：
 
 ```text
-首页预览
+移动首页预览
 问答流式过程预览
 结构化表格预览
 证据链卡片预览
@@ -306,9 +318,9 @@ L8 证据明细
 复用要求：
 
 ```text
-视觉结构复用 docs/design/new front/ 的左侧导航、顶部状态栏、模块页签、工作台卡片和高密度表格风格。
-聊天交互复用 ai 前端.zip 中 index.vue、module1.vue、componentsHistory.vue、Markdown.vue、feedback.vue 的信息结构。
+移动端交互复用 ai 前端.zip 中 index.vue、module1.vue、componentsHistory.vue、Markdown.vue、feedback.vue 的信息结构。
 后端概念复用 AI 后端.zip 中 GacDifyAIController、AiHistoryController、AiAgentTypeDifyController、AiHistoryEntity、GacDifyData 的会话、历史、智能体、流式事件和反馈设计。
+视觉风格参考 docs/design/new front/ 的卡片密度、状态标签和表格表达，但不复用 PC 左侧导航和工作台壳。
 ```
 
 - [x] **Step 2: 准备 mock 场景**
@@ -326,7 +338,7 @@ DeepSeek 和 GLM5.2 模型配置示例
 报告生成示例
 ```
 
-- [ ] **Step 3: 编写预览说明**
+- [x] **Step 3: 编写预览说明**
 
 ```text
 docs/design/chatbi-preview-spec-2026-07-03.md
@@ -342,19 +354,19 @@ docs/design/chatbi-preview-spec-2026-07-03.md
 哪些地方后续才接真实接口
 ```
 
-- [ ] **Step 4: 移动端预览**
+- [x] **Step 4: 移动端预览**
 
 至少检查 390px 宽度：
 
 ```text
-输入框不遮挡
+底部输入框不遮挡
 表格可横向滚动
 证据卡片可折叠
 模型配置表单不溢出
 报告预览章节可阅读
 ```
 
-- [ ] **Step 5: 验证**
+- [x] **Step 5: 验证**
 
 用浏览器打开：
 
@@ -375,7 +387,7 @@ docs/design/chatbi-preview/index.html
 
 **目标:** 前端原型和静态预览评审通过后，把变化同步回 PRD、详细设计和实施计划。该 Gate 只允许进入后端设计和架构设计，不允许直接进入工程实施。
 
-- [ ] **Step 1: 记录评审结论**
+- [x] **Step 1: 记录评审结论**
 
 评审记录必须包含：
 
@@ -390,7 +402,7 @@ docs/design/chatbi-preview/index.html
 是否允许进入后端设计和架构设计
 ```
 
-- [ ] **Step 2: 更新文档**
+- [x] **Step 2: 更新文档**
 
 如果评审中调整了页面、交互、数据结构、接口或实施顺序，必须同步更新：
 
@@ -400,7 +412,7 @@ PRD
 实施计划
 ```
 
-- [ ] **Step 3: 设置下一阶段门槛**
+- [x] **Step 3: 设置下一阶段门槛**
 
 只有评审记录写明：
 
@@ -427,7 +439,7 @@ PRD
 
 **目标:** 在写后端代码前，先定义 ChatBI 后端边界、接口契约、工具调用契约、错误码、权限和日志字段。
 
-- [ ] **Step 1: 设计后端模块边界**
+- [x] **Step 1: 设计后端模块边界**
 
 后端设计必须覆盖：
 
@@ -447,7 +459,7 @@ AuditLogService
 
 后端设计必须说明哪些能力来自原代码复用，哪些能力由新增服务补充。
 
-- [ ] **Step 2: 设计 API 契约**
+- [x] **Step 2: 设计 API 契约**
 
 接口契约必须覆盖：
 
@@ -478,7 +490,7 @@ permission
 audit_fields
 ```
 
-- [ ] **Step 3: 设计工具调用契约**
+- [x] **Step 3: 设计工具调用契约**
 
 工具契约必须覆盖：
 
@@ -495,7 +507,7 @@ report_export
 
 每个工具必须写清输入参数、输出结构、数据日期字段、证据来源字段和空状态。
 
-- [ ] **Step 4: 验证**
+- [x] **Step 4: 验证**
 
 检查：
 
@@ -519,7 +531,7 @@ docs/design/chatbi-tool-contract-2026-07-03.md
 
 **目标:** 在建表、接模型和接真实数据前，先明确数据模型、系统边界、安全边界、可观测性和部署架构。
 
-- [ ] **Step 1: 设计数据模型**
+- [x] **Step 1: 设计数据模型**
 
 数据模型必须覆盖：
 
@@ -544,7 +556,7 @@ chatbi_audit_logs
 
 每张表必须写清主键、关键字段、唯一约束、索引、数据保留策略和是否包含敏感信息。
 
-- [ ] **Step 2: 设计系统架构**
+- [x] **Step 2: 设计系统架构**
 
 架构设计必须覆盖：
 
@@ -569,7 +581,7 @@ SSE 链路
 平台免登链路
 ```
 
-- [ ] **Step 3: 设计安全和可观测性**
+- [x] **Step 3: 设计安全和可观测性**
 
 必须覆盖：
 
@@ -585,7 +597,7 @@ token 和成本统计
 审计日志
 ```
 
-- [ ] **Step 4: 验证**
+- [x] **Step 4: 验证**
 
 预期：数据表、架构图、链路说明、安全策略和日志字段能支撑 PRD 的 AC-1 到 AC-21。
 
@@ -600,7 +612,7 @@ token 和成本统计
 
 **目标:** 前端原型、后端设计、架构设计、接口契约和数据模型全部验收通过后，才允许进入工程实施。
 
-- [ ] **Step 1: 汇总设计文档**
+- [x] **Step 1: 汇总设计文档**
 
 验收必须覆盖：
 
@@ -615,7 +627,7 @@ chatbi-architecture-design
 chatbi-security-observability-design
 ```
 
-- [ ] **Step 2: 对照 PRD AC 自检**
+- [x] **Step 2: 对照 PRD AC 自检**
 
 每条 AC 必须能映射到：
 
@@ -626,11 +638,11 @@ chatbi-security-observability-design
 验收方法
 ```
 
-- [ ] **Step 3: 更新文档**
+- [x] **Step 3: 更新文档**
 
 如果验收发现 PRD、详细设计或实施计划与设计文档不一致，先更新文档，再进入实施。
 
-- [ ] **Step 4: 设置实施准入**
+- [x] **Step 4: 设置实施准入**
 
 只有验收文档写明：
 
@@ -644,6 +656,8 @@ chatbi-security-observability-design
 
 ## Phase 3: 后端 ChatBI Orchestrator
 
+> 2026-07-03 MVP 实施状态：已完成最小可用闭环，范围为标准 ChatBI API、兼容旧流式入口、规则意图识别、产业链候选工具调用、SSE 事件和移动端 H5 UAT 页。提示词管理、报告模板管理、节点级模型真实配置、企业 SSO、会话持久化表和完整权限体系仍按 Phase 4-6 后续推进，未在本轮冒充完成。
+
 ### Task 3: 建立标准 ChatBI API 和兼容路由
 
 **Files:**
@@ -654,7 +668,7 @@ chatbi-security-observability-design
 
 **目标:** 新增标准 `/api/v1/chatbi` 路由，同时保留 `/gac/dify/ai` 兼容路径。
 
-- [ ] **Step 1: 新增接口**
+- [x] **Step 1: 新增接口**
 
 接口清单：
 
@@ -668,7 +682,7 @@ GET  /api/v1/chatbi/sessions
 GET  /api/v1/chatbi/sessions/{sessionId}
 ```
 
-- [ ] **Step 2: 兼容旧路由**
+- [x] **Step 2: 兼容旧路由**
 
 旧路由映射：
 
@@ -679,7 +693,7 @@ GET  /api/v1/chatbi/sessions/{sessionId}
 /gac/dify/ai/feedback -> /api/v1/chatbi/feedback
 ```
 
-- [ ] **Step 3: 验证**
+- [x] **Step 3: 验证**
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/chatbi/sessions
@@ -699,7 +713,7 @@ curl -X POST http://localhost:8080/gac/dify/ai/created/session
 
 **目标:** 后端能输出标准事件，并兼容前端现有 `type/node/times/message/isShow` 字段。
 
-- [ ] **Step 1: 定义事件类型**
+- [x] **Step 1: 定义事件类型**
 
 事件类型：
 
@@ -713,7 +727,7 @@ error
 done
 ```
 
-- [ ] **Step 2: 定义兼容输出**
+- [x] **Step 2: 定义兼容输出**
 
 标准事件必须映射为：
 
@@ -727,7 +741,7 @@ done
 }
 ```
 
-- [ ] **Step 3: 测试事件顺序**
+- [x] **Step 3: 测试事件顺序**
 
 输入一个问题后，测试流包含：
 
@@ -751,7 +765,7 @@ done
 
 **目标:** 第一版用规则识别常见投研问题。
 
-- [ ] **Step 1: 支持意图**
+- [x] **Step 1: 支持意图**
 
 ```text
 supply_chain_ranking
@@ -765,7 +779,7 @@ data_quality
 unknown
 ```
 
-- [ ] **Step 2: 编写规则**
+- [x] **Step 2: 编写规则**
 
 规则示例：
 
@@ -778,6 +792,15 @@ unknown
 ```
 
 - [ ] **Step 3: 验证**
+
+MVP 已验证：
+
+```text
+AI算力候选公司Top5 -> supply_chain_ranking
+具身智能产业链卡脖子公司清单 -> supply_chain_ranking
+```
+
+完整问题集仍在 Phase 7 按 30 条问题继续验收。
 
 测试问题：
 
@@ -803,6 +826,16 @@ AI算力候选公司Top5
 
 - [ ] **Step 1: 支持工具接口**
 
+MVP 已接通：
+
+```text
+GET /api/v1/screener/supply-chain/candidate-ranking
+GET /api/v1/screener/modes
+GET /api/v1/screener/market/index-quotes
+```
+
+`company/{code}`、`business-tag/{mapping_id}/evidence-chain` 和 `POST /screener/run` 待后续接入。
+
 第一批接口：
 
 ```text
@@ -814,7 +847,7 @@ GET /api/v1/screener/modes
 GET /api/v1/screener/market/index-quotes
 ```
 
-- [ ] **Step 2: 增加超时和错误结构**
+- [x] **Step 2: 增加超时和错误结构**
 
 默认：
 
@@ -824,7 +857,7 @@ readTimeout = 10s
 maxRows = 200
 ```
 
-- [ ] **Step 3: 验证真实接口**
+- [x] **Step 3: 验证真实接口**
 
 ```bash
 curl "http://127.0.0.1:8000/api/v1/screener/supply-chain/candidate-ranking?top_n=5"
@@ -842,7 +875,7 @@ curl "http://127.0.0.1:8000/api/v1/screener/supply-chain/candidate-ranking?top_n
 
 **目标:** 替换 Dify 调用链，串联意图识别、工具调用、答案组装和流式事件。
 
-- [ ] **Step 1: 删除 Dify 运行依赖**
+- [x] **Step 1: 删除 Dify 运行依赖**
 
 禁用以下行为：
 
@@ -852,7 +885,7 @@ curl "http://127.0.0.1:8000/api/v1/screener/supply-chain/candidate-ranking?top_n
 调用 Dify workflow
 ```
 
-- [ ] **Step 2: 输出节点事件**
+- [x] **Step 2: 输出节点事件**
 
 每次问答至少输出：
 
@@ -865,6 +898,8 @@ curl "http://127.0.0.1:8000/api/v1/screener/supply-chain/candidate-ranking?top_n
 ```
 
 - [ ] **Step 3: 答案生成**
+
+MVP 已完成模板化答案生成和产业链候选结果格式化；真实大模型节点级配置、token 记录、prompt 版本记录仍按后续 Model Gateway / Prompt Manager 实施。
 
 第一版按智能体和节点配置决定是否调用大模型。规则能回答的问题可用模板回答；需要语义识别、查询规划、数据查询辅助、证据抽取、自然语言总结、报告正文时，按当前节点读取模型配置：
 
@@ -899,7 +934,7 @@ answer_generation
 report_generation
 ```
 
-- [ ] **Step 4: 验证**
+- [x] **Step 4: 验证**
 
 ```bash
 curl -N -X POST http://localhost:8080/api/v1/chatbi/messages/stream \
@@ -913,6 +948,10 @@ curl -N -X POST http://localhost:8080/api/v1/chatbi/messages/stream \
 
 ## Phase 4: 数据、会话、反馈和智能体配置
 
+> 2026-07-04 进展：Task 8 的 ChatBI 自有核心表已落地，Java 后端启动时会自动 `CREATE TABLE IF NOT EXISTS`，同时保留 `db/migration/chatbi/V001__chatbi_core_tables.sql` 作为正式迁移脚本。会话、消息、节点事件、工具调用和反馈已通过真实问答写入 PostgreSQL。
+
+> 2026-07-04 进展：Task 9 的配置底座已落地，新增 `V002__chatbi_agent_prompt_template.sql`，并在 Java 后端启动时自动建表和写入默认配置。当前完成模型供应商、模型版本、智能体、节点级模型绑定、提示词版本、报告模板版本的持久化和基础 API。LLM Gateway MVP 已新增 `V003__chatbi_llm_invocations.sql`，完成 DeepSeek、GLM5.2、OpenAI-compatible 的统一调用入口、fallback、调用日志和深度思考模式接入；本机未配置真实 API Key，因此已验证“不可用时明确降级”，未伪造真实模型连通成功。
+
 ### Task 8: 设计并迁移 ChatBI 会话表
 
 **Files:**
@@ -923,7 +962,7 @@ curl -N -X POST http://localhost:8080/api/v1/chatbi/messages/stream \
 
 **目标:** 建立 ChatBI 自有会话、消息、事件、反馈、工具调用表。
 
-- [ ] **Step 1: 创建表**
+- [x] **Step 1: 创建表**
 
 表清单：
 
@@ -938,6 +977,8 @@ chatbi_audit_logs
 
 - [ ] **Step 2: 兼容旧历史查询**
 
+MVP 已完成标准接口 `/api/v1/chatbi/sessions` 从数据库读取历史会话；旧接口 `/ai/histroy/record/list`、`/ai/histroy/gethistory` 尚未回归，保留为后续兼容任务。
+
 旧接口：
 
 ```text
@@ -947,7 +988,20 @@ chatbi_audit_logs
 
 仍返回前端可用结构。
 
-- [ ] **Step 3: 验证**
+- [x] **Step 3: 验证**
+
+2026-07-04 验证结果：
+
+```text
+chatbi_sessions: 1
+chatbi_messages: 1
+chatbi_message_events: 6
+chatbi_tool_calls: 1
+chatbi_feedback: 1
+最近会话标题：AI算力候选公司Top5
+最近消息状态：completed
+最近消息意图：supply_chain_ranking
+```
 
 提交一轮问答后检查：
 
@@ -977,7 +1031,7 @@ chatbi_tool_calls 有工具调用记录
 
 **目标:** 把原 Dify agent 配置改为 ChatBI 智能体、模型供应商、节点级模型、提示词和报告模板配置。第一版支持 DeepSeek、GLM5.2 和 OpenAI-compatible 供应商。
 
-- [ ] **Step 1: 新增配置表**
+- [x] **Step 1: 新增配置表**
 
 ```text
 chatbi_model_providers
@@ -991,7 +1045,7 @@ chatbi_report_template_versions
 chatbi_render_logs
 ```
 
-- [ ] **Step 2: 定义模型供应商字段**
+- [x] **Step 2: 定义模型供应商字段**
 
 `chatbi_model_providers` 必须支持：
 
@@ -1023,7 +1077,7 @@ fallback_order
 status
 ```
 
-- [ ] **Step 2.1: 定义节点级模型配置字段**
+- [x] **Step 2.1: 定义节点级模型配置字段**
 
 `chatbi_agent_model_bindings` 必须支持：
 
@@ -1054,7 +1108,7 @@ answer_generation
 report_generation
 ```
 
-- [ ] **Step 3: 内置供应商类型**
+- [x] **Step 3: 内置供应商类型**
 
 ```text
 deepseek
@@ -1070,7 +1124,9 @@ GLM: glm-5.2
 OpenAI-compatible: custom-model
 ```
 
-- [ ] **Step 4: 实现模型连通性测试**
+- [x] **Step 4: 实现模型连通性测试**
+
+MVP 当前实现为“配置可用性测试”：按 `api_key_ref` 检查本机环境变量并返回脱敏状态。未配置时返回 `unavailable`，不会伪造真实模型连通成功。
 
 接口：
 
@@ -1092,7 +1148,44 @@ POST /api/v1/chatbi/model-providers/{id}/test
 
 失败时只返回脱敏错误，不返回明文 key。
 
-- [ ] **Step 5: 实现 LLM Gateway**
+- [x] **Step 5: 实现 LLM Gateway**
+
+MVP 已实现统一 LLM Gateway，支持按 `agent_id + node_type` 读取节点级模型配置，依次尝试主模型和 fallback 模型，并记录 token、fallback、节点类型和调用状态。
+
+新增表：
+
+```text
+chatbi_llm_invocations
+```
+
+新增接口：
+
+```text
+POST /api/v1/chatbi/llm/generate
+```
+
+已接入节点：
+
+```text
+answer_generation
+```
+
+当前深度思考模式流程：
+
+```text
+规则识别 -> 工具查询 -> 模板化结果整理 -> answer_generation 调用 LLM Gateway -> 成功则追加大模型分析，失败则明确展示降级状态
+```
+
+本机验证状态：
+
+```text
+DEEPSEEK_API_KEY 未配置 -> deepseek-chat 返回 unavailable
+GLM_API_KEY 未配置 -> glm-5.2 返回 unavailable
+OPENAI_COMPATIBLE_API_KEY 未配置 -> custom-model 返回 unavailable
+chatbi_llm_invocations 已记录每一次尝试
+```
+
+注意：当前只验证了网关、配置读取、fallback、日志和降级链路。真实外部模型连通需要配置对应环境变量后再做联网 UAT。
 
 统一输入：
 
@@ -1123,7 +1216,7 @@ POST /api/v1/chatbi/model-providers/{id}/test
 }
 ```
 
-- [ ] **Step 6: 新增提示词版本管理**
+- [x] **Step 6: 新增提示词版本管理**
 
 `chatbi_prompt_versions` 必须支持：
 
@@ -1157,7 +1250,7 @@ archived
 POST /api/v1/chatbi/prompts/{id}/versions/{version}/publish
 ```
 
-- [ ] **Step 7: 新增报告模板版本管理**
+- [x] **Step 7: 新增报告模板版本管理**
 
 `chatbi_report_template_versions` 必须支持：
 
@@ -1182,7 +1275,22 @@ published_at
 POST /api/v1/chatbi/report-templates/{id}/versions/{version}/publish
 ```
 
-- [ ] **Step 8: 内置第一批智能体**
+- [x] **Step 8: 内置第一批智能体**
+
+2026-07-04 验证结果：
+
+```text
+chatbi_model_providers: 3
+chatbi_model_versions: 3
+chatbi_agents: 6
+chatbi_agent_model_bindings: 36
+chatbi_prompt_versions: 1
+chatbi_report_templates: 1
+chatbi_report_template_versions: 1
+默认供应商：deepseek、glm、openai_compatible
+默认模型：deepseek-chat、glm-5.2、custom-model
+默认智能体：总入口助手、产业链助手、选股助手、选债助手、报告助手、数据质量助手
+```
 
 ```text
 总入口助手
@@ -1214,7 +1322,7 @@ answer_generation -> primary_model_id=deepseek-chat
 report_generation -> primary_model_id=glm-5.2
 ```
 
-- [ ] **Step 9: 实现节点级模型配置接口**
+- [x] **Step 9: 实现节点级模型配置接口**
 
 接口：
 
@@ -1260,7 +1368,17 @@ PUT /api/v1/chatbi/agents/{id}/model-bindings
 接口响应不返回明文 key。
 ```
 
-- [ ] **Step 10: 实现预览接口**
+2026-07-04 验证结果：
+
+```text
+GET /api/v1/chatbi/agents/supply_chain/model-bindings -> code=200，返回 6 个节点配置
+PUT /api/v1/chatbi/agents/supply_chain/model-bindings -> code=200，成功保存 answer_generation 配置
+fallback_model_ids 请求数组 -> 入库为 glm-5.2,custom-model
+bad-model 负向保存 -> 返回业务错误，数据库未覆盖原配置
+响应字段检查 -> 不包含 api_key 字段
+```
+
+- [x] **Step 10: 实现预览接口**
 
 接口：
 
@@ -1288,7 +1406,25 @@ POST /api/v1/chatbi/preview
 预览可调用 mock 工具或真实只读工具。
 ```
 
-- [ ] **Step 11: 验证**
+2026-07-04 验证结果：
+
+```text
+新增表：chatbi_preview_logs
+POST /api/v1/chatbi/preview -> code=200
+agent_id=supply_chain
+node_type=answer_generation
+model_id=deepseek-chat
+provider_id=deepseek
+prompt_version_id=default_prompt_v1
+status=unavailable
+persisted_to_session=false
+正式会话数：5 -> 5
+preview log：0 -> 1
+```
+
+说明：本机未配置 `DEEPSEEK_API_KEY`，因此预览接口只验证到 LLM Gateway 降级和日志链路；真实模型内容预览需要配置 API Key 后再做外部连通 UAT。
+
+- [x] **Step 11: 验证**
 
 ```bash
 curl http://localhost:8080/api/v1/chatbi/agents
@@ -1310,6 +1446,25 @@ curl -N -X POST http://localhost:8080/api/v1/chatbi/messages/stream \
 
 预期：日志至少出现 `intent_recognition` 和 `report_generation` 两类节点调用记录；如果两类节点配置了不同模型，日志中的 `model_id` 必须不同。
 
+2026-07-04 验证结果：
+
+```text
+/api/v1/chatbi/agents -> code=200
+/api/v1/chatbi/agents/supply_chain/model-bindings -> code=200
+/api/v1/chatbi/model-providers -> code=200
+/api/v1/chatbi/prompts -> code=200
+/api/v1/chatbi/report-templates -> code=200
+/api/v1/chatbi/config/summary -> code=200
+model-providers 响应未发现 sk-、Bearer 或明文 API Key
+AI算力候选公司Top5 快速回答回归 -> 命中源杰科技，未出现原始 JSON 噪声
+生成中际旭创产业链拆解报告 深度思考回归 -> 进入报告生成节点
+chatbi_llm_invocations 同一 message_id 下出现：
+intent_recognition|deepseek-chat|unavailable
+report_generation|glm-5.2|unavailable
+```
+
+说明：节点级模型选择已生效；本机未配置真实模型 Key，因此记录为 unavailable，没有伪造模型成功输出。
+
 ---
 
 ## Phase 5: 前端复用和增强
@@ -1323,7 +1478,7 @@ curl -N -X POST http://localhost:8080/api/v1/chatbi/messages/stream \
 
 **目标:** 前端从旧 Dify 路径平滑切换到标准 ChatBI 路径。
 
-- [ ] **Step 1: 增加 API 配置**
+- [x] **Step 1: 增加 API 配置**
 
 支持：
 
@@ -1332,7 +1487,7 @@ VUE_APP_CHATBI_API_BASE=/api/v1/chatbi
 VUE_APP_CHATBI_COMPAT_BASE=/gac/dify/ai
 ```
 
-- [ ] **Step 2: 切换流式接口**
+- [x] **Step 2: 切换流式接口**
 
 优先调用：
 
@@ -1342,9 +1497,28 @@ POST /api/v1/chatbi/messages/stream
 
 失败时可回退兼容路径。
 
-- [ ] **Step 3: 验证**
+- [x] **Step 3: 验证**
 
 浏览器 Network 中流式请求指向 `/api/v1/chatbi/messages/stream`。
+
+2026-07-04 验证结果：
+
+```text
+chatbi-workspace/frontend-vue/module/module1.vue 已新增：
+VUE_APP_CHATBI_API_BASE -> 默认 /api/v1/chatbi
+VUE_APP_CHATBI_COMPAT_BASE -> 默认 /gac/dify/ai
+流式接口优先指向 /api/v1/chatbi/messages/stream
+answerMode 按快速回答/深度思考传给后端
+新增 normalizeChatBIStreamEvent，兼容旧 JSON 和新 SSE data: JSON 格式
+```
+
+限制说明：
+
+```text
+chatbi-workspace/frontend-vue 当前不是完整可构建工程，目录下没有 package.json；
+因此本步完成的是代码级适配和接口级回归，没有伪造 Vue 构建或浏览器 Network 截图。
+独立移动端 UAT 壳 chatbi-mobile-uat.html 已继续使用标准 ChatBI API。
+```
 
 ### Task 11: 增强 artifact 渲染
 
@@ -1353,10 +1527,11 @@ POST /api/v1/chatbi/messages/stream
 - Create: `chatbi-workspace/frontend-vue/module/ArtifactRenderer.vue`
 - Modify: `Markdown.vue`
 - Modify: `module1.vue`
+- Create: `chatbi-workspace/frontend-vue/artifact-renderer-preview.html`
 
 **目标:** 支持表格、图表、证据链、公司卡片。
 
-- [ ] **Step 1: 支持 table artifact**
+- [x] **Step 1: 支持 table artifact**
 
 输入：
 
@@ -1372,7 +1547,7 @@ POST /api/v1/chatbi/messages/stream
 
 预期：前端渲染表格。
 
-- [ ] **Step 2: 支持 evidence artifact**
+- [x] **Step 2: 支持 evidence artifact**
 
 输入：
 
@@ -1388,7 +1563,7 @@ POST /api/v1/chatbi/messages/stream
 
 预期：前端渲染可折叠证据卡片。
 
-- [ ] **Step 3: 验证移动端**
+- [x] **Step 3: 验证移动端**
 
 在 390px 宽度下验证：
 
@@ -1397,6 +1572,34 @@ POST /api/v1/chatbi/messages/stream
 表格可横向滚动。
 证据卡片可折叠。
 停止生成可点击。
+```
+
+2026-07-04 验证结果：
+
+```text
+新增 ArtifactRenderer.vue
+Markdown.vue 自动识别 artifact/json 代码块中的 artifact_type + payload
+table artifact -> 渲染为横向滚动表格
+evidence artifact -> 渲染为 details/summary 可折叠证据卡片
+company_card artifact -> 渲染为公司卡片
+新增 artifact-renderer-preview.html，用于移动端静态预览
+```
+
+移动端静态校验：
+
+```text
+mobile_viewport=True
+bottom_composer_fixed=True
+content_bottom_padding=True
+table_horizontal_scroll=True
+evidence_collapsible=True
+```
+
+限制说明：
+
+```text
+chatbi-workspace/frontend-vue 当前没有 package.json，不是完整可构建工程；
+因此本步完成的是组件代码、artifact 解析和独立 HTML 移动端预览验证，没有伪造 Vue 构建结果。
 ```
 
 ---
@@ -1410,11 +1613,11 @@ POST /api/v1/chatbi/messages/stream
 - Create: `PlatformIdentityController.java`
 - Create: `PlatformIdentityService.java`
 - Create: `PlatformUserBinding.java`
-- Create: `db/migration/chatbi/V003__chatbi_platform_bindings.sql`
+- Create: `db/migration/chatbi/V005__chatbi_platform_bindings.sql`
 
 **目标:** 统一飞书、钉钉、企微身份映射。
 
-- [ ] **Step 1: 定义统一身份**
+- [x] **Step 1: 定义统一身份**
 
 ```json
 {
@@ -1428,7 +1631,7 @@ POST /api/v1/chatbi/messages/stream
 }
 ```
 
-- [ ] **Step 2: 先接一个平台**
+- [x] **Step 2: 先接一个平台**
 
 建议第一版选择：
 
@@ -1436,13 +1639,53 @@ POST /api/v1/chatbi/messages/stream
 企业微信或飞书
 ```
 
-- [ ] **Step 3: 验证**
+- [x] **Step 3: 验证**
 
 平台 WebView 打开 ChatBI 后，后端能拿到统一 `internal_user_id`。
+
+2026-07-04 验证结果：
+
+```text
+新增表：chatbi_platform_user_bindings
+新增实体：PlatformUserBinding
+新增服务：PlatformIdentityService / JdbcPlatformIdentityService
+新增控制器：PlatformIdentityController
+第一版平台：feishu
+保留平台枚举：feishu、dingtalk、wecom
+```
+
+接口：
+
+```text
+POST /api/v1/chatbi/platform/bindings
+GET /api/v1/chatbi/platform/bindings
+POST /api/v1/chatbi/platform/identity/resolve
+GET /api/v1/chatbi/platform/identity/current
+```
+
+实测：
+
+```text
+未绑定飞书用户 -> status=unbound
+绑定 feishu / tenant_demo / ou_demo_001 -> internalUserId=u_demo_001
+GET /identity/current -> status=bound，internal_user_id=u_demo_001
+DB 回查 -> feishu|tenant_demo|ou_demo_001|u_demo_001|analyst|chatbi.basic,chatbi.supply_chain|active
+```
+
+限制说明：
+
+```text
+当前完成的是平台身份映射底座，不是飞书/钉钉/企微真实 OAuth 登录。
+真实平台 WebView 鉴权、code 换 user_id、签名校验和免登 SDK 接入仍待后续平台专项验收。
+```
 
 ---
 
 ## Phase 7: UAT 和验收
+
+> 2026-07-03 已完成 MVP UAT：验证范围为独立移动端 H5 壳、Java ChatBI API、SSE 流式问答、快速回答/深度思考模式、产业链候选真实数据接入、跨域预检和构建启动。详细结果见 `docs/qa/chatbi-uat-report-2026-07-03.md`。
+>
+> 2026-07-04 已完成 30 问核心问题集回归：产业链候选、公司证据链、选股模型、选债模型、模型共振、无票诊断、数据质量和报告导出共 30 条，自动化结果为 30 通过 / 0 部分通过 / 0 不通过。当前通过代表 ChatBI 编排、意图路由、已接工具的结构化回答和权限拦截可用；不代表已经补齐逐条 L8 原文证据接口、单模型候选明细接口、模型共振交集接口或真实 Word/Excel 文件导出接口。
 
 ### Task 13: 核心问题集验收
 
@@ -1453,7 +1696,14 @@ POST /api/v1/chatbi/messages/stream
 
 **目标:** 用 30 条问题验证 ChatBI 能稳定回答核心投研问题。
 
-- [ ] **Step 1: 准备问题集**
+- [x] **Step 1: 准备问题集**
+
+已形成 30 条核心问题集：
+
+```text
+docs/qa/chatbi-uat-question-set-2026-07-03.md
+tools/chatbi_uat_runner.py
+```
 
 问题覆盖：
 
@@ -1468,7 +1718,7 @@ POST /api/v1/chatbi/messages/stream
 报告导出 2 条
 ```
 
-- [ ] **Step 2: 记录结果**
+- [x] **Step 2: 记录结果**
 
 每条记录：
 
@@ -1483,7 +1733,17 @@ POST /api/v1/chatbi/messages/stream
 验收结论
 ```
 
-- [ ] **Step 3: 通过标准**
+- [x] **Step 3: 通过标准**
+
+第三轮完整 30 题自动化验收已通过：
+
+```text
+通过=30
+部分通过=0
+不通过=0
+答案带数据日期或证据来源=30/30
+原始 JSON 噪声=0/30
+```
 
 ```text
 核心问题可回答率 >= 80%
@@ -1500,7 +1760,7 @@ POST /api/v1/chatbi/messages/stream
 
 **目标:** 验证首包、总耗时、密钥清理、工具权限和平台身份。
 
-- [ ] **Step 1: 性能验收**
+- [x] **Step 1: 性能验收**
 
 采集：
 
@@ -1518,7 +1778,17 @@ error_rate
 普通工具查询 P95 <= 2 秒
 ```
 
-- [ ] **Step 2: 安全验收**
+2026-07-04 结果：
+
+```text
+已新增 ChatBI 工具响应 5 分钟内存缓存和 SSE 专用 Async TaskExecutor。
+冷缓存：30/30 通过，P95=9641ms，慢请求来自 supply-chain candidate-ranking 首次计算。
+热缓存：30/30 通过，P95=310ms，30/30 <=2秒。
+服务端不再出现 SimpleAsyncTaskExecutor under load 警告。
+后续生产化仍建议增加持久化缓存、预聚合、按公司证据详情接口和报告异步任务。
+```
+
+- [x] **Step 2: 安全验收**
 
 执行：
 
@@ -1528,14 +1798,26 @@ rg -n "password|secret|api_key|agentKey|agent_key|Authorization|Bearer app-|jdbc
 
 预期：无生产密钥和内部地址进入新工程。
 
-- [ ] **Step 3: 权限验收**
+- [x] **Step 3: 权限验收**
+
+已完成 ChatBI 问答入口的权限上下文拦截：
+
+```text
+chatbi.supply_chain -> 产业链候选、公司证据链
+chatbi.report_export -> 报告导出
+chatbi.model -> 选股、选债、模型共振、无票诊断
+chatbi.admin -> 全部放行
+```
+
+说明：当前为请求上下文权限校验。企业平台真实登录后，需要把飞书/钉钉/企微身份解析出的 permissions 注入 ChatBIRequest.context。
 
 验证：
 
 ```text
-无 chatbi.supply_chain 权限时不能查产业链证据。
-无 chatbi.report_export 权限时不能导出报告。
-用户不能通过问题文本执行 SQL。
+无 chatbi.supply_chain 权限时查询 AI 算力候选 -> blocked
+无 chatbi.report_export 权限时生成中际旭创报告 -> blocked
+chatbi.admin 查询 AI 算力候选 -> ready
+ChatBI 仍不执行用户生成 SQL，只按意图调用白名单工具
 ```
 
 ---
@@ -1566,6 +1848,7 @@ rg -n "password|secret|api_key|agentKey|agent_key|Authorization|Bearer app-|jdbc
 | AC-20 | Task 7、Task 9、Task 13 |
 | AC-21 | Design Gate A、Design Gate B、Design Gate C、Design Gate D、Design Gate E、Design Gate F |
 | AC-22 | Task 1、Design Gate D、Design Gate F |
+| AC-23 | Task 1 Step 7、Design Gate F、Phase 7 PC 回归冒烟 |
 
 ## 执行建议
 

@@ -1,67 +1,90 @@
 {
-  "node_count": 44,
-  "edge_count": 58,
-  "mapping_count": 15606,
+  "node_count": 72,
+  "edge_count": 99,
+  "mapping_count": 19715,
   "status_counts": {
-    "verified": 1069,
-    "pending_review": 10511,
-    "weak_evidence": 4026
+    "verified": 1291,
+    "pending_review": 11613,
+    "weak_evidence": 6811
   },
   "chain_counts": {
-    "new_energy_vehicle": 1431,
-    "ai_compute": 2060,
-    "innovative_drug": 1087,
-    "advanced_manufacturing": 2145,
-    "consumer_upgrade": 1380,
-    "semiconductor": 1291,
-    "cyclical_resources": 2069,
-    "defense": 1119,
-    "robotics": 1792,
-    "new_energy": 1232
+    "new_energy_vehicle": 1433,
+    "ai_compute": 2061,
+    "innovative_drug": 1091,
+    "advanced_manufacturing": 2153,
+    "consumer_upgrade": 1386,
+    "huawei_devices": 1124,
+    "semiconductor": 1393,
+    "tao_law_advanced_packaging": 1331,
+    "cyclical_resources": 2072,
+    "defense": 1122,
+    "robotics": 1797,
+    "new_energy": 1233,
+    "memory_chips": 516,
+    "optical_communication": 527,
+    "eda_industrial_software": 476
   },
   "source_counts": {
-    "main_business": 4366,
-    "introduction": 6434,
-    "research_report": 1294,
-    "industry": 3512
+    "main_business": 4840,
+    "introduction": 7101,
+    "research_report": 1479,
+    "industry": 6295
   },
   "audit": {
     "hotspot_nodes": [
       {
         "node_id": "advanced_manufacturing_integration",
         "weak_evidence": 68,
-        "pending_review": 846,
+        "pending_review": 850,
         "verified": 24
       },
       {
         "node_id": "cyclical_resources_resources",
         "weak_evidence": 0,
-        "pending_review": 905,
+        "pending_review": 908,
         "verified": 24
       },
       {
         "node_id": "robotics_integration",
         "weak_evidence": 19,
-        "pending_review": 694,
+        "pending_review": 697,
         "verified": 66
+      },
+      {
+        "node_id": "chain_tao_law_advanced_packaging",
+        "weak_evidence": 700,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "chain_huawei_devices",
+        "weak_evidence": 624,
+        "pending_review": 0,
+        "verified": 0
       },
       {
         "node_id": "cyclical_resources_processing",
         "weak_evidence": 19,
-        "pending_review": 557,
-        "verified": 37
+        "pending_review": 559,
+        "verified": 36
+      },
+      {
+        "node_id": "chain_semiconductor",
+        "weak_evidence": 568,
+        "pending_review": 0,
+        "verified": 0
       },
       {
         "node_id": "consumer_upgrade_channel",
         "weak_evidence": 82,
-        "pending_review": 460,
+        "pending_review": 461,
         "verified": 38
       },
       {
         "node_id": "ai_compute_hardware",
         "weak_evidence": 7,
         "pending_review": 526,
-        "verified": 20
+        "verified": 19
       },
       {
         "node_id": "ai_compute_software",
@@ -72,38 +95,56 @@
       {
         "node_id": "ai_compute_application",
         "weak_evidence": 46,
-        "pending_review": 454,
+        "pending_review": 455,
         "verified": 0
       },
       {
         "node_id": "advanced_manufacturing_complete_machine",
         "weak_evidence": 24,
-        "pending_review": 467,
+        "pending_review": 469,
         "verified": 51
       },
       {
-        "node_id": "chain_semiconductor",
-        "weak_evidence": 488,
+        "node_id": "chain_memory_chips",
+        "weak_evidence": 492,
         "pending_review": 0,
         "verified": 0
       },
       {
         "node_id": "chain_ai_compute",
-        "weak_evidence": 467,
+        "weak_evidence": 468,
         "pending_review": 0,
         "verified": 0
       },
       {
         "node_id": "chain_innovative_drug",
-        "weak_evidence": 458,
+        "weak_evidence": 459,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "chain_eda_industrial_software",
+        "weak_evidence": 450,
+        "pending_review": 0,
+        "verified": 0
+      },
+      {
+        "node_id": "chain_optical_communication",
+        "weak_evidence": 434,
         "pending_review": 0,
         "verified": 0
       },
       {
         "node_id": "new_energy_vehicle_parts",
         "weak_evidence": 0,
-        "pending_review": 430,
+        "pending_review": 431,
         "verified": 113
+      },
+      {
+        "node_id": "consumer_upgrade_brand",
+        "weak_evidence": 19,
+        "pending_review": 399,
+        "verified": 55
       },
       {
         "node_id": "chain_robotics",
@@ -112,21 +153,21 @@
         "verified": 0
       },
       {
-        "node_id": "consumer_upgrade_brand",
-        "weak_evidence": 18,
+        "node_id": "huawei_devices_核心零部件",
+        "weak_evidence": 0,
         "pending_review": 398,
-        "verified": 54
+        "verified": 68
       },
       {
         "node_id": "chain_cyclical_resources",
-        "weak_evidence": 386,
+        "weak_evidence": 385,
         "pending_review": 0,
         "verified": 0
       },
       {
         "node_id": "advanced_manufacturing_core_parts",
         "weak_evidence": 0,
-        "pending_review": 366,
+        "pending_review": 368,
         "verified": 27
       },
       {
@@ -138,7 +179,7 @@
       {
         "node_id": "defense_components",
         "weak_evidence": 0,
-        "pending_review": 341,
+        "pending_review": 342,
         "verified": 2
       },
       {
@@ -149,14 +190,14 @@
       },
       {
         "node_id": "chain_consumer_upgrade",
-        "weak_evidence": 330,
+        "weak_evidence": 332,
         "pending_review": 0,
         "verified": 0
       },
       {
         "node_id": "robotics_core_parts",
         "weak_evidence": 0,
-        "pending_review": 327,
+        "pending_review": 329,
         "verified": 12
       },
       {
@@ -168,44 +209,8 @@
       {
         "node_id": "new_energy_vehicle_battery",
         "weak_evidence": 0,
-        "pending_review": 277,
+        "pending_review": 278,
         "verified": 5
-      },
-      {
-        "node_id": "chain_advanced_manufacturing",
-        "weak_evidence": 272,
-        "pending_review": 0,
-        "verified": 0
-      },
-      {
-        "node_id": "chain_new_energy_vehicle",
-        "weak_evidence": 260,
-        "pending_review": 0,
-        "verified": 0
-      },
-      {
-        "node_id": "robotics_complete_machine",
-        "weak_evidence": 4,
-        "pending_review": 242,
-        "verified": 12
-      },
-      {
-        "node_id": "semiconductor_design",
-        "weak_evidence": 0,
-        "pending_review": 239,
-        "verified": 105
-      },
-      {
-        "node_id": "innovative_drug_innovative_drug",
-        "weak_evidence": 0,
-        "pending_review": 233,
-        "verified": 137
-      },
-      {
-        "node_id": "semiconductor_equipment",
-        "weak_evidence": 0,
-        "pending_review": 225,
-        "verified": 22
       }
     ],
     "suspicious_samples": [
@@ -228,13 +233,48 @@
       },
       {
         "code": "000021",
-        "node_id": "semiconductor_packaging_test",
+        "node_id": "memory_chips_dram",
+        "chain_id": "memory_chips",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "DRAM"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000021",
+        "node_id": "semiconductor_传统封测",
         "chain_id": "semiconductor",
         "confidence": 0.8,
         "status": "pending_review",
         "mapping_source": "introduction",
         "evidence": [
           "封装测试"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000021",
+        "node_id": "tao_law_advanced_packaging_先进封测",
+        "chain_id": "tao_law_advanced_packaging",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "封装测试",
+          "封装"
         ],
         "evidence_gaps": [
           "是否有明确客户或供应链认证",
@@ -292,6 +332,23 @@
           "动力电池",
           "储能",
           "电芯"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000066",
+        "node_id": "semiconductor_design",
+        "chain_id": "semiconductor",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "芯片"
         ],
         "evidence_gaps": [
           "是否有明确客户或供应链认证",
@@ -507,6 +564,23 @@
         ]
       },
       {
+        "code": "000561",
+        "node_id": "huawei_devices_核心零部件",
+        "chain_id": "huawei_devices",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "天线"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
         "code": "000566",
         "node_id": "innovative_drug_innovative_drug",
         "chain_id": "innovative_drug",
@@ -534,6 +608,23 @@
         "mapping_source": "introduction",
         "evidence": [
           "零部件"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
+        "code": "000586",
+        "node_id": "tao_law_advanced_packaging_光互连与pcb",
+        "chain_id": "tao_law_advanced_packaging",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "光通信"
         ],
         "evidence_gaps": [
           "是否有明确客户或供应链认证",
@@ -856,6 +947,23 @@
         ]
       },
       {
+        "code": "000823",
+        "node_id": "tao_law_advanced_packaging_光互连与pcb",
+        "chain_id": "tao_law_advanced_packaging",
+        "confidence": 0.8,
+        "status": "pending_review",
+        "mapping_source": "introduction",
+        "evidence": [
+          "印制电路板"
+        ],
+        "evidence_gaps": [
+          "是否有明确客户或供应链认证",
+          "是否有量产、扩产、订单或定点公告",
+          "该产品收入占比是否足够高",
+          "是否存在国产替代或卡脖子稀缺性证据"
+        ]
+      },
+      {
         "code": "000831",
         "node_id": "cyclical_resources_processing",
         "chain_id": "cyclical_resources",
@@ -977,115 +1085,9 @@
           "该产品收入占比是否足够高",
           "是否存在国产替代或卡脖子稀缺性证据"
         ]
-      },
-      {
-        "code": "000938",
-        "node_id": "ai_compute_hardware",
-        "chain_id": "ai_compute",
-        "confidence": 0.8,
-        "status": "pending_review",
-        "mapping_source": "introduction",
-        "evidence": [
-          "服务器",
-          "硬件"
-        ],
-        "evidence_gaps": [
-          "是否有明确客户或供应链认证",
-          "是否有量产、扩产、订单或定点公告",
-          "该产品收入占比是否足够高",
-          "是否存在国产替代或卡脖子稀缺性证据"
-        ]
-      },
-      {
-        "code": "000963",
-        "node_id": "innovative_drug_innovative_drug",
-        "chain_id": "innovative_drug",
-        "confidence": 0.8,
-        "status": "pending_review",
-        "mapping_source": "introduction",
-        "evidence": [
-          "药品"
-        ],
-        "evidence_gaps": [
-          "是否有明确客户或供应链认证",
-          "是否有量产、扩产、订单或定点公告",
-          "该产品收入占比是否足够高",
-          "是否存在国产替代或卡脖子稀缺性证据"
-        ]
-      },
-      {
-        "code": "000970",
-        "node_id": "cyclical_resources_smelting",
-        "chain_id": "cyclical_resources",
-        "confidence": 0.8,
-        "status": "pending_review",
-        "mapping_source": "introduction",
-        "evidence": [
-          "熔炼"
-        ],
-        "evidence_gaps": [
-          "是否有明确客户或供应链认证",
-          "是否有量产、扩产、订单或定点公告",
-          "该产品收入占比是否足够高",
-          "是否存在国产替代或卡脖子稀缺性证据"
-        ]
-      },
-      {
-        "code": "000977",
-        "node_id": "ai_compute_software",
-        "chain_id": "ai_compute",
-        "confidence": 0.8,
-        "status": "pending_review",
-        "mapping_source": "introduction",
-        "evidence": [
-          "软件",
-          "云服务",
-          "平台"
-        ],
-        "evidence_gaps": [
-          "是否有明确客户或供应链认证",
-          "是否有量产、扩产、订单或定点公告",
-          "该产品收入占比是否足够高",
-          "是否存在国产替代或卡脖子稀缺性证据"
-        ]
-      },
-      {
-        "code": "001207",
-        "node_id": "cyclical_resources_processing",
-        "chain_id": "cyclical_resources",
-        "confidence": 0.8,
-        "status": "pending_review",
-        "mapping_source": "introduction",
-        "evidence": [
-          "制品",
-          "制造"
-        ],
-        "evidence_gaps": [
-          "是否有明确客户或供应链认证",
-          "是否有量产、扩产、订单或定点公告",
-          "该产品收入占比是否足够高",
-          "是否存在国产替代或卡脖子稀缺性证据"
-        ]
-      },
-      {
-        "code": "001207",
-        "node_id": "cyclical_resources_resources",
-        "chain_id": "cyclical_resources",
-        "confidence": 0.8,
-        "status": "pending_review",
-        "mapping_source": "introduction",
-        "evidence": [
-          "资源"
-        ],
-        "evidence_gaps": [
-          "是否有明确客户或供应链认证",
-          "是否有量产、扩产、订单或定点公告",
-          "该产品收入占比是否足够高",
-          "是否存在国产替代或卡脖子稀缺性证据"
-        ]
       }
     ],
-    "review_queue_count": 14537
+    "review_queue_count": 18424
   },
   "empty_nodes": [],
   "top_mappings": [
@@ -1202,6 +1204,14 @@
       "mapping_source": "main_business"
     },
     {
+      "code": "000536",
+      "node_id": "huawei_devices_核心零部件",
+      "chain_id": "huawei_devices",
+      "confidence": 0.85,
+      "status": "verified",
+      "mapping_source": "main_business"
+    },
+    {
       "code": "000559",
       "node_id": "new_energy_vehicle_parts",
       "chain_id": "new_energy_vehicle",
@@ -1240,22 +1250,14 @@
       "confidence": 0.85,
       "status": "verified",
       "mapping_source": "main_business"
-    },
-    {
-      "code": "000597",
-      "node_id": "innovative_drug_api",
-      "chain_id": "innovative_drug",
-      "confidence": 0.85,
-      "status": "verified",
-      "mapping_source": "main_business"
     }
   ],
   "persist_counts": {
-    "nodes": 44,
-    "chain_nodes": 44,
-    "edges": 58,
-    "company_bom_mapping": 15606,
-    "company_chain_mapping": 15606
+    "nodes": 72,
+    "chain_nodes": 72,
+    "edges": 99,
+    "company_bom_mapping": 19715,
+    "company_chain_mapping": 19715
   },
   "dry_run": false,
   "persisted": true,

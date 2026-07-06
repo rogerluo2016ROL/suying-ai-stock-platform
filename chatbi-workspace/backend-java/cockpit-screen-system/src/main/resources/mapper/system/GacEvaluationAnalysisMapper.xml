@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ds.cockpit.screen.system.mapper.GacEvaluationAnalysisMapper">
+
+	<resultMap type="GacEvaluationAnalysis" id="GacEvaluationAnalysisResult">
+		<id     property="id"     					column="id"     />
+		<result property="moduleLv1"  				column="module_lv1"   />
+		<result property="moduleLv2"  				column="module_lv2"   />
+		<result property="moduleLv3"  				column="module_lv3"   />
+		<result property="analysisDimension"   		column="analysis_dimension"   />
+		<result property="detailDimension"     		column="detail_dimension"      />
+		<result property="reserveColumn"      		column="reserve_column"       />
+		<result property="dataType"      			column="data_type"       />
+		<result property="dataTime"     			column="data_time"      />
+		<result property="startTime"    			column="start_time"    />
+		<result property="endTime" 					column="end_time" />
+		<result property="deleted"   				column="deleted"   />
+		<result property="description"   			column="description"   />
+		<result property="evaluationAnalysis"   	column="evaluation_analysis"   />
+		<result property="evaluationAnalysisFile"   column="evaluation_analysis_file"   />
+		<result property="createBy"   				column="create_by"   />
+		<result property="createCode" 				column="create_code" />
+		<result property="createTime" 				column="create_time" />
+		<result property="originalFilenames" 		column="original_filenames" />
+		<result property="newFileNames" 			column="new_file_names" />
+		<result property="status" 					column="status" />
+	</resultMap>
+	
+	<sql id="selectGacEvaluationAnalysisVo">
+        select
+        g.id, g.module_lv1, g.module_lv2, g.module_lv3,
+        g.analysis_dimension, g.detail_dimension, g.reserve_column,
+        g.data_type, g.data_time, g.start_time, g.end_time, g.description,
+        g.evaluation_analysis_file, g.createBy, g.createCode, g.createTime,
+        g.original_filenames, g.new_file_names, g.status, g.evaluation_analysis
+        from gac_evaluation_analysis g
+    </sql>
+    
+	<select id="selectListBy" parameterType="GacEvaluationAnalysis" resultMap="GacEvaluationAnalysisResult">
+		select
+			g.id, g.module_lv1, g.module_lv2, g.module_lv3,
+			g.analysis_dimension, g.detail_dimension, g.reserve_column,
+			g.data_type, g.data_time, g.start_time, g.end_time, g.description,
+			g.evaluation_analysis_file, g.create_by, g.create_code, g.create_time,
+			g.original_filenames, g.new_file_names, g.status, g.evaluation_analysis
+		from
+			(select * from gac_evaluation_analysis gt
+			where gt.deleted = b'0'
+			<if test="moduleLv1 != null and moduleLv1 != '' ">
+				AND gt.module_lv1 = #{moduleLv1}
+			</if>
+			<if test="moduleLv2 != null and moduleLv2 != '' ">
+				AND gt.module_lv2 = #{moduleLv2}
+			</if>
+			<if test="moduleLv3 != null and moduleLv3 != '' ">
+				AND gt.module_lv3 = #{moduleLv3}
+			</if>
+			<if test="analysisDimension != null and analysisDimension != '' and analysisDimension != '-'">
+				AND gt.analysis_dimension = #{analysisDimension}
+			</if>
+			<if test="detailDimension != null and detailDimension != '' and detailDimension != '-'">
+				AND gt.detail_dimension = #{detailDimension}
+			</if>
+			<if test="reserveColumn != null and reserveColumn != '' ">
+				AND reserve_column = #{reserveColumn}
+			</if>
+			<if test="dataType != null and dataType != '' ">
+				AND gt.data_type = #{dataType}
+			</if>
+			<if test="dataTime != null and dataTime != '' ">
+				AND gt.data_time = #{dataTime}
+			</if>
+			<if test="startTime != null">
+				AND gt.start_time = #{startTime}
+			</if>
+			<if test="endTime != null">
+				AND gt.end_time = #{endTime}
+			</if>
+			<if test="status != null and status != '' ">
+				AND gt.status = #{status}
+			</if>
+			) g
+		INNER JOIN (
+			SELECT
+				<if test="moduleLv1 != null and moduleLv1 != '' ">
+					module_lv1
+				</if>
+				<if test="moduleLv2 != null and moduleLv2 != '' ">
+					,module_lv2
+				</if>
+				<if test="moduleLv3 != null and moduleLv3 != '' ">
+					,module_lv3
+				</if>
+				<if test="analysisDimension != null  ">
+					,analysis_dimension
+				</if>
+				<if test="detailDimension != null  ">
+					,detail_dimension
+				</if>
+				<if test="reserveColumn != null and reserveColumn != '' ">
+					,reserve_column
+				</if>
+				<if test="dataType != null and dataType != '' ">
+					,data_type
+				</if>
+				<if test="dataTime != null and dataTime != '' ">
+					,data_time
+				</if>
+				<if test="startTime != null">
+					,start_time
+				</if>
+				<if test="endTime != null">
+					,end_time
+				</if>
+				<if test="status != null and status != '' ">
+					,status
+				</if>
+				,MAX(create_time) AS latest
+			FROM gac_evaluation_analysis
+			WHERE deleted = '0'
+				<if test="moduleLv1 != null and moduleLv1 != '' ">
+					AND module_lv1 = #{moduleLv1}
+				</if>
+				<if test="moduleLv2 != null and moduleLv2 != '' ">
+					AND module_lv2 = #{moduleLv2}
+				</if>
+				<if test="moduleLv3 != null and moduleLv3 != '' ">
+					AND module_lv3 = #{moduleLv3}
+				</if>
+				<if test="analysisDimension != null and analysisDimension != '' ">
+					AND analysis_dimension = #{analysisDimension}
+				</if>
+				<if test="detailDimension != null and detailDimension != '' ">
+					AND detail_dimension = #{detailDimension}
+				</if>
+				<if test="reserveColumn != null and reserveColumn != '' ">
+					AND reserve_column = #{reserveColumn}
+				</if>
+				<if test="dataType != null and dataType != '' ">
+					AND data_type = #{dataType}
+				</if>
+				<if test="dataTime != null and dataTime != '' ">
+					AND data_time = #{dataTime}
+				</if>
+				<if test="startTime != null">
+					AND start_time = #{startTime}
+				</if>
+				<if test="endTime != null">
+					AND end_time = #{endTime}
+				</if>
+				<if test="status != null and status != '' ">
+					AND status = #{status}
+				</if>
+			GROUP BY
+					module_lv1
+				<if test="moduleLv2 != null and moduleLv2 != '' ">
+					,module_lv2
+				</if>
+				<if test="moduleLv3 != null and moduleLv3 != '' ">
+					,module_lv3
+				</if>
+				<if test="analysisDimension != null">
+					,analysis_dimension
+				</if>
+				<if test="detailDimension != null">
+					,detail_dimension
+				</if>
+				<if test="reserveColumn != null and reserveColumn != '' ">
+					,reserve_column
+				</if>
+				<if test="dataType != null and dataType != '' ">
+					,data_type
+				</if>
+				<if test="dataTime != null and dataTime != '' ">
+					,data_time
+				</if>
+				<if test="startTime != null">
+					,start_time
+				</if>
+				<if test="endTime != null">
+					,end_time
+				</if>
+				<if test="status != null and status != '' ">
+					,status
+				</if>
+			) AS latest_records
+		ON
+			g.create_time = latest_records.latest
+			<if test="moduleLv1 != null and moduleLv1 != '' ">
+				AND g.module_lv1 = latest_records.module_lv1
+			</if>
+			<if test="moduleLv2 != null and moduleLv2 != '' ">
+				AND g.module_lv2 = latest_records.module_lv2
+			</if>
+			<if test="moduleLv3 != null and moduleLv3 != '' ">
+				AND g.module_lv3 = latest_records.module_lv3
+			</if>
+			<if test="analysisDimension != null  ">
+				AND g.analysis_dimension = latest_records.analysis_dimension
+			</if>
+			<if test="detailDimension != null  ">
+				AND g.detail_dimension = latest_records.detail_dimension
+			</if>
+			<if test="reserveColumn != null and reserveColumn != '' ">
+				AND g.reserve_column = latest_records.reserve_column
+			</if>
+			<if test="dataType != null and dataType != '' ">
+				AND g.data_type = latest_records.data_type
+			</if>
+			<if test="dataTime != null and dataTime != '' ">
+				AND g.data_time = latest_records.data_time
+			</if>
+			<if test="startTime != null">
+				AND g.start_time = latest_records.start_time
+			</if>
+			<if test="endTime != null">
+				AND g.end_time = latest_records.end_time
+			</if>
+			<if test="status != null and status != '' ">
+				AND g.status = latest_records.status
+			</if>
+    </select>
+
+	<insert id="insertGacEvaluationAnalysis" parameterType="GacEvaluationAnalysis">
+		insert into gac_evaluation_analysis(
+		<if test="moduleLv1 != null and moduleLv1 != ''">module_lv1,</if>
+		<if test="moduleLv2 != null and moduleLv2 != ''">module_lv2,</if>
+		<if test="moduleLv3 != null and moduleLv3 != ''">module_lv3,</if>
+		<if test="analysisDimension != null and analysisDimension != ''">analysis_dimension,</if>
+		<if test="detailDimension != null and detailDimension != ''">detail_dimension,</if>
+		<if test="reserveColumn != null and reserveColumn != ''">reserve_column,</if>
+		<if test="dataType != null and dataType != ''">data_type,</if>
+		<if test="dataTime != null and dataTime != ''">data_time,</if>
+		<if test="startTime != null">start_time,</if>
+		<if test="endTime != null">end_time,</if>
+		<if test="evaluationAnalysis != null and evaluationAnalysis != ''">evaluation_analysis,</if>
+		<if test="evaluationAnalysisFile != null and evaluationAnalysisFile != ''">evaluation_analysis_file,</if>
+		<if test="createBy != null and createBy != ''">create_by,</if>
+		<if test="createCode != null and createCode != ''">create_code,</if>
+		<if test="originalFilenames != null and originalFilenames != ''">original_filenames,</if>
+		<if test="newFileNames != null and newFileNames != ''">new_file_names,</if>
+		<if test="status != null and status != ''">status,</if>
+		create_time
+		)values(
+		<if test="moduleLv1 != null and moduleLv1 != ''">#{moduleLv1},</if>
+		<if test="moduleLv2 != null and moduleLv2 != ''">#{moduleLv2},</if>
+		<if test="moduleLv3 != null and moduleLv3 != ''">#{moduleLv3},</if>
+		<if test="analysisDimension != null and analysisDimension != ''">#{analysisDimension},</if>
+		<if test="detailDimension != null and detailDimension != ''">#{detailDimension},</if>
+		<if test="reserveColumn != null and reserveColumn != ''">#{reserveColumn},</if>
+		<if test="dataType != null and dataType != ''">#{dataType},</if>
+		<if test="dataTime != null and dataTime != ''">#{dataTime},</if>
+		<if test="startTime != null">#{startTime},</if>
+		<if test="endTime != null">#{endTime},</if>
+		<if test="evaluationAnalysis != null and evaluationAnalysis != ''">#{evaluationAnalysis},</if>
+		<if test="evaluationAnalysisFile != null and evaluationAnalysisFile != ''">#{evaluationAnalysisFile},</if>
+		<if test="createBy != null and createBy != ''">#{createBy},</if>
+		<if test="createCode != null and createCode != ''">#{createCode},</if>
+		<if test="originalFilenames != null and originalFilenames != ''">#{originalFilenames},</if>
+		<if test="newFileNames != null and newFileNames != ''">#{newFileNames},</if>
+		<if test="status != null and status != ''">#{status},</if>
+		sysdate()
+		)
+	</insert>
+
+	<select id="selectById" resultMap="GacEvaluationAnalysisResult">
+	select
+		g.id, g.module_lv1, g.module_lv2, g.module_lv3,
+		g.analysis_dimension, g.detail_dimension, g.reserve_column,
+		g.data_type, g.data_time, g.start_time, g.end_time, g.description,
+		g.evaluation_analysis_file, g.create_by, g.create_code, g.create_time,
+		g.original_filenames, g.new_file_names, g.status, g.evaluation_analysis
+	from
+		gac_evaluation_analysis g
+	where g.deleted = b'0'
+		<if test="id != null and id != '' ">
+			AND g.id = #{id}
+		</if>
+	</select>
+
+	<update id="updateAnalysis" parameterType="GacEvaluationAnalysis">
+		update gac_evaluation_analysis gt
+		<set>
+			<if test="evaluationAnalysis != null ">
+				gt.evaluation_analysis = #{evaluationAnalysis,jdbcType=VARCHAR},
+			</if>
+			<if test="evaluationAnalysisFile != null ">
+				gt.evaluation_analysis_file = #{evaluationAnalysisFile,jdbcType=VARCHAR},
+			</if>
+			<if test="originalFilenames != null ">
+				gt.original_filenames = #{originalFilenames,jdbcType=VARCHAR},
+			</if>
+			<if test="newFileNames != null ">
+				gt.new_file_names = #{newFileNames,jdbcType=VARCHAR},
+			</if>
+			<if test="status != null and status != '' ">
+				gt.status = #{status,jdbcType=VARCHAR}
+			</if>
+		</set>
+		where gt.id = #{id,jdbcType=BIGINT}
+	</update>
+
+</mapper> 

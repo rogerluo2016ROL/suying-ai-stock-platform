@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ds.cockpit.screen.system.mapper.SystemUserNoviceGuideMapper">
+
+    <resultMap id="SystemUserNoviceGuideResult" type="com.ds.cockpit.screen.common.core.domain.entity.SystemUserNoviceGuideEntity">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="userId" column="user_id" jdbcType="VARCHAR"/>
+            <result property="userName" column="user_name" jdbcType="VARCHAR"/>
+            <result property="userDept" column="user_dept" jdbcType="VARCHAR"/>
+            <result property="loginTime" column="login_time" jdbcType="TIMESTAMP"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="availability" column="availability" jdbcType="INTEGER"/>
+            <result property="descriptions" column="descriptions" jdbcType="VARCHAR"/>
+            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,user_id,user_name,user_dept,login_time,create_time,availability,descriptions,update_time
+    </sql>
+
+    <select id="getSystemUserNoviceGuide" resultMap="SystemUserNoviceGuideResult">
+        SELECT *
+        FROM system_user_novice_guide
+        WHERE availability = 1
+            <if test="vo.userId != null and vo.userId != ''">
+                AND user_id = #{vo.userId}
+            </if>
+            <if test="vo.userName != null and vo.userName != ''">
+                AND user_name = #{vo.userName}
+            </if>
+            <if test="vo.userDept != null and vo.userDept != ''">
+                AND user_dept = #{vo.userDept}
+            </if>
+            <if test="vo.descriptions != null and vo.descriptions != ''">
+                AND descriptions = #{vo.descriptions}
+            </if>
+    </select>
+
+    <insert id="insertEntity" parameterType="com.ds.cockpit.screen.common.core.domain.entity.SystemUserNoviceGuideEntity">
+        insert into system_user_novice_guide(
+        <if test="userId != null and userId != ''">user_id,</if>
+        <if test="userName != null and userName != ''">user_name,</if>
+        <if test="userDept != null and userDept != ''">user_dept,</if>
+        <if test="descriptions != null and descriptions != ''">descriptions,</if>
+        update_time
+        )values(
+        <if test="userId != null and userId != ''">#{userId},</if>
+        <if test="userName != null and userName != ''">#{userName},</if>
+        <if test="userDept != null and userDept != ''">#{userDept},</if>
+        <if test="descriptions != null and descriptions != ''">#{descriptions},</if>
+        sysdate()
+        )
+    </insert>
+
+    <update id="unAvailability">
+        update system_user_novice_guide un
+        <set>
+            <if test="id != null ">
+                un.availability = 0 ,
+            </if>
+            <if test="id != null ">
+                un.update_time = sysdate()
+            </if>
+        </set>
+        where un.id = #{id,jdbcType=BIGINT}
+    </update>
+
+</mapper>

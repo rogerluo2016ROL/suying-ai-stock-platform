@@ -1,0 +1,8 @@
+[bridge] starting: lark-cli event consume im.message.receive_v1 --as bot --timeout 24h
+[event] consuming as cli_aacde12ce1385be9 (cli_aacde12ce1385be9)
+[event] local bus not found; checking remote connections...
+[event] remote connection check: online_instance_cnt=0
+[event] started bus daemon pid=23244 (auto-exits 30s after last consumer)
+[event] listening for events (key=im.message.receive_v1), ctrl+c to stop
+[event] ready event_key=im.message.receive_v1
+[source] feishu-websocket: connected

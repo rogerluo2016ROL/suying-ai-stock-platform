@@ -1,0 +1,130 @@
+# Sanitized ChatBI application config.
+# Do not copy values from the original GAC/Dify package into this file.
+
+ruoyi:
+  name: ChatBI
+  version: 0.1.0
+  copyrightYear: 2026
+  profile: ${CHATBI_UPLOAD_PATH:./data/uploads}
+  addressEnabled: false
+  captchaType: math
+
+server:
+  port: ${CHATBI_SERVER_PORT:8088}
+  servlet:
+    context-path: ${CHATBI_CONTEXT_PATH:/ds-cockpit-screen}
+  tomcat:
+    uri-encoding: UTF-8
+    accept-count: ${CHATBI_TOMCAT_ACCEPT_COUNT:1000}
+    threads:
+      max: ${CHATBI_TOMCAT_MAX_THREADS:200}
+      min-spare: ${CHATBI_TOMCAT_MIN_SPARE_THREADS:10}
+
+logging:
+  level:
+    com.ds.cockpit.screen: ${CHATBI_LOG_LEVEL:info}
+    org.springframework: warn
+  file:
+    name: ${LOG_DIR:./logs}/${spring.application.name}.log
+
+user:
+  password:
+    maxRetryCount: ${CHATBI_PASSWORD_MAX_RETRY:5}
+    lockTime: ${CHATBI_PASSWORD_LOCK_MINUTES:10}
+
+spring:
+  application:
+    name: ${CHATBI_APP_NAME:chatbi-server}
+  messages:
+    basename: i18n/messages
+  profiles:
+    active: ${CHATBI_PROFILE:local}
+  servlet:
+    multipart:
+      max-file-size: ${CHATBI_MAX_FILE_SIZE:20MB}
+      max-request-size: ${CHATBI_MAX_REQUEST_SIZE:100MB}
+  devtools:
+    restart:
+      enabled: false
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driverClassName: ${CHATBI_DB_DRIVER:org.postgresql.Driver}
+    druid:
+      master:
+        url: ${CHATBI_DB_URL:jdbc:postgresql://localhost:6432/kronos}
+        username: ${CHATBI_DB_USERNAME:kronos}
+        password: ${CHATBI_DB_PASSWORD:kronos}
+      slave:
+        enabled: false
+        url: ${CHATBI_DB_SLAVE_URL:}
+        username: ${CHATBI_DB_SLAVE_USERNAME:}
+        password: ${CHATBI_DB_SLAVE_PASSWORD:}
+      initialSize: ${CHATBI_DB_INITIAL_SIZE:2}
+      minIdle: ${CHATBI_DB_MIN_IDLE:2}
+      maxActive: ${CHATBI_DB_MAX_ACTIVE:10}
+      maxWait: ${CHATBI_DB_MAX_WAIT:30000}
+      connectTimeout: ${CHATBI_DB_CONNECT_TIMEOUT:10000}
+      socketTimeout: ${CHATBI_DB_SOCKET_TIMEOUT:30000}
+      timeBetweenEvictionRunsMillis: ${CHATBI_DB_EVICTION_RUN_MS:60000}
+      minEvictableIdleTimeMillis: ${CHATBI_DB_MIN_EVICTABLE_IDLE_MS:300000}
+      maxEvictableIdleTimeMillis: ${CHATBI_DB_MAX_EVICTABLE_IDLE_MS:900000}
+      validationQuery: ${CHATBI_DB_VALIDATION_QUERY:SELECT 1}
+      testWhileIdle: true
+      testOnBorrow: false
+      testOnReturn: false
+      webStatFilter:
+        enabled: false
+      statViewServlet:
+        enabled: false
+      filter:
+        stat:
+          enabled: true
+          log-slow-sql: true
+          slow-sql-millis: ${CHATBI_SLOW_SQL_MILLIS:1000}
+          merge-sql: true
+        wall:
+          config:
+            multi-statement-allow: false
+
+token:
+  header: Authorization
+  secret: ${CHATBI_TOKEN_SECRET}
+  expireTime: ${CHATBI_TOKEN_EXPIRE_MINUTES:30}
+
+mybatis:
+  typeAliasesPackage: com.ds.cockpit.screen.**.domain
+  mapperLocations: classpath*:mapper/**/*Mapper.xml
+  configLocation: classpath:mybatis/mybatis-config.xml
+
+pagehelper:
+  helperDialect: ${CHATBI_PAGEHELPER_DIALECT:postgresql}
+  supportMethodsArguments: true
+  params: count=countSql
+
+swagger:
+  enabled: ${CHATBI_SWAGGER_ENABLED:false}
+  pathMapping: /dev-api
+
+xss:
+  enabled: true
+  excludes: /system/notice
+  urlPatterns: /system/*,/monitor/*,/tool/*
+
+chatbi:
+  dify:
+    enabled: false
+  orchestrator:
+    enabled: true
+    default-answer-mode: quick
+    stream-heartbeat-ms: ${CHATBI_STREAM_HEARTBEAT_MS:15000}
+    request-timeout-ms: ${CHATBI_REQUEST_TIMEOUT_MS:60000}
+  model-gateway:
+    default-provider: ${CHATBI_LLM_DEFAULT_PROVIDER:deepseek}
+    default-model: ${CHATBI_LLM_DEFAULT_MODEL:}
+  tool-gateway:
+    base-url: ${CHATBI_TOOL_GATEWAY_BASE_URL:http://127.0.0.1:8000/api/v1}
+    allow-raw-sql: false
+  external-platform:
+    enabled: ${CHATBI_EXTERNAL_PLATFORM_ENABLED:false}
+    provider: ${CHATBI_EXTERNAL_PLATFORM_PROVIDER:standalone}
+    callback-base-url: ${CHATBI_EXTERNAL_CALLBACK_BASE_URL:http://localhost:8088}

@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>华为韬定律 2.0 — 8层BOM产业链架构图</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e17;
+    color: #e2e8f0;
+    font-family: 'Noto Sans SC', 'Inter', system-ui, sans-serif;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+  .container { max-width: 1400px; width: 100%; }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .header h1 {
+    font-size: 2.2rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 0.02em;
+  }
+  .header .subtitle {
+    color: #94a3b8;
+    font-size: 0.95rem;
+    margin-top: 8px;
+  }
+  .header .meta {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .header .meta span {
+    background: rgba(96, 165, 250, 0.1);
+    border: 1px solid rgba(96, 165, 250, 0.25);
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 0.8rem;
+    color: #93c5fd;
+  }
+
+  /* 8-Layer BOM Stack */
+  .bom-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 48px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(96, 165, 250, 0.08);
+  }
+  .bom-layer {
+    display: flex;
+    align-items: stretch;
+    min-height: 64px;
+    transition: all 0.2s;
+  }
+  .bom-layer:hover { filter: brightness(1.15); }
+  .bom-layer .layer-label {
+    width: 140px;
+    min-width: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 8px;
+    text-align: center;
+    gap: 2px;
+  }
+  .bom-layer .layer-label .l-num { font-size: 1.1rem; }
+  .bom-layer .layer-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .bom-layer .layer-content .item {
+    background: rgba(255,255,255,0.08);
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  /* L1 - Policy Theme */
+  .bom-layer.l1 .layer-label { background: #1e1b4b; color: #c4b5fd; }
+  .bom-layer.l1 .layer-content { background: rgba(30,27,75,0.6); border: 1px solid rgba(139,92,246,0.3); }
+  .bom-layer.l1 .item { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+
+  /* L2 - Direction */
+  .bom-layer.l2 .layer-label { background: #172554; color: #93c5fd; }
+  .bom-layer.l2 .layer-content { background: rgba(23,37,84,0.6); border: 1px solid rgba(59,130,246,0.3); }
+  .bom-layer.l2 .item { background: rgba(59,130,246,0.15); color: #93c5fd; }
+
+  /* L3 - Chain */
+  .bom-layer.l3 .layer-label { background: #042f2e; color: #5eead4; }
+  .bom-layer.l3 .layer-content { background: rgba(4,47,46,0.6); border: 1px solid rgba(20,184,166,0.3); }
+  .bom-layer.l3 .item { background: rgba(20,184,166,0.15); color: #5eead4; }
+
+  /* L4 - Segments */
+  .bom-layer.l4 .layer-label { background: #1a2e05; color: #a3e635; }
+  .bom-layer.l4 .layer-content { background: rgba(26,46,5,0.6); border: 1px solid rgba(132,204,22,0.3); }
+  .bom-layer.l4 .item { background: rgba(132,204,22,0.12); color: #bef264; }
+
+  /* L5 - BOM Nodes */
+  .bom-layer.l5 .layer-label { background: #2e1a05; color: #fbbf24; }
+  .bom-layer.l5 .layer-content { background: rgba(46,26,5,0.6); border: 1px solid rgba(245,158,11,0.3); }
+  .bom-layer.l5 .item { background: rgba(245,158,11,0.12); color: #fcd34d; }
+
+  /* L6 - Technologies */
+  .bom-layer.l6 .layer-label { background: #2e0516; color: #f472b6; }
+  .bom-layer.l6 .layer-content { background: rgba(46,5,22,0.6); border: 1px solid rgba(236,72,153,0.3); }
+  .bom-layer.l6 .item { background: rgba(236,72,153,0.12); color: #f9a8d4; }
+
+  /* L7 - Business */
+  .bom-layer.l7 .layer-label { background: #1e0b2e; color: #d8b4fe; }
+  .bom-layer.l7 .layer-content { background: rgba(30,11,46,0.6); border: 1px solid rgba(168,85,247,0.3); }
+  .bom-layer.l7 .item { background: rgba(168,85,247,0.12); color: #e9d5ff; }
+
+  /* L8 - Evidence */
+  .bom-layer.l8 .layer-label { background: #2e0b0b; color: #fca5a5; }
+  .bom-layer.l8 .layer-content { background: rgba(46,11,11,0.6); border: 1px solid rgba(239,68,68,0.3); }
+  .bom-layer.l8 .item { background: rgba(239,68,68,0.12); color: #fecaca; }
+
+  /* Section title */
+  .section-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-title::before {
+    content: '';
+    width: 4px;
+    height: 24px;
+    background: linear-gradient(180deg, #60a5fa, #a78bfa);
+    border-radius: 2px;
+  }
+
+  /* Upstream Rules */
+  .rules-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+  @media (max-width: 900px) { .rules-grid { grid-template-columns: 1fr; } }
+  .rule-card {
+    background: rgba(15,23,42,0.8);
+    border: 1px solid rgba(71,85,105,0.3);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .rule-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .rule-card.core::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .rule-card.observe::before { background: linear-gradient(90deg, #64748b, #94a3b8); }
+  .rule-card .rule-id { font-size: 0.75rem; color: #64748b; margin-bottom: 6px; }
+  .rule-card .rule-path {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin-bottom: 8px;
+  }
+  .rule-card .rule-path .arrow { color: #60a5fa; margin: 0 6px; }
+  .rule-card .rule-path .downstream { color: #5eead4; }
+  .rule-card .rule-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    color: #94a3b8;
+  }
+  .rule-card .rule-meta .pool {
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+  }
+  .rule-card .rule-meta .pool.core { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .rule-card .rule-meta .pool.observe { background: rgba(100,116,139,0.15); color: #94a3b8; }
+
+  /* Stock Grid */
+  .tier-section {
+    margin-bottom: 40px;
+    background: rgba(15,23,42,0.6);
+    border: 1px solid rgba(71,85,105,0.2);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .tier-section .tier-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .tier-section .tier-header .tier-icon { font-size: 1.5rem; }
+  .tier-section .tier-header h3 { font-size: 1.1rem; font-weight: 700; }
+  .tier-section .tier-header .tier-desc { font-size: 0.82rem; color: #94a3b8; }
+
+  .stock-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .stock-table th {
+    text-align: left;
+    padding: 8px 12px;
+    color: #64748b;
+    font-weight: 500;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid rgba(71,85,105,0.3);
+  }
+  .stock-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(71,85,105,0.1);
+    vertical-align: middle;
+  }
+  .stock-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .stock-table .code { font-family: 'Inter', monospace; color: #93c5fd; font-weight: 500; }
+  .stock-table .name { font-weight: 600; }
+  .stock-table .score { font-weight: 700; }
+  .grade-S { color: #fbbf24; }
+  .grade-A { color: #a3e635; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+  .badge-upstream { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .badge-verified { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .badge-pending { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .badge-missing { background: rgba(239,68,68,0.1); color: #f87171; font-style: italic; }
+
+  /* Stats bar */
+  .stats-bar {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 48px;
+  }
+  .stat-card {
+    flex: 1;
+    min-width: 140px;
+    background: rgba(15,23,42,0.6);
+    border: 1px solid rgba(71,85,105,0.2);
+    border-radius: 12px;
+    padding: 16px 20px;
+    text-align: center;
+  }
+  .stat-card .stat-value { font-size: 1.6rem; font-weight: 800; color: #e2e8f0; }
+  .stat-card .stat-label { font-size: 0.78rem; color: #64748b; margin-top: 4px; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    color: #475569;
+    font-size: 0.78rem;
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(71,85,105,0.2);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>华为韬定律 2.0 · 8层BOM产业链架构</h1>
+    <p class="subtitle">何庭波 2026.07.03 | τ-缩微替代几何缩微 | 麒麟2026: 密度↑53.5% 功耗↓41%</p>
+    <div class="meta">
+      <span>📋 L1 政策主题</span>
+      <span>🧭 L2 产业方向</span>
+      <span>🔗 L3 产业链</span>
+      <span>🏭 L4 环节</span>
+      <span>⚙️ L5 BOM节点</span>
+      <span>🔬 L6 技术路线</span>
+      <span>💼 L7 业务分部</span>
+      <span>📎 L8 证据事件</span>
+    </div>
+  </div>
+
+  <!-- 8-Layer BOM Stack -->
+  <div class="section-title">🧅 8层 BOM 链路</div>
+  <div class="bom-stack">
+    <div class="bom-layer l1">
+      <div class="layer-label"><span class="l-num">L1</span>政策主题</div>
+      <div class="layer-content">
+        <span class="item">科技自立自强</span>
+        <span class="item">新质生产力</span>
+        <span style="color:#c4b5fd; font-size:1.1rem;">→</span>
+        <span class="item" style="font-weight:700; background:rgba(139,92,246,0.25);">华为韬定律 2.0</span>
+      </div>
+    </div>
+
+    <div class="bom-layer l2">
+      <div class="layer-label"><span class="l-num">L2</span>产业方向</div>
+      <div class="layer-content">
+        <span class="item" style="font-weight:700;">华为韬定律2.0</span>
+        <span style="color:#93c5fd;">◈</span>
+        <span class="item">Logic Folding 逻辑折叠</span>
+        <span class="item">3D堆叠绕开EUV</span>
+        <span class="item">成熟制程性能越级</span>
+      </div>
+    </div>
+
+    <div class="bom-layer l3">
+      <div class="layer-label"><span class="l-num">L3</span>产业链</div>
+      <div class="layer-content">
+        <span class="item" style="font-weight:700;">华为韬定律先进封装产业链</span>
+      </div>
+    </div>
+
+    <div class="bom-layer l4">
+      <div class="layer-label"><span class="l-num">L4</span>环节</div>
+      <div class="layer-content">
+        <span class="item">🥇 先进封测</span>
+        <span class="item">🥈 封测设备</span>
+        <span class="item">🥉 EDA工具</span>
+        <span class="item">🏅 封测材料</span>
+        <span class="item">🔗 光互连与PCB</span>
+      </div>
+    </div>
+
+    <div class="bom-layer l5">
+      <div class="layer-label"><span class="l-num">L5</span>BOM节点</div>
+      <div class="layer-content">
+        <span class="item">混合键合设备</span>
+        <span class="item">ALD/PECVD</span>
+        <span class="item">临时键合/解键合</span>
+        <span class="item">CMP设备</span>
+        <span class="item">3D IC EDA</span>
+        <span class="item">键合胶/抛光液</span>
+        <span class="item">玻璃基板/TGV</span>
+        <span class="item">800G/1.6T光模块</span>
+        <span class="item">高速PCB/IC载板</span>
+      </div>
+    </div>
+
+    <div class="bom-layer l6">
+      <div class="layer-label"><span class="l-num">L6</span>产品/技术路线</div>
+      <div class="layer-content">
+        <span class="item">Logic Folding</span>
+        <span class="item">Hybrid Bonding</span>
+        <span class="item">3D堆叠/Chiplet</span>
+        <span class="item">TSV/硅通孔</span>
+        <span class="item">CoWoS/XDFOI</span>
+        <span class="item">CPO/硅光集成</span>
+        <span class="item">mSAP/VPD</span>
+        <span class="item" style="font-weight:700; background:rgba(236,72,153,0.25);">τ-缩微</span>
+      </div>
+    </div>
+
+    <div class="bom-layer l7">
+      <div class="layer-label"><span class="l-num">L7</span>公司业务分部</div>
+      <div class="layer-content">
+        <span class="item">先进封装业务</span>
+        <span class="item">半导体设备业务</span>
+        <span class="item">EDA软件业务</span>
+        <span class="item">半导体材料业务</span>
+        <span class="item">光模块业务</span>
+        <span class="item">高速PCB业务</span>
+      </div>
+    </div>
+
+    <div class="bom-layer l8">
+      <div class="layer-label"><span class="l-num">L8</span>证据事件</div>
+      <div class="layer-content">
+        <span class="item">研发进展</span>
+        <span class="item">样机/小批量交付</span>
+        <span class="item">客户验证</span>
+        <span class="item">订单/中标</span>
+        <span class="item">产线建设/量产</span>
+        <span class="item">收入&毛利改善</span>
+        <span class="item">专利与标准</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upstream Cross-Chain Rules -->
+  <div class="section-title">🔀 跨链上游影响规则</div>
+  <div class="rules-grid">
+    <div class="rule-card core">
+      <div class="rule-id">rule-id: semiconductor_equipment_to_advanced_packaging</div>
+      <div class="rule-path">
+        半导体设备<span class="arrow">→</span><span class="downstream">华为韬定律_先进封装</span>
+      </div>
+      <div class="rule-meta">
+        <span class="pool core">核心池</span>
+        <span>逻辑折叠使能环节</span>
+        <span>覆盖 26 只标的</span>
+      </div>
+    </div>
+    <div class="rule-card core">
+      <div class="rule-id">rule-id: optical_interconnect_to_advanced_packaging</div>
+      <div class="rule-path">
+        光互连<span class="arrow">→</span><span class="downstream">华为韬定律_先进封装</span>
+      </div>
+      <div class="rule-meta">
+        <span class="pool core">核心池</span>
+        <span>τ-优化使能环节</span>
+        <span>覆盖 14 只标的</span>
+      </div>
+    </div>
+    <div class="rule-card core">
+      <div class="rule-id">rule-id: eda_to_3d_chip_design</div>
+      <div class="rule-path">
+        EDA工具<span class="arrow">→</span><span class="downstream">华为韬定律_先进封装</span>
+      </div>
+      <div class="rule-meta">
+        <span class="pool core">核心池</span>
+        <span>3D IC设计使能</span>
+        <span>覆盖 26 只标的</span>
+      </div>
+    </div>
+    <div class="rule-card observe">
+      <div class="rule-id">rule-id: functional_pigment_nanomaterials</div>
+      <div class="rule-path">
+        功能色浆/纳米材料<span class="arrow">→</span><span class="downstream">半导体</span>
+      </div>
+      <div class="rule-meta">
+        <span class="pool observe">观察池</span>
+        <span>上游功能材料</span>
+        <span>覆盖 N/A</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stock Mapping by Tier -->
+  <div class="section-title">📊 五层环节 → 实际标的映射（五维打分：Moat·Growth·Profit·Rating·Consensus）</div>
+
+  <!-- Tier 1: 先进封测 -->
+  <div class="tier-section">
+    <div class="tier-header">
+      <span class="tier-icon">🥇</span>
+      <h3>先进封测</h3>
+      <span class="tier-desc">业绩兑现最快 | 逻辑折叠直接受益</span>
+    </div>
+    <table class="stock-table">
+      <thead>
+        <tr><th>#</th><th>代码</th><th>名称</th><th>总分</th><th>护城河</th><th>成长</th><th>盈利</th><th>毛利%</th><th>营收增%</th><th>映射</th><th>核心信号</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td><td class="code">603005</td><td class="name">晶方科技</td>
+          <td class="score">67.7</td><td>40</td><td>26.0</td><td>11.0</td><td>47.4</td><td>14.9</td>
+          <td><span class="badge badge-verified">verified 85%</span></td>
+          <td>先进封装核心 · 行业龙头</td>
+        </tr>
+        <tr>
+          <td>2</td><td class="code">600584</td><td class="name">长电科技</td>
+          <td colspan="6"><span class="badge badge-missing">未被引擎召回 — 关键词"集成电路封装测试"未命中"先进封测"层，需人工白名单</span></td>
+          <td><span class="badge badge-verified">verified 85%</span></td>
+          <td>XDFOI多维异构 · 华为麒麟封测核心</td>
+        </tr>
+        <tr>
+          <td>3</td><td class="code">002156</td><td class="name">通富微电</td>
+          <td colspan="6"><span class="badge badge-missing">关键词"集成电路的封装和测试"未命中，定增加码先进封装(2026-02)</span></td>
+          <td><span class="badge badge-pending">pending 80%</span></td>
+          <td>2.5D/3D产线 · 华为+AMD双客户</td>
+        </tr>
+        <tr>
+          <td>4</td><td class="code">688362</td><td class="name">甬矽电子</td>
+          <td colspan="6"><span class="badge badge-missing">未被引擎召回，高密度芯粒封装</span></td>
+          <td><span class="badge badge-pending">pending 80%</span></td>
+          <td>消费类芯片逻辑折叠适配</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Tier 2: 封测设备 -->
+  <div class="tier-section">
+    <div class="tier-header">
+      <span class="tier-icon">🥈</span>
+      <h3>封测设备</h3>
+      <span class="tier-desc">扩产刚需 | 逻辑折叠前置工序</span>
+    </div>
+    <table class="stock-table">
+      <thead>
+        <tr><th>#</th><th>代码</th><th>名称</th><th>总分</th><th>护城河</th><th>成长</th><th>盈利</th><th>毛利%</th><th>营收增%</th><th>映射</th><th>核心信号</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td><td class="code">688072</td><td class="name">拓荆科技</td>
+          <td class="score grade-S">71.1 S</td><td>40</td><td>30.0</td><td>10.0</td><td>41.7</td><td>57.0</td>
+          <td><span class="badge badge-verified">verified 85%</span></td>
+          <td>技术壁垒 · 行业龙头 · 进口替代 · <span class="badge badge-upstream">🔀设备→封测</span></td>
+        </tr>
+        <tr>
+          <td>2</td><td class="code">300604</td><td class="name">长川科技</td>
+          <td class="score grade-S">69.7 S</td><td>40</td><td>30.0</td><td>8.0</td><td>56.8</td><td>69.1</td>
+          <td><span class="badge badge-verified">verified 85%</span></td>
+          <td>行业龙头 · 进口替代 · Q2超预期 · <span class="badge badge-upstream">🔀设备→封测</span></td>
+        </tr>
+        <tr>
+          <td>3</td><td class="code">688012</td><td class="name">中微公司</td>
+          <td class="score grade-S">68.4 S</td><td>40</td><td>30.0</td><td>6.0</td><td>39.9</td><td>34.1</td>
+          <td><span class="badge badge-verified">verified 85%</span></td>
+          <td>行业龙头 · 进口替代 · 技术壁垒 · 16券商 · <span class="badge badge-upstream">🔀设备→封测</span></td>
+        </tr>
+        <tr>
+          <td>4</td><td class="code">688120</td><td class="name">华海清科</td>
+          <td class="score grade-S">65.7 S</td><td>40</td><td>30.0</td><td>8.0</td><td>42.3</td><td>31.7</td>
+          <td><span class="badge badge-verified">verified 85%</span></td>
+          <td>行业龙头 · CMP设备龙头 · <span class="badge badge-upstream">🔀设备→封测</span></td>
+        </tr>
+        <tr>
+          <td>5</td><td class="code">688037</td><td class="name">芯源微</td>
+          <td class="score">64.2</td><td>40</td><td>19.0</td><td>8.0</td><td>46.7</td><td>20.1</td>
+          <td><span class="badge badge-verified">verified 85%</span></td>
+          <td>超薄晶圆键合独家量产能力</td>
+        </tr>
+        <tr>
+          <td>6</td><td class="code">002371</td><td class="name">北方华创</td>
+          <td class="score">69.7</td><td>40</td><td>30.0</td><td>8.0</td><td>40.8</td><td>25.8</td>
+          <td><span class="badge badge-pending">pending</span></td>
+          <td>平台型设备龙头 · 面板级封装 · <span class="badge badge-upstream">🔀设备→封测</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Tier 3: EDA -->
+  <div class="tier-section">
+    <div class="tier-header">
+      <span class="tier-icon">🥉</span>
+      <h3>EDA工具</h3>
+      <span class="tier-desc">增量最大 | 3D IC设计必需品</span>
+    </div>
+    <table class="stock-table">
+      <thead>
+        <tr><th>#</th><th>代码</th><th>名称</th><th>总分</th><th>护城河</th><th>成长</th><th>盈利</th><th>毛利%</th><th>营收增%</th><th>映射</th><th>核心信号</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td><td class="code">301269</td><td class="name">华大九天</td>
+          <td colspan="6"><span class="badge badge-missing">未被引擎召回 — ROE=-1.4%被min_score=55过滤，但毛利78.8%验证强护城河</span></td>
+          <td><span class="badge badge-pending">pending 80%</span></td>
+          <td>国内唯一3D IC全流程EDA · 华为哈勃入股 · <span class="badge badge-upstream">🔀EDA→3D IC</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Tier 4: 封测材料 -->
+  <div class="tier-section">
+    <div class="tier-header">
+      <span class="tier-icon">🏅</span>
+      <h3>封测材料</h3>
+      <span class="tier-desc">中长期赛道 | τ-优化物理底座</span>
+    </div>
+    <table class="stock-table">
+      <thead>
+        <tr><th>#</th><th>代码</th><th>名称</th><th>总分</th><th>护城河</th><th>成长</th><th>盈利</th><th>毛利%</th><th>营收增%</th><th>映射</th><th>核心信号</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td><td class="code">600183</td><td class="name">生益科技</td>
+          <td class="score grade-S">68.4 S</td><td>40</td><td>30.0</td><td>6.0</td><td>28.1</td><td>45.1</td>
+          <td><span class="badge badge-verified">verified 85%</span></td>
+          <td>独家垄断 · 进口替代 · 行业龙头 · 覆铜板/基板</td>
+        </tr>
+        <tr>
+          <td>2</td><td class="code">300666</td><td class="name">江丰电子</td>
+          <td class="score grade-S">68.4 S</td><td>40</td><td>30.0</td><td>6.0</td><td>32.9</td><td>30.5</td>
+          <td><span class="badge badge-verified">verified 85%</span></td>
+          <td>行业龙头 · 进口替代 · 高纯溅射靶材 · <span class="badge badge-upstream">🔀设备→封测</span></td>
+        </tr>
+        <tr>
+          <td>3</td><td class="code">688019</td><td class="name">安集科技</td>
+          <td colspan="6"><span class="badge badge-missing">未被引擎召回，"半导体材料"关键词太泛，但毛利56.7%+营收增32.8%</span></td>
+          <td><span class="badge badge-pending">pending 80%</span></td>
+          <td>抛光液市占率攀升 · "3+1"平台打开增长</td>
+        </tr>
+        <tr>
+          <td>4</td><td class="code">603078</td><td class="name">江化微</td>
+          <td class="score">64.4</td><td>40</td><td>30.0</td><td>9.0</td><td>27.1</td><td>16.9</td>
+          <td><span class="badge badge-verified">verified 85%</span></td>
+          <td>行业龙头 · 进口替代 · 湿电子化学品</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Tier 5: 光互连与PCB -->
+  <div class="tier-section">
+    <div class="tier-header">
+      <span class="tier-icon">🔗</span>
+      <h3>光互连与高速PCB</h3>
+      <span class="tier-desc">跨链受益 | τ-时延直接相关</span>
+    </div>
+    <table class="stock-table">
+      <thead>
+        <tr><th>#</th><th>代码</th><th>名称</th><th>总分</th><th>护城河</th><th>成长</th><th>盈利</th><th>毛利%</th><th>营收增%</th><th>映射</th><th>核心信号</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td><td class="code">300308</td><td class="name">中际旭创</td>
+          <td class="score grade-S">72.4 S</td><td>40</td><td>30.0</td><td>12.0</td><td>46.1</td><td>192.1</td>
+          <td><span class="badge badge-pending">weak 30%</span></td>
+          <td>行业龙头 · 25券商 · 800G/1.6T龙头 · <span class="badge badge-upstream">🔀光互连→封测</span></td>
+        </tr>
+        <tr>
+          <td>2</td><td class="code">300502</td><td class="name">新易盛</td>
+          <td colspan="6"><span class="badge badge-missing">关键词"光模块"匹配但不在候选池(通信设备行业)，1.6T环比上量 · ROE 14.5%</span></td>
+          <td><span class="badge badge-pending">pending</span></td>
+          <td>1.6T光模块环比上量 · 盈利行业领先 · <span class="badge badge-upstream">🔀光互连→封测</span></td>
+        </tr>
+        <tr>
+          <td>3</td><td class="code">300394</td><td class="name">天孚通信</td>
+          <td colspan="6"><span class="badge badge-missing">"光无源器件"未命中关键词，毛利56.6%·CPO产业化重塑增长</span></td>
+          <td><span class="badge badge-pending">pending</span></td>
+          <td>CPO产业化 · 光无源器件龙头</td>
+        </tr>
+        <tr>
+          <td>4</td><td class="code">002463</td><td class="name">沪电股份</td>
+          <td colspan="6"><span class="badge badge-missing">"印制电路板"未命中"高速PCB"关键词，ROE 28.4%·AI PCB龙头</span></td>
+          <td><span class="badge badge-pending">pending 65%</span></td>
+          <td>AI PCB龙头 · mSAP新工艺 · ROE 28.4%</td>
+        </tr>
+        <tr>
+          <td>5</td><td class="code">002916</td><td class="name">深南电路</td>
+          <td colspan="6"><span class="badge badge-missing">未被召回，IC载板+PCB高端化·ROE 20.6%</span></td>
+          <td><span class="badge badge-pending">pending 65%</span></td>
+          <td>IC载板龙头 · PCB高端化</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="section-title">📈 数据底座</div>
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-value">116,300</div>
+      <div class="stat-label">研报总篇数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">20</div>
+      <div class="stat-label">韬定律专题研报</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">79</div>
+      <div class="stat-label">先进封装研报</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">33,524</div>
+      <div class="stat-label">财务指标条数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">17,347</div>
+      <div class="stat-label">券商推荐条数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">15,606</div>
+      <div class="stat-label">公司-链映射</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">4+7+11</div>
+      <div class="stat-label">规则·关键词·产业链</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>速赢AI — 大葱产业链解构模型 | supply_chain.py (SupplyChainEngine) + chain_deconstruct.py (8层BOM) | 数据时点: 2026-07-06</p>
+    <p style="margin-top:8px;">⚠️ 以上为产业链方法论演示与数据驱动信息整理，不构成投资建议。股市有风险，投资需谨慎。</p>
+  </div>
+
+</div>
+</body>
+</html>

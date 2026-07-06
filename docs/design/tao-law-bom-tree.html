@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>华为韬定律2.0 — BOM结构拆解</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e17;
+    color: #e2e8f0;
+    font-family: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Noto Sans SC', monospace;
+    padding: 32px 40px;
+    line-height: 1.7;
+  }
+  .container { max-width: 1500px; margin: 0 auto; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 40px; }
+  .header h1 { font-size: 1.8rem; font-weight: 900; letter-spacing: 0.03em; }
+  .header h1 .hl { color: #60a5fa; }
+  .header .sub { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 24px; }
+  .tab {
+    padding: 8px 20px;
+    background: rgba(15,23,42,0.6);
+    border: 1px solid rgba(71,85,105,0.25);
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    transition: all 0.15s;
+  }
+  .tab.active { background: rgba(30,27,75,0.8); color: #c4b5fd; border-color: rgba(139,92,246,0.4); border-bottom-color: transparent; }
+
+  /* BOM Tree */
+  .bom-tree {
+    background: rgba(15,23,42,0.5);
+    border: 1px solid rgba(71,85,105,0.2);
+    border-radius: 12px;
+    padding: 28px 32px;
+    font-size: 0.88rem;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .bom-tree .L1 { color: #c4b5fd; font-weight: 700; }
+  .bom-tree .L2 { color: #93c5fd; font-weight: 600; }
+  .bom-tree .L3 { color: #5eead4; font-weight: 600; }
+  .bom-tree .L4 { color: #a3e635; }
+  .bom-tree .L5 { color: #fbbf24; }
+  .bom-tree .L6 { color: #f472b6; }
+  .bom-tree .L7 { color: #d8b4fe; }
+  .bom-tree .L8 { color: #fca5a5; }
+  .bom-tree .dim { color: #475569; }
+  .bom-tree .stock { color: #38bdf8; font-weight: 600; }
+  .bom-tree .tag { font-size: 0.75rem; padding: 1px 6px; border-radius: 4px; margin-left: 6px; }
+  .bom-tree .tag-upstream { background: rgba(245,158,11,0.15); color: #fbbf24; }
+
+  /* BOM Table */
+  .bom-table-wrap {
+    background: rgba(15,23,42,0.5);
+    border: 1px solid rgba(71,85,105,0.2);
+    border-radius: 12px;
+    overflow-x: auto;
+  }
+  .bom-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    min-width: 1300px;
+  }
+  .bom-table thead th {
+    position: sticky; top: 0;
+    padding: 12px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    background: rgba(15,23,42,0.95);
+    border-bottom: 2px solid rgba(71,85,105,0.3);
+  }
+  .bom-table tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(71,85,105,0.08);
+    vertical-align: top;
+  }
+  .bom-table tbody tr:hover td { background: rgba(255,255,255,0.015); }
+
+  .th-L1, .td-L1 { color: #c4b5fd; min-width: 140px; }
+  .th-L2, .td-L2 { color: #93c5fd; min-width: 100px; }
+  .th-L3, .td-L3 { color: #5eead4; min-width: 120px; }
+  .th-L4, .td-L4 { color: #a3e635; min-width: 90px; }
+  .th-L5, .td-L5 { color: #fbbf24; min-width: 120px; }
+  .th-L6, .td-L6 { color: #f472b6; min-width: 170px; }
+  .th-L7, .td-L7 { color: #d8b4fe; min-width: 130px; }
+  .th-L8, .td-L8 { color: #fca5a5; min-width: 120px; }
+  .th-L9, .td-L9 { color: #38bdf8; min-width: 160px; }
+  .th-L10,.td-L10 { color: #94a3b8; min-width: 170px; }
+
+  .stock-link { color: #38bdf8; text-decoration: none; font-weight: 600; }
+  .stock-link:hover { text-decoration: underline; }
+  .score-badge {
+    display: inline-block; padding: 1px 8px; border-radius: 10px;
+    font-weight: 700; font-size: 0.78rem; margin-right: 4px;
+  }
+  .score-S { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .score-A { background: rgba(163,230,53,0.12); color: #a3e635; }
+  .gap-tag {
+    display: inline-block; padding: 1px 6px; border-radius: 4px;
+    font-size: 0.72rem; background: rgba(239,68,68,0.1); color: #f87171;
+  }
+
+  .moat-item { display: inline-block; margin-right: 6px; }
+  .moat-item::before { content: '◆'; color: #fbbf24; font-size: 0.6rem; margin-right: 3px; }
+
+  /* Legend */
+  .legend { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; font-size: 0.78rem; }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  /* Footer */
+  .footer { text-align: center; color: #475569; font-size: 0.75rem; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(71,85,105,0.15); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1><span class="hl">华为韬定律 2.0</span> · BOM 结构拆解</h1>
+  <p class="sub">何庭波 2026.07.03 | τ-缩微替代几何缩微 | 麒麟2026实测: 密度↑53.5% 功耗↓41% | 数据时点: 2026-07-06</p>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:#c4b5fd;"></span> L1 政策主题</span>
+  <span><span class="dot" style="background:#93c5fd;"></span> L2 产业方向</span>
+  <span><span class="dot" style="background:#5eead4;"></span> L3 产业链</span>
+  <span><span class="dot" style="background:#a3e635;"></span> L4 环节</span>
+  <span><span class="dot" style="background:#fbbf24;"></span> L5 BOM节点</span>
+  <span><span class="dot" style="background:#f472b6;"></span> L6 技术路线</span>
+  <span><span class="dot" style="background:#d8b4fe;"></span> L7 业务分部</span>
+  <span><span class="dot" style="background:#fca5a5;"></span> L8 证据事件</span>
+  <span><span class="dot" style="background:#38bdf8;"></span> 标的(代码)</span>
+</div>
+
+<!-- BOM Tree -->
+<div class="bom-tree">
+<span class="L1">科技自立自强 — 华为韬定律2.0</span>                                    <span class="dim">← L1 政策主题</span>
+<span class="dim">│</span>
+<span class="L2">└── 华为韬定律2.0</span>                                              <span class="dim">← L2 产业方向</span>
+<span class="dim">    │</span>
+<span class="L3">    └── 华为韬定律先进封装产业链</span>                                  <span class="dim">← L3 产业链</span>
+<span class="dim">        │</span>
+<span class="L4">        ├── 先进封测</span>                                                <span class="dim">← L4 环节 (5)</span>
+<span class="L5">        │   ├── 混合键合设备</span>                                          <span class="dim">← L5 BOM节点 (9)</span>
+<span class="L6">        │   │   ├── Hybrid Bonding</span>                                   <span class="dim">← L6 技术路线</span>
+<span class="L7">        │   │   │   ├── 先进封装业务</span>                                    <span class="dim">← L7 业务分部</span>
+<span class="L8">        │   │   │   │   ├── 客户验证 ✓</span>
+<span class="L8">        │   │   │   │   ├── 订单或中标 ✓</span>                               <span class="dim">← L8 证据事件</span>
+<span class="L8">        │   │   │   │   └── 产线建设或量产 ✓</span>
+<span class="dim">        │   │   │   │</span>
+<span class="stock">        │   │   │   └── 603005 晶方科技  67.7S</span>                          <span class="dim">← 标的 · 晶圆级芯片尺寸封装</span>
+<span class="stock">        │   │   │   └── 600584 长电科技  ⚐白名单</span>                        <span class="dim">← XDFOI多维异构 · 华为麒麟封测核心</span>
+<span class="stock">        │   │   │   └── 002156 通富微电  ⚐白名单</span>                        <span class="dim">← 2.5D/3D产线 · 华为+AMD双客户</span>
+<span class="dim">        │   │   │</span>
+<span class="L6">        │   │   ├── 3D堆叠 / Chiplet</span>
+<span class="L7">        │   │   │   ├── 先进封装业务</span>
+<span class="L8">        │   │   │   │   ├── 研发进展 ✓</span>
+<span class="L8">        │   │   │   │   └── 专利与标准 ✓</span>
+<span class="stock">        │   │   │   └── 688362 甬矽电子  ⚐白名单</span>                        <span class="dim">← 高密度芯粒封装</span>
+<span class="dim">        │   │   │</span>
+<span class="L6">        │   │   ├── CoWoS / XDFOI</span>
+<span class="L7">        │   │   │   ├── 先进封装业务</span>
+<span class="L8">        │   │   │   │   ├── 样机或小批量交付 ✓</span>
+<span class="L8">        │   │   │   │   └── 收入和毛利改善 ✓</span>
+<span class="dim">        │   │   │</span>
+<span class="L6">        │   │   └── TSV / 硅通孔</span>
+<span class="L7">        │   │       └── 先进封装业务</span>
+<span class="dim">        │   │</span>
+<span class="L5">        │   ├── ALD / PECVD</span>
+<span class="L6">        │   │   ├── 逻辑折叠 (Logic Folding)</span>
+<span class="L7">        │   │   │   ├── 半导体设备业务</span>
+<span class="L8">        │   │   │   │   ├── 客户验证 ✓</span>
+<span class="L8">        │   │   │   │   └── 产线建设或量产 ✓</span>
+<span class="stock">        │   │   │   └── 688072 拓荆科技  71.1S <span class="tag tag-upstream">🔀设备→封测</span></span>        <span class="dim">← ALD/PECVD · 华为供应链 · 混合键合第二增长极</span>
+<span class="dim">        │   │   │</span>
+<span class="L6">        │   │   └── 刻蚀 / 薄膜沉积</span>
+<span class="L7">        │   │       ├── 半导体设备业务</span>
+<span class="L8">        │   │       │   ├── 研发进展 ✓</span>
+<span class="L8">        │   │       │   └── 收入和毛利改善 ✓</span>
+<span class="stock">        │   │       └── 688012 中微公司  68.4S <span class="tag tag-upstream">🔀设备→封测</span></span>        <span class="dim">← 高端刻蚀全面导入 · 16券商覆盖</span>
+<span class="stock">        │   │       └── 002371 北方华创  69.7S <span class="tag tag-upstream">🔀设备→封测</span></span>        <span class="dim">← 平台型设备龙头 · 面板级封装</span>
+<span class="dim">        │   │</span>
+<span class="L5">        │   ├── 临时键合 / 解键合</span>
+<span class="L6">        │   │   └── 超薄晶圆处理</span>
+<span class="L7">        │   │       ├── 半导体设备业务</span>
+<span class="L8">        │   │       │   └── 样机或小批量交付 ✓</span>
+<span class="stock">        │   │       └── 688037 芯源微  64.2S</span>                          <span class="dim">← 超薄晶圆临时贴合/解键合独家量产</span>
+<span class="dim">        │   │</span>
+<span class="L5">        │   └── CMP设备</span>
+<span class="L6">        │       └── CMP 抛光</span>
+<span class="L7">        │           ├── 半导体设备业务</span>
+<span class="L8">        │           │   ├── 客户验证 ✓</span>
+<span class="L8">        │           │   └── 产线建设或量产 ✓</span>
+<span class="stock">        │           └── 688120 华海清科  65.7S <span class="tag tag-upstream">🔀设备→封测</span></span>        <span class="dim">← CMP设备龙头 · 先进封装扩产受益</span>
+<span class="stock">        │           └── 300604 长川科技  69.7S <span class="tag tag-upstream">🔀设备→封测</span></span>        <span class="dim">← 测试机龙头 · Q2业绩超预期 · 毛利56.8%</span>
+<span class="dim">        │</span>
+<span class="L4">        ├── EDA工具</span>
+<span class="L5">        │   └── 3D IC EDA</span>
+<span class="L6">        │       ├── 多物理场仿真 (热/信号完整性/电源)</span>
+<span class="L7">        │       │   ├── EDA软件业务</span>
+<span class="L8">        │       │   │   ├── 研发进展 ✓</span>
+<span class="L8">        │       │   │   └── 专利与标准 ✓</span>
+<span class="L6">        │       └── 3D IC 全流程设计</span>
+<span class="L7">        │           └── EDA软件业务</span>
+<span class="L8">        │               └── 客户验证 ✓</span>
+<span class="stock">        │           └── 301269 华大九天  ⚐白名单 <span class="tag tag-upstream">🔀EDA→3D IC</span></span>      <span class="dim">← 国内唯一3D IC全流程EDA · 华为哈勃入股 · 毛利89.3%</span>
+<span class="dim">        │</span>
+<span class="L4">        ├── 封测材料</span>
+<span class="L5">        │   ├── 键合胶 / 抛光液</span>
+<span class="L6">        │   │   └── CMP 抛光液 / 键合材料</span>
+<span class="L7">        │   │       ├── 半导体材料业务</span>
+<span class="L8">        │   │       │   ├── 客户验证 ✓</span>
+<span class="L8">        │   │       │   └── 收入和毛利改善 ✓</span>
+<span class="stock">        │   │       └── 688019 安集科技  ⚐白名单</span>                        <span class="dim">← 抛光液市占率攀升 · 毛利56.7% · "3+1"平台</span>
+<span class="dim">        │   │</span>
+<span class="L5">        │   ├── 玻璃基板 / TGV</span>
+<span class="L6">        │   │   └── τ-缩微物理底座</span>
+<span class="L7">        │   │       └── 半导体材料业务</span>
+<span class="dim">        │   │</span>
+<span class="L5">        │   └── 覆铜板 / 铜箔 / 靶材</span>
+<span class="L6">        │       └── 高纯溅射靶材 / 基板材料</span>
+<span class="L7">        │           ├── 半导体材料业务</span>
+<span class="L8">        │           │   ├── 订单或中标 ✓</span>
+<span class="L8">        │           │   └── 收入和毛利改善 ✓</span>
+<span class="stock">        │           └── 600183 生益科技  68.4S</span>                          <span class="dim">← 覆铜板龙头 · 独家垄断 · 进口替代</span>
+<span class="stock">        │           └── 300666 江丰电子  68.4S</span>                          <span class="dim">← 高纯溅射靶材 · 进口替代</span>
+<span class="stock">        │           └── 603078 江化微  64.4S</span>                            <span class="dim">← 湿电子化学品 · 进口替代</span>
+<span class="dim">        │</span>
+<span class="L4">        └── 光互连与PCB</span>
+<span class="L5">            ├── 800G / 1.6T 光模块</span>
+<span class="L6">            │   ├── CPO / 硅光集成</span>
+<span class="L7">            │   │   ├── 光模块业务</span>
+<span class="L8">            │   │   │   ├── 订单或中标 ✓</span>
+<span class="L8">            │   │   │   ├── 产线建设或量产 ✓</span>
+<span class="L8">            │   │   │   └── 收入和毛利改善 ✓</span>
+<span class="stock">            │   │   └── 300308 中际旭创  72.4S <span class="tag tag-upstream">🔀光互连→封测</span></span>    <span class="dim">← 800G放量 · 1.6T接力 · 营收增192% · 25券商</span>
+<span class="stock">            │   │   └── 300502 新易盛  62.6A <span class="tag tag-upstream">🔀光互连→封测</span></span>      <span class="dim">← 1.6T环比上量 · 盈利行业领先 · ROE 14.5%</span>
+<span class="stock">            │   │   └── 300394 天孚通信  ⚐白名单</span>                        <span class="dim">← CPO产业化 · 毛利56.6%</span>
+<span class="dim">            │   │</span>
+<span class="L6">            │   └── mSAP / VPD 高端PCB</span>
+<span class="L7">            │       ├── 高速PCB业务</span>
+<span class="L8">            │       │   ├── 客户验证 ✓</span>
+<span class="L8">            │       │   └── 收入和毛利改善 ✓</span>
+<span class="stock">            │       └── 002463 沪电股份  ⚐白名单</span>                        <span class="dim">← AI PCB龙头 · mSAP新工艺 · ROE 28.4%</span>
+<span class="stock">            │       └── 002916 深南电路  ⚐白名单</span>                        <span class="dim">← IC载板龙头 · PCB高端化 · ROE 20.6%</span>
+<span class="dim">            │</span>
+<span class="L5">            └── 高速PCB / IC载板</span>
+<span class="L6">                └── τ-缩微 PCB</span>
+<span class="L7">                    └── 高速PCB业务</span>
+</div>
+
+<!-- Separator -->
+<div style="height: 36px;"></div>
+
+<!-- BOM Table View -->
+<div class="header" style="margin-bottom: 16px;">
+  <h1 style="font-size:1.3rem;"><span class="hl">BOM 表视图</span> (L1→L8 扁平展开 + 标的映射)</h1>
+</div>
+
+<div class="bom-table-wrap">
+<table class="bom-table">
+<thead>
+<tr>
+  <th class="th-L1">L1 政策主题</th>
+  <th class="th-L2">L2 产业方向</th>
+  <th class="th-L3">L3 产业链</th>
+  <th class="th-L4">L4 环节</th>
+  <th class="th-L5">L5 BOM节点</th>
+  <th class="th-L6">L6 技术路线</th>
+  <th class="th-L7">L7 业务分部</th>
+  <th class="th-L8">L8 证据事件</th>
+  <th class="th-L9">标的·代码</th>
+  <th class="th-L10">得分·核心逻辑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td class="td-L1" rowspan="5">科技自立自强<br>华为韬定律2.0</td>
+  <td class="td-L2" rowspan="5">华为韬定律2.0<br><small>Logic Folding<br>τ-缩微</small></td>
+  <td class="td-L3" rowspan="5">华为韬定律<br>先进封装产业链</td>
+
+  <!-- 先进封测 -->
+  <td class="td-L4" rowspan="2">🥇 先进封测</td>
+  <td class="td-L5">混合键合设备</td>
+  <td class="td-L6">Hybrid Bonding · CoWoS/XDFOI</td>
+  <td class="td-L7">先进封装业务</td>
+  <td class="td-L8">客户验证 · 订单中标 · 量产</td>
+  <td class="td-L9">603005 晶方科技<br><span class="gap-tag">600584 长电科技</span><br><span class="gap-tag">002156 通富微电</span></td>
+  <td class="td-L10"><span class="score-badge score-S">67.7S</span> 晶圆级封装<br><span class="gap-tag">⚐白名单</span> XDFOI·华为麒麟核心<br><span class="gap-tag">⚐白名单</span> 2.5D/3D·华为+AMD</td>
+</tr>
+<tr>
+  <td class="td-L5">3D堆叠 / Chiplet</td>
+  <td class="td-L6">3D堆叠 · TSV · Chiplet</td>
+  <td class="td-L7">先进封装业务</td>
+  <td class="td-L8">研发进展 · 专利标准</td>
+  <td class="td-L9"><span class="gap-tag">688362 甬矽电子</span></td>
+  <td class="td-L10"><span class="gap-tag">⚐白名单</span> 高密度芯粒封装</td>
+</tr>
+
+<!-- 封测设备 -->
+<tr>
+  <td class="td-L4" rowspan="3">🥈 封测设备</td>
+  <td class="td-L5">ALD / PECVD</td>
+  <td class="td-L6">逻辑折叠 · 刻蚀/薄膜沉积</td>
+  <td class="td-L7">半导体设备业务</td>
+  <td class="td-L8">客户验证 · 量产 · 收入改善</td>
+  <td class="td-L9">688072 拓荆科技<br>688012 中微公司<br>002371 北方华创</td>
+  <td class="td-L10"><span class="score-badge score-S">71.1S</span> ALD/PECVD·华为链<span class="tag tag-upstream">🔀</span><br><span class="score-badge score-S">68.4S</span> 高端刻蚀·16券商<span class="tag tag-upstream">🔀</span><br><span class="score-badge score-S">69.7S</span> 平台龙头·面板封装<span class="tag tag-upstream">🔀</span></td>
+</tr>
+<tr>
+  <td class="td-L5">临时键合/解键合</td>
+  <td class="td-L6">超薄晶圆处理</td>
+  <td class="td-L7">半导体设备业务</td>
+  <td class="td-L8">样机/小批量交付</td>
+  <td class="td-L9">688037 芯源微</td>
+  <td class="td-L10"><span class="score-badge">64.2S</span> 超薄晶圆键合独家量产</td>
+</tr>
+<tr>
+  <td class="td-L5">CMP设备</td>
+  <td class="td-L6">CMP抛光</td>
+  <td class="td-L7">半导体设备业务</td>
+  <td class="td-L8">客户验证 · 量产</td>
+  <td class="td-L9">688120 华海清科<br>300604 长川科技</td>
+  <td class="td-L10"><span class="score-badge score-S">65.7S</span> CMP龙头<span class="tag tag-upstream">🔀</span><br><span class="score-badge score-S">69.7S</span> 测试机·Q2超预期·毛利56.8%<span class="tag tag-upstream">🔀</span></td>
+</tr>
+
+<!-- EDA -->
+<tr>
+  <td class="td-L1" rowspan="1">科技自立自强</td>
+  <td class="td-L2" rowspan="1">华为韬定律2.0</td>
+  <td class="td-L3" rowspan="1">先进封装产业链</td>
+  <td class="td-L4">🥉 EDA工具</td>
+  <td class="td-L5">3D IC EDA</td>
+  <td class="td-L6">多物理场仿真 · 3D IC全流程</td>
+  <td class="td-L7">EDA软件业务</td>
+  <td class="td-L8">研发进展 · 客户验证 · 专利标准</td>
+  <td class="td-L9"><span class="gap-tag">301269 华大九天</span></td>
+  <td class="td-L10"><span class="gap-tag">⚐白名单</span> 3D IC全流程EDA·华为哈勃·毛利89.3% <span class="tag tag-upstream">🔀EDA→3D IC</span></td>
+</tr>
+
+<!-- 封测材料 -->
+<tr>
+  <td class="td-L1" rowspan="3">科技自立自强</td>
+  <td class="td-L2" rowspan="3">华为韬定律2.0</td>
+  <td class="td-L3" rowspan="3">先进封装产业链</td>
+  <td class="td-L4" rowspan="3">🏅 封测材料</td>
+  <td class="td-L5">键合胶/抛光液</td>
+  <td class="td-L6">CMP抛光液 · 键合材料</td>
+  <td class="td-L7">半导体材料业务</td>
+  <td class="td-L8">客户验证 · 收入改善</td>
+  <td class="td-L9"><span class="gap-tag">688019 安集科技</span></td>
+  <td class="td-L10"><span class="gap-tag">⚐白名单</span> 抛光液·毛利56.7%·"3+1"平台</td>
+</tr>
+<tr>
+  <td class="td-L5">玻璃基板/TGV</td>
+  <td class="td-L6">τ-缩微物理底座</td>
+  <td class="td-L7">半导体材料业务</td>
+  <td class="td-L8">研发进展</td>
+  <td class="td-L9"><small>(暂无A股映射)</small></td>
+  <td class="td-L10">—— 中长期赛道 ——</td>
+</tr>
+<tr>
+  <td class="td-L5">覆铜板/铜箔/靶材</td>
+  <td class="td-L6">高纯溅射靶材 · 基板材料</td>
+  <td class="td-L7">半导体材料业务</td>
+  <td class="td-L8">订单中标 · 收入改善</td>
+  <td class="td-L9">600183 生益科技<br>300666 江丰电子<br>603078 江化微</td>
+  <td class="td-L10"><span class="score-badge score-S">68.4S</span> 覆铜板·独家垄断<br><span class="score-badge score-S">68.4S</span> 靶材·进口替代<br><span class="score-badge">64.4S</span> 湿电子化学品</td>
+</tr>
+
+<!-- 光互连 -->
+<tr>
+  <td class="td-L1" rowspan="2">科技自立自强</td>
+  <td class="td-L2" rowspan="2">华为韬定律2.0</td>
+  <td class="td-L3" rowspan="2">先进封装产业链</td>
+  <td class="td-L4" rowspan="2">🔗 光互连与PCB</td>
+  <td class="td-L5">800G/1.6T光模块</td>
+  <td class="td-L6">CPO/硅光集成 · τ-缩微</td>
+  <td class="td-L7">光模块业务</td>
+  <td class="td-L8">订单中标 · 量产 · 收入改善</td>
+  <td class="td-L9">300308 中际旭创<br>300502 新易盛<br><span class="gap-tag">300394 天孚通信</span></td>
+  <td class="td-L10"><span class="score-badge score-S">72.4S</span> 800G/1.6T龙头·营收增192%<span class="tag tag-upstream">🔀</span><br><span class="score-badge score-A">62.6A</span> 1.6T上量·盈利领先<span class="tag tag-upstream">🔀</span><br><span class="gap-tag">⚐白名单</span> CPO产业化</td>
+</tr>
+<tr>
+  <td class="td-L5">高速PCB/IC载板</td>
+  <td class="td-L6">mSAP/VPD · τ-缩微PCB</td>
+  <td class="td-L7">高速PCB业务</td>
+  <td class="td-L8">客户验证 · 收入改善</td>
+  <td class="td-L9"><span class="gap-tag">002463 沪电股份</span><br><span class="gap-tag">002916 深南电路</span></td>
+  <td class="td-L10"><span class="gap-tag">⚐白名单</span> AI PCB龙头·ROE 28.4%<br><span class="gap-tag">⚐白名单</span> IC载板龙头·ROE 20.6%</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <p>速赢AI · 大葱产业链解构模型 | supply_chain.py (SupplyChainEngine) + chain_deconstruct.py (build_bom_tree) | 数据时点: 2026-07-06</p>
+  <p style="margin-top:6px;">⚠️ 以上为产业链方法论演示，不构成投资建议。股市有风险，投资需谨慎。</p>
+</div>
+
+</div>
+</body>
+</html>

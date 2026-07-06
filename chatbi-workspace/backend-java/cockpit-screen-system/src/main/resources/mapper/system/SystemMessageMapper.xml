@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ds.cockpit.screen.system.mapper.SystemMessageMapper">
+
+    <resultMap id="SystemMessageResult" type="com.ds.cockpit.screen.common.core.domain.entity.SystemMessageEntity">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="title" column="title" jdbcType="VARCHAR"/>
+            <result property="content" column="content" jdbcType="VARCHAR"/>
+            <result property="sendUrgentNotice" column="send_urgent_notice" jdbcType="INTEGER"/>
+            <result property="urgentNoticeContent" column="urgent_notice_content" jdbcType="VARCHAR"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="availability" column="availability" jdbcType="INTEGER"/>
+            <result property="userId" column="user_id" jdbcType="VARCHAR"/>
+            <result property="descriptions" column="descriptions" jdbcType="VARCHAR"/>
+            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+            <result property="expirationTime" column="expiration_time" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,title,content,send_urgent_notice,urgent_notice_content,
+        create_time,availability,user_id,descriptions,update_time,expiration_time
+    </sql>
+
+    <select id="getMessages" resultMap="SystemMessageResult" parameterType="com.ds.cockpit.screen.common.core.domain.entity.vo.SystemMessageVo">
+        SELECT *
+        FROM system_message
+        WHERE availability = 1
+            <if test="vo.sendUrgentNotice != null ">
+                AND send_urgent_notice = #{vo.sendUrgentNotice}
+            </if>
+            <if test="vo.content != null and vo.content != ''">
+                AND content LIKE CONCAT('%',#{vo.content},'%')
+            </if>
+            <if test="vo.sendUrgentNotice != null and vo.sendUrgentNotice != ''">
+                AND send_urgent_notice = #{vo.sendUrgentNotice}
+            </if>
+            <if test="vo.urgentNoticeContent != null and vo.urgentNoticeContent != ''">
+                AND urgent_notice_content LIKE CONCAT('%',#{vo.urgentNoticeContent},'%')
+            </if>
+            <if test="vo.descriptions != null and vo.descriptions != ''">
+                AND descriptions LIKE CONCAT('%',#{vo.descriptions},'%')
+            </if>
+            <if test="vo.userId != null and vo.userId != ''">
+                AND user_id = #{vo.userId}
+            </if>
+            <if test="vo.expirationTime != null ">
+                AND expiration_time is not null AND expiration_time > #{vo.expirationTime}
+            </if>
+        ORDER BY update_time DESC
+    </select>
+
+    <select id="selectByEntityId" resultMap="SystemMessageResult">
+        SELECT *
+        FROM system_message
+        WHERE availability = 1
+        <if test="id != null ">
+            AND id = #{id}
+        </if>
+    </select>
+
+    <update id="unAvailability">
+        update system_message m
+        <set>
+            <if test="id != null ">
+                m.availability = 0
+            </if>
+        </set>
+        where m.id = #{id,jdbcType=BIGINT}
+    </update>
+
+    <update id="unSendUrgentNotice">
+        update system_message m
+        <set>
+            <if test="id != null ">
+                m.send_urgent_notice = 0 ,
+            </if>
+            <if test="id != null ">
+                m.update_time = sysdate()
+            </if>
+        </set>
+        where m.id = #{id,jdbcType=BIGINT}
+    </update>
+
+    <update id="sendUrgentNotice">
+        update system_message m
+        <set>
+            <if test="id != null ">
+                m.send_urgent_notice = 1 ,
+            </if>
+            <if test="id != null ">
+                m.update_time = sysdate()
+            </if>
+        </set>
+        where m.id = #{id,jdbcType=BIGINT}
+    </update>
+
+    <insert id="insertEntity" parameterType="com.ds.cockpit.screen.common.core.domain.entity.SystemMessageEntity">
+        insert into system_message(
+        <if test="title != null and title != ''">title,</if>
+        <if test="content != null and content != ''">content,</if>
+        <if test="sendUrgentNotice != null ">send_urgent_notice,</if>
+        <if test="urgentNoticeContent != null and urgentNoticeContent != ''">urgent_notice_content,</if>
+        <if test="userId != null and userId != ''">user_id,</if>
+        <if test="expirationTime != null ">expiration_time,</if>
+        <if test="descriptions != null and descriptions != ''">descriptions,</if>
+        update_time
+        )values(
+        <if test="title != null and title != ''">#{title},</if>
+        <if test="content != null and content != ''">#{content},</if>
+        <if test="sendUrgentNotice != null ">#{sendUrgentNotice},</if>
+        <if test="urgentNoticeContent != null and urgentNoticeContent != ''">#{urgentNoticeContent},</if>
+        <if test="userId != null and userId != ''">#{userId},</if>
+        <if test="expirationTime != null">#{expirationTime},</if>
+        <if test="descriptions != null and descriptions != ''">#{descriptions},</if>
+        sysdate()
+        )
+    </insert>
+
+    <update id="updateEntity">
+        update system_message m
+        <set>
+            <if test="title != null and title != ''">
+                m.title = #{title,jdbcType=VARCHAR},
+            </if>
+            <if test="content != null and content != ''">
+                m.content = #{content,jdbcType=VARCHAR},
+            </if>
+            <if test="sendUrgentNotice != null ">
+                m.send_urgent_notice = #{sendUrgentNotice,jdbcType=INTEGER},
+            </if>
+            <if test="urgentNoticeContent != null and urgentNoticeContent != ''">
+                m.urgent_notice_content = #{urgentNoticeContent,jdbcType=VARCHAR},
+            </if>
+            <if test="userId != null and userId != ''">
+                m.user_id = #{userId,jdbcType=VARCHAR},
+            </if>
+            <if test="expirationTime != null ">
+                m.expiration_time = #{expirationTime,jdbcType=TIMESTAMP},
+            </if>
+            <if test="descriptions != null and descriptions != ''">
+                m.descriptions = #{descriptions,jdbcType=VARCHAR},
+            </if>
+            <if test="id != null ">
+                m.update_time = sysdate()
+            </if>
+        </set>
+        where m.id = #{id,jdbcType=BIGINT}
+    </update>
+
+</mapper>

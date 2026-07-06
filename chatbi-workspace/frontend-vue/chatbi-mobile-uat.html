@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>速赢 AI · ChatBI UAT</title>
+  <style>
+    :root{--blue:#2563eb;--cyan:#13a8bd;--text:#111827;--sub:#6b7280;--line:#edf1f6;--soft:#f5f8ff;--card:#eef5ff;font-family:"PingFang SC",-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+    *{box-sizing:border-box}body{margin:0;background:#eef2f7;color:var(--text)}button,input{font:inherit}
+    .phone{max-width:430px;min-height:100vh;margin:0 auto;background:#fff;position:relative;overflow:hidden}
+    .status{height:42px;padding:12px 24px 0;display:flex;justify-content:space-between;font-weight:800;font-size:18px}.battery{border:2px solid #111;border-radius:5px;padding:0 5px;font-size:12px}
+    .topbar{height:64px;padding:8px 26px 0;display:flex;justify-content:space-between;align-items:center}.icon{border:0;background:#fff;font-size:30px;line-height:1}.plus{border:2.5px solid #111;border-radius:50%;width:31px;height:31px;display:grid;place-items:center;font-size:24px}
+    .page{height:calc(100vh - 106px);overflow:auto;padding:0 28px 176px}.home{padding-top:70px}.chat{display:none;padding:28px 0 0}.phone.chat-mode .home{display:none}.phone.chat-mode .chat{display:block}
+    .hero{text-align:center;margin-bottom:32px}.hero h1{font-size:30px;line-height:1.2;margin:0 0 9px;font-weight:900}.hero p{font-size:18px;margin:0}.hero b{color:#168fc3}
+    .keywords{margin-bottom:22px}.label{font-size:18px;font-weight:900;margin-bottom:12px}.tags{display:flex;flex-wrap:wrap;gap:10px}.tag,.mode{height:34px;border-radius:18px;border:1px solid #dce8ff;background:#f2f6ff;color:#336ee8;padding:0 13px;font-weight:700}
+    .hot{background:var(--card);border-radius:16px;padding:20px 20px 18px}.hot h2{margin:0 0 10px;color:#168fc3;font-size:20px}.topic{display:grid;grid-template-columns:30px 1fr;gap:8px;font-size:18px;line-height:1.45;margin:11px 0}.topic b{font-family:ui-monospace,Menlo,monospace;color:#1e88e5}.topic:nth-child(3) b{color:#16b96f}.topic:nth-child(4) b{color:#f0a000}
+    .bubble{max-width:88%;margin:0 0 18px auto;background:var(--blue);color:#fff;border-radius:14px;padding:11px 14px;font-size:16px;line-height:1.5}.answer{background:#f7fbff;margin:0 -8px;border-radius:3px;padding:22px 14px}.head{display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}.head b{font-size:21px}.head span{font-size:16px;color:var(--sub)}
+    .steps{margin-bottom:16px}.step{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:center;min-height:42px;position:relative}.step:not(:last-child)::after{content:"";position:absolute;left:14px;top:30px;width:3px;height:26px;background:#55c85a}.check{width:30px;height:30px;border-radius:50%;border:3px solid #55c85a;display:grid;place-items:center;color:#55c85a;font-weight:900}.step div{font-size:17px;font-weight:800}.step small{color:#8b929b;font-size:13px;margin-left:4px}
+    .answer-text{line-height:1.58;font-size:15px;color:#1f2937}.answer-text h3{font-size:18px;margin:0 0 10px;font-weight:900}.answer-text h4{font-size:16px;margin:18px 0 8px;font-weight:900}.answer-text p{margin:8px 0}.answer-text ul{margin:8px 0 12px;padding-left:18px}.answer-text li{margin:4px 0}.answer-text code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#edf3ff;border-radius:5px;padding:1px 5px;color:#2557c7;font-size:12px}.answer-text blockquote{margin:12px 0 0;padding:10px 12px;border-left:3px solid #7dd3fc;background:#eff8ff;color:#526070;border-radius:8px}.table-scroll{overflow-x:auto;margin:10px -6px 18px;padding:0 6px}.answer-text table{border-collapse:separate;border-spacing:0;min-width:760px;width:100%;background:#fff;border:1px solid #e5eaf2;border-radius:10px;overflow:hidden;font-size:13px}.answer-text th,.answer-text td{border-bottom:1px solid #e9eef5;border-right:1px solid #eef2f7;padding:8px 9px;text-align:left;vertical-align:top;white-space:normal}.answer-text th{background:#eef5ff;color:#334155;font-weight:900;white-space:nowrap}.answer-text tr:last-child td{border-bottom:0}.answer-text th:last-child,.answer-text td:last-child{border-right:0}.answer-text td:nth-child(1),.answer-text td:nth-child(5),.answer-text td:nth-child(6),.answer-text td:nth-child(7){text-align:right;white-space:nowrap}.empty{color:var(--sub);white-space:pre-wrap}.error{color:#dc2626;white-space:pre-wrap}
+    .composer{position:absolute;left:16px;right:16px;bottom:22px;background:#fff;border:1px solid #eef0f4;border-radius:28px;padding:15px 16px 14px;box-shadow:0 12px 36px rgba(15,23,42,.09)}.composer input{width:100%;height:38px;border:0;outline:0;color:#111;font-size:18px;margin-bottom:8px}.row{display:flex;align-items:center;gap:10px}.mode.active{background:#fff;color:#0e83a1;border-color:rgba(20,151,180,.55)}.send{margin-left:auto;width:46px;height:46px;border:0;border-radius:16px;background:linear-gradient(135deg,#65e0c4,#2377e9);color:#fff;font-size:28px;font-weight:900}.cfg{font-size:11px;color:#9ca3af;margin-top:8px;word-break:break-all}
+    .drawer{position:absolute;inset:0 auto 0 0;width:84%;background:#fff;z-index:9;transform:translateX(-104%);transition:.2s;box-shadow:18px 0 44px rgba(15,23,42,.12);padding:70px 26px}.phone.drawer-open .drawer{transform:translateX(0)}.drawer h3{color:#777;font-weight:500}.history{font-size:18px;margin:22px 0;line-height:1.35}
+  </style>
+</head>
+<body>
+<div class="phone" id="app">
+  <div class="status"><span>20:39</span><span>5G <span class="battery">93</span></span></div>
+  <div class="topbar"><button class="icon" id="menu">=</button><button class="icon plus" id="newChat">+</button></div>
+  <aside class="drawer" id="drawer"><h3>30 天内</h3><div id="history"></div></aside>
+  <main class="page">
+    <section class="home">
+      <div class="hero"><h1>你好，有问题尽管问！</h1><p>仅限于<b>投研数据和模型结果分析</b>哟</p></div>
+      <div class="keywords"><div class="label">热门关键词</div><div class="tags"><button class="tag">AI算力</button><button class="tag">光模块</button><button class="tag">中际旭创</button><button class="tag">三高</button><button class="tag">具身智能</button></div></div>
+      <div class="hot"><h2>近期热门话题：</h2>
+        <div class="topic"><b>1</b><span>AI算力候选公司 Top20 及三高排序</span></div>
+        <div class="topic"><b>2</b><span>中际旭创产业链证据链和商用进度</span></div>
+        <div class="topic"><b>3</b><span>具身智能产业链卡脖子公司清单</span></div>
+        <div class="topic"><b>4</b><span>今天所有选股、选债模型结果汇总</span></div>
+        <div class="topic"><b>5</b><span>匪爷竞价选债为什么没票</span></div>
+      </div>
+    </section>
+    <section class="chat">
+      <div class="bubble" id="questionBubble"></div>
+      <article class="answer">
+        <div class="head"><b>回答</b><span id="meta">等待后端返回</span></div>
+        <div class="steps" id="steps"></div>
+        <div class="answer-text empty" id="answer">还没有收到回答。</div>
+      </article>
+    </section>
+  </main>
+  <div class="composer">
+    <input id="question" value="AI算力候选公司Top5" />
+    <div class="row">
+      <button class="mode active" data-mode="quick">快速回答</button>
+      <button class="mode" data-mode="deep">深度思考</button>
+      <button class="send" id="send">↑</button>
+    </div>
+    <div class="cfg">API：<span id="apiBase"></span></div>
+  </div>
+</div>
+<script>
+const app=document.getElementById("app");
+const apiBase=new URLSearchParams(location.search).get("api") || "http://localhost:8088/ds-cockpit-screen/api/v1/chatbi";
+document.getElementById("apiBase").textContent=apiBase;
+let answerMode="quick", sessionId="";
+document.querySelectorAll("[data-mode]").forEach(btn=>btn.onclick=()=>{answerMode=btn.dataset.mode;document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("active",b===btn));});
+document.querySelectorAll(".topic,.tag").forEach(el=>el.onclick=()=>{document.getElementById("question").value=el.textContent.trim();sendQuestion();});
+document.getElementById("menu").onclick=()=>app.classList.toggle("drawer-open");
+document.getElementById("newChat").onclick=()=>{sessionId="";app.classList.remove("chat-mode");document.getElementById("answer").textContent="还没有收到回答。";document.getElementById("steps").innerHTML="";};
+document.getElementById("send").onclick=sendQuestion;
+async function postJson(path,body){const res=await fetch(apiBase+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});if(!res.ok)throw new Error(path+" HTTP "+res.status);return res.json();}
+async function ensureSession(){if(sessionId)return sessionId;const res=await postJson("/sessions",{});sessionId=(res.data&&res.data.sessionId)||res.sessionId||"";return sessionId;}
+async function sendQuestion(){
+  const q=document.getElementById("question").value.trim();if(!q)return;
+  app.classList.add("chat-mode");document.getElementById("questionBubble").textContent=q;document.getElementById("answer").className="answer-text empty";document.getElementById("answer").textContent="正在连接后端...";document.getElementById("steps").innerHTML="";document.getElementById("meta").textContent=answerMode==="quick"?"模板查询中":"深度思考中";
+  try{
+    const sid=await ensureSession();
+    const prepare=await postJson("/messages/prepare",{question:q,userId:"uat",userName:"UAT",sessionUuid:sid,sessionId:sid,answerMode});
+    const messageId=(prepare.data&&prepare.data.messageId)||"";
+    await streamAnswer({question:q,userId:"uat",userName:"UAT",sessionUuid:sid,sessionId:sid,messageId,answerMode});
+    loadHistory();
+  }catch(err){document.getElementById("answer").className="answer-text error";document.getElementById("answer").textContent="UAT 调用失败："+err.message;}
+}
+async function streamAnswer(body){
+  const res=await fetch(apiBase+"/messages/stream",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!res.ok)throw new Error("stream HTTP "+res.status);
+  const reader=res.body.getReader();const decoder=new TextDecoder();let buf="", text="";
+  while(true){
+    const {value,done}=await reader.read();if(done)break;buf+=decoder.decode(value,{stream:true});
+    const parts=buf.split(/\n\n/);buf=parts.pop();
+    for(const part of parts){handleSse(part, v=>{if(v.type==="message_delta"){text+=v.message||"";const ans=document.getElementById("answer");ans.className="answer-text";ans.innerHTML=renderMarkdown(text);}if(v.type==="done"){document.getElementById("meta").textContent="生成完成";}});}
+  }
+}
+function renderMarkdown(text){
+  const lines=String(text||"").split(/\r?\n/);
+  const html=[];
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    if(!line.trim()){continue;}
+    if(isTableStart(lines,i)){
+      const rows=[];
+      while(i<lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){
+        if(!/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(lines[i])) rows.push(parseTableRow(lines[i]));
+        i++;
+      }
+      i--;
+      html.push(renderTable(rows));
+      continue;
+    }
+    if(line.startsWith("#### ")){html.push(`<h4>${inline(line.slice(5))}</h4>`);continue;}
+    if(line.startsWith("### ")){html.push(`<h3>${inline(line.slice(4))}</h3>`);continue;}
+    if(line.startsWith("> ")){html.push(`<blockquote>${inline(line.slice(2))}</blockquote>`);continue;}
+    if(/^\s*-\s+/.test(line)){
+      const items=[];
+      while(i<lines.length && /^\s*-\s+/.test(lines[i])){items.push(`<li>${inline(lines[i].replace(/^\s*-\s+/,""))}</li>`);i++;}
+      i--;
+      html.push(`<ul>${items.join("")}</ul>`);
+      continue;
+    }
+    html.push(`<p>${inline(line)}</p>`);
+  }
+  return html.join("");
+}
+function isTableStart(lines,i){return /^\s*\|.*\|\s*$/.test(lines[i]||"") && /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(lines[i+1]||"");}
+function parseTableRow(line){return line.trim().replace(/^\|/,"").replace(/\|$/,"").split("|").map(x=>x.trim());}
+function renderTable(rows){
+  if(!rows.length)return "";
+  const head=rows[0], body=rows.slice(1);
+  return `<div class="table-scroll"><table><thead><tr>${head.map(c=>`<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${body.map(r=>`<tr>${r.map(c=>`<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+function inline(text){
+  return escapeHtml(text).replace(/&lt;br&gt;/g,"<br>").replace(/`([^`]+)`/g,"<code>$1</code>");
+}
+function escapeHtml(text){return String(text||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
+function handleSse(chunk, cb){
+  const line=chunk.split("\n").find(x=>x.startsWith("data:"));if(!line)return;
+  try{
+    const root=JSON.parse(line.slice(5).trim());
+    const v=root.data||root;
+    const node=v.node||v.nodeName||v.name;
+    if(node&&v.type==="node_finished")addStep(node,v.times||v.duration||"",v.message||v.status||"");
+    cb(v);
+  }catch(e){}
+}
+function addStep(node,times,message){const box=document.getElementById("steps");const div=document.createElement("div");div.className="step";div.innerHTML=`<span class="check">✓</span><div>${node}<small>${times}</small>${message?`<small>${message}</small>`:""}</div>`;box.appendChild(div);}
+async function loadHistory(){try{const res=await fetch(apiBase+"/sessions");const json=await res.json();const list=(json.data||[]).slice(0,8);document.getElementById("history").innerHTML=list.map(x=>`<div class="history">${x.title||x.sessionId}</div>`).join("");}catch(e){}}
+loadHistory();
+</script>
+</body>
+</html>

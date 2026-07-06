@@ -12,11 +12,12 @@ import re
 from typing import Any
 
 
-CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / "supply_chains.json"
+CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs" / "supply_chains.json"
 
 
 CHAIN_IDS = {
     "半导体": "semiconductor",
+    "华为韬定律_先进封装": "tao_law_advanced_packaging",
     "新能源": "new_energy",
     "AI算力": "ai_compute",
     "机器人": "robotics",
@@ -26,6 +27,10 @@ CHAIN_IDS = {
     "国防军工": "defense",
     "高端制造": "advanced_manufacturing",
     "周期资源": "cyclical_resources",
+    "EDA工业软件": "eda_industrial_software",
+    "华为终端": "huawei_devices",
+    "存储芯片": "memory_chips",
+    "光通信": "optical_communication",
 }
 
 LAYER_IDS = {

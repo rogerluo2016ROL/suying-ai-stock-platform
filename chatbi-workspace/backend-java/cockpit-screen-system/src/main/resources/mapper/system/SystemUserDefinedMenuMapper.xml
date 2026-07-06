@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ds.cockpit.screen.system.mapper.SystemUserDefinedMenuMapper">
+
+    <resultMap id="BaseResultMap" type="com.ds.cockpit.screen.common.core.domain.entity.SystemUserDefinedMenuEntity">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="uId" column="u_id" jdbcType="INTEGER"/>
+            <result property="userId" column="user_id" jdbcType="VARCHAR"/>
+            <result property="menuCode" column="menu_code" jdbcType="VARCHAR"/>
+            <result property="name" column="name" jdbcType="VARCHAR"/>
+            <result property="orderValue" column="order_value" jdbcType="INTEGER"/>
+            <result property="pluginPath" column="plugin_path" jdbcType="INTEGER"/>
+            <result property="parentId" column="parent_id" jdbcType="INTEGER"/>
+            <result property="parentName" column="parent_name" jdbcType="INTEGER"/>
+            <result property="status" column="status" jdbcType="INTEGER"/>
+            <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+            <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,u_id,user_id,menu_code,
+        name,order_value,status,plugin_path,parent_id,parent_name,
+        create_time,update_time
+    </sql>
+    <delete id="deleteBatchByMenuCode">
+        DELETE FROM system_user_defined_menu WHERE
+        <if test="vo.userId != null and vo.userId != ''">
+            user_id = #{vo.userId}
+        </if>
+        <if test="vo.menuCodeList != null and vo.menuCodeList.size > 0">
+            menu_code in
+            <foreach collection="vo.menuCodeList" item="menuCode" separator="," open="(" close=")">
+                #{menuCode}
+            </foreach>
+        </if>
+
+    </delete>
+
+    <select id="selectDefinedMenuByUserId"
+            resultType="com.ds.cockpit.screen.common.core.domain.entity.SystemUserDefinedMenuEntity">
+        select id,
+               u_id,
+               user_id,
+               menu_code,
+               name,
+               order_value,
+               create_time,
+               plugin_path,
+               parent_id,
+               parent_name,
+                status
+        from system_user_defined_menu
+        where user_id = #{userId} AND status = 1
+        ORDER BY order_value,u_id
+    </select>
+
+    <select id="selectAllMenuByUserId"
+            resultType="com.ds.cockpit.screen.common.core.domain.entity.SystemUserDefinedMenuEntity">
+        select id,
+               u_id,
+               user_id,
+               menu_code,
+               name,
+               order_value,
+               create_time,
+               plugin_path,
+               parent_id,
+               parent_name,
+                status
+        from system_user_defined_menu
+        where user_id = #{userId}
+        ORDER BY order_value,u_id
+    </select>
+
+
+    <select id="selectByUserId" resultType="com.ds.cockpit.screen.common.core.domain.entity.SystemUserDefinedMenuEntity">
+        SELECT
+            id,u_id,user_id,menu_code,
+            name,order_value,status,parent_name,plugin_path
+        FROM system_user_defined_menu
+        WHERE user_id = #{userId} ORDER BY order_value
+    </select>
+
+
+    <insert id="insertBatch" keyProperty="id" useGeneratedKeys="true" >
+
+        insert into
+        system_user_defined_menu
+        (u_id,user_id,
+        menu_code,
+        name,
+        order_value,
+        plugin_path,
+        parent_id,
+        status,
+        parent_name
+        )
+        values
+        <foreach collection="entities" item="entity" separator="," >
+            (#{entity.uId},#{entity.userId},
+            #{entity.menuCode},
+            #{entity.name},
+            #{entity.orderValue},
+            #{entity.pluginPath},
+            #{entity.parentId},
+            #{entity.status},
+            #{entity.parentName}
+           )
+        </foreach>
+    </insert>
+
+    <delete id="deleteBatchUserIds">
+        DELETE FROM system_user_defined_menu
+        where (user_id,menu_code) in
+        <if test="entities != null and entities.size > 0">
+            <foreach collection="entities" item="entity" open="(" close=")" separator=",">
+                (#{entity.userId},#{entity.menuCode})
+            </foreach>
+        </if>
+    </delete>
+
+    <select id="selectCountByUserId" resultType="java.lang.Long">
+        SELECT
+        COUNT(1)
+        FROM system_user_defined_menu
+        WHERE user_id = #{userId}
+    </select>
+
+
+    <select id="selectLikeByName" resultType="com.ds.cockpit.screen.common.core.domain.entity.SystemUserDefinedMenuEntity">
+        SELECT
+            id,u_id,name,plugin_path
+        FROM system_user_defined_menu
+        WHERE user_id = #{userId} AND plugin_path LIKE CONCAT('%',#{name},'%')
+    </select>
+
+    <delete id="deleteBatchByUserId">
+        DELETE FROM system_user_defined_menu WHERE
+        <if test="userId != null and userId != ''">
+            user_id = #{userId}
+        </if>
+    </delete>
+
+    <select id="selectByParentIdAndUserId" resultType="com.ds.cockpit.screen.common.core.domain.entity.SystemUserDefinedMenuEntity">
+        SELECT
+            id,u_id,user_id,menu_code,
+            name,order_value,status,parent_name,plugin_path
+        FROM system_user_defined_menu
+        WHERE parent_id = #{parentId}
+        <if test="userId != null and userId != ''">
+            and user_id = #{userId}
+        </if>
+        ORDER BY order_value
+    </select>
+
+    <update id="updateEntity">
+        update system_user_defined_menu m
+        <set>
+            <if test="orderValue != null ">
+                m.order_value = #{orderValue,jdbcType=INTEGER},
+            </if>
+            <if test="status != null ">
+                m.status = #{status,jdbcType=INTEGER},
+            </if>
+            <if test="id != null ">
+                m.update_time = sysdate()
+            </if>
+        </set>
+        where m.id = #{id,jdbcType=BIGINT}
+         and m.user_id = #{userId,jdbcType=VARCHAR}
+         and m.menu_code = #{menuCode,jdbcType=VARCHAR}
+    </update>
+
+</mapper>

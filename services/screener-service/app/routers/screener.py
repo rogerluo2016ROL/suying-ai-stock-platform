@@ -194,6 +194,13 @@ _CB_AUCTION_T0_V21_ENGINE = None
 
 
 def _screener_model_metadata(mode: str) -> dict[str, Any]:
+    if mode == "supply_chain_trend_launch":
+        return {
+            "name": "supply-chain-trend-launch-v1",
+            "version": "trend-launch-v1.0",
+            "provider": "screener-service",
+            "inference_mode": mode,
+        }
     if mode.startswith("chain:") or mode == "supply_chain":
         return {
             "name": "supply-chain-deconstruct-v5",
@@ -6885,6 +6892,10 @@ async def run_screening(
             result = await loop.run_in_executor(
                 _executor, _run_supply_chain_mode, mode, top_n, trade_date
             )
+        elif mode == "supply_chain_trend_launch":
+            result = await loop.run_in_executor(
+                _executor, _run_supply_chain_trend_launch_mode, mode, top_n, trade_date
+            )
         else:
             result = await loop.run_in_executor(
                 _executor, _run_multifactor_mode, mode, top_n, trade_date
@@ -7143,6 +7154,33 @@ def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> 
         "trade_date": resolved_trade_date,
         "total_picks": len(picks),
         "picks": picks,
+    }
+
+
+def _run_supply_chain_trend_launch_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
+    """Run 产业链趋势启动选股."""
+    from kronos_factors.engine.supply_chain_trend import TrendLaunchEngine
+
+    resolved_trade_date = _resolve_trade_date(trade_date)
+    engine = TrendLaunchEngine()
+    result = engine.run(top_n=top_n, chain="半导体", min_score=30,
+                        trade_date=resolved_trade_date, require_trend=False)
+
+    picks = result.picks
+    picks = _sanitize_picks(picks)
+    for p in picks:
+        sc = p.get("total_score", 0)
+        if sc >= 75: p["grade"] = "S"
+        elif sc >= 60: p["grade"] = "A"
+        elif sc >= 45: p["grade"] = "B"
+        else: p["grade"] = "C"
+
+    return {
+        "mode": mode,
+        "trade_date": resolved_trade_date,
+        "total_picks": len(picks),
+        "picks": picks,
+        "metadata": result.metadata,
     }
 
 

@@ -1,0 +1,24 @@
+# Docker image for springboot application
+# VERSION 0.0.1
+# Author: wangrui
+
+# 基础镜像，使用alpine操作系统，openjdk使用8u201
+FROM eclipse-temurin:8-alpine
+ENV TZ=Asia/Shanghai JAVA_OPTS="-Xms4096M -Xmx4096M -Xloggc:./logs/gc.log -XX:+PrintGCDateStamps -XX:+PrintGCDetails -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=32M -Xss512k -XX:+DisableExplicitGC -XX:+UseG1GC -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods"
+RUN ln -snf /usr/share/zoneinfo/\$TZ /etc/localtime && echo \$TZ > /etc/timezone
+
+# 声明一个挂载点，容器内此路径会对应宿主机的某个文件夹
+VOLUME /tmp
+
+COPY cockpit-screen-admin/target/cockpit-screen-admin.jar cockpit-screen-admin.jar
+
+ADD ./pinpoint-agent-2.1.1/ /home/pinpoint/pinpoint-agent-2.1.1/
+
+# ---------- 启动容器时执行各环境进程脚本 start ----------
+## 新平台管家测试环境镜像运行命令
+#ENTRYPOINT ["java","-jar","-Dspring.profiles.active=gac-prod -Xms5120M -Xmx5120M -Xloggc:./logs/gc.log -XX:+PrintGCDateStamps -XX:+PrintGCDetails -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=5 -XX:GCLogFileSize=32M -Xss512k -XX:+DisableExplicitGC -XX:+UseG1GC -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods ","/cockpit-screen-admin.jar"]
+
+CMD java -javaagent:/home/pinpoint/pinpoint-agent-2.1.1/pinpoint-bootstrap-2.1.1.jar -Dpinpoint.agentId=cockpit-screen-admin-01 -Dpinpoint.applicationName=cockpit-screen-admin -Duser.timezone=GMT+8 ${JAVA_OPTS} -jar cockpit-screen-admin.jar --spring.profiles.active=gac-prod
+
+# 暴露8088端口
+EXPOSE 8088

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>ChatBI Artifact Preview</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#f5f7fb;color:#101828;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .phone{max-width:430px;min-height:100vh;margin:0 auto;background:#fff;position:relative;padding:18px 16px 148px}
+    .top{display:flex;align-items:center;justify-content:space-between;height:42px}
+    .icon{font-size:28px;line-height:1}
+    .title{font-size:17px;font-weight:700}
+    .bubble{background:#1f6feb;color:#fff;border-radius:16px 16px 4px 16px;margin:24px 0 14px auto;max-width:86%;padding:12px 14px;font-size:15px;line-height:23px}
+    .answer{background:#f8fbff;border:1px solid #e6edf7;border-radius:8px;padding:12px}
+    .answer h2{font-size:17px;line-height:24px;margin:0 0 10px}
+    .answer p{color:#475467;font-size:13px;line-height:21px;margin:6px 0}
+    .artifact-block{background:#fff;border:1px solid #e6edf7;border-radius:8px;margin-top:12px;padding:10px}
+    .artifact-title{font-size:14px;font-weight:700;line-height:20px;margin-bottom:8px}
+    .artifact-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table{border-collapse:collapse;min-width:560px;white-space:nowrap}
+    th,td{border:1px solid #e6edf7;padding:8px 10px;text-align:left;font-size:12px;line-height:18px}
+    th{background:#eef5ff;color:#175cd3;font-weight:700}
+    details{border-top:1px solid #eef2f6;padding:8px 0}
+    summary{cursor:pointer;display:flex;gap:6px;align-items:center;font-size:13px;font-weight:700;line-height:20px}
+    .idx{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#e8f3ff;color:#1570ef;font-size:11px}
+    .evidence-body{padding:8px 0 0 24px;color:#475467;font-size:12px;line-height:20px}
+    .meta{color:#667085;font-size:12px;line-height:18px;margin-top:4px}
+    .composer{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);width:min(398px,calc(100vw - 28px));background:#fff;border:1px solid #eef2f6;border-radius:24px;padding:14px 14px 12px;box-shadow:0 10px 30px rgba(16,24,40,.12)}
+    .placeholder{color:#98a2b3;font-size:16px;line-height:24px;margin-bottom:14px}
+    .bar{display:flex;align-items:center;gap:10px}
+    .chip{border:1px solid #b7d7f7;border-radius:999px;color:#1570ef;font-size:13px;font-weight:700;padding:7px 12px}
+    .spacer{flex:1}
+    .circle{align-items:center;border:2px solid #101828;border-radius:50%;display:flex;font-size:22px;height:40px;justify-content:center;width:40px}
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <div class="top"><div class="icon">≡</div><div class="title">AI 会话</div><div class="icon">＋</div></div>
+    <div class="bubble">AI算力候选公司 Top20 及三高排序</div>
+    <section class="answer">
+      <h2>回答</h2>
+      <p>以下为结构化 artifact 渲染预览。表格支持横向滚动，证据链支持折叠展开，底部输入区固定且不遮挡主体关键内容。</p>
+      <div class="artifact-block">
+        <div class="artifact-title">候选公司表</div>
+        <div class="artifact-table-wrap">
+          <table>
+            <thead><tr><th>代码</th><th>名称</th><th>产业链</th><th>综合分</th><th>三高分</th><th>阶段</th></tr></thead>
+            <tbody>
+              <tr><td>688498</td><td>源杰科技</td><td>AI算力</td><td>81.18</td><td>80.69</td><td>R2 / C2</td></tr>
+              <tr><td>300308</td><td>中际旭创</td><td>光模块</td><td>78.42</td><td>76.30</td><td>商用</td></tr>
+              <tr><td>300502</td><td>新易盛</td><td>光模块</td><td>73.11</td><td>72.40</td><td>商用</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="artifact-block">
+        <div class="artifact-title">证据链</div>
+        <div class="meta">映射：auto_688498_ai_compute_hardware</div>
+        <details open>
+          <summary><span class="idx">1</span><span>公告证据</span></summary>
+          <div class="evidence-body">公司披露高速光芯片相关研发和客户验证进展。<div class="meta">来源：公告 / 研报摘要</div></div>
+        </details>
+        <details>
+          <summary><span class="idx">2</span><span>产业链标签证据</span></summary>
+          <div class="evidence-body">业务映射到 AI 算力上游光通信器件，具备国产替代和高壁垒属性。<div class="meta">置信度：0.82</div></div>
+        </details>
+      </div>
+    </section>
+  </main>
+  <div class="composer">
+    <div class="placeholder">发消息或按住说话</div>
+    <div class="bar"><span class="chip">快速回答</span><span class="chip">深度思考</span><span class="spacer"></span><span class="circle">＋</span><span class="circle">))</span></div>
+  </div>
+</body>
+</html>

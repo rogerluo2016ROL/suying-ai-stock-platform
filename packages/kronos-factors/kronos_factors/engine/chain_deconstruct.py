@@ -102,6 +102,42 @@ BOM_COMPLETION_PROFILES: dict[str, dict[str, list[str] | str]] = {
         "technologies": ["先进制程", "刻蚀/薄膜沉积", "先进封装", "Chiplet", "EDA"],
         "business_segments": ["半导体材料业务", "半导体设备业务", "晶圆制造业务", "封测/EDA业务"],
     },
+    "华为韬定律": {
+        "chain": "华为韬定律先进封装产业链",
+        "segments": ["先进封测", "封测设备", "EDA工具", "封测材料", "光互连与PCB"],
+        "bom_nodes": ["混合键合设备", "ALD/PECVD", "临时键合/解键合", "CMP设备", "3D IC EDA", "键合胶/抛光液", "玻璃基板/TGV", "800G/1.6T光模块", "高速PCB/IC载板"],
+        "technologies": ["逻辑折叠(Logic Folding)", "Hybrid Bonding", "3D堆叠/Chiplet", "TSV/硅通孔", "CoWoS/XDFOI", "CPO/硅光集成", "mSAP/VPD高端PCB", "时间缩微(τ-缩微)"],
+        "business_segments": ["先进封装业务", "半导体设备业务", "EDA软件业务", "半导体材料业务", "光模块业务", "高速PCB业务"],
+    },
+    "光通信": {
+        "chain": "光通信产业链",
+        "segments": ["光芯片", "光器件", "光模块", "CPO/硅光集成"],
+        "bom_nodes": ["EML/DFB激光器", "探测器/PD", "高速光器件", "800G/1.6T光模块", "ELS/光源", "CPO引擎", "硅光集成芯片"],
+        "technologies": ["800G/1.6T", "CPO/LPO", "硅光集成", "相干光通信", "波分复用", "高速DSP"],
+        "business_segments": ["光芯片业务", "光器件业务", "光模块业务", "CPO/硅光业务"],
+    },
+    "存储芯片": {
+        "chain": "存储芯片产业链",
+        "segments": ["DRAM", "NAND Flash", "HBM", "存储封测"],
+        "bom_nodes": ["DRAM颗粒", "NAND颗粒", "HBM堆叠", "存储主控芯片", "SSD模组", "内存模组"],
+        "technologies": ["DDR5/LPDDR5", "3D NAND(200L+)", "HBM3/HBM4", "CXL内存", "存算一体"],
+        "business_segments": ["DRAM业务", "NAND/SSD业务", "HBM业务", "存储封测业务"],
+    },
+    "华为终端": {
+        "chain": "华为终端产业链",
+        "segments": ["麒麟芯片", "终端组装", "核心零部件", "鸿蒙生态"],
+        "bom_nodes": ["麒麟2026 SoC", "折叠屏/铰链", "射频前端模组", "摄像头模组", "电池/电源管理", "鸿蒙系统"],
+        "technologies": ["逻辑折叠芯片", "折叠屏UTG", "卫星通信", "星闪NearLink", "鸿蒙原生应用"],
+        "business_segments": ["麒麟芯片业务", "终端组装业务", "核心零部件业务", "鸿蒙生态业务"],
+    },
+    "EDA工业软件": {
+        "chain": "EDA工业软件产业链",
+        "segments": ["全流程EDA", "点工具EDA", "仿真验证", "IP核"],
+        "bom_nodes": ["全流程EDA平台", "版图设计工具", "电路仿真工具", "3D IC仿真", "接口IP核", "DFM/OPC工具"],
+        "technologies": ["全流程EDA", "3D IC设计", "多物理场仿真", "AI驱动EDA", "国产IP核"],
+        "business_segments": ["全流程EDA业务", "点工具EDA业务", "仿真验证业务", "IP授权业务"],
+    },
+
     "半导体设备材料": {
         "chain": "半导体设备材料产业链",
         "segments": ["核心材料", "关键设备", "基础软件", "国产替代验证"],
@@ -233,13 +269,35 @@ def build_upstream_downstream_tree(nodes: list[dict[str, Any]]) -> dict[str, Any
     if not nodes:
         return {"node_id": "root", "name": "空产业链", "children": []}
 
+    # 去重: 同一 node_id 只保留第一次出现
+    seen: set[str] = set()
+    deduped: list[dict[str, Any]] = []
+    for n in nodes:
+        nid = str(n.get("node_id") or "")
+        if nid and nid not in seen:
+            seen.add(nid)
+            deduped.append(n)
+
+    # 推断 parent_node_id: 如果子节点的 node_id = "{chain_slug}_{layer_slug}"，
+    # 且存在 node_id = "chain_{chain_slug}" 的节点，则自动建立父子关系
+    for n in deduped:
+        nid = str(n.get("node_id") or "")
+        if n.get("parent_node_id") or nid.startswith("chain_"):
+            continue
+        # 尝试找父链节点: 从 node_id 中提取 chain_slug
+        parts = nid.split("_", 1)
+        if len(parts) >= 2:
+            chain_nid = "chain_" + parts[0]
+            # 检查是否存在这个父节点
+            if any(d["node_id"] == chain_nid for d in deduped):
+                n["parent_node_id"] = chain_nid
+
     # Find root nodes (no parent_node_id)
-    root_nodes = [n for n in nodes if not n.get("parent_node_id")]
+    root_nodes = [n for n in deduped if not n.get("parent_node_id")]
 
     if not root_nodes:
-        # If all nodes have parent, find the theme-level root by layer=0 or min layer
-        min_layer = min(n.get("layer", 1) for n in nodes)
-        root_nodes = [n for n in nodes if n.get("layer") == min_layer]
+        min_layer = min(n.get("layer", 1) for n in deduped)
+        root_nodes = [n for n in deduped if n.get("layer") == min_layer]
 
     # Build tree from root nodes
     children = [

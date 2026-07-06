@@ -152,8 +152,11 @@ def persist_foundation(pg_url: str, catalog, mappings: list) -> dict[str, int]:
         """, (
             node["node_id"], node["theme_id"], node["name"], _chain_node_layer(node, layer_index),
             node["parent_node_id"], Json([]), Json([]),
-            Json({"keywords": node["keywords"], "chain_id": node["chain_id"], "node_type": node["node_type"]}),
-            Json({"status": "foundation_seed"}),
+            Json({"margin": None, "pricing_power": None, "value_added": None,
+                  "note": "待填充", "_meta": {"keywords": node["keywords"],
+                  "chain_id": node["chain_id"], "node_type": node["node_type"]}}),
+            Json({"concentration": None, "leader_share": None, "barrier": None, "threat": None,
+                  "note": "待填充", "_status": "foundation_seed"}),
         ))
         chain_node_count += 1
 

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ds.cockpit.screen.system.mapper.GacDownloadLogsMapper">
+
+	<resultMap type="GacDownloadLogs" id="GacDownloadLogsResult">
+		<id     property="id"     					column="id"     />
+		<result property="moduleLv1"  				column="module_lv1"   />
+		<result property="moduleLv2"  				column="module_lv2"   />
+		<result property="moduleLv3"  				column="module_lv3"   />
+		<result property="analysisDimension"   		column="analysis_dimension"  jdbcType="VARCHAR"/>
+		<result property="detailDimension"     		column="detail_dimension"     jdbcType="VARCHAR" />
+		<result property="dataType"      			column="data_type"       />
+		<result property="dataTime"     			column="data_time"      />
+		<result property="startTime"    			column="start_time"    />
+		<result property="endTime" 					column="end_time" />
+		<result property="deleted"   				column="deleted"   />
+		<result property="description"   			column="description"   />
+		<result property="createBy"   				column="create_by"   />
+		<result property="createCode" 				column="create_code" />
+		<result property="createTime" 				column="create_time" />
+	</resultMap>
+	
+	<sql id="selectGacDownloadLogsVo">
+        select
+        g.id, g.module_lv1, g.module_lv2, g.module_lv3,
+        g.analysis_dimension, g.detail_dimension,
+        g.data_type, g.data_time, g.start_time, g.end_time, g.description,
+        g.create_by, g.create_code, g.create_time
+        from gac_download_logs g
+    </sql>
+    
+	<select id="selectListBy" parameterType="com.ds.cockpit.screen.common.core.domain.entity.GacDownloadLogs"
+			resultMap="GacDownloadLogsResult">
+		select
+			g.id, g.module_lv1, g.module_lv2, g.module_lv3,
+			g.analysis_dimension, g.detail_dimension,
+			g.data_type, g.data_time, g.start_time, g.end_time, g.description,
+			g.create_by, g.create_code, g.create_time
+		from
+			gac_download_logs g
+			where g.deleted = b'0'
+			<if test="logs.moduleLv1 != null and logs.moduleLv1 != '' ">
+				AND g.module_lv1 = #{logs.moduleLv1}
+			</if>
+			<if test="logs.moduleLv2 != null and logs.moduleLv2 != '' ">
+				AND g.module_lv2 = #{logs.moduleLv2}
+			</if>
+			<if test="logs.moduleLv3 != null and logs.moduleLv3 != '' ">
+				AND g.module_lv3 = #{logs.moduleLv3}
+			</if>
+    </select>
+
+	<insert id="insertGacDownloadLogs" parameterType="com.ds.cockpit.screen.common.core.domain.entity.GacDownloadLogs">
+		insert into gac_download_logs(
+		<if test="moduleLv1 != null and moduleLv1 != ''">module_lv1,</if>
+		<if test="moduleLv2 != null and moduleLv2 != ''">module_lv2,</if>
+		<if test="moduleLv3 != null and moduleLv3 != ''">module_lv3,</if>
+		<if test="analysisDimension != null and analysisDimension != ''">analysis_dimension,</if>
+		<if test="detailDimension != null and detailDimension != ''">detail_dimension,</if>
+		<if test="dataType != null and dataType != ''">data_type,</if>
+		<if test="dataTime != null and dataTime != ''">data_time,</if>
+		<if test="startTime != null">start_time,</if>
+		<if test="endTime != null">end_time,</if>
+		<if test="createBy != null and createBy != ''">create_by,</if>
+		<if test="createCode != null and createCode != ''">create_code,</if>
+		create_time
+		)values(
+		<if test="moduleLv1 != null and moduleLv1 != ''">#{moduleLv1},</if>
+		<if test="moduleLv2 != null and moduleLv2 != ''">#{moduleLv2},</if>
+		<if test="moduleLv3 != null and moduleLv3 != ''">#{moduleLv3},</if>
+		<if test="analysisDimension != null and analysisDimension != ''">#{analysisDimension},</if>
+		<if test="detailDimension != null and detailDimension != ''">#{detailDimension},</if>
+		<if test="dataType != null and dataType != ''">#{dataType},</if>
+		<if test="dataTime != null and dataTime != ''">#{dataTime},</if>
+		<if test="startTime != null">#{startTime},</if>
+		<if test="endTime != null">#{endTime},</if>
+		<if test="createBy != null and createBy != ''">#{createBy},</if>
+		<if test="createCode != null and createCode != ''">#{createCode},</if>
+		sysdate()
+		)
+	</insert>
+
+	<select id="selectById" resultMap="GacDownloadLogsResult">
+	select
+		g.id, g.module_lv1, g.module_lv2, g.module_lv3,
+		g.analysis_dimension, g.detail_dimension, g.reserve_column,
+		g.data_type, g.data_time, g.start_time, g.end_time, g.description,
+		g.evaluation_analysis_file, g.create_by, g.create_code, g.create_time,
+		g.original_filenames, g.new_file_names, g.status, g.evaluation_analysis
+	from
+		gac_evaluation_analysis g
+	where g.deleted = b'0'
+		<if test="id != null and id != '' ">
+			AND g.id = #{id}
+		</if>
+	</select>
+
+</mapper> 
