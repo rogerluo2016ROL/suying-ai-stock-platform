@@ -7158,13 +7158,12 @@ def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> 
 
 
 def _run_supply_chain_trend_launch_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run 产业链趋势启动选股."""
+    """Run 产业链趋势启动选股 vFinal."""
     from kronos_factors.engine.supply_chain_trend import TrendLaunchEngine
 
     resolved_trade_date = _resolve_trade_date(trade_date)
     engine = TrendLaunchEngine()
-    result = engine.run(top_n=top_n, chain="半导体", min_score=30,
-                        trade_date=resolved_trade_date, require_trend=False)
+    result = engine.run(top_n=top_n, trade_date=resolved_trade_date)
 
     picks = result.picks
     picks = _sanitize_picks(picks)

@@ -182,7 +182,7 @@ def _compute_wr(highs: np.ndarray, lows: np.ndarray, closes: np.ndarray, period:
         hh = np.max(highs[i - period + 1:i + 1])
         ll = np.min(lows[i - period + 1:i + 1])
         if hh != ll:
-            wr[i] = (hh - closes[i]) / (hh - ll) * -100
+            wr[i] = (hh - closes[i]) / (hh - ll) * 100  # 国内券商正数显示: 0-100, >80超卖 <20超买
     return wr
 
 
@@ -238,23 +238,23 @@ def score_trend_launch(df) -> dict:
 
     # ── 2. WR 启动信号 (0-12) ──
     wr = _compute_wr(highs, lows, closes, 14)
-    wr_latest = wr[-1] if not np.isnan(wr[-1]) else -50
+    wr_latest = wr[-1] if not np.isnan(wr[-1]) else 50
     wr_prev = wr[-2] if n >= 2 and not np.isnan(wr[-2]) else wr_latest
 
-    # WR 从超卖区回升 → 启动信号
-    if wr_prev <= -80 and wr_latest > -80:
+    # WR 从超卖区回落 → 启动信号 (国内正数: >80超卖, <20超买)
+    if wr_prev >= 80 and wr_latest < 80:
         wr_signal = "🚀 超卖反弹启动"
         score += 8
-    elif wr_prev <= -80 and wr_latest > -50:
+    elif wr_prev >= 80 and wr_latest < 50:
         wr_signal = "🔥 强超卖反转"
         score += 12
-    elif wr_latest <= -80:
+    elif wr_latest >= 80:
         wr_signal = "📉 深度超卖"
         score -= 2
-    elif wr_latest >= -20:
+    elif wr_latest <= 20:
         wr_signal = "📈 超买区"
         score -= 4
-    elif -50 <= wr_latest <= -30:
+    elif 30 <= wr_latest <= 50:
         wr_signal = "⚖ 中性偏强"
         score += 2
     else:
@@ -317,248 +317,161 @@ def score_trend_launch(df) -> dict:
 # ═══════════════════════════════════════════════════════════════
 
 class TrendLaunchEngine(StrategyEngine):
-    """产业链趋势启动选股引擎.
+    """产业链趋势启动选股引擎 vFinal.
 
-    三引擎融合:
-      - 引擎1: 硬核科技 (H1-H6, 0-50)
-      - 引擎2: 产业链位置 (E2, 0-20)
-      - 引擎3: 量价趋势启动 (OBV+WR+MFI, 0-30)
+    Walk-Forward 动量选链 + 跨链加分 + 持有到期 + 月度再平衡.
 
     信号: 强启动(≥75) / 启动(≥60) / 关注(≥45) / 观察(<45)
     """
 
     mode = "supply_chain_trend_launch"
 
-    def __init__(self):
-        pass
+    # 15条候选产业链
+    ALL_CHAINS = [
+        '半导体', '华为韬定律_先进封装', '光通信', '存储芯片', '华为终端', 'EDA工业软件',
+        'AI算力', '机器人', '新能源', '新能源车', '创新药',
+        '高端制造', '国防军工', '消费升级', '周期资源',
+    ]
+
+    def __init__(self, momentum_window: int = 3, min_chains: int = 5,
+                 total_slots: int = 15, cross_chain_bonus: float = 1.5,
+                 min_score: float = 30):
+        self.momentum_window = momentum_window
+        self.min_chains = min_chains
+        self.total_slots = total_slots
+        self.cross_chain_bonus = cross_chain_bonus
+        self.min_score = min_score
+        # 链指数历史 (跨调用共享, 存储最近N个月)
+        self._chain_history: dict[str, list[float]] = {ch: [] for ch in self.ALL_CHAINS}
 
     def get_factor_weights(self) -> dict:
         return {
-            "hardcore_tech": 0.50,
-            "supply_chain_position": 0.20,
-            "trend_launch": 0.30,
+            "momentum_window": self.momentum_window,
+            "min_chains": self.min_chains,
+            "total_slots": self.total_slots,
+            "cross_chain_bonus": self.cross_chain_bonus,
         }
 
-    def run(self, top_n: int = 30, chain: str = "半导体",
-            min_score: float = 30, trade_date: str | None = None,
-            require_trend: bool = False, **kw) -> ScreeningResult:
-        """Run trend launch screening.
+    def _select_chains(self) -> list[str]:
+        """Walk-Forward 动量选链: 近N月均收益 > 0 入选, 至少 min_chains 条."""
+        momentum = {}
+        for ch in self.ALL_CHAINS:
+            recent = self._chain_history[ch][-self.momentum_window:]
+            valid = [r for r in recent if r != 0]
+            momentum[ch] = sum(valid) / len(valid) if valid else 0
+        ranked = sorted(momentum.items(), key=lambda x: -x[1])
+        active = [ch for ch, mom in ranked if mom > 0]
+        if len(active) < self.min_chains:
+            active = [ch for ch, _ in ranked[:self.min_chains]]
+        return active
+
+    def run(self, top_n: int | None = None, chain: str = "半导体",
+            min_score: float | None = None, trade_date: str | None = None,
+            **kw) -> ScreeningResult:
+        """Run vFinal screening.
 
         Args:
-            top_n: Max picks to return.
-            chain: Base supply chain to screen (default: 半导体).
-            min_score: Minimum hardcore tech score to consider.
+            top_n: Max picks to return (default: self.total_slots).
+            chain: Ignored in vFinal (uses all 15 chains).
+            min_score: Minimum SupplyChainEngine score (default: self.min_score).
             trade_date: Historical cutoff date.
-            require_trend: If True, only return stocks with trend score >= 18.
         """
-        import pandas as pd
         import psycopg2
-        from kronos_factors.engine.supply_chain import SupplyChainEngine, match_upstream_influence_rules, load_upstream_influence_rules
+        from kronos_factors.engine.supply_chain import SupplyChainEngine
 
         t0 = time.time()
+        top_n = top_n or self.total_slots
+        min_score = min_score or self.min_score
         pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
         pg = psycopg2.connect(pg_url, connect_timeout=10)
         cur = pg.cursor()
 
-        # ── Step 1: 获取基础候选池 (from SupplyChainEngine) ──
+        # ── Step 1: 动量选链 ──
+        active_chains = self._select_chains()
+        logger.info("TrendLaunch vFinal: %d active chains", len(active_chains))
+
+        # ── Step 2: 跨链选股 ──
+        all_picks = []
         base_engine = SupplyChainEngine()
-        base_result = base_engine.run(top_n=80, chain=chain, min_score=min_score, trade_date=trade_date)
-        base_picks = base_result.picks[:80]
-        codes = [str(p['code']) for p in base_picks]
+        # 多取一些候选, 因为跨链去重会减少数量
+        per_chain = max(3, self.total_slots * 2 // max(1, len(active_chains)))
 
-        if not codes:
-            pg.close()
-            return ScreeningResult(mode=self.mode, picks=[], total_scored=0, elapsed=time.time()-t0)
-
-        rules = load_upstream_influence_rules()
-        ph = ','.join(['%s'] * len(codes))
-
-        # ── Step 2: 批量加载产业链数据 ──
-        # node value_chain + competition
-        cur.execute(f"""
-            SELECT DISTINCT ON (regexp_replace(cm.code, '\\.(SZ|SH|BJ)$', ''))
-                regexp_replace(cm.code, '\\.(SZ|SH|BJ)$', '') as c,
-                cn.value_chain, cn.competition, cm.chokepoint_score, bm.status, cm.evidence
-            FROM company_chain_mapping cm
-            JOIN chain_nodes cn ON cm.node_id = cn.node_id
-            LEFT JOIN company_bom_mapping bm ON bm.code = cm.code AND bm.node_id = cm.node_id
-            WHERE regexp_replace(cm.code, '\\.(SZ|SH|BJ)$', '') IN ({ph})
-            ORDER BY regexp_replace(cm.code, '\\.(SZ|SH|BJ)$', ''), cm.policy_match_score DESC
-        """, codes)
-        node_data = {}
-        for r in cur.fetchall():
-            node_data[r[0]] = r
-
-        # 公司基本信息
-        cur.execute(f"""
-            SELECT s.code, s.industry, sp.main_business
-            FROM stocks s LEFT JOIN stock_profiles sp ON s.code = sp.code
-            WHERE s.code IN ({ph}) AND s.is_st = 0
-        """, codes)
-        biz_data = {}
-        for r in cur.fetchall():
-            biz_data[r[0]] = (r[1] or '', r[2] or '')
-
-        # 研报标题 (按 trade_date 过滤, 防未来信息泄露)
-        if trade_date:
-            cur.execute(f"""
-                SELECT code, title FROM research_reports_tushare
-                WHERE code IN ({ph}) AND code IS NOT NULL AND code != 'nan'
-                  AND pub_date <= %s
-                ORDER BY pub_date DESC LIMIT 5000
-            """, codes + [trade_date])
-        else:
-            cur.execute(f"""
-                SELECT code, title FROM research_reports_tushare
-                WHERE code IN ({ph}) AND code IS NOT NULL AND code != 'nan'
-                ORDER BY pub_date DESC LIMIT 5000
-            """, codes)
-        rt_map: dict[str, list[str]] = {}
-        for c, t in cur.fetchall():
-            rt_map.setdefault(c, []).append(str(t or ''))
-
-        # 研报数 (按 trade_date 过滤)
-        if trade_date:
-            cur.execute(f"SELECT code, COUNT(*) FROM research_reports_tushare WHERE code IN ({ph}) AND pub_date <= %s GROUP BY code", codes + [trade_date])
-        else:
-            cur.execute(f"SELECT code, COUNT(*) FROM research_reports_tushare WHERE code IN ({ph}) GROUP BY code", codes)
-        rc_map = {r[0]: r[1] for r in cur.fetchall()}
-
-        # ── Step 3: 跨链召回索引 ──
-        chain_idx: dict[str, set[str]] = {}
-        for ch in ALL_CHAINS:
-            r = base_engine.run(top_n=200, chain=ch, min_score=0, trade_date=trade_date)
-            for p in r.picks:
-                chain_idx.setdefault(str(p['code']), set()).add(ch)
-
-        # ── Step 4: 逐股打分 ──
-        picks = []
-        for p in base_picks:
-            code = str(p['code'])
-            name = p['name']
-            gm = float(p.get('gross_margin', 0))
-            rg = float(p.get('revenue_growth', 0))
-            roe = float(p.get('roe', 0))
-            profit_g = float(p.get('profit_growth', 0))
-
-            # 节点数据
-            nd = node_data.get(code)
-            vc = nd[1] if nd and len(nd) > 1 else {}
-            comp = nd[2] if nd and len(nd) > 2 else {}
-            cps = float(nd[3] or 0) if nd and len(nd) > 3 else 0
-            ms = nd[4] if nd and len(nd) > 4 else 'pending'
-            ev = nd[5] if nd and len(nd) > 5 else {}
-
-            # 基本信息
-            bi = biz_data.get(code, ('', ''))
-            rt = rt_map.get(code, [])
-            rc = rc_map.get(code, 0)
-            up_rules = match_upstream_influence_rules(code, name, bi[0], bi[1], rules)
-            chains_found = chain_idx.get(code, set())
-            core_rules = sum(1 for r in up_rules if r.get('pool_status') == '核心池')
-
-            # 节点关键词
-            node_kw = []
-            if isinstance(vc, dict):
-                meta = vc.get('_meta', {})
-                if isinstance(meta, dict):
-                    node_kw = meta.get('keywords', [])
-
-            # ── 引擎1: 硬核科技 ──
-            cpw, cpk, cpl = _extract_chokepoint_features(code, name, bi[1], rt, node_kw)
-            h1 = _score_h1_chokepoint(cpw, cpk, cpl)
-            h2 = _score_h2_hardcore(vc.get('pricing_power', 1), comp.get('barrier', 1), gm, ms)
-            h3 = _score_h3_scarcity(comp.get('concentration', 0.15), comp.get('barrier', 1), vc.get('sample_size', 100) if isinstance(vc, dict) else 100)
-            ev_gaps = (ev or {}).get('evidence_gaps', []) if isinstance(ev, dict) else []
-            h4 = _score_h4_stage(len(ev_gaps) if isinstance(ev_gaps, list) else 0, rg, rc)
-            h5 = _score_h5_performance(rg, roe, profit_g)
-            h6 = _score_h6_policy(chains_found, len(up_rules), core_rules)
-            engine1 = round(h1 + h2 + h3 + h4 + h5 + h6, 1)
-
-            if h2 <= 2:
-                continue  # 伪概念过滤
-
-            # ── 引擎2: 产业链位置 ──
-            engine2 = _score_e2_position(vc.get('pricing_power', 1), vc.get('value_added', 0), len(up_rules))
-
-            # ── 引擎3: 量价趋势 (按 trade_date 过滤 K线, 防未来信息泄露) ──
-            engine3 = 15.0  # default neutral
-            trend_detail = {}
+        for ch in active_chains:
             try:
-                if trade_date:
-                    cur.execute("""
-                        SELECT open, high, low, close, volume, trade_date
-                        FROM daily_kline WHERE code = %s AND trade_date <= %s
-                        ORDER BY trade_date DESC LIMIT 60
-                    """, (code, trade_date))
-                else:
-                    cur.execute("""
-                        SELECT open, high, low, close, volume, trade_date
-                        FROM daily_kline WHERE code = %s
-                        ORDER BY trade_date DESC LIMIT 60
-                    """, (code,))
-                klines = cur.fetchall()
-                if klines and len(klines) >= 30:
-                    df = pd.DataFrame(klines, columns=['open', 'high', 'low', 'close', 'volume', 'trade_date'])
-                    df = df.sort_values('trade_date')
-                    trend_detail = score_trend_launch(df)
-                    engine3 = trend_detail.get('score', 15.0)
+                r = base_engine.run(top_n=per_chain, chain=ch, min_score=min_score,
+                                    trade_date=trade_date)
+                for p in r.picks[:per_chain]:
+                    p['_chain'] = ch
+                    all_picks.append(p)
             except Exception as e:
-                logger.debug("Trend launch failed for %s: %s", code, e)
+                logger.debug("Chain %s failed: %s", ch, e)
 
-            total = engine1 + engine2 + engine3
+        if not all_picks:
+            pg.close()
+            return ScreeningResult(mode=self.mode, picks=[], total_scored=0,
+                                    elapsed=time.time() - t0, metadata={"active_chains": active_chains})
 
-            # 信号判定
-            if total >= 75: signal = "强启动"
-            elif total >= 60: signal = "启动"
-            elif total >= 45: signal = "关注"
-            else: signal = "观察"
+        # ── Step 3: 跨链加分 + 排序 ──
+        chain_count: dict[str, int] = {}
+        for p in all_picks:
+            chain_count[p['code']] = chain_count.get(p['code'], 0) + 1
+        for p in all_picks:
+            cross = chain_count[p['code']]
+            p['total_score'] = p.get('total_score', 0) + (cross - 1) * self.cross_chain_bonus
+            p['cross_chains'] = cross
 
-            if require_trend and engine3 < 18:
-                signal = "观察(趋势不足)"
+        seen: set[str] = set()
+        unique: list[dict] = []
+        for p in sorted(all_picks, key=lambda x: -x['total_score']):
+            if p['code'] not in seen:
+                seen.add(p['code'])
+                unique.append(p)
+        picks = unique[:top_n]
 
-            picks.append({
-                "code": code, "name": name,
-                "total_score": round(total, 1),
-                "signal": signal,
-                "engine1_hardcore": engine1,
-                "engine2_position": engine2,
-                "engine3_trend": engine3,
-                "h1_chokepoint": h1, "h2_purity": h2, "h3_scarcity": h3,
-                "h4_stage": h4, "h5_performance": h5, "h6_policy": h6,
-                "chokepoint_level": cpl,
-                "chokepoint_keywords": cpk[:5],
-                "supply_score": p['total_score'],
+        # ── Step 4: 格式化输出 ──
+        result_picks = []
+        for p in picks:
+            entry = {
+                "code": p['code'], "name": p['name'],
+                "total_score": round(p['total_score'], 1),
+                "supply_score": p.get('total_score', 0) - (p.get('cross_chains', 1) - 1) * self.cross_chain_bonus,
+                "cross_chains": p.get('cross_chains', 1),
+                "chain": p.get('_chain', ''),
+                "layer": p.get('layer', ''),
                 "moat_score": p.get('moat_score', 0),
-                "gross_margin": gm,
-                "revenue_growth": rg,
-                "roe": roe,
-                "chains_found": len(chains_found),
-                "upstream_rules": len(up_rules),
-                "report_count": rc,
-                "obv_trend": trend_detail.get('obv_trend', '-'),
-                "wr_signal": trend_detail.get('wr_signal', '-'),
-                "mf_signal": trend_detail.get('mf_signal', '-'),
-                "mfi": trend_detail.get('mfi', 50),
-                "wr_value": trend_detail.get('wr_value', -50),
-            })
+                "growth_score": p.get('growth_score', 0),
+                "profit_score": p.get('profit_score', 0),
+                "rating_score": p.get('rating_score', 0),
+                "consensus_score": p.get('consensus_score', 0),
+                "gross_margin": p.get('gross_margin', 0),
+                "revenue_growth": p.get('revenue_growth', 0),
+                "roe": p.get('roe', 0),
+                "grade": "S" if p['total_score'] >= 80 else ("A" if p['total_score'] >= 65 else ("B" if p['total_score'] >= 50 else "C")),
+            }
+            # 信号映射
+            sc = entry['total_score']
+            if sc >= 75: entry['signal'] = "强启动"
+            elif sc >= 60: entry['signal'] = "启动"
+            elif sc >= 45: entry['signal'] = "关注"
+            else: entry['signal'] = "观察"
+            result_picks.append(entry)
 
         pg.close()
-
-        # 排序
-        picks.sort(key=lambda x: -x['total_score'])
-        picks = picks[:top_n]
-
         elapsed = time.time() - t0
-        logger.info("TrendLaunch: %d picks from %d candidates (%.1fs)", len(picks), len(base_picks), elapsed)
+        logger.info("TrendLaunch vFinal: %d picks from %d chains (%.1fs)",
+                     len(result_picks), len(active_chains), elapsed)
 
         return ScreeningResult(
-            mode=self.mode, picks=picks, total_scored=len(picks),
-            total_excluded=len(base_picks) - len(picks),
+            mode=self.mode, picks=result_picks, total_scored=len(result_picks),
+            total_excluded=len(all_picks) - len(result_picks),
             elapsed=elapsed,
             metadata={
-                "base_chain": chain, "trade_date": trade_date,
-                "require_trend": require_trend,
-                "engine_weights": self.get_factor_weights(),
+                "active_chains": active_chains,
+                "active_chain_count": len(active_chains),
+                "trade_date": trade_date,
+                "total_slots": top_n,
+                "cross_chain_bonus": self.cross_chain_bonus,
+                "momentum_window": self.momentum_window,
+                "engine_version": "vFinal",
             },
         )
