@@ -66,6 +66,16 @@
       "count": 3,
       "tokens": 5859,
       "first_read": "2026-07-06T06:14:16.112Z"
+    },
+    "/private/tmp/claude-501/-Users-rogerluo------K----/3f637135-00fb-42f9-876e-252630bf92e0/tasks/b1ojhq6qj.output": {
+      "count": 1,
+      "tokens": 0,
+      "first_read": "2026-07-06T07:08:18.407Z"
+    },
+    "/private/tmp/claude-501/-Users-rogerluo------K----/3f637135-00fb-42f9-876e-252630bf92e0/tasks/bbla8sill.output": {
+      "count": 1,
+      "tokens": 0,
+      "first_read": "2026-07-06T08:17:56.038Z"
     }
   },
   "files_written": [
@@ -220,8 +230,8 @@
     "services/screener-service/app/routers/screener.py": 3
   },
   "anatomy_hits": 2,
-  "anatomy_misses": 11,
+  "anatomy_misses": 13,
   "repeated_reads_warned": 24,
   "cerebrum_warnings": 0,
-  "stop_count": 29
+  "stop_count": 33
 }
