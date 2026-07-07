@@ -156,7 +156,7 @@ public class HttpToolGatewayClient implements ToolGatewayClient {
             modes.add("leader_closing");
             return modes;
         }
-        if (containsAny(q, "产业链", "大葱")) {
+        if (containsAny(q, "产业链", "大葱", "预期差", "预期差模型")) {
             modes.add("supply_chain");
             return modes;
         }
@@ -201,7 +201,7 @@ public class HttpToolGatewayClient implements ToolGatewayClient {
             return "秋神龙头尾盘顺势";
         }
         if ("supply_chain".equals(mode)) {
-            return "大葱产业链解构选股";
+            return "产业链预期差选股模型";
         }
         if ("cb_floor".equals(mode)) {
             return "匪爷可转债底价安全垫";

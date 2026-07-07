@@ -40,7 +40,7 @@ export function resolveProxyTargets(env: Env): ProxyTargets {
   //
   // 防护（W-2）：89xx = suying-uat 远程栈。若本机另起 180xx dev 栈但忘记设 VITE_* env，
   // 前端会静默连 UAT 而非本地 dev 栈——dev 模式下显式 warn，避免误连。
-  if (import.meta.env.DEV && !hasAnyViteOverride(env)) {
+  if (env.NODE_ENV !== 'production' && !hasAnyViteOverride(env)) {
     // eslint-disable-next-line no-console
     console.warn(
       '[proxyTargets] 默认连 suying-uat 远程栈（89xx）。若本机另起 dev 栈，请设 VITE_*_SERVICE_URL 指向本地端口。',

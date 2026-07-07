@@ -11,7 +11,7 @@ from app import lark_bot
 from app.routers.lark import router
 
 
-def _event(text="/毕师傅硬核科技", chat_id="oc_ok", sender="ou_ok", message_type="text"):
+def _event(text="@机器人 /毕师傅硬核科技", chat_id="oc_ok", sender="ou_ok", message_type="text"):
     return {
         "schema": "2.0",
         "header": {"event_type": "im.message.receive_v1", "token": "verify-token"},
@@ -50,6 +50,7 @@ def test_parse_supported_commands():
         "/秋神盘中": "leader_intraday",
         "/秋神尾盘": "leader_closing",
         "/大葱产业链": "supply_chain",
+        "/产业链预期差": "supply_chain",
         "/竞价选债": "cb_auction_t0_v2_1",
         "/竞价选债V1": "cb_auction_t0",
         "/竞价选债V2": "cb_auction_t0_v2",
@@ -64,6 +65,426 @@ def test_parse_supported_commands():
 
     assert lark_bot.parse_command("秋神午后") is None
     assert lark_bot.parse_command("/未知") is None
+
+
+def test_parse_natural_language_model_commands():
+    cmd = lark_bot.parse_message_command("@机器人 帮我跑今天秋神午后选股，并列出板块共振 top10")
+    assert cmd is not None
+    assert cmd.mode == "leader_afternoon"
+    assert cmd.top_n == 10
+
+    cmd = lark_bot.parse_message_command("准备跑竞价 T+0 选债 Top10")
+    assert cmd is not None
+    assert cmd.mode == "cb_auction_t0_v2_1"
+    assert cmd.top_n == 10
+
+    assert lark_bot.parse_message_command("用大葱产业链分析一下 603713") is None
+
+    cmd = lark_bot.parse_message_command("跑大葱产业链 top10")
+    assert cmd is not None
+    assert cmd.mode == "supply_chain"
+
+    cmd = lark_bot.parse_message_command("跑产业链预期差选股 top10")
+    assert cmd is not None
+    assert cmd.mode == "supply_chain"
+
+    cmd = lark_bot.parse_message_command("跑毕师傅硬核科技趋势启动")
+    assert cmd is not None
+    assert cmd.mode == "bi_trend_launch"
+
+
+def test_single_stock_model_indicator_analysis_is_research_qa_not_model_run():
+    text = "@机器人 用毕师傅的硬核科技选股模型的指标分析新洁能这只股票"
+
+    assert lark_bot.parse_message_command(text) is None
+    assert lark_bot.is_investment_question(text) is True
+    assert lark_bot._research_modes_for_question(text) == ["bi_trend_launch"]
+
+
+def test_llm_intent_parser_distinguishes_single_stock_analysis(monkeypatch):
+    monkeypatch.setattr(
+        lark_bot,
+        "ask_llm",
+        lambda prompt: """
+        {
+          "intent": "single_stock_model_analysis",
+          "is_investment_related": true,
+          "needs_report": false,
+          "target_stock": "新洁能",
+          "stock_code": "",
+          "model_hints": ["毕师傅"],
+          "requested_tools": ["bi_trend_indicators"],
+          "top_n": 10,
+          "answer_mode": "stream",
+          "reason": "用户要求用模型指标分析单股"
+        }
+        """,
+    )
+
+    plan = lark_bot.parse_intent_with_llm("用毕师傅的硬核科技选股模型的指标分析新洁能这只股票")
+
+    assert plan["intent"] == "single_stock_model_analysis"
+    assert plan["is_investment_related"] is True
+    assert plan["needs_report"] is False
+    assert plan["target_stock"] == "新洁能"
+    assert lark_bot.command_from_intent(plan, "用毕师傅的硬核科技选股模型的指标分析新洁能这只股票") is None
+    tools = lark_bot.build_tool_plan(plan, "用毕师傅的硬核科技选股模型的指标分析新洁能这只股票")
+    assert tools[0]["tool"] == "bi_single_stock_diagnostic"
+    assert tools[0]["target_stock"] == "新洁能"
+    assert tools[1]["tool"] == "model_run"
+    assert tools[1]["mode"] == "bi_trend_launch"
+
+
+def test_llm_intent_parser_infers_target_stock_from_question_when_llm_misses_it(monkeypatch):
+    monkeypatch.setattr(
+        lark_bot,
+        "ask_llm",
+        lambda prompt: """
+        {
+          "intent": "stock_research",
+          "is_investment_related": true,
+          "needs_report": false,
+          "target_stock": "",
+          "stock_code": "",
+          "model_hints": ["毕师傅"],
+          "requested_tools": ["bi_trend_indicators"],
+          "top_n": 10,
+          "answer_mode": "stream",
+          "reason": "用户要求分析股票"
+        }
+        """,
+    )
+    monkeypatch.setattr(
+        lark_bot,
+        "_infer_stock_from_question",
+        lambda question: {"code": "605111", "name": "新洁能", "industry": "半导体"},
+    )
+
+    plan = lark_bot.parse_intent_with_llm("CLI 用毕师傅的硬核科技选股模型的指标分析新洁能这只股票")
+    tools = lark_bot.build_tool_plan(plan, "CLI 用毕师傅的硬核科技选股模型的指标分析新洁能这只股票")
+
+    assert plan["intent"] == "single_stock_model_analysis"
+    assert plan["target_stock"] == "新洁能"
+    assert plan["stock_code"] == "605111"
+    assert tools[0]["tool"] == "bi_single_stock_diagnostic"
+    assert tools[0]["target_stock"] == "新洁能"
+
+
+def test_single_stock_model_analysis_context_includes_bi_diagnostic(monkeypatch):
+    plan = {
+        "intent": "single_stock_model_analysis",
+        "is_investment_related": True,
+        "needs_report": False,
+        "target_stock": "新洁能",
+        "stock_code": "605111",
+        "model_hints": ["毕师傅"],
+        "requested_tools": ["bi_trend_indicators"],
+        "top_n": 10,
+        "trade_date": "2026-07-07",
+    }
+
+    monkeypatch.setattr(
+        lark_bot,
+        "build_bi_single_stock_diagnostic",
+        lambda intent_plan: {
+            "tool": "bi_single_stock_diagnostic",
+            "status": "ok",
+            "stock": {"code": "605111", "name": "新洁能", "industry": "半导体"},
+            "trade_date": "2026-07-07",
+            "data_source": "daily_kline",
+            "metrics": {
+                "close": 79.74,
+                "pct_chg": -0.77,
+                "ma5": 83.29,
+                "ma10": 84.92,
+                "ma20": 76.02,
+                "volume_ratio_5d": 0.58,
+                "obv": 8448138.55,
+                "adx": 58.26,
+                "max_single_drop_5d": -9.57,
+            },
+            "gates": [
+                {"gate": "硬科技行业门控", "passed": True},
+                {"gate": "弱市 5 日内不能有单日跌幅超过 8%", "passed": False},
+            ],
+            "failed_gates": [{"gate": "弱市 5 日内不能有单日跌幅超过 8%", "passed": False}],
+            "model_verdict": "fail",
+        },
+    )
+    monkeypatch.setattr(
+        lark_bot,
+        "run_command",
+        lambda command: {
+            "mode": command.mode,
+            "trade_date": "2026-07-07",
+            "total_picks": 0,
+            "picks": [],
+        },
+    )
+
+    context = lark_bot.build_project_research_context("用毕师傅的硬核科技选股模型的指标分析新洁能这只股票", plan)
+
+    assert context["tool_plan"][0]["tool"] == "bi_single_stock_diagnostic"
+    assert context["diagnostics"][0]["stock"]["code"] == "605111"
+    assert context["diagnostics"][0]["metrics"]["adx"] == 58.26
+    assert context["diagnostics"][0]["failed_gates"][0]["gate"] == "弱市 5 日内不能有单日跌幅超过 8%"
+    assert context["runs"][0]["mode"] == "bi_trend_launch"
+
+
+def test_single_stock_model_analysis_uses_model_specific_diagnostic_tools():
+    cases = [
+        ("毕师傅", "bi_single_stock_diagnostic", "bi_trend_launch"),
+        ("秋神午后", "leader_single_stock_diagnostic", "leader_afternoon"),
+        ("大葱产业链", "supply_chain_single_stock_diagnostic", "supply_chain"),
+    ]
+
+    for hint, diagnostic_tool, mode in cases:
+        plan = {
+            "intent": "single_stock_model_analysis",
+            "is_investment_related": True,
+            "needs_report": False,
+            "target_stock": "新洁能",
+            "stock_code": "605111",
+            "model_hints": [hint],
+            "requested_tools": ["model_indicators"],
+            "top_n": 10,
+            "trade_date": "2026-07-07",
+        }
+
+        tools = lark_bot.build_tool_plan(plan, f"用{hint}模型分析新洁能")
+
+        assert tools[0]["tool"] == diagnostic_tool
+        assert tools[1]["tool"] == "model_run"
+        assert tools[1]["mode"] == mode
+
+
+def test_investment_answer_uses_feishu_readable_plain_tables(monkeypatch):
+    context = {
+        "question": "用毕师傅模型分析新洁能",
+        "generated_at": "2026-07-07 23:30",
+        "intent": {"intent": "single_stock_model_analysis", "target_stock": "新洁能"},
+        "tool_plan": [{"tool": "bi_single_stock_diagnostic", "mode": "bi_trend_launch"}],
+        "runs": [],
+        "diagnostics": [
+            {
+                "tool": "bi_single_stock_diagnostic",
+                "diagnostic_style": "毕师傅硬核科技 H1-H6 + 趋势启动门槛",
+                "stock": {"code": "605111", "name": "新洁能"},
+                "rubric_total_score": 29.2,
+                "rubric_full_score": 50,
+                "rubric": [
+                    {"dimension": "H1 卡脖子紧迫度", "score": 7.0, "full_score": 10, "key_data": "行业 半导体"},
+                ],
+                "gates": [
+                    {"gate": "收盘价站上 MA5", "passed": False, "value": 83.29, "note": "趋势启动要求短线重新站上均线"},
+                ],
+                "failed_gates": [
+                    {"gate": "收盘价站上 MA5", "passed": False, "value": 83.29, "note": "趋势启动要求短线重新站上均线"},
+                ],
+            }
+        ],
+        "validation": {"warnings": ["目标股票未出现在本次项目模型返回的 Top 结果中，不能直接视为模型支持。"]},
+    }
+
+    monkeypatch.setattr(lark_bot, "build_project_research_context", lambda question, intent_plan=None: context)
+
+    answer, _ = lark_bot.answer_investment_question("用毕师傅模型分析新洁能")
+
+    assert "【H1-H6 评分】" in answer
+    assert "H1 卡脖子紧迫度" in answer
+    assert "7.0/10" in answer
+    assert "【门槛诊断】" in answer
+    assert "未过  收盘价站上 MA5" in answer
+    assert "###" not in answer
+    assert "**" not in answer
+    assert "|---" not in answer
+
+
+def test_investment_answer_with_model_runs_uses_plain_report_not_markdown(monkeypatch):
+    context = {
+        "question": "帮我分析一下今天的板块共振情况",
+        "generated_at": "2026-07-07 23:43",
+        "intent": {"intent": "sector_resonance"},
+        "tool_plan": [{"tool": "model_run", "mode": "leader_afternoon"}],
+        "diagnostics": [],
+        "runs": [
+            {
+                "status": "ok",
+                "mode": "leader_afternoon",
+                "model_title": "秋神午后选股分析报告",
+                "trade_date": "2026-07-07",
+                "total_picks": 0,
+                "top_picks": [],
+                "resonance": ["- 暂无可统计的板块共振数据"],
+            }
+        ],
+        "validation": {"warnings": []},
+    }
+
+    monkeypatch.setattr(lark_bot, "build_project_research_context", lambda question, intent_plan=None: context)
+
+    answer, _ = lark_bot.answer_investment_question("帮我分析一下今天的板块共振情况")
+
+    assert "📊 投研模型结果" in answer
+    assert "模型：秋神午后选股分析报告" in answer
+    assert "入选数量：0" in answer
+    assert "暂无可统计的板块共振数据" in answer
+    assert "**" not in answer
+    assert "`" not in answer
+    assert "###" not in answer
+
+
+def test_sanitize_feishu_text_removes_markdown_noise():
+    text = lark_bot._sanitize_feishu_text("**结论**：无入选\\n### 详情\\n- 模型 `leader_afternoon`")
+
+    assert "**" not in text
+    assert "###" not in text
+    assert "`" not in text
+    assert "结论：无入选" in text
+    assert "· 模型 leader_afternoon" in text
+
+
+def test_llm_intent_parser_can_request_model_report(monkeypatch):
+    monkeypatch.setattr(
+        lark_bot,
+        "ask_llm",
+        lambda prompt: '{"intent":"model_run","is_investment_related":true,"needs_report":true,"model_hints":["秋神午后"],"top_n":8}',
+    )
+
+    plan = lark_bot.parse_intent_with_llm("帮我跑秋神午后选股 top8")
+    command = lark_bot.command_from_intent(plan, "帮我跑秋神午后选股 top8")
+
+    assert command is not None
+    assert command.mode == "leader_afternoon"
+    assert command.top_n == 8
+
+
+def test_general_question_replies_directly_without_report(monkeypatch):
+    sent = []
+    monkeypatch.setenv("LARK_ALLOWED_CHAT_IDS", "oc_ok")
+    monkeypatch.setenv("LARK_ALLOWED_USER_OPEN_IDS", "ou_ok")
+    monkeypatch.setattr(lark_bot, "send_text_to_chat", lambda chat_id, text: sent.append((chat_id, text)))
+    monkeypatch.setattr(lark_bot, "ask_llm", lambda question: "今天适合先确认日程安排。")
+    monkeypatch.setattr(lark_bot, "write_markdown_report", lambda result, markdown: (_ for _ in ()).throw(AssertionError("普通问答不应生成 markdown")))
+    monkeypatch.setattr(lark_bot, "sync_markdown_to_lark_doc", lambda path, result: (_ for _ in ()).throw(AssertionError("普通问答不应同步飞书文档")))
+
+    result = lark_bot.handle_lark_message(_event("@机器人 今天下午我有什么安排？"))
+
+    assert result["ignored"] is False
+    assert result["mode"] == "general_qa"
+    assert result["question"] == "今天下午我有什么安排？"
+    assert len(sent) == 2
+    assert "正在调用大模型分析" in sent[0][1]
+    assert sent[1][1] == "今天适合先确认日程安排。"
+
+
+def test_investment_question_uses_project_context_and_streams_answer(monkeypatch):
+    sent = []
+    captured = {}
+    monkeypatch.setenv("LARK_ALLOWED_CHAT_IDS", "oc_ok")
+    monkeypatch.setenv("LARK_ALLOWED_USER_OPEN_IDS", "ou_ok")
+    monkeypatch.setenv("LARK_STREAM_CHUNK_CHARS", "18")
+    monkeypatch.setenv("LARK_STREAM_CHUNK_DELAY_SEC", "0")
+    monkeypatch.setattr(lark_bot, "send_text_to_chat", lambda chat_id, text: sent.append((chat_id, text)) or {"code": 0})
+    monkeypatch.setattr(lark_bot, "write_markdown_report", lambda result, markdown: (_ for _ in ()).throw(AssertionError("投研问答不应生成 markdown")))
+    monkeypatch.setattr(lark_bot, "sync_markdown_to_lark_doc", lambda path, result: (_ for _ in ()).throw(AssertionError("投研问答不应同步飞书文档")))
+
+    def fake_run(command):
+        captured.setdefault("modes", []).append(command.mode)
+        return {
+            "mode": command.mode,
+            "trade_date": "2026-07-07",
+            "total_picks": 1,
+            "picks": [
+                {
+                    "code": "300000",
+                    "name": "测试股份",
+                    "industry": "具身智能",
+                    "total_score": 88,
+                    "entry_reason": "板块共振强",
+                }
+            ],
+        }
+
+    def fake_llm(prompt):
+        captured["prompt"] = prompt
+        return "结论：具身智能有模型上下文支持。\n依据：测试股份入选，评分较高。"
+
+    monkeypatch.setattr(lark_bot, "run_command", fake_run)
+    monkeypatch.setattr(lark_bot, "ask_llm", fake_llm)
+
+    result = lark_bot.handle_lark_message(_event("@机器人 具身智能今天是不是共振很强？"))
+
+    assert result["ignored"] is False
+    assert result["mode"] == "research_qa"
+    assert "leader_afternoon" in captured["modes"]
+    assert len(sent) >= 2
+    assert "正在理解意图并调用项目数据/模型" in sent[0][1]
+    assert "📊 投研模型结果" in sent[1][1]
+    assert "测试股份" in sent[1][1]
+    assert "**" not in sent[1][1]
+
+
+def test_investment_diagnostic_answer_is_sent_as_single_readable_message(monkeypatch):
+    sent = []
+    monkeypatch.setenv("LARK_ALLOWED_CHAT_IDS", "oc_ok")
+    monkeypatch.setenv("LARK_ALLOWED_USER_OPEN_IDS", "ou_ok")
+    monkeypatch.setattr(lark_bot, "send_text_to_chat", lambda chat_id, text: sent.append((chat_id, text)) or {"code": 0})
+    monkeypatch.setattr(lark_bot, "parse_intent_with_llm", lambda question: {
+        "intent": "single_stock_model_analysis",
+        "is_investment_related": True,
+        "needs_report": False,
+        "target_stock": "新洁能",
+        "stock_code": "605111",
+        "model_hints": ["毕师傅"],
+        "top_n": 10,
+    })
+    monkeypatch.setattr(lark_bot, "answer_investment_question", lambda question, intent_plan=None: (
+        "📌 新洁能（605111）\n【H1-H6 评分】\n【门槛诊断】",
+        {"diagnostics": [{"tool": "bi_single_stock_diagnostic"}]},
+    ))
+
+    result = lark_bot.handle_lark_message(_event("@机器人 用毕师傅模型分析新洁能"))
+
+    assert result["mode"] == "research_qa"
+    assert len(sent) == 2
+    assert "正在理解意图并调用项目数据/模型" in sent[0][1]
+    assert sent[1][1].startswith("📌 新洁能")
+    assert not sent[1][1].startswith("(1/")
+
+
+def test_group_message_without_mention_is_ignored(monkeypatch):
+    monkeypatch.setenv("LARK_ALLOWED_CHAT_IDS", "oc_ok")
+    monkeypatch.setenv("LARK_ALLOWED_USER_OPEN_IDS", "ou_ok")
+
+    result = lark_bot.handle_lark_message(_event("跑秋神午后选股"))
+
+    assert result == {"ignored": True, "reason": "bot_not_mentioned"}
+
+
+def test_send_text_falls_back_to_lark_cli_without_app_credentials(monkeypatch):
+    captured = {}
+
+    class FakeProc:
+        returncode = 0
+        stdout = '{"code":0,"data":{"message_id":"om_test"}}'
+        stderr = ""
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return FakeProc()
+
+    monkeypatch.delenv("LARK_APP_ID", raising=False)
+    monkeypatch.delenv("LARK_APP_SECRET", raising=False)
+    monkeypatch.setattr(lark_bot.subprocess, "run", fake_run)
+
+    result = lark_bot.send_text_to_chat("oc_ok", "测试消息")
+
+    assert result["code"] == 0
+    assert captured["cmd"][:5] == ["lark-cli", "im", "+messages-send", "--as", "bot"]
+    assert "--chat-id" in captured["cmd"]
+    assert captured["cmd"][captured["cmd"].index("--chat-id") + 1] == "oc_ok"
+    assert captured["cmd"][captured["cmd"].index("--text") + 1] == "测试消息"
 
 
 def test_handle_message_respects_allowlists(monkeypatch):
@@ -196,7 +617,7 @@ def test_handle_flat_event_from_lark_cli_consume(monkeypatch):
             "chat_id": "oc_ok",
             "sender_id": "ou_ok",
             "message_type": "text",
-            "content": "/秋神午后",
+            "content": "@机器人 /秋神午后",
         }
     )
 
@@ -300,7 +721,7 @@ def test_cb_auction_command_runs_and_sends_doc(monkeypatch):
 
     monkeypatch.setattr(lark_bot, "run_command", fake_run)
 
-    result = lark_bot.handle_lark_message(_event("/竞价选债 top=5"))
+    result = lark_bot.handle_lark_message(_event("@机器人 /竞价选债 top=5"))
 
     assert result["ignored"] is False
     assert called["mode"] == "cb_auction_t0_v2_1"

@@ -24,7 +24,7 @@ public class RuleIntentRouter implements IntentRouter {
         if (containsAny(q, "选债", "可转债", "匪爷")) {
             return new IntentResult("bond_model_run", 0.9, "命中选债模型规则");
         }
-        if (containsAny(q, "选股", "股票", "模型结果", "模型信号", "毕师傅", "秋神")) {
+        if (containsAny(q, "选股", "股票", "模型结果", "模型信号", "预期差模型", "产业链预期差", "毕师傅", "秋神")) {
             return new IntentResult("stock_model_run", 0.82, "命中选股模型规则");
         }
         if (containsAny(q, "数据质量", "更新", "最新数据", "缺失")) {

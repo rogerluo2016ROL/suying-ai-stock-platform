@@ -1,0 +1,618 @@
+INFO:     Started server process [39740]
+INFO:     Waiting for application startup.
+2026-07-07 20:25:59,642 [INFO] screener-service: Starting Screener Service...
+2026-07-07 20:26:00,000 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 20:26:00,007 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 20:26:00,007 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 20:26:00,008 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 20:26:00,143 [INFO] kronos.recorder: recorder: 448 outcomes backfilled
+2026-07-07 20:26:00,143 [INFO] screener.scheduler: Scheduler: T+1 backfill — 448 snapshots
+2026-07-07 20:26:04,247 [INFO] kronos.recorder: recorder: 1585 snapshots multi-horizon backfilled
+2026-07-07 20:26:04,248 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1585 snapshots
+2026-07-07 20:26:04,248 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 20:26:04,253 [INFO] kronos.recorder: recorder: 334 outcomes backfilled
+2026-07-07 20:26:04,253 [INFO] screener.scheduler: Scheduler: T+1 backfill — 334 snapshots
+2026-07-07 20:26:07,612 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 20:26:07,612 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('127.0.0.1', 18011): [errno 48] address already in use
+INFO:     Waiting for application shutdown.
+2026-07-07 20:26:07,612 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Started server process [44487]
+INFO:     Waiting for application startup.
+2026-07-07 20:26:53,437 [INFO] screener-service: Starting Screener Service...
+2026-07-07 20:26:53,793 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 20:26:53,801 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 20:26:53,801 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 20:26:53,801 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 20:26:53,828 [INFO] kronos.recorder: recorder: 334 outcomes backfilled
+2026-07-07 20:26:53,828 [INFO] screener.scheduler: Scheduler: T+1 backfill — 334 snapshots
+2026-07-07 20:26:57,302 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 20:26:57,302 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+2026-07-07 20:26:57,302 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 20:26:57,307 [INFO] kronos.recorder: recorder: 334 outcomes backfilled
+2026-07-07 20:26:57,307 [INFO] screener.scheduler: Scheduler: T+1 backfill — 334 snapshots
+2026-07-07 20:27:01,021 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 20:27:01,021 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:56830 - "GET /api/v1/health HTTP/1.1" 200 OK
+2026-07-07 21:58:44,229 [INFO] screener.cache: Redis connected: redis://localhost:7379/0
+2026-07-07 21:58:45,024 [INFO] kronos-factors.supply_chain: 产业链解构V4: 10 picks, 3 chains (0.8s, trade_date=2026-07-06)
+2026-07-07 21:58:45,033 [INFO] screener.routes: Snapshot saved: /Users/rogerluo/程序目录/K线大模型/outputs/snapshots/supply_chain/2026-07-06_2158.json (10 picks)
+2026-07-07 21:58:45,050 [INFO] kronos.recorder: recorder: supply_chain 2026-07-06 — 10 picks recorded
+2026-07-07 21:58:45,050 [INFO] screener.routes: Recorder: supply_chain 2026-07-06 — 10 picks
+INFO:     127.0.0.1:60742 - "POST /api/v1/screener/run?mode=supply_chain&top_n=10&trade_date=2026-07-06 HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 21:59:06,866 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [44487]
+INFO:     Started server process [50270]
+INFO:     Waiting for application startup.
+2026-07-07 21:59:08,355 [INFO] screener-service: Starting Screener Service...
+2026-07-07 21:59:08,691 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 21:59:08,698 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 21:59:08,698 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 21:59:08,699 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 21:59:08,733 [INFO] kronos.recorder: recorder: 389 outcomes backfilled
+2026-07-07 21:59:08,733 [INFO] screener.scheduler: Scheduler: T+1 backfill — 389 snapshots
+2026-07-07 21:59:12,380 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 21:59:12,380 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+2026-07-07 21:59:12,380 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 21:59:12,385 [INFO] kronos.recorder: recorder: 389 outcomes backfilled
+2026-07-07 21:59:12,386 [INFO] screener.scheduler: Scheduler: T+1 backfill — 389 snapshots
+2026-07-07 21:59:15,984 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 21:59:15,984 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+2026-07-07 21:59:54,650 [INFO] screener.cache: Redis connected: redis://localhost:7379/0
+INFO:     127.0.0.1:60798 - "POST /api/v1/screener/run?mode=supply_chain&top_n=10&trade_date=2026-07-06 HTTP/1.1" 200 OK
+2026-07-07 22:03:07,754 [INFO] screener.routes: Snapshot saved: /Users/rogerluo/程序目录/K线大模型/outputs/snapshots/supply_chain/2026-07-06_2203.json (6 picks)
+2026-07-07 22:03:07,762 [INFO] kronos.recorder: recorder: supply_chain 2026-07-06 — 6 picks recorded
+2026-07-07 22:03:07,762 [INFO] screener.routes: Recorder: supply_chain 2026-07-06 — 6 picks
+INFO:     127.0.0.1:60961 - "POST /api/v1/screener/run?mode=supply_chain&top_n=10&trade_date=2026-07-06 HTTP/1.1" 200 OK
+2026-07-07 22:08:51,950 [INFO] screener.routes: Snapshot saved: /Users/rogerluo/程序目录/K线大模型/outputs/snapshots/supply_chain/2026-07-06_2208.json (6 picks)
+2026-07-07 22:08:51,957 [INFO] kronos.recorder: recorder: supply_chain 2026-07-06 — 6 picks recorded
+2026-07-07 22:08:51,957 [INFO] screener.routes: Recorder: supply_chain 2026-07-06 — 6 picks
+INFO:     127.0.0.1:61558 - "POST /api/v1/screener/run?mode=supply_chain&top_n=10 HTTP/1.1" 200 OK
+INFO:     Started server process [90128]
+INFO:     Waiting for application startup.
+2026-07-07 22:21:53,591 [INFO] screener-service: Starting Screener Service...
+2026-07-07 22:21:54,163 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 22:21:54,172 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 22:21:54,172 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 22:21:54,173 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 22:21:54,234 [INFO] kronos.recorder: recorder: 401 outcomes backfilled
+2026-07-07 22:21:54,234 [INFO] screener.scheduler: Scheduler: T+1 backfill — 401 snapshots
+INFO:     127.0.0.1:62472 - "GET /health HTTP/1.1" 404 Not Found
+2026-07-07 22:21:57,516 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 22:21:57,517 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+2026-07-07 22:21:57,517 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 22:21:57,522 [INFO] kronos.recorder: recorder: 401 outcomes backfilled
+2026-07-07 22:21:57,533 [INFO] screener.scheduler: Scheduler: T+1 backfill — 401 snapshots
+2026-07-07 22:22:01,118 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 22:22:01,118 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('127.0.0.1', 18011): [errno 48] address already in use
+INFO:     Waiting for application shutdown.
+2026-07-07 22:22:01,119 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     127.0.0.1:62479 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Started server process [91935]
+INFO:     Waiting for application startup.
+2026-07-07 22:22:22,071 [INFO] screener-service: Starting Screener Service...
+2026-07-07 22:22:22,388 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 22:22:22,393 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 22:22:22,393 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 22:22:22,394 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 22:22:22,437 [INFO] kronos.recorder: recorder: 401 outcomes backfilled
+2026-07-07 22:22:22,437 [INFO] screener.scheduler: Scheduler: T+1 backfill — 401 snapshots
+2026-07-07 22:22:26,064 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 22:22:26,064 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+2026-07-07 22:22:26,064 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 22:22:26,071 [INFO] kronos.recorder: recorder: 401 outcomes backfilled
+2026-07-07 22:22:26,071 [INFO] screener.scheduler: Scheduler: T+1 backfill — 401 snapshots
+2026-07-07 22:22:29,107 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 22:22:29,107 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:62535 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:26:44,666 [INFO] app.routers.lark: Lark callback summary: {'type': None, 'event_type': 'im.message.receive_v1', 'keys': ['event', 'header', 'schema'], 'chat_id': 'oc_test', 'sender_id': 'ou_test', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:62753 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:26:44,687 [ERROR] app.routers.lark: Lark event handling failed
+Traceback (most recent call last):
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/routers/lark.py", line 29, in _run_event_task
+    result = handle_lark_message(payload)
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/lark_bot.py", line 1903, in handle_lark_message
+    send_text_to_chat(chat_id, "收到问题，正在调用大模型分析。")
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/lark_bot.py", line 1779, in send_text_to_chat
+    token = get_tenant_access_token()
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/lark_bot.py", line 1760, in get_tenant_access_token
+    raise RuntimeError("missing LARK_APP_ID or LARK_APP_SECRET")
+RuntimeError: missing LARK_APP_ID or LARK_APP_SECRET
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 22:27:49,243 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [91935]
+INFO:     Started server process [6336]
+INFO:     Waiting for application startup.
+2026-07-07 22:27:50,780 [INFO] screener-service: Starting Screener Service...
+2026-07-07 22:27:51,139 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 22:27:51,147 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 22:27:51,147 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 22:27:51,147 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 22:27:51,196 [INFO] kronos.recorder: recorder: 401 outcomes backfilled
+2026-07-07 22:27:51,196 [INFO] screener.scheduler: Scheduler: T+1 backfill — 401 snapshots
+2026-07-07 22:27:54,490 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 22:27:54,490 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+2026-07-07 22:27:54,490 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 22:27:54,495 [INFO] kronos.recorder: recorder: 401 outcomes backfilled
+2026-07-07 22:27:54,495 [INFO] screener.scheduler: Scheduler: T+1 backfill — 401 snapshots
+2026-07-07 22:27:57,490 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 22:27:57,490 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:62817 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:28:05,291 [INFO] app.routers.lark: Lark callback summary: {'type': None, 'event_type': 'im.message.receive_v1', 'keys': ['event', 'header', 'schema'], 'chat_id': 'oc_test', 'sender_id': 'ou_test', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:62825 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:28:10,665 [ERROR] app.routers.lark: Lark event handling failed
+Traceback (most recent call last):
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/routers/lark.py", line 29, in _run_event_task
+    result = handle_lark_message(payload)
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/lark_bot.py", line 1936, in handle_lark_message
+    send_text_to_chat(chat_id, "收到问题，正在调用大模型分析。")
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/lark_bot.py", line 1780, in send_text_to_chat
+    return _send_text_to_chat_via_lark_cli(chat_id, text)
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/lark_bot.py", line 1831, in _send_text_to_chat_via_lark_cli
+    raise RuntimeError(f"send message via lark-cli failed: {detail or proc.returncode}")
+RuntimeError: send message via lark-cli failed: {
+  "ok": false,
+  "identity": "bot",
+  "error": {
+    "type": "api",
+    "subtype": "unknown",
+    "code": 230001,
+    "message": "Your request contains an invalid request parameter, ext=invalid receive_id",
+    "log_id": "202607072228108183A8D4FD8C98CE2C3F",
+    "troubleshooter": "排查建议查看(Troubleshooting suggestions): https://open.feishu.cn/search?from=openapi&log_id=202607072228108183A8D4FD8C98CE2C3F&code=230001&method_id=6936075528891154460"
+  },
+  "_notice": {
+    "update": {
+      "command": "lark-cli update",
+      "current": "1.0.64",
+      "latest": "1.0.65",
+      "message": "lark-cli 1.0.65 available, current 1.0.64, run: lark-cli update"
+    }
+  }
+}
+INFO:     127.0.0.1:62866 - "GET /api/v1/lark/bot/config HTTP/1.1" 200 OK
+2026-07-07 22:30:56,097 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:62979 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:30:58,752 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'general_qa', 'question': 'CLI 你好', 'answer_sent': True}
+INFO:     127.0.0.1:63428 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63429 - "GET /api/v1/lark/bot/config HTTP/1.1" 200 OK
+INFO:     Started server process [26346]
+INFO:     Waiting for application startup.
+2026-07-07 22:38:34,724 [INFO] screener-service: Starting Screener Service...
+2026-07-07 22:38:35,284 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 22:38:35,293 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 22:38:35,293 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 22:38:35,293 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 22:38:35,364 [INFO] kronos.recorder: recorder: 401 outcomes backfilled
+2026-07-07 22:38:35,364 [INFO] screener.scheduler: Scheduler: T+1 backfill — 401 snapshots
+2026-07-07 22:38:38,770 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 22:38:38,770 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+2026-07-07 22:38:38,770 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 22:38:38,777 [INFO] kronos.recorder: recorder: 401 outcomes backfilled
+2026-07-07 22:38:38,777 [INFO] screener.scheduler: Scheduler: T+1 backfill — 401 snapshots
+2026-07-07 22:38:42,490 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 22:38:42,490 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('127.0.0.1', 18011): [errno 48] address already in use
+INFO:     Waiting for application shutdown.
+2026-07-07 22:38:42,491 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 22:38:47,338 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6336]
+INFO:     Started server process [27283]
+INFO:     Waiting for application startup.
+2026-07-07 22:38:49,723 [INFO] screener-service: Starting Screener Service...
+2026-07-07 22:38:50,016 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 22:38:50,022 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 22:38:50,022 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 22:38:50,023 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 22:38:50,069 [INFO] kronos.recorder: recorder: 401 outcomes backfilled
+2026-07-07 22:38:50,069 [INFO] screener.scheduler: Scheduler: T+1 backfill — 401 snapshots
+2026-07-07 22:38:53,480 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 22:38:53,480 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+2026-07-07 22:38:53,480 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 22:38:53,489 [INFO] kronos.recorder: recorder: 401 outcomes backfilled
+2026-07-07 22:38:53,489 [INFO] screener.scheduler: Scheduler: T+1 backfill — 401 snapshots
+2026-07-07 22:38:57,029 [INFO] kronos.recorder: recorder: 1485 snapshots multi-horizon backfilled
+2026-07-07 22:38:57,029 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1485 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:63461 - "POST /api/v1/lark/events HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63462 - "GET /api/v1/lark/bot/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63475 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:39:27,938 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:63493 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:39:32,988 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'general_qa', 'question': 'CLI 你好', 'answer_sent': True}
+2026-07-07 22:39:50,817 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:63512 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:40:10,854 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'bi_trend_launch', 'total_picks': 0, 'markdown_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-07/224000_bi_trend_launch.md', 'doc_xml_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-07/224000_bi_trend_launch.doc.xml', 'doc_url': 'https://xcnl9dvruj6a.feishu.cn/docx/DXpUda1oYo7QsWxD9slcc1kIneg'}
+2026-07-07 22:40:52,568 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+    熔断: 涨跌比13%<18%
+INFO:     127.0.0.1:63702 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:41:01,216 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'general_qa', 'question': 'CLI 我要的是你帮我分析新洁能这只股票，不是要选股', 'answer_sent': True}
+2026-07-07 22:41:47,574 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:63754 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:42:06,361 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'bi_trend_launch', 'total_picks': 0, 'markdown_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-07/224152_bi_trend_launch.md', 'doc_xml_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-07/224152_bi_trend_launch.doc.xml', 'doc_url': 'https://xcnl9dvruj6a.feishu.cn/docx/EIQgd2dHYoJ9GVxaAsCczt2xnye'}
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 22:48:09,399 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [27283]
+INFO:     Started server process [57481]
+INFO:     Waiting for application startup.
+2026-07-07 22:48:11,780 [INFO] screener-service: Starting Screener Service...
+2026-07-07 22:48:12,073 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 22:48:12,080 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 22:48:12,080 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 22:48:12,080 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 22:48:12,217 [INFO] kronos.recorder: recorder: 401 outcomes backfilled
+2026-07-07 22:48:12,217 [INFO] screener.scheduler: Scheduler: T+1 backfill — 401 snapshots
+2026-07-07 22:48:15,934 [INFO] kronos.recorder: recorder: 1683 snapshots multi-horizon backfilled
+2026-07-07 22:48:15,934 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1683 snapshots
+2026-07-07 22:48:15,934 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 22:48:15,938 [INFO] kronos.recorder: recorder: 203 outcomes backfilled
+2026-07-07 22:48:15,938 [INFO] screener.scheduler: Scheduler: T+1 backfill — 203 snapshots
+2026-07-07 22:48:19,491 [INFO] kronos.recorder: recorder: 1673 snapshots multi-horizon backfilled
+2026-07-07 22:48:19,492 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1673 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64203 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64204 - "GET /api/v1/lark/bot/config HTTP/1.1" 200 OK
+2026-07-07 22:49:27,335 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:64245 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:49:43,683 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 具身智能今天是不是共振很强？', 'context_modes': ['leader_afternoon'], 'answer_sent': True}
+2026-07-07 22:50:04,458 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-06): 4989 stocks
+  市场环境: 🟠观望 — 涨跌比仅11%, 极度弱势
+  📡 快照(live): 4996 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-07): 8 只
+  📊 pre_close from daily_kline(2026-07-06): 4989 只 (含回退)
+  🔒 14:30涨停检测: 30 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 17 只 (2.0s)
+INFO:     127.0.0.1:64274 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:50:20,530 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 帮我列出今天的板块共振情况', 'context_modes': ['leader_afternoon'], 'answer_sent': True}
+2026-07-07 22:50:56,229 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-06): 4989 stocks
+  市场环境: 🟠观望 — 涨跌比仅11%, 极度弱势
+  📡 快照(live): 4996 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-07): 8 只
+  📊 pre_close from daily_kline(2026-07-06): 4989 只 (含回退)
+  🔒 14:30涨停检测: 30 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 17 只 (1.8s)
+INFO:     127.0.0.1:64307 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 22:51:12,473 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'bi_trend_launch', 'total_picks': 0, 'markdown_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-07/225102_bi_trend_launch.md', 'doc_xml_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-07/225102_bi_trend_launch.doc.xml', 'doc_url': 'https://xcnl9dvruj6a.feishu.cn/docx/XgmIddhlxoLyLix3f6kclRxNnAc'}
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 22:53:59,583 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [57481]
+INFO:     Started server process [70695]
+INFO:     Waiting for application startup.
+2026-07-07 22:54:01,936 [INFO] screener-service: Starting Screener Service...
+2026-07-07 22:54:02,252 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 22:54:02,260 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 22:54:02,260 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 22:54:02,260 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 22:54:02,337 [INFO] kronos.recorder: recorder: 203 outcomes backfilled
+2026-07-07 22:54:02,337 [INFO] screener.scheduler: Scheduler: T+1 backfill — 203 snapshots
+2026-07-07 22:54:05,987 [INFO] kronos.recorder: recorder: 1673 snapshots multi-horizon backfilled
+2026-07-07 22:54:05,988 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1673 snapshots
+2026-07-07 22:54:05,988 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 22:54:05,991 [INFO] kronos.recorder: recorder: 203 outcomes backfilled
+2026-07-07 22:54:05,992 [INFO] screener.scheduler: Scheduler: T+1 backfill — 203 snapshots
+2026-07-07 22:54:09,247 [INFO] kronos.recorder: recorder: 1673 snapshots multi-horizon backfilled
+2026-07-07 22:54:09,248 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1673 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64585 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64870 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 23:03:00,736 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [70695]
+INFO:     Started server process [93052]
+INFO:     Waiting for application startup.
+2026-07-07 23:03:03,062 [INFO] screener-service: Starting Screener Service...
+2026-07-07 23:03:03,360 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 23:03:03,368 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 23:03:03,368 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 23:03:03,368 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 23:03:03,415 [INFO] kronos.recorder: recorder: 203 outcomes backfilled
+2026-07-07 23:03:03,415 [INFO] screener.scheduler: Scheduler: T+1 backfill — 203 snapshots
+2026-07-07 23:03:07,001 [INFO] kronos.recorder: recorder: 1673 snapshots multi-horizon backfilled
+2026-07-07 23:03:07,001 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1673 snapshots
+2026-07-07 23:03:07,001 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 23:03:07,006 [INFO] kronos.recorder: recorder: 203 outcomes backfilled
+2026-07-07 23:03:07,006 [INFO] screener.scheduler: Scheduler: T+1 backfill — 203 snapshots
+2026-07-07 23:03:10,394 [INFO] kronos.recorder: recorder: 1673 snapshots multi-horizon backfilled
+2026-07-07 23:03:10,394 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1673 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:64919 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64920 - "GET /api/v1/lark/bot/config HTTP/1.1" 200 OK
+2026-07-07 23:04:44,828 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:64996 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 23:05:01,229 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 用毕师傅的硬核科技选股模型的指标分析新洁能这只股票', 'intent': 'single_stock_model_analysis', 'context_modes': ['bi_trend_launch'], 'answer_sent': True}
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 23:05:43,946 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [93052]
+INFO:     Started server process [793]
+INFO:     Waiting for application startup.
+2026-07-07 23:05:45,302 [INFO] screener-service: Starting Screener Service...
+2026-07-07 23:05:45,566 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 23:05:45,598 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 23:05:45,599 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 23:05:45,599 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 23:05:45,647 [INFO] kronos.recorder: recorder: 203 outcomes backfilled
+2026-07-07 23:05:45,647 [INFO] screener.scheduler: Scheduler: T+1 backfill — 203 snapshots
+2026-07-07 23:05:50,113 [INFO] kronos.recorder: recorder: 1673 snapshots multi-horizon backfilled
+2026-07-07 23:05:50,113 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1673 snapshots
+2026-07-07 23:05:50,113 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 23:05:50,120 [INFO] kronos.recorder: recorder: 203 outcomes backfilled
+2026-07-07 23:05:50,121 [INFO] screener.scheduler: Scheduler: T+1 backfill — 203 snapshots
+2026-07-07 23:05:54,317 [INFO] kronos.recorder: recorder: 1673 snapshots multi-horizon backfilled
+2026-07-07 23:05:54,317 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1673 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:65133 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+2026-07-07 23:07:20,233 [INFO] screener.cache: Redis connected: redis://localhost:7379/0
+INFO:     127.0.0.1:65215 - "POST /api/v1/screener/run?mode=supply_chain&top_n=10 HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 23:14:08,920 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [793]
+INFO:     Started server process [25310]
+INFO:     Waiting for application startup.
+2026-07-07 23:14:11,291 [INFO] screener-service: Starting Screener Service...
+2026-07-07 23:14:11,758 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 23:14:11,764 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 23:14:11,764 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 23:14:11,765 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 23:14:11,811 [INFO] kronos.recorder: recorder: 203 outcomes backfilled
+2026-07-07 23:14:11,811 [INFO] screener.scheduler: Scheduler: T+1 backfill — 203 snapshots
+2026-07-07 23:14:16,627 [INFO] kronos.recorder: recorder: 1673 snapshots multi-horizon backfilled
+2026-07-07 23:14:16,627 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1673 snapshots
+2026-07-07 23:14:16,627 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 23:14:16,631 [INFO] kronos.recorder: recorder: 203 outcomes backfilled
+2026-07-07 23:14:16,631 [INFO] screener.scheduler: Scheduler: T+1 backfill — 203 snapshots
+2026-07-07 23:14:23,321 [INFO] kronos.recorder: recorder: 1673 snapshots multi-horizon backfilled
+2026-07-07 23:14:23,322 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1673 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49647 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49664 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 23:21:28,532 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [25310]
+INFO:     Started server process [54528]
+INFO:     Waiting for application startup.
+2026-07-07 23:21:30,929 [INFO] screener-service: Starting Screener Service...
+2026-07-07 23:21:31,225 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 23:21:31,232 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 23:21:31,232 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 23:21:31,232 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 23:21:31,329 [INFO] kronos.recorder: recorder: 203 outcomes backfilled
+2026-07-07 23:21:31,329 [INFO] screener.scheduler: Scheduler: T+1 backfill — 203 snapshots
+2026-07-07 23:21:36,030 [INFO] kronos.recorder: recorder: 1673 snapshots multi-horizon backfilled
+2026-07-07 23:21:36,030 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1673 snapshots
+2026-07-07 23:21:36,030 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 23:21:36,034 [INFO] kronos.recorder: recorder: 203 outcomes backfilled
+2026-07-07 23:21:36,034 [INFO] screener.scheduler: Scheduler: T+1 backfill — 203 snapshots
+2026-07-07 23:21:39,510 [INFO] kronos.recorder: recorder: 1673 snapshots multi-horizon backfilled
+2026-07-07 23:21:39,510 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1673 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49754 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+2026-07-07 23:22:19,655 [INFO] screener.cache: Redis connected: redis://localhost:7379/0
+2026-07-07 23:22:19,751 [INFO] screener.routes: Snapshot saved: /Users/rogerluo/程序目录/K线大模型/outputs/snapshots/supply_chain/2026-07-06_2322.json (6 picks)
+2026-07-07 23:22:19,762 [INFO] kronos.recorder: recorder: supply_chain 2026-07-06 — 6 picks recorded
+2026-07-07 23:22:19,762 [INFO] screener.routes: Recorder: supply_chain 2026-07-06 — 6 picks
+INFO:     127.0.0.1:49785 - "POST /api/v1/screener/run?mode=supply_chain&top_n=10 HTTP/1.1" 200 OK
+2026-07-07 23:22:20,810 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'post', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:49794 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 23:22:38,398 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 用毕师傅的硬核科技选股模型的指标分析新洁能这只股票', 'intent': 'single_stock_model_analysis', 'context_modes': ['bi_trend_launch'], 'answer_sent': True}
+    熔断: 涨跌比13%<18%
+INFO:     127.0.0.1:50295 - "POST /api/v1/screener/run?mode=supply_chain&top_n=10 HTTP/1.1" 200 OK
+  📊 pre_close from daily_kline(2026-07-06): 4989 stocks
+  市场环境: 🟠观望 — 涨跌比仅11%, 极度弱势
+  📡 快照(live): 4996 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-07): 8 只
+  📊 pre_close from daily_kline(2026-07-06): 4989 只 (含回退)
+  🔒 14:30涨停检测: 30 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 17 只 (2.1s)
+INFO:     127.0.0.1:50294 - "POST /api/v1/screener/run?mode=leader_afternoon&top_n=10 HTTP/1.1" 200 OK
+    熔断: 涨跌比13%<18%
+INFO:     127.0.0.1:50294 - "POST /api/v1/screener/run?mode=bi_trend_launch&top_n=10 HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 23:28:46,384 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [54528]
+INFO:     Started server process [91420]
+INFO:     Waiting for application startup.
+2026-07-07 23:28:48,847 [INFO] screener-service: Starting Screener Service...
+2026-07-07 23:28:49,428 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 23:28:49,435 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 23:28:49,436 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 23:28:49,436 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 23:28:49,553 [INFO] kronos.recorder: recorder: 209 outcomes backfilled
+2026-07-07 23:28:49,553 [INFO] screener.scheduler: Scheduler: T+1 backfill — 209 snapshots
+2026-07-07 23:28:53,646 [INFO] kronos.recorder: recorder: 1678 snapshots multi-horizon backfilled
+2026-07-07 23:28:53,646 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1678 snapshots
+2026-07-07 23:28:53,646 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 23:28:53,652 [INFO] kronos.recorder: recorder: 204 outcomes backfilled
+2026-07-07 23:28:53,652 [INFO] screener.scheduler: Scheduler: T+1 backfill — 204 snapshots
+2026-07-07 23:28:57,790 [INFO] kronos.recorder: recorder: 1678 snapshots multi-horizon backfilled
+2026-07-07 23:28:57,790 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1678 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50336 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+2026-07-07 23:29:35,297 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'post', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:50365 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 23:30:03,696 [INFO] screener.cache: Redis connected: redis://localhost:7379/0
+INFO:     127.0.0.1:50387 - "POST /api/v1/screener/run?mode=supply_chain&top_n=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50388 - "POST /api/v1/screener/run?mode=supply_chain&top_n=10 HTTP/1.1" 200 OK
+2026-07-07 23:30:13,337 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 用毕师傅的硬核科技选股模型的指标分析新洁能这只股票', 'intent': 'single_stock_model_analysis', 'context_modes': ['bi_trend_launch'], 'answer_sent': True}
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 23:32:45,621 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [91420]
+INFO:     Started server process [7311]
+INFO:     Waiting for application startup.
+2026-07-07 23:32:47,949 [INFO] screener-service: Starting Screener Service...
+2026-07-07 23:32:48,256 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 23:32:48,262 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 23:32:48,262 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 23:32:48,263 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 23:32:48,306 [INFO] kronos.recorder: recorder: 204 outcomes backfilled
+2026-07-07 23:32:48,306 [INFO] screener.scheduler: Scheduler: T+1 backfill — 204 snapshots
+2026-07-07 23:32:52,136 [INFO] kronos.recorder: recorder: 1678 snapshots multi-horizon backfilled
+2026-07-07 23:32:52,137 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1678 snapshots
+2026-07-07 23:32:52,137 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 23:32:52,141 [INFO] kronos.recorder: recorder: 204 outcomes backfilled
+2026-07-07 23:32:52,141 [INFO] screener.scheduler: Scheduler: T+1 backfill — 204 snapshots
+2026-07-07 23:32:55,821 [INFO] kronos.recorder: recorder: 1678 snapshots multi-horizon backfilled
+2026-07-07 23:32:55,821 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1678 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50560 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 23:38:47,329 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [7311]
+INFO:     Started server process [21385]
+INFO:     Waiting for application startup.
+2026-07-07 23:38:49,674 [INFO] screener-service: Starting Screener Service...
+2026-07-07 23:38:49,979 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 23:38:49,986 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 23:38:49,986 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 23:38:49,987 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 23:38:50,053 [INFO] kronos.recorder: recorder: 204 outcomes backfilled
+2026-07-07 23:38:50,053 [INFO] screener.scheduler: Scheduler: T+1 backfill — 204 snapshots
+2026-07-07 23:38:53,618 [INFO] kronos.recorder: recorder: 1678 snapshots multi-horizon backfilled
+2026-07-07 23:38:53,618 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1678 snapshots
+2026-07-07 23:38:53,618 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 23:38:53,622 [INFO] kronos.recorder: recorder: 204 outcomes backfilled
+2026-07-07 23:38:53,623 [INFO] screener.scheduler: Scheduler: T+1 backfill — 204 snapshots
+2026-07-07 23:38:56,908 [INFO] kronos.recorder: recorder: 1678 snapshots multi-horizon backfilled
+2026-07-07 23:38:56,908 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1678 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50905 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50958 - "POST /api/v1/lark/events HTTP/1.1" 403 Forbidden
+2026-07-07 23:40:20,625 [INFO] app.routers.lark: Lark callback summary: {'type': None, 'event_type': 'im.message.receive_v1', 'keys': ['event', 'header', 'schema'], 'chat_id': 'oc_e63cceb93415b72b6a98caae7f9690e2', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:50973 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 23:40:26,452 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': '用毕师傅的硬核科技选股模型的指标分析新洁能这只股票', 'intent': 'single_stock_model_analysis', 'context_modes': ['bi_trend_launch'], 'answer_sent': True}
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 23:41:19,627 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [21385]
+INFO:     Started server process [25824]
+INFO:     Waiting for application startup.
+2026-07-07 23:41:21,942 [INFO] screener-service: Starting Screener Service...
+2026-07-07 23:41:22,233 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 23:41:22,241 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 23:41:22,241 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 23:41:22,242 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 23:41:22,288 [INFO] kronos.recorder: recorder: 204 outcomes backfilled
+2026-07-07 23:41:22,288 [INFO] screener.scheduler: Scheduler: T+1 backfill — 204 snapshots
+2026-07-07 23:41:25,682 [INFO] kronos.recorder: recorder: 1678 snapshots multi-horizon backfilled
+2026-07-07 23:41:25,682 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1678 snapshots
+2026-07-07 23:41:25,682 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 23:41:25,686 [INFO] kronos.recorder: recorder: 204 outcomes backfilled
+2026-07-07 23:41:25,686 [INFO] screener.scheduler: Scheduler: T+1 backfill — 204 snapshots
+2026-07-07 23:41:29,280 [INFO] kronos.recorder: recorder: 1678 snapshots multi-horizon backfilled
+2026-07-07 23:41:29,281 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1678 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:51037 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+2026-07-07 23:41:46,583 [INFO] app.routers.lark: Lark callback summary: {'type': None, 'event_type': 'im.message.receive_v1', 'keys': ['event', 'header', 'schema'], 'chat_id': 'oc_faa2d434bdf9970cabd7813b2fe7bee2', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:51054 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 23:41:48,382 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_faa2d434bdf9970cabd7813b2fe7bee2', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:51055 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 23:41:54,043 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': '用毕师傅的硬核科技选股模型的指标分析新洁能这只股票', 'intent': 'single_stock_model_analysis', 'context_modes': ['bi_trend_launch'], 'answer_sent': True}
+2026-07-07 23:41:54,716 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'general_qa', 'question': 'CLI 你好', 'answer_sent': True}
+2026-07-07 23:42:28,552 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_faa2d434bdf9970cabd7813b2fe7bee2', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+    熔断: 涨跌比13%<18%
+INFO:     127.0.0.1:51095 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 23:42:33,419 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'general_qa', 'question': 'CLI 叼你啊，我说你好，你回答的是什么？', 'answer_sent': True}
+2026-07-07 23:42:57,655 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_faa2d434bdf9970cabd7813b2fe7bee2', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:51111 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 23:43:08,240 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 帮我分析一下今天的板块共振情况', 'intent': 'sector_resonance', 'context_modes': ['leader_afternoon'], 'answer_sent': True}
+2026-07-07 23:43:43,680 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_faa2d434bdf9970cabd7813b2fe7bee2', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-06): 0 stocks
+  市场环境: 🟠观望 — 涨跌比仅0%, 极度弱势
+  📜 快照(historical): 5517 只 (0.0s)
+  📊 pre_close from stk_auction_o(today): 8 只
+  📊 pre_close from daily_kline(2026-07-06): 5515 只 (含回退)
+  🔒 14:30涨停检测: 34 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 0 只 (1.3s)
+INFO:     127.0.0.1:51151 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 23:44:08,423 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'general_qa', 'question': 'CLI 你返回的回答格式阅读性很差，能不能优化一下？', 'answer_sent': True}
+2026-07-07 23:45:33,399 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_faa2d434bdf9970cabd7813b2fe7bee2', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:51232 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 23:45:48,934 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 帮我诊断一下新洁能这只股票', 'intent': 'single_stock_model_analysis', 'context_modes': ['leader_afternoon', 'bi_trend_launch'], 'answer_sent': True}
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-07 23:48:52,944 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [25824]
+INFO:     Started server process [46405]
+INFO:     Waiting for application startup.
+2026-07-07 23:48:55,320 [INFO] screener-service: Starting Screener Service...
+2026-07-07 23:48:55,862 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-07 23:48:55,868 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-07 23:48:55,868 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-07 23:48:55,868 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-07 23:48:55,963 [INFO] kronos.recorder: recorder: 204 outcomes backfilled
+2026-07-07 23:48:55,963 [INFO] screener.scheduler: Scheduler: T+1 backfill — 204 snapshots
+2026-07-07 23:49:00,294 [INFO] kronos.recorder: recorder: 1678 snapshots multi-horizon backfilled
+2026-07-07 23:49:00,294 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1678 snapshots
+2026-07-07 23:49:00,295 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-07
+2026-07-07 23:49:00,299 [INFO] kronos.recorder: recorder: 204 outcomes backfilled
+2026-07-07 23:49:00,299 [INFO] screener.scheduler: Scheduler: T+1 backfill — 204 snapshots
+2026-07-07 23:49:04,413 [INFO] kronos.recorder: recorder: 1678 snapshots multi-horizon backfilled
+2026-07-07 23:49:04,415 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1678 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:51465 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+2026-07-07 23:50:05,601 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_faa2d434bdf9970cabd7813b2fe7bee2', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:51493 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-07 23:50:32,392 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 帮我诊断一下新洁能这只股票', 'intent': 'single_stock_model_analysis', 'context_modes': ['leader_afternoon', 'bi_trend_launch'], 'answer_sent': True}

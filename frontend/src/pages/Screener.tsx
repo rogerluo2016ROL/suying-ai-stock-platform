@@ -53,7 +53,7 @@ const modelGroups = [
     modes: [
       { id: 'short', name: '匪爷短线多因子', tags: ['短线波段', '1-4周'] },
       { id: 'chokepoint', name: '大葱卡脖子', tags: ['主题投资', '1-3月'] },
-      { id: 'supply_chain', name: '大葱产业链解构', tags: ['产业链', '中长线'] },
+      { id: 'supply_chain', name: '产业链预期差选股模型', tags: ['产业链', '预期差'] },
     ],
   },
   {
@@ -201,7 +201,7 @@ function detailTitleForModel(modelId: string) {
     leader_scalp: '秋神盘后龙头分析',
     short: '匪爷短线分析',
     chokepoint: '大葱卡脖子主题分析',
-    supply_chain: '大葱产业链解构分析',
+    supply_chain: '产业链预期差选股模型分析',
     cb_floor: '底价安全垫选债 V3.0 分析',
     cb_intraday: '可转债日内博弈分析',
     cb_auction: '秋神竞价概念选债分析',
@@ -230,7 +230,7 @@ function evaluationForModel(modelId: string, pick?: ScreenerPick) {
   if (modelId === 'leader_scalp' || modelId === 'leader_intraday') return `板块共振、一字方向和竞量比共同抬升，${track}具备龙头候选特征，适合加入候选池等待确认。`
   if (modelId === 'short') return `动量与量能双强，技术面健康，${track}短线弹性较好；若放量不足，需要降低仓位或等待回踩确认。`
   if (modelId === 'chokepoint') return `国产替代、技术壁垒和政策支持形成共振，${track}主题确认度高，但需关注估值扩张。`
-  if (modelId === 'supply_chain') return `产业链位置和政策主题形成匹配，${track}具备中长期链路价值，适合进入方案管理做更长周期跟踪。`
+  if (modelId === 'supply_chain') return `产业链证据、业务进度和市场预期形成差异，${track}具备预期差跟踪价值，适合进入候选池继续复核。`
   if (modelId === 'cb_floor' || modelId === 'cb_intraday' || modelId === 'cb_auction' || modelId === 'cb_auction_t0' || modelId === 'cb_auction_t0_v2' || modelId === 'cb_auction_t0_v2_1') return `债底保护和正股弹性具备攻守平衡特征，适合进入可转债候选池，不直接混入股票下单池。`
   return `OBV趋势突破、量能放大与${track}方向共振，当前适合进入候选池复核。`
 }

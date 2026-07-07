@@ -35,7 +35,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Bridge lark-cli events to screener-service")
     parser.add_argument(
         "--endpoint",
-        default="http://127.0.0.1:18001/api/v1/lark/events",
+        default=os.environ.get("LARK_EVENT_BRIDGE_ENDPOINT", "http://127.0.0.1:18011/api/v1/lark/events"),
         help="Local screener-service event endpoint",
     )
     parser.add_argument(
@@ -79,6 +79,16 @@ def main() -> int:
                 try:
                     event = json.loads(line)
                     post_event(args.endpoint, event)
+                    payload = event.get("event") or event
+                    message = payload.get("message") or {}
+                    print(
+                        "[bridge] forwarded event"
+                        f" type={event.get('type') or (event.get('header') or {}).get('event_type')}"
+                        f" chat_id={event.get('chat_id') or message.get('chat_id') or '-'}"
+                        f" message_type={event.get('message_type') or message.get('message_type') or '-'}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
                 except Exception as exc:
                     print(f"[bridge] failed to forward event: {exc}", file=sys.stderr, flush=True)
 

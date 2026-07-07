@@ -25,6 +25,9 @@ VERSION_TAG = "v1.0"
 FACTOR_KEYS = [
     "model_score",
     "expectation_gap_score",
+    "reliability_adjusted_gap_score",
+    "evidence_quality_score",
+    "label_fit_score",
     "gap_momentum_score",
     "actual_progress_score",
     "market_expectation_score",
@@ -40,6 +43,8 @@ FACTOR_KEYS = [
     "price_change_20d",
     "approved_evidence_count",
 ]
+
+REASSESSMENT_ALLOWED_STATUSES = {"strong_confirmed", "watch_review"}
 
 SIGNAL_TIER_THRESHOLDS = {
     "strong": 15.0,
@@ -77,10 +82,46 @@ def latest_trade_date(cur) -> str:
     return str(row["trade_date"])[:10]
 
 
+def _num(row: dict, key: str, default: float = 0.0) -> float:
+    value = row.get(key)
+    if value is None:
+        return default
+    return float(value)
+
+
+def is_reassessment_eligible(row: dict) -> bool:
+    return str(row.get("reassessment_status") or "") in REASSESSMENT_ALLOWED_STATUSES
+
+
+def model_score_from_row(row: dict) -> float:
+    """Score one already re-assessed mapping.
+
+    The important change is that the leading gap factor uses the conservative
+    reliability-adjusted score, not the raw expectation-gap score.
+    """
+
+    score = (
+        _num(row, "reliability_adjusted_gap_score") * 0.40
+        + _num(row, "gap_momentum_score", 50) * 0.12
+        + _num(row, "three_high_total") * 0.20
+        + _num(row, "evidence_delta_score") * 0.10
+        + _num(row, "moat_score") * 0.08
+        + _num(row, "prosperity_score", 50) * 0.08
+        + _num(row, "evidence_quality_score") * 0.12
+        + _num(row, "label_fit_score") * 0.08
+        - max(_num(row, "price_change_20d"), 0) * 0.08
+    )
+    return round(score, 2)
+
+
 def fetch_picks(cur, trade_date: str, top_n: int, min_gap: float) -> list[dict]:
     cur.execute(
         """
-        WITH ranked AS (
+        WITH latest_reassessment AS (
+            SELECT max(assessment_date) AS assessment_date
+            FROM business_tag_evidence_reassessment
+        ),
+        scored AS (
             SELECT
                 b.mapping_id,
                 b.code,
@@ -89,6 +130,10 @@ def fetch_picks(cur, trade_date: str, top_n: int, min_gap: float) -> list[dict]:
                 b.tag_name,
                 g.expectation_gap_score,
                 g.gap_type,
+                r.reliability_adjusted_gap_score,
+                r.evidence_quality_score,
+                r.label_fit_score,
+                r.review_status AS reassessment_status,
                 g.actual_progress_score,
                 g.market_expectation_score,
                 g.evidence_delta_score,
@@ -106,29 +151,22 @@ def fetch_picks(cur, trade_date: str, top_n: int, min_gap: float) -> list[dict]:
                 dk.close,
                 dk.change_pct,
                 round((
-                    g.expectation_gap_score * 0.40
+                    r.reliability_adjusted_gap_score * 0.40
                     + coalesce((g.score_detail->>'gap_momentum_score')::numeric, 50) * 0.12
-                    + coalesce(t.total_score, 0) * 0.25
-                    + g.evidence_delta_score * 0.15
-                    + coalesce(t.moat_score, 0) * 0.10
-                    + coalesce((g.score_detail->>'prosperity_score')::numeric, 50) * 0.10
+                    + coalesce(t.total_score, 0) * 0.20
+                    + g.evidence_delta_score * 0.10
+                    + coalesce(t.moat_score, 0) * 0.08
+                    + coalesce((g.score_detail->>'prosperity_score')::numeric, 50) * 0.08
+                    + r.evidence_quality_score * 0.12
+                    + r.label_fit_score * 0.08
                     - greatest(coalesce((g.score_detail->>'price_change_20d')::numeric, 0), 0) * 0.08
-                )::numeric, 2) AS model_score,
-                row_number() OVER (
-                    PARTITION BY split_part(b.code, '.', 1)
-                    ORDER BY (
-                        g.expectation_gap_score * 0.40
-                        + coalesce((g.score_detail->>'gap_momentum_score')::numeric, 50) * 0.12
-                        + coalesce(t.total_score, 0) * 0.25
-                        + g.evidence_delta_score * 0.15
-                        + coalesce(t.moat_score, 0) * 0.10
-                        + coalesce((g.score_detail->>'prosperity_score')::numeric, 50) * 0.10
-                        - greatest(coalesce((g.score_detail->>'price_change_20d')::numeric, 0), 0) * 0.08
-                    ) DESC,
-                    g.expectation_gap_score DESC
-                ) AS rn
+                )::numeric, 2) AS model_score
             FROM business_tag_expectation_gap_scores g
             JOIN business_tag_mapping b ON b.mapping_id = g.mapping_id
+            JOIN latest_reassessment lr ON lr.assessment_date IS NOT NULL
+            JOIN business_tag_evidence_reassessment r
+              ON r.mapping_id = g.mapping_id
+             AND r.assessment_date = lr.assessment_date
             LEFT JOIN business_tag_three_high_scores t
               ON t.mapping_id = g.mapping_id AND t.trade_date = g.trade_date
             LEFT JOIN stocks s ON s.code = split_part(b.code, '.', 1)
@@ -136,13 +174,22 @@ def fetch_picks(cur, trade_date: str, top_n: int, min_gap: float) -> list[dict]:
               ON dk.code = split_part(b.code, '.', 1) AND dk.trade_date = g.trade_date
             WHERE g.trade_date = %s
               AND g.gap_type IN ('positive', 'positive_evidence_delta', 'neutral')
-              AND g.expectation_gap_score >= %s
+              AND r.review_status IN ('strong_confirmed', 'watch_review')
+              AND r.reliability_adjusted_gap_score >= %s
               AND coalesce(s.is_st, 0) = 0
+        ),
+        ranked AS (
+            SELECT *,
+                row_number() OVER (
+                    PARTITION BY split_part(code, '.', 1)
+                    ORDER BY model_score DESC, reliability_adjusted_gap_score DESC
+                ) AS rn
+            FROM scored
         )
         SELECT *
         FROM ranked
         WHERE rn = 1
-        ORDER BY model_score DESC, expectation_gap_score DESC
+        ORDER BY model_score DESC, reliability_adjusted_gap_score DESC, expectation_gap_score DESC
         LIMIT %s
         """,
         (trade_date, min_gap, top_n),
@@ -151,7 +198,7 @@ def fetch_picks(cur, trade_date: str, top_n: int, min_gap: float) -> list[dict]:
     for index, row in enumerate(rows, start=1):
         row["rank"] = index
         row["grade"] = grade_from_score(float(row.get("model_score") or 0))
-        row["signal_tier"] = signal_tier_from_gap(float(row.get("expectation_gap_score") or 0))
+        row["signal_tier"] = signal_tier_from_gap(float(row.get("reliability_adjusted_gap_score") or 0))
     return rows
 
 
@@ -165,7 +212,8 @@ def factor_payload(row: dict) -> dict:
         "chain_id": row.get("chain_id"),
         "tag_name": row.get("tag_name"),
         "gap_type": row.get("gap_type"),
-        "signal_tier": row.get("signal_tier") or signal_tier_from_gap(float(row.get("expectation_gap_score") or 0)),
+        "reassessment_status": row.get("reassessment_status"),
+        "signal_tier": row.get("signal_tier") or signal_tier_from_gap(float(row.get("reliability_adjusted_gap_score") or row.get("expectation_gap_score") or 0)),
     })
     return payload
 
@@ -179,17 +227,21 @@ def register_model(cur, *, trade_date: str, top_n: int, pick_count: int, positiv
         "dedupe": "one strongest mapping per stock code",
         "hard_filters": [
             "latest expectation-gap score date",
+            "latest evidence reassessment date",
             "gap_type in positive-compatible or neutral labels",
-            "expectation_gap_score >= 8 by default",
+            "reassessment_status in strong_confirmed/watch_review",
+            "reliability_adjusted_gap_score >= 8 by default",
             "exclude ST stocks",
         ],
         "ranking_formula": (
-            "expectation_gap*0.40 + gap_momentum*0.12 + three_high*0.25 + evidence_delta*0.15 "
-            "+ moat*0.10 + prosperity*0.10 - positive_20d_return*0.08"
+            "reliability_adjusted_gap*0.40 + gap_momentum*0.12 + three_high*0.20 "
+            "+ evidence_delta*0.10 + moat*0.08 + prosperity*0.08 "
+            "+ evidence_quality*0.12 + label_fit*0.08 - positive_20d_return*0.08"
         ),
         "guardrails": [
             "not an automatic buy list",
             "weak signals cannot approve evidence or upgrade stages",
+            "downgrade_or_remove and manual_review mappings are excluded from recommendations",
             "staging until forward returns are backfilled",
         ],
     }
@@ -311,11 +363,20 @@ def register_and_snapshot(pg_url: str, trade_date: str | None, top_n: int, min_g
             picks = fetch_picks(cur, score_date, top_n, min_gap)
             cur.execute(
                 """
+                WITH latest_reassessment AS (
+                    SELECT max(assessment_date) AS assessment_date
+                    FROM business_tag_evidence_reassessment
+                )
                 SELECT count(*)
-                FROM business_tag_expectation_gap_scores
-                WHERE trade_date = %s
-                  AND gap_type IN ('positive', 'positive_evidence_delta', 'neutral')
-                  AND expectation_gap_score >= %s
+                FROM business_tag_expectation_gap_scores g
+                JOIN latest_reassessment lr ON lr.assessment_date IS NOT NULL
+                JOIN business_tag_evidence_reassessment r
+                  ON r.mapping_id = g.mapping_id
+                 AND r.assessment_date = lr.assessment_date
+                WHERE g.trade_date = %s
+                  AND g.gap_type IN ('positive', 'positive_evidence_delta', 'neutral')
+                  AND r.review_status IN ('strong_confirmed', 'watch_review')
+                  AND r.reliability_adjusted_gap_score >= %s
                 """,
                 (score_date, min_gap),
             )
@@ -348,6 +409,10 @@ def register_and_snapshot(pg_url: str, trade_date: str | None, top_n: int, min_g
                 "tag_name": row["tag_name"],
                 "model_score": float(row["model_score"]),
                 "expectation_gap_score": float(row["expectation_gap_score"]),
+                "reliability_adjusted_gap_score": float(row.get("reliability_adjusted_gap_score") or 0),
+                "evidence_quality_score": float(row.get("evidence_quality_score") or 0),
+                "label_fit_score": float(row.get("label_fit_score") or 0),
+                "reassessment_status": row.get("reassessment_status"),
                 "gap_momentum_score": float(row.get("gap_momentum_score") or 0),
                 "three_high_total": float(row["three_high_total"] or 0),
                 "grade": row["grade"],

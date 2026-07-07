@@ -33,3 +33,30 @@
 [source] feishu-websocket: reconnecting (attempt 11)
 [source] feishu-websocket: reconnecting (attempt 12)
 [source] feishu-websocket: connected
+[bridge] starting: lark-cli event consume im.message.receive_v1 --as bot --timeout 24h
+[event] consuming as cli_aacde12ce1385be9 (cli_aacde12ce1385be9)
+[event] listening for events (key=im.message.receive_v1), ctrl+c to stop
+[event] ready event_key=im.message.receive_v1
+[bridge] starting: lark-cli event consume im.message.receive_v1 --as bot --timeout 24h
+[event] consuming as cli_aacde12ce1385be9 (cli_aacde12ce1385be9)
+[event] listening for events (key=im.message.receive_v1), ctrl+c to stop
+[event] ready event_key=im.message.receive_v1
+
+Shutting down...
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=post
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=post
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_faa2d434bdf9970cabd7813b2fe7bee2 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_faa2d434bdf9970cabd7813b2fe7bee2 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_faa2d434bdf9970cabd7813b2fe7bee2 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_faa2d434bdf9970cabd7813b2fe7bee2 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_faa2d434bdf9970cabd7813b2fe7bee2 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_faa2d434bdf9970cabd7813b2fe7bee2 message_type=text

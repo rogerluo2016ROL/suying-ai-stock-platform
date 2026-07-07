@@ -1,0 +1,108 @@
+Application Version: 0.1.0
+Spring Boot Version: 2.7.18
+////////////////////////////////////////////////////////////////////
+//                          _ooOoo_                               //
+//                         o8888888o                              //
+//                         88" . "88                              //
+//                         (| ^_^ |)                              //
+//                         O\  =  /O                              //
+//                      ____/`---'\____                           //
+//                    .'  \\|     |//  `.                         //
+//                   /  \\|||  :  |||//  \                        //
+//                  /  _||||| -:- |||||-  \                       //
+//                  |   | \\\  -  /// |   |                       //
+//                  | \_|  ''\---/''  |   |                       //
+//                  \  .-\__  `-`  ___/-. /                       //
+//                ___`. .'  /--.--\  `. . ___                     //
+//              ."" '<  `.___\_<|>_/___.'  >'"".                  //
+//            | | :  `- \`.;`\ _ /`;.`/ - ` : | |                 //
+//            \  \ `-.   \_ __\ /__ _/   .-` /  /                 //
+//      ========`-.____`-.___\_____/___.-`____.-'========         //
+//                           `=---='                              //
+//      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^        //
+//             佛祖保佑       永不宕机      永无BUG               //
+////////////////////////////////////////////////////////////////////
+23:29:33.527 [main] INFO  c.d.c.s.RuoYiApplication - [logStarting,55] - Starting RuoYiApplication using Java 26.0.1 on RogerdeMacBook-Pro.local with PID 94623 (/Users/rogerluo/程序目录/K线大模型/chatbi-workspace/backend-java/cockpit-screen-admin/target/cockpit-screen-admin.jar started by rogerluo in /Users/rogerluo/程序目录/K线大模型/chatbi-workspace/backend-java)
+23:29:33.528 [main] INFO  c.d.c.s.RuoYiApplication - [logStartupProfileInfo,638] - The following 1 profile is active: "local"
+23:29:33.528 [background-preinit] INFO  o.h.v.i.util.Version - [<clinit>,21] - HV000001: Hibernate Validator 6.2.5.Final
+23:29:34.229 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'aiAgentTypeMapper' and 'com.ds.cockpit.screen.system.mapper.AiAgentTypeMapper' mapperInterface. Bean already defined with the same name!
+23:29:34.229 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'gacDownloadLogsMapper' and 'com.ds.cockpit.screen.system.mapper.GacDownloadLogsMapper' mapperInterface. Bean already defined with the same name!
+23:29:34.229 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'aiFlowNodeMapper' and 'com.ds.cockpit.screen.system.mapper.AiFlowNodeMapper' mapperInterface. Bean already defined with the same name!
+23:29:34.229 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'systemUserDefaultAppMapper' and 'com.ds.cockpit.screen.system.mapper.SystemUserDefaultAppMapper' mapperInterface. Bean already defined with the same name!
+23:29:34.229 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'systemVersionsMapper' and 'com.ds.cockpit.screen.system.mapper.SystemVersionsMapper' mapperInterface. Bean already defined with the same name!
+23:29:34.229 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'systemUserNoviceGuideMapper' and 'com.ds.cockpit.screen.system.mapper.SystemUserNoviceGuideMapper' mapperInterface. Bean already defined with the same name!
+23:29:34.229 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'aiFeedbackEnumMapper' and 'com.ds.cockpit.screen.system.mapper.AiFeedbackEnumMapper' mapperInterface. Bean already defined with the same name!
+23:29:34.229 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'systemUserDefinedMenuMapper' and 'com.ds.cockpit.screen.system.mapper.SystemUserDefinedMenuMapper' mapperInterface. Bean already defined with the same name!
+23:29:34.229 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'gacEvaluationAnalysisMapper' and 'com.ds.cockpit.screen.system.mapper.GacEvaluationAnalysisMapper' mapperInterface. Bean already defined with the same name!
+23:29:34.229 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'systemMessageMapper' and 'com.ds.cockpit.screen.system.mapper.SystemMessageMapper' mapperInterface. Bean already defined with the same name!
+23:29:34.229 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'systemBuryingPointMapper' and 'com.ds.cockpit.screen.system.mapper.SystemBuryingPointMapper' mapperInterface. Bean already defined with the same name!
+23:29:34.230 [main] WARN  o.m.s.m.ClassPathMapperScanner - [warn,44] - Skipping MapperFactoryBean with name 'aiHistoryMapper' and 'com.ds.cockpit.screen.system.mapper.AiHistoryMapper' mapperInterface. Bean already defined with the same name!
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.apache.tomcat.jni.Library in an unnamed module (jar:file:/Users/rogerluo/程序目录/K线大模型/chatbi-workspace/backend-java/cockpit-screen-admin/target/cockpit-screen-admin.jar!/BOOT-INF/lib/tomcat-embed-core-9.0.96.jar!/)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+23:29:34.702 [main] INFO  o.a.c.h.Http11NioProtocol - [log,173] - Initializing ProtocolHandler ["http-nio-8088"]
+23:29:34.705 [main] INFO  o.a.c.c.StandardService - [log,173] - Starting service [Tomcat]
+23:29:34.705 [main] INFO  o.a.c.c.StandardEngine - [log,173] - Starting Servlet engine: [Apache Tomcat/9.0.96]
+23:29:34.744 [main] INFO  o.a.c.c.C.[.[.[/ds-cockpit-screen] - [log,173] - Initializing Spring embedded WebApplicationContext
+23:29:35.110 [main] INFO  c.a.d.p.DruidDataSource - [init,1002] - {dataSource-1} inited
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by io.netty.util.internal.PlatformDependent0$4 (jar:file:/Users/rogerluo/程序目录/K线大模型/chatbi-workspace/backend-java/cockpit-screen-admin/target/cockpit-screen-admin.jar!/BOOT-INF/lib/netty-common-4.1.101.Final.jar!/)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$4
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+23:29:35.520 [main] ERROR i.n.r.d.DnsServerAddressStreamProviders - [<clinit>,79] - Unable to load io.netty.resolver.dns.macos.MacOSDnsServerAddressStreamProvider, fallback to system defaults. This may result in incorrect DNS resolutions on MacOS. Check whether you have a dependency on 'io.netty:netty-resolver-dns-native-macos'. Use DEBUG level to see the full stack: java.lang.UnsatisfiedLinkError: failed to load the required native library
+23:29:36.464 [main] INFO  o.q.i.StdSchedulerFactory - [instantiate,1220] - Using default implementation for ThreadExecutor
+23:29:36.471 [main] INFO  o.q.c.SchedulerSignalerImpl - [<init>,61] - Initialized Scheduler Signaller of type: class org.quartz.core.SchedulerSignalerImpl
+23:29:36.472 [main] INFO  o.q.c.QuartzScheduler - [<init>,229] - Quartz Scheduler v.2.3.2 created.
+23:29:36.472 [main] INFO  o.q.s.RAMJobStore - [initialize,155] - RAMJobStore initialized.
+23:29:36.472 [main] INFO  o.q.c.QuartzScheduler - [initialize,294] - Scheduler meta-data: Quartz Scheduler (v2.3.2) 'quartzScheduler' with instanceId 'NON_CLUSTERED'
+  Scheduler class: 'org.quartz.core.QuartzScheduler' - running locally.
+  NOT STARTED.
+  Currently in standby mode.
+  Number of jobs executed: 0
+  Using thread pool 'org.quartz.simpl.SimpleThreadPool' - with 10 threads.
+  Using job-store 'org.quartz.simpl.RAMJobStore' - which does not support persistence. and is not clustered.
+
+23:29:36.472 [main] INFO  o.q.i.StdSchedulerFactory - [instantiate,1374] - Quartz scheduler 'quartzScheduler' initialized from an externally provided properties instance.
+23:29:36.472 [main] INFO  o.q.i.StdSchedulerFactory - [instantiate,1378] - Quartz scheduler version: 2.3.2
+23:29:36.472 [main] INFO  o.q.c.QuartzScheduler - [setJobFactory,2293] - JobFactory set to: org.springframework.scheduling.quartz.SpringBeanJobFactory@3722c145
+23:29:37.030 [main] INFO  o.a.c.h.Http11NioProtocol - [log,173] - Starting ProtocolHandler ["http-nio-8088"]
+23:29:37.036 [main] INFO  o.q.c.QuartzScheduler - [start,547] - Scheduler quartzScheduler_$_NON_CLUSTERED started.
+23:29:37.045 [main] INFO  c.d.c.s.RuoYiApplication - [logStarted,61] - Started RuoYiApplication in 3.73 seconds (JVM running for 4.024)
+23:29:37.046 [main] INFO  c.d.c.s.RuoYiApplication - [main,23] - (♥◠‿◠)ﾉﾞ  集团整合驾驶舱-评价分析/埋点/企微移动系统管理/AI服务-启动成功   ლ(´ڡ`ლ)ﾞ  
+23:29:37.046 [main] INFO  c.d.c.s.RuoYiApplication - [main,24] - 
+   ______       _        ______  
+ .' ___  |     / \     .' ___  | 
+/ .'   \_|    / _ \   / .'   \_| 
+| |   ____   / ___ \  | |        
+\ `.___]  |_/ /   \ \_\ `.___.'\ 
+ `._____.'|____| |____|`.____ .' 
+                                 
+
+23:29:49.011 [http-nio-8088-exec-1] INFO  o.a.c.c.C.[.[.[/ds-cockpit-screen] - [log,173] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+23:59:00.036 [schedule-pool-1] INFO  c.d.c.s.w.t.AISplitWordsAnalysisTask - [timeOneCheck,25] - AI分词补偿机制-定时任务start2026-07-07 23:59:00
+23:59:00.109 [schedule-pool-1] INFO  c.d.c.s.w.t.AISplitWordsAnalysisTask - [timeOneCheck,29] - 消息中心数据分析-定时任务error-end2026-07-07 23:59:00
+23:59:00.109 [schedule-pool-1] ERROR c.d.c.s.w.t.AISplitWordsAnalysisTask - [timeOneCheck,30] - 消息中心数据分析失败：
+### Error querying database.  Cause: org.postgresql.util.PSQLException: ERROR: relation "ai_history_message" does not exist
+  位置：347
+### The error may exist in URL [jar:file:/Users/rogerluo/程序目录/K线大模型/chatbi-workspace/backend-java/cockpit-screen-admin/target/cockpit-screen-admin.jar!/BOOT-INF/lib/cockpit-screen-system-3.8.8.jar!/mapper/system/AiHistoryMapper.xml]
+### The error may involve com.ds.cockpit.screen.system.mapper.AiHistoryMapper.getAiHistoryNotSplitWordsList-Inline
+### The error occurred while setting parameters
+### SQL: SELECT         id, user_id, user_name, conversation_id, agent_id, agent_name,         fenci_session_id, fenci_agent_id,         question, actual_question, split_words,         permission, is_deep, is_good, answer_time,session_uuid,         question_feedback, answer_feedback, opinion_feedback, environment,  create_time, update_time         FROM ai_history_message         where split_words is null or split_words = ''         ORDER BY create_time
+### Cause: org.postgresql.util.PSQLException: ERROR: relation "ai_history_message" does not exist
+  位置：347
+; bad SQL grammar []; nested exception is org.postgresql.util.PSQLException: ERROR: relation "ai_history_message" does not exist
+  位置：347
+23:59:00.109 [schedule-pool-1] ERROR c.d.c.s.w.t.AISplitWordsAnalysisTask - [timeOneCheck,31] - org.springframework.jdbc.BadSqlGrammarException: 
+### Error querying database.  Cause: org.postgresql.util.PSQLException: ERROR: relation "ai_history_message" does not exist
+  位置：347
+### The error may exist in URL [jar:file:/Users/rogerluo/程序目录/K线大模型/chatbi-workspace/backend-java/cockpit-screen-admin/target/cockpit-screen-admin.jar!/BOOT-INF/lib/cockpit-screen-system-3.8.8.jar!/mapper/system/AiHistoryMapper.xml]
+### The error may involve com.ds.cockpit.screen.system.mapper.AiHistoryMapper.getAiHistoryNotSplitWordsList-Inline
+### The error occurred while setting parameters
+### SQL: SELECT         id, user_id, user_name, conversation_id, agent_id, agent_name,         fenci_session_id, fenci_agent_id,         question, actual_question, split_words,         permission, is_deep, is_good, answer_time,session_uuid,         question_feedback, answer_feedback, opinion_feedback, environment,  create_time, update_time         FROM ai_history_message         where split_words is null or split_words = ''         ORDER BY create_time
+### Cause: org.postgresql.util.PSQLException: ERROR: relation "ai_history_message" does not exist
+  位置：347
+; bad SQL grammar []; nested exception is org.postgresql.util.PSQLException: ERROR: relation "ai_history_message" does not exist
+  位置：347
+23:59:00.109 [schedule-pool-1] INFO  c.d.c.s.w.t.AISplitWordsAnalysisTask - [timeOneCheck,33] - AI分词补偿机制-定时任务end2026-07-07 23:59:00

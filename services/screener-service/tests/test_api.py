@@ -147,6 +147,42 @@ class TestScreenerRun:
             assert isinstance(data["picks"], list)
             assert len(data["picks"]) <= 5
 
+    def test_supply_chain_mode_prefers_reassessed_snapshot(self, monkeypatch):
+        """Verify supply_chain returns the registered expectation-gap snapshot first."""
+        import app.routers.screener as screener_router
+
+        monkeypatch.setattr(
+            screener_router,
+            "_load_supply_chain_expectation_gap_snapshot",
+            lambda top_n, trade_date: {
+                "mode": "supply_chain",
+                "trade_date": trade_date or "2026-07-06",
+                "total_picks": 1,
+                "picks": [
+                    {
+                        "code": "300479",
+                        "name": "神思电子",
+                        "score": 69.64,
+                        "grade": "S",
+                        "reliability_adjusted_gap_score": 18.02,
+                        "evidence_quality_score": 80,
+                        "label_fit_score": 79,
+                        "reassessment_status": "watch_review",
+                    }
+                ],
+            },
+        )
+
+        result = screener_router._run_supply_chain_mode("supply_chain", 5, "2026-07-06")
+
+        assert result["total_picks"] == 1
+        pick = result["picks"][0]
+        assert pick["code"] == "300479"
+        assert pick["reliability_adjusted_gap_score"] == 18.02
+        assert pick["evidence_quality_score"] == 80
+        assert pick["label_fit_score"] == 79
+        assert pick["reassessment_status"] == "watch_review"
+
     def test_cb_auction_t0_mode_is_registered_for_run(self, monkeypatch):
         """Verify cb_auction_t0 is a runnable CB screener mode."""
         import app.routers.screener as screener_router

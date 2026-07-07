@@ -1043,6 +1043,22 @@
       "related_bugs": [],
       "occurrences": 2,
       "last_seen": "2026-07-07T11:53:13.949Z"
+    },
+    {
+      "id": "bug-062",
+      "timestamp": "2026-07-07T16:23:53.676Z",
+      "error_message": "Significant refactor of ",
+      "file": "../../.claude/settings.json",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 4→4 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-07T16:23:53.676Z"
     }
   ]
 }

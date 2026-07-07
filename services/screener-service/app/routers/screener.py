@@ -6047,8 +6047,8 @@ def _supply_chain_model_payload() -> dict:
         "market": "市场共振",
     }
     return {
-        "name": "大葱产业链解构选股模型 V5",
-        "version": "5.0",
+        "name": "产业链预期差选股模型 V1.0",
+        "version": "1.0",
         "philosophy": "政策主题定方向，BOM 拆解定环节，上市公司候选池定标的，商业化、政策、业绩、市场共振定启动信号。",
         "score_dimensions": [
             {"key": key, "name": dimension_names[key], "weight": weight}
@@ -6238,7 +6238,7 @@ async def list_modes():
             {"id": "cb_auction_t0_v2_1", "name": "竞价选债 T+0 优化版 V2.1 稳健版", "cycle": "T+0", "style": "稳健优化"},
             {"id": "bi_trend_launch","name": "毕师傅硬核科技趋势启动 V13", "cycle": "5-20天", "style": "趋势"},
             {"id": "bi_trend_full_market","name": "毕师傅全市场趋势启动 V1.0", "cycle": "5-20天", "style": "全市场"},
-            {"id": "supply_chain",  "name": "大葱产业链解构选股", "cycle": "3-12月", "style": "中长线"},
+            {"id": "supply_chain",  "name": "产业链预期差选股模型", "cycle": "3-12月", "style": "产业链预期差"},
             {"id": "supply_chain_trend_launch", "name": "大葱产业链趋势启动战法 vFinal", "cycle": "1月", "style": "动态轮动"},
         ]
     }
@@ -7128,8 +7128,109 @@ def _build_cb_t0_process(
     }
 
 
+def _load_supply_chain_expectation_gap_snapshot(top_n: int, trade_date: Optional[str]) -> Optional[dict]:
+    model_key = "supply_chain_expectation_gap_v1"
+    time_slot = "close"
+    try:
+        with _pg_connect() as conn:
+            with conn.cursor() as cur:
+                if not _pg_table_exists(cur, "screening_snapshots"):
+                    return None
+                resolved_trade_date = trade_date
+                if not resolved_trade_date:
+                    cur.execute(
+                        """
+                        SELECT max(trade_date)
+                        FROM screening_snapshots
+                        WHERE model_key = %s AND time_slot = %s
+                        """,
+                        (model_key, time_slot),
+                    )
+                    row = cur.fetchone()
+                    resolved_trade_date = str(row[0]) if row and row[0] else None
+                if not resolved_trade_date:
+                    return None
+                cur.execute(
+                    """
+                    SELECT
+                        ss.stock_code,
+                        coalesce(s.name, split_part(ss.stock_code, '.', 1)) AS name,
+                        ss.total_score,
+                        ss.grade,
+                        ss.rank_in_day,
+                        ss.factors,
+                        ss.trade_date
+                    FROM screening_snapshots ss
+                    LEFT JOIN stocks s ON s.code = split_part(ss.stock_code, '.', 1)
+                    WHERE ss.model_key = %s
+                      AND ss.time_slot = %s
+                      AND ss.trade_date = %s
+                    ORDER BY ss.rank_in_day ASC
+                    LIMIT %s
+                    """,
+                    (model_key, time_slot, resolved_trade_date, top_n),
+                )
+                rows = cur.fetchall()
+        if not rows:
+            return None
+        picks = []
+        for stock_code, name, total_score, grade, rank, factors, row_trade_date in rows:
+            if isinstance(factors, str):
+                factors = json.loads(factors)
+            if not isinstance(factors, dict):
+                factors = {}
+            pick = {
+                "rank": int(rank or len(picks) + 1),
+                "code": str(stock_code),
+                "name": str(name),
+                "score": _to_float(total_score, 0.0),
+                "total_score": _to_float(total_score, 0.0),
+                "grade": str(grade or ""),
+                "signal": factors.get("signal_tier"),
+                "industry": factors.get("chain_id") or "产业链预期差",
+                "chain_id": factors.get("chain_id"),
+                "tag_name": factors.get("tag_name"),
+                "source_mode": "supply_chain",
+                "trade_date": str(row_trade_date),
+            }
+            for key in (
+                "expectation_gap_score",
+                "reliability_adjusted_gap_score",
+                "evidence_quality_score",
+                "label_fit_score",
+                "reassessment_status",
+                "gap_momentum_score",
+                "three_high_total",
+                "growth_score",
+                "profit_score",
+                "moat_score",
+            ):
+                if key in factors:
+                    pick[key] = factors.get(key)
+            picks.append(pick)
+        return {
+            "mode": "supply_chain",
+            "model_key": model_key,
+            "trade_date": str(rows[0][6]),
+            "total_picks": len(picks),
+            "picks": picks,
+            "source": "screening_snapshots",
+            "score_contract": "reassessment_adjusted",
+        }
+    except Exception as exc:
+        logger.warning("Load supply-chain expectation-gap snapshot failed: %s", exc)
+        return None
+
+
 def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run 大葱产业链解构选股 (中长线)."""
+    """Run the supply-chain entry, preferring expectation-gap registered snapshots."""
+    snapshot = _load_supply_chain_expectation_gap_snapshot(top_n, trade_date)
+    if snapshot and snapshot.get("picks"):
+        snapshot["mode"] = mode
+        for pick in snapshot["picks"]:
+            pick["source_mode"] = mode
+        return snapshot
+
     from kronos_factors.engine.supply_chain import SupplyChainEngine
 
     resolved_trade_date = _resolve_trade_date(trade_date)

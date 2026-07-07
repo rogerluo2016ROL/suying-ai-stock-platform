@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-07T11:53:13.939Z
-> Files: 594 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-07T16:23:53.669Z
+> Files: 595 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -10,8 +10,9 @@
 
 ## ../../.claude/
 
-- `settings.json` (~184 tok)
+- `settings.json` (~180 tok)
 - `statusline-context.sh` — Claude Code statusline: context usage progress bar + model (~758 tok)
+- `statusline.sh` — Claude Code Status Line — 上下文窗口进度条 (~182 tok)
 
 ## ../../.claude/plans/
 

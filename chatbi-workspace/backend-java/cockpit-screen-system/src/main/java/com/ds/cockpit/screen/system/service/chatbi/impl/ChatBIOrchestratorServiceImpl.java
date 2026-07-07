@@ -537,8 +537,8 @@ public class ChatBIOrchestratorServiceImpl implements ChatBIOrchestratorService 
                     out.append("\n本模型当前无候选。\n\n");
                     continue;
                 }
-                out.append("\n| 排名 | 股票 | 行业 | 等级/信号 | 分数 | 价格 | 涨幅 | 理由/风险 |\n");
-                out.append("|---:|---|---|---|---:|---:|---:|---|\n");
+                out.append("\n| 排名 | 股票 | 行业 | 等级/信号 | 模型分 | 可靠预期差 | 证据质量 | 标签匹配 | 复评状态 | 价格 | 涨幅 | 理由/风险 |\n");
+                out.append("|---:|---|---|---|---:|---:|---:|---:|---|---:|---:|---|\n");
                 int limit = Math.min(picks.size(), 10);
                 for (int j = 0; j < limit; j++) {
                     JSONObject pick = picks.getJSONObject(j);
@@ -553,6 +553,10 @@ public class ChatBIOrchestratorServiceImpl implements ChatBIOrchestratorService 
                             .append(" | ").append(mdCell(pick.getString("industry")))
                             .append(" | ").append(mdCell(gradeSignal))
                             .append(" | ").append(mdCell(firstNonBlank(pick, "score", "total_score")))
+                            .append(" | ").append(mdCell(firstNonBlankDeep(pick, "reliability_adjusted_gap_score")))
+                            .append(" | ").append(mdCell(firstNonBlankDeep(pick, "evidence_quality_score")))
+                            .append(" | ").append(mdCell(firstNonBlankDeep(pick, "label_fit_score")))
+                            .append(" | ").append(mdCell(reassessmentStatusText(firstNonBlankDeep(pick, "reassessment_status"))))
                             .append(" | ").append(mdCell(normalizeDisplayNumber(firstNonBlank(pick, "price", "close", "close_14"))))
                             .append(" | ").append(mdCell(firstNonBlank(pick, "daily_gain", "gain_pct")))
                             .append(" | ").append(mdCell(reason))
@@ -669,6 +673,38 @@ public class ChatBIOrchestratorServiceImpl implements ChatBIOrchestratorService 
             }
         }
         return null;
+    }
+
+    private String firstNonBlankDeep(JSONObject item, String key) {
+        String value = item.getString(key);
+        if (value != null && value.trim().length() > 0 && !"null".equalsIgnoreCase(value)) {
+            return value;
+        }
+        JSONObject factors = item.getJSONObject("factors");
+        if (factors == null) {
+            return null;
+        }
+        value = factors.getString(key);
+        if (value != null && value.trim().length() > 0 && !"null".equalsIgnoreCase(value)) {
+            return value;
+        }
+        return null;
+    }
+
+    private String reassessmentStatusText(String status) {
+        if ("strong_confirmed".equals(status)) {
+            return "强确认";
+        }
+        if ("watch_review".equals(status)) {
+            return "复核观察";
+        }
+        if ("manual_review".equals(status)) {
+            return "人工复核";
+        }
+        if ("downgrade_or_remove".equals(status)) {
+            return "降级剔除";
+        }
+        return status;
     }
 
     private String joinNonBlank(String separator, String... values) {
