@@ -9,3 +9,27 @@
 [source] feishu-websocket: disconnected
 [source] feishu-websocket: reconnecting (attempt 1)
 [source] feishu-websocket: connected
+[bridge] failed to forward event: <urlopen error [Errno 61] Connection refused>
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: reconnecting (attempt 2)
+[source] feishu-websocket: reconnecting (attempt 3)
+[source] feishu-websocket: reconnecting (attempt 4)
+[source] feishu-websocket: reconnecting (attempt 5)
+[source] feishu-websocket: reconnecting (attempt 6)
+[source] feishu-websocket: reconnecting (attempt 7)
+[source] feishu-websocket: reconnecting (attempt 8)
+[source] feishu-websocket: reconnecting (attempt 9)
+[source] feishu-websocket: reconnecting (attempt 10)
+[source] feishu-websocket: reconnecting (attempt 11)
+[source] feishu-websocket: reconnecting (attempt 12)
+[source] feishu-websocket: connected

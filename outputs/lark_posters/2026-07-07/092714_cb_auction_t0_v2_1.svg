@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
+<defs>
+<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
+<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
+</defs>
+<rect width="900" height="1400" fill="#050403"/>
+<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
+<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
+<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
+<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
+<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
+<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
+<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">竞价 T+0 选债 V2.1 稳...</text>
+<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-07  ·  更新时间 09:27  ·  选债</text>
+<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无主买候选</text>
+<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">主买/观察</text>
+<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只 / 0只</text>
+<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无主买候选</text>
+<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">触发股</text>
+<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
+<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">竞价触发源数量</text>
+<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">题材均分</text>
+<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
+<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无主买评分</text>
+<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">触发概念</text>
+<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0个</text>
+<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">概念映射强度参考</text>
+<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
+<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">2026-07-07 未找到符合竞价 T+0 条件</text>
+<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">的触发股。常见原因是当日竞价/涨停</text>
+<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选债清单 Top 0</text>
+<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
+<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">2026-07-07 未找到符合竞价 T+0 ...</text>
+<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
+<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
+<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">筛选过程: 触发股 0 只，概念 0 个，...</text>
+<rect x="64" y="1273" width="10" height="10" fill="#ead89b"/>
+<text x="88" y="1292" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">无主买原因: 2026-07-07 未找到符合...</text>
+<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
+<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
+<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
+</svg>

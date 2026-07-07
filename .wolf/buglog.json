@@ -995,6 +995,54 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-06T06:14:36.597Z"
+    },
+    {
+      "id": "bug-059",
+      "timestamp": "2026-07-06T12:19:24.348Z",
+      "error_message": "Significant refactor of ",
+      "file": "packages/kronos-factors/kronos_factors/engine/supply_chain_trend.py",
+      "root_cause": "187 lines replaced/restructured",
+      "fix": "Rewrote 246→158 lines (187 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-06T12:19:24.348Z"
+    },
+    {
+      "id": "bug-060",
+      "timestamp": "2026-07-07T11:05:23.337Z",
+      "error_message": "Incorrect value in code",
+      "file": "packages/kronos-factors/kronos_factors/engine/supply_chain.py",
+      "root_cause": "Had \"封装|测试|晶圆|光刻|刻蚀|薄膜沉积|离子注入|外延|减薄|划片|键合\"",
+      "fix": "Changed to \"封装|晶圆|光刻|刻蚀|薄膜沉积|离子注入|外延|减薄|划片|键合\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-07T11:05:23.337Z"
+    },
+    {
+      "id": "bug-061",
+      "timestamp": "2026-07-07T11:52:48.720Z",
+      "error_message": "Significant refactor of ",
+      "file": "tools/backtest_trend_launch_quick.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 16→31 lines (5 removed) | Also: # Compute next month's last day; from datetime import datetime",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-07-07T11:53:13.949Z"
     }
   ]
 }

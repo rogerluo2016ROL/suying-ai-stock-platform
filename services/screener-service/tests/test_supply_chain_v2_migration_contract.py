@@ -27,6 +27,14 @@ EVIDENCE_PIPELINE_MIGRATION_PATH = (
     / "023_supply_chain_evidence_pipeline.py"
 )
 
+DATA_COLLECTION_CENTER_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "024_supply_chain_data_collection_center.py"
+)
+
 
 def test_supply_chain_v2_migration_defines_required_tables():
     sql = MIGRATION_PATH.read_text(encoding="utf-8")
@@ -111,3 +119,34 @@ def test_supply_chain_evidence_pipeline_migration_defines_source_document_fact_t
 
     for column_contract in required_columns:
         assert column_contract in sql
+
+
+def test_supply_chain_data_collection_center_migration_defines_job_and_specialized_tables():
+    sql = DATA_COLLECTION_CENTER_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    required_tables = [
+        "evidence_collection_jobs",
+        "patent_events",
+        "tender_award_events",
+        "official_site_events",
+        "industry_price_series",
+    ]
+
+    for table_name in required_tables:
+        assert f"CREATE TABLE IF NOT EXISTS {table_name}" in sql
+
+    required_contracts = [
+        "job_type TEXT NOT NULL",
+        "scope_type TEXT NOT NULL",
+        "status TEXT NOT NULL DEFAULT 'pending'",
+        "duplicate_count INTEGER NOT NULL DEFAULT 0",
+        "publication_number TEXT",
+        "award_amount DOUBLE PRECISION",
+        "event_type TEXT NOT NULL",
+        "metric_name TEXT NOT NULL",
+        "ALTER TABLE evidence_source_catalog ADD COLUMN IF NOT EXISTS base_url TEXT",
+        "ALTER TABLE raw_evidence_documents ADD COLUMN IF NOT EXISTS doc_type TEXT",
+    ]
+
+    for contract in required_contracts:
+        assert contract in sql

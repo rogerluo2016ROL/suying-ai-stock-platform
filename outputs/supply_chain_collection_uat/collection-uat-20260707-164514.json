@@ -1,0 +1,698 @@
+{
+  "run_id": "collection-uat-20260707-164514",
+  "generated_at": "2026-07-07T16:45:14",
+  "source_limit": 100,
+  "steps": {
+    "seed_sources": {
+      "upserted": 12
+    },
+    "keyword_dry_run": {
+      "items": 200,
+      "sample": [
+        {
+          "mapping_id": "18C-MAP-embodied_intelligence-002708SZ",
+          "code": "002708.SZ",
+          "company_name": "光洋股份",
+          "terms": [
+            "光洋股份",
+            "机器人轴承/关节零部件",
+            "embodied_intelligence",
+            "18C-L8-embodied_intelligence-002708SZ-e762b3aabc",
+            "未来产业主攻方向",
+            "具身智能",
+            "核心部件/BOM",
+            "机器人轴承",
+            "机器人轴承/关节零部件技术路线",
+            "机器人轴承/关节零部件壁垒与国产替代",
+            "光洋股份 - 机器人轴承/关节零部件"
+          ],
+          "queries": [
+            "光洋股份 机器人轴承/关节零部件",
+            "002708.SZ 机器人轴承/关节零部件",
+            "光洋股份 embodied_intelligence",
+            "002708.SZ embodied_intelligence",
+            "光洋股份 18C-L8-embodied_intelligence-002708SZ-e762b3aabc",
+            "002708.SZ 18C-L8-embodied_intelligence-002708SZ-e762b3aabc",
+            "光洋股份 未来产业主攻方向",
+            "002708.SZ 未来产业主攻方向",
+            "光洋股份 具身智能",
+            "002708.SZ 具身智能",
+            "光洋股份 核心部件/BOM",
+            "002708.SZ 核心部件/BOM",
+            "光洋股份 机器人轴承",
+            "002708.SZ 机器人轴承"
+          ]
+        },
+        {
+          "mapping_id": "18C-MAP-embodied_intelligence-002979SZ",
+          "code": "002979.SZ",
+          "company_name": "雷赛智能",
+          "terms": [
+            "雷赛智能",
+            "运动控制",
+            "embodied_intelligence",
+            "18C-L8-embodied_intelligence-002979SZ-0463cff0f0",
+            "未来产业主攻方向",
+            "具身智能",
+            "中游制造与集成",
+            "运动控制技术路线",
+            "运动控制壁垒与国产替代",
+            "雷赛智能 - 运动控制"
+          ],
+          "queries": [
+            "雷赛智能 运动控制",
+            "002979.SZ 运动控制",
+            "雷赛智能 embodied_intelligence",
+            "002979.SZ embodied_intelligence",
+            "雷赛智能 18C-L8-embodied_intelligence-002979SZ-0463cff0f0",
+            "002979.SZ 18C-L8-embodied_intelligence-002979SZ-0463cff0f0",
+            "雷赛智能 未来产业主攻方向",
+            "002979.SZ 未来产业主攻方向",
+            "雷赛智能 具身智能",
+            "002979.SZ 具身智能",
+            "雷赛智能 中游制造与集成",
+            "002979.SZ 中游制造与集成",
+            "雷赛智能 运动控制技术路线",
+            "002979.SZ 运动控制技术路线"
+          ]
+        },
+        {
+          "mapping_id": "18C-MAP-embodied_intelligence-300421SZ",
+          "code": "300421.SZ",
+          "company_name": "力星股份",
+          "terms": [
+            "力星股份",
+            "滚动体/陶瓷球",
+            "embodied_intelligence",
+            "18C-L8-embodied_intelligence-300421SZ-caf7b00716",
+            "未来产业主攻方向",
+            "具身智能",
+            "中游制造与集成",
+            "滚动体",
+            "滚动体/陶瓷球技术路线",
+            "滚动体/陶瓷球壁垒与国产替代",
+            "力星股份 - 滚动体/陶瓷球"
+          ],
+          "queries": [
+            "力星股份 滚动体/陶瓷球",
+            "300421.SZ 滚动体/陶瓷球",
+            "力星股份 embodied_intelligence",
+            "300421.SZ embodied_intelligence",
+            "力星股份 18C-L8-embodied_intelligence-300421SZ-caf7b00716",
+            "300421.SZ 18C-L8-embodied_intelligence-300421SZ-caf7b00716",
+            "力星股份 未来产业主攻方向",
+            "300421.SZ 未来产业主攻方向",
+            "力星股份 具身智能",
+            "300421.SZ 具身智能",
+            "力星股份 中游制造与集成",
+            "300421.SZ 中游制造与集成",
+            "力星股份 滚动体",
+            "300421.SZ 滚动体"
+          ]
+        },
+        {
+          "mapping_id": "18C-MAP-embodied_intelligence-300503SZ",
+          "code": "300503.SZ",
+          "company_name": "昊志机电",
+          "terms": [
+            "昊志机电",
+            "关节模组/核心部件",
+            "embodied_intelligence",
+            "18C-L8-embodied_intelligence-300503SZ-e891ba07e9",
+            "未来产业主攻方向",
+            "具身智能",
+            "中游制造与集成",
+            "关节模组",
+            "关节模组/核心部件技术路线",
+            "关节模组/核心部件壁垒与国产替代",
+            "昊志机电 - 关节模组/核心部件"
+          ],
+          "queries": [
+            "昊志机电 关节模组/核心部件",
+            "300503.SZ 关节模组/核心部件",
+            "昊志机电 embodied_intelligence",
+            "300503.SZ embodied_intelligence",
+            "昊志机电 18C-L8-embodied_intelligence-300503SZ-e891ba07e9",
+            "300503.SZ 18C-L8-embodied_intelligence-300503SZ-e891ba07e9",
+            "昊志机电 未来产业主攻方向",
+            "300503.SZ 未来产业主攻方向",
+            "昊志机电 具身智能",
+            "300503.SZ 具身智能",
+            "昊志机电 中游制造与集成",
+            "300503.SZ 中游制造与集成",
+            "昊志机电 关节模组",
+            "300503.SZ 关节模组"
+          ]
+        },
+        {
+          "mapping_id": "18C-MAP-embodied_intelligence-603662SH",
+          "code": "603662.SH",
+          "company_name": "柯力传感",
+          "terms": [
+            "柯力传感",
+            "力传感器",
+            "embodied_intelligence",
+            "18C-L8-embodied_intelligence-603662SH-04c052567b",
+            "未来产业主攻方向",
+            "具身智能",
+            "核心部件/BOM",
+            "力传感器技术路线",
+            "力传感器壁垒与国产替代",
+            "柯力传感 - 力传感器"
+          ],
+          "queries": [
+            "柯力传感 力传感器",
+            "603662.SH 力传感器",
+            "柯力传感 embodied_intelligence",
+            "603662.SH embodied_intelligence",
+            "柯力传感 18C-L8-embodied_intelligence-603662SH-04c052567b",
+            "603662.SH 18C-L8-embodied_intelligence-603662SH-04c052567b",
+            "柯力传感 未来产业主攻方向",
+            "603662.SH 未来产业主攻方向",
+            "柯力传感 具身智能",
+            "603662.SH 具身智能",
+            "柯力传感 核心部件/BOM",
+            "603662.SH 核心部件/BOM",
+            "柯力传感 力传感器技术路线",
+            "603662.SH 力传感器技术路线"
+          ]
+        }
+      ]
+    },
+    "interact_backfill": {
+      "job_id": "JOB-1220905a053a21b7a266",
+      "source_id": "exchange_interact_qa",
+      "fetched": 100,
+      "inserted_docs": 80,
+      "inserted_facts": 6,
+      "duplicates": 20,
+      "failed": 0
+    },
+    "announcement_backfill": {
+      "job_id": "JOB-0856d9f73f45cd9c67c2",
+      "source_id": "cninfo_announcement",
+      "fetched": 100,
+      "inserted_docs": 72,
+      "inserted_facts": 15,
+      "duplicates": 28,
+      "failed": 0
+    },
+    "sync_facts_to_events": {
+      "selected": 21,
+      "synced": 21
+    },
+    "refresh_stage_transitions": {
+      "facts_read": 5000,
+      "transitions": 1377,
+      "stage_applied": 0
+    },
+    "refresh_expectation_monitor": {
+      "facts_read": 927,
+      "monitors": 927
+    }
+  },
+  "before": {
+    "chain_count": 18,
+    "mapping_count": 2255,
+    "candidate_company_count": 1195,
+    "raw_docs": 32957,
+    "facts": 32934,
+    "synced_collection_events": 17,
+    "stage_transition_rows": 4766,
+    "expectation_monitor_rows": 927
+  },
+  "after": {
+    "chain_count": 18,
+    "mapping_count": 2255,
+    "candidate_company_count": 1195,
+    "raw_docs": 33109,
+    "facts": 32955,
+    "synced_collection_events": 38,
+    "stage_transition_rows": 4767,
+    "expectation_monitor_rows": 927
+  },
+  "delta": {
+    "candidate_company_count": 0,
+    "chain_count": 0,
+    "expectation_monitor_rows": 0,
+    "facts": 21,
+    "mapping_count": 0,
+    "raw_docs": 152,
+    "stage_transition_rows": 1,
+    "synced_collection_events": 21
+  },
+  "chain_summary": [
+    {
+      "chain_id": "ai_compute",
+      "mapping_count": 29722,
+      "company_count": 1042,
+      "new_l8_events": 36
+    },
+    {
+      "chain_id": "bio_manufacturing",
+      "mapping_count": 64,
+      "company_count": 6,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "brain_computer_interface",
+      "mapping_count": 110,
+      "company_count": 6,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "embodied_intelligence",
+      "mapping_count": 941,
+      "company_count": 54,
+      "new_l8_events": 2
+    },
+    {
+      "chain_id": "future_display",
+      "mapping_count": 121,
+      "company_count": 6,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "future_energy",
+      "mapping_count": 139,
+      "company_count": 6,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "future_health",
+      "mapping_count": 65,
+      "company_count": 6,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "future_materials",
+      "mapping_count": 350,
+      "company_count": 24,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "future_space",
+      "mapping_count": 163,
+      "company_count": 6,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "hydrogen_energy",
+      "mapping_count": 128,
+      "company_count": 6,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "industrial_mother_machine",
+      "mapping_count": 117,
+      "company_count": 6,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "industrial_software",
+      "mapping_count": 384,
+      "company_count": 26,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "intelligent_manufacturing",
+      "mapping_count": 122,
+      "company_count": 6,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "low_altitude_economy",
+      "mapping_count": 114,
+      "company_count": 6,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "nuclear_fusion",
+      "mapping_count": 85,
+      "company_count": 6,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "quantum_technology",
+      "mapping_count": 74,
+      "company_count": 5,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "semiconductor_equipment_materials",
+      "mapping_count": 196,
+      "company_count": 8,
+      "new_l8_events": 0
+    },
+    {
+      "chain_id": "sixth_generation_6g",
+      "mapping_count": 68,
+      "company_count": 6,
+      "new_l8_events": 0
+    }
+  ],
+  "evidence_gap_top20": [
+    {
+      "code": "688479",
+      "name": "友车科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 12,
+      "matched_dimensions": 2
+    },
+    {
+      "code": "300941",
+      "name": "创识科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：AI算力综合业务",
+      "missing_dimensions": 12,
+      "matched_dimensions": 2
+    },
+    {
+      "code": "300264",
+      "name": "佳创视讯",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 12,
+      "matched_dimensions": 2
+    },
+    {
+      "code": "300017",
+      "name": "网宿科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 12,
+      "matched_dimensions": 2
+    },
+    {
+      "code": "603918",
+      "name": "金桥信息",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 12,
+      "matched_dimensions": 2
+    },
+    {
+      "code": "300454",
+      "name": "深信服",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 12,
+      "matched_dimensions": 2
+    },
+    {
+      "code": "002896",
+      "name": "中大力德",
+      "chain_id": "embodied_intelligence",
+      "tag_name": "关节模组/执行器",
+      "missing_dimensions": 12,
+      "matched_dimensions": 2
+    },
+    {
+      "code": "920790",
+      "name": "联迪信息",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 12,
+      "matched_dimensions": 2
+    },
+    {
+      "code": "300925",
+      "name": "法本信息",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 12,
+      "matched_dimensions": 2
+    },
+    {
+      "code": "002178",
+      "name": "延华智能",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 12,
+      "matched_dimensions": 2
+    },
+    {
+      "code": "300609",
+      "name": "汇纳科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 11,
+      "matched_dimensions": 3
+    },
+    {
+      "code": "688228",
+      "name": "开普云",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 11,
+      "matched_dimensions": 3
+    },
+    {
+      "code": "600570",
+      "name": "恒生电子",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 11,
+      "matched_dimensions": 3
+    },
+    {
+      "code": "601519",
+      "name": "大智慧",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 11,
+      "matched_dimensions": 3
+    },
+    {
+      "code": "301179",
+      "name": "泽宇智能",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 11,
+      "matched_dimensions": 3
+    },
+    {
+      "code": "300550",
+      "name": "和仁科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 11,
+      "matched_dimensions": 3
+    },
+    {
+      "code": "300448",
+      "name": "浩云科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 11,
+      "matched_dimensions": 3
+    },
+    {
+      "code": "688188.SH",
+      "name": "柏楚电子",
+      "chain_id": "intelligent_manufacturing",
+      "tag_name": "激光切割控制",
+      "missing_dimensions": 10,
+      "matched_dimensions": 3
+    },
+    {
+      "code": "688387.SH",
+      "name": "信科移动",
+      "chain_id": "future_display",
+      "tag_name": "显示非核心观察",
+      "missing_dimensions": 10,
+      "matched_dimensions": 3
+    },
+    {
+      "code": "300369",
+      "name": "绿盟科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "missing_dimensions": 10,
+      "matched_dimensions": 4
+    }
+  ],
+  "expectation_gap_top20": [
+    {
+      "code": "603459",
+      "name": "红板科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：PCB与连接材料业务",
+      "expectation_gap_score": 101.06,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "688220",
+      "name": "翱捷科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：AI芯片/芯片业务",
+      "expectation_gap_score": 91.78,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "603636",
+      "name": "南威软件",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "expectation_gap_score": 91.77,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "603636",
+      "name": "南威软件",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：行业AI应用业务",
+      "expectation_gap_score": 91.42,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "301308",
+      "name": "江波龙",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：AI芯片/芯片业务",
+      "expectation_gap_score": 90.67,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "300576",
+      "name": "容大感光",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：PCB与连接材料业务",
+      "expectation_gap_score": 89.81,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "688790",
+      "name": "昂瑞微",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：AI芯片/芯片业务",
+      "expectation_gap_score": 88.28,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "300711",
+      "name": "广哈通信",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：行业AI应用业务",
+      "expectation_gap_score": 87.4,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "688416",
+      "name": "恒烁股份",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：AI芯片/芯片业务",
+      "expectation_gap_score": 86.19,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "000823",
+      "name": "超声电子",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：PCB与连接材料业务",
+      "expectation_gap_score": 85.76,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "301132",
+      "name": "满坤科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：PCB与连接材料业务",
+      "expectation_gap_score": 85.65,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "603920",
+      "name": "世运电路",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：PCB与连接材料业务",
+      "expectation_gap_score": 85.41,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "002151",
+      "name": "北斗星通",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：AI芯片/芯片业务",
+      "expectation_gap_score": 85.32,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "688292",
+      "name": "浩瀚深度",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "expectation_gap_score": 84.26,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "002151",
+      "name": "北斗星通",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：AI算力综合业务",
+      "expectation_gap_score": 83.82,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "688292",
+      "name": "浩瀚深度",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：行业AI应用业务",
+      "expectation_gap_score": 83.49,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "688292",
+      "name": "浩瀚深度",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：AI算力综合业务",
+      "expectation_gap_score": 83.49,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "603206",
+      "name": "嘉环科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：行业AI应用业务",
+      "expectation_gap_score": 83.31,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "688049",
+      "name": "炬芯科技",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：基础软件/算力调度软件业务",
+      "expectation_gap_score": 82.24,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    },
+    {
+      "code": "001309",
+      "name": "德明利",
+      "chain_id": "ai_compute",
+      "tag_name": "公司业务标签：AI芯片/芯片业务",
+      "expectation_gap_score": 81.88,
+      "gap_type": "positive_evidence_delta",
+      "trade_date": "2026-07-02"
+    }
+  ]
+}

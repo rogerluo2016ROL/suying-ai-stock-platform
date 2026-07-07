@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-06T06:14:50.059Z
-> Files: 588 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-07T11:53:13.939Z
+> Files: 594 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -896,6 +896,11 @@
 
 - `etl.py` — Tushare premium data sync — batch-fetch and persist to SQLite. (~26623 tok)
 
+## packages/kronos-data/services/sql/migrations/
+
+- `021_research_broker_schema_fix.sql` — 021: research_reports_tushare + broker_recommend schema fix (~150 tok)
+- `022_forecast_data_schema_fix.sql` — 022: forecast_data schema fix — 补全 Tushare 返回字段 (~96 tok)
+
 ## packages/kronos-factors/
 
 - `backtest_all_models_june.py` — Backtest all screening models on June 2026 data. (~5119 tok)
@@ -913,12 +918,13 @@
 ## packages/kronos-factors/kronos_factors/engine/
 
 - `chain_deconstruct.py` — Industry chain deconstruct module for multi-method chain analysis. (~8473 tok)
+- `leader_afternoon.py` — 秋神龙头战法-午后选股模型 — Afternoon Leader Picking Model. (~12287 tok)
 - `multi_index.py` — MultiIndexEngine — 宽基指数成分股超额收益挖掘. (~1881 tok)
 - `risk_parity.py` — RiskParityAllocator — 风险平价仓位分配器. (~1729 tok)
 - `sector_heatmap.py` — SectorHeatmapEngine — 板块实时热度引擎. (~2922 tok)
 - `supply_chain_foundation.py` — Data foundation builders for the 大葱产业链解构模型. (~3877 tok)
-- `supply_chain_trend.py` — 产业链趋势启动选股 — 硬核科技 × 产业链位置 × 量价择时. (~5972 tok)
-- `supply_chain.py` — 大葱产业链解构选股 — PG研报直查 + 五维评级. (~7002 tok)
+- `supply_chain_trend.py` — 产业链趋势启动选股 — 硬核科技 × 产业链位置 × 量价择时. (~4906 tok)
+- `supply_chain.py` — 大葱产业链解构选股 — PG研报直查 + 五维评级. (~8115 tok)
 - `weighted_fusion.py` — WeightedFusionEngine — V5.0 加权融合引擎. (~3616 tok)
 
 ## packages/kronos-factors/kronos_factors/engine/llm_intelligence/
@@ -953,12 +959,13 @@
 
 ## services/screener-service/app/
 
+- `config.py` — Screener service configuration — all environment-driven. (~569 tok)
 - `orchestrator.py` — Mode Orchestrator — V5.0 multi-strategy fusion + Kronos prediction + pipeline. (~5576 tok)
 - `watchlist_store.py` — Watchlist persistence for platform-scoped self-selected stocks. (~2759 tok)
 
 ## services/screener-service/app/routers/
 
-- `screener.py` — Screener API routes — 12 screening modes via unified endpoint with Redis caching. (~94836 tok)
+- `screener.py` — Screener API routes — 12 screening modes via unified endpoint with Redis caching. (~94850 tok)
 
 ## services/screener-service/tests/
 
@@ -968,6 +975,8 @@
 ## tools/
 
 - `backtest_institutional_activity.py` — 机构活跃度因子 — 月频 IC + 分组多空回测。 (~1636 tok)
+- `backtest_trend_launch_quick.py` — TrendLaunch Quick Backtest — 2024-2026, strict walk-forward. (~1910 tok)
+- `backtest_trend_launch.py` — TrendLaunchEngine Walk-Forward 回测 (严格杜绝数据泄露). (~2802 tok)
 - `build_supply_chain_foundation.py` — Build 大葱产业链 data-foundation nodes, edges, mappings and report. (~2792 tok)
 - `institutional_activity_top.py` — 全市场机构活跃度评分 — 5 维 percentile 加权。 (~2870 tok)
 - `send_bishifu_feishu.py` — 跑毕师傅硬核科技选股 + 推送飞书群（AI 投研分析）。 (~1028 tok)

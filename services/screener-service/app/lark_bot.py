@@ -361,6 +361,15 @@ def _format_refresh_summary(refresh: dict[str, Any] | None) -> str:
     return "；".join(parts)
 
 
+def _format_data_fetch_time(refresh: dict[str, Any] | None) -> str:
+    """Report when this run finished refreshing/fetching data."""
+    if isinstance(refresh, dict):
+        value = refresh.get("finished_at") or refresh.get("started_at")
+        if value:
+            return str(value).replace("T", " ")[:19]
+    return _generated_at()
+
+
 def _pick_price(p: dict[str, Any]) -> Any:
     return _first_value(p.get("current_price"), p.get("price"), p.get("close_14"), p.get("close"))
 
@@ -745,6 +754,7 @@ def build_lark_doc_xml_report(result: dict[str, Any]) -> str:
     update_rows = [
         [data_label, trade_date],
         ["报告生成时间", _generated_at()],
+        ["本次取数时间", _format_data_fetch_time(result.get("data_refresh"))],
         ["数据更新时点", _format_data_update(mode)],
         ["本次刷新", _format_refresh_summary(result.get("data_refresh"))],
         ["主买数量" if is_cb else "入选数量", f"{len(picks)}只"],
@@ -1133,6 +1143,7 @@ def _format_stock_report(result: dict[str, Any]) -> str:
     lines = [
         MODEL_TITLES.get(mode, "选股分析报告"),
         f"选股日期: {trade_date}",
+        f"本次取数时间: {_format_data_fetch_time(result.get('data_refresh'))}",
         f"数据更新时点: {_format_data_update(mode)}",
         f"本次刷新: {_format_refresh_summary(result.get('data_refresh'))}",
         f"入选: {len(picks)} 只",
@@ -1171,6 +1182,7 @@ def _format_cb_report(result: dict[str, Any]) -> str:
     lines = [
         MODEL_TITLES.get(mode, "竞价 T+0 选债分析报告"),
         f"选债日期: {trade_date}",
+        f"本次取数时间: {_format_data_fetch_time(result.get('data_refresh'))}",
         f"数据更新时点: {_format_data_update(mode)}",
         f"本次刷新: {_format_refresh_summary(result.get('data_refresh'))}",
         f"主买: {len(picks)} 只；观察: {len(observation)} 只",
@@ -1241,6 +1253,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             [
                 ["选股日期", trade_date],
                 ["报告生成时间", _generated_at()],
+                ["本次取数时间", _format_data_fetch_time(result.get("data_refresh"))],
                 ["数据更新时点", data_update],
                 ["本次刷新", refresh_summary],
                 ["入选数量", f"{len(picks)}只"],
@@ -1321,6 +1334,7 @@ def build_cb_markdown_report(result: dict[str, Any]) -> str:
             [
                 ["选债日期", trade_date],
                 ["报告生成时间", _generated_at()],
+                ["本次取数时间", _format_data_fetch_time(result.get("data_refresh"))],
                 ["数据更新时点", data_update],
                 ["本次刷新", refresh_summary],
                 ["主买数量", f"{len(picks)}只"],
