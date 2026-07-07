@@ -200,7 +200,7 @@ def get_intraday_ohlc(db, code, trade_date, time_slot="14:30"):
     """从 stk_mins 获取14:30的日内OHLC (替代 daily_kline 今日数据)."""
     row = db.execute(
         "SELECT open, high, low, close, volume, amount FROM stk_mins "
-        "WHERE ts_code LIKE ? AND trade_time <= ? AND freq='5min' "
+        "WHERE code LIKE ? AND trade_time <= ? AND freq='5min' "
         "ORDER BY trade_time DESC LIMIT 1",
         (f"{code}%", f"{trade_date} {time_slot}:59")
     ).fetchone()
@@ -221,7 +221,7 @@ def get_intraday_cumulative(db, code, trade_date, time_slot="14:30"):
     rows = db.execute(
         "SELECT MAX(high) as day_high, MIN(low) as day_low, "
         "SUM(amount) as total_amount, SUM(volume) as total_volume "
-        "FROM stk_mins WHERE ts_code LIKE ? "
+        "FROM stk_mins WHERE code LIKE ? "
         "AND trade_time >= ? AND trade_time <= ? AND freq='5min'",
         (f"{code}%", f"{trade_date} 09:00:00", f"{trade_date} {time_slot}:59")
     ).fetchone()
@@ -245,17 +245,17 @@ def get_intraday_snapshot(db, trade_date, time_slot="14:30"):
     """14:30 全市场快照."""
     time_cutoff = f"{trade_date} {time_slot}:59"
     rows = db.execute(
-        "SELECT m.ts_code, m.open, m.high, m.low, m.close, m.volume, m.amount "
+        "SELECT m.code, m.open, m.high, m.low, m.close, m.volume, m.amount "
         "FROM stk_mins m "
-        "INNER JOIN (SELECT ts_code, MAX(trade_time) as max_time FROM stk_mins "
+        "INNER JOIN (SELECT code, MAX(trade_time) as max_time FROM stk_mins "
         "            WHERE trade_time >= ? AND trade_time <= ? AND freq='5min' "
-        "            GROUP BY ts_code) latest "
-        "ON m.ts_code=latest.ts_code AND m.trade_time=latest.max_time",
+        "            GROUP BY code) latest "
+        "ON m.code=latest.code AND m.trade_time=latest.max_time",
         (f"{trade_date} 09:00:00", time_cutoff)
     ).fetchall()
     snapshot = {}
     for r in rows:
-        raw_code = r.get("code") or r.get("ts_code", "")
+        raw_code = r.get("code", "")
         code = raw_code.split('.')[0] if '.' in str(raw_code) else str(raw_code)
         snapshot[code] = {
             "open": float(r["open"] or 0), "high": float(r["high"] or 0),

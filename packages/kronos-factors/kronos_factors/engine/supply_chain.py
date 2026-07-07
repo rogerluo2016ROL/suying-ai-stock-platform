@@ -309,6 +309,21 @@ class SupplyChainEngine(StrategyEngine):
             cur.execute("SELECT industry, COUNT(*) FROM stocks WHERE is_st=0 GROUP BY industry")
             for r in cur.fetchall():
                 peers[r[0]] = r[1]
+
+            # ── 行业市值排名 (Moat 盲点修复) ──
+            # 同行业内按市值降序排列, 取排名作为客观龙头证据
+            # 大行业(>50只)用百分位, 小行业用绝对排名
+            mc_rank: dict[str, int] = {}
+            mc_total: dict[str, int] = {}  # 行业总股数
+            cur.execute("""
+                SELECT code, industry, market_cap,
+                       ROW_NUMBER() OVER (PARTITION BY industry ORDER BY market_cap DESC NULLS LAST) as rn,
+                       COUNT(*) OVER (PARTITION BY industry) as total
+                FROM stocks WHERE is_st=0 AND market_cap > 0
+            """)
+            for r in cur.fetchall():
+                mc_rank[str(r[0])] = int(r[3])
+                mc_total[str(r[1])] = int(r[4])
             try:
                 cur.execute("SELECT to_regclass('public.business_tag_mapping') IS NOT NULL")
                 has_business_tag_mapping = bool(cur.fetchone()[0])
@@ -394,6 +409,68 @@ class SupplyChainEngine(StrategyEngine):
                         strategic_bonus = 8
                         moat = min(40, moat + strategic_bonus)
                         moat_sigs.append("战略芯片")
+
+                    # ── Moat 盲点修复 #1: 主营业务关键词匹配 ──
+                    # 研报标题可能写得朴实(如华天科技"公司信息更新报告"),
+                    # 但主营业务描述中会有真实的行业地位关键词
+                    BIZ_MOAT_KW = {
+                        "行业龙头": (r"龙头|第一|首位|最大|领先|率先|首家", 6),
+                        "高壁垒": (r"唯一|独家|垄断|寡头|国家重点|国家工程实验室|国家级", 5),
+                        "国产替代": (r"国产替代|自主可控|进口替代|打破垄断|填补空白", 5),
+                        "稀缺产能": (r"全球第|国内第|市占率|产能.*[万百千亿]", 4),
+                        "硬科技制造": (r"封装|晶圆|光刻|刻蚀|薄膜沉积|离子注入|外延|减薄|划片|键合"
+                                      r"|流片|掩模|抛光|CVD|PVD|CMP|ALD|RTP|MOSFET|IGBT|SiC|GaN", 4),
+                    }
+                    biz_text_lower = biz_text  # already combined
+                    for bt, (bpat, bsc) in BIZ_MOAT_KW.items():
+                        if re.search(bpat, biz_text_lower):
+                            moat = min(40, moat + bsc)
+                            moat_sigs.append(f"主营:{bt}")
+
+                    # ── Moat 盲点修复 #2: 行业市值排名 ──
+                    # 市值在同行业中的排名是客观的"市场投票"结果,
+                    # 大行业(>50只)用百分位阈值, 小行业用绝对排名
+                    rank = mc_rank.get(code, 999)
+                    total_in_ind = mc_total.get(industry, 1)
+                    pct = rank / max(1, total_in_ind)
+                    if total_in_ind > 50:
+                        # 大行业: 百分位阈值 (半导体189只, top5%=9, top15%=28, top25%=47)
+                        if pct <= 0.05:
+                            moat = min(40, moat + 10)
+                            moat_sigs.append(f"行业前5%市值")
+                        elif pct <= 0.15:
+                            moat = min(40, moat + 6)
+                            moat_sigs.append(f"行业前15%市值")
+                        elif pct <= 0.25:
+                            moat = min(40, moat + 3)
+                            moat_sigs.append(f"行业前25%市值")
+                    else:
+                        if rank <= 3:
+                            moat = min(40, moat + 10)
+                            moat_sigs.append(f"行业第{rank}大市值")
+                        elif rank <= 10:
+                            moat = min(40, moat + 6)
+                            moat_sigs.append(f"行业TOP10市值")
+                        elif rank <= 20:
+                            moat = min(40, moat + 3)
+
+                    # ── Moat 盲点修复 #3: 产业链核心节点验证 ──
+                    # 已通过 company_chain_mapping 验证的产业链节点映射,
+                    # 是第三方证据表明公司在供应链中的真实地位
+                    mc_items = mapping_context.get(code, [])
+                    verified_nodes = [m for m in mc_items
+                                     if m.get("mapping_status") == "verified"
+                                     and float(m.get("mapping_confidence", 0)) >= 0.7]
+                    verified_chains = set(m.get("chain_id") for m in verified_nodes)
+                    n_verified = len(verified_chains)
+                    if n_verified >= 3:
+                        moat = min(40, moat + 8)
+                        moat_sigs.append(f"{n_verified}链验证")
+                    elif n_verified >= 2:
+                        moat = min(40, moat + 5)
+                        moat_sigs.append(f"{n_verified}链验证")
+                    elif n_verified >= 1:
+                        moat = min(40, moat + 3)
 
                     # 2. Growth (30%)
                     rg = fd.get("revenue_growth", 0); pg = fd.get("profit_growth", 0)

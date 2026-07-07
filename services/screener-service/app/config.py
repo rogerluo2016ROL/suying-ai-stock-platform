@@ -47,5 +47,6 @@ AVAILABLE_MODES = [
     "cb_auction_t0",      # 竞价选债 T+0 模型
     "cb_auction_t0_v2",   # 竞价选债 T+0 优化版 V2
     "cb_auction_t0_v2_1", # 竞价选债 T+0 优化版 V2.1 稳健版
-    "supply_chain",       # 大葱产业链解构选股 (中长线)
+    "supply_chain",                 # 大葱产业链解构选股 (中长线)
+    "supply_chain_trend_launch",   # 大葱产业链趋势启动战法 vFinal (动态选链+跨链共振)
 ]

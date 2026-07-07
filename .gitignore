@@ -85,3 +85,4 @@ outputs/ai_compute_complete_data_*/
 .env
 .env.*
 chatBI/AI 后端.zip
+.firecrawl/
