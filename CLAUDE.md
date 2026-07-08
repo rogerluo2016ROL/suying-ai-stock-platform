@@ -41,7 +41,7 @@ This project uses OpenWolf for context management. Read and follow .wolf/OPENWOL
 |---|---|---|---|
 | api-gateway | 8080 | 统一 API 网关 | `uvicorn app.main:app --port 8080` |
 | backend (auth) | 9001 | JWT 认证 + RBAC + 用户管理 | `uvicorn app.main:app --port 9001` |
-| screener-service | 8001 | 6 模式选股 + 多因子排序 | `uvicorn app.main:app --port 8001` |
+| screener-service | 8001 | 7 模式选股 + 多因子排序 | `uvicorn app.main:app --port 8001` |
 | prediction-service | 8002 | Kronos 30日 K线预测 | `uvicorn app.main:app --port 8002` |
 | strategy-service | 8003 | 方案管理 + 自动交易策略引擎 + 执行器 | `uvicorn app.main:app --port 8003` |
 | signal-service | 8004 | 综合交易信号分析 (50维) | `uvicorn app.main:app --port 8004` |

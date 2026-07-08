@@ -58,6 +58,7 @@ def _get_engine(mode: str):
         from kronos_factors.engine.cb_intraday import CbIntradayEngine
         from kronos_factors.engine.cb_auction import CbAuctionEngine
         from kronos_factors.engine.bi_trend_launch import BiTrendLaunchEngine
+        from kronos_factors.engine.bi_shifu_trend import BiShifuTrendEngine
         from kronos_factors.engine.supply_chain import SupplyChainEngine
 
         _ENGINES.update({
@@ -68,6 +69,7 @@ def _get_engine(mode: str):
             "short": ShortModeEngine,
             "chokepoint": ChokepointEngine,
             "bi_trend_launch": BiTrendLaunchEngine,
+            "bi_shifu_trend": BiShifuTrendEngine,
             "supply_chain": SupplyChainEngine,
             "cb_floor": CbFloorEngine,
             "cb_intraday": CbIntradayEngine,
