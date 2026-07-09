@@ -56,9 +56,10 @@ class Params:
     # 量能
     VOL_MA_PERIOD = 5
 
-    # v2.2: 跌市保护
-    NEAR_HIGH_MAX_PCT = -0.04    # 距20日高点不超过4% (排除已大幅回落股)
-    OBV_LEADING_PRICE = True     # OBV近5日涨幅必须领先于价格涨幅
+    # v2.1+: 信号质量控制
+    NEAR_HIGH_MAX_PCT = -0.99   # 距20日高点过滤 (已禁用, 回退v2.1)
+    OBV_LEADING_PRICE = False   # OBV领先价格过滤 (已禁用, 回退v2.1)
+    MIN_SCORE = 10              # 最低评分阈值 (C级信号空仓, B级以上才交易)
 
     # K线
     SHADOW_MAX = 0.05            # 上影 < 5%
@@ -421,6 +422,10 @@ def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
         if result is None:
             continue
 
+        # v2.1+: 评分过滤 — C级(<10分)信号空仓
+        if result.get("score", 0) < P.MIN_SCORE:
+            continue
+
         info = stock_info[code]
         result.update({
             "code": code,
@@ -451,11 +456,11 @@ def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
 # ==================== 引擎类 ====================
 
 class BiShifuTrendEngine:
-    """毕师傅趋势战法引擎 v2.2."""
+    """毕师傅趋势战法引擎 v2.1+ (评分过滤版)."""
 
     MODE_KEY = "bi_shifu_trend"
     MODE_NAME = "毕师傅趋势战法"
-    VERSION = "v2.2"
+    VERSION = "v2.1-score"
 
     def __init__(self, pg_url: str = None):
         self.pg_url = pg_url
