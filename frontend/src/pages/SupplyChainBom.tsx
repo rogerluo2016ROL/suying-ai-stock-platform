@@ -252,6 +252,8 @@ type ChainTemplateKey =
   | 'ai_compute_infrastructure'
   | 'advanced_packaging_chiplet'
   | 'semiconductor_equipment_materials'
+  | 'offshore_wind_subsea_cable'
+  | 'new_power_system_grid'
   | 'embodied_intelligence'
   | 'storage_chips'
 

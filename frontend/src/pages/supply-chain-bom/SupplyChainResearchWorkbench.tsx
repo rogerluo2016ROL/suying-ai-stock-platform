@@ -14,6 +14,8 @@ type ChainTemplateKey =
   | 'ai_compute_infrastructure'
   | 'advanced_packaging_chiplet'
   | 'semiconductor_equipment_materials'
+  | 'offshore_wind_subsea_cable'
+  | 'new_power_system_grid'
   | 'embodied_intelligence'
   | 'storage_chips'
 
@@ -118,6 +120,8 @@ export default function SupplyChainResearchWorkbench({
                 { label: 'AI算力', value: 'ai_compute_infrastructure' },
                 { label: '先进封装', value: 'advanced_packaging_chiplet' },
                 { label: '设备材料', value: 'semiconductor_equipment_materials' },
+                { label: '海风海缆', value: 'offshore_wind_subsea_cable' },
+                { label: '新型电力', value: 'new_power_system_grid' },
                 { label: '具身智能', value: 'embodied_intelligence' },
                 { label: '存储芯片', value: 'storage_chips' },
               ]}

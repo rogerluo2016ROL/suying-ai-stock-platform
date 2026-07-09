@@ -3914,6 +3914,7 @@
             "概念相关只能作为候选映射，不能直接视为强证据。"
           ],
           "companies": [
+            "中天科技",
             "英维克"
           ],
           "tracking_metrics": [
@@ -4016,6 +4017,7 @@
             "概念相关只能作为候选映射，不能直接视为强证据。"
           ],
           "companies": [
+            "中天科技",
             "奥飞数据",
             "宝信软件",
             "数据港",
@@ -5980,6 +5982,1792 @@
               "name": "订单 backlog物理指标",
               "mapped_layer_id": "commercialization",
               "mapped_segment": "订单 backlog",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "template_id": "offshore_wind_subsea_cable",
+      "name": "海风海缆/海洋能源装备复杂产业链路模板",
+      "description": "围绕海上风电、海底光电复合缆、海工施工、海洋能源互联和深远海运维，拆解订单、交付、技术门槛和商业变现。",
+      "example_theme": "海风海缆/海洋能源装备",
+      "macro_context": [
+        {
+          "region": "US",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "CN",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "JP",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "KR",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "EU",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        }
+      ],
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "围绕海风海缆/海洋能源装备的需求层，跟踪海上风电装机;海洋能源互联;深远海开发;海洋油气;跨国电力互联。",
+          "key_questions": [
+            "海上风电装机是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "海上风电装机",
+            "海洋能源互联",
+            "深远海开发",
+            "海洋油气",
+            "跨国电力互联"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "三峡能源"
+          ],
+          "tracking_metrics": [
+            "海上风电装机订单",
+            "海上风电装机价格/渗透率",
+            "海上风电装机客户导入",
+            "海上风电装机CAPEX",
+            "海上风电装机毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "海上风电装机订单",
+              "海上风电装机收入",
+              "海上风电装机毛利率"
+            ],
+            "expectation_gap": [
+              "海上风电装机订单高于预期",
+              "海上风电装机导入快于预期",
+              "海上风电装机价格/份额改善"
+            ],
+            "trigger_signals": [
+              "海上风电装机中标/定点",
+              "海上风电装机CAPEX上修",
+              "海上风电装机业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "offshore_wind_subsea_cable_demand_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "海上风电装机"
+              ],
+              "mapped_layer_id": "demand",
+              "mapped_segments": [
+                "海上风电装机"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "offshore_wind_subsea_cable_demand_physical_metric",
+              "name": "海上风电装机物理指标",
+              "mapped_layer_id": "demand",
+              "mapped_segment": "海上风电装机",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "围绕海风海缆/海洋能源装备的任务层，跟踪大容量输电;深远海敷设;动态海缆连接;海上施工运维;项目交付。",
+          "key_questions": [
+            "大容量输电是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "大容量输电",
+            "深远海敷设",
+            "动态海缆连接",
+            "海上施工运维",
+            "项目交付"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "大容量输电订单",
+            "大容量输电价格/渗透率",
+            "大容量输电客户导入",
+            "大容量输电CAPEX",
+            "大容量输电毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "大容量输电订单",
+              "大容量输电收入",
+              "大容量输电毛利率"
+            ],
+            "expectation_gap": [
+              "大容量输电订单高于预期",
+              "大容量输电导入快于预期",
+              "大容量输电价格/份额改善"
+            ],
+            "trigger_signals": [
+              "大容量输电中标/定点",
+              "大容量输电CAPEX上修",
+              "大容量输电业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "offshore_wind_subsea_cable_task_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "大容量输电"
+              ],
+              "mapped_layer_id": "task",
+              "mapped_segments": [
+                "大容量输电"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "offshore_wind_subsea_cable_task_physical_metric",
+              "name": "大容量输电物理指标",
+              "mapped_layer_id": "task",
+              "mapped_segment": "大容量输电",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "围绕海风海缆/海洋能源装备的核心产品层，跟踪海底电缆;海底光电复合缆;动态海缆;海工装备;风机整机。",
+          "key_questions": [
+            "海底电缆是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "海底电缆",
+            "海底光电复合缆",
+            "动态海缆",
+            "海工装备",
+            "风机整机"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "东方电气",
+            "东方电缆",
+            "中天科技",
+            "亨通光电",
+            "明阳智能",
+            "运达股份",
+            "金风科技"
+          ],
+          "tracking_metrics": [
+            "海底电缆订单",
+            "海底电缆价格/渗透率",
+            "海底电缆客户导入",
+            "海底电缆CAPEX",
+            "海底电缆毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "海底电缆订单",
+              "海底电缆收入",
+              "海底电缆毛利率"
+            ],
+            "expectation_gap": [
+              "海底电缆订单高于预期",
+              "海底电缆导入快于预期",
+              "海底电缆价格/份额改善"
+            ],
+            "trigger_signals": [
+              "海底电缆中标/定点",
+              "海底电缆CAPEX上修",
+              "海底电缆业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "offshore_wind_subsea_cable_core_product_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "海底电缆"
+              ],
+              "mapped_layer_id": "core_product",
+              "mapped_segments": [
+                "海底电缆"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "offshore_wind_subsea_cable_core_product_physical_metric",
+              "name": "海底电缆物理指标",
+              "mapped_layer_id": "core_product",
+              "mapped_segment": "海底电缆",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "围绕海风海缆/海洋能源装备的底层支撑层，跟踪高压绝缘材料;导体材料;海缆附件;塔筒桩基;海工船舶。",
+          "key_questions": [
+            "高压绝缘材料是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "高压绝缘材料",
+            "导体材料",
+            "海缆附件",
+            "塔筒桩基",
+            "海工船舶"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "大金重工",
+            "天顺风能",
+            "宝胜股份",
+            "泰胜风能",
+            "海力风电"
+          ],
+          "tracking_metrics": [
+            "高压绝缘材料订单",
+            "高压绝缘材料价格/渗透率",
+            "高压绝缘材料客户导入",
+            "高压绝缘材料CAPEX",
+            "高压绝缘材料毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "高压绝缘材料订单",
+              "高压绝缘材料收入",
+              "高压绝缘材料毛利率"
+            ],
+            "expectation_gap": [
+              "高压绝缘材料订单高于预期",
+              "高压绝缘材料导入快于预期",
+              "高压绝缘材料价格/份额改善"
+            ],
+            "trigger_signals": [
+              "高压绝缘材料中标/定点",
+              "高压绝缘材料CAPEX上修",
+              "高压绝缘材料业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "offshore_wind_subsea_cable_foundation_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "高压绝缘材料"
+              ],
+              "mapped_layer_id": "foundation",
+              "mapped_segments": [
+                "高压绝缘材料"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "offshore_wind_subsea_cable_foundation_physical_metric",
+              "name": "高压绝缘材料物理指标",
+              "mapped_layer_id": "foundation",
+              "mapped_segment": "高压绝缘材料",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "围绕海风海缆/海洋能源装备的集成层，跟踪海缆制造;海缆敷设;海风EPC;风电场并网;运维服务。",
+          "key_questions": [
+            "海缆制造是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "海缆制造",
+            "海缆敷设",
+            "海风EPC",
+            "风电场并网",
+            "运维服务"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "东方电缆",
+            "中天科技",
+            "亨通光电"
+          ],
+          "tracking_metrics": [
+            "海缆制造订单",
+            "海缆制造价格/渗透率",
+            "海缆制造客户导入",
+            "海缆制造CAPEX",
+            "海缆制造毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "海缆制造订单",
+              "海缆制造收入",
+              "海缆制造毛利率"
+            ],
+            "expectation_gap": [
+              "海缆制造订单高于预期",
+              "海缆制造导入快于预期",
+              "海缆制造价格/份额改善"
+            ],
+            "trigger_signals": [
+              "海缆制造中标/定点",
+              "海缆制造CAPEX上修",
+              "海缆制造业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "offshore_wind_subsea_cable_integration_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "海缆制造"
+              ],
+              "mapped_layer_id": "integration",
+              "mapped_segments": [
+                "海缆制造"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "offshore_wind_subsea_cable_integration_physical_metric",
+              "name": "海缆制造物理指标",
+              "mapped_layer_id": "integration",
+              "mapped_segment": "海缆制造",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "围绕海风海缆/海洋能源装备的配套层，跟踪施工船队;检测监测;海工吊装;电力设备;项目管理。",
+          "key_questions": [
+            "施工船队是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "施工船队",
+            "检测监测",
+            "海工吊装",
+            "电力设备",
+            "项目管理"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "施工船队订单",
+            "施工船队价格/渗透率",
+            "施工船队客户导入",
+            "施工船队CAPEX",
+            "施工船队毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "施工船队订单",
+              "施工船队收入",
+              "施工船队毛利率"
+            ],
+            "expectation_gap": [
+              "施工船队订单高于预期",
+              "施工船队导入快于预期",
+              "施工船队价格/份额改善"
+            ],
+            "trigger_signals": [
+              "施工船队中标/定点",
+              "施工船队CAPEX上修",
+              "施工船队业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "offshore_wind_subsea_cable_supporting_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "施工船队"
+              ],
+              "mapped_layer_id": "supporting",
+              "mapped_segments": [
+                "施工船队"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "offshore_wind_subsea_cable_supporting_physical_metric",
+              "name": "施工船队物理指标",
+              "mapped_layer_id": "supporting",
+              "mapped_segment": "施工船队",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "围绕海风海缆/海洋能源装备的基础设施层，跟踪海上风电基地;海底输电通道;柔直送出;海洋牧场能源系统;跨海联网。",
+          "key_questions": [
+            "海上风电基地是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "海上风电基地",
+            "海底输电通道",
+            "柔直送出",
+            "海洋牧场能源系统",
+            "跨海联网"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "海上风电基地订单",
+            "海上风电基地价格/渗透率",
+            "海上风电基地客户导入",
+            "海上风电基地CAPEX",
+            "海上风电基地毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "海上风电基地订单",
+              "海上风电基地收入",
+              "海上风电基地毛利率"
+            ],
+            "expectation_gap": [
+              "海上风电基地订单高于预期",
+              "海上风电基地导入快于预期",
+              "海上风电基地价格/份额改善"
+            ],
+            "trigger_signals": [
+              "海上风电基地中标/定点",
+              "海上风电基地CAPEX上修",
+              "海上风电基地业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "offshore_wind_subsea_cable_infrastructure_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "海上风电基地"
+              ],
+              "mapped_layer_id": "infrastructure",
+              "mapped_segments": [
+                "海上风电基地"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "offshore_wind_subsea_cable_infrastructure_physical_metric",
+              "name": "海上风电基地物理指标",
+              "mapped_layer_id": "infrastructure",
+              "mapped_segment": "海上风电基地",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "围绕海风海缆/海洋能源装备的商业变现层，跟踪海缆订单;海工收入;在手订单;交付验收;海洋板块收入。",
+          "key_questions": [
+            "海缆订单是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "海缆订单",
+            "海工收入",
+            "在手订单",
+            "交付验收",
+            "海洋板块收入"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中天科技"
+          ],
+          "tracking_metrics": [
+            "海缆订单订单",
+            "海缆订单价格/渗透率",
+            "海缆订单客户导入",
+            "海缆订单CAPEX",
+            "海缆订单毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "海缆订单订单",
+              "海缆订单收入",
+              "海缆订单毛利率"
+            ],
+            "expectation_gap": [
+              "海缆订单订单高于预期",
+              "海缆订单导入快于预期",
+              "海缆订单价格/份额改善"
+            ],
+            "trigger_signals": [
+              "海缆订单中标/定点",
+              "海缆订单CAPEX上修",
+              "海缆订单业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "offshore_wind_subsea_cable_commercialization_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "海缆订单"
+              ],
+              "mapped_layer_id": "commercialization",
+              "mapped_segments": [
+                "海缆订单"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "offshore_wind_subsea_cable_commercialization_physical_metric",
+              "name": "海缆订单物理指标",
+              "mapped_layer_id": "commercialization",
+              "mapped_segment": "海缆订单",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "template_id": "new_power_system_grid",
+      "name": "新型电力系统/智能电网复杂产业链路模板",
+      "description": "围绕新能源并网、特高压、柔直、电网智能化、配网升级、储能和用电侧管理，拆解电网投资、设备订单和商业化兑现。",
+      "example_theme": "新型电力系统/智能电网",
+      "macro_context": [
+        {
+          "region": "US",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "CN",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "JP",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "KR",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "EU",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        }
+      ],
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "围绕新型电力系统/智能电网的需求层，跟踪新能源并网;电网投资;特高压建设;配网升级;AI算力用电。",
+          "key_questions": [
+            "新能源并网是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "新能源并网",
+            "电网投资",
+            "特高压建设",
+            "配网升级",
+            "AI算力用电"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "新能源并网订单",
+            "新能源并网价格/渗透率",
+            "新能源并网客户导入",
+            "新能源并网CAPEX",
+            "新能源并网毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "新能源并网订单",
+              "新能源并网收入",
+              "新能源并网毛利率"
+            ],
+            "expectation_gap": [
+              "新能源并网订单高于预期",
+              "新能源并网导入快于预期",
+              "新能源并网价格/份额改善"
+            ],
+            "trigger_signals": [
+              "新能源并网中标/定点",
+              "新能源并网CAPEX上修",
+              "新能源并网业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "new_power_system_grid_demand_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "新能源并网"
+              ],
+              "mapped_layer_id": "demand",
+              "mapped_segments": [
+                "新能源并网"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "new_power_system_grid_demand_physical_metric",
+              "name": "新能源并网物理指标",
+              "mapped_layer_id": "demand",
+              "mapped_segment": "新能源并网",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "围绕新型电力系统/智能电网的任务层，跟踪远距离输电;柔性直流;电网调度;配电自动化;负荷管理。",
+          "key_questions": [
+            "远距离输电是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "远距离输电",
+            "柔性直流",
+            "电网调度",
+            "配电自动化",
+            "负荷管理"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "远距离输电订单",
+            "远距离输电价格/渗透率",
+            "远距离输电客户导入",
+            "远距离输电CAPEX",
+            "远距离输电毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "远距离输电订单",
+              "远距离输电收入",
+              "远距离输电毛利率"
+            ],
+            "expectation_gap": [
+              "远距离输电订单高于预期",
+              "远距离输电导入快于预期",
+              "远距离输电价格/份额改善"
+            ],
+            "trigger_signals": [
+              "远距离输电中标/定点",
+              "远距离输电CAPEX上修",
+              "远距离输电业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "new_power_system_grid_task_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "远距离输电"
+              ],
+              "mapped_layer_id": "task",
+              "mapped_segments": [
+                "远距离输电"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "new_power_system_grid_task_physical_metric",
+              "name": "远距离输电物理指标",
+              "mapped_layer_id": "task",
+              "mapped_segment": "远距离输电",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "围绕新型电力系统/智能电网的核心产品层，跟踪特高压设备;柔直设备;电力电缆;变压器;智能电表。",
+          "key_questions": [
+            "特高压设备是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "特高压设备",
+            "柔直设备",
+            "电力电缆",
+            "变压器",
+            "智能电表"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中国西电",
+            "中天科技",
+            "亨通光电",
+            "国电南瑞",
+            "宝胜股份",
+            "平高电气",
+            "思源电气",
+            "炬华科技",
+            "特变电工",
+            "许继电气",
+            "金盘科技",
+            "长高电气"
+          ],
+          "tracking_metrics": [
+            "特高压设备订单",
+            "特高压设备价格/渗透率",
+            "特高压设备客户导入",
+            "特高压设备CAPEX",
+            "特高压设备毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "特高压设备订单",
+              "特高压设备收入",
+              "特高压设备毛利率"
+            ],
+            "expectation_gap": [
+              "特高压设备订单高于预期",
+              "特高压设备导入快于预期",
+              "特高压设备价格/份额改善"
+            ],
+            "trigger_signals": [
+              "特高压设备中标/定点",
+              "特高压设备CAPEX上修",
+              "特高压设备业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "new_power_system_grid_core_product_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "特高压设备"
+              ],
+              "mapped_layer_id": "core_product",
+              "mapped_segments": [
+                "特高压设备"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "new_power_system_grid_core_product_physical_metric",
+              "name": "特高压设备物理指标",
+              "mapped_layer_id": "core_product",
+              "mapped_segment": "特高压设备",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "围绕新型电力系统/智能电网的底层支撑层，跟踪电力电子器件;绝缘材料;导线金具;通信光缆;传感计量。",
+          "key_questions": [
+            "电力电子器件是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "电力电子器件",
+            "绝缘材料",
+            "导线金具",
+            "通信光缆",
+            "传感计量"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "英杰电气"
+          ],
+          "tracking_metrics": [
+            "电力电子器件订单",
+            "电力电子器件价格/渗透率",
+            "电力电子器件客户导入",
+            "电力电子器件CAPEX",
+            "电力电子器件毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "电力电子器件订单",
+              "电力电子器件收入",
+              "电力电子器件毛利率"
+            ],
+            "expectation_gap": [
+              "电力电子器件订单高于预期",
+              "电力电子器件导入快于预期",
+              "电力电子器件价格/份额改善"
+            ],
+            "trigger_signals": [
+              "电力电子器件中标/定点",
+              "电力电子器件CAPEX上修",
+              "电力电子器件业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "new_power_system_grid_foundation_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "电力电子器件"
+              ],
+              "mapped_layer_id": "foundation",
+              "mapped_segments": [
+                "电力电子器件"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "new_power_system_grid_foundation_physical_metric",
+              "name": "电力电子器件物理指标",
+              "mapped_layer_id": "foundation",
+              "mapped_segment": "电力电子器件",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "围绕新型电力系统/智能电网的集成层，跟踪输变电系统;配网系统;调度自动化;储能接入;电力工程。",
+          "key_questions": [
+            "输变电系统是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "输变电系统",
+            "配网系统",
+            "调度自动化",
+            "储能接入",
+            "电力工程"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "东方电子"
+          ],
+          "tracking_metrics": [
+            "输变电系统订单",
+            "输变电系统价格/渗透率",
+            "输变电系统客户导入",
+            "输变电系统CAPEX",
+            "输变电系统毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "输变电系统订单",
+              "输变电系统收入",
+              "输变电系统毛利率"
+            ],
+            "expectation_gap": [
+              "输变电系统订单高于预期",
+              "输变电系统导入快于预期",
+              "输变电系统价格/份额改善"
+            ],
+            "trigger_signals": [
+              "输变电系统中标/定点",
+              "输变电系统CAPEX上修",
+              "输变电系统业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "new_power_system_grid_integration_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "输变电系统"
+              ],
+              "mapped_layer_id": "integration",
+              "mapped_segments": [
+                "输变电系统"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "new_power_system_grid_integration_physical_metric",
+              "name": "输变电系统物理指标",
+              "mapped_layer_id": "integration",
+              "mapped_segment": "输变电系统",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "围绕新型电力系统/智能电网的配套层，跟踪电力通信;二次设备;电力软件;运维检测;充电配套。",
+          "key_questions": [
+            "电力通信是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "电力通信",
+            "二次设备",
+            "电力软件",
+            "运维检测",
+            "充电配套"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "国网信通",
+            "安科瑞"
+          ],
+          "tracking_metrics": [
+            "电力通信订单",
+            "电力通信价格/渗透率",
+            "电力通信客户导入",
+            "电力通信CAPEX",
+            "电力通信毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "电力通信订单",
+              "电力通信收入",
+              "电力通信毛利率"
+            ],
+            "expectation_gap": [
+              "电力通信订单高于预期",
+              "电力通信导入快于预期",
+              "电力通信价格/份额改善"
+            ],
+            "trigger_signals": [
+              "电力通信中标/定点",
+              "电力通信CAPEX上修",
+              "电力通信业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "new_power_system_grid_supporting_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "电力通信"
+              ],
+              "mapped_layer_id": "supporting",
+              "mapped_segments": [
+                "电力通信"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "new_power_system_grid_supporting_physical_metric",
+              "name": "电力通信物理指标",
+              "mapped_layer_id": "supporting",
+              "mapped_segment": "电力通信",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "围绕新型电力系统/智能电网的基础设施层，跟踪特高压通道;主干电网;配电网;虚拟电厂;源网荷储系统。",
+          "key_questions": [
+            "特高压通道是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "特高压通道",
+            "主干电网",
+            "配电网",
+            "虚拟电厂",
+            "源网荷储系统"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "特锐德"
+          ],
+          "tracking_metrics": [
+            "特高压通道订单",
+            "特高压通道价格/渗透率",
+            "特高压通道客户导入",
+            "特高压通道CAPEX",
+            "特高压通道毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "特高压通道订单",
+              "特高压通道收入",
+              "特高压通道毛利率"
+            ],
+            "expectation_gap": [
+              "特高压通道订单高于预期",
+              "特高压通道导入快于预期",
+              "特高压通道价格/份额改善"
+            ],
+            "trigger_signals": [
+              "特高压通道中标/定点",
+              "特高压通道CAPEX上修",
+              "特高压通道业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "new_power_system_grid_infrastructure_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "特高压通道"
+              ],
+              "mapped_layer_id": "infrastructure",
+              "mapped_segments": [
+                "特高压通道"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "new_power_system_grid_infrastructure_physical_metric",
+              "name": "特高压通道物理指标",
+              "mapped_layer_id": "infrastructure",
+              "mapped_segment": "特高压通道",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "围绕新型电力系统/智能电网的商业变现层，跟踪电网订单;设备中标;收入确认;在手订单;毛利率。",
+          "key_questions": [
+            "电网订单是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "电网订单",
+            "设备中标",
+            "收入确认",
+            "在手订单",
+            "毛利率"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中天科技"
+          ],
+          "tracking_metrics": [
+            "电网订单订单",
+            "电网订单价格/渗透率",
+            "电网订单客户导入",
+            "电网订单CAPEX",
+            "电网订单毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "电网订单订单",
+              "电网订单收入",
+              "电网订单毛利率"
+            ],
+            "expectation_gap": [
+              "电网订单订单高于预期",
+              "电网订单导入快于预期",
+              "电网订单价格/份额改善"
+            ],
+            "trigger_signals": [
+              "电网订单中标/定点",
+              "电网订单CAPEX上修",
+              "电网订单业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "new_power_system_grid_commercialization_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "电网订单"
+              ],
+              "mapped_layer_id": "commercialization",
+              "mapped_segments": [
+                "电网订单"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "new_power_system_grid_commercialization_physical_metric",
+              "name": "电网订单物理指标",
+              "mapped_layer_id": "commercialization",
+              "mapped_segment": "电网订单",
               "metric_usage": [
                 "commercialization",
                 "expectation_gap",

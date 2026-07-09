@@ -424,6 +424,18 @@ class TestChainDeconstruct:
                 {"刻蚀设备", "薄膜设备", "清洗设备", "CMP设备"},
                 {"硅片", "光刻胶", "电子特气", "CMP材料"},
             ),
+            (
+                "offshore_wind_subsea_cable",
+                "海风海缆/海洋能源装备复杂产业链路模板",
+                {"海底电缆", "海底光电复合缆", "动态海缆"},
+                {"高压绝缘材料", "导体材料", "海缆附件"},
+            ),
+            (
+                "new_power_system_grid",
+                "新型电力系统/智能电网复杂产业链路模板",
+                {"特高压设备", "柔直设备", "电力电缆"},
+                {"电力电子器件", "绝缘材料", "导线金具"},
+            ),
         ],
     )
     def test_priority_complex_templates_return_eight_layer_chain_logic(
