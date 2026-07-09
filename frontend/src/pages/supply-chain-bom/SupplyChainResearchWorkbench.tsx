@@ -14,6 +14,17 @@ type ChainTemplateKey =
   | 'ai_compute_infrastructure'
   | 'advanced_packaging_chiplet'
   | 'semiconductor_equipment_materials'
+  | 'lithography_equipment_chain'
+  | 'data_ai_application_commercialization'
+  | 'defense_informatization_unmanned'
+  | 'intelligent_driving_v2x'
+  | 'controlled_fusion_materials'
+  | 'industrial_machine_tools_cnc'
+  | 'innovative_drug_cxo_adc_glp1'
+  | 'flexible_dc_offshore_wind_grid'
+  | 'rare_earth_minor_metals_security'
+  | 'display_oled_microled'
+  | 'domestic_os_database_industrial_software'
   | 'offshore_wind_subsea_cable'
   | 'new_power_system_grid'
   | 'embodied_intelligence'
@@ -120,6 +131,17 @@ export default function SupplyChainResearchWorkbench({
                 { label: 'AI算力', value: 'ai_compute_infrastructure' },
                 { label: '先进封装', value: 'advanced_packaging_chiplet' },
                 { label: '设备材料', value: 'semiconductor_equipment_materials' },
+                { label: '光刻机', value: 'lithography_equipment_chain' },
+                { label: '数据AI', value: 'data_ai_application_commercialization' },
+                { label: '军工无人', value: 'defense_informatization_unmanned' },
+                { label: '智能驾驶', value: 'intelligent_driving_v2x' },
+                { label: '核聚变', value: 'controlled_fusion_materials' },
+                { label: '工业母机', value: 'industrial_machine_tools_cnc' },
+                { label: '创新药', value: 'innovative_drug_cxo_adc_glp1' },
+                { label: '海风柔直', value: 'flexible_dc_offshore_wind_grid' },
+                { label: '稀土小金属', value: 'rare_earth_minor_metals_security' },
+                { label: '显示', value: 'display_oled_microled' },
+                { label: '国产软件', value: 'domestic_os_database_industrial_software' },
                 { label: '海风海缆', value: 'offshore_wind_subsea_cable' },
                 { label: '新型电力', value: 'new_power_system_grid' },
                 { label: '具身智能', value: 'embodied_intelligence' },

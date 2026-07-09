@@ -293,7 +293,7 @@ LISTED_COMPANY_MAPPINGS: list[dict[str, Any]] = [
     {"code": "688362", "name": "甬矽电子", "layer": "integration", "product": "封装测试"},
     {"code": "688352", "name": "颀中科技", "layer": "integration", "product": "封装测试"},
     {"code": "000021", "name": "深科技", "layer": "integration", "product": "存储封测/模组制造"},
-    {"code": "600667", "name": "太极实业", "layer": "integration", "product": "半导体工程/封测相关"},
+    {"code": "600667", "name": "太极实业", "layer": "integration", "product": "DRAM/NAND后工序封测/模组装配"},
     {"code": "300604", "name": "长川科技", "layer": "supporting", "product": "测试设备"},
     {"code": "688200", "name": "华峰测控", "layer": "supporting", "product": "测试设备"},
     {"code": "300567", "name": "精测电子", "layer": "supporting", "product": "半导体检测设备"},
@@ -325,6 +325,11 @@ LISTED_COMPANY_MAPPINGS: list[dict[str, Any]] = [
     {"code": "688008", "name": "澜起科技", "layer": "commercialization", "product": "内存接口芯片收入"},
     {"code": "688123", "name": "聚辰股份", "layer": "commercialization", "product": "存储配套芯片收入"},
     {"code": "301666", "name": "大普微", "layer": "commercialization", "product": "企业级SSD/存储控制销售"},
+    {"code": "600667", "name": "太极实业", "layer": "commercialization", "product": "存储封测后工序服务/SK海力士订单"},
+]
+
+OBSOLETE_MAPPING_KEYS = [
+    ("600667", "integration", "半导体工程/封测相关"),
 ]
 
 
@@ -479,6 +484,12 @@ def persist(pg_url: str) -> dict[str, int]:
                     (edge_id, nodes[idx]["node_id"], nodes[idx + 1]["node_id"], "8层复杂产业链顺序链路"),
                 )
                 counts["supply_chain_bom_edges"] += 1
+
+            for code, layer_id, product in OBSOLETE_MAPPING_KEYS:
+                cur.execute(
+                    "DELETE FROM business_tag_mapping WHERE mapping_id = %s",
+                    (mapping_id(code, layer_id, product),),
+                )
 
             for item in LISTED_COMPANY_MAPPINGS:
                 layer_id = item["layer"]
