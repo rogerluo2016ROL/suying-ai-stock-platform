@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-毕师傅趋势战法 v2.1 — MACD+OBV 七条件共振选股引擎 (速赢AI适配版).
+毕师傅趋势战法 v2.2 — MACD+OBV 八条件共振选股引擎 (速赢AI适配版).
 
 技术路线:
   1. MACD金叉 (DIF上穿DEA) + DIF在DEA下方≥3天 (过滤假金叉)
@@ -9,19 +9,17 @@
   4. 量能达标 (V>MA(V,5) 且 放量)
   5. K线健康 (收阳, 上影<5%)
   6. 非涨停 (确保可买入)
+  7. 距20日高点≤2% (排除已回落弱势股)
+  8. OBV领先于价格 (OBV近5日涨幅 > 价格近5日涨幅)
+
+v2.2 优化:
+  - 新增距20日高点过滤: 距高点>2%的回落股直接淘汰
+  - 新增OBV-价格背离确认: OBV涨幅必须领先价格涨幅
+  - 跌市保护: 假放量出货 + 高位回落股被系统性过滤
 
 v2.1 优化:
   - 新增 MACD_BELOW_MIN_DAYS=3 条件: 金叉前DIF必须在DEA下方≥3天
   - 过滤浅回调假金叉 (回测: 浅回调胜率37% vs 深回调胜率53%)
-  - 回调深度纳入评分 (≥7天深回调加分)
-
-v2.0 优化 (适配速赢AI架构):
-  - PG schema 适配 (pct_chg/turnover_rate/board)
-  - 综合评分 + S/A/B/C 评级 → 前端自动展示
-  - ATR 动态止损替代固定 -3%
-  - 换手率过滤 (排除僵尸股)
-  - 板块信息透出 (board 字段)
-  - 批量 K 线预取优化
 
 Usage:
     POST /api/v1/screen  {"mode": "bi_shifu_trend", "top_n": 20}
@@ -57,6 +55,10 @@ class Params:
 
     # 量能
     VOL_MA_PERIOD = 5
+
+    # v2.2: 跌市保护
+    NEAR_HIGH_MAX_PCT = -0.04    # 距20日高点不超过4% (排除已大幅回落股)
+    OBV_LEADING_PRICE = True     # OBV近5日涨幅必须领先于价格涨幅
 
     # K线
     SHADOW_MAX = 0.05            # 上影 < 5%
@@ -245,6 +247,20 @@ def screen_single(close: np.ndarray, open_: np.ndarray, high: np.ndarray,
     if _is_limit_up(code, pct_chg):
         return None
 
+    # ── v2.2: 跌市保护 ──
+    # 7) 距20日高点不超过2% (排除已从高点回落的弱势股)
+    high_20d = np.max(high[-20:]) if len(high) >= 20 else high[-1]
+    near_high_pct = (close[-1] / high_20d - 1.0) if high_20d > 0 else 0
+    if near_high_pct < P.NEAR_HIGH_MAX_PCT:
+        return None
+
+    # 8) OBV近5日涨幅必须领先于价格涨幅 (确认资金真流入)
+    if P.OBV_LEADING_PRICE and len(close) >= 6:
+        obv_slope_5d = (obv[-1] / obv[-6] - 1.0) if obv[-6] > 0 else 0
+        price_slope_5d = (close[-1] / close[-6] - 1.0) if close[-6] > 0 else 0
+        if obv_slope_5d <= price_slope_5d:
+            return None
+
     # 指标值
     dif_val = float(dif[-1])
     dea_val = float(dea[-1])
@@ -280,7 +296,9 @@ def screen_single(close: np.ndarray, open_: np.ndarray, high: np.ndarray,
         "vol_ratio": round(vol_ratio, 2),
         "obv_ratio": round(obv_ratio, 4),
         "shadow_pct": round(shadow_pct, 4),
-        "macd_below_days": macd_below,  # v2.1: 金叉前回调天数
+        "macd_below_days": macd_below,    # v2.1: 金叉前回调天数
+        "near_high_pct": round(near_high_pct * 100, 2),  # v2.2: 距20日高点
+        "obv_slope_5d": round((obv[-1] / obv[-6] - 1.0) * 100, 2) if len(obv) >= 6 and obv[-6] > 0 else 0,  # v2.2: OBV近5日涨幅
 
         # 信号日行情
         "close": round(float(close[-1]), 2),
@@ -433,11 +451,11 @@ def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
 # ==================== 引擎类 ====================
 
 class BiShifuTrendEngine:
-    """毕师傅趋势战法引擎 v2.1."""
+    """毕师傅趋势战法引擎 v2.2."""
 
     MODE_KEY = "bi_shifu_trend"
     MODE_NAME = "毕师傅趋势战法"
-    VERSION = "v2.1"
+    VERSION = "v2.2"
 
     def __init__(self, pg_url: str = None):
         self.pg_url = pg_url
