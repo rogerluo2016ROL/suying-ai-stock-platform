@@ -9,6 +9,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, Query, HTTPException
@@ -20,6 +21,14 @@ from app.config import AVAILABLE_MODES, DEFAULT_TOP_N, MAX_TOP_N
 from app.database import AsyncSession, get_db
 
 logger = logging.getLogger("screener.routes")
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+INDUSTRY_CHAIN_TEMPLATE_PATH = PROJECT_ROOT / "packages" / "kronos-factors" / "configs" / "industry_chain_templates.json"
+BIGTECH_COMPANIES = {"Microsoft", "Alphabet", "Meta", "Amazon", "Oracle"}
+AI_COMPUTE_LAYER_KEYWORDS = {
+    "demand": ("云", "cloud", "aws", "oci", "AI", "大模型", "算力", "应用"),
+    "foundation": ("HBM", "CoWoS", "封装", "服务器", "网络设备", "数据中心土地"),
+    "infrastructure": ("IDC", "数据中心", "服务器", "液冷", "光模块", "CPO", "网络", "交换机", "电源", "GPU", "云容量"),
+}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -246,7 +255,7 @@ def _screener_data_freshness(trade_date: str | None = None, source: str = "daily
 
 def _screener_source_for_mode(mode: str) -> str:
     if mode in ("cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1"):
-        return "limit_list_d + stk_auction_o"
+        return "limit_list_d + kpl_list + eastmoney_limit_pool + stk_auction_o"
     if "auction" in mode:
         return "stk_auction_o"
     if mode == "leader_intraday":
@@ -4662,7 +4671,136 @@ def _normalize_candidate_momentum(value: Any) -> float:
     return _candidate_rank_clamp((_to_float(value, 0.0) + 20.0) / 60.0 * 100.0)
 
 
-def _score_supply_chain_candidate_row(row: dict[str, Any]) -> dict[str, Any]:
+def _load_bigtech_capex_context() -> dict[str, Any]:
+    if not INDUSTRY_CHAIN_TEMPLATE_PATH.exists():
+        return {"company_count": 0, "record_count": 0, "layers": {}, "companies": []}
+    try:
+        data = json.loads(INDUSTRY_CHAIN_TEMPLATE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {"company_count": 0, "record_count": 0, "layers": {}, "companies": []}
+    template = next((item for item in data.get("templates", []) if item.get("template_id") == "complex_tech"), {})
+    layers: dict[str, list[dict[str, Any]]] = {}
+    companies: set[str] = set()
+    for layer in template.get("layers", []):
+        layer_id = str(layer.get("layer_id") or "")
+        for record in layer.get("capex_evidence", []):
+            company = str(record.get("company") or "")
+            if record.get("source_id") != "sec_company_filings":
+                continue
+            if record.get("evidence_level") != "reported":
+                continue
+            if company not in BIGTECH_COMPANIES:
+                continue
+            layers.setdefault(layer_id, []).append(record)
+            companies.add(company)
+    return {
+        "company_count": len(companies),
+        "record_count": sum(len(items) for items in layers.values()),
+        "layers": layers,
+        "companies": sorted(companies),
+    }
+
+
+def _score_bigtech_capex_tailwind(row: dict[str, Any], context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    if str(row.get("chain_id") or "") != "ai_compute":
+        return {
+            "score": 0.0,
+            "matched_layers": [],
+            "commercialization_indicator": "无板块级CAPEX加成",
+            "expectation_gap_indicator": "无",
+            "trigger_signal_indicator": "无",
+        }
+    context = context or _load_bigtech_capex_context()
+    companies = context.get("companies") or []
+    if not companies:
+        return {
+            "score": 0.0,
+            "matched_layers": [],
+            "commercialization_indicator": "缺少海外CAPEX证据",
+            "expectation_gap_indicator": "无",
+            "trigger_signal_indicator": "无",
+        }
+    text = " ".join(str(row.get(key) or "") for key in ("tag_name", "node_id", "industry", "name"))
+    text_lower = text.lower()
+    matched_layers = [
+        layer_id
+        for layer_id, keywords in AI_COMPUTE_LAYER_KEYWORDS.items()
+        if any(keyword.lower() in text_lower for keyword in keywords)
+    ]
+    if not matched_layers:
+        matched_layers = ["demand"]
+    record_count = int(context.get("record_count") or 0)
+    company_count = int(context.get("company_count") or 0)
+    layer_coverage = len(set(matched_layers)) / max(len(AI_COMPUTE_LAYER_KEYWORDS), 1)
+    evidence_depth = min(record_count / 13.0, 1.0)
+    company_depth = min(company_count / len(BIGTECH_COMPANIES), 1.0)
+    score = round(_candidate_rank_clamp(company_depth * 45.0 + evidence_depth * 35.0 + layer_coverage * 20.0), 2)
+    if score >= 80:
+        commercialization = "C3：海外云厂商CAPEX和数据中心扩张已形成强验证"
+        gap = "CAPEX/AI基础设施证据强于普通概念预期"
+        trigger = "海外大厂继续扩张AI数据中心、服务器、网络和云容量"
+    elif score >= 50:
+        commercialization = "C2：海外云厂商CAPEX方向已有文件验证"
+        gap = "CAPEX方向证据支持预期差跟踪"
+        trigger = "关注后续财报CAPEX指引和订单传导"
+    else:
+        commercialization = "C1：有板块证据但传导仍弱"
+        gap = "证据不足以单独构成预期差"
+        trigger = "等待更多CAPEX或订单证据"
+    return {
+        "score": score,
+        "matched_layers": matched_layers,
+        "company_count": company_count,
+        "record_count": record_count,
+        "companies": companies,
+        "commercialization_indicator": commercialization,
+        "expectation_gap_indicator": gap,
+        "trigger_signal_indicator": trigger,
+    }
+
+
+def _score_company_capex_evidence(row: dict[str, Any]) -> dict[str, Any]:
+    evidence_count = int(row.get("capex_evidence_count") or 0)
+    if evidence_count <= 0:
+        return {
+            "score": 0.0,
+            "evidence_count": 0,
+            "amount_count": 0,
+            "direction_ai_count": 0,
+            "fresh_count": 0,
+            "indicator": "无个股CAPEX证据",
+        }
+    amount_count = int(row.get("capex_amount_count") or 0)
+    direction_ai_count = int(row.get("capex_direction_ai_count") or 0)
+    fresh_count = int(row.get("capex_fresh_count") or 0)
+    avg_confidence = _candidate_rank_clamp(_to_float(row.get("capex_avg_confidence"), 0.0) * 100.0)
+    amount_score = min(amount_count / evidence_count, 1.0) * 25.0
+    direction_score = min(direction_ai_count / evidence_count, 1.0) * 30.0
+    freshness_score = min(fresh_count / evidence_count, 1.0) * 20.0
+    confidence_score = avg_confidence * 0.25
+    score = round(_candidate_rank_clamp(amount_score + direction_score + freshness_score + confidence_score), 2)
+    if direction_ai_count and amount_count:
+        indicator = "有金额和AI相关投入方向证据"
+    elif direction_ai_count:
+        indicator = "有AI相关投入方向证据，金额待补"
+    elif amount_count:
+        indicator = "有CAPEX金额证据，方向需继续确认"
+    else:
+        indicator = "有CAPEX方向证据，强度较弱"
+    return {
+        "score": score,
+        "evidence_count": evidence_count,
+        "amount_count": amount_count,
+        "direction_ai_count": direction_ai_count,
+        "fresh_count": fresh_count,
+        "avg_confidence": round(avg_confidence, 2),
+        "latest_as_of_date": str(row.get("capex_latest_as_of_date") or ""),
+        "directions": _json_or_default(row.get("capex_directions"), []),
+        "indicator": indicator,
+    }
+
+
+def _score_supply_chain_candidate_row(row: dict[str, Any], capex_context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     three_high = _candidate_rank_clamp(row.get("three_high_total"))
     moat = _candidate_rank_clamp(row.get("moat_score"))
     stage = _candidate_rank_clamp(row.get("stage_score"))
@@ -4671,7 +4809,9 @@ def _score_supply_chain_candidate_row(row: dict[str, Any]) -> dict[str, Any]:
     fresh = _candidate_rank_clamp(_to_float(row.get("fresh_rate"), 0.0) * 100.0)
     gap = _normalize_candidate_expectation_gap(row.get("expectation_gap_score"))
     momentum = _normalize_candidate_momentum(row.get("change_20d_pct"))
-    rank_score = round(
+    capex_tailwind = _score_bigtech_capex_tailwind(row, capex_context)
+    company_capex = _score_company_capex_evidence(row)
+    base_score = (
         three_high * 0.35
         + moat * 0.15
         + stage * 0.12
@@ -4679,7 +4819,14 @@ def _score_supply_chain_candidate_row(row: dict[str, Any]) -> dict[str, Any]:
         + l8 * 0.10
         + fresh * 0.08
         + gap * 0.06
-        + momentum * 0.02,
+        + momentum * 0.02
+    )
+    rank_score = round(
+        _candidate_rank_clamp(
+            base_score
+            + _to_float(capex_tailwind.get("score"), 0.0) * 0.04
+            + _to_float(company_capex.get("score"), 0.0) * 0.03
+        ),
         2,
     )
     if rank_score >= 80 and fresh >= 70 and l8 >= 50:
@@ -4701,7 +4848,14 @@ def _score_supply_chain_candidate_row(row: dict[str, Any]) -> dict[str, Any]:
             "freshness": round(fresh, 2),
             "expectation_gap": round(gap, 2),
             "momentum": round(momentum, 2),
+            "bigtech_capex_tailwind": round(_to_float(capex_tailwind.get("score"), 0.0), 2),
+            "company_capex_evidence": round(_to_float(company_capex.get("score"), 0.0), 2),
         },
+        "bigtech_capex_tailwind": capex_tailwind,
+        "company_capex_evidence": company_capex,
+        "commercialization_indicator": capex_tailwind["commercialization_indicator"] or row.get("commercialization_stage") or "",
+        "expectation_gap_indicator": company_capex["indicator"] if company_capex["score"] else capex_tailwind["expectation_gap_indicator"],
+        "trigger_signal_indicator": capex_tailwind["trigger_signal_indicator"],
     })
     return item
 
@@ -4738,6 +4892,11 @@ def _aggregate_supply_chain_candidate_rows(rows: list[dict[str, Any]]) -> list[d
             "gap_type": str(best.get("gap_type") or ""),
             "research_stage": str(best.get("research_stage") or ""),
             "commercialization_stage": str(best.get("commercialization_stage") or ""),
+            "commercialization_indicator": str(best.get("commercialization_indicator") or ""),
+            "expectation_gap_indicator": str(best.get("expectation_gap_indicator") or ""),
+            "trigger_signal_indicator": str(best.get("trigger_signal_indicator") or ""),
+            "bigtech_capex_tailwind": best.get("bigtech_capex_tailwind") or {},
+            "company_capex_evidence": best.get("company_capex_evidence") or {},
             "l8_match_rate": round(_to_float(best.get("l8_match_rate"), 0.0), 4),
             "fresh_rate": round(_to_float(best.get("fresh_rate"), 0.0), 4),
             "freshness_status": str(best.get("freshness_status") or "unknown"),
@@ -4791,8 +4950,42 @@ def _query_supply_chain_candidate_ranking(
                 payload["source_status"] = "missing_tables"
                 payload["limitations"].append(f"缺少表：{', '.join(missing)}")
                 return payload
+            has_capex_table = _pg_table_exists(cur, "business_tag_capex_evidence")
+            capex_cte = """
+                capex AS (
+                    SELECT
+                        mapping_id,
+                        count(*) FILTER (WHERE review_status = 'approved') AS capex_evidence_count,
+                        count(*) FILTER (WHERE review_status = 'approved' AND capex_amount IS NOT NULL) AS capex_amount_count,
+                        count(*) FILTER (WHERE review_status = 'approved' AND direction_is_ai_related) AS capex_direction_ai_count,
+                        count(*) FILTER (WHERE review_status = 'approved' AND as_of_date >= CURRENT_DATE - INTERVAL '540 days') AS capex_fresh_count,
+                        avg(confidence) FILTER (WHERE review_status = 'approved') AS capex_avg_confidence,
+                        max(as_of_date) FILTER (WHERE review_status = 'approved') AS capex_latest_as_of_date,
+                        jsonb_agg(DISTINCT capex_direction) FILTER (WHERE review_status = 'approved') AS capex_directions
+                    FROM business_tag_capex_evidence
+                    GROUP BY mapping_id
+                ),
+            """ if has_capex_table else ""
+            capex_select = """
+                    coalesce(cx.capex_evidence_count, 0) AS capex_evidence_count,
+                    coalesce(cx.capex_amount_count, 0) AS capex_amount_count,
+                    coalesce(cx.capex_direction_ai_count, 0) AS capex_direction_ai_count,
+                    coalesce(cx.capex_fresh_count, 0) AS capex_fresh_count,
+                    coalesce(cx.capex_avg_confidence, 0) AS capex_avg_confidence,
+                    cx.capex_latest_as_of_date,
+                    coalesce(cx.capex_directions, '[]'::jsonb) AS capex_directions,
+            """ if has_capex_table else """
+                    0 AS capex_evidence_count,
+                    0 AS capex_amount_count,
+                    0 AS capex_direction_ai_count,
+                    0 AS capex_fresh_count,
+                    0 AS capex_avg_confidence,
+                    NULL AS capex_latest_as_of_date,
+                    '[]'::jsonb AS capex_directions,
+            """
+            capex_join = "LEFT JOIN capex cx ON cx.mapping_id = b.mapping_id" if has_capex_table else ""
             cur.execute(
-                """
+                f"""
                 WITH mapping_base AS (
                     SELECT mapping_id, split_part(code, '.', 1) AS code, chain_id, node_id, tag_name, status AS mapping_status
                     FROM business_tag_mapping
@@ -4830,6 +5023,7 @@ def _query_supply_chain_candidate_ranking(
                     FROM evidence_extracted_facts
                     GROUP BY mapping_id
                 ),
+                {capex_cte}
                 market_latest AS (
                     SELECT DISTINCT ON (code)
                         code, trade_date AS latest_trade_date, close AS latest_price, change_pct AS change_1d_pct
@@ -4867,6 +5061,7 @@ def _query_supply_chain_candidate_ranking(
                          ELSE coalesce(l8.l8_matched, 0)::float / l8.l8_total END AS l8_match_rate,
                     coalesce(l8.l8_evidence_count, 0) AS l8_evidence_count,
                     coalesce(f.fact_count, 0) AS fact_count,
+                    {capex_select}
                     CASE WHEN fr.freshness_status = 'fresh' THEN 1.0
                          WHEN fr.freshness_status = 'stale' THEN 0.6
                          WHEN fr.freshness_status = 'expired' THEN 0.2
@@ -4882,13 +5077,15 @@ def _query_supply_chain_candidate_ranking(
                 LEFT JOIN latest_stage st ON st.mapping_id = b.mapping_id
                 LEFT JOIN l8 ON l8.mapping_id = b.mapping_id
                 LEFT JOIN facts f ON f.mapping_id = b.mapping_id
+                {capex_join}
                 LEFT JOIN business_tag_evidence_freshness fr ON fr.mapping_id = b.mapping_id
                 LEFT JOIN market_latest ml ON ml.code = b.code
                 LEFT JOIN market_20d m20 ON m20.code = b.code
                 """,
             )
             columns = [desc[0] for desc in cur.description]
-            scored = [_score_supply_chain_candidate_row(dict(zip(columns, row))) for row in cur.fetchall()]
+            capex_context = _load_bigtech_capex_context()
+            scored = [_score_supply_chain_candidate_row(dict(zip(columns, row)), capex_context) for row in cur.fetchall()]
             aggregated = _aggregate_supply_chain_candidate_rows(scored)
             if safe_chain_id:
                 aggregated = [item for item in aggregated if item.get("chain_id") == safe_chain_id]
@@ -4908,6 +5105,11 @@ def _query_supply_chain_candidate_ranking(
                 "company_chain_rows": len(aggregated),
                 "chain_count": len({item.get("chain_id") for item in aggregated}),
                 "signal_distribution": signal_distribution,
+                "bigtech_capex_context": {
+                    "company_count": capex_context.get("company_count", 0),
+                    "record_count": capex_context.get("record_count", 0),
+                    "companies": capex_context.get("companies", []),
+                },
             }
             payload["items"] = aggregated[:safe_top_n]
             payload["by_chain"] = by_chain
@@ -5450,6 +5652,184 @@ def _query_evidence_review_queue(limit: int = 50) -> dict[str, Any]:
         payload["error"] = str(e)
         payload["limitations"].append("PostgreSQL evidence review queue lookup failed")
     return payload
+
+
+def _query_capex_evidence_review_queue(
+    limit: int = 50,
+    chain_id: Optional[str] = None,
+    review_status: str = "pending_review",
+) -> dict[str, Any]:
+    capped_limit = max(1, min(int(limit or 50), 200))
+    safe_chain_id = str(chain_id or "").strip() or None
+    safe_status = str(review_status or "pending_review").strip()
+    allowed_statuses = {"pending_review", "approved", "rejected"}
+    if safe_status not in allowed_statuses:
+        safe_status = "pending_review"
+    payload: dict[str, Any] = {
+        "version": "business-tag-capex-evidence-review-queue-v1",
+        "source_status": "unknown",
+        "filters": {"limit": capped_limit, "chain_id": safe_chain_id, "review_status": safe_status},
+        "counts": {},
+        "queue": [],
+        "limitations": [],
+    }
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+            if not _pg_table_exists(cur, "business_tag_capex_evidence"):
+                payload["source_status"] = "missing_table"
+                payload["limitations"].append("business_tag_capex_evidence table is missing")
+                return payload
+            params: list[Any] = [safe_status]
+            chain_filter = ""
+            if safe_chain_id:
+                chain_filter = "AND c.chain_id = %s"
+                params.append(safe_chain_id)
+            cur.execute(
+                f"""
+                SELECT c.review_status, count(*)
+                FROM business_tag_capex_evidence c
+                WHERE 1=1 {chain_filter}
+                GROUP BY c.review_status
+                """,
+                params[1:] if safe_chain_id else [],
+            )
+            payload["counts"] = {str(row[0]): int(row[1]) for row in cur.fetchall()}
+            params.append(capped_limit)
+            cur.execute(
+                f"""
+                SELECT
+                    c.capex_evidence_id, c.mapping_id, c.code,
+                    coalesce(c.company_name, s.name, c.code) AS company_name,
+                    coalesce(c.chain_id, m.chain_id, '') AS chain_id,
+                    coalesce(c.node_id, m.node_id, '') AS node_id,
+                    coalesce(m.tag_name, '') AS tag_name,
+                    c.fiscal_period, c.as_of_date, c.capex_amount,
+                    c.capex_amount_unit, c.currency, c.capex_direction,
+                    c.mapped_layer_id, c.mapped_segments, c.source_type,
+                    c.source_level, c.source_name, c.source_url, c.quote,
+                    c.evidence_level, c.confidence, c.review_status,
+                    c.amount_is_total_capex, c.amount_is_segment_capex,
+                    c.direction_is_ai_related, c.metadata, c.created_at
+                FROM business_tag_capex_evidence c
+                LEFT JOIN business_tag_mapping m ON m.mapping_id = c.mapping_id
+                LEFT JOIN stocks s ON s.code = c.code
+                WHERE c.review_status = %s {chain_filter}
+                ORDER BY
+                    c.direction_is_ai_related DESC,
+                    c.confidence DESC,
+                    c.as_of_date DESC,
+                    c.created_at DESC
+                LIMIT %s
+                """,
+                params,
+            )
+            payload["queue"] = [
+                {
+                    "capex_evidence_id": str(row[0]),
+                    "mapping_id": str(row[1]),
+                    "code": str(row[2]),
+                    "company_name": str(row[3] or ""),
+                    "chain_id": str(row[4] or ""),
+                    "node_id": str(row[5] or ""),
+                    "tag_name": str(row[6] or ""),
+                    "fiscal_period": str(row[7] or ""),
+                    "as_of_date": str(row[8]) if row[8] else None,
+                    "capex_amount": _to_float(row[9], None),
+                    "capex_amount_unit": str(row[10] or ""),
+                    "currency": str(row[11] or ""),
+                    "capex_direction": _json_or_default(row[12], []),
+                    "mapped_layer_id": str(row[13] or ""),
+                    "mapped_segments": _json_or_default(row[14], []),
+                    "source_type": str(row[15] or ""),
+                    "source_level": str(row[16] or ""),
+                    "source_name": str(row[17] or ""),
+                    "source_url": str(row[18] or ""),
+                    "quote": str(row[19] or ""),
+                    "evidence_level": str(row[20] or ""),
+                    "confidence": _to_float(row[21], 0.0),
+                    "review_status": str(row[22] or ""),
+                    "amount_is_total_capex": bool(row[23]),
+                    "amount_is_segment_capex": bool(row[24]),
+                    "direction_is_ai_related": bool(row[25]),
+                    "metadata": _json_or_default(row[26], {}),
+                    "created_at": str(row[27]) if row[27] else None,
+                }
+                for row in cur.fetchall()
+            ]
+            payload["source_status"] = "ready"
+    except Exception as e:
+        payload["source_status"] = "degraded"
+        payload["error"] = str(e)
+        payload["limitations"].append("PostgreSQL CAPEX evidence review queue lookup failed")
+    return payload
+
+
+def _review_capex_evidence(
+    capex_evidence_id: str,
+    request: BusinessTagEvidenceReviewRequest,
+) -> dict[str, Any]:
+    allowed_statuses = {"approved", "rejected", "pending_review"}
+    review_status = str(request.review_status or "").strip()
+    if review_status not in allowed_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid review_status '{request.review_status}'")
+    if not capex_evidence_id:
+        raise HTTPException(status_code=400, detail="capex_evidence_id is required")
+    try:
+        with _pg_connect() as pg:
+            cur = pg.cursor()
+            if not _pg_table_exists(cur, "business_tag_capex_evidence"):
+                raise HTTPException(status_code=503, detail="business_tag_capex_evidence table is missing")
+            cur.execute(
+                """
+                SELECT capex_evidence_id, mapping_id, code, review_status, confidence
+                FROM business_tag_capex_evidence
+                WHERE capex_evidence_id = %s
+                LIMIT 1
+                """,
+                (capex_evidence_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail=f"CAPEX evidence '{capex_evidence_id}' not found")
+            confidence = request.confidence if request.confidence is not None else _to_float(row[4], 0.0)
+            metadata_patch = {
+                "reviewer": request.reviewer,
+                "review_note": request.note,
+                "reviewed_at": datetime.now().isoformat(timespec="seconds"),
+            }
+            cur.execute(
+                """
+                UPDATE business_tag_capex_evidence
+                SET review_status = %s,
+                    confidence = %s,
+                    metadata = metadata || %s::jsonb,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE capex_evidence_id = %s
+                """,
+                (
+                    review_status,
+                    confidence,
+                    json.dumps(metadata_patch, ensure_ascii=False),
+                    capex_evidence_id,
+                ),
+            )
+            pg.commit()
+            return {
+                "version": "business-tag-capex-evidence-review-v1",
+                "capex_evidence_id": str(row[0]),
+                "mapping_id": str(row[1] or ""),
+                "code": str(row[2] or ""),
+                "previous_review_status": str(row[3] or ""),
+                "review_status": review_status,
+                "confidence": confidence,
+                "reviewer": request.reviewer,
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("CAPEX evidence review failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"CAPEX evidence review failed: {e}") from e
 
 
 def _mapping_source_from_evidence(evidence: object) -> str:
@@ -6238,6 +6618,7 @@ async def list_modes():
             {"id": "cb_auction_t0_v2_1", "name": "竞价选债 T+0 优化版 V2.1 稳健版", "cycle": "T+0", "style": "稳健优化"},
             {"id": "bi_trend_launch","name": "毕师傅硬核科技趋势启动 V13", "cycle": "5-20天", "style": "趋势"},
             {"id": "bi_trend_full_market","name": "毕师傅全市场趋势启动 V1.0", "cycle": "5-20天", "style": "全市场"},
+            {"id": "bi_shifu_trend","name": "毕师傅趋势战法 v2.0", "cycle": "5-20天", "style": "趋势"},
             {"id": "supply_chain",  "name": "产业链预期差选股模型", "cycle": "3-12月", "style": "产业链预期差"},
             {"id": "supply_chain_trend_launch", "name": "大葱产业链趋势启动战法 vFinal", "cycle": "1月", "style": "动态轮动"},
         ]
@@ -6361,6 +6742,25 @@ async def supply_chain_evidence_review_queue(
 ):
     """Return evidence-chain review queue from stage, freshness, and expectation monitors."""
     return _query_evidence_review_queue(limit)
+
+
+@router.get("/supply-chain/capex-evidence-review/queue")
+async def supply_chain_capex_evidence_review_queue(
+    limit: int = Query(50, ge=1, le=200),
+    chain_id: Optional[str] = Query(None),
+    review_status: str = Query("pending_review"),
+):
+    """Return mapped-company CAPEX evidence records waiting for review."""
+    return _query_capex_evidence_review_queue(limit=limit, chain_id=chain_id, review_status=review_status)
+
+
+@router.post("/supply-chain/capex-evidence/{capex_evidence_id}/review")
+async def supply_chain_capex_evidence_review(
+    capex_evidence_id: str,
+    request: BusinessTagEvidenceReviewRequest,
+):
+    """Approve or reject one structured CAPEX evidence record."""
+    return _review_capex_evidence(capex_evidence_id, request)
 
 
 @router.post("/supply-chain/business-tag/{mapping_id}/three-high/score")
@@ -6889,6 +7289,10 @@ async def run_screening(
             result = await loop.run_in_executor(
                 _executor, _run_bi_full_market_mode, mode, top_n, trade_date
             )
+        elif mode == "bi_shifu_trend":
+            result = await loop.run_in_executor(
+                _executor, _run_bi_shifu_trend_mode, mode, top_n, trade_date
+            )
         elif mode == "supply_chain":
             result = await loop.run_in_executor(
                 _executor, _run_supply_chain_mode, mode, top_n, trade_date
@@ -7357,6 +7761,25 @@ def _run_bi_full_market_mode(mode: str, top_n: int, trade_date: Optional[str]) -
     }
 
 
+def _run_bi_shifu_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
+    """Run 毕师傅趋势战法 v2.0 (全市场多维度评分 + 趋势识别)."""
+    from kronos_factors.engine.bi_shifu_trend import BiShifuTrendEngine
+
+    resolved_trade_date = _resolve_trade_date(trade_date)
+    engine = BiShifuTrendEngine()
+    picks = engine.run(top_n=top_n, trade_date=resolved_trade_date)
+
+    picks = _sanitize_picks(picks)
+    picks = _normalize_picks(picks, mode)
+
+    return {
+        "mode": mode,
+        "trade_date": resolved_trade_date,
+        "total_picks": len(picks),
+        "picks": picks,
+    }
+
+
 def _run_afternoon_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
     """Run 秋神龙头战法-午后选股 V1.0 (14:30 afternoon leader screening)."""
     from kronos_factors.engine.leader_afternoon import (
@@ -7397,6 +7820,7 @@ def _run_afternoon_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dic
 async def chain_deconstruct(
     theme_id: str = Query(..., description="Industry theme ID (e.g., 'semiconductor')"),
     method: str = Query("upstream_downstream", description="Deconstruct method: bom, upstream_downstream, value_chain, competition"),
+    template: Optional[str] = Query(None, description="Optional industry-link template, e.g. complex_tech"),
 ):
     """Return industry chain deconstruct tree with selected view method.
 
@@ -7405,6 +7829,7 @@ async def chain_deconstruct(
     - upstream_downstream: 5-layer tree (原材料→零部件→制造→渠道→终端)
     - value_chain: tree + margin/pricing_power/value_added per node
     - competition: tree + concentration/leader_share/barrier/threat per node
+    - template=complex_tech: 8-layer complex-technology industry-link template
     """
     from kronos_factors.engine.chain_deconstruct import deconstruct_chain
 
@@ -7466,13 +7891,13 @@ async def chain_deconstruct(
 
     # Call deconstruct_chain with the nodes
     try:
-        result = deconstruct_chain(theme_id, method, nodes, theme_name)
+        result = deconstruct_chain(theme_id, method, nodes, theme_name, template=template)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     return _with_screener_contract(
         result,
-        mode=f"chain:{method}",
+        mode=f"chain:{template or method}",
         fallback_reason=fallback_reason,
         source="chain_nodes",
     )

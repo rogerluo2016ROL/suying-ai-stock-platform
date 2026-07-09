@@ -41,6 +41,7 @@ AVAILABLE_MODES = [
     "chokepoint",         # 大葱卡脖子选股模型
     "bi_trend_launch",    # 毕师傅趋势启动战法 V5.9 (硬核科技, OBV+WR)
     "bi_trend_full_market", # 毕师傅全市场趋势启动战法 V1.0 (全市场, VR过滤)
+    "bi_shifu_trend",     # 毕师傅趋势战法 v2.0 (全市场, 多维度评分)
     "cb_floor",           # 匪爷可转债底价选债模型
     "cb_intraday",        # 匪爷可转债日内投机博弈模型
     "cb_auction",         # 秋神竞价概念选债模型

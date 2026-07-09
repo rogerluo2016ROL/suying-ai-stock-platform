@@ -1,12 +1,13 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-07T16:23:53.669Z
-> Files: 595 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-09T00:05:49.705Z
+> Files: 599 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
 - `analyze_main_force_300539.py` — 分析 横河精密(300539) 主力出货迹象. (~2618 tok)
 - `analyze_main_force_600268.py` — 分析 国电南自(600268) 主力出货迹象. (~3079 tok)
+- `Modelfile.qwen3` (~29 tok)
 
 ## ../../.claude/
 
@@ -918,6 +919,7 @@
 
 ## packages/kronos-factors/kronos_factors/engine/
 
+- `bi_shifu_trend.py` — Params: screen_single, run_screening (~3875 tok)
 - `chain_deconstruct.py` — Industry chain deconstruct module for multi-method chain analysis. (~8473 tok)
 - `leader_afternoon.py` — 秋神龙头战法-午后选股模型 — Afternoon Leader Picking Model. (~12287 tok)
 - `multi_index.py` — MultiIndexEngine — 宽基指数成分股超额收益挖掘. (~1881 tok)
@@ -960,13 +962,13 @@
 
 ## services/screener-service/app/
 
-- `config.py` — Screener service configuration — all environment-driven. (~569 tok)
+- `config.py` — Screener service configuration — all environment-driven. (~595 tok)
 - `orchestrator.py` — Mode Orchestrator — V5.0 multi-strategy fusion + Kronos prediction + pipeline. (~5576 tok)
 - `watchlist_store.py` — Watchlist persistence for platform-scoped self-selected stocks. (~2759 tok)
 
 ## services/screener-service/app/routers/
 
-- `screener.py` — Screener API routes — 12 screening modes via unified endpoint with Redis caching. (~94850 tok)
+- `screener.py` — Screener API routes — 12 screening modes via unified endpoint with Redis caching. (~101758 tok)
 
 ## services/screener-service/tests/
 
@@ -975,6 +977,8 @@
 
 ## tools/
 
+- `backtest_bi_shifu_trend_correct.py` — get_bar, forward_date (~2750 tok)
+- `backtest_bi_shifu_trend.py` — forward_close (~2300 tok)
 - `backtest_institutional_activity.py` — 机构活跃度因子 — 月频 IC + 分组多空回测。 (~1636 tok)
 - `backtest_trend_launch_quick.py` — TrendLaunch Quick Backtest — 2024-2026, strict walk-forward. (~1910 tok)
 - `backtest_trend_launch.py` — TrendLaunchEngine Walk-Forward 回测 (严格杜绝数据泄露). (~2802 tok)
