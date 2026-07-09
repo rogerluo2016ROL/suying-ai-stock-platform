@@ -1,0 +1,55 @@
+{
+  "records": [
+    {
+      "evidence_id": "amzn_fy2026q1_cash_capex_aws_growth",
+      "source_id": "sec_company_filings",
+      "company": "Amazon",
+      "fiscal_period": "FY2026Q1",
+      "capex_amount": 43200,
+      "capex_amount_unit": "USD millions, Q1 2026 cash capital expenditures",
+      "capex_direction": [
+        "technology infrastructure",
+        "AWS business growth",
+        "fulfillment network capacity"
+      ],
+      "mapped_layer_id": "demand",
+      "mapped_segments": [
+        "云厂商资本开支",
+        "AWS",
+        "技术基础设施"
+      ],
+      "source_type": "sec_10q",
+      "source_name": "Amazon Form 10-Q, quarter ended March 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000014/amzn-20260331.htm",
+      "quote": "Cash capital expenditures were $24.3 billion and $43.2 billion during Q1 2025 and Q1 2026, which primarily reflect investments in technology infrastructure (the majority of which is to support AWS business growth) and in additional capacity to support our fulfillment network, both of which we expect to increase in 2026.",
+      "as_of_date": "2026-04-30",
+      "evidence_level": "reported"
+    },
+    {
+      "evidence_id": "amzn_fy2026q1_servers_datacenter_ai_ml",
+      "source_id": "sec_company_filings",
+      "company": "Amazon",
+      "fiscal_period": "FY2026Q1",
+      "capex_direction": [
+        "servers",
+        "networking equipment",
+        "data center depreciation and amortization",
+        "AWS",
+        "artificial intelligence and machine learning"
+      ],
+      "mapped_layer_id": "infrastructure",
+      "mapped_segments": [
+        "IDC",
+        "AI服务器",
+        "网络设备",
+        "AWS"
+      ],
+      "source_type": "sec_10q",
+      "source_name": "Amazon Form 10-Q, quarter ended March 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000014/amzn-20260331.htm",
+      "quote": "Infrastructure costs include servers, networking equipment, and data center related depreciation and amortization, rent, utilities, and other expenses necessary to support AWS and other Amazon businesses. We expect spending in technology and infrastructure to increase over time as we continue to add infrastructure and employees, including to support our artificial intelligence and machine learning initiatives.",
+      "as_of_date": "2026-04-30",
+      "evidence_level": "reported"
+    }
+  ]
+}

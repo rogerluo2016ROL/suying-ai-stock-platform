@@ -19,6 +19,13 @@ import psycopg2.extras
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "supply_chain_candidate_ranking_20260703"
+INDUSTRY_CHAIN_TEMPLATE_PATH = PROJECT_ROOT / "packages" / "kronos-factors" / "configs" / "industry_chain_templates.json"
+BIGTECH_COMPANIES = {"Microsoft", "Alphabet", "Meta", "Amazon", "Oracle"}
+AI_COMPUTE_LAYER_KEYWORDS = {
+    "demand": ("云", "cloud", "aws", "oci", "AI", "大模型", "算力", "应用"),
+    "foundation": ("HBM", "CoWoS", "封装", "服务器", "网络设备", "数据中心土地"),
+    "infrastructure": ("IDC", "数据中心", "服务器", "液冷", "光模块", "CPO", "网络", "交换机", "电源", "GPU", "云容量"),
+}
 
 
 def clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
@@ -36,7 +43,133 @@ def normalize_momentum(change_20d_pct: float | None) -> float:
     return clamp((float(change_20d_pct or 0) + 20.0) / 60.0 * 100.0)
 
 
-def score_candidate(row: dict[str, Any]) -> dict[str, Any]:
+def load_bigtech_capex_context(config_path: Path = INDUSTRY_CHAIN_TEMPLATE_PATH) -> dict[str, Any]:
+    if not config_path.exists():
+        return {"company_count": 0, "record_count": 0, "layers": {}, "companies": []}
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+    template = next((item for item in data.get("templates", []) if item.get("template_id") == "complex_tech"), {})
+    layers: dict[str, list[dict[str, Any]]] = {}
+    companies: set[str] = set()
+    for layer in template.get("layers", []):
+        layer_id = str(layer.get("layer_id") or "")
+        for record in layer.get("capex_evidence", []):
+            company = str(record.get("company") or "")
+            if record.get("source_id") != "sec_company_filings":
+                continue
+            if record.get("evidence_level") != "reported":
+                continue
+            if company not in BIGTECH_COMPANIES:
+                continue
+            layers.setdefault(layer_id, []).append(record)
+            companies.add(company)
+    return {
+        "company_count": len(companies),
+        "record_count": sum(len(items) for items in layers.values()),
+        "layers": layers,
+        "companies": sorted(companies),
+    }
+
+
+def score_bigtech_capex_tailwind(row: dict[str, Any], context: dict[str, Any] | None = None) -> dict[str, Any]:
+    if str(row.get("chain_id") or "") != "ai_compute":
+        return {
+            "score": 0.0,
+            "matched_layers": [],
+            "commercialization_indicator": "无板块级CAPEX加成",
+            "expectation_gap_indicator": "无",
+            "trigger_signal_indicator": "无",
+        }
+    context = context or load_bigtech_capex_context()
+    companies = context.get("companies") or []
+    if not companies:
+        return {
+            "score": 0.0,
+            "matched_layers": [],
+            "commercialization_indicator": "缺少海外CAPEX证据",
+            "expectation_gap_indicator": "无",
+            "trigger_signal_indicator": "无",
+        }
+    text = " ".join(str(row.get(key) or "") for key in ("tag_name", "node_id", "industry", "name"))
+    text_lower = text.lower()
+    matched_layers = [
+        layer_id
+        for layer_id, keywords in AI_COMPUTE_LAYER_KEYWORDS.items()
+        if any(keyword.lower() in text_lower for keyword in keywords)
+    ]
+    if not matched_layers:
+        matched_layers = ["demand"]
+    record_count = int(context.get("record_count") or 0)
+    company_count = int(context.get("company_count") or 0)
+    layer_coverage = len(set(matched_layers)) / max(len(AI_COMPUTE_LAYER_KEYWORDS), 1)
+    evidence_depth = min(record_count / 13.0, 1.0)
+    company_depth = min(company_count / len(BIGTECH_COMPANIES), 1.0)
+    score = round(clamp(company_depth * 45.0 + evidence_depth * 35.0 + layer_coverage * 20.0), 2)
+    if score >= 80:
+        commercialization = "C3：海外云厂商CAPEX和数据中心扩张已形成强验证"
+        gap = "CAPEX/AI基础设施证据强于普通概念预期"
+        trigger = "海外大厂继续扩张AI数据中心、服务器、网络和云容量"
+    elif score >= 50:
+        commercialization = "C2：海外云厂商CAPEX方向已有文件验证"
+        gap = "CAPEX方向证据支持预期差跟踪"
+        trigger = "关注后续财报CAPEX指引和订单传导"
+    else:
+        commercialization = "C1：有板块证据但传导仍弱"
+        gap = "证据不足以单独构成预期差"
+        trigger = "等待更多CAPEX或订单证据"
+    return {
+        "score": score,
+        "matched_layers": matched_layers,
+        "company_count": company_count,
+        "record_count": record_count,
+        "companies": companies,
+        "commercialization_indicator": commercialization,
+        "expectation_gap_indicator": gap,
+        "trigger_signal_indicator": trigger,
+    }
+
+
+def score_company_capex_evidence(row: dict[str, Any]) -> dict[str, Any]:
+    evidence_count = int(row.get("capex_evidence_count") or 0)
+    if evidence_count <= 0:
+        return {
+            "score": 0.0,
+            "evidence_count": 0,
+            "amount_count": 0,
+            "direction_ai_count": 0,
+            "fresh_count": 0,
+            "indicator": "无个股CAPEX证据",
+        }
+    amount_count = int(row.get("capex_amount_count") or 0)
+    direction_ai_count = int(row.get("capex_direction_ai_count") or 0)
+    fresh_count = int(row.get("capex_fresh_count") or 0)
+    avg_confidence = clamp(float(row.get("capex_avg_confidence") or 0) * 100.0)
+    amount_score = min(amount_count / evidence_count, 1.0) * 25.0
+    direction_score = min(direction_ai_count / evidence_count, 1.0) * 30.0
+    freshness_score = min(fresh_count / evidence_count, 1.0) * 20.0
+    confidence_score = avg_confidence * 0.25
+    score = round(clamp(amount_score + direction_score + freshness_score + confidence_score), 2)
+    if direction_ai_count and amount_count:
+        indicator = "有金额和AI相关投入方向证据"
+    elif direction_ai_count:
+        indicator = "有AI相关投入方向证据，金额待补"
+    elif amount_count:
+        indicator = "有CAPEX金额证据，方向需继续确认"
+    else:
+        indicator = "有CAPEX方向证据，强度较弱"
+    return {
+        "score": score,
+        "evidence_count": evidence_count,
+        "amount_count": amount_count,
+        "direction_ai_count": direction_ai_count,
+        "fresh_count": fresh_count,
+        "avg_confidence": round(avg_confidence, 2),
+        "latest_as_of_date": str(row.get("capex_latest_as_of_date") or ""),
+        "directions": row.get("capex_directions") or [],
+        "indicator": indicator,
+    }
+
+
+def score_candidate(row: dict[str, Any], capex_context: dict[str, Any] | None = None) -> dict[str, Any]:
     three_high = clamp(row.get("three_high_total"))
     moat = clamp(row.get("moat_score"))
     stage = clamp(row.get("stage_score"))
@@ -45,7 +178,9 @@ def score_candidate(row: dict[str, Any]) -> dict[str, Any]:
     fresh = clamp(float(row.get("fresh_rate") or 0) * 100.0)
     gap = normalize_expectation_gap(row.get("expectation_gap_score"))
     momentum = normalize_momentum(row.get("change_20d_pct"))
-    rank_score = round(
+    capex_tailwind = score_bigtech_capex_tailwind(row, capex_context)
+    company_capex = score_company_capex_evidence(row)
+    base_score = (
         three_high * 0.35
         + moat * 0.15
         + stage * 0.12
@@ -53,9 +188,9 @@ def score_candidate(row: dict[str, Any]) -> dict[str, Any]:
         + l8 * 0.10
         + fresh * 0.08
         + gap * 0.06
-        + momentum * 0.02,
-        2,
+        + momentum * 0.02
     )
+    rank_score = round(clamp(base_score + float(capex_tailwind["score"]) * 0.04 + float(company_capex["score"]) * 0.03), 2)
     if rank_score >= 80 and fresh >= 70 and l8 >= 50:
         signal = "重点候选"
     elif rank_score >= 65:
@@ -75,7 +210,14 @@ def score_candidate(row: dict[str, Any]) -> dict[str, Any]:
             "freshness": round(fresh, 2),
             "expectation_gap": round(gap, 2),
             "momentum": round(momentum, 2),
+            "bigtech_capex_tailwind": round(float(capex_tailwind["score"]), 2),
+            "company_capex_evidence": round(float(company_capex["score"]), 2),
         },
+        "bigtech_capex_tailwind": capex_tailwind,
+        "company_capex_evidence": company_capex,
+        "commercialization_indicator": capex_tailwind["commercialization_indicator"] or row.get("commercialization_stage") or "",
+        "expectation_gap_indicator": row.get("capex_expectation_gap_indicator") or capex_tailwind["expectation_gap_indicator"],
+        "trigger_signal_indicator": capex_tailwind["trigger_signal_indicator"],
     })
     return payload
 
@@ -107,6 +249,11 @@ def aggregate_company_chain(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "evidence_score": round(float(best.get("evidence_score") or 0), 2),
             "expectation_gap_score": round(float(best.get("expectation_gap_score") or 0), 2),
             "gap_type": best.get("gap_type") or "",
+            "commercialization_indicator": best.get("commercialization_indicator") or "",
+            "expectation_gap_indicator": best.get("expectation_gap_indicator") or "",
+            "trigger_signal_indicator": best.get("trigger_signal_indicator") or "",
+            "bigtech_capex_tailwind": best.get("bigtech_capex_tailwind") or {},
+            "company_capex_evidence": best.get("company_capex_evidence") or {},
             "l8_match_rate": round(float(best.get("l8_match_rate") or 0), 4),
             "fresh_rate": round(float(best.get("fresh_rate") or 0), 4),
             "fact_count": int(sum(int(item.get("fact_count") or 0) for item in items)),
@@ -165,6 +312,19 @@ def fetch_mapping_rows(pg_url: str) -> list[dict[str, Any]]:
         FROM evidence_extracted_facts
         GROUP BY mapping_id
     ),
+    capex AS (
+        SELECT
+            mapping_id,
+            count(*) FILTER (WHERE review_status = 'approved') AS capex_evidence_count,
+            count(*) FILTER (WHERE review_status = 'approved' AND capex_amount IS NOT NULL) AS capex_amount_count,
+            count(*) FILTER (WHERE review_status = 'approved' AND direction_is_ai_related) AS capex_direction_ai_count,
+            count(*) FILTER (WHERE review_status = 'approved' AND as_of_date >= CURRENT_DATE - INTERVAL '540 days') AS capex_fresh_count,
+            avg(confidence) FILTER (WHERE review_status = 'approved') AS capex_avg_confidence,
+            max(as_of_date) FILTER (WHERE review_status = 'approved') AS capex_latest_as_of_date,
+            jsonb_agg(DISTINCT capex_direction) FILTER (WHERE review_status = 'approved') AS capex_directions
+        FROM business_tag_capex_evidence
+        GROUP BY mapping_id
+    ),
     market_latest AS (
         SELECT DISTINCT ON (code)
             code, trade_date AS latest_trade_date, close AS latest_price,
@@ -210,6 +370,13 @@ def fetch_mapping_rows(pg_url: str) -> list[dict[str, Any]]:
              ELSE coalesce(l8.l8_matched, 0)::float / l8.l8_total END AS l8_match_rate,
         coalesce(l8.l8_evidence_count, 0) AS l8_evidence_count,
         coalesce(f.fact_count, 0) AS fact_count,
+        coalesce(cx.capex_evidence_count, 0) AS capex_evidence_count,
+        coalesce(cx.capex_amount_count, 0) AS capex_amount_count,
+        coalesce(cx.capex_direction_ai_count, 0) AS capex_direction_ai_count,
+        coalesce(cx.capex_fresh_count, 0) AS capex_fresh_count,
+        coalesce(cx.capex_avg_confidence, 0) AS capex_avg_confidence,
+        cx.capex_latest_as_of_date,
+        coalesce(cx.capex_directions, '[]'::jsonb) AS capex_directions,
         CASE WHEN fr.freshness_status = 'fresh' THEN 1.0
              WHEN fr.freshness_status = 'stale' THEN 0.6
              WHEN fr.freshness_status = 'expired' THEN 0.2
@@ -227,6 +394,7 @@ def fetch_mapping_rows(pg_url: str) -> list[dict[str, Any]]:
     LEFT JOIN latest_stage st ON st.mapping_id = b.mapping_id
     LEFT JOIN l8 ON l8.mapping_id = b.mapping_id
     LEFT JOIN facts f ON f.mapping_id = b.mapping_id
+    LEFT JOIN capex cx ON cx.mapping_id = b.mapping_id
     LEFT JOIN business_tag_evidence_freshness fr ON fr.mapping_id = b.mapping_id
     LEFT JOIN market_latest ml ON ml.code = b.code
     LEFT JOIN market_20d m20 ON m20.code = b.code
@@ -239,7 +407,8 @@ def fetch_mapping_rows(pg_url: str) -> list[dict[str, Any]]:
 
 
 def build_ranking(pg_url: str, top_n: int = 100) -> dict[str, Any]:
-    mapping_rows = [score_candidate(row) for row in fetch_mapping_rows(pg_url)]
+    capex_context = load_bigtech_capex_context()
+    mapping_rows = [score_candidate(row, capex_context) for row in fetch_mapping_rows(pg_url)]
     company_chain_rows = aggregate_company_chain(mapping_rows)
     global_top = company_chain_rows[:top_n]
     by_chain: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -253,6 +422,11 @@ def build_ranking(pg_url: str, top_n: int = 100) -> dict[str, Any]:
         "chain_count": len(by_chain),
         "top_n": top_n,
         "signal_distribution": {},
+        "bigtech_capex_context": {
+            "company_count": capex_context.get("company_count", 0),
+            "record_count": capex_context.get("record_count", 0),
+            "companies": capex_context.get("companies", []),
+        },
     }
     for row in company_chain_rows:
         summary["signal_distribution"][row["signal"]] = summary["signal_distribution"].get(row["signal"], 0) + 1
@@ -284,7 +458,8 @@ def write_reports(ranking: dict[str, Any], output_dir: Path) -> dict[str, str]:
         "best_tag_name", "three_high_total", "growth_score", "profit_score", "moat_score",
         "stage_score", "evidence_score", "expectation_gap_score", "l8_match_rate",
         "fresh_rate", "fact_count", "latest_price", "latest_trade_date", "change_1d_pct",
-        "change_20d_pct", "best_mapping_id",
+        "change_20d_pct", "commercialization_indicator", "expectation_gap_indicator",
+        "trigger_signal_indicator", "best_mapping_id",
     ]
     with csv_path.open("w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=fields)

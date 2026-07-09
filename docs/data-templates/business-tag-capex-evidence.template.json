@@ -1,0 +1,40 @@
+{
+  "records": [
+    {
+      "capex_evidence_id": "replace_with_mapping_period_direction",
+      "mapping_id": "replace_with_business_tag_mapping_id",
+      "code": "000001",
+      "company_name": "公司名称",
+      "chain_id": "ai_compute",
+      "node_id": "replace_with_node_id",
+      "fiscal_period": "2026H1",
+      "report_date": "2026-08-30",
+      "as_of_date": "2026-08-30",
+      "capex_amount": null,
+      "capex_amount_unit": "",
+      "currency": "CNY",
+      "capex_direction": [
+        "AI服务器",
+        "数据中心"
+      ],
+      "mapped_layer_id": "infrastructure",
+      "mapped_segments": [
+        "AI服务器",
+        "IDC"
+      ],
+      "source_id": "annual_report",
+      "source_type": "annual_report",
+      "source_level": "strong",
+      "source_name": "2026年半年度报告",
+      "source_url": "",
+      "quote": "粘贴公告或报告中的原文，不允许留空。",
+      "evidence_level": "directional",
+      "confidence": 0.8,
+      "review_status": "pending_review",
+      "amount_is_total_capex": false,
+      "amount_is_segment_capex": false,
+      "direction_is_ai_related": true,
+      "metadata": {}
+    }
+  ]
+}

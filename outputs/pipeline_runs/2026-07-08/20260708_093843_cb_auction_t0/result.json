@@ -1,0 +1,237 @@
+{
+  "mode": "cb_auction_t0_v2_1",
+  "trade_date": "2026-07-08",
+  "total_picks": 0,
+  "picks": [],
+  "observation_picks": [],
+  "total_observation_picks": 0,
+  "process_summary": {
+    "trigger_stock_count": 0,
+    "concept_count": 0,
+    "main_pick_count": 0,
+    "observation_pick_count": 0,
+    "rejection_count": 0
+  },
+  "screening_trace": [
+    {
+      "step": "交易日确认",
+      "status": "ok",
+      "detail": "使用交易日 2026-07-08"
+    },
+    {
+      "step": "触发股筛选",
+      "status": "empty",
+      "detail": "竞价触发股 0 只"
+    },
+    {
+      "step": "概念映射",
+      "status": "skipped",
+      "detail": "有效概念 0 个"
+    },
+    {
+      "step": "转债匹配",
+      "status": "skipped",
+      "detail": "主买 0 只，观察 0 只"
+    },
+    {
+      "step": "输出分层",
+      "status": "empty",
+      "detail": "cb_auction_t0_v2_1 输出主买 0 只"
+    }
+  ],
+  "rejection_summary": [],
+  "no_result_reason": "2026-07-08 未找到符合竞价 T+0 条件的触发股。常见原因是当日竞价/涨停数据未入库，或没有封单金额达到模型阈值的正股。",
+  "data_refresh": {
+    "status": "skipped"
+  },
+  "pipeline": {
+    "model_key": "cb_auction_t0",
+    "run_id": "20260708_093843",
+    "run_dir": "/Users/rogerluo/程序目录/K线大模型/outputs/pipeline_runs/2026-07-08/20260708_093843_cb_auction_t0",
+    "started_at": "2026-07-08T09:38:45",
+    "primary_rows": {
+      "limit_list_d": 0,
+      "kpl_list": 0,
+      "stk_auction_o": 5129
+    },
+    "eastmoney_fallback": {
+      "eastmoney": {
+        "returncode": 0,
+        "elapsed": 8.8,
+        "stdout_tail": "{\n  \"status\": \"ok\",\n  \"source\": \"eastmoney_spot_snapshot\",\n  \"host\": \"push2delay.eastmoney.com\",\n  \"trade_date\": \"2026-07-08\",\n  \"started_at\": \"2026-07-08T09:38:45\",\n  \"finished_at\": \"2026-07-08T09:38:54\",\n  \"fetched\": 5535,\n  \"usable_rows\": 4562,\n  \"written\": 4562,\n  \"note\": \"备用快照口径，不包含真实封单金额，不能等价替代limit_list_d.fd_amount。\"\n}",
+        "stderr_tail": "",
+        "json": {
+          "status": "ok",
+          "source": "eastmoney_spot_snapshot",
+          "host": "push2delay.eastmoney.com",
+          "trade_date": "2026-07-08",
+          "started_at": "2026-07-08T09:38:45",
+          "finished_at": "2026-07-08T09:38:54",
+          "fetched": 5535,
+          "usable_rows": 4562,
+          "written": 4562,
+          "note": "备用快照口径，不包含真实封单金额，不能等价替代limit_list_d.fd_amount。"
+        }
+      },
+      "returncode": 0,
+      "elapsed": 0.9,
+      "stdout_tail": "竞价选债 T+0 | 2026-07-08\n触发股票: 7 | 概念: 2 | 转债: 0 | 观察: 0 | 待确认: 0\n------------------------------------------------------------------------------------------------------------------------\n#   转债           正股             题材分 概念                       风险提示\n\n触发股\n------------------------------------------------------------------------------------------------------------------------\n1   岭南控股       000524   竞价涨幅 10.06% 竞价成交  1973.8万\n2   新联电子       002546   竞价涨幅 10.04% 竞价成交 18642.3万\n3   浪潮信息       000977   竞价涨幅 10.01% 竞价成交160350.3万\n4   华菱线缆       001208   竞价涨幅 10.00% 竞价成交  6332.5万\n5   魅视科技       001229   竞价涨幅  9.99% 竞价成交  3783.1万\n6   紫光股份       000938   竞价涨幅  9.59% 竞价成交540124.0万\n7   大名城        600094   竞价涨幅  9.11% 竞价成交  5912.0万\n\nJSON: /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-08_cb_auction_snapshot_emergency.json\nCSV:  /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-08_cb_auction_snapshot_emergency.csv",
+      "stderr_tail": "",
+      "result_path": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-08_cb_auction_snapshot_emergency.json",
+      "result": {
+        "model": "cb_auction_snapshot_emergency",
+        "trade_date": "2026-07-08",
+        "trigger_stocks": [
+          {
+            "trigger_stock_code": "000524",
+            "trigger_stock_name": "岭南控股",
+            "fd_amount": 19737548.2,
+            "fd_amount_yi": 0.2,
+            "first_time": "09:25:00",
+            "prev_was_limit_up": false,
+            "emergency_source": "stk_auction_o",
+            "auction_gap_pct": 10.06,
+            "auction_amount_wan": 1973.8
+          },
+          {
+            "trigger_stock_code": "002546",
+            "trigger_stock_name": "新联电子",
+            "fd_amount": 186423027.84,
+            "fd_amount_yi": 1.86,
+            "first_time": "09:25:00",
+            "prev_was_limit_up": false,
+            "emergency_source": "stk_auction_o",
+            "auction_gap_pct": 10.04,
+            "auction_amount_wan": 18642.3
+          },
+          {
+            "trigger_stock_code": "000977",
+            "trigger_stock_name": "浪潮信息",
+            "fd_amount": 1603502773.4,
+            "fd_amount_yi": 16.04,
+            "first_time": "09:25:00",
+            "prev_was_limit_up": false,
+            "emergency_source": "stk_auction_o",
+            "auction_gap_pct": 10.01,
+            "auction_amount_wan": 160350.3
+          },
+          {
+            "trigger_stock_code": "001208",
+            "trigger_stock_name": "华菱线缆",
+            "fd_amount": 63324855.0,
+            "fd_amount_yi": 0.63,
+            "first_time": "09:25:00",
+            "prev_was_limit_up": false,
+            "emergency_source": "stk_auction_o",
+            "auction_gap_pct": 10.0,
+            "auction_amount_wan": 6332.5
+          },
+          {
+            "trigger_stock_code": "001229",
+            "trigger_stock_name": "魅视科技",
+            "fd_amount": 37831346.0,
+            "fd_amount_yi": 0.38,
+            "first_time": "09:25:00",
+            "prev_was_limit_up": false,
+            "emergency_source": "stk_auction_o",
+            "auction_gap_pct": 9.99,
+            "auction_amount_wan": 3783.1
+          },
+          {
+            "trigger_stock_code": "000938",
+            "trigger_stock_name": "紫光股份",
+            "fd_amount": 5401240177.55,
+            "fd_amount_yi": 54.01,
+            "first_time": "09:25:00",
+            "prev_was_limit_up": false,
+            "emergency_source": "stk_auction_o",
+            "auction_gap_pct": 9.59,
+            "auction_amount_wan": 540124.0
+          },
+          {
+            "trigger_stock_code": "600094",
+            "trigger_stock_name": "大名城",
+            "fd_amount": 59120358.0,
+            "fd_amount_yi": 0.59,
+            "first_time": "09:25:00",
+            "prev_was_limit_up": false,
+            "emergency_source": "stk_auction_o",
+            "auction_gap_pct": 9.11,
+            "auction_amount_wan": 5912.0
+          }
+        ],
+        "concepts": [
+          {
+            "concept_code": "884165.TI",
+            "concept_name": "旅游综合",
+            "trigger_stock_count": 1,
+            "concept_fd_amount": 19737548.2,
+            "concept_fd_amount_yi": 0.2,
+            "trigger_sources": [
+              "000524"
+            ],
+            "concept_size": 1,
+            "concept_strength": 3.8729675713733815,
+            "concept_strength_source": "auction_avg",
+            "auction_sample_count": 8
+          },
+          {
+            "concept_code": "881160.TI",
+            "concept_name": "旅游及酒店",
+            "trigger_stock_count": 1,
+            "concept_fd_amount": 19737548.2,
+            "concept_fd_amount_yi": 0.2,
+            "trigger_sources": [
+              "000524"
+            ],
+            "concept_size": 1,
+            "concept_strength": 2.702213234815873,
+            "concept_strength_source": "auction_avg",
+            "auction_sample_count": 35
+          }
+        ],
+        "bonds": [],
+        "observation_bonds": [],
+        "pending_confirmation_stocks": [],
+        "rejections": [
+          {
+            "code": "301251",
+            "name": "威尔高",
+            "reason": "昨日已涨停"
+          },
+          {
+            "code": "603137",
+            "name": "恒尚节能",
+            "reason": "昨日已涨停"
+          },
+          {
+            "cb_code": "113564.SH",
+            "cb_name": "天目转债",
+            "stk_code": "603136",
+            "stk_name": "天目湖",
+            "delist_date": "2021-05-19",
+            "reason": "已退市转债剔除"
+          },
+          {
+            "cb_code": "125069.SZ",
+            "cb_name": "侨城转债",
+            "stk_code": "000069",
+            "stk_name": "华侨城A",
+            "delist_date": "2005-04-29",
+            "reason": "已退市转债剔除"
+          },
+          {
+            "cb_code": "128022.SZ",
+            "cb_name": "众信转债",
+            "stk_code": "002707",
+            "stk_name": "众信旅游",
+            "delist_date": "2022-12-29",
+            "reason": "已退市转债剔除"
+          }
+        ],
+        "note": "临时口径: limit_list_d 未更新时，使用 stk_auction_o 竞价涨幅和成交额触发。"
+      }
+    },
+    "markdown_path": "/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/093855_cb_auction_t0_v2_1.md"
+  }
+}

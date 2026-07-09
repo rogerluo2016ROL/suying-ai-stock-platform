@@ -1,0 +1,66 @@
+{
+  "records": [
+    {
+      "evidence_id": "replace_with_company_demand_capex_period",
+      "source_id": "sec_company_filings",
+      "company": "REPLACE_WITH_COMPANY",
+      "fiscal_period": "REPLACE_WITH_FISCAL_PERIOD",
+      "capex_direction": [
+        "REPLACE_WITH_CAPEX_DIRECTION"
+      ],
+      "mapped_layer_id": "demand",
+      "mapped_segments": [
+        "云厂商资本开支",
+        "AI 数据中心"
+      ],
+      "source_type": "earnings_call",
+      "source_name": "SEC filing / investor relations / earnings call",
+      "source_url": "",
+      "quote": "PASTE_ORIGINAL_QUOTE_HERE",
+      "as_of_date": "YYYY-MM-DD",
+      "evidence_level": "reported"
+    },
+    {
+      "evidence_id": "replace_with_company_foundation_capex_period",
+      "source_id": "sec_company_filings",
+      "company": "REPLACE_WITH_COMPANY",
+      "fiscal_period": "REPLACE_WITH_FISCAL_PERIOD",
+      "capex_direction": [
+        "REPLACE_WITH_CAPEX_DIRECTION"
+      ],
+      "mapped_layer_id": "foundation",
+      "mapped_segments": [
+        "HBM",
+        "CoWoS",
+        "先进封装"
+      ],
+      "source_type": "earnings_call",
+      "source_name": "SEC filing / investor relations / earnings call",
+      "source_url": "",
+      "quote": "PASTE_ORIGINAL_QUOTE_HERE",
+      "as_of_date": "YYYY-MM-DD",
+      "evidence_level": "reported"
+    },
+    {
+      "evidence_id": "replace_with_company_infrastructure_capex_period",
+      "source_id": "sec_company_filings",
+      "company": "REPLACE_WITH_COMPANY",
+      "fiscal_period": "REPLACE_WITH_FISCAL_PERIOD",
+      "capex_direction": [
+        "REPLACE_WITH_CAPEX_DIRECTION"
+      ],
+      "mapped_layer_id": "infrastructure",
+      "mapped_segments": [
+        "IDC",
+        "液冷",
+        "高功率机柜"
+      ],
+      "source_type": "earnings_call",
+      "source_name": "SEC filing / investor relations / earnings call",
+      "source_url": "",
+      "quote": "PASTE_ORIGINAL_QUOTE_HERE",
+      "as_of_date": "YYYY-MM-DD",
+      "evidence_level": "reported"
+    }
+  ]
+}

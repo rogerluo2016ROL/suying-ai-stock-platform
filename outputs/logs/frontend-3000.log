@@ -17,3 +17,8 @@ TypeError: Cannot read properties of undefined (reading 'DEV')
 
   ➜  Local:   http://127.0.0.1:3000/
   ➜  press h + enter to show help
+1:05:42 AM [vite] (client) hmr update /src/App.tsx, /src/contexts/AuthContext.tsx
+9:40:24 AM [vite] (client) hmr update /src/App.tsx, /src/contexts/AuthContext.tsx
+1:36:39 PM [vite] (client) hmr update /src/App.tsx, /src/contexts/AuthContext.tsx
+2:30:57 PM [vite] (client) hmr update /src/App.tsx, /src/contexts/AuthContext.tsx
+2:31:08 PM [vite] (client) hmr update /src/App.tsx, /src/contexts/AuthContext.tsx

@@ -1,0 +1,13 @@
+{
+  "status": "ok",
+  "model_key": "supply_chain_trend_launch",
+  "trade_date": "2026-07-08",
+  "mode": "supply_chain_trend_launch",
+  "top_n": 3,
+  "refresh": {
+    "status": "skipped"
+  },
+  "primary_rows": null,
+  "fallback": null,
+  "report_path": "/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/094356_supply_chain_trend_launch.md"
+}

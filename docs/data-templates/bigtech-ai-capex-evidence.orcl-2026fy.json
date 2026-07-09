@@ -1,0 +1,74 @@
+{
+  "records": [
+    {
+      "evidence_id": "orcl_fy2026_oci_ai_cloud_offerings",
+      "source_id": "sec_company_filings",
+      "company": "Oracle",
+      "fiscal_period": "FY2026",
+      "capex_direction": [
+        "Oracle Cloud Infrastructure",
+        "Oracle Cloud",
+        "AI technologies",
+        "cloud-based IT environment"
+      ],
+      "mapped_layer_id": "demand",
+      "mapped_segments": [
+        "云厂商资本开支",
+        "OCI",
+        "企业AI应用"
+      ],
+      "source_type": "sec_10k",
+      "source_name": "Oracle Form 10-K, fiscal year ended May 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526277521/orcl-20260531.htm",
+      "quote": "Oracle cloud offerings include Oracle Cloud Applications (OCA) and Oracle Cloud Infrastructure (OCI, and collectively with OCA, Oracle Cloud), which provide comprehensive and integrated applications and infrastructure services, enabling our customers to choose the best option that meets their specific business needs. Oracle Cloud integrates IT components in a cloud-based IT environment that Oracle deploys and manages for customers and is accessible by utilizing common web browsers via a broad spectrum of devices. AI technologies embedded in Oracle Cloud offerings are designed to support the improvement of our customers' existing and new workflows and business processes, including automation and data analyses.",
+      "as_of_date": "2026-06-22",
+      "evidence_level": "reported"
+    },
+    {
+      "evidence_id": "orcl_fy2026_datacenter_capacity_expansion",
+      "source_id": "sec_company_filings",
+      "company": "Oracle",
+      "fiscal_period": "FY2026",
+      "capex_direction": [
+        "data center capacity",
+        "new geographic data centers",
+        "Oracle Cloud offerings"
+      ],
+      "mapped_layer_id": "infrastructure",
+      "mapped_segments": [
+        "IDC",
+        "云数据中心",
+        "OCI"
+      ],
+      "source_type": "sec_10k",
+      "source_name": "Oracle Form 10-K, fiscal year ended May 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526277521/orcl-20260531.htm",
+      "quote": "We have invested in the rapid expansion of the Oracle Cloud by increasing existing data center capacity and adding data centers in new geographic locations to meet current and expected customer demand. We expect this trend will continue.",
+      "as_of_date": "2026-06-22",
+      "evidence_level": "reported"
+    },
+    {
+      "evidence_id": "orcl_fy2026_cloud_capex_increase",
+      "source_id": "sec_company_filings",
+      "company": "Oracle",
+      "fiscal_period": "FY2026",
+      "capex_direction": [
+        "capital assets",
+        "cloud and software business",
+        "capital expenditures"
+      ],
+      "mapped_layer_id": "infrastructure",
+      "mapped_segments": [
+        "IDC",
+        "云基础设施",
+        "资本开支"
+      ],
+      "source_type": "sec_10k",
+      "source_name": "Oracle Form 10-K, fiscal year ended May 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526277521/orcl-20260531.htm",
+      "quote": "The changes in cash flows from investing activities primarily relate to our investments in capital assets to support the growth in our cloud and software business and purchases, maturities and sales of our investments in marketable securities and other instruments. Net cash used for investing activities increased by $30.1 billion in fiscal 2026 relative to fiscal 2025 primarily due to a $34.4 billion increase in capital expenditures, partially offset by $4.3 billion of cash proceeds from the sale of our investment in Ampere.",
+      "as_of_date": "2026-06-22",
+      "evidence_level": "reported"
+    }
+  ]
+}

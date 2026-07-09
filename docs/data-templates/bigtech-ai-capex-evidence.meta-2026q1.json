@@ -1,0 +1,78 @@
+{
+  "records": [
+    {
+      "evidence_id": "meta_fy2026q1_capex_amount",
+      "source_id": "sec_company_filings",
+      "company": "Meta",
+      "fiscal_period": "FY2026Q1",
+      "capex_amount": 19840,
+      "capex_amount_unit": "USD millions, three months ended 2026-03-31 capital expenditures including principal payments on finance leases",
+      "capex_direction": [
+        "capital expenditures",
+        "finance leases"
+      ],
+      "mapped_layer_id": "demand",
+      "mapped_segments": [
+        "云厂商资本开支",
+        "AI 数据中心"
+      ],
+      "source_type": "sec_10q",
+      "source_name": "Meta Platforms Form 10-Q, quarter ended March 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026028526/meta-20260331.htm",
+      "quote": "Capital expenditures, including principal payments on finance leases, were $19.84 billion for the three months ended March 31, 2026.",
+      "as_of_date": "2026-04-30",
+      "evidence_level": "reported"
+    },
+    {
+      "evidence_id": "meta_fy2026q1_ai_infrastructure_investments",
+      "source_id": "sec_company_filings",
+      "company": "Meta",
+      "fiscal_period": "FY2026Q1",
+      "capex_direction": [
+        "AI initiatives",
+        "third-party cloud capacity",
+        "servers",
+        "data centers",
+        "network infrastructure"
+      ],
+      "mapped_layer_id": "infrastructure",
+      "mapped_segments": [
+        "IDC",
+        "AI服务器",
+        "网络基础设施",
+        "云容量"
+      ],
+      "source_type": "sec_10q",
+      "source_name": "Meta Platforms Form 10-Q, quarter ended March 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026028526/meta-20260331.htm",
+      "quote": "In particular, we have significantly increased our infrastructure investments in connection with our AI initiatives, including third-party cloud capacity arrangements and investments in servers, data centers, and network infrastructure, and expect our investments to continue to increase.",
+      "as_of_date": "2026-04-30",
+      "evidence_level": "reported"
+    },
+    {
+      "evidence_id": "meta_fy2026q1_louisiana_ai_datacenter_campus",
+      "source_id": "sec_company_filings",
+      "company": "Meta",
+      "fiscal_period": "FY2026Q1",
+      "capex_amount": 27000,
+      "capex_amount_unit": "USD millions, total estimated development costs for Louisiana data center campus venture; parties fund pro rata and Meta holds 20 percent interest",
+      "capex_direction": [
+        "data center campus",
+        "future infrastructure capacity",
+        "AI markets"
+      ],
+      "mapped_layer_id": "infrastructure",
+      "mapped_segments": [
+        "IDC",
+        "AI 数据中心",
+        "长期容量"
+      ],
+      "source_type": "sec_10q",
+      "source_name": "Meta Platforms Form 10-Q, quarter ended March 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026028526/meta-20260331.htm",
+      "quote": "This Venture provides strategic optionality and flexibility, which we expect will enable us to effectively meet future infrastructure capacity needs as AI markets and technologies develop. The parties have committed to fund their respective pro rata share of approximately $27 billion in total estimated development costs.",
+      "as_of_date": "2026-04-30",
+      "evidence_level": "reported"
+    }
+  ]
+}

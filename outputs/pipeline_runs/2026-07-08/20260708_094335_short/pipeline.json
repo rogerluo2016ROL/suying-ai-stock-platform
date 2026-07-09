@@ -1,0 +1,14 @@
+{
+  "status": "dry_run",
+  "model_key": "short",
+  "mode": "short",
+  "trade_date": "2026-07-08",
+  "top_n": 20,
+  "command": {
+    "command": "匪爷短线多因子选股",
+    "mode": "short",
+    "top_n": 20,
+    "trade_date": "2026-07-08"
+  },
+  "run_dir": "/Users/rogerluo/程序目录/K线大模型/outputs/pipeline_runs/2026-07-08/20260708_094335_short"
+}

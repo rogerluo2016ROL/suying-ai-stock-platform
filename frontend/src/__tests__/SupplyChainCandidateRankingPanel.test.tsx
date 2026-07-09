@@ -23,6 +23,11 @@ describe('SupplyChainCandidateRankingPanel', () => {
           company_chain_rows: 1219,
           chain_count: 18,
           signal_distribution: { 重点候选: 1, 观察: 92, 暂缓: 1126 },
+          bigtech_capex_context: {
+            company_count: 5,
+            record_count: 13,
+            companies: ['Alphabet', 'Amazon', 'Meta', 'Microsoft', 'Oracle'],
+          },
         },
         items: [
           {
@@ -47,6 +52,16 @@ describe('SupplyChainCandidateRankingPanel', () => {
             expectation_gap_score: 76,
             research_stage: '工程验证',
             commercialization_stage: '批量供货',
+            commercialization_indicator: 'C3：海外云厂商CAPEX和数据中心扩张已形成强验证',
+            expectation_gap_indicator: 'CAPEX/AI基础设施证据强于普通概念预期',
+            trigger_signal_indicator: '海外大厂继续扩张AI数据中心、服务器、网络和云容量',
+            bigtech_capex_tailwind: {
+              score: 93.33,
+              matched_layers: ['demand', 'infrastructure'],
+              company_count: 5,
+              record_count: 13,
+              companies: ['Alphabet', 'Amazon', 'Meta', 'Microsoft', 'Oracle'],
+            },
             l8_match_rate: 0.83,
             fresh_rate: 1,
             freshness_status: 'fresh',
@@ -79,6 +94,11 @@ describe('SupplyChainCandidateRankingPanel', () => {
     expect(screen.getByText('源杰科技')).toBeInTheDocument()
     expect(screen.getByText('AI算力硬件')).toBeInTheDocument()
     expect(screen.getAllByText('重点候选').length).toBeGreaterThan(0)
+    expect(screen.getByText('海外大厂 CAPEX 证据')).toBeInTheDocument()
+    expect(screen.getAllByText('5 家大厂').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('13 条 SEC 证据').length).toBeGreaterThan(0)
+    expect(screen.getByText('大厂顺风 93.3')).toBeInTheDocument()
+    expect(screen.getByText('CAPEX/AI基础设施证据强于普通概念预期')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /查看证据/ }))
 

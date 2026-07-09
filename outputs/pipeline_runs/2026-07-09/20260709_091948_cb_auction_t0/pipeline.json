@@ -1,0 +1,72 @@
+{
+  "status": "ok",
+  "model_key": "cb_auction_t0",
+  "trade_date": "2026-07-09",
+  "mode": "cb_auction_t0_v2_1",
+  "top_n": 10,
+  "refresh": {
+    "status": "skipped"
+  },
+  "primary_rows": {
+    "limit_list_d": 0,
+    "kpl_list": 0,
+    "eastmoney_limit_pool": 0,
+    "stk_auction_o": 0
+  },
+  "pre_model_fallback": {
+    "eastmoney_limit_pool": {
+      "returncode": 2,
+      "elapsed": 2.1,
+      "stdout_tail": "{\n  \"status\": \"empty\",\n  \"source\": \"eastmoney_zt_pool\",\n  \"trade_date\": \"2026-07-09\",\n  \"started_at\": \"2026-07-09T09:19:48\",\n  \"finished_at\": \"2026-07-09T09:19:50\",\n  \"fetched\": 0,\n  \"usable_rows\": 0,\n  \"written\": 0,\n  \"note\": \"备用口径：使用东方财富涨停池 fund 字段作为封单资金，主链路仍优先使用 limit_list_d.fd_amount。\"\n}",
+      "stderr_tail": "",
+      "json": {
+        "status": "empty",
+        "source": "eastmoney_zt_pool",
+        "trade_date": "2026-07-09",
+        "started_at": "2026-07-09T09:19:48",
+        "finished_at": "2026-07-09T09:19:50",
+        "fetched": 0,
+        "usable_rows": 0,
+        "written": 0,
+        "note": "备用口径：使用东方财富涨停池 fund 字段作为封单资金，主链路仍优先使用 limit_list_d.fd_amount。"
+      }
+    }
+  },
+  "fallback": {
+    "eastmoney": {
+      "returncode": 0,
+      "elapsed": 29.6,
+      "stdout_tail": "{\n  \"status\": \"ok\",\n  \"source\": \"eastmoney_spot_snapshot\",\n  \"host\": \"push2delay.eastmoney.com\",\n  \"trade_date\": \"2026-07-09\",\n  \"started_at\": \"2026-07-09T09:19:56\",\n  \"finished_at\": \"2026-07-09T09:20:26\",\n  \"fetched\": 5536,\n  \"usable_rows\": 4678,\n  \"written\": 4678,\n  \"note\": \"普通行情快照口径，不包含涨停池封单资金；仅在主接口和东方财富涨停池都不可用时最后兜底。\"\n}",
+      "stderr_tail": "",
+      "json": {
+        "status": "ok",
+        "source": "eastmoney_spot_snapshot",
+        "host": "push2delay.eastmoney.com",
+        "trade_date": "2026-07-09",
+        "started_at": "2026-07-09T09:19:56",
+        "finished_at": "2026-07-09T09:20:26",
+        "fetched": 5536,
+        "usable_rows": 4678,
+        "written": 4678,
+        "note": "普通行情快照口径，不包含涨停池封单资金；仅在主接口和东方财富涨停池都不可用时最后兜底。"
+      }
+    },
+    "returncode": 0,
+    "elapsed": 1.9,
+    "stdout_tail": "竞价选债 T+0 | 2026-07-09\n触发股票: 0 | 概念: 0 | 转债: 0 | 观察: 0 | 待确认: 0\n------------------------------------------------------------------------------------------------------------------------\n#   转债           正股             题材分 概念                       风险提示\n\n触发股\n------------------------------------------------------------------------------------------------------------------------\n\nJSON: /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-09_cb_auction_snapshot_emergency.json\nCSV:  /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-09_cb_auction_snapshot_emergency.csv",
+    "stderr_tail": "",
+    "result_path": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-09_cb_auction_snapshot_emergency.json",
+    "result": {
+      "model": "cb_auction_snapshot_emergency",
+      "trade_date": "2026-07-09",
+      "trigger_stocks": [],
+      "concepts": [],
+      "bonds": [],
+      "observation_bonds": [],
+      "pending_confirmation_stocks": [],
+      "rejections": [],
+      "note": "临时口径: limit_list_d 未更新时，使用 stk_auction_o 竞价涨幅和成交额触发。"
+    }
+  },
+  "report_path": "/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-09/092028_cb_auction_t0_v2_1.md"
+}

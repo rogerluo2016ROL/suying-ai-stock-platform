@@ -616,3 +616,311 @@ INFO:     127.0.0.1:51465 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
 2026-07-07 23:50:05,601 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_faa2d434bdf9970cabd7813b2fe7bee2', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
 INFO:     127.0.0.1:51493 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
 2026-07-07 23:50:32,392 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 帮我诊断一下新洁能这只股票', 'intent': 'single_stock_model_analysis', 'context_modes': ['leader_afternoon', 'bi_trend_launch'], 'answer_sent': True}
+  📊 pre_close from daily_kline(2026-07-06): 4989 stocks
+  市场环境: 🟠观望 — 涨跌比仅11%, 极度弱势
+  📡 快照(live): 4996 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-07): 8 只
+  📊 pre_close from daily_kline(2026-07-06): 4989 只 (含回退)
+  🔒 14:30涨停检测: 30 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 17 只 (1.9s)
+    熔断: 涨跌比13%<18%
+INFO:     127.0.0.1:64747 - "GET /api/v1/screener/models HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:64748 - "GET /health HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53811 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+2026-07-08 09:50:15,584 [INFO] screener.cache: Redis connected: redis://localhost:7379/0
+  📊 pre_close from daily_kline(2026-07-07): 4988 stocks
+  市场环境: 🟠观望 — 涨跌比仅21%, 极度弱势
+  📡 快照(live): 4996 只 (0.0s)
+  📊 pre_close from stk_auction_o(2026-07-08): 4987 只
+  📊 pre_close from daily_kline(2026-07-07): 4989 只 (含回退)
+  🔒 14:30涨停检测: 18 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 24 只 (1.5s)
+INFO:     127.0.0.1:53925 - "POST /api/v1/screener/run?mode=leader_afternoon&top_n=20 HTTP/1.1" 200 OK
+2026-07-08 14:09:12,050 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_2cf8c5a41059a589a77f74e0bd9890ac', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:62108 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-08 14:09:49,606 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'leader_afternoon', 'total_picks': 6, 'markdown_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/140934_leader_afternoon.md', 'doc_xml_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/140934_leader_afternoon.doc.xml', 'doc_url': 'https://xcnl9dvruj6a.feishu.cn/docx/NzQydlTc7o5rMDx1n6fc9HEDnfb'}
+2026-07-08 14:45:09,790 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-07): 4988 stocks
+  市场环境: 🟡中性 — 涨跌比30%偏低
+  📡 快照(live): 4996 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-08): 4987 只
+  📊 pre_close from daily_kline(2026-07-07): 4989 只 (含回退)
+  🔒 14:30涨停检测: 47 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 42 只 (2.8s)
+INFO:     127.0.0.1:51450 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-08 14:45:46,662 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'leader_afternoon', 'total_picks': 7, 'markdown_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/144532_leader_afternoon.md', 'doc_xml_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/144532_leader_afternoon.doc.xml', 'doc_url': 'https://xcnl9dvruj6a.feishu.cn/docx/QMzId33FdoFafhxoApYcAGC8nmd'}
+INFO:     Started server process [25202]
+INFO:     Waiting for application startup.
+2026-07-08 16:05:10,439 [INFO] screener-service: Starting Screener Service...
+2026-07-08 16:05:11,353 [WARNING] kronos-factors.pg: PG connection failed: connection to server at "localhost" (::1), port 6432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+connection to server at "localhost" (127.0.0.1), port 6432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+
+2026-07-08 16:05:11,353 [WARNING] screener-service: PG unavailable (create_pg_adapter returned None); SQLite fallback disabled unless explicitly enabled
+2026-07-08 16:05:11,361 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-08 16:05:11,361 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-08 16:05:11,362 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-08 16:05:11,364 [WARNING] screener.scheduler: Scheduler: backfill failed — connection to server at "localhost" (::1), port 6432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+connection to server at "localhost" (127.0.0.1), port 6432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+
+2026-07-08 16:05:11,364 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-08
+2026-07-08 16:05:11,366 [WARNING] screener.scheduler: Scheduler: backfill failed — connection to server at "localhost" (::1), port 6432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+connection to server at "localhost" (127.0.0.1), port 6432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:51755 - "GET /api/v1/lark/config HTTP/1.1" 404 Not Found
+2026-07-08 16:06:25,352 [INFO] kronos-factors.db_stub: Auto-initialized PG adapter: localhost:6432/kronos
+INFO:     127.0.0.1:51858 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+2026-07-08 16:12:39,810 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:52516 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-08 16:12:52,929 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 测试机器人链路：请回复收到', 'intent': 'general_qa', 'context_modes': ['leader_afternoon'], 'answer_sent': True}
+2026-07-08 16:13:25,841 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-07): 4988 stocks
+  市场环境: 🟡中性 — 涨跌比31%偏低
+  📡 快照(live): 4996 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-08): 4987 只
+  📊 pre_close from daily_kline(2026-07-07): 4989 只 (含回退)
+  🔒 14:30涨停检测: 47 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 35 只 (2.2s)
+INFO:     127.0.0.1:52569 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-08 16:13:38,571 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 新洁能这只股票怎样？', 'intent': 'single_stock_model_analysis', 'context_modes': ['leader_afternoon', 'bi_trend_launch'], 'answer_sent': True}
+2026-07-08 16:14:29,567 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-07): 4988 stocks
+  市场环境: 🟡中性 — 涨跌比31%偏低
+  📡 快照(live): 4996 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-08): 4987 只
+  📊 pre_close from daily_kline(2026-07-07): 4989 只 (含回退)
+  🔒 14:30涨停检测: 47 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 35 只 (2.0s)
+    熔断: 涨跌比13%<18%
+INFO:     127.0.0.1:52673 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-08 16:14:33,532 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 新洁能如果用毕师傅硬核科技模型诊断呢', 'intent': 'single_stock_model_analysis', 'context_modes': ['bi_trend_launch'], 'answer_sent': True}
+2026-07-08 16:14:36,340 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+    熔断: 涨跌比13%<18%
+INFO:     127.0.0.1:52684 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-08 16:15:03,700 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'leader_afternoon', 'total_picks': 7, 'markdown_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/161452_leader_afternoon.md', 'doc_xml_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/161452_leader_afternoon.doc.xml', 'doc_url': 'https://xcnl9dvruj6a.feishu.cn/docx/NipgdbBsKo9XNbxWWxcclUBEnjA'}
+2026-07-08 16:15:19,580 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-07): 4988 stocks
+  市场环境: 🟡中性 — 涨跌比31%偏低
+  📡 快照(live): 4996 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-08): 4987 只
+  📊 pre_close from daily_kline(2026-07-07): 4989 只 (含回退)
+  🔒 14:30涨停检测: 47 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 36 只 (2.1s)
+INFO:     127.0.0.1:52862 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-08 16:15:23,133 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 新洁能再用产业链拆解模型诊断一下', 'intent': 'single_stock_model_analysis', 'context_modes': ['supply_chain'], 'answer_sent': True}
+INFO:     127.0.0.1:52936 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+2026-07-08 17:10:42,206 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:55927 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-08 17:11:15,934 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'leader_afternoon', 'total_picks': 5, 'markdown_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/171104_leader_afternoon.md', 'doc_xml_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/171104_leader_afternoon.doc.xml', 'doc_url': 'https://xcnl9dvruj6a.feishu.cn/docx/Y22edk0BloY8bNxcf8rcqDKXnOc'}
+2026-07-08 17:11:22,446 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_e69135925a156508bb15072b329b0873', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-07): 4988 stocks
+  市场环境: 🟡中性 — 涨跌比31%偏低
+  📡 快照(live): 4996 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-08): 4987 只
+  📊 pre_close from daily_kline(2026-07-07): 4989 只 (含回退)
+  🔒 14:30涨停检测: 47 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 25 只 (2.2s)
+INFO:     127.0.0.1:56087 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-08 17:11:34,699 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 小米集团的股票如何', 'intent': 'stock_research', 'context_modes': ['leader_afternoon', 'bi_trend_launch'], 'answer_sent': True}
+2026-07-08 19:57:44,414 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_e69135925a156508bb15072b329b0873', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-07): 4988 stocks
+  市场环境: 🟡中性 — 涨跌比31%偏低
+  📡 快照(live): 4996 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-08): 4987 只
+  📊 pre_close from daily_kline(2026-07-07): 4989 只 (含回退)
+  🔒 14:30涨停检测: 47 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 25 只 (1.9s)
+    涨跌比: 28% | 5日均: 35% | 10日均: 35% |  weak | 前日: 2026-07-07
+    硬科技门控: 5421 -> 461 只 (仅国家鼓励的硬科技赛道)
+    K线预取: 5499 只, 1.6s
+    筛选: 62 只
+INFO:     127.0.0.1:55580 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-08 19:57:53,064 [ERROR] app.routers.lark: Lark event handling failed
+Traceback (most recent call last):
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/routers/lark.py", line 29, in _run_event_task
+    result = handle_lark_message(payload)
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/lark_bot.py", line 3226, in handle_lark_message
+    result = run_command(command)
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/lark_bot.py", line 1514, in run_command
+    result = _run_afternoon_mode(command.mode, command.top_n, command.trade_date)
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/routers/screener.py", line 7774, in _run_afternoon_mode
+    picks = engine.run(top_n=run_top_n, trade_date=trade_date, time_slot="14:30")
+  File "/Users/rogerluo/程序目录/K线大模型/packages/kronos-factors/kronos_factors/engine/leader_afternoon.py", line 1111, in run
+    top, all_scores = run_afternoon_screening(trade_date, time_slot=time_slot, top_n=top_n)
+                      ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rogerluo/程序目录/K线大模型/packages/kronos-factors/kronos_factors/engine/leader_afternoon.py", line 943, in run_afternoon_screening
+    market_env, env_detail = assess_market_env(db, trade_date)
+                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/Users/rogerluo/程序目录/K线大模型/packages/kronos-factors/kronos_factors/engine/leader_afternoon.py", line 447, in assess_market_env
+    sh_pct = get_shanghai_index(db, trade_date)
+  File "/Users/rogerluo/程序目录/K线大模型/packages/kronos-factors/kronos_factors/engine/leader_afternoon.py", line 433, in get_shanghai_index
+    row = db.execute(
+          ~~~~~~~~~~^
+        "SELECT change_pct FROM index_daily WHERE code='000001' AND trade_date=?",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        (trade_date,)
+        ^^^^^^^^^^^^^
+    ).fetchone()
+    ^
+  File "/Users/rogerluo/程序目录/K线大模型/packages/kronos-factors/kronos_factors/pg_adapter.py", line 131, in execute
+    cur.execute(sql_pg, param_tuple or None)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InvalidDatetimeFormat: invalid input syntax for type date: "明天"
+LINE 1: ...t FROM index_daily WHERE code='000001' AND trade_date='明天'
+                                                                 ^
+
+2026-07-08 22:56:13,664 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:64011 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-08 22:56:20,124 [ERROR] app.routers.lark: Lark event handling failed
+Traceback (most recent call last):
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/routers/lark.py", line 29, in _run_event_task
+    result = handle_lark_message(payload)
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/lark_bot.py", line 3226, in handle_lark_message
+    result = run_command(command)
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/lark_bot.py", line 1514, in run_command
+    result = _run_afternoon_mode(command.mode, command.top_n, command.trade_date)
+  File "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/routers/screener.py", line 7774, in _run_afternoon_mode
+    picks = engine.run(top_n=run_top_n, trade_date=trade_date, time_slot="14:30")
+  File "/Users/rogerluo/程序目录/K线大模型/packages/kronos-factors/kronos_factors/engine/leader_afternoon.py", line 1111, in run
+    top, all_scores = run_afternoon_screening(trade_date, time_slot=time_slot, top_n=top_n)
+                      ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rogerluo/程序目录/K线大模型/packages/kronos-factors/kronos_factors/engine/leader_afternoon.py", line 943, in run_afternoon_screening
+    market_env, env_detail = assess_market_env(db, trade_date)
+                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/Users/rogerluo/程序目录/K线大模型/packages/kronos-factors/kronos_factors/engine/leader_afternoon.py", line 447, in assess_market_env
+    sh_pct = get_shanghai_index(db, trade_date)
+  File "/Users/rogerluo/程序目录/K线大模型/packages/kronos-factors/kronos_factors/engine/leader_afternoon.py", line 433, in get_shanghai_index
+    row = db.execute(
+          ~~~~~~~~~~^
+        "SELECT change_pct FROM index_daily WHERE code='000001' AND trade_date=?",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        (trade_date,)
+        ^^^^^^^^^^^^^
+    ).fetchone()
+    ^
+  File "/Users/rogerluo/程序目录/K线大模型/packages/kronos-factors/kronos_factors/pg_adapter.py", line 131, in execute
+    cur.execute(sql_pg, param_tuple or None)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.InvalidDatetimeFormat: invalid input syntax for type date: "明天"
+LINE 1: ...t FROM index_daily WHERE code='000001' AND trade_date='明天'
+                                                                 ^
+
+INFO:     Started server process [26899]
+INFO:     Waiting for application startup.
+2026-07-09 08:17:24,085 [INFO] screener-service: Starting Screener Service...
+2026-07-09 08:17:24,331 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-09 08:17:24,338 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-09 08:17:24,338 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-09 08:17:24,338 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-09 08:17:24,396 [INFO] kronos.recorder: recorder: 198 outcomes backfilled
+2026-07-09 08:17:24,396 [INFO] screener.scheduler: Scheduler: T+1 backfill — 198 snapshots
+2026-07-09 08:17:28,190 [INFO] kronos.recorder: recorder: 1339 snapshots multi-horizon backfilled
+2026-07-09 08:17:28,190 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1339 snapshots
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('127.0.0.1', 18011): [errno 48] address already in use
+INFO:     Waiting for application shutdown.
+2026-07-09 08:17:28,191 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     127.0.0.1:61450 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-09 08:17:47,770 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [25202]
+INFO:     Started server process [29069]
+INFO:     Waiting for application startup.
+2026-07-09 08:17:58,166 [INFO] screener-service: Starting Screener Service...
+2026-07-09 08:17:58,468 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-09 08:17:58,475 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-09 08:17:58,475 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-09 08:17:58,475 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-09 08:17:58,508 [INFO] kronos.recorder: recorder: 198 outcomes backfilled
+2026-07-09 08:17:58,508 [INFO] screener.scheduler: Scheduler: T+1 backfill — 198 snapshots
+2026-07-09 08:18:01,628 [INFO] kronos.recorder: recorder: 1339 snapshots multi-horizon backfilled
+2026-07-09 08:18:01,628 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1339 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:61490 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+2026-07-09 08:18:51,092 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'post', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:61509 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-09 08:18:58,650 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 分析新洁能现在是吸筹还是出货', 'intent': 'single_stock_model_analysis', 'context_modes': [], 'answer_sent': True}
+INFO:     Started server process [82207]
+INFO:     Waiting for application startup.
+2026-07-09 08:28:20,361 [INFO] screener-service: Starting Screener Service...
+2026-07-09 08:28:20,699 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-09 08:28:20,705 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-09 08:28:20,706 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-09 08:28:20,706 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-09 08:28:20,728 [INFO] kronos.recorder: recorder: 198 outcomes backfilled
+2026-07-09 08:28:20,728 [INFO] screener.scheduler: Scheduler: T+1 backfill — 198 snapshots
+2026-07-09 08:28:23,531 [INFO] kronos.recorder: recorder: 1339 snapshots multi-horizon backfilled
+2026-07-09 08:28:23,531 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1339 snapshots
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('127.0.0.1', 18011): [errno 48] address already in use
+INFO:     Waiting for application shutdown.
+2026-07-09 08:28:23,532 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-09 08:28:32,161 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [29069]
+INFO:     Started server process [82569]
+INFO:     Waiting for application startup.
+2026-07-09 08:28:33,516 [INFO] screener-service: Starting Screener Service...
+2026-07-09 08:28:33,861 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-09 08:28:33,868 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-09 08:28:33,868 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-09 08:28:33,869 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-09 08:28:33,885 [INFO] kronos.recorder: recorder: 198 outcomes backfilled
+2026-07-09 08:28:33,885 [INFO] screener.scheduler: Scheduler: T+1 backfill — 198 snapshots
+2026-07-09 08:28:36,806 [INFO] kronos.recorder: recorder: 1339 snapshots multi-horizon backfilled
+2026-07-09 08:28:36,806 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1339 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:62636 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+2026-07-09 11:16:14,817 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:50114 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-09 11:17:23,410 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'leader_afternoon', 'total_picks': 0, 'markdown_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-09/111656_leader_afternoon.md', 'doc_xml_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-09/111656_leader_afternoon.doc.xml', 'doc_url': 'https://xcnl9dvruj6a.feishu.cn/docx/O7M8dsqVrodpLhxsSdJcKLcLn4d'}
+2026-07-09 13:41:45,454 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-08): 4995 stocks
+  市场环境: 🟠观望 — 涨跌比仅13%, 极度弱势
+  📡 快照(live): 4995 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-09): 4933 只
+  📊 pre_close from daily_kline(2026-07-08): 4995 只 (含回退)
+  🔒 14:30涨停检测: 35 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 31 只 (1.8s)
+INFO:     127.0.0.1:63482 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-09 13:41:59,686 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'research_qa', 'question': 'CLI 今天的板块共振情况如何？', 'intent': 'sector_resonance', 'context_modes': ['leader_afternoon'], 'answer_sent': True}
+2026-07-09 14:33:24,475 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_ec8ffdd31ab290f08a599dd5e7e7468f', 'sender_id': 'ou_99fdd4b59651d1c974f81c5b4f3330a3', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-08): 4995 stocks
+  市场环境: 🟠观望 — 涨跌比仅24%, 极度弱势
+  📡 快照(live): 4995 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-09): 4933 只
+  📊 pre_close from daily_kline(2026-07-08): 4995 只 (含回退)
+  🔒 14:30涨停检测: 55 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 74 只 (3.3s)
+INFO:     127.0.0.1:52697 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-09 14:33:59,898 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'leader_afternoon', 'total_picks': 14, 'markdown_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-09/143344_leader_afternoon.md', 'doc_xml_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-09/143344_leader_afternoon.doc.xml', 'doc_url': 'https://xcnl9dvruj6a.feishu.cn/docx/PLQvdzAxroKnauxwf3lcZYMFnBf'}
+2026-07-09 16:01:25,302 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-09
+2026-07-09 16:34:09,843 [INFO] kronos.recorder: recorder: 205 outcomes backfilled
+2026-07-09 16:34:09,844 [INFO] screener.scheduler: Scheduler: T+1 backfill — 205 snapshots
+2026-07-09 16:34:17,161 [INFO] kronos.recorder: recorder: 1345 snapshots multi-horizon backfilled
+2026-07-09 16:34:17,163 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1345 snapshots

@@ -12,6 +12,8 @@ Migration: backend/alembic/versions/013_industry_chain_deconstruct.py
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 
@@ -44,6 +46,364 @@ DEFAULT_EVIDENCE_EVENTS = [
     "收入和毛利改善",
     "专利与标准",
 ]
+
+TEMPLATE_CONFIG_NAME = "industry_chain_templates.json"
+PACKAGE_TEMPLATE_CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / TEMPLATE_CONFIG_NAME
+IN_PACKAGE_TEMPLATE_CONFIG_PATH = Path(__file__).resolve().parents[1] / "configs" / TEMPLATE_CONFIG_NAME
+METRIC_GROUP_KEYS = ("commercialization", "expectation_gap", "trigger_signals")
+MACRO_REGIONS = {
+    "US": "Fed / BLS / BEA",
+    "CN": "PBOC / NBS",
+    "JP": "BOJ / Statistics Bureau of Japan",
+    "KR": "BOK / KOSIS",
+    "EU": "ECB / Eurostat",
+}
+
+DEFAULT_LAYER_METRICS: dict[str, dict[str, list[str]]] = {
+    "demand": {
+        "commercialization": ["云厂商资本开支", "AI 应用渗透率"],
+        "expectation_gap": ["CAPEX 上修", "模型调用量增长快于市场预期"],
+        "trigger_signals": ["云厂商财报指引", "AI 应用用户数快速增长"],
+    },
+    "task": {
+        "commercialization": ["训练 token 数量", "推理 QPS"],
+        "expectation_gap": ["推理需求占比提升快于预期", "多模态负载提前放量"],
+        "trigger_signals": ["大模型降价", "推理应用爆发"],
+    },
+    "core_product": {
+        "commercialization": ["GPU 出货量", "数据中心芯片收入", "国产芯片客户导入"],
+        "expectation_gap": ["国产替代进度快于预期", "芯片供货周期改善"],
+        "trigger_signals": ["大客户订单公告", "芯片新品发布", "供应政策变化"],
+    },
+    "foundation": {
+        "commercialization": ["CoWoS 产能", "HBM 价格", "封测订单"],
+        "expectation_gap": ["HBM 缺口扩大", "先进封装产能涨价"],
+        "trigger_signals": ["存储涨价", "封测扩产", "英伟达新品拉动"],
+    },
+    "integration": {
+        "commercialization": ["AI 服务器订单", "服务器出货量", "客户交付周期"],
+        "expectation_gap": ["订单超预期", "GPU 配额增加"],
+        "trigger_signals": ["云厂商 CAPEX 上修", "服务器订单公告"],
+    },
+    "supporting": {
+        "commercialization": ["800G 出货", "交换机端口速率", "客户认证进度"],
+        "expectation_gap": ["800G 渗透快于预期", "1.6T 提前"],
+        "trigger_signals": ["北美云厂商采购", "财报指引上修"],
+    },
+    "infrastructure": {
+        "commercialization": ["液冷服务器出货", "高功率机柜占比", "IDC 上架率"],
+        "expectation_gap": ["液冷渗透率加速", "核心区域机柜紧缺"],
+        "trigger_signals": ["液冷招标", "智算中心项目落地"],
+    },
+    "commercialization": {
+        "commercialization": ["云收入增速", "算力租赁价格", "IDC 合同负载"],
+        "expectation_gap": ["云收入超预期", "算力租赁价格上涨"],
+        "trigger_signals": ["算力租赁合同", "云业务财报验证"],
+    },
+}
+
+DEFAULT_LAYER_CAPEX_EVIDENCE: dict[str, list[dict[str, Any]]] = {
+    "demand": [
+        {
+            "evidence_id": "hyperscaler_ai_capex_direction",
+            "company": "Microsoft / Google / Meta / Amazon",
+            "region": "US",
+            "fiscal_period": "unknown",
+            "capex_amount": None,
+            "currency": "USD",
+            "capex_direction": ["AI data center", "GPU cluster", "cloud infrastructure"],
+            "mapped_segments": ["云厂商资本开支", "AI 数据中心"],
+            "metric_usage": ["commercialization", "expectation_gap"],
+            "source_type": "earnings_call",
+            "source_name": "Investor relations / earnings call",
+            "source_url": "",
+            "quote": "",
+            "as_of_date": "2026-07-08",
+            "evidence_level": "manual_judgement",
+            "collection_method": "manual_first",
+            "impact_direction": "positive",
+            "confidence": "medium",
+        }
+    ],
+    "foundation": [
+        {
+            "evidence_id": "hbm_cowos_capex_direction",
+            "company": "TSMC / Samsung / SK Hynix / ASML",
+            "region": "Global",
+            "fiscal_period": "unknown",
+            "capex_amount": None,
+            "currency": "USD",
+            "capex_direction": ["HBM", "CoWoS", "advanced packaging", "advanced process equipment"],
+            "mapped_segments": ["HBM", "CoWoS", "先进封装", "先进制程"],
+            "metric_usage": ["commercialization", "expectation_gap", "trigger_signals"],
+            "source_type": "investor_relations",
+            "source_name": "Company IR / filings / earnings call",
+            "source_url": "",
+            "quote": "",
+            "as_of_date": "2026-07-08",
+            "evidence_level": "manual_judgement",
+            "collection_method": "manual_first",
+            "impact_direction": "positive",
+            "confidence": "medium",
+        }
+    ],
+    "infrastructure": [
+        {
+            "evidence_id": "ai_datacenter_infrastructure_capex",
+            "company": "Microsoft / Google / Meta / Amazon",
+            "region": "US",
+            "fiscal_period": "unknown",
+            "capex_amount": None,
+            "currency": "USD",
+            "capex_direction": ["AI data center", "liquid cooling", "high-density rack"],
+            "mapped_segments": ["IDC", "液冷", "高功率机柜", "AI服务器"],
+            "metric_usage": ["commercialization", "expectation_gap"],
+            "source_type": "earnings_call",
+            "source_name": "Investor relations / earnings call",
+            "source_url": "",
+            "quote": "",
+            "as_of_date": "2026-07-08",
+            "evidence_level": "manual_judgement",
+            "collection_method": "manual_first",
+            "impact_direction": "positive",
+            "confidence": "medium",
+        }
+    ],
+}
+
+DEFAULT_LAYER_PHYSICAL_METRICS: dict[str, list[dict[str, Any]]] = {
+    "demand": [
+        {"metric_id": "demand_ai_app_penetration", "name": "AI 应用渗透率", "mapped_segment": "企业AI应用"},
+    ],
+    "task": [
+        {"metric_id": "task_inference_qps", "name": "推理 QPS", "mapped_segment": "云端推理"},
+    ],
+    "core_product": [
+        {"metric_id": "core_gpu_shipments", "name": "GPU 出货量", "mapped_segment": "AI芯片/GPU/NPU/ASIC"},
+    ],
+    "foundation": [
+        {"metric_id": "foundation_hbm_supply_gap", "name": "HBM 供需缺口", "mapped_segment": "HBM"},
+        {"metric_id": "foundation_cowos_capacity", "name": "CoWoS 产能", "mapped_segment": "Chiplet/CoWoS"},
+    ],
+    "integration": [
+        {"metric_id": "integration_ai_server_shipments", "name": "AI 服务器出货", "mapped_segment": "AI服务器"},
+    ],
+    "supporting": [
+        {"metric_id": "supporting_800g_shipments", "name": "800G 出货", "mapped_segment": "800G"},
+    ],
+    "infrastructure": [
+        {"metric_id": "infrastructure_liquid_cooling_penetration", "name": "液冷渗透率", "mapped_segment": "液冷"},
+        {"metric_id": "infrastructure_high_density_rack_share", "name": "高功率机柜占比", "mapped_segment": "高功率机柜"},
+    ],
+    "commercialization": [
+        {"metric_id": "commercialization_cloud_ai_revenue", "name": "云收入增速", "mapped_segment": "云服务"},
+    ],
+}
+
+
+def load_industry_chain_templates(path: str | Path | None = None) -> dict[str, Any]:
+    """Load industry-link templates used to adapt deconstruct logic by sector type."""
+    candidates = [Path(path)] if path else [PACKAGE_TEMPLATE_CONFIG_PATH, IN_PACKAGE_TEMPLATE_CONFIG_PATH]
+    config_path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+    data.setdefault("templates", [])
+    return data
+
+
+def _find_industry_chain_template(template_id: str) -> dict[str, Any]:
+    templates = load_industry_chain_templates().get("templates", [])
+    for template in templates:
+        if str(template.get("template_id") or "") == template_id:
+            return template
+    valid_ids = tuple(str(template.get("template_id") or "") for template in templates)
+    raise ValueError(f"Invalid template '{template_id}', must be one of {valid_ids}")
+
+
+def _default_macro_context(as_of_date: str = "2026-07-08") -> list[dict[str, Any]]:
+    return [
+        {
+            "region": region,
+            "policy_stance": "unknown",
+            "inflation_state": "unknown",
+            "rate_trend": "unknown",
+            "liquidity_signal": "unknown",
+            "source_type": "official_pending",
+            "source_name": source_name,
+            "source_url": "",
+            "as_of_date": as_of_date,
+            "evidence_level": "unknown",
+        }
+        for region, source_name in MACRO_REGIONS.items()
+    ]
+
+
+def _normalize_metric_groups(layer: dict[str, Any]) -> dict[str, list[str]]:
+    layer_id = str(layer.get("layer_id") or "")
+    configured = layer.get("metrics") or {}
+    defaults = DEFAULT_LAYER_METRICS.get(layer_id) or {}
+    tracking_metrics = [str(item) for item in (layer.get("tracking_metrics") or []) if item]
+    return {
+        key: list(configured.get(key) or defaults.get(key) or tracking_metrics[:2] or ["待人工维护"])
+        for key in METRIC_GROUP_KEYS
+    }
+
+
+def _normalize_capex_evidence(layer: dict[str, Any]) -> list[dict[str, Any]]:
+    layer_id = str(layer.get("layer_id") or "")
+    records = layer.get("capex_evidence") or DEFAULT_LAYER_CAPEX_EVIDENCE.get(layer_id) or []
+    normalized: list[dict[str, Any]] = []
+    for record in records:
+        item = dict(record)
+        item.setdefault("evidence_id", f"{layer_id}_capex_evidence")
+        item["mapped_layer_id"] = layer_id
+        item.setdefault("mapped_segments", [])
+        item.setdefault("metric_usage", ["commercialization"])
+        item.setdefault("source_type", "manual_research")
+        item.setdefault("source_name", "manual structured research")
+        item.setdefault("source_url", "")
+        item.setdefault("quote", "")
+        item.setdefault("as_of_date", "2026-07-08")
+        item.setdefault("evidence_level", "manual_judgement")
+        item.setdefault("collection_method", "manual_first")
+        item.setdefault("impact_direction", "unknown")
+        item.setdefault("confidence", "unknown")
+        normalized.append(item)
+    return normalized
+
+
+def _normalize_physical_metrics(layer: dict[str, Any]) -> list[dict[str, Any]]:
+    layer_id = str(layer.get("layer_id") or "")
+    records = layer.get("physical_metrics") or DEFAULT_LAYER_PHYSICAL_METRICS.get(layer_id) or []
+    normalized: list[dict[str, Any]] = []
+    for record in records:
+        item = dict(record)
+        item.setdefault("metric_id", f"{layer_id}_physical_metric")
+        item["mapped_layer_id"] = layer_id
+        item.setdefault("mapped_segment", "")
+        item.setdefault("metric_usage", ["commercialization", "expectation_gap"])
+        item.setdefault("data_type", "number_or_event")
+        item.setdefault("value", None)
+        item.setdefault("unit", "")
+        item.setdefault("period", "unknown")
+        item.setdefault("direction", "unknown")
+        item.setdefault("source_type", "industry_research")
+        item.setdefault("source_name", "研报/公司公告/产业新闻")
+        item.setdefault("source_url", "")
+        item.setdefault("evidence_level", "manual_judgement")
+        item.setdefault("collection_method", "manual_first")
+        item.setdefault("as_of_date", "2026-07-08")
+        item.setdefault("impact_direction", "unknown")
+        item.setdefault("confidence", "unknown")
+        normalized.append(item)
+    return normalized
+
+
+def _build_layer_evidence_chain(
+    layer_id: str,
+    capex_evidence: list[dict[str, Any]],
+    physical_metrics: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    evidence_chain: list[dict[str, Any]] = []
+    for item in capex_evidence:
+        evidence_chain.append({
+            "evidence_id": str(item.get("evidence_id") or ""),
+            "evidence_type": "capex",
+            "mapped_layer_id": layer_id,
+            "mapped_segment": (item.get("mapped_segments") or [""])[0],
+            "source_type": item.get("source_type") or "manual_research",
+            "source_name": item.get("source_name") or "manual structured research",
+            "evidence_level": item.get("evidence_level") or "manual_judgement",
+            "as_of_date": item.get("as_of_date") or "2026-07-08",
+            "metric_usage": item.get("metric_usage") or [],
+            "impact_direction": item.get("impact_direction") or "unknown",
+            "confidence": item.get("confidence") or "unknown",
+        })
+    for item in physical_metrics:
+        evidence_chain.append({
+            "evidence_id": str(item.get("metric_id") or ""),
+            "evidence_type": "physical_metric",
+            "mapped_layer_id": layer_id,
+            "mapped_segment": item.get("mapped_segment") or "",
+            "source_type": item.get("source_type") or "industry_research",
+            "source_name": item.get("source_name") or "研报/公司公告/产业新闻",
+            "evidence_level": item.get("evidence_level") or "manual_judgement",
+            "as_of_date": item.get("as_of_date") or "2026-07-08",
+            "metric_usage": item.get("metric_usage") or [],
+            "impact_direction": item.get("impact_direction") or "unknown",
+            "confidence": item.get("confidence") or "unknown",
+        })
+    return evidence_chain
+
+
+def _build_layer_expectation_gap(evidence_chain: list[dict[str, Any]]) -> dict[str, Any]:
+    usable_ids = [
+        str(item.get("evidence_id") or "")
+        for item in evidence_chain
+        if "expectation_gap" in (item.get("metric_usage") or []) and item.get("evidence_id")
+    ]
+    return {
+        "expected": {"value": None, "source": "unknown"},
+        "actual": {"value": None, "source": "unknown"},
+        "gap_direction": "unknown",
+        "gap_strength": "unknown",
+        "calculation_method": "existing_business_tag_formula_unavailable",
+        "formula": "actual_progress - market_expectation + evidence_delta*0.35 - risk_penalty*0.45",
+        "evidence_ids": usable_ids,
+    }
+
+
+def _build_layer_trigger_signal(layer_id: str, evidence_chain: list[dict[str, Any]]) -> dict[str, Any]:
+    triggered_ids = [
+        str(item.get("evidence_id") or "")
+        for item in evidence_chain
+        if "trigger_signals" in (item.get("metric_usage") or []) and item.get("evidence_id")
+    ]
+    return {
+        "signal_type": "unknown",
+        "signal_strength": "unknown",
+        "triggered_by_evidence_ids": triggered_ids,
+        "mapped_layer_id": layer_id,
+        "mapped_segments": [
+            str(item.get("mapped_segment") or "")
+            for item in evidence_chain
+            if "trigger_signals" in (item.get("metric_usage") or []) and item.get("mapped_segment")
+        ],
+    }
+
+
+def build_industry_template_tree(template: dict[str, Any]) -> dict[str, Any]:
+    """Build a deterministic 8-layer industry-link tree from a template config."""
+    template_id = str(template.get("template_id") or "")
+    children = []
+    for layer in sorted(template.get("layers") or [], key=lambda item: int(item.get("order") or 0)):
+        layer_id = str(layer.get("layer_id") or "")
+        capex_evidence = _normalize_capex_evidence(layer)
+        physical_metrics = _normalize_physical_metrics(layer)
+        evidence_chain = _build_layer_evidence_chain(layer_id, capex_evidence, physical_metrics)
+        children.append({
+            "node_id": f"template:{template_id}:{layer_id}",
+            "layer_id": layer_id,
+            "layer_order": int(layer.get("order") or 0),
+            "name": str(layer.get("name") or layer_id),
+            "definition": str(layer.get("definition") or ""),
+            "key_questions": layer.get("key_questions") or [],
+            "segments": layer.get("segments") or [],
+            "evidence": layer.get("evidence") or [],
+            "companies": layer.get("companies") or [],
+            "tracking_metrics": layer.get("tracking_metrics") or [],
+            "metrics": _normalize_metric_groups(layer),
+            "capex_evidence": capex_evidence,
+            "physical_metrics": physical_metrics,
+            "evidence_chain": evidence_chain,
+            "expectation_gap": _build_layer_expectation_gap(evidence_chain),
+            "trigger_signal": _build_layer_trigger_signal(layer_id, evidence_chain),
+        })
+    return {
+        "node_id": f"template:{template_id}",
+        "name": str(template.get("name") or template_id),
+        "description": str(template.get("description") or ""),
+        "children": children,
+    }
 
 BOM_COMPLETION_PROFILES: dict[str, dict[str, list[str] | str]] = {
     "量子科技": {
@@ -750,6 +1110,7 @@ def deconstruct_chain(
     method: str,
     nodes: list[dict[str, Any]] | None = None,
     theme_name: str | None = None,
+    template: str | None = None,
 ) -> dict[str, Any]:
     """Deconstruct industry chain using specified method.
 
@@ -762,6 +1123,7 @@ def deconstruct_chain(
             - "competition": tree + concentration/leader_share/barrier/threat
         nodes: List of chain_nodes records (optional, for testing)
         theme_name: Human-readable theme name (optional)
+        template: Optional industry-link template, e.g. "complex_tech"
 
     Returns:
         Deconstruct result with theme info and tree structure:
@@ -778,6 +1140,23 @@ def deconstruct_chain(
     valid_methods = ("bom", "upstream_downstream", "value_chain", "competition")
     if method not in valid_methods:
         raise ValueError(f"Invalid method '{method}', must be one of {valid_methods}")
+
+    if template:
+        template_cfg = _find_industry_chain_template(template)
+        tree = build_industry_template_tree(template_cfg)
+        return {
+            "theme": {"id": theme_id, "name": theme_name or theme_id},
+            "view": str(template_cfg.get("template_id") or template),
+            "template": {
+                "template_id": str(template_cfg.get("template_id") or template),
+                "name": str(template_cfg.get("name") or template),
+                "description": str(template_cfg.get("description") or ""),
+                "example_theme": str(template_cfg.get("example_theme") or ""),
+                "source": "industry_chain_templates",
+            },
+            "macro_context": template_cfg.get("macro_context") or _default_macro_context(),
+            "tree": tree,
+        }
 
     # Use provided nodes or return empty structure
     if nodes is None:

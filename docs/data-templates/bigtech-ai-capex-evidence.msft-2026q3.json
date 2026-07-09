@@ -1,0 +1,53 @@
+{
+  "records": [
+    {
+      "evidence_id": "msft_fy2026q3_ai_infrastructure_capex",
+      "source_id": "sec_company_filings",
+      "company": "Microsoft",
+      "fiscal_period": "FY2026Q3",
+      "capex_amount": 80146,
+      "capex_amount_unit": "USD millions, nine months ended 2026-03-31 additions to property and equipment",
+      "capex_direction": [
+        "cloud offerings",
+        "AI infrastructure",
+        "training"
+      ],
+      "mapped_layer_id": "demand",
+      "mapped_segments": [
+        "云厂商资本开支",
+        "AI 数据中心"
+      ],
+      "source_type": "sec_10q",
+      "source_name": "Microsoft Form 10-Q, quarter ended March 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526191507/msft-20260331.htm",
+      "quote": "We will continue to invest in capital expenditures to support growth in our cloud offerings and our investments in AI infrastructure and training.",
+      "as_of_date": "2026-04-29",
+      "evidence_level": "reported"
+    },
+    {
+      "evidence_id": "msft_fy2026q3_datacenter_capacity_capex",
+      "source_id": "sec_company_filings",
+      "company": "Microsoft",
+      "fiscal_period": "FY2026Q3",
+      "capex_amount": 80146,
+      "capex_amount_unit": "USD millions, nine months ended 2026-03-31 additions to property and equipment",
+      "capex_direction": [
+        "datacenter locations",
+        "server capacity",
+        "graphics processing units"
+      ],
+      "mapped_layer_id": "infrastructure",
+      "mapped_segments": [
+        "IDC",
+        "AI服务器",
+        "GPU"
+      ],
+      "source_type": "sec_10q",
+      "source_name": "Microsoft Form 10-Q, quarter ended March 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526191507/msft-20260331.htm",
+      "quote": "We continue to identify and evaluate opportunities to expand our datacenter locations and increase our server capacity to meet the evolving needs of our customers, particularly given the growing demand for AI services. Our datacenters depend on the availability of permitted and buildable land, predictable energy, networking supplies, and servers, including graphics processing units and other components.",
+      "as_of_date": "2026-04-29",
+      "evidence_level": "reported"
+    }
+  ]
+}

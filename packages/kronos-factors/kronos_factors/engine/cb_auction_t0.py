@@ -150,6 +150,7 @@ class CbAuctionT0Engine:
     exclude_st_underlying = False
     exclude_past_delisted = False
     use_kpl_list_fallback = True
+    use_eastmoney_limit_pool_fallback = True
     collect_pending_confirmation = True
     rolling_weak_concept_window = 0
     rolling_weak_concept_strength_max = 0.0
@@ -459,6 +460,58 @@ class CbAuctionT0Engine:
                 pass
             return []
 
+    def _fetch_eastmoney_limit_pool_trigger_rows(
+        self,
+        cur,
+        trade_date: str,
+        prev_trade_date: str | None,
+    ) -> list[tuple[Any, ...]]:
+        trade_key, trade_key_compact = self._date_keys(trade_date)
+        prev_key, prev_key_compact = self._date_keys(prev_trade_date) if prev_trade_date else ("", "")
+
+        try:
+            cur.execute(
+                """
+                WITH candidate_limits AS (
+                    SELECT DISTINCT ON (e.code)
+                        e.*
+                    FROM eastmoney_limit_pool e
+                    WHERE (e.trade_date::text = %s OR REPLACE(e.trade_date::text, '-', '') = %s)
+                      AND e.first_time IS NOT NULL
+                      AND LPAD(REPLACE(e.first_time, ':', ''), 6, '0') <= %s
+                    ORDER BY
+                        e.code,
+                        e.fd_amount DESC NULLS LAST,
+                        LPAD(REPLACE(e.first_time, ':', ''), 6, '0') ASC
+                )
+                SELECT
+                    e.code AS code,
+                    COALESCE(e.name, s.name, '') AS name,
+                    e.fd_amount,
+                    e.first_time,
+                    'eastmoney_limit_pool' AS trigger_data_source,
+                    EXISTS (
+                        SELECT 1
+                        FROM limit_list_d p
+                        WHERE (p.trade_date::text = %s OR REPLACE(p.trade_date::text, '-', '') = %s)
+                          AND p.limit_type = 'U'
+                          AND SPLIT_PART(p.ts_code, '.', 1) = e.code
+                    ) AS prev_was_limit_up
+                FROM candidate_limits e
+                LEFT JOIN stocks s ON s.code = e.code
+                WHERE COALESCE(e.name, s.name, '') NOT LIKE '%%ST%%'
+                ORDER BY e.fd_amount DESC NULLS LAST
+                """,
+                (trade_key, trade_key_compact, AUCTION_FIRST_TIME_MAX_COMPACT, prev_key, prev_key_compact),
+            )
+            return list(cur.fetchall())
+        except Exception:
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+            return []
+
     def _build_trigger_stocks_from_rows(
         self,
         rows: list[tuple[Any, ...]],
@@ -516,6 +569,15 @@ class CbAuctionT0Engine:
                     {
                         "reason": "limit_list_d为空，使用kpl_list.limit_order作为封单金额",
                         "data_source": "kpl_list",
+                    }
+                )
+        if not rows and self.use_eastmoney_limit_pool_fallback:
+            rows = self._fetch_eastmoney_limit_pool_trigger_rows(cur, trade_date, prev_trade_date)
+            if rows:
+                source_rejections.append(
+                    {
+                        "reason": "limit_list_d/kpl_list为空，使用东方财富涨停池fund作为封单金额备用口径",
+                        "data_source": "eastmoney_limit_pool",
                     }
                 )
         triggers, rejections = self._build_trigger_stocks_from_rows(rows)

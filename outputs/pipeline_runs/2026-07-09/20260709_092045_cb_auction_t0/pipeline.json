@@ -1,0 +1,298 @@
+{
+  "status": "ok",
+  "model_key": "cb_auction_t0",
+  "trade_date": "2026-07-09",
+  "mode": "cb_auction_t0_v2_1",
+  "top_n": 10,
+  "refresh": {
+    "mode": "cb_auction_t0_v2_1",
+    "trade_date": "2026-07-09",
+    "started_at": "2026-07-09T09:20:45",
+    "stk_mins": {
+      "status": "ok",
+      "stocks": 5100,
+      "pg_written": 0,
+      "sqlite_written": 0,
+      "elapsed": 1.7433791160583496
+    },
+    "post_market_core": {
+      "daily_kline": {
+        "table": "daily_kline",
+        "written": 0,
+        "pg_written": 0,
+        "elapsed": 0.15863704681396484
+      },
+      "moneyflow": {
+        "table": "moneyflow",
+        "written": 0
+      },
+      "stk_limit": {
+        "table": "stk_limit",
+        "written": 7691,
+        "pg_written": 691
+      },
+      "index_daily": {
+        "table": "index_daily",
+        "written": 0,
+        "pg_written": 0
+      }
+    },
+    "finished_at": "2026-07-09T09:20:49",
+    "status": "ok",
+    "returncode": 0,
+    "elapsed": 3.7
+  },
+  "primary_rows": {
+    "limit_list_d": 0,
+    "kpl_list": 0,
+    "eastmoney_limit_pool": 0,
+    "stk_auction_o": 4678
+  },
+  "pre_model_fallback": {
+    "eastmoney_limit_pool": {
+      "returncode": 2,
+      "elapsed": 1.7,
+      "stdout_tail": "{\n  \"status\": \"empty\",\n  \"source\": \"eastmoney_zt_pool\",\n  \"trade_date\": \"2026-07-09\",\n  \"started_at\": \"2026-07-09T09:20:49\",\n  \"finished_at\": \"2026-07-09T09:20:51\",\n  \"fetched\": 0,\n  \"usable_rows\": 0,\n  \"written\": 0,\n  \"note\": \"备用口径：使用东方财富涨停池 fund 字段作为封单资金，主链路仍优先使用 limit_list_d.fd_amount。\"\n}",
+      "stderr_tail": "",
+      "json": {
+        "status": "empty",
+        "source": "eastmoney_zt_pool",
+        "trade_date": "2026-07-09",
+        "started_at": "2026-07-09T09:20:49",
+        "finished_at": "2026-07-09T09:20:51",
+        "fetched": 0,
+        "usable_rows": 0,
+        "written": 0,
+        "note": "备用口径：使用东方财富涨停池 fund 字段作为封单资金，主链路仍优先使用 limit_list_d.fd_amount。"
+      }
+    }
+  },
+  "fallback": {
+    "eastmoney": {
+      "returncode": 0,
+      "elapsed": 16.0,
+      "stdout_tail": "{\n  \"status\": \"ok\",\n  \"source\": \"eastmoney_spot_snapshot\",\n  \"host\": \"push2delay.eastmoney.com\",\n  \"trade_date\": \"2026-07-09\",\n  \"started_at\": \"2026-07-09T09:21:00\",\n  \"finished_at\": \"2026-07-09T09:21:16\",\n  \"fetched\": 5536,\n  \"usable_rows\": 4821,\n  \"written\": 4821,\n  \"note\": \"普通行情快照口径，不包含涨停池封单资金；仅在主接口和东方财富涨停池都不可用时最后兜底。\"\n}",
+      "stderr_tail": "",
+      "json": {
+        "status": "ok",
+        "source": "eastmoney_spot_snapshot",
+        "host": "push2delay.eastmoney.com",
+        "trade_date": "2026-07-09",
+        "started_at": "2026-07-09T09:21:00",
+        "finished_at": "2026-07-09T09:21:16",
+        "fetched": 5536,
+        "usable_rows": 4821,
+        "written": 4821,
+        "note": "普通行情快照口径，不包含涨停池封单资金；仅在主接口和东方财富涨停池都不可用时最后兜底。"
+      }
+    },
+    "returncode": 0,
+    "elapsed": 1.8,
+    "stdout_tail": "竞价选债 T+0 | 2026-07-09\n触发股票: 0 | 概念: 0 | 转债: 0 | 观察: 0 | 待确认: 19\n------------------------------------------------------------------------------------------------------------------------\n#   转债           正股             题材分 概念                       风险提示\n\n待确认池（不进主买/观察，等待真实封单金额）\n------------------------------------------------------------------------------------------------------------------------\n1   天壕能源       300332   竞价价=5.16 涨停价=5.16 竞价额=0.00亿 待确认真实封单金额\n2   鲁北化工       600727   竞价价=7.11 涨停价=7.11 竞价额=0.00亿 待确认真实封单金额\n3   景兴纸业       002067   竞价价=4.05 涨停价=4.05 竞价额=0.00亿 待确认真实封单金额\n4   岭南控股       000524   竞价价=10.84 涨停价=10.84 竞价额=0.00亿 待确认真实封单金额\n5   山东墨龙       002490   竞价价=7.67 涨停价=7.67 竞价额=0.00亿 待确认真实封单金额\n6   华菱线缆       001208   竞价价=16.34 涨停价=16.34 竞价额=0.00亿 待确认真实封单金额\n7   兴业股份       603928   竞价价=18.0 涨停价=18.0 竞价额=0.00亿 待确认真实封单金额\n8   亚联机械       001395   竞价价=26.03 涨停价=26.03 竞价额=0.00亿 待确认真实封单金额\n9   朗迪集团       603726   竞价价=33.5 涨停价=33.5 竞价额=0.00亿 待确认真实封单金额\n10  合肥城建       002208   竞价价=19.12 涨停价=19.12 竞价额=0.00亿 待确认真实封单金额\n11  浪潮信息       000977   竞价价=85.99 涨停价=85.99 竞价额=0.00亿 待确认真实封单金额\n12  高德红外       002414   竞价价=13.31 涨停价=13.31 竞价额=0.00亿 待确认真实封单金额\n13  魅视科技       001229   竞价价=46.97 涨停价=46.97 竞价额=0.00亿 待确认真实封单金额\n14  星网宇达       002829   竞价价=17.73 涨停价=17.73 竞价额=0.00亿 待确认真实封单金额\n15  恒为科技       603496   竞价价=26.99 涨停价=26.99 竞价额=0.00亿 待确认真实封单金额\n16  浪潮软件       600756   竞价价=14.55 涨停价=14.55 竞价额=0.00亿 待确认真实封单金额\n17  上海雅仕       603329   竞价价=10.16 涨停价=10.16 竞价额=0.00亿 待确认真实封单金额\n18  大名城        600094   竞价价=4.64 涨停价=4.64 竞价额=0.00亿 待确认真实封单金额\n19  华昌化工       002274   竞价价=5.43 涨停价=5.43 竞价额=0.00亿 待确认真实封单金额\n\n触发股\n------------------------------------------------------------------------------------------------------------------------\n\nJSON: /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-09_cb_auction_snapshot_emergency.json\nCSV:  /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-09_cb_auction_snapshot_emergency.csv",
+    "stderr_tail": "",
+    "result_path": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-09_cb_auction_snapshot_emergency.json",
+    "result": {
+      "model": "cb_auction_snapshot_emergency",
+      "trade_date": "2026-07-09",
+      "trigger_stocks": [],
+      "concepts": [],
+      "bonds": [],
+      "observation_bonds": [],
+      "pending_confirmation_stocks": [
+        {
+          "trigger_stock_code": "300332",
+          "trigger_stock_name": "天壕能源",
+          "auction_price": 5.16,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 5.16,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "600727",
+          "trigger_stock_name": "鲁北化工",
+          "auction_price": 7.11,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 7.11,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "002067",
+          "trigger_stock_name": "景兴纸业",
+          "auction_price": 4.05,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 4.05,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "000524",
+          "trigger_stock_name": "岭南控股",
+          "auction_price": 10.84,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 10.84,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "002490",
+          "trigger_stock_name": "山东墨龙",
+          "auction_price": 7.67,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 7.67,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "001208",
+          "trigger_stock_name": "华菱线缆",
+          "auction_price": 16.34,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 16.34,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "603928",
+          "trigger_stock_name": "兴业股份",
+          "auction_price": 18.0,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 18.0,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "001395",
+          "trigger_stock_name": "亚联机械",
+          "auction_price": 26.03,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 26.03,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "603726",
+          "trigger_stock_name": "朗迪集团",
+          "auction_price": 33.5,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 33.5,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "002208",
+          "trigger_stock_name": "合肥城建",
+          "auction_price": 19.12,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 19.12,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "000977",
+          "trigger_stock_name": "浪潮信息",
+          "auction_price": 85.99,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 85.99,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "002414",
+          "trigger_stock_name": "高德红外",
+          "auction_price": 13.31,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 13.31,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "001229",
+          "trigger_stock_name": "魅视科技",
+          "auction_price": 46.97,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 46.97,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "002829",
+          "trigger_stock_name": "星网宇达",
+          "auction_price": 17.73,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 17.73,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "603496",
+          "trigger_stock_name": "恒为科技",
+          "auction_price": 26.99,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 26.99,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "600756",
+          "trigger_stock_name": "浪潮软件",
+          "auction_price": 14.55,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 14.55,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "603329",
+          "trigger_stock_name": "上海雅仕",
+          "auction_price": 10.16,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 10.16,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "600094",
+          "trigger_stock_name": "大名城",
+          "auction_price": 4.64,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 4.64,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        },
+        {
+          "trigger_stock_code": "002274",
+          "trigger_stock_name": "华昌化工",
+          "auction_price": 5.43,
+          "auction_amount": 0.0,
+          "auction_amount_yi": 0.0,
+          "up_limit": 5.43,
+          "confirmation_status": "待确认真实封单金额",
+          "data_source": "stk_auction+stk_limit"
+        }
+      ],
+      "rejections": [],
+      "note": "临时口径: limit_list_d 未更新时，使用 stk_auction_o 竞价涨幅和成交额触发。"
+    }
+  },
+  "report_path": "/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-09/092118_cb_auction_t0_v2_1.md"
+}

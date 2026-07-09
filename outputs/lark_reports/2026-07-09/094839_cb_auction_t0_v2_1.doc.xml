@@ -1,0 +1,142 @@
+<h1>秋神竞价 T+0 选债（2026-07-09 09:48）</h1>
+<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
+<defs>
+<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
+<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
+</defs>
+<rect width="900" height="1400" fill="#050403"/>
+<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
+<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
+<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
+<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
+<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
+<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
+<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神竞价 T+0 选债</text>
+<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-09  ·  更新时间 09:48  ·  选债</text>
+<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：有主买候选</text>
+<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">主买/观察</text>
+<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">10只 / 0只</text>
+<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">有主买候选</text>
+<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">触发股</text>
+<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">1只</text>
+<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">竞价触发源数量</text>
+<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">题材均分</text>
+<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">161.3</text>
+<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">主买题材强度</text>
+<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
+<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">触发概念</text>
+<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">2个</text>
+<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">概念映射强度参考</text>
+<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
+<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
+<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次竞价选债有主买标的，优先看质量</text>
+<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">档、题材分和触发概念是否一致。</text>
+<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选债清单 Top 8</text>
+<rect x="56" y="732" width="742" height="464" rx="16" fill="#11100d" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
+<rect x="56" y="732" width="742" height="48" rx="16" fill="#caa85a" opacity="0.72"/>
+<rect x="56" y="756" width="742" height="24" fill="#caa85a" opacity="0.72"/>
+<text x="68" y="763" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">序号</text>
+<text x="126" y="763" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">转债</text>
+<text x="244" y="763" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">名称</text>
+<text x="390" y="763" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">正股/概念</text>
+<text x="594" y="763" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">评分</text>
+<text x="698" y="763" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#fff4c8">档位</text>
+<rect x="56" y="780" width="742" height="52" fill="#17140f" opacity="0.96"/>
+<text x="68" y="813" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">1</text>
+<text x="126" y="813" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">118011...</text>
+<text x="244" y="813" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">银微转债</text>
+<text x="390" y="813" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">先进封装、汽...</text>
+<text x="594" y="813" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">231.3</text>
+<text x="698" y="813" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">A</text>
+<line x1="56" y1="832" x2="798" y2="832" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="832" width="742" height="52" fill="#0f0d0a" opacity="0.96"/>
+<text x="68" y="865" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">2</text>
+<text x="126" y="865" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">118058...</text>
+<text x="244" y="865" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">微导转债</text>
+<text x="390" y="865" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">先进封装、汽...</text>
+<text x="594" y="865" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">231.3</text>
+<text x="698" y="865" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">A</text>
+<line x1="56" y1="884" x2="798" y2="884" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="884" width="742" height="52" fill="#17140f" opacity="0.96"/>
+<text x="68" y="917" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">3</text>
+<text x="126" y="917" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">118501...</text>
+<text x="244" y="917" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">华海定转</text>
+<text x="390" y="917" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">先进封装、汽...</text>
+<text x="594" y="917" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">231.3</text>
+<text x="698" y="917" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">A</text>
+<line x1="56" y1="936" x2="798" y2="936" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="936" width="742" height="52" fill="#0f0d0a" opacity="0.96"/>
+<text x="68" y="969" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">4</text>
+<text x="126" y="969" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">111025...</text>
+<text x="244" y="969" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">圣泉转债</text>
+<text x="390" y="969" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">先进封装</text>
+<text x="594" y="969" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">131.3</text>
+<text x="698" y="969" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">A</text>
+<line x1="56" y1="988" x2="798" y2="988" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="988" width="742" height="52" fill="#17140f" opacity="0.96"/>
+<text x="68" y="1021" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">5</text>
+<text x="126" y="1021" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">113616...</text>
+<text x="244" y="1021" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">韦尔转债</text>
+<text x="390" y="1021" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">汽车芯片</text>
+<text x="594" y="1021" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">131.3</text>
+<text x="698" y="1021" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">A</text>
+<line x1="56" y1="1040" x2="798" y2="1040" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="1040" width="742" height="52" fill="#0f0d0a" opacity="0.96"/>
+<text x="68" y="1073" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">6</text>
+<text x="126" y="1073" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">113702...</text>
+<text x="244" y="1073" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">斯达转债</text>
+<text x="390" y="1073" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">汽车芯片</text>
+<text x="594" y="1073" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">131.3</text>
+<text x="698" y="1073" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">A</text>
+<line x1="56" y1="1092" x2="798" y2="1092" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="1092" width="742" height="52" fill="#17140f" opacity="0.96"/>
+<text x="68" y="1125" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">7</text>
+<text x="126" y="1125" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">118015...</text>
+<text x="244" y="1125" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">芯海转债</text>
+<text x="390" y="1125" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">汽车芯片</text>
+<text x="594" y="1125" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">131.3</text>
+<text x="698" y="1125" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">A</text>
+<line x1="56" y1="1144" x2="798" y2="1144" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<rect x="56" y="1144" width="742" height="52" fill="#0f0d0a" opacity="0.96"/>
+<text x="68" y="1177" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">8</text>
+<text x="126" y="1177" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">118030...</text>
+<text x="244" y="1177" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#f7efd4">睿创转债</text>
+<text x="390" y="1177" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">汽车芯片</text>
+<text x="594" y="1177" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">131.3</text>
+<text x="698" y="1177" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500" fill="#c9bd95">A</text>
+<line x1="56" y1="1196" x2="798" y2="1196" stroke="#6d5931" stroke-width="1" opacity="0.72"/>
+<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
+<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
+<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">筛选过程: 触发股 1 只，概念 2 个，...</text>
+<rect x="64" y="1273" width="10" height="10" fill="#ead89b"/>
+<text x="88" y="1292" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">汽车芯片: 关联转债 8 只，题材均分 ...</text>
+<rect x="64" y="1305" width="10" height="10" fill="#ead89b"/>
+<text x="88" y="1324" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">先进封装: 关联转债 5 只，题材均分 ...</text>
+<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
+<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
+<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
+</svg></whiteboard>
+<h2>一、数据更新时间和日期</h2>
+<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选债日期</td><td>2026-07-09</td></tr><tr><td>报告生成时间</td><td>2026-07-09 09:48</td></tr><tr><td>本次取数时间</td><td>2026-07-09 09:48:35</td></tr><tr><td>数据更新时点</td><td>limit_list_d=20260706；kpl_list=20260702；eastmoney_limit_pool=20260709；stk_auction_o=2026-07-09；stk_limit=2026-07-09</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 4.8s；分钟线 ok/PG 0；日线PG 0；指数PG 0；涨停价PG 0</td></tr><tr><td>主买数量</td><td>10只</td></tr><tr><td>观察数量</td><td>0只</td></tr></tbody></table>
+<h2>二、市场状态诊断</h2>
+<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>触发股</td><td>1只</td><td>竞价触发源数量</td></tr><tr><td>触发概念</td><td>2个</td><td>概念映射强度参考</td></tr><tr><td>主买/观察</td><td>10只 / 0只</td><td>有主买候选</td></tr><tr><td>题材均分</td><td>161.3</td><td>主买题材强度</td></tr><tr><td>剔除记录</td><td>48条</td><td>用于解释未入选原因</td></tr></tbody></table>
+<p><b>市场结论：</b>本次竞价选债有主买标的，优先看质量档、题材分和触发概念是否一致。</p>
+<h2>三、选债清单</h2>
+<h3>主买清单</h3>
+<table><thead><tr><th background-color="light-gray">序号</th><th background-color="light-gray">转债代码</th><th background-color="light-gray">转债名称</th><th background-color="light-gray">正股代码</th><th background-color="light-gray">正股名称</th><th background-color="light-gray">质量档</th><th background-color="light-gray">题材分</th><th background-color="light-gray">封单金额</th><th background-color="light-gray">匹配概念</th><th background-color="light-gray">选债原因</th></tr></thead><tbody><tr><td>1</td><td>118011.SH</td><td>银微转债</td><td>688689</td><td>银河微电</td><td>A</td><td>231.3</td><td>21.29亿</td><td>先进封装、汽车芯片</td><td>命中先进封装、汽车芯片；质量档A；题材分231.3；概念竞价强度0.29%；匹配概念: 先进封装、汽车芯片；触发来源: 002414；风险: 公告提示强赎</td></tr><tr><td>2</td><td>118058.SH</td><td>微导转债</td><td>688147</td><td>微导纳米</td><td>A</td><td>231.3</td><td>21.29亿</td><td>先进封装、汽车芯片</td><td>命中先进封装、汽车芯片；质量档A；题材分231.3；概念竞价强度0.29%；匹配概念: 先进封装、汽车芯片；触发来源: 002414；风险: 剩余规模11.70亿</td></tr><tr><td>3</td><td>118501.SH</td><td>华海定转</td><td>688535</td><td>华海诚科</td><td>A</td><td>231.3</td><td>21.29亿</td><td>先进封装、汽车芯片</td><td>命中先进封装、汽车芯片；质量档A；题材分231.3；概念竞价强度0.29%；匹配概念: 先进封装、汽车芯片；触发来源: 002414</td></tr><tr><td>4</td><td>111025.SH</td><td>圣泉转债</td><td>605589</td><td>圣泉集团</td><td>A</td><td>131.3</td><td>21.29亿</td><td>先进封装</td><td>命中先进封装；质量档A；题材分131.3；概念竞价强度0.29%；匹配概念: 先进封装；触发来源: 002414；风险: 剩余规模25.00亿</td></tr><tr><td>5</td><td>113616.SH</td><td>韦尔转债</td><td>603501</td><td>豪威集团</td><td>A</td><td>131.3</td><td>21.29亿</td><td>汽车芯片</td><td>命中汽车芯片；质量档A；题材分131.3；概念竞价强度0.25%；匹配概念: 汽车芯片；触发来源: 002414；风险: 剩余规模24.32亿</td></tr><tr><td>6</td><td>113702.SH</td><td>斯达转债</td><td>603290</td><td>斯达半导</td><td>A</td><td>131.3</td><td>21.29亿</td><td>汽车芯片</td><td>命中汽车芯片；质量档A；题材分131.3；概念竞价强度0.25%；匹配概念: 汽车芯片；触发来源: 002414；风险: 剩余规模15.00亿</td></tr><tr><td>7</td><td>118015.SH</td><td>芯海转债</td><td>688595</td><td>芯海科技</td><td>A</td><td>131.3</td><td>21.29亿</td><td>汽车芯片</td><td>命中汽车芯片；质量档A；题材分131.3；概念竞价强度0.25%；匹配概念: 汽车芯片；触发来源: 002414</td></tr><tr><td>8</td><td>118030.SH</td><td>睿创转债</td><td>688002</td><td>睿创微纳</td><td>A</td><td>131.3</td><td>21.29亿</td><td>汽车芯片</td><td>命中汽车芯片；质量档A；题材分131.3；概念竞价强度0.25%；匹配概念: 汽车芯片；触发来源: 002414；风险: 剩余规模12.62亿</td></tr><tr><td>9</td><td>118040.SH</td><td>宏微转债</td><td>688711</td><td>宏微科技</td><td>A</td><td>131.3</td><td>21.29亿</td><td>汽车芯片</td><td>命中汽车芯片；质量档A；题材分131.3；概念竞价强度0.25%；匹配概念: 汽车芯片；触发来源: 002414；风险: 已满足强赎条件</td></tr><tr><td>10</td><td>118056.SH</td><td>路维转债</td><td>688401</td><td>路维光电</td><td>A</td><td>131.3</td><td>21.29亿</td><td>先进封装</td><td>命中先进封装；质量档A；题材分131.3；概念竞价强度0.29%；匹配概念: 先进封装；触发来源: 002414</td></tr></tbody></table>
+<h2>四、板块/概念共振</h2>
+<ul><li>筛选过程: 触发股 1 只，概念 2 个，主买 10 只，观察 0 只，剔除 48 条</li><li>汽车芯片: 关联转债 8 只，题材均分 168.8</li><li>先进封装: 关联转债 5 只，题材均分 191.3</li></ul>
+<h3>筛选过程</h3>
+<ul><li>交易日确认: ok；输入 -；输出 -；说明 -</li><li>触发股筛选: ok；输入 -；输出 -；说明 -</li><li>概念映射: ok；输入 -；输出 -；说明 -</li><li>转债匹配: ok；输入 -；输出 -；说明 -</li><li>输出分层: ok；输入 -；输出 -；说明 -</li></ul>
+<h2>五、风险提示</h2>
+<callout emoji="❗" background-color="light-yellow" border-color="yellow">
+<ul>
+<li>本报告是模型筛选结果，不是自动买入指令。</li>
+<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
+<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
+</ul>
+</callout>

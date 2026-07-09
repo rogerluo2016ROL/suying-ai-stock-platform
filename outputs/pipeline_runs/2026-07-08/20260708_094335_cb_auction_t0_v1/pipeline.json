@@ -1,0 +1,14 @@
+{
+  "status": "dry_run",
+  "model_key": "cb_auction_t0_v1",
+  "mode": "cb_auction_t0",
+  "trade_date": "2026-07-08",
+  "top_n": 10,
+  "command": {
+    "command": "竞价 T+0 选债 V1",
+    "mode": "cb_auction_t0",
+    "top_n": 10,
+    "trade_date": "2026-07-08"
+  },
+  "run_dir": "/Users/rogerluo/程序目录/K线大模型/outputs/pipeline_runs/2026-07-08/20260708_094335_cb_auction_t0_v1"
+}

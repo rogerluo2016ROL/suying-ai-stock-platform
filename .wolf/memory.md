@@ -738,3 +738,55 @@
 | 08:05 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | modified _compute_score() | ~285 |
 | 08:05 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 42→44 lines | ~444 |
 | 08:11 | Session end: 13 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~105920 tok |
+| 08:14 | Session end: 13 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~105920 tok |
+| 08:19 | Session end: 13 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~105920 tok |
+| 08:24 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 5→9 lines | ~60 |
+| 08:25 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | modified _is_limit_up() | ~185 |
+| 08:27 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 27→25 lines | ~166 |
+| 08:27 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 6→6 lines | ~38 |
+| 08:27 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 8→10 lines | ~146 |
+| 08:33 | Session end: 18 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~106740 tok |
+| 08:50 | Session end: 18 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~106740 tok |
+| 08:59 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | inline fix | ~17 |
+| 09:06 | Session end: 19 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~106757 tok |
+| 09:08 | Session end: 19 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~106757 tok |
+| 09:25 | Session end: 19 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~106757 tok |
+| 09:27 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 3→4 lines | ~52 |
+| 09:27 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | modified not() | ~87 |
+| 09:27 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 5→5 lines | ~39 |
+| 09:27 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 6→6 lines | ~38 |
+| 09:33 | Session end: 23 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107089 tok |
+| 09:39 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 4→3 lines | ~37 |
+| 09:39 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | modified not() | ~44 |
+| 09:39 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 5→5 lines | ~45 |
+| 09:39 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 6→6 lines | ~38 |
+| 09:39 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 09:43 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 09:45 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 09:53 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 10:03 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 10:06 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 10:10 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 10:12 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 10:19 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 10:29 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 10:46 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 11:29 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 11:46 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 12:05 | Session end: 27 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107253 tok |
+| 12:10 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 3→4 lines | ~56 |
+| 12:10 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 5→9 lines | ~80 |
+| 12:10 | Edited packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py | 6→6 lines | ~42 |
+| 12:16 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 13:07 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 13:23 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 13:28 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 13:29 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 13:32 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 14:20 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 14:47 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 14:48 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 14:50 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 15:13 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 15:54 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |
+| 16:55 | Session end: 30 writes across 5 files (config.py, screener.py, backtest_bi_shifu_trend.py, backtest_bi_shifu_trend_correct.py, bi_shifu_trend.py) | 4 reads | ~107391 tok |

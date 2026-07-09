@@ -1,0 +1,396 @@
+{
+  "status": "ok",
+  "model_key": "cb_auction_t0",
+  "trade_date": "2026-07-08",
+  "mode": "cb_auction_t0_v2_1",
+  "top_n": 10,
+  "refresh": {
+    "status": "skipped"
+  },
+  "primary_rows": {
+    "limit_list_d": 0,
+    "kpl_list": 0,
+    "stk_auction_o": 5129
+  },
+  "fallback": {
+    "eastmoney": {
+      "returncode": 1,
+      "elapsed": 9.7,
+      "stdout_tail": "",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"/Users/rogerluo/程序目录/K线大模型/tools/collect_eastmoney_auction_snapshot.py\", line 187, in <module>\n    raise SystemExit(main())\n                     ~~~~^^\n  File \"/Users/rogerluo/程序目录/K线大模型/tools/collect_eastmoney_auction_snapshot.py\", line 169, in main\n    written = write_stk_auction_o(args.pg_url, rows, args.overwrite)\n  File \"/Users/rogerluo/程序目录/K线大模型/tools/collect_eastmoney_auction_snapshot.py\", line 150, in write_stk_auction_o\n    execute_values(cur, sql, rows, page_size=1000)\n    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/rogerluo/程序目录/K线大模型/.venv/lib/python3.14/site-packages/psycopg2/extras.py\", line 1299, in execute_values\n    cur.execute(b''.join(parts))\n    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^\npsycopg2.errors.CardinalityViolation: ON CONFLICT DO UPDATE command cannot affect row a second time\nHINT:  Ensure that no rows proposed for insertion within the same command have duplicate constrained values."
+    },
+    "returncode": 0,
+    "elapsed": 1.0,
+    "stdout_tail": "竞价选债 T+0 | 2026-07-08\n触发股票: 5 | 概念: 2 | 转债: 4 | 观察: 0 | 待确认: 0\n------------------------------------------------------------------------------------------------------------------------\n#   转债           正股             题材分 概念                       风险提示\n1   金05转债        金盘科技         131.1 中国AI 50                  剩余规模16.71亿\n2   卫宁转债         卫宁健康         131.1 中国AI 50                  \n3   道通转债         道通科技         126.4 其他计算机设备                  剩余规模12.80亿\n4   正元转02        正元智慧         126.4 其他计算机设备                  \n\n触发股\n------------------------------------------------------------------------------------------------------------------------\n1   新联电子       002546   竞价涨幅 10.04% 竞价成交  1927.5万\n2   浪潮信息       000977   竞价涨幅 10.01% 竞价成交 62843.8万\n3   华菱线缆       001208   竞价涨幅 10.00% 竞价成交  2526.0万\n4   魅视科技       001229   竞价涨幅  9.99% 竞价成交  1582.1万\n5   紫光股份       000938   竞价涨幅  9.59% 竞价成交 48276.9万\n\nJSON: /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-08_cb_auction_snapshot_emergency.json\nCSV:  /Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-08_cb_auction_snapshot_emergency.csv",
+    "stderr_tail": "",
+    "result_path": "/Users/rogerluo/程序目录/K线大模型/outputs/cb_auction_snapshot_emergency/2026-07-08_cb_auction_snapshot_emergency.json",
+    "result": {
+      "model": "cb_auction_snapshot_emergency",
+      "trade_date": "2026-07-08",
+      "trigger_stocks": [
+        {
+          "trigger_stock_code": "002546",
+          "trigger_stock_name": "新联电子",
+          "fd_amount": 19274840.0,
+          "fd_amount_yi": 0.19,
+          "first_time": "09:25:00",
+          "prev_was_limit_up": false,
+          "emergency_source": "stk_auction_o",
+          "auction_gap_pct": 10.04,
+          "auction_amount_wan": 1927.5
+        },
+        {
+          "trigger_stock_code": "000977",
+          "trigger_stock_name": "浪潮信息",
+          "fd_amount": 628437552.9,
+          "fd_amount_yi": 6.28,
+          "first_time": "09:25:00",
+          "prev_was_limit_up": false,
+          "emergency_source": "stk_auction_o",
+          "auction_gap_pct": 10.01,
+          "auction_amount_wan": 62843.8
+        },
+        {
+          "trigger_stock_code": "001208",
+          "trigger_stock_name": "华菱线缆",
+          "fd_amount": 25259850.0,
+          "fd_amount_yi": 0.25,
+          "first_time": "09:25:00",
+          "prev_was_limit_up": false,
+          "emergency_source": "stk_auction_o",
+          "auction_gap_pct": 10.0,
+          "auction_amount_wan": 2526.0
+        },
+        {
+          "trigger_stock_code": "001229",
+          "trigger_stock_name": "魅视科技",
+          "fd_amount": 15821204.0,
+          "fd_amount_yi": 0.16,
+          "first_time": "09:25:00",
+          "prev_was_limit_up": false,
+          "emergency_source": "stk_auction_o",
+          "auction_gap_pct": 9.99,
+          "auction_amount_wan": 1582.1
+        },
+        {
+          "trigger_stock_code": "000938",
+          "trigger_stock_name": "紫光股份",
+          "fd_amount": 482769402.0,
+          "fd_amount_yi": 4.83,
+          "first_time": "09:25:00",
+          "prev_was_limit_up": false,
+          "emergency_source": "stk_auction_o",
+          "auction_gap_pct": 9.59,
+          "auction_amount_wan": 48276.9
+        }
+      ],
+      "concepts": [
+        {
+          "concept_code": "886102.TI",
+          "concept_name": "中国AI 50",
+          "trigger_stock_count": 2,
+          "concept_fd_amount": 1111206954.9,
+          "concept_fd_amount_yi": 11.11,
+          "trigger_sources": [
+            "000938",
+            "000977"
+          ],
+          "concept_size": 2,
+          "concept_strength": 1.3844193906909903,
+          "concept_strength_source": "auction_avg",
+          "auction_sample_count": 50
+        },
+        {
+          "concept_code": "884207.TI",
+          "concept_name": "其他计算机设备",
+          "trigger_stock_count": 2,
+          "concept_fd_amount": 644258756.9,
+          "concept_fd_amount_yi": 6.44,
+          "trigger_sources": [
+            "000977",
+            "001229"
+          ],
+          "concept_size": 2,
+          "concept_strength": 0.8199667503010565,
+          "concept_strength_source": "auction_avg",
+          "auction_sample_count": 53
+        }
+      ],
+      "bonds": [
+        {
+          "cb_code": "118063.SH",
+          "cb_name": "金05转债",
+          "stk_code": "688676",
+          "stk_name": "金盘科技",
+          "matched_concepts": [
+            "中国AI 50"
+          ],
+          "trigger_sources": [
+            "000938",
+            "000977"
+          ],
+          "matched_concept_count": 1,
+          "trigger_stock_count_sum": 2,
+          "matched_fd_amount": 1111206954.9,
+          "matched_concept_strength": 1.3844193906909903,
+          "concept_size_min": 2,
+          "premium_rate": null,
+          "cb_amount": null,
+          "remain_size": 1671417336.2,
+          "delist_date": null,
+          "call_status": "安全",
+          "is_direct_trigger": false,
+          "theme_score": 131.1121,
+          "risk_notes": [
+            "剩余规模16.71亿"
+          ],
+          "remain_size_yi": 16.71,
+          "code": "118063.SH",
+          "name": "金05转债",
+          "relation_reason": "命中中国AI 50",
+          "quality_tier": "A",
+          "quality_tier_reason": "概念竞价强度1.38%",
+          "list_type": "主买"
+        },
+        {
+          "cb_code": "123104.SZ",
+          "cb_name": "卫宁转债",
+          "stk_code": "300253",
+          "stk_name": "卫宁健康",
+          "matched_concepts": [
+            "中国AI 50"
+          ],
+          "trigger_sources": [
+            "000938",
+            "000977"
+          ],
+          "matched_concept_count": 1,
+          "trigger_stock_count_sum": 2,
+          "matched_fd_amount": 1111206954.9,
+          "matched_concept_strength": 1.3844193906909903,
+          "concept_size_min": 2,
+          "premium_rate": null,
+          "cb_amount": null,
+          "remain_size": 969874200.0,
+          "delist_date": null,
+          "call_status": "安全",
+          "is_direct_trigger": false,
+          "theme_score": 131.1121,
+          "risk_notes": [],
+          "remain_size_yi": 9.7,
+          "code": "123104.SZ",
+          "name": "卫宁转债",
+          "relation_reason": "命中中国AI 50",
+          "quality_tier": "A",
+          "quality_tier_reason": "概念竞价强度1.38%",
+          "list_type": "主买"
+        },
+        {
+          "cb_code": "118013.SH",
+          "cb_name": "道通转债",
+          "stk_code": "688208",
+          "stk_name": "道通科技",
+          "matched_concepts": [
+            "其他计算机设备"
+          ],
+          "trigger_sources": [
+            "000977",
+            "001229"
+          ],
+          "matched_concept_count": 1,
+          "trigger_stock_count_sum": 2,
+          "matched_fd_amount": 644258756.9,
+          "matched_concept_strength": 0.8199667503010565,
+          "concept_size_min": 2,
+          "premium_rate": null,
+          "cb_amount": null,
+          "remain_size": 1279674000.0,
+          "delist_date": null,
+          "call_status": "公告不强赎",
+          "is_direct_trigger": false,
+          "theme_score": 126.4426,
+          "risk_notes": [
+            "剩余规模12.80亿"
+          ],
+          "remain_size_yi": 12.8,
+          "code": "118013.SH",
+          "name": "道通转债",
+          "relation_reason": "命中其他计算机设备",
+          "quality_tier": "A",
+          "quality_tier_reason": "概念竞价强度0.82%",
+          "list_type": "主买"
+        },
+        {
+          "cb_code": "123196.SZ",
+          "cb_name": "正元转02",
+          "stk_code": "300645",
+          "stk_name": "正元智慧",
+          "matched_concepts": [
+            "其他计算机设备"
+          ],
+          "trigger_sources": [
+            "000977",
+            "001229"
+          ],
+          "matched_concept_count": 1,
+          "trigger_stock_count_sum": 2,
+          "matched_fd_amount": 644258756.9,
+          "matched_concept_strength": 0.8199667503010565,
+          "concept_size_min": 2,
+          "premium_rate": null,
+          "cb_amount": null,
+          "remain_size": 350149000.0,
+          "delist_date": null,
+          "call_status": "安全",
+          "is_direct_trigger": false,
+          "theme_score": 126.4426,
+          "risk_notes": [],
+          "remain_size_yi": 3.5,
+          "code": "123196.SZ",
+          "name": "正元转02",
+          "relation_reason": "命中其他计算机设备",
+          "quality_tier": "A",
+          "quality_tier_reason": "概念竞价强度0.82%",
+          "list_type": "主买"
+        }
+      ],
+      "observation_bonds": [],
+      "pending_confirmation_stocks": [],
+      "rejections": [
+        {
+          "code": "301251",
+          "name": "威尔高",
+          "reason": "昨日已涨停"
+        },
+        {
+          "cb_code": "110039.SH",
+          "cb_name": "宝信转债",
+          "stk_code": "600845",
+          "stk_name": "宝信软件",
+          "delist_date": "2018-07-13",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "113061.SH",
+          "cb_name": "拓普转债",
+          "stk_code": "601689",
+          "stk_name": "拓普集团",
+          "delist_date": "2025-03-14",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "113517.SH",
+          "cb_name": "曙光转债",
+          "stk_code": "603019",
+          "stk_name": "中科曙光",
+          "delist_date": "2020-03-31",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "113569.SH",
+          "cb_name": "科达转债",
+          "stk_code": "603660",
+          "stk_name": "苏州科达",
+          "delist_date": "2025-10-21",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "113587.SH",
+          "cb_name": "泛微转债",
+          "stk_code": "603039",
+          "stk_name": "泛微网络",
+          "delist_date": "2021-02-23",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "113594.SH",
+          "cb_name": "淳中转债",
+          "stk_code": "603516",
+          "stk_name": "淳中科技",
+          "delist_date": "2024-04-12",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "118019.SH",
+          "cb_name": "金盘转债",
+          "stk_code": "688676",
+          "stk_name": "金盘科技",
+          "delist_date": "2024-05-28",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "123043.SZ",
+          "cb_name": "正元转债",
+          "stk_code": "300645",
+          "stk_name": "正元智慧",
+          "delist_date": "2022-02-28",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "123077.SZ",
+          "cb_name": "汉得转债",
+          "stk_code": "300170",
+          "stk_name": "汉得信息",
+          "delist_date": "2023-05-11",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "123140.SZ",
+          "cb_name": "天地转债",
+          "stk_code": "300743",
+          "stk_name": "天地数码",
+          "delist_date": "2023-11-15",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "123210.SZ",
+          "cb_name": "信服转债",
+          "stk_code": "300454",
+          "stk_name": "深信服",
+          "delist_date": "2026-03-25",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "124002.SZ",
+          "cb_name": "华铭定转",
+          "stk_code": "300462",
+          "stk_name": "ST华铭",
+          "reason": "ST正股剔除"
+        },
+        {
+          "cb_code": "124014.SZ",
+          "cb_name": "华铭定02",
+          "stk_code": "300462",
+          "stk_name": "ST华铭",
+          "reason": "ST正股剔除"
+        },
+        {
+          "cb_code": "127074.SZ",
+          "cb_name": "麦米转2",
+          "stk_code": "002851",
+          "stk_name": "麦格米特",
+          "delist_date": "2024-12-16",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "128083.SZ",
+          "cb_name": "新北转债",
+          "stk_code": "002376",
+          "stk_name": "新北洋",
+          "delist_date": "2025-01-07",
+          "reason": "已退市转债剔除"
+        },
+        {
+          "cb_code": "128089.SZ",
+          "cb_name": "麦米转债",
+          "stk_code": "002851",
+          "stk_name": "麦格米特",
+          "delist_date": "2020-09-10",
+          "reason": "已退市转债剔除"
+        }
+      ],
+      "note": "临时口径: limit_list_d 未更新时，使用 stk_auction_o 竞价涨幅和成交额触发。"
+    }
+  },
+  "report_path": "/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/093808_cb_auction_t0_v2_1.md"
+}

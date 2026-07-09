@@ -57,7 +57,12 @@ function rowToCompany(row: SupplyChainCandidateRankingItem): CandidateCompany {
       fresh_rate: toPercent(row.fresh_rate),
     },
     evidence_gaps: row.freshness_status && row.freshness_status !== 'fresh' ? [`证据新鲜度：${row.freshness_status}`] : [],
-    selection_reason: `${row.chain_id} / ${row.best_tag_name}，三高 ${formatNumber(row.three_high_total, 1)}，L8证据 ${formatNumber(toPercent(row.l8_match_rate), 0)}%`,
+    selection_reason: [
+      `${row.chain_id} / ${row.best_tag_name}，三高 ${formatNumber(row.three_high_total, 1)}，L8证据 ${formatNumber(toPercent(row.l8_match_rate), 0)}%`,
+      row.commercialization_indicator,
+      row.expectation_gap_indicator,
+      row.trigger_signal_indicator,
+    ].filter(Boolean).join('；'),
   }
 }
 
@@ -107,6 +112,8 @@ export default function SupplyChainCandidateRankingPanel({ onOpenCompany }: Supp
   const openEvidence = (row: SupplyChainCandidateRankingItem) => {
     onOpenCompany?.(rowToCompany(row))
   }
+
+  const capexContext = data?.summary.bigtech_capex_context
 
   const columns: TableColumnsType<SupplyChainCandidateRankingItem> = [
     {
@@ -187,6 +194,36 @@ export default function SupplyChainCandidateRankingPanel({ onOpenCompany }: Supp
       ),
     },
     {
+      title: 'CAPEX证据链',
+      width: 320,
+      render: (_, row) => {
+        const tailwind = row.bigtech_capex_tailwind
+        const score = Number(tailwind?.score || 0)
+        const companies = tailwind?.companies || []
+        const layers = tailwind?.matched_layers || []
+        return (
+          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+            <Space size={4} wrap>
+              <Tag color={score > 0 ? 'geekblue' : 'default'}>大厂顺风 {formatNumber(score, 1)}</Tag>
+              {tailwind?.company_count ? <Tag>{tailwind.company_count} 家</Tag> : null}
+              {tailwind?.record_count ? <Tag>{tailwind.record_count} 条证据</Tag> : null}
+            </Space>
+            {layers.length ? (
+              <Space size={4} wrap>
+                {layers.map(layer => <Tag key={layer} color="cyan">{layer}</Tag>)}
+              </Space>
+            ) : null}
+            <Text style={{ fontSize: 12 }}>{row.commercialization_indicator || '无商业化证据说明'}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>{row.expectation_gap_indicator || '无预期差证据说明'}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>{row.trigger_signal_indicator || '无启动信号说明'}</Text>
+            {companies.length ? (
+              <Text type="secondary" style={{ fontSize: 12 }}>{companies.join(' / ')}</Text>
+            ) : null}
+          </Space>
+        )
+      },
+    },
+    {
       title: '行情',
       width: 150,
       render: (_, row) => (
@@ -233,6 +270,18 @@ export default function SupplyChainCandidateRankingPanel({ onOpenCompany }: Supp
         <Col xs={12} md={6}><Card size="small"><Text type="secondary">公司-产业链</Text><div style={{ fontSize: 24, fontWeight: 700 }}>{data?.summary.company_chain_rows || 0}</div></Card></Col>
         <Col xs={12} md={6}><Card size="small"><Text type="secondary">产业链</Text><div style={{ fontSize: 24, fontWeight: 700 }}>{data?.summary.chain_count || 0}</div></Card></Col>
         <Col xs={12} md={6}><Card size="small"><Text type="secondary">重点候选</Text><div style={{ fontSize: 24, fontWeight: 700, color: lightTokens.up }}>{data?.summary.signal_distribution?.重点候选 || 0}</div></Card></Col>
+        <Col xs={24} md={12}>
+          <Card size="small">
+            <Space direction="vertical" size={4}>
+              <Text type="secondary">海外大厂 CAPEX 证据</Text>
+              <Space size={6} wrap>
+                <Tag color="geekblue">{capexContext?.company_count || 0} 家大厂</Tag>
+                <Tag color="cyan">{capexContext?.record_count || 0} 条 SEC 证据</Tag>
+                {(capexContext?.companies || []).map(company => <Tag key={company}>{company}</Tag>)}
+              </Space>
+            </Space>
+          </Card>
+        </Col>
       </Row>
 
       <Space wrap>
@@ -263,7 +312,7 @@ export default function SupplyChainCandidateRankingPanel({ onOpenCompany }: Supp
         columns={columns}
         dataSource={rows}
         pagination={{ pageSize: 20, showSizeChanger: false }}
-        scroll={{ x: 1430 }}
+        scroll={{ x: 1750 }}
         locale={{
           emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无候选排序数据" />,
         }}

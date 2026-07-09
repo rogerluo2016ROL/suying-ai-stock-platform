@@ -317,6 +317,12 @@ export interface SupplyChainCandidateRankingParams {
   signal?: string
 }
 
+export interface SupplyChainCapexEvidenceReviewQueueParams {
+  limit?: number
+  chainId?: string
+  reviewStatus?: 'pending_review' | 'approved' | 'rejected'
+}
+
 export type SupplyChainMappingReviewStatus = 'reviewable' | 'pending_review' | 'weak_evidence' | 'verified' | 'rejected'
 
 export interface SupplyChainMappingReviewQueueParams {
@@ -457,6 +463,53 @@ export interface EvidenceReviewQueueResponse {
   limitations?: string[]
 }
 
+export interface CapexEvidenceReviewItem {
+  capex_evidence_id: string
+  mapping_id: string
+  code: string
+  company_name?: string
+  chain_id?: string
+  node_id?: string
+  tag_name?: string
+  fiscal_period?: string
+  as_of_date?: string | null
+  capex_amount?: number | null
+  capex_amount_unit?: string
+  currency?: string
+  capex_direction?: string[]
+  mapped_layer_id?: string
+  mapped_segments?: string[]
+  source_type?: string
+  source_level?: string
+  source_name?: string
+  source_url?: string
+  quote?: string
+  evidence_level?: string
+  confidence?: number
+  review_status?: string
+  amount_is_total_capex?: boolean
+  amount_is_segment_capex?: boolean
+  direction_is_ai_related?: boolean
+  metadata?: Record<string, unknown>
+  created_at?: string | null
+}
+
+export interface CapexEvidenceReviewQueueResponse {
+  version: string
+  source_status: string
+  filters: Record<string, unknown>
+  counts: Record<string, number>
+  queue: CapexEvidenceReviewItem[]
+  limitations?: string[]
+}
+
+export interface CapexEvidenceReviewRequest {
+  review_status: 'approved' | 'rejected' | 'pending_review'
+  reviewer?: string
+  note?: string
+  confidence?: number
+}
+
 export interface SupplyChainCandidateRankingItem {
   rank: number
   chain_id: string
@@ -481,6 +534,30 @@ export interface SupplyChainCandidateRankingItem {
   gap_type?: string
   research_stage?: string
   commercialization_stage?: string
+  commercialization_indicator?: string
+  expectation_gap_indicator?: string
+  trigger_signal_indicator?: string
+  bigtech_capex_tailwind?: {
+    score?: number
+    matched_layers?: string[]
+    company_count?: number
+    record_count?: number
+    companies?: string[]
+    commercialization_indicator?: string
+    expectation_gap_indicator?: string
+    trigger_signal_indicator?: string
+  }
+  company_capex_evidence?: {
+    score?: number
+    evidence_count?: number
+    amount_count?: number
+    direction_ai_count?: number
+    fresh_count?: number
+    avg_confidence?: number
+    latest_as_of_date?: string
+    directions?: string[] | string[][]
+    indicator?: string
+  }
   l8_match_rate?: number
   fresh_rate?: number
   freshness_status?: string
@@ -506,6 +583,11 @@ export interface SupplyChainCandidateRankingResponse {
     company_chain_rows?: number
     chain_count?: number
     signal_distribution?: Record<string, number>
+    bigtech_capex_context?: {
+      company_count?: number
+      record_count?: number
+      companies?: string[]
+    }
   }
   items: SupplyChainCandidateRankingItem[]
   by_chain: Record<string, SupplyChainCandidateRankingItem[]>
@@ -540,6 +622,15 @@ const buildSupplyChainCandidateRankingPath = (params: SupplyChainCandidateRankin
   if (params.chainId) search.set('chain_id', params.chainId)
   if (params.signal) search.set('signal', params.signal)
   return `/screener/supply-chain/candidate-ranking?${search.toString()}`
+}
+
+const buildSupplyChainCapexEvidenceReviewQueuePath = (params: SupplyChainCapexEvidenceReviewQueueParams = {}) => {
+  const search = new URLSearchParams({
+    limit: String(params.limit ?? 50),
+    review_status: params.reviewStatus || 'pending_review',
+  })
+  if (params.chainId) search.set('chain_id', params.chainId)
+  return `/screener/supply-chain/capex-evidence-review/queue?${search.toString()}`
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -585,6 +676,12 @@ export const screenerApi = {
 
   getSupplyChainEvidenceReviewQueue: (limit = 50): Promise<AxiosResponse<EvidenceReviewQueueResponse>> =>
     api.get(`/screener/supply-chain/evidence-review/queue?limit=${encodeURIComponent(String(limit))}`),
+
+  getSupplyChainCapexEvidenceReviewQueue: (params: SupplyChainCapexEvidenceReviewQueueParams = {}): Promise<AxiosResponse<CapexEvidenceReviewQueueResponse>> =>
+    api.get(buildSupplyChainCapexEvidenceReviewQueuePath(params)),
+
+  reviewSupplyChainCapexEvidence: (capexEvidenceId: string, payload: CapexEvidenceReviewRequest): Promise<AxiosResponse<unknown>> =>
+    api.post(`/screener/supply-chain/capex-evidence/${encodeURIComponent(capexEvidenceId)}/review`, payload),
 
   reviewSupplyChainMapping: (code: string, nodeId: string, decision: SupplyChainMappingReviewDecision): Promise<AxiosResponse<void>> =>
     api.post(
@@ -1063,18 +1160,124 @@ export interface PolicyInterpretResponse {
   reason?: string
 }
 
+export interface ChainDeconstructTree {
+  node_id: string
+  name: string
+  layer?: number
+  layer_id?: string
+  layer_order?: number
+  definition?: string
+  key_questions?: string[]
+  segments?: string[]
+  evidence?: string[]
+  companies?: string[]
+  tracking_metrics?: string[]
+  metrics?: {
+    commercialization?: string[]
+    expectation_gap?: string[]
+    trigger_signals?: string[]
+  }
+  capex_evidence?: Array<{
+    evidence_id: string
+    company?: string
+    region?: string
+    fiscal_period?: string
+    capex_amount?: number | null
+    currency?: string
+    capex_direction?: string[]
+    mapped_layer_id: string
+    mapped_segments?: string[]
+    metric_usage?: string[]
+    source_type?: string
+    source_name?: string
+    source_url?: string
+    quote?: string
+    as_of_date?: string
+    evidence_level?: string
+    collection_method?: string
+    impact_direction?: string
+    confidence?: string
+  }>
+  physical_metrics?: Array<{
+    metric_id: string
+    name: string
+    mapped_layer_id: string
+    mapped_segment?: string
+    metric_usage?: string[]
+    data_type?: string
+    value?: number | string | null
+    unit?: string
+    period?: string
+    direction?: string
+    source_type?: string
+    source_name?: string
+    source_url?: string
+    evidence_level?: string
+    collection_method?: string
+    as_of_date?: string
+    impact_direction?: string
+    confidence?: string
+  }>
+  evidence_chain?: Array<{
+    evidence_id: string
+    evidence_type: string
+    mapped_layer_id: string
+    mapped_segment?: string
+    source_type?: string
+    source_name?: string
+    evidence_level?: string
+    as_of_date?: string
+    metric_usage?: string[]
+    impact_direction?: string
+    confidence?: string
+  }>
+  expectation_gap?: {
+    expected?: Record<string, unknown>
+    actual?: Record<string, unknown>
+    gap_direction?: string
+    gap_strength?: string
+    calculation_method?: string
+    formula?: string
+    evidence_ids?: string[]
+  }
+  trigger_signal?: {
+    signal_type?: string
+    signal_strength?: string
+    triggered_by_evidence_ids?: string[]
+    mapped_layer_id?: string
+    mapped_segments?: string[]
+  }
+  children?: ChainDeconstructTree[]
+}
+
+export interface ChainDeconstructTemplate {
+  template_id: string
+  name: string
+  description?: string
+  example_theme?: string
+  source?: string
+}
+
 export interface ChainDeconstructResponse {
   theme: {
     id: string
     name: string
   }
   view: string
-  tree: {
-    node_id: string
-    name: string
-    layer: number
-    children?: unknown[]
-  }
+  template?: ChainDeconstructTemplate
+  macro_context?: Array<{
+    region: string
+    policy_stance?: string
+    inflation_state?: string
+    rate_trend?: string
+    liquidity_signal?: string
+    source_type?: string
+    source_name?: string
+    source_url?: string
+    as_of_date?: string
+    evidence_level?: string
+  }>
+  tree: ChainDeconstructTree
 }
 
 export interface ChainNodeCompaniesResponse {
@@ -1098,9 +1301,10 @@ export const chainApi = {
       provider,
     }),
 
-  deconstructChain: (params: { theme_id: string; method?: string }): Promise<AxiosResponse<ChainDeconstructResponse>> => {
-    const { theme_id, method = 'upstream_downstream' } = params
+  deconstructChain: (params: { theme_id: string; method?: string; template?: string }): Promise<AxiosResponse<ChainDeconstructResponse>> => {
+    const { theme_id, method = 'upstream_downstream', template } = params
     const qs = new URLSearchParams({ theme_id, method })
+    if (template) qs.set('template', template)
     return api.get(`/screener/chain/deconstruct?${qs.toString()}`)
   },
 

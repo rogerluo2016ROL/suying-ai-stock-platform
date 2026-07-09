@@ -16,6 +16,7 @@ import ChainBubbleChart from './supply-chain-bom/ChainBubbleChart'
 import SupplyChainMappingReviewPanel from './supply-chain-bom/SupplyChainMappingReviewPanel'
 import SupplyChainResearchWorkbench from './supply-chain-bom/SupplyChainResearchWorkbench'
 import SupplyChainCandidateRankingPanel from './supply-chain-bom/SupplyChainCandidateRankingPanel'
+import SupplyChainCapexEvidenceReviewPanel from './supply-chain-bom/SupplyChainCapexEvidenceReviewPanel'
 import type {
   BomNode,
   CandidateCompany,
@@ -222,12 +223,14 @@ const supplyChainTabs = [
   { key: 'chain', path: '/supply-chain-bom', label: '产业链解构', subLabel: '三种模式' },
   { key: 'company', path: '/supply-chain-bom/company', label: '多维度分析', subLabel: '公司对比' },
   { key: 'ranking', path: '/supply-chain-bom/ranking', label: '候选总榜', subLabel: '真实排序' },
+  { key: 'capex-review', path: '/supply-chain-bom/capex-review', label: 'CAPEX审核', subLabel: '证据入库' },
 ]
 
 function activeSupplyChainTab(pathname: string) {
   if (pathname.startsWith('/supply-chain-bom/policy')) return 'policy'
   if (pathname.startsWith('/supply-chain-bom/company')) return 'company'
   if (pathname.startsWith('/supply-chain-bom/ranking')) return 'ranking'
+  if (pathname.startsWith('/supply-chain-bom/capex-review')) return 'capex-review'
   return 'chain'
 }
 
@@ -242,6 +245,15 @@ interface ChainMethodSummary {
   desc: string
   stats: Array<[string, string]>
 }
+
+type ChainTemplateKey =
+  | 'default'
+  | 'complex_tech'
+  | 'ai_compute_infrastructure'
+  | 'advanced_packaging_chiplet'
+  | 'semiconductor_equipment_materials'
+  | 'embodied_intelligence'
+  | 'storage_chips'
 
 function formatChangePct(value?: number) {
   const n = Number(value)
@@ -363,6 +375,7 @@ export default function SupplyChainBom() {
 
   // P2-08: Chain method selector state
   const [chainMethod, setChainMethod] = useState<ChainMethod>('upstream_downstream')
+  const [chainTemplate, setChainTemplate] = useState<ChainTemplateKey>('default')
   const [chainDeconstructResult, setChainDeconstructResult] = useState<ChainDeconstructResponse | null>(null)
   const [chainLoading, setChainLoading] = useState(false)
   const [chainDeconstructError, setChainDeconstructError] = useState('')
@@ -466,14 +479,15 @@ export default function SupplyChainBom() {
     let mounted = true
     setChainLoading(true)
     setChainDeconstructError('')
-    chainApi.deconstructChain({ theme_id: selectedThemeId, method: chainMethod })
+    const template = chainTemplate === 'default' ? undefined : chainTemplate
+    chainApi.deconstructChain({ theme_id: selectedThemeId, method: chainMethod, template })
       .then(resp => {
         if (!mounted) return
         const data = resp.data as ChainDeconstructResponse
         setChainDeconstructResult(data)
         setChainDeconstructError('')
-        // Convert chain nodes to BomNodes for display
-        if (data.tree) {
+        // 模板视图只展示链路逻辑，不覆盖原有 BOM 节点和股票映射。
+        if (!template && data.tree) {
           const bomNodes = flattenChainNodes(data.tree as SupplyChainNode, selectedThemeId)
           setNodes(bomNodes)
         }
@@ -490,7 +504,7 @@ export default function SupplyChainBom() {
     return () => {
       mounted = false
     }
-  }, [selectedThemeId, chainMethod])
+  }, [selectedThemeId, chainMethod, chainTemplate])
 
   const selectedTheme = useMemo(
     () => themes.find(theme => theme.theme_id === selectedThemeId),
@@ -932,7 +946,9 @@ export default function SupplyChainBom() {
         />
       )}
 
-      {activeModuleKey === 'ranking' ? (
+      {activeModuleKey === 'capex-review' ? (
+        <SupplyChainCapexEvidenceReviewPanel />
+      ) : activeModuleKey === 'ranking' ? (
         <SupplyChainCandidateRankingPanel onOpenCompany={openCompany} />
       ) : (
         <>
@@ -944,7 +960,10 @@ export default function SupplyChainBom() {
             selectedNodeId={selectedNodeId}
             selectedNodeThesis={selectedNodeThesis}
             mappingQuality={mappingQuality}
+            chainTemplate={chainTemplate}
+            templateResult={chainDeconstructResult}
             loading={loading || candidateLoading}
+            onChainTemplateChange={setChainTemplate}
             onSelectTheme={selectTheme}
             onSelectNode={selectNodeById}
             onOpenCompany={openCompany}

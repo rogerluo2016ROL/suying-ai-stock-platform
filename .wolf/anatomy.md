@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-09T00:05:49.705Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-09T04:10:34.655Z
 > Files: 599 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
@@ -919,7 +919,7 @@
 
 ## packages/kronos-factors/kronos_factors/engine/
 
-- `bi_shifu_trend.py` — Params: screen_single, run_screening (~3875 tok)
+- `bi_shifu_trend.py` — Params: screen_single, run_screening (~4174 tok)
 - `chain_deconstruct.py` — Industry chain deconstruct module for multi-method chain analysis. (~8473 tok)
 - `leader_afternoon.py` — 秋神龙头战法-午后选股模型 — Afternoon Leader Picking Model. (~12287 tok)
 - `multi_index.py` — MultiIndexEngine — 宽基指数成分股超额收益挖掘. (~1881 tok)

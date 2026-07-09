@@ -1,0 +1,61 @@
+{
+  "model": "cb_auction_t0_v2_1",
+  "trade_date": "2026-07-08",
+  "trigger_stocks": [],
+  "concepts": [],
+  "bonds": [],
+  "observation_bonds": [],
+  "pending_confirmation_stocks": [
+    {
+      "trigger_stock_code": "000977",
+      "trigger_stock_name": "浪潮信息",
+      "auction_price": 78.17,
+      "auction_amount": 628437552.9,
+      "auction_amount_yi": 6.28,
+      "up_limit": 78.17,
+      "confirmation_status": "待确认真实封单金额",
+      "data_source": "stk_auction+stk_limit"
+    },
+    {
+      "trigger_stock_code": "001208",
+      "trigger_stock_name": "华菱线缆",
+      "auction_price": 14.85,
+      "auction_amount": 25259850.0,
+      "auction_amount_yi": 0.25,
+      "up_limit": 14.85,
+      "confirmation_status": "待确认真实封单金额",
+      "data_source": "stk_auction+stk_limit"
+    },
+    {
+      "trigger_stock_code": "002546",
+      "trigger_stock_name": "新联电子",
+      "auction_price": 7.34,
+      "auction_amount": 19274840.0,
+      "auction_amount_yi": 0.19,
+      "up_limit": 7.34,
+      "confirmation_status": "待确认真实封单金额",
+      "data_source": "stk_auction+stk_limit"
+    },
+    {
+      "trigger_stock_code": "001229",
+      "trigger_stock_name": "魅视科技",
+      "auction_price": 42.7,
+      "auction_amount": 15821204.0,
+      "auction_amount_yi": 0.16,
+      "up_limit": 42.7,
+      "confirmation_status": "待确认真实封单金额",
+      "data_source": "stk_auction+stk_limit"
+    },
+    {
+      "trigger_stock_code": "000524",
+      "trigger_stock_name": "岭南控股",
+      "auction_price": 9.85,
+      "auction_amount": 7491043.2,
+      "auction_amount_yi": 0.07,
+      "up_limit": 9.85,
+      "confirmation_status": "待确认真实封单金额",
+      "data_source": "stk_auction+stk_limit"
+    }
+  ],
+  "rejections": []
+}

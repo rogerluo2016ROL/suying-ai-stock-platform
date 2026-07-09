@@ -1,0 +1,78 @@
+{
+  "records": [
+    {
+      "evidence_id": "goog_fy2026q1_cloud_ai_infrastructure_demand",
+      "source_id": "sec_company_filings",
+      "company": "Alphabet",
+      "fiscal_period": "FY2026Q1",
+      "capex_amount": 35674,
+      "capex_amount_unit": "USD millions, three months ended 2026-03-31 purchases of property and equipment",
+      "capex_direction": [
+        "Google Cloud Platform",
+        "enterprise AI infrastructure",
+        "Vertex AI",
+        "Gemini Enterprise"
+      ],
+      "mapped_layer_id": "demand",
+      "mapped_segments": [
+        "云厂商资本开支",
+        "企业AI应用",
+        "AI 数据中心"
+      ],
+      "source_type": "sec_10q",
+      "source_name": "Alphabet Form 10-Q, quarter ended March 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000048/goog-20260331.htm",
+      "quote": "Google Cloud Platform primarily generates consumption-based fees and subscriptions for infrastructure, platform, and other services. These services provide access to solutions such as AI offerings including our enterprise AI infrastructure, Vertex AI platform, and Gemini Enterprise.",
+      "as_of_date": "2026-04-30",
+      "evidence_level": "reported"
+    },
+    {
+      "evidence_id": "goog_fy2026q1_technical_infrastructure_assets",
+      "source_id": "sec_company_filings",
+      "company": "Alphabet",
+      "fiscal_period": "FY2026Q1",
+      "capex_amount": 217886,
+      "capex_amount_unit": "USD millions, technical infrastructure property and equipment in service as of 2026-03-31",
+      "capex_direction": [
+        "technical infrastructure",
+        "servers and network equipment",
+        "data center land and buildings"
+      ],
+      "mapped_layer_id": "foundation",
+      "mapped_segments": [
+        "服务器",
+        "网络设备",
+        "数据中心土地和建筑"
+      ],
+      "source_type": "sec_10q",
+      "source_name": "Alphabet Form 10-Q, quarter ended March 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000048/goog-20260331.htm",
+      "quote": "Technical infrastructure (1) $ 203,679 $ 217,886. As of December 31, 2025 and March 31, 2026, approximately 60 % of technical infrastructure assets were comprised of servers and network equipment. The remaining balance was comprised of data center land and buildings and related assets.",
+      "as_of_date": "2026-04-30",
+      "evidence_level": "reported"
+    },
+    {
+      "evidence_id": "goog_fy2026q1_datacenter_energy_commitments",
+      "source_id": "sec_company_filings",
+      "company": "Alphabet",
+      "fiscal_period": "FY2026Q1",
+      "capex_direction": [
+        "data center usage",
+        "energy service agreements",
+        "long-term technical infrastructure supply"
+      ],
+      "mapped_layer_id": "infrastructure",
+      "mapped_segments": [
+        "IDC",
+        "数据中心能源",
+        "技术基础设施供应"
+      ],
+      "source_type": "sec_10q",
+      "source_name": "Alphabet Form 10-Q, quarter ended March 31, 2026",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000048/goog-20260331.htm",
+      "quote": "We have contractual obligations from contracts with remaining terms greater than one year primarily consisting of certain long-term supply agreements to secure future production capacity for technical infrastructure and inventory components. In addition, we have commitments for certain energy service agreements to secure energy for data center usage, and certain content licensing agreements.",
+      "as_of_date": "2026-04-30",
+      "evidence_level": "reported"
+    }
+  ]
+}

@@ -1,0 +1,6003 @@
+{
+  "version": "industry-chain-templates-v2",
+  "source": "local_config",
+  "data_source_catalog": [
+    {
+      "source_id": "tushare_cn_equity",
+      "name": "Tushare VIP A股与中国宏观底座",
+      "coverage": [
+        "A股行情",
+        "A股财务",
+        "A股公告",
+        "中国宏观",
+        "指数与板块表现"
+      ],
+      "regions": [
+        "CN"
+      ],
+      "collection_method": "external_api",
+      "automation_status": "ready",
+      "evidence_level": "reported",
+      "target_fields": [
+        "market_price",
+        "financial_statement",
+        "company_announcement",
+        "cn_macro_context",
+        "expectation_gap_market_proxy"
+      ],
+      "priority": "P0",
+      "limitations": [
+        "不覆盖海外央行原文",
+        "不覆盖海外大厂 CAPEX 原文",
+        "不覆盖 HBM/CoWoS/800G/液冷等全球产业物理指标"
+      ]
+    },
+    {
+      "source_id": "official_macro_policy",
+      "name": "官方宏观与央行政策源",
+      "coverage": [
+        "政策利率",
+        "央行声明",
+        "CPI/PPI/PCE",
+        "通胀/通缩状态",
+        "流动性环境"
+      ],
+      "regions": [
+        "US",
+        "CN",
+        "JP",
+        "KR",
+        "EU"
+      ],
+      "collection_method": "manual_first",
+      "automation_status": "planned",
+      "evidence_level": "reported",
+      "target_fields": [
+        "macro_context",
+        "policy_stance",
+        "inflation_state",
+        "rate_trend",
+        "liquidity_signal"
+      ],
+      "priority": "P0",
+      "limitations": [
+        "未采集到官方数据前必须返回 unknown",
+        "宏观环境只作外部证据，不直接生成个股买卖建议"
+      ]
+    },
+    {
+      "source_id": "sec_company_filings",
+      "name": "SEC 10-Q/10-K/20-F 公司披露",
+      "coverage": [
+        "美国上市公司 CAPEX",
+        "AI 数据中心投入",
+        "云基础设施投资",
+        "管理层风险披露"
+      ],
+      "regions": [
+        "US",
+        "Global"
+      ],
+      "collection_method": "semi_auto",
+      "automation_status": "planned",
+      "evidence_level": "reported",
+      "target_fields": [
+        "capex_evidence",
+        "source_url",
+        "quote",
+        "as_of_date",
+        "fiscal_period"
+      ],
+      "priority": "P0",
+      "limitations": [
+        "CAPEX 方向需要结合原文段落人工复核",
+        "不能只用总 CAPEX 金额推断 AI 相关投入"
+      ]
+    },
+    {
+      "source_id": "company_investor_relations",
+      "name": "公司 IR、财报电话会和投资者日",
+      "coverage": [
+        "海外大厂 CAPEX 方向",
+        "GPU 集群",
+        "AI 数据中心",
+        "HBM/CoWoS/先进封装扩产",
+        "客户需求表述"
+      ],
+      "regions": [
+        "US",
+        "JP",
+        "KR",
+        "EU",
+        "Global"
+      ],
+      "collection_method": "manual_first",
+      "automation_status": "planned",
+      "evidence_level": "reported",
+      "target_fields": [
+        "capex_evidence",
+        "capex_direction",
+        "mapped_segments",
+        "quote",
+        "evidence_chain"
+      ],
+      "priority": "P0",
+      "limitations": [
+        "需要保留原文 quote",
+        "需要映射到具体 layer 和 segment"
+      ]
+    },
+    {
+      "source_id": "industry_physical_research",
+      "name": "产业物理指标研究源",
+      "coverage": [
+        "GPU 出货",
+        "HBM 供需缺口",
+        "CoWoS 产能",
+        "800G/1.6T 光模块",
+        "液冷渗透率",
+        "高功率机柜"
+      ],
+      "regions": [
+        "CN",
+        "US",
+        "JP",
+        "KR",
+        "EU",
+        "Global"
+      ],
+      "collection_method": "manual_first",
+      "automation_status": "manual",
+      "evidence_level": "manual_judgement",
+      "target_fields": [
+        "physical_metrics",
+        "mapped_segment",
+        "period",
+        "value",
+        "unit",
+        "evidence_chain"
+      ],
+      "priority": "P1",
+      "limitations": [
+        "第一版允许 value 为 null",
+        "必须标明 source_type、source_name、as_of_date",
+        "低可信传闻不进入核心展示"
+      ]
+    }
+  ],
+  "collection_task_catalog": [
+    {
+      "task_id": "collect_bigtech_ai_capex",
+      "name": "采集海外大厂 AI CAPEX 原文证据",
+      "status": "manual_ready",
+      "target_template_id": "complex_tech",
+      "source_ids": [
+        "sec_company_filings",
+        "company_investor_relations"
+      ],
+      "target_layers": [
+        "demand",
+        "foundation",
+        "infrastructure"
+      ],
+      "target_fields": [
+        "capex_evidence",
+        "evidence_chain"
+      ],
+      "companies": [
+        "Microsoft",
+        "Google",
+        "Meta",
+        "Amazon",
+        "NVIDIA",
+        "TSMC",
+        "Samsung",
+        "SK Hynix",
+        "ASML"
+      ],
+      "cadence": "quarterly",
+      "owner": "research-analyst",
+      "output_contract": {
+        "required_fields": [
+          "evidence_id",
+          "company",
+          "fiscal_period",
+          "capex_direction",
+          "mapped_layer_id",
+          "mapped_segments",
+          "source_type",
+          "source_name",
+          "source_url",
+          "quote",
+          "as_of_date",
+          "evidence_level"
+        ],
+        "unknown_policy": "CAPEX 方向缺少原文时不得推断为 AI 相关"
+      },
+      "notes": [
+        "先人工结构化最近一个财报季",
+        "CAPEX 总额必须和 AI data center/GPU/HBM/CoWoS 等方向分开记录"
+      ]
+    },
+    {
+      "task_id": "collect_macro_policy_baseline",
+      "name": "采集五大区域宏观政策与通胀基线",
+      "status": "planned",
+      "target_template_id": "complex_tech",
+      "source_ids": [
+        "official_macro_policy",
+        "tushare_cn_equity"
+      ],
+      "target_layers": [
+        "macro_context"
+      ],
+      "target_fields": [
+        "macro_context",
+        "policy_stance",
+        "inflation_state",
+        "rate_trend",
+        "liquidity_signal"
+      ],
+      "regions": [
+        "US",
+        "CN",
+        "JP",
+        "KR",
+        "EU"
+      ],
+      "cadence": "monthly",
+      "owner": "data-engineer",
+      "output_contract": {
+        "required_fields": [
+          "region",
+          "period",
+          "policy_stance",
+          "inflation_state",
+          "rate_trend",
+          "liquidity_signal",
+          "source_type",
+          "source_name",
+          "source_url",
+          "as_of_date",
+          "evidence_level"
+        ],
+        "unknown_policy": "任一字段缺官方来源时保持 unknown"
+      },
+      "notes": [
+        "宏观环境只作为风险偏好和估值背景",
+        "不得直接生成个股买卖建议"
+      ]
+    },
+    {
+      "task_id": "maintain_physical_metric_watchlist",
+      "name": "维护 AI 算力产业物理指标观察清单",
+      "status": "manual_ready",
+      "target_template_id": "complex_tech",
+      "source_ids": [
+        "industry_physical_research",
+        "company_investor_relations"
+      ],
+      "target_layers": [
+        "foundation",
+        "supporting",
+        "infrastructure"
+      ],
+      "target_fields": [
+        "physical_metrics",
+        "evidence_chain"
+      ],
+      "segments": [
+        "GPU",
+        "HBM",
+        "CoWoS",
+        "800G",
+        "1.6T",
+        "液冷",
+        "高功率机柜"
+      ],
+      "cadence": "weekly",
+      "owner": "research-analyst",
+      "output_contract": {
+        "required_fields": [
+          "metric_id",
+          "name",
+          "mapped_layer_id",
+          "mapped_segment",
+          "metric_usage",
+          "data_type",
+          "value",
+          "unit",
+          "period",
+          "source_type",
+          "source_name",
+          "source_url",
+          "as_of_date",
+          "evidence_level"
+        ],
+        "unknown_policy": "第一版允许 value 为 null，但必须保留来源和日期"
+      },
+      "notes": [
+        "低可信传闻不进入核心展示",
+        "所有物理指标必须映射到 layer 和 segment"
+      ]
+    }
+  ],
+  "templates": [
+    {
+      "template_id": "complex_tech",
+      "name": "复杂科技产业链路模板",
+      "description": "用于 AI 算力、半导体、机器人、低空经济等复杂科技产业，解释需求如何传导到核心硬件、底层支撑、系统集成、配套基础设施和商业变现。",
+      "example_theme": "AI算力",
+      "macro_context": [
+        {
+          "region": "US",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_pending",
+          "source_name": "Fed / BLS / BEA",
+          "source_url": "",
+          "as_of_date": "2026-07-08",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "CN",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_pending",
+          "source_name": "PBOC / NBS",
+          "source_url": "",
+          "as_of_date": "2026-07-08",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "JP",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_pending",
+          "source_name": "BOJ / Statistics Bureau of Japan",
+          "source_url": "",
+          "as_of_date": "2026-07-08",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "KR",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_pending",
+          "source_name": "BOK / KOSIS",
+          "source_url": "",
+          "as_of_date": "2026-07-08",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "EU",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_pending",
+          "source_name": "ECB / Eurostat",
+          "source_url": "",
+          "as_of_date": "2026-07-08",
+          "evidence_level": "unknown"
+        }
+      ],
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "识别产业增长的起点，判断需求是真实扩张、政策驱动、技术突破还是概念炒作。",
+          "key_questions": [
+            "谁在拉动需求？",
+            "需求来自训练、推理、终端应用还是政策建设？",
+            "需求是否有可验证的订单、资本开支或使用量数据？"
+          ],
+          "segments": [
+            "AIGC/大模型",
+            "多模态应用",
+            "企业AI应用",
+            "云厂商资本开支"
+          ],
+          "evidence": [
+            "ChatGPT 触发生成式 AI 应用爆发",
+            "大模型训练和推理均需要强算力支撑"
+          ],
+          "companies": [
+            "OpenAI",
+            "微软",
+            "谷歌",
+            "Meta",
+            "百度",
+            "字节跳动"
+          ],
+          "tracking_metrics": [
+            "大模型参数量",
+            "用户调用次数",
+            "云厂商资本开支",
+            "AI 应用渗透率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "云厂商资本开支",
+              "AI 应用渗透率"
+            ],
+            "expectation_gap": [
+              "CAPEX 上修",
+              "模型调用量增长快于市场预期"
+            ],
+            "trigger_signals": [
+              "云厂商财报指引",
+              "AI 应用用户数快速增长"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "hyperscaler_ai_capex_direction",
+              "company": "Microsoft / Google / Meta / Amazon",
+              "region": "US",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "USD",
+              "capex_direction": [
+                "AI data center",
+                "GPU cluster",
+                "cloud infrastructure"
+              ],
+              "mapped_segments": [
+                "云厂商资本开支",
+                "AI 数据中心"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "source_type": "earnings_call",
+              "source_name": "Investor relations / earnings call",
+              "source_url": "",
+              "quote": "",
+              "as_of_date": "2026-07-08",
+              "evidence_level": "manual_judgement",
+              "collection_method": "manual_first",
+              "impact_direction": "positive",
+              "confidence": "medium"
+            },
+            {
+              "evidence_id": "msft_fy2026q3_ai_infrastructure_capex",
+              "source_id": "sec_company_filings",
+              "company": "Microsoft",
+              "region": "US",
+              "fiscal_period": "FY2026Q3",
+              "capex_amount": 80146,
+              "capex_amount_unit": "USD millions, nine months ended 2026-03-31 additions to property and equipment",
+              "currency": "USD",
+              "capex_direction": [
+                "cloud offerings",
+                "AI infrastructure",
+                "training"
+              ],
+              "mapped_segments": [
+                "云厂商资本开支",
+                "AI 数据中心"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "source_type": "sec_10q",
+              "source_name": "Microsoft Form 10-Q, quarter ended March 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526191507/msft-20260331.htm",
+              "quote": "We will continue to invest in capital expenditures to support growth in our cloud offerings and our investments in AI infrastructure and training.",
+              "as_of_date": "2026-04-29",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            },
+            {
+              "evidence_id": "goog_fy2026q1_cloud_ai_infrastructure_demand",
+              "source_id": "sec_company_filings",
+              "company": "Alphabet",
+              "region": "US",
+              "fiscal_period": "FY2026Q1",
+              "capex_amount": 35674,
+              "capex_amount_unit": "USD millions, three months ended 2026-03-31 purchases of property and equipment",
+              "currency": "USD",
+              "capex_direction": [
+                "Google Cloud Platform",
+                "enterprise AI infrastructure",
+                "Vertex AI",
+                "Gemini Enterprise"
+              ],
+              "mapped_segments": [
+                "云厂商资本开支",
+                "企业AI应用",
+                "AI 数据中心"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "source_type": "sec_10q",
+              "source_name": "Alphabet Form 10-Q, quarter ended March 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000048/goog-20260331.htm",
+              "quote": "Google Cloud Platform primarily generates consumption-based fees and subscriptions for infrastructure, platform, and other services. These services provide access to solutions such as AI offerings including our enterprise AI infrastructure, Vertex AI platform, and Gemini Enterprise.",
+              "as_of_date": "2026-04-30",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            },
+            {
+              "evidence_id": "meta_fy2026q1_capex_amount",
+              "source_id": "sec_company_filings",
+              "company": "Meta",
+              "region": "US",
+              "fiscal_period": "FY2026Q1",
+              "capex_amount": 19840,
+              "capex_amount_unit": "USD millions, three months ended 2026-03-31 capital expenditures including principal payments on finance leases",
+              "currency": "USD",
+              "capex_direction": [
+                "capital expenditures",
+                "finance leases"
+              ],
+              "mapped_segments": [
+                "云厂商资本开支",
+                "AI 数据中心"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "source_type": "sec_10q",
+              "source_name": "Meta Platforms Form 10-Q, quarter ended March 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026028526/meta-20260331.htm",
+              "quote": "Capital expenditures, including principal payments on finance leases, were $19.84 billion for the three months ended March 31, 2026.",
+              "as_of_date": "2026-04-30",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            },
+            {
+              "evidence_id": "amzn_fy2026q1_cash_capex_aws_growth",
+              "source_id": "sec_company_filings",
+              "company": "Amazon",
+              "region": "US",
+              "fiscal_period": "FY2026Q1",
+              "capex_amount": 43200,
+              "capex_amount_unit": "USD millions, Q1 2026 cash capital expenditures",
+              "currency": "USD",
+              "capex_direction": [
+                "technology infrastructure",
+                "AWS business growth",
+                "fulfillment network capacity"
+              ],
+              "mapped_segments": [
+                "云厂商资本开支",
+                "AWS",
+                "技术基础设施"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "source_type": "sec_10q",
+              "source_name": "Amazon Form 10-Q, quarter ended March 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000014/amzn-20260331.htm",
+              "quote": "Cash capital expenditures were $24.3 billion and $43.2 billion during Q1 2025 and Q1 2026, which primarily reflect investments in technology infrastructure (the majority of which is to support AWS business growth) and in additional capacity to support our fulfillment network, both of which we expect to increase in 2026.",
+              "as_of_date": "2026-04-30",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            },
+            {
+              "evidence_id": "orcl_fy2026_oci_ai_cloud_offerings",
+              "source_id": "sec_company_filings",
+              "company": "Oracle",
+              "region": "US",
+              "fiscal_period": "FY2026",
+              "capex_amount": null,
+              "currency": "USD",
+              "capex_direction": [
+                "Oracle Cloud Infrastructure",
+                "Oracle Cloud",
+                "AI technologies",
+                "cloud-based IT environment"
+              ],
+              "mapped_segments": [
+                "云厂商资本开支",
+                "OCI",
+                "企业AI应用"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "source_type": "sec_10k",
+              "source_name": "Oracle Form 10-K, fiscal year ended May 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526277521/orcl-20260531.htm",
+              "quote": "Oracle cloud offerings include Oracle Cloud Applications (OCA) and Oracle Cloud Infrastructure (OCI, and collectively with OCA, Oracle Cloud), which provide comprehensive and integrated applications and infrastructure services, enabling our customers to choose the best option that meets their specific business needs. Oracle Cloud integrates IT components in a cloud-based IT environment that Oracle deploys and manages for customers and is accessible by utilizing common web browsers via a broad spectrum of devices. AI technologies embedded in Oracle Cloud offerings are designed to support the improvement of our customers' existing and new workflows and business processes, including automation and data analyses.",
+              "as_of_date": "2026-06-22",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "demand_ai_app_penetration",
+              "name": "AI 应用渗透率",
+              "mapped_segment": "企业AI应用"
+            }
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "把需求翻译成具体计算任务，区分训练、云端推理、边缘端推理等不同算力负载。",
+          "key_questions": [
+            "计算任务是训练还是推理？",
+            "任务消耗的是算力、显存、网络带宽还是存储？",
+            "需求增长是一次性建设还是持续调用？"
+          ],
+          "segments": [
+            "训练算力",
+            "云端推理",
+            "边缘端推理",
+            "多模态生成"
+          ],
+          "evidence": [
+            "训练算力需求与 token 数量和模型参数量相关",
+            "推理算力需求与调用次数、查询 token 数和模型参数量相关"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "训练 token 数量",
+            "模型参数量",
+            "日均调用次数",
+            "平均查询 token 数",
+            "推理 QPS"
+          ],
+          "metrics": {
+            "commercialization": [
+              "训练 token 数量",
+              "推理 QPS"
+            ],
+            "expectation_gap": [
+              "推理需求占比提升快于预期",
+              "多模态负载提前放量"
+            ],
+            "trigger_signals": [
+              "大模型降价",
+              "推理应用爆发"
+            ]
+          },
+          "capex_evidence": [],
+          "physical_metrics": [
+            {
+              "metric_id": "task_inference_qps",
+              "name": "推理 QPS",
+              "mapped_segment": "云端推理"
+            }
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "定位产业中价值量最高、约束最强、最直接承接需求的核心产品。",
+          "key_questions": [
+            "核心产品是什么？",
+            "产品价值量占系统成本多少？",
+            "供给瓶颈在性能、产能、生态还是出口限制？"
+          ],
+          "segments": [
+            "AI芯片/GPU/NPU/ASIC",
+            "CPU+xPU 异构计算",
+            "GPGPU",
+            "推理芯片"
+          ],
+          "evidence": [
+            "AI 加速芯片市场中英伟达份额领先",
+            "训练型 AI 服务器成本中 GPU 占比约 7 成以上"
+          ],
+          "companies": [
+            "英伟达",
+            "AMD",
+            "寒武纪",
+            "海光信息",
+            "龙芯中科",
+            "芯原股份"
+          ],
+          "tracking_metrics": [
+            "GPU 出货量",
+            "数据中心芯片收入",
+            "国产芯片客户导入",
+            "芯片供货周期",
+            "单卡算力和显存容量"
+          ],
+          "metrics": {
+            "commercialization": [
+              "GPU 出货量",
+              "数据中心芯片收入",
+              "国产芯片客户导入"
+            ],
+            "expectation_gap": [
+              "国产替代进度快于预期",
+              "芯片供货周期改善"
+            ],
+            "trigger_signals": [
+              "大客户订单公告",
+              "芯片新品发布",
+              "供应政策变化"
+            ]
+          },
+          "capex_evidence": [],
+          "physical_metrics": [
+            {
+              "metric_id": "core_gpu_shipments",
+              "name": "GPU 出货量",
+              "mapped_segment": "AI芯片/GPU/NPU/ASIC"
+            }
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "拆解核心产品背后的关键工艺、材料、封装、内存和基础软件等底座。",
+          "key_questions": [
+            "核心产品依赖哪些不可替代的工艺和材料？",
+            "哪个环节是产能瓶颈？",
+            "国产替代空间在哪里？"
+          ],
+          "segments": [
+            "先进制程",
+            "Chiplet/CoWoS",
+            "2.5D/3D先进封装",
+            "HBM",
+            "硅中介层/TSV"
+          ],
+          "evidence": [
+            "CoWoS 实现计算核心与 HBM 的 2.5D 封装互连",
+            "HBM 正在成为 AI 服务器 GPU 的标配"
+          ],
+          "companies": [
+            "台积电",
+            "中芯国际",
+            "长电科技",
+            "通富微电",
+            "甬矽电子",
+            "深科技",
+            "SK海力士",
+            "三星",
+            "美光"
+          ],
+          "tracking_metrics": [
+            "CoWoS 产能",
+            "先进封装扩产",
+            "HBM 价格",
+            "HBM 供需缺口",
+            "封测订单"
+          ],
+          "metrics": {
+            "commercialization": [
+              "CoWoS 产能",
+              "HBM 价格",
+              "封测订单"
+            ],
+            "expectation_gap": [
+              "HBM 缺口扩大",
+              "先进封装产能涨价"
+            ],
+            "trigger_signals": [
+              "存储涨价",
+              "封测扩产",
+              "英伟达新品拉动"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "hbm_cowos_capex_direction",
+              "company": "TSMC / Samsung / SK Hynix / ASML",
+              "region": "Global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "USD",
+              "capex_direction": [
+                "HBM",
+                "CoWoS",
+                "advanced packaging",
+                "advanced process equipment"
+              ],
+              "mapped_segments": [
+                "HBM",
+                "CoWoS",
+                "先进封装",
+                "先进制程"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signals"
+              ],
+              "source_type": "investor_relations",
+              "source_name": "Company IR / filings / earnings call",
+              "source_url": "",
+              "quote": "",
+              "as_of_date": "2026-07-08",
+              "evidence_level": "manual_judgement",
+              "collection_method": "manual_first",
+              "impact_direction": "positive",
+              "confidence": "medium"
+            },
+            {
+              "evidence_id": "goog_fy2026q1_technical_infrastructure_assets",
+              "source_id": "sec_company_filings",
+              "company": "Alphabet",
+              "region": "US",
+              "fiscal_period": "FY2026Q1",
+              "capex_amount": 217886,
+              "capex_amount_unit": "USD millions, technical infrastructure property and equipment in service as of 2026-03-31",
+              "currency": "USD",
+              "capex_direction": [
+                "technical infrastructure",
+                "servers and network equipment",
+                "data center land and buildings"
+              ],
+              "mapped_segments": [
+                "服务器",
+                "网络设备",
+                "数据中心土地和建筑"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signals"
+              ],
+              "source_type": "sec_10q",
+              "source_name": "Alphabet Form 10-Q, quarter ended March 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000048/goog-20260331.htm",
+              "quote": "Technical infrastructure (1) $ 203,679 $ 217,886. As of December 31, 2025 and March 31, 2026, approximately 60 % of technical infrastructure assets were comprised of servers and network equipment. The remaining balance was comprised of data center land and buildings and related assets.",
+              "as_of_date": "2026-04-30",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "foundation_hbm_supply_gap",
+              "name": "HBM 供需缺口",
+              "mapped_segment": "HBM"
+            },
+            {
+              "metric_id": "foundation_cowos_capacity",
+              "name": "CoWoS 产能",
+              "mapped_segment": "Chiplet/CoWoS"
+            }
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "识别谁把芯片、内存、板卡和整机集成为可交付的服务器或系统。",
+          "key_questions": [
+            "谁负责板卡组装和服务器制造？",
+            "交付模式是 OEM、ODM 还是定制化？",
+            "订单能否转化为收入？"
+          ],
+          "segments": [
+            "GPU板卡组装",
+            "AI服务器",
+            "训练型服务器",
+            "推理型服务器",
+            "整机柜服务器"
+          ],
+          "evidence": [
+            "训练型 AI 服务器均价常达百万元以上",
+            "国内 AI 服务器市场呈现一超多强格局"
+          ],
+          "companies": [
+            "浪潮信息",
+            "工业富联",
+            "紫光股份",
+            "中科曙光",
+            "中兴通讯",
+            "拓维信息",
+            "联想集团"
+          ],
+          "tracking_metrics": [
+            "AI 服务器订单",
+            "服务器出货量",
+            "GPU 成本占比",
+            "ODM/OEM 产能",
+            "客户交付周期"
+          ],
+          "metrics": {
+            "commercialization": [
+              "AI 服务器订单",
+              "服务器出货量",
+              "客户交付周期"
+            ],
+            "expectation_gap": [
+              "订单超预期",
+              "GPU 配额增加"
+            ],
+            "trigger_signals": [
+              "云厂商 CAPEX 上修",
+              "服务器订单公告"
+            ]
+          },
+          "capex_evidence": [],
+          "physical_metrics": [
+            {
+              "metric_id": "integration_ai_server_shipments",
+              "name": "AI 服务器出货",
+              "mapped_segment": "AI服务器"
+            }
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "拆解系统规模化后新增或升级的网络、光通信、电源、散热等配套环节。",
+          "key_questions": [
+            "规模化部署后哪个配套环节同步放量？",
+            "配套产品是速率升级还是数量增长？",
+            "配套环节是否存在技术路线变化？"
+          ],
+          "segments": [
+            "交换机",
+            "InfiniBand/以太网",
+            "NVLink",
+            "光模块",
+            "800G",
+            "CPO/LPO",
+            "光芯片"
+          ],
+          "evidence": [
+            "训练侧光模块需求与 GPU 出货量强相关",
+            "推理侧光模块需求与数据流量强相关",
+            "AI 数据网络架构会带来更多交换机端口需求"
+          ],
+          "companies": [
+            "紫光股份",
+            "锐捷网络",
+            "中际旭创",
+            "天孚通信",
+            "新易盛",
+            "华工科技",
+            "源杰科技",
+            "太辰光",
+            "光迅科技",
+            "光库科技",
+            "中瓷电子",
+            "剑桥科技",
+            "博创科技",
+            "联特科技",
+            "德科立",
+            "仕佳光子"
+          ],
+          "tracking_metrics": [
+            "800G 出货",
+            "北美云厂商采购",
+            "交换机端口速率",
+            "IB/以太网方案选择",
+            "客户认证进度"
+          ],
+          "metrics": {
+            "commercialization": [
+              "800G 出货",
+              "交换机端口速率",
+              "客户认证进度"
+            ],
+            "expectation_gap": [
+              "800G 渗透快于预期",
+              "1.6T 提前"
+            ],
+            "trigger_signals": [
+              "北美云厂商采购",
+              "财报指引上修"
+            ]
+          },
+          "capex_evidence": [],
+          "physical_metrics": [
+            {
+              "metric_id": "supporting_800g_shipments",
+              "name": "800G 出货",
+              "mapped_segment": "800G"
+            }
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "识别承载核心设备长期稳定运行所需的机房、机柜、温控、电力和 IDC 资源。",
+          "key_questions": [
+            "算力部署需要什么物理基础设施？",
+            "功率密度和 PUE 是否成为约束？",
+            "核心区域资源是否稀缺？"
+          ],
+          "segments": [
+            "液冷",
+            "高功率机柜",
+            "温控",
+            "IDC",
+            "智算中心",
+            "算力调度"
+          ],
+          "evidence": [
+            "DGX A100 单机最大功率约 6.5kW",
+            "液冷单机柜可支持 30kW 以上并演进至 100kW 以上",
+            "东数西算对 PUE 提出更高要求"
+          ],
+          "companies": [
+            "英维克",
+            "高澜股份",
+            "网宿科技",
+            "曙光数创",
+            "润泽科技",
+            "宝信软件",
+            "奥飞数据",
+            "数据港",
+            "光环新网"
+          ],
+          "tracking_metrics": [
+            "高功率机柜占比",
+            "液冷服务器出货",
+            "PUE",
+            "IDC 上架率",
+            "核心区域机柜供需"
+          ],
+          "metrics": {
+            "commercialization": [
+              "液冷服务器出货",
+              "高功率机柜占比",
+              "IDC 上架率"
+            ],
+            "expectation_gap": [
+              "液冷渗透率加速",
+              "核心区域机柜紧缺"
+            ],
+            "trigger_signals": [
+              "液冷招标",
+              "智算中心项目落地"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "ai_datacenter_infrastructure_capex",
+              "company": "Microsoft / Google / Meta / Amazon",
+              "region": "US",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "USD",
+              "capex_direction": [
+                "AI data center",
+                "liquid cooling",
+                "high-density rack"
+              ],
+              "mapped_segments": [
+                "IDC",
+                "液冷",
+                "高功率机柜",
+                "AI服务器"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "source_type": "earnings_call",
+              "source_name": "Investor relations / earnings call",
+              "source_url": "",
+              "quote": "",
+              "as_of_date": "2026-07-08",
+              "evidence_level": "manual_judgement",
+              "collection_method": "manual_first",
+              "impact_direction": "positive",
+              "confidence": "medium"
+            },
+            {
+              "evidence_id": "msft_fy2026q3_datacenter_capacity_capex",
+              "source_id": "sec_company_filings",
+              "company": "Microsoft",
+              "region": "US",
+              "fiscal_period": "FY2026Q3",
+              "capex_amount": 80146,
+              "capex_amount_unit": "USD millions, nine months ended 2026-03-31 additions to property and equipment",
+              "currency": "USD",
+              "capex_direction": [
+                "datacenter locations",
+                "server capacity",
+                "graphics processing units"
+              ],
+              "mapped_segments": [
+                "IDC",
+                "AI服务器",
+                "GPU"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "sec_10q",
+              "source_name": "Microsoft Form 10-Q, quarter ended March 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526191507/msft-20260331.htm",
+              "quote": "We continue to identify and evaluate opportunities to expand our datacenter locations and increase our server capacity to meet the evolving needs of our customers, particularly given the growing demand for AI services. Our datacenters depend on the availability of permitted and buildable land, predictable energy, networking supplies, and servers, including graphics processing units and other components.",
+              "as_of_date": "2026-04-29",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            },
+            {
+              "evidence_id": "goog_fy2026q1_datacenter_energy_commitments",
+              "source_id": "sec_company_filings",
+              "company": "Alphabet",
+              "region": "US",
+              "fiscal_period": "FY2026Q1",
+              "capex_amount": null,
+              "currency": "USD",
+              "capex_direction": [
+                "data center usage",
+                "energy service agreements",
+                "long-term technical infrastructure supply"
+              ],
+              "mapped_segments": [
+                "IDC",
+                "数据中心能源",
+                "技术基础设施供应"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "sec_10q",
+              "source_name": "Alphabet Form 10-Q, quarter ended March 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000048/goog-20260331.htm",
+              "quote": "We have contractual obligations from contracts with remaining terms greater than one year primarily consisting of certain long-term supply agreements to secure future production capacity for technical infrastructure and inventory components. In addition, we have commitments for certain energy service agreements to secure energy for data center usage, and certain content licensing agreements.",
+              "as_of_date": "2026-04-30",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            },
+            {
+              "evidence_id": "meta_fy2026q1_ai_infrastructure_investments",
+              "source_id": "sec_company_filings",
+              "company": "Meta",
+              "region": "US",
+              "fiscal_period": "FY2026Q1",
+              "capex_amount": null,
+              "currency": "USD",
+              "capex_direction": [
+                "AI initiatives",
+                "third-party cloud capacity",
+                "servers",
+                "data centers",
+                "network infrastructure"
+              ],
+              "mapped_segments": [
+                "IDC",
+                "AI服务器",
+                "网络基础设施",
+                "云容量"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "sec_10q",
+              "source_name": "Meta Platforms Form 10-Q, quarter ended March 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026028526/meta-20260331.htm",
+              "quote": "In particular, we have significantly increased our infrastructure investments in connection with our AI initiatives, including third-party cloud capacity arrangements and investments in servers, data centers, and network infrastructure, and expect our investments to continue to increase.",
+              "as_of_date": "2026-04-30",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            },
+            {
+              "evidence_id": "meta_fy2026q1_louisiana_ai_datacenter_campus",
+              "source_id": "sec_company_filings",
+              "company": "Meta",
+              "region": "US",
+              "fiscal_period": "FY2026Q1",
+              "capex_amount": 27000,
+              "capex_amount_unit": "USD millions, total estimated development costs for Louisiana data center campus venture; parties fund pro rata and Meta holds 20 percent interest",
+              "currency": "USD",
+              "capex_direction": [
+                "data center campus",
+                "future infrastructure capacity",
+                "AI markets"
+              ],
+              "mapped_segments": [
+                "IDC",
+                "AI 数据中心",
+                "长期容量"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "sec_10q",
+              "source_name": "Meta Platforms Form 10-Q, quarter ended March 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026028526/meta-20260331.htm",
+              "quote": "This Venture provides strategic optionality and flexibility, which we expect will enable us to effectively meet future infrastructure capacity needs as AI markets and technologies develop. The parties have committed to fund their respective pro rata share of approximately $27 billion in total estimated development costs.",
+              "as_of_date": "2026-04-30",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            },
+            {
+              "evidence_id": "amzn_fy2026q1_servers_datacenter_ai_ml",
+              "source_id": "sec_company_filings",
+              "company": "Amazon",
+              "region": "US",
+              "fiscal_period": "FY2026Q1",
+              "capex_amount": null,
+              "currency": "USD",
+              "capex_direction": [
+                "servers",
+                "networking equipment",
+                "data center depreciation and amortization",
+                "AWS",
+                "artificial intelligence and machine learning"
+              ],
+              "mapped_segments": [
+                "IDC",
+                "AI服务器",
+                "网络设备",
+                "AWS"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "sec_10q",
+              "source_name": "Amazon Form 10-Q, quarter ended March 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/1018724/000101872426000014/amzn-20260331.htm",
+              "quote": "Infrastructure costs include servers, networking equipment, and data center related depreciation and amortization, rent, utilities, and other expenses necessary to support AWS and other Amazon businesses. We expect spending in technology and infrastructure to increase over time as we continue to add infrastructure and employees, including to support our artificial intelligence and machine learning initiatives.",
+              "as_of_date": "2026-04-30",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            },
+            {
+              "evidence_id": "orcl_fy2026_datacenter_capacity_expansion",
+              "source_id": "sec_company_filings",
+              "company": "Oracle",
+              "region": "US",
+              "fiscal_period": "FY2026",
+              "capex_amount": null,
+              "currency": "USD",
+              "capex_direction": [
+                "data center capacity",
+                "new geographic data centers",
+                "Oracle Cloud offerings"
+              ],
+              "mapped_segments": [
+                "IDC",
+                "云数据中心",
+                "OCI"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "sec_10k",
+              "source_name": "Oracle Form 10-K, fiscal year ended May 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526277521/orcl-20260531.htm",
+              "quote": "We have invested in the rapid expansion of the Oracle Cloud by increasing existing data center capacity and adding data centers in new geographic locations to meet current and expected customer demand. We expect this trend will continue.",
+              "as_of_date": "2026-06-22",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            },
+            {
+              "evidence_id": "orcl_fy2026_cloud_capex_increase",
+              "source_id": "sec_company_filings",
+              "company": "Oracle",
+              "region": "US",
+              "fiscal_period": "FY2026",
+              "capex_amount": null,
+              "currency": "USD",
+              "capex_direction": [
+                "capital assets",
+                "cloud and software business",
+                "capital expenditures"
+              ],
+              "mapped_segments": [
+                "IDC",
+                "云基础设施",
+                "资本开支"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "sec_10k",
+              "source_name": "Oracle Form 10-K, fiscal year ended May 31, 2026",
+              "source_url": "https://www.sec.gov/Archives/edgar/data/1341439/000119312526277521/orcl-20260531.htm",
+              "quote": "The changes in cash flows from investing activities primarily relate to our investments in capital assets to support the growth in our cloud and software business and purchases, maturities and sales of our investments in marketable securities and other instruments. Net cash used for investing activities increased by $30.1 billion in fiscal 2026 relative to fiscal 2025 primarily due to a $34.4 billion increase in capital expenditures, partially offset by $4.3 billion of cash proceeds from the sale of our investment in Ampere.",
+              "as_of_date": "2026-06-22",
+              "evidence_level": "reported",
+              "collection_method": "sec_filing_manual_extract",
+              "impact_direction": "positive",
+              "confidence": "high"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "infrastructure_liquid_cooling_penetration",
+              "name": "液冷渗透率",
+              "mapped_segment": "液冷"
+            },
+            {
+              "metric_id": "infrastructure_high_density_rack_share",
+              "name": "高功率机柜占比",
+              "mapped_segment": "高功率机柜"
+            }
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "确认最终付费方、收入确认方式和产业链利润兑现路径。",
+          "key_questions": [
+            "谁最终付钱？",
+            "商业模式是硬件销售、云服务、算力租赁还是 IDC 出租？",
+            "收入和利润何时确认？"
+          ],
+          "segments": [
+            "云服务",
+            "大模型厂商",
+            "企业AI应用",
+            "算力租赁",
+            "IDC出租运维"
+          ],
+          "evidence": [
+            "AI 推动云基础设施需求释放",
+            "IDC 作为云基础设施关键环节有望进入需求释放阶段"
+          ],
+          "companies": [
+            "微软",
+            "谷歌",
+            "Meta",
+            "百度",
+            "字节跳动",
+            "三大运营商"
+          ],
+          "tracking_metrics": [
+            "云收入增速",
+            "算力租赁价格",
+            "AIGC 产品付费率",
+            "IDC 合同负载",
+            "资本开支转收入周期"
+          ],
+          "metrics": {
+            "commercialization": [
+              "云收入增速",
+              "算力租赁价格",
+              "IDC 合同负载"
+            ],
+            "expectation_gap": [
+              "云收入超预期",
+              "算力租赁价格上涨"
+            ],
+            "trigger_signals": [
+              "算力租赁合同",
+              "云业务财报验证"
+            ]
+          },
+          "capex_evidence": [],
+          "physical_metrics": [
+            {
+              "metric_id": "commercialization_cloud_ai_revenue",
+              "name": "云收入增速",
+              "mapped_segment": "云服务"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "template_id": "embodied_intelligence",
+      "name": "具身智能复杂产业链路模板",
+      "description": "面向人形机器人、服务机器人、工业移动机器人等具身智能方向，沿用复杂科技 8 层拆解逻辑，突出任务能力、关键零部件、数据闭环、真实部署和商业变现证据。",
+      "example_theme": "具身智能",
+      "macro_context": [
+        {
+          "region": "US",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "CN",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "JP",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "KR",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "EU",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        }
+      ],
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "识别具身智能首先在哪些真实场景产生付费需求，区分演示、试点、批量订单和持续运营。",
+          "key_questions": [
+            "终端客户是谁，是否有真实预算？",
+            "需求来自降本、补人、增效还是安全替代？",
+            "试点是否能转化为可复购订单？"
+          ],
+          "segments": [
+            "工业制造",
+            "仓储物流",
+            "商业服务",
+            "家庭服务",
+            "养老陪护",
+            "特种作业"
+          ],
+          "evidence": [
+            "客户试点、采购订单、招投标和验收记录是需求层的核心证据。",
+            "单纯发布会演示不能等同于商业化需求，需要和订单、交付、复购分开。"
+          ],
+          "companies": [
+            "特斯拉",
+            "Figure AI",
+            "宇树科技",
+            "优必选",
+            "傅利叶智能",
+            "波士顿动力"
+          ],
+          "tracking_metrics": [
+            "试点项目数",
+            "批量订单数",
+            "试点转订单率",
+            "单客户部署台数",
+            "客户复购率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "试点验证",
+              "小批量交付",
+              "规模订单",
+              "持续运维收入"
+            ],
+            "expectation_gap": [
+              "试点转订单率高于市场预期",
+              "大客户部署节奏提前",
+              "订单金额或台数上修"
+            ],
+            "trigger_signals": [
+              "头部客户批量采购",
+              "场景从展示转生产运营",
+              "客户复购或追加部署"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "embodied_demand_customer_deployment_capex",
+              "company": "terminal_customers",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "机器人部署",
+                "自动化产线",
+                "仓储自动化"
+              ],
+              "mapped_layer_id": "demand",
+              "mapped_segments": [
+                "工业制造",
+                "仓储物流",
+                "商业服务"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "embodied_robot_deployment_units",
+              "name": "具身智能终端部署台数",
+              "mapped_layer_id": "demand",
+              "mapped_segment": "终端部署",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "official_or_verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "把具身智能拆成可验证任务能力，重点看机器人能否在真实环境中稳定完成工作。",
+          "key_questions": [
+            "机器人完成的是移动、抓取、装配、巡检还是交互任务？",
+            "任务成功率和人工接管率是否可量化？",
+            "任务能力是否能跨场景泛化？"
+          ],
+          "segments": [
+            "移动导航",
+            "双臂操作",
+            "灵巧抓取",
+            "分拣搬运",
+            "人机交互",
+            "多模态感知",
+            "端侧推理"
+          ],
+          "evidence": [
+            "任务成功率、平均故障间隔和人工接管率比演示视频更重要。",
+            "仿真成绩需要用真实场景测试闭环验证。"
+          ],
+          "companies": [
+            "NVIDIA",
+            "Google DeepMind",
+            "OpenAI",
+            "特斯拉",
+            "Figure AI",
+            "智元机器人"
+          ],
+          "tracking_metrics": [
+            "任务成功率",
+            "人工接管率",
+            "单任务耗时",
+            "端侧推理延迟",
+            "MTBF",
+            "遥操作数据小时数"
+          ],
+          "metrics": {
+            "commercialization": [
+              "实验室演示",
+              "封闭场景试点",
+              "真实场景连续运行",
+              "多场景复制"
+            ],
+            "expectation_gap": [
+              "任务成功率改善快于预期",
+              "人工接管率下降快于预期",
+              "单任务成本接近人工替代线"
+            ],
+            "trigger_signals": [
+              "真实场景长周期测试通过",
+              "关键任务指标披露",
+              "客户现场验收"
+            ]
+          },
+          "capex_evidence": [],
+          "physical_metrics": [
+            {
+              "metric_id": "embodied_task_success_rate",
+              "name": "真实场景任务成功率",
+              "mapped_layer_id": "task",
+              "mapped_segment": "任务能力",
+              "metric_usage": [
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "official_or_verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "识别直接承载具身智能价值的整机和核心形态，包括人形机器人、移动机器人、灵巧手和控制系统。",
+          "key_questions": [
+            "产品形态是否匹配目标场景？",
+            "整机 BOM、售价、可靠性和可维护性是否支持商业化？",
+            "量产能力是否已从样机进入稳定交付？"
+          ],
+          "segments": [
+            "人形机器人整机",
+            "四足/轮式机器人",
+            "灵巧手",
+            "移动底盘",
+            "机器人控制器",
+            "机器人操作系统"
+          ],
+          "evidence": [
+            "核心产品层要同时看性能参数、量产节拍、交付记录和售后反馈。",
+            "样机参数不等于商业产品，需要用量产良率和客户部署验证。"
+          ],
+          "companies": [
+            "特斯拉",
+            "宇树科技",
+            "优必选",
+            "Figure AI",
+            "智元机器人",
+            "小米机器人"
+          ],
+          "tracking_metrics": [
+            "整机 BOM 成本",
+            "单机售价",
+            "自由度",
+            "负载",
+            "续航",
+            "量产节拍",
+            "整机良率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "样机发布",
+              "工程样机",
+              "小批量交付",
+              "规模量产"
+            ],
+            "expectation_gap": [
+              "BOM 成本下降快于预期",
+              "量产时间表提前",
+              "交付台数高于预期"
+            ],
+            "trigger_signals": [
+              "量产线投产",
+              "售价或成本目标下修",
+              "整机交付数据披露"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "embodied_oem_production_line_capex",
+              "company": "robot_oems",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "机器人整机产线",
+                "测试线",
+                "装配线"
+              ],
+              "mapped_layer_id": "core_product",
+              "mapped_segments": [
+                "人形机器人整机",
+                "机器人控制器"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "embodied_robot_bom_cost",
+              "name": "具身智能整机 BOM 成本",
+              "mapped_layer_id": "core_product",
+              "mapped_segment": "整机",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "official_or_verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "拆解决定成本、可靠性和国产替代弹性的关键硬件、材料和算法底座。",
+          "key_questions": [
+            "哪些零部件是成本大头或供应瓶颈？",
+            "国产替代的性能、良率和客户认证到哪一步？",
+            "底层支撑是否受产能、设备或材料约束？"
+          ],
+          "segments": [
+            "减速器",
+            "伺服电机",
+            "力矩传感器",
+            "六维力传感器",
+            "编码器",
+            "IMU",
+            "AI芯片/域控制器",
+            "电池"
+          ],
+          "evidence": [
+            "底层支撑层需要跟踪扩产、认证、良率和客户导入，而不是只看概念标签。",
+            "减速器、电机、传感器和控制器会影响整机成本、性能和供应安全。"
+          ],
+          "companies": [
+            "绿的谐波",
+            "鸣志电器",
+            "柯力传感",
+            "汉威科技",
+            "汇川技术",
+            "英伟达",
+            "地平线"
+          ],
+          "tracking_metrics": [
+            "关键零部件 ASP",
+            "产能利用率",
+            "客户认证进度",
+            "良率",
+            "单位成本",
+            "交付周期"
+          ],
+          "metrics": {
+            "commercialization": [
+              "样品送样",
+              "客户认证",
+              "小批量供货",
+              "规模配套"
+            ],
+            "expectation_gap": [
+              "认证进度快于预期",
+              "良率提升快于预期",
+              "关键零部件价格下降快于预期"
+            ],
+            "trigger_signals": [
+              "进入头部整机厂供应链",
+              "扩产公告或设备进场",
+              "订单从样品转批量"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "embodied_precision_component_capex",
+              "company": "component_suppliers",
+              "region": "CN",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "精密零部件扩产",
+                "传感器产线",
+                "伺服系统产线"
+              ],
+              "mapped_layer_id": "foundation",
+              "mapped_segments": [
+                "减速器",
+                "伺服电机",
+                "力矩传感器",
+                "编码器"
+              ],
+              "metric_usage": [
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "embodied_key_component_capacity",
+              "name": "具身智能关键零部件产能",
+              "mapped_layer_id": "foundation",
+              "mapped_segment": "关键零部件",
+              "metric_usage": [
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "official_or_verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            },
+            {
+              "metric_id": "embodied_component_yield",
+              "name": "具身智能关键零部件良率",
+              "mapped_layer_id": "foundation",
+              "mapped_segment": "关键零部件",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "official_or_verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "跟踪零部件如何被集成为关节模组、执行器、运动控制和整机测试能力。",
+          "key_questions": [
+            "集成商是否掌握关节模组和运动控制能力？",
+            "测试标定能力是否支撑稳定交付？",
+            "集成方案是否降低整机厂开发难度和成本？"
+          ],
+          "segments": [
+            "关节模组",
+            "执行器",
+            "传感器融合",
+            "运动控制",
+            "整机装配",
+            "测试标定"
+          ],
+          "evidence": [
+            "集成层的价值要看客户导入、模组化程度、交付一致性和测试能力。",
+            "单个零部件优势需要通过系统集成转化为整机性能。"
+          ],
+          "companies": [
+            "拓普集团",
+            "三花智控",
+            "江苏雷利",
+            "埃斯顿",
+            "汇川技术",
+            "雷赛智能"
+          ],
+          "tracking_metrics": [
+            "关节模组出货",
+            "执行器成本",
+            "集成良率",
+            "测试节拍",
+            "客户导入数量"
+          ],
+          "metrics": {
+            "commercialization": [
+              "方案开发",
+              "客户联调",
+              "小批量模组交付",
+              "平台化供应"
+            ],
+            "expectation_gap": [
+              "模组化降本快于预期",
+              "客户导入数量高于预期",
+              "测试节拍改善快于预期"
+            ],
+            "trigger_signals": [
+              "头部整机厂定点",
+              "关节模组批量订单",
+              "测试线扩产"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "embodied_actuator_module_capex",
+              "company": "module_integrators",
+              "region": "CN",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "关节模组",
+                "执行器",
+                "测试标定线"
+              ],
+              "mapped_layer_id": "integration",
+              "mapped_segments": [
+                "关节模组",
+                "执行器",
+                "测试标定"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "embodied_actuator_module_output",
+              "name": "关节模组/执行器出货量",
+              "mapped_layer_id": "integration",
+              "mapped_segment": "关节模组",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "official_or_verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "识别训练数据、仿真、遥操作、安全认证、售后运维等让机器人持续迭代的配套体系。",
+          "key_questions": [
+            "是否具备数据闭环和仿真训练体系？",
+            "遥操作和安全认证是否能支撑真实部署？",
+            "售后运维是否会吞噬商业化利润？"
+          ],
+          "segments": [
+            "训练数据",
+            "仿真平台",
+            "遥操作系统",
+            "机器人中间件",
+            "安全认证",
+            "售后运维"
+          ],
+          "evidence": [
+            "配套层决定机器人能否从一次性交付变成持续迭代。",
+            "安全认证和售后成本会影响商业化速度和毛利。"
+          ],
+          "companies": [
+            "NVIDIA",
+            "ROS生态",
+            "华为",
+            "阿里云",
+            "腾讯云",
+            "中国移动"
+          ],
+          "tracking_metrics": [
+            "训练数据小时数",
+            "仿真样本量",
+            "遥操作接管率",
+            "认证进度",
+            "售后工单率",
+            "软件订阅收入"
+          ],
+          "metrics": {
+            "commercialization": [
+              "工具链搭建",
+              "试点配套",
+              "规模部署支撑",
+              "软件/服务收入"
+            ],
+            "expectation_gap": [
+              "数据积累速度快于预期",
+              "售后成本低于预期",
+              "安全认证进度快于预期"
+            ],
+            "trigger_signals": [
+              "仿真和真机闭环披露",
+              "认证通过",
+              "软件订阅或运维合同出现"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "embodied_data_platform_capex",
+              "company": "platform_and_cloud_providers",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "仿真平台",
+                "数据平台",
+                "遥操作中心"
+              ],
+              "mapped_layer_id": "supporting",
+              "mapped_segments": [
+                "训练数据",
+                "仿真平台",
+                "遥操作系统"
+              ],
+              "metric_usage": [
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "embodied_teleoperation_data_hours",
+              "name": "遥操作和真机数据小时数",
+              "mapped_layer_id": "supporting",
+              "mapped_segment": "训练数据",
+              "metric_usage": [
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "official_or_verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "跟踪具身智能训练、部署和运营所需的算力、网络、云边协同、充电和数据基础设施。",
+          "key_questions": [
+            "训练和仿真算力是否成为瓶颈？",
+            "边缘推理、工业网络和调度系统是否支持规模部署？",
+            "基础设施投资是否能被具体机器人场景消化？"
+          ],
+          "segments": [
+            "机器人训练集群",
+            "边缘算力",
+            "工业网络/5G",
+            "云端调度",
+            "充电/换电",
+            "数据闭环平台"
+          ],
+          "evidence": [
+            "基础设施层要把大厂 CAPEX 与机器人训练、仿真、边缘部署方向对应起来。",
+            "泛 AI 算力投入不能自动算作具身智能证据，必须有机器人、仿真、自动驾驶或边缘智能映射。"
+          ],
+          "companies": [
+            "NVIDIA",
+            "Microsoft",
+            "Amazon",
+            "Google",
+            "Meta",
+            "华为",
+            "阿里云"
+          ],
+          "tracking_metrics": [
+            "机器人训练算力",
+            "仿真 GPU 小时",
+            "边缘设备部署量",
+            "工业网络覆盖",
+            "充电设施数量",
+            "数据闭环周期"
+          ],
+          "metrics": {
+            "commercialization": [
+              "训练基础设施投入",
+              "场景试点基础设施",
+              "规模部署基础设施",
+              "运营平台化"
+            ],
+            "expectation_gap": [
+              "机器人相关算力投入高于预期",
+              "边缘部署速度快于预期",
+              "数据闭环周期缩短"
+            ],
+            "trigger_signals": [
+              "大厂披露机器人/自动驾驶/仿真 CAPEX",
+              "训练集群扩容",
+              "云边协同平台落地"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "embodied_training_cluster_capex",
+              "company": "bigtech_and_robotics_platforms",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "AI训练集群",
+                "机器人仿真",
+                "边缘推理基础设施"
+              ],
+              "mapped_layer_id": "infrastructure",
+              "mapped_segments": [
+                "机器人训练集群",
+                "边缘算力",
+                "数据闭环平台"
+              ],
+              "metric_usage": [
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "embodied_robotics_training_compute",
+              "name": "机器人训练/仿真算力使用量",
+              "mapped_layer_id": "infrastructure",
+              "mapped_segment": "机器人训练集群",
+              "metric_usage": [
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "official_or_verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            },
+            {
+              "metric_id": "embodied_edge_device_installed_base",
+              "name": "具身智能边缘设备部署量",
+              "mapped_layer_id": "infrastructure",
+              "mapped_segment": "边缘算力",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "official_or_verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "把具身智能从技术链路落到收入、利润和现金流模型，区分整机销售、租赁、系统集成和运维服务。",
+          "key_questions": [
+            "收入来自整机、租赁、集成、运维还是数据服务？",
+            "单机经济模型是否跑通？",
+            "毛利、回款和售后成本是否支持规模化？"
+          ],
+          "segments": [
+            "整机销售",
+            "RaaS租赁",
+            "系统集成",
+            "场景运营",
+            "售后维保",
+            "数据服务"
+          ],
+          "evidence": [
+            "商业变现层以收入确认、毛利率、回款、续约和售后成本为核心证据。",
+            "短期概念热度不能替代可复购、可盈利、可规模化的商业模型。"
+          ],
+          "companies": [
+            "优必选",
+            "特斯拉",
+            "宇树科技",
+            "Figure AI",
+            "智元机器人",
+            "傅利叶智能"
+          ],
+          "tracking_metrics": [
+            "具身智能收入",
+            "单机毛利",
+            "RaaS ARPU",
+            "回本周期",
+            "客户留存",
+            "售后成本率",
+            "经营现金流"
+          ],
+          "metrics": {
+            "commercialization": [
+              "收入试点",
+              "小规模收入",
+              "可复购收入",
+              "规模盈利"
+            ],
+            "expectation_gap": [
+              "收入确认高于预期",
+              "毛利改善快于预期",
+              "回款和现金流好于预期"
+            ],
+            "trigger_signals": [
+              "具身智能收入单列披露",
+              "毛利率改善",
+              "RaaS 合同或续约披露"
+            ]
+          },
+          "capex_evidence": [],
+          "physical_metrics": [
+            {
+              "metric_id": "embodied_revenue_per_robot",
+              "name": "单台机器人收入贡献",
+              "mapped_layer_id": "commercialization",
+              "mapped_segment": "商业变现",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "official_or_verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "template_id": "storage_chips",
+      "name": "存储芯片复杂产业链路模板",
+      "description": "面向 DRAM、NAND、HBM、DDR5、LPDDR、SSD、UFS/eMMC 等存储方向，沿用复杂科技 8 层拆解逻辑，突出价格周期、国产替代、扩产 CAPEX、封测材料和商业变现证据。",
+      "example_theme": "存储芯片",
+      "macro_context": [
+        {
+          "region": "US",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "CN",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "JP",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "KR",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "EU",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        }
+      ],
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "识别 AI服务器、云厂商、终端、汽车电子等真实存储需求来源，区分价格周期、库存补库和终端出货拉动。",
+          "key_questions": [
+            "需求来自 AI 服务器、手机 PC 复苏还是汽车电子？",
+            "下游是在真实补库还是价格投机？",
+            "云厂商 CAPEX 是否传导到存储采购？"
+          ],
+          "segments": [
+            "AI服务器",
+            "云厂商CAPEX",
+            "智能手机",
+            "PC/AI PC",
+            "汽车电子",
+            "工业控制"
+          ],
+          "evidence": [
+            "AI服务器、云厂商、手机/PC、汽车电子出货是需求层核心证据。",
+            "价格上涨必须和库存、出货或订单结合判断，不能单看概念热度。"
+          ],
+          "companies": [
+            "浪潮信息",
+            "中科曙光",
+            "工业富联",
+            "紫光股份"
+          ],
+          "tracking_metrics": [
+            "AI服务器出货",
+            "云厂商CAPEX",
+            "手机/PC出货",
+            "汽车电子存储用量",
+            "库存周转天数"
+          ],
+          "metrics": {
+            "commercialization": [
+              "终端补库",
+              "AI服务器放量",
+              "云厂商采购",
+              "汽车电子渗透"
+            ],
+            "expectation_gap": [
+              "出货量高于预期",
+              "库存去化快于预期",
+              "云CAPEX上修"
+            ],
+            "trigger_signals": [
+              "云厂商CAPEX上修",
+              "AI服务器订单放量",
+              "终端补库启动"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "storage_demand_cloud_ai_server_capex",
+              "company": "cloud_and_ai_server_customers",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "AI服务器采购",
+                "数据中心CAPEX"
+              ],
+              "mapped_layer_id": "demand",
+              "mapped_segments": [
+                "AI服务器",
+                "云厂商CAPEX"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "storage_ai_server_shipments",
+              "name": "AI服务器出货量",
+              "mapped_layer_id": "demand",
+              "mapped_segment": "AI服务器",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_memory_price_or_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "把存储需求拆成容量、带宽、功耗、可靠性和接口任务，判断哪类产品正在形成结构性增量。",
+          "key_questions": [
+            "任务需要高带宽、低功耗、低延迟还是车规可靠性？",
+            "HBM、DDR5、LPDDR、SSD 哪个品类最紧？",
+            "接口芯片和模组是否成为瓶颈？"
+          ],
+          "segments": [
+            "训练存储",
+            "推理缓存",
+            "端侧内存",
+            "车规存储",
+            "SSD容量",
+            "内存接口"
+          ],
+          "evidence": [
+            "任务层要看 DDR5、HBM、LPDDR、SSD 等不同产品的需求结构。",
+            "同样叫存储，服务器、终端和车规对应的价格弹性不同。"
+          ],
+          "companies": [
+            "澜起科技",
+            "聚辰股份",
+            "兆易创新",
+            "北京君正"
+          ],
+          "tracking_metrics": [
+            "DDR5渗透率",
+            "HBM需求",
+            "LPDDR需求",
+            "SSD容量",
+            "车规认证进度",
+            "内存接口出货"
+          ],
+          "metrics": {
+            "commercialization": [
+              "样品验证",
+              "客户认证",
+              "批量导入",
+              "平台绑定"
+            ],
+            "expectation_gap": [
+              "高端存储渗透率高于预期",
+              "接口芯片导入快于预期",
+              "车规认证进度提前"
+            ],
+            "trigger_signals": [
+              "DDR5/HBM需求上修",
+              "车规客户认证",
+              "服务器平台切换"
+            ]
+          },
+          "capex_evidence": [],
+          "physical_metrics": [
+            {
+              "metric_id": "storage_ddr5_hbm_penetration",
+              "name": "DDR5/HBM渗透率",
+              "mapped_layer_id": "task",
+              "mapped_segment": "高带宽任务",
+              "metric_usage": [
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_memory_price_or_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "识别直接承载存储价值的芯片、颗粒、模组和接口产品，包括 DRAM、NAND、HBM、SSD、UFS/eMMC、NOR 和接口芯片。",
+          "key_questions": [
+            "产品是颗粒、主控、模组还是接口？",
+            "涨价是否能进入收入和毛利？",
+            "国产替代在 DRAM、NAND、NOR、接口芯片哪个品类突破？"
+          ],
+          "segments": [
+            "DRAM",
+            "NAND Flash",
+            "HBM",
+            "DDR5/LPDDR",
+            "SSD/UFS/eMMC",
+            "NOR Flash",
+            "内存接口芯片"
+          ],
+          "evidence": [
+            "核心产品层要看合约价、现货价、出货量、客户导入和毛利率。",
+            "模组厂库存收益和芯片厂真实涨价弹性需要分开。"
+          ],
+          "companies": [
+            "兆易创新",
+            "北京君正",
+            "普冉股份",
+            "东芯股份",
+            "恒烁股份",
+            "佰维存储",
+            "江波龙",
+            "德明利",
+            "澜起科技",
+            "聚辰股份"
+          ],
+          "tracking_metrics": [
+            "DRAM价格",
+            "NAND价格",
+            "HBM供需",
+            "NOR价格",
+            "模组出货",
+            "毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "价格触底",
+              "涨价传导",
+              "客户导入",
+              "收入毛利兑现"
+            ],
+            "expectation_gap": [
+              "价格涨幅高于预期",
+              "毛利改善快于预期",
+              "客户导入快于预期"
+            ],
+            "trigger_signals": [
+              "合约价连续上涨",
+              "业绩预增",
+              "客户订单披露"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "storage_core_product_capacity_capex",
+              "company": "memory_idm_and_module_companies",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "DRAM扩产",
+                "NAND扩产",
+                "HBM产线",
+                "模组产线"
+              ],
+              "mapped_layer_id": "core_product",
+              "mapped_segments": [
+                "DRAM",
+                "NAND Flash",
+                "HBM",
+                "SSD/UFS/eMMC"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "storage_dram_nand_contract_price",
+              "name": "DRAM/NAND合约价",
+              "mapped_layer_id": "core_product",
+              "mapped_segment": "存储价格",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_memory_price_or_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "拆解决定存储扩产、良率和国产替代的设备、材料、硅片、气体、光刻胶、CMP、靶材和测试能力。",
+          "key_questions": [
+            "长鑫/长江存储扩产首先卡在哪些设备和材料？",
+            "国产设备材料是否通过认证？",
+            "扩产 CAPEX 是否能传导到订单？"
+          ],
+          "segments": [
+            "刻蚀/薄膜/清洗设备",
+            "涂胶显影/检测测试",
+            "CMP设备和材料",
+            "硅片",
+            "电子特气",
+            "光刻胶",
+            "靶材",
+            "湿电子化学品"
+          ],
+          "evidence": [
+            "底层支撑层要用扩产订单、客户认证、产线导入和良率改善验证。",
+            "设备材料公司不能只因半导体概念入选，必须能对应存储扩产或先进制程。"
+          ],
+          "companies": [
+            "北方华创",
+            "中微公司",
+            "拓荆科技",
+            "芯源微",
+            "华海清科",
+            "盛美上海",
+            "长川科技",
+            "雅克科技",
+            "安集科技",
+            "沪硅产业",
+            "江丰电子",
+            "中船特气"
+          ],
+          "tracking_metrics": [
+            "设备订单",
+            "材料认证",
+            "产线导入",
+            "国产化率",
+            "良率",
+            "客户集中度"
+          ],
+          "metrics": {
+            "commercialization": [
+              "送样认证",
+              "客户导入",
+              "批量订单",
+              "国产替代放量"
+            ],
+            "expectation_gap": [
+              "订单高于预期",
+              "认证快于预期",
+              "国产化率提升快于预期"
+            ],
+            "trigger_signals": [
+              "长鑫/长江存储扩产订单",
+              "设备中标",
+              "材料认证通过"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "storage_foundation_equipment_material_capex",
+              "company": "equipment_and_material_suppliers",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "半导体设备",
+                "材料认证",
+                "存储扩产配套"
+              ],
+              "mapped_layer_id": "foundation",
+              "mapped_segments": [
+                "刻蚀/薄膜/清洗设备",
+                "CMP设备和材料",
+                "电子特气",
+                "光刻胶"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "storage_equipment_order_backlog",
+              "name": "存储扩产设备订单",
+              "mapped_layer_id": "foundation",
+              "mapped_segment": "设备订单",
+              "metric_usage": [
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_memory_price_or_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "跟踪晶圆制造、封装测试、模组制造和系统集成，把存储颗粒转化为客户可用产品。",
+          "key_questions": [
+            "封测是否受益于 DDR5/HBM/NAND 封装升级？",
+            "模组厂是否能把涨价转化为利润？",
+            "系统集成是否接近终端客户？"
+          ],
+          "segments": [
+            "晶圆制造",
+            "存储封测",
+            "先进封装",
+            "模组制造",
+            "SSD整机",
+            "测试分选"
+          ],
+          "evidence": [
+            "集成层看封测产能、模组出货、客户订单和收入毛利改善。",
+            "封测和模组的商业模式不同，库存收益不能等同长期盈利能力。"
+          ],
+          "companies": [
+            "长电科技",
+            "通富微电",
+            "华天科技",
+            "甬矽电子",
+            "颀中科技",
+            "深科技",
+            "太极实业"
+          ],
+          "tracking_metrics": [
+            "封测订单",
+            "封测产能利用率",
+            "模组出货",
+            "SSD出货",
+            "客户导入",
+            "良率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "封测导入",
+              "模组出货",
+              "客户批量采购",
+              "毛利兑现"
+            ],
+            "expectation_gap": [
+              "封测订单高于预期",
+              "模组出货高于预期",
+              "良率提升"
+            ],
+            "trigger_signals": [
+              "封测扩产",
+              "大客户订单",
+              "业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "storage_integration_packaging_testing_capex",
+              "company": "packaging_testing_and_module_companies",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "存储封测",
+                "先进封装",
+                "模组产线"
+              ],
+              "mapped_layer_id": "integration",
+              "mapped_segments": [
+                "存储封测",
+                "先进封装",
+                "模组制造"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "storage_packaging_testing_utilization",
+              "name": "存储封测产能利用率",
+              "mapped_layer_id": "integration",
+              "mapped_segment": "存储封测",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_memory_price_or_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "识别测试设备、PCB/IC载板、洁净室、真空/管路、厂务工程和供应链服务等扩产配套。",
+          "key_questions": [
+            "扩产配套是否形成真实订单？",
+            "IC载板、PCB、测试设备是否成为瓶颈？",
+            "洁净室和厂务是否先于产线投产？"
+          ],
+          "segments": [
+            "测试设备",
+            "IC载板",
+            "高速PCB",
+            "洁净室",
+            "厂务工程",
+            "高纯工艺系统"
+          ],
+          "evidence": [
+            "配套层要用招标、中标、订单、产能建设和客户认证验证。",
+            "PCB/载板和洁净室受益于扩产，但必须区分存储链相关收入占比。"
+          ],
+          "companies": [
+            "长川科技",
+            "华峰测控",
+            "精测电子",
+            "兴森科技",
+            "深南电路",
+            "沪电股份",
+            "胜宏科技",
+            "生益科技",
+            "至纯科技",
+            "亚翔集成",
+            "柏诚股份",
+            "新莱应材"
+          ],
+          "tracking_metrics": [
+            "测试机订单",
+            "IC载板订单",
+            "PCB出货",
+            "洁净室订单",
+            "厂务订单",
+            "高纯系统订单"
+          ],
+          "metrics": {
+            "commercialization": [
+              "配套认证",
+              "订单获取",
+              "交付验收",
+              "收入确认"
+            ],
+            "expectation_gap": [
+              "订单超预期",
+              "交付快于预期",
+              "收入占比提升"
+            ],
+            "trigger_signals": [
+              "中标公告",
+              "扩产配套订单",
+              "客户导入"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "storage_supporting_facility_pcb_test_capex",
+              "company": "supporting_suppliers",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "测试设备",
+                "PCB/IC载板",
+                "洁净室厂务"
+              ],
+              "mapped_layer_id": "supporting",
+              "mapped_segments": [
+                "测试设备",
+                "IC载板",
+                "高速PCB",
+                "洁净室"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "storage_supporting_order_amount",
+              "name": "存储扩产配套订单金额",
+              "mapped_layer_id": "supporting",
+              "mapped_segment": "配套订单",
+              "metric_usage": [
+                "commercialization",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_memory_price_or_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "跟踪存储晶圆厂、HBM/先进封装产线、洁净厂房和国产化基础设施建设。",
+          "key_questions": [
+            "CAPEX 投向 DRAM、NAND、HBM 还是封测？",
+            "新厂房、产线和设备进场节奏如何？",
+            "扩产是否对应真实订单周期？"
+          ],
+          "segments": [
+            "DRAM晶圆厂",
+            "NAND晶圆厂",
+            "HBM封装线",
+            "先进封装产线",
+            "洁净厂房",
+            "国产设备材料生态"
+          ],
+          "evidence": [
+            "基础设施层以 CAPEX、设备进场、厂房建设、投产节点为核心证据。",
+            "未上市的长鑫/长江存储本体不映射股票，只作为证据源和需求源。"
+          ],
+          "companies": [
+            "北方华创",
+            "中微公司",
+            "拓荆科技",
+            "华海清科",
+            "芯源微",
+            "至纯科技",
+            "亚翔集成",
+            "柏诚股份"
+          ],
+          "tracking_metrics": [
+            "CAPEX金额",
+            "设备进场",
+            "厂房建设",
+            "产线投产",
+            "产能爬坡",
+            "国产化率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "项目备案",
+              "设备采购",
+              "产线投产",
+              "产能爬坡"
+            ],
+            "expectation_gap": [
+              "CAPEX高于预期",
+              "投产提前",
+              "国产设备占比提升"
+            ],
+            "trigger_signals": [
+              "招标公告",
+              "设备进场",
+              "投产公告"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "storage_infrastructure_memory_fab_capex",
+              "company": "memory_fabs_and_infrastructure_suppliers",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "DRAM晶圆厂",
+                "NAND晶圆厂",
+                "HBM封装线",
+                "洁净厂房"
+              ],
+              "mapped_layer_id": "infrastructure",
+              "mapped_segments": [
+                "DRAM晶圆厂",
+                "NAND晶圆厂",
+                "HBM封装线",
+                "洁净厂房"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "storage_fab_capacity_wpm",
+              "name": "存储晶圆月产能",
+              "mapped_layer_id": "infrastructure",
+              "mapped_segment": "晶圆厂产能",
+              "metric_usage": [
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_memory_price_or_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "把存储价格周期、库存收益、客户订单和成本改善落到收入、毛利和现金流。",
+          "key_questions": [
+            "涨价是否传导到收入和毛利？",
+            "库存收益能否持续？",
+            "客户订单和现金流是否同步改善？"
+          ],
+          "segments": [
+            "价格周期",
+            "库存周期",
+            "模组销售",
+            "芯片销售",
+            "封测服务",
+            "设备材料订单"
+          ],
+          "evidence": [
+            "商业变现层看业绩预告、毛利率、库存周转、合约价和订单兑现。",
+            "短期涨价不等于长期盈利，要确认库存和客户订单结构。"
+          ],
+          "companies": [
+            "佰维存储",
+            "江波龙",
+            "德明利",
+            "同有科技",
+            "朗科科技",
+            "兆易创新",
+            "北京君正",
+            "澜起科技",
+            "聚辰股份"
+          ],
+          "tracking_metrics": [
+            "业绩预告",
+            "毛利率",
+            "库存周转",
+            "合约价",
+            "现货价",
+            "现金流"
+          ],
+          "metrics": {
+            "commercialization": [
+              "价格触底",
+              "涨价兑现",
+              "毛利改善",
+              "现金流改善"
+            ],
+            "expectation_gap": [
+              "业绩预增超预期",
+              "毛利率改善快于预期",
+              "库存周转改善"
+            ],
+            "trigger_signals": [
+              "业绩预增",
+              "价格连续上涨",
+              "大客户订单"
+            ]
+          },
+          "capex_evidence": [],
+          "physical_metrics": [
+            {
+              "metric_id": "storage_company_gross_margin",
+              "name": "存储链公司毛利率",
+              "mapped_layer_id": "commercialization",
+              "mapped_segment": "商业变现",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_memory_price_or_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "template_id": "ai_compute_infrastructure",
+      "name": "AI算力基础设施复杂产业链路模板",
+      "description": "围绕AI训练和推理需求，拆解芯片、服务器、光通信、PCB、电源散热、IDC、云厂商CAPEX和商业化变现。",
+      "example_theme": "AI算力基础设施",
+      "macro_context": [
+        {
+          "region": "US",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "CN",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "JP",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "KR",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "EU",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        }
+      ],
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "围绕AI算力基础设施的需求层，跟踪云厂商CAPEX;AI训练;AI推理;智算中心;政企算力。",
+          "key_questions": [
+            "云厂商CAPEX是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "云厂商CAPEX",
+            "AI训练",
+            "AI推理",
+            "智算中心",
+            "政企算力"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "云厂商CAPEX订单",
+            "云厂商CAPEX价格/渗透率",
+            "云厂商CAPEX客户导入",
+            "云厂商CAPEXCAPEX",
+            "云厂商CAPEX毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "云厂商CAPEX订单",
+              "云厂商CAPEX收入",
+              "云厂商CAPEX毛利率"
+            ],
+            "expectation_gap": [
+              "云厂商CAPEX订单高于预期",
+              "云厂商CAPEX导入快于预期",
+              "云厂商CAPEX价格/份额改善"
+            ],
+            "trigger_signals": [
+              "云厂商CAPEX中标/定点",
+              "云厂商CAPEXCAPEX上修",
+              "云厂商CAPEX业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "ai_compute_infrastructure_demand_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "云厂商CAPEX"
+              ],
+              "mapped_layer_id": "demand",
+              "mapped_segments": [
+                "云厂商CAPEX"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "ai_compute_infrastructure_demand_physical_metric",
+              "name": "云厂商CAPEX物理指标",
+              "mapped_layer_id": "demand",
+              "mapped_segment": "云厂商CAPEX",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "围绕AI算力基础设施的任务层，跟踪模型训练;推理部署;集群互联;高带宽存储;散热供电。",
+          "key_questions": [
+            "模型训练是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "模型训练",
+            "推理部署",
+            "集群互联",
+            "高带宽存储",
+            "散热供电"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "模型训练订单",
+            "模型训练价格/渗透率",
+            "模型训练客户导入",
+            "模型训练CAPEX",
+            "模型训练毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "模型训练订单",
+              "模型训练收入",
+              "模型训练毛利率"
+            ],
+            "expectation_gap": [
+              "模型训练订单高于预期",
+              "模型训练导入快于预期",
+              "模型训练价格/份额改善"
+            ],
+            "trigger_signals": [
+              "模型训练中标/定点",
+              "模型训练CAPEX上修",
+              "模型训练业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "ai_compute_infrastructure_task_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "模型训练"
+              ],
+              "mapped_layer_id": "task",
+              "mapped_segments": [
+                "模型训练"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "ai_compute_infrastructure_task_physical_metric",
+              "name": "模型训练物理指标",
+              "mapped_layer_id": "task",
+              "mapped_segment": "模型训练",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "围绕AI算力基础设施的核心产品层，跟踪AI芯片/GPU/ASIC;AI服务器;高速光模块;交换机;加速卡。",
+          "key_questions": [
+            "AI芯片/GPU/ASIC是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "AI芯片/GPU/ASIC",
+            "AI服务器",
+            "高速光模块",
+            "交换机",
+            "加速卡"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中际旭创",
+            "寒武纪",
+            "新易盛",
+            "景嘉微",
+            "海光信息"
+          ],
+          "tracking_metrics": [
+            "AI芯片/GPU/ASIC订单",
+            "AI芯片/GPU/ASIC价格/渗透率",
+            "AI芯片/GPU/ASIC客户导入",
+            "AI芯片/GPU/ASICCAPEX",
+            "AI芯片/GPU/ASIC毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "AI芯片/GPU/ASIC订单",
+              "AI芯片/GPU/ASIC收入",
+              "AI芯片/GPU/ASIC毛利率"
+            ],
+            "expectation_gap": [
+              "AI芯片/GPU/ASIC订单高于预期",
+              "AI芯片/GPU/ASIC导入快于预期",
+              "AI芯片/GPU/ASIC价格/份额改善"
+            ],
+            "trigger_signals": [
+              "AI芯片/GPU/ASIC中标/定点",
+              "AI芯片/GPU/ASICCAPEX上修",
+              "AI芯片/GPU/ASIC业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "ai_compute_infrastructure_core_product_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "AI芯片/GPU/ASIC"
+              ],
+              "mapped_layer_id": "core_product",
+              "mapped_segments": [
+                "AI芯片/GPU/ASIC"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "ai_compute_infrastructure_core_product_physical_metric",
+              "name": "AI芯片/GPU/ASIC物理指标",
+              "mapped_layer_id": "core_product",
+              "mapped_segment": "AI芯片/GPU/ASIC",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "围绕AI算力基础设施的底层支撑层，跟踪HBM;先进制程;高速PCB;电源芯片;EDA/IP。",
+          "key_questions": [
+            "HBM是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "HBM",
+            "先进制程",
+            "高速PCB",
+            "电源芯片",
+            "EDA/IP"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "仕佳光子",
+            "光迅科技",
+            "天孚通信",
+            "沪电股份",
+            "深南电路",
+            "源杰科技",
+            "生益科技",
+            "胜宏科技"
+          ],
+          "tracking_metrics": [
+            "HBM订单",
+            "HBM价格/渗透率",
+            "HBM客户导入",
+            "HBMCAPEX",
+            "HBM毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "HBM订单",
+              "HBM收入",
+              "HBM毛利率"
+            ],
+            "expectation_gap": [
+              "HBM订单高于预期",
+              "HBM导入快于预期",
+              "HBM价格/份额改善"
+            ],
+            "trigger_signals": [
+              "HBM中标/定点",
+              "HBMCAPEX上修",
+              "HBM业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "ai_compute_infrastructure_foundation_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "HBM"
+              ],
+              "mapped_layer_id": "foundation",
+              "mapped_segments": [
+                "HBM"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "ai_compute_infrastructure_foundation_physical_metric",
+              "name": "HBM物理指标",
+              "mapped_layer_id": "foundation",
+              "mapped_segment": "HBM",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "围绕AI算力基础设施的集成层，跟踪服务器整机;集群交付;云平台;算力调度;系统集成。",
+          "key_questions": [
+            "服务器整机是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "服务器整机",
+            "集群交付",
+            "云平台",
+            "算力调度",
+            "系统集成"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中科曙光",
+            "工业富联",
+            "浪潮信息",
+            "紫光股份"
+          ],
+          "tracking_metrics": [
+            "服务器整机订单",
+            "服务器整机价格/渗透率",
+            "服务器整机客户导入",
+            "服务器整机CAPEX",
+            "服务器整机毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "服务器整机订单",
+              "服务器整机收入",
+              "服务器整机毛利率"
+            ],
+            "expectation_gap": [
+              "服务器整机订单高于预期",
+              "服务器整机导入快于预期",
+              "服务器整机价格/份额改善"
+            ],
+            "trigger_signals": [
+              "服务器整机中标/定点",
+              "服务器整机CAPEX上修",
+              "服务器整机业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "ai_compute_infrastructure_integration_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "服务器整机"
+              ],
+              "mapped_layer_id": "integration",
+              "mapped_segments": [
+                "服务器整机"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "ai_compute_infrastructure_integration_physical_metric",
+              "name": "服务器整机物理指标",
+              "mapped_layer_id": "integration",
+              "mapped_segment": "服务器整机",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "围绕AI算力基础设施的配套层，跟踪液冷;UPS电源;高速铜缆;连接器;数据中心运维。",
+          "key_questions": [
+            "液冷是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "液冷",
+            "UPS电源",
+            "高速铜缆",
+            "连接器",
+            "数据中心运维"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "英维克"
+          ],
+          "tracking_metrics": [
+            "液冷订单",
+            "液冷价格/渗透率",
+            "液冷客户导入",
+            "液冷CAPEX",
+            "液冷毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "液冷订单",
+              "液冷收入",
+              "液冷毛利率"
+            ],
+            "expectation_gap": [
+              "液冷订单高于预期",
+              "液冷导入快于预期",
+              "液冷价格/份额改善"
+            ],
+            "trigger_signals": [
+              "液冷中标/定点",
+              "液冷CAPEX上修",
+              "液冷业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "ai_compute_infrastructure_supporting_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "液冷"
+              ],
+              "mapped_layer_id": "supporting",
+              "mapped_segments": [
+                "液冷"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "ai_compute_infrastructure_supporting_physical_metric",
+              "name": "液冷物理指标",
+              "mapped_layer_id": "supporting",
+              "mapped_segment": "液冷",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "围绕AI算力基础设施的基础设施层，跟踪智算中心;IDC机房;电力配套;网络骨干;云基础设施。",
+          "key_questions": [
+            "智算中心是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "智算中心",
+            "IDC机房",
+            "电力配套",
+            "网络骨干",
+            "云基础设施"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "奥飞数据",
+            "宝信软件",
+            "数据港",
+            "润泽科技",
+            "科华数据"
+          ],
+          "tracking_metrics": [
+            "智算中心订单",
+            "智算中心价格/渗透率",
+            "智算中心客户导入",
+            "智算中心CAPEX",
+            "智算中心毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "智算中心订单",
+              "智算中心收入",
+              "智算中心毛利率"
+            ],
+            "expectation_gap": [
+              "智算中心订单高于预期",
+              "智算中心导入快于预期",
+              "智算中心价格/份额改善"
+            ],
+            "trigger_signals": [
+              "智算中心中标/定点",
+              "智算中心CAPEX上修",
+              "智算中心业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "ai_compute_infrastructure_infrastructure_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "智算中心"
+              ],
+              "mapped_layer_id": "infrastructure",
+              "mapped_segments": [
+                "智算中心"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "ai_compute_infrastructure_infrastructure_physical_metric",
+              "name": "智算中心物理指标",
+              "mapped_layer_id": "infrastructure",
+              "mapped_segment": "智算中心",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "围绕AI算力基础设施的商业变现层，跟踪云算力租赁;推理API;服务器订单;IDC出租率;毛利率。",
+          "key_questions": [
+            "云算力租赁是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "云算力租赁",
+            "推理API",
+            "服务器订单",
+            "IDC出租率",
+            "毛利率"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "金山办公"
+          ],
+          "tracking_metrics": [
+            "云算力租赁订单",
+            "云算力租赁价格/渗透率",
+            "云算力租赁客户导入",
+            "云算力租赁CAPEX",
+            "云算力租赁毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "云算力租赁订单",
+              "云算力租赁收入",
+              "云算力租赁毛利率"
+            ],
+            "expectation_gap": [
+              "云算力租赁订单高于预期",
+              "云算力租赁导入快于预期",
+              "云算力租赁价格/份额改善"
+            ],
+            "trigger_signals": [
+              "云算力租赁中标/定点",
+              "云算力租赁CAPEX上修",
+              "云算力租赁业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "ai_compute_infrastructure_commercialization_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "云算力租赁"
+              ],
+              "mapped_layer_id": "commercialization",
+              "mapped_segments": [
+                "云算力租赁"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "ai_compute_infrastructure_commercialization_physical_metric",
+              "name": "云算力租赁物理指标",
+              "mapped_layer_id": "commercialization",
+              "mapped_segment": "云算力租赁",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "template_id": "advanced_packaging_chiplet",
+      "name": "先进封装/Chiplet复杂产业链路模板",
+      "description": "围绕2.5D/3D、CoWoS、TSV、RDL、倒装、先进封测、ABF/载板、封装材料和测试验证拆解。",
+      "example_theme": "先进封装/Chiplet",
+      "macro_context": [
+        {
+          "region": "US",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "CN",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "JP",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "KR",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "EU",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        }
+      ],
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "围绕先进封装/Chiplet的需求层，跟踪AI芯片封装;HBM集成;高性能计算;国产替代;服务器升级。",
+          "key_questions": [
+            "AI芯片封装是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "AI芯片封装",
+            "HBM集成",
+            "高性能计算",
+            "国产替代",
+            "服务器升级"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "AI芯片封装订单",
+            "AI芯片封装价格/渗透率",
+            "AI芯片封装客户导入",
+            "AI芯片封装CAPEX",
+            "AI芯片封装毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "AI芯片封装订单",
+              "AI芯片封装收入",
+              "AI芯片封装毛利率"
+            ],
+            "expectation_gap": [
+              "AI芯片封装订单高于预期",
+              "AI芯片封装导入快于预期",
+              "AI芯片封装价格/份额改善"
+            ],
+            "trigger_signals": [
+              "AI芯片封装中标/定点",
+              "AI芯片封装CAPEX上修",
+              "AI芯片封装业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "advanced_packaging_chiplet_demand_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "AI芯片封装"
+              ],
+              "mapped_layer_id": "demand",
+              "mapped_segments": [
+                "AI芯片封装"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "advanced_packaging_chiplet_demand_physical_metric",
+              "name": "AI芯片封装物理指标",
+              "mapped_layer_id": "demand",
+              "mapped_segment": "AI芯片封装",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "围绕先进封装/Chiplet的任务层，跟踪高带宽互联;异构集成;散热管理;良率提升;测试验证。",
+          "key_questions": [
+            "高带宽互联是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "高带宽互联",
+            "异构集成",
+            "散热管理",
+            "良率提升",
+            "测试验证"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "高带宽互联订单",
+            "高带宽互联价格/渗透率",
+            "高带宽互联客户导入",
+            "高带宽互联CAPEX",
+            "高带宽互联毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "高带宽互联订单",
+              "高带宽互联收入",
+              "高带宽互联毛利率"
+            ],
+            "expectation_gap": [
+              "高带宽互联订单高于预期",
+              "高带宽互联导入快于预期",
+              "高带宽互联价格/份额改善"
+            ],
+            "trigger_signals": [
+              "高带宽互联中标/定点",
+              "高带宽互联CAPEX上修",
+              "高带宽互联业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "advanced_packaging_chiplet_task_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "高带宽互联"
+              ],
+              "mapped_layer_id": "task",
+              "mapped_segments": [
+                "高带宽互联"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "advanced_packaging_chiplet_task_physical_metric",
+              "name": "高带宽互联物理指标",
+              "mapped_layer_id": "task",
+              "mapped_segment": "高带宽互联",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "围绕先进封装/Chiplet的核心产品层，跟踪2.5D/3D封装;Chiplet;CoWoS类封装;SiP;先进测试。",
+          "key_questions": [
+            "2.5D/3D封装是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "2.5D/3D封装",
+            "Chiplet",
+            "CoWoS类封装",
+            "SiP",
+            "先进测试"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "2.5D/3D封装订单",
+            "2.5D/3D封装价格/渗透率",
+            "2.5D/3D封装客户导入",
+            "2.5D/3D封装CAPEX",
+            "2.5D/3D封装毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "2.5D/3D封装订单",
+              "2.5D/3D封装收入",
+              "2.5D/3D封装毛利率"
+            ],
+            "expectation_gap": [
+              "2.5D/3D封装订单高于预期",
+              "2.5D/3D封装导入快于预期",
+              "2.5D/3D封装价格/份额改善"
+            ],
+            "trigger_signals": [
+              "2.5D/3D封装中标/定点",
+              "2.5D/3D封装CAPEX上修",
+              "2.5D/3D封装业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "advanced_packaging_chiplet_core_product_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "2.5D/3D封装"
+              ],
+              "mapped_layer_id": "core_product",
+              "mapped_segments": [
+                "2.5D/3D封装"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "advanced_packaging_chiplet_core_product_physical_metric",
+              "name": "2.5D/3D封装物理指标",
+              "mapped_layer_id": "core_product",
+              "mapped_segment": "2.5D/3D封装",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "围绕先进封装/Chiplet的底层支撑层，跟踪ABF/IC载板;TSV/RDL;键合材料;封装基板;环氧塑封料。",
+          "key_questions": [
+            "ABF/IC载板是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "ABF/IC载板",
+            "TSV/RDL",
+            "键合材料",
+            "封装基板",
+            "环氧塑封料"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "兴森科技",
+            "华海诚科",
+            "沪电股份",
+            "深南电路",
+            "生益科技",
+            "联瑞新材"
+          ],
+          "tracking_metrics": [
+            "ABF/IC载板订单",
+            "ABF/IC载板价格/渗透率",
+            "ABF/IC载板客户导入",
+            "ABF/IC载板CAPEX",
+            "ABF/IC载板毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "ABF/IC载板订单",
+              "ABF/IC载板收入",
+              "ABF/IC载板毛利率"
+            ],
+            "expectation_gap": [
+              "ABF/IC载板订单高于预期",
+              "ABF/IC载板导入快于预期",
+              "ABF/IC载板价格/份额改善"
+            ],
+            "trigger_signals": [
+              "ABF/IC载板中标/定点",
+              "ABF/IC载板CAPEX上修",
+              "ABF/IC载板业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "advanced_packaging_chiplet_foundation_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "ABF/IC载板"
+              ],
+              "mapped_layer_id": "foundation",
+              "mapped_segments": [
+                "ABF/IC载板"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "advanced_packaging_chiplet_foundation_physical_metric",
+              "name": "ABF/IC载板物理指标",
+              "mapped_layer_id": "foundation",
+              "mapped_segment": "ABF/IC载板",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "围绕先进封装/Chiplet的集成层，跟踪封装测试;晶圆级封装;系统级封装;模组集成;客户验证。",
+          "key_questions": [
+            "封装测试是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "封装测试",
+            "晶圆级封装",
+            "系统级封装",
+            "模组集成",
+            "客户验证"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "华天科技",
+            "晶方科技",
+            "甬矽电子",
+            "通富微电",
+            "长电科技",
+            "颀中科技"
+          ],
+          "tracking_metrics": [
+            "封装测试订单",
+            "封装测试价格/渗透率",
+            "封装测试客户导入",
+            "封装测试CAPEX",
+            "封装测试毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "封装测试订单",
+              "封装测试收入",
+              "封装测试毛利率"
+            ],
+            "expectation_gap": [
+              "封装测试订单高于预期",
+              "封装测试导入快于预期",
+              "封装测试价格/份额改善"
+            ],
+            "trigger_signals": [
+              "封装测试中标/定点",
+              "封装测试CAPEX上修",
+              "封装测试业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "advanced_packaging_chiplet_integration_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "封装测试"
+              ],
+              "mapped_layer_id": "integration",
+              "mapped_segments": [
+                "封装测试"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "advanced_packaging_chiplet_integration_physical_metric",
+              "name": "封装测试物理指标",
+              "mapped_layer_id": "integration",
+              "mapped_segment": "封装测试",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "围绕先进封装/Chiplet的配套层，跟踪测试设备;切磨抛设备;贴装键合设备;洁净厂务;高纯材料。",
+          "key_questions": [
+            "测试设备是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "测试设备",
+            "切磨抛设备",
+            "贴装键合设备",
+            "洁净厂务",
+            "高纯材料"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "利扬芯片",
+            "华峰测控",
+            "芯碁微装",
+            "长川科技"
+          ],
+          "tracking_metrics": [
+            "测试设备订单",
+            "测试设备价格/渗透率",
+            "测试设备客户导入",
+            "测试设备CAPEX",
+            "测试设备毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "测试设备订单",
+              "测试设备收入",
+              "测试设备毛利率"
+            ],
+            "expectation_gap": [
+              "测试设备订单高于预期",
+              "测试设备导入快于预期",
+              "测试设备价格/份额改善"
+            ],
+            "trigger_signals": [
+              "测试设备中标/定点",
+              "测试设备CAPEX上修",
+              "测试设备业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "advanced_packaging_chiplet_supporting_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "测试设备"
+              ],
+              "mapped_layer_id": "supporting",
+              "mapped_segments": [
+                "测试设备"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "advanced_packaging_chiplet_supporting_physical_metric",
+              "name": "测试设备物理指标",
+              "mapped_layer_id": "supporting",
+              "mapped_segment": "测试设备",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "围绕先进封装/Chiplet的基础设施层，跟踪先进封装产线;封测基地;HBM配套产能;测试产能;研发中试线。",
+          "key_questions": [
+            "先进封装产线是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "先进封装产线",
+            "封测基地",
+            "HBM配套产能",
+            "测试产能",
+            "研发中试线"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "柏诚股份",
+            "至纯科技"
+          ],
+          "tracking_metrics": [
+            "先进封装产线订单",
+            "先进封装产线价格/渗透率",
+            "先进封装产线客户导入",
+            "先进封装产线CAPEX",
+            "先进封装产线毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "先进封装产线订单",
+              "先进封装产线收入",
+              "先进封装产线毛利率"
+            ],
+            "expectation_gap": [
+              "先进封装产线订单高于预期",
+              "先进封装产线导入快于预期",
+              "先进封装产线价格/份额改善"
+            ],
+            "trigger_signals": [
+              "先进封装产线中标/定点",
+              "先进封装产线CAPEX上修",
+              "先进封装产线业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "advanced_packaging_chiplet_infrastructure_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "先进封装产线"
+              ],
+              "mapped_layer_id": "infrastructure",
+              "mapped_segments": [
+                "先进封装产线"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "advanced_packaging_chiplet_infrastructure_physical_metric",
+              "name": "先进封装产线物理指标",
+              "mapped_layer_id": "infrastructure",
+              "mapped_segment": "先进封装产线",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "围绕先进封装/Chiplet的商业变现层，跟踪封测订单;产能利用率;客户导入;单价提升;毛利改善。",
+          "key_questions": [
+            "封测订单是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "封测订单",
+            "产能利用率",
+            "客户导入",
+            "单价提升",
+            "毛利改善"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "封测订单订单",
+            "封测订单价格/渗透率",
+            "封测订单客户导入",
+            "封测订单CAPEX",
+            "封测订单毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "封测订单订单",
+              "封测订单收入",
+              "封测订单毛利率"
+            ],
+            "expectation_gap": [
+              "封测订单订单高于预期",
+              "封测订单导入快于预期",
+              "封测订单价格/份额改善"
+            ],
+            "trigger_signals": [
+              "封测订单中标/定点",
+              "封测订单CAPEX上修",
+              "封测订单业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "advanced_packaging_chiplet_commercialization_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "封测订单"
+              ],
+              "mapped_layer_id": "commercialization",
+              "mapped_segments": [
+                "封测订单"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "advanced_packaging_chiplet_commercialization_physical_metric",
+              "name": "封测订单物理指标",
+              "mapped_layer_id": "commercialization",
+              "mapped_segment": "封测订单",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "template_id": "semiconductor_equipment_materials",
+      "name": "半导体设备材料复杂产业链路模板",
+      "description": "围绕国产半导体扩产和先进制程，拆解设备、材料、零部件、厂务、客户认证、订单和国产替代进度。",
+      "example_theme": "半导体设备材料",
+      "macro_context": [
+        {
+          "region": "US",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "CN",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "JP",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "KR",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "EU",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        }
+      ],
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "围绕半导体设备材料的需求层，跟踪晶圆厂扩产;存储扩产;先进封装扩产;国产替代;设备更新。",
+          "key_questions": [
+            "晶圆厂扩产是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "晶圆厂扩产",
+            "存储扩产",
+            "先进封装扩产",
+            "国产替代",
+            "设备更新"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "晶圆厂扩产订单",
+            "晶圆厂扩产价格/渗透率",
+            "晶圆厂扩产客户导入",
+            "晶圆厂扩产CAPEX",
+            "晶圆厂扩产毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "晶圆厂扩产订单",
+              "晶圆厂扩产收入",
+              "晶圆厂扩产毛利率"
+            ],
+            "expectation_gap": [
+              "晶圆厂扩产订单高于预期",
+              "晶圆厂扩产导入快于预期",
+              "晶圆厂扩产价格/份额改善"
+            ],
+            "trigger_signals": [
+              "晶圆厂扩产中标/定点",
+              "晶圆厂扩产CAPEX上修",
+              "晶圆厂扩产业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "semiconductor_equipment_materials_demand_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "晶圆厂扩产"
+              ],
+              "mapped_layer_id": "demand",
+              "mapped_segments": [
+                "晶圆厂扩产"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "semiconductor_equipment_materials_demand_physical_metric",
+              "name": "晶圆厂扩产物理指标",
+              "mapped_layer_id": "demand",
+              "mapped_segment": "晶圆厂扩产",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "围绕半导体设备材料的任务层，跟踪制程突破;良率提升;成本下降;供应安全;客户认证。",
+          "key_questions": [
+            "制程突破是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "制程突破",
+            "良率提升",
+            "成本下降",
+            "供应安全",
+            "客户认证"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "制程突破订单",
+            "制程突破价格/渗透率",
+            "制程突破客户导入",
+            "制程突破CAPEX",
+            "制程突破毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "制程突破订单",
+              "制程突破收入",
+              "制程突破毛利率"
+            ],
+            "expectation_gap": [
+              "制程突破订单高于预期",
+              "制程突破导入快于预期",
+              "制程突破价格/份额改善"
+            ],
+            "trigger_signals": [
+              "制程突破中标/定点",
+              "制程突破CAPEX上修",
+              "制程突破业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "semiconductor_equipment_materials_task_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "制程突破"
+              ],
+              "mapped_layer_id": "task",
+              "mapped_segments": [
+                "制程突破"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "semiconductor_equipment_materials_task_physical_metric",
+              "name": "制程突破物理指标",
+              "mapped_layer_id": "task",
+              "mapped_segment": "制程突破",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "围绕半导体设备材料的核心产品层，跟踪刻蚀设备;薄膜设备;清洗设备;CMP设备;测试设备。",
+          "key_questions": [
+            "刻蚀设备是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "刻蚀设备",
+            "薄膜设备",
+            "清洗设备",
+            "CMP设备",
+            "测试设备"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中微公司",
+            "北方华创",
+            "华峰测控",
+            "华海清科",
+            "拓荆科技",
+            "盛美上海",
+            "芯源微",
+            "长川科技"
+          ],
+          "tracking_metrics": [
+            "刻蚀设备订单",
+            "刻蚀设备价格/渗透率",
+            "刻蚀设备客户导入",
+            "刻蚀设备CAPEX",
+            "刻蚀设备毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "刻蚀设备订单",
+              "刻蚀设备收入",
+              "刻蚀设备毛利率"
+            ],
+            "expectation_gap": [
+              "刻蚀设备订单高于预期",
+              "刻蚀设备导入快于预期",
+              "刻蚀设备价格/份额改善"
+            ],
+            "trigger_signals": [
+              "刻蚀设备中标/定点",
+              "刻蚀设备CAPEX上修",
+              "刻蚀设备业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "semiconductor_equipment_materials_core_product_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "刻蚀设备"
+              ],
+              "mapped_layer_id": "core_product",
+              "mapped_segments": [
+                "刻蚀设备"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "semiconductor_equipment_materials_core_product_physical_metric",
+              "name": "刻蚀设备物理指标",
+              "mapped_layer_id": "core_product",
+              "mapped_segment": "刻蚀设备",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "围绕半导体设备材料的底层支撑层，跟踪硅片;光刻胶;电子特气;CMP材料;靶材;湿电子化学品。",
+          "key_questions": [
+            "硅片是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "硅片",
+            "光刻胶",
+            "电子特气",
+            "CMP材料",
+            "靶材",
+            "湿电子化学品"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "上海新阳",
+            "中船特气",
+            "华特气体",
+            "南大光电",
+            "安集科技",
+            "容大感光",
+            "广钢气体",
+            "彤程新材",
+            "晶瑞电材",
+            "江丰电子",
+            "江化微",
+            "沪硅产业",
+            "金宏气体",
+            "雅克科技",
+            "鼎龙股份"
+          ],
+          "tracking_metrics": [
+            "硅片订单",
+            "硅片价格/渗透率",
+            "硅片客户导入",
+            "硅片CAPEX",
+            "硅片毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "硅片订单",
+              "硅片收入",
+              "硅片毛利率"
+            ],
+            "expectation_gap": [
+              "硅片订单高于预期",
+              "硅片导入快于预期",
+              "硅片价格/份额改善"
+            ],
+            "trigger_signals": [
+              "硅片中标/定点",
+              "硅片CAPEX上修",
+              "硅片业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "semiconductor_equipment_materials_foundation_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "硅片"
+              ],
+              "mapped_layer_id": "foundation",
+              "mapped_segments": [
+                "硅片"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "semiconductor_equipment_materials_foundation_physical_metric",
+              "name": "硅片物理指标",
+              "mapped_layer_id": "foundation",
+              "mapped_segment": "硅片",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "围绕半导体设备材料的集成层，跟踪设备交付;材料导入;产线验证;良率爬坡;客户量产。",
+          "key_questions": [
+            "设备交付是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "设备交付",
+            "材料导入",
+            "产线验证",
+            "良率爬坡",
+            "客户量产"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "设备交付订单",
+            "设备交付价格/渗透率",
+            "设备交付客户导入",
+            "设备交付CAPEX",
+            "设备交付毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "设备交付订单",
+              "设备交付收入",
+              "设备交付毛利率"
+            ],
+            "expectation_gap": [
+              "设备交付订单高于预期",
+              "设备交付导入快于预期",
+              "设备交付价格/份额改善"
+            ],
+            "trigger_signals": [
+              "设备交付中标/定点",
+              "设备交付CAPEX上修",
+              "设备交付业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "semiconductor_equipment_materials_integration_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "设备交付"
+              ],
+              "mapped_layer_id": "integration",
+              "mapped_segments": [
+                "设备交付"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "semiconductor_equipment_materials_integration_physical_metric",
+              "name": "设备交付物理指标",
+              "mapped_layer_id": "integration",
+              "mapped_segment": "设备交付",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "围绕半导体设备材料的配套层，跟踪零部件;真空系统;高纯工艺系统;洁净室;检测量测。",
+          "key_questions": [
+            "零部件是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "零部件",
+            "真空系统",
+            "高纯工艺系统",
+            "洁净室",
+            "检测量测"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "正帆科技",
+            "精测电子"
+          ],
+          "tracking_metrics": [
+            "零部件订单",
+            "零部件价格/渗透率",
+            "零部件客户导入",
+            "零部件CAPEX",
+            "零部件毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "零部件订单",
+              "零部件收入",
+              "零部件毛利率"
+            ],
+            "expectation_gap": [
+              "零部件订单高于预期",
+              "零部件导入快于预期",
+              "零部件价格/份额改善"
+            ],
+            "trigger_signals": [
+              "零部件中标/定点",
+              "零部件CAPEX上修",
+              "零部件业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "semiconductor_equipment_materials_supporting_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "零部件"
+              ],
+              "mapped_layer_id": "supporting",
+              "mapped_segments": [
+                "零部件"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "semiconductor_equipment_materials_supporting_physical_metric",
+              "name": "零部件物理指标",
+              "mapped_layer_id": "supporting",
+              "mapped_segment": "零部件",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "围绕半导体设备材料的基础设施层，跟踪晶圆厂产线;设备国产化平台;材料认证平台;厂务工程;供应链安全。",
+          "key_questions": [
+            "晶圆厂产线是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "晶圆厂产线",
+            "设备国产化平台",
+            "材料认证平台",
+            "厂务工程",
+            "供应链安全"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "亚翔集成",
+            "柏诚股份",
+            "至纯科技"
+          ],
+          "tracking_metrics": [
+            "晶圆厂产线订单",
+            "晶圆厂产线价格/渗透率",
+            "晶圆厂产线客户导入",
+            "晶圆厂产线CAPEX",
+            "晶圆厂产线毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "晶圆厂产线订单",
+              "晶圆厂产线收入",
+              "晶圆厂产线毛利率"
+            ],
+            "expectation_gap": [
+              "晶圆厂产线订单高于预期",
+              "晶圆厂产线导入快于预期",
+              "晶圆厂产线价格/份额改善"
+            ],
+            "trigger_signals": [
+              "晶圆厂产线中标/定点",
+              "晶圆厂产线CAPEX上修",
+              "晶圆厂产线业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "semiconductor_equipment_materials_infrastructure_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "晶圆厂产线"
+              ],
+              "mapped_layer_id": "infrastructure",
+              "mapped_segments": [
+                "晶圆厂产线"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "semiconductor_equipment_materials_infrastructure_physical_metric",
+              "name": "晶圆厂产线物理指标",
+              "mapped_layer_id": "infrastructure",
+              "mapped_segment": "晶圆厂产线",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "围绕半导体设备材料的商业变现层，跟踪订单 backlog;收入确认;国产化率;客户扩散;毛利率。",
+          "key_questions": [
+            "订单 backlog是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "订单 backlog",
+            "收入确认",
+            "国产化率",
+            "客户扩散",
+            "毛利率"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "订单 backlog订单",
+            "订单 backlog价格/渗透率",
+            "订单 backlog客户导入",
+            "订单 backlogCAPEX",
+            "订单 backlog毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "订单 backlog订单",
+              "订单 backlog收入",
+              "订单 backlog毛利率"
+            ],
+            "expectation_gap": [
+              "订单 backlog订单高于预期",
+              "订单 backlog导入快于预期",
+              "订单 backlog价格/份额改善"
+            ],
+            "trigger_signals": [
+              "订单 backlog中标/定点",
+              "订单 backlogCAPEX上修",
+              "订单 backlog业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "semiconductor_equipment_materials_commercialization_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "订单 backlog"
+              ],
+              "mapped_layer_id": "commercialization",
+              "mapped_segments": [
+                "订单 backlog"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "semiconductor_equipment_materials_commercialization_physical_metric",
+              "name": "订单 backlog物理指标",
+              "mapped_layer_id": "commercialization",
+              "mapped_segment": "订单 backlog",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "mode": "short",
+  "market_env": "[NEUTRAL] 震荡 - 精选中线",
+  "total_scored": 279,
+  "total_excluded": 797,
+  "picks": [
+    {
+      "code": "300083",
+      "name": "创世纪",
+      "price": 14.32,
+      "score": 19.1,
+      "grade": "S",
+      "entry_price": 13.41,
+      "stop_loss": 13.32,
+      "target_price": 16.47,
+      "rationale": "当前价14.32高于MA10入场点13.41，等待回调至13.41附近介入 | 止损11.72（MA20-0.5ATR），目标16.32（+14%） | 盈亏比0.8:1",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "candidate_id": "CAND-short-300083",
+      "source_module": "screener",
+      "source_mode": "short",
+      "visibility": "public",
+      "data_scope": "public"
+    },
+    {
+      "code": "300005",
+      "name": "探路者",
+      "price": 22.36,
+      "score": 18.8,
+      "grade": "S",
+      "entry_price": 22.89,
+      "stop_loss": 20.79,
+      "target_price": 25.71,
+      "rationale": "当前价22.36接近MA10支撑22.89，可现价入场 | 止损18.86（MA20-0.5ATR），目标25.85（+16%） | 盈亏比1.0:1",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "candidate_id": "CAND-short-300005",
+      "source_module": "screener",
+      "source_mode": "short",
+      "visibility": "public",
+      "data_scope": "public"
+    },
+    {
+      "code": "002056",
+      "name": "横店东磁",
+      "price": 30.95,
+      "score": 18.7,
+      "grade": "S",
+      "entry_price": 30.34,
+      "stop_loss": 28.78,
+      "target_price": 35.59,
+      "rationale": "当前价30.95高于MA10入场点30.34，等待回调至30.34附近介入 | 止损27.18（MA20-0.5ATR），目标36.15（+17%） | 盈亏比1.4:1",
+      "risk_level": null,
+      "kronos_prediction": null,
+      "candidate_id": "CAND-short-002056",
+      "source_module": "screener",
+      "source_mode": "short",
+      "visibility": "public",
+      "data_scope": "public"
+    }
+  ],
+  "factor_weights": {
+    "short_term": 0.28,
+    "volume_factor": 0.1,
+    "trend_strength": 0.08,
+    "five_factor_composite": 0.07,
+    "momentum_inverted": 0.06,
+    "money_flow": 0.05,
+    "margin_momentum": 0.07,
+    "top_list": 0.07,
+    "top_inst": 0.05,
+    "analyst": 0.03,
+    "hk_hold": 0.03,
+    "identifiability": 0.06,
+    "tushare_events": 0.05
+  },
+  "trade_date": "2026-07-08",
+  "total_picks": 3,
+  "data_refresh": {
+    "status": "skipped"
+  },
+  "pipeline": {
+    "model_key": "short",
+    "run_id": "20260708_094351",
+    "run_dir": "/Users/rogerluo/程序目录/K线大模型/outputs/pipeline_runs/2026-07-08/20260708_094351_short",
+    "started_at": "2026-07-08T09:44:25",
+    "markdown_path": "/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/094425_short.md"
+  }
+}

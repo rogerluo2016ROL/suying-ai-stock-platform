@@ -1,0 +1,589 @@
+{
+  "mode": "cb_auction_t0_v2_1",
+  "trade_date": "2026-07-09",
+  "total_picks": 10,
+  "picks": [
+    {
+      "cb_code": "118011.SH",
+      "cb_name": "银微转债",
+      "stk_code": "688689",
+      "stk_name": "银河微电",
+      "matched_concepts": [
+        "先进封装",
+        "汽车芯片"
+      ],
+      "trigger_sources": [
+        "002414"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 2128733252.0,
+      "matched_concept_strength": 0.26765611955009094,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 326927311.3,
+      "delist_date": null,
+      "call_status": "公告提示强赎",
+      "is_direct_trigger": false,
+      "theme_score": 231.2873,
+      "risk_notes": [
+        "公告提示强赎"
+      ],
+      "remain_size_yi": 3.27,
+      "code": "118011.SH",
+      "name": "银微转债",
+      "relation_reason": "命中先进封装、汽车芯片",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.27%",
+      "list_type": "主买",
+      "score": 231.29,
+      "entry_reason": "命中先进封装、汽车芯片",
+      "risk_flags": [
+        "公告提示强赎"
+      ],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-118011.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "118058.SH",
+      "cb_name": "微导转债",
+      "stk_code": "688147",
+      "stk_name": "微导纳米",
+      "matched_concepts": [
+        "先进封装",
+        "汽车芯片"
+      ],
+      "trigger_sources": [
+        "002414"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 2128733252.0,
+      "matched_concept_strength": 0.26765611955009094,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1169948992.9,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 231.2873,
+      "risk_notes": [
+        "剩余规模11.70亿"
+      ],
+      "remain_size_yi": 11.7,
+      "code": "118058.SH",
+      "name": "微导转债",
+      "relation_reason": "命中先进封装、汽车芯片",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.27%",
+      "list_type": "主买",
+      "score": 231.29,
+      "entry_reason": "命中先进封装、汽车芯片",
+      "risk_flags": [
+        "剩余规模11.70亿"
+      ],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-118058.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "118501.SH",
+      "cb_name": "华海定转",
+      "stk_code": "688535",
+      "stk_name": "华海诚科",
+      "matched_concepts": [
+        "先进封装",
+        "汽车芯片"
+      ],
+      "trigger_sources": [
+        "002414"
+      ],
+      "matched_concept_count": 2,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 2128733252.0,
+      "matched_concept_strength": 0.26765611955009094,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 430499700.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 231.2873,
+      "risk_notes": [],
+      "remain_size_yi": 4.3,
+      "code": "118501.SH",
+      "name": "华海定转",
+      "relation_reason": "命中先进封装、汽车芯片",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.27%",
+      "list_type": "主买",
+      "score": 231.29,
+      "entry_reason": "命中先进封装、汽车芯片",
+      "risk_flags": [],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-118501.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "111025.SH",
+      "cb_name": "圣泉转债",
+      "stk_code": "605589",
+      "stk_name": "圣泉集团",
+      "matched_concepts": [
+        "先进封装"
+      ],
+      "trigger_sources": [
+        "002414"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 2128733252.0,
+      "matched_concept_strength": 0.26765611955009094,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 2500000000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 131.2873,
+      "risk_notes": [
+        "剩余规模25.00亿"
+      ],
+      "remain_size_yi": 25.0,
+      "code": "111025.SH",
+      "name": "圣泉转债",
+      "relation_reason": "命中先进封装",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.27%",
+      "list_type": "主买",
+      "score": 131.29,
+      "entry_reason": "命中先进封装",
+      "risk_flags": [
+        "剩余规模25.00亿"
+      ],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-111025.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "113616.SH",
+      "cb_name": "韦尔转债",
+      "stk_code": "603501",
+      "stk_name": "豪威集团",
+      "matched_concepts": [
+        "汽车芯片"
+      ],
+      "trigger_sources": [
+        "002414"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 2128733252.0,
+      "matched_concept_strength": 0.19473255032528558,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 2432336000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 131.2873,
+      "risk_notes": [
+        "剩余规模24.32亿"
+      ],
+      "remain_size_yi": 24.32,
+      "code": "113616.SH",
+      "name": "韦尔转债",
+      "relation_reason": "命中汽车芯片",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.19%",
+      "list_type": "主买",
+      "score": 131.29,
+      "entry_reason": "命中汽车芯片",
+      "risk_flags": [
+        "剩余规模24.32亿"
+      ],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-113616.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "113702.SH",
+      "cb_name": "斯达转债",
+      "stk_code": "603290",
+      "stk_name": "斯达半导",
+      "matched_concepts": [
+        "汽车芯片"
+      ],
+      "trigger_sources": [
+        "002414"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 2128733252.0,
+      "matched_concept_strength": 0.19473255032528558,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1500000000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 131.2873,
+      "risk_notes": [
+        "剩余规模15.00亿"
+      ],
+      "remain_size_yi": 15.0,
+      "code": "113702.SH",
+      "name": "斯达转债",
+      "relation_reason": "命中汽车芯片",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.19%",
+      "list_type": "主买",
+      "score": 131.29,
+      "entry_reason": "命中汽车芯片",
+      "risk_flags": [
+        "剩余规模15.00亿"
+      ],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-113702.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "118015.SH",
+      "cb_name": "芯海转债",
+      "stk_code": "688595",
+      "stk_name": "芯海科技",
+      "matched_concepts": [
+        "汽车芯片"
+      ],
+      "trigger_sources": [
+        "002414"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 2128733252.0,
+      "matched_concept_strength": 0.19473255032528558,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 409951000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 131.2873,
+      "risk_notes": [],
+      "remain_size_yi": 4.1,
+      "code": "118015.SH",
+      "name": "芯海转债",
+      "relation_reason": "命中汽车芯片",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.19%",
+      "list_type": "主买",
+      "score": 131.29,
+      "entry_reason": "命中汽车芯片",
+      "risk_flags": [],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-118015.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "118030.SH",
+      "cb_name": "睿创转债",
+      "stk_code": "688002",
+      "stk_name": "睿创微纳",
+      "matched_concepts": [
+        "汽车芯片"
+      ],
+      "trigger_sources": [
+        "002414"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 2128733252.0,
+      "matched_concept_strength": 0.19473255032528558,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1262254000.0,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 131.2873,
+      "risk_notes": [
+        "剩余规模12.62亿"
+      ],
+      "remain_size_yi": 12.62,
+      "code": "118030.SH",
+      "name": "睿创转债",
+      "relation_reason": "命中汽车芯片",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.19%",
+      "list_type": "主买",
+      "score": 131.29,
+      "entry_reason": "命中汽车芯片",
+      "risk_flags": [
+        "剩余规模12.62亿"
+      ],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-118030.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "118040.SH",
+      "cb_name": "宏微转债",
+      "stk_code": "688711",
+      "stk_name": "宏微科技",
+      "matched_concepts": [
+        "汽车芯片"
+      ],
+      "trigger_sources": [
+        "002414"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 2128733252.0,
+      "matched_concept_strength": 0.19473255032528558,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 428740010.75,
+      "delist_date": null,
+      "call_status": "已满足强赎条件",
+      "is_direct_trigger": false,
+      "theme_score": 131.2873,
+      "risk_notes": [
+        "已满足强赎条件"
+      ],
+      "remain_size_yi": 4.29,
+      "code": "118040.SH",
+      "name": "宏微转债",
+      "relation_reason": "命中汽车芯片",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.19%",
+      "list_type": "主买",
+      "score": 131.29,
+      "entry_reason": "命中汽车芯片",
+      "risk_flags": [
+        "已满足强赎条件"
+      ],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-118040.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "118056.SH",
+      "cb_name": "路维转债",
+      "stk_code": "688401",
+      "stk_name": "路维光电",
+      "matched_concepts": [
+        "先进封装"
+      ],
+      "trigger_sources": [
+        "002414"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 2128733252.0,
+      "matched_concept_strength": 0.26765611955009094,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 614482031.0,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 131.2873,
+      "risk_notes": [],
+      "remain_size_yi": 6.14,
+      "code": "118056.SH",
+      "name": "路维转债",
+      "relation_reason": "命中先进封装",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.27%",
+      "list_type": "主买",
+      "score": 131.29,
+      "entry_reason": "命中先进封装",
+      "risk_flags": [],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-118056.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    }
+  ],
+  "observation_picks": [],
+  "total_observation_picks": 0,
+  "process_summary": {
+    "trigger_stock_count": 1,
+    "concept_count": 2,
+    "main_pick_count": 10,
+    "observation_pick_count": 0,
+    "rejection_count": 48
+  },
+  "screening_trace": [
+    {
+      "step": "交易日确认",
+      "status": "ok",
+      "detail": "使用交易日 2026-07-09"
+    },
+    {
+      "step": "触发股筛选",
+      "status": "ok",
+      "detail": "竞价触发股 1 只"
+    },
+    {
+      "step": "概念映射",
+      "status": "ok",
+      "detail": "有效概念 2 个"
+    },
+    {
+      "step": "转债匹配",
+      "status": "ok",
+      "detail": "主买 10 只，观察 0 只"
+    },
+    {
+      "step": "输出分层",
+      "status": "ok",
+      "detail": "cb_auction_t0_v2_1 输出主买 10 只，剔除 48 条"
+    }
+  ],
+  "rejection_summary": [
+    {
+      "reason": "已退市转债剔除",
+      "count": 45
+    },
+    {
+      "reason": "ST正股剔除",
+      "count": 1
+    },
+    {
+      "reason": "limit_list_d/kpl_list为空，使用东方财富涨停池fund作为封单金额备用口径",
+      "count": 1
+    },
+    {
+      "reason": "封单金额不足7亿",
+      "count": 1
+    }
+  ],
+  "no_result_reason": null,
+  "data_refresh": {
+    "mode": "cb_auction_t0_v2_1",
+    "trade_date": "2026-07-09",
+    "started_at": "2026-07-09T09:25:04",
+    "stk_mins": {
+      "status": "ok",
+      "stocks": 5100,
+      "pg_written": 0,
+      "sqlite_written": 0,
+      "elapsed": 2.068284034729004
+    },
+    "post_market_core": {
+      "daily_kline": {
+        "table": "daily_kline",
+        "written": 0,
+        "pg_written": 0,
+        "elapsed": 0.16091704368591309
+      },
+      "moneyflow": {
+        "table": "moneyflow",
+        "written": 0
+      },
+      "stk_limit": {
+        "table": "stk_limit",
+        "written": 7691,
+        "pg_written": 0
+      },
+      "index_daily": {
+        "table": "index_daily",
+        "written": 0,
+        "pg_written": 0
+      }
+    },
+    "finished_at": "2026-07-09T09:25:07",
+    "status": "ok",
+    "returncode": 0,
+    "elapsed": 3.5
+  },
+  "pipeline": {
+    "model_key": "cb_auction_t0",
+    "run_id": "20260709_092504",
+    "run_dir": "/Users/rogerluo/程序目录/K线大模型/outputs/pipeline_runs/2026-07-09/20260709_092504_cb_auction_t0",
+    "started_at": "2026-07-09T09:25:10",
+    "auction_trigger": {
+      "returncode": 0,
+      "elapsed": 0.8,
+      "stdout_tail": "{\"status\": \"degraded\", \"source\": \"tushare_only\", \"date\": \"2026-07-09\", \"stocks\": 0}",
+      "stderr_tail": "Auction Path1 empty/failed and SQLite fallback disabled; skip mootdx Path2",
+      "json": {
+        "status": "degraded",
+        "source": "tushare_only",
+        "date": "2026-07-09",
+        "stocks": 0
+      },
+      "status": "degraded",
+      "source": "tushare_only",
+      "date": "2026-07-09",
+      "stocks": 0
+    },
+    "pre_model_fallback": {
+      "eastmoney_limit_pool": {
+        "returncode": 0,
+        "elapsed": 0.7,
+        "stdout_tail": "{\n  \"status\": \"ok\",\n  \"source\": \"eastmoney_zt_pool\",\n  \"trade_date\": \"2026-07-09\",\n  \"started_at\": \"2026-07-09T09:25:08\",\n  \"finished_at\": \"2026-07-09T09:25:09\",\n  \"fetched\": 2,\n  \"usable_rows\": 2,\n  \"written\": 2,\n  \"note\": \"备用口径：使用东方财富涨停池 fund 字段作为封单资金，主链路仍优先使用 limit_list_d.fd_amount。\"\n}",
+        "stderr_tail": "",
+        "json": {
+          "status": "ok",
+          "source": "eastmoney_zt_pool",
+          "trade_date": "2026-07-09",
+          "started_at": "2026-07-09T09:25:08",
+          "finished_at": "2026-07-09T09:25:09",
+          "fetched": 2,
+          "usable_rows": 2,
+          "written": 2,
+          "note": "备用口径：使用东方财富涨停池 fund 字段作为封单资金，主链路仍优先使用 limit_list_d.fd_amount。"
+        }
+      }
+    },
+    "primary_rows": {
+      "limit_list_d": 0,
+      "kpl_list": 0,
+      "eastmoney_limit_pool": 2,
+      "stk_auction_o": 4894
+    },
+    "markdown_path": "/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-09/092510_cb_auction_t0_v2_1.md"
+  }
+}

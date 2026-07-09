@@ -1,0 +1,14 @@
+{
+  "status": "dry_run",
+  "model_key": "qishen_afternoon_trend_full",
+  "mode": "leader_afternoon_trend_full",
+  "trade_date": "2026-07-08",
+  "top_n": 30,
+  "command": {
+    "command": "秋神趋势启动午后全量版选股",
+    "mode": "leader_afternoon_trend_full",
+    "top_n": 30,
+    "trade_date": "2026-07-08"
+  },
+  "run_dir": "/Users/rogerluo/程序目录/K线大模型/outputs/pipeline_runs/2026-07-08/20260708_094335_qishen_afternoon_trend_full"
+}

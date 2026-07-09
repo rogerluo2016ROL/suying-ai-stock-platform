@@ -1,0 +1,19 @@
+{
+  "status": "ok",
+  "model_key": "cb_auction_t0",
+  "trade_date": "2026-07-08",
+  "mode": "cb_auction_t0_v2_1",
+  "top_n": 10,
+  "refresh": {
+    "status": "skipped"
+  },
+  "primary_rows": {
+    "limit_list_d": 0,
+    "kpl_list": 0,
+    "eastmoney_limit_pool": 20,
+    "stk_auction_o": 5193
+  },
+  "pre_model_fallback": null,
+  "fallback": null,
+  "report_path": "/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-08/095439_cb_auction_t0_v2_1.md"
+}

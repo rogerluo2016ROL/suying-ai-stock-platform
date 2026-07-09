@@ -35,6 +35,14 @@ DATA_COLLECTION_CENTER_MIGRATION_PATH = (
     / "024_supply_chain_data_collection_center.py"
 )
 
+CAPEX_EVIDENCE_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "025_business_tag_capex_evidence.py"
+)
+
 
 def test_supply_chain_v2_migration_defines_required_tables():
     sql = MIGRATION_PATH.read_text(encoding="utf-8")
@@ -150,3 +158,35 @@ def test_supply_chain_data_collection_center_migration_defines_job_and_specializ
 
     for contract in required_contracts:
         assert contract in sql
+
+
+def test_business_tag_capex_evidence_migration_defines_structured_capex_table():
+    sql = CAPEX_EVIDENCE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert "CREATE TABLE IF NOT EXISTS business_tag_capex_evidence" in sql
+    required_columns = [
+        "capex_evidence_id TEXT PRIMARY KEY",
+        "mapping_id TEXT NOT NULL REFERENCES business_tag_mapping(mapping_id)",
+        "code TEXT NOT NULL",
+        "fiscal_period TEXT NOT NULL",
+        "capex_amount DOUBLE PRECISION",
+        "capex_direction JSONB NOT NULL DEFAULT '[]'",
+        "mapped_layer_id TEXT NOT NULL",
+        "mapped_segments JSONB NOT NULL DEFAULT '[]'",
+        "quote TEXT NOT NULL",
+        "review_status TEXT NOT NULL DEFAULT 'pending_review'",
+        "amount_is_total_capex BOOLEAN NOT NULL DEFAULT FALSE",
+        "direction_is_ai_related BOOLEAN NOT NULL DEFAULT FALSE",
+    ]
+    for column_contract in required_columns:
+        assert column_contract in sql
+
+    required_indexes = [
+        "idx_business_tag_capex_mapping",
+        "idx_business_tag_capex_code",
+        "idx_business_tag_capex_chain",
+        "idx_business_tag_capex_review",
+        "idx_business_tag_capex_asof",
+    ]
+    for index_name in required_indexes:
+        assert index_name in sql

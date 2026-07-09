@@ -44,6 +44,77 @@ def test_expectation_gap_is_normalized_and_clamped():
     assert module.normalize_expectation_gap(0) == 50
 
 
+def test_bigtech_capex_tailwind_only_applies_to_ai_compute():
+    context = {
+        "company_count": 5,
+        "record_count": 13,
+        "companies": ["Alphabet", "Amazon", "Meta", "Microsoft", "Oracle"],
+    }
+    ai_row = {
+        "chain_id": "ai_compute",
+        "tag_name": "AI服务器",
+        "node_id": "infrastructure",
+        "industry": "通信设备",
+    }
+    other_row = {
+        "chain_id": "consumer_upgrade",
+        "tag_name": "品牌零售",
+        "node_id": "retail",
+    }
+
+    ai_score = module.score_bigtech_capex_tailwind(ai_row, context)
+    other_score = module.score_bigtech_capex_tailwind(other_row, context)
+
+    assert ai_score["score"] > 0
+    assert "infrastructure" in ai_score["matched_layers"]
+    assert "CAPEX" in ai_score["expectation_gap_indicator"]
+    assert other_score["score"] == 0
+
+
+def test_score_candidate_exposes_capex_commercialization_gap_and_trigger_fields():
+    context = {
+        "company_count": 5,
+        "record_count": 13,
+        "companies": ["Alphabet", "Amazon", "Meta", "Microsoft", "Oracle"],
+    }
+    result = module.score_candidate({
+        "chain_id": "ai_compute",
+        "tag_name": "液冷服务器",
+        "node_id": "infrastructure",
+        "three_high_total": 70,
+        "moat_score": 70,
+        "stage_score": 70,
+        "evidence_score": 70,
+        "l8_match_rate": 0.8,
+        "fresh_rate": 0.9,
+        "expectation_gap_score": 20,
+        "change_20d_pct": 5,
+    }, context)
+
+    assert result["score_parts"]["bigtech_capex_tailwind"] > 0
+    assert result["bigtech_capex_tailwind"]["company_count"] == 5
+    assert result["commercialization_indicator"]
+    assert result["expectation_gap_indicator"]
+    assert result["trigger_signal_indicator"]
+
+
+def test_company_capex_evidence_scores_amount_direction_freshness_and_confidence():
+    result = module.score_company_capex_evidence({
+        "capex_evidence_count": 2,
+        "capex_amount_count": 1,
+        "capex_direction_ai_count": 2,
+        "capex_fresh_count": 2,
+        "capex_avg_confidence": 0.8,
+        "capex_latest_as_of_date": "2026-08-30",
+        "capex_directions": [["AI服务器", "数据中心"]],
+    })
+
+    assert result["score"] > 70
+    assert result["amount_count"] == 1
+    assert result["direction_ai_count"] == 2
+    assert "AI相关投入方向" in result["indicator"]
+
+
 def test_aggregate_company_chain_keeps_best_mapping_and_counts_tags():
     rows = [
         {"code": "300503", "name": "昊志机电", "chain_id": "embodied_intelligence", "mapping_id": "m1", "tag_name": "关节模组", "rank_score": 70},

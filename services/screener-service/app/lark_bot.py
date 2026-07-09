@@ -161,6 +161,13 @@ def _parse_trade_date_and_top(text: str) -> tuple[str | None, int]:
     return trade_date, top_n
 
 
+def _valid_trade_date_or_none(value: Any) -> str | None:
+    text = str(value or "").strip()
+    if re.fullmatch(r"20\d{2}-\d{2}-\d{2}", text):
+        return text
+    return None
+
+
 def _looks_like_research_analysis(text: str) -> bool:
     compact = re.sub(r"\s+", "", text or "").lower()
     analysis_terms = [
@@ -363,6 +370,8 @@ def _normalize_intent_plan(plan: dict[str, Any], question: str) -> dict[str, Any
         intent = "stock_research" if _coerce_bool(plan.get("is_investment_related")) else "general_qa"
     trade_date, top_n = _parse_trade_date_and_top(question)
     inferred_stock = _infer_stock_from_question(question)
+    llm_trade_date = _valid_trade_date_or_none(plan.get("trade_date"))
+    parsed_trade_date = _valid_trade_date_or_none(trade_date)
     normalized = {
         "intent": intent,
         "is_investment_related": _coerce_bool(plan.get("is_investment_related")) or intent != "general_qa",
@@ -372,7 +381,7 @@ def _normalize_intent_plan(plan: dict[str, Any], question: str) -> dict[str, Any
         "model_hints": _coerce_list(plan.get("model_hints") or plan.get("model_hint")),
         "requested_tools": _coerce_list(plan.get("requested_tools")),
         "top_n": max(5, min(30, int(plan.get("top_n") or top_n or 10))),
-        "trade_date": str(plan.get("trade_date") or trade_date or "").strip() or None,
+        "trade_date": llm_trade_date or parsed_trade_date,
         "answer_mode": str(plan.get("answer_mode") or "stream").strip() or "stream",
         "reason": str(plan.get("reason") or "").strip(),
         "source": str(plan.get("source") or "llm").strip(),
@@ -1366,7 +1375,317 @@ def _format_feishu_model_run_report(context: dict[str, Any]) -> str | None:
     return "\n".join(lines)
 
 
+def _looks_like_position_flow_question(question: str) -> bool:
+    compact = re.sub(r"\s+", "", _strip_bot_mentions(question) or "").lower()
+    return any(
+        term in compact
+        for term in [
+            "吸筹",
+            "出货",
+            "筹码",
+            "派发",
+            "主力",
+            "资金行为",
+            "资金流",
+            "洗盘",
+            "承接",
+        ]
+    )
+
+
+def _resolve_stock_data_date(code: str, trade_date: str | None) -> str:
+    if trade_date and trade_date != "latest":
+        return str(trade_date)[:10]
+    from app.routers.screener import _get_factor_db
+
+    with _get_factor_db() as db:
+        row = db.execute("SELECT MAX(trade_date) AS trade_date FROM daily_kline WHERE code=?", (code,)).fetchone()
+    value = row.get("trade_date") if isinstance(row, dict) else (row[0] if row else None)
+    if not value:
+        raise RuntimeError(f"{code} latest trade date unavailable")
+    return str(value)[:10]
+
+
+def _fetch_position_daily_rows(code: str, trade_date: str | None, limit: int = 80) -> tuple[list[dict[str, Any]], str]:
+    from app.routers.screener import _get_factor_db
+
+    resolved_date = _resolve_stock_data_date(code, trade_date)
+    with _get_factor_db() as db:
+        rows = db.execute(
+            """
+            SELECT trade_date, open, high, low, close, volume, amount, change_pct
+            FROM daily_kline
+            WHERE code=? AND trade_date <= ?
+            ORDER BY trade_date DESC
+            LIMIT ?
+            """,
+            (code, resolved_date, limit),
+        ).fetchall()
+    return list(reversed([dict(row) for row in rows])), resolved_date
+
+
+def _fetch_stock_moneyflow_rows(code: str, trade_date: str | None, limit: int = 30) -> tuple[list[dict[str, Any]], str | None]:
+    from app.routers.screener import _get_factor_db
+
+    resolved_date = _resolve_stock_data_date(code, trade_date)
+    with _get_factor_db() as db:
+        rows = db.execute(
+            """
+            SELECT trade_date, net_mf_amount, buy_sm_amount, sell_sm_amount,
+                   buy_md_amount, sell_md_amount, buy_lg_amount, sell_lg_amount,
+                   buy_elg_amount, sell_elg_amount
+            FROM moneyflow
+            WHERE code=? AND trade_date <= ?
+            ORDER BY trade_date DESC
+            LIMIT ?
+            """,
+            (code, resolved_date, limit),
+        ).fetchall()
+    return list(reversed([dict(row) for row in rows])), resolved_date
+
+
+def _safe_float(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _pct_change(now: float | None, before: float | None) -> float | None:
+    if now is None or before is None or before == 0:
+        return None
+    return (now / before - 1) * 100
+
+
+def _sum_last(rows: list[dict[str, Any]], key: str, days: int) -> float | None:
+    values = [_safe_float(row.get(key)) for row in rows[-days:]]
+    values = [value for value in values if value is not None]
+    return sum(values) if values else None
+
+
+def _fmt_moneyflow_wan(value: float | None) -> str:
+    if value is None:
+        return "-"
+    if abs(value) >= 10000:
+        return f"{value / 10000:+.2f}亿"
+    return f"{value:+.0f}万"
+
+
+def _fmt_daily_amount_yi(value: float | None) -> str:
+    if value is None:
+        return "-"
+    # Tushare daily.amount in this project is usually 千元.
+    return f"{value / 100000:.2f}亿"
+
+
+def _calc_obv_series(rows: list[dict[str, Any]]) -> list[float]:
+    obv = 0.0
+    values = [0.0]
+    for index in range(1, len(rows)):
+        close = _safe_float(rows[index].get("close")) or 0.0
+        prev = _safe_float(rows[index - 1].get("close")) or 0.0
+        vol = _safe_float(rows[index].get("volume")) or 0.0
+        if close > prev:
+            obv += vol
+        elif close < prev:
+            obv -= vol
+        values.append(obv)
+    return values
+
+
+def build_position_flow_diagnostic(intent_plan: dict[str, Any], question: str) -> dict[str, Any] | None:
+    stock_hint = _infer_stock_from_question(question) or {}
+    identity = _resolve_stock_identity(
+        intent_plan.get("target_stock") or stock_hint.get("name"),
+        intent_plan.get("stock_code") or stock_hint.get("code"),
+    )
+    if not identity or not identity.get("code"):
+        return None
+
+    code = str(identity.get("code"))
+    try:
+        daily_rows, resolved_date = _fetch_position_daily_rows(code, intent_plan.get("trade_date"), 80)
+        flow_rows, _ = _fetch_stock_moneyflow_rows(code, intent_plan.get("trade_date"), 30)
+    except Exception as exc:
+        return {"status": "error", "stock": identity, "message": str(exc)[-500:]}
+
+    if len(daily_rows) < 20:
+        return {"status": "insufficient_data", "stock": identity, "bar_count": len(daily_rows)}
+
+    latest = daily_rows[-1]
+    prev = daily_rows[-2] if len(daily_rows) >= 2 else {}
+    closes = [_safe_float(row.get("close")) for row in daily_rows]
+    closes = [value for value in closes if value is not None]
+    volumes = [_safe_float(row.get("volume")) for row in daily_rows]
+    volumes = [value for value in volumes if value is not None]
+    close = _safe_float(latest.get("close"))
+    prev_close = _safe_float(prev.get("close"))
+    pct_chg = _safe_float(latest.get("change_pct"))
+    if pct_chg is None:
+        pct_chg = _pct_change(close, prev_close)
+    ma5 = _avg(closes[-5:])
+    ma10 = _avg(closes[-10:])
+    ma20 = _avg(closes[-20:])
+    avg_vol5_prev = _avg(volumes[-6:-1])
+    volume_ratio = ((_safe_float(latest.get("volume")) or 0.0) / avg_vol5_prev) if avg_vol5_prev else None
+    amount_yi = _fmt_daily_amount_yi(_safe_float(latest.get("amount")))
+
+    chg5 = _pct_change(close, closes[-6] if len(closes) >= 6 else None)
+    chg10 = _pct_change(close, closes[-11] if len(closes) >= 11 else None)
+    high20 = max(closes[-20:]) if len(closes) >= 20 else None
+    drawdown20 = _pct_change(close, high20)
+
+    obv_values = _calc_obv_series(daily_rows)
+    obv5 = obv_values[-1] - obv_values[-6] if len(obv_values) >= 6 else None
+    obv10 = obv_values[-1] - obv_values[-11] if len(obv_values) >= 11 else None
+
+    flow5 = _sum_last(flow_rows, "net_mf_amount", 5)
+    flow10 = _sum_last(flow_rows, "net_mf_amount", 10)
+    elg_buy5 = _sum_last(flow_rows, "buy_elg_amount", 5)
+    elg_sell5 = _sum_last(flow_rows, "sell_elg_amount", 5)
+    lg_buy5 = _sum_last(flow_rows, "buy_lg_amount", 5)
+    lg_sell5 = _sum_last(flow_rows, "sell_lg_amount", 5)
+    big_order_net5 = None
+    if None not in (elg_buy5, elg_sell5, lg_buy5, lg_sell5):
+        big_order_net5 = (elg_buy5 or 0.0) + (lg_buy5 or 0.0) - (elg_sell5 or 0.0) - (lg_sell5 or 0.0)
+
+    accumulation_score = 0
+    distribution_score = 0
+    if close is not None and ma5 is not None and ma10 is not None:
+        if close >= ma5 >= ma10:
+            accumulation_score += 1
+        elif close < ma5 and close < ma10:
+            distribution_score += 1
+    if volume_ratio is not None:
+        if 0.7 <= volume_ratio <= 1.3 and pct_chg is not None and pct_chg > -3:
+            accumulation_score += 1
+        elif volume_ratio >= 1.5 and pct_chg is not None and pct_chg < 0:
+            distribution_score += 1
+    if flow5 is not None:
+        if flow5 > 0:
+            accumulation_score += 1
+        elif flow5 < 0:
+            distribution_score += 1
+    if big_order_net5 is not None:
+        if big_order_net5 > 0:
+            accumulation_score += 1
+        elif big_order_net5 < 0:
+            distribution_score += 1
+    if obv5 is not None:
+        if obv5 > 0:
+            accumulation_score += 1
+        elif obv5 < 0:
+            distribution_score += 1
+    if drawdown20 is not None and drawdown20 <= -10:
+        distribution_score += 1
+
+    if distribution_score >= accumulation_score + 2:
+        verdict = "偏出货/派发后的修复观察"
+        confidence = "MED"
+    elif accumulation_score >= distribution_score + 2:
+        verdict = "偏吸筹"
+        confidence = "MED"
+    else:
+        verdict = "震荡换手，吸筹/出货证据都不够硬"
+        confidence = "LOW"
+
+    rows = [
+        {
+            "dimension": "趋势位置",
+            "data": f"收盘 {_fmt_price(close)}；MA5 {_fmt_price(ma5)}；MA10 {_fmt_price(ma10)}；MA20 {_fmt_price(ma20)}",
+            "judgement": "站不上短均线偏弱" if close is not None and ma5 is not None and ma10 is not None and close < ma5 and close < ma10 else "短线趋势未明显破坏",
+        },
+        {
+            "dimension": "量能",
+            "data": f"成交额 {amount_yi}；量比 {_plain_value(round(volume_ratio, 2) if volume_ratio is not None else None)}",
+            "judgement": "放量下跌偏派发" if volume_ratio is not None and volume_ratio >= 1.5 and pct_chg is not None and pct_chg < 0 else "未见极端放量砸盘",
+        },
+        {
+            "dimension": "主力资金",
+            "data": f"近5日 {_fmt_moneyflow_wan(flow5)}；近10日 {_fmt_moneyflow_wan(flow10)}",
+            "judgement": "净流出偏出货" if flow5 is not None and flow5 < 0 else "净流入偏承接" if flow5 is not None and flow5 > 0 else "缺资金流数据",
+        },
+        {
+            "dimension": "大单/超大单",
+            "data": f"近5日大单+超大单净额 {_fmt_moneyflow_wan(big_order_net5)}",
+            "judgement": "大资金净卖出" if big_order_net5 is not None and big_order_net5 < 0 else "大资金净买入" if big_order_net5 is not None and big_order_net5 > 0 else "缺大单数据",
+        },
+        {
+            "dimension": "OBV",
+            "data": f"OBV 5日变化 {_plain_value(round(obv5, 0) if obv5 is not None else None)}；10日变化 {_plain_value(round(obv10, 0) if obv10 is not None else None)}",
+            "judgement": "量价资金线走弱" if obv5 is not None and obv5 < 0 else "OBV 短线改善" if obv5 is not None and obv5 > 0 else "OBV 不足",
+        },
+        {
+            "dimension": "回撤压力",
+            "data": f"5日涨跌 {_fmt_pct(chg5)}；10日涨跌 {_fmt_pct(chg10)}；距20日高点 {_fmt_pct(drawdown20)}",
+            "judgement": "高位回撤压力仍在" if drawdown20 is not None and drawdown20 <= -10 else "回撤压力不极端",
+        },
+    ]
+    return {
+        "status": "ok",
+        "stock": identity,
+        "trade_date": str(latest.get("trade_date"))[:10],
+        "resolved_date": resolved_date,
+        "data_source": "daily_kline + moneyflow",
+        "verdict": verdict,
+        "confidence": confidence,
+        "accumulation_score": accumulation_score,
+        "distribution_score": distribution_score,
+        "rows": rows,
+        "risk_note": "吸筹/出货不能直接观察到主力真实意图，只能用量价和资金流做证据推断。",
+    }
+
+
+def _format_position_flow_report(diagnostic: dict[str, Any]) -> str:
+    if diagnostic.get("status") == "error":
+        stock = diagnostic.get("stock") or {}
+        return f"{stock.get('name') or '目标股票'}（{stock.get('code') or '-'}）资金行为诊断失败：{diagnostic.get('message') or '-'}"
+    if diagnostic.get("status") == "insufficient_data":
+        stock = diagnostic.get("stock") or {}
+        return f"{stock.get('name') or '目标股票'}（{stock.get('code') or '-'}）日线数据不足，当前只有 {diagnostic.get('bar_count')} 条，不能判断吸筹/出货。"
+
+    stock = diagnostic.get("stock") or {}
+    name = stock.get("name") or "目标股票"
+    code = stock.get("code") or "-"
+    rows = diagnostic.get("rows") or []
+    lines = [
+        f"{name}（{code}）吸筹/出货诊断",
+        f"数据日期：{diagnostic.get('trade_date') or '-'}；取数时间：{_generated_at()}；数据源：{diagnostic.get('data_source') or '-'}",
+        f"结论：{diagnostic.get('verdict')}；置信度：{diagnostic.get('confidence')}",
+        f"打分：吸筹证据 {diagnostic.get('accumulation_score')} 项；出货证据 {diagnostic.get('distribution_score')} 项",
+        "",
+        "【证据表】",
+    ]
+    for row in rows:
+        lines.append(f"{_plain_value(row.get('dimension'))}")
+        lines.append(f"  数据：{_plain_value(row.get('data'))}")
+        lines.append(f"  判断：{_plain_value(row.get('judgement'))}")
+    lines.extend(
+        [
+            "",
+            "我的解读：",
+            f"· 如果问题是“现在是不是吸筹”，答案不能只看有没有入选模型 Top。这里更应该看资金流和量价承接，当前结论是：{diagnostic.get('verdict')}。",
+            f"· {diagnostic.get('risk_note')}",
+            "· 以上不是自动买卖指令，后续需要继续看是否重新站上短均线、资金流是否由净流出转为连续净流入。",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def answer_investment_question(question: str, intent_plan: dict[str, Any] | None = None) -> tuple[str, dict[str, Any]]:
+    intent_plan = intent_plan or _fallback_intent_plan(question)
+    if _looks_like_position_flow_question(question):
+        diagnostic = build_position_flow_diagnostic(intent_plan, question)
+        if diagnostic:
+            return _format_position_flow_report(diagnostic), {
+                "question": question,
+                "generated_at": _generated_at(),
+                "intent": intent_plan,
+                "diagnostics": [diagnostic],
+                "runs": [],
+                "validation": {"warnings": []},
+            }
+
     context = build_project_research_context(question, intent_plan)
     formatted = _format_feishu_diagnostic_report(context)
     if formatted:
@@ -1659,16 +1978,22 @@ def _format_data_update(mode: str) -> str:
         "bi_trend_launch": [("daily_kline", "SELECT MAX(trade_date) FROM daily_kline")],
         "cb_auction_t0": [
             ("limit_list_d", "SELECT MAX(trade_date) FROM limit_list_d"),
+            ("kpl_list", "SELECT MAX(trade_date) FROM kpl_list"),
+            ("eastmoney_limit_pool", "SELECT MAX(trade_date) FROM eastmoney_limit_pool"),
             ("stk_auction_o", "SELECT MAX(trade_date) FROM stk_auction_o"),
             ("stk_limit", "SELECT MAX(trade_date) FROM stk_limit"),
         ],
         "cb_auction_t0_v2": [
             ("limit_list_d", "SELECT MAX(trade_date) FROM limit_list_d"),
+            ("kpl_list", "SELECT MAX(trade_date) FROM kpl_list"),
+            ("eastmoney_limit_pool", "SELECT MAX(trade_date) FROM eastmoney_limit_pool"),
             ("stk_auction_o", "SELECT MAX(trade_date) FROM stk_auction_o"),
             ("stk_limit", "SELECT MAX(trade_date) FROM stk_limit"),
         ],
         "cb_auction_t0_v2_1": [
             ("limit_list_d", "SELECT MAX(trade_date) FROM limit_list_d"),
+            ("kpl_list", "SELECT MAX(trade_date) FROM kpl_list"),
+            ("eastmoney_limit_pool", "SELECT MAX(trade_date) FROM eastmoney_limit_pool"),
             ("stk_auction_o", "SELECT MAX(trade_date) FROM stk_auction_o"),
             ("stk_limit", "SELECT MAX(trade_date) FROM stk_limit"),
         ],
@@ -1679,9 +2004,12 @@ def _format_data_update(mode: str) -> str:
         parts = []
         with _get_factor_db() as db:
             for name, sql in sources:
-                row = db.execute(sql).fetchone()
-                value = _row_value(row, "max")
-                parts.append(f"{name}={str(value)[:19] if value else '-'}")
+                try:
+                    row = db.execute(sql).fetchone()
+                    value = _row_value(row, "max")
+                    parts.append(f"{name}={str(value)[:19] if value else '-'}")
+                except Exception:
+                    parts.append(f"{name}=-")
         return "；".join(parts)
     except Exception:
         return "-"
@@ -2101,6 +2429,7 @@ def build_lark_doc_xml_report(result: dict[str, Any]) -> str:
     title = MODEL_TITLES.get(mode, "模型分析报告")
     trade_date = result.get("trade_date") or "latest"
     picks = result.get("picks") or []
+    candidates = result.get("candidate_picks") or []
     diagnosis_rows, conclusion = _cb_market_diagnosis(result) if is_cb else _stock_market_diagnosis(result)
     data_label = "选债日期" if is_cb else "选股日期"
     list_title = "选债清单" if is_cb else "选股清单"
@@ -2115,6 +2444,8 @@ def build_lark_doc_xml_report(result: dict[str, Any]) -> str:
     ]
     if is_cb:
         update_rows.append(["观察数量", f"{len(result.get('observation_picks') or [])}只"])
+    elif candidates:
+        update_rows.append(["候选数量", f"{result.get('candidate_total') or len(candidates)}只"])
 
     parts = [
         f"<h1>{_xml_escape(title)}（{_xml_escape(trade_date)} {_xml_escape(datetime.now().strftime('%H:%M'))}）</h1>",
@@ -2131,9 +2462,27 @@ def build_lark_doc_xml_report(result: dict[str, Any]) -> str:
     else:
         parts.append(_stock_xml_table(result))
 
-    resonance = _cb_resonance_lines(picks, result) if is_cb else _sector_resonance_lines(picks, result)
+    resonance_picks = picks if (is_cb or picks) else candidates
+    resonance = _cb_resonance_lines(resonance_picks, result) if is_cb else _sector_resonance_lines(resonance_picks, result)
     parts.append(f"<h2>四、{_xml_escape(resonance_title)}</h2>")
     parts.append("<ul>" + "".join(f"<li>{_xml_escape(str(line).lstrip('- '))}</li>" for line in resonance) + "</ul>")
+    if not is_cb and result.get("candidate_sector_details"):
+        parts.append("<h3>候选池板块共振明细</h3>")
+        parts.append(
+            _xml_table(
+                ["板块", "候选数", "均分", "均涨幅", "代表候选"],
+                [
+                    [
+                        item.get("sector"),
+                        item.get("count"),
+                        item.get("avg_score"),
+                        f"{float(item.get('avg_gain') or 0):+.2f}%",
+                        "、".join(item.get("top_names") or []),
+                    ]
+                    for item in (result.get("candidate_sector_details") or [])[:12]
+                ],
+            )
+        )
     trace = result.get("screening_trace") or []
     if is_cb and trace:
         parts.append("<h3>筛选过程</h3>")
@@ -2166,9 +2515,29 @@ def build_lark_doc_xml_report(result: dict[str, Any]) -> str:
 
 def _stock_xml_table(result: dict[str, Any]) -> str:
     picks = result.get("picks") or []
+    candidates = result.get("candidate_picks") or []
     plans = _plans_by_code(result)
     if not picks:
-        return "<p>本次没有股票通过模型门槛。</p>"
+        if not candidates:
+            return "<p>本次没有股票通过模型门槛。</p>"
+        rows = []
+        for i, p in enumerate(candidates[:20], 1):
+            rows.append(
+                [
+                    i,
+                    p.get("code"),
+                    p.get("name"),
+                    _fmt_price(_pick_price(p)),
+                    _fmt_pct(_pick_gain(p)),
+                    _first_value(p.get("industry"), p.get("sector"), p.get("chain"), p.get("node_name"), "-"),
+                    _fmt_score(p.get("total_score") or p.get("score")),
+                    _pick_reason(p),
+                ]
+            )
+        return (
+            "<p>本次没有股票通过主买门槛，以下为弱市过滤前的候选池，仅供观察。</p>"
+            + _xml_table(["序号", "代码", "名称", "现价", "涨幅", "板块", "评分", "候选原因"], rows)
+        )
     rows = []
     for i, p in enumerate(picks[:20], 1):
         plan = plans.get(str(p.get("code")), {})
@@ -2493,6 +2862,7 @@ def _format_stock_report(result: dict[str, Any]) -> str:
     mode = result.get("mode", "")
     trade_date = result.get("trade_date") or "latest"
     picks = result.get("picks") or []
+    candidates = result.get("candidate_picks") or []
     plans = _plans_by_code(result)
     lines = [
         MODEL_TITLES.get(mode, "选股分析报告"),
@@ -2593,10 +2963,21 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     title = MODEL_TITLES.get(mode, "选股分析报告")
     trade_date = result.get("trade_date") or "latest"
     picks = result.get("picks") or []
+    candidates = result.get("candidate_picks") or []
     plans = _plans_by_code(result)
     diagnosis_rows, conclusion = _stock_market_diagnosis(result)
     data_update = _format_data_update(mode)
     refresh_summary = _format_refresh_summary(result.get("data_refresh"))
+    update_rows = [
+        ["选股日期", trade_date],
+        ["报告生成时间", _generated_at()],
+        ["本次取数时间", _format_data_fetch_time(result.get("data_refresh"))],
+        ["数据更新时点", data_update],
+        ["本次刷新", refresh_summary],
+        ["入选数量", f"{len(picks)}只"],
+    ]
+    if candidates:
+        update_rows.append(["候选数量", f"{result.get('candidate_total') or len(candidates)}只"])
     lines = [
         f"# {title}（{trade_date} {datetime.now().strftime('%H:%M')}）",
         "",
@@ -2604,14 +2985,7 @@ def build_markdown_report(result: dict[str, Any]) -> str:
         "",
         *_markdown_table(
             ["项目", "内容"],
-            [
-                ["选股日期", trade_date],
-                ["报告生成时间", _generated_at()],
-                ["本次取数时间", _format_data_fetch_time(result.get("data_refresh"))],
-                ["数据更新时点", data_update],
-                ["本次刷新", refresh_summary],
-                ["入选数量", f"{len(picks)}只"],
-            ],
+            update_rows,
         ),
         "",
         "## 二、市场状态诊断",
@@ -2652,10 +3026,52 @@ def build_markdown_report(result: dict[str, Any]) -> str:
             ]
             lines.append("| " + " | ".join(_markdown_cell(cell) for cell in cells) + " |")
     else:
-        lines.append("本次没有股票通过模型门槛。")
+        if candidates:
+            lines.append("本次没有股票通过主买门槛，以下为弱市过滤前的候选池，仅供观察。")
+            lines.extend(
+                [
+                    "",
+                    "| 序号 | 代码 | 名称 | 现价 | 涨幅 | 板块 | 评分 | 候选原因 |",
+                    "| --- | --- | --- | ---: | ---: | --- | ---: | --- |",
+                ]
+            )
+            for i, p in enumerate(candidates[:20], 1):
+                sector = _first_value(p.get("industry"), p.get("sector"), p.get("chain"), p.get("node_name"), "-")
+                cells = [
+                    i,
+                    p.get("code"),
+                    p.get("name"),
+                    _fmt_price(_pick_price(p)),
+                    _fmt_pct(_pick_gain(p)),
+                    sector,
+                    _fmt_score(p.get("total_score") or p.get("score")),
+                    _pick_reason(p),
+                ]
+                lines.append("| " + " | ".join(_markdown_cell(cell) for cell in cells) + " |")
+        else:
+            lines.append("本次没有股票通过模型门槛。")
 
     lines.extend(["", "## 四、板块共振", ""])
-    lines.extend(_sector_resonance_lines(picks, result))
+    lines.extend(_sector_resonance_lines(picks or candidates, result))
+    if candidates and result.get("candidate_sector_details"):
+        lines.extend(
+            [
+                "",
+                "### 候选池板块共振明细",
+                "",
+                "| 板块 | 候选数 | 均分 | 均涨幅 | 代表候选 |",
+                "| --- | ---: | ---: | ---: | --- |",
+            ]
+        )
+        for item in (result.get("candidate_sector_details") or [])[:12]:
+            cells = [
+                item.get("sector"),
+                item.get("count"),
+                item.get("avg_score"),
+                f"{float(item.get('avg_gain') or 0):+.2f}%",
+                "、".join(item.get("top_names") or []),
+            ]
+            lines.append("| " + " | ".join(_markdown_cell(cell) for cell in cells) + " |")
     lines.extend(
         [
             "",
@@ -2923,6 +3339,7 @@ def sync_markdown_to_lark_doc(path: Path, result: dict[str, Any]) -> dict[str, A
 
 def _format_group_reply(result: dict[str, Any], doc: dict[str, Any]) -> str:
     picks = result.get("picks") or []
+    candidates = result.get("candidate_picks") or []
     lines = [
         f"已生成飞书文档：{doc.get('title') or MODEL_TITLES.get(result.get('mode', ''), '选股分析报告')}",
         f"选股日期: {result.get('trade_date') or 'latest'}",
@@ -2951,7 +3368,16 @@ def _format_group_reply(result: dict[str, Any], doc: dict[str, Any]) -> str:
             if observation_count:
                 lines.append(f"观察池: {observation_count} 只，详见文档。")
         else:
-            lines.append("本次没有股票通过模型门槛。")
+            if candidates:
+                lines.append(f"本次没有股票通过主买门槛，已附候选池 {result.get('candidate_total') or len(candidates)} 只。")
+                lines.append("候选Top5:")
+                for i, p in enumerate(candidates[:5], 1):
+                    lines.append(
+                        f"{i}. {p.get('code')} {p.get('name')} | {p.get('industry') or '-'}"
+                        f" | 涨幅 {_fmt_pct(_pick_gain(p))} | 评分 {_fmt_score(p.get('total_score') or p.get('score'))}"
+                    )
+            else:
+                lines.append("本次没有股票通过模型门槛。")
     return "\n".join(lines)
 
 

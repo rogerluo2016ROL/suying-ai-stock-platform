@@ -33,6 +33,7 @@ from app.routers.screener import (
     _stage_from_evidence_events,
     _stage_record_from_reviewed_event,
 )
+from kronos_factors.engine.chain_deconstruct import load_industry_chain_templates
 
 
 client = TestClient(app)
@@ -244,6 +245,397 @@ class TestChainDeconstruct:
         assert "业务" in table_text
         assert "客户验证" in table_text
 
+    def test_complex_tech_template_returns_eight_layer_chain_logic(self, test_theme_id):
+        """template='complex_tech' should return the industry-link template without replacing L1-L8 BOM."""
+        response = client.get(
+            "/api/v1/screener/chain/deconstruct",
+            params={
+                "theme_id": test_theme_id,
+                "method": "upstream_downstream",
+                "template": "complex_tech",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["view"] == "complex_tech"
+        assert data["template"]["template_id"] == "complex_tech"
+        assert data["template"]["name"] == "复杂科技产业链路模板"
+        assert data["model_metadata"]["inference_mode"] == "chain:complex_tech"
+        assert data["tree"]["node_id"] == "template:complex_tech"
+
+        children = data["tree"]["children"]
+        assert [child["layer_id"] for child in children] == [
+            "demand",
+            "task",
+            "core_product",
+            "foundation",
+            "integration",
+            "supporting",
+            "infrastructure",
+            "commercialization",
+        ]
+        assert [child["name"] for child in children] == [
+            "需求层",
+            "任务层",
+            "核心产品层",
+            "底层支撑层",
+            "集成层",
+            "配套层",
+            "基础设施层",
+            "商业变现层",
+        ]
+        for child in children:
+            assert child["definition"]
+            assert child["key_questions"]
+            assert "evidence" in child
+            assert "companies" in child
+            assert "tracking_metrics" in child
+
+        core_product = next(child for child in children if child["layer_id"] == "core_product")
+        assert "AI芯片/GPU/NPU/ASIC" in core_product["segments"]
+
+        foundation = next(child for child in children if child["layer_id"] == "foundation")
+        assert {"先进制程", "Chiplet/CoWoS", "HBM"} <= set(foundation["segments"])
+
+    def test_complex_tech_template_returns_structured_metrics(self, test_theme_id):
+        response = client.get(
+            "/api/v1/screener/chain/deconstruct",
+            params={
+                "theme_id": test_theme_id,
+                "method": "upstream_downstream",
+                "template": "complex_tech",
+            },
+        )
+
+        assert response.status_code == 200
+        children = response.json()["tree"]["children"]
+
+        for child in children:
+            metrics = child["metrics"]
+            assert metrics["commercialization"], child["layer_id"]
+            assert metrics["expectation_gap"], child["layer_id"]
+            assert metrics["trigger_signals"], child["layer_id"]
+            assert child["tracking_metrics"], "legacy tracking_metrics must stay available"
+
+    def test_embodied_intelligence_template_reuses_complex_chain_logic(self, test_theme_id):
+        response = client.get(
+            "/api/v1/screener/chain/deconstruct",
+            params={
+                "theme_id": test_theme_id,
+                "method": "upstream_downstream",
+                "template": "embodied_intelligence",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["view"] == "embodied_intelligence"
+        assert data["template"]["template_id"] == "embodied_intelligence"
+        assert data["template"]["name"] == "具身智能复杂产业链路模板"
+        assert data["model_metadata"]["inference_mode"] == "chain:embodied_intelligence"
+        assert data["tree"]["node_id"] == "template:embodied_intelligence"
+
+        children = data["tree"]["children"]
+        assert [child["layer_id"] for child in children] == [
+            "demand",
+            "task",
+            "core_product",
+            "foundation",
+            "integration",
+            "supporting",
+            "infrastructure",
+            "commercialization",
+        ]
+
+        core_product = next(child for child in children if child["layer_id"] == "core_product")
+        foundation = next(child for child in children if child["layer_id"] == "foundation")
+        infrastructure = next(child for child in children if child["layer_id"] == "infrastructure")
+
+        assert "人形机器人整机" in core_product["segments"]
+        assert {"减速器", "伺服电机", "力矩传感器"} <= set(foundation["segments"])
+        assert infrastructure["capex_evidence"]
+        assert infrastructure["physical_metrics"]
+        assert infrastructure["expectation_gap"]["gap_direction"] == "unknown"
+        assert infrastructure["trigger_signal"]["signal_strength"] in {"weak", "medium", "strong", "unknown"}
+
+    def test_storage_chips_template_returns_eight_layer_chain_logic(self, test_theme_id):
+        response = client.get(
+            "/api/v1/screener/chain/deconstruct",
+            params={
+                "theme_id": test_theme_id,
+                "method": "upstream_downstream",
+                "template": "storage_chips",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["view"] == "storage_chips"
+        assert data["template"]["template_id"] == "storage_chips"
+        assert data["template"]["name"] == "存储芯片复杂产业链路模板"
+        assert data["model_metadata"]["inference_mode"] == "chain:storage_chips"
+        assert data["tree"]["node_id"] == "template:storage_chips"
+
+        children = data["tree"]["children"]
+        assert [child["layer_id"] for child in children] == [
+            "demand",
+            "task",
+            "core_product",
+            "foundation",
+            "integration",
+            "supporting",
+            "infrastructure",
+            "commercialization",
+        ]
+
+        core_product = next(child for child in children if child["layer_id"] == "core_product")
+        foundation = next(child for child in children if child["layer_id"] == "foundation")
+        commercialization = next(child for child in children if child["layer_id"] == "commercialization")
+
+        assert {"DRAM", "NAND Flash", "HBM"} <= set(core_product["segments"])
+        assert {"刻蚀/薄膜/清洗设备", "电子特气", "光刻胶"} <= set(foundation["segments"])
+        assert "价格周期" in commercialization["segments"]
+        for child in children:
+            assert child["metrics"]["commercialization"]
+            assert child["physical_metrics"]
+
+    @pytest.mark.parametrize(
+        ("template_id", "template_name", "core_segments", "foundation_segments"),
+        [
+            (
+                "ai_compute_infrastructure",
+                "AI算力基础设施复杂产业链路模板",
+                {"AI芯片/GPU/ASIC", "AI服务器", "高速光模块"},
+                {"HBM", "高速PCB", "电源芯片"},
+            ),
+            (
+                "advanced_packaging_chiplet",
+                "先进封装/Chiplet复杂产业链路模板",
+                {"2.5D/3D封装", "Chiplet", "CoWoS类封装"},
+                {"ABF/IC载板", "TSV/RDL", "环氧塑封料"},
+            ),
+            (
+                "semiconductor_equipment_materials",
+                "半导体设备材料复杂产业链路模板",
+                {"刻蚀设备", "薄膜设备", "清洗设备", "CMP设备"},
+                {"硅片", "光刻胶", "电子特气", "CMP材料"},
+            ),
+        ],
+    )
+    def test_priority_complex_templates_return_eight_layer_chain_logic(
+        self,
+        test_theme_id,
+        template_id,
+        template_name,
+        core_segments,
+        foundation_segments,
+    ):
+        response = client.get(
+            "/api/v1/screener/chain/deconstruct",
+            params={
+                "theme_id": test_theme_id,
+                "method": "upstream_downstream",
+                "template": template_id,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["view"] == template_id
+        assert data["template"]["template_id"] == template_id
+        assert data["template"]["name"] == template_name
+        assert data["model_metadata"]["inference_mode"] == f"chain:{template_id}"
+        assert data["tree"]["node_id"] == f"template:{template_id}"
+
+        children = data["tree"]["children"]
+        assert [child["layer_id"] for child in children] == [
+            "demand",
+            "task",
+            "core_product",
+            "foundation",
+            "integration",
+            "supporting",
+            "infrastructure",
+            "commercialization",
+        ]
+
+        core_product = next(child for child in children if child["layer_id"] == "core_product")
+        foundation = next(child for child in children if child["layer_id"] == "foundation")
+        assert core_segments <= set(core_product["segments"])
+        assert foundation_segments <= set(foundation["segments"])
+        for child in children:
+            assert child["metrics"]["commercialization"]
+            assert child["capex_evidence"]
+            assert child["physical_metrics"]
+
+    def test_complex_tech_layers_include_evidence_chain_gap_and_triggers(self, test_theme_id):
+        response = client.get(
+            "/api/v1/screener/chain/deconstruct",
+            params={
+                "theme_id": test_theme_id,
+                "method": "upstream_downstream",
+                "template": "complex_tech",
+            },
+        )
+
+        assert response.status_code == 200
+        children = response.json()["tree"]["children"]
+
+        infrastructure = next(child for child in children if child["layer_id"] == "infrastructure")
+        assert infrastructure["capex_evidence"], "CAPEX evidence should be attached to the mapped layer"
+        assert infrastructure["physical_metrics"], "physical metrics should be attached to the mapped layer"
+
+        capex = infrastructure["capex_evidence"][0]
+        assert capex["mapped_layer_id"] == "infrastructure"
+        assert capex["metric_usage"]
+        assert capex["source_type"]
+        assert capex["as_of_date"]
+
+        physical_metric = infrastructure["physical_metrics"][0]
+        assert physical_metric["mapped_layer_id"] == "infrastructure"
+        assert physical_metric["mapped_segment"]
+        assert physical_metric["metric_usage"]
+        assert physical_metric["source_type"]
+
+        evidence = infrastructure["evidence_chain"]
+        evidence_ids = {item["evidence_id"] for item in evidence}
+        assert capex["evidence_id"] in evidence_ids
+        assert physical_metric["metric_id"] in evidence_ids
+        for item in evidence:
+            assert item["evidence_type"] in {"capex", "physical_metric"}
+            assert item["impact_direction"] in {"positive", "negative", "neutral", "unknown"}
+            assert item["confidence"] in {"high", "medium", "low", "unknown"}
+
+        expectation_gap = infrastructure["expectation_gap"]
+        assert expectation_gap["calculation_method"] == "existing_business_tag_formula_unavailable"
+        assert set(expectation_gap["evidence_ids"]) <= evidence_ids
+        assert expectation_gap["gap_direction"] == "unknown"
+
+        trigger_signal = infrastructure["trigger_signal"]
+        assert set(trigger_signal["triggered_by_evidence_ids"]) <= evidence_ids
+        assert trigger_signal["signal_strength"] in {"weak", "medium", "strong", "unknown"}
+
+    def test_complex_tech_macro_context_is_top_level_unknown_when_unverified(self, test_theme_id):
+        response = client.get(
+            "/api/v1/screener/chain/deconstruct",
+            params={
+                "theme_id": test_theme_id,
+                "method": "upstream_downstream",
+                "template": "complex_tech",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        macro_context = data["macro_context"]
+
+        assert {item["region"] for item in macro_context} == {"US", "CN", "JP", "KR", "EU"}
+        for item in macro_context:
+            assert item["policy_stance"] == "unknown"
+            assert item["inflation_state"] == "unknown"
+            assert item["rate_trend"] == "unknown"
+            assert item["liquidity_signal"] == "unknown"
+            assert item["source_type"]
+            assert item["as_of_date"]
+            assert item["evidence_level"] == "unknown"
+
+        for child in data["tree"]["children"]:
+            assert "macro_context" not in child
+
+    def test_complex_tech_evidence_model_is_config_driven(self):
+        config = load_industry_chain_templates()
+        template = next(item for item in config["templates"] if item["template_id"] == "complex_tech")
+
+        assert {item["region"] for item in template["macro_context"]} == {"US", "CN", "JP", "KR", "EU"}
+        assert template["macro_context"][0]["policy_stance"] == "unknown"
+
+        layers = template["layers"]
+        assert len(layers) == 8
+        for layer in layers:
+            metrics = layer["metrics"]
+            assert metrics["commercialization"], layer["layer_id"]
+            assert metrics["expectation_gap"], layer["layer_id"]
+            assert metrics["trigger_signals"], layer["layer_id"]
+            assert layer["physical_metrics"], layer["layer_id"]
+
+        demand = next(layer for layer in layers if layer["layer_id"] == "demand")
+        foundation = next(layer for layer in layers if layer["layer_id"] == "foundation")
+        infrastructure = next(layer for layer in layers if layer["layer_id"] == "infrastructure")
+        assert demand["capex_evidence"]
+        assert foundation["capex_evidence"]
+        assert infrastructure["capex_evidence"]
+
+    def test_complex_tech_data_source_catalog_prioritizes_real_evidence_sources(self):
+        config = load_industry_chain_templates()
+        catalog = config["data_source_catalog"]
+
+        source_ids = {source["source_id"] for source in catalog}
+        assert {
+            "tushare_cn_equity",
+            "official_macro_policy",
+            "sec_company_filings",
+            "company_investor_relations",
+            "industry_physical_research",
+        } <= source_ids
+
+        for source in catalog:
+            assert source["source_id"]
+            assert source["coverage"]
+            assert source["collection_method"] in {"manual_first", "semi_auto", "auto", "external_api"}
+            assert source["automation_status"] in {"manual", "planned", "ready"}
+            assert source["evidence_level"] in {"reported", "confirmed", "inferred", "manual_judgement", "unknown"}
+            assert source["target_fields"]
+            assert source["priority"] in {"P0", "P1", "P2"}
+
+        official_macro = next(source for source in catalog if source["source_id"] == "official_macro_policy")
+        assert {"US", "CN", "JP", "KR", "EU"} <= set(official_macro["regions"])
+
+        capex_sources = [
+            source for source in catalog
+            if "capex_evidence" in source["target_fields"]
+        ]
+        assert {source["source_id"] for source in capex_sources} == {
+            "sec_company_filings",
+            "company_investor_relations",
+        }
+
+    def test_complex_tech_collection_task_catalog_defines_next_ingestion_work(self):
+        config = load_industry_chain_templates()
+        tasks = config["collection_task_catalog"]
+
+        task_ids = {task["task_id"] for task in tasks}
+        assert {
+            "collect_bigtech_ai_capex",
+            "collect_macro_policy_baseline",
+            "maintain_physical_metric_watchlist",
+        } <= task_ids
+
+        valid_sources = {source["source_id"] for source in config["data_source_catalog"]}
+        for task in tasks:
+            assert task["task_id"]
+            assert task["status"] in {"backlog", "manual_ready", "planned", "blocked"}
+            assert task["target_template_id"] == "complex_tech"
+            assert task["source_ids"]
+            assert set(task["source_ids"]) <= valid_sources
+            assert task["target_layers"]
+            assert task["target_fields"]
+            assert task["output_contract"]
+            assert task["owner"] in {"product-lead", "research-analyst", "data-engineer"}
+            assert task["cadence"] in {"event_driven", "weekly", "monthly", "quarterly"}
+
+        capex_task = next(task for task in tasks if task["task_id"] == "collect_bigtech_ai_capex")
+        assert {"demand", "foundation", "infrastructure"} <= set(capex_task["target_layers"])
+        assert "capex_evidence" in capex_task["target_fields"]
+        assert "quote" in capex_task["output_contract"]["required_fields"]
+
+        physical_task = next(task for task in tasks if task["task_id"] == "maintain_physical_metric_watchlist")
+        assert {"foundation", "supporting", "infrastructure"} <= set(physical_task["target_layers"])
+        assert "physical_metrics" in physical_task["target_fields"]
 
 class TestSupplyChainDataReadiness:
     """Tests for V2 data readiness endpoint."""
@@ -1297,6 +1689,83 @@ class TestSupplyChainExpectationGapRankings:
 class TestSupplyChainCandidateRanking:
     """Tests for evidence-first candidate ranking API."""
 
+    def test_candidate_score_adds_bigtech_capex_tailwind_for_ai_compute(self):
+        context = {
+            "company_count": 5,
+            "record_count": 13,
+            "companies": ["Alphabet", "Amazon", "Meta", "Microsoft", "Oracle"],
+        }
+        result = screener_router._score_supply_chain_candidate_row({
+            "chain_id": "ai_compute",
+            "tag_name": "AI服务器",
+            "node_id": "infrastructure",
+            "three_high_total": 70,
+            "moat_score": 70,
+            "stage_score": 70,
+            "evidence_score": 70,
+            "l8_match_rate": 0.8,
+            "fresh_rate": 0.9,
+            "expectation_gap_score": 20,
+            "change_20d_pct": 5,
+        }, context)
+
+        assert result["score_parts"]["bigtech_capex_tailwind"] > 0
+        assert result["bigtech_capex_tailwind"]["company_count"] == 5
+        assert "infrastructure" in result["bigtech_capex_tailwind"]["matched_layers"]
+        assert result["commercialization_indicator"]
+        assert result["expectation_gap_indicator"]
+        assert result["trigger_signal_indicator"]
+
+    def test_candidate_score_does_not_apply_capex_tailwind_to_other_chains(self):
+        context = {
+            "company_count": 5,
+            "record_count": 13,
+            "companies": ["Alphabet", "Amazon", "Meta", "Microsoft", "Oracle"],
+        }
+        result = screener_router._score_supply_chain_candidate_row({
+            "chain_id": "consumer_upgrade",
+            "tag_name": "品牌零售",
+            "node_id": "retail",
+            "three_high_total": 70,
+            "moat_score": 70,
+            "stage_score": 70,
+            "evidence_score": 70,
+            "l8_match_rate": 0.8,
+            "fresh_rate": 0.9,
+            "expectation_gap_score": 20,
+            "change_20d_pct": 5,
+        }, context)
+
+        assert result["score_parts"]["bigtech_capex_tailwind"] == 0
+        assert result["bigtech_capex_tailwind"]["matched_layers"] == []
+
+    def test_candidate_score_adds_company_capex_evidence_score(self):
+        context = {"company_count": 0, "record_count": 0, "companies": []}
+        result = screener_router._score_supply_chain_candidate_row({
+            "chain_id": "ai_compute",
+            "tag_name": "AI服务器",
+            "node_id": "infrastructure",
+            "three_high_total": 70,
+            "moat_score": 70,
+            "stage_score": 70,
+            "evidence_score": 70,
+            "l8_match_rate": 0.8,
+            "fresh_rate": 0.9,
+            "expectation_gap_score": 20,
+            "change_20d_pct": 5,
+            "capex_evidence_count": 2,
+            "capex_amount_count": 1,
+            "capex_direction_ai_count": 2,
+            "capex_fresh_count": 2,
+            "capex_avg_confidence": 0.8,
+            "capex_latest_as_of_date": "2026-08-30",
+            "capex_directions": [["AI服务器", "数据中心"]],
+        }, context)
+
+        assert result["score_parts"]["company_capex_evidence"] > 70
+        assert result["company_capex_evidence"]["evidence_count"] == 2
+        assert "AI相关投入方向" in result["company_capex_evidence"]["indicator"]
+
     def test_candidate_ranking_endpoint_returns_global_and_chain_top(self, monkeypatch):
         def fake_candidate_ranking(top_n, chain_id=None, signal=None):
             assert top_n == 20
@@ -1325,6 +1794,70 @@ class TestSupplyChainCandidateRanking:
         assert data["source_status"] == "ready"
         assert data["items"][0]["code"] == "300308"
         assert data["by_chain"]["ai_compute"][0]["name"] == "中际旭创"
+
+
+class TestSupplyChainCapexEvidenceReview:
+    """Tests for structured CAPEX evidence review API."""
+
+    def test_capex_evidence_review_queue_endpoint_returns_pending_items(self, monkeypatch):
+        def fake_queue(limit=50, chain_id=None, review_status="pending_review"):
+            assert limit == 20
+            assert chain_id == "ai_compute"
+            assert review_status == "pending_review"
+            return {
+                "version": "business-tag-capex-evidence-review-queue-v1",
+                "source_status": "ready",
+                "filters": {"limit": limit, "chain_id": chain_id, "review_status": review_status},
+                "counts": {"pending_review": 51},
+                "queue": [
+                    {
+                        "capex_evidence_id": "capex-1",
+                        "mapping_id": "18C-MAP-ai_compute-300308SZ",
+                        "code": "300308",
+                        "company_name": "中际旭创",
+                        "quote": "进一步加大产能投入",
+                        "review_status": "pending_review",
+                    }
+                ],
+                "limitations": [],
+            }
+
+        monkeypatch.setattr(screener_router, "_query_capex_evidence_review_queue", fake_queue)
+
+        response = client.get(
+            "/api/v1/screener/supply-chain/capex-evidence-review/queue",
+            params={"limit": 20, "chain_id": "ai_compute", "review_status": "pending_review"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["source_status"] == "ready"
+        assert data["counts"]["pending_review"] == 51
+        assert data["queue"][0]["capex_evidence_id"] == "capex-1"
+
+    def test_capex_evidence_review_endpoint_updates_status(self, monkeypatch):
+        def fake_review(capex_evidence_id, request):
+            assert capex_evidence_id == "capex-1"
+            assert request.review_status == "approved"
+            assert request.reviewer == "pm"
+            return {
+                "version": "business-tag-capex-evidence-review-v1",
+                "capex_evidence_id": capex_evidence_id,
+                "review_status": request.review_status,
+                "reviewer": request.reviewer,
+            }
+
+        monkeypatch.setattr(screener_router, "_review_capex_evidence", fake_review)
+
+        response = client.post(
+            "/api/v1/screener/supply-chain/capex-evidence/capex-1/review",
+            json={"review_status": "approved", "reviewer": "pm", "note": "原文可信"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["capex_evidence_id"] == "capex-1"
+        assert data["review_status"] == "approved"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
