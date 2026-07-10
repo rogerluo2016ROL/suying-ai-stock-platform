@@ -9,6 +9,7 @@ Flow:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -28,6 +29,7 @@ for path in (
     ROOT / "services" / "screener-service",
     ROOT / "packages" / "kronos-factors",
     ROOT / "packages" / "kronos-data",
+    ROOT / "packages" / "kronos-contracts",
     ROOT / "services" / "data-service",
 ):
     text = str(path)
@@ -59,6 +61,24 @@ def today() -> str:
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+
+
+def build_manifest(*, run_id: str, model_key: str, model_cfg: dict[str, Any], trade_date: str,
+                   result_status: str, official: bool = False) -> dict[str, Any]:
+    """Create the immutable evidence record written beside every pipeline result."""
+    from kronos_contracts.model_run import ModelRunManifest
+    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())
+    params = json.dumps(model_cfg, sort_keys=True, ensure_ascii=False)
+    manifest = ModelRunManifest(
+        run_id=run_id, official=official, working_tree_dirty=dirty,
+        strict_timeline=official, model_key=model_key,
+        model_version=str(model_cfg.get("version") or "unversioned"), code_commit=commit,
+        parameters_hash="sha256:" + hashlib.sha256(params.encode()).hexdigest(),
+        target_trade_date=date.fromisoformat(trade_date), data_snapshot_id="unavailable",
+        universe_hash="sha256:unavailable", result_status=result_status,
+    )
+    return manifest.model_dump(mode="json")
 
 
 def _run_subprocess(cmd: list[str], timeout: int = 240) -> dict[str, Any]:
@@ -578,6 +598,12 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     markdown = _append_fallback_markdown(markdown, fallback)
     report_path = write_markdown_report(result, markdown)
     result["pipeline"]["markdown_path"] = str(report_path)
+    manifest = build_manifest(
+        run_id=run_id, model_key=model_key, model_cfg=model_cfg, trade_date=trade_date,
+        result_status="success", official=getattr(args, "official", False),
+    )
+    _write_json(run_dir / "manifest.json", manifest)
+    result["pipeline"]["manifest_path"] = str(run_dir / "manifest.json")
 
     _write_json(run_dir / "result.json", result)
     _write_json(
@@ -646,6 +672,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--send-feishu", action="store_true", help="发送飞书群消息")
     parser.add_argument("--send-poster", action="store_true", help="发送海报图片")
     parser.add_argument("--chat-id", default="")
+    parser.add_argument("--official", action="store_true", help="write an official manifest; requires clean worktree")
     return parser
 
 
