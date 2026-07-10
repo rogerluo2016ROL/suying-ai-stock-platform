@@ -396,7 +396,8 @@ export interface DashboardSummaryResponse extends ServiceContractFields {
 
 /** 数据状态响应 */
 export interface DataStatusResponse {
-  status: 'ok' | 'error';
+  status: 'ok' | 'error' | 'unavailable';
+  fallback_reason?: string;
   refreshed_at?: string;
   total_tables: number;
   active_tables: number;

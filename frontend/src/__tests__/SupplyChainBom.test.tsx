@@ -431,7 +431,7 @@ describe('SupplyChainBom', () => {
     renderSupplyChain()
 
     const workbenchRegion = await screen.findByLabelText('产业链拆解工作台')
-    expect(within(workbenchRegion).getByText('节点下钻、候选横评、证据复核集中处理')).toBeInTheDocument()
+    expect(within(workbenchRegion).getByText('节点下钻、链路模板、候选横评、证据复核集中处理')).toBeInTheDocument()
     expect(within(workbenchRegion).getByText('产业链导航')).toBeInTheDocument()
     expect(within(workbenchRegion).getByText('候选对比')).toBeInTheDocument()
     expect(within(workbenchRegion).getByRole('tab', { name: '证据链' })).toBeInTheDocument()

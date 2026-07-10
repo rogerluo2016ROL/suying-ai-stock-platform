@@ -67,14 +67,27 @@ describe('DataUpdate', () => {
     expect(signalApi.getSyncSchedules).toHaveBeenCalled()
   })
 
-  it('falls back to safe defaults when data status response is partial', async () => {
+  it('fills only structural defaults when data status response is partial', async () => {
     vi.mocked(signalApi.getDataStatus).mockResolvedValue({ data: {} } as any)
     vi.mocked(signalApi.getSyncSchedules).mockResolvedValue({ data: {} } as any)
 
     renderDataUpdate()
 
-    expect(await screen.findByText('日线行情')).toBeInTheDocument()
-    expect(await screen.findByText(/3\/4 表正常/)).toBeInTheDocument()
+    expect(await screen.findByText('数据状态不可用')).toBeInTheDocument()
+    expect(screen.getByText(/数据状态未知/)).toBeInTheDocument()
+    expect(screen.queryByText('日线行情')).not.toBeInTheDocument()
+    expect(screen.queryByText('2026-06-27')).not.toBeInTheDocument()
+  })
+
+  it('does not show demo row counts when data status fails', async () => {
+    vi.mocked(signalApi.getDataStatus).mockRejectedValueOnce(new Error('gateway unavailable'))
+
+    renderDataUpdate()
+
+    expect(await screen.findByText('数据状态不可用')).toBeInTheDocument()
+    expect(screen.getByText('gateway unavailable')).toBeInTheDocument()
+    expect(screen.queryByText('982,000')).not.toBeInTheDocument()
+    expect(screen.queryByText('2026-06-27')).not.toBeInTheDocument()
   })
 
   it('can refresh status and trigger a manual sync for a table', async () => {
