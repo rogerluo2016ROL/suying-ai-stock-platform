@@ -1,0 +1,7 @@
+{
+  "backtest_v1": {"required": ["daily_kline", "adj_factor"], "min_coverage": 0.99},
+  "daily_screening_v1": {"required": ["daily_kline", "daily_basic"], "min_coverage": 0.95},
+  "intraday_screening_v1": {"required": ["daily_kline"], "min_coverage": 0.95},
+  "training_v1": {"required": ["daily_kline", "adj_factor"], "min_coverage": 0.99},
+  "cb_auction_v1": {"required": ["daily_kline"], "min_coverage": 0.95}
+}

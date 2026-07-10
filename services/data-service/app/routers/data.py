@@ -19,6 +19,7 @@ from app.sync.rate_limiter import get_rate_limit_status
 from app.sync.pg_writer import PG_URL
 from app.config import get_runtime_config_status
 from app.inventory import build_inventory
+from app.quality.evaluator import ReadinessEvaluator, SourceState
 
 logger = logging.getLogger("data-service.api")
 router = APIRouter(prefix="/api/v1/data", tags=["data"])
@@ -283,5 +284,26 @@ async def health():
 
 
 @router.get("/readiness")
-async def readiness():
-    return _build_readiness_status()
+async def readiness(profile: str | None = Query(None), trade_date: date | None = Query(None)):
+    if not profile:
+        return _build_readiness_status()
+    target = trade_date or date.today()
+    def load_source(table: str) -> SourceState:
+        try:
+            import psycopg2
+            conn = psycopg2.connect(PG_URL, connect_timeout=3)
+            cur = conn.cursor()
+            cur.execute(f"SELECT MAX(trade_date), COUNT(*) FROM {table}")
+            row = cur.fetchone()
+            conn.close()
+            return SourceState(actual_as_of=row[0], coverage_ratio=1.0 if row[1] else 0.0)
+        except Exception:
+            return SourceState(actual_as_of=None, coverage_ratio=0.0)
+    result = ReadinessEvaluator(load_source).evaluate(profile, target, None)
+    return {
+        "profile": result.profile,
+        "target_trade_date": result.target_trade_date.isoformat(),
+        "status": result.status,
+        "sources": [s.__dict__ for s in result.sources],
+        "checked_at": result.checked_at.isoformat(),
+    }
