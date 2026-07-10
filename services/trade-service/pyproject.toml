@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "FastAPI trade service — paper & live trading with broker integration"
 requires-python = ">=3.10"
 dependencies = [
+    "kronos-contracts",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
     "asyncpg",

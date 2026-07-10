@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "FastAPI diagnosis service — 5-dimensional stock analysis"
 requires-python = ">=3.10"
 dependencies = [
+    "kronos-contracts",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
     "pyjwt",

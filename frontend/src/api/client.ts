@@ -1109,6 +1109,8 @@ export class HealthCheckError extends Error {
 }
 
 export const healthApi = {
+  runtimeReadiness: (): Promise<AxiosResponse<{ live: boolean; ready: boolean; services: Record<string, { ready: boolean; error?: string }> }>> =>
+    rootApi.get('/v1/runtime/readiness'),
   check: (service: string): Promise<AxiosResponse<HealthCheckResponse>> =>
     api.get(`/${service}/health`).catch((err: unknown) => {
       throw new HealthCheckError(service, err)
