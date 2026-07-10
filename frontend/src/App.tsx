@@ -21,6 +21,7 @@ import { liveTradeApi } from './api/liveTrade'
 import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
 import { buildPlatformSessionFromUser } from './types/platform'
+import { resolveRoute } from './routes/registry'
 
 // P1-03: code-split the 14 page bundles so the initial download only carries
 // the layout + auth pages; ECharts-heavy pages (Diagnosis/Backtest/Training/
@@ -220,51 +221,20 @@ function filterMenu(
 }
 
 function routeTitle(pathname: string): string {
-  if (pathname.startsWith('/dashboard')) return '智能看板'
-  if (pathname.startsWith('/open-decision')) return '开盘决策'
-  if (pathname.startsWith('/trade/risk-verdicts')) return '风控闸门'
-  if (pathname.startsWith('/trade/decision-contexts')) return '决策上下文'
-  if (pathname.startsWith('/trade/audit-log')) return '交易审计'
-  if (pathname.startsWith('/risk')) return '风控中心'
-  if (pathname.startsWith('/runtime')) return '运行状态'
-  if (pathname.startsWith('/workflow/p0')) return 'P0 主链路'
-  if (pathname.startsWith('/platform/upgrade')) return '平台升级'
-  if (pathname.startsWith('/admin/permissions')) return '权限授权'
-  if (pathname.startsWith('/admin/memberships')) return '会员管理'
+  const registered = resolveRoute(pathname)
+  if (registered) return registered.title
   const selectedKey = '/' + pathname.split('/')[1]
   return allMenuItems.find(item => item.key === selectedKey)?.label || '智能看板'
 }
 
 function selectedMenuKey(pathname: string): string {
-  if (pathname === '/' || pathname.startsWith('/dashboard')) return '/'
-  if (pathname.startsWith('/runtime')) return '/runtime-status'
-  if (pathname.startsWith('/admin/permissions')) return '/admin/permissions'
-  if (pathname.startsWith('/admin/memberships')) return '/admin/memberships'
+  const registered = resolveRoute(pathname)
+  if (registered) return registered.menuKey
   return '/' + pathname.split('/')[1]
 }
 
 function routePermission(pathname: string): PermissionKey | undefined {
-  if (pathname === '/' || pathname.startsWith('/dashboard')) return 'dashboard'
-  if (pathname.startsWith('/open-decision')) return 'open_decision'
-  if (pathname.startsWith('/screener')) return 'screener'
-  if (pathname.startsWith('/supply-chain-bom')) return 'supply_chain_bom'
-  if (pathname.startsWith('/predictions')) return 'predictions'
-  if (pathname.startsWith('/signals')) return 'signals'
-  if (pathname.startsWith('/trade')) return 'trade'
-  if (pathname.startsWith('/auto-trade')) return 'auto_trade'
-  if (pathname.startsWith('/strategy')) return 'strategy'
-  if (pathname.startsWith('/risk')) return 'risk'
-  if (pathname.startsWith('/backtest')) return 'backtest'
-  if (pathname.startsWith('/diagnosis')) return 'diagnosis'
-  if (pathname.startsWith('/training')) return 'training'
-  if (pathname.startsWith('/model-registry')) return 'model_registry'
-  if (pathname.startsWith('/data-update')) return 'data_update'
-  if (pathname.startsWith('/runtime')) return 'runtime_status'
-  if (pathname.startsWith('/workflow/p0')) return 'p0_workflow'
-  if (pathname.startsWith('/platform/upgrade')) return 'platform_upgrade'
-  if (pathname.startsWith('/admin/permissions')) return 'admin_permissions'
-  if (pathname.startsWith('/admin/memberships')) return 'admin_memberships'
-  return undefined
+  return resolveRoute(pathname)?.permission
 }
 
 function roleViewLabel(roleView: ReturnType<typeof buildPlatformSessionFromUser>['roleView']): string {
