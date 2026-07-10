@@ -31,6 +31,15 @@ def test_extract_first_pick_requires_code_and_price_defaults_to_one():
     assert pick["price"] == 1.0
 
 
+def test_no_pick_is_success_when_readiness_passes():
+    assert smoke.classify_screener_result({"result_status": "success_no_matches", "picks": []}) == "pass"
+
+
+def test_smoke_rejects_live_mode():
+    with pytest.raises(SystemExit):
+        smoke.load_config(["--trade-mode", "live"])
+
+
 def test_http_json_reports_error_body(monkeypatch):
     class FakeResponse:
         def read(self):

@@ -35,6 +35,8 @@ class SmokeConfig:
     screener_mode: str
     top_n: int
     timeout: float
+    trade_mode: str = "paper"
+    require_pick: bool = False
 
 
 def join_url(base: str, path: str) -> str:
@@ -101,6 +103,10 @@ def extract_first_pick(screen_body: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def classify_screener_result(screen_body: dict[str, Any]) -> str:
+    return "pass" if screen_body.get("result_status") == "success_no_matches" else "requires_pick"
+
+
 def _query(params: dict[str, Any]) -> str:
     return urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
 
@@ -110,6 +116,8 @@ def load_config(argv: list[str] | None = None) -> SmokeConfig:
     parser.add_argument("--mode", default=os.environ.get("SMOKE_SCREENER_MODE", "short"))
     parser.add_argument("--top-n", type=int, default=int(os.environ.get("SMOKE_TOP_N", "5")))
     parser.add_argument("--timeout", type=float, default=float(os.environ.get("SMOKE_TIMEOUT", "45")))
+    parser.add_argument("--trade-mode", choices=("paper",), default="paper")
+    parser.add_argument("--require-pick", action="store_true")
     args = parser.parse_args(argv)
 
     return SmokeConfig(
@@ -124,6 +132,8 @@ def load_config(argv: list[str] | None = None) -> SmokeConfig:
         screener_mode=args.mode,
         top_n=args.top_n,
         timeout=args.timeout,
+        trade_mode=args.trade_mode,
+        require_pick=args.require_pick,
     )
 
 
@@ -148,6 +158,13 @@ def run_smoke(config: SmokeConfig) -> dict[str, Any]:
         {"mode": config.screener_mode, "top_n": config.top_n}
     )
     screen_body = http_json("POST", screen_url, token=token, timeout=config.timeout)
+    if classify_screener_result(screen_body) == "pass":
+        if config.require_pick:
+            raise SmokeError("screener returned a valid no-pick result; full-chain evidence requires a real pick")
+        return {
+            "status": "pass", "result_status": "success_no_matches",
+            "safe_skips": ["diagnosis", "strategy", "backtest", "paper_order"], "steps": steps,
+        }
     pick = extract_first_pick(screen_body)
     record("screener.run", {"mode": config.screener_mode, "pick": f"{pick['code']} {pick.get('name', '')}".strip()})
 
