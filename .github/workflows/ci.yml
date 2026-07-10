@@ -72,11 +72,29 @@ jobs:
       - name: Run tests
         run: cd frontend && npx vitest run --exclude='tests/sit/**'
 
+      - name: Build frontend
+        run: cd frontend && npm run build
+
+  service-tests:
+    name: Service Tests (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [backend, api-gateway, data-service, screener-service, prediction-service, strategy-service, signal-service, alert-service, trade-service, backtest-service, training-service, diagnosis-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run isolated service tests
+        run: python3 tools/run_service_tests.py ${{ matrix.service }} -q
+
   # ── Docker: build check ──
   docker-build:
     name: Docker Build Check
     runs-on: ubuntu-latest
-    needs: [python-tests, frontend-tests]
+    needs: [python-tests, frontend-tests, service-tests]
     strategy:
       matrix:
         service:
