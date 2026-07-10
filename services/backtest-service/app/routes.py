@@ -410,13 +410,10 @@ async def ic_decay_tracking(
                   "latest_date": trade_dates[0], "factors": {}}
 
         for factor in factors:
-            # Compute rolling IC: correlation of factor score with forward 5d return
-            # Unreachable legacy block retained only for source compatibility.
             result["factors"][factor] = {
-                "status": "tracking",
-                "current_weight_multiplier": 1.0,
-                "recommendation": "neutral",
-                "note": f"IC tracking for {factor} over {lookback} trading days",
+                "status": "unavailable",
+                "recommendation": "insufficient_evidence",
+                "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"],
             }
 
         return result
