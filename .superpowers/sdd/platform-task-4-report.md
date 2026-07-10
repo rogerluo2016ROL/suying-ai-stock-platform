@@ -13,6 +13,12 @@
 - 命令：`python3 -m py_compile services/backtest-service/app/routes.py services/training-service/app/factor_calibration.py services/training-service/app/scheduler.py`（通过）。
 - 提交钩子 lint 通过；SHA：`cfe80532`。
 
+## GREEN（补齐）
+
+- 删除 backtest routes 中三引号包裹的旧 calibrate/proxy 死代码，恢复 compare 合法路由并在证据缺失时返回 422 `INSUFFICIENT_EVIDENCE`。
+- 新增 training/backtest truthfulness 聚焦测试；两组测试均通过（各 2 passed）。
+- `python3 -m py_compile` 通过。当前环境无项目 `.venv`，因此使用系统 `python3` 验证。
+
 ## 遗留问题
 
 - 简报指定的两组测试文件尚未由本任务创建，故未能完成 pytest 绿测；需主控补齐测试并在依赖环境可用时运行完整服务测试。
