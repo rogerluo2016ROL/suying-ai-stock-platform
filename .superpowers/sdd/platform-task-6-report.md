@@ -25,4 +25,6 @@
 
 审查发现初版 CI 只启动服务测试，没有安装服务依赖，可能在干净 runner 上产生误报失败。已补充 shared packages、各服务 `pyproject.toml` 可编辑安装，以及 training-service 的 requirements 安装；Docker job 仍由 service-tests 成功后执行。
 
+进一步审查发现 backend、api-gateway、data-service 没有可直接安装的项目元数据。已按各自 Dockerfile 的运行时依赖，在矩阵安装步骤中显式安装三者依赖，避免干净 CI runner 的导入失败。
+
 本地全矩阵不能作为绿灯结果：当前环境仍缺少部分依赖，且已有 data-service 测试存在仓库根路径假设。

@@ -97,6 +97,12 @@ jobs:
           if [ "${{ matrix.service }}" = "training-service" ]; then
             python -m pip install -r services/training-service/requirements.txt
           fi
+          case "${{ matrix.service }}" in
+            backend)
+              python -m pip install fastapi "uvicorn[standard]" "sqlalchemy[asyncio]" asyncpg psycopg2-binary alembic argon2-cffi pyjwt 'pydantic[email]' ;;
+            api-gateway|data-service)
+              python -m pip install fastapi "uvicorn[standard]" psycopg2-binary redis ;;
+          esac
       - name: Run isolated service tests
         run: python3 tools/run_service_tests.py ${{ matrix.service }} -q
 
