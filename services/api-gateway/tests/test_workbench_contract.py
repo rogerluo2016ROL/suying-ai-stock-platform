@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -11,7 +12,7 @@ assert spec and spec.loader
 spec.loader.exec_module(gateway)
 
 
-def test_workbench_route_returns_page_envelope_with_platform_context():
+def test_workbench_never_returns_preview_business_values():
     client = TestClient(gateway.app)
 
     response = client.get(
@@ -26,19 +27,22 @@ def test_workbench_route_returns_page_envelope_with_platform_context():
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "ok"
-    assert body["page"] == {
-        "module": "p0",
-        "route": "/workflow/p0",
-        "title": "P0 主链路",
-    }
+    rendered = json.dumps(body, ensure_ascii=False)
+    assert "CTX-preview" not in rendered
+    assert "CAND-preview" not in rendered
+    assert body["status"] == "unavailable"
+    assert body["sections"] == []
+    assert body["freshness"]["status"] == "missing"
+    assert body["lineage"] == {}
     assert body["context"]["tenant_id"] == "tenant-alpha"
     assert body["context"]["account_id"] == "paper-001"
     assert body["context"]["data_scope"] == "account"
-    assert body["data_domain"] == "account"
-    assert body["freshness"]["status"] in {"fresh", "fallback"}
-    assert any(section["key"] == "main_flow" for section in body["sections"])
-    assert any(action["key"] == "open_candidate" for action in body["actions"])
+    assert body["page"] == {
+        "module": "p0",
+        "route": "/p0",
+        "title": "p0",
+    }
+    assert body["freshness"]["status"] == "missing"
 
 
 def test_unknown_workbench_route_returns_normalized_empty_envelope():
@@ -48,9 +52,9 @@ def test_unknown_workbench_route_returns_normalized_empty_envelope():
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "ok"
+    assert body["status"] == "unavailable"
     assert body["page"]["module"] == "unknown-module"
-    assert body["freshness"]["status"] == "fallback"
-    assert body["freshness"]["fallback_reason"] == "workbench module not implemented"
+    assert body["freshness"]["status"] == "missing"
+    assert body["freshness"]["fallback_reason"] == "real workbench aggregation is not connected"
     assert body["sections"] == []
     assert body["actions"] == []

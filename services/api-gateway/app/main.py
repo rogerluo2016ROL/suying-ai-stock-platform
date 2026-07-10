@@ -218,117 +218,21 @@ def _workbench_context(request: Request) -> dict:
     }
 
 
-_WORKBENCH_MODULES: dict[str, dict] = {
-    "p0": {
-        "page": {"module": "p0", "route": "/workflow/p0", "title": "P0 主链路"},
-        "data_domain": "account",
-        "lineage": {
-            "decision_context_id": "CTX-preview",
-            "candidate_id": "CAND-preview",
-            "plan_id": "PLAN-preview",
-            "order_id": "ORD-preview",
-            "risk_verdict_id": "RISK-preview",
-            "model_version": "kronos-path-v2.3",
-        },
-        "sections": [
-            {
-                "key": "main_flow",
-                "title": "候选池 → 方案 → 下单 → 风控 → 回测复盘",
-                "state": "ready",
-                "metrics": {"candidate_count": 47, "risk_pending": 2, "paper_orders": 3},
-                "items": [
-                    {"type": "Candidate", "id": "CAND-preview", "status": "ranked"},
-                    {"type": "Plan", "id": "PLAN-preview", "status": "review"},
-                    {"type": "Order", "id": "ORD-preview", "status": "paper_ready"},
-                    {"type": "RiskVerdict", "id": "RISK-preview", "status": "review"},
-                    {"type": "BacktestReview", "id": "BT-preview", "status": "ready"},
-                ],
-            }
-        ],
-        "actions": [
-            {"key": "open_candidate", "label": "进入候选池", "enabled": True, "target": "/open-decision/candidates"},
-            {"key": "open_order", "label": "进入下单面板", "enabled": True, "target": "/trade/order"},
-            {
-                "key": "enable_live",
-                "label": "启用实盘",
-                "enabled": False,
-                "target": "/trade/brokers",
-                "reason": "需要券商配置、风控通过和人工确认",
-            },
-        ],
-    },
-    "data-update": {
-        "page": {"module": "data-update", "route": "/data-update", "title": "数据更新"},
-        "data_domain": "public",
-        "lineage": {"model_version": "data-quality-v1"},
-        "sections": [
-            {
-                "key": "data_quality",
-                "title": "公共数据新鲜度",
-                "state": "ready",
-                "metrics": {"active_tables": 42, "total_tables": 45, "delay_seconds": 12},
-                "items": [],
-            }
-        ],
-        "actions": [
-            {"key": "open_schedule", "label": "查看同步调度", "enabled": True, "target": "/data-update/schedule"},
-        ],
-    },
-    "runtime": {
-        "page": {"module": "runtime", "route": "/runtime", "title": "运行状态"},
-        "data_domain": "tenant",
-        "lineage": {},
-        "sections": [
-            {
-                "key": "service_health",
-                "title": "服务健康矩阵",
-                "state": "ready",
-                "metrics": {"online": 11, "total": 11},
-                "items": [{"service": name, "port": port} for name, port in [
-                    ("api-gateway", 8080),
-                    ("prediction-service", 8002),
-                    ("trade-service", 8006),
-                ]],
-            }
-        ],
-        "actions": [],
-    },
-}
-
-
 def _workbench_envelope(module_path: str, request: Request) -> dict:
     module = module_path.strip("/") or "p0"
-    config = _WORKBENCH_MODULES.get(module)
-    if not config:
-        return {
-            "status": "ok",
-            "page": {"module": module, "route": f"/{module}", "title": module},
-            "context": _workbench_context(request),
-            "data_domain": "public",
-            "freshness": {
-                "status": "fallback",
-                "as_of": _now_iso(),
-                "source": "api-gateway",
-                "fallback_reason": "workbench module not implemented",
-            },
-            "lineage": {},
-            "sections": [],
-            "actions": [],
-        }
-
     return {
-        "status": "ok",
-        "page": config["page"],
+        "status": "unavailable",
+        "page": {"module": module, "route": f"/{module}", "title": module},
         "context": _workbench_context(request),
-        "data_domain": config["data_domain"],
         "freshness": {
-            "status": "fresh",
-            "as_of": _now_iso(),
+            "status": "missing",
+            "as_of": None,
             "source": "api-gateway",
+            "fallback_reason": "real workbench aggregation is not connected",
         },
-        "lineage": config.get("lineage", {}),
-        "sections": config.get("sections", []),
-        "actions": config.get("actions", []),
+        "lineage": {},
+        "sections": [],
+        "actions": [],
     }
 
 
