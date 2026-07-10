@@ -1,0 +1,9 @@
+{
+  "daily_kline": {"owner": "data-service", "writers": ["data-service"]},
+  "adj_factor": {"owner": "data-service", "writers": ["data-service"]},
+  "data_readiness_snapshots": {"owner": "data-service", "writers": ["data-service"]},
+  "candidate_pools": {"owner": "screener-service", "writers": ["screener-service"]},
+  "factor_weights": {"owner": "training-service", "writers": ["training-service"]},
+  "backtest_results": {"owner": "backtest-service", "writers": ["backtest-service"]},
+  "orders": {"owner": "trade-service", "writers": ["trade-service"]}
+}
