@@ -2,7 +2,7 @@
 
 ## RED
 
-- 简报要求的 `tests/test_truthfulness_gate.py` 与 `tests/test_truthful_factor_contract.py` 在工作树中不存在，因此无法执行指定聚焦测试（pytest 返回 file not found）。
+- 修复前简报要求的两组 truthfulness 测试尚未创建，因此当时无法执行聚焦测试。
 - 修复前 `factor_calibration._compute_ic_fallback` 使用固定随机数生成 IC/ICIR；backtest `/run` 与 `/calibrate` 使用 proxy/默认权重。
 
 ## GREEN
@@ -19,7 +19,13 @@
 - 新增 training/backtest truthfulness 聚焦测试；两组测试均通过（各 2 passed）。
 - `python3 -m py_compile` 通过。当前环境无项目 `.venv`，因此使用系统 `python3` 验证。
 
+## 复验结果
+
+- training 聚焦测试：2 passed；backtest 聚焦测试：2 passed。
+- backtest-service 全量测试：2 passed。
+- training-service 全量测试：36 passed、1 skipped、1 failed。
+- 唯一失败为既有路径依赖缺失：`Kronos/Kronos-uat-bak/dataset.py`，不属于任务 4 改动。
+
 ## 遗留问题
 
-- 简报指定的两组测试文件尚未由本任务创建，故未能完成 pytest 绿测；需主控补齐测试并在依赖环境可用时运行完整服务测试。
-- backtest calibrate 旧实现以字符串包裹保留，当前不可达但应在后续清理为真正删除。
+- training-service 全量测试仍受既有 `Kronos/Kronos-uat-bak/dataset.py` 缺失影响；任务 4 新增测试与 backtest 全量测试均已通过。
