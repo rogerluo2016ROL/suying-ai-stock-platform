@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import require_role
 from app.mlflow_client import get_mlflow_client, get_production_model, set_production_model
+from app.admission import admission_from_metrics
 from app.schemas import (
     ArchiveRequest,
     CalibrateRequest,
@@ -498,6 +499,20 @@ async def api_deploy_model(
             model_name = d["name"]
             model_version = d["version"]
             model_stage = d["stage"]
+
+            raw_metrics = d.get("metrics") or {}
+            if isinstance(raw_metrics, str):
+                try:
+                    raw_metrics = json.loads(raw_metrics)
+                except json.JSONDecodeError:
+                    raw_metrics = {}
+            admission = admission_from_metrics(raw_metrics)
+            if admission.status != "ready":
+                raise HTTPException(
+                    status_code=409,
+                    detail={"error": "admission_blocked", "failed_gates": admission.failed_gates,
+                            "message": "模型缺少通过晋级门的可复现证据"},
+                )
 
             if model_stage == "production" and not body.force:
                 raise HTTPException(
