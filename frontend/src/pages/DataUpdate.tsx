@@ -33,6 +33,11 @@ const unavailableStatus: DataStatusResponse = {
   fallback_reason: '数据状态接口不可用',
 }
 
+type ScheduleStatusView = {
+  status: 'loading' | 'ok' | 'unavailable' | 'error'
+  reason?: string
+}
+
 function activeTabFromPath(pathname: string) {
   if (pathname.includes('/overview')) return 'overview'
   if (pathname.includes('/tables')) return 'tables'
@@ -44,9 +49,43 @@ function safeNumber(value: unknown, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
+function hasCompleteDataStatus(value: Partial<DataStatusResponse>) {
+  return value.status === 'ok'
+    && typeof value.total_tables === 'number'
+    && Number.isFinite(value.total_tables)
+    && typeof value.active_tables === 'number'
+    && Number.isFinite(value.active_tables)
+    && typeof value.total_rows === 'number'
+    && Number.isFinite(value.total_rows)
+    && Array.isArray(value.sources)
+    && value.sync_map !== null
+    && typeof value.sync_map === 'object'
+    && !Array.isArray(value.sync_map)
+}
+
+function errorReason(error: unknown, fallback: string) {
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === 'string' ? error : fallback
+  return message.trim() || fallback
+}
+
+function isCancelledReason(reason: string) {
+  const normalized = reason.toLowerCase()
+  return normalized.includes('abort') || normalized.includes('cancel')
+}
+
 function normalizeDataStatus(input: Partial<DataStatusResponse> | undefined): DataStatusResponse {
   const value = input && typeof input === 'object' ? input : {}
-  const normalizedStatus = value.status ?? unavailableStatus.status
+  if (value.status === 'ok' && !hasCompleteDataStatus(value)) {
+    return {
+      ...unavailableStatus,
+      fallback_reason: '数据状态响应结构不完整',
+    }
+  }
+  const normalizedStatus = value.status === 'ok' || value.status === 'error' || value.status === 'unavailable'
+    ? value.status
+    : unavailableStatus.status
   return {
     ...value,
     status: normalizedStatus,
@@ -61,6 +100,7 @@ function normalizeDataStatus(input: Partial<DataStatusResponse> | undefined): Da
         }))
       : unavailableStatus.sources,
     sync_map: value.sync_map && typeof value.sync_map === 'object'
+      && !Array.isArray(value.sync_map)
       ? value.sync_map
       : unavailableStatus.sync_map,
     fallback_reason: typeof value.fallback_reason === 'string' && value.fallback_reason.trim()
@@ -81,6 +121,7 @@ export default function DataUpdate() {
   const active = activeTabFromPath(pathname)
   const [status, setStatus] = useState<DataStatusResponse>(unavailableStatus)
   const [schedules, setSchedules] = useState<SyncSchedule[]>([])
+  const [scheduleStatus, setScheduleStatus] = useState<ScheduleStatusView>({ status: 'loading' })
   const [filter, setFilter] = useState('all')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -89,32 +130,55 @@ export default function DataUpdate() {
 
   const loadStatus = useCallback(async (cancelled?: () => boolean) => {
     setLoading(true)
-    try {
-      const [dataStatus, syncSchedules] = await Promise.all([
-      signalApi.getDataStatus(),
-      signalApi.getSyncSchedules(),
-      ])
-      if (cancelled?.()) return
-      const normalizedStatus = normalizeDataStatus(dataStatus.data)
-      setStatus(normalizedStatus)
-      setSchedules(Array.isArray(syncSchedules.data?.schedules) ? syncSchedules.data.schedules : [])
-      setError(normalizedStatus.status === 'ok'
-        ? ''
-        : normalizedStatus.fallback_reason || unavailableStatus.fallback_reason || '')
-    } catch (err) {
-      if (cancelled?.()) return
-      const message = err instanceof Error
-        ? err.message
-        : typeof err === 'string' ? err : unavailableStatus.fallback_reason || '数据状态接口不可用'
-      const reason = message.trim() || unavailableStatus.fallback_reason || '数据状态接口不可用'
-      const normalizedMessage = reason.toLowerCase()
-      if (normalizedMessage.includes('abort') || normalizedMessage.includes('cancel')) return
-      setStatus({ ...unavailableStatus, fallback_reason: reason })
-      setSchedules([])
-      setError(reason)
-    } finally {
-      if (!cancelled?.()) setLoading(false)
-    }
+    setScheduleStatus({ status: 'loading' })
+
+    const dataStatusRequest = signalApi.getDataStatus()
+      .then(dataStatus => {
+        if (cancelled?.()) return
+        const normalizedStatus = normalizeDataStatus(dataStatus.data)
+        setStatus(normalizedStatus)
+        setError(normalizedStatus.status === 'ok'
+          ? ''
+          : normalizedStatus.fallback_reason || unavailableStatus.fallback_reason || '')
+      })
+      .catch(err => {
+        if (cancelled?.()) return
+        const reason = errorReason(err, unavailableStatus.fallback_reason || '数据状态接口不可用')
+        if (isCancelledReason(reason)) return
+        setStatus({ ...unavailableStatus, fallback_reason: reason })
+        setError(reason)
+      })
+
+    const scheduleRequest = signalApi.getSyncSchedules()
+      .then(syncSchedules => {
+        if (cancelled?.()) return
+        if (syncSchedules.data?.status !== 'ok') {
+          const reason = typeof syncSchedules.data?.message === 'string' && syncSchedules.data.message.trim()
+            ? syncSchedules.data.message
+            : '同步调度接口返回错误'
+          setSchedules([])
+          setScheduleStatus({ status: 'error', reason })
+          return
+        }
+        if (!Array.isArray(syncSchedules.data.schedules)) {
+          setSchedules([])
+          setScheduleStatus({ status: 'error', reason: '同步调度响应结构不完整' })
+          return
+        }
+        setSchedules(syncSchedules.data.schedules)
+        setScheduleStatus({ status: 'ok' })
+      })
+      .catch(err => {
+        if (cancelled?.()) return
+        const reason = errorReason(err, '同步调度接口不可用')
+        if (isCancelledReason(reason)) return
+        setSchedules([])
+        setScheduleStatus({ status: 'unavailable', reason })
+      })
+
+    await dataStatusRequest
+    await scheduleRequest
+    if (!cancelled?.()) setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -149,6 +213,7 @@ export default function DataUpdate() {
 
   const tab = useMemo(() => tabs.find(item => item.key === active) ?? tabs[0], [active])
   const statusUnavailable = status.status !== 'ok'
+  const scheduleUnavailable = scheduleStatus.status !== 'ok'
   const visibleSources = useMemo(() => {
     if (filter === 'all') return status.sources
     return status.sources.filter(source => source.status === filter || source.category === filter)
@@ -159,6 +224,16 @@ export default function DataUpdate() {
       .filter(source => source.category === '行情' && source.max_date && source.max_date !== '-')
       .sort((a, b) => String(b.max_date).localeCompare(String(a.max_date)))[0]
   const latestSchedule = schedules.find(item => (item as SyncSchedule & { last_run_at?: string; last_run?: string }).last_run_at || (item as SyncSchedule & { last_run_at?: string; last_run?: string }).last_run) as (SyncSchedule & { last_run_at?: string; last_run?: string }) | undefined
+  const displaySchedules = scheduleStatus.status === 'ok'
+    ? schedules.length > 0 ? schedules : Object.entries(status.sync_map).map(([key, item]) => ({
+        table_key: key,
+        days_back: item.days_default,
+        interval_minutes: item.mode === 'intra' ? 5 : 1440,
+        daily_at: item.mode === 'post_market' ? '17:20' : null,
+        enabled: true,
+        next_sync_at: item.mode,
+      }))
+    : []
 
   return (
     <PrototypePage>
@@ -186,13 +261,24 @@ export default function DataUpdate() {
       />
 
       {error && <RiskBanner status="reject" title="数据状态不可用" detail={error} />}
+      {scheduleStatus.status === 'unavailable' && (
+        <RiskBanner status="reject" title="同步调度不可用" detail={scheduleStatus.reason} />
+      )}
+      {scheduleStatus.status === 'error' && (
+        <RiskBanner status="reject" title="同步调度返回错误" detail={scheduleStatus.reason} />
+      )}
       {syncMessage && <RiskBanner status={syncMessage.includes('失败') ? 'warn' : 'pass'} title="手动同步结果" detail={syncMessage} />}
 
       <div className="kpis">
         <MetricCard label="正常表" value={statusUnavailable ? '--' : status.active_tables} sub={normalSummary} tone="up" />
         <MetricCard label="总表数" value={statusUnavailable ? '--' : status.total_tables} sub="行情 / 基础 / 模型" tone="accent" />
         <MetricCard label="总行数" value={statusUnavailable ? '--' : formatRows(status.total_rows)} sub="当前可查询数据" tone="muted" />
-        <MetricCard label="调度任务" value={statusUnavailable ? '--' : schedules.length || Object.keys(status.sync_map).length} sub="自动同步配置" tone="warn" />
+        <MetricCard
+          label="调度任务"
+          value={statusUnavailable || scheduleUnavailable ? '--' : schedules.length || Object.keys(status.sync_map).length}
+          sub={scheduleUnavailable ? (scheduleStatus.status === 'loading' ? '调度状态加载中' : '调度状态未知') : '自动同步配置'}
+          tone="warn"
+        />
       </div>
 
       <div className="r r-2-1">
@@ -265,14 +351,7 @@ export default function DataUpdate() {
                 </tr>
               </thead>
               <tbody>
-                {(schedules.length > 0 ? schedules : Object.entries(status.sync_map).map(([key, item]) => ({
-                  table_key: key,
-                  days_back: item.days_default,
-                  interval_minutes: item.mode === 'intra' ? 5 : 1440,
-                  daily_at: item.mode === 'post_market' ? '17:20' : null,
-                  enabled: true,
-                  next_sync_at: item.mode,
-                }))).map(schedule => (
+                {displaySchedules.map(schedule => (
                   <tr key={schedule.table_key}>
                     <td className="mono">{schedule.table_key}</td>
                     <td>{status.sync_map[schedule.table_key]?.mode || `${schedule.interval_minutes}m`}</td>
