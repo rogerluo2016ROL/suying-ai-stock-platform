@@ -30,35 +30,40 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
+function isUnitInterval(value: unknown): value is number {
+  return isFiniteNumber(value) && value >= -1 && value <= 1
+}
+
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return isNonNegativeInteger(value) && value > 0
 }
 
 function isOptionalString(value: unknown): value is string | undefined {
   return value === undefined || typeof value === 'string'
 }
 
-function isOptionalCount(value: unknown): value is number | undefined {
-  return value === undefined || isNonNegativeInteger(value)
-}
-
 function isFactorMetric(value: unknown): value is FactorMetric {
   return isRecord(value)
     && isNonEmptyString(value.factor)
     && isOptionalString(value.label)
-    && isFiniteNumber(value.ic_mean)
+    && isUnitInterval(value.ic_mean)
     && isFiniteNumber(value.ic_std)
+    && value.ic_std >= 0
     && isFiniteNumber(value.icir)
     && isFiniteNumber(value.t_stat)
-    && isOptionalCount(value.observations)
+    && isPositiveInteger(value.observations)
 }
 
 function isCorrelationCell(value: unknown): value is CorrelationCell {
   return isRecord(value)
     && isNonEmptyString(value.factor_x)
     && isNonEmptyString(value.factor_y)
-    && isFiniteNumber(value.correlation)
-    && isOptionalCount(value.observations)
+    && isUnitInterval(value.correlation)
+    && isPositiveInteger(value.observations)
 }
 
 function isDecileMetric(value: unknown): value is DecileMetric {
@@ -67,7 +72,7 @@ function isDecileMetric(value: unknown): value is DecileMetric {
     && isOptionalString(value.description)
     && isFiniteNumber(value.cumulative_return_pct)
     && (value.daily_return_pct === undefined || isFiniteNumber(value.daily_return_pct))
-    && isOptionalCount(value.observations)
+    && isPositiveInteger(value.observations)
 }
 
 function isFactorMetricArray(value: unknown): value is FactorMetric[] {
@@ -107,30 +112,48 @@ export function toFactorEvidenceView(response: unknown): FactorEvidenceView {
   }
 
   const observations = response.observations
-  const tradeDates = response.trade_dates
   const missingRequirements = response.missing_requirements
 
   if (!isNonNegativeInteger(observations)
-    || !isNonNegativeInteger(tradeDates)
-    || (response.status === 'ready' && observations === 0)
-    || !isFactorMetricArray(response.factors)
-    || !isCorrelationCellArray(response.correlations)
-    || !isDecileMetricArray(response.deciles)
     || (missingRequirements !== undefined && !isStringArray(missingRequirements))) {
     return unsupportedView()
   }
 
-  if (response.status === 'ready') {
+  if (response.status !== 'ready') {
+    const optionalTradeDatesValid = response.trade_dates === undefined
+      || isNonNegativeInteger(response.trade_dates)
+    const optionalFactorsValid = response.factors === undefined
+      || isFactorMetricArray(response.factors)
+    const optionalCorrelationsValid = response.correlations === undefined
+      || isCorrelationCellArray(response.correlations)
+    const optionalDecilesValid = response.deciles === undefined
+      || isDecileMetricArray(response.deciles)
+
+    if (!optionalTradeDatesValid
+      || !optionalFactorsValid
+      || !optionalCorrelationsValid
+      || !optionalDecilesValid) {
+      return unsupportedView()
+    }
+
     return {
-      kind: 'ready',
-      factors: response.factors,
-      correlations: response.correlations,
-      deciles: response.deciles,
+      kind: response.status === 'unsupported' ? 'unsupported' : 'insufficient',
+      reasons: missingRequirements ?? [],
     }
   }
 
+  if (!isPositiveInteger(observations)
+    || !isNonNegativeInteger(response.trade_dates)
+    || !isFactorMetricArray(response.factors)
+    || !isCorrelationCellArray(response.correlations)
+    || !isDecileMetricArray(response.deciles)) {
+    return unsupportedView()
+  }
+
   return {
-    kind: response.status === 'unsupported' ? 'unsupported' : 'insufficient',
-    reasons: missingRequirements ?? [],
+    kind: 'ready',
+    factors: response.factors,
+    correlations: response.correlations,
+    deciles: response.deciles,
   }
 }

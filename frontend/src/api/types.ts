@@ -807,7 +807,7 @@ export interface FactorMetric {
   ic_std: number;
   icir: number;
   t_stat: number;
-  observations?: number;
+  observations: number;
 }
 
 /** 后端计算完成的两因子相关性单元。 */
@@ -815,7 +815,7 @@ export interface CorrelationCell {
   factor_x: string;
   factor_y: string;
   correlation: number;
-  observations?: number;
+  observations: number;
 }
 
 /** 后端回测得到的分位层收益。收益字段已是百分比数值。 */
@@ -824,12 +824,12 @@ export interface DecileMetric {
   description?: string;
   cumulative_return_pct: number;
   daily_return_pct?: number;
-  observations?: number;
+  observations: number;
 }
 
-/** 因子证据只读接口响应；非 ready 状态不携带推导指标。 */
-export interface FactorEvidenceResponse {
-  status: 'ready' | 'insufficient_data' | 'insufficient' | 'unsupported';
+/** 已有完整真实观测的因子证据响应。 */
+export interface ReadyFactorEvidenceResponse {
+  status: 'ready';
   observations: number;
   trade_dates: number;
   factors: FactorMetric[];
@@ -837,6 +837,19 @@ export interface FactorEvidenceResponse {
   deciles: DecileMetric[];
   missing_requirements?: string[];
 }
+
+/** 非 ready 响应可以不携带仅供完整证据使用的日期数和指标数组。 */
+export interface UnavailableFactorEvidenceResponse {
+  status: 'insufficient_data' | 'insufficient' | 'unsupported';
+  observations: number;
+  trade_dates?: number;
+  factors?: FactorMetric[];
+  correlations?: CorrelationCell[];
+  deciles?: DecileMetric[];
+  missing_requirements?: string[];
+}
+
+export type FactorEvidenceResponse = ReadyFactorEvidenceResponse | UnavailableFactorEvidenceResponse;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Diagnosis（诊断）

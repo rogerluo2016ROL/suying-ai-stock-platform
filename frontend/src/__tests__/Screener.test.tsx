@@ -38,33 +38,48 @@ function renderScreener(route = '/screener') {
   )
 }
 
+function factorMetric(overrides: Record<string, unknown> = {}) {
+  return {
+    factor: 'technical',
+    label: '技术面',
+    ic_mean: 0.04,
+    ic_std: 0.02,
+    icir: 2,
+    t_stat: 3.2,
+    observations: 20,
+    ...overrides,
+  }
+}
+
+function correlationCell(overrides: Record<string, unknown> = {}) {
+  return {
+    factor_x: 'technical',
+    factor_y: 'fundamental',
+    correlation: 0.3,
+    observations: 20,
+    ...overrides,
+  }
+}
+
+function decileMetric(overrides: Record<string, unknown> = {}) {
+  return {
+    decile: 'D10',
+    description: '最高分位',
+    cumulative_return_pct: 4.1,
+    daily_return_pct: 0.16,
+    observations: 20,
+    ...overrides,
+  }
+}
+
 function readyFactorEvidence(overrides: Record<string, unknown> = {}) {
   return {
     status: 'ready',
     observations: 20,
     trade_dates: 5,
-    factors: [{
-      factor: 'technical',
-      label: '技术面',
-      ic_mean: 0.04,
-      ic_std: 0.02,
-      icir: 2,
-      t_stat: 3.2,
-      observations: 20,
-    }],
-    correlations: [{
-      factor_x: 'technical',
-      factor_y: 'fundamental',
-      correlation: 0.3,
-      observations: 20,
-    }],
-    deciles: [{
-      decile: 'D10',
-      description: '最高分位',
-      cumulative_return_pct: 4.1,
-      daily_return_pct: 0.16,
-      observations: 20,
-    }],
+    factors: [factorMetric()],
+    correlations: [correlationCell()],
+    deciles: [decileMetric()],
     missing_requirements: [],
     ...overrides,
   }
@@ -305,10 +320,6 @@ describe('Screener', () => {
       data: {
         status: 'insufficient_data',
         observations: 0,
-        trade_dates: 0,
-        factors: [],
-        correlations: [],
-        deciles: [],
         missing_requirements: ['future_returns'],
       },
     } as never)
@@ -341,28 +352,67 @@ describe('Screener', () => {
     })()],
     ['ready with negative trade_dates', readyFactorEvidence({ trade_dates: -1 })],
     ['ready with fractional trade_dates', readyFactorEvidence({ trade_dates: 1.5 })],
-    ['insufficient response without trade_dates', {
-      status: 'insufficient_data',
-      observations: 0,
-      factors: [],
-      correlations: [],
-      deciles: [],
-      missing_requirements: ['future_returns'],
-    }],
     ['missing factors array', readyFactorEvidence({ factors: undefined })],
     ['non-array correlations', readyFactorEvidence({ correlations: {} })],
     ['non-array deciles', readyFactorEvidence({ deciles: null })],
     ['malformed factor metric', readyFactorEvidence({
-      factors: [{ factor: 'technical', ic_mean: Number.NaN, ic_std: 0.02, icir: 2, t_stat: 3.2 }],
+      factors: [factorMetric({ ic_mean: Number.NaN })],
     })],
     ['malformed correlation cell', readyFactorEvidence({
-      correlations: [{ factor_x: 'technical', factor_y: 'fundamental', correlation: Number.POSITIVE_INFINITY }],
+      correlations: [correlationCell({ correlation: Number.POSITIVE_INFINITY })],
     })],
     ['malformed decile metric', readyFactorEvidence({
-      deciles: [{ decile: 'D10', cumulative_return_pct: 'not-a-number' }],
+      deciles: [decileMetric({ cumulative_return_pct: 'not-a-number' })],
+    })],
+    ['IC above one', readyFactorEvidence({
+      factors: [factorMetric({ ic_mean: 1.01 })],
+    })],
+    ['IC below negative one', readyFactorEvidence({
+      factors: [factorMetric({ ic_mean: -1.01 })],
+    })],
+    ['negative IC standard deviation', readyFactorEvidence({
+      factors: [factorMetric({ ic_std: -0.01 })],
+    })],
+    ['non-finite ICIR', readyFactorEvidence({
+      factors: [factorMetric({ icir: Number.POSITIVE_INFINITY })],
+    })],
+    ['non-finite t-stat', readyFactorEvidence({
+      factors: [factorMetric({ t_stat: Number.NaN })],
+    })],
+    ['correlation above one', readyFactorEvidence({
+      correlations: [correlationCell({ correlation: 1.01 })],
+    })],
+    ['correlation below negative one', readyFactorEvidence({
+      correlations: [correlationCell({ correlation: -1.01 })],
+    })],
+    ['factor observations missing', readyFactorEvidence({
+      factors: [factorMetric({ observations: undefined })],
+    })],
+    ['correlation observations not positive', readyFactorEvidence({
+      correlations: [correlationCell({ observations: 0 })],
+    })],
+    ['decile observations not an integer', readyFactorEvidence({
+      deciles: [decileMetric({ observations: 1.5 })],
     })],
   ])('fails closed for %s', (_caseName, response) => {
     expect(toFactorEvidenceView(response)).toMatchObject({ kind: 'unsupported' })
+  })
+
+  it('keeps a minimal insufficient_data response as insufficient', () => {
+    expect(toFactorEvidenceView({
+      status: 'insufficient_data',
+      observations: 0,
+      missing_requirements: ['future_returns'],
+    })).toEqual({ kind: 'insufficient', reasons: ['future_returns'] })
+  })
+
+  it('accepts inclusive IC and correlation boundaries with valid observations', () => {
+    const view = toFactorEvidenceView(readyFactorEvidence({
+      factors: [factorMetric({ ic_mean: -1, ic_std: 0, icir: -2, t_stat: -3 })],
+      correlations: [correlationCell({ correlation: 1 })],
+    }))
+
+    expect(view).toMatchObject({ kind: 'ready' })
   })
 
   it('fails closed when the evidence panel receives a malformed ready view', () => {
