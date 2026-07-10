@@ -1,4 +1,4 @@
-import { Card, Empty, Flex, Segmented, Space, Statistic, Tag, Typography } from 'antd'
+import { Card, Empty, Flex, Segmented, Space, Tag, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import type { ChainDeconstructResponse, ChainDeconstructTree, SupplyChainMappingQuality } from '../../api/client'
 import CompanyEvidencePanel from './CompanyEvidencePanel'
@@ -25,6 +25,7 @@ type ChainTemplateKey =
   | 'rare_earth_minor_metals_security'
   | 'display_oled_microled'
   | 'domestic_os_database_industrial_software'
+  | 'huawei_ascend_ai_ecosystem'
   | 'offshore_wind_subsea_cable'
   | 'new_power_system_grid'
   | 'embodied_intelligence'
@@ -142,6 +143,7 @@ export default function SupplyChainResearchWorkbench({
                 { label: '稀土小金属', value: 'rare_earth_minor_metals_security' },
                 { label: '显示', value: 'display_oled_microled' },
                 { label: '国产软件', value: 'domestic_os_database_industrial_software' },
+                { label: '昇腾', value: 'huawei_ascend_ai_ecosystem' },
                 { label: '海风海缆', value: 'offshore_wind_subsea_cable' },
                 { label: '新型电力', value: 'new_power_system_grid' },
                 { label: '具身智能', value: 'embodied_intelligence' },
@@ -149,10 +151,6 @@ export default function SupplyChainResearchWorkbench({
               ]}
               onChange={(value) => onChainTemplateChange?.(value as ChainTemplateKey)}
             />
-            <Statistic title="主题" value={themes.length} />
-            <Statistic title="节点" value={nodes.length} />
-            <Statistic title="候选" value={candidates.length} />
-            <Statistic title="待复核" value={mappingQuality?.review_queue_count || 0} />
           </Space>
         </Flex>
       </Card>
@@ -267,7 +265,6 @@ function IndustryTemplatePanel({
                     {layer.name}
                   </Title>
                 </Space>
-                <Text type="secondary">{layer.layer_id}</Text>
               </Flex>
               <Paragraph style={{ margin: '8px 0' }}>{layer.definition}</Paragraph>
               <TemplateField label="环节" items={layer.segments} color="geekblue" />

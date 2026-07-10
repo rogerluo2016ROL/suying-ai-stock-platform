@@ -3,6 +3,7 @@ import { ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import SupplyChainResearchWorkbench from '../pages/supply-chain-bom/SupplyChainResearchWorkbench'
 import type { BomNode, CandidateCompany, SelectedNodeThesis, ThemeRow } from '../pages/supply-chain-bom/types'
+import type { ChainDeconstructResponse } from '../api/client'
 
 const themes: ThemeRow[] = [
   { theme_id: 'hard_tech', name: '硬核科技', policy_weight: 1.2, keywords: ['半导体'], node_count: 2 },
@@ -88,4 +89,26 @@ it('coordinates node drilldown, candidate opening, comparison, and review', () =
   fireEvent.click(screen.getByRole('tab', { name: '复核' }))
   fireEvent.click(screen.getByRole('button', { name: /确认/ }))
   expect(onReviewMapping).toHaveBeenCalledWith('301526', 'semiconductor_materials', 'verified')
+})
+
+it('does not render preview-only aggregate numbers or synthetic lineage ids', () => {
+  const templateResult = {
+    template: { name: 'AI 算力', example_theme: '算力' },
+    tree: { children: [{ node_id: 'layer-1', layer_id: 'L1-fake', layer_order: 1, name: '芯片', definition: '定义', segments: ['GPU'] }] },
+  } as unknown as ChainDeconstructResponse
+
+  render(
+    <ConfigProvider locale={zhCN}>
+      <SupplyChainResearchWorkbench
+        themes={themes}
+        nodes={nodes}
+        candidates={candidates}
+        chainTemplate="ai_compute_infrastructure"
+        templateResult={templateResult}
+      />
+    </ConfigProvider>,
+  )
+
+  expect(document.querySelectorAll('.ant-statistic')).toHaveLength(0)
+  expect(screen.queryByText('L1-fake')).not.toBeInTheDocument()
 })
