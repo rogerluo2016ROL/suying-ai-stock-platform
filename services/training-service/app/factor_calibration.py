@@ -104,7 +104,7 @@ async def _compute_ic_kronos(window_days: int, min_samples: int) -> Dict[str, An
 
         result = await db.execute(
             sa_text(
-                "SELECT code FROM stocks WHERE is_st=0 ORDER BY RANDOM() LIMIT 500"
+                "SELECT code FROM stocks WHERE is_st=0 ORDER BY code LIMIT 500"
             )
         )
         codes = [r[0] for r in result.fetchall()]
@@ -388,4 +388,3 @@ async def get_ic_analysis(
     for key, name in FACTOR_DEFS:
         if key not in target_factors:
             continue
-

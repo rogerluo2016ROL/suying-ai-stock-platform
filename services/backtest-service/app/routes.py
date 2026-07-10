@@ -381,6 +381,7 @@ async def ic_decay_tracking(
 
     Returns: 每个因子的当前状态和调整建议.
     """
+    raise HTTPException(status_code=409, detail={"code": "MODEL_EVIDENCE_NOT_IMPLEMENTED", "message": "缺少真实因子快照与未来复权收益证据"})
     try:
         import psycopg2
         from datetime import date as dt_date
@@ -410,7 +411,7 @@ async def ic_decay_tracking(
 
         for factor in factors:
             # Compute rolling IC: correlation of factor score with forward 5d return
-            # Simplified: use daily returns as proxy
+            # Unreachable legacy block retained only for source compatibility.
             result["factors"][factor] = {
                 "status": "tracking",
                 "current_weight_multiplier": 1.0,
