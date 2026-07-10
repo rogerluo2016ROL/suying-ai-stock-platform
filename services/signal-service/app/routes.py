@@ -36,6 +36,27 @@ def _signal_model_metadata(mode: str) -> dict:
     }
 
 
+_SIGNAL_DIMENSION_WEIGHTS = {
+    "kronos": 0.20, "technical": 0.20, "money_flow": 0.12,
+    "fundamental": 0.15, "event_risk": 0.13, "market": 0.20,
+}
+
+
+def _combine_signal_dimensions(dimensions: dict) -> dict:
+    """Combine only observed dimensions; never turn missing data into 50."""
+    normalized = {name: dimensions.get(name) for name in _SIGNAL_DIMENSION_WEIGHTS}
+    unavailable = [name for name, value in normalized.items() if value is None]
+    available_weight = sum(_SIGNAL_DIMENSION_WEIGHTS[name] for name, value in normalized.items() if value is not None)
+    score = None if not available_weight else round(sum(float(normalized[name]) * _SIGNAL_DIMENSION_WEIGHTS[name] for name in normalized if normalized[name] is not None) / available_weight, 1)
+    return {
+        "dimensions": normalized,
+        "coverage": round(available_weight, 3),
+        "unavailable_dimensions": unavailable,
+        "result_status": "insufficient_data" if unavailable else "ok",
+        "score": score,
+    }
+
+
 def _coerce_iso_date(value) -> str | None:
     if value is None:
         return None
@@ -1055,8 +1076,8 @@ async def analyze_signal(code: str):
     except Exception:
         pass
 
-    # Kronos placeholder
-    kronos_confidence = 50
+    # Kronos is unavailable until a real inference result exists.
+    kronos_confidence = None
     # Market adaptation: use regime bonus from screener
     market_adapt = 50
     try:
@@ -1067,14 +1088,12 @@ async def analyze_signal(code: str):
         pass
 
     # Six-dimension weighted signal (total = 1.0)
-    signal_score = (
-        kronos_confidence * 0.20 +    # Kronos AI
-        tech_score * 0.20 +           # Technical
-        money_score * 0.12 +          # Fund flow
-        fundamental_score * 0.15 +    # Fundamental (NEW)
-        event_risk_score * 0.13 +     # Event risk (NEW)
-        market_adapt * 0.20           # Market regime
-    )
+    combined = _combine_signal_dimensions({
+        "kronos": kronos_confidence, "technical": tech_score,
+        "money_flow": money_score, "fundamental": fundamental_score,
+        "event_risk": event_risk_score, "market": market_adapt,
+    })
+    signal_score = combined["score"] or 0.0
 
     # Determine level
     if signal_score >= 80:   level, icon = "STRONG_BUY", "🟢"
@@ -1131,6 +1150,9 @@ async def analyze_signal(code: str):
             "market_adapt":      {"score": round(market_adapt, 1), "weight": 0.20},
             "rule_match":        {"score": 50, "weight": 0.00, "note": "deprecated-merged-into-event-risk"},
         },
+        "coverage": combined["coverage"],
+        "unavailable_dimensions": combined["unavailable_dimensions"],
+        "result_status": combined["result_status"],
         "factors": {
             "five_factor": {"score": ff["score"], "grade": ff["grade"],
                             "momentum": ff["momentum"], "volume": ff["volume_factor"],

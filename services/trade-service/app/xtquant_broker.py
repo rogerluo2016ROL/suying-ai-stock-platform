@@ -26,6 +26,15 @@ from app.broker_interface import (
 
 logger = logging.getLogger("trade-service.xtquant_broker")
 
+
+class BrokerCapabilityError(RuntimeError):
+    """Raised when live SDK wiring is incomplete; never fake a fill."""
+
+
+REQUIRED_LIVE_CAPABILITIES = {
+    "place_order", "cancel_order", "query_positions", "query_account", "order_callbacks"
+}
+
 # ── xtquant availability ──────────────────────────────────────────────
 try:
     import xtquant  # noqa: F401
@@ -88,6 +97,13 @@ class XtquantBroker(BrokerInterface):
         self._account = account or os.environ.get("QMT_ACCOUNT", _STUB_ACCOUNT_ID)
         self._trader = None  # XtQuantTrader instance (when xtquant available)
         self._is_live = _XTQUANT_AVAILABLE
+        self._implemented_capabilities: set[str] = set()
+
+    def live_readiness(self) -> dict:
+        missing = sorted(REQUIRED_LIVE_CAPABILITIES - self._implemented_capabilities)
+        if not _XTQUANT_AVAILABLE:
+            missing = sorted(REQUIRED_LIVE_CAPABILITIES)
+        return {"status": "ready" if not missing else "blocked", "missing_capabilities": missing}
 
     # ── Public API ────────────────────────────────────────────────────
 
@@ -123,8 +139,8 @@ class XtquantBroker(BrokerInterface):
                     "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub（防止虚假成交）。"
                     "请先调用 connect() 连接券商。"
                 )
-            # TODO: wire to xtquant.xttrader.order_stock(...)
-            logger.info("xtquant place_order not yet wired — falling back to stub")
+            if "place_order" not in self._implemented_capabilities:
+                raise BrokerCapabilityError("xtquant place_order capability is not implemented")
         return self._place_order_stub(order)
 
     async def cancel_order(self, order_id: str) -> CancelResult:
@@ -135,7 +151,8 @@ class XtquantBroker(BrokerInterface):
                     "请先调用 connect() 连接券商。"
                 )
             # TODO: wire to xtquant.xttrader.cancel_order_stock(...)
-            logger.info("xtquant cancel_order not yet wired — falling back to stub")
+            if "cancel_order" not in self._implemented_capabilities:
+                raise BrokerCapabilityError("xtquant cancel_order capability is not implemented")
         return self._cancel_order_stub(order_id)
 
     async def get_positions(self) -> list[Position]:
@@ -146,7 +163,8 @@ class XtquantBroker(BrokerInterface):
                     "请先调用 connect() 连接券商。"
                 )
             # TODO: wire to xtquant.xttrader.query_stock_positions(...)
-            logger.info("xtquant query_positions not yet wired — falling back to stub")
+            if "query_positions" not in self._implemented_capabilities:
+                raise BrokerCapabilityError("xtquant query_positions capability is not implemented")
         return list(self._stub_positions.values())
 
     async def get_account(self) -> AccountInfo:
@@ -157,7 +175,8 @@ class XtquantBroker(BrokerInterface):
                     "请先调用 connect() 连接券商。"
                 )
             # TODO: wire to xtquant.xttrader.query_stock_asset(...)
-            logger.info("xtquant query_account not yet wired — falling back to stub")
+            if "query_account" not in self._implemented_capabilities:
+                raise BrokerCapabilityError("xtquant query_account capability is not implemented")
         return self._stub_account
 
     async def sync(self) -> SyncResult:

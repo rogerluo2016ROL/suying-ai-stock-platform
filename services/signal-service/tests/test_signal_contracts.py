@@ -32,6 +32,17 @@ def test_signal_contract_wraps_model_metadata_freshness_and_fallback():
     assert result["fallback_reason"] is None
 
 
+def test_missing_kronos_is_unavailable_not_neutral():
+    body = routes._combine_signal_dimensions({
+        "kronos": None, "technical": 72.0, "money_flow": 65.0,
+        "fundamental": 61.0, "event_risk": 70.0, "market": 58.0,
+    })
+    assert "kronos" in body["unavailable_dimensions"]
+    assert body["dimensions"]["kronos"] is None
+    assert body["coverage"] < 1.0
+    assert body["result_status"] == "insufficient_data"
+
+
 def test_signal_data_freshness_accepts_trade_date_dict():
     result = routes._signal_data_freshness({"trade_date": "2026-06-29"}, "PG daily_kline")
 
