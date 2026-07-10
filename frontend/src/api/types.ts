@@ -831,6 +831,7 @@ export interface DecileMetric {
 export interface FactorEvidenceResponse {
   status: 'ready' | 'insufficient_data' | 'insufficient' | 'unsupported';
   observations: number;
+  trade_dates: number;
   factors: FactorMetric[];
   correlations: CorrelationCell[];
   deciles: DecileMetric[];

@@ -1,6 +1,6 @@
 import { BarChartOutlined, FundOutlined, RadarChartOutlined } from '@ant-design/icons'
 import { PrototypeCard } from '../../components/prototype'
-import type { FactorEvidenceView } from './factorEvidence'
+import { isReadyFactorEvidenceView, type FactorEvidenceView } from './factorEvidence'
 
 interface FactorEvidencePanelProps {
   loading: boolean
@@ -11,8 +11,10 @@ function formatMetric(value: number, digits = 3) {
   return Number.isFinite(value) ? value.toFixed(digits) : '—'
 }
 
-function reasonsText(reasons: string[]) {
-  return reasons.length > 0 ? reasons.join('、') : '后端未返回缺失条件'
+function reasonsText(reasons: unknown) {
+  return Array.isArray(reasons) && reasons.every(reason => typeof reason === 'string') && reasons.length > 0
+    ? reasons.join('、')
+    : '后端未返回缺失条件'
 }
 
 export function FactorEvidencePanel({ loading, view }: FactorEvidencePanelProps) {
@@ -36,6 +38,10 @@ export function FactorEvidencePanel({ loading, view }: FactorEvidencePanelProps)
         <div className="muted">缺失：{reasonsText(view.reasons)}</div>
       </div>
     )
+  }
+
+  if (!isReadyFactorEvidenceView(view)) {
+    return <div className="prototype-fallback">真实因子回测数据暂不可用</div>
   }
 
   return (

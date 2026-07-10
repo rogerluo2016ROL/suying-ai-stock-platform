@@ -4,6 +4,8 @@ import zhCN from 'antd/locale/zh_CN'
 import { MemoryRouter } from 'react-router-dom'
 import Screener from '../pages/Screener'
 import { backtestApi, screenerApi, signalApi } from '../api/client'
+import { FactorEvidencePanel } from '../pages/screener/FactorEvidencePanel'
+import { toFactorEvidenceView } from '../pages/screener/factorEvidence'
 
 vi.mock('../api/client', () => ({
   screenerApi: {
@@ -34,6 +36,38 @@ function renderScreener(route = '/screener') {
       </MemoryRouter>
     </ConfigProvider>,
   )
+}
+
+function readyFactorEvidence(overrides: Record<string, unknown> = {}) {
+  return {
+    status: 'ready',
+    observations: 20,
+    trade_dates: 5,
+    factors: [{
+      factor: 'technical',
+      label: '技术面',
+      ic_mean: 0.04,
+      ic_std: 0.02,
+      icir: 2,
+      t_stat: 3.2,
+      observations: 20,
+    }],
+    correlations: [{
+      factor_x: 'technical',
+      factor_y: 'fundamental',
+      correlation: 0.3,
+      observations: 20,
+    }],
+    deciles: [{
+      decile: 'D10',
+      description: '最高分位',
+      cumulative_return_pct: 4.1,
+      daily_return_pct: 0.16,
+      observations: 20,
+    }],
+    missing_requirements: [],
+    ...overrides,
+  }
 }
 
 describe('Screener', () => {
@@ -271,6 +305,7 @@ describe('Screener', () => {
       data: {
         status: 'insufficient_data',
         observations: 0,
+        trade_dates: 0,
         factors: [],
         correlations: [],
         deciles: [],
@@ -283,6 +318,75 @@ describe('Screener', () => {
     expect(await screen.findByText('暂无真实因子回测数据')).toBeInTheDocument()
     expect(screen.queryByText('IC Mean')).not.toBeInTheDocument()
     expect(screen.queryByText('多-空对冲')).not.toBeInTheDocument()
+  })
+
+  it('keeps the factor page available when the evidence request fails', async () => {
+    vi.mocked(backtestApi.getFactorEvidence).mockRejectedValueOnce(new Error('network unavailable'))
+
+    renderScreener('/screener/factors')
+
+    expect(await screen.findByText('真实因子回测数据暂不可用')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '智能选股 - 因子分析' })).toBeInTheDocument()
+    expect(screen.queryByText('IC Mean')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['empty response', undefined],
+    ['unknown status', { ...readyFactorEvidence(), status: 'unexpected' }],
+    ['ready with zero observations', readyFactorEvidence({ observations: 0 })],
+    ['ready with fractional observations', readyFactorEvidence({ observations: 1.5 })],
+    ['ready without trade_dates', (() => {
+      const { trade_dates: _tradeDates, ...response } = readyFactorEvidence()
+      return response
+    })()],
+    ['ready with negative trade_dates', readyFactorEvidence({ trade_dates: -1 })],
+    ['ready with fractional trade_dates', readyFactorEvidence({ trade_dates: 1.5 })],
+    ['insufficient response without trade_dates', {
+      status: 'insufficient_data',
+      observations: 0,
+      factors: [],
+      correlations: [],
+      deciles: [],
+      missing_requirements: ['future_returns'],
+    }],
+    ['missing factors array', readyFactorEvidence({ factors: undefined })],
+    ['non-array correlations', readyFactorEvidence({ correlations: {} })],
+    ['non-array deciles', readyFactorEvidence({ deciles: null })],
+    ['malformed factor metric', readyFactorEvidence({
+      factors: [{ factor: 'technical', ic_mean: Number.NaN, ic_std: 0.02, icir: 2, t_stat: 3.2 }],
+    })],
+    ['malformed correlation cell', readyFactorEvidence({
+      correlations: [{ factor_x: 'technical', factor_y: 'fundamental', correlation: Number.POSITIVE_INFINITY }],
+    })],
+    ['malformed decile metric', readyFactorEvidence({
+      deciles: [{ decile: 'D10', cumulative_return_pct: 'not-a-number' }],
+    })],
+  ])('fails closed for %s', (_caseName, response) => {
+    expect(toFactorEvidenceView(response)).toMatchObject({ kind: 'unsupported' })
+  })
+
+  it('fails closed when the evidence panel receives a malformed ready view', () => {
+    render(
+      <FactorEvidencePanel
+        loading={false}
+        view={{ kind: 'ready', factors: undefined, correlations: [], deciles: [] } as never}
+      />,
+    )
+
+    expect(screen.getByText('真实因子回测数据暂不可用')).toBeInTheDocument()
+    expect(screen.queryByText('IC Mean')).not.toBeInTheDocument()
+  })
+
+  it('does not trigger the page error boundary for a ready response with a missing array', async () => {
+    vi.mocked(backtestApi.getFactorEvidence).mockResolvedValue({
+      data: readyFactorEvidence({ factors: undefined }),
+    } as never)
+
+    renderScreener('/screener/factors')
+
+    expect(await screen.findByText('真实因子回测数据暂不可用')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '智能选股 - 因子分析' })).toBeInTheDocument()
+    expect(screen.queryByText('IC Mean')).not.toBeInTheDocument()
   })
 
   it('explains a zero-pick run instead of only showing an empty table', async () => {
