@@ -17,6 +17,8 @@ const serviceChecks: RuntimeServiceConfig[] = [
   { key: 'prediction', name: 'prediction-service', port: '18002', duty: 'Kronos 预测' },
   { key: 'strategy', name: 'strategy-service', port: '18003', duty: '方案 / 自动策略' },
   { key: 'signal', name: 'signal-service', port: '18004', duty: '交易信号' },
+  { key: 'data', name: 'data-service', port: '18010', duty: '数据采集与水位' },
+  { key: 'alert', name: 'alert-service', port: '18005', duty: '预警通知' },
   { key: 'trade', name: 'trade-service', port: '18006', duty: '模拟盘交易' },
   { key: 'backtest', name: 'backtest-service', port: '18007', duty: '回测复盘' },
   { key: 'training', name: 'training-service', port: '18008', duty: '训练队列' },
