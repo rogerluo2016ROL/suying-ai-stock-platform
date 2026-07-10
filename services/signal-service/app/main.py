@@ -8,6 +8,7 @@ import logging, sys, os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 _PACKAGES = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages"))
 for _pkg in ["kronos-factors", "kronos-core", "kronos-data"]:
@@ -60,6 +61,24 @@ app = FastAPI(
 )
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","), allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
+
+app.state.deprecated_route_prefixes = {
+    "/api/v1/dashboard": "screener-service",
+    "/api/v1/data": "data-service",
+}
+
+class DeprecatedRouteMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        for prefix, owner in app.state.deprecated_route_prefixes.items():
+            if request.url.path == prefix or request.url.path.startswith(prefix + "/"):
+                response.headers["Deprecation"] = "true"
+                response.headers["X-Deprecated-Route"] = "true"
+                response.headers["X-Route-Owner"] = owner
+                break
+        return response
+
+app.add_middleware(DeprecatedRouteMiddleware)
 app.include_router(router)
 app.include_router(dashboard_router)
 app.include_router(data_router)
