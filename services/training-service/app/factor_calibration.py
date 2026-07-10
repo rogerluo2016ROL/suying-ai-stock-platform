@@ -74,12 +74,8 @@ async def compute_ic_from_db(
     Returns:
         Dict with keys: factors, window_start, window_end
     """
-    # Try to use Kronos calibration logic first
-    try:
-        return await _compute_ic_kronos(window_days, min_samples)
-    except Exception as e:
-        logger.warning("Kronos calibration unavailable (%s), using DB-based fallback", e)
-        return await _compute_ic_fallback(window_days, min_samples)
+    return {"status": "insufficient_data", "factors": [], "window_start": None, "window_end": None,
+            "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"]}
 
 
 async def _compute_ic_kronos(window_days: int, min_samples: int) -> Dict[str, Any]:
@@ -382,6 +378,9 @@ async def get_ic_analysis(
         end_dt = dt.strptime(end_date, "%Y-%m-%d")
         start_date = (end_dt - timedelta(days=365)).strftime("%Y-%m-%d")
 
+    return {"status": "insufficient_data", "factors": [],
+            "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"]}
+
     # Filter factors
     target_factors = factors if factors else [f[0] for f in FACTOR_DEFS]
 
@@ -390,52 +389,3 @@ async def get_ic_analysis(
         if key not in target_factors:
             continue
 
-        # Generate rolling IC windows (simplified for dev)
-        rolling = []
-        np.random.seed(hash(key) % 2**32)
-
-        # Calculate date range
-        start_dt = dt.strptime(start_date, "%Y-%m-%d")
-        end_dt = dt.strptime(end_date, "%Y-%m-%d")
-        total_days = (end_dt - start_dt).days
-
-        n_windows = max(12, total_days // 7)  # ~weekly windows
-        for i in range(n_windows):
-            offset_days = total_days - i * (total_days // n_windows)
-            window_end = end_dt - timedelta(days=offset_days)
-            window_end_str = window_end.strftime("%Y-%m-%d")
-
-            # Simulated IC values with some trend
-            base_ic = 0.03 + 0.01 * np.sin(i * 0.5)
-            ic_value = round(float(np.random.normal(base_ic, 0.02)), 4)
-            icir_value = round(ic_value / max(abs(np.random.normal(0.05, 0.02)), 0.01), 4)
-
-            rolling.append({
-                "window_end": window_end_str,
-                "ic": ic_value,
-                "icir": icir_value,
-                "n_stocks": np.random.randint(3000, 5000),
-            })
-
-        rolling = rolling[:12]  # Keep last 12 windows
-
-        ic_values = [r["ic"] for r in rolling]
-        icir_values = [r["icir"] for r in rolling]
-
-        factor_results.append({
-            "factor_name": key,
-            "factor_label": name,
-            "current_ic": ic_values[0] if ic_values else 0,
-            "current_icir": icir_values[0] if icir_values else 0,
-            "ic_mean": round(float(np.mean(ic_values)), 4) if ic_values else 0,
-            "ic_std": round(float(np.std(ic_values)), 4) if ic_values else 0,
-            "icir_mean": round(float(np.mean(icir_values)), 4) if icir_values else 0,
-            "direction": "long" if (ic_values[0] if ic_values else 0) > 0 else "short",
-            "rolling": rolling,
-        })
-
-    return {
-        "window_days": window_days,
-        "date_range": f"{start_date} ~ {end_date}",
-        "factors": factor_results,
-    }
