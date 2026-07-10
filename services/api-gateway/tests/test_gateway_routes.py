@@ -87,3 +87,13 @@ def test_proxy_response_forwards_multiple_set_cookie_headers():
         "refresh_token=one; Path=/api/v1/auth",
         "csrf=two; Path=/",
     ]
+from app.main import sanitize_client_headers
+
+
+def test_spoofed_owner_and_service_headers_are_removed():
+    headers = sanitize_client_headers({
+        "X-Owner-User-Id": "victim", "X-Service-Auth": "forged", "X-Tenant-Id": "tenant-a",
+    })
+    assert "X-Owner-User-Id" not in headers
+    assert "X-Service-Auth" not in headers
+    assert headers["X-Tenant-Id"] == "tenant-a"

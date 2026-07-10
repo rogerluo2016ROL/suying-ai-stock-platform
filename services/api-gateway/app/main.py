@@ -241,13 +241,21 @@ def _now_iso() -> str:
 def _workbench_context(request: Request) -> dict:
     return {
         "tenant_id": request.headers.get("X-Tenant-Id") or "public",
-        "owner_user_id": request.headers.get("X-Owner-User-Id"),
+        "owner_user_id": None,
         "account_id": request.headers.get("X-Trade-Account-Id"),
         "data_scope": request.headers.get("X-Data-Scope") or "public",
         "trade_mode": request.headers.get("X-Trade-Mode") or "paper",
         "role_view": request.headers.get("X-Role-View"),
         "broker_adapter": request.headers.get("X-Broker-Adapter") or "paper",
     }
+
+
+_UNTRUSTED_IDENTITY_HEADERS = {"x-owner-user-id", "x-service-auth"}
+
+
+def sanitize_client_headers(headers: dict[str, str]) -> dict[str, str]:
+    """Never forward caller-controlled service credentials or owner identity."""
+    return {key: value for key, value in headers.items() if key.lower() not in _UNTRUSTED_IDENTITY_HEADERS}
 
 
 _WORKBENCH_MODULES: dict[str, dict] = {
@@ -387,7 +395,7 @@ async def gateway(request: Request, path: str):
         return JSONResponse({"detail": f"Not Found: {full}"}, 404)
 
     body = await request.body()
-    headers = {k: v for k, v in request.headers.items() if k.lower() not in ("host",)}
+    headers = sanitize_client_headers({k: v for k, v in request.headers.items() if k.lower() not in ("host",)})
 
     loop = asyncio.get_running_loop()
 
