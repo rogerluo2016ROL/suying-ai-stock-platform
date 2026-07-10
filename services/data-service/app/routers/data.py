@@ -18,6 +18,7 @@ from app.sync.stocks import sync_stock_list
 from app.sync.rate_limiter import get_rate_limit_status
 from app.sync.pg_writer import PG_URL
 from app.config import get_runtime_config_status
+from app.inventory import build_inventory
 
 logger = logging.getLogger("data-service.api")
 router = APIRouter(prefix="/api/v1/data", tags=["data"])
@@ -153,6 +154,24 @@ async def data_status():
     result["total_rows"] = sum(j.get("pg_written", 0) for j in result.get("jobs", []))
 
     return result
+
+
+@router.get("/inventory")
+async def inventory():
+    """真实数据库表盘点；不复用 scheduler 的本次写入行数。"""
+    return build_inventory()
+
+
+@router.get("/jobs")
+async def jobs():
+    """调度任务运行状态资源。"""
+    return get_job_status()
+
+
+@router.get("/schedules")
+async def schedules():
+    """当前调度配置资源。"""
+    return {"schedules": [{"id": j.get("id"), "cron": j.get("cron"), "name": j.get("name")} for j in get_job_status().get("jobs", [])]}
 
 
 @router.post("/sync/rt_min")
