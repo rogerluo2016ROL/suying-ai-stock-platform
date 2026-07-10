@@ -275,7 +275,7 @@ async def trigger_pipeline(
 ):
     """V4.0 一键流水线 — 竞价选股 → 多策略融合 → 生成报告.
 
-    支持 engine 模式 (无 subprocess, 更快) 和 subprocess 回退.
+    仅允许受控 engine 模式；失败由调用方获取明确错误，不再从 HTTP 请求启动 subprocess。
     """
     target = date.today().strftime("%Y-%m-%d")
     mode_list = [m.strip() for m in modes.split(",") if m.strip()]
@@ -304,16 +304,7 @@ async def trigger_pipeline(
             "stats": result.get("fusion_stats", {}),
         }
     except Exception as e:
-        # Fallback to subprocess
-        script = os.path.join(TOOLS_DIR, "pipeline_daily.py")
-        if os.path.exists(script):
-            subprocess.Popen(
-                ["python3", script, "--date", target],
-                cwd=KRONOS_ROOT,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
-            return {"status": "started-subprocess", "message": "引擎模式失败, 已回退 subprocess 流水线"}
-        return {"status": "error", "message": str(e)}
+        return {"status": "failed", "message": str(e), "fallback_reason": "pipeline engine failed; subprocess fallback is disabled"}
 
 
 @router.get("/pipeline/status")
