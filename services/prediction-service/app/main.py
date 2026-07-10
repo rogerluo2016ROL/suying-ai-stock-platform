@@ -148,7 +148,8 @@ async def health_live_contract():
 
 @app.get("/api/v1/health/ready")
 async def health_ready_contract():
-    return {"live": True, "ready": True, "service": "prediction-service", "version": "0.1.0", "checks": {}}
+    from kronos_contracts.health import check_postgres, build_health
+    return build_health("prediction-service", "0.1.0", {"postgres": await check_postgres()}).model_dump()
 @app.get("/api/v1/health")
 async def health():
     return {"status": "healthy", "service": "prediction-service",

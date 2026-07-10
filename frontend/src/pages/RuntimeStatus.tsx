@@ -44,6 +44,15 @@ export default function RuntimeStatus() {
 
   const loadServices = useCallback(async () => {
     setServices(serviceChecks.map(service => ({ ...service, status: 'checking' })))
+    try {
+      const runtime = await healthApi.runtimeReadiness()
+      const states = runtime.data?.services || {}
+      setServices(serviceChecks.map(service => ({ ...service, status: states[service.name]?.ready ? 'healthy' : 'offline' })))
+      setLastCheckedAt(new Date().toISOString())
+      return
+    } catch {
+      // fall back to legacy per-service checks while older gateways roll out
+    }
     const rows = await Promise.all(serviceChecks.map(async service => {
       if (service.enabled === false) {
         return { ...service, status: '未启用' }

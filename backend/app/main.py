@@ -95,6 +95,15 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(admin_router)
 
+@app.get("/api/v1/health/live")
+async def health_live_contract():
+    return {"live": True, "service": "backend", "version": "0.2.0"}
+
+@app.get("/api/v1/health/ready")
+async def health_ready_contract():
+    from kronos_contracts.health import check_postgres, build_health
+    return build_health("backend", "0.2.0", {"postgres": await check_postgres()}).model_dump()
+
 
 @app.get("/api/health")
 async def health():
