@@ -230,62 +230,13 @@ async def run_backtest(
 
 @router.post("/calibrate")
 async def calibrate_weights(mode: str = Query("all")):
-    """基于近期 IC 校准因子权重."""
-    try:
-        conn = _get_pg()
-        cur = conn.cursor()
-
-        # Get latest 90 days of data for IC computation
-        cur.execute("SELECT MAX(trade_date) FROM daily_kline")
-        max_d = cur.fetchone()[0]
-        if not max_d:
-            return {"status": "error", "message": "No data"}
-        start_d = max_d - timedelta(days=90)
-
-        # Compute IC for each factor (simplified: use daily return as proxy)
-        calibrations = []
-        for factor_id, factor_name in FACTORS.items():
-            # Use rolling IC as proxy
-            cur.execute("""
-                SELECT AVG((close - open) / NULLIF(open,0)) * 100
-                FROM daily_kline
-                WHERE trade_date BETWEEN %s AND %s AND volume > 0 AND open > 0
-            """, (start_d, max_d))
-            avg_ret = cur.fetchone()[0] or 0
-            ic_val = round(float(avg_ret) / 10, 4)  # Normalized proxy
-            weight = round(abs(ic_val) * 2 + 1.5, 1)
-            calibrations.append({
-                "factor_id": factor_id,
-                "factor_name": factor_name,
-                "ic_proxy": ic_val,
-                "suggested_weight": weight,
-            })
-
-        conn.close()
-
-        # Save to DB
-        try:
-            conn_w = _get_pg()
-            cur_w = conn_w.cursor()
-            for c in calibrations:
-                cur_w.execute(
-                    "INSERT INTO factor_weights (factor_name, weight, calibrated_at, effective_from) "
-                    "VALUES (%s, %s, NOW(), NOW()) "
-                    "ON CONFLICT (factor_name) DO UPDATE SET weight = EXCLUDED.weight, calibrated_at = NOW()",
-                    (c["factor_id"], c["suggested_weight"]))
-            conn_w.commit()
-            conn_w.close()
-        except Exception as e:
-            logger.warning("Failed to save calibration: %s", e)
-
-        return {
-            "status": "ok",
-            "mode": mode,
-            "factors": calibrations,
-            "message": f"Calibrated {len(calibrations)} factors, weights saved to factor_weights table",
-        }
-    except Exception as e:
-        raise HTTPException(500, str(e))
+    """Calibration requires a real factor evaluator; never synthesize weights."""
+    return {
+        "status": "unsupported",
+        "mode": mode,
+        "factors": [],
+        "fallback_reason": "real factor evidence adapter is not connected",
+    }
 
 
 @router.post("/compare")
@@ -659,7 +610,7 @@ async def ic_decay_tracking(
 
         for factor in factors:
             # Compute rolling IC: correlation of factor score with forward 5d return
-            # Simplified: use daily returns as proxy
+            # No observed factor/forward-return pair is available here.
             result["factors"][factor] = {
                 "status": "tracking",
                 "current_weight_multiplier": 1.0,

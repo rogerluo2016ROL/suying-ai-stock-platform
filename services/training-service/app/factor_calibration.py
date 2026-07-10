@@ -69,12 +69,6 @@ async def compute_ic_from_db(
     Returns:
         Dict with keys: factors, window_start, window_end
     """
-    # Try to use Kronos calibration logic first
-    try:
-        return await _compute_ic_kronos(window_days, min_samples)
-    except Exception as e:
-        logger.warning("Kronos calibration unavailable (%s), using DB-based fallback", e)
-        return await _compute_ic_fallback(window_days, min_samples)
 
 
 async def _compute_ic_kronos(window_days: int, min_samples: int) -> Dict[str, Any]:
@@ -183,39 +177,9 @@ async def _compute_ic_fallback(window_days: int, min_samples: int) -> Dict[str, 
         window_start = row[0]
         window_end = row[1]
 
-    # Simplified IC computation using random sampling
-    np.random.seed(42)
-    factors = []
-    for key, name in FACTOR_DEFS:
-        # Generate plausible IC/ICIR values for dev/testing
-        ic_mean = float(np.random.normal(0.03, 0.02))
-        ic_std = float(np.abs(np.random.normal(0.05, 0.02)))
-        icir = ic_mean / ic_std if ic_std > 0 else 0.0
-
-        old_w = DEFAULT_WEIGHTS.get(key, 2.5)
-        new_w = abs(icir) * 0.08
-        if ic_mean < 0:
-            new_w = -new_w
-
-        direction = "long" if ic_mean > 0 else "short"
-        significance = "significant" if abs(icir) > 1.5 else ("marginal" if abs(icir) > 0.5 else "none")
-
-        factors.append({
-            "factor_name": key,
-            "factor_label": name,
-            "ic": round(ic_mean, 4),
-            "icir": round(icir, 4),
-            "old_weight": old_w,
-            "new_weight": new_w,
-            "direction": direction,
-            "significance": significance,
-        })
-
-    return {
-        "factors": factors,
-        "window_start": str(window_start),
-        "window_end": str(window_end),
-    }
+    raise RuntimeError(
+        "factor evidence is unavailable: calibration cannot proceed without observed factor/forward-return pairs"
+    )
 
 
 async def run_calibration(
@@ -421,10 +385,8 @@ async def get_ic_analysis(
             window_end = end_dt - timedelta(days=offset_days)
             window_end_str = window_end.strftime("%Y-%m-%d")
 
-            # Simulated IC values with some trend
-            base_ic = 0.03 + 0.01 * np.sin(i * 0.5)
-            ic_value = round(float(np.random.normal(base_ic, 0.02)), 4)
-            icir_value = round(ic_value / max(abs(np.random.normal(0.05, 0.02)), 0.01), 4)
+            # Synthetic IC is forbidden; callers must provide observed pairs.
+            raise RuntimeError("factor evidence is unavailable for rolling IC analysis")
 
             rolling.append({
                 "window_end": window_end_str,
