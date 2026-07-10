@@ -79,8 +79,13 @@ def introspect_db(conn):
         meta[tt]["idxes"].append({"name":iname,"cols":[c.strip() for c in cm.group(1).split(",")] if cm else []})
     return dict(meta)
 
-TN={"double precision":"float8","integer":"int4","bigint":"int8","timestamp without time zone":"timestamp",
-    "smallint":"int2","character varying":"text","boolean":"bool","serial":"int4","bigserial":"int8"}
+TN={"double precision":"float8","integer":"int4","bigint":"int8","timestamp without time zone":"timestamp","timestamp with time zone":"timestamptz",
+    "smallint":"int2","character varying":"text","varchar":"text","boolean":"bool","serial":"int4","bigserial":"int8"}
+
+def norm_type(value):
+    """Compare logical SQL types; information_schema omits length/precision."""
+    base = re.sub(r"\([^)]*\)", "", value.lower()).strip()
+    return TN.get(base, base)
 
 def diff_tbl(d,i):
     r={"db":False,"init":False,"oc":[],"ic":[],"tm":[],"pk":None,"uq":None,"il":[],"im":[],"sev":"low"}
@@ -90,7 +95,7 @@ def diff_tbl(d,i):
     ic={c[0]:c[1] for c in i.get("cols",[]) if not c[0].startswith(IGNORED_COLUMN_PREFIXES)}
     ds,is_=set(dc),set(ic); r["oc"]=sorted(ds-is_); r["ic"]=sorted(is_-ds)
     for c in ds&is_:
-        dt,it=TN.get(dc[c],dc[c]),TN.get(ic[c],ic[c])
+        dt,it=norm_type(dc[c]),norm_type(ic[c])
         if dt!=it: r["tm"].append((c,dc[c],ic[c]))
     if set(d.get("pk",[]))!=set(i.get("pk",[])): r["pk"]=(d.get("pk",[]),i.get("pk",[]))
     du={tuple(sorted(u)) for u in d.get("uniques",[])}; iu={tuple(sorted(u)) for u in i.get("uniques",[])}

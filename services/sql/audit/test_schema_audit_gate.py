@@ -10,3 +10,7 @@ spec.loader.exec_module(module)
 def test_medium_gate_fails_for_high_or_medium_findings():
     assert module.audit_exit_code({"x": {"sev": "medium"}}, "medium") == 1
     assert module.audit_exit_code({"x": {"sev": "low"}}, "medium") == 0
+
+def test_type_normalization_ignores_varchar_and_numeric_parameters():
+    assert module.norm_type("character varying") == module.norm_type("varchar(100)")
+    assert module.norm_type("numeric") == module.norm_type("numeric(18,2)")
