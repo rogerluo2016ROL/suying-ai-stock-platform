@@ -29,3 +29,4 @@
 - SDK 缺失或能力未实现时，connect、下单、撤单、持仓、资产及 sync 全部抛 `BrokerCapabilityError`，不再调用成功 stub。
 - fundamental、event risk、market 缺失时保持 `None`；insufficient_data 返回 `signal=None`、`decision=unavailable`，不写入历史分数。
 - 修复后：trade capability `3 passed`；signal 定向测试 `1 passed`；两服务 py_compile 均通过。
+- 清理诊断/信号聚合与已废弃 rule_match 的固定 50；缺失值统一为 `None`。复核基线 SHA：`77e770fac53e072d84ec36a2a0962edf1dfb707c`。

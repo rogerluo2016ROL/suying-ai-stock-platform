@@ -877,8 +877,8 @@ async def super_signal(code: str):
         sig_score = sig["signal"]["score"]
         results["components"]["signal"] = {"score": sig_score, "weight": 0.40}
     except Exception:
-        sig_score = 50.0
-        results["components"]["signal"] = {"score": 50, "weight": 0.40, "error": "unavailable"}
+        sig_score = None
+        results["components"]["signal"] = {"score": None, "weight": 0.40, "error": "unavailable"}
 
     # 2. Diagnosis score (HTTP call)
     try:
@@ -887,11 +887,11 @@ async def super_signal(code: str):
             data=json.dumps({"code": code}).encode(),
             headers={"Content-Type": "application/json"})
         diag = json.loads(urllib.request.urlopen(req, timeout=5).read())
-        diag_score = diag.get("overall_score", 50)
+        diag_score = diag.get("overall_score")
         results["components"]["diagnosis"] = {"score": diag_score, "weight": 0.35}
     except Exception:
-        diag_score = 50.0
-        results["components"]["diagnosis"] = {"score": 50, "weight": 0.35, "error": "unavailable"}
+        diag_score = None
+        results["components"]["diagnosis"] = {"score": None, "weight": 0.35, "error": "unavailable"}
 
     # 3. Screener rank (percentile)
     try:
@@ -1155,7 +1155,7 @@ async def analyze_signal(code: str):
             "fundamental":       {"score": round(fundamental_score, 1), "weight": 0.15},
             "event_risk":        {"score": round(event_risk_score, 1), "weight": 0.13},
             "market_adapt":      {"score": round(market_adapt, 1), "weight": 0.20},
-            "rule_match":        {"score": 50, "weight": 0.00, "note": "deprecated-merged-into-event-risk"},
+            "rule_match":        {"score": None, "weight": 0.00, "note": "deprecated-merged-into-event-risk"},
         },
         "coverage": combined["coverage"],
         "unavailable_dimensions": combined["unavailable_dimensions"],
