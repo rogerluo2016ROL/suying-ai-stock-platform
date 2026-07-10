@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "026_data_readiness_snapshots"
-down_revision = "025_add_trade_risk_verdicts"
+down_revision = "025"
 branch_labels = None
 depends_on = None
 
