@@ -715,7 +715,9 @@ CREATE TABLE IF NOT EXISTS stk_factor_pro (
 CREATE TABLE IF NOT EXISTS stk_mins (
     id SERIAL PRIMARY KEY,
     code TEXT NOT NULL,
-    trade_time TIMESTAMP NOT NULL,
+    -- Existing PostgreSQL production table stores vendor timestamps as TEXT.
+    -- Keep init schema aligned; downstream normalizes before time arithmetic.
+    trade_time TEXT NOT NULL,
     open DOUBLE PRECISION,
     high DOUBLE PRECISION,
     low DOUBLE PRECISION,
