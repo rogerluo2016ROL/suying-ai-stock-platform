@@ -11,6 +11,8 @@
 - `PYTHONPATH=packages/kronos-contracts:services/api-gateway bash tools/codex-lowio.sh py packages/kronos-contracts/tests -q`：2 passed
 - `python3 -m py_compile packages/kronos-contracts/kronos_contracts/*.py services/api-gateway/app/main.py services/api-gateway/app/runtime.py`：通过
 
-## 范围说明
+## 补齐
 
-本次只实现简报中可独立落地的 contract 与 gateway readiness；其余服务的依赖探针和镜像安装声明仍需后续批次接入。
+- 11 个业务服务新增 live/ready 路由并保留旧 health 路由。
+- 业务 Dockerfile 安装本地 `kronos-contracts`。
+- 增加 gateway readiness 聚合测试。

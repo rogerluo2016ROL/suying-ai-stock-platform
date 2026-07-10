@@ -39,6 +39,13 @@ app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_OR
 app.include_router(router)
 
 
+@app.get("/api/v1/health/live")
+async def health_live_contract():
+    return {"live": True, "service": "alert-service", "version": "0.1.0"}
+
+@app.get("/api/v1/health/ready")
+async def health_ready_contract():
+    return {"live": True, "ready": True, "service": "alert-service", "version": "0.1.0", "checks": {}}
 @app.get("/api/v1/health")
 async def health():
     return {"status": "healthy", "service": "alert-service", "version": "0.1.0"}

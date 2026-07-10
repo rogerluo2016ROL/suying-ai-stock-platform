@@ -109,6 +109,13 @@ app.include_router(dashboard_router)
 app.include_router(lark_router)
 
 
+@app.get("/api/v1/health/live")
+async def health_live_contract():
+    return {"live": True, "service": "screener-service", "version": "0.1.0"}
+
+@app.get("/api/v1/health/ready")
+async def health_ready_contract():
+    return {"live": True, "ready": True, "service": "screener-service", "version": "0.1.0", "checks": {}}
 @app.get("/api/v1/health")
 async def health():
     return {
