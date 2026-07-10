@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app import main
 from app.main import app
 
 
@@ -14,3 +15,13 @@ def test_gateway_readiness_is_structured():
     body = response.json()
     assert isinstance(body["ready"], bool)
     assert isinstance(body["services"], dict)
+
+
+def test_gateway_health_ready_reflects_downstream_failure(monkeypatch):
+    async def failed_probe():
+        return {"trade": {"ready": False, "error": "timeout"}}
+    monkeypatch.setattr(main, "probe_services", failed_probe)
+    body = TestClient(app).get("/api/v1/health/ready").json()
+    assert body["live"] is True
+    assert body["ready"] is False
+    assert body["checks"]["trade"]["status"] == "unavailable"

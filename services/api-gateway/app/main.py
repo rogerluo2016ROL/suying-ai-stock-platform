@@ -132,8 +132,18 @@ async def health_live():
 
 @app.get("/api/v1/health/ready")
 async def health_ready():
+    services = await probe_services()
     checks = {"process": {"status": "ready"}}
-    return {"live": True, "ready": True, "service": "api-gateway", "checks": checks}
+    checks.update({
+        name: {
+            "status": "ready" if item.get("ready") else "unavailable",
+            "latency_ms": item.get("latency_ms"),
+            "reason": item.get("error"),
+        }
+        for name, item in services.items()
+    })
+    ready = all(item.get("ready", False) for item in services.values())
+    return {"live": True, "ready": ready, "service": "api-gateway", "checks": checks}
 
 
 def _resolve_target(full: str, query: str | bytes | None = "") -> str | None:
