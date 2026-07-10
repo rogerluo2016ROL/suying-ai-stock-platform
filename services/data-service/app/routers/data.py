@@ -170,9 +170,8 @@ async def data_schedules():
 
 @router.get("/readiness")
 async def data_readiness():
-    status = get_job_status()
-    profile = {"components": {"service_alive": True, "scheduler_running": bool(status.get("scheduler_running")), "pg_ok": bool(_check_pg_connection().get("ok"))}}
-    return evaluate(profile)
+    # readiness 与兼容 status 使用同一套组件判定，避免“未配 Tushare 仍 ready”。
+    return _build_readiness_status()
 
 
 @router.post("/sync/rt_min")

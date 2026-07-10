@@ -413,7 +413,7 @@ export interface DataStatusResponse {
     rows: number;
     min_date: string;
     max_date: string;
-    status: 'active' | 'empty' | 'error';
+    status: 'active' | 'empty' | 'pending' | 'error';
   }>;
   sync_map: Record<string, {
     mode: string;

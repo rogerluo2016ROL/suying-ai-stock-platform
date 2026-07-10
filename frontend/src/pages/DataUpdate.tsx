@@ -96,7 +96,8 @@ function normalizeDataStatus(input: Partial<DataStatusResponse> | undefined): Da
       ? value.sources.map(source => ({
           ...source,
           rows: safeNumber(source.rows, 0),
-          status: source.status || 'empty',
+          status: source.status === 'active' || source.status === 'empty' || source.status === 'pending' || source.status === 'error'
+            ? source.status : 'pending',
         }))
       : unavailableStatus.sources,
     sync_map: value.sync_map && typeof value.sync_map === 'object'
