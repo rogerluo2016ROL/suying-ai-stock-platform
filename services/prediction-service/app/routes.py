@@ -86,6 +86,20 @@ def _prediction_fallback_reason(used_baseline: bool) -> str | None:
     return "model inference unavailable; using baseline predictor"
 
 
+def _require_real_model() -> None:
+    """Fail closed in production instead of emitting a synthetic baseline path."""
+    if os.environ.get("KRONOS_ENV", "development").lower() == "production" and (
+        not getattr(_m, "_model_loaded", False) or getattr(_m, "_predictor", None) is None
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "result_status": "unavailable",
+                "fallback_reason": "model checkpoint unavailable; production prediction is blocked",
+            },
+        )
+
+
 def _with_prediction_contract(
     payload: dict,
     *,
@@ -472,6 +486,7 @@ async def predict_stock_fast(
 
     used_baseline = False
     if not getattr(_m, "_model_loaded", False) or getattr(_m, "_predictor", None) is None:
+        _require_real_model()
         used_baseline = True
         pred_df = _baseline_predict(x_df, pred_days)
     else:
@@ -555,6 +570,7 @@ async def predict_stock(
 
     used_baseline = False
     if not getattr(_m, "_model_loaded", False) or getattr(_m, "_predictor", None) is None:
+        _require_real_model()
         used_baseline = True
         pred_df = _baseline_predict(x_df, pred_days)
     else:

@@ -1,9 +1,11 @@
 import asyncio
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.modules["app.main"] = SimpleNamespace(
@@ -13,6 +15,14 @@ sys.modules["app.main"] = SimpleNamespace(
 )
 
 from app import routes
+
+
+def test_production_blocks_missing_model_checkpoint(monkeypatch):
+    monkeypatch.setenv("KRONOS_ENV", "production")
+    with pytest.raises(routes.HTTPException) as exc:
+        routes._require_real_model()
+    assert exc.value.status_code == 503
+    assert exc.value.detail["result_status"] == "unavailable"
 
 
 def test_model_metadata_exposes_checkpoint_and_inference_mode():

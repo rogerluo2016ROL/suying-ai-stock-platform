@@ -163,6 +163,7 @@ services:
     expose:
       - "8002"
     environment:
+      - KRONOS_ENV=production
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - KRONOS_DEVICE=cpu
     volumes:
