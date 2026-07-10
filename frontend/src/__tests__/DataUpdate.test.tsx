@@ -73,8 +73,16 @@ describe('DataUpdate', () => {
 
     renderDataUpdate()
 
-    expect(await screen.findByText('日线行情')).toBeInTheDocument()
-    expect(await screen.findByText(/3\/4 表正常/)).toBeInTheDocument()
+    expect(await screen.findByText('数据质量总览')).toBeInTheDocument()
+    expect(screen.queryByText('982,000')).not.toBeInTheDocument()
+  })
+
+  it('does not show demo row counts when data status fails', async () => {
+    vi.mocked(signalApi.getDataStatus).mockRejectedValueOnce(new Error('gateway unavailable'))
+    renderDataUpdate()
+    expect(await screen.findByText('数据状态不可用')).toBeInTheDocument()
+    expect(screen.queryByText('982,000')).not.toBeInTheDocument()
+    expect(screen.queryByText('2026-06-27')).not.toBeInTheDocument()
   })
 
   it('can refresh status and trigger a manual sync for a table', async () => {

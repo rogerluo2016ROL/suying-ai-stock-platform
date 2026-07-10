@@ -23,67 +23,7 @@ const tabs = [
   { key: 'schedule', path: '/data-update/schedule', label: '同步调度', subLabel: '任务计划' },
 ]
 
-const fallbackStatus: DataStatusResponse = {
-  status: 'ok',
-  total_tables: 4,
-  active_tables: 3,
-  total_rows: 982000,
-  sources: [
-    {
-      key: 'daily_kline',
-      name: '日线行情',
-      category: '行情',
-      source: 'Tushare',
-      update: '每日',
-      note: 'A股日线 OHLCV',
-      rows: 620000,
-      min_date: '2024-01-01',
-      max_date: '2026-06-27',
-      status: 'active',
-    },
-    {
-      key: 'stock_basic',
-      name: '股票基础',
-      category: '基础',
-      source: 'Tushare',
-      update: '每日',
-      note: '证券主数据',
-      rows: 5300,
-      min_date: '2020-01-01',
-      max_date: '2026-06-27',
-      status: 'active',
-    },
-    {
-      key: 'signals',
-      name: '交易信号',
-      category: '模型',
-      source: 'signal-service',
-      update: '盘中',
-      note: '信号计算结果',
-      rows: 18600,
-      min_date: '2026-05-01',
-      max_date: '2026-06-27',
-      status: 'active',
-    },
-    {
-      key: 'moneyflow',
-      name: '资金流向',
-      category: '行情',
-      source: 'Tushare',
-      update: '每日',
-      note: '等待盘后同步',
-      rows: 0,
-      min_date: '-',
-      max_date: '-',
-      status: 'empty',
-    },
-  ],
-  sync_map: {
-    daily_kline: { mode: 'post_market', days_default: 30, desc: '日线行情' },
-    stock_basic: { mode: 'daily', days_default: 1, desc: '股票基础' },
-    signals: { mode: 'intra', days_default: 3, desc: '交易信号' },
-  },
-}
+const unavailableStatus: DataStatusResponse = { status: 'unavailable', total_tables: 0, active_tables: 0, total_rows: 0, sources: [], sync_map: {}, fallback_reason: '数据状态接口不可用' }
 
 function activeTabFromPath(pathname: string) {
   if (pathname.includes('/overview')) return 'overview'
@@ -99,21 +39,21 @@ function safeNumber(value: unknown, fallback: number) {
 function normalizeDataStatus(input: Partial<DataStatusResponse> | undefined): DataStatusResponse {
   const value = input && typeof input === 'object' ? input : {}
   return {
-    ...fallbackStatus,
     ...value,
-    total_tables: safeNumber(value.total_tables, fallbackStatus.total_tables),
-    active_tables: safeNumber(value.active_tables, fallbackStatus.active_tables),
-    total_rows: safeNumber(value.total_rows, fallbackStatus.total_rows),
-    sources: Array.isArray(value.sources) && value.sources.length > 0
+    status: value.status || 'unavailable',
+    total_tables: safeNumber(value.total_tables, 0),
+    active_tables: safeNumber(value.active_tables, 0),
+    total_rows: safeNumber(value.total_rows, 0),
+    sources: Array.isArray(value.sources)
       ? value.sources.map(source => ({
           ...source,
           rows: safeNumber(source.rows, 0),
           status: source.status || 'empty',
         }))
-      : fallbackStatus.sources,
+      : [],
     sync_map: value.sync_map && typeof value.sync_map === 'object'
       ? value.sync_map
-      : fallbackStatus.sync_map,
+      : {},
   }
 }
 
@@ -127,7 +67,7 @@ export default function DataUpdate() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const active = activeTabFromPath(pathname)
-  const [status, setStatus] = useState<DataStatusResponse>(fallbackStatus)
+  const [status, setStatus] = useState<DataStatusResponse>(unavailableStatus)
   const [schedules, setSchedules] = useState<SyncSchedule[]>([])
   const [filter, setFilter] = useState('all')
   const [error, setError] = useState('')
@@ -150,9 +90,9 @@ export default function DataUpdate() {
       if (cancelled?.()) return
       const message = err instanceof Error ? err.message.toLowerCase() : ''
       if (message.includes('abort') || message.includes('cancel')) return
-      setStatus(fallbackStatus)
+      setStatus({ ...unavailableStatus, fallback_reason: '数据状态接口不可用' })
       setSchedules([])
-      setError('数据服务连接异常，当前展示最近一次可用状态。')
+      setError('数据状态不可用')
     } finally {
       if (!cancelled?.()) setLoading(false)
     }
