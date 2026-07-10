@@ -7264,6 +7264,8 @@ async def run_screening(
         if cached:
             cached["cached"] = True
             cached["elapsed"] = round(time.time() - t0, 1)
+            if not cached.get("result_status"):
+                cached["result_status"] = "success" if cached.get("picks") else "success_no_matches"
             return _with_screener_contract(cached, mode=mode, trade_date=trade_date)
     except Exception:
         pass  # cache miss or Redis unavailable → proceed normally
@@ -7322,6 +7324,8 @@ async def run_screening(
     if "picks" in result and result["picks"]:
         result["picks"] = _sanitize_picks(result["picks"])
         result["picks"] = _normalize_picks(result["picks"], mode)
+    if not result.get("result_status"):
+        result["result_status"] = "success" if result.get("picks") else "success_no_matches"
 
     # ── Auto-save snapshot (JSON file + PG) — before cache to ensure persistence ──
     _auto_save_snapshot(result, mode)
