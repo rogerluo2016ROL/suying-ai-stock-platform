@@ -36,6 +36,7 @@ import type {
   BacktestRunResponse,
   BacktestCompareResponse,
   FactorsResponse,
+  FactorEvidenceResponse,
   DiagnosisReport,
   DiagnosisCompareResponse,
   DiagnosisHistoryResponse,
@@ -1049,6 +1050,9 @@ export const tradeApi = {
 export const backtestApi = {
   getFactors: (): Promise<AxiosResponse<FactorsResponse>> =>
     api.get('/backtest/factors'),
+
+  getFactorEvidence: (modelKey: string) =>
+    api.get<FactorEvidenceResponse>('/backtest/factor-evidence', { params: { model_key: modelKey } }),
 
   run: (params: {
     mode?: string

@@ -799,6 +799,44 @@ export interface FactorsResponse {
   }>;
 }
 
+/** 基于真实未来收益观测得到的单因子指标。 */
+export interface FactorMetric {
+  factor: string;
+  label?: string;
+  ic_mean: number;
+  ic_std: number;
+  icir: number;
+  t_stat: number;
+  observations?: number;
+}
+
+/** 后端计算完成的两因子相关性单元。 */
+export interface CorrelationCell {
+  factor_x: string;
+  factor_y: string;
+  correlation: number;
+  observations?: number;
+}
+
+/** 后端回测得到的分位层收益。收益字段已是百分比数值。 */
+export interface DecileMetric {
+  decile: string;
+  description?: string;
+  cumulative_return_pct: number;
+  daily_return_pct?: number;
+  observations?: number;
+}
+
+/** 因子证据只读接口响应；非 ready 状态不携带推导指标。 */
+export interface FactorEvidenceResponse {
+  status: 'ready' | 'insufficient_data' | 'insufficient' | 'unsupported';
+  observations: number;
+  factors: FactorMetric[];
+  correlations: CorrelationCell[];
+  deciles: DecileMetric[];
+  missing_requirements?: string[];
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Diagnosis（诊断）
 // ═══════════════════════════════════════════════════════════════════════════

@@ -3,7 +3,7 @@ import { ConfigProvider, message } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { MemoryRouter } from 'react-router-dom'
 import Screener from '../pages/Screener'
-import { screenerApi, signalApi } from '../api/client'
+import { backtestApi, screenerApi, signalApi } from '../api/client'
 
 vi.mock('../api/client', () => ({
   screenerApi: {
@@ -20,6 +20,9 @@ vi.mock('../api/client', () => ({
   strategyApi: {
     createPlan: vi.fn(),
     addPicks: vi.fn(),
+  },
+  backtestApi: {
+    getFactorEvidence: vi.fn(),
   },
 }))
 
@@ -258,6 +261,28 @@ describe('Screener', () => {
     })
     expect(await screen.findByText('交易日：2026-06-29')).toBeInTheDocument()
     expect(await screen.findByText('上海贝岭')).toBeInTheDocument()
+  })
+
+  it('does not derive IC or returns from pick scores', async () => {
+    vi.mocked(screenerApi.run).mockResolvedValue({
+      data: { picks: [{ code: '600000', score: 88, factor_breakdown: { technical: 9 } }] },
+    } as never)
+    vi.mocked(backtestApi.getFactorEvidence).mockResolvedValue({
+      data: {
+        status: 'insufficient_data',
+        observations: 0,
+        factors: [],
+        correlations: [],
+        deciles: [],
+        missing_requirements: ['future_returns'],
+      },
+    } as never)
+
+    renderScreener('/screener/factors')
+
+    expect(await screen.findByText('暂无真实因子回测数据')).toBeInTheDocument()
+    expect(screen.queryByText('IC Mean')).not.toBeInTheDocument()
+    expect(screen.queryByText('多-空对冲')).not.toBeInTheDocument()
   })
 
   it('explains a zero-pick run instead of only showing an empty table', async () => {

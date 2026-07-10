@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BarChartOutlined, FundOutlined, RadarChartOutlined } from '@ant-design/icons'
 import { message } from 'antd'
-import ReactECharts from 'echarts-for-react'
-import type { EChartsOption } from 'echarts'
 import {
   DataDomainBadge,
   DataFreshnessBar,
@@ -15,9 +13,11 @@ import {
   RiskBanner,
   SideRail,
 } from '../components/prototype'
-import { screenerApi, signalApi } from '../api/client'
+import { backtestApi, screenerApi, signalApi } from '../api/client'
 import type { ScreenerPick, ScreenerRunResponse } from '../api/types'
-import { lightTokens, alpha, signalLevelTokens } from '../styles/tokens'
+import { lightTokens, signalLevelTokens } from '../styles/tokens'
+import { FactorEvidencePanel } from './screener/FactorEvidencePanel'
+import { toFactorEvidenceView, type FactorEvidenceView } from './screener/factorEvidence'
 
 const tabs = [
   { key: 'workbench', path: '/screener', label: '选股工作台', subLabel: '策略入口' },
@@ -410,194 +410,6 @@ function indicatorToneColor(tone: ScoreIndicator['tone']) {
   return lightTokens.accent
 }
 
-// ===== 3.3 factor-analysis：IC 柱图 / 相关性热力图 ECharts option（全 token 化）=====
-type FactorStat = { key: string; label: string; ic: number; icStd: number; icir: number; tStat: number }
-
-// 从 picks 的 factor_breakdown 派生因子 IC 统计（无独立后端 IC 接口时用样例均值；preview 对齐）
-const FACTOR_LABEL_MAP: Record<string, string> = {
-  technical: '技术面',
-  fundamental: '基本面',
-  money_flow: '资金面',
-  sentiment: '情绪',
-  startup_quality: '启动质量',
-  ignition_power: '点火强度',
-  hard_tech_conviction: '硬科技',
-}
-
-function deriveFactorStats(picks: ScreenerPick[]): FactorStat[] {
-  if (picks.length === 0) return []
-  const buckets: Record<string, number[]> = {}
-  picks.forEach(pick => {
-    if (!pick.factor_breakdown) return
-    Object.entries(pick.factor_breakdown).forEach(([key, raw]) => {
-      const value = finiteNumber(raw)
-      if (value === null) return
-      ;(buckets[key] ||= []).push(value)
-    })
-  })
-  return Object.entries(buckets)
-    .map(([key, values]) => {
-      const n = values.length
-      const mean = values.reduce((s, v) => s + v, 0) / n
-      const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / Math.max(1, n - 1)
-      const std = Math.sqrt(variance)
-      const icir = std === 0 ? 0 : mean / std
-      const tStat = std === 0 ? 0 : (mean / std) * Math.sqrt(n)
-      return { key, label: FACTOR_LABEL_MAP[key] || key, ic: mean, icStd: std, icir, tStat }
-    })
-    .sort((a, b) => Math.abs(b.icir) - Math.abs(a.icir))
-}
-
-function buildIcBarOption(stats: FactorStat[]): EChartsOption {
-  const sorted = [...stats].sort((a, b) => Math.abs(b.ic) - Math.abs(a.ic))
-  return {
-    grid: { left: 110, right: 60, top: 12, bottom: 24 },
-    xAxis: {
-      type: 'value',
-      name: 'IC Mean',
-      nameTextStyle: { color: lightTokens.muted, fontSize: 10 },
-      axisLabel: { fontSize: 10, color: lightTokens.muted },
-      splitLine: { lineStyle: { color: lightTokens.border } },
-    },
-    yAxis: {
-      type: 'category',
-      data: sorted.map(s => s.label),
-      axisLabel: { fontSize: 11, color: lightTokens.fg2 },
-      axisLine: { lineStyle: { color: lightTokens.border } },
-      inverse: true,
-    },
-    tooltip: {
-      trigger: 'axis',
-      formatter: params => {
-        const p = Array.isArray(params) ? params[0] : params
-        const v = Number((p as { value: number }).value)
-        const name = (p as { name: string }).name
-        return `${name}<br/>IC Mean: ${v >= 0 ? '+' : ''}${v.toFixed(4)}`
-      },
-    },
-    series: [
-      {
-        type: 'bar',
-        barWidth: '60%',
-        data: sorted.map(s => ({
-          value: s.ic,
-          itemStyle: { color: s.ic >= 0 ? lightTokens.up : lightTokens.down },
-        })),
-        label: {
-          show: true,
-          position: 'right',
-          formatter: p => {
-            const v = Number((p as { value: number }).value)
-            return v >= 0 ? `+${v.toFixed(3)}` : v.toFixed(3)
-          },
-          fontSize: 10,
-          color: lightTokens.fg2,
-        },
-        emphasis: { itemStyle: { color: lightTokens.accent } },
-      },
-    ],
-  }
-}
-
-function buildHeatmapOption(stats: FactorStat[]): EChartsOption {
-  const factors = stats.map(s => s.label).slice(0, 8)
-  const n = factors.length
-  if (n === 0) return {}
-  // 简化相关性矩阵：对角线 1，其余用 IC 符号同向性近似（|ICIR| 接近 → 相关性高）
-  const data: [number, number, number][] = []
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      if (i === j) data.push([j, i, 1])
-      else {
-        const a = stats[i]
-        const b = stats[j]
-        const signAlign = Math.sign(a.ic) === Math.sign(b.ic) ? 1 : -1
-        const corr = signAlign * (0.3 + Math.min(0.5, Math.abs(a.icir - b.icir) * 0.2 === 0 ? 0.4 : 0.4 - Math.abs(a.icir - b.icir) * 0.2))
-        data.push([j, i, Number(Math.max(-1, Math.min(1, corr)).toFixed(2))])
-      }
-    }
-  }
-  return {
-    grid: { left: 90, right: 30, top: 8, bottom: 90 },
-    xAxis: {
-      type: 'category',
-      data: factors,
-      position: 'top',
-      axisLabel: { fontSize: 10, color: lightTokens.fg2, rotate: 45, interval: 0 },
-      splitArea: { show: false },
-    },
-    yAxis: {
-      type: 'category',
-      data: factors,
-      inverse: true,
-      axisLabel: { fontSize: 10, color: lightTokens.fg2 },
-      splitArea: { show: false },
-    },
-    visualMap: {
-      min: -1,
-      max: 1,
-      calculable: false,
-      orient: 'horizontal',
-      left: 'center',
-      bottom: 5,
-      itemWidth: 12,
-      itemHeight: 120,
-      inRange: { color: [lightTokens.down, lightTokens.surface2, lightTokens.up] },
-      textStyle: { color: lightTokens.muted, fontSize: 10 },
-    },
-    tooltip: {
-      formatter: p => {
-        const value = (p as unknown as { value: [number, number, number] }).value
-        const [x, y, v] = value ?? [0, 0, 0]
-        return `${factors[x]} × ${factors[y]}<br/>相关性: ${v.toFixed(3)}`
-      },
-    },
-    series: [
-      {
-        type: 'heatmap',
-        data,
-        label: {
-          show: true,
-          fontSize: 10,
-          color: lightTokens.fg,
-          formatter: p => String((p.value as [number, number, number])[2].toFixed(1)),
-        },
-        emphasis: { itemStyle: { shadowBlur: 8, shadowColor: alpha.accent(0.5) } },
-      },
-    ],
-  }
-}
-
-// 十分位收益分层（preview D1..D10 + 多空对冲）——按 factor_breakdown 主因子分位派生
-type DecileRow = { tier: string; note: string; cum: number; daily: number }
-
-function buildDecileRows(picks: ScreenerPick[]): DecileRow[] {
-  // 用 score 模拟分层收益（高评分 → 高累计收益），保持 preview 单调下降结构
-  const sorted = [...picks].sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0))
-  const buckets = 10
-  const per = Math.max(1, Math.ceil(sorted.length / buckets))
-  const rows: DecileRow[] = []
-  for (let i = 0; i < buckets; i++) {
-    const slice = sorted.slice(i * per, (i + 1) * per)
-    if (slice.length === 0) continue
-    const avg = slice.reduce((s, p) => s + Number(p.score ?? 0), 0) / slice.length
-    const cum = ((avg - 60) / 60) * 11 // 映射到 -3.2%..+7.8% 量级
-    const daily = cum / 25
-    const tier = `D${buckets - i}`
-    rows.push({
-      tier,
-      note: i === 0 ? '最高评分' : i === buckets - 1 ? '最低评分' : '',
-      cum: Number(cum.toFixed(1)),
-      daily: Number(daily.toFixed(2)),
-    })
-  }
-  if (rows.length >= 2) {
-    const spread = rows[0].cum - rows[rows.length - 1].cum
-    rows.push({ tier: '多-空对冲', note: '', cum: Number(spread.toFixed(1)), daily: 0 })
-  }
-  return rows
-}
-
 // 行业因子暴露（按 industry 聚合 score 偏离）
 type IndustryRow = { industry: string; avg: number; level: 'high' | 'mid' | 'low'; count: number }
 
@@ -645,6 +457,8 @@ export default function Screener() {
   const [modelComparePicks, setModelComparePicks] = useState<ScreenerPick[]>([])
   const [modelCompareLoading, setModelCompareLoading] = useState(false)
   const [modelCompareMessage, setModelCompareMessage] = useState('等待模型对比运行')
+  const [factorEvidenceView, setFactorEvidenceView] = useState<FactorEvidenceView | null>(null)
+  const [factorEvidenceLoading, setFactorEvidenceLoading] = useState(false)
   const [recordingPool, setRecordingPool] = useState(false)
   const [watchingCode, setWatchingCode] = useState('')
   const [selectedConsensusCode, setSelectedConsensusCode] = useState('')
@@ -684,21 +498,9 @@ export default function Screener() {
     return result
   }, [selectedConsensus, modelComparePicks])
 
-  // ===== 3.3 factor-analysis 派生：IC/ICIR/热力图/分层/行业（从候选池 factor_breakdown 派生）=====
-  // factors tab 复用 modelComparePicks（模型对比已运行）；为空时回退到工作台 picks
+  // 行业暴露保留现有候选池聚合；IC、相关性与分层收益只读取后端证据。
   const factorPicks = active === 'factors' ? (modelComparePicks.length > 0 ? modelComparePicks : picks) : []
-  const factorStats = useMemo(() => deriveFactorStats(factorPicks), [factorPicks])
-  const decileRows = useMemo(() => buildDecileRows(factorPicks), [factorPicks])
   const industryRows = useMemo(() => buildIndustryRows(factorPicks), [factorPicks])
-  const selectedFactorLabel = factorStats[0]?.label || ''
-
-  // 当 factors tab 无模型对比数据时，自动触发一次模型对比以累积因子分解
-  useEffect(() => {
-    if (active !== 'factors') return
-    if (modelComparePicks.length === 0 && picks.length === 0 && !modelCompareLoading) {
-      // 触发模型对比 useEffect（依赖 latestDates，已存在）；此处仅标记 intent，不重复请求
-    }
-  }, [active, modelComparePicks.length, picks.length, modelCompareLoading])
 
   const addConsensusToPool = (row: ConsensusRow) => {
     // 把选中星级最高的标的加入候选池（复用既有 recordCandidatePool 路径）
@@ -780,7 +582,32 @@ export default function Screener() {
     setFreshnessSource(latestTradeDate === tradeDate ? syncPlan.tableKey : '默认当天')
   }, [latestDates, selectedMode, tradeDate])
 
-  // models 与 factors tab 都需要模型对比 picks（factors 用其 factor_breakdown 派生 IC/ICIR），
+  useEffect(() => {
+    if (active !== 'factors') return
+
+    let cancelled = false
+    setFactorEvidenceLoading(true)
+    setFactorEvidenceView(null)
+
+    backtestApi.getFactorEvidence(selectedMode)
+      .then(response => {
+        if (!cancelled) setFactorEvidenceView(toFactorEvidenceView(response.data))
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFactorEvidenceView({ kind: 'unsupported', reasons: ['factor_evidence_request_failed'] })
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFactorEvidenceLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [active, selectedMode])
+
+  // models 与 factors tab 都需要模型对比 picks（factors 仅用于现有行业暴露），
   // 故在两个 tab 都触发；workbench 不触发（工作台有自己的 runScreener 路径）。
   useEffect(() => {
     if (active !== 'models' && active !== 'factors') return
@@ -1450,104 +1277,17 @@ export default function Screener() {
 
       {active === 'factors' && (
         <>
-          {/* 使用引导条 */}
           <div className="guide-bar">
-            <span className="guide-lead neu">怎么用:</span>
-            <span>1. 看IC柱状图找有效因子(ICIR&gt;1.0)</span>
-            <span className="arrow muted">→</span>
-            <span>2. 看热力图去冗余(相关性&gt;0.7合并)</span>
-            <span className="arrow muted">→</span>
-            <span>3. 看分层验证区分度(多空spread&gt;5%)</span>
-            <span className="arrow muted">→</span>
-            <span>4. 看行业暴露避集中</span>
+            <span className="guide-lead neu">证据原则:</span>
+            <span>仅展示回测服务返回的真实观测</span>
+            <span className="arrow muted">·</span>
+            <span>观测不足或接口不支持时不生成指标</span>
           </div>
 
-          {/* Row 1: IC 柱图 + IC/ICIR 统计 */}
-          <div className="row r-7-5">
-            <PrototypeCard title="因子 IC 分析" icon={<BarChartOutlined />} meta="T+1 未来收益 · 近30天">
-              {factorStats.length > 0 ? (
-                <ReactECharts option={buildIcBarOption(factorStats)} style={{ height: 340 }} opts={{ renderer: 'svg' }} />
-              ) : (
-                <div className="prototype-fallback">暂无因子 IC 数据，请先在工作台运行选股模型以累积因子分解。</div>
-              )}
-            </PrototypeCard>
-            <PrototypeCard title="IC / ICIR 统计" icon={<FundOutlined />} meta="按 |ICIR| 降序">
-              {factorStats.length > 0 ? (
-                <div className="tbl-scroll">
-                  <table className="tbl compact">
-                    <thead>
-                      <tr>
-                        <th>因子</th>
-                        <th className="r">IC 均值</th>
-                        <th className="r">IC 标准差</th>
-                        <th className="r">ICIR</th>
-                        <th className="r">t-stat</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {factorStats.map(stat => (
-                        <tr key={stat.key}>
-                          <td className="nm">{stat.label}</td>
-                          <td className={`r mono ${stat.ic >= 0 ? 'up' : 'down'}`}>{stat.ic >= 0 ? '+' : ''}{stat.ic.toFixed(3)}</td>
-                          <td className="r mono">{stat.icStd.toFixed(2)}</td>
-                          <td className="r mono neu">{stat.icir.toFixed(3)}</td>
-                          <td className={`r mono ${stat.tStat >= 2 ? 'up' : stat.tStat <= -2 ? 'down' : ''}`}>{stat.tStat.toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="prototype-fallback">后端未返回因子统计，ICIR 与 t-stat 需累积多日数据。</div>
-              )}
-            </PrototypeCard>
-          </div>
-
-          {/* Row 2: 相关性热力图 + 分层收益 */}
-          <div className="row r-7-5">
-            <PrototypeCard title="因子相关性矩阵" icon={<RadarChartOutlined />} meta={`${Math.min(factorStats.length, 8)}×${Math.min(factorStats.length, 8)} 核心因子`}>
-              {factorStats.length >= 2 ? (
-                <ReactECharts option={buildHeatmapOption(factorStats)} style={{ height: 360 }} opts={{ renderer: 'svg' }} />
-              ) : (
-                <div className="prototype-fallback">至少需要 2 个因子才能生成相关性矩阵。</div>
-              )}
-            </PrototypeCard>
-            <PrototypeCard title="因子收益率分层" icon={<FundOutlined />} meta={selectedFactorLabel ? `选中因子: ${selectedFactorLabel}` : '按评分十分位'}>
-              {decileRows.length > 0 ? (
-                <div className="tbl-scroll">
-                  <table className="tbl compact">
-                    <thead>
-                      <tr>
-                        <th>分层</th>
-                        <th>说明</th>
-                        <th className="r">累计收益</th>
-                        <th className="r">日均收益</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {decileRows.map((row, idx) => (
-                        <tr key={idx} className={row.tier === '多-空对冲' ? 'picked' : undefined}>
-                          <td className="nm">{row.tier}</td>
-                          <td>{row.note}</td>
-                          <td className={`r mono ${row.cum >= 0 ? 'up' : 'down'} ${row.tier === '多-空对冲' ? 'neu strong' : ''}`}>
-                            {row.cum >= 0 ? '+' : ''}{row.cum.toFixed(1)}%
-                          </td>
-                          <td className={`r mono ${row.daily >= 0 ? 'up' : 'down'}`}>
-                            {row.daily === 0 ? '—' : `${row.daily >= 0 ? '+' : ''}${row.daily.toFixed(2)}%`}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="prototype-fallback">候选股不足，无法生成分层收益。</div>
-              )}
-            </PrototypeCard>
-          </div>
+          <FactorEvidencePanel loading={factorEvidenceLoading} view={factorEvidenceView} />
 
           {/* Row 3: 行业因子暴露 */}
-          <PrototypeCard title="行业因子暴露" icon={<RadarChartOutlined />} meta={selectedFactorLabel ? `${selectedFactorLabel} · 近30天均值` : '按行业聚合'}>
+          <PrototypeCard title="行业因子暴露" icon={<RadarChartOutlined />} meta="按行业聚合">
             {industryRows.length > 0 ? (
               <div className="tbl-scroll">
                 <table className="tbl">
@@ -1579,9 +1319,9 @@ export default function Screener() {
           <div className="footer-bar">
             <span>智能选股 · 因子分析 | 盘后 15:42</span>
             <span className="sep" />
-            <span>数据来源: screener-service /screener/run · factor_breakdown</span>
+            <span>回测证据: backtest-service /backtest/factor-evidence</span>
             <span className="sep" />
-            <span>ICIR = IC均值/IC标准差 | |t-stat| ≥ 2 视为显著</span>
+            <span>候选分数不参与 IC、相关性或分层收益计算</span>
           </div>
         </>
       )}
