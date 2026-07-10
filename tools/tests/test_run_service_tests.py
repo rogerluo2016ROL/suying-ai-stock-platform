@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from run_service_tests import CORE_TARGETS, run_service
+from run_service_tests import CORE_TARGETS, python_executable, run_service
 
 
 def test_each_service_uses_own_cwd_and_process(monkeypatch):
@@ -19,7 +19,7 @@ def test_each_service_uses_own_cwd_and_process(monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert run_service("trade-service", ["-q"]) == 0
     assert calls[0][1].endswith("services/trade-service")
-    assert calls[0][0][:3] == [sys.executable, "-m", "pytest"]
+    assert calls[0][0][:3] == [python_executable(), "-m", "pytest"]
     assert calls[0][2]["PYTHONPATH"].split(os.pathsep)[0].endswith("services/trade-service")
 
 

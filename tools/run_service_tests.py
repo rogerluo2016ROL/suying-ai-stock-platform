@@ -16,6 +16,15 @@ CORE_TARGETS = [
 ]
 
 
+def python_executable() -> str:
+    """Prefer the repository's shared virtualenv when running from a worktree."""
+    configured = os.environ.get("KRONOS_TEST_PYTHON")
+    if configured:
+        return configured
+    candidates = [ROOT / ".venv" / "bin" / "python", ROOT.parent.parent / ".venv" / "bin" / "python"]
+    return str(next((path for path in candidates if path.is_file()), Path(sys.executable)))
+
+
 def run_service(service: str, extra_args: list[str]) -> int:
     if service not in CORE_TARGETS:
         raise ValueError(f"Unknown service: {service}")
@@ -32,7 +41,7 @@ def run_service(service: str, extra_args: list[str]) -> int:
     ]
     env["PYTHONPATH"] = os.pathsep.join(str(path) for path in package_paths)
     result = subprocess.run(
-        [sys.executable, "-m", "pytest", "tests", *extra_args],
+        [python_executable(), "-m", "pytest", "tests", *extra_args],
         cwd=str(service_dir),
         env=env,
         check=False,

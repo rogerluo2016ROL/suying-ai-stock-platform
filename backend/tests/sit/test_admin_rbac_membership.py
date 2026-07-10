@@ -156,7 +156,7 @@ async def test_admin_can_update_user_authorization_and_membership(client, seeded
                 "status": "active",
                 "plan": "pro",
                 "starts_at": "2026-06-01T00:00:00+08:00",
-                "ends_at": "2026-07-01T23:59:59+08:00",
+                    "ends_at": "2026-08-01T23:59:59+08:00",
                 "note": "SIT membership update",
             },
         },
