@@ -57,6 +57,7 @@ import type {
   WorkbenchPageEnvelope,
 } from './types'
 import type { PlatformSession } from '../types/platform'
+import { configureApiContext } from './core/context'
 
 // ── 保留部分内联类型（与 types.ts 兼容） ──
 /** A screener pick passed to strategy generation / plan picks. */
@@ -219,20 +220,24 @@ export function injectAuth(
   _getAccessToken = getToken
   _onRefreshToken = refreshToken
   _onForceLogout = forceLogout
+  configureApiContext({ getToken })
 }
 
 export function clearAuth() {
   _getAccessToken = null
   _onRefreshToken = null
   _onForceLogout = null
+  configureApiContext({ getToken: undefined })
 }
 
 export function injectPlatformContext(getSession: () => PlatformSession | null) {
   _getPlatformSession = getSession
+  configureApiContext({ getSession })
 }
 
 export function clearPlatformContext() {
   _getPlatformSession = null
+  configureApiContext({ getSession: undefined })
 }
 
 // ── Request interceptor: attach Authorization + platform boundary headers ──
@@ -1385,5 +1390,13 @@ export type {
   FilterSummary,
   ResonanceSummary,
 } from './types'
+
+// Domain-oriented entry points. Existing named APIs above remain compatible
+// while new code can migrate one domain at a time without a flag day.
+export { dataDomainApi } from './domains/data'
+export { screenerDomainApi } from './domains/screener'
+export { modelsDomainApi } from './domains/models'
+export { strategyDomainApi } from './domains/strategy'
+export { tradeDomainApi } from './domains/trade'
 
 export default api
