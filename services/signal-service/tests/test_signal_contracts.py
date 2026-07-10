@@ -80,11 +80,16 @@ def test_dashboard_row_change_pct_accepts_pg_adapter_alias():
 
 def test_legacy_dashboard_and_data_routes_are_explicitly_deprecated():
     from app.main import app
+    from fastapi.testclient import TestClient
     paths = {route.path for route in app.routes}
     assert "/api/v1/dashboard/summary" in paths
     assert "/api/v1/data/status" in paths
     assert app.state.deprecated_route_prefixes["/api/v1/dashboard"] == "screener-service"
     assert app.state.deprecated_route_prefixes["/api/v1/data"] == "data-service"
+    response = TestClient(app).get("/api/v1/data/status")
+    assert response.headers["Deprecation"] == "true"
+    assert response.headers["X-Deprecated-Route"] == "true"
+    assert response.headers["X-Route-Owner"] == "data-service"
 
 
 def test_dashboard_alert_sql_computes_missing_change_pct_from_previous_close():
