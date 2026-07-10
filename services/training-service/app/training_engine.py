@@ -748,6 +748,8 @@ async def run_training(
     Returns:
         job_id: UUID for tracking
     """
+    if os.environ.get("KRONOS_ENV", "development").lower() in {"production", "official"}:
+        raise RuntimeError("DATA_NOT_READY: training readiness snapshot is required before execution")
     # Check for conflicts
     active = await check_active_job(params.model_type.value)
     if active:

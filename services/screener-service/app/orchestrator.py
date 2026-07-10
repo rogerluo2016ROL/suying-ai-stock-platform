@@ -83,6 +83,11 @@ def _get_engine(mode: str):
 
 async def run_screening(mode: str, top_n: int = 30, trade_date: str = None) -> dict:
     """Execute stock screening via the specified mode engine."""
+    try:
+        from .data_readiness_client import require_ready
+        require_ready("daily_screening_v1", trade_date)
+    except Exception as exc:
+        return {"error": "DATA_NOT_READY", "message": str(exc), "mode": mode}
     engine_cls = _get_engine(mode)
     if not engine_cls:
         return {"error": f"Unknown mode: {mode}", "available": list(_ENGINES.keys())}
