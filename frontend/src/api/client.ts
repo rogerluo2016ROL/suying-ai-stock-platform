@@ -246,9 +246,6 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (platformSession?.tenantId) {
     config.headers['X-Tenant-Id'] = platformSession.tenantId
   }
-  if (platformSession?.ownerUserId) {
-    config.headers['X-Owner-User-Id'] = platformSession.ownerUserId
-  }
   if (platformSession?.accountId) {
     config.headers['X-Trade-Account-Id'] = platformSession.accountId
   }
@@ -693,7 +690,7 @@ export const screenerApi = {
   extractSupplyChainFacts: (text: string, source: Record<string, unknown> = {}, persist = false): Promise<AxiosResponse<unknown>> =>
     api.post('/screener/supply-chain/extract', { text, source, persist }),
 
-  // 候选池（account-scoped 私有对象）：scope 由 client 拦截器注入 X-Tenant-Id / X-Owner-User-Id /
+  // 候选池（account-scoped 私有对象）：scope 由 client 拦截器注入 X-Tenant-Id
   // X-Trade-Account-Id 头，前端不传明文 tenant/owner/account。打通「选股→加候选池→决策」主链路咽喉（M0）。
   recordCandidatePool: (payload: CandidatePoolRecordRequest): Promise<AxiosResponse<CandidatePoolRecordResponse>> =>
     api.post('/screener/candidate-pool', payload),
