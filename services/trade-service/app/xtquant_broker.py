@@ -123,8 +123,7 @@ class XtquantBroker(BrokerInterface):
                     "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub（防止虚假成交）。"
                     "请先调用 connect() 连接券商。"
                 )
-            # TODO: wire to xtquant.xttrader.order_stock(...)
-            logger.info("xtquant place_order not yet wired — falling back to stub")
+            raise RuntimeError("XtquantBroker: live order path is not wired; refusing stub execution")
         return self._place_order_stub(order)
 
     async def cancel_order(self, order_id: str) -> CancelResult:
@@ -134,8 +133,7 @@ class XtquantBroker(BrokerInterface):
                     "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
                     "请先调用 connect() 连接券商。"
                 )
-            # TODO: wire to xtquant.xttrader.cancel_order_stock(...)
-            logger.info("xtquant cancel_order not yet wired — falling back to stub")
+            raise RuntimeError("XtquantBroker: live cancel path is not wired; refusing stub execution")
         return self._cancel_order_stub(order_id)
 
     async def get_positions(self) -> list[Position]:
@@ -145,8 +143,7 @@ class XtquantBroker(BrokerInterface):
                     "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
                     "请先调用 connect() 连接券商。"
                 )
-            # TODO: wire to xtquant.xttrader.query_stock_positions(...)
-            logger.info("xtquant query_positions not yet wired — falling back to stub")
+            raise RuntimeError("XtquantBroker: live positions path is not wired; refusing stub execution")
         return list(self._stub_positions.values())
 
     async def get_account(self) -> AccountInfo:
@@ -156,8 +153,7 @@ class XtquantBroker(BrokerInterface):
                     "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
                     "请先调用 connect() 连接券商。"
                 )
-            # TODO: wire to xtquant.xttrader.query_stock_asset(...)
-            logger.info("xtquant query_account not yet wired — falling back to stub")
+            raise RuntimeError("XtquantBroker: live account path is not wired; refusing stub execution")
         return self._stub_account
 
     async def sync(self) -> SyncResult:

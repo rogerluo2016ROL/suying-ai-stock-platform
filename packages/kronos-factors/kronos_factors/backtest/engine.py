@@ -612,30 +612,30 @@ def run_historical_backtest(
                 if _batch_count % 20 == 0:
                     print(f"  [seed={seed}] {_batch_count}/{len(available)} batches...")
 
-        return _model_ics, _model_hits, _decay_ics, _batch_count
+            return _model_ics, _model_hits, _decay_ics, _batch_count
 
-        # M16: multi-seed averaging. Run the sampling pass n_seeds times with
-        # distinct seeds, pool every batch IC across seeds for the headline
-        # mean/std, and also report the cross-seed std-of-means so a lucky
-        # single-seed draw cannot masoch the IC.
-        model_ics = defaultdict(list)
-        model_hits = defaultdict(list)
-        decay_ics = defaultdict(lambda: defaultdict(list))
-        batch_count = 0
-        seed_mean_ics: dict[str, list[float]] = defaultdict(list)
+    # M16: multi-seed averaging. Run the sampling pass n_seeds times with
+    # distinct seeds, pool every batch IC across seeds for the headline
+    # mean/std, and also report the cross-seed std-of-means so a lucky
+    # single-seed draw cannot masoch the IC.
+    model_ics = defaultdict(list)
+    model_hits = defaultdict(list)
+    decay_ics = defaultdict(lambda: defaultdict(list))
+    batch_count = 0
+    seed_mean_ics: dict[str, list[float]] = defaultdict(list)
 
-        for seed in range(n_seeds):
-            s_ics, s_hits, s_decay, s_n = _run_one_seed(seed)
-            for name, lst in s_ics.items():
-                model_ics[name].extend(lst)
-                if lst:
-                    seed_mean_ics[name].append(float(np.mean(lst)))
-            for name, lst in s_hits.items():
-                model_hits[name].extend(lst)
-            for name, hmap in s_decay.items():
-                for h, lst in hmap.items():
-                    decay_ics[name][h].extend(lst)
-            batch_count += s_n
+    for seed in range(n_seeds):
+        s_ics, s_hits, s_decay, s_n = _run_one_seed(seed)
+        for name, lst in s_ics.items():
+            model_ics[name].extend(lst)
+            if lst:
+                seed_mean_ics[name].append(float(np.mean(lst)))
+        for name, lst in s_hits.items():
+            model_hits[name].extend(lst)
+        for name, hmap in s_decay.items():
+            for h, lst in hmap.items():
+                decay_ics[name][h].extend(lst)
+        batch_count += s_n
 
     # Aggregate
     results = {}
