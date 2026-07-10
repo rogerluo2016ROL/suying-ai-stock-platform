@@ -14,6 +14,7 @@ from urllib.error import URLError, HTTPError
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
+from app.service_registry import sanitize_client_headers
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","), allow_methods=["*"], allow_headers=["*"])
@@ -259,7 +260,7 @@ async def gateway(request: Request, path: str):
         return JSONResponse({"detail": f"Not Found: {full}"}, 404)
 
     body = await request.body()
-    headers = {k: v for k, v in request.headers.items() if k.lower() not in ("host",)}
+    headers = sanitize_client_headers({k: v for k, v in request.headers.items() if k.lower() not in ("host",)})
 
     loop = asyncio.get_running_loop()
 
