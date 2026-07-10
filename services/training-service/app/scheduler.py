@@ -210,6 +210,9 @@ async def _scheduled_calibration():
             min_samples=30,
             apply=True,
         )
+        if result.get("status") != "ready":
+            logger.warning("Scheduled calibration skipped apply: %s", result.get("status"))
+            return
         logger.info("Scheduled calibration complete: %s", result.get("summary", ""))
     except Exception as e:
         logger.error("Scheduled calibration failed: %s", e)

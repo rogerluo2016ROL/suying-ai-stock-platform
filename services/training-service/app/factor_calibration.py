@@ -56,6 +56,11 @@ DEFAULT_WEIGHTS: Dict[str, float] = {
     "por": 2.0,
 }
 
+class InsufficientEvidence(RuntimeError):
+    def __init__(self, missing: list[str]):
+        self.missing = missing
+        super().__init__("insufficient observed evidence")
+
 
 async def compute_ic_from_db(
     window_days: int = 90,
@@ -183,38 +188,12 @@ async def _compute_ic_fallback(window_days: int, min_samples: int) -> Dict[str, 
         window_start = row[0]
         window_end = row[1]
 
-    # Simplified IC computation using random sampling
-    np.random.seed(42)
-    factors = []
-    for key, name in FACTOR_DEFS:
-        # Generate plausible IC/ICIR values for dev/testing
-        ic_mean = float(np.random.normal(0.03, 0.02))
-        ic_std = float(np.abs(np.random.normal(0.05, 0.02)))
-        icir = ic_mean / ic_std if ic_std > 0 else 0.0
-
-        old_w = DEFAULT_WEIGHTS.get(key, 2.5)
-        new_w = abs(icir) * 0.08
-        if ic_mean < 0:
-            new_w = -new_w
-
-        direction = "long" if ic_mean > 0 else "short"
-        significance = "significant" if abs(icir) > 1.5 else ("marginal" if abs(icir) > 0.5 else "none")
-
-        factors.append({
-            "factor_name": key,
-            "factor_label": name,
-            "ic": round(ic_mean, 4),
-            "icir": round(icir, 4),
-            "old_weight": old_w,
-            "new_weight": new_w,
-            "direction": direction,
-            "significance": significance,
-        })
-
     return {
-        "factors": factors,
+        "factors": [],
         "window_start": str(window_start),
         "window_end": str(window_end),
+        "status": "insufficient_data",
+        "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"],
     }
 
 
@@ -246,6 +225,11 @@ async def run_calibration(
     # Compute IC/ICIR
     ic_data = await compute_ic_from_db(window_days, min_samples)
     factors_raw = ic_data["factors"]
+    if not factors_raw:
+        return {"status": "insufficient_data", "factors": [],
+                "window_start": ic_data.get("window_start"), "window_end": ic_data.get("window_end"),
+                "missing_requirements": ic_data.get("missing_requirements", ["observed_factor_snapshots", "future_adjusted_returns"]),
+                "summary": "缺少真实观测证据，未生成或写入权重。"}
 
     # Filter by mode
     if mode == "short":

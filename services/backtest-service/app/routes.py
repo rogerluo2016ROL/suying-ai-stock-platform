@@ -76,6 +76,7 @@ async def run_backtest(
     2. 计算 forward_days 后的实际收益
     3. 汇总 IC/ICIR / 命中率 / 超额收益
     """
+    raise HTTPException(status_code=409, detail={"code": "MODEL_BACKTEST_NOT_IMPLEMENTED", "message": "真实因子快照与复权未来收益适配器尚未完成"})
     try:
         conn = _get_pg()
         cur = conn.cursor()
@@ -117,7 +118,7 @@ async def run_backtest(
                 HAVING COUNT(*) >= 10
                 ORDER BY avg_gain DESC
                 LIMIT %s
-            """, (sd, ed, top_n))
+                """, (sd, ed, top_n))
             picks = cur.fetchall()
 
             if len(picks) < 5:
@@ -231,7 +232,12 @@ async def run_backtest(
 @router.post("/calibrate")
 async def calibrate_weights(mode: str = Query("all")):
     """基于近期 IC 校准因子权重."""
-    try:
+    raise HTTPException(status_code=409, detail={"code": "MODEL_CALIBRATION_NOT_IMPLEMENTED", "message": "缺少真实观测证据，未写入 factor_weights"})
+@router.get("/factor-evidence")
+async def factor_evidence(model_key: str = Query(...)):
+    return {"status": "unsupported", "observations": 0, "factors": [], "correlations": [], "deciles": [],
+            "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"]}
+'''
         conn = _get_pg()
         cur = conn.cursor()
 
@@ -288,6 +294,7 @@ async def calibrate_weights(mode: str = Query("all")):
         raise HTTPException(500, str(e))
 
 
+'''
 @router.post("/compare")
 async def compare_strategies(
     strategy_ids: list[str] = Query(default=["momentum", "quality"]),
