@@ -19,3 +19,4 @@ def test_reconcile_migration_does_not_add_a_second_primary_key():
         / "030_reconcile_limit_and_ths_concept_schema.py"
     ).read_text(encoding="utf-8")
     assert "contype = 'p'" in source
+    assert "DROP INDEX IF EXISTS idx_ths_concept_map_code" in source

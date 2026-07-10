@@ -29,6 +29,10 @@ def upgrade():
         """
     )
     op.execute("ALTER TABLE IF EXISTS ths_concept_map RENAME TO ths_concept_catalog_legacy")
+    # PostgreSQL keeps index names when the legacy table is renamed.  Release
+    # those names before creating the replacement table's contract indexes.
+    op.execute("DROP INDEX IF EXISTS idx_ths_concept_map_code")
+    op.execute("DROP INDEX IF EXISTS idx_ths_concept_map_concept")
     op.create_table("ths_concept_map", sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("ts_code", sa.Text(), nullable=False), sa.Column("concept_name", sa.Text(), nullable=False),
         sa.Column("concept_code", sa.Text(), nullable=False),
