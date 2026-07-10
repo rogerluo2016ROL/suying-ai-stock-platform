@@ -1,4 +1,5 @@
 import os
+import json
 """API Gateway — reverse proxy with rate limiting (urllib async wrapper).
 
 Per CLAUDE.md: microservice HTTP calls use urllib async wrapper
@@ -102,6 +103,37 @@ _SERVICE_HEALTH_ALIASES = {
     f"{prefix}/health": (base, "/api/health" if prefix in ("/api/v1/auth", "/api/v1/admin") else "/api/v1/health")
     for prefix, base in SERVICES.items()
 }
+
+async def probe_services() -> dict[str, dict]:
+    """Probe service health endpoints; individual failures never abort summary."""
+    loop = asyncio.get_running_loop()
+    async def probe(name, url):
+        started = time.perf_counter()
+        try:
+            def call():
+                with urlopen(url + "/api/v1/health", timeout=2) as r:
+                    return r.status, r.read()
+            status, body = await loop.run_in_executor(None, call)
+            return name, {"ready": 200 <= status < 300, "latency_ms": int((time.perf_counter()-started)*1000), "status": status}
+        except Exception as exc:
+            return name, {"ready": False, "latency_ms": int((time.perf_counter()-started)*1000), "error": type(exc).__name__ + (": " + str(exc) if str(exc) else "")}
+    targets = {k.strip("/").split("/")[-1]: v for k, v in SERVICES.items() if k not in ("/api/v1/auth", "/api/v1/admin")}
+    results = await asyncio.gather(*(probe(name, url) for name, url in targets.items()))
+    return dict(results)
+
+@app.get("/api/v1/runtime/readiness")
+async def runtime_readiness():
+    services = await probe_services()
+    return {"ready": all(item.get("ready", False) for item in services.values()), "services": services, "checked_at": datetime.now(timezone.utc).isoformat()}
+
+@app.get("/api/v1/health/live")
+async def health_live():
+    return {"live": True, "ready": True, "service": "api-gateway"}
+
+@app.get("/api/v1/health/ready")
+async def health_ready():
+    checks = {"process": {"status": "ready"}}
+    return {"live": True, "ready": True, "service": "api-gateway", "checks": checks}
 
 
 def _resolve_target(full: str, query: str | bytes | None = "") -> str | None:
