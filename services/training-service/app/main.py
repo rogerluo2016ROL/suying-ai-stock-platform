@@ -59,6 +59,9 @@ async def lifespan(app: FastAPI):
         client = get_mlflow_client()
         logger.info("MLflow client initialized (%s mode)", "live" if hasattr(client, '_tracking_uri') else "mock")
     except Exception as e:
+        from app.config import MLFLOW_MODE
+        if MLFLOW_MODE == "live":
+            raise RuntimeError(f"MLflow live initialization failed: {e}") from e
         logger.warning("MLflow init skipped: %s", e)
 
     # Initialize scheduler

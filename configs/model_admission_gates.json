@@ -1,5 +1,7 @@
 {
   "required_gates": ["data_readiness", "strict_timeline", "cost_model", "oos_report", "drawdown_sample"],
   "stages": ["research", "candidate", "paper", "production"],
-  "production_requires_manual_approval": true
+  "production_requires_manual_approval": true,
+  "production_thresholds_approved": false,
+  "paper_requires_baseline": true
 }

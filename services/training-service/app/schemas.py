@@ -59,7 +59,9 @@ class JobStatus(str, Enum):
 
 class ModelStage(str, Enum):
     NONE = "none"
+    RESEARCH = "research"
     CANDIDATE = "candidate"
+    PAPER = "paper"
     STAGING = "staging"
     PRODUCTION = "production"
     ARCHIVED = "archived"
@@ -260,6 +262,10 @@ class DeployRequest(BaseModel):
     """POST /models/{id}/deploy request body."""
     force: bool = Field(default=False)
     notes: Optional[str] = None
+    target_stage: str = Field(default="production", pattern="^(candidate|paper|production)$")
+    evidence: Dict[str, Any] = Field(default_factory=dict)
+    manual_approval: bool = False
+    baseline_exists: bool = True
 
 
 class DeployResponse(BaseModel):

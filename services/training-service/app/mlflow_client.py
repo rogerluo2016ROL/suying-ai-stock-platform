@@ -32,19 +32,31 @@ class MockMlflowClient:
         self._storage_dir.mkdir(parents=True, exist_ok=True)
         self._runs: Dict[str, Dict] = {}
         self._models: Dict[str, List[Dict]] = {}  # name -> [versions]
+        self._aliases: Dict[str, Dict[str, int]] = {}
         self._load()
 
     def _load(self):
         runs_file = self._storage_dir / "runs.json"
         models_file = self._storage_dir / "models.json"
+        aliases_file = self._storage_dir / "aliases.json"
         if runs_file.exists():
             self._runs = json.loads(runs_file.read_text())
         if models_file.exists():
             self._models = json.loads(models_file.read_text())
+        if aliases_file.exists():
+            self._aliases = json.loads(aliases_file.read_text())
 
     def _save(self):
         (self._storage_dir / "runs.json").write_text(json.dumps(self._runs, indent=2, default=str))
         (self._storage_dir / "models.json").write_text(json.dumps(self._models, indent=2, default=str))
+        (self._storage_dir / "aliases.json").write_text(json.dumps(self._aliases, indent=2, default=str))
+
+    def set_model_alias(self, name: str, alias: str, version: int):
+        self._aliases.setdefault(name, {})[alias] = int(version)
+        self._save()
+
+    def get_model_alias(self, name: str, alias: str) -> Optional[int]:
+        return self._aliases.get(name, {}).get(alias)
 
     def create_run(self, experiment_name: str, run_name: str) -> str:
         run_id = str(uuid.uuid4())
@@ -270,6 +282,15 @@ class LiveMlflowClient:
             name=name, version=version, stage=stage
         )
 
+    def set_model_alias(self, name: str, alias: str, version: int):
+        self._client.set_registered_model_alias(name, alias, str(version))
+
+    def get_model_alias(self, name: str, alias: str) -> Optional[int]:
+        try:
+            return int(self._client.get_model_version_by_alias(name, alias).version)
+        except Exception:
+            return None
+
     def get_production_model(self, name: str) -> Optional[Dict]:
         try:
             versions = self._client.get_latest_versions(name, stages=["Production"])
@@ -375,8 +396,7 @@ def get_mlflow_client():
                 _mlflow_client = LiveMlflowClient(MLFLOW_TRACKING_URI)
                 logger.info("MLflow client: live mode at %s", MLFLOW_TRACKING_URI)
             except Exception as e:
-                logger.warning("MLflow live failed (%s), falling back to mock", e)
-                _mlflow_client = MockMlflowClient()
+                raise RuntimeError(f"MLflow live connection failed: {e}") from e
         else:
             _mlflow_client = MockMlflowClient()
             logger.info("MLflow client: mock mode (local dev)")
