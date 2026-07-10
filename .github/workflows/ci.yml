@@ -90,6 +90,7 @@ jobs:
       - name: Install shared and service dependencies
         run: |
           python -m pip install --upgrade pip
+          python -m pip install pytest httpx
           python -m pip install -e packages/kronos-core -e packages/kronos-data -e packages/kronos-factors
           if [ -f "services/${{ matrix.service }}/pyproject.toml" ]; then
             python -m pip install -e "services/${{ matrix.service }}"

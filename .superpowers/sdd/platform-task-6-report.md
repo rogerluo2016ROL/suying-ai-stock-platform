@@ -27,4 +27,6 @@
 
 进一步审查发现 backend、api-gateway、data-service 没有可直接安装的项目元数据。已按各自 Dockerfile 的运行时依赖，在矩阵安装步骤中显式安装三者依赖，避免干净 CI runner 的导入失败。
 
+最终复审发现矩阵 job 也不应依赖 runner 预装 pytest/httpx；已显式安装这两个测试基础依赖。
+
 本地全矩阵不能作为绿灯结果：当前环境仍缺少部分依赖，且已有 data-service 测试存在仓库根路径假设。
