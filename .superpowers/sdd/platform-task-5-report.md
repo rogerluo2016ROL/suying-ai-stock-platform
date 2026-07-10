@@ -23,3 +23,9 @@
 ## 遗留问题
 
 - xtquant 的真实下单、撤单、持仓、资产查询和回调仍需在 Windows/QMT 环境接入；当前 live readiness 保持 blocked。
+
+## 审查修复
+
+- SDK 缺失或能力未实现时，connect、下单、撤单、持仓、资产及 sync 全部抛 `BrokerCapabilityError`，不再调用成功 stub。
+- fundamental、event risk、market 缺失时保持 `None`；insufficient_data 返回 `signal=None`、`decision=unavailable`，不写入历史分数。
+- 修复后：trade capability `3 passed`；signal 定向测试 `1 passed`；两服务 py_compile 均通过。

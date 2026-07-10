@@ -1061,29 +1061,32 @@ async def analyze_signal(code: str):
     trend_score = min(100, ts["score"] / 10 * 100)
 
     # ── P4: 六维信号升级 (新增 Fundamental + EventRisk) ──
-    fundamental_score = 50.0
-    event_risk_score = 50.0
+    fundamental_score = None
+    event_risk_score = None
     try:
         from kronos_factors.scorer.screening_scorers import score_long_term
         from kronos_factors.scorer.advanced_factors import get_tushare_scores
         lt = score_long_term(code)
         ts_data = get_tushare_scores(code)
-        fundamental_score = lt.get("score", 5) * 10  # 0-10 → 0-100
+        if lt.get("score") is not None:
+            fundamental_score = lt["score"] * 10  # 0-10 → 0-100
         # EventRisk: blend tushare_events + tushare_financial
-        ev_score = ts_data.get("tushare_events", {}).get("score", 5)
-        fin_score = ts_data.get("tushare_financial", {}).get("score", 5)
-        event_risk_score = min(100, (ev_score * 0.6 + fin_score * 0.4) * 10)
+        ev_score = ts_data.get("tushare_events", {}).get("score")
+        fin_score = ts_data.get("tushare_financial", {}).get("score")
+        if ev_score is not None and fin_score is not None:
+            event_risk_score = min(100, (ev_score * 0.6 + fin_score * 0.4) * 10)
     except Exception:
         pass
 
     # Kronos is unavailable until a real inference result exists.
     kronos_confidence = None
     # Market adaptation: use regime bonus from screener
-    market_adapt = 50
+    market_adapt = None
     try:
         from kronos_factors.scorer.screening_scorers import get_market_regime
         regime = get_market_regime()
-        market_adapt = 50 + regime.get("bonus", 0) * 50  # bonus is ~±0.3, map to 35-65
+        if regime.get("bonus") is not None:
+            market_adapt = 50 + regime["bonus"] * 50
     except Exception:
         pass
 
@@ -1093,10 +1096,12 @@ async def analyze_signal(code: str):
         "money_flow": money_score, "fundamental": fundamental_score,
         "event_risk": event_risk_score, "market": market_adapt,
     })
-    signal_score = combined["score"] or 0.0
+    signal_score = combined["score"]
 
     # Determine level
-    if signal_score >= 80:   level, icon = "STRONG_BUY", "🟢"
+    if combined["result_status"] != "ok":
+        level, icon = None, None
+    elif signal_score >= 80:   level, icon = "STRONG_BUY", "🟢"
     elif signal_score >= 60:  level, icon = "BUY", "🟡"
     elif signal_score >= 40:  level, icon = "HOLD", "🔵"
     elif signal_score >= 20:  level, icon = "REDUCE", "🟠"
@@ -1133,12 +1138,14 @@ async def analyze_signal(code: str):
         pass  # fina_audit table not available
 
     # Record signal history
-    store.record(code=code, level=level, icon=icon, score=round(signal_score, 1),
-                 reason=f"技术{tech_score:.0f}/资金{money_score:.0f}/趋势{trend_score:.0f}")
+    if combined["result_status"] == "ok":
+        store.record(code=code, level=level, icon=icon, score=round(signal_score, 1),
+                     reason=f"技术{tech_score:.0f}/资金{money_score:.0f}/趋势{trend_score:.0f}")
 
     payload = {
         "code": code,
-        "signal": {"level": level, "icon": icon, "score": round(signal_score, 1)},
+        "signal": None if combined["result_status"] != "ok" else {"level": level, "icon": icon, "score": round(signal_score, 1)},
+        "decision": "unavailable" if combined["result_status"] != "ok" else level,
         "components": {
             "kronos_confidence": {"score": kronos_confidence, "weight": 0.20},
             "technical":         {"score": round(tech_score, 1), "weight": 0.20,

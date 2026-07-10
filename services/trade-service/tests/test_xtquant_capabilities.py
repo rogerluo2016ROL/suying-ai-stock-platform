@@ -24,3 +24,17 @@ async def test_connected_sdk_without_order_capability_never_stubs(monkeypatch):
     )
     with pytest.raises(xtquant_broker.BrokerCapabilityError):
         await broker.place_order(order)
+
+
+@pytest.mark.asyncio
+async def test_sdk_missing_rejects_all_live_operations(monkeypatch):
+    monkeypatch.setattr(xtquant_broker, "_XTQUANT_AVAILABLE", False)
+    broker = xtquant_broker.XtquantBroker()
+    with pytest.raises(xtquant_broker.BrokerCapabilityError):
+        await broker.connect()
+    with pytest.raises(xtquant_broker.BrokerCapabilityError):
+        await broker.cancel_order("x")
+    with pytest.raises(xtquant_broker.BrokerCapabilityError):
+        await broker.get_positions()
+    with pytest.raises(xtquant_broker.BrokerCapabilityError):
+        await broker.get_account()
