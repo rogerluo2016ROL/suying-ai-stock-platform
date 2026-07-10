@@ -11,6 +11,8 @@
   "/api/v1/dashboard/sync/status",
   "/api/v1/dashboard/sync/trigger",
   "/api/v1/health",
+  "/api/v1/health/live",
+  "/api/v1/health/ready",
   "/api/v1/lark/bot/config",
   "/api/v1/lark/events",
   "/api/v1/screener/candidate-pool",
@@ -51,15 +53,5 @@
   "/api/v1/screener/supply-chain/research/ingest",
   "/api/v1/screener/supply-chain/themes",
   "/api/v1/screener/supply-chain/workbench",
-  "/api/v1/screener/watchlist",
-  "/api/v1/training/calibrate",
-  "/api/v1/training/factors/ic",
-  "/api/v1/training/history",
-  "/api/v1/training/models",
-  "/api/v1/training/models/{model_id}",
-  "/api/v1/training/models/{model_id}/archive",
-  "/api/v1/training/models/{model_id}/compare",
-  "/api/v1/training/models/{model_id}/deploy",
-  "/api/v1/training/models/{model_id}/rollback",
-  "/api/v1/training/schedule"
+  "/api/v1/screener/watchlist"
 ]
