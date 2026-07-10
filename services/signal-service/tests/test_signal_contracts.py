@@ -27,7 +27,7 @@ def test_signal_contract_wraps_model_metadata_freshness_and_fallback():
         "provider": "signal-service",
         "inference_mode": "analyze",
     }
-    assert result["data_freshness"]["status"] == "fresh"
+    assert result["data_freshness"]["status"] == "stale"
     assert result["data_freshness"]["as_of"] == "2026-06-21"
     assert result["fallback_reason"] is None
 
@@ -66,6 +66,16 @@ def test_dashboard_row_change_pct_accepts_pg_adapter_alias():
     assert routes._dashboard_row_change_pct({"pct_chg": "-3.21"}) == -3.21
     assert routes._dashboard_row_change_pct({"change_pct": "2.34"}) == 2.34
     assert routes._dashboard_row_change_pct({}) == 0.0
+
+
+def test_legacy_dashboard_and_data_routes_are_explicitly_deprecated():
+    from app.main import app
+
+    paths = {route.path for route in app.routes}
+    assert "/api/v1/dashboard/summary" in paths
+    assert "/api/v1/data/status" in paths
+    assert app.state.deprecated_route_prefixes["/api/v1/dashboard"] == "screener-service"
+    assert app.state.deprecated_route_prefixes["/api/v1/data"] == "data-service"
 
 
 def test_dashboard_alert_sql_computes_missing_change_pct_from_previous_close():
