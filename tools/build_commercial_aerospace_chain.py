@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'packages', 'kr
 os.environ.setdefault('KRONOS_PG_URL', 'postgresql://kronos:kronos@localhost:6432/kronos')
 
 import psycopg2
+import psycopg2.extras
 import json
 
 THEME_ID = "future_industry_commercial_aerospace"
@@ -157,8 +158,8 @@ def build_chain():
     print("2. 创建8层BOM节点...")
     for layer in LAYERS:
         cur.execute("""
-            INSERT INTO supply_chain_bom_nodes (node_id, theme_id, parent_node_id, level, name, node_type, keywords, policy_weight)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO supply_chain_bom_nodes (node_id, theme_id, chain_id, parent_node_id, level, name, node_type, keywords, policy_weight)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (node_id) DO UPDATE SET
                 theme_id = EXCLUDED.theme_id, parent_node_id = EXCLUDED.parent_node_id,
                 level = EXCLUDED.level, name = EXCLUDED.name, node_type = EXCLUDED.node_type,
@@ -166,6 +167,7 @@ def build_chain():
         """, (
             layer["node_id"],
             THEME_ID,
+            "aerospace",
             CHAIN_ID if layer["level"] == "L1" else LAYERS[int(layer["level"][1]) - 2]["node_id"],
             layer["level"],
             layer["name"],
@@ -178,11 +180,15 @@ def build_chain():
     # ── 3. 创建边关系 ──
     print("3. 创建层级连接...")
     for i in range(len(LAYERS) - 1):
-        cur.execute("""
-            INSERT INTO supply_chain_bom_edges (from_node_id, to_node_id, relation)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (from_node_id, to_node_id) DO NOTHING
-        """, (
+        # Skip existing edges
+        cur.execute("SELECT 1 FROM supply_chain_bom_edges WHERE from_node_id=%s AND to_node_id=%s",
+                     (LAYERS[i]["node_id"], LAYERS[i+1]["node_id"]))
+        if not cur.fetchone():
+            cur.execute("""
+                INSERT INTO supply_chain_bom_edges (edge_id, from_node_id, to_node_id, relation)
+                VALUES (%s, %s, %s, %s)
+            """, (
+            f"{CHAIN_ID}_edge_L{i+1}_to_L{i+2}",
             LAYERS[i]["node_id"],
             LAYERS[i + 1]["node_id"],
             "8层复杂产业链顺序链路",
@@ -200,34 +206,36 @@ def build_chain():
             print(f"   ⚠️ {code} 未找到, 跳过")
             continue
 
-        cur.execute("""
-            INSERT INTO company_bom_mapping (code, node_id, product_name, confidence, status, updated_at)
-            VALUES (%s, %s, %s, %s, %s, NOW())
-            ON CONFLICT (code, node_id) DO UPDATE SET
-                product_name = EXCLUDED.product_name,
-                confidence = EXCLUDED.confidence,
-                status = EXCLUDED.status,
-                updated_at = NOW()
-        """, (code, node_id, product_name, confidence, status))
+        # Check existing
+        cur.execute("SELECT mapping_id FROM company_bom_mapping WHERE code=%s AND node_id=%s", (code, node_id))
+        existing = cur.fetchone()
+        if existing:
+            cur.execute("""
+                UPDATE company_bom_mapping SET product_name=%s, confidence=%s, status=%s, updated_at=NOW()
+                WHERE mapping_id=%s
+            """, (product_name, confidence, status, existing[0]))
+        else:
+            cur.execute("""
+                INSERT INTO company_bom_mapping (mapping_id, code, node_id, product_name, confidence, status, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            """, (f"{CHAIN_ID}_{code}_{node_id.split('_')[-1]}", code, node_id, product_name, confidence, status))
         mapped += 1
 
-    # ── 5. 同步到 company_chain_mapping (主链映射) ──
+    # ── 5. 同步到 company_chain_mapping ──
     print("5. 同步主链映射...")
-    for layer in LAYERS:
-        cur.execute("""
-            INSERT INTO company_chain_mapping (code, node_id, main_pct, evidence, created_at)
-            SELECT DISTINCT m.code, %s, 100.0,
-                   %s,
-                   NOW()
-            FROM company_bom_mapping m
-            WHERE m.node_id = %s AND m.status = 'verified'
-            ON CONFLICT (code, node_id) DO UPDATE SET
-                evidence = EXCLUDED.evidence
-        """, (
-            CHAIN_ID,
-            psycopg2.extras.Json({"source": "company_bom_mapping", "chain": CHAIN_ID}),
-            layer["node_id"],
-        ))
+    for code, node_id, product_name, confidence, status in COMPANIES:
+        if status != 'verified':
+            continue
+        cur.execute("SELECT 1 FROM company_chain_mapping WHERE code=%s AND node_id=%s", (code, CHAIN_ID))
+        if not cur.fetchone():
+            try:
+                cur.execute("""
+                    INSERT INTO company_chain_mapping (code, node_id, main_pct, evidence, created_at)
+                    VALUES (%s, %s, 100.0, %s, NOW())
+                """, (code, CHAIN_ID,
+                      psycopg2.extras.Json({"source": "company_bom_mapping", "chain": CHAIN_ID, "product": product_name})))
+            except Exception:
+                pass  # skip if constraint violation
     print(f"   ✅ 完成")
 
     pg.commit()
