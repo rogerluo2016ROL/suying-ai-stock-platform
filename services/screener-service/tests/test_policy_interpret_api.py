@@ -7,22 +7,6 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
 
-# Mock openai module before any imports that depend on it
-mock_openai = MagicMock()
-mock_openai.APIConnectionError = Exception
-mock_openai.APIStatusError = Exception
-mock_openai.AsyncOpenAI = MagicMock
-mock_openai.OpenAI = MagicMock
-sys.modules["openai"] = mock_openai
-
-# Mock tenacity module
-mock_tenacity = MagicMock()
-mock_tenacity.retry = lambda *args, **kwargs: lambda f: f
-mock_tenacity.retry_if_exception_type = lambda *args: MagicMock()
-mock_tenacity.stop_after_attempt = lambda *args: MagicMock()
-mock_tenacity.wait_exponential = lambda *args: MagicMock()
-sys.modules["tenacity"] = mock_tenacity
-
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 

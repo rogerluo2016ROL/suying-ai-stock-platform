@@ -1,3 +1,4 @@
+from datetime import date
 from app.routers.screener import _normalize_picks, _with_screener_contract
 
 
@@ -25,15 +26,16 @@ def test_normalize_picks_adds_candidate_contract_fields():
 
 
 def test_screener_contract_adds_model_metadata_freshness_and_fallback():
+    today = date.today().isoformat()
     result = _with_screener_contract(
         {"mode": "short", "picks": []},
         mode="short",
-        trade_date="2026-06-21",
+        trade_date=today,
         fallback_reason=None,
     )
 
     assert result["model_metadata"]["name"] == "screener-multi-strategy-v2"
     assert result["model_metadata"]["inference_mode"] == "short"
     assert result["data_freshness"]["status"] == "fresh"
-    assert result["data_freshness"]["as_of"] == "2026-06-21"
+    assert result["data_freshness"]["as_of"] == today
     assert result["fallback_reason"] is None

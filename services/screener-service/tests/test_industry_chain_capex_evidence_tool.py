@@ -13,7 +13,7 @@ from tools.industry_chain_capex_evidence import (
 )
 
 
-CONFIG_PATH = Path("packages/kronos-factors/configs/industry_chain_templates.json")
+CONFIG_PATH = PROJECT_ROOT / "packages/kronos-factors/configs/industry_chain_templates.json"
 
 
 def _valid_capex_record() -> dict:

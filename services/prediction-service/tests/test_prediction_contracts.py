@@ -27,7 +27,8 @@ def test_model_metadata_exposes_checkpoint_and_inference_mode():
 
 def test_prediction_contract_adds_freshness_and_fallback_reason():
     payload = {"code": "300750", "current_price": 218.5}
-    x_ts = pd.Series(pd.to_datetime(["2026-06-20", "2026-06-21"]))
+    today = pd.Timestamp.now().normalize()
+    x_ts = pd.Series([today - pd.Timedelta(days=1), today])
 
     result = routes._with_prediction_contract(
         payload,
@@ -41,7 +42,7 @@ def test_prediction_contract_adds_freshness_and_fallback_reason():
     assert result["model_metadata"]["inference_mode"] == "fast"
     assert result["data_freshness"] == {
         "status": "fresh",
-        "as_of": "2026-06-21",
+        "as_of": today.strftime("%Y-%m-%d"),
         "source": "postgresql.daily_kline",
         "quality_score": 96,
     }

@@ -121,7 +121,7 @@ class TestScreenerRun:
         """Verify CB T+0 modes expose the limit-up trigger source, not only auction snapshots."""
         import app.routers.screener as screener_router
 
-        assert screener_router._screener_source_for_mode(mode) == "limit_list_d + stk_auction_o"
+        assert screener_router._screener_source_for_mode(mode) == "limit_list_d + kpl_list + eastmoney_limit_pool + stk_auction_o"
 
     def test_run_top_n_out_of_range(self, client):
         """Verify top_n < 5 returns validation error."""

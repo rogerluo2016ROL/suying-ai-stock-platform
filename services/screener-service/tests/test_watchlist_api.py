@@ -13,22 +13,6 @@ from datetime import datetime, timezone
 import pytest
 from unittest.mock import MagicMock
 
-# Mock heavy optional deps so importing the router is cheap and deterministic.
-for mod in ("openai", "tenacity"):
-    if mod not in sys.modules:
-        mock = type(sys)("mock_" + mod)
-        if mod == "openai":
-            mock.APIConnectionError = Exception
-            mock.APIStatusError = Exception
-            mock.AsyncOpenAI = MagicMock
-            mock.OpenAI = MagicMock
-        else:
-            mock.retry = lambda *a, **k: (lambda f: f)
-            mock.retry_if_exception_type = lambda *a, **k: None
-            mock.stop_after_attempt = lambda *a, **k: None
-            mock.wait_exponential = lambda *a, **k: None
-        sys.modules[mod] = mock
-
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
