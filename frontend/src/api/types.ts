@@ -422,6 +422,15 @@ export interface DataStatusResponse {
   }>;
 }
 
+export interface DataInventoryResponse {
+  tables: Record<string, { table: string; rows: number; min_date?: string; max_date?: string }>;
+}
+
+export interface DataReadinessResponse {
+  ready: boolean;
+  components: Record<string, boolean>;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Strategy（方案管理）
 // ═══════════════════════════════════════════════════════════════════════════

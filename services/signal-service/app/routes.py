@@ -2,7 +2,7 @@
 
 import os, logging, asyncio, re
 from datetime import datetime, timezone
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Response
 from app.signal_store import get_store
 
 logger = logging.getLogger("signal-service.routes")
@@ -1542,36 +1542,6 @@ async def trigger_sync(
                 "source": "data-service",
             }
     except Exception as e:
-        logger.warning("Data-service manual sync proxy failed for %s, fallback to subprocess: %s", table_key, e)
-
-    try:
-        import subprocess, sys
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-        packages_path = os.pathsep.join([
-            os.path.join(project_root, "packages", "kronos-factors"),
-            os.path.join(project_root, "packages", "kronos-core"),
-            os.path.join(project_root, "packages", "kronos-data"),
-        ])
-        env = {**os.environ, "PYTHONPATH": packages_path}
-        result = subprocess.run(
-            [sys.executable, "-m", "kronos_data.etl", "--mode", mode, "--days", str(days)],
-            capture_output=True, text=True, timeout=300,
-            cwd=project_root, env=env,
-        )
-        ok = result.returncode == 0
-        output_lines = result.stdout.strip().split("\n")[-5:] if result.stdout else []
-        return {
-            "status": "ok" if ok else "error",
-            "table_key": table_key,
-            "mode": mode,
-            "desc": desc,
-            "days": days,
-            "returncode": result.returncode,
-            "output": output_lines,
-            "stderr": result.stderr[:200] if result.stderr else "",
-        }
-    except Exception as e:
-        logger.exception("Trigger sync failed for %s", table_key)
         return {"status": "error", "table_key": table_key, "message": str(e)[:200]}
 
 
@@ -1856,14 +1826,15 @@ data_router = APIRouter(prefix="/api/v1/data", tags=["data"])
 
 
 @data_router.get("/status")
-async def data_status_endpoint():
+async def data_status_endpoint(response: Response):
     """Alias for /signal/data-status — serves the DataUpdate page."""
+    response.headers["Deprecation"] = "true"
     return await data_status()
 
 
 @data_router.post("/sync/{sync_type}")
 async def data_sync(sync_type: str, days: int = Query(30, ge=1, le=3650),
-                    table_key: str = Query(None)):
+                    table_key: str = Query(None), response: Response = None):
     """Trigger data sync. Maps sync_type to table_key for signal-service compatibility.
 
     Frontend DataUpdate page calls /api/v1/data/sync/{type}
@@ -1877,6 +1848,8 @@ async def data_sync(sync_type: str, days: int = Query(30, ge=1, le=3650),
 
     mapped_key = table_key or TYPE_TO_KEY.get(sync_type, sync_type)
 
+    if response is not None:
+        response.headers["Deprecation"] = "true"
     return await trigger_sync(table_key=mapped_key, days=days)
 
 

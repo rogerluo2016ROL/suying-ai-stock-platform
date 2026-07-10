@@ -18,6 +18,8 @@ from app.sync.stocks import sync_stock_list
 from app.sync.rate_limiter import get_rate_limit_status
 from app.sync.pg_writer import PG_URL
 from app.config import get_runtime_config_status
+from app import inventory
+from app.quality.readiness import evaluate
 
 logger = logging.getLogger("data-service.api")
 router = APIRouter(prefix="/api/v1/data", tags=["data"])
@@ -153,6 +155,24 @@ async def data_status():
     result["total_rows"] = sum(j.get("pg_written", 0) for j in result.get("jobs", []))
 
     return result
+
+@router.get("/inventory")
+async def data_inventory():
+    return inventory.inventory()
+
+@router.get("/jobs")
+async def data_jobs():
+    return get_job_status()
+
+@router.get("/schedules")
+async def data_schedules():
+    return {"schedules": [{"id": j.get("id"), "cron": j.get("cron"), "name": j.get("name")} for j in get_job_status().get("jobs", [])]}
+
+@router.get("/readiness")
+async def data_readiness():
+    status = get_job_status()
+    profile = {"components": {"service_alive": True, "scheduler_running": bool(status.get("scheduler_running")), "pg_ok": bool(_check_pg_connection().get("ok"))}}
+    return evaluate(profile)
 
 
 @router.post("/sync/rt_min")
