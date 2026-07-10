@@ -1091,6 +1091,38 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-09T04:10:16.214Z"
+    },
+    {
+      "id": "bug-065",
+      "timestamp": "2026-07-10T13:41:01.550Z",
+      "error_message": "Wrong reference: json should be psycopg2",
+      "file": "tools/build_commercial_aerospace_chain.py",
+      "root_cause": "Used \"json\" instead of \"psycopg2\"",
+      "fix": "Changed json → psycopg2",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T13:41:01.550Z"
+    },
+    {
+      "id": "bug-066",
+      "timestamp": "2026-07-10T13:46:01.915Z",
+      "error_message": "Significant refactor of ",
+      "file": "tools/build_commercial_aerospace_chain.py",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 9→13 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-10T13:46:01.915Z"
     }
   ]
 }

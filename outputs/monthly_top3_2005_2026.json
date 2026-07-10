@@ -1,0 +1,5959 @@
+[
+  {
+    "month": "2005-01",
+    "top3": [
+      {
+        "code": "600533",
+        "name": "栖霞建设",
+        "return": 1600.0,
+        "consecutive": false
+      },
+      {
+        "code": "600305",
+        "name": "恒顺醋业",
+        "return": 400.0,
+        "consecutive": true
+      },
+      {
+        "code": "600120",
+        "name": "浙江东方",
+        "return": 300.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2005-02",
+    "top3": [
+      {
+        "code": "600310",
+        "name": "广西能源",
+        "return": 1150.0,
+        "consecutive": false
+      },
+      {
+        "code": "600782",
+        "name": "新钢股份",
+        "return": 1000.0,
+        "consecutive": false
+      },
+      {
+        "code": "600305",
+        "name": "恒顺醋业",
+        "return": 600.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2005-03",
+    "top3": [
+      {
+        "code": "600673",
+        "name": "东阳光",
+        "return": 300.0,
+        "consecutive": false
+      },
+      {
+        "code": "600664",
+        "name": "哈药股份",
+        "return": 83.33,
+        "consecutive": false
+      },
+      {
+        "code": "600012",
+        "name": "皖通高速",
+        "return": 75.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2005-04",
+    "top3": [
+      {
+        "code": "600475",
+        "name": "华光环能",
+        "return": 2050.0,
+        "consecutive": false
+      },
+      {
+        "code": "600269",
+        "name": "赣粤高速",
+        "return": 800.0,
+        "consecutive": true
+      },
+      {
+        "code": "600642",
+        "name": "申能股份",
+        "return": 450.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2005-05",
+    "top3": [
+      {
+        "code": "600269",
+        "name": "赣粤高速",
+        "return": 450.0,
+        "consecutive": true
+      },
+      {
+        "code": "600814",
+        "name": "杭州解百",
+        "return": 233.33,
+        "consecutive": false
+      },
+      {
+        "code": "600657",
+        "name": "信达地产",
+        "return": 180.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2005-06",
+    "top3": [
+      {
+        "code": "600027",
+        "name": "华电国际",
+        "return": 1200.0,
+        "consecutive": false
+      },
+      {
+        "code": "600642",
+        "name": "申能股份",
+        "return": 582.35,
+        "consecutive": false
+      },
+      {
+        "code": "600498",
+        "name": "烽火通信",
+        "return": 400.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2005-07",
+    "top3": [
+      {
+        "code": "600420",
+        "name": "国药现代",
+        "return": 500.0,
+        "consecutive": false
+      },
+      {
+        "code": "600433",
+        "name": "冠豪高新",
+        "return": 300.0,
+        "consecutive": false
+      },
+      {
+        "code": "600350",
+        "name": "山东高速",
+        "return": 300.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2005-08",
+    "top3": [
+      {
+        "code": "600657",
+        "name": "信达地产",
+        "return": 1500.0,
+        "consecutive": false
+      },
+      {
+        "code": "600208",
+        "name": "衢州发展",
+        "return": 1100.0,
+        "consecutive": false
+      },
+      {
+        "code": "600268",
+        "name": "国电南自",
+        "return": 700.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2005-09",
+    "top3": [
+      {
+        "code": "600782",
+        "name": "新钢股份",
+        "return": 1500.0,
+        "consecutive": false
+      },
+      {
+        "code": "600694",
+        "name": "大商股份",
+        "return": 1142.86,
+        "consecutive": false
+      },
+      {
+        "code": "600305",
+        "name": "恒顺醋业",
+        "return": 1100.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2005-10",
+    "top3": [
+      {
+        "code": "600262",
+        "name": "北方股份",
+        "return": 400.0,
+        "consecutive": false
+      },
+      {
+        "code": "600622",
+        "name": "光大嘉宝",
+        "return": 400.0,
+        "consecutive": false
+      },
+      {
+        "code": "600195",
+        "name": "中牧股份",
+        "return": 400.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2005-11",
+    "top3": [
+      {
+        "code": "600580",
+        "name": "卧龙电驱",
+        "return": 260.0,
+        "consecutive": false
+      },
+      {
+        "code": "600027",
+        "name": "华电国际",
+        "return": 166.67,
+        "consecutive": false
+      },
+      {
+        "code": "600266",
+        "name": "城建发展",
+        "return": 133.33,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2005-12",
+    "top3": [
+      {
+        "code": "600096",
+        "name": "云天化",
+        "return": 1900.0,
+        "consecutive": false
+      },
+      {
+        "code": "600498",
+        "name": "烽火通信",
+        "return": 740.0,
+        "consecutive": false
+      },
+      {
+        "code": "600248",
+        "name": "陕建股份",
+        "return": 400.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-01",
+    "top3": [
+      {
+        "code": "600262",
+        "name": "北方股份",
+        "return": 5400.0,
+        "consecutive": false
+      },
+      {
+        "code": "600578",
+        "name": "京能电力",
+        "return": 2200.0,
+        "consecutive": false
+      },
+      {
+        "code": "600219",
+        "name": "南山铝业",
+        "return": 1100.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-02",
+    "top3": [
+      {
+        "code": "600248",
+        "name": "陕建股份",
+        "return": 2300.0,
+        "consecutive": false
+      },
+      {
+        "code": "600508",
+        "name": "上海能源",
+        "return": 812.5,
+        "consecutive": false
+      },
+      {
+        "code": "600063",
+        "name": "皖维高新",
+        "return": 400.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-03",
+    "top3": [
+      {
+        "code": "600362",
+        "name": "江西铜业",
+        "return": 4500.0,
+        "consecutive": false
+      },
+      {
+        "code": "600765",
+        "name": "中航重机",
+        "return": 1500.0,
+        "consecutive": false
+      },
+      {
+        "code": "600219",
+        "name": "南山铝业",
+        "return": 566.67,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-04",
+    "top3": [
+      {
+        "code": "600371",
+        "name": "万向德农",
+        "return": 3133.33,
+        "consecutive": false
+      },
+      {
+        "code": "600739",
+        "name": "辽宁成大",
+        "return": 2766.67,
+        "consecutive": false
+      },
+      {
+        "code": "600366",
+        "name": "宁波韵升",
+        "return": 2600.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-05",
+    "top3": [
+      {
+        "code": "600657",
+        "name": "信达地产",
+        "return": 3700.0,
+        "consecutive": false
+      },
+      {
+        "code": "600754",
+        "name": "锦江酒店",
+        "return": 2033.33,
+        "consecutive": false
+      },
+      {
+        "code": "600782",
+        "name": "新钢股份",
+        "return": 1725.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-06",
+    "top3": [
+      {
+        "code": "600332",
+        "name": "白云山",
+        "return": 1900.0,
+        "consecutive": false
+      },
+      {
+        "code": "600057",
+        "name": "厦门象屿",
+        "return": 800.0,
+        "consecutive": false
+      },
+      {
+        "code": "600251",
+        "name": "冠农股份",
+        "return": 250.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-07",
+    "top3": [
+      {
+        "code": "600606",
+        "name": "绿地控股",
+        "return": 451.11,
+        "consecutive": false
+      },
+      {
+        "code": "600588",
+        "name": "用友网络",
+        "return": 400.0,
+        "consecutive": false
+      },
+      {
+        "code": "600738",
+        "name": "丽尚国潮",
+        "return": 280.77,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-08",
+    "top3": [
+      {
+        "code": "600783",
+        "name": "鲁信创投",
+        "return": 450.0,
+        "consecutive": false
+      },
+      {
+        "code": "600236",
+        "name": "桂冠电力",
+        "return": 400.0,
+        "consecutive": false
+      },
+      {
+        "code": "600596",
+        "name": "新安股份",
+        "return": 333.33,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-09",
+    "top3": [
+      {
+        "code": "601607",
+        "name": "上海医药",
+        "return": 4500.0,
+        "consecutive": false
+      },
+      {
+        "code": "600582",
+        "name": "天地科技",
+        "return": 2100.0,
+        "consecutive": false
+      },
+      {
+        "code": "600673",
+        "name": "东阳光",
+        "return": 2000.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-10",
+    "top3": [
+      {
+        "code": "600369",
+        "name": "西南证券",
+        "return": 500.0,
+        "consecutive": false
+      },
+      {
+        "code": "600062",
+        "name": "华润双鹤",
+        "return": 344.44,
+        "consecutive": false
+      },
+      {
+        "code": "600251",
+        "name": "冠农股份",
+        "return": 200.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-11",
+    "top3": [
+      {
+        "code": "600663",
+        "name": "陆家嘴",
+        "return": 3166.67,
+        "consecutive": false
+      },
+      {
+        "code": "600007",
+        "name": "中国国贸",
+        "return": 2371.43,
+        "consecutive": false
+      },
+      {
+        "code": "600325",
+        "name": "华发股份",
+        "return": 1100.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2006-12",
+    "top3": [
+      {
+        "code": "601398",
+        "name": "工商银行",
+        "return": 3525.0,
+        "consecutive": false
+      },
+      {
+        "code": "600063",
+        "name": "皖维高新",
+        "return": 1300.0,
+        "consecutive": false
+      },
+      {
+        "code": "600315",
+        "name": "上海家化",
+        "return": 1300.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2007-01",
+    "top3": [
+      {
+        "code": "600167",
+        "name": "联美控股",
+        "return": 4100.0,
+        "consecutive": false
+      },
+      {
+        "code": "600062",
+        "name": "华润双鹤",
+        "return": 3050.0,
+        "consecutive": false
+      },
+      {
+        "code": "600015",
+        "name": "华夏银行",
+        "return": 2850.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2007-02",
+    "top3": [
+      {
+        "code": "600182",
+        "name": "S佳通",
+        "return": 5400.0,
+        "consecutive": false
+      },
+      {
+        "code": "600183",
+        "name": "生益科技",
+        "return": 3300.0,
+        "consecutive": true
+      },
+      {
+        "code": "600720",
+        "name": "中交设计",
+        "return": 2066.67,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2007-03",
+    "top3": [
+      {
+        "code": "600273",
+        "name": "嘉化能源",
+        "return": 8400.0,
+        "consecutive": false
+      },
+      {
+        "code": "600452",
+        "name": "涪陵电力",
+        "return": 2900.0,
+        "consecutive": false
+      },
+      {
+        "code": "600729",
+        "name": "重百集团",
+        "return": 1875.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2007-04",
+    "top3": [
+      {
+        "code": "600196",
+        "name": "复星医药",
+        "return": 5800.0,
+        "consecutive": false
+      },
+      {
+        "code": "600486",
+        "name": "扬农化工",
+        "return": 4100.0,
+        "consecutive": false
+      },
+      {
+        "code": "600438",
+        "name": "通威股份",
+        "return": 4033.33,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2007-05",
+    "top3": [
+      {
+        "code": "600348",
+        "name": "华阳股份",
+        "return": 7950.0,
+        "consecutive": false
+      },
+      {
+        "code": "600383",
+        "name": "金地集团",
+        "return": 1050.0,
+        "consecutive": false
+      },
+      {
+        "code": "600216",
+        "name": "浙江医药",
+        "return": 875.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2007-06",
+    "top3": [
+      {
+        "code": "600048",
+        "name": "保利发展",
+        "return": 2300.0,
+        "consecutive": true
+      },
+      {
+        "code": "600252",
+        "name": "中恒集团",
+        "return": 750.0,
+        "consecutive": false
+      },
+      {
+        "code": "600481",
+        "name": "双良节能",
+        "return": 750.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2007-07",
+    "top3": [
+      {
+        "code": "600048",
+        "name": "保利发展",
+        "return": 10400.0,
+        "consecutive": true
+      },
+      {
+        "code": "600211",
+        "name": "西藏药业",
+        "return": 9400.0,
+        "consecutive": false
+      },
+      {
+        "code": "600104",
+        "name": "上汽集团",
+        "return": 8850.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2007-08",
+    "top3": [
+      {
+        "code": "600389",
+        "name": "江山股份",
+        "return": 6200.0,
+        "consecutive": false
+      },
+      {
+        "code": "600352",
+        "name": "浙江龙盛",
+        "return": 1825.0,
+        "consecutive": false
+      },
+      {
+        "code": "600563",
+        "name": "法拉电子",
+        "return": 1369.23,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2007-09",
+    "top3": [
+      {
+        "code": "600216",
+        "name": "浙江医药",
+        "return": 1206.67,
+        "consecutive": true
+      },
+      {
+        "code": "600395",
+        "name": "盘江股份",
+        "return": 1177.78,
+        "consecutive": false
+      },
+      {
+        "code": "600559",
+        "name": "老白干酒",
+        "return": 621.74,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2007-10",
+    "top3": [
+      {
+        "code": "600502",
+        "name": "安徽建工",
+        "return": 400.0,
+        "consecutive": true
+      },
+      {
+        "code": "600674",
+        "name": "川投能源",
+        "return": 250.0,
+        "consecutive": false
+      },
+      {
+        "code": "600216",
+        "name": "浙江医药",
+        "return": 146.41,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2007-11",
+    "top3": [
+      {
+        "code": "600388",
+        "name": "龙净环保",
+        "return": 1600.0,
+        "consecutive": false
+      },
+      {
+        "code": "600563",
+        "name": "法拉电子",
+        "return": 1146.15,
+        "consecutive": true
+      },
+      {
+        "code": "600369",
+        "name": "西南证券",
+        "return": 205.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2007-12",
+    "top3": [
+      {
+        "code": "600750",
+        "name": "华润江中",
+        "return": 12600.0,
+        "consecutive": false
+      },
+      {
+        "code": "600660",
+        "name": "福耀玻璃",
+        "return": 6000.0,
+        "consecutive": false
+      },
+      {
+        "code": "600801",
+        "name": "华新建材",
+        "return": 4300.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2008-01",
+    "top3": [
+      {
+        "code": "600395",
+        "name": "盘江股份",
+        "return": 314.63,
+        "consecutive": false
+      },
+      {
+        "code": "600369",
+        "name": "西南证券",
+        "return": 132.09,
+        "consecutive": false
+      },
+      {
+        "code": "600803",
+        "name": "新奥股份",
+        "return": 86.71,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2008-02",
+    "top3": [
+      {
+        "code": "600256",
+        "name": "广汇能源",
+        "return": 1100.0,
+        "consecutive": false
+      },
+      {
+        "code": "600060",
+        "name": "海信视像",
+        "return": 662.5,
+        "consecutive": false
+      },
+      {
+        "code": "600660",
+        "name": "福耀玻璃",
+        "return": 636.11,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2008-03",
+    "top3": [
+      {
+        "code": "600211",
+        "name": "西藏药业",
+        "return": 52.0,
+        "consecutive": false
+      },
+      {
+        "code": "600898",
+        "name": "?",
+        "return": 35.02,
+        "consecutive": false
+      },
+      {
+        "code": "600220",
+        "name": "?",
+        "return": 22.27,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2008-04",
+    "top3": [
+      {
+        "code": "600377",
+        "name": "宁沪高速",
+        "return": 2650.0,
+        "consecutive": true
+      },
+      {
+        "code": "600461",
+        "name": "洪城环境",
+        "return": 1300.0,
+        "consecutive": false
+      },
+      {
+        "code": "600188",
+        "name": "兖矿能源",
+        "return": 635.9,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2008-05",
+    "top3": [
+      {
+        "code": "600640",
+        "name": "国脉文化",
+        "return": 53.49,
+        "consecutive": false
+      },
+      {
+        "code": "600720",
+        "name": "中交设计",
+        "return": 52.76,
+        "consecutive": false
+      },
+      {
+        "code": "600678",
+        "name": "ST金顶",
+        "return": 46.54,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2008-06",
+    "top3": [
+      {
+        "code": "600352",
+        "name": "浙江龙盛",
+        "return": 133.33,
+        "consecutive": false
+      },
+      {
+        "code": "000893",
+        "name": "亚钾国际",
+        "return": 50.0,
+        "consecutive": false
+      },
+      {
+        "code": "600842",
+        "name": "?",
+        "return": 29.29,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2008-07",
+    "top3": [
+      {
+        "code": "600562",
+        "name": "国睿科技",
+        "return": 700.0,
+        "consecutive": false
+      },
+      {
+        "code": "600572",
+        "name": "康恩贝",
+        "return": 500.0,
+        "consecutive": false
+      },
+      {
+        "code": "600031",
+        "name": "三一重工",
+        "return": 470.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2008-08",
+    "top3": [
+      {
+        "code": "600261",
+        "name": "阳光照明",
+        "return": 150.0,
+        "consecutive": false
+      },
+      {
+        "code": "600760",
+        "name": "中航沈飞",
+        "return": 129.41,
+        "consecutive": false
+      },
+      {
+        "code": "002165",
+        "name": "红宝丽",
+        "return": 34.67,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2008-09",
+    "top3": [
+      {
+        "code": "600702",
+        "name": "舍得酒业",
+        "return": 225.0,
+        "consecutive": false
+      },
+      {
+        "code": "600170",
+        "name": "上海建工",
+        "return": 155.56,
+        "consecutive": false
+      },
+      {
+        "code": "600548",
+        "name": "深高速",
+        "return": 155.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2008-10",
+    "top3": [
+      {
+        "code": "600529",
+        "name": "山东药玻",
+        "return": 3500.0,
+        "consecutive": false
+      },
+      {
+        "code": "600015",
+        "name": "华夏银行",
+        "return": 366.67,
+        "consecutive": false
+      },
+      {
+        "code": "600757",
+        "name": "长江传媒",
+        "return": 200.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2008-11",
+    "top3": [
+      {
+        "code": "601899",
+        "name": "紫金矿业",
+        "return": 3600.0,
+        "consecutive": false
+      },
+      {
+        "code": "600720",
+        "name": "中交设计",
+        "return": 3140.0,
+        "consecutive": false
+      },
+      {
+        "code": "601666",
+        "name": "平煤股份",
+        "return": 1766.67,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2008-12",
+    "top3": [
+      {
+        "code": "600522",
+        "name": "中天科技",
+        "return": 1425.0,
+        "consecutive": false
+      },
+      {
+        "code": "600197",
+        "name": "伊力特",
+        "return": 1200.0,
+        "consecutive": false
+      },
+      {
+        "code": "600422",
+        "name": "昆药集团",
+        "return": 1200.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2009-01",
+    "top3": [
+      {
+        "code": "600295",
+        "name": "鄂尔多斯",
+        "return": 3800.0,
+        "consecutive": true
+      },
+      {
+        "code": "600389",
+        "name": "江山股份",
+        "return": 3125.0,
+        "consecutive": false
+      },
+      {
+        "code": "600031",
+        "name": "三一重工",
+        "return": 2900.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2009-02",
+    "top3": [
+      {
+        "code": "600703",
+        "name": "三安光电",
+        "return": 1800.0,
+        "consecutive": false
+      },
+      {
+        "code": "600729",
+        "name": "重百集团",
+        "return": 1562.5,
+        "consecutive": false
+      },
+      {
+        "code": "600422",
+        "name": "昆药集团",
+        "return": 1200.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2009-03",
+    "top3": [
+      {
+        "code": "600481",
+        "name": "双良节能",
+        "return": 6200.0,
+        "consecutive": false
+      },
+      {
+        "code": "600348",
+        "name": "华阳股份",
+        "return": 2650.0,
+        "consecutive": false
+      },
+      {
+        "code": "600182",
+        "name": "S佳通",
+        "return": 1600.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2009-04",
+    "top3": [
+      {
+        "code": "600546",
+        "name": "山煤国际",
+        "return": 5550.0,
+        "consecutive": true
+      },
+      {
+        "code": "600742",
+        "name": "富维股份",
+        "return": 2800.0,
+        "consecutive": false
+      },
+      {
+        "code": "600114",
+        "name": "东睦股份",
+        "return": 800.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2009-05",
+    "top3": [
+      {
+        "code": "600012",
+        "name": "皖通高速",
+        "return": 1000.0,
+        "consecutive": true
+      },
+      {
+        "code": "600273",
+        "name": "嘉化能源",
+        "return": 883.33,
+        "consecutive": false
+      },
+      {
+        "code": "600016",
+        "name": "民生银行",
+        "return": 657.14,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2009-06",
+    "top3": [
+      {
+        "code": "601318",
+        "name": "中国平安",
+        "return": 3320.0,
+        "consecutive": false
+      },
+      {
+        "code": "600177",
+        "name": "雅戈尔",
+        "return": 1742.86,
+        "consecutive": false
+      },
+      {
+        "code": "601939",
+        "name": "建设银行",
+        "return": 1580.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2009-07",
+    "top3": [
+      {
+        "code": "600761",
+        "name": "安徽合力",
+        "return": 14700.0,
+        "consecutive": false
+      },
+      {
+        "code": "600060",
+        "name": "海信视像",
+        "return": 6000.0,
+        "consecutive": false
+      },
+      {
+        "code": "600188",
+        "name": "兖矿能源",
+        "return": 5220.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2009-08",
+    "top3": [
+      {
+        "code": "600750",
+        "name": "华润江中",
+        "return": 1366.67,
+        "consecutive": false
+      },
+      {
+        "code": "600572",
+        "name": "康恩贝",
+        "return": 305.56,
+        "consecutive": false
+      },
+      {
+        "code": "600285",
+        "name": "羚锐制药",
+        "return": 266.67,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2009-09",
+    "top3": [
+      {
+        "code": "601318",
+        "name": "中国平安",
+        "return": 2090.91,
+        "consecutive": false
+      },
+      {
+        "code": "600104",
+        "name": "上汽集团",
+        "return": 755.17,
+        "consecutive": false
+      },
+      {
+        "code": "600177",
+        "name": "雅戈尔",
+        "return": 466.67,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2009-10",
+    "top3": [
+      {
+        "code": "600153",
+        "name": "建发股份",
+        "return": 620.0,
+        "consecutive": false
+      },
+      {
+        "code": "600176",
+        "name": "中国巨石",
+        "return": 550.0,
+        "consecutive": false
+      },
+      {
+        "code": "600548",
+        "name": "深高速",
+        "return": 350.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2009-11",
+    "top3": [
+      {
+        "code": "600377",
+        "name": "宁沪高速",
+        "return": 6600.0,
+        "consecutive": true
+      },
+      {
+        "code": "601888",
+        "name": "中国中免",
+        "return": 1300.0,
+        "consecutive": false
+      },
+      {
+        "code": "600548",
+        "name": "深高速",
+        "return": 1250.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2009-12",
+    "top3": [
+      {
+        "code": "600585",
+        "name": "海螺水泥",
+        "return": 1900.0,
+        "consecutive": false
+      },
+      {
+        "code": "600183",
+        "name": "生益科技",
+        "return": 1400.0,
+        "consecutive": true
+      },
+      {
+        "code": "600703",
+        "name": "三安光电",
+        "return": 101.84,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2010-01",
+    "top3": [
+      {
+        "code": "600612",
+        "name": "老凤祥",
+        "return": 750.0,
+        "consecutive": false
+      },
+      {
+        "code": "600563",
+        "name": "法拉电子",
+        "return": 333.33,
+        "consecutive": true
+      },
+      {
+        "code": "600183",
+        "name": "生益科技",
+        "return": 243.59,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2010-02",
+    "top3": [
+      {
+        "code": "601166",
+        "name": "兴业银行",
+        "return": 2633.33,
+        "consecutive": false
+      },
+      {
+        "code": "600398",
+        "name": "海澜之家",
+        "return": 1100.0,
+        "consecutive": true
+      },
+      {
+        "code": "600153",
+        "name": "建发股份",
+        "return": 655.56,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2010-03",
+    "top3": [
+      {
+        "code": "600039",
+        "name": "四川路桥",
+        "return": 1100.0,
+        "consecutive": false
+      },
+      {
+        "code": "600563",
+        "name": "法拉电子",
+        "return": 850.0,
+        "consecutive": true
+      },
+      {
+        "code": "601318",
+        "name": "中国平安",
+        "return": 451.22,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2010-04",
+    "top3": [
+      {
+        "code": "601888",
+        "name": "中国中免",
+        "return": 900.0,
+        "consecutive": false
+      },
+      {
+        "code": "600211",
+        "name": "西藏药业",
+        "return": 233.33,
+        "consecutive": false
+      },
+      {
+        "code": "600563",
+        "name": "法拉电子",
+        "return": 209.82,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2010-05",
+    "top3": [
+      {
+        "code": "000603",
+        "name": "盛达资源",
+        "return": 88.66,
+        "consecutive": false
+      },
+      {
+        "code": "002407",
+        "name": "多氟多",
+        "return": 43.81,
+        "consecutive": false
+      },
+      {
+        "code": "600173",
+        "name": "卧龙新能",
+        "return": 33.33,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2010-06",
+    "top3": [
+      {
+        "code": "601318",
+        "name": "中国平安",
+        "return": 2200.0,
+        "consecutive": false
+      },
+      {
+        "code": "600502",
+        "name": "安徽建工",
+        "return": 1100.0,
+        "consecutive": true
+      },
+      {
+        "code": "600153",
+        "name": "建发股份",
+        "return": 460.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2010-07",
+    "top3": [
+      {
+        "code": "601088",
+        "name": "中国神华",
+        "return": 7400.0,
+        "consecutive": false
+      },
+      {
+        "code": "600502",
+        "name": "安徽建工",
+        "return": 5500.0,
+        "consecutive": true
+      },
+      {
+        "code": "600177",
+        "name": "雅戈尔",
+        "return": 3550.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2010-08",
+    "top3": [
+      {
+        "code": "600809",
+        "name": "山西汾酒",
+        "return": 864.71,
+        "consecutive": false
+      },
+      {
+        "code": "600674",
+        "name": "川投能源",
+        "return": 300.0,
+        "consecutive": false
+      },
+      {
+        "code": "600183",
+        "name": "生益科技",
+        "return": 275.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2010-09",
+    "top3": [
+      {
+        "code": "600690",
+        "name": "海尔智家",
+        "return": 1700.0,
+        "consecutive": true
+      },
+      {
+        "code": "600398",
+        "name": "海澜之家",
+        "return": 1400.0,
+        "consecutive": true
+      },
+      {
+        "code": "600183",
+        "name": "生益科技",
+        "return": 750.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2010-10",
+    "top3": [
+      {
+        "code": "600585",
+        "name": "海螺水泥",
+        "return": 4360.0,
+        "consecutive": false
+      },
+      {
+        "code": "601398",
+        "name": "工商银行",
+        "return": 650.0,
+        "consecutive": false
+      },
+      {
+        "code": "600690",
+        "name": "海尔智家",
+        "return": 376.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2010-11",
+    "top3": [
+      {
+        "code": "600398",
+        "name": "海澜之家",
+        "return": 1366.67,
+        "consecutive": true
+      },
+      {
+        "code": "600436",
+        "name": "片仔癀",
+        "return": 396.27,
+        "consecutive": false
+      },
+      {
+        "code": "600211",
+        "name": "西藏药业",
+        "return": 375.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2010-12",
+    "top3": [
+      {
+        "code": "600566",
+        "name": "济川药业",
+        "return": 325.0,
+        "consecutive": false
+      },
+      {
+        "code": "600585",
+        "name": "海螺水泥",
+        "return": 92.38,
+        "consecutive": false
+      },
+      {
+        "code": "600690",
+        "name": "海尔智家",
+        "return": 73.08,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2011-01",
+    "top3": [
+      {
+        "code": "600741",
+        "name": "华域汽车",
+        "return": 952.94,
+        "consecutive": false
+      },
+      {
+        "code": "601668",
+        "name": "中国建筑",
+        "return": 320.0,
+        "consecutive": false
+      },
+      {
+        "code": "601919",
+        "name": "中远海控",
+        "return": 310.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2011-02",
+    "top3": [
+      {
+        "code": "600426",
+        "name": "华鲁恒升",
+        "return": 9200.0,
+        "consecutive": false
+      },
+      {
+        "code": "600153",
+        "name": "建发股份",
+        "return": 6550.0,
+        "consecutive": false
+      },
+      {
+        "code": "600398",
+        "name": "海澜之家",
+        "return": 1700.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2011-03",
+    "top3": [
+      {
+        "code": "601939",
+        "name": "建设银行",
+        "return": 500.0,
+        "consecutive": true
+      },
+      {
+        "code": "600398",
+        "name": "海澜之家",
+        "return": 240.54,
+        "consecutive": true
+      },
+      {
+        "code": "601398",
+        "name": "工商银行",
+        "return": 166.67,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2011-04",
+    "top3": [
+      {
+        "code": "002475",
+        "name": "立讯精密",
+        "return": 300.0,
+        "consecutive": false
+      },
+      {
+        "code": "601000",
+        "name": "唐山港",
+        "return": 200.0,
+        "consecutive": false
+      },
+      {
+        "code": "601939",
+        "name": "建设银行",
+        "return": 125.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2011-05",
+    "top3": [
+      {
+        "code": "601288",
+        "name": "农业银行",
+        "return": 100.0,
+        "consecutive": false
+      },
+      {
+        "code": "600167",
+        "name": "联美控股",
+        "return": 77.46,
+        "consecutive": false
+      },
+      {
+        "code": "600114",
+        "name": "东睦股份",
+        "return": 64.4,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2011-06",
+    "top3": [
+      {
+        "code": "002460",
+        "name": "赣锋锂业",
+        "return": 1350.0,
+        "consecutive": false
+      },
+      {
+        "code": "600741",
+        "name": "华域汽车",
+        "return": 423.08,
+        "consecutive": false
+      },
+      {
+        "code": "600048",
+        "name": "保利发展",
+        "return": 180.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2011-07",
+    "top3": [
+      {
+        "code": "002568",
+        "name": "百润股份",
+        "return": 633.33,
+        "consecutive": false
+      },
+      {
+        "code": "002595",
+        "name": "豪迈科技",
+        "return": 376.47,
+        "consecutive": false
+      },
+      {
+        "code": "601567",
+        "name": "三星电气",
+        "return": 300.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2011-08",
+    "top3": [
+      {
+        "code": "300146",
+        "name": "汤臣倍健",
+        "return": 150.0,
+        "consecutive": false
+      },
+      {
+        "code": "600016",
+        "name": "民生银行",
+        "return": 82.0,
+        "consecutive": false
+      },
+      {
+        "code": "000030",
+        "name": "富奥股份",
+        "return": 79.83,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2011-09",
+    "top3": [
+      {
+        "code": "601633",
+        "name": "长城汽车",
+        "return": 222.22,
+        "consecutive": false
+      },
+      {
+        "code": "600398",
+        "name": "海澜之家",
+        "return": 111.11,
+        "consecutive": true
+      },
+      {
+        "code": "002239",
+        "name": "奥特佳",
+        "return": 32.78,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2011-10",
+    "top3": [
+      {
+        "code": "600383",
+        "name": "金地集团",
+        "return": 3200.0,
+        "consecutive": false
+      },
+      {
+        "code": "601939",
+        "name": "建设银行",
+        "return": 1700.0,
+        "consecutive": true
+      },
+      {
+        "code": "601398",
+        "name": "工商银行",
+        "return": 1650.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2011-11",
+    "top3": [
+      {
+        "code": "002432",
+        "name": "九安医疗",
+        "return": 121.87,
+        "consecutive": true
+      },
+      {
+        "code": "600426",
+        "name": "华鲁恒升",
+        "return": 120.83,
+        "consecutive": false
+      },
+      {
+        "code": "600177",
+        "name": "雅戈尔",
+        "return": 114.29,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2011-12",
+    "top3": [
+      {
+        "code": "601633",
+        "name": "长城汽车",
+        "return": 550.0,
+        "consecutive": false
+      },
+      {
+        "code": "600383",
+        "name": "金地集团",
+        "return": 450.0,
+        "consecutive": false
+      },
+      {
+        "code": "600048",
+        "name": "保利发展",
+        "return": 400.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2012-01",
+    "top3": [
+      {
+        "code": "601939",
+        "name": "建设银行",
+        "return": 1200.0,
+        "consecutive": true
+      },
+      {
+        "code": "600801",
+        "name": "华新建材",
+        "return": 1150.0,
+        "consecutive": true
+      },
+      {
+        "code": "600585",
+        "name": "海螺水泥",
+        "return": 728.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2012-02",
+    "top3": [
+      {
+        "code": "002605",
+        "name": "姚记科技",
+        "return": 8650.0,
+        "consecutive": false
+      },
+      {
+        "code": "600801",
+        "name": "华新建材",
+        "return": 4100.0,
+        "consecutive": true
+      },
+      {
+        "code": "600377",
+        "name": "宁沪高速",
+        "return": 2300.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2012-03",
+    "top3": [
+      {
+        "code": "600176",
+        "name": "中国巨石",
+        "return": 300.0,
+        "consecutive": false
+      },
+      {
+        "code": "600012",
+        "name": "皖通高速",
+        "return": 300.0,
+        "consecutive": true
+      },
+      {
+        "code": "600350",
+        "name": "山东高速",
+        "return": 233.33,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2012-04",
+    "top3": [
+      {
+        "code": "600486",
+        "name": "扬农化工",
+        "return": 4200.0,
+        "consecutive": false
+      },
+      {
+        "code": "600012",
+        "name": "皖通高速",
+        "return": 1800.0,
+        "consecutive": true
+      },
+      {
+        "code": "600681",
+        "name": "百川能源",
+        "return": 1400.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2012-05",
+    "top3": [
+      {
+        "code": "002507",
+        "name": "涪陵榨菜",
+        "return": 200.0,
+        "consecutive": true
+      },
+      {
+        "code": "600690",
+        "name": "海尔智家",
+        "return": 162.5,
+        "consecutive": true
+      },
+      {
+        "code": "600332",
+        "name": "白云山",
+        "return": 145.77,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2012-06",
+    "top3": [
+      {
+        "code": "600285",
+        "name": "羚锐制药",
+        "return": 1116.67,
+        "consecutive": false
+      },
+      {
+        "code": "002507",
+        "name": "涪陵榨菜",
+        "return": 700.0,
+        "consecutive": true
+      },
+      {
+        "code": "300181",
+        "name": "佐力药业",
+        "return": 134.44,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2012-07",
+    "top3": [
+      {
+        "code": "002568",
+        "name": "百润股份",
+        "return": 441.18,
+        "consecutive": false
+      },
+      {
+        "code": "600596",
+        "name": "新安股份",
+        "return": 69.19,
+        "consecutive": false
+      },
+      {
+        "code": "600209",
+        "name": "?",
+        "return": 58.28,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2012-08",
+    "top3": [
+      {
+        "code": "002597",
+        "name": "金禾实业",
+        "return": 2900.0,
+        "consecutive": false
+      },
+      {
+        "code": "601398",
+        "name": "工商银行",
+        "return": 400.0,
+        "consecutive": false
+      },
+      {
+        "code": "002624",
+        "name": "完美世界",
+        "return": 162.65,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2012-09",
+    "top3": [
+      {
+        "code": "600585",
+        "name": "海螺水泥",
+        "return": 758.33,
+        "consecutive": false
+      },
+      {
+        "code": "600104",
+        "name": "上汽集团",
+        "return": 621.05,
+        "consecutive": false
+      },
+      {
+        "code": "600690",
+        "name": "海尔智家",
+        "return": 600.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2012-10",
+    "top3": [
+      {
+        "code": "600282",
+        "name": "南钢股份",
+        "return": 1000.0,
+        "consecutive": false
+      },
+      {
+        "code": "002432",
+        "name": "九安医疗",
+        "return": 560.0,
+        "consecutive": true
+      },
+      {
+        "code": "600690",
+        "name": "海尔智家",
+        "return": 350.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2012-11",
+    "top3": [
+      {
+        "code": "002516",
+        "name": "旷达科技",
+        "return": 700.0,
+        "consecutive": false
+      },
+      {
+        "code": "600674",
+        "name": "川投能源",
+        "return": 333.33,
+        "consecutive": false
+      },
+      {
+        "code": "601169",
+        "name": "北京银行",
+        "return": 66.67,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2012-12",
+    "top3": [
+      {
+        "code": "601088",
+        "name": "中国神华",
+        "return": 5614.29,
+        "consecutive": false
+      },
+      {
+        "code": "002518",
+        "name": "科士达",
+        "return": 5600.0,
+        "consecutive": false
+      },
+      {
+        "code": "603128",
+        "name": "华贸物流",
+        "return": 5300.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2013-01",
+    "top3": [
+      {
+        "code": "600801",
+        "name": "华新建材",
+        "return": 2675.0,
+        "consecutive": true
+      },
+      {
+        "code": "601058",
+        "name": "赛轮轮胎",
+        "return": 1450.0,
+        "consecutive": false
+      },
+      {
+        "code": "601012",
+        "name": "隆基绿能",
+        "return": 800.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2013-02",
+    "top3": [
+      {
+        "code": "600741",
+        "name": "华域汽车",
+        "return": 866.67,
+        "consecutive": false
+      },
+      {
+        "code": "600132",
+        "name": "重庆啤酒",
+        "return": 500.0,
+        "consecutive": false
+      },
+      {
+        "code": "002690",
+        "name": "美亚光电",
+        "return": 400.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2013-03",
+    "top3": [
+      {
+        "code": "002415",
+        "name": "海康威视",
+        "return": 1000.0,
+        "consecutive": false
+      },
+      {
+        "code": "002572",
+        "name": "索菲亚",
+        "return": 516.67,
+        "consecutive": true
+      },
+      {
+        "code": "600233",
+        "name": "圆通速递",
+        "return": 90.04,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2013-04",
+    "top3": [
+      {
+        "code": "002572",
+        "name": "索菲亚",
+        "return": 683.33,
+        "consecutive": true
+      },
+      {
+        "code": "002508",
+        "name": "老板电器",
+        "return": 445.45,
+        "consecutive": false
+      },
+      {
+        "code": "002690",
+        "name": "美亚光电",
+        "return": 414.29,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2013-05",
+    "top3": [
+      {
+        "code": "600377",
+        "name": "宁沪高速",
+        "return": 4600.0,
+        "consecutive": true
+      },
+      {
+        "code": "601012",
+        "name": "隆基绿能",
+        "return": 1500.0,
+        "consecutive": false
+      },
+      {
+        "code": "002432",
+        "name": "九安医疗",
+        "return": 1451.43,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2013-06",
+    "top3": [
+      {
+        "code": "002508",
+        "name": "老板电器",
+        "return": 47.31,
+        "consecutive": false
+      },
+      {
+        "code": "600835",
+        "name": "上海机电",
+        "return": 31.21,
+        "consecutive": false
+      },
+      {
+        "code": "600688",
+        "name": "上海石化",
+        "return": 30.19,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2013-07",
+    "top3": [
+      {
+        "code": "002463",
+        "name": "沪电股份",
+        "return": 1600.0,
+        "consecutive": false
+      },
+      {
+        "code": "600755",
+        "name": "厦门国贸",
+        "return": 766.67,
+        "consecutive": false
+      },
+      {
+        "code": "600690",
+        "name": "海尔智家",
+        "return": 766.67,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2013-08",
+    "top3": [
+      {
+        "code": "600566",
+        "name": "济川药业",
+        "return": 2616.67,
+        "consecutive": false
+      },
+      {
+        "code": "600325",
+        "name": "华发股份",
+        "return": 1400.0,
+        "consecutive": false
+      },
+      {
+        "code": "002572",
+        "name": "索菲亚",
+        "return": 1155.56,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2013-09",
+    "top3": [
+      {
+        "code": "601328",
+        "name": "交通银行",
+        "return": 3600.0,
+        "consecutive": false
+      },
+      {
+        "code": "002626",
+        "name": "金达威",
+        "return": 488.89,
+        "consecutive": false
+      },
+      {
+        "code": "600648",
+        "name": "外高桥",
+        "return": 296.74,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2013-10",
+    "top3": [
+      {
+        "code": "601216",
+        "name": "君正集团",
+        "return": 1233.33,
+        "consecutive": false
+      },
+      {
+        "code": "601100",
+        "name": "恒立液压",
+        "return": 350.0,
+        "consecutive": false
+      },
+      {
+        "code": "002516",
+        "name": "旷达科技",
+        "return": 129.03,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2013-11",
+    "top3": [
+      {
+        "code": "601799",
+        "name": "星宇股份",
+        "return": 3200.0,
+        "consecutive": true
+      },
+      {
+        "code": "600309",
+        "name": "万华化学",
+        "return": 887.5,
+        "consecutive": false
+      },
+      {
+        "code": "600398",
+        "name": "海澜之家",
+        "return": 420.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2013-12",
+    "top3": [
+      {
+        "code": "601799",
+        "name": "星宇股份",
+        "return": 1525.0,
+        "consecutive": true
+      },
+      {
+        "code": "600295",
+        "name": "鄂尔多斯",
+        "return": 1150.0,
+        "consecutive": true
+      },
+      {
+        "code": "601100",
+        "name": "恒立液压",
+        "return": 230.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2014-01",
+    "top3": [
+      {
+        "code": "002555",
+        "name": "三七互娱",
+        "return": 2080.0,
+        "consecutive": false
+      },
+      {
+        "code": "601799",
+        "name": "星宇股份",
+        "return": 238.06,
+        "consecutive": true
+      },
+      {
+        "code": "002626",
+        "name": "金达威",
+        "return": 208.7,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2014-02",
+    "top3": [
+      {
+        "code": "601699",
+        "name": "潞安环能",
+        "return": 1100.0,
+        "consecutive": true
+      },
+      {
+        "code": "601636",
+        "name": "旗滨集团",
+        "return": 660.0,
+        "consecutive": false
+      },
+      {
+        "code": "601567",
+        "name": "三星电气",
+        "return": 600.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2014-03",
+    "top3": [
+      {
+        "code": "600741",
+        "name": "华域汽车",
+        "return": 3100.0,
+        "consecutive": false
+      },
+      {
+        "code": "600325",
+        "name": "华发股份",
+        "return": 775.0,
+        "consecutive": false
+      },
+      {
+        "code": "600585",
+        "name": "海螺水泥",
+        "return": 763.16,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2014-04",
+    "top3": [
+      {
+        "code": "920476",
+        "name": "海能技术",
+        "return": 1614.29,
+        "consecutive": false
+      },
+      {
+        "code": "002597",
+        "name": "金禾实业",
+        "return": 900.0,
+        "consecutive": false
+      },
+      {
+        "code": "600377",
+        "name": "宁沪高速",
+        "return": 550.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2014-05",
+    "top3": [
+      {
+        "code": "600012",
+        "name": "皖通高速",
+        "return": 166.67,
+        "consecutive": true
+      },
+      {
+        "code": "600377",
+        "name": "宁沪高速",
+        "return": 116.67,
+        "consecutive": true
+      },
+      {
+        "code": "601666",
+        "name": "平煤股份",
+        "return": 100.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2014-06",
+    "top3": [
+      {
+        "code": "002597",
+        "name": "金禾实业",
+        "return": 13000.0,
+        "consecutive": false
+      },
+      {
+        "code": "600285",
+        "name": "羚锐制药",
+        "return": 171.11,
+        "consecutive": false
+      },
+      {
+        "code": "002460",
+        "name": "赣锋锂业",
+        "return": 163.64,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2014-07",
+    "top3": [
+      {
+        "code": "600741",
+        "name": "华域汽车",
+        "return": 15800.0,
+        "consecutive": false
+      },
+      {
+        "code": "601166",
+        "name": "兴业银行",
+        "return": 7350.0,
+        "consecutive": false
+      },
+      {
+        "code": "600048",
+        "name": "保利发展",
+        "return": 5300.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2014-08",
+    "top3": [
+      {
+        "code": "603126",
+        "name": "中材节能",
+        "return": 205.82,
+        "consecutive": false
+      },
+      {
+        "code": "600282",
+        "name": "南钢股份",
+        "return": 200.0,
+        "consecutive": false
+      },
+      {
+        "code": "601100",
+        "name": "恒立液压",
+        "return": 185.71,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2014-09",
+    "top3": [
+      {
+        "code": "600548",
+        "name": "深高速",
+        "return": 5500.0,
+        "consecutive": true
+      },
+      {
+        "code": "601699",
+        "name": "潞安环能",
+        "return": 614.29,
+        "consecutive": true
+      },
+      {
+        "code": "600039",
+        "name": "四川路桥",
+        "return": 557.14,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2014-10",
+    "top3": [
+      {
+        "code": "603606",
+        "name": "东方电缆",
+        "return": 573.68,
+        "consecutive": false
+      },
+      {
+        "code": "603169",
+        "name": "兰石重装",
+        "return": 359.5,
+        "consecutive": false
+      },
+      {
+        "code": "920556",
+        "name": "雅达股份",
+        "return": 327.35,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2014-11",
+    "top3": [
+      {
+        "code": "603019",
+        "name": "中科曙光",
+        "return": 5384.62,
+        "consecutive": false
+      },
+      {
+        "code": "601318",
+        "name": "中国平安",
+        "return": 1119.23,
+        "consecutive": false
+      },
+      {
+        "code": "603088",
+        "name": "宁波精达",
+        "return": 695.06,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2014-12",
+    "top3": [
+      {
+        "code": "600066",
+        "name": "宇通客车",
+        "return": 2366.67,
+        "consecutive": false
+      },
+      {
+        "code": "600309",
+        "name": "万华化学",
+        "return": 1561.11,
+        "consecutive": false
+      },
+      {
+        "code": "600801",
+        "name": "华新建材",
+        "return": 521.05,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2015-01",
+    "top3": [
+      {
+        "code": "603788",
+        "name": "宁波高发",
+        "return": 325.61,
+        "consecutive": false
+      },
+      {
+        "code": "002738",
+        "name": "中矿资源",
+        "return": 173.01,
+        "consecutive": false
+      },
+      {
+        "code": "601021",
+        "name": "春秋航空",
+        "return": 123.48,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2015-02",
+    "top3": [
+      {
+        "code": "600660",
+        "name": "福耀玻璃",
+        "return": 17800.0,
+        "consecutive": false
+      },
+      {
+        "code": "600801",
+        "name": "华新建材",
+        "return": 222.22,
+        "consecutive": true
+      },
+      {
+        "code": "603799",
+        "name": "华友钴业",
+        "return": 174.64,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2015-03",
+    "top3": [
+      {
+        "code": "600546",
+        "name": "山煤国际",
+        "return": 1220.0,
+        "consecutive": true
+      },
+      {
+        "code": "600036",
+        "name": "招商银行",
+        "return": 890.0,
+        "consecutive": false
+      },
+      {
+        "code": "920799",
+        "name": "艾融软件",
+        "return": 721.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2015-04",
+    "top3": [
+      {
+        "code": "601919",
+        "name": "中远海控",
+        "return": 1353.12,
+        "consecutive": true
+      },
+      {
+        "code": "920370",
+        "name": "新安洁",
+        "return": 795.85,
+        "consecutive": false
+      },
+      {
+        "code": "300431",
+        "name": "?",
+        "return": 572.56,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2015-05",
+    "top3": [
+      {
+        "code": "920419",
+        "name": "路斯股份",
+        "return": 10900.0,
+        "consecutive": false
+      },
+      {
+        "code": "600438",
+        "name": "通威股份",
+        "return": 1310.0,
+        "consecutive": false
+      },
+      {
+        "code": "600959",
+        "name": "江苏有线",
+        "return": 512.01,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2015-06",
+    "top3": [
+      {
+        "code": "300465",
+        "name": "高伟达",
+        "return": 365.58,
+        "consecutive": false
+      },
+      {
+        "code": "300467",
+        "name": "迅游科技",
+        "return": 359.58,
+        "consecutive": false
+      },
+      {
+        "code": "920425",
+        "name": "乐创技术",
+        "return": 315.45,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2015-07",
+    "top3": [
+      {
+        "code": "920419",
+        "name": "路斯股份",
+        "return": 2150.0,
+        "consecutive": false
+      },
+      {
+        "code": "920809",
+        "name": "安达科技",
+        "return": 650.0,
+        "consecutive": false
+      },
+      {
+        "code": "300480",
+        "name": "光力科技",
+        "return": 640.36,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2015-08",
+    "top3": [
+      {
+        "code": "601636",
+        "name": "旗滨集团",
+        "return": 626.09,
+        "consecutive": false
+      },
+      {
+        "code": "920087",
+        "name": "秋乐种业",
+        "return": 312.84,
+        "consecutive": true
+      },
+      {
+        "code": "920469",
+        "name": "富恒新材",
+        "return": 252.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2015-09",
+    "top3": [
+      {
+        "code": "920809",
+        "name": "安达科技",
+        "return": 500.0,
+        "consecutive": false
+      },
+      {
+        "code": "002460",
+        "name": "赣锋锂业",
+        "return": 123.85,
+        "consecutive": false
+      },
+      {
+        "code": "000025",
+        "name": "特力A",
+        "return": 110.93,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2015-10",
+    "top3": [
+      {
+        "code": "600779",
+        "name": "水井坊",
+        "return": 4466.67,
+        "consecutive": false
+      },
+      {
+        "code": "600438",
+        "name": "通威股份",
+        "return": 980.0,
+        "consecutive": false
+      },
+      {
+        "code": "600132",
+        "name": "重庆啤酒",
+        "return": 971.43,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2015-11",
+    "top3": [
+      {
+        "code": "002601",
+        "name": "龙佰集团",
+        "return": 4620.0,
+        "consecutive": false
+      },
+      {
+        "code": "600309",
+        "name": "万华化学",
+        "return": 458.33,
+        "consecutive": false
+      },
+      {
+        "code": "002558",
+        "name": "巨人网络",
+        "return": 307.65,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2015-12",
+    "top3": [
+      {
+        "code": "600132",
+        "name": "重庆啤酒",
+        "return": 1680.0,
+        "consecutive": false
+      },
+      {
+        "code": "002780",
+        "name": "三夫户外",
+        "return": 359.73,
+        "consecutive": false
+      },
+      {
+        "code": "603398",
+        "name": "*ST沐邦",
+        "return": 359.34,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2016-01",
+    "top3": [
+      {
+        "code": "920682",
+        "name": "球冠电缆",
+        "return": 450.0,
+        "consecutive": false
+      },
+      {
+        "code": "920278",
+        "name": "鹿得医疗",
+        "return": 340.0,
+        "consecutive": false
+      },
+      {
+        "code": "920978",
+        "name": "开特股份",
+        "return": 320.95,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2016-02",
+    "top3": [
+      {
+        "code": "601699",
+        "name": "潞安环能",
+        "return": 2183.33,
+        "consecutive": true
+      },
+      {
+        "code": "601666",
+        "name": "平煤股份",
+        "return": 1200.0,
+        "consecutive": false
+      },
+      {
+        "code": "601900",
+        "name": "南方传媒",
+        "return": 231.34,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2016-03",
+    "top3": [
+      {
+        "code": "600295",
+        "name": "鄂尔多斯",
+        "return": 1450.0,
+        "consecutive": true
+      },
+      {
+        "code": "601100",
+        "name": "恒立液压",
+        "return": 387.5,
+        "consecutive": false
+      },
+      {
+        "code": "603027",
+        "name": "千禾味业",
+        "return": 333.9,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2016-04",
+    "top3": [
+      {
+        "code": "600801",
+        "name": "华新建材",
+        "return": 600.0,
+        "consecutive": true
+      },
+      {
+        "code": "300474",
+        "name": "景嘉微",
+        "return": 472.92,
+        "consecutive": false
+      },
+      {
+        "code": "603028",
+        "name": "赛福天",
+        "return": 344.74,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2016-05",
+    "top3": [
+      {
+        "code": "600132",
+        "name": "重庆啤酒",
+        "return": 800.0,
+        "consecutive": false
+      },
+      {
+        "code": "603528",
+        "name": "多伦科技",
+        "return": 488.1,
+        "consecutive": false
+      },
+      {
+        "code": "300510",
+        "name": "金冠股份",
+        "return": 207.17,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2016-06",
+    "top3": [
+      {
+        "code": "600295",
+        "name": "鄂尔多斯",
+        "return": 1200.0,
+        "consecutive": true
+      },
+      {
+        "code": "002800",
+        "name": "天顺股份",
+        "return": 535.27,
+        "consecutive": false
+      },
+      {
+        "code": "300513",
+        "name": "恒实科技",
+        "return": 511.4,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2016-07",
+    "top3": [
+      {
+        "code": "002803",
+        "name": "吉宏股份",
+        "return": 581.34,
+        "consecutive": false
+      },
+      {
+        "code": "600309",
+        "name": "万华化学",
+        "return": 555.56,
+        "consecutive": false
+      },
+      {
+        "code": "603016",
+        "name": "新宏泰",
+        "return": 410.5,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2016-08",
+    "top3": [
+      {
+        "code": "600132",
+        "name": "重庆啤酒",
+        "return": 2000.0,
+        "consecutive": false
+      },
+      {
+        "code": "603663",
+        "name": "三祥新材",
+        "return": 609.78,
+        "consecutive": false
+      },
+      {
+        "code": "300526",
+        "name": "?",
+        "return": 482.21,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2016-09",
+    "top3": [
+      {
+        "code": "920225",
+        "name": "利通科技",
+        "return": 508.7,
+        "consecutive": false
+      },
+      {
+        "code": "300539",
+        "name": "横河精密",
+        "return": 319.98,
+        "consecutive": false
+      },
+      {
+        "code": "603658",
+        "name": "安图生物",
+        "return": 308.28,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2016-10",
+    "top3": [
+      {
+        "code": "603887",
+        "name": "城地香江",
+        "return": 317.92,
+        "consecutive": false
+      },
+      {
+        "code": "300549",
+        "name": "优德精密",
+        "return": 317.56,
+        "consecutive": false
+      },
+      {
+        "code": "300546",
+        "name": "雄帝科技",
+        "return": 280.49,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2016-11",
+    "top3": [
+      {
+        "code": "601882",
+        "name": "海天精工",
+        "return": 7772.73,
+        "consecutive": false
+      },
+      {
+        "code": "920062",
+        "name": "科润智控",
+        "return": 605.88,
+        "consecutive": false
+      },
+      {
+        "code": "920087",
+        "name": "秋乐种业",
+        "return": 584.21,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2016-12",
+    "top3": [
+      {
+        "code": "920087",
+        "name": "秋乐种业",
+        "return": 640.74,
+        "consecutive": true
+      },
+      {
+        "code": "920284",
+        "name": "灵鸽科技",
+        "return": 476.19,
+        "consecutive": false
+      },
+      {
+        "code": "300573",
+        "name": "兴齐眼药",
+        "return": 359.76,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2017-01",
+    "top3": [
+      {
+        "code": "600507",
+        "name": "方大特钢",
+        "return": 6000.0,
+        "consecutive": false
+      },
+      {
+        "code": "300588",
+        "name": "熙菱信息",
+        "return": 318.14,
+        "consecutive": false
+      },
+      {
+        "code": "603186",
+        "name": "华正新材",
+        "return": 292.24,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2017-02",
+    "top3": [
+      {
+        "code": "600809",
+        "name": "山西汾酒",
+        "return": 2833.33,
+        "consecutive": false
+      },
+      {
+        "code": "002847",
+        "name": "盐津铺子",
+        "return": 1735.64,
+        "consecutive": false
+      },
+      {
+        "code": "300603",
+        "name": "立昂技术",
+        "return": 405.55,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2017-03",
+    "top3": [
+      {
+        "code": "300618",
+        "name": "寒锐钴业",
+        "return": 501.45,
+        "consecutive": false
+      },
+      {
+        "code": "603138",
+        "name": "海量数据",
+        "return": 401.74,
+        "consecutive": false
+      },
+      {
+        "code": "300619",
+        "name": "金银河",
+        "return": 315.62,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2017-04",
+    "top3": [
+      {
+        "code": "300633",
+        "name": "开立医疗",
+        "return": 236.12,
+        "consecutive": false
+      },
+      {
+        "code": "603797",
+        "name": "联泰环保",
+        "return": 224.03,
+        "consecutive": false
+      },
+      {
+        "code": "603050",
+        "name": "科林电气",
+        "return": 210.64,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2017-05",
+    "top3": [
+      {
+        "code": "300649",
+        "name": "杭州园林",
+        "return": 330.11,
+        "consecutive": false
+      },
+      {
+        "code": "603505",
+        "name": "金石资源",
+        "return": 321.71,
+        "consecutive": false
+      },
+      {
+        "code": "300643",
+        "name": "万通智控",
+        "return": 223.26,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2017-06",
+    "top3": [
+      {
+        "code": "601699",
+        "name": "潞安环能",
+        "return": 589.47,
+        "consecutive": true
+      },
+      {
+        "code": "600507",
+        "name": "方大特钢",
+        "return": 321.74,
+        "consecutive": false
+      },
+      {
+        "code": "300666",
+        "name": "江丰电子",
+        "return": 185.78,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2017-07",
+    "top3": [
+      {
+        "code": "600546",
+        "name": "山煤国际",
+        "return": 383.33,
+        "consecutive": true
+      },
+      {
+        "code": "920719",
+        "name": "宁新新材",
+        "return": 250.0,
+        "consecutive": false
+      },
+      {
+        "code": "600801",
+        "name": "华新建材",
+        "return": 223.66,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2017-08",
+    "top3": [
+      {
+        "code": "601225",
+        "name": "陕西煤业",
+        "return": 4200.0,
+        "consecutive": false
+      },
+      {
+        "code": "920368",
+        "name": "连城数控",
+        "return": 1066.67,
+        "consecutive": false
+      },
+      {
+        "code": "920914",
+        "name": "远航精密",
+        "return": 648.66,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2017-09",
+    "top3": [
+      {
+        "code": "300698",
+        "name": "万马科技",
+        "return": 359.05,
+        "consecutive": false
+      },
+      {
+        "code": "300699",
+        "name": "光威复材",
+        "return": 341.64,
+        "consecutive": false
+      },
+      {
+        "code": "603882",
+        "name": "金域医学",
+        "return": 318.14,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2017-10",
+    "top3": [
+      {
+        "code": "603533",
+        "name": "掌阅科技",
+        "return": 279.84,
+        "consecutive": false
+      },
+      {
+        "code": "300706",
+        "name": "阿石创",
+        "return": 274.7,
+        "consecutive": false
+      },
+      {
+        "code": "002903",
+        "name": "宇环数控",
+        "return": 202.14,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2017-11",
+    "top3": [
+      {
+        "code": "601225",
+        "name": "陕西煤业",
+        "return": 450.0,
+        "consecutive": false
+      },
+      {
+        "code": "601360",
+        "name": "三六零",
+        "return": 433.0,
+        "consecutive": false
+      },
+      {
+        "code": "300725",
+        "name": "药石科技",
+        "return": 279.94,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2017-12",
+    "top3": [
+      {
+        "code": "002916",
+        "name": "深南电路",
+        "return": 539.88,
+        "consecutive": false
+      },
+      {
+        "code": "002915",
+        "name": "中欣氟材",
+        "return": 331.1,
+        "consecutive": false
+      },
+      {
+        "code": "300730",
+        "name": "科创信息",
+        "return": 245.1,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-01",
+    "top3": [
+      {
+        "code": "600546",
+        "name": "山煤国际",
+        "return": 357.14,
+        "consecutive": true
+      },
+      {
+        "code": "920030",
+        "name": "德众汽车",
+        "return": 342.5,
+        "consecutive": false
+      },
+      {
+        "code": "601225",
+        "name": "陕西煤业",
+        "return": 306.38,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-02",
+    "top3": [
+      {
+        "code": "600546",
+        "name": "山煤国际",
+        "return": 3800.0,
+        "consecutive": true
+      },
+      {
+        "code": "300644",
+        "name": "南京聚隆",
+        "return": 100.96,
+        "consecutive": false
+      },
+      {
+        "code": "300586",
+        "name": "美联新材",
+        "return": 69.77,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-03",
+    "top3": [
+      {
+        "code": "603712",
+        "name": "七一二",
+        "return": 356.77,
+        "consecutive": false
+      },
+      {
+        "code": "300624",
+        "name": "万兴科技",
+        "return": 151.83,
+        "consecutive": false
+      },
+      {
+        "code": "002877",
+        "name": "智能自控",
+        "return": 112.41,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-04",
+    "top3": [
+      {
+        "code": "300634",
+        "name": "彩讯股份",
+        "return": 258.1,
+        "consecutive": false
+      },
+      {
+        "code": "002931",
+        "name": "锋龙股份",
+        "return": 181.52,
+        "consecutive": false
+      },
+      {
+        "code": "300504",
+        "name": "天邑股份",
+        "return": 120.01,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-05",
+    "top3": [
+      {
+        "code": "300743",
+        "name": "天地数码",
+        "return": 351.08,
+        "consecutive": false
+      },
+      {
+        "code": "603259",
+        "name": "药明康德",
+        "return": 279.13,
+        "consecutive": false
+      },
+      {
+        "code": "600188",
+        "name": "兖矿能源",
+        "return": 238.89,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-06",
+    "top3": [
+      {
+        "code": "300750",
+        "name": "宁德时代",
+        "return": 1342.11,
+        "consecutive": false
+      },
+      {
+        "code": "601330",
+        "name": "绿色动力",
+        "return": 324.93,
+        "consecutive": false
+      },
+      {
+        "code": "300746",
+        "name": "汉嘉数智",
+        "return": 176.31,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-07",
+    "top3": [
+      {
+        "code": "600039",
+        "name": "四川路桥",
+        "return": 950.0,
+        "consecutive": false
+      },
+      {
+        "code": "603105",
+        "name": "芯能科技",
+        "return": 315.32,
+        "consecutive": false
+      },
+      {
+        "code": "600096",
+        "name": "云天化",
+        "return": 286.67,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-08",
+    "top3": [
+      {
+        "code": "601606",
+        "name": "长城军工",
+        "return": 327.83,
+        "consecutive": false
+      },
+      {
+        "code": "920599",
+        "name": "同力股份",
+        "return": 145.1,
+        "consecutive": false
+      },
+      {
+        "code": "920429",
+        "name": "康比特",
+        "return": 100.62,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-09",
+    "top3": [
+      {
+        "code": "920802",
+        "name": "保丽洁",
+        "return": 298.67,
+        "consecutive": false
+      },
+      {
+        "code": "601225",
+        "name": "陕西煤业",
+        "return": 196.97,
+        "consecutive": false
+      },
+      {
+        "code": "002935",
+        "name": "天奥电子",
+        "return": 104.91,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-10",
+    "top3": [
+      {
+        "code": "300748",
+        "name": "金力永磁",
+        "return": 163.28,
+        "consecutive": false
+      },
+      {
+        "code": "601162",
+        "name": "天风证券",
+        "return": 81.36,
+        "consecutive": false
+      },
+      {
+        "code": "300760",
+        "name": "迈瑞医疗",
+        "return": 72.61,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-11",
+    "top3": [
+      {
+        "code": "002432",
+        "name": "九安医疗",
+        "return": 1340.0,
+        "consecutive": true
+      },
+      {
+        "code": "600096",
+        "name": "云天化",
+        "return": 500.0,
+        "consecutive": false
+      },
+      {
+        "code": "600438",
+        "name": "通威股份",
+        "return": 147.69,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2018-12",
+    "top3": [
+      {
+        "code": "600776",
+        "name": "东方通信",
+        "return": 89.59,
+        "consecutive": false
+      },
+      {
+        "code": "300753",
+        "name": "爱朋医疗",
+        "return": 81.37,
+        "consecutive": false
+      },
+      {
+        "code": "300752",
+        "name": "隆利科技",
+        "return": 76.17,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2019-01",
+    "top3": [
+      {
+        "code": "601225",
+        "name": "陕西煤业",
+        "return": 1066.67,
+        "consecutive": false
+      },
+      {
+        "code": "002432",
+        "name": "九安医疗",
+        "return": 1050.0,
+        "consecutive": true
+      },
+      {
+        "code": "600295",
+        "name": "鄂尔多斯",
+        "return": 500.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2019-02",
+    "top3": [
+      {
+        "code": "002432",
+        "name": "九安医疗",
+        "return": 5000.0,
+        "consecutive": true
+      },
+      {
+        "code": "601666",
+        "name": "平煤股份",
+        "return": 2300.0,
+        "consecutive": false
+      },
+      {
+        "code": "600295",
+        "name": "鄂尔多斯",
+        "return": 380.0,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2019-03",
+    "top3": [
+      {
+        "code": "300762",
+        "name": "上海瀚讯",
+        "return": 188.28,
+        "consecutive": false
+      },
+      {
+        "code": "601865",
+        "name": "福莱特",
+        "return": 114.81,
+        "consecutive": false
+      },
+      {
+        "code": "300220",
+        "name": "金运激光",
+        "return": 108.96,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2019-04",
+    "top3": [
+      {
+        "code": "300768",
+        "name": "迪普科技",
+        "return": 131.96,
+        "consecutive": false
+      },
+      {
+        "code": "603068",
+        "name": "博通集成",
+        "return": 89.97,
+        "consecutive": false
+      },
+      {
+        "code": "300766",
+        "name": "每日互动",
+        "return": 87.76,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2019-05",
+    "top3": [
+      {
+        "code": "300748",
+        "name": "金力永磁",
+        "return": 260.39,
+        "consecutive": false
+      },
+      {
+        "code": "300777",
+        "name": "中简科技",
+        "return": 205.46,
+        "consecutive": false
+      },
+      {
+        "code": "600546",
+        "name": "山煤国际",
+        "return": 142.86,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2019-06",
+    "top3": [
+      {
+        "code": "300782",
+        "name": "卓胜微",
+        "return": 137.59,
+        "consecutive": false
+      },
+      {
+        "code": "300781",
+        "name": "因赛集团",
+        "return": 96.49,
+        "consecutive": false
+      },
+      {
+        "code": "601225",
+        "name": "陕西煤业",
+        "return": 65.22,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2019-07",
+    "top3": [
+      {
+        "code": "600546",
+        "name": "山煤国际",
+        "return": 417.5,
+        "consecutive": true
+      },
+      {
+        "code": "300785",
+        "name": "值得买",
+        "return": 239.15,
+        "consecutive": false
+      },
+      {
+        "code": "601698",
+        "name": "中国卫通",
+        "return": 159.32,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2019-08",
+    "top3": [
+      {
+        "code": "603115",
+        "name": "海星股份",
+        "return": 115.34,
+        "consecutive": false
+      },
+      {
+        "code": "000038",
+        "name": "上证金融",
+        "return": 92.15,
+        "consecutive": false
+      },
+      {
+        "code": "600812",
+        "name": "华北制药",
+        "return": 89.4,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2019-09",
+    "top3": [
+      {
+        "code": "603093",
+        "name": "南华期货",
+        "return": 262.33,
+        "consecutive": false
+      },
+      {
+        "code": "002552",
+        "name": "宝鼎科技",
+        "return": 139.5,
+        "consecutive": false
+      },
+      {
+        "code": "300790",
+        "name": "宇瞳光学",
+        "return": 84.54,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2019-10",
+    "top3": [
+      {
+        "code": "601666",
+        "name": "平煤股份",
+        "return": 300.0,
+        "consecutive": false
+      },
+      {
+        "code": "300792",
+        "name": "壹网壹创",
+        "return": 179.35,
+        "consecutive": false
+      },
+      {
+        "code": "300793",
+        "name": "佳禾智能",
+        "return": 144.29,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2019-11",
+    "top3": [
+      {
+        "code": "300797",
+        "name": "钢研纳克",
+        "return": 272.05,
+        "consecutive": false
+      },
+      {
+        "code": "300803",
+        "name": "指南针",
+        "return": 140.2,
+        "consecutive": false
+      },
+      {
+        "code": "300802",
+        "name": "矩子科技",
+        "return": 108.9,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2019-12",
+    "top3": [
+      {
+        "code": "601666",
+        "name": "平煤股份",
+        "return": 800.0,
+        "consecutive": false
+      },
+      {
+        "code": "600712",
+        "name": "南宁百货",
+        "return": 140.2,
+        "consecutive": false
+      },
+      {
+        "code": "300807",
+        "name": "天迈科技",
+        "return": 117.61,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2020-01",
+    "top3": [
+      {
+        "code": "000700",
+        "name": "模塑科技",
+        "return": 200.49,
+        "consecutive": false
+      },
+      {
+        "code": "300812",
+        "name": "易天股份",
+        "return": 152.4,
+        "consecutive": false
+      },
+      {
+        "code": "600546",
+        "name": "山煤国际",
+        "return": 112.64,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2020-02",
+    "top3": [
+      {
+        "code": "600295",
+        "name": "鄂尔多斯",
+        "return": 1050.0,
+        "consecutive": true
+      },
+      {
+        "code": "600039",
+        "name": "四川路桥",
+        "return": 933.33,
+        "consecutive": false
+      },
+      {
+        "code": "600096",
+        "name": "云天化",
+        "return": 700.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2020-03",
+    "top3": [
+      {
+        "code": "920167",
+        "name": "同享科技",
+        "return": 148.88,
+        "consecutive": false
+      },
+      {
+        "code": "300526",
+        "name": "?",
+        "return": 143.06,
+        "consecutive": false
+      },
+      {
+        "code": "603719",
+        "name": "良品铺子",
+        "return": 125.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2020-04",
+    "top3": [
+      {
+        "code": "920834",
+        "name": "三维装备",
+        "return": 654.72,
+        "consecutive": false
+      },
+      {
+        "code": "600295",
+        "name": "鄂尔多斯",
+        "return": 166.67,
+        "consecutive": true
+      },
+      {
+        "code": "920163",
+        "name": "方大新材",
+        "return": 165.22,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2020-05",
+    "top3": [
+      {
+        "code": "600256",
+        "name": "广汇能源",
+        "return": 500.0,
+        "consecutive": false
+      },
+      {
+        "code": "300831",
+        "name": "ST派瑞",
+        "return": 370.99,
+        "consecutive": false
+      },
+      {
+        "code": "300832",
+        "name": "新产业",
+        "return": 330.03,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2020-06",
+    "top3": [
+      {
+        "code": "002425",
+        "name": "凯撒文化",
+        "return": 163.95,
+        "consecutive": false
+      },
+      {
+        "code": "300841",
+        "name": "康华生物",
+        "return": 130.77,
+        "consecutive": false
+      },
+      {
+        "code": "605168",
+        "name": "三人行",
+        "return": 114.35,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2020-07",
+    "top3": [
+      {
+        "code": "600295",
+        "name": "鄂尔多斯",
+        "return": 1544.44,
+        "consecutive": true
+      },
+      {
+        "code": "600096",
+        "name": "云天化",
+        "return": 800.0,
+        "consecutive": false
+      },
+      {
+        "code": "300846",
+        "name": "首都在线",
+        "return": 600.0,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2020-08",
+    "top3": [
+      {
+        "code": "300859",
+        "name": "西域旅游",
+        "return": 295.51,
+        "consecutive": false
+      },
+      {
+        "code": "601456",
+        "name": "国联民生",
+        "return": 164.18,
+        "consecutive": false
+      },
+      {
+        "code": "002991",
+        "name": "甘源食品",
+        "return": 132.77,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2020-09",
+    "top3": [
+      {
+        "code": "605358",
+        "name": "立昂微",
+        "return": 245.48,
+        "consecutive": false
+      },
+      {
+        "code": "605009",
+        "name": "豪悦护理",
+        "return": 134.24,
+        "consecutive": false
+      },
+      {
+        "code": "605006",
+        "name": "山东玻纤",
+        "return": 63.29,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2020-10",
+    "top3": [
+      {
+        "code": "003009",
+        "name": "中天火箭",
+        "return": 159.37,
+        "consecutive": false
+      },
+      {
+        "code": "605111",
+        "name": "新洁能",
+        "return": 114.41,
+        "consecutive": false
+      },
+      {
+        "code": "605136",
+        "name": "丽人丽妆",
+        "return": 114.36,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2020-11",
+    "top3": [
+      {
+        "code": "601919",
+        "name": "中远海控",
+        "return": 1600.0,
+        "consecutive": true
+      },
+      {
+        "code": "601699",
+        "name": "潞安环能",
+        "return": 962.5,
+        "consecutive": true
+      },
+      {
+        "code": "600096",
+        "name": "云天化",
+        "return": 217.86,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2020-12",
+    "top3": [
+      {
+        "code": "601919",
+        "name": "中远海控",
+        "return": 587.88,
+        "consecutive": true
+      },
+      {
+        "code": "603025",
+        "name": "大豪科技",
+        "return": 238.83,
+        "consecutive": false
+      },
+      {
+        "code": "600121",
+        "name": "郑州煤电",
+        "return": 127.32,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2021-01",
+    "top3": [
+      {
+        "code": "003031",
+        "name": "中瓷电子",
+        "return": 224.65,
+        "consecutive": false
+      },
+      {
+        "code": "300937",
+        "name": "药易购",
+        "return": 130.19,
+        "consecutive": false
+      },
+      {
+        "code": "003035",
+        "name": "南网能源",
+        "return": 117.86,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2021-02",
+    "top3": [
+      {
+        "code": "600256",
+        "name": "广汇能源",
+        "return": 475.0,
+        "consecutive": false
+      },
+      {
+        "code": "600295",
+        "name": "鄂尔多斯",
+        "return": 179.45,
+        "consecutive": true
+      },
+      {
+        "code": "002532",
+        "name": "天山铝业",
+        "return": 90.31,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2021-03",
+    "top3": [
+      {
+        "code": "003039",
+        "name": "顺控发展",
+        "return": 405.81,
+        "consecutive": false
+      },
+      {
+        "code": "601699",
+        "name": "潞安环能",
+        "return": 192.86,
+        "consecutive": true
+      },
+      {
+        "code": "002658",
+        "name": "雪迪龙",
+        "return": 181.65,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2021-04",
+    "top3": [
+      {
+        "code": "601699",
+        "name": "潞安环能",
+        "return": 669.05,
+        "consecutive": true
+      },
+      {
+        "code": "688068",
+        "name": "热景生物",
+        "return": 397.68,
+        "consecutive": false
+      },
+      {
+        "code": "920270",
+        "name": "天铭科技",
+        "return": 322.41,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2021-05",
+    "top3": [
+      {
+        "code": "600906",
+        "name": "财达证券",
+        "return": 207.58,
+        "consecutive": false
+      },
+      {
+        "code": "002622",
+        "name": "皓宸医疗",
+        "return": 176.15,
+        "consecutive": false
+      },
+      {
+        "code": "601567",
+        "name": "三星电气",
+        "return": 170.97,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2021-06",
+    "top3": [
+      {
+        "code": "300671",
+        "name": "富满微",
+        "return": 135.49,
+        "consecutive": false
+      },
+      {
+        "code": "603876",
+        "name": "鼎胜新材",
+        "return": 116.29,
+        "consecutive": false
+      },
+      {
+        "code": "002772",
+        "name": "众兴菌业",
+        "return": 96.46,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2021-07",
+    "top3": [
+      {
+        "code": "300827",
+        "name": "上能电气",
+        "return": 180.69,
+        "consecutive": false
+      },
+      {
+        "code": "300077",
+        "name": "国民技术",
+        "return": 169.0,
+        "consecutive": false
+      },
+      {
+        "code": "688559",
+        "name": "海目星",
+        "return": 166.12,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2021-08",
+    "top3": [
+      {
+        "code": "300809",
+        "name": "华辰装备",
+        "return": 191.77,
+        "consecutive": false
+      },
+      {
+        "code": "688556",
+        "name": "高测股份",
+        "return": 189.15,
+        "consecutive": false
+      },
+      {
+        "code": "600546",
+        "name": "山煤国际",
+        "return": 166.82,
+        "consecutive": true
+      }
+    ]
+  },
+  {
+    "month": "2021-09",
+    "top3": [
+      {
+        "code": "920174",
+        "name": "五新智能",
+        "return": 284.14,
+        "consecutive": false
+      },
+      {
+        "code": "920090",
+        "name": "*ST同辉",
+        "return": 130.19,
+        "consecutive": false
+      },
+      {
+        "code": "002487",
+        "name": "大金重工",
+        "return": 126.76,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2021-10",
+    "top3": [
+      {
+        "code": "600071",
+        "name": "凤凰光学",
+        "return": 121.42,
+        "consecutive": false
+      },
+      {
+        "code": "600382",
+        "name": "广东明珠",
+        "return": 89.29,
+        "consecutive": false
+      },
+      {
+        "code": "300969",
+        "name": "恒帅股份",
+        "return": 87.42,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2021-11",
+    "top3": [
+      {
+        "code": "002432",
+        "name": "九安医疗",
+        "return": 1404.35,
+        "consecutive": true
+      },
+      {
+        "code": "301089",
+        "name": "拓新药业",
+        "return": 263.71,
+        "consecutive": false
+      },
+      {
+        "code": "688533",
+        "name": "上声电子",
+        "return": 200.52,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2021-12",
+    "top3": [
+      {
+        "code": "002432",
+        "name": "九安医疗",
+        "return": 182.27,
+        "consecutive": true
+      },
+      {
+        "code": "300261",
+        "name": "雅本化学",
+        "return": 123.04,
+        "consecutive": false
+      },
+      {
+        "code": "920946",
+        "name": "森萱医药",
+        "return": 122.5,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-01",
+    "top3": [
+      {
+        "code": "603123",
+        "name": "翠微股份",
+        "return": 126.49,
+        "consecutive": false
+      },
+      {
+        "code": "000620",
+        "name": "盈新发展",
+        "return": 92.2,
+        "consecutive": false
+      },
+      {
+        "code": "603176",
+        "name": "汇通集团",
+        "return": 56.45,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-02",
+    "top3": [
+      {
+        "code": "300249",
+        "name": "依米康",
+        "return": 160.69,
+        "consecutive": false
+      },
+      {
+        "code": "002761",
+        "name": "浙江建投",
+        "return": 146.34,
+        "consecutive": false
+      },
+      {
+        "code": "603122",
+        "name": "合富中国",
+        "return": 124.86,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-03",
+    "top3": [
+      {
+        "code": "600056",
+        "name": "中国医药",
+        "return": 246.92,
+        "consecutive": false
+      },
+      {
+        "code": "603070",
+        "name": "万控智造",
+        "return": 155.68,
+        "consecutive": false
+      },
+      {
+        "code": "002613",
+        "name": "北玻股份",
+        "return": 111.87,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-04",
+    "top3": [
+      {
+        "code": "600062",
+        "name": "华润双鹤",
+        "return": 93.02,
+        "consecutive": false
+      },
+      {
+        "code": "000715",
+        "name": "中兴商业",
+        "return": 69.48,
+        "consecutive": false
+      },
+      {
+        "code": "603696",
+        "name": "安记食品",
+        "return": 65.8,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-05",
+    "top3": [
+      {
+        "code": "600066",
+        "name": "宇通客车",
+        "return": 165.57,
+        "consecutive": false
+      },
+      {
+        "code": "603097",
+        "name": "江苏华辰",
+        "return": 122.85,
+        "consecutive": false
+      },
+      {
+        "code": "600283",
+        "name": "钱江水利",
+        "return": 82.2,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-06",
+    "top3": [
+      {
+        "code": "001270",
+        "name": "铖昌科技",
+        "return": 224.15,
+        "consecutive": false
+      },
+      {
+        "code": "002909",
+        "name": "集泰股份",
+        "return": 181.13,
+        "consecutive": false
+      },
+      {
+        "code": "002703",
+        "name": "浙江世宝",
+        "return": 173.94,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-07",
+    "top3": [
+      {
+        "code": "688218",
+        "name": "江苏北人",
+        "return": 152.49,
+        "consecutive": false
+      },
+      {
+        "code": "002911",
+        "name": "佛燃能源",
+        "return": 122.75,
+        "consecutive": false
+      },
+      {
+        "code": "000755",
+        "name": "山西高速",
+        "return": 113.45,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-08",
+    "top3": [
+      {
+        "code": "001236",
+        "name": "弘业期货",
+        "return": 359.7,
+        "consecutive": false
+      },
+      {
+        "code": "001258",
+        "name": "立新能源",
+        "return": 126.19,
+        "consecutive": false
+      },
+      {
+        "code": "920931",
+        "name": "无锡鼎邦",
+        "return": 115.19,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-09",
+    "top3": [
+      {
+        "code": "920152",
+        "name": "昆工科技",
+        "return": 138.08,
+        "consecutive": false
+      },
+      {
+        "code": "000620",
+        "name": "盈新发展",
+        "return": 81.82,
+        "consecutive": false
+      },
+      {
+        "code": "600605",
+        "name": "汇通能源",
+        "return": 72.64,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-10",
+    "top3": [
+      {
+        "code": "001269",
+        "name": "欧晶科技",
+        "return": 195.08,
+        "consecutive": false
+      },
+      {
+        "code": "688351",
+        "name": "微电生理",
+        "return": 109.19,
+        "consecutive": false
+      },
+      {
+        "code": "300845",
+        "name": "捷安高科",
+        "return": 91.15,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-11",
+    "top3": [
+      {
+        "code": "300813",
+        "name": "泰林生物",
+        "return": 136.65,
+        "consecutive": false
+      },
+      {
+        "code": "601858",
+        "name": "中国科传",
+        "return": 116.86,
+        "consecutive": false
+      },
+      {
+        "code": "603778",
+        "name": "国晟科技",
+        "return": 112.12,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2022-12",
+    "top3": [
+      {
+        "code": "002528",
+        "name": "*ST英飞",
+        "return": 108.16,
+        "consecutive": false
+      },
+      {
+        "code": "601136",
+        "name": "首创证券",
+        "return": 75.03,
+        "consecutive": false
+      },
+      {
+        "code": "600185",
+        "name": "珠免集团",
+        "return": 60.96,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-01",
+    "top3": [
+      {
+        "code": "002808",
+        "name": "恒久退",
+        "return": 110.11,
+        "consecutive": false
+      },
+      {
+        "code": "688506",
+        "name": "百利天恒",
+        "return": 104.37,
+        "consecutive": false
+      },
+      {
+        "code": "920252",
+        "name": "天宏锂电",
+        "return": 103.36,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-02",
+    "top3": [
+      {
+        "code": "688787",
+        "name": "海天瑞声",
+        "return": 110.98,
+        "consecutive": false
+      },
+      {
+        "code": "600066",
+        "name": "宇通客车",
+        "return": 88.65,
+        "consecutive": false
+      },
+      {
+        "code": "600666",
+        "name": "奥瑞德",
+        "return": 68.46,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-03",
+    "top3": [
+      {
+        "code": "688525",
+        "name": "佰维存储",
+        "return": 97.45,
+        "consecutive": false
+      },
+      {
+        "code": "601595",
+        "name": "上海电影",
+        "return": 95.42,
+        "consecutive": false
+      },
+      {
+        "code": "601138",
+        "name": "工业富联",
+        "return": 92.37,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-04",
+    "top3": [
+      {
+        "code": "920808",
+        "name": "曙光数创",
+        "return": 220.78,
+        "consecutive": false
+      },
+      {
+        "code": "601858",
+        "name": "中国科传",
+        "return": 116.94,
+        "consecutive": false
+      },
+      {
+        "code": "601900",
+        "name": "南方传媒",
+        "return": 99.65,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-05",
+    "top3": [
+      {
+        "code": "301041",
+        "name": "金百泽",
+        "return": 88.39,
+        "consecutive": false
+      },
+      {
+        "code": "301205",
+        "name": "联特科技",
+        "return": 70.85,
+        "consecutive": false
+      },
+      {
+        "code": "301083",
+        "name": "百胜智能",
+        "return": 69.96,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-06",
+    "top3": [
+      {
+        "code": "603042",
+        "name": "华脉科技",
+        "return": 92.8,
+        "consecutive": false
+      },
+      {
+        "code": "002553",
+        "name": "南方精工",
+        "return": 83.68,
+        "consecutive": false
+      },
+      {
+        "code": "688668",
+        "name": "鼎通科技",
+        "return": 77.2,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-07",
+    "top3": [
+      {
+        "code": "600280",
+        "name": "中央商场",
+        "return": 116.29,
+        "consecutive": false
+      },
+      {
+        "code": "300844",
+        "name": "山水比德",
+        "return": 96.01,
+        "consecutive": false
+      },
+      {
+        "code": "601086",
+        "name": "国芳集团",
+        "return": 74.88,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-08",
+    "top3": [
+      {
+        "code": "301218",
+        "name": "华是科技",
+        "return": 82.94,
+        "consecutive": false
+      },
+      {
+        "code": "301169",
+        "name": "零点有数",
+        "return": 78.92,
+        "consecutive": false
+      },
+      {
+        "code": "600272",
+        "name": "开开实业",
+        "return": 76.35,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-09",
+    "top3": [
+      {
+        "code": "300780",
+        "name": "德恩精工",
+        "return": 94.83,
+        "consecutive": false
+      },
+      {
+        "code": "301191",
+        "name": "菲菱科思",
+        "return": 80.41,
+        "consecutive": false
+      },
+      {
+        "code": "603123",
+        "name": "翠微股份",
+        "return": 61.25,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-10",
+    "top3": [
+      {
+        "code": "002682",
+        "name": "龙洲股份",
+        "return": 83.58,
+        "consecutive": false
+      },
+      {
+        "code": "600520",
+        "name": "三佳科技",
+        "return": 64.59,
+        "consecutive": false
+      },
+      {
+        "code": "300765",
+        "name": "石药创新",
+        "return": 59.21,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-11",
+    "top3": [
+      {
+        "code": "920526",
+        "name": "凯华材料",
+        "return": 554.59,
+        "consecutive": false
+      },
+      {
+        "code": "920171",
+        "name": "志晟信息",
+        "return": 269.7,
+        "consecutive": false
+      },
+      {
+        "code": "920092",
+        "name": "汉鑫科技",
+        "return": 201.69,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2023-12",
+    "top3": [
+      {
+        "code": "920357",
+        "name": "雅葆轩",
+        "return": 221.63,
+        "consecutive": false
+      },
+      {
+        "code": "920510",
+        "name": "丰光精密",
+        "return": 172.76,
+        "consecutive": false
+      },
+      {
+        "code": "920190",
+        "name": "雷神科技",
+        "return": 145.07,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-01",
+    "top3": [
+      {
+        "code": "600088",
+        "name": "中视传媒",
+        "return": 86.77,
+        "consecutive": false
+      },
+      {
+        "code": "920122",
+        "name": "中纺标",
+        "return": 81.96,
+        "consecutive": false
+      },
+      {
+        "code": "603099",
+        "name": "长白山",
+        "return": 56.19,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-02",
+    "top3": [
+      {
+        "code": "920570",
+        "name": "坤博精工",
+        "return": 94.21,
+        "consecutive": false
+      },
+      {
+        "code": "920454",
+        "name": "同心传动",
+        "return": 83.12,
+        "consecutive": false
+      },
+      {
+        "code": "002611",
+        "name": "东方精工",
+        "return": 80.66,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-03",
+    "top3": [
+      {
+        "code": "688631",
+        "name": "莱斯信息",
+        "return": 116.98,
+        "consecutive": false
+      },
+      {
+        "code": "301091",
+        "name": "深城交",
+        "return": 102.37,
+        "consecutive": false
+      },
+      {
+        "code": "300975",
+        "name": "商络电子",
+        "return": 93.79,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-04",
+    "top3": [
+      {
+        "code": "300641",
+        "name": "正丹股份",
+        "return": 349.21,
+        "consecutive": false
+      },
+      {
+        "code": "300905",
+        "name": "宝丽迪",
+        "return": 107.84,
+        "consecutive": false
+      },
+      {
+        "code": "920508",
+        "name": "殷图网联",
+        "return": 67.59,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-05",
+    "top3": [
+      {
+        "code": "300956",
+        "name": "英力股份",
+        "return": 178.84,
+        "consecutive": false
+      },
+      {
+        "code": "920089",
+        "name": "禾昌聚合",
+        "return": 74.97,
+        "consecutive": false
+      },
+      {
+        "code": "600101",
+        "name": "明星电力",
+        "return": 68.37,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-06",
+    "top3": [
+      {
+        "code": "301132",
+        "name": "满坤科技",
+        "return": 79.86,
+        "consecutive": false
+      },
+      {
+        "code": "300930",
+        "name": "屹通新材",
+        "return": 67.97,
+        "consecutive": false
+      },
+      {
+        "code": "002869",
+        "name": "金溢科技",
+        "return": 64.62,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-07",
+    "top3": [
+      {
+        "code": "600611",
+        "name": "大众交通",
+        "return": 261.4,
+        "consecutive": false
+      },
+      {
+        "code": "000908",
+        "name": "石药景峰",
+        "return": 164.47,
+        "consecutive": true
+      },
+      {
+        "code": "600686",
+        "name": "金龙汽车",
+        "return": 110.81,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-08",
+    "top3": [
+      {
+        "code": "000062",
+        "name": "深圳华强",
+        "return": 185.71,
+        "consecutive": false
+      },
+      {
+        "code": "000908",
+        "name": "石药景峰",
+        "return": 107.58,
+        "consecutive": true
+      },
+      {
+        "code": "600070",
+        "name": "?",
+        "return": 90.65,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-09",
+    "top3": [
+      {
+        "code": "301551",
+        "name": "无线传媒",
+        "return": 359.74,
+        "consecutive": false
+      },
+      {
+        "code": "300085",
+        "name": "银之杰",
+        "return": 296.74,
+        "consecutive": false
+      },
+      {
+        "code": "002693",
+        "name": "双成药业",
+        "return": 185.02,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-10",
+    "top3": [
+      {
+        "code": "920770",
+        "name": "艾能聚",
+        "return": 288.54,
+        "consecutive": false
+      },
+      {
+        "code": "002583",
+        "name": "海能达",
+        "return": 284.2,
+        "consecutive": false
+      },
+      {
+        "code": "300489",
+        "name": "光智科技",
+        "return": 265.4,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-11",
+    "top3": [
+      {
+        "code": "603366",
+        "name": "日出东方",
+        "return": 389.44,
+        "consecutive": false
+      },
+      {
+        "code": "300822",
+        "name": "贝仕达克",
+        "return": 194.83,
+        "consecutive": false
+      },
+      {
+        "code": "000833",
+        "name": "粤桂股份",
+        "return": 194.47,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2024-12",
+    "top3": [
+      {
+        "code": "000759",
+        "name": "中百集团",
+        "return": 187.47,
+        "consecutive": false
+      },
+      {
+        "code": "301600",
+        "name": "慧翰股份",
+        "return": 136.8,
+        "consecutive": false
+      },
+      {
+        "code": "300548",
+        "name": "长芯博创",
+        "return": 99.18,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-01",
+    "top3": [
+      {
+        "code": "002896",
+        "name": "中大力德",
+        "return": 96.31,
+        "consecutive": false
+      },
+      {
+        "code": "000856",
+        "name": "冀东装备",
+        "return": 85.84,
+        "consecutive": false
+      },
+      {
+        "code": "002917",
+        "name": "金奥博",
+        "return": 80.28,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-02",
+    "top3": [
+      {
+        "code": "920002",
+        "name": "万达轴承",
+        "return": 220.78,
+        "consecutive": false
+      },
+      {
+        "code": "920810",
+        "name": "春光智能",
+        "return": 142.3,
+        "consecutive": false
+      },
+      {
+        "code": "300153",
+        "name": "科泰电源",
+        "return": 133.06,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-03",
+    "top3": [
+      {
+        "code": "600610",
+        "name": "中毅达",
+        "return": 132.51,
+        "consecutive": false
+      },
+      {
+        "code": "300611",
+        "name": "美力科技",
+        "return": 104.08,
+        "consecutive": false
+      },
+      {
+        "code": "300871",
+        "name": "回盛生物",
+        "return": 101.61,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-04",
+    "top3": [
+      {
+        "code": "301209",
+        "name": "联合化学",
+        "return": 157.89,
+        "consecutive": false
+      },
+      {
+        "code": "601086",
+        "name": "国芳集团",
+        "return": 112.05,
+        "consecutive": false
+      },
+      {
+        "code": "002165",
+        "name": "红宝丽",
+        "return": 85.67,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-05",
+    "top3": [
+      {
+        "code": "300204",
+        "name": "舒泰神",
+        "return": 151.18,
+        "consecutive": false
+      },
+      {
+        "code": "688648",
+        "name": "中邮科技",
+        "return": 151.03,
+        "consecutive": false
+      },
+      {
+        "code": "688336",
+        "name": "三生国健",
+        "return": 101.81,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-06",
+    "top3": [
+      {
+        "code": "301357",
+        "name": "北方长龙",
+        "return": 151.21,
+        "consecutive": false
+      },
+      {
+        "code": "002940",
+        "name": "昂利康",
+        "return": 123.96,
+        "consecutive": false
+      },
+      {
+        "code": "300340",
+        "name": "科恒股份",
+        "return": 122.68,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-07",
+    "top3": [
+      {
+        "code": "688585",
+        "name": "上纬新材",
+        "return": 1083.42,
+        "consecutive": false
+      },
+      {
+        "code": "300436",
+        "name": "广生堂",
+        "return": 212.5,
+        "consecutive": false
+      },
+      {
+        "code": "920942",
+        "name": "恒立钻具",
+        "return": 188.35,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-08",
+    "top3": [
+      {
+        "code": "688228",
+        "name": "开普云",
+        "return": 139.94,
+        "consecutive": false
+      },
+      {
+        "code": "601929",
+        "name": "吉视传媒",
+        "return": 135.75,
+        "consecutive": false
+      },
+      {
+        "code": "920438",
+        "name": "戈碧迦",
+        "return": 135.27,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-09",
+    "top3": [
+      {
+        "code": "600376",
+        "name": "首开股份",
+        "return": 180.15,
+        "consecutive": false
+      },
+      {
+        "code": "688411",
+        "name": "海博思创",
+        "return": 158.62,
+        "consecutive": false
+      },
+      {
+        "code": "688109",
+        "name": "品茗科技",
+        "return": 140.38,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-10",
+    "top3": [
+      {
+        "code": "300300",
+        "name": "海峡创新",
+        "return": 113.99,
+        "consecutive": false
+      },
+      {
+        "code": "000592",
+        "name": "平潭发展",
+        "return": 102.87,
+        "consecutive": false
+      },
+      {
+        "code": "600403",
+        "name": "大有能源",
+        "return": 101.79,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-11",
+    "top3": [
+      {
+        "code": "301292",
+        "name": "海科新源",
+        "return": 158.15,
+        "consecutive": false
+      },
+      {
+        "code": "688353",
+        "name": "华盛锂电",
+        "return": 136.96,
+        "consecutive": false
+      },
+      {
+        "code": "603778",
+        "name": "国晟科技",
+        "return": 132.73,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2025-12",
+    "top3": [
+      {
+        "code": "002969",
+        "name": "嘉美包装",
+        "return": 227.98,
+        "consecutive": false
+      },
+      {
+        "code": "001331",
+        "name": "胜通能源",
+        "return": 223.39,
+        "consecutive": false
+      },
+      {
+        "code": "301232",
+        "name": "飞沃科技",
+        "return": 194.54,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2026-01",
+    "top3": [
+      {
+        "code": "002931",
+        "name": "锋龙股份",
+        "return": 185.43,
+        "consecutive": false
+      },
+      {
+        "code": "300986",
+        "name": "志特新材",
+        "return": 178.32,
+        "consecutive": false
+      },
+      {
+        "code": "002716",
+        "name": "湖南白银",
+        "return": 150.2,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2026-02",
+    "top3": [
+      {
+        "code": "001896",
+        "name": "豫能控股",
+        "return": 117.62,
+        "consecutive": false
+      },
+      {
+        "code": "600397",
+        "name": "江钨装备",
+        "return": 110.25,
+        "consecutive": false
+      },
+      {
+        "code": "688480",
+        "name": "赛恩斯",
+        "return": 104.42,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2026-03",
+    "top3": [
+      {
+        "code": "600396",
+        "name": "华电辽能",
+        "return": 153.8,
+        "consecutive": false
+      },
+      {
+        "code": "600726",
+        "name": "华电能源",
+        "return": 136.53,
+        "consecutive": false
+      },
+      {
+        "code": "603538",
+        "name": "美诺华",
+        "return": 85.15,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2026-04",
+    "top3": [
+      {
+        "code": "688227",
+        "name": "品高股份",
+        "return": 127.71,
+        "consecutive": false
+      },
+      {
+        "code": "002297",
+        "name": "博云新材",
+        "return": 122.73,
+        "consecutive": false
+      },
+      {
+        "code": "688485",
+        "name": "九州一轨",
+        "return": 122.4,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2026-05",
+    "top3": [
+      {
+        "code": "002552",
+        "name": "宝鼎科技",
+        "return": 152.52,
+        "consecutive": false
+      },
+      {
+        "code": "688143",
+        "name": "长盈通",
+        "return": 150.0,
+        "consecutive": false
+      },
+      {
+        "code": "688260",
+        "name": "昀冢科技",
+        "return": 141.47,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2026-06",
+    "top3": [
+      {
+        "code": "688669",
+        "name": "聚石化学",
+        "return": 165.51,
+        "consecutive": false
+      },
+      {
+        "code": "688233",
+        "name": "神工股份",
+        "return": 165.21,
+        "consecutive": false
+      },
+      {
+        "code": "603065",
+        "name": "宿迁联盛",
+        "return": 159.41,
+        "consecutive": false
+      }
+    ]
+  },
+  {
+    "month": "2026-07",
+    "top3": [
+      {
+        "code": "603137",
+        "name": "恒尚节能",
+        "return": 94.8,
+        "consecutive": false
+      },
+      {
+        "code": "688103",
+        "name": "国力电子",
+        "return": 53.63,
+        "consecutive": false
+      },
+      {
+        "code": "920699",
+        "name": "海达尔",
+        "return": 49.57,
+        "consecutive": false
+      }
+    ]
+  }
+]
