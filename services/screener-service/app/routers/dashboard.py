@@ -6,7 +6,8 @@ Works standalone — reads JSON files, no DB dependency needed for core endpoint
 
 import glob, json, os, subprocess
 from datetime import date, datetime
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, Query
+from app.jobs.pipeline_runner import get_pipeline_run, submit_pipeline
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 
@@ -272,6 +273,7 @@ async def trigger_pipeline(
     modes: str = Query("leader_auction,leader_scalp,short", description="策略列表"),
     top_n: int = Query(20, ge=5, le=50),
     auto_trade: bool = Query(False, description="是否自动提交模拟交易"),
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
 ):
     """V4.0 一键流水线 — 竞价选股 → 多策略融合 → 生成报告.
 
@@ -280,9 +282,9 @@ async def trigger_pipeline(
     target = date.today().strftime("%Y-%m-%d")
     mode_list = [m.strip() for m in modes.split(",") if m.strip()]
 
-    try:
+    async def worker(request: dict):
         from app.orchestrator import run_fusion_screening
-        result = await run_fusion_screening(mode_list, top_n=top_n, trade_date=target)
+        result = await run_fusion_screening(request["modes"], top_n=request["top_n"], trade_date=request["trade_date"])
 
         # Generate execution plans for consensus picks
         plans = []
@@ -296,20 +298,27 @@ async def trigger_pipeline(
 
         return {
             "status": "completed",
-            "date": target,
+            "date": request["trade_date"],
             "pipeline": "V4.0-engine",
             "modes": mode_list,
             "fusion": result,
             "execution_plans": plans[:5] if plans else [],
             "stats": result.get("fusion_stats", {}),
         }
-    except Exception as e:
-        return {"status": "failed", "message": str(e), "fallback_reason": "pipeline engine failed; subprocess fallback is disabled"}
+    request = {"modes": mode_list, "top_n": top_n, "auto_trade": auto_trade, "trade_date": target}
+    key = idempotency_key or f"dashboard:{target}:{','.join(mode_list)}:{top_n}:{auto_trade}"
+    run_id = submit_pipeline(request, key, worker)
+    return {"status": "accepted", "run_id": run_id, "idempotency_key": key}
 
 
 @router.get("/pipeline/status")
-async def pipeline_status():
+async def pipeline_status(run_id: str | None = Query(None)):
     """查询最近流水线输出."""
+    if run_id:
+        run = get_pipeline_run(run_id)
+        if not run:
+            return {"status": "not_found", "run_id": run_id}
+        return run
     import glob
     pattern = os.path.join(OUTPUTS_DIR, "orchestrator_*", "report.md")
     files = sorted(glob.glob(pattern), reverse=True)
