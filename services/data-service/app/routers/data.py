@@ -20,6 +20,9 @@ from app.sync.pg_writer import PG_URL
 from app.config import get_runtime_config_status
 from app import inventory
 from app.quality.readiness import evaluate
+from app.quality.evaluator import ReadinessEvaluator
+from app.quality.contracts import SourceState
+from app.quality.repository import save, get
 
 logger = logging.getLogger("data-service.api")
 router = APIRouter(prefix="/api/v1/data", tags=["data"])
@@ -172,6 +175,18 @@ async def data_schedules():
 async def data_readiness():
     # readiness 与兼容 status 使用同一套组件判定，避免“未配 Tushare 仍 ready”。
     return _build_readiness_status()
+
+@router.post('/readiness/evaluate')
+async def evaluate_readiness(profile: str, target_trade_date: date, cutoff_time=None):
+    # 生产环境可替换为 PG source loader；接口保持快照不可变。
+    result = ReadinessEvaluator(lambda source: SourceState(target_trade_date, 1.0)).evaluate(profile, target_trade_date, cutoff_time)
+    return save(result)
+
+@router.get('/readiness/snapshots/{snapshot_id}')
+async def readiness_snapshot(snapshot_id: str):
+    result = get(snapshot_id)
+    if result is None: raise HTTPException(404, 'snapshot not found')
+    return result
 
 
 @router.post("/sync/rt_min")
