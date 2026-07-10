@@ -165,7 +165,8 @@ def run_smoke(config: SmokeConfig) -> dict[str, Any]:
         {"mode": config.screener_mode, "top_n": config.top_n}
     )
     screen_body = http_json("POST", screen_url, token=token, timeout=config.timeout)
-    if classify_screener_result(screen_body) == "pass":
+    screener_result = classify_screener_result(screen_body, require_pick=config.require_pick)
+    if screener_result["result_status"] == "success_no_matches":
         if config.require_pick:
             raise SmokeError("screener returned a valid no-pick result; full-chain evidence requires a real pick")
         return {

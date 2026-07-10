@@ -68,3 +68,18 @@ def test_smoke_rejects_live_mode():
 
 def test_no_pick_is_success_when_readiness_passes():
     assert smoke.classify_screener_result({"result_status": "success_no_matches", "picks": []})["status"] == "pass"
+
+
+def test_run_smoke_returns_safe_skips_for_a_real_no_pick(monkeypatch):
+    responses = iter((
+        {"access_token": "token", "user": {"email": "admin@suying.ai"}},
+        {"result_status": "success_no_matches", "picks": []},
+    ))
+    monkeypatch.setattr(smoke, "http_json", lambda *args, **kwargs: next(responses))
+    result = smoke.run_smoke(smoke.SmokeConfig(
+        auth_url="http://auth", screener_url="http://screener", diagnosis_url="http://diagnosis",
+        strategy_url="http://strategy", backtest_url="http://backtest", trade_url="http://trade",
+        email="admin@suying.ai", password="secret", screener_mode="short", top_n=5, timeout=1,
+    ))
+    assert result["status"] == "pass"
+    assert result["safe_skips"] == ["diagnosis", "strategy", "backtest", "paper_order"]
