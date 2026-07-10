@@ -126,9 +126,11 @@ class XtquantBroker(BrokerInterface):
         return await self._connect_real()
 
     async def disconnect(self) -> bool:
+        if not _XTQUANT_AVAILABLE:
+            raise BrokerCapabilityError("xtquant SDK unavailable; disconnect is blocked")
         if _XTQUANT_AVAILABLE and self._trader is not None:
             return await self._disconnect_real()
-        return await self._disconnect_stub()
+        raise BrokerCapabilityError("xtquant broker is not connected")
 
     # ── BrokerInterface implementation ────────────────────────────────
 

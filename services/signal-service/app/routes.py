@@ -869,7 +869,7 @@ async def super_signal(code: str):
     """
     import urllib.request, json, os
 
-    results = {"code": code, "super_score": 50.0, "components": {}}
+    results = {"code": code, "super_score": None, "components": {}}
 
     # 1. Signal score (local)
     try:
@@ -901,23 +901,21 @@ async def super_signal(code: str):
             headers={"Content-Type": "application/json"})
         scr = json.loads(urllib.request.urlopen(req, timeout=10).read())
         picks = scr.get("picks", [])
-        rank = next((i+1 for i, p in enumerate(picks) if p.get("code") == code), 51)
-        rank_score = max(10, 100 - rank * 2) if rank <= 50 else 50
+        rank = next((i+1 for i, p in enumerate(picks) if p.get("code") == code), None)
+        rank_score = max(10, 100 - rank * 2) if rank is not None else None
         results["components"]["screener"] = {"rank": rank, "score": rank_score, "weight": 0.25}
     except Exception:
-        rank_score = 50.0
-        results["components"]["screener"] = {"score": 50, "weight": 0.25, "error": "unavailable"}
+        rank_score = None
+        results["components"]["screener"] = {"score": None, "weight": 0.25, "error": "unavailable"}
 
     # Super score
-    results["super_score"] = round(
-        sig_score * 0.40 + diag_score * 0.35 + rank_score * 0.25, 1
-    )
-    results["recommendation"] = (
-        "STRONG_BUY" if results["super_score"] >= 80 else
-        "BUY" if results["super_score"] >= 60 else
-        "HOLD" if results["super_score"] >= 40 else
-        "REDUCE" if results["super_score"] >= 20 else "SELL"
-    )
+    if any(value is None for value in (sig_score, diag_score, rank_score)):
+        results["result_status"] = "insufficient_data"
+        results["recommendation"] = "unavailable"
+    else:
+        results["super_score"] = round(sig_score * 0.40 + diag_score * 0.35 + rank_score * 0.25, 1)
+        results["result_status"] = "ok"
+        results["recommendation"] = "STRONG_BUY" if results["super_score"] >= 80 else "BUY" if results["super_score"] >= 60 else "HOLD" if results["super_score"] >= 40 else "REDUCE" if results["super_score"] >= 20 else "SELL"
 
     return results
 
@@ -1152,9 +1150,9 @@ async def analyze_signal(code: str):
                                   "detail": {"five_factor": round(ff["score"]/25*100, 1),
                                              "trend": round(trend_score, 1)}},
             "fund_flow":         {"score": round(money_score, 1), "weight": 0.12},
-            "fundamental":       {"score": round(fundamental_score, 1), "weight": 0.15},
-            "event_risk":        {"score": round(event_risk_score, 1), "weight": 0.13},
-            "market_adapt":      {"score": round(market_adapt, 1), "weight": 0.20},
+            "fundamental":       {"score": round(fundamental_score, 1) if fundamental_score is not None else None, "weight": 0.15},
+            "event_risk":        {"score": round(event_risk_score, 1) if event_risk_score is not None else None, "weight": 0.13},
+            "market_adapt":      {"score": round(market_adapt, 1) if market_adapt is not None else None, "weight": 0.20},
             "rule_match":        {"score": None, "weight": 0.00, "note": "deprecated-merged-into-event-risk"},
         },
         "coverage": combined["coverage"],
