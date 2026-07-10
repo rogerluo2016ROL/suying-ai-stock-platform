@@ -1,9 +1,12 @@
 """Backtest API routes — PG 直读, 滚动窗口前向回测 + 龙头战法 + 可转债."""
 
 import logging
+import json
 import os
 import sys
 from datetime import date, timedelta
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 import numpy as np
 from fastapi import APIRouter, Query, HTTPException
@@ -12,6 +15,7 @@ router = APIRouter(prefix="/api/v1/backtest", tags=["backtest"])
 logger = logging.getLogger("backtest-service")
 
 PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
+DATA_SERVICE_URL = os.environ.get("DATA_SERVICE_URL", "http://data-service:8010")
 
 # Ensure kronos-factors is importable
 _PACKAGES = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages"))
@@ -41,6 +45,21 @@ def _get_pg():
     """Get sync PG connection."""
     import psycopg2
     return psycopg2.connect(PG_URL)
+
+
+def readiness_gate(snapshot: dict) -> dict:
+    if snapshot.get("status") == "ready":
+        return {"status": "ready"}
+    return {"status": "blocked", "fallback_reason": "required data is stale or incomplete", "data_readiness": snapshot}
+
+
+def _backtest_readiness(trade_date: date) -> dict:
+    query = urlencode({"profile": "backtest_v1", "trade_date": trade_date.isoformat()})
+    try:
+        with urlopen(f"{DATA_SERVICE_URL}/api/v1/data/readiness?{query}", timeout=3) as response:
+            return readiness_gate(json.loads(response.read().decode()))
+    except Exception as exc:
+        return {"status": "blocked", "fallback_reason": "data readiness service is unavailable", "error": str(exc)}
 
 
 def _compute_ic(predictions, actuals):
@@ -85,6 +104,10 @@ async def run_backtest(
         min_d, max_d = cur.fetchone()
         if not min_d:
             return {"status": "error", "message": "No daily_kline data"}
+        readiness = _backtest_readiness(max_d)
+        if readiness["status"] != "ready":
+            conn.close()
+            return readiness
         # Use recent data (last 2 years) for relevant backtest
         recent_start = max_d - timedelta(days=730)
         if recent_start < min_d:

@@ -34,6 +34,7 @@ from app.config import (
 )
 from app.mlflow_client import get_mlflow_client, log_model, register_model
 from app.admission import admission_from_metrics
+from app.data_readiness import require as require_data_readiness
 from app.mlflow_client import MLFLOW_MODE  # M04: auto-deploy 仅在 live MLflow 下允许
 from app.schemas import (
     JobStatus,
@@ -749,6 +750,10 @@ async def run_training(
     Returns:
         job_id: UUID for tracking
     """
+    readiness = await require_data_readiness("training_v1", datetime.now(timezone.utc).date().isoformat())
+    if readiness["status"] != "ready":
+        raise ValueError(f"training blocked: {readiness['reason']}")
+
     # Check for conflicts
     active = await check_active_job(params.model_type.value)
     if active:
