@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
-"""ADR-014 schema audit. Usage: KRONOS_PG_URL=... python3 services/sql/audit/schema_audit.py
-Output: docs/reviews/schema-drift-audit-YYYY-MM-DD.md (read-only, no deps beyond psycopg2+stdlib)"""
+"""Read-only schema drift release gate.
 
-import os, re; from collections import defaultdict; from datetime import date; from pathlib import Path; import psycopg2
+Produces the historical Markdown report and, when requested, a stable JSON
+artifact carrying severity, table ownership, and time-bounded exemptions.
+"""
+
+import argparse, json, os, re
+from collections import defaultdict
+from dataclasses import asdict, dataclass, field
+from datetime import date
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
 PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:16432/kronos")
-INIT_SQL = "services/sql/init_postgres.sql"
+INIT_SQL = ROOT / "services/sql/init_postgres.sql"
+OWNERSHIP_FILE = ROOT / "configs/data_ownership.json"
 # P1-4 (audit): the 5 data-pipeline tables (sw_daily, pledge_detail, rt_sw_k,
 # top_list, cyq_chips) were previously EXCLUDED, which hid their schema drift
 # (pledge_total_ratio column-name issues, rt_sw_k/sw_daily missing-core-column
@@ -48,10 +58,10 @@ def parse_init_sql(path):
             if pm and u.startswith(("CONSTRAINT","PRIMARY KEY")): pk=[c.strip() for c in pm.group(1).split(",")]; continue
             um=re.match(r'(?:CONSTRAINT\s+\w+\s+)?UNIQUE\s*\(([^)]+)\)',seg,re.I)
             if um and u.startswith(("UNIQUE","CONSTRAINT")): uniques.append([c.strip() for c in um.group(1).split(",")]); continue
-            if u.startswith(("CHECK","FOREIGN","CONSTRAINT")): continue
+            if re.match(r"^(?:CHECK\s*\(|FOREIGN\s+KEY\b|CONSTRAINT\s+)", u): continue
             parts=seg.split(None,2)
             if len(parts)>=2:
-                cn,ct=parts[0],parts[1].lower().rstrip(",")
+                cn,ct=parts[0].strip('"').lower(),parts[1].lower().rstrip(",")
                 if ct=="double" and len(parts)>2: ct="double precision"
                 cols.append((cn,ct))
                 if "PRIMARY KEY" in u and not pm: pk=[cn]
@@ -79,8 +89,73 @@ def introspect_db(conn):
         meta[tt]["idxes"].append({"name":iname,"cols":[c.strip() for c in cm.group(1).split(",")] if cm else []})
     return dict(meta)
 
-TN={"double precision":"float8","integer":"int4","bigint":"int8","timestamp without time zone":"timestamp",
-    "smallint":"int2","character varying":"text","boolean":"bool","serial":"int4","bigserial":"int8"}
+TYPE_ALIASES={
+    "double precision":"float8", "integer":"int4", "bigint":"int8",
+    "smallint":"int2", "character varying":"text", "varchar":"text",
+    "timestamp without time zone":"timestamp", "timestamp with time zone":"timestamptz",
+    "boolean":"bool", "serial":"int4", "bigserial":"int8",
+}
+
+
+def normalize_type(value):
+    """Normalize PostgreSQL/catalog aliases to prevent false drift findings."""
+    normalized = re.sub(r"\s+", " ", str(value).strip().lower())
+    if re.fullmatch(r"(?:varchar|character varying|character)\s*\(\d+\)", normalized):
+        normalized = "text"
+    elif re.fullmatch(r"numeric\s*\(\d+\s*,\s*\d+\)", normalized):
+        normalized = "numeric"
+    return TYPE_ALIASES.get(normalized, normalized)
+
+
+@dataclass
+class Finding:
+    table: str
+    severity: str
+    owner: str | None = None
+    details: list[str] = field(default_factory=list)
+    exemption: str | None = None
+    exempt_until: date | None = None
+
+    def exempt(self, today=None):
+        today = today or date.today()
+        return bool(self.exemption and self.exempt_until and self.exempt_until >= today)
+
+    def to_json(self, today=None):
+        payload = asdict(self)
+        payload["exempt_until"] = self.exempt_until.isoformat() if self.exempt_until else None
+        payload["exempt"] = self.exempt(today)
+        return payload
+
+
+def exit_code(findings, today=None, fail_on="medium"):
+    levels = {"none": 99, "high": 3, "medium": 2, "low": 1}
+    if fail_on not in levels:
+        raise ValueError(f"unsupported fail-on threshold: {fail_on}")
+    threshold = levels[fail_on]
+    return int(any(levels.get(f.severity, 0) >= threshold and not f.exempt(today) for f in findings))
+
+
+def load_ownership(path=OWNERSHIP_FILE):
+    return json.loads(Path(path).read_text("utf-8"))
+
+
+def build_findings(diffs, ownership):
+    findings = []
+    for table, drift in sorted(diffs.items()):
+        details = dsum(drift)
+        if not details:
+            continue
+        spec = ownership.get(table, {})
+        raw_expiry = spec.get("exempt_until")
+        findings.append(Finding(
+            table=table,
+            severity=drift["sev"],
+            owner=spec.get("owner"),
+            details=details,
+            exemption=spec.get("exemption"),
+            exempt_until=date.fromisoformat(raw_expiry) if raw_expiry else None,
+        ))
+    return findings
 
 def diff_tbl(d,i):
     r={"db":False,"init":False,"oc":[],"ic":[],"tm":[],"pk":None,"uq":None,"il":[],"im":[],"sev":"low"}
@@ -90,7 +165,7 @@ def diff_tbl(d,i):
     ic={c[0]:c[1] for c in i.get("cols",[]) if not c[0].startswith(IGNORED_COLUMN_PREFIXES)}
     ds,is_=set(dc),set(ic); r["oc"]=sorted(ds-is_); r["ic"]=sorted(is_-ds)
     for c in ds&is_:
-        dt,it=TN.get(dc[c],dc[c]),TN.get(ic[c],ic[c])
+        dt,it=normalize_type(dc[c]),normalize_type(ic[c])
         if dt!=it: r["tm"].append((c,dc[c],ic[c]))
     if set(d.get("pk",[]))!=set(i.get("pk",[])): r["pk"]=(d.get("pk",[]),i.get("pk",[]))
     du={tuple(sorted(u)) for u in d.get("uniques",[])}; iu={tuple(sorted(u)) for u in i.get("uniques",[])}
@@ -99,7 +174,7 @@ def diff_tbl(d,i):
     r["il"]=sorted(dx-ix); r["im"]=sorted(ix-dx)
     cc=len(r["oc"])+len(r["ic"])
     if cc>=3 or r["pk"] or r["tm"]: r["sev"]="high"
-    elif cc>=1 or r["uq"] or r["il"]: r["sev"]="medium"
+    elif cc>=1 or r["uq"] or r["im"]: r["sev"]="medium"
     return r
 
 def dsum(r):
@@ -174,8 +249,17 @@ def render(diffs,im,dbm,mm,path):
     Path(path).write_text("\n".join(L)+"\n","utf-8")
     print(f"OK {path} | audited={len(diffs)} high={len(h)} med={len(m)} low={len(l)} MISSING={sorted(mm) or 'none'}")
 
-if __name__=="__main__":
-    conn=psycopg2.connect(PG_URL); im=parse_init_sql(INIT_SQL); dbm=introspect_db(conn); conn.close()
+def main(argv=None):
+    import psycopg2
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--json", dest="json_path", help="write machine-readable audit artifact")
+    parser.add_argument("--fail-on", choices=("none", "low", "medium", "high"), default="none")
+    parser.add_argument("--markdown", default=str(ROOT / "docs/reviews" / f"schema-drift-audit-{date.today().isoformat()}.md"))
+    parser.add_argument("--pg-url", default=PG_URL)
+    args = parser.parse_args(argv)
+
+    conn=psycopg2.connect(args.pg_url); im=parse_init_sql(INIT_SQL); dbm=introspect_db(conn); conn.close()
     all_t={
         t for t in (set(dbm)|set(im))-EXCLUDED
         if t not in RAW_LANDING_TABLES and not any(t.startswith(prefix) for prefix in RAW_LANDING_PREFIXES)
@@ -186,4 +270,23 @@ if __name__=="__main__":
     for t in sorted(mm):
         diffs[t]={"db":True,"init":True,"oc":[],"ic":[],"tm":[],"pk":None,"uq":None,"il":[],"im":[],
                   "sev":"high","_missing":True}
-    render(diffs,im,dbm,mm,f"docs/reviews/schema-drift-audit-{date.today().isoformat()}.md")
+    render(diffs, im, dbm, mm, args.markdown)
+    findings = build_findings(diffs, load_ownership())
+    if args.json_path:
+        output = Path(args.json_path)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema_version": "1.0",
+            "generated_at": date.today().isoformat(),
+            "fail_on": args.fail_on,
+            "finding_count": len(findings),
+            "blocking_count": sum(not f.exempt() and exit_code([f], fail_on=args.fail_on) for f in findings),
+            "findings": [f.to_json() for f in findings],
+        }
+        output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", "utf-8")
+        print(f"JSON {output}")
+    return exit_code(findings, fail_on=args.fail_on)
+
+
+if __name__=="__main__":
+    raise SystemExit(main())

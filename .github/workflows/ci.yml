@@ -116,8 +116,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install governance test dependency
+        run: python -m pip install pytest
       - name: Audit table ownership
         run: python3 tools/audit_table_ownership.py --fail-on violation
+      - name: Test schema drift release contract
+        run: python3 -m pytest services/sql/audit/test_schema_contract.py tools/tests/test_audit_table_ownership.py -q
 
   docker-build:
     name: Docker Build Check
