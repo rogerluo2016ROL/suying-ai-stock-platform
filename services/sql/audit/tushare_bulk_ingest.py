@@ -396,25 +396,39 @@ def render_report(results: list[ApiIngestResult], output: Path = DEFAULT_REPORT)
     output.write_text("\n".join(lines) + "\n", "utf-8")
 
 
-def load_uncovered_api_refs(pg_url: str) -> list[Any]:
+def load_api_refs(pg_url: str, status: str | None = None) -> list[Any]:
     catalog_path = Path(__file__).with_name("tushare_data_catalog.py")
     spec = importlib.util.spec_from_file_location("tushare_data_catalog", catalog_path)
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    _rows, _reference_apis, uncovered = module.build_catalog(pg_url=pg_url)
+    _rows, reference_apis, uncovered = module.build_catalog(pg_url=pg_url)
+    if status:
+        import psycopg2
+
+        conn = psycopg2.connect(pg_url, connect_timeout=10)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT api FROM tushare_api_ingest_status WHERE status = %s",
+                    (status,),
+                )
+                wanted = {row[0] for row in cur.fetchall()}
+        finally:
+            conn.close()
+        return [reference_apis[name] for name in sorted(wanted) if name in reference_apis]
     return uncovered
 
 
-def create_pro_client():
+def create_pro_client(timeout: int = 30):
     import tushare as ts
 
     token = os.environ.get("TUSHARE_TOKEN", "").strip()
     if not token:
         raise RuntimeError("TUSHARE_TOKEN is missing")
     ts.set_token(token)
-    return ts.pro_api()
+    return ts.pro_api(timeout=timeout)
 
 
 def main() -> int:
@@ -426,12 +440,14 @@ def main() -> int:
     parser.add_argument("--max-windows", type=int, default=None)
     parser.add_argument("--sleep-seconds", type=float, default=0.25)
     parser.add_argument("--only", nargs="*", default=None, help="Only ingest these API names")
+    parser.add_argument("--status", default=None, help="Retry APIs with this status, e.g. failed")
+    parser.add_argument("--timeout", type=int, default=30, help="Tushare request timeout in seconds")
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
     args = parser.parse_args()
 
     import psycopg2
 
-    refs = load_uncovered_api_refs(args.pg_url)
+    refs = load_api_refs(args.pg_url, status=args.status)
     if args.only:
         wanted = set(args.only)
         refs = [ref for ref in refs if ref.name in wanted]
@@ -440,7 +456,7 @@ def main() -> int:
 
     conn = psycopg2.connect(args.pg_url, connect_timeout=10)
     ensure_control_table(conn)
-    pro = create_pro_client()
+    pro = create_pro_client(timeout=args.timeout)
     results: list[ApiIngestResult] = []
     for index, ref in enumerate(refs, 1):
         print(f"[{index}/{len(refs)}] ingest {ref.name} -> {raw_table_name(ref.name)}", flush=True)
