@@ -20,7 +20,7 @@ for _pkg in ["kronos-factors", "kronos-core", "kronos-data"]:
         sys.path.insert(0, _path)
 
 from app.config import HOST, PORT, DEBUG, DB_PATH
-from app.routers.screener import router as screener_router
+from app.domains.router import router as screener_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.lark import router as lark_router
 

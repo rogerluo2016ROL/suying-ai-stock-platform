@@ -1,8 +1,8 @@
-"""Candidate route compatibility exports.
+"""Candidate HTTP domain router."""
 
-The active routes are registered by the shared Screener contract router to
-avoid changing public paths during extraction.
-"""
+from fastapi import APIRouter
+
+from app.domains.screening import service as _legacy
 
 from app.domains.screening.service import (
     add_watchlist,
@@ -11,6 +11,11 @@ from app.domains.screening.service import (
     record_candidate_pool,
     remove_watchlist,
 )
+
+router = APIRouter(tags=["candidates"])
+for _route in _legacy.router.routes:
+    if _route.path.endswith("/candidate-pool") or _route.path.endswith("/watchlist"):
+        router.routes.append(_route)
 
 __all__ = [
     "add_watchlist",
