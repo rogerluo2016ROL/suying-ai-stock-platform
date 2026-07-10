@@ -178,8 +178,16 @@ async def data_readiness():
 
 @router.post('/readiness/evaluate')
 async def evaluate_readiness(profile: str, target_trade_date: date, cutoff_time=None):
-    # 生产环境可替换为 PG source loader；接口保持快照不可变。
-    result = ReadinessEvaluator(lambda source: SourceState(target_trade_date, 1.0)).evaluate(profile, target_trade_date, cutoff_time)
+    def loader(source):
+        try:
+            import psycopg2
+            conn = psycopg2.connect(PG_URL, connect_timeout=2); cur = conn.cursor()
+            cur.execute(f'SELECT MAX(trade_date) FROM "{source}"')
+            value = cur.fetchone()[0]; conn.close()
+            return SourceState(value, 1.0)
+        except Exception:
+            return SourceState(None, 0.0)
+    result = ReadinessEvaluator(loader).evaluate(profile, target_trade_date, cutoff_time)
     return save(result)
 
 @router.get('/readiness/snapshots/{snapshot_id}')
