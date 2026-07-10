@@ -17,7 +17,7 @@ from app.sync.tushare import sync_post_market_core, sync_post_market_ext
 from app.sync.stocks import sync_stock_list
 from app.sync.rate_limiter import get_rate_limit_status
 from app.sync.pg_writer import PG_URL
-import app.config as data_config
+import importlib
 from app import inventory
 from app.quality.readiness import evaluate
 from app.quality.evaluator import ReadinessEvaluator
@@ -103,7 +103,7 @@ def _find_job_status(status: dict, job_id: str) -> dict:
 def _build_readiness_status() -> dict:
     job_status = get_job_status()
     pg_connection = _check_pg_connection()
-    runtime_config = data_config.get_runtime_config_status()
+    runtime_config = importlib.import_module("app.config").get_runtime_config_status()
     components = {
         "service_alive": True,
         "scheduler_running": bool(job_status.get("scheduler_running")),
@@ -126,7 +126,7 @@ async def data_status():
 
     # 附加 PG 连接状态 (ADR-006)
     result["pg_connection"] = _check_pg_connection()
-    result["runtime_config"] = data_config.get_runtime_config_status()
+    result["runtime_config"] = importlib.import_module("app.config").get_runtime_config_status()
     result["readiness"] = _build_readiness_status()
 
     # 附加限频状态 (ADR-006)
