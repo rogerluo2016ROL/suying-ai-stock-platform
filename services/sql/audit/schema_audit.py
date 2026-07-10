@@ -2,7 +2,7 @@
 """ADR-014 schema audit. Usage: KRONOS_PG_URL=... python3 services/sql/audit/schema_audit.py
 Output: docs/reviews/schema-drift-audit-YYYY-MM-DD.md (read-only, no deps beyond psycopg2+stdlib)"""
 
-import os, re; from collections import defaultdict; from datetime import date; from pathlib import Path; import psycopg2
+import argparse, json, os, re; from collections import defaultdict; from datetime import date; from pathlib import Path; import psycopg2
 PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:16432/kronos")
 INIT_SQL = "services/sql/init_postgres.sql"
 # P1-4 (audit): the 5 data-pipeline tables (sw_daily, pledge_detail, rt_sw_k,
@@ -174,7 +174,17 @@ def render(diffs,im,dbm,mm,path):
     Path(path).write_text("\n".join(L)+"\n","utf-8")
     print(f"OK {path} | audited={len(diffs)} high={len(h)} med={len(m)} low={len(l)} MISSING={sorted(mm) or 'none'}")
 
+def audit_exit_code(diffs, fail_on):
+    severity = {"low": 0, "medium": 1, "high": 2}
+    threshold = severity[fail_on]
+    return 1 if any(severity[d["sev"]] >= threshold for d in diffs.values()) else 0
+
+
 if __name__=="__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--json", dest="json_path")
+    parser.add_argument("--fail-on", choices=("high", "medium", "low"), default="high")
+    args = parser.parse_args()
     conn=psycopg2.connect(PG_URL); im=parse_init_sql(INIT_SQL); dbm=introspect_db(conn); conn.close()
     all_t={
         t for t in (set(dbm)|set(im))-EXCLUDED
@@ -187,3 +197,10 @@ if __name__=="__main__":
         diffs[t]={"db":True,"init":True,"oc":[],"ic":[],"tm":[],"pk":None,"uq":None,"il":[],"im":[],
                   "sev":"high","_missing":True}
     render(diffs,im,dbm,mm,f"docs/reviews/schema-drift-audit-{date.today().isoformat()}.md")
+    if args.json_path:
+        payload = {"generated_at": date.today().isoformat(), "fail_on": args.fail_on,
+                   "findings": [{"table": table, "severity": data["sev"], "owner": "data-service"}
+                                for table, data in sorted(diffs.items())]}
+        Path(args.json_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.json_path).write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    raise SystemExit(audit_exit_code(diffs, args.fail_on))
