@@ -304,16 +304,8 @@ async def trigger_pipeline(
             "stats": result.get("fusion_stats", {}),
         }
     except Exception as e:
-        # Fallback to subprocess
-        script = os.path.join(TOOLS_DIR, "pipeline_daily.py")
-        if os.path.exists(script):
-            subprocess.Popen(
-                ["python3", script, "--date", target],
-                cwd=KRONOS_ROOT,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
-            return {"status": "started-subprocess", "message": "引擎模式失败, 已回退 subprocess 流水线"}
-        return {"status": "error", "message": str(e)}
+        return {"status": "failed", "error": str(e), "run_id": None,
+                "message": "pipeline engine failed; no subprocess fallback is permitted"}
 
 
 @router.get("/pipeline/status")
