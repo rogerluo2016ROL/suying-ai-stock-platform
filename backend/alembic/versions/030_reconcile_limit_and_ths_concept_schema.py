@@ -14,7 +14,20 @@ def upgrade():
     op.execute("ALTER TABLE limit_list_d ALTER COLUMN id SET NOT NULL")
     op.execute("ALTER SEQUENCE limit_list_d_id_seq OWNED BY limit_list_d.id")
     op.execute("ALTER TABLE limit_list_d DROP CONSTRAINT IF EXISTS limit_list_d_uniq")
-    op.execute("ALTER TABLE limit_list_d ADD CONSTRAINT limit_list_d_pkey PRIMARY KEY (id)")
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conrelid = 'limit_list_d'::regclass AND contype = 'p'
+            ) THEN
+                ALTER TABLE limit_list_d
+                    ADD CONSTRAINT limit_list_d_pkey PRIMARY KEY (id);
+            END IF;
+        END $$;
+        """
+    )
     op.execute("ALTER TABLE IF EXISTS ths_concept_map RENAME TO ths_concept_catalog_legacy")
     op.create_table("ths_concept_map", sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("ts_code", sa.Text(), nullable=False), sa.Column("concept_name", sa.Text(), nullable=False),
