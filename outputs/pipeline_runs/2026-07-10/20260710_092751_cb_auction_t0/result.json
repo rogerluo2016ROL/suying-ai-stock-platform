@@ -1,0 +1,602 @@
+{
+  "mode": "cb_auction_t0_v2_1",
+  "trade_date": "2026-07-10",
+  "total_picks": 10,
+  "picks": [
+    {
+      "cb_code": "110090.SH",
+      "cb_name": "爱迪转债",
+      "stk_code": "600933",
+      "stk_name": "爱柯迪",
+      "matched_concepts": [
+        "共封装光学(CPO)"
+      ],
+      "trigger_sources": [
+        "002185"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 1913948730.0,
+      "matched_concept_strength": 0.8228144015689911,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1569604005.3,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 129.1395,
+      "risk_notes": [
+        "剩余规模15.70亿"
+      ],
+      "remain_size_yi": 15.7,
+      "code": "110090.SH",
+      "name": "爱迪转债",
+      "relation_reason": "命中共封装光学(CPO)",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.82%",
+      "list_type": "主买",
+      "score": 129.14,
+      "entry_reason": "命中共封装光学(CPO)",
+      "risk_flags": [
+        "剩余规模15.70亿"
+      ],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-110090.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "111024.SH",
+      "cb_name": "澳弘转债",
+      "stk_code": "605058",
+      "stk_name": "澳弘电子",
+      "matched_concepts": [
+        "共封装光学(CPO)"
+      ],
+      "trigger_sources": [
+        "002185"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 1913948730.0,
+      "matched_concept_strength": 0.8228144015689911,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 579957048.48,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 129.1395,
+      "risk_notes": [],
+      "remain_size_yi": 5.8,
+      "code": "111024.SH",
+      "name": "澳弘转债",
+      "relation_reason": "命中共封装光学(CPO)",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.82%",
+      "list_type": "主买",
+      "score": 129.14,
+      "entry_reason": "命中共封装光学(CPO)",
+      "risk_flags": [],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-111024.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "113677.SH",
+      "cb_name": "华懋转债",
+      "stk_code": "603306",
+      "stk_name": "华懋科技",
+      "matched_concepts": [
+        "共封装光学(CPO)"
+      ],
+      "trigger_sources": [
+        "002185"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 1913948730.0,
+      "matched_concept_strength": 0.8228144015689911,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1048975023.86,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 129.1395,
+      "risk_notes": [
+        "剩余规模10.49亿"
+      ],
+      "remain_size_yi": 10.49,
+      "code": "113677.SH",
+      "name": "华懋转债",
+      "relation_reason": "命中共封装光学(CPO)",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.82%",
+      "list_type": "主买",
+      "score": 129.14,
+      "entry_reason": "命中共封装光学(CPO)",
+      "risk_flags": [
+        "剩余规模10.49亿"
+      ],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-113677.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "113678.SH",
+      "cb_name": "中贝转债",
+      "stk_code": "603220",
+      "stk_name": "中贝通信",
+      "matched_concepts": [
+        "共封装光学(CPO)"
+      ],
+      "trigger_sources": [
+        "002185"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 1913948730.0,
+      "matched_concept_strength": 0.8228144015689911,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 510622055.66,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 129.1395,
+      "risk_notes": [],
+      "remain_size_yi": 5.11,
+      "code": "113678.SH",
+      "name": "中贝转债",
+      "relation_reason": "命中共封装光学(CPO)",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.82%",
+      "list_type": "主买",
+      "score": 129.14,
+      "entry_reason": "命中共封装光学(CPO)",
+      "risk_flags": [],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-113678.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "118042.SH",
+      "cb_name": "奥维转债",
+      "stk_code": "688516",
+      "stk_name": "奥特维",
+      "matched_concepts": [
+        "共封装光学(CPO)"
+      ],
+      "trigger_sources": [
+        "002185"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 1913948730.0,
+      "matched_concept_strength": 0.8228144015689911,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1139918000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 129.1395,
+      "risk_notes": [
+        "剩余规模11.40亿"
+      ],
+      "remain_size_yi": 11.4,
+      "code": "118042.SH",
+      "name": "奥维转债",
+      "relation_reason": "命中共封装光学(CPO)",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.82%",
+      "list_type": "主买",
+      "score": 129.14,
+      "entry_reason": "命中共封装光学(CPO)",
+      "risk_flags": [
+        "剩余规模11.40亿"
+      ],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-118042.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "118059.SH",
+      "cb_name": "颀中转债",
+      "stk_code": "688352",
+      "stk_name": "颀中科技",
+      "matched_concepts": [
+        "集成电路封测"
+      ],
+      "trigger_sources": [
+        "002185"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 1913948730.0,
+      "matched_concept_strength": 1.7046128508082514,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 849873013.6,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 129.1395,
+      "risk_notes": [],
+      "remain_size_yi": 8.5,
+      "code": "118059.SH",
+      "name": "颀中转债",
+      "relation_reason": "命中集成电路封测",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度1.70%",
+      "list_type": "主买",
+      "score": 129.14,
+      "entry_reason": "命中集成电路封测",
+      "risk_flags": [],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-118059.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "118500.SH",
+      "cb_name": "思瑞定转",
+      "stk_code": "688536",
+      "stk_name": "思瑞浦",
+      "matched_concepts": [
+        "共封装光学(CPO)"
+      ],
+      "trigger_sources": [
+        "002185"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 1913948730.0,
+      "matched_concept_strength": 0.8228144015689911,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 100.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 129.1395,
+      "risk_notes": [],
+      "remain_size_yi": 0.0,
+      "code": "118500.SH",
+      "name": "思瑞定转",
+      "relation_reason": "命中共封装光学(CPO)",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.82%",
+      "list_type": "主买",
+      "score": 129.14,
+      "entry_reason": "命中共封装光学(CPO)",
+      "risk_flags": [],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-118500.SH",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "123253.SZ",
+      "cb_name": "永贵转债",
+      "stk_code": "300351",
+      "stk_name": "永贵电器",
+      "matched_concepts": [
+        "共封装光学(CPO)"
+      ],
+      "trigger_sources": [
+        "002185"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 1913948730.0,
+      "matched_concept_strength": 0.8228144015689911,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 979753400.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 129.1395,
+      "risk_notes": [],
+      "remain_size_yi": 9.8,
+      "code": "123253.SZ",
+      "name": "永贵转债",
+      "relation_reason": "命中共封装光学(CPO)",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.82%",
+      "list_type": "主买",
+      "score": 129.14,
+      "entry_reason": "命中共封装光学(CPO)",
+      "risk_flags": [],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-123253.SZ",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "123268.SZ",
+      "cb_name": "本川转债",
+      "stk_code": "300964",
+      "stk_name": "本川智能",
+      "matched_concepts": [
+        "共封装光学(CPO)"
+      ],
+      "trigger_sources": [
+        "002185"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 1913948730.0,
+      "matched_concept_strength": 0.8228144015689911,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 469000000.0,
+      "delist_date": null,
+      "call_status": "安全",
+      "is_direct_trigger": false,
+      "theme_score": 129.1395,
+      "risk_notes": [],
+      "remain_size_yi": 4.69,
+      "code": "123268.SZ",
+      "name": "本川转债",
+      "relation_reason": "命中共封装光学(CPO)",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.82%",
+      "list_type": "主买",
+      "score": 129.14,
+      "entry_reason": "命中共封装光学(CPO)",
+      "risk_flags": [],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-123268.SZ",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    },
+    {
+      "cb_code": "127038.SZ",
+      "cb_name": "国微转债",
+      "stk_code": "002049",
+      "stk_name": "紫光国微",
+      "matched_concepts": [
+        "共封装光学(CPO)"
+      ],
+      "trigger_sources": [
+        "002185"
+      ],
+      "matched_concept_count": 1,
+      "trigger_stock_count_sum": 1,
+      "matched_fd_amount": 1913948730.0,
+      "matched_concept_strength": 0.8228144015689911,
+      "concept_size_min": 1,
+      "premium_rate": null,
+      "cb_amount": null,
+      "remain_size": 1491507400.0,
+      "delist_date": null,
+      "call_status": "公告不强赎",
+      "is_direct_trigger": false,
+      "theme_score": 129.1395,
+      "risk_notes": [
+        "剩余规模14.92亿"
+      ],
+      "remain_size_yi": 14.92,
+      "code": "127038.SZ",
+      "name": "国微转债",
+      "relation_reason": "命中共封装光学(CPO)",
+      "quality_tier": "A",
+      "quality_tier_reason": "概念竞价强度0.82%",
+      "list_type": "主买",
+      "score": 129.14,
+      "entry_reason": "命中共封装光学(CPO)",
+      "risk_flags": [
+        "剩余规模14.92亿"
+      ],
+      "candidate_id": "CAND-cb_auction_t0_v2_1-127038.SZ",
+      "source_module": "screener",
+      "source_mode": "cb_auction_t0_v2_1",
+      "visibility": "public",
+      "data_scope": "public",
+      "grade": "S"
+    }
+  ],
+  "observation_picks": [],
+  "total_observation_picks": 0,
+  "process_summary": {
+    "trigger_stock_count": 2,
+    "concept_count": 2,
+    "main_pick_count": 10,
+    "observation_pick_count": 0,
+    "rejection_count": 49
+  },
+  "screening_trace": [
+    {
+      "step": "交易日确认",
+      "status": "ok",
+      "detail": "使用交易日 2026-07-10"
+    },
+    {
+      "step": "触发股筛选",
+      "status": "ok",
+      "detail": "竞价触发股 2 只"
+    },
+    {
+      "step": "概念映射",
+      "status": "ok",
+      "detail": "有效概念 2 个"
+    },
+    {
+      "step": "转债匹配",
+      "status": "ok",
+      "detail": "主买 10 只，观察 0 只"
+    },
+    {
+      "step": "输出分层",
+      "status": "ok",
+      "detail": "cb_auction_t0_v2_1 输出主买 10 只，剔除 49 条"
+    }
+  ],
+  "rejection_summary": [
+    {
+      "reason": "已退市转债剔除",
+      "count": 46
+    },
+    {
+      "reason": "封单金额不足7亿",
+      "count": 2
+    },
+    {
+      "reason": "limit_list_d/kpl_list为空，使用东方财富涨停池fund作为封单金额备用口径",
+      "count": 1
+    }
+  ],
+  "no_result_reason": null,
+  "data_refresh": {
+    "mode": "cb_auction_t0_v2_1",
+    "trade_date": "2026-07-10",
+    "started_at": "2026-07-10T09:27:51",
+    "stk_mins": {
+      "status": "ok",
+      "stocks": 5100,
+      "pg_written": 0,
+      "sqlite_written": 0,
+      "elapsed": 1.2418177127838135
+    },
+    "post_market_core": {
+      "daily_kline": {
+        "table": "daily_kline",
+        "written": 0,
+        "pg_written": 0,
+        "elapsed": 0.09772300720214844
+      },
+      "moneyflow": {
+        "table": "moneyflow",
+        "written": 0
+      },
+      "stk_limit": {
+        "table": "stk_limit",
+        "written": 7694,
+        "pg_written": 0
+      },
+      "index_daily": {
+        "table": "index_daily",
+        "written": 0,
+        "pg_written": 0
+      }
+    },
+    "finished_at": "2026-07-10T09:27:53",
+    "status": "ok",
+    "returncode": 0,
+    "elapsed": 2.7
+  },
+  "pipeline": {
+    "model_key": "cb_auction_t0",
+    "run_id": "20260710_092751",
+    "run_dir": "/Users/rogerluo/程序目录/K线大模型/outputs/pipeline_runs/2026-07-10/20260710_092751_cb_auction_t0",
+    "started_at": "2026-07-10T09:28:00",
+    "auction_trigger": {
+      "returncode": 0,
+      "elapsed": 1.5,
+      "stdout_tail": "stk_auction_o: 5436 fetched, 436 written (20260710) [src=stk_auction]\n{\"status\": \"ok\", \"source\": \"tushare_stk_auction\", \"date\": \"2026-07-10\", \"stocks\": 5436}",
+      "stderr_tail": "",
+      "json": {
+        "status": "ok",
+        "source": "tushare_stk_auction",
+        "date": "2026-07-10",
+        "stocks": 5436
+      },
+      "status": "ok",
+      "source": "tushare_stk_auction",
+      "date": "2026-07-10",
+      "stocks": 5436
+    },
+    "pre_model_fallback": {
+      "eastmoney_limit_pool": {
+        "returncode": 0,
+        "elapsed": 2.3,
+        "stdout_tail": "{\n  \"status\": \"ok\",\n  \"source\": \"eastmoney_zt_pool\",\n  \"trade_date\": \"2026-07-10\",\n  \"started_at\": \"2026-07-10T09:27:56\",\n  \"finished_at\": \"2026-07-10T09:27:58\",\n  \"fetched\": 4,\n  \"usable_rows\": 4,\n  \"written\": 4,\n  \"note\": \"备用口径：使用东方财富涨停池 fund 字段作为封单资金，主链路仍优先使用 limit_list_d.fd_amount。\"\n}",
+        "stderr_tail": "",
+        "json": {
+          "status": "ok",
+          "source": "eastmoney_zt_pool",
+          "trade_date": "2026-07-10",
+          "started_at": "2026-07-10T09:27:56",
+          "finished_at": "2026-07-10T09:27:58",
+          "fetched": 4,
+          "usable_rows": 4,
+          "written": 4,
+          "note": "备用口径：使用东方财富涨停池 fund 字段作为封单资金，主链路仍优先使用 limit_list_d.fd_amount。"
+        }
+      }
+    },
+    "primary_rows": {
+      "limit_list_d": 0,
+      "kpl_list": 0,
+      "eastmoney_limit_pool": 4,
+      "stk_auction_o": 5436
+    },
+    "markdown_path": "/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-10/092800_cb_auction_t0_v2_1.md",
+    "lark_doc": {
+      "title": "秋神竞价 T+0 选债 2026-07-10",
+      "url": "https://xcnl9dvruj6a.feishu.cn/docx/B9Aed5QSOowqQXxJjhfcwKtkn1g",
+      "document_id": "B9Aed5QSOowqQXxJjhfcwKtkn1g",
+      "xml_path": "/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-10/092800_cb_auction_t0_v2_1.doc.xml",
+      "raw": {
+        "ok": true,
+        "identity": "user",
+        "data": {
+          "document": {
+            "document_id": "B9Aed5QSOowqQXxJjhfcwKtkn1g",
+            "new_blocks": [
+              {
+                "block_id": "doxcnMn3wGIp4WncLUWUdbTcZNh",
+                "block_token": "XEanwA5eyhiWCPbFeOYcHXXonvd",
+                "block_type": "whiteboard"
+              }
+            ],
+            "revision_id": 2,
+            "url": "https://xcnl9dvruj6a.feishu.cn/docx/B9Aed5QSOowqQXxJjhfcwKtkn1g"
+          }
+        },
+        "_notice": {
+          "update": {
+            "command": "lark-cli update",
+            "current": "1.0.64",
+            "latest": "1.0.67",
+            "message": "lark-cli 1.0.67 available, current 1.0.64, run: lark-cli update"
+          }
+        }
+      }
+    }
+  }
+}

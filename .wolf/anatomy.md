@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-09T04:10:34.655Z
-> Files: 599 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T13:40:11.137Z
+> Files: 600 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -982,6 +982,7 @@
 - `backtest_institutional_activity.py` — 机构活跃度因子 — 月频 IC + 分组多空回测。 (~1636 tok)
 - `backtest_trend_launch_quick.py` — TrendLaunch Quick Backtest — 2024-2026, strict walk-forward. (~1910 tok)
 - `backtest_trend_launch.py` — TrendLaunchEngine Walk-Forward 回测 (严格杜绝数据泄露). (~2802 tok)
+- `build_commercial_aerospace_chain.py` — build_chain (~2790 tok)
 - `build_supply_chain_foundation.py` — Build 大葱产业链 data-foundation nodes, edges, mappings and report. (~2792 tok)
 - `institutional_activity_top.py` — 全市场机构活跃度评分 — 5 维 percentile 加权。 (~2870 tok)
 - `send_bishifu_feishu.py` — 跑毕师傅硬核科技选股 + 推送飞书群（AI 投研分析）。 (~1028 tok)
