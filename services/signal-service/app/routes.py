@@ -1492,11 +1492,7 @@ async def trigger_sync(
     table_key: str = Query(..., description="Table key e.g. moneyflow, daily_kline"),
     days: int = Query(30, ge=1, le=3650, description="Days back to sync"),
 ):
-    """Trigger a Tushare data sync for a specific table.
-
-    Calls the corresponding kronos-data ETL sync function via subprocess.
-    Returns status, rows fetched, and rows written.
-    """
+    """Trigger a Tushare data sync through data-service only."""
     if table_key not in _SYNC_MAP:
         return {"status": "error", "message": f"不支持的表: {table_key}, 可选: {list(_SYNC_MAP.keys())}"}
 
@@ -1515,37 +1511,12 @@ async def trigger_sync(
                 "source": "data-service",
             }
     except Exception as e:
-        logger.warning("Data-service manual sync proxy failed for %s, fallback to subprocess: %s", table_key, e)
-
-    try:
-        import subprocess, sys
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-        packages_path = os.pathsep.join([
-            os.path.join(project_root, "packages", "kronos-factors"),
-            os.path.join(project_root, "packages", "kronos-core"),
-            os.path.join(project_root, "packages", "kronos-data"),
-        ])
-        env = {**os.environ, "PYTHONPATH": packages_path}
-        result = subprocess.run(
-            [sys.executable, "-m", "kronos_data.etl", "--mode", mode, "--days", str(days)],
-            capture_output=True, text=True, timeout=300,
-            cwd=project_root, env=env,
-        )
-        ok = result.returncode == 0
-        output_lines = result.stdout.strip().split("\n")[-5:] if result.stdout else []
+        logger.warning("Data-service manual sync proxy failed for %s: %s", table_key, e)
         return {
-            "status": "ok" if ok else "error",
-            "table_key": table_key,
-            "mode": mode,
-            "desc": desc,
-            "days": days,
-            "returncode": result.returncode,
-            "output": output_lines,
-            "stderr": result.stderr[:200] if result.stderr else "",
+            "status": "unavailable", "table_key": table_key, "mode": mode,
+            "desc": desc, "days": days,
+            "fallback_reason": "data-service sync endpoint is unavailable; subprocess fallback is disabled",
         }
-    except Exception as e:
-        logger.exception("Trigger sync failed for %s", table_key)
-        return {"status": "error", "table_key": table_key, "message": str(e)[:200]}
 
 
 # ═══════════════════════════════════════════════════════════════

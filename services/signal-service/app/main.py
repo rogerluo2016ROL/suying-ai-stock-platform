@@ -60,6 +60,13 @@ app = FastAPI(
 )
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","), allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
+app.state.deprecated_route_prefixes = {
+    "/api/v1/dashboard": "screener-service",
+    "/api/v1/data": "data-service",
+}
+
+# Compatibility aliases remain available during migration, but ownership is
+# explicit so clients can move to the gateway's canonical services.
 app.include_router(router)
 app.include_router(dashboard_router)
 app.include_router(data_router)
