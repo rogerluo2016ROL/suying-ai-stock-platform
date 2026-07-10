@@ -12,7 +12,8 @@ from app import routes
 
 
 def test_signal_contract_wraps_model_metadata_freshness_and_fallback():
-    df = pd.DataFrame({"trade_date": ["2026-06-20", "2026-06-21"], "close": [210.0, 218.5]})
+    today = pd.Timestamp.now().normalize()
+    df = pd.DataFrame({"trade_date": [(today - pd.Timedelta(days=1)).strftime("%Y-%m-%d"), today.strftime("%Y-%m-%d")], "close": [210.0, 218.5]})
 
     result = routes._with_signal_contract(
         {"code": "300750", "signal": {"level": "BUY", "score": 72.0}},
@@ -27,9 +28,20 @@ def test_signal_contract_wraps_model_metadata_freshness_and_fallback():
         "provider": "signal-service",
         "inference_mode": "analyze",
     }
-    assert result["data_freshness"]["status"] == "stale"
-    assert result["data_freshness"]["as_of"] == "2026-06-21"
+    assert result["data_freshness"]["status"] == "fresh"
+    assert result["data_freshness"]["as_of"] == today.strftime("%Y-%m-%d")
     assert result["fallback_reason"] is None
+
+
+def test_missing_kronos_is_unavailable_not_neutral():
+    body = routes._combine_signal_dimensions({
+        "kronos": None, "technical": 72.0, "money_flow": 65.0,
+        "fundamental": 61.0, "event_risk": 70.0, "market": 58.0,
+    })
+    assert "kronos" in body["unavailable_dimensions"]
+    assert body["dimensions"]["kronos"] is None
+    assert body["coverage"] < 1.0
+    assert body["result_status"] == "insufficient_data"
 
 
 def test_signal_data_freshness_accepts_trade_date_dict():
@@ -67,15 +79,18 @@ def test_dashboard_row_change_pct_accepts_pg_adapter_alias():
     assert routes._dashboard_row_change_pct({"change_pct": "2.34"}) == 2.34
     assert routes._dashboard_row_change_pct({}) == 0.0
 
-
 def test_legacy_dashboard_and_data_routes_are_explicitly_deprecated():
     from app.main import app
-
+    from fastapi.testclient import TestClient
     paths = {route.path for route in app.routes}
     assert "/api/v1/dashboard/summary" in paths
     assert "/api/v1/data/status" in paths
     assert app.state.deprecated_route_prefixes["/api/v1/dashboard"] == "screener-service"
     assert app.state.deprecated_route_prefixes["/api/v1/data"] == "data-service"
+    response = TestClient(app).get("/api/v1/data/status")
+    assert response.headers["Deprecation"] == "true"
+    assert response.headers["X-Deprecated-Route"] == "true"
+    assert response.headers["X-Route-Owner"] == "data-service"
 
 
 def test_dashboard_alert_sql_computes_missing_change_pct_from_previous_close():

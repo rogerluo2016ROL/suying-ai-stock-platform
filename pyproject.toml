@@ -8,5 +8,5 @@ requires-python = ">=3.10"
 packages = []
 
 [tool.pytest.ini_options]
-testpaths = ["packages/*/tests", "services/*/tests"]
-pythonpath = ["packages/kronos-factors", "packages/kronos-core", "packages/kronos-data"]
+testpaths = ["packages/*/tests", "services/*/tests", "tools/tests"]
+pythonpath = ["tools", "packages/kronos-factors", "packages/kronos-core", "packages/kronos-data"]

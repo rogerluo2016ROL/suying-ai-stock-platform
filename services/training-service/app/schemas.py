@@ -59,7 +59,9 @@ class JobStatus(str, Enum):
 
 class ModelStage(str, Enum):
     NONE = "none"
+    RESEARCH = "research"
     CANDIDATE = "candidate"
+    PAPER = "paper"
     STAGING = "staging"
     PRODUCTION = "production"
     ARCHIVED = "archived"
@@ -260,6 +262,10 @@ class DeployRequest(BaseModel):
     """POST /models/{id}/deploy request body."""
     force: bool = Field(default=False)
     notes: Optional[str] = None
+    target_stage: str = Field(default="production", pattern="^(candidate|paper|production)$")
+    evidence: Dict[str, Any] = Field(default_factory=dict)
+    manual_approval: bool = False
+    baseline_exists: bool = True
 
 
 class DeployResponse(BaseModel):
@@ -371,6 +377,7 @@ class CalibrateRequest(BaseModel):
     window_days: int = Field(default=90, ge=30, le=365, description="Rolling window days")
     min_samples: int = Field(default=30, ge=10, le=200, description="Min valid samples per factor")
     apply: bool = Field(default=False, description="Auto-apply calibration results to screener")
+    evaluation_id: str = Field(..., min_length=4, description="Persisted ready factor evaluation ID")
 
 
 class FactorWeight(BaseModel):
@@ -391,6 +398,7 @@ class CalibrateResponse(BaseModel):
     window_end: str
     factors: List[FactorWeight]
     summary: str
+    evaluation_id: str
 
 
 class ICWindow(BaseModel):

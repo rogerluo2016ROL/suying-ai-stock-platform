@@ -4,9 +4,8 @@ import logging
 import json
 import os
 import sys
+import uuid
 from datetime import date, timedelta
-from urllib.parse import urlencode
-from urllib.request import urlopen
 
 import numpy as np
 from fastapi import APIRouter, Query, HTTPException
@@ -15,7 +14,6 @@ router = APIRouter(prefix="/api/v1/backtest", tags=["backtest"])
 logger = logging.getLogger("backtest-service")
 
 PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
-DATA_SERVICE_URL = os.environ.get("DATA_SERVICE_URL", "http://data-service:8010")
 
 # Ensure kronos-factors is importable
 _PACKAGES = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages"))
@@ -47,21 +45,6 @@ def _get_pg():
     return psycopg2.connect(PG_URL)
 
 
-def readiness_gate(snapshot: dict) -> dict:
-    if snapshot.get("status") == "ready":
-        return {"status": "ready"}
-    return {"status": "blocked", "fallback_reason": "required data is stale or incomplete", "data_readiness": snapshot}
-
-
-def _backtest_readiness(trade_date: date) -> dict:
-    query = urlencode({"profile": "backtest_v1", "trade_date": trade_date.isoformat()})
-    try:
-        with urlopen(f"{DATA_SERVICE_URL}/api/v1/data/readiness?{query}", timeout=3) as response:
-            return readiness_gate(json.loads(response.read().decode()))
-    except Exception as exc:
-        return {"status": "blocked", "fallback_reason": "data readiness service is unavailable", "error": str(exc)}
-
-
 def _compute_ic(predictions, actuals):
     """Spearman rank IC."""
     from scipy import stats
@@ -70,6 +53,66 @@ def _compute_ic(predictions, actuals):
         return 0.0
     ic, _ = stats.spearmanr(predictions[valid], actuals[valid])
     return 0.0 if np.isnan(ic) else float(ic)
+
+
+def _latest_backtest_readiness():
+    try:
+        connection = _get_pg()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT snapshot_id,status FROM data_readiness_snapshots "
+                "WHERE profile='backtest_v1' ORDER BY checked_at DESC LIMIT 1"
+            )
+            row = cursor.fetchone()
+        connection.close()
+        return {"snapshot_id": row[0], "status": row[1]} if row else {"status": "missing"}
+    except Exception as exc:
+        logger.warning("readiness lookup failed: %s", exc)
+        return {"status": "missing"}
+
+
+def _save_factor_evaluation(model_key, request, report):
+    evaluation_id = f"FE-{uuid.uuid4()}"
+    connection = _get_pg()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO factor_evaluations(evaluation_id,model_key,status,request,report) "
+                "VALUES (%s,%s,%s,%s::jsonb,%s::jsonb)",
+                (evaluation_id, model_key, report.get("status", "unknown"),
+                 json.dumps(request), json.dumps(report, default=str)),
+            )
+        connection.commit()
+    finally:
+        connection.close()
+    return evaluation_id
+
+
+def _run_factor_adapter(model_key, *, forward_days=5, cost_bps=14.0):
+    from app.adapters.base import BacktestRequest
+    from app.adapters.registry import get_adapter
+
+    adapter = get_adapter(model_key)
+    if adapter is None:
+        raise HTTPException(status_code=409, detail={
+            "code": "MODEL_BACKTEST_NOT_IMPLEMENTED", "model_key": model_key,
+        })
+    readiness = _latest_backtest_readiness()
+    request = BacktestRequest(
+        model_key=model_key, forward_days=forward_days, cost_bps=cost_bps,
+        connection_factory=_get_pg,
+    )
+    report = adapter.run(request, readiness)
+    request_payload = {"forward_days": forward_days, "cost_bps": cost_bps,
+                       "readiness_snapshot_id": readiness.get("snapshot_id")}
+    try:
+        report["evaluation_id"] = _save_factor_evaluation(model_key, request_payload, report)
+    except Exception as exc:
+        logger.error("factor evaluation persistence failed: %s", exc)
+        raise HTTPException(status_code=503, detail={
+            "code": "EVALUATION_PERSIST_FAILED", "message": "因子证据未持久化，结果不可供训练使用",
+        }) from exc
+    return report
 
 
 @router.get("/factors")
@@ -83,231 +126,28 @@ async def list_factors():
 
 @router.post("/run")
 async def run_backtest(
+    model_key: str = Query(""),
     mode: str = Query("all", description="long/short/all"),
     windows: int = Query(3, ge=1, le=12),
     top_n: int = Query(30, ge=10, le=100),
     forward_days: int = Query(60, ge=20, le=252),
 ):
-    """滚动窗口前向回测 — 用真实 PG 日线数据.
-
-    对每个窗口:
-    1. 选 top_n 只股票 (按涨幅排序作为 proxy)
-    2. 计算 forward_days 后的实际收益
-    3. 汇总 IC/ICIR / 命中率 / 超额收益
-    """
-    try:
-        conn = _get_pg()
-        cur = conn.cursor()
-
-        # Get available date range
-        cur.execute("SELECT MIN(trade_date), MAX(trade_date) FROM daily_kline WHERE volume > 0")
-        min_d, max_d = cur.fetchone()
-        if not min_d:
-            return {"status": "error", "message": "No daily_kline data"}
-        readiness = _backtest_readiness(max_d)
-        if readiness["status"] != "ready":
-            conn.close()
-            return readiness
-        # Use recent data (last 2 years) for relevant backtest
-        recent_start = max_d - timedelta(days=730)
-        if recent_start < min_d:
-            recent_start = min_d
-        min_d = recent_start
-        window_size = forward_days + 20  # 20-day lookback for selection
-
-        results = []
-        all_ics = []
-        hit_rates = []
-
-        # Generate evenly-spaced window start dates within last 2 years
-        total_days = max(1, (max_d - min_d).days - window_size - forward_days)
-        step = max(20, total_days // windows) if windows > 0 else 60
-        start_dates = [min_d + timedelta(days=i * step) for i in range(windows)]
-        start_dates = [d for d in start_dates if d < max_d - timedelta(days=window_size + forward_days)]
-
-        for i, sd in enumerate(start_dates):
-            ed = sd + timedelta(days=window_size)
-            fwd_end = ed + timedelta(days=forward_days)
-            if fwd_end > max_d:
-                fwd_end = max_d
-
-            # Select top_n stocks by average gain in lookback period
-            cur.execute("""
-                SELECT code, AVG((close - open) / NULLIF(open,0)) * 100 AS avg_gain
-                FROM daily_kline
-                WHERE trade_date BETWEEN %s AND %s AND volume > 0 AND open > 0
-                GROUP BY code
-                HAVING COUNT(*) >= 10
-                ORDER BY avg_gain DESC
-                LIMIT %s
-            """, (sd, ed, top_n))
-            picks = cur.fetchall()
-
-            if len(picks) < 5:
-                continue
-
-            # Compute forward returns for picks
-            codes = [pk[0] for pk in picks]
-            fwd_returns = []
-            pick_map = {pk[0]: float(pk[1]) for pk in picks}
-            for code in codes:
-                cur.execute("""
-                    SELECT close FROM daily_kline
-                    WHERE code = %s AND trade_date = (SELECT MAX(trade_date) FROM daily_kline WHERE code = %s AND trade_date <= %s)
-                """, (code, code, fwd_end))
-                r1 = cur.fetchone()
-                cur.execute("""
-                    SELECT close FROM daily_kline
-                    WHERE code = %s AND trade_date = (SELECT MAX(trade_date) FROM daily_kline WHERE code = %s AND trade_date <= %s)
-                """, (code, code, ed))
-                r2 = cur.fetchone()
-                if r1 and r2 and r2[0] > 0:
-                    # P4: 复权因子修正 — 消除除权除息跳空
-                    close_fwd, close_now = float(r1[0]), float(r2[0])
-                    try:
-                        cur.execute(
-                            "SELECT af.adj_factor FROM adj_factor af "
-                            "JOIN (SELECT MAX(trade_date) as md FROM adj_factor WHERE code=%s) x "
-                            "ON af.code=%s AND af.trade_date=x.md",
-                            (code, code))
-                        latest = cur.fetchone()
-                        if latest and latest[0] and latest[0] > 0:
-                            latest_af = float(latest[0])
-                            cur.execute(
-                                "SELECT adj_factor FROM adj_factor WHERE code=%s AND trade_date <= %s "
-                                "ORDER BY trade_date DESC LIMIT 1", (code, fwd_end))
-                            af_fwd = cur.fetchone()
-                            cur.execute(
-                                "SELECT adj_factor FROM adj_factor WHERE code=%s AND trade_date <= %s "
-                                "ORDER BY trade_date DESC LIMIT 1", (code, ed))
-                            af_now = cur.fetchone()
-                            if af_fwd and af_now and af_fwd[0] and af_now[0]:
-                                close_fwd = close_fwd * latest_af / float(af_fwd[0])
-                                close_now = close_now * latest_af / float(af_now[0])
-                    except Exception: pass
-                    fwd_ret = (close_fwd - close_now) / close_now * 100
-                    fwd_returns.append((code, float(fwd_ret), pick_map.get(code, 0)))
-
-            if len(fwd_returns) < 5:
-                continue
-
-            pred = np.array([f[2] for f in fwd_returns])  # lookback gain as prediction
-            actual = np.array([f[1] for f in fwd_returns])
-            ic = _compute_ic(pred, actual)
-            all_ics.append(ic)
-
-            avg_ret = float(np.mean(actual))
-            hit = float(np.mean(actual > 0) * 100)
-
-            # Market benchmark: average return of all stocks
-            cur.execute("""
-                SELECT AVG((close - open) / NULLIF(open,0)) * 100 FROM daily_kline
-                WHERE trade_date BETWEEN %s AND %s AND volume > 0 AND open > 0
-            """, (ed, fwd_end))
-            bench = cur.fetchone()[0] or 0
-
-            results.append({
-                "window": i + 1,
-                "start_date": sd.strftime("%Y-%m-%d"),
-                "end_date": ed.strftime("%Y-%m-%d"),
-                "forward_end": fwd_end.strftime("%Y-%m-%d"),
-                "picks": len(picks),
-                "avg_return_pct": round(avg_ret, 2),
-                "hit_rate_pct": round(hit, 1),
-                "benchmark_pct": round(float(bench), 2),
-                "excess_return": round(avg_ret - float(bench), 2),
-                "ic": round(ic, 4),
-            })
-            hit_rates.append(hit)
-
-        conn.close()
-
-        if not results:
-            return {"status": "error", "message": "Not enough data for backtest"}
-
-        ic_vals = [r["ic"] for r in results]
-        ic_mean = float(np.mean(ic_vals)) if ic_vals else 0
-        ic_std = float(np.std(ic_vals)) if len(ic_vals) > 1 else 0.01
-        icir = ic_mean / ic_std if ic_std > 0 else 0
-
-        return {
-            "status": "ok",
-            "mode": mode,
-            "windows": len(results),
-            "top_n": top_n,
-            "forward_days": forward_days,
-            "summary": {
-                "avg_ic": round(ic_mean, 4),
-                "icir": round(icir, 4),
-                "avg_hit_rate": round(float(np.mean(hit_rates)), 1) if hit_rates else 0,
-                "avg_excess_return": round(float(np.mean([r["excess_return"] for r in results])), 2),
-                "total_windows": len(results),
-            },
-            "details": results,
-            "data_source": "pg",
-        }
-    except Exception as e:
-        logger.error("Backtest failed: %s", e)
-        raise HTTPException(500, str(e))
+    """Run a registered evidence adapter; unknown models fail closed."""
+    return _run_factor_adapter(model_key, forward_days=forward_days)
 
 
 @router.post("/calibrate")
 async def calibrate_weights(mode: str = Query("all")):
-    """Calibration requires a real factor evaluator; never synthesize weights."""
-    return {
-        "status": "unsupported",
-        "mode": mode,
-        "factors": [],
-        "fallback_reason": "real factor evidence adapter is not connected",
-    }
-
+    """基于近期 IC 校准因子权重."""
+    raise HTTPException(status_code=409, detail={"code": "MODEL_CALIBRATION_NOT_IMPLEMENTED", "message": "缺少真实观测证据，未写入 factor_weights"})
+@router.get("/factor-evidence")
+async def factor_evidence(model_key: str = Query(...), forward_days: int = Query(5, ge=1, le=20),
+                          cost_bps: float = Query(14.0, ge=0, le=100)):
+    return _run_factor_adapter(model_key, forward_days=forward_days, cost_bps=cost_bps)
 
 @router.post("/compare")
-async def compare_strategies(
-    strategy_ids: list[str] = Query(default=["momentum", "quality"]),
-    start_date: str = Query(default=None),
-    end_date: str = Query(default=None),
-):
-    """Compare multiple factor strategies over the same period."""
-    if start_date is None:
-        start_date = (date.today() - timedelta(days=180)).strftime("%Y-%m-%d")
-    if end_date is None:
-        end_date = date.today().strftime("%Y-%m-%d")
-
-    try:
-        conn = _get_pg()
-        cur = conn.cursor()
-
-        comparison = []
-        for strategy in strategy_ids[:5]:  # Max 5 strategies
-            cur.execute("""
-                SELECT AVG((close - open) / NULLIF(open,0)) * 100, COUNT(*)
-                FROM daily_kline
-                WHERE trade_date BETWEEN %s AND %s AND volume > 0 AND open > 0
-            """, (start_date, end_date))
-            row = cur.fetchone()
-            comparison.append({
-                "strategy": strategy,
-                "avg_return": round(float(row[0] or 0), 2),
-                "samples": row[1],
-                "period": f"{start_date} ~ {end_date}",
-            })
-
-        conn.close()
-        return {
-            "status": "ok",
-            "start_date": start_date,
-            "end_date": end_date,
-            "strategies": comparison,
-        }
-    except Exception as e:
-        raise HTTPException(500, str(e))
-
-
-# ═══════════════════════════════════════════════════════════════
-# 龙头战法回测 + 可转债回测 (V2 统一)
-# ═══════════════════════════════════════════════════════════════
-
+async def compare_strategies(strategy_ids: list[str] = Query(default=["momentum", "quality"]), start_date: str = Query(default=None), end_date: str = Query(default=None)):
+    raise HTTPException(status_code=422, detail={"code": "INSUFFICIENT_EVIDENCE", "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"]})
 @router.post("/run-leader")
 async def run_leader_backtest(
     mode: str = Query("leader_scalp", description="leader_scalp/leader_intraday/leader_auction/leader_closing"),
@@ -604,6 +444,7 @@ async def ic_decay_tracking(
 
     Returns: 每个因子的当前状态和调整建议.
     """
+    raise HTTPException(status_code=409, detail={"code": "MODEL_EVIDENCE_NOT_IMPLEMENTED", "message": "缺少真实因子快照与未来复权收益证据"})
     try:
         import psycopg2
         from datetime import date as dt_date
@@ -632,13 +473,10 @@ async def ic_decay_tracking(
                   "latest_date": trade_dates[0], "factors": {}}
 
         for factor in factors:
-            # Compute rolling IC: correlation of factor score with forward 5d return
-            # No observed factor/forward-return pair is available here.
             result["factors"][factor] = {
-                "status": "tracking",
-                "current_weight_multiplier": 1.0,
-                "recommendation": "neutral",
-                "note": f"IC tracking for {factor} over {lookback} trading days",
+                "status": "unavailable",
+                "recommendation": "insufficient_evidence",
+                "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"],
             }
 
         return result

@@ -263,6 +263,7 @@ type ChainTemplateKey =
   | 'rare_earth_minor_metals_security'
   | 'display_oled_microled'
   | 'domestic_os_database_industrial_software'
+  | 'huawei_ascend_ai_ecosystem'
   | 'offshore_wind_subsea_cable'
   | 'new_power_system_grid'
   | 'embodied_intelligence'

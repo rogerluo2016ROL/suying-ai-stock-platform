@@ -6,8 +6,7 @@ Works standalone — reads JSON files, no DB dependency needed for core endpoint
 
 import glob, json, os, subprocess
 from datetime import date, datetime
-from fastapi import APIRouter, Header, Query
-from app.jobs.pipeline_runner import get_pipeline_run, submit_pipeline
+from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 
@@ -273,18 +272,17 @@ async def trigger_pipeline(
     modes: str = Query("leader_auction,leader_scalp,short", description="策略列表"),
     top_n: int = Query(20, ge=5, le=50),
     auto_trade: bool = Query(False, description="是否自动提交模拟交易"),
-    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
 ):
     """V4.0 一键流水线 — 竞价选股 → 多策略融合 → 生成报告.
 
-    仅允许受控 engine 模式；失败由调用方获取明确错误，不再从 HTTP 请求启动 subprocess。
+    支持 engine 模式 (无 subprocess, 更快) 和 subprocess 回退.
     """
     target = date.today().strftime("%Y-%m-%d")
     mode_list = [m.strip() for m in modes.split(",") if m.strip()]
 
-    async def worker(request: dict):
+    try:
         from app.orchestrator import run_fusion_screening
-        result = await run_fusion_screening(request["modes"], top_n=request["top_n"], trade_date=request["trade_date"])
+        result = await run_fusion_screening(mode_list, top_n=top_n, trade_date=target)
 
         # Generate execution plans for consensus picks
         plans = []
@@ -298,27 +296,21 @@ async def trigger_pipeline(
 
         return {
             "status": "completed",
-            "date": request["trade_date"],
+            "date": target,
             "pipeline": "V4.0-engine",
             "modes": mode_list,
             "fusion": result,
             "execution_plans": plans[:5] if plans else [],
             "stats": result.get("fusion_stats", {}),
         }
-    request = {"modes": mode_list, "top_n": top_n, "auto_trade": auto_trade, "trade_date": target}
-    key = idempotency_key or f"dashboard:{target}:{','.join(mode_list)}:{top_n}:{auto_trade}"
-    run_id = submit_pipeline(request, key, worker)
-    return {"status": "accepted", "run_id": run_id, "idempotency_key": key}
+    except Exception as e:
+        return {"status": "failed", "error": str(e), "run_id": None,
+                "message": "pipeline engine failed; no subprocess fallback is permitted"}
 
 
 @router.get("/pipeline/status")
-async def pipeline_status(run_id: str | None = Query(None)):
+async def pipeline_status():
     """查询最近流水线输出."""
-    if run_id:
-        run = get_pipeline_run(run_id)
-        if not run:
-            return {"status": "not_found", "run_id": run_id}
-        return run
     import glob
     pattern = os.path.join(OUTPUTS_DIR, "orchestrator_*", "report.md")
     files = sorted(glob.glob(pattern), reverse=True)

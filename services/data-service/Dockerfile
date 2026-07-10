@@ -4,6 +4,8 @@ ARG PIP_DEFAULT_TIMEOUT=60
 ENV PIP_INDEX_URL=$PIP_INDEX_URL PIP_DEFAULT_TIMEOUT=$PIP_DEFAULT_TIMEOUT
 
 WORKDIR /app
+COPY packages/kronos-contracts /app/packages/kronos-contracts
+RUN pip install --no-cache-dir /app/packages/kronos-contracts
 
 # System deps: gcc/g++ for psycopg2 build, tzdata for cron 时区 (Asia/Shanghai)
 RUN apt-get update && apt-get install -y --no-install-recommends \

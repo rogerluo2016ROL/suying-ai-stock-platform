@@ -8,6 +8,7 @@ import logging, sys, os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 _PACKAGES = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages"))
 for _pkg in ["kronos-factors", "kronos-core", "kronos-data"]:
@@ -60,18 +61,37 @@ app = FastAPI(
 )
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","), allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
+
 app.state.deprecated_route_prefixes = {
     "/api/v1/dashboard": "screener-service",
     "/api/v1/data": "data-service",
 }
 
-# Compatibility aliases remain available during migration, but ownership is
-# explicit so clients can move to the gateway's canonical services.
+class DeprecatedRouteMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        for prefix, owner in app.state.deprecated_route_prefixes.items():
+            if request.url.path == prefix or request.url.path.startswith(prefix + "/"):
+                response.headers["Deprecation"] = "true"
+                response.headers["X-Deprecated-Route"] = "true"
+                response.headers["X-Route-Owner"] = owner
+                break
+        return response
+
+app.add_middleware(DeprecatedRouteMiddleware)
 app.include_router(router)
 app.include_router(dashboard_router)
 app.include_router(data_router)
 
 
+@app.get("/api/v1/health/live")
+async def health_live_contract():
+    return {"live": True, "service": "signal-service", "version": "0.1.0"}
+
+@app.get("/api/v1/health/ready")
+async def health_ready_contract():
+    from kronos_contracts.health import check_postgres, build_health
+    return build_health("signal-service", "0.1.0", {"postgres": await check_postgres()}).model_dump()
 @app.get("/api/v1/health")
 async def health():
     return {"status": "healthy", "service": "signal-service", "version": "0.1.0"}

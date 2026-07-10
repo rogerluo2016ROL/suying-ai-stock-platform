@@ -2,7 +2,7 @@
 
 import os, logging, asyncio, re
 from datetime import datetime, timezone
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Response
 from app.signal_store import get_store
 
 logger = logging.getLogger("signal-service.routes")
@@ -33,6 +33,27 @@ def _signal_model_metadata(mode: str) -> dict:
         "version": "signal-v2.0",
         "provider": "signal-service",
         "inference_mode": mode,
+    }
+
+
+_SIGNAL_DIMENSION_WEIGHTS = {
+    "kronos": 0.20, "technical": 0.20, "money_flow": 0.12,
+    "fundamental": 0.15, "event_risk": 0.13, "market": 0.20,
+}
+
+
+def _combine_signal_dimensions(dimensions: dict) -> dict:
+    """Combine only observed dimensions; never turn missing data into 50."""
+    normalized = {name: dimensions.get(name) for name in _SIGNAL_DIMENSION_WEIGHTS}
+    unavailable = [name for name, value in normalized.items() if value is None]
+    available_weight = sum(_SIGNAL_DIMENSION_WEIGHTS[name] for name, value in normalized.items() if value is not None)
+    score = None if not available_weight else round(sum(float(normalized[name]) * _SIGNAL_DIMENSION_WEIGHTS[name] for name in normalized if normalized[name] is not None) / available_weight, 1)
+    return {
+        "dimensions": normalized,
+        "coverage": round(available_weight, 3),
+        "unavailable_dimensions": unavailable,
+        "result_status": "insufficient_data" if unavailable else "ok",
+        "score": score,
     }
 
 
@@ -848,7 +869,7 @@ async def super_signal(code: str):
     """
     import urllib.request, json, os
 
-    results = {"code": code, "super_score": 50.0, "components": {}}
+    results = {"code": code, "super_score": None, "components": {}}
 
     # 1. Signal score (local)
     try:
@@ -856,8 +877,8 @@ async def super_signal(code: str):
         sig_score = sig["signal"]["score"]
         results["components"]["signal"] = {"score": sig_score, "weight": 0.40}
     except Exception:
-        sig_score = 50.0
-        results["components"]["signal"] = {"score": 50, "weight": 0.40, "error": "unavailable"}
+        sig_score = None
+        results["components"]["signal"] = {"score": None, "weight": 0.40, "error": "unavailable"}
 
     # 2. Diagnosis score (HTTP call)
     try:
@@ -866,11 +887,11 @@ async def super_signal(code: str):
             data=json.dumps({"code": code}).encode(),
             headers={"Content-Type": "application/json"})
         diag = json.loads(urllib.request.urlopen(req, timeout=5).read())
-        diag_score = diag.get("overall_score", 50)
+        diag_score = diag.get("overall_score")
         results["components"]["diagnosis"] = {"score": diag_score, "weight": 0.35}
     except Exception:
-        diag_score = 50.0
-        results["components"]["diagnosis"] = {"score": 50, "weight": 0.35, "error": "unavailable"}
+        diag_score = None
+        results["components"]["diagnosis"] = {"score": None, "weight": 0.35, "error": "unavailable"}
 
     # 3. Screener rank (percentile)
     try:
@@ -880,23 +901,21 @@ async def super_signal(code: str):
             headers={"Content-Type": "application/json"})
         scr = json.loads(urllib.request.urlopen(req, timeout=10).read())
         picks = scr.get("picks", [])
-        rank = next((i+1 for i, p in enumerate(picks) if p.get("code") == code), 51)
-        rank_score = max(10, 100 - rank * 2) if rank <= 50 else 50
+        rank = next((i+1 for i, p in enumerate(picks) if p.get("code") == code), None)
+        rank_score = max(10, 100 - rank * 2) if rank is not None else None
         results["components"]["screener"] = {"rank": rank, "score": rank_score, "weight": 0.25}
     except Exception:
-        rank_score = 50.0
-        results["components"]["screener"] = {"score": 50, "weight": 0.25, "error": "unavailable"}
+        rank_score = None
+        results["components"]["screener"] = {"score": None, "weight": 0.25, "error": "unavailable"}
 
     # Super score
-    results["super_score"] = round(
-        sig_score * 0.40 + diag_score * 0.35 + rank_score * 0.25, 1
-    )
-    results["recommendation"] = (
-        "STRONG_BUY" if results["super_score"] >= 80 else
-        "BUY" if results["super_score"] >= 60 else
-        "HOLD" if results["super_score"] >= 40 else
-        "REDUCE" if results["super_score"] >= 20 else "SELL"
-    )
+    if any(value is None for value in (sig_score, diag_score, rank_score)):
+        results["result_status"] = "insufficient_data"
+        results["recommendation"] = "unavailable"
+    else:
+        results["super_score"] = round(sig_score * 0.40 + diag_score * 0.35 + rank_score * 0.25, 1)
+        results["result_status"] = "ok"
+        results["recommendation"] = "STRONG_BUY" if results["super_score"] >= 80 else "BUY" if results["super_score"] >= 60 else "HOLD" if results["super_score"] >= 40 else "REDUCE" if results["super_score"] >= 20 else "SELL"
 
     return results
 
@@ -1040,44 +1059,47 @@ async def analyze_signal(code: str):
     trend_score = min(100, ts["score"] / 10 * 100)
 
     # ── P4: 六维信号升级 (新增 Fundamental + EventRisk) ──
-    fundamental_score = 50.0
-    event_risk_score = 50.0
+    fundamental_score = None
+    event_risk_score = None
     try:
         from kronos_factors.scorer.screening_scorers import score_long_term
         from kronos_factors.scorer.advanced_factors import get_tushare_scores
         lt = score_long_term(code)
         ts_data = get_tushare_scores(code)
-        fundamental_score = lt.get("score", 5) * 10  # 0-10 → 0-100
+        if lt.get("score") is not None:
+            fundamental_score = lt["score"] * 10  # 0-10 → 0-100
         # EventRisk: blend tushare_events + tushare_financial
-        ev_score = ts_data.get("tushare_events", {}).get("score", 5)
-        fin_score = ts_data.get("tushare_financial", {}).get("score", 5)
-        event_risk_score = min(100, (ev_score * 0.6 + fin_score * 0.4) * 10)
+        ev_score = ts_data.get("tushare_events", {}).get("score")
+        fin_score = ts_data.get("tushare_financial", {}).get("score")
+        if ev_score is not None and fin_score is not None:
+            event_risk_score = min(100, (ev_score * 0.6 + fin_score * 0.4) * 10)
     except Exception:
         pass
 
-    # Kronos placeholder
-    kronos_confidence = 50
+    # Kronos is unavailable until a real inference result exists.
+    kronos_confidence = None
     # Market adaptation: use regime bonus from screener
-    market_adapt = 50
+    market_adapt = None
     try:
         from kronos_factors.scorer.screening_scorers import get_market_regime
         regime = get_market_regime()
-        market_adapt = 50 + regime.get("bonus", 0) * 50  # bonus is ~±0.3, map to 35-65
+        if regime.get("bonus") is not None:
+            market_adapt = 50 + regime["bonus"] * 50
     except Exception:
         pass
 
     # Six-dimension weighted signal (total = 1.0)
-    signal_score = (
-        kronos_confidence * 0.20 +    # Kronos AI
-        tech_score * 0.20 +           # Technical
-        money_score * 0.12 +          # Fund flow
-        fundamental_score * 0.15 +    # Fundamental (NEW)
-        event_risk_score * 0.13 +     # Event risk (NEW)
-        market_adapt * 0.20           # Market regime
-    )
+    combined = _combine_signal_dimensions({
+        "kronos": kronos_confidence, "technical": tech_score,
+        "money_flow": money_score, "fundamental": fundamental_score,
+        "event_risk": event_risk_score, "market": market_adapt,
+    })
+    signal_score = combined["score"]
 
     # Determine level
-    if signal_score >= 80:   level, icon = "STRONG_BUY", "🟢"
+    if combined["result_status"] != "ok":
+        level, icon = None, None
+    elif signal_score >= 80:   level, icon = "STRONG_BUY", "🟢"
     elif signal_score >= 60:  level, icon = "BUY", "🟡"
     elif signal_score >= 40:  level, icon = "HOLD", "🔵"
     elif signal_score >= 20:  level, icon = "REDUCE", "🟠"
@@ -1114,23 +1136,28 @@ async def analyze_signal(code: str):
         pass  # fina_audit table not available
 
     # Record signal history
-    store.record(code=code, level=level, icon=icon, score=round(signal_score, 1),
-                 reason=f"技术{tech_score:.0f}/资金{money_score:.0f}/趋势{trend_score:.0f}")
+    if combined["result_status"] == "ok":
+        store.record(code=code, level=level, icon=icon, score=round(signal_score, 1),
+                     reason=f"技术{tech_score:.0f}/资金{money_score:.0f}/趋势{trend_score:.0f}")
 
     payload = {
         "code": code,
-        "signal": {"level": level, "icon": icon, "score": round(signal_score, 1)},
+        "signal": None if combined["result_status"] != "ok" else {"level": level, "icon": icon, "score": round(signal_score, 1)},
+        "decision": "unavailable" if combined["result_status"] != "ok" else level,
         "components": {
             "kronos_confidence": {"score": kronos_confidence, "weight": 0.20},
             "technical":         {"score": round(tech_score, 1), "weight": 0.20,
                                   "detail": {"five_factor": round(ff["score"]/25*100, 1),
                                              "trend": round(trend_score, 1)}},
             "fund_flow":         {"score": round(money_score, 1), "weight": 0.12},
-            "fundamental":       {"score": round(fundamental_score, 1), "weight": 0.15},
-            "event_risk":        {"score": round(event_risk_score, 1), "weight": 0.13},
-            "market_adapt":      {"score": round(market_adapt, 1), "weight": 0.20},
-            "rule_match":        {"score": 50, "weight": 0.00, "note": "deprecated-merged-into-event-risk"},
+            "fundamental":       {"score": round(fundamental_score, 1) if fundamental_score is not None else None, "weight": 0.15},
+            "event_risk":        {"score": round(event_risk_score, 1) if event_risk_score is not None else None, "weight": 0.13},
+            "market_adapt":      {"score": round(market_adapt, 1) if market_adapt is not None else None, "weight": 0.20},
+            "rule_match":        {"score": None, "weight": 0.00, "note": "deprecated-merged-into-event-risk"},
         },
+        "coverage": combined["coverage"],
+        "unavailable_dimensions": combined["unavailable_dimensions"],
+        "result_status": combined["result_status"],
         "factors": {
             "five_factor": {"score": ff["score"], "grade": ff["grade"],
                             "momentum": ff["momentum"], "volume": ff["volume_factor"],
@@ -1492,7 +1519,11 @@ async def trigger_sync(
     table_key: str = Query(..., description="Table key e.g. moneyflow, daily_kline"),
     days: int = Query(30, ge=1, le=3650, description="Days back to sync"),
 ):
-    """Trigger a Tushare data sync through data-service only."""
+    """Trigger a Tushare data sync for a specific table.
+
+    Calls the corresponding kronos-data ETL sync function via subprocess.
+    Returns status, rows fetched, and rows written.
+    """
     if table_key not in _SYNC_MAP:
         return {"status": "error", "message": f"不支持的表: {table_key}, 可选: {list(_SYNC_MAP.keys())}"}
 
@@ -1511,12 +1542,7 @@ async def trigger_sync(
                 "source": "data-service",
             }
     except Exception as e:
-        logger.warning("Data-service manual sync proxy failed for %s: %s", table_key, e)
-        return {
-            "status": "unavailable", "table_key": table_key, "mode": mode,
-            "desc": desc, "days": days,
-            "fallback_reason": "data-service sync endpoint is unavailable; subprocess fallback is disabled",
-        }
+        return {"status": "error", "table_key": table_key, "message": str(e)[:200]}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1800,14 +1826,15 @@ data_router = APIRouter(prefix="/api/v1/data", tags=["data"])
 
 
 @data_router.get("/status")
-async def data_status_endpoint():
+async def data_status_endpoint(response: Response):
     """Alias for /signal/data-status — serves the DataUpdate page."""
+    response.headers["Deprecation"] = "true"
     return await data_status()
 
 
 @data_router.post("/sync/{sync_type}")
 async def data_sync(sync_type: str, days: int = Query(30, ge=1, le=3650),
-                    table_key: str = Query(None)):
+                    table_key: str = Query(None), response: Response = None):
     """Trigger data sync. Maps sync_type to table_key for signal-service compatibility.
 
     Frontend DataUpdate page calls /api/v1/data/sync/{type}
@@ -1821,6 +1848,8 @@ async def data_sync(sync_type: str, days: int = Query(30, ge=1, le=3650),
 
     mapped_key = table_key or TYPE_TO_KEY.get(sync_type, sync_type)
 
+    if response is not None:
+        response.headers["Deprecation"] = "true"
     return await trigger_sync(table_key=mapped_key, days=days)
 
 

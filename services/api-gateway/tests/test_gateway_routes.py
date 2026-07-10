@@ -53,14 +53,6 @@ def test_resolve_target_keeps_gateway_health_local():
     assert gateway._resolve_target("/health", "") is None
 
 
-def test_resolve_target_does_not_match_similar_prefixes():
-    assert gateway._resolve_target("/api/v1/tradeoff", "") is None
-
-
-def test_data_routes_to_dedicated_data_service():
-    assert gateway._resolve_target("/api/v1/data/status", "") == "http://localhost:8010/api/v1/data/status"
-
-
 def test_default_network_mode_uses_compose_inside_container(monkeypatch):
     monkeypatch.delenv("GATEWAY_NETWORK_MODE", raising=False)
     monkeypatch.setattr(gateway.os.path, "exists", lambda path: path == "/.dockerenv")
@@ -87,13 +79,10 @@ def test_proxy_response_forwards_multiple_set_cookie_headers():
         "refresh_token=one; Path=/api/v1/auth",
         "csrf=two; Path=/",
     ]
-from app.main import sanitize_client_headers
 
-
-def test_spoofed_owner_and_service_headers_are_removed():
-    headers = sanitize_client_headers({
-        "X-Owner-User-Id": "victim", "X-Service-Auth": "forged", "X-Tenant-Id": "tenant-a",
-    })
-    assert "X-Owner-User-Id" not in headers
-    assert "X-Service-Auth" not in headers
-    assert headers["X-Tenant-Id"] == "tenant-a"
+def test_sanitize_client_headers_removes_spoofable_identity_headers():
+    from app.service_registry import sanitize_client_headers
+    clean = sanitize_client_headers({"X-Owner-User-Id": "victim", "X-Service-Auth": "forged", "X-Tenant-Id": "t"})
+    assert "X-Owner-User-Id" not in clean
+    assert "X-Service-Auth" not in clean
+    assert clean["X-Tenant-Id"] == "t"

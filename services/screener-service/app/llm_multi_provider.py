@@ -242,6 +242,11 @@ def _is_retryable_error(error: Exception) -> bool:
     Returns False for:
     - 4xx client errors (auth, quota, invalid request)
     """
+    status_code = getattr(error, "status_code", None)
+    if not isinstance(status_code, int):
+        status_code = getattr(getattr(error, "response", None), "status_code", None)
+    if isinstance(status_code, int):
+        return status_code >= 500
     if isinstance(error, APIConnectionError):
         return True
     if isinstance(error, APIStatusError):

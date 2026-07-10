@@ -1,17 +1,15 @@
-from fastapi.testclient import TestClient
+def test_inventory_rows_are_table_counts_not_last_job_writes():
+    from app import inventory
+    inventory.count_table = lambda table: 8642399
+    result = inventory.inventory()
+    assert result["tables"]["daily_kline"]["rows"] == 8642399
+    assert result["tables"]["daily_kline"]["rows"] != 5200
 
-from app.main import app
-from app import inventory
-
-
-def test_inventory_rows_are_table_counts_not_last_job_writes(monkeypatch):
-    monkeypatch.setattr(inventory, "count_table", lambda table: 8642399 if table == "daily_kline" else 0)
-    body = TestClient(app).get("/api/v1/data/inventory").json()
-    assert body["tables"]["daily_kline"]["rows"] == 8642399
-    assert body["tables"]["daily_kline"]["rows"] != 5200
-
-
-def test_status_remains_compatibility_summary():
-    body = TestClient(app).get("/api/v1/data/status").json()
-    assert "jobs" in body
-    assert "pg_write_summary" in body
+def test_readiness_reports_false_when_tushare_is_unconfigured(monkeypatch):
+    from app.routers import data
+    monkeypatch.setattr(data, "_build_readiness_status", lambda: {
+        "ready": False, "components": {"tushare_configured": False}
+    })
+    import asyncio
+    result = asyncio.run(data.data_readiness())
+    assert result["ready"] is False

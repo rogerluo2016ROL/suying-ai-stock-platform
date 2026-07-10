@@ -3,7 +3,8 @@ from pathlib import Path
 
 
 def _load_pg_writer():
-    module_path = Path("services/data-service/app/sync/pg_writer.py")
+    repo_root = Path(__file__).resolve().parents[3]
+    module_path = repo_root / "services/data-service/app/sync/pg_writer.py"
     spec = importlib.util.spec_from_file_location("pg_writer_under_test", module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -68,7 +69,8 @@ def test_write_limit_list_d_uses_ts_code_limit_type_schema(monkeypatch):
 
 
 def test_init_postgres_limit_list_d_matches_runtime_schema():
-    sql = Path("services/sql/init_postgres.sql").read_text(encoding="utf-8")
+    repo_root = Path(__file__).resolve().parents[3]
+    sql = (repo_root / "services/sql/init_postgres.sql").read_text(encoding="utf-8")
     start = sql.index("CREATE TABLE IF NOT EXISTS limit_list_d")
     end = sql.index("-- 同花顺每日指标", start)
     block = sql[start:end]

@@ -1,27 +1,19 @@
-"""Read-only inventory semantics for data tables."""
-from __future__ import annotations
-
-from typing import Any
-
+"""真实数据表库存查询，与任务运行写入量严格分离。"""
 from app.sync.pg_writer import PG_URL
 
-TABLES = ("daily_kline", "daily_basic", "adj_factor", "stocks")
-
+TABLES = ("daily_kline", "stocks", "moneyflow", "stk_limit", "daily_basic")
 
 def count_table(table: str) -> int:
-    if table not in TABLES:
-        raise ValueError(f"unsupported table: {table}")
-    try:
-        import psycopg2
-        conn = psycopg2.connect(PG_URL, connect_timeout=3)
-        cur = conn.cursor()
-        cur.execute(f"SELECT COUNT(*) FROM {table}")
-        value = int(cur.fetchone()[0] or 0)
-        conn.close()
-        return value
-    except Exception:
-        return 0
+    import psycopg2
+    from psycopg2.sql import SQL, Identifier
+    with psycopg2.connect(PG_URL, connect_timeout=3) as conn:
+        with conn.cursor() as cur:
+            cur.execute(SQL("SELECT COUNT(*) FROM {}").format(Identifier(table)))
+            return int(cur.fetchone()[0])
 
+def table_inventory(table: str) -> dict:
+    rows = count_table(table)
+    return {"table": table, "rows": rows}
 
-def build_inventory() -> dict[str, Any]:
-    return {"tables": {table: {"rows": count_table(table)} for table in TABLES}}
+def inventory() -> dict:
+    return {"tables": {table: table_inventory(table) for table in TABLES}}

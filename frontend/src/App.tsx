@@ -21,34 +21,12 @@ import { liveTradeApi } from './api/liveTrade'
 import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
 import { buildPlatformSessionFromUser } from './types/platform'
-import { resolveRoute } from './routes/registry'
+import { buildMenuItems, buildProtectedRoutes, findRoute } from './app/routeRegistry'
 
 // P1-03: code-split the 14 page bundles so the initial download only carries
 // the layout + auth pages; ECharts-heavy pages (Diagnosis/Backtest/Training/
 // ModelRegistry/Predictions) load on demand.
 const Dashboard = lazy(() => import('./pages/Dashboard'))
-const OpenDecision = lazy(() => import('./pages/OpenDecision'))
-const Screener = lazy(() => import('./pages/Screener'))
-const SupplyChainBom = lazy(() => import('./pages/SupplyChainBom'))
-const Predictions = lazy(() => import('./pages/Predictions'))
-const Signals = lazy(() => import('./pages/Signals'))
-const Trade = lazy(() => import('./pages/Trade'))
-const AuditLog = lazy(() => import('./pages/AuditLog'))
-const RiskVerdicts = lazy(() => import('./pages/RiskVerdicts'))
-const DecisionContexts = lazy(() => import('./pages/DecisionContexts'))
-const Diagnosis = lazy(() => import('./pages/Diagnosis'))
-const Backtest = lazy(() => import('./pages/Backtest'))
-const Strategy = lazy(() => import('./pages/Strategy'))
-const AutoTrade = lazy(() => import('./pages/AutoTrade'))
-const RiskControl = lazy(() => import('./pages/RiskControl'))
-const Training = lazy(() => import('./pages/Training'))
-const ModelRegistry = lazy(() => import('./pages/ModelRegistry'))
-const DataUpdate = lazy(() => import('./pages/DataUpdate'))
-const RuntimeStatus = lazy(() => import('./pages/RuntimeStatus'))
-const P0Workflow = lazy(() => import('./pages/P0Workflow'))
-const PlatformUpgrade = lazy(() => import('./pages/PlatformUpgrade'))
-const AdminPermissions = lazy(() => import('./pages/AdminPermissions'))
-const MembershipManagement = lazy(() => import('./pages/MembershipManagement'))
 
 const { Text } = Typography
 
@@ -72,26 +50,13 @@ interface MenuItemWithRoles {
   badge?: string
 }
 
-const allMenuItems: MenuItemWithRoles[] = [
-  { key: '/',            icon: <DashboardOutlined />,    label: '智能看板',   group: '行情决策', permission: 'dashboard', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/open-decision', icon: <LineChartOutlined />,  label: '开盘决策',   group: '行情决策', permission: 'open_decision', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/screener',    icon: <SearchOutlined />,       label: '智能选股',   group: '行情决策', permission: 'screener', badge: '12', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/supply-chain-bom', icon: <ApartmentOutlined />, label: '产业链拆解', group: '行情决策', permission: 'supply_chain_bom', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/predictions', icon: <LineChartOutlined />,    label: 'K线预测',    group: '行情决策', permission: 'predictions', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/signals',     icon: <ThunderboltOutlined />,  label: '交易信号',   group: '行情决策', permission: 'signals', badge: '3', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/trade',       icon: <DollarOutlined />,       label: '交易中心',   group: '交易执行', permission: 'trade', roles: ['admin', 'internal_analyst', 'user'] },
-  { key: '/auto-trade',  icon: <RobotOutlined />,        label: '量化交易',   group: '交易执行', permission: 'auto_trade', roles: ['admin', 'internal_analyst', 'user'] },
-  { key: '/strategy',    icon: <BulbOutlined />,         label: '方案管理',   group: '交易执行', permission: 'strategy', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/risk',        icon: <BellOutlined />,         label: '风控中心',   group: '交易执行', permission: 'risk', roles: ['admin', 'internal_analyst', 'user'] },
-  { key: '/backtest',    icon: <ExperimentOutlined />,   label: '回测分析',   group: '交易执行', permission: 'backtest', roles: ['admin', 'internal_analyst', 'external_analyst'] },
-  { key: '/diagnosis',   icon: <FundOutlined />,         label: '个股诊断',   group: '交易执行', permission: 'diagnosis', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/training',        icon: <ExperimentOutlined />, label: '模型训练', group: '模型 / 系统', permission: 'training', roles: ['admin'] },
-  { key: '/model-registry',  icon: <ApiOutlined />,        label: '模型注册', group: '模型 / 系统', permission: 'model_registry', roles: ['admin'] },
-  { key: '/data-update',     icon: <ClockCircleOutlined />, label: '数据更新', group: '模型 / 系统', permission: 'data_update', roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { key: '/runtime-status',  icon: <ApiOutlined />,         label: '运行状态', group: '模型 / 系统', permission: 'runtime_status', roles: ['admin'] },
-  { key: '/admin/permissions', icon: <SafetyCertificateOutlined />, label: '权限授权', group: '平台管理', permission: 'admin_permissions', roles: ['admin'] },
-  { key: '/admin/memberships', icon: <CrownOutlined />, label: '会员管理', group: '平台管理', permission: 'admin_memberships', roles: ['admin'] },
-]
+const menuIcons: Record<string, React.ReactNode> = {
+  dashboard: <DashboardOutlined />, line: <LineChartOutlined />, search: <SearchOutlined />,
+  apartment: <ApartmentOutlined />, thunder: <ThunderboltOutlined />, dollar: <DollarOutlined />,
+  robot: <RobotOutlined />, bulb: <BulbOutlined />, bell: <BellOutlined />,
+  experiment: <ExperimentOutlined />, fund: <FundOutlined />, api: <ApiOutlined />,
+  clock: <ClockCircleOutlined />, safety: <SafetyCertificateOutlined />, crown: <CrownOutlined />,
+}
 
 const marketTapeItems = [
   { label: '上证', value: '--', change: '待同步', tone: 'muted' },
@@ -130,111 +95,16 @@ function toneForChange(value: unknown): MarketTapeItem['tone'] {
 
 // ── Protected route config ──
 
-const protectedRoutes: { path: string; element: React.ReactNode; roles: Role[] }[] = [
-  { path: '/',            element: <Dashboard />,    roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/dashboard/auction', element: <Dashboard />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/dashboard/signals', element: <Dashboard />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/dashboard/watchlist', element: <Dashboard />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/open-decision', element: <OpenDecision />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/open-decision/auction', element: <OpenDecision />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/open-decision/signals', element: <OpenDecision />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/open-decision/candidates', element: <OpenDecision />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/open-decision/execution', element: <OpenDecision />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/screener',    element: <Screener />,      roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/screener/models', element: <Screener />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/screener/factors', element: <Screener />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/supply-chain-bom', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/supply-chain-bom/policy', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/supply-chain-bom/company', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/supply-chain-bom/ranking', element: <SupplyChainBom />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/predictions', element: <Predictions />,   roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/predictions/single', element: <Predictions />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/predictions/compare', element: <Predictions />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/predictions/backtest', element: <Predictions />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/strategy',    element: <Strategy />,      roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/strategy/detail', element: <Strategy />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/strategy/compare', element: <Strategy />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/strategy/reports', element: <Strategy />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/signals',     element: <Signals />,       roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/signals/overview', element: <Signals />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/signals/history', element: <Signals />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/signals/risk', element: <Signals />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/trade',       element: <Trade />,         roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/trade/order', element: <Trade />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/trade/positions', element: <Trade />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/trade/orders', element: <Trade />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/trade/account', element: <Trade />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/trade/brokers', element: <Trade />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/trade/audit-log', element: <AuditLog />,  roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/trade/risk-verdicts', element: <RiskVerdicts />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/trade/decision-contexts', element: <DecisionContexts />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/auto-trade',  element: <AutoTrade />,     roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/auto-trade/config', element: <AutoTrade />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/auto-trade/monitor', element: <AutoTrade />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/auto-trade/logs', element: <AutoTrade />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/risk', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/risk/overview', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/risk/positions', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/risk/strategies', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/risk/market', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/risk/audit', element: <RiskControl />, roles: ['admin', 'internal_analyst', 'user'] },
-  { path: '/backtest',       element: <Backtest />,       roles: ['admin', 'internal_analyst', 'external_analyst'] },
-  { path: '/backtest/run', element: <Backtest />, roles: ['admin', 'internal_analyst', 'external_analyst'] },
-  { path: '/backtest/compare', element: <Backtest />, roles: ['admin', 'internal_analyst', 'external_analyst'] },
-  { path: '/backtest/trades', element: <Backtest />, roles: ['admin', 'internal_analyst', 'external_analyst'] },
-  { path: '/diagnosis',      element: <Diagnosis />,      roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/diagnosis/overview', element: <Diagnosis />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/diagnosis/model', element: <Diagnosis />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/diagnosis/compare', element: <Diagnosis />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/diagnosis/risk', element: <Diagnosis />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/training',       element: <Training />,       roles: ['admin'] },
-  { path: '/training/tasks', element: <Training />, roles: ['admin'] },
-  { path: '/training/mlflow', element: <Training />, roles: ['admin'] },
-  { path: '/model-registry', element: <ModelRegistry />,  roles: ['admin'] },
-  { path: '/data-update',    element: <DataUpdate />,     roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/data-update/overview', element: <DataUpdate />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/data-update/tables', element: <DataUpdate />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/data-update/schedule', element: <DataUpdate />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/runtime', element: <RuntimeStatus />, roles: ['admin'] },
-  { path: '/runtime-status', element: <RuntimeStatus />, roles: ['admin'] },
-  { path: '/workflow/p0', element: <P0Workflow />, roles: ['admin', 'internal_analyst', 'external_analyst', 'user'] },
-  { path: '/platform/upgrade', element: <PlatformUpgrade />, roles: ['admin'] },
-  { path: '/admin/permissions', element: <AdminPermissions />, roles: ['admin'] },
-  { path: '/admin/memberships', element: <MembershipManagement />, roles: ['admin'] },
-]
+const protectedRoutes = buildProtectedRoutes()
 
 const menuGroups: MenuItemWithRoles['group'][] = ['行情决策', '交易执行', '模型 / 系统', '平台管理']
 
-function filterMenu(
-  items: MenuItemWithRoles[],
-  role: Role | null,
-  permissions: PermissionKey[] | undefined,
-): MenuItemWithRoles[] {
-  const permissionSet = new Set(permissions || [])
-  const hasBackendPermissions = permissionSet.size > 0
-  return items
-    .filter(item => {
-      if (!role) return false
-      if (hasBackendPermissions) return permissionSet.has(item.permission)
-      return item.roles.includes(role)
-    })
-}
-
 function routeTitle(pathname: string): string {
-  const registered = resolveRoute(pathname)
-  if (registered) return registered.title
-  const selectedKey = '/' + pathname.split('/')[1]
-  return allMenuItems.find(item => item.key === selectedKey)?.label || '智能看板'
+  return findRoute(pathname)?.label || '智能看板'
 }
 
 function selectedMenuKey(pathname: string): string {
-  const registered = resolveRoute(pathname)
-  if (registered) return registered.menuKey
-  return '/' + pathname.split('/')[1]
-}
-
-function routePermission(pathname: string): PermissionKey | undefined {
-  return resolveRoute(pathname)?.permission
+  return findRoute(pathname)?.path || '/'
 }
 
 function roleViewLabel(roleView: ReturnType<typeof buildPlatformSessionFromUser>['roleView']): string {
@@ -302,7 +172,11 @@ export default function App() {
 
   // Filter menu items by role
   const mainMenu = useMemo(
-    () => filterMenu(allMenuItems, user?.role ?? null, user?.permissions),
+    () => buildMenuItems(user?.role ?? null, user?.permissions).map(item => ({
+      ...item,
+      icon: menuIcons[item.iconKey],
+      target: undefined,
+    })),
     [user?.permissions, user?.role],
   )
   const platformSession = useMemo(
@@ -630,13 +504,13 @@ export default function App() {
           <ErrorBoundary>
             <Suspense fallback={pageFallback}>
               <Routes>
-                {protectedRoutes.map(({ path, element, roles }) => (
+                {protectedRoutes.map(({ path, Component, roles, permission }) => (
                   <Route
                     key={path}
                     path={path}
                     element={
-                      <ProtectedRoute roles={roles} permission={routePermission(path)}>
-                        {element}
+                      <ProtectedRoute roles={roles} permission={permission}>
+                        <Component />
                       </ProtectedRoute>
                     }
                   />

@@ -59,6 +59,9 @@ async def lifespan(app: FastAPI):
         client = get_mlflow_client()
         logger.info("MLflow client initialized (%s mode)", "live" if hasattr(client, '_tracking_uri') else "mock")
     except Exception as e:
+        from app.config import MLFLOW_MODE
+        if MLFLOW_MODE == "live":
+            raise RuntimeError(f"MLflow live initialization failed: {e}") from e
         logger.warning("MLflow init skipped: %s", e)
 
     # Initialize scheduler
@@ -100,6 +103,14 @@ app.add_middleware(
 app.include_router(training_router)
 
 
+@app.get("/api/v1/health/live")
+async def health_live_contract():
+    return {"live": True, "service": "training-service", "version": "0.1.0"}
+
+@app.get("/api/v1/health/ready")
+async def health_ready_contract():
+    from kronos_contracts.health import check_postgres, build_health
+    return build_health("training-service", "0.1.0", {"postgres": await check_postgres()}).model_dump()
 @app.get("/api/v1/health")
 async def health():
     return {

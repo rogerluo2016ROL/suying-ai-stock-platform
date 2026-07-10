@@ -491,6 +491,12 @@ class TestChainDeconstruct:
                 {"CPU适配", "安全可信", "工业知识模型"},
             ),
             (
+                "huawei_ascend_ai_ecosystem",
+                "昇腾AI算力生态复杂产业链路模板",
+                {"昇腾AI处理器", "Atlas服务器", "CANN异构计算架构"},
+                {"鲲鹏CPU生态", "高速互联", "光模块"},
+            ),
+            (
                 "offshore_wind_subsea_cable",
                 "海风海缆/海洋能源装备复杂产业链路模板",
                 {"海底电缆", "海底光电复合缆", "动态海缆"},

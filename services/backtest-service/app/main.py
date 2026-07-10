@@ -27,7 +27,7 @@ logger = logging.getLogger("backtest-service")
 async def lifespan(app: FastAPI):
     logger.info("Starting Backtest Service...")
     try:
-        from app.adapters import inject_adapters
+        from app.db_adapters import inject_adapters
         inject_adapters()
         logger.info("DB adapters injected")
     except Exception as e:
@@ -48,6 +48,14 @@ app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_OR
 app.include_router(router)
 
 
+@app.get("/api/v1/health/live")
+async def health_live_contract():
+    return {"live": True, "service": "backtest-service", "version": "0.1.0"}
+
+@app.get("/api/v1/health/ready")
+async def health_ready_contract():
+    from kronos_contracts.health import check_postgres, build_health
+    return build_health("backtest-service", "0.1.0", {"postgres": await check_postgres()}).model_dump()
 @app.get("/api/v1/health")
 async def health():
     return {"status": "healthy", "service": "backtest-service", "version": "0.1.0"}

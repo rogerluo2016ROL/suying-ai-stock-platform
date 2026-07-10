@@ -67,22 +67,65 @@ describe('DataUpdate', () => {
     expect(signalApi.getSyncSchedules).toHaveBeenCalled()
   })
 
-  it('falls back to safe defaults when data status response is partial', async () => {
+  it('fills only structural defaults when data status response is partial', async () => {
     vi.mocked(signalApi.getDataStatus).mockResolvedValue({ data: {} } as any)
     vi.mocked(signalApi.getSyncSchedules).mockResolvedValue({ data: {} } as any)
 
     renderDataUpdate()
 
-    expect(await screen.findByText('数据质量总览')).toBeInTheDocument()
-    expect(screen.queryByText('982,000')).not.toBeInTheDocument()
+    expect(await screen.findByText('数据状态不可用')).toBeInTheDocument()
+    expect(screen.getByText(/数据状态未知/)).toBeInTheDocument()
+    expect(screen.queryByText('日线行情')).not.toBeInTheDocument()
+    expect(screen.queryByText('2026-06-27')).not.toBeInTheDocument()
+  })
+
+  it('downgrades an incomplete ok data status response to unavailable', async () => {
+    vi.mocked(signalApi.getDataStatus).mockResolvedValue({ data: { status: 'ok' } } as any)
+
+    renderDataUpdate()
+
+    expect(await screen.findByText('数据状态不可用')).toBeInTheDocument()
+    expect(screen.getByText('数据状态响应结构不完整')).toBeInTheDocument()
+    expect(screen.getByText(/数据状态未知/)).toBeInTheDocument()
+    expect(screen.queryByText(/0\/0 表正常/)).not.toBeInTheDocument()
+    expect(screen.queryByText('所有表正常')).not.toBeInTheDocument()
   })
 
   it('does not show demo row counts when data status fails', async () => {
     vi.mocked(signalApi.getDataStatus).mockRejectedValueOnce(new Error('gateway unavailable'))
+
     renderDataUpdate()
+
     expect(await screen.findByText('数据状态不可用')).toBeInTheDocument()
+    expect(screen.getByText('gateway unavailable')).toBeInTheDocument()
     expect(screen.queryByText('982,000')).not.toBeInTheDocument()
     expect(screen.queryByText('2026-06-27')).not.toBeInTheDocument()
+  })
+
+  it('keeps real data status when the schedule request is unavailable', async () => {
+    vi.mocked(signalApi.getSyncSchedules).mockRejectedValueOnce(new Error('schedule gateway unavailable'))
+
+    renderDataUpdate()
+
+    expect(await screen.findByText(/1\/1 表正常/)).toBeInTheDocument()
+    expect(screen.getByText('同步调度不可用')).toBeInTheDocument()
+    expect(screen.getByText('schedule gateway unavailable')).toBeInTheDocument()
+    expect(screen.getByText('调度状态未知')).toBeInTheDocument()
+    expect(screen.queryByText('数据状态不可用')).not.toBeInTheDocument()
+  })
+
+  it('keeps real data status when the schedule API returns an error status', async () => {
+    vi.mocked(signalApi.getSyncSchedules).mockResolvedValueOnce({
+      data: { status: 'error', message: 'scheduler disabled', schedules: [] },
+    } as any)
+
+    renderDataUpdate()
+
+    expect(await screen.findByText(/1\/1 表正常/)).toBeInTheDocument()
+    expect(screen.getByText('同步调度返回错误')).toBeInTheDocument()
+    expect(screen.getByText('scheduler disabled')).toBeInTheDocument()
+    expect(screen.getByText('调度状态未知')).toBeInTheDocument()
+    expect(screen.queryByText('数据状态不可用')).not.toBeInTheDocument()
   })
 
   it('can refresh status and trigger a manual sync for a table', async () => {

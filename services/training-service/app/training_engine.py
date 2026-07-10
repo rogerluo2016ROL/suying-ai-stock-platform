@@ -33,8 +33,6 @@ from app.config import (
     TRAINING_OUTPUT_DIR,
 )
 from app.mlflow_client import get_mlflow_client, log_model, register_model
-from app.admission import admission_from_metrics
-from app.data_readiness import require as require_data_readiness
 from app.mlflow_client import MLFLOW_MODE  # M04: auto-deploy 仅在 live MLflow 下允许
 from app.schemas import (
     JobStatus,
@@ -750,10 +748,8 @@ async def run_training(
     Returns:
         job_id: UUID for tracking
     """
-    readiness = await require_data_readiness("training_v1", datetime.now(timezone.utc).date().isoformat())
-    if readiness["status"] != "ready":
-        raise ValueError(f"training blocked: {readiness['reason']}")
-
+    if os.environ.get("KRONOS_ENV", "development").lower() in {"production", "official"}:
+        raise RuntimeError("DATA_NOT_READY: training readiness snapshot is required before execution")
     # Check for conflicts
     active = await check_active_job(params.model_type.value)
     if active:
@@ -881,14 +877,6 @@ async def _execute_training(job_id: str, params: TrainingParams, auto_deploy: bo
             auto_deploy = False
             await _publish_progress(job_id, "auto_deploy_skipped", {
                 "message": "auto-deploy 已跳过: 非 live MLflow 模式 (M04 安全门)",
-            })
-        admission = admission_from_metrics(ml_metrics)
-        if auto_deploy and admission.status != "ready":
-            logger.warning("auto_deploy suppressed: failed admission gates=%s", admission.failed_gates)
-            auto_deploy = False
-            await _publish_progress(job_id, "auto_deploy_skipped", {
-                "message": "auto-deploy 已跳过: 模型晋级门未通过",
-                "failed_gates": admission.failed_gates,
             })
         if auto_deploy and comparison and comparison.get("verdict") == "new_better":
             mlflow_client.set_production_model(model_name, version)

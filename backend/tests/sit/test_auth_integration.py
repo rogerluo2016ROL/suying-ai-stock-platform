@@ -20,8 +20,19 @@ from app.models.user import User
 async def cleanup_test_users():
     """Remove test users before the module runs to avoid duplicate-key failures."""
     async with AsyncSessionLocal() as db:
-        from sqlalchemy import delete
+        from sqlalchemy import delete, select
+        from app.models.user import Role
+        from app.services.auth_service import hash_password, seed_roles
         await db.execute(delete(User).where(User.email.like("sit_%@test.com")))
+        await seed_roles(db)
+        admin = (await db.execute(select(User).where(User.email == "admin@suying.ai"))).scalar_one_or_none()
+        role = (await db.execute(select(Role).where(Role.name == "admin"))).scalar_one()
+        if admin is None:
+            db.add(User(name="sit_admin", email="admin@suying.ai", password_hash=hash_password("Admin123!"), role_id=role.id))
+        else:
+            admin.password_hash = hash_password("Admin123!")
+            admin.role_id = role.id
+            admin.is_active = True
         await db.commit()
 
 

@@ -23,7 +23,20 @@ const tabs = [
   { key: 'schedule', path: '/data-update/schedule', label: '同步调度', subLabel: '任务计划' },
 ]
 
-const unavailableStatus: DataStatusResponse = { status: 'unavailable', total_tables: 0, active_tables: 0, total_rows: 0, sources: [], sync_map: {}, fallback_reason: '数据状态接口不可用' }
+const unavailableStatus: DataStatusResponse = {
+  status: 'unavailable',
+  total_tables: 0,
+  active_tables: 0,
+  total_rows: 0,
+  sources: [],
+  sync_map: {},
+  fallback_reason: '数据状态接口不可用',
+}
+
+type ScheduleStatusView = {
+  status: 'loading' | 'ok' | 'unavailable' | 'error'
+  reason?: string
+}
 
 function activeTabFromPath(pathname: string) {
   if (pathname.includes('/overview')) return 'overview'
@@ -36,24 +49,64 @@ function safeNumber(value: unknown, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
+function hasCompleteDataStatus(value: Partial<DataStatusResponse>) {
+  return value.status === 'ok'
+    && typeof value.total_tables === 'number'
+    && Number.isFinite(value.total_tables)
+    && typeof value.active_tables === 'number'
+    && Number.isFinite(value.active_tables)
+    && typeof value.total_rows === 'number'
+    && Number.isFinite(value.total_rows)
+    && Array.isArray(value.sources)
+    && value.sync_map !== null
+    && typeof value.sync_map === 'object'
+    && !Array.isArray(value.sync_map)
+}
+
+function errorReason(error: unknown, fallback: string) {
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === 'string' ? error : fallback
+  return message.trim() || fallback
+}
+
+function isCancelledReason(reason: string) {
+  const normalized = reason.toLowerCase()
+  return normalized.includes('abort') || normalized.includes('cancel')
+}
+
 function normalizeDataStatus(input: Partial<DataStatusResponse> | undefined): DataStatusResponse {
   const value = input && typeof input === 'object' ? input : {}
+  if (value.status === 'ok' && !hasCompleteDataStatus(value)) {
+    return {
+      ...unavailableStatus,
+      fallback_reason: '数据状态响应结构不完整',
+    }
+  }
+  const normalizedStatus = value.status === 'ok' || value.status === 'error' || value.status === 'unavailable'
+    ? value.status
+    : unavailableStatus.status
   return {
     ...value,
-    status: value.status || 'unavailable',
-    total_tables: safeNumber(value.total_tables, 0),
-    active_tables: safeNumber(value.active_tables, 0),
-    total_rows: safeNumber(value.total_rows, 0),
+    status: normalizedStatus,
+    total_tables: safeNumber(value.total_tables, unavailableStatus.total_tables),
+    active_tables: safeNumber(value.active_tables, unavailableStatus.active_tables),
+    total_rows: safeNumber(value.total_rows, unavailableStatus.total_rows),
     sources: Array.isArray(value.sources)
       ? value.sources.map(source => ({
           ...source,
           rows: safeNumber(source.rows, 0),
-          status: source.status || 'empty',
+          status: source.status === 'active' || source.status === 'empty' || source.status === 'pending' || source.status === 'error'
+            ? source.status : 'pending',
         }))
-      : [],
+      : unavailableStatus.sources,
     sync_map: value.sync_map && typeof value.sync_map === 'object'
+      && !Array.isArray(value.sync_map)
       ? value.sync_map
-      : {},
+      : unavailableStatus.sync_map,
+    fallback_reason: typeof value.fallback_reason === 'string' && value.fallback_reason.trim()
+      ? value.fallback_reason
+      : normalizedStatus === 'ok' ? undefined : unavailableStatus.fallback_reason,
   }
 }
 
@@ -69,6 +122,7 @@ export default function DataUpdate() {
   const active = activeTabFromPath(pathname)
   const [status, setStatus] = useState<DataStatusResponse>(unavailableStatus)
   const [schedules, setSchedules] = useState<SyncSchedule[]>([])
+  const [scheduleStatus, setScheduleStatus] = useState<ScheduleStatusView>({ status: 'loading' })
   const [filter, setFilter] = useState('all')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -77,25 +131,55 @@ export default function DataUpdate() {
 
   const loadStatus = useCallback(async (cancelled?: () => boolean) => {
     setLoading(true)
-    try {
-      const [dataStatus, syncSchedules] = await Promise.all([
-      signalApi.getDataStatus(),
-      signalApi.getSyncSchedules(),
-      ])
-      if (cancelled?.()) return
-      setStatus(normalizeDataStatus(dataStatus.data))
-      setSchedules(Array.isArray(syncSchedules.data?.schedules) ? syncSchedules.data.schedules : [])
-      setError('')
-    } catch (err) {
-      if (cancelled?.()) return
-      const message = err instanceof Error ? err.message.toLowerCase() : ''
-      if (message.includes('abort') || message.includes('cancel')) return
-      setStatus({ ...unavailableStatus, fallback_reason: '数据状态接口不可用' })
-      setSchedules([])
-      setError('数据状态不可用')
-    } finally {
-      if (!cancelled?.()) setLoading(false)
-    }
+    setScheduleStatus({ status: 'loading' })
+
+    const dataStatusRequest = signalApi.getDataStatus()
+      .then(dataStatus => {
+        if (cancelled?.()) return
+        const normalizedStatus = normalizeDataStatus(dataStatus.data)
+        setStatus(normalizedStatus)
+        setError(normalizedStatus.status === 'ok'
+          ? ''
+          : normalizedStatus.fallback_reason || unavailableStatus.fallback_reason || '')
+      })
+      .catch(err => {
+        if (cancelled?.()) return
+        const reason = errorReason(err, unavailableStatus.fallback_reason || '数据状态接口不可用')
+        if (isCancelledReason(reason)) return
+        setStatus({ ...unavailableStatus, fallback_reason: reason })
+        setError(reason)
+      })
+
+    const scheduleRequest = signalApi.getSyncSchedules()
+      .then(syncSchedules => {
+        if (cancelled?.()) return
+        if (syncSchedules.data?.status !== 'ok') {
+          const reason = typeof syncSchedules.data?.message === 'string' && syncSchedules.data.message.trim()
+            ? syncSchedules.data.message
+            : '同步调度接口返回错误'
+          setSchedules([])
+          setScheduleStatus({ status: 'error', reason })
+          return
+        }
+        if (!Array.isArray(syncSchedules.data.schedules)) {
+          setSchedules([])
+          setScheduleStatus({ status: 'error', reason: '同步调度响应结构不完整' })
+          return
+        }
+        setSchedules(syncSchedules.data.schedules)
+        setScheduleStatus({ status: 'ok' })
+      })
+      .catch(err => {
+        if (cancelled?.()) return
+        const reason = errorReason(err, '同步调度接口不可用')
+        if (isCancelledReason(reason)) return
+        setSchedules([])
+        setScheduleStatus({ status: 'unavailable', reason })
+      })
+
+    await dataStatusRequest
+    await scheduleRequest
+    if (!cancelled?.()) setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -129,16 +213,28 @@ export default function DataUpdate() {
   }
 
   const tab = useMemo(() => tabs.find(item => item.key === active) ?? tabs[0], [active])
+  const statusUnavailable = status.status !== 'ok'
+  const scheduleUnavailable = scheduleStatus.status !== 'ok'
   const visibleSources = useMemo(() => {
     if (filter === 'all') return status.sources
     return status.sources.filter(source => source.status === filter || source.category === filter)
   }, [filter, status.sources])
-  const normalSummary = `${status.active_tables}/${status.total_tables} 表正常`
+  const normalSummary = statusUnavailable ? '数据状态未知' : `${status.active_tables}/${status.total_tables} 表正常`
   const latestSource = status.sources.find(source => source.key === 'daily_kline')
     ?? status.sources
       .filter(source => source.category === '行情' && source.max_date && source.max_date !== '-')
       .sort((a, b) => String(b.max_date).localeCompare(String(a.max_date)))[0]
   const latestSchedule = schedules.find(item => (item as SyncSchedule & { last_run_at?: string; last_run?: string }).last_run_at || (item as SyncSchedule & { last_run_at?: string; last_run?: string }).last_run) as (SyncSchedule & { last_run_at?: string; last_run?: string }) | undefined
+  const displaySchedules = scheduleStatus.status === 'ok'
+    ? schedules.length > 0 ? schedules : Object.entries(status.sync_map).map(([key, item]) => ({
+        table_key: key,
+        days_back: item.days_default,
+        interval_minutes: item.mode === 'intra' ? 5 : 1440,
+        daily_at: item.mode === 'post_market' ? '17:20' : null,
+        enabled: true,
+        next_sync_at: item.mode,
+      }))
+    : []
 
   return (
     <PrototypePage>
@@ -165,21 +261,32 @@ export default function DataUpdate() {
         ]}
       />
 
-      {error && <RiskBanner status="warn" title="数据连接提醒" detail={error} />}
+      {error && <RiskBanner status="reject" title="数据状态不可用" detail={error} />}
+      {scheduleStatus.status === 'unavailable' && (
+        <RiskBanner status="reject" title="同步调度不可用" detail={scheduleStatus.reason} />
+      )}
+      {scheduleStatus.status === 'error' && (
+        <RiskBanner status="reject" title="同步调度返回错误" detail={scheduleStatus.reason} />
+      )}
       {syncMessage && <RiskBanner status={syncMessage.includes('失败') ? 'warn' : 'pass'} title="手动同步结果" detail={syncMessage} />}
 
       <div className="kpis">
-        <MetricCard label="正常表" value={status.active_tables} sub={normalSummary} tone="up" />
-        <MetricCard label="总表数" value={status.total_tables} sub="行情 / 基础 / 模型" tone="accent" />
-        <MetricCard label="总行数" value={formatRows(status.total_rows)} sub="当前可查询数据" tone="muted" />
-        <MetricCard label="调度任务" value={schedules.length || Object.keys(status.sync_map).length} sub="自动同步配置" tone="warn" />
+        <MetricCard label="正常表" value={statusUnavailable ? '--' : status.active_tables} sub={normalSummary} tone="up" />
+        <MetricCard label="总表数" value={statusUnavailable ? '--' : status.total_tables} sub="行情 / 基础 / 模型" tone="accent" />
+        <MetricCard label="总行数" value={statusUnavailable ? '--' : formatRows(status.total_rows)} sub="当前可查询数据" tone="muted" />
+        <MetricCard
+          label="调度任务"
+          value={statusUnavailable || scheduleUnavailable ? '--' : schedules.length || Object.keys(status.sync_map).length}
+          sub={scheduleUnavailable ? (scheduleStatus.status === 'loading' ? '调度状态加载中' : '调度状态未知') : '自动同步配置'}
+          tone="warn"
+        />
       </div>
 
       <div className="r r-2-1">
         <PrototypeCard
           title={active === 'schedule' ? '同步调度' : active === 'tables' ? '全部数据表' : '数据质量总览'}
           icon={active === 'schedule' ? <ClockCircleOutlined /> : <DatabaseOutlined />}
-          meta={<DataDomainBadge domain="public" label="表状态正常" />}
+          meta={<DataDomainBadge domain="public" label={statusUnavailable ? '状态未知' : '表状态正常'} />}
         >
           {active !== 'schedule' && (
             <>
@@ -245,14 +352,7 @@ export default function DataUpdate() {
                 </tr>
               </thead>
               <tbody>
-                {(schedules.length > 0 ? schedules : Object.entries(status.sync_map).map(([key, item]) => ({
-                  table_key: key,
-                  days_back: item.days_default,
-                  interval_minutes: item.mode === 'intra' ? 5 : 1440,
-                  daily_at: item.mode === 'post_market' ? '17:20' : null,
-                  enabled: true,
-                  next_sync_at: item.mode,
-                }))).map(schedule => (
+                {displaySchedules.map(schedule => (
                   <tr key={schedule.table_key}>
                     <td className="mono">{schedule.table_key}</td>
                     <td>{status.sync_map[schedule.table_key]?.mode || `${schedule.interval_minutes}m`}</td>
@@ -267,11 +367,13 @@ export default function DataUpdate() {
         </PrototypeCard>
 
         <SideRail title="数据质量" meta="Public">
-          <RiskBanner
-            status={status.active_tables === status.total_tables ? 'pass' : 'warn'}
-            title="所有表正常"
-            detail="业务页面会携带数据时点与质量提示，私有方案不写入公共数据域。"
-          />
+          {!statusUnavailable && (
+            <RiskBanner
+              status={status.active_tables === status.total_tables ? 'pass' : 'warn'}
+              title={status.active_tables === status.total_tables ? '所有表正常' : '部分表待修复'}
+              detail="业务页面会携带数据时点与质量提示，私有方案不写入公共数据域。"
+            />
+          )}
           <PrototypeCard title="同步动作" icon={<ReloadOutlined />}>
             <div className="batch-actions" style={{ marginBottom: 12 }}>
               <button type="button" className="action-btn primary" onClick={() => loadStatus()} disabled={loading}>

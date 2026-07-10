@@ -1,5 +1,4 @@
 import os
-import json
 """API Gateway — reverse proxy with rate limiting (urllib async wrapper).
 
 Per CLAUDE.md: microservice HTTP calls use urllib async wrapper
@@ -15,9 +14,26 @@ from urllib.error import URLError, HTTPError
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
+from app.service_registry import SERVICE_REGISTRY, sanitize_client_headers
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","), allow_methods=["*"], allow_headers=["*"])
+
+@app.get("/api/v1/health/live")
+async def health_live():
+    return {"live": True, "service": "api-gateway", "version": "0.1.0"}
+
+@app.get("/api/v1/health/ready")
+async def health_ready():
+    from .runtime import probe_services
+    services = await probe_services()
+    return {"live": True, "ready": all(item.get("ready", False) for item in services.values()), "services": services}
+
+@app.get("/api/v1/runtime/readiness")
+async def runtime_readiness():
+    from .runtime import probe_services
+    services = await probe_services()
+    return {"live": True, "ready": all(item.get("ready", False) for item in services.values()), "services": services}
 
 _rate_store: dict[str, list[float]] = {}
 # P1-8: request counter for periodic eviction of stale rate-store keys.
@@ -39,111 +55,24 @@ def _default_network_mode() -> str:
 
 
 _USE_COMPOSE = _default_network_mode() == "compose"
-_COMPOSE_HOSTS = {
-    "/api/v1/auth": "backend",
-    "/api/v1/admin": "backend",
-    "/api/v1/screener": "screener-service",
-    "/api/v1/prediction": "prediction-service",
-    "/api/v1/strategy": "strategy-service",
-    "/api/v1/signal": "signal-service",
-    "/api/v1/dashboard": "screener-service",  # screener-service owns screening dashboard + pipeline
-    "/api/v1/data": "data-service",
-    "/api/v1/alert": "alert-service",
-    "/api/v1/trade": "trade-service",
-    "/api/v1/backtest": "backtest-service",
-    "/api/v1/training": "training-service",
-    "/api/v1/diagnosis": "diagnosis-service",
-}
-_HOST_ENV = {
-    "/api/v1/auth": "GATEWAY_BACKEND_HOST",
-    "/api/v1/admin": "GATEWAY_BACKEND_HOST",
-    "/api/v1/screener": "GATEWAY_SCREENER_HOST",
-    "/api/v1/prediction": "GATEWAY_PREDICTION_HOST",
-    "/api/v1/strategy": "GATEWAY_STRATEGY_HOST",
-    "/api/v1/signal": "GATEWAY_SIGNAL_HOST",
-    "/api/v1/dashboard": "GATEWAY_SCREENER_HOST",
-    "/api/v1/data": "GATEWAY_DATA_HOST",
-    "/api/v1/alert": "GATEWAY_ALERT_HOST",
-    "/api/v1/trade": "GATEWAY_TRADE_HOST",
-    "/api/v1/backtest": "GATEWAY_BACKTEST_HOST",
-    "/api/v1/training": "GATEWAY_TRAINING_HOST",
-    "/api/v1/diagnosis": "GATEWAY_DIAGNOSIS_HOST",
-}
-
-
-def _svc_url(prefix: str, port: int) -> str:
+def _svc_url(service) -> str:
     """解析服务 URL: env GATEWAY_<NAME>_HOST > compose 服务名 > localhost."""
-    env_name = _HOST_ENV.get(prefix)
+    env_name = service.host_env
     if env_name and os.environ.get(env_name):
         host = os.environ[env_name]
     elif _USE_COMPOSE:
-        host = _COMPOSE_HOSTS.get(prefix, "localhost")
+        host = service.compose_host
     else:
         host = "localhost"
-    return f"http://{host}:{port}"
+    return f"http://{host}:{service.port}"
 
 
-SERVICES = {
-    "/api/v1/auth": _svc_url("/api/v1/auth", 9001),
-    "/api/v1/admin": _svc_url("/api/v1/admin", 9001),
-    "/api/v1/screener": _svc_url("/api/v1/screener", 8001),
-    "/api/v1/prediction": _svc_url("/api/v1/prediction", 8002),
-    "/api/v1/strategy": _svc_url("/api/v1/strategy", 8003),
-    "/api/v1/signal": _svc_url("/api/v1/signal", 8004),
-    "/api/v1/dashboard": _svc_url("/api/v1/dashboard", 8001),
-    "/api/v1/data": _svc_url("/api/v1/data", 8010),
-    "/api/v1/alert": _svc_url("/api/v1/alert", 8005),
-    "/api/v1/trade": _svc_url("/api/v1/trade", 8006),
-    "/api/v1/backtest": _svc_url("/api/v1/backtest", 8007),
-    "/api/v1/training": _svc_url("/api/v1/training", 8008),
-    "/api/v1/diagnosis": _svc_url("/api/v1/diagnosis", 8009),
-}
+SERVICES = {service.prefix: _svc_url(service) for service in SERVICE_REGISTRY}
 
 _SERVICE_HEALTH_ALIASES = {
     f"{prefix}/health": (base, "/api/health" if prefix in ("/api/v1/auth", "/api/v1/admin") else "/api/v1/health")
     for prefix, base in SERVICES.items()
 }
-
-async def probe_services() -> dict[str, dict]:
-    """Probe service health endpoints; individual failures never abort summary."""
-    loop = asyncio.get_running_loop()
-    async def probe(name, url):
-        started = time.perf_counter()
-        try:
-            def call():
-                with urlopen(url + "/api/v1/health", timeout=2) as r:
-                    return r.status, r.read()
-            status, body = await loop.run_in_executor(None, call)
-            return name, {"ready": 200 <= status < 300, "latency_ms": int((time.perf_counter()-started)*1000), "status": status}
-        except Exception as exc:
-            return name, {"ready": False, "latency_ms": int((time.perf_counter()-started)*1000), "error": type(exc).__name__ + (": " + str(exc) if str(exc) else "")}
-    targets = {k.strip("/").split("/")[-1]: v for k, v in SERVICES.items() if k not in ("/api/v1/auth", "/api/v1/admin")}
-    results = await asyncio.gather(*(probe(name, url) for name, url in targets.items()))
-    return dict(results)
-
-@app.get("/api/v1/runtime/readiness")
-async def runtime_readiness():
-    services = await probe_services()
-    return {"ready": all(item.get("ready", False) for item in services.values()), "services": services, "checked_at": datetime.now(timezone.utc).isoformat()}
-
-@app.get("/api/v1/health/live")
-async def health_live():
-    return {"live": True, "ready": True, "service": "api-gateway"}
-
-@app.get("/api/v1/health/ready")
-async def health_ready():
-    services = await probe_services()
-    checks = {"process": {"status": "ready"}}
-    checks.update({
-        name: {
-            "status": "ready" if item.get("ready") else "unavailable",
-            "latency_ms": item.get("latency_ms"),
-            "reason": item.get("error"),
-        }
-        for name, item in services.items()
-    })
-    ready = all(item.get("ready", False) for item in services.values())
-    return {"live": True, "ready": ready, "service": "api-gateway", "checks": checks}
 
 
 def _resolve_target(full: str, query: str | bytes | None = "") -> str | None:
@@ -161,8 +90,8 @@ def _resolve_target(full: str, query: str | bytes | None = "") -> str | None:
         target = f"{base}{health_path}"
     else:
         target_base = None
-        for prefix, svc in sorted(SERVICES.items(), key=lambda item: len(item[0]), reverse=True):
-            if full == prefix or full.startswith(f"{prefix}/"):
+        for prefix, svc in SERVICES.items():
+            if full.startswith(prefix):
                 target_base = svc
                 break
         if not target_base:
@@ -251,7 +180,7 @@ def _now_iso() -> str:
 def _workbench_context(request: Request) -> dict:
     return {
         "tenant_id": request.headers.get("X-Tenant-Id") or "public",
-        "owner_user_id": None,
+        "owner_user_id": request.headers.get("X-Owner-User-Id"),
         "account_id": request.headers.get("X-Trade-Account-Id"),
         "data_scope": request.headers.get("X-Data-Scope") or "public",
         "trade_mode": request.headers.get("X-Trade-Mode") or "paper",
@@ -260,21 +189,12 @@ def _workbench_context(request: Request) -> dict:
     }
 
 
-_UNTRUSTED_IDENTITY_HEADERS = {"x-owner-user-id", "x-service-auth"}
-
-
-def sanitize_client_headers(headers: dict[str, str]) -> dict[str, str]:
-    """Never forward caller-controlled service credentials or owner identity."""
-    return {key: value for key, value in headers.items() if key.lower() not in _UNTRUSTED_IDENTITY_HEADERS}
-
-
 def _workbench_envelope(module_path: str, request: Request) -> dict:
     module = module_path.strip("/") or "p0"
     return {
         "status": "unavailable",
         "page": {"module": module, "route": f"/{module}", "title": module},
         "context": _workbench_context(request),
-        "data_domain": "public",
         "freshness": {
             "status": "missing",
             "as_of": None,

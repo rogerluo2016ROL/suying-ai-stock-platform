@@ -157,8 +157,8 @@ def test_supply_chain_workbench_returns_candidate_pool_with_model_context(monkey
     r = _client().get("/api/v1/screener/supply-chain/workbench?top_n=10")
     assert r.status_code == 200
     body = r.json()
-    assert body["model"]["name"] == "大葱产业链解构选股模型 V5"
-    assert body["model"]["version"] == "5.0"
+    assert body["model"]["name"] == "产业链预期差选股模型 V1.0"
+    assert body["model"]["version"] == "1.0"
     assert body["candidate_count"] == 1
     candidate = body["candidates"][0]
     assert candidate["code"] == "300308"

@@ -30,7 +30,7 @@ from collections import defaultdict
 import numpy as np
 
 _PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for pkg in ["packages/kronos-factors", "packages/kronos-core", "packages/kronos-data"]:
+for pkg in ["packages/kronos-factors", "packages/kronos-core", "packages/kronos-data", "packages/kronos-contracts"]:
     path = os.path.join(_PROJ, pkg)
     if os.path.isdir(path) and path not in sys.path:
         sys.path.insert(0, path)
@@ -41,6 +41,7 @@ if os.path.isdir(_TOOLS) and _TOOLS not in sys.path:
 from backtest_bi_trend import (  # noqa: E402
     setup_db, get_trading_days, run_backtest_day, simulate_pick,
 )
+from run_research_pipeline import _git_state, build_run_manifest  # noqa: E402
 
 
 def _git_strategy_commit(strategy_path: str) -> dict:
@@ -246,7 +247,22 @@ def main():
                              "CI 跑 walk_forward 必须传此 flag 结果才算有效样本外. "
                              "默认 False 保持兼容 (诊断性跑批). "
                              "注: 工作区 dirty 始终强制 exit(2), 不受此 flag 控制 (M01-C).")
+    parser.add_argument("--official", action="store_true", help="正式样本外运行（自动启用 strict timeline）")
+    parser.add_argument("--data-snapshot-id", default="")
+    parser.add_argument("--cutoff-time", default="", help="ISO-8601 数据截止时间；正式运行必填")
+    parser.add_argument("--model-version", default="")
     args = parser.parse_args()
+
+    run_git_state = None
+    if args.official:
+        args.strict_timeline = True
+        if not args.data_snapshot_id or not args.cutoff_time:
+            print("❌ official walk-forward 要求 --data-snapshot-id 和 --cutoff-time")
+            sys.exit(2)
+        run_git_state = _git_state()
+        if run_git_state["dirty"]:
+            print("❌ official walk-forward 要求 clean worktree")
+            sys.exit(2)
 
     # AC-5 冻结参数默认 (V5.9 调参前, git 972a10f): 统一持有, 无个性化建议
     frozen_defaults = None
@@ -371,6 +387,18 @@ def main():
         "sharpe_like_annualized": sharpe,
         "conclusion": conclusion,
     }
+    manifest = build_run_manifest(
+        args=args, model_key=args.strategy, run_id=f"walk-forward-{int(time.time())}",
+        trade_date=f"{args.end}-01", result={"status": "success", "picks": all_picks_sample},
+        parameters={
+            "start": args.start, "end": args.end, "top_n": args.top_n,
+            "train_months": args.train_months, "frozen": args.frozen,
+            "strategy": args.strategy, "cost_bps": args.cost_bps,
+        },
+        artifacts=[os.path.abspath(export_path)],
+        git_state=run_git_state,
+    )
+    out["manifest"] = manifest.model_dump(mode="json")
     with open(export_path, 'w') as f:
         json.dump(out, f, ensure_ascii=False, indent=2, default=str)
     print(f"\n📁 导出: {export_path}")

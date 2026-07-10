@@ -924,3 +924,32 @@ INFO:     127.0.0.1:52697 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
 2026-07-09 16:34:09,844 [INFO] screener.scheduler: Scheduler: T+1 backfill — 205 snapshots
 2026-07-09 16:34:17,161 [INFO] kronos.recorder: recorder: 1345 snapshots multi-horizon backfilled
 2026-07-09 16:34:17,163 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1345 snapshots
+  📊 pre_close from daily_kline(2026-07-08): 4995 stocks
+  市场环境: 🟡中性 — 涨跌比40%偏低
+  📡 快照(live): 4995 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-09): 4933 只
+  📊 pre_close from daily_kline(2026-07-08): 4995 只 (含回退)
+  🔒 14:30涨停检测: 71 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 166 只 (4.9s)
+INFO:     127.0.0.1:57097 - "GET /health HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:57099 - "GET /api/v1/health HTTP/1.1" 200 OK
+2026-07-10 11:53:58,520 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_2cf8c5a41059a589a77f74e0bd9890ac', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+INFO:     127.0.0.1:57350 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-10 11:54:29,503 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'leader_afternoon', 'total_picks': 20, 'markdown_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-10/115417_leader_afternoon.md', 'doc_xml_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-10/115417_leader_afternoon.doc.xml', 'doc_url': 'https://xcnl9dvruj6a.feishu.cn/docx/WuEPdqiZVo2fDcxGRpkchuQYnJb'}
+2026-07-10 13:26:26,284 [INFO] app.routers.lark: Lark callback summary: {'type': 'im.message.receive_v1', 'event_type': 'im.message.receive_v1', 'keys': ['chat_id', 'chat_type', 'content', 'create_time', 'event_id', 'header', 'id', 'message_id', 'message_type', 'sender_id', 'timestamp', 'type'], 'chat_id': 'oc_f3b4c491a34af574aa65732a1bc74c79', 'sender_id': 'ou_2cf8c5a41059a589a77f74e0bd9890ac', 'message_type': 'text', 'has_encrypt': False, 'has_challenge': False}
+  📊 pre_close from daily_kline(2026-07-09): 4994 stocks
+  市场环境: 🟢做多 — 
+  📡 快照(live): 4994 只 (0.1s)
+  📊 pre_close from stk_auction_o(2026-07-10): 4948 只
+  📊 pre_close from daily_kline(2026-07-09): 4994 只 (含回退)
+  🔒 14:30涨停检测: 92 只 (stk_mins+stk_limit)
+  📈 股票池: 5421 只
+  ✅ 筛选后: 156 只 (5.3s)
+INFO:     127.0.0.1:54088 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
+2026-07-10 13:26:59,559 [INFO] app.routers.lark: Lark event handled: {'ignored': False, 'mode': 'leader_afternoon', 'total_picks': 20, 'markdown_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-10/132647_leader_afternoon.md', 'doc_xml_path': '/Users/rogerluo/程序目录/K线大模型/outputs/lark_reports/2026-07-10/132647_leader_afternoon.doc.xml', 'doc_url': 'https://xcnl9dvruj6a.feishu.cn/docx/JQZFdSvCmoLrKgxx15ZcvVgInYx'}
+2026-07-10 16:09:31,226 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-10
+2026-07-10 16:09:31,291 [INFO] kronos.recorder: recorder: 164 outcomes backfilled
+2026-07-10 16:09:31,291 [INFO] screener.scheduler: Scheduler: T+1 backfill — 164 snapshots
+2026-07-10 16:09:34,272 [INFO] kronos.recorder: recorder: 1239 snapshots multi-horizon backfilled
+2026-07-10 16:09:34,272 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1239 snapshots

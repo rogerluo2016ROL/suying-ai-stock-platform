@@ -4,6 +4,8 @@ ARG PIP_DEFAULT_TIMEOUT=60
 ENV PIP_INDEX_URL=$PIP_INDEX_URL PIP_DEFAULT_TIMEOUT=$PIP_DEFAULT_TIMEOUT
 
 WORKDIR /app
+COPY packages/kronos-contracts /app/packages/kronos-contracts
+RUN pip install --no-cache-dir /app/packages/kronos-contracts
 RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ && rm -rf /var/lib/apt/lists/*
 
 # Install packages

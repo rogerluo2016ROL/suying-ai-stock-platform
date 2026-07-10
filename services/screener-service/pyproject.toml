@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "FastAPI stock screening microservice — 6 strategies, unified API"
 requires-python = ">=3.10"
 dependencies = [
+    "kronos-contracts",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
     "kronos-factors",

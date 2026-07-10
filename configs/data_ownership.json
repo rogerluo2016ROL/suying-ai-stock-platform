@@ -1,0 +1,22 @@
+{
+  "daily_kline": {"owner": "data-service", "writers": ["data-service"]},
+  "adj_factor": {"owner": "data-service", "writers": ["data-service"]},
+  "stk_mins": {"owner": "data-service", "writers": ["data-service"]},
+  "rt_min": {"owner": "data-service", "writers": ["data-service"]},
+  "auction": {"owner": "data-service", "writers": ["data-service"]},
+  "cb_basic": {"owner": "data-service", "writers": ["data-service"]},
+  "data_readiness_snapshots": {"owner": "data-service", "writers": ["data-service"]},
+  "candidate_pools": {"owner": "screener-service", "writers": ["screener-service"]},
+  "screening_batches": {"owner": "screener-service", "writers": ["screener-service"]},
+  "screening_scores": {"owner": "screener-service", "writers": ["screener-service"]},
+  "strategy_runs": {"owner": "strategy-service", "writers": ["strategy-service"]},
+  "factor_weights": {"owner": "training-service", "writers": ["training-service"]},
+  "factor_calibration_history": {"owner": "training-service", "writers": ["training-service"]},
+  "training_jobs": {"owner": "training-service", "writers": ["training-service"]},
+  "model_registry": {"owner": "training-service", "writers": ["training-service"]},
+  "backtest_results": {"owner": "backtest-service", "writers": ["backtest-service"]},
+  "backtest_records": {"owner": "backtest-service", "writers": ["backtest-service"]},
+  "factor_evaluations": {"owner": "backtest-service", "writers": ["backtest-service"]},
+  "orders": {"owner": "trade-service", "writers": ["trade-service"]},
+  "trades": {"owner": "trade-service", "writers": ["trade-service"]}
+}

@@ -479,6 +479,7 @@ CREATE TABLE IF NOT EXISTS broker_recommend (
     code TEXT NOT NULL,
     month TEXT NOT NULL,
     broker TEXT,
+    name TEXT,
     PRIMARY KEY(code, month, broker)
 );
 
@@ -679,10 +680,10 @@ CREATE TABLE IF NOT EXISTS watchlist (
 );
 
 -- 实时日K线 (rt_k, Level-2 权限)
-CREATE TABLE IF NOT EXISTS rt_k (id SERIAL PRIMARY KEY, ts_code TEXT NOT NULL, trade_date DATE NOT NULL, open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION, close DOUBLE PRECISION, pre_close DOUBLE PRECISION, change DOUBLE PRECISION, pct_chg DOUBLE PRECISION, vol DOUBLE PRECISION, amount DOUBLE PRECISION, UNIQUE(ts_code, trade_date));
+CREATE TABLE IF NOT EXISTS rt_k (id SERIAL PRIMARY KEY, code TEXT NOT NULL, trade_date DATE NOT NULL, open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION, close DOUBLE PRECISION, pre_close DOUBLE PRECISION, change DOUBLE PRECISION, pct_chg DOUBLE PRECISION, vol DOUBLE PRECISION, amount DOUBLE PRECISION, UNIQUE(code, trade_date));
 
 -- 开盘集合竞价 (stk_auction_o, 从 9:30 首根5min K线采集 — scheduler.collect_auction_snapshot)
-CREATE TABLE IF NOT EXISTS stk_auction_o (id SERIAL PRIMARY KEY, code TEXT NOT NULL, trade_date DATE NOT NULL, open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION, close DOUBLE PRECISION, vol DOUBLE PRECISION, amount DOUBLE PRECISION, vwap DOUBLE PRECISION, UNIQUE(code, trade_date));
+CREATE TABLE IF NOT EXISTS stk_auction_o (id SERIAL PRIMARY KEY, code TEXT NOT NULL, trade_date DATE NOT NULL, open DOUBLE PRECISION, high DOUBLE PRECISION, low DOUBLE PRECISION, close DOUBLE PRECISION, vol DOUBLE PRECISION, amount DOUBLE PRECISION, vwap DOUBLE PRECISION, updated_at TIMESTAMP DEFAULT NOW(), UNIQUE(code, trade_date));
 
 -- 股票每日技术因子 (stk_factor_pro, sync_stk_factor_pro_daily/backfill 写入; 下游因子计算)
 -- ADR-014.1: 反向追认 DB 现状 (init_sql 原缺). 注意: DB 无 UNIQUE(ts_code,trade_date) 约束,
@@ -708,15 +709,14 @@ CREATE TABLE IF NOT EXISTS stk_factor_pro (
     kdj_d DOUBLE PRECISION,
     kdj_j DOUBLE PRECISION,
     vol_ratio DOUBLE PRECISION,
-    turnover_rate DOUBLE PRECISION
+    turnover_rate DOUBLE PRECISION,
+    UNIQUE(ts_code, trade_date)
 );
 
 -- 实时分钟线 (stk_mins, 来自 Tushare rt_min API + PG 直写)
 CREATE TABLE IF NOT EXISTS stk_mins (
     id SERIAL PRIMARY KEY,
     code TEXT NOT NULL,
-    -- Existing PostgreSQL production table stores vendor timestamps as TEXT.
-    -- Keep init schema aligned; downstream normalizes before time arithmetic.
     trade_time TEXT NOT NULL,
     open DOUBLE PRECISION,
     high DOUBLE PRECISION,
@@ -732,7 +732,7 @@ CREATE INDEX IF NOT EXISTS idx_stk_mins_time ON stk_mins(trade_time);
 
 -- 涨跌停列表 (limit_list_d, 来自 Tushare limit_list_d API)
 CREATE TABLE IF NOT EXISTS limit_list_d (
-    id SERIAL PRIMARY KEY,
+    id INTEGER,
     trade_date TEXT NOT NULL,
     ts_code TEXT NOT NULL,
     limit_type TEXT NOT NULL,
@@ -756,7 +756,8 @@ CREATE TABLE IF NOT EXISTS limit_list_d (
     total_mv DOUBLE PRECISION,
     limit_amount DOUBLE PRECISION,
     "limit" DOUBLE PRECISION,
-    UNIQUE(ts_code, trade_date, limit_type)
+    UNIQUE(ts_code, trade_date, limit_type),
+    UNIQUE(ts_code, trade_date, up_stat)
 );
 
 -- 同花顺每日指标 (ths_daily, 来自 Tushare pro.ths_daily API)
@@ -787,15 +788,11 @@ CREATE INDEX IF NOT EXISTS idx_ths_daily_code_date ON ths_daily(code, trade_date
 
 -- 同花顺概念板块成分股映射 (ths_concept_map, 每月同步)
 CREATE TABLE IF NOT EXISTS ths_concept_map (
-    id SERIAL PRIMARY KEY,
-    ts_code TEXT NOT NULL,
-    concept_name TEXT NOT NULL,
-    concept_code TEXT NOT NULL,
-    trade_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    UNIQUE(ts_code, concept_name)
+    ts_code TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    list_date TEXT,
+    type TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_ths_concept_map_code ON ths_concept_map(ts_code);
-CREATE INDEX IF NOT EXISTS idx_ths_concept_map_concept ON ths_concept_map(concept_name);
 
 -- ── 物化视图: 每日综合排名 (涨幅 + 资金 + 估值 + 流动性) ──
 -- 盘后刷新，为选股 Dashboard 提供预计算数据

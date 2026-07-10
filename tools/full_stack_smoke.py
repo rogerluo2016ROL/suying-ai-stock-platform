@@ -136,6 +136,13 @@ def load_config(argv: list[str] | None = None) -> SmokeConfig:
         require_pick=args.require_pick,
     )
 
+def classify_screener_result(body: dict[str, Any], require_pick: bool = False) -> dict[str, Any]:
+    if body.get("result_status") == "success_no_matches" and not require_pick:
+        return {"status": "pass", "result_status": "success_no_matches", "safe_skips": ["diagnosis", "strategy", "backtest", "paper_order"]}
+    if not body.get("picks"):
+        raise SmokeError("screener returned no pick for a pick-required smoke")
+    return {"status": "pass", "result_status": body.get("result_status", "success")}
+
 
 def run_smoke(config: SmokeConfig) -> dict[str, Any]:
     steps: list[dict[str, Any]] = []

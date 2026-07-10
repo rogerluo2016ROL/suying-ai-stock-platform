@@ -1,7 +1,7 @@
 {
-  "backtest_v1": {"required": ["daily_kline", "adj_factor"], "min_coverage": 0.99},
-  "daily_screening_v1": {"required": ["daily_kline", "daily_basic"], "min_coverage": 0.95},
-  "intraday_screening_v1": {"required": ["daily_kline"], "min_coverage": 0.95},
-  "training_v1": {"required": ["daily_kline", "adj_factor"], "min_coverage": 0.99},
-  "cb_auction_v1": {"required": ["daily_kline"], "min_coverage": 0.95}
+  "daily_screening_v1": {"sources": [{"source": "daily_kline", "required": true, "max_lag_days": 1}]},
+  "intraday_screening_v1": {"sources": [{"source": "daily_kline", "required": true, "max_lag_days": 1}, {"source": "rt_min", "required": true, "max_lag_minutes": 5}]},
+  "backtest_v1": {"sources": [{"source": "daily_kline", "required": true, "max_lag_days": 1}, {"source": "adj_factor", "required": true, "max_lag_days": 1}]},
+  "training_v1": {"sources": [{"source": "daily_kline", "required": true, "max_lag_days": 1}, {"source": "adj_factor", "required": true, "max_lag_days": 1}]},
+  "cb_auction_v1": {"sources": [{"source": "daily_kline", "required": true, "max_lag_days": 1}, {"source": "auction", "required": true, "max_lag_minutes": 5}, {"source": "cb_basic", "required": false, "max_lag_days": 30}]}
 }

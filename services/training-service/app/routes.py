@@ -32,7 +32,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import require_role
 from app.mlflow_client import get_mlflow_client, get_production_model, set_production_model
-from app.admission import admission_from_metrics
 from app.schemas import (
     ArchiveRequest,
     CalibrateRequest,
@@ -470,18 +469,20 @@ async def api_deploy_model(
     body: DeployRequest = DeployRequest(),
     current_user: dict = Depends(require_role("admin")),
 ):
-    """Deploy a model to production (A/B switch).
+    """Promote a model only after evidence gates and MLflow alias succeed."""
+    from app.admission import MlflowPromotionError, evaluate_admission, promote_after_mlflow_alias
 
-    Per AC-6.5:
-    1. Validate target model exists
-    2. Demote current production to archived
-    3. Promote target to production
-    4. Sync to MLflow
-    5. Notify screener engine
-    """
+    decision = evaluate_admission(
+        body.evidence, body.target_stage, manual_approval=body.manual_approval,
+        baseline_exists=body.baseline_exists, production_thresholds_approved=False,
+    )
+    if not decision.allowed:
+        raise HTTPException(status_code=409, detail={
+            "code": "MODEL_ADMISSION_BLOCKED", "failed_gates": decision.failed_gates,
+            "passed_gates": decision.passed_gates,
+        })
+
     mlflow_client = get_mlflow_client()
-
-    # Get target model from DB
     try:
         async with AsyncSessionLocal() as db:
             result = await db.execute(
@@ -500,75 +501,54 @@ async def api_deploy_model(
             model_version = d["version"]
             model_stage = d["stage"]
 
-            raw_metrics = d.get("metrics") or {}
-            if isinstance(raw_metrics, str):
-                try:
-                    raw_metrics = json.loads(raw_metrics)
-                except json.JSONDecodeError:
-                    raw_metrics = {}
-            admission = admission_from_metrics(raw_metrics)
-            if admission.status != "ready":
+            if model_stage == body.target_stage and not body.force:
                 raise HTTPException(
                     status_code=409,
-                    detail={"error": "admission_blocked", "failed_gates": admission.failed_gates,
-                            "message": "模型缺少通过晋级门的可复现证据"},
+                    detail={"error": "deploy_conflict", "message": f"Model is already in {body.target_stage}"},
                 )
 
-            if model_stage == "production" and not body.force:
-                raise HTTPException(
-                    status_code=409,
-                    detail={"error": "deploy_conflict", "message": "Model is already in production"},
-                )
-
-            # Get current production version
             prev_version = None
-            result2 = await db.execute(
-                sa_text(
-                    "SELECT version FROM model_registry "
-                    "WHERE name = :name AND stage = 'production' AND id != :id"
-                ),
-                {"name": model_name, "id": model_id},
-            )
-            prev_row = result2.fetchone()
-            if prev_row:
-                prev_version = prev_row[0]
-                # Archive old production
-                await db.execute(
-                    sa_text(
-                        "UPDATE model_registry SET stage = 'archived', updated_at = NOW() "
-                        "WHERE name = :name AND stage = 'production'"
-                    ),
-                    {"name": model_name},
-                )
+            if body.target_stage == "production":
+                result2 = await db.execute(sa_text(
+                    "SELECT version FROM model_registry WHERE name=:name AND stage='production' AND id!=:id"
+                ), {"name": model_name, "id": model_id})
+                prev_row = result2.fetchone()
+                prev_version = prev_row[0] if prev_row else None
 
-            # Promote target
-            await db.execute(
-                sa_text(
-                    "UPDATE model_registry SET stage = 'production', "
-                    "deployed_at = NOW(), deployed_by = :user, updated_at = NOW(), "
-                    "notes = :notes WHERE id = :id"
-                ),
-                {"id": model_id, "user": current_user.get("name", "admin"), "notes": body.notes or ""},
+            async def commit_pg():
+                if body.target_stage == "production":
+                    await db.execute(sa_text(
+                        "UPDATE model_registry SET stage='archived',updated_at=NOW() "
+                        "WHERE name=:name AND stage='production' AND id!=:id"
+                    ), {"name": model_name, "id": model_id})
+                await db.execute(sa_text(
+                    "UPDATE model_registry SET stage=:stage,deployed_at=NOW(),deployed_by=:user,"
+                    "updated_at=NOW(),notes=:notes WHERE id=:id"
+                ), {"stage": body.target_stage, "id": model_id,
+                    "user": current_user.get("name", "admin"), "notes": body.notes or ""})
+                await db.commit()
+
+            await promote_after_mlflow_alias(
+                mlflow_client=mlflow_client, model_name=model_name, model_version=model_version,
+                target_stage=body.target_stage, commit_pg=commit_pg,
             )
-            await db.commit()
     except HTTPException:
         raise
+    except MlflowPromotionError as e:
+        logger.exception("MLflow promotion failed")
+        raise HTTPException(status_code=503, detail={
+            "code": "MLFLOW_PROMOTION_FAILED", "message": str(e),
+        })
     except Exception as e:
         logger.exception("Failed to deploy model")
         raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
 
-    # Sync to MLflow
-    try:
-        mlflow_client.set_production_model(model_name, model_version)
-    except Exception as e:
-        logger.warning("MLflow sync failed (non-critical): %s", e)
-
     return DeployResponse(
         model_id=model_id,
-        stage="production",
+        stage=body.target_stage,
         deployed_at=datetime.now(timezone.utc),
         previous_production_version=prev_version,
-        message=f"模型 {model_name} v{model_version} 已上线"
+        message=f"模型 {model_name} v{model_version} 已晋级至 {body.target_stage}"
         + (f" (替换 v{prev_version})" if prev_version else ""),
     )
 
@@ -1038,7 +1018,7 @@ async def api_training_history(
 
 @router.post("/calibrate", response_model=CalibrateResponse)
 async def api_calibrate_factors(
-    body: CalibrateRequest = CalibrateRequest(),
+    body: CalibrateRequest,
     current_user: dict = Depends(require_role("admin")),
 ):
     """Run factor weight calibration (AC-6.7).
@@ -1054,14 +1034,23 @@ async def api_calibrate_factors(
             window_days=body.window_days,
             min_samples=body.min_samples,
             apply=body.apply,
+            evaluation_id=body.evaluation_id,
         )
+        if result.get("status") != "ready":
+            raise HTTPException(status_code=409, detail={
+                "code": "INSUFFICIENT_EVALUATION_EVIDENCE",
+                "missing_requirements": result.get("missing_requirements", []),
+            })
         return CalibrateResponse(
             calibrated_at=result["calibrated_at"],
             window_start=result["window_start"],
             window_end=result["window_end"],
             factors=result["factors"],
             summary=result["summary"],
+            evaluation_id=result["evaluation_id"],
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Calibration failed")
         raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})

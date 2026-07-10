@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -26,18 +27,22 @@ def test_workbench_never_returns_preview_business_values():
 
     assert response.status_code == 200
     body = response.json()
+    rendered = json.dumps(body, ensure_ascii=False)
+    assert "CTX-preview" not in rendered
+    assert "CAND-preview" not in rendered
     assert body["status"] == "unavailable"
+    assert body["sections"] == []
+    assert body["freshness"]["status"] == "missing"
+    assert body["lineage"] == {}
+    assert body["context"]["tenant_id"] == "tenant-alpha"
+    assert body["context"]["account_id"] == "paper-001"
+    assert body["context"]["data_scope"] == "account"
     assert body["page"] == {
         "module": "p0",
         "route": "/p0",
         "title": "p0",
     }
-    assert body["context"]["tenant_id"] == "tenant-alpha"
-    assert body["context"]["account_id"] == "paper-001"
-    assert body["context"]["data_scope"] == "account"
     assert body["freshness"]["status"] == "missing"
-    assert body["sections"] == []
-    assert body["actions"] == []
 
 
 def test_unknown_workbench_route_returns_normalized_empty_envelope():

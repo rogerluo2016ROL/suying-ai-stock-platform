@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "FastAPI signal service — real-time trading signal generation (50-dim)"
 requires-python = ">=3.10"
 dependencies = [
+    "kronos-contracts",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
     "kronos-factors",

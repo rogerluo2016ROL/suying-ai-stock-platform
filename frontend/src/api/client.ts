@@ -36,6 +36,7 @@ import type {
   BacktestRunResponse,
   BacktestCompareResponse,
   FactorsResponse,
+  FactorEvidenceResponse,
   DiagnosisReport,
   DiagnosisCompareResponse,
   DiagnosisHistoryResponse,
@@ -56,6 +57,7 @@ import type {
   WorkbenchPageEnvelope,
 } from './types'
 import type { PlatformSession } from '../types/platform'
+import { configureApiContext } from './core/context'
 
 // ── 保留部分内联类型（与 types.ts 兼容） ──
 /** A screener pick passed to strategy generation / plan picks. */
@@ -218,20 +220,24 @@ export function injectAuth(
   _getAccessToken = getToken
   _onRefreshToken = refreshToken
   _onForceLogout = forceLogout
+  configureApiContext({ getToken })
 }
 
 export function clearAuth() {
   _getAccessToken = null
   _onRefreshToken = null
   _onForceLogout = null
+  configureApiContext({ getToken: undefined })
 }
 
 export function injectPlatformContext(getSession: () => PlatformSession | null) {
   _getPlatformSession = getSession
+  configureApiContext({ getSession })
 }
 
 export function clearPlatformContext() {
   _getPlatformSession = null
+  configureApiContext({ getSession: undefined })
 }
 
 // ── Request interceptor: attach Authorization + platform boundary headers ──
@@ -689,7 +695,7 @@ export const screenerApi = {
   extractSupplyChainFacts: (text: string, source: Record<string, unknown> = {}, persist = false): Promise<AxiosResponse<unknown>> =>
     api.post('/screener/supply-chain/extract', { text, source, persist }),
 
-  // 候选池（account-scoped 私有对象）：scope 由 client 拦截器注入 X-Tenant-Id / X-Owner-User-Id /
+  // 候选池（account-scoped 私有对象）：scope 由 client 拦截器注入 X-Tenant-Id
   // X-Trade-Account-Id 头，前端不传明文 tenant/owner/account。打通「选股→加候选池→决策」主链路咽喉（M0）。
   recordCandidatePool: (payload: CandidatePoolRecordRequest): Promise<AxiosResponse<CandidatePoolRecordResponse>> =>
     api.post('/screener/candidate-pool', payload),
@@ -1048,6 +1054,9 @@ export const backtestApi = {
   getFactors: (): Promise<AxiosResponse<FactorsResponse>> =>
     api.get('/backtest/factors'),
 
+  getFactorEvidence: (modelKey: string) =>
+    api.get<FactorEvidenceResponse>('/backtest/factor-evidence', { params: { model_key: modelKey } }),
+
   run: (params: {
     mode?: string
     windows?: number
@@ -1106,6 +1115,8 @@ export class HealthCheckError extends Error {
 }
 
 export const healthApi = {
+  runtimeReadiness: (): Promise<AxiosResponse<{ live: boolean; ready: boolean; services: Record<string, { ready: boolean; error?: string }> }>> =>
+    rootApi.get('/v1/runtime/readiness'),
   check: (service: string): Promise<AxiosResponse<HealthCheckResponse>> =>
     api.get(`/${service}/health`).catch((err: unknown) => {
       throw new HealthCheckError(service, err)
@@ -1380,5 +1391,13 @@ export type {
   FilterSummary,
   ResonanceSummary,
 } from './types'
+
+// Domain-oriented entry points. Existing named APIs above remain compatible
+// while new code can migrate one domain at a time without a flag day.
+export { dataDomainApi } from './domains/data'
+export { screenerDomainApi } from './domains/screener'
+export { modelsDomainApi } from './domains/models'
+export { strategyDomainApi } from './domains/strategy'
+export { tradeDomainApi } from './domains/trade'
 
 export default api

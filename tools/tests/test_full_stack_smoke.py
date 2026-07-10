@@ -61,3 +61,10 @@ def test_http_json_reports_error_body(monkeypatch):
 
     with pytest.raises(smoke.SmokeError, match="bad request"):
         smoke.http_json("POST", "http://example.test/api")
+
+def test_smoke_rejects_live_mode():
+    with pytest.raises(SystemExit):
+        smoke.load_config(["--trade-mode", "live"])
+
+def test_no_pick_is_success_when_readiness_passes():
+    assert smoke.classify_screener_result({"result_status": "success_no_matches", "picks": []})["status"] == "pass"

@@ -22,7 +22,6 @@ for _pkg in ["kronos-factors", "kronos-core", "kronos-data"]:
 from app.config import HOST, PORT, DEBUG, DB_PATH
 from app.routers.screener import router as screener_router
 from app.routers.dashboard import router as dashboard_router
-from app.routers.training_mock import router as training_router
 from app.routers.lark import router as lark_router
 
 logging.basicConfig(
@@ -107,10 +106,17 @@ app.add_middleware(
 
 app.include_router(screener_router)
 app.include_router(dashboard_router)
-app.include_router(training_router)
 app.include_router(lark_router)
 
 
+@app.get("/api/v1/health/live")
+async def health_live_contract():
+    return {"live": True, "service": "screener-service", "version": "0.1.0"}
+
+@app.get("/api/v1/health/ready")
+async def health_ready_contract():
+    from kronos_contracts.health import check_postgres, build_health
+    return build_health("screener-service", "0.1.0", {"postgres": await check_postgres()}).model_dump()
 @app.get("/api/v1/health")
 async def health():
     return {

@@ -56,19 +56,58 @@ DEFAULT_WEIGHTS: Dict[str, float] = {
     "por": 2.0,
 }
 
+class InsufficientEvidence(RuntimeError):
+    def __init__(self, missing: list[str]):
+        self.missing = missing
+        super().__init__("insufficient observed evidence")
+
+
+async def latest_ready_evaluation_id() -> str | None:
+    from app.database import AsyncSessionLocal
+    from sqlalchemy import text as sa_text
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(sa_text(
+            "SELECT evaluation_id FROM factor_evaluations WHERE status='ready' "
+            "ORDER BY created_at DESC LIMIT 1"
+        ))
+        row = result.fetchone()
+    return row[0] if row else None
+
 
 async def compute_ic_from_db(
+    evaluation_id: str,
     window_days: int = 90,
     min_samples: int = 30,
 ) -> Dict[str, Any]:
-    """Compute IC/ICIR for all factors using recent window data.
+    """Load one persisted, ready backtest evaluation; never recompute ad hoc."""
+    from app.database import AsyncSessionLocal
+    from sqlalchemy import text as sa_text
 
-    Queries daily_kline + factor scores from the database.
-    Falls back to Kronos calibration scripts if available.
-
-    Returns:
-        Dict with keys: factors, window_start, window_end
-    """
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(sa_text(
+            "SELECT status,report,created_at FROM factor_evaluations WHERE evaluation_id=:evaluation_id"
+        ), {"evaluation_id": evaluation_id})
+        row = result.fetchone()
+    if not row:
+        return {"status": "insufficient_data", "factors": [], "window_start": None, "window_end": None,
+                "missing_requirements": ["saved_evaluation_id"]}
+    status, report, created_at = row
+    if status != "ready" or report.get("status") != "ready":
+        return {"status": "insufficient_data", "factors": [], "window_start": None, "window_end": None,
+                "missing_requirements": ["ready_saved_evaluation"]}
+    factors = []
+    for factor in report.get("factors", []):
+        key = factor["factor_name"]
+        ic = float(factor.get("rank_ic", 0.0))
+        icir = float(factor.get("icir", 0.0))
+        factors.append({
+            "factor_name": key, "factor_label": key, "ic": ic, "icir": icir,
+            "old_weight": DEFAULT_WEIGHTS.get(key, 2.5), "new_weight": abs(icir) * (1 if ic >= 0 else -1),
+            "direction": "long" if ic >= 0 else "short",
+            "significance": "significant" if abs(icir) > 1.5 else "marginal" if abs(icir) > .5 else "none",
+        })
+    return {"status": "ready", "evaluation_id": evaluation_id, "factors": factors,
+            "window_start": report.get("window_start"), "window_end": report.get("window_end")}
 
 
 async def _compute_ic_kronos(window_days: int, min_samples: int) -> Dict[str, Any]:
@@ -97,7 +136,7 @@ async def _compute_ic_kronos(window_days: int, min_samples: int) -> Dict[str, An
 
         result = await db.execute(
             sa_text(
-                "SELECT code FROM stocks WHERE is_st=0 ORDER BY RANDOM() LIMIT 500"
+                "SELECT code FROM stocks WHERE is_st=0 ORDER BY code LIMIT 500"
             )
         )
         codes = [r[0] for r in result.fetchall()]
@@ -177,9 +216,13 @@ async def _compute_ic_fallback(window_days: int, min_samples: int) -> Dict[str, 
         window_start = row[0]
         window_end = row[1]
 
-    raise RuntimeError(
-        "factor evidence is unavailable: calibration cannot proceed without observed factor/forward-return pairs"
-    )
+    return {
+        "factors": [],
+        "window_start": str(window_start),
+        "window_end": str(window_end),
+        "status": "insufficient_data",
+        "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"],
+    }
 
 
 async def run_calibration(
@@ -187,6 +230,7 @@ async def run_calibration(
     window_days: int = 90,
     min_samples: int = 30,
     apply: bool = False,
+    evaluation_id: str | None = None,
 ) -> Dict[str, Any]:
     """Run factor weight calibration.
 
@@ -207,9 +251,19 @@ async def run_calibration(
     logger.info("Starting factor calibration: mode=%s window=%dd min_samples=%d apply=%s",
                 mode, window_days, min_samples, apply)
 
-    # Compute IC/ICIR
-    ic_data = await compute_ic_from_db(window_days, min_samples)
+    if not evaluation_id:
+        return {"status": "insufficient_data", "factors": [],
+                "missing_requirements": ["saved_evaluation_id"],
+                "summary": "必须提供已持久化的因子 evaluation ID，未生成或写入权重。"}
+
+    # Consume immutable observed evidence by ID; never calculate from mutable live tables here.
+    ic_data = await compute_ic_from_db(evaluation_id, window_days, min_samples)
     factors_raw = ic_data["factors"]
+    if not factors_raw:
+        return {"status": "insufficient_data", "factors": [],
+                "window_start": ic_data.get("window_start"), "window_end": ic_data.get("window_end"),
+                "missing_requirements": ic_data.get("missing_requirements", ["observed_factor_snapshots", "future_adjusted_returns"]),
+                "summary": "缺少真实观测证据，未生成或写入权重。"}
 
     # Filter by mode
     if mode == "short":
@@ -252,6 +306,8 @@ async def run_calibration(
 
     now = datetime.now(timezone.utc)
     result = {
+        "status": "ready",
+        "evaluation_id": evaluation_id,
         "calibrated_at": now,
         "window_start": ic_data["window_start"],
         "window_end": ic_data["window_end"],
@@ -362,6 +418,9 @@ async def get_ic_analysis(
         end_dt = dt.strptime(end_date, "%Y-%m-%d")
         start_date = (end_dt - timedelta(days=365)).strftime("%Y-%m-%d")
 
+    return {"status": "insufficient_data", "factors": [],
+            "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"]}
+
     # Filter factors
     target_factors = factors if factors else [f[0] for f in FACTOR_DEFS]
 
@@ -369,51 +428,3 @@ async def get_ic_analysis(
     for key, name in FACTOR_DEFS:
         if key not in target_factors:
             continue
-
-        # Generate rolling IC windows (simplified for dev)
-        rolling = []
-        np.random.seed(hash(key) % 2**32)
-
-        # Calculate date range
-        start_dt = dt.strptime(start_date, "%Y-%m-%d")
-        end_dt = dt.strptime(end_date, "%Y-%m-%d")
-        total_days = (end_dt - start_dt).days
-
-        n_windows = max(12, total_days // 7)  # ~weekly windows
-        for i in range(n_windows):
-            offset_days = total_days - i * (total_days // n_windows)
-            window_end = end_dt - timedelta(days=offset_days)
-            window_end_str = window_end.strftime("%Y-%m-%d")
-
-            # Synthetic IC is forbidden; callers must provide observed pairs.
-            raise RuntimeError("factor evidence is unavailable for rolling IC analysis")
-
-            rolling.append({
-                "window_end": window_end_str,
-                "ic": ic_value,
-                "icir": icir_value,
-                "n_stocks": np.random.randint(3000, 5000),
-            })
-
-        rolling = rolling[:12]  # Keep last 12 windows
-
-        ic_values = [r["ic"] for r in rolling]
-        icir_values = [r["icir"] for r in rolling]
-
-        factor_results.append({
-            "factor_name": key,
-            "factor_label": name,
-            "current_ic": ic_values[0] if ic_values else 0,
-            "current_icir": icir_values[0] if icir_values else 0,
-            "ic_mean": round(float(np.mean(ic_values)), 4) if ic_values else 0,
-            "ic_std": round(float(np.std(ic_values)), 4) if ic_values else 0,
-            "icir_mean": round(float(np.mean(icir_values)), 4) if icir_values else 0,
-            "direction": "long" if (ic_values[0] if ic_values else 0) > 0 else "short",
-            "rolling": rolling,
-        })
-
-    return {
-        "window_days": window_days,
-        "date_range": f"{start_date} ~ {end_date}",
-        "factors": factor_results,
-    }

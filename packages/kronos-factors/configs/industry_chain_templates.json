@@ -17613,6 +17613,919 @@
           ]
         }
       ]
+    },
+    {
+      "template_id": "huawei_ascend_ai_ecosystem",
+      "name": "昇腾AI算力生态复杂产业链路模板",
+      "description": "围绕华为昇腾AI处理器、Atlas硬件、CANN/MindSpore软件栈、鲲鹏/昇腾服务器、智算中心、政企行业适配和AI应用商业化，拆解国产AI算力生态链路。",
+      "example_theme": "昇腾AI算力生态",
+      "macro_context": [
+        {
+          "region": "US",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "CN",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "JP",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "KR",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "EU",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        }
+      ],
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "围绕昇腾AI算力生态的需求层，跟踪国产AI算力;政企智算中心;大模型训练推理;信创替代;行业AI应用。",
+          "key_questions": [
+            "国产AI算力是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "国产AI算力",
+            "政企智算中心",
+            "大模型训练推理",
+            "信创替代",
+            "行业AI应用"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "国产AI算力订单",
+            "国产AI算力价格/渗透率",
+            "国产AI算力客户导入",
+            "国产AI算力CAPEX",
+            "国产AI算力毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "国产AI算力订单",
+              "国产AI算力收入",
+              "国产AI算力毛利率"
+            ],
+            "expectation_gap": [
+              "国产AI算力订单高于预期",
+              "国产AI算力导入快于预期",
+              "国产AI算力价格/份额改善"
+            ],
+            "trigger_signals": [
+              "国产AI算力中标/定点",
+              "国产AI算力CAPEX上修",
+              "国产AI算力业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "huawei_ascend_ai_ecosystem_demand_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "国产AI算力"
+              ],
+              "mapped_layer_id": "demand",
+              "mapped_segments": [
+                "国产AI算力"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "huawei_ascend_ai_ecosystem_demand_physical_metric",
+              "name": "国产AI算力物理指标",
+              "mapped_layer_id": "demand",
+              "mapped_segment": "国产AI算力",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "围绕昇腾AI算力生态的任务层，跟踪模型适配迁移;集群训练;推理部署;软硬件调优;行业场景交付。",
+          "key_questions": [
+            "模型适配迁移是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "模型适配迁移",
+            "集群训练",
+            "推理部署",
+            "软硬件调优",
+            "行业场景交付"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "模型适配迁移订单",
+            "模型适配迁移价格/渗透率",
+            "模型适配迁移客户导入",
+            "模型适配迁移CAPEX",
+            "模型适配迁移毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "模型适配迁移订单",
+              "模型适配迁移收入",
+              "模型适配迁移毛利率"
+            ],
+            "expectation_gap": [
+              "模型适配迁移订单高于预期",
+              "模型适配迁移导入快于预期",
+              "模型适配迁移价格/份额改善"
+            ],
+            "trigger_signals": [
+              "模型适配迁移中标/定点",
+              "模型适配迁移CAPEX上修",
+              "模型适配迁移业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "huawei_ascend_ai_ecosystem_task_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "模型适配迁移"
+              ],
+              "mapped_layer_id": "task",
+              "mapped_segments": [
+                "模型适配迁移"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "huawei_ascend_ai_ecosystem_task_physical_metric",
+              "name": "模型适配迁移物理指标",
+              "mapped_layer_id": "task",
+              "mapped_segment": "模型适配迁移",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "围绕昇腾AI算力生态的核心产品层，跟踪昇腾AI处理器;Atlas服务器;AI训练推理一体机;CANN异构计算架构;MindSpore框架。",
+          "key_questions": [
+            "昇腾AI处理器是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "昇腾AI处理器",
+            "Atlas服务器",
+            "AI训练推理一体机",
+            "CANN异构计算架构",
+            "MindSpore框架"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [],
+          "tracking_metrics": [
+            "昇腾AI处理器订单",
+            "昇腾AI处理器价格/渗透率",
+            "昇腾AI处理器客户导入",
+            "昇腾AI处理器CAPEX",
+            "昇腾AI处理器毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "昇腾AI处理器订单",
+              "昇腾AI处理器收入",
+              "昇腾AI处理器毛利率"
+            ],
+            "expectation_gap": [
+              "昇腾AI处理器订单高于预期",
+              "昇腾AI处理器导入快于预期",
+              "昇腾AI处理器价格/份额改善"
+            ],
+            "trigger_signals": [
+              "昇腾AI处理器中标/定点",
+              "昇腾AI处理器CAPEX上修",
+              "昇腾AI处理器业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "huawei_ascend_ai_ecosystem_core_product_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "昇腾AI处理器"
+              ],
+              "mapped_layer_id": "core_product",
+              "mapped_segments": [
+                "昇腾AI处理器"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "huawei_ascend_ai_ecosystem_core_product_physical_metric",
+              "name": "昇腾AI处理器物理指标",
+              "mapped_layer_id": "core_product",
+              "mapped_segment": "昇腾AI处理器",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "围绕昇腾AI算力生态的底层支撑层，跟踪鲲鹏CPU生态;高速互联;高速PCB;光模块;电源散热。",
+          "key_questions": [
+            "鲲鹏CPU生态是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "鲲鹏CPU生态",
+            "高速互联",
+            "高速PCB",
+            "光模块",
+            "电源散热"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中际旭创",
+            "仕佳光子",
+            "光迅科技",
+            "天孚通信",
+            "新易盛",
+            "沪电股份",
+            "深南电路",
+            "源杰科技",
+            "生益科技",
+            "胜宏科技"
+          ],
+          "tracking_metrics": [
+            "鲲鹏CPU生态订单",
+            "鲲鹏CPU生态价格/渗透率",
+            "鲲鹏CPU生态客户导入",
+            "鲲鹏CPU生态CAPEX",
+            "鲲鹏CPU生态毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "鲲鹏CPU生态订单",
+              "鲲鹏CPU生态收入",
+              "鲲鹏CPU生态毛利率"
+            ],
+            "expectation_gap": [
+              "鲲鹏CPU生态订单高于预期",
+              "鲲鹏CPU生态导入快于预期",
+              "鲲鹏CPU生态价格/份额改善"
+            ],
+            "trigger_signals": [
+              "鲲鹏CPU生态中标/定点",
+              "鲲鹏CPU生态CAPEX上修",
+              "鲲鹏CPU生态业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "huawei_ascend_ai_ecosystem_foundation_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "鲲鹏CPU生态"
+              ],
+              "mapped_layer_id": "foundation",
+              "mapped_segments": [
+                "鲲鹏CPU生态"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "huawei_ascend_ai_ecosystem_foundation_physical_metric",
+              "name": "鲲鹏CPU生态物理指标",
+              "mapped_layer_id": "foundation",
+              "mapped_segment": "鲲鹏CPU生态",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "围绕昇腾AI算力生态的集成层，跟踪昇腾服务器整机;智算集群交付;云平台适配;行业解决方案;国产基础软件适配。",
+          "key_questions": [
+            "昇腾服务器整机是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "昇腾服务器整机",
+            "智算集群交付",
+            "云平台适配",
+            "行业解决方案",
+            "国产基础软件适配"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中科曙光",
+            "拓维信息",
+            "汉得信息",
+            "浪潮信息",
+            "润和软件",
+            "神州数码",
+            "紫光股份",
+            "诚迈科技",
+            "软通动力"
+          ],
+          "tracking_metrics": [
+            "昇腾服务器整机订单",
+            "昇腾服务器整机价格/渗透率",
+            "昇腾服务器整机客户导入",
+            "昇腾服务器整机CAPEX",
+            "昇腾服务器整机毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "昇腾服务器整机订单",
+              "昇腾服务器整机收入",
+              "昇腾服务器整机毛利率"
+            ],
+            "expectation_gap": [
+              "昇腾服务器整机订单高于预期",
+              "昇腾服务器整机导入快于预期",
+              "昇腾服务器整机价格/份额改善"
+            ],
+            "trigger_signals": [
+              "昇腾服务器整机中标/定点",
+              "昇腾服务器整机CAPEX上修",
+              "昇腾服务器整机业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "huawei_ascend_ai_ecosystem_integration_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "昇腾服务器整机"
+              ],
+              "mapped_layer_id": "integration",
+              "mapped_segments": [
+                "昇腾服务器整机"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "huawei_ascend_ai_ecosystem_integration_physical_metric",
+              "name": "昇腾服务器整机物理指标",
+              "mapped_layer_id": "integration",
+              "mapped_segment": "昇腾服务器整机",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "围绕昇腾AI算力生态的配套层，跟踪液冷温控;网络安全;数据治理;数据库/中间件;运维服务。",
+          "key_questions": [
+            "液冷温控是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "液冷温控",
+            "网络安全",
+            "数据治理",
+            "数据库/中间件",
+            "运维服务"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "东方国信",
+            "数字认证",
+            "星环科技",
+            "深信服",
+            "绿盟科技",
+            "英维克"
+          ],
+          "tracking_metrics": [
+            "液冷温控订单",
+            "液冷温控价格/渗透率",
+            "液冷温控客户导入",
+            "液冷温控CAPEX",
+            "液冷温控毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "液冷温控订单",
+              "液冷温控收入",
+              "液冷温控毛利率"
+            ],
+            "expectation_gap": [
+              "液冷温控订单高于预期",
+              "液冷温控导入快于预期",
+              "液冷温控价格/份额改善"
+            ],
+            "trigger_signals": [
+              "液冷温控中标/定点",
+              "液冷温控CAPEX上修",
+              "液冷温控业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "huawei_ascend_ai_ecosystem_supporting_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "液冷温控"
+              ],
+              "mapped_layer_id": "supporting",
+              "mapped_segments": [
+                "液冷温控"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "huawei_ascend_ai_ecosystem_supporting_physical_metric",
+              "name": "液冷温控物理指标",
+              "mapped_layer_id": "supporting",
+              "mapped_segment": "液冷温控",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "围绕昇腾AI算力生态的基础设施层，跟踪政企智算中心;运营商算力节点;行业云平台;IDC机房;算力调度平台。",
+          "key_questions": [
+            "政企智算中心是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "政企智算中心",
+            "运营商算力节点",
+            "行业云平台",
+            "IDC机房",
+            "算力调度平台"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中天科技",
+            "太极实业",
+            "奥飞数据",
+            "宝信软件",
+            "数据港",
+            "润泽科技",
+            "科华数据"
+          ],
+          "tracking_metrics": [
+            "政企智算中心订单",
+            "政企智算中心价格/渗透率",
+            "政企智算中心客户导入",
+            "政企智算中心CAPEX",
+            "政企智算中心毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "政企智算中心订单",
+              "政企智算中心收入",
+              "政企智算中心毛利率"
+            ],
+            "expectation_gap": [
+              "政企智算中心订单高于预期",
+              "政企智算中心导入快于预期",
+              "政企智算中心价格/份额改善"
+            ],
+            "trigger_signals": [
+              "政企智算中心中标/定点",
+              "政企智算中心CAPEX上修",
+              "政企智算中心业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "huawei_ascend_ai_ecosystem_infrastructure_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "政企智算中心"
+              ],
+              "mapped_layer_id": "infrastructure",
+              "mapped_segments": [
+                "政企智算中心"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "huawei_ascend_ai_ecosystem_infrastructure_physical_metric",
+              "name": "政企智算中心物理指标",
+              "mapped_layer_id": "infrastructure",
+              "mapped_segment": "政企智算中心",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "围绕昇腾AI算力生态的商业变现层，跟踪服务器订单;智算中心中标;软件适配收入;AI应用订阅;项目验收收入。",
+          "key_questions": [
+            "服务器订单是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "服务器订单",
+            "智算中心中标",
+            "软件适配收入",
+            "AI应用订阅",
+            "项目验收收入"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中控技术",
+            "中望软件",
+            "恒生电子",
+            "柏楚电子",
+            "用友网络",
+            "金山办公"
+          ],
+          "tracking_metrics": [
+            "服务器订单订单",
+            "服务器订单价格/渗透率",
+            "服务器订单客户导入",
+            "服务器订单CAPEX",
+            "服务器订单毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "服务器订单订单",
+              "服务器订单收入",
+              "服务器订单毛利率"
+            ],
+            "expectation_gap": [
+              "服务器订单订单高于预期",
+              "服务器订单导入快于预期",
+              "服务器订单价格/份额改善"
+            ],
+            "trigger_signals": [
+              "服务器订单中标/定点",
+              "服务器订单CAPEX上修",
+              "服务器订单业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "huawei_ascend_ai_ecosystem_commercialization_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "服务器订单"
+              ],
+              "mapped_layer_id": "commercialization",
+              "mapped_segments": [
+                "服务器订单"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "huawei_ascend_ai_ecosystem_commercialization_physical_metric",
+              "name": "服务器订单物理指标",
+              "mapped_layer_id": "commercialization",
+              "mapped_segment": "服务器订单",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

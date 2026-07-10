@@ -428,3 +428,122 @@ Shutting down...
 [source] feishu-websocket: disconnected
 [source] feishu-websocket: reconnecting (attempt 1)
 [source] feishu-websocket: connected
+[event] exited — received 13 event(s) in 23h59m59s (reason: timeout)
+[bridge] lark-cli exited code=0; restarting in 5.0s
+[bridge] starting: lark-cli event consume im.message.receive_v1 --as bot --timeout 24h
+{
+  "ok": false,
+  "identity": "bot",
+  "error": {
+    "type": "authentication",
+    "subtype": "token_missing",
+    "message": "resolve tenant access token: Post \"https://accounts.feishu.cn/oauth/v3/token\": context deadline exceeded"
+  },
+  "_notice": {
+    "update": {
+      "command": "lark-cli update",
+      "current": "1.0.64",
+      "latest": "1.0.67",
+      "message": "lark-cli 1.0.67 available, current 1.0.64, run: lark-cli update"
+    }
+  }
+}
+[bridge] lark-cli exited code=3; restarting in 5.0s
+[bridge] starting: lark-cli event consume im.message.receive_v1 --as bot --timeout 24h
+[event] consuming as cli_aacde12ce1385be9 (cli_aacde12ce1385be9)
+[event] local bus not found; checking remote connections...
+[event] remote connection check: online_instance_cnt=0
+[event] started bus daemon pid=59517 (auto-exits 30s after last consumer)
+[event] listening for events (key=im.message.receive_v1), ctrl+c to stop
+[event] ready event_key=im.message.receive_v1
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: reconnecting (attempt 2)
+[source] feishu-websocket: reconnecting (attempt 3)
+[source] feishu-websocket: reconnecting (attempt 4)
+[source] feishu-websocket: reconnecting (attempt 5)
+[source] feishu-websocket: reconnecting (attempt 6)
+[source] feishu-websocket: reconnecting (attempt 7)
+[source] feishu-websocket: reconnecting (attempt 8)
+[source] feishu-websocket: reconnecting (attempt 9)
+[source] feishu-websocket: reconnecting (attempt 10)
+[source] feishu-websocket: reconnecting (attempt 11)
+[source] feishu-websocket: reconnecting (attempt 12)
+[source] feishu-websocket: reconnecting (attempt 13)
+[source] feishu-websocket: reconnecting (attempt 14)
+[source] feishu-websocket: reconnecting (attempt 15)
+[source] feishu-websocket: reconnecting (attempt 16)
+[source] feishu-websocket: reconnecting (attempt 17)
+[source] feishu-websocket: reconnecting (attempt 18)
+[source] feishu-websocket: reconnecting (attempt 19)
+[source] feishu-websocket: reconnecting (attempt 20)
+[source] feishu-websocket: reconnecting (attempt 21)
+[source] feishu-websocket: reconnecting (attempt 22)
+[source] feishu-websocket: reconnecting (attempt 23)
+[source] feishu-websocket: reconnecting (attempt 24)
+[source] feishu-websocket: reconnecting (attempt 25)
+[source] feishu-websocket: reconnecting (attempt 26)
+[source] feishu-websocket: reconnecting (attempt 27)
+[source] feishu-websocket: reconnecting (attempt 28)
+[source] feishu-websocket: reconnecting (attempt 29)
+[source] feishu-websocket: reconnecting (attempt 30)
+[source] feishu-websocket: reconnecting (attempt 31)
+[source] feishu-websocket: reconnecting (attempt 32)
+[source] feishu-websocket: reconnecting (attempt 33)
+[source] feishu-websocket: reconnecting (attempt 34)
+[source] feishu-websocket: reconnecting (attempt 35)
+[source] feishu-websocket: reconnecting (attempt 36)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: reconnecting (attempt 2)
+[source] feishu-websocket: connected
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=text
+[bridge] forwarded event type=im.message.receive_v1 chat_id=oc_f3b4c491a34af574aa65732a1bc74c79 message_type=text
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: reconnecting (attempt 2)
+[source] feishu-websocket: reconnecting (attempt 3)
+[source] feishu-websocket: reconnecting (attempt 4)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: reconnecting (attempt 2)
+[source] feishu-websocket: reconnecting (attempt 3)
+[source] feishu-websocket: reconnecting (attempt 4)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: reconnecting (attempt 2)
+[source] feishu-websocket: reconnecting (attempt 3)
+[source] feishu-websocket: reconnecting (attempt 4)
+[source] feishu-websocket: reconnecting (attempt 5)
+[source] feishu-websocket: reconnecting (attempt 6)
+[source] feishu-websocket: reconnecting (attempt 7)
+[source] feishu-websocket: reconnecting (attempt 8)
+[source] feishu-websocket: reconnecting (attempt 9)
+[source] feishu-websocket: reconnecting (attempt 10)
+[source] feishu-websocket: reconnecting (attempt 11)
+[source] feishu-websocket: reconnecting (attempt 12)
+[source] feishu-websocket: reconnecting (attempt 13)
+[source] feishu-websocket: reconnecting (attempt 14)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: connected
+[source] feishu-websocket: disconnected
+[source] feishu-websocket: reconnecting (attempt 1)
+[source] feishu-websocket: connected

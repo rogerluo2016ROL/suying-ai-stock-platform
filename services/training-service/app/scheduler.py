@@ -202,14 +202,19 @@ async def _scheduled_calibration():
     logger.info("Scheduled calibration triggered")
 
     try:
-        from app.factor_calibration import run_calibration
+        from app.factor_calibration import latest_ready_evaluation_id, run_calibration
 
+        evaluation_id = await latest_ready_evaluation_id()
         result = await run_calibration(
             mode="all",
             window_days=90,
             min_samples=30,
             apply=True,
+            evaluation_id=evaluation_id,
         )
+        if result.get("status") != "ready":
+            logger.warning("Scheduled calibration skipped apply: %s", result.get("status"))
+            return
         logger.info("Scheduled calibration complete: %s", result.get("summary", ""))
     except Exception as e:
         logger.error("Scheduled calibration failed: %s", e)

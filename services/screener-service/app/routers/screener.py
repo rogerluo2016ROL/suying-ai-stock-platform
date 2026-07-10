@@ -6878,7 +6878,7 @@ async def supply_chain_workbench(
     selected_node = node_by_id.get(node_id or "")
     if node_id and not selected_node:
         raise HTTPException(status_code=404, detail=f"Unknown BOM node '{node_id}'")
-    if not candidates:
+    if not candidates and data_status["candidate_pool"] == "ok":
         fallback_candidates = _query_business_tag_mapping_candidates(top_n, selected_node.get("node_id") if selected_node else None)
         if fallback_candidates:
             candidates = _attach_market_snapshots(fallback_candidates, trade_date)

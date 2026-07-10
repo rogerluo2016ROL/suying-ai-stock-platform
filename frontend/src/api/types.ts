@@ -120,8 +120,7 @@ export interface WorkbenchAction {
 }
 
 export interface WorkbenchPageEnvelope<TSection extends WorkbenchSection = WorkbenchSection> {
-  status: 'ok' | 'error' | 'unavailable' | 'insufficient_data' | 'unsupported';
-  fallback_reason?: string;
+  status: 'ok' | 'error';
   page: WorkbenchPageMeta;
   context: WorkbenchContext;
   data_domain: WorkbenchDataDomain;
@@ -397,7 +396,7 @@ export interface DashboardSummaryResponse extends ServiceContractFields {
 
 /** 数据状态响应 */
 export interface DataStatusResponse {
-  status: 'ok' | 'error' | 'unavailable' | 'insufficient_data' | 'unsupported';
+  status: 'ok' | 'error' | 'unavailable';
   fallback_reason?: string;
   refreshed_at?: string;
   total_tables: number;
@@ -414,7 +413,7 @@ export interface DataStatusResponse {
     rows: number;
     min_date: string;
     max_date: string;
-    status: 'active' | 'empty' | 'error';
+    status: 'active' | 'empty' | 'pending' | 'error';
   }>;
   sync_map: Record<string, {
     mode: string;
@@ -423,7 +422,14 @@ export interface DataStatusResponse {
   }>;
 }
 
-export interface FactorEvidenceResponse { status: 'ready' | 'insufficient_data' | 'unsupported'; observations: number; factors: any[]; correlations: any[]; deciles: any[]; missing_requirements?: string[] }
+export interface DataInventoryResponse {
+  tables: Record<string, { table: string; rows: number; min_date?: string; max_date?: string }>;
+}
+
+export interface DataReadinessResponse {
+  ready: boolean;
+  components: Record<string, boolean>;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Strategy（方案管理）
@@ -801,6 +807,58 @@ export interface FactorsResponse {
     description?: string;
   }>;
 }
+
+/** 基于真实未来收益观测得到的单因子指标。 */
+export interface FactorMetric {
+  factor: string;
+  label?: string;
+  ic_mean: number;
+  ic_std: number;
+  icir: number;
+  t_stat: number;
+  observations: number;
+}
+
+/** 后端计算完成的两因子相关性单元。 */
+export interface CorrelationCell {
+  factor_x: string;
+  factor_y: string;
+  correlation: number;
+  observations: number;
+}
+
+/** 后端回测得到的分位层收益。收益字段已是百分比数值。 */
+export interface DecileMetric {
+  decile: string;
+  description?: string;
+  cumulative_return_pct: number;
+  daily_return_pct?: number;
+  observations: number;
+}
+
+/** 已有完整真实观测的因子证据响应。 */
+export interface ReadyFactorEvidenceResponse {
+  status: 'ready';
+  observations: number;
+  trade_dates: number;
+  factors: FactorMetric[];
+  correlations: CorrelationCell[];
+  deciles: DecileMetric[];
+  missing_requirements?: string[];
+}
+
+/** 非 ready 响应可以不携带仅供完整证据使用的日期数和指标数组。 */
+export interface UnavailableFactorEvidenceResponse {
+  status: 'insufficient_data' | 'insufficient' | 'unsupported';
+  observations: number;
+  trade_dates?: number;
+  factors?: FactorMetric[];
+  correlations?: CorrelationCell[];
+  deciles?: DecileMetric[];
+  missing_requirements?: string[];
+}
+
+export type FactorEvidenceResponse = ReadyFactorEvidenceResponse | UnavailableFactorEvidenceResponse;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Diagnosis（诊断）

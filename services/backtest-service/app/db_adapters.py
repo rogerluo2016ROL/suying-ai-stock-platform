@@ -1,4 +1,4 @@
-"""Adapters for backtest-service — PG-first, explicit legacy SQLite fallback."""
++"""Adapters for backtest-service — PG-first, explicit legacy SQLite fallback."""
 
 import os, sys, logging
 
@@ -50,3 +50,4 @@ def inject_adapters():
     from kronos_factors.scorer._db_stub import set_db_adapter
     set_db_adapter(adapter)
     logger.info("Backtest DB: SQLite fallback mode")
+

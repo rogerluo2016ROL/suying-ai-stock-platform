@@ -29,8 +29,8 @@ for path in (
     ROOT / "services" / "screener-service",
     ROOT / "packages" / "kronos-factors",
     ROOT / "packages" / "kronos-data",
-    ROOT / "packages" / "kronos-contracts",
     ROOT / "services" / "data-service",
+    ROOT / "packages" / "kronos-contracts",
 ):
     text = str(path)
     if text not in sys.path:
@@ -63,22 +63,46 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
 
 
-def build_manifest(*, run_id: str, model_key: str, model_cfg: dict[str, Any], trade_date: str,
-                   result_status: str, official: bool = False) -> dict[str, Any]:
-    """Create the immutable evidence record written beside every pipeline result."""
+def _stable_hash(value: Any) -> str:
+    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode()
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _git_state() -> dict[str, Any]:
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=False,
+    ).stdout.strip() or "unknown"
+    dirty = bool(subprocess.run(
+        ["git", "status", "--porcelain"], cwd=ROOT, text=True, capture_output=True, check=False,
+    ).stdout.strip())
+    return {"commit": commit, "dirty": dirty}
+
+
+def build_run_manifest(*, args, model_key: str, run_id: str, trade_date: str,
+                       result: dict[str, Any], parameters: dict[str, Any], artifacts: list[Path],
+                       git_state: dict[str, Any] | None = None):
     from kronos_contracts.model_run import ModelRunManifest
-    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())
-    params = json.dumps(model_cfg, sort_keys=True, ensure_ascii=False)
-    manifest = ModelRunManifest(
-        run_id=run_id, official=official, working_tree_dirty=dirty,
-        strict_timeline=official, model_key=model_key,
-        model_version=str(model_cfg.get("version") or "unversioned"), code_commit=commit,
-        parameters_hash="sha256:" + hashlib.sha256(params.encode()).hexdigest(),
-        target_trade_date=date.fromisoformat(trade_date), data_snapshot_id="unavailable",
-        universe_hash="sha256:unavailable", result_status=result_status,
-    )
-    return manifest.model_dump(mode="json")
+
+    git = git_state or _git_state()
+    if args.official and git["dirty"]:
+        raise SystemExit(2)
+    try:
+        cutoff = datetime.fromisoformat(args.cutoff_time) if args.cutoff_time else None
+        snapshot_id = args.data_snapshot_id or "UNAVAILABLE"
+        return ModelRunManifest(
+            schema_version="1.0", run_id=run_id, official=bool(args.official),
+            working_tree_dirty=git["dirty"], strict_timeline=bool(args.strict_timeline),
+            model_key=model_key, model_version=args.model_version or "unversioned",
+            code_commit=git["commit"], parameters_hash=_stable_hash(parameters),
+            target_trade_date=trade_date, cutoff_time=cutoff, data_snapshot_id=snapshot_id,
+            universe_hash=_stable_hash(sorted({str(p.get("code") or p.get("ts_code")) for p in result.get("picks", []) if p.get("code") or p.get("ts_code")})),
+            cost_bps=float(args.cost_bps), artifacts=[str(path) for path in artifacts],
+            result_status=str(result.get("status") or "success"),
+        )
+    except ValueError as exc:
+        if args.official:
+            raise SystemExit(2) from exc
+        raise
 
 
 def _run_subprocess(cmd: list[str], timeout: int = 240) -> dict[str, Any]:
@@ -496,6 +520,11 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     config = load_config(Path(args.config))
     model_key, model_cfg = resolve_model(config, args.model)
     trade_date = today() if args.trade_date in {"", "today", None} else args.trade_date
+    run_git_state = _git_state()
+    if args.official and (
+        run_git_state["dirty"] or not args.strict_timeline or not args.data_snapshot_id or not args.cutoff_time
+    ):
+        raise SystemExit(2)
     top_n = args.top_n or int(model_cfg.get("top_n") or 20)
     command = LarkCommand(
         command=str(model_cfg.get("title") or model_key),
@@ -598,12 +627,6 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     markdown = _append_fallback_markdown(markdown, fallback)
     report_path = write_markdown_report(result, markdown)
     result["pipeline"]["markdown_path"] = str(report_path)
-    manifest = build_manifest(
-        run_id=run_id, model_key=model_key, model_cfg=model_cfg, trade_date=trade_date,
-        result_status="success", official=getattr(args, "official", False),
-    )
-    _write_json(run_dir / "manifest.json", manifest)
-    result["pipeline"]["manifest_path"] = str(run_dir / "manifest.json")
 
     _write_json(run_dir / "result.json", result)
     _write_json(
@@ -621,6 +644,16 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
             "report_path": str(report_path),
         },
     )
+    manifest = build_run_manifest(
+        args=args, model_key=model_key, run_id=run_id, trade_date=trade_date, result=result,
+        parameters={"mode": command.mode, "top_n": top_n, "cost_bps": args.cost_bps},
+        artifacts=[run_dir / "result.json", run_dir / "pipeline.json", report_path],
+        git_state=run_git_state,
+    )
+    manifest_path = run_dir / "manifest.json"
+    _write_json(manifest_path, manifest.model_dump(mode="json"))
+    result["pipeline"]["manifest_path"] = str(manifest_path)
+    _write_json(run_dir / "result.json", result)
 
     doc: dict[str, Any] | None = None
     if args.sync_doc:
@@ -672,7 +705,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--send-feishu", action="store_true", help="发送飞书群消息")
     parser.add_argument("--send-poster", action="store_true", help="发送海报图片")
     parser.add_argument("--chat-id", default="")
-    parser.add_argument("--official", action="store_true", help="write an official manifest; requires clean worktree")
+    parser.add_argument("--official", action="store_true", help="正式运行：要求 clean worktree、strict timeline、snapshot 和 cutoff")
+    parser.add_argument("--strict-timeline", action="store_true")
+    parser.add_argument("--data-snapshot-id", default="")
+    parser.add_argument("--cutoff-time", default="", help="ISO-8601 数据截止时间")
+    parser.add_argument("--model-version", default="")
+    parser.add_argument("--cost-bps", type=float, default=14.0)
     return parser
 
 

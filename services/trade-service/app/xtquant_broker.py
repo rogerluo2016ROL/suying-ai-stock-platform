@@ -26,6 +26,15 @@ from app.broker_interface import (
 
 logger = logging.getLogger("trade-service.xtquant_broker")
 
+
+class BrokerCapabilityError(RuntimeError):
+    """Raised when live SDK wiring is incomplete; never fake a fill."""
+
+
+REQUIRED_LIVE_CAPABILITIES = {
+    "place_order", "cancel_order", "query_positions", "query_account", "order_callbacks"
+}
+
 # ── xtquant availability ──────────────────────────────────────────────
 try:
     import xtquant  # noqa: F401
@@ -88,6 +97,13 @@ class XtquantBroker(BrokerInterface):
         self._account = account or os.environ.get("QMT_ACCOUNT", _STUB_ACCOUNT_ID)
         self._trader = None  # XtQuantTrader instance (when xtquant available)
         self._is_live = _XTQUANT_AVAILABLE
+        self._implemented_capabilities: set[str] = set()
+
+    def live_readiness(self) -> dict:
+        missing = sorted(REQUIRED_LIVE_CAPABILITIES - self._implemented_capabilities)
+        if not _XTQUANT_AVAILABLE:
+            missing = sorted(REQUIRED_LIVE_CAPABILITIES)
+        return {"status": "ready" if not missing else "blocked", "missing_capabilities": missing}
 
     # ── Public API ────────────────────────────────────────────────────
 
@@ -105,56 +121,73 @@ class XtquantBroker(BrokerInterface):
 
     async def connect(self) -> bool:
         """Establish connection to the QMT/miniQMT gateway."""
-        if _XTQUANT_AVAILABLE:
-            return await self._connect_real()
-        return await self._connect_stub()
+        if not _XTQUANT_AVAILABLE:
+            raise BrokerCapabilityError("xtquant SDK unavailable; live broker is blocked")
+        return await self._connect_real()
 
     async def disconnect(self) -> bool:
+        if not _XTQUANT_AVAILABLE:
+            raise BrokerCapabilityError("xtquant SDK unavailable; disconnect is blocked")
         if _XTQUANT_AVAILABLE and self._trader is not None:
             return await self._disconnect_real()
-        return await self._disconnect_stub()
+        raise BrokerCapabilityError("xtquant broker is not connected")
 
     # ── BrokerInterface implementation ────────────────────────────────
 
     async def place_order(self, order: OrderRequest) -> OrderResult:
+        if not _XTQUANT_AVAILABLE:
+            raise BrokerCapabilityError("xtquant SDK unavailable; place_order is blocked")
         if _XTQUANT_AVAILABLE:
             if self._trader is None:
                 raise RuntimeError(
                     "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub（防止虚假成交）。"
                     "请先调用 connect() 连接券商。"
                 )
-            raise RuntimeError("XtquantBroker: live order path is not wired; refusing stub execution")
-        return self._place_order_stub(order)
+            if "place_order" not in self._implemented_capabilities:
+                raise BrokerCapabilityError("xtquant place_order capability is not implemented")
+        raise BrokerCapabilityError("xtquant place_order capability is not implemented")
 
     async def cancel_order(self, order_id: str) -> CancelResult:
+        if not _XTQUANT_AVAILABLE:
+            raise BrokerCapabilityError("xtquant SDK unavailable; cancel_order is blocked")
         if _XTQUANT_AVAILABLE:
             if self._trader is None:
                 raise RuntimeError(
                     "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
                     "请先调用 connect() 连接券商。"
                 )
-            raise RuntimeError("XtquantBroker: live cancel path is not wired; refusing stub execution")
-        return self._cancel_order_stub(order_id)
+            # TODO: wire to xtquant.xttrader.cancel_order_stock(...)
+            if "cancel_order" not in self._implemented_capabilities:
+                raise BrokerCapabilityError("xtquant cancel_order capability is not implemented")
+        raise BrokerCapabilityError("xtquant cancel_order capability is not implemented")
 
     async def get_positions(self) -> list[Position]:
+        if not _XTQUANT_AVAILABLE:
+            raise BrokerCapabilityError("xtquant SDK unavailable; query_positions is blocked")
         if _XTQUANT_AVAILABLE:
             if self._trader is None:
                 raise RuntimeError(
                     "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
                     "请先调用 connect() 连接券商。"
                 )
-            raise RuntimeError("XtquantBroker: live positions path is not wired; refusing stub execution")
-        return list(self._stub_positions.values())
+            # TODO: wire to xtquant.xttrader.query_stock_positions(...)
+            if "query_positions" not in self._implemented_capabilities:
+                raise BrokerCapabilityError("xtquant query_positions capability is not implemented")
+        raise BrokerCapabilityError("xtquant query_positions capability is not implemented")
 
     async def get_account(self) -> AccountInfo:
+        if not _XTQUANT_AVAILABLE:
+            raise BrokerCapabilityError("xtquant SDK unavailable; query_account is blocked")
         if _XTQUANT_AVAILABLE:
             if self._trader is None:
                 raise RuntimeError(
                     "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
                     "请先调用 connect() 连接券商。"
                 )
-            raise RuntimeError("XtquantBroker: live account path is not wired; refusing stub execution")
-        return self._stub_account
+            # TODO: wire to xtquant.xttrader.query_stock_asset(...)
+            if "query_account" not in self._implemented_capabilities:
+                raise BrokerCapabilityError("xtquant query_account capability is not implemented")
+        raise BrokerCapabilityError("xtquant query_account capability is not implemented")
 
     async def sync(self) -> SyncResult:
         """Sync positions + account from broker."""

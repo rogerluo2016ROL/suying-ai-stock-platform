@@ -72,19 +72,56 @@ jobs:
       - name: Run tests
         run: cd frontend && npx vitest run --exclude='tests/sit/**'
 
-  # ── Docker: build check ──
+      - name: Build frontend
+        run: cd frontend && npm run build
+
   service-tests:
-    name: Core service tests
+    name: Service Tests (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [backend, api-gateway, data-service, screener-service, prediction-service, strategy-service, signal-service, alert-service, trade-service, backtest-service, training-service, diagnosis-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install shared and service dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest httpx
+          python -m pip install -e packages/kronos-core -e packages/kronos-data -e packages/kronos-factors
+          if [ -f "services/${{ matrix.service }}/pyproject.toml" ]; then
+            python -m pip install -e "services/${{ matrix.service }}"
+          fi
+          if [ "${{ matrix.service }}" = "training-service" ]; then
+            python -m pip install -r services/training-service/requirements.txt
+          fi
+          case "${{ matrix.service }}" in
+            backend)
+              python -m pip install fastapi "uvicorn[standard]" "sqlalchemy[asyncio]" asyncpg psycopg2-binary alembic argon2-cffi pyjwt 'pydantic[email]' ;;
+            api-gateway|data-service)
+              python -m pip install fastapi "uvicorn[standard]" psycopg2-binary redis ;;
+          esac
+      - name: Run isolated service tests
+        run: python3 tools/run_service_tests.py ${{ matrix.service }} -q
+
+  # ── Docker: build check ──
+  ownership-gate:
+    name: Table Ownership Gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install test dependencies
-        run: pip install pytest
-      - name: Run services in isolated processes
-        run: python3 tools/run_service_tests.py --core -q
+      - name: Install governance test dependency
+        run: python -m pip install pytest
+      - name: Audit table ownership
+        run: python3 tools/audit_table_ownership.py --fail-on violation
+      - name: Test schema drift release contract
+        run: python3 -m pytest services/sql/audit/test_schema_contract.py tools/tests/test_audit_table_ownership.py -q
 
   docker-build:
     name: Docker Build Check

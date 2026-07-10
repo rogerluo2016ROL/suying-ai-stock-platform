@@ -11,6 +11,7 @@ Usage:
   bash tools/codex-lowio.sh fe-test [vitest filters...]
   bash tools/codex-lowio.sh fe-sit [vitest filters...]
   bash tools/codex-lowio.sh fe-typecheck
+  bash tools/codex-lowio.sh service-test [--core|SERVICE] [pytest args...]
 
 These wrappers reduce local writes by disabling Python bytecode/cache writes,
 running frontend tests serially, avoiding watch mode, and keeping output short.
@@ -66,6 +67,11 @@ case "$cmd" in
   fe-typecheck)
     cd "$ROOT/frontend"
     npx tsc -b --noEmit --pretty false
+    ;;
+  service-test)
+    cd "$ROOT"
+    export PYTHONDONTWRITEBYTECODE=1
+    python3 tools/run_service_tests.py "$@"
     ;;
   ""|-h|--help|help)
     usage

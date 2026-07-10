@@ -1,33 +1,41 @@
-#!/usr/bin/env python3
-"""Static table-owner gate for CI and release checks."""
-from __future__ import annotations
-import argparse
-import json
+"""Validate single-writer table ownership registry."""
+import argparse, json
+from datetime import date
+from pathlib import Path
 
-OWNERS = {
-    "daily_kline": "data-service", "daily_basic": "data-service",
-    "adj_factor": "data-service", "stocks": "data-service",
-    "factor_weights": "training-service", "orders": "trade-service",
-}
+ROOT = Path(__file__).resolve().parents[1]
 
-def audit_ownership(writers: dict[str, list[str]]) -> dict:
+def audit_registry(registry, today=None):
+    today = date.fromisoformat(today) if isinstance(today, str) else (today or date.today())
     violations = []
-    for table, services in writers.items():
-        owner = OWNERS.get(table)
-        if owner:
-            violations.extend({"table": table, "writer": service, "owner": owner}
-                              for service in services if service != owner)
-    return {"owners": OWNERS, "violations": violations}
+    for table, spec in registry.items():
+        owner, writers = spec.get("owner"), spec.get("writers", [])
+        if not owner or writers != [owner]:
+            violations.append({"table": table, "reason": "exactly one writer must equal owner"})
+        exemption, exempt_until = spec.get("exemption"), spec.get("exempt_until")
+        if bool(exemption) != bool(exempt_until):
+            violations.append({"table": table, "reason": "exemption and exempt_until must be declared together"})
+        elif exempt_until:
+            try:
+                expiry = date.fromisoformat(exempt_until)
+            except (TypeError, ValueError):
+                violations.append({"table": table, "reason": "exempt_until must be an ISO date"})
+            else:
+                if expiry < today:
+                    violations.append({"table": table, "reason": f"ownership exemption expired on {expiry.isoformat()}"})
+    return type("AuditResult", (), {"violations": violations})()
 
-def main() -> int:
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--writers", help="JSON file mapping table to writer services")
-    parser.add_argument("--fail-on", choices=("violation",), default="violation")
+    parser.add_argument("--fail-on", default="violation")
     args = parser.parse_args()
-    writers = json.loads(open(args.writers, encoding="utf-8").read()) if args.writers else {}
-    result = audit_ownership(writers)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 1 if result["violations"] else 0
+    registry = json.loads((ROOT / "configs/data_ownership.json").read_text())
+    result = audit_registry(registry)
+    if result.violations:
+        print(json.dumps(result.violations, ensure_ascii=False))
+        return 1
+    print("table ownership: clean")
+    return 0
 
 if __name__ == "__main__":
     raise SystemExit(main())

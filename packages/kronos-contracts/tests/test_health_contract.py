@@ -1,13 +1,10 @@
-import sys
-from pathlib import Path
+from kronos_contracts.health import ComponentCheck, build_health
 
-sys.path.insert(0, str(Path(__file__).parents[1]))
-from kronos_contracts.health import ComponentCheck, ServiceHealth
-
-
-def test_health_contract_distinguishes_live_and_ready():
-    check = ComponentCheck(status="unavailable", reason="postgres timeout")
-    health = ServiceHealth(service="demo", live=True, ready=False, checks={"postgres": check})
+def test_process_can_be_live_while_dependency_is_unavailable():
+    health = build_health("demo", "0.1.0", {"postgres": ComponentCheck(status="unavailable", latency_ms=10)})
     assert health.live is True
     assert health.ready is False
-    assert health.checks["postgres"].status == "unavailable"
+
+def test_ready_when_all_checks_pass():
+    health = build_health("demo", "0.1.0", {"postgres": ComponentCheck(status="ready")})
+    assert health.ready is True
