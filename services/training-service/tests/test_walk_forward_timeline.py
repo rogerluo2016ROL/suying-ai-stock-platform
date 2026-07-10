@@ -156,7 +156,7 @@ def test_main_dirty_always_exits_2(monkeypatch, capsys):
     assert "M01-C" in out and "dirty" in out.lower(), "main 输出未含 M01-C dirty 诊断"
 
 
-def test_main_non_strict_late_commit_passes_with_warning(monkeypatch, capsys):
+def test_main_non_strict_late_commit_passes_with_warning(monkeypatch, capsys, tmp_path):
     """main() 级: 无 --strict-timeline + 晚 commit → 放行 + 软警告 (D 兜底)."""
     import walk_forward as wf
     # commit 晚于 start, clean, 无 strict → guard 应放行, main 打软警告后继续.
@@ -165,8 +165,17 @@ def test_main_non_strict_late_commit_passes_with_warning(monkeypatch, capsys):
     # 跳过真实回测循环: month_iter 返回空 → 循环 0 次, 不触达 PG.
     monkeypatch.setattr(wf, "month_iter", lambda start, end: [])
     monkeypatch.setattr(sys, "argv", ["walk_forward.py", "--start", "2024-01",
-                                      "--end", "2024-02"])  # 无 --strict-timeline
+                                      "--end", "2024-02", "--export", str(tmp_path / "walk.json")])
     wf.main()  # 不应 raise SystemExit
     out = capsys.readouterr().out
     assert "警告" in out and "2026-06-10" in out, "非 strict 晚 commit 应打软警告"
     assert "不可作样本外结论" in out, "软警告应明确结果不可作样本外结论"
+
+
+def test_main_official_enables_strict_and_requires_snapshot(monkeypatch, capsys):
+    import walk_forward as wf
+    monkeypatch.setattr(sys, "argv", ["walk_forward.py", "--official"])
+    with pytest.raises(SystemExit) as exc:
+        wf.main()
+    assert exc.value.code == 2
+    assert "data-snapshot-id" in capsys.readouterr().out
