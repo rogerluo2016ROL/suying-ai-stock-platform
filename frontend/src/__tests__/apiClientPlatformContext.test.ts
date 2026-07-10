@@ -171,6 +171,18 @@ describe('api platform context headers', () => {
     expect(query).toContain('page_size=20')
   })
 
+  it('does not send client-controlled owner identity headers', async () => {
+    let owner: string | null = 'sentinel'
+    server.use(
+      http.get('/api/v1/platform-context-test', ({ request }) => {
+        owner = request.headers.get('X-Owner-User-Id')
+        return HttpResponse.json({ ok: true })
+      }),
+    )
+    await api.get('/platform-context-test')
+    expect(owner).toBeNull()
+  })
+
   it('queries decision contexts with platform scope headers and lineage filters', async () => {
     let tenantId: string | null = null
     let accountId: string | null = null

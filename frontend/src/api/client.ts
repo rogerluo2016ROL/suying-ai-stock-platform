@@ -245,9 +245,6 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (platformSession?.tenantId) {
     config.headers['X-Tenant-Id'] = platformSession.tenantId
   }
-  if (platformSession?.ownerUserId) {
-    config.headers['X-Owner-User-Id'] = platformSession.ownerUserId
-  }
   if (platformSession?.accountId) {
     config.headers['X-Trade-Account-Id'] = platformSession.accountId
   }
