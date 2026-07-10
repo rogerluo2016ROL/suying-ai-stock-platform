@@ -264,6 +264,10 @@ CREATE TABLE IF NOT EXISTS forecast_data (
     end_date DATE NOT NULL,
     forecast_type TEXT,
     forecast_net_profit DOUBLE PRECISION,
+    ann_date DATE,
+    net_profit_min DOUBLE PRECISION,
+    net_profit_max DOUBLE PRECISION,
+    change_reason TEXT,
     PRIMARY KEY(code, end_date, forecast_type)
 );
 
@@ -347,7 +351,11 @@ CREATE TABLE IF NOT EXISTS research_reports_tushare (
     code TEXT NOT NULL,
     pub_date DATE NOT NULL,
     title TEXT, broker TEXT,
-    rating TEXT, target_price DOUBLE PRECISION
+    rating TEXT, target_price DOUBLE PRECISION,
+    trade_date DATE,
+    report_type TEXT,
+    author TEXT,
+    name TEXT
 );
 
 CREATE TABLE IF NOT EXISTS stock_news (
