@@ -1047,6 +1047,7 @@ export const tradeApi = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const backtestApi = {
+  getFactorEvidence: (modelKey: string) => api.get<import('./types').FactorEvidenceResponse>('/backtest/factor-evidence', { params: { model_key: modelKey } }),
   getFactors: (): Promise<AxiosResponse<FactorsResponse>> =>
     api.get('/backtest/factors'),
 

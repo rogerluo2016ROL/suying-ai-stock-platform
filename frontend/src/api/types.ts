@@ -423,6 +423,8 @@ export interface DataStatusResponse {
   }>;
 }
 
+export interface FactorEvidenceResponse { status: 'ready' | 'insufficient_data' | 'unsupported'; observations: number; factors: any[]; correlations: any[]; deciles: any[]; missing_requirements?: string[] }
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Strategy（方案管理）
 // ═══════════════════════════════════════════════════════════════════════════

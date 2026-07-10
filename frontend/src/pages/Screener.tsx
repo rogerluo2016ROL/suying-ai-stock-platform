@@ -687,8 +687,8 @@ export default function Screener() {
   // ===== 3.3 factor-analysis 派生：IC/ICIR/热力图/分层/行业（从候选池 factor_breakdown 派生）=====
   // factors tab 复用 modelComparePicks（模型对比已运行）；为空时回退到工作台 picks
   const factorPicks = active === 'factors' ? (modelComparePicks.length > 0 ? modelComparePicks : picks) : []
-  const factorStats = useMemo(() => deriveFactorStats(factorPicks), [factorPicks])
-  const decileRows = useMemo(() => buildDecileRows(factorPicks), [factorPicks])
+  const factorStats = useMemo<FactorStat[]>(() => [], [])
+  const decileRows = useMemo<DecileRow[]>(() => [], [])
   const industryRows = useMemo(() => buildIndustryRows(factorPicks), [factorPicks])
   const selectedFactorLabel = factorStats[0]?.label || ''
 
