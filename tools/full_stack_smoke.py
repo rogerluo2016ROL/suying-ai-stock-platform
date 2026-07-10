@@ -35,6 +35,8 @@ class SmokeConfig:
     screener_mode: str
     top_n: int
     timeout: float
+    trade_mode: str = "paper"
+    require_pick: bool = False
 
 
 def join_url(base: str, path: str) -> str:
@@ -110,6 +112,8 @@ def load_config(argv: list[str] | None = None) -> SmokeConfig:
     parser.add_argument("--mode", default=os.environ.get("SMOKE_SCREENER_MODE", "short"))
     parser.add_argument("--top-n", type=int, default=int(os.environ.get("SMOKE_TOP_N", "5")))
     parser.add_argument("--timeout", type=float, default=float(os.environ.get("SMOKE_TIMEOUT", "45")))
+    parser.add_argument("--trade-mode", choices=("paper",), default="paper")
+    parser.add_argument("--require-pick", action="store_true")
     args = parser.parse_args(argv)
 
     return SmokeConfig(
@@ -124,7 +128,16 @@ def load_config(argv: list[str] | None = None) -> SmokeConfig:
         screener_mode=args.mode,
         top_n=args.top_n,
         timeout=args.timeout,
+        trade_mode=args.trade_mode,
+        require_pick=args.require_pick,
     )
+
+def classify_screener_result(body: dict[str, Any], require_pick: bool = False) -> dict[str, Any]:
+    if body.get("result_status") == "success_no_matches" and not require_pick:
+        return {"status": "pass", "result_status": "success_no_matches", "safe_skips": ["diagnosis", "strategy", "backtest", "paper_order"]}
+    if not body.get("picks"):
+        raise SmokeError("screener returned no pick for a pick-required smoke")
+    return {"status": "pass", "result_status": body.get("result_status", "success")}
 
 
 def run_smoke(config: SmokeConfig) -> dict[str, Any]:
