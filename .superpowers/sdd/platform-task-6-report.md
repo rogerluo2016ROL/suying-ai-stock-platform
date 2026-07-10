@@ -23,4 +23,6 @@
 
 ## 遗留问题
 
-CI 仍需各服务依赖安装步骤（当前仓库没有统一服务依赖安装清单）；本地全矩阵不能作为绿灯结果。
+审查发现初版 CI 只启动服务测试，没有安装服务依赖，可能在干净 runner 上产生误报失败。已补充 shared packages、各服务 `pyproject.toml` 可编辑安装，以及 training-service 的 requirements 安装；Docker job 仍由 service-tests 成功后执行。
+
+本地全矩阵不能作为绿灯结果：当前环境仍缺少部分依赖，且已有 data-service 测试存在仓库根路径假设。
