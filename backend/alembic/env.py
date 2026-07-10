@@ -1,10 +1,19 @@
 """Alembic environment configuration for PostgreSQL migrations."""
 
 import os
+import sys
+from pathlib import Path
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import create_engine, pool
+
+# The Alembic CLI adds ``alembic/`` to sys.path, whereas the application
+# package lives one level above it.  Keep CLI and programmatic migrations
+# identical, including inside the production container.
+BACKEND_ROOT = str(Path(__file__).resolve().parents[1])
+if BACKEND_ROOT not in sys.path:
+    sys.path.insert(0, BACKEND_ROOT)
 
 from app.config import DATABASE_SYNC_URL
 from app.models.base import Base
