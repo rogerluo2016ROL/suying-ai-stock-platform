@@ -46,7 +46,7 @@ _COMPOSE_HOSTS = {
     "/api/v1/strategy": "strategy-service",
     "/api/v1/signal": "signal-service",
     "/api/v1/dashboard": "screener-service",  # screener-service owns screening dashboard + pipeline
-    "/api/v1/data": "signal-service",        # signal-service hosts data-status/sync
+    "/api/v1/data": "data-service",
     "/api/v1/alert": "alert-service",
     "/api/v1/trade": "trade-service",
     "/api/v1/backtest": "backtest-service",
@@ -61,7 +61,7 @@ _HOST_ENV = {
     "/api/v1/strategy": "GATEWAY_STRATEGY_HOST",
     "/api/v1/signal": "GATEWAY_SIGNAL_HOST",
     "/api/v1/dashboard": "GATEWAY_SCREENER_HOST",
-    "/api/v1/data": "GATEWAY_SIGNAL_HOST",
+    "/api/v1/data": "GATEWAY_DATA_HOST",
     "/api/v1/alert": "GATEWAY_ALERT_HOST",
     "/api/v1/trade": "GATEWAY_TRADE_HOST",
     "/api/v1/backtest": "GATEWAY_BACKTEST_HOST",
@@ -90,7 +90,7 @@ SERVICES = {
     "/api/v1/strategy": _svc_url("/api/v1/strategy", 8003),
     "/api/v1/signal": _svc_url("/api/v1/signal", 8004),
     "/api/v1/dashboard": _svc_url("/api/v1/dashboard", 8001),
-    "/api/v1/data": _svc_url("/api/v1/data", 8004),
+    "/api/v1/data": _svc_url("/api/v1/data", 8010),
     "/api/v1/alert": _svc_url("/api/v1/alert", 8005),
     "/api/v1/trade": _svc_url("/api/v1/trade", 8006),
     "/api/v1/backtest": _svc_url("/api/v1/backtest", 8007),
@@ -119,8 +119,8 @@ def _resolve_target(full: str, query: str | bytes | None = "") -> str | None:
         target = f"{base}{health_path}"
     else:
         target_base = None
-        for prefix, svc in SERVICES.items():
-            if full.startswith(prefix):
+        for prefix, svc in sorted(SERVICES.items(), key=lambda item: len(item[0]), reverse=True):
+            if full == prefix or full.startswith(f"{prefix}/"):
                 target_base = svc
                 break
         if not target_base:

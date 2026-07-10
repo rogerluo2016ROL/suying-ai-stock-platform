@@ -25,7 +25,7 @@ def test_resolve_target_covers_frontend_module_prefixes():
         "/api/v1/strategy/templates": "http://localhost:8003/api/v1/strategy/templates",
         "/api/v1/signal/levels": "http://localhost:8004/api/v1/signal/levels",
         "/api/v1/dashboard/summary": "http://localhost:8001/api/v1/dashboard/summary",
-        "/api/v1/data/status": "http://localhost:8004/api/v1/data/status",
+        "/api/v1/data/status": "http://localhost:8010/api/v1/data/status",
         "/api/v1/alert/unread-count": "http://localhost:8005/api/v1/alert/unread-count",
         "/api/v1/trade/orders": "http://localhost:8006/api/v1/trade/orders",
         "/api/v1/backtest/factors": "http://localhost:8007/api/v1/backtest/factors",
@@ -51,6 +51,14 @@ def test_resolve_target_rewrites_backend_health_alias_to_api_health():
 
 def test_resolve_target_keeps_gateway_health_local():
     assert gateway._resolve_target("/health", "") is None
+
+
+def test_resolve_target_does_not_match_similar_prefixes():
+    assert gateway._resolve_target("/api/v1/tradeoff", "") is None
+
+
+def test_data_routes_to_dedicated_data_service():
+    assert gateway._resolve_target("/api/v1/data/status", "") == "http://localhost:8010/api/v1/data/status"
 
 
 def test_default_network_mode_uses_compose_inside_container(monkeypatch):
