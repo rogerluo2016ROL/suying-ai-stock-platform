@@ -19,6 +19,22 @@ from app.service_registry import SERVICE_REGISTRY, sanitize_client_headers
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","), allow_methods=["*"], allow_headers=["*"])
 
+@app.get("/api/v1/health/live")
+async def health_live():
+    return {"live": True, "service": "api-gateway", "version": "0.1.0"}
+
+@app.get("/api/v1/health/ready")
+async def health_ready():
+    from .runtime import probe_services
+    services = await probe_services()
+    return {"live": True, "ready": all(item.get("ready", False) for item in services.values()), "services": services}
+
+@app.get("/api/v1/runtime/readiness")
+async def runtime_readiness():
+    from .runtime import probe_services
+    services = await probe_services()
+    return {"live": True, "ready": all(item.get("ready", False) for item in services.values()), "services": services}
+
 _rate_store: dict[str, list[float]] = {}
 # P1-8: request counter for periodic eviction of stale rate-store keys.
 # _rate_store[ip] is pruned to the last 60s on each hit, but keys with empty
