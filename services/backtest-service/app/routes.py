@@ -1,8 +1,10 @@
 """Backtest API routes — PG 直读, 滚动窗口前向回测 + 龙头战法 + 可转债."""
 
 import logging
+import json
 import os
 import sys
+import uuid
 from datetime import date, timedelta
 
 import numpy as np
@@ -53,6 +55,66 @@ def _compute_ic(predictions, actuals):
     return 0.0 if np.isnan(ic) else float(ic)
 
 
+def _latest_backtest_readiness():
+    try:
+        connection = _get_pg()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT snapshot_id,status FROM data_readiness_snapshots "
+                "WHERE profile='backtest_v1' ORDER BY checked_at DESC LIMIT 1"
+            )
+            row = cursor.fetchone()
+        connection.close()
+        return {"snapshot_id": row[0], "status": row[1]} if row else {"status": "missing"}
+    except Exception as exc:
+        logger.warning("readiness lookup failed: %s", exc)
+        return {"status": "missing"}
+
+
+def _save_factor_evaluation(model_key, request, report):
+    evaluation_id = f"FE-{uuid.uuid4()}"
+    connection = _get_pg()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO factor_evaluations(evaluation_id,model_key,status,request,report) "
+                "VALUES (%s,%s,%s,%s::jsonb,%s::jsonb)",
+                (evaluation_id, model_key, report.get("status", "unknown"),
+                 json.dumps(request), json.dumps(report, default=str)),
+            )
+        connection.commit()
+    finally:
+        connection.close()
+    return evaluation_id
+
+
+def _run_factor_adapter(model_key, *, forward_days=5, cost_bps=14.0):
+    from app.adapters.base import BacktestRequest
+    from app.adapters.registry import get_adapter
+
+    adapter = get_adapter(model_key)
+    if adapter is None:
+        raise HTTPException(status_code=409, detail={
+            "code": "MODEL_BACKTEST_NOT_IMPLEMENTED", "model_key": model_key,
+        })
+    readiness = _latest_backtest_readiness()
+    request = BacktestRequest(
+        model_key=model_key, forward_days=forward_days, cost_bps=cost_bps,
+        connection_factory=_get_pg,
+    )
+    report = adapter.run(request, readiness)
+    request_payload = {"forward_days": forward_days, "cost_bps": cost_bps,
+                       "readiness_snapshot_id": readiness.get("snapshot_id")}
+    try:
+        report["evaluation_id"] = _save_factor_evaluation(model_key, request_payload, report)
+    except Exception as exc:
+        logger.error("factor evaluation persistence failed: %s", exc)
+        raise HTTPException(status_code=503, detail={
+            "code": "EVALUATION_PERSIST_FAILED", "message": "因子证据未持久化，结果不可供训练使用",
+        }) from exc
+    return report
+
+
 @router.get("/factors")
 async def list_factors():
     """List available factors."""
@@ -64,13 +126,14 @@ async def list_factors():
 
 @router.post("/run")
 async def run_backtest(
+    model_key: str = Query(""),
     mode: str = Query("all", description="long/short/all"),
     windows: int = Query(3, ge=1, le=12),
     top_n: int = Query(30, ge=10, le=100),
     forward_days: int = Query(60, ge=20, le=252),
 ):
-    """Fail closed until evidence adapters are implemented."""
-    raise HTTPException(status_code=409, detail={"code": "MODEL_BACKTEST_NOT_IMPLEMENTED", "message": "真实因子快照与复权未来收益适配器尚未完成"})
+    """Run a registered evidence adapter; unknown models fail closed."""
+    return _run_factor_adapter(model_key, forward_days=forward_days)
 
 
 @router.post("/calibrate")
@@ -78,9 +141,9 @@ async def calibrate_weights(mode: str = Query("all")):
     """基于近期 IC 校准因子权重."""
     raise HTTPException(status_code=409, detail={"code": "MODEL_CALIBRATION_NOT_IMPLEMENTED", "message": "缺少真实观测证据，未写入 factor_weights"})
 @router.get("/factor-evidence")
-async def factor_evidence(model_key: str = Query(...)):
-    return {"status": "unsupported", "observations": 0, "factors": [], "correlations": [], "deciles": [],
-            "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"]}
+async def factor_evidence(model_key: str = Query(...), forward_days: int = Query(5, ge=1, le=20),
+                          cost_bps: float = Query(14.0, ge=0, le=100)):
+    return _run_factor_adapter(model_key, forward_days=forward_days, cost_bps=cost_bps)
 
 @router.post("/compare")
 async def compare_strategies(strategy_ids: list[str] = Query(default=["momentum", "quality"]), start_date: str = Query(default=None), end_date: str = Query(default=None)):

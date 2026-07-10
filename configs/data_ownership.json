@@ -16,6 +16,7 @@
   "model_registry": {"owner": "training-service", "writers": ["training-service"]},
   "backtest_results": {"owner": "backtest-service", "writers": ["backtest-service"]},
   "backtest_records": {"owner": "backtest-service", "writers": ["backtest-service"]},
+  "factor_evaluations": {"owner": "backtest-service", "writers": ["backtest-service"]},
   "orders": {"owner": "trade-service", "writers": ["trade-service"]},
   "trades": {"owner": "trade-service", "writers": ["trade-service"]}
 }

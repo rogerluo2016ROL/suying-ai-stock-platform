@@ -19,7 +19,8 @@ def test_backtest_endpoints_fail_closed():
 def test_factor_evidence_and_compare_are_truthful():
     client = TestClient(app)
     evidence = client.get("/api/v1/backtest/factor-evidence", params={"model_key": "x"})
-    assert evidence.json()["status"] == "unsupported"
+    assert evidence.status_code == 409
+    assert evidence.json()["detail"]["code"] == "MODEL_BACKTEST_NOT_IMPLEMENTED"
     compare = client.post("/api/v1/backtest/compare")
     assert compare.status_code == 422
     assert compare.json()["detail"]["code"] == "INSUFFICIENT_EVIDENCE"

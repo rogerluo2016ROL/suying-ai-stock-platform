@@ -62,20 +62,52 @@ class InsufficientEvidence(RuntimeError):
         super().__init__("insufficient observed evidence")
 
 
+async def latest_ready_evaluation_id() -> str | None:
+    from app.database import AsyncSessionLocal
+    from sqlalchemy import text as sa_text
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(sa_text(
+            "SELECT evaluation_id FROM factor_evaluations WHERE status='ready' "
+            "ORDER BY created_at DESC LIMIT 1"
+        ))
+        row = result.fetchone()
+    return row[0] if row else None
+
+
 async def compute_ic_from_db(
+    evaluation_id: str,
     window_days: int = 90,
     min_samples: int = 30,
 ) -> Dict[str, Any]:
-    """Compute IC/ICIR for all factors using recent window data.
+    """Load one persisted, ready backtest evaluation; never recompute ad hoc."""
+    from app.database import AsyncSessionLocal
+    from sqlalchemy import text as sa_text
 
-    Queries daily_kline + factor scores from the database.
-    Falls back to Kronos calibration scripts if available.
-
-    Returns:
-        Dict with keys: factors, window_start, window_end
-    """
-    return {"status": "insufficient_data", "factors": [], "window_start": None, "window_end": None,
-            "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"]}
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(sa_text(
+            "SELECT status,report,created_at FROM factor_evaluations WHERE evaluation_id=:evaluation_id"
+        ), {"evaluation_id": evaluation_id})
+        row = result.fetchone()
+    if not row:
+        return {"status": "insufficient_data", "factors": [], "window_start": None, "window_end": None,
+                "missing_requirements": ["saved_evaluation_id"]}
+    status, report, created_at = row
+    if status != "ready" or report.get("status") != "ready":
+        return {"status": "insufficient_data", "factors": [], "window_start": None, "window_end": None,
+                "missing_requirements": ["ready_saved_evaluation"]}
+    factors = []
+    for factor in report.get("factors", []):
+        key = factor["factor_name"]
+        ic = float(factor.get("rank_ic", 0.0))
+        icir = float(factor.get("icir", 0.0))
+        factors.append({
+            "factor_name": key, "factor_label": key, "ic": ic, "icir": icir,
+            "old_weight": DEFAULT_WEIGHTS.get(key, 2.5), "new_weight": abs(icir) * (1 if ic >= 0 else -1),
+            "direction": "long" if ic >= 0 else "short",
+            "significance": "significant" if abs(icir) > 1.5 else "marginal" if abs(icir) > .5 else "none",
+        })
+    return {"status": "ready", "evaluation_id": evaluation_id, "factors": factors,
+            "window_start": report.get("window_start"), "window_end": report.get("window_end")}
 
 
 async def _compute_ic_kronos(window_days: int, min_samples: int) -> Dict[str, Any]:
@@ -198,6 +230,7 @@ async def run_calibration(
     window_days: int = 90,
     min_samples: int = 30,
     apply: bool = False,
+    evaluation_id: str | None = None,
 ) -> Dict[str, Any]:
     """Run factor weight calibration.
 
@@ -218,8 +251,13 @@ async def run_calibration(
     logger.info("Starting factor calibration: mode=%s window=%dd min_samples=%d apply=%s",
                 mode, window_days, min_samples, apply)
 
-    # Compute IC/ICIR
-    ic_data = await compute_ic_from_db(window_days, min_samples)
+    if not evaluation_id:
+        return {"status": "insufficient_data", "factors": [],
+                "missing_requirements": ["saved_evaluation_id"],
+                "summary": "必须提供已持久化的因子 evaluation ID，未生成或写入权重。"}
+
+    # Consume immutable observed evidence by ID; never calculate from mutable live tables here.
+    ic_data = await compute_ic_from_db(evaluation_id, window_days, min_samples)
     factors_raw = ic_data["factors"]
     if not factors_raw:
         return {"status": "insufficient_data", "factors": [],
@@ -268,6 +306,8 @@ async def run_calibration(
 
     now = datetime.now(timezone.utc)
     result = {
+        "status": "ready",
+        "evaluation_id": evaluation_id,
         "calibrated_at": now,
         "window_start": ic_data["window_start"],
         "window_end": ic_data["window_end"],

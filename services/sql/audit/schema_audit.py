@@ -24,7 +24,7 @@ OWNERSHIP_FILE = ROOT / "configs/data_ownership.json"
 EXCLUDED = {"top_inst","ths_daily",
     "alembic_version","audit_logs","refresh_tokens","roles","users","model_registry","training_jobs",
     "training_schedule","diagnosis_config","diagnosis_history","factor_calibration_history","factor_weights",
-    "predictions","prediction_details","prediction_versions","backtest_records","screening_scores",
+    "predictions","prediction_details","prediction_versions","backtest_records","factor_evaluations","screening_scores",
     "screening_batches","screening_snapshots","watchlist"}
 MONITORED = {"daily_kline","moneyflow","stk_limit","daily_basic","ths_daily","sw_daily","index_daily",
     "stk_factor_pro","limit_list_d","moneyflow_hsgt","stocks","stk_mins","rt_k","rt_sw_k","trade_cal",

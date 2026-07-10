@@ -27,7 +27,7 @@ logger = logging.getLogger("backtest-service")
 async def lifespan(app: FastAPI):
     logger.info("Starting Backtest Service...")
     try:
-        from app.adapters import inject_adapters
+        from app.db_adapters import inject_adapters
         inject_adapters()
         logger.info("DB adapters injected")
     except Exception as e:

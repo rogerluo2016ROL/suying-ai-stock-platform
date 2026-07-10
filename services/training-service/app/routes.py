@@ -1023,7 +1023,7 @@ async def api_training_history(
 
 @router.post("/calibrate", response_model=CalibrateResponse)
 async def api_calibrate_factors(
-    body: CalibrateRequest = CalibrateRequest(),
+    body: CalibrateRequest,
     current_user: dict = Depends(require_role("admin")),
 ):
     """Run factor weight calibration (AC-6.7).
@@ -1039,14 +1039,23 @@ async def api_calibrate_factors(
             window_days=body.window_days,
             min_samples=body.min_samples,
             apply=body.apply,
+            evaluation_id=body.evaluation_id,
         )
+        if result.get("status") != "ready":
+            raise HTTPException(status_code=409, detail={
+                "code": "INSUFFICIENT_EVALUATION_EVIDENCE",
+                "missing_requirements": result.get("missing_requirements", []),
+            })
         return CalibrateResponse(
             calibrated_at=result["calibrated_at"],
             window_start=result["window_start"],
             window_end=result["window_end"],
             factors=result["factors"],
             summary=result["summary"],
+            evaluation_id=result["evaluation_id"],
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Calibration failed")
         raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
