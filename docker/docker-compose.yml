@@ -72,6 +72,21 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      api-gateway:
+        condition: service_started
+      backend:
+        condition: service_started
+      screener-service:
+        condition: service_started
+    restart: unless-stopped
+
   # Backend (认证+用户管理)
   backend:
     build:
