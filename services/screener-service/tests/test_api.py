@@ -1,6 +1,8 @@
 """Screener API integration tests — FastAPI TestClient."""
 import os
 import sys
+import json
+from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
@@ -43,6 +45,11 @@ def client():
     """Create test client for screener service."""
     from app.main import app
     return TestClient(app)
+
+
+def test_openapi_paths_match_baseline(client):
+    baseline = json.loads((Path(__file__).parent / "fixtures" / "openapi_paths.json").read_text(encoding="utf-8"))
+    assert sorted(client.get("/openapi.json").json()["paths"]) == baseline
 
 
 class TestScreenerModes:
