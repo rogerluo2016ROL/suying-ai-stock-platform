@@ -19,7 +19,7 @@ from html import unescape
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import urljoin, urlparse
 
 
@@ -67,6 +67,7 @@ class RawDocument:
     company_name: str | None = None
     publish_time: str | None = None
     doc_type: str | None = None
+    metadata: dict[str, Any] | None = None
 
     @property
     def content_hash(self) -> str:
@@ -92,6 +93,7 @@ class ExtractedFact:
     profit_signal: bool = False
     moat_signal: bool = False
     risk_signal: bool = False
+    metadata: dict[str, Any] | None = None
 
 
 COMMERCIAL_STAGE_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -220,6 +222,14 @@ def confidence_cap_for_level(source_level: SourceLevel) -> float:
     return {"strong": 0.95, "mid": 0.75, "weak": 0.45}[source_level]
 
 
+def sanitize_pending_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
+    if metadata is None:
+        return None
+    sanitized = dict(metadata)
+    sanitized.pop("review_normalization", None)
+    return sanitized
+
+
 def extract_fact_from_document(document: RawDocument, company_code: str | None = None) -> ExtractedFact:
     text = normalize_text(document.content_text)
     source_level = document.source_level
@@ -227,7 +237,7 @@ def extract_fact_from_document(document: RawDocument, company_code: str | None =
 
     research_stage = _stage_from_keywords(text, RESEARCH_STAGE_KEYWORDS)
     commercial_stage = _stage_from_keywords(text, COMMERCIAL_STAGE_KEYWORDS)
-    validation_status = "confirmed" if source_level == "strong" else "pending"
+    validation_status = "pending"
     confidence = min({"strong": 0.8, "mid": 0.6, "weak": 0.35}[source_level], confidence_cap)
 
     if source_level == "weak":
@@ -257,6 +267,7 @@ def extract_fact_from_document(document: RawDocument, company_code: str | None =
         profit_signal=_contains_any(text, PROFIT_KEYWORDS),
         moat_signal=_contains_any(text, MOAT_KEYWORDS),
         risk_signal=_contains_any(text, RISK_KEYWORDS),
+        metadata=sanitize_pending_metadata(document.metadata),
     )
 
 
@@ -724,14 +735,24 @@ def build_legacy_event_record_from_fact(row: dict) -> dict:
             "commercial_stage": row.get("commercial_stage_signal"),
         },
         "confidence": row.get("confidence") or 0.0,
-        "review_status": "approved" if source_level == "strong" and row.get("validation_status") == "confirmed" else "pending_review",
+        "review_status": "pending_review",
         "review_note": "synced from data collection center",
     }
 
 
-def _insert_raw_document_and_fact(cur, document: RawDocument, source: CollectionSource, job_id: str) -> dict:
+def _insert_raw_document_and_fact(
+    cur,
+    document: RawDocument,
+    source: CollectionSource,
+    job_id: str,
+    *,
+    mapping_id: str | None = None,
+    fact_nature: str | None = None,
+) -> dict:
     import json as _json
 
+    raw_metadata = dict(document.metadata or {})
+    raw_metadata["backfill_job_id"] = job_id
     cur.execute(
         """
         INSERT INTO raw_evidence_documents (
@@ -759,26 +780,42 @@ def _insert_raw_document_and_fact(cur, document: RawDocument, source: Collection
             document.content_hash,
             document.doc_type,
             source.license_status,
-            _json.dumps({"backfill_job_id": job_id}, ensure_ascii=False),
+            _json.dumps(raw_metadata, ensure_ascii=False),
         ),
     )
     inserted_doc = cur.rowcount > 0
 
-    cur.execute(
-        """
-        SELECT mapping_id, chain_id, node_id, tag_name
-        FROM business_tag_mapping
-        WHERE split_part(code, '.', 1) = %s OR code = %s
-        ORDER BY confidence DESC NULLS LAST
-        LIMIT 1
-        """,
-        (str(document.company_code or "").split(".")[0], document.company_code),
-    )
-    mapping = cur.fetchone()
-    if not mapping:
-        return {"inserted_doc": inserted_doc, "inserted_fact": False, "duplicate": not inserted_doc}
+    mapping = None
+    if mapping_id:
+        cur.execute(
+            """
+            SELECT mapping_id, chain_id, node_id, tag_name
+            FROM business_tag_mapping
+            WHERE mapping_id = %s
+              AND (split_part(code, '.', 1) = %s OR code = %s)
+            LIMIT 1
+            """,
+            (mapping_id, str(document.company_code or "").split(".")[0], document.company_code),
+        )
+        mapping = cur.fetchone()
+
+    def mapping_value(key: str, index: int):
+        if not mapping:
+            return None
+        if isinstance(mapping, dict):
+            return mapping.get(key)
+        return mapping[index]
+
+    resolved_mapping_id = mapping_value("mapping_id", 0)
+    chain_id = mapping_value("chain_id", 1)
+    node_id = mapping_value("node_id", 2)
+    tag_name = mapping_value("tag_name", 3)
 
     fact = extract_fact_from_document(document)
+    fact_metadata = dict(fact.metadata or {})
+    fact_metadata["backfill_job_id"] = job_id
+    if node_id:
+        fact_metadata["node_id"] = node_id
     cur.execute(
         """
         INSERT INTO evidence_extracted_facts (
@@ -795,14 +832,14 @@ def _insert_raw_document_and_fact(cur, document: RawDocument, source: Collection
         ON CONFLICT (fact_id) DO NOTHING
         """,
         (
-            _fact_id(document.doc_id, mapping["mapping_id"]),
+            _fact_id(document.doc_id, resolved_mapping_id),
             document.doc_id,
-            mapping["mapping_id"],
+            resolved_mapping_id,
             document.company_code or "",
-            mapping["chain_id"],
-            mapping["tag_name"],
+            chain_id,
+            tag_name,
             fact.fact_type,
-            _fact_nature_for_level(source.source_level),
+            fact_nature or _fact_nature_for_level(source.source_level),
             fact.original_quote,
             source.source_level,
             fact.confidence,
@@ -814,10 +851,18 @@ def _insert_raw_document_and_fact(cur, document: RawDocument, source: Collection
             fact.moat_signal,
             fact.risk_signal,
             fact.validation_status,
-            _json.dumps({"backfill_job_id": job_id, "node_id": mapping["node_id"]}, ensure_ascii=False),
+            _json.dumps(fact_metadata, ensure_ascii=False),
         ),
     )
-    return {"inserted_doc": inserted_doc, "inserted_fact": cur.rowcount > 0, "duplicate": not inserted_doc}
+    mapping_required = resolved_mapping_id is None
+    return {
+        "inserted_doc": inserted_doc,
+        "inserted_fact": cur.rowcount > 0,
+        "duplicate": not inserted_doc,
+        "mapping_id": resolved_mapping_id,
+        "mapping_required": mapping_required,
+        "status": "mapping_required" if mapping_required else "stored",
+    }
 
 
 def run_existing_source_backfill(pg_url: str, source_id: str, limit: int = 50) -> dict:
@@ -1072,97 +1117,17 @@ def run_existing_source_backfill(pg_url: str, source_id: str, limit: int = 50) -
                         publish_time=str(row.get("publish_time")) if row.get("publish_time") else None,
                         doc_type=row.get("doc_type"),
                     )
-                    cur.execute(
-                        """
-                        INSERT INTO raw_evidence_documents (
-                            doc_id, source_id, source_type, source_level, company_code,
-                            company_name, title, publish_time, url, content_text,
-                            content_hash, doc_type, doc_status, license_status, metadata
-                        )
-                        VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                            'active', %s, %s::jsonb
-                        )
-                        ON CONFLICT (content_hash) DO NOTHING
-                        """,
-                        (
-                            document.doc_id,
-                            source_id,
-                            source.source_type,
-                            source.source_level,
-                            document.company_code,
-                            document.company_name,
-                            document.title,
-                            document.publish_time,
-                            document.url,
-                            document.content_text,
-                            document.content_hash,
-                            document.doc_type,
-                            source.license_status,
-                            json.dumps({"backfill_job_id": job_id}, ensure_ascii=False),
-                        ),
-                    )
-                    if cur.rowcount == 0:
-                        duplicates += 1
-                    else:
-                        inserted_docs += 1
-
-                    cur.execute(
-                        """
-                        SELECT mapping_id, chain_id, node_id, tag_name
-                        FROM business_tag_mapping
-                        WHERE split_part(code, '.', 1) = %s OR code = %s
-                        ORDER BY confidence DESC NULLS LAST
-                        LIMIT 1
-                        """,
-                        (str(document.company_code or "").split(".")[0], document.company_code),
-                    )
-                    mapping = cur.fetchone()
-                    if not mapping:
-                        continue
-
-                    fact = extract_fact_from_document(document)
                     fact_nature = "analyst_estimate" if source_id == "broker_expectation_local" else _fact_nature_for_level(source.source_level)
-                    cur.execute(
-                        """
-                        INSERT INTO evidence_extracted_facts (
-                            fact_id, doc_id, mapping_id, company_code, chain_id, l5_tag,
-                            fact_type, fact_nature, original_quote, source_level,
-                            confidence, confidence_cap, research_stage_signal,
-                            commercial_stage_signal, growth_signal, profit_signal,
-                            moat_signal, risk_signal, validation_status, metadata
-                        )
-                        VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb
-                        )
-                        ON CONFLICT (fact_id) DO NOTHING
-                        """,
-                        (
-                            _fact_id(document.doc_id, mapping["mapping_id"]),
-                            document.doc_id,
-                            mapping["mapping_id"],
-                            document.company_code or "",
-                            mapping["chain_id"],
-                            mapping["tag_name"],
-                            fact.fact_type,
-                            fact_nature,
-                            fact.original_quote,
-                            source.source_level,
-                            fact.confidence,
-                            fact.confidence_cap,
-                            fact.research_stage_signal,
-                            fact.commercial_stage_signal,
-                            fact.growth_signal,
-                            fact.profit_signal,
-                            fact.moat_signal,
-                            fact.risk_signal,
-                            fact.validation_status,
-                            json.dumps({"backfill_job_id": job_id, "node_id": mapping["node_id"]}, ensure_ascii=False),
-                        ),
+                    result = _insert_raw_document_and_fact(
+                        cur,
+                        document,
+                        source,
+                        job_id,
+                        fact_nature=fact_nature,
                     )
-                    if cur.rowcount:
-                        inserted_facts += 1
+                    inserted_docs += 1 if result["inserted_doc"] else 0
+                    inserted_facts += 1 if result["inserted_fact"] else 0
+                    duplicates += 1 if result["duplicate"] else 0
                 except Exception:
                     failed += 1
 
@@ -1919,6 +1884,7 @@ def load_weak_signal_documents(file_path: str, source_id: str) -> list[RawDocume
                 company_name=item.get("company_name"),
                 publish_time=item.get("publish_time"),
                 doc_type=item.get("doc_type") or source.source_type,
+                metadata=item.get("metadata") if isinstance(item.get("metadata"), dict) else None,
             )
         )
     return documents

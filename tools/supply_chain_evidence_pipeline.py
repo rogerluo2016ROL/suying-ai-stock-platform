@@ -13,7 +13,7 @@ import hashlib
 import json
 from datetime import datetime
 from dataclasses import asdict, dataclass
-from typing import Literal
+from typing import Any, Literal
 
 
 SourceLevel = Literal["strong", "mid", "weak"]
@@ -62,6 +62,7 @@ class ExtractedFact:
     moat_signal: bool = False
     risk_signal: bool = False
     fact_value: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -122,6 +123,14 @@ def _confidence_cap_for_level(source_level: str) -> float:
     return 0.45
 
 
+def sanitize_pending_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
+    if metadata is None:
+        return None
+    sanitized = dict(metadata)
+    sanitized.pop("review_normalization", None)
+    return sanitized
+
+
 def map_source_type_to_source_level(source_type: str) -> SourceLevel:
     text = str(source_type or "")
     if _contains_any(text, STRONG_SOURCE_HINTS):
@@ -167,21 +176,12 @@ def decide_stage_transition(
             reason="no upward stage signal",
         )
 
-    if source_level == "strong":
-        return StageTransitionDecision(
-            new_research_stage=new_research,
-            new_commercial_stage=new_commercial,
-            review_status="approved",
-            auto_apply=True,
-            reason="strong evidence stage signal",
-        )
-
     return StageTransitionDecision(
         new_research_stage=new_research,
         new_commercial_stage=new_commercial,
         review_status="pending_review",
         auto_apply=False,
-        reason="mid evidence requires review",
+        reason=f"{source_level} evidence requires manual review",
     )
 
 
@@ -192,6 +192,7 @@ def extract_fact_from_text(
     company_code: str,
     l5_tag: str,
     l6_route: str | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> ExtractedFact:
     """Extract one conservative business-tag fact from source text."""
     normalized = " ".join(str(text or "").split())
@@ -207,7 +208,7 @@ def extract_fact_from_text(
         fact_type = "weak_signal"
         confidence = min(0.35, confidence_cap)
     else:
-        validation_status = "confirmed" if source_level == "strong" else "pending"
+        validation_status = "pending"
         fact_nature = "analyst_estimate" if _contains_any(normalized, EXPECTATION_KEYWORDS) and source_level == "mid" else (
             "confirmed_fact" if source_level == "strong" else "media_report"
         )
@@ -239,6 +240,7 @@ def extract_fact_from_text(
         moat_signal=_contains_any(normalized, MOAT_KEYWORDS),
         risk_signal=_contains_any(normalized, RISK_KEYWORDS),
         fact_value=normalized[:300],
+        metadata=sanitize_pending_metadata(metadata),
     )
 
 
@@ -554,6 +556,7 @@ def build_legacy_evidence_event_record(
     title: str,
     url: str | None,
     fact: ExtractedFact,
+    publish_time: datetime | None = None,
 ) -> dict:
     if fact.commercial_stage_signal:
         evidence_type = "commercial_stage"
@@ -567,14 +570,13 @@ def build_legacy_evidence_event_record(
         evidence_type = "growth"
     else:
         evidence_type = fact.fact_type or "business_presence"
-    review_status = "approved" if fact.source_level == "strong" and fact.validation_status == "confirmed" else "pending_review"
     event_id = _stable_id("EV", fact_id, mapping_id, company_code, title)
     return {
         "event_id": event_id,
         "mapping_id": mapping_id,
         "code": company_code,
         "node_id": node_id,
-        "event_date": datetime.now().date(),
+        "event_date": publish_time.date() if publish_time else None,
         "source_type": source_type,
         "source_id": source_id,
         "title": title,
@@ -591,7 +593,7 @@ def build_legacy_evidence_event_record(
             "fact_id": fact_id,
         },
         "confidence": min(fact.confidence, fact.confidence_cap),
-        "review_status": review_status,
+        "review_status": "pending_review",
         "review_note": "auto synced from evidence_extracted_facts",
     }
 
@@ -673,40 +675,22 @@ def _query_source_record(cur, source_id: str) -> dict:
     }
 
 
-def _query_mapping_for_text(cur, company_code: str, text: str, l5_tag: str | None) -> dict:
-    if l5_tag:
-        cur.execute(
-            """
-            SELECT mapping_id, chain_id, tag_name, node_id
-            FROM business_tag_mapping
-            WHERE code = %s AND tag_name = %s
-            ORDER BY updated_at DESC NULLS LAST
-            LIMIT 1
-            """,
-            (company_code, l5_tag),
-        )
-    else:
-        cur.execute(
-            """
-            SELECT mapping_id, chain_id, tag_name, node_id
-            FROM business_tag_mapping
-            WHERE code = %s
-            ORDER BY confidence DESC NULLS LAST, updated_at DESC NULLS LAST
-            LIMIT 20
-            """,
-            (company_code,),
-        )
-    rows = cur.fetchall()
-    if not rows:
-        return {"mapping_id": None, "chain_id": None, "l5_tag": l5_tag or "", "node_id": None}
-    if l5_tag:
-        row = rows[0]
-        return {"mapping_id": row[0], "chain_id": row[1], "l5_tag": row[2], "node_id": row[3]}
-    for row in rows:
-        tag_name = str(row[2] or "")
-        if tag_name and tag_name in text:
-            return {"mapping_id": row[0], "chain_id": row[1], "l5_tag": tag_name, "node_id": row[3]}
-    row = rows[0]
+def _query_mapping_by_id(cur, company_code: str, mapping_id: str | None) -> dict:
+    if not mapping_id:
+        return {"mapping_id": None, "chain_id": None, "l5_tag": "", "node_id": None}
+    cur.execute(
+        """
+        SELECT mapping_id, chain_id, tag_name, node_id
+        FROM business_tag_mapping
+        WHERE mapping_id = %s
+          AND (code = %s OR split_part(code, '.', 1) = split_part(%s, '.', 1))
+        LIMIT 1
+        """,
+        (mapping_id, company_code, company_code),
+    )
+    row = cur.fetchone()
+    if not row:
+        return {"mapping_id": None, "chain_id": None, "l5_tag": "", "node_id": None}
     return {"mapping_id": row[0], "chain_id": row[1], "l5_tag": row[2], "node_id": row[3]}
 
 
@@ -773,15 +757,18 @@ def ingest_text_document(
     title: str,
     text: str,
     url: str | None = None,
+    publish_time: datetime | None = None,
+    mapping_id: str | None = None,
     l5_tag: str | None = None,
     l6_route: str | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> dict:
     import psycopg2
 
     with psycopg2.connect(pg_url) as conn:
         with conn.cursor() as cur:
             source = _query_source_record(cur, source_id)
-            mapping = _query_mapping_for_text(cur, company_code, text, l5_tag)
+            mapping = _query_mapping_by_id(cur, company_code, mapping_id)
             resolved_l5 = str(mapping.get("l5_tag") or l5_tag or "")
             fact = extract_fact_from_text(
                 text=text,
@@ -789,10 +776,13 @@ def ingest_text_document(
                 company_code=company_code,
                 l5_tag=resolved_l5,
                 l6_route=l6_route,
+                metadata=metadata,
             )
             content_hash = build_document_hash(source_id, url, title, text)
             doc_id = _stable_id("DOC", source_id, content_hash)
             fact_id = _stable_id("FACT", doc_id, company_code, resolved_l5, fact.fact_type)
+            raw_metadata = dict(metadata or {})
+            raw_metadata["ingest_method"] = "manual_text"
             cur.execute(
                 """
                 INSERT INTO raw_evidence_documents (
@@ -808,6 +798,7 @@ def ingest_text_document(
                     company_code = EXCLUDED.company_code,
                     company_name = EXCLUDED.company_name,
                     title = EXCLUDED.title,
+                    publish_time = EXCLUDED.publish_time,
                     url = EXCLUDED.url,
                     content_text = EXCLUDED.content_text,
                     doc_status = EXCLUDED.doc_status,
@@ -824,16 +815,18 @@ def ingest_text_document(
                     company_code,
                     company_name,
                     title,
-                    datetime.now(),
+                    publish_time,
                     url,
                     text,
                     content_hash,
                     "active",
                     source["license_status"],
-                    json.dumps({"ingest_method": "manual_text"}, ensure_ascii=False),
+                    json.dumps(raw_metadata, ensure_ascii=False),
                 ),
             )
             stored_doc_id = cur.fetchone()[0]
+            fact_metadata = dict(fact.metadata or {})
+            fact_metadata.update({"source_id": source_id, "company_name": company_name})
             cur.execute(
                 """
                 INSERT INTO evidence_extracted_facts (
@@ -894,7 +887,7 @@ def ingest_text_document(
                     fact.moat_signal,
                     fact.risk_signal,
                     fact.validation_status,
-                    json.dumps({"source_id": source_id, "company_name": company_name}, ensure_ascii=False),
+                    json.dumps(fact_metadata, ensure_ascii=False),
                 ),
             )
             legacy_event = build_legacy_evidence_event_record(
@@ -907,10 +900,12 @@ def ingest_text_document(
                 title=title,
                 url=url,
                 fact=fact,
+                publish_time=publish_time,
             )
             _upsert_legacy_evidence_event(cur, legacy_event)
             freshness_rows = refresh_evidence_freshness(cur)
         conn.commit()
+    mapping_required = mapping.get("mapping_id") is None
     return {
         "documents": 1,
         "facts": 1,
@@ -919,6 +914,9 @@ def ingest_text_document(
         "doc_id": stored_doc_id,
         "fact_id": fact_id,
         "event_id": legacy_event["event_id"],
+        "mapping_id": mapping.get("mapping_id"),
+        "mapping_required": mapping_required,
+        "status": "mapping_required" if mapping_required else "stored",
     }
 
 
@@ -1076,7 +1074,7 @@ def backfill_existing_events(*, pg_url: str, run_prefix: str | None = None, limi
                         level,
                         code,
                         title_text,
-                        event_date or datetime.now(),
+                        event_date,
                         original_url,
                         text,
                         content_hash,
@@ -1138,7 +1136,7 @@ def backfill_existing_events(*, pg_url: str, run_prefix: str | None = None, limi
                         fact.profit_signal,
                         fact.moat_signal,
                         fact.risk_signal,
-                        "confirmed" if str(review_status or "") == "approved" and level == "strong" else fact.validation_status,
+                        "pending",
                         event_id,
                         json.dumps({"backfill": True, "source_type": source_type}, ensure_ascii=False),
                     ),
@@ -1178,7 +1176,6 @@ def refresh_stage_transitions(*, pg_url: str, run_prefix: str | None = None, lim
             )
             facts = cur.fetchall()
             transitions = 0
-            applied = 0
             for fact in facts:
                 fact_id, mapping_id, event_id, source_level, research_signal, commercial_signal, quote, created_at = fact
                 cur.execute(
@@ -1233,37 +1230,8 @@ def refresh_stage_transitions(*, pg_url: str, run_prefix: str | None = None, lim
                     ),
                 )
                 transitions += 1
-                if decision.auto_apply:
-                    stage_id = _stable_id("STAGE", transition_id)
-                    cur.execute(
-                        """
-                        INSERT INTO business_tag_stage_tracking (
-                            stage_id, mapping_id, trade_date, research_stage,
-                            commercialization_stage, stage_reason, source_event_id,
-                            last_stage_change_date, review_status
-                        )
-                        VALUES (%s, %s, CURRENT_DATE, %s, %s, %s, %s, CURRENT_DATE, %s)
-                        ON CONFLICT (stage_id) DO UPDATE SET
-                            research_stage = EXCLUDED.research_stage,
-                            commercialization_stage = EXCLUDED.commercialization_stage,
-                            stage_reason = EXCLUDED.stage_reason,
-                            source_event_id = EXCLUDED.source_event_id,
-                            last_stage_change_date = EXCLUDED.last_stage_change_date,
-                            review_status = EXCLUDED.review_status
-                        """,
-                        (
-                            stage_id,
-                            mapping_id,
-                            new_research,
-                            new_commercial,
-                            reason,
-                            event_id,
-                            decision.review_status,
-                        ),
-                    )
-                    applied += 1
         conn.commit()
-    return {"facts_read": len(facts), "transitions": transitions, "stage_applied": applied}
+    return {"facts_read": len(facts), "transitions": transitions, "stage_applied": 0}
 
 
 def refresh_expectation_monitor(*, pg_url: str, run_prefix: str | None = None, limit: int = 1000) -> dict:
@@ -1482,6 +1450,8 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--title", required=True)
     ingest.add_argument("--text", required=True)
     ingest.add_argument("--url")
+    ingest.add_argument("--publish-time", help="ISO-8601 source publication time; omit when unknown")
+    ingest.add_argument("--mapping-id", help="Explicit business_tag_mapping id; omit to keep the fact unmapped")
     ingest.add_argument("--l5-tag")
     ingest.add_argument("--l6-route")
 
@@ -1523,6 +1493,8 @@ def main() -> int:
             title=args.title,
             text=args.text,
             url=args.url,
+            publish_time=datetime.fromisoformat(args.publish_time) if args.publish_time else None,
+            mapping_id=args.mapping_id,
             l5_tag=args.l5_tag,
             l6_route=args.l6_route,
         ), ensure_ascii=False))

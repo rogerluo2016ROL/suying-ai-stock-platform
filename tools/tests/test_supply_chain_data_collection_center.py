@@ -1,4 +1,6 @@
 import importlib.util
+import inspect
+import json
 import sys
 from pathlib import Path
 
@@ -274,21 +276,129 @@ def test_parse_tender_award_fact_rejects_noise_titles_even_with_amounts():
     ) is None
 
 
-def test_extract_fact_from_strong_document_detects_commercial_progress():
+def test_extract_fact_from_strong_document_still_requires_review():
     document = center.RawDocument(
         source_id="cninfo_announcement",
         source_level="strong",
-        title="订单公告",
-        content_text="公司800G高速光模块已实现批量供货，收入占比持续提升。",
-        company_code="300308.SZ",
+        title="公告",
+        content_text="公司灵巧手执行器已实现批量供货。",
+        company_code="003021",
+        publish_time="2026-07-09T09:00:00+08:00",
     )
 
     fact = center.extract_fact_from_document(document)
 
     assert fact.fact_type == "commercial_progress"
     assert fact.commercial_stage_signal == "C4"
-    assert fact.growth_signal is True
-    assert fact.validation_status == "confirmed"
+    assert fact.validation_status == "pending"
+
+
+def test_pending_fact_preserves_only_sanitized_explicit_document_metadata():
+    metadata = {
+        "application_domain": "dexterous_hand",
+        "installation_position": "robot_wrist",
+        "revenue_confirmed": False,
+        "legal_status": "granted",
+        "legal_status_date": "2026-07-09",
+        "review_normalization": {"risk_score": 99},
+    }
+    assert "metadata" in inspect.signature(center.RawDocument).parameters
+    assert "metadata" in inspect.signature(center.ExtractedFact).parameters
+
+    document = center.RawDocument(
+        source_id="cninfo_announcement",
+        source_level="strong",
+        title="产品与专利公告",
+        content_text="公司机器人产品已获得专利。",
+        company_code="003021",
+        metadata=metadata,
+    )
+
+    fact = center.extract_fact_from_document(document)
+
+    assert fact.metadata == {
+        "application_domain": "dexterous_hand",
+        "installation_position": "robot_wrist",
+        "revenue_confirmed": False,
+        "legal_status": "granted",
+        "legal_status_date": "2026-07-09",
+    }
+
+
+def test_pending_document_metadata_round_trips_without_guessing_mapping():
+    metadata = {
+        "application_domain": "dexterous_hand",
+        "installation_position": "robot_wrist",
+        "revenue_confirmed": False,
+        "legal_status": "granted",
+        "legal_status_date": "2026-07-09",
+        "review_normalization": {"risk_score": 99},
+    }
+    document_kwargs = {
+        "source_id": "cninfo_announcement",
+        "source_level": "strong",
+        "title": "产品与专利公告",
+        "content_text": "公司机器人产品已获得专利。",
+        "company_code": "003021",
+        "publish_time": "2026-07-09T09:00:00+08:00",
+    }
+    if "metadata" in inspect.signature(center.RawDocument).parameters:
+        document_kwargs["metadata"] = metadata
+    document = center.RawDocument(**document_kwargs)
+
+    class RecordingCursor:
+        rowcount = 1
+
+        def __init__(self):
+            self.calls = []
+
+        def execute(self, sql, params=None):
+            self.calls.append((sql, params))
+            self.rowcount = 1
+
+        def fetchone(self):
+            return {
+                "mapping_id": "MAP-HIGHEST-CONFIDENCE",
+                "chain_id": "embodied_intelligence",
+                "node_id": "robot_component",
+                "tag_name": "机器人零部件",
+            }
+
+    cursor = RecordingCursor()
+    result = center._insert_raw_document_and_fact(
+        cursor,
+        document,
+        center._source_by_id("cninfo_announcement"),
+        "JOB-1",
+    )
+    _, raw_params = next(call for call in cursor.calls if "INSERT INTO raw_evidence_documents" in call[0])
+    _, fact_params = next(call for call in cursor.calls if "INSERT INTO evidence_extracted_facts" in call[0])
+    raw_metadata = json.loads(raw_params[-1])
+    fact_metadata = json.loads(fact_params[-1])
+
+    assert raw_metadata["review_normalization"] == {"risk_score": 99}
+    assert raw_metadata["application_domain"] == "dexterous_hand"
+    assert fact_metadata["application_domain"] == "dexterous_hand"
+    assert fact_metadata["installation_position"] == "robot_wrist"
+    assert fact_metadata["revenue_confirmed"] is False
+    assert fact_metadata["legal_status"] == "granted"
+    assert fact_metadata["legal_status_date"] == "2026-07-09"
+    assert "review_normalization" not in fact_metadata
+    assert fact_params[2] is None
+    assert not any("FROM business_tag_mapping" in sql for sql, _ in cursor.calls)
+    assert result.get("status") == "mapping_required"
+
+
+def test_generic_keyword_hit_does_not_invent_route_metadata():
+    fact = center.extract_fact_from_document(center.RawDocument(
+        source_id="cninfo_announcement",
+        source_level="strong",
+        title="普通业务公告",
+        content_text="公司机器人产品已获得专利并形成收入。",
+        company_code="003021",
+    ))
+
+    assert getattr(fact, "metadata", {"missing": True}) is None
 
 
 def test_extract_fact_from_weak_document_does_not_upgrade_stage():
@@ -354,7 +464,7 @@ def test_run_source_supports_only_existing_backfill_sources():
         raise AssertionError("broker_expectation should not run without a licensed adapter")
 
 
-def test_build_legacy_event_record_from_strong_fact_is_approved():
+def test_build_legacy_event_record_from_strong_fact_requires_review():
     record = center.build_legacy_event_record_from_fact({
         "fact_id": "FACT-1",
         "mapping_id": "MAP-1",
@@ -376,7 +486,7 @@ def test_build_legacy_event_record_from_strong_fact_is_approved():
 
     assert record["event_id"].startswith("EV-")
     assert record["evidence_type"] == "commercial_stage"
-    assert record["review_status"] == "approved"
+    assert record["review_status"] == "pending_review"
     assert record["impact_dimensions"]["growth"] is True
 
 
