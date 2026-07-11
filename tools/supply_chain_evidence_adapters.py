@@ -5,10 +5,15 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date, datetime
-import re
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
-from supply_chain_data_collection_center import RawDocument
+from supply_chain_data_collection_center import (
+    DocumentFetchError,
+    RawDocument,
+    sanitize_sensitive_text,
+    shanghai_today,
+)
 
 
 EVENT_SOURCE_TYPES = {
@@ -24,6 +29,7 @@ STATIC_SOURCE_TYPES = {
     "company_profile",
     "patent",
 }
+_SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 
 def normalize_stock_code(value: object) -> str:
@@ -33,24 +39,17 @@ def normalize_stock_code(value: object) -> str:
 def sanitize_error(exc: Exception) -> str:
     """Return a bounded diagnostic without credentials or bearer tokens."""
 
-    message = str(exc)[:500]
-    patterns = (
-        (r"(?i)(authorization)\s*[:=]\s*(?:bearer\s+)?[^\s,;]+", r"\1=<redacted>"),
-        (
-            r"(?i)(cookie|x-api-key|api[_-]?key|token|password|passwd|secret|client_secret)\s*[:=]\s*[^\s,;]+",
-            r"\1=<redacted>",
-        ),
-        (r"(?i)([a-z][a-z0-9+.-]*://)[^/@\s]+:[^/@\s]+@", r"\1<redacted>@"),
-        (r"(?i)(bearer)\s+[^\s,;]+", r"\1 <redacted>"),
-    )
-    for pattern, replacement in patterns:
-        message = re.sub(pattern, replacement, message)
-    return f"{type(exc).__name__}: {message}"
+    return f"{type(exc).__name__}: {sanitize_sensitive_text(exc)}"
 
 
 def _parse_date(value: object) -> date | None:
     if isinstance(value, datetime):
-        return value.date()
+        localized = (
+            value.replace(tzinfo=_SHANGHAI)
+            if value.tzinfo is None
+            else value.astimezone(_SHANGHAI)
+        )
+        return localized.date()
     if isinstance(value, date):
         return value
     text = str(value or "").strip()
@@ -59,7 +58,15 @@ def _parse_date(value: object) -> date | None:
     if len(text) >= 8 and text[:8].isdigit():
         text = f"{text[:4]}-{text[4:6]}-{text[6:8]}"
     try:
-        return date.fromisoformat(text[:10])
+        if len(text) <= 10:
+            return date.fromisoformat(text[:10])
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        localized = (
+            parsed.replace(tzinfo=_SHANGHAI)
+            if parsed.tzinfo is None
+            else parsed.astimezone(_SHANGHAI)
+        )
+        return localized.date()
     except ValueError:
         return None
 
@@ -79,13 +86,13 @@ def current_support_status(document: RawDocument, as_of_date: date) -> str:
     if document.doc_type == "patent":
         legal_status = str(metadata.get("legal_status") or "").casefold()
         checked = _parse_date(metadata.get("legal_status_date"))
-        return (
-            "current"
-            if legal_status in {"active", "granted"}
-            and checked is not None
-            and checked <= as_of_date
-            else "historical_only"
-        )
+        if legal_status in {"active", "granted"}:
+            if checked is None:
+                return "pending_review"
+            return "current" if checked <= as_of_date else "historical_only"
+        if legal_status in {"expired", "revoked", "lapsed", "invalid"}:
+            return "historical_only"
+        return "pending_review"
     if document.doc_type in {"official_product_page", "official_site_page"}:
         checked = _parse_date(metadata.get("verified_current_date"))
         if (
@@ -101,7 +108,11 @@ def current_support_status(document: RawDocument, as_of_date: date) -> str:
     published = _parse_date(document.publish_time)
     if published is None:
         return "pending_review"
-    return "current" if start_date is None or published >= start_date else "historical_only"
+    return (
+        "current"
+        if (start_date is None or published >= start_date) and published <= as_of_date
+        else "historical_only"
+    )
 
 
 @dataclass(frozen=True)
@@ -288,6 +299,8 @@ class OfficialGapAdapter:
                 documents.extend(fetched)
                 requests += int(request_count)
             except Exception as exc:
+                documents.extend(getattr(exc, "documents", ()) or ())
+                requests += int(getattr(exc, "request_count", 0) or 0)
                 failed.append(f"{task.mapping_id}:{task.requirement_id}")
                 errors.append(sanitize_error(exc))
         deduplicated = _dedupe_documents(documents)
@@ -333,6 +346,8 @@ class OfficialDiscoveryAdapter:
                 documents.extend(fetched)
                 requests += int(request_count)
             except Exception as exc:
+                documents.extend(getattr(exc, "documents", ()) or ())
+                requests += int(getattr(exc, "request_count", 0) or 0)
                 failed.append(f"{task.chain_id}:{task.requirement_id}")
                 errors.append(sanitize_error(exc))
         deduplicated = _dedupe_documents(documents)
@@ -360,18 +375,35 @@ class ScopedOfficialFetcher:
     ) -> tuple[list[RawDocument], int]:
         event_start, _ = resolve_collection_window("announcement", as_of_date)
         product_start, _ = resolve_collection_window("official_product_page", as_of_date)
-        cninfo_documents, cninfo_requests = self.cninfo_fetch(
-            company_codes=(task.company_code,),
-            as_of_date=as_of_date,
-            start_date=event_start,
-            limit=document_limit,
-        )
-        ir_documents, ir_requests = self.ir_fetch(
-            company_codes=(task.company_code,),
-            as_of_date=as_of_date,
-            start_date=product_start,
-            pages_per_company=pages_per_company,
-        )
+        try:
+            cninfo_documents, cninfo_requests = self.cninfo_fetch(
+                company_codes=(task.company_code,),
+                as_of_date=as_of_date,
+                start_date=event_start,
+                limit=document_limit,
+            )
+        except Exception:
+            raise
+        cninfo_documents = list(cninfo_documents)[:document_limit]
+        try:
+            ir_documents, ir_requests = self.ir_fetch(
+                company_codes=(task.company_code,),
+                as_of_date=as_of_date,
+                start_date=product_start,
+                pages_per_company=pages_per_company,
+            )
+        except Exception as exc:
+            raise DocumentFetchError(
+                exc,
+                request_count=int(cninfo_requests)
+                + int(getattr(exc, "request_count", 0) or 0),
+                documents=[
+                    *cninfo_documents,
+                    *(getattr(exc, "documents", ()) or ()),
+                ],
+                failed_count=int(getattr(exc, "failed_count", 1) or 1),
+                skipped_count=int(getattr(exc, "skipped_count", 0) or 0),
+            ) from exc
         queries = tuple(query.casefold() for query in task.queries if query)
         filtered: list[RawDocument] = []
         for item in [*cninfo_documents, *ir_documents]:
@@ -392,9 +424,7 @@ class ScopedOfficialFetcher:
                     as_of_date=as_of_date,
                 )
             )
-        return list(_dedupe_documents(filtered))[:document_limit], int(
-            cninfo_requests
-        ) + int(ir_requests)
+        return list(_dedupe_documents(filtered)), int(cninfo_requests) + int(ir_requests)
 
 
 class ScopedOfficialDiscoveryFetcher:
@@ -419,6 +449,7 @@ class ScopedOfficialDiscoveryFetcher:
             as_of_date=as_of_date,
             limit=document_limit,
         )
+        documents = list(documents)[:document_limit]
         allowed = {
             normalize_stock_code(code) for code in task.allowed_company_codes if code
         }
@@ -434,12 +465,25 @@ class ScopedOfficialDiscoveryFetcher:
             if not allowed or normalize_stock_code(code) in allowed
         ][:company_limit]
         if seeds:
-            ir_documents, ir_requests = self.ir_fetch(
-                company_codes=tuple(seeds),
-                start_date=None,
-                as_of_date=as_of_date,
-                pages_per_company=pages_per_company,
-            )
+            try:
+                ir_documents, ir_requests = self.ir_fetch(
+                    company_codes=tuple(seeds),
+                    start_date=None,
+                    as_of_date=as_of_date,
+                    pages_per_company=pages_per_company,
+                )
+            except Exception as exc:
+                raise DocumentFetchError(
+                    exc,
+                    request_count=int(requests)
+                    + int(getattr(exc, "request_count", 0) or 0),
+                    documents=[
+                        *documents,
+                        *(getattr(exc, "documents", ()) or ()),
+                    ],
+                    failed_count=int(getattr(exc, "failed_count", 1) or 1),
+                    skipped_count=int(getattr(exc, "skipped_count", 0) or 0),
+                ) from exc
             documents.extend(ir_documents)
             requests += int(ir_requests)
         annotated = [
@@ -453,7 +497,7 @@ class ScopedOfficialDiscoveryFetcher:
             )
             for item in documents
         ]
-        return list(_dedupe_documents(annotated))[:document_limit], int(requests)
+        return list(_dedupe_documents(annotated)), int(requests)
 
 
 def collect_local_then_official(
@@ -466,7 +510,7 @@ def collect_local_then_official(
 ) -> AdapterResult:
     """Collect each explicit mapping locally and send only misses to official sources."""
 
-    cutoff = as_of_date or date.today()
+    cutoff = as_of_date or shanghai_today()
     documents: list[RawDocument] = []
     failed: list[str] = []
     errors: list[str] = []

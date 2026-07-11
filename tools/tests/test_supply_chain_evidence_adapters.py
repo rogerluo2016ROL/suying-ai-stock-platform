@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 import psycopg2
+import pytest
 
 import supply_chain_data_collection_center as center
 from supply_chain_data_collection_center import RawDocument
@@ -484,3 +486,362 @@ def test_legacy_official_commands_delegate_to_document_only_helpers(monkeypatch)
     assert cninfo_result["fetched"] == 1
     assert ir_result["fetched_pages"] == 1
     assert [row[0].title for row in persisted] == ["关于签订重大合同的公告", "ir-wrapper"]
+
+
+class CountedFetchError(RuntimeError):
+    def __init__(self, message, *, request_count, documents=()):
+        super().__init__(message)
+        self.request_count = request_count
+        self.documents = tuple(documents)
+
+
+def test_helper_http_failure_raises_safe_counted_error_instead_of_empty(monkeypatch):
+    connection = FakeConnection(
+        [
+            {
+                "code": "003021",
+                "company_name": "兆威机电",
+                "ann_date": "20260701",
+                "publish_date": date(2026, 7, 1),
+                "title": "重大合同公告",
+                "url": "https://example.test?announcementId=1",
+                "ts_code": "003021.SZ",
+            }
+        ]
+    )
+    monkeypatch.setattr(psycopg2, "connect", lambda *_args, **_kwargs: connection)
+
+    class Session:
+        headers = {}
+
+        def post(self, *_args, **_kwargs):
+            response = FakeResponse()
+            response.status_code = 503
+            return response
+
+    with pytest.raises(Exception) as caught:
+        center.fetch_cninfo_documents(
+            "postgresql://unused",
+            company_codes=("003021",),
+            start_date=date(2023, 1, 1),
+            as_of_date=AS_OF,
+            limit=1,
+            session=Session(),
+        )
+
+    assert getattr(caught.value, "request_count", None) == 1
+    assert "503" in str(caught.value)
+
+
+def test_global_cninfo_json_and_pdf_failures_preserve_request_count(monkeypatch):
+    class JsonFailureSession:
+        headers = {}
+
+        def post(self, *_args, **_kwargs):
+            class Response(FakeResponse):
+                def json(self):
+                    raise ValueError('bad json token="secret-json"')
+
+            return Response()
+
+    with pytest.raises(Exception) as json_error:
+        center.fetch_cninfo_keyword_documents(
+            product_terms=("轴向磁通",),
+            scene_terms=("机器人腕部",),
+            require_product_and_scene=True,
+            allowed_company_codes=(),
+            as_of_date=AS_OF,
+            limit=1,
+            session=JsonFailureSession(),
+        )
+    assert getattr(json_error.value, "request_count", None) == 1
+    assert "secret-json" not in str(json_error.value)
+
+    candidate = {
+        "announcementId": "a1",
+        "announcementTitle": "轴向磁通电机",
+        "adjunctUrl": "a1.pdf",
+        "secCode": "688001",
+        "announcementTime": "2026-07-01",
+    }
+
+    class PdfFailureSession:
+        headers = {}
+
+        def post(self, *_args, **_kwargs):
+            return FakeResponse(payload={"announcements": [candidate]})
+
+        def get(self, *_args, **_kwargs):
+            raise RuntimeError("download password='pdf secret'")
+
+    with pytest.raises(Exception) as pdf_error:
+        center.fetch_cninfo_keyword_documents(
+            product_terms=("轴向磁通",),
+            scene_terms=("机器人腕部",),
+            require_product_and_scene=True,
+            allowed_company_codes=(),
+            as_of_date=AS_OF,
+            limit=1,
+            session=PdfFailureSession(),
+        )
+    assert getattr(pdf_error.value, "request_count", None) == 2
+    assert "pdf secret" not in str(pdf_error.value)
+
+
+def test_adapter_converts_counted_fetch_failure_to_partial_with_documents_and_count():
+    partial = document("partial-official")
+
+    class Fetcher:
+        def fetch(self, *_args, **_kwargs):
+            raise CountedFetchError(
+                "headers={'Authorization': 'Bearer hidden-token'}",
+                request_count=2,
+                documents=(partial,),
+            )
+
+    result = OfficialGapAdapter(Fetcher()).collect(
+        [collection_task()], as_of_date=AS_OF, source_limits={}
+    )
+
+    assert result.status == "partial_success"
+    assert result.documents == (partial,)
+    assert result.failed_tasks == ("m1:product_or_prototype",)
+    assert result.network_requests == 2
+    assert "hidden-token" not in " ".join(result.errors)
+
+
+def test_event_dates_use_shanghai_day_and_enforce_both_window_bounds():
+    utc_future_in_shanghai = document(
+        "utc-future",
+        publish_time=datetime(2026, 7, 9, 16, 30, tzinfo=timezone.utc),
+    )
+    naive_shanghai_same_day = document(
+        "naive-same-day", publish_time=datetime(2026, 7, 9, 23, 59)
+    )
+    before_window = document("before-window", publish_time="2022-12-31")
+
+    assert current_support_status(utc_future_in_shanghai, AS_OF) == "historical_only"
+    assert current_support_status(naive_shanghai_same_day, AS_OF) == "current"
+    assert current_support_status(before_window, AS_OF) == "historical_only"
+
+
+def test_scoped_mapped_limit_only_caps_cninfo_not_ir_documents():
+    cninfo = [document("cn-1"), document("cn-2")]
+    ir = [
+        document(
+            f"ir-{index}",
+            text="灵巧手用于机器人手部",
+            doc_type="official_product_page",
+            publish_time=None,
+        )
+        for index in range(3)
+    ]
+    fetcher = ScopedOfficialFetcher(
+        cninfo_fetch=lambda **_kwargs: (cninfo, 1),
+        ir_fetch=lambda **_kwargs: (ir, 3),
+    )
+
+    rows, request_count = fetcher.fetch(
+        collection_task(), as_of_date=AS_OF, document_limit=1, pages_per_company=3
+    )
+
+    assert [row.title for row in rows] == ["cn-1", "ir-0", "ir-1", "ir-2"]
+    assert request_count == 4
+
+
+def test_discovery_limits_cninfo_documents_seed_companies_and_ir_pages_separately():
+    from supply_chain_evidence_adapters import ScopedOfficialDiscoveryFetcher
+
+    calls = {}
+
+    def global_fetch(**kwargs):
+        calls["global"] = kwargs
+        return [document("cn-a", code="688001"), document("cn-b", code="688002")], 2
+
+    def ir_fetch(**kwargs):
+        calls["ir"] = kwargs
+        return [document("ir-seed", code="688001")], 1
+
+    task = UnmappedDiscoveryTask(
+        chain_id="dexterous_hand",
+        requirement_id="dexterous_axial_flux_motor",
+        product_terms=("轴向磁通",),
+        scene_terms=("机器人腕部",),
+        negative_examples=(),
+        require_product_and_scene=True,
+        seed_company_codes=("688001", "688002"),
+    )
+    rows, _ = ScopedOfficialDiscoveryFetcher(
+        global_cninfo_fetch=global_fetch, ir_fetch=ir_fetch
+    ).fetch_unmapped(
+        task,
+        as_of_date=AS_OF,
+        document_limit=1,
+        company_limit=1,
+        pages_per_company=2,
+    )
+
+    assert calls["global"]["limit"] == 1
+    assert calls["ir"]["company_codes"] == ("688001",)
+    assert calls["ir"]["pages_per_company"] == 2
+    assert [row.title for row in rows] == ["cn-a", "ir-seed"]
+
+
+def test_global_cninfo_limit_counts_deduplicated_download_attempts(monkeypatch):
+    monkeypatch.setattr(
+        center, "_extract_pdf_text", lambda _content: "轴向磁通机器人腕部"
+    )
+    candidates = [
+        {
+            "announcementId": value,
+            "announcementTitle": value,
+            "adjunctUrl": f"{value}.pdf",
+            "secCode": "688001",
+            "announcementTime": "2026-07-01",
+        }
+        for value in ("a1", "a2", "a3")
+    ]
+
+    class Session:
+        def __init__(self):
+            self.headers = {}
+            self.gets = []
+
+        def post(self, *_args, **_kwargs):
+            return FakeResponse(payload={"announcements": candidates})
+
+        def get(self, url, **_kwargs):
+            self.gets.append(url)
+            return FakeResponse(content=b"%PDF-ok")
+
+    session = Session()
+    rows, _ = center.fetch_cninfo_keyword_documents(
+        product_terms=("轴向磁通",),
+        scene_terms=("机器人腕部",),
+        require_product_and_scene=True,
+        allowed_company_codes=(),
+        as_of_date=AS_OF,
+        limit=1,
+        session=session,
+    )
+
+    assert len(session.gets) == 1
+    assert rows[0].metadata["source_limit_skipped_documents"] == 2
+
+
+@pytest.mark.parametrize(
+    ("raw", "secret"),
+    [
+        ('{"client_secret": "abc def"}', "abc def"),
+        ("{'Authorization': 'Bearer header-token'}", "header-token"),
+        ("https://example.test/path?token=query-token&x=1", "query-token"),
+        ("password='quoted secret value'", "quoted secret value"),
+        ("postgresql://alice:dsn-pass@localhost/db", "dsn-pass"),
+        ("Cookie: session cookie value", "session cookie value"),
+    ],
+)
+def test_sanitize_error_handles_structured_and_quoted_secrets(raw, secret):
+    assert secret not in sanitize_error(RuntimeError(raw))
+
+
+def test_patent_current_status_requires_official_active_status_and_check_date():
+    granted_claim = document(
+        "claim",
+        doc_type="patent",
+        metadata={
+            "legal_status": "granted_or_obtained",
+            "legal_status_date": "2026-07-01",
+        },
+    )
+    active_without_check = document(
+        "no-check", doc_type="patent", metadata={"legal_status": "active"}
+    )
+    active_verified = document(
+        "verified",
+        doc_type="patent",
+        metadata={"legal_status": "active", "legal_status_date": "2026-07-01"},
+    )
+
+    assert current_support_status(granted_claim, AS_OF) == "pending_review"
+    assert current_support_status(active_without_check, AS_OF) == "pending_review"
+    assert current_support_status(active_verified, AS_OF) == "current"
+
+
+def test_legacy_cninfo_filters_title_before_final_limit_and_uses_shanghai_today(monkeypatch):
+    monkeypatch.setattr(center, "shanghai_today", lambda: AS_OF)
+    monkeypatch.setattr(
+        psycopg2,
+        "connect",
+        lambda *_args, **_kwargs: FakeConnection([{"code": "003021"}]),
+    )
+    monkeypatch.setattr(
+        center,
+        "_insert_raw_document_and_fact",
+        lambda *_args, **_kwargs: {
+            "inserted_doc": True,
+            "inserted_fact": True,
+            "duplicate": False,
+        },
+    )
+    calls = []
+
+    def helper(*_args, **kwargs):
+        calls.append(kwargs)
+        return [
+            document("股东大会法律意见书", doc_type="announcement_pdf"),
+            document("关于签订重大合同的公告", doc_type="announcement_pdf"),
+        ], 4
+
+    monkeypatch.setattr(center, "fetch_cninfo_documents", helper)
+    result = center.fetch_cninfo_pdf_announcements(
+        "postgresql://unused", limit=1, title_mode="relevant"
+    )
+
+    assert calls[0]["as_of_date"] == AS_OF
+    assert calls[0]["limit"] > 1
+    assert result["fetched"] == 1
+    assert result["skipped"] == 1
+    assert result["failed"] == 0
+
+
+def test_legacy_ir_limit_is_company_count_and_pages_are_per_company(monkeypatch):
+    monkeypatch.setattr(center, "shanghai_today", lambda: AS_OF)
+    monkeypatch.setattr(
+        psycopg2,
+        "connect",
+        lambda *_args, **_kwargs: FakeConnection(
+            [{"code": "003021"}, {"code": "688001"}]
+        ),
+    )
+    monkeypatch.setattr(
+        center,
+        "_insert_raw_document_and_fact",
+        lambda *_args, **_kwargs: {
+            "inserted_doc": True,
+            "inserted_fact": True,
+            "duplicate": False,
+        },
+    )
+    calls = []
+
+    def helper(*_args, **kwargs):
+        calls.append(kwargs)
+        return [
+            document(
+                f"ir-{index}", doc_type="official_product_page", publish_time=None
+            )
+            for index in range(4)
+        ], 4
+
+    monkeypatch.setattr(center, "fetch_official_ir_documents", helper)
+    result = center.fetch_official_ir_pages(
+        "postgresql://unused", limit=2, pages_per_company=2
+    )
+
+    assert calls[0]["company_codes"] == ("003021", "688001")
+    assert calls[0]["limit"] == 4
+    assert calls[0]["pages_per_company"] == 2
+    assert result["selected_companies"] == 2
+    assert result["fetched_pages"] == 4
+    assert result["skipped"] == 0
+    assert result["failed"] == 0

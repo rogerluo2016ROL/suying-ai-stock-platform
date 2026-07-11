@@ -5,12 +5,13 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 import hashlib
 import json
 import os
 import re
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 from psycopg2.extras import RealDictCursor
 
@@ -123,18 +124,71 @@ def _sanitize_fact_metadata(metadata: object) -> dict[str, Any]:
 
 
 def _sanitize_error_text(value: object) -> str:
-    message = str(value or "")[:500]
-    for pattern, replacement in (
-        (r"(?i)(authorization)\s*[:=]\s*(?:bearer\s+)?[^\s,;]+", r"\1=<redacted>"),
-        (
-            r"(?i)(cookie|x-api-key|api[_-]?key|token|password|passwd|secret|client_secret)\s*[:=]\s*[^\s,;]+",
-            r"\1=<redacted>",
-        ),
-        (r"(?i)([a-z][a-z0-9+.-]*://)[^/@\s]+:[^/@\s]+@", r"\1<redacted>@"),
-        (r"(?i)(bearer)\s+[^\s,;]+", r"\1 <redacted>"),
-    ):
-        message = re.sub(pattern, replacement, message)
-    return message
+    message = str(value or "")[:4000]
+    message = re.sub(
+        r"(?i)([a-z][a-z0-9+.-]*://)[^/@\s]+:[^/@\s]+@",
+        r"\1<redacted>@",
+        message,
+    )
+    pattern = re.compile(
+        r"(?i)(?P<prefix>[\"']?(?:authorization|cookie|x-api-key|api[_-]?key|"
+        r"token|password|passwd|secret|client_secret)[\"']?\s*[:=]\s*)"
+        r"(?P<value>\"[^\"]*\"|'[^']*'|(?:bearer\s+)?[^,;\}\]\n&]+)"
+    )
+    message = pattern.sub(
+        lambda match: f"{match.group('prefix')}<redacted>", message
+    )
+    message = re.sub(
+        r"(?i)(bearer)\s+(?:\"[^\"]*\"|'[^']*'|[^\s,;\}\]&]+)",
+        r"\1 <redacted>",
+        message,
+    )
+    return message[:500]
+
+
+_SHANGHAI = ZoneInfo("Asia/Shanghai")
+
+
+def _as_of_upper_bound(value: date | datetime) -> datetime:
+    if isinstance(value, datetime):
+        localized = (
+            value.replace(tzinfo=_SHANGHAI)
+            if value.tzinfo is None
+            else value.astimezone(_SHANGHAI)
+        )
+        day = localized.date()
+    elif isinstance(value, date):
+        day = value
+    else:
+        raise ValueError("as_of cutoff must be a date or datetime")
+    return datetime.combine(day + timedelta(days=1), time.min, tzinfo=_SHANGHAI)
+
+
+def _shanghai_date(value: object) -> date | None:
+    if isinstance(value, datetime):
+        localized = (
+            value.replace(tzinfo=_SHANGHAI)
+            if value.tzinfo is None
+            else value.astimezone(_SHANGHAI)
+        )
+        return localized.date()
+    if isinstance(value, date):
+        return value
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        if len(text) <= 10:
+            return date.fromisoformat(text[:10])
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        localized = (
+            parsed.replace(tzinfo=_SHANGHAI)
+            if parsed.tzinfo is None
+            else parsed.astimezone(_SHANGHAI)
+        )
+        return localized.date()
+    except ValueError:
+        return None
 
 
 @dataclass(frozen=True)
@@ -176,27 +230,47 @@ class MappingRecord:
 class EvidenceOrchestrationRepository:
     """Explicit-mapping repository; company codes are never used to infer mappings."""
 
+    LOCAL_SOURCE_BY_TABLE = {
+        "announcements": "cninfo_announcement",
+        "ts_raw_anns_d": "cninfo_announcement",
+        "interact_qa": "exchange_interact_qa",
+        "research_reports_tushare": "broker_expectation_local",
+        "patent_events": "patent_public_platform",
+        "stock_profiles": "local_stock_profile",
+        "fina_mainbz": "local_business_segment",
+        "raw_evidence_documents": None,
+    }
+    SOURCE_CATALOG = {
+        "cninfo_announcement": ("巨潮/交易所公告全文", "announcement", "strong", True),
+        "exchange_interact_qa": ("互动易/上证e互动", "interact_qa", "mid", True),
+        "broker_expectation_local": ("本地研报/盈利预测表", "broker_report", "mid", False),
+        "patent_public_platform": ("国家知识产权/专利平台", "patent", "strong", True),
+        "local_stock_profile": ("本地公司档案", "company_profile", "mid", False),
+        "local_business_segment": ("本地主营业务构成", "business_segment", "strong", False),
+    }
+
     def __init__(self, connection_factory: Callable[[], Any] = connect):
         self.connection_factory = connection_factory
         self.unresolved_technology_routes: list[str] = []
 
     @contextmanager
-    def _cursor(self, *, write: bool):
-        connection = self.connection_factory()
+    def _cursor(self, *, write: bool, connection: Any | None = None):
+        owned = connection is None
+        active_connection = connection or self.connection_factory()
         try:
             try:
-                cursor = connection.cursor(cursor_factory=RealDictCursor)
+                cursor = active_connection.cursor(cursor_factory=RealDictCursor)
             except TypeError:
-                cursor = connection.cursor()
+                cursor = active_connection.cursor()
             manager = cursor if hasattr(cursor, "__enter__") else None
             active = manager.__enter__() if manager is not None else cursor
             try:
                 yield active
-                if write:
-                    connection.commit()
+                if write and owned:
+                    active_connection.commit()
             except Exception:
-                rollback = getattr(connection, "rollback", None)
-                if callable(rollback):
+                rollback = getattr(active_connection, "rollback", None)
+                if owned and callable(rollback):
                     rollback()
                 raise
             finally:
@@ -207,12 +281,56 @@ class EvidenceOrchestrationRepository:
                     if callable(close_cursor):
                         close_cursor()
         finally:
-            close = getattr(connection, "close", None)
-            if callable(close):
+            close = getattr(active_connection, "close", None)
+            if owned and callable(close):
                 close()
 
-    @staticmethod
-    def _insert_raw_document(cur, document, metadata: dict[str, Any]) -> None:
+    @classmethod
+    def _ensure_source_catalog(
+        cls, cur, source_id: str, source_level: str, metadata: Mapping[str, Any]
+    ) -> None:
+        name, source_type, configured_level, is_official = cls.SOURCE_CATALOG.get(
+            source_id,
+            (source_id, str(metadata.get("origin_table") or "local_document"), source_level, False),
+        )
+        level = configured_level if configured_level in {"strong", "mid", "weak"} else source_level
+        reliability = {"strong": 0.9, "mid": 0.7, "weak": 0.4}.get(level, 0.4)
+        confidence_cap = {"strong": 0.95, "mid": 0.75, "weak": 0.45}.get(level, 0.45)
+        cur.execute(
+            """
+            INSERT INTO evidence_source_catalog (
+                source_id, source_name, source_type, source_level,
+                source_reliability_score, confidence_cap, is_official,
+                is_third_party_estimate, is_market_sentiment,
+                requires_cross_validation, license_status, update_frequency,
+                crawl_method, enabled, metadata
+            ) VALUES (
+                %s, %s, %s, %s,
+                %s, %s, %s,
+                FALSE, FALSE,
+                %s, 'available', 'local',
+                'existing_table', TRUE, %s::jsonb
+            )
+            ON CONFLICT (source_id) DO NOTHING
+            """,
+            (
+                source_id,
+                name,
+                source_type,
+                level,
+                reliability,
+                confidence_cap,
+                is_official,
+                level != "strong",
+                _json({"origin_table": metadata.get("origin_table")}),
+            ),
+        )
+
+    @classmethod
+    def _insert_raw_document(cls, cur, document, metadata: dict[str, Any]) -> None:
+        cls._ensure_source_catalog(
+            cur, str(document.source_id), str(document.source_level), metadata
+        )
         cur.execute(
             """
             INSERT INTO raw_evidence_documents (
@@ -256,6 +374,7 @@ class EvidenceOrchestrationRepository:
         requirement_id: str,
         job_id: str,
         as_of_date: date,
+        connection: Any | None = None,
     ) -> PendingDocumentOutcome:
         if not mapping_id or not requirement_id:
             raise ValueError("mapping_id and requirement_id are required")
@@ -281,7 +400,7 @@ class EvidenceOrchestrationRepository:
         confidence = {"strong": 0.8, "mid": 0.6, "weak": 0.35}.get(
             str(document.source_level), 0.0
         )
-        with self._cursor(write=True) as cur:
+        with self._cursor(write=True, connection=connection) as cur:
             self._insert_raw_document(cur, document, raw_metadata)
             cur.execute(
                 """
@@ -357,11 +476,14 @@ class EvidenceOrchestrationRepository:
             fact_metadata=returned_metadata,
         )
 
-    def persist_discovery_hit(self, hit, *, job_id: str) -> DiscoveryPersistenceOutcome:
+    def persist_discovery_hit(
+        self, hit, *, job_id: str, connection: Any | None = None
+    ) -> DiscoveryPersistenceOutcome:
         quote = _normalize_text(
             " ".join((*hit.product_hits, *hit.scene_hits, *hit.excluded_hits))
         )
-        publish_date = hit.publish_time.date().isoformat() if hit.publish_time else ""
+        publish_day = _shanghai_date(hit.publish_time)
+        publish_date = publish_day.isoformat() if publish_day else ""
         fact_id = _stable_id(
             "FACT",
             hit.doc_id,
@@ -373,6 +495,7 @@ class EvidenceOrchestrationRepository:
         proposal_payload = thaw_json(hit.proposal.provenance) if hit.proposal else None
         metadata = {
             "collection_job_id": job_id,
+            "collection_job_ids": [job_id],
             "requirement_id": hit.requirement_id,
             "product_hits": list(hit.product_hits),
             "scene_hits": list(hit.scene_hits),
@@ -393,7 +516,7 @@ class EvidenceOrchestrationRepository:
             else None,
         }
         content_hash = hashlib.sha256(str(hit.doc_id).encode("utf-8")).hexdigest()
-        with self._cursor(write=True) as cur:
+        with self._cursor(write=True, connection=connection) as cur:
             cur.execute(
                 """
                 INSERT INTO raw_evidence_documents (
@@ -430,7 +553,35 @@ class EvidenceOrchestrationRepository:
                     'pending', NULL, %s::jsonb
                 )
                 ON CONFLICT (fact_id) DO UPDATE SET
-                    metadata = EXCLUDED.metadata || evidence_extracted_facts.metadata,
+                    metadata = jsonb_set(
+                        (EXCLUDED.metadata - 'collection_job_id' - 'collection_job_ids')
+                            || evidence_extracted_facts.metadata,
+                        '{collection_job_ids}',
+                        COALESCE((
+                            SELECT jsonb_agg(job_id ORDER BY job_id)
+                            FROM (
+                                SELECT DISTINCT job_id
+                                FROM jsonb_array_elements_text(
+                                    COALESCE(
+                                        evidence_extracted_facts.metadata -> 'collection_job_ids',
+                                        '[]'::jsonb
+                                    )
+                                    || CASE
+                                        WHEN evidence_extracted_facts.metadata ->> 'collection_job_id' IS NULL
+                                        THEN '[]'::jsonb
+                                        ELSE jsonb_build_array(
+                                            evidence_extracted_facts.metadata ->> 'collection_job_id'
+                                        )
+                                    END
+                                    || COALESCE(
+                                        EXCLUDED.metadata -> 'collection_job_ids',
+                                        '[]'::jsonb
+                                    )
+                                ) AS job_id
+                            ) AS unique_jobs
+                        ), '[]'::jsonb),
+                        true
+                    ),
                     updated_at = CURRENT_TIMESTAMP
                 """,
                 (
@@ -452,14 +603,23 @@ class EvidenceOrchestrationRepository:
             proposal=hit.proposal,
         )
 
-    def upsert_candidate_mapping(self, proposal: CandidateMappingProposal) -> MappingRecord:
+    def upsert_candidate_mapping(
+        self,
+        proposal: CandidateMappingProposal,
+        *,
+        connection: Any | None = None,
+    ) -> MappingRecord:
         incoming = thaw_json(proposal.provenance)
         nested = incoming.get("l1_l8_path")
         if isinstance(nested, Mapping):
             for key, value in nested.items():
                 incoming.setdefault(str(key), thaw_json(value))
         incoming.setdefault("technology_route_id", proposal.technology_route_id)
-        with self._cursor(write=True) as cur:
+        with self._cursor(write=True, connection=connection) as cur:
+            cur.execute(
+                "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                (proposal.mapping_id,),
+            )
             cur.execute(
                 """
                 SELECT mapping_id, code, business_segment_id, node_id, theme_id,
@@ -474,12 +634,25 @@ class EvidenceOrchestrationRepository:
             previous = _json_value(existing.get("l1_l8_path"), {})
             if not isinstance(previous, dict):
                 previous = {"legacy_l1_l8_path": previous}
+            previous_nested = previous.get("l1_l8_path")
+            previous_nested = (
+                previous_nested if isinstance(previous_nested, Mapping) else {}
+            )
+            incoming_nested = incoming.get("l1_l8_path")
+            incoming_nested = (
+                incoming_nested if isinstance(incoming_nested, Mapping) else {}
+            )
             merged = dict(previous)
             for key, value in incoming.items():
                 if key not in merged or merged[key] in (None, "", [], {}):
                     merged[key] = value
             for key in ("discovery_doc_ids", "discovery_fact_ids"):
-                merged[key] = _merge_ids(previous.get(key), incoming.get(key))
+                merged[key] = _merge_ids(
+                    previous.get(key),
+                    previous_nested.get(key),
+                    incoming.get(key),
+                    incoming_nested.get(key),
+                )
             nested_merged = merged.get("l1_l8_path")
             if not isinstance(nested_merged, dict):
                 nested_merged = {}
@@ -490,9 +663,7 @@ class EvidenceOrchestrationRepository:
                 nested_merged[key] = list(merged[key])
             merged["l1_l8_path"] = nested_merged
 
-            status = _mapping_status(
-                str(existing.get("status") or "candidate"), proposal.status
-            )
+            status = str(existing.get("status") or proposal.status)
             confidence = max(
                 float(existing.get("confidence") or 0.0), float(proposal.confidence)
             )
@@ -525,11 +696,7 @@ class EvidenceOrchestrationRepository:
                     chain_id = COALESCE(business_tag_mapping.chain_id, EXCLUDED.chain_id),
                     l1_l8_path = EXCLUDED.l1_l8_path,
                     confidence = GREATEST(business_tag_mapping.confidence, EXCLUDED.confidence),
-                    status = CASE
-                        WHEN business_tag_mapping.status IN ('verified','rejected') THEN business_tag_mapping.status
-                        WHEN business_tag_mapping.status = 'pending_review' AND EXCLUDED.status = 'candidate' THEN business_tag_mapping.status
-                        ELSE EXCLUDED.status
-                    END,
+                    status = business_tag_mapping.status,
                     evidence_ids = CASE
                         WHEN jsonb_array_length(business_tag_mapping.evidence_ids) > 0
                         THEN business_tag_mapping.evidence_ids
@@ -570,6 +737,8 @@ class EvidenceOrchestrationRepository:
         chain_id: str,
         mapping_ids: tuple[str, ...],
         company_codes: tuple[str, ...],
+        *,
+        connection: Any | None = None,
     ) -> list[dict[str, Any]]:
         clauses = ["b.chain_id = %s", "b.status <> 'rejected'"]
         params: list[Any] = [chain_id]
@@ -579,7 +748,7 @@ class EvidenceOrchestrationRepository:
         if company_codes:
             clauses.append("split_part(b.code, '.', 1) = ANY(%s)")
             params.append([str(code).split(".", 1)[0] for code in company_codes])
-        with self._cursor(write=False) as cur:
+        with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 f"""
                 SELECT b.mapping_id, b.code, b.business_segment_id, b.node_id,
@@ -604,33 +773,43 @@ class EvidenceOrchestrationRepository:
             requirement_id = provenance.get("requirement_id") or nested.get(
                 "requirement_id"
             )
-            route_id = provenance.get("technology_route_id") or nested.get(
-                "technology_route_id"
+            route_key_present = (
+                "technology_route_id" in provenance
+                or "technology_route_id" in nested
             )
-            if requirement_id is None or "technology_route_id" not in {
-                **nested,
-                **provenance,
-            }:
-                try:
-                    template = get_industry_template(chain_id)
-                    if requirement_id:
-                        matches = [
-                            item
-                            for item in template.get("evidence_requirements") or []
-                            if item.get("requirement_id") == requirement_id
-                        ]
-                        if len(matches) != 1:
-                            raise ValueError("requirement must resolve once")
-                        requirement = matches[0]
-                    else:
-                        requirement = get_business_evidence_requirement(
-                            template, str(row.get("tag_name") or "")
-                        )
-                    requirement_id = requirement.get("requirement_id")
-                    route_id = requirement.get("technology_route_id")
-                except (KeyError, ValueError):
-                    self.unresolved_technology_routes.append(str(row["mapping_id"]))
-                    continue
+            route_id = (
+                provenance.get("technology_route_id")
+                if "technology_route_id" in provenance
+                else nested.get("technology_route_id")
+            )
+            try:
+                template = get_industry_template(chain_id)
+                if requirement_id:
+                    matches = [
+                        item
+                        for item in template.get("evidence_requirements") or []
+                        if item.get("requirement_id") == requirement_id
+                    ]
+                    if len(matches) != 1:
+                        raise ValueError("requirement must resolve once")
+                    requirement = matches[0]
+                else:
+                    requirement = get_business_evidence_requirement(
+                        template, str(row.get("tag_name") or "")
+                    )
+                requirement_id = requirement.get("requirement_id")
+                expected_route = requirement.get("technology_route_id")
+                if expected_route:
+                    if route_key_present and route_id != expected_route:
+                        raise ValueError("stored technology route is unresolved")
+                    route_id = expected_route
+                elif route_key_present and route_id not in (None, ""):
+                    raise ValueError("unexpected technology route")
+                else:
+                    route_id = None
+            except (KeyError, ValueError):
+                self.unresolved_technology_routes.append(str(row["mapping_id"]))
+                continue
             enriched = dict(row)
             enriched["l1_l8_path"] = provenance
             enriched["requirement_id"] = requirement_id
@@ -638,7 +817,7 @@ class EvidenceOrchestrationRepository:
             result.append(enriched)
         return result
 
-    def start_job(self, request) -> str:
+    def start_job(self, request, *, connection: Any | None = None) -> str:
         limits = thaw_json(request.source_limits)
         request_payload = {
             "chain_id": request.chain_id,
@@ -651,7 +830,7 @@ class EvidenceOrchestrationRepository:
             "allow_score": request.allow_score,
         }
         job_id = _stable_id("JOB", _json(request_payload))
-        with self._cursor(write=True) as cur:
+        with self._cursor(write=True, connection=connection) as cur:
             cur.execute(
                 """
                 INSERT INTO evidence_collection_jobs (
@@ -677,7 +856,9 @@ class EvidenceOrchestrationRepository:
             )
         return job_id
 
-    def finish_job(self, job_id: str, result: Any) -> None:
+    def finish_job(
+        self, job_id: str, result: Any, *, connection: Any | None = None
+    ) -> None:
         status = str(
             result.get("status") if isinstance(result, Mapping) else result.status
         )
@@ -695,7 +876,7 @@ class EvidenceOrchestrationRepository:
             result.get("errors", ()) if isinstance(result, Mapping) else result.errors
         )
         sanitized = "; ".join(_sanitize_error_text(value) for value in errors) or None
-        with self._cursor(write=True) as cur:
+        with self._cursor(write=True, connection=connection) as cur:
             cur.execute(
                 """
                 UPDATE evidence_collection_jobs
@@ -718,16 +899,19 @@ class EvidenceOrchestrationRepository:
                 ),
             )
 
-    def persist_raw_document(self, document, *, job_id: str) -> str:
+    def persist_raw_document(
+        self, document, *, job_id: str, connection: Any | None = None
+    ) -> str:
         metadata = thaw_json(document.metadata or {})
         metadata["collection_job_id"] = job_id
-        with self._cursor(write=True) as cur:
+        with self._cursor(write=True, connection=connection) as cur:
             self._insert_raw_document(cur, document, metadata)
         return document.doc_id
 
     def fetch_independent_discovery_requirements(
-        self, chain_id: str
+        self, chain_id: str, *, connection: Any | None = None
     ) -> list[dict[str, Any]]:
+        del connection
         template = get_industry_template(chain_id)
         return [
             thaw_json(requirement)
@@ -741,16 +925,19 @@ class EvidenceOrchestrationRepository:
         requirement: Mapping[str, Any],
         company_codes: tuple[str, ...],
         limit: int,
+        *,
+        connection: Any | None = None,
     ) -> list[dict[str, Any]]:
         if limit <= 0:
             return []
-        clauses = ["publish_time IS NOT NULL", "publish_time <= %s"]
-        params: list[Any] = [as_of_date]
+        upper_bound = _as_of_upper_bound(as_of_date)
+        clauses = ["publish_time IS NOT NULL", "publish_time < %s"]
+        params: list[Any] = [upper_bound]
         if company_codes:
             clauses.append("split_part(company_code, '.', 1) = ANY(%s)")
             params.append([str(code).split(".", 1)[0] for code in company_codes])
         params.append(max(limit * 5, limit))
-        with self._cursor(write=False) as cur:
+        with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 f"""
                 SELECT doc_id, company_code, source_level, title, content_text,
@@ -769,14 +956,7 @@ class EvidenceOrchestrationRepository:
         require_scene = requirement.get("require_product_and_scene", True) is True
         selected: list[dict[str, Any]] = []
         for row in rows:
-            published = row.get("publish_time")
-            published_date = (
-                published.date()
-                if isinstance(published, datetime)
-                else published
-                if isinstance(published, date)
-                else None
-            )
+            published_date = _shanghai_date(row.get("publish_time"))
             if published_date is None or published_date > as_of_date:
                 continue
             text = f"{row.get('title') or ''} {row.get('content_text') or ''}".casefold()
@@ -797,8 +977,9 @@ class EvidenceOrchestrationRepository:
         as_of_date: date,
         requirement: Mapping[str, Any],
         limit: int,
+        *,
+        connection: Any | None = None,
     ) -> list[str]:
-        del as_of_date  # static company profiles have no event cutoff
         terms = _merge_ids(
             requirement.get("business_keywords"),
             requirement.get("product_terms"),
@@ -806,17 +987,20 @@ class EvidenceOrchestrationRepository:
         if not terms or limit <= 0:
             return []
         probes = [f"%{term}%" for term in terms]
-        with self._cursor(write=False) as cur:
+        upper_bound = _as_of_upper_bound(as_of_date)
+        with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 """
                 SELECT code
                 FROM stock_profiles
                 WHERE concat_ws(' ', main_business, business_scope, introduction)
                       ILIKE ANY(%s)
+                  AND updated_at IS NOT NULL
+                  AND updated_at < %s
                 ORDER BY code
                 LIMIT %s
                 """,
-                (probes, limit),
+                (probes, upper_bound, limit),
             )
             rows = cur.fetchall()
         return list(
@@ -828,19 +1012,22 @@ class EvidenceOrchestrationRepository:
         )
 
     def list_candidate_proposals(
-        self, job_id: str
+        self, job_id: str, *, connection: Any | None = None
     ) -> list[CandidateMappingProposal]:
-        with self._cursor(write=False) as cur:
+        with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 """
                 SELECT metadata
                 FROM evidence_extracted_facts
                 WHERE mapping_id IS NULL
-                  AND metadata ->> 'collection_job_id' = %s
+                  AND (
+                      metadata -> 'collection_job_ids' ? %s
+                      OR metadata ->> 'collection_job_id' = %s
+                  )
                   AND metadata ? 'candidate_proposal'
                 ORDER BY fact_id
                 """,
-                (job_id,),
+                (job_id, job_id),
             )
             rows = cur.fetchall()
         proposals: list[CandidateMappingProposal] = []
@@ -871,11 +1058,16 @@ class EvidenceOrchestrationRepository:
         return proposals
 
     def fetch_asof_facts(
-        self, mapping_ids: tuple[str, ...], cutoff: datetime
+        self,
+        mapping_ids: tuple[str, ...],
+        cutoff: date | datetime,
+        *,
+        connection: Any | None = None,
     ) -> list[dict[str, Any]]:
         if not mapping_ids:
             return []
-        with self._cursor(write=False) as cur:
+        upper_bound = _as_of_upper_bound(cutoff)
+        with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 """
                 SELECT f.*, d.publish_time, d.title, d.url
@@ -883,20 +1075,24 @@ class EvidenceOrchestrationRepository:
                 JOIN raw_evidence_documents d ON d.doc_id = f.doc_id
                 WHERE f.mapping_id = ANY(%s)
                   AND d.publish_time IS NOT NULL
-                  AND d.publish_time <= %s
+                  AND d.publish_time < %s
+                  AND f.created_at < %s
+                  AND (f.reviewed_at IS NULL OR f.reviewed_at < %s)
                 ORDER BY d.publish_time, f.fact_id
                 """,
-                (list(mapping_ids), cutoff),
+                (list(mapping_ids), upper_bound, upper_bound, upper_bound),
             )
             rows = [dict(row) for row in cur.fetchall()]
         for row in rows:
             row["metadata"] = _json_value(row.get("metadata"), {})
         return rows
 
-    def fetch_gap_rows(self, mapping_ids: tuple[str, ...]) -> list[EvidenceGap]:
+    def fetch_gap_rows(
+        self, mapping_ids: tuple[str, ...], *, connection: Any | None = None
+    ) -> list[EvidenceGap]:
         if not mapping_ids:
             return []
-        with self._cursor(write=False) as cur:
+        with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 """
                 SELECT b.mapping_id, b.l1_l8_path
@@ -934,14 +1130,18 @@ class EvidenceOrchestrationRepository:
         return result
 
     def upsert_gap_rows(
-        self, gaps: Sequence[EvidenceGap], as_of_date: date
+        self,
+        gaps: Sequence[EvidenceGap],
+        as_of_date: date,
+        *,
+        connection: Any | None = None,
     ) -> int:
         grouped: dict[str, list[dict[str, Any]]] = {}
         for gap in gaps:
             grouped.setdefault(gap.mapping_id, []).append(thaw_json(gap.__dict__))
         if not grouped:
             return 0
-        with self._cursor(write=True) as cur:
+        with self._cursor(write=True, connection=connection) as cur:
             for mapping_id, values in grouped.items():
                 cur.execute(
                     """
@@ -956,17 +1156,30 @@ class EvidenceOrchestrationRepository:
                         ),
                         updated_at = CURRENT_TIMESTAMP
                     WHERE mapping_id = %s
+                      AND COALESCE(
+                            NULLIF(l1_l8_path ->> 'evidence_gaps_as_of_date', '')::date,
+                            DATE '0001-01-01'
+                          ) <= %s::date
                     """,
-                    (_json(values), as_of_date.isoformat(), mapping_id),
+                    (
+                        _json(values),
+                        as_of_date.isoformat(),
+                        mapping_id,
+                        as_of_date.isoformat(),
+                    ),
                 )
         return len(gaps)
 
     def upsert_node_dimension_updates(
-        self, updates: Sequence[Any], as_of_date: date
+        self,
+        updates: Sequence[Any],
+        as_of_date: date,
+        *,
+        connection: Any | None = None,
     ) -> int:
         if not updates:
             return 0
-        with self._cursor(write=True) as cur:
+        with self._cursor(write=True, connection=connection) as cur:
             for update in updates:
                 record_date = update.as_of_date or as_of_date
                 record_id = _stable_id(
@@ -988,8 +1201,8 @@ class EvidenceOrchestrationRepository:
                         score = EXCLUDED.score,
                         coverage_ratio = EXCLUDED.coverage_ratio,
                         evidence_ids = EXCLUDED.evidence_ids,
-                        review_status = 'pending_review',
                         updated_at = CURRENT_TIMESTAMP
+                    WHERE supply_chain_node_dimensions.review_status NOT IN ('approved','rejected')
                     """,
                     (
                         record_id,
@@ -1004,7 +1217,9 @@ class EvidenceOrchestrationRepository:
                 )
         return len(updates)
 
-    def fetch_local_documents(self, task: Any, as_of_date: date):
+    def fetch_local_documents(
+        self, task: Any, as_of_date: date, *, connection: Any | None = None
+    ):
         """Read bounded local evidence sources for one explicit mapping task."""
 
         from supply_chain_data_collection_center import RawDocument
@@ -1019,7 +1234,8 @@ class EvidenceOrchestrationRepository:
             "research_reports_tushare",
             "patent_events",
         )
-        with self._cursor(write=False) as cur:
+        upper_bound = _as_of_upper_bound(as_of_date)
+        with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 """
                 SELECT table_name
@@ -1043,11 +1259,11 @@ class EvidenceOrchestrationRepository:
                            doc_type, metadata
                     FROM raw_evidence_documents
                     WHERE split_part(company_code, '.', 1) = %s
-                      AND (publish_time IS NULL OR publish_time <= %s)
+                      AND (publish_time IS NULL OR publish_time < %s)
                     ORDER BY publish_time DESC NULLS LAST, doc_id
                     LIMIT 200
                     """,
-                    (code, as_of_date),
+                    (code, upper_bound),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
@@ -1066,7 +1282,10 @@ class EvidenceOrchestrationRepository:
                                 else row.get("publish_time")
                             ),
                             doc_type=str(row.get("doc_type") or "announcement"),
-                            metadata=_json_value(row.get("metadata"), {}),
+                            metadata={
+                                **_json_value(row.get("metadata"), {}),
+                                "origin_table": "raw_evidence_documents",
+                            },
                         )
                     )
             if "stock_profiles" in present:
@@ -1076,15 +1295,20 @@ class EvidenceOrchestrationRepository:
                            introduction, website, updated_at
                     FROM stock_profiles
                     WHERE split_part(code, '.', 1) = %s
+                      AND updated_at IS NOT NULL
+                      AND updated_at < %s
                     LIMIT 1
                     """,
-                    (code,),
+                    (code, upper_bound),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
+                    updated_day = _shanghai_date(row.get("updated_at"))
+                    if updated_day is None or updated_day > as_of_date:
+                        continue
                     records.append(
                         RawDocument(
-                            source_id="stock_profiles",
+                            source_id="local_stock_profile",
                             source_level="mid",
                             title=f"{row.get('full_name') or code} 公司业务概况",
                             content_text=" ".join(
@@ -1100,7 +1324,10 @@ class EvidenceOrchestrationRepository:
                             company_name=row.get("full_name"),
                             publish_time=None,
                             doc_type="company_profile",
-                            metadata={"updated_at": thaw_json(row.get("updated_at"))},
+                            metadata={
+                                "updated_at": thaw_json(row.get("updated_at")),
+                                "origin_table": "stock_profiles",
+                            },
                         )
                     )
             if "fina_mainbz" in present:
@@ -1119,7 +1346,7 @@ class EvidenceOrchestrationRepository:
                     row = dict(raw)
                     records.append(
                         RawDocument(
-                            source_id="fina_mainbz",
+                            source_id="local_business_segment",
                             source_level="strong",
                             title=str(row.get("biz_item") or "主营业务构成"),
                             content_text=(
@@ -1138,6 +1365,7 @@ class EvidenceOrchestrationRepository:
                                 "biz_income": row.get("biz_income"),
                                 "biz_ratio": row.get("biz_ratio"),
                                 "biz_type": row.get("biz_type"),
+                                "origin_table": "fina_mainbz",
                             },
                         )
                     )
@@ -1157,7 +1385,7 @@ class EvidenceOrchestrationRepository:
                     row = dict(raw)
                     records.append(
                         RawDocument(
-                            source_id="announcements",
+                            source_id="cninfo_announcement",
                             source_level="strong",
                             title=str(row.get("title") or "公司公告"),
                             content_text=str(row.get("content") or row.get("title") or ""),
@@ -1168,7 +1396,10 @@ class EvidenceOrchestrationRepository:
                                 else str(row.get("ann_date") or "") or None
                             ),
                             doc_type="announcement",
-                            metadata={"announcement_type": row.get("ann_type")},
+                            metadata={
+                                "announcement_type": row.get("ann_type"),
+                                "origin_table": "announcements",
+                            },
                         )
                     )
             if "ts_raw_anns_d" in present:
@@ -1198,7 +1429,7 @@ class EvidenceOrchestrationRepository:
                             company_code=code,
                             publish_time=raw_date or None,
                             doc_type="announcement",
-                            metadata={},
+                            metadata={"origin_table": "ts_raw_anns_d"},
                         )
                     )
             if "interact_qa" in present:
@@ -1222,14 +1453,18 @@ class EvidenceOrchestrationRepository:
                         continue
                     records.append(
                         RawDocument(
-                            source_id="interact_qa",
-                            source_level="strong",
+                            source_id="exchange_interact_qa",
+                            source_level="mid",
                             title=str(row.get("question") or "互动问答"),
                             content_text=f"{row.get('question') or ''} {row.get('answer') or ''}",
                             company_code=code,
                             publish_time=published.isoformat(),
                             doc_type="interactive_qa",
-                            metadata={"source": row.get("source"), "row_id": row.get("id")},
+                            metadata={
+                                "source": row.get("source"),
+                                "row_id": row.get("id"),
+                                "origin_table": "interact_qa",
+                            },
                         )
                     )
             if "research_reports_tushare" in present:
@@ -1250,7 +1485,7 @@ class EvidenceOrchestrationRepository:
                     published = row.get("pub_date")
                     records.append(
                         RawDocument(
-                            source_id="research_reports_tushare",
+                            source_id="broker_expectation_local",
                             source_level="mid",
                             title=str(row.get("title") or "研究报告"),
                             content_text=" ".join(
@@ -1270,6 +1505,7 @@ class EvidenceOrchestrationRepository:
                                 "rating": row.get("rating"),
                                 "target_price": row.get("target_price"),
                                 "author": row.get("author"),
+                                "origin_table": "research_reports_tushare",
                             },
                         )
                     )
@@ -1296,15 +1532,15 @@ class EvidenceOrchestrationRepository:
                             "publication_number": row.get("publication_number"),
                             "legal_status": row.get("patent_status"),
                             "legal_status_date": thaw_json(
-                                row.get("grant_date")
-                                or row.get("publication_date")
-                                or row.get("application_date")
+                                metadata.get("legal_status_date")
+                                or row.get("grant_date")
                             ),
+                            "origin_table": "patent_events",
                         }
                     )
                     records.append(
                         RawDocument(
-                            source_id="patent_events",
+                            source_id="patent_public_platform",
                             source_level="strong",
                             title=str(row.get("patent_title") or "专利"),
                             content_text=str(row.get("patent_abstract") or ""),
@@ -1323,19 +1559,16 @@ class EvidenceOrchestrationRepository:
         queries = tuple(str(value).casefold() for value in task.queries if value)
         filtered: list[RawDocument] = []
         for document in records:
-            published = str(document.publish_time or "")[:10]
-            published_date = None
-            try:
-                published_date = date.fromisoformat(published) if published else None
-            except ValueError:
-                pass
+            published_date = _shanghai_date(document.publish_time)
             if document.doc_type in {
                 "announcement",
                 "announcement_pdf",
                 "interactive_qa",
                 "research_report",
                 "investor_relations_event",
-            } and published_date is not None and published_date < event_start:
+            } and published_date is not None and not (
+                event_start <= published_date <= as_of_date
+            ):
                 continue
             text = f"{document.title} {document.content_text}".casefold()
             if queries and not any(query in text for query in queries):

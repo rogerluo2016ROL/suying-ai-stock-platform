@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 import json
+from zoneinfo import ZoneInfo
+
+import pytest
 
 from app.domains.supply_chain.evidence_orchestration_repository import (
     EvidenceOrchestrationRepository,
@@ -396,7 +399,7 @@ def test_remaining_repository_queries_and_upserts_are_scoped_and_serializable():
     assert proposals[0].mapping_id == "candidate-stable"
     assert facts[0]["metadata"] == {"application_domain": ["机器人腕部"]}
     assert node_count == 1
-    assert any("publish_time <= %s" in sql for sql, _ in cursor.calls)
+    assert any("publish_time < %s" in sql for sql, _ in cursor.calls)
     assert any("INSERT INTO supply_chain_node_dimensions" in sql for sql, _ in cursor.calls)
 
 
@@ -564,3 +567,354 @@ def test_local_adapter_queries_every_available_supported_source():
     assert errors == ()
     for table in tables:
         assert f"FROM {table}" in sql
+
+
+def test_local_sources_have_explicit_catalog_mapping_and_fk_is_ensured_before_raw():
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(FakeCursor())
+    )
+    assert repository.LOCAL_SOURCE_BY_TABLE == {
+        "announcements": "cninfo_announcement",
+        "ts_raw_anns_d": "cninfo_announcement",
+        "interact_qa": "exchange_interact_qa",
+        "research_reports_tushare": "broker_expectation_local",
+        "patent_events": "patent_public_platform",
+        "stock_profiles": "local_stock_profile",
+        "fina_mainbz": "local_business_segment",
+        "raw_evidence_documents": None,
+    }
+
+    cursor = FakeCursor()
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    local_document = RawDocument(
+        source_id="local_stock_profile",
+        source_level="mid",
+        title="本地公司档案",
+        content_text="灵巧手业务",
+        company_code="003021",
+        doc_type="company_profile",
+        metadata={"origin_table": "stock_profiles"},
+    )
+    repository.persist_raw_document(local_document, job_id="j1")
+
+    statements = [sql for sql, _ in cursor.calls]
+    catalog_index = next(
+        index
+        for index, sql in enumerate(statements)
+        if "INSERT INTO evidence_source_catalog" in sql
+    )
+    raw_index = next(
+        index
+        for index, sql in enumerate(statements)
+        if "INSERT INTO raw_evidence_documents" in sql
+    )
+    assert catalog_index < raw_index
+
+
+def test_local_document_origin_table_and_historical_profile_cutoff_are_preserved():
+    cursor = FakeCursor(
+        table_names=["stock_profiles", "fina_mainbz"],
+        query_rows={
+            "FROM stock_profiles": [
+                {
+                    "code": "003021",
+                    "full_name": "兆威机电",
+                    "main_business": "灵巧手产品",
+                    "business_scope": "机器人零部件",
+                    "introduction": "",
+                    "website": "https://example.test",
+                    "updated_at": datetime(2026, 7, 10, 9, 0),
+                }
+            ],
+            "FROM fina_mainbz": [
+                {
+                    "code": "003021",
+                    "end_date": date(2026, 6, 30),
+                    "biz_item": "灵巧手业务",
+                    "biz_income": 1.0,
+                    "biz_ratio": 0.1,
+                    "biz_type": "P",
+                }
+            ],
+        },
+    )
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    task = type(
+        "Task", (), {"company_code": "003021", "queries": ("灵巧手",)}
+    )()
+
+    rows, _ = repository.fetch_local_documents(task, AS_OF)
+
+    assert [row.source_id for row in rows] == ["local_business_segment"]
+    assert rows[0].metadata["origin_table"] == "fina_mainbz"
+    profile_sql = next(sql for sql, _ in cursor.calls if "FROM stock_profiles" in sql)
+    assert "updated_at < %s" in profile_sql
+
+
+def test_discovery_metadata_and_query_support_cross_job_recovery():
+    cursor = FakeCursor()
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    repository.persist_discovery_hit(discovery_hit("d-cross-job"), job_id="job-1")
+    repository.persist_discovery_hit(discovery_hit("d-cross-job"), job_id="job-2")
+
+    fact_calls = [
+        (sql, params)
+        for sql, params in cursor.calls
+        if "INSERT INTO evidence_extracted_facts" in sql
+    ]
+    assert len(fact_calls) == 2
+    for expected_job, (_sql, params) in zip(("job-1", "job-2"), fact_calls):
+        payload = json.loads(next(value for value in params if str(value).startswith("{")))
+        assert payload["collection_job_ids"] == [expected_job]
+        assert payload["candidate_proposal"]["provenance"]["discovery_doc_ids"]
+    assert "collection_job_ids" in fact_calls[1][0]
+
+    query_cursor = FakeCursor(query_rows={"candidate_proposal": []})
+    query_repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(query_cursor)
+    )
+    query_repository.list_candidate_proposals("job-2")
+    query_sql = query_cursor.calls[0][0]
+    assert "metadata -> 'collection_job_ids' ? %s" in query_sql
+
+
+def test_candidate_upsert_locks_before_select_and_merges_nested_discovery_ids():
+    existing = {
+        "mapping_id": "candidate-stable",
+        "code": "688001",
+        "business_segment_id": "reviewed-segment",
+        "node_id": "reviewed-node",
+        "theme_id": None,
+        "chain_id": "dexterous_hand",
+        "tag_name": "已审标签",
+        "l1_l8_path": {
+            "requirement_id": "dexterous_axial_flux_motor",
+            "technology_route_id": "dexterous_axial_flux_motor",
+            "l1_l8_path": {
+                "discovery_doc_ids": ["old-doc"],
+                "discovery_fact_ids": ["old-fact"],
+            },
+        },
+        "confidence": 0.7,
+        "status": "weak_evidence",
+        "evidence_ids": ["review-e1"],
+    }
+    cursor = FakeCursor(mapping_row=existing)
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+
+    result = repository.upsert_candidate_mapping(
+        candidate_proposal(
+            discovery_doc_ids=("new-doc",), discovery_fact_ids=("new-fact",)
+        )
+    )
+
+    statements = [sql for sql, _ in cursor.calls]
+    lock_index = next(
+        index for index, sql in enumerate(statements) if "pg_advisory_xact_lock" in sql
+    )
+    select_index = next(
+        index for index, sql in enumerate(statements) if "FOR UPDATE" in sql
+    )
+    assert lock_index < select_index
+    assert result.status == "weak_evidence"
+    assert result.confidence == 0.7
+    assert result.evidence_ids == ("review-e1",)
+    assert result.provenance["discovery_doc_ids"] == ["old-doc", "new-doc"]
+    assert result.provenance["l1_l8_path"]["discovery_fact_ids"] == [
+        "old-fact",
+        "new-fact",
+    ]
+
+
+def test_point_in_time_queries_use_shanghai_exclusive_upper_bound():
+    cursor = FakeCursor(
+        query_rows={
+            "FROM evidence_extracted_facts f": [],
+            "FROM raw_evidence_documents": [],
+            "FROM stock_profiles": [],
+        }
+    )
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    requirement = {
+        "product_terms": ["轴向磁通"],
+        "scene_terms": ["机器人腕部"],
+        "require_product_and_scene": True,
+    }
+
+    repository.fetch_asof_facts(("m1",), AS_OF)
+    repository.fetch_candidate_universe(AS_OF, requirement, (), 5)
+    repository.fetch_discovery_seed_companies(AS_OF, requirement, 5)
+
+    upper = datetime(2026, 7, 10, 0, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
+    fact_sql, fact_params = next(
+        call for call in cursor.calls if "FROM evidence_extracted_facts f" in call[0]
+    )
+    assert "d.publish_time < %s" in fact_sql
+    assert "f.created_at < %s" in fact_sql
+    assert "f.reviewed_at IS NULL OR f.reviewed_at < %s" in fact_sql
+    assert fact_params.count(upper) == 3
+    candidate_sql, candidate_params = next(
+        call for call in cursor.calls if "FROM raw_evidence_documents" in call[0]
+    )
+    assert "publish_time < %s" in candidate_sql
+    assert upper in candidate_params
+    seed_sql, seed_params = next(
+        call for call in cursor.calls if "FROM stock_profiles" in call[0]
+    )
+    assert "updated_at < %s" in seed_sql
+    assert upper in seed_params
+
+
+def test_node_dimension_auto_upsert_never_overwrites_reviewed_rows():
+    cursor = FakeCursor()
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    repository.upsert_node_dimension_updates(
+        (
+            NodeDimensionUpdate(
+                node_id="dexterous_hand_actuator",
+                dimension_id="technology_route",
+                as_of_date=AS_OF,
+                status="known",
+                score=80.0,
+                evidence_ids=("f-new",),
+            ),
+        ),
+        AS_OF,
+    )
+
+    sql = next(
+        sql for sql, _ in cursor.calls if "INSERT INTO supply_chain_node_dimensions" in sql
+    )
+    assert "WHERE supply_chain_node_dimensions.review_status NOT IN ('approved','rejected')" in sql
+    assert "review_status = 'pending_review'" not in sql.split("DO UPDATE SET", 1)[1]
+
+
+def test_route_bearing_mapping_rejects_null_empty_and_wrong_route():
+    def row(mapping_id, route):
+        return {
+            "mapping_id": mapping_id,
+            "code": "688001",
+            "business_segment_id": None,
+            "node_id": "dexterous_hand_actuator",
+            "theme_id": None,
+            "chain_id": "dexterous_hand",
+            "tag_name": "轴向磁通电机",
+            "l1_l8_path": {
+                "requirement_id": "dexterous_axial_flux_motor",
+                "technology_route_id": route,
+            },
+            "confidence": 0.5,
+            "status": "candidate",
+            "evidence_ids": [],
+        }
+
+    cursor = FakeCursor(
+        mapping_rows=[
+            row("null-route", None),
+            row("empty-route", ""),
+            row("wrong-route", "automotive_axial_flux"),
+            row("correct-route", "dexterous_axial_flux_motor"),
+        ]
+    )
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+
+    rows = repository.fetch_mappings("dexterous_hand", (), ())
+
+    assert [item["mapping_id"] for item in rows] == ["correct-route"]
+    assert repository.unresolved_technology_routes == [
+        "null-route",
+        "empty-route",
+        "wrong-route",
+    ]
+
+
+def test_caller_owned_connection_is_never_committed_rolled_back_or_closed():
+    cursor = FakeCursor()
+    connection = FakeConnection(cursor)
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: pytest.fail("caller connection must be reused")
+    )
+
+    outcome = repository.persist_discovery_hit(
+        discovery_hit("d-transaction"), job_id="job-1", connection=connection
+    )
+    repository.upsert_candidate_mapping(outcome.proposal, connection=connection)
+
+    assert connection.commits == 0
+    assert connection.rollbacks == 0
+    assert connection.closed == 0
+    connection.rollback()
+    assert connection.rollbacks == 1
+
+
+def test_owned_connection_still_commits_and_closes():
+    connection = FakeConnection(FakeCursor())
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: connection
+    )
+
+    repository.persist_discovery_hit(discovery_hit("d-owned"), job_id="job-1")
+
+    assert connection.commits == 1
+    assert connection.closed == 1
+
+
+def test_older_gap_snapshot_cannot_overwrite_newer_snapshot():
+    cursor = FakeCursor()
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    gap = EvidenceGap(
+        mapping_id="m1",
+        requirement_id="product_or_prototype",
+        status="missing",
+        evidence_ids=(),
+        next_action="补证",
+        reasons=("缺失",),
+    )
+    repository.upsert_gap_rows((gap,), AS_OF)
+
+    sql, params = next(
+        call for call in cursor.calls if "UPDATE business_tag_mapping" in call[0]
+    )
+    assert "evidence_gaps_as_of_date" in sql
+    assert "<= %s::date" in sql
+    assert params.count(AS_OF.isoformat()) >= 2
+
+
+@pytest.mark.parametrize(
+    ("raw", "secret"),
+    [
+        ('{"client_secret": "repo secret"}', "repo secret"),
+        ("headers={'Authorization': 'Bearer repo-token'}", "repo-token"),
+        ("https://example.test?api_key=query-secret&x=1", "query-secret"),
+        ("password='spaced repo password'", "spaced repo password"),
+        ("postgresql://alice:repo-pass@localhost/db", "repo-pass"),
+    ],
+)
+def test_repository_error_sanitizer_handles_structured_secrets(raw, secret):
+    cursor = FakeCursor()
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    repository.finish_job(
+        "j1", AdapterResult((), (), (raw,), "partial_success")
+    )
+    params = next(
+        params for sql, params in cursor.calls if "UPDATE evidence_collection_jobs" in sql
+    )
+    assert secret not in " ".join(str(value) for value in params)
