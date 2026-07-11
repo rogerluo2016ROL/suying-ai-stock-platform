@@ -220,3 +220,28 @@ def test_multiple_mappings_choose_one_primary_and_cap_independent_bonus():
         "m4",
     ]
 
+
+def test_stock_aggregation_keeps_unknown_score_null_and_normalizes_code():
+    selected = aggregate_stock_mappings(
+        [
+            {
+                "code": "603662.SH",
+                "mapping_id": "m1",
+                "benefit_score": None,
+                "evidence_level": "E1",
+                "independent_revenue": False,
+            },
+            {
+                "code": "603662",
+                "mapping_id": "m2",
+                "benefit_score": None,
+                "evidence_level": "E1",
+                "independent_revenue": False,
+            },
+        ]
+    )
+
+    assert len(selected) == 1
+    assert selected[0]["code"] == "603662"
+    assert selected[0]["stock_score"] is None
+    assert len(selected[0]["secondary_mappings"]) == 1

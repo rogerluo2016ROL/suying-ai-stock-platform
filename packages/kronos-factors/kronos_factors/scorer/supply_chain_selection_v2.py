@@ -435,7 +435,10 @@ def aggregate_stock_mappings(
 ) -> list[dict[str, Any]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for item in mapping_scores:
-        grouped[str(item.get("code") or "")].append(dict(item))
+        normalized = dict(item)
+        code = str(item.get("code") or "").split(".", 1)[0]
+        normalized["code"] = code
+        grouped[code].append(normalized)
 
     results: list[dict[str, Any]] = []
     for code, rows in grouped.items():
@@ -443,6 +446,7 @@ def aggregate_stock_mappings(
             rows,
             key=lambda row: (
                 EVIDENCE_RANK.get(str(row.get("evidence_level") or "E0"), 0),
+                row.get("benefit_score") is not None,
                 float(row.get("benefit_score") or 0.0),
                 str(row.get("mapping_id") or ""),
             ),
@@ -454,7 +458,7 @@ def aggregate_stock_mappings(
             1 for row in secondary if bool(row.get("independent_revenue"))
         )
         bonus = min(5.0, independent_count * 2.5)
-        primary_score = float(primary.get("benefit_score") or 0.0)
+        primary_score = primary.get("benefit_score")
         results.append(
             {
                 **primary,
@@ -462,10 +466,18 @@ def aggregate_stock_mappings(
                 "primary_mapping_id": primary.get("mapping_id"),
                 "secondary_mappings": secondary,
                 "diversification_bonus": bonus,
-                "stock_score": _clamp(primary_score + bonus),
+                "stock_score": (
+                    None
+                    if primary_score is None
+                    else _clamp(float(primary_score) + bonus)
+                ),
             }
         )
     return sorted(
         results,
-        key=lambda row: (-float(row["stock_score"]), str(row["code"])),
+        key=lambda row: (
+            row["stock_score"] is None,
+            -float(row["stock_score"] or 0.0),
+            str(row["code"]),
+        ),
     )

@@ -83,7 +83,7 @@ def test_full_candidate_ranking_can_select_stock_not_in_snapshot_subset():
         top_n=1,
     )
 
-    assert [row["code"] for row in selected] == ["000002.SZ"]
+    assert [row["code"] for row in selected] == ["000002"]
     assert selected[0]["source_scope"] == "full_historical_candidate_set"
 
 
