@@ -13,6 +13,7 @@ from .base import BacktestRequest, compute_adjusted_return, evaluate_request
 
 
 ELIGIBLE_POOLS = ("A", "B", "C")
+BENCHMARK_CODE = "000300"
 ROW_COLUMNS = (
     "trade_date",
     "stock_code",
@@ -20,9 +21,12 @@ ROW_COLUMNS = (
     "entry_date",
     "entry_open",
     "entry_adj",
+    "exit_date",
     "exit_close",
     "exit_adj",
     "chain_id",
+    "benchmark_entry_open",
+    "benchmark_exit_close",
 )
 
 
@@ -60,9 +64,12 @@ def load_supply_chain_return_rows(
             entry.trade_date AS entry_date,
             entry.open AS entry_open,
             entry.adj_factor AS entry_adj,
+            exit.trade_date AS exit_date,
             exit.close AS exit_close,
             exit.adj_factor AS exit_adj,
-            b.chain_id
+            b.chain_id,
+            benchmark_entry.open AS benchmark_entry_open,
+            benchmark_exit.close AS benchmark_exit_close
         FROM screening_snapshots s
         LEFT JOIN business_tag_mapping b
           ON b.mapping_id = s.factors->>'primary_mapping_id'
@@ -78,7 +85,7 @@ def load_supply_chain_return_rows(
             LIMIT 1
         ) entry ON TRUE
         JOIN LATERAL (
-            SELECT k.close, a.adj_factor
+            SELECT k.trade_date, k.close, a.adj_factor
             FROM daily_kline k
             LEFT JOIN adj_factor a
               ON a.code = k.code AND a.trade_date = k.trade_date
@@ -88,6 +95,12 @@ def load_supply_chain_return_rows(
             ORDER BY k.trade_date
             OFFSET %s LIMIT 1
         ) exit ON TRUE
+        LEFT JOIN index_daily benchmark_entry
+          ON benchmark_entry.code = '000300'
+         AND benchmark_entry.trade_date = entry.trade_date
+        LEFT JOIN index_daily benchmark_exit
+          ON benchmark_exit.code = '000300'
+         AND benchmark_exit.trade_date = exit.trade_date
         WHERE s.model_key = %s
           AND s.factors->>'pool_code' IN ('A','B','C')
         ORDER BY s.trade_date, s.stock_code
@@ -163,13 +176,18 @@ def _base_report(request: BacktestRequest) -> dict[str, Any]:
         },
         "by_chain": {},
         "by_market_regime": {},
-        "benchmark": {"status": "INSUFFICIENT_EVIDENCE"},
+        "benchmark": {
+            "status": "INSUFFICIENT_EVIDENCE",
+            "code": BENCHMARK_CODE,
+            "name": "沪深300",
+        },
         "excess_return": {"status": "INSUFFICIENT_EVIDENCE"},
         "coverage": {
             "snapshot_rows": 0,
             "return_rows": 0,
             "missing_adj_factor_count": 0,
             "available_score_dates": 0,
+            "benchmark_return_rows": 0,
         },
         "insufficient_reason": None,
     }
@@ -203,6 +221,8 @@ class SupplyChainSelectionV2Adapter:
 
         eligible_rows: list[dict[str, Any]] = []
         valid_rows: list[dict[str, Any]] = []
+        benchmark_rows: list[dict[str, Any]] = []
+        excess_rows: list[dict[str, Any]] = []
         missing_adj_factor_count = 0
         for raw in raw_rows:
             row = dict(raw)
@@ -229,6 +249,26 @@ class SupplyChainSelectionV2Adapter:
                 request.cost_bps,
             )
             valid_rows.append(row)
+            benchmark_entry = row.get("benchmark_entry_open")
+            benchmark_exit = row.get("benchmark_exit_close")
+            if (
+                benchmark_entry is not None
+                and benchmark_exit is not None
+                and float(benchmark_entry) > 0
+                and float(benchmark_exit) > 0
+            ):
+                benchmark_return = (
+                    float(benchmark_exit) / float(benchmark_entry) - 1.0
+                )
+                benchmark_rows.append(
+                    {**row, "future_return": benchmark_return}
+                )
+                excess_rows.append(
+                    {
+                        **row,
+                        "future_return": row["future_return"] - benchmark_return,
+                    }
+                )
 
         score_dates = {str(row["trade_date"]) for row in eligible_rows}
         valid_by_date: dict[str, int] = defaultdict(int)
@@ -242,6 +282,7 @@ class SupplyChainSelectionV2Adapter:
             "return_rows": len(valid_rows),
             "missing_adj_factor_count": missing_adj_factor_count,
             "available_score_dates": len(score_dates),
+            "benchmark_return_rows": len(benchmark_rows),
         }
         report["by_pool"] = _group_report(
             valid_rows,
@@ -250,6 +291,12 @@ class SupplyChainSelectionV2Adapter:
         )
         report["by_chain"] = _group_report(valid_rows, "chain_id")
         report["by_market_regime"] = _group_report(valid_rows, "market_regime")
+        report["benchmark"] = {
+            "code": BENCHMARK_CODE,
+            "name": "沪深300",
+            **summarize_returns(benchmark_rows),
+        }
+        report["excess_return"] = summarize_returns(excess_rows)
         report["factor_evidence"] = evaluate_request(valid_rows, request)
 
         missing: list[str] = []

@@ -126,3 +126,35 @@ def test_fetch_pool_candidates_uses_one_primary_mapping_without_score_stacking()
     assert rows[0]["primary_mapping_id"] == "m1"
     assert rows[0]["stock_score"] == 74.5
     assert cursor.executed[0][1] == ("2026-07-11", "v2.0")
+
+
+def test_snapshot_writer_keeps_unknown_total_score_null():
+    cursor = FakeCursor([])
+    captured = {}
+
+    def capture_values(cur, statement, rows, page_size):
+        captured["rows"] = rows
+
+    written = module._write_snapshots(
+        cursor,
+        [
+            {
+                "code": "000001",
+                "pool_code": "C",
+                "rank": 1,
+                "primary_mapping_id": "m1",
+                "model_version": "v2.0",
+                "benefit_score": None,
+                "opportunity_score": None,
+                "stock_score": None,
+                "evidence_level": "E2",
+                "veto_reasons": [],
+            }
+        ],
+        trade_date="2026-07-11",
+        time_slot="close",
+        execute_values_fn=capture_values,
+    )
+
+    assert written == 1
+    assert captured["rows"][0][5] is None

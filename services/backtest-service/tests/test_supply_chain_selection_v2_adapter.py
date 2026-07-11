@@ -59,6 +59,8 @@ def fake_connection():
                 "exit_close": 12,
                 "exit_adj": 2.1,
                 "chain_id": "dexterous_hand",
+                "benchmark_entry_open": 10,
+                "benchmark_exit_close": 12,
             },
             {
                 "trade_date": date(2026, 7, 1),
@@ -114,6 +116,8 @@ def test_pool_metrics_never_include_d_pool(fake_connection):
 
     assert "D" not in report["by_pool"]
     assert report["by_pool"]["A"]["mean_return"] == pytest.approx(0.2586)
+    assert report["benchmark"]["mean_return"] == pytest.approx(0.2)
+    assert report["excess_return"]["mean_return"] == pytest.approx(0.0586)
     assert report["coverage"]["missing_adj_factor_count"] == 1
     assert report["coverage"]["return_rows"] == 1
     assert report["execution_assumption"] == (

@@ -87,7 +87,7 @@ COMPARE_CONFIGURATION = (
     ("sharpe", 0.05, True),
     ("icir", 0.02, True),
     ("ic", 0.002, True),
-    ("max_drawdown", 0.01, False),
+    ("max_drawdown", 0.01, True),
     ("annual_return", 0.02, True),
     ("win_rate", 0.02, True),
     ("profit_loss_ratio", 0.05, True),

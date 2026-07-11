@@ -119,6 +119,13 @@ def snapshot_factor_payload(row: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def _snapshot_total_score(row: dict[str, Any]) -> float | None:
+    value = row.get("opportunity_score")
+    if value is None:
+        value = row.get("stock_score")
+    return None if value is None else float(value)
+
+
 def filter_snapshot_candidates(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         dict(row)
@@ -365,11 +372,7 @@ def _write_snapshots(
             normalize_stock_code(row["code"]),
             time_slot,
             json.dumps(snapshot_factor_payload(row), ensure_ascii=False),
-            float(
-                row.get("opportunity_score")
-                if row.get("opportunity_score") is not None
-                else row.get("stock_score") or 0.0
-            ),
+            _snapshot_total_score(row),
             row["pool_code"],
             int(row["rank"]),
         )

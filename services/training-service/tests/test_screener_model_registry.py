@@ -41,3 +41,24 @@ def test_model_comparison_never_fills_missing_performance_metrics():
     assert comparisons == []
     assert verdict == "insufficient_evidence"
     assert "缺少真实回测指标" in recommendation
+
+
+def test_model_comparison_treats_less_negative_drawdown_as_better():
+    old_metrics = {
+        "ic": 0.05,
+        "icir": 0.7,
+        "sharpe": 1.5,
+        "max_drawdown": -0.20,
+        "annual_return": 0.25,
+        "win_rate": 0.55,
+        "profit_loss_ratio": 1.6,
+    }
+    new_metrics = {**old_metrics, "max_drawdown": -0.10}
+
+    comparisons, _, _ = _build_truthful_comparison(new_metrics, old_metrics)
+    drawdown = next(
+        item for item in comparisons if item.metric == "max_drawdown"
+    )
+
+    assert drawdown.delta == 0.1
+    assert drawdown.better is True

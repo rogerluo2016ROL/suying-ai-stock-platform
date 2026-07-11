@@ -398,4 +398,3 @@ def downgrade() -> None:
         "supply_chain_node_dimensions",
     ):
         op.execute(f"DROP TABLE IF EXISTS {table_name}")
-
