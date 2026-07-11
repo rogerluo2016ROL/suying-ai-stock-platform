@@ -149,6 +149,166 @@ def data_readiness() -> dict[str, Any]:
     }
 
 
+def _persist_business_tag_evidence_event(cur, event: dict[str, Any]) -> None:
+    cur.execute(
+        """
+        INSERT INTO business_tag_evidence_events (
+            event_id, mapping_id, code, node_id, event_date, source_type,
+            source_id, title, excerpt, original_url, evidence_type,
+            impact_dimensions, confidence, review_status, stage_before, stage_after
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb, %s::jsonb)
+        ON CONFLICT (event_id) DO UPDATE SET
+            title = EXCLUDED.title,
+            excerpt = EXCLUDED.excerpt,
+            original_url = EXCLUDED.original_url,
+            evidence_type = EXCLUDED.evidence_type,
+            impact_dimensions = EXCLUDED.impact_dimensions,
+            confidence = EXCLUDED.confidence,
+            stage_after = EXCLUDED.stage_after
+        """,
+        (
+            event["event_id"],
+            event["mapping_id"],
+            event["code"],
+            event["node_id"],
+            event["event_date"],
+            event["source_type"],
+            event["source_id"],
+            event["title"],
+            event["excerpt"],
+            event["original_url"],
+            event["evidence_type"],
+            json.dumps(event["impact_dimensions"], ensure_ascii=False),
+            event["confidence"],
+            event["review_status"],
+            json.dumps(event["stage_before"], ensure_ascii=False),
+            json.dumps(event["stage_after"], ensure_ascii=False),
+        ),
+    )
+
+
+def _extract_business_tag_evidence_event(
+    mapping_id: str,
+    request: Any,
+) -> dict[str, Any]:
+    if not mapping_id:
+        raise HTTPException(status_code=400, detail="mapping_id is required")
+    source = {
+        "source_type": request.source_type,
+        "source_id": request.source_id,
+        "title": request.title,
+        "excerpt": request.excerpt,
+        "original_url": request.original_url,
+        "event_date": request.event_date,
+        "confidence": request.confidence,
+    }
+
+    try:
+        with repository.connect() as pg:
+            cur = pg.cursor()
+            mapping = _query_business_tag_mapping_context(cur, mapping_id)
+            if not mapping:
+                raise HTTPException(status_code=404, detail=f"Business tag mapping '{mapping_id}' not found")
+
+            event = _infer_business_tag_evidence_event(
+                mapping_id=mapping_id,
+                mapping=mapping,
+                source=source,
+            )
+            if not request.persist:
+                return {
+                    "version": "supply-chain-v2-evidence-extract",
+                    "mapping_id": mapping_id,
+                    "persisted": False,
+                    "event": event,
+                    "limitations": ["candidate event was not persisted"],
+                }
+
+            if not repository.table_exists(cur, "business_tag_evidence_events"):
+                raise HTTPException(status_code=503, detail="business_tag_evidence_events table is missing")
+
+            _persist_business_tag_evidence_event(cur, event)
+            pg.commit()
+            return {
+                "version": "supply-chain-v2-evidence-extract",
+                "mapping_id": mapping_id,
+                "persisted": True,
+                "event": event,
+                "limitations": ["candidate evidence requires review before scoring or stage confirmation"],
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("business tag evidence extraction failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Evidence extraction failed: {e}") from e
+
+
+def _batch_extract_business_tag_evidence(
+    request: Any,
+) -> dict[str, Any]:
+    safe_limit = max(1, min(int(request.limit or 50), 500))
+    source_types = [str(item) for item in (request.source_types or []) if str(item).strip()]
+    payload: dict[str, Any] = {
+        "version": "supply-chain-v2-evidence-batch-extract",
+        "source_status": "unknown",
+        "mapping_count": 0,
+        "candidate_source_count": 0,
+        "created_event_count": 0,
+        "events": [],
+        "limitations": [],
+    }
+    if not request.mapping_id and not request.code:
+        raise HTTPException(status_code=400, detail="mapping_id or code is required")
+    try:
+        with repository.connect() as pg:
+            cur = pg.cursor()
+            mappings = _query_business_tag_mappings_for_batch(cur, request)
+            payload["mapping_count"] = len(mappings)
+            if not mappings:
+                payload["source_status"] = "mapping_not_found"
+                payload["limitations"].append("未找到业务标签映射，无法抽取证据")
+                return payload
+            if request.persist and not repository.table_exists(cur, "business_tag_evidence_events"):
+                raise HTTPException(status_code=503, detail="business_tag_evidence_events table is missing")
+
+            seen_event_ids: set[str] = set()
+            for mapping in mappings:
+                sources = _query_candidate_sources_for_mapping(cur, mapping, source_types, safe_limit)
+                payload["candidate_source_count"] += len(sources)
+                for source in sources:
+                    event = _infer_business_tag_evidence_event(
+                        mapping_id=str(mapping["mapping_id"]),
+                        mapping=mapping,
+                        source=source,
+                    )
+                    if event["event_id"] in seen_event_ids:
+                        continue
+                    seen_event_ids.add(event["event_id"])
+                    if request.persist:
+                        _persist_business_tag_evidence_event(cur, event)
+                    payload["events"].append(event)
+                    if len(payload["events"]) >= safe_limit:
+                        break
+                if len(payload["events"]) >= safe_limit:
+                    break
+
+            if request.persist:
+                pg.commit()
+            payload["created_event_count"] = len(payload["events"])
+            payload["source_status"] = "ok"
+            if request.persist:
+                payload["limitations"].append("批量抽取生成的证据均为 pending_review，审核通过前不进入阶段和评分")
+            else:
+                payload["limitations"].append("本次只预览候选证据，未写入数据库")
+            return payload
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("business tag batch evidence extraction failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Batch evidence extraction failed: {e}") from e
+
+
 def _query_business_tag_mappings_for_batch(
     cur,
     request: Any,
