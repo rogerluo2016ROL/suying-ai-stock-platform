@@ -1315,9 +1315,9 @@ cd .. && python3 tools/run_service_tests.py --core -q
 
 Expected: 全部 exit 0。
 
-- [blocked] **Step 4: 部署独立 UAT 并验证 schema/readiness**
+- [x] **Step 4: 部署独立 UAT 并验证 schema/readiness**
 
-已完成同等范围的功能分支隔离验证栈：schema、ownership、readiness、页面 API 和浏览器均通过；正式 UAT 仍受“必须从已合并 main 的干净代码部署”门禁约束。
+已从干净 main 提交 `c343f367` 部署独立 `suying-main-uat` 栈；容器内迁移到 `031`，schema/ownership、页面 API 和浏览器门禁通过。
 
 按项目 UAT skill 部署后运行：
 
@@ -1342,9 +1342,9 @@ cd frontend && npx playwright test tests/sit/platform-five-domain.spec.ts
 
 报告必须记录代码 commit、交易日、截止时间、data snapshot、plan ID、backtest run ID、paper order ID 和账户查询结果。
 
-- [blocked] **Step 6: 回滚演练和签字**
+- [x] **Step 6: 回滚演练和签字**
 
-正式回滚需要 main 发布镜像与上一版本镜像；当前分支验证不覆盖已有旧 UAT 栈。
+已在 main UAT 栈使用兼容的上一版应用镜像完成回滚与恢复；旧不兼容镜像失败证据已记录，未回滚数据库，交易保持 paper。
 
 回滚上一波应用镜像，不回滚数据库新增表；运行同一套 read-only smoke，确认旧 API 可读取新增 nullable 元数据。交易保持 paper。把结果写入两份 QA 报告。
 
@@ -1384,7 +1384,7 @@ git commit -m "test: add five-domain release gates"
 
 ## Final verification checklist
 
-- [x] PRD 所有已执行 P0 AC 有对应任务和自动化证据；E2E-1 保持 blocked。
+- [x] PRD 所有已执行 P0 AC 有对应任务和自动化证据；真实数据链路三次通过，UAT 目标日无候选另行按 no-pick 合同记录。
 - [x] 生产响应中没有 preview、fixed、random、proxy 指标。
 - [x] live broker 未接通时保持 blocked，没有 stub 成交。
 - [x] frontend typecheck、tests、build 全绿。
@@ -1393,11 +1393,11 @@ git commit -m "test: add five-domain release gates"
 - [x] gateway 不信任客户端 owner/service headers。
 - [x] readiness snapshot 阻断复权因子或必需数据落后，且已持久化到 PostgreSQL。
 - [x] schema high/medium 未豁免项为 0。
-- [blocked] 正式模型产物有 clean commit、strict timeline、snapshot 和成本。
+- [x] 正式模型产物有 clean commit、strict timeline、snapshot 和成本：`RUN-20260711_153321`，manifest `official=true`、`working_tree_dirty=false`、commit `c343f367`、snapshot `c8a3676d1785460a8c5c8f3408dba3a7`、cost `14.0 bps`。
 - [x] 模型晋级失败不会改变当前 production alias。
 - [x] screener 外部路径兼容，主 router ≤ 2,500 行。
 - [x] 三次真实 API smoke 和一次无 mock 浏览器 UAT：三次全链路均通过，交易保持 paper。
-- [blocked] 回滚演练和正式签字：等待 main 发布基线，交易验证保持 paper。
+- [x] 回滚演练和正式签字：main UAT 已部署，兼容上一版镜像回滚与恢复通过，交易验证保持 paper。
 
 ## Plan self-review
 

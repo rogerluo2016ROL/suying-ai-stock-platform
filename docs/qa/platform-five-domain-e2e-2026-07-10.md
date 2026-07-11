@@ -8,6 +8,7 @@
 - 最近交易日：2026-07-10
 - 候选来源：真实 `bi_trend_launch` 模型输出，未注入候选
 - 最新回测观测：32 个交易期、2586 条真实评分观测，22 期达到每期 30 条门槛
+- 正式 manifest：`RUN-20260711_153321`，`official=true`、clean commit `c343f367`、strict timeline、snapshot `c8a3676d1785460a8c5c8f3408dba3a7`、成本 14 bps
 
 ## 自动化门禁
 

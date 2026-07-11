@@ -22,12 +22,12 @@
 
 ## 正式 UAT 门
 
-**尚未签字**。项目 UAT 规范要求部署源必须是已合并到 `main` 的干净代码。当前验证源仍是功能分支，且工作区保留用户无关改动，因此本报告只证明最新分支 SIT，不把它伪称为正式 UAT。
+已建立 `main` 基线 `c343f367`，并从干净 detached worktree 部署独立 `suying-main-uat` 栈；部署、迁移和 41 项只读页面 API 检查通过。部署细节见 `docs/deploy/platform-five-domain-uat-2026-07-11.md`。
 
 ## 回滚
 
-正式镜像回滚演练尚未执行：必须在合并后的 main UAT 栈上保留前一应用镜像、仅回滚应用镜像而不回滚新增表，再跑同一套 read-only smoke。当前不覆盖已有旧 `suying-uat` 栈。
+已在 main UAT 栈执行应用镜像回滚：旧 `suying-uat-*` 镜像因 schema 不兼容失败，随后使用兼容的上一版 `suying-branch-validation-*` 镜像回滚，41/41 read-only smoke 通过；恢复 main 镜像后 backend health 仍为 HTTP 200，数据库未回滚。
 
 ## Verdict
 
-**SIT 与可执行 E2E 通过；正式 UAT / 回滚签字待 main 发布基线。**
+**正式 UAT 部署与兼容上一版镜像回滚通过；目标日无候选按真实 no-pick 合同记录。**
