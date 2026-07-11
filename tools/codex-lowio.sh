@@ -46,7 +46,7 @@ case "$cmd" in
     cd "$ROOT"
     export PYTHONDONTWRITEBYTECODE=1
     export PYTEST_DISABLE_PLUGIN_AUTOLOAD="${PYTEST_DISABLE_PLUGIN_AUTOLOAD:-1}"
-    "$(pytest_bin)" -p no:cacheprovider --tb=short -q "$@"
+    "$(pytest_bin)" -p no:cacheprovider -p pytest_asyncio.plugin --tb=short -q "$@"
     ;;
   fe-test)
     cd "$ROOT/frontend"
