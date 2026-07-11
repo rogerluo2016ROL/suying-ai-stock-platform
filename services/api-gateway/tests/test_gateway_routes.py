@@ -1,9 +1,18 @@
 import importlib.util
 from email.message import Message
 from pathlib import Path
+import sys
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "app" / "main.py"
+REGISTRY_PATH = MODULE_PATH.with_name("service_registry.py")
+registry_spec = importlib.util.spec_from_file_location(
+    "app.service_registry", REGISTRY_PATH
+)
+registry = importlib.util.module_from_spec(registry_spec)
+assert registry_spec and registry_spec.loader
+sys.modules["app.service_registry"] = registry
+registry_spec.loader.exec_module(registry)
 spec = importlib.util.spec_from_file_location("api_gateway_main", MODULE_PATH)
 gateway = importlib.util.module_from_spec(spec)
 assert spec and spec.loader
@@ -35,6 +44,12 @@ def test_resolve_target_covers_frontend_module_prefixes():
 
     for path, target in expected.items():
         assert gateway._resolve_target(path, "") == target
+
+
+def test_supply_chain_evidence_review_prefix_forwards_to_screener_service():
+    path = "/api/v1/screener/supply-chain/evidence/facts/f1/review"
+
+    assert gateway._resolve_target(path, "") == f"http://localhost:8001{path}"
 
 
 def test_resolve_target_rewrites_service_health_alias():

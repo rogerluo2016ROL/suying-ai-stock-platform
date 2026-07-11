@@ -51,6 +51,14 @@ SELECTION_V2_MIGRATION_PATH = (
     / "032_supply_chain_research_selection_v2.py"
 )
 
+EVIDENCE_REVIEW_GATE_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "033_supply_chain_evidence_review_gate.py"
+)
+
 
 def test_supply_chain_v2_migration_defines_required_tables():
     sql = MIGRATION_PATH.read_text(encoding="utf-8")
@@ -236,3 +244,63 @@ def test_selection_v2_migration_preserves_unknown_and_audit_contracts():
     ]
     for contract in required:
         assert contract in sql
+
+
+def test_evidence_review_gate_migration_revision_and_audit_contract():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert 'revision: str = "033"' in migration_text
+    assert "032" in migration_text
+    assert "ADD COLUMN IF NOT EXISTS reviewer TEXT" in migration_text
+    assert "guard_supply_chain_manual_review" in migration_text
+    assert "business_tag_expectation_monitor" in migration_text
+    assert "business_tag_stage_tracking" in migration_text
+    assert "NULLIF(BTRIM(NEW.review_note), '') IS NOT NULL" in migration_text
+    assert "TIMESTAMP WITH TIME ZONE" in migration_text
+    assert "AT TIME ZONE 'Asia/Shanghai'" in migration_text
+
+
+def test_evidence_review_gate_demotes_unverifiable_historical_approvals():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert "validation_status = 'pending'" in migration_text
+    assert "review_status = 'pending_review'" in migration_text
+    assert "coalesce(metadata, '{}'::jsonb) - 'review_normalization'" in migration_text
+
+
+def test_evidence_review_gate_has_four_manual_review_triggers():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert migration_text.count("CREATE TRIGGER trg_supply_chain_manual_review_") == 4
+    for table_name in (
+        "evidence_extracted_facts",
+        "business_tag_evidence_events",
+        "business_tag_expectation_monitor",
+        "business_tag_stage_tracking",
+    ):
+        assert f"BEFORE INSERT OR UPDATE ON {table_name}" in migration_text
+    assert (
+        "current_setting('app.supply_chain_review_action', true) = 'manual'"
+        in migration_text
+    )
+    assert "NULLIF(BTRIM(NEW.reviewer), '') IS NOT NULL" in migration_text
+    assert "NEW.reviewed_at IS NOT NULL" in migration_text
+    assert "source_event_id" in migration_text
+
+
+def test_evidence_review_gate_timezone_upgrade_and_non_reapproving_downgrade():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+    upgrade_text, downgrade_text = migration_text.split("def downgrade()", maxsplit=1)
+
+    assert upgrade_text.count("ADD COLUMN IF NOT EXISTS reviewer TEXT") >= 2
+    assert upgrade_text.count("ADD COLUMN IF NOT EXISTS review_note TEXT") >= 2
+    assert (
+        upgrade_text.count(
+            "ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE"
+        )
+        >= 2
+    )
+    assert "ALTER COLUMN reviewed_at TYPE TIMESTAMP WITH TIME ZONE" in upgrade_text
+    assert "reviewed_at AT TIME ZONE 'Asia/Shanghai'" in downgrade_text
+    assert "SET validation_status = 'confirmed'" not in downgrade_text
+    assert "SET review_status = 'approved'" not in downgrade_text

@@ -39,6 +39,9 @@
   "/api/v1/screener/supply-chain/data-readiness",
   "/api/v1/screener/supply-chain/evidence-review/queue",
   "/api/v1/screener/supply-chain/evidence/batch-extract",
+  "/api/v1/screener/supply-chain/evidence/events/{event_id}/review",
+  "/api/v1/screener/supply-chain/evidence/expectations/{monitor_id}/review",
+  "/api/v1/screener/supply-chain/evidence/facts/{fact_id}/review",
   "/api/v1/screener/supply-chain/evidence/{event_id}/review",
   "/api/v1/screener/supply-chain/extract",
   "/api/v1/screener/supply-chain/inferred-data/materialize",
@@ -53,5 +56,8 @@
   "/api/v1/screener/supply-chain/research/ingest",
   "/api/v1/screener/supply-chain/themes",
   "/api/v1/screener/supply-chain/workbench",
-  "/api/v1/screener/watchlist"
+  "/api/v1/screener/watchlist",
+  "/api/v1/supply-chain/selection/batch-score",
+  "/api/v1/supply-chain/selection/candidates",
+  "/api/v1/supply-chain/selection/stocks/{code}"
 ]
