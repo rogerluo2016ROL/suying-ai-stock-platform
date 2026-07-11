@@ -241,6 +241,7 @@ def _annotate_official_document(
         "verified_current_date",
         "application_domain",
         "installation_position",
+        "current_support_status",
     ):
         metadata.pop(reserved, None)
     eligible = bool(
@@ -263,6 +264,11 @@ def _annotate_official_document(
     if document.doc_type in {"official_product_page", "official_site_page"} and eligible:
         metadata["currently_offered"] = True
         metadata["verified_current_date"] = as_of_date.isoformat()
+    annotated = replace(document, metadata=metadata)
+    support_status = current_support_status(annotated, as_of_date)
+    if not eligible and support_status == "current":
+        support_status = "pending_review"
+    metadata["current_support_status"] = support_status
     return replace(document, metadata=metadata)
 
 
@@ -428,12 +434,6 @@ class ScopedOfficialFetcher:
                 require_product_and_scene=task.require_product_and_scene,
                 as_of_date=as_of_date,
             )
-            if (
-                task.product_terms
-                or task.scene_terms
-                or task.negative_examples
-            ) and annotated.metadata.get("same_document_match") is not True:
-                continue
             filtered.append(annotated)
         deduplicated = list(_dedupe_documents(filtered))
         if source_errors:
@@ -525,12 +525,6 @@ class ScopedOfficialDiscoveryFetcher:
                 require_product_and_scene=task.require_product_and_scene,
                 as_of_date=as_of_date,
             )
-            if (
-                task.product_terms
-                or task.scene_terms
-                or task.negative_examples
-            ) and normalized.metadata.get("same_document_match") is not True:
-                continue
             annotated.append(normalized)
         deduplicated = list(_dedupe_documents(annotated))
         if source_errors:

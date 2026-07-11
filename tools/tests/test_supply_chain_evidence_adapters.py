@@ -223,11 +223,19 @@ def test_scoped_official_fetcher_only_marks_same_page_product_and_scene_without_
         text="灵巧手驱动器用于机器人手部，但公司否认供货",
         doc_type="official_product_page",
         publish_time=None,
+        metadata={"profit_confirmed": True},
+    )
+    generic = document(
+        "generic",
+        text="灵巧手驱动器通用产品说明",
+        doc_type="official_product_page",
+        publish_time=None,
+        metadata={"revenue_confirmed": True},
     )
 
     fetcher = ScopedOfficialFetcher(
         cninfo_fetch=lambda **kwargs: ([], 1),
-        ir_fetch=lambda **kwargs: ([good, negative], 2),
+        ir_fetch=lambda **kwargs: ([good, generic, negative], 2),
     )
     rows, request_count = fetcher.fetch(
         collection_task(), as_of_date=AS_OF, document_limit=10, pages_per_company=2
@@ -241,7 +249,17 @@ def test_scoped_official_fetcher_only_marks_same_page_product_and_scene_without_
     assert by_title["good"].metadata["installation_position"] == ["机器人手部"]
     assert "revenue_confirmed" not in by_title["good"].metadata
     assert "profit_confirmed" not in by_title["good"].metadata
-    assert "negative" not in by_title
+    for title in ("generic", "negative"):
+        metadata = by_title[title].metadata
+        assert metadata["same_document_match"] is False
+        assert metadata["current_support_status"] == "pending_review"
+        assert "revenue_confirmed" not in metadata
+        assert "profit_confirmed" not in metadata
+        assert "currently_offered" not in metadata
+        assert "application_domain" not in metadata
+        assert "installation_position" not in metadata
+    assert by_title["generic"].metadata["excluded_hits"] == []
+    assert by_title["negative"].metadata["excluded_hits"] == ["否认"]
 
 
 class FakeCursor:
@@ -871,6 +889,10 @@ def test_mapped_official_sources_fail_independently_and_filter_partial_documents
         "cn-bad", code="688001", text="轴向磁通电机用于机器人腕部，董事会换届",
         metadata={"revenue_confirmed": True},
     )
+    partial_generic = document(
+        "cn-generic", code="688001", text="轴向磁通电机通用产品说明",
+        metadata={"profit_confirmed": True},
+    )
     ir_good = document(
         "ir-good", code="688001", text="轴向磁通电机用于机器人腕部",
         doc_type="official_product_page", publish_time=None,
@@ -880,7 +902,7 @@ def test_mapped_official_sources_fail_independently_and_filter_partial_documents
         calls.append("cninfo")
         raise center.DocumentFetchError(
             "cninfo failed", request_count=2,
-            documents=(partial_good, partial_bad),
+            documents=(partial_good, partial_generic, partial_bad),
         )
 
     def ir_fetch(**_kwargs):
@@ -901,9 +923,16 @@ def test_mapped_official_sources_fail_independently_and_filter_partial_documents
     assert calls == ["cninfo", "ir"]
     assert result.status == "partial_success"
     assert result.network_requests == 3
-    assert [item.title for item in result.documents] == ["cn-good", "ir-good"]
+    assert [item.title for item in result.documents] == [
+        "cn-good", "cn-generic", "cn-bad", "ir-good"
+    ]
     assert "revenue_confirmed" not in result.documents[0].metadata
     assert result.documents[0].metadata["same_document_match"] is True
+    for item in result.documents[1:3]:
+        assert item.metadata["same_document_match"] is False
+        assert item.metadata["current_support_status"] == "pending_review"
+        assert "revenue_confirmed" not in item.metadata
+        assert "profit_confirmed" not in item.metadata
 
 
 def test_discovery_sources_fail_independently_and_filter_partial_documents():
@@ -917,6 +946,10 @@ def test_discovery_sources_fail_independently_and_filter_partial_documents():
     partial_bad = document(
         "global-bad", code="688001", text="轴向磁通电机用于机器人腕部，董事会换届",
     )
+    partial_generic = document(
+        "global-generic", code="688001", text="轴向磁通电机通用产品说明",
+        metadata={"revenue_confirmed": True},
+    )
     ir_good = document(
         "global-ir", code="688001", text="轴向磁通电机用于机器人腕部",
         doc_type="official_product_page", publish_time=None,
@@ -926,7 +959,7 @@ def test_discovery_sources_fail_independently_and_filter_partial_documents():
         calls.append("cninfo")
         raise center.DocumentFetchError(
             "global failed", request_count=2,
-            documents=(partial_good, partial_bad),
+            documents=(partial_good, partial_generic, partial_bad),
         )
 
     def ir_fetch(**_kwargs):
@@ -948,8 +981,52 @@ def test_discovery_sources_fail_independently_and_filter_partial_documents():
     assert calls == ["cninfo", "ir"]
     assert result.status == "partial_success"
     assert result.network_requests == 3
-    assert [item.title for item in result.documents] == ["global-good", "global-ir"]
+    assert [item.title for item in result.documents] == [
+        "global-good", "global-generic", "global-bad", "global-ir"
+    ]
     assert "profit_confirmed" not in result.documents[0].metadata
+    for item in result.documents[1:3]:
+        assert item.metadata["same_document_match"] is False
+        assert item.metadata["current_support_status"] == "pending_review"
+        assert "revenue_confirmed" not in item.metadata
+
+
+def test_discovery_normal_path_keeps_generic_and_negative_documents_pending():
+    from supply_chain_evidence_adapters import ScopedOfficialDiscoveryFetcher
+
+    generic = document(
+        "discovery-generic", code="688001", text="轴向磁通电机通用产品说明",
+        metadata={"revenue_confirmed": True},
+    )
+    negative = document(
+        "discovery-negative", code="688001",
+        text="轴向磁通电机用于机器人腕部，董事会换届",
+        metadata={"profit_confirmed": True},
+    )
+    task = UnmappedDiscoveryTask(
+        chain_id="dexterous_hand", requirement_id="axial_flux",
+        product_terms=("轴向磁通",), scene_terms=("机器人腕部",),
+        negative_examples=("董事会换届",), require_product_and_scene=True,
+        allowed_company_codes=("688001",),
+    )
+
+    rows, request_count = ScopedOfficialDiscoveryFetcher(
+        global_cninfo_fetch=lambda **_kwargs: ([generic, negative], 2),
+        ir_fetch=lambda **_kwargs: ([], 0),
+    ).fetch_unmapped(
+        task, as_of_date=AS_OF, document_limit=10,
+        company_limit=1, pages_per_company=1,
+    )
+
+    assert request_count == 2
+    assert [item.title for item in rows] == [
+        "discovery-generic", "discovery-negative"
+    ]
+    for item in rows:
+        assert item.metadata["same_document_match"] is False
+        assert item.metadata["current_support_status"] == "pending_review"
+        assert "revenue_confirmed" not in item.metadata
+        assert "profit_confirmed" not in item.metadata
 
 
 def test_legacy_ir_uses_actual_helper_stats_not_theoretical_page_capacity(monkeypatch):

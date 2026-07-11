@@ -755,7 +755,8 @@ def test_point_in_time_queries_use_shanghai_exclusive_upper_bound():
     repository.fetch_candidate_universe(AS_OF, requirement, (), 5)
     repository.fetch_discovery_seed_companies(AS_OF, requirement, 5)
 
-    naive_upper = datetime(2026, 7, 10, 0, 0)
+    source_wall_upper = datetime(2026, 7, 10, 0, 0)
+    audit_utc_upper = datetime(2026, 7, 9, 16, 0)
     aware_upper = datetime(
         2026, 7, 10, 0, 0, tzinfo=ZoneInfo("Asia/Shanghai")
     )
@@ -765,19 +766,22 @@ def test_point_in_time_queries_use_shanghai_exclusive_upper_bound():
     assert "d.publish_time < %s" in fact_sql
     assert "f.created_at < %s" in fact_sql
     assert "f.reviewed_at IS NULL OR f.reviewed_at < %s" in fact_sql
-    assert fact_params.count(naive_upper) == 2
-    assert fact_params.count(aware_upper) == 1
+    assert fact_params == (
+        ["m1"], source_wall_upper, audit_utc_upper, aware_upper
+    )
     candidate_sql, candidate_params = next(
         call for call in cursor.calls if "FROM raw_evidence_documents" in call[0]
     )
     assert "publish_time < %s" in candidate_sql
     assert "created_at < %s" in candidate_sql
-    assert candidate_params.count(naive_upper) == 2
+    assert candidate_params == (source_wall_upper, audit_utc_upper, 25)
     seed_sql, seed_params = next(
         call for call in cursor.calls if "FROM stock_profiles" in call[0]
     )
     assert "updated_at < %s" in seed_sql
-    assert naive_upper in seed_params
+    assert seed_params == (
+        ["%轴向磁通%"], audit_utc_upper, 5
+    )
 
 
 def test_node_dimension_auto_upsert_never_overwrites_reviewed_rows():
@@ -934,6 +938,13 @@ def test_as_of_cutoffs_preserve_datetime_precision_and_sql_timestamp_types():
     utc_intraday = module._as_of_upper_bound(
         datetime(2026, 7, 9, 15, 0, tzinfo=timezone.utc)
     )
+    local_day_audit = module._as_of_audit_upper_bound(date(2026, 7, 9))
+    local_intraday_audit = module._as_of_audit_upper_bound(
+        datetime(2026, 7, 9, 9, 30)
+    )
+    utc_intraday_audit = module._as_of_audit_upper_bound(
+        datetime(2026, 7, 9, 15, 0, tzinfo=timezone.utc)
+    )
 
     assert local_day == datetime(2026, 7, 10, 0, 0)
     assert local_day.tzinfo is None
@@ -941,6 +952,9 @@ def test_as_of_cutoffs_preserve_datetime_precision_and_sql_timestamp_types():
     assert local_intraday.tzinfo is None
     assert utc_intraday == datetime(2026, 7, 9, 23, 0)
     assert utc_intraday.tzinfo is None
+    assert local_day_audit == datetime(2026, 7, 9, 16, 0)
+    assert local_intraday_audit == datetime(2026, 7, 9, 1, 30)
+    assert utc_intraday_audit == datetime(2026, 7, 9, 15, 0)
     aware = module._as_of_aware_upper_bound(
         datetime(2026, 7, 9, 15, 0, tzinfo=timezone.utc)
     )
@@ -983,7 +997,7 @@ def test_asof_fact_sql_uses_naive_cutoffs_for_timestamp_and_aware_for_timestampt
     assert "f.created_at < %s" in sql
     assert "f.reviewed_at < %s" in sql
     assert params[1] == datetime(2026, 7, 9, 23, 0)
-    assert params[2] == datetime(2026, 7, 9, 23, 0)
+    assert params[2] == datetime(2026, 7, 9, 15, 0)
     assert params[3] == datetime(
         2026, 7, 9, 23, 0, tzinfo=ZoneInfo("Asia/Shanghai")
     )
@@ -1021,7 +1035,7 @@ def test_candidate_and_local_raw_queries_cut_off_publish_and_ingest_times():
         cutoffs = [value for value in params if isinstance(value, datetime)]
         assert cutoffs[-2:] == [
             datetime(2026, 7, 10, 0, 0),
-            datetime(2026, 7, 10, 0, 0),
+            datetime(2026, 7, 9, 16, 0),
         ]
         assert all(value.tzinfo is None for value in cutoffs[-2:])
 
@@ -1064,7 +1078,7 @@ def test_undated_patent_is_retained_pending_and_cut_off_by_created_at():
     )
     assert "COALESCE(publication_date, application_date) IS NULL" in sql
     assert "created_at < %s" in sql
-    assert params[-1] == datetime(2026, 7, 10, 0, 0)
+    assert params[-1] == datetime(2026, 7, 9, 16, 0)
     assert len(rows) == 1
     assert rows[0].publish_time is None
     assert rows[0].metadata["legal_status_date"] is None

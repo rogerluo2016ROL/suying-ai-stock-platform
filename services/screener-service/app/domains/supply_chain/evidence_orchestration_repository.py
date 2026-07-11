@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 import hashlib
 import json
 import os
@@ -240,6 +240,12 @@ def _as_of_upper_bound(value: date | datetime) -> datetime:
     """Return a Shanghai wall-clock cutoff for TIMESTAMP WITHOUT TIME ZONE."""
 
     return _as_of_aware_upper_bound(value).replace(tzinfo=None)
+
+
+def _as_of_audit_upper_bound(value: date | datetime) -> datetime:
+    """Return a UTC wall-clock cutoff for DB-generated audit TIMESTAMP columns."""
+
+    return _as_of_aware_upper_bound(value).astimezone(UTC).replace(tzinfo=None)
 
 
 def _shanghai_date(value: object) -> date | None:
@@ -1008,7 +1014,8 @@ class EvidenceOrchestrationRepository:
     ) -> list[dict[str, Any]]:
         if limit <= 0:
             return []
-        upper_bound = _as_of_upper_bound(as_of_date)
+        source_wall_cutoff = _as_of_upper_bound(as_of_date)
+        audit_utc_cutoff = _as_of_audit_upper_bound(as_of_date)
         cutoff_day = _shanghai_date(as_of_date)
         if cutoff_day is None:
             raise ValueError("as_of cutoff must resolve to a Shanghai date")
@@ -1017,7 +1024,7 @@ class EvidenceOrchestrationRepository:
             "publish_time < %s",
             "created_at < %s",
         ]
-        params: list[Any] = [upper_bound, upper_bound]
+        params: list[Any] = [source_wall_cutoff, audit_utc_cutoff]
         if company_codes:
             clauses.append("split_part(company_code, '.', 1) = ANY(%s)")
             params.append([str(code).split(".", 1)[0] for code in company_codes])
@@ -1072,7 +1079,7 @@ class EvidenceOrchestrationRepository:
         if not terms or limit <= 0:
             return []
         probes = [f"%{term}%" for term in terms]
-        upper_bound = _as_of_upper_bound(as_of_date)
+        audit_utc_cutoff = _as_of_audit_upper_bound(as_of_date)
         with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 """
@@ -1085,7 +1092,7 @@ class EvidenceOrchestrationRepository:
                 ORDER BY code
                 LIMIT %s
                 """,
-                (probes, upper_bound, limit),
+                (probes, audit_utc_cutoff, limit),
             )
             rows = cur.fetchall()
         return list(
@@ -1159,8 +1166,9 @@ class EvidenceOrchestrationRepository:
     ) -> list[dict[str, Any]]:
         if not mapping_ids:
             return []
-        upper_bound = _as_of_upper_bound(cutoff)
-        aware_upper_bound = _as_of_aware_upper_bound(cutoff)
+        source_wall_cutoff = _as_of_upper_bound(cutoff)
+        audit_utc_cutoff = _as_of_audit_upper_bound(cutoff)
+        aware_cutoff = _as_of_aware_upper_bound(cutoff)
         with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 """
@@ -1176,9 +1184,9 @@ class EvidenceOrchestrationRepository:
                 """,
                 (
                     list(mapping_ids),
-                    upper_bound,
-                    upper_bound,
-                    aware_upper_bound,
+                    source_wall_cutoff,
+                    audit_utc_cutoff,
+                    aware_cutoff,
                 ),
             )
             rows = [dict(row) for row in cur.fetchall()]
@@ -1337,7 +1345,8 @@ class EvidenceOrchestrationRepository:
             "research_reports_tushare",
             "patent_events",
         )
-        upper_bound = _as_of_upper_bound(as_of_date)
+        source_wall_cutoff = _as_of_upper_bound(as_of_date)
+        audit_utc_cutoff = _as_of_audit_upper_bound(as_of_date)
         cutoff_day = _shanghai_date(as_of_date)
         if cutoff_day is None:
             raise ValueError("as_of cutoff must resolve to a Shanghai date")
@@ -1370,7 +1379,7 @@ class EvidenceOrchestrationRepository:
                     ORDER BY publish_time DESC NULLS LAST, doc_id
                     LIMIT 200
                     """,
-                    (code, upper_bound, upper_bound),
+                    (code, source_wall_cutoff, audit_utc_cutoff),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
@@ -1406,7 +1415,7 @@ class EvidenceOrchestrationRepository:
                       AND updated_at < %s
                     LIMIT 1
                     """,
-                    (code, upper_bound),
+                    (code, audit_utc_cutoff),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
@@ -1638,7 +1647,7 @@ class EvidenceOrchestrationRepository:
                              event_id
                     LIMIT 100
                     """,
-                    (code, cutoff_day, upper_bound),
+                    (code, cutoff_day, audit_utc_cutoff),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
