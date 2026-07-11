@@ -31,6 +31,20 @@ def test_extract_first_pick_requires_code_and_price_defaults_to_one():
     assert pick["price"] == 1.0
 
 
+def test_backtest_url_uses_the_same_registered_screening_model():
+    url = smoke.build_backtest_url("http://backtest", "bi_trend_launch", top_n=5)
+    assert url == (
+        "http://backtest/api/v1/backtest/factor-evidence?"
+        "model_key=bi_trend_launch&forward_days=5&cost_bps=14.0"
+    )
+
+
+def test_backtest_must_complete_before_paper_order():
+    assert smoke.require_completed_backtest({"status": "ready", "evaluation_id": "EV-1"})["status"] == "ready"
+    with pytest.raises(smoke.SmokeError, match="backtest did not complete"):
+        smoke.require_completed_backtest({"status": "blocked", "missing_requirements": ["observations"]})
+
+
 def test_no_pick_is_success_when_readiness_passes():
     assert smoke.classify_screener_result({"result_status": "success_no_matches", "picks": []}) == "pass"
 

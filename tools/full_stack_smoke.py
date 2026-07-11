@@ -111,6 +111,25 @@ def _query(params: dict[str, Any]) -> str:
     return urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
 
 
+def build_backtest_url(base_url: str, model_key: str, *, top_n: int) -> str:
+    return join_url(base_url, "/api/v1/backtest/factor-evidence") + "?" + _query(
+        {
+            "model_key": model_key,
+            "forward_days": 5,
+            "cost_bps": 14.0,
+        }
+    )
+
+
+def require_completed_backtest(body: dict[str, Any]) -> dict[str, Any]:
+    if body.get("status") != "ready":
+        raise SmokeError(
+            "backtest did not complete: "
+            f"status={body.get('status')}, missing={body.get('missing_requirements') or []}"
+        )
+    return body
+
+
 def load_config(argv: list[str] | None = None) -> SmokeConfig:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", default=os.environ.get("SMOKE_SCREENER_MODE", "short"))
@@ -210,10 +229,11 @@ def run_smoke(config: SmokeConfig) -> dict[str, Any]:
     )
     record("strategy.plan.confirm", {"plan_id": plan_id, "status": confirm_body.get("status")})
 
-    backtest_url = join_url(config.backtest_url, "/api/v1/backtest/run") + "?" + _query(
-        {"mode": "all", "windows": 1, "top_n": max(10, config.top_n), "forward_days": 30}
+    backtest_url = build_backtest_url(
+        config.backtest_url, config.screener_mode, top_n=config.top_n
     )
-    backtest_body = http_json("POST", backtest_url, token=token, timeout=config.timeout)
+    backtest_body = http_json("GET", backtest_url, token=token, timeout=config.timeout)
+    require_completed_backtest(backtest_body)
     record("backtest.run", {"status": backtest_body.get("status"), "summary_keys": sorted((backtest_body.get("summary") or {}).keys())[:4]})
 
     order_body = http_json(
