@@ -17,6 +17,7 @@ import {
   SideRail,
 } from '../components/prototype'
 import { signalApi, tradeApi } from '../api/client'
+import type { DataStatusResponse } from '../api/types'
 import { lightTokens, alpha } from '../styles/tokens'
 
 interface SignalRow {
@@ -189,6 +190,7 @@ export default function Signals() {
   const [riskChecks, setRiskChecks] = useState<RiskCheckCard[]>([])
   const [selectedCode, setSelectedCode] = useState('')
   const [lastRefresh, setLastRefresh] = useState('')
+  const [dataStatus, setDataStatus] = useState<DataStatusResponse>()
 
   useEffect(() => {
     signalApi.getLive('intra')
@@ -203,6 +205,12 @@ export default function Signals() {
         setSignals([])
         setSelectedCode('')
       })
+  }, [])
+
+  useEffect(() => {
+    signalApi.getDataStatus()
+      .then(response => setDataStatus(response.data))
+      .catch(() => setDataStatus(undefined))
   }, [])
 
   useEffect(() => {
@@ -246,8 +254,14 @@ export default function Signals() {
     ? history.reduce((sum, item) => sum + (item.return_pct || 0), 0) / history.length
     : 0
   const freshnessRow = active === 'history' ? history[0] : selectedSignal
-  const freshnessTradeDate = freshnessRow?.trade_date || freshnessRow?.date
-  const freshnessUpdatedAt = freshnessRow?.updated_at || lastRefresh
+  const dailyKline = dataStatus?.sources.find(source => source.key === 'daily_kline')
+  const statusDates = dataStatus?.sources
+    .filter(source => source.status === 'active' && source.max_date !== '—')
+    .map(source => source.max_date)
+    .sort()
+  const fallbackTradeDate = dailyKline?.max_date || (statusDates && statusDates[statusDates.length - 1])
+  const freshnessTradeDate = freshnessRow?.trade_date || freshnessRow?.date || fallbackTradeDate
+  const freshnessUpdatedAt = freshnessRow?.updated_at || dataStatus?.refreshed_at || lastRefresh
 
   return (
     <PrototypePage>

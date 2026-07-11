@@ -8,6 +8,7 @@ vi.mock('../api/client', () => ({
     getLive: vi.fn(),
     getHistory: vi.fn(),
     analyzeCode: vi.fn(),
+    getDataStatus: vi.fn(),
   },
   tradeApi: {
     getRiskVerdicts: vi.fn(),
@@ -41,6 +42,17 @@ describe('Signals prototype pages', () => {
     } as any)
     vi.mocked(signalApi.analyzeCode).mockResolvedValue({
       data: { code: '300750', risk_score: 28, verdict: 'warn', blockers: [] },
+    } as any)
+    vi.mocked(signalApi.getDataStatus).mockResolvedValue({
+      data: {
+        status: 'ok',
+        refreshed_at: '2026-07-11T02:52:27Z',
+        total_tables: 1,
+        active_tables: 1,
+        total_rows: 1,
+        sources: [{ key: 'daily_kline', name: '日K线行情', category: '行情', source: 'Tushare daily', update: '每日盘后', note: '', rows: 1, min_date: '2026-07-03', max_date: '2026-07-03', status: 'active' }],
+        sync_map: {},
+      },
     } as any)
     vi.mocked(tradeApi.getRiskVerdicts).mockResolvedValue({
       data: {
@@ -89,6 +101,16 @@ describe('Signals prototype pages', () => {
     expect(await screen.findByText('暂无实时信号')).toBeInTheDocument()
     expect(screen.queryByText('宁德时代')).not.toBeInTheDocument()
     expect(screen.queryByText('中芯国际')).not.toBeInTheDocument()
+  })
+
+  it('uses the real data-status trading date when the live signal queue is empty', async () => {
+    vi.mocked(signalApi.getLive).mockResolvedValue({ data: { signals: [] } } as any)
+
+    renderSignals('/signals')
+
+    expect(await screen.findByText('交易日：2026-07-03')).toBeInTheDocument()
+    expect(screen.getByText('状态：可用')).toBeInTheDocument()
+    expect(signalApi.getDataStatus).toHaveBeenCalled()
   })
 
   it('does not fall back to hard-coded history when the history API returns empty data', async () => {

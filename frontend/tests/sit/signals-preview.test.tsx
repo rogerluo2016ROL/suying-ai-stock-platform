@@ -11,6 +11,7 @@ vi.mock('../../src/api/client', () => ({
     getLive: vi.fn(),
     getHistory: vi.fn(),
     analyzeCode: vi.fn(),
+    getDataStatus: vi.fn(),
   },
   tradeApi: {
     getRiskVerdicts: vi.fn(),
@@ -58,6 +59,13 @@ describe('Signals 四 preview SIT (6.0/6.1/6.2/6.3)', () => {
     vi.mocked(signalApi.getHistory).mockResolvedValue({ data: { history: HISTORY } } as any)
     vi.mocked(signalApi.analyzeCode).mockResolvedValue({
       data: { code: '300750', risk_score: 28, verdict: 'warn', blockers: [] },
+    } as any)
+    vi.mocked(signalApi.getDataStatus).mockResolvedValue({
+      data: {
+        status: 'ok', refreshed_at: '2026-07-11T02:52:27Z', total_tables: 1,
+        active_tables: 1, total_rows: 1, sync_map: {},
+        sources: [{ key: 'daily_kline', name: '日K线行情', category: '行情', source: 'Tushare daily', update: '每日盘后', note: '', rows: 1, min_date: '2026-07-03', max_date: '2026-07-03', status: 'active' }],
+      },
     } as any)
     vi.mocked(tradeApi.getRiskVerdicts).mockResolvedValue({ data: RISK_VERDICT } as any)
   })
