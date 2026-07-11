@@ -7331,7 +7331,15 @@ async def run_screening(
 
     result["elapsed"] = round(time.time() - t0, 1)
     if not result.get("trade_date") or result.get("trade_date") == "latest":
-        result["trade_date"] = _resolve_trade_date(trade_date)
+        try:
+            result["trade_date"] = _resolve_trade_date(trade_date)
+        except RuntimeError as exc:
+            if pipeline_run is not None:
+                await finish_persisted_pipeline(db, pipeline_run.run_id, error={"message": str(exc)})
+            raise HTTPException(
+                status_code=503,
+                detail="数据不足：无法确定最新交易日，请等待行情数据同步完成后重试",
+            ) from exc
 
     # ── Sanitize numpy types across all modes ──
     if "picks" in result and result["picks"]:

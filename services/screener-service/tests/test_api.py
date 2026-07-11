@@ -44,7 +44,16 @@ class _FakeDb:
 def client():
     """Create test client for screener service."""
     from app.main import app
-    return TestClient(app)
+    from app.domains.screening.service import get_db
+
+    async def _without_database():
+        yield None
+
+    app.dependency_overrides[get_db] = _without_database
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
 
 def test_openapi_paths_match_baseline(client):
