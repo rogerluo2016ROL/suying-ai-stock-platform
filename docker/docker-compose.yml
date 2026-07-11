@@ -114,8 +114,8 @@ services:
     build:
       context: ..
       dockerfile: services/screener-service/Dockerfile
-    expose:
-      - "8001"
+    ports:
+      - "${SCREENER_PORT:-8001}:8001"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - TUSHARE_TOKEN_FILE=/run/secrets/tushare_token
@@ -135,8 +135,8 @@ services:
     build:
       context: ..
       dockerfile: services/data-service/Dockerfile
-    expose:
-      - "8010"
+    ports:
+      - "${DATA_SERVICE_PORT:-8010}:8010"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - KRONOS_DB_PATH=/data/kronos.db     # 只读挂载; PG-only 下仅 _get_etl_db fallback 占位
@@ -160,8 +160,8 @@ services:
     build:
       context: ..
       dockerfile: services/prediction-service/Dockerfile
-    expose:
-      - "8002"
+    ports:
+      - "${PREDICTION_PORT:-8002}:8002"
     environment:
       - KRONOS_ENV=production
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
@@ -176,8 +176,8 @@ services:
     build:
       context: ..
       dockerfile: services/strategy-service/Dockerfile
-    expose:
-      - "8003"
+    ports:
+      - "${STRATEGY_PORT:-8003}:8003"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
@@ -196,8 +196,8 @@ services:
     build:
       context: ..
       dockerfile: services/signal-service/Dockerfile
-    expose:
-      - "8004"
+    ports:
+      - "${SIGNAL_PORT:-8004}:8004"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - DATA_SERVICE_URL=http://data-service:8010/api/v1/data
@@ -213,8 +213,8 @@ services:
     build:
       context: ..
       dockerfile: services/alert-service/Dockerfile
-    expose:
-      - "8005"
+    ports:
+      - "${ALERT_PORT:-8005}:8005"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
     depends_on:
@@ -227,8 +227,8 @@ services:
     build:
       context: ..
       dockerfile: services/trade-service/Dockerfile
-    expose:
-      - "8006"
+    ports:
+      - "${TRADE_PORT:-8006}:8006"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - TRADE_MODE=paper
@@ -245,8 +245,8 @@ services:
     build:
       context: ..
       dockerfile: services/backtest-service/Dockerfile
-    expose:
-      - "8007"
+    ports:
+      - "${BACKTEST_PORT:-8007}:8007"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
     depends_on:
@@ -259,8 +259,8 @@ services:
     build:
       context: ..
       dockerfile: services/training-service/Dockerfile
-    expose:
-      - "8008"
+    ports:
+      - "${TRAINING_PORT:-8008}:8008"
     environment:
       - DATABASE_URL=postgresql+asyncpg://kronos:kronos@postgres:5432/kronos
       - DATABASE_SYNC_URL=postgresql+psycopg2://kronos:kronos@postgres:5432/kronos
@@ -280,8 +280,8 @@ services:
     build:
       context: ..
       dockerfile: services/diagnosis-service/Dockerfile
-    expose:
-      - "8009"
+    ports:
+      - "${DIAGNOSIS_PORT:-8009}:8009"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - DATABASE_URL=postgresql+asyncpg://kronos:kronos@postgres:5432/kronos
