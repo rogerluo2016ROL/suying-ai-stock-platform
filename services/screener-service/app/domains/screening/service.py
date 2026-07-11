@@ -1229,120 +1229,23 @@ def _query_supply_chain_data_readiness() -> dict[str, Any]:
 
 
 def _stage_rank(stage: str | None) -> int:
-    if not stage:
-        return 0
-    try:
-        return int(str(stage)[1:])
-    except (TypeError, ValueError, IndexError):
-        return 0
+    return supply_chain_service.stage_rank(stage)
 
 
 def _pool_for_business_tag(status: str, revenue_ratio: float | None, commercialization_stage: str, evidence_count: int) -> str:
-    if status == "rejected":
-        return "剔除池"
-    if status == "verified" and revenue_ratio is not None and _stage_rank(commercialization_stage) >= 3 and evidence_count > 0:
-        return "核心池"
-    if evidence_count > 0 and _stage_rank(commercialization_stage) >= 1:
-        return "进展池"
-    return "观察池"
+    return supply_chain_service.pool_for_business_tag(status, revenue_ratio, commercialization_stage, evidence_count)
 
 
 def _layer_level_from_bom_level(level: str | None) -> str:
-    level_key = str(level or "").lower()
-    if level_key in {"theme", "policy"}:
-        return "L1"
-    if level_key in {"direction", "sector"}:
-        return "L2"
-    if level_key in {"chain", "industry"}:
-        return "L3"
-    if level_key in {"segment", "process"}:
-        return "L4"
-    if level_key in {"component", "material", "equipment"}:
-        return "L5"
-    if level_key in {"product", "technology", "application"}:
-        return "L6"
-    return "L5"
+    return supply_chain_service.layer_level_from_bom_level(level)
 
 
 def _build_layer_tree(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    node_by_id = {node["layer_node_id"]: dict(node, children=[]) for node in nodes}
-    roots: list[dict[str, Any]] = []
-    for node in node_by_id.values():
-        parent_id = node.get("parent_node_id")
-        if parent_id and parent_id in node_by_id:
-            node_by_id[parent_id]["children"].append(node)
-        else:
-            roots.append(node)
-    layer_order = {f"L{i}": i for i in range(1, 9)}
-
-    def sort_children(item: dict[str, Any]) -> dict[str, Any]:
-        item["children"] = sorted(
-            [sort_children(child) for child in item.get("children", [])],
-            key=lambda child: (layer_order.get(child.get("layer_level"), 99), child.get("name") or ""),
-        )
-        return item
-
-    return sorted(
-        [sort_children(root) for root in roots],
-        key=lambda node: (layer_order.get(node.get("layer_level"), 99), node.get("name") or ""),
-    )
+    return supply_chain_service.build_layer_tree(nodes)
 
 
 def _fallback_supply_chain_layer_nodes() -> list[dict[str, Any]]:
-    payload = _load_supply_chain_bom_payload()
-    nodes: list[dict[str, Any]] = []
-    theme_names: dict[str, str] = {}
-    for theme in payload.get("themes", []):
-        theme_id = str(theme.get("theme_id") or "")
-        if not theme_id:
-            continue
-        theme_names[theme_id] = str(theme.get("name") or theme_id)
-        nodes.append({
-            "layer_node_id": f"L1:{theme_id}",
-            "parent_node_id": None,
-            "layer_level": "L1",
-            "layer_name": "政策主题",
-            "name": theme_names[theme_id],
-            "source_table": "policy_themes",
-            "source_id": theme_id,
-            "keywords": theme.get("keywords") or [],
-            "metadata": {"policy_weight": theme.get("policy_weight")},
-        })
-    bom_layer_by_id = {
-        str(node.get("node_id") or ""): _layer_level_from_bom_level(node.get("level") or node.get("node_type"))
-        for node in payload.get("nodes", [])
-    }
-    for node in payload.get("nodes", []):
-        node_id = str(node.get("node_id") or "")
-        theme_id = str(node.get("theme_id") or "")
-        if not node_id:
-            continue
-        layer_level = _layer_level_from_bom_level(node.get("level") or node.get("node_type"))
-        parent_node_id = node.get("parent_node_id")
-        nodes.append({
-            "layer_node_id": f"{layer_level}:{node_id}",
-            "parent_node_id": f"{bom_layer_by_id.get(str(parent_node_id), 'L5')}:{parent_node_id}" if parent_node_id else f"L1:{theme_id}",
-            "layer_level": layer_level,
-            "layer_name": {
-                "L2": "产业方向",
-                "L3": "产业链",
-                "L4": "环节",
-                "L5": "BOM节点",
-                "L6": "产品/技术路线",
-            }.get(layer_level, "产业链节点"),
-            "name": str(node.get("name") or node_id),
-            "source_table": "supply_chain_bom_nodes",
-            "source_id": node_id,
-            "keywords": node.get("keywords") or [],
-            "metadata": {
-                "theme_id": theme_id,
-                "theme_name": theme_names.get(theme_id),
-                "chain_id": node.get("chain_id"),
-                "node_type": node.get("node_type"),
-                "level": node.get("level"),
-            },
-        })
-    return nodes
+    return supply_chain_service.fallback_layer_nodes()
 
 
 def _query_supply_chain_layers() -> dict[str, Any]:
