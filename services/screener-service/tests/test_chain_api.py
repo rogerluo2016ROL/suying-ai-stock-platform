@@ -2065,3 +2065,17 @@ class TestAPIPerformance:
 
         assert response.status_code == 200
         assert elapsed < 5000, f"Response time {elapsed:.1f}ms exceeds 5s (test tolerance)"
+
+
+@pytest.mark.asyncio
+async def test_chain_candidates_returns_explicit_empty_state_when_trade_date_is_unavailable(monkeypatch):
+    def unavailable(*_args, **_kwargs):
+        raise RuntimeError("latest trade date unavailable")
+
+    monkeypatch.setattr(screener_router, "_get_supply_chain_candidate_pool", unavailable)
+    result = await screener_router.chain_candidates(
+        filter="all", resonance_level=None, top_n=5, trade_date=None
+    )
+    assert result["candidates"] == []
+    assert result["data_status"] == "empty"
+    assert result["fallback_reason"] == "latest trade date unavailable"

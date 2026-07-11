@@ -4547,12 +4547,19 @@ async def chain_candidates(
     loop = asyncio.get_running_loop()
 
     # Get candidate pool from supply_chain mode
-    candidates = await loop.run_in_executor(
-        _executor,
-        _get_supply_chain_candidate_pool,
-        100,  # Fetch more for filtering
-        trade_date,
-    )
+    fallback_reason = None
+    try:
+        candidates = await loop.run_in_executor(
+            _executor,
+            _get_supply_chain_candidate_pool,
+            100,  # Fetch more for filtering
+            trade_date,
+        )
+    except RuntimeError as exc:
+        if str(exc) != "latest trade date unavailable":
+            raise
+        candidates = []
+        fallback_reason = str(exc)
     candidates = _attach_market_snapshots(candidates, trade_date)
 
     # Enrich each candidate with V6 resonance scoring
@@ -4589,6 +4596,8 @@ async def chain_candidates(
         resonance_summary[level] = count
 
     return {
+        "data_status": "ready" if candidates else "empty",
+        "fallback_reason": fallback_reason,
         "filter": filter_type,
         "resonance_level": resonance_level,
         "total_candidates": len(candidates),
