@@ -1191,7 +1191,7 @@ git commit -m "refactor(frontend): centralize routes and domain APIs"
 - Preserves: all current `/api/v1/screener/*` and `/api/v1/supply-chain/*` paths.
 - Produces: `submit_pipeline(request, idempotency_key) -> run_id`.
 
-- [ ] **Step 1: 保存 OpenAPI characterization fixture**
+- [x] **Step 1: 保存 OpenAPI characterization fixture**
 
 ```python
 def test_openapi_paths_match_baseline(client):
@@ -1204,7 +1204,7 @@ def test_openapi_paths_match_baseline(client):
 
 把当前路径列表保存为 `services/screener-service/tests/fixtures/openapi_paths.json`，只保存 path 和 method，不保存动态 schema 排序。
 
-- [ ] **Step 2: 运行 characterization tests**
+- [x] **Step 2: 运行 characterization tests**
 
 ```bash
 cd services/screener-service && ../../.venv/bin/python -m pytest tests/test_api.py tests/test_chain_api.py tests/test_candidate_pool_api.py -q
@@ -1212,7 +1212,7 @@ cd services/screener-service && ../../.venv/bin/python -m pytest tests/test_api.
 
 Expected: baseline green before moving symbols。
 
-- [ ] **Step 3: 按 candidates → screening → supply chain 顺序移动代码**
+- [x] **Step 3: 按 candidates → screening → supply chain 顺序移动代码**
 
 每移动一个 router 都从旧 `screener.py` re-export 测试直接使用的 helper。`screener.py` 最终只 include subrouters 和兼容导出。
 
@@ -1237,7 +1237,7 @@ op.create_table(
 )
 ```
 
-- [ ] **Step 4: 运行 screener 全量 tests 和 OpenAPI diff**
+- [x] **Step 4: 运行 screener 全量 tests 和 OpenAPI diff**
 
 ```bash
 cd services/screener-service && ../../.venv/bin/python -m pytest tests -q
@@ -1246,7 +1246,7 @@ wc -l app/routers/screener.py
 
 Expected: tests exit 0；`screener.py` ≤ 2,500 行；OpenAPI path/method 与 baseline 一致。
 
-- [ ] **Step 5: 提交三个可回滚 commit**
+- [x] **Step 5: 提交三个可回滚 commit**
 
 ```bash
 git add services/screener-service/app/domains/candidates services/screener-service/app/routers/screener.py services/screener-service/tests
