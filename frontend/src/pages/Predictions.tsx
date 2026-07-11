@@ -269,20 +269,18 @@ export default function Predictions() {
     () => poolRecords.flatMap(record => (record.candidates || []).map(candidate => ({ ...candidate, poolName: record.name }))).slice(0, 8),
     [poolRecords],
   )
-  // 2 KPI：今日预测任务（预测数）+ 近30次方向正确率（命中率）。
-  // 后端字段未齐 → 走 fallback_reason，值 '--'，不展示假数（W-1 同款诚实降级）。
-  const todayPredictionCount = poolCandidates.length
+  // 预测任务数必须来自 prediction-service；候选池条目只是待预测输入，不能冒充任务数。
   const hitRateMetric = backtest?.metrics?.find(metric => metric.window === '近30日' || metric.window === '30d')
   const hitRateValue = hitRateMetric && Number(hitRateMetric.direction_accuracy) > 0
     ? `${Math.round(Number(hitRateMetric.direction_accuracy))}%`
     : null
-  const overviewKpiFallback = poolFallback || backtest?.fallback_reason || overview?.fallback_reason || '后端命中率/预测数字段尚未就绪，先以候选池条目计数展示'
-  // 预警摘要：从候选池 grade 推导（S/A 方向一致 / B 信号偏弱 / C 风险相悖），无候选走 EmptyState。
+  const overviewKpiFallback = poolFallback || backtest?.fallback_reason || overview?.fallback_reason || '预测任务数与命中率尚未由后端持久化，当前不展示代理指标'
+  // 候选分级仅是选股输入提示，不能表述为预测结论。
   const overviewAlerts = useMemo(() => poolCandidates.map(candidate => {
     const grade = String(candidate.grade || 'B').toUpperCase()
-    if (grade === 'C') return { tone: 'risk', title: `${candidate.name || candidate.code} 方向相悖`, detail: '预测回落但交易信号仍偏多', time: '09:35' }
-    if (grade === 'B') return { tone: 'warn', title: `${candidate.name || candidate.code} 信号偏弱`, detail: '置信度偏低，建议进入回测复核', time: '09:31' }
-    return { tone: 'accent', title: `${candidate.name || candidate.code} 信号增强`, detail: '预测方向与强买信号保持一致', time: '09:42' }
+    if (grade === 'C') return { tone: 'risk', title: `${candidate.name || candidate.code} 候选等级 C`, detail: '选股候选需先运行真实预测与风控复核', time: '候选池' }
+    if (grade === 'B') return { tone: 'warn', title: `${candidate.name || candidate.code} 候选等级 B`, detail: '选股评分中等，尚无预测结论', time: '候选池' }
+    return { tone: 'accent', title: `${candidate.name || candidate.code} 候选等级 ${grade}`, detail: '已进入候选池，尚未生成预测结论', time: '候选池' }
   }).slice(0, 4), [poolCandidates])
 
   useEffect(() => {
@@ -446,12 +444,12 @@ export default function Predictions() {
             dataFreshness={<DataFreshnessBar tradeDate={pageFreshness?.as_of} updatedAt={pageFreshness?.as_of} source={pageFreshness?.source || 'prediction-service'} />}
           />
           <div className="kpis">
-            {/* 2 KPI（命中率/预测数）：后端字段未齐 → 值 '--' + fallback_reason，不展示假数 */}
+            {/* 后端字段未齐时保持 '--'，候选池条目不替代预测任务数。 */}
             <MetricCard
               label="今日预测任务"
-              value={todayPredictionCount > 0 ? String(todayPredictionCount) : '--'}
-              sub={todayPredictionCount > 0 ? `候选池 ${todayPredictionCount} 只待预测` : overviewKpiFallback}
-              tone={todayPredictionCount > 0 ? 'up' : 'warn'}
+              value="--"
+              sub={overviewKpiFallback}
+              tone="warn"
             />
             <MetricCard
               label="近30次方向正确率"
@@ -463,15 +461,13 @@ export default function Predictions() {
             <MetricCard label="加载状态" value={status?.model_loaded || modelMeta.loaded ? '已加载' : '未加载'} sub={checkpointText(modelMeta.checkpoint_status)} tone={status?.model_loaded || modelMeta.loaded ? 'up' : 'warn'} />
           </div>
           <div className="row r-6-4">
-            {/* 候选池预测排行：消费 screenerApi.queryCandidatePool（source_module=screener）。
-                候选条目带 code/name/score/grade；预测价/涨幅/一致性列后端尚未直连 → '--' + fallback，缺数据走 EmptyState。 */}
-            <PrototypeCard title="候选池预测排行" icon={<BarChartOutlined />} meta="按信号一致性 + 预测涨幅">
+            <PrototypeCard title="候选池待预测清单" icon={<BarChartOutlined />} meta="候选池输入，非预测排行">
               {poolError ? (
                 <div className="prototype-fallback">{poolError}</div>
               ) : poolCandidates.length === 0 ? (
                 <div className="prototype-fallback">
-                  <div className="nm">暂无候选池预测排行</div>
-                  <div className="mt6">{poolFallback || '运行选股写入候选池后，回此页查看预测排行。'}</div>
+                  <div className="nm">暂无待预测候选</div>
+                  <div className="mt6">{poolFallback || '运行选股写入候选池后，回此页发起真实预测。'}</div>
                 </div>
               ) : (
                 <table className="tbl">
@@ -480,15 +476,13 @@ export default function Predictions() {
                       <th>标的</th>
                       <th className="r">评分</th>
                       <th className="r">等级</th>
-                      <th className="r">一致性</th>
+                      <th className="r">预测状态</th>
                       <th className="r">操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {poolCandidates.map(candidate => {
                       const grade = String(candidate.grade || 'B').toUpperCase()
-                      const consistency = grade === 'C' ? '方向相悖' : grade === 'B' ? '信号偏弱' : '方向一致'
-                      const consistencyTone = grade === 'C' ? 'down' : grade === 'B' ? 'warn' : 'up'
                       return (
                         <tr key={`${candidate.code}-${candidate.rank || candidate.name}`}>
                           <td>
@@ -497,7 +491,7 @@ export default function Predictions() {
                           </td>
                           <td className="r mono">{candidate.score ?? '--'}</td>
                           <td className="r"><span className={`grade-tag grade-${grade}`}>{grade}</span></td>
-                          <td className={`r ${consistencyTone}`}>{consistency}</td>
+                          <td className="r warn">待运行</td>
                           <td className="r">
                             <button
                               type="button"
@@ -532,13 +526,13 @@ export default function Predictions() {
               )}
             </PrototypeCard>
           </div>
-          {/* 预测预警摘要：从候选池 grade 推导（S/A 增强 / B 偏弱 / C 相悖），无候选走 EmptyState。
+          {/* 候选输入摘要：从候选池 grade 推导，不代表预测结果。
               色点走 .up/.warn/.down className 语义色（W-1 全 token 化，禁裸 hex）。 */}
-          <PrototypeCard title="预测预警摘要" icon={<LineChartOutlined />} meta={`${overviewAlerts.length} 条待处理`}>
+          <PrototypeCard title="候选输入摘要" icon={<LineChartOutlined />} meta={`${overviewAlerts.length} 条待处理`}>
             {overviewAlerts.length === 0 ? (
               <div className="prototype-fallback">
-                <div className="nm">暂无预警</div>
-                <div className="mt6">候选池有标的后，预警摘要按等级（S/A 增强、B 偏弱、C 相悖）自动生成。</div>
+                <div className="nm">暂无候选输入</div>
+                <div className="mt6">候选池有标的后，此处展示候选等级；真实预测结论须在单股预测中生成。</div>
               </div>
             ) : (
               <div className="alert-list">

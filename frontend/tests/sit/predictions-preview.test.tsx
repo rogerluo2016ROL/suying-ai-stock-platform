@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import Predictions from '../../src/pages/Predictions'
 import { predictionApi, screenerApi } from '../../src/api/client'
 
-// SIT scope：5.0 prediction-overview 对齐 preview（候选池预测排行 + 2 KPI 命中率/预测数 + 预测预警摘要）。
+// SIT scope：5.0 prediction-overview（候选池待预测输入 + 真实 KPI + 候选输入摘要）。
 // API client 走 vi.mock（与既有 Predictions.test.tsx 同款），断言"触发→以正确参数调了正确 API"。
 // W-1 全 token 化：alert-dot / 语义色走 .up/.down/.warn/.neu className + var(--*) token，禁裸 hex。
 
@@ -64,8 +64,7 @@ describe('5.0 prediction-overview SIT', () => {
     vi.clearAllMocks()
   })
 
-  // AC① + AC②：5.0 概览区块对齐 preview（候选池排行 + 2 KPI + 预警摘要），消费 queryCandidatePool 正确参数。
-  it('overview: 渲染候选池排行 + 2 KPI + 预警摘要，调 queryCandidatePool({source_module:screener})', async () => {
+  it('overview: 渲染待预测候选与候选输入摘要，调 queryCandidatePool({source_module:screener})', async () => {
     vi.mocked(screenerApi.queryCandidatePool).mockResolvedValue({
       data: {
         total: 1,
@@ -88,22 +87,20 @@ describe('5.0 prediction-overview SIT', () => {
 
     expect(await screen.findByRole('heading', { name: 'K线预测总览' })).toBeInTheDocument()
     await waitFor(() => expect(screenerApi.queryCandidatePool).toHaveBeenCalledWith({ source_module: 'screener', page_size: 20 }))
-    // 候选池预测排行
-    expect(screen.getByText('候选池预测排行')).toBeInTheDocument()
+    expect(screen.getByText('候选池待预测清单')).toBeInTheDocument()
     expect(screen.getByText('宁德时代')).toBeInTheDocument()
     expect(screen.getByText('比亚迪')).toBeInTheDocument()
-    // 预测预警摘要
-    expect(screen.getByText('预测预警摘要')).toBeInTheDocument()
-    expect(screen.getByText(/宁德时代 信号增强/)).toBeInTheDocument()
-    expect(screen.getByText(/比亚迪 方向相悖/)).toBeInTheDocument()
+    expect(screen.getByText('候选输入摘要')).toBeInTheDocument()
+    expect(screen.getByText(/宁德时代 候选等级 S/)).toBeInTheDocument()
+    expect(screen.getByText(/比亚迪 候选等级 C/)).toBeInTheDocument()
   })
 
   // AC② + AC⑦：缺数据走 EmptyState，2 KPI 后端字段未齐 → '--' + fallback_reason（不空白 / 不展示假数）。
   it('overview: 候选池空 + 后端命中率字段未齐 → EmptyState + KPI 走 fallback 不展示假数', async () => {
     renderPredictions('/predictions')
 
-    expect(await screen.findByText('暂无候选池预测排行')).toBeInTheDocument()
-    expect(screen.getByText('暂无预警')).toBeInTheDocument()
+    expect(await screen.findByText('暂无待预测候选')).toBeInTheDocument()
+    expect(screen.getByText('暂无候选输入')).toBeInTheDocument()
     // 2 KPI（今日预测任务 / 近30次方向正确率）值 '--'
     expect(screen.getAllByText('--').length).toBeGreaterThanOrEqual(2)
   })

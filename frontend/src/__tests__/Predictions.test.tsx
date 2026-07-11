@@ -152,21 +152,21 @@ describe('Predictions', () => {
     // 候选池预测排行表渲染候选标的
     expect(screen.getByText('宁德时代')).toBeInTheDocument()
     expect(screen.getByText('比亚迪')).toBeInTheDocument()
-    // 今日预测任务 KPI 反映候选计数（2 只）
-    expect(screen.getByText('2')).toBeInTheDocument()
-    // 预警摘要按 grade 生成（S→信号增强 / C→方向相悖）
-    expect(screen.getByText(/宁德时代 信号增强/)).toBeInTheDocument()
-    expect(screen.getByText(/比亚迪 方向相悖/)).toBeInTheDocument()
+    // 候选池条目不冒充预测任务数，真实任务数未持久化时显示 '--'。
+    expect(screen.getAllByText('--').length).toBeGreaterThan(0)
+    // 摘要只反映候选等级，不伪装为预测结论。
+    expect(screen.getByText(/宁德时代 候选等级 S/)).toBeInTheDocument()
+    expect(screen.getByText(/比亚迪 候选等级 C/)).toBeInTheDocument()
   })
 
   it('shows EmptyState when candidate pool has no records on overview', async () => {
     renderPredictions('/predictions')
 
-    expect(await screen.findByText('暂无候选池预测排行')).toBeInTheDocument()
+    expect(await screen.findByText('暂无待预测候选')).toBeInTheDocument()
     // 2 KPI（命中率/预测数）后端字段未齐 → 值 '--'，不展示假数
     expect(screen.getAllByText('--').length).toBeGreaterThan(0)
     // 预警摘要 EmptyState
-    expect(screen.getByText('暂无预警')).toBeInTheDocument()
+    expect(screen.getByText('暂无候选输入')).toBeInTheDocument()
   })
 
   it('keeps single-stock prediction empty until a real prediction runs', async () => {
