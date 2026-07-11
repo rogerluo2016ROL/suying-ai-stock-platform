@@ -1,8 +1,18 @@
 """Supply-chain domain services."""
 
 from datetime import datetime
+import json
+
+from fastapi import HTTPException
 
 from app.domains.supply_chain import repository
+
+
+def _json_or_default(value, default):
+    if value is None: return default
+    if isinstance(value, (dict, list)): return value
+    try: return json.loads(value)
+    except (TypeError, ValueError, json.JSONDecodeError): return default
 
 
 def load_bom_payload() -> dict:
@@ -257,3 +267,85 @@ def data_readiness() -> dict[str, Any]:
     else:
         payload["status"] = "ok"
     return payload
+
+
+def query_layers() -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "version": "supply-chain-v2-layers",
+        "source": "fallback_bom_config",
+        "source_status": "fallback",
+        "layers": {},
+        "nodes": [],
+        "tree": [],
+    }
+    try:
+        with repository.connect() as pg:
+            cur = pg.cursor()
+            if repository.table_exists(cur, "supply_chain_hierarchy_nodes") and repository.count(cur, "supply_chain_hierarchy_nodes") > 0:
+                cur.execute(
+                    """
+                    SELECT node_id, parent_node_id, layer_level, layer_name, display_name,
+                           source_table, source_id, keywords, metadata
+                    FROM supply_chain_hierarchy_nodes
+                    ORDER BY layer_level, display_name
+                    """
+                )
+                rows = cur.fetchall()
+                nodes = [
+                    {
+                        "layer_node_id": str(row[0]),
+                        "parent_node_id": row[1],
+                        "layer_level": str(row[2]),
+                        "layer_name": str(row[3]),
+                        "name": str(row[4]),
+                        "source_table": row[5],
+                        "source_id": row[6],
+                        "keywords": _json_or_default(row[7], []),
+                        "metadata": _json_or_default(row[8], {}),
+                    }
+                    for row in rows
+                ]
+                payload["source"] = "supply_chain_hierarchy_nodes"
+                payload["source_status"] = "ready"
+            else:
+                nodes = fallback_layer_nodes()
+    except Exception as e:
+        nodes = fallback_layer_nodes()
+        payload["source_status"] = "degraded_fallback"
+        payload["error"] = str(e)
+
+    layers: dict[str, list[dict[str, Any]]] = {f"L{i}": [] for i in range(1, 9)}
+    for node in nodes:
+        layers.setdefault(node["layer_level"], []).append(node)
+    payload["layers"] = layers
+    payload["nodes"] = nodes
+    payload["tree"] = build_layer_tree(nodes)
+    payload["node_count"] = len(nodes)
+    return payload
+
+
+def query_layer_detail(layer_node_id: str) -> dict[str, Any]:
+    payload = query_layers()
+    nodes = payload.get("nodes", [])
+    node_by_id = {node.get("layer_node_id"): node for node in nodes}
+    selected = node_by_id.get(layer_node_id)
+    if not selected:
+        raise HTTPException(status_code=404, detail=f"Layer node '{layer_node_id}' not found")
+
+    children = [node for node in nodes if node.get("parent_node_id") == layer_node_id]
+    ancestors = []
+    parent_id = selected.get("parent_node_id")
+    while parent_id and parent_id in node_by_id:
+        parent = node_by_id[parent_id]
+        ancestors.append(parent)
+        parent_id = parent.get("parent_node_id")
+    ancestors.reverse()
+    return {
+        "version": payload["version"],
+        "source": payload["source"],
+        "source_status": payload["source_status"],
+        "node": selected,
+        "ancestors": ancestors,
+        "children": children,
+        "child_count": len(children),
+    }

@@ -1063,85 +1063,11 @@ def _fallback_supply_chain_layer_nodes() -> list[dict[str, Any]]:
 
 
 def _query_supply_chain_layers() -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "version": "supply-chain-v2-layers",
-        "source": "fallback_bom_config",
-        "source_status": "fallback",
-        "layers": {},
-        "nodes": [],
-        "tree": [],
-    }
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            if _pg_table_exists(cur, "supply_chain_hierarchy_nodes") and _pg_count(cur, "supply_chain_hierarchy_nodes") > 0:
-                cur.execute(
-                    """
-                    SELECT node_id, parent_node_id, layer_level, layer_name, display_name,
-                           source_table, source_id, keywords, metadata
-                    FROM supply_chain_hierarchy_nodes
-                    ORDER BY layer_level, display_name
-                    """
-                )
-                rows = cur.fetchall()
-                nodes = [
-                    {
-                        "layer_node_id": str(row[0]),
-                        "parent_node_id": row[1],
-                        "layer_level": str(row[2]),
-                        "layer_name": str(row[3]),
-                        "name": str(row[4]),
-                        "source_table": row[5],
-                        "source_id": row[6],
-                        "keywords": _json_or_default(row[7], []),
-                        "metadata": _json_or_default(row[8], {}),
-                    }
-                    for row in rows
-                ]
-                payload["source"] = "supply_chain_hierarchy_nodes"
-                payload["source_status"] = "ready"
-            else:
-                nodes = _fallback_supply_chain_layer_nodes()
-    except Exception as e:
-        nodes = _fallback_supply_chain_layer_nodes()
-        payload["source_status"] = "degraded_fallback"
-        payload["error"] = str(e)
-
-    layers: dict[str, list[dict[str, Any]]] = {f"L{i}": [] for i in range(1, 9)}
-    for node in nodes:
-        layers.setdefault(node["layer_level"], []).append(node)
-    payload["layers"] = layers
-    payload["nodes"] = nodes
-    payload["tree"] = _build_layer_tree(nodes)
-    payload["node_count"] = len(nodes)
-    return payload
+    return supply_chain_service.query_layers()
 
 
 def _query_supply_chain_layer_detail(layer_node_id: str) -> dict[str, Any]:
-    payload = _query_supply_chain_layers()
-    nodes = payload.get("nodes", [])
-    node_by_id = {node.get("layer_node_id"): node for node in nodes}
-    selected = node_by_id.get(layer_node_id)
-    if not selected:
-        raise HTTPException(status_code=404, detail=f"Layer node '{layer_node_id}' not found")
-
-    children = [node for node in nodes if node.get("parent_node_id") == layer_node_id]
-    ancestors = []
-    parent_id = selected.get("parent_node_id")
-    while parent_id and parent_id in node_by_id:
-        parent = node_by_id[parent_id]
-        ancestors.append(parent)
-        parent_id = parent.get("parent_node_id")
-    ancestors.reverse()
-    return {
-        "version": payload["version"],
-        "source": payload["source"],
-        "source_status": payload["source_status"],
-        "node": selected,
-        "ancestors": ancestors,
-        "children": children,
-        "child_count": len(children),
-    }
+    return supply_chain_service.query_layer_detail(layer_node_id)
 
 
 def _business_tag_score_status(revenue_ratio: float | None, gross_profit_ratio: float | None, evidence_count: int) -> str:
