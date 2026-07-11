@@ -8370,71 +8370,6 @@ async def record_candidate_pool(
         db=db, payload=payload, tenant_id=tenant_id,
         owner_user_id=owner_user_id, account_id=account_id,
     )
-    if db is None:
-        return CandidatePoolRecordResponse(
-            pool_id="",
-            fallback_reason="db_session_unavailable",
-        )
-
-    resolved_tenant = tenant_id or "tenant-default"
-    resolved_scope, visibility = resolve_candidate_pool_scope(
-        data_scope=payload.data_scope, visibility=payload.visibility,
-        account_id=account_id, owner_user_id=owner_user_id,
-    )
-    trade_date = payload.trade_date or datetime.now().strftime("%Y-%m-%d")
-    time_slot = payload.time_slot or datetime.now().strftime("%H:%M")
-    pool_id = build_candidate_pool_id(
-        source_mode=payload.source_mode, trade_date=trade_date, time_slot=time_slot,
-        account_id=account_id, owner_user_id=owner_user_id,
-    )
-
-    try:
-        row_id = await candidate_pool_store.record(
-            db,
-            pool_id=pool_id,
-            tenant_id=resolved_tenant,
-            owner_user_id=owner_user_id,
-            account_id=account_id,
-            source_module=payload.source_module,
-            source_mode=payload.source_mode,
-            name=payload.name,
-            candidates=payload.candidates,
-            metadata=payload.candidate_pool_metadata,
-            visibility=visibility,
-            data_scope=resolved_scope,
-        )
-        await db.commit()
-        # 回查 created_at（record 返回 id，created_at 由 DB 默认值填充）
-        created_at: Optional[str] = None
-        if row_id is not None:
-            try:
-                from sqlalchemy import text as _text
-                ts_row = await db.execute(
-                    _text("SELECT created_at FROM candidate_pools WHERE id = :id"),
-                    {"id": row_id},
-                )
-                ts_val = ts_row.scalar()
-                if hasattr(ts_val, "isoformat"):
-                    created_at = ts_val.isoformat()
-                elif ts_val is not None:
-                    created_at = str(ts_val)
-            except Exception:
-                pass
-        return CandidatePoolRecordResponse(
-            pool_id=pool_id,
-            id=row_id,
-            created_at=created_at,
-        )
-    except Exception as e:
-        try:
-            await db.rollback()
-        except Exception:
-            pass
-        logger.warning("CandidatePool REST record failed: %s", e)
-        return CandidatePoolRecordResponse(
-            pool_id=pool_id,
-            fallback_reason=f"persist_failed: {e}",
-        )
 
 
 @router.get(
@@ -8462,51 +8397,6 @@ async def query_candidate_pool(
         db=db, tenant_id=tenant_id, owner_user_id=owner_user_id, account_id=account_id,
         source_module=source_module, source_mode=source_mode, page=page, page_size=page_size,
     )
-    if db is None:
-        return CandidatePoolQueryResponse(
-            total=0,
-            page=page,
-            page_size=page_size,
-            records=[],
-            empty_state={"hint": "db_session_unavailable", "suggestion": "稍后重试或联系管理员"},
-            fallback_reason="db_session_unavailable",
-        )
-
-    try:
-        result = await candidate_pool_store.query(
-            db,
-            tenant_id=tenant_id,
-            owner_user_id=owner_user_id,
-            account_id=account_id,
-            source_module=source_module,
-            source_mode=source_mode,
-            page=page,
-            page_size=page_size,
-        )
-        records = result.get("records", [])
-        empty_state = None
-        if not records:
-            empty_state = {
-                "hint": "no_visible_pools",
-                "suggestion": "运行选股后自动落库，或检查 X-Tenant-Id / X-Owner-User-Id / X-Trade-Account-Id 头是否正确",
-            }
-        return CandidatePoolQueryResponse(
-            total=result.get("total", 0),
-            page=result.get("page", page),
-            page_size=result.get("page_size", page_size),
-            records=records,
-            empty_state=empty_state,
-        )
-    except Exception as e:
-        logger.warning("CandidatePool REST query failed: %s", e)
-        return CandidatePoolQueryResponse(
-            total=0,
-            page=page,
-            page_size=page_size,
-            records=[],
-            empty_state={"hint": "query_failed", "suggestion": str(e)},
-            fallback_reason=f"query_failed: {e}",
-        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
