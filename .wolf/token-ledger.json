@@ -2,14 +2,14 @@
   "version": 1,
   "created_at": "2026-06-26T17:13:46.116Z",
   "lifetime": {
-    "total_tokens_estimated": 37415924,
-    "total_reads": 4176,
+    "total_tokens_estimated": 37421721,
+    "total_reads": 4183,
     "total_writes": 7932,
     "total_sessions": 23,
-    "anatomy_hits": 1180,
-    "anatomy_misses": 2927,
+    "anatomy_hits": 1183,
+    "anatomy_misses": 2931,
     "repeated_reads_blocked": 5166,
-    "estimated_savings_vs_bare_cli": 92311899
+    "estimated_savings_vs_bare_cli": 92312499
   },
   "sessions": [
     {
@@ -71737,6 +71737,64 @@
         "writes_count": 0,
         "repeated_reads_blocked": 0,
         "anatomy_lookups": 1
+      }
+    },
+    {
+      "id": "session-2026-07-11-1055",
+      "started": "2026-07-11T02:55:04.199Z",
+      "ended": "2026-07-11T03:55:00.619Z",
+      "reads": [
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/tools/send_bishifu_feishu.py",
+          "tokens_estimated": 1028,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/main.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/domains/router.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/domains/screening/router.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/domains/screening/service.py",
+          "tokens_estimated": 0,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/services/screener-service/app/config.py",
+          "tokens_estimated": 595,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        },
+        {
+          "file": "/Users/rogerluo/程序目录/K线大模型/packages/kronos-factors/kronos_factors/engine/bi_shifu_trend.py",
+          "tokens_estimated": 4174,
+          "was_repeated": false,
+          "anatomy_had_description": false
+        }
+      ],
+      "writes": [],
+      "totals": {
+        "input_tokens_estimated": 5797,
+        "output_tokens_estimated": 0,
+        "reads_count": 7,
+        "writes_count": 0,
+        "repeated_reads_blocked": 0,
+        "anatomy_lookups": 3
       }
     }
   ],
