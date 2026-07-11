@@ -6,7 +6,7 @@ import hashlib
 from datetime import date, datetime
 from typing import Any, Callable
 
-from psycopg2.extras import Json
+from psycopg2.extras import Json, RealDictCursor
 
 
 class MissingSelectionTables(RuntimeError):
@@ -190,6 +190,236 @@ class SelectionRepository:
         )
         row = cur.fetchone()
         return dict(row) if row else None
+
+    def _read_rows(self, statement: str, params: tuple[Any, ...]) -> list[dict[str, Any]]:
+        connection = self.connection_factory()
+        try:
+            with connection.cursor(cursor_factory=RealDictCursor) as cur:
+                missing = self.preflight(cur)
+                if missing:
+                    raise MissingSelectionTables(missing)
+                cur.execute(statement, params)
+                return [dict(row) for row in cur.fetchall()]
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _selection_row_columns() -> str:
+        return """
+            b.code,
+            b.mapping_id,
+            b.business_segment_id,
+            b.node_id,
+            b.theme_id,
+            b.chain_id,
+            b.tag_name,
+            b.l1_l8_path,
+            b.revenue_ratio,
+            b.gross_profit_ratio,
+            b.confidence AS mapping_confidence,
+            b.status AS mapping_status,
+            b.evidence_ids AS mapping_evidence_ids,
+            (b.business_segment_id IS NOT NULL AND
+             (b.revenue_ratio IS NOT NULL OR b.gross_profit_ratio IS NOT NULL))
+                AS independent_revenue,
+            st.research_stage,
+            st.commercialization_stage AS commercial_stage,
+            a.evidence_level,
+            a.authenticity_score,
+            a.coverage_ratio AS authenticity_coverage,
+            a.max_pool_code,
+            a.review_status AS authenticity_review_status,
+            a.score_detail AS authenticity_detail,
+            a.evidence_ids AS authenticity_evidence_ids,
+            o.growth_score,
+            o.profit_score,
+            o.moat_score,
+            o.total_score AS operating_quality_score,
+            o.total_coverage AS operating_quality_coverage,
+            o.score_detail AS operating_quality_detail,
+            ben.node_attractiveness,
+            ben.benefit_score,
+            ben.coverage_ratio AS benefit_coverage,
+            ben.score_detail AS benefit_detail,
+            s.expectation_gap_score,
+            s.catalyst_score,
+            s.risk_score,
+            s.confidence_score,
+            s.opportunity_score,
+            s.pool_code,
+            s.eligibility_status,
+            s.veto_reasons,
+            s.factor_detail,
+            s.evidence_ids AS selection_evidence_ids,
+            ps.state_status AS pool_state_status,
+            ps.next_validation_event,
+            ps.next_validation_date
+        """
+
+    def fetch_candidate_rows(
+        self,
+        *,
+        chain_id: str,
+        trade_date: date,
+        pool: str | None,
+        model_version: str,
+        limit: int,
+        offset: int,
+    ) -> list[dict[str, Any]]:
+        params: list[Any] = [chain_id, trade_date, model_version]
+        primary_pool_filter = ""
+        if pool is not None:
+            primary_pool_filter = "AND pool_code = %s"
+            params.append(pool)
+        params.extend([limit, offset])
+        columns = self._selection_row_columns()
+        return self._read_rows(
+            f"""
+            WITH scored AS (
+                SELECT
+                    {columns},
+                    row_number() OVER (
+                        PARTITION BY b.code
+                        ORDER BY
+                            CASE a.evidence_level
+                                WHEN 'E6' THEN 6 WHEN 'E5' THEN 5
+                                WHEN 'E4' THEN 4 WHEN 'E3' THEN 3
+                                WHEN 'E2' THEN 2 WHEN 'E1' THEN 1 ELSE 0
+                            END DESC,
+                            s.benefit_score DESC NULLS LAST,
+                            b.mapping_id DESC
+                    ) AS primary_rank
+                FROM business_tag_selection_scores s
+                JOIN business_tag_mapping b ON b.mapping_id = s.mapping_id
+                JOIN business_tag_authenticity_scores a
+                  ON a.mapping_id = s.mapping_id
+                 AND a.trade_date = s.trade_date
+                 AND a.model_version = s.model_version
+                JOIN business_tag_operating_quality_scores o
+                  ON o.mapping_id = s.mapping_id
+                 AND o.trade_date = s.trade_date
+                 AND o.model_version = s.model_version
+                JOIN business_tag_benefit_scores ben
+                  ON ben.mapping_id = s.mapping_id
+                 AND ben.trade_date = s.trade_date
+                 AND ben.model_version = s.model_version
+                LEFT JOIN LATERAL (
+                    SELECT research_stage, commercialization_stage
+                    FROM business_tag_stage_tracking stage
+                    WHERE stage.mapping_id = b.mapping_id
+                      AND stage.trade_date <= s.trade_date
+                    ORDER BY stage.trade_date DESC, stage.created_at DESC
+                    LIMIT 1
+                ) st ON TRUE
+                LEFT JOIN business_tag_pool_state ps
+                  ON ps.mapping_id = b.mapping_id
+                WHERE b.chain_id = %s
+                  AND s.trade_date = %s
+                  AND s.model_version = %s
+                  AND s.pool_code IS NOT NULL
+                  AND b.status <> 'rejected'
+            ),
+            paged_codes AS (
+                SELECT code, max(coalesce(opportunity_score, -1)) AS rank_score
+                FROM scored
+                WHERE primary_rank = 1
+                  {primary_pool_filter}
+                GROUP BY code
+                ORDER BY rank_score DESC, code
+                LIMIT %s OFFSET %s
+            )
+            SELECT scored.*
+            FROM scored
+            JOIN paged_codes USING (code)
+            ORDER BY paged_codes.rank_score DESC, scored.code,
+                     scored.primary_rank, scored.mapping_id
+            """,
+            tuple(params),
+        )
+
+    def fetch_stock_detail_rows(
+        self,
+        *,
+        code: str,
+        chain_id: str,
+        trade_date: date,
+        model_version: str,
+    ) -> list[dict[str, Any]]:
+        columns = self._selection_row_columns()
+        return self._read_rows(
+            f"""
+            SELECT {columns}
+            FROM business_tag_mapping b
+            LEFT JOIN LATERAL (
+                SELECT research_stage, commercialization_stage
+                FROM business_tag_stage_tracking stage
+                WHERE stage.mapping_id = b.mapping_id
+                  AND stage.trade_date <= %s
+                ORDER BY stage.trade_date DESC, stage.created_at DESC
+                LIMIT 1
+            ) st ON TRUE
+            JOIN business_tag_selection_scores s
+              ON s.mapping_id = b.mapping_id
+            JOIN business_tag_authenticity_scores a
+              ON a.mapping_id = s.mapping_id
+             AND a.trade_date = s.trade_date
+             AND a.model_version = s.model_version
+            JOIN business_tag_operating_quality_scores o
+              ON o.mapping_id = s.mapping_id
+             AND o.trade_date = s.trade_date
+             AND o.model_version = s.model_version
+            JOIN business_tag_benefit_scores ben
+              ON ben.mapping_id = s.mapping_id
+             AND ben.trade_date = s.trade_date
+             AND ben.model_version = s.model_version
+            LEFT JOIN business_tag_pool_state ps ON ps.mapping_id = b.mapping_id
+            WHERE b.code = %s
+              AND b.chain_id = %s
+              AND s.trade_date = %s
+              AND s.model_version = %s
+              AND b.status <> 'rejected'
+            ORDER BY
+                CASE a.evidence_level
+                    WHEN 'E6' THEN 6 WHEN 'E5' THEN 5 WHEN 'E4' THEN 4
+                    WHEN 'E3' THEN 3 WHEN 'E2' THEN 2 WHEN 'E1' THEN 1 ELSE 0
+                END DESC,
+                s.benefit_score DESC NULLS LAST,
+                b.mapping_id DESC
+            """,
+            (trade_date, code, chain_id, trade_date, model_version),
+        )
+
+    def fetch_transition_rows(
+        self,
+        *,
+        code: str,
+        chain_id: str,
+        trade_date: date,
+    ) -> list[dict[str, Any]]:
+        return self._read_rows(
+            """
+            SELECT
+                t.transition_id,
+                t.mapping_id,
+                t.code,
+                t.from_pool_code,
+                t.to_pool_code,
+                t.transition_date,
+                t.transition_reason,
+                t.trigger_evidence_ids,
+                t.review_status,
+                t.reviewer,
+                t.reviewed_at,
+                t.created_at
+            FROM business_tag_pool_transition_log t
+            JOIN business_tag_mapping b ON b.mapping_id = t.mapping_id
+            WHERE t.code = %s
+              AND b.chain_id = %s
+              AND t.transition_date <= %s
+            ORDER BY t.transition_date DESC, t.created_at DESC, t.transition_id
+            """,
+            (code, chain_id, trade_date),
+        )
 
     @staticmethod
     def _record_id(prefix: str, *parts: Any) -> str:

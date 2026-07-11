@@ -22,6 +22,24 @@ class FakeCursor:
     def fetchone(self):
         return self._current[0] if self._current else None
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+
+class FakeConnection:
+    def __init__(self, cursor):
+        self._cursor = cursor
+        self.closed = False
+
+    def cursor(self, **kwargs):
+        return self._cursor
+
+    def close(self):
+        self.closed = True
+
 
 def test_preflight_returns_every_missing_required_table():
     cursor = FakeCursor(
@@ -210,3 +228,92 @@ def test_transition_pool_skips_log_when_pool_is_unchanged():
 
     assert changed is False
     assert len(cursor.executed) == 1
+
+
+def test_fetch_candidate_rows_applies_asof_version_pool_and_stock_pagination():
+    required = [{"table_name": name} for name in SelectionRepository.REQUIRED_TABLES]
+    cursor = FakeCursor(
+        [
+            required,
+            [
+                {
+                    "code": "000001",
+                    "mapping_id": "m1",
+                    "pool_code": "A",
+                    "benefit_score": 72.0,
+                }
+            ],
+        ]
+    )
+    connection = FakeConnection(cursor)
+    repository = SelectionRepository(connection_factory=lambda: connection)
+
+    rows = repository.fetch_candidate_rows(
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        pool="A",
+        model_version="v2.0",
+        limit=50,
+        offset=0,
+    )
+
+    assert rows[0]["mapping_id"] == "m1"
+    sql, params = cursor.executed[1]
+    assert "s.trade_date = %s" in sql
+    assert "s.model_version = %s" in sql
+    assert "AND pool_code = %s" in sql
+    assert "GROUP BY code" in sql
+    assert params == (
+        "dexterous_hand",
+        date(2026, 7, 11),
+        "v2.0",
+        "A",
+        50,
+        0,
+    )
+    assert connection.closed is True
+
+
+def test_fetch_stock_detail_and_transitions_are_cut_off_by_trade_date():
+    required = [{"table_name": name} for name in SelectionRepository.REQUIRED_TABLES]
+    cursor = FakeCursor(
+        [
+            required,
+            [{"code": "000001", "mapping_id": "m1", "pool_code": "B"}],
+            required,
+            [{"transition_id": "t1", "transition_date": date(2026, 7, 10)}],
+        ]
+    )
+    connection = FakeConnection(cursor)
+    repository = SelectionRepository(connection_factory=lambda: connection)
+
+    rows = repository.fetch_stock_detail_rows(
+        code="000001",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        model_version="v2.0",
+    )
+    transitions = repository.fetch_transition_rows(
+        code="000001",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+    )
+
+    assert rows[0]["mapping_id"] == "m1"
+    assert transitions[0]["transition_id"] == "t1"
+    detail_sql, detail_params = cursor.executed[1]
+    transition_sql, transition_params = cursor.executed[3]
+    assert "b.code = %s" in detail_sql
+    assert detail_params == (
+        date(2026, 7, 11),
+        "000001",
+        "dexterous_hand",
+        date(2026, 7, 11),
+        "v2.0",
+    )
+    assert "t.transition_date <= %s" in transition_sql
+    assert transition_params == (
+        "000001",
+        "dexterous_hand",
+        date(2026, 7, 11),
+    )
