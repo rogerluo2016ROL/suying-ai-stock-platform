@@ -18,7 +18,7 @@ import tempfile
 from copy import deepcopy
 from html import unescape
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urljoin, urlparse
@@ -1173,7 +1173,441 @@ def run_existing_source_backfill(pg_url: str, source_id: str, limit: int = 50) -
     }
 
 
-def fetch_cninfo_pdf_announcements(pg_url: str, limit: int = 20, title_mode: str = "relevant") -> dict:
+def _scoped_stock_code(value: object) -> str:
+    return str(value or "").strip().split(".", 1)[0]
+
+
+def _document_publish_date(value: object) -> date | None:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, (int, float)):
+        timestamp = float(value)
+        if timestamp > 10_000_000_000:
+            timestamp /= 1000
+        try:
+            return datetime.fromtimestamp(timestamp, tz=UTC).date()
+        except (OverflowError, OSError, ValueError):
+            return None
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if len(text) >= 8 and text[:8].isdigit():
+        text = f"{text[:4]}-{text[4:6]}-{text[6:8]}"
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError:
+        return None
+
+
+def _read_only_rows(pg_url: str, statement: str, params: tuple[object, ...]) -> list[dict]:
+    """Execute one scoped SELECT without opening a writable transaction."""
+
+    import psycopg2
+    import psycopg2.extras
+
+    connection = psycopg2.connect(pg_url)
+    try:
+        try:
+            connection.autocommit = True
+        except (AttributeError, TypeError):
+            pass
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(statement, params)
+            return [dict(row) for row in cursor.fetchall()]
+    finally:
+        close = getattr(connection, "close", None)
+        if callable(close):
+            close()
+
+
+def _http_session(session=None, *, referer: str | None = None):
+    if session is None:
+        import requests
+
+        session = requests.Session()
+    headers = getattr(session, "headers", None)
+    if hasattr(headers, "update"):
+        values = {"User-Agent": "Mozilla/5.0"}
+        if referer:
+            values["Referer"] = referer
+        headers.update(values)
+    return session
+
+
+def _announcement_date_text(value: object) -> str | None:
+    parsed = _document_publish_date(value)
+    return parsed.isoformat() if parsed else None
+
+
+def fetch_cninfo_documents(
+    pg_url: str,
+    *,
+    company_codes: tuple[str, ...],
+    start_date: date | None,
+    as_of_date: date,
+    limit: int = 20,
+    session=None,
+) -> tuple[list[RawDocument], int]:
+    """Return scoped CNINFO PDF documents and HTTP request count; never persist."""
+
+    normalized_codes = {
+        _scoped_stock_code(code) for code in company_codes if _scoped_stock_code(code)
+    }
+    if not normalized_codes or limit <= 0:
+        return [], 0
+    rows = _read_only_rows(
+        pg_url,
+        """
+        SELECT DISTINCT
+            split_part(r.ts_code, '.', 1) AS code,
+            s.name AS company_name,
+            r.ann_date,
+            r.ann_date AS publish_date,
+            r.title,
+            r.url,
+            r.ts_code
+        FROM ts_raw_anns_d r
+        LEFT JOIN stocks s ON s.code = split_part(r.ts_code, '.', 1)
+        WHERE split_part(r.ts_code, '.', 1) = ANY(%s)
+          AND coalesce(r.url, '') <> ''
+          AND coalesce(r.title, '') <> ''
+        ORDER BY r.ann_date DESC NULLS LAST, r.ts_code, r.title
+        LIMIT %s
+        """,
+        (sorted(normalized_codes), max(limit * 10, limit)),
+    )
+    rows = [
+        row for row in rows if _scoped_stock_code(row.get("code")) in normalized_codes
+    ]
+    filtered: list[dict] = []
+    for row in rows:
+        published = _document_publish_date(
+            row.get("publish_date") or row.get("ann_date")
+        )
+        if published is not None and (
+            published > as_of_date or (start_date is not None and published < start_date)
+        ):
+            continue
+        filtered.append(row)
+
+    source = _source_by_id("cninfo_announcement")
+    client = _http_session(
+        session, referer="http://www.cninfo.com.cn/new/disclosure/detail"
+    )
+    documents: list[RawDocument] = []
+    request_count = 0
+    seen_announcements: set[str] = set()
+    for row in filtered:
+        if len(documents) >= limit:
+            break
+        try:
+            detail_url = str(row.get("url") or "")
+            announcement_id = str(row.get("announcement_id") or "") or (
+                extract_cninfo_announcement_id(detail_url) or ""
+            )
+            if not announcement_id or announcement_id in seen_announcements:
+                continue
+            seen_announcements.add(announcement_id)
+            publish_text = _announcement_date_text(
+                row.get("publish_date") or row.get("ann_date")
+            )
+            request_count += 1
+            detail = client.post(
+                "http://www.cninfo.com.cn/new/announcement/bulletin_detail",
+                params={
+                    "announceId": announcement_id,
+                    "flag": str(str(row.get("ts_code") or "").upper().endswith(".SZ")).lower(),
+                    "announceTime": publish_text or "",
+                },
+                timeout=20,
+            )
+            if getattr(detail, "status_code", 500) != 200:
+                continue
+            announcement = (detail.json() or {}).get("announcement") or {}
+            adjunct = announcement.get("adjunctUrl")
+            if not adjunct:
+                continue
+            pdf_url = cninfo_pdf_url(str(adjunct))
+            request_count += 1
+            response = client.get(pdf_url, timeout=30)
+            content = bytes(getattr(response, "content", b"") or b"")
+            if getattr(response, "status_code", 500) != 200 or not content.startswith(
+                b"%PDF"
+            ):
+                continue
+            content_text = _extract_pdf_text(content)
+            if not content_text:
+                continue
+            documents.append(
+                RawDocument(
+                    source_id=source.source_id,
+                    source_level=source.source_level,
+                    title=str(
+                        announcement.get("announcementTitle")
+                        or row.get("title")
+                        or "公告全文"
+                    ),
+                    content_text=content_text,
+                    url=pdf_url,
+                    company_code=_scoped_stock_code(row.get("code")),
+                    company_name=str(
+                        row.get("company_name") or announcement.get("secName") or ""
+                    ),
+                    publish_time=publish_text,
+                    doc_type="announcement_pdf",
+                    metadata={"announcement_id": announcement_id},
+                )
+            )
+        except Exception:
+            continue
+    return documents, request_count
+
+
+def fetch_official_ir_documents(
+    pg_url: str,
+    *,
+    company_codes: tuple[str, ...],
+    start_date: date | None,
+    as_of_date: date,
+    limit: int = 10,
+    pages_per_company: int = 2,
+    session=None,
+) -> tuple[list[RawDocument], int]:
+    """Return scoped official-site documents and request count; never persist."""
+
+    normalized_codes = {
+        _scoped_stock_code(code) for code in company_codes if _scoped_stock_code(code)
+    }
+    if not normalized_codes or limit <= 0 or pages_per_company <= 0:
+        return [], 0
+    rows = _read_only_rows(
+        pg_url,
+        """
+        SELECT DISTINCT
+            coalesce(p.code, split_part(r.ts_code, '.', 1)) AS code,
+            s.name AS company_name,
+            coalesce(nullif(p.website, ''), nullif(r.website, '')) AS website
+        FROM stock_profiles p
+        FULL OUTER JOIN ts_raw_stock_company r
+          ON split_part(r.ts_code, '.', 1) = p.code
+        LEFT JOIN stocks s
+          ON s.code = coalesce(p.code, split_part(r.ts_code, '.', 1))
+        WHERE coalesce(p.code, split_part(r.ts_code, '.', 1)) = ANY(%s)
+          AND coalesce(nullif(p.website, ''), nullif(r.website, '')) IS NOT NULL
+        ORDER BY coalesce(p.code, split_part(r.ts_code, '.', 1))
+        LIMIT %s
+        """,
+        (sorted(normalized_codes), len(normalized_codes)),
+    )
+    rows = [
+        row for row in rows if _scoped_stock_code(row.get("code")) in normalized_codes
+    ]
+    client = _http_session(session)
+    source = _source_by_id("official_ir_site")
+    documents: list[RawDocument] = []
+    request_count = 0
+    for company in rows:
+        if len(documents) >= limit:
+            break
+        website = normalize_website_url(str(company.get("website") or ""))
+        if not website:
+            continue
+        try:
+            request_count += 1
+            homepage = client.get(website, timeout=15)
+            homepage_html = response_text(homepage)
+            if getattr(homepage, "status_code", 500) >= 400 or not homepage_html:
+                continue
+            resolved_home = str(getattr(homepage, "url", website) or website)
+            urls = [resolved_home]
+            urls.extend(
+                extract_relevant_official_links(
+                    resolved_home.rstrip("/"),
+                    homepage_html,
+                    max_links=max(0, pages_per_company - 1),
+                )
+            )
+            for page_url in list(dict.fromkeys(urls))[:pages_per_company]:
+                if len(documents) >= limit:
+                    break
+                if page_url == resolved_home:
+                    page = homepage
+                    page_html = homepage_html
+                else:
+                    request_count += 1
+                    page = client.get(page_url, timeout=15)
+                    page_html = response_text(page)
+                if getattr(page, "status_code", 500) >= 400 or not page_html:
+                    continue
+                text = html_to_text(page_html)
+                if len(text) < 80:
+                    continue
+                title_match = re.search(r"(?is)<title[^>]*>(.*?)</title>", page_html)
+                page_title = (
+                    html_to_text(title_match.group(1))
+                    if title_match
+                    else f"{company.get('company_name') or company.get('code')} 官网页面"
+                )
+                documents.append(
+                    RawDocument(
+                        source_id=source.source_id,
+                        source_level=source.source_level,
+                        title=page_title[:240],
+                        content_text=text,
+                        url=page_url,
+                        company_code=_scoped_stock_code(company.get("code")),
+                        company_name=str(company.get("company_name") or ""),
+                        publish_time=None,
+                        doc_type="official_product_page",
+                        metadata={"fetched_as_of_date": as_of_date.isoformat()},
+                    )
+                )
+        except Exception:
+            continue
+    return documents, request_count
+
+
+def _cninfo_search_rows(payload: object) -> list[dict]:
+    if not isinstance(payload, dict):
+        return []
+    for key in ("announcements", "announcementList", "classifiedAnnouncements"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            rows: list[dict] = []
+            for item in value:
+                if isinstance(item, dict):
+                    rows.append(dict(item))
+                elif isinstance(item, list):
+                    rows.extend(dict(row) for row in item if isinstance(row, dict))
+            if rows:
+                return rows
+    nested = payload.get("data")
+    return _cninfo_search_rows(nested) if isinstance(nested, dict) else []
+
+
+def fetch_cninfo_keyword_documents(
+    *,
+    product_terms: tuple[str, ...],
+    scene_terms: tuple[str, ...],
+    require_product_and_scene: bool,
+    allowed_company_codes: tuple[str, ...],
+    as_of_date: date,
+    limit: int,
+    session=None,
+) -> tuple[list[RawDocument], int]:
+    """Run bounded global product+scene CNINFO searches and return PDF documents."""
+
+    products = tuple(dict.fromkeys(term.strip() for term in product_terms if term.strip()))
+    scenes = tuple(dict.fromkeys(term.strip() for term in scene_terms if term.strip()))
+    if not products or limit <= 0 or (require_product_and_scene and not scenes):
+        return [], 0
+    queries = [f'"{product}" "{scene}"' for product in products for scene in scenes]
+    if not require_product_and_scene:
+        queries.extend(f'"{product}"' for product in products)
+    queries = list(dict.fromkeys(queries))
+    allowed = {
+        _scoped_stock_code(code)
+        for code in allowed_company_codes
+        if _scoped_stock_code(code)
+    }
+    start_date = date(as_of_date.year - 3, 1, 1)
+    client = _http_session(
+        session, referer="http://www.cninfo.com.cn/new/fulltextSearch"
+    )
+    request_count = 0
+    candidates: dict[str, dict] = {}
+    for query in queries:
+        request_count += 1
+        response = client.post(
+            "http://www.cninfo.com.cn/new/fulltextSearch/full",
+            data={
+                "keyWord": query,
+                "searchkey": query,
+                "sdate": start_date.isoformat(),
+                "edate": as_of_date.isoformat(),
+                "sortName": "pubdate",
+                "sortType": "desc",
+                "pageNum": 1,
+            },
+            timeout=20,
+        )
+        if getattr(response, "status_code", 500) != 200:
+            continue
+        for row in _cninfo_search_rows(response.json() or {}):
+            code = _scoped_stock_code(
+                row.get("secCode") or row.get("code") or row.get("stockCode")
+            )
+            if allowed and code not in allowed:
+                continue
+            published = _document_publish_date(
+                row.get("announcementTime")
+                or row.get("announcementDate")
+                or row.get("publishDate")
+            )
+            if published is not None and not (start_date <= published <= as_of_date):
+                continue
+            identity = str(
+                row.get("announcementId")
+                or row.get("announceId")
+                or row.get("adjunctUrl")
+                or build_document_hash(
+                    "cninfo_announcement",
+                    "",
+                    str(row.get("announcementTitle") or ""),
+                    f"{code}:{published}",
+                )
+            )
+            candidates.setdefault(identity, {**row, "_code": code, "_published": published})
+
+    source = _source_by_id("cninfo_announcement")
+    documents: list[RawDocument] = []
+    for announcement_id, row in candidates.items():
+        if len(documents) >= limit:
+            break
+        adjunct = row.get("adjunctUrl")
+        if not adjunct:
+            continue
+        request_count += 1
+        response = client.get(cninfo_pdf_url(str(adjunct)), timeout=30)
+        content = bytes(getattr(response, "content", b"") or b"")
+        if getattr(response, "status_code", 500) != 200 or not content.startswith(b"%PDF"):
+            continue
+        content_text = _extract_pdf_text(content)
+        if not content_text:
+            continue
+        folded = content_text.casefold()
+        product_hits = [term for term in products if term.casefold() in folded]
+        scene_hits = [term for term in scenes if term.casefold() in folded]
+        if not product_hits or (require_product_and_scene and not scene_hits):
+            continue
+        published = row.get("_published")
+        documents.append(
+            RawDocument(
+                source_id=source.source_id,
+                source_level=source.source_level,
+                title=str(row.get("announcementTitle") or "公告全文"),
+                content_text=content_text,
+                url=cninfo_pdf_url(str(adjunct)),
+                company_code=str(row.get("_code") or ""),
+                company_name=str(row.get("secName") or row.get("companyName") or ""),
+                publish_time=published.isoformat() if isinstance(published, date) else None,
+                doc_type="announcement_pdf",
+                metadata={
+                    "announcement_id": announcement_id,
+                    "product_hits": product_hits,
+                    "scene_hits": scene_hits,
+                    "same_document_match": bool(
+                        product_hits and (scene_hits or not require_product_and_scene)
+                    ),
+                },
+            )
+        )
+    return documents, request_count
+
+
+def _fetch_cninfo_pdf_announcements_legacy_inline(pg_url: str, limit: int = 20, title_mode: str = "relevant") -> dict:
     """Fetch CNInfo announcement PDFs for mapped candidate companies."""
     import requests
     import psycopg2
@@ -1332,7 +1766,7 @@ def fetch_cninfo_pdf_announcements(pg_url: str, limit: int = 20, title_mode: str
     }
 
 
-def fetch_official_ir_pages(pg_url: str, limit: int = 10, pages_per_company: int = 2) -> dict:
+def _fetch_official_ir_pages_legacy_inline(pg_url: str, limit: int = 10, pages_per_company: int = 2) -> dict:
     """Fetch official company website/IR pages for mapped candidate companies."""
     import requests
     import psycopg2
@@ -1478,6 +1912,239 @@ def fetch_official_ir_pages(pg_url: str, limit: int = 10, pages_per_company: int
         "official_events": official_events,
         "duplicates": duplicates,
         "skipped": skipped,
+        "failed": failed,
+    }
+
+
+def _legacy_scoped_company_codes(
+    pg_url: str,
+    *,
+    source: CollectionSource,
+    job_id: str,
+    scope_type: str,
+    metadata: dict[str, Any],
+    limit: int,
+) -> tuple[str, ...]:
+    import psycopg2
+    import psycopg2.extras
+
+    with psycopg2.connect(pg_url) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                INSERT INTO evidence_collection_jobs (
+                    job_id, source_id, job_type, scope_type, status, started_at, metadata
+                ) VALUES (%s, %s, 'manual', %s, 'running', CURRENT_TIMESTAMP, %s::jsonb)
+                ON CONFLICT (job_id) DO UPDATE SET
+                    status = 'running', started_at = CURRENT_TIMESTAMP,
+                    finished_at = NULL, updated_at = CURRENT_TIMESTAMP
+                """,
+                (job_id, source.source_id, scope_type, json.dumps(metadata, ensure_ascii=False)),
+            )
+            cur.execute(
+                """
+                SELECT DISTINCT split_part(code, '.', 1) AS code
+                FROM business_tag_mapping
+                WHERE coalesce(code, '') <> ''
+                ORDER BY split_part(code, '.', 1)
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            codes = tuple(
+                dict.fromkeys(
+                    _scoped_stock_code(dict(row).get("code"))
+                    for row in cur.fetchall()
+                    if _scoped_stock_code(dict(row).get("code"))
+                )
+            )
+        conn.commit()
+    return codes
+
+
+def fetch_cninfo_pdf_announcements(
+    pg_url: str, limit: int = 20, title_mode: str = "relevant"
+) -> dict:
+    """Backward-compatible command backed by the document-only CNINFO helper."""
+
+    import psycopg2
+    import psycopg2.extras
+
+    if title_mode not in {"relevant", "tender"}:
+        raise ValueError("title_mode must be relevant or tender")
+    source = _source_by_id("cninfo_announcement")
+    job_id = _job_id(source.source_id, "candidate_pool_pdf")
+    codes = _legacy_scoped_company_codes(
+        pg_url,
+        source=source,
+        job_id=job_id,
+        scope_type="candidate_pool_pdf",
+        metadata={"limit": limit, "title_mode": title_mode},
+        limit=max(limit * 10, limit),
+    )
+    as_of_date = datetime.now(UTC).date()
+    documents: list[RawDocument] = []
+    failed = 0
+    try:
+        fetched, _request_count = fetch_cninfo_documents(
+            pg_url,
+            company_codes=codes,
+            start_date=date(as_of_date.year - 3, 1, 1),
+            as_of_date=as_of_date,
+            limit=limit,
+        )
+        documents = [
+            item
+            for item in fetched
+            if (
+                is_tender_cninfo_title(item.title)
+                if title_mode == "tender"
+                else is_relevant_cninfo_title(item.title)
+            )
+        ][:limit]
+    except Exception:
+        failed = 1
+
+    inserted_docs = inserted_facts = duplicates = 0
+    with psycopg2.connect(pg_url) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            for document in documents:
+                result = _insert_raw_document_and_fact(cur, document, source, job_id)
+                inserted_docs += 1 if result["inserted_doc"] else 0
+                inserted_facts += 1 if result["inserted_fact"] else 0
+                duplicates += 1 if result["duplicate"] else 0
+            status = "success" if failed == 0 else "partial_success"
+            cur.execute(
+                """
+                UPDATE evidence_collection_jobs
+                SET status = %s, finished_at = CURRENT_TIMESTAMP,
+                    fetched_count = %s, inserted_count = %s,
+                    duplicate_count = %s, failed_count = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = %s
+                """,
+                (
+                    status,
+                    len(documents),
+                    inserted_docs + inserted_facts,
+                    duplicates,
+                    failed,
+                    job_id,
+                ),
+            )
+        conn.commit()
+    return {
+        "job_id": job_id,
+        "source_id": source.source_id,
+        "selected": len(codes),
+        "title_mode": title_mode,
+        "fetched": len(documents),
+        "inserted_docs": inserted_docs,
+        "inserted_facts": inserted_facts,
+        "duplicates": duplicates,
+        "skipped": 0,
+        "failed": failed,
+    }
+
+
+def fetch_official_ir_pages(
+    pg_url: str, limit: int = 10, pages_per_company: int = 2
+) -> dict:
+    """Backward-compatible command backed by the document-only IR helper."""
+
+    import psycopg2
+    import psycopg2.extras
+
+    source = _source_by_id("official_ir_site")
+    job_id = _job_id(source.source_id, "candidate_official_ir")
+    codes = _legacy_scoped_company_codes(
+        pg_url,
+        source=source,
+        job_id=job_id,
+        scope_type="candidate_official_ir",
+        metadata={"limit": limit, "pages_per_company": pages_per_company},
+        limit=limit,
+    )
+    as_of_date = datetime.now(UTC).date()
+    documents: list[RawDocument] = []
+    failed = 0
+    try:
+        documents, _request_count = fetch_official_ir_documents(
+            pg_url,
+            company_codes=codes,
+            start_date=None,
+            as_of_date=as_of_date,
+            limit=limit,
+            pages_per_company=pages_per_company,
+        )
+    except Exception:
+        failed = 1
+
+    inserted_docs = inserted_facts = duplicates = official_events = 0
+    with psycopg2.connect(pg_url) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            for document in documents:
+                result = _insert_raw_document_and_fact(cur, document, source, job_id)
+                inserted_docs += 1 if result["inserted_doc"] else 0
+                inserted_facts += 1 if result["inserted_fact"] else 0
+                duplicates += 1 if result["duplicate"] else 0
+                event_id = "OFF-" + document.content_hash[:24]
+                cur.execute(
+                    """
+                    INSERT INTO official_site_events (
+                        event_id, doc_id, company_code, company_name,
+                        source_level, event_type, title, url,
+                        evidence_summary, metadata
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                    ON CONFLICT (event_id) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        evidence_summary = EXCLUDED.evidence_summary,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    (
+                        event_id,
+                        document.doc_id,
+                        document.company_code,
+                        document.company_name,
+                        document.source_level,
+                        "official_site_page",
+                        document.title,
+                        document.url,
+                        document.content_text[:500],
+                        json.dumps({"backfill_job_id": job_id}, ensure_ascii=False),
+                    ),
+                )
+                official_events += 1 if cur.rowcount else 0
+            status = "success" if failed == 0 else "partial_success"
+            cur.execute(
+                """
+                UPDATE evidence_collection_jobs
+                SET status = %s, finished_at = CURRENT_TIMESTAMP,
+                    fetched_count = %s, inserted_count = %s,
+                    duplicate_count = %s, failed_count = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = %s
+                """,
+                (
+                    status,
+                    len(documents),
+                    inserted_docs + inserted_facts + official_events,
+                    duplicates,
+                    failed,
+                    job_id,
+                ),
+            )
+        conn.commit()
+    return {
+        "job_id": job_id,
+        "source_id": source.source_id,
+        "selected_companies": len(codes),
+        "fetched_pages": len(documents),
+        "inserted_docs": inserted_docs,
+        "inserted_facts": inserted_facts,
+        "official_events": official_events,
+        "duplicates": duplicates,
+        "skipped": 0,
         "failed": failed,
     }
 
