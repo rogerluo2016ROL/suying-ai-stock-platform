@@ -77,7 +77,7 @@ Tasks 1、2、3、4、5 可并行；Tasks 13 和 14 可并行。其余按依赖�
 - Consumes: `DataStatusResponse` from `frontend/src/api/types.ts`.
 - Produces: `DataStatusView`，失败时只包含 unknown 状态和真实错误原因。
 
-- [ ] **Step 1: 写失败测试，锁定真实空状态**
+- [x] **Step 1: 写失败测试，锁定真实空状态**
 
 ```tsx
 it('does not show demo row counts when data status fails', async () => {
@@ -95,7 +95,7 @@ it('does not show demo row counts when data status fails', async () => {
 expect(screen.getByText('节点下钻、链路模板、候选横评、证据复核集中处理')).toBeInTheDocument()
 ```
 
-- [ ] **Step 2: 运行测试并确认当前失败**
+- [x] **Step 2: 运行测试并确认当前失败**
 
 Run:
 
@@ -105,7 +105,7 @@ bash tools/codex-lowio.sh fe-test src/__tests__/DataUpdate.test.tsx src/__tests_
 
 Expected: DataUpdate 新用例失败；SupplyChainBom 旧断言问题被准确定位。
 
-- [ ] **Step 3: 删除 `fallbackStatus` 的固定业务数据**
+- [x] **Step 3: 删除 `fallbackStatus` 的固定业务数据**
 
 用以下结构替代固定行数和日期：
 
@@ -123,7 +123,7 @@ const unavailableStatus: DataStatusResponse = {
 
 `normalizeDataStatus` 只补结构默认值，不补业务记录。请求异常时保留异常消息并渲染 blocked/error 状态。
 
-- [ ] **Step 4: 运行前端基线**
+- [x] **Step 4: 运行前端基线**
 
 ```bash
 bash tools/codex-lowio.sh fe-test src/__tests__/DataUpdate.test.tsx src/__tests__/SupplyChainBom.test.tsx
@@ -132,7 +132,7 @@ bash tools/codex-lowio.sh fe-typecheck
 
 Expected: focused tests exit 0，TypeScript exit 0。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add frontend/src/pages/DataUpdate.tsx frontend/src/api/types.ts frontend/src/__tests__/DataUpdate.test.tsx frontend/src/__tests__/SupplyChainBom.test.tsx
@@ -153,7 +153,7 @@ git commit -m "fix(frontend): remove demo data fallbacks"
 - Consumes: `FactorEvidenceResponse` from backtest API.
 - Produces: `toFactorEvidenceView(response): FactorEvidenceView`，不做统计推导。
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```tsx
 it('does not derive IC or returns from pick scores', async () => {
@@ -173,7 +173,7 @@ it('does not derive IC or returns from pick scores', async () => {
 })
 ```
 
-- [ ] **Step 2: 验证测试失败**
+- [x] **Step 2: 验证测试失败**
 
 ```bash
 bash tools/codex-lowio.sh fe-test src/__tests__/Screener.test.tsx
@@ -181,7 +181,7 @@ bash tools/codex-lowio.sh fe-test src/__tests__/Screener.test.tsx
 
 Expected: 页面仍生成 IC 或分层收益，测试失败。
 
-- [ ] **Step 3: 删除三个派生函数并接入证据响应**
+- [x] **Step 3: 删除三个派生函数并接入证据响应**
 
 删除 `deriveFactorStats`、近似相关性矩阵和 `buildDecileRows` 的生产调用。新增：
 
@@ -213,7 +213,7 @@ getFactorEvidence: (modelKey: string) =>
   api.get<FactorEvidenceResponse>('/backtest/factor-evidence', { params: { model_key: modelKey } })
 ```
 
-- [ ] **Step 4: 运行 focused tests 和 typecheck**
+- [x] **Step 4: 运行 focused tests 和 typecheck**
 
 ```bash
 bash tools/codex-lowio.sh fe-test src/__tests__/Screener.test.tsx
@@ -222,7 +222,7 @@ bash tools/codex-lowio.sh fe-typecheck
 
 Expected: exit 0，源码中不再用 score 生成 IC、相关性和收益。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add frontend/src/pages/Screener.tsx frontend/src/pages/screener frontend/src/api/types.ts frontend/src/__tests__/Screener.test.tsx
@@ -240,7 +240,7 @@ git commit -m "fix(frontend): show only observed factor evidence"
 - Consumes: no downstream data in this temporary stop-gap.
 - Produces: workbench envelope with `status=unavailable` until Task 7 provides real aggregation.
 
-- [ ] **Step 1: 写失败合同测试**
+- [x] **Step 1: 写失败合同测试**
 
 ```python
 def test_workbench_never_returns_preview_business_values(client):
@@ -253,7 +253,7 @@ def test_workbench_never_returns_preview_business_values(client):
     assert body["freshness"]["status"] == "missing"
 ```
 
-- [ ] **Step 2: 运行测试并确认失败**
+- [x] **Step 2: 运行测试并确认失败**
 
 ```bash
 cd services/api-gateway && ../../.venv/bin/python -m pytest tests/test_workbench_contract.py -q
@@ -261,7 +261,7 @@ cd services/api-gateway && ../../.venv/bin/python -m pytest tests/test_workbench
 
 Expected: 固定 preview 数据导致 FAIL。
 
-- [ ] **Step 3: 移除 `_WORKBENCH_MODULES` 固定业务值**
+- [x] **Step 3: 移除 `_WORKBENCH_MODULES` 固定业务值**
 
 暂时返回：
 
@@ -284,7 +284,7 @@ def _workbench_envelope(module_path: str, request: Request) -> dict:
     }
 ```
 
-- [ ] **Step 4: 运行 gateway 测试**
+- [x] **Step 4: 运行 gateway 测试**
 
 ```bash
 cd services/api-gateway && ../../.venv/bin/python -m pytest tests -q
@@ -292,7 +292,7 @@ cd services/api-gateway && ../../.venv/bin/python -m pytest tests -q
 
 Expected: exit 0，无 preview ID 和固定数量。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add services/api-gateway/app/main.py services/api-gateway/tests
@@ -313,7 +313,7 @@ git commit -m "fix(gateway): remove preview business metrics"
 - Produces: `EvidenceStatus = ready | insufficient_data | unsupported`.
 - Blocks: weight writes and model comparison when evidence is incomplete.
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 @pytest.mark.asyncio
@@ -335,7 +335,7 @@ def test_backtest_proxy_is_not_reported_as_real(client):
 
 再增加模型 compare 测试，缺任一 required metric 时断言 422 `INSUFFICIENT_EVIDENCE`。
 
-- [ ] **Step 2: 运行三组测试并确认失败**
+- [x] **Step 2: 运行三组测试并确认失败**
 
 ```bash
 cd services/training-service && ../../.venv/bin/python -m pytest tests/test_truthfulness_gate.py -q
@@ -344,7 +344,7 @@ cd ../backtest-service && ../../.venv/bin/python -m pytest tests/test_truthful_f
 
 Expected: 当前随机/默认/proxy 路径导致失败。
 
-- [ ] **Step 3: 实现失败关闭**
+- [x] **Step 3: 实现失败关闭**
 
 新增异常：
 
@@ -368,7 +368,7 @@ class InsufficientEvidence(RuntimeError):
 }
 ```
 
-- [ ] **Step 4: 运行 training 和 backtest 测试**
+- [x] **Step 4: 运行 training 和 backtest 测试**
 
 ```bash
 cd services/training-service && ../../.venv/bin/python -m pytest tests -q
@@ -377,7 +377,7 @@ cd ../backtest-service && ../../.venv/bin/python -m pytest tests -q
 
 Expected: exit 0；证据不足时数据库写入 spy 未调用。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add services/training-service services/backtest-service
@@ -396,7 +396,7 @@ git commit -m "fix(models): fail closed on missing evaluation evidence"
 - Produces: signal `coverage` and `unavailable_dimensions`.
 - Produces: broker `capabilities` and fail-closed readiness.
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 def test_missing_kronos_is_unavailable_not_neutral():
@@ -420,14 +420,14 @@ async def test_connected_sdk_without_order_capability_never_stubs(monkeypatch):
         await broker.place_order(order)
 ```
 
-- [ ] **Step 2: 运行测试并确认失败**
+- [x] **Step 2: 运行测试并确认失败**
 
 ```bash
 cd services/signal-service && ../../.venv/bin/python -m pytest tests/test_signal_contracts.py -q
 cd ../trade-service && ../../.venv/bin/python -m pytest tests/test_xtquant_capabilities.py -q
 ```
 
-- [ ] **Step 3: 实现 coverage 和 broker capability gate**
+- [x] **Step 3: 实现 coverage 和 broker capability gate**
 
 ```python
 REQUIRED_LIVE_CAPABILITIES = {
@@ -441,7 +441,7 @@ def live_readiness(self) -> dict:
 
 真实方法未实现时抛 `BrokerCapabilityError`，不执行 `_place_order_stub`。signal 根据可用维度重新归一权重，并返回 coverage；若关键维度缺失则 `result_status=insufficient_data`。
 
-- [ ] **Step 4: 运行 focused tests**
+- [x] **Step 4: 运行 focused tests**
 
 ```bash
 cd services/signal-service && ../../.venv/bin/python -m pytest tests -q
@@ -450,7 +450,7 @@ cd ../trade-service && ../../.venv/bin/python -m pytest tests -q
 
 Expected: exit 0，live 请求没有 stub 订单。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add services/signal-service services/trade-service
@@ -470,7 +470,7 @@ git commit -m "fix(trading): block unsupported live broker operations"
 - Produces: `run_service(service: str, extra_args: list[str]) -> int`.
 - Produces: CLI `python3 tools/run_service_tests.py --core`.
 
-- [ ] **Step 1: 写 runner 单测**
+- [x] **Step 1: 写 runner 单测**
 
 ```python
 def test_each_service_uses_own_cwd_and_process(monkeypatch):
@@ -485,7 +485,7 @@ def test_each_service_uses_own_cwd_and_process(monkeypatch):
     assert calls[0][2]["PYTHONPATH"].split(os.pathsep)[0].endswith("services/trade-service")
 ```
 
-- [ ] **Step 2: 运行测试确认模块不存在**
+- [x] **Step 2: 运行测试确认模块不存在**
 
 ```bash
 bash tools/codex-lowio.sh py tools/tests/test_run_service_tests.py -q
@@ -493,7 +493,7 @@ bash tools/codex-lowio.sh py tools/tests/test_run_service_tests.py -q
 
 Expected: FAIL with import error for `run_service_tests`.
 
-- [ ] **Step 3: 实现独立进程 runner**
+- [x] **Step 3: 实现独立进程 runner**
 
 ```python
 CORE_TARGETS = [
@@ -512,7 +512,7 @@ def run_service(service: str, extra_args: list[str]) -> int:
 
 CI service matrix 为每个服务调用 runner；frontend job 增加 `npm run build`。Docker build 依赖 test jobs 成功。
 
-- [ ] **Step 4: 验证 runner 和 CI YAML**
+- [x] **Step 4: 验证 runner 和 CI YAML**
 
 ```bash
 bash tools/codex-lowio.sh py tools/tests/test_run_service_tests.py -q
@@ -522,7 +522,7 @@ cd frontend && npm run build
 
 Expected: 每个服务单独报告；不出现跨服务 `app` 导入冲突。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add tools/run_service_tests.py tools/tests/test_run_service_tests.py tools/codex-lowio.sh pyproject.toml .github/workflows/ci.yml
@@ -545,7 +545,7 @@ git commit -m "ci: test every core service in isolation"
 - Produces: `sanitize_client_headers(headers, claims) -> dict[str, str]`.
 - Produces: `/api/v1/data` owner `data-service:8010`.
 
-- [ ] **Step 1: 写路由和越权测试**
+- [x] **Step 1: 写路由和越权测试**
 
 ```python
 def test_data_routes_to_data_service():
@@ -562,20 +562,20 @@ def test_spoofed_owner_and_service_headers_are_removed():
 
 前端测试断言 axios 不再发送 `X-Owner-User-Id`。
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```bash
 cd services/api-gateway && ../../.venv/bin/python -m pytest tests -q
 bash tools/codex-lowio.sh fe-test src/__tests__/apiClientPlatformContext.test.ts
 ```
 
-- [ ] **Step 3: 实现 registry 和 header policy**
+- [x] **Step 3: 实现 registry 和 header policy**
 
 `service_registry.py` 定义 name、prefix、host env、compose host 和 port。gateway 不再维护 `_COMPOSE_HOSTS`、`_HOST_ENV`、`SERVICES` 三份映射。
 
 客户端只发送 tenant/account/trade mode 选择值。gateway 删除客户端 owner 和 service credential；业务服务从已验证 JWT 重建 owner，并验证 tenant membership 和 account ownership。
 
-- [ ] **Step 4: 验证 gateway、前端和 compose 配置**
+- [x] **Step 4: 验证 gateway、前端和 compose 配置**
 
 ```bash
 cd services/api-gateway && ../../.venv/bin/python -m pytest tests -q
@@ -585,7 +585,7 @@ docker compose -f docker/docker-compose.yml config >/dev/null
 
 Expected: exit 0；生产 compose 只 publish gateway/backend，内部服务用 expose。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add services/api-gateway frontend/src/api/client.ts frontend/src/__tests__/apiClientPlatformContext.test.ts docker/docker-compose.yml docs/adr/016-platform-runtime-contracts.md
@@ -639,7 +639,7 @@ git commit -m "fix(gateway): enforce service ownership and trusted identity"
 **Interfaces:**
 - Produces: `ServiceHealth`, `ComponentCheck` and `/api/v1/runtime/readiness`.
 
-- [ ] **Step 1: 写 contract 和聚合失败测试**
+- [x] **Step 1: 写 contract 和聚合失败测试**
 
 ```python
 def test_readiness_distinguishes_process_from_dependencies(client, monkeypatch):
@@ -655,13 +655,13 @@ def test_gateway_readiness_survives_one_timeout(client, monkeypatch):
     assert response.json()["services"]["trade-service"]["ready"] is False
 ```
 
-- [ ] **Step 2: 运行 contract tests 并确认失败**
+- [x] **Step 2: 运行 contract tests 并确认失败**
 
 ```bash
 bash tools/codex-lowio.sh py packages/kronos-contracts/tests services/api-gateway/tests/test_runtime_readiness.py -q
 ```
 
-- [ ] **Step 3: 实现统一 health models 和 probes**
+- [x] **Step 3: 实现统一 health models 和 probes**
 
 ```python
 class ComponentCheck(BaseModel):
@@ -689,7 +689,7 @@ RUN pip install --no-cache-dir /app/packages/kronos-contracts
 
 有 `pyproject.toml` 的服务同时声明 `kronos-contracts` 依赖；training-service 在 requirements 中使用本地镜像安装步骤，不填写无法从公共索引下载的版本号。
 
-- [ ] **Step 4: 运行服务合同与前端测试**
+- [x] **Step 4: 运行服务合同与前端测试**
 
 ```bash
 bash tools/codex-lowio.sh py packages/kronos-contracts/tests -q
@@ -701,7 +701,7 @@ docker compose -f docker/docker-compose.yml build api-gateway data-service scree
 
 Expected: 所有服务 health contract 通过；断开依赖时 ready=false。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add packages/kronos-contracts services frontend/src/pages/RuntimeStatus.tsx frontend/src/__tests__/Phase5SystemPages.test.tsx
@@ -725,7 +725,7 @@ git commit -m "feat(runtime): add dependency-aware readiness contracts"
 - Produces: `/api/v1/data/inventory`, `/jobs`, `/schedules`, `/readiness`.
 - Keeps: `/api/v1/data/status` as compatibility summary.
 
-- [ ] **Step 1: 写语义测试**
+- [x] **Step 1: 写语义测试**
 
 ```python
 def test_inventory_rows_are_table_counts_not_last_job_writes(client, monkeypatch):
@@ -736,17 +736,17 @@ def test_inventory_rows_are_table_counts_not_last_job_writes(client, monkeypatch
     assert body["tables"]["daily_kline"]["rows"] != 5200
 ```
 
-- [ ] **Step 2: 运行测试确认当前 status 混淆**
+- [x] **Step 2: 运行测试确认当前 status 混淆**
 
 ```bash
 cd services/data-service && ../../.venv/bin/python -m pytest tests/test_data_status_semantics.py -q
 ```
 
-- [ ] **Step 3: 实现四个资源并移除 signal subprocess fallback**
+- [x] **Step 3: 实现四个资源并移除 signal subprocess fallback**
 
 inventory 查询真实 count/min/max；jobs 返回 scheduler run state；schedules 返回配置；readiness 暂返回 profile evaluator 结果。signal-service 的 `/api/v1/data/*` 兼容路由只转发到 data-service，并带 `Deprecation` header，不执行 subprocess。
 
-- [ ] **Step 4: 运行 data、signal 和前端测试**
+- [x] **Step 4: 运行 data、signal 和前端测试**
 
 ```bash
 cd services/data-service && ../../.venv/bin/python -m pytest tests -q
@@ -757,7 +757,7 @@ bash tools/codex-lowio.sh fe-typecheck
 
 Expected: 四类状态不再共用 `rows` 语义。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add services/data-service services/signal-service frontend/src/pages/DataUpdate.tsx frontend/src/api/types.ts frontend/src/__tests__/DataUpdate.test.tsx
@@ -784,7 +784,7 @@ git commit -m "feat(data): separate inventory jobs schedules and readiness"
 - Produces: `evaluate_readiness(profile, target_trade_date, cutoff_time) -> DataReadiness`.
 - Persists: immutable `data_readiness_snapshots`.
 
-- [ ] **Step 1: 写关键失败测试**
+- [x] **Step 1: 写关键失败测试**
 
 ```python
 def test_backtest_profile_blocks_lagging_adjustment_factor():
@@ -800,13 +800,13 @@ def test_backtest_profile_blocks_lagging_adjustment_factor():
 
 增加盘中 14:27 截止时间和可选源缺失的测试。
 
-- [ ] **Step 2: 运行测试确认 evaluator 不存在**
+- [x] **Step 2: 运行测试确认 evaluator 不存在**
 
 ```bash
 cd services/data-service && ../../.venv/bin/python -m pytest tests/test_data_readiness_profiles.py -q
 ```
 
-- [ ] **Step 3: 实现 migration、profiles 和 evaluator**
+- [x] **Step 3: 实现 migration、profiles 和 evaluator**
 
 Migration 建表：
 
@@ -826,7 +826,7 @@ op.create_table(
 
 首批 profiles：`daily_screening_v1`、`intraday_screening_v1`、`backtest_v1`、`training_v1`、`cb_auction_v1`。正式模式 blocked 时 screener、backtest、training 不启动执行。
 
-- [ ] **Step 4: 运行 migration 和集成测试**
+- [x] **Step 4: 运行 migration 和集成测试**
 
 ```bash
 cd backend && ../.venv/bin/alembic upgrade head
@@ -836,7 +836,7 @@ bash tools/codex-lowio.sh py services/screener-service/tests/test_api.py -q
 
 Expected: lagging adj_factor 阻断；snapshot 可按 ID 查询。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add configs/data_readiness_profiles.json backend/alembic/versions/026_data_readiness_snapshots.py services/data-service services/screener-service/app/data_readiness_client.py services/screener-service/app/orchestrator.py services/backtest-service/app/routes.py services/training-service/app/training_engine.py docs/adr/017-data-readiness-snapshots.md
@@ -858,7 +858,7 @@ git commit -m "feat(data): enforce model-specific readiness snapshots"
 - Produces: schema audit JSON with severity, owner, exemption and expiry.
 - Produces: `python3 tools/audit_table_ownership.py --fail-on violation`.
 
-- [ ] **Step 1: 写 drift 和过期豁免测试**
+- [x] **Step 1: 写 drift 和过期豁免测试**
 
 ```python
 def test_expired_high_drift_exemption_fails():
@@ -870,17 +870,17 @@ def test_table_has_exactly_one_owner():
     assert audit_registry(registry).violations == []
 ```
 
-- [ ] **Step 2: 运行测试确认 CLI 能力缺失**
+- [x] **Step 2: 运行测试确认 CLI 能力缺失**
 
 ```bash
 bash tools/codex-lowio.sh py services/sql/audit/test_schema_contract.py tools/tests/test_audit_table_ownership.py -q
 ```
 
-- [ ] **Step 3: 实现 JSON 输出、退出码和 ownership registry**
+- [x] **Step 3: 实现 JSON 输出、退出码和 ownership registry**
 
 `configs/data_ownership.json` 至少覆盖 readiness profiles、策略、训练、回测和交易关键表。审计器把 PostgreSQL 类型别名标准化，避免 `varchar/character varying` 和 `timestamptz/timestamp with time zone` 假阳性。
 
-- [ ] **Step 4: 在现有 PG 和 fresh DB 运行**
+- [x] **Step 4: 在现有 PG 和 fresh DB 运行**
 
 ```bash
 KRONOS_PG_URL=postgresql://kronos:kronos@localhost:6432/kronos python3 services/sql/audit/schema_audit.py --json outputs/schema-audit.json --fail-on medium
@@ -889,7 +889,7 @@ python3 tools/audit_table_ownership.py --fail-on violation
 
 Expected: 未豁免 high/medium 为 0；若当前仍有真实 drift，任务保持红灯并按表创建后续 migration，不修改测试阈值。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add configs/data_ownership.json services/sql/audit tools/audit_table_ownership.py tools/tests/test_audit_table_ownership.py .github/workflows/ci.yml docs/adr/018-schema-and-table-ownership.md
@@ -911,7 +911,7 @@ git commit -m "feat(governance): gate releases on schema and table ownership"
 - Produces: `ModelRunManifest` schema version 1.0.
 - Produces: official run requires clean worktree and strict timeline.
 
-- [ ] **Step 1: 写 manifest 测试**
+- [x] **Step 1: 写 manifest 测试**
 
 ```python
 def test_official_manifest_requires_clean_strict_run():
@@ -926,17 +926,17 @@ def test_official_manifest_requires_clean_strict_run():
         )
 ```
 
-- [ ] **Step 2: 运行测试确认 schema 缺失**
+- [x] **Step 2: 运行测试确认 schema 缺失**
 
 ```bash
 bash tools/codex-lowio.sh py packages/kronos-contracts/tests/test_model_run_contract.py tools/tests/test_run_research_manifest.py -q
 ```
 
-- [ ] **Step 3: 实现 manifest 和 pipeline 输出**
+- [x] **Step 3: 实现 manifest 和 pipeline 输出**
 
 manifest 必含 code commit、dirty、参数 hash、目标交易日、截止时间、snapshot、股票池 hash、成本、产物和状态。`walk_forward --official` 自动启用 strict timeline；诊断性关闭 strict 的结果强制 `official=false`。
 
-- [ ] **Step 4: 运行时间线和 pipeline tests**
+- [x] **Step 4: 运行时间线和 pipeline tests**
 
 ```bash
 bash tools/codex-lowio.sh py packages/kronos-contracts/tests/test_model_run_contract.py tools/tests/test_run_research_manifest.py services/training-service/tests/test_walk_forward_timeline.py -q
@@ -944,7 +944,7 @@ bash tools/codex-lowio.sh py packages/kronos-contracts/tests/test_model_run_cont
 
 Expected: official + dirty/late commit/非 strict 均 exit 2 或 validation failure。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add packages/kronos-contracts tools/run_research_pipeline.py tools/walk_forward.py tools/tests/test_run_research_manifest.py services/training-service/tests/test_walk_forward_timeline.py configs/model_pipeline.json
@@ -968,7 +968,7 @@ git commit -m "feat(models): record immutable official run manifests"
 - Produces: `BacktestAdapter.run(request, readiness) -> BacktestReport`.
 - Produces: observed factor IC from factor snapshots and future adjusted returns.
 
-- [ ] **Step 1: 写数值行为测试**
+- [x] **Step 1: 写数值行为测试**
 
 ```python
 def test_monotonic_scores_have_positive_rank_ic():
@@ -988,13 +988,13 @@ def test_shuffled_returns_do_not_create_stable_ic():
 
 增加复权、T+1 open、成本和 minimum sample tests。
 
-- [ ] **Step 2: 运行测试并确认真实 evaluator 缺失**
+- [x] **Step 2: 运行测试并确认真实 evaluator 缺失**
 
 ```bash
 bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_factor_ic.py services/backtest-service/tests/test_factor_evidence_api.py -q
 ```
 
-- [ ] **Step 3: 实现 factor evaluator 和 adapter registry**
+- [x] **Step 3: 实现 factor evaluator 和 adapter registry**
 
 ```python
 class BacktestAdapter(Protocol):
@@ -1009,7 +1009,7 @@ BACKTEST_ADAPTERS = {
 
 每个横截面交易日计算 Spearman IC，再跨期计算 ICIR。少于 20 个交易日、每日至少 30 个股票或总观测少于 500 时返回 `insufficient_data`。training calibration 只能消费已保存的 evaluation ID。
 
-- [ ] **Step 4: 运行因素、服务和回测 tests**
+- [x] **Step 4: 运行因素、服务和回测 tests**
 
 ```bash
 bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_factor_ic.py -q
@@ -1019,7 +1019,7 @@ cd ../training-service && ../../.venv/bin/python -m pytest tests -q
 
 Expected: 真实数值夹具通过；未注册模型返回 `MODEL_BACKTEST_NOT_IMPLEMENTED`。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add packages/kronos-factors/kronos_factors/evaluation packages/kronos-factors/tests/test_factor_ic.py services/backtest-service services/training-service/app/factor_calibration.py
@@ -1041,7 +1041,7 @@ git commit -m "feat(backtest): evaluate observed factors with adjusted returns"
 - Produces: `evaluate_admission(model_version_id, target_stage) -> AdmissionDecision`.
 - Enforces stages: research → candidate → paper → production.
 
-- [ ] **Step 1: 写五个独立阻断测试**
+- [x] **Step 1: 写五个独立阻断测试**
 
 ```python
 @pytest.mark.parametrize("failed_gate", [
@@ -1060,13 +1060,13 @@ def test_each_required_gate_blocks_promotion(failed_gate):
 
 增加 mock MLflow 和无 baseline 的测试。
 
-- [ ] **Step 2: 运行测试确认 admission 模块不存在**
+- [x] **Step 2: 运行测试确认 admission 模块不存在**
 
 ```bash
 cd services/training-service && ../../.venv/bin/python -m pytest tests/test_model_admission.py -q
 ```
 
-- [ ] **Step 3: 实现 gate 和 promotion transaction**
+- [x] **Step 3: 实现 gate 和 promotion transaction**
 
 ```python
 class AdmissionDecision(BaseModel):
@@ -1079,7 +1079,7 @@ class AdmissionDecision(BaseModel):
 
 production 模式下 MLflow 连接失败直接失败；PG stage 只有在 MLflow alias 更新成功后提交。阈值未由 PRD Q-3 批准前，production promotion 固定 blocked。
 
-- [ ] **Step 4: 运行 training suite**
+- [x] **Step 4: 运行 training suite**
 
 ```bash
 cd services/training-service && ../../.venv/bin/python -m pytest tests -q
@@ -1087,7 +1087,7 @@ cd services/training-service && ../../.venv/bin/python -m pytest tests -q
 
 Expected: 所有负向 gate 通过；旧 production 版本在晋级失败后保持不变。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add configs/model_admission_gates.json services/training-service docs/adr/019-model-admission-gate.md
@@ -1115,7 +1115,7 @@ git commit -m "feat(training): gate model promotion on observed evidence"
 - Produces: `AppRouteDefinition[]` as menu/router/permission SSOT.
 - Keeps: `client.ts` compatibility re-exports.
 
-- [ ] **Step 1: 写单一来源测试**
+- [x] **Step 1: 写单一来源测试**
 
 ```tsx
 it('derives menu and protected routes from the same registry', () => {
@@ -1126,13 +1126,13 @@ it('derives menu and protected routes from the same registry', () => {
 })
 ```
 
-- [ ] **Step 2: 运行测试确认 registry 不存在**
+- [x] **Step 2: 运行测试确认 registry 不存在**
 
 ```bash
 bash tools/codex-lowio.sh fe-test src/__tests__/RouteRegistry.test.tsx
 ```
 
-- [ ] **Step 3: 迁移路由并拆 API，保留兼容 barrel**
+- [x] **Step 3: 迁移路由并拆 API，保留兼容 barrel**
 
 ```tsx
 export interface AppRouteDefinition {
@@ -1150,7 +1150,7 @@ export interface AppRouteDefinition {
 
 `App.tsx` 删除重复的菜单和 protected route arrays。`client.ts` 从 domain modules re-export 旧 API 名称，页面可以分批迁移。
 
-- [ ] **Step 4: 跑全部前端质量门**
+- [x] **Step 4: 跑全部前端质量门**
 
 ```bash
 bash tools/codex-lowio.sh fe-typecheck
@@ -1160,7 +1160,7 @@ cd frontend && npm run build
 
 Expected: 0 failed，build exit 0，所有现有路由保持。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add frontend/src/app frontend/src/api frontend/src/App.tsx frontend/src/__tests__
