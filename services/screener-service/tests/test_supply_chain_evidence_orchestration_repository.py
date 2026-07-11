@@ -755,24 +755,29 @@ def test_point_in_time_queries_use_shanghai_exclusive_upper_bound():
     repository.fetch_candidate_universe(AS_OF, requirement, (), 5)
     repository.fetch_discovery_seed_companies(AS_OF, requirement, 5)
 
-    upper = datetime(2026, 7, 10, 0, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
+    naive_upper = datetime(2026, 7, 10, 0, 0)
+    aware_upper = datetime(
+        2026, 7, 10, 0, 0, tzinfo=ZoneInfo("Asia/Shanghai")
+    )
     fact_sql, fact_params = next(
         call for call in cursor.calls if "FROM evidence_extracted_facts f" in call[0]
     )
     assert "d.publish_time < %s" in fact_sql
     assert "f.created_at < %s" in fact_sql
     assert "f.reviewed_at IS NULL OR f.reviewed_at < %s" in fact_sql
-    assert fact_params.count(upper) == 3
+    assert fact_params.count(naive_upper) == 2
+    assert fact_params.count(aware_upper) == 1
     candidate_sql, candidate_params = next(
         call for call in cursor.calls if "FROM raw_evidence_documents" in call[0]
     )
     assert "publish_time < %s" in candidate_sql
-    assert upper in candidate_params
+    assert "created_at < %s" in candidate_sql
+    assert candidate_params.count(naive_upper) == 2
     seed_sql, seed_params = next(
         call for call in cursor.calls if "FROM stock_profiles" in call[0]
     )
     assert "updated_at < %s" in seed_sql
-    assert upper in seed_params
+    assert naive_upper in seed_params
 
 
 def test_node_dimension_auto_upsert_never_overwrites_reviewed_rows():
@@ -918,3 +923,149 @@ def test_repository_error_sanitizer_handles_structured_secrets(raw, secret):
         params for sql, params in cursor.calls if "UPDATE evidence_collection_jobs" in sql
     )
     assert secret not in " ".join(str(value) for value in params)
+
+
+def test_as_of_cutoffs_preserve_datetime_precision_and_sql_timestamp_types():
+    from datetime import date, datetime, timezone
+    from app.domains.supply_chain import evidence_orchestration_repository as module
+
+    local_day = module._as_of_upper_bound(date(2026, 7, 9))
+    local_intraday = module._as_of_upper_bound(datetime(2026, 7, 9, 9, 30))
+    utc_intraday = module._as_of_upper_bound(
+        datetime(2026, 7, 9, 15, 0, tzinfo=timezone.utc)
+    )
+
+    assert local_day == datetime(2026, 7, 10, 0, 0)
+    assert local_day.tzinfo is None
+    assert local_intraday == datetime(2026, 7, 9, 9, 30)
+    assert local_intraday.tzinfo is None
+    assert utc_intraday == datetime(2026, 7, 9, 23, 0)
+    assert utc_intraday.tzinfo is None
+    aware = module._as_of_aware_upper_bound(
+        datetime(2026, 7, 9, 15, 0, tzinfo=timezone.utc)
+    )
+    assert aware == datetime(2026, 7, 9, 23, 0, tzinfo=module._SHANGHAI)
+
+
+def test_candidate_proposals_merge_lineage_for_same_mapping_across_jobs():
+    from dataclasses import replace
+    from app.domains.supply_chain import evidence_orchestration_repository as module
+
+    first = candidate_proposal(
+        discovery_doc_ids=("d1",), discovery_fact_ids=("f1",)
+    )
+    second = replace(
+        candidate_proposal(discovery_doc_ids=("d2",), discovery_fact_ids=("f2",)),
+        confidence=first.confidence + 0.1,
+    )
+
+    merged = module._merge_candidate_proposals_by_mapping([first, second])
+
+    assert len(merged) == 1
+    assert merged[0].confidence == second.confidence
+    assert tuple(merged[0].provenance["discovery_doc_ids"]) == ("d1", "d2")
+    assert tuple(merged[0].provenance["discovery_fact_ids"]) == ("f1", "f2")
+
+
+def test_asof_fact_sql_uses_naive_cutoffs_for_timestamp_and_aware_for_timestamptz():
+    cursor = FakeCursor(query_rows={"FROM evidence_extracted_facts f": []})
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    cutoff = datetime(2026, 7, 9, 15, 0, tzinfo=timezone.utc)
+
+    repository.fetch_asof_facts(("m1",), cutoff)
+
+    sql, params = next(
+        call for call in cursor.calls if "FROM evidence_extracted_facts f" in call[0]
+    )
+    assert "d.publish_time < %s" in sql
+    assert "f.created_at < %s" in sql
+    assert "f.reviewed_at < %s" in sql
+    assert params[1] == datetime(2026, 7, 9, 23, 0)
+    assert params[2] == datetime(2026, 7, 9, 23, 0)
+    assert params[3] == datetime(
+        2026, 7, 9, 23, 0, tzinfo=ZoneInfo("Asia/Shanghai")
+    )
+
+
+def test_candidate_and_local_raw_queries_cut_off_publish_and_ingest_times():
+    from types import SimpleNamespace
+
+    cursor = FakeCursor(
+        table_names=["raw_evidence_documents"],
+        query_rows={"FROM raw_evidence_documents": []},
+    )
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    requirement = {
+        "product_terms": ["轴向磁通"],
+        "scene_terms": ["机器人腕部"],
+        "require_product_and_scene": True,
+    }
+    task = SimpleNamespace(company_code="688001", queries=("轴向磁通",))
+
+    repository.fetch_candidate_universe(AS_OF, requirement, (), 5)
+    repository.fetch_local_documents(task, AS_OF)
+
+    raw_calls = [
+        (sql, params)
+        for sql, params in cursor.calls
+        if "FROM raw_evidence_documents" in sql
+    ]
+    assert len(raw_calls) == 2
+    for sql, params in raw_calls:
+        assert "publish_time < %s" in sql
+        assert "created_at < %s" in sql
+        cutoffs = [value for value in params if isinstance(value, datetime)]
+        assert cutoffs[-2:] == [
+            datetime(2026, 7, 10, 0, 0),
+            datetime(2026, 7, 10, 0, 0),
+        ]
+        assert all(value.tzinfo is None for value in cutoffs[-2:])
+
+
+def test_undated_patent_is_retained_pending_and_cut_off_by_created_at():
+    from types import SimpleNamespace
+    from supply_chain_evidence_adapters import current_support_status
+
+    cursor = FakeCursor(
+        table_names=["patent_events"],
+        query_rows={
+            "FROM patent_events": [
+                {
+                    "event_id": "pat-null-date",
+                    "company_code": "688001",
+                    "company_name": "测试公司",
+                    "publication_number": "CN-X",
+                    "patent_title": "机器人腕部轴向磁通电机",
+                    "patent_abstract": "用于机器人腕部",
+                    "applicant": "测试公司",
+                    "application_date": None,
+                    "publication_date": None,
+                    "grant_date": None,
+                    "patent_status": "active",
+                    "created_at": datetime(2026, 7, 9, 8, 0),
+                    "metadata": {},
+                }
+            ]
+        },
+    )
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    task = SimpleNamespace(company_code="688001", queries=("轴向磁通",))
+
+    rows, _ = repository.fetch_local_documents(task, AS_OF)
+
+    sql, params = next(
+        call for call in cursor.calls if "FROM patent_events" in call[0]
+    )
+    assert "COALESCE(publication_date, application_date) IS NULL" in sql
+    assert "created_at < %s" in sql
+    assert params[-1] == datetime(2026, 7, 10, 0, 0)
+    assert len(rows) == 1
+    assert rows[0].publish_time is None
+    assert rows[0].metadata["legal_status_date"] is None
+    assert current_support_status(rows[0], AS_OF) == "pending_review"

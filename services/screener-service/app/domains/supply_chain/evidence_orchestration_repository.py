@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, time, timedelta
 import hashlib
 import json
@@ -101,6 +101,79 @@ def _merge_ids(*values: object) -> list[str]:
     return result
 
 
+def _merge_candidate_proposals_by_mapping(
+    proposals: Sequence[CandidateMappingProposal],
+) -> list[CandidateMappingProposal]:
+    """Merge lineage for one structural mapping, failing closed on conflicts."""
+
+    grouped: dict[str, CandidateMappingProposal] = {}
+    structural_fields = (
+        "company_code",
+        "chain_id",
+        "node_id",
+        "tag_name",
+        "technology_route_id",
+    )
+    lineage_fields = (
+        "discovery_doc_ids",
+        "discovery_fact_ids",
+        "collection_job_ids",
+    )
+    for proposal in proposals:
+        current = grouped.get(proposal.mapping_id)
+        if current is None:
+            grouped[proposal.mapping_id] = proposal
+            continue
+        conflicts = [
+            field
+            for field in structural_fields
+            if getattr(current, field) != getattr(proposal, field)
+        ]
+        current_provenance = thaw_json(current.provenance or {})
+        incoming_provenance = thaw_json(proposal.provenance or {})
+        for field in ("requirement_id", "technology_route_id"):
+            left = current_provenance.get(field)
+            right = incoming_provenance.get(field)
+            if left and right and left != right:
+                conflicts.append(f"provenance.{field}")
+        if conflicts:
+            raise ValueError(
+                f"candidate proposal conflict for {proposal.mapping_id}: "
+                + ", ".join(conflicts)
+            )
+        merged_provenance = dict(current_provenance)
+        for field in lineage_fields:
+            merged_provenance[field] = _merge_ids(
+                current_provenance.get(field), incoming_provenance.get(field)
+            )
+        current_path = _json_value(current_provenance.get("l1_l8_path"), {})
+        incoming_path = _json_value(incoming_provenance.get("l1_l8_path"), {})
+        merged_path = dict(current_path)
+        for field in ("requirement_id", "technology_route_id"):
+            left = current_path.get(field)
+            right = incoming_path.get(field)
+            if left and right and left != right:
+                raise ValueError(
+                    f"candidate proposal conflict for {proposal.mapping_id}: "
+                    f"l1_l8_path.{field}"
+                )
+            if not left and right:
+                merged_path[field] = right
+        for field in lineage_fields:
+            merged_path[field] = _merge_ids(
+                current_path.get(field), incoming_path.get(field)
+            )
+        if merged_path:
+            merged_provenance["l1_l8_path"] = merged_path
+        grouped[proposal.mapping_id] = replace(
+            current,
+            confidence=max(current.confidence, proposal.confidence),
+            evidence_ids=tuple(_merge_ids(current.evidence_ids, proposal.evidence_ids)),
+            provenance=merged_provenance,
+        )
+    return list(grouped.values())
+
+
 def _fact_type(requirement_id: str) -> str:
     return {
         "business_presence": "business_presence",
@@ -149,19 +222,24 @@ def _sanitize_error_text(value: object) -> str:
 _SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 
-def _as_of_upper_bound(value: date | datetime) -> datetime:
+def _as_of_aware_upper_bound(value: date | datetime) -> datetime:
     if isinstance(value, datetime):
-        localized = (
+        return (
             value.replace(tzinfo=_SHANGHAI)
             if value.tzinfo is None
             else value.astimezone(_SHANGHAI)
         )
-        day = localized.date()
-    elif isinstance(value, date):
-        day = value
-    else:
-        raise ValueError("as_of cutoff must be a date or datetime")
-    return datetime.combine(day + timedelta(days=1), time.min, tzinfo=_SHANGHAI)
+    if isinstance(value, date):
+        return datetime.combine(
+            value + timedelta(days=1), time.min, tzinfo=_SHANGHAI
+        )
+    raise ValueError("as_of cutoff must be a date or datetime")
+
+
+def _as_of_upper_bound(value: date | datetime) -> datetime:
+    """Return a Shanghai wall-clock cutoff for TIMESTAMP WITHOUT TIME ZONE."""
+
+    return _as_of_aware_upper_bound(value).replace(tzinfo=None)
 
 
 def _shanghai_date(value: object) -> date | None:
@@ -921,7 +999,7 @@ class EvidenceOrchestrationRepository:
 
     def fetch_candidate_universe(
         self,
-        as_of_date: date,
+        as_of_date: date | datetime,
         requirement: Mapping[str, Any],
         company_codes: tuple[str, ...],
         limit: int,
@@ -931,8 +1009,15 @@ class EvidenceOrchestrationRepository:
         if limit <= 0:
             return []
         upper_bound = _as_of_upper_bound(as_of_date)
-        clauses = ["publish_time IS NOT NULL", "publish_time < %s"]
-        params: list[Any] = [upper_bound]
+        cutoff_day = _shanghai_date(as_of_date)
+        if cutoff_day is None:
+            raise ValueError("as_of cutoff must resolve to a Shanghai date")
+        clauses = [
+            "publish_time IS NOT NULL",
+            "publish_time < %s",
+            "created_at < %s",
+        ]
+        params: list[Any] = [upper_bound, upper_bound]
         if company_codes:
             clauses.append("split_part(company_code, '.', 1) = ANY(%s)")
             params.append([str(code).split(".", 1)[0] for code in company_codes])
@@ -941,7 +1026,7 @@ class EvidenceOrchestrationRepository:
             cur.execute(
                 f"""
                 SELECT doc_id, company_code, source_level, title, content_text,
-                       publish_time, metadata
+                       publish_time, created_at, metadata
                 FROM raw_evidence_documents
                 WHERE {' AND '.join(clauses)}
                 ORDER BY publish_time DESC, doc_id
@@ -957,7 +1042,7 @@ class EvidenceOrchestrationRepository:
         selected: list[dict[str, Any]] = []
         for row in rows:
             published_date = _shanghai_date(row.get("publish_time"))
-            if published_date is None or published_date > as_of_date:
+            if published_date is None or published_date > cutoff_day:
                 continue
             text = f"{row.get('title') or ''} {row.get('content_text') or ''}".casefold()
             product_hits = [term for term in products if str(term).casefold() in text]
@@ -1031,16 +1116,24 @@ class EvidenceOrchestrationRepository:
             )
             rows = cur.fetchall()
         proposals: list[CandidateMappingProposal] = []
-        seen: set[str] = set()
         for row in rows:
             metadata = _json_value(dict(row).get("metadata"), {})
             payload = metadata.get("candidate_proposal") if isinstance(metadata, dict) else None
             if not isinstance(payload, dict) or not payload.get("mapping_id"):
                 continue
             mapping_id = str(payload["mapping_id"])
-            if mapping_id in seen:
-                continue
-            seen.add(mapping_id)
+            provenance = _json_value(payload.get("provenance"), {})
+            job_ids = _merge_ids(
+                provenance.get("collection_job_ids"),
+                metadata.get("collection_job_ids"),
+                (metadata.get("collection_job_id"),),
+            )
+            provenance["collection_job_ids"] = job_ids
+            path = _json_value(provenance.get("l1_l8_path"), {})
+            path["collection_job_ids"] = _merge_ids(
+                path.get("collection_job_ids"), job_ids
+            )
+            provenance["l1_l8_path"] = path
             proposals.append(
                 CandidateMappingProposal(
                     mapping_id=mapping_id,
@@ -1052,10 +1145,10 @@ class EvidenceOrchestrationRepository:
                     status="candidate",
                     confidence=float(payload.get("confidence") or 0.0),
                     evidence_ids=tuple(payload.get("evidence_ids") or ()),
-                    provenance=_json_value(payload.get("provenance"), {}),
+                    provenance=provenance,
                 )
             )
-        return proposals
+        return _merge_candidate_proposals_by_mapping(proposals)
 
     def fetch_asof_facts(
         self,
@@ -1067,6 +1160,7 @@ class EvidenceOrchestrationRepository:
         if not mapping_ids:
             return []
         upper_bound = _as_of_upper_bound(cutoff)
+        aware_upper_bound = _as_of_aware_upper_bound(cutoff)
         with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 """
@@ -1080,7 +1174,12 @@ class EvidenceOrchestrationRepository:
                   AND (f.reviewed_at IS NULL OR f.reviewed_at < %s)
                 ORDER BY d.publish_time, f.fact_id
                 """,
-                (list(mapping_ids), upper_bound, upper_bound, upper_bound),
+                (
+                    list(mapping_ids),
+                    upper_bound,
+                    upper_bound,
+                    aware_upper_bound,
+                ),
             )
             rows = [dict(row) for row in cur.fetchall()]
         for row in rows:
@@ -1218,7 +1317,11 @@ class EvidenceOrchestrationRepository:
         return len(updates)
 
     def fetch_local_documents(
-        self, task: Any, as_of_date: date, *, connection: Any | None = None
+        self,
+        task: Any,
+        as_of_date: date | datetime,
+        *,
+        connection: Any | None = None,
     ):
         """Read bounded local evidence sources for one explicit mapping task."""
 
@@ -1235,6 +1338,9 @@ class EvidenceOrchestrationRepository:
             "patent_events",
         )
         upper_bound = _as_of_upper_bound(as_of_date)
+        cutoff_day = _shanghai_date(as_of_date)
+        if cutoff_day is None:
+            raise ValueError("as_of cutoff must resolve to a Shanghai date")
         with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 """
@@ -1250,20 +1356,21 @@ class EvidenceOrchestrationRepository:
             }
             records: list[RawDocument] = []
             code = str(task.company_code).split(".", 1)[0]
-            event_start = date(as_of_date.year - 3, 1, 1)
+            event_start = date(cutoff_day.year - 3, 1, 1)
             if "raw_evidence_documents" in present:
                 cur.execute(
                     """
                     SELECT doc_id, source_id, source_level, title, content_text,
                            url, company_code, company_name, publish_time,
-                           doc_type, metadata
+                           created_at, doc_type, metadata
                     FROM raw_evidence_documents
                     WHERE split_part(company_code, '.', 1) = %s
                       AND (publish_time IS NULL OR publish_time < %s)
+                      AND created_at < %s
                     ORDER BY publish_time DESC NULLS LAST, doc_id
                     LIMIT 200
                     """,
-                    (code, upper_bound),
+                    (code, upper_bound, upper_bound),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
@@ -1304,7 +1411,7 @@ class EvidenceOrchestrationRepository:
                 for raw in cur.fetchall():
                     row = dict(raw)
                     updated_day = _shanghai_date(row.get("updated_at"))
-                    if updated_day is None or updated_day > as_of_date:
+                    if updated_day is None or updated_day > cutoff_day:
                         continue
                     records.append(
                         RawDocument(
@@ -1340,7 +1447,7 @@ class EvidenceOrchestrationRepository:
                     ORDER BY end_date DESC, biz_item
                     LIMIT 100
                     """,
-                    (code, as_of_date),
+                    (code, cutoff_day),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
@@ -1379,7 +1486,7 @@ class EvidenceOrchestrationRepository:
                     ORDER BY ann_date DESC, title
                     LIMIT 100
                     """,
-                    (code, event_start, as_of_date),
+                    (code, event_start, cutoff_day),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
@@ -1412,7 +1519,11 @@ class EvidenceOrchestrationRepository:
                     ORDER BY ann_date DESC, title
                     LIMIT 100
                     """,
-                    (code, event_start.strftime("%Y%m%d"), as_of_date.strftime("%Y%m%d")),
+                    (
+                        code,
+                        event_start.strftime("%Y%m%d"),
+                        cutoff_day.strftime("%Y%m%d"),
+                    ),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
@@ -1442,7 +1553,7 @@ class EvidenceOrchestrationRepository:
                     ORDER BY pub_date DESC, id
                     LIMIT 100
                     """,
-                    (code, event_start, as_of_date),
+                    (code, event_start, cutoff_day),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
@@ -1478,7 +1589,7 @@ class EvidenceOrchestrationRepository:
                     ORDER BY pub_date DESC, title
                     LIMIT 100
                     """,
-                    (code, event_start, as_of_date),
+                    (code, event_start, cutoff_day),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
@@ -1514,14 +1625,20 @@ class EvidenceOrchestrationRepository:
                     """
                     SELECT event_id, company_code, company_name, publication_number,
                            patent_title, patent_abstract, applicant, application_date,
-                           publication_date, grant_date, patent_status, metadata
+                           publication_date, grant_date, patent_status, created_at,
+                           metadata
                     FROM patent_events
                     WHERE split_part(company_code, '.', 1) = %s
-                      AND COALESCE(publication_date, application_date) <= %s
-                    ORDER BY COALESCE(publication_date, application_date) DESC, event_id
+                      AND (
+                          COALESCE(publication_date, application_date) IS NULL
+                          OR COALESCE(publication_date, application_date) <= %s
+                      )
+                      AND created_at < %s
+                    ORDER BY COALESCE(publication_date, application_date) DESC NULLS LAST,
+                             event_id
                     LIMIT 100
                     """,
-                    (code, as_of_date),
+                    (code, cutoff_day, upper_bound),
                 )
                 for raw in cur.fetchall():
                     row = dict(raw)
@@ -1567,7 +1684,7 @@ class EvidenceOrchestrationRepository:
                 "research_report",
                 "investor_relations_event",
             } and published_date is not None and not (
-                event_start <= published_date <= as_of_date
+                event_start <= published_date <= cutoff_day
             ):
                 continue
             text = f"{document.title} {document.content_text}".casefold()

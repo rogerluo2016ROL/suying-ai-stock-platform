@@ -375,6 +375,12 @@ class ScopedOfficialFetcher:
     ) -> tuple[list[RawDocument], int]:
         event_start, _ = resolve_collection_window("announcement", as_of_date)
         product_start, _ = resolve_collection_window("official_product_page", as_of_date)
+        cninfo_documents: list[RawDocument] = []
+        ir_documents: list[RawDocument] = []
+        request_count = 0
+        failed_count = 0
+        skipped_count = 0
+        source_errors: list[str] = []
         try:
             cninfo_documents, cninfo_requests = self.cninfo_fetch(
                 company_codes=(task.company_code,),
@@ -382,8 +388,13 @@ class ScopedOfficialFetcher:
                 start_date=event_start,
                 limit=document_limit,
             )
-        except Exception:
-            raise
+            request_count += int(cninfo_requests)
+        except Exception as exc:
+            cninfo_documents = list(getattr(exc, "documents", ()) or ())
+            request_count += int(getattr(exc, "request_count", 0) or 0)
+            failed_count += int(getattr(exc, "failed_count", 1) or 1)
+            skipped_count += int(getattr(exc, "skipped_count", 0) or 0)
+            source_errors.append(f"cninfo: {sanitize_error(exc)}")
         cninfo_documents = list(cninfo_documents)[:document_limit]
         try:
             ir_documents, ir_requests = self.ir_fetch(
@@ -392,18 +403,13 @@ class ScopedOfficialFetcher:
                 start_date=product_start,
                 pages_per_company=pages_per_company,
             )
+            request_count += int(ir_requests)
         except Exception as exc:
-            raise DocumentFetchError(
-                exc,
-                request_count=int(cninfo_requests)
-                + int(getattr(exc, "request_count", 0) or 0),
-                documents=[
-                    *cninfo_documents,
-                    *(getattr(exc, "documents", ()) or ()),
-                ],
-                failed_count=int(getattr(exc, "failed_count", 1) or 1),
-                skipped_count=int(getattr(exc, "skipped_count", 0) or 0),
-            ) from exc
+            ir_documents = list(getattr(exc, "documents", ()) or ())
+            request_count += int(getattr(exc, "request_count", 0) or 0)
+            failed_count += int(getattr(exc, "failed_count", 1) or 1)
+            skipped_count += int(getattr(exc, "skipped_count", 0) or 0)
+            source_errors.append(f"official_ir: {sanitize_error(exc)}")
         queries = tuple(query.casefold() for query in task.queries if query)
         filtered: list[RawDocument] = []
         for item in [*cninfo_documents, *ir_documents]:
@@ -414,17 +420,31 @@ class ScopedOfficialFetcher:
                 continue
             if queries and not any(query in text for query in queries):
                 continue
-            filtered.append(
-                _annotate_official_document(
-                    item,
-                    product_terms=task.product_terms,
-                    scene_terms=task.scene_terms,
-                    negative_examples=task.negative_examples,
-                    require_product_and_scene=task.require_product_and_scene,
-                    as_of_date=as_of_date,
-                )
+            annotated = _annotate_official_document(
+                item,
+                product_terms=task.product_terms,
+                scene_terms=task.scene_terms,
+                negative_examples=task.negative_examples,
+                require_product_and_scene=task.require_product_and_scene,
+                as_of_date=as_of_date,
             )
-        return list(_dedupe_documents(filtered)), int(cninfo_requests) + int(ir_requests)
+            if (
+                task.product_terms
+                or task.scene_terms
+                or task.negative_examples
+            ) and annotated.metadata.get("same_document_match") is not True:
+                continue
+            filtered.append(annotated)
+        deduplicated = list(_dedupe_documents(filtered))
+        if source_errors:
+            raise DocumentFetchError(
+                "; ".join(source_errors),
+                request_count=request_count,
+                documents=deduplicated,
+                failed_count=failed_count,
+                skipped_count=skipped_count,
+            )
+        return deduplicated, request_count
 
 
 class ScopedOfficialDiscoveryFetcher:
@@ -441,14 +461,27 @@ class ScopedOfficialDiscoveryFetcher:
         company_limit: int,
         pages_per_company: int,
     ) -> tuple[list[RawDocument], int]:
-        documents, requests = self.global_cninfo_fetch(
-            product_terms=task.product_terms,
-            scene_terms=task.scene_terms,
-            require_product_and_scene=task.require_product_and_scene,
-            allowed_company_codes=task.allowed_company_codes,
-            as_of_date=as_of_date,
-            limit=document_limit,
-        )
+        documents: list[RawDocument] = []
+        requests = 0
+        failed_count = 0
+        skipped_count = 0
+        source_errors: list[str] = []
+        try:
+            documents, requests = self.global_cninfo_fetch(
+                product_terms=task.product_terms,
+                scene_terms=task.scene_terms,
+                require_product_and_scene=task.require_product_and_scene,
+                allowed_company_codes=task.allowed_company_codes,
+                as_of_date=as_of_date,
+                limit=document_limit,
+            )
+            requests = int(requests)
+        except Exception as exc:
+            documents = list(getattr(exc, "documents", ()) or ())
+            requests = int(getattr(exc, "request_count", 0) or 0)
+            failed_count += int(getattr(exc, "failed_count", 1) or 1)
+            skipped_count += int(getattr(exc, "skipped_count", 0) or 0)
+            source_errors.append(f"cninfo_discovery: {sanitize_error(exc)}")
         documents = list(documents)[:document_limit]
         allowed = {
             normalize_stock_code(code) for code in task.allowed_company_codes if code
@@ -473,21 +506,18 @@ class ScopedOfficialDiscoveryFetcher:
                     pages_per_company=pages_per_company,
                 )
             except Exception as exc:
-                raise DocumentFetchError(
-                    exc,
-                    request_count=int(requests)
-                    + int(getattr(exc, "request_count", 0) or 0),
-                    documents=[
-                        *documents,
-                        *(getattr(exc, "documents", ()) or ()),
-                    ],
-                    failed_count=int(getattr(exc, "failed_count", 1) or 1),
-                    skipped_count=int(getattr(exc, "skipped_count", 0) or 0),
-                ) from exc
+                ir_documents = list(getattr(exc, "documents", ()) or ())
+                ir_requests = int(getattr(exc, "request_count", 0) or 0)
+                failed_count += int(getattr(exc, "failed_count", 1) or 1)
+                skipped_count += int(getattr(exc, "skipped_count", 0) or 0)
+                source_errors.append(f"official_ir: {sanitize_error(exc)}")
             documents.extend(ir_documents)
             requests += int(ir_requests)
-        annotated = [
-            _annotate_official_document(
+        annotated: list[RawDocument] = []
+        for item in documents:
+            if allowed and normalize_stock_code(item.company_code) not in allowed:
+                continue
+            normalized = _annotate_official_document(
                 item,
                 product_terms=task.product_terms,
                 scene_terms=task.scene_terms,
@@ -495,9 +525,23 @@ class ScopedOfficialDiscoveryFetcher:
                 require_product_and_scene=task.require_product_and_scene,
                 as_of_date=as_of_date,
             )
-            for item in documents
-        ]
-        return list(_dedupe_documents(annotated)), int(requests)
+            if (
+                task.product_terms
+                or task.scene_terms
+                or task.negative_examples
+            ) and normalized.metadata.get("same_document_match") is not True:
+                continue
+            annotated.append(normalized)
+        deduplicated = list(_dedupe_documents(annotated))
+        if source_errors:
+            raise DocumentFetchError(
+                "; ".join(source_errors),
+                request_count=requests,
+                documents=deduplicated,
+                failed_count=failed_count,
+                skipped_count=skipped_count,
+            )
+        return deduplicated, int(requests)
 
 
 def collect_local_then_official(

@@ -75,6 +75,17 @@ class DocumentFetchError(RuntimeError):
         self.skipped_count = max(0, int(skipped_count))
 
 
+@dataclass
+class DocumentFetchStats:
+    """Mutable counters shared with compatibility wrappers."""
+
+    selected: int = 0
+    fetched: int = 0
+    skipped: int = 0
+    failed: int = 0
+    request_count: int = 0
+
+
 @dataclass(frozen=True)
 class CollectionSource:
     source_id: str
@@ -1310,9 +1321,12 @@ def fetch_cninfo_documents(
     as_of_date: date,
     limit: int = 20,
     session=None,
+    title_predicate=None,
+    stats: DocumentFetchStats | None = None,
 ) -> tuple[list[RawDocument], int]:
     """Return scoped CNINFO PDF documents and HTTP request count; never persist."""
 
+    counters = stats if stats is not None else DocumentFetchStats()
     normalized_codes = {
         _scoped_stock_code(code) for code in company_codes if _scoped_stock_code(code)
     }
@@ -1352,6 +1366,7 @@ def fetch_cninfo_documents(
         ):
             continue
         filtered.append(row)
+    counters.selected = len(filtered)
 
     source = _source_by_id("cninfo_announcement")
     client = _http_session(
@@ -1359,23 +1374,28 @@ def fetch_cninfo_documents(
     )
     documents: list[RawDocument] = []
     request_count = 0
-    skipped_count = 0
     seen_announcements: set[str] = set()
+    errors: list[str] = []
     for row in filtered:
-        if len(documents) >= limit:
+        if counters.fetched >= limit:
             break
+        title = str(row.get("title") or "")
+        if title_predicate is not None and not title_predicate(title):
+            counters.skipped += 1
+            continue
+        detail_url = str(row.get("url") or "")
+        announcement_id = str(row.get("announcement_id") or "") or (
+            extract_cninfo_announcement_id(detail_url) or ""
+        )
+        if not announcement_id or announcement_id in seen_announcements:
+            counters.skipped += 1
+            continue
+        seen_announcements.add(announcement_id)
+        counters.fetched += 1
+        publish_text = _announcement_date_text(
+            row.get("publish_date") or row.get("ann_date")
+        )
         try:
-            detail_url = str(row.get("url") or "")
-            announcement_id = str(row.get("announcement_id") or "") or (
-                extract_cninfo_announcement_id(detail_url) or ""
-            )
-            if not announcement_id or announcement_id in seen_announcements:
-                skipped_count += 1
-                continue
-            seen_announcements.add(announcement_id)
-            publish_text = _announcement_date_text(
-                row.get("publish_date") or row.get("ann_date")
-            )
             request_count += 1
             detail = client.post(
                 "http://www.cninfo.com.cn/new/announcement/bulletin_detail",
@@ -1387,16 +1407,13 @@ def fetch_cninfo_documents(
                 timeout=20,
             )
             if getattr(detail, "status_code", 500) != 200:
-                raise DocumentFetchError(
-                    f"CNINFO detail HTTP {getattr(detail, 'status_code', 'unknown')}",
-                    request_count=request_count,
-                    documents=documents,
-                    skipped_count=skipped_count,
+                raise RuntimeError(
+                    f"CNINFO detail HTTP {getattr(detail, 'status_code', 'unknown')}"
                 )
             announcement = (detail.json() or {}).get("announcement") or {}
             adjunct = announcement.get("adjunctUrl")
             if not adjunct:
-                skipped_count += 1
+                counters.skipped += 1
                 continue
             pdf_url = cninfo_pdf_url(str(adjunct))
             request_count += 1
@@ -1405,20 +1422,12 @@ def fetch_cninfo_documents(
             if getattr(response, "status_code", 500) != 200 or not content.startswith(
                 b"%PDF"
             ):
-                raise DocumentFetchError(
-                    f"CNINFO PDF HTTP {getattr(response, 'status_code', 'unknown')} or invalid PDF",
-                    request_count=request_count,
-                    documents=documents,
-                    skipped_count=skipped_count,
+                raise RuntimeError(
+                    f"CNINFO PDF HTTP {getattr(response, 'status_code', 'unknown')} or invalid PDF"
                 )
             content_text = _extract_pdf_text(content)
             if not content_text:
-                raise DocumentFetchError(
-                    "CNINFO PDF text extraction failed",
-                    request_count=request_count,
-                    documents=documents,
-                    skipped_count=skipped_count,
-                )
+                raise RuntimeError("CNINFO PDF text extraction failed")
             documents.append(
                 RawDocument(
                     source_id=source.source_id,
@@ -1439,15 +1448,18 @@ def fetch_cninfo_documents(
                     metadata={"announcement_id": announcement_id},
                 )
             )
-        except DocumentFetchError:
-            raise
         except Exception as exc:
-            raise DocumentFetchError(
-                f"CNINFO document request or parse failed: {exc}",
-                request_count=request_count,
-                documents=documents,
-                skipped_count=skipped_count,
-            ) from exc
+            counters.failed += 1
+            errors.append(sanitize_sensitive_text(exc))
+    counters.request_count = request_count
+    if errors:
+        raise DocumentFetchError(
+            f"CNINFO document failures: {'; '.join(errors)}",
+            request_count=request_count,
+            documents=documents,
+            failed_count=counters.failed,
+            skipped_count=counters.skipped,
+        )
     return documents, request_count
 
 
@@ -1460,9 +1472,11 @@ def fetch_official_ir_documents(
     limit: int = 10,
     pages_per_company: int = 2,
     session=None,
+    stats: DocumentFetchStats | None = None,
 ) -> tuple[list[RawDocument], int]:
     """Return scoped official-site documents and request count; never persist."""
 
+    counters = stats if stats is not None else DocumentFetchStats()
     normalized_codes = {
         _scoped_stock_code(code) for code in company_codes if _scoped_stock_code(code)
     }
@@ -1490,28 +1504,26 @@ def fetch_official_ir_documents(
     rows = [
         row for row in rows if _scoped_stock_code(row.get("code")) in normalized_codes
     ]
+    counters.selected = len(rows)
     client = _http_session(session)
     source = _source_by_id("official_ir_site")
     documents: list[RawDocument] = []
     request_count = 0
-    skipped_count = 0
+    errors: list[str] = []
     for company in rows:
         if len(documents) >= limit:
             break
         website = normalize_website_url(str(company.get("website") or ""))
         if not website:
-            skipped_count += 1
+            counters.skipped += 1
             continue
         try:
             request_count += 1
             homepage = client.get(website, timeout=15)
             homepage_html = response_text(homepage)
             if getattr(homepage, "status_code", 500) >= 400 or not homepage_html:
-                raise DocumentFetchError(
-                    f"official IR homepage HTTP {getattr(homepage, 'status_code', 'unknown')} or empty response",
-                    request_count=request_count,
-                    documents=documents,
-                    skipped_count=skipped_count,
+                raise RuntimeError(
+                    f"official IR homepage HTTP {getattr(homepage, 'status_code', 'unknown')} or empty response"
                 )
             resolved_home = str(getattr(homepage, "url", website) or website)
             urls = [resolved_home]
@@ -1525,53 +1537,58 @@ def fetch_official_ir_documents(
             for page_url in list(dict.fromkeys(urls))[:pages_per_company]:
                 if len(documents) >= limit:
                     break
-                if page_url == resolved_home:
-                    page = homepage
-                    page_html = homepage_html
-                else:
-                    request_count += 1
-                    page = client.get(page_url, timeout=15)
-                    page_html = response_text(page)
-                if getattr(page, "status_code", 500) >= 400 or not page_html:
-                    raise DocumentFetchError(
-                        f"official IR page HTTP {getattr(page, 'status_code', 'unknown')} or empty response",
-                        request_count=request_count,
-                        documents=documents,
-                        skipped_count=skipped_count,
+                try:
+                    if page_url == resolved_home:
+                        page = homepage
+                        page_html = homepage_html
+                    else:
+                        request_count += 1
+                        page = client.get(page_url, timeout=15)
+                        page_html = response_text(page)
+                    if getattr(page, "status_code", 500) >= 400 or not page_html:
+                        raise RuntimeError(
+                            f"official IR page HTTP {getattr(page, 'status_code', 'unknown')} or empty response"
+                        )
+                    text = html_to_text(page_html)
+                    if len(text) < 80:
+                        counters.skipped += 1
+                        continue
+                    title_match = re.search(r"(?is)<title[^>]*>(.*?)</title>", page_html)
+                    page_title = (
+                        html_to_text(title_match.group(1))
+                        if title_match
+                        else f"{company.get('company_name') or company.get('code')} 官网页面"
                     )
-                text = html_to_text(page_html)
-                if len(text) < 80:
-                    skipped_count += 1
-                    continue
-                title_match = re.search(r"(?is)<title[^>]*>(.*?)</title>", page_html)
-                page_title = (
-                    html_to_text(title_match.group(1))
-                    if title_match
-                    else f"{company.get('company_name') or company.get('code')} 官网页面"
-                )
-                documents.append(
-                    RawDocument(
-                        source_id=source.source_id,
-                        source_level=source.source_level,
-                        title=page_title[:240],
-                        content_text=text,
-                        url=page_url,
-                        company_code=_scoped_stock_code(company.get("code")),
-                        company_name=str(company.get("company_name") or ""),
-                        publish_time=None,
-                        doc_type="official_product_page",
-                        metadata={"fetched_as_of_date": as_of_date.isoformat()},
+                    documents.append(
+                        RawDocument(
+                            source_id=source.source_id,
+                            source_level=source.source_level,
+                            title=page_title[:240],
+                            content_text=text,
+                            url=page_url,
+                            company_code=_scoped_stock_code(company.get("code")),
+                            company_name=str(company.get("company_name") or ""),
+                            publish_time=None,
+                            doc_type="official_product_page",
+                            metadata={"fetched_as_of_date": as_of_date.isoformat()},
+                        )
                     )
-                )
-        except DocumentFetchError:
-            raise
+                    counters.fetched += 1
+                except Exception as exc:
+                    counters.failed += 1
+                    errors.append(sanitize_sensitive_text(exc))
         except Exception as exc:
-            raise DocumentFetchError(
-                f"official IR request or parse failed: {exc}",
-                request_count=request_count,
-                documents=documents,
-                skipped_count=skipped_count,
-            ) from exc
+            counters.failed += 1
+            errors.append(sanitize_sensitive_text(exc))
+    counters.request_count = request_count
+    if errors:
+        raise DocumentFetchError(
+            f"official IR failures: {'; '.join(errors)}",
+            request_count=request_count,
+            documents=documents,
+            failed_count=counters.failed,
+            skipped_count=counters.skipped,
+        )
     return documents, request_count
 
 
@@ -2143,8 +2160,7 @@ def fetch_cninfo_pdf_announcements(
     )
     as_of_date = shanghai_today()
     documents: list[RawDocument] = []
-    failed = 0
-    skipped = 0
+    stats = DocumentFetchStats()
     error_message = None
     try:
         fetched_documents, _request_count = fetch_cninfo_documents(
@@ -2152,12 +2168,25 @@ def fetch_cninfo_pdf_announcements(
             company_codes=codes,
             start_date=date(as_of_date.year - 3, 1, 1),
             as_of_date=as_of_date,
-            limit=max(limit * 10, limit),
+            limit=limit,
+            title_predicate=(
+                is_tender_cninfo_title
+                if title_mode == "tender"
+                else is_relevant_cninfo_title
+            ),
+            stats=stats,
         )
     except Exception as exc:
         fetched_documents = list(getattr(exc, "documents", ()) or ())
-        failed = int(getattr(exc, "failed_count", 1) or 1)
-        skipped += int(getattr(exc, "skipped_count", 0) or 0)
+        stats.failed = max(
+            stats.failed, int(getattr(exc, "failed_count", 1) or 1)
+        )
+        stats.skipped = max(
+            stats.skipped, int(getattr(exc, "skipped_count", 0) or 0)
+        )
+        stats.request_count = max(
+            stats.request_count, int(getattr(exc, "request_count", 0) or 0)
+        )
         error_message = sanitize_sensitive_text(exc)
     eligible_documents = [
         item
@@ -2169,7 +2198,11 @@ def fetch_cninfo_pdf_announcements(
         )
     ]
     documents = eligible_documents[:limit]
-    skipped += max(0, len(fetched_documents) - len(documents))
+    if not any(
+        (stats.selected, stats.fetched, stats.skipped, stats.failed, stats.request_count)
+    ) and fetched_documents:
+        stats.selected = len(codes)
+        stats.fetched = len(fetched_documents)
 
     inserted_docs = inserted_facts = duplicates = 0
     with psycopg2.connect(pg_url) as conn:
@@ -2179,7 +2212,7 @@ def fetch_cninfo_pdf_announcements(
                 inserted_docs += 1 if result["inserted_doc"] else 0
                 inserted_facts += 1 if result["inserted_fact"] else 0
                 duplicates += 1 if result["duplicate"] else 0
-            status = "success" if failed == 0 else "partial_success"
+            status = "success" if stats.failed == 0 else "partial_success"
             cur.execute(
                 """
                 UPDATE evidence_collection_jobs
@@ -2191,10 +2224,10 @@ def fetch_cninfo_pdf_announcements(
                 """,
                 (
                     status,
-                    len(documents),
+                    stats.fetched,
                     inserted_docs + inserted_facts,
                     duplicates,
-                    failed,
+                    stats.failed,
                     error_message,
                     job_id,
                 ),
@@ -2203,15 +2236,16 @@ def fetch_cninfo_pdf_announcements(
     return {
         "job_id": job_id,
         "source_id": source.source_id,
-        "selected": len(codes),
+        "selected": stats.selected,
         "title_mode": title_mode,
-        "fetched": len(documents),
+        "fetched": stats.fetched,
         "inserted_docs": inserted_docs,
         "inserted_facts": inserted_facts,
         "duplicates": duplicates,
-        "skipped": skipped,
-        "failed": failed,
-        "status": "success" if failed == 0 else "partial_success",
+        "skipped": stats.skipped,
+        "failed": stats.failed,
+        "request_count": stats.request_count,
+        "status": "success" if stats.failed == 0 else "partial_success",
     }
 
 
@@ -2235,8 +2269,7 @@ def fetch_official_ir_pages(
     )
     as_of_date = shanghai_today()
     documents: list[RawDocument] = []
-    failed = 0
-    skipped = 0
+    stats = DocumentFetchStats()
     error_message = None
     try:
         documents, _request_count = fetch_official_ir_documents(
@@ -2246,13 +2279,25 @@ def fetch_official_ir_pages(
             as_of_date=as_of_date,
             limit=max(1, len(codes) * pages_per_company),
             pages_per_company=pages_per_company,
+            stats=stats,
         )
     except Exception as exc:
         documents = list(getattr(exc, "documents", ()) or ())
-        failed = int(getattr(exc, "failed_count", 1) or 1)
-        skipped += int(getattr(exc, "skipped_count", 0) or 0)
+        stats.failed = max(
+            stats.failed, int(getattr(exc, "failed_count", 1) or 1)
+        )
+        stats.skipped = max(
+            stats.skipped, int(getattr(exc, "skipped_count", 0) or 0)
+        )
+        stats.request_count = max(
+            stats.request_count, int(getattr(exc, "request_count", 0) or 0)
+        )
         error_message = sanitize_sensitive_text(exc)
-    skipped += max(0, len(codes) * pages_per_company - len(documents))
+    if not any(
+        (stats.selected, stats.fetched, stats.skipped, stats.failed, stats.request_count)
+    ) and documents:
+        stats.selected = len(codes)
+        stats.fetched = len(documents)
 
     inserted_docs = inserted_facts = duplicates = official_events = 0
     with psycopg2.connect(pg_url) as conn:
@@ -2289,7 +2334,7 @@ def fetch_official_ir_pages(
                     ),
                 )
                 official_events += 1 if cur.rowcount else 0
-            status = "success" if failed == 0 else "partial_success"
+            status = "success" if stats.failed == 0 else "partial_success"
             cur.execute(
                 """
                 UPDATE evidence_collection_jobs
@@ -2301,10 +2346,10 @@ def fetch_official_ir_pages(
                 """,
                 (
                     status,
-                    len(documents),
+                    stats.fetched,
                     inserted_docs + inserted_facts + official_events,
                     duplicates,
-                    failed,
+                    stats.failed,
                     error_message,
                     job_id,
                 ),
@@ -2313,15 +2358,16 @@ def fetch_official_ir_pages(
     return {
         "job_id": job_id,
         "source_id": source.source_id,
-        "selected_companies": len(codes),
-        "fetched_pages": len(documents),
+        "selected_companies": stats.selected,
+        "fetched_pages": stats.fetched,
         "inserted_docs": inserted_docs,
         "inserted_facts": inserted_facts,
         "official_events": official_events,
         "duplicates": duplicates,
-        "skipped": skipped,
-        "failed": failed,
-        "status": "success" if failed == 0 else "partial_success",
+        "skipped": stats.skipped,
+        "failed": stats.failed,
+        "request_count": stats.request_count,
+        "status": "success" if stats.failed == 0 else "partial_success",
     }
 
 

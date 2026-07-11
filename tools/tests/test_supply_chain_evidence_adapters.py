@@ -241,8 +241,7 @@ def test_scoped_official_fetcher_only_marks_same_page_product_and_scene_without_
     assert by_title["good"].metadata["installation_position"] == ["机器人手部"]
     assert "revenue_confirmed" not in by_title["good"].metadata
     assert "profit_confirmed" not in by_title["good"].metadata
-    assert "currently_offered" not in (by_title["negative"].metadata or {})
-    assert "application_domain" not in (by_title["negative"].metadata or {})
+    assert "negative" not in by_title
 
 
 class FakeCursor:
@@ -626,7 +625,10 @@ def test_event_dates_use_shanghai_day_and_enforce_both_window_bounds():
 
 
 def test_scoped_mapped_limit_only_caps_cninfo_not_ir_documents():
-    cninfo = [document("cn-1"), document("cn-2")]
+    cninfo = [
+        document("cn-1", text="灵巧手用于机器人手部"),
+        document("cn-2", text="灵巧手用于机器人手部"),
+    ]
     ir = [
         document(
             f"ir-{index}",
@@ -656,11 +658,16 @@ def test_discovery_limits_cninfo_documents_seed_companies_and_ir_pages_separatel
 
     def global_fetch(**kwargs):
         calls["global"] = kwargs
-        return [document("cn-a", code="688001"), document("cn-b", code="688002")], 2
+        return [
+            document("cn-a", code="688001", text="轴向磁通用于机器人腕部"),
+            document("cn-b", code="688002", text="轴向磁通用于机器人腕部"),
+        ], 2
 
     def ir_fetch(**kwargs):
         calls["ir"] = kwargs
-        return [document("ir-seed", code="688001")], 1
+        return [
+            document("ir-seed", code="688001", text="轴向磁通用于机器人腕部")
+        ], 1
 
     task = UnmappedDiscoveryTask(
         chain_id="dexterous_hand",
@@ -787,8 +794,12 @@ def test_legacy_cninfo_filters_title_before_final_limit_and_uses_shanghai_today(
 
     def helper(*_args, **kwargs):
         calls.append(kwargs)
+        stats = kwargs["stats"]
+        stats.selected = 2
+        stats.fetched = 1
+        stats.skipped = 1
+        stats.failed = 0
         return [
-            document("股东大会法律意见书", doc_type="announcement_pdf"),
             document("关于签订重大合同的公告", doc_type="announcement_pdf"),
         ], 4
 
@@ -798,7 +809,10 @@ def test_legacy_cninfo_filters_title_before_final_limit_and_uses_shanghai_today(
     )
 
     assert calls[0]["as_of_date"] == AS_OF
-    assert calls[0]["limit"] > 1
+    assert calls[0]["limit"] == 1
+    assert calls[0]["title_predicate"]("关于签订重大合同的公告") is True
+    assert calls[0]["title_predicate"]("股东大会法律意见书") is False
+    assert result["selected"] == 2
     assert result["fetched"] == 1
     assert result["skipped"] == 1
     assert result["failed"] == 0
@@ -843,5 +857,137 @@ def test_legacy_ir_limit_is_company_count_and_pages_are_per_company(monkeypatch)
     assert calls[0]["pages_per_company"] == 2
     assert result["selected_companies"] == 2
     assert result["fetched_pages"] == 4
+    assert result["skipped"] == 0
+    assert result["failed"] == 0
+
+
+def test_mapped_official_sources_fail_independently_and_filter_partial_documents():
+    calls = []
+    partial_good = document(
+        "cn-good", code="688001", text="轴向磁通电机用于机器人腕部",
+        metadata={"revenue_confirmed": True},
+    )
+    partial_bad = document(
+        "cn-bad", code="688001", text="轴向磁通电机用于机器人腕部，董事会换届",
+        metadata={"revenue_confirmed": True},
+    )
+    ir_good = document(
+        "ir-good", code="688001", text="轴向磁通电机用于机器人腕部",
+        doc_type="official_product_page", publish_time=None,
+    )
+
+    def cninfo_fetch(**_kwargs):
+        calls.append("cninfo")
+        raise center.DocumentFetchError(
+            "cninfo failed", request_count=2,
+            documents=(partial_good, partial_bad),
+        )
+
+    def ir_fetch(**_kwargs):
+        calls.append("ir")
+        return [ir_good], 1
+
+    task = CollectionTask(
+        mapping_id="m-independent", requirement_id="r-independent",
+        company_code="688001", company_name="测试公司",
+        queries=("轴向磁通",), product_terms=("轴向磁通",),
+        scene_terms=("机器人腕部",), negative_examples=("董事会换届",),
+        require_product_and_scene=True,
+    )
+    result = OfficialGapAdapter(
+        ScopedOfficialFetcher(cninfo_fetch=cninfo_fetch, ir_fetch=ir_fetch)
+    ).collect([task], as_of_date=AS_OF, source_limits={})
+
+    assert calls == ["cninfo", "ir"]
+    assert result.status == "partial_success"
+    assert result.network_requests == 3
+    assert [item.title for item in result.documents] == ["cn-good", "ir-good"]
+    assert "revenue_confirmed" not in result.documents[0].metadata
+    assert result.documents[0].metadata["same_document_match"] is True
+
+
+def test_discovery_sources_fail_independently_and_filter_partial_documents():
+    from supply_chain_evidence_adapters import ScopedOfficialDiscoveryFetcher
+
+    calls = []
+    partial_good = document(
+        "global-good", code="688001", text="轴向磁通电机用于机器人腕部",
+        metadata={"profit_confirmed": True},
+    )
+    partial_bad = document(
+        "global-bad", code="688001", text="轴向磁通电机用于机器人腕部，董事会换届",
+    )
+    ir_good = document(
+        "global-ir", code="688001", text="轴向磁通电机用于机器人腕部",
+        doc_type="official_product_page", publish_time=None,
+    )
+
+    def global_fetch(**_kwargs):
+        calls.append("cninfo")
+        raise center.DocumentFetchError(
+            "global failed", request_count=2,
+            documents=(partial_good, partial_bad),
+        )
+
+    def ir_fetch(**_kwargs):
+        calls.append("ir")
+        return [ir_good], 1
+
+    task = UnmappedDiscoveryTask(
+        chain_id="dexterous_hand", requirement_id="axial_flux",
+        product_terms=("轴向磁通",), scene_terms=("机器人腕部",),
+        negative_examples=("董事会换届",), require_product_and_scene=True,
+        seed_company_codes=("688001",), allowed_company_codes=("688001",),
+    )
+    result = OfficialDiscoveryAdapter(
+        ScopedOfficialDiscoveryFetcher(
+            global_cninfo_fetch=global_fetch, ir_fetch=ir_fetch
+        )
+    ).collect([task], as_of_date=AS_OF, source_limits={})
+
+    assert calls == ["cninfo", "ir"]
+    assert result.status == "partial_success"
+    assert result.network_requests == 3
+    assert [item.title for item in result.documents] == ["global-good", "global-ir"]
+    assert "profit_confirmed" not in result.documents[0].metadata
+
+
+def test_legacy_ir_uses_actual_helper_stats_not_theoretical_page_capacity(monkeypatch):
+    monkeypatch.setattr(center, "shanghai_today", lambda: AS_OF)
+    monkeypatch.setattr(
+        psycopg2,
+        "connect",
+        lambda *_args, **_kwargs: FakeConnection(
+            [{"code": "003021"}, {"code": "688001"}]
+        ),
+    )
+    monkeypatch.setattr(
+        center,
+        "_insert_raw_document_and_fact",
+        lambda *_args, **_kwargs: {
+            "inserted_doc": True,
+            "inserted_fact": True,
+            "duplicate": False,
+        },
+    )
+
+    def helper(*_args, **kwargs):
+        stats = kwargs["stats"]
+        stats.selected = 2
+        stats.fetched = 2
+        stats.skipped = 0
+        stats.failed = 0
+        return [
+            document("ir-a", doc_type="official_product_page", publish_time=None),
+            document("ir-b", doc_type="official_product_page", publish_time=None),
+        ], 2
+
+    monkeypatch.setattr(center, "fetch_official_ir_documents", helper)
+    result = center.fetch_official_ir_pages(
+        "postgresql://unused", limit=2, pages_per_company=2
+    )
+
+    assert result["selected_companies"] == 2
+    assert result["fetched_pages"] == 2
     assert result["skipped"] == 0
     assert result["failed"] == 0
