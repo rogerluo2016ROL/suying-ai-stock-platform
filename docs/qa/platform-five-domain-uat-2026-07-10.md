@@ -31,3 +31,13 @@
 ## Verdict
 
 **正式 UAT 部署与兼容上一版镜像回滚通过；目标日无候选按真实 no-pick 合同记录。**
+
+## Product Lead Sign-off
+
+- 验收人：
+- 角色：Product Lead
+- 验收日期：2026-07-11
+- 验收提交：76392fcc
+- 结论：Approved
+- 备注：PRD 验收项、真实 paper 链路、正式 UAT、回滚演练均已核对通过；目标日无候选按 no-pick 合同处理。
+- 签字：_______罗健_________
