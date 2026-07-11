@@ -255,10 +255,43 @@ class EvidenceReviewRepository:
         return dict(row)
 
     @staticmethod
-    def _get_fact_review_target(cur, *, fact_id: str) -> dict[str, Any]:
+    def _read_fact_review_snapshot(cur, *, fact_id: str) -> dict[str, Any]:
         cur.execute(
             """
-            SELECT fact_id, mapping_id, evidence_event_id
+            SELECT fact_id, mapping_id,
+                   evidence_event_id /* fact_review_snapshot */
+            FROM evidence_extracted_facts
+            WHERE fact_id = %s
+            """,
+            (fact_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise EvidenceReviewNotFound(f"evidence fact '{fact_id}' not found")
+        return dict(row)
+
+    @staticmethod
+    def _lock_event_review_target(cur, *, event_id: str) -> dict[str, Any]:
+        cur.execute(
+            """
+            SELECT event_id, mapping_id /* event_review_lock */
+            FROM business_tag_evidence_events
+            WHERE event_id = %s
+            FOR UPDATE
+            """,
+            (event_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise ValueError(f"linked evidence event '{event_id}' is unavailable")
+        return dict(row)
+
+    @staticmethod
+    def _lock_fact_review_target(cur, *, fact_id: str) -> dict[str, Any]:
+        cur.execute(
+            """
+            SELECT fact_id, mapping_id,
+                   evidence_event_id /* fact_review_lock */
             FROM evidence_extracted_facts
             WHERE fact_id = %s
             FOR UPDATE
@@ -269,6 +302,29 @@ class EvidenceReviewRepository:
         if not row:
             raise EvidenceReviewNotFound(f"evidence fact '{fact_id}' not found")
         return dict(row)
+
+    @staticmethod
+    def _revalidate_fact_review_target(
+        *,
+        fact_id: str,
+        snapshot: dict[str, Any],
+        locked_fact: dict[str, Any],
+        locked_event: dict[str, Any] | None,
+    ) -> None:
+        if (
+            locked_fact.get("evidence_event_id")
+            != snapshot.get("evidence_event_id")
+            or locked_fact.get("mapping_id") != snapshot.get("mapping_id")
+        ):
+            raise ValueError(f"evidence fact '{fact_id}' changed during review")
+        if locked_event is not None and (
+            locked_event.get("event_id") != locked_fact.get("evidence_event_id")
+            or locked_event.get("mapping_id") != locked_fact.get("mapping_id")
+        ):
+            raise ValueError(
+                f"linked evidence event '{locked_event.get('event_id')}' "
+                "mapping does not match fact mapping"
+            )
 
     @staticmethod
     def _update_event(
@@ -439,10 +495,23 @@ class EvidenceReviewRepository:
         patch_payload = _metadata_patch_payload(metadata_patch)
 
         def operation(cur):
-            target = self._get_fact_review_target(cur, fact_id=fact_id)
-            event_id = target.get("evidence_event_id")
+            snapshot = self._read_fact_review_snapshot(cur, fact_id=fact_id)
+            event_id = snapshot.get("evidence_event_id")
+            locked_event = None
+            if event_id is not None:
+                locked_event = self._lock_event_review_target(
+                    cur,
+                    event_id=str(event_id),
+                )
+            target = self._lock_fact_review_target(cur, fact_id=fact_id)
+            self._revalidate_fact_review_target(
+                fact_id=fact_id,
+                snapshot=snapshot,
+                locked_fact=target,
+                locked_event=locked_event,
+            )
             stage_record = None
-            if event_id:
+            if event_id is not None:
                 self._update_event(
                     cur,
                     event_id=str(event_id),
@@ -463,7 +532,7 @@ class EvidenceReviewRepository:
                 normalization_payload=normalization_payload,
                 metadata_patch_payload=patch_payload,
             )
-            if event_id:
+            if event_id is not None:
                 if decision == "approved" and stage_after:
                     stage_record = self._upsert_stage_from_review(
                         cur,

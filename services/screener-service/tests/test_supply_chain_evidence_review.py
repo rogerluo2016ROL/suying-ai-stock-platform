@@ -140,6 +140,20 @@ def _fact_cursor(
 ):
     return FakeCursor(
         one_by_token={
+            "/* fact_review_snapshot */": {
+                "fact_id": "f1",
+                "mapping_id": "m1",
+                "evidence_event_id": evidence_event_id,
+            },
+            "/* event_review_lock */": {
+                "event_id": evidence_event_id,
+                "mapping_id": "m1",
+            },
+            "/* fact_review_lock */": {
+                "fact_id": "f1",
+                "mapping_id": "m1",
+                "evidence_event_id": evidence_event_id,
+            },
             "SELECT fact_id, mapping_id, evidence_event_id": {
                 "fact_id": "f1",
                 "mapping_id": "m1",
@@ -266,6 +280,32 @@ def test_fact_approval_sets_manual_marker_and_audit_fields():
     )
     assert "event.mapping_id IS NOT DISTINCT FROM %s" in event_update[0]
     assert "m1" in event_update[1]
+    statements = [statement for statement, _ in cursor.executed]
+    snapshot_index = next(
+        index for index, statement in enumerate(statements)
+        if "/* fact_review_snapshot */" in statement
+    )
+    event_lock_index = next(
+        index for index, statement in enumerate(statements)
+        if "/* event_review_lock */" in statement
+    )
+    fact_lock_index = next(
+        index for index, statement in enumerate(statements)
+        if "/* fact_review_lock */" in statement
+    )
+    event_update_index = next(
+        index for index, statement in enumerate(statements)
+        if "UPDATE business_tag_evidence_events AS event" in statement
+    )
+    fact_update_index = next(
+        index for index, statement in enumerate(statements)
+        if "UPDATE evidence_extracted_facts" in statement
+    )
+    assert snapshot_index < event_lock_index < fact_lock_index
+    assert fact_lock_index < event_update_index < fact_update_index
+    assert "FOR UPDATE" not in statements[snapshot_index]
+    assert "FOR UPDATE" in statements[event_lock_index]
+    assert "FOR UPDATE" in statements[fact_lock_index]
 
 
 def test_approval_without_normalization_clears_reserved_key_only():
@@ -503,12 +543,26 @@ def test_fact_review_downgrading_linked_event_also_demotes_stages():
 def test_fact_review_mapping_mismatch_fails_before_fact_update_and_rolls_back():
     cursor = FakeCursor(
         one_by_token={
+            "/* fact_review_snapshot */": {
+                "fact_id": "f1",
+                "mapping_id": "m1",
+                "evidence_event_id": "e1",
+            },
+            "/* event_review_lock */": {
+                "event_id": "e1",
+                "mapping_id": "m2",
+            },
+            "/* fact_review_lock */": {
+                "fact_id": "f1",
+                "mapping_id": "m1",
+                "evidence_event_id": "e1",
+            },
             "SELECT fact_id, mapping_id, evidence_event_id": {
                 "fact_id": "f1",
                 "mapping_id": "m1",
                 "evidence_event_id": "e1",
             },
-            "UPDATE business_tag_evidence_events AS event": None,
+            "UPDATE business_tag_evidence_events AS event": _event_row(),
             "UPDATE evidence_extracted_facts": _fact_row(metadata={}),
         }
     )
@@ -526,7 +580,51 @@ def test_fact_review_mapping_mismatch_fails_before_fact_update_and_rolls_back():
         )
 
     sql = "\n".join(statement for statement, _ in cursor.executed)
-    assert "event.mapping_id IS NOT DISTINCT FROM %s" in sql
+    assert "/* event_review_lock */" in sql
+    assert "UPDATE business_tag_evidence_events AS event" not in sql
+    assert "UPDATE evidence_extracted_facts" not in sql
+    assert "ROLLBACK TO SAVEPOINT supply_chain_manual_review" in sql
+
+
+def test_fact_review_revalidates_snapshot_after_event_lock_before_updates():
+    cursor = FakeCursor(
+        one_by_token={
+            "/* fact_review_snapshot */": {
+                "fact_id": "f1",
+                "mapping_id": "m1",
+                "evidence_event_id": "e1",
+            },
+            "/* event_review_lock */": {
+                "event_id": "e1",
+                "mapping_id": "m1",
+            },
+            "/* fact_review_lock */": {
+                "fact_id": "f1",
+                "mapping_id": "m1",
+                "evidence_event_id": "e2",
+            },
+            "SELECT fact_id, mapping_id, evidence_event_id": {
+                "fact_id": "f1",
+                "mapping_id": "m1",
+                "evidence_event_id": "e1",
+            },
+        }
+    )
+    repo = EvidenceReviewRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+
+    with pytest.raises(ValueError, match="changed during review"):
+        repo.review_fact(
+            fact_id="f1",
+            decision="approved",
+            reviewer="roger",
+            note="已核对",
+            stage_after=None,
+        )
+
+    sql = "\n".join(statement for statement, _ in cursor.executed)
+    assert "UPDATE business_tag_evidence_events AS event" not in sql
     assert "UPDATE evidence_extracted_facts" not in sql
     assert "ROLLBACK TO SAVEPOINT supply_chain_manual_review" in sql
 
