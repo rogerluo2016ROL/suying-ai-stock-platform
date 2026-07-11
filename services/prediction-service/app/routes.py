@@ -78,6 +78,21 @@ def _data_freshness(x_ts, data_source: str = "postgresql.daily_kline") -> dict:
     }
 
 
+def _latest_daily_kline_timestamp() -> pd.Series | None:
+    """Return the actual latest trading date for overview-level freshness."""
+    try:
+        import psycopg2
+
+        with psycopg2.connect(os.environ.get("KRONOS_PG_URL"), connect_timeout=3) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT MAX(trade_date) FROM daily_kline")
+                row = cur.fetchone()
+        return pd.Series([row[0]]) if row and row[0] is not None else None
+    except Exception as exc:
+        logger.warning("prediction overview freshness unavailable: %s", exc)
+        return None
+
+
 def _prediction_fallback_reason(used_baseline: bool) -> str | None:
     if not used_baseline:
         return None
@@ -386,15 +401,11 @@ async def model_status():
 
 @router.get("/overview")
 async def prediction_overview():
+    latest_ts = _latest_daily_kline_timestamp()
     return {
         "page": {"module": "prediction", "view": "overview", "title": "K线预测 - 预测总览"},
         "model_metadata": _model_metadata("overview"),
-        "data_freshness": {
-            "status": "unknown",
-            "as_of": None,
-            "source": "daily_kline",
-            "quality_score": 0,
-        },
+        "data_freshness": _data_freshness(latest_ts),
         "fallback_reason": _prediction_fallback_reason(not bool(getattr(_m, "_model_loaded", False))),
         "sections": [
             {"id": "forecast-market", "title": "预测市场", "endpoint": "/api/v1/prediction/{code}"},

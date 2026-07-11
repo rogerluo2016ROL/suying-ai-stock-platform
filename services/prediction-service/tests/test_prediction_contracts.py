@@ -70,3 +70,9 @@ def test_prediction_overview_endpoint_returns_page_contract():
         "model-health",
         "accuracy-backtest",
     ]
+
+
+def test_prediction_overview_uses_actual_latest_daily_kline_timestamp(monkeypatch):
+    monkeypatch.setattr(routes, "_latest_daily_kline_timestamp", lambda: pd.Series([pd.Timestamp("2026-07-03")]))
+    result = asyncio.run(routes.prediction_overview())
+    assert result["data_freshness"]["as_of"] == "2026-07-03"
