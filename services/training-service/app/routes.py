@@ -74,6 +74,108 @@ logger = logging.getLogger("training-service.routes")
 
 router = APIRouter(prefix="/api/v1/training", tags=["training"])
 
+REQUIRED_COMPARE_METRICS = (
+    "ic",
+    "icir",
+    "sharpe",
+    "max_drawdown",
+    "annual_return",
+    "win_rate",
+    "profit_loss_ratio",
+)
+COMPARE_CONFIGURATION = (
+    ("sharpe", 0.05, True),
+    ("icir", 0.02, True),
+    ("ic", 0.002, True),
+    ("max_drawdown", 0.01, False),
+    ("annual_return", 0.02, True),
+    ("win_rate", 0.02, True),
+    ("profit_loss_ratio", 0.05, True),
+)
+
+
+def _has_real_metric(metrics: dict, key: str) -> bool:
+    value = metrics.get(key)
+    if value is None or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def _compare_complete_metric_sets(
+    new_metrics: dict,
+    old_metrics: dict,
+) -> tuple[list[CompareResult], str, str]:
+    def make_compare(
+        metric: str,
+        threshold: float,
+        higher_better: bool,
+    ) -> CompareResult:
+        new_value = float(new_metrics[metric])
+        old_value = float(old_metrics[metric])
+        delta = new_value - old_value
+        delta_pct = (delta / abs(old_value) * 100) if old_value != 0 else 0.0
+        better = (
+            delta > threshold if higher_better else delta < -threshold
+        )
+        return CompareResult(
+            metric=metric,
+            new_value=round(new_value, 4),
+            old_value=round(old_value, 4),
+            delta=round(delta, 4),
+            delta_pct=round(delta_pct, 1),
+            better=better,
+            threshold=threshold,
+        )
+
+    comparisons = [
+        make_compare(metric, threshold, higher_better)
+        for metric, threshold, higher_better in COMPARE_CONFIGURATION
+    ]
+    better_count = sum(1 for comparison in comparisons if comparison.better)
+    worse_count = len(comparisons) - better_count
+    if better_count >= 5:
+        return (
+            comparisons,
+            "new_better",
+            f"建议上线。新模型在 {better_count}/{len(comparisons)} 项指标上优于旧模型。",
+        )
+    if worse_count >= 5:
+        return (
+            comparisons,
+            "old_better",
+            "建议保留旧模型。新模型在多数指标上未超过旧模型。",
+        )
+    return comparisons, "inconclusive", "需人工判断。新旧模型各有优劣。"
+
+
+def _build_truthful_comparison(
+    new_metrics: dict,
+    old_metrics: dict | None,
+) -> tuple[list[CompareResult], str, str]:
+    missing_new = [
+        key for key in REQUIRED_COMPARE_METRICS
+        if not _has_real_metric(new_metrics, key)
+    ]
+    missing_old = (
+        list(REQUIRED_COMPARE_METRICS)
+        if old_metrics is None
+        else [
+            key for key in REQUIRED_COMPARE_METRICS
+            if not _has_real_metric(old_metrics, key)
+        ]
+    )
+    if missing_new or missing_old:
+        missing = sorted(set(missing_new + missing_old))
+        return (
+            [],
+            "insufficient_evidence",
+            "缺少真实回测指标：" + ", ".join(missing) + "；不能生成上线建议。",
+        )
+    return _compare_complete_metric_sets(new_metrics, old_metrics)
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 1. POST /api/v1/training/run — Trigger training (AC-6.1)
@@ -791,72 +893,10 @@ async def api_compare_models(
             old_metrics = json.loads(old_metrics)
         old_metrics = old_metrics or {}
 
-    # Generate comparison with realistic thresholds
-    def safe_get(m: dict, k: str, default: float) -> float:
-        return float(m.get(k, default))
-
-    new_ic = safe_get(new_metrics, "ic", 0.052)
-    new_icir = safe_get(new_metrics, "icir", 0.71)
-    new_sharpe = safe_get(new_metrics, "sharpe", 1.8)
-    new_dd = safe_get(new_metrics, "max_drawdown", -0.12)
-    new_ret = safe_get(new_metrics, "annual_return", 0.38)
-    new_wr = safe_get(new_metrics, "win_rate", 0.62)
-    new_pl = safe_get(new_metrics, "profit_loss_ratio", 1.9)
-
-    if old_model_data:
-        old_ic = safe_get(old_metrics, "ic", 0.045)
-        old_icir = safe_get(old_metrics, "icir", 0.61)
-        old_sharpe = safe_get(old_metrics, "sharpe", 1.54)
-        old_dd = safe_get(old_metrics, "max_drawdown", -0.15)
-        old_ret = safe_get(old_metrics, "annual_return", 0.31)
-        old_wr = safe_get(old_metrics, "win_rate", 0.58)
-        old_pl = safe_get(old_metrics, "profit_loss_ratio", 1.7)
-    else:
-        # No old model — all metrics show improvement
-        old_ic = new_ic * 0.9
-        old_icir = new_icir * 0.9
-        old_sharpe = new_sharpe * 0.9
-        old_dd = new_dd * 1.2
-        old_ret = new_ret * 0.9
-        old_wr = new_wr * 0.95
-        old_pl = new_pl * 0.95
-
-    def make_compare(metric: str, nv: float, ov: float, thresh: float, higher_better: bool = True) -> CompareResult:
-        delta = nv - ov
-        delta_pct = (delta / abs(ov) * 100) if ov != 0 else 0
-        better = delta > thresh if higher_better else delta < thresh
-        return CompareResult(
-            metric=metric,
-            new_value=round(nv, 4),
-            old_value=round(ov, 4),
-            delta=round(delta, 4),
-            delta_pct=round(delta_pct, 1),
-            better=better,
-            threshold=thresh,
-        )
-
-    comparisons = [
-        make_compare("sharpe", new_sharpe, old_sharpe, 0.05),
-        make_compare("icir", new_icir, old_icir, 0.02),
-        make_compare("ic", new_ic, old_ic, 0.002),
-        make_compare("max_drawdown", new_dd, old_dd, 0.01, higher_better=False),
-        make_compare("annual_return", new_ret, old_ret, 0.02),
-        make_compare("win_rate", new_wr, old_wr, 0.02),
-        make_compare("profit_loss_ratio", new_pl, old_pl, 0.05),
-    ]
-
-    better_count = sum(1 for c in comparisons if c.better)
-    worse_count = sum(1 for c in comparisons if not c.better)
-
-    if better_count >= 5:
-        verdict = "new_better"
-        recommendation = f"建议上线。新模型在 {better_count}/{len(comparisons)} 项指标上优于旧模型。"
-    elif worse_count >= 5:
-        verdict = "old_better"
-        recommendation = "建议保留旧模型。新模型在多数指标上未超过旧模型。"
-    else:
-        verdict = "inconclusive"
-        recommendation = "需人工判断。新旧模型各有优劣。"
+    comparisons, verdict, recommendation = _build_truthful_comparison(
+        new_metrics,
+        old_metrics if old_model_data else None,
+    )
 
     # Build response model records
     new_record = ModelRecord(
