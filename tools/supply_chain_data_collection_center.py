@@ -15,6 +15,7 @@ import json
 import re
 import subprocess
 import tempfile
+from copy import deepcopy
 from html import unescape
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -225,7 +226,7 @@ def confidence_cap_for_level(source_level: SourceLevel) -> float:
 def sanitize_pending_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
     if metadata is None:
         return None
-    sanitized = dict(metadata)
+    sanitized = deepcopy(metadata)
     sanitized.pop("review_normalization", None)
     return sanitized
 
@@ -751,6 +752,11 @@ def _insert_raw_document_and_fact(
 ) -> dict:
     import json as _json
 
+    def returned_inserted(row) -> bool:
+        if isinstance(row, dict):
+            return bool(row.get("inserted"))
+        return bool(row and row[0])
+
     raw_metadata = dict(document.metadata or {})
     raw_metadata["backfill_job_id"] = job_id
     cur.execute(
@@ -764,7 +770,11 @@ def _insert_raw_document_and_fact(
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
             'active', %s, %s::jsonb
         )
-        ON CONFLICT (content_hash) DO NOTHING
+        ON CONFLICT (content_hash) DO UPDATE SET
+            publish_time = COALESCE(raw_evidence_documents.publish_time, EXCLUDED.publish_time),
+            metadata = EXCLUDED.metadata || raw_evidence_documents.metadata,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING (xmax = 0) AS inserted
         """,
         (
             document.doc_id,
@@ -783,7 +793,7 @@ def _insert_raw_document_and_fact(
             _json.dumps(raw_metadata, ensure_ascii=False),
         ),
     )
-    inserted_doc = cur.rowcount > 0
+    inserted_doc = returned_inserted(cur.fetchone())
 
     mapping = None
     if mapping_id:
@@ -829,7 +839,10 @@ def _insert_raw_document_and_fact(
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb
         )
-        ON CONFLICT (fact_id) DO NOTHING
+        ON CONFLICT (fact_id) DO UPDATE SET
+            metadata = (EXCLUDED.metadata - 'review_normalization') || evidence_extracted_facts.metadata,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING (xmax = 0) AS inserted
         """,
         (
             _fact_id(document.doc_id, resolved_mapping_id),
@@ -854,10 +867,11 @@ def _insert_raw_document_and_fact(
             _json.dumps(fact_metadata, ensure_ascii=False),
         ),
     )
+    inserted_fact = returned_inserted(cur.fetchone())
     mapping_required = resolved_mapping_id is None
     return {
         "inserted_doc": inserted_doc,
-        "inserted_fact": cur.rowcount > 0,
+        "inserted_fact": inserted_fact,
         "duplicate": not inserted_doc,
         "mapping_id": resolved_mapping_id,
         "mapping_required": mapping_required,
@@ -1512,9 +1526,7 @@ def sync_facts_to_legacy_events(pg_url: str, limit: int = 500) -> dict:
             original_url = EXCLUDED.original_url,
             evidence_type = EXCLUDED.evidence_type,
             impact_dimensions = EXCLUDED.impact_dimensions,
-            confidence = EXCLUDED.confidence,
-            review_status = EXCLUDED.review_status,
-            review_note = EXCLUDED.review_note
+            confidence = EXCLUDED.confidence
     """
 
     synced = 0

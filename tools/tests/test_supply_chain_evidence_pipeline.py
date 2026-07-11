@@ -1,5 +1,6 @@
 import importlib.util
 import inspect
+import json
 import sys
 import types
 from datetime import datetime, timezone
@@ -21,6 +22,24 @@ decide_stage_transition = pipeline.decide_stage_transition
 build_expectation_monitor_record = pipeline.build_expectation_monitor_record
 build_mapping_search_terms = pipeline.build_mapping_search_terms
 build_legacy_evidence_event_record = pipeline.build_legacy_evidence_event_record
+
+
+def _normalized_sql(sql):
+    return " ".join(sql.split())
+
+
+def _conflict_update_clause(sql):
+    normalized = _normalized_sql(sql)
+    assert "ON CONFLICT" in normalized
+    return normalized.split("ON CONFLICT", 1)[1]
+
+
+def _assert_manual_review_columns_are_untouched(sql, *, status_column):
+    update_clause = _conflict_update_clause(sql)
+    assert f"{status_column} = EXCLUDED.{status_column}" not in update_clause
+    assert "review_note = EXCLUDED.review_note" not in update_clause
+    assert "reviewer = EXCLUDED.reviewer" not in update_clause
+    assert "reviewed_at = EXCLUDED.reviewed_at" not in update_clause
 
 
 class _FakeConnection:
@@ -54,10 +73,12 @@ def _install_fake_psycopg2(monkeypatch, cursor):
 class _IngestCursor:
     rowcount = 1
 
-    def __init__(self):
+    def __init__(self, *, mapping_exists=True):
         self.calls = []
         self._one = None
         self._many = []
+        self.mapping_exists = mapping_exists
+        self.mapping_lookup_count = 0
 
     def __enter__(self):
         return self
@@ -72,7 +93,13 @@ class _IngestCursor:
         self._many = []
         if "FROM evidence_source_catalog" in sql:
             self._one = ("cninfo_announcement", "announcement", "strong", 0.95, "available")
-        elif "FROM business_tag_mapping" in sql:
+        elif (
+            "SELECT mapping_id, chain_id, tag_name, node_id" in _normalized_sql(sql)
+            and "FROM business_tag_mapping" in sql
+        ):
+            self.mapping_lookup_count += 1
+            if not self.mapping_exists:
+                return
             mapping_id = "MAP-EXPLICIT" if "mapping_id = %s" in sql else "MAP-HIGHEST-CONFIDENCE"
             row = (mapping_id, "embodied_intelligence", "灵巧手执行器", "robot_hand")
             self._one = row
@@ -216,6 +243,21 @@ def test_pipeline_pending_fact_preserves_sanitized_metadata():
     }
 
 
+def test_pipeline_pending_fact_metadata_is_deep_copied():
+    metadata = {"route_context": {"positions": ["robot_wrist"]}}
+    fact = extract_fact_from_text(
+        text="公司机器人产品已获得专利。",
+        source_level="strong",
+        company_code="003021",
+        l5_tag="灵巧手执行器",
+        metadata=metadata,
+    )
+
+    metadata["route_context"]["positions"].append("robot_joint")
+
+    assert fact.metadata == {"route_context": {"positions": ["robot_wrist"]}}
+
+
 def test_ingest_stores_supplied_publish_time_and_exact_mapping(monkeypatch):
     cursor = _IngestCursor()
     publish_time = datetime(2026, 7, 9, 9, 0, tzinfo=timezone.utc)
@@ -227,12 +269,30 @@ def test_ingest_stores_supplied_publish_time_and_exact_mapping(monkeypatch):
         mapping_id_marker="MAP-EXPLICIT",
     )
     raw_sql, raw_params = next(call for call in cursor.calls if "INSERT INTO raw_evidence_documents" in call[0])
-    _, fact_params = next(call for call in cursor.calls if "INSERT INTO evidence_extracted_facts" in call[0])
+    fact_sql, fact_params = next(call for call in cursor.calls if "INSERT INTO evidence_extracted_facts" in call[0])
 
     assert raw_params[7] == publish_time
-    assert "publish_time = EXCLUDED.publish_time" in raw_sql
+    raw_update = _conflict_update_clause(raw_sql)
     assert fact_params[2] == "MAP-EXPLICIT"
     assert result.get("mapping_id") == "MAP-EXPLICIT"
+    fact_update = _conflict_update_clause(fact_sql)
+    conflict_contract = {
+        "raw_keeps_existing_publish_time": (
+            "publish_time = COALESCE(raw_evidence_documents.publish_time, EXCLUDED.publish_time)" in raw_update
+        ),
+        "raw_existing_metadata_wins": "metadata = EXCLUDED.metadata || raw_evidence_documents.metadata" in raw_update,
+        "fact_keeps_existing_validation": "validation_status = EXCLUDED.validation_status" not in fact_update,
+        "fact_existing_metadata_wins": (
+            "metadata = (EXCLUDED.metadata - 'review_normalization') || evidence_extracted_facts.metadata"
+            in fact_update
+        ),
+    }
+    assert conflict_contract == {
+        "raw_keeps_existing_publish_time": True,
+        "raw_existing_metadata_wins": True,
+        "fact_keeps_existing_validation": True,
+        "fact_existing_metadata_wins": True,
+    }
 
 
 def test_ingest_with_unknown_mapping_stores_nulls_and_returns_mapping_required(monkeypatch):
@@ -254,6 +314,34 @@ def test_ingest_with_unknown_mapping_stores_nulls_and_returns_mapping_required(m
     assert raw_params[7] is None
     assert fact_params[2] is None
     assert result.get("status") == "mapping_required"
+
+
+def test_ingest_with_nonexistent_explicit_mapping_does_not_fall_back(monkeypatch):
+    cursor = _IngestCursor(mapping_exists=False)
+
+    result = _call_ingest(
+        cursor,
+        monkeypatch,
+        publish_time_marker=None,
+        mapping_id_marker="MAP-NOT-FOUND",
+    )
+    _, fact_params = next(call for call in cursor.calls if "INSERT INTO evidence_extracted_facts" in call[0])
+    mapping_sql = [
+        _normalized_sql(sql)
+        for sql, _ in cursor.calls
+        if "SELECT mapping_id, chain_id, tag_name, node_id" in _normalized_sql(sql)
+    ]
+
+    assert cursor.mapping_lookup_count == 1
+    assert len(mapping_sql) == 1
+    assert "WHERE mapping_id = %s" in mapping_sql[0]
+    assert "ORDER BY confidence" not in mapping_sql[0]
+    assert fact_params[2] is None
+    assert result["documents"] == 1
+    assert result["facts"] == 1
+    assert result["legacy_events"] == 1
+    assert result["mapping_required"] is True
+    assert result["status"] == "mapping_required"
 
 
 def test_weak_source_does_not_create_stage_upgrade():
@@ -346,6 +434,39 @@ def test_build_legacy_evidence_event_record_preserves_fact_and_mapping_context()
     assert record["impact_dimensions"]["growth"] is True
 
 
+def test_legacy_event_conflict_preserves_existing_approved_review_fields():
+    fact = extract_fact_from_text(
+        text="公司高速光模块已实现批量供货。",
+        source_level="strong",
+        company_code="300308.SZ",
+        l5_tag="高速光模块",
+    )
+    record = build_legacy_evidence_event_record(
+        fact_id="FACT-001",
+        mapping_id="MAP-001",
+        company_code="300308.SZ",
+        node_id="optical_module",
+        source_id="cninfo_announcement",
+        source_type="announcement",
+        title="公告标题",
+        url="https://example.com/a",
+        fact=fact,
+    )
+
+    class Cursor:
+        def __init__(self):
+            self.calls = []
+
+        def execute(self, sql, params=None):
+            self.calls.append((sql, params))
+
+    cursor = Cursor()
+    pipeline._upsert_legacy_evidence_event(cursor, record)
+    event_sql, _ = cursor.calls[0]
+
+    _assert_manual_review_columns_are_untouched(event_sql, status_column="review_status")
+
+
 def test_backfill_approved_strong_event_still_writes_pending_fact_and_null_unknown_time(monkeypatch):
     class BackfillCursor:
         rowcount = 1
@@ -395,11 +516,30 @@ def test_backfill_approved_strong_event_still_writes_pending_fact_and_null_unkno
     _install_fake_psycopg2(monkeypatch, cursor)
 
     pipeline.backfill_existing_events(pg_url="postgresql://fake")
-    _, raw_params = next(call for call in cursor.calls if "INSERT INTO raw_evidence_documents" in call[0])
-    _, fact_params = next(call for call in cursor.calls if "INSERT INTO evidence_extracted_facts" in call[0])
+    raw_sql, raw_params = next(call for call in cursor.calls if "INSERT INTO raw_evidence_documents" in call[0])
+    fact_sql, fact_params = next(call for call in cursor.calls if "INSERT INTO evidence_extracted_facts" in call[0])
 
     assert raw_params[6] is None
     assert fact_params[20] == "pending"
+    raw_update = _conflict_update_clause(raw_sql)
+    fact_update = _conflict_update_clause(fact_sql)
+    conflict_contract = {
+        "raw_keeps_existing_publish_time": (
+            "publish_time = COALESCE(raw_evidence_documents.publish_time, EXCLUDED.publish_time)" in raw_update
+        ),
+        "raw_existing_metadata_wins": "metadata = EXCLUDED.metadata || raw_evidence_documents.metadata" in raw_update,
+        "fact_keeps_existing_validation": "validation_status = EXCLUDED.validation_status" not in fact_update,
+        "fact_existing_metadata_wins": (
+            "metadata = (EXCLUDED.metadata - 'review_normalization') || evidence_extracted_facts.metadata"
+            in fact_update
+        ),
+    }
+    assert conflict_contract == {
+        "raw_keeps_existing_publish_time": True,
+        "raw_existing_metadata_wins": True,
+        "fact_keeps_existing_validation": True,
+        "fact_existing_metadata_wins": True,
+    }
 
 
 def test_refresh_stage_transitions_only_creates_pending_proposals(monkeypatch):
@@ -446,10 +586,72 @@ def test_refresh_stage_transitions_only_creates_pending_proposals(monkeypatch):
     _install_fake_psycopg2(monkeypatch, cursor)
 
     result = pipeline.refresh_stage_transitions(pg_url="postgresql://fake")
-    _, transition_params = next(
+    transition_sql, transition_params = next(
         call for call in cursor.calls if "INSERT INTO business_tag_stage_transition_log" in call[0]
     )
 
     assert transition_params[-1] == "pending_review"
+    _assert_manual_review_columns_are_untouched(transition_sql, status_column="review_status")
     assert not any("INSERT INTO business_tag_stage_tracking" in sql for sql, _ in cursor.calls)
     assert result["stage_applied"] == 0
+
+
+def test_expectation_monitor_conflict_preserves_approved_review_and_normalization(monkeypatch):
+    class ExpectationCursor:
+        rowcount = 1
+
+        def __init__(self):
+            self.calls = []
+            self._many = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def execute(self, sql, params=None):
+            self.calls.append((sql, params))
+            self.rowcount = 1
+            self._many = []
+            if "FROM evidence_extracted_facts f" in sql:
+                self._many = [(
+                    "FACT-EXPECT",
+                    "MAP-001",
+                    "DOC-001",
+                    "300503.SZ",
+                    "关节模组",
+                    "机器人",
+                    "expectation",
+                    "analyst_estimate",
+                    "预计收入增长",
+                    "研报预计公司机器人业务2026年收入快速增长。",
+                    "mid",
+                    0.6,
+                    0.75,
+                    None,
+                    None,
+                    True,
+                    False,
+                    False,
+                    False,
+                )]
+
+        def fetchall(self):
+            return self._many
+
+    cursor = ExpectationCursor()
+    _install_fake_psycopg2(monkeypatch, cursor)
+
+    result = pipeline.refresh_expectation_monitor(pg_url="postgresql://fake")
+    monitor_sql, monitor_params = next(
+        call for call in cursor.calls if "INSERT INTO business_tag_expectation_monitor" in call[0]
+    )
+
+    assert result == {"facts_read": 1, "monitors": 1}
+    _assert_manual_review_columns_are_untouched(monitor_sql, status_column="review_status")
+    assert (
+        "metadata = (EXCLUDED.metadata - 'review_normalization') || business_tag_expectation_monitor.metadata"
+        in _conflict_update_clause(monitor_sql)
+    )
+    assert "review_normalization" not in json.loads(monitor_params["metadata_json"])

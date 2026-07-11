@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from copy import deepcopy
 from datetime import datetime
 from dataclasses import asdict, dataclass
 from typing import Any, Literal
@@ -126,7 +127,7 @@ def _confidence_cap_for_level(source_level: str) -> float:
 def sanitize_pending_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
     if metadata is None:
         return None
-    sanitized = dict(metadata)
+    sanitized = deepcopy(metadata)
     sanitized.pop("review_normalization", None)
     return sanitized
 
@@ -740,9 +741,7 @@ def _upsert_legacy_evidence_event(cur, record: dict) -> None:
             original_url = EXCLUDED.original_url,
             evidence_type = EXCLUDED.evidence_type,
             impact_dimensions = EXCLUDED.impact_dimensions,
-            confidence = EXCLUDED.confidence,
-            review_status = EXCLUDED.review_status,
-            review_note = EXCLUDED.review_note
+            confidence = EXCLUDED.confidence
         """,
         {**record, "impact_dimensions_json": json.dumps(record["impact_dimensions"], ensure_ascii=False)},
     )
@@ -798,12 +797,12 @@ def ingest_text_document(
                     company_code = EXCLUDED.company_code,
                     company_name = EXCLUDED.company_name,
                     title = EXCLUDED.title,
-                    publish_time = EXCLUDED.publish_time,
+                    publish_time = COALESCE(raw_evidence_documents.publish_time, EXCLUDED.publish_time),
                     url = EXCLUDED.url,
                     content_text = EXCLUDED.content_text,
                     doc_status = EXCLUDED.doc_status,
                     license_status = EXCLUDED.license_status,
-                    metadata = EXCLUDED.metadata,
+                    metadata = EXCLUDED.metadata || raw_evidence_documents.metadata,
                     updated_at = CURRENT_TIMESTAMP
                 RETURNING doc_id
                 """,
@@ -860,8 +859,7 @@ def ingest_text_document(
                     profit_signal = EXCLUDED.profit_signal,
                     moat_signal = EXCLUDED.moat_signal,
                     risk_signal = EXCLUDED.risk_signal,
-                    validation_status = EXCLUDED.validation_status,
-                    metadata = EXCLUDED.metadata,
+                    metadata = (EXCLUDED.metadata - 'review_normalization') || evidence_extracted_facts.metadata,
                     updated_at = CURRENT_TIMESTAMP
                 """,
                 (
@@ -1062,8 +1060,9 @@ def backfill_existing_events(*, pg_url: str, run_prefix: str | None = None, limi
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
                     ON CONFLICT (content_hash) DO UPDATE SET
                         title = EXCLUDED.title,
+                        publish_time = COALESCE(raw_evidence_documents.publish_time, EXCLUDED.publish_time),
                         content_text = EXCLUDED.content_text,
-                        metadata = EXCLUDED.metadata,
+                        metadata = EXCLUDED.metadata || raw_evidence_documents.metadata,
                         updated_at = CURRENT_TIMESTAMP
                     RETURNING doc_id
                     """,
@@ -1110,9 +1109,8 @@ def backfill_existing_events(*, pg_url: str, run_prefix: str | None = None, limi
                         profit_signal = EXCLUDED.profit_signal,
                         moat_signal = EXCLUDED.moat_signal,
                         risk_signal = EXCLUDED.risk_signal,
-                        validation_status = EXCLUDED.validation_status,
                         evidence_event_id = EXCLUDED.evidence_event_id,
-                        metadata = EXCLUDED.metadata,
+                        metadata = (EXCLUDED.metadata - 'review_normalization') || evidence_extracted_facts.metadata,
                         updated_at = CURRENT_TIMESTAMP
                     """,
                     (
@@ -1213,8 +1211,7 @@ def refresh_stage_transitions(*, pg_url: str, run_prefix: str | None = None, lim
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (transition_id) DO UPDATE SET
-                        change_reason = EXCLUDED.change_reason,
-                        review_status = EXCLUDED.review_status
+                        change_reason = EXCLUDED.change_reason
                     """,
                     (
                         transition_id,
@@ -1331,8 +1328,7 @@ def refresh_expectation_monitor(*, pg_url: str, run_prefix: str | None = None, l
                         claim_text = EXCLUDED.claim_text,
                         expected_result = EXCLUDED.expected_result,
                         gap_status = EXCLUDED.gap_status,
-                        review_status = EXCLUDED.review_status,
-                        metadata = EXCLUDED.metadata,
+                        metadata = (EXCLUDED.metadata - 'review_normalization') || business_tag_expectation_monitor.metadata,
                         updated_at = CURRENT_TIMESTAMP
                     """,
                     {
