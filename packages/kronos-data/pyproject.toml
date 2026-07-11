@@ -19,3 +19,9 @@ dev = [
 [build-system]
 requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
+
+# This repository keeps service-side support files beside the distributable
+# package. Declare the package explicitly so setuptools does not treat those
+# support files as a second top-level distribution during Docker builds.
+[tool.setuptools]
+packages = ["kronos_data"]
