@@ -10,6 +10,13 @@ from fastapi import HTTPException
 
 from app.domains.supply_chain import repository
 
+BIGTECH_COMPANIES = {"Microsoft", "Alphabet", "Meta", "Amazon", "Oracle"}
+AI_COMPUTE_LAYER_KEYWORDS = {
+    "demand": ("云", "cloud", "aws", "oci", "AI", "大模型", "算力", "应用"),
+    "foundation": ("HBM", "CoWoS", "封装", "服务器", "网络设备", "数据中心土地"),
+    "infrastructure": ("IDC", "数据中心", "服务器", "液冷", "光模块", "CPO", "网络", "交换机", "电源", "GPU", "云容量"),
+}
+
 
 def _json_or_default(value, default):
     if value is None: return default
@@ -275,6 +282,719 @@ def data_readiness() -> dict[str, Any]:
     else:
         payload["status"] = "ok"
     return payload
+
+
+def _normalize_refresh_rank_types(rank_types: list[str]) -> list[str]:
+    allowed = {"value", "expectation_gap"}
+    normalized = []
+    for rank_type in rank_types or []:
+        value = str(rank_type or "").strip()
+        if not value:
+            continue
+        if value not in allowed:
+            raise HTTPException(status_code=400, detail=f"Unsupported rank_type '{value}'")
+        if value not in normalized:
+            normalized.append(value)
+    if not normalized:
+        raise HTTPException(status_code=400, detail="rank_types is empty")
+    return normalized
+
+
+def _refresh_supply_chain_tracking_workflow(
+    request: Any,
+    *,
+    extract_evidence=None,
+    batch_score=None,
+    query_rankings=None,
+) -> dict[str, Any]:
+    extract_evidence = extract_evidence or _batch_extract_business_tag_evidence
+    batch_score = batch_score or _batch_score_business_tags
+    query_rankings = query_rankings or _query_supply_chain_rankings
+    score_types = _normalize_batch_score_types(request.score_types) if request.include_scores else []
+    rank_types = _normalize_refresh_rank_types(request.rank_types) if request.include_rankings else []
+    steps: dict[str, Any] = {}
+    rankings: dict[str, Any] = {}
+    limitations: list[str] = []
+    source_status = "ready"
+
+    if request.include_evidence_extract:
+        if not request.mapping_id and not request.code:
+            steps["evidence_extract"] = {
+                "source_status": "skipped",
+                "created_event_count": 0,
+                "reason": "证据抽取需要 mapping_id 或 code",
+            }
+            limitations.append("证据抽取已跳过：缺少 mapping_id 或 code")
+        else:
+            evidence_payload = extract_evidence(SimpleNamespace(
+                mapping_id=request.mapping_id,
+                code=request.code,
+                source_types=request.source_types,
+                limit=request.evidence_limit,
+                persist=request.persist,
+            ))
+            steps["evidence_extract"] = evidence_payload
+            limitations.extend(evidence_payload.get("limitations") or [])
+    else:
+        steps["evidence_extract"] = {"source_status": "skipped", "created_event_count": 0}
+
+    created_event_count = int((steps.get("evidence_extract") or {}).get("created_event_count") or 0)
+    steps["human_review"] = {
+        "source_status": "pending_review" if created_event_count else "no_new_events",
+        "review_required_count": created_event_count,
+        "note": "新增证据默认进入 pending_review；评分只消费已 approved 的证据",
+    }
+
+    if request.include_scores:
+        score_payload = batch_score(SimpleNamespace(
+            code=request.code,
+            node_id=request.node_id,
+            status=request.status,
+            score_types=score_types,
+            trade_date=request.trade_date,
+            persist=request.persist,
+            market_expectation_score=request.market_expectation_score,
+            limit=request.score_limit,
+        ))
+        steps["batch_score"] = score_payload
+        limitations.extend(score_payload.get("limitations") or [])
+        if score_payload.get("source_status") in {"partial_error", "error"}:
+            source_status = score_payload["source_status"]
+    else:
+        steps["batch_score"] = {"source_status": "skipped", "score_count": 0}
+
+    if request.include_rankings:
+        for rank_type in rank_types:
+            rankings[rank_type] = query_rankings(rank_type, request.top_n, request.trade_date)
+    else:
+        rankings = {}
+
+    return {
+        "version": "supply-chain-v2-refresh-workflow",
+        "source_status": source_status,
+        "trade_date": request.trade_date,
+        "persisted": request.persist,
+        "steps": steps,
+        "rankings": rankings,
+        "limitations": limitations,
+    }
+
+
+def _normalize_business_ratio(value) -> float | None:
+    ratio = _to_float(value, None)
+    if ratio is None:
+        return None
+    if ratio > 1 and ratio <= 100:
+        ratio = ratio / 100
+    return round(min(1.0, max(0.0, ratio)), 4)
+
+
+def _calculate_company_value_rankings(tag_scores: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    companies: dict[str, dict[str, Any]] = {}
+    for row in tag_scores:
+        code = str(row.get("code") or "").strip()
+        if not code:
+            continue
+        company = companies.setdefault(
+            code,
+            {
+                "code": code,
+                "name": str(row.get("name") or code),
+                "value_score": 0.0,
+                "attributed_tag_count": 0,
+                "theme_only_tag_count": 0,
+                "business_tags": [],
+            },
+        )
+
+        total_score = _to_float(row.get("total_score"), 0.0)
+        revenue_ratio = _normalize_business_ratio(row.get("revenue_ratio"))
+        gross_profit_ratio = _normalize_business_ratio(row.get("gross_profit_ratio"))
+        confidence = min(1.0, max(0.0, _to_float(row.get("confidence"), 0.0)))
+        evidence_score = _to_float(row.get("evidence_score"), 0.0)
+        evidence_weight = round(min(1.0, max(0.5, 0.5 + evidence_score / 200)), 4)
+
+        if gross_profit_ratio is not None:
+            attribution_type = "gross_profit"
+            attribution_ratio = gross_profit_ratio
+        elif revenue_ratio is not None:
+            attribution_type = "revenue"
+            attribution_ratio = revenue_ratio
+        else:
+            attribution_type = "missing"
+            attribution_ratio = None
+
+        contribution_score = 0.0
+        rank_status = "theme_only"
+        if attribution_ratio is not None and attribution_ratio > 0 and total_score > 0:
+            contribution_score = round(total_score * attribution_ratio * confidence * evidence_weight, 4)
+            rank_status = "rankable"
+            company["attributed_tag_count"] += 1
+        else:
+            company["theme_only_tag_count"] += 1
+
+        company["value_score"] = round(company["value_score"] + contribution_score, 4)
+        company["business_tags"].append({
+            "mapping_id": str(row.get("mapping_id") or ""),
+            "tag_name": str(row.get("tag_name") or ""),
+            "trade_date": str(row.get("trade_date")) if row.get("trade_date") else None,
+            "total_score": total_score,
+            "revenue_ratio": revenue_ratio,
+            "gross_profit_ratio": gross_profit_ratio,
+            "confidence": confidence,
+            "evidence_score": evidence_score,
+            "evidence_weight": evidence_weight,
+            "attribution_type": attribution_type,
+            "attribution_ratio": attribution_ratio,
+            "contribution_score": contribution_score,
+            "rank_status": rank_status,
+            "status": str(row.get("status") or ""),
+            "score_detail": row.get("score_detail") if isinstance(row.get("score_detail"), dict) else {},
+            "evidence_ids": row.get("evidence_ids") if isinstance(row.get("evidence_ids"), list) else [],
+        })
+
+    rankings = []
+    for company in companies.values():
+        company["rank_status"] = "rankable" if company["attributed_tag_count"] > 0 else "theme_only"
+        company["business_tags"] = sorted(
+            company["business_tags"],
+            key=lambda tag: (
+                tag["contribution_score"] <= 0,
+                -tag["contribution_score"],
+                tag["tag_name"],
+            ),
+        )
+        rankings.append(company)
+
+    rankings.sort(
+        key=lambda item: (
+            -item["value_score"],
+            item["rank_status"] != "rankable",
+            -item["attributed_tag_count"],
+            item["code"],
+        )
+    )
+    for rank, item in enumerate(rankings, start=1):
+        item["rank"] = rank
+    return rankings
+
+
+def _calculate_company_expectation_gap_rankings(tag_scores: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    companies: dict[str, dict[str, Any]] = {}
+    for row in tag_scores:
+        code = str(row.get("code") or "").strip()
+        if not code:
+            continue
+        company = companies.setdefault(
+            code,
+            {
+                "code": code,
+                "name": str(row.get("name") or code),
+                "expectation_gap_score": 0.0,
+                "attributed_tag_count": 0,
+                "theme_only_tag_count": 0,
+                "business_tags": [],
+            },
+        )
+
+        gap_score = max(0.0, _to_float(row.get("expectation_gap_score"), 0.0))
+        actual_progress_score = _to_float(row.get("actual_progress_score"), None)
+        market_expectation_score = _to_float(row.get("market_expectation_score"), None)
+        evidence_delta_score = _to_float(row.get("evidence_delta_score"), 0.0)
+        risk_penalty_score = _to_float(row.get("risk_penalty_score"), 0.0)
+        revenue_ratio = _normalize_business_ratio(row.get("revenue_ratio"))
+        gross_profit_ratio = _normalize_business_ratio(row.get("gross_profit_ratio"))
+        confidence = min(1.0, max(0.0, _to_float(row.get("confidence"), 0.0)))
+        evidence_weight = round(min(1.0, max(0.5, 0.5 + evidence_delta_score / 200)), 4)
+        risk_weight = round(min(1.0, max(0.0, 1 - risk_penalty_score / 100)), 4)
+
+        if gross_profit_ratio is not None:
+            attribution_type = "gross_profit"
+            attribution_ratio = gross_profit_ratio
+        elif revenue_ratio is not None:
+            attribution_type = "revenue"
+            attribution_ratio = revenue_ratio
+        else:
+            attribution_type = "missing"
+            attribution_ratio = None
+
+        gap_type = str(row.get("gap_type") or "")
+        gap_contribution_score = 0.0
+        rank_status = "theme_only"
+        if attribution_ratio is not None and attribution_ratio > 0 and gap_score > 0:
+            gap_contribution_score = round(gap_score * attribution_ratio * confidence * evidence_weight * risk_weight, 4)
+            rank_status = "rankable"
+            company["attributed_tag_count"] += 1
+        else:
+            company["theme_only_tag_count"] += 1
+
+        company["expectation_gap_score"] = round(company["expectation_gap_score"] + gap_contribution_score, 4)
+        company["business_tags"].append({
+            "mapping_id": str(row.get("mapping_id") or ""),
+            "tag_name": str(row.get("tag_name") or ""),
+            "trade_date": str(row.get("trade_date")) if row.get("trade_date") else None,
+            "expectation_gap_score": gap_score,
+            "actual_progress_score": actual_progress_score,
+            "market_expectation_score": market_expectation_score,
+            "evidence_delta_score": evidence_delta_score,
+            "risk_penalty_score": risk_penalty_score,
+            "revenue_ratio": revenue_ratio,
+            "gross_profit_ratio": gross_profit_ratio,
+            "confidence": confidence,
+            "evidence_weight": evidence_weight,
+            "risk_weight": risk_weight,
+            "attribution_type": attribution_type,
+            "attribution_ratio": attribution_ratio,
+            "gap_contribution_score": gap_contribution_score,
+            "gap_type": gap_type,
+            "rank_status": rank_status,
+            "status": str(row.get("status") or ""),
+            "score_detail": row.get("score_detail") if isinstance(row.get("score_detail"), dict) else {},
+            "evidence_ids": row.get("evidence_ids") if isinstance(row.get("evidence_ids"), list) else [],
+        })
+
+    rankings = []
+    for company in companies.values():
+        company["rank_status"] = "rankable" if company["attributed_tag_count"] > 0 else "theme_only"
+        company["business_tags"] = sorted(
+            company["business_tags"],
+            key=lambda tag: (
+                tag["gap_contribution_score"] <= 0,
+                -tag["gap_contribution_score"],
+                tag["tag_name"],
+            ),
+        )
+        rankings.append(company)
+
+    rankings.sort(
+        key=lambda item: (
+            -item["expectation_gap_score"],
+            item["rank_status"] != "rankable",
+            -item["attributed_tag_count"],
+            item["code"],
+        )
+    )
+    for rank, item in enumerate(rankings, start=1):
+        item["rank"] = rank
+    return rankings
+
+
+def _query_supply_chain_rankings(
+    rank_type: str = "value",
+    top_n: int = 50,
+    trade_date: Optional[str] = None,
+) -> dict[str, Any]:
+    safe_rank_type = str(rank_type or "value").strip() or "value"
+    safe_top_n = min(200, max(1, int(top_n or 50)))
+    payload: dict[str, Any] = {
+        "version": "supply-chain-v2-rankings",
+        "rank_type": safe_rank_type,
+        "trade_date": trade_date,
+        "source_status": "unknown",
+        "items": [],
+        "limitations": [],
+    }
+    if safe_rank_type not in {"value", "expectation_gap"}:
+        payload["source_status"] = "unsupported_rank_type"
+        payload["limitations"].append("目前仅支持 value 和 expectation_gap 排序")
+        return payload
+
+    try:
+        with repository.connect() as pg:
+            cur = pg.cursor()
+            if not repository.table_exists(cur, "business_tag_mapping"):
+                payload["source_status"] = "mapping_table_missing"
+                payload["limitations"].append("business_tag_mapping table is missing")
+                return payload
+
+            scan_limit = max(safe_top_n * 20, 200)
+            if safe_rank_type == "value":
+                if not repository.table_exists(cur, "business_tag_three_high_scores"):
+                    payload["source_status"] = "score_table_missing"
+                    payload["limitations"].append("business_tag_three_high_scores table is missing")
+                    return payload
+                cur.execute(
+                    """
+                    SELECT
+                        m.mapping_id,
+                        m.code,
+                        m.tag_name,
+                        m.revenue_ratio,
+                        m.gross_profit_ratio,
+                        m.confidence,
+                        m.status,
+                        sc.trade_date,
+                        sc.total_score,
+                        sc.evidence_score,
+                        sc.score_detail,
+                        sc.evidence_ids
+                    FROM business_tag_mapping m
+                    JOIN LATERAL (
+                        SELECT trade_date, total_score, evidence_score, score_detail, evidence_ids, created_at
+                        FROM business_tag_three_high_scores
+                        WHERE mapping_id = m.mapping_id
+                          AND (%s IS NULL OR trade_date <= %s::date)
+                        ORDER BY trade_date DESC, created_at DESC
+                        LIMIT 1
+                    ) sc ON TRUE
+                    WHERE COALESCE(m.status, '') <> 'rejected'
+                    ORDER BY sc.total_score DESC NULLS LAST, m.confidence DESC NULLS LAST
+                    LIMIT %s
+                    """,
+                    (trade_date, trade_date, scan_limit),
+                )
+                tag_scores = []
+                for row in cur.fetchall():
+                    tag_scores.append({
+                        "mapping_id": str(row[0]),
+                        "code": str(row[1] or ""),
+                        "name": str(row[1] or ""),
+                        "tag_name": str(row[2] or ""),
+                        "revenue_ratio": _to_float(row[3], None),
+                        "gross_profit_ratio": _to_float(row[4], None),
+                        "confidence": _to_float(row[5], 0.0),
+                        "status": str(row[6] or ""),
+                        "trade_date": str(row[7]) if row[7] else None,
+                        "total_score": _to_float(row[8], 0.0),
+                        "evidence_score": _to_float(row[9], 0.0),
+                        "score_detail": _json_or_default(row[10], {}),
+                        "evidence_ids": _json_or_default(row[11], []),
+                    })
+                rankings = _calculate_company_value_rankings(tag_scores)
+                payload["limitations"].append("无收入/毛利归因的标签仅作为主题相关明细，不进入核心排序贡献")
+            else:
+                if not repository.table_exists(cur, "business_tag_expectation_gap_scores"):
+                    payload["source_status"] = "gap_table_missing"
+                    payload["limitations"].append("business_tag_expectation_gap_scores table is missing")
+                    return payload
+                cur.execute(
+                    """
+                    SELECT
+                        m.mapping_id,
+                        m.code,
+                        m.tag_name,
+                        m.revenue_ratio,
+                        m.gross_profit_ratio,
+                        m.confidence,
+                        m.status,
+                        eg.trade_date,
+                        eg.actual_progress_score,
+                        eg.market_expectation_score,
+                        eg.evidence_delta_score,
+                        eg.risk_penalty_score,
+                        eg.expectation_gap_score,
+                        eg.gap_type,
+                        eg.score_detail,
+                        eg.evidence_ids
+                    FROM business_tag_mapping m
+                    JOIN LATERAL (
+                        SELECT trade_date, actual_progress_score, market_expectation_score,
+                               evidence_delta_score, risk_penalty_score, expectation_gap_score,
+                               gap_type, score_detail, evidence_ids, created_at
+                        FROM business_tag_expectation_gap_scores
+                        WHERE mapping_id = m.mapping_id
+                          AND (%s IS NULL OR trade_date <= %s::date)
+                        ORDER BY trade_date DESC, created_at DESC
+                        LIMIT 1
+                    ) eg ON TRUE
+                    WHERE COALESCE(m.status, '') <> 'rejected'
+                    ORDER BY eg.expectation_gap_score DESC NULLS LAST, m.confidence DESC NULLS LAST
+                    LIMIT %s
+                    """,
+                    (trade_date, trade_date, scan_limit),
+                )
+                tag_scores = []
+                for row in cur.fetchall():
+                    tag_scores.append({
+                        "mapping_id": str(row[0]),
+                        "code": str(row[1] or ""),
+                        "name": str(row[1] or ""),
+                        "tag_name": str(row[2] or ""),
+                        "revenue_ratio": _to_float(row[3], None),
+                        "gross_profit_ratio": _to_float(row[4], None),
+                        "confidence": _to_float(row[5], 0.0),
+                        "status": str(row[6] or ""),
+                        "trade_date": str(row[7]) if row[7] else None,
+                        "actual_progress_score": _to_float(row[8], None),
+                        "market_expectation_score": _to_float(row[9], None),
+                        "evidence_delta_score": _to_float(row[10], 0.0),
+                        "risk_penalty_score": _to_float(row[11], 0.0),
+                        "expectation_gap_score": _to_float(row[12], 0.0),
+                        "gap_type": str(row[13] or ""),
+                        "score_detail": _json_or_default(row[14], {}),
+                        "evidence_ids": _json_or_default(row[15], []),
+                    })
+                rankings = _calculate_company_expectation_gap_rankings(tag_scores)
+                payload["limitations"].append("无收入/毛利归因的预期差标签仅作为主题相关明细，不进入核心排序贡献")
+
+            payload["source_status"] = "ready" if rankings else "empty"
+            if rankings and not payload["trade_date"]:
+                payload["trade_date"] = rankings[0]["business_tags"][0].get("trade_date")
+            payload["items"] = rankings[:safe_top_n]
+    except Exception as e:
+        payload["source_status"] = "degraded"
+        payload["error"] = str(e)
+        payload["limitations"].append("PostgreSQL supply-chain ranking lookup failed")
+    return payload
+
+
+def _candidate_rank_clamp(value: Any, low: float = 0.0, high: float = 100.0) -> float:
+    try:
+        numeric = float(value or 0.0)
+    except Exception:
+        numeric = 0.0
+    return max(low, min(high, numeric))
+
+
+def _normalize_candidate_expectation_gap(value: Any) -> float:
+    return _candidate_rank_clamp((_to_float(value, 0.0) + 100.0) / 2.0)
+
+
+def _normalize_candidate_momentum(value: Any) -> float:
+    return _candidate_rank_clamp((_to_float(value, 0.0) + 20.0) / 60.0 * 100.0)
+
+
+def _load_bigtech_capex_context() -> dict[str, Any]:
+    if not INDUSTRY_CHAIN_TEMPLATE_PATH.exists():
+        return {"company_count": 0, "record_count": 0, "layers": {}, "companies": []}
+    try:
+        data = json.loads(INDUSTRY_CHAIN_TEMPLATE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {"company_count": 0, "record_count": 0, "layers": {}, "companies": []}
+    template = next((item for item in data.get("templates", []) if item.get("template_id") == "complex_tech"), {})
+    layers: dict[str, list[dict[str, Any]]] = {}
+    companies: set[str] = set()
+    for layer in template.get("layers", []):
+        layer_id = str(layer.get("layer_id") or "")
+        for record in layer.get("capex_evidence", []):
+            company = str(record.get("company") or "")
+            if record.get("source_id") != "sec_company_filings":
+                continue
+            if record.get("evidence_level") != "reported":
+                continue
+            if company not in BIGTECH_COMPANIES:
+                continue
+            layers.setdefault(layer_id, []).append(record)
+            companies.add(company)
+    return {
+        "company_count": len(companies),
+        "record_count": sum(len(items) for items in layers.values()),
+        "layers": layers,
+        "companies": sorted(companies),
+    }
+
+
+def _score_bigtech_capex_tailwind(row: dict[str, Any], context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    if str(row.get("chain_id") or "") != "ai_compute":
+        return {
+            "score": 0.0,
+            "matched_layers": [],
+            "commercialization_indicator": "无板块级CAPEX加成",
+            "expectation_gap_indicator": "无",
+            "trigger_signal_indicator": "无",
+        }
+    context = context or _load_bigtech_capex_context()
+    companies = context.get("companies") or []
+    if not companies:
+        return {
+            "score": 0.0,
+            "matched_layers": [],
+            "commercialization_indicator": "缺少海外CAPEX证据",
+            "expectation_gap_indicator": "无",
+            "trigger_signal_indicator": "无",
+        }
+    text = " ".join(str(row.get(key) or "") for key in ("tag_name", "node_id", "industry", "name"))
+    text_lower = text.lower()
+    matched_layers = [
+        layer_id
+        for layer_id, keywords in AI_COMPUTE_LAYER_KEYWORDS.items()
+        if any(keyword.lower() in text_lower for keyword in keywords)
+    ]
+    if not matched_layers:
+        matched_layers = ["demand"]
+    record_count = int(context.get("record_count") or 0)
+    company_count = int(context.get("company_count") or 0)
+    layer_coverage = len(set(matched_layers)) / max(len(AI_COMPUTE_LAYER_KEYWORDS), 1)
+    evidence_depth = min(record_count / 13.0, 1.0)
+    company_depth = min(company_count / len(BIGTECH_COMPANIES), 1.0)
+    score = round(_candidate_rank_clamp(company_depth * 45.0 + evidence_depth * 35.0 + layer_coverage * 20.0), 2)
+    if score >= 80:
+        commercialization = "C3：海外云厂商CAPEX和数据中心扩张已形成强验证"
+        gap = "CAPEX/AI基础设施证据强于普通概念预期"
+        trigger = "海外大厂继续扩张AI数据中心、服务器、网络和云容量"
+    elif score >= 50:
+        commercialization = "C2：海外云厂商CAPEX方向已有文件验证"
+        gap = "CAPEX方向证据支持预期差跟踪"
+        trigger = "关注后续财报CAPEX指引和订单传导"
+    else:
+        commercialization = "C1：有板块证据但传导仍弱"
+        gap = "证据不足以单独构成预期差"
+        trigger = "等待更多CAPEX或订单证据"
+    return {
+        "score": score,
+        "matched_layers": matched_layers,
+        "company_count": company_count,
+        "record_count": record_count,
+        "companies": companies,
+        "commercialization_indicator": commercialization,
+        "expectation_gap_indicator": gap,
+        "trigger_signal_indicator": trigger,
+    }
+
+
+def _score_company_capex_evidence(row: dict[str, Any]) -> dict[str, Any]:
+    evidence_count = int(row.get("capex_evidence_count") or 0)
+    if evidence_count <= 0:
+        return {
+            "score": 0.0,
+            "evidence_count": 0,
+            "amount_count": 0,
+            "direction_ai_count": 0,
+            "fresh_count": 0,
+            "indicator": "无个股CAPEX证据",
+        }
+    amount_count = int(row.get("capex_amount_count") or 0)
+    direction_ai_count = int(row.get("capex_direction_ai_count") or 0)
+    fresh_count = int(row.get("capex_fresh_count") or 0)
+    avg_confidence = _candidate_rank_clamp(_to_float(row.get("capex_avg_confidence"), 0.0) * 100.0)
+    amount_score = min(amount_count / evidence_count, 1.0) * 25.0
+    direction_score = min(direction_ai_count / evidence_count, 1.0) * 30.0
+    freshness_score = min(fresh_count / evidence_count, 1.0) * 20.0
+    confidence_score = avg_confidence * 0.25
+    score = round(_candidate_rank_clamp(amount_score + direction_score + freshness_score + confidence_score), 2)
+    if direction_ai_count and amount_count:
+        indicator = "有金额和AI相关投入方向证据"
+    elif direction_ai_count:
+        indicator = "有AI相关投入方向证据，金额待补"
+    elif amount_count:
+        indicator = "有CAPEX金额证据，方向需继续确认"
+    else:
+        indicator = "有CAPEX方向证据，强度较弱"
+    return {
+        "score": score,
+        "evidence_count": evidence_count,
+        "amount_count": amount_count,
+        "direction_ai_count": direction_ai_count,
+        "fresh_count": fresh_count,
+        "avg_confidence": round(avg_confidence, 2),
+        "latest_as_of_date": str(row.get("capex_latest_as_of_date") or ""),
+        "directions": _json_or_default(row.get("capex_directions"), []),
+        "indicator": indicator,
+    }
+
+
+def _score_supply_chain_candidate_row(row: dict[str, Any], capex_context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    three_high = _candidate_rank_clamp(row.get("three_high_total"))
+    moat = _candidate_rank_clamp(row.get("moat_score"))
+    stage = _candidate_rank_clamp(row.get("stage_score"))
+    evidence = _candidate_rank_clamp(row.get("evidence_score"))
+    l8 = _candidate_rank_clamp(_to_float(row.get("l8_match_rate"), 0.0) * 100.0)
+    fresh = _candidate_rank_clamp(_to_float(row.get("fresh_rate"), 0.0) * 100.0)
+    gap = _normalize_candidate_expectation_gap(row.get("expectation_gap_score"))
+    momentum = _normalize_candidate_momentum(row.get("change_20d_pct"))
+    capex_tailwind = _score_bigtech_capex_tailwind(row, capex_context)
+    company_capex = _score_company_capex_evidence(row)
+    base_score = (
+        three_high * 0.35
+        + moat * 0.15
+        + stage * 0.12
+        + evidence * 0.12
+        + l8 * 0.10
+        + fresh * 0.08
+        + gap * 0.06
+        + momentum * 0.02
+    )
+    rank_score = round(
+        _candidate_rank_clamp(
+            base_score
+            + _to_float(capex_tailwind.get("score"), 0.0) * 0.04
+            + _to_float(company_capex.get("score"), 0.0) * 0.03
+        ),
+        2,
+    )
+    if rank_score >= 80 and fresh >= 70 and l8 >= 50:
+        signal = "重点候选"
+    elif rank_score >= 65:
+        signal = "观察"
+    else:
+        signal = "暂缓"
+    item = dict(row)
+    item.update({
+        "rank_score": rank_score,
+        "signal": signal,
+        "score_parts": {
+            "three_high": round(three_high, 2),
+            "moat": round(moat, 2),
+            "stage": round(stage, 2),
+            "evidence": round(evidence, 2),
+            "l8": round(l8, 2),
+            "freshness": round(fresh, 2),
+            "expectation_gap": round(gap, 2),
+            "momentum": round(momentum, 2),
+            "bigtech_capex_tailwind": round(_to_float(capex_tailwind.get("score"), 0.0), 2),
+            "company_capex_evidence": round(_to_float(company_capex.get("score"), 0.0), 2),
+        },
+        "bigtech_capex_tailwind": capex_tailwind,
+        "company_capex_evidence": company_capex,
+        "commercialization_indicator": capex_tailwind["commercialization_indicator"] or row.get("commercialization_stage") or "",
+        "expectation_gap_indicator": company_capex["indicator"] if company_capex["score"] else capex_tailwind["expectation_gap_indicator"],
+        "trigger_signal_indicator": capex_tailwind["trigger_signal_indicator"],
+    })
+    return item
+
+
+def _aggregate_supply_chain_candidate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for row in rows:
+        grouped.setdefault((str(row.get("chain_id") or ""), str(row.get("code") or "")), []).append(row)
+    aggregated: list[dict[str, Any]] = []
+    for (chain_id, code), items in grouped.items():
+        best = max(items, key=lambda item: _to_float(item.get("rank_score"), 0.0))
+        sorted_items = sorted(items, key=lambda item: -_to_float(item.get("rank_score"), 0.0))
+        avg_rank = sum(_to_float(item.get("rank_score"), 0.0) for item in items) / max(len(items), 1)
+        aggregated.append({
+            "chain_id": chain_id,
+            "code": code,
+            "name": str(best.get("name") or code),
+            "industry": str(best.get("industry") or ""),
+            "rank_score": round(_to_float(best.get("rank_score"), 0.0), 2),
+            "avg_rank_score": round(avg_rank, 2),
+            "signal": best.get("signal"),
+            "tag_count": len({item.get("mapping_id") for item in items}),
+            "best_mapping_id": best.get("mapping_id"),
+            "best_tag_name": best.get("tag_name"),
+            "node_id": best.get("node_id"),
+            "mapping_status": best.get("mapping_status"),
+            "three_high_total": round(_to_float(best.get("three_high_total"), 0.0), 2),
+            "growth_score": round(_to_float(best.get("growth_score"), 0.0), 2),
+            "profit_score": round(_to_float(best.get("profit_score"), 0.0), 2),
+            "moat_score": round(_to_float(best.get("moat_score"), 0.0), 2),
+            "stage_score": round(_to_float(best.get("stage_score"), 0.0), 2),
+            "evidence_score": round(_to_float(best.get("evidence_score"), 0.0), 2),
+            "expectation_gap_score": round(_to_float(best.get("expectation_gap_score"), 0.0), 2),
+            "gap_type": str(best.get("gap_type") or ""),
+            "research_stage": str(best.get("research_stage") or ""),
+            "commercialization_stage": str(best.get("commercialization_stage") or ""),
+            "commercialization_indicator": str(best.get("commercialization_indicator") or ""),
+            "expectation_gap_indicator": str(best.get("expectation_gap_indicator") or ""),
+            "trigger_signal_indicator": str(best.get("trigger_signal_indicator") or ""),
+            "bigtech_capex_tailwind": best.get("bigtech_capex_tailwind") or {},
+            "company_capex_evidence": best.get("company_capex_evidence") or {},
+            "l8_match_rate": round(_to_float(best.get("l8_match_rate"), 0.0), 4),
+            "fresh_rate": round(_to_float(best.get("fresh_rate"), 0.0), 4),
+            "freshness_status": str(best.get("freshness_status") or "unknown"),
+            "fact_count": int(sum(int(item.get("fact_count") or 0) for item in items)),
+            "latest_price": _to_float(best.get("latest_price"), None),
+            "latest_trade_date": str(best.get("latest_trade_date") or ""),
+            "change_1d_pct": _to_float(best.get("change_1d_pct"), None),
+            "change_20d_pct": _to_float(best.get("change_20d_pct"), None),
+            "mapping_ids": [item.get("mapping_id") for item in sorted_items[:8]],
+            "tag_names": [item.get("tag_name") for item in sorted_items[:8]],
+        })
+    aggregated.sort(key=lambda item: (-_to_float(item.get("rank_score"), 0.0), item.get("chain_id") or "", item.get("code") or ""))
+    for idx, item in enumerate(aggregated, start=1):
+        item["rank"] = idx
+    return aggregated
 
 
 def _query_business_tag_score_mapping_context(cur, mapping_id: str) -> dict[str, Any] | None:
