@@ -1476,7 +1476,7 @@ def _review_business_tag_evidence(
     if not event_id:
         raise HTTPException(status_code=400, detail="event_id is required")
     try:
-        return evidence_review_service.review_event(
+        result = evidence_review_service.review_event(
             event_id=event_id,
             decision=decision_by_status[review_status],
             reviewer=request.reviewer,
@@ -1484,6 +1484,15 @@ def _review_business_tag_evidence(
             confidence=request.confidence,
             stage_after=request.stage_after,
         )
+        stage_record = result.get("stage_record")
+        return {
+            **result,
+            "version": "supply-chain-v2-evidence-review",
+            "event_id": event_id,
+            "review_status": review_status,
+            "stage_updated": bool(stage_record),
+            "limitations": list(result.get("limitations") or []),
+        }
     except HTTPException:
         raise
     except LookupError as e:

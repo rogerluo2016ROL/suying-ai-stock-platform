@@ -120,6 +120,7 @@ def upgrade() -> None:
               SELECT 1
               FROM business_tag_evidence_events AS event
               WHERE event.event_id = stage.source_event_id
+                AND event.mapping_id = stage.mapping_id
                 AND event.review_status = 'approved'
                 AND NULLIF(BTRIM(event.reviewer), '') IS NOT NULL
                 AND NULLIF(BTRIM(event.review_note), '') IS NOT NULL
@@ -135,12 +136,10 @@ def upgrade() -> None:
         BEGIN
             IF TG_TABLE_NAME = 'evidence_extracted_facts' THEN
                 IF NEW.validation_status = 'confirmed' THEN
-                    IF NOT (
-                        current_setting('app.supply_chain_review_action', true) = 'manual'
-                        AND NULLIF(BTRIM(NEW.reviewer), '') IS NOT NULL
-                        AND NULLIF(BTRIM(NEW.review_note), '') IS NOT NULL
-                        AND NEW.reviewed_at IS NOT NULL
-                    ) THEN
+                    IF current_setting('app.supply_chain_review_action', true) IS DISTINCT FROM 'manual'
+                       OR NULLIF(BTRIM(NEW.reviewer), '') IS NULL
+                       OR NULLIF(BTRIM(NEW.review_note), '') IS NULL
+                       OR NEW.reviewed_at IS NULL THEN
                         RAISE EXCEPTION
                             'confirmed supply-chain fact requires audited manual review';
                     END IF;
@@ -149,32 +148,42 @@ def upgrade() -> None:
                 'business_tag_evidence_events',
                 'business_tag_expectation_monitor'
             ) THEN
+                IF TG_TABLE_NAME = 'business_tag_evidence_events'
+                   AND TG_OP = 'UPDATE' THEN
+                    IF OLD.review_status = 'approved'
+                       AND (
+                           NEW.review_status IS DISTINCT FROM 'approved'
+                           OR NEW.mapping_id IS DISTINCT FROM OLD.mapping_id
+                       ) THEN
+                        UPDATE business_tag_stage_tracking
+                        SET review_status = 'pending_review'
+                        WHERE source_event_id = OLD.event_id
+                          AND review_status = 'approved';
+                    END IF;
+                END IF;
                 IF NEW.review_status = 'approved' THEN
-                    IF NOT (
-                        current_setting('app.supply_chain_review_action', true) = 'manual'
-                        AND NULLIF(BTRIM(NEW.reviewer), '') IS NOT NULL
-                        AND NULLIF(BTRIM(NEW.review_note), '') IS NOT NULL
-                        AND NEW.reviewed_at IS NOT NULL
-                    ) THEN
+                    IF current_setting('app.supply_chain_review_action', true) IS DISTINCT FROM 'manual'
+                       OR NULLIF(BTRIM(NEW.reviewer), '') IS NULL
+                       OR NULLIF(BTRIM(NEW.review_note), '') IS NULL
+                       OR NEW.reviewed_at IS NULL THEN
                         RAISE EXCEPTION
                             'approved supply-chain evidence requires audited manual review';
                     END IF;
                 END IF;
             ELSIF TG_TABLE_NAME = 'business_tag_stage_tracking' THEN
                 IF NEW.review_status = 'approved' THEN
-                    IF NOT (
-                        current_setting('app.supply_chain_review_action', true) = 'manual'
-                        AND NEW.source_event_id IS NOT NULL
-                        AND EXISTS (
+                    IF current_setting('app.supply_chain_review_action', true) IS DISTINCT FROM 'manual'
+                       OR NEW.source_event_id IS NULL
+                       OR NOT EXISTS (
                             SELECT 1
                             FROM business_tag_evidence_events AS event
                             WHERE event.event_id = NEW.source_event_id
+                              AND event.mapping_id = NEW.mapping_id
                               AND event.review_status = 'approved'
                               AND NULLIF(BTRIM(event.reviewer), '') IS NOT NULL
                               AND NULLIF(BTRIM(event.review_note), '') IS NOT NULL
                               AND event.reviewed_at IS NOT NULL
-                        )
-                    ) THEN
+                       ) THEN
                         RAISE EXCEPTION
                             'approved supply-chain stage requires an audited source event';
                     END IF;

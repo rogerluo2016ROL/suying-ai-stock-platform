@@ -255,7 +255,7 @@ def test_evidence_review_gate_migration_revision_and_audit_contract():
     assert "guard_supply_chain_manual_review" in migration_text
     assert "business_tag_expectation_monitor" in migration_text
     assert "business_tag_stage_tracking" in migration_text
-    assert "NULLIF(BTRIM(NEW.review_note), '') IS NOT NULL" in migration_text
+    assert "OR NULLIF(BTRIM(NEW.review_note), '') IS NULL" in migration_text
     assert "TIMESTAMP WITH TIME ZONE" in migration_text
     assert "AT TIME ZONE 'Asia/Shanghai'" in migration_text
 
@@ -279,13 +279,25 @@ def test_evidence_review_gate_has_four_manual_review_triggers():
         "business_tag_stage_tracking",
     ):
         assert f"BEFORE INSERT OR UPDATE ON {table_name}" in migration_text
-    assert (
-        "current_setting('app.supply_chain_review_action', true) = 'manual'"
-        in migration_text
-    )
-    assert "NULLIF(BTRIM(NEW.reviewer), '') IS NOT NULL" in migration_text
-    assert "NEW.reviewed_at IS NOT NULL" in migration_text
+    assert migration_text.count(
+        "current_setting('app.supply_chain_review_action', true) "
+        "IS DISTINCT FROM 'manual'"
+    ) >= 3
+    assert "OR NULLIF(BTRIM(NEW.reviewer), '') IS NULL" in migration_text
+    assert "OR NULLIF(BTRIM(NEW.review_note), '') IS NULL" in migration_text
+    assert "OR NEW.reviewed_at IS NULL" in migration_text
     assert "source_event_id" in migration_text
+
+
+def test_evidence_review_gate_preserves_stage_event_mapping_invariant():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert "event.mapping_id = stage.mapping_id" in migration_text
+    assert "event.mapping_id = NEW.mapping_id" in migration_text
+    assert "UPDATE business_tag_stage_tracking" in migration_text
+    assert "source_event_id = OLD.event_id" in migration_text
+    assert "NEW.review_status IS DISTINCT FROM 'approved'" in migration_text
+    assert "NEW.mapping_id IS DISTINCT FROM OLD.mapping_id" in migration_text
 
 
 def test_evidence_review_gate_timezone_upgrade_and_non_reapproving_downgrade():

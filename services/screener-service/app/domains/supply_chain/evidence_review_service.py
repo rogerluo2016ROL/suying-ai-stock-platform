@@ -57,6 +57,13 @@ class EvidenceReviewService:
             raise ValueError(f"normalization fields are incompatible with target: {fields}")
 
     @staticmethod
+    def _validate_stage_after(
+        *, decision: ReviewDecision, stage_after: dict[str, str] | None
+    ) -> None:
+        if stage_after is not None and decision != "approved":
+            raise ValueError("stage_after may only be written by an approved review")
+
+    @staticmethod
     def _with_assurance(result: dict[str, Any]) -> dict[str, Any]:
         return {
             **result,
@@ -87,6 +94,7 @@ class EvidenceReviewService:
             normalization=normalization,
             allowed_fields=FACT_NORMALIZATION_FIELDS,
         )
+        self._validate_stage_after(decision=decision, stage_after=stage_after)
         if metadata_patch is not None and decision != "approved":
             raise ValueError("metadata patch may only be written by an approved review")
         result = self.repository.review_fact(
@@ -117,6 +125,7 @@ class EvidenceReviewService:
             reviewer=reviewer,
             note=note,
         )
+        self._validate_stage_after(decision=decision, stage_after=stage_after)
         result = self.repository.review_event(
             event_id=event_id,
             decision=decision,

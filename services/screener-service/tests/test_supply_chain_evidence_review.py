@@ -130,14 +130,21 @@ def _event_row(*, status="approved"):
     }
 
 
-def _fact_cursor(*, metadata, fail_on=None, settings=None, evidence_event_id="e1"):
+def _fact_cursor(
+    *,
+    metadata,
+    fail_on=None,
+    settings=None,
+    evidence_event_id="e1",
+    event_status="approved",
+):
     return FakeCursor(
         one_by_token={
             "UPDATE evidence_extracted_facts": _fact_row(
                 metadata=metadata,
                 evidence_event_id=evidence_event_id,
             ),
-            "UPDATE business_tag_evidence_events": _event_row(),
+            "UPDATE business_tag_evidence_events": _event_row(status=event_status),
             "INSERT INTO business_tag_stage_tracking": {
                 "stage_id": "stage:e1",
                 "mapping_id": "m1",
@@ -170,6 +177,15 @@ def test_review_normalization_requires_at_least_one_score():
         ReviewNormalization(
             method_version="manual-v1",
             as_of_date=date(2026, 7, 9),
+        )
+
+
+def test_review_normalization_rejects_future_shanghai_as_of_date():
+    with pytest.raises(ValidationError, match="future"):
+        ReviewNormalization(
+            method_version="manual-v1",
+            as_of_date=date(2999, 1, 1),
+            risk_score=20,
         )
 
 
@@ -230,6 +246,14 @@ def test_fact_approval_sets_manual_marker_and_audit_fields():
     assert result["reviewed_at"] == REVIEWED_AT
     assert cursor.settings["app.supply_chain_review_action"] == ""
     assert (connection.commits, connection.rollbacks, connection.closes) == (1, 0, 1)
+    stage_sql = next(
+        statement
+        for statement, _ in cursor.executed
+        if "INSERT INTO business_tag_stage_tracking" in statement
+    )
+    assert "mapping_id = EXCLUDED.mapping_id" in stage_sql
+    assert "(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date" in stage_sql
+    assert "CURRENT_DATE" not in stage_sql
 
 
 def test_approval_without_normalization_clears_reserved_key_only():
@@ -335,13 +359,61 @@ def test_expectation_monitor_has_review_path_and_adjusted_return_query():
     sql = "\n".join(statement for statement, _ in cursor.executed)
     assert "daily_kline" in sql
     assert "adj_factor" in sql
-    assert "20" in sql
+    assert "daily.trade_date <= target.anchor_date" in sql
+    assert "anchored_daily AS" in sql
+    assert "daily.close * factor.adj_factor AS adjusted_close" in sql
+    assert "COUNT(*) = 21" in sql
+    assert "COUNT(adjusted_close) = 21" in sql
+    assert "rn = 21" in sql
+    assert "COALESCE(factor.adj_factor" not in sql
+    update_params = next(
+        params
+        for statement, params in cursor.executed
+        if "UPDATE business_tag_expectation_monitor" in statement
+    )
+    assert date(2026, 7, 9) in update_params
     assert result["review_status"] == "approved"
     assert result["market_price_change"] == 12.5
     assert result["normalization_fields"] == (
         "catalyst_score",
         "market_expectation_score",
     )
+
+
+def test_expectation_monitor_without_normalization_anchors_to_shanghai_today():
+    cursor = FakeCursor(
+        one_by_token={
+            "UPDATE business_tag_expectation_monitor": {
+                "monitor_id": "x1",
+                "mapping_id": "m1",
+                "review_status": "approved",
+                "market_price_change": None,
+                "metadata": {},
+                "reviewer": "roger",
+                "review_note": "已核对",
+                "reviewed_at": REVIEWED_AT,
+            }
+        }
+    )
+    repo = EvidenceReviewRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+
+    repo.review_expectation_monitor(
+        monitor_id="x1",
+        decision="approved",
+        reviewer="roger",
+        note="已核对",
+        normalization=None,
+    )
+
+    statement, params = next(
+        (statement, params)
+        for statement, params in cursor.executed
+        if "UPDATE business_tag_expectation_monitor" in statement
+    )
+    assert "COALESCE(%s::date, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date)" in statement
+    assert None in params
 
 
 def test_event_review_uses_same_marker_and_database_audit_values():
@@ -368,6 +440,54 @@ def test_event_review_uses_same_marker_and_database_audit_values():
     assert cursor.settings["app.supply_chain_review_action"] == ""
 
 
+def test_event_downgrade_demotes_approved_stages_in_same_transaction():
+    cursor = FakeCursor(
+        one_by_token={
+            "UPDATE business_tag_evidence_events AS event": _event_row(
+                status="rejected"
+            )
+        }
+    )
+    repo = EvidenceReviewRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+
+    repo.review_event(
+        event_id="e1",
+        decision="rejected",
+        reviewer="roger",
+        note="原文不支持",
+        stage_after=None,
+    )
+
+    sql = "\n".join(statement for statement, _ in cursor.executed)
+    assert "UPDATE business_tag_stage_tracking" in sql
+    assert "source_event_id = %s" in sql
+    assert "review_status = 'pending_review'" in sql
+
+
+def test_fact_review_downgrading_linked_event_also_demotes_stages():
+    cursor = _fact_cursor(
+        metadata={},
+        event_status="pending_review",
+    )
+    repo = EvidenceReviewRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+
+    repo.review_fact(
+        fact_id="f1",
+        decision="needs_more_evidence",
+        reviewer="roger",
+        note="证据不足",
+        stage_after=None,
+    )
+
+    sql = "\n".join(statement for statement, _ in cursor.executed)
+    assert "UPDATE business_tag_stage_tracking" in sql
+    assert "source_event_id = %s" in sql
+
+
 def test_caller_owned_connection_is_never_committed_rolled_back_or_closed():
     settings = {"app.supply_chain_review_action": "outer-action"}
     cursor = _fact_cursor(
@@ -389,6 +509,33 @@ def test_caller_owned_connection_is_never_committed_rolled_back_or_closed():
 
     assert (connection.commits, connection.rollbacks, connection.closes) == (0, 0, 0)
     assert settings["app.supply_chain_review_action"] == "outer-action"
+
+
+def test_fresh_connection_with_unset_marker_restores_empty_local_value():
+    settings = {}
+    cursor = _fact_cursor(
+        metadata={"keep": "value"},
+        settings=settings,
+        evidence_event_id=None,
+    )
+    repo = EvidenceReviewRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+
+    repo.review_fact(
+        fact_id="f1",
+        decision="approved",
+        reviewer="roger",
+        note="已核对",
+        stage_after=None,
+    )
+
+    marker_values = [
+        cursor.settings.get("app.supply_chain_review_action")
+    ]
+    sql = "\n".join(statement for statement, _ in cursor.executed)
+    assert "set_config('app.supply_chain_review_action', 'manual', true)" in sql
+    assert marker_values == [""]
 
 
 def test_caller_owned_failure_rolls_back_savepoint_and_restores_marker_only():
@@ -436,25 +583,25 @@ def test_owned_failure_rolls_back_and_closes_connection():
     assert cursor.settings["app.supply_chain_review_action"] == ""
 
 
-def test_review_queue_contains_pending_facts_events_and_expectations():
+def test_review_queue_globally_sorts_all_types_and_reports_true_counts():
     cursor = FakeCursor(
+        one_by_token={
+            "AS facts": {"facts": 7, "events": 5, "expectations": 3}
+        },
         many_by_token={
-            "FROM evidence_extracted_facts": [
-                {"queue_type": "fact", "id": "f1", "review_status": "pending"}
-            ],
-            "FROM business_tag_evidence_events": [
+            "WITH review_queue AS": [
                 {
                     "queue_type": "event",
                     "id": "e1",
                     "review_status": "pending_review",
-                }
-            ],
-            "FROM business_tag_expectation_monitor": [
+                    "created_at": datetime(2026, 7, 10, tzinfo=timezone.utc),
+                },
                 {
                     "queue_type": "expectation_monitor",
                     "id": "x1",
                     "review_status": "pending_review",
-                }
+                    "created_at": datetime(2026, 7, 11, tzinfo=timezone.utc),
+                },
             ],
         }
     )
@@ -462,14 +609,121 @@ def test_review_queue_contains_pending_facts_events_and_expectations():
         connection_factory=lambda: FakeConnection(cursor)
     )
 
-    result = repo.list_queue(limit=50)
+    result = repo.list_queue(limit=2)
 
     assert [item["queue_type"] for item in result["queue"]] == [
-        "fact",
         "event",
         "expectation_monitor",
     ]
-    assert result["counts"] == {"facts": 1, "events": 1, "expectations": 1}
+    assert result["counts"] == {"facts": 7, "events": 5, "expectations": 3}
+    sql = "\n".join(statement for statement, _ in cursor.executed)
+    assert sql.count("UNION ALL") == 2
+    assert "ORDER BY created_at ASC" in sql
+
+
+def _repository_without_connection():
+    return EvidenceReviewRepository(
+        connection_factory=lambda: pytest.fail("validation must precede connection")
+    )
+
+
+@pytest.mark.parametrize(
+    ("method_name", "target_id"),
+    (
+        ("review_fact", "fact_id"),
+        ("review_event", "event_id"),
+        ("review_expectation_monitor", "monitor_id"),
+    ),
+)
+def test_repository_public_review_methods_require_reviewer_and_note(
+    method_name,
+    target_id,
+):
+    repo = _repository_without_connection()
+    kwargs = {
+        target_id: "x1",
+        "decision": "approved",
+        "reviewer": "",
+        "note": "",
+    }
+    if method_name in {"review_fact", "review_event"}:
+        kwargs["stage_after"] = None
+
+    with pytest.raises(ValueError, match="reviewer"):
+        getattr(repo, method_name)(**kwargs)
+
+
+def test_repository_rejects_nonapproved_patch_normalization_and_stage():
+    repo = _repository_without_connection()
+    normalization = ReviewNormalization(
+        method_version="manual-v1",
+        as_of_date=date(2026, 7, 9),
+        risk_score=20,
+    )
+
+    with pytest.raises(ValueError, match="metadata patch.*approved"):
+        repo.review_fact(
+            fact_id="f1",
+            decision="rejected",
+            reviewer="roger",
+            note="拒绝",
+            stage_after=None,
+            metadata_patch=EvidenceFactMetadataPatch(revenue_confirmed=True),
+        )
+    with pytest.raises(ValueError, match="normalization.*approved"):
+        repo.review_fact(
+            fact_id="f1",
+            decision="rejected",
+            reviewer="roger",
+            note="拒绝",
+            stage_after=None,
+            normalization=normalization,
+        )
+    with pytest.raises(ValueError, match="stage_after.*approved"):
+        repo.review_event(
+            event_id="e1",
+            decision="rejected",
+            reviewer="roger",
+            note="拒绝",
+            stage_after={"research_stage": "R1"},
+        )
+
+
+def test_repository_rejects_invalid_decision_and_target_score_fields():
+    repo = _repository_without_connection()
+    with pytest.raises(ValueError, match="decision"):
+        repo.review_event(
+            event_id="e1",
+            decision="auto",
+            reviewer="roger",
+            note="非法",
+            stage_after=None,
+        )
+    with pytest.raises(ValueError, match="catalyst_score"):
+        repo.review_fact(
+            fact_id="f1",
+            decision="approved",
+            reviewer="roger",
+            note="已核对",
+            stage_after=None,
+            normalization=ReviewNormalization(
+                method_version="manual-v1",
+                as_of_date=date(2026, 7, 9),
+                catalyst_score=70,
+            ),
+        )
+    with pytest.raises(ValueError, match="risk_score"):
+        repo.review_expectation_monitor(
+            monitor_id="x1",
+            decision="approved",
+            reviewer="roger",
+            note="已核对",
+            normalization=ReviewNormalization(
+                method_version="manual-v1",
+                as_of_date=date(2026, 7, 9),
+                risk_score=20,
+            ),
+        )
 
 
 class RecordingRepository:
@@ -522,6 +776,21 @@ def test_service_rejects_normalization_for_non_approved_decisions():
             note="拒绝",
             stage_after=None,
             normalization=normalization,
+        )
+    assert repository.calls == []
+
+
+def test_service_rejects_stage_after_for_non_approved_fact():
+    repository = RecordingRepository()
+    service = EvidenceReviewService(repository=repository)
+
+    with pytest.raises(ValueError, match="stage_after.*approved"):
+        service.review_fact(
+            fact_id="f1",
+            decision="rejected",
+            reviewer="roger",
+            note="拒绝",
+            stage_after={"research_stage": "R4"},
         )
     assert repository.calls == []
 
@@ -603,7 +872,15 @@ def test_legacy_event_review_delegates_without_system_reviewer(monkeypatch):
 
     def fake_review_event(**kwargs):
         captured.update(kwargs)
-        return {"event_id": kwargs["event_id"], "review_status": "pending_review"}
+        return {
+            "event_id": kwargs["event_id"],
+            "review_status": "pending_review",
+            "reviewer": kwargs["reviewer"],
+            "reviewed_at": REVIEWED_AT,
+            "stage_record": None,
+            "review_gate": "application_level",
+            "reviewer_identity_verified": False,
+        }
 
     monkeypatch.setattr(legacy.evidence_review_service, "review_event", fake_review_event)
     request = legacy.BusinessTagEvidenceReviewRequest(
@@ -616,7 +893,14 @@ def test_legacy_event_review_delegates_without_system_reviewer(monkeypatch):
 
     result = legacy._review_business_tag_evidence("e1", request)
 
+    assert result["version"] == "supply-chain-v2-evidence-review"
     assert result["event_id"] == "e1"
+    assert result["review_status"] == "pending_review"
+    assert result["stage_updated"] is False
+    assert result["limitations"] == []
+    assert result["reviewer"] == "roger"
+    assert result["reviewed_at"] == REVIEWED_AT
+    assert result["review_gate"] == "application_level"
     assert captured == {
         "event_id": "e1",
         "decision": "needs_more_evidence",

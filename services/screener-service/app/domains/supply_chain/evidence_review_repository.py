@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Callable, Literal
+from zoneinfo import ZoneInfo
 
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
@@ -41,6 +42,8 @@ class ReviewNormalization(BaseModel):
         )
         if not values:
             raise ValueError("normalization requires at least one score")
+        if self.as_of_date > datetime.now(ZoneInfo("Asia/Shanghai")).date():
+            raise ValueError("normalization as_of_date cannot be in the future")
         return self
 
     def score_fields(self) -> set[str]:
@@ -82,11 +85,47 @@ class EvidenceReviewNotFound(LookupError):
 
 
 def normalize_review_decision(decision: ReviewDecision) -> tuple[str, str]:
+    if decision not in {"approved", "rejected", "needs_more_evidence"}:
+        raise ValueError(f"unsupported review decision: {decision}")
     return {
         "approved": ("confirmed", "approved"),
         "rejected": ("rejected", "rejected"),
         "needs_more_evidence": ("pending", "pending_review"),
     }[decision]
+
+
+def _validate_review_input(
+    *,
+    decision: ReviewDecision,
+    reviewer: str,
+    note: str,
+    normalization: ReviewNormalization | None = None,
+    allowed_normalization_fields: frozenset[str] | None = None,
+    metadata_patch: EvidenceFactMetadataPatch | None = None,
+    stage_after: dict[str, str] | None = None,
+) -> tuple[str, str]:
+    normalize_review_decision(decision)
+    clean_reviewer = str(reviewer or "").strip()
+    clean_note = str(note or "").strip()
+    if not clean_reviewer:
+        raise ValueError("reviewer is required")
+    if not clean_note:
+        raise ValueError("review note is required")
+    if normalization is not None:
+        if decision != "approved":
+            raise ValueError("normalization may only be written by an approved review")
+        allowed = allowed_normalization_fields or frozenset()
+        invalid = normalization.score_fields() - allowed
+        if invalid:
+            fields = ", ".join(sorted(invalid))
+            raise ValueError(
+                f"normalization fields are incompatible with target: {fields}"
+            )
+    if metadata_patch is not None and decision != "approved":
+        raise ValueError("metadata patch may only be written by an approved review")
+    if stage_after is not None and decision != "approved":
+        raise ValueError("stage_after may only be written by an approved review")
+    return clean_reviewer, clean_note
 
 
 def _json_payload(model: BaseModel | None) -> str | None:
@@ -264,6 +303,18 @@ class EvidenceReviewRepository:
         return dict(row)
 
     @staticmethod
+    def _demote_stages_for_event(cur, *, event_id: str) -> None:
+        cur.execute(
+            """
+            UPDATE business_tag_stage_tracking
+            SET review_status = 'pending_review'
+            WHERE source_event_id = %s
+              AND review_status = 'approved'
+            """,
+            (event_id,),
+        )
+
+    @staticmethod
     def _upsert_stage_from_review(
         cur,
         *,
@@ -285,16 +336,23 @@ class EvidenceReviewRepository:
             SELECT
                 'review:' || event.event_id,
                 event.mapping_id,
-                COALESCE(event.event_date, CURRENT_DATE),
+                COALESCE(
+                    event.event_date,
+                    (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date
+                ),
                 %s,
                 %s,
                 %s,
                 event.event_id,
-                COALESCE(event.event_date, CURRENT_DATE),
+                COALESCE(
+                    event.event_date,
+                    (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date
+                ),
                 'approved'
             FROM business_tag_evidence_events AS event
             WHERE event.event_id = %s
             ON CONFLICT (stage_id) DO UPDATE SET
+                mapping_id = EXCLUDED.mapping_id,
                 trade_date = EXCLUDED.trade_date,
                 research_stage = EXCLUDED.research_stage,
                 commercialization_stage = EXCLUDED.commercialization_stage,
@@ -343,6 +401,15 @@ class EvidenceReviewRepository:
         metadata_patch: EvidenceFactMetadataPatch | None = None,
         connection=None,
     ) -> dict[str, Any]:
+        reviewer, note = _validate_review_input(
+            decision=decision,
+            reviewer=reviewer,
+            note=note,
+            normalization=normalization,
+            allowed_normalization_fields=FACT_NORMALIZATION_FIELDS,
+            metadata_patch=metadata_patch,
+            stage_after=stage_after,
+        )
         fact_status, event_status = normalize_review_decision(decision)
         normalization_payload = _json_payload(normalization)
         patch_payload = _metadata_patch_payload(metadata_patch)
@@ -368,6 +435,8 @@ class EvidenceReviewRepository:
                     note=note,
                     stage_after=stage_after,
                 )
+                if event_status != "approved":
+                    self._demote_stages_for_event(cur, event_id=str(event_id))
                 if decision == "approved" and stage_after:
                     stage_record = self._upsert_stage_from_review(
                         cur,
@@ -407,6 +476,12 @@ class EvidenceReviewRepository:
         confidence: float | None = None,
         connection=None,
     ) -> dict[str, Any]:
+        reviewer, note = _validate_review_input(
+            decision=decision,
+            reviewer=reviewer,
+            note=note,
+            stage_after=stage_after,
+        )
         _, event_status = normalize_review_decision(decision)
 
         def operation(cur):
@@ -419,6 +494,8 @@ class EvidenceReviewRepository:
                 confidence=confidence,
                 stage_after=stage_after,
             )
+            if event_status != "approved":
+                self._demote_stages_for_event(cur, event_id=event_id)
             stage_record = None
             if decision == "approved" and stage_after:
                 stage_record = self._upsert_stage_from_review(
@@ -453,38 +530,46 @@ class EvidenceReviewRepository:
         reviewer: str,
         note: str,
         normalization_payload: str | None,
+        anchor_date: date | None,
     ) -> dict[str, Any]:
         cur.execute(
             """
-            WITH target AS (
-                SELECT monitor.monitor_id, mapping.code,
+            WITH review_anchor AS (
+                SELECT COALESCE(%s::date, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date) AS anchor_date
+            ), target AS (
+                SELECT monitor.monitor_id, mapping.code, review_anchor.anchor_date,
                        coalesce(monitor.metadata, '{}'::jsonb)
                            - 'review_normalization' AS clean_metadata
                 FROM business_tag_expectation_monitor AS monitor
                 JOIN business_tag_mapping AS mapping
                   ON mapping.mapping_id = monitor.mapping_id
+                CROSS JOIN review_anchor
                 WHERE monitor.monitor_id = %s
                 FOR UPDATE OF monitor
-            ), adjusted_prices AS (
-                SELECT daily.trade_date,
-                       daily.close * COALESCE(factor.adj_factor, 1.0)
-                           AS adjusted_close,
+            ), anchored_daily AS (
+                SELECT daily.code, daily.trade_date, daily.close,
                        ROW_NUMBER() OVER (ORDER BY daily.trade_date DESC) AS rn
                 FROM target
                 JOIN daily_kline AS daily
                   ON split_part(daily.code, '.', 1)
                    = split_part(target.code, '.', 1)
+                WHERE daily.close IS NOT NULL
+                  AND daily.trade_date <= target.anchor_date
+            ), adjusted_prices AS (
+                SELECT daily.trade_date, daily.rn,
+                       daily.close * factor.adj_factor AS adjusted_close
+                FROM anchored_daily AS daily
                 LEFT JOIN adj_factor AS factor
                   ON factor.code = daily.code
                  AND factor.trade_date = daily.trade_date
-                WHERE daily.close IS NOT NULL
+                WHERE daily.rn <= 21
             ), adjusted_return_20d AS (
                 SELECT CASE
-                    WHEN COUNT(*) = 20 THEN
+                    WHEN COUNT(*) = 21 AND COUNT(adjusted_close) = 21 THEN
                         (
                             MAX(adjusted_close) FILTER (WHERE rn = 1)
                             / NULLIF(
-                                MAX(adjusted_close) FILTER (WHERE rn = 20),
+                                MAX(adjusted_close) FILTER (WHERE rn = 21),
                                 0
                             )
                             - 1
@@ -492,7 +577,6 @@ class EvidenceReviewRepository:
                     ELSE NULL
                 END AS market_price_change
                 FROM adjusted_prices
-                WHERE rn <= 20
             )
             UPDATE business_tag_expectation_monitor AS monitor
             SET review_status = %s,
@@ -525,6 +609,7 @@ class EvidenceReviewRepository:
                       monitor.reviewed_at
             """,
             (
+                anchor_date,
                 monitor_id,
                 event_status,
                 reviewer,
@@ -552,8 +637,16 @@ class EvidenceReviewRepository:
         normalization: ReviewNormalization | None = None,
         connection=None,
     ) -> dict[str, Any]:
+        reviewer, note = _validate_review_input(
+            decision=decision,
+            reviewer=reviewer,
+            note=note,
+            normalization=normalization,
+            allowed_normalization_fields=EXPECTATION_NORMALIZATION_FIELDS,
+        )
         _, event_status = normalize_review_decision(decision)
         normalization_payload = _json_payload(normalization)
+        anchor_date = normalization.as_of_date if normalization else None
 
         def operation(cur):
             return self._update_expectation_monitor(
@@ -563,6 +656,7 @@ class EvidenceReviewRepository:
                 reviewer=reviewer,
                 note=note,
                 normalization_payload=normalization_payload,
+                anchor_date=anchor_date,
             )
 
         monitor = self._manual_transaction(operation, connection=connection)
@@ -591,54 +685,58 @@ class EvidenceReviewRepository:
             with active.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     """
-                    SELECT 'fact' AS queue_type, fact_id AS id, fact_id,
-                           mapping_id, company_code, fact_type, original_quote,
-                           validation_status AS review_status, created_at
-                    FROM evidence_extracted_facts
-                    WHERE validation_status = 'pending'
-                    ORDER BY created_at ASC
-                    LIMIT %s
+                    SELECT
+                        (SELECT COUNT(*) FROM evidence_extracted_facts
+                         WHERE validation_status = 'pending') AS facts,
+                        (SELECT COUNT(*) FROM business_tag_evidence_events
+                         WHERE review_status IN ('candidate', 'pending_review')) AS events,
+                        (SELECT COUNT(*) FROM business_tag_expectation_monitor
+                         WHERE review_status IN ('candidate', 'pending_review')) AS expectations
                     """,
-                    (capped_limit,),
                 )
-                facts = [dict(row) for row in cur.fetchall()]
+                count_row = dict(cur.fetchone() or {})
                 cur.execute(
                     """
-                    SELECT 'event' AS queue_type, event_id AS id, event_id,
-                           mapping_id, code, title, excerpt, review_status,
-                           created_at
-                    FROM business_tag_evidence_events
-                    WHERE review_status IN ('candidate', 'pending_review')
-                    ORDER BY created_at ASC
-                    LIMIT %s
-                    """,
-                    (capped_limit,),
-                )
-                events = [dict(row) for row in cur.fetchall()]
-                cur.execute(
-                    """
-                    SELECT 'expectation_monitor' AS queue_type,
-                           monitor_id AS id, monitor_id, mapping_id,
-                           claim_text, expected_date, gap_status,
+                    WITH review_queue AS (
+                        SELECT 'fact' AS queue_type, fact_id AS id,
+                               mapping_id, company_code AS code,
+                               fact_type AS title, original_quote AS summary,
+                               validation_status AS review_status, created_at
+                        FROM evidence_extracted_facts
+                        WHERE validation_status = 'pending'
+                        UNION ALL
+                        SELECT 'event' AS queue_type, event_id AS id,
+                               mapping_id, code, title, excerpt AS summary,
+                               review_status, created_at
+                        FROM business_tag_evidence_events
+                        WHERE review_status IN ('candidate', 'pending_review')
+                        UNION ALL
+                        SELECT 'expectation_monitor' AS queue_type,
+                               monitor_id AS id, mapping_id, NULL::text AS code,
+                               '预期差待验证'::text AS title,
+                               claim_text AS summary, review_status, created_at
+                        FROM business_tag_expectation_monitor
+                        WHERE review_status IN ('candidate', 'pending_review')
+                    )
+                    SELECT queue_type, id, mapping_id, code, title, summary,
                            review_status, created_at
-                    FROM business_tag_expectation_monitor
-                    WHERE review_status IN ('candidate', 'pending_review')
-                    ORDER BY created_at ASC
+                    FROM review_queue
+                    ORDER BY created_at ASC NULLS LAST, queue_type, id
                     LIMIT %s
                     """,
                     (capped_limit,),
                 )
-                expectations = [dict(row) for row in cur.fetchall()]
+                queue = [dict(row) for row in cur.fetchall()]
         finally:
             if owns_connection:
                 active.close()
 
         return {
             "version": "supply-chain-evidence-review-queue-v2",
-            "queue": (facts + events + expectations)[:capped_limit],
+            "queue": queue,
             "counts": {
-                "facts": len(facts),
-                "events": len(events),
-                "expectations": len(expectations),
+                "facts": int(count_row.get("facts") or 0),
+                "events": int(count_row.get("events") or 0),
+                "expectations": int(count_row.get("expectations") or 0),
             },
         }
