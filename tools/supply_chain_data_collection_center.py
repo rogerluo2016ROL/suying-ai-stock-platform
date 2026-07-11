@@ -1366,6 +1366,12 @@ def fetch_cninfo_documents(
         ):
             continue
         filtered.append(row)
+    if title_predicate is not None:
+        filtered = [
+            row
+            for row in filtered
+            if title_predicate(str(row.get("title") or ""))
+        ]
     counters.selected = len(filtered)
 
     source = _source_by_id("cninfo_announcement")
@@ -1379,10 +1385,6 @@ def fetch_cninfo_documents(
     for row in filtered:
         if counters.fetched >= limit:
             break
-        title = str(row.get("title") or "")
-        if title_predicate is not None and not title_predicate(title):
-            counters.skipped += 1
-            continue
         detail_url = str(row.get("url") or "")
         announcement_id = str(row.get("announcement_id") or "") or (
             extract_cninfo_announcement_id(detail_url) or ""

@@ -593,8 +593,24 @@ def persist_adapter_result(
 
     outcomes: list[Any] = []
     for document in result.documents:
-        support_status = current_support_status(document, as_of_date)
         metadata = _metadata_dict(document.metadata)
+        temporal_status = current_support_status(document, as_of_date)
+        annotated_status = str(metadata.get("current_support_status") or "")
+        status_rank = {
+            "current": 0,
+            "pending_review": 1,
+            "historical_only": 2,
+            "historical": 2,
+        }
+        if annotated_status in status_rank:
+            support_status = max(
+                (annotated_status, temporal_status),
+                key=lambda value: status_rank.get(value, 1),
+            )
+            if support_status == "historical":
+                support_status = "historical_only"
+        else:
+            support_status = temporal_status
         metadata["current_support_status"] = support_status
         prepared = replace(document, metadata=metadata)
         if support_status == "historical_only":

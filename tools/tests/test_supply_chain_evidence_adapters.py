@@ -450,6 +450,132 @@ def test_persist_adapter_result_routes_current_pending_and_history_without_guess
     assert repository.raw[0][0].metadata["current_support_status"] == "historical_only"
 
 
+@pytest.mark.parametrize("partial", [False, True])
+def test_generic_or_negative_adapter_status_remains_pending_when_persisted(partial):
+    clue = document(
+        "partial-negative" if partial else "normal-generic",
+        text=(
+            "灵巧手驱动器用于机器人手部，但公司否认供货"
+            if partial
+            else "灵巧手驱动器通用产品说明"
+        ),
+        doc_type="announcement",
+        publish_time="2026-07-01",
+        metadata={"revenue_confirmed": True},
+    )
+
+    def cninfo_fetch(**_kwargs):
+        if partial:
+            raise center.DocumentFetchError(
+                "partial cninfo", request_count=1, documents=(clue,)
+            )
+        return [clue], 1
+
+    adapter_result = OfficialGapAdapter(
+        ScopedOfficialFetcher(
+            cninfo_fetch=cninfo_fetch,
+            ir_fetch=lambda **_kwargs: ([], 0),
+        )
+    ).collect([collection_task()], as_of_date=AS_OF, source_limits={})
+    assert adapter_result.documents[0].metadata["current_support_status"] == "pending_review"
+
+    class Repository:
+        def __init__(self):
+            self.pending = []
+            self.raw = []
+
+        def persist_pending_document(self, **kwargs):
+            self.pending.append(kwargs)
+            return kwargs
+
+        def persist_raw_document(self, document, *, job_id):
+            self.raw.append((document, job_id))
+            return document.doc_id
+
+    repository = Repository()
+    persist_adapter_result(
+        adapter_result,
+        repository=repository,
+        task=collection_task(),
+        job_id="j-pending-clue",
+        as_of_date=AS_OF,
+    )
+
+    assert repository.raw == []
+    assert len(repository.pending) == 1
+    persisted = repository.pending[0]["document"]
+    assert persisted.metadata["current_support_status"] == "pending_review"
+    assert persisted.metadata["same_document_match"] is False
+    assert "revenue_confirmed" not in persisted.metadata
+
+
+def test_tender_cninfo_candidate_filter_precedes_selected_and_skipped_counters(monkeypatch):
+    rows = [
+        {
+            "code": "688001",
+            "company_name": "测试公司",
+            "ann_date": "20260701",
+            "publish_date": "20260701",
+            "title": "股东大会法律意见书",
+            "url": "https://example.test/noise",
+            "announcement_id": "noise",
+            "ts_code": "688001.SH",
+        },
+        {
+            "code": "688001",
+            "company_name": "测试公司",
+            "ann_date": "20260701",
+            "publish_date": "20260701",
+            "title": "关于签订重大合同的公告",
+            "url": "https://example.test/contract",
+            "announcement_id": "contract",
+            "ts_code": "688001.SH",
+        },
+    ]
+    monkeypatch.setattr(center, "_read_only_rows", lambda *_args, **_kwargs: rows)
+    monkeypatch.setattr(center, "_extract_pdf_text", lambda _content: "重大合同正文")
+
+    class Session:
+        def __init__(self):
+            self.headers = {}
+            self.detail_ids = []
+
+        def post(self, _url, **kwargs):
+            self.detail_ids.append(kwargs["params"]["announceId"])
+            return FakeResponse(
+                payload={
+                    "announcement": {
+                        "announcementTitle": "关于签订重大合同的公告",
+                        "adjunctUrl": "contract.pdf",
+                    }
+                }
+            )
+
+        def get(self, _url, **_kwargs):
+            return FakeResponse(content=b"%PDF-contract")
+
+    stats = center.DocumentFetchStats()
+    session = Session()
+    documents, request_count = center.fetch_cninfo_documents(
+        "postgresql://unused",
+        company_codes=("688001",),
+        start_date=date(2023, 1, 1),
+        as_of_date=AS_OF,
+        limit=1,
+        session=session,
+        title_predicate=center.is_tender_cninfo_title,
+        stats=stats,
+    )
+
+    assert [item.title for item in documents] == ["关于签订重大合同的公告"]
+    assert session.detail_ids == ["contract"]
+    assert request_count == 2
+    assert stats.selected == 1
+    assert stats.fetched == 1
+    assert stats.skipped == 0
+    assert stats.failed == 0
+
+
 def test_legacy_official_commands_delegate_to_document_only_helpers(monkeypatch):
     connections = []
 
