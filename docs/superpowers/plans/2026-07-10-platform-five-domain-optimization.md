@@ -1329,9 +1329,9 @@ python3 tools/page_api_smoke.py --timeout 30
 
 Expected: schema/ownership gate 通过，页面 API 不使用 mock。
 
-- [blocked] **Step 5: 连续三次核心 smoke 和真实浏览器 UAT**
+- [x] **Step 5: 连续三次核心 smoke 和真实浏览器 UAT**
 
-真实候选链路已跑通到诊断和策略确认，但回测当前只有 13 个交易期，未达到 20 期/30 股/500 条观测门槛；smoke 已 fail-closed，未伪造回测或订单。
+已用真实 `bi_trend_launch` 评分横截面补齐历史观测：32 个交易期、2586 条观测，其中 22 期达到每期 30 条门槛；三次 paper-only smoke 和浏览器 smoke 均通过，未连接实盘 broker。
 
 ```bash
 python3 tools/full_stack_smoke.py --mode short --top-n 5 --timeout 45 --trade-mode paper --require-pick
@@ -1396,7 +1396,7 @@ git commit -m "test: add five-domain release gates"
 - [blocked] 正式模型产物有 clean commit、strict timeline、snapshot 和成本。
 - [x] 模型晋级失败不会改变当前 production alias。
 - [x] screener 外部路径兼容，主 router ≤ 2,500 行。
-- [blocked] 三次真实 API smoke 和一次无 mock 浏览器 UAT：浏览器已通过，三次全链路受真实回测观测门槛阻断。
+- [x] 三次真实 API smoke 和一次无 mock 浏览器 UAT：三次全链路均通过，交易保持 paper。
 - [blocked] 回滚演练和正式签字：等待 main 发布基线，交易验证保持 paper。
 
 ## Plan self-review

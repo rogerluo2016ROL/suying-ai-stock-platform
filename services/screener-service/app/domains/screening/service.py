@@ -365,6 +365,21 @@ def _normalize_picks(picks: list, mode: str) -> list:
     return picks
 
 
+def _snapshot_rows(result: dict) -> list[dict]:
+    """Return the observed factor universe for persistence.
+
+    ``picks`` is the risk-controlled trading list and can be intentionally
+    short in weak markets.  Backtest evidence must use the real scored
+    cross-section when the engine supplies it, without changing the list
+    shown to users or inventing rows.
+    """
+    observations = result.get("factor_observations")
+    if isinstance(observations, list) and observations:
+        return [row for row in observations if isinstance(row, dict) and row.get("code")]
+    picks = result.get("picks")
+    return [row for row in picks if isinstance(row, dict) and row.get("code")] if isinstance(picks, list) else []
+
+
 def _sanitize_picks(picks: list) -> list:
     """Convert numpy types in picks to native Python types for JSON serialization."""
     def _convert(v):
@@ -2778,7 +2793,8 @@ def _auto_save_snapshot(result: dict, mode: str):
     from datetime import datetime
 
     picks = result.get("picks", [])
-    if not picks:
+    snapshot_rows = _snapshot_rows(result)
+    if not snapshot_rows:
         return
 
     trade_date = result.get("trade_date") or datetime.now().strftime("%Y-%m-%d")
@@ -2798,6 +2814,7 @@ def _auto_save_snapshot(result: dict, mode: str):
                 "time_slot": time_slot,
                 "saved_at": datetime.now().isoformat(),
                 "total_picks": len(picks),
+                "factor_observations": len(snapshot_rows),
                 "picks": picks,
             }, f, ensure_ascii=False, indent=2, default=str)
         logger.info("Snapshot saved: %s (%d picks)", snap_path, len(picks))
@@ -2808,7 +2825,7 @@ def _auto_save_snapshot(result: dict, mode: str):
     try:
         model_key = mode  # e.g. 'leader_afternoon', 'bi_trend_launch'
         from kronos_factors.recorder import record_picks
-        n = record_picks(model_key, trade_date, time_slot, picks)
+        n = record_picks(model_key, trade_date, time_slot, snapshot_rows)
         if n:
             logger.info("Recorder: %s %s — %d picks", model_key, trade_date, n)
     except Exception as e:
@@ -4062,9 +4079,12 @@ def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict
 
     resolved_trade_date = _resolve_trade_date(trade_date)
     engine = BiTrendLaunchEngine()
-    picks = engine.run(top_n=top_n, trade_date=resolved_trade_date)
+    picks, factor_observations, market_info = engine.run_with_scores(
+        top_n=top_n, trade_date=resolved_trade_date
+    )
 
     picks = _sanitize_picks(picks)
+    factor_observations = _sanitize_picks(factor_observations)
     picks = _normalize_picks(picks, mode)
 
     # Generate execution plans with market regime awareness
@@ -4076,6 +4096,8 @@ def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict
         "trade_date": resolved_trade_date,
         "total_picks": len(picks),
         "picks": picks,
+        "factor_observations": factor_observations,
+        "market_info": market_info,
         "execution_plans": plans,
     }
 

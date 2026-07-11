@@ -2314,3 +2314,25 @@ class BiTrendLaunchEngine:
             top, _, _ = run_bi_screening(db, trade_date, top_n=top_n,
                                           hard_tech_only=hard_tech_only)
         return top if top else []
+
+    def run_with_scores(self, top_n: int = 20, trade_date: str = None,
+                        hard_tech_only: bool = True, **kwargs) -> tuple[list[dict], list[dict], dict]:
+        """Return trading picks plus the observed scored cross-section.
+
+        The scored rows are used only for persisted factor evidence; callers
+        should continue presenting ``top`` as the executable candidate list.
+        """
+        from kronos_factors.scorer._db_stub import _get_db
+
+        if trade_date is None:
+            with _get_db(readonly=True) as db:
+                row = db.execute("SELECT MAX(trade_date) FROM daily_kline").fetchone()
+                trade_date = row["max"] if row else None
+        if not trade_date:
+            return [], [], {}
+        trade_date = str(trade_date)[:10]
+        with _get_db(readonly=True) as db:
+            top, scores, market_info = run_bi_screening(
+                db, trade_date, top_n=top_n, hard_tech_only=hard_tech_only
+            )
+        return top or [], scores or [], market_info or {}

@@ -18,6 +18,7 @@
 - 预测镜像使用 `torch-2.13.0+cpu`，不再下载 CUDA 运行库。
 - 页面 API 41/41 通过；浏览器测试 1/1 通过。
 - trade health 明确为 paper；未连接 live broker，未执行实盘交易。
+- 真实历史因子横截面补采后，回测达到 32 个交易期/2586 条观测；三次 paper-only full-stack smoke 均通过。
 
 ## 正式 UAT 门
 
@@ -29,4 +30,4 @@
 
 ## Verdict
 
-**SIT 通过；正式 UAT / 回滚签字待 main 发布基线。**
+**SIT 与可执行 E2E 通过；正式 UAT / 回滚签字待 main 发布基线。**
