@@ -18526,6 +18526,277 @@
           ]
         }
       ]
+    },
+    {
+      "template_id": "dexterous_hand",
+      "name": "灵巧手复杂产业链路模板",
+      "description": "从真实操作需求拆解到灵巧手整机、关键执行与感知部件、材料设备、训练测试底座和商业变现；轴向磁通电机按AF0-AF6证据阶梯审计，不把汽车电机或概念表述直接映射为灵巧手量产业务。",
+      "example_theme": "灵巧手（含轴向磁通电机）",
+      "research_model_version": "v2.0",
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "识别哪些客户愿意为灵巧操作付费，并区分演示、试点、采购和复购。",
+          "key_questions": ["谁是付费客户？", "需求是否能从试点转为批量部署？"],
+          "segments": ["制造业柔性自动化", "具身智能", "危险作业", "仓储物流", "商业服务", "家庭服务"],
+          "evidence": ["需求必须由预算、采购、部署或复购证据支持。"],
+          "companies": [],
+          "tracking_metrics": ["试点数量", "批量订单", "单客户部署量", "复购率"],
+          "research_dimensions": {}
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "把需求转化为可测量的接触丰富型操作任务。",
+          "key_questions": ["需要多少主动自由度？", "任务成功率和节拍要求是什么？"],
+          "segments": ["抓取", "捏取", "旋拧", "插接", "工具操作", "手内操作", "遥操作"],
+          "evidence": ["任务能力以可复现实验、连续运行和客户验收为准。"],
+          "companies": [],
+          "tracking_metrics": ["任务成功率", "操作周期", "连续运行次数", "未知物体泛化率"],
+          "research_dimensions": {}
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "承接操作任务的灵巧手整机和开发平台。",
+          "key_questions": ["主动自由度和关节数是否混淆？", "产品是否已完成真实交付？"],
+          "segments": ["五指灵巧手", "工业灵巧末端", "仿生手", "遥操作手", "灵巧手开发平台"],
+          "evidence": ["产品页只能证明产品存在，订单、交付和收入需要独立强证据。"],
+          "companies": [],
+          "tracking_metrics": ["主动自由度", "整手重量", "指尖力", "抓握循环寿命", "整手售价"],
+          "research_dimensions": {}
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "决定灵巧手力、速度、回驱性、感知和控制上限的关键部件与技术路线。",
+          "key_questions": ["路线是否适合手指、掌部或腕部的真实空间？", "持续性能和温升是否可验证？"],
+          "segments": ["空心杯电机", "无框力矩电机", "轴向磁通电机", "微型丝杠", "微型减速器", "腱绳", "触觉传感器", "编码器", "驱动芯片"],
+          "evidence": ["可用于机器人不等于已用于灵巧手，必须核验规格、安装位置、客户和交付。"],
+          "companies": [],
+          "tracking_metrics": ["持续转矩", "峰值转矩", "温升", "传动效率", "触觉分辨率", "单位成本"],
+          "research_dimensions": {}
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "把电机、传动、传感和控制集成为可更换、可标定的模组与整手系统。",
+          "key_questions": ["执行器能否批量保持一致？", "整手是否具备维修和热管理能力？"],
+          "segments": ["旋转执行器", "直线执行器", "掌内腱绳执行器", "手指模组", "整手机电集成", "手眼力控系统"],
+          "evidence": ["模组性能必须同时披露尺寸、重量、持续输出、寿命和控制接口。"],
+          "companies": [],
+          "tracking_metrics": ["执行器良率", "标定时间", "模组寿命", "单自由度成本"],
+          "research_dimensions": {}
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "支撑电机、传感、结构和批量制造的材料、连接与加工检测能力。",
+          "key_questions": ["材料性能是否形成真实瓶颈？", "宣布产能是否已转为有效产能？"],
+          "segments": ["钕铁硼磁材", "铜线", "软磁材料", "微型轴承", "工程塑料", "柔性电路", "连接器", "加工检测设备"],
+          "evidence": ["配套材料需核验灵巧手规格和收入暴露度，不能只按通用机器人概念映射。"],
+          "companies": [],
+          "tracking_metrics": ["材料单耗", "良率", "交付周期", "价格趋势", "国产化率"],
+          "research_dimensions": {}
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "支撑数据采集、训练、测试、生产和运维的产业底座。",
+          "key_questions": ["数据是否可复用并进入控制闭环？", "测试标准能否反映真实任务可靠性？"],
+          "segments": ["遥操作平台", "数据采集", "仿真训练", "测试评价", "可靠性实验室", "自动化产线", "维修网络"],
+          "evidence": ["训练数据量不能替代任务成功率、覆盖度和数据质量。"],
+          "companies": [],
+          "tracking_metrics": ["有效操作轨迹", "仿真到现实成功率", "测试覆盖率", "维修周期"],
+          "research_dimensions": {}
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "核验灵巧手相关收入、利润、复购和持续服务的实现方式。",
+          "key_questions": ["收入来自整手、模组、数据还是服务？", "订单能否交付、验收并回款？"],
+          "segments": ["整手销售", "机器人配套", "执行器外售", "RaaS", "操作数据服务", "指尖耗材", "维护升级"],
+          "evidence": ["商业化必须区分送样、定点、订单、交付、收入和利润。"],
+          "companies": [],
+          "tracking_metrics": ["相关收入", "相关毛利率", "订单交付率", "回款周期", "复购率"],
+          "research_dimensions": {}
+        }
+      ],
+      "technology_routes": [
+        {
+          "route_id": "dexterous_hollow_cup_screw",
+          "chain_id": "dexterous_hand",
+          "node_id": "dexterous_hand_foundation",
+          "route_name": "空心杯电机+微型丝杠",
+          "maturity_stage": "small_batch",
+          "performance_metrics": {},
+          "manufacturing_difficulty": {},
+          "cost_trend": {},
+          "substitute_route_ids": ["dexterous_frameless_low_ratio", "dexterous_axial_flux_motor"],
+          "failure_conditions": ["持续输出不足", "丝杠寿命或噪声不达标"],
+          "evidence_ids": []
+        },
+        {
+          "route_id": "dexterous_frameless_low_ratio",
+          "chain_id": "dexterous_hand",
+          "node_id": "dexterous_hand_foundation",
+          "route_name": "无框力矩电机+低减速比",
+          "maturity_stage": "engineering_sample",
+          "performance_metrics": {},
+          "manufacturing_difficulty": {},
+          "cost_trend": {},
+          "substitute_route_ids": ["dexterous_hollow_cup_screw", "dexterous_axial_flux_motor"],
+          "failure_conditions": ["微型化后转矩密度不足", "热管理失败"],
+          "evidence_ids": []
+        },
+        {
+          "route_id": "dexterous_axial_flux_motor",
+          "chain_id": "dexterous_hand",
+          "node_id": "dexterous_hand_foundation",
+          "route_name": "轴向磁通电机+掌内或腕部执行器",
+          "maturity_stage": "concept",
+          "performance_metrics": {
+            "installation_position": "unknown",
+            "continuous_torque": null,
+            "peak_torque": null,
+            "temperature_rise": null,
+            "diameter_mm": null,
+            "thickness_mm": null,
+            "installed_prototype": false
+          },
+          "manufacturing_difficulty": {
+            "double_air_gap_consistency": "unknown",
+            "axial_force_management": "unknown",
+            "winding_process": "unknown"
+          },
+          "cost_trend": {},
+          "substitute_route_ids": ["dexterous_hollow_cup_screw", "dexterous_frameless_low_ratio"],
+          "failure_conditions": ["只节省厚度但直径不适配", "持续温升不达标", "没有机器人规格产品或装机证据"],
+          "evidence_ids": [],
+          "authenticity_ladder": {
+            "AF0": {"meaning": "只有轴向磁通技术概念", "max_pool": null},
+            "AF1": {"meaning": "专利或实验室样机", "max_pool": "D"},
+            "AF2": {"meaning": "机器人规格产品和参数", "max_pool": "C"},
+            "AF3": {"meaning": "装入关节、腕部或灵巧手样机", "max_pool": "C"},
+            "AF4": {"meaning": "机器人客户送样、定点或联合验证", "max_pool": "B"},
+            "AF5": {"meaning": "小批量交付", "max_pool": "A"},
+            "AF6": {"meaning": "形成可识别收入和订单", "max_pool": "A"}
+          }
+        },
+        {
+          "route_id": "dexterous_tendon_drive",
+          "chain_id": "dexterous_hand",
+          "node_id": "dexterous_hand_integration",
+          "route_name": "腱绳驱动",
+          "maturity_stage": "small_batch",
+          "performance_metrics": {},
+          "manufacturing_difficulty": {},
+          "cost_trend": {},
+          "substitute_route_ids": ["dexterous_linkage_drive"],
+          "failure_conditions": ["蠕变、迟滞或张力维护成本过高"],
+          "evidence_ids": []
+        },
+        {
+          "route_id": "dexterous_linkage_drive",
+          "chain_id": "dexterous_hand",
+          "node_id": "dexterous_hand_integration",
+          "route_name": "连杆与差动欠驱动",
+          "maturity_stage": "small_batch",
+          "performance_metrics": {},
+          "manufacturing_difficulty": {},
+          "cost_trend": {},
+          "substitute_route_ids": ["dexterous_tendon_drive"],
+          "failure_conditions": ["独立控制能力不足以完成目标任务"],
+          "evidence_ids": []
+        },
+        {
+          "route_id": "dexterous_tactile_sensing",
+          "chain_id": "dexterous_hand",
+          "node_id": "dexterous_hand_foundation",
+          "route_name": "压阻/电容/磁式/光学触觉",
+          "maturity_stage": "customer_validation",
+          "performance_metrics": {},
+          "manufacturing_difficulty": {},
+          "cost_trend": {},
+          "substitute_route_ids": [],
+          "failure_conditions": ["封装寿命、漂移或批次标定不达标"],
+          "evidence_ids": []
+        }
+      ],
+      "transmission_edges": [
+        {
+          "edge_id": "dexterous_supporting_to_foundation_product",
+          "chain_id": "dexterous_hand",
+          "from_node_id": "dexterous_hand_supporting",
+          "to_node_id": "dexterous_hand_foundation",
+          "flow_type": "product_flow",
+          "transmission_logic": "磁材、铜线、轴承和柔性电路进入关键部件制造。",
+          "transmission_strength": null,
+          "transmission_lag_days": null,
+          "failure_conditions": [],
+          "leading_metric_ids": [],
+          "evidence_ids": [],
+          "coverage_ratio": 0
+        },
+        {
+          "edge_id": "dexterous_foundation_to_integration_technology",
+          "chain_id": "dexterous_hand",
+          "from_node_id": "dexterous_hand_foundation",
+          "to_node_id": "dexterous_hand_integration",
+          "flow_type": "technology_flow",
+          "transmission_logic": "电机转矩密度、传动效率和传感能力决定执行器回驱性、力控和集成尺寸。",
+          "transmission_strength": null,
+          "transmission_lag_days": null,
+          "failure_conditions": [],
+          "leading_metric_ids": [],
+          "evidence_ids": [],
+          "coverage_ratio": 0
+        },
+        {
+          "edge_id": "dexterous_product_to_commercial_value",
+          "chain_id": "dexterous_hand",
+          "from_node_id": "dexterous_hand_core_product",
+          "to_node_id": "dexterous_hand_commercialization",
+          "flow_type": "value_flow",
+          "transmission_logic": "订单、交付、验收和回款把整手能力转化为收入和利润。",
+          "transmission_strength": null,
+          "transmission_lag_days": null,
+          "failure_conditions": [],
+          "leading_metric_ids": [],
+          "evidence_ids": [],
+          "coverage_ratio": 0
+        },
+        {
+          "edge_id": "dexterous_product_to_infrastructure_data",
+          "chain_id": "dexterous_hand",
+          "from_node_id": "dexterous_hand_core_product",
+          "to_node_id": "dexterous_hand_infrastructure",
+          "flow_type": "data_flow",
+          "transmission_logic": "真实操作和触觉数据进入训练、仿真和测试平台，再反馈任务成功率。",
+          "transmission_strength": null,
+          "transmission_lag_days": null,
+          "failure_conditions": [],
+          "leading_metric_ids": [],
+          "evidence_ids": [],
+          "coverage_ratio": 0
+        }
+      ],
+      "candidate_mapping_rules": {
+        "source_chain_ids": ["embodied_intelligence"],
+        "required_business_keywords": ["灵巧手", "微型执行器", "空心杯电机", "无框电机", "轴向磁通电机", "微型丝杠", "触觉传感器", "力传感器", "腱绳", "机器人末端"],
+        "derived_status": "candidate",
+        "derived_confidence_cap": 0.35,
+        "requires_original_evidence": true
+      }
     }
   ]
 }

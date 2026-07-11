@@ -16,6 +16,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from kronos_factors.engine.industry_chain_templates import load_template_catalog
+
 
 # Layer definitions for upstream_downstream view
 LAYER_NAMES = {
@@ -203,11 +205,7 @@ DEFAULT_LAYER_PHYSICAL_METRICS: dict[str, list[dict[str, Any]]] = {
 
 def load_industry_chain_templates(path: str | Path | None = None) -> dict[str, Any]:
     """Load industry-link templates used to adapt deconstruct logic by sector type."""
-    candidates = [Path(path)] if path else [PACKAGE_TEMPLATE_CONFIG_PATH, IN_PACKAGE_TEMPLATE_CONFIG_PATH]
-    config_path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
-    data = json.loads(config_path.read_text(encoding="utf-8"))
-    data.setdefault("templates", [])
-    return data
+    return load_template_catalog(path)
 
 
 def _find_industry_chain_template(template_id: str) -> dict[str, Any]:
@@ -380,7 +378,7 @@ def build_industry_template_tree(template: dict[str, Any]) -> dict[str, Any]:
         capex_evidence = _normalize_capex_evidence(layer)
         physical_metrics = _normalize_physical_metrics(layer)
         evidence_chain = _build_layer_evidence_chain(layer_id, capex_evidence, physical_metrics)
-        children.append({
+        child = {
             "node_id": f"template:{template_id}:{layer_id}",
             "layer_id": layer_id,
             "layer_order": int(layer.get("order") or 0),
@@ -397,13 +395,25 @@ def build_industry_template_tree(template: dict[str, Any]) -> dict[str, Any]:
             "evidence_chain": evidence_chain,
             "expectation_gap": _build_layer_expectation_gap(evidence_chain),
             "trigger_signal": _build_layer_trigger_signal(layer_id, evidence_chain),
-        })
-    return {
+        }
+        if "research_dimensions" in layer:
+            child["research_dimensions"] = layer.get("research_dimensions") or {}
+        children.append(child)
+    tree = {
         "node_id": f"template:{template_id}",
         "name": str(template.get("name") or template_id),
         "description": str(template.get("description") or ""),
         "children": children,
     }
+    for field in (
+        "technology_routes",
+        "transmission_edges",
+        "candidate_mapping_rules",
+        "research_model_version",
+    ):
+        if field in template:
+            tree[field] = template.get(field)
+    return tree
 
 BOM_COMPLETION_PROFILES: dict[str, dict[str, list[str] | str]] = {
     "量子科技": {
