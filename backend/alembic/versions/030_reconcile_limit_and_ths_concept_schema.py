@@ -8,11 +8,27 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    op.execute("CREATE SEQUENCE IF NOT EXISTS limit_list_d_id_seq")
-    op.execute("UPDATE limit_list_d SET id = nextval('limit_list_d_id_seq') WHERE id IS NULL")
-    op.execute("ALTER TABLE limit_list_d ALTER COLUMN id SET DEFAULT nextval('limit_list_d_id_seq')")
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'limit_list_d'
+                  AND column_name = 'id'
+                  AND is_identity = 'NO'
+            ) THEN
+                CREATE SEQUENCE IF NOT EXISTS limit_list_d_id_seq;
+                UPDATE limit_list_d SET id = nextval('limit_list_d_id_seq') WHERE id IS NULL;
+                ALTER TABLE limit_list_d ALTER COLUMN id SET DEFAULT nextval('limit_list_d_id_seq');
+                ALTER SEQUENCE limit_list_d_id_seq OWNED BY limit_list_d.id;
+            END IF;
+        END $$;
+        """
+    )
     op.execute("ALTER TABLE limit_list_d ALTER COLUMN id SET NOT NULL")
-    op.execute("ALTER SEQUENCE limit_list_d_id_seq OWNED BY limit_list_d.id")
     op.execute("ALTER TABLE limit_list_d DROP CONSTRAINT IF EXISTS limit_list_d_uniq")
     op.execute(
         """

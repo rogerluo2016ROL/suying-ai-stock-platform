@@ -1,4 +1,11 @@
+from pathlib import Path
+
 from app.domains.supply_chain import service
+
+
+def test_supply_chain_annotations_import_on_python_311():
+    source = Path(service.__file__).read_text(encoding="utf-8")
+    assert "from typing import Any, Optional" in source
 
 
 def test_data_readiness_always_returns_contract(monkeypatch):

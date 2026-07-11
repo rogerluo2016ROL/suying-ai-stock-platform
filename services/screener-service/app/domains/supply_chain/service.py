@@ -3,7 +3,7 @@
 from datetime import datetime
 import hashlib
 import json
-from typing import Any
+from typing import Any, Optional
 from types import SimpleNamespace
 
 from fastapi import HTTPException
