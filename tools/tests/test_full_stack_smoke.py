@@ -45,10 +45,6 @@ def test_backtest_must_complete_before_paper_order():
         smoke.require_completed_backtest({"status": "blocked", "missing_requirements": ["observations"]})
 
 
-def test_no_pick_is_success_when_readiness_passes():
-    assert smoke.classify_screener_result({"result_status": "success_no_matches", "picks": []}) == "pass"
-
-
 def test_smoke_rejects_live_mode():
     with pytest.raises(SystemExit):
         smoke.load_config(["--trade-mode", "live"])

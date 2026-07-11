@@ -103,10 +103,6 @@ def extract_first_pick(screen_body: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
-def classify_screener_result(screen_body: dict[str, Any]) -> str:
-    return "pass" if screen_body.get("result_status") == "success_no_matches" else "requires_pick"
-
-
 def _query(params: dict[str, Any]) -> str:
     return urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
 
