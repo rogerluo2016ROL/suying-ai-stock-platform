@@ -12,6 +12,31 @@ depends_on = None
 
 
 def upgrade():
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if inspector.has_table("task_runs"):
+        expected_columns = {
+            "run_id",
+            "task_type",
+            "idempotency_key",
+            "status",
+            "request_payload",
+            "result_payload",
+            "error_payload",
+            "code_commit",
+            "created_at",
+            "started_at",
+            "finished_at",
+        }
+        actual_columns = {column["name"] for column in inspector.get_columns("task_runs")}
+        missing_columns = sorted(expected_columns - actual_columns)
+        if missing_columns:
+            raise RuntimeError(
+                "Existing task_runs table is incompatible with migration 031; "
+                f"missing columns: {', '.join(missing_columns)}"
+            )
+        return
+
     op.create_table(
         "task_runs",
         sa.Column("run_id", sa.String(64), primary_key=True),
