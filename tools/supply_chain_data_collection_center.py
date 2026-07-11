@@ -1321,6 +1321,7 @@ def fetch_cninfo_documents(
     as_of_date: date,
     limit: int = 20,
     session=None,
+    candidate_predicate=None,
     title_predicate=None,
     stats: DocumentFetchStats | None = None,
 ) -> tuple[list[RawDocument], int]:
@@ -1366,11 +1367,11 @@ def fetch_cninfo_documents(
         ):
             continue
         filtered.append(row)
-    if title_predicate is not None:
+    if candidate_predicate is not None:
         filtered = [
             row
             for row in filtered
-            if title_predicate(str(row.get("title") or ""))
+            if candidate_predicate(str(row.get("title") or ""))
         ]
     counters.selected = len(filtered)
 
@@ -1385,6 +1386,10 @@ def fetch_cninfo_documents(
     for row in filtered:
         if counters.fetched >= limit:
             break
+        title = str(row.get("title") or "")
+        if title_predicate is not None and not title_predicate(title):
+            counters.skipped += 1
+            continue
         detail_url = str(row.get("url") or "")
         announcement_id = str(row.get("announcement_id") or "") or (
             extract_cninfo_announcement_id(detail_url) or ""
@@ -2171,6 +2176,9 @@ def fetch_cninfo_pdf_announcements(
             start_date=date(as_of_date.year - 3, 1, 1),
             as_of_date=as_of_date,
             limit=limit,
+            candidate_predicate=(
+                is_tender_cninfo_title if title_mode == "tender" else None
+            ),
             title_predicate=(
                 is_tender_cninfo_title
                 if title_mode == "tender"

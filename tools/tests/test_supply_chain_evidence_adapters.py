@@ -509,7 +509,25 @@ def test_generic_or_negative_adapter_status_remains_pending_when_persisted(parti
     assert "revenue_confirmed" not in persisted.metadata
 
 
-def test_tender_cninfo_candidate_filter_precedes_selected_and_skipped_counters(monkeypatch):
+@pytest.mark.parametrize(
+    (
+        "candidate_predicate",
+        "title_predicate",
+        "expected_selected",
+        "expected_skipped",
+    ),
+    [
+        (center.is_tender_cninfo_title, center.is_tender_cninfo_title, 1, 0),
+        (None, center.is_relevant_cninfo_title, 2, 1),
+    ],
+)
+def test_cninfo_candidate_and_title_predicates_preserve_legacy_counters(
+    monkeypatch,
+    candidate_predicate,
+    title_predicate,
+    expected_selected,
+    expected_skipped,
+):
     rows = [
         {
             "code": "688001",
@@ -556,6 +574,9 @@ def test_tender_cninfo_candidate_filter_precedes_selected_and_skipped_counters(m
 
     stats = center.DocumentFetchStats()
     session = Session()
+    predicate_kwargs = {"title_predicate": title_predicate}
+    if candidate_predicate is not None:
+        predicate_kwargs["candidate_predicate"] = candidate_predicate
     documents, request_count = center.fetch_cninfo_documents(
         "postgresql://unused",
         company_codes=("688001",),
@@ -563,16 +584,16 @@ def test_tender_cninfo_candidate_filter_precedes_selected_and_skipped_counters(m
         as_of_date=AS_OF,
         limit=1,
         session=session,
-        title_predicate=center.is_tender_cninfo_title,
         stats=stats,
+        **predicate_kwargs,
     )
 
     assert [item.title for item in documents] == ["关于签订重大合同的公告"]
     assert session.detail_ids == ["contract"]
     assert request_count == 2
-    assert stats.selected == 1
+    assert stats.selected == expected_selected
     assert stats.fetched == 1
-    assert stats.skipped == 0
+    assert stats.skipped == expected_skipped
     assert stats.failed == 0
 
 
