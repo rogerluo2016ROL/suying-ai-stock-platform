@@ -79,7 +79,10 @@ CREATE TABLE IF NOT EXISTS daily_basic (
     trade_date DATE NOT NULL,
     pe DOUBLE PRECISION, pb DOUBLE PRECISION,
     total_mv DOUBLE PRECISION, circ_mv DOUBLE PRECISION,
-    turnover_rate DOUBLE PRECISION, volume_ratio DOUBLE PRECISION,
+    turnover_rate DOUBLE PRECISION, turnover_rate_f DOUBLE PRECISION,
+    volume_ratio DOUBLE PRECISION,
+    pe_ttm DOUBLE PRECISION, ps DOUBLE PRECISION, ps_ttm DOUBLE PRECISION,
+    dv_ratio DOUBLE PRECISION,
     PRIMARY KEY(code, trade_date)
 );
 
@@ -164,7 +167,9 @@ CREATE TABLE IF NOT EXISTS margin_detail (
 
 CREATE TABLE IF NOT EXISTS margin_summary (
     trade_date DATE PRIMARY KEY,
-    rzye DOUBLE PRECISION, rqye DOUBLE PRECISION
+    rzye DOUBLE PRECISION, rqye DOUBLE PRECISION,
+    rzmre DOUBLE PRECISION, rzche DOUBLE PRECISION,
+    rqmcl DOUBLE PRECISION, rzrqye DOUBLE PRECISION
 );
 
 -- ADR-009: top_list 11 列对齐 sync_top_list. pct_change 用 Tushare 原名 (下游无消费者, 与 sync r.get 直通零映射;
@@ -198,7 +203,8 @@ CREATE TABLE IF NOT EXISTS block_trade_data (
     code TEXT NOT NULL,
     trade_date DATE NOT NULL,
     price DOUBLE PRECISION, volume DOUBLE PRECISION, amount DOUBLE PRECISION,
-    buyer_broker TEXT, seller_broker TEXT
+    buyer_broker TEXT, seller_broker TEXT,
+    vol DOUBLE PRECISION, buyer TEXT, seller TEXT
 );
 
 -- ── 基本面数据 (8 张表) ──
@@ -284,6 +290,8 @@ CREATE TABLE IF NOT EXISTS dividend_data (
     ex_date DATE NOT NULL,
     dividend_plan TEXT,
     cash_div DOUBLE PRECISION, bonus_share_ratio DOUBLE PRECISION,
+    end_date DATE, ann_date DATE, record_date DATE,
+    stk_div DOUBLE PRECISION, stk_bo_rate DOUBLE PRECISION,
     PRIMARY KEY(code, ex_date)
 );
 
@@ -300,7 +308,7 @@ CREATE TABLE IF NOT EXISTS stk_holdertrade (
 CREATE TABLE IF NOT EXISTS stk_holdernumber (
     code TEXT NOT NULL,
     end_date DATE NOT NULL,
-    holder_num INTEGER,
+    holder_num BIGINT,
     PRIMARY KEY(code, end_date)
 );
 
@@ -308,6 +316,7 @@ CREATE TABLE IF NOT EXISTS share_float (
     code TEXT NOT NULL,
     float_date DATE NOT NULL,
     float_share DOUBLE PRECISION, float_ratio DOUBLE PRECISION,
+    ann_date DATE, holder_name TEXT,
     PRIMARY KEY(code, float_date)
 );
 
@@ -324,7 +333,8 @@ CREATE TABLE IF NOT EXISTS pledge_detail (
 CREATE TABLE IF NOT EXISTS repurchase (
     code TEXT NOT NULL,
     ann_date DATE NOT NULL,
-    repurchase_amount DOUBLE PRECISION, repurchase_price DOUBLE PRECISION
+    repurchase_amount DOUBLE PRECISION, repurchase_price DOUBLE PRECISION,
+    end_date DATE, proc TEXT, vol DOUBLE PRECISION, amount DOUBLE PRECISION
 );
 
 -- cyq_chips: Tushare per-price 筹码明细 (ADR-010)
