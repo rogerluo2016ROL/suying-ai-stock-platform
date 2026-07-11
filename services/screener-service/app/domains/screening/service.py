@@ -29,6 +29,7 @@ from app.domains.candidates.models import (
 )
 from app.domains.candidates import service as candidate_service
 from app.domains.supply_chain import service as supply_chain_service
+from app.domains.supply_chain import repository as supply_chain_repository
 
 logger = logging.getLogger("screener.routes")
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
@@ -1010,75 +1011,31 @@ def _query_business_tag_mapping_candidates(top_n: int = 30, node_id: Optional[st
 
 
 def _pg_connect():
-    import psycopg2
-
-    return psycopg2.connect(
-        os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos"),
-        connect_timeout=5,
-    )
+    return supply_chain_repository.connect()
 
 
 def _pg_table_exists(cur, table_name: str) -> bool:
-    cur.execute(
-        """
-        SELECT EXISTS(
-            SELECT 1
-            FROM information_schema.tables
-            WHERE table_schema = 'public' AND table_name = %s
-        )
-        """,
-        (table_name,),
-    )
-    return bool(cur.fetchone()[0])
+    return supply_chain_repository.table_exists(cur, table_name)
 
 
 def _pg_column_exists(cur, table_name: str, column_name: str) -> bool:
-    cur.execute(
-        """
-        SELECT EXISTS(
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_schema = 'public'
-              AND table_name = %s
-              AND column_name = %s
-        )
-        """,
-        (table_name, column_name),
-    )
-    return bool(cur.fetchone()[0])
+    return supply_chain_repository.column_exists(cur, table_name, column_name)
 
 
 def _pg_count(cur, table_name: str) -> int:
-    if not _pg_table_exists(cur, table_name):
-        return 0
-    cur.execute(f'SELECT COUNT(*) FROM "{table_name}"')
-    return int(cur.fetchone()[0] or 0)
+    return supply_chain_repository.count(cur, table_name)
 
 
 def _pg_distinct_count(cur, table_name: str, column_name: str) -> int:
-    if not _pg_table_exists(cur, table_name) or not _pg_column_exists(cur, table_name, column_name):
-        return 0
-    cur.execute(f'SELECT COUNT(DISTINCT "{column_name}") FROM "{table_name}"')
-    return int(cur.fetchone()[0] or 0)
+    return supply_chain_repository.distinct_count(cur, table_name, column_name)
 
 
 def _pg_nonempty_text_count(cur, table_name: str, column_name: str, min_length: int = 20) -> int:
-    if not _pg_table_exists(cur, table_name) or not _pg_column_exists(cur, table_name, column_name):
-        return 0
-    cur.execute(
-        f'SELECT COUNT(*) FROM "{table_name}" '
-        f'WHERE "{column_name}" IS NOT NULL AND length("{column_name}"::text) > %s',
-        (min_length,),
-    )
-    return int(cur.fetchone()[0] or 0)
+    return supply_chain_repository.nonempty_text_count(cur, table_name, column_name, min_length)
 
 
 def _status_from_rows(rows: int, *, ready: int, partial: int = 1) -> str:
-    if rows >= ready:
-        return "ready"
-    if rows >= partial:
-        return "partial"
-    return "missing"
+    return supply_chain_repository.status_from_rows(rows, ready=ready, partial=partial)
 
 
 def _query_supply_chain_data_readiness() -> dict[str, Any]:
