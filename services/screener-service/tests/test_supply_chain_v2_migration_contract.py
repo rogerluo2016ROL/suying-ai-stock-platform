@@ -43,6 +43,14 @@ CAPEX_EVIDENCE_MIGRATION_PATH = (
     / "025_business_tag_capex_evidence.py"
 )
 
+SELECTION_V2_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "032_supply_chain_research_selection_v2.py"
+)
+
 
 def test_supply_chain_v2_migration_defines_required_tables():
     sql = MIGRATION_PATH.read_text(encoding="utf-8")
@@ -190,3 +198,41 @@ def test_business_tag_capex_evidence_migration_defines_structured_capex_table():
     ]
     for index_name in required_indexes:
         assert index_name in sql
+
+
+def test_selection_v2_migration_defines_research_and_selection_tables():
+    sql = SELECTION_V2_MIGRATION_PATH.read_text(encoding="utf-8")
+    required = [
+        "supply_chain_node_dimensions",
+        "supply_chain_transmission_edges",
+        "supply_chain_technology_routes",
+        "supply_chain_node_scores",
+        "business_tag_authenticity_scores",
+        "business_tag_operating_quality_scores",
+        "business_tag_benefit_scores",
+        "business_tag_selection_scores",
+        "business_tag_pool_state",
+        "business_tag_pool_transition_log",
+    ]
+    for table in required:
+        assert f"CREATE TABLE IF NOT EXISTS {table}" in sql
+
+
+def test_selection_v2_migration_preserves_unknown_and_audit_contracts():
+    sql = SELECTION_V2_MIGRATION_PATH.read_text(encoding="utf-8")
+    required = [
+        "score DOUBLE PRECISION",
+        "coverage_ratio DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "status IN ('known','estimated','proxy','unknown','contradicted')",
+        "evidence_level IN ('E0','E1','E2','E3','E4','E5','E6')",
+        "pool_code IN ('A','B','C','D')",
+        "model_version TEXT NOT NULL",
+        "veto_reasons JSONB NOT NULL DEFAULT '[]'",
+        "trigger_evidence_ids JSONB NOT NULL DEFAULT '[]'",
+        "review_status TEXT NOT NULL DEFAULT 'pending_review'",
+        "uq_screening_snapshots_supply_chain_v2",
+        "CREATE TABLE IF NOT EXISTS screening_models",
+        "CREATE TABLE IF NOT EXISTS model_versions",
+    ]
+    for contract in required:
+        assert contract in sql
