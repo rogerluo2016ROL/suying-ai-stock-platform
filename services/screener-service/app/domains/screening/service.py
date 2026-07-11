@@ -19,6 +19,7 @@ import numpy as np
 from app import candidate_pool_store, watchlist_store
 from app.config import AVAILABLE_MODES, DEFAULT_TOP_N, MAX_TOP_N
 from app.database import AsyncSession, get_db
+from app.jobs.pipeline_runner import finish_persisted_pipeline, submit_persisted_pipeline
 
 logger = logging.getLogger("screener.routes")
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
@@ -7241,6 +7242,7 @@ async def run_screening(
     owner_user_id: str | None = Header(default=None, alias="X-Owner-User-Id"),
     account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
     data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     db: AsyncSession | None = Depends(get_db),
 ):
     """Run stock screening with the specified mode.
@@ -7255,6 +7257,11 @@ async def run_screening(
 
     t0 = time.time()
     loop = asyncio.get_running_loop()
+    pipeline_run = None
+    if db is not None:
+        request_payload = {"mode": mode, "top_n": top_n, "trade_date": trade_date}
+        key = idempotency_key or hashlib.sha256(json.dumps(request_payload, sort_keys=True).encode()).hexdigest()
+        pipeline_run = await submit_persisted_pipeline(db, request_payload, key)
 
     # ── Redis cache check (L4: screener results, TTL 1h) ──
     cache_key = f"screener:{mode}:{top_n}:{trade_date or 'latest'}"
@@ -7266,7 +7273,11 @@ async def run_screening(
             cached["elapsed"] = round(time.time() - t0, 1)
             if not cached.get("result_status"):
                 cached["result_status"] = "success" if cached.get("picks") else "success_no_matches"
-            return _with_screener_contract(cached, mode=mode, trade_date=trade_date)
+            response = _with_screener_contract(cached, mode=mode, trade_date=trade_date)
+            if pipeline_run is not None:
+                await finish_persisted_pipeline(db, pipeline_run.run_id, result=response)
+                response["run_id"] = pipeline_run.run_id
+            return response
     except Exception:
         pass  # cache miss or Redis unavailable → proceed normally
 
@@ -7310,6 +7321,8 @@ async def run_screening(
     except Exception as e:
         err = str(e)
         logger.exception("Screening failed for mode=%s: %s", mode, err)
+        if pipeline_run is not None:
+            await finish_persisted_pipeline(db, pipeline_run.run_id, error={"message": err})
         if any(k in err.lower() for k in ("division by zero", "'code'", "'pct_chg'", "keyerror", "none")):
             raise HTTPException(status_code=503, detail="数据不足：部分行情数据缺失或不完整，请等待数据同步完成后再试")
         if "does not exist" in err.lower():
@@ -7347,7 +7360,11 @@ async def run_screening(
     except Exception:
         pass
 
-    return _with_screener_contract(result, mode=mode, trade_date=trade_date)
+    response = _with_screener_contract(result, mode=mode, trade_date=trade_date)
+    if pipeline_run is not None:
+        await finish_persisted_pipeline(db, pipeline_run.run_id, result=response)
+        response["run_id"] = pipeline_run.run_id
+    return response
 
 
 def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
