@@ -1,6 +1,7 @@
 # 五域优化 UAT 验证报告
 
 - 验证日期：2026-07-11
+- 最新验证提交：`52971476`
 - 验证栈：`suying-branch-validation`
 - 栈性质：功能分支隔离 SIT，不冒充正式 main UAT
 - Frontend：`http://127.0.0.1:28981`
