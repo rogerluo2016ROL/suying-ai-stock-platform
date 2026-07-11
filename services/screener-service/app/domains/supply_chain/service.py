@@ -1,5 +1,9 @@
 """Supply-chain domain services."""
 
+from datetime import datetime
+
+from app.domains.supply_chain import repository
+
 
 def load_bom_payload() -> dict:
     """Load and enrich the policy BOM seed for API and screening consumers."""
@@ -106,3 +110,150 @@ def fallback_layer_nodes() -> list[dict]:
         level = layer_level_from_bom_level(node.get("level") or node.get("node_type")); parent = node.get("parent_node_id")
         nodes.append({"layer_node_id": f"{level}:{node_id}", "parent_node_id": f"{levels.get(str(parent), 'L5')}:{parent}" if parent else f"L1:{theme_id}", "layer_level": level, "layer_name": {"L2":"产业方向","L3":"产业链","L4":"环节","L5":"BOM节点","L6":"产品/技术路线"}.get(level,"产业链节点"), "name": str(node.get("name") or node_id), "source_table":"supply_chain_bom_nodes", "source_id":node_id, "keywords":node.get("keywords") or [], "metadata":{"theme_id":theme_id,"theme_name":theme_names.get(theme_id),"chain_id":node.get("chain_id"),"node_type":node.get("node_type"),"level":node.get("level")}})
     return nodes
+
+
+def data_readiness() -> dict[str, Any]:
+    layer_coverage = {f"L{i}": {"status": "unknown", "row_count": 0} for i in range(1, 9)}
+    payload: dict[str, Any] = {
+        "version": "supply-chain-v2-readiness",
+        "checked_at": datetime.now().isoformat(timespec="seconds"),
+        "layer_coverage": layer_coverage,
+        "business_segments": {"status": "unknown", "source_table": "fina_mainbz", "row_count": 0},
+        "announcement_body": {"status": "unknown", "source_table": "announcements", "nonempty_rows": 0},
+        "research_body": {"status": "unknown", "source_table": "research_reports_tushare", "row_count": 0},
+        "evidence_events": {"status": "unknown", "source_table": "company_evidence", "row_count": 0},
+        "target_tables": {},
+        "implementation_gates": {
+            "core_pool_requires_business_evidence": True,
+            "missing_segment_margin_caps_profit_score": True,
+            "market_concept_only_caps_pool": "观察池",
+        },
+        "notes": [],
+    }
+    try:
+        with repository.connect() as pg:
+            cur = pg.cursor()
+
+            policy_theme_rows = repository.count(cur, "policy_themes")
+            bom_node_rows = repository.count(cur, "supply_chain_bom_nodes")
+            chain_node_rows = repository.count(cur, "chain_nodes")
+            company_mapping_rows = repository.count(cur, "company_bom_mapping")
+            evidence_rows = repository.count(cur, "company_evidence")
+            segment_rows = repository.count(cur, "fina_mainbz")
+            segment_code_rows = repository.distinct_count(cur, "fina_mainbz", "code")
+            announcement_rows = repository.count(cur, "announcements")
+            announcement_body_rows = repository.nonempty_text_count(cur, "announcements", "content")
+            research_rows = repository.count(cur, "research_reports_tushare")
+            target_table_names = [
+                "supply_chain_hierarchy_nodes",
+                "supply_chain_deconstruct_views",
+                "company_business_segments",
+                "business_tag_mapping",
+                "business_tag_evidence_events",
+                "business_tag_l8_evidence_status",
+                "business_tag_stage_tracking",
+                "business_tag_three_high_scores",
+                "business_tag_expectation_gap_scores",
+            ]
+
+            payload["layer_coverage"] = {
+                "L1": {
+                    "name": "政策主题",
+                    "status": repository.status_from_rows(policy_theme_rows, ready=3),
+                    "row_count": policy_theme_rows,
+                    "source": "policy_themes",
+                },
+                "L2": {
+                    "name": "产业方向",
+                    "status": repository.status_from_rows(bom_node_rows, ready=20),
+                    "row_count": bom_node_rows,
+                    "source": "supply_chain_bom_nodes",
+                },
+                "L3": {
+                    "name": "产业链",
+                    "status": repository.status_from_rows(chain_node_rows, ready=20),
+                    "row_count": chain_node_rows,
+                    "source": "chain_nodes",
+                },
+                "L4": {
+                    "name": "环节",
+                    "status": repository.status_from_rows(company_mapping_rows, ready=1000),
+                    "row_count": company_mapping_rows,
+                    "source": "company_bom_mapping",
+                },
+                "L5": {
+                    "name": "BOM节点",
+                    "status": repository.status_from_rows(bom_node_rows, ready=80, partial=20),
+                    "row_count": bom_node_rows,
+                    "source": "supply_chain_bom_nodes",
+                },
+                "L6": {
+                    "name": "产品/技术路线",
+                    "status": repository.status_from_rows(research_rows, ready=1000),
+                    "row_count": research_rows,
+                    "source": "research_reports_tushare.title",
+                },
+                "L7": {
+                    "name": "公司业务分部",
+                    "status": repository.status_from_rows(segment_code_rows, ready=1000, partial=50),
+                    "row_count": segment_rows,
+                    "company_count": segment_code_rows,
+                    "source": "fina_mainbz",
+                },
+                "L8": {
+                    "name": "证据事件",
+                    "status": repository.status_from_rows(evidence_rows, ready=1000, partial=100),
+                    "row_count": evidence_rows,
+                    "source": "company_evidence",
+                },
+            }
+
+            payload["business_segments"] = {
+                "status": repository.status_from_rows(segment_code_rows, ready=1000, partial=50),
+                "source_table": "fina_mainbz",
+                "row_count": segment_rows,
+                "company_count": segment_code_rows,
+                "income_supported": repository.column_exists(cur, "fina_mainbz", "biz_income"),
+                "ratio_supported": (
+                    repository.column_exists(cur, "fina_mainbz", "biz_ratio")
+                    and repository.nonempty_text_count(cur, "fina_mainbz", "biz_ratio", 0) > 0
+                ),
+                "margin_supported": False,
+            }
+            payload["announcement_body"] = {
+                "status": "ready" if announcement_body_rows else ("metadata_only" if announcement_rows else "missing"),
+                "source_table": "announcements",
+                "row_count": announcement_rows,
+                "nonempty_rows": announcement_body_rows,
+            }
+            payload["research_body"] = {
+                "status": "title_only" if research_rows else "missing",
+                "source_table": "research_reports_tushare",
+                "row_count": research_rows,
+                "body_supported": False,
+            }
+            payload["evidence_events"] = {
+                "status": repository.status_from_rows(evidence_rows, ready=1000, partial=100),
+                "source_table": "company_evidence",
+                "row_count": evidence_rows,
+                "target_table": "business_tag_evidence_events",
+                "target_status": "planned",
+            }
+            payload["target_tables"] = {
+                table_name: {
+                    "exists": repository.table_exists(cur, table_name),
+                    "row_count": repository.count(cur, table_name),
+                }
+                for table_name in target_table_names
+            }
+            if not announcement_body_rows:
+                payload["notes"].append("announcements.content is empty; use ts_raw_anns_d.url or later parser before approved announcement evidence.")
+            if segment_code_rows < 1000:
+                payload["notes"].append("fina_mainbz coverage is too low for full-market tag revenue attribution.")
+    except Exception as e:
+        payload["status"] = "degraded"
+        payload["error"] = str(e)
+        payload["notes"].append("PostgreSQL readiness lookup failed; returning unknown layer coverage.")
+    else:
+        payload["status"] = "ok"
+    return payload
