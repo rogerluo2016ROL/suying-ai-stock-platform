@@ -140,6 +140,11 @@ def _fact_cursor(
 ):
     return FakeCursor(
         one_by_token={
+            "SELECT fact_id, mapping_id, evidence_event_id": {
+                "fact_id": "f1",
+                "mapping_id": "m1",
+                "evidence_event_id": evidence_event_id,
+            },
             "UPDATE evidence_extracted_facts": _fact_row(
                 metadata=metadata,
                 evidence_event_id=evidence_event_id,
@@ -254,6 +259,13 @@ def test_fact_approval_sets_manual_marker_and_audit_fields():
     assert "mapping_id = EXCLUDED.mapping_id" in stage_sql
     assert "(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date" in stage_sql
     assert "CURRENT_DATE" not in stage_sql
+    event_update = next(
+        (statement, params)
+        for statement, params in cursor.executed
+        if "UPDATE business_tag_evidence_events AS event" in statement
+    )
+    assert "event.mapping_id IS NOT DISTINCT FROM %s" in event_update[0]
+    assert "m1" in event_update[1]
 
 
 def test_approval_without_normalization_clears_reserved_key_only():
@@ -488,6 +500,37 @@ def test_fact_review_downgrading_linked_event_also_demotes_stages():
     assert "source_event_id = %s" in sql
 
 
+def test_fact_review_mapping_mismatch_fails_before_fact_update_and_rolls_back():
+    cursor = FakeCursor(
+        one_by_token={
+            "SELECT fact_id, mapping_id, evidence_event_id": {
+                "fact_id": "f1",
+                "mapping_id": "m1",
+                "evidence_event_id": "e1",
+            },
+            "UPDATE business_tag_evidence_events AS event": None,
+            "UPDATE evidence_extracted_facts": _fact_row(metadata={}),
+        }
+    )
+    repo = EvidenceReviewRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+
+    with pytest.raises((ValueError, LookupError), match="mapping"):
+        repo.review_fact(
+            fact_id="f1",
+            decision="approved",
+            reviewer="roger",
+            note="已核对",
+            stage_after=None,
+        )
+
+    sql = "\n".join(statement for statement, _ in cursor.executed)
+    assert "event.mapping_id IS NOT DISTINCT FROM %s" in sql
+    assert "UPDATE evidence_extracted_facts" not in sql
+    assert "ROLLBACK TO SAVEPOINT supply_chain_manual_review" in sql
+
+
 def test_caller_owned_connection_is_never_committed_rolled_back_or_closed():
     settings = {"app.supply_chain_review_action": "outer-action"}
     cursor = _fact_cursor(
@@ -653,7 +696,7 @@ def test_repository_public_review_methods_require_reviewer_and_note(
         getattr(repo, method_name)(**kwargs)
 
 
-def test_repository_rejects_nonapproved_patch_normalization_and_stage():
+def test_repository_rejects_nonapproved_patch_and_normalization():
     repo = _repository_without_connection()
     normalization = ReviewNormalization(
         method_version="manual-v1",
@@ -679,14 +722,33 @@ def test_repository_rejects_nonapproved_patch_normalization_and_stage():
             stage_after=None,
             normalization=normalization,
         )
-    with pytest.raises(ValueError, match="stage_after.*approved"):
-        repo.review_event(
-            event_id="e1",
-            decision="rejected",
-            reviewer="roger",
-            note="拒绝",
-            stage_after={"research_stage": "R1"},
-        )
+
+
+def test_repository_allows_pending_stage_proposal_without_stage_upsert():
+    cursor = FakeCursor(
+        one_by_token={
+            "UPDATE business_tag_evidence_events AS event": _event_row(
+                status="pending_review"
+            )
+        }
+    )
+    repo = EvidenceReviewRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    proposal = {"research_stage": "R4", "commercialization_stage": "C2"}
+
+    result = repo.review_event(
+        event_id="e1",
+        decision="needs_more_evidence",
+        reviewer="roger",
+        note="待补客户验收原文",
+        stage_after=proposal,
+    )
+
+    sql = "\n".join(statement for statement, _ in cursor.executed)
+    assert result["review_status"] == "pending_review"
+    assert "UPDATE business_tag_evidence_events AS event" in sql
+    assert "INSERT INTO business_tag_stage_tracking" not in sql
 
 
 def test_repository_rejects_invalid_decision_and_target_score_fields():
@@ -780,19 +842,20 @@ def test_service_rejects_normalization_for_non_approved_decisions():
     assert repository.calls == []
 
 
-def test_service_rejects_stage_after_for_non_approved_fact():
+def test_service_allows_stage_after_proposal_for_non_approved_fact():
     repository = RecordingRepository()
     service = EvidenceReviewService(repository=repository)
 
-    with pytest.raises(ValueError, match="stage_after.*approved"):
-        service.review_fact(
-            fact_id="f1",
-            decision="rejected",
-            reviewer="roger",
-            note="拒绝",
-            stage_after={"research_stage": "R4"},
-        )
-    assert repository.calls == []
+    result = service.review_fact(
+        fact_id="f1",
+        decision="needs_more_evidence",
+        reviewer="roger",
+        note="待补证据",
+        stage_after={"research_stage": "R4"},
+    )
+
+    assert result["review_gate"] == "application_level"
+    assert repository.calls[0][1]["stage_after"] == {"research_stage": "R4"}
 
 
 def test_service_rejects_target_incompatible_normalization_fields():

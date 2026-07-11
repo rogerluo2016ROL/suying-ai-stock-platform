@@ -19,6 +19,7 @@ FACT_NORMALIZATION_FIELDS = frozenset({"evidence_delta_score", "risk_score"})
 EXPECTATION_NORMALIZATION_FIELDS = frozenset(
     {"market_expectation_score", "catalyst_score", "claim_risk_penalty_score"}
 )
+_UNSET = object()
 
 
 class ReviewNormalization(BaseModel):
@@ -102,7 +103,6 @@ def _validate_review_input(
     normalization: ReviewNormalization | None = None,
     allowed_normalization_fields: frozenset[str] | None = None,
     metadata_patch: EvidenceFactMetadataPatch | None = None,
-    stage_after: dict[str, str] | None = None,
 ) -> tuple[str, str]:
     normalize_review_decision(decision)
     clean_reviewer = str(reviewer or "").strip()
@@ -123,8 +123,6 @@ def _validate_review_input(
             )
     if metadata_patch is not None and decision != "approved":
         raise ValueError("metadata patch may only be written by an approved review")
-    if stage_after is not None and decision != "approved":
-        raise ValueError("stage_after may only be written by an approved review")
     return clean_reviewer, clean_note
 
 
@@ -257,6 +255,22 @@ class EvidenceReviewRepository:
         return dict(row)
 
     @staticmethod
+    def _get_fact_review_target(cur, *, fact_id: str) -> dict[str, Any]:
+        cur.execute(
+            """
+            SELECT fact_id, mapping_id, evidence_event_id
+            FROM evidence_extracted_facts
+            WHERE fact_id = %s
+            FOR UPDATE
+            """,
+            (fact_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise EvidenceReviewNotFound(f"evidence fact '{fact_id}' not found")
+        return dict(row)
+
+    @staticmethod
     def _update_event(
         cur,
         *,
@@ -266,12 +280,18 @@ class EvidenceReviewRepository:
         note: str,
         confidence: float | None = None,
         stage_after: dict[str, str] | None = None,
+        expected_mapping_id: Any = _UNSET,
     ) -> dict[str, Any]:
         stage_payload = (
             json.dumps(stage_after, ensure_ascii=False) if stage_after is not None else None
         )
+        mapping_clause = ""
+        mapping_params: tuple[Any, ...] = ()
+        if expected_mapping_id is not _UNSET:
+            mapping_clause = "AND event.mapping_id IS NOT DISTINCT FROM %s"
+            mapping_params = (expected_mapping_id,)
         cur.execute(
-            """
+            f"""
             UPDATE business_tag_evidence_events AS event
             SET review_status = %s,
                 reviewer = %s,
@@ -283,6 +303,7 @@ class EvidenceReviewRepository:
                     ELSE %s::jsonb
                 END
             WHERE event.event_id = %s
+              {mapping_clause}
             RETURNING event.event_id, event.mapping_id, event.code,
                       event.event_date, event.review_status, event.reviewer,
                       event.review_note, event.reviewed_at, event.stage_after
@@ -295,10 +316,14 @@ class EvidenceReviewRepository:
                 stage_payload,
                 stage_payload,
                 event_id,
-            ),
+            ) + mapping_params,
         )
         row = cur.fetchone()
         if not row:
+            if expected_mapping_id is not _UNSET:
+                raise ValueError(
+                    f"linked evidence event '{event_id}' mapping does not match fact mapping"
+                )
             raise EvidenceReviewNotFound(f"evidence event '{event_id}' not found")
         return dict(row)
 
@@ -408,23 +433,14 @@ class EvidenceReviewRepository:
             normalization=normalization,
             allowed_normalization_fields=FACT_NORMALIZATION_FIELDS,
             metadata_patch=metadata_patch,
-            stage_after=stage_after,
         )
         fact_status, event_status = normalize_review_decision(decision)
         normalization_payload = _json_payload(normalization)
         patch_payload = _metadata_patch_payload(metadata_patch)
 
         def operation(cur):
-            fact = self._update_fact(
-                cur,
-                fact_id=fact_id,
-                fact_status=fact_status,
-                reviewer=reviewer,
-                note=note,
-                normalization_payload=normalization_payload,
-                metadata_patch_payload=patch_payload,
-            )
-            event_id = fact.get("evidence_event_id")
+            target = self._get_fact_review_target(cur, fact_id=fact_id)
+            event_id = target.get("evidence_event_id")
             stage_record = None
             if event_id:
                 self._update_event(
@@ -434,9 +450,20 @@ class EvidenceReviewRepository:
                     reviewer=reviewer,
                     note=note,
                     stage_after=stage_after,
+                    expected_mapping_id=target.get("mapping_id"),
                 )
                 if event_status != "approved":
                     self._demote_stages_for_event(cur, event_id=str(event_id))
+            fact = self._update_fact(
+                cur,
+                fact_id=fact_id,
+                fact_status=fact_status,
+                reviewer=reviewer,
+                note=note,
+                normalization_payload=normalization_payload,
+                metadata_patch_payload=patch_payload,
+            )
+            if event_id:
                 if decision == "approved" and stage_after:
                     stage_record = self._upsert_stage_from_review(
                         cur,
@@ -480,7 +507,6 @@ class EvidenceReviewRepository:
             decision=decision,
             reviewer=reviewer,
             note=note,
-            stage_after=stage_after,
         )
         _, event_status = normalize_review_decision(decision)
 

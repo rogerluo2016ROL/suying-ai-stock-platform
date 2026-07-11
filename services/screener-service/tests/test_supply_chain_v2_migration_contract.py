@@ -300,6 +300,26 @@ def test_evidence_review_gate_preserves_stage_event_mapping_invariant():
     assert "NEW.mapping_id IS DISTINCT FROM OLD.mapping_id" in migration_text
 
 
+def test_evidence_review_gate_preserves_fact_event_mapping_invariant():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert "event.mapping_id IS NOT DISTINCT FROM fact.mapping_id" in migration_text
+    assert "event.mapping_id IS NOT DISTINCT FROM NEW.mapping_id" in migration_text
+    assert "UPDATE evidence_extracted_facts AS fact" in migration_text
+    assert "fact.evidence_event_id = OLD.event_id" in migration_text
+    assert "NEW.mapping_id IS DISTINCT FROM fact.mapping_id" in migration_text
+    assert "metadata = coalesce(fact.metadata, '{}'::jsonb) - 'review_normalization'" in migration_text
+
+
+def test_evidence_review_gate_demotes_confirmed_linked_fact_without_audited_matching_event():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert "fact.evidence_event_id IS NOT NULL" in migration_text
+    assert "event.event_id = fact.evidence_event_id" in migration_text
+    assert "event.review_status = 'approved'" in migration_text
+    assert "NOT EXISTS" in migration_text
+
+
 def test_evidence_review_gate_timezone_upgrade_and_non_reapproving_downgrade():
     migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
     upgrade_text, downgrade_text = migration_text.split("def downgrade()", maxsplit=1)

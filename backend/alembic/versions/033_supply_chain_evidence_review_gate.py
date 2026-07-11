@@ -68,6 +68,7 @@ def upgrade() -> None:
             reviewed_at = event.reviewed_at
         FROM business_tag_evidence_events AS event
         WHERE fact.evidence_event_id = event.event_id
+          AND event.mapping_id IS NOT DISTINCT FROM fact.mapping_id
           AND fact.validation_status = 'confirmed'
           AND event.review_status = 'approved'
           AND NULLIF(BTRIM(event.reviewer), '') IS NOT NULL
@@ -77,13 +78,27 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        UPDATE evidence_extracted_facts
-        SET validation_status = 'pending'
-        WHERE validation_status = 'confirmed'
+        UPDATE evidence_extracted_facts AS fact
+        SET validation_status = 'pending',
+            metadata = coalesce(fact.metadata, '{}'::jsonb) - 'review_normalization'
+        WHERE fact.validation_status = 'confirmed'
           AND (
-              NULLIF(BTRIM(reviewer), '') IS NULL
-              OR NULLIF(BTRIM(review_note), '') IS NULL
-              OR reviewed_at IS NULL
+              NULLIF(BTRIM(fact.reviewer), '') IS NULL
+              OR NULLIF(BTRIM(fact.review_note), '') IS NULL
+              OR fact.reviewed_at IS NULL
+              OR (
+                  fact.evidence_event_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM business_tag_evidence_events AS event
+                      WHERE event.event_id = fact.evidence_event_id
+                        AND event.mapping_id IS NOT DISTINCT FROM fact.mapping_id
+                        AND event.review_status = 'approved'
+                        AND NULLIF(BTRIM(event.reviewer), '') IS NOT NULL
+                        AND NULLIF(BTRIM(event.review_note), '') IS NOT NULL
+                        AND event.reviewed_at IS NOT NULL
+                  )
+              )
           )
         """
     )
@@ -139,7 +154,20 @@ def upgrade() -> None:
                     IF current_setting('app.supply_chain_review_action', true) IS DISTINCT FROM 'manual'
                        OR NULLIF(BTRIM(NEW.reviewer), '') IS NULL
                        OR NULLIF(BTRIM(NEW.review_note), '') IS NULL
-                       OR NEW.reviewed_at IS NULL THEN
+                       OR NEW.reviewed_at IS NULL
+                       OR (
+                           NEW.evidence_event_id IS NOT NULL
+                           AND NOT EXISTS (
+                               SELECT 1
+                               FROM business_tag_evidence_events AS event
+                               WHERE event.event_id = NEW.evidence_event_id
+                                 AND event.mapping_id IS NOT DISTINCT FROM NEW.mapping_id
+                                 AND event.review_status = 'approved'
+                                 AND NULLIF(BTRIM(event.reviewer), '') IS NOT NULL
+                                 AND NULLIF(BTRIM(event.review_note), '') IS NOT NULL
+                                 AND event.reviewed_at IS NOT NULL
+                           )
+                       ) THEN
                         RAISE EXCEPTION
                             'confirmed supply-chain fact requires audited manual review';
                     END IF;
@@ -150,6 +178,15 @@ def upgrade() -> None:
             ) THEN
                 IF TG_TABLE_NAME = 'business_tag_evidence_events'
                    AND TG_OP = 'UPDATE' THEN
+                    UPDATE evidence_extracted_facts AS fact
+                    SET validation_status = 'pending',
+                        metadata = coalesce(fact.metadata, '{}'::jsonb) - 'review_normalization'
+                    WHERE fact.evidence_event_id = OLD.event_id
+                      AND fact.validation_status = 'confirmed'
+                      AND (
+                          NEW.review_status IS DISTINCT FROM 'approved'
+                          OR NEW.mapping_id IS DISTINCT FROM fact.mapping_id
+                      );
                     IF OLD.review_status = 'approved'
                        AND (
                            NEW.review_status IS DISTINCT FROM 'approved'
