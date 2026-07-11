@@ -20,6 +20,11 @@ from app import candidate_pool_store, watchlist_store
 from app.config import AVAILABLE_MODES, DEFAULT_TOP_N, MAX_TOP_N
 from app.database import AsyncSession, get_db
 from app.jobs.pipeline_runner import finish_persisted_pipeline, submit_persisted_pipeline
+from app.domains.candidates.models import (
+    CandidatePoolQueryResponse,
+    CandidatePoolRecordRequest,
+    CandidatePoolRecordResponse,
+)
 
 logger = logging.getLogger("screener.routes")
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
@@ -8296,7 +8301,7 @@ async def chain_candidates(
 # pool_id 由后端按 POOL-{mode}-{trade_date}-{time_slot}-{scope} 生成（幂等 UPSERT）。
 # ─────────────────────────────────────────────────────────────────────────────
 
-class CandidatePoolRecordRequest(BaseModel):
+class _LegacyCandidatePoolRecordRequest(BaseModel):
     """POST /screener/candidate-pool 入参。
 
     scope 字段（tenant/owner/account）不在此处——由后端从认证头注入。
@@ -8317,7 +8322,7 @@ class CandidatePoolRecordRequest(BaseModel):
     time_slot: Optional[str] = Field(default=None, description="时段 HH:MM，用于 pool_id 生成")
 
 
-class CandidatePoolRecordResponse(BaseModel):
+class _LegacyCandidatePoolRecordResponse(BaseModel):
     """POST /screener/candidate-pool 响应。"""
 
     pool_id: str = Field(..., description="后端生成的候选池 ID")
@@ -8328,7 +8333,7 @@ class CandidatePoolRecordResponse(BaseModel):
     )
 
 
-class CandidatePoolQueryResponse(BaseModel):
+class _LegacyCandidatePoolQueryResponse(BaseModel):
     """GET /screener/candidate-pool 响应。"""
 
     total: int = Field(..., description="满足 scope 过滤的总记录数")
