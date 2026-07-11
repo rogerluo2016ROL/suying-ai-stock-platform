@@ -1,7 +1,7 @@
 """内置 asyncio 定时任务调度 — 零外部依赖."""
 
 import asyncio, logging, os, sys, time
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from psycopg2.sql import SQL, Identifier
 from app.sync.rt_min import collect_rt_min
 from app.sync.tushare import sync_post_market_core, sync_post_market_ext
@@ -45,7 +45,12 @@ logger = logging.getLogger("data-service.scheduler")
 
 _job_status: dict = {}
 _jobs: list[dict] = []
+_active_jobs: set[str] = set()
+_compensation: dict[str, dict] = {}
 _running = False
+
+# 单次任务内的 1/4/16 秒重试耗尽后，继续在 10 分钟、30 分钟、2 小时补偿。
+_COMPENSATION_DELAYS_MINUTES = (10, 30, 120)
 
 # ═══════════════════════════════════════════════════════════════
 # 数据治理: 分频监控表配置 (L0-L4 分层)
@@ -65,7 +70,8 @@ MONITORED_TABLES: dict[str, dict] = {
     "ths_daily":      {"date_col": "trade_date", "lookback": 30, "freq": "L2-daily",  "gap_threshold": 1},
     "sw_daily":       {"date_col": "trade_date", "lookback": 60, "freq": "L2-daily",  "gap_threshold": 2},
     "index_daily":    {"date_col": "trade_date", "lookback": 30, "freq": "L2-daily",  "gap_threshold": 1},
-    "stk_factor_pro": {"date_col": "trade_date", "lookback": 60, "freq": "L2-daily",  "gap_threshold": 2},
+    # Tushare 当前接口在本地核验中通常滞后约两周，超过 14 个交易日才触发回补。
+    "stk_factor_pro": {"date_col": "trade_date", "lookback": 60, "freq": "L2-daily",  "gap_threshold": 14},
     "limit_list_d":   {"date_col": "trade_date", "lookback": 30, "freq": "L1-intra",  "gap_threshold": 1},
     # ── L3 周级 (每周应有数据) ──
     "moneyflow_hsgt": {"date_col": "trade_date", "lookback": 14, "freq": "L3-weekly", "gap_threshold": 5},
@@ -91,14 +97,15 @@ MONITORED_TABLES: dict[str, dict] = {
     "dividend_data":            {"date_col": "ex_date",    "lookback": 30, "freq": "L3-weekly", "gap_threshold": 7},
     "adj_factor":               {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 1},
     # ── P0 新接入: L2 财务数据 (财报季日更, 普通季周更) ──
-    "financial_indicator":      {"date_col": "end_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
-    "financial_income":         {"date_col": "end_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
-    "financial_balance":        {"date_col": "end_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
-    "financial_cashflow":       {"date_col": "end_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
-    "fina_mainbz":              {"date_col": "end_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
-    "fina_audit":               {"date_col": "ann_date",   "lookback": 120,"freq": "L3-weekly", "gap_threshold": 14},
+    # 财务数据按季披露，不能按日频阈值判断缺口；下一季报告通常在季末后数周至数月才发布。
+    "financial_indicator":      {"date_col": "end_date",   "lookback": 240,"freq": "L3-quarterly", "gap_threshold": 120},
+    "financial_income":         {"date_col": "end_date",   "lookback": 240,"freq": "L3-quarterly", "gap_threshold": 120},
+    "financial_balance":        {"date_col": "end_date",   "lookback": 240,"freq": "L3-quarterly", "gap_threshold": 120},
+    "financial_cashflow":       {"date_col": "end_date",   "lookback": 240,"freq": "L3-quarterly", "gap_threshold": 120},
+    "fina_mainbz":              {"date_col": "end_date",   "lookback": 240,"freq": "L3-quarterly", "gap_threshold": 120},
+    "fina_audit":               {"date_col": "ann_date",   "lookback": 365,"freq": "L3-annual", "gap_threshold": 180},
     # ── P0 新接入: L2 资讯数据 ──
-    "research_reports_tushare": {"date_col": "pub_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
+    "research_reports_tushare": {"date_col": "pub_date",   "lookback": 30, "freq": "L2-daily",  "gap_threshold": 14},
     "stock_news_tushare":       {"date_col": "pub_time",   "lookback": 7,  "freq": "L1-intra",  "gap_threshold": 1},
     "announcements":            {"date_col": "ann_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
     # ── P0 新接入: L3 周/月级行情 ──
@@ -113,7 +120,7 @@ MONITORED_TABLES: dict[str, dict] = {
     "stock_profiles":           {"date_col": "updated_at", "lookback": 14, "freq": "L3-weekly", "gap_threshold": 7},
     "interact_qa":              {"date_col": "pub_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
     "policy_law":               {"date_col": "pub_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
-    "mp_report":                {"date_col": "pub_date",   "lookback": 120,"freq": "L3-monthly","gap_threshold": 35},
+    "mp_report":                {"date_col": "pub_date",   "lookback": 240,"freq": "L3-quarterly","gap_threshold": 180},
     "cctv_news":                {"date_col": "pub_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
 }
 
@@ -207,7 +214,7 @@ def _parse_date(val) -> date | None:
     if isinstance(val, date):
         return val
     s = str(val)[:10].strip()
-    for fmt in ("%Y-%m-%d", "%Y%m%d"):
+    for fmt in ("%Y-%m-%d", "%Y%m%d", "%Y%m"):
         try:
             return datetime.strptime(s, fmt).date()
         except ValueError:
@@ -957,42 +964,87 @@ def _extract_pg_status(result) -> tuple:
     return "partial", 0
 
 
+def _schedule_compensation(job: dict, reason: str) -> None:
+    """为异常/降级任务登记下一次补偿时间，避免同一任务重复排队。"""
+    job_id = job["id"]
+    state = _compensation.get(job_id, {"attempt": 0})
+    attempt = int(state.get("attempt", 0))
+    if attempt >= len(_COMPENSATION_DELAYS_MINUTES):
+        _job_status.setdefault(job_id, {})["compensation_status"] = "exhausted"
+        logger.error("%s: compensation exhausted after %d rounds", job_id, attempt)
+        return
+    delay = _COMPENSATION_DELAYS_MINUTES[attempt]
+    next_at = datetime.now() + timedelta(minutes=delay)
+    _compensation[job_id] = {"attempt": attempt + 1, "next_at": next_at, "reason": reason[:200]}
+    status = _job_status.setdefault(job_id, {})
+    status.update({
+        "compensation_status": "scheduled",
+        "compensation_attempt": attempt + 1,
+        "next_compensation_at": next_at.isoformat(),
+        "compensation_reason": reason[:200],
+    })
+    logger.warning("%s: compensation %d/%d scheduled at %s (%s)",
+                   job_id, attempt + 1, len(_COMPENSATION_DELAYS_MINUTES),
+                   next_at.isoformat(timespec="seconds"), reason[:120])
+
+
+def _clear_compensation(job_id: str) -> None:
+    if job_id in _compensation:
+        _compensation.pop(job_id, None)
+        status = _job_status.setdefault(job_id, {})
+        status.update({"compensation_status": "clear", "next_compensation_at": None})
+
+
+def _result_needs_compensation(result, pg_status: str) -> bool:
+    if not isinstance(result, dict):
+        return False
+    result_status = result.get("status")
+    return result_status in {"error", "failed", "degraded"} or pg_status == "fail"
+
+
 async def _run_job(job: dict):
-    """执行单个任务并记录状态, 最多重试3次 (指数退避: 1s, 4s, 16s)."""
+    """执行任务：立即重试 3 次，仍失败则进入 10/30/120 分钟补偿队列。"""
     t0 = datetime.now()
     max_retries = 3
+    job_id = job["id"]
+    _active_jobs.add(job_id)
 
-    for attempt in range(max_retries):
-        try:
-            fn = job["fn"]
-            result = fn() if not job.get("args") else fn(*job["args"])
-            pg_status, pg_total = _extract_pg_status(result)
-            result_status = result.get("status") if isinstance(result, dict) else None
-            last_status = result_status if result_status in {"ok", "skipped", "degraded"} else "ok"
-            _job_status[job["id"]] = {
-                "last_run": t0.isoformat(), "last_status": last_status,
-                "result": str(result)[:300],
-                "pg_write_status": pg_status,
-                "pg_written": pg_total,
-            }
-            if pg_total > 0:
-                logger.info("%s: ok (pg=%s, %d rows)", job["id"], pg_status, pg_total)
-            return  # success, exit retry loop
-        except Exception as e:
-            if attempt < max_retries - 1:
-                sleep_s = 4 ** attempt  # 1, 4, 16
-                logger.warning("%s: retry %d/%d after %.0fs — %s",
-                               job["id"], attempt + 1, max_retries, sleep_s, e)
-                await asyncio.sleep(sleep_s)
-            else:
-                _job_status[job["id"]] = {
-                    "last_run": t0.isoformat(), "last_status": "error",
-                    "error": str(e)[:300],
-                    "pg_write_status": "fail",
-                    "pg_written": 0,
+    try:
+        for attempt in range(max_retries):
+            try:
+                fn = job["fn"]
+                result = fn() if not job.get("args") else fn(*job["args"])
+                pg_status, pg_total = _extract_pg_status(result)
+                result_status = result.get("status") if isinstance(result, dict) else None
+                last_status = result_status if result_status in {"ok", "skipped", "degraded"} else "ok"
+                _job_status[job_id] = {
+                    "last_run": t0.isoformat(), "last_status": last_status,
+                    "result": str(result)[:300],
+                    "pg_write_status": pg_status,
+                    "pg_written": pg_total,
                 }
-                logger.warning("%s: FAILED after %d retries — %s",
-                               job["id"], max_retries, e)
+                if _result_needs_compensation(result, pg_status):
+                    _schedule_compensation(job, str(result))
+                else:
+                    _clear_compensation(job_id)
+                if pg_total > 0:
+                    logger.info("%s: ok (pg=%s, %d rows)", job_id, pg_status, pg_total)
+                return
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    sleep_s = 4 ** attempt
+                    logger.warning("%s: retry %d/%d after %.0fs — %s",
+                                   job_id, attempt + 1, max_retries, sleep_s, e)
+                    await asyncio.sleep(sleep_s)
+                else:
+                    _job_status[job_id] = {
+                        "last_run": t0.isoformat(), "last_status": "error",
+                        "error": str(e)[:300], "pg_write_status": "fail", "pg_written": 0,
+                    }
+                    _schedule_compensation(job, str(e))
+                    logger.warning("%s: FAILED after %d retries — %s", job_id, max_retries, e)
+    finally:
+        _active_jobs.discard(job_id)
 
 
 async def _scheduler_loop():
@@ -1007,11 +1059,21 @@ async def _scheduler_loop():
         for job in _jobs:
             cron = job["cron"]
             job_id = job["id"]
+            if job_id in _active_jobs:
+                continue
             # 避免同一分钟重复执行
             if last_run.get(job_id) == now.strftime("%H:%M"):
                 continue
             if _cron_match(cron, now):
                 last_run[job_id] = now.strftime("%H:%M")
+                asyncio.create_task(_run_job(job))
+
+        # 补偿只复用原任务定义，不创建第二套采集逻辑。
+        for job in _jobs:
+            job_id = job["id"]
+            state = _compensation.get(job_id)
+            if state and state["next_at"] <= now and job_id not in _active_jobs:
+                state["next_at"] = datetime.max
                 asyncio.create_task(_run_job(job))
 
         await asyncio.sleep(30)
@@ -1400,6 +1462,9 @@ def get_job_status() -> dict:
             "last_result": status.get("result", ""),
             "pg_write_status": status.get("pg_write_status", "skipped"),
             "pg_written": status.get("pg_written", 0),
+            "compensation_status": status.get("compensation_status", "none"),
+            "compensation_attempt": status.get("compensation_attempt", 0),
+            "next_compensation_at": status.get("next_compensation_at"),
         })
     return {"jobs": result_jobs, "scheduler_running": _running}
 

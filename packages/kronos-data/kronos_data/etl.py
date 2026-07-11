@@ -1110,6 +1110,9 @@ def sync_dividend_data(days_back: int = 365) -> dict:
             continue
         rows = []
         for _, r in df.iterrows():
+            ex_date = str(r.get("ex_date", ""))
+            if ex_date in {"", "nan", "NaT", "None"}:
+                continue
             key = (_code_from_ts(r["ts_code"]), str(r.get("end_date", "")))
             if key in seen:
                 continue
@@ -1119,7 +1122,7 @@ def sync_dividend_data(days_back: int = 365) -> dict:
                 str(r.get("end_date", "")),
                 str(r.get("ann_date", d)),
                 r.get("cash_div"), r.get("stk_div"),
-                r.get("stk_bo_rate"), r.get("record_date"), r.get("ex_date"),
+                r.get("stk_bo_rate"), r.get("record_date"), ex_date,
             ))
         if rows:
             total += len(rows)
@@ -1289,7 +1292,15 @@ def sync_stk_holdernumber(days_back: int = 30) -> dict:
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
-            rows.append((code, str(r.get("end_date", "")), r.get("holder_num")))
+            holder_num = r.get("holder_num")
+            try:
+                if holder_num is not None and float(holder_num) > 9223372036854775807:
+                    logger.warning("stk_holdernumber out-of-range value skipped: %s", holder_num)
+                    continue
+            except (TypeError, ValueError, OverflowError):
+                logger.warning("stk_holdernumber invalid value skipped: %s", holder_num)
+                continue
+            rows.append((code, str(r.get("end_date", "")), holder_num))
         total += len(rows)
         written += _insert_rows(db, "stk_holdernumber", cols, rows)
     db.commit(); db.close()
@@ -1325,6 +1336,8 @@ def sync_pledge_detail(days_back: int = 30) -> dict:
             # ADR-009 §决策4a: ann_date 格式化 "YYYYMMDD"→"YYYY-MM-DD" (同 sw_daily trade_date 模式, L1289-1291)
             td = str(r.get("ann_date", ""))
             ann_date = td[:4] + "-" + td[4:6] + "-" + td[6:8] if len(td) == 8 else td
+            if ann_date in {"", "nan", "NaT", "None"}:
+                continue
             rows.append((code, ann_date,
                 str(r.get("pledgor", "")), str(r.get("pledgee", "")),
                 r.get("pledge_amount"), r.get("p_total_ratio")))  # Tushare field p_total_ratio → PG col pledge_total_ratio (cols[5])
@@ -1350,8 +1363,11 @@ def sync_repurchase(days_back: int = 90) -> dict:
         if df is None or df.empty: continue
         rows = []
         for _, r in df.iterrows():
+            end_date = r.get("end_date")
+            if str(end_date) in {"", "nan", "NaT", "None"}:
+                end_date = None
             rows.append((_code_from_ts(r["ts_code"]),
-                str(r.get("ann_date", d)), str(r.get("end_date", "")),
+                str(r.get("ann_date", d)), end_date,
                 str(r.get("proc", "")), r.get("vol"), r.get("amount")))
         total += len(rows)
         written += _insert_rows(db, "repurchase", cols, rows)
@@ -1495,7 +1511,8 @@ def sync_stock_news(days_back: int = 3650) -> dict:
     if pro is None: return {"status": "skipped", "reason": "no Tushare token"}
     db = _get_etl_db()
     total, written = 0, 0
-    cols = ["pub_time", "title", "content", "source"]
+    # 新闻接口不是个股接口，统一使用 MARKET 作为业务来源标识，满足表的 code 非空约束。
+    cols = ["code", "pub_time", "title", "content", "source"]
     today = datetime.now()
     for i in range(0, days_back, 30):
         end = (today - timedelta(days=i)).strftime("%Y%m%d")
@@ -1505,14 +1522,14 @@ def sync_stock_news(days_back: int = 3650) -> dict:
         try: df = pro.major_news(src="", start_date=start, end_date=end)
         except Exception: df = None
         if df is not None and not df.empty:
-            rows = [(str(r.get("pub_time",""))[:10], str(r.get("title","")), "", str(r.get("src",""))) for _, r in df.iterrows()]
+            rows = [("MARKET", str(r.get("pub_time",""))[:19], str(r.get("title","")), "", str(r.get("src",""))) for _, r in df.iterrows()]
             total += len(rows)
             written += _insert_rows(db, "stock_news_tushare", cols, rows)
         # news
         try: df = pro.news(start_date=start, end_date=end)
         except Exception: df = None
         if df is not None and not df.empty:
-            rows = [(str(r.get("datetime",""))[:10], str(r.get("title","")), str(r.get("content","")), "tushare_news") for _, r in df.iterrows()]
+            rows = [("MARKET", str(r.get("datetime",""))[:19], str(r.get("title","")), str(r.get("content","")), "tushare_news") for _, r in df.iterrows()]
             total += len(rows)
             written += _insert_rows(db, "stock_news_tushare", cols, rows)
         if (i//30+1) % 20 == 0:
