@@ -1273,7 +1273,7 @@ git commit -m "refactor(screener): extract supply chain and pipeline jobs"
 - Consumes: all prior tasks.
 - Produces: release evidence and rollback verdict.
 
-- [ ] **Step 1: 写 smoke unit tests**
+- [x] **Step 1: 写 smoke unit tests**
 
 覆盖 request ID、run ID、readiness blocked、合法 no-pick、paper-only 和 safe skip：
 
@@ -1286,7 +1286,7 @@ def test_no_pick_is_success_when_readiness_passes():
     assert classify_screener_result({"result_status": "success_no_matches", "picks": []}) == "pass"
 ```
 
-- [ ] **Step 2: 实现 paper-only 和 no-pick 两种 smoke 模式**
+- [x] **Step 2: 实现 paper-only 和 no-pick 两种 smoke 模式**
 
 给 `SmokeConfig` 增加 `trade_mode` 和 `require_pick`。CLI 只接受 `--trade-mode paper`；`--require-pick` 用于 AC-E2E-1，合法 no-pick 在普通市场 smoke 中通过，但明确跳过依赖候选的步骤，不能计入全链路三次通过。
 
@@ -1304,7 +1304,7 @@ if result_status == "success_no_matches":
 
 全链路 UAT 必须使用真实模型候选，不得注入或填充候选。若目标日所有模型均合法无候选，AC-E2E-1 保持 blocked，另行保存 no-pick 市场 smoke 证据。
 
-- [ ] **Step 3: 运行所有静态和单元质量门**
+- [x] **Step 3: 运行所有静态和单元质量门**
 
 ```bash
 bash tools/codex-lowio.sh fe-typecheck
@@ -1315,7 +1315,9 @@ cd .. && python3 tools/run_service_tests.py --core -q
 
 Expected: 全部 exit 0。
 
-- [ ] **Step 4: 部署独立 UAT 并验证 schema/readiness**
+- [blocked] **Step 4: 部署独立 UAT 并验证 schema/readiness**
+
+已完成同等范围的功能分支隔离验证栈：schema、ownership、readiness、页面 API 和浏览器均通过；正式 UAT 仍受“必须从已合并 main 的干净代码部署”门禁约束。
 
 按项目 UAT skill 部署后运行：
 
@@ -1327,7 +1329,9 @@ python3 tools/page_api_smoke.py --timeout 30
 
 Expected: schema/ownership gate 通过，页面 API 不使用 mock。
 
-- [ ] **Step 5: 连续三次核心 smoke 和真实浏览器 UAT**
+- [blocked] **Step 5: 连续三次核心 smoke 和真实浏览器 UAT**
+
+真实候选链路已跑通到诊断和策略确认，但回测当前只有 13 个交易期，未达到 20 期/30 股/500 条观测门槛；smoke 已 fail-closed，未伪造回测或订单。
 
 ```bash
 python3 tools/full_stack_smoke.py --mode short --top-n 5 --timeout 45 --trade-mode paper --require-pick
@@ -1338,11 +1342,13 @@ cd frontend && npx playwright test tests/sit/platform-five-domain.spec.ts
 
 报告必须记录代码 commit、交易日、截止时间、data snapshot、plan ID、backtest run ID、paper order ID 和账户查询结果。
 
-- [ ] **Step 6: 回滚演练和签字**
+- [blocked] **Step 6: 回滚演练和签字**
+
+正式回滚需要 main 发布镜像与上一版本镜像；当前分支验证不覆盖已有旧 UAT 栈。
 
 回滚上一波应用镜像，不回滚数据库新增表；运行同一套 read-only smoke，确认旧 API 可读取新增 nullable 元数据。交易保持 paper。把结果写入两份 QA 报告。
 
-- [ ] **Step 7: 提交验证资产**
+- [x] **Step 7: 提交验证资产**
 
 ```bash
 git add tools/full_stack_smoke.py tools/tests/test_full_stack_smoke.py tools/page_api_smoke.py tools/tests/test_page_api_smoke.py frontend/tests/sit/platform-five-domain.spec.ts docs/qa/platform-five-domain-e2e-2026-07-10.md docs/qa/platform-five-domain-uat-2026-07-10.md docker/docker-compose.yml
@@ -1378,20 +1384,20 @@ git commit -m "test: add five-domain release gates"
 
 ## Final verification checklist
 
-- [ ] PRD 所有 P0 AC 有对应任务和自动化证据。
-- [ ] 生产响应中没有 preview、fixed、random、proxy 指标。
-- [ ] live broker 未接通时保持 blocked，没有 stub 成交。
-- [ ] frontend typecheck、tests、build 全绿。
-- [ ] backend 与 11 个核心微服务在独立进程中测试通过。
-- [ ] `/api/v1/data` 唯一 owner 是 data-service。
-- [ ] gateway 不信任客户端 owner/service headers。
-- [ ] readiness snapshot 阻断复权因子或必需数据落后。
-- [ ] schema high/medium 未豁免项为 0。
-- [ ] 正式模型产物有 clean commit、strict timeline、snapshot 和成本。
-- [ ] 模型晋级失败不会改变当前 production alias。
-- [ ] screener 外部路径兼容，主 router ≤ 2,500 行。
-- [ ] 三次真实 API smoke 和一次无 mock 浏览器 UAT 通过。
-- [ ] 回滚演练通过，交易全程 paper。
+- [x] PRD 所有已执行 P0 AC 有对应任务和自动化证据；E2E-1 保持 blocked。
+- [x] 生产响应中没有 preview、fixed、random、proxy 指标。
+- [x] live broker 未接通时保持 blocked，没有 stub 成交。
+- [x] frontend typecheck、tests、build 全绿。
+- [x] backend 与 11 个核心微服务在独立进程中测试通过。
+- [x] `/api/v1/data` 唯一 owner 是 data-service。
+- [x] gateway 不信任客户端 owner/service headers。
+- [x] readiness snapshot 阻断复权因子或必需数据落后，且已持久化到 PostgreSQL。
+- [x] schema high/medium 未豁免项为 0。
+- [blocked] 正式模型产物有 clean commit、strict timeline、snapshot 和成本。
+- [x] 模型晋级失败不会改变当前 production alias。
+- [x] screener 外部路径兼容，主 router ≤ 2,500 行。
+- [blocked] 三次真实 API smoke 和一次无 mock 浏览器 UAT：浏览器已通过，三次全链路受真实回测观测门槛阻断。
+- [blocked] 回滚演练和正式签字：等待 main 发布基线，交易验证保持 paper。
 
 ## Plan self-review
 
