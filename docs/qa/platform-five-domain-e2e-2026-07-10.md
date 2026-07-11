@@ -1,5 +1,41 @@
-# Platform Five-Domain E2E Evidence
+# 五域优化 E2E 验证报告
 
-Release smoke is paper-only. No live broker or synthetic candidate injection is permitted.
+- 验证日期：2026-07-11（Asia/Shanghai）
+- 分支：`feature/suying-ai-stock-platform`
+- 最新已推送基线：`ae5254b1`
+- 交易模式：仅 `paper`
+- 行情库：本地 PostgreSQL 6432
+- 最近交易日：2026-07-10
+- 候选来源：真实 `bi_trend_launch` 模型输出，未注入候选
 
-The no-pick market smoke is a valid pass with dependent steps safely skipped; pick-required smoke remains blocked until a real candidate and readiness snapshot exist.
+## 自动化门禁
+
+| 门禁 | 结果 | 证据 |
+|---|---|---|
+| 前端类型检查 | 通过 | `tsc -b --noEmit` exit 0 |
+| 前端单测 | 通过 | 63 files / 421 tests |
+| 前端生产构建 | 通过 | Vite 3737 modules，exit 0 |
+| screener 全量测试 | 通过 | 270 tests |
+| backend | 通过 | 78 passed / 9 skipped |
+| 其余核心微服务 | 通过 | 11 个服务独立测试全部 exit 0 |
+| Schema drift | 通过 | audited=152，high=0，medium=0，missing=0 |
+| 表归属 | 通过 | `table ownership: clean` |
+| 页面 API smoke | 通过 | 41/41 checks ok，non_ok=[] |
+| 浏览器 smoke | 通过 | Chromium，1/1 passed |
+
+## 真实链路证据
+
+1. `bi_trend_launch` 返回 6 个真实候选，首个候选为 `301306 西测测试`。
+2. 个股诊断完成，综合分 57.8。
+3. 策略计划创建并确认：`PLAN-4891BC6F`。
+4. readiness 评估已持久化：`c8a3676d1785460a8c5c8f3408dba3a7`，profile=`backtest_v1`，status=`ready`。
+5. 回测证据状态为 `insufficient_data`：当前 `bi_trend_launch` 仅 13 个交易期，未达到 20 期、每期 30 股、总计 500 条观测要求。
+6. 修复后的 smoke 在回测未 ready 时立即失败，不再继续创建 paper order。
+
+## AC-E2E-1 判定
+
+**Blocked（外部观测积累不足）**。
+
+候选、诊断、计划链路均已使用真实输出完成；但回测样本门槛尚未满足，因此不能宣称“筛选→诊断→计划→回测→模拟下单”完整通过三次。不得通过降低门槛、复制快照或注入历史数据绕过。
+
+一次修复前的 smoke 曾错误把 blocked 回测记为成功并创建 `ORD0001`；该结果作废，不计入验收。脚本已改为 fail-closed。
