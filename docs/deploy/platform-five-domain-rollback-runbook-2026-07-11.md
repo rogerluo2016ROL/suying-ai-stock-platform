@@ -10,7 +10,7 @@
 - 必须同时记录当前发布镜像 digest 和上一版本镜像 digest。
 - `.env.uat`、数据库备份和隔离 UAT 栈必须可复现。
 
-当前分支只有 `feature/suying-ai-stock-platform`，远端没有 `main`，所以本文件截至 2026-07-11 只作为可执行 runbook，未把分支验证冒充正式回滚签字。[KNOWN]
+当前已建立 `main` 基线；正式 UAT 使用 `c343f367`，兼容上一版回滚镜像来自 `suying-branch-validation-*`。旧 `suying-uat-*` 镜像已验证与当前 schema 不兼容，不得作为回滚候选。[KNOWN]
 
 ## 执行步骤
 
@@ -19,7 +19,7 @@
 docker compose --env-file docker/.env.uat -p suying-uat images
 psql "$KRONOS_PG_URL" -Atc "select version_num from alembic_version"
 
-# 2. 将应用服务切换到上一版本 digest（不要执行 down -v）
+# 2. 只允许切换到已通过兼容性 smoke 的上一版本 digest（不要执行 down -v）
 docker compose --env-file docker/.env.uat -p suying-uat up -d \
   api-gateway backend frontend screener-service data-service prediction-service \
   strategy-service signal-service alert-service trade-service backtest-service \
@@ -33,3 +33,10 @@ python3 tools/full_stack_smoke.py --trade-mode paper --require-pick
 ## 判定
 
 回滚通过的必要条件：服务健康、页面 API 无 mock、readiness/schema/ownership 不回退、旧应用能读取新增 nullable 元数据、没有创建 live order。任何一项失败都停止，不回滚数据库。
+
+已验证的镜像样例：
+
+- 当前 main backend：`sha256:c7c4cc32af35b3b8f34dc5b4a4d083d5a7baf3b061b6ad98e017c9b4f6e2b9b4`
+- 兼容上一版 backend：`sha256:89d9b4f86c671c19164f8c7c77b4ff9186a05a212950dad51101e83413619088`
+- 当前 main screener：`sha256:b5a3071d9239e51a7ec13edc09e9540eb495f28c7cfaa7c1b643bce5f45edef5`
+- 兼容上一版 screener：`sha256:d1639d93430f18d9bd2cb874fcd6c5e44264b481b3e6f75a55bf3ffe9a428abb`
