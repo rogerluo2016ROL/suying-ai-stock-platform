@@ -25,7 +25,7 @@ from app.domains.candidates.models import (
     CandidatePoolRecordRequest,
     CandidatePoolRecordResponse,
 )
-from app.domains.candidates.service import build_candidate_pool_id, resolve_candidate_pool_scope
+from app.domains.candidates import service as candidate_service
 
 logger = logging.getLogger("screener.routes")
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
@@ -8366,6 +8366,10 @@ async def record_candidate_pool(
 
     PG 不可用或 db 未注入时降级返回 `fallback_reason`，不抛 500。
     """
+    return await candidate_service.record_candidate_pool(
+        db=db, payload=payload, tenant_id=tenant_id,
+        owner_user_id=owner_user_id, account_id=account_id,
+    )
     if db is None:
         return CandidatePoolRecordResponse(
             pool_id="",
@@ -8454,6 +8458,10 @@ async def query_candidate_pool(
     store.query 内置 scope 过滤（private 仅 owner/同账户、tenant_shared 同租户、public 全局）。
     PG 不可用或 db 未注入时降级返回 `fallback_reason` + 空 records。
     """
+    return await candidate_service.query_candidate_pool(
+        db=db, tenant_id=tenant_id, owner_user_id=owner_user_id, account_id=account_id,
+        source_module=source_module, source_mode=source_mode, page=page, page_size=page_size,
+    )
     if db is None:
         return CandidatePoolQueryResponse(
             total=0,
