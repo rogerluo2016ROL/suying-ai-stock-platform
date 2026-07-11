@@ -39,3 +39,7 @@
 候选、诊断、计划链路均已使用真实输出完成；但回测样本门槛尚未满足，因此不能宣称“筛选→诊断→计划→回测→模拟下单”完整通过三次。不得通过降低门槛、复制快照或注入历史数据绕过。
 
 一次修复前的 smoke 曾错误把 blocked 回测记为成功并创建 `ORD0001`；该结果作废，不计入验收。脚本已改为 fail-closed。
+
+## 2026-07-11 复跑记录
+
+使用同一真实 PostgreSQL 和 `sit-validation@suying.ai` 账户复跑 `bi_trend_launch`：候选仍为 `301306 西测测试`，诊断分 57.8，策略计划 `PLAN-86646502` 已确认；回测仍返回 `insufficient_data`，缺少 `at_least_20_periods`、`at_least_30_stocks_per_period`、`at_least_500_observations`，进程以 exit 1 停止，未创建订单。[COMPUTED]
