@@ -1118,221 +1118,24 @@ def _source_record_matches_mapping(source: dict[str, Any], mapping: dict[str, An
     return supply_chain_service._source_record_matches_mapping(source, mapping)
 
 
-def _query_business_tag_mappings_for_batch(
-    cur,
-    request: BusinessTagEvidenceBatchExtractRequest,
-) -> list[dict[str, Any]]:
-    if request.mapping_id:
-        mapping = _query_business_tag_mapping_context(cur, request.mapping_id)
-        return [mapping] if mapping else []
-
-    normalized_code = str(request.code or "").strip().upper()
-    code6 = normalized_code.split(".")[0] if "." in normalized_code else normalized_code
-    if not code6:
-        return []
-
-    mappings: list[dict[str, Any]] = []
-    if _pg_table_exists(cur, "business_tag_mapping"):
-        cur.execute(
-            """
-            SELECT mapping_id, code, node_id, tag_name, theme_id, chain_id, l1_l8_path, status
-            FROM business_tag_mapping
-            WHERE code IN (%s, %s)
-            ORDER BY confidence DESC, updated_at DESC
-            LIMIT 100
-            """,
-            (normalized_code, code6),
-        )
-        for row in cur.fetchall():
-            mappings.append({
-                "mapping_id": str(row[0]),
-                "code": str(row[1] or ""),
-                "node_id": row[2],
-                "tag_name": row[3],
-                "theme_id": row[4],
-                "chain_id": row[5],
-                "l1_l8_path": _json_or_default(row[6], []),
-                "status": row[7],
-                "source": "business_tag_mapping",
-            })
-    if mappings or not _pg_table_exists(cur, "company_bom_mapping"):
-        return mappings
-
-    cur.execute(
-        """
-        SELECT
-            m.mapping_id,
-            m.code,
-            m.node_id,
-            COALESCE(n.name, m.product_name, m.material_name, m.node_id) AS tag_name,
-            n.theme_id,
-            n.chain_id,
-            m.status
-        FROM company_bom_mapping m
-        LEFT JOIN supply_chain_bom_nodes n ON n.node_id = m.node_id
-        WHERE m.code IN (%s, %s)
-        ORDER BY m.confidence DESC, m.updated_at DESC NULLS LAST
-        LIMIT 100
-        """,
-        (normalized_code, code6),
-    )
-    for row in cur.fetchall():
-        mappings.append({
-            "mapping_id": str(row[0]),
-            "code": str(row[1] or ""),
-            "node_id": row[2],
-            "tag_name": row[3],
-            "theme_id": row[4],
-            "chain_id": row[5],
-            "l1_l8_path": [],
-            "status": row[6],
-            "source": "company_bom_mapping",
-        })
-    return mappings
+def _query_business_tag_mappings_for_batch(cur, request: BusinessTagEvidenceBatchExtractRequest) -> list[dict[str, Any]]:
+    return supply_chain_service._query_business_tag_mappings_for_batch(cur, request)
 
 
 def _first_existing_column(cur, table_name: str, columns: list[str]) -> str | None:
-    for column in columns:
-        if _pg_column_exists(cur, table_name, column):
-            return column
-    return None
+    return supply_chain_service._first_existing_column(cur, table_name, columns)
 
 
 def _code_variants(code: str) -> list[str]:
-    code_value = str(code or "").strip().upper()
-    code6 = code_value.split(".")[0] if "." in code_value else code_value
-    variants = [code_value, code6]
-    if code6 and "." not in code_value:
-        variants.extend([f"{code6}.SZ", f"{code6}.SH"])
-    return sorted({item for item in variants if item})
+    return supply_chain_service._code_variants(code)
 
 
-def _query_candidate_sources_from_table(
-    cur,
-    *,
-    table_name: str,
-    source_type: str,
-    code: str,
-    limit: int,
-    title_columns: list[str],
-    excerpt_columns: list[str],
-    date_columns: list[str],
-    source_id_columns: list[str],
-    url_columns: list[str] | None = None,
-) -> list[dict[str, Any]]:
-    if not _pg_table_exists(cur, table_name):
-        return []
-    code_column = _first_existing_column(cur, table_name, ["code", "ts_code", "symbol", "stock_code"])
-    title_column = _first_existing_column(cur, table_name, title_columns)
-    if not title_column:
-        return []
-    excerpt_column = _first_existing_column(cur, table_name, excerpt_columns)
-    date_column = _first_existing_column(cur, table_name, date_columns)
-    source_id_column = _first_existing_column(cur, table_name, source_id_columns)
-    url_column = _first_existing_column(cur, table_name, url_columns or ["url", "source_url"])
-
-    select_parts = [
-        f'"{title_column}" AS title',
-        f'"{excerpt_column}" AS excerpt' if excerpt_column else "NULL AS excerpt",
-        f'"{date_column}" AS event_date' if date_column else "NULL AS event_date",
-        f'"{source_id_column}" AS source_id' if source_id_column else "NULL AS source_id",
-        f'"{url_column}" AS original_url' if url_column else "NULL AS original_url",
-    ]
-    where_parts = [f'"{title_column}" IS NOT NULL']
-    params: list[Any] = []
-    if code_column:
-        variants = _code_variants(code)
-        where_parts.append(f'"{code_column}" = ANY(%s)')
-        params.append(variants)
-    order_sql = f'ORDER BY "{date_column}" DESC NULLS LAST' if date_column else ""
-    params.append(limit)
-    cur.execute(
-        f"""
-        SELECT {", ".join(select_parts)}
-        FROM "{table_name}"
-        WHERE {" AND ".join(where_parts)}
-        {order_sql}
-        LIMIT %s
-        """,
-        params,
-    )
-    rows = cur.fetchall()
-    sources = []
-    for row in rows:
-        sources.append({
-            "source_type": source_type,
-            "title": str(row[0] or ""),
-            "excerpt": str(row[1] or ""),
-            "event_date": str(row[2])[:10] if row[2] else None,
-            "source_id": str(row[3] or ""),
-            "original_url": row[4],
-        })
-    return sources
+def _query_candidate_sources_from_table(cur, **kwargs) -> list[dict[str, Any]]:
+    return supply_chain_service._query_candidate_sources_from_table(cur, **kwargs)
 
 
-def _query_candidate_sources_for_mapping(
-    cur,
-    mapping: dict[str, Any],
-    source_types: list[str],
-    limit: int,
-) -> list[dict[str, Any]]:
-    code = str(mapping.get("code") or "")
-    sources: list[dict[str, Any]] = []
-    if "announcement_title" in source_types:
-        sources.extend(_query_candidate_sources_from_table(
-            cur,
-            table_name="announcements",
-            source_type="announcement_title",
-            code=code,
-            limit=limit,
-            title_columns=["title", "ann_title", "name"],
-            excerpt_columns=["content", "summary"],
-            date_columns=["ann_date", "trade_date", "date", "publish_time"],
-            source_id_columns=["announcement_id", "ann_id", "id"],
-            url_columns=["url", "source_url"],
-        ))
-    if "research_title" in source_types:
-        sources.extend(_query_candidate_sources_from_table(
-            cur,
-            table_name="research_reports_tushare",
-            source_type="research_title",
-            code=code,
-            limit=limit,
-            title_columns=["title", "report_title", "name"],
-            excerpt_columns=["summary", "abstract"],
-            date_columns=["report_date", "ann_date", "date"],
-            source_id_columns=["report_id", "id"],
-            url_columns=["url", "source_url"],
-        ))
-    if "interact_qa" in source_types:
-        sources.extend(_query_candidate_sources_from_table(
-            cur,
-            table_name="interact_qa",
-            source_type="interact_qa",
-            code=code,
-            limit=limit,
-            title_columns=["question", "title"],
-            excerpt_columns=["answer", "content"],
-            date_columns=["pub_date", "trade_date", "date", "created_at"],
-            source_id_columns=["qa_id", "id"],
-            url_columns=["url", "source_url"],
-        ))
-    if "irm_qa" in source_types:
-        for table_name in ("ts_raw_irm_qa_sh", "ts_raw_irm_qa_sz"):
-            sources.extend(_query_candidate_sources_from_table(
-                cur,
-                table_name=table_name,
-                source_type="irm_qa",
-                code=code,
-                limit=limit,
-                title_columns=["question", "title", "q"],
-                excerpt_columns=["answer", "content", "a"],
-                date_columns=["pub_date", "trade_date", "date", "created_at"],
-                source_id_columns=["qa_id", "id", "_row_hash"],
-                url_columns=["url", "source_url"],
-            ))
-    matched = [source for source in sources if _source_record_matches_mapping(source, mapping)]
-    return matched[:limit]
+def _query_candidate_sources_for_mapping(cur, mapping: dict[str, Any], source_types: list[str], limit: int) -> list[dict[str, Any]]:
+    return supply_chain_service._query_candidate_sources_for_mapping(cur, mapping, source_types, limit)
 
 
 def _persist_business_tag_evidence_event(cur, event: dict[str, Any]) -> None:
