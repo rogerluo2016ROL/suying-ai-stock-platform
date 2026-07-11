@@ -25,6 +25,7 @@ from app.domains.candidates.models import (
     CandidatePoolRecordRequest,
     CandidatePoolRecordResponse,
 )
+from app.domains.candidates.service import build_candidate_pool_id, resolve_candidate_pool_scope
 
 logger = logging.getLogger("screener.routes")
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
@@ -8372,17 +8373,15 @@ async def record_candidate_pool(
         )
 
     resolved_tenant = tenant_id or "tenant-default"
-    resolved_scope = payload.data_scope or (
-        "account" if (account_id or owner_user_id) else "public"
-    )
-    visibility = "public" if resolved_scope == "public" else (
-        payload.visibility if payload.visibility in ("private", "tenant_shared", "public") else "private"
+    resolved_scope, visibility = resolve_candidate_pool_scope(
+        data_scope=payload.data_scope, visibility=payload.visibility,
+        account_id=account_id, owner_user_id=owner_user_id,
     )
     trade_date = payload.trade_date or datetime.now().strftime("%Y-%m-%d")
     time_slot = payload.time_slot or datetime.now().strftime("%H:%M")
-    scope_key = account_id or owner_user_id or "public"
-    pool_id = (
-        f"POOL-{payload.source_mode}-{trade_date}-{time_slot.replace(':', '')}-{scope_key}"
+    pool_id = build_candidate_pool_id(
+        source_mode=payload.source_mode, trade_date=trade_date, time_slot=time_slot,
+        account_id=account_id, owner_user_id=owner_user_id,
     )
 
     try:
