@@ -1095,197 +1095,27 @@ def _query_business_tag_evidence(mapping_id: str) -> dict[str, Any]:
 
 
 def _default_business_tag_stage(mapping_id: str, evidence_count: int = 0) -> dict[str, Any]:
-    return {
-        "version": "supply-chain-v2-stage",
-        "mapping_id": mapping_id,
-        "source": None,
-        "source_status": "empty",
-        "current_stage": {
-            "research_stage": "R0",
-            "commercialization_stage": "C0",
-            "stage_reason": "没有结构化阶段证据，维持默认阶段并等待复核",
-            "stage_confirmed": False,
-            "review_status": "pending_review",
-            "source_event_id": None,
-        },
-        "history": [],
-        "evidence_event_count": evidence_count,
-        "stage_gate": {
-            "stage_change_requires_evidence": True,
-            "approved_event_required_for_confirmed_stage": True,
-            "interaction_or_legacy_evidence_can_only_pending_review": True,
-        },
-        "limitations": [],
-    }
+    return supply_chain_service._default_business_tag_stage(mapping_id, evidence_count)
 
 
 def _stage_from_evidence_events(events: list[dict[str, Any]]) -> dict[str, Any]:
-    for event in events:
-        if str(event.get("review_status") or "") != "approved":
-            continue
-        stage_after = event.get("stage_after") if isinstance(event.get("stage_after"), dict) else {}
-        research_stage = str(stage_after.get("research_stage") or stage_after.get("research") or "R0")
-        commercialization_stage = str(
-            stage_after.get("commercialization_stage")
-            or stage_after.get("commercialization")
-            or "C0"
-        )
-        if research_stage == "R0" and commercialization_stage == "C0":
-            continue
-        return {
-            "research_stage": research_stage,
-            "commercialization_stage": commercialization_stage,
-            "stage_reason": event.get("title") or event.get("excerpt") or "已审核证据事件触发阶段变化",
-            "stage_confirmed": True,
-            "review_status": "approved",
-            "source_event_id": event.get("event_id"),
-        }
-    return {
-        "research_stage": "R0",
-        "commercialization_stage": "C0",
-        "stage_reason": "没有已审核阶段证据，维持默认阶段并等待复核",
-        "stage_confirmed": False,
-        "review_status": "pending_review",
-        "source_event_id": None,
-    }
+    return supply_chain_service._stage_from_evidence_events(events)
 
 
-def _stage_record_from_reviewed_event(
-    event: dict[str, Any],
-    *,
-    review_status: str,
-) -> dict[str, Any] | None:
-    if review_status != "approved":
-        return None
-    stage_after = event.get("stage_after") if isinstance(event.get("stage_after"), dict) else {}
-    research_stage = str(stage_after.get("research_stage") or stage_after.get("research") or "R0")
-    commercialization_stage = str(
-        stage_after.get("commercialization_stage")
-        or stage_after.get("commercialization")
-        or "C0"
-    )
-    if research_stage == "R0" and commercialization_stage == "C0":
-        return None
-
-    mapping_id = str(event.get("mapping_id") or "")
-    event_id = str(event.get("event_id") or "")
-    event_date = str(event.get("event_date") or datetime.now().date().isoformat())[:10]
-    return {
-        "stage_id": f"STAGE-{mapping_id}-{event_id}",
-        "mapping_id": mapping_id,
-        "trade_date": event_date,
-        "research_stage": research_stage,
-        "commercialization_stage": commercialization_stage,
-        "stage_reason": event.get("title") or event.get("excerpt") or "已审核证据事件触发阶段变化",
-        "source_event_id": event_id,
-        "last_stage_change_date": event_date,
-        "review_status": review_status,
-    }
+def _stage_record_from_reviewed_event(event: dict[str, Any], *, review_status: str) -> dict[str, Any] | None:
+    return supply_chain_service._stage_record_from_reviewed_event(event, review_status=review_status)
 
 
-def _infer_business_tag_evidence_event(
-    *,
-    mapping_id: str,
-    mapping: dict[str, Any],
-    source: dict[str, Any],
-) -> dict[str, Any]:
-    title = str(source.get("title") or "")
-    excerpt = str(source.get("excerpt") or "")
-    text = f"{title} {excerpt}".lower()
-
-    if any(keyword in text for keyword in ("订单", "中标", "定点", "小批量")):
-        evidence_type = "order"
-        impact_dimensions = ["commercialization_stage", "growth"]
-        stage_after = {"research_stage": "R5", "commercialization_stage": "C3"}
-    elif any(keyword in text for keyword in ("客户验证", "验证", "测试", "样品")):
-        evidence_type = "customer_validation"
-        impact_dimensions = ["research_stage", "commercialization_stage"]
-        stage_after = {"research_stage": "R3", "commercialization_stage": "C2"}
-    elif any(keyword in text for keyword in ("量产", "规模化", "规模推广")):
-        evidence_type = "commercialization"
-        impact_dimensions = ["commercialization_stage", "growth", "profit"]
-        stage_after = {"research_stage": "R6", "commercialization_stage": "C5"}
-    elif any(keyword in text for keyword in ("专利", "认证", "壁垒", "独家")):
-        evidence_type = "moat"
-        impact_dimensions = ["moat"]
-        stage_after = {}
-    elif any(keyword in text for keyword in ("研发", "开发", "立项")):
-        evidence_type = "research_progress"
-        impact_dimensions = ["research_stage"]
-        stage_after = {"research_stage": "R1", "commercialization_stage": "C0"}
-    else:
-        evidence_type = "business_mention"
-        impact_dimensions = ["business_tag"]
-        stage_after = {}
-
-    source_type = str(source.get("source_type") or "manual")
-    base_confidence = {
-        "announcement_body": 0.8,
-        "announcement_title": 0.55,
-        "research_body": 0.7,
-        "research_title": 0.5,
-        "irm_qa": 0.45,
-        "manual": 0.6,
-    }.get(source_type, 0.4)
-    confidence = _to_float(source.get("confidence"), base_confidence)
-    event_key = "|".join([
-        str(mapping_id),
-        source_type,
-        str(source.get("source_id") or ""),
-        title,
-        excerpt[:80],
-    ])
-    digest = hashlib.sha1(event_key.encode("utf-8")).hexdigest()[:12]
-    return {
-        "event_id": f"EV-{mapping_id}-{digest}",
-        "mapping_id": mapping_id,
-        "code": str(mapping.get("code") or ""),
-        "node_id": mapping.get("node_id"),
-        "event_date": source.get("event_date"),
-        "source_type": source_type,
-        "source_id": source.get("source_id"),
-        "title": title,
-        "excerpt": excerpt,
-        "original_url": source.get("original_url"),
-        "evidence_type": evidence_type,
-        "impact_dimensions": impact_dimensions,
-        "confidence": confidence,
-        "review_status": "pending_review",
-        "stage_before": {},
-        "stage_after": stage_after,
-    }
+def _infer_business_tag_evidence_event(*, mapping_id: str, mapping: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
+    return supply_chain_service._infer_business_tag_evidence_event(mapping_id=mapping_id, mapping=mapping, source=source)
 
 
 def _mapping_text_terms(mapping: dict[str, Any]) -> set[str]:
-    raw_terms: list[Any] = [
-        mapping.get("tag_name"),
-        mapping.get("node_id"),
-        mapping.get("theme_id"),
-        mapping.get("chain_id"),
-    ]
-    path = mapping.get("l1_l8_path") if isinstance(mapping.get("l1_l8_path"), list) else []
-    for item in path:
-        if isinstance(item, dict):
-            raw_terms.extend([item.get("name"), item.get("display_name")])
-        else:
-            raw_terms.append(item)
-    terms = set()
-    for term in raw_terms:
-        value = str(term or "").strip().lower()
-        if len(value) >= 2:
-            terms.add(value)
-    return terms
+    return supply_chain_service._mapping_text_terms(mapping)
 
 
 def _source_record_matches_mapping(source: dict[str, Any], mapping: dict[str, Any]) -> bool:
-    text = f"{source.get('title') or ''} {source.get('excerpt') or ''}".lower()
-    if not text.strip():
-        return False
-    terms = _mapping_text_terms(mapping)
-    if terms and any(term in text for term in terms):
-        return True
-    evidence_keywords = ("客户验证", "订单", "中标", "定点", "量产", "小批量", "专利", "认证", "研发", "样品")
-    return not terms and any(keyword in text for keyword in evidence_keywords)
+    return supply_chain_service._source_record_matches_mapping(source, mapping)
 
 
 def _query_business_tag_mappings_for_batch(
