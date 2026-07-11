@@ -149,6 +149,400 @@ def data_readiness() -> dict[str, Any]:
     }
 
 
+def _l8_dimension_payloads() -> list[dict[str, Any]]:
+    return [
+        {
+            "dimension_id": item["dimension_id"],
+            "name": item["name"],
+            "evidence_type": item["evidence_type"],
+            "keywords": item["keywords"],
+        }
+        for item in L8_EVIDENCE_DIMENSIONS
+    ]
+
+
+def _matching_l8_dimensions(text: str) -> list[dict[str, Any]]:
+    source_text = str(text or "").lower()
+    matched = []
+    for dimension in L8_EVIDENCE_DIMENSIONS:
+        if any(str(keyword).lower() in source_text for keyword in dimension["keywords"]):
+            matched.append(dimension)
+    return matched
+
+
+def _l8_source_confidence(source_type: str) -> float:
+    return {
+        "announcement_body": 0.8,
+        "announcement_title": 0.6,
+        "research_body": 0.72,
+        "research_title": 0.58,
+        "irm_qa": 0.55,
+        "interact_qa": 0.55,
+        "company_business_segment": 0.7,
+    }.get(source_type, 0.45)
+
+
+def _build_l8_source_evidence_events(
+    *,
+    mapping_id: str,
+    mapping: dict[str, Any],
+    source: dict[str, Any],
+) -> list[dict[str, Any]]:
+    title = str(source.get("title") or "")
+    excerpt = str(source.get("excerpt") or "")
+    source_type = str(source.get("source_type") or "manual")
+    text = f"{title} {excerpt}"
+    dimensions = _matching_l8_dimensions(text)
+    events = []
+    for dimension in dimensions:
+        event_key = "|".join([
+            str(mapping_id),
+            str(dimension["dimension_id"]),
+            source_type,
+            str(source.get("source_id") or ""),
+            title,
+            excerpt[:120],
+        ])
+        digest = hashlib.sha1(event_key.encode("utf-8")).hexdigest()[:12]
+        events.append({
+            "event_id": f"L8-{mapping_id}-{dimension['dimension_id']}-{digest}",
+            "mapping_id": mapping_id,
+            "code": str(mapping.get("code") or ""),
+            "node_id": mapping.get("node_id"),
+            "event_date": source.get("event_date"),
+            "source_type": source_type,
+            "source_id": source.get("source_id"),
+            "title": title or dimension["name"],
+            "excerpt": excerpt or title,
+            "original_url": source.get("original_url"),
+            "evidence_type": dimension["evidence_type"],
+            "impact_dimensions": dimension["impact_dimensions"],
+            "confidence": _to_float(source.get("confidence"), _l8_source_confidence(source_type)),
+            "review_status": "pending_review",
+            "stage_before": {},
+            "stage_after": dimension["stage_after"],
+            "l8_dimension_id": dimension["dimension_id"],
+            "l8_dimension_name": dimension["name"],
+        })
+    return events
+
+
+def _build_l8_evidence_status_records(
+    *,
+    mapping: dict[str, Any],
+    l8_source_events: list[dict[str, Any]],
+    trade_date: str | None = None,
+) -> list[dict[str, Any]]:
+    score_date = (trade_date or datetime.now().date().isoformat())[:10]
+    events_by_dimension: dict[str, list[dict[str, Any]]] = {}
+    for event in l8_source_events:
+        dimension_id = str(event.get("l8_dimension_id") or event.get("evidence_type") or "")
+        if dimension_id:
+            events_by_dimension.setdefault(dimension_id, []).append(event)
+
+    records = []
+    for dimension in L8_EVIDENCE_DIMENSIONS:
+        dimension_id = str(dimension["dimension_id"])
+        events = events_by_dimension.get(dimension_id, [])
+        event_ids = [str(event.get("event_id")) for event in events if event.get("event_id")]
+        source_status = "matched" if event_ids else "missing"
+        records.append({
+            "status_id": f"L8STATUS-{mapping['mapping_id']}-{dimension_id}",
+            "mapping_id": mapping["mapping_id"],
+            "code": mapping["code"],
+            "node_id": mapping.get("node_id"),
+            "dimension_id": dimension_id,
+            "dimension_name": dimension["name"],
+            "source_status": source_status,
+            "evidence_event_ids": event_ids,
+            "evidence_count": len(event_ids),
+            "evidence_summary": (
+                f"已匹配 {len(event_ids)} 条{dimension['name']}资料"
+                if event_ids
+                else f"暂无本地资料命中{dimension['name']}，需补公告、研报、互动问答或主营构成证据"
+            ),
+            "required_keywords": dimension["keywords"],
+            "updated_at": score_date,
+        })
+    return records
+
+
+def _inferred_item_name(row: dict[str, Any]) -> str:
+    return str(
+        row.get("product_name")
+        or row.get("material_name")
+        or row.get("tag_name")
+        or row.get("node_name")
+        or row.get("node_id")
+        or "AI算力"
+    )
+
+
+def _inferred_l4_name(node_id: str, item_name: str) -> str:
+    if node_id == "ai_compute_hardware":
+        return "算力硬件"
+    if node_id == "ai_compute_software":
+        return "基础软件/算力调度"
+    if node_id == "ai_compute_application":
+        return "行业应用"
+    if "硬件" in item_name or any(keyword in item_name for keyword in ("光模块", "芯片", "服务器", "交换机", "数据中心", "PCB")):
+        return "算力硬件"
+    if any(keyword in item_name for keyword in ("软件", "算法", "操作系统", "数据库", "云服务", "平台", "中间件")):
+        return "基础软件/算力调度"
+    if any(keyword in item_name for keyword in ("应用", "服务", "解决方案", "智能")):
+        return "行业应用"
+    return "算力硬件/基础软件/网络互联/行业应用"
+
+
+def _inferred_l6_name(item_name: str, node_id: str) -> str:
+    if "光模块" in item_name:
+        return "高速光互联/CPO/LPO"
+    if "芯片" in item_name:
+        return "AI芯片/GPU/ASIC/光芯片"
+    if "服务器" in item_name:
+        return "AI服务器/整机集群"
+    if "数据中心" in item_name:
+        return "智算中心/IDC/液冷基础设施"
+    if "交换机" in item_name:
+        return "高速交换机/网络互联"
+    if "印制电路" in item_name or "PCB" in item_name.upper():
+        return "高速PCB/服务器PCB"
+    if "算力" in item_name:
+        return "算力服务/算力租赁"
+    if "操作系统" in item_name:
+        return "服务器操作系统/国产操作系统"
+    if "数据库" in item_name:
+        return "数据库/数据管理"
+    if "云服务" in item_name:
+        return "云算力/云服务"
+    if "算法" in item_name:
+        return "AI算法/推理算法"
+    if any(keyword in item_name for keyword in ("软件", "中间件", "平台")):
+        return "算力调度/AI平台软件"
+    if node_id == "ai_compute_application":
+        return "行业AI应用/解决方案"
+    return "云边端推理/AI算力综合映射"
+
+
+def _inferred_l7_name(item_name: str, node_id: str) -> str:
+    if "光模块" in item_name:
+        return "公司业务标签：光模块业务"
+    if "芯片" in item_name:
+        return "公司业务标签：AI芯片/芯片业务"
+    if "服务器" in item_name:
+        return "公司业务标签：AI服务器业务"
+    if "数据中心" in item_name:
+        return "公司业务标签：数据中心/智算中心业务"
+    if "交换机" in item_name:
+        return "公司业务标签：交换机与网络设备业务"
+    if "印制电路" in item_name or "PCB" in item_name.upper():
+        return "公司业务标签：PCB与连接材料业务"
+    if "算力" in item_name:
+        return "公司业务标签：算力服务业务"
+    if "操作系统" in item_name:
+        return "公司业务标签：操作系统业务"
+    if "数据库" in item_name:
+        return "公司业务标签：数据库业务"
+    if "云服务" in item_name:
+        return "公司业务标签：云服务业务"
+    if "算法" in item_name:
+        return "公司业务标签：AI算法业务"
+    if any(keyword in item_name for keyword in ("软件", "中间件", "平台")):
+        return "公司业务标签：基础软件/算力调度软件业务"
+    if node_id == "ai_compute_application":
+        return "公司业务标签：行业AI应用业务"
+    return "公司业务标签：AI算力综合业务"
+
+
+def _build_inferred_l1_l8_path(row: dict[str, Any]) -> list[dict[str, Any]]:
+    node_id = str(row.get("node_id") or "")
+    chain_id = str(row.get("chain_id") or "")
+    item_name = _inferred_item_name(row)
+    is_ai_compute = chain_id == "ai_compute" or "ai_compute" in node_id or "AI算力" in item_name
+    l2_name = "AI算力" if is_ai_compute else str(row.get("node_name") or item_name)
+    return [
+        {"layer": "L1", "name": str(row.get("theme_name") or "未来产业主攻方向"), "source": "policy_theme"},
+        {"layer": "L2", "name": l2_name, "source": "inferred_direction"},
+        {"layer": "L3", "name": f"{l2_name}产业链", "source": "inferred_chain"},
+        {"layer": "L4", "name": _inferred_l4_name(node_id, item_name), "source": "inferred_value_segment"},
+        {"layer": "L5", "name": item_name, "source": "company_bom_mapping"},
+        {"layer": "L6", "name": _inferred_l6_name(item_name, node_id), "source": "rule_inference"},
+        {"layer": "L7", "name": _inferred_l7_name(item_name, node_id), "source": "rule_inference"},
+        {
+            "layer": "L8",
+            "name": "证据事件",
+            "source": "evidence_requirements",
+            "dimensions": _l8_dimension_payloads(),
+        },
+    ]
+
+
+def _stage_from_inferred_mapping_status(status: str) -> dict[str, Any]:
+    if status == "verified":
+        return {
+            "research_stage": "R1",
+            "commercialization_stage": "C1",
+            "stage_reason": "系统根据旧 BOM 映射 verified 状态推导，只能说明业务方向已确认；真实阶段仍需公告、研报或年报原文证据",
+            "review_status": "candidate",
+        }
+    return {
+        "research_stage": "R0",
+        "commercialization_stage": "C0",
+        "stage_reason": "系统仅发现产业链标签映射，未发现足够原文证据确认研发或商业化阶段",
+        "review_status": "candidate",
+    }
+
+
+def _inferred_node_bonus(item_name: str) -> float:
+    if any(keyword in item_name for keyword in ("光模块", "芯片", "服务器", "数据中心", "交换机")):
+        return 15.0
+    if any(keyword in item_name for keyword in ("操作系统", "数据库", "云服务", "算法")):
+        return 12.0
+    if any(keyword in item_name for keyword in ("软件", "平台", "中间件")):
+        return 8.0
+    return 5.0
+
+
+def _inferred_moat_bonus(item_name: str) -> float:
+    if any(keyword in item_name for keyword in ("芯片", "光模块", "操作系统", "数据库")):
+        return 45.0
+    if any(keyword in item_name for keyword in ("服务器", "交换机", "数据中心", "算法")):
+        return 35.0
+    if any(keyword in item_name for keyword in ("云服务", "软件", "平台", "中间件")):
+        return 25.0
+    return 15.0
+
+
+def _build_inferred_business_tag_materialization(
+    row: dict[str, Any],
+    *,
+    trade_date: str | None = None,
+) -> dict[str, Any]:
+    score_date = (trade_date or datetime.now().date().isoformat())[:10]
+    mapping_id = str(row.get("mapping_id") or "")
+    code = str(row.get("code") or "")
+    node_id = str(row.get("node_id") or "")
+    status = str(row.get("status") or "pending_review")
+    confidence = min(1.0, max(0.0, _to_float(row.get("confidence"), 0.0)))
+    item_name = _inferred_item_name(row)
+    path = _build_inferred_l1_l8_path(row)
+    evidence_id = f"INF-{mapping_id}-L1L8"
+    evidence_ids = [evidence_id]
+    tag_name = path[6]["name"]
+    mapping_keywords = row.get("mapping_keywords") if isinstance(row.get("mapping_keywords"), list) else []
+    stage_seed = _stage_from_inferred_mapping_status(status)
+
+    mapping = {
+        "mapping_id": mapping_id,
+        "code": code,
+        "business_segment_id": None,
+        "node_id": node_id,
+        "theme_id": row.get("theme_id"),
+        "chain_id": row.get("chain_id"),
+        "tag_name": tag_name,
+        "l1_l8_path": path,
+        "revenue_ratio": None,
+        "gross_profit_ratio": None,
+        "confidence": confidence,
+        "status": status if status in {"candidate", "pending_review", "weak_evidence", "verified", "rejected"} else "pending_review",
+        "evidence_ids": evidence_ids,
+    }
+
+    event_confidence = round(min(0.65, max(0.2, confidence)), 4)
+    event = {
+        "event_id": evidence_id,
+        "mapping_id": mapping_id,
+        "code": code,
+        "node_id": node_id,
+        "event_date": score_date,
+        "source_type": "rule_inference",
+        "source_id": mapping_id,
+        "title": f"{row.get('company_name') or code} {tag_name} L1-L8 推导证据",
+        "excerpt": (
+            f"系统根据 company_bom_mapping 与 supply_chain_bom_nodes 推导："
+            f"{' > '.join(item['name'] for item in path)}。"
+            "这不是公告或研报原文，只能作为候选证据，后续需要补充客户验证、订单、量产、收入毛利或专利标准等 L8 原始证据。"
+        ),
+        "original_url": None,
+        "evidence_type": "inferred_business_tag",
+        "impact_dimensions": ["business_tag", "l1_l8", "three_high"],
+        "confidence": event_confidence,
+        "review_status": "candidate",
+        "stage_before": {},
+        "stage_after": {
+            "research_stage": stage_seed["research_stage"],
+            "commercialization_stage": stage_seed["commercialization_stage"],
+        },
+    }
+
+    stage = {
+        "stage_id": f"STAGE-{mapping_id}-INF",
+        "mapping_id": mapping_id,
+        "trade_date": score_date,
+        "research_stage": stage_seed["research_stage"],
+        "commercialization_stage": stage_seed["commercialization_stage"],
+        "stage_reason": stage_seed["stage_reason"],
+        "source_event_id": evidence_id,
+        "last_stage_change_date": score_date,
+        "review_status": stage_seed["review_status"],
+    }
+
+    growth_score = round(min(60.0, confidence * 45.0 + _inferred_node_bonus(item_name)), 2)
+    moat_score = round(min(55.0, _inferred_moat_bonus(item_name) + confidence * 10.0), 2)
+    stage_score = _score_stage_progress(stage)
+    evidence_score = round(min(30.0, event_confidence * 45.0), 2)
+    total_score = round(
+        min(
+            45.0,
+            growth_score * 0.25
+            + moat_score * 0.25
+            + stage_score * 0.15
+            + evidence_score * 0.15,
+        ),
+        2,
+    )
+    score = {
+        "score_id": f"THREE-HIGH-{mapping_id}-{score_date}",
+        "mapping_id": mapping_id,
+        "trade_date": score_date,
+        "growth_score": growth_score,
+        "profit_score": None,
+        "moat_score": moat_score,
+        "stage_score": stage_score,
+        "evidence_score": evidence_score,
+        "total_score": total_score,
+        "score_detail": {
+            "score_unit": "business_tag",
+            "source": "rule_inference_baseline",
+            "inference_only": True,
+            "requires_original_evidence": True,
+            "revenue_supported": False,
+            "profit_supported": False,
+            "profit_score_status": "unavailable",
+            "approved_evidence_count": 0,
+            "candidate_evidence_count": 1,
+            "score_cap": 45.0,
+            "mapping_status": status,
+            "mapping_source": row.get("mapping_source"),
+            "mapping_keywords": mapping_keywords,
+        },
+        "evidence_ids": evidence_ids,
+    }
+    l8_statuses = _build_l8_evidence_status_records(
+        mapping=mapping,
+        l8_source_events=[],
+        trade_date=score_date,
+    )
+    return {
+        "mapping": mapping,
+        "evidence_event": event,
+        "l8_source_events": [],
+        "l8_evidence_statuses": l8_statuses,
+        "stage": stage,
+        "three_high_score": score,
+    }
+
+
 def _score_stage_progress(stage: dict[str, Any]) -> float:
     research_rank = stage_rank(stage.get("research_stage"))
     commercialization_rank = stage_rank(stage.get("commercialization_stage"))
