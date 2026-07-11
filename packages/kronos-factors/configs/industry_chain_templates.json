@@ -18683,6 +18683,21 @@
           "failure_conditions": ["只节省厚度但直径不适配", "持续温升不达标", "没有机器人规格产品或装机证据"],
           "evidence_ids": [],
           "excluded_application_domains": ["automotive"],
+          "application_domain_policy": {
+            "evaluation_scope": "fact",
+            "excluded_fact_handling": "cannot_satisfy_fact_requirement",
+            "excluded_only_result": "no_stage_promotion",
+            "allow_qualified_non_excluded_facts": true
+          },
+          "route_fact_contracts": {
+            "patent_standard": {
+              "required_metadata": ["legal_status", "legal_status_date"],
+              "metadata_value_constraints": {
+                "legal_status": ["active", "granted"]
+              }
+            }
+          },
+          "flattened_requirements_projection": "ordered_union_of_fact_requirements",
           "authenticity_ladder": {
             "AF0": {
               "meaning": "只有轴向磁通技术概念",
@@ -18691,7 +18706,9 @@
               "eligible": false,
               "required_fact_types": [],
               "required_application_domains": [],
-              "required_metadata": []
+              "required_metadata": [],
+              "fact_match_mode": "none",
+              "fact_requirements": []
             },
             "AF1": {
               "meaning": "专利或实验室样机",
@@ -18700,7 +18717,24 @@
               "eligible": true,
               "required_fact_types": ["patent_standard", "prototype_delivery"],
               "required_application_domains": [],
-              "required_metadata": []
+              "required_metadata": ["legal_status", "legal_status_date"],
+              "fact_match_mode": "any",
+              "fact_requirements": [
+                {
+                  "fact_type": "patent_standard",
+                  "required_application_domains": [],
+                  "required_metadata": ["legal_status", "legal_status_date"],
+                  "metadata_value_constraints": {
+                    "legal_status": ["active", "granted"]
+                  }
+                },
+                {
+                  "fact_type": "prototype_delivery",
+                  "required_application_domains": [],
+                  "required_metadata": [],
+                  "metadata_value_constraints": {}
+                }
+              ]
             },
             "AF2": {
               "meaning": "机器人规格产品和参数",
@@ -18709,7 +18743,16 @@
               "eligible": true,
               "required_fact_types": ["product_spec"],
               "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-              "required_metadata": ["application_domain"]
+              "required_metadata": ["application_domain"],
+              "fact_match_mode": "any",
+              "fact_requirements": [
+                {
+                  "fact_type": "product_spec",
+                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
+                  "required_metadata": ["application_domain"],
+                  "metadata_value_constraints": {}
+                }
+              ]
             },
             "AF3": {
               "meaning": "装入关节、腕部或灵巧手样机",
@@ -18718,7 +18761,16 @@
               "eligible": true,
               "required_fact_types": ["prototype_delivery"],
               "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-              "required_metadata": ["application_domain", "installation_position"]
+              "required_metadata": ["application_domain", "installation_position"],
+              "fact_match_mode": "any",
+              "fact_requirements": [
+                {
+                  "fact_type": "prototype_delivery",
+                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
+                  "required_metadata": ["application_domain", "installation_position"],
+                  "metadata_value_constraints": {}
+                }
+              ]
             },
             "AF4": {
               "meaning": "机器人客户送样、定点或联合验证",
@@ -18727,7 +18779,16 @@
               "eligible": true,
               "required_fact_types": ["customer_validation"],
               "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-              "required_metadata": ["application_domain"]
+              "required_metadata": ["application_domain"],
+              "fact_match_mode": "any",
+              "fact_requirements": [
+                {
+                  "fact_type": "customer_validation",
+                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
+                  "required_metadata": ["application_domain"],
+                  "metadata_value_constraints": {}
+                }
+              ]
             },
             "AF5": {
               "meaning": "小批量交付",
@@ -18736,7 +18797,16 @@
               "eligible": true,
               "required_fact_types": ["small_batch_delivery"],
               "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-              "required_metadata": ["application_domain"]
+              "required_metadata": ["application_domain"],
+              "fact_match_mode": "any",
+              "fact_requirements": [
+                {
+                  "fact_type": "small_batch_delivery",
+                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
+                  "required_metadata": ["application_domain"],
+                  "metadata_value_constraints": {}
+                }
+              ]
             },
             "AF6": {
               "meaning": "形成可识别收入和订单",
@@ -18745,7 +18815,24 @@
               "eligible": true,
               "required_fact_types": ["order_award", "revenue_margin"],
               "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-              "required_metadata": ["application_domain", "revenue_confirmed"]
+              "required_metadata": ["application_domain", "revenue_confirmed"],
+              "fact_match_mode": "all",
+              "fact_requirements": [
+                {
+                  "fact_type": "order_award",
+                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
+                  "required_metadata": ["application_domain"],
+                  "metadata_value_constraints": {}
+                },
+                {
+                  "fact_type": "revenue_margin",
+                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
+                  "required_metadata": ["application_domain", "revenue_confirmed"],
+                  "metadata_value_constraints": {
+                    "revenue_confirmed": [true]
+                  }
+                }
+              ]
             }
           }
         },

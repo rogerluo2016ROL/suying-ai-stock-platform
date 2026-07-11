@@ -1,5 +1,7 @@
 """Contracts for V2 research profile and dexterous-hand template."""
 
+from copy import deepcopy
+
 import pytest
 
 from kronos_factors.engine.chain_deconstruct import build_industry_template_tree
@@ -229,13 +231,124 @@ EXPECTED_AXIAL_FACT_TYPES = {
 
 EXPECTED_AXIAL_METADATA = {
     "AF0": [],
-    "AF1": [],
+    "AF1": ["legal_status", "legal_status_date"],
     "AF2": ["application_domain"],
     "AF3": ["application_domain", "installation_position"],
     "AF4": ["application_domain"],
     "AF5": ["application_domain"],
     "AF6": ["application_domain", "revenue_confirmed"],
 }
+
+EXPECTED_AXIAL_MATCH_MODES = {
+    "AF0": "none",
+    "AF1": "any",
+    "AF2": "any",
+    "AF3": "any",
+    "AF4": "any",
+    "AF5": "any",
+    "AF6": "all",
+}
+
+
+def _axial_route(template):
+    return next(
+        route
+        for route in template["technology_routes"]
+        if route["route_id"] == "dexterous_axial_flux_motor"
+    )
+
+
+def _ordered_union(values):
+    result = []
+    for value in values:
+        if value not in result:
+            result.append(value)
+    return result
+
+
+def _add_extra_canonical_keyword(template):
+    template["evidence_requirements"][0]["business_keywords"].append("机器人夹爪")
+
+
+def _replace_node_with_unknown_node(template):
+    template["evidence_requirements"][0]["node_id"] = "dexterous_hand_unknown"
+
+
+def _enable_second_independent_discovery(template):
+    template["evidence_requirements"][0]["independent_discovery"] = True
+
+
+def _replace_af6_rank_with_negative_value(template):
+    _axial_route(template)["authenticity_ladder"]["AF6"]["rank"] = -1
+
+
+def _replace_af2_fact_type_with_unknown_value(template):
+    rule = _axial_route(template)["authenticity_ladder"]["AF2"]
+    rule["required_fact_types"][0] = "unknown_route_fact"
+    if rule.get("fact_requirements"):
+        rule["fact_requirements"][0]["fact_type"] = "unknown_route_fact"
+
+
+def _remove_automotive_policy(template):
+    _axial_route(template).pop("application_domain_policy", None)
+
+
+def _replace_first_requirement_with_string(template):
+    template["evidence_requirements"][0] = "not-an-object"
+
+
+def _drift_flattened_af1_metadata(template):
+    _axial_route(template)["authenticity_ladder"]["AF1"]["required_metadata"] = []
+
+
+def _replace_af4_pool_with_list(template):
+    _axial_route(template)["authenticity_ladder"]["AF4"]["max_pool"] = ["B"]
+
+
+def _replace_af1_match_mode_with_list(template):
+    _axial_route(template)["authenticity_ladder"]["AF1"]["fact_match_mode"] = [
+        "any"
+    ]
+
+
+def _replace_af1_match_mode_with_all(template):
+    _axial_route(template)["authenticity_ladder"]["AF1"]["fact_match_mode"] = "all"
+
+
+def _replace_af6_match_mode_with_any(template):
+    _axial_route(template)["authenticity_ladder"]["AF6"]["fact_match_mode"] = "any"
+
+
+def _raise_af1_pool_cap_to_c(template):
+    _axial_route(template)["authenticity_ladder"]["AF1"]["max_pool"] = "C"
+
+
+def _remove_patent_legal_status_date_everywhere(template):
+    axial = _axial_route(template)
+    axial["route_fact_contracts"]["patent_standard"]["required_metadata"].remove(
+        "legal_status_date"
+    )
+    af1 = axial["authenticity_ladder"]["AF1"]
+    af1["fact_requirements"][0]["required_metadata"].remove("legal_status_date")
+    af1["required_metadata"].remove("legal_status_date")
+
+
+def _replace_af1_prototype_with_product_spec(template):
+    af1 = _axial_route(template)["authenticity_ladder"]["AF1"]
+    af1["fact_requirements"][1]["fact_type"] = "product_spec"
+    af1["required_fact_types"][1] = "product_spec"
+
+
+def _replace_af6_order_with_small_batch_delivery(template):
+    af6 = _axial_route(template)["authenticity_ladder"]["AF6"]
+    af6["fact_requirements"][0]["fact_type"] = "small_batch_delivery"
+    af6["required_fact_types"][0] = "small_batch_delivery"
+
+
+def _shrink_af2_application_domains(template):
+    af2 = _axial_route(template)["authenticity_ladder"]["AF2"]
+    af2["fact_requirements"][0]["required_application_domains"] = ["robot_hand"]
+    af2["required_application_domains"] = ["robot_hand"]
 
 
 def test_selection_v2_profile_weights_and_pool_thresholds():
@@ -381,12 +494,203 @@ def test_axial_flux_ladder_has_explicit_fact_domain_and_metadata_contracts():
             "required_fact_types",
             "required_application_domains",
             "required_metadata",
+            "fact_match_mode",
+            "fact_requirements",
         }
         assert rule["required_fact_types"] == EXPECTED_AXIAL_FACT_TYPES[stage]
         assert rule["required_metadata"] == EXPECTED_AXIAL_METADATA[stage]
         assert rule["required_application_domains"] == (
             AXIAL_APPLICATION_DOMAINS if index >= 2 else []
         )
+
+
+def test_axial_flux_predicates_encode_any_all_and_local_fact_contracts():
+    template = get_industry_template("dexterous_hand")
+    axial = _axial_route(template)
+    ladder = axial["authenticity_ladder"]
+
+    assert axial["flattened_requirements_projection"] == (
+        "ordered_union_of_fact_requirements"
+    )
+    assert axial["route_fact_contracts"] == {
+        "patent_standard": {
+            "required_metadata": ["legal_status", "legal_status_date"],
+            "metadata_value_constraints": {
+                "legal_status": ["active", "granted"],
+            },
+        }
+    }
+    assert axial["application_domain_policy"] == {
+        "evaluation_scope": "fact",
+        "excluded_fact_handling": "cannot_satisfy_fact_requirement",
+        "excluded_only_result": "no_stage_promotion",
+        "allow_qualified_non_excluded_facts": True,
+    }
+
+    for stage, expected_mode in EXPECTED_AXIAL_MATCH_MODES.items():
+        rule = ladder[stage]
+        requirements = rule["fact_requirements"]
+        assert rule["fact_match_mode"] == expected_mode
+        assert rule["required_fact_types"] == _ordered_union(
+            requirement["fact_type"] for requirement in requirements
+        )
+        assert rule["required_application_domains"] == _ordered_union(
+            domain
+            for requirement in requirements
+            for domain in requirement["required_application_domains"]
+        )
+        assert rule["required_metadata"] == _ordered_union(
+            metadata
+            for requirement in requirements
+            for metadata in requirement["required_metadata"]
+        )
+
+    af1 = ladder["AF1"]["fact_requirements"]
+    assert [requirement["fact_type"] for requirement in af1] == [
+        "patent_standard",
+        "prototype_delivery",
+    ]
+    patent = af1[0]
+    assert patent["required_metadata"] == ["legal_status", "legal_status_date"]
+    assert patent["metadata_value_constraints"] == {
+        "legal_status": ["active", "granted"]
+    }
+
+    for index in range(2, 7):
+        assert all(
+            requirement["required_application_domains"]
+            == AXIAL_APPLICATION_DOMAINS
+            for requirement in ladder[f"AF{index}"]["fact_requirements"]
+        )
+
+    af6 = ladder["AF6"]["fact_requirements"]
+    assert [requirement["fact_type"] for requirement in af6] == [
+        "order_award",
+        "revenue_margin",
+    ]
+    assert "revenue_confirmed" not in af6[0]["required_metadata"]
+    assert af6[1]["required_metadata"] == [
+        "application_domain",
+        "revenue_confirmed",
+    ]
+    assert af6[1]["metadata_value_constraints"] == {"revenue_confirmed": [True]}
+
+
+@pytest.mark.parametrize(
+    ("mutate", "expected_path"),
+    [
+        (
+            _add_extra_canonical_keyword,
+            "template.evidence_requirements.business_keywords",
+        ),
+        (
+            _replace_node_with_unknown_node,
+            "template.evidence_requirements[0].node_id",
+        ),
+        (
+            _enable_second_independent_discovery,
+            "template.evidence_requirements[0].independent_discovery",
+        ),
+        (
+            _replace_af6_rank_with_negative_value,
+            "template.technology_routes[2].authenticity_ladder.AF6.rank",
+        ),
+        (
+            _replace_af2_fact_type_with_unknown_value,
+            "template.technology_routes[2].authenticity_ladder.AF2.fact_requirements[0].fact_type",
+        ),
+        (
+            _remove_automotive_policy,
+            "template.technology_routes[2].application_domain_policy",
+        ),
+        (
+            _replace_first_requirement_with_string,
+            "template.evidence_requirements[0]",
+        ),
+        (
+            _drift_flattened_af1_metadata,
+            "template.technology_routes[2].authenticity_ladder.AF1.required_metadata",
+        ),
+        (
+            _replace_af4_pool_with_list,
+            "template.technology_routes[2].authenticity_ladder.AF4.max_pool",
+        ),
+        (
+            _replace_af1_match_mode_with_list,
+            "template.technology_routes[2].authenticity_ladder.AF1.fact_match_mode",
+        ),
+        (
+            _replace_af1_match_mode_with_all,
+            "template.technology_routes[2].authenticity_ladder.AF1.fact_match_mode",
+        ),
+        (
+            _replace_af6_match_mode_with_any,
+            "template.technology_routes[2].authenticity_ladder.AF6.fact_match_mode",
+        ),
+        (
+            _raise_af1_pool_cap_to_c,
+            "template.technology_routes[2].authenticity_ladder.AF1.max_pool",
+        ),
+        (
+            _remove_patent_legal_status_date_everywhere,
+            "template.technology_routes[2].route_fact_contracts.patent_standard.required_metadata",
+        ),
+        (
+            _replace_af1_prototype_with_product_spec,
+            "template.technology_routes[2].authenticity_ladder.AF1.fact_requirements[1].fact_type",
+        ),
+        (
+            _replace_af6_order_with_small_batch_delivery,
+            "template.technology_routes[2].authenticity_ladder.AF6.fact_requirements[0].fact_type",
+        ),
+        (
+            _shrink_af2_application_domains,
+            "template.technology_routes[2].authenticity_ladder.AF2.fact_requirements[0].required_application_domains",
+        ),
+    ],
+    ids=[
+        "extra-canonical-keyword",
+        "unknown-node",
+        "second-independent-discovery",
+        "negative-af6-rank",
+        "unknown-route-fact-type",
+        "missing-automotive-policy",
+        "bad-requirement-row-type",
+        "flattened-predicate-drift",
+        "bad-pool-type",
+        "bad-match-mode-type",
+        "af1-must-remain-any",
+        "af6-must-remain-all",
+        "af1-pool-cap-must-remain-d",
+        "patent-contract-requires-legal-status-date",
+        "af1-prototype-branch-must-not-change",
+        "af6-order-branch-must-not-change",
+        "af2-requires-all-robot-domains",
+    ],
+)
+def test_industry_evidence_validation_rejects_review_mutations(
+    mutate,
+    expected_path,
+):
+    template = deepcopy(get_industry_template("dexterous_hand"))
+    mutate(template)
+
+    with pytest.raises(ValueError) as error:
+        validate_industry_evidence_coverage(template, load_evidence_requirements())
+
+    assert expected_path in str(error.value)
+
+
+def test_business_evidence_requirement_is_deeply_isolated_from_template():
+    template = get_industry_template("dexterous_hand")
+    requirement = get_business_evidence_requirement(template, "轴向磁通电机")
+
+    requirement["product_terms"].append("仅修改返回值")
+    requirement["required_evidence_type_ids"].clear()
+
+    original = get_business_evidence_requirement(template, "轴向磁通电机")
+    assert "仅修改返回值" not in original["product_terms"]
+    assert original["required_evidence_type_ids"]
 
 
 def test_template_tree_exposes_v2_overlay_without_removing_legacy_fields():
