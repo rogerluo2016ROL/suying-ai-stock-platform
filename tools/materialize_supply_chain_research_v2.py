@@ -322,6 +322,10 @@ def _mapping_node_id(template_id: str, keyword: str) -> str:
     return layer_node_id(template_id, layer_id)
 
 
+def _normalize_stock_code(value: Any) -> str:
+    return str(value or "").split(".", 1)[0]
+
+
 def build_derived_mapping(
     *,
     template_id: str,
@@ -333,7 +337,7 @@ def build_derived_mapping(
     ).hexdigest()[:12]
     return {
         "mapping_id": f"DEXH-{source['code']}-{token}",
-        "code": str(source["code"]),
+        "code": _normalize_stock_code(source["code"]),
         "business_segment_id": source.get("business_segment_id"),
         "node_id": _mapping_node_id(template_id, matched_keyword),
         "theme_id": "future_industry_dexterous_hand",
@@ -596,7 +600,9 @@ def _upsert_candidate_mappings(cur, rows: list[dict[str, Any]]) -> None:
                 tag_name,l1_l8_path,revenue_ratio,gross_profit_ratio,confidence,
                 status,evidence_ids
             ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            ON CONFLICT (mapping_id) DO NOTHING
+            ON CONFLICT (mapping_id) DO UPDATE SET code=EXCLUDED.code,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE business_tag_mapping.status = 'candidate'
             """,
             (
                 row["mapping_id"],
@@ -685,4 +691,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

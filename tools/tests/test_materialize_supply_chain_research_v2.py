@@ -112,6 +112,37 @@ def test_derived_mapping_is_capped_as_candidate_without_original_evidence():
     assert first["l1_l8_path"][-1]["requires_original_evidence"] is True
 
 
+def test_derived_mapping_normalizes_exchange_suffix_and_repairs_candidate_rows():
+    source = {
+        "mapping_id": "source-603662-sh",
+        "code": "603662.SH",
+        "business_segment_id": None,
+        "tag_name": "力传感器",
+        "evidence_ids": [],
+    }
+    row = module.build_derived_mapping(
+        template_id="dexterous_hand",
+        source=source,
+        matched_keyword="力传感器",
+    )
+
+    class CaptureCursor:
+        def __init__(self):
+            self.executed = []
+
+        def execute(self, statement, params):
+            self.executed.append((statement, params))
+
+    cursor = CaptureCursor()
+    module._upsert_candidate_mappings(cursor, [row])
+
+    assert row["code"] == "603662"
+    statement, params = cursor.executed[0]
+    assert "DO UPDATE SET code=EXCLUDED.code" in statement
+    assert "business_tag_mapping.status = 'candidate'" in statement
+    assert params[1] == "603662"
+
+
 def test_node_score_does_not_convert_unknown_dimensions_to_zero():
     template = module.get_industry_template("dexterous_hand")
     rows = module.build_research_rows(template, date(2026, 7, 11))
@@ -141,4 +172,3 @@ def test_dry_run_returns_plan_without_opening_database(monkeypatch):
     assert result["planned"]["nodes"] == 8
     assert result["planned"]["dimensions"] == 64
     assert result["planned"]["candidate_mappings"] == "requires_database_read"
-
