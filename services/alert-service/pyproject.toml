@@ -7,9 +7,6 @@ dependencies = [
     "kronos-contracts",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
-    "kronos-factors",
-    "kronos-core",
-    "kronos-data",
     "lark-oapi>=1.7.0",
 ]
 

@@ -9,9 +9,6 @@ dependencies = [
     "uvicorn[standard]>=0.27",
     "asyncpg",
     "sqlalchemy>=2.0",
-    "kronos-factors",
-    "kronos-core",
-    "kronos-data",
     "kronos-auth",
 ]
 

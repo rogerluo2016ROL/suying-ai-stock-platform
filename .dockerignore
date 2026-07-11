@@ -9,6 +9,12 @@ frontend/node_modules
 Kronos
 .git
 .codegraph
+.wolf
+.codex
+.Codex
+.playwright-*
+chatbi-workspace
+backend/data
 docker/secrets
 **/outputs
 outputs
