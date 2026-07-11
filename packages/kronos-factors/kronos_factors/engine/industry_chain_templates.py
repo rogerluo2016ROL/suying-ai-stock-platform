@@ -72,6 +72,54 @@ def get_industry_template(
     raise ValueError(f"unknown industry template: {template_id}")
 
 
+def validate_industry_evidence_coverage(template, requirements) -> None:
+    rows = list(template.get("evidence_requirements") or [])
+    ids = [str(row.get("requirement_id") or "") for row in rows]
+    if not rows or any(not item for item in ids) or len(ids) != len(set(ids)):
+        raise ValueError("industry evidence requirement ids must be non-empty and unique")
+    known_types = set(requirements.evidence_types)
+    route_ids = {
+        str(route.get("route_id")) for route in template.get("technology_routes") or []
+    }
+    keyword_matches: dict[str, int] = {}
+    for row in rows:
+        if not set(row.get("required_evidence_type_ids") or []).issubset(known_types):
+            raise ValueError(f"unknown evidence type in {row['requirement_id']}")
+        if not row.get("product_terms"):
+            raise ValueError(f"missing product terms in {row['requirement_id']}")
+        if row.get("require_product_and_scene") and not row.get("scene_terms"):
+            raise ValueError(f"missing scene terms in {row['requirement_id']}")
+        if not row.get("next_validation_action"):
+            raise ValueError(f"missing next action in {row['requirement_id']}")
+        route_id = row.get("technology_route_id")
+        if route_id and route_id not in route_ids:
+            raise ValueError(f"unknown technology route: {route_id}")
+        for keyword in row.get("business_keywords") or []:
+            keyword_matches[str(keyword)] = keyword_matches.get(str(keyword), 0) + 1
+    expected = template.get("candidate_mapping_rules", {}).get(
+        "required_business_keywords", []
+    )
+    invalid = [
+        keyword for keyword in expected if keyword_matches.get(str(keyword), 0) != 1
+    ]
+    if invalid:
+        raise ValueError(
+            "candidate keywords require exactly one evidence coverage: "
+            + ", ".join(invalid)
+        )
+
+
+def get_business_evidence_requirement(template, keyword: str) -> dict:
+    matches = [
+        dict(row)
+        for row in template.get("evidence_requirements") or []
+        if keyword in (row.get("business_keywords") or [])
+    ]
+    if len(matches) != 1:
+        raise ValueError(f"business keyword must resolve once: {keyword}")
+    return matches[0]
+
+
 def load_selection_v2_profile(path: str | Path | None = None) -> dict[str, Any]:
     target = _resolve_config_path(SELECTION_V2_CONFIG_NAME, path)
     return json.loads(target.read_text(encoding="utf-8"))

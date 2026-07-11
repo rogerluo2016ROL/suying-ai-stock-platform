@@ -18682,14 +18682,71 @@
           "substitute_route_ids": ["dexterous_hollow_cup_screw", "dexterous_frameless_low_ratio"],
           "failure_conditions": ["只节省厚度但直径不适配", "持续温升不达标", "没有机器人规格产品或装机证据"],
           "evidence_ids": [],
+          "excluded_application_domains": ["automotive"],
           "authenticity_ladder": {
-            "AF0": {"meaning": "只有轴向磁通技术概念", "max_pool": null},
-            "AF1": {"meaning": "专利或实验室样机", "max_pool": "D"},
-            "AF2": {"meaning": "机器人规格产品和参数", "max_pool": "C"},
-            "AF3": {"meaning": "装入关节、腕部或灵巧手样机", "max_pool": "C"},
-            "AF4": {"meaning": "机器人客户送样、定点或联合验证", "max_pool": "B"},
-            "AF5": {"meaning": "小批量交付", "max_pool": "A"},
-            "AF6": {"meaning": "形成可识别收入和订单", "max_pool": "A"}
+            "AF0": {
+              "meaning": "只有轴向磁通技术概念",
+              "rank": 0,
+              "max_pool": null,
+              "eligible": false,
+              "required_fact_types": [],
+              "required_application_domains": [],
+              "required_metadata": []
+            },
+            "AF1": {
+              "meaning": "专利或实验室样机",
+              "rank": 1,
+              "max_pool": "D",
+              "eligible": true,
+              "required_fact_types": ["patent_standard", "prototype_delivery"],
+              "required_application_domains": [],
+              "required_metadata": []
+            },
+            "AF2": {
+              "meaning": "机器人规格产品和参数",
+              "rank": 2,
+              "max_pool": "C",
+              "eligible": true,
+              "required_fact_types": ["product_spec"],
+              "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
+              "required_metadata": ["application_domain"]
+            },
+            "AF3": {
+              "meaning": "装入关节、腕部或灵巧手样机",
+              "rank": 3,
+              "max_pool": "C",
+              "eligible": true,
+              "required_fact_types": ["prototype_delivery"],
+              "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
+              "required_metadata": ["application_domain", "installation_position"]
+            },
+            "AF4": {
+              "meaning": "机器人客户送样、定点或联合验证",
+              "rank": 4,
+              "max_pool": "B",
+              "eligible": true,
+              "required_fact_types": ["customer_validation"],
+              "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
+              "required_metadata": ["application_domain"]
+            },
+            "AF5": {
+              "meaning": "小批量交付",
+              "rank": 5,
+              "max_pool": "A",
+              "eligible": true,
+              "required_fact_types": ["small_batch_delivery"],
+              "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
+              "required_metadata": ["application_domain"]
+            },
+            "AF6": {
+              "meaning": "形成可识别收入和订单",
+              "rank": 6,
+              "max_pool": "A",
+              "eligible": true,
+              "required_fact_types": ["order_award", "revenue_margin"],
+              "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
+              "required_metadata": ["application_domain", "revenue_confirmed"]
+            }
           }
         },
         {
@@ -18788,6 +18845,134 @@
           "leading_metric_ids": [],
           "evidence_ids": [],
           "coverage_ratio": 0
+        }
+      ],
+      "evidence_requirements": [
+        {
+          "requirement_id": "dexterous_whole_hand",
+          "business_keywords": ["灵巧手", "机器人末端"],
+          "node_id": "dexterous_hand_core_product",
+          "technology_route_id": null,
+          "aliases": ["机器人手", "仿生手", "多指灵巧手", "机器人末端"],
+          "product_terms": ["灵巧手", "机器人手", "多指手", "末端执行器"],
+          "scene_terms": ["机器人", "具身智能", "人形机器人"],
+          "negative_examples": ["普通夹爪"],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": ["product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue", "recognized_profit"],
+          "next_validation_action": "核验整手规格、客户和交付",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "dexterous_micro_actuator",
+          "business_keywords": ["微型执行器"],
+          "node_id": "dexterous_hand_integration",
+          "technology_route_id": null,
+          "aliases": ["微型驱动器", "微型线性执行器"],
+          "product_terms": ["微型执行器", "微型驱动器"],
+          "scene_terms": ["灵巧手", "机器人手指", "机器人关节"],
+          "negative_examples": ["汽车执行器"],
+          "require_product_and_scene": true,
+          "required_evidence_type_ids": ["product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "next_validation_action": "核验机器人安装位置和客户测试",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "dexterous_hollow_cup_motor",
+          "business_keywords": ["空心杯电机"],
+          "node_id": "dexterous_hand_foundation",
+          "technology_route_id": "dexterous_hollow_cup_screw",
+          "aliases": ["空杯电机", "无铁芯电机"],
+          "product_terms": ["空心杯电机", "空杯电机", "无铁芯电机"],
+          "scene_terms": ["灵巧手", "机器人手指", "末端执行器"],
+          "negative_examples": ["消费电子震动马达"],
+          "require_product_and_scene": true,
+          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue", "recognized_profit"],
+          "next_validation_action": "核验灵巧手规格、送样和量产收入",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "dexterous_frameless_motor",
+          "business_keywords": ["无框电机"],
+          "node_id": "dexterous_hand_foundation",
+          "technology_route_id": "dexterous_frameless_low_ratio",
+          "aliases": ["力矩电机", "无框力矩电机"],
+          "product_terms": ["无框电机", "无框力矩电机"],
+          "scene_terms": ["灵巧手", "机器人关节", "机器人腕部"],
+          "negative_examples": ["通用工业伺服"],
+          "require_product_and_scene": true,
+          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "next_validation_action": "核验机器人尺寸参数和装机位置",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "dexterous_axial_flux_motor",
+          "business_keywords": ["轴向磁通电机"],
+          "node_id": "dexterous_hand_foundation",
+          "technology_route_id": "dexterous_axial_flux_motor",
+          "aliases": ["盘式电机", "轴向磁场电机"],
+          "product_terms": ["轴向磁通电机", "轴向磁场电机", "盘式电机"],
+          "scene_terms": ["灵巧手", "机器人手指", "机器人关节", "机器人腕部"],
+          "negative_examples": ["汽车驱动电机", "轮毂电机", "航空推进电机"],
+          "require_product_and_scene": true,
+          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "next_validation_action": "核验机器人规格、装机、客户验证和收入",
+          "independent_discovery": true
+        },
+        {
+          "requirement_id": "dexterous_micro_screw",
+          "business_keywords": ["微型丝杠"],
+          "node_id": "dexterous_hand_foundation",
+          "technology_route_id": "dexterous_hollow_cup_screw",
+          "aliases": ["微型滚珠丝杠", "行星滚柱丝杠"],
+          "product_terms": ["微型丝杠", "微型滚珠丝杠", "微型行星滚柱丝杠"],
+          "scene_terms": ["灵巧手", "机器人手指", "微型执行器"],
+          "negative_examples": ["机床丝杠"],
+          "require_product_and_scene": true,
+          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "next_validation_action": "核验尺寸、负载、送样和交付",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "dexterous_tactile_sensor",
+          "business_keywords": ["触觉传感器"],
+          "node_id": "dexterous_hand_foundation",
+          "technology_route_id": "dexterous_tactile_sensing",
+          "aliases": ["电子皮肤", "阵列触觉"],
+          "product_terms": ["触觉传感器", "电子皮肤", "触觉阵列"],
+          "scene_terms": ["灵巧手", "机器人手指", "机器人末端"],
+          "negative_examples": ["气体传感器"],
+          "require_product_and_scene": true,
+          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "next_validation_action": "核验阵列参数、装机和客户测试",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "dexterous_force_sensor",
+          "business_keywords": ["力传感器"],
+          "node_id": "dexterous_hand_foundation",
+          "technology_route_id": "dexterous_tactile_sensing",
+          "aliases": ["六维力传感器", "指尖力传感器"],
+          "product_terms": ["力传感器", "六维力传感器", "指尖力传感器"],
+          "scene_terms": ["灵巧手", "机器人手指", "机器人腕部"],
+          "negative_examples": ["称重传感器"],
+          "require_product_and_scene": true,
+          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "next_validation_action": "核验量程精度、安装位置和客户验证",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "dexterous_tendon",
+          "business_keywords": ["腱绳"],
+          "node_id": "dexterous_hand_integration",
+          "technology_route_id": "dexterous_tendon_drive",
+          "aliases": ["腱驱动", "人工肌腱", "柔性腱绳"],
+          "product_terms": ["腱绳", "人工肌腱", "柔性腱绳"],
+          "scene_terms": ["灵巧手", "机器人手指", "腱驱动机器人"],
+          "negative_examples": ["普通钢丝绳"],
+          "require_product_and_scene": true,
+          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "next_validation_action": "核验材料寿命、装机和交付",
+          "independent_discovery": false
         }
       ],
       "candidate_mapping_rules": {
