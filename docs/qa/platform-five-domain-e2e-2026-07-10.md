@@ -2,7 +2,7 @@
 
 - 验证日期：2026-07-11（Asia/Shanghai）
 - 分支：`feature/suying-ai-stock-platform`
-- 最新已推送基线：`7bf68ef8`
+- 最新已推送基线：`d9f462d9`
 - 交易模式：仅 `paper`
 - 行情库：本地 PostgreSQL 6432
 - 最近交易日：2026-07-10
