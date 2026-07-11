@@ -28,6 +28,7 @@ from app.domains.candidates.models import (
     WatchlistItemResponse, WatchlistQueryResponse,
 )
 from app.domains.candidates import service as candidate_service
+from app.domains.supply_chain import service as supply_chain_service
 
 logger = logging.getLogger("screener.routes")
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
@@ -384,53 +385,7 @@ def _sanitize_picks(picks: list) -> list:
 
 def _load_supply_chain_bom_payload() -> dict:
     """Load BOM seed config and enrich it for read-only API responses."""
-    from kronos_factors.engine.supply_chain_bom import load_bom_config
-
-    cfg = load_bom_config()
-    themes = cfg.get("themes", [])
-    nodes = cfg.get("nodes", [])
-    edges = cfg.get("edges", [])
-
-    theme_by_id = {theme.get("theme_id"): theme for theme in themes}
-    children_by_parent = {}
-    for node in nodes:
-        parent = node.get("parent_node_id")
-        if parent:
-            children_by_parent.setdefault(parent, []).append(node.get("node_id"))
-
-    enriched_nodes = []
-    for node in nodes:
-        theme = theme_by_id.get(node.get("theme_id"), {})
-        enriched = dict(node)
-        enriched["policy_theme"] = theme.get("name", "")
-        enriched["bom_path"] = [v for v in (theme.get("name"), node.get("name")) if v]
-        enriched["child_node_ids"] = children_by_parent.get(node.get("node_id"), [])
-        enriched["companies"] = []
-        enriched_nodes.append(enriched)
-
-    node_counts = {}
-    for node in enriched_nodes:
-        node_counts[node.get("theme_id")] = node_counts.get(node.get("theme_id"), 0) + 1
-
-    enriched_themes = []
-    for theme in themes:
-        enriched = dict(theme)
-        enriched["node_count"] = node_counts.get(theme.get("theme_id"), 0)
-        enriched["matrix"] = {
-            "policy_weight": theme.get("policy_weight", 1.0),
-            "high_growth": None,
-            "high_profit": None,
-            "high_moat": None,
-        }
-        enriched_themes.append(enriched)
-
-    return {
-        "version": cfg.get("version", "4.0"),
-        "source": cfg.get("source", ""),
-        "themes": enriched_themes,
-        "nodes": enriched_nodes,
-        "edges": edges,
-    }
+    return supply_chain_service.load_bom_payload()
 
 
 def _seed_chain_nodes_for_deconstruct(theme_id: str) -> tuple[list[dict[str, Any]], str | None]:
@@ -6656,25 +6611,13 @@ async def market_index_quotes(trade_date: Optional[str] = Query(None)):
 @router.get("/supply-chain/themes")
 async def supply_chain_themes():
     """Return policy themes and the top-level matrix for BOM drill-down."""
-    payload = _load_supply_chain_bom_payload()
-    return {
-        "version": payload["version"],
-        "source": payload["source"],
-        "themes": payload["themes"],
-    }
+    return supply_chain_service.themes_payload()
 
 
 @router.get("/supply-chain/bom")
 async def supply_chain_bom():
     """Return the policy-BOM graph seed used by the V4 model."""
-    payload = _load_supply_chain_bom_payload()
-    return {
-        "version": payload["version"],
-        "source": payload["source"],
-        "themes": payload["themes"],
-        "nodes": payload["nodes"],
-        "edges": payload["edges"],
-    }
+    return supply_chain_service.bom_payload()
 
 
 @router.get("/supply-chain/layers")
