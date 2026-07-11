@@ -149,6 +149,191 @@ def data_readiness() -> dict[str, Any]:
     }
 
 
+def _score_stage_progress(stage: dict[str, Any]) -> float:
+    research_rank = stage_rank(stage.get("research_stage"))
+    commercialization_rank = stage_rank(stage.get("commercialization_stage"))
+    research_score = min(100.0, research_rank / 6 * 100) if research_rank else 0.0
+    commercialization_score = min(100.0, commercialization_rank / 7 * 100) if commercialization_rank else 0.0
+    return round(research_score * 0.4 + commercialization_score * 0.6, 2)
+
+
+def _approved_business_tag_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [event for event in events if str(event.get("review_status") or "") == "approved"]
+
+
+def _score_business_tag_growth(mapping: dict[str, Any], approved_events: list[dict[str, Any]]) -> float:
+    score = 0.0
+    revenue_ratio = _to_float(mapping.get("revenue_ratio"), None)
+    if revenue_ratio is not None:
+        score += min(40.0, max(0.0, revenue_ratio * 100))
+    for event in approved_events:
+        evidence_type = str(event.get("evidence_type") or "")
+        dimensions = event.get("impact_dimensions") if isinstance(event.get("impact_dimensions"), list) else []
+        if evidence_type in {"order", "commercialization"}:
+            score += 30
+        elif evidence_type == "customer_validation":
+            score += 15
+        if "growth" in dimensions:
+            score += 10
+    if revenue_ratio is None:
+        score = min(score, 75.0)
+    return round(min(100.0, score), 2)
+
+
+def _score_business_tag_profit(mapping: dict[str, Any], approved_events: list[dict[str, Any]]) -> tuple[float | None, str]:
+    gross_profit_ratio = _to_float(mapping.get("gross_profit_ratio"), None)
+    gross_margin = _to_float(mapping.get("gross_margin"), None)
+    if gross_profit_ratio is None and gross_margin is None:
+        return None, "unavailable"
+
+    if gross_profit_ratio is not None:
+        score = min(100.0, 50.0 + max(0.0, gross_profit_ratio * 100))
+        status = "gross_profit_attributed"
+    else:
+        margin_value = gross_margin * 100 if gross_margin is not None and gross_margin <= 1 else gross_margin
+        score = min(75.0, max(0.0, 35.0 + (margin_value or 0)))
+        status = "gross_margin_proxy"
+
+    if any("profit" in (event.get("impact_dimensions") or []) for event in approved_events):
+        score = min(100.0, score + 10)
+    return round(score, 2), status
+
+
+def _score_business_tag_moat(approved_events: list[dict[str, Any]]) -> float:
+    score = 0.0
+    moat_types = {"moat", "patent", "certification", "chokepoint", "capacity", "customer_validation"}
+    for event in approved_events:
+        evidence_type = str(event.get("evidence_type") or "")
+        dimensions = event.get("impact_dimensions") if isinstance(event.get("impact_dimensions"), list) else []
+        if evidence_type in moat_types or "moat" in dimensions:
+            confidence = _to_float(event.get("confidence"), 0.0)
+            score += 25 + confidence * 35
+    return round(min(100.0, score), 2)
+
+
+def _score_business_tag_evidence_strength(approved_events: list[dict[str, Any]]) -> float:
+    if not approved_events:
+        return 0.0
+    avg_confidence = sum(_to_float(event.get("confidence"), 0.0) for event in approved_events) / len(approved_events)
+    return round(min(100.0, len(approved_events) * 20 + avg_confidence * 60), 2)
+
+
+def _calculate_business_tag_three_high_score(
+    *,
+    mapping: dict[str, Any],
+    stage: dict[str, Any],
+    events: list[dict[str, Any]],
+    trade_date: str | None = None,
+) -> dict[str, Any]:
+    score_date = (trade_date or datetime.now().date().isoformat())[:10]
+    approved_events = _approved_business_tag_events(events)
+    evidence_ids = [str(event.get("event_id")) for event in approved_events if event.get("event_id")]
+
+    growth_score = _score_business_tag_growth(mapping, approved_events)
+    profit_score, profit_status = _score_business_tag_profit(mapping, approved_events)
+    moat_score = _score_business_tag_moat(approved_events)
+    stage_score = _score_stage_progress(stage)
+    evidence_score = _score_business_tag_evidence_strength(approved_events)
+    revenue_supported = _to_float(mapping.get("revenue_ratio"), None) is not None
+    profit_supported = profit_score is not None
+
+    total_score = (
+        growth_score * 0.25
+        + (profit_score or 0.0) * 0.20
+        + moat_score * 0.25
+        + stage_score * 0.15
+        + evidence_score * 0.15
+    )
+    score_cap = 100.0
+    if not revenue_supported and not profit_supported:
+        score_cap = 65.0
+    elif not profit_supported:
+        score_cap = 80.0
+    total_score = round(min(score_cap, total_score), 2)
+
+    mapping_id = str(mapping.get("mapping_id") or "")
+    return {
+        "score_id": f"THREE-HIGH-{mapping_id}-{score_date}",
+        "mapping_id": mapping_id,
+        "trade_date": score_date,
+        "growth_score": growth_score,
+        "profit_score": profit_score,
+        "moat_score": moat_score,
+        "stage_score": stage_score,
+        "evidence_score": evidence_score,
+        "total_score": total_score,
+        "score_detail": {
+            "revenue_supported": revenue_supported,
+            "profit_supported": profit_supported,
+            "profit_score_status": profit_status,
+            "approved_evidence_count": len(approved_events),
+            "score_cap": score_cap,
+            "score_unit": "business_tag",
+        },
+        "evidence_ids": evidence_ids,
+    }
+
+
+L8_EVIDENCE_DIMENSIONS: list[dict[str, Any]] = [
+    {
+        "dimension_id": "research_progress",
+        "name": "研发进展",
+        "evidence_type": "research_progress",
+        "keywords": ["研发", "开发", "预研", "技术突破", "技术方向", "布局"],
+        "impact_dimensions": ["research_stage"],
+        "stage_after": {"research_stage": "R1", "commercialization_stage": "C0"},
+    },
+    {
+        "dimension_id": "prototype_delivery",
+        "name": "样机或小批量交付",
+        "evidence_type": "prototype_delivery",
+        "keywords": ["样机", "样品", "送样", "小批量", "试制", "交付"],
+        "impact_dimensions": ["research_stage", "commercialization_stage"],
+        "stage_after": {"research_stage": "R2", "commercialization_stage": "C1"},
+    },
+    {
+        "dimension_id": "customer_validation",
+        "name": "客户验证",
+        "evidence_type": "customer_validation",
+        "keywords": ["客户验证", "验证", "测试", "认证", "导入", "试用"],
+        "impact_dimensions": ["research_stage", "commercialization_stage", "moat"],
+        "stage_after": {"research_stage": "R3", "commercialization_stage": "C2"},
+    },
+    {
+        "dimension_id": "order_award",
+        "name": "订单或中标",
+        "evidence_type": "order_award",
+        "keywords": ["订单", "中标", "定点", "合同", "采购", "框架协议"],
+        "impact_dimensions": ["commercialization_stage", "growth"],
+        "stage_after": {"research_stage": "R5", "commercialization_stage": "C3"},
+    },
+    {
+        "dimension_id": "capacity_mass_production",
+        "name": "产线建设或量产",
+        "evidence_type": "capacity_mass_production",
+        "keywords": ["量产", "产线", "扩产", "投产", "产能", "基地", "出货", "起量", "释放"],
+        "impact_dimensions": ["commercialization_stage", "growth", "profit"],
+        "stage_after": {"research_stage": "R6", "commercialization_stage": "C5"},
+    },
+    {
+        "dimension_id": "revenue_margin",
+        "name": "收入和毛利改善",
+        "evidence_type": "revenue_margin",
+        "keywords": ["收入", "营收", "毛利", "毛利率", "业绩", "利润", "高增", "增长", "贡献"],
+        "impact_dimensions": ["growth", "profit"],
+        "stage_after": {},
+    },
+    {
+        "dimension_id": "patent_standard",
+        "name": "专利与标准",
+        "evidence_type": "patent_standard",
+        "keywords": ["专利", "标准", "知识产权", "认证", "壁垒", "独家"],
+        "impact_dimensions": ["moat"],
+        "stage_after": {},
+    },
+]
+
+
 def _persist_business_tag_evidence_event(cur, event: dict[str, Any]) -> None:
     cur.execute(
         """
