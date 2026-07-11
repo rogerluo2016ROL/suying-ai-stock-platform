@@ -21,6 +21,7 @@
 - Gateway：`/health` 返回 healthy，HTTP 200。
 - Screener：`/api/v1/screener/modes` 返回真实 freshness；从旧 UAT 迁入的真实行情覆盖到 `2026-07-03`。
 - 页面 API smoke：41/41 checks 通过，未执行 action。
+- main UAT 浏览器 smoke：Chromium 1/1 通过（`http://127.0.0.1:9980`）。
 - `bi_trend_launch` 在该 UAT 目标日返回 `success_no_matches`，是实际数据结果；普通 smoke 按合同安全跳过诊断、策略、回测和下单，不伪造候选。
 - 正式模型 manifest 已在同一 clean main 提交生成：`RUN-20260711_153321`，`official=true`、strict timeline、snapshot `c8a3676d1785460a8c5c8f3408dba3a7`、成本 14 bps。
 

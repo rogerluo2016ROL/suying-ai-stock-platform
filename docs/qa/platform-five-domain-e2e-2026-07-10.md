@@ -2,7 +2,7 @@
 
 - 验证日期：2026-07-11（Asia/Shanghai）
 - 分支：`feature/suying-ai-stock-platform`
-- 最新已推送基线：`d9f462d9`
+- 最新已推送基线：`62a372dc`
 - 交易模式：仅 `paper`
 - 行情库：本地 PostgreSQL 6432
 - 最近交易日：2026-07-10
@@ -25,6 +25,7 @@
 | 页面 API smoke | 通过 | 41/41 checks ok，non_ok=[] |
 | 浏览器 smoke | 通过 | Chromium，1/1 passed |
 | Screener 域组合合同 | 通过 | 三个域路径集合互斥且均挂载到 composition root |
+| main UAT 浏览器 smoke | 通过 | `http://127.0.0.1:9980`，1/1 passed |
 
 ## 真实链路证据
 
