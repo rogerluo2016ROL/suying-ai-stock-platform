@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, time
 import hashlib
 import math
+from types import MappingProxyType
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from .industry_chain_evidence_requirements import load_evidence_requirements
 from .industry_chain_templates import get_industry_template
@@ -34,6 +36,19 @@ _SOURCE_LIMIT_KEYS = {
     "mapped_official_tasks",
     "mapped_cninfo_documents_per_task",
 }
+_SHANGHAI = ZoneInfo("Asia/Shanghai")
+
+
+def _deep_freeze(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {key: _deep_freeze(item) for key, item in value.items()}
+        )
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return tuple(_deep_freeze(item) for item in value)
+    if isinstance(value, (set, frozenset)):
+        return frozenset(_deep_freeze(item) for item in value)
+    return value
 
 
 @dataclass(frozen=True)
@@ -73,7 +88,7 @@ class EvidenceRunRequest:
                 or value <= 0
             ):
                 raise ValueError(f"invalid source limit: {key}")
-        object.__setattr__(self, "source_limits", limits)
+        object.__setattr__(self, "source_limits", _deep_freeze(limits))
 
     @staticmethod
     def _validate_scope(name: str, values: object) -> None:
@@ -107,6 +122,9 @@ class CandidateMappingProposal:
     confidence: float
     evidence_ids: tuple[str, ...]
     provenance: Mapping[str, Any]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "provenance", _deep_freeze(self.provenance))
 
 
 @dataclass(frozen=True)
@@ -226,6 +244,53 @@ def _parse_datetime(value: object) -> datetime | None:
         return None
 
 
+def _as_shanghai_datetime(value: object) -> datetime | None:
+    parsed = _parse_datetime(value)
+    if parsed is None:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=_SHANGHAI)
+    return parsed.astimezone(_SHANGHAI)
+
+
+def _on_or_before_date(value: datetime, cutoff_date: date) -> bool:
+    cutoff = datetime.combine(cutoff_date, time.max, tzinfo=_SHANGHAI)
+    return value <= cutoff
+
+
+def _is_fully_reviewed_fact(
+    fact: Mapping[str, Any],
+    as_of_date: date | None = None,
+) -> bool:
+    if as_of_date is not None and type(as_of_date) is not date:
+        raise ValueError("as_of_date must be a date")
+    if str(fact.get("validation_status") or "").casefold() not in {
+        "approved",
+        "confirmed",
+    }:
+        return False
+    if not isinstance(fact.get("reviewer"), str) or not fact["reviewer"].strip():
+        return False
+    if not isinstance(fact.get("review_note"), str) or not fact["review_note"].strip():
+        return False
+    reviewed_at = _as_shanghai_datetime(fact.get("reviewed_at"))
+    if reviewed_at is None:
+        return False
+    return as_of_date is None or _on_or_before_date(reviewed_at, as_of_date)
+
+
+def _formal_publish_time(
+    fact: Mapping[str, Any],
+    as_of_date: date | None = None,
+) -> datetime | None:
+    published = _as_shanghai_datetime(fact.get("publish_time"))
+    if published is None:
+        return None
+    if as_of_date is not None and not _on_or_before_date(published, as_of_date):
+        return None
+    return published
+
+
 def _infer_chain_id(requirement: Mapping[str, Any]) -> str:
     configured = requirement.get("chain_id")
     if isinstance(configured, str) and configured.strip():
@@ -303,9 +368,12 @@ def propose_independent_candidates(
         doc_id = str(document.get("doc_id") or "")
         company_code = str(document.get("company_code") or "")
         source_level = str(document.get("source_level") or "").casefold()
-        publish_time = _parse_datetime(document.get("publish_time"))
+        publish_time = _as_shanghai_datetime(document.get("publish_time"))
         source_eligible = source_level in {"mid", "strong"}
-        cutoff_eligible = publish_time is not None and publish_time.date() <= as_of_date
+        cutoff_eligible = publish_time is not None and _on_or_before_date(
+            publish_time,
+            as_of_date,
+        )
         domain_eligible = True
         if technology_route_id == "dexterous_axial_flux_motor":
             domain_eligible = not bool(
@@ -395,11 +463,6 @@ def _metadata(fact: Mapping[str, Any]) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
 
 
-def _fact_value(fact: Mapping[str, Any], key: str) -> object:
-    metadata = _metadata(fact)
-    return metadata[key] if key in metadata else fact.get(key)
-
-
 def _is_contradicted(fact: Mapping[str, Any]) -> bool:
     return bool(
         fact.get("validation_status") == "contradicted"
@@ -427,20 +490,23 @@ def _fact_matches_catalog_rule(
 ) -> bool:
     if str(fact.get("fact_type") or "") not in set(rule.get("fact_types") or []):
         return False
+    metadata = _metadata(fact)
     for flag in rule.get("metadata_flags") or []:
-        if _fact_value(fact, str(flag)) is not True:
+        if metadata.get(str(flag)) is not True:
             return False
     source_level = fact.get("source_level")
-    if source_level is not None:
-        actual_rank = source_level_rank.get(str(source_level).casefold(), 0)
-        required_rank = source_level_rank.get(
-            str(rule.get("minimum_source_level") or "").casefold(),
-            0,
-        )
-        if actual_rank < required_rank:
-            return False
+    if not isinstance(source_level, str):
+        return False
+    normalized_source = source_level.casefold()
+    if normalized_source not in source_level_rank:
+        return False
+    required_source = str(rule.get("minimum_source_level") or "").casefold()
+    if required_source not in source_level_rank:
+        return False
+    if source_level_rank[normalized_source] < source_level_rank[required_source]:
+        return False
     fact_nature = fact.get("fact_nature")
-    if fact_nature is not None and fact_nature not in set(
+    if not isinstance(fact_nature, str) or fact_nature not in set(
         rule.get("allowed_fact_natures") or []
     ):
         return False
@@ -481,12 +547,7 @@ def plan_evidence_gaps(
             for fact in facts:
                 if str(fact.get("mapping_id") or "") != str(mapping_id):
                     continue
-                published = _parse_datetime(
-                    fact.get("publish_time")
-                    or fact.get("event_time")
-                    or fact.get("created_at")
-                )
-                if published is not None and published.date() > as_of_date:
+                if _formal_publish_time(fact, as_of_date) is None:
                     continue
                 if _fact_matches_catalog_rule(fact, rule, catalog.source_level_rank):
                     matching.append(fact)
@@ -505,19 +566,17 @@ def plan_evidence_gaps(
                 if validation_status in {"pending", "pending_review"}:
                     buckets["pending_review"].append(fact)
                     continue
-                if validation_status == "contradicted":
-                    buckets["contradicted"].append(fact)
+                if validation_status in {"approved", "confirmed"} and not (
+                    _is_fully_reviewed_fact(fact, as_of_date)
+                ):
+                    buckets["pending_review"].append(fact)
                     continue
-                if validation_status not in {"approved", "confirmed"}:
+                if not _is_fully_reviewed_fact(fact, as_of_date):
                     continue
                 if _is_contradicted(fact):
                     buckets["contradicted"].append(fact)
                     continue
-                published = _parse_datetime(
-                    fact.get("publish_time")
-                    or fact.get("event_time")
-                    or fact.get("created_at")
-                )
+                published = _formal_publish_time(fact, as_of_date)
                 if (
                     expiry_days is not None
                     and published is not None
@@ -613,10 +672,9 @@ def build_node_dimension_updates(
     order: list[str] = []
     accumulated: dict[str, dict[str, Any]] = {}
     for fact in facts:
-        if str(fact.get("validation_status") or "").casefold() not in {
-            "approved",
-            "confirmed",
-        }:
+        if not _is_fully_reviewed_fact(fact, as_of_date):
+            continue
+        if _formal_publish_time(fact, as_of_date) is None:
             continue
         dimension_ids = _terms(_metadata(fact).get("dimension_ids"))
         if not dimension_ids:
@@ -679,19 +737,33 @@ def _same_json_scalar(left: object, right: object) -> bool:
     return type(left) is type(right) and left == right
 
 
+def _has_metadata_value(value: object) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (Mapping, Sequence, set, frozenset)) and not isinstance(
+        value,
+        (str, bytes),
+    ):
+        return bool(value)
+    return True
+
+
 def _metadata_contract_matches(
     fact: Mapping[str, Any],
     contract: Mapping[str, Any],
 ) -> bool:
+    metadata = _metadata(fact)
     for field_name in contract.get("required_metadata") or []:
-        value = _fact_value(fact, str(field_name))
-        if value is None or value == "" or value == []:
+        value = metadata.get(str(field_name))
+        if not _has_metadata_value(value):
             return False
     constraints = contract.get("metadata_value_constraints") or {}
     if not isinstance(constraints, Mapping):
         return False
     for field_name, allowed_values in constraints.items():
-        actual_values = _values(_fact_value(fact, str(field_name)))
+        actual_values = _values(metadata.get(str(field_name)))
         allowed = _values(allowed_values)
         if not any(
             _same_json_scalar(actual, expected)
@@ -705,7 +777,7 @@ def _metadata_contract_matches(
 def _fact_domains(fact: Mapping[str, Any]) -> set[str]:
     return {
         str(value).casefold()
-        for value in _values(_fact_value(fact, "application_domain"))
+        for value in _values(_metadata(fact).get("application_domain"))
         if value is not None and str(value).strip()
     }
 
@@ -748,9 +820,13 @@ def _fact_satisfies_route_clause(
 def derive_axial_flux_stage(
     facts: Sequence[Mapping[str, Any]],
     route: Mapping[str, Any] | None = None,
+    *,
+    as_of_date: date | None = None,
 ) -> str:
     """Interpret the configured AF ladder using reviewed facts only."""
 
+    if as_of_date is not None and type(as_of_date) is not date:
+        raise ValueError("as_of_date must be a date")
     configured_route = route or _default_axial_flux_route()
     ladder = configured_route.get("authenticity_ladder")
     if not isinstance(ladder, Mapping) or not ladder:
@@ -767,8 +843,8 @@ def derive_axial_flux_stage(
     reviewed_facts = [
         fact
         for fact in facts
-        if str(fact.get("validation_status") or "").casefold()
-        in {"approved", "confirmed"}
+        if _is_fully_reviewed_fact(fact, as_of_date)
+        and _formal_publish_time(fact, as_of_date) is not None
     ]
     for stage, raw_rule in ordered:
         if not isinstance(raw_rule, Mapping):
