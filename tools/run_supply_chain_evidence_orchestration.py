@@ -46,6 +46,7 @@ from supply_chain_evidence_adapters import (
     OfficialGapAdapter,
     ScopedOfficialDiscoveryFetcher,
     ScopedOfficialFetcher,
+    sanitize_error,
 )
 from supply_chain_evidence_orchestrator import (
     EvidenceRunRequest,
@@ -197,16 +198,21 @@ def main(argv: list[str] | None = None) -> int:
         request = request_from_args(args)
     except ValueError as exc:
         parser.error(str(exc))
-    dependencies = build_runtime_dependencies(args)
-    result = run_evidence_orchestration(
-        request,
-        **dependencies,
-    )
-    markdown = render_evidence_report(result)
-    if args.output_dir:
-        write_outputs(args.output_dir, result, markdown)
-    else:
-        print(markdown, end="")
+    try:
+        dependencies = build_runtime_dependencies(args)
+        result = run_evidence_orchestration(
+            request,
+            **dependencies,
+        )
+        markdown = render_evidence_report(result)
+        if args.output_dir:
+            write_outputs(args.output_dir, result, markdown)
+        else:
+            print(markdown, end="")
+    except Exception as exc:
+        diagnostic = " ".join(sanitize_error(exc).splitlines())
+        print(diagnostic, file=sys.stderr)
+        return 1
     return 0
 
 

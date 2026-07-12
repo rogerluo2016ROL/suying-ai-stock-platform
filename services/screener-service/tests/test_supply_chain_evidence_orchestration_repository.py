@@ -33,6 +33,8 @@ class FakeCursor:
         mapping_rows=None,
         table_names=None,
         query_rows=None,
+        fact_validation_status="pending",
+        event_review_status="pending_review",
     ):
         self.mapping_row = mapping_row
         self.mapping_rows = list(mapping_rows or [])
@@ -42,6 +44,9 @@ class FakeCursor:
         self._one = None
         self._many = []
         self.rowcount = 1
+        self.inserted_raw_doc_ids: set[str] = set()
+        self.fact_validation_status = fact_validation_status
+        self.event_review_status = event_review_status
 
     def __enter__(self):
         return self
@@ -56,6 +61,24 @@ class FakeCursor:
         self._many = []
         if "information_schema.tables" in sql:
             self._many = [{"table_name": name} for name in self.table_names]
+        elif (
+            "INSERT INTO raw_evidence_documents" in sql
+            and "RETURNING doc_id" in sql
+        ):
+            doc_id = str(params[0])
+            if doc_id not in self.inserted_raw_doc_ids:
+                self.inserted_raw_doc_ids.add(doc_id)
+                self._one = {"doc_id": doc_id}
+        elif (
+            "INSERT INTO business_tag_evidence_events" in sql
+            and "RETURNING review_status" in sql
+        ):
+            self._one = {"review_status": self.event_review_status}
+        elif (
+            "INSERT INTO evidence_extracted_facts" in sql
+            and "RETURNING validation_status" in sql
+        ):
+            self._one = {"validation_status": self.fact_validation_status}
         elif "FOR UPDATE" in sql and "business_tag_mapping" in sql:
             self._one = self.mapping_row
         elif "FROM business_tag_mapping b" in sql:
@@ -169,6 +192,8 @@ def test_repository_uses_explicit_mapping_and_pending_status():
     assert outcome.validation_status == "pending"
     assert outcome.review_status == "pending_review"
     assert outcome.event_id is not None
+    assert outcome.inserted is True
+    assert outcome.duplicate is False
     statements = [sql for sql, _ in cursor.calls]
     assert statements.index(next(sql for sql in statements if "raw_evidence_documents" in sql)) < statements.index(
         next(sql for sql in statements if "evidence_extracted_facts" in sql)
@@ -207,6 +232,112 @@ def test_pending_persistence_strips_reserved_keys_and_round_trips_evidence_metad
     }
 
 
+def test_pending_raw_document_conflict_returns_real_duplicate_outcome():
+    cursor = FakeCursor()
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+
+    first = repository.persist_pending_document(
+        document=document("same"),
+        mapping_id="m1",
+        requirement_id="product_or_prototype",
+        job_id="j1",
+        as_of_date=AS_OF,
+    )
+    second = repository.persist_pending_document(
+        document=document("same"),
+        mapping_id="m1",
+        requirement_id="product_or_prototype",
+        job_id="j2",
+        as_of_date=AS_OF,
+    )
+
+    assert (first.inserted, first.duplicate) == (True, False)
+    assert (second.inserted, second.duplicate) == (False, True)
+    raw_insert = next(
+        sql for sql, _ in cursor.calls if "INSERT INTO raw_evidence_documents" in sql
+    )
+    assert "ON CONFLICT (doc_id) DO NOTHING" in raw_insert
+    assert "RETURNING doc_id" in raw_insert
+    conflict_update = next(
+        sql for sql, _ in cursor.calls if "UPDATE raw_evidence_documents" in sql
+    )
+    assert "content_hash = %s" in conflict_update
+
+
+def test_pending_rerun_returns_existing_reviewed_database_statuses():
+    cursor = FakeCursor()
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    first = repository.persist_pending_document(
+        document=document("reviewed-rerun"),
+        mapping_id="m1",
+        requirement_id="product_or_prototype",
+        job_id="j1",
+        as_of_date=AS_OF,
+    )
+    cursor.fact_validation_status = "confirmed"
+    cursor.event_review_status = "approved"
+
+    second = repository.persist_pending_document(
+        document=document("reviewed-rerun"),
+        mapping_id="m1",
+        requirement_id="product_or_prototype",
+        job_id="j2",
+        as_of_date=AS_OF,
+    )
+
+    assert (first.validation_status, first.review_status) == (
+        "pending",
+        "pending_review",
+    )
+    assert (second.validation_status, second.review_status) == (
+        "confirmed",
+        "approved",
+    )
+    assert any(
+        "RETURNING validation_status" in sql for sql, _ in cursor.calls
+    )
+    assert any("RETURNING review_status" in sql for sql, _ in cursor.calls)
+
+
+def test_raw_document_identity_conflict_fails_closed():
+    class IdentityConflictCursor(FakeCursor):
+        def execute(self, statement, params=()):
+            super().execute(statement, params)
+            if "UPDATE raw_evidence_documents" in " ".join(
+                str(statement).split()
+            ):
+                self.rowcount = 0
+
+    cursor = IdentityConflictCursor()
+    connection = FakeConnection(cursor)
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: connection
+    )
+    repository.persist_pending_document(
+        document=document("same"),
+        mapping_id="m1",
+        requirement_id="product_or_prototype",
+        job_id="j1",
+        as_of_date=AS_OF,
+    )
+
+    with pytest.raises(RuntimeError, match="raw document identity conflict"):
+        repository.persist_pending_document(
+            document=document("same"),
+            mapping_id="m1",
+            requirement_id="product_or_prototype",
+            job_id="j2",
+            as_of_date=AS_OF,
+        )
+
+    assert connection.commits == 1
+    assert connection.rollbacks == 1
+
+
 def test_repository_persists_unmapped_discovery_before_candidate_mapping():
     cursor = FakeCursor()
     connection = FakeConnection(cursor)
@@ -219,6 +350,8 @@ def test_repository_persists_unmapped_discovery_before_candidate_mapping():
     assert first.validation_status == "pending"
     assert first.fact_id == second.fact_id
     assert first.proposal.mapping_id == "candidate-stable"
+    assert (first.inserted, first.duplicate) == (True, False)
+    assert (second.inserted, second.duplicate) == (False, True)
     statements = [sql for sql, _ in cursor.calls]
     raw_indexes = [i for i, sql in enumerate(statements) if "raw_evidence_documents" in sql]
     fact_indexes = [i for i, sql in enumerate(statements) if "evidence_extracted_facts" in sql]
@@ -456,6 +589,55 @@ def test_gap_round_trip_and_finish_job_sanitize_errors():
     assert "hunter2" not in joined
 
 
+def test_finish_job_keeps_fetched_inserted_and_duplicate_counts_separate():
+    cursor = FakeCursor()
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+
+    repository.finish_job(
+        "j-counts",
+        {
+            "status": "success",
+            "documents": (document("one"), document("two")),
+            "failed_tasks": (),
+            "errors": (),
+            "fetched_count": 2,
+            "inserted_count": 1,
+            "duplicate_count": 1,
+        },
+    )
+    params = next(
+        params
+        for sql, params in cursor.calls
+        if "UPDATE evidence_collection_jobs" in sql
+    )
+
+    assert "duplicate_count = %s" in next(
+        sql for sql, _ in cursor.calls if "UPDATE evidence_collection_jobs" in sql
+    )
+    assert params[:5] == ("success", 2, 1, 1, 0)
+
+
+def test_finish_job_unknown_insert_and_duplicate_counts_default_to_zero():
+    cursor = FakeCursor()
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+
+    repository.finish_job(
+        "j-unknown",
+        AdapterResult((document("one"),), (), (), "success"),
+    )
+    params = next(
+        params
+        for sql, params in cursor.calls
+        if "UPDATE evidence_collection_jobs" in sql
+    )
+
+    assert params[:5] == ("success", 1, 0, 0, 0)
+
+
 def test_local_documents_report_missing_sources_and_apply_event_cutoff():
     cursor = FakeCursor(
         table_names=["raw_evidence_documents", "interact_qa"],
@@ -597,7 +779,11 @@ def test_local_sources_have_explicit_catalog_mapping_and_fk_is_ensured_before_ra
         doc_type="company_profile",
         metadata={"origin_table": "stock_profiles"},
     )
-    repository.persist_raw_document(local_document, job_id="j1")
+    first = repository.persist_raw_document(local_document, job_id="j1")
+    second = repository.persist_raw_document(local_document, job_id="j2")
+
+    assert (first.inserted, first.duplicate) == (True, False)
+    assert (second.inserted, second.duplicate) == (False, True)
 
     statements = [sql for sql, _ in cursor.calls]
     catalog_index = next(

@@ -135,3 +135,25 @@ def test_report_contains_all_decision_sections_four_pools_af_and_limitations():
         assert f"| {pool} |" in markdown
     assert "official_discovery_hits | 2" in markdown
     assert "official_ir_publish_time_unknown" in markdown
+
+
+def test_report_labels_top_level_mutation_calls_and_scopes_next_actions():
+    markdown = render_evidence_report(
+        result_with_company(
+            {
+                "company_code": "688001",
+                "mapping_id": "m1",
+                "gaps": [
+                    {
+                        "requirement_id": "customer_validation",
+                        "status": "missing",
+                        "next_action": "collect_customer_validation",
+                    }
+                ],
+                "next_actions": ["collect_customer_validation"],
+            }
+        )
+    )
+
+    assert "顶层仓储/评分变更调用数：3" in markdown
+    assert "688001 / m1 / customer_validation: collect_customer_validation" in markdown

@@ -65,9 +65,23 @@ class _PersistenceSummary:
     inserted_documents: int = 0
     duplicate_documents: int = 0
     pending_facts: int = 0
+    document_attempts: int = 0
+    # Top-level repository mutation calls, never SQL affected-row counts.
     writes: int = 0
     limitations: tuple[str, ...] = ()
     records: tuple[Mapping[str, Any], ...] = ()
+
+
+@dataclass
+class _DocumentAttemptTracker:
+    fetched: int = 0
+    inserted: int = 0
+    duplicate: int = 0
+
+    def add(self, summary: _PersistenceSummary) -> None:
+        self.fetched += summary.document_attempts
+        self.inserted += summary.inserted_documents
+        self.duplicate += summary.duplicate_documents
 
 
 def _unique(values: Sequence[str]) -> tuple[str, ...]:
@@ -542,6 +556,7 @@ def _summarize_outcomes(
         validation_status = str(_value(outcome, "validation_status", "") or "")
         if validation_status in {"pending", "pending_review"}:
             pending += 1
+            fact_mapping_id = _value(outcome, "fact_mapping_id", "__missing__")
             records.append(
                 {
                     "fact_id": str(_value(outcome, "fact_id", "") or ""),
@@ -550,12 +565,14 @@ def _summarize_outcomes(
                     ),
                     "company_code": normalize_stock_code(company_code),
                     "validation_status": validation_status,
+                    "unmapped": fact_mapping_id is None,
                 }
             )
     return _PersistenceSummary(
         inserted_documents=inserted,
         duplicate_documents=duplicate,
         pending_facts=pending,
+        document_attempts=len(outcomes),
         writes=len(outcomes),
         limitations=_unique(limitations),
         records=tuple(records),
@@ -569,6 +586,7 @@ def _merge_persistence(
         inserted_documents=sum(item.inserted_documents for item in summaries),
         duplicate_documents=sum(item.duplicate_documents for item in summaries),
         pending_facts=sum(item.pending_facts for item in summaries),
+        document_attempts=sum(item.document_attempts for item in summaries),
         writes=sum(item.writes for item in summaries),
         limitations=_unique(
             tuple(value for item in summaries for value in item.limitations)
@@ -585,6 +603,7 @@ def _run_and_persist_tasks(
     job_id: str,
     request: EvidenceRunRequest,
     use_source_limits: bool,
+    attempt_tracker: _DocumentAttemptTracker | None = None,
 ) -> tuple[AdapterResult, _PersistenceSummary, tuple[str, ...]]:
     selected_tasks = list(tasks)
     extra_errors: list[str] = []
@@ -611,20 +630,22 @@ def _run_and_persist_tasks(
         if filtered:
             limitations.append(f"scope_filtered_mapped_documents:{filtered}")
         results.append(scoped_result)
-        outcomes = persist_adapter_result(
-            scoped_result,
-            repository=repository,
-            task=task,
-            job_id=job_id,
-            as_of_date=request.as_of_date,
-        )
-        persistence.append(
-            _summarize_outcomes(
+        for document in scoped_result.documents:
+            outcomes = persist_adapter_result(
+                AdapterResult((document,), (), (), "success", 0),
+                repository=repository,
+                task=task,
+                job_id=job_id,
+                as_of_date=request.as_of_date,
+            )
+            summary = _summarize_outcomes(
                 outcomes,
                 mapping_id=task.mapping_id,
                 company_code=task.company_code,
             )
-        )
+            persistence.append(summary)
+            if attempt_tracker is not None:
+                attempt_tracker.add(summary)
     return (
         _combine_adapter_results(results, extra_errors=extra_errors),
         _merge_persistence(*persistence),
@@ -647,6 +668,46 @@ def _audited_facts(
         if evidence_domain._is_fully_reviewed_fact(fact, as_of_date)
         and evidence_domain._formal_publish_time(fact, as_of_date) is not None
     )
+
+
+def _unique_facts(
+    facts: Sequence[Mapping[str, Any]],
+) -> tuple[Mapping[str, Any], ...]:
+    by_id: dict[str, Mapping[str, Any]] = {}
+    for fact in facts:
+        fact_id = str(fact.get("fact_id") or "")
+        if fact_id:
+            by_id[fact_id] = fact
+    return tuple(by_id.values())
+
+
+def _final_fact_counts(
+    facts: Sequence[Mapping[str, Any]],
+    persistence: _PersistenceSummary | None,
+    as_of_date: date,
+) -> tuple[int, int]:
+    unique_facts = _unique_facts(facts)
+    final_ids = {str(fact.get("fact_id") or "") for fact in unique_facts}
+    approved = 0
+    pending_ids: set[str] = set()
+    for fact in unique_facts:
+        fact_id = str(fact.get("fact_id") or "")
+        validation = str(fact.get("validation_status") or "").casefold()
+        if evidence_domain._is_fully_reviewed_fact(fact, as_of_date) and (
+            evidence_domain._formal_publish_time(fact, as_of_date) is not None
+        ):
+            approved += 1
+        elif validation in {"pending", "pending_review", "approved", "confirmed"}:
+            pending_ids.add(fact_id)
+    if persistence is not None:
+        for record in persistence.records:
+            fact_id = str(record.get("fact_id") or "")
+            if (
+                fact_id
+                and fact_id not in final_ids
+            ):
+                pending_ids.add(fact_id)
+    return approved, len(pending_ids)
 
 
 def _fact_detail(fact: Mapping[str, Any]) -> dict[str, Any]:
@@ -686,9 +747,12 @@ def _company_details(
     gaps: Sequence[EvidenceGap],
     facts: Sequence[Mapping[str, Any]] = (),
     persistence: _PersistenceSummary | None = None,
+    as_of_date: date | None = None,
 ) -> tuple[Mapping[str, Any], ...]:
     facts_by_mapping: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
-    for fact in facts:
+    unique_facts = _unique_facts(facts)
+    final_fact_ids = {str(fact.get("fact_id") or "") for fact in unique_facts}
+    for fact in unique_facts:
         facts_by_mapping[str(fact.get("mapping_id") or "")].append(fact)
     gaps_by_mapping: dict[str, list[EvidenceGap]] = defaultdict(list)
     for gap in gaps:
@@ -707,10 +771,13 @@ def _company_details(
         layers = _initial_layers(candidate)
         for fact in facts_by_mapping.get(mapping_id, []):
             validation = str(fact.get("validation_status") or "").casefold()
-            if validation == "rejected" or evidence_domain._is_contradicted(fact):
+            if validation == "rejected":
                 rejected.append(_fact_detail(fact))
                 continue
-            if evidence_domain._is_fully_reviewed_fact(fact, None):
+            cutoff = as_of_date or date.max
+            contradicted = evidence_domain._is_contradicted(fact)
+            reviewed = evidence_domain._is_fully_reviewed_fact(fact, cutoff)
+            if reviewed:
                 approved.append(_fact_detail(fact))
                 metadata = fact.get("metadata")
                 metadata = metadata if isinstance(metadata, Mapping) else {}
@@ -719,32 +786,43 @@ def _company_details(
                 if layer_id and isinstance(dimension_ids, Sequence) and not isinstance(
                     dimension_ids, (str, bytes)
                 ):
-                    status = "contradicted" if evidence_domain._is_contradicted(fact) else (
+                    status = "contradicted" if contradicted else (
                         "proxy"
                         if evidence_domain._is_company_scope(fact)
                         or metadata.get("proxy") is True
                         else "known"
                     )
                     for dimension_id in dimension_ids:
-                        cell = layers.setdefault(layer_id, {}).setdefault(
-                            str(dimension_id),
-                            {"status": status, "evidence_ids": []},
-                        )
-                        if isinstance(cell, Mapping):
-                            mutable = dict(cell)
+                        dimension_id = str(dimension_id)
+                        cell = layers.setdefault(layer_id, {}).get(dimension_id)
+                        mutable = dict(cell) if isinstance(cell, Mapping) else {}
+                        rank = {
+                            "unknown": -1,
+                            "proxy": 0,
+                            "known": 1,
+                            "contradicted": 2,
+                        }
+                        current_status = str(mutable.get("status") or "unknown")
+                        if rank.get(status, -1) > rank.get(current_status, -1):
                             mutable["status"] = status
-                            evidence_ids = list(mutable.get("evidence_ids") or ())
-                            fact_id = str(fact.get("fact_id") or "")
-                            if fact_id and fact_id not in evidence_ids:
-                                evidence_ids.append(fact_id)
-                            mutable["evidence_ids"] = evidence_ids
-                            layers[layer_id][str(dimension_id)] = mutable
+                        else:
+                            mutable.setdefault("status", current_status)
+                        evidence_ids = list(mutable.get("evidence_ids") or ())
+                        fact_id = str(fact.get("fact_id") or "")
+                        if fact_id and fact_id not in evidence_ids:
+                            evidence_ids.append(fact_id)
+                        mutable["evidence_ids"] = evidence_ids
+                        layers[layer_id][dimension_id] = mutable
             else:
                 pending.append(_fact_detail(fact))
         existing_pending_ids = {str(item.get("fact_id") or "") for item in pending}
         for record in pending_records.get(mapping_id, []):
             fact_id = str(record.get("fact_id") or "")
-            if fact_id and fact_id not in existing_pending_ids:
+            if (
+                fact_id
+                and fact_id not in final_fact_ids
+                and fact_id not in existing_pending_ids
+            ):
                 pending.append(
                     {
                         "fact_id": fact_id,
@@ -817,7 +895,9 @@ def build_result(
         writes=writes,
         network_requests=network_requests,
         data_limitations=_unique(tuple(data_limitations)),
-        companies=_company_details(candidates, gaps),
+        companies=_company_details(
+            candidates, gaps, as_of_date=request.as_of_date
+        ),
     )
 
 
@@ -848,7 +928,7 @@ def build_empty_score_result(
 
 
 def _score_limitations(score_result: Mapping[str, Any]) -> tuple[str, ...]:
-    values: list[str] = ["score_repository_audit_gate_pending_task_8"]
+    values: list[str] = []
     for row in score_result.get("results") or ():
         if isinstance(row, Mapping):
             values.extend(str(item) for item in row.get("data_limitations") or ())
@@ -891,13 +971,8 @@ def run_approved_score(
     dimension_writes = 0
     limitations: list[str] = []
     if updates:
-        returned = repository.upsert_node_dimension_updates(
-            updates, request.as_of_date
-        )
-        if isinstance(returned, int) and not isinstance(returned, bool):
-            dimension_writes = returned
-        else:
-            limitations.append("dimension_update_repository_did_not_return_write_count")
+        repository.upsert_node_dimension_updates(updates, request.as_of_date)
+        dimension_writes = 1
     score_payload = score_runner(
         chain_id=request.chain_id,
         trade_date=request.as_of_date,
@@ -906,16 +981,16 @@ def run_approved_score(
     )
     score_result = dict(score_payload or {})
     gaps = plan_run_gaps(scoped_mappings, repository, request)
-    scorer_writes = score_result.get("written", 0)
-    if not isinstance(scorer_writes, int) or isinstance(scorer_writes, bool):
-        scorer_writes = 0
-        limitations.append("score_runner_did_not_return_write_count")
+    scorer_writes = 1
     mapping_count = score_result.get("mapping_count", len(scoped_mappings))
     if not isinstance(mapping_count, int) or isinstance(mapping_count, bool):
         mapping_count = len(scoped_mappings)
     transitions = score_result.get("transitions", 0)
     if not isinstance(transitions, int) or isinstance(transitions, bool):
         transitions = 0
+    approved_count, pending_count = _final_fact_counts(
+        facts, None, request.as_of_date
+    )
     return EvidenceRunResult(
         chain_id=request.chain_id,
         as_of_date=request.as_of_date,
@@ -927,8 +1002,8 @@ def run_approved_score(
         official_gap_hits=0,
         inserted_documents=0,
         duplicate_documents=0,
-        pending_facts=0,
-        approved_facts=len(audited),
+        pending_facts=pending_count,
+        approved_facts=approved_count,
         failed_tasks=_unique(tuple(score_result.get("failed_tasks") or ())),
         pool_counts=dict(score_result.get("pool_counts") or {}),
         pool_transitions=transitions,
@@ -937,7 +1012,12 @@ def run_approved_score(
         data_limitations=_unique(
             tuple(limitations) + _score_limitations(score_result)
         ),
-        companies=_company_details(scoped_mappings, gaps, facts),
+        companies=_company_details(
+            scoped_mappings,
+            gaps,
+            facts,
+            as_of_date=request.as_of_date,
+        ),
     )
 
 
@@ -964,6 +1044,9 @@ def build_result_from_runs(
         for error in result.errors
     )
     score_limitations = score_result.data_limitations if score_result else ()
+    approved_count, pending_count = _final_fact_counts(
+        facts, persisted, request.as_of_date
+    )
     return EvidenceRunResult(
         chain_id=request.chain_id,
         as_of_date=request.as_of_date,
@@ -975,8 +1058,8 @@ def build_result_from_runs(
         official_gap_hits=len(official_result.documents),
         inserted_documents=persisted.inserted_documents,
         duplicate_documents=persisted.duplicate_documents,
-        pending_facts=persisted.pending_facts,
-        approved_facts=score_result.approved_facts if score_result else 0,
+        pending_facts=pending_count,
+        approved_facts=approved_count,
         failed_tasks=_unique(failed + (score_result.failed_tasks if score_result else ())),
         pool_counts=dict(score_result.pool_counts) if score_result else {},
         pool_transitions=score_result.pool_transitions if score_result else 0,
@@ -988,7 +1071,13 @@ def build_result_from_runs(
             + adapter_limitations
             + tuple(score_limitations)
         ),
-        companies=_company_details(candidates, gaps, facts, persisted),
+        companies=_company_details(
+            candidates,
+            gaps,
+            facts,
+            persisted,
+            request.as_of_date,
+        ),
     )
 
 
@@ -996,18 +1085,28 @@ def _finish_payload(
     *results: AdapterResult,
     status: str | None = None,
     errors: Sequence[str] = (),
+    failed_tasks: Sequence[str] = (),
+    fetched_count: int | None = None,
+    inserted_count: int = 0,
+    duplicate_count: int = 0,
 ) -> dict[str, Any]:
     combined = _combine_adapter_results(results)
+    all_failed = _unique(tuple(combined.failed_tasks) + tuple(failed_tasks))
     resolved_status = status or (
         "partial_success"
-        if combined.failed_tasks or combined.errors or errors
+        if all_failed or combined.errors or errors
         else "success"
     )
     return {
         "status": resolved_status,
         "documents": combined.documents,
-        "failed_tasks": combined.failed_tasks,
+        "failed_tasks": all_failed,
         "errors": tuple(combined.errors) + tuple(errors),
+        "fetched_count": (
+            len(combined.documents) if fetched_count is None else fetched_count
+        ),
+        "inserted_count": inserted_count,
+        "duplicate_count": duplicate_count,
     }
 
 
@@ -1075,6 +1174,7 @@ def run_evidence_orchestration(
     local_result = empty_adapter_result()
     official_result = empty_adapter_result()
     persistence = _PersistenceSummary(writes=1)  # start_job
+    attempt_tracker = _DocumentAttemptTracker()
     limitations: list[str] = []
     try:
         if request.source_policy == "official-gap":
@@ -1143,17 +1243,17 @@ def run_evidence_orchestration(
                 continue
             outcome = repository.persist_discovery_hit(hit, job_id=job_id)
             proposal = _value(outcome, "proposal", None)
-            discovery_summaries.append(
-                _summarize_outcomes(
-                    (outcome,),
-                    mapping_id=(
-                        str(_value(proposal, "mapping_id", ""))
-                        if proposal is not None
-                        else None
-                    ),
-                    company_code=code,
-                )
+            discovery_summary = _summarize_outcomes(
+                (outcome,),
+                mapping_id=(
+                    str(_value(proposal, "mapping_id", ""))
+                    if proposal is not None
+                    else None
+                ),
+                company_code=code,
             )
+            discovery_summaries.append(discovery_summary)
+            attempt_tracker.add(discovery_summary)
             if proposal is not None and (not scope_active or code in allowed):
                 repository.upsert_candidate_mapping(proposal)
                 mapping_writes += 1
@@ -1179,6 +1279,7 @@ def run_evidence_orchestration(
             job_id=job_id,
             request=request,
             use_source_limits=False,
+            attempt_tracker=attempt_tracker,
         )
         persistence = _merge_persistence(persistence, local_persistence)
         limitations.extend(local_limitations)
@@ -1195,6 +1296,7 @@ def run_evidence_orchestration(
                         job_id=job_id,
                         request=request,
                         use_source_limits=True,
+                        attempt_tracker=attempt_tracker,
                     )
                 )
                 persistence = _merge_persistence(
@@ -1232,7 +1334,13 @@ def run_evidence_orchestration(
         repository.finish_job(
             job_id,
             _finish_payload(
-                local_result, official_discovery_result, official_result
+                local_result,
+                official_discovery_result,
+                official_result,
+                failed_tasks=(score_result.failed_tasks if score_result else ()),
+                fetched_count=attempt_tracker.fetched,
+                inserted_count=result.inserted_documents,
+                duplicate_count=result.duplicate_documents,
             ),
         )
         return result
@@ -1246,6 +1354,9 @@ def run_evidence_orchestration(
                     official_result,
                     status="failed",
                     errors=(sanitize_error(exc),),
+                    fetched_count=attempt_tracker.fetched,
+                    inserted_count=attempt_tracker.inserted,
+                    duplicate_count=attempt_tracker.duplicate,
                 ),
             )
         except Exception:

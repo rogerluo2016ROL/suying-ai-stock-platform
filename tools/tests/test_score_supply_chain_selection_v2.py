@@ -5,6 +5,8 @@ import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+import pytest
+
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "score_supply_chain_selection_v2.py"
 SPEC = importlib.util.spec_from_file_location(
@@ -45,6 +47,10 @@ def evidence(event_id, publish_time, fact_type, **overrides):
         "source_level": "strong",
         "confidence": 0.9,
         "metadata": {},
+        "reviewer": "reviewer-1",
+        "review_note": "checked against source",
+        "reviewed_at": datetime(2026, 7, 10, 10, tzinfo=timezone.utc),
+        "created_at": datetime(2026, 7, 9, 10, tzinfo=timezone.utc),
     }
     row.update(overrides)
     return row
@@ -99,6 +105,154 @@ def test_score_mapping_never_promotes_pending_review_evidence():
     assert result["authenticity"]["evidence_level"] == "E1"
     assert result["selection"]["pool_code"] == "D"
     assert result["evidence_ids"] == []
+
+
+def test_score_mapping_rejects_approved_as_a_fact_validation_status():
+    rows = [
+        evidence(
+            "approved",
+            datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+            "order_award",
+            validation_status="approved",
+        )
+    ]
+
+    result = module.score_mapping(
+        base_mapping(),
+        rows,
+        trade_date=date(2026, 7, 11),
+        node_score=70,
+    )
+
+    assert result["authenticity"]["evidence_level"] == "E1"
+    assert result["evidence_ids"] == []
+
+
+def test_confirmed_evidence_keeps_the_confirmed_fact_nature_boundary():
+    row = evidence(
+        "company-claim",
+        datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+        "prototype_delivery",
+        fact_nature="company_claim",
+        validation_status="confirmed",
+    )
+
+    confirmed, limitations = module._confirmed_evidence(
+        [row],
+        cutoff=module._cutoff_utc(date(2026, 7, 11)),
+    )
+
+    assert confirmed == []
+    assert limitations == []
+
+
+def test_score_mapping_uses_fact_id_as_the_persisted_evidence_id():
+    row = evidence(
+        "shared-event",
+        datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+        "order_award",
+        fact_id="fact-1",
+    )
+
+    result = module.score_mapping(
+        base_mapping(),
+        [row],
+        trade_date=date(2026, 7, 11),
+        node_score=70,
+    )
+
+    assert result["evidence_ids"] == ["fact-1"]
+
+
+def test_score_mapping_preserves_multiple_fact_ids_from_one_event():
+    rows = [
+        evidence(
+            "shared-event",
+            datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+            fact_type,
+            fact_id=fact_id,
+        )
+        for fact_id, fact_type in (
+            ("fact-1", "order_award"),
+            ("fact-2", "capacity_mass_production"),
+        )
+    ]
+
+    result = module.score_mapping(
+        base_mapping(),
+        rows,
+        trade_date=date(2026, 7, 11),
+        node_score=70,
+    )
+
+    assert result["evidence_ids"] == ["fact-1", "fact-2"]
+
+
+@pytest.mark.parametrize(
+    "validation_status,audit_overrides",
+    [
+        ("confirmed", {"reviewer": None}),
+        ("confirmed", {"reviewer": "   "}),
+        ("confirmed", {"review_note": None}),
+        ("confirmed", {"review_note": "   "}),
+        ("confirmed", {"reviewed_at": None}),
+        ("confirmed", {"reviewed_at": "not-a-timestamp"}),
+        ("confirmed", {"reviewed_at": datetime(2026, 7, 10, 10)}),
+        (
+            "confirmed",
+            {"reviewed_at": datetime(2026, 7, 12, 9, tzinfo=timezone.utc)},
+        ),
+        ("confirmed", {"created_at": None}),
+        ("confirmed", {"created_at": "not-a-timestamp"}),
+        ("confirmed", {"created_at": datetime(2026, 7, 11, 16)}),
+        (
+            "confirmed",
+            {"created_at": datetime(2026, 7, 12, 9, tzinfo=timezone.utc)},
+        ),
+    ],
+    ids=[
+        "confirmed-missing-reviewer",
+        "confirmed-blank-reviewer",
+        "confirmed-missing-note",
+        "confirmed-blank-note",
+        "confirmed-missing-reviewed-at",
+        "confirmed-invalid-reviewed-at",
+        "confirmed-naive-reviewed-at",
+        "confirmed-future-reviewed-at",
+        "confirmed-missing-created-at",
+        "confirmed-invalid-created-at",
+        "confirmed-future-naive-utc-created-at",
+        "confirmed-future-created-at",
+    ],
+)
+def test_score_mapping_rejects_evidence_without_a_safe_audit_trail(
+    validation_status,
+    audit_overrides,
+):
+    rows = [
+        evidence(
+            "unsafe",
+            datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+            "order_award",
+            fact_id="fact-unsafe",
+            validation_status=validation_status,
+            **audit_overrides,
+        )
+    ]
+
+    result = module.score_mapping(
+        base_mapping(),
+        rows,
+        trade_date=date(2026, 7, 11),
+        node_score=70,
+    )
+
+    assert result["authenticity"]["evidence_level"] == "E1"
+    assert result["evidence_ids"] == []
+    assert any(
+        "fact-unsafe" in limitation
+        for limitation in result["data_limitations"]
+    )
 
 
 def test_confirmed_prototype_can_reach_c_but_not_customer_pool():

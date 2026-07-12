@@ -78,6 +78,31 @@ def _publish_time_utc(value: Any) -> datetime | None:
     return value.astimezone(timezone.utc)
 
 
+def _reviewed_time_utc(value: Any) -> datetime | None:
+    if not isinstance(value, datetime):
+        return None
+    if value.tzinfo is None or value.utcoffset() is None:
+        return None
+    return value.astimezone(timezone.utc)
+
+
+def _created_time_utc(value: Any) -> datetime | None:
+    if not isinstance(value, datetime):
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _has_review_text(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _evidence_id(item: Mapping[str, Any]) -> str | None:
+    value = item.get("fact_id") or item.get("event_id")
+    return str(value) if value else None
+
+
 def _confirmed_evidence(
     evidence: Iterable[Mapping[str, Any]],
     *,
@@ -88,7 +113,7 @@ def _confirmed_evidence(
     for item in evidence:
         row = dict(item)
         published = _publish_time_utc(row.get("publish_time"))
-        event_id = str(row.get("event_id") or "unknown")
+        event_id = _evidence_id(row) or "unknown"
         if published is None:
             limitations.append(f"evidence_missing_publish_time:{event_id}")
             continue
@@ -98,7 +123,29 @@ def _confirmed_evidence(
             continue
         if row.get("fact_nature") != "confirmed_fact":
             continue
+        if not _has_review_text(row.get("reviewer")):
+            limitations.append(f"evidence_incomplete_review:{event_id}")
+            continue
+        if not _has_review_text(row.get("review_note")):
+            limitations.append(f"evidence_incomplete_review:{event_id}")
+            continue
+        reviewed_at = _reviewed_time_utc(row.get("reviewed_at"))
+        if reviewed_at is None:
+            limitations.append(f"evidence_invalid_reviewed_at:{event_id}")
+            continue
+        if reviewed_at > cutoff:
+            limitations.append(f"evidence_reviewed_after_cutoff:{event_id}")
+            continue
+        created_at = _created_time_utc(row.get("created_at"))
+        if created_at is None:
+            limitations.append(f"evidence_invalid_created_at:{event_id}")
+            continue
+        if created_at > cutoff:
+            limitations.append(f"evidence_created_after_cutoff:{event_id}")
+            continue
         row["publish_time"] = published
+        row["reviewed_at"] = reviewed_at
+        row["created_at"] = created_at
         confirmed.append(row)
     return confirmed, limitations
 
@@ -368,9 +415,9 @@ def score_mapping(
     )
     evidence_ids = sorted(
         {
-            str(item.get("event_id"))
+            evidence_id
             for item in confirmed
-            if item.get("event_id")
+            if (evidence_id := _evidence_id(item)) is not None
         }
     )
     return {

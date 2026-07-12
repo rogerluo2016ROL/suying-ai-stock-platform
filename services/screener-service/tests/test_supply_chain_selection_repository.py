@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 from datetime import date
+from zoneinfo import ZoneInfo
 
 from app.domains.supply_chain.selection_repository import SelectionRepository
 
@@ -55,13 +56,36 @@ def test_preflight_returns_every_missing_required_table():
     assert "business_tag_pool_state" in missing
 
 
-def test_fetch_asof_evidence_uses_publish_time_cutoff_and_approved_events():
+def test_fetch_asof_evidence_preserves_each_fact_linked_to_the_same_event():
     cutoff = datetime(2026, 7, 11, 15, tzinfo=timezone.utc)
+    reviewed_at = datetime(2026, 7, 10, 10, tzinfo=timezone.utc)
+    created_at = datetime(2026, 7, 9, 10, tzinfo=timezone.utc)
     cursor = FakeCursor(
         [
             [
                 {
-                    "event_id": "fact-1",
+                    "fact_id": fact_id,
+                    "event_id": "shared-event",
+                    "publish_time": datetime(2026, 7, 10, tzinfo=timezone.utc),
+                    "fact_type": fact_type,
+                    "fact_nature": "confirmed_fact",
+                    "validation_status": "confirmed",
+                    "source_level": "strong",
+                    "confidence": 0.9,
+                    "metadata": {},
+                    "reviewer": "reviewer-1",
+                    "review_note": "checked against source",
+                    "reviewed_at": reviewed_at,
+                    "created_at": created_at,
+                }
+                for fact_id, fact_type in (
+                    ("fact-1", "order_award"),
+                    ("fact-2", "capacity_mass_production"),
+                )
+            ],
+            [
+                {
+                    "event_id": "shared-event",
                     "publish_time": datetime(2026, 7, 10, tzinfo=timezone.utc),
                     "fact_type": "order_award",
                     "fact_nature": "confirmed_fact",
@@ -69,6 +93,47 @@ def test_fetch_asof_evidence_uses_publish_time_cutoff_and_approved_events():
                     "source_level": "strong",
                     "confidence": 0.9,
                     "metadata": {},
+                    "reviewer": "reviewer-1",
+                    "review_note": "checked against source",
+                    "reviewed_at": reviewed_at,
+                    "created_at": created_at,
+                }
+            ],
+        ]
+    )
+    repository = SelectionRepository(connection_factory=lambda: None)
+
+    rows = repository.fetch_asof_evidence(cursor, "m1", cutoff)
+
+    assert [row.get("fact_id") for row in rows] == ["fact-1", "fact-2"]
+    assert all(row["event_id"] == "shared-event" for row in rows)
+
+
+def test_fetch_asof_evidence_requires_complete_reviews_before_cutoff():
+    cutoff = datetime(2026, 7, 11, 15, tzinfo=timezone.utc)
+    publish_cutoff = cutoff.astimezone(ZoneInfo("Asia/Shanghai")).replace(
+        tzinfo=None
+    )
+    audit_cutoff = cutoff.astimezone(timezone.utc).replace(tzinfo=None)
+    reviewed_at = datetime(2026, 7, 10, 10, tzinfo=timezone.utc)
+    created_at = datetime(2026, 7, 9, 10, tzinfo=timezone.utc)
+    cursor = FakeCursor(
+        [
+            [
+                {
+                    "fact_id": "fact-1",
+                    "event_id": None,
+                    "publish_time": datetime(2026, 7, 10, tzinfo=timezone.utc),
+                    "fact_type": "order_award",
+                    "fact_nature": "confirmed_fact",
+                    "validation_status": "confirmed",
+                    "source_level": "strong",
+                    "confidence": 0.9,
+                    "metadata": {},
+                    "reviewer": "reviewer-1",
+                    "review_note": "checked against source",
+                    "reviewed_at": reviewed_at,
+                    "created_at": created_at,
                 }
             ],
             [
@@ -81,6 +146,10 @@ def test_fetch_asof_evidence_uses_publish_time_cutoff_and_approved_events():
                     "source_level": "mid",
                     "confidence": 0.8,
                     "metadata": {},
+                    "reviewer": "reviewer-2",
+                    "review_note": "approved event",
+                    "reviewed_at": reviewed_at,
+                    "created_at": created_at,
                 }
             ],
         ]
@@ -89,12 +158,57 @@ def test_fetch_asof_evidence_uses_publish_time_cutoff_and_approved_events():
 
     rows = repository.fetch_asof_evidence(cursor, "m1", cutoff)
 
-    assert [row["event_id"] for row in rows] == ["event-1", "fact-1"]
+    assert [row.get("fact_id") or row.get("event_id") for row in rows] == [
+        "event-1",
+        "fact-1",
+    ]
     assert len(cursor.executed) == 2
-    assert cursor.executed[0][1] == ("m1", cutoff)
-    assert cursor.executed[1][1] == ("m1", cutoff.date())
-    assert "publish_time" in cursor.executed[0][0]
-    assert "review_status = 'approved'" in cursor.executed[1][0]
+    facts_sql = " ".join(cursor.executed[0][0].split())
+    events_sql = " ".join(cursor.executed[1][0].split())
+    assert cursor.executed[0][1] == (
+        "m1",
+        publish_cutoff,
+        cutoff,
+        audit_cutoff,
+    )
+    assert cursor.executed[1][1] == (
+        "m1",
+        publish_cutoff.date(),
+        cutoff,
+        audit_cutoff,
+    )
+    assert "f.fact_id" in facts_sql
+    assert "f.evidence_event_id AS event_id" in facts_sql
+    assert "coalesce(d.publish_time, e.event_date::timestamp) <= %s" in facts_sql
+    assert "AT TIME ZONE" not in facts_sql
+    assert "f.validation_status = 'confirmed'" in facts_sql
+    assert "f.reviewer IS NOT NULL" in facts_sql
+    assert "NULLIF(BTRIM(f.reviewer), '') IS NOT NULL" in facts_sql
+    assert "f.review_note IS NOT NULL" in facts_sql
+    assert "NULLIF(BTRIM(f.review_note), '') IS NOT NULL" in facts_sql
+    assert "f.reviewed_at IS NOT NULL" in facts_sql
+    assert "f.reviewed_at <= %s" in facts_sql
+    assert "f.created_at IS NOT NULL" in facts_sql
+    assert "f.created_at <= %s" in facts_sql
+    assert "e.review_status = 'approved'" in events_sql
+    assert "e.reviewer IS NOT NULL" in events_sql
+    assert "NULLIF(BTRIM(e.reviewer), '') IS NOT NULL" in events_sql
+    assert "e.review_note IS NOT NULL" in events_sql
+    assert "NULLIF(BTRIM(e.review_note), '') IS NOT NULL" in events_sql
+    assert "e.reviewed_at IS NOT NULL" in events_sql
+    assert "e.reviewed_at <= %s" in events_sql
+    assert "e.created_at IS NOT NULL" in events_sql
+    assert "e.created_at <= %s" in events_sql
+    assert "NOT EXISTS" in events_sql
+    assert "linked_fact.evidence_event_id = e.event_id" in events_sql
+    assert (
+        "linked_fact.mapping_id IS NOT DISTINCT FROM e.mapping_id"
+        in events_sql
+    )
+    assert rows[0]["reviewer"] == "reviewer-2"
+    assert rows[0]["review_note"] == "approved event"
+    assert rows[0]["reviewed_at"] == reviewed_at
+    assert rows[0]["created_at"] == created_at
 
 
 def test_fetch_mappings_reads_latest_asof_stage_without_future_rows():

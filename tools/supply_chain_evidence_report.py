@@ -121,11 +121,18 @@ def _render_actions(companies: Sequence[Mapping]) -> list[str]:
     lines = ["## 下一步行动", ""]
     count = 0
     for company in companies:
-        for action in company.get("next_actions") or ():
+        for gap in company.get("gaps") or ():
+            if not isinstance(gap, Mapping):
+                continue
+            action = _text(gap.get("next_action"))
+            if not action or action == "none":
+                continue
             count += 1
             lines.append(
-                f"- {_text(company.get('company_code')) or 'unknown-company'}: "
-                f"{_text(action)}"
+                f"- {_text(company.get('company_code')) or 'unknown-company'} / "
+                f"{_text(company.get('mapping_id')) or 'unknown-mapping'} / "
+                f"{_text(gap.get('requirement_id')) or 'unknown-requirement'}: "
+                f"{action}"
             )
     if not count:
         lines.append("- 无")
@@ -146,6 +153,7 @@ def render_evidence_report(result: EvidenceRunResult) -> str:
         f"- 证据需求数：{result.requirement_count}",
         f"- 待审核事实：{result.pending_facts}",
         f"- 已审核事实：{result.approved_facts}",
+        f"- 顶层仓储/评分变更调用数：{result.writes}",
         f"- 网络请求：{result.network_requests}",
         "",
     ]

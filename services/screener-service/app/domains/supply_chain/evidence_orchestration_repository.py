@@ -285,6 +285,8 @@ class PendingDocumentOutcome:
     validation_status: str
     review_status: str
     fact_metadata: dict[str, Any]
+    inserted: bool
+    duplicate: bool
 
 
 @dataclass(frozen=True)
@@ -294,6 +296,15 @@ class DiscoveryPersistenceOutcome:
     fact_mapping_id: None
     validation_status: str
     proposal: CandidateMappingProposal | None
+    inserted: bool
+    duplicate: bool
+
+
+@dataclass(frozen=True)
+class RawDocumentPersistenceOutcome:
+    doc_id: str
+    inserted: bool
+    duplicate: bool
 
 
 @dataclass(frozen=True)
@@ -411,10 +422,26 @@ class EvidenceOrchestrationRepository:
         )
 
     @classmethod
-    def _insert_raw_document(cls, cur, document, metadata: dict[str, Any]) -> None:
-        cls._ensure_source_catalog(
-            cur, str(document.source_id), str(document.source_level), metadata
-        )
+    def _insert_raw_record(
+        cls,
+        cur,
+        *,
+        doc_id: str,
+        source_id: str | None,
+        source_type: str,
+        source_level: str,
+        company_code: str | None,
+        company_name: str | None,
+        title: str,
+        publish_time: object,
+        url: str | None,
+        content_text: str,
+        content_hash: str,
+        doc_type: str | None,
+        metadata: Mapping[str, Any],
+    ) -> RawDocumentPersistenceOutcome:
+        """Insert once without a pre-read; update metadata only after a conflict."""
+
         cur.execute(
             """
             INSERT INTO raw_evidence_documents (
@@ -426,28 +453,77 @@ class EvidenceOrchestrationRepository:
                 %s, %s, %s, %s, %s,
                 %s, 'active', 'unknown', %s, %s::jsonb
             )
-            ON CONFLICT (doc_id) DO UPDATE SET
-                company_code = COALESCE(raw_evidence_documents.company_code, EXCLUDED.company_code),
-                company_name = COALESCE(raw_evidence_documents.company_name, EXCLUDED.company_name),
-                publish_time = COALESCE(raw_evidence_documents.publish_time, EXCLUDED.publish_time),
-                metadata = EXCLUDED.metadata || raw_evidence_documents.metadata,
-                updated_at = CURRENT_TIMESTAMP
+            ON CONFLICT (doc_id) DO NOTHING
+            RETURNING doc_id
             """,
             (
-                document.doc_id,
-                document.source_id,
-                document.doc_type or document.source_id,
-                document.source_level,
-                document.company_code,
-                document.company_name,
-                document.title,
-                document.publish_time,
-                document.url,
-                document.content_text,
-                document.content_hash,
-                document.doc_type,
+                doc_id,
+                source_id,
+                source_type,
+                source_level,
+                company_code,
+                company_name,
+                title,
+                publish_time,
+                url,
+                content_text,
+                content_hash,
+                doc_type,
                 _json(metadata),
             ),
+        )
+        inserted = cur.fetchone() is not None
+        if not inserted:
+            cur.execute(
+                """
+                UPDATE raw_evidence_documents
+                SET company_code = COALESCE(raw_evidence_documents.company_code, %s),
+                    company_name = COALESCE(raw_evidence_documents.company_name, %s),
+                    publish_time = COALESCE(raw_evidence_documents.publish_time, %s),
+                    metadata = %s::jsonb || raw_evidence_documents.metadata,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE doc_id = %s
+                  AND content_hash = %s
+                """,
+                (
+                    company_code,
+                    company_name,
+                    publish_time,
+                    _json(metadata),
+                    doc_id,
+                    content_hash,
+                ),
+            )
+            if cur.rowcount != 1:
+                raise RuntimeError("raw document identity conflict")
+        return RawDocumentPersistenceOutcome(
+            doc_id=doc_id,
+            inserted=inserted,
+            duplicate=not inserted,
+        )
+
+    @classmethod
+    def _insert_raw_document(
+        cls, cur, document, metadata: dict[str, Any]
+    ) -> RawDocumentPersistenceOutcome:
+        cls._ensure_source_catalog(
+            cur, str(document.source_id), str(document.source_level), metadata
+        )
+        return cls._insert_raw_record(
+            cur,
+            doc_id=document.doc_id,
+            source_id=document.source_id,
+            source_type=document.doc_type or document.source_id,
+            source_level=document.source_level,
+            company_code=document.company_code,
+            company_name=document.company_name,
+            title=document.title,
+            publish_time=document.publish_time,
+            url=document.url,
+            content_text=document.content_text,
+            content_hash=document.content_hash,
+            doc_type=document.doc_type,
+            metadata=metadata,
         )
 
     def persist_pending_document(
@@ -485,7 +561,7 @@ class EvidenceOrchestrationRepository:
             str(document.source_level), 0.0
         )
         with self._cursor(write=True, connection=connection) as cur:
-            self._insert_raw_document(cur, document, raw_metadata)
+            raw_outcome = self._insert_raw_document(cur, document, raw_metadata)
             cur.execute(
                 """
                 INSERT INTO business_tag_evidence_events (
@@ -501,6 +577,7 @@ class EvidenceOrchestrationRepository:
                     title = EXCLUDED.title,
                     excerpt = EXCLUDED.excerpt,
                     original_url = COALESCE(business_tag_evidence_events.original_url, EXCLUDED.original_url)
+                RETURNING review_status
                 """,
                 (
                     event_id,
@@ -516,6 +593,10 @@ class EvidenceOrchestrationRepository:
                     confidence,
                 ),
             )
+            event_row = _row(cur.fetchone())
+            if not event_row or not event_row.get("review_status"):
+                raise RuntimeError("event upsert did not return review status")
+            review_status = str(event_row["review_status"])
             cur.execute(
                 """
                 INSERT INTO evidence_extracted_facts (
@@ -532,6 +613,7 @@ class EvidenceOrchestrationRepository:
                         - 'revenue_confirmed' - 'profit_confirmed')
                         || evidence_extracted_facts.metadata,
                     updated_at = CURRENT_TIMESTAMP
+                RETURNING validation_status
                 """,
                 (
                     fact_id,
@@ -549,15 +631,21 @@ class EvidenceOrchestrationRepository:
                     _json(fact_metadata),
                 ),
             )
+            fact_row = _row(cur.fetchone())
+            if not fact_row or not fact_row.get("validation_status"):
+                raise RuntimeError("fact upsert did not return validation status")
+            validation_status = str(fact_row["validation_status"])
         return PendingDocumentOutcome(
             doc_id=document.doc_id,
             fact_id=fact_id,
             event_id=event_id,
             mapping_id=mapping_id,
             requirement_id=requirement_id,
-            validation_status="pending",
-            review_status="pending_review",
+            validation_status=validation_status,
+            review_status=review_status,
             fact_metadata=returned_metadata,
+            inserted=raw_outcome.inserted,
+            duplicate=raw_outcome.duplicate,
         )
 
     def persist_discovery_hit(
@@ -601,29 +689,21 @@ class EvidenceOrchestrationRepository:
         }
         content_hash = hashlib.sha256(str(hit.doc_id).encode("utf-8")).hexdigest()
         with self._cursor(write=True, connection=connection) as cur:
-            cur.execute(
-                """
-                INSERT INTO raw_evidence_documents (
-                    doc_id, source_id, source_type, source_level, company_code,
-                    title, publish_time, content_text, content_hash, doc_status,
-                    license_status, doc_type, metadata
-                ) VALUES (
-                    %s, NULL, 'official_discovery', %s, %s,
-                    %s, %s, %s, %s, 'active',
-                    'unknown', 'announcement_pdf', %s::jsonb
-                )
-                ON CONFLICT (doc_id) DO NOTHING
-                """,
-                (
-                    hit.doc_id,
-                    hit.source_level,
-                    hit.company_code,
-                    f"Discovery evidence {hit.doc_id}",
-                    hit.publish_time,
-                    quote,
-                    content_hash,
-                    _json(metadata),
-                ),
+            raw_outcome = self._insert_raw_record(
+                cur,
+                doc_id=hit.doc_id,
+                source_id=None,
+                source_type="official_discovery",
+                source_level=hit.source_level,
+                company_code=hit.company_code,
+                company_name=None,
+                title=f"Discovery evidence {hit.doc_id}",
+                publish_time=hit.publish_time,
+                url=None,
+                content_text=quote,
+                content_hash=content_hash,
+                doc_type="announcement_pdf",
+                metadata=metadata,
             )
             cur.execute(
                 """
@@ -667,6 +747,7 @@ class EvidenceOrchestrationRepository:
                         true
                     ),
                     updated_at = CURRENT_TIMESTAMP
+                RETURNING validation_status
                 """,
                 (
                     fact_id,
@@ -679,12 +760,18 @@ class EvidenceOrchestrationRepository:
                     _json(metadata),
                 ),
             )
+            fact_row = _row(cur.fetchone())
+            if not fact_row or not fact_row.get("validation_status"):
+                raise RuntimeError("fact upsert did not return validation status")
+            validation_status = str(fact_row["validation_status"])
         return DiscoveryPersistenceOutcome(
             doc_id=hit.doc_id,
             fact_id=fact_id,
             fact_mapping_id=None,
-            validation_status="pending",
+            validation_status=validation_status,
             proposal=hit.proposal,
+            inserted=raw_outcome.inserted,
+            duplicate=raw_outcome.duplicate,
         )
 
     def upsert_candidate_mapping(
@@ -959,6 +1046,29 @@ class EvidenceOrchestrationRepository:
         errors = (
             result.get("errors", ()) if isinstance(result, Mapping) else result.errors
         )
+
+        def returned_count(name: str, fallback: int) -> int:
+            if isinstance(result, Mapping):
+                value = result.get(name, fallback)
+            else:
+                value = getattr(result, name, fallback)
+            return (
+                value
+                if isinstance(value, int)
+                and not isinstance(value, bool)
+                and value >= 0
+                else fallback
+            )
+
+        fetched_count = returned_count("fetched_count", len(documents))
+        inserted_count = returned_count(
+            "inserted_count",
+            returned_count("inserted_documents", 0),
+        )
+        duplicate_count = returned_count(
+            "duplicate_count",
+            returned_count("duplicate_documents", 0),
+        )
         sanitized = "; ".join(_sanitize_error_text(value) for value in errors) or None
         with self._cursor(write=True, connection=connection) as cur:
             cur.execute(
@@ -968,6 +1078,7 @@ class EvidenceOrchestrationRepository:
                     finished_at = CURRENT_TIMESTAMP,
                     fetched_count = %s,
                     inserted_count = %s,
+                    duplicate_count = %s,
                     failed_count = %s,
                     error_message = %s,
                     updated_at = CURRENT_TIMESTAMP
@@ -975,8 +1086,9 @@ class EvidenceOrchestrationRepository:
                 """,
                 (
                     status,
-                    len(documents),
-                    len(documents),
+                    fetched_count,
+                    inserted_count,
+                    duplicate_count,
                     len(failed),
                     sanitized,
                     job_id,
@@ -985,12 +1097,11 @@ class EvidenceOrchestrationRepository:
 
     def persist_raw_document(
         self, document, *, job_id: str, connection: Any | None = None
-    ) -> str:
+    ) -> RawDocumentPersistenceOutcome:
         metadata = thaw_json(document.metadata or {})
         metadata["collection_job_id"] = job_id
         with self._cursor(write=True, connection=connection) as cur:
-            self._insert_raw_document(cur, document, metadata)
-        return document.doc_id
+            return self._insert_raw_document(cur, document, metadata)
 
     def fetch_independent_discovery_requirements(
         self, chain_id: str, *, connection: Any | None = None

@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 from psycopg2.extras import Json, RealDictCursor
+
+
+SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 
 class MissingSelectionTables(RuntimeError):
@@ -57,26 +61,42 @@ class SelectionRepository:
         mapping_id: str,
         cutoff: datetime,
     ) -> list[dict[str, Any]]:
+        publish_cutoff = cutoff.astimezone(SHANGHAI).replace(tzinfo=None)
+        audit_cutoff = cutoff.astimezone(timezone.utc).replace(tzinfo=None)
         cur.execute(
             """
             SELECT
-                coalesce(f.evidence_event_id, f.fact_id) AS event_id,
+                f.fact_id,
+                f.evidence_event_id AS event_id,
                 coalesce(d.publish_time, e.event_date::timestamp) AS publish_time,
                 f.fact_type,
                 f.fact_nature,
                 f.validation_status,
                 f.source_level,
                 f.confidence,
-                f.metadata
+                f.metadata,
+                f.reviewer,
+                f.review_note,
+                f.reviewed_at,
+                f.created_at
             FROM evidence_extracted_facts f
             LEFT JOIN raw_evidence_documents d ON d.doc_id = f.doc_id
             LEFT JOIN business_tag_evidence_events e
               ON e.event_id = f.evidence_event_id
             WHERE f.mapping_id = %s
               AND coalesce(d.publish_time, e.event_date::timestamp) <= %s
+              AND f.validation_status = 'confirmed'
+              AND f.reviewer IS NOT NULL
+              AND NULLIF(BTRIM(f.reviewer), '') IS NOT NULL
+              AND f.review_note IS NOT NULL
+              AND NULLIF(BTRIM(f.review_note), '') IS NOT NULL
+              AND f.reviewed_at IS NOT NULL
+              AND f.reviewed_at <= %s
+              AND f.created_at IS NOT NULL
+              AND f.created_at <= %s
             ORDER BY publish_time, event_id
             """,
-            (mapping_id, cutoff),
+            (mapping_id, publish_cutoff, cutoff, audit_cutoff),
         )
         facts = [dict(row) for row in cur.fetchall()]
 
@@ -94,27 +114,57 @@ class SelectionRepository:
                     ELSE 'mid'
                 END AS source_level,
                 e.confidence,
-                jsonb_build_object('source_type', e.source_type) AS metadata
+                jsonb_build_object('source_type', e.source_type) AS metadata,
+                e.reviewer,
+                e.review_note,
+                e.reviewed_at,
+                e.created_at
             FROM business_tag_evidence_events e
             WHERE e.mapping_id = %s
               AND e.review_status = 'approved'
               AND e.event_date <= %s
+              AND e.reviewer IS NOT NULL
+              AND NULLIF(BTRIM(e.reviewer), '') IS NOT NULL
+              AND e.review_note IS NOT NULL
+              AND NULLIF(BTRIM(e.review_note), '') IS NOT NULL
+              AND e.reviewed_at IS NOT NULL
+              AND e.reviewed_at <= %s
+              AND e.created_at IS NOT NULL
+              AND e.created_at <= %s
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM evidence_extracted_facts linked_fact
+                  WHERE linked_fact.evidence_event_id = e.event_id
+                    AND linked_fact.mapping_id IS NOT DISTINCT FROM e.mapping_id
+              )
             ORDER BY publish_time, event_id
             """,
-            (mapping_id, cutoff.date()),
+            (mapping_id, publish_cutoff.date(), cutoff, audit_cutoff),
         )
         approved_events = [dict(row) for row in cur.fetchall()]
 
-        deduplicated = {
-            str(row["event_id"]): row
-            for row in facts + approved_events
+        deduplicated: dict[tuple[str, str], dict[str, Any]] = {}
+        linked_event_ids = {
+            str(row["event_id"])
+            for row in facts
             if row.get("event_id")
         }
+        for row in facts:
+            if row.get("fact_id"):
+                identity = ("fact", str(row["fact_id"]))
+            else:
+                continue
+            deduplicated[identity] = row
+        for row in approved_events:
+            event_id = str(row.get("event_id") or "")
+            if not event_id or event_id in linked_event_ids:
+                continue
+            deduplicated[("event", event_id)] = row
         return sorted(
             deduplicated.values(),
             key=lambda row: (
                 row.get("publish_time") or datetime.min,
-                str(row.get("event_id") or ""),
+                str(row.get("fact_id") or row.get("event_id") or ""),
             ),
         )
 

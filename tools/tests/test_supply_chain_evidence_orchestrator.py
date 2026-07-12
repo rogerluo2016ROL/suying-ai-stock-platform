@@ -26,8 +26,11 @@ from kronos_factors.engine.supply_chain_evidence_orchestration import (
 from supply_chain_data_collection_center import RawDocument
 from supply_chain_evidence_adapters import AdapterResult
 from supply_chain_evidence_orchestrator import (
+    _PersistenceSummary,
+    build_result_from_runs,
     build_collection_tasks,
     build_unmapped_discovery_tasks,
+    empty_adapter_result,
     run_evidence_orchestration,
 )
 
@@ -158,6 +161,7 @@ class FakeRepository:
         facts=None,
         pending_outcomes=None,
         fail_persist: bool = False,
+        fail_persist_after: int | None = None,
     ):
         self.mappings = list(mappings if mappings is not None else [mapping()])
         self.requirements = list(requirements if requirements is not None else [axis_requirement()])
@@ -166,6 +170,7 @@ class FakeRepository:
         self.facts = list(facts or [])
         self.pending_outcomes = list(pending_outcomes or [])
         self.fail_persist = fail_persist
+        self.fail_persist_after = fail_persist_after
         self.fetch_mapping_calls = []
         self.discovery_scope_calls = []
         self.started_jobs = []
@@ -218,6 +223,7 @@ class FakeRepository:
             inserted=True,
             doc_id=hit.doc_id,
             fact_id=f"fact-{hit.doc_id}",
+            fact_mapping_id=None,
         )
 
     def upsert_candidate_mapping(self, proposal):
@@ -235,7 +241,10 @@ class FakeRepository:
         return proposal
 
     def persist_pending_document(self, **kwargs):
-        if self.fail_persist:
+        if self.fail_persist or (
+            self.fail_persist_after is not None
+            and len(self.persisted_pending) >= self.fail_persist_after
+        ):
             raise RuntimeError("persist failed")
         self.events.append(
             f"persist_pending:{kwargs['mapping_id']}:{kwargs['requirement_id']}"
@@ -378,8 +387,8 @@ def test_score_updates_only_fully_audited_dimensions_before_scoring():
     assert repository.events.index("dimension_updates") < repository.events.index("score")
     assert score_runner.calls[0]["mapping_ids"] == ["m1"]
     assert result.approved_facts == 1
-    assert result.pending_facts == 0
-    assert "score_repository_audit_gate_pending_task_8" in result.data_limitations
+    assert result.pending_facts == 1
+    assert "score_repository_audit_gate_pending_task_8" not in result.data_limitations
 
 
 def test_score_never_assigns_one_mappings_fact_to_another_node():
@@ -436,6 +445,33 @@ def test_score_aggregates_same_node_mapping_evidence_before_one_upsert():
     )
 
 
+def test_score_writes_count_top_level_mutation_calls_not_affected_rows():
+    repository = FakeRepository(
+        mappings=[
+            mapping("m1", "688001", node_id="node-one"),
+            mapping("m2", "688002", node_id="node-two"),
+        ],
+        facts=[
+            audited_dimension_fact("m1", "physical_bom"),
+            audited_dimension_fact("m2", "technology_route"),
+        ],
+    )
+    score_runner = SpyScoreRunner()
+
+    result = run_evidence_orchestration(
+        request("score"),
+        repository=repository,
+        local_adapter=FailIfCalledAdapter(),
+        official_discovery_adapter=FailIfCalledAdapter(),
+        official_adapter=FailIfCalledAdapter(),
+        score_runner=score_runner,
+    )
+
+    assert len(repository.dimension_updates) == 2
+    assert score_runner.calls
+    assert result.writes == 2  # one node batch upsert + one score-runner mutation call
+
+
 @pytest.mark.parametrize("allow_score", [False, True])
 def test_full_scores_only_with_explicit_allow_score(allow_score):
     repository = FakeRepository(facts=[audited_dimension_fact("m1", "physical_bom")])
@@ -452,6 +488,28 @@ def test_full_scores_only_with_explicit_allow_score(allow_score):
     assert bool(score_runner.calls) is allow_score
     assert result.pool_transitions == (1 if allow_score else 0)
     assert bool(repository.dimension_updates) is allow_score
+
+
+def test_full_merges_score_failures_into_partial_job_finish():
+    class PartialScoreRunner(SpyScoreRunner):
+        def __call__(self, **kwargs):
+            payload = super().__call__(**kwargs)
+            return {**payload, "failed_tasks": ("score:m1",)}
+
+    repository = FakeRepository()
+    result = run_evidence_orchestration(
+        request("full", allow_score=True),
+        repository=repository,
+        local_adapter=FakeAdapter(),
+        official_discovery_adapter=FailIfCalledAdapter(),
+        official_adapter=FailIfCalledAdapter(),
+        score_runner=PartialScoreRunner(),
+    )
+
+    assert result.failed_tasks == ("score:m1",)
+    finish_payload = repository.finished_jobs[0][1]
+    assert finish_payload["status"] == "partial_success"
+    assert finish_payload["failed_tasks"] == ("score:m1",)
 
 
 def test_company_scope_filters_local_global_and_persistence_results():
@@ -689,6 +747,241 @@ def test_counts_come_from_returned_outcomes_and_pending_is_not_approved():
     assert result.duplicate_documents == 1
     assert result.pending_facts == 2
     assert result.approved_facts == 0
+    assert {
+        item["fact_id"] for item in result.companies[0]["pending"]
+    } == {"p1", "p2"}
+    finish_payload = repository.finished_jobs[0][1]
+    assert (
+        finish_payload["fetched_count"],
+        finish_payload["inserted_count"],
+        finish_payload["duplicate_count"],
+    ) == (2, 1, 1)
+
+
+def test_confirmed_rerun_outcome_does_not_supplement_empty_snapshot():
+    single_requirement_mapping = mapping()
+    single_requirement_mapping["required_evidence_type_ids"] = [
+        "product_or_prototype"
+    ]
+    repository = FakeRepository(
+        mappings=[single_requirement_mapping],
+        pending_outcomes=[
+            SimpleNamespace(
+                validation_status="confirmed",
+                inserted=False,
+                duplicate=True,
+                fact_id="already-confirmed",
+            )
+        ],
+    )
+
+    result = run_evidence_orchestration(
+        request("collect"),
+        repository=repository,
+        local_adapter=FakeAdapter([document("reviewed-rerun")]),
+        official_discovery_adapter=FailIfCalledAdapter(),
+        official_adapter=FailIfCalledAdapter(),
+        score_runner=FailIfCalled(),
+    )
+
+    assert result.pending_facts == 0
+    assert result.companies[0]["pending"] == []
+
+
+def test_same_document_for_two_mappings_counts_one_insert_and_one_duplicate():
+    first = SimpleNamespace(
+        validation_status="pending",
+        inserted=True,
+        duplicate=False,
+        fact_id="fact-m1",
+    )
+    second = SimpleNamespace(
+        validation_status="pending",
+        inserted=False,
+        duplicate=True,
+        fact_id="fact-m2",
+    )
+    mappings = [mapping("m1", "688001"), mapping("m2", "688001")]
+    for item in mappings:
+        item["required_evidence_type_ids"] = ["product_or_prototype"]
+    repository = FakeRepository(
+        mappings=mappings,
+        pending_outcomes=[first, second],
+    )
+
+    result = run_evidence_orchestration(
+        request("collect"),
+        repository=repository,
+        local_adapter=FakeAdapter([document("shared", code="688001")]),
+        official_discovery_adapter=FailIfCalledAdapter(),
+        official_adapter=FailIfCalledAdapter(),
+        score_runner=FailIfCalled(),
+    )
+
+    assert (result.inserted_documents, result.duplicate_documents) == (1, 1)
+    finish_payload = repository.finished_jobs[0][1]
+    assert (
+        finish_payload["fetched_count"],
+        finish_payload["inserted_count"],
+        finish_payload["duplicate_count"],
+    ) == (2, 1, 1)
+
+
+def test_final_fact_snapshot_drives_unique_approved_and_pending_counts():
+    approved = audited_dimension_fact(
+        "m1", "physical_bom", fact_id="approved-final"
+    )
+    pending = {
+        **audited_dimension_fact(
+            "m1", "technology_route", fact_id="pending-final"
+        ),
+        "validation_status": "pending",
+        "reviewer": None,
+        "review_note": None,
+        "reviewed_at": None,
+    }
+    persisted = _PersistenceSummary(
+        pending_facts=3,
+        writes=3,
+        records=(
+            {
+                "fact_id": "approved-final",
+                "mapping_id": "m1",
+                "validation_status": "pending",
+                "unmapped": False,
+            },
+            {
+                "fact_id": "unmapped-lead",
+                "mapping_id": "m1",
+                "validation_status": "pending",
+                "unmapped": True,
+            },
+            {
+                "fact_id": "mapped-not-in-snapshot",
+                "mapping_id": "m1",
+                "validation_status": "pending",
+                "unmapped": False,
+            },
+        ),
+    )
+
+    result = build_result_from_runs(
+        request("collect"),
+        (mapping(),),
+        (),
+        empty_adapter_result(),
+        empty_adapter_result(),
+        empty_adapter_result(),
+        persisted,
+        None,
+        facts=(approved, pending, dict(pending)),
+    )
+
+    assert result.approved_facts == 1
+    assert result.pending_facts == 3
+    company = result.companies[0]
+    assert [item["fact_id"] for item in company["approved"]] == [
+        "approved-final"
+    ]
+    assert {item["fact_id"] for item in company["pending"]} == {
+        "pending-final",
+        "unmapped-lead",
+        "mapped-not-in-snapshot",
+    }
+
+
+def test_reviewed_contradiction_wins_matrix_without_becoming_rejected():
+    known = audited_dimension_fact(
+        "m1", "physical_bom", fact_id="known-bom"
+    )
+    known["metadata"] = {
+        "dimension_ids": ["physical_bom"],
+        "layer_id": "L1",
+    }
+    proxy = audited_dimension_fact(
+        "m1", "physical_bom", fact_id="proxy-bom"
+    )
+    proxy["metadata"] = {
+        "dimension_ids": ["physical_bom"],
+        "layer_id": "L1",
+        "proxy": True,
+    }
+    contradicted = audited_dimension_fact(
+        "m1", "physical_bom", fact_id="contradicted-bom"
+    )
+    contradicted["metadata"] = {
+        "dimension_ids": ["physical_bom"],
+        "layer_id": "L1",
+        "contradicted": True,
+    }
+    rejected = {
+        **audited_dimension_fact(
+            "m1", "technology_route", fact_id="rejected-route"
+        ),
+        "validation_status": "rejected",
+        "metadata": {
+            "dimension_ids": ["technology_route"],
+            "layer_id": "L1",
+        },
+    }
+    repository = FakeRepository(
+        facts=(contradicted, proxy, known, rejected)
+    )
+
+    result = run_evidence_orchestration(
+        request("score"),
+        repository=repository,
+        local_adapter=FailIfCalledAdapter(),
+        official_discovery_adapter=FailIfCalledAdapter(),
+        official_adapter=FailIfCalledAdapter(),
+        score_runner=SpyScoreRunner(),
+    )
+
+    company = result.companies[0]
+    cell = company["layers"]["L1"]["physical_bom"]
+    assert cell["status"] == "contradicted"
+    assert cell["evidence_ids"] == [
+        "contradicted-bom",
+        "proxy-bom",
+        "known-bom",
+    ]
+    assert [item["fact_id"] for item in company["rejected"]] == [
+        "rejected-route"
+    ]
+    assert "contradicted-bom" not in {
+        item["fact_id"] for item in company["rejected"]
+    }
+
+
+def test_pending_contradiction_never_projects_into_the_matrix():
+    pending = audited_dimension_fact(
+        "m1", "physical_bom", fact_id="pending-contradiction"
+    )
+    pending["validation_status"] = "pending"
+    pending["metadata"] = {
+        "dimension_ids": ["physical_bom"],
+        "layer_id": "L1",
+        "contradicted": True,
+    }
+    repository = FakeRepository(facts=(pending,))
+
+    result = run_evidence_orchestration(
+        request("score"),
+        repository=repository,
+        local_adapter=FailIfCalledAdapter(),
+        official_discovery_adapter=FailIfCalledAdapter(),
+        official_adapter=FailIfCalledAdapter(),
+        score_runner=SpyScoreRunner(),
+    )
+
+    company = result.companies[0]
+    assert (
+        company["layers"].get("L1", {}).get("physical_bom") is None
+    )
+    assert [item["fact_id"] for item in company["pending"]] == [
+        "pending-contradiction"
+    ]
+    assert company["rejected"] == []
 
 
 def test_unknown_repository_insert_conflict_counts_stay_zero_with_limitation():
@@ -773,6 +1066,27 @@ def test_collection_exception_finishes_job_as_failed_before_reraising():
 
     assert repository.finished_jobs[0][1]["status"] == "failed"
     assert "persist failed" in repository.finished_jobs[0][1]["errors"][0]
+
+
+def test_collection_exception_finishes_with_counts_accumulated_before_failure():
+    repository = FakeRepository(fail_persist_after=1)
+    with pytest.raises(RuntimeError, match="persist failed"):
+        run_evidence_orchestration(
+            request("collect"),
+            repository=repository,
+            local_adapter=FakeAdapter([document("first"), document("second")]),
+            official_discovery_adapter=FailIfCalledAdapter(),
+            official_adapter=FailIfCalledAdapter(),
+            score_runner=FailIfCalled(),
+        )
+
+    finish_payload = repository.finished_jobs[0][1]
+    assert finish_payload["status"] == "failed"
+    assert (
+        finish_payload["fetched_count"],
+        finish_payload["inserted_count"],
+        finish_payload["duplicate_count"],
+    ) == (1, 1, 0)
 
 
 def test_cli_parser_accepts_exact_arguments_and_validates_source_limits():
@@ -878,6 +1192,49 @@ def test_cli_writes_json_and_markdown_only_when_output_dir_is_supplied(
     assert cli.main([*common, "--output-dir", str(output_dir)]) == 0
     assert (output_dir / "result.json").is_file()
     assert (output_dir / "report.md").is_file()
+
+
+def test_cli_runtime_error_is_single_line_sanitized_and_nonzero(
+    monkeypatch, capsys
+):
+    import run_supply_chain_evidence_orchestration as cli
+
+    secret_error = RuntimeError(
+        "postgresql://alice:db-password@localhost/db "
+        "password=hunter2 token=top-secret\nsecond line"
+    )
+    monkeypatch.setattr(
+        cli,
+        "build_runtime_dependencies",
+        lambda _args: (_ for _ in ()).throw(secret_error),
+    )
+
+    exit_code = cli.main(
+        [
+            "--chain-id",
+            "dexterous_hand",
+            "--as-of-date",
+            "2026-07-09",
+            "--mode",
+            "collect",
+            "--source-policy",
+            "local-first",
+            "--pg-url",
+            "postgresql://malformed:plaintext@localhost/db",
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code != 0
+    assert captured.out == ""
+    assert len(captured.err.rstrip("\n").splitlines()) == 1
+    for secret in (
+        "db-password",
+        "hunter2",
+        "top-secret",
+        "plaintext",
+    ):
+        assert secret not in captured.err
 
 
 @pytest.mark.postgresql
