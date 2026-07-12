@@ -165,6 +165,10 @@ def prepare_mapping_for_score(
 
     cutoff = _cutoff_utc(trade_date)
     reviewed_at = _reviewed_time_utc(prepared.get("source_event_reviewed_at"))
+    stage_created_at = _created_time_utc(prepared.get("stage_created_at"))
+    source_event_created_at = _created_time_utc(
+        prepared.get("source_event_created_at")
+    )
     try:
         event_time = _publish_time_utc(prepared.get("source_event_date"))
     except TypeError:
@@ -179,6 +183,10 @@ def prepare_mapping_for_score(
         and reviewed_at <= cutoff
         and event_time is not None
         and event_time <= cutoff
+        and stage_created_at is not None
+        and stage_created_at <= cutoff
+        and source_event_created_at is not None
+        and source_event_created_at <= cutoff
     )
     if not audited:
         prepared["commercial_stage"] = None
@@ -340,20 +348,20 @@ def _selection_inputs(
             float(expectation_gap) if expectation_gap is not None else None
         ),
         "catalyst_score": float(catalyst) if catalyst is not None else None,
-        "risk_score": (
-            100.0
-            if "negative" in _fact_types(confirmed)
-            else (float(risk) if risk is not None else None)
-        ),
+        "risk_score": float(risk) if risk is not None else None,
     }
 
 
 def _veto_reasons(confirmed: list[dict[str, Any]]) -> list[str]:
-    reasons = {
-        str((item.get("metadata") or {}).get("veto_reason") or "confirmed_negative")
-        for item in confirmed
-        if item.get("fact_type") == "negative"
-    }
+    reasons: set[str] = set()
+    for item in confirmed:
+        metadata = item.get("metadata") or {}
+        reason = metadata.get("veto_reason")
+        explicit = metadata.get("is_veto") is True or (
+            isinstance(reason, str) and bool(reason.strip())
+        )
+        if explicit:
+            reasons.add(str(reason).strip() if reason else "explicit_veto")
     return sorted(reasons)
 
 
@@ -512,6 +520,169 @@ def score_mapping(
     }
 
 
+_SELECTION_CONTEXT_MAPPING_KEYS = (
+    "actual_progress_score",
+    "market_expectation_score",
+    "evidence_delta_score",
+    "claim_risk_penalty_score",
+    "expectation_gap_score",
+    "catalyst_score",
+    "risk_score",
+    "adjusted_price_reaction",
+)
+
+
+def _apply_selection_context(
+    prepared_mapping: Mapping[str, Any],
+    context: Mapping[str, Any],
+) -> dict[str, Any]:
+    merged = dict(prepared_mapping)
+    for key in _SELECTION_CONTEXT_MAPPING_KEYS:
+        if key in context:
+            merged[key] = context[key]
+    return merged
+
+
+def _complete_context_bundle(
+    bundle: dict[str, Any],
+    *,
+    context: Mapping[str, Any],
+) -> dict[str, Any]:
+    context_ids = sorted(
+        {
+            item.strip()
+            for item in (context.get("selection_context_evidence_ids") or [])
+            if isinstance(item, str) and item.strip()
+        }
+    )
+    bundle["evidence_ids"] = sorted(
+        {
+            item.strip()
+            for item in [*(bundle.get("evidence_ids") or []), *context_ids]
+            if isinstance(item, str) and item.strip()
+        }
+    )
+    limitations = sorted(
+        {
+            item.strip()
+            for item in [
+                *(bundle.get("data_limitations") or []),
+                *(context.get("selection_context_limitations") or []),
+            ]
+            if isinstance(item, str) and item.strip()
+        }
+    )
+    bundle["data_limitations"] = limitations
+    selection = bundle.setdefault("selection", {})
+    detail = selection.setdefault("detail", {})
+    detail["selection_context"] = {
+        key: context.get(key) for key in _SELECTION_CONTEXT_MAPPING_KEYS
+    }
+    detail["selection_context_evidence_ids"] = context_ids
+    detail["pool_gate"] = (
+        (detail.get("pool_gates") or {}).get("combined")
+        if isinstance(detail.get("pool_gates"), Mapping)
+        else None
+    )
+    detail["blocking_gate"] = selection.get("blocking_gate")
+    detail["data_limitations"] = limitations
+    detail["next_validation"] = {
+        "event": bundle.get("next_validation_event"),
+        "date": bundle.get("next_validation_date"),
+        "actions": [],
+    }
+    return bundle
+
+
+def run_batch_score_in_connection(
+    connection,
+    *,
+    chain_id: str,
+    trade_date: date,
+    model_version: str,
+    dry_run: bool,
+    mapping_ids: list[str] | None,
+    repository: SelectionRepository,
+) -> dict[str, Any]:
+    bundles: list[dict[str, Any]] = []
+    transitions = 0
+    with connection.cursor(cursor_factory=RealDictCursor) as cur:
+        missing = repository.preflight(cur)
+        if missing:
+            raise MissingSelectionTables(missing)
+        mappings = repository.fetch_mappings(
+            cur,
+            chain_id=chain_id,
+            mapping_ids=mapping_ids,
+            trade_date=trade_date,
+        )
+        cutoff = _cutoff_utc(trade_date)
+        for mapping in mappings:
+            prepared_mapping = prepare_mapping_for_score(
+                mapping,
+                trade_date=trade_date,
+            )
+            mapping_id = str(mapping["mapping_id"])
+            evidence_rows = repository.fetch_asof_evidence(
+                cur,
+                mapping_id,
+                cutoff,
+            )
+            node_row = repository.fetch_node_score(
+                cur,
+                node_id=str(mapping.get("node_id") or ""),
+                trade_date=trade_date,
+                model_version=model_version,
+            )
+            context = repository.fetch_selection_context(
+                cur,
+                mapping_id=mapping_id,
+                code=str(mapping.get("code") or ""),
+                trade_date=trade_date,
+                cutoff=cutoff,
+            )
+            scoring_mapping = _apply_selection_context(prepared_mapping, context)
+            bundle = score_mapping(
+                scoring_mapping,
+                evidence_rows,
+                trade_date=trade_date,
+                node_score=(
+                    float(node_row["total_score"])
+                    if node_row and node_row.get("total_score") is not None
+                    else None
+                ),
+            )
+            _complete_context_bundle(bundle, context=context)
+            bundles.append(bundle)
+            if not dry_run:
+                repository.upsert_score_bundle(cur, bundle)
+                transitions += int(repository.transition_pool(cur, bundle))
+
+    pool_counts: dict[str, int] = {}
+    excluded = 0
+    limitation_count = 0
+    for bundle in bundles:
+        pool_code = bundle["selection"].get("pool_code")
+        if pool_code is None:
+            excluded += 1
+        else:
+            pool_counts[pool_code] = pool_counts.get(pool_code, 0) + 1
+        limitation_count += len(bundle.get("data_limitations") or [])
+    return {
+        "dry_run": dry_run,
+        "chain_id": chain_id,
+        "trade_date": trade_date.isoformat(),
+        "model_version": model_version,
+        "mapping_count": len(bundles),
+        "pool_counts": pool_counts,
+        "excluded_count": excluded,
+        "limitation_count": limitation_count,
+        "written": 0 if dry_run else len(bundles),
+        "transitions": transitions,
+        "results": bundles,
+    }
+
+
 def run_batch_score(
     *,
     pg_url: str,
@@ -522,91 +693,36 @@ def run_batch_score(
     mapping_ids: list[str] | None = None,
     repository: SelectionRepository | None = None,
     connection_factory=None,
+    connection=None,
 ) -> dict[str, Any]:
     if model_version != MODEL_VERSION:
         raise ValueError(f"model_version must be {MODEL_VERSION}")
     factory = connection_factory or (
         lambda: psycopg2.connect(pg_url, connect_timeout=5)
     )
-    connection = factory()
-    repo = repository or SelectionRepository(factory)
-    bundles: list[dict[str, Any]] = []
-    transitions = 0
+    owns_connection = connection is None
+    active = factory() if owns_connection else connection
+    repo = repository or SelectionRepository(lambda: active)
     try:
-        with connection.cursor(cursor_factory=RealDictCursor) as cur:
-            missing = repo.preflight(cur)
-            if missing:
-                raise MissingSelectionTables(missing)
-            mappings = repo.fetch_mappings(
-                cur,
-                chain_id=chain_id,
-                mapping_ids=mapping_ids,
-                trade_date=trade_date,
-            )
-            cutoff = _cutoff_utc(trade_date)
-            for mapping in mappings:
-                prepared_mapping = prepare_mapping_for_score(
-                    mapping,
-                    trade_date=trade_date,
-                )
-                evidence_rows = repo.fetch_asof_evidence(
-                    cur,
-                    str(mapping["mapping_id"]),
-                    cutoff,
-                )
-                node_row = repo.fetch_node_score(
-                    cur,
-                    node_id=str(mapping.get("node_id") or ""),
-                    trade_date=trade_date,
-                    model_version=model_version,
-                )
-                bundle = score_mapping(
-                    prepared_mapping,
-                    evidence_rows,
-                    trade_date=trade_date,
-                    node_score=(
-                        float(node_row["total_score"])
-                        if node_row and node_row.get("total_score") is not None
-                        else None
-                    ),
-                )
-                bundles.append(bundle)
-                if not dry_run:
-                    repo.upsert_score_bundle(cur, bundle)
-                    transitions += int(repo.transition_pool(cur, bundle))
-        if dry_run:
-            connection.rollback()
-        else:
-            connection.commit()
+        result = run_batch_score_in_connection(
+            active,
+            chain_id=chain_id,
+            trade_date=trade_date,
+            model_version=model_version,
+            dry_run=dry_run,
+            mapping_ids=mapping_ids,
+            repository=repo,
+        )
+        if owns_connection:
+            active.rollback() if dry_run else active.commit()
+        return result
     except Exception:
-        connection.rollback()
+        if owns_connection:
+            active.rollback()
         raise
     finally:
-        connection.close()
-
-    pool_counts: dict[str, int] = {}
-    excluded = 0
-    limitations = 0
-    for bundle in bundles:
-        pool_code = bundle["selection"].get("pool_code")
-        if pool_code is None:
-            excluded += 1
-        else:
-            pool_counts[pool_code] = pool_counts.get(pool_code, 0) + 1
-        limitations += len(bundle.get("data_limitations") or [])
-    return {
-        "dry_run": dry_run,
-        "chain_id": chain_id,
-        "trade_date": trade_date.isoformat(),
-        "model_version": model_version,
-        "mapping_count": len(bundles),
-        "pool_counts": pool_counts,
-        "excluded_count": excluded,
-        "limitation_count": limitations,
-        "written": 0 if dry_run else len(bundles),
-        "transitions": transitions,
-        "results": bundles,
-    }
+        if owns_connection:
+            active.close()
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

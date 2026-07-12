@@ -14,10 +14,7 @@ from app.domains.supply_chain.models import (
 from app.domains.supply_chain.selection_repository import MissingSelectionTables
 
 
-router = APIRouter(
-    prefix="/api/v1/supply-chain/selection",
-    tags=["supply-chain-selection"],
-)
+router = APIRouter(tags=["supply-chain-selection"])
 
 
 def _unavailable(exc: MissingSelectionTables) -> HTTPException:
@@ -31,7 +28,16 @@ def _invalid(exc: ValueError) -> HTTPException:
     return HTTPException(status_code=422, detail={"error": str(exc)})
 
 
-@router.get("/candidates", response_model=SelectionCandidateResponse)
+@router.get(
+    "/api/v1/supply-chain/selection/candidates",
+    response_model=SelectionCandidateResponse,
+    deprecated=True,
+    include_in_schema=False,
+)
+@router.get(
+    "/api/v1/screener/supply-chain/selection/candidates",
+    response_model=SelectionCandidateResponse,
+)
 def candidates(
     chain_id: str,
     trade_date: date,
@@ -55,7 +61,16 @@ def candidates(
         raise _invalid(exc) from exc
 
 
-@router.get("/stocks/{code}", response_model=SelectionStockDetailResponse)
+@router.get(
+    "/api/v1/supply-chain/selection/stocks/{code}",
+    response_model=SelectionStockDetailResponse,
+    deprecated=True,
+    include_in_schema=False,
+)
+@router.get(
+    "/api/v1/screener/supply-chain/selection/stocks/{code}",
+    response_model=SelectionStockDetailResponse,
+)
 def stock_detail(
     code: str,
     chain_id: str,
@@ -75,7 +90,12 @@ def stock_detail(
         raise _invalid(exc) from exc
 
 
-@router.post("/batch-score")
+@router.post(
+    "/api/v1/supply-chain/selection/batch-score",
+    deprecated=True,
+    include_in_schema=False,
+)
+@router.post("/api/v1/screener/supply-chain/selection/batch-score")
 def batch_score(request: SelectionBatchCalculateRequest):
     try:
         return selection_service.batch_calculate_selection(request)

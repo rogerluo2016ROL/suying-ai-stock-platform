@@ -52,6 +52,12 @@ def test_supply_chain_evidence_review_prefix_forwards_to_screener_service():
     assert gateway._resolve_target(path, "") == f"http://localhost:8001{path}"
 
 
+def test_supply_chain_selection_candidates_forwards_to_screener_service():
+    path = "/api/v1/screener/supply-chain/selection/candidates"
+
+    assert gateway._resolve_target(path, "") == f"http://localhost:8001{path}"
+
+
 def test_resolve_target_rewrites_service_health_alias():
     target = gateway._resolve_target("/api/v1/trade/health", "")
 

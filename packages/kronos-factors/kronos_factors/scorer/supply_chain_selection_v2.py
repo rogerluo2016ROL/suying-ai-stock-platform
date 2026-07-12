@@ -11,7 +11,8 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, time, timezone
-from typing import TYPE_CHECKING, Any, Mapping, Sequence
+import math
+from typing import TYPE_CHECKING, Any, Literal, Mapping, Sequence
 from zoneinfo import ZoneInfo
 
 if TYPE_CHECKING:
@@ -34,6 +35,30 @@ class PoolGateResult:
     level: str
     matched_fact_ids: tuple[str, ...]
     reasons: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ApprovedScoreInput:
+    evidence_id: str
+    score: float
+    source_level: Literal["mid", "strong"]
+    confidence: float
+    source_reliability: float
+
+
+@dataclass(frozen=True)
+class AggregatedEvidenceScore:
+    score: float | None
+    evidence_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ExpectationGapInputs:
+    actual_progress_score: float | None
+    market_expectation_score: float | None
+    evidence_delta_score: float | None
+    claim_risk_penalty_score: float | None
+    evidence_ids: tuple[str, ...]
 
 
 class UnresolvedTechnologyRoute(ValueError):
@@ -122,6 +147,124 @@ DEFAULT_POOL_THRESHOLDS = {
 EVIDENCE_RANK = {f"E{level}": level for level in range(7)}
 POOL_RANK = {None: 0, "D": 1, "C": 2, "B": 3, "A": 4}
 _SHANGHAI = ZoneInfo("Asia/Shanghai")
+
+
+def _finite_in_range(value: object, low: float, high: float) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    numeric = float(value)
+    return math.isfinite(numeric) and low <= numeric <= high
+
+
+def calculate_actual_progress_score(
+    research_rank: int,
+    commercialization_rank: int,
+    evidence_delta_score: float,
+) -> float:
+    if isinstance(research_rank, bool) or not isinstance(research_rank, int):
+        raise ValueError("research_rank must be an integer from 0 to 6")
+    if not 0 <= research_rank <= 6:
+        raise ValueError("research_rank must be between 0 and 6")
+    if isinstance(commercialization_rank, bool) or not isinstance(
+        commercialization_rank,
+        int,
+    ):
+        raise ValueError("commercialization_rank must be an integer from 0 to 7")
+    if not 0 <= commercialization_rank <= 7:
+        raise ValueError("commercialization_rank must be between 0 and 7")
+    if not _finite_in_range(evidence_delta_score, 0.0, 100.0):
+        raise ValueError("evidence_delta_score must be between 0 and 100")
+    research = research_rank / 6 * 100
+    commercial = commercialization_rank / 7 * 100
+    stage_progress = research * 0.4 + commercial * 0.6
+    return round(stage_progress * 0.65 + float(evidence_delta_score) * 0.35, 4)
+
+
+def calculate_approved_expectation_gap(
+    inputs: ExpectationGapInputs,
+) -> float | None:
+    values = (
+        inputs.actual_progress_score,
+        inputs.market_expectation_score,
+        inputs.evidence_delta_score,
+        inputs.claim_risk_penalty_score,
+    )
+    if not all(_finite_in_range(value, 0.0, 100.0) for value in values):
+        return None
+    actual, market, delta, claim_risk = (float(value) for value in values)
+    raw = actual - market + delta * 0.35 - claim_risk * 0.45
+    return round(min(100.0, max(0.0, raw)), 4)
+
+
+def _approved_score_rows(
+    inputs: Sequence[ApprovedScoreInput],
+) -> list[ApprovedScoreInput]:
+    by_id: dict[str, ApprovedScoreInput | None] = {}
+    for item in inputs:
+        evidence_id = str(item.evidence_id or "").strip()
+        valid = bool(
+            evidence_id
+            and item.source_level in {"mid", "strong"}
+            and _finite_in_range(item.score, 0.0, 100.0)
+            and _finite_in_range(item.confidence, 0.0, 1.0)
+            and _finite_in_range(item.source_reliability, 0.0, 1.0)
+            and float(item.confidence) * float(item.source_reliability) > 0.0
+        )
+        if not valid:
+            continue
+        normalized = ApprovedScoreInput(
+            evidence_id=evidence_id,
+            score=float(item.score),
+            source_level=item.source_level,
+            confidence=float(item.confidence),
+            source_reliability=float(item.source_reliability),
+        )
+        previous = by_id.get(evidence_id)
+        if evidence_id not in by_id:
+            by_id[evidence_id] = normalized
+        elif previous != normalized:
+            # One evidence row cannot carry two incompatible reviewed values.
+            by_id[evidence_id] = None
+    return [
+        item
+        for _, item in sorted(by_id.items())
+        if item is not None
+    ]
+
+
+def aggregate_catalyst_score(
+    inputs: Sequence[ApprovedScoreInput],
+) -> AggregatedEvidenceScore:
+    valid = _approved_score_rows(inputs)
+    if not valid:
+        return AggregatedEvidenceScore(None, ())
+    weighted = [
+        (item, item.source_reliability * item.confidence)
+        for item in valid
+    ]
+    total = sum(weight for _, weight in weighted)
+    if not math.isfinite(total) or total <= 0:
+        return AggregatedEvidenceScore(None, ())
+    score = sum(item.score * weight for item, weight in weighted) / total
+    if not math.isfinite(score):
+        return AggregatedEvidenceScore(None, ())
+    return AggregatedEvidenceScore(
+        round(score, 4),
+        tuple(item.evidence_id for item in valid),
+    )
+
+
+def aggregate_risk_score(
+    inputs: Sequence[ApprovedScoreInput],
+) -> AggregatedEvidenceScore:
+    valid = _approved_score_rows(inputs)
+    if not valid:
+        return AggregatedEvidenceScore(None, ())
+    worst = max(item.score for item in valid)
+    return AggregatedEvidenceScore(
+        round(worst, 4),
+        tuple(item.evidence_id for item in valid if item.score == worst),
+    )
 
 
 def combine_pool_gates(*gates: PoolGateResult) -> PoolGateResult:
@@ -589,7 +732,7 @@ def _clamp(value: float) -> float:
 
 
 def _validate_score(name: str, value: float) -> None:
-    if value < 0 or value > 100:
+    if not math.isfinite(value) or value < 0 or value > 100:
         raise ValueError(f"{name} must be between 0 and 100")
 
 

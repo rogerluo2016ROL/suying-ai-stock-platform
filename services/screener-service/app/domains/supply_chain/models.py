@@ -27,6 +27,7 @@ class SelectionCandidate(BaseModel):
     secondary_mappings: list[dict[str, Any]] = Field(default_factory=list)
     benefit_score: float | None = None
     expectation_gap_score: float | None = None
+    catalyst_score: float | None = None
     risk_score: float | None = None
     confidence_score: float | None = None
     opportunity_score: float | None = None

@@ -64,6 +64,8 @@ def repository_mapping_with_stage(**overrides):
         source_event_review_note="source event checked",
         source_event_reviewed_at=datetime(2026, 7, 10, 10, tzinfo=timezone.utc),
         source_event_date=date(2026, 7, 10),
+        stage_created_at=datetime(2026, 7, 9, 10),
+        source_event_created_at=datetime(2026, 7, 9, 11),
     )
     mapping.update(overrides)
     return mapping
@@ -426,6 +428,32 @@ def test_negative_confirmed_fact_is_a_veto_not_a_small_penalty():
     assert result["selection"]["pool_code"] is None
     assert result["selection"]["eligibility_status"] == "rejected"
     assert result["selection"]["veto_reasons"] == ["customer_cancelled"]
+
+
+def test_reviewed_negative_risk_without_explicit_veto_only_reduces_score():
+    row = evidence(
+        "supply-risk",
+        datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+        "negative",
+        metadata={
+            "review_normalization": {
+                "method_version": "risk-v1",
+                "as_of_date": "2026-07-11",
+                "risk_score": 85,
+            }
+        },
+    )
+
+    result = module.score_mapping(
+        base_mapping(risk_score=85, expectation_gap_score=60, catalyst_score=50),
+        [row],
+        trade_date=date(2026, 7, 11),
+        node_score=70,
+    )
+
+    assert result["selection"]["eligibility_status"] != "rejected"
+    assert result["selection"]["veto_reasons"] == []
+    assert result["selection"]["detail"]["risk_score"] == 85.0
 
 
 def test_score_bundle_keeps_component_inputs_for_auditable_persistence():
@@ -866,6 +894,10 @@ def test_axial_tag_without_explicit_or_provenance_route_resolves_from_template()
         {"source_event_date": None},
         {"source_event_date": "not-a-date"},
         {"source_event_date": date(2026, 7, 12)},
+        {"stage_created_at": None},
+        {"stage_created_at": datetime(2026, 7, 12, 10)},
+        {"source_event_created_at": None},
+        {"source_event_created_at": datetime(2026, 7, 12, 10)},
     ],
     ids=[
         "stage-pending",
@@ -881,6 +913,10 @@ def test_axial_tag_without_explicit_or_provenance_route_resolves_from_template()
         "missing-event-date",
         "invalid-event-date",
         "future-event",
+        "missing-stage-created",
+        "future-stage-created",
+        "missing-source-event-created",
+        "future-source-event-created",
     ],
 )
 def test_prepare_mapping_nulls_commercial_stage_without_full_audit_chain(
@@ -941,6 +977,8 @@ def test_selection_repository_writes_pool_gates_into_factor_detail():
     factor_detail = params[13].adapted
     assert factor_detail["pool_gates"]["route"]["level"] == "AF0"
     assert factor_detail["pool_gates"]["combined"]["eligible"] is False
+    assert factor_detail["pool_gate"] == factor_detail["pool_gates"]["combined"]
+    assert factor_detail["blocking_gate"] == "axis_flux_af0"
 
 
 class FakeRepository:
@@ -948,6 +986,7 @@ class FakeRepository:
         self.missing = list(missing or [])
         self.upserts = []
         self.transitions = []
+        self.context_calls = []
 
     def preflight(self, cur):
         return self.missing
@@ -967,6 +1006,21 @@ class FakeRepository:
     def fetch_node_score(self, cur, **kwargs):
         return {"total_score": 70}
 
+    def fetch_selection_context(self, cur, **kwargs):
+        self.context_calls.append(dict(kwargs))
+        return {
+            "actual_progress_score": 70.0,
+            "market_expectation_score": 50.0,
+            "evidence_delta_score": 40.0,
+            "claim_risk_penalty_score": 10.0,
+            "expectation_gap_score": 60.0,
+            "catalyst_score": 50.0,
+            "risk_score": 20.0,
+            "adjusted_price_reaction": 0.1,
+            "selection_context_evidence_ids": ["context-1"],
+            "selection_context_limitations": [],
+        }
+
     def upsert_score_bundle(self, cur, bundle):
         self.upserts.append(bundle)
 
@@ -980,8 +1034,11 @@ class FakeConnection:
         self.cursor_value = object()
         self.commits = 0
         self.rollbacks = 0
+        self.closes = 0
+        self.cursor_calls = 0
 
     def cursor(self, **kwargs):
+        self.cursor_calls += 1
         return FakeCursorContext(self.cursor_value)
 
     def commit(self):
@@ -991,7 +1048,274 @@ class FakeConnection:
         self.rollbacks += 1
 
     def close(self):
-        return None
+        self.closes += 1
+
+
+def test_batch_caller_owned_connection_has_zero_transaction_side_effects():
+    repository = FakeRepository()
+    connection = FakeConnection()
+
+    result = module.run_batch_score(
+        pg_url="unused",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        model_version="v2.0",
+        dry_run=False,
+        repository=repository,
+        connection=connection,
+    )
+
+    assert result["written"] == 1
+    assert connection.commits == 0
+    assert connection.rollbacks == 0
+    assert connection.closes == 0
+    assert connection.cursor_calls == 1
+
+
+def test_batch_accepts_falsey_caller_connection_without_invoking_factory():
+    class FalseyConnection(FakeConnection):
+        def __bool__(self):
+            return False
+
+    connection = FalseyConnection()
+    factory_calls = []
+
+    module.run_batch_score(
+        pg_url="unused",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        model_version="v2.0",
+        dry_run=True,
+        repository=FakeRepository(),
+        connection=connection,
+        connection_factory=lambda: factory_calls.append(True),
+    )
+
+    assert factory_calls == []
+    assert connection.cursor_calls == 1
+    assert connection.rollbacks == connection.closes == 0
+
+
+def test_default_repository_is_bound_to_active_connection_without_second_open(
+    monkeypatch,
+):
+    active = FakeConnection()
+    created = []
+
+    class BoundRepository(FakeRepository):
+        def __init__(self, connection_factory):
+            super().__init__()
+            self.bound_connection = connection_factory()
+            created.append(self)
+
+    monkeypatch.setattr(module, "SelectionRepository", BoundRepository)
+
+    module.run_batch_score(
+        pg_url="unused",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        model_version="v2.0",
+        dry_run=True,
+        connection=active,
+    )
+
+    assert len(created) == 1
+    assert created[0].bound_connection is active
+    assert active.cursor_calls == 1
+
+
+def test_batch_caller_owned_dry_run_and_exception_do_not_rollback_or_close():
+    dry_connection = FakeConnection()
+    module.run_batch_score(
+        pg_url="unused",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        model_version="v2.0",
+        dry_run=True,
+        repository=FakeRepository(),
+        connection=dry_connection,
+    )
+    assert dry_connection.rollbacks == 0
+    assert dry_connection.closes == 0
+
+    failing_connection = FakeConnection()
+    with pytest.raises(module.MissingSelectionTables):
+        module.run_batch_score(
+            pg_url="unused",
+            chain_id="dexterous_hand",
+            trade_date=date(2026, 7, 11),
+            model_version="v2.0",
+            dry_run=False,
+            repository=FakeRepository(missing=["daily_kline"]),
+            connection=failing_connection,
+        )
+    assert failing_connection.commits == 0
+    assert failing_connection.rollbacks == 0
+    assert failing_connection.closes == 0
+
+
+def test_batch_owned_connection_commit_rollback_close_contract():
+    write_connection = FakeConnection()
+    module.run_batch_score(
+        pg_url="unused",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        model_version="v2.0",
+        dry_run=False,
+        repository=FakeRepository(),
+        connection_factory=lambda: write_connection,
+    )
+    assert (write_connection.commits, write_connection.rollbacks, write_connection.closes) == (
+        1,
+        0,
+        1,
+    )
+
+    dry_connection = FakeConnection()
+    module.run_batch_score(
+        pg_url="unused",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        model_version="v2.0",
+        dry_run=True,
+        repository=FakeRepository(),
+        connection_factory=lambda: dry_connection,
+    )
+    assert (dry_connection.commits, dry_connection.rollbacks, dry_connection.closes) == (
+        0,
+        1,
+        1,
+    )
+
+    failing_connection = FakeConnection()
+    with pytest.raises(module.MissingSelectionTables):
+        module.run_batch_score(
+            pg_url="unused",
+            chain_id="dexterous_hand",
+            trade_date=date(2026, 7, 11),
+            model_version="v2.0",
+            dry_run=False,
+            repository=FakeRepository(missing=["daily_kline"]),
+            connection_factory=lambda: failing_connection,
+        )
+    assert (
+        failing_connection.commits,
+        failing_connection.rollbacks,
+        failing_connection.closes,
+    ) == (0, 1, 1)
+
+
+def test_batch_zero_argument_factory_called_once():
+    connection = FakeConnection()
+    calls = []
+
+    def factory():
+        calls.append(True)
+        return connection
+
+    module.run_batch_score(
+        pg_url="unused",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        model_version="v2.0",
+        dry_run=True,
+        repository=FakeRepository(),
+        connection_factory=factory,
+    )
+
+    assert len(calls) == 1
+
+
+def test_batch_context_merge_is_allowlisted_does_not_mutate_mapping_or_task8_gate(
+    monkeypatch,
+):
+    repository = FakeRepository()
+    original = repository_mapping_with_stage(
+        data_limitations=["mapping-limit"],
+        pool_gate={"level": "E4"},
+        blocking_gate="original-blocker",
+    )
+    before = deepcopy(original)
+    repository.fetch_mappings = lambda cur, **kwargs: [original]
+    repository.fetch_selection_context = lambda cur, **kwargs: {
+        "expectation_gap_score": 61.0,
+        "catalyst_score": 52.0,
+        "risk_score": 18.0,
+        "selection_context_evidence_ids": [None, "", True, "ctx-2", "ctx-1"],
+        "selection_context_limitations": [None, False, "", "context-limit"],
+        "commercial_stage": "C0",
+        "pool_gate": {"level": "malicious"},
+        "blocking_gate": None,
+        "data_limitations": ["overwrite-attempt"],
+    }
+    captured = []
+
+    def capture_score(mapping, evidence_rows, **kwargs):
+        captured.append(dict(mapping))
+        return {
+            "mapping_id": mapping["mapping_id"],
+            "code": mapping["code"],
+            "trade_date": kwargs["trade_date"],
+            "model_version": "v2.0",
+            "selection": {
+                "pool_code": "D",
+                "detail": {"pool_gates": {"combined": {"level": "E4"}}},
+                "blocking_gate": "original-blocker",
+            },
+            "evidence_ids": ["prototype"],
+            "data_limitations": list(mapping.get("data_limitations") or []),
+        }
+
+    monkeypatch.setattr(module, "score_mapping", capture_score)
+    result = module.run_batch_score(
+        pg_url="unused",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        model_version="v2.0",
+        dry_run=True,
+        repository=repository,
+        connection_factory=FakeConnection,
+    )
+
+    assert original == before
+    assert captured[0]["commercial_stage"] == "C5"
+    assert captured[0]["pool_gate"] == {"level": "E4"}
+    assert captured[0]["blocking_gate"] == "original-blocker"
+    assert captured[0]["expectation_gap_score"] == 61.0
+    assert captured[0]["catalyst_score"] == 52.0
+    assert captured[0]["risk_score"] == 18.0
+    assert captured[0]["data_limitations"] == ["mapping-limit"]
+    bundle = result["results"][0]
+    assert bundle["evidence_ids"] == ["ctx-1", "ctx-2", "prototype"]
+    assert bundle["data_limitations"] == ["context-limit", "mapping-limit"]
+    assert bundle["selection"]["detail"]["blocking_gate"] == "original-blocker"
+
+
+def test_batch_fetches_context_once_per_mapping_and_persists_context_ids():
+    repository = FakeRepository()
+    connection = FakeConnection()
+
+    module.run_batch_score(
+        pg_url="unused",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        model_version="v2.0",
+        dry_run=False,
+        repository=repository,
+        connection=connection,
+    )
+
+    assert len(repository.context_calls) == 1
+    assert repository.context_calls[0]["mapping_id"] == "m1"
+    assert repository.upserts[0]["evidence_ids"] == ["context-1", "prototype"]
+    detail = repository.upserts[0]["selection"]["detail"]
+    assert detail["selection_context"]["actual_progress_score"] == 70.0
+    assert detail["selection_context_evidence_ids"] == ["context-1"]
+    assert detail["next_validation"] == {
+        "event": None,
+        "date": None,
+        "actions": [],
+    }
 
 
 class FakeCursorContext:

@@ -13,9 +13,15 @@ from kronos_factors.engine.industry_chain_templates import get_industry_template
 from kronos_factors.scorer import supply_chain_selection_v2 as selection_v2
 
 from kronos_factors.scorer.supply_chain_selection_v2 import (
+    ApprovedScoreInput,
+    ExpectationGapInputs,
     ScoreResult,
+    aggregate_catalyst_score,
+    aggregate_risk_score,
     aggregate_stock_mappings,
     assign_selection_pool,
+    calculate_actual_progress_score,
+    calculate_approved_expectation_gap,
     score_authenticity,
     score_company_benefit,
     score_node_attractiveness,
@@ -26,6 +32,140 @@ from kronos_factors.scorer.supply_chain_selection_v2 import (
 
 
 AS_OF_DATE = date(2026, 7, 9)
+
+
+def test_approved_expectation_gap_uses_formula_without_neutral_fill():
+    inputs = ExpectationGapInputs(
+        actual_progress_score=80,
+        market_expectation_score=50,
+        evidence_delta_score=40,
+        claim_risk_penalty_score=20,
+        evidence_ids=("progress-1", "expectation-1"),
+    )
+
+    assert calculate_approved_expectation_gap(inputs) == 35.0
+    assert (
+        calculate_approved_expectation_gap(
+            replace(inputs, market_expectation_score=None)
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("actual_progress_score", -0.01),
+        ("market_expectation_score", 100.01),
+        ("evidence_delta_score", float("nan")),
+        ("claim_risk_penalty_score", float("inf")),
+        ("market_expectation_score", "50"),
+    ],
+)
+def test_approved_expectation_gap_rejects_non_finite_or_out_of_range_inputs(
+    field,
+    value,
+):
+    inputs = ExpectationGapInputs(80, 50, 40, 20, ("e1",))
+
+    assert calculate_approved_expectation_gap(replace(inputs, **{field: value})) is None
+
+
+def test_actual_progress_requires_valid_stage_ranks_and_preserves_boundaries():
+    assert calculate_actual_progress_score(0, 0, 0) == 0.0
+    assert calculate_actual_progress_score(6, 7, 100) == 100.0
+    with pytest.raises(ValueError, match="research_rank"):
+        calculate_actual_progress_score(7, 7, 100)
+    with pytest.raises(ValueError, match="commercialization_rank"):
+        calculate_actual_progress_score(6, -1, 100)
+
+
+def test_catalyst_aggregates_only_explicit_reviewed_scores():
+    result = aggregate_catalyst_score(
+        [
+            ApprovedScoreInput("c1", 80, "strong", 1.0, 0.9),
+            ApprovedScoreInput("c2", 60, "mid", 0.5, 0.7),
+        ]
+    )
+
+    assert result.score == 74.4
+    assert result.evidence_ids == ("c1", "c2")
+
+
+def test_catalyst_rejects_weak_invalid_zero_weight_and_blank_ids():
+    result = aggregate_catalyst_score(
+        [
+            ApprovedScoreInput("weak", 99, "weak", 1.0, 1.0),
+            ApprovedScoreInput("range", 101, "strong", 1.0, 1.0),
+            ApprovedScoreInput("confidence", 80, "strong", 1.1, 1.0),
+            ApprovedScoreInput("reliability", 80, "strong", 1.0, -0.1),
+            ApprovedScoreInput("zero", 80, "strong", 0.0, 1.0),
+            ApprovedScoreInput("", 80, "strong", 1.0, 1.0),
+            ApprovedScoreInput("nan", float("nan"), "strong", 1.0, 1.0),
+            ApprovedScoreInput("string", "80", "strong", 1.0, 1.0),
+        ]
+    )
+
+    assert result.score is None
+    assert result.evidence_ids == ()
+
+
+def test_catalyst_deduplicates_evidence_ids_deterministically():
+    result = aggregate_catalyst_score(
+        [
+            ApprovedScoreInput("c2", 60, "mid", 0.5, 0.7),
+            ApprovedScoreInput("c1", 80, "strong", 1.0, 0.9),
+            ApprovedScoreInput("c1", 80, "strong", 1.0, 0.9),
+        ]
+    )
+
+    assert result.evidence_ids == ("c1", "c2")
+
+
+def test_risk_uses_worst_explicit_reviewed_risk_and_all_tied_ids():
+    result = aggregate_risk_score(
+        [
+            ApprovedScoreInput("r-low", 40, "strong", 0.9, 0.9),
+            ApprovedScoreInput("r2", 70, "mid", 0.8, 0.7),
+            ApprovedScoreInput("r1", 70, "strong", 0.9, 0.9),
+            ApprovedScoreInput("r1", 70, "strong", 0.9, 0.9),
+        ]
+    )
+
+    assert result.score == 70.0
+    assert result.evidence_ids == ("r1", "r2")
+
+
+def test_ordinary_risk_does_not_reject_but_explicit_veto_still_does():
+    ordinary = assign_selection_pool(
+        {"evidence_level": "E1", "risk_score": 100, "has_veto": False}
+    )
+    vetoed = assign_selection_pool(
+        {
+            "evidence_level": "E4",
+            "risk_score": 20,
+            "has_veto": True,
+            "veto_reasons": ["customer_cancelled"],
+        }
+    )
+
+    assert ordinary["eligibility_status"] == "watch"
+    assert ordinary["pool_code"] == "D"
+    assert vetoed["eligibility_status"] == "rejected"
+    assert vetoed["veto_reasons"] == ["customer_cancelled"]
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), -float("inf")])
+def test_selection_opportunity_rejects_non_finite_explicit_scores(invalid):
+    with pytest.raises(ValueError, match="between 0 and 100"):
+        score_selection_opportunity(
+            {
+                "benefit_score": 60,
+                "expectation_gap_score": 50,
+                "catalyst_score": 40,
+                "risk_score": invalid,
+            }
+        )
 
 
 def reviewed_fact(
