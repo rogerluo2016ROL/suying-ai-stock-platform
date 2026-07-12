@@ -86,6 +86,7 @@ class SelectionRepository:
             WHERE f.mapping_id = %s
               AND coalesce(d.publish_time, e.event_date::timestamp) <= %s
               AND f.validation_status = 'confirmed'
+              AND f.fact_nature = 'confirmed_fact'
               AND f.reviewer IS NOT NULL
               AND NULLIF(BTRIM(f.reviewer), '') IS NOT NULL
               AND f.review_note IS NOT NULL

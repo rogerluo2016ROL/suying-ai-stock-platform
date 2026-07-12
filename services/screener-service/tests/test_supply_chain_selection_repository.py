@@ -182,6 +182,7 @@ def test_fetch_asof_evidence_requires_complete_reviews_before_cutoff():
     assert "coalesce(d.publish_time, e.event_date::timestamp) <= %s" in facts_sql
     assert "AT TIME ZONE" not in facts_sql
     assert "f.validation_status = 'confirmed'" in facts_sql
+    assert "f.fact_nature = 'confirmed_fact'" in facts_sql
     assert "f.reviewer IS NOT NULL" in facts_sql
     assert "NULLIF(BTRIM(f.reviewer), '') IS NOT NULL" in facts_sql
     assert "f.review_note IS NOT NULL" in facts_sql
