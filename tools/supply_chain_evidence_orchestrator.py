@@ -443,12 +443,28 @@ def _document_record(document: object) -> dict[str, Any]:
     metadata = dict(metadata) if isinstance(metadata, Mapping) else {}
     return {
         "doc_id": str(_value(document, "doc_id", "")),
+        "source_id": (
+            str(_value(document, "source_id"))
+            if _value(document, "source_id") is not None
+            else None
+        ),
         "company_code": normalize_stock_code(_value(document, "company_code", "")),
         "company_name": str(_value(document, "company_name", "") or ""),
         "source_level": str(_value(document, "source_level", "") or ""),
         "publish_time": _value(document, "publish_time"),
         "title": str(_value(document, "title", "") or ""),
         "content_text": str(_value(document, "content_text", "") or ""),
+        "content_hash": str(_value(document, "content_hash", "") or ""),
+        "url": (
+            str(_value(document, "url"))
+            if _value(document, "url") is not None
+            else None
+        ),
+        "doc_type": (
+            str(_value(document, "doc_type"))
+            if _value(document, "doc_type") is not None
+            else None
+        ),
         "text": f"{_value(document, 'title', '') or ''} {_value(document, 'content_text', '') or ''}".strip(),
         "metadata": metadata,
         "fact_ids": tuple(metadata.get("fact_ids") or ()),

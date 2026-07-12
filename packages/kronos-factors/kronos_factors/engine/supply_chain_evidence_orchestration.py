@@ -130,6 +130,14 @@ class CandidateMappingProposal:
 @dataclass(frozen=True)
 class DiscoveryHit:
     doc_id: str
+    source_id: str | None
+    title: str
+    content_text: str
+    content_hash: str
+    company_name: str | None
+    url: str | None
+    doc_type: str | None
+    metadata: Mapping[str, Any]
     company_code: str
     requirement_id: str
     product_hits: tuple[str, ...]
@@ -140,6 +148,13 @@ class DiscoveryHit:
     eligible_for_mapping: bool
     validation_status: Literal["pending"]
     proposal: CandidateMappingProposal | None
+
+    def __post_init__(self) -> None:
+        if not self.doc_id or not self.content_hash:
+            raise ValueError("discovery hit requires doc_id and original content_hash")
+        if not self.title:
+            raise ValueError("discovery hit requires original title")
+        object.__setattr__(self, "metadata", _deep_freeze(self.metadata))
 
 
 @dataclass(frozen=True)
@@ -450,6 +465,34 @@ def propose_independent_candidates(
         results.append(
             DiscoveryHit(
                 doc_id=record["doc_id"],
+                source_id=(
+                    str(record["document"].get("source_id"))
+                    if record["document"].get("source_id") is not None
+                    else None
+                ),
+                title=str(record["document"].get("title") or ""),
+                content_text=str(record["document"].get("content_text") or ""),
+                content_hash=str(record["document"].get("content_hash") or ""),
+                company_name=(
+                    str(record["document"].get("company_name"))
+                    if record["document"].get("company_name") is not None
+                    else None
+                ),
+                url=(
+                    str(record["document"].get("url"))
+                    if record["document"].get("url") is not None
+                    else None
+                ),
+                doc_type=(
+                    str(record["document"].get("doc_type"))
+                    if record["document"].get("doc_type") is not None
+                    else None
+                ),
+                metadata=(
+                    record["document"].get("metadata")
+                    if isinstance(record["document"].get("metadata"), Mapping)
+                    else {}
+                ),
                 company_code=record["company_code"],
                 requirement_id=requirement_id,
                 product_hits=match.product_hits,

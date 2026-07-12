@@ -1,5 +1,6 @@
 from copy import deepcopy
 from datetime import date, datetime, timedelta
+import hashlib
 
 import pytest
 
@@ -60,13 +61,31 @@ def axial_flux_route():
     )
 
 
-def axis_document(doc_id: str, company_code: str):
+def axis_document(
+    doc_id: str,
+    company_code: str,
+    text: str = "机器人腕部轴向磁通电机，额定扭矩2Nm",
+):
+    source_id = "test-source"
+    url = f"https://example.test/{doc_id}"
+    title = f"轴向磁通文档 {doc_id}"
+    content_hash = hashlib.sha256(
+        "\n".join((source_id, url, title, text)).encode("utf-8")
+    ).hexdigest()
     return {
         "doc_id": doc_id,
+        "source_id": source_id,
+        "title": title,
+        "content_text": text,
+        "content_hash": content_hash,
+        "company_name": f"公司{company_code}",
+        "url": url,
+        "doc_type": "announcement",
+        "metadata": {"application_domain": "robot_wrist"},
         "company_code": company_code,
         "source_level": "strong",
         "publish_time": "2026-06-30T10:00:00+08:00",
-        "text": "机器人腕部轴向磁通电机，额定扭矩2Nm",
+        "text": text,
     }
 
 
@@ -510,10 +529,11 @@ def test_independent_discovery_enforces_source_cutoff_and_negative_context():
         **axis_document("future", "688002"),
         "publish_time": "2026-07-10T00:00:00+08:00",
     }
-    automotive = {
-        **axis_document("automotive", "688003"),
-        "text": "机器人腕部轴向磁通电机，仅用于汽车驱动电机",
-    }
+    automotive = axis_document(
+        "automotive",
+        "688003",
+        "机器人腕部轴向磁通电机，仅用于汽车驱动电机",
+    )
 
     hits = propose_independent_candidates(
         documents=[weak, future, automotive],

@@ -666,6 +666,7 @@ class EvidenceOrchestrationRepository:
         )
         proposal_payload = thaw_json(hit.proposal.provenance) if hit.proposal else None
         metadata = {
+            **thaw_json(hit.metadata),
             "collection_job_id": job_id,
             "collection_job_ids": [job_id],
             "requirement_id": hit.requirement_id,
@@ -687,22 +688,28 @@ class EvidenceOrchestrationRepository:
             if hit.proposal
             else None,
         }
-        content_hash = hashlib.sha256(str(hit.doc_id).encode("utf-8")).hexdigest()
         with self._cursor(write=True, connection=connection) as cur:
+            if hit.source_id is not None:
+                self._ensure_source_catalog(
+                    cur,
+                    str(hit.source_id),
+                    str(hit.source_level),
+                    metadata,
+                )
             raw_outcome = self._insert_raw_record(
                 cur,
                 doc_id=hit.doc_id,
-                source_id=None,
-                source_type="official_discovery",
+                source_id=hit.source_id,
+                source_type=hit.doc_type or "official_discovery",
                 source_level=hit.source_level,
                 company_code=hit.company_code,
-                company_name=None,
-                title=f"Discovery evidence {hit.doc_id}",
+                company_name=hit.company_name,
+                title=hit.title,
                 publish_time=hit.publish_time,
-                url=None,
-                content_text=quote,
-                content_hash=content_hash,
-                doc_type="announcement_pdf",
+                url=hit.url,
+                content_text=hit.content_text,
+                content_hash=hit.content_hash,
+                doc_type=hit.doc_type,
                 metadata=metadata,
             )
             cur.execute(
@@ -1143,8 +1150,9 @@ class EvidenceOrchestrationRepository:
         with self._cursor(write=False, connection=connection) as cur:
             cur.execute(
                 f"""
-                SELECT doc_id, company_code, source_level, title, content_text,
-                       publish_time, created_at, metadata
+                SELECT doc_id, source_id, company_code, company_name,
+                       source_level, title, content_text, content_hash,
+                       publish_time, created_at, url, doc_type, metadata
                 FROM raw_evidence_documents
                 WHERE {' AND '.join(clauses)}
                 ORDER BY publish_time DESC, doc_id

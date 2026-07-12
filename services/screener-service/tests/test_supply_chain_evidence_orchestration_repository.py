@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 import json
 from zoneinfo import ZoneInfo
@@ -17,9 +18,11 @@ from kronos_factors.engine.supply_chain_evidence_orchestration import (
     EvidenceGap,
     EvidenceRunRequest,
     NodeDimensionUpdate,
+    propose_independent_candidates,
 )
 from supply_chain_evidence_adapters import AdapterResult
 from supply_chain_data_collection_center import RawDocument
+from supply_chain_evidence_orchestrator import _document_record
 
 
 AS_OF = date(2026, 7, 9)
@@ -162,6 +165,14 @@ def candidate_proposal(*, discovery_doc_ids=("d1",), discovery_fact_ids=()):
 def discovery_hit(doc_id="d1"):
     return DiscoveryHit(
         doc_id=doc_id,
+        source_id="cninfo_announcement",
+        title=f"Discovery {doc_id}",
+        content_text="轴向磁通电机用于机器人腕部",
+        content_hash=f"hash-{doc_id}",
+        company_name="测试公司",
+        url=f"https://example.test/{doc_id}",
+        doc_type="announcement",
+        metadata={"application_domain": "robot_wrist"},
         company_code="688001",
         requirement_id="dexterous_axial_flux_motor",
         product_hits=("轴向磁通电机",),
@@ -359,6 +370,90 @@ def test_repository_persists_unmapped_discovery_before_candidate_mapping():
     assert not any("business_tag_evidence_events" in sql for sql in statements)
     fact_params = next(params for sql, params in cursor.calls if "evidence_extracted_facts" in sql)
     assert None in fact_params  # explicit unmapped mapping_id
+
+
+def test_existing_candidate_raw_document_is_idempotent_when_discovery_preserves_identity():
+    raw = RawDocument(
+        source_id="cninfo_announcement",
+        source_level="strong",
+        title="机器人腕部轴向磁通电机产品规格",
+        content_text="公司发布机器人腕部轴向磁通电机产品规格。",
+        url="https://example.test/axis-existing",
+        company_code="688305",
+        company_name="测试公司",
+        publish_time="2026-07-08T10:00:00+08:00",
+        doc_type="announcement",
+        metadata={"application_domain": "robot_wrist"},
+    )
+    requirement = {
+        "chain_id": "dexterous_hand",
+        "requirement_id": "dexterous_axial_flux_motor",
+        "node_id": "dexterous_hand_foundation",
+        "business_keywords": ["轴向磁通电机"],
+        "product_terms": ["轴向磁通电机"],
+        "scene_terms": ["机器人腕部"],
+        "negative_examples": ["轮毂", "航空"],
+        "require_product_and_scene": True,
+        "independent_discovery": True,
+        "technology_route_id": "dexterous_axial_flux_motor",
+    }
+    hit = propose_independent_candidates(
+        [_document_record(raw)], requirement, AS_OF
+    )[0]
+
+    class ExistingRawCursor(FakeCursor):
+        def __init__(self):
+            super().__init__()
+            self.inserted_raw_doc_ids.add(raw.doc_id)
+
+        def execute(self, statement, params=()):
+            super().execute(statement, params)
+            sql = " ".join(str(statement).split())
+            if "UPDATE raw_evidence_documents" in sql:
+                self.rowcount = int(params[-2] == raw.doc_id and params[-1] == raw.content_hash)
+
+    cursor = ExistingRawCursor()
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(cursor)
+    )
+    outcome = repository.persist_discovery_hit(hit, job_id="job-existing")
+
+    assert (outcome.inserted, outcome.duplicate) == (False, True)
+    insert_params = next(
+        params
+        for sql, params in cursor.calls
+        if "INSERT INTO raw_evidence_documents" in sql
+    )
+    assert insert_params[0] == raw.doc_id
+    assert insert_params[6] == raw.title
+    assert insert_params[9] == raw.content_text
+    assert insert_params[10] == raw.content_hash
+
+
+def test_discovery_raw_document_same_doc_id_with_different_hash_fails_closed():
+    hit = discovery_hit("DOC-stable")
+    hit = replace(
+        hit,
+        content_hash="actual-hash-a",
+        content_text="actual content",
+        title="actual title",
+    )
+
+    class ExistingRawCursor(FakeCursor):
+        def __init__(self):
+            super().__init__()
+            self.inserted_raw_doc_ids.add(hit.doc_id)
+
+        def execute(self, statement, params=()):
+            super().execute(statement, params)
+            if "UPDATE raw_evidence_documents" in " ".join(str(statement).split()):
+                self.rowcount = int(params[-1] == "different-existing-hash")
+
+    repository = EvidenceOrchestrationRepository(
+        connection_factory=lambda: FakeConnection(ExistingRawCursor())
+    )
+    with pytest.raises(RuntimeError, match="raw document identity conflict"):
+        repository.persist_discovery_hit(hit, job_id="job-conflict")
 
 
 def test_discovery_rerun_never_downgrades_reviewed_mapping_or_clears_evidence():
@@ -958,6 +1053,14 @@ def test_point_in_time_queries_use_shanghai_exclusive_upper_bound():
     candidate_sql, candidate_params = next(
         call for call in cursor.calls if "FROM raw_evidence_documents" in call[0]
     )
+    for identity_column in (
+        "source_id",
+        "content_hash",
+        "company_name",
+        "url",
+        "doc_type",
+    ):
+        assert identity_column in candidate_sql
     assert "publish_time < %s" in candidate_sql
     assert "created_at < %s" in candidate_sql
     assert candidate_params == (source_wall_upper, audit_utc_upper, 25)
