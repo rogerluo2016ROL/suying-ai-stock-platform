@@ -166,6 +166,13 @@ class NodeDimensionUpdate:
     evidence_ids: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class RouteStageResult:
+    stage: str
+    matched_fact_ids: tuple[str, ...]
+    reasons: tuple[str, ...]
+
+
 def _terms(value: object) -> tuple[str, ...]:
     if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
         return ()
@@ -817,18 +824,19 @@ def _fact_satisfies_route_clause(
     return True
 
 
-def derive_axial_flux_stage(
+def derive_route_stage_result(
     facts: Sequence[Mapping[str, Any]],
-    route: Mapping[str, Any] | None = None,
+    route: Mapping[str, Any],
     *,
     as_of_date: date | None = None,
-) -> str:
-    """Interpret the configured AF ladder using reviewed facts only."""
+) -> RouteStageResult:
+    """Interpret a configured route ladder and retain its audit explanation."""
 
     if as_of_date is not None and type(as_of_date) is not date:
         raise ValueError("as_of_date must be a date")
-    configured_route = route or _default_axial_flux_route()
-    ladder = configured_route.get("authenticity_ladder")
+    if not isinstance(route, Mapping):
+        raise ValueError("route must be a mapping")
+    ladder = route.get("authenticity_ladder")
     if not isinstance(ladder, Mapping) or not ladder:
         raise ValueError("route authenticity_ladder must be a non-empty mapping")
     ordered = sorted(
@@ -857,16 +865,52 @@ def derive_axial_flux_stage(
         clauses = raw_rule.get("fact_requirements")
         if not isinstance(clauses, Sequence) or isinstance(clauses, (str, bytes)):
             raise ValueError(f"invalid fact_requirements for {stage}")
-        matches = [
-            any(
-                _fact_satisfies_route_clause(fact, clause, configured_route)
-                for fact in reviewed_facts
-            )
-            for clause in clauses
-            if isinstance(clause, Mapping)
-        ]
-        if len(matches) != len(clauses):
+        if any(not isinstance(clause, Mapping) for clause in clauses):
             raise ValueError(f"invalid fact requirement clause for {stage}")
-        if (mode == "any" and any(matches)) or (mode == "all" and all(matches)):
-            return str(stage)
-    return str(baseline)
+        clause_matches = [
+            [
+                fact
+                for fact in reviewed_facts
+                if _fact_satisfies_route_clause(fact, clause, route)
+            ]
+            for clause in clauses
+        ]
+        matched = (
+            (mode == "any" and any(clause_matches))
+            or (mode == "all" and all(clause_matches))
+        )
+        if matched:
+            selected_ids: list[str] = []
+            for fact in reviewed_facts:
+                fact_id = fact.get("fact_id") or fact.get("event_id")
+                if not fact_id:
+                    continue
+                if any(fact in matches for matches in clause_matches):
+                    value = str(fact_id)
+                    if value not in selected_ids:
+                        selected_ids.append(value)
+            return RouteStageResult(
+                stage=str(stage),
+                matched_fact_ids=tuple(selected_ids),
+                reasons=(f"matched_configured_route_stage:{stage}",),
+            )
+    return RouteStageResult(
+        stage=str(baseline),
+        matched_fact_ids=(),
+        reasons=("no_reviewed_route_facts_matched",),
+    )
+
+
+def derive_axial_flux_stage(
+    facts: Sequence[Mapping[str, Any]],
+    route: Mapping[str, Any] | None = None,
+    *,
+    as_of_date: date | None = None,
+) -> str:
+    """Backward-compatible stage-only wrapper around the generic interpreter."""
+
+    return derive_route_stage_result(
+        facts,
+        route or _default_axial_flux_route(),
+        as_of_date=as_of_date,
+    ).stage

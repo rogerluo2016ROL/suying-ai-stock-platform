@@ -1,6 +1,16 @@
 """Pure scoring contracts for supply-chain research selection V2."""
 
+from copy import deepcopy
+from dataclasses import FrozenInstanceError, replace
+from datetime import date, datetime, timedelta
+
 import pytest
+
+from kronos_factors.engine.industry_chain_evidence_requirements import (
+    load_evidence_requirements,
+)
+from kronos_factors.engine.industry_chain_templates import get_industry_template
+from kronos_factors.scorer import supply_chain_selection_v2 as selection_v2
 
 from kronos_factors.scorer.supply_chain_selection_v2 import (
     ScoreResult,
@@ -13,6 +23,84 @@ from kronos_factors.scorer.supply_chain_selection_v2 import (
     score_selection_opportunity,
     weighted_available_score,
 )
+
+
+AS_OF_DATE = date(2026, 7, 9)
+
+
+def reviewed_fact(
+    fact_id,
+    fact_type,
+    *,
+    metadata=None,
+    source_level="strong",
+    fact_nature="confirmed_fact",
+    publish_date=AS_OF_DATE - timedelta(days=1),
+    **overrides,
+):
+    fact = {
+        "fact_id": fact_id,
+        "event_id": f"event-{fact_id}",
+        "fact_type": fact_type,
+        "fact_nature": fact_nature,
+        "validation_status": "confirmed",
+        "source_level": source_level,
+        "metadata": metadata or {},
+        "publish_time": publish_date,
+        "reviewer": "reviewer-1",
+        "review_note": "reviewed against source",
+        "reviewed_at": datetime(2026, 7, 8, 10, 0),
+        "created_at": datetime(2026, 7, 8, 9, 0),
+    }
+    fact.update(overrides)
+    return fact
+
+
+def traceable_mapping(**overrides):
+    mapping = {
+        "mapping_id": "m-traceable",
+        "code": "688001",
+        "chain_id": "dexterous_hand",
+        "tag_name": "空心杯电机",
+        "status": "candidate",
+        "l1_l8_path": {"derived_from_mapping_id": "source-mapping"},
+    }
+    mapping.update(overrides)
+    return mapping
+
+
+def fact_for_level(level):
+    return {
+        "E1": reviewed_fact(
+            "fact-e1",
+            "business_presence",
+            source_level="mid",
+            fact_nature="company_claim",
+        ),
+        "E2": reviewed_fact(
+            "fact-e2",
+            "product_spec",
+            source_level="mid",
+            fact_nature="company_claim",
+        ),
+        "E3": reviewed_fact(
+            "fact-e3",
+            "customer_validation",
+            source_level="mid",
+            fact_nature="company_claim",
+        ),
+        "E4": reviewed_fact("fact-e4", "order_award"),
+        "E5": reviewed_fact(
+            "fact-e5",
+            "revenue_margin",
+            metadata={"revenue_confirmed": True},
+        ),
+        "E6": reviewed_fact(
+            "fact-e6",
+            "revenue_margin",
+            metadata={"profit_confirmed": True},
+        ),
+    }[level]
 
 
 def test_weighted_scores_keep_unknown_as_none():
@@ -175,6 +263,829 @@ def test_veto_and_e0_are_not_selection_pool_members():
     assert vetoed["eligibility_status"] == "rejected"
     assert rumor["pool_code"] is None
     assert rumor["eligibility_status"] == "excluded"
+
+
+def test_pool_gate_combination_takes_strictest_cap_and_sorted_fact_ids():
+    evidence_gate = selection_v2.PoolGateResult(
+        eligible=True,
+        max_pool_code="A",
+        level="E4",
+        matched_fact_ids=("fact-order",),
+        reasons=("matched_evidence_level:E4",),
+    )
+    route_gate = selection_v2.PoolGateResult(
+        eligible=True,
+        max_pool_code="D",
+        level="AF1",
+        matched_fact_ids=("fact-patent", "fact-order"),
+        reasons=("matched_route_stage:AF1",),
+    )
+
+    result = selection_v2.combine_pool_gates(evidence_gate, route_gate)
+
+    assert result == selection_v2.PoolGateResult(
+        eligible=True,
+        max_pool_code="D",
+        level="AF1",
+        matched_fact_ids=("fact-order", "fact-patent"),
+        reasons=("matched_evidence_level:E4", "matched_route_stage:AF1"),
+    )
+
+    evidence_is_stricter = selection_v2.combine_pool_gates(
+        selection_v2.PoolGateResult(True, "D", "E1", (), ()),
+        selection_v2.PoolGateResult(True, "A", "AF6", (), ()),
+    )
+    assert evidence_is_stricter.max_pool_code == "D"
+    assert evidence_is_stricter.level == "E1"
+
+
+def test_pool_gate_result_is_immutable():
+    gate = selection_v2.PoolGateResult(True, "D", "E1", (), ())
+
+    with pytest.raises(FrozenInstanceError):
+        gate.level = "E2"
+
+
+@pytest.mark.parametrize(
+    ("left_cap", "right_cap", "expected_cap"),
+    [("D", "C", "D"), ("C", "B", "C"), ("B", "A", "B")],
+)
+def test_pool_gate_cap_order_uses_every_adjacent_pool_rank(
+    left_cap,
+    right_cap,
+    expected_cap,
+):
+    result = selection_v2.combine_pool_gates(
+        selection_v2.PoolGateResult(True, left_cap, "left", (), ()),
+        selection_v2.PoolGateResult(True, right_cap, "right", (), ()),
+    )
+
+    assert result.max_pool_code == expected_cap
+
+
+def test_pool_gate_combination_preserves_exclusion_order_and_no_cap():
+    result = selection_v2.combine_pool_gates(
+        selection_v2.PoolGateResult(False, None, "E0", (), ("evidence_e0",)),
+        selection_v2.PoolGateResult(False, None, "AF0", (), ("axis_flux_af0",)),
+    )
+
+    assert result == selection_v2.PoolGateResult(
+        eligible=False,
+        max_pool_code=None,
+        level="E0",
+        matched_fact_ids=(),
+        reasons=("evidence_e0", "axis_flux_af0"),
+    )
+
+    unrestricted = selection_v2.combine_pool_gates(
+        selection_v2.PoolGateResult(True, None, "no_route", (), ()),
+        selection_v2.PoolGateResult(True, None, "no_ladder", (), ()),
+    )
+    assert unrestricted == selection_v2.PoolGateResult(
+        True,
+        None,
+        "unrestricted",
+        (),
+        (),
+    )
+
+
+def test_veto_precedes_hard_exclusion_and_hard_exclusion_has_stable_blocker():
+    vetoed = assign_selection_pool(
+        {
+            "evidence_level": "E6",
+            "veto_reasons": ["customer_cancelled"],
+            "hard_exclusion_reasons": ["axis_flux_af0"],
+        }
+    )
+    excluded = assign_selection_pool(
+        {
+            "evidence_level": "E6",
+            "hard_exclusion_reasons": ["axis_flux_af0", "unresolved_route"],
+        }
+    )
+
+    assert vetoed["eligibility_status"] == "rejected"
+    assert vetoed["veto_reasons"] == ["customer_cancelled"]
+    assert excluded == {
+        "pool_code": None,
+        "eligibility_status": "excluded",
+        "veto_reasons": [],
+        "blocking_gate": "axis_flux_af0",
+        "hard_exclusion_reasons": ["axis_flux_af0", "unresolved_route"],
+    }
+
+
+@pytest.mark.parametrize(
+    ("level", "expected_cap"),
+    [
+        ("E1", "D"),
+        ("E2", "C"),
+        ("E3", "B"),
+        ("E4", "A"),
+        ("E5", "A"),
+        ("E6", "A"),
+    ],
+)
+def test_evidence_gate_levels_and_caps_come_from_catalog(level, expected_cap):
+    gate = selection_v2.derive_evidence_gate(
+        {"status": "verified", "l1_l8_path": {}},
+        [fact_for_level(level)],
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == level
+    assert gate.eligible is True
+    assert gate.max_pool_code == expected_cap
+
+
+def test_business_presence_fact_can_establish_e1_without_candidate_provenance():
+    gate = selection_v2.derive_evidence_gate(
+        {"status": "verified", "l1_l8_path": {}},
+        [fact_for_level("E1")],
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "E1"
+    assert gate.matched_fact_ids == ("fact-e1",)
+
+
+def test_evidence_gate_materializes_generator_before_catalog_scan():
+    gate = selection_v2.derive_evidence_gate(
+        traceable_mapping(),
+        iter([fact_for_level("E2")]),
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "E2"
+    assert gate.matched_fact_ids == ("fact-e2",)
+
+
+@pytest.mark.parametrize(
+    "provenance",
+    [
+        {"derived_from_mapping_id": "source-mapping"},
+        {"discovery_fact_ids": ["pending-axis-1"]},
+        {"l1_l8_path": [{"discovery_fact_ids": ["pending-axis-2"]}]},
+    ],
+    ids=["derived-mapping", "discovery-facts", "nested-list-path"],
+)
+def test_traceable_candidate_e1_supports_three_provenance_shapes(provenance):
+    gate = selection_v2.derive_evidence_gate(
+        {"status": "candidate", "l1_l8_path": provenance},
+        [],
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "E1"
+    assert gate.max_pool_code == "D"
+    assert gate.matched_fact_ids == ()
+
+
+@pytest.mark.parametrize("status", ["pending_review", "verified"])
+def test_traceable_candidate_e1_accepts_reviewable_mapping_statuses(status):
+    gate = selection_v2.derive_evidence_gate(
+        {
+            "status": status,
+            "l1_l8_path": {"derived_from_mapping_id": "source-mapping"},
+        },
+        [],
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "E1"
+
+
+@pytest.mark.parametrize(
+    "provenance",
+    [
+        {"derived_from_mapping_id": "   "},
+        {"discovery_fact_ids": []},
+        {"discovery_fact_ids": ["", "   "]},
+        {"discovery_fact_ids": "truthy-but-not-an-array"},
+        {"discovery_fact_ids": {"fact_id": "truthy-object"}},
+    ],
+    ids=[
+        "blank-derived",
+        "empty-discovery",
+        "blank-discovery",
+        "string-discovery",
+        "object-discovery",
+    ],
+)
+def test_empty_candidate_provenance_does_not_establish_e1(provenance):
+    gate = selection_v2.derive_evidence_gate(
+        {"status": "candidate", "l1_l8_path": provenance},
+        [],
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "E0"
+    assert gate.eligible is False
+
+
+@pytest.mark.parametrize("status", [None, "approved", "archived"])
+def test_traceable_lineage_with_disallowed_status_does_not_establish_e1(status):
+    gate = selection_v2.derive_evidence_gate(
+        {
+            "status": status,
+            "l1_l8_path": {"derived_from_mapping_id": "source-mapping"},
+        },
+        [],
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "E0"
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        {"status": "candidate", "tag_name": "轴向磁通电机", "l1_l8_path": {}},
+        {"status": "candidate", "evidence_ids": ["source-fact"], "l1_l8_path": {}},
+        {
+            "status": "rejected",
+            "l1_l8_path": {"derived_from_mapping_id": "source-mapping"},
+        },
+    ],
+    ids=["tag-only", "source-evidence-ids-only", "disallowed-status"],
+)
+def test_untraceable_mapping_is_e0_and_ineligible(mapping):
+    gate = selection_v2.derive_evidence_gate(
+        mapping,
+        [],
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "E0"
+    assert gate.eligible is False
+    assert gate.max_pool_code is None
+    assert gate.reasons == ("evidence_e0",)
+
+
+def test_injected_catalog_cap_change_proves_gate_is_not_hard_coded():
+    catalog = load_evidence_requirements()
+    levels = deepcopy(catalog.evidence_levels)
+    levels["E2"]["max_pool"] = "D"
+    injected = replace(catalog, evidence_levels=levels)
+
+    gate = selection_v2.derive_evidence_gate(
+        traceable_mapping(),
+        [fact_for_level("E2")],
+        injected,
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "E2"
+    assert gate.max_pool_code == "D"
+
+
+def test_injected_catalog_matching_and_expiry_rules_change_gate_behavior():
+    catalog = load_evidence_requirements()
+
+    nature_types = deepcopy(catalog.evidence_types)
+    nature_types["order_or_delivery"]["allowed_fact_natures"].append(
+        "company_claim"
+    )
+    nature_catalog = replace(catalog, evidence_types=nature_types)
+    claimed_order = reviewed_fact(
+        "claimed-order",
+        "order_award",
+        fact_nature="company_claim",
+    )
+    assert selection_v2.derive_evidence_gate(
+        traceable_mapping(),
+        [claimed_order],
+        nature_catalog,
+        as_of_date=AS_OF_DATE,
+    ).level == "E4"
+
+    source_rank = deepcopy(catalog.source_level_rank)
+    source_rank["weak"] = source_rank["mid"]
+    source_catalog = replace(catalog, source_level_rank=source_rank)
+    assert selection_v2.derive_evidence_gate(
+        traceable_mapping(),
+        [reviewed_fact("weak-product", "product_spec", source_level="weak")],
+        source_catalog,
+        as_of_date=AS_OF_DATE,
+    ).level == "E2"
+
+    metadata_types = deepcopy(catalog.evidence_types)
+    metadata_types["recognized_revenue"]["metadata_flags"] = []
+    metadata_catalog = replace(catalog, evidence_types=metadata_types)
+    assert selection_v2.derive_evidence_gate(
+        traceable_mapping(),
+        [reviewed_fact("unflagged-revenue", "revenue_margin")],
+        metadata_catalog,
+        as_of_date=AS_OF_DATE,
+    ).level == "E5"
+
+    freshness = deepcopy(catalog.freshness_policies)
+    freshness["customer_test"] = 1
+    freshness_catalog = replace(catalog, freshness_policies=freshness)
+    stale = selection_v2.derive_evidence_gate(
+        traceable_mapping(),
+        [
+            reviewed_fact(
+                "customer",
+                "customer_validation",
+                source_level="mid",
+                fact_nature="company_claim",
+                publish_date=AS_OF_DATE - timedelta(days=2),
+            )
+        ],
+        freshness_catalog,
+        as_of_date=AS_OF_DATE,
+    )
+    assert stale.level == "E1"
+    assert "stale_customer_validation" in stale.reasons
+
+
+@pytest.mark.parametrize(
+    "fact",
+    [
+        reviewed_fact("weak-product", "product_spec", source_level="weak"),
+        reviewed_fact(
+            "wrong-flag-type",
+            "revenue_margin",
+            metadata={"revenue_confirmed": 1},
+        ),
+    ],
+    ids=["below-minimum-source", "metadata-flag-wrong-type"],
+)
+def test_catalog_source_rank_and_metadata_flags_fail_closed(fact):
+    gate = selection_v2.derive_evidence_gate(
+        traceable_mapping(),
+        [fact],
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "E1"
+    assert gate.matched_fact_ids == ()
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {"revenue_confirmed": True},
+        {"profit_confirmed": True},
+    ],
+    ids=["e5-company-claim", "e6-company-claim"],
+)
+def test_financial_company_claim_cannot_establish_e5_or_e6(metadata):
+    gate = selection_v2.derive_evidence_gate(
+        traceable_mapping(),
+        [
+            reviewed_fact(
+                "financial-claim",
+                "revenue_margin",
+                metadata=metadata,
+                fact_nature="company_claim",
+            )
+        ],
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "E1"
+    assert gate.max_pool_code == "D"
+    assert gate.matched_fact_ids == ()
+
+
+@pytest.mark.parametrize(
+    ("age_days", "expected_level", "expected_cap", "is_stale"),
+    [
+        (180, "E3", "B", False),
+        (181, "E1", "D", True),
+    ],
+)
+def test_customer_validation_expiry_boundary_is_180_days(
+    age_days,
+    expected_level,
+    expected_cap,
+    is_stale,
+):
+    fact = reviewed_fact(
+        "customer",
+        "customer_validation",
+        source_level="mid",
+        fact_nature="company_claim",
+        publish_date=AS_OF_DATE - timedelta(days=age_days),
+    )
+
+    gate = selection_v2.derive_evidence_gate(
+        traceable_mapping(),
+        [fact],
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == expected_level
+    assert gate.max_pool_code == expected_cap
+    assert ("stale_customer_validation" in gate.reasons) is is_stale
+    assert ("customer" in gate.matched_fact_ids) is (not is_stale)
+
+
+@pytest.mark.parametrize(
+    ("metadata", "active_level", "stale_reason"),
+    [
+        ({"revenue_confirmed": True}, "E5", "stale_recognized_revenue"),
+        ({"profit_confirmed": True}, "E6", "stale_recognized_profit"),
+    ],
+)
+def test_financial_evidence_uses_catalog_180_day_expiry(
+    metadata,
+    active_level,
+    stale_reason,
+):
+    def gate_for_age(age_days):
+        return selection_v2.derive_evidence_gate(
+            traceable_mapping(),
+            [
+                reviewed_fact(
+                    "financial",
+                    "revenue_margin",
+                    metadata=metadata,
+                    publish_date=AS_OF_DATE - timedelta(days=age_days),
+                )
+            ],
+            load_evidence_requirements(),
+            as_of_date=AS_OF_DATE,
+        )
+
+    fresh = gate_for_age(180)
+    stale = gate_for_age(181)
+
+    assert fresh.level == active_level
+    assert stale.level == "E1"
+    assert stale.max_pool_code == "D"
+    assert stale.matched_fact_ids == ()
+    assert stale_reason in stale.reasons
+
+
+def test_route_resolution_uses_tag_and_nested_provenance_but_rejects_conflicts():
+    template = get_industry_template("dexterous_hand")
+    tag_only = traceable_mapping(
+        tag_name="轴向磁通电机",
+        l1_l8_path={"derived_from_mapping_id": "source-mapping"},
+    )
+    provenance = traceable_mapping(
+        tag_name="不能由标签自行解析",
+        l1_l8_path={
+            "l1_l8_path": {
+                "technology_route_id": "dexterous_axial_flux_motor",
+            }
+        },
+    )
+    explicit_provenance_conflict = traceable_mapping(
+        tag_name="不能由标签自行解析",
+        technology_route_id="dexterous_axial_flux_motor",
+        l1_l8_path={
+            "technology_route_id": "dexterous_hollow_cup_screw",
+        },
+    )
+    explicit_template_conflict = traceable_mapping(
+        tag_name="轴向磁通电机",
+        technology_route_id="dexterous_hollow_cup_screw",
+    )
+    provenance_template_conflict = traceable_mapping(
+        tag_name="轴向磁通电机",
+        l1_l8_path={
+            "derived_from_mapping_id": "source-mapping",
+            "technology_route_id": "dexterous_hollow_cup_screw",
+        },
+    )
+
+    assert (
+        selection_v2.resolve_mapping_technology_route(tag_only, template)
+        == "dexterous_axial_flux_motor"
+    )
+    assert (
+        selection_v2.resolve_mapping_technology_route(provenance, template)
+        == "dexterous_axial_flux_motor"
+    )
+    conflicts = (
+        explicit_provenance_conflict,
+        explicit_template_conflict,
+        provenance_template_conflict,
+    )
+    for conflict in conflicts:
+        with pytest.raises(
+            selection_v2.UnresolvedTechnologyRoute,
+            match="unresolved_route",
+        ):
+            selection_v2.resolve_mapping_technology_route(conflict, template)
+
+    tag_gate = selection_v2.derive_route_gate(
+        tag_only,
+        [],
+        template,
+        as_of_date=AS_OF_DATE,
+    )
+    assert tag_gate.level == "AF0"
+    assert tag_gate.eligible is False
+    for conflict in conflicts:
+        conflict_gate = selection_v2.derive_route_gate(
+            conflict,
+            [],
+            template,
+            as_of_date=AS_OF_DATE,
+        )
+        assert conflict_gate.level == "unresolved_route"
+        assert conflict_gate.reasons[0] == "unresolved_route"
+
+
+def test_route_resolution_rejects_unknown_and_ambiguous_routes():
+    template = get_industry_template("dexterous_hand")
+    unknown = traceable_mapping(
+        tag_name="轴向磁通电机",
+        technology_route_id="unknown_route",
+    )
+    ambiguous_template = deepcopy(template)
+    duplicate = deepcopy(
+        next(
+            row
+            for row in ambiguous_template["evidence_requirements"]
+            if row["requirement_id"] == "dexterous_axial_flux_motor"
+        )
+    )
+    duplicate["requirement_id"] = "duplicate_axial_requirement"
+    ambiguous_template["evidence_requirements"].append(duplicate)
+
+    with pytest.raises(selection_v2.UnresolvedTechnologyRoute, match="unresolved_route"):
+        selection_v2.resolve_mapping_technology_route(unknown, template)
+    with pytest.raises(selection_v2.UnresolvedTechnologyRoute, match="unresolved_route"):
+        selection_v2.resolve_mapping_technology_route(
+            traceable_mapping(tag_name="轴向磁通电机"),
+            ambiguous_template,
+        )
+
+
+def test_explicit_route_resolves_independently_of_tag_and_provenance():
+    template = get_industry_template("dexterous_hand")
+    mapping = traceable_mapping(
+        tag_name="不能由标签自行解析",
+        technology_route_id="dexterous_axial_flux_motor",
+        l1_l8_path={"derived_from_mapping_id": "source-mapping"},
+    )
+
+    assert (
+        selection_v2.resolve_mapping_technology_route(mapping, template)
+        == "dexterous_axial_flux_motor"
+    )
+    gate = selection_v2.derive_route_gate(
+        mapping,
+        [reviewed_fact("prototype", "prototype_delivery")],
+        template,
+        as_of_date=AS_OF_DATE,
+    )
+    assert gate.level == "AF1"
+    assert gate.matched_fact_ids == ("prototype",)
+
+
+def test_missing_template_with_chain_context_is_unresolved_not_unrestricted():
+    mapping = traceable_mapping(
+        chain_id="unknown_chain",
+        tag_name="可能需要路线的业务",
+        l1_l8_path={"derived_from_mapping_id": "source-mapping"},
+    )
+
+    with pytest.raises(
+        selection_v2.UnresolvedTechnologyRoute,
+        match="template_unavailable",
+    ):
+        selection_v2.resolve_mapping_technology_route(mapping, None)
+    gate = selection_v2.derive_route_gate(
+        mapping,
+        [],
+        None,
+        as_of_date=AS_OF_DATE,
+    )
+    assert gate.level == "unresolved_route"
+    assert gate.eligible is False
+    assert gate.reasons[0] == "unresolved_route"
+
+
+def test_route_template_with_blank_mapping_context_is_unresolved():
+    mapping = {"status": "candidate", "l1_l8_path": {}}
+    routed_template = get_industry_template("dexterous_hand")
+
+    with pytest.raises(
+        selection_v2.UnresolvedTechnologyRoute,
+        match="missing_route_context",
+    ):
+        selection_v2.resolve_mapping_technology_route(mapping, routed_template)
+    gate = selection_v2.derive_route_gate(
+        mapping,
+        [],
+        routed_template,
+        as_of_date=AS_OF_DATE,
+    )
+    assert gate.level == "unresolved_route"
+
+    route_free_template = {
+        "technology_routes": [],
+        "evidence_requirements": [],
+    }
+    assert (
+        selection_v2.resolve_mapping_technology_route(mapping, route_free_template)
+        is None
+    )
+
+
+def test_nonroute_requirement_rejects_injected_known_route():
+    template = {
+        "technology_routes": [{"route_id": "known_route"}],
+        "evidence_requirements": [
+            {
+                "requirement_id": "plain_business",
+                "business_keywords": ["普通业务"],
+                "technology_route_id": None,
+            }
+        ],
+    }
+    mapping = traceable_mapping(
+        tag_name="普通业务",
+        technology_route_id="known_route",
+    )
+
+    with pytest.raises(selection_v2.UnresolvedTechnologyRoute, match="route_conflict"):
+        selection_v2.resolve_mapping_technology_route(mapping, template)
+
+
+def test_naive_created_at_uses_utc_cutoff_not_shanghai_wall_clock():
+    future_created = reviewed_fact(
+        "future-created",
+        "product_spec",
+        created_at=datetime(2026, 7, 9, 16, 0),
+    )
+
+    gate = selection_v2.derive_evidence_gate(
+        traceable_mapping(),
+        [future_created],
+        load_evidence_requirements(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "E1"
+    assert gate.matched_fact_ids == ()
+
+
+def test_true_no_route_is_unrestricted_and_route_without_ladder_is_unrestricted():
+    template = get_industry_template("dexterous_hand")
+    no_route_mapping = traceable_mapping(tag_name="灵巧手")
+    no_ladder_mapping = traceable_mapping(
+        tag_name="空心杯电机",
+        technology_route_id="dexterous_hollow_cup_screw",
+    )
+
+    assert selection_v2.resolve_mapping_technology_route(no_route_mapping, template) is None
+    no_route_gate = selection_v2.derive_route_gate(
+        {**no_route_mapping, "technology_route_id": None},
+        [],
+        template,
+        as_of_date=AS_OF_DATE,
+    )
+    no_ladder_gate = selection_v2.derive_route_gate(
+        no_ladder_mapping,
+        [],
+        template,
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert no_route_gate.level == "unrestricted"
+    assert no_route_gate.eligible is True
+    assert no_ladder_gate.level == "unrestricted"
+    assert no_ladder_gate.eligible is True
+
+
+def test_unmatched_tag_without_any_route_signal_is_unresolved():
+    template = get_industry_template("dexterous_hand")
+    mapping = traceable_mapping(tag_name="未配置的业务标签")
+
+    with pytest.raises(
+        selection_v2.UnresolvedTechnologyRoute,
+        match="tag_requirement_not_found",
+    ):
+        selection_v2.resolve_mapping_technology_route(mapping, template)
+    gate = selection_v2.derive_route_gate(
+        mapping,
+        [],
+        template,
+        as_of_date=AS_OF_DATE,
+    )
+    assert gate.level == "unresolved_route"
+
+
+@pytest.mark.parametrize(
+    "fact",
+    [
+        reviewed_fact(
+            "patent",
+            "patent_standard",
+            metadata={"legal_status": "active", "legal_status_date": "2026-06-01"},
+        ),
+        reviewed_fact("prototype", "prototype_delivery"),
+    ],
+    ids=["active-patent", "laboratory-prototype"],
+)
+def test_route_gate_af1_accepts_either_configured_clause(fact):
+    template = get_industry_template("dexterous_hand")
+    mapping = traceable_mapping(
+        tag_name="轴向磁通电机",
+        technology_route_id="dexterous_axial_flux_motor",
+    )
+
+    gate = selection_v2.derive_route_gate(
+        mapping,
+        [fact],
+        template,
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "AF1"
+    assert gate.max_pool_code == "D"
+    assert gate.matched_fact_ids == (fact["fact_id"],)
+
+
+@pytest.mark.parametrize(
+    "created_at",
+    [None, datetime(2026, 7, 9, 16, 0)],
+    ids=["missing-created-at", "future-created-at-utc"],
+)
+def test_route_gate_rejects_fact_without_historical_created_at(created_at):
+    template = get_industry_template("dexterous_hand")
+    mapping = traceable_mapping(
+        tag_name="轴向磁通电机",
+        technology_route_id="dexterous_axial_flux_motor",
+    )
+    fact = reviewed_fact(
+        "prototype",
+        "prototype_delivery",
+        created_at=created_at,
+    )
+
+    gate = selection_v2.derive_route_gate(
+        mapping,
+        [fact],
+        template,
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert gate.level == "AF0"
+    assert gate.eligible is False
+    assert gate.matched_fact_ids == ()
+
+
+def test_route_gate_af6_requires_order_and_revenue_and_ignores_automotive_fact():
+    template = get_industry_template("dexterous_hand")
+    mapping = traceable_mapping(
+        tag_name="轴向磁通电机",
+        technology_route_id="dexterous_axial_flux_motor",
+    )
+    automotive = reviewed_fact(
+        "automotive-product",
+        "product_spec",
+        metadata={"application_domain": "automotive"},
+    )
+    order = reviewed_fact(
+        "robot-order",
+        "order_award",
+        metadata={"application_domain": "robot_hand"},
+    )
+    revenue = reviewed_fact(
+        "robot-revenue",
+        "revenue_margin",
+        metadata={"application_domain": "robot_hand", "revenue_confirmed": True},
+    )
+
+    incomplete = selection_v2.derive_route_gate(
+        mapping,
+        [automotive, order],
+        template,
+        as_of_date=AS_OF_DATE,
+    )
+    complete = selection_v2.derive_route_gate(
+        mapping,
+        [automotive, order, revenue],
+        template,
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert incomplete.level == "AF0"
+    assert incomplete.eligible is False
+    assert complete.level == "AF6"
+    assert complete.eligible is True
+    assert complete.matched_fact_ids == ("robot-order", "robot-revenue")
 
 
 def test_multiple_mappings_choose_one_primary_and_cap_independent_bonus():

@@ -8,8 +8,16 @@ returned audit detail themselves.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from datetime import date, datetime, time, timezone
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
+from zoneinfo import ZoneInfo
+
+if TYPE_CHECKING:
+    from kronos_factors.engine.industry_chain_evidence_requirements import (
+        EvidenceRequirementCatalog,
+    )
 
 
 @dataclass(frozen=True)
@@ -17,6 +25,19 @@ class ScoreResult:
     score: float | None
     coverage_ratio: float
     detail: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class PoolGateResult:
+    eligible: bool
+    max_pool_code: str | None
+    level: str
+    matched_fact_ids: tuple[str, ...]
+    reasons: tuple[str, ...]
+
+
+class UnresolvedTechnologyRoute(ValueError):
+    """A mapping indicates a route but its configured identity is not auditable."""
 
 
 NODE_WEIGHTS = {
@@ -100,6 +121,467 @@ DEFAULT_POOL_THRESHOLDS = {
 
 EVIDENCE_RANK = {f"E{level}": level for level in range(7)}
 POOL_RANK = {None: 0, "D": 1, "C": 2, "B": 3, "A": 4}
+_SHANGHAI = ZoneInfo("Asia/Shanghai")
+
+
+def combine_pool_gates(*gates: PoolGateResult) -> PoolGateResult:
+    excluded = [gate for gate in gates if not gate.eligible]
+    if excluded:
+        return PoolGateResult(
+            eligible=False,
+            max_pool_code=None,
+            level=excluded[0].level,
+            matched_fact_ids=(),
+            reasons=tuple(
+                reason
+                for gate in excluded
+                for reason in gate.reasons
+            ),
+        )
+    capped = [gate for gate in gates if gate.max_pool_code is not None]
+    matched_fact_ids = tuple(
+        sorted({fact_id for gate in gates for fact_id in gate.matched_fact_ids})
+    )
+    reasons = tuple(reason for gate in gates for reason in gate.reasons)
+    if not capped:
+        return PoolGateResult(
+            eligible=True,
+            max_pool_code=None,
+            level="unrestricted",
+            matched_fact_ids=matched_fact_ids,
+            reasons=reasons,
+        )
+    strictest = min(
+        capped,
+        key=lambda gate: POOL_RANK.get(gate.max_pool_code, 0),
+    )
+    return PoolGateResult(
+        eligible=True,
+        max_pool_code=strictest.max_pool_code,
+        level=strictest.level,
+        matched_fact_ids=matched_fact_ids,
+        reasons=reasons,
+    )
+
+
+def _non_empty_text(value: object) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return value.strip()
+
+
+def _provenance_nodes(value: object) -> Iterable[Mapping[str, Any]]:
+    if isinstance(value, Mapping):
+        yield value
+        nested = value.get("l1_l8_path")
+        if nested is not value:
+            yield from _provenance_nodes(nested)
+        return
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        for item in value:
+            yield from _provenance_nodes(item)
+
+
+def _traceable_candidate(mapping: Mapping[str, Any]) -> bool:
+    if str(mapping.get("status") or "").casefold() not in {
+        "candidate",
+        "pending_review",
+        "verified",
+    }:
+        return False
+    for node in _provenance_nodes(mapping.get("l1_l8_path")):
+        if _non_empty_text(node.get("derived_from_mapping_id")):
+            return True
+        discovery_fact_ids = node.get("discovery_fact_ids")
+        if isinstance(discovery_fact_ids, Sequence) and not isinstance(
+            discovery_fact_ids,
+            (str, bytes),
+        ):
+            if any(_non_empty_text(value) for value in discovery_fact_ids):
+                return True
+    return False
+
+
+def _fact_identifier(fact: Mapping[str, Any]) -> str | None:
+    value = fact.get("fact_id") or fact.get("event_id")
+    return str(value) if value else None
+
+
+def _parsed_datetime(value: object) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    elif type(value) is date:
+        return datetime.combine(value, time.min)
+    elif isinstance(value, str) and value.strip():
+        normalized = value.strip()
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+        try:
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            try:
+                return datetime.combine(date.fromisoformat(normalized), time.min)
+            except ValueError:
+                return None
+    return None
+
+
+def _as_shanghai_moment(
+    value: object,
+    *,
+    naive_timezone: object,
+) -> datetime | None:
+    parsed = _parsed_datetime(value)
+    if parsed is None:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        parsed = parsed.replace(tzinfo=naive_timezone)
+    return parsed.astimezone(_SHANGHAI)
+
+
+def _as_of_date_value(value: object) -> date | None:
+    parsed = _as_shanghai_moment(value, naive_timezone=_SHANGHAI)
+    return parsed.date() if parsed is not None else None
+
+
+def _fully_audited_as_of(
+    fact: Mapping[str, Any],
+    as_of_date: date,
+) -> bool:
+    if str(fact.get("validation_status") or "").casefold() != "confirmed":
+        return False
+    if not _non_empty_text(fact.get("reviewer")):
+        return False
+    if not _non_empty_text(fact.get("review_note")):
+        return False
+    cutoff = datetime.combine(as_of_date, time.max, tzinfo=_SHANGHAI)
+    reviewed_at = _as_shanghai_moment(
+        fact.get("reviewed_at"),
+        naive_timezone=_SHANGHAI,
+    )
+    published_at = _as_shanghai_moment(
+        fact.get("publish_time"),
+        naive_timezone=_SHANGHAI,
+    )
+    created_at = _as_shanghai_moment(
+        fact.get("created_at"),
+        naive_timezone=timezone.utc,
+    )
+    return bool(
+        reviewed_at is not None
+        and published_at is not None
+        and created_at is not None
+        and reviewed_at <= cutoff
+        and published_at <= cutoff
+        and created_at <= cutoff
+    )
+
+
+def _matches_evidence_type(
+    fact: Mapping[str, Any],
+    rule: Mapping[str, Any],
+    source_level_rank: Mapping[str, int],
+) -> bool:
+    if str(fact.get("fact_type") or "") not in set(rule.get("fact_types") or []):
+        return False
+    metadata = fact.get("metadata")
+    if not isinstance(metadata, Mapping):
+        metadata = {}
+    if any(metadata.get(str(flag)) is not True for flag in rule.get("metadata_flags") or []):
+        return False
+    source_level = str(fact.get("source_level") or "").casefold()
+    minimum_source = str(rule.get("minimum_source_level") or "").casefold()
+    if source_level not in source_level_rank or minimum_source not in source_level_rank:
+        return False
+    if source_level_rank[source_level] < source_level_rank[minimum_source]:
+        return False
+    return str(fact.get("fact_nature") or "") in set(
+        rule.get("allowed_fact_natures") or []
+    )
+
+
+def derive_evidence_gate(
+    mapping: Mapping[str, Any],
+    confirmed_facts: Iterable[Mapping[str, Any]],
+    requirements: EvidenceRequirementCatalog,
+    *,
+    as_of_date: date,
+) -> PoolGateResult:
+    if type(as_of_date) is not date:
+        raise ValueError("as_of_date must be a date")
+    facts = tuple(confirmed_facts)
+    matches: dict[str, set[str]] = defaultdict(set)
+    stale_reasons: list[str] = []
+    for evidence_type, rule in requirements.evidence_types.items():
+        level = str(rule.get("level") or "")
+        expiry_policy = rule.get("expiry_policy")
+        expiry_days = (
+            requirements.freshness_policies.get(str(expiry_policy))
+            if expiry_policy
+            else None
+        )
+        for fact in facts:
+            if not _fully_audited_as_of(fact, as_of_date):
+                continue
+            if not _matches_evidence_type(fact, rule, requirements.source_level_rank):
+                continue
+            published_at = _as_of_date_value(fact.get("publish_time"))
+            if (
+                expiry_days is not None
+                and published_at is not None
+                and (as_of_date - published_at).days > expiry_days
+            ):
+                reason = f"stale_{evidence_type}"
+                if reason not in stale_reasons:
+                    stale_reasons.append(reason)
+                continue
+            fact_id = _fact_identifier(fact)
+            if fact_id:
+                matches[level].add(fact_id)
+
+    matching_levels = [
+        level
+        for level, fact_ids in matches.items()
+        if fact_ids and level in requirements.evidence_levels
+    ]
+    if matching_levels:
+        selected_level = max(
+            matching_levels,
+            key=lambda level: int(requirements.evidence_levels[level]["rank"]),
+        )
+        selected_ids = tuple(sorted(matches[selected_level]))
+        primary_reason = f"matched_evidence_level:{selected_level}"
+    elif _traceable_candidate(mapping):
+        selected_level = "E1"
+        selected_ids = ()
+        primary_reason = "traceable_candidate_mapping"
+    else:
+        selected_level = "E0"
+        selected_ids = ()
+        primary_reason = "evidence_e0"
+
+    level_rule = requirements.evidence_levels[selected_level]
+    return PoolGateResult(
+        eligible=bool(level_rule.get("eligible")),
+        max_pool_code=(
+            str(level_rule["max_pool"])
+            if level_rule.get("max_pool") is not None
+            else None
+        ),
+        level=selected_level,
+        matched_fact_ids=selected_ids,
+        reasons=(primary_reason, *stale_reasons),
+    )
+
+
+def _route_values_from_provenance(
+    mapping: Mapping[str, Any],
+) -> tuple[list[str], bool, list[str]]:
+    route_values: list[str] = []
+    route_key_present = False
+    requirement_ids: list[str] = []
+    for node in _provenance_nodes(mapping.get("l1_l8_path")):
+        if "technology_route_id" in node:
+            route_key_present = True
+            route = _non_empty_text(node.get("technology_route_id"))
+            if route and route not in route_values:
+                route_values.append(route)
+        requirement_id = _non_empty_text(node.get("requirement_id"))
+        if requirement_id and requirement_id not in requirement_ids:
+            requirement_ids.append(requirement_id)
+    return route_values, route_key_present, requirement_ids
+
+
+def _unresolved_route(reason: str) -> UnresolvedTechnologyRoute:
+    return UnresolvedTechnologyRoute(f"unresolved_route:{reason}")
+
+
+def resolve_mapping_technology_route(
+    mapping: Mapping[str, Any],
+    industry_template: Mapping[str, Any] | None,
+) -> str | None:
+    explicit_route = _non_empty_text(mapping.get("technology_route_id"))
+    provenance_routes, provenance_key_present, requirement_ids = (
+        _route_values_from_provenance(mapping)
+    )
+    if len(provenance_routes) > 1 or len(requirement_ids) > 1:
+        raise _unresolved_route("conflicting_provenance")
+
+    if industry_template is None:
+        if (
+            explicit_route
+            or provenance_key_present
+            or requirement_ids
+            or _non_empty_text(mapping.get("chain_id"))
+            or _non_empty_text(mapping.get("tag_name"))
+        ):
+            raise _unresolved_route("template_unavailable")
+        return None
+
+    raw_routes = industry_template.get("technology_routes") or []
+    routes = [route for route in raw_routes if isinstance(route, Mapping)]
+    known_route_ids = {
+        route_id
+        for route in routes
+        if (route_id := _non_empty_text(route.get("route_id")))
+    }
+    requirements = [
+        row
+        for row in industry_template.get("evidence_requirements") or []
+        if isinstance(row, Mapping)
+    ]
+    if (
+        known_route_ids
+        and explicit_route is None
+        and not provenance_routes
+        and not requirement_ids
+        and _non_empty_text(mapping.get("tag_name")) is None
+    ):
+        raise _unresolved_route("missing_route_context")
+
+    requirement_by_id: Mapping[str, Any] | None = None
+    if requirement_ids:
+        matching = [
+            row
+            for row in requirements
+            if str(row.get("requirement_id") or "") == requirement_ids[0]
+        ]
+        if len(matching) != 1:
+            raise _unresolved_route("requirement_id_not_unique")
+        requirement_by_id = matching[0]
+
+    tag_name = _non_empty_text(mapping.get("tag_name"))
+    tag_matches = [
+        row
+        for row in requirements
+        if tag_name is not None and tag_name in (row.get("business_keywords") or [])
+    ]
+    if len(tag_matches) > 1:
+        raise _unresolved_route("tag_requirement_not_unique")
+    if (
+        tag_name is not None
+        and not tag_matches
+        and requirement_by_id is None
+        and explicit_route is None
+        and not provenance_routes
+    ):
+        raise _unresolved_route("tag_requirement_not_found")
+    requirement_by_tag = tag_matches[0] if tag_matches else None
+    if (
+        requirement_by_id is not None
+        and requirement_by_tag is not None
+        and requirement_by_id.get("requirement_id")
+        != requirement_by_tag.get("requirement_id")
+    ):
+        raise _unresolved_route("requirement_conflict")
+    requirement = requirement_by_id or requirement_by_tag
+    expected_route = (
+        _non_empty_text(requirement.get("technology_route_id"))
+        if requirement is not None
+        else None
+    )
+    provenance_route = provenance_routes[0] if provenance_routes else None
+    if (
+        requirement is not None
+        and expected_route is None
+        and (explicit_route is not None or provenance_route is not None)
+    ):
+        raise _unresolved_route("route_conflict")
+
+    configured_signals = [
+        signal
+        for signal in (explicit_route, provenance_route, expected_route)
+        if signal is not None
+    ]
+    if len(set(configured_signals)) > 1:
+        raise _unresolved_route("route_conflict")
+    if provenance_key_present and provenance_route is None and expected_route is not None:
+        raise _unresolved_route("empty_provenance_route")
+    selected = explicit_route or provenance_route or expected_route
+    if selected is None:
+        return None
+    if selected not in known_route_ids:
+        raise _unresolved_route("unknown_route")
+    return selected
+
+
+def _route_blocking_reason(route_id: str, stage: str) -> str:
+    if route_id == "dexterous_axial_flux_motor" and stage == "AF0":
+        return "axis_flux_af0"
+    return f"route_stage_ineligible:{route_id}:{stage}"
+
+
+def derive_route_gate(
+    mapping: Mapping[str, Any],
+    confirmed_facts: Sequence[Mapping[str, Any]],
+    industry_template: Mapping[str, Any] | None,
+    *,
+    as_of_date: date,
+) -> PoolGateResult:
+    if type(as_of_date) is not date:
+        raise ValueError("as_of_date must be a date")
+    try:
+        route_id = resolve_mapping_technology_route(mapping, industry_template)
+    except UnresolvedTechnologyRoute as exc:
+        return PoolGateResult(
+            False,
+            None,
+            "unresolved_route",
+            (),
+            ("unresolved_route", str(exc)),
+        )
+    if route_id is None:
+        return PoolGateResult(True, None, "unrestricted", (), ())
+    if industry_template is None:
+        return PoolGateResult(False, None, "unresolved_route", (), ("unresolved_route",))
+    matches = [
+        route
+        for route in industry_template.get("technology_routes") or []
+        if isinstance(route, Mapping) and route.get("route_id") == route_id
+    ]
+    if len(matches) != 1:
+        return PoolGateResult(False, None, "unresolved_route", (), ("unresolved_route",))
+    route = matches[0]
+    ladder = route.get("authenticity_ladder")
+    if not isinstance(ladder, Mapping) or not ladder:
+        return PoolGateResult(True, None, "unrestricted", (), ())
+
+    from kronos_factors.engine.supply_chain_evidence_orchestration import (
+        derive_route_stage_result,
+    )
+
+    audited_facts = tuple(
+        fact
+        for fact in confirmed_facts
+        if _fully_audited_as_of(fact, as_of_date)
+    )
+    stage_result = derive_route_stage_result(
+        audited_facts,
+        route,
+        as_of_date=as_of_date,
+    )
+    stage_rule = ladder.get(stage_result.stage)
+    if not isinstance(stage_rule, Mapping):
+        return PoolGateResult(False, None, "unresolved_route", (), ("unresolved_route",))
+    eligible = bool(stage_rule.get("eligible"))
+    if eligible:
+        reasons = (f"matched_route_stage:{stage_result.stage}", *stage_result.reasons)
+    else:
+        reasons = (
+            _route_blocking_reason(route_id, stage_result.stage),
+            *stage_result.reasons,
+        )
+    return PoolGateResult(
+        eligible=eligible,
+        max_pool_code=(
+            str(stage_rule["max_pool"])
+            if eligible and stage_rule.get("max_pool") is not None
+            else None
+        ),
+        level=stage_result.stage,
+        matched_fact_ids=stage_result.matched_fact_ids,
+        reasons=reasons,
+    )
 
 
 def _clamp(value: float) -> float:
@@ -360,6 +842,16 @@ def assign_selection_pool(
             "veto_reasons": veto_reasons,
         }
 
+    hard_exclusion_reasons = list(inputs.get("hard_exclusion_reasons") or [])
+    if hard_exclusion_reasons:
+        return {
+            "pool_code": None,
+            "eligibility_status": "excluded",
+            "veto_reasons": [],
+            "blocking_gate": str(hard_exclusion_reasons[0]),
+            "hard_exclusion_reasons": hard_exclusion_reasons,
+        }
+
     evidence_level = str(inputs.get("evidence_level") or "E0")
     evidence_rank = EVIDENCE_RANK.get(evidence_level, 0)
     if evidence_rank == 0:
@@ -367,6 +859,8 @@ def assign_selection_pool(
             "pool_code": None,
             "eligibility_status": "excluded",
             "veto_reasons": [],
+            "blocking_gate": "evidence_e0",
+            "hard_exclusion_reasons": ["evidence_e0"],
         }
 
     thresholds = (
@@ -427,6 +921,8 @@ def assign_selection_pool(
         "pool_code": selected_pool,
         "eligibility_status": "watch" if selected_pool == "D" else "eligible",
         "veto_reasons": [],
+        "blocking_gate": None,
+        "hard_exclusion_reasons": [],
     }
 
 

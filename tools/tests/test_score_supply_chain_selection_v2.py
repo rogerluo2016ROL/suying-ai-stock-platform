@@ -1,5 +1,7 @@
 """As-of and evidence-gate contracts for supply-chain selection V2 scoring."""
 
+from copy import deepcopy
+from dataclasses import replace
 import importlib.util
 import sys
 from datetime import date, datetime, timezone
@@ -23,9 +25,11 @@ def base_mapping(**overrides):
     mapping = {
         "mapping_id": "m1",
         "code": "000001",
+        "chain_id": "dexterous_hand",
         "node_id": "dexterous_hand_foundation",
         "tag_name": "空心杯电机",
         "status": "candidate",
+        "l1_l8_path": {"derived_from_mapping_id": "source-m0"},
         "confidence": 0.35,
         "commercial_stage": "C1",
         "revenue_ratio": None,
@@ -33,6 +37,34 @@ def base_mapping(**overrides):
         "next_validation_event": None,
         "next_validation_date": None,
     }
+    mapping.update(overrides)
+    return mapping
+
+
+def axial_mapping(**overrides):
+    mapping = base_mapping(
+        mapping_id="axis-m1",
+        tag_name="轴向磁通电机",
+        technology_route_id="dexterous_axial_flux_motor",
+        l1_l8_path={
+            "derived_from_mapping_id": "source-axis",
+            "technology_route_id": "dexterous_axial_flux_motor",
+        },
+    )
+    mapping.update(overrides)
+    return mapping
+
+
+def repository_mapping_with_stage(**overrides):
+    mapping = base_mapping(
+        commercial_stage="C5",
+        stage_review_status="approved",
+        source_event_review_status="approved",
+        source_event_reviewer="reviewer-1",
+        source_event_review_note="source event checked",
+        source_event_reviewed_at=datetime(2026, 7, 10, 10, tzinfo=timezone.utc),
+        source_event_date=date(2026, 7, 10),
+    )
     mapping.update(overrides)
     return mapping
 
@@ -128,7 +160,7 @@ def test_score_mapping_rejects_approved_as_a_fact_validation_status():
     assert result["evidence_ids"] == []
 
 
-def test_confirmed_evidence_keeps_the_confirmed_fact_nature_boundary():
+def test_confirmed_evidence_delegates_fact_nature_policy_to_catalog():
     row = evidence(
         "company-claim",
         datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
@@ -142,8 +174,18 @@ def test_confirmed_evidence_keeps_the_confirmed_fact_nature_boundary():
         cutoff=module._cutoff_utc(date(2026, 7, 11)),
     )
 
-    assert confirmed == []
+    assert confirmed == [row]
     assert limitations == []
+
+    result = module.score_mapping(
+        base_mapping(),
+        [row],
+        trade_date=date(2026, 7, 11),
+        node_score=70,
+    )
+
+    assert result["authenticity"]["evidence_level"] == "E2"
+    assert result["selection"]["pool_code"] == "C"
 
 
 def test_score_mapping_uses_fact_id_as_the_persisted_evidence_id():
@@ -255,6 +297,57 @@ def test_score_mapping_rejects_evidence_without_a_safe_audit_trail(
     )
 
 
+@pytest.mark.parametrize(
+    "unsafe_overrides",
+    [
+        {"validation_status": "pending"},
+        {"publish_time": datetime(2026, 7, 12, 9, tzinfo=timezone.utc)},
+        {"reviewed_at": datetime(2026, 7, 12, 9, tzinfo=timezone.utc)},
+        {"reviewer": None},
+        {"created_at": None},
+        {"created_at": datetime(2026, 7, 12, 9, tzinfo=timezone.utc)},
+    ],
+    ids=[
+        "pending",
+        "future-publish",
+        "future-review",
+        "unaudited",
+        "missing-created",
+        "future-created",
+    ],
+)
+def test_unsafe_fact_cannot_pollute_any_score_component(unsafe_overrides):
+    row = evidence(
+        "unsafe-negative",
+        datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+        "negative",
+        fact_id="fact-unsafe-negative",
+        metadata={
+            "veto_reason": "must-not-veto",
+            "realized_revenue_growth": 100,
+            "segment_gross_margin": 100,
+            "technical_performance": 100,
+            "profit_elasticity_score": 100,
+        },
+    )
+    row.update(unsafe_overrides)
+
+    result = module.score_mapping(
+        base_mapping(),
+        [row],
+        trade_date=date(2026, 7, 11),
+        node_score=70,
+    )
+
+    assert result["authenticity"]["evidence_level"] == "E1"
+    assert result["operating_quality"]["score"] is None
+    assert result["benefit"]["score"] is None
+    assert result["selection"]["detail"]["risk_score"] is None
+    assert result["selection"]["eligibility_status"] != "rejected"
+    assert result["selection"]["veto_reasons"] == []
+    assert result["evidence_ids"] == []
+
+
 def test_confirmed_prototype_can_reach_c_but_not_customer_pool():
     rows = [
         evidence(
@@ -363,6 +456,493 @@ def test_score_bundle_keeps_component_inputs_for_auditable_persistence():
     assert result["selection"]["detail"]["risk_score"] == 20
 
 
+def test_af0_excludes_even_when_automotive_revenue_evidence_is_e6():
+    row = evidence(
+        "automotive-revenue",
+        datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+        "revenue_margin",
+        fact_id="fact-automotive-revenue",
+        metadata={
+            "application_domain": "automotive",
+            "revenue_confirmed": True,
+            "profit_confirmed": True,
+        },
+    )
+
+    result = module.score_mapping(
+        axial_mapping(),
+        [row],
+        trade_date=date(2026, 7, 11),
+        node_score=80,
+    )
+
+    assert result["authenticity"]["evidence_level"] == "E6"
+    assert result["selection"]["pool_code"] is None
+    assert result["selection"]["eligibility_status"] == "excluded"
+    assert result["selection"]["blocking_gate"] == "axis_flux_af0"
+
+
+def test_e4_plus_af1_is_capped_at_d_and_gate_detail_is_persistable():
+    rows = [
+        evidence(
+            "shared-event",
+            datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+            "order_award",
+            fact_id="fact-order",
+            metadata={"application_domain": "robot_hand"},
+        ),
+        evidence(
+            "shared-event",
+            datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+            "prototype_delivery",
+            fact_id="fact-prototype",
+        ),
+    ]
+
+    result = module.score_mapping(
+        axial_mapping(),
+        rows,
+        trade_date=date(2026, 7, 11),
+        node_score=80,
+    )
+
+    assert result["authenticity"]["evidence_level"] == "E4"
+    assert result["selection"]["pool_code"] == "D"
+    gates = result["selection"]["detail"]["pool_gates"]
+    assert gates["evidence"]["level"] == "E4"
+    assert gates["route"]["level"] == "AF1"
+    assert gates["combined"]["max_pool_code"] == "D"
+    assert gates["combined"]["matched_fact_ids"] == (
+        "fact-order",
+        "fact-prototype",
+    )
+
+
+def test_score_mapping_uses_injected_evidence_catalog_cap():
+    catalog = module.load_evidence_requirements()
+    levels = deepcopy(catalog.evidence_levels)
+    levels["E4"]["max_pool"] = "D"
+    injected_catalog = replace(catalog, evidence_levels=levels)
+    row = evidence(
+        "order",
+        datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+        "order_award",
+        fact_id="fact-order",
+    )
+
+    result = module.score_mapping(
+        base_mapping(),
+        [row],
+        trade_date=date(2026, 7, 11),
+        node_score=80,
+        evidence_requirements=injected_catalog,
+    )
+
+    assert result["authenticity"]["evidence_level"] == "E4"
+    assert result["authenticity"]["max_pool_code"] == "D"
+    assert result["selection"]["pool_code"] == "D"
+
+    excluded_levels = deepcopy(levels)
+    excluded_levels["E4"]["eligible"] = False
+    excluded_levels["E4"]["max_pool"] = None
+    excluded_catalog = replace(catalog, evidence_levels=excluded_levels)
+    excluded = module.score_mapping(
+        base_mapping(),
+        [row],
+        trade_date=date(2026, 7, 11),
+        node_score=80,
+        evidence_requirements=excluded_catalog,
+    )
+    assert excluded["selection"]["pool_code"] is None
+    assert excluded["selection"]["eligibility_status"] == "excluded"
+
+
+def test_score_mapping_uses_injected_route_eligible_and_cap_rules():
+    rows = [
+        evidence(
+            "shared-event",
+            datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+            "order_award",
+            fact_id="fact-order",
+            metadata={"application_domain": "robot_hand"},
+        ),
+        evidence(
+            "shared-event",
+            datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+            "prototype_delivery",
+            fact_id="fact-prototype",
+        ),
+    ]
+    capped_template = deepcopy(module.get_industry_template("dexterous_hand"))
+    capped_route = next(
+        route
+        for route in capped_template["technology_routes"]
+        if route["route_id"] == "dexterous_axial_flux_motor"
+    )
+    capped_route["authenticity_ladder"]["AF1"]["max_pool"] = "C"
+
+    capped = module.score_mapping(
+        axial_mapping(),
+        rows,
+        trade_date=date(2026, 7, 11),
+        node_score=80,
+        industry_template=capped_template,
+    )
+
+    excluded_template = deepcopy(capped_template)
+    excluded_route = next(
+        route
+        for route in excluded_template["technology_routes"]
+        if route["route_id"] == "dexterous_axial_flux_motor"
+    )
+    excluded_route["authenticity_ladder"]["AF1"]["eligible"] = False
+    excluded_route["authenticity_ladder"]["AF1"]["max_pool"] = None
+    excluded = module.score_mapping(
+        axial_mapping(),
+        rows,
+        trade_date=date(2026, 7, 11),
+        node_score=80,
+        industry_template=excluded_template,
+    )
+
+    assert capped["selection"]["pool_code"] == "C"
+    assert excluded["selection"]["pool_code"] is None
+    assert excluded["selection"]["eligibility_status"] == "excluded"
+    assert excluded["selection"]["blocking_gate"].startswith(
+        "route_stage_ineligible:"
+    )
+
+
+def test_score_mapping_uses_injected_af6_match_mode_and_cap():
+    order = evidence(
+        "order-event",
+        datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+        "order_award",
+        fact_id="fact-order",
+        metadata={"application_domain": "robot_hand"},
+    )
+    default = module.score_mapping(
+        axial_mapping(),
+        [order],
+        trade_date=date(2026, 7, 11),
+        node_score=80,
+    )
+
+    injected_template = deepcopy(module.get_industry_template("dexterous_hand"))
+    route = next(
+        item
+        for item in injected_template["technology_routes"]
+        if item["route_id"] == "dexterous_axial_flux_motor"
+    )
+    route["authenticity_ladder"]["AF6"]["fact_match_mode"] = "any"
+    route["authenticity_ladder"]["AF6"]["max_pool"] = "D"
+    injected = module.score_mapping(
+        axial_mapping(),
+        [order],
+        trade_date=date(2026, 7, 11),
+        node_score=80,
+        industry_template=injected_template,
+    )
+
+    assert default["selection"]["eligibility_status"] == "excluded"
+    route_gate = injected["selection"]["detail"]["pool_gates"]["route"]
+    assert route_gate["level"] == "AF6"
+    assert route_gate["max_pool_code"] == "D"
+    assert route_gate["matched_fact_ids"] == ("fact-order",)
+    assert injected["selection"]["pool_code"] == "D"
+
+
+def test_score_mapping_never_lets_wider_route_cap_raise_evidence_cap():
+    catalog = module.load_evidence_requirements()
+    evidence_types = deepcopy(catalog.evidence_types)
+    evidence_types["order_or_delivery"]["fact_types"] = ["disabled_order"]
+    evidence_types["recognized_revenue"]["fact_types"] = ["disabled_revenue"]
+    evidence_types["recognized_profit"]["fact_types"] = ["disabled_profit"]
+    injected_catalog = replace(catalog, evidence_types=evidence_types)
+    rows = [
+        evidence(
+            "shared-event",
+            datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+            "order_award",
+            fact_id="fact-order",
+            metadata={"application_domain": "robot_hand"},
+        ),
+        evidence(
+            "shared-event",
+            datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+            "revenue_margin",
+            fact_id="fact-revenue",
+            metadata={
+                "application_domain": "robot_hand",
+                "revenue_confirmed": True,
+            },
+        ),
+    ]
+
+    result = module.score_mapping(
+        axial_mapping(),
+        rows,
+        trade_date=date(2026, 7, 11),
+        node_score=80,
+        evidence_requirements=injected_catalog,
+    )
+
+    gates = result["selection"]["detail"]["pool_gates"]
+    assert gates["evidence"]["level"] == "E1"
+    assert gates["evidence"]["max_pool_code"] == "D"
+    assert gates["route"]["level"] == "AF6"
+    assert gates["route"]["max_pool_code"] == "A"
+    assert gates["combined"]["max_pool_code"] == "D"
+    assert result["selection"]["pool_code"] == "D"
+
+
+def test_independent_axial_discovery_is_e1_but_af0_until_route_evidence():
+    mapping = axial_mapping(
+        l1_l8_path={
+            "technology_route_id": "dexterous_axial_flux_motor",
+            "discovery_fact_ids": ["pending-axis-1"],
+        },
+        evidence_ids=["source-evidence-must-not-be-inherited"],
+    )
+
+    result = module.score_mapping(
+        mapping,
+        [],
+        trade_date=date(2026, 7, 11),
+        node_score=None,
+    )
+
+    assert result["authenticity"]["evidence_level"] == "E1"
+    assert result["selection"]["pool_code"] is None
+    assert result["selection"]["eligibility_status"] == "excluded"
+    assert result["selection"]["blocking_gate"] == "axis_flux_af0"
+    assert result["evidence_ids"] == []
+
+
+def test_traceable_candidate_is_e1_without_inheriting_source_mapping_evidence():
+    mapping = base_mapping(
+        evidence_ids=["source-fact-1"],
+        l1_l8_path={"derived_from_mapping_id": "source-m1"},
+    )
+
+    result = module.score_mapping(
+        mapping,
+        [],
+        trade_date=date(2026, 7, 11),
+        node_score=None,
+    )
+
+    assert result["authenticity"]["evidence_level"] == "E1"
+    assert result["selection"]["pool_code"] == "D"
+    assert result["evidence_ids"] == []
+
+
+def test_tag_status_and_source_evidence_ids_without_provenance_remain_e0():
+    mapping = base_mapping(
+        l1_l8_path={},
+        evidence_ids=["source-fact-1"],
+    )
+
+    result = module.score_mapping(
+        mapping,
+        [],
+        trade_date=date(2026, 7, 11),
+        node_score=None,
+    )
+
+    assert result["authenticity"]["evidence_level"] == "E0"
+    assert result["selection"]["eligibility_status"] == "excluded"
+    assert result["selection"]["blocking_gate"] == "evidence_e0"
+
+
+def test_company_claim_can_support_lower_catalog_level_but_not_e4():
+    prototype = evidence(
+        "claim-prototype",
+        datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+        "prototype_delivery",
+        fact_nature="company_claim",
+        source_level="mid",
+    )
+    claimed_order = evidence(
+        "claim-order",
+        datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+        "order_award",
+        fact_nature="company_claim",
+        source_level="strong",
+    )
+
+    prototype_result = module.score_mapping(
+        base_mapping(),
+        [prototype],
+        trade_date=date(2026, 7, 11),
+        node_score=70,
+    )
+    order_result = module.score_mapping(
+        base_mapping(),
+        [claimed_order],
+        trade_date=date(2026, 7, 11),
+        node_score=70,
+    )
+
+    assert prototype_result["authenticity"]["evidence_level"] == "E2"
+    assert order_result["authenticity"]["evidence_level"] == "E1"
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        axial_mapping(technology_route_id="unknown_route"),
+        axial_mapping(
+            technology_route_id="dexterous_axial_flux_motor",
+            l1_l8_path={
+                "derived_from_mapping_id": "source-axis",
+                "technology_route_id": "dexterous_hollow_cup_screw",
+            },
+        ),
+    ],
+    ids=["unknown", "conflict"],
+)
+def test_unknown_or_conflicting_route_is_excluded_not_unrestricted(mapping):
+    result = module.score_mapping(
+        mapping,
+        [],
+        trade_date=date(2026, 7, 11),
+        node_score=None,
+    )
+
+    assert result["selection"]["pool_code"] is None
+    assert result["selection"]["eligibility_status"] == "excluded"
+    assert result["selection"]["blocking_gate"] == "unresolved_route"
+
+
+def test_axial_tag_without_explicit_or_provenance_route_resolves_from_template():
+    mapping = axial_mapping(
+        technology_route_id=None,
+        l1_l8_path={"derived_from_mapping_id": "source-axis"},
+    )
+    row = evidence(
+        "automotive-revenue",
+        datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+        "revenue_margin",
+        metadata={
+            "application_domain": "automotive",
+            "revenue_confirmed": True,
+            "profit_confirmed": True,
+        },
+    )
+
+    result = module.score_mapping(
+        mapping,
+        [row],
+        trade_date=date(2026, 7, 11),
+        node_score=80,
+    )
+
+    assert result["selection"]["eligibility_status"] == "excluded"
+    assert result["selection"]["blocking_gate"] == "axis_flux_af0"
+
+
+@pytest.mark.parametrize(
+    "unsafe_fields",
+    [
+        {"stage_review_status": "pending_review"},
+        {"source_event_review_status": "pending_review"},
+        {"source_event_reviewer": None},
+        {"source_event_reviewer": "   "},
+        {"source_event_review_note": None},
+        {"source_event_review_note": "   "},
+        {"source_event_reviewed_at": None},
+        {"source_event_reviewed_at": "not-a-timestamp"},
+        {"source_event_reviewed_at": datetime(2026, 7, 10, 10)},
+        {
+            "source_event_reviewed_at": datetime(
+                2026,
+                7,
+                12,
+                10,
+                tzinfo=timezone.utc,
+            )
+        },
+        {"source_event_date": None},
+        {"source_event_date": "not-a-date"},
+        {"source_event_date": date(2026, 7, 12)},
+    ],
+    ids=[
+        "stage-pending",
+        "event-pending",
+        "missing-reviewer",
+        "blank-reviewer",
+        "missing-note",
+        "blank-note",
+        "missing-reviewed-at",
+        "invalid-reviewed-at",
+        "naive-reviewed-at",
+        "future-review",
+        "missing-event-date",
+        "invalid-event-date",
+        "future-event",
+    ],
+)
+def test_prepare_mapping_nulls_commercial_stage_without_full_audit_chain(
+    unsafe_fields,
+):
+    prepared = module.prepare_mapping_for_score(
+        repository_mapping_with_stage(**unsafe_fields),
+        trade_date=date(2026, 7, 11),
+    )
+
+    assert prepared["commercial_stage"] is None
+    assert "unaudited_commercial_stage" in prepared["data_limitations"]
+
+
+def test_prepare_mapping_keeps_fully_audited_historical_stage():
+    prepared = module.prepare_mapping_for_score(
+        repository_mapping_with_stage(),
+        trade_date=date(2026, 7, 11),
+    )
+
+    assert prepared["commercial_stage"] == "C5"
+    assert "unaudited_commercial_stage" not in prepared["data_limitations"]
+
+
+def test_selection_repository_writes_pool_gates_into_factor_detail():
+    row = evidence(
+        "automotive-revenue",
+        datetime(2026, 7, 10, 9, tzinfo=timezone.utc),
+        "revenue_margin",
+        fact_id="fact-automotive-revenue",
+        metadata={
+            "application_domain": "automotive",
+            "profit_confirmed": True,
+        },
+    )
+    bundle = module.score_mapping(
+        axial_mapping(),
+        [row],
+        trade_date=date(2026, 7, 11),
+        node_score=80,
+    )
+
+    class CapturingCursor:
+        def __init__(self):
+            self.calls = []
+
+        def execute(self, statement, params):
+            self.calls.append((statement, params))
+
+    cursor = CapturingCursor()
+    module.SelectionRepository(lambda: None).upsert_score_bundle(cursor, bundle)
+
+    _, params = next(
+        call
+        for call in cursor.calls
+        if "INSERT INTO business_tag_selection_scores" in call[0]
+    )
+    factor_detail = params[13].adapted
+    assert factor_detail["pool_gates"]["route"]["level"] == "AF0"
+    assert factor_detail["pool_gates"]["combined"]["eligible"] is False
+
+
 class FakeRepository:
     def __init__(self, *, missing=None):
         self.missing = list(missing or [])
@@ -445,6 +1025,44 @@ def test_batch_dry_run_scores_without_writing():
     assert repository.upserts == []
     assert repository.transitions == []
     assert connection.commits == 0
+    assert result["results"][0]["data_limitations"] == [
+        "unaudited_commercial_stage"
+    ]
+
+
+def test_batch_passes_prepared_stage_to_score_mapping(monkeypatch):
+    repository = FakeRepository()
+    unaudited = base_mapping(mapping_id="unaudited", commercial_stage="C5")
+    audited = repository_mapping_with_stage(mapping_id="audited")
+    repository.fetch_mappings = lambda cur, **kwargs: [unaudited, audited]
+    connection = FakeConnection()
+    captured = []
+
+    def capture_score(mapping, evidence_rows, **kwargs):
+        captured.append(dict(mapping))
+        return {
+            "mapping_id": mapping["mapping_id"],
+            "code": mapping["code"],
+            "selection": {"pool_code": "D"},
+            "data_limitations": list(mapping.get("data_limitations") or []),
+        }
+
+    monkeypatch.setattr(module, "score_mapping", capture_score)
+
+    module.run_batch_score(
+        pg_url="postgresql://unused",
+        chain_id="dexterous_hand",
+        trade_date=date(2026, 7, 11),
+        model_version="v2.0",
+        dry_run=True,
+        repository=repository,
+        connection_factory=lambda: connection,
+    )
+
+    assert captured[0]["commercial_stage"] is None
+    assert captured[0]["data_limitations"] == ["unaudited_commercial_stage"]
+    assert captured[1]["commercial_stage"] == "C5"
+    assert captured[1]["data_limitations"] == []
 
 
 def test_batch_write_persists_scores_and_transition_in_one_commit():
@@ -466,6 +1084,7 @@ def test_batch_write_persists_scores_and_transition_in_one_commit():
     assert len(repository.upserts) == 1
     assert len(repository.transitions) == 1
     assert connection.commits == 1
+    assert "pool_gates" in repository.upserts[0]["selection"]["detail"]
 
 
 def test_batch_preflight_lists_all_missing_tables():

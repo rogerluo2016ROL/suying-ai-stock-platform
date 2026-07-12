@@ -350,6 +350,58 @@ def test_axial_flux_af6_requires_every_configured_clause():
     assert derive_axial_flux_stage([order, revenue]) == "AF6"
 
 
+def test_route_stage_result_reports_exact_fact_ids_for_all_mode():
+    order = axial_fact(
+        "order_award",
+        {"application_domain": "robot_hand"},
+        fact_id="fact-order",
+        event_id="shared-event",
+    )
+    revenue = axial_fact(
+        "revenue_margin",
+        {
+            "application_domain": "robot_hand",
+            "revenue_confirmed": True,
+        },
+        fact_id="fact-revenue",
+        event_id="shared-event",
+    )
+
+    result = orchestration.derive_route_stage_result(
+        [order, revenue],
+        axial_flux_route(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert result == orchestration.RouteStageResult(
+        stage="AF6",
+        matched_fact_ids=("fact-order", "fact-revenue"),
+        reasons=("matched_configured_route_stage:AF6",),
+    )
+    assert derive_axial_flux_stage(
+        [order, revenue],
+        as_of_date=AS_OF_DATE,
+    ) == result.stage
+
+
+def test_route_stage_result_reports_no_match_without_promoting_pending_fact():
+    pending = axial_fact(
+        "prototype_delivery",
+        fact_id="fact-pending",
+        validation_status="pending",
+    )
+
+    result = orchestration.derive_route_stage_result(
+        [pending],
+        axial_flux_route(),
+        as_of_date=AS_OF_DATE,
+    )
+
+    assert result.stage == "AF0"
+    assert result.matched_fact_ids == ()
+    assert result.reasons == ("no_reviewed_route_facts_matched",)
+
+
 def test_axial_flux_interpreter_uses_optional_route_match_mode():
     route = deepcopy(axial_flux_route())
     route["authenticity_ladder"]["AF1"]["fact_match_mode"] = "all"

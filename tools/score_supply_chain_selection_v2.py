@@ -26,12 +26,23 @@ if str(SCREENER_SERVICE_ROOT) not in sys.path:
     sys.path.insert(0, str(SCREENER_SERVICE_ROOT))
 
 from kronos_factors.engine.industry_chain_templates import (  # noqa: E402
+    get_industry_template,
     load_selection_v2_profile,
     validate_selection_v2_profile,
 )
+from kronos_factors.engine.industry_chain_evidence_requirements import (  # noqa: E402
+    EvidenceRequirementCatalog,
+    load_evidence_requirements,
+)
 from kronos_factors.scorer.supply_chain_selection_v2 import (  # noqa: E402
+    PoolGateResult,
     ScoreResult,
+    UnresolvedTechnologyRoute,
     assign_selection_pool,
+    combine_pool_gates,
+    derive_evidence_gate,
+    derive_route_gate,
+    resolve_mapping_technology_route,
     score_authenticity,
     score_company_benefit,
     score_operating_quality,
@@ -49,15 +60,6 @@ DEFAULT_DSN = os.environ.get(
     "KRONOS_PG_URL",
     "postgresql://kronos:kronos@localhost:6432/kronos",
 )
-EVIDENCE_MAX_POOL = {
-    "E0": None,
-    "E1": "D",
-    "E2": "C",
-    "E3": "B",
-    "E4": "A",
-    "E5": "A",
-    "E6": "A",
-}
 
 
 def _cutoff_utc(trade_date: date) -> datetime:
@@ -121,8 +123,6 @@ def _confirmed_evidence(
             continue
         if row.get("validation_status") != "confirmed":
             continue
-        if row.get("fact_nature") != "confirmed_fact":
-            continue
         if not _has_review_text(row.get("reviewer")):
             limitations.append(f"evidence_incomplete_review:{event_id}")
             continue
@@ -150,35 +150,45 @@ def _confirmed_evidence(
     return confirmed, limitations
 
 
+def prepare_mapping_for_score(
+    mapping: Mapping[str, Any],
+    *,
+    trade_date: date,
+) -> dict[str, Any]:
+    """Fail closed for repository commercial stages without their audit chain."""
+
+    prepared = dict(mapping)
+    limitations = list(prepared.get("data_limitations") or [])
+    prepared["data_limitations"] = limitations
+    if prepared.get("commercial_stage") is None:
+        return prepared
+
+    cutoff = _cutoff_utc(trade_date)
+    reviewed_at = _reviewed_time_utc(prepared.get("source_event_reviewed_at"))
+    try:
+        event_time = _publish_time_utc(prepared.get("source_event_date"))
+    except TypeError:
+        event_time = None
+    audited = bool(
+        str(prepared.get("stage_review_status") or "").casefold() == "approved"
+        and str(prepared.get("source_event_review_status") or "").casefold()
+        == "approved"
+        and _has_review_text(prepared.get("source_event_reviewer"))
+        and _has_review_text(prepared.get("source_event_review_note"))
+        and reviewed_at is not None
+        and reviewed_at <= cutoff
+        and event_time is not None
+        and event_time <= cutoff
+    )
+    if not audited:
+        prepared["commercial_stage"] = None
+        if "unaudited_commercial_stage" not in limitations:
+            limitations.append("unaudited_commercial_stage")
+    return prepared
+
+
 def _fact_types(evidence: Iterable[Mapping[str, Any]]) -> set[str]:
     return {str(item.get("fact_type") or "") for item in evidence}
-
-
-def derive_evidence_level(
-    mapping: Mapping[str, Any],
-    confirmed: Iterable[Mapping[str, Any]],
-) -> str:
-    rows = list(confirmed)
-    fact_types = _fact_types(rows)
-    if any(
-        item.get("metadata", {}).get("profit_confirmed")
-        for item in rows
-    ):
-        return "E6"
-    if any(
-        item.get("metadata", {}).get("revenue_confirmed")
-        for item in rows
-    ):
-        return "E5"
-    if "order_award" in fact_types:
-        return "E4"
-    if "customer_validation" in fact_types:
-        return "E3"
-    if "prototype_delivery" in fact_types:
-        return "E2"
-    if mapping.get("tag_name") or mapping.get("status") == "candidate":
-        return "E1"
-    return "E0"
 
 
 def _freshness_score(confirmed: list[dict[str, Any]], cutoff: datetime) -> float | None:
@@ -348,18 +358,50 @@ def _veto_reasons(confirmed: list[dict[str, Any]]) -> list[str]:
 
 
 def score_mapping(
-    mapping: dict[str, Any],
+    mapping: Mapping[str, Any],
     evidence: list[dict[str, Any]],
     *,
     trade_date: date,
     node_score: float | None,
     profile: dict[str, Any] | None = None,
+    evidence_requirements: EvidenceRequirementCatalog | None = None,
+    industry_template: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     configured_profile = profile or load_selection_v2_profile()
     validate_selection_v2_profile(configured_profile)
     cutoff = _cutoff_utc(trade_date)
-    confirmed, limitations = _confirmed_evidence(evidence, cutoff=cutoff)
-    evidence_level = derive_evidence_level(mapping, confirmed)
+    confirmed, evidence_limitations = _confirmed_evidence(evidence, cutoff=cutoff)
+    limitations = list(mapping.get("data_limitations") or [])
+    for limitation in evidence_limitations:
+        if limitation not in limitations:
+            limitations.append(limitation)
+
+    catalog = evidence_requirements or load_evidence_requirements()
+    template = industry_template
+    chain_id = str(mapping.get("chain_id") or "")
+    if template is None and chain_id:
+        try:
+            template = get_industry_template(chain_id)
+        except ValueError:
+            template = None
+    evidence_gate = derive_evidence_gate(
+        mapping,
+        confirmed,
+        catalog,
+        as_of_date=trade_date,
+    )
+    try:
+        resolved_route_id = resolve_mapping_technology_route(mapping, template)
+    except UnresolvedTechnologyRoute:
+        resolved_route_id = None
+    route_gate = derive_route_gate(
+        mapping,
+        confirmed,
+        template,
+        as_of_date=trade_date,
+    )
+    combined_gate = combine_pool_gates(evidence_gate, route_gate)
+    evidence_level = evidence_gate.level
     authenticity_inputs = _authenticity_inputs(
         confirmed,
         evidence_level,
@@ -393,24 +435,31 @@ def score_mapping(
     )
     veto_reasons = _veto_reasons(confirmed)
     confidence = _confidence_score(authenticity, evidence_level)
-    rank = int(evidence_level[1:])
+    rank = int(catalog.evidence_levels[evidence_level]["rank"])
+    pool_inputs = {
+        "evidence_level": evidence_level,
+        "commercial_stage": mapping.get("commercial_stage"),
+        "authenticity_score": authenticity.score,
+        "confidence_score": confidence,
+        "benefit_score": benefit.score,
+        "operating_quality_coverage": operating.coverage_ratio,
+        "has_veto": bool(veto_reasons),
+        "veto_reasons": veto_reasons,
+        "has_order_or_delivery_evidence": rank
+        >= int(catalog.evidence_levels["E4"]["rank"]),
+        "has_product_evidence": rank
+        >= int(catalog.evidence_levels["E2"]["rank"]),
+        "has_customer_validation": rank
+        >= int(catalog.evidence_levels["E3"]["rank"]),
+        "has_next_validation": bool(mapping.get("next_validation_event"))
+        and mapping.get("next_validation_date") is not None,
+        "max_pool_code": combined_gate.max_pool_code,
+        "hard_exclusion_reasons": (
+            list(combined_gate.reasons) if not combined_gate.eligible else []
+        ),
+    }
     pool = assign_selection_pool(
-        {
-            "evidence_level": evidence_level,
-            "commercial_stage": mapping.get("commercial_stage"),
-            "authenticity_score": authenticity.score,
-            "confidence_score": confidence,
-            "benefit_score": benefit.score,
-            "operating_quality_coverage": operating.coverage_ratio,
-            "has_veto": bool(veto_reasons),
-            "veto_reasons": veto_reasons,
-            "has_order_or_delivery_evidence": rank >= 4,
-            "has_product_evidence": rank >= 2,
-            "has_customer_validation": rank >= 3,
-            "has_next_validation": bool(mapping.get("next_validation_event"))
-            and mapping.get("next_validation_date") is not None,
-            "max_pool_code": EVIDENCE_MAX_POOL[evidence_level],
-        },
+        pool_inputs,
         configured_profile,
     )
     evidence_ids = sorted(
@@ -427,9 +476,13 @@ def score_mapping(
         "model_version": MODEL_VERSION,
         "authenticity": {
             **asdict(authenticity),
-            "detail": {**authenticity.detail, **authenticity_inputs},
+            "detail": {
+                **authenticity.detail,
+                **authenticity_inputs,
+                "evidence_gate": asdict(evidence_gate),
+            },
             "evidence_level": evidence_level,
-            "max_pool_code": EVIDENCE_MAX_POOL[evidence_level],
+            "max_pool_code": evidence_gate.max_pool_code,
         },
         "operating_quality": asdict(operating),
         "benefit": {
@@ -438,7 +491,16 @@ def score_mapping(
         },
         "selection": {
             **asdict(opportunity),
-            "detail": {**opportunity.detail, **selection_inputs},
+            "detail": {
+                **opportunity.detail,
+                **selection_inputs,
+                "resolved_technology_route_id": resolved_route_id,
+                "pool_gates": {
+                    "evidence": asdict(evidence_gate),
+                    "route": asdict(route_gate),
+                    "combined": asdict(combined_gate),
+                },
+            },
             "opportunity_score": opportunity.score,
             "confidence_score": confidence,
             **pool,
@@ -483,6 +545,10 @@ def run_batch_score(
             )
             cutoff = _cutoff_utc(trade_date)
             for mapping in mappings:
+                prepared_mapping = prepare_mapping_for_score(
+                    mapping,
+                    trade_date=trade_date,
+                )
                 evidence_rows = repo.fetch_asof_evidence(
                     cur,
                     str(mapping["mapping_id"]),
@@ -495,7 +561,7 @@ def run_batch_score(
                     model_version=model_version,
                 )
                 bundle = score_mapping(
-                    mapping,
+                    prepared_mapping,
                     evidence_rows,
                     trade_date=trade_date,
                     node_score=(
