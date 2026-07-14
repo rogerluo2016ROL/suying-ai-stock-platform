@@ -133,6 +133,33 @@ def _contains_message_id(payload: Any, message_id: str) -> bool:
 def confirm_message_delivery(chat_id: str, message_id: str, *, attempts: int = 3) -> bool:
     total_attempts = max(attempts, 1)
     for attempt in range(total_attempts):
+        read_status_cmd = [
+            "lark-cli",
+            "im",
+            "messages",
+            "read_users",
+            "--as",
+            "bot",
+            "--message-id",
+            message_id,
+            "--user-id-type",
+            "open_id",
+            "--page-size",
+            "1",
+            "--format",
+            "json",
+        ]
+        read_status = subprocess.run(
+            read_status_cmd,
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+        if read_status.returncode == 0:
+            return True
+
         for identity in ("bot", "user"):
             cmd = [
                 "lark-cli",

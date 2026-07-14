@@ -218,24 +218,49 @@ def test_registered_bi_shifu_trend_uses_named_strategy_engine(monkeypatch):
     }
 
 
-def test_confirm_message_delivery_uses_bot_chat_query(monkeypatch):
-    seen = {}
+def test_confirm_message_delivery_falls_back_to_bot_chat_query(monkeypatch):
+    calls = []
+
+    class FakeProc:
+        def __init__(self, returncode, stdout):
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = ""
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        if "read_users" in cmd:
+            return FakeProc(1, '{"ok":false}')
+        return FakeProc(0, '{"items":[{"message_id":"om_test"}]}')
+
+    monkeypatch.setattr(pipeline.subprocess, "run", fake_run)
+
+    assert pipeline.confirm_message_delivery("oc_test", "om_test", attempts=1) is True
+    assert calls[1][:5] == [
+        "lark-cli", "im", "+chat-messages-list", "--as", "bot",
+    ]
+
+
+def test_confirm_message_delivery_uses_sender_read_status_before_chat_history(monkeypatch):
+    calls = []
 
     class FakeProc:
         returncode = 0
-        stdout = '{"items":[{"message_id":"om_test"}]}'
+        stdout = '{"ok":true,"data":{"items":[]}}'
         stderr = ""
 
     def fake_run(cmd, **kwargs):
-        seen["cmd"] = cmd
+        calls.append(cmd)
         return FakeProc()
 
     monkeypatch.setattr(pipeline.subprocess, "run", fake_run)
 
     assert pipeline.confirm_message_delivery("oc_test", "om_test", attempts=1) is True
-    assert seen["cmd"][:5] == [
-        "lark-cli", "im", "+chat-messages-list", "--as", "bot",
-    ]
+    assert calls == [[
+        "lark-cli", "im", "messages", "read_users", "--as", "bot",
+        "--message-id", "om_test", "--user-id-type", "open_id",
+        "--page-size", "1", "--format", "json",
+    ]]
 
 
 def test_deliver_feishu_messages_continues_after_one_chat_fails(monkeypatch, tmp_path):
@@ -319,7 +344,7 @@ def test_confirm_message_delivery_falls_back_to_user_when_bot_cannot_read(monkey
     monkeypatch.setattr(pipeline.subprocess, "run", fake_run)
 
     assert pipeline.confirm_message_delivery("oc_test", "om_test", attempts=1) is True
-    assert identities == ["bot", "user"]
+    assert identities == ["bot", "bot", "user"]
 
 
 def test_write_delivery_state_updates_both_run_files(tmp_path):
