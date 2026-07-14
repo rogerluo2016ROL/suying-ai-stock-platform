@@ -29,6 +29,8 @@ def test_registration_creates_eight_isolated_nodes():
     assert result["node_count"] == 8
     assert all(row["chain_id"] == "ai_token_output" for row in nodes)
     assert {row["node_id"] for row in nodes} == {f"ai_token_output:L{i}" for i in range(1, 9)}
+    views = [row for (table, _), row in fake.rows.items() if table == "supply_chain_deconstruct_views"]
+    assert {row["view_type"] for row in views} == {"value_chain"}
 
 
 def test_production_registration_requires_explicit_guard(monkeypatch):

@@ -39,7 +39,7 @@ def _rows(as_of_date: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         })
         views.append({
             "view_id": f"{node_id}:commercial_chain", "node_id": node_id,
-            "view_type": "commercial_chain", "payload": {"segments": layer["segments"], "evidence": layer["evidence"], "market_layer_separate": True, "as_of_date": as_of_date},
+            "view_type": "value_chain", "payload": {"segments": layer["segments"], "evidence": layer["evidence"], "market_layer_separate": True, "as_of_date": as_of_date},
             "evidence_ids": [],
         })
         previous = node_id
