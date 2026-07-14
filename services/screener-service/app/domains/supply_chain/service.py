@@ -3947,3 +3947,70 @@ def token_output_power_mapping_detail(mapping_id: str) -> dict[str, Any]:
     payload["market_layer"]["separate_from_industry_evidence"] = True
     payload["source_status"] = "ready"
     return payload
+
+
+TOKEN_OUTPUT_DIMENSIONS = [
+    "demand_authenticity", "model_product_strength", "inference_unit_economics",
+    "bom_supply_position", "delivery_customer_stickiness", "commercial_output",
+    "evidence_realization",
+]
+
+
+def _token_output_row(row: dict[str, Any]) -> dict[str, Any]:
+    result = dict(row)
+    result["mapping_id"] = str(result.get("mapping_id") or "")
+    result["code"] = str(result.get("code") or "")
+    result["pool_code"] = str(result.get("pool_code") or "D").upper()
+    result["evidence_grade"] = str(result.get("evidence_grade") or "E0").upper()
+    result["reason_codes"] = _json_or_default(result.get("reason_codes"), [])
+    result["coverage_ratio"] = _to_float(result.get("coverage_ratio"), None)
+    result["industry_score"] = _to_float(result.get("industry_score"), None)
+    result["market_signal_score"] = _to_float(result.get("market_signal_score"), None)
+    return result
+
+
+def token_output_payload(
+    top_n: int = 50,
+    pool_code: str | None = None,
+    include_provisional: bool = False,
+    as_of_date: str | None = None,
+) -> dict[str, Any]:
+    """Return the evidence-first AI Token commercial output chain."""
+    safe_top_n = min(200, max(1, int(top_n or 50)))
+    safe_pool = str(pool_code or "").upper() or None
+    if safe_pool not in {None, "A", "B", "C", "D"}:
+        raise HTTPException(status_code=400, detail="pool_code must be A, B, C, or D")
+    formal_codes = (safe_pool,) if safe_pool in {"A", "B", "C"} else ("A", "B", "C")
+    formal = repository.list_token_output_pools(None, top_n=safe_top_n, pool_codes=formal_codes, as_of_date=as_of_date)
+    provisional = []
+    if include_provisional or safe_pool == "D":
+        provisional = repository.list_token_output_pools(None, top_n=safe_top_n, pool_codes=("D",), as_of_date=as_of_date)
+    counts = repository.token_output_counts(None, as_of_date)
+    return {
+        "version": "ai-token-output-v1",
+        "chain_id": "ai_token_output",
+        "as_of": as_of_date,
+        "layers": {f"L{i}": {} for i in range(1, 9)},
+        "industry_dimensions": list(TOKEN_OUTPUT_DIMENSIONS),
+        "mapping_count": int(counts.get("mapping_count") or 0),
+        "unique_company_count": int(counts.get("unique_company_count") or 0),
+        "formal_company_count": int(counts.get("formal_company_count") or 0),
+        "domestic_output_count": int(counts.get("domestic_output_count") or 0),
+        "overseas_output_count": int(counts.get("overseas_output_count") or 0),
+        "items": [_token_output_row(row) for row in formal],
+        "provisional_items": [_token_output_row(row) for row in provisional],
+        "market_layer_separate": True,
+        "limitations": ["D池只表示待验证业务相关性", "市场信号不改变产业证据等级"],
+    }
+
+
+def token_output_mapping_detail(mapping_id: str) -> dict[str, Any]:
+    payload = repository.get_token_output_evidence(None, str(mapping_id))
+    if not payload:
+        raise HTTPException(status_code=404, detail=f"Token output mapping '{mapping_id}' not found")
+    result = dict(payload)
+    result["missing_fields"] = _json_or_default(result.get("missing_fields"), [])
+    result["reason_codes"] = _json_or_default(result.get("reason_codes"), [])
+    result["source_mapping_ids"] = _json_or_default(result.get("source_mapping_ids"), [])
+    result["market_layer_separate"] = True
+    return result

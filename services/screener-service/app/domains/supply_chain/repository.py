@@ -214,3 +214,100 @@ def fetch_token_output_power_mapping(cur=None, mapping_id: str = "") -> dict:
         return _fetch_token_mapping_detail(cur, mapping_id)
     with connect() as pg:
         return _fetch_token_mapping_detail(pg.cursor(), mapping_id)
+
+
+def list_token_output_pools(
+    cur=None,
+    top_n: int = 50,
+    pool_codes: tuple[str, ...] = ("A", "B", "C"),
+    as_of_date: str | None = None,
+) -> list[dict]:
+    """Read commercial Token pool rows without changing their evidence grade."""
+    owned = cur is None
+    pg = connect() if owned else None
+    cur = pg.cursor() if owned else cur
+    try:
+        if not table_exists(cur, "business_tag_token_commercial_pool_states"):
+            return []
+        placeholders = ",".join(["%s"] * len(pool_codes))
+        params: list = list(pool_codes)
+        date_clause = ""
+        if as_of_date:
+            date_clause = "AND ps.as_of_date <= %s::date"
+            params.append(as_of_date)
+        params.append(max(1, min(int(top_n or 50), 200)))
+        cur.execute(f"""
+            SELECT ps.*,m.chain_id,m.node_id,m.tag_name,m.status AS mapping_status,
+                   sc.formal_ranking_eligible,sc.score_detail
+            FROM business_tag_token_commercial_pool_states ps
+            JOIN business_tag_mapping m ON m.mapping_id=ps.mapping_id
+            LEFT JOIN business_tag_token_commercial_scores sc ON sc.mapping_id=ps.mapping_id AND sc.as_of_date=ps.as_of_date
+            WHERE m.chain_id='ai_token_output'
+              AND m.status NOT IN ('rejected','disabled')
+              AND ps.pool_code IN ({placeholders})
+              {date_clause}
+            ORDER BY ps.evidence_grade DESC,ps.industry_score DESC NULLS LAST,ps.as_of_date DESC
+            LIMIT %s
+        """, tuple(params))
+        names = [desc[0] for desc in cur.description]
+        return [dict(zip(names, row)) for row in cur.fetchall()]
+    finally:
+        if owned:
+            pg.close()
+
+
+def token_output_counts(cur=None, as_of_date: str | None = None) -> dict[str, int]:
+    owned = cur is None
+    pg = connect() if owned else None
+    cur = pg.cursor() if owned else cur
+    try:
+        date_clause = "AND ps.as_of_date <= %s::date" if as_of_date else ""
+        params = (as_of_date,) if as_of_date else ()
+        cur.execute(f"""
+            SELECT COUNT(*) AS mapping_count,
+                   COUNT(DISTINCT m.code) AS unique_company_count,
+                   COUNT(DISTINCT m.code) FILTER (WHERE ps.pool_code IN ('A','B','C')) AS formal_company_count,
+                   COUNT(DISTINCT m.code) FILTER (WHERE e.domestic_output_status NOT IN ('unknown','none')) AS domestic_output_count,
+                   COUNT(DISTINCT m.code) FILTER (WHERE e.overseas_output_status NOT IN ('unknown','none')) AS overseas_output_count
+            FROM business_tag_mapping m
+            LEFT JOIN business_tag_token_commercial_pool_states ps ON ps.mapping_id=m.mapping_id
+            LEFT JOIN business_tag_token_commercial_evidence e ON e.mapping_id=m.mapping_id AND e.as_of_date=ps.as_of_date
+            WHERE m.chain_id='ai_token_output' AND m.status NOT IN ('rejected','disabled') {date_clause}
+        """, params)
+        row = cur.fetchone() or (0, 0, 0, 0, 0)
+        return dict(zip(("mapping_count", "unique_company_count", "formal_company_count", "domestic_output_count", "overseas_output_count"), [int(value or 0) for value in row]))
+    finally:
+        if owned:
+            pg.close()
+
+
+def get_token_output_evidence(cur=None, mapping_id: str = "") -> dict:
+    owned = cur is None
+    pg = connect() if owned else None
+    cur = pg.cursor() if owned else cur
+    try:
+        cur.execute("""
+            SELECT m.mapping_id,m.code,m.chain_id,m.node_id,m.tag_name,m.status,
+                   e.*,ps.pool_code,ps.industry_score,ps.market_signal_score,ps.reason_codes,
+                   sc.score_detail
+            FROM business_tag_mapping m
+            LEFT JOIN business_tag_token_commercial_evidence e ON e.mapping_id=m.mapping_id
+            LEFT JOIN business_tag_token_commercial_pool_states ps ON ps.mapping_id=m.mapping_id AND ps.as_of_date=e.as_of_date
+            LEFT JOIN business_tag_token_commercial_scores sc ON sc.mapping_id=m.mapping_id AND sc.as_of_date=e.as_of_date
+            WHERE m.mapping_id=%s AND m.chain_id='ai_token_output' AND m.status NOT IN ('rejected','disabled')
+            ORDER BY e.as_of_date DESC LIMIT 1
+        """, (mapping_id,))
+        row = cur.fetchone()
+        if not row:
+            return {}
+        names = [desc[0] for desc in cur.description]
+        payload = dict(zip(names, row))
+        metadata = payload.get("metadata") or {}
+        if isinstance(metadata, str):
+            import json
+            metadata = json.loads(metadata)
+        payload["source_mapping_ids"] = list(metadata.get("source_mapping_ids") or [])
+        return payload
+    finally:
+        if owned:
+            pg.close()
