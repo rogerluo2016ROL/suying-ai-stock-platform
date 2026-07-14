@@ -2,6 +2,7 @@ import argparse
 import importlib.util
 import json
 import sys
+import types
 from datetime import datetime
 from pathlib import Path
 
@@ -59,6 +60,16 @@ def test_manifest_hashes_are_deterministic(monkeypatch):
     assert one.universe_hash == two.universe_hash
 
 
+def test_git_state_is_conservative_when_git_is_unavailable(monkeypatch):
+    monkeypatch.setattr(
+        pipeline.subprocess,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(FileNotFoundError("git")),
+    )
+
+    assert pipeline._git_state() == {"commit": "unavailable", "dirty": True}
+
+
 def test_send_feishu_defaults_to_config():
     assert pipeline.resolve_send_feishu(
         _args(send_feishu=None), {"send_feishu_by_default": True}
@@ -84,6 +95,34 @@ def test_parser_accepts_both_feishu_switches():
     assert parser.parse_args(["--model", "short", "--no-send-feishu"]).send_feishu is False
 
 
+def test_parser_accepts_explicit_afternoon_time_slot():
+    args = pipeline.build_parser().parse_args(
+        ["--model", "qishen_afternoon", "--time-slot", "14:00"]
+    )
+    assert args.time_slot == "14:00"
+
+
+def test_chat_targets_use_all_configured_groups_by_default():
+    targets = pipeline.resolve_chat_targets(
+        _args(chat_id=[]),
+        {
+            "chat_targets": [
+                {"key": "analysis", "name": "AI 投研分析", "chat_id": "oc_a"},
+                {"key": "test", "name": "AI 投研测试", "chat_id": "oc_b"},
+                {"key": "fitness", "name": "一起减肥吧", "chat_id": "oc_c"},
+            ]
+        },
+    )
+    assert [item["chat_id"] for item in targets] == ["oc_a", "oc_b", "oc_c"]
+
+
+def test_parser_accepts_repeated_chat_ids():
+    args = pipeline.build_parser().parse_args(
+        ["--model", "short", "--chat-id", "oc_a", "--chat-id", "oc_b"]
+    )
+    assert args.chat_id == ["oc_a", "oc_b"]
+
+
 def test_extract_message_id_from_nested_response():
     assert pipeline.extract_message_id(
         {"code": 0, "data": {"message_id": "om_test"}}
@@ -92,6 +131,91 @@ def test_extract_message_id_from_nested_response():
         {"data": {"message": {"message_id": "om_nested"}}}
     ) == "om_nested"
     assert pipeline.extract_message_id({"code": 0}) == ""
+
+
+def test_auction_source_plan_uses_eastmoney_when_tushare_rows_are_empty():
+    plan = pipeline.plan_cb_auction_fallback(
+        {"limit_list_d": 0, "stk_auction_o": 0, "eastmoney_limit_pool": 0}
+    )
+
+    assert plan == {
+        "collect_eastmoney_limit_pool": True,
+        "collect_eastmoney_snapshot": True,
+        "primary_source": "tushare_unavailable",
+    }
+
+
+def test_auction_source_plan_keeps_usable_tushare_data():
+    plan = pipeline.plan_cb_auction_fallback(
+        {"limit_list_d": 20, "stk_auction_o": 3000, "eastmoney_limit_pool": 0}
+    )
+
+    assert plan == {
+        "collect_eastmoney_limit_pool": False,
+        "collect_eastmoney_snapshot": False,
+        "primary_source": "tushare",
+    }
+
+
+def test_registered_afternoon_mode_forwards_requested_time_slot(monkeypatch):
+    captured = {}
+    fake_router = types.ModuleType("app.routers.screener")
+
+    def run_afternoon(mode, top_n, trade_date, time_slot="14:30"):
+        captured["time_slot"] = time_slot
+        return {"mode": mode, "picks": []}
+
+    fake_router._run_afternoon_mode = run_afternoon
+    for name in (
+        "_run_bi_full_market_mode",
+        "_run_bi_shifu_trend_mode",
+        "_run_bi_trend_mode",
+        "_run_cb_mode",
+        "_run_leader_mode",
+        "_run_multifactor_mode",
+        "_run_supply_chain_mode",
+        "_run_supply_chain_trend_launch_mode",
+    ):
+        setattr(fake_router, name, lambda *_args, **_kwargs: {})
+    monkeypatch.setitem(sys.modules, "app.routers.screener", fake_router)
+
+    pipeline._run_registered_mode(
+        "leader_afternoon",
+        10,
+        "2026-07-14",
+        time_slot="14:00",
+    )
+
+    assert captured["time_slot"] == "14:00"
+
+
+def test_registered_bi_shifu_trend_uses_named_strategy_engine(monkeypatch):
+    captured = {}
+    fake_router = types.ModuleType("app.routers.screener")
+    names = (
+        "_run_afternoon_mode",
+        "_run_bi_full_market_mode",
+        "_run_bi_trend_mode",
+        "_run_cb_mode",
+        "_run_leader_mode",
+        "_run_multifactor_mode",
+        "_run_supply_chain_mode",
+        "_run_supply_chain_trend_launch_mode",
+    )
+    for name in names:
+        setattr(fake_router, name, lambda *_args, **_kwargs: {})
+    fake_router._run_bi_shifu_trend_mode = lambda mode, top_n, trade_date: captured.update(
+        {"mode": mode, "top_n": top_n, "trade_date": trade_date}
+    ) or {"picks": []}
+    monkeypatch.setitem(sys.modules, "app.routers.screener", fake_router)
+
+    pipeline._run_registered_mode("bi_shifu_trend", 20, "2026-07-14")
+
+    assert captured == {
+        "mode": "bi_shifu_trend",
+        "top_n": 20,
+        "trade_date": "2026-07-14",
+    }
 
 
 def test_confirm_message_delivery_uses_bot_chat_query(monkeypatch):
@@ -112,6 +236,68 @@ def test_confirm_message_delivery_uses_bot_chat_query(monkeypatch):
     assert seen["cmd"][:5] == [
         "lark-cli", "im", "+chat-messages-list", "--as", "bot",
     ]
+
+
+def test_deliver_feishu_messages_continues_after_one_chat_fails(monkeypatch, tmp_path):
+    sent = []
+
+    def fake_one(**kwargs):
+        sent.append(kwargs["chat_id"])
+        if kwargs["chat_id"] == "oc_bad":
+            raise RuntimeError("send failed")
+        return {
+            "push_status": "confirmed",
+            "chat_id": kwargs["chat_id"],
+            "message_id": "om_" + kwargs["chat_id"],
+        }
+
+    monkeypatch.setattr(pipeline, "deliver_feishu_message", fake_one)
+    state = pipeline.deliver_feishu_messages(
+        run_dir=tmp_path,
+        result={"pipeline": {}},
+        targets=[
+            {"key": "a", "name": "A", "chat_id": "oc_ok"},
+            {"key": "b", "name": "B", "chat_id": "oc_bad"},
+            {"key": "c", "name": "C", "chat_id": "oc_ok2"},
+        ],
+        message="test",
+        sender=lambda *_args: {},
+        attempts=1,
+    )
+
+    assert sent == ["oc_ok", "oc_bad", "oc_ok2"]
+    assert state["status"] == "partial_delivery"
+    assert len(state["deliveries"]) == 3
+
+
+def test_multi_delivery_does_not_resend_when_message_id_was_returned(monkeypatch, tmp_path):
+    sent = []
+    result = {"pipeline": {}}
+
+    def unconfirmed(**kwargs):
+        sent.append(kwargs["chat_id"])
+        result["pipeline"]["feishu_delivery"] = {
+            "push_status": "unconfirmed",
+            "chat_id": kwargs["chat_id"],
+            "message_id": "om_sent",
+            "error": "message_not_found_in_chat",
+        }
+        raise RuntimeError("unconfirmed")
+
+    monkeypatch.setattr(pipeline, "deliver_feishu_message", unconfirmed)
+
+    state = pipeline.deliver_feishu_messages(
+        run_dir=tmp_path,
+        result=result,
+        targets=[{"key": "a", "name": "A", "chat_id": "oc_a"}],
+        message="test",
+        sender=lambda *_args: {},
+        attempts=3,
+    )
+
+    assert sent == ["oc_a"]
+    assert state["deliveries"][0]["message_id"] == "om_sent"
+    assert state["deliveries"][0]["push_status"] == "unconfirmed"
 
 
 def test_confirm_message_delivery_falls_back_to_user_when_bot_cannot_read(monkeypatch):

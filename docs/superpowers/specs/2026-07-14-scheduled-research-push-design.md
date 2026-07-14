@@ -15,7 +15,7 @@
 | 任务 ID | 时间 | 模型配置 | 运行要求 |
 | --- | --- | --- | --- |
 | `cb_auction_t0_0925` | 09:25 | `cb_auction_t0` | 先采集竞价数据，再运行秋神竞价 T+0 选债 |
-| `bi_trend_launch_0930` | 09:30 | `bi_trend_launch` | 运行毕师傅硬核科技趋势启动选股 |
+| `bi_shifu_trend_0930` | 09:30 | `bi_shifu_trend` | 运行毕师傅趋势战法（MACD+OBV 八条件共振）选股 |
 | `qishen_afternoon_1400` | 14:00 | `qishen_afternoon` | 使用不晚于 14:00 的最新分钟数据 |
 | `qishen_afternoon_1430` | 14:30 | `qishen_afternoon` | 重新刷新和计算，不复用 14:00 结果 |
 

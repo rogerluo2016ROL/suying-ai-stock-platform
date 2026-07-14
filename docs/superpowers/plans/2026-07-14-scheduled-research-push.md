@@ -216,7 +216,7 @@ def test_config_registers_four_requested_tasks():
     config = scheduled.load_scheduled_research_config()
     assert [(x["id"], x["cron"], x["model"], x.get("time_slot")) for x in config["tasks"]] == [
         ("cb_auction_t0_0925", "25 9 * * 1-5", "cb_auction_t0", None),
-        ("bi_trend_launch_0930", "30 9 * * 1-5", "bi_trend_launch", None),
+        ("bi_shifu_trend_0930", "30 9 * * 1-5", "bi_shifu_trend", None),
         ("qishen_afternoon_1400", "0 14 * * 1-5", "qishen_afternoon", "14:00"),
         ("qishen_afternoon_1430", "30 14 * * 1-5", "qishen_afternoon", "14:30"),
     ]
@@ -240,7 +240,7 @@ def test_non_trading_day_skips_without_executor(monkeypatch, tmp_path):
     monkeypatch.setattr(scheduled, "is_open_trading_day", lambda *_: False)
     called = []
     result = scheduled.run_scheduled_research_task(
-        "bi_trend_launch_0930",
+        "bi_shifu_trend_0930",
         now=datetime(2026, 7, 18, 9, 30),
         executor=lambda cmd: called.append(cmd),
         state_root=tmp_path,
@@ -297,12 +297,12 @@ def test_scheduler_registers_four_research_jobs(monkeypatch):
     monkeypatch.setattr(scheduler, "validate_pipeline_consistency", lambda: {})
     monkeypatch.setattr(scheduler, "build_scheduled_research_jobs", lambda: [
         {"id": "cb_auction_t0_0925", "name": "竞价", "cron": "25 9 * * 1-5", "fn": lambda: {}},
-        {"id": "bi_trend_launch_0930", "name": "趋势", "cron": "30 9 * * 1-5", "fn": lambda: {}},
+        {"id": "bi_shifu_trend_0930", "name": "趋势", "cron": "30 9 * * 1-5", "fn": lambda: {}},
         {"id": "qishen_afternoon_1400", "name": "午后14", "cron": "0 14 * * 1-5", "fn": lambda: {}},
         {"id": "qishen_afternoon_1430", "name": "午后1430", "cron": "30 14 * * 1-5", "fn": lambda: {}},
     ])
     scheduler.start_scheduler()
-    assert {j["id"] for j in scheduler._jobs}.issuperset({"cb_auction_t0_0925", "bi_trend_launch_0930", "qishen_afternoon_1400", "qishen_afternoon_1430"})
+    assert {j["id"] for j in scheduler._jobs}.issuperset({"cb_auction_t0_0925", "bi_shifu_trend_0930", "qishen_afternoon_1400", "qishen_afternoon_1430"})
     scheduler.stop_scheduler()
 ```
 
@@ -370,4 +370,3 @@ Expected: exit code 0。
 暂存配置、调度器、编排模块、市场宽度、统一流水线、报告格式及对应测试。不得暂存 `outputs/`。
 
 Commit: `feat: schedule research models to Feishu groups`
-

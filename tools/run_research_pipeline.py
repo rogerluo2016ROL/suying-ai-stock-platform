@@ -29,7 +29,6 @@ for path in (
     ROOT / "services" / "screener-service",
     ROOT / "packages" / "kronos-factors",
     ROOT / "packages" / "kronos-data",
-    ROOT / "services" / "data-service",
     ROOT / "packages" / "kronos-contracts",
 ):
     text = str(path)
@@ -45,6 +44,41 @@ def resolve_send_feishu(args: argparse.Namespace, config: dict[str, Any]) -> boo
     if args.send_feishu is not None:
         return bool(args.send_feishu)
     return bool(config.get("send_feishu_by_default", False))
+
+
+def resolve_chat_targets(args: argparse.Namespace, config: dict[str, Any]) -> list[dict[str, str]]:
+    """解析发送目标，显式 CLI 参数优先，否则使用配置中的全部群。"""
+
+    raw_chat_ids = getattr(args, "chat_id", [])
+    if isinstance(raw_chat_ids, str):
+        chat_ids = [raw_chat_ids] if raw_chat_ids.strip() else []
+    else:
+        chat_ids = [str(item).strip() for item in (raw_chat_ids or []) if str(item).strip()]
+    if chat_ids:
+        return [
+            {"key": f"cli_{index}", "name": f"目标群 {index}", "chat_id": chat_id}
+            for index, chat_id in enumerate(chat_ids, 1)
+        ]
+
+    targets = []
+    for item in config.get("chat_targets") or []:
+        chat_id = str(item.get("chat_id") or "").strip()
+        if chat_id:
+            targets.append(
+                {
+                    "key": str(item.get("key") or ""),
+                    "name": str(item.get("name") or ""),
+                    "chat_id": chat_id,
+                }
+            )
+    if targets:
+        return targets
+    default_chat_id = str(config.get("default_chat_id") or "").strip()
+    return (
+        [{"key": "default", "name": "默认群", "chat_id": default_chat_id}]
+        if default_chat_id
+        else []
+    )
 
 
 def resolve_model(config: dict[str, Any], model_key: str) -> tuple[str, dict[str, Any]]:
@@ -221,18 +255,91 @@ def deliver_feishu_message(
     return state
 
 
+def deliver_feishu_messages(
+    *,
+    run_dir: Path,
+    result: dict[str, Any],
+    targets: list[dict[str, str]],
+    message: str,
+    sender: Any,
+    attempts: int = 3,
+) -> dict[str, Any]:
+    """向多个群发送同一份结果；单群失败不阻断其他群。"""
+
+    deliveries: list[dict[str, Any]] = []
+    for target in targets:
+        chat_id = str(target.get("chat_id") or "").strip()
+        delivered: dict[str, Any] | None = None
+        last_error = ""
+        for _attempt in range(max(1, attempts)):
+            try:
+                delivered = deliver_feishu_message(
+                    run_dir=run_dir,
+                    result=result,
+                    chat_id=chat_id,
+                    message=message,
+                    sender=sender,
+                )
+                break
+            except Exception as exc:
+                last_error = _delivery_error(exc)
+                recorded = (result.get("pipeline") or {}).get("feishu_delivery") or {}
+                if recorded.get("chat_id") == chat_id and recorded.get("message_id"):
+                    delivered = dict(recorded)
+                    break
+        if delivered is None:
+            delivered = {
+                "push_status": "failed",
+                "chat_id": chat_id,
+                "message_id": "",
+                "error": last_error or "send_failed",
+            }
+        delivered = {
+            "key": target.get("key") or "",
+            "name": target.get("name") or "",
+            **delivered,
+        }
+        deliveries.append(delivered)
+
+    confirmed = sum(item.get("push_status") == "confirmed" for item in deliveries)
+    if deliveries and confirmed == len(deliveries):
+        status = "success"
+    elif confirmed:
+        status = "partial_delivery"
+    else:
+        status = "failed_delivery"
+    aggregate = {"status": status, "deliveries": deliveries}
+
+    result.setdefault("pipeline", {})["feishu_delivery"] = aggregate
+    result["pipeline"]["feishu_deliveries"] = deliveries
+    _write_json(run_dir / "result.json", result)
+    pipeline_path = run_dir / "pipeline.json"
+    pipeline_payload = (
+        json.loads(pipeline_path.read_text(encoding="utf-8"))
+        if pipeline_path.exists()
+        else {}
+    )
+    pipeline_payload["feishu_delivery"] = aggregate
+    pipeline_payload["feishu_deliveries"] = deliveries
+    _write_json(pipeline_path, pipeline_payload)
+    return aggregate
+
+
 def _stable_hash(value: Any) -> str:
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode()
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
 def _git_state() -> dict[str, Any]:
-    commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=False,
-    ).stdout.strip() or "unknown"
-    dirty = bool(subprocess.run(
-        ["git", "status", "--porcelain"], cwd=ROOT, text=True, capture_output=True, check=False,
-    ).stdout.strip())
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=False,
+        ).stdout.strip() or "unknown"
+        dirty = bool(subprocess.run(
+            ["git", "status", "--porcelain"], cwd=ROOT, text=True, capture_output=True, check=False,
+        ).stdout.strip())
+    except FileNotFoundError:
+        return {"commit": "unavailable", "dirty": True}
     return {"commit": commit, "dirty": dirty}
 
 
@@ -351,6 +458,18 @@ def _cb_primary_source_rows(trade_date: str) -> dict[str, int]:
             "SELECT COUNT(*) FROM stk_auction_o "
             f"WHERE trade_date::text IN ('{dash}', '{compact}')"
         ),
+    }
+
+
+def plan_cb_auction_fallback(rows: dict[str, int]) -> dict[str, Any]:
+    """根据当天 Tushare 关键表是否可用，决定东方财富补采范围。"""
+
+    tushare_trigger_ready = int(rows.get("limit_list_d") or 0) > 0
+    tushare_auction_ready = int(rows.get("stk_auction_o") or 0) > 0
+    return {
+        "collect_eastmoney_limit_pool": not tushare_trigger_ready,
+        "collect_eastmoney_snapshot": not tushare_auction_ready,
+        "primary_source": "tushare" if tushare_trigger_ready and tushare_auction_ready else "tushare_unavailable",
     }
 
 
@@ -614,11 +733,18 @@ def _normalize_report_labels(markdown: str, mode: str) -> str:
     return markdown
 
 
-def _run_registered_mode(mode: str, top_n: int, trade_date: str | None) -> dict[str, Any]:
+def _run_registered_mode(
+    mode: str,
+    top_n: int,
+    trade_date: str | None,
+    *,
+    time_slot: str = "14:30",
+) -> dict[str, Any]:
     """Run every mode registered by screener-service config."""
     from app.routers.screener import (
         _run_afternoon_mode,
         _run_bi_full_market_mode,
+        _run_bi_shifu_trend_mode,
         _run_bi_trend_mode,
         _run_cb_mode,
         _run_leader_mode,
@@ -630,7 +756,7 @@ def _run_registered_mode(mode: str, top_n: int, trade_date: str | None) -> dict[
     if mode in {"leader_scalp", "leader_intraday", "leader_auction", "leader_closing"}:
         return _run_leader_mode(mode, top_n, trade_date)
     if mode in {"leader_afternoon", "leader_afternoon_trend_full"}:
-        return _run_afternoon_mode(mode, top_n, trade_date)
+        return _run_afternoon_mode(mode, top_n, trade_date, time_slot=time_slot)
     if mode in {
         "cb_floor",
         "cb_intraday",
@@ -642,6 +768,8 @@ def _run_registered_mode(mode: str, top_n: int, trade_date: str | None) -> dict[
         return _run_cb_mode(mode, top_n, trade_date)
     if mode == "bi_trend_launch":
         return _run_bi_trend_mode(mode, top_n, trade_date)
+    if mode == "bi_shifu_trend":
+        return _run_bi_shifu_trend_mode(mode, top_n, trade_date)
     if mode == "bi_trend_full_market":
         return _run_bi_full_market_mode(mode, top_n, trade_date)
     if mode == "supply_chain":
@@ -684,6 +812,7 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     ):
         raise SystemExit(2)
     top_n = args.top_n or int(model_cfg.get("top_n") or 20)
+    requested_time_slot = getattr(args, "time_slot", "") or "14:30"
     command = LarkCommand(
         command=str(model_cfg.get("title") or model_key),
         mode=str(model_cfg["mode"]),
@@ -714,6 +843,7 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     primary_rows: dict[str, int] | None = None
     fallback: dict[str, Any] | None = None
     pre_model_fallback: dict[str, Any] | None = None
+    cb_data_readiness: dict[str, Any] | None = None
 
     if not args.no_refresh:
         refresh = refresh_before_run(command)
@@ -723,17 +853,55 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     if command.mode.startswith("cb_auction_t0"):
         fallback_enabled = bool(model_cfg.get("eastmoney_fallback")) and args.eastmoney_fallback
         primary_rows = _cb_primary_source_rows(trade_date)
-        if (
-            fallback_enabled
-            and (primary_rows.get("limit_list_d") or 0) == 0
-            and (primary_rows.get("kpl_list") or 0) == 0
-            and (primary_rows.get("eastmoney_limit_pool") or 0) == 0
-        ):
-            pre_model_fallback = {
-                "eastmoney_limit_pool": _run_eastmoney_limit_pool_fallback(trade_date)
-            }
+        fallback_plan = plan_cb_auction_fallback(primary_rows)
+        pre_model_fallback = {}
+        if fallback_enabled and fallback_plan["collect_eastmoney_limit_pool"]:
+            pre_model_fallback["eastmoney_limit_pool"] = _run_eastmoney_limit_pool_fallback(trade_date)
+        if fallback_enabled and fallback_plan["collect_eastmoney_snapshot"]:
+            pre_model_fallback["eastmoney_snapshot"] = _run_eastmoney_fallback(trade_date)
+        if not pre_model_fallback:
+            pre_model_fallback = None
+        primary_rows = _cb_primary_source_rows(trade_date)
+        trigger_ready = (
+            int(primary_rows.get("limit_list_d") or 0) > 0
+            or int(primary_rows.get("eastmoney_limit_pool") or 0) > 0
+        )
+        auction_ready = int(primary_rows.get("stk_auction_o") or 0) > 0
+        cb_data_readiness = {
+            "ready": trigger_ready and auction_ready,
+            "trigger_ready": trigger_ready,
+            "auction_ready": auction_ready,
+            "source": (
+                "tushare"
+                if fallback_plan["primary_source"] == "tushare"
+                else "eastmoney_fallback"
+                if trigger_ready and auction_ready
+                else "unavailable"
+            ),
+            "rows": primary_rows,
+        }
 
-    result = _run_registered_mode(command.mode, command.top_n, command.trade_date)
+    if cb_data_readiness is not None and not cb_data_readiness["ready"]:
+        missing = []
+        if not cb_data_readiness["trigger_ready"]:
+            missing.append("涨停触发数据")
+        if not cb_data_readiness["auction_ready"]:
+            missing.append("竞价快照")
+        result = {
+            "status": "data_insufficient",
+            "mode": command.mode,
+            "trade_date": command.trade_date,
+            "total_picks": 0,
+            "picks": [],
+            "no_result_reason": "主源和备用源仍缺少" + "、".join(missing) + "，本次不生成选债清单。",
+        }
+    else:
+        result = _run_registered_mode(
+            command.mode,
+            command.top_n,
+            command.trade_date,
+            time_slot=requested_time_slot,
+        )
     result["data_refresh"] = refresh
     result["pipeline"] = {
         "model_key": model_key,
@@ -745,10 +913,13 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         result["pipeline"]["auction_trigger"] = auction_trigger
     if pre_model_fallback is not None:
         result["pipeline"]["pre_model_fallback"] = pre_model_fallback
+    if cb_data_readiness is not None:
+        result["pipeline"]["auction_data_readiness"] = cb_data_readiness
+        result["pipeline"]["data_source"] = cb_data_readiness["source"]
 
     _attach_candidate_fallback(result, command, top_n)
 
-    if command.mode.startswith("cb_auction_t0"):
+    if command.mode.startswith("cb_auction_t0") and cb_data_readiness and cb_data_readiness["ready"]:
         primary_rows = _cb_primary_source_rows(trade_date)
         result["pipeline"]["primary_rows"] = primary_rows
         fallback_enabled = bool(model_cfg.get("eastmoney_fallback")) and args.eastmoney_fallback
@@ -762,7 +933,12 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
                 primary_rows = _cb_primary_source_rows(trade_date)
                 result["pipeline"]["primary_rows"] = primary_rows
                 result["pipeline"]["eastmoney_limit_pool_fallback"] = em_pool
-                result = _run_registered_mode(command.mode, command.top_n, command.trade_date)
+                result = _run_registered_mode(
+                    command.mode,
+                    command.top_n,
+                    command.trade_date,
+                    time_slot=requested_time_slot,
+                )
                 result["data_refresh"] = refresh
                 result["pipeline"] = {
                     "model_key": model_key,
@@ -779,6 +955,19 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
                 emergency = _run_cb_emergency_snapshot(trade_date, top_n)
                 fallback = {"eastmoney": em, **emergency}
                 result["pipeline"]["eastmoney_fallback"] = fallback
+
+    explicit_time_slot = getattr(args, "time_slot", "")
+    if explicit_time_slot and not command.mode.startswith("cb_"):
+        from app.market_strength import load_market_strength
+
+        market_strength = load_market_strength(
+            trade_date,
+            explicit_time_slot,
+            os.environ.get("KRONOS_PG_URL", DEFAULT_PG_URL),
+        )
+        result["market_strength"] = market_strength
+        result["pipeline"]["planned_time_slot"] = explicit_time_slot
+        result["pipeline"]["market_snapshot_time"] = market_strength.get("snapshot_time")
 
     markdown = build_markdown_report(result)
     markdown = _normalize_report_labels(markdown, command.mode)
@@ -819,37 +1008,29 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         result["pipeline"]["lark_doc"] = doc
         _write_json(run_dir / "result.json", result)
 
-    chat_id = args.chat_id or config.get("default_chat_id") or ""
+    chat_targets = resolve_chat_targets(args, config)
     if resolve_send_feishu(args, config):
-        if not chat_id:
+        if not chat_targets:
             raise SystemExit("缺少 chat_id，无法发送飞书群。")
-        if doc:
-            message = _format_group_reply(result, doc)
-        else:
-            message = (
-                f"{model_cfg.get('title') or model_key} 已完成\n"
-                f"日期: {trade_date}\n"
-                f"模式: {command.mode}\n"
-                f"入选: {len(result.get('picks') or [])} 只\n"
-                f"报告: {report_path}"
-            )
+        message = _format_group_reply(result, doc or {})
         extra = _fallback_summary(fallback)
         if extra:
             message = message + "\n\n" + extra
         candidate_extra = _candidate_summary(result)
         if candidate_extra:
             message = message + "\n\n" + candidate_extra
-        deliver_feishu_message(
+        deliver_feishu_messages(
             run_dir=run_dir,
             result=result,
-            chat_id=chat_id,
+            targets=chat_targets,
             message=message,
             sender=send_text_to_chat,
         )
         if args.send_poster:
             poster = generate_poster_image(result)
             if poster:
-                send_image_to_chat(chat_id, poster)
+                for target in chat_targets:
+                    send_image_to_chat(target["chat_id"], poster)
 
     return result
 
@@ -859,6 +1040,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", default=str(CONFIG_PATH))
     parser.add_argument("--model", default="", help="模型 key 或别名")
     parser.add_argument("--date", dest="trade_date", default="today")
+    parser.add_argument("--time-slot", default="", help="盘中模型数据截止时点，如 14:00")
     parser.add_argument("--top-n", type=int, default=0)
     parser.add_argument("--list-models", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
@@ -873,7 +1055,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="发送飞书群消息（默认读取配置，可用 --no-send-feishu 临时关闭）",
     )
     parser.add_argument("--send-poster", action="store_true", help="发送海报图片")
-    parser.add_argument("--chat-id", default="")
+    parser.add_argument("--chat-id", action="append", default=[])
     parser.add_argument("--official", action="store_true", help="正式运行：要求 clean worktree、strict timeline、snapshot 和 cutoff")
     parser.add_argument("--strict-timeline", action="store_true")
     parser.add_argument("--data-snapshot-id", default="")

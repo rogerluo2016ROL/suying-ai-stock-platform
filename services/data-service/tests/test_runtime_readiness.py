@@ -90,6 +90,23 @@ def test_run_job_records_skipped_status(monkeypatch):
     assert "TUSHARE_TOKEN not configured" in scheduler._job_status["rt_min"]["result"]
 
 
+def test_run_job_preserves_partial_delivery_status():
+    scheduler = importlib.import_module("app.scheduler")
+    scheduler._job_status.clear()
+
+    asyncio.run(
+        scheduler._run_job(
+            {
+                "id": "research",
+                "name": "research",
+                "fn": lambda: {"status": "partial_delivery", "feishu_deliveries": []},
+            }
+        )
+    )
+
+    assert scheduler._job_status["research"]["last_status"] == "partial_delivery"
+
+
 def test_collect_auction_snapshot_skips_before_tushare_call_when_token_missing(monkeypatch):
     _reload_config(monkeypatch, None)
     scheduler = importlib.import_module("app.scheduler")
@@ -104,6 +121,56 @@ def test_collect_auction_snapshot_skips_before_tushare_call_when_token_missing(m
     assert result["status"] == "skipped"
     assert result["source"] == "tushare_stk_auction"
     assert result["reason"] == "TUSHARE_TOKEN not configured"
+
+
+def test_post_market_job_resolves_date_when_job_runs(monkeypatch):
+    scheduler = importlib.import_module("app.scheduler")
+    seen = []
+    monkeypatch.setattr(scheduler, "_current_date_string", lambda: "2026-07-14")
+    monkeypatch.setattr(
+        scheduler,
+        "sync_post_market_core",
+        lambda trade_date: seen.append(trade_date) or {"status": "ok"},
+    )
+
+    scheduler.run_post_market_core_daily()
+
+    assert seen == ["2026-07-14"]
+
+
+def test_scheduler_registers_four_research_jobs(monkeypatch):
+    scheduler = importlib.import_module("app.scheduler")
+
+    class FakeLoop:
+        def create_task(self, coroutine):
+            coroutine.close()
+
+    monkeypatch.setattr(scheduler, "validate_pipeline_consistency", lambda: {})
+    monkeypatch.setattr(asyncio, "get_event_loop", lambda: FakeLoop())
+    monkeypatch.setattr(
+        scheduler,
+        "build_scheduled_research_jobs",
+        lambda: [
+            {"id": "cb_auction_t0_0925", "name": "竞价", "cron": "25 9 * * 1-5", "fn": lambda: {}},
+            {"id": "bi_shifu_trend_0930", "name": "趋势", "cron": "30 9 * * 1-5", "fn": lambda: {}},
+            {"id": "qishen_afternoon_1400", "name": "午后14", "cron": "0 14 * * 1-5", "fn": lambda: {}},
+            {"id": "qishen_afternoon_1430", "name": "午后1430", "cron": "30 14 * * 1-5", "fn": lambda: {}},
+        ],
+        raising=False,
+    )
+
+    scheduler.start_scheduler()
+    ids = {job["id"] for job in scheduler._jobs}
+    scheduler.stop_scheduler()
+
+    assert ids.issuperset(
+        {
+            "cb_auction_t0_0925",
+            "bi_shifu_trend_0930",
+            "qishen_afternoon_1400",
+            "qishen_afternoon_1430",
+        }
+    )
 
 
 def test_readiness_reports_components_and_latest_auction(monkeypatch):

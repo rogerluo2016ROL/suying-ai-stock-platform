@@ -1,0 +1,50 @@
+{
+  "chat_targets": [
+    {
+      "key": "ai_research_analysis",
+      "name": "AI 投研分析",
+      "chat_id": "oc_f3b4c491a34af574aa65732a1bc74c79"
+    },
+    {
+      "key": "ai_research_test",
+      "name": "AI 投研测试",
+      "chat_id": "oc_faa2d434bdf9970cabd7813b2fe7bee2"
+    },
+    {
+      "key": "fitness_group",
+      "name": "一起减肥吧",
+      "chat_id": "oc_ec8ffdd31ab290f08a599dd5e7e7468f"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "cb_auction_t0_0925",
+      "name": "秋神竞价 T+0 选债",
+      "cron": "25 9 * * 1-5",
+      "model": "cb_auction_t0",
+      "trigger_auction": true,
+      "eastmoney_fallback": true
+    },
+    {
+      "id": "bi_shifu_trend_0930",
+      "name": "毕师傅趋势战法选股",
+      "cron": "30 9 * * 1-5",
+      "model": "bi_shifu_trend",
+      "market_time_slot": "09:30"
+    },
+    {
+      "id": "qishen_afternoon_1400",
+      "name": "秋神午后选股 14:00",
+      "cron": "0 14 * * 1-5",
+      "model": "qishen_afternoon",
+      "time_slot": "14:00"
+    },
+    {
+      "id": "qishen_afternoon_1430",
+      "name": "秋神午后选股 14:30",
+      "cron": "30 14 * * 1-5",
+      "model": "qishen_afternoon",
+      "time_slot": "14:30"
+    }
+  ]
+}
