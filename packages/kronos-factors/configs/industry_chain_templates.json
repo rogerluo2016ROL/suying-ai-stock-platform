@@ -19069,6 +19069,77 @@
         "derived_confidence_cap": 0.35,
         "requires_original_evidence": true
       }
+    },
+    {
+      "template_id": "ai_token_output_power",
+      "name": "富余电力驱动的 AI 推理 Token 输出产业链",
+      "description": "围绕可验证的富余电力、推理算力、Token 产能和商业收入，拆解从电力输入到推理变现的八层链路。",
+      "base_template_id": "complex_tech",
+      "chain_id": "ai_token_output_power",
+      "example_theme": "富余电力驱动的 AI 推理 Token 输出",
+      "industry_dimensions": [
+        "function_value", "technology_route", "physical_bom",
+        "value_pool", "competition_moat", "supply_demand_cycle",
+        "evidence_validation"
+      ],
+      "power_source_types": [
+        "curtailed_renewable", "valley_power",
+        "park_self_generation_or_ppa", "nominal_capacity"
+      ],
+      "market_layer": {
+        "separate_from_industry_evidence": true,
+        "fields": ["valuation", "price_change", "turnover", "fund_flow", "crowding", "strategy_signal"]
+      },
+      "evidence_grades": {
+        "E0": "concept_or_public_claim",
+        "E1": "power_park_or_compute_plan",
+        "E2": "facility_or_compute_built",
+        "E3": "inference_runtime_qps_or_token_data",
+        "E4": "api_revenue_customer_order_or_customer_validation",
+        "E5": "recurring_token_revenue_and_profit"
+      },
+      "layers": [
+        {"layer_id":"demand","order":1,"name":"需求层","segments":["企业Agent","智能客服","代码生成","搜索","内容生成","多模态应用"],"evidence":["API调用量","DAU","Token消耗量","付费客户数"]},
+        {"layer_id":"task","order":2,"name":"任务层","segments":["实时推理","批量推理","长上下文","视频生成","端侧推理"],"evidence":["QPS","并发数","上下文长度","输入输出Token比"]},
+        {"layer_id":"core_product","order":3,"name":"核心产品层","segments":["大模型","推理API","模型服务平台","Agent平台"],"evidence":["模型调用量","Token价格","SLA","客户留存"]},
+        {"layer_id":"foundation","order":4,"name":"底层支撑层","segments":["GPU/ASIC","HBM","先进封装","推理软件","光互联"],"evidence":["Tokens/s","Tokens/W","显存","芯片供货和适配"]},
+        {"layer_id":"integration","order":5,"name":"集成层","segments":["AI服务器","推理集群","模型压缩","量化","调度","推理引擎"],"evidence":["集群上线","利用率","延迟","KV Cache命中率"]},
+        {"layer_id":"supporting","order":6,"name":"配套层","segments":["液冷","电源","变压器","PCB","连接器","光模块","存储"],"evidence":["机柜功率","PUE","冷却能力","交付订单"]},
+        {"layer_id":"infrastructure","order":7,"name":"基础设施层","segments":["低谷电","弃风弃光","绿电交易","储能","IDC","智算中心"],"evidence":["可用MW","电价","供电小时","并网容量","机房利用率"]},
+        {"layer_id":"commercialization","order":8,"name":"商业变现层","segments":["按Token计费","API","SaaS","Agent服务","算力租赁"],"evidence":["Token收入","单Token价格","毛利率","续费率","现金流"]}
+      ]
+    },
+    {
+      "template_id": "ai_token_output",
+      "name": "AI Token 商业输出产业链",
+      "description": "围绕可计费Token的需求、生产、交付、计费和国内外商业输出拆解八层链路。",
+      "base_template_id": "complex_tech",
+      "chain_id": "ai_token_output",
+      "example_theme": "AI Token 商业输出",
+      "market_layer_separate": true,
+      "industry_dimensions": [
+        "demand_authenticity", "model_product_strength", "inference_unit_economics",
+        "bom_supply_position", "delivery_customer_stickiness", "commercial_output",
+        "evidence_realization"
+      ],
+      "evidence_grades": {
+        "E0": "concept_or_cross_chain_inference",
+        "E1": "company_product_research_or_adaptation",
+        "E2": "verified_product_supply_order_or_project",
+        "E3": "customer_usage_runtime_or_recurring_delivery",
+        "E4": "verified_token_api_agent_or_compute_service_revenue",
+        "E5": "recurring_revenue_profit_customer_and_cashflow"
+      },
+      "layers": [
+        {"layer_id":"token_demand","order":1,"name":"Token需求场景","segments":["企业Agent","代码生成","智能客服","搜索","营销","多模态应用","行业AI"],"evidence":["活跃客户","调用频率","Token消耗量","付费率","留存率"]},
+        {"layer_id":"model_product","order":2,"name":"模型与AI产品","segments":["基础模型","行业模型","Agent平台","MaaS"],"evidence":["模型上线","客户数量","调用量","定价","SLA","续费"]},
+        {"layer_id":"inference_software","order":3,"name":"推理优化软件","segments":["推理引擎","量化","蒸馏","编译器","调度","KV Cache"],"evidence":["性能测试","适配清单","Tokens/s","延迟","单位成本下降"]},
+        {"layer_id":"compute_hardware","order":4,"name":"核心算力硬件","segments":["GPU/ASIC","CPU","HBM","先进封装","AI服务器"],"evidence":["芯片适配","供货","订单","性能","客户认证","收入占比"]},
+        {"layer_id":"cluster_network","order":5,"name":"集群与网络支撑","segments":["AI集群","光模块","交换机","PCB","液冷","电源","存储"],"evidence":["集群交付","订单","BOM价值","机柜功率","PUE","客户占比"]},
+        {"layer_id":"token_delivery","order":6,"name":"Token服务与交付平台","segments":["推理云","API网关","MaaS平台","算力租赁","边缘推理"],"evidence":["平台上线","调用量","并发","可用率","客户","服务收入"]},
+        {"layer_id":"metering_operations","order":7,"name":"计量计费与运营","segments":["Token计量","套餐","定价","结算","客户运营","安全合规"],"evidence":["计费规则","ARPU","获客成本","续费","毛利","合规能力"]},
+        {"layer_id":"commercial_output","order":8,"name":"商业变现与输出","segments":["国内API收入","Agent/SaaS收入","行业解决方案","海外服务输出"],"evidence":["Token/API收入","客户增长","毛利率","现金流","海外收入"]}
+      ]
     }
   ]
 }

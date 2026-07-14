@@ -267,7 +267,30 @@ def aggregate_company_chain(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(result, key=lambda item: (-float(item["rank_score"]), item["chain_id"], item["code"]))
 
 
-def fetch_mapping_rows(pg_url: str) -> list[dict[str, Any]]:
+def build_mapping_sql(chain_id: str | None = None, formal_only: bool = False) -> str:
+    """Build the mapping gate shared by generic and Token-chain ranking."""
+
+    clauses = ["COALESCE(m.status, '') NOT IN ('rejected', 'disabled')"]
+    if chain_id:
+        safe_chain_id = str(chain_id).replace("'", "''")
+        clauses.append(f"m.chain_id = '{safe_chain_id}'")
+    if formal_only:
+        clauses.extend([
+            "EXISTS (SELECT 1 FROM business_tag_token_pool_states ps "
+            "WHERE ps.mapping_id = m.mapping_id "
+            "AND ps.pool_code IN ('A', 'B', 'C') "
+            "AND ps.evidence_grade IN ('E2', 'E3', 'E4', 'E5') "
+            "AND COALESCE(ps.coverage_ratio, 0) >= 0.60)",
+        ])
+    return "WHERE " + " AND ".join(clauses)
+
+
+def fetch_mapping_rows(
+    pg_url: str,
+    chain_id: str | None = None,
+    formal_only: bool = False,
+) -> list[dict[str, Any]]:
+    mapping_filter = build_mapping_sql(chain_id, formal_only)
     sql = """
     WITH mapping_base AS (
         SELECT
@@ -278,6 +301,7 @@ def fetch_mapping_rows(pg_url: str) -> list[dict[str, Any]]:
             m.tag_name,
             m.status AS mapping_status
         FROM business_tag_mapping m
+        {mapping_filter}
     ),
     latest_score AS (
         SELECT DISTINCT ON (mapping_id)
@@ -399,7 +423,7 @@ def fetch_mapping_rows(pg_url: str) -> list[dict[str, Any]]:
     LEFT JOIN market_latest ml ON ml.code = b.code
     LEFT JOIN market_20d m20 ON m20.code = b.code
     WHERE b.chain_id IS NOT NULL
-    """
+    """.format(mapping_filter=mapping_filter)
     with psycopg2.connect(pg_url) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(sql)

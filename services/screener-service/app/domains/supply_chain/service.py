@@ -17,6 +17,34 @@ AI_COMPUTE_LAYER_KEYWORDS = {
     "infrastructure": ("IDC", "数据中心", "服务器", "液冷", "光模块", "CPO", "网络", "交换机", "电源", "GPU", "云容量"),
 }
 
+TOKEN_OUTPUT_POWER_DIMENSIONS = [
+    "function_value",
+    "technology_route",
+    "physical_bom",
+    "value_pool",
+    "competition_moat",
+    "supply_demand_cycle",
+    "evidence_validation",
+]
+
+TOKEN_OUTPUT_POWER_LAYERS = {
+    "L1": {"name": "需求层", "segments": ["企业Agent", "智能客服", "代码生成", "搜索", "内容生成", "多模态应用"], "evidence": ["API调用量", "DAU", "Token消耗量", "付费客户数"]},
+    "L2": {"name": "任务层", "segments": ["实时推理", "批量推理", "长上下文", "视频生成", "端侧推理"], "evidence": ["QPS", "并发数", "上下文长度", "输入输出Token比"]},
+    "L3": {"name": "核心产品层", "segments": ["大模型", "推理API", "模型服务平台", "Agent平台"], "evidence": ["模型调用量", "Token价格", "SLA", "客户留存"]},
+    "L4": {"name": "底层支撑层", "segments": ["GPU/ASIC", "HBM", "先进封装", "推理软件", "光互联"], "evidence": ["Tokens/s", "Tokens/W", "显存", "芯片供货和适配"]},
+    "L5": {"name": "集成层", "segments": ["AI服务器", "推理集群", "模型压缩", "量化", "调度", "推理引擎"], "evidence": ["集群上线", "利用率", "延迟", "KV Cache命中率"]},
+    "L6": {"name": "配套层", "segments": ["液冷", "电源", "变压器", "PCB", "连接器", "光模块", "存储"], "evidence": ["机柜功率", "PUE", "冷却能力", "交付订单"]},
+    "L7": {"name": "基础设施层", "segments": ["低谷电", "弃风弃光", "绿电交易", "储能", "IDC", "智算中心"], "evidence": ["可用MW", "电价", "供电小时", "并网容量", "机房利用率"]},
+    "L8": {"name": "商业变现层", "segments": ["按Token计费", "API", "SaaS", "Agent服务", "算力租赁"], "evidence": ["Token收入", "单Token价格", "毛利率", "续费率", "现金流"]},
+}
+
+TOKEN_OUTPUT_POWER_POWER_MODEL = {
+    "billable_tokens_formula": "available_mw * operating_hours * utilization * tokens_per_mw_hour * cluster_availability",
+    "cost_per_million_tokens_formula": "(electricity + compute_depreciation + facility_and_cooling + network + operation + financing) / billable_tokens * 1000000",
+    "tokens_per_mw_hour_requires_profile": True,
+    "power_source_types": ["curtailed_renewable", "valley_power", "park_self_generation_or_ppa", "nominal_capacity"],
+}
+
 
 def _json_or_default(value, default):
     if value is None: return default
@@ -3833,3 +3861,156 @@ def query_layer_detail(layer_node_id: str) -> dict[str, Any]:
         "children": children,
         "child_count": len(children),
     }
+
+
+def _token_output_power_row(row: dict[str, Any]) -> dict[str, Any]:
+    result = dict(row)
+    result["mapping_id"] = str(result.get("mapping_id") or "")
+    result["chain_id"] = str(result.get("chain_id") or "ai_token_output_power")
+    result["pool_code"] = str(result.get("pool_code") or "D").upper()
+    result["evidence_grade"] = str(result.get("evidence_grade") or "E0").upper()
+    result["reason_codes"] = _json_or_default(result.get("reason_codes"), [])
+    result["coverage_ratio"] = _to_float(result.get("coverage_ratio"), None)
+    return result
+
+
+def token_output_power_payload(
+    top_n: int = 50,
+    pool_code: str | None = None,
+    include_provisional: bool = False,
+    trade_date: str | None = None,
+) -> dict[str, Any]:
+    """Return the evidence-first Token output chain payload."""
+
+    safe_top_n = min(200, max(1, int(top_n or 50)))
+    safe_pool = str(pool_code or "").upper() or None
+    if safe_pool not in {None, "A", "B", "C", "D"}:
+        raise HTTPException(status_code=400, detail="pool_code must be A, B, C, or D")
+    payload: dict[str, Any] = {
+        "version": "ai-token-output-power-v1",
+        "chain_id": "ai_token_output_power",
+        "as_of": trade_date,
+        "source_status": "unknown",
+        "layers": {key: dict(value) for key, value in TOKEN_OUTPUT_POWER_LAYERS.items()},
+        "industry_dimensions": list(TOKEN_OUTPUT_POWER_DIMENSIONS),
+        "power_model": dict(TOKEN_OUTPUT_POWER_POWER_MODEL),
+        "pools": {"A": {"name": "Token业绩兑现池", "count": 0}, "B": {"name": "Token客户验证池", "count": 0}, "C": {"name": "Token技术卡位池", "count": 0}, "D": {"name": "电力/算力概念观察池", "count": 0}},
+        "items": [],
+        "provisional_items": [],
+        "market_layer": {"separate_from_industry_evidence": True, "fields": ["valuation", "price_change", "turnover", "fund_flow", "crowding", "strategy_signal"]},
+        "coverage_ratio": 0.0,
+        "limitations": ["市场交易层不参与产业证据准入"],
+    }
+    try:
+        formal_rows = repository.fetch_token_output_power_snapshot(
+            None,
+            safe_top_n,
+            safe_pool if safe_pool in {"A", "B", "C"} else None,
+            trade_date,
+        )
+        provisional_rows = []
+        if include_provisional or safe_pool == "D":
+            provisional_rows = repository.fetch_token_output_power_provisional_snapshot(
+                None,
+                safe_top_n,
+                "D" if safe_pool == "D" else None,
+                trade_date,
+            )
+        payload["items"] = [_token_output_power_row(row) for row in formal_rows]
+        payload["provisional_items"] = [_token_output_power_row(row) for row in provisional_rows]
+        all_rows = payload["items"] + payload["provisional_items"]
+        for row in all_rows:
+            pool = row["pool_code"] if row["pool_code"] in payload["pools"] else "D"
+            payload["pools"][pool]["count"] += 1
+        covered = [row["coverage_ratio"] for row in all_rows if row.get("coverage_ratio") is not None]
+        payload["coverage_ratio"] = round(sum(covered) / len(covered), 4) if covered else 0.0
+        payload["source_status"] = "ready" if all_rows else "empty"
+        if not payload["items"]:
+            payload["limitations"].append("暂无达到 A/B/C 正式池准入条件的映射")
+        if payload["provisional_items"]:
+            payload["limitations"].append("D 池仅作观察，不进入正式推荐和回测")
+    except Exception as exc:
+        payload["source_status"] = "degraded"
+        payload["limitations"].append(f"Token 输出链查询失败：{exc}")
+    return payload
+
+
+def token_output_power_mapping_detail(mapping_id: str) -> dict[str, Any]:
+    """Return one mapping with evidence, capacity, pool and market trace."""
+
+    payload = repository.fetch_token_output_power_mapping(None, str(mapping_id))
+    if not payload:
+        raise HTTPException(status_code=404, detail=f"Token output mapping '{mapping_id}' not found")
+    payload = dict(payload)
+    payload.setdefault("chain_id", "ai_token_output_power")
+    payload.setdefault("market_layer", {"separate_from_industry_evidence": True, "snapshots": []})
+    payload["market_layer"]["separate_from_industry_evidence"] = True
+    payload["source_status"] = "ready"
+    return payload
+
+
+TOKEN_OUTPUT_DIMENSIONS = [
+    "demand_authenticity", "model_product_strength", "inference_unit_economics",
+    "bom_supply_position", "delivery_customer_stickiness", "commercial_output",
+    "evidence_realization",
+]
+
+
+def _token_output_row(row: dict[str, Any]) -> dict[str, Any]:
+    result = dict(row)
+    result["mapping_id"] = str(result.get("mapping_id") or "")
+    result["code"] = str(result.get("code") or "")
+    result["pool_code"] = str(result.get("pool_code") or "D").upper()
+    result["evidence_grade"] = str(result.get("evidence_grade") or "E0").upper()
+    result["reason_codes"] = _json_or_default(result.get("reason_codes"), [])
+    result["coverage_ratio"] = _to_float(result.get("coverage_ratio"), None)
+    result["industry_score"] = _to_float(result.get("industry_score"), None)
+    result["market_signal_score"] = _to_float(result.get("market_signal_score"), None)
+    return result
+
+
+def token_output_payload(
+    top_n: int = 50,
+    pool_code: str | None = None,
+    include_provisional: bool = False,
+    as_of_date: str | None = None,
+) -> dict[str, Any]:
+    """Return the evidence-first AI Token commercial output chain."""
+    safe_top_n = min(200, max(1, int(top_n or 50)))
+    safe_pool = str(pool_code or "").upper() or None
+    if safe_pool not in {None, "A", "B", "C", "D"}:
+        raise HTTPException(status_code=400, detail="pool_code must be A, B, C, or D")
+    formal_codes = (safe_pool,) if safe_pool in {"A", "B", "C"} else ("A", "B", "C")
+    formal = repository.list_token_output_pools(None, top_n=safe_top_n, pool_codes=formal_codes, as_of_date=as_of_date)
+    provisional = []
+    if include_provisional or safe_pool == "D":
+        provisional = repository.list_token_output_pools(None, top_n=safe_top_n, pool_codes=("D",), as_of_date=as_of_date)
+    counts = repository.token_output_counts(None, as_of_date)
+    return {
+        "version": "ai-token-output-v1",
+        "chain_id": "ai_token_output",
+        "as_of": as_of_date,
+        "layers": {f"L{i}": {} for i in range(1, 9)},
+        "industry_dimensions": list(TOKEN_OUTPUT_DIMENSIONS),
+        "mapping_count": int(counts.get("mapping_count") or 0),
+        "unique_company_count": int(counts.get("unique_company_count") or 0),
+        "formal_company_count": int(counts.get("formal_company_count") or 0),
+        "domestic_output_count": int(counts.get("domestic_output_count") or 0),
+        "overseas_output_count": int(counts.get("overseas_output_count") or 0),
+        "items": [_token_output_row(row) for row in formal],
+        "provisional_items": [_token_output_row(row) for row in provisional],
+        "market_layer_separate": True,
+        "limitations": ["D池只表示待验证业务相关性", "市场信号不改变产业证据等级"],
+    }
+
+
+def token_output_mapping_detail(mapping_id: str) -> dict[str, Any]:
+    payload = repository.get_token_output_evidence(None, str(mapping_id))
+    if not payload:
+        raise HTTPException(status_code=404, detail=f"Token output mapping '{mapping_id}' not found")
+    result = dict(payload)
+    result["missing_fields"] = _json_or_default(result.get("missing_fields"), [])
+    result["reason_codes"] = _json_or_default(result.get("reason_codes"), [])
+    result["source_mapping_ids"] = _json_or_default(result.get("source_mapping_ids"), [])
+    result["market_layer_separate"] = True
+    return result
