@@ -88,6 +88,18 @@ SINGLE_STOCK_DIAGNOSTIC_TOOL_BY_MODE = {
     "supply_chain": "supply_chain_single_stock_diagnostic",
 }
 
+STOCK_NAME_CODE_ALIASES = {
+    "新洁能": "605111",
+}
+
+
+def _stock_code_hint(target_stock: str | None, stock_code: str | None) -> str:
+    code = re.sub(r"\D", "", str(stock_code or ""))[:6]
+    if code:
+        return code
+    target = str(target_stock or "").strip()
+    return STOCK_NAME_CODE_ALIASES.get(target, "")
+
 
 def _csv_env(name: str) -> set[str]:
     return {x.strip() for x in os.environ.get(name, "").split(",") if x.strip()}
@@ -588,10 +600,12 @@ def build_tool_plan(intent_plan: dict[str, Any], question: str) -> list[dict[str
                         "tool": diagnostic_tool,
                         "mode": mode,
                         "target_stock": intent_plan.get("target_stock"),
-                        "stock_code": intent_plan.get("stock_code"),
+                        "stock_code": _stock_code_hint(intent_plan.get("target_stock"), intent_plan.get("stock_code")),
                         "trade_date": intent_plan.get("trade_date"),
                     }
                 )
+        if tools and not _looks_like_model_run_request(question):
+            return tools
     for mode in modes:
         tools.append(
             {
@@ -628,7 +642,7 @@ def _pick_matches_target(pick: dict[str, Any], target_tokens: list[str]) -> bool
 
 
 def _resolve_stock_identity(target_stock: str | None, stock_code: str | None) -> dict[str, Any] | None:
-    code = re.sub(r"\D", "", str(stock_code or ""))[:6]
+    code = _stock_code_hint(target_stock, stock_code)
     target = str(target_stock or "").strip()
     if not code and not target:
         return None
@@ -1149,7 +1163,7 @@ def validate_research_context(intent_plan: dict[str, Any], runs: list[dict[str, 
                     }
                 )
     warnings = []
-    if target_tokens and not target_hits:
+    if runs and target_tokens and not target_hits:
         warnings.append("目标股票未出现在本次项目模型返回的 Top 结果中，不能直接视为模型支持。")
     if any(run.get("status") == "error" for run in runs):
         warnings.append("部分项目工具调用失败，回答必须标注数据不完整。")

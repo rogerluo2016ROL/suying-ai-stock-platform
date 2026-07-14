@@ -131,8 +131,8 @@ def test_llm_intent_parser_distinguishes_single_stock_analysis(monkeypatch):
     tools = lark_bot.build_tool_plan(plan, "用毕师傅的硬核科技选股模型的指标分析新洁能这只股票")
     assert tools[0]["tool"] == "bi_single_stock_diagnostic"
     assert tools[0]["target_stock"] == "新洁能"
-    assert tools[1]["tool"] == "model_run"
-    assert tools[1]["mode"] == "bi_trend_launch"
+    assert tools[0]["stock_code"] == "605111"
+    assert len(tools) == 1
 
 
 def test_llm_intent_parser_infers_target_stock_from_question_when_llm_misses_it(monkeypatch):
@@ -211,24 +211,14 @@ def test_single_stock_model_analysis_context_includes_bi_diagnostic(monkeypatch)
             "model_verdict": "fail",
         },
     )
-    monkeypatch.setattr(
-        lark_bot,
-        "run_command",
-        lambda command: {
-            "mode": command.mode,
-            "trade_date": "2026-07-07",
-            "total_picks": 0,
-            "picks": [],
-        },
-    )
-
     context = lark_bot.build_project_research_context("用毕师傅的硬核科技选股模型的指标分析新洁能这只股票", plan)
 
     assert context["tool_plan"][0]["tool"] == "bi_single_stock_diagnostic"
     assert context["diagnostics"][0]["stock"]["code"] == "605111"
     assert context["diagnostics"][0]["metrics"]["adx"] == 58.26
     assert context["diagnostics"][0]["failed_gates"][0]["gate"] == "弱市 5 日内不能有单日跌幅超过 8%"
-    assert context["runs"][0]["mode"] == "bi_trend_launch"
+    assert context["runs"] == []
+    assert context["validation"]["warnings"] == []
 
 
 def test_single_stock_model_analysis_uses_model_specific_diagnostic_tools():
@@ -253,9 +243,35 @@ def test_single_stock_model_analysis_uses_model_specific_diagnostic_tools():
 
         tools = lark_bot.build_tool_plan(plan, f"用{hint}模型分析新洁能")
 
-        assert tools[0]["tool"] == diagnostic_tool
-        assert tools[1]["tool"] == "model_run"
-        assert tools[1]["mode"] == mode
+        assert tools == [
+            {
+                "tool": diagnostic_tool,
+                "mode": mode,
+                "target_stock": "新洁能",
+                "stock_code": "605111",
+                "trade_date": "2026-07-07",
+            }
+        ]
+
+
+def test_single_stock_model_analysis_can_also_run_model_when_requested():
+    plan = {
+        "intent": "single_stock_model_analysis",
+        "is_investment_related": True,
+        "needs_report": False,
+        "target_stock": "新洁能",
+        "stock_code": "605111",
+        "model_hints": ["毕师傅"],
+        "requested_tools": ["model_indicators"],
+        "top_n": 10,
+        "trade_date": "2026-07-07",
+    }
+
+    tools = lark_bot.build_tool_plan(plan, "用毕师傅模型分析新洁能，并列出Top10")
+
+    assert tools[0]["tool"] == "bi_single_stock_diagnostic"
+    assert tools[1]["tool"] == "model_run"
+    assert tools[1]["mode"] == "bi_trend_launch"
 
 
 def test_investment_answer_uses_feishu_readable_plain_tables(monkeypatch):

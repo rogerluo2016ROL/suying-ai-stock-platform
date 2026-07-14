@@ -35,7 +35,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Bridge lark-cli events to screener-service")
     parser.add_argument(
         "--endpoint",
-        default=os.environ.get("LARK_EVENT_BRIDGE_ENDPOINT", "http://127.0.0.1:18011/api/v1/lark/events"),
+        default=os.environ.get("LARK_EVENT_BRIDGE_ENDPOINT", "http://127.0.0.1:18001/api/v1/lark/events"),
         help="Local screener-service event endpoint",
     )
     parser.add_argument(

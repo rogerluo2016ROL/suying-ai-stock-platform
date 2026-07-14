@@ -116,8 +116,10 @@ services:
       dockerfile: services/screener-service/Dockerfile
     ports:
       - "${SCREENER_PORT:-8001}:8001"
+    env_file:
+      - .env.lark-bot
     environment:
-      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+      - KRONOS_PG_URL=${KRONOS_PG_URL:-postgresql://kronos:kronos@postgres:5432/kronos}
       - TUSHARE_TOKEN_FILE=/run/secrets/tushare_token
       - TUSHARE_TOKEN=${TUSHARE_TOKEN:-}
       - REDIS_URL=redis://redis:6379/0
