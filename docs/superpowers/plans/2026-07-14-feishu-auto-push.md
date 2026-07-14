@@ -156,7 +156,7 @@ cmd = [
 ]
 ```
 
-`confirm_message_delivery` 最多查询三次，每次间隔 0.5 秒。命令非零退出、JSON 解析失败或三次未找到消息时返回 `False`。`write_delivery_state` 只写 `push_status`、`chat_id`、`message_id` 和不含凭据的 `error` 字段。
+`confirm_message_delivery` 最多查询三次，每次先用机器人身份，机器人缺少读取权限时再用本机已登录的用户身份做只读核验；每轮间隔 0.5 秒。命令非零退出、JSON 解析失败或三次未找到消息时返回 `False`。`write_delivery_state` 只写 `push_status`、`chat_id`、`message_id` 和不含凭据的 `error` 字段。
 
 - [ ] **Step 4: 运行测试并确认通过**
 
@@ -261,4 +261,3 @@ Run: `git diff -- configs/model_pipeline.json tools/run_research_pipeline.py too
 ```bash
 git commit -m "feat: enable confirmed Feishu delivery by default"
 ```
-

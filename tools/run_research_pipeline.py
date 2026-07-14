@@ -41,6 +41,12 @@ def load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def resolve_send_feishu(args: argparse.Namespace, config: dict[str, Any]) -> bool:
+    if args.send_feishu is not None:
+        return bool(args.send_feishu)
+    return bool(config.get("send_feishu_by_default", False))
+
+
 def resolve_model(config: dict[str, Any], model_key: str) -> tuple[str, dict[str, Any]]:
     models = config.get("models") or {}
     if model_key in models:
@@ -61,6 +67,158 @@ def today() -> str:
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+
+
+def extract_message_id(response: Any) -> str:
+    if isinstance(response, dict):
+        message_id = response.get("message_id")
+        if isinstance(message_id, str) and message_id.strip():
+            return message_id.strip()
+        for value in response.values():
+            found = extract_message_id(value)
+            if found:
+                return found
+    elif isinstance(response, list):
+        for value in response:
+            found = extract_message_id(value)
+            if found:
+                return found
+    return ""
+
+
+def _contains_message_id(payload: Any, message_id: str) -> bool:
+    if isinstance(payload, dict):
+        if payload.get("message_id") == message_id:
+            return True
+        return any(_contains_message_id(value, message_id) for value in payload.values())
+    if isinstance(payload, list):
+        return any(_contains_message_id(value, message_id) for value in payload)
+    return False
+
+
+def confirm_message_delivery(chat_id: str, message_id: str, *, attempts: int = 3) -> bool:
+    total_attempts = max(attempts, 1)
+    for attempt in range(total_attempts):
+        for identity in ("bot", "user"):
+            cmd = [
+                "lark-cli",
+                "im",
+                "+chat-messages-list",
+                "--as",
+                identity,
+                "--chat-id",
+                chat_id,
+                "--page-size",
+                "20",
+                "--no-reactions",
+                "--json",
+            ]
+            proc = subprocess.run(
+                cmd,
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                timeout=30,
+                check=False,
+            )
+            if proc.returncode == 0:
+                try:
+                    payload = json.loads(proc.stdout)
+                except json.JSONDecodeError:
+                    payload = None
+                if _contains_message_id(payload, message_id):
+                    return True
+        if attempt + 1 < total_attempts:
+            time.sleep(0.5)
+    return False
+
+
+def write_delivery_state(
+    run_dir: Path,
+    result: dict[str, Any],
+    state: dict[str, Any],
+) -> None:
+    result.setdefault("pipeline", {})["feishu_delivery"] = state
+    _write_json(run_dir / "result.json", result)
+
+    pipeline_path = run_dir / "pipeline.json"
+    if pipeline_path.exists():
+        pipeline_payload = json.loads(pipeline_path.read_text(encoding="utf-8"))
+    else:
+        pipeline_payload = {}
+    pipeline_payload["feishu_delivery"] = state
+    _write_json(pipeline_path, pipeline_payload)
+
+
+def _delivery_error(exc: Exception) -> str:
+    detail = str(exc)
+    for key in ("LARK_APP_ID", "LARK_APP_SECRET"):
+        value = os.environ.get(key, "").strip()
+        if value:
+            detail = detail.replace(value, "<redacted>")
+    return f"{type(exc).__name__}: {detail}"[-500:]
+
+
+def deliver_feishu_message(
+    *,
+    run_dir: Path,
+    result: dict[str, Any],
+    chat_id: str,
+    message: str,
+    sender: Any,
+) -> dict[str, Any]:
+    try:
+        response = sender(chat_id, message)
+    except Exception as exc:
+        state = {
+            "push_status": "failed",
+            "chat_id": chat_id,
+            "message_id": "",
+            "error": _delivery_error(exc),
+        }
+        write_delivery_state(run_dir, result, state)
+        raise
+
+    message_id = extract_message_id(response)
+    if not message_id:
+        state = {
+            "push_status": "unconfirmed",
+            "chat_id": chat_id,
+            "message_id": "",
+            "error": "missing_message_id",
+        }
+        write_delivery_state(run_dir, result, state)
+        raise RuntimeError("飞书接口未返回消息 ID，无法确认送达。")
+
+    try:
+        confirmed = confirm_message_delivery(chat_id, message_id)
+    except Exception as exc:
+        state = {
+            "push_status": "unconfirmed",
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "error": _delivery_error(exc),
+        }
+        write_delivery_state(run_dir, result, state)
+        raise RuntimeError("飞书消息送达核验失败。") from exc
+
+    if not confirmed:
+        state = {
+            "push_status": "unconfirmed",
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "error": "message_not_found_in_chat",
+        }
+        write_delivery_state(run_dir, result, state)
+        raise RuntimeError("飞书消息未确认送达目标群。")
+
+    state = {
+        "push_status": "confirmed",
+        "chat_id": chat_id,
+        "message_id": message_id,
+    }
+    write_delivery_state(run_dir, result, state)
+    return state
 
 
 def _stable_hash(value: Any) -> str:
@@ -662,7 +820,7 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         _write_json(run_dir / "result.json", result)
 
     chat_id = args.chat_id or config.get("default_chat_id") or ""
-    if args.send_feishu:
+    if resolve_send_feishu(args, config):
         if not chat_id:
             raise SystemExit("缺少 chat_id，无法发送飞书群。")
         if doc:
@@ -681,7 +839,13 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         candidate_extra = _candidate_summary(result)
         if candidate_extra:
             message = message + "\n\n" + candidate_extra
-        send_text_to_chat(chat_id, message)
+        deliver_feishu_message(
+            run_dir=run_dir,
+            result=result,
+            chat_id=chat_id,
+            message=message,
+            sender=send_text_to_chat,
+        )
         if args.send_poster:
             poster = generate_poster_image(result)
             if poster:
@@ -702,7 +866,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--trigger-auction", action="store_true", help="竞价选债时额外触发9:25竞价采集")
     parser.add_argument("--eastmoney-fallback", action="store_true", help="竞价选债无主数据时启用东方财富备用快照")
     parser.add_argument("--sync-doc", action="store_true", help="同步飞书文档")
-    parser.add_argument("--send-feishu", action="store_true", help="发送飞书群消息")
+    parser.add_argument(
+        "--send-feishu",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="发送飞书群消息（默认读取配置，可用 --no-send-feishu 临时关闭）",
+    )
     parser.add_argument("--send-poster", action="store_true", help="发送海报图片")
     parser.add_argument("--chat-id", default="")
     parser.add_argument("--official", action="store_true", help="正式运行：要求 clean worktree、strict timeline、snapshot 和 cutoff")

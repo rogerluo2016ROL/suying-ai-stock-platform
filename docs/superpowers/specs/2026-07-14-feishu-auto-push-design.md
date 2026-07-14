@@ -47,7 +47,7 @@ python tools/run_research_pipeline.py --model <模型名> --no-send-feishu
 2. 写入 Markdown、JSON、manifest 等本地结果。
 3. 可选同步飞书文档。
 4. 发送飞书摘要。
-5. 从发送结果中提取 `message_id`，查询目标群的近期消息，核对该消息确实存在。
+5. 从发送结果中提取 `message_id`，查询目标群的近期消息，核对该消息确实存在。优先使用机器人身份查询；机器人缺少群消息读取权限时，使用本机已登录的用户身份做只读核验。
 6. 把推送状态、目标群和 `message_id` 写回本次 `result.json` 与 `pipeline.json`。记录中不保存应用密钥或访问令牌。
 
 消息包含模型名称、交易日期、运行模式、入选数量和报告位置。已有候选降级说明、备用数据源说明继续保留。

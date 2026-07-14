@@ -1,5 +1,6 @@
 {
   "default_chat_id": "oc_f3b4c491a34af574aa65732a1bc74c79",
+  "send_feishu_by_default": true,
   "manifest_schema_version": "1.0",
   "official_requires_clean_strict": true,
   "models": {
