@@ -116,8 +116,10 @@ services:
       dockerfile: services/screener-service/Dockerfile
     ports:
       - "${SCREENER_PORT:-8001}:8001"
+    env_file:
+      - .env.lark-bot
     environment:
-      - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+      - KRONOS_PG_URL=${KRONOS_PG_URL:-postgresql://kronos:kronos@postgres:5432/kronos}
       - TUSHARE_TOKEN_FILE=/run/secrets/tushare_token
       - TUSHARE_TOKEN=${TUSHARE_TOKEN:-}
       - REDIS_URL=redis://redis:6379/0
@@ -137,6 +139,8 @@ services:
       dockerfile: services/data-service/Dockerfile
     ports:
       - "${DATA_SERVICE_PORT:-8010}:8010"
+    env_file:
+      - .env.lark-bot
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - KRONOS_DB_PATH=/data/kronos.db     # 只读挂载; PG-only 下仅 _get_etl_db fallback 占位
@@ -145,9 +149,12 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - TZ=Asia/Shanghai                   # 关键: cron "25 9" 按容器本地时区 (否则 UTC 偏移)
       - DATA_SQLITE_FALLBACK=false          # 显式 PG-only (清债后 :ro 挂载安全)
+      - LARK_DOC_CREATE_AS=bot              # 容器不使用个人飞书登录态
+      - LARK_CLI_INIT_BOT=true              # 运行时从标准输入初始化 bot，不把密钥写入镜像
     volumes:
       - ../Kronos/data:/data:ro            # 只读 (清债后无 SQLite 写)
       - ./secrets:/run/secrets:ro
+      - ../outputs:/app/outputs             # 保存调度幂等状态、报告和送达证据
     depends_on:
       postgres:
         condition: service_healthy

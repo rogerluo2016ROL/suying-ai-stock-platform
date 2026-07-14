@@ -1,5 +1,23 @@
 {
   "default_chat_id": "oc_f3b4c491a34af574aa65732a1bc74c79",
+  "chat_targets": [
+    {
+      "key": "ai_research_analysis",
+      "name": "AI 投研分析",
+      "chat_id": "oc_f3b4c491a34af574aa65732a1bc74c79"
+    },
+    {
+      "key": "ai_research_test",
+      "name": "AI 投研测试",
+      "chat_id": "oc_faa2d434bdf9970cabd7813b2fe7bee2"
+    },
+    {
+      "key": "fitness_group",
+      "name": "一起减肥吧",
+      "chat_id": "oc_ec8ffdd31ab290f08a599dd5e7e7468f"
+    }
+  ],
+  "send_feishu_by_default": true,
   "manifest_schema_version": "1.0",
   "official_requires_clean_strict": true,
   "models": {
@@ -68,6 +86,12 @@
       "mode": "bi_trend_launch",
       "top_n": 20,
       "aliases": ["毕师傅", "硬核科技", "毕师傅硬核科技", "趋势启动"]
+    },
+    "bi_shifu_trend": {
+      "title": "毕师傅趋势战法选股",
+      "mode": "bi_shifu_trend",
+      "top_n": 20,
+      "aliases": ["毕师傅趋势战法", "MACD OBV八条件共振", "bi_shifu_trend"]
     },
     "bi_trend_full_market": {
       "title": "毕师傅全市场趋势启动选股",

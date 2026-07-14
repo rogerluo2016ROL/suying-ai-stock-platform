@@ -22,12 +22,14 @@ from typing import Any
 
 
 _TENANT_TOKEN: dict[str, Any] = {"token": None, "expires_at": 0.0}
+_LARK_CLI_BOT_READY = False
 MODEL_TITLES = {
     "leader_intraday": "秋神盘中选股分析报告",
     "leader_afternoon": "秋神午后选股分析报告",
     "leader_closing": "秋神尾盘选股分析报告",
     "supply_chain": "产业链预期差选股模型分析报告",
     "bi_trend_launch": "毕师傅硬核科技趋势启动选股分析报告",
+    "bi_shifu_trend": "毕师傅趋势战法选股分析报告",
     "cb_auction_t0": "竞价 T+0 选债 V1 分析报告",
     "cb_auction_t0_v2": "竞价 T+0 选债 V2 分析报告",
     "cb_auction_t0_v2_1": "竞价 T+0 选债 V2.1 稳健版分析报告",
@@ -85,6 +87,18 @@ SINGLE_STOCK_DIAGNOSTIC_TOOL_BY_MODE = {
     "leader_closing": "leader_single_stock_diagnostic",
     "supply_chain": "supply_chain_single_stock_diagnostic",
 }
+
+STOCK_NAME_CODE_ALIASES = {
+    "新洁能": "605111",
+}
+
+
+def _stock_code_hint(target_stock: str | None, stock_code: str | None) -> str:
+    code = re.sub(r"\D", "", str(stock_code or ""))[:6]
+    if code:
+        return code
+    target = str(target_stock or "").strip()
+    return STOCK_NAME_CODE_ALIASES.get(target, "")
 
 
 def _csv_env(name: str) -> set[str]:
@@ -586,10 +600,12 @@ def build_tool_plan(intent_plan: dict[str, Any], question: str) -> list[dict[str
                         "tool": diagnostic_tool,
                         "mode": mode,
                         "target_stock": intent_plan.get("target_stock"),
-                        "stock_code": intent_plan.get("stock_code"),
+                        "stock_code": _stock_code_hint(intent_plan.get("target_stock"), intent_plan.get("stock_code")),
                         "trade_date": intent_plan.get("trade_date"),
                     }
                 )
+        if tools and not _looks_like_model_run_request(question):
+            return tools
     for mode in modes:
         tools.append(
             {
@@ -626,7 +642,7 @@ def _pick_matches_target(pick: dict[str, Any], target_tokens: list[str]) -> bool
 
 
 def _resolve_stock_identity(target_stock: str | None, stock_code: str | None) -> dict[str, Any] | None:
-    code = re.sub(r"\D", "", str(stock_code or ""))[:6]
+    code = _stock_code_hint(target_stock, stock_code)
     target = str(target_stock or "").strip()
     if not code and not target:
         return None
@@ -1147,7 +1163,7 @@ def validate_research_context(intent_plan: dict[str, Any], runs: list[dict[str, 
                     }
                 )
     warnings = []
-    if target_tokens and not target_hits:
+    if runs and target_tokens and not target_hits:
         warnings.append("目标股票未出现在本次项目模型返回的 Top 结果中，不能直接视为模型支持。")
     if any(run.get("status") == "error" for run in runs):
         warnings.append("部分项目工具调用失败，回答必须标注数据不完整。")
@@ -2965,7 +2981,31 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     picks = result.get("picks") or []
     candidates = result.get("candidate_picks") or []
     plans = _plans_by_code(result)
-    diagnosis_rows, conclusion = _stock_market_diagnosis(result)
+    market_strength = result.get("market_strength") or {}
+    if market_strength.get("status") == "ok":
+        advancers = int(market_strength.get("advancers") or 0)
+        decliners = int(market_strength.get("decliners") or 0)
+        diagnosis_rows = [
+            ["数据快照", market_strength.get("snapshot_time") or "-", "实际分钟行情截止时间"],
+            ["有效覆盖", str(market_strength.get("coverage") or 0), "参与统计的股票数"],
+            ["上涨家数", str(advancers), "涨幅大于 0"],
+            ["下跌家数", str(decliners), "涨幅小于 0"],
+            ["平盘家数", str(market_strength.get("flat") or 0), "涨幅等于 0"],
+            ["涨跌幅中位数", _fmt_pct(market_strength.get("median_pct")), "全市场中位数"],
+            ["涨幅≥5%", str(market_strength.get("above_5pct") or 0), "强势股数量"],
+            ["跌幅≤-5%", str(market_strength.get("below_minus_5pct") or 0), "弱势股数量"],
+        ]
+        if advancers > decliners:
+            conclusion = "该快照中上涨家数多于下跌家数；这是当时市场宽度描述，不代表后续走势。"
+        elif decliners > advancers:
+            conclusion = "该快照中下跌家数多于上涨家数；这是当时市场宽度描述，不代表后续走势。"
+        else:
+            conclusion = "该快照中上涨与下跌家数接近；这是当时市场宽度描述，不代表后续走势。"
+    elif market_strength:
+        diagnosis_rows = [["市场强弱数据", "不足", market_strength.get("reason") or "有效覆盖不足"]]
+        conclusion = "市场强弱数据不足，不输出全市场强弱结论。"
+    else:
+        diagnosis_rows, conclusion = _stock_market_diagnosis(result)
     data_update = _format_data_update(mode)
     refresh_summary = _format_refresh_summary(result.get("data_refresh"))
     update_rows = [
@@ -3302,7 +3342,40 @@ def write_markdown_report(result: dict[str, Any], markdown: str) -> Path:
     return path
 
 
+def _ensure_lark_cli_bot_config() -> None:
+    """在服务容器中用标准输入初始化 bot 配置，不把密钥放入命令行。"""
+
+    global _LARK_CLI_BOT_READY
+    if _LARK_CLI_BOT_READY or os.environ.get("LARK_CLI_INIT_BOT", "").lower() != "true":
+        return
+    app_id = os.environ.get("LARK_APP_ID", "").strip()
+    app_secret = os.environ.get("LARK_APP_SECRET", "").strip()
+    if not app_id or not app_secret:
+        raise RuntimeError("飞书机器人身份未配置，无法创建报告文档。")
+    proc = subprocess.run(
+        [
+            "lark-cli",
+            "config",
+            "init",
+            "--app-id",
+            app_id,
+            "--app-secret-stdin",
+            "--brand",
+            "feishu",
+        ],
+        input=app_secret + "\n",
+        text=True,
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError("飞书机器人身份初始化失败。")
+    _LARK_CLI_BOT_READY = True
+
+
 def sync_markdown_to_lark_doc(path: Path, result: dict[str, Any]) -> dict[str, Any]:
+    _ensure_lark_cli_bot_config()
     root = Path(__file__).resolve().parents[3]
     title = f"{MODEL_TITLES.get(result.get('mode', ''), '选股分析报告')} {result.get('trade_date') or 'latest'}"
     xml_path = path.with_suffix(".doc.xml")
@@ -3340,16 +3413,53 @@ def sync_markdown_to_lark_doc(path: Path, result: dict[str, Any]) -> dict[str, A
 def _format_group_reply(result: dict[str, Any], doc: dict[str, Any]) -> str:
     picks = result.get("picks") or []
     candidates = result.get("candidate_picks") or []
+    is_cb = result.get("mode") in CB_AUCTION_MODES
+    doc_url = doc.get("url")
     lines = [
         f"已生成飞书文档：{doc.get('title') or MODEL_TITLES.get(result.get('mode', ''), '选股分析报告')}",
-        f"选股日期: {result.get('trade_date') or 'latest'}",
+        f"{'选债' if is_cb else '选股'}日期: {result.get('trade_date') or 'latest'}",
         f"入选: {len(picks)} 只",
-        f"文档: {doc.get('url') or '-'}",
+        f"文档: {doc_url or '完整文档生成失败'}",
     ]
+
+    if is_cb:
+        data_source = (result.get("pipeline") or {}).get("data_source")
+        source_label = {
+            "tushare": "Tushare 主源",
+            "eastmoney_fallback": "东方财富备用口径",
+            "unavailable": "主源和备用源均不足",
+        }.get(data_source, data_source or "未标注")
+        lines.append(f"数据源: {source_label}")
+        diagnosis_rows, conclusion = _cb_market_diagnosis(result)
+        lines.extend(["", "市场强弱（竞价口径）:"])
+        for metric, value, _judgement in diagnosis_rows[:5]:
+            lines.append(f"- {metric}: {value}")
+        lines.append(f"- 结论: {conclusion}")
+    else:
+        strength = result.get("market_strength") or {}
+        lines.extend(["", "市场强弱:"])
+        if strength.get("status") == "ok":
+            lines.append(
+                f"- 截止 {strength.get('snapshot_time') or '-'}，"
+                f"上涨 {strength.get('advancers', '-')}，"
+                f"下跌 {strength.get('decliners', '-')}，"
+                f"涨跌中位数 {_fmt_pct(strength.get('median_pct'))}"
+            )
+            if "above_5pct" in strength or "below_minus_5pct" in strength:
+                lines.append(
+                    f"- 涨幅≥5% {strength.get('above_5pct', '-')}，"
+                    f"跌幅≤-5% {strength.get('below_minus_5pct', '-')}"
+                )
+        else:
+            lines.append(f"- 数据不足: {strength.get('reason') or '没有足够的全市场分钟行情'}")
+
+    lines.extend(["", "板块共振:"])
+    lines.extend(_sector_resonance_lines(picks or candidates, result))
+
     if picks:
-        lines.append("摘要:")
-        for i, p in enumerate(picks[:5], 1):
-            if result.get("mode") in CB_AUCTION_MODES:
+        lines.extend(["", "Top 10:"])
+        for i, p in enumerate(picks[:10], 1):
+            if is_cb:
                 lines.append(
                     f"{i}. {p.get('code')} {p.get('name')}"
                     f" | 正股 {p.get('stk_code') or '-'} {p.get('stk_name') or '-'}"
@@ -3370,8 +3480,8 @@ def _format_group_reply(result: dict[str, Any], doc: dict[str, Any]) -> str:
         else:
             if candidates:
                 lines.append(f"本次没有股票通过主买门槛，已附候选池 {result.get('candidate_total') or len(candidates)} 只。")
-                lines.append("候选Top5:")
-                for i, p in enumerate(candidates[:5], 1):
+                lines.append("候选 Top 10:")
+                for i, p in enumerate(candidates[:10], 1):
                     lines.append(
                         f"{i}. {p.get('code')} {p.get('name')} | {p.get('industry') or '-'}"
                         f" | 涨幅 {_fmt_pct(_pick_gain(p))} | 评分 {_fmt_score(p.get('total_score') or p.get('score'))}"

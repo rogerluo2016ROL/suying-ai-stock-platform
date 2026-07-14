@@ -131,8 +131,8 @@ def test_llm_intent_parser_distinguishes_single_stock_analysis(monkeypatch):
     tools = lark_bot.build_tool_plan(plan, "用毕师傅的硬核科技选股模型的指标分析新洁能这只股票")
     assert tools[0]["tool"] == "bi_single_stock_diagnostic"
     assert tools[0]["target_stock"] == "新洁能"
-    assert tools[1]["tool"] == "model_run"
-    assert tools[1]["mode"] == "bi_trend_launch"
+    assert tools[0]["stock_code"] == "605111"
+    assert len(tools) == 1
 
 
 def test_llm_intent_parser_infers_target_stock_from_question_when_llm_misses_it(monkeypatch):
@@ -211,24 +211,14 @@ def test_single_stock_model_analysis_context_includes_bi_diagnostic(monkeypatch)
             "model_verdict": "fail",
         },
     )
-    monkeypatch.setattr(
-        lark_bot,
-        "run_command",
-        lambda command: {
-            "mode": command.mode,
-            "trade_date": "2026-07-07",
-            "total_picks": 0,
-            "picks": [],
-        },
-    )
-
     context = lark_bot.build_project_research_context("用毕师傅的硬核科技选股模型的指标分析新洁能这只股票", plan)
 
     assert context["tool_plan"][0]["tool"] == "bi_single_stock_diagnostic"
     assert context["diagnostics"][0]["stock"]["code"] == "605111"
     assert context["diagnostics"][0]["metrics"]["adx"] == 58.26
     assert context["diagnostics"][0]["failed_gates"][0]["gate"] == "弱市 5 日内不能有单日跌幅超过 8%"
-    assert context["runs"][0]["mode"] == "bi_trend_launch"
+    assert context["runs"] == []
+    assert context["validation"]["warnings"] == []
 
 
 def test_single_stock_model_analysis_uses_model_specific_diagnostic_tools():
@@ -253,9 +243,35 @@ def test_single_stock_model_analysis_uses_model_specific_diagnostic_tools():
 
         tools = lark_bot.build_tool_plan(plan, f"用{hint}模型分析新洁能")
 
-        assert tools[0]["tool"] == diagnostic_tool
-        assert tools[1]["tool"] == "model_run"
-        assert tools[1]["mode"] == mode
+        assert tools == [
+            {
+                "tool": diagnostic_tool,
+                "mode": mode,
+                "target_stock": "新洁能",
+                "stock_code": "605111",
+                "trade_date": "2026-07-07",
+            }
+        ]
+
+
+def test_single_stock_model_analysis_can_also_run_model_when_requested():
+    plan = {
+        "intent": "single_stock_model_analysis",
+        "is_investment_related": True,
+        "needs_report": False,
+        "target_stock": "新洁能",
+        "stock_code": "605111",
+        "model_hints": ["毕师傅"],
+        "requested_tools": ["model_indicators"],
+        "top_n": 10,
+        "trade_date": "2026-07-07",
+    }
+
+    tools = lark_bot.build_tool_plan(plan, "用毕师傅模型分析新洁能，并列出Top10")
+
+    assert tools[0]["tool"] == "bi_single_stock_diagnostic"
+    assert tools[1]["tool"] == "model_run"
+    assert tools[1]["mode"] == "bi_trend_launch"
 
 
 def test_investment_answer_uses_feishu_readable_plain_tables(monkeypatch):
@@ -682,6 +698,103 @@ def test_leader_factor_reason_is_generated():
     assert "## 三、选股清单" in report
     assert "## 四、板块共振" in report
     assert "## 五、风险提示" in report
+
+
+def test_group_reply_contains_market_resonance_top10_and_doc():
+    result = {
+        "mode": "leader_afternoon",
+        "trade_date": "2026-07-14",
+        "market_strength": {
+            "status": "ok",
+            "snapshot_time": "2026-07-14 14:00:00",
+            "advancers": 3200,
+            "decliners": 1500,
+            "median_pct": 1.2,
+        },
+        "sector_resonance": [{"sector": "半导体", "count": 4, "score": 88}],
+        "picks": [
+            {"code": f"00000{i}", "name": f"股票{i}", "total_score": 90 - i}
+            for i in range(10)
+        ],
+    }
+
+    text = lark_bot._format_group_reply(
+        result,
+        {"title": "报告", "url": "https://example/doc"},
+    )
+
+    assert "市场强弱" in text
+    assert "上涨 3200" in text
+    assert "板块共振" in text
+    assert "半导体" in text
+    assert "10. 000009 股票9" in text
+    assert "https://example/doc" in text
+
+
+def test_cb_group_reply_labels_eastmoney_fallback_source():
+    text = lark_bot._format_group_reply(
+        {
+            "mode": "cb_auction_t0_v2_1",
+            "trade_date": "2026-07-14",
+            "picks": [],
+            "pipeline": {"data_source": "eastmoney_fallback"},
+            "no_result_reason": "没有转债通过门槛",
+        },
+        {"title": "选债报告", "url": "https://example/doc"},
+    )
+
+    assert "数据源: 东方财富备用口径" in text
+
+
+def test_stock_markdown_uses_real_market_strength_when_available():
+    report = lark_bot.build_markdown_report(
+        {
+            "mode": "leader_afternoon",
+            "trade_date": "2026-07-14",
+            "picks": [],
+            "market_strength": {
+                "status": "ok",
+                "snapshot_time": "2026-07-14 14:00:00",
+                "coverage": 4800,
+                "advancers": 3200,
+                "decliners": 1500,
+                "flat": 100,
+                "median_pct": 1.2,
+                "above_5pct": 180,
+                "below_minus_5pct": 20,
+            },
+        }
+    )
+
+    assert "上涨家数" in report
+    assert "3200" in report
+    assert "2026-07-14 14:00:00" in report
+
+
+def test_lark_cli_bot_init_passes_secret_via_stdin(monkeypatch):
+    calls = []
+
+    class Proc:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    monkeypatch.setenv("LARK_CLI_INIT_BOT", "true")
+    monkeypatch.setenv("LARK_APP_ID", "app-test")
+    monkeypatch.setenv("LARK_APP_SECRET", "secret-test")
+    monkeypatch.setattr(lark_bot, "_LARK_CLI_BOT_READY", False)
+    monkeypatch.setattr(
+        lark_bot.subprocess,
+        "run",
+        lambda command, **kwargs: calls.append((command, kwargs)) or Proc(),
+    )
+
+    lark_bot._ensure_lark_cli_bot_config()
+
+    command, kwargs = calls[0]
+    assert "secret-test" not in command
+    assert kwargs["input"] == "secret-test\n"
+    assert "--app-secret-stdin" in command
 
 
 def test_cb_auction_command_runs_and_sends_doc(monkeypatch):

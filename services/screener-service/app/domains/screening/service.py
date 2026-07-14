@@ -4056,8 +4056,13 @@ def _run_bi_shifu_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -
     }
 
 
-def _run_afternoon_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run 秋神龙头战法-午后选股 V1.0 (14:30 afternoon leader screening)."""
+def _run_afternoon_mode(
+    mode: str,
+    top_n: int,
+    trade_date: Optional[str],
+    time_slot: str = "14:30",
+) -> dict:
+    """Run 秋神龙头战法-午后选股 V1.0 at the requested time slot."""
     from kronos_factors.engine.leader_afternoon import (
         AfternoonLeaderEngine,
         AfternoonTrendFullEngine,
@@ -4071,7 +4076,7 @@ def _run_afternoon_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dic
     if trade_date is None:
         with _get_factor_db() as db:
             trade_date = resolve_afternoon_trade_date(db)
-    picks = engine.run(top_n=run_top_n, trade_date=trade_date, time_slot="14:30")
+    picks = engine.run(top_n=run_top_n, trade_date=trade_date, time_slot=time_slot)
 
     picks = _sanitize_picks(picks)
     picks = _normalize_picks(picks, mode)
@@ -4080,6 +4085,7 @@ def _run_afternoon_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dic
     result = {
         "mode": mode,
         "trade_date": trade_date,
+        "time_slot": time_slot,
         "total_picks": len(picks),
         "picks": picks,
     }

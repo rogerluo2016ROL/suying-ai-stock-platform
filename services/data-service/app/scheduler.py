@@ -17,6 +17,7 @@ from app.sync.policy_law import sync_policy_law
 from app.sync.mp_report import sync_mp_report
 from app.sync.cctv_news import sync_cctv_news
 from app.sync.namechange import sync_st_history
+from app.scheduled_research import build_scheduled_research_jobs
 
 # 从 kronos-data/etl.py 导入已有 sync 函数 (零重复代码)
 _PROJ_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -1016,7 +1017,13 @@ async def _run_job(job: dict):
                 result = fn() if not job.get("args") else fn(*job["args"])
                 pg_status, pg_total = _extract_pg_status(result)
                 result_status = result.get("status") if isinstance(result, dict) else None
-                last_status = result_status if result_status in {"ok", "skipped", "degraded"} else "ok"
+                preserved_statuses = {
+                    "ok", "skipped", "degraded", "failed",
+                    "success", "partial_delivery", "failed_delivery",
+                    "skipped_non_trading_day", "skipped_duplicate",
+                    "failed_trade_calendar",
+                }
+                last_status = result_status if result_status in preserved_statuses else "ok"
                 _job_status[job_id] = {
                     "last_run": t0.isoformat(), "last_status": last_status,
                     "result": str(result)[:300],
@@ -1267,11 +1274,21 @@ def validate_pipeline_consistency() -> dict:
             "warnings": warnings_list, "errors": errors_list}
 
 
+def _current_date_string() -> str:
+    return date.today().strftime("%Y-%m-%d")
+
+
+def run_post_market_core_daily() -> dict:
+    return sync_post_market_core(_current_date_string())
+
+
+def run_post_market_ext_daily() -> dict:
+    return sync_post_market_ext(_current_date_string())
+
+
 def start_scheduler():
     """注册定时任务并启动后台循环."""
     global _jobs
-    today = date.today().strftime("%Y-%m-%d")
-
     # ADR-012 §决策 5.5: 启动期自检数据管道一致性 (WARN 不 raise, 方案 A 可逆性优先)
     try:
         validate_pipeline_consistency()
@@ -1305,11 +1322,11 @@ def start_scheduler():
         # ── L2 盘后级 (每日 16:00 前后) ──
         # P0 核心表 — 15:30 盘后立即采集
         {"id": "post_market_core", "name": "[L2]P0核心盘后", "cron": "30 15 * * 1-5",
-         "fn": sync_post_market_core, "args": (today,)},
+         "fn": run_post_market_core_daily},
         # stk_auction_o 在 9:25 竞价快照 job 中一并采集, 不单独调度
         # P1 扩展表 — 15:35 紧跟核心表
         {"id": "post_market_ext", "name": "[L2]P1扩展盘后", "cron": "35 15 * * 1-5",
-         "fn": sync_post_market_ext, "args": (today,)},
+         "fn": run_post_market_ext_daily},
         # PG 物化视图刷新
         {"id": "pg_refresh", "name": "[L2]PG物化视图刷新", "cron": "37 15 * * 1-5",
          "fn": refresh_materialized_views},
@@ -1439,6 +1456,7 @@ def start_scheduler():
         {"id": "data_quality", "name": "[L4]数据质量周检", "cron": "30 4 * * 6",
          "fn": run_data_quality_report},
     ]
+    _jobs.extend(build_scheduled_research_jobs())
 
     for j in _jobs:
         _job_status[j["id"]] = {"last_run": None, "last_status": "pending"}
