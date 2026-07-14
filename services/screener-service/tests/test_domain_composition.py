@@ -26,5 +26,7 @@ def test_composition_root_exposes_all_domain_paths():
         "/api/v1/screener/run",
         "/api/v1/screener/watchlist",
         "/api/v1/screener/supply-chain/layers",
+        "/api/v1/screener/supply-chain/token-output-power",
+        "/api/v1/screener/supply-chain/token-output-power/{mapping_id}",
     }
     assert expected <= paths

@@ -3161,6 +3161,23 @@ async def supply_chain_candidate_ranking(
     return _query_supply_chain_candidate_ranking(top_n=top_n, chain_id=chain_id, signal=signal)
 
 
+@router.get("/supply-chain/token-output-power")
+async def supply_chain_token_output_power(
+    top_n: int = Query(50, ge=1, le=200),
+    pool_code: Optional[str] = Query(None, pattern="^[ABCD]$"),
+    include_provisional: bool = Query(False),
+    trade_date: Optional[str] = Query(None),
+):
+    """Return the evidence-first Token output power chain snapshot."""
+    return supply_chain_service.token_output_power_payload(top_n, pool_code, include_provisional, trade_date)
+
+
+@router.get("/supply-chain/token-output-power/{mapping_id}")
+async def supply_chain_token_output_power_mapping(mapping_id: str):
+    """Return one Token output mapping and its complete evidence trace."""
+    return supply_chain_service.token_output_power_mapping_detail(mapping_id)
+
+
 @router.get("/supply-chain/workbench")
 async def supply_chain_workbench(
     top_n: int = Query(30, ge=5, le=MAX_TOP_N),
