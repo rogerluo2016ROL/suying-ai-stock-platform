@@ -127,3 +127,11 @@ def test_aggregate_company_chain_keeps_best_mapping_and_counts_tags():
     assert result["tag_count"] == 2
     assert result["best_mapping_id"] == "m2"
     assert result["best_tag_name"] == "六维力"
+
+
+def test_build_mapping_sql_excludes_rejected_and_requires_formal_token_pool():
+    sql = module.build_mapping_sql("ai_token_output_power", formal_only=True)
+    assert "COALESCE(m.status, '') NOT IN ('rejected', 'disabled')" in sql
+    assert "m.chain_id = 'ai_token_output_power'" in sql
+    assert "ps.pool_code IN ('A', 'B', 'C')" in sql
+    assert "ps.evidence_grade IN ('E2', 'E3', 'E4', 'E5')" in sql
