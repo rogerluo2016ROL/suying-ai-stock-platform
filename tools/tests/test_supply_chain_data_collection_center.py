@@ -1,5 +1,8 @@
 import importlib.util
+import inspect
+import json
 import sys
+import types
 from pathlib import Path
 
 
@@ -9,6 +12,24 @@ center = importlib.util.module_from_spec(_SPEC)
 assert _SPEC and _SPEC.loader
 sys.modules[_SPEC.name] = center
 _SPEC.loader.exec_module(center)
+
+
+def _normalized_sql(sql):
+    return " ".join(sql.split())
+
+
+def _conflict_update_clause(sql):
+    normalized = _normalized_sql(sql)
+    assert "ON CONFLICT" in normalized
+    return normalized.split("ON CONFLICT", 1)[1]
+
+
+def _assert_manual_review_columns_are_untouched(sql):
+    update_clause = _conflict_update_clause(sql)
+    assert "review_status = EXCLUDED.review_status" not in update_clause
+    assert "review_note = EXCLUDED.review_note" not in update_clause
+    assert "reviewer = EXCLUDED.reviewer" not in update_clause
+    assert "reviewed_at = EXCLUDED.reviewed_at" not in update_clause
 
 
 def test_default_collection_sources_cover_three_layers():
@@ -274,21 +295,170 @@ def test_parse_tender_award_fact_rejects_noise_titles_even_with_amounts():
     ) is None
 
 
-def test_extract_fact_from_strong_document_detects_commercial_progress():
+def test_extract_fact_from_strong_document_still_requires_review():
     document = center.RawDocument(
         source_id="cninfo_announcement",
         source_level="strong",
-        title="订单公告",
-        content_text="公司800G高速光模块已实现批量供货，收入占比持续提升。",
-        company_code="300308.SZ",
+        title="公告",
+        content_text="公司灵巧手执行器已实现批量供货。",
+        company_code="003021",
+        publish_time="2026-07-09T09:00:00+08:00",
     )
 
     fact = center.extract_fact_from_document(document)
 
     assert fact.fact_type == "commercial_progress"
     assert fact.commercial_stage_signal == "C4"
-    assert fact.growth_signal is True
-    assert fact.validation_status == "confirmed"
+    assert fact.validation_status == "pending"
+
+
+def test_pending_fact_preserves_only_sanitized_explicit_document_metadata():
+    metadata = {
+        "application_domain": "dexterous_hand",
+        "installation_position": "robot_wrist",
+        "revenue_confirmed": False,
+        "legal_status": "granted",
+        "legal_status_date": "2026-07-09",
+        "review_normalization": {"risk_score": 99},
+    }
+    assert "metadata" in inspect.signature(center.RawDocument).parameters
+    assert "metadata" in inspect.signature(center.ExtractedFact).parameters
+
+    document = center.RawDocument(
+        source_id="cninfo_announcement",
+        source_level="strong",
+        title="产品与专利公告",
+        content_text="公司机器人产品已获得专利。",
+        company_code="003021",
+        metadata=metadata,
+    )
+
+    fact = center.extract_fact_from_document(document)
+
+    assert fact.metadata == {
+        "application_domain": "dexterous_hand",
+        "installation_position": "robot_wrist",
+        "revenue_confirmed": False,
+        "legal_status": "granted",
+        "legal_status_date": "2026-07-09",
+    }
+
+
+def test_center_pending_fact_metadata_is_deep_copied():
+    metadata = {"route_context": {"positions": ["robot_wrist"]}}
+    fact = center.extract_fact_from_document(center.RawDocument(
+        source_id="cninfo_announcement",
+        source_level="strong",
+        title="产品公告",
+        content_text="公司机器人产品已获得专利。",
+        company_code="003021",
+        metadata=metadata,
+    ))
+
+    metadata["route_context"]["positions"].append("robot_joint")
+
+    assert fact.metadata == {"route_context": {"positions": ["robot_wrist"]}}
+
+
+def test_pending_document_metadata_round_trips_without_guessing_mapping():
+    metadata = {
+        "application_domain": "dexterous_hand",
+        "installation_position": "robot_wrist",
+        "revenue_confirmed": False,
+        "legal_status": "granted",
+        "legal_status_date": "2026-07-09",
+        "review_normalization": {"risk_score": 99},
+    }
+    document_kwargs = {
+        "source_id": "cninfo_announcement",
+        "source_level": "strong",
+        "title": "产品与专利公告",
+        "content_text": "公司机器人产品已获得专利。",
+        "company_code": "003021",
+        "publish_time": "2026-07-09T09:00:00+08:00",
+    }
+    if "metadata" in inspect.signature(center.RawDocument).parameters:
+        document_kwargs["metadata"] = metadata
+    document = center.RawDocument(**document_kwargs)
+
+    class RecordingCursor:
+        rowcount = 1
+
+        def __init__(self):
+            self.calls = []
+            self._one = None
+
+        def execute(self, sql, params=None):
+            self.calls.append((sql, params))
+            self.rowcount = 1
+            self._one = None
+            if "RETURNING (xmax = 0) AS inserted" in sql:
+                self._one = (True,)
+            elif "SELECT mapping_id, chain_id, node_id, tag_name" in _normalized_sql(sql):
+                self._one = {
+                    "mapping_id": "MAP-EXPLICIT",
+                    "chain_id": "embodied_intelligence",
+                    "node_id": "robot_component",
+                    "tag_name": "机器人零部件",
+                }
+
+        def fetchone(self):
+            return self._one
+
+    cursor = RecordingCursor()
+    result = center._insert_raw_document_and_fact(
+        cursor,
+        document,
+        center._source_by_id("cninfo_announcement"),
+        "JOB-1",
+    )
+    raw_sql, raw_params = next(call for call in cursor.calls if "INSERT INTO raw_evidence_documents" in call[0])
+    fact_sql, fact_params = next(call for call in cursor.calls if "INSERT INTO evidence_extracted_facts" in call[0])
+    raw_metadata = json.loads(raw_params[-1])
+    fact_metadata = json.loads(fact_params[-1])
+
+    assert raw_metadata["review_normalization"] == {"risk_score": 99}
+    assert raw_metadata["application_domain"] == "dexterous_hand"
+    assert fact_metadata["application_domain"] == "dexterous_hand"
+    assert fact_metadata["installation_position"] == "robot_wrist"
+    assert fact_metadata["revenue_confirmed"] is False
+    assert fact_metadata["legal_status"] == "granted"
+    assert fact_metadata["legal_status_date"] == "2026-07-09"
+    assert "review_normalization" not in fact_metadata
+    assert fact_params[2] is None
+    assert not any("FROM business_tag_mapping" in sql for sql, _ in cursor.calls)
+    assert result.get("status") == "mapping_required"
+    raw_update = _conflict_update_clause(raw_sql)
+    fact_update = _conflict_update_clause(fact_sql)
+    conflict_contract = {
+        "raw_keeps_existing_publish_time": (
+            "publish_time = COALESCE(raw_evidence_documents.publish_time, EXCLUDED.publish_time)" in raw_update
+        ),
+        "raw_existing_metadata_wins": "metadata = EXCLUDED.metadata || raw_evidence_documents.metadata" in raw_update,
+        "fact_keeps_existing_validation": "validation_status = EXCLUDED.validation_status" not in fact_update,
+        "fact_existing_metadata_wins": (
+            "metadata = (EXCLUDED.metadata - 'review_normalization') || evidence_extracted_facts.metadata"
+            in fact_update
+        ),
+    }
+    assert conflict_contract == {
+        "raw_keeps_existing_publish_time": True,
+        "raw_existing_metadata_wins": True,
+        "fact_keeps_existing_validation": True,
+        "fact_existing_metadata_wins": True,
+    }
+
+
+def test_generic_keyword_hit_does_not_invent_route_metadata():
+    fact = center.extract_fact_from_document(center.RawDocument(
+        source_id="cninfo_announcement",
+        source_level="strong",
+        title="普通业务公告",
+        content_text="公司机器人产品已获得专利并形成收入。",
+        company_code="003021",
+    ))
+
+    assert getattr(fact, "metadata", {"missing": True}) is None
 
 
 def test_extract_fact_from_weak_document_does_not_upgrade_stage():
@@ -354,7 +524,7 @@ def test_run_source_supports_only_existing_backfill_sources():
         raise AssertionError("broker_expectation should not run without a licensed adapter")
 
 
-def test_build_legacy_event_record_from_strong_fact_is_approved():
+def test_build_legacy_event_record_from_strong_fact_requires_review():
     record = center.build_legacy_event_record_from_fact({
         "fact_id": "FACT-1",
         "mapping_id": "MAP-1",
@@ -376,7 +546,7 @@ def test_build_legacy_event_record_from_strong_fact_is_approved():
 
     assert record["event_id"].startswith("EV-")
     assert record["evidence_type"] == "commercial_stage"
-    assert record["review_status"] == "approved"
+    assert record["review_status"] == "pending_review"
     assert record["impact_dimensions"]["growth"] is True
 
 
@@ -392,3 +562,81 @@ def test_build_legacy_event_record_from_weak_fact_requires_review():
 
     assert record["evidence_type"] == "weak_signal"
     assert record["review_status"] == "pending_review"
+
+
+def test_center_event_sync_conflict_preserves_existing_approved_review_fields(monkeypatch):
+    class Cursor:
+        def __init__(self):
+            self.calls = []
+            self._many = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def execute(self, sql, params=None):
+            self.calls.append((sql, params))
+            self._many = []
+            if "FROM evidence_extracted_facts f" in sql:
+                self._many = [{
+                    "fact_id": "FACT-APPROVED",
+                    "mapping_id": "MAP-001",
+                    "company_code": "300308.SZ",
+                    "fact_type": "commercial_progress",
+                    "original_quote": "公司已批量供货。",
+                    "source_level": "strong",
+                    "confidence": 0.8,
+                    "validation_status": "confirmed",
+                    "research_stage_signal": None,
+                    "commercial_stage_signal": "C4",
+                    "growth_signal": True,
+                    "profit_signal": False,
+                    "moat_signal": False,
+                    "risk_signal": False,
+                    "source_id": "cninfo_announcement",
+                    "source_type": "announcement",
+                    "title": "公告",
+                    "publish_time": "2026-07-09",
+                    "url": "https://example.com/a",
+                    "node_id": "optical_module",
+                }]
+
+        def fetchall(self):
+            return self._many
+
+    class Connection:
+        def __init__(self, cursor):
+            self._cursor = cursor
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def cursor(self, cursor_factory=None):
+            return self._cursor
+
+        def commit(self):
+            return None
+
+    cursor = Cursor()
+    connection = Connection(cursor)
+    psycopg2 = types.ModuleType("psycopg2")
+    extras = types.ModuleType("psycopg2.extras")
+    psycopg2.__path__ = []
+    psycopg2.connect = lambda _pg_url: connection
+    psycopg2.extras = extras
+    extras.RealDictCursor = object
+    monkeypatch.setitem(sys.modules, "psycopg2", psycopg2)
+    monkeypatch.setitem(sys.modules, "psycopg2.extras", extras)
+
+    result = center.sync_facts_to_legacy_events("postgresql://fake")
+    event_sql, _ = next(
+        call for call in cursor.calls if "INSERT INTO business_tag_evidence_events" in call[0]
+    )
+
+    assert result == {"selected": 1, "synced": 1}
+    _assert_manual_review_columns_are_untouched(event_sql)

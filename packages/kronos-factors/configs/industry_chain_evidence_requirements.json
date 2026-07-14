@@ -1,0 +1,88 @@
+{
+  "version": "v1.0",
+  "source_level_rank": {"weak": 1, "mid": 2, "strong": 3},
+  "evidence_levels": {
+    "E0": {"rank": 0, "meaning": "untraceable_signal", "max_pool": null, "eligible": false},
+    "E1": {"rank": 1, "meaning": "business_presence", "max_pool": "D", "eligible": true},
+    "E2": {"rank": 2, "meaning": "product_or_prototype", "max_pool": "C", "eligible": true},
+    "E3": {"rank": 3, "meaning": "customer_validation", "max_pool": "B", "eligible": true},
+    "E4": {"rank": 4, "meaning": "order_or_delivery", "max_pool": "A", "eligible": true},
+    "E5": {"rank": 5, "meaning": "recognized_revenue", "max_pool": "A", "eligible": true},
+    "E6": {"rank": 6, "meaning": "recognized_profit", "max_pool": "A", "eligible": true}
+  },
+  "evidence_types": {
+    "business_presence": {
+      "level": "E1",
+      "fact_types": ["business_presence"],
+      "metadata_flags": [],
+      "minimum_source_level": "mid",
+      "allowed_fact_natures": ["confirmed_fact", "company_claim"],
+      "score_fields": [],
+      "expiry_policy": null,
+      "search_terms": [],
+      "default_next_action": "核验相关产品或样机"
+    },
+    "product_or_prototype": {
+      "level": "E2",
+      "fact_types": ["product_spec", "prototype_delivery"],
+      "metadata_flags": [],
+      "minimum_source_level": "mid",
+      "allowed_fact_natures": ["confirmed_fact", "company_claim"],
+      "score_fields": ["product_evidence_score"],
+      "expiry_policy": null,
+      "search_terms": ["产品", "样机", "样品", "规格"],
+      "default_next_action": "核验客户送样或测试"
+    },
+    "customer_validation": {
+      "level": "E3",
+      "fact_types": ["customer_validation"],
+      "metadata_flags": [],
+      "minimum_source_level": "mid",
+      "allowed_fact_natures": ["confirmed_fact", "company_claim"],
+      "score_fields": ["customer_evidence_score"],
+      "expiry_policy": "customer_test",
+      "search_terms": ["送样", "验证", "测试", "定点"],
+      "default_next_action": "核验订单或交付"
+    },
+    "order_or_delivery": {
+      "level": "E4",
+      "fact_types": ["order_award", "small_batch_delivery"],
+      "metadata_flags": [],
+      "minimum_source_level": "strong",
+      "allowed_fact_natures": ["confirmed_fact"],
+      "score_fields": ["order_revenue_evidence_score", "order_certainty_score"],
+      "expiry_policy": null,
+      "search_terms": ["订单", "中标", "合同", "交付"],
+      "default_next_action": "核验收入确认"
+    },
+    "recognized_revenue": {
+      "level": "E5",
+      "fact_types": ["revenue_margin"],
+      "metadata_flags": ["revenue_confirmed"],
+      "minimum_source_level": "strong",
+      "allowed_fact_natures": ["confirmed_fact"],
+      "score_fields": ["revenue_exposure_score"],
+      "expiry_policy": "financial_revenue",
+      "search_terms": ["相关收入", "营业收入", "收入占比"],
+      "default_next_action": "核验相关利润"
+    },
+    "recognized_profit": {
+      "level": "E6",
+      "fact_types": ["revenue_margin"],
+      "metadata_flags": ["profit_confirmed"],
+      "minimum_source_level": "strong",
+      "allowed_fact_natures": ["confirmed_fact"],
+      "score_fields": ["profit_elasticity_score"],
+      "expiry_policy": "financial_revenue",
+      "search_terms": ["毛利", "利润贡献", "分部利润"],
+      "default_next_action": "复核利润持续性"
+    }
+  },
+  "freshness_policies": {
+    "interactive_answer": 90,
+    "customer_sample": 180,
+    "customer_test": 180,
+    "nomination": 365,
+    "financial_revenue": 180
+  }
+}

@@ -12,6 +12,7 @@ import json
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.domains.supply_chain import evidence_review_service
 from app.routers import screener as screener_router
 from app.routers.screener import (
     BusinessTagBatchScoreRequest,
@@ -874,23 +875,32 @@ class TestSupplyChainBusinessTagEvidenceAndStage:
 
     def test_evidence_review_queue_returns_tracking_contract(self, monkeypatch):
         def fake_query(limit=50):
+            assert limit == 2
             return {
-                "version": "supply-chain-evidence-review-queue-v1",
-                "queue": [],
-                "counts": {"stage_transitions": 0, "stale_evidence": 0, "expectations": 0},
-                "limitations": [],
+                "version": "supply-chain-evidence-review-queue-v2",
+                "queue": [
+                    {"queue_type": "event", "id": "e1"},
+                    {"queue_type": "expectation_monitor", "id": "x1"},
+                ],
+                "counts": {"facts": 7, "events": 5, "expectations": 3},
+                "review_gate": "application_level",
             }
 
-        monkeypatch.setattr(screener_router, "_query_evidence_review_queue", fake_query)
+        monkeypatch.setattr(evidence_review_service, "list_queue", fake_query)
 
-        response = client.get("/api/v1/screener/supply-chain/evidence-review/queue")
+        response = client.get(
+            "/api/v1/screener/supply-chain/evidence-review/queue",
+            params={"limit": 2},
+        )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["version"] == "supply-chain-evidence-review-queue-v1"
-        assert isinstance(data["queue"], list)
-        assert "counts" in data
-        assert "limitations" in data
+        assert data["version"] == "supply-chain-evidence-review-queue-v2"
+        assert [item["queue_type"] for item in data["queue"]] == [
+            "event",
+            "expectation_monitor",
+        ]
+        assert data["counts"] == {"facts": 7, "events": 5, "expectations": 3}
 
 
 class TestSupplyChainEvidenceReview:

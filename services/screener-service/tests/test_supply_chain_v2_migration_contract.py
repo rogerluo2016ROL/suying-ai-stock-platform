@@ -43,6 +43,22 @@ CAPEX_EVIDENCE_MIGRATION_PATH = (
     / "025_business_tag_capex_evidence.py"
 )
 
+SELECTION_V2_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "032_supply_chain_research_selection_v2.py"
+)
+
+EVIDENCE_REVIEW_GATE_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "033_supply_chain_evidence_review_gate.py"
+)
+
 
 def test_supply_chain_v2_migration_defines_required_tables():
     sql = MIGRATION_PATH.read_text(encoding="utf-8")
@@ -190,3 +206,133 @@ def test_business_tag_capex_evidence_migration_defines_structured_capex_table():
     ]
     for index_name in required_indexes:
         assert index_name in sql
+
+
+def test_selection_v2_migration_defines_research_and_selection_tables():
+    sql = SELECTION_V2_MIGRATION_PATH.read_text(encoding="utf-8")
+    required = [
+        "supply_chain_node_dimensions",
+        "supply_chain_transmission_edges",
+        "supply_chain_technology_routes",
+        "supply_chain_node_scores",
+        "business_tag_authenticity_scores",
+        "business_tag_operating_quality_scores",
+        "business_tag_benefit_scores",
+        "business_tag_selection_scores",
+        "business_tag_pool_state",
+        "business_tag_pool_transition_log",
+    ]
+    for table in required:
+        assert f"CREATE TABLE IF NOT EXISTS {table}" in sql
+
+
+def test_selection_v2_migration_preserves_unknown_and_audit_contracts():
+    sql = SELECTION_V2_MIGRATION_PATH.read_text(encoding="utf-8")
+    required = [
+        "score DOUBLE PRECISION",
+        "coverage_ratio DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "status IN ('known','estimated','proxy','unknown','contradicted')",
+        "evidence_level IN ('E0','E1','E2','E3','E4','E5','E6')",
+        "pool_code IN ('A','B','C','D')",
+        "model_version TEXT NOT NULL",
+        "veto_reasons JSONB NOT NULL DEFAULT '[]'",
+        "trigger_evidence_ids JSONB NOT NULL DEFAULT '[]'",
+        "review_status TEXT NOT NULL DEFAULT 'pending_review'",
+        "uq_screening_snapshots_supply_chain_v2",
+        "CREATE TABLE IF NOT EXISTS screening_models",
+        "CREATE TABLE IF NOT EXISTS model_versions",
+    ]
+    for contract in required:
+        assert contract in sql
+
+
+def test_evidence_review_gate_migration_revision_and_audit_contract():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert 'revision: str = "033"' in migration_text
+    assert "032" in migration_text
+    assert "ADD COLUMN IF NOT EXISTS reviewer TEXT" in migration_text
+    assert "guard_supply_chain_manual_review" in migration_text
+    assert "business_tag_expectation_monitor" in migration_text
+    assert "business_tag_stage_tracking" in migration_text
+    assert "OR NULLIF(BTRIM(NEW.review_note), '') IS NULL" in migration_text
+    assert "TIMESTAMP WITH TIME ZONE" in migration_text
+    assert "AT TIME ZONE 'Asia/Shanghai'" in migration_text
+
+
+def test_evidence_review_gate_demotes_unverifiable_historical_approvals():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert "validation_status = 'pending'" in migration_text
+    assert "review_status = 'pending_review'" in migration_text
+    assert "coalesce(metadata, '{}'::jsonb) - 'review_normalization'" in migration_text
+
+
+def test_evidence_review_gate_has_four_manual_review_triggers():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert migration_text.count("CREATE TRIGGER trg_supply_chain_manual_review_") == 4
+    for table_name in (
+        "evidence_extracted_facts",
+        "business_tag_evidence_events",
+        "business_tag_expectation_monitor",
+        "business_tag_stage_tracking",
+    ):
+        assert f"BEFORE INSERT OR UPDATE ON {table_name}" in migration_text
+    assert migration_text.count(
+        "current_setting('app.supply_chain_review_action', true) "
+        "IS DISTINCT FROM 'manual'"
+    ) >= 3
+    assert "OR NULLIF(BTRIM(NEW.reviewer), '') IS NULL" in migration_text
+    assert "OR NULLIF(BTRIM(NEW.review_note), '') IS NULL" in migration_text
+    assert "OR NEW.reviewed_at IS NULL" in migration_text
+    assert "source_event_id" in migration_text
+
+
+def test_evidence_review_gate_preserves_stage_event_mapping_invariant():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert "event.mapping_id = stage.mapping_id" in migration_text
+    assert "event.mapping_id = NEW.mapping_id" in migration_text
+    assert "UPDATE business_tag_stage_tracking" in migration_text
+    assert "source_event_id = OLD.event_id" in migration_text
+    assert "NEW.review_status IS DISTINCT FROM 'approved'" in migration_text
+    assert "NEW.mapping_id IS DISTINCT FROM OLD.mapping_id" in migration_text
+
+
+def test_evidence_review_gate_preserves_fact_event_mapping_invariant():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert "event.mapping_id IS NOT DISTINCT FROM fact.mapping_id" in migration_text
+    assert "event.mapping_id IS NOT DISTINCT FROM NEW.mapping_id" in migration_text
+    assert "UPDATE evidence_extracted_facts AS fact" in migration_text
+    assert "fact.evidence_event_id = OLD.event_id" in migration_text
+    assert "NEW.mapping_id IS DISTINCT FROM fact.mapping_id" in migration_text
+    assert "metadata = coalesce(fact.metadata, '{}'::jsonb) - 'review_normalization'" in migration_text
+
+
+def test_evidence_review_gate_demotes_confirmed_linked_fact_without_audited_matching_event():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+
+    assert "fact.evidence_event_id IS NOT NULL" in migration_text
+    assert "event.event_id = fact.evidence_event_id" in migration_text
+    assert "event.review_status = 'approved'" in migration_text
+    assert "NOT EXISTS" in migration_text
+
+
+def test_evidence_review_gate_timezone_upgrade_and_non_reapproving_downgrade():
+    migration_text = EVIDENCE_REVIEW_GATE_MIGRATION_PATH.read_text(encoding="utf-8")
+    upgrade_text, downgrade_text = migration_text.split("def downgrade()", maxsplit=1)
+
+    assert upgrade_text.count("ADD COLUMN IF NOT EXISTS reviewer TEXT") >= 2
+    assert upgrade_text.count("ADD COLUMN IF NOT EXISTS review_note TEXT") >= 2
+    assert (
+        upgrade_text.count(
+            "ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE"
+        )
+        >= 2
+    )
+    assert "ALTER COLUMN reviewed_at TYPE TIMESTAMP WITH TIME ZONE" in upgrade_text
+    assert "reviewed_at AT TIME ZONE 'Asia/Shanghai'" in downgrade_text
+    assert "SET validation_status = 'confirmed'" not in downgrade_text
+    assert "SET review_status = 'approved'" not in downgrade_text

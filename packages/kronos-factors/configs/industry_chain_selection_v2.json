@@ -1,0 +1,113 @@
+{
+  "version": "v2.0",
+  "model_key": "supply_chain_research_selection_v2",
+  "dimensions": [
+    "function_value",
+    "technology_route",
+    "physical_bom",
+    "value_pool",
+    "competition_moat",
+    "supply_demand_cycle",
+    "evidence_validation",
+    "market_expectation"
+  ],
+  "flow_types": [
+    "product_flow",
+    "value_flow",
+    "technology_flow",
+    "data_flow"
+  ],
+  "weights": {
+    "node": {
+      "demand_certainty": 0.2,
+      "value_pool_score": 0.15,
+      "bottleneck_score": 0.15,
+      "supply_demand_score": 0.15,
+      "technology_maturity_score": 0.1,
+      "commercialization_score": 0.1,
+      "transmission_score": 0.1,
+      "evidence_quality_score": 0.05
+    },
+    "authenticity": {
+      "product_evidence_score": 0.3,
+      "customer_evidence_score": 0.25,
+      "order_revenue_evidence_score": 0.25,
+      "source_reliability_score": 0.1,
+      "freshness_score": 0.1
+    },
+    "growth": {
+      "realized_revenue_growth": 0.3,
+      "backlog_growth": 0.25,
+      "customer_share_growth": 0.2,
+      "delivery_growth": 0.15,
+      "growth_sustainability": 0.1
+    },
+    "profit": {
+      "segment_gross_margin": 0.3,
+      "incremental_margin": 0.2,
+      "price_cost_trend": 0.15,
+      "cashflow_collection_quality": 0.15,
+      "profit_sustainability": 0.1,
+      "capex_efficiency": 0.1
+    },
+    "moat": {
+      "technical_performance": 0.2,
+      "yield_consistency": 0.2,
+      "certification_switch": 0.2,
+      "supply_scarcity": 0.15,
+      "data_ecosystem": 0.1,
+      "scale_cost": 0.1,
+      "intellectual_property": 0.05
+    },
+    "operating": {
+      "growth_score": 0.35,
+      "profit_score": 0.3,
+      "moat_score": 0.35
+    },
+    "benefit": {
+      "node_attractiveness": 0.2,
+      "operating_quality_score": 0.2,
+      "revenue_exposure_score": 0.2,
+      "order_certainty_score": 0.15,
+      "profit_elasticity_score": 0.15,
+      "delivery_capability_score": 0.1
+    },
+    "opportunity": {
+      "benefit_score": 0.55,
+      "expectation_gap_score": 0.3,
+      "catalyst_score": 0.15
+    },
+    "risk_penalty": 0.3
+  },
+  "pool_thresholds": {
+    "A": {
+      "min_evidence_level": "E4",
+      "min_commercial_stage": "C4",
+      "min_authenticity": 75,
+      "min_confidence": 70,
+      "min_benefit": 60,
+      "min_operating_coverage": 0.6
+    },
+    "B": {
+      "min_evidence_level": "E3",
+      "min_authenticity": 60,
+      "requires_next_validation": true
+    },
+    "C": {
+      "min_evidence_level": "E2",
+      "requires_product": true
+    },
+    "D": {
+      "min_evidence_level": "E1"
+    }
+  },
+  "evidence_expiry_days": {
+    "customer_sample": 180,
+    "customer_test": 180,
+    "nomination": 365,
+    "interactive_answer": 90,
+    "financial_revenue": 180
+  },
+  "diversification_bonus_per_mapping": 2.5,
+  "diversification_bonus_cap": 5.0
+}
