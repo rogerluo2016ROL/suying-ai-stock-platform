@@ -1,7 +1,7 @@
 # AI Token 输出电力产业链 staging 验收记录
 
-**日期：** 2026-07-14  
-**链标识：** `ai_token_output_power`  
+**日期：** 2026-07-14
+**链标识：** `ai_token_output_power`
 **状态：** staging 代码已完成，数据库迁移尚未执行，未进行 production 注册。
 
 ## 已执行命令
@@ -38,6 +38,13 @@ python3 tools/audit_ai_token_output_power.py --as-of-date 2026-07-14
 - rejected/disabled 映射不会进入正式排名。
 - D 池只作为 `provisional_items`，不进入正式推荐和回测。
 - production 注册需要 `ALLOW_SUPPLY_CHAIN_PRODUCTION_REGISTRATION=1`，未授权时会拒绝执行。
+
+## 专项测试结果
+
+- `packages/kronos-factors`：9 项通过。
+- `services/screener-service`：4 项通过。
+- `tools`：6 项通过。
+- 三组测试分开运行是因为仓库的多个 `tests` 目录在同一 pytest 收集命令下会发生模块名冲突；分组运行结果可复现，代码本身没有测试失败。
 
 ## 阻断项和下一验证节点
 
