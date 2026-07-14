@@ -3,7 +3,7 @@ from pathlib import Path
 
 MIGRATION_PATH = (
     Path(__file__).resolve().parents[3]
-    / "backend" / "alembic" / "versions" / "032_ai_token_output_power.py"
+    / "backend" / "alembic" / "versions" / "034_ai_token_output_power.py"
 )
 
 
@@ -19,7 +19,7 @@ def test_token_output_power_migration_defines_all_tables_and_guards():
     ]:
         assert f"CREATE TABLE IF NOT EXISTS {table}" in sql
     for contract in [
-        "power_source_type IN ('curtailed_renewable','valley_power','park_self_generation_or_ppa','nominal_capacity')",
+        "power_source_type IN ('unknown','curtailed_renewable','valley_power','park_self_generation_or_ppa','nominal_capacity')",
         "evidence_grade IN ('E0','E1','E2','E3','E4','E5')",
         "pool_code IN ('A','B','C','D')",
         "dimension_id IN ('function_value','technology_route','physical_bom','value_pool','competition_moat','supply_demand_cycle','evidence_validation')",

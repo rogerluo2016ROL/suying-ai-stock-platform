@@ -5,8 +5,8 @@ from typing import Sequence, Union
 from alembic import op
 
 
-revision: str = "032"
-down_revision: Union[str, None] = "031"
+revision: str = "034"
+down_revision: Union[str, None] = "033"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -19,7 +19,7 @@ def upgrade() -> None:
             code TEXT NOT NULL,
             chain_id TEXT NOT NULL,
             layer_id TEXT NOT NULL,
-            power_source_type TEXT NOT NULL CHECK (power_source_type IN ('curtailed_renewable','valley_power','park_self_generation_or_ppa','nominal_capacity')),
+            power_source_type TEXT NOT NULL DEFAULT 'unknown' CHECK (power_source_type IN ('unknown','curtailed_renewable','valley_power','park_self_generation_or_ppa','nominal_capacity')),
             available_mw DOUBLE PRECISION,
             available_hours DOUBLE PRECISION,
             tariff_or_cost DOUBLE PRECISION,
