@@ -31,6 +31,7 @@ CHAIN_IDS = {
     "华为终端": "huawei_devices",
     "存储芯片": "memory_chips",
     "光通信": "optical_communication",
+    "AI Token输出电力": "ai_token_output_power",
 }
 
 LAYER_IDS = {
