@@ -29,6 +29,8 @@ class MappingEvidence:
     sources_available: bool = True
     confidence: float = 0.0
     l1_l8_path: Sequence[dict[str, Any]] = ()
+    run_id: str | None = None
+    source_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,9 @@ class MappingConflict:
     code: str
     chain_id: str
     node_ids: tuple[str, ...]
+    existing_node_id: str | None = None
+    proposed_node_id: str | None = None
+    mapping_id: str | None = None
     review_status: str = "pending_review"
 
 
@@ -73,30 +78,43 @@ def apply_mapping_changes(
     try:
         with connection.cursor() as cursor:
             for (chain_id, code), items in grouped.items():
-                node_ids = tuple(sorted({
-                    node_id
-                    for item in items
-                    for node_id in (item.node_id, *(event.node_id for event in item.events))
-                    if node_id
-                }))
-                if len(node_ids) > 1:
-                    changes.conflicts.append(MappingConflict(code, chain_id, node_ids))
-                    continue
-                item = items[0]
                 cursor.execute(
                     """
                     SELECT mapping_id, status, node_id
                       FROM business_tag_mapping
-                     WHERE chain_id = %s AND code = %s AND node_id = %s
+                     WHERE chain_id = %s AND code = %s
                      FOR UPDATE
                     """,
-                    (chain_id, code, item.node_id),
+                    (chain_id, code),
                 )
-                existing = cursor.fetchone()
+                existing_rows = list(cursor.fetchall())
+                proposed_nodes = tuple(sorted({item.node_id for item in items}))
+                existing_nodes = tuple(sorted({row[2] for row in existing_rows if row[2]}))
+                conflict_pairs = _conflict_pairs(existing_nodes, proposed_nodes)
+                if conflict_pairs:
+                    for existing_node, proposed_node in conflict_pairs:
+                        related = [item for item in items if item.node_id == proposed_node]
+                        conflict = MappingConflict(
+                            code=code,
+                            chain_id=chain_id,
+                            node_ids=tuple(sorted(set(existing_nodes + proposed_nodes))),
+                            existing_node_id=existing_node,
+                            proposed_node_id=proposed_node,
+                            mapping_id=next(
+                                (row[0] for row in existing_rows if row[2] == existing_node),
+                                None,
+                            ),
+                        )
+                        _persist_conflict(cursor, conflict, related, effective_as_of)
+                        changes.conflicts.append(conflict)
+                    continue
+
+                item = _merge_same_node(items)
+                existing = next((row for row in existing_rows if row[2] == item.node_id), None)
                 if existing is None:
                     change = _new_mapping(cursor, item, effective_as_of)
                     changes.created.append(change)
-                    _log_transition(cursor, change, item.events, effective_as_of)
+                    _log_transition(cursor, change, item, effective_as_of)
                     continue
 
                 mapping_id, raw_status, _node_id = existing[:3]
@@ -117,7 +135,7 @@ def apply_mapping_changes(
                     "UPDATE business_tag_mapping SET status = %s, updated_at = now() WHERE mapping_id = %s",
                     (target, mapping_id),
                 )
-                _log_transition(cursor, change, item.events, effective_as_of)
+                _log_transition(cursor, change, item, effective_as_of)
                 changes.updated.append(change)
         connection.commit()
         return changes
@@ -150,22 +168,93 @@ def _new_mapping(cursor: Any, item: MappingEvidence, as_of: date | datetime) -> 
     return MappingChange(mapping_id, item.code, item.node_id, None, "candidate", "new_evidence")
 
 
-def _log_transition(cursor: Any, change: MappingChange, events: Sequence[NormalizedEvidence], as_of: date | datetime) -> None:
+def _log_transition(cursor: Any, change: MappingChange, item: MappingEvidence, as_of: date | datetime) -> None:
     cursor.execute(
         """
-        INSERT INTO business_tag_stage_transition_log
-            (transition_id, mapping_id, old_commercial_stage, new_commercial_stage,
-             change_reason, review_status, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, now())
+        INSERT INTO embodied_mapping_transitions
+            (transition_id, run_id, mapping_id, chain_id, code, node_id,
+             from_status, to_status, evidence_ids, source_name, reason,
+             review_status, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, now())
         """,
         (
             _stable_id("EMB-TRANS", change.mapping_id, change.from_status, change.to_status, as_of),
+            item.run_id,
             change.mapping_id,
+            item.chain_id,
+            change.code,
+            change.node_id,
             change.from_status,
             change.to_status,
-            json.dumps({"reason": change.reason, "evidence_ids": [event.source_id for event in events]}, ensure_ascii=False),
+            json.dumps([event.source_id for event in item.events], ensure_ascii=False),
+            item.source_name,
+            change.reason,
             "pending_review",
         ),
+    )
+
+
+def _persist_conflict(
+    cursor: Any,
+    conflict: MappingConflict,
+    items: Sequence[MappingEvidence],
+    as_of: date | datetime,
+) -> None:
+    events = [event for item in items for event in item.events]
+    cursor.execute(
+        """
+        INSERT INTO embodied_mapping_conflicts
+            (conflict_id, run_id, mapping_id, chain_id, code, existing_node_id,
+             proposed_node_id, status, evidence_ids, source_name, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, now())
+        """,
+        (
+            _stable_id("EMB-CONFLICT", conflict.chain_id, conflict.code, conflict.existing_node_id, conflict.proposed_node_id, as_of),
+            next((item.run_id for item in items if item.run_id), None),
+            conflict.mapping_id,
+            conflict.chain_id,
+            conflict.code,
+            conflict.existing_node_id,
+            conflict.proposed_node_id,
+            "pending_review",
+            json.dumps([event.source_id for event in events], ensure_ascii=False),
+            next((item.source_name for item in items if item.source_name), None),
+        ),
+    )
+
+
+def _conflict_pairs(
+    existing_nodes: tuple[str, ...], proposed_nodes: tuple[str, ...]
+) -> list[tuple[str | None, str]]:
+    if len(proposed_nodes) > 1:
+        return [(existing_nodes[0] if existing_nodes else None, node) for node in proposed_nodes]
+    if existing_nodes and proposed_nodes:
+        return [(node, proposed_nodes[0]) for node in existing_nodes if node != proposed_nodes[0]]
+    return []
+
+
+def _merge_same_node(items: Sequence[MappingEvidence]) -> MappingEvidence:
+    first = items[0]
+    events: list[NormalizedEvidence] = []
+    seen: set[str] = set()
+    for item in items:
+        if item.node_id != first.node_id:
+            raise ValueError("cannot merge evidence for different nodes")
+        for event in item.events if item.sources_available else ():
+            if event.fingerprint not in seen:
+                seen.add(event.fingerprint)
+                events.append(event)
+    return MappingEvidence(
+        first.code,
+        first.chain_id,
+        first.node_id,
+        first.tag_name,
+        events,
+        any(item.sources_available for item in items),
+        max(item.confidence for item in items),
+        next((item.l1_l8_path for item in items if item.l1_l8_path), ()),
+        next((item.run_id for item in items if item.run_id), None),
+        next((item.source_name for item in items if item.source_name), None),
     )
 
 

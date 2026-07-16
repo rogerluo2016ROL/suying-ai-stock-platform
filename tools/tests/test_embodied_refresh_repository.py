@@ -21,6 +21,8 @@ def test_migration_defines_all_refresh_tables():
         "embodied_evidence_changes",
         "embodied_leader_snapshots",
         "embodied_delivery_records",
+        "embodied_mapping_conflicts",
+        "embodied_mapping_transitions",
     ):
         assert table in source
 

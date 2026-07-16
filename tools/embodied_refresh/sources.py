@@ -21,7 +21,7 @@ SOURCE_SPECS = {
     "interact_qa": SourceSpec("interact_qa", "pub_date"),
     "research": SourceSpec("research_reports_tushare", "pub_date"),
     "profile": SourceSpec("stock_profiles", "updated_at"),
-    "main_business": SourceSpec("fina_mainbz", "update_time"),
+    "main_business": SourceSpec("fina_mainbz", "end_date"),
 }
 
 
@@ -57,8 +57,11 @@ def fetch_incremental_sources(
         )
         connection = None
         owns_connection = isinstance(pg_url, str)
+        savepoint = f"embodied_source_{source_name}"
         try:
             connection = psycopg2.connect(pg_url) if owns_connection else pg_url
+            if not owns_connection:
+                _transaction_control(connection, f"SAVEPOINT {savepoint}")
             rows = _fetch_one_source(connection, spec, since)
             result.rows[source_name] = rows
             observed = [
@@ -72,10 +75,16 @@ def fetch_incremental_sources(
                 result.next_cursors[source_name] = max(observed)
             elif since is not None:
                 result.next_cursors[source_name] = since
+            if not owns_connection:
+                _transaction_control(connection, f"RELEASE SAVEPOINT {savepoint}")
         except Exception as exc:
             result.errors[source_name] = f"{type(exc).__name__}: {exc}"
             if connection is not None:
-                connection.rollback()
+                if owns_connection:
+                    connection.rollback()
+                else:
+                    _transaction_control(connection, f"ROLLBACK TO SAVEPOINT {savepoint}")
+                    _transaction_control(connection, f"RELEASE SAVEPOINT {savepoint}")
         finally:
             if owns_connection and connection is not None:
                 connection.close()
@@ -95,3 +104,8 @@ def _fetch_one_source(
     with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
         cursor.execute(sql, (since,) if since is not None else ())
         return [dict(row) for row in cursor.fetchall()]
+
+
+def _transaction_control(connection: Any, statement: str) -> None:
+    with connection.cursor() as cursor:
+        cursor.execute(statement)

@@ -1,6 +1,8 @@
 from pathlib import Path
 import sys
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
 
@@ -16,6 +18,9 @@ class FakeCursor:
         return None
 
     def execute(self, sql, params=()):
+        if sql.startswith(("SAVEPOINT", "ROLLBACK TO SAVEPOINT", "RELEASE SAVEPOINT")):
+            self.connection.transaction_sql.append(sql)
+            return
         source = next(name for name, spec in self.connection.specs.items() if spec.table in sql)
         self.connection.calls.append((source, params))
         if source in self.connection.failures:
@@ -35,6 +40,7 @@ class FakeConnection:
         self.failures = set(failures)
         self.calls = []
         self.rollbacks = 0
+        self.transaction_sql = []
 
     def cursor(self, **_kwargs):
         return FakeCursor(self)
@@ -68,3 +74,39 @@ def test_successful_source_advances_to_max_observed_cursor():
     db = FakeConnection(rows={"announcement": [{"source_cursor": "2026-07-16"}, {"source_cursor": "2026-07-17"}]})
     result = fetch_incremental_sources(db, {"announcement": "2026-07-15"})
     assert result.next_cursors["announcement"] == "2026-07-17"
+
+
+def test_main_business_uses_real_end_date_cursor_schema_contract():
+    from embodied_refresh.sources import SOURCE_SPECS
+
+    assert SOURCE_SPECS["main_business"].cursor_column == "end_date"
+
+
+def test_local_fina_mainbz_schema_has_configured_cursor_column():
+    psycopg2 = pytest.importorskip("psycopg2")
+    from embodied_refresh.sources import SOURCE_SPECS
+
+    connection = psycopg2.connect("postgresql://kronos:kronos@localhost:6432/kronos")
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT column_name FROM information_schema.columns
+                 WHERE table_name = 'fina_mainbz'
+                """
+            )
+            columns = {row[0] for row in cursor.fetchall()}
+    finally:
+        connection.close()
+    assert SOURCE_SPECS["main_business"].cursor_column in columns
+
+
+def test_external_connection_failure_isolated_by_savepoint_without_global_rollback():
+    from embodied_refresh.sources import fetch_incremental_sources
+
+    db = FakeConnection(failures={"research"})
+    result = fetch_incremental_sources(db, {})
+    assert "research" in result.errors
+    assert db.rollbacks == 0
+    assert any(sql.startswith("ROLLBACK TO SAVEPOINT") for sql in db.transaction_sql)
+    assert "profile" in result.rows
