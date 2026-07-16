@@ -204,6 +204,24 @@ def test_ambiguous_node_text_goes_to_conflict_not_mapping_evidence():
     assert conflicts[0]["node_ids"] == ["reducer", "servo"]
 
 
+@pytest.mark.parametrize("source_name,date_field", [("profile", "updated_at"), ("research", "pub_date")])
+def test_ambiguous_records_with_shared_date_have_distinct_fingerprint_identity(source_name, date_field):
+    rows = {source_name: [
+        {"code": "000001", date_field: "2026-07-17", "source_cursor": "2026-07-17", "title": "甲公司伺服电机与减速器", "main_business": "伺服电机与减速器"},
+        {"code": "000002", date_field: "2026-07-17", "source_cursor": "2026-07-17", "title": "乙公司伺服电机与减速器", "main_business": "伺服电机与减速器"},
+    ]}
+    nodes = [
+        {"node_id": "servo", "display_name": "伺服电机", "metadata": {}},
+        {"node_id": "reducer", "display_name": "减速器", "metadata": {}},
+    ]
+
+    _identified, conflicts = identify_source_nodes(rows, nodes)
+
+    assert len(conflicts) == 2
+    assert len({row["source_record_id"] for row in conflicts}) == 2
+    assert all(row["source_record_id"] == row["evidence_fingerprint"] for row in conflicts)
+
+
 def test_runtime_snapshot_ranks_persisted_candidates_and_handles_empty_pool():
     from embodied_refresh.audit import ChainAudit
     audit = ChainAudit("run-1", {}, [], [], [], [], [])

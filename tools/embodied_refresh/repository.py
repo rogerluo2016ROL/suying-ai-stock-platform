@@ -147,7 +147,8 @@ class EmbodiedRefreshRepository:
                 if not source_record_id:
                     source_record_id = hashlib.sha256(json.dumps(conflict, sort_keys=True).encode()).hexdigest()
                 conflict_id = "EMB-IDENTIFY-" + hashlib.sha256(
-                    f"{self.chain_id}|{conflict['source_name']}|{source_record_id}".encode()
+                    (f"{self.chain_id}|{conflict['code']}|"
+                     f"{conflict.get('evidence_fingerprint') or source_record_id}|{','.join(nodes)}").encode()
                 ).hexdigest()[:24]
                 cursor.execute(
                     """INSERT INTO embodied_mapping_conflicts

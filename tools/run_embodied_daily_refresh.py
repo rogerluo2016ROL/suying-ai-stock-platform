@@ -184,7 +184,10 @@ def identify_source_nodes(
             if len(matches) == 1:
                 identified.append((source_name, row, matches[0], text))
             else:
-                identity = str(row.get("id") or row.get("source_id") or row.get("source_cursor") or "").strip()
+                # A cursor is a shared high-water mark (often one date), not a
+                # source-record identity. Falling back to it collapses distinct
+                # records under the same conflict primary key.
+                identity = str(row.get("id") or row.get("source_id") or "").strip()
                 fingerprint = hashlib.sha256(
                     json.dumps({"source": source_name, "code": code, "identity": identity, "text": text}, ensure_ascii=False, sort_keys=True).encode()
                 ).hexdigest()
