@@ -539,7 +539,11 @@ def run_bi_screening(
         "SELECT MAX(trade_date) as prev_date FROM daily_kline WHERE trade_date < ?", (trade_date,)
     ).fetchone()
     if not prev_row:
-        return [], [], {"breadth": 50, "env": "unknown"}
+        return [], [], {
+            "breadth": 50,
+            "env": "unknown",
+            "global_regime_source": global_regime_source,
+        }
     prev_date = prev_row["prev_date"]
 
     # 检查当日 daily_kline 是否有数据
@@ -689,7 +693,13 @@ def run_bi_screening(
     # 1. 系统性崩盘 -> 空仓 (唯一保留的熔断)
     if breadth < MARKET_BREADTH_CRASH:
         print(f"    熔断: 涨跌比{breadth:.0f}%<{MARKET_BREADTH_CRASH}%")
-        return [], [], {"breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1), "sh_trend": sh_trend, "env": "crash"}
+        return [], [], {
+            "breadth": round(breadth, 1),
+            "breadth_5d": round(breadth_5d, 1),
+            "sh_trend": sh_trend,
+            "env": "crash",
+            "global_regime_source": global_regime_source,
+        }
 
     # 2. 前日暴跌/上证熊市 -> 不再熔断 (V5.9: 过于严格, 仅降仓不空仓)
 

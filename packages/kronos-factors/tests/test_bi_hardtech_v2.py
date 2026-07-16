@@ -11,6 +11,27 @@ from kronos_factors.engine.bi_hardtech_v2 import (
 )
 
 
+class _QueuedDb:
+    def __init__(self, responses):
+        self._responses = list(responses)
+        self._current = None
+
+    def execute(self, sql, params=()):
+        assert self._responses, f"unexpected query: {sql} {params}"
+        self._current = self._responses.pop(0)
+        return self
+
+    def fetchone(self):
+        kind, value = self._current
+        assert kind == "one"
+        return value
+
+    def fetchall(self):
+        kind, value = self._current
+        assert kind == "all"
+        return value
+
+
 @pytest.mark.parametrize(
     "regime,allowed",
     [
@@ -85,3 +106,54 @@ def test_default_regime_keeps_runtime_lookup():
     lookup.assert_called_once_with()
     assert regime == expected
     assert source == "current_runtime"
+
+
+def test_run_bi_screening_no_prev_trade_date_keeps_return_contract():
+    db = _QueuedDb([("one", None)])
+    explicit = {"regime": "neutral", "bonus": 0.0}
+
+    with patch(
+        "kronos_factors.scorer.screening_scorers.get_market_regime",
+        side_effect=AssertionError("current regime must not be read"),
+    ):
+        top, scores, market_info = bi_trend_launch.run_bi_screening(
+            db, "2026-07-16", global_market_regime=explicit
+        )
+
+    assert top == []
+    assert scores == []
+    assert market_info == {
+        "breadth": 50,
+        "env": "unknown",
+        "global_regime_source": "explicit",
+    }
+
+
+def test_run_bi_screening_crash_return_keeps_return_contract():
+    db = _QueuedDb(
+        [
+            ("one", {"prev_date": "2026-07-15"}),
+            ("one", {"cnt": 101}),
+            ("one", {"up": 0, "down": 100}),
+            ("one", {"pd": None}),
+            ("one", {"pd": None}),
+            ("all", []),
+        ]
+    )
+    explicit = {"regime": "weak", "bonus": -0.1}
+
+    with patch(
+        "kronos_factors.scorer.screening_scorers.get_market_regime",
+        side_effect=AssertionError("current regime must not be read"),
+    ):
+        top, scores, market_info = bi_trend_launch.run_bi_screening(
+            db, "2026-07-16", global_market_regime=explicit
+        )
+
+    assert top == []
+    assert scores == []
+    assert market_info["env"] == "crash"
+    assert market_info["breadth"] == 0.0
+    assert market_info["breadth_5d"] == 0.0
+    assert market_info["sh_trend"] == "up"
+    assert market_info["global_regime_source"] == "explicit"
