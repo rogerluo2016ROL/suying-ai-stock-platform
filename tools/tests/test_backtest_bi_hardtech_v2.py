@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -228,3 +229,174 @@ def test_acceptance_fails_profitable_but_overtraded_result():
     )
     assert decision["passed"] is False
     assert decision["gates"]["annual_trade_count"] is False
+
+
+def test_run_backtest_blocks_hard_source_errors_before_simulation():
+    import backtest_bi_hardtech_v2 as module
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(
+        module,
+        "audit_sources",
+        lambda db, start_date, end_date: {
+            "signal_start": start_date,
+            "signal_end": "2026-07-08",
+            "result_data_end": end_date,
+            "daily_kline_latest": "2026-07-14",
+            "adj_factor_latest": "2026-07-15",
+            "sector_latest": "2026-07-08",
+            "source_warnings": [],
+            "adj_factor_missing_trade_rows": 0,
+            "adj_factor_missing_rows": [],
+            "metadata": [],
+        },
+    )
+    monkeypatch.setattr(
+        module,
+        "get_signal_dates",
+        lambda *args, **kwargs: pytest.fail("source audit blocked run before loading signal dates"),
+    )
+    monkeypatch.setattr(
+        module,
+        "build_arms",
+        lambda *args, **kwargs: pytest.fail("source audit blocked run before building arms"),
+    )
+    monkeypatch.setattr(
+        module,
+        "simulate_arm_portfolio",
+        lambda *args, **kwargs: pytest.fail("source audit blocked run before arm simulation"),
+    )
+    try:
+        result = module.run_backtest(
+            db=object(),
+            start_date="2026-07-01",
+            end_date="2026-07-15",
+            initial_capital=1_000_000.0,
+            cost_bps=14.0,
+            top_n=20,
+        )
+    finally:
+        monkeypatch.undo()
+
+    assert result["run_status"] == "blocked_invalid_data"
+    assert result["source_decision"]["errors"] == ["daily_kline_stale"]
+    assert result["comparison"] == []
+    assert result["arm_summaries"] == {}
+    assert result["monthly_summaries"] == {}
+    assert result["promotion_status"] == "KEEP_EXPERIMENTAL"
+
+
+def test_main_returns_nonzero_and_writes_artifacts_when_data_run_is_blocked(tmp_path):
+    import backtest_bi_hardtech_v2 as module
+
+    blocked_result = {
+        "run_status": "blocked_invalid_data",
+        "promotion_status": "KEEP_EXPERIMENTAL",
+        "source_decision": {"errors": ["daily_kline_stale"], "warnings": []},
+    }
+    observed = {}
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(module, "setup_db", lambda: object())
+    monkeypatch.setattr(module, "run_backtest", lambda **kwargs: blocked_result)
+
+    def fake_write_artifacts(output_dir, result):
+        out = Path(output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        result_path = out / "result.json"
+        report_path = out / "report.md"
+        trades_path = out / "trades.csv"
+        equity_path = out / "equity.csv"
+        for path in (result_path, report_path, trades_path, equity_path):
+            path.write_text("", encoding="utf-8")
+        observed["result"] = result
+        return result_path, report_path, trades_path, equity_path
+
+    monkeypatch.setattr(module, "write_artifacts", fake_write_artifacts)
+    try:
+        exit_code = module.main(
+            [
+                "--start-date",
+                "2026-07-01",
+                "--end-date",
+                "2026-07-15",
+                "--output-dir",
+                str(tmp_path / "out"),
+            ]
+        )
+    finally:
+        monkeypatch.undo()
+
+    assert exit_code != 0
+    assert observed["result"]["run_status"] == "blocked_invalid_data"
+    assert (tmp_path / "out" / "result.json").exists()
+
+
+def test_run_backtest_rejects_short_adjusted_bars_instead_of_keyerror():
+    import backtest_bi_hardtech_v2 as module
+
+    order = module.EntryOrder(
+        signal_date="2026-07-01",
+        entry_date="2026-07-02",
+        code="000001",
+        regime="neutral",
+        weight=1.0,
+        name="A",
+    )
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(
+        module,
+        "audit_sources",
+        lambda db, start_date, end_date: {
+            "signal_start": start_date,
+            "signal_end": "2026-07-01",
+            "result_data_end": end_date,
+            "daily_kline_latest": end_date,
+            "adj_factor_latest": end_date,
+            "sector_latest": "2026-07-01",
+            "source_warnings": [],
+            "adj_factor_missing_trade_rows": 0,
+            "adj_factor_missing_rows": [],
+            "metadata": [],
+        },
+    )
+    monkeypatch.setattr(module, "get_signal_dates", lambda *args, **kwargs: ["2026-07-01"])
+    monkeypatch.setattr(
+        module,
+        "build_arms",
+        lambda *args, **kwargs: (
+            {"baseline": [order], "v2_a": [], "v2_b": []},
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        module,
+        "get_adjusted_bars",
+        lambda *args, **kwargs: [
+            {
+                "date": "2026-07-01",
+                "open": 10.0,
+                "high": 10.0,
+                "low": 10.0,
+                "close": 10.0,
+            }
+        ],
+    )
+    monkeypatch.setattr(module, "_fetch_factor_rows", lambda *args, **kwargs: [])
+    try:
+        result = module.run_backtest(
+            db=object(),
+            start_date="2026-07-01",
+            end_date="2026-07-15",
+            initial_capital=1_000_000.0,
+            cost_bps=14.0,
+            top_n=20,
+        )
+    finally:
+        monkeypatch.undo()
+
+    assert result["run_status"] == "completed"
+    assert result["runtime_errors"] == []
+    assert result["rejection_reasons"]["data_truncated"] == 1
+    assert result["arm_summaries"]["baseline"]["total_trades"] == 0

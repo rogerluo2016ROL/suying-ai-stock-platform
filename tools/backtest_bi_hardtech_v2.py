@@ -42,6 +42,8 @@ LIMITATIONS = [
     "metadata 缺失或 unknown 仅作为数据告警，不自动推断发布时间。",
     "adj_factor 仅允许向过去 as-of 填充，禁止未来填充。",
 ]
+BLOCKED_RUN_STATUS = "blocked_invalid_data"
+COMPLETED_RUN_STATUS = "completed"
 
 
 def setup_db():
@@ -351,6 +353,8 @@ def _prepare_order_cache(db, arms, result_data_end):
     runtime_errors = []
     bars = {}
     trade_rows = []
+    rejected = []
+    invalid_order_keys = set()
     for order in sorted(
         {
             (order.signal_date, order.code): order
@@ -363,6 +367,14 @@ def _prepare_order_cache(db, arms, result_data_end):
             adjusted_bars = get_adjusted_bars(db, order.code, order.signal_date, max_hold_days=HOLD_DAYS)
             if len(adjusted_bars) < 2:
                 cache[(order.signal_date, order.code)] = None
+                invalid_order_keys.add((order.signal_date, order.code))
+                rejected.append(
+                    {
+                        "signal_date": order.signal_date,
+                        "code": order.code,
+                        "reason": "data_truncated",
+                    }
+                )
                 continue
             for bar in adjusted_bars[1:]:
                 trade_date = _date_text(bar["date"])
@@ -395,11 +407,20 @@ def _prepare_order_cache(db, arms, result_data_end):
                 {
                     "signal_date": order.signal_date,
                     "code": order.code,
+                    "kind": "runtime_data_error",
                     "error": str(exc),
                 }
             )
+            invalid_order_keys.add((order.signal_date, order.code))
+            rejected.append(
+                {
+                    "signal_date": order.signal_date,
+                    "code": order.code,
+                    "reason": "runtime_data_error",
+                }
+            )
             cache[(order.signal_date, order.code)] = None
-    return cache, bars, trade_rows, runtime_errors
+    return cache, bars, trade_rows, runtime_errors, rejected, invalid_order_keys
 
 
 def _attach_exit(order, outcome):
@@ -622,15 +643,22 @@ def _render_report(result):
         "",
         f"结论：`{status}`",
         "",
-        "| 臂 | 成交笔数 | 累计收益% | 最大回撤% | 最差单月% | 运行错误 |",
-        "| --- | ---: | ---: | ---: | ---: | ---: |",
     ]
-    for row in comparison:
-        lines.append(
-            f"| {row['arm']} | {row['total_trades']} | "
-            f"{row['total_return_pct']:.2f} | {row['max_drawdown_pct']:.2f} | "
-            f"{row['worst_month_pct']:.2f} | {row['runtime_errors']} |"
+    if comparison:
+        lines.extend(
+            [
+                "| 臂 | 成交笔数 | 累计收益% | 最大回撤% | 最差单月% | 运行错误 |",
+                "| --- | ---: | ---: | ---: | ---: | ---: |",
+            ]
         )
+        for row in comparison:
+            lines.append(
+                f"| {row['arm']} | {row['total_trades']} | "
+                f"{row['total_return_pct']:.2f} | {row['max_drawdown_pct']:.2f} | "
+                f"{row['worst_month_pct']:.2f} | {row['runtime_errors']} |"
+            )
+    else:
+        lines.append("数据硬错误已阻断三臂绩效模拟，本次未生成可用的绩效比较。")
     lines.extend(
         [
             "",
@@ -651,11 +679,81 @@ def _render_report(result):
     return "\n".join(lines) + "\n"
 
 
+def _build_blocked_result(
+    *,
+    start_date,
+    end_date,
+    initial_capital,
+    cost_bps,
+    top_n,
+    audit,
+    source_decision,
+    rejected,
+    runtime_errors,
+):
+    return {
+        "model_key": MODEL_ID,
+        "baseline_version": BASELINE_VERSION,
+        "git_commit": _git_commit(),
+        "run_status": BLOCKED_RUN_STATUS,
+        "parameters": {
+            "start_date": start_date,
+            "end_date": end_date,
+            "signal_end": audit.get("signal_end"),
+            "initial_capital": initial_capital,
+            "cost_bps": cost_bps,
+            "top_n": top_n,
+            "hold_days": HOLD_DAYS,
+            "take_profit_pct": TAKE_PROFIT_PCT,
+            "stop_loss_pct": STOP_LOSS_PCT,
+            "global_market_regime": HISTORICAL_GLOBAL_REGIME,
+        },
+        "signal_range": {
+            "start_date": start_date,
+            "end_date": audit.get("signal_end"),
+        },
+        "result_data_end": end_date,
+        "source_audit": audit,
+        "source_decision": source_decision,
+        "comparison": [],
+        "arm_summaries": {},
+        "monthly_summaries": {},
+        "rejection_reasons": _rejection_counts(rejected),
+        "rejections": sorted(
+            rejected,
+            key=lambda row: (row["signal_date"], row["code"] or "", row["reason"]),
+        ),
+        "runtime_errors": runtime_errors,
+        "acceptance": {},
+        "promotion_status": "KEEP_EXPERIMENTAL",
+        "limitations": LIMITATIONS,
+        "trades_csv": [],
+        "equity_csv": [],
+    }
+
+
 def run_backtest(db, start_date, end_date, initial_capital, cost_bps, top_n):
     audit = audit_sources(db, start_date, end_date)
+    source_decision = validate_source_audit(audit)
+    if source_decision["errors"]:
+        return _build_blocked_result(
+            start_date=start_date,
+            end_date=end_date,
+            initial_capital=initial_capital,
+            cost_bps=cost_bps,
+            top_n=top_n,
+            audit=audit,
+            source_decision=source_decision,
+            rejected=[],
+            runtime_errors=[],
+        )
+
     signal_dates = get_signal_dates(db, start_date, audit["signal_end"])
     arms, rejected = build_arms(db, signal_dates, top_n, V2Config())
-    cache, bars, trade_rows, runtime_errors = _prepare_order_cache(db, arms, end_date)
+    cache, bars, trade_rows, runtime_errors, data_rejections, invalid_order_keys = _prepare_order_cache(
+        db, arms, end_date
+    )
+    rejected.extend(data_rejections)
 
     codes = {row["code"] for row in trade_rows}
     factor_rows = _fetch_factor_rows(db, codes, end_date)
@@ -663,13 +761,29 @@ def run_backtest(db, start_date, end_date, initial_capital, cost_bps, top_n):
     audit["adj_factor_missing_trade_rows"] = factor_audit["missing_count"]
     audit["adj_factor_missing_rows"] = factor_audit["missing_rows"]
     source_decision = validate_source_audit(audit)
+    if source_decision["errors"]:
+        return _build_blocked_result(
+            start_date=start_date,
+            end_date=end_date,
+            initial_capital=initial_capital,
+            cost_bps=cost_bps,
+            top_n=top_n,
+            audit=audit,
+            source_decision=source_decision,
+            rejected=rejected,
+            runtime_errors=runtime_errors,
+        )
 
     arm_results = {}
     acceptance = {}
     trades_csv = []
     equity_csv = []
     for arm in ARMS:
-        realized_orders = [_attach_exit(order, cache.get((order.signal_date, order.code))) for order in arms[arm]]
+        realized_orders = [
+            _attach_exit(order, cache.get((order.signal_date, order.code)))
+            for order in arms[arm]
+            if (order.signal_date, order.code) not in invalid_order_keys
+        ]
         result = simulate_arm_portfolio(
             arm,
             realized_orders,
@@ -697,6 +811,7 @@ def run_backtest(db, start_date, end_date, initial_capital, cost_bps, top_n):
         "model_key": MODEL_ID,
         "baseline_version": BASELINE_VERSION,
         "git_commit": _git_commit(),
+        "run_status": COMPLETED_RUN_STATUS,
         "parameters": {
             "start_date": start_date,
             "end_date": end_date,
@@ -803,12 +918,13 @@ def main(argv=None):
                 "trades_csv": str(trades_path),
                 "equity_csv": str(equity_path),
                 "promotion_status": result["promotion_status"],
+                "run_status": result.get("run_status", COMPLETED_RUN_STATUS),
             },
             ensure_ascii=False,
             indent=2,
         )
     )
-    return 0
+    return 2 if result.get("run_status") == BLOCKED_RUN_STATUS else 0
 
 
 if __name__ == "__main__":
