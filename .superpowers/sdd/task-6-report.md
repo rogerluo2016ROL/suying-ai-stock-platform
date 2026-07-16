@@ -9,10 +9,19 @@
 - Failed/unconfirmed targets become due after 5, 15, and 30 minutes; compensation is invocation-driven and contains no sleep.
 - A data-complete batch remains `data_success_delivery_incomplete` until every target is confirmed.
 - Existing research-pipeline confirmation remains the default and is now dependency-injectable for tests.
+- Targets are rejected unless they contain exactly three unique, non-empty chat IDs.
+- A stable `embodied:{batch_id}:{chat_id}` idempotency key is passed to capable senders; legacy two-argument senders remain compatible.
+- `scan_due_deliveries` and `retry_due_batches` provide production compensation entrypoints without sleeping.
+- Delivery errors reuse the pipeline redactor; configured Lark credentials and token-like values are not persisted.
+
+## Concurrency and crash boundary
+
+- A transaction advisory lock serializes the read/claim transition, while a session advisory lock remains held across sender, confirmer, and final save. This prevents two workers from sending the same target concurrently.
+- The claim is committed as `sending` before the external call. If the process dies after Feishu accepts the request but before the final database save, exactly-once delivery cannot be proven locally. A later claim changes stale `sending` to `reconcile_required`; automatic compensation deliberately does not resend it. An operator must reconcile it against Feishu using the stable idempotency key or message history.
 
 ## TDD Evidence
 
 1. RED: focused command failed during collection with `ModuleNotFoundError: embodied_refresh.delivery`.
-2. GREEN: `bash tools/codex-lowio.sh py tools/tests/test_embodied_refresh_delivery.py tools/tests/test_embodied_refresh_repository.py tools/tests/test_run_research_manifest.py -q` passed: 39 tests.
+2. GREEN: `bash tools/codex-lowio.sh py tools/tests/test_embodied_refresh_delivery.py tools/tests/test_embodied_refresh_repository.py tools/tests/test_run_research_manifest.py -q` passed: 46 tests.
 3. Syntax: `python3 -m py_compile` passed for the changed Python modules.
 4. Whitespace: `git diff --check` passed.

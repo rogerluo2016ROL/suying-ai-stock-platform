@@ -83,7 +83,7 @@ def upgrade() -> None:
             "status",
             sa.Text(),
             sa.CheckConstraint(
-                "status IN ('pending','confirmed','failed','unconfirmed')",
+                "status IN ('pending','sending','confirmed','failed','unconfirmed','reconcile_required')",
                 name="ck_embodied_delivery_status",
             ),
             nullable=False,

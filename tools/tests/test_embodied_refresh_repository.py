@@ -47,6 +47,8 @@ def test_migration_defines_required_constraints_and_statuses():
         "pending",
         "confirmed",
         "unconfirmed",
+        "sending",
+        "reconcile_required",
         "candidate",
         "verified",
         "weak_evidence",
@@ -183,6 +185,19 @@ def test_finish_run_rejects_unknown_run_id():
     assert conn.rollbacks == 1
 
 
+def test_save_delivery_uses_advisory_lock_and_confirmed_guard():
+    from embodied_refresh.models import DeliveryRecord
+    from embodied_refresh.repository import EmbodiedRefreshRepository
+
+    conn = FakeConnection()
+    EmbodiedRefreshRepository(conn).save_delivery(
+        DeliveryRecord("d1", "batch", "oc_a", "confirmed", "om_a")
+    )
+    sql = " ".join(item[0] for item in conn.cursor_instance.executions)
+    assert "pg_advisory_xact_lock" in sql
+    assert "status <> 'confirmed'" in sql
+
+
 @pytest.fixture
 def postgres_refresh_schema():
     psycopg2 = pytest.importorskip("psycopg2")
@@ -211,6 +226,12 @@ def postgres_refresh_schema():
                 change_type TEXT NOT NULL,
                 payload JSONB NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE "{schema}".embodied_delivery_records (
+                delivery_id TEXT PRIMARY KEY, change_batch_id TEXT NOT NULL REFERENCES "{schema}".embodied_refresh_runs(run_id),
+                chat_id TEXT NOT NULL, status TEXT NOT NULL, message_id TEXT, detail JSONB NOT NULL DEFAULT '{{}}',
+                attempt_count INTEGER NOT NULL DEFAULT 0, next_retry_at TIMESTAMPTZ, updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(change_batch_id, chat_id)
             )
             """
         )
@@ -286,3 +307,32 @@ def test_save_changes_deduplicates_under_postgres_concurrency(postgres_refresh_s
         cursor.execute("SELECT count(*) FROM embodied_evidence_changes")
         assert cursor.fetchone()[0] == 1
     connection.close()
+
+
+def test_delivery_claim_prevents_double_worker_send(postgres_refresh_schema):
+    from datetime import datetime, timezone
+    from embodied_refresh.models import DeliveryRecord
+    from embodied_refresh.repository import EmbodiedRefreshRepository
+
+    setup = postgres_refresh_schema()
+    run = EmbodiedRefreshRepository(setup).begin_run(date(2026, 7, 17), "daily")
+    setup.close()
+    sent = []
+
+    def worker(index):
+        connection = postgres_refresh_schema()
+        repo = EmbodiedRefreshRepository(connection)
+        try:
+            with repo.claim_delivery(run.run_id, {"chat_id": "oc_same"}, datetime.now(timezone.utc)) as existing:
+                if existing is None:
+                    return False
+                sent.append(index)
+                repo.save_delivery(DeliveryRecord(existing.delivery_id, run.run_id, "oc_same", "confirmed", "om_one", {}, 1))
+                return True
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(worker, range(2)))
+    assert sorted(results) == [False, True]
+    assert len(sent) == 1

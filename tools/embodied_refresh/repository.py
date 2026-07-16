@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from datetime import date
 from typing import Any
 from uuid import uuid4
@@ -187,9 +188,75 @@ class EmbodiedRefreshRepository:
             )
             return [DeliveryRecord(*row) for row in cursor.fetchall()]
 
+    def due_deliveries(self, now: Any) -> list[DeliveryRecord]:
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT delivery_id, change_batch_id, chat_id, status, message_id,
+                          detail, attempt_count, next_retry_at
+                     FROM embodied_delivery_records
+                    WHERE next_retry_at <= %s
+                      AND status IN ('pending','failed','unconfirmed')
+                    ORDER BY next_retry_at, change_batch_id, chat_id""",
+                (now,),
+            )
+            return [DeliveryRecord(*row) for row in cursor.fetchall()]
+
+    @contextmanager
+    def claim_delivery(self, change_batch_id: str, target: dict[str, str], now: Any):
+        """Serialize one target and durably mark the crash window before sending."""
+        chat_id = target["chat_id"]
+        lock_key = f"embodied-delivery:{change_batch_id}:{chat_id}"
+        with self.connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_lock(hashtextextended(%s, 0))", (lock_key,))
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (lock_key,))
+                cursor.execute(
+                    """SELECT delivery_id, change_batch_id, chat_id, status, message_id,
+                              detail, attempt_count, next_retry_at
+                         FROM embodied_delivery_records
+                        WHERE change_batch_id = %s AND chat_id = %s FOR UPDATE""",
+                    (change_batch_id, chat_id),
+                )
+                existing = self._delivery(cursor.fetchone())
+                if existing and existing.status == "sending":
+                    cursor.execute(
+                        "UPDATE embodied_delivery_records SET status='reconcile_required', next_retry_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE delivery_id=%s",
+                        (existing.delivery_id,),
+                    )
+                    self.connection.commit()
+                    yield None
+                    return
+                if existing and existing.status in {"confirmed", "reconcile_required"}:
+                    self.connection.commit()
+                    yield None
+                    return
+                if existing is None:
+                    existing = DeliveryRecord(str(uuid4()), change_batch_id, chat_id, "pending")
+                cursor.execute(
+                    """INSERT INTO embodied_delivery_records
+                           (delivery_id, change_batch_id, chat_id, status, message_id, detail, attempt_count, next_retry_at)
+                       VALUES (%s,%s,%s,'sending',%s,%s::jsonb,%s,NULL)
+                       ON CONFLICT (change_batch_id, chat_id) DO UPDATE SET status='sending', next_retry_at=NULL, updated_at=CURRENT_TIMESTAMP
+                       WHERE embodied_delivery_records.status NOT IN ('confirmed','sending','reconcile_required')""",
+                    (existing.delivery_id, change_batch_id, chat_id, existing.message_id, json.dumps(existing.detail), existing.attempt_count),
+                )
+            self.connection.commit()
+            yield existing
+        except Exception:
+            self.connection.rollback()
+            raise
+        finally:
+            with self.connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_unlock(hashtextextended(%s, 0))", (lock_key,))
+
     def save_delivery(self, record: DeliveryRecord) -> None:
         try:
             with self.connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                    (f"embodied-delivery:{record.change_batch_id}:{record.chat_id}",),
+                )
                 cursor.execute(
                     """
                     INSERT INTO embodied_delivery_records
