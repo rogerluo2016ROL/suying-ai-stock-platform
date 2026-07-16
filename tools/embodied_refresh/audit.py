@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-import re
 from typing import Any, Iterable, Mapping, Sequence
 
 
@@ -17,6 +16,8 @@ LEADER_WEIGHTS = {
     "evidence_quality": 10,
     "competition_position": 5,
 }
+
+WATCH_STATUSES = {"candidate", "weak_evidence", "pending_review"}
 
 
 @dataclass(frozen=True)
@@ -84,7 +85,8 @@ def audit_chain(connection: Any, run_id: str) -> ChainAudit:
                        array_agg(DISTINCT e.review_status)
                            FILTER (WHERE e.event_id IS NOT NULL),
                        ARRAY[]::text[]
-                   ) AS evidence_review_statuses
+                   ) AS evidence_review_statuses,
+                   count(DISTINCT e.event_id)::integer AS joined_evidence_count
               FROM business_tag_mapping AS m
               LEFT JOIN business_tag_evidence_events AS e
                 ON e.event_id IN (
@@ -137,6 +139,7 @@ def audit_chain(connection: Any, run_id: str) -> ChainAudit:
             and (
                 not row["evidence_ids"]
                 or not row["review_statuses"]
+                or row["joined_evidence_count"] != len(row["evidence_ids"])
                 or any(status != "approved" for status in row["review_statuses"])
             )
         ),
@@ -150,7 +153,13 @@ def rank_node_leaders(candidates: Iterable[Any]) -> LeaderRanking:
     company is selected once using its best eligible mapping, so extra tags can
     never add points or occupy another rank.
     """
-    snapshots = [_score_candidate(candidate) for candidate in candidates]
+    eligible_statuses = {"verified"} | WATCH_STATUSES
+    snapshots = [
+        _score_candidate(candidate)
+        for candidate in candidates
+        if str(_get(candidate, "mapping_status", _get(candidate, "status", "candidate")))
+        in eligible_statuses
+    ]
     by_company: dict[str, list[LeaderSnapshot]] = {}
     for snapshot in snapshots:
         by_company.setdefault(snapshot.code, []).append(snapshot)
@@ -166,7 +175,7 @@ def rank_node_leaders(candidates: Iterable[Any]) -> LeaderRanking:
         key=_leader_sort_key,
     )[:3]
     watch = sorted(
-        (row for row in deduplicated if row.mapping_status != "verified"),
+        (row for row in deduplicated if row.mapping_status in WATCH_STATUSES),
         key=_leader_sort_key,
     )[:3]
     return LeaderRanking(formal, watch)
@@ -219,14 +228,19 @@ def _mapping_row(row: Any) -> dict[str, Any]:
     if isinstance(row, Mapping):
         result = dict(row)
     else:
-        result = dict(zip(("mapping_id", "code", "node_id", "status", "evidence_ids", "review_statuses"), row))
+        result = dict(zip(("mapping_id", "code", "node_id", "status", "evidence_ids", "review_statuses", "joined_evidence_count"), row))
     result["evidence_ids"] = list(result.get("evidence_ids") or [])
     result["review_statuses"] = list(result.get("review_statuses") or [])
+    result["joined_evidence_count"] = int(
+        result.get("joined_evidence_count", len(result["review_statuses"]))
+    )
     return result
 
 
 def _semantic_key(value: Any) -> str:
-    return "".join(re.findall(r"[\w]+", str(value or "").casefold(), flags=re.UNICODE))
+    # Treat typography as presentation only: spaces, underscores, slashes,
+    # hyphens and other punctuation must not split semantically equal names.
+    return "".join(character for character in str(value or "").casefold() if character.isalnum())
 
 
 def _canonical_priority(node_id: str) -> tuple[int, str]:

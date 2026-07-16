@@ -65,6 +65,46 @@ def test_audit_reports_l1_l8_conflicts_and_unapproved_verified_mapping():
     assert audit.verified_with_unapproved_evidence == ["map-review"]
 
 
+def test_verified_mapping_reports_when_only_some_evidence_ids_join():
+    from embodied_refresh.audit import audit_chain
+
+    nodes = [("EI-L5-HARMONIC", None, "L5", "谐波减速器", {}, "embodied")]
+    mappings = [
+        (
+            "map-partial",
+            "300503",
+            "EI-L5-HARMONIC",
+            "verified",
+            ["ev-approved", "ev-missing"],
+            ["approved"],
+            1,
+        )
+    ]
+
+    audit = audit_chain(FakeConnection(nodes, mappings), "run-4")
+
+    assert audit.verified_with_unapproved_evidence == ["map-partial"]
+
+
+def test_semantic_duplicate_normalization_removes_common_separators():
+    from embodied_refresh.audit import audit_chain
+
+    nodes = [
+        ("EI-L5-HARMONIC", None, "L5", "harmonic reducer", {}, "embodied"),
+        ("18C-L5-HARMONIC", None, "L5", "harmonic_reducer", {}, "embodied"),
+        ("ALT-L5-HARMONIC", None, "L5", "harmonic/reducer", {}, "embodied"),
+        ("ALT2-L5-HARMONIC", None, "L5", "harmonic-reducer", {}, "embodied"),
+    ]
+
+    audit = audit_chain(FakeConnection(nodes, []), "run-4")
+
+    assert len(audit.duplicate_groups) == 1
+    assert audit.duplicate_groups[0].canonical_node_id == "EI-L5-HARMONIC"
+    assert set(audit.duplicate_groups[0].duplicate_node_ids) == {
+        "18C-L5-HARMONIC", "ALT-L5-HARMONIC", "ALT2-L5-HARMONIC"
+    }
+
+
 def test_missing_revenue_is_not_zero_and_available_weights_are_normalized():
     from embodied_refresh.audit import rank_node_leaders
 
@@ -110,6 +150,20 @@ def test_formal_and_watch_top3_are_evidence_constrained_and_labeled():
     assert all(row.candidate_label == "candidate" for row in ranked.watch_top3)
     assert {row.mapping_status for row in ranked.formal_top3} == {"verified"}
     assert {row.mapping_status for row in ranked.watch_top3} == {"candidate"}
+
+
+def test_watch_pool_excludes_rejected_and_has_stable_tie_order():
+    from embodied_refresh.audit import rank_node_leaders
+
+    ranked = rank_node_leaders([
+        {"code": "000003", "node_id": "N3", "mapping_status": "rejected"},
+        {"code": "000002", "node_id": "N2", "mapping_status": "weak_evidence", "business_authenticity": 80},
+        {"code": "000001", "node_id": "N1", "mapping_status": "pending_review", "business_authenticity": 80},
+        {"code": "000000", "node_id": "N0", "mapping_status": "candidate", "business_authenticity": 80},
+        {"code": "000004", "node_id": "N4", "mapping_status": "unknown", "business_authenticity": 100},
+    ])
+
+    assert [row.code for row in ranked.watch_top3] == ["000000", "000001", "000002"]
 
 
 def test_multiple_tags_do_not_stack_add_score():
