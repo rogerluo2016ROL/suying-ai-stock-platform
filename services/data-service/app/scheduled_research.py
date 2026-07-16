@@ -48,6 +48,16 @@ def build_pipeline_command(
     trade_date: str,
     chat_ids: list[str],
 ) -> list[str]:
+    if task.get("runner") == "embodied_refresh":
+        command = [
+            sys.executable,
+            str(ROOT / "tools" / "run_embodied_daily_refresh.py"),
+            "--mode", str(task["mode"]),
+            "--as-of-date", trade_date,
+        ]
+        if task.get("send_feishu"):
+            command.append("--send-feishu")
+        return command
     command = [
         sys.executable,
         str(ROOT / "tools" / "run_research_pipeline.py"),
@@ -128,7 +138,7 @@ def run_scheduled_research_task(
         raise ValueError(f"未知定时研究任务: {task_id}")
 
     state_path = Path(state_root) / trade_date / f"{task_id}.json"
-    if state_path.exists():
+    if state_path.exists() and not task.get("repeatable", False):
         previous = json.loads(state_path.read_text(encoding="utf-8"))
         if previous.get("status") in TERMINAL_STATUSES:
             return {**previous, "status": "skipped_duplicate"}
@@ -141,20 +151,21 @@ def run_scheduled_research_task(
         "started_at": started.isoformat(timespec="seconds"),
     }
     pg_url = os.environ.get("KRONOS_PG_URL", DEFAULT_PG_URL)
-    try:
-        open_day = is_open_trading_day(trade_date, pg_url)
-    except Exception as exc:
-        state = {
-            **base_state,
-            "status": "failed_trade_calendar",
-            "error": f"{type(exc).__name__}: 交易日历查询失败",
-        }
-        _write_state(state_path, state)
-        return state
-    if not open_day:
-        state = {**base_state, "status": "skipped_non_trading_day"}
-        _write_state(state_path, state)
-        return state
+    if task.get("calendar_scope", "trading_days") == "trading_days":
+        try:
+            open_day = is_open_trading_day(trade_date, pg_url)
+        except Exception as exc:
+            state = {
+                **base_state,
+                "status": "failed_trade_calendar",
+                "error": f"{type(exc).__name__}: 交易日历查询失败",
+            }
+            _write_state(state_path, state)
+            return state
+        if not open_day:
+            state = {**base_state, "status": "skipped_non_trading_day"}
+            _write_state(state_path, state)
+            return state
 
     targets = config.get("chat_targets") or []
     chat_ids = [str(item.get("chat_id")) for item in targets if item.get("chat_id")]

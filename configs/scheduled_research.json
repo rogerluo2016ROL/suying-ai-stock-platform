@@ -45,6 +45,35 @@
       "cron": "30 14 * * 1-5",
       "model": "qishen_afternoon",
       "time_slot": "14:30"
+    },
+    {
+      "id": "embodied_daily_refresh_1930",
+      "name": "具身智能每日刷新",
+      "cron": "30 19 * * *",
+      "model": "embodied_daily_refresh",
+      "runner": "embodied_refresh",
+      "mode": "apply",
+      "calendar_scope": "all_days",
+      "send_feishu": true
+    },
+    {
+      "id": "embodied_weekly_audit_2030",
+      "name": "具身智能每周审计",
+      "cron": "30 20 * * 0",
+      "model": "embodied_weekly_audit",
+      "runner": "embodied_refresh",
+      "mode": "audit",
+      "calendar_scope": "all_days"
+    },
+    {
+      "id": "embodied_delivery_retry_5m",
+      "name": "具身智能送达补偿",
+      "cron": "*/5 * * * *",
+      "model": "embodied_delivery_retry",
+      "runner": "embodied_refresh",
+      "mode": "retry-delivery",
+      "calendar_scope": "all_days",
+      "repeatable": true
     }
   ]
 }

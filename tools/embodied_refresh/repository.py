@@ -73,6 +73,32 @@ class EmbodiedRefreshRepository:
             )
             return self._run(cursor.fetchone())
 
+    def load_cursors(self) -> dict[str, str]:
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT source_name, cursor_value FROM embodied_source_cursors WHERE chain_id = %s",
+                (self.chain_id,),
+            )
+            return {str(row[0]): str(row[1]) for row in cursor.fetchall()}
+
+    def save_snapshot(self, run_id: str, snapshot: Any) -> None:
+        rows = snapshot if isinstance(snapshot, (list, tuple)) else snapshot.get("leaders", [])
+        try:
+            with self.connection.cursor() as cursor:
+                for row in rows:
+                    payload = row if isinstance(row, dict) else row.__dict__
+                    cursor.execute(
+                        """INSERT INTO embodied_leader_snapshots
+                               (snapshot_id, run_id, node_id, rank, score, payload)
+                           VALUES (%s,%s,%s,%s,%s,%s::jsonb)
+                           ON CONFLICT (run_id, node_id, rank) DO NOTHING""",
+                        (str(uuid4()), run_id, payload["node_id"], payload["rank"], payload["score"], json.dumps(payload, default=str)),
+                    )
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+
     def save_cursor(self, source_name: str, cursor_value: str, run_id: str) -> None:
         """Advance one successful source cursor after the mapping transaction commits."""
         try:
