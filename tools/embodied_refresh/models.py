@@ -39,6 +39,11 @@ class RawEvidence:
     event_date: date | None = None
     node_id: str | None = None
     source_url: str | None = None
+    publisher_id: str | None = None
+    canonical_source_id: str | None = None
+    valid_until: date | None = None
+    is_valid: bool = True
+    valid: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -53,6 +58,12 @@ class NormalizedEvidence:
     has_explicit_relation: bool
     stage: CommercializationStage
     fingerprint: str
+    publisher_id: str | None = None
+    canonical_source_id: str = ""
+    valid_until: date | None = None
+    is_valid: bool = True
+    fingerprint_version: str = "v1"
+    valid: bool = True
 
 
 @dataclass(frozen=True)

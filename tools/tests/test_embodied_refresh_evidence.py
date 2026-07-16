@@ -5,6 +5,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from embodied_refresh.evidence import (
+    FINGERPRINT_VERSION,
     can_auto_verify,
     classify_source,
     commercialization_stage,
@@ -26,14 +27,21 @@ def evidence(
     *,
     source_id: str = "source-1",
     node_id: str | None = None,
+    publisher_id: str | None = None,
+    event_date: date | None = TODAY,
+    valid_until: date | None = None,
+    is_valid: bool = True,
 ):
     return normalize_evidence(
         RawEvidence(
             source_id=source_id,
             source_type=source_type,
             content=content,
-            event_date=TODAY,
+            event_date=event_date,
             node_id=node_id,
+            publisher_id=publisher_id,
+            valid_until=valid_until,
+            is_valid=is_valid,
         )
     )
 
@@ -98,3 +106,77 @@ def test_vague_possible_use_does_not_become_explicit_supply_relation():
     )
     assert event.has_explicit_relation is False
     assert can_auto_verify([event]) is False
+
+
+def test_two_a_sources_for_different_nodes_cannot_combine_votes():
+    events = [
+        evidence("official_web", "公司已供应传感器", source_id="a", node_id="node-a"),
+        evidence("ir_record", "公司已交付减速器", source_id="b", node_id="node-b"),
+    ]
+    assert can_auto_verify(events, as_of=TODAY) is False
+
+
+def test_same_publisher_republished_as_two_source_ids_counts_once():
+    events = [
+        evidence("official_web", "公司已供应传感器", source_id="crawl-a", publisher_id="issuer-1", node_id="node-a"),
+        evidence("ir_record", "公司已交付传感器", source_id="crawl-b", publisher_id="issuer-1", node_id="node-a"),
+    ]
+    assert events[0].canonical_source_id == "issuer-1"
+    assert can_auto_verify(events, as_of=TODAY) is False
+
+
+def test_negative_or_withdrawn_sentence_never_supports_relation_or_stage():
+    for text in (
+        "公司尚未量产机器人传感器",
+        "公司没有形成相关收入",
+        "公司不供应人形机器人客户",
+        "相关订单已取消并终止交付",
+    ):
+        event = evidence("annual_report", text, node_id="node-a")
+        assert event.has_explicit_relation is False
+        assert event.stage == CommercializationStage.CONCEPT_RELATED
+        assert can_auto_verify([event], as_of=TODAY) is False
+
+
+def test_vague_sentence_is_not_unlocked_by_unrelated_income_sentence():
+    event = evidence(
+        "annual_report",
+        "公司布局人形机器人传感器。公司主营业务去年实现收入。",
+        node_id="node-a",
+    )
+    assert event.has_explicit_relation is False
+    assert event.stage == CommercializationStage.CONCEPT_RELATED
+
+
+def test_future_expired_and_explicitly_invalid_evidence_cannot_upgrade():
+    future = evidence("annual_report", "公司已批量交付", node_id="node-a", event_date=date(2026, 7, 18))
+    expired = evidence("annual_report", "公司已批量交付", node_id="node-a", valid_until=date(2026, 7, 16))
+    invalid = evidence("annual_report", "公司已批量交付", node_id="node-a", is_valid=False)
+    assert can_auto_verify([future], as_of=TODAY) is False
+    assert can_auto_verify([expired], as_of=TODAY) is False
+    assert can_auto_verify([invalid], as_of=TODAY) is False
+
+
+def test_explicit_valid_false_alias_cannot_upgrade():
+    raw = RawEvidence(
+        source_id="filing-1",
+        source_type="annual_report",
+        content="公司已批量交付六维力传感器",
+        event_date=TODAY,
+        node_id="node-a",
+        valid=False,
+    )
+    assert normalize_evidence(raw).valid is False
+    assert can_auto_verify([normalize_evidence(raw)], as_of=TODAY) is False
+
+
+def test_fingerprint_declares_hash_contract_version():
+    event = evidence("official_web", "公司已小批量交付", node_id="node-a")
+    assert event.fingerprint_version == FINGERPRINT_VERSION
+    assert event.fingerprint.startswith(f"{FINGERPRINT_VERSION}:")
+
+
+def test_weak_commercial_phrases_do_not_overstate_stage():
+    assert commercialization_stage("公司签订了框架协议") < CommercializationStage.CONFIRMED_ORDER
+    assert commercialization_stage("行业产能释放") < CommercializationStage.MASS_PRODUCTION
+    assert commercialization_stage("公司收入占比提升") < CommercializationStage.SIGNIFICANT_REVENUE_SHARE
