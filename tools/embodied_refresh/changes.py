@@ -48,8 +48,8 @@ def priority_for_score(score: int | float | None) -> str:
 def score_change(change: Any) -> int | None:
     """Return the exact weighted six-dimension score and retain its audit trail."""
     factors: dict[str, dict[str, float | int]] = {}
-    weighted_total = 0.0
-    available_weight = 0
+    total = 0.0
+    complete = True
     for name, weight in SCORE_WEIGHTS.items():
         score_key = f"{name}_score"
         if isinstance(change, Mapping):
@@ -61,18 +61,19 @@ def score_change(change: Any) -> int | None:
             raw = fallback if isinstance(fallback, (int, float)) else None
         if raw is None:
             factors[name] = {"value": None, "weight": weight, "points": None}
+            complete = False
             continue
         try:
             numeric = float(raw)
         except (TypeError, ValueError):
             factors[name] = {"value": None, "weight": weight, "points": None}
+            complete = False
             continue
         value = max(0.0, min(100.0, numeric))
         points = value * weight / 100
         factors[name] = {"value": value, "weight": weight, "points": points}
-        weighted_total += value * weight
-        available_weight += weight
-    result = None if not available_weight else int(round(weighted_total / available_weight))
+        total += points
+    result = int(round(total)) if complete else None
     if isinstance(change, MutableMapping):
         change["score_factors"] = factors
         change["score"] = result
@@ -100,8 +101,9 @@ def diff_snapshots(previous: Any, current: Any) -> list[EvidenceChange]:
         common_nodes = sorted(set(old_rows) & set(new_rows))
         for node_id in common_nodes:
             before, after = old_rows.pop(node_id), new_rows.pop(node_id)
-            for change_type in _classify_pair(before, after):
-                _append_change(changes, seen, chain_id, run_id, change_type, before, after)
+            change_types = _classify_pair(before, after)
+            if change_types:
+                _append_change(changes, seen, chain_id, run_id, change_types, before, after)
 
         # A company's one removed node plus one added node is a semantic move,
         # not two unrelated add/remove notifications.
@@ -109,13 +111,13 @@ def diff_snapshots(previous: Any, current: Any) -> list[EvidenceChange]:
             before_node = sorted(old_rows)[0]
             after_node = sorted(new_rows)[0]
             _append_change(
-                changes, seen, chain_id, run_id, "node_adjusted",
+                changes, seen, chain_id, run_id, ["node_adjusted", *_classify_pair(old_rows[before_node], new_rows[after_node])],
                 old_rows.pop(before_node), new_rows.pop(after_node),
             )
         for after in new_rows.values():
-            _append_change(changes, seen, chain_id, run_id, "new_candidate", None, after)
+            _append_change(changes, seen, chain_id, run_id, ["new_candidate"], None, after)
         for before in old_rows.values():
-            _append_change(changes, seen, chain_id, run_id, "mapping_invalidated", before, None)
+            _append_change(changes, seen, chain_id, run_id, ["mapping_invalidated"], before, None)
     return changes
 
 
@@ -204,14 +206,24 @@ def _rows_by_code(rows: Sequence[Any]) -> dict[str, list[dict[str, Any]]]:
 
 _STATUS_RANK = {"rejected": -2, "disabled": -2, "invalidated": -2, "weak_evidence": 0, "candidate": 1, "pending_review": 1, "verified": 2}
 _GRADE_RANK = {"D": 1, "C": 2, "B": 3, "A": 4, "S": 5}
+_CHANGE_TYPE_PRIORITY = {
+    "mapping_invalidated": 0,
+    "status_downgraded": 1,
+    "node_adjusted": 2,
+    "status_upgraded": 3,
+    "commercialization_advanced": 4,
+    "evidence_weakened": 5,
+    "evidence_strengthened": 6,
+    "new_candidate": 7,
+}
 
 
 def _classify_pair(before: Mapping[str, Any], after: Mapping[str, Any]) -> list[str]:
     before_status = str(before.get("status", "candidate"))
     after_status = str(after.get("status", "candidate"))
-    if after_status in {"rejected", "disabled", "invalidated"} or after.get("mapping_invalidated") is True:
-        return ["mapping_invalidated"]
     result: list[str] = []
+    if after_status in {"rejected", "disabled", "invalidated"} or after.get("mapping_invalidated") is True:
+        result.append("mapping_invalidated")
     before_status_rank = _STATUS_RANK.get(before_status, 0)
     after_status_rank = _STATUS_RANK.get(after_status, 0)
     if after_status_rank > before_status_rank:
@@ -258,8 +270,12 @@ def _event_ids(row: Mapping[str, Any] | None) -> tuple[str, ...]:
 
 def _append_change(
     changes: list[EvidenceChange], seen: set[str], chain_id: str, run_id: str,
-    change_type: str, before: Mapping[str, Any] | None, after: Mapping[str, Any] | None,
+    change_types: Sequence[str], before: Mapping[str, Any] | None, after: Mapping[str, Any] | None,
 ) -> None:
+    ordered_types = sorted(set(change_types), key=lambda value: (_CHANGE_TYPE_PRIORITY[value], value))
+    if not ordered_types:
+        return
+    change_type = ordered_types[0]
     active = after or before or {}
     payload = dict(active)
     payload.update({
@@ -271,6 +287,7 @@ def _append_change(
         "after_status": _display(_get(after, "status")),
         "before_stage": _display(_get(before, "stage")),
         "after_stage": _display(_get(after, "stage")),
+        "change_types": ordered_types,
     })
     # Cached aggregate values are never trusted; factors are the source of truth.
     payload.pop("score_factors", None)
@@ -281,7 +298,7 @@ def _append_change(
         "before_node_id": payload["before_node_id"],
         "after_node_id": payload["after_node_id"],
         "evidence_event_ids": sorted(set(_event_ids(before)) | set(_event_ids(after))),
-        "change_type": change_type,
+        "change_types": ordered_types,
         "target_status": payload["after_status"],
         "target_stage": payload["after_stage"],
     }

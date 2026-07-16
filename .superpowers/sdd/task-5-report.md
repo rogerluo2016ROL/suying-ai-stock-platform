@@ -13,9 +13,10 @@
 
 - 差异分类改为规格定义的 8 类：`new_candidate`、`evidence_strengthened`、`status_upgraded`、`node_adjusted`、`commercialization_advanced`、`evidence_weakened`、`status_downgraded`、`mapping_invalidated`。
 - 按公司代码先配对节点，一次节点迁移只产生一条 `node_adjusted`，保留 before/after node。
-- 不信任快照内缓存的 `score` / `priority`；每次从六维因子重算。缺失因子保留 `None`，按可用权重重新归一，全缺失时为 `score=None` / P3 且不出站。
+- 不信任快照内缓存的 `score` / `priority`；每次从六维因子重算。六维必须齐全才按固定 25/25/20/15/10/5 权重求和；任一维缺失就为 `score=None` / P3 且不出站，不重新归一、不当作 0 分。
 - 变动指纹只使用 chain/code/before+after node/证据事件 ID/change type/目标 status+stage，不受 run、cursor、updated_at 影响。
 - 摘要增加扫描规模、每条变动节点、仍缺映射节点；Top3 进出改为结构化记录并强制 `reason`。
+- 同一公司同一 before/after 业务事件只保存一条 `EvidenceChange`；`change_types` 按业务优先级保留所有复合类型，`change_type` 使用其确定性主类型，指纹包含稳定排序后的 `change_types`。
 
 ## TDD 与验证证据
 
