@@ -99,6 +99,59 @@ class EmbodiedRefreshRepository:
             self.connection.rollback()
             raise
 
+    def load_hierarchy_nodes(self) -> list[dict[str, Any]]:
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT node_id, display_name, COALESCE(metadata, '{}'::jsonb), layer_level
+                     FROM supply_chain_hierarchy_nodes
+                    WHERE chain_id IN ('embodied_intelligence','embodied')"""
+            )
+            return [
+                {"node_id": row[0], "display_name": row[1], "metadata": row[2] or {}, "layer_level": row[3]}
+                for row in cursor.fetchall()
+            ]
+
+    def load_leader_candidates(self) -> list[dict[str, Any]]:
+        """Load persisted mapping/evidence state; ranking itself remains pure."""
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT m.code, COALESCE(s.name, m.code), m.node_id, m.status,
+                          COALESCE(m.confidence, 0),
+                          count(DISTINCT e.event_id)::integer,
+                          count(DISTINCT e.event_id) FILTER (WHERE e.review_status='approved')::integer
+                     FROM business_tag_mapping m
+                     LEFT JOIN stocks s ON s.code=m.code
+                     LEFT JOIN business_tag_evidence_events e
+                       ON e.event_id IN (SELECT jsonb_array_elements_text(COALESCE(m.evidence_ids,'[]'::jsonb)))
+                    WHERE m.chain_id IN ('embodied_intelligence','embodied')
+                      AND m.status IN ('verified','candidate','weak_evidence','pending_review')
+                    GROUP BY m.code, s.name, m.node_id, m.status, m.confidence"""
+            )
+            result = []
+            for code, name, node_id, status, confidence, evidence_count, approved_count in cursor.fetchall():
+                authenticity = 100.0 if status == "verified" else max(25.0, float(confidence or 0) * 100)
+                quality = (100.0 * approved_count / evidence_count) if evidence_count else 0.0
+                result.append({
+                    "code": code, "company_name": name, "node_id": node_id, "mapping_status": status,
+                    "business_authenticity": authenticity, "evidence_quality": quality,
+                })
+            return result
+
+    def save_identification_conflicts(self, run_id: str, conflicts: list[dict[str, Any]]) -> None:
+        """Stage ambiguous recognitions in the caller's mapping transaction."""
+        with self.connection.cursor() as cursor:
+            for conflict in conflicts:
+                for node_id in conflict["node_ids"]:
+                    conflict_id = f"EMB-IDENTIFY-{uuid4()}"
+                    cursor.execute(
+                        """INSERT INTO embodied_mapping_conflicts
+                               (conflict_id, run_id, chain_id, code, proposed_node_id,
+                                conflict_type, status, source_record_ids, evidence_fingerprints, source_names)
+                           VALUES (%s,%s,%s,%s,%s,'ambiguous_node_recognition','pending_review',%s::jsonb,'[]'::jsonb,%s::jsonb)""",
+                        (conflict_id, run_id, self.chain_id, conflict["code"], node_id,
+                         json.dumps([conflict["source_record_id"]]), json.dumps([conflict["source_name"]])),
+                    )
+
     def save_cursor(self, source_name: str, cursor_value: str, run_id: str) -> None:
         """Advance one successful source cursor after the mapping transaction commits."""
         try:
@@ -200,6 +253,27 @@ class EmbodiedRefreshRepository:
                 (change_batch_id, chat_id),
             )
             return self._delivery(cursor.fetchone())
+
+    def initialize_deliveries(self, change_batch_id: str, targets: list[dict[str, str]], message: str, now: Any) -> None:
+        """Atomically persist the complete recovery manifest before any external send."""
+        try:
+            with self.connection.cursor() as cursor:
+                for target in targets:
+                    detail = {
+                        "target_key": target.get("key", ""), "target_name": target.get("name", ""),
+                        "target_chat_id": target["chat_id"], "message": message,
+                    }
+                    cursor.execute(
+                        """INSERT INTO embodied_delivery_records
+                               (delivery_id, change_batch_id, chat_id, status, detail, attempt_count, next_retry_at)
+                           VALUES (%s,%s,%s,'pending',%s::jsonb,0,%s)
+                           ON CONFLICT (change_batch_id, chat_id) DO NOTHING""",
+                        (str(uuid4()), change_batch_id, target["chat_id"], json.dumps(detail, ensure_ascii=False), now),
+                    )
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
 
     def deliveries(self, change_batch_id: str) -> list[DeliveryRecord]:
         with self.connection.cursor() as cursor:

@@ -26,6 +26,9 @@ class RefreshResult:
     delivery_attempted: bool
     change_count: int = 0
     source_errors: dict[str, str] | None = None
+    status: str = "success"
+    delivery_summary: dict[str, Any] | None = None
+    snapshot: dict[str, Any] | None = None
 
 
 class EmbodiedRefreshOrchestrator:
@@ -42,6 +45,7 @@ class EmbodiedRefreshOrchestrator:
         audit_and_rank: Callable[..., Any],
         diff_baseline: Callable[..., list[Any]],
         deliver_changes: Callable[..., Any],
+        failure_repository_factory: Callable[[], Any] | None = None,
     ) -> None:
         self.repository = repository
         self.refresh_sources = refresh_sources
@@ -51,6 +55,7 @@ class EmbodiedRefreshOrchestrator:
         self.audit_and_rank = audit_and_rank
         self.diff_baseline = diff_baseline
         self.deliver_changes = deliver_changes
+        self.failure_repository_factory = failure_repository_factory
 
     def run(
         self,
@@ -63,7 +68,10 @@ class EmbodiedRefreshOrchestrator:
         if mode not in {"dry-run", "apply", "audit"}:
             raise ValueError("mode must be dry-run, apply, or audit")
         run_date = date.fromisoformat(as_of_date) if isinstance(as_of_date, str) else as_of_date
-        persisted = mode != "dry-run"
+        if mode == "audit":
+            snapshot = self.audit_and_rank(None, None, mode)
+            return RefreshResult(mode, None, False, False, status="success", snapshot=snapshot)
+        persisted = mode == "apply"
         run = self.repository.begin_run(run_date, mode) if persisted else None
         run_id = getattr(run, "run_id", None)
         try:
@@ -71,11 +79,7 @@ class EmbodiedRefreshOrchestrator:
             refreshed = self.refresh_sources(cursors, run_date)
             normalized = self.normalize_evidence(refreshed.rows)
             if persisted:
-                try:
-                    mappings = self.apply_mappings(normalized, run_id, run_date)
-                except Exception:
-                    self.rollback_mappings()
-                    raise
+                mappings = self.apply_mappings(normalized, run_id, run_date)
             else:
                 mappings = normalized
             snapshot = self.audit_and_rank(run_id, mappings, mode)
@@ -89,8 +93,8 @@ class EmbodiedRefreshOrchestrator:
 
             publishable = [row for row in detected if _priority(row) in PUBLISHABLE_PRIORITIES]
             delivery_attempted = bool(persisted and send_feishu and publishable)
-            if delivery_attempted:
-                self.deliver_changes(run_id, publishable, snapshot)
+            delivery_summary = self.deliver_changes(run_id, publishable, snapshot) if delivery_attempted else None
+            final_status = getattr(delivery_summary, "status", "success")
 
             if persisted:
                 successful = set(refreshed.rows) - set(refreshed.errors)
@@ -98,13 +102,25 @@ class EmbodiedRefreshOrchestrator:
                     cursor = refreshed.next_cursors.get(source)
                     if cursor is not None:
                         self.repository.save_cursor(source, cursor, run_id)
-                self.repository.finish_run(run_id, "success", {
+                summary = {
                     "changes": len(detected), "source_errors": refreshed.errors, "snapshot": snapshot,
-                })
-            return RefreshResult(mode, run_id, persisted, delivery_attempted, len(detected), refreshed.errors)
+                }
+                if delivery_summary is not None:
+                    summary["delivery"] = asdict(delivery_summary) if hasattr(delivery_summary, "__dataclass_fields__") else {
+                        key: getattr(delivery_summary, key) for key in ("status", "confirmed", "pending")
+                        if hasattr(delivery_summary, key)
+                    }
+                self.repository.finish_run(run_id, final_status, summary)
+            return RefreshResult(mode, run_id, persisted, delivery_attempted, len(detected), refreshed.errors,
+                                 final_status, summary.get("delivery") if persisted else None, snapshot)
         except Exception:
+            self.rollback_mappings()
             if persisted and run_id is not None:
-                self.repository.finish_run(run_id, "failed", {"failed_at": datetime.now(timezone.utc).isoformat()})
+                try:
+                    failure_repository = self.failure_repository_factory() if self.failure_repository_factory else self.repository
+                    failure_repository.finish_run(run_id, "failed", {"failed_at": datetime.now(timezone.utc).isoformat()})
+                except Exception:
+                    pass
             raise
 
 
@@ -121,6 +137,73 @@ def _coerce_date(value: Any) -> date | None:
         return value
     text = str(value).strip()
     return date.fromisoformat(text[:10]) if text else None
+
+
+def _source_text(row: dict[str, Any]) -> str:
+    fields = (
+        "title", "content", "question", "answer", "abstract", "summary",
+        "main_business", "business_scope", "bz_item", "bz_sales",
+    )
+    return "。".join(str(row.get(key) or "").strip() for key in fields if str(row.get(key) or "").strip())
+
+
+def _node_keywords(node: dict[str, Any]) -> set[str]:
+    metadata = node.get("metadata") or {}
+    values = [node.get("display_name")]
+    for key in ("aliases", "keywords", "products"):
+        raw = metadata.get(key, [])
+        values.extend(raw if isinstance(raw, list) else [raw])
+    return {str(value).strip().lower() for value in values if str(value or "").strip()}
+
+
+def identify_source_nodes(
+    rows_by_source: dict[str, list[dict[str, Any]]], nodes: list[dict[str, Any]]
+) -> tuple[list[tuple[str, dict[str, Any], str, str]], list[dict[str, Any]]]:
+    """Conservative recognition: only a unique hierarchy-node match may become evidence."""
+    identified = []
+    conflicts = []
+    keywords = [(str(node["node_id"]), _node_keywords(node)) for node in nodes]
+    for source_name, rows in rows_by_source.items():
+        for row in rows:
+            code = str(row.get("code") or row.get("ts_code") or row.get("symbol") or "").strip()
+            text = _source_text(row)
+            lowered = text.lower()
+            matches = sorted(node_id for node_id, terms in keywords if any(term in lowered for term in terms))
+            if not code or not text or not matches:
+                continue
+            if len(matches) == 1:
+                identified.append((source_name, row, matches[0], text))
+            else:
+                conflicts.append({"source_name": source_name, "code": code, "node_ids": matches,
+                                  "source_record_id": str(row.get("id") or row.get("source_id") or row.get("source_cursor") or "")})
+    return identified, conflicts
+
+
+def build_ranked_snapshot(run_id: str | None, audit_report: Any, candidates: list[dict[str, Any]], mappings: Any) -> dict[str, Any]:
+    from embodied_refresh.audit import rank_node_leaders
+
+    ranked = rank_node_leaders(candidates)
+    mapping_rows = []
+    for bucket in ("created", "updated", "unchanged"):
+        for row in getattr(mappings, bucket, []):
+            mapping_rows.append({
+                "code": row.code, "node_id": row.node_id, "status": row.to_status,
+                "mapping_id": row.mapping_id,
+            })
+    leaders = []
+    for label, rows in (("formal", ranked.formal_top3), ("watch", ranked.watch_top3)):
+        for rank, row in enumerate(rows, 1):
+            leaders.append({
+                "node_id": row.node_id or "unassigned", "rank": rank, "score": row.score,
+                "code": row.code, "company_name": row.company_name, "candidate_label": label,
+                "mapping_status": row.mapping_status, "dimension_scores": row.dimension_scores,
+            })
+    return {
+        "run_id": run_id, "status": "success", "audit": asdict(audit_report),
+        "leaders": leaders, "formal_top3": [row for row in leaders if row["candidate_label"] == "formal"],
+        "watch_top3": [row for row in leaders if row["candidate_label"] == "watch"],
+        "mappings": mapping_rows,
+    }
 
 
 def retry_delivery(repository: Any, sender: Callable[..., Any], confirmer: Callable[..., bool]) -> list[Any]:
@@ -155,25 +238,34 @@ def _runtime_orchestrator(connection: Any, repository: Any, pg_url: str, targets
     from embodied_refresh.sources import fetch_incremental_sources
     from run_research_pipeline import confirm_message_delivery
 
+    class FreshFailureRepository:
+        def finish_run(self, run_id: str, status: str, summary: dict[str, Any]) -> None:
+            import psycopg2
+            from embodied_refresh.repository import EmbodiedRefreshRepository
+            fresh = psycopg2.connect(pg_url)
+            try:
+                EmbodiedRefreshRepository(fresh).finish_run(run_id, status, summary)
+            finally:
+                fresh.close()
+
+    pending_conflicts: list[dict[str, Any]] = []
+
     def normalize(rows_by_source: dict[str, list[dict[str, Any]]]) -> list[MappingEvidence]:
         grouped: dict[tuple[str, str], list[Any]] = {}
         metadata: dict[tuple[str, str], dict[str, Any]] = {}
-        for source_name, rows in rows_by_source.items():
-            for row in rows:
-                code = str(row.get("code") or row.get("ts_code") or "").strip()
-                node_id = str(row.get("node_id") or "").strip()
-                content = str(row.get("content") or row.get("title") or row.get("main_business") or "").strip()
-                if not code or not node_id or not content:
-                    continue
-                source_id = str(row.get("source_id") or row.get("id") or f"{source_name}:{code}:{row.get('source_cursor', '')}")
-                raw = RawEvidence(
-                    source_id, source_name, content,
-                    _coerce_date(row.get("event_date") or row.get("ann_date") or row.get("pub_date")),
-                    node_id, row.get("source_url"),
-                )
-                key = (code, node_id)
-                grouped.setdefault(key, []).append(normalize_evidence(raw))
-                metadata[key] = row
+        identified, conflicts = identify_source_nodes(rows_by_source, repository.load_hierarchy_nodes())
+        pending_conflicts[:] = conflicts
+        for source_name, row, node_id, content in identified:
+            code = str(row.get("code") or row.get("ts_code") or row.get("symbol") or "").strip()
+            source_id = str(row.get("source_id") or row.get("id") or f"{source_name}:{code}:{row.get('source_cursor', '')}")
+            raw = RawEvidence(
+                source_id, source_name, content,
+                _coerce_date(row.get("event_date") or row.get("ann_date") or row.get("pub_date")),
+                node_id, row.get("source_url"),
+            )
+            key = (code, node_id)
+            grouped.setdefault(key, []).append(normalize_evidence(raw))
+            metadata[key] = row
         return [
             MappingEvidence(code=code, chain_id="embodied_intelligence", node_id=node_id,
                             tag_name=str(metadata[(code, node_id)].get("tag_name") or node_id),
@@ -183,21 +275,13 @@ def _runtime_orchestrator(connection: Any, repository: Any, pg_url: str, targets
 
     def apply(items: list[Any], run_id: str, as_of: date) -> Any:
         enriched = [type(item)(**{**item.__dict__, "run_id": run_id}) for item in items]
+        if pending_conflicts:
+            repository.save_identification_conflicts(run_id, pending_conflicts)
         return apply_mapping_changes(connection, enriched, as_of=as_of)
 
     def audit(run_id: str | None, mappings: Any, mode: str) -> dict[str, Any]:
         report = audit_chain(connection, run_id or f"dry-run:{date.today().isoformat()}")
-        mapping_rows = []
-        for bucket in ("created", "updated", "unchanged"):
-            for row in getattr(mappings, bucket, []):
-                mapping_rows.append({
-                    "code": row.code, "node_id": row.node_id, "status": row.to_status,
-                    "mapping_id": row.mapping_id,
-                })
-        return {
-            "run_id": run_id, "status": "success", "audit": asdict(report),
-            "leaders": [], "mappings": mapping_rows,
-        }
+        return build_ranked_snapshot(run_id, report, repository.load_leader_candidates(), mappings)
 
     def diff(baseline: Any, current: dict[str, Any]) -> list[Any]:
         previous = getattr(baseline, "summary", {}).get("snapshot", baseline)
@@ -218,6 +302,7 @@ def _runtime_orchestrator(connection: Any, repository: Any, pg_url: str, targets
         audit_and_rank=audit,
         diff_baseline=diff,
         deliver_changes=deliver,
+        failure_repository_factory=FreshFailureRepository,
     )
 
 
@@ -237,18 +322,21 @@ def main(argv: list[str] | None = None) -> int:
     from embodied_refresh.repository import EmbodiedRefreshRepository
 
     connection = psycopg2.connect(args.pg_url)
-    repository = EmbodiedRefreshRepository(connection)
-    if args.mode == "retry-delivery":
-        from run_research_pipeline import confirm_message_delivery
-        summaries = retry_delivery(repository, _lark_sender, confirm_message_delivery)
-        print(json.dumps({"mode": args.mode, "batches": [asdict(row) for row in summaries]}, ensure_ascii=False, default=str))
+    try:
+        repository = EmbodiedRefreshRepository(connection)
+        if args.mode == "retry-delivery":
+            from run_research_pipeline import confirm_message_delivery
+            summaries = retry_delivery(repository, _lark_sender, confirm_message_delivery)
+            print(json.dumps({"mode": args.mode, "batches": [asdict(row) for row in summaries]}, ensure_ascii=False, default=str))
+            return 0
+        config = json.loads((ROOT / "configs" / "scheduled_research.json").read_text(encoding="utf-8"))
+        targets = config.get("chat_targets", [])
+        orchestrator = _runtime_orchestrator(connection, repository, args.pg_url, targets)
+        result = orchestrator.run(mode=args.mode, as_of_date=args.as_of_date, send_feishu=args.send_feishu)
+        print(json.dumps(asdict(result), ensure_ascii=False, default=str))
         return 0
-    config = json.loads((ROOT / "configs" / "scheduled_research.json").read_text(encoding="utf-8"))
-    targets = config.get("chat_targets", [])
-    orchestrator = _runtime_orchestrator(connection, repository, args.pg_url, targets)
-    result = orchestrator.run(mode=args.mode, as_of_date=args.as_of_date, send_feishu=args.send_feishu)
-    print(json.dumps(asdict(result), ensure_ascii=False, default=str))
-    return 0
+    finally:
+        connection.close()
 
 
 if __name__ == "__main__":

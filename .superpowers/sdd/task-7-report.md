@@ -19,3 +19,12 @@
 4. GREEN: embodied focused suites passed: 66 passed, 1 skipped.
 5. GREEN: scheduled research suite passed: 10 passed.
 6. `py_compile`, CLI `--help`, and `git diff --check` passed.
+
+## Review Remediation
+
+- Replaced the placeholder empty leader list with persisted candidate loading and `rank_node_leaders`; formal/watch Top3 are saved with explicit labels and ranks.
+- Delivery now atomically pre-creates all three pending target rows before the first external call, so compensation can reconstruct the full batch after an early failure.
+- The orchestrator preserves `data_success_delivery_incomplete` and the structured delivery summary instead of overwriting it with success.
+- Added conservative node recognition for the real five-source row shapes. Only one unique hierarchy keyword match becomes mapping evidence; ambiguous matches are persisted as `pending_review` conflicts.
+- `audit` is now a strict read-only branch: no run row, source refresh, mapping transaction, snapshot/cursor write, or delivery.
+- Failure handling rolls back first, records failure through a fresh connection with errors safely contained, re-raises the original exception, and closes the main connection in `finally`.

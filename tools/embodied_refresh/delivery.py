@@ -63,6 +63,7 @@ def deliver_change_batch(
     """Attempt each due target once; retries are driven by later invocations."""
     current_time = now or datetime.now(timezone.utc)
     normalized_targets = _normalize_targets(targets)
+    repository.initialize_deliveries(batch_id, normalized_targets, message, current_time)
     for target in normalized_targets:
         chat_id = target["chat_id"]
         with repository.claim_delivery(batch_id, target, current_time) as existing:

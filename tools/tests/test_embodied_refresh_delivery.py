@@ -28,6 +28,16 @@ class MemoryRepository:
     def save_delivery(self, record):
         self.rows[(record.change_batch_id, record.chat_id)] = record
 
+    def initialize_deliveries(self, batch_id, targets, message, now):
+        from embodied_refresh.models import DeliveryRecord
+        for target in targets:
+            key = (batch_id, target["chat_id"])
+            self.rows.setdefault(key, DeliveryRecord(
+                "new-" + target["chat_id"], batch_id, target["chat_id"], "pending",
+                detail={"target_key": target.get("key", ""), "target_name": target.get("name", ""),
+                        "target_chat_id": target["chat_id"], "message": message}, next_retry_at=now,
+            ))
+
     def deliveries(self, batch_id):
         return [row for (saved_batch, _), row in self.rows.items() if saved_batch == batch_id]
 
@@ -220,3 +230,17 @@ def test_retry_due_batches_recovers_message_and_targets_from_repository():
     summaries = retry_due_batches(repository, lambda chat, message: sent.append((chat, message)) or {"message_id": "om_" + chat}, lambda *_: True, now=start.replace(minute=5))
     assert summaries[0].confirmed == 3
     assert sent == [(target["chat_id"], "persisted digest") for target in TARGETS]
+
+
+def test_all_targets_exist_before_first_external_send_failure():
+    repository = MemoryRepository()
+    observed = []
+
+    def fail_first(*_args):
+        observed.append(len(repository.deliveries("batch-precreated")))
+        raise RuntimeError("down")
+
+    deliver_change_batch(repository, "batch-precreated", TARGETS, "digest", fail_first, lambda *_: True)
+
+    assert {row.chat_id for row in repository.deliveries("batch-precreated")} == {t["chat_id"] for t in TARGETS}
+    assert observed[0] == 3
