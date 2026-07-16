@@ -84,10 +84,12 @@ def test_new_mapping_with_single_s_source_is_verified_in_same_transaction():
     assert changes.created[0].to_status == "verified"
     insert = next((sql, params) for sql, params in conn.cursor_instance.executions if "INSERT INTO business_tag_mapping" in sql)
     transition = next((sql, params) for sql, params in conn.cursor_instance.executions if "INSERT INTO embodied_mapping_transitions" in sql)
-    assert "verified" in insert[1]
+    assert "candidate" in insert[1]
     assert "pending_review" in transition[1]
     assert any("INSERT INTO business_tag_evidence_events" in sql for sql, _ in conn.cursor_instance.executions)
     assert __import__("json").loads(insert[1][8]) == [event("node-a").fingerprint]
+    transitions = [params for sql, params in conn.cursor_instance.executions if "INSERT INTO embodied_mapping_transitions" in sql]
+    assert [(row[6], row[7]) for row in transitions] == [(None, "candidate"), ("candidate", "verified")]
 
 
 def test_projection_uses_same_state_machine_without_writes():
@@ -222,7 +224,8 @@ def test_cross_day_two_independent_a_sources_upgrade_candidate():
                                               canonical_source_id="official-two"))
     conn = FakeConnection(
         existing=[("map-1", "candidate", "node-a", [prior.fingerprint])],
-        historical=[(prior.fingerprint, "official-one", "official_web", prior.content, AS_OF, "node-a", None)],
+        historical=[(prior.fingerprint, "official-one", "official_web", prior.content, AS_OF, "node-a", None,
+                     "official-one", "official-one")],
     )
 
     changes = apply_mapping_changes(
@@ -231,3 +234,21 @@ def test_cross_day_two_independent_a_sources_upgrade_candidate():
 
     assert changes.updated[0].to_status == "verified"
     assert any("SET mapping_id=%s" in sql for sql, _ in conn.cursor_instance.executions)
+
+
+def test_cross_day_two_a_records_from_same_publisher_do_not_upgrade():
+    from embodied_refresh.mappings import MappingEvidence, apply_mapping_changes
+
+    prior = normalize_evidence(RawEvidence("prior-record", "official_web", "公司已批量交付", AS_OF, "node-a",
+                                            publisher_id="publisher-one", canonical_source_id="publisher-one"))
+    current = normalize_evidence(RawEvidence("current-record", "official_wechat", "公司已批量交付", AS_OF, "node-a",
+                                              publisher_id="publisher-one", canonical_source_id="publisher-one"))
+    conn = FakeConnection(
+        existing=[("map-1", "candidate", "node-a", [prior.fingerprint])],
+        historical=[(prior.fingerprint, prior.source_id, prior.source_type, prior.content, AS_OF, "node-a", None,
+                     "publisher-one", "publisher-one")],
+    )
+    changes = apply_mapping_changes(
+        conn, [MappingEvidence("000001", "embodied", "node-a", "传感器", [current])], as_of=AS_OF
+    )
+    assert changes.unchanged[0].to_status == "candidate"

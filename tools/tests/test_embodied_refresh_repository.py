@@ -62,6 +62,14 @@ def test_migration_defines_required_constraints_and_statuses():
     assert "next_retry_at" in source
 
 
+def test_038_adds_trusted_publisher_identity_columns():
+    source = Path("backend/alembic/versions/038_evidence_publisher_identity.py").read_text()
+    assert 'revision: str = "038"' in source
+    assert 'down_revision: Union[str, None] = "037"' in source
+    assert '"publisher_id"' in source
+    assert '"canonical_source_id"' in source
+
+
 class FakeCursor:
     def __init__(self, rows):
         self.rows = list(rows)

@@ -37,3 +37,5 @@
 - Stale `sending` and `reconcile_required` rows are retried with the same deterministic Feishu UUID, allowing safe message-ID recovery instead of permanent suspension.
 - Audit creates a traceable audit run and persists its audit/snapshot/terminal state while leaving mappings, cursors and delivery untouched.
 - The scheduler records the embodied CLI's top-level `status`, `run_id` and `delivery_summary` verbatim.
+- Migration 038 persists nullable trusted publisher identities. Historical reconstruction preserves missing identities as `None`; record IDs are never promoted to publisher identities.
+- New mappings always record `NULL -> candidate`; same-batch S evidence records a second `candidate -> verified` transition. Same-day successful audit/apply runs are returned idempotently, while existing failed runs return `failed_existing` rather than fabricated success.

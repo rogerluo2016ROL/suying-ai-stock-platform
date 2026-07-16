@@ -127,7 +127,12 @@ def apply_mapping_changes(
                     change = _new_mapping(cursor, item, effective_as_of, persist=persist, target=target)
                     changes.created.append(change)
                     if persist:
-                        _log_transition(cursor, change, item, effective_as_of)
+                        candidate_change = MappingChange(change.mapping_id, change.code, change.node_id, None, "candidate", "new_evidence")
+                        _log_transition(cursor, candidate_change, item, effective_as_of)
+                        if target == "verified":
+                            cursor.execute("UPDATE business_tag_mapping SET status='verified', updated_at=now() WHERE mapping_id=%s", (change.mapping_id,))
+                            _log_transition(cursor, MappingChange(change.mapping_id, change.code, change.node_id,
+                                                                  "candidate", "verified", "evidence_refresh"), item, effective_as_of)
                     continue
 
                 mapping_id, raw_status, _node_id = existing[:3]
@@ -183,7 +188,7 @@ def _new_mapping(cursor: Any, item: MappingEvidence, as_of: date | datetime, *, 
             item.tag_name,
             json.dumps(list(item.l1_l8_path), ensure_ascii=False),
             item.confidence,
-            target,
+            "candidate",
             json.dumps([event.fingerprint for event in item.events], ensure_ascii=False),
         ),
         )
@@ -202,15 +207,16 @@ def _load_historical_events(cursor: Any, event_ids: list[str]) -> list[Normalize
     if not event_ids:
         return []
     cursor.execute(
-        """SELECT event_id, source_id, source_type, excerpt, event_date, node_id, original_url
+        """SELECT event_id, source_id, source_type, excerpt, event_date, node_id, original_url,
+                  publisher_id, canonical_source_id
              FROM business_tag_evidence_events WHERE event_id = ANY(%s)""",
         (event_ids,),
     )
     result = []
-    for event_id, source_id, source_type, content, event_date, node_id, url in cursor.fetchall():
+    for event_id, source_id, source_type, content, event_date, node_id, url, publisher_id, canonical_source_id in cursor.fetchall():
         identity = source_id or event_id
         normalized = normalize_evidence(RawEvidence(identity, source_type, content or "", event_date, node_id, url,
-                                                     canonical_source_id=identity))
+                                                     publisher_id=publisher_id, canonical_source_id=canonical_source_id))
         result.append(NormalizedEvidence(**{**normalized.__dict__, "fingerprint": event_id}))
     return result
 
@@ -225,12 +231,13 @@ def _persist_evidence_events(cursor: Any, evidence: Sequence[MappingEvidence]) -
             cursor.execute(
                 """INSERT INTO business_tag_evidence_events
                        (event_id, code, node_id, event_date, source_type, source_id,
-                        title, excerpt, original_url, evidence_type, confidence, review_status)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'mapping_evidence',%s,'pending_review')
+                        title, excerpt, original_url, evidence_type, confidence, review_status,
+                        publisher_id, canonical_source_id)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'mapping_evidence',%s,'pending_review',%s,%s)
                    ON CONFLICT (event_id) DO NOTHING""",
                 (event.fingerprint, item.code, item.node_id, event.event_date,
                  event.source_type, event.source_id, event.content[:200], event.content,
-                 event.source_url, item.confidence),
+                 event.source_url, item.confidence, event.publisher_id, event.canonical_source_id),
             )
 
 

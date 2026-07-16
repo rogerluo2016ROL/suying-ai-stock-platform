@@ -2,17 +2,19 @@ from datetime import date
 
 import pytest
 
-from run_embodied_daily_refresh import EmbodiedRefreshOrchestrator, build_ranked_snapshot, identify_source_nodes
+from run_embodied_daily_refresh import EmbodiedRefreshOrchestrator, build_ranked_snapshot, identify_source_nodes, trusted_publisher_identity
 
 
 class FakeRepository:
     def __init__(self, events):
         self.events = events
         self.fail_cursor = False
+        self.run_status = "running"
+        self.run_summary = {}
 
     def begin_run(self, run_date, mode):
         self.events.append("begin")
-        return type("Run", (), {"run_id": "run-1"})()
+        return type("Run", (), {"run_id": "run-1", "status": self.run_status, "summary": self.run_summary})()
 
     def load_cursors(self):
         self.events.append("load_cursors")
@@ -254,3 +256,34 @@ def test_cursor_failure_rolls_back_entire_data_stage_before_delivery():
     assert "commit" not in events
     assert "deliver" not in events
     assert events[-2:] == ["rollback", "finish:failed"]
+
+
+def test_only_trusted_fields_create_publisher_identity():
+    assert trusted_publisher_identity("announcement", {"source_id": "record-1"}, "000001") == (
+        "company:000001", "company:000001"
+    )
+    assert trusted_publisher_identity("official_web", {"publisher_id": "corp-site"}, "000001") == (
+        "corp-site", "corp-site"
+    )
+    assert trusted_publisher_identity("official_web", {"source_id": "record-1"}, "000001") == (None, None)
+    assert trusted_publisher_identity("research", {"publisher_id": "broker"}, "000001") == (None, None)
+
+
+def test_same_day_successful_audit_is_returned_without_writes():
+    events = []
+    orchestrator = make_orchestrator(events)
+    orchestrator.repository.run_status = "success"
+    orchestrator.repository.run_summary = {"snapshot": {"leaders": []}}
+    result = orchestrator.run(mode="audit", as_of_date="2026-07-16")
+    assert result.status == "success"
+    assert result.snapshot == {"leaders": []}
+    assert events == ["begin"]
+
+
+def test_same_day_failed_audit_is_not_reported_as_success():
+    events = []
+    orchestrator = make_orchestrator(events)
+    orchestrator.repository.run_status = "failed"
+    result = orchestrator.run(mode="audit", as_of_date="2026-07-16")
+    assert result.status == "failed_existing"
+    assert events == ["begin"]

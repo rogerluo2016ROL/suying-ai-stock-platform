@@ -73,6 +73,11 @@ class EmbodiedRefreshOrchestrator:
         if mode == "audit":
             run = self.repository.begin_run(run_date, mode)
             run_id = run.run_id
+            if run.status == "success":
+                summary = run.summary or {}
+                return RefreshResult(mode, run_id, True, False, status="success", snapshot=summary.get("snapshot"))
+            if run.status == "failed":
+                return RefreshResult(mode, run_id, True, False, status="failed_existing", snapshot=(run.summary or {}).get("snapshot"))
             try:
                 snapshot = self.audit_and_rank(run_id, None, mode)
                 self.repository.save_snapshot(run_id, snapshot, commit=False)
@@ -92,9 +97,10 @@ class EmbodiedRefreshOrchestrator:
         run_id = getattr(run, "run_id", None)
         if persisted and getattr(run, "status", "running") != "running":
             summary = getattr(run, "summary", {}) or {}
+            existing_status = getattr(run, "status", "failed")
             return RefreshResult(
                 mode, run_id, True, False, int(summary.get("changes", 0)),
-                summary.get("source_errors", {}), getattr(run, "status", "success"),
+                summary.get("source_errors", {}), "failed_existing" if existing_status == "failed" else existing_status,
                 summary.get("delivery"), summary.get("snapshot"),
             )
         try:
@@ -166,6 +172,18 @@ def _source_text(row: dict[str, Any]) -> str:
         "main_business", "business_scope", "bz_item", "bz_sales",
     )
     return "。".join(str(row.get(key) or "").strip() for key in fields if str(row.get(key) or "").strip())
+
+
+def trusted_publisher_identity(source_type: str, row: dict[str, Any], code: str) -> tuple[str | None, str | None]:
+    normalized = source_type.strip().lower()
+    if normalized in {"announcement", "annual_report", "periodic_report", "regulatory_reply"}:
+        publisher = f"company:{code}"
+        return publisher, publisher
+    if normalized in {"official_web", "official_wechat", "ir_record"}:
+        publisher = str(row.get("publisher_id") or "").strip() or None
+        canonical = str(row.get("canonical_source_id") or "").strip() or publisher
+        return publisher, canonical
+    return None, None
 
 
 def _node_keywords(node: dict[str, Any]) -> set[str]:
@@ -298,12 +316,15 @@ def _runtime_orchestrator(connection: Any, repository: Any, pg_url: str, targets
         pending_conflicts[:] = conflicts
         for source_name, row, node_id, content in identified:
             code = str(row.get("code") or row.get("ts_code") or row.get("symbol") or "").strip()
+            code = code.split(".")[0]
             source_id = str(row.get("source_id") or row.get("id") or f"{source_name}:{code}:{row.get('source_cursor', '')}")
+            source_type = str(row.get("source_type") or source_name).strip().lower()
+            publisher_id, canonical_source_id = trusted_publisher_identity(source_type, row, code)
             raw = RawEvidence(
-                source_id, source_name, content,
+                source_id, source_type, content,
                 _coerce_date(row.get("event_date") or row.get("ann_date") or row.get("pub_date")
                              or row.get("updated_at") or row.get("end_date") or row.get("source_cursor")),
-                node_id, row.get("source_url"),
+                node_id, row.get("source_url"), publisher_id, canonical_source_id,
             )
             key = (code, node_id)
             grouped.setdefault(key, []).append(normalize_evidence(raw))
