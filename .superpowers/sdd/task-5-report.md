@@ -1,39 +1,20 @@
-# Task 5 Report: Register Engine And Backtest-Service Mode
+# Task 5 实现报告
 
-## 实现内容
-- 在 `packages/kronos-factors/kronos_factors/engine/__init__.py` 导出 `CbAuctionT0Engine`。
-- 在 `services/backtest-service/app/routes.py` 的 `run_cb_backtest` 增加 `mode="cb_auction_t0"` 分支。
-- 对 `CbAuctionT0Engine.run()` 的返回值按 `raw_result.get("bonds", [])` 取出 picks，再进入后续回测流程。
-- 未改动 `cb_floor`、`cb_intraday`、`cb_auction` 的现有行为。
+## 交付结果
 
-## TDD 过程
-### RED
-命令：
-```bash
-bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py::test_engine_package_exports_cb_auction_t0 -q
-```
-结果：
-- 失败，报 `ImportError: cannot import name 'CbAuctionT0Engine' from 'kronos_factors.engine'`
+- 新增 `tools/embodied_refresh/changes.py`，只允许 `success` 快照作为差异基线。
+- 实现六维 0–100 重要性评分，权重为来源 25、商业化 25、映射变化 20、业务贡献 15、节点重要性 10、时效交叉验证 5，并保留因子明细。
+- 实现 P0/P1/P2/P3 边界：85/70/50，分数强制截断到 0–100。
+- 变动指纹不包含 run_id，同一变动跨 rerun 稳定；单批次重复行只产生一条变动。
+- 中文摘要按 P0→P1→P2、同级按分数降序与公司代码稳定排序；P3-only 返回 `None`，不出站。
+- 摘要包含截止时间、分级数量、状态/阶段前后变化、来源、证据日期、剩余风险、L1–L8 覆盖变化、Top3 进出原因及投资风险声明。
 
-### GREEN
-命令：
-```bash
-bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q
-python3 -m py_compile services/backtest-service/app/routes.py
-```
-结果：
-- 测试通过：`11 passed`
-- 编译通过：`python3 -m py_compile` 退出码 0
+## TDD 与验证证据
 
-## 文件变更
-- `packages/kronos-factors/kronos_factors/engine/__init__.py`
-- `services/backtest-service/app/routes.py`
-- `packages/kronos-factors/tests/test_cb_auction_t0.py`
+- RED：`bash tools/codex-lowio.sh py tools/tests/test_embodied_refresh_changes.py -q`，收集阶段因 `ModuleNotFoundError: embodied_refresh.changes` 失败。
+- GREEN：同命令通过全部 Task 5 用例。
+- 前序回归：`bash tools/codex-lowio.sh py tools/tests/test_embodied_refresh_repository.py tools/tests/test_embodied_refresh_sources.py tools/tests/test_embodied_refresh_evidence.py tools/tests/test_embodied_refresh_mappings.py tools/tests/test_embodied_refresh_audit.py -q`，全部可运行用例通过，1 个 PostgreSQL 条件用例跳过。
 
-## 自查结果
-- 新增包级导出后，测试文件里的包导入通过。
-- `cb_auction_t0` 仅在新增分支中走 `bonds`，没有影响其他三种 CB 模式。
-- 路由文件通过语法编译检查。
+## 范围说明
 
-## 疑虑
-- 任务要求里写的是 `python -m py_compile`，但当前环境没有 `python` 命令，只能用 `python3` 做等价检查。
+未修改工作树中已存在的 `.superpowers/sdd/.gitignore`、`progress.md`、`task-2-report.md`、`task-3-report.md` 变更；Task 5 提交只包含本任务的实现、测试和报告。
