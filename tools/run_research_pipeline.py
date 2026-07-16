@@ -227,6 +227,7 @@ def deliver_feishu_message(
     chat_id: str,
     message: str,
     sender: Any,
+    confirmer: Any = None,
 ) -> dict[str, Any]:
     try:
         response = sender(chat_id, message)
@@ -252,7 +253,7 @@ def deliver_feishu_message(
         raise RuntimeError("飞书接口未返回消息 ID，无法确认送达。")
 
     try:
-        confirmed = confirm_message_delivery(chat_id, message_id)
+        confirmed = (confirmer or confirm_message_delivery)(chat_id, message_id)
     except Exception as exc:
         state = {
             "push_status": "unconfirmed",

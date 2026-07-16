@@ -56,6 +56,8 @@ def test_migration_defines_required_constraints_and_statuses():
         assert status in source
     for trace_field in ("source_record_ids", "evidence_fingerprints", "source_names"):
         assert trace_field in source
+    assert "attempt_count" in source
+    assert "next_retry_at" in source
 
 
 class FakeCursor:

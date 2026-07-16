@@ -89,6 +89,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("message_id", sa.Text()),
+        sa.Column("attempt_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("next_retry_at", sa.DateTime(timezone=True)),
         sa.Column("detail", sa.JSON(), nullable=False, server_default=sa.text("'{}'::json")),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )

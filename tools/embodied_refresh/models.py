@@ -113,3 +113,5 @@ class DeliveryRecord:
     status: str
     message_id: str | None = None
     detail: dict[str, Any] = field(default_factory=dict)
+    attempt_count: int = 0
+    next_retry_at: datetime | None = None

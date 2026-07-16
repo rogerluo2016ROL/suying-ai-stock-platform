@@ -5,7 +5,7 @@ from datetime import date
 from typing import Any
 from uuid import uuid4
 
-from .models import EvidenceChange, RefreshRun
+from .models import DeliveryRecord, EvidenceChange, RefreshRun
 
 
 TERMINAL_RUN_STATUSES = {"success", "data_success_delivery_incomplete", "failed"}
@@ -152,6 +152,70 @@ class EmbodiedRefreshRepository:
                 )
                 if cursor.rowcount != 1:
                     raise LookupError(f"refresh run not found: {run_id}")
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+
+    @staticmethod
+    def _delivery(row: Any) -> DeliveryRecord | None:
+        return DeliveryRecord(*row) if row else None
+
+    def delivery(self, change_batch_id: str, chat_id: str) -> DeliveryRecord | None:
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT delivery_id, change_batch_id, chat_id, status, message_id,
+                       detail, attempt_count, next_retry_at
+                  FROM embodied_delivery_records
+                 WHERE change_batch_id = %s AND chat_id = %s
+                """,
+                (change_batch_id, chat_id),
+            )
+            return self._delivery(cursor.fetchone())
+
+    def deliveries(self, change_batch_id: str) -> list[DeliveryRecord]:
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT delivery_id, change_batch_id, chat_id, status, message_id,
+                       detail, attempt_count, next_retry_at
+                  FROM embodied_delivery_records
+                 WHERE change_batch_id = %s ORDER BY chat_id
+                """,
+                (change_batch_id,),
+            )
+            return [DeliveryRecord(*row) for row in cursor.fetchall()]
+
+    def save_delivery(self, record: DeliveryRecord) -> None:
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO embodied_delivery_records
+                        (delivery_id, change_batch_id, chat_id, status, message_id,
+                         detail, attempt_count, next_retry_at)
+                    VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s)
+                    ON CONFLICT (change_batch_id, chat_id) DO UPDATE
+                    SET status = EXCLUDED.status,
+                        message_id = EXCLUDED.message_id,
+                        detail = EXCLUDED.detail,
+                        attempt_count = EXCLUDED.attempt_count,
+                        next_retry_at = EXCLUDED.next_retry_at,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE embodied_delivery_records.status <> 'confirmed'
+                    """,
+                    (
+                        record.delivery_id,
+                        record.change_batch_id,
+                        record.chat_id,
+                        record.status,
+                        record.message_id,
+                        json.dumps(record.detail, ensure_ascii=False),
+                        record.attempt_count,
+                        record.next_retry_at,
+                    ),
+                )
             self.connection.commit()
         except Exception:
             self.connection.rollback()
