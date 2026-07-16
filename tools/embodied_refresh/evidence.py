@@ -62,15 +62,11 @@ def normalize_evidence(raw: RawEvidence) -> NormalizedEvidence:
     source_id = raw.source_id.strip()
     source_type = raw.source_type.strip().lower()
     content = _normalize_text(raw.content)
-    publisher_id = raw.publisher_id.strip() if raw.publisher_id else None
-    canonical_source_id = (
-        raw.canonical_source_id.strip()
-        if raw.canonical_source_id
-        else publisher_id or source_id
-    )
+    publisher_id = _optional_text(raw.publisher_id)
+    canonical_source_id = _optional_text(raw.canonical_source_id) or publisher_id
     fingerprint_payload = json.dumps(
         {
-            "canonical_source_id": canonical_source_id,
+            "source_identity": canonical_source_id or source_id,
             "source_type": source_type,
             "content": content,
         },
@@ -83,8 +79,8 @@ def normalize_evidence(raw: RawEvidence) -> NormalizedEvidence:
         source_type=source_type,
         content=content,
         event_date=raw.event_date,
-        node_id=raw.node_id.strip() if raw.node_id else None,
-        source_url=raw.source_url.strip() if raw.source_url else None,
+        node_id=_optional_text(raw.node_id),
+        source_url=_optional_text(raw.source_url),
         grade=classify_source(source_type),
         has_explicit_relation=_has_explicit_relation(content),
         stage=commercialization_stage(content),
@@ -120,9 +116,9 @@ def can_auto_verify(
         any(event.grade == EvidenceGrade.S for event in node_events)
         or len(
             {
-                event.canonical_source_id or event.publisher_id or event.source_id
+                event.canonical_source_id
                 for event in node_events
-                if event.grade == EvidenceGrade.A
+                if event.grade == EvidenceGrade.A and event.canonical_source_id
             }
         )
         >= 2
@@ -132,6 +128,11 @@ def can_auto_verify(
 
 def _normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _optional_text(value: str | None) -> str | None:
+    normalized = value.strip() if value else ""
+    return normalized or None
 
 
 def _has_explicit_relation(content: str) -> bool:
@@ -153,22 +154,51 @@ def _sentence_has_explicit_relation(sentence: str) -> bool:
         return False
     if "供应链" in sentence and not re.search(r"(?:已|批量|向.+)供应", sentence):
         sentence = sentence.replace("供应链", "")
-    return any(term in sentence for term in RELATION_TERMS)
+    return any(_has_affirmative_term(sentence, term) for term in RELATION_TERMS)
 
 
 def _stage_for_sentence(sentence: str) -> CommercializationStage:
     if _is_unsafe_sentence(sentence):
         return CommercializationStage.CONCEPT_RELATED
-    if re.search(r"收入占比(?:达到|为)约?\s*\d+(?:\.\d+)?%", sentence):
+    has_revenue_ratio = "收入占比" in sentence and bool(
+        re.search(r"\d+(?:\.\d+)?%", sentence)
+    )
+    if (
+        has_revenue_ratio
+        and any(term in sentence for term in ("显著提升", "大幅提升"))
+        and not any(term in sentence for term in ("未提升", "并未提升", "没有提升"))
+    ):
         return CommercializationStage.SIGNIFICANT_REVENUE_SHARE
+    if has_revenue_ratio and not any(
+        term in sentence for term in ("未达到", "尚未达到", "并未达到", "没有达到")
+    ):
+        return CommercializationStage.REVENUE_RECOGNITION
     if any(anchor in sentence for anchor in ("该业务", "该产品", "机器人业务", "传感器业务")) and any(
         term in sentence for term in ("收入确认", "形成收入", "实现收入")
     ):
         return CommercializationStage.REVENUE_RECOGNITION
     for stage, terms in _STAGE_TERMS:
-        if any(term in sentence for term in terms):
+        if any(_has_affirmative_term(sentence, term) for term in terms):
             return stage
     return CommercializationStage.CONCEPT_RELATED
+
+
+def _has_affirmative_term(sentence: str, term: str) -> bool:
+    return any(
+        not _is_locally_negated(sentence, match.start(), match.end())
+        for match in re.finditer(re.escape(term), sentence)
+    )
+
+
+def _is_locally_negated(sentence: str, start: int, end: int) -> bool:
+    prefix = sentence[max(0, start - 10) : start]
+    suffix = sentence[end : min(len(sentence), end + 6)]
+    negation_before = re.search(
+        r"(?:尚未|尚无|并未|没有|不存在|未|无|不)[^，,。；;但却]{0,6}$",
+        prefix,
+    )
+    negation_after = re.match(r"(?:不存在|被?否认|被?取消|被?终止|已撤回)", suffix)
+    return bool(negation_before or negation_after)
 
 
 def _as_date(value: date | datetime) -> date:

@@ -64,8 +64,8 @@ def test_clear_annual_report_can_auto_verify_mapping():
 
 def test_two_independent_official_sources_can_auto_verify():
     events = [
-        evidence("official_web", "公司批量供应六维力传感器", source_id="src-a", node_id="EI-L5-FORCE"),
-        evidence("ir_record", "公司已交付六维力传感器", source_id="src-b", node_id="EI-L5-FORCE"),
+        evidence("official_web", "公司批量供应六维力传感器", source_id="src-a", publisher_id="issuer-a", node_id="EI-L5-FORCE"),
+        evidence("ir_record", "公司已交付六维力传感器", source_id="src-b", publisher_id="issuer-b", node_id="EI-L5-FORCE"),
     ]
     assert can_auto_verify(events) is True
 
@@ -138,6 +138,26 @@ def test_negative_or_withdrawn_sentence_never_supports_relation_or_stage():
         assert can_auto_verify([event], as_of=TODAY) is False
 
 
+def test_local_negation_near_relation_or_stage_keyword_is_respected():
+    for text in (
+        "公司未量产机器人传感器",
+        "公司未交付机器人传感器",
+        "公司无订单",
+        "公司尚无订单",
+        "公司并未供应人形机器人客户",
+        "公司并未向客户供应传感器",
+        "公司不存在相关订单",
+        "公司不存在任何相关订单",
+    ):
+        event = evidence("annual_report", text, node_id="node-a")
+        assert event.has_explicit_relation is False, text
+        assert event.stage == CommercializationStage.CONCEPT_RELATED, text
+
+    positive = evidence("annual_report", "公司不但已量产，而且已批量交付", node_id="node-a")
+    assert positive.has_explicit_relation is True
+    assert positive.stage == CommercializationStage.MASS_PRODUCTION
+
+
 def test_vague_sentence_is_not_unlocked_by_unrelated_income_sentence():
     event = evidence(
         "annual_report",
@@ -180,3 +200,37 @@ def test_weak_commercial_phrases_do_not_overstate_stage():
     assert commercialization_stage("公司签订了框架协议") < CommercializationStage.CONFIRMED_ORDER
     assert commercialization_stage("行业产能释放") < CommercializationStage.MASS_PRODUCTION
     assert commercialization_stage("公司收入占比提升") < CommercializationStage.SIGNIFICANT_REVENUE_SHARE
+
+
+def test_revenue_share_requires_ratio_and_explicit_significant_improvement():
+    assert commercialization_stage("该业务收入占比达到12%") == CommercializationStage.REVENUE_RECOGNITION
+    assert commercialization_stage("该业务收入占比显著提升至12%") == CommercializationStage.SIGNIFICANT_REVENUE_SHARE
+    assert commercialization_stage("该业务收入占比大幅提升") < CommercializationStage.SIGNIFICANT_REVENUE_SHARE
+
+
+def test_two_a_records_without_trusted_publisher_identity_do_not_combine():
+    events = [
+        evidence("official_web", "公司已供应传感器", source_id="crawl-a", node_id="node-a"),
+        evidence("ir_record", "公司已交付传感器", source_id="crawl-b", node_id="node-a"),
+    ]
+    assert events[0].canonical_source_id is None
+    assert can_auto_verify(events, as_of=TODAY) is False
+
+
+def test_optional_string_fields_are_stripped_and_empty_values_become_none():
+    normalized = normalize_evidence(
+        RawEvidence(
+            source_id=" crawl ",
+            source_type=" official_web ",
+            content="公司已供应传感器",
+            event_date=TODAY,
+            node_id="  ",
+            source_url="  ",
+            publisher_id="  ",
+            canonical_source_id="  ",
+        )
+    )
+    assert normalized.node_id is None
+    assert normalized.source_url is None
+    assert normalized.publisher_id is None
+    assert normalized.canonical_source_id is None

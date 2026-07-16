@@ -59,7 +59,7 @@ class NormalizedEvidence:
     stage: CommercializationStage
     fingerprint: str
     publisher_id: str | None = None
-    canonical_source_id: str = ""
+    canonical_source_id: str | None = None
     valid_until: date | None = None
     is_valid: bool = True
     fingerprint_version: str = "v1"
