@@ -46,6 +46,18 @@ def test_score_change_uses_exact_six_dimensions_and_clamps():
     assert score_change({name: 200 for name in change if name != "score_factors"}) == 100
 
 
+def test_missing_score_factors_are_preserved_and_available_weights_are_renormalized():
+    change = {"source_score": 80, "commercialization_score": None}
+    assert score_change(change) == 80
+    assert change["score_factors"]["commercialization"]["value"] is None
+    assert change["score_factors"]["commercialization"]["points"] is None
+
+    empty = {}
+    assert score_change(empty) is None
+    assert empty["score"] is None
+    assert empty["priority"] == "P3"
+
+
 def test_diff_snapshots_compares_success_baseline_and_deduplicates_fingerprints():
     previous = {
         "run_id": "last-success",
@@ -62,19 +74,62 @@ def test_diff_snapshots_compares_success_baseline_and_deduplicates_fingerprints(
     }
     changes = diff_snapshots(previous, current)
 
-    assert len(changes) == 1
-    assert changes[0].payload["before_status"] == "candidate"
-    assert changes[0].payload["after_status"] == "verified"
-    assert changes[0].payload["before_stage"] == "样品"
-    assert changes[0].payload["after_stage"] == "小批量"
-    assert changes[0].change_fingerprint
+    assert {row.change_type for row in changes} == {"status_upgraded", "commercialization_advanced"}
+    assert all(row.payload["before_status"] == "candidate" for row in changes)
+    assert all(row.payload["after_status"] == "verified" for row in changes)
+    assert all(row.payload["before_stage"] == "样品" for row in changes)
+    assert all(row.payload["after_stage"] == "小批量" for row in changes)
+    assert all(row.change_fingerprint for row in changes)
     rerun = diff_snapshots(previous, {**current, "run_id": "run-rerun"})
-    assert rerun[0].change_fingerprint == changes[0].change_fingerprint
+    assert {row.change_fingerprint for row in rerun} == {row.change_fingerprint for row in changes}
 
 
 def test_diff_snapshots_rejects_failed_baseline():
     with pytest.raises(ValueError, match="success"):
         diff_snapshots({"run_id": "failed", "status": "failed", "mappings": []}, {"run_id": "now", "mappings": []})
+
+
+def test_diff_classifies_all_eight_business_change_types_and_node_move_once():
+    previous = {"run_id": "old", "status": "success", "chain_id": "embodied", "mappings": [
+        {"code": "1", "node_id": "wide", "status": "candidate"},
+        {"code": "2", "node_id": "n", "status": "candidate"},
+        {"code": "3", "node_id": "n", "status": "verified"},
+        {"code": "4", "node_id": "n", "status": "verified", "stage": 2},
+        {"code": "5", "node_id": "n", "status": "verified", "evidence_grade": "B", "evidence_event_ids": ["e1"]},
+        {"code": "6", "node_id": "n", "status": "verified", "evidence_grade": "A", "evidence_event_ids": ["e1"]},
+        {"code": "7", "node_id": "n", "status": "verified"},
+    ]}
+    current = {"run_id": "new", "chain_id": "embodied", "mappings": [
+        {"code": "1", "node_id": "precise", "status": "candidate"},
+        {"code": "2", "node_id": "n", "status": "verified"},
+        {"code": "3", "node_id": "n", "status": "candidate"},
+        {"code": "4", "node_id": "n", "status": "verified", "stage": 5},
+        {"code": "5", "node_id": "n", "status": "verified", "evidence_grade": "A", "evidence_event_ids": ["e1", "e2"]},
+        {"code": "6", "node_id": "n", "status": "verified", "evidence_grade": "D", "evidence_event_ids": ["e1"]},
+        {"code": "7", "node_id": "n", "status": "rejected"},
+        {"code": "8", "node_id": "n", "status": "candidate"},
+    ]}
+    changes = diff_snapshots(previous, current)
+    assert {row.change_type for row in changes} == {
+        "new_candidate", "evidence_strengthened", "status_upgraded", "node_adjusted",
+        "commercialization_advanced", "evidence_weakened", "status_downgraded", "mapping_invalidated",
+    }
+    moved = [row for row in changes if row.change_type == "node_adjusted"]
+    assert len(moved) == 1
+    assert (moved[0].payload["before_node_id"], moved[0].payload["after_node_id"]) == ("wide", "precise")
+
+
+def test_diff_recomputes_score_priority_and_fingerprint_ignores_volatile_metadata():
+    previous = {"run_id": "old", "status": "success", "chain_id": "embodied", "mappings": []}
+    row = {"code": "1", "node_id": "n", "status": "candidate", "stage": 2,
+           "source_score": 100, "score": 1, "priority": "P3", "updated_at": "yesterday",
+           "evidence_event_ids": ["e2", "e1"]}
+    first = diff_snapshots(previous, {"run_id": "new", "chain_id": "embodied", "mappings": [row]})[0]
+    second = diff_snapshots(previous, {"run_id": "rerun", "chain_id": "embodied", "cursor": "x",
+                                       "mappings": [{**row, "updated_at": "today"}]})[0]
+    assert first.payload["score"] == 100
+    assert first.payload["priority"] == "P0"
+    assert first.change_fingerprint == second.change_fingerprint
 
 
 def test_digest_is_deterministic_complete_and_excludes_p3():
@@ -87,24 +142,29 @@ def test_digest_is_deterministic_complete_and_excludes_p3():
                     "code": code, "company_name": f"公司{code}", "node_id": "L4-a",
                     "status": "verified", "stage": "小批量", "source": "交易所公告",
                     "evidence_date": "2026-07-17", "remaining_risk": "订单落地待跟踪",
-                    "score": score, "priority": priority,
+                    **{f"{name}_score": score for name in (
+                        "source", "commercialization", "mapping_change", "business_contribution",
+                        "node_importance", "freshness_crosscheck",
+                    )},
                 }]},
             )
         )
     batch = ChangeBatch(
         changes=changes,
         cutoff_time="2026-07-17 15:00:00 Asia/Shanghai",
+        scan_size={"companies": 30, "evidence": 120},
         coverage_before={"L1": 1, "L8": 0},
         coverage_after={"L1": 1, "L8": 1},
-        top3_entries=["公司000001：新增确证"],
-        top3_exits=["旧龙头：证据过期"],
+        missing_mapping_nodes=["L6-减速器"],
+        top3_entries=[{"company": "公司000001", "reason": "新增确证"}],
+        top3_exits=[{"company": "旧龙头", "reason": "证据过期"}],
     )
     digest = render_change_digest(batch)
 
     assert digest is not None
     assert digest.index("000001") < digest.index("000002")
     assert "000003" not in digest
-    for text in ("2026-07-17 15:00:00", "无 → verified", "无 → 小批量", "交易所公告", "2026-07-17", "订单落地待跟踪", "L8: 0→1", "Top3进入", "Top3退出"):
+    for text in ("2026-07-17 15:00:00", "公司 30", "证据 120", "节点 L4-a", "无 → verified", "无 → 小批量", "交易所公告", "2026-07-17", "订单落地待跟踪", "L8: 0→1", "L6-减速器", "Top3进入", "公司000001：新增确证", "Top3退出"):
         assert text in digest
     assert "重要性分数衡量产业证据变动，不表示股价上涨概率。" in digest
 
@@ -115,3 +175,12 @@ def test_p3_only_batch_has_no_outbound_message():
         {"run_id": "new", "mappings": [{"code": "000003", "node_id": "n", "score": 49, "priority": "P3"}]},
     )[0]
     assert render_change_digest(ChangeBatch([change], "2026-07-17 15:00")) is None
+
+
+def test_top3_structured_rows_require_reason():
+    change = diff_snapshots(
+        {"run_id": "old", "status": "success", "mappings": []},
+        {"run_id": "new", "mappings": [{"code": "1", "node_id": "n", "source_score": 100}]},
+    )[0]
+    with pytest.raises(ValueError, match="reason"):
+        render_change_digest(ChangeBatch([change], "2026-07-17 15:00", top3_entries=[{"company": "A"}]))
