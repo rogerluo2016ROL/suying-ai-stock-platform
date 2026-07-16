@@ -47,8 +47,15 @@ def test_migration_defines_required_constraints_and_statuses():
         "pending",
         "confirmed",
         "unconfirmed",
+        "candidate",
+        "verified",
+        "weak_evidence",
+        "rejected",
+        "pending_review",
     ):
         assert status in source
+    for trace_field in ("source_record_ids", "evidence_fingerprints", "source_names"):
+        assert trace_field in source
 
 
 class FakeCursor:

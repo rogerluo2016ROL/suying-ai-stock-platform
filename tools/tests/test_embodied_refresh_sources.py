@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import sys
 
 import pytest
@@ -83,10 +84,13 @@ def test_main_business_uses_real_end_date_cursor_schema_contract():
 
 
 def test_local_fina_mainbz_schema_has_configured_cursor_column():
+    dsn = os.environ.get("KRONOS_PG_URL")
+    if not dsn:
+        pytest.skip("set KRONOS_PG_URL to run live schema integration")
     psycopg2 = pytest.importorskip("psycopg2")
     from embodied_refresh.sources import SOURCE_SPECS
 
-    connection = psycopg2.connect("postgresql://kronos:kronos@localhost:6432/kronos")
+    connection = psycopg2.connect(dsn)
     try:
         with connection.cursor() as cursor:
             cursor.execute(

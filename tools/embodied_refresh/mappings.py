@@ -31,6 +31,7 @@ class MappingEvidence:
     l1_l8_path: Sequence[dict[str, Any]] = ()
     run_id: str | None = None
     source_name: str | None = None
+    source_names: Sequence[str] = ()
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ class MappingConflict:
     existing_node_id: str | None = None
     proposed_node_id: str | None = None
     mapping_id: str | None = None
+    conflict_type: str = "node_mismatch"
     review_status: str = "pending_review"
 
 
@@ -103,6 +105,9 @@ def apply_mapping_changes(
                             mapping_id=next(
                                 (row[0] for row in existing_rows if row[2] == existing_node),
                                 None,
+                            ),
+                            conflict_type=(
+                                "batch_ambiguity" if existing_node is None else "node_mismatch"
                             ),
                         )
                         _persist_conflict(cursor, conflict, related, effective_as_of)
@@ -173,9 +178,11 @@ def _log_transition(cursor: Any, change: MappingChange, item: MappingEvidence, a
         """
         INSERT INTO embodied_mapping_transitions
             (transition_id, run_id, mapping_id, chain_id, code, node_id,
-             from_status, to_status, evidence_ids, source_name, reason,
+             from_status, to_status, source_record_ids, evidence_fingerprints,
+             source_names, reason,
              review_status, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, now())
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb,
+                %s::jsonb, %s, %s, now())
         """,
         (
             _stable_id("EMB-TRANS", change.mapping_id, change.from_status, change.to_status, as_of),
@@ -187,7 +194,8 @@ def _log_transition(cursor: Any, change: MappingChange, item: MappingEvidence, a
             change.from_status,
             change.to_status,
             json.dumps([event.source_id for event in item.events], ensure_ascii=False),
-            item.source_name,
+            json.dumps([event.fingerprint for event in item.events], ensure_ascii=False),
+            json.dumps(list(item.source_names) or ([item.source_name] if item.source_name else []), ensure_ascii=False),
             change.reason,
             "pending_review",
         ),
@@ -205,8 +213,10 @@ def _persist_conflict(
         """
         INSERT INTO embodied_mapping_conflicts
             (conflict_id, run_id, mapping_id, chain_id, code, existing_node_id,
-             proposed_node_id, status, evidence_ids, source_name, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, now())
+             proposed_node_id, conflict_type, status, source_record_ids,
+             evidence_fingerprints, source_names, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb,
+                %s::jsonb, %s::jsonb, now())
         """,
         (
             _stable_id("EMB-CONFLICT", conflict.chain_id, conflict.code, conflict.existing_node_id, conflict.proposed_node_id, as_of),
@@ -216,9 +226,11 @@ def _persist_conflict(
             conflict.code,
             conflict.existing_node_id,
             conflict.proposed_node_id,
+            conflict.conflict_type,
             "pending_review",
             json.dumps([event.source_id for event in events], ensure_ascii=False),
-            next((item.source_name for item in items if item.source_name), None),
+            json.dumps([event.fingerprint for event in events], ensure_ascii=False),
+            json.dumps(sorted({name for item in items for name in (*item.source_names, *((item.source_name,) if item.source_name else ())) }), ensure_ascii=False),
         ),
     )
 
@@ -226,10 +238,15 @@ def _persist_conflict(
 def _conflict_pairs(
     existing_nodes: tuple[str, ...], proposed_nodes: tuple[str, ...]
 ) -> list[tuple[str | None, str]]:
+    if existing_nodes:
+        return [
+            (existing, proposed)
+            for existing in existing_nodes
+            for proposed in proposed_nodes
+            if existing != proposed
+        ]
     if len(proposed_nodes) > 1:
-        return [(existing_nodes[0] if existing_nodes else None, node) for node in proposed_nodes]
-    if existing_nodes and proposed_nodes:
-        return [(node, proposed_nodes[0]) for node in existing_nodes if node != proposed_nodes[0]]
+        return [(None, proposed) for proposed in proposed_nodes]
     return []
 
 
@@ -255,6 +272,7 @@ def _merge_same_node(items: Sequence[MappingEvidence]) -> MappingEvidence:
         next((item.l1_l8_path for item in items if item.l1_l8_path), ()),
         next((item.run_id for item in items if item.run_id), None),
         next((item.source_name for item in items if item.source_name), None),
+        tuple(sorted({name for item in items for name in (*item.source_names, *((item.source_name,) if item.source_name else ())) })),
     )
 
 

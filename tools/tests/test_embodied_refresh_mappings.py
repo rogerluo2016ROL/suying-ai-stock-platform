@@ -104,6 +104,7 @@ def test_ambiguous_nodes_create_review_conflict_instead_of_first_match():
         MappingEvidence("000001", "embodied", "node-b", "减速器", [event("node-b", "filing-2")]),
     ], as_of=AS_OF)
     assert {item.proposed_node_id for item in changes.conflicts} == {"node-a", "node-b"}
+    assert {item.conflict_type for item in changes.conflicts} == {"batch_ambiguity"}
     assert not changes.created
     assert any("INSERT INTO embodied_mapping_conflicts" in sql for sql, _ in conn.cursor_instance.executions)
     assert conn.commits == 1
@@ -131,13 +132,44 @@ def test_same_node_evidence_batches_are_merged_before_upgrade(monkeypatch):
     monkeypatch.setattr(mappings, "can_auto_verify", lambda events, *, as_of: seen.append(list(events)) or len(events) == 2)
     conn = FakeConnection(existing=[("map-1", "candidate", "node-a")])
     changes = mappings.apply_mapping_changes(conn, [
-        mappings.MappingEvidence("000001", "embodied", "node-a", "传感器", [event("node-a", "one")]),
-        mappings.MappingEvidence("000001", "embodied", "node-a", "传感器", [event("node-a", "two")]),
+        mappings.MappingEvidence("000001", "embodied", "node-a", "传感器", [event("node-a", "one")], source_name="announcement"),
+        mappings.MappingEvidence("000001", "embodied", "node-a", "传感器", [event("node-a", "two")], source_name="research"),
     ], as_of=AS_OF)
     assert [item.source_id for item in seen[0]] == ["one", "two"]
     assert changes.updated[0].to_status == "verified"
     transition = next(params for sql, params in conn.cursor_instance.executions if "INSERT INTO embodied_mapping_transitions" in sql)
     assert __import__("json").loads(transition[8]) == ["one", "two"]
+    fingerprints = __import__("json").loads(transition[9])
+    assert len(fingerprints) == 2
+    assert set(fingerprints).isdisjoint({"one", "two"})
+    assert __import__("json").loads(transition[10]) == ["announcement", "research"]
+
+
+def test_existing_match_and_new_mismatch_only_records_real_conflict_pair():
+    from embodied_refresh.mappings import MappingEvidence, apply_mapping_changes
+
+    conn = FakeConnection(existing=[("map-a", "verified", "node-a")])
+    changes = apply_mapping_changes(conn, [
+        MappingEvidence("000001", "embodied", "node-a", "传感器", [event("node-a")]),
+        MappingEvidence("000001", "embodied", "node-b", "减速器", [event("node-b", "two")]),
+    ], as_of=AS_OF)
+    assert [(c.existing_node_id, c.proposed_node_id) for c in changes.conflicts] == [("node-a", "node-b")]
+
+
+def test_multiple_existing_nodes_record_every_unequal_pair_without_self_conflict():
+    from embodied_refresh.mappings import MappingEvidence, apply_mapping_changes
+
+    conn = FakeConnection(existing=[
+        ("map-a", "candidate", "node-a"),
+        ("map-c", "candidate", "node-c"),
+    ])
+    changes = apply_mapping_changes(conn, [
+        MappingEvidence("000001", "embodied", "node-a", "传感器", [event("node-a")]),
+        MappingEvidence("000001", "embodied", "node-b", "减速器", [event("node-b", "two")]),
+    ], as_of=AS_OF)
+    pairs = {(c.existing_node_id, c.proposed_node_id) for c in changes.conflicts}
+    assert pairs == {("node-a", "node-b"), ("node-c", "node-a"), ("node-c", "node-b")}
+    assert all(existing != proposed for existing, proposed in pairs)
 
 
 def test_persistence_failure_rolls_back_mapping_and_history_atomically():
