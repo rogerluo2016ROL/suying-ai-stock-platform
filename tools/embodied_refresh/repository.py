@@ -22,7 +22,10 @@ class EmbodiedRefreshRepository:
 
     def begin_run(self, run_date: date, mode: str) -> RefreshRun:
         """Insert a running batch or return the existing idempotent batch."""
-        lock_key = f"embodied-refresh-run:{self.chain_id}:{run_date.isoformat()}:{mode}"
+        # Match the database uniqueness boundary exactly: (run_date, mode).
+        # Including chain_id here would give two contenders different locks
+        # even though they still compete for the same unique database row.
+        lock_key = f"embodied-refresh-run:{run_date.isoformat()}:{mode}"
         select_sql = """
                 SELECT run_id, run_date, mode, status, summary, started_at, finished_at
                   FROM embodied_refresh_runs

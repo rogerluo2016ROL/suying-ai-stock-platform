@@ -96,6 +96,12 @@ def test_begin_run_returns_idempotent_batch():
         "pg_advisory_xact_lock" in sql
         for sql, _params in conn.cursor_instance.executions
     )
+    lock_execution = next(
+        execution
+        for execution in conn.cursor_instance.executions
+        if "pg_advisory_xact_lock" in execution[0]
+    )
+    assert lock_execution[1] == ("embodied-refresh-run:2026-07-17:daily",)
     assert all("ON CONFLICT" not in sql for sql, _ in conn.cursor_instance.executions)
     assert run.run_id == "run-1"
     assert conn.commits == 1
@@ -213,23 +219,25 @@ def postgres_refresh_schema():
         admin.close()
 
 
-def test_begin_run_is_idempotent_under_postgres_concurrency(postgres_refresh_schema):
+def test_begin_run_is_idempotent_across_chain_ids_under_postgres_concurrency(
+    postgres_refresh_schema,
+):
     from embodied_refresh.repository import EmbodiedRefreshRepository
 
     barrier = Barrier(2)
 
-    def begin():
+    def begin(chain_id):
         connection = postgres_refresh_schema()
         try:
             barrier.wait()
-            return EmbodiedRefreshRepository(connection).begin_run(
+            return EmbodiedRefreshRepository(connection, chain_id=chain_id).begin_run(
                 date(2026, 7, 17), "daily"
             ).run_id
         finally:
             connection.close()
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        run_ids = list(pool.map(lambda _index: begin(), range(2)))
+        run_ids = list(pool.map(begin, ("chain-a", "chain-b")))
 
     assert len(set(run_ids)) == 1
     connection = postgres_refresh_schema()
