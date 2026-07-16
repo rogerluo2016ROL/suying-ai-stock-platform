@@ -7,7 +7,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-from embodied_refresh.delivery import deliver_change_batch, scan_due_deliveries
+from embodied_refresh.delivery import deliver_change_batch, retry_due_batches, scan_due_deliveries
 
 
 TARGETS = [
@@ -38,6 +38,9 @@ class MemoryRepository:
     def claim_delivery(self, batch_id, target, now):
         existing = self.delivery(batch_id, target["chat_id"])
         if existing and existing.status in {"confirmed", "sending", "reconcile_required"}:
+            yield None
+            return
+        if existing and (existing.attempt_count >= 4 or (existing.next_retry_at and existing.next_retry_at > now)):
             yield None
             return
         if existing is None:
@@ -163,6 +166,16 @@ def test_sender_receives_stable_idempotency_key_when_supported():
     assert keys["oc_success"] == "embodied:batch-keys:oc_success"
 
 
+def test_sender_with_kwargs_receives_idempotency_key():
+    repository = MemoryRepository()
+    seen = []
+    def sender(chat_id, message, **kwargs):
+        seen.append(kwargs["idempotency_key"])
+        return {"message_id": "om_" + chat_id}
+    deliver_change_batch(repository, "batch-kwargs", TARGETS, "x", sender, lambda *_: True)
+    assert len(seen) == 3
+
+
 def test_scan_due_excludes_sending_and_reconcile_rows():
     repository = MemoryRepository()
     now = datetime(2026, 7, 17, tzinfo=timezone.utc)
@@ -197,3 +210,13 @@ def test_save_failure_is_propagated():
         assert "database unavailable" in str(exc)
     else:
         raise AssertionError("save failure was swallowed")
+
+
+def test_retry_due_batches_recovers_message_and_targets_from_repository():
+    repository = MemoryRepository()
+    start = datetime(2026, 7, 17, tzinfo=timezone.utc)
+    deliver_change_batch(repository, "batch-recover", TARGETS, "persisted digest", lambda *_: (_ for _ in ()).throw(RuntimeError("down")), lambda *_: True, now=start)
+    sent = []
+    summaries = retry_due_batches(repository, lambda chat, message: sent.append((chat, message)) or {"message_id": "om_" + chat}, lambda *_: True, now=start.replace(minute=5))
+    assert summaries[0].confirmed == 3
+    assert sent == [(target["chat_id"], "persisted digest") for target in TARGETS]

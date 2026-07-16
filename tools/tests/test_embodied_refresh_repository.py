@@ -336,3 +336,24 @@ def test_delivery_claim_prevents_double_worker_send(postgres_refresh_schema):
         results = list(pool.map(worker, range(2)))
     assert sorted(results) == [False, True]
     assert len(sent) == 1
+
+
+def test_delivery_claim_leaves_not_due_row_unchanged_in_postgres(postgres_refresh_schema):
+    from datetime import datetime, timedelta, timezone
+    from embodied_refresh.models import DeliveryRecord
+    from embodied_refresh.repository import EmbodiedRefreshRepository
+
+    connection = postgres_refresh_schema()
+    repo = EmbodiedRefreshRepository(connection)
+    run = repo.begin_run(date(2026, 7, 17), "daily")
+    now = datetime.now(timezone.utc)
+    next_retry = now + timedelta(minutes=5)
+    repo.save_delivery(DeliveryRecord("d-future", run.run_id, "oc_future", "failed", None, {"error": "temporary"}, 1, next_retry))
+
+    with repo.claim_delivery(run.run_id, {"chat_id": "oc_future"}, now) as claimed:
+        assert claimed is None
+    row = repo.delivery(run.run_id, "oc_future")
+    assert row.status == "failed"
+    assert row.attempt_count == 1
+    assert row.next_retry_at == next_retry
+    connection.close()

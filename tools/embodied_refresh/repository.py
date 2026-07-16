@@ -231,6 +231,13 @@ class EmbodiedRefreshRepository:
                     self.connection.commit()
                     yield None
                     return
+                if existing and (
+                    existing.attempt_count >= 4
+                    or (existing.next_retry_at is not None and existing.next_retry_at > now)
+                ):
+                    self.connection.commit()
+                    yield None
+                    return
                 if existing is None:
                     existing = DeliveryRecord(str(uuid4()), change_batch_id, chat_id, "pending")
                 cursor.execute(

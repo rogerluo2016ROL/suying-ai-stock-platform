@@ -218,7 +218,8 @@ def sanitize_delivery_error(exc: Exception) -> str:
         value = os.environ.get(key, "").strip()
         if value:
             detail = detail.replace(value, "<redacted>")
-    detail = re.sub(r"(?i)(access[_-]?token|tenant[_-]?token|authorization)([\s:=]+)([^\s,;]+)", r"\1\2<redacted>", detail)
+    detail = re.sub(r"(?i)(authorization\s*[:=]\s*)(?:bearer\s+)?[^\s,;]+", r"\1<redacted>", detail)
+    detail = re.sub(r'(?i)(["\']?(?:access|tenant|refresh)[_-]?token["\']?\s*[:=]\s*["\']?)[^"\'\s&,;}]+', r"\1<redacted>", detail)
     return f"{type(exc).__name__}: {detail}"[-500:]
 
 

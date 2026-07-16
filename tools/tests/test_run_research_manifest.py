@@ -133,6 +133,13 @@ def test_extract_message_id_from_nested_response():
     assert pipeline.extract_message_id({"code": 0}) == ""
 
 
+def test_delivery_error_redacts_header_json_and_query_tokens():
+    error = RuntimeError('Authorization: Bearer abc.def {"access_token":"json-secret"} https://x.test?a=1&tenant_token=query-secret')
+    sanitized = pipeline.sanitize_delivery_error(error)
+    for secret in ("abc.def", "json-secret", "query-secret"):
+        assert secret not in sanitized
+
+
 def test_auction_source_plan_uses_eastmoney_when_tushare_rows_are_empty():
     plan = pipeline.plan_cb_auction_fallback(
         {"limit_list_d": 0, "stk_auction_o": 0, "eastmoney_limit_pool": 0}

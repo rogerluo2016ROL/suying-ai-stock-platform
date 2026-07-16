@@ -36,7 +36,11 @@ def _normalize_targets(targets: list[dict[str, str]]) -> list[dict[str, str]]:
 
 
 def _send(sender: Callable[..., Any], chat_id: str, message: str, key: str) -> Any:
-    if "idempotency_key" in signature(sender).parameters:
+    try:
+        parameters = signature(sender).parameters.values()
+    except (TypeError, ValueError):
+        return sender(chat_id, message)
+    if any(parameter.name == "idempotency_key" or parameter.kind.name == "VAR_KEYWORD" for parameter in parameters):
         return sender(chat_id, message, idempotency_key=key)
     return sender(chat_id, message)
 
@@ -75,6 +79,8 @@ def deliver_change_batch(
             detail: dict[str, Any] = {
                 "target_key": target.get("key") or "",
                 "target_name": target.get("name") or "",
+                "target_chat_id": chat_id,
+                "message": message,
             }
             try:
                 if not message_id:
@@ -113,16 +119,18 @@ def deliver_change_batch(
 
 def retry_due_batches(
     repository: Any,
-    batches: dict[str, dict[str, Any]],
     sender: Callable[..., Any],
     confirmer: Callable[[str, str], bool],
     *,
     now: datetime | None = None,
 ) -> list[DeliverySummary]:
     """Compensate due batches once; the scheduler may invoke this every five minutes."""
-    due_batch_ids = {row.change_batch_id for row in scan_due_deliveries(repository, now=now)}
-    return [
-        deliver_change_batch(repository, batch_id, batches[batch_id]["targets"], batches[batch_id]["message"], sender, confirmer, now=now)
-        for batch_id in sorted(due_batch_ids)
-        if batch_id in batches
-    ]
+    summaries = []
+    for batch_id in sorted({row.change_batch_id for row in scan_due_deliveries(repository, now=now)}):
+        rows = repository.deliveries(batch_id)
+        targets = [{"key": row.detail.get("target_key", ""), "name": row.detail.get("target_name", ""), "chat_id": row.chat_id} for row in rows]
+        messages = {row.detail.get("message") for row in rows if row.detail.get("message") is not None}
+        if len(targets) != 3 or len(messages) != 1:
+            continue
+        summaries.append(deliver_change_batch(repository, batch_id, targets, messages.pop(), sender, confirmer, now=now))
+    return summaries
