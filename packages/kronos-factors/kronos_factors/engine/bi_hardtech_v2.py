@@ -65,7 +65,7 @@ def select_daily_entries(
         enriched = {
             **candidate,
             "accepted": decision.accepted,
-            "reason": decision.reason,
+            "confirmation_reason": decision.reason,
             "gap_pct": decision.gap_pct,
         }
 
@@ -74,7 +74,13 @@ def select_daily_entries(
             continue
 
         if len(selected) >= config.max_daily_entries:
-            rejected.append({**enriched, "accepted": False, "reason": "daily_limit"})
+            rejected.append(
+                {
+                    **enriched,
+                    "accepted": False,
+                    "confirmation_reason": "daily_limit",
+                }
+            )
             continue
 
         selected.append(enriched)

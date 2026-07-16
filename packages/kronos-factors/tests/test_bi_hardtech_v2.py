@@ -41,6 +41,7 @@ def test_open_gap_boundaries(open_price, accepted, reason):
 def test_missing_or_negative_sector_rejects_entry():
     assert confirm_t1_open(100.0, 100.0, None, V2Config()).reason == "sector_missing"
     assert confirm_t1_open(100.0, 100.0, -0.01, V2Config()).reason == "sector_negative"
+    assert confirm_t1_open(100.0, 100.0, 0.0, V2Config()).accepted is True
 
 
 def test_daily_entries_keep_baseline_order_and_cap_at_two():
@@ -56,4 +57,5 @@ def test_daily_entries_keep_baseline_order_and_cap_at_two():
         config=V2Config(),
     )
     assert [p["code"] for p in selected] == ["000001", "000002"]
-    assert rejected[-1]["reason"] == "daily_limit"
+    assert selected[0]["confirmation_reason"] == "accepted"
+    assert rejected[-1]["confirmation_reason"] == "daily_limit"
