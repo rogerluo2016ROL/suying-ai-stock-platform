@@ -36,20 +36,20 @@ dry-run 明确输出 4 条将创建候选与 3 条 node mismatch：
 - apply 创建 4 条 candidate、4 条 pending_review transition、4 条 `new_candidate/P3` change；首批无历史 success baseline 时正确使用空 success baseline，不再天然得到 0 changes。
 - `business_tag_mapping.evidence_ids` 全部保存稳定 fingerprint event_id，不再保存 source_id。4 个映射分别有 1、16、1、1 个 evidence_ids，数据库 join 数完全一致；source_type、source_id、event_date 均保留。
 - 本批共持久化 34 个稳定 evidence events（含待审冲突相关事件），同 fingerprint 不重复。
-- ambiguous_node_recognition 为 919 条，稳定 source record 去重后 distinct 也是 919，空 source_id 为 0，每条均保存至少 2 个 proposed_node_ids；另有 node_mismatch 3 条。总冲突 922，均 pending_review。
+- 复审时定向删除本批原有 919 条 ambiguous rows，用冻结的五源输入重建。冻结输入产生 977 个原始歧义命中，按 `chain + code + evidence_fingerprint + sorted proposed_nodes` 得到 910 个唯一事件；持久化 910 条，主键、证据复合键和期望集合均为 910，missing=0、extra=0。源级一一对应为 interact_qa 849、profile 13、research 48。空 source_id 为 0，每条均保存至少 2 个 proposed_node_ids；另有 node_mismatch 3 条，总冲突 913，均 pending_review。
 - candidate 总数由 21 增至 25；verified 31、weak_evidence 2 不变，没有手工或自动越过审核门。
 
 ## 榜单与飞书
 
-正式 Top3 不变：创元科技、秦川机床、国机精工；观察 Top3 不变：宁波华翔、远东传动、万里扬。4 条变化因六维评分不完整均为 P3，P0/P1/P2 均为 0；`delivery_attempted=false`、delivery rows 0、message_id 0，三个群未发送。
+正式 Top3 不变：创元科技、秦川机床、国机精工；观察 Top3 不变：宁波华翔、远东传动、万里扬。按已确认的保守规则，4 条变化因六维输入不完整得到 `score=None/P3`，不是完成了六维实评分；P0/P1/P2 均为 0，因此 `delivery_attempted=false`、delivery rows 0、message_id 0，三个群未发送。
 
 ## 同批幂等
 
-冻结同一输入/游标后第二次运行直接返回同一 terminal run，不重写 summary。重跑前后均为：event 34、mapping 4、transition 4、conflict 922、snapshot 6、delivery 0；fingerprint、映射、冲突、快照和消息均无重复。
+冻结同一输入/游标后第二次运行直接返回同一 terminal run，不重写 summary。重跑时为 event 34、mapping 4、transition 4、snapshot 6、delivery 0，均无重复；复审后 ambiguous 冲突集合重建为 910 条，加 3 条 node mismatch 后最终 conflict 913。
 
 ## 测试与可复现命令
 
-- 具身刷新聚焦套件：98 passed、1 skipped。
+- 具身刷新聚焦套件：100 passed、1 skipped。
 - scheduled research：10 passed。可复现命令为 `PYTHONPATH=services/data-service bash tools/codex-lowio.sh py services/data-service/tests/test_scheduled_research.py -q`。
 - priority supply chains + research manifest：32 passed。
 - `git diff --check` 与 JSON 解析通过。
