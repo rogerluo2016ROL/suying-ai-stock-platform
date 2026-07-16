@@ -151,6 +151,19 @@ def test_save_cursor_uses_upsert_and_commits():
     assert conn.commits == 1
 
 
+def test_identification_conflict_is_one_stable_row_with_proposed_nodes():
+    from embodied_refresh.repository import EmbodiedRefreshRepository
+
+    conn = FakeConnection()
+    conflict = {"source_name": "interact_qa", "code": "000001", "node_ids": ["b", "a"], "source_record_id": "" , "evidence_fingerprint": "fp-1"}
+    repo = EmbodiedRefreshRepository(conn)
+    repo.save_identification_conflicts("run-1", [conflict, conflict])
+    inserts = [(sql, params) for sql, params in conn.cursor_instance.executions if "INSERT INTO embodied_mapping_conflicts" in sql]
+    assert len(inserts) == 2
+    assert inserts[0][1][0] == inserts[1][1][0]
+    assert __import__("json").loads(inserts[0][1][-1]) == ["a", "b"]
+
+
 def test_save_changes_inserts_fingerprints_without_upsert():
     from embodied_refresh.models import EvidenceChange
     from embodied_refresh.repository import EmbodiedRefreshRepository
@@ -183,6 +196,15 @@ def test_finish_run_rejects_unknown_run_id():
     with pytest.raises(LookupError, match="missing-run"):
         EmbodiedRefreshRepository(conn).finish_run("missing-run", "failed", {})
     assert conn.rollbacks == 1
+
+
+def test_finish_run_does_not_rewrite_terminal_summary():
+    from embodied_refresh.repository import EmbodiedRefreshRepository
+
+    conn = FakeConnection([("success",)])
+    EmbodiedRefreshRepository(conn).finish_run("run-1", "success", {"new": True})
+    sql, _ = conn.cursor_instance.executions[0]
+    assert "status = 'running'" in sql
 
 
 def test_save_delivery_uses_advisory_lock_and_confirmed_guard():

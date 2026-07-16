@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from contextlib import contextmanager
 from datetime import date
 from typing import Any
@@ -141,16 +142,24 @@ class EmbodiedRefreshRepository:
         """Stage ambiguous recognitions in the caller's mapping transaction."""
         with self.connection.cursor() as cursor:
             for conflict in conflicts:
-                for node_id in conflict["node_ids"]:
-                    conflict_id = f"EMB-IDENTIFY-{uuid4()}"
-                    cursor.execute(
-                        """INSERT INTO embodied_mapping_conflicts
-                               (conflict_id, run_id, chain_id, code, proposed_node_id,
-                                conflict_type, status, source_record_ids, evidence_fingerprints, source_names)
-                           VALUES (%s,%s,%s,%s,%s,'ambiguous_node_recognition','pending_review',%s::jsonb,'[]'::jsonb,%s::jsonb)""",
-                        (conflict_id, run_id, self.chain_id, conflict["code"], node_id,
-                         json.dumps([conflict["source_record_id"]]), json.dumps([conflict["source_name"]])),
-                    )
+                nodes = sorted(set(conflict["node_ids"]))
+                source_record_id = str(conflict.get("source_record_id") or conflict.get("evidence_fingerprint") or "").strip()
+                if not source_record_id:
+                    source_record_id = hashlib.sha256(json.dumps(conflict, sort_keys=True).encode()).hexdigest()
+                conflict_id = "EMB-IDENTIFY-" + hashlib.sha256(
+                    f"{self.chain_id}|{conflict['source_name']}|{source_record_id}".encode()
+                ).hexdigest()[:24]
+                cursor.execute(
+                    """INSERT INTO embodied_mapping_conflicts
+                           (conflict_id, run_id, chain_id, code, proposed_node_id,
+                            conflict_type, status, source_record_ids, evidence_fingerprints,
+                            source_names, proposed_node_ids)
+                       VALUES (%s,%s,%s,%s,%s,'ambiguous_node_recognition','pending_review',%s::jsonb,%s::jsonb,%s::jsonb,%s::jsonb)
+                       ON CONFLICT (conflict_id) DO NOTHING""",
+                    (conflict_id, run_id, self.chain_id, conflict["code"], nodes[0],
+                     json.dumps([source_record_id]), json.dumps([conflict.get("evidence_fingerprint") or source_record_id]),
+                     json.dumps([conflict["source_name"]]), json.dumps(nodes)),
+                )
 
     def save_cursor(self, source_name: str, cursor_value: str, run_id: str) -> None:
         """Advance one successful source cursor after the mapping transaction commits."""
@@ -226,12 +235,15 @@ class EmbodiedRefreshRepository:
                     """
                     UPDATE embodied_refresh_runs
                        SET status = %s, summary = %s::jsonb, finished_at = CURRENT_TIMESTAMP
-                     WHERE run_id = %s
+                     WHERE run_id = %s AND status = 'running'
                     """,
                     (status, json.dumps(summary, ensure_ascii=False), run_id),
                 )
                 if cursor.rowcount != 1:
-                    raise LookupError(f"refresh run not found: {run_id}")
+                    cursor.execute("SELECT status FROM embodied_refresh_runs WHERE run_id=%s", (run_id,))
+                    existing = cursor.fetchone()
+                    if existing is None:
+                        raise LookupError(f"refresh run not found: {run_id}")
             self.connection.commit()
         except Exception:
             self.connection.rollback()

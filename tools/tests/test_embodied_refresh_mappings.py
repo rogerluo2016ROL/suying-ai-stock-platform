@@ -82,6 +82,21 @@ def test_new_mapping_is_candidate_and_pending_review():
     transition = next((sql, params) for sql, params in conn.cursor_instance.executions if "INSERT INTO embodied_mapping_transitions" in sql)
     assert "candidate" in insert[1]
     assert "pending_review" in transition[1]
+    assert any("INSERT INTO business_tag_evidence_events" in sql for sql, _ in conn.cursor_instance.executions)
+    assert __import__("json").loads(insert[1][8]) == [event("node-a").fingerprint]
+
+
+def test_projection_uses_same_state_machine_without_writes():
+    from embodied_refresh.mappings import MappingEvidence, apply_mapping_changes
+
+    conn = FakeConnection()
+    changes = apply_mapping_changes(
+        conn, [MappingEvidence("000001", "embodied", "node-a", "传感器", [event("node-a")])],
+        as_of=AS_OF, persist=False,
+    )
+    assert changes.created[0].to_status == "candidate"
+    assert conn.commits == 0
+    assert all("INSERT" not in sql for sql, _ in conn.cursor_instance.executions)
 
 
 def test_existing_candidate_upgrade_reuses_can_auto_verify_with_explicit_as_of(monkeypatch):
@@ -103,7 +118,8 @@ def test_ambiguous_nodes_create_review_conflict_instead_of_first_match():
         MappingEvidence("000001", "embodied", "node-a", "传感器", [event("node-a")]),
         MappingEvidence("000001", "embodied", "node-b", "减速器", [event("node-b", "filing-2")]),
     ], as_of=AS_OF)
-    assert {item.proposed_node_id for item in changes.conflicts} == {"node-a", "node-b"}
+    assert len(changes.conflicts) == 1
+    assert changes.conflicts[0].node_ids == ("node-a", "node-b")
     assert {item.conflict_type for item in changes.conflicts} == {"batch_ambiguity"}
     assert not changes.created
     assert any("INSERT INTO embodied_mapping_conflicts" in sql for sql, _ in conn.cursor_instance.executions)

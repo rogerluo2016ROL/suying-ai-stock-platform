@@ -69,6 +69,7 @@ def apply_mapping_changes(
     evidence: Sequence[MappingEvidence],
     *,
     as_of: date | datetime | None = None,
+    persist: bool = True,
 ) -> MappingChangeSet:
     """Apply mapping and audit rows in one caller-visible transaction."""
     effective_as_of = as_of or _evidence_as_of(evidence)
@@ -79,13 +80,16 @@ def apply_mapping_changes(
 
     try:
         with connection.cursor() as cursor:
+            if persist:
+                _persist_evidence_events(cursor, evidence)
             for (chain_id, code), items in grouped.items():
+                lock_clause = "FOR UPDATE" if persist else ""
                 cursor.execute(
-                    """
+                    f"""
                     SELECT mapping_id, status, node_id
                       FROM business_tag_mapping
                      WHERE chain_id = %s AND code = %s
-                     FOR UPDATE
+                     {lock_clause}
                     """,
                     (chain_id, code),
                 )
@@ -110,16 +114,18 @@ def apply_mapping_changes(
                                 "batch_ambiguity" if existing_node is None else "node_mismatch"
                             ),
                         )
-                        _persist_conflict(cursor, conflict, related, effective_as_of)
+                        if persist:
+                            _persist_conflict(cursor, conflict, related, effective_as_of)
                         changes.conflicts.append(conflict)
                     continue
 
                 item = _merge_same_node(items)
                 existing = next((row for row in existing_rows if row[2] == item.node_id), None)
                 if existing is None:
-                    change = _new_mapping(cursor, item, effective_as_of)
+                    change = _new_mapping(cursor, item, effective_as_of, persist=persist)
                     changes.created.append(change)
-                    _log_transition(cursor, change, item, effective_as_of)
+                    if persist:
+                        _log_transition(cursor, change, item, effective_as_of)
                     continue
 
                 mapping_id, raw_status, _node_id = existing[:3]
@@ -136,22 +142,25 @@ def apply_mapping_changes(
                 if target == old_status:
                     changes.unchanged.append(change)
                     continue
-                cursor.execute(
-                    "UPDATE business_tag_mapping SET status = %s, updated_at = now() WHERE mapping_id = %s",
-                    (target, mapping_id),
-                )
-                _log_transition(cursor, change, item, effective_as_of)
+                if persist:
+                    cursor.execute(
+                        "UPDATE business_tag_mapping SET status = %s, evidence_ids = (SELECT jsonb_agg(DISTINCT value) FROM jsonb_array_elements(COALESCE(evidence_ids,'[]'::jsonb) || %s::jsonb)), updated_at = now() WHERE mapping_id = %s",
+                        (target, json.dumps([event.fingerprint for event in item.events]), mapping_id),
+                    )
+                    _log_transition(cursor, change, item, effective_as_of)
                 changes.updated.append(change)
-        connection.commit()
+        if persist:
+            connection.commit()
         return changes
     except Exception:
         connection.rollback()
         raise
 
 
-def _new_mapping(cursor: Any, item: MappingEvidence, as_of: date | datetime) -> MappingChange:
+def _new_mapping(cursor: Any, item: MappingEvidence, as_of: date | datetime, *, persist: bool) -> MappingChange:
     mapping_id = _stable_id("EMB-MAP", item.chain_id, item.code, item.node_id)
-    cursor.execute(
+    if persist:
+        cursor.execute(
         """
         INSERT INTO business_tag_mapping
             (mapping_id, code, node_id, chain_id, tag_name, l1_l8_path,
@@ -167,10 +176,33 @@ def _new_mapping(cursor: Any, item: MappingEvidence, as_of: date | datetime) -> 
             json.dumps(list(item.l1_l8_path), ensure_ascii=False),
             item.confidence,
             "candidate",
-            json.dumps([event.source_id for event in item.events], ensure_ascii=False),
+            json.dumps([event.fingerprint for event in item.events], ensure_ascii=False),
         ),
-    )
+        )
+        cursor.execute(
+            "UPDATE business_tag_evidence_events SET mapping_id=%s WHERE event_id = ANY(%s)",
+            (mapping_id, [event.fingerprint for event in item.events]),
+        )
     return MappingChange(mapping_id, item.code, item.node_id, None, "candidate", "new_evidence")
+
+
+def _persist_evidence_events(cursor: Any, evidence: Sequence[MappingEvidence]) -> None:
+    seen: set[str] = set()
+    for item in evidence:
+        for event in item.events:
+            if event.fingerprint in seen:
+                continue
+            seen.add(event.fingerprint)
+            cursor.execute(
+                """INSERT INTO business_tag_evidence_events
+                       (event_id, code, node_id, event_date, source_type, source_id,
+                        title, excerpt, original_url, evidence_type, confidence, review_status)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'mapping_evidence',%s,'pending_review')
+                   ON CONFLICT (event_id) DO NOTHING""",
+                (event.fingerprint, item.code, item.node_id, event.event_date,
+                 event.source_type, event.source_id, event.content[:200], event.content,
+                 event.source_url, item.confidence),
+            )
 
 
 def _log_transition(cursor: Any, change: MappingChange, item: MappingEvidence, as_of: date | datetime) -> None:
@@ -214,9 +246,9 @@ def _persist_conflict(
         INSERT INTO embodied_mapping_conflicts
             (conflict_id, run_id, mapping_id, chain_id, code, existing_node_id,
              proposed_node_id, conflict_type, status, source_record_ids,
-             evidence_fingerprints, source_names, created_at)
+             evidence_fingerprints, source_names, proposed_node_ids, created_at)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb,
-                %s::jsonb, %s::jsonb, now())
+                %s::jsonb, %s::jsonb, %s::jsonb, now())
         """,
         (
             _stable_id("EMB-CONFLICT", conflict.chain_id, conflict.code, conflict.existing_node_id, conflict.proposed_node_id, as_of),
@@ -231,6 +263,7 @@ def _persist_conflict(
             json.dumps([event.source_id for event in events], ensure_ascii=False),
             json.dumps([event.fingerprint for event in events], ensure_ascii=False),
             json.dumps(sorted({name for item in items for name in (*item.source_names, *((item.source_name,) if item.source_name else ())) }), ensure_ascii=False),
+            json.dumps(list(conflict.node_ids), ensure_ascii=False),
         ),
     )
 
@@ -246,7 +279,7 @@ def _conflict_pairs(
             if existing != proposed
         ]
     if len(proposed_nodes) > 1:
-        return [(None, proposed) for proposed in proposed_nodes]
+        return [(None, proposed_nodes[0])]
     return []
 
 

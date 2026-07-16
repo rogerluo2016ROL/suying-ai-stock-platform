@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import subprocess
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timezone
@@ -74,19 +76,22 @@ class EmbodiedRefreshOrchestrator:
         persisted = mode == "apply"
         run = self.repository.begin_run(run_date, mode) if persisted else None
         run_id = getattr(run, "run_id", None)
+        if persisted and getattr(run, "status", "running") != "running":
+            summary = getattr(run, "summary", {}) or {}
+            return RefreshResult(
+                mode, run_id, True, False, int(summary.get("changes", 0)),
+                summary.get("source_errors", {}), getattr(run, "status", "success"),
+                summary.get("delivery"), summary.get("snapshot"),
+            )
         try:
             cursors = self.repository.load_cursors()
             refreshed = self.refresh_sources(cursors, run_date)
             normalized = self.normalize_evidence(refreshed.rows)
-            if persisted:
-                mappings = self.apply_mappings(normalized, run_id, run_date)
-            else:
-                mappings = normalized
+            mappings = self.apply_mappings(normalized, run_id if persisted else None, run_date, persist=persisted)
             snapshot = self.audit_and_rank(run_id, mappings, mode)
             baseline = self.repository.load_success_baseline(run_id) if persisted else None
-            detected = changes if changes is not None else (
-                self.diff_baseline(baseline, snapshot) if baseline is not None else []
-            )
+            empty_baseline = {"status": "success", "mappings": []}
+            detected = changes if changes is not None else self.diff_baseline(baseline or empty_baseline, snapshot)
             if persisted:
                 self.repository.save_changes(detected)
                 self.repository.save_snapshot(run_id, snapshot)
@@ -153,7 +158,8 @@ def _node_keywords(node: dict[str, Any]) -> set[str]:
     for key in ("aliases", "keywords", "products"):
         raw = metadata.get(key, [])
         values.extend(raw if isinstance(raw, list) else [raw])
-    return {str(value).strip().lower() for value in values if str(value or "").strip()}
+    generic = {"感知", "感知系统", "控制", "控制系统", "执行", "执行系统", "机器人"}
+    return {str(value).strip().lower() for value in values if str(value or "").strip() and str(value).strip().lower() not in generic}
 
 
 def identify_source_nodes(
@@ -166,16 +172,25 @@ def identify_source_nodes(
     for source_name, rows in rows_by_source.items():
         for row in rows:
             code = str(row.get("code") or row.get("ts_code") or row.get("symbol") or "").strip()
+            code = code.split(".")[0]
             text = _source_text(row)
-            lowered = text.lower()
+            match_text = str(row.get("answer") or "").strip() if source_name == "interact_qa" else text
+            if source_name == "interact_qa" and not any(term in match_text for term in ("生产", "销售", "供应", "交付", "量产", "业务", "产品", "订单", "收入")):
+                continue
+            lowered = match_text.lower()
             matches = sorted(node_id for node_id, terms in keywords if any(term in lowered for term in terms))
-            if not code or not text or not matches:
+            if not re.fullmatch(r"\d{6}", code) or not text or not matches:
                 continue
             if len(matches) == 1:
                 identified.append((source_name, row, matches[0], text))
             else:
+                identity = str(row.get("id") or row.get("source_id") or row.get("source_cursor") or "").strip()
+                fingerprint = hashlib.sha256(
+                    json.dumps({"source": source_name, "code": code, "identity": identity, "text": text}, ensure_ascii=False, sort_keys=True).encode()
+                ).hexdigest()
                 conflicts.append({"source_name": source_name, "code": code, "node_ids": matches,
-                                  "source_record_id": str(row.get("id") or row.get("source_id") or row.get("source_cursor") or "")})
+                                  "source_record_id": identity or fingerprint,
+                                  "evidence_fingerprint": fingerprint})
     return identified, conflicts
 
 
@@ -198,11 +213,18 @@ def build_ranked_snapshot(run_id: str | None, audit_report: Any, candidates: lis
                 "code": row.code, "company_name": row.company_name, "candidate_label": label,
                 "mapping_status": row.mapping_status, "dimension_scores": row.dimension_scores,
             })
+    mapping_conflicts = [
+        {"code": row.code, "node_ids": list(row.node_ids), "existing_node_id": row.existing_node_id,
+         "proposed_node_id": row.proposed_node_id, "conflict_type": row.conflict_type,
+         "review_status": row.review_status}
+        for row in getattr(mappings, "conflicts", [])
+    ]
     return {
         "run_id": run_id, "status": "success", "audit": asdict(audit_report),
         "leaders": leaders, "formal_top3": [row for row in leaders if row["candidate_label"] == "formal"],
         "watch_top3": [row for row in leaders if row["candidate_label"] == "watch"],
         "mappings": mapping_rows,
+        "mapping_conflicts": mapping_conflicts,
     }
 
 
@@ -260,7 +282,8 @@ def _runtime_orchestrator(connection: Any, repository: Any, pg_url: str, targets
             source_id = str(row.get("source_id") or row.get("id") or f"{source_name}:{code}:{row.get('source_cursor', '')}")
             raw = RawEvidence(
                 source_id, source_name, content,
-                _coerce_date(row.get("event_date") or row.get("ann_date") or row.get("pub_date")),
+                _coerce_date(row.get("event_date") or row.get("ann_date") or row.get("pub_date")
+                             or row.get("updated_at") or row.get("end_date") or row.get("source_cursor")),
                 node_id, row.get("source_url"),
             )
             key = (code, node_id)
@@ -269,7 +292,8 @@ def _runtime_orchestrator(connection: Any, repository: Any, pg_url: str, targets
         return [
             MappingEvidence(code=code, chain_id="embodied_intelligence", node_id=node_id,
                             tag_name=str(metadata[(code, node_id)].get("tag_name") or node_id),
-                            events=events, run_id=None)
+                            events=events, run_id=None,
+                            source_names=tuple(sorted({event.source_type for event in events})))
             for (code, node_id), events in sorted(grouped.items())
         ]
 
@@ -277,7 +301,10 @@ def _runtime_orchestrator(connection: Any, repository: Any, pg_url: str, targets
         enriched = [type(item)(**{**item.__dict__, "run_id": run_id}) for item in items]
         if pending_conflicts:
             repository.save_identification_conflicts(run_id, pending_conflicts)
-        return apply_mapping_changes(connection, enriched, as_of=as_of)
+        return apply_mapping_changes(connection, enriched, as_of=as_of, persist=True)
+
+    def project(items: list[Any], _run_id: str | None, as_of: date, *, persist: bool = False) -> Any:
+        return apply_mapping_changes(connection, items, as_of=as_of, persist=False)
 
     def audit(run_id: str | None, mappings: Any, mode: str) -> dict[str, Any]:
         report = audit_chain(connection, run_id or f"dry-run:{date.today().isoformat()}")
@@ -297,7 +324,7 @@ def _runtime_orchestrator(connection: Any, repository: Any, pg_url: str, targets
         repository=repository,
         refresh_sources=lambda cursors, _date: fetch_incremental_sources(pg_url, cursors),
         normalize_evidence=normalize,
-        apply_mappings=apply,
+        apply_mappings=lambda items, run_id, as_of, persist=True: apply(items, run_id, as_of) if persist else project(items, run_id, as_of),
         rollback_mappings=connection.rollback,
         audit_and_rank=audit,
         diff_baseline=diff,

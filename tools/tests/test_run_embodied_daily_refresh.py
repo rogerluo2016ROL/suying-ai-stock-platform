@@ -50,7 +50,7 @@ def make_orchestrator(events, *, mapping_error=False):
         events.append("normalize")
         return ["evidence"]
 
-    def apply(evidence, run_id, as_of_date):
+    def apply(evidence, run_id, as_of_date, *, persist=True):
         events.append("mapping")
         if mapping_error:
             raise RuntimeError("mapping failed")
@@ -90,7 +90,21 @@ def test_dry_run_never_writes_or_sends():
     assert result.delivery_attempted is False
     assert "begin" not in events
     assert "persist" not in events
-    assert "mapping" not in events
+    assert "mapping" in events
+    assert result.snapshot["mappings"] == ["mapped"]
+
+
+def test_apply_without_prior_success_diffs_against_empty_success_baseline():
+    events = []
+    orchestrator = make_orchestrator(events)
+    orchestrator.repository.load_success_baseline = lambda _run_id: None
+    seen = []
+    orchestrator.diff_baseline = lambda baseline, snapshot: seen.append(baseline) or [{"payload": {"priority": "P3"}}]
+
+    result = orchestrator.run(mode="apply", as_of_date="2026-07-17")
+
+    assert seen == [{"status": "success", "mappings": []}]
+    assert result.change_count == 1
 
 
 def test_apply_obeys_transaction_sequence_and_only_advances_successful_cursors():
@@ -140,7 +154,7 @@ def test_partial_delivery_status_is_not_overwritten_with_success():
 def test_real_five_source_shapes_are_identified_without_node_id():
     rows = {
         "announcement": [{"id": "a", "ts_code": "000001.SZ", "title": "伺服电机量产", "content": "客户验收"}],
-        "interact_qa": [{"id": "q", "code": "000002", "question": "是否生产减速器", "answer": "已经小批量"}],
+        "interact_qa": [{"id": "q", "code": "000002", "question": "是否生产减速器", "answer": "公司减速器已经小批量交付"}],
         "research": [{"id": "r", "code": "000003", "title": "力传感器龙头", "abstract": "收入增长"}],
         "profile": [{"id": "p", "ts_code": "000004.SZ", "main_business": "机器视觉解决方案", "business_scope": "软件"}],
         "main_business": [{"id": "m", "ts_code": "000005.SZ", "bz_item": "灵巧手", "bz_sales": "1000"}],
@@ -157,6 +171,24 @@ def test_real_five_source_shapes_are_identified_without_node_id():
 
     assert len(identified) == 5
     assert conflicts == []
+
+
+def test_interact_question_keyword_without_answer_confirmation_is_rejected():
+    rows = {"interact_qa": [{"id": "q", "code": "002765", "question": "公司机器人关节是否有订单", "answer": "请关注后续公告"}]}
+    nodes = [{"node_id": "joint", "display_name": "机器人关节", "metadata": {}}]
+    assert identify_source_nodes(rows, nodes) == ([], [])
+
+
+def test_generic_perception_term_does_not_independently_identify_node():
+    rows = {"profile": [{"id": "p", "code": "002457", "main_business": "城市综合感知系统"}]}
+    nodes = [{"node_id": "perception", "display_name": "感知系统", "metadata": {}}]
+    assert identify_source_nodes(rows, nodes) == ([], [])
+
+
+def test_non_stock_nan_code_is_rejected():
+    rows = {"research": [{"id": "r", "code": "nan", "title": "机器人关节量产"}]}
+    nodes = [{"node_id": "joint", "display_name": "机器人关节", "metadata": {}}]
+    assert identify_source_nodes(rows, nodes) == ([], [])
 
 
 def test_ambiguous_node_text_goes_to_conflict_not_mapping_evidence():
