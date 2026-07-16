@@ -2,72 +2,62 @@
 
 ## 结论
 
-`[COMPUTED]` **有条件通过**。迁移、刷新落库、审核门、无实质变化不推送、同批幂等与聚焦测试均通过；但 dry-run 未展示随后 apply 新建的 11 条候选，且上游研报与公司画像同步存在写入错误，不能把本次结果解释为五源均已更新至 2026-07-17。
+`[COMPUTED]` **通过，带存量数据关注项**。审查阻断问题已修复并按当前日 `2026-07-17`（Asia/Shanghai）重新执行。最终批次 `d0ff8ffd-59c7-4297-8236-b263950627d8` 产生 4 条可追溯的 P3 新候选，0 条 P0–P2，因此三个配置群均未发送。
 
-验收时间口径为 Asia/Shanghai，`as-of-date=2026-07-17`。真实批次为 `45b69356-30be-4922-a2c5-0225e98a9a1d`。
+## 数据截止
 
-## 1. 上游数据截止与同步
+同步前：公告 2026-07-15（47,010 行）、互动问答 2026-07-15（225,641 行）、研报 2026-06-24（357,124 行）、画像 2026-07-03 00:47:26（6,294 行）、主营 2026-03-31（379 行）。调用项目既有同步后：公告 2026-07-17（54,902 行）、互动问答 2026-07-17（247,476 行）、主营 2026-03-31（61,232 行）。研报接口返回 12,495 但因空 code 写入 0；画像返回 6,294 但因整数越界写入 0，截止未推进。未用生成内容补齐失败源。
 
-同步前：公告 2026-07-15（47,010 行）、互动问答 2026-07-15（225,641 行）、研报 2026-06-24（357,124 行）、公司画像更新时间 2026-07-03 00:47:26（6,294 行）、主营报告期 2026-03-31（379 行）。
+## 迁移、基线与定向清理
 
-调用项目既有安全同步后：
+- Alembic `035 -> 036 -> 037` 成功；037 增加冲突 proposed-node 列表。
+- 原始基线：candidate 21、verified 31、weak_evidence 2；L1–L8 为 `1/2/8/12/16/7/6/7`。
+- 审计仍有 4 组重复节点、1 个孤儿节点、18 条缺失节点映射、31 条 verified 映射没有全量 approved 证据。
+- 定向清理仅引用错误批次 `45b69356-30be-4922-a2c5-0225e98a9a1d`：清理前 run 1、该批 from_status=NULL 映射 11、transition 11、conflict 4,498、snapshot 6、cursor 5；清理后以上全部为 0，未按代码或全表范围删除存量。
+- 修正证据日期后再次定向清理中间批次 `0202dced-d202-4d48-9b41-73425b36ded6`：仅删除该批 4 个新映射、19 个 transition fingerprint 对应事件、4 changes、922 conflicts、6 snapshots、5 cursors 与 1 run；首个事务因 FK 顺序错误整体回滚，确认无部分删除后调整为先删事件再删映射并成功提交。
 
-| 来源 | 最新截止 | 行数 | 同步结果 |
-|---|---:|---:|---|
-| 公告 | 2026-07-17 | 54,902 | 成功，PG 写入 2,892；接口遍历 7 日共返回 7,892 |
-| 互动问答 | 2026-07-17 | 247,476 | 成功，PG 写入 5,132；接口遍历 7 日共返回 42,000 |
-| 研报 | 2026-06-24 | 357,124 | 失败限制：接口返回 12,495，但 PG 因 `code` 为空拒绝写入，写入 0 |
-| 公司画像 | 2026-07-03 00:47:26 | 6,294 | 失败限制：6,294 条接口结果因整数越界写入 0 |
-| 主营构成 | 2026-03-31 | 61,232 | 成功，PG 写入 6,868；2026Q2 尚非已披露完整报告期 |
+## Dry-run 审查
 
-`[KNOWN]` 本次刷新只使用本地已落地数据；未以网络文本或模型生成内容替代失败源。
+dry-run 与 apply 使用同一 mapping state machine；dry-run 仅做内存 projection，不写 run、event、mapping、transition、conflict、snapshot 或 delivery。
 
-## 2. 迁移与基线
+dry-run 明确输出 4 条将创建候选与 3 条 node mismatch：
 
-Alembic 成功执行 `035 -> 036`。迁移后、刷新前持久化表均为 0：runs、changes、snapshots、deliveries、transitions、conflicts。
+| 代码 | 节点 | 来源与日期 | 处置 |
+|---|---|---|---|
+| 000559 | `18C-L4-...-6b06d57719` | profile，2026-06-25 | candidate / pending_review |
+| 301696 | `18C-L4-...-b446b4c6ef` | 公司互动回答 16 条，2026-06-17 至 2026-07-01 | candidate / pending_review；回答明确销售关节模组、无框力矩电机等，但不自动 verified |
+| 605088 | `18C-L4-...-bom_2d000c0657` | research，2025-04-07 | candidate / pending_review；来源较旧 |
+| 920418 | `18C-L4-...-6b06d57719` | profile，2026-06-25 | candidate / pending_review |
 
-映射基线：candidate 21、verified 31、weak_evidence 2。与这些映射关联的证据审核状态为 pending_review 335，approved 为 0。
+3 条节点不一致涉及 002048、002708、300421，全部 pending_review。002457 因仅命中宽泛“感知系统”被剔除；002765 的关键词只出现在投资者问题、公司回答未确认机器人业务，已剔除。非六位证券代码（包括字符串 `nan`）被拒绝。
 
-L1–L8 节点覆盖分别为 `1 / 2 / 8 / 12 / 16 / 7 / 6 / 7`。审计发现 4 组语义重复节点、1 个孤儿节点、18 条映射引用缺失节点、31 条 verified 映射没有全量 approved 证据。
+## Apply、变化、证据与冲突
 
-基线正式 Top3：创元科技（000551）、秦川机床（000837）、国机精工（002046），得分均为 71.4286。观察 Top3：宁波华翔（002048）、远东传动（002406）、万里扬（002434），得分均为 65.7143。
+- apply 创建 4 条 candidate、4 条 pending_review transition、4 条 `new_candidate/P3` change；首批无历史 success baseline 时正确使用空 success baseline，不再天然得到 0 changes。
+- `business_tag_mapping.evidence_ids` 全部保存稳定 fingerprint event_id，不再保存 source_id。4 个映射分别有 1、16、1、1 个 evidence_ids，数据库 join 数完全一致；source_type、source_id、event_date 均保留。
+- 本批共持久化 34 个稳定 evidence events（含待审冲突相关事件），同 fingerprint 不重复。
+- ambiguous_node_recognition 为 919 条，稳定 source record 去重后 distinct 也是 919，空 source_id 为 0，每条均保存至少 2 个 proposed_node_ids；另有 node_mismatch 3 条。总冲突 922，均 pending_review。
+- candidate 总数由 21 增至 25；verified 31、weak_evidence 2 不变，没有手工或自动越过审核门。
 
-## 3. Dry-run 与候选复核
+## 榜单与飞书
 
-dry-run 返回 success、`change_count=0`、`source_errors={}`，数据库 runs/changes/deliveries/transitions 均保持 0，飞书未调用；L1–L8、重复节点、缺失节点、正式 Top3 和观察 Top3 与基线一致。
+正式 Top3 不变：创元科技、秦川机床、国机精工；观察 Top3 不变：宁波华翔、远东传动、万里扬。4 条变化因六维评分不完整均为 P3，P0/P1/P2 均为 0；`delivery_attempted=false`、delivery rows 0、message_id 0，三个群未发送。
 
-dry-run 的 `snapshot.mappings` 为空，但首次 apply 随后创建了 11 条候选。这说明当前 dry-run 未把待落库候选投影到输出，无法在 apply 前逐条预审，是本次验收的主要缺陷。
+## 同批幂等
 
-apply 创建的 11 条映射全部保持 `candidate`，对应 transition 全部为 `pending_review`，没有任何一条被手工改成 verified：
+冻结同一输入/游标后第二次运行直接返回同一 terminal run，不重写 summary。重跑前后均为：event 34、mapping 4、transition 4、conflict 922、snapshot 6、delivery 0；fingerprint、映射、冲突、快照和消息均无重复。
 
-- 公司画像命中 4 条：000559、301488、874232、920418；仅作候选，不视为权威确认。
-- 本地已落地主营/互动类记录命中 6 条：002036、002457、002765、301279、301696、600114；均待人工确认具体产品、节点一致性与时间语义。
-- 研报命中 1 条：605088（记录日期 2025-04-07）；因来源较旧且研报源本轮未能更新，仅保留 candidate。
-- 模糊节点识别共 4,492 条、批次歧义 2 条、节点不一致 4 条，全部为 pending_review；未升级、未自动消解。
+## 测试与可复现命令
 
-## 4. Apply、投递与幂等
-
-首次 apply：status=success，新增 candidate 11（candidate 总数 21 -> 32）、mapping transitions 11、leader snapshots 6；evidence changes 0，verified 升级 0，P0–P2 变化 0。
-
-因此 `delivery_attempted=false`，三个已配置群均未发送，`embodied_delivery_records=0`，不存在可验收的 `message_id`。这是“无实质变化不得发送”的正确结果。
-
-相同命令第二次运行返回同一 run_id，新增映射 0、新增 transition 0、snapshot 行数仍为 6、changes 仍为 0、deliveries 仍为 0；正式/观察 Top3 内容完全不变。同批幂等通过。
-
-成功批次游标：公告 2026-07-17、互动问答 2026-07-17、研报 2026-06-24、公司画像 2026-07-03 00:47:26、主营 2026-03-31。数据库仅有一个 success apply 批次，没有 failed run 被提升为基线。
-
-## 5. 测试
-
-- 具身刷新 8 个聚焦文件：91 passed、1 skipped。
-- scheduled research：10 passed。按 brief 原命令首次因 `app` 不在导入路径而收集失败；补充 `PYTHONPATH=services/data-service` 后通过。
+- 具身刷新聚焦套件：98 passed、1 skipped。
+- scheduled research：10 passed。可复现命令为 `PYTHONPATH=services/data-service bash tools/codex-lowio.sh py services/data-service/tests/test_scheduled_research.py -q`。
 - priority supply chains + research manifest：32 passed。
-- `git diff --check`：通过（提交前执行）。
+- `git diff --check` 与 JSON 解析通过。
 
-## 6. 验收关注项
+## 存量关注项
 
-1. **P1：dry-run 候选不可见。** apply 才显示 11 条候选，违背“先看候选、后落库”的操作预期；虽然审核门阻止了自动 verified，仍应修复输出一致性。
-2. **P1：研报同步写入失败。** 12,495 条返回数据因 `code` 为空全部写入失败，数据截止停在 2026-06-24。
-3. **P1：公司画像同步写入失败。** `integer out of range` 导致 6,294 条结果写入 0，更新时间停在 2026-07-03。
-4. **P1：存量 verified 证据门不闭合。** 31 条 verified 映射均被审计为含未批准/缺失批准证据，正式 Top3 的 evidence_quality 为 0；正式榜单只能视为存量状态展示，不宜对外解释为本次新增确认。
-5. **P2：结构债务。** 4 组重复节点、1 个孤儿节点、18 条缺失节点映射与 4,498 条待审冲突尚未治理。
+1. 研报同步空 code、画像同步整数越界仍需由上游同步模块修复。
+2. 31 条存量 verified 映射证据审核不闭合，正式榜单 evidence_quality 为 0，不应解释为本次新确认。
+3. 4 组重复节点、1 个孤儿节点、18 条缺失节点映射仍待治理。
 
-运行证据摘要保存于 `outputs/embodied_refresh/45b69356-30be-4922-a2c5-0225e98a9a1d/result.json`（运行产物，不纳入本次文档提交）。
+最终运行摘要：`outputs/embodied_refresh/d0ff8ffd-59c7-4297-8236-b263950627d8/result.json`。
