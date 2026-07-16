@@ -1,5 +1,8 @@
+from unittest.mock import patch
+
 import pytest
 
+from kronos_factors.engine import bi_trend_launch
 from kronos_factors.engine.bi_hardtech_v2 import (
     V2Config,
     confirm_t1_open,
@@ -59,3 +62,26 @@ def test_daily_entries_keep_baseline_order_and_cap_at_two():
     assert [p["code"] for p in selected] == ["000001", "000002"]
     assert selected[0]["confirmation_reason"] == "accepted"
     assert rejected[-1]["confirmation_reason"] == "daily_limit"
+
+
+def test_explicit_historical_regime_skips_current_regime_lookup():
+    explicit = {"regime": "neutral", "bonus": 0.0}
+    with patch(
+        "kronos_factors.scorer.screening_scorers.get_market_regime",
+        side_effect=AssertionError("current regime must not be read"),
+    ):
+        regime, source = bi_trend_launch._resolve_global_market_regime(explicit)
+    assert regime == explicit
+    assert source == "explicit"
+
+
+def test_default_regime_keeps_runtime_lookup():
+    expected = {"regime": "bull", "bonus": 0.1}
+    with patch(
+        "kronos_factors.scorer.screening_scorers.get_market_regime",
+        return_value=expected,
+    ) as lookup:
+        regime, source = bi_trend_launch._resolve_global_market_regime(None)
+    lookup.assert_called_once_with()
+    assert regime == expected
+    assert source == "current_runtime"

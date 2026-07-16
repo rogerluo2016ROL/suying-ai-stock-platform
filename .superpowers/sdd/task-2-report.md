@@ -1,50 +1,29 @@
-# Task 2 执行报告（Result Assembly And Theme Sorting）
+# 任务2报告：历史 regime 隔离
 
-## 实现内容
-- 在 `packages/kronos-factors/kronos_factors/engine/cb_auction_t0.py` 中新增 `CbAuctionT0Engine._assemble_result(...)`，仅处理内存中的候选结果组装，不访问数据库。
-- 在 `CbAuctionT0Engine` 中新增 `_relation_reason(...)`，用于输出题材关系文案。
-- `_assemble_result` 逻辑包含：
-  - 以 `cb_code` 去重并合并重复转债：合并 `matched_concepts` 与 `trigger_sources`，并对金额、触发股数量、概念覆盖度等字段取并集/最大/最小策略。
-  - 生成 `is_direct_trigger`、`theme_score`、`risk_notes`、`remain_size_yi`、`code`、`name`、`relation_reason`。
-  - 按题材相关性排序：先按是否直接触发股、命中题材数、触发股数、匹配封单额、概念规模宽度排序，最后补充代码顺序，支持 `top_n` 截断。
-  - 返回统一结构：`model`、`trade_date`、`trigger_stocks`、`concepts`、`bonds`、`rejections`（可为空）。
-- 保持 `run()` 行为不变（仍为现有 stub 行为）。
+## 状态
+- 已完成
 
-## 测试命令和结果
-- 命令：
-  - `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
-- 结果：
-  - 失败阶段（新增两个测试前）：`AttributeError: 'CbAuctionT0Engine' object has no attribute '_assemble_result'`
-  - 通过阶段（实现后）：`6 passed in ...`（本次运行显示 `...... [100%]`）
+## 文件
+- `packages/kronos-factors/kronos_factors/engine/bi_trend_launch.py`
+- `packages/kronos-factors/tests/test_bi_hardtech_v2.py`
 
-## TDD RED/GREEN 证据
-- RED：首次运行新增测试时有 2 个失败，均来自 `_assemble_result` 不存在。
-- GREEN：补齐 `_assemble_result` 与 `_relation_reason` 后，测试全部通过。
+## 提交号
+- `c9af74f2`
 
-## 文件变更
-- `packages/kronos-factors/kronos_factors/engine/cb_auction_t0.py`
-- `packages/kronos-factors/tests/test_cb_auction_t0.py`
+## 红灯 / 绿灯
+- 红灯命令：
+  - `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_bi_hardtech_v2.py::test_explicit_historical_regime_skips_current_regime_lookup -q`
+  - 结果：1 失败
+  - 关键信息：`AttributeError: module 'kronos_factors.engine.bi_trend_launch' has no attribute '_resolve_global_market_regime'`
+- 绿灯命令：
+  - `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_bi_hardtech_v2.py packages/kronos-factors/tests/test_bi_trend_four_axis.py -q`
+  - 结果：24/24 通过（`test_bi_hardtech_v2.py` 14 个，`test_bi_trend_four_axis.py` 10 个）
 
-## 自查结果
-- 核对了排序逻辑与题材去重行为：重复转债合并后 `matched_concepts`、`trigger_sources` 已去重并有序。
-- 风险信息保留为注释字段（`risk_notes`），未作为硬过滤条件。
-- 只使用同花顺相关概念字段进行组装/排序依据，不引入交易便利性维度。
-- 未改动 `run()` 与其他模型行为。
+## 自审
+- 新增 `_resolve_global_market_regime(explicit=None)`，显式传入字典时直接返回副本并标记 `explicit`，不会读取当前 runtime regime。
+- `run_bi_screening(...)` 新增兼容参数 `global_market_regime=None`，默认不传时仍走原来的当前 runtime 查询路径，保持生产行为。
+- 仅在 `market_info` 增加 `global_regime_source` 溯源字段，没有改动原有选股、打分、风控和调用逻辑。
+- 保留了任务1现有接口：原有调用方不传新参数时无需改动。
 
-## 疑虑
-- 当前 `CbAuctionT0Engine.run()` 仍是空壳返回，仍需后续 Task 3/4 用真实触发与题材数据接入 `_assemble_result`。
-
-## 修复补充（Review 回归修复）
-
-- 已修复 `trigger_stock_code` 归一化缺失问题：
-  - 修改 `trigger_codes` 生成方式为
-    `trigger_codes = {_normalize_stock_code(row.get("trigger_stock_code")) for row in triggers}`，
-    避免 `300001.SZ` 与 `300001` 未命中直接触发判断。
-- 已修复 `top_n` 边界处理问题：
-  - 改为 `if top_n is not None: bonds = bonds[:top_n]`，确保 `top_n=0` 返回 0 条，`top_n=None` 返回全部。
-- 新增测试：
-  - `test_assemble_result_normalizes_trigger_stock_code_for_direct_match`
-  - `test_assemble_result_top_n_zero_and_none`
-- 复测命令：
-  - `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
-- 复测结果：`8 passed in ...`（本次运行显示 `........ [100%]`）。
+## 担忧
+- 本次只隔离了全局 regime 来源；函数内其余市场环境计算（例如 breadth / breadth_10d / regime）仍按 `trade_date` 对应数据执行，这是 brief 要求的最小改动，但如果后续历史回放还要求“全部市场环境都外部注入”，需要另开任务处理。
