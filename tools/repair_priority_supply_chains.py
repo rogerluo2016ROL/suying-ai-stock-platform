@@ -21,6 +21,8 @@ from typing import Any
 import psycopg2
 import psycopg2.extras
 
+from embodied_refresh.sources import SOURCE_SPECS, fetch_incremental_sources
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
@@ -328,6 +330,11 @@ def fetch_source_hits(pg_url: str, config: ChainConfig, since: str | None = None
             for row in cur.fetchall():
                 add_hit(row["code"], row["name"], "research", row["dt"], row["title"], row["content"], 1.5)
     return hits_by_code
+
+
+def fetch_embodied_incremental_sources(pg_url: str, cursors: dict[str, str | None]):
+    """Backward-compatible entry point for the daily embodied refresh adapter."""
+    return fetch_incremental_sources(pg_url, cursors)
 
 
 def fetch_existing_mappings(pg_url: str, chain_ids: list[str]) -> dict[tuple[str, str], list[dict[str, Any]]]:
