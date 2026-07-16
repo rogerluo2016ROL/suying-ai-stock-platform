@@ -2961,6 +2961,7 @@ async def list_modes():
             {"id": "bi_trend_launch","name": "毕师傅硬核科技趋势启动 V13", "cycle": "5-20天", "style": "趋势"},
             {"id": "bi_trend_full_market","name": "毕师傅全市场趋势启动 V1.0", "cycle": "5-20天", "style": "全市场"},
             {"id": "bi_shifu_trend","name": "毕师傅趋势战法 v2.0", "cycle": "5-20天", "style": "趋势"},
+            {"id": "bi_shifu_trend_v23","name": "毕师傅趋势战法候选 V2.3", "cycle": "5-20天", "style": "候选趋势"},
             {"id": "supply_chain",  "name": "产业链预期差选股模型", "cycle": "3-12月", "style": "产业链预期差"},
             {"id": "supply_chain_trend_launch", "name": "大葱产业链趋势启动战法 vFinal", "cycle": "1月", "style": "动态轮动"},
         ]
@@ -3665,7 +3666,7 @@ async def run_screening(
             result = await loop.run_in_executor(
                 _executor, _run_bi_full_market_mode, mode, top_n, trade_date
             )
-        elif mode == "bi_shifu_trend":
+        elif mode in ("bi_shifu_trend", "bi_shifu_trend_v23"):
             result = await loop.run_in_executor(
                 _executor, _run_bi_shifu_trend_mode, mode, top_n, trade_date
             )
@@ -4159,11 +4160,11 @@ def _run_bi_full_market_mode(mode: str, top_n: int, trade_date: Optional[str]) -
 
 
 def _run_bi_shifu_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run 毕师傅趋势战法 v2.0 (全市场多维度评分 + 趋势识别)."""
-    from kronos_factors.engine.bi_shifu_trend import BiShifuTrendEngine
+    """Run 毕师傅趋势战法正式版或候选 V2.3。"""
+    from kronos_factors.engine.bi_shifu_trend import BiShifuTrendEngine, BiShifuTrendV23Engine
 
     resolved_trade_date = _resolve_trade_date(trade_date)
-    engine = BiShifuTrendEngine()
+    engine = BiShifuTrendV23Engine() if mode == "bi_shifu_trend_v23" else BiShifuTrendEngine()
     picks = engine.run(top_n=top_n, trade_date=resolved_trade_date)
 
     picks = _sanitize_picks(picks)

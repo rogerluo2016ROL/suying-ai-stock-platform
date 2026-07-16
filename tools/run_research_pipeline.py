@@ -795,7 +795,7 @@ def _run_registered_mode(
         return _run_cb_mode(mode, top_n, trade_date)
     if mode == "bi_trend_launch":
         return _run_bi_trend_mode(mode, top_n, trade_date)
-    if mode == "bi_shifu_trend":
+    if mode in {"bi_shifu_trend", "bi_shifu_trend_v23"}:
         return _run_bi_shifu_trend_mode(mode, top_n, trade_date)
     if mode == "bi_trend_full_market":
         return _run_bi_full_market_mode(mode, top_n, trade_date)
