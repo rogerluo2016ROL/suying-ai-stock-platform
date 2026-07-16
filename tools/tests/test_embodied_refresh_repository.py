@@ -1,5 +1,9 @@
 from pathlib import Path
 import sys
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date
+from threading import Barrier
+from uuid import uuid4
 
 import pytest
 
@@ -81,8 +85,6 @@ class FakeConnection:
 
 
 def test_begin_run_returns_idempotent_batch():
-    from datetime import date
-
     from embodied_refresh.repository import EmbodiedRefreshRepository
 
     conn = FakeConnection(
@@ -90,13 +92,11 @@ def test_begin_run_returns_idempotent_batch():
     )
     run = EmbodiedRefreshRepository(conn).begin_run(date(2026, 7, 17), "daily")
 
-    sql, params = conn.cursor_instance.executions[0]
-    assert "ON CONFLICT" not in sql
-    assert params[:2] == (date(2026, 7, 17), "daily")
-    assert params[3:] == (
-        date(2026, 7, 17),
-        "daily",
+    assert any(
+        "pg_advisory_xact_lock" in sql
+        for sql, _params in conn.cursor_instance.executions
     )
+    assert all("ON CONFLICT" not in sql for sql, _ in conn.cursor_instance.executions)
     assert run.run_id == "run-1"
     assert conn.commits == 1
 
@@ -136,7 +136,7 @@ def test_save_changes_inserts_fingerprints_without_upsert():
     from embodied_refresh.models import EvidenceChange
     from embodied_refresh.repository import EmbodiedRefreshRepository
 
-    conn = FakeConnection([(1,), None])
+    conn = FakeConnection([None, (1,), (1,)])
     changes = [
         EvidenceChange("fp-1", "run-1", "node-1", "added", {"x": 1}),
         EvidenceChange("fp-2", "run-1", "node-2", "updated", {"x": 2}),
@@ -155,3 +155,115 @@ def test_finish_run_rejects_non_terminal_status():
     with pytest.raises(ValueError, match="terminal"):
         EmbodiedRefreshRepository(conn).finish_run("run-1", "running", {})
     assert not conn.cursor_instance.executions
+
+
+def test_finish_run_rejects_unknown_run_id():
+    from embodied_refresh.repository import EmbodiedRefreshRepository
+
+    conn = FakeConnection()
+    with pytest.raises(LookupError, match="missing-run"):
+        EmbodiedRefreshRepository(conn).finish_run("missing-run", "failed", {})
+    assert conn.rollbacks == 1
+
+
+@pytest.fixture
+def postgres_refresh_schema():
+    psycopg2 = pytest.importorskip("psycopg2")
+    dsn = "postgresql://kronos:kronos@localhost:6432/kronos"
+    schema = f"test_embodied_refresh_{uuid4().hex}"
+    admin = psycopg2.connect(dsn)
+    admin.autocommit = True
+    with admin.cursor() as cursor:
+        cursor.execute(f'CREATE SCHEMA "{schema}"')
+        cursor.execute(
+            f"""
+            CREATE TABLE "{schema}".embodied_refresh_runs (
+                run_id TEXT PRIMARY KEY,
+                run_date DATE NOT NULL,
+                mode TEXT NOT NULL,
+                status TEXT NOT NULL,
+                summary JSONB NOT NULL DEFAULT '{{}}',
+                started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                finished_at TIMESTAMPTZ,
+                UNIQUE (run_date, mode)
+            );
+            CREATE TABLE "{schema}".embodied_evidence_changes (
+                change_fingerprint TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL REFERENCES "{schema}".embodied_refresh_runs(run_id),
+                node_id TEXT NOT NULL,
+                change_type TEXT NOT NULL,
+                payload JSONB NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+    def connect():
+        connection = psycopg2.connect(dsn)
+        with connection.cursor() as cursor:
+            cursor.execute(f'SET search_path TO "{schema}"')
+        connection.commit()
+        return connection
+
+    try:
+        yield connect
+    finally:
+        with admin.cursor() as cursor:
+            cursor.execute(f'DROP SCHEMA "{schema}" CASCADE')
+        admin.close()
+
+
+def test_begin_run_is_idempotent_under_postgres_concurrency(postgres_refresh_schema):
+    from embodied_refresh.repository import EmbodiedRefreshRepository
+
+    barrier = Barrier(2)
+
+    def begin():
+        connection = postgres_refresh_schema()
+        try:
+            barrier.wait()
+            return EmbodiedRefreshRepository(connection).begin_run(
+                date(2026, 7, 17), "daily"
+            ).run_id
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        run_ids = list(pool.map(lambda _index: begin(), range(2)))
+
+    assert len(set(run_ids)) == 1
+    connection = postgres_refresh_schema()
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM embodied_refresh_runs")
+        assert cursor.fetchone()[0] == 1
+    connection.close()
+
+
+def test_save_changes_deduplicates_under_postgres_concurrency(postgres_refresh_schema):
+    from embodied_refresh.models import EvidenceChange
+    from embodied_refresh.repository import EmbodiedRefreshRepository
+
+    setup = postgres_refresh_schema()
+    run = EmbodiedRefreshRepository(setup).begin_run(date(2026, 7, 17), "daily")
+    setup.close()
+    barrier = Barrier(2)
+
+    def save():
+        connection = postgres_refresh_schema()
+        try:
+            barrier.wait()
+            return EmbodiedRefreshRepository(connection).save_changes(
+                [EvidenceChange("same-fingerprint", run.run_id, "node", "added", {})]
+            )
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        counts = list(pool.map(lambda _index: save(), range(2)))
+
+    assert sorted(counts) == [0, 1]
+    connection = postgres_refresh_schema()
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM embodied_evidence_changes")
+        assert cursor.fetchone()[0] == 1
+    connection.close()

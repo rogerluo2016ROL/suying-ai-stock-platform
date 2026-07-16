@@ -22,27 +22,29 @@ class EmbodiedRefreshRepository:
 
     def begin_run(self, run_date: date, mode: str) -> RefreshRun:
         """Insert a running batch or return the existing idempotent batch."""
-        sql = """
-            WITH existing AS (
+        lock_key = f"embodied-refresh-run:{self.chain_id}:{run_date.isoformat()}:{mode}"
+        select_sql = """
                 SELECT run_id, run_date, mode, status, summary, started_at, finished_at
                   FROM embodied_refresh_runs
                  WHERE run_date = %s AND mode = %s
-            ), inserted AS (
+        """
+        insert_sql = """
                 INSERT INTO embodied_refresh_runs
                     (run_id, run_date, mode, status, summary)
-                SELECT %s, %s, %s, 'running', '{}'::jsonb
-                 WHERE NOT EXISTS (SELECT 1 FROM existing)
+                VALUES (%s, %s, %s, 'running', '{}'::jsonb)
                 RETURNING run_id, run_date, mode, status, summary, started_at, finished_at
-            )
-            SELECT * FROM inserted
-            UNION ALL
-            SELECT * FROM existing
-            LIMIT 1
         """
         try:
             with self.connection.cursor() as cursor:
-                cursor.execute(sql, (run_date, mode, str(uuid4()), run_date, mode))
+                cursor.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                    (lock_key,),
+                )
+                cursor.execute(select_sql, (run_date, mode))
                 run = self._run(cursor.fetchone())
+                if run is None:
+                    cursor.execute(insert_sql, (str(uuid4()), run_date, mode))
+                    run = self._run(cursor.fetchone())
             self.connection.commit()
         except Exception:
             self.connection.rollback()
@@ -93,16 +95,27 @@ class EmbodiedRefreshRepository:
         inserted = 0
         try:
             with self.connection.cursor() as cursor:
-                for change in changes:
+                # A stable order prevents two multi-change batches from taking
+                # the same advisory locks in opposite order and deadlocking.
+                for change in sorted(changes, key=lambda item: item.change_fingerprint):
+                    cursor.execute(
+                        "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                        (f"embodied-refresh-change:{change.change_fingerprint}",),
+                    )
+                    cursor.execute(
+                        """
+                        SELECT 1 FROM embodied_evidence_changes
+                         WHERE change_fingerprint = %s
+                        """,
+                        (change.change_fingerprint,),
+                    )
+                    if cursor.fetchone() is not None:
+                        continue
                     cursor.execute(
                         """
                         INSERT INTO embodied_evidence_changes
                             (change_fingerprint, run_id, node_id, change_type, payload)
-                        SELECT %s, %s, %s, %s, %s::jsonb
-                         WHERE NOT EXISTS (
-                            SELECT 1 FROM embodied_evidence_changes
-                             WHERE change_fingerprint = %s
-                         )
+                        VALUES (%s, %s, %s, %s, %s::jsonb)
                         RETURNING 1
                         """,
                         (
@@ -111,7 +124,6 @@ class EmbodiedRefreshRepository:
                             change.node_id,
                             change.change_type,
                             json.dumps(change.payload, ensure_ascii=False),
-                            change.change_fingerprint,
                         ),
                     )
                     inserted += int(cursor.fetchone() is not None)
@@ -135,6 +147,8 @@ class EmbodiedRefreshRepository:
                     """,
                     (status, json.dumps(summary, ensure_ascii=False), run_id),
                 )
+                if cursor.rowcount != 1:
+                    raise LookupError(f"refresh run not found: {run_id}")
             self.connection.commit()
         except Exception:
             self.connection.rollback()
