@@ -14,6 +14,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
@@ -3518,9 +3519,9 @@ def get_tenant_access_token() -> str:
     return str(_TENANT_TOKEN["token"])
 
 
-def send_text_to_chat(chat_id: str, text: str) -> dict[str, Any]:
+def send_text_to_chat(chat_id: str, text: str, *, idempotency_key: str | None = None) -> dict[str, Any]:
     if not os.environ.get("LARK_APP_ID", "").strip() or not os.environ.get("LARK_APP_SECRET", "").strip():
-        return _send_text_to_chat_via_lark_cli(chat_id, text)
+        return _send_text_to_chat_via_lark_cli(chat_id, text, idempotency_key=idempotency_key)
 
     token = get_tenant_access_token()
     body = json.dumps(
@@ -3532,7 +3533,7 @@ def send_text_to_chat(chat_id: str, text: str) -> dict[str, Any]:
         ensure_ascii=False,
     ).encode("utf-8")
     req = urllib.request.Request(
-        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id",
+        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id" + (f"&uuid={urllib.parse.quote(idempotency_key)}" if idempotency_key else ""),
         data=body,
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         method="POST",
@@ -3548,7 +3549,7 @@ def send_text_to_chat(chat_id: str, text: str) -> dict[str, Any]:
     return data
 
 
-def _send_text_to_chat_via_lark_cli(chat_id: str, text: str) -> dict[str, Any]:
+def _send_text_to_chat_via_lark_cli(chat_id: str, text: str, *, idempotency_key: str | None = None) -> dict[str, Any]:
     root = Path(__file__).resolve().parents[3]
     cmd = [
         "lark-cli",
@@ -3562,6 +3563,8 @@ def _send_text_to_chat_via_lark_cli(chat_id: str, text: str) -> dict[str, Any]:
         text,
         "--json",
     ]
+    if idempotency_key:
+        cmd.extend(["--idempotency-key", idempotency_key])
     proc = subprocess.run(
         cmd,
         cwd=root,

@@ -19,6 +19,7 @@ TERMINAL_STATUSES = {
     "success",
     "partial_delivery",
     "failed_delivery",
+    "data_success_delivery_incomplete",
     "skipped_non_trading_day",
 }
 
@@ -184,6 +185,19 @@ def run_scheduled_research_task(
 
     return_code = int(getattr(execution, "returncode", 0) or 0)
     summary = _pipeline_summary(execution)
+    if task.get("runner") == "embodied_refresh":
+        status = summary.get("status") or ("success" if return_code == 0 else "failed")
+        state = {
+            **base_state,
+            "status": status,
+            "finished_at": datetime.now().isoformat(timespec="seconds"),
+            "run_id": summary.get("run_id"),
+            "delivery_summary": summary.get("delivery_summary"),
+        }
+        if return_code != 0:
+            state["error"] = "具身智能刷新 CLI 返回非零状态"
+        _write_state(state_path, state)
+        return state
     run_result = _load_run_result(summary)
     delivery = (run_result.get("pipeline") or {}).get("feishu_delivery") or {}
     status = delivery.get("status") or ("success" if return_code == 0 else "failed")

@@ -8,6 +8,7 @@ from run_embodied_daily_refresh import EmbodiedRefreshOrchestrator, build_ranked
 class FakeRepository:
     def __init__(self, events):
         self.events = events
+        self.fail_cursor = False
 
     def begin_run(self, run_date, mode):
         self.events.append("begin")
@@ -21,18 +22,26 @@ class FakeRepository:
         self.events.append("baseline")
         return {"status": "success", "mappings": []}
 
-    def save_changes(self, changes):
+    def save_changes(self, changes, *, commit=True):
         self.events.append("persist")
         return len(changes)
 
-    def save_snapshot(self, run_id, snapshot):
+    def save_snapshot(self, run_id, snapshot, *, commit=True):
         self.events.append("snapshot")
 
-    def save_cursor(self, source, cursor, run_id):
+    def save_cursor(self, source, cursor, run_id, *, commit=True):
         self.events.append(f"cursor:{source}")
+        if self.fail_cursor:
+            raise RuntimeError("cursor failed")
 
     def finish_run(self, run_id, status, summary):
         self.events.append(f"finish:{status}")
+
+    def commit(self):
+        self.events.append("commit")
+
+    def rollback(self):
+        self.events.append("rollback")
 
 
 def make_orchestrator(events, *, mapping_error=False):
@@ -115,7 +124,7 @@ def test_apply_obeys_transaction_sequence_and_only_advances_successful_cursors()
     assert result.delivery_attempted is False
     assert events == [
         "begin", "load_cursors", "refresh", "normalize", "mapping", "audit",
-        "baseline", "diff", "persist", "snapshot", "cursor:announcement", "finish:success",
+        "baseline", "diff", "persist", "snapshot", "cursor:announcement", "commit", "finish:success",
     ]
 
 
@@ -133,8 +142,8 @@ def test_audit_mode_is_strictly_read_only():
     events = []
     result = make_orchestrator(events).run(mode="audit", as_of_date="2026-07-16")
 
-    assert result.persisted is False
-    assert events == ["audit"]
+    assert result.persisted is True
+    assert events == ["begin", "audit", "snapshot", "commit", "finish:success"]
 
 
 def test_partial_delivery_status_is_not_overwritten_with_success():
@@ -234,3 +243,14 @@ def test_runtime_snapshot_ranks_persisted_candidates_and_handles_empty_pool():
     assert empty["leaders"] == []
     assert ranked["formal_top3"][0]["code"] == "000001"
     assert ranked["formal_top3"][0]["rank"] == 1
+
+
+def test_cursor_failure_rolls_back_entire_data_stage_before_delivery():
+    events = []
+    orchestrator = make_orchestrator(events)
+    orchestrator.repository.fail_cursor = True
+    with pytest.raises(RuntimeError, match="cursor failed"):
+        orchestrator.run(mode="apply", as_of_date="2026-07-16", send_feishu=True)
+    assert "commit" not in events
+    assert "deliver" not in events
+    assert events[-2:] == ["rollback", "finish:failed"]

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from inspect import signature
 from typing import Any, Callable
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from run_research_pipeline import extract_message_id, sanitize_delivery_error
 
@@ -47,7 +47,7 @@ def _send(sender: Callable[..., Any], chat_id: str, message: str, key: str) -> A
 
 def scan_due_deliveries(repository: Any, *, now: datetime | None = None) -> list[DeliveryRecord]:
     current_time = now or datetime.now(timezone.utc)
-    return [row for row in repository.due_deliveries(current_time) if row.status in {"failed", "unconfirmed", "pending"}]
+    return [row for row in repository.due_deliveries(current_time) if row.status in {"failed", "unconfirmed", "pending", "sending", "reconcile_required"}]
 
 
 def deliver_change_batch(
@@ -63,7 +63,8 @@ def deliver_change_batch(
     """Attempt each due target once; retries are driven by later invocations."""
     current_time = now or datetime.now(timezone.utc)
     normalized_targets = _normalize_targets(targets)
-    repository.initialize_deliveries(batch_id, normalized_targets, message, current_time)
+    keys = {target["chat_id"]: str(uuid5(NAMESPACE_URL, f"embodied:{batch_id}:{target['chat_id']}")) for target in normalized_targets}
+    repository.initialize_deliveries(batch_id, normalized_targets, message, current_time, idempotency_keys=keys)
     for target in normalized_targets:
         chat_id = target["chat_id"]
         with repository.claim_delivery(batch_id, target, current_time) as existing:
@@ -85,7 +86,7 @@ def deliver_change_batch(
             }
             try:
                 if not message_id:
-                    message_id = extract_message_id(_send(sender, chat_id, message, f"embodied:{batch_id}:{chat_id}")) or None
+                    message_id = extract_message_id(_send(sender, chat_id, message, keys[chat_id])) or None
                     if not message_id:
                         detail["error"] = "missing_message_id"
                 if message_id and confirmer(chat_id, message_id):
@@ -110,11 +111,6 @@ def deliver_change_batch(
     total = 3
     status = "success" if total > 0 and confirmed == total else "data_success_delivery_incomplete"
     summary = DeliverySummary(batch_id, total, confirmed, total - confirmed, status)
-    repository.finish_run(batch_id, status, {
-        "delivery_total": total,
-        "delivery_confirmed": confirmed,
-        "delivery_pending": total - confirmed,
-    })
     return summary
 
 
@@ -133,5 +129,8 @@ def retry_due_batches(
         messages = {row.detail.get("message") for row in rows if row.detail.get("message") is not None}
         if len(targets) != 3 or len(messages) != 1:
             continue
-        summaries.append(deliver_change_batch(repository, batch_id, targets, messages.pop(), sender, confirmer, now=now))
+        summary = deliver_change_batch(repository, batch_id, targets, messages.pop(), sender, confirmer, now=now)
+        if summary.status == "success":
+            repository.complete_delivery_run(batch_id, summary)
+        summaries.append(summary)
     return summaries

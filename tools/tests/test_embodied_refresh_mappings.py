@@ -25,6 +25,7 @@ class FakeCursor:
         return None
 
     def execute(self, sql, params=()):
+        self.last_sql = sql
         self.executions.append((" ".join(sql.split()), params))
         if "INSERT INTO business_tag_mapping" in sql:
             self.connection.pending_mappings.append(params[0])
@@ -34,6 +35,8 @@ class FakeCursor:
             self.connection.pending_history.append(params[0])
 
     def fetchall(self):
+        if "FROM business_tag_evidence_events WHERE" in getattr(self, "last_sql", ""):
+            return list(self.connection.historical)
         return list(self.connection.existing)
 
     def fetchone(self):
@@ -41,9 +44,10 @@ class FakeCursor:
 
 
 class FakeConnection:
-    def __init__(self, existing=(), fail_on=None):
+    def __init__(self, existing=(), fail_on=None, historical=()):
         self.existing = list(existing)
         self.fail_on = fail_on
+        self.historical = list(historical)
         self.cursor_instance = FakeCursor(self)
         self.commits = 0
         self.rollbacks = 0
@@ -72,15 +76,15 @@ def event(node_id, source_id="filing"):
     return normalize_evidence(RawEvidence(source_id, "annual_report", "公司已批量交付", AS_OF, node_id))
 
 
-def test_new_mapping_is_candidate_and_pending_review():
+def test_new_mapping_with_single_s_source_is_verified_in_same_transaction():
     from embodied_refresh.mappings import MappingEvidence, apply_mapping_changes
 
     conn = FakeConnection()
     changes = apply_mapping_changes(conn, [MappingEvidence("000001", "embodied", "node-a", "传感器", [event("node-a")])], as_of=AS_OF)
-    assert changes.created[0].to_status == "candidate"
+    assert changes.created[0].to_status == "verified"
     insert = next((sql, params) for sql, params in conn.cursor_instance.executions if "INSERT INTO business_tag_mapping" in sql)
     transition = next((sql, params) for sql, params in conn.cursor_instance.executions if "INSERT INTO embodied_mapping_transitions" in sql)
-    assert "candidate" in insert[1]
+    assert "verified" in insert[1]
     assert "pending_review" in transition[1]
     assert any("INSERT INTO business_tag_evidence_events" in sql for sql, _ in conn.cursor_instance.executions)
     assert __import__("json").loads(insert[1][8]) == [event("node-a").fingerprint]
@@ -94,7 +98,7 @@ def test_projection_uses_same_state_machine_without_writes():
         conn, [MappingEvidence("000001", "embodied", "node-a", "传感器", [event("node-a")])],
         as_of=AS_OF, persist=False,
     )
-    assert changes.created[0].to_status == "candidate"
+    assert changes.created[0].to_status == "verified"
     assert conn.commits == 0
     assert all("INSERT" not in sql for sql, _ in conn.cursor_instance.executions)
 
@@ -207,3 +211,23 @@ def test_unavailable_source_never_emits_downgrade():
     changes = apply_mapping_changes(conn, [MappingEvidence("000001", "embodied", "node-a", "传感器", [], sources_available=False)], as_of=AS_OF)
     assert not changes.updated
     assert conn.commits == 1
+
+
+def test_cross_day_two_independent_a_sources_upgrade_candidate():
+    from embodied_refresh.mappings import MappingEvidence, apply_mapping_changes
+
+    prior = normalize_evidence(RawEvidence("official-one", "official_web", "公司已批量交付", AS_OF, "node-a",
+                                            canonical_source_id="official-one"))
+    current = normalize_evidence(RawEvidence("official-two", "official_wechat", "公司已批量交付", AS_OF, "node-a",
+                                              canonical_source_id="official-two"))
+    conn = FakeConnection(
+        existing=[("map-1", "candidate", "node-a", [prior.fingerprint])],
+        historical=[(prior.fingerprint, "official-one", "official_web", prior.content, AS_OF, "node-a", None)],
+    )
+
+    changes = apply_mapping_changes(
+        conn, [MappingEvidence("000001", "embodied", "node-a", "传感器", [current])], as_of=AS_OF
+    )
+
+    assert changes.updated[0].to_status == "verified"
+    assert any("SET mapping_id=%s" in sql for sql, _ in conn.cursor_instance.executions)

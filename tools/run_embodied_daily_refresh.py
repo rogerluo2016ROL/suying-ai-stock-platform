@@ -71,8 +71,22 @@ class EmbodiedRefreshOrchestrator:
             raise ValueError("mode must be dry-run, apply, or audit")
         run_date = date.fromisoformat(as_of_date) if isinstance(as_of_date, str) else as_of_date
         if mode == "audit":
-            snapshot = self.audit_and_rank(None, None, mode)
-            return RefreshResult(mode, None, False, False, status="success", snapshot=snapshot)
+            run = self.repository.begin_run(run_date, mode)
+            run_id = run.run_id
+            try:
+                snapshot = self.audit_and_rank(run_id, None, mode)
+                self.repository.save_snapshot(run_id, snapshot, commit=False)
+                self.repository.commit()
+                self.repository.finish_run(run_id, "success", {"snapshot": snapshot, "audit": snapshot.get("audit", {})})
+                return RefreshResult(mode, run_id, True, False, status="success", snapshot=snapshot)
+            except Exception:
+                self.repository.rollback()
+                try:
+                    failure_repository = self.failure_repository_factory() if self.failure_repository_factory else self.repository
+                    failure_repository.finish_run(run_id, "failed", {"failed_at": datetime.now(timezone.utc).isoformat()})
+                except Exception:
+                    pass
+                raise
         persisted = mode == "apply"
         run = self.repository.begin_run(run_date, mode) if persisted else None
         run_id = getattr(run, "run_id", None)
@@ -93,8 +107,15 @@ class EmbodiedRefreshOrchestrator:
             empty_baseline = {"status": "success", "mappings": []}
             detected = changes if changes is not None else self.diff_baseline(baseline or empty_baseline, snapshot)
             if persisted:
-                self.repository.save_changes(detected)
-                self.repository.save_snapshot(run_id, snapshot)
+                self.repository.save_changes(detected, commit=False)
+                self.repository.save_snapshot(run_id, snapshot, commit=False)
+
+                successful = set(refreshed.rows) - set(refreshed.errors)
+                for source in sorted(successful):
+                    cursor = refreshed.next_cursors.get(source)
+                    if cursor is not None:
+                        self.repository.save_cursor(source, cursor, run_id, commit=False)
+                self.repository.commit()
 
             publishable = [row for row in detected if _priority(row) in PUBLISHABLE_PRIORITIES]
             delivery_attempted = bool(persisted and send_feishu and publishable)
@@ -102,11 +123,6 @@ class EmbodiedRefreshOrchestrator:
             final_status = getattr(delivery_summary, "status", "success")
 
             if persisted:
-                successful = set(refreshed.rows) - set(refreshed.errors)
-                for source in sorted(successful):
-                    cursor = refreshed.next_cursors.get(source)
-                    if cursor is not None:
-                        self.repository.save_cursor(source, cursor, run_id)
                 summary = {
                     "changes": len(detected), "source_errors": refreshed.errors, "snapshot": snapshot,
                 }
@@ -119,7 +135,7 @@ class EmbodiedRefreshOrchestrator:
             return RefreshResult(mode, run_id, persisted, delivery_attempted, len(detected), refreshed.errors,
                                  final_status, summary.get("delivery") if persisted else None, snapshot)
         except Exception:
-            self.rollback_mappings()
+            self.repository.rollback() if hasattr(self.repository, "rollback") else self.rollback_mappings()
             if persisted and run_id is not None:
                 try:
                     failure_repository = self.failure_repository_factory() if self.failure_repository_factory else self.repository
@@ -304,7 +320,7 @@ def _runtime_orchestrator(connection: Any, repository: Any, pg_url: str, targets
         enriched = [type(item)(**{**item.__dict__, "run_id": run_id}) for item in items]
         if pending_conflicts:
             repository.save_identification_conflicts(run_id, pending_conflicts)
-        return apply_mapping_changes(connection, enriched, as_of=as_of, persist=True)
+        return apply_mapping_changes(connection, enriched, as_of=as_of, persist=True, commit=False)
 
     def project(items: list[Any], _run_id: str | None, as_of: date, *, persist: bool = False) -> Any:
         return apply_mapping_changes(connection, items, as_of=as_of, persist=False)

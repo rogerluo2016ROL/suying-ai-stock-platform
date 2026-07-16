@@ -61,6 +61,20 @@ def test_all_days_task_bypasses_trade_calendar_and_uses_embodied_runner(monkeypa
     assert commands[0][commands[0].index("--mode") + 1] == "apply"
 
 
+def test_embodied_runner_persists_cli_run_and_incomplete_delivery_summary(tmp_path):
+    payload = {
+        "status": "data_success_delivery_incomplete", "run_id": "run-7",
+        "delivery_summary": {"status": "data_success_delivery_incomplete", "confirmed": 2, "pending": 1},
+    }
+    result = scheduled.run_scheduled_research_task(
+        "embodied_daily_refresh_1930", now=datetime(2026, 7, 18, 19, 30),
+        executor=lambda _command: payload, state_root=tmp_path,
+    )
+    assert result["status"] == "data_success_delivery_incomplete"
+    assert result["run_id"] == "run-7"
+    assert result["delivery_summary"]["pending"] == 1
+
+
 def test_retry_schedule_routes_to_retry_delivery_mode():
     config = scheduled.load_scheduled_research_config()
     task = next(item for item in config["tasks"] if item["id"] == "embodied_delivery_retry_5m")

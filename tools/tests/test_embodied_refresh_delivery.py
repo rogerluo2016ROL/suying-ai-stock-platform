@@ -28,14 +28,15 @@ class MemoryRepository:
     def save_delivery(self, record):
         self.rows[(record.change_batch_id, record.chat_id)] = record
 
-    def initialize_deliveries(self, batch_id, targets, message, now):
+    def initialize_deliveries(self, batch_id, targets, message, now, *, idempotency_keys=None):
         from embodied_refresh.models import DeliveryRecord
         for target in targets:
             key = (batch_id, target["chat_id"])
             self.rows.setdefault(key, DeliveryRecord(
                 "new-" + target["chat_id"], batch_id, target["chat_id"], "pending",
                 detail={"target_key": target.get("key", ""), "target_name": target.get("name", ""),
-                        "target_chat_id": target["chat_id"], "message": message}, next_retry_at=now,
+                        "target_chat_id": target["chat_id"], "message": message,
+                        "idempotency_key": (idempotency_keys or {}).get(target["chat_id"], "")}, next_retry_at=now,
             ))
 
     def deliveries(self, batch_id):
@@ -44,10 +45,15 @@ class MemoryRepository:
     def finish_run(self, run_id, status, summary):
         self.run_status = status
 
+    def complete_delivery_run(self, run_id, summary):
+        assert len(self.deliveries(run_id)) == 3
+        assert all(row.status == "confirmed" for row in self.deliveries(run_id))
+        self.run_status = "success"
+
     @contextmanager
     def claim_delivery(self, batch_id, target, now):
         existing = self.delivery(batch_id, target["chat_id"])
-        if existing and existing.status in {"confirmed", "sending", "reconcile_required"}:
+        if existing and existing.status in {"confirmed", "sending"}:
             yield None
             return
         if existing and (existing.attempt_count >= 4 or (existing.next_retry_at and existing.next_retry_at > now)):
@@ -76,7 +82,7 @@ def test_three_groups_require_individual_message_ids():
 
     assert summary.confirmed == 3
     assert len({row.message_id for row in repository.deliveries("batch-1")}) == 3
-    assert repository.run_status == "success"
+    assert repository.run_status is None
 
 
 def test_successful_group_is_not_resent_on_retry():
@@ -96,7 +102,7 @@ def test_successful_group_is_not_resent_on_retry():
     assert calls["oc_success"] == 1
     assert calls["oc_second"] == 1
     assert summary.status == "data_success_delivery_incomplete"
-    assert repository.run_status == "data_success_delivery_incomplete"
+    assert repository.run_status is None
 
 
 def test_retry_backoff_is_5_15_30_minutes_without_sleep():
@@ -173,7 +179,8 @@ def test_sender_receives_stable_idempotency_key_when_supported():
 
     deliver_change_batch(repository, "batch-keys", TARGETS, "x", sender, lambda *_: True)
     assert len(set(keys.values())) == 3
-    assert keys["oc_success"] == "embodied:batch-keys:oc_success"
+    from uuid import UUID
+    UUID(keys["oc_success"])
 
 
 def test_sender_with_kwargs_receives_idempotency_key():
@@ -186,13 +193,13 @@ def test_sender_with_kwargs_receives_idempotency_key():
     assert len(seen) == 3
 
 
-def test_scan_due_excludes_sending_and_reconcile_rows():
+def test_scan_due_recovers_stale_sending_and_reconcile_rows():
     repository = MemoryRepository()
     now = datetime(2026, 7, 17, tzinfo=timezone.utc)
     from embodied_refresh.models import DeliveryRecord
     for status in ("failed", "sending", "reconcile_required"):
         repository.save_delivery(DeliveryRecord(status, "b", "oc_" + status, status, next_retry_at=now))
-    assert [row.status for row in scan_due_deliveries(repository, now=now)] == ["failed"]
+    assert [row.status for row in scan_due_deliveries(repository, now=now)] == ["failed", "sending", "reconcile_required"]
 
 
 def test_sender_failure_is_failed_and_secrets_are_redacted(monkeypatch):
@@ -230,6 +237,7 @@ def test_retry_due_batches_recovers_message_and_targets_from_repository():
     summaries = retry_due_batches(repository, lambda chat, message: sent.append((chat, message)) or {"message_id": "om_" + chat}, lambda *_: True, now=start.replace(minute=5))
     assert summaries[0].confirmed == 3
     assert sent == [(target["chat_id"], "persisted digest") for target in TARGETS]
+    assert repository.run_status == "success"
 
 
 def test_all_targets_exist_before_first_external_send_failure():
@@ -244,3 +252,22 @@ def test_all_targets_exist_before_first_external_send_failure():
 
     assert {row.chat_id for row in repository.deliveries("batch-precreated")} == {t["chat_id"] for t in TARGETS}
     assert observed[0] == 3
+
+
+def test_reconcile_required_reuses_stable_uuid_and_recovers_message_id():
+    from embodied_refresh.models import DeliveryRecord
+    repository = MemoryRepository()
+    now = datetime(2026, 7, 17, tzinfo=timezone.utc)
+    repository.initialize_deliveries("batch-reconcile", TARGETS, "digest", now)
+    row = repository.delivery("batch-reconcile", "oc_success")
+    repository.save_delivery(DeliveryRecord(row.delivery_id, row.change_batch_id, row.chat_id,
+                                             "reconcile_required", detail=row.detail, next_retry_at=now))
+    keys = []
+    summary = deliver_change_batch(
+        repository, "batch-reconcile", TARGETS, "digest",
+        lambda chat, _message, *, idempotency_key: keys.append((chat, idempotency_key)) or {"message_id": "om_" + chat},
+        lambda *_: True, now=now,
+    )
+    assert summary.confirmed == 3
+    assert len({key for _, key in keys}) == 3
+    assert repository.delivery("batch-reconcile", "oc_success").message_id == "om_oc_success"

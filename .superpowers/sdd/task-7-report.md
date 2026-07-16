@@ -28,3 +28,12 @@
 - Added conservative node recognition for the real five-source row shapes. Only one unique hierarchy keyword match becomes mapping evidence; ambiguous matches are persisted as `pending_review` conflicts.
 - `audit` is now a strict read-only branch: no run row, source refresh, mapping transaction, snapshot/cursor write, or delivery.
 - Failure handling rolls back first, records failure through a fresh connection with errors safely contained, re-raises the original exception, and closes the main connection in `finally`.
+
+## Final Branch Review Remediation
+
+- Mapping evidence now accumulates across batches: every event is linked to its mapping, stable event IDs are appended even without a status transition, and historical plus current valid evidence is evaluated together. A new mapping can become verified from one S source or two independent A sources in the same transaction.
+- Evidence, mappings, transitions/conflicts, changes, leader snapshots and successful-source cursors now share one caller-owned data transaction. Delivery starts only after that transaction commits.
+- Delivery no longer finalizes runs. The orchestrator owns the first terminal status; five-minute compensation uses a guarded three-confirmed-row transition from incomplete to success.
+- Stale `sending` and `reconcile_required` rows are retried with the same deterministic Feishu UUID, allowing safe message-ID recovery instead of permanent suspension.
+- Audit creates a traceable audit run and persists its audit/snapshot/terminal state while leaving mappings, cursors and delivery untouched.
+- The scheduler records the embodied CLI's top-level `status`, `run_id` and `delivery_summary` verbatim.

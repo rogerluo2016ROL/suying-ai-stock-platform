@@ -82,7 +82,7 @@ class EmbodiedRefreshRepository:
             )
             return {str(row[0]): str(row[1]) for row in cursor.fetchall()}
 
-    def save_snapshot(self, run_id: str, snapshot: Any) -> None:
+    def save_snapshot(self, run_id: str, snapshot: Any, *, commit: bool = True) -> None:
         rows = snapshot if isinstance(snapshot, (list, tuple)) else snapshot.get("leaders", [])
         try:
             with self.connection.cursor() as cursor:
@@ -95,9 +95,11 @@ class EmbodiedRefreshRepository:
                            ON CONFLICT (run_id, node_id, rank) DO NOTHING""",
                         (str(uuid4()), run_id, payload["node_id"], payload["rank"], payload["score"], json.dumps(payload, default=str)),
                     )
-            self.connection.commit()
+            if commit:
+                self.connection.commit()
         except Exception:
-            self.connection.rollback()
+            if commit:
+                self.connection.rollback()
             raise
 
     def load_hierarchy_nodes(self) -> list[dict[str, Any]]:
@@ -162,7 +164,7 @@ class EmbodiedRefreshRepository:
                      json.dumps([conflict["source_name"]]), json.dumps(nodes)),
                 )
 
-    def save_cursor(self, source_name: str, cursor_value: str, run_id: str) -> None:
+    def save_cursor(self, source_name: str, cursor_value: str, run_id: str, *, commit: bool = True) -> None:
         """Advance one successful source cursor after the mapping transaction commits."""
         try:
             with self.connection.cursor() as cursor:
@@ -178,12 +180,14 @@ class EmbodiedRefreshRepository:
                     """,
                     (self.chain_id, source_name, cursor_value, run_id),
                 )
-            self.connection.commit()
+            if commit:
+                self.connection.commit()
         except Exception:
-            self.connection.rollback()
+            if commit:
+                self.connection.rollback()
             raise
 
-    def save_changes(self, changes: list[EvidenceChange]) -> int:
+    def save_changes(self, changes: list[EvidenceChange], *, commit: bool = True) -> int:
         """Insert unseen change fingerprints and return the inserted count."""
         inserted = 0
         try:
@@ -220,11 +224,19 @@ class EmbodiedRefreshRepository:
                         ),
                     )
                     inserted += int(cursor.fetchone() is not None)
-            self.connection.commit()
+            if commit:
+                self.connection.commit()
             return inserted
         except Exception:
-            self.connection.rollback()
+            if commit:
+                self.connection.rollback()
             raise
+
+    def commit(self) -> None:
+        self.connection.commit()
+
+    def rollback(self) -> None:
+        self.connection.rollback()
 
     def finish_run(self, run_id: str, status: str, summary: dict[str, Any]) -> None:
         """Persist terminal run status and structured summary."""
@@ -267,7 +279,7 @@ class EmbodiedRefreshRepository:
             )
             return self._delivery(cursor.fetchone())
 
-    def initialize_deliveries(self, change_batch_id: str, targets: list[dict[str, str]], message: str, now: Any) -> None:
+    def initialize_deliveries(self, change_batch_id: str, targets: list[dict[str, str]], message: str, now: Any, *, idempotency_keys: dict[str, str] | None = None) -> None:
         """Atomically persist the complete recovery manifest before any external send."""
         try:
             with self.connection.cursor() as cursor:
@@ -275,6 +287,7 @@ class EmbodiedRefreshRepository:
                     detail = {
                         "target_key": target.get("key", ""), "target_name": target.get("name", ""),
                         "target_chat_id": target["chat_id"], "message": message,
+                        "idempotency_key": (idempotency_keys or {}).get(target["chat_id"], ""),
                     }
                     cursor.execute(
                         """INSERT INTO embodied_delivery_records
@@ -307,10 +320,11 @@ class EmbodiedRefreshRepository:
                 """SELECT delivery_id, change_batch_id, chat_id, status, message_id,
                           detail, attempt_count, next_retry_at
                      FROM embodied_delivery_records
-                    WHERE next_retry_at <= %s
-                      AND status IN ('pending','failed','unconfirmed')
+                    WHERE (next_retry_at <= %s
+                           AND status IN ('pending','failed','unconfirmed','reconcile_required'))
+                       OR (status='sending' AND updated_at <= %s - interval '5 minutes')
                     ORDER BY next_retry_at, change_batch_id, chat_id""",
-                (now,),
+                (now, now),
             )
             return [DeliveryRecord(*row) for row in cursor.fetchall()]
 
@@ -334,13 +348,14 @@ class EmbodiedRefreshRepository:
                 existing = self._delivery(cursor.fetchone())
                 if existing and existing.status == "sending":
                     cursor.execute(
-                        "UPDATE embodied_delivery_records SET status='reconcile_required', next_retry_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE delivery_id=%s",
-                        (existing.delivery_id,),
+                        "UPDATE embodied_delivery_records SET status='reconcile_required', next_retry_at=%s, updated_at=CURRENT_TIMESTAMP WHERE delivery_id=%s",
+                        (now, existing.delivery_id),
                     )
                     self.connection.commit()
-                    yield None
-                    return
-                if existing and existing.status in {"confirmed", "reconcile_required"}:
+                    existing = DeliveryRecord(existing.delivery_id, existing.change_batch_id, existing.chat_id,
+                                              "reconcile_required", existing.message_id, existing.detail,
+                                              existing.attempt_count, now)
+                if existing and existing.status == "confirmed":
                     self.connection.commit()
                     yield None
                     return
@@ -358,7 +373,7 @@ class EmbodiedRefreshRepository:
                            (delivery_id, change_batch_id, chat_id, status, message_id, detail, attempt_count, next_retry_at)
                        VALUES (%s,%s,%s,'sending',%s,%s::jsonb,%s,NULL)
                        ON CONFLICT (change_batch_id, chat_id) DO UPDATE SET status='sending', next_retry_at=NULL, updated_at=CURRENT_TIMESTAMP
-                       WHERE embodied_delivery_records.status NOT IN ('confirmed','sending','reconcile_required')""",
+                       WHERE embodied_delivery_records.status <> 'confirmed'""",
                     (existing.delivery_id, change_batch_id, chat_id, existing.message_id, json.dumps(existing.detail), existing.attempt_count),
                 )
             self.connection.commit()
@@ -369,6 +384,29 @@ class EmbodiedRefreshRepository:
         finally:
             with self.connection.cursor() as cursor:
                 cursor.execute("SELECT pg_advisory_unlock(hashtextextended(%s, 0))", (lock_key,))
+
+    def complete_delivery_run(self, run_id: str, summary: Any) -> None:
+        """Atomically promote only a complete three-target delivery batch."""
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(
+                    """UPDATE embodied_refresh_runs
+                          SET status='success',
+                              summary=COALESCE(summary,'{}'::jsonb) || %s::jsonb,
+                              finished_at=CURRENT_TIMESTAMP
+                        WHERE run_id=%s AND status='data_success_delivery_incomplete'
+                          AND (SELECT count(*) FROM embodied_delivery_records
+                                WHERE change_batch_id=%s AND status='confirmed')=3
+                          AND (SELECT count(*) FROM embodied_delivery_records
+                                WHERE change_batch_id=%s)=3""",
+                    (json.dumps({"delivery": {"status": "success", "confirmed": 3, "pending": 0}}), run_id, run_id, run_id),
+                )
+                if cursor.rowcount != 1:
+                    raise RuntimeError("delivery batch is not a complete three-target incomplete run")
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
 
     def save_delivery(self, record: DeliveryRecord) -> None:
         try:
