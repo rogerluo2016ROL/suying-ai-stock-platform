@@ -24,10 +24,6 @@
 | MiniApp Dev | `miniapp-dev` | sonnet | cyan | acceptEdits | **3**（小程序 task 通常单一） | 微信小程序开发，默认原生，Taro 兜底 |
 | MiniApp Code Reviewer | `miniapp-code-reviewer` | haiku | yellow | auto | **3**（haiku 便宜可放大，但小程序场景并发量小） | 小程序代码审查、审核合规、包体积评估 → `docs/reviews/` |
 | MiniApp QA Engineer | `miniapp-qa-engineer` | sonnet | red | acceptEdits | **3**（端口偏移 + 真机调度，pool 隔离比 web 复杂） | 小程序 E2E / UAT 测试执行 |
-| Apple Dev | `apple-dev` | sonnet | cyan | acceptEdits | **3**（Xcode 工程文件易冲突，pool 收紧） | Swift / SwiftUI macOS+iOS 实现（target 由 task 声明），Unit + SIT 自跑 |
-| Apple Code Reviewer | `apple-code-reviewer` | sonnet | yellow | auto | **3**（Swift 并发 / 内存审查需 sonnet 档，不降 haiku） | Swift 专项审查（并发 / retain cycle / HIG / 签名配置）+ SIT Audit → `docs/reviews/` |
-| Apple QA Engineer | `apple-qa-engineer` | sonnet | red | acceptEdits | **3**（模拟器 + 真机调度） | XCUITest E2E / UAT（对签名分发包） |
-| Apple Release Engineer | `apple-release-engineer` | sonnet | green | acceptEdits | **1**（禁 pool，唯一签名身份 + App Store Connect） | 签名 / 公证 / 打包 / TestFlight / App Store 上传，冒烟自检 → `docs/deploy/` |
 | Content Writer | `content-writer` | sonnet | purple | acceptEdits | **1**（叙事一致性需单一作者） | Release notes / blog / 用户案例 / 知识沉淀 |
 | Growth Analyst | `growth-analyst` | sonnet | blue | acceptEdits | **1**（实验设计需统一 OMTM 锚点） | 北极星 / OMTM / A/B 实验设计与报告 |
 
@@ -94,10 +90,6 @@
 | `miniapp-dev` | + `WebFetch` | `simplify`, `feature-dev:feature-dev`, `agf-running-sit-tests`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:receiving-code-review` |
 | `miniapp-code-reviewer` | − `Edit`；Write 限 `docs/reviews/`（review-only） | `code-review:code-review`, `simplify`（仅 Phase 1+2 review，不跑 Phase 3 fix）, `agf-running-sit-tests`（**仅作 audit 参考，不强制调用**——reviewer 不跑 SIT，预加载用于读懂 miniapp-dev SIT 范围 / 评估 dev SIT 结论是否合理） |
 | `miniapp-qa-engineer` | （仅通用底座） | `agf-writing-qa-report`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion` |
-| `apple-dev` | + `WebFetch`, + `mcp__context7__*`, + `mcp__xcodebuild__*`（XcodeBuildMCP：build / 模拟器 / 真机 devicectl / 跑测试；server 走 `.mcp.json` 两道门，同 qa-engineer 的 chrome-devtools 模式） | `simplify`, `feature-dev:feature-dev`, `agf-running-apple-sit`, `agf-wiring-apple-llm`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:receiving-code-review` |
-| `apple-code-reviewer` | − `Edit`；Write 限 `docs/reviews/`（review-only） | `code-review:code-review`, `simplify`（仅 Phase 1+2 review，不跑 Phase 3 fix）, `agf-running-apple-sit`（**仅作 audit 参考，不强制调用**——reviewer 不跑 SIT，预加载用于读懂 apple-dev SIT 范围 / 评估其 SIT 结论是否合理） |
-| `apple-qa-engineer` | + `mcp__xcodebuild__*`（XcodeBuildMCP：真机/模拟器列表、devicectl 装包、launch、截图、XCUITest；两道门同上） | `agf-writing-qa-report`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion` |
-| `apple-release-engineer` | （仅通用底座） | `agf-releasing-apple`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion` |
 | `content-writer` | + `WebFetch`, + `WebSearch` | `superpowers:brainstorming` |
 | `growth-analyst` | + `WebFetch`, + `WebSearch` | `superpowers:brainstorming`, `superpowers:writing-plans` |
 
