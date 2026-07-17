@@ -58,9 +58,11 @@ SendMessage({to: "product-lead", message: "⚠️ 发现重大架构问题，已
 
 dev 在 code-review 前已按 skill `agf-running-sit-tests` 自跑 SIT，证据 append 到 `progress/<role>.md` 的 `**SIT 证据**` 段（格式见 `.claude/standards/ac-lifecycle.md` 完整条目格式）。本角色作为独立第三方对该证据做 audit——**不重跑 SIT**，只查证据本身是否可信。
 
-### Step 0：机器预检（advisory，先跑再人审）
+### Step 0：机器预检（advisory，dev 已跑、不重跑）
 
-先跑 `bash .claude/scripts/agf-sit-precheck.sh progress/<role>.md`（pool 模式 `progress/<role>-<N>.md`）——它机筛 4 项里的**机械**问题：无 SIT 段 / 漏 AC 行、fail 缺命令+输出（placeholder）、pass 行含失败 token（mismark）、质量门标 SIT ✅ 却有 AC fail（矛盾）。**聚焦被 flag 的 AC**做下面人审。脚本 **advisory（不阻断、不替代判断）**——4 项人工 audit + 3 档 verdict 裁决权仍在你（ADR-011 决策 2）；脚本无 flag ≠ 直接 Pass，仍须人审 AC 覆盖与证据真实性。
+dev 报告前已跑 `bash .claude/scripts/agf-advisory.sh progress/<role>.md`（advisory 机筛统一入口，串跑 sit-precheck 等；机筛项：无 SIT 段 / 漏 AC 行、fail 缺命令+输出（placeholder）、pass 行含失败 token（mismark）、质量门矛盾）。**本角色不重跑**——advisory 不进 verdict，重复跑零增量（ADR-026 D2）；仅当 progress 条目明显缺机筛痕迹（大量 placeholder / 漏 AC）时可自跑一次并把 flag 并入人审。脚本 **advisory（不阻断、不替代判断）**——4 项人工 audit + 3 档 verdict 裁决权仍在你（ADR-011 决策 2）；脚本无 flag ≠ 直接 Pass，仍须人审 AC 覆盖与证据真实性。
+
+> 原第二步 `agf-wiring-check.sh`（模块级"写了没接线"）已按 ADR-026 D2 退役；怀疑新组件没挂上 / router 没 include 时，手动走 `/agf-code-map` 的 codemap `orphans` 子命令，结论并入下面第 4 项人审。
 
 ### 4 项 audit 检查（逐条核对，写入 review 报告）
 

@@ -55,6 +55,7 @@
 - BREAKING 在标题后加 `(BREAKING)`
 - 节内固定子标题（按需出现，不必全有）：`Why` / `Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security` / `Migration steps` / `Verification` / `Tag-along commits`
 - AGF 在 Keep a Changelog 6 节基础上扩展 4 节：`Why`（决策动机）/ `Migration steps`（fork 用户同步建议）/ `Verification`（hook test / lint 通过证明）/ `Tag-along commits`（按主题分组列本 release 包含但不在主标题描述范围的 commits，避免与 tag annotation 漂移）
+- **归档规程**：CHANGELOG 超过约 1500 行或跨完整大版本线时，把最老的大版本线（如 v1.x–v5.x）整体移入 `CHANGELOG-archive.md`（append-only 原样保留、含既有 folded 段），主文件尾部留一节指针；首例见 v6.25.0 归档 pre-v6 共 25 段
 
 ## Tag 命名
 

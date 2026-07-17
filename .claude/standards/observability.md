@@ -55,6 +55,14 @@
 - `tool_result` 带 `tool_use_id` 与 `tool_input_size_bytes`；`PostToolUse` hook 输入还带 `duration_ms`（已被 `sanitize-tool-output.sh` 用于 >10s 慢调用警告）
 - `claude_code.tool` span 带 `agent_id` 与 `parent_agent_id`——**Agent Team / subagent 成本可按实例归因**（哪个 `<type>-N` 实例、谁 spawn 的）；且 trace parenting 已修正：background subagent 的 span 正确挂在派发它的 Agent 工具下，pool fan-out 调用树不再扁平。配合 `app.entrypoint`（opt-in `OTEL_METRICS_INCLUDE_ENTRYPOINT=true`）区分会话入口来源
 
+### 减化遥测（本地 jsonl · ADR-014 opt-in）
+
+~~`AGF_OBSERVE` 减化遥测~~：已按 ADR-026 D6 退役（v6.26.0）——默认全关、每次 PostToolUse 白跑进程、duration_ms 字段路径从未验证；运行时观测统一走上文 OTEL 路径。
+
+- **与 OTEL 互补**：OTEL 需基建（collector / 后端），observe 是零依赖本地 jsonl，轻量、开箱即用
+- **绝不注入 context**（剥离 ECC instinct 自动学习内核），只记录；retro skill 读 jsonl 喂 §3 成本段 + Cohen's κ 一致性
+- 两者均 gitignored（运行时产物，不入库）
+
 ### 推荐对接
 
 - 本地：`docker compose` 起 Jaeger / Grafana / Prometheus

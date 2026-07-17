@@ -20,6 +20,17 @@
 - **交付 lane（ADR-011 决策 3）**：PL 派单时按规模 + 风险选 lane——**full**（默认；Medium/Large feature、MINOR/MAJOR、或**任何高风险变更**）走本文件全套门；**fast**（仅 Small + PATCH + 非高风险，PL 显式选 + 记录风险接受）**只减不跳**：E2E 缩到「冒烟 + 改动面目标 AC 抽核 + **受影响界面**渲染核查」、UAT 用例沿用 PATCH 豁免，但**仍部署 + 冒烟、P0 仍 pass²、受影响界面渲染核查仍必做**。高风险变更（auth / schema migration / LLM 切换 / cross-cutting，清单见 `workflow.md` §例外）**无论规模一律 full**。lane SSOT + 选择协议见 `workflow.md` §交付 lane
 - **TDD 是核心纪律**（非建议）：新功能 / bugfix 任务必须按 red → green → refactor 顺序，PR commit history 能看出 test commit 早于 impl commit；详见 `ac-lifecycle.md` DoD + skill `superpowers:test-driven-development`；纯重构 / 文档 / 配置任务可跳过
 
+## 测试基础设施（test 套组织 + hermetic runner）
+
+hook/script 测试套的**组织 + 运行**纪律（区别于上文的 Unit/SIT/E2E/UAT 四级业务测试）：
+
+- **位置**：`.claude/hooks/tests/`（扁平 `test-*.sh`）+ `.claude/hooks/tests/ci/` 子目录（CI 治理断言类）。`lint-all.sh` 用 `find .claude/hooks/tests -name 'test-*.sh'` **递归发现**（兼容扁平 + 子目录，无 `globstar` 依赖，macOS bash 3.2 友好）。
+- **约定**：`test-*.sh` 命名 + `set -uo pipefail`（不用 `-e`，要捕获 exit code 断言）+ `PASS/FAIL` 计数 + 末尾 `exit 0|1`。
+- **两个 runner**：
+  - `lint-all.sh`——含语法/JSON/YAML + gen-roles drift + test 套（非 hermetic，常规入口，pre-commit 链调）。
+  - `run-all-tests.sh`——**hermetic**，剥离 `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` 等继承 env（依据 ECC `tests/run-all.js:80-83`），防 hook 环境跑 test 时 git 指向 host repo 污染 fixture；只跑 test 套。
+- **CI 治理断言**（`tests/ci/`）：把治理规则做成可断言测试（如 `test-no-hardcoded-paths.sh` 扫无 `/Users/`/`/home/` 硬编码绝对路径），比纯 lint 更结构化、可单独失败定位。
+
 ## UAT 用例文档（用户审核 gate）
 
 > UAT 用例不再隐含在"qa 读 AC 直接测"里——**先成文、用户审核确认、再执行**。本节是该 gate 的 SSOT；骨架在模板 `docs/qa/uat-cases-_TEMPLATE.md`，执行编排见 `qa-engineer.md` UAT 节 + `product-lead.md` Step 3.4。

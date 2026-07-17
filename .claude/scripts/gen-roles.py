@@ -7,10 +7,9 @@ SSOT 设计：docs/superpowers/specs/2026-06-15-agent-capability-yaml-ssot-desig
   1. 每个 `.claude/agents/<name>.md` 的 frontmatter（两个 `---` 围栏间，逐字节零 diff）
   2. `.claude/standards/team-roles.md` 的 Team Roles 表 + Agent Tools 表（marker 包裹）
 
-三模式（spec §5.1）：
+两模式（spec §5.1）：
   gen-roles.py            默认 = write：渲染并写入三类产物的 owned region
   gen-roles.py --check    渲染到内存，与磁盘逐字节比对；有差异打 unified diff 并 exit 1
-  gen-roles.py --extract  一次性迁移：从现有 19 个 .md + team-roles 两表反抽出 roles.yaml
 
 退出码：0 = 一致 / 成功；1 = drift / schema 非法 / marker 缺失 / 其他错误。
 
@@ -62,7 +61,7 @@ DEFAULT_BASE_TOOLS = [
 
 
 # ════════════════════════════════════════════════════════════════════════
-#  frontmatter 解析（--extract 用）
+#  frontmatter 解析（render_all 保留原 .md body 用）
 # ════════════════════════════════════════════════════════════════════════
 def split_frontmatter(text):
     """把 .md 文本拆成 (frontmatter_lines, body_text)。
@@ -85,98 +84,6 @@ def split_frontmatter(text):
     body = "\n".join(lines[end:])
     return fm_lines, body
 
-
-def parse_frontmatter_fields(fm_lines):
-    """把 frontmatter 行解析为有序字段 dict（保留出现顺序）。
-
-    只识别两种形态（现状全覆盖）：
-      key: scalar              （单行标量，含 description 的长中文）
-      key:\n  - item\n  - item （块列表，仅 skills / tools 不走这条——tools 是 inline）
-    skills 块列表项可能是 `  - name` 或 `  - { name: x, note: "y" }`。
-    返回 list[(key, value)] 保序；value 对块列表是 list。
-    """
-    fields = []
-    i = 0
-    n = len(fm_lines)
-    while i < n:
-        ln = fm_lines[i]
-        if not ln.strip():
-            i += 1
-            continue
-        if ln.startswith(" "):
-            raise ValueError(f"意外的缩进行（无对应 key）：{ln!r}")
-        if ":" not in ln:
-            raise ValueError(f"无法解析 frontmatter 行：{ln!r}")
-        key, rest = ln.split(":", 1)
-        key = key.strip()
-        rest = rest.rstrip("\n")
-        # 块列表？下一行以 '  - ' 开头且本行冒号后为空
-        if rest.strip() == "" and (i + 1 < n) and fm_lines[i + 1].lstrip().startswith("- "):
-            items = []
-            i += 1
-            while i < n and fm_lines[i].lstrip().startswith("- "):
-                item_raw = fm_lines[i].lstrip()[2:]  # 去掉 '- '
-                items.append(item_raw)
-                i += 1
-            fields.append((key, ("list", items)))
-            continue
-        # 单行标量（去前导空格，保留原文其余）
-        fields.append((key, ("scalar", rest.lstrip())))
-        i += 1
-    return fields
-
-
-def _parse_skill_item(raw):
-    """把 frontmatter skills 块列表的一项解析为 str 或 {name, note}。
-
-    frontmatter 现状里 skills 项只有裸 name（无 note），故这里恒返回 str。
-    （note 是 team-roles 表侧数据，--extract 时从那边补，不在 frontmatter。）
-    """
-    raw = raw.strip()
-    if raw.startswith("{"):
-        # 容错：万一未来 frontmatter 出现 inline map
-        parsed = yaml.safe_load(raw)
-        if isinstance(parsed, dict) and "name" in parsed:
-            return parsed
-    return raw
-
-
-def extract_agent_from_md(path):
-    """从单个 .md 反抽出 roles.yaml 形态的 agent dict（frontmatter 维度）。
-
-    team-roles 表侧字段（role_title / pool / permission / focus / tools_note /
-    skills note / boundary）不在 frontmatter，--extract 由调用方从 team-roles 表补。
-    """
-    text = open(path, encoding="utf-8").read()
-    fm_lines, _ = split_frontmatter(text)
-    fields = parse_frontmatter_fields(fm_lines)
-    agent = {}
-    extra = []  # 保序 passthrough（color 与 tools 之间的非标准字段）
-    known_scalar = {"name", "description", "model", "color", "mcpServers"}
-    seen_tools = False
-    for key, (kind, val) in fields:
-        if key == "tools" and kind == "scalar":
-            agent["tools"] = [t.strip() for t in val.split(",") if t.strip()]
-            seen_tools = True
-        elif key == "skills" and kind == "list":
-            agent["skills"] = [_parse_skill_item(x) for x in val]
-        elif key in known_scalar and kind == "scalar":
-            agent[key] = val
-        else:
-            # 未知 passthrough 标量（如 permissionMode / memory）。
-            # 位置：在 tools 之前 → 进 extra；理论上不会在 tools 之后出现。
-            if kind != "scalar":
-                raise ValueError(f"未知块字段 {key!r}（暂不支持）")
-            if not seen_tools:
-                extra.append((key, val))
-            else:
-                raise ValueError(f"tools 之后出现未知字段 {key!r}，超出输出器契约")
-    if extra:
-        agent["extra"] = extra
-    return agent
-
-
-# ════════════════════════════════════════════════════════════════════════
 #  frontmatter 渲染（spec §5.4 零 diff 输出器）— 最大风险点
 # ════════════════════════════════════════════════════════════════════════
 def _skill_name(item):
@@ -498,238 +405,13 @@ def mode_check(data):
     print("✓ roles 一致（无 drift）")
     return 0
 
-
-def mode_extract(agents_dir=AGENTS_DIR, team_roles_md=TEAM_ROLES_MD):
-    """从 19 个 .md frontmatter + team-roles 两表反抽出 roles.yaml（spec §7）。
-
-    frontmatter 提供：name / description / model / color / tools / mcpServers /
-      skills（仅 name）/ extra。
-    team-roles 两表提供：role_title / permission / pool / focus / tools_note /
-      skills note。
-    本函数尽量自动抽取；team-roles 单元格散文（note）由 PL 在迁移 PR 人工 review。
-    输出 YAML 文本到 stdout（Task 2 据此落盘 roles.yaml）。
-    """
-    md_files = sorted(
-        f for f in os.listdir(agents_dir) if f.endswith(".md") and f != "roles.yaml"
-    )
-    table = _parse_team_roles_tables(team_roles_md)
-    agents = []
-    for f in md_files:
-        name = os.path.splitext(f)[0]
-        agent = extract_agent_from_md(os.path.join(agents_dir, f))
-        meta = table.get(name, {})
-        merged = {
-            "name": agent["name"],
-            "role_title": meta.get("role_title", ""),
-            "model": agent["model"],
-            "color": agent["color"],
-            "description": agent["description"],
-            "tools": agent["tools"],
-        }
-        if meta.get("tools_note"):
-            merged["tools_note"] = meta["tools_note"]
-        if agent.get("mcpServers"):
-            merged["mcpServers"] = agent["mcpServers"]
-        if agent.get("extra"):
-            merged["extra"] = agent["extra"]
-        # skills：合并 frontmatter name 顺序 + team-roles note
-        merged["skills"] = _merge_skills(agent["skills"], meta.get("skill_notes", {}))
-        merged["pool"] = meta.get("pool", {"limit": 1, "note": ""})
-        merged["permission"] = meta.get("permission", "acceptEdits")
-        merged["focus"] = meta.get("focus", "")
-        if meta.get("boundary"):
-            merged["boundary"] = meta["boundary"]
-        agents.append(merged)
-    doc = {"base_tools": list(DEFAULT_BASE_TOOLS), "agents": agents}
-
-    # extract 自检（spec §10 / 评审 #2）：team-roles 两表若缺 marker 或解析失败，
-    # role_title / focus / pool / permission 等团队侧必填字段会带空兜底值，
-    # 静默写出会在 Task 2 跑 --check 时炸出难懂的 diff。先在这里把它转成清晰的
-    # extract-time 报错（列出每个角色哪些必填 cell 为空），不让人到下游才发现。
-    empties = []
-    for a in agents:
-        missing = [
-            k for k in ("role_title", "focus", "permission")
-            if not a.get(k)
-        ]
-        pool = a.get("pool") or {}
-        if not pool.get("note"):
-            missing.append("pool.note")
-        if missing:
-            empties.append(f"{a['name']}: {', '.join(missing)}")
-    if empties:
-        detail = "\n  ".join(empties)
-        raise SchemaError(
-            "extract 抽出的 roles.yaml 有空的团队侧必填字段（多半是 team-roles 两表"
-            "缺 marker 或未解析到）——补全后再落盘：\n  " + detail
-        )
-    # 结构性校验（不查文件集合：extract 阶段 roles.yaml 尚未落盘）
-    validate_schema(doc, check_file_set=False)
-
-    # 用 yaml.dump 仅用于 roles.yaml 本身（非 frontmatter；roles.yaml 不要求零 diff）
-    sys.stdout.write(
-        yaml.safe_dump(doc, allow_unicode=True, sort_keys=False, width=10**9)
-    )
-    return 0
-
-
-def _merge_skills(fm_skills, skill_notes):
-    """frontmatter skills（仅 name，定序）+ team-roles note → 双形态列表。"""
-    out = []
-    for s in fm_skills:
-        nm = _skill_name(s)
-        note = skill_notes.get(nm)
-        if note:
-            out.append({"name": nm, "note": note})
-        else:
-            out.append(nm)
-    return out
-
-
-def _parse_team_roles_tables(team_roles_md):
-    """从 team-roles.md 解析两表 → {name: {role_title, model, color, permission,
-    pool, focus, tools_note, skill_notes, boundary}}。
-
-    迁移阶段：若两表尚未加 marker（Task 2 才插），本函数容错——找不到表就返回
-    能解析到的部分，缺字段由 mode_extract 兜底默认值，PL 人工补。
-    """
-    result = {}
-    try:
-        text = open(team_roles_md, encoding="utf-8").read()
-    except FileNotFoundError:
-        return result
-    lines = text.split("\n")
-    # Team Roles 表：表头含 "Agent Name" 且含 "Pool 上限"
-    for i, ln in enumerate(lines):
-        if "Agent Name" in ln and "Pool 上限" in ln and ln.strip().startswith("|"):
-            for row in lines[i + 2:]:
-                if not row.strip().startswith("|"):
-                    break
-                cells = _split_md_row(row)
-                if len(cells) < 7:
-                    continue
-                name = cells[1].strip().strip("`")
-                limit, note = _parse_pool_cell(cells[5])
-                result.setdefault(name, {})
-                result[name].update({
-                    "role_title": cells[0].strip(),
-                    "model": cells[2].strip(),
-                    "color": cells[3].strip(),
-                    "permission": cells[4].strip(),
-                    "pool": {"limit": limit, "note": note},
-                    "focus": cells[6].strip(),
-                })
-            break
-    # Agent Tools 表：表头含 "工具调整" 且含 "Plugin Skills"
-    for i, ln in enumerate(lines):
-        if "工具调整" in ln and "Plugin Skills" in ln and ln.strip().startswith("|"):
-            for row in lines[i + 2:]:
-                if not row.strip().startswith("|"):
-                    break
-                cells = _split_md_row(row)
-                if len(cells) < 3:
-                    continue
-                name = cells[0].strip().strip("`")
-                result.setdefault(name, {})
-                # tools_note 故意不自动抽取——迁移时人工手填 roles.yaml（spec §7/§11）
-                result[name]["tools_note"] = _tools_note_placeholder(cells[1])
-                result[name]["skill_notes"] = _extract_skill_notes(cells[2])
-            break
-    return result
-
-
-def _split_md_row(row):
-    """拆 markdown 表行为单元格列表（去首尾空管道）。"""
-    s = row.strip()
-    if s.startswith("|"):
-        s = s[1:]
-    if s.endswith("|"):
-        s = s[:-1]
-    return s.split("|")
-
-
-def _parse_pool_cell(cell):
-    """`**5**（Small=3 / Med=5 / Large=7）` → (5, 'Small=3 / Med=5 / Large=7')。"""
-    cell = cell.strip()
-    num = ""
-    rest = cell
-    if "**" in cell:
-        try:
-            inner = cell.split("**")[1]
-            num = "".join(ch for ch in inner if ch.isdigit())
-            rest = cell.split("**", 2)[2] if cell.count("**") >= 2 else ""
-        except IndexError:
-            pass
-    note = rest.strip()
-    if note.startswith("（") and note.endswith("）"):
-        note = note[1:-1]
-    elif note.startswith("（"):
-        note = note[1:].rstrip("）")
-    limit = int(num) if num else 1
-    return limit, note
-
-
-def _tools_note_placeholder(_cell):
-    """tools_note 占位符——**故意不自动抽取**（spec §7/§11）。
-
-    工具调整单元格的散文尾巴（如 qa-engineer 的长白名单注解）由人工在迁移 PR
-    手填进 roles.yaml：自动从 delta（+/−）里切散文易误伤，留空更安全。恒返回 ""，
-    渲染端（_tools_delta_cell）在 roles.yaml 有 tools_note 时才追加。"""
-    return ""
-
-
-def _extract_skill_notes(cell):
-    """从 Plugin Skills 单元格抽 {name: note}（`name`（note） 形态）。"""
-    notes = {}
-    # 拆分顶层逗号较脆（note 里可能含逗号/括号）；用简单状态机按 ` 包裹的 name 切。
-    # 现状 note 不含反引号，故以 '`' 配对找 name，其后若紧跟「（…）」记为 note。
-    i = 0
-    s = cell
-    while True:
-        a = s.find("`", i)
-        if a == -1:
-            break
-        b = s.find("`", a + 1)
-        if b == -1:
-            break
-        name = s[a + 1:b]
-        j = b + 1
-        note = None
-        # 跳过空白后若是中文左括号，截到匹配右括号
-        while j < len(s) and s[j] == " ":
-            j += 1
-        if j < len(s) and s[j] == "（":
-            depth = 0
-            k = j
-            while k < len(s):
-                if s[k] == "（":
-                    depth += 1
-                elif s[k] == "）":
-                    depth -= 1
-                    if depth == 0:
-                        break
-                k += 1
-            note = s[j + 1:k]
-            j = k + 1
-        if note:
-            notes[name] = note
-        i = j
-    return notes
-
-
-# ════════════════════════════════════════════════════════════════════════
 def main(argv=None):
     parser = argparse.ArgumentParser(description="roles.yaml 能力 SSOT 生成器")
-    g = parser.add_mutually_exclusive_group()
-    g.add_argument("--check", action="store_true",
-                   help="渲染到内存与磁盘逐字节比对；drift 则 exit 1")
-    g.add_argument("--extract", action="store_true",
-                   help="从现有 .md + team-roles 两表反抽 roles.yaml 到 stdout")
+    parser.add_argument("--check", action="store_true",
+                        help="渲染到内存与磁盘逐字节比对；drift 则 exit 1")
     args = parser.parse_args(argv)
 
     try:
-        if args.extract:
-            return mode_extract()
         data = load_roles_yaml()
         if args.check:
             return mode_check(data)

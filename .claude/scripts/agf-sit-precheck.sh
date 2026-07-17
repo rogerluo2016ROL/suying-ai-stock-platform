@@ -37,8 +37,13 @@ function flush_ac() {
       printf("⚠️  [SIT-PRECHECK] L%d AC 标 pass 但行内含失败信号 token（疑似 mismark）: %s\n", ac_line, ac_text) > "/dev/stderr"
       flags++
     }
+    # ⑤ static vs executed：UI 可见 AC 标 pass，但证据仅 static（无 executed-UI 信号）
+    if (ac_status == "pass" && ac_is_ui == 1 && have_ui_evidence == 0) {
+      printf("⚠️  [SIT-PRECHECK] L%d UI 可见 AC 标 pass 但证据疑似仅 static（无截图/chrome-devtools/render 等 executed-UI 信号）: %s\n", ac_line, ac_text) > "/dev/stderr"
+      flags++
+    }
   }
-  ac_line=0; ac_status=""; ac_text=""; have_evidence=0
+  ac_line=0; ac_status=""; ac_text=""; have_evidence=0; ac_is_ui=0; have_ui_evidence=0
 }
 /\*\*SIT 证据\*\*/ { flush_ac(); in_sit=1; sit_seen=1; block_any_fail=0; next }
 /\*\*质量门\*\*/ {
@@ -59,8 +64,10 @@ in_sit==1 {
     if ($0 ~ /❌/ || $0 ~ /⚠/ || $0 ~ /\[ \]/) { ac_status="fail"; block_any_fail=1 }
     else if ($0 ~ /✅/ || $0 ~ /\[[xX]\]/) { ac_status="pass" }
     else { ac_status="unknown" }
+    ac_is_ui = ($0 ~ /界面|页面|渲染|截图|按钮|表单|组件|视图|弹窗|列表页|[Uu][Ii]界?面?/) ? 1 : 0
   } else if ($0 ~ /(命令:|输出:|\$ |pytest|curl |psql|vitest|docker)/) {
     have_evidence=1
+    if ($0 ~ /截图|screenshot|chrome-devtools|真渲染|render|snapshot|\.png|Read.*图/) { have_ui_evidence=1 }
   }
 }
 END {

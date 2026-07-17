@@ -56,4 +56,29 @@ if [[ -n "$FEATURE" ]]; then
 fi
 
 MAX_N=$(printf '%s\n' "${N_PROGRESS:-0}" "${N_REVIEW:-0}" "${N_QA:-0}" | sort -n | tail -1)
-echo $(( ${MAX_N:-0} + 1 ))
+NEXT_N=$(( ${MAX_N:-0} + 1 ))
+
+# A-F2: pool 上限校验（读 roles.yaml pool.limit；防 PL 误 fan-out 单实例锁定角色）
+# 单实例角色（deploy-engineer / apple-release-engineer pool=1 唯一 UAT/签名身份等）
+# 原 PURE 靠自觉——本块用 roles.yaml pool.limit 机械守，NEXT_N 超限 exit 2。
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROLES_YAML="$SCRIPT_DIR/../agents/roles.yaml"
+if [[ -f "$ROLES_YAML" ]] && command -v python3 >/dev/null 2>&1; then
+  POOL_LIMIT=$(TYPE="$TYPE" ROLES_YAML="$ROLES_YAML" python3 -c '
+import os, yaml
+try:
+    data = yaml.safe_load(open(os.environ["ROLES_YAML"]))
+    for a in data.get("agents") or []:
+        if a.get("name") == os.environ["TYPE"]:
+            print((a.get("pool") or {}).get("limit") or "")
+            break
+except Exception:
+    pass
+' 2>/dev/null)
+  if [[ -n "$POOL_LIMIT" ]] && (( NEXT_N > POOL_LIMIT )); then
+    echo "❌ [agf-next-instance] role '$TYPE' pool 上限 ${POOL_LIMIT}，NEXT_N=${NEXT_N} 超限——禁 fan-out（roles.yaml pool.limit + ADR-001）。单实例锁定角色（deploy / apple-release 唯一 UAT / 签名身份等）不得并发。" >&2
+    exit 2
+  fi
+fi
+
+echo "$NEXT_N"

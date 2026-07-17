@@ -24,7 +24,7 @@ If a failure reproduces in plain `swift test` with mocks, it's a unit-level miss
 
 - [ ] Feature branch rebased onto `main`
 - [ ] Unit 全绿：`cd apple/AppCore && swift test`，strict concurrency 零 warning
-- [ ] PRD AC 可达：`docs/prd/[feature]-[date].md`，且每条 AC 的 **target 归属**清楚（macos / ios / universal）
+- [ ] AC 来源可达：`docs/changes/<change>/tasks.md`（AC↔scenario 映射，ADR-012；旧 feature fallback `docs/prd/[feature]-[date].md`），且每条 AC 的 **target 归属**清楚（macos / ios / universal）
 - [ ] **契约 mock 纪律**：后端 mock 一律实现生成的 `APIProtocol`（ADR-008），**禁手写 JSON fixture**；`openapi.json` 与 main 上后端导出一致
 - [ ] 模拟器就位：`xcrun simctl list devices available` 有目标 destination
 
@@ -51,7 +51,7 @@ xcodebuild test -project apple/App.xcodeproj -scheme App \
 
 ## Execution sequence
 
-Walk every AC from the PRD. For each AC at the integration layer:
+Walk every AC from `docs/changes/<change>/tasks.md`（旧 feature fallback PRD）. For each AC at the integration layer:
 
 1. **Setup** — 起始状态（模拟器型号 / OS 版本 / 数据初态 / mock 配置）
 2. **Action** — 触发集成的操作链（视图交互 → AppCore 调用 → client 请求 → mock/真后端响应）

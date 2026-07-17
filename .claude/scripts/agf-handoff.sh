@@ -82,7 +82,7 @@ SIT 要真连 DB / 外部服务——env 与密钥由**人**在本 worktree 准�
 
 ## 完成后回填
 
-按下面格式写 `progress/__ROLE__.md`（机器会用 `agf-sit-precheck.sh` 检这个格式），然后 `git commit`（触发仓库 pre-commit 密钥扫描）：
+按下面格式写 `progress/__ROLE__.md`（机器会用 `agf-advisory.sh`（内部 sit-precheck）检这个格式），然后 `git commit`（触发仓库 pre-commit 密钥扫描）：
 
 ```markdown
 **状态**：实现 __CHANGE__ 的 AC，全部完成
@@ -111,7 +111,7 @@ echo ""
 echo "── 回门（work 回来时）──────────────────────"
 echo "  git fetch ${WT_PATH} ${BRANCH}"
 echo "  git diff --name-only main...${BRANCH} | grep -E 'docs/(specs|adr|design)'   # 应为空，非空=越界打回"
-echo "  bash .claude/scripts/agf-sit-precheck.sh progress/${ROLE}.md                 # 强制入口检查"
+echo "  bash .claude/scripts/agf-advisory.sh progress/${ROLE}.md                 # 强制入口检查"
 echo "  → 通过后派 code-reviewer 做 code review + SIT Audit（门 1），再 /agf-deploy-uat、/agf-uat"
 echo ""
 echo "── 完事清理 ────────────────────────────────"

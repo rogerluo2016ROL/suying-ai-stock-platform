@@ -10,8 +10,8 @@
 # Behavior:
 # - Exits 0 (allow commit) when staged diff is clean
 # - Exits 1 (block commit) when any secret pattern matches; prints which file + which pattern
-# - Bypass for true emergencies: `git commit --no-verify` (logged in security.md as
-#   discouraged; please open an incident note)
+# - `git commit --no-verify` is **blocked by `block-dangerous-bash.sh` (rule #6)**;
+#   true emergency bypass needs product-lead approval + incident note in docs/reviews/
 #
 # Patterns mirror .claude/hooks/scan-secrets.sh — 覆盖面 parity 由
 # hooks/tests/test-secret-pattern-parity.sh 机器强制（加厂商只改一边会 fail），无需人工盯。
@@ -106,9 +106,9 @@ m=$(echo "$ADDED" | grep -E '\b[A-Z][A-Z0-9_]{2,}_(TOKEN|SECRET|KEY|PASSWORD|PAS
 if [ "$FAIL" -ne 0 ]; then
   echo ""
   echo "Commit blocked. Remove the secret(s) and re-stage."
-  echo "If this is a documented test fixture (and you accept the risk), bypass with:"
-  echo "    git commit --no-verify"
-  echo "(--no-verify usage should be logged in docs/reviews/ per .claude/standards/security.md)"
+  echo "If this is a documented test fixture (and you accept the risk), emergency bypass"
+  echo "needs product-lead approval (note in docs/reviews/) — git commit --no-verify is"
+  echo "blocked by block-dangerous-bash.sh rule #6; PL must run the commit manually."
   exit 1
 fi
 

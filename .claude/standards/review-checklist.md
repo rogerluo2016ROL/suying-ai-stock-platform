@@ -3,6 +3,8 @@
 > **权威来源**：本文件是 `code-reviewer` 审查时必须逐条核对的操作性 checklist，与 `.claude/agents/code-reviewer.md` 的铁律和 `.claude/standards/security.md` OWASP 基线共同构成完整审查框架。三者不重复——本文件只覆盖项目特有的结构性检查项。
 >
 > **触发时机**：product-lead 派单触发 code review 时，code-reviewer 读 diff 前先过本 checklist 确定审查焦点；写报告时按 checklist 项逐条标注结果。
+>
+> **示例说明**：下文出现的 issue 编号（#13 / #16 等）与具体 schema 名（`avatar_path` / `personas` / `list_all_with_stats()` / `taskiq` 等）均来自**前序项目实战审计的示例**、用于说明失败模式，**非本仓库的真实 schema**；checklist 正文用通用占位（`/api/{resource}`）表达可复用规则。装模板到你的项目后按你的实际字段/端点替换示例即可。
 
 ---
 

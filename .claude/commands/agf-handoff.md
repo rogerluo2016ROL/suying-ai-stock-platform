@@ -22,7 +22,7 @@ argument-hint: <change>（docs/changes/<change>/ 四件套齐、proposal 已批�
    `bash .claude/scripts/agf-handoff.sh "$ARGUMENTS" <role>`
    它会确定性地：① 建隔离 worktree（分支 `feat/$ARGUMENTS`，baseRef=head）；② 本地忽略 `AGENTS.md`（per-handoff 产物、不进版本库）；③ 把 tasks.md 的 AC↔Scenario 表 stamp 进 worktree 根的 `AGENTS.md`，连同只读 SSOT 路径、DoD 指针（指向 `.claude/standards/`，不硬抄防漂移）、progress 回填模板、以及「CLAUDE.md 仅作背景、治理不是你的活」的框定。
 3. **出门简报**：把脚本输出的 worktree 路径 + 分支报给用户，并附下面这段「给 Codex 的起手 prompt」。
-4. **回门指引**（提醒用户，work 回来时按脚本输出走）：`git fetch` 该分支 → `git diff --name-only main...feat/$ARGUMENTS | grep -E 'docs/(specs|adr|design)'` 应为空（非空=越界改了 SSOT，打回）→ `bash .claude/scripts/agf-sit-precheck.sh progress/<role>.md`（外包路径下这是**强制入口检查**，因为 `check-progress-file.sh` 兜底 hook 不对外部工具触发）→ 通过后派 `code-reviewer` 做 code review + SIT Audit（门 1）→ 再走 `/agf-deploy-uat`、`/agf-uat`。
+4. **回门指引**（提醒用户，work 回来时按脚本输出走）：`git fetch` 该分支 → `git diff --name-only main...feat/$ARGUMENTS | grep -E 'docs/(specs|adr|design)'` 应为空（非空=越界改了 SSOT，打回）→ `bash .claude/scripts/agf-advisory.sh progress/<role>.md`（外包路径下这是**强制入口检查**，因为 `check-progress-file.sh` 兜底 hook 不对外部工具触发）→ 通过后派 `code-reviewer` 做 code review + SIT Audit（门 1）→ 再走 `/agf-deploy-uat`、`/agf-uat`。
 
 # 给 Codex 的起手 prompt（连 worktree 一起交给用户）
 

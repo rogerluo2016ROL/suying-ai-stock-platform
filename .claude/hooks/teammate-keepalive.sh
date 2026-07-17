@@ -12,7 +12,8 @@
 #
 # Conservative defaults: 任何无法判定的情况一律 exit 0，避免把 hook 变成 "永不停机" 陷阱。
 
-set -euo pipefail
+# 不用 -e：grep 无匹配 / TASK_DIR 无 *.json 时不应 abort（保 line 13 fail-open 契约，与其他 16 hook 一致）
+set -uo pipefail
 
 INPUT=$(cat)
 

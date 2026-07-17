@@ -35,6 +35,10 @@
 set -uo pipefail
 
 INPUT=$(cat)
+
+# opt-in 治理事件留痕（ADR-014）：exit 2 时记一条元数据（不含命令原文，防泄密）
+_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 if [ -z "$COMMAND" ]; then
@@ -43,7 +47,10 @@ fi
 
 # Flatten newlines so heredoc / multi-line message bodies don't fool grep's
 # line-based matching into thinking the body is a fresh top-level command.
-COMMAND_FLAT=$(printf '%s' "$COMMAND" | tr '\n\r' '  ')
+# Also strip a backslash immediately preceding a letter (\rm → rm): defeats the
+# backslash-escape that pushes the verb off the anchor (W1). Match-only transform;
+# can only ADD matches (fail-positive safe per design), never remove a real one.
+COMMAND_FLAT=$(printf '%s' "$COMMAND" | tr '\n\r' '  ' | sed -E 's/\\([A-Za-z])/\1/g')
 
 # Strip quoted-string contents (single + double quoted runs replaced with a
 # single space) for fs/git pattern checks. Rationale:
@@ -79,17 +86,23 @@ COMMAND_STRIPPED=$(printf '%s' "$COMMAND_FLAT" | sed -E 's/"[^"]*"/ /g; s/'\''[^
 # this, `sudo rm -rf`, `FOO=bar rm -rf`, `GIT_SSH=x git push --force` all
 # bypass the anchor (verb no longer at segment start). Covered:
 #   - sudo / doas, with their flags and positional args (`-E`, `-u root`, …)
+#   - command / builtin（透明执行动词、绕 alias；W1）。仅吞自身 flag，不吞位置参数——
+#     否则 `command rm` 的 rm 会被当 command 的位置参数吞掉，动词反而不在锚点。
 #   - one or more environment-variable assignments (`VAR=val `)
-# Both groups are optional and match zero-width when absent, so commands
+# All groups are optional and match zero-width when absent, so commands
 # without a prefix anchor exactly as before (no regression, fail-positive
 # only — a leading word can never *remove* a real dangerous match).
-PREFIX='((sudo|doas)[[:space:]]+(-[A-Za-z]+[[:space:]]+|[A-Za-z0-9_.@:/-]+[[:space:]]+)*)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*[[:space:]]+)*'
+PREFIX='((sudo|doas)[[:space:]]+(-[A-Za-z]+[[:space:]]+|[A-Za-z0-9_.@:/-]+[[:space:]]+)*)?((command|builtin)[[:space:]]+(-[A-Za-z]+[[:space:]]+)*)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:];&|]*[[:space:]]+)*'
 
 # Anchor: position at the very start of the command or immediately after a
 # chain operator, then skip any transparent command prefix (see PREFIX above).
 # Single `&` matches both `&` (background) and the first `&` of `&&` — both
 # are real command boundaries.
 ANCHOR="(^|;|&&|&|\|\||\|)[[:space:]]*${PREFIX}"
+
+# git 全局选项（-c name=val 等）可夹在 git 与子命令之间；commit 规则须透传之，否则
+# `git -c user.email=x commit --no-verify` 因 `git[[:space:]]+commit` 不相邻而漏网（W1）。
+GIT_OPTS='(-c[[:space:]]+[A-Za-z0-9_.-]+=[^[:space:];&|]*[[:space:]]+)*'
 
 # SQL client gate — used by rule #4 (defined here for fast path).
 SQL_CLIENT='(psql|mysql|mariadb|sqlite|sqlite3|sqlcmd|mongo|mongosh|clickhouse-client|cqlsh)'
@@ -105,6 +118,9 @@ FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}git[[:space:]]+push\b([^;&|]*[[:space:]])
 FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}git[[:space:]]+push\b[^;&|]*--force([[:space:];&|]|$)"
 FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}git[[:space:]]+reset[[:space:]]+--hard\b"
 FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}(curl|wget)\b[^;&]*\|[[:space:]]*(sudo[[:space:]]+)?(sh|bash|zsh|ksh|dash)\b"
+FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}git[[:space:]]+${GIT_OPTS}commit\b[^;&|]*--no-verify([^0-9a-zA-Z_-]|$)"
+FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}git[[:space:]]+${GIT_OPTS}commit\b[^;&|]*[[:space:]]-[a-z]{0,3}n[a-z]{0,3}\b"
+FAST_STRIPPED="$FAST_STRIPPED|${ANCHOR}git[[:space:]]+-c[[:space:]]+core\.hooksPath=[^;&|]*[[:space:]]+commit\b"
 FAST_FLAT="${ANCHOR}${SQL_CLIENT}\b[^;&|]*\bDROP[[:space:]]+(TABLE|DATABASE|SCHEMA)\b"
 
 if ! printf '%s' "$COMMAND_STRIPPED" | grep -qE "$FAST_STRIPPED" \
@@ -180,6 +196,20 @@ fi
 if printf '%s' "$COMMAND_STRIPPED" | grep -qE \
   "${ANCHOR}(curl|wget)\b[^;&]*\|[[:space:]]*(sudo[[:space:]]+)?(sh|bash|zsh|ksh|dash)\b"; then
   echo "Blocked: piping a network download straight into a shell (curl|sh) is not allowed. Download to a file, review it, then run it — or use WebFetch." >&2
+  exit 2
+fi
+
+# 6) git commit --no-verify / commit -n / -c core.hooksPath= 覆盖 —— 堵 scan-commit.sh 旁路
+#    （ECC scripts/hooks/block-no-verify.js:483-521 的 bash 等价；COMMAND_STRIPPED 已
+#    strip 引号内容，故 `git commit -m "--no-verify"` 的引号内字面不误判。commit -n
+#    仅 commit 段拦——commit -n = --no-verify 短形；其他命令 -n 含义不同不拦）
+if printf '%s' "$COMMAND_STRIPPED" | grep -qE \
+  "${ANCHOR}git[[:space:]]+${GIT_OPTS}commit\b[^;&|]*--no-verify([^0-9a-zA-Z_-]|$)" \
+  || printf '%s' "$COMMAND_STRIPPED" | grep -qE \
+  "${ANCHOR}git[[:space:]]+${GIT_OPTS}commit\b[^;&|]*[[:space:]]-[a-z]{0,3}n[a-z]{0,3}\b" \
+  || printf '%s' "$COMMAND_STRIPPED" | grep -qE \
+  "${ANCHOR}git[[:space:]]+-c[[:space:]]+core\.hooksPath=[^;&|]*[[:space:]]+commit\b"; then
+  echo "Blocked: git commit --no-verify / -n / -c core.hooksPath= 绕过 pre-commit hooks（scan-commit.sh 密钥扫描 + lint-all 唯一入口）。用普通 commit；真紧急旁路须 product-lead 授权 + 记 docs/reviews/。" >&2
   exit 2
 fi
 

@@ -46,7 +46,7 @@ SendMessage({to: "backend-dev", message: "需要 /api/[业务] 接口（用于 a
 - **Swift 6 并发纪律**：strict concurrency 全开零 warning、UI 入口 `@MainActor`、共享态 actor 化、禁裸 GCD（§3）
 - **平台差异落地**：按 target 应用 `apple-native.md` §5（macOS：菜单栏 / 快捷键 / hover / 窗口）或 §6（iOS：安全区 / Dynamic Type / 生命周期 / 权限时机）
 - **API 接入**：一律用 swift-openapi-generator 生成的 `Client` / `APIProtocol`，禁手写 URLSession / Codable DTO / JSON mock（ADR-008 + `coding.md` Apple 契约纪律）
-- **Unit 测试**：Swift Testing（`swift test`，AppCore 在 CLI 直跑）；TDD red → green → refactor
+- **Unit 测试**：Swift Testing（`swift test`，AppCore 在 CLI 直跑）；用 `superpowers:test-driven-development` 驱动 red→green→refactor
 - **SIT 自跑**：Unit 全绿后按 skill `agf-running-apple-sit` 跑 `xcodebuild test`（按 target 选 destination）走 AC 集成路径；证据落 `progress/apple-dev.md`，由 apple-code-reviewer 在 code review 阶段 audit
 - **E2E 脚本**：XCUITest 脚本置于 `apple/AppUITests/`，自验时一并提交给 `apple-qa-engineer` 执行（分工见 `apple-native.md` §9）
 
@@ -74,6 +74,16 @@ SendMessage({to: "backend-dev", message: "需要 /api/[业务] 接口（用于 a
 ## Superpowers Skills 使用
 
 触发点见 `.claude/standards/superpowers.md` 第 1 节中本 agent 对应的行。
+
+## Skill 纪律（teammate 路径 frontmatter skills 不预载，靠本段正文驱动）
+
+- 收到「新功能」/「bugfix」任务 → 写实现前**必须先** `Skill({skill: "superpowers:test-driven-development"})`
+  （纯重构 / 只改配置文档可跳过）
+- 遇测试失败 / bug / 预期外行为 → 定位前**必须先** `Skill({skill: "superpowers:systematic-debugging"})`
+  （新功能正常流程可跳过）
+- 发完成报告前**必须先** `Skill({skill: "superpowers:verification-before-completion"})`
+  （中间进度阻塞汇报可跳过）
+- 收到 code review 打回要改 → 处理前**必须先** `Skill({skill: "superpowers:receiving-code-review"})`
 
 ## Definition of Done
 

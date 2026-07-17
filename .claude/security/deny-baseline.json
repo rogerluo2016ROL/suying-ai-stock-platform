@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "note": "AGF deny 非回归 baseline，改 deny 后跑 --update 重签",
+  "canonical_sha256": "00be8137e44b63edcae1bd2983b3c1eb1b1e2f08b9629ad6c15b0d45f5154fe3",
+  "entries": [
+    "Bash(curl *|*bash*)",
+    "Bash(curl *|*sh*)",
+    "Bash(eval *)",
+    "Bash(wget *|*bash*)",
+    "Bash(wget *|*sh*)",
+    "Read(./**/.env)",
+    "Read(./**/.env.*)",
+    "Read(./.env)",
+    "Read(./.env.*)",
+    "Read(./secrets/**)",
+    "Read(~/.aws/**)",
+    "Read(~/.config/gcloud/**)",
+    "Read(~/.docker/config.json)",
+    "Read(~/.gnupg/**)",
+    "Read(~/.kube/config)",
+    "Read(~/.netrc)",
+    "Read(~/.pgpass)",
+    "Read(~/.ssh/**)"
+  ]
+}

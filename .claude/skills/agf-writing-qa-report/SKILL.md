@@ -47,7 +47,7 @@ uat_signoff_verdict: N/A       # approve | request changes | N/A（仅 UAT 阶�
 - **Tester**: qa-engineer ([model name]) / 业务方姓名（UAT）
 - **Branch**: [branch + commit hash]
 - **Environment**: local docker-compose / staging / pre-prod
-- **PRD**: docs/prd/[feature]-[date].md
+- **需求入口**: docs/changes/[change]/tasks.md（AC↔scenario 映射，ADR-012；旧 feature fallback docs/prd/[feature]-[date].md）
 - **Code review (含 SIT Audit)**: docs/reviews/[feature]-[date].md
 
 ## Summary
@@ -63,7 +63,7 @@ uat_signoff_verdict: N/A       # approve | request changes | N/A（仅 UAT 阶�
 
 - [ ] 单元测试 + lint + typecheck 全绿
 - [ ] code-reviewer 报告已存在且 verdict ≠ Block（含 SIT Audit = ✅ / ⚠️）
-- [ ] PRD AC 可访问
+- [ ] AC 来源可访问（`docs/changes/<change>/tasks.md`；旧 feature fallback PRD）
 - [ ] 环境就绪（DB 起来 / 迁移已 apply / 服务已启动）
 - [ ] **（仅 UAT）用例文档已审核**：`docs/qa/[feature]-uat-cases-[date].md` 存在且 frontmatter `status: Approved`（MAJOR / MINOR 强制；PATCH 级 hotfix 由 PL 豁免时在报告注明理由）
 
@@ -71,12 +71,12 @@ uat_signoff_verdict: N/A       # approve | request changes | N/A（仅 UAT 阶�
 
 ## AC Results
 
-### AC-1 (P0): [verbatim AC text from PRD]
+### AC-1 (P0): [verbatim AC text from tasks.md（fallback PRD）]
 
-- **Priority**: P0 / P1 / P2（来自 PRD §4 Priority；P0 必须跑 2 次，P1/P2 跑 1 次即可）
+- **Priority**: P0 / P1 / P2（来自 `docs/changes/<change>/tasks.md` 的 AC 优先级标注；旧 feature 来自 PRD §4 Priority；P0 必须跑 2 次，P1/P2 跑 1 次即可）
 - **Setup**: [起始状态]
 - **Action**: [触发步骤]
-- **Expected**: [复制 PRD AC 原文]
+- **Expected**: [复制 AC 原文]
 - **Actual (run 1)**:
   ```
   HTTP/1.1 200 OK

@@ -111,6 +111,8 @@ agents:
   - TaskList
   - Skill
   skills:
+  - superpowers:brainstorming
+  - superpowers:writing-plans
   - frontend-design:frontend-design
   - agf-design-discipline
   pool:

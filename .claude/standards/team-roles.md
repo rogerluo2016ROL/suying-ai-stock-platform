@@ -1,6 +1,6 @@
 # Team Roles and Capability Baseline
 
-> **关于 `Permission` 列**：`permissionMode` 是 Claude Code 官方 sub-agent frontmatter 字段，但**仅在 sub-agent / `--agent` 路径生效，Agent Team teammate 路径被忽略**（详见下方 frontmatter 能力表）。当前启动方式：lead = `product-lead` 以 `--agent product-lead` 启动（见 `agf-team-start.sh`），故 **PL 自身的 `acceptEdits` 生效并成为团队权限基线**，其余 teammate 继承该基线；review-only 等更严模式由 lead 在 spawn 后对单个 teammate 单独切换。**默认不再使用 `--dangerously-skip-permissions`**（仅在显式传该 flag 时启用，自担风险）。
+> **关于 `Permission` 列**：`permissionMode` 是 Claude Code 官方 sub-agent frontmatter 字段，但**仅在 sub-agent / `--agent` 路径生效，Agent Team teammate 路径被忽略**（详见下方 frontmatter 能力表）。当前启动方式：lead = `product-lead` 以 `claude --agent product-lead` 启动（原 TUI 启动器已按 ADR-026 D3 退役，见 `team-mode.md`），故 **PL 自身的 `acceptEdits` 生效并成为团队权限基线**，其余 teammate 继承该基线；review-only 等更严模式由 lead 在 spawn 后对单个 teammate 单独切换。**默认不再使用 `--dangerously-skip-permissions`**（仅在显式传该 flag 时启用，自担风险）。
 >
 > **关于 `Pool 上限` 列**：见 ADR-001 与 `workflow.md` §Multi-instance Worker Pool。值 = 同 type 并发实例数上限（含 1 表示**不允许 pool**；3-7 表示按 cost-budget 分档自动调）。pool 模式触发条件 + 例外清单见 workflow.md。
 
@@ -57,7 +57,7 @@
 > | `description`（含「主动调用 when」+ 关键词）| ✅ 驱动**自动委派**（Claude 据此决定何时调起本 sub-agent；官方建议含 "use proactively" 鼓励委派）| ✅ 同 sub-agent | ⚠️ **不驱动路由**：teammate 由 PL **按 type 名显式 spawn**，description 不参与自动派工；其正文 body 仍**追加**进 teammate system prompt（官方："appended … rather than replacing"），故关键词对 team 内派工准确率**无增益**，真正决定派谁的是 PL 编排逻辑 |
 > | `tools` / `disallowedTools` | ✅ 生效 | ✅ 生效 | ✅ 生效；team 协调工具（`SendMessage` / Task*）即使被排除也始终可用 |
 > | `permissionMode` | ✅ 生效 | ✅ 生效 | ❌ 忽略，teammate 继承 lead 模式 |
-> | `model` | ✅ 生效 | ✅ 生效 | ✅ 生效，teammate 按各自 definition 的 model 档运行（路由基线见 `cost-budget.md`） |
+> | `model` | ✅ 生效 | ✅ 生效 | ⚠️ **仅初始 spawn 生效**：spawn 时按 definition model 档运行，但 **`SendMessage`-resume / park-wake 后 pin 丢失、静默回退唤醒方模型**（上游未修，ADR-022 / #75565；路由基线 + 纪律见 `cost-budget.md`） |
 > | `effort` | ✅ 生效 | ✅ 生效（lead 可再用 session 内 `/effort` 临时调） | ❌ **不生效**，随 session 默认，当前无 per-role 设置手段（操作结论见 `cost-budget.md` §Effort 维度） |
 > | `skills` | ✅ 启动时预加载 | ✅ 启动时预加载 | ❌ **不生效**，teammate 仅按 description 关键词匹配或 `/skill-name` 显式调起，与普通 session 一致 |
 > | `mcpServers` | ✅ 生效 | ✅ 生效 | ❌ **不生效**，teammate 从项目 / 用户 settings 加载 MCP，与普通 session 一致 |
@@ -83,7 +83,7 @@
 |---|---|---|
 | `product-lead` | + `WebFetch`, + `WebSearch`, + `Agent`, + `TaskCreate` | `superpowers:brainstorming`, `superpowers:writing-plans`, `agf-writing-change`, `superpowers:using-git-worktrees`, `superpowers:requesting-code-review`, `superpowers:receiving-code-review`, `superpowers:finishing-a-development-branch` |
 | `tech-lead` | + `WebFetch`, + `WebSearch`, + `mcp__context7__*` | `superpowers:brainstorming`, `superpowers:writing-plans`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:requesting-code-review`, `superpowers:receiving-code-review` |
-| `uiux-designer` | + `WebFetch` | `frontend-design:frontend-design`, `agf-design-discipline` |
+| `uiux-designer` | + `WebFetch` | `superpowers:brainstorming`, `superpowers:writing-plans`, `frontend-design:frontend-design`, `agf-design-discipline` |
 | `frontend-dev` | + `WebFetch`, + `mcp__context7__*` | `simplify`, `frontend-design:frontend-design`, `agf-design-discipline`, `feature-dev:feature-dev`, `agf-running-sit-tests`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:receiving-code-review` |
 | `backend-dev` | + `mcp__context7__*` | `simplify`, `feature-dev:feature-dev`, `agf-wiring-multi-llm-sdk`, `agf-running-sit-tests`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:receiving-code-review` |
 | `ai-agent-dev` | + `WebFetch`, + `WebSearch`, + `mcp__context7__*` | `simplify`, `feature-dev:feature-dev`, `agf-wiring-multi-llm-sdk`, `agf-running-sit-tests`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:receiving-code-review` |

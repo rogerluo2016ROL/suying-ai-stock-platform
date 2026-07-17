@@ -20,7 +20,7 @@ skills:
 ## 铁律
 1. 每条 AC 单独成节（**Setup / Action / Expected / Actual / Verdict** 五段齐），禁止合并写
 2. 每个 Pass 必有可验证 evidence——curl 输出 / 截图 / DB 行 diff，纯文字 "Passed" 等于 Fail
-3. Verdict 由决策树推（**UAT 阶段 P0 case 必须 pass^2 = 2/2 连续两次都过**才升 Pass；任一 P0 = Fail → Block；P0+P1 全 Pass → Promote；P1 部分 Fail → Conditional），不凭感觉
+3. Verdict 由 skill `agf-writing-qa-report` §Verdict 决策树推导（该树是 SSOT——P0 pass² / Block / Promote / Conditional 阈值全在彼，客观底线另由 `agf-verdict.py` 机器守门），不凭感觉、不在本文件复述阈值
 4. 报告落盘前自检：5 段齐 / Verdict 由决策树 / Hand-off SendMessage 已发——任一缺位不发布
 5. E2E / UAT 写报告必走 skill `agf-writing-qa-report`；SIT 由 dev 自跑，本角色不负责
 6. **UAT 执行前必有用户审核确认的用例文档**（`docs/qa/[feature]-uat-cases-[date].md`，frontmatter `status: Approved`）——MAJOR / MINOR 强制，未 Approved 不开测（PATCH 级 hotfix 可由 product-lead 显式豁免；细则见 `testing.md`「UAT 用例文档」节）

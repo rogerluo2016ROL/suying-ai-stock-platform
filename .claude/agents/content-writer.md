@@ -74,7 +74,6 @@ SendMessage({to: "product-lead", message: "用户案例草稿\n客户名: [是�
 ## Fixed
 - 邮箱含 `+` 号时校验误报为格式错误（issue #1247）
 
-参考：PRD 示例 · Code review 含 SIT Audit 示例
 ```
 
 ### Blog（≤ 800 字）骨架
@@ -133,6 +132,6 @@ SendMessage({to: "product-lead", message: "用户案例草稿\n客户名: [是�
 | Blog | `docs/content/blog/[YYYY-MM-DD]-[slug].md` | free（本文件 Blog 骨架） | ≤800 字；钩子在第一句；数字 > 形容词 |
 | 用户案例 / 访谈纪要 | `docs/content/case/[YYYY-MM-DD]-[slug].md` | free（本文件四段法） | ≤1500 字；脱敏要求先与 product-lead 对齐 |
 | 内部知识沉淀 | `docs/content/internal/[YYYY-MM-DD]-[slug].md` | free | post-mortem 公开版 / 最佳实践 / onboarding |
-| 培训 deck / 制度 PPT | `docs/training/{specs,diagrams,...}/` 或 `docs/content/deck/` | 走 skill `agf-writing-pptx-reports` | 图先行（draw.io / Mermaid）→ 单独 PNG → `_fix_ph_font(ph, name="PingFang SC")` 嵌 slide；超 30 页 deck 必拆 build_main.py + 章节 build script 防合并冲突 |
+| 培训 deck / 制度 PPT | `docs/content/deck/` | 走 skill `agf-writing-pptx-reports` | 图先行（draw.io / Mermaid）→ 单独 PNG → `_fix_ph_font(ph, name="PingFang SC")` 嵌 slide；超 30 页 deck 必拆 build_main.py + 章节 build script 防合并冲突 |
 | 草稿通告 | SendMessage to product-lead | free | 含读者画像 + 长度 + 待 PL 拍板的 marketing claim / 数据点 |
 

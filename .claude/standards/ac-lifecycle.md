@@ -64,7 +64,7 @@ product-lead 对照 AC 最终判定 → 汇报用户（业务签字）→ 归档
 **字段约束**：
 - **状态**：仅 `已完成` / `阻塞` 两值；不再写 `进行中`（idle 退出时进行中即视为阻塞）
 - **Skills**：1 行内列完，逗号分隔；用于 retro 检视 skill 触发率
-- **SIT 证据**：pass 单行结论即可（≤ 80 字），fail / blocked 才内嵌命令 + 输出 + 偏差三行（≤ 5 行）。**格式须可机检（ADR-011 决策 2）**：每条 AC 行带状态标记（`[x]/[ ]` + `✅/❌/⚠️`），fail/blocked 行必内嵌 `$ 命令` + 输出——dev 在 SendMessage 前可自跑 `bash .claude/scripts/agf-sit-precheck.sh progress/<role>.md` 自检（flag placeholder / 漏证据 / 标记矛盾，advisory，修掉省一轮 review 打回）。code-reviewer audit 时先跑同一脚本（SIT Audit **step 0**）再按 4 项检查核对（定义见 `workflow.md` SIT Audit / `code-reviewer.md` SIT Audit 段）
+- **SIT 证据**：pass 单行结论即可（≤ 80 字），fail / blocked 才内嵌命令 + 输出 + 偏差三行（≤ 5 行）。**格式须可机检（ADR-011 决策 2）**：每条 AC 行带状态标记（`[x]/[ ]` + `✅/❌/⚠️`），fail/blocked 行必内嵌 `$ 命令` + 输出——dev 在 SendMessage 前自跑 `bash .claude/scripts/agf-advisory.sh progress/<role>.md`（advisory 机筛统一入口，ADR-026 D2；reviewer 不重跑） 自检（flag placeholder / 漏证据 / 标记矛盾，advisory，修掉省一轮 review 打回）。code-reviewer audit 时先跑同一脚本（SIT Audit **step 0**）再按 4 项检查核对（定义见 `workflow.md` SIT Audit / `code-reviewer.md` SIT Audit 段）
 - **质量门**：1 行内打 `lint / typecheck / unit / SIT` 4 项 ✅/⚠️/❌；任一非 ✅ 在括号内 ≤ 30 字简注
 - **下一步**：阻塞场景必须写明阻塞点 + 已尝试 + 需要什么；**勿在阻塞状态下继续 SendMessage 假装在推进**
 

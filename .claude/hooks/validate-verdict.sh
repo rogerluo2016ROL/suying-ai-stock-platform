@@ -122,8 +122,9 @@ fi
 python3 "$VERDICT_PY" validate "$FILE" --kind="$KIND"
 RC=$?
 case "$RC" in
-  0|2) exit "$RC" ;;   # 0 一致 / 2 阻断（agf-verdict.py 已把 BLOCK 明示到 stderr）→ 直接透传
-  *)                   # 意外退出码（非 0/2）→ belt-and-suspenders fail-open，绝不误杀
-    echo "[validate-verdict] WARN — agf-verdict.py 异常退出码 $RC（非 0/2）, fail-open 放行" >&2
+  0) exit 0 ;;   # 一致
+  2) exit 2 ;;   # 阻断（agf-verdict.py 已把 BLOCK 明示到 stderr）
+  *)  # 意外退出码（非 0/2）→ belt-and-suspenders fail-open，绝不误杀
+    echo "[validate-verdict] WARN — agf-verdict.py 异常退出码 ${RC}（非 0/2）, fail-open 放行" >&2
     exit 0 ;;
 esac

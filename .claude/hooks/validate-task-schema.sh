@@ -19,28 +19,12 @@ set -uo pipefail
 
 INPUT=$(cat || true)
 
-# 防御式提取字段（jq 优先，多路径尝试；不同 hook payload shape 可能字段位置不同）
-extract_first_nonempty() {
-  if ! command -v jq >/dev/null 2>&1; then
-    return 1
-  fi
-  local val=""
-  for path in "$@"; do
-    val=$(printf '%s' "$INPUT" | jq -r "$path // empty" 2>/dev/null || echo "")
-    if [[ -n "$val" && "$val" != "null" ]]; then
-      printf '%s' "$val"
-      return 0
-    fi
-  done
-  return 1
-}
+# 公共提取辅助（去重，见 agf-task-hook.lib.sh）；缺 lib / 缺 jq → fail-open exit 0
+_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[ -f "$_HOOK_DIR/agf-task-hook.lib.sh" ] && source "$_HOOK_DIR/agf-task-hook.lib.sh"
+command -v agf_task_desc >/dev/null 2>&1 || exit 0
 
-DESC=$(extract_first_nonempty \
-  '.tool_input.description' \
-  '.task.description' \
-  '.description' \
-  '.tool_input.task.description' \
-  || true)
+DESC=$(agf_task_desc "$INPUT")
 
 # 无法提取 description → 不阻断（保护现有流程；payload shape 变更或非 TaskCreate 事件不应误杀）
 if [[ -z "${DESC:-}" ]]; then
@@ -48,12 +32,7 @@ if [[ -z "${DESC:-}" ]]; then
 fi
 
 # 提取 caller agent name (尝试多路径)
-CALLER=$(extract_first_nonempty \
-  '.agent_name' \
-  '.caller_agent' \
-  '.subagent_type' \
-  '.tool_input.agent_name' \
-  || true)
+CALLER=$(agf_hook_field "$INPUT" '.agent_name' '.caller_agent' '.subagent_type' '.tool_input.agent_name')
 
 # === 豁免逻辑 ===
 # 目的：让 main session / 非 product-lead 上下文中的内部任务追踪不被强制 6 段 schema。

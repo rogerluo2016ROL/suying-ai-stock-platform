@@ -100,7 +100,7 @@ Anything else → new ADR.
 
 ADR 不是事后总结，是决策**前**的工具：
 
-1. **查证**：每个候选选型先用 Context7（`resolve-library-id` → `get-library-docs`）拉当前版本官方文档；未收录或版本信息不足再 WebFetch 官方 changelog / release notes。记录"今天最新稳定版 + 维护状态 + 已知 breaking change"
+1. **查证**：每个候选选型先用 Context7（`resolve-library-id` → `query-docs`）拉当前版本官方文档；未收录或版本信息不足再 WebFetch 官方 changelog / release notes。记录"今天最新稳定版 + 维护状态 + 已知 breaking change"
 2. **决策**：在多个候选间挑选，列至少 1 个备选 + 否决理由
 3. **写 ADR**：把上述过程落地，commit + announce
 
