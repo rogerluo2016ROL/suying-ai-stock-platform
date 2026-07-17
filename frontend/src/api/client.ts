@@ -90,85 +90,18 @@ export interface StrategyPick {
 // Trade 域类型已拆至 ./domains/trade/types (C 域拆分)
 export type { TradeOrder, TradeAccount } from './domains/trade/types'
 
-export interface MembershipInfo {
-  status: string
-  plan?: string | null
-  starts_at?: string | null
-  ends_at?: string | null
-  source?: string | null
-  note?: string | null
-  is_member: boolean
-  days_remaining?: number | null
-}
-
-export interface AdminUser {
-  id: number
-  name: string
-  email: string
-  role: string
-  is_active: boolean
-  created_at: string
-  updated_at: string
-  permissions?: string[]
-  membership?: MembershipInfo | null
-}
-
-export interface AdminUsersResponse {
-  total: number
-  page: number
-  page_size: number
-  users: AdminUser[]
-}
-
-export interface PermissionItem {
-  key: string
-  label: string
-  group: string
-  description: string
-  enabled: boolean
-}
-
-export interface RolePermissions {
-  role: string
-  label: string
-  description?: string | null
-  permissions: PermissionItem[]
-}
-
-export interface RolePermissionsListResponse {
-  roles: RolePermissions[]
-}
-
-export interface MembershipUser {
-  id: number
-  name: string
-  email: string
-  role: string
-  is_active: boolean
-  created_at: string
-  updated_at: string
-  membership: MembershipInfo
-}
-
-export interface MembershipsResponse {
-  total: number
-  page: number
-  page_size: number
-  members: MembershipUser[]
-}
-
-export interface UserAuthorizationPayload {
-  role?: string
-  is_active?: boolean
-  membership?: {
-    status?: string
-    plan?: string | null
-    starts_at?: string | null
-    ends_at?: string | null
-    source?: string | null
-    note?: string | null
-  }
-}
+// Admin 域类型已拆至 ./domains/admin/types (C 域拆分)
+export type {
+  MembershipInfo,
+  AdminUser,
+  AdminUsersResponse,
+  PermissionItem,
+  RolePermissions,
+  RolePermissionsListResponse,
+  MembershipUser,
+  MembershipsResponse,
+  UserAuthorizationPayload,
+} from './domains/admin/types'
 
 // eastmoney 辅助 + marketApi 已拆至 ./domains/market/api (C 域拆分)
 
@@ -746,41 +679,7 @@ export { alertApi } from './domains/alert/api'
 // Admin RBAC / Membership API
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const adminApi = {
-  getUsers: (params: {
-    page?: number
-    page_size?: number
-    role?: string
-    is_active?: boolean
-    q?: string
-  } = {}): Promise<AxiosResponse<AdminUsersResponse>> =>
-    api.get('/admin/users', { params }),
-
-  getRolePermissions: (): Promise<AxiosResponse<RolePermissionsListResponse>> =>
-    api.get('/admin/permissions/roles'),
-
-  updateRolePermissions: (
-    role: string,
-    permissionKeys: string[],
-  ): Promise<AxiosResponse<RolePermissions>> =>
-    api.put(`/admin/permissions/roles/${encodeURIComponent(role)}`, {
-      permission_keys: permissionKeys,
-    }),
-
-  updateUserAuthorization: (
-    userId: number,
-    payload: UserAuthorizationPayload,
-  ): Promise<AxiosResponse<AdminUser>> =>
-    api.put(`/admin/users/${userId}/authorization`, payload),
-
-  getMemberships: (params: {
-    page?: number
-    page_size?: number
-    status?: string
-    q?: string
-  } = {}): Promise<AxiosResponse<MembershipsResponse>> =>
-    api.get('/admin/memberships', { params }),
-}
+export { adminApi } from './domains/admin/api'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Trade API（已类型化）
