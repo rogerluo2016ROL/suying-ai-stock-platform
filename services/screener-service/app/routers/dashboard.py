@@ -19,6 +19,29 @@ OUTPUTS_DIR = os.path.join(KRONOS_ROOT, "outputs")
 TOOLS_DIR = os.path.join(KRONOS_ROOT, "tools")
 
 
+def _data_service_url(path: str = "") -> str:
+    """data-service URL: env 优先, Docker 内用容器名, 否则 localhost (P0-1)."""
+    base = os.environ.get("DATA_SERVICE_URL")
+    if base:
+        return base.rstrip("/") + path
+    if os.path.exists("/.dockerenv"):
+        return f"http://data-service:8010/api/v1/data{path}"
+    return f"http://localhost:8010/api/v1/data{path}"
+
+
+async def _http_json(url: str, method: str = "GET", timeout: int = 10):
+    """async 包装同步 urllib, 避免阻塞事件循环 (P0-1)."""
+    import asyncio
+    import urllib.request
+
+    def _call():
+        req = urllib.request.Request(url, method=method)
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read())
+
+    return await asyncio.to_thread(_call)
+
+
 def _find_latest_orchestrator(date_str: str = None) -> dict | None:
     """Find the latest orchestrator output for a date."""
     if date_str:
@@ -186,13 +209,9 @@ async def trigger_sync(sync_type: str = "rt_min"):
 
     sync_type: rt_min | auction | post_market
     """
-    import urllib.request
-    DATA_SERVICE = "http://localhost:8010/api/v1/data"
-    url = f"{DATA_SERVICE}/sync/{sync_type}"
+    url = f"{_data_service_url()}/sync/{sync_type}"
     try:
-        req = urllib.request.Request(url, method="POST")
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read())
+        return await _http_json(url, method="POST", timeout=30)
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -200,10 +219,8 @@ async def trigger_sync(sync_type: str = "rt_min"):
 @router.get("/sync/status")
 async def sync_status():
     """查询数据同步状态."""
-    import urllib.request
     try:
-        with urllib.request.urlopen("http://localhost:8010/api/v1/data/status", timeout=5) as resp:
-            return json.loads(resp.read())
+        return await _http_json(_data_service_url("/status"), timeout=5)
     except Exception:
         return {"status": "error", "message": "data-service not reachable"}
 

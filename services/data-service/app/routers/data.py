@@ -181,8 +181,9 @@ async def evaluate_readiness(profile: str, target_trade_date: date, cutoff_time=
     def loader(source):
         try:
             import psycopg2
+            from psycopg2 import sql
             conn = psycopg2.connect(PG_URL, connect_timeout=2); cur = conn.cursor()
-            cur.execute(f'SELECT MAX(trade_date) FROM "{source}"')
+            cur.execute(sql.SQL("SELECT MAX(trade_date) FROM {}").format(sql.Identifier(source)))
             value = cur.fetchone()[0]; conn.close()
             return SourceState(value, 1.0)
         except Exception:
