@@ -530,97 +530,17 @@ export { predictionApi } from './domains/prediction/api'
 
 export { strategyApi } from './domains/strategy/api'
 
-export interface TrainingModelRecord {
-  id: string
-  name: string
-  version: number
-  model_type: string
-  stage: string
-  run_id?: string | null
-  experiment_id?: string | null
-  metrics?: Record<string, number>
-  artifact_uri?: string | null
-  deployed_at?: string | null
-  deployed_by?: string | null
-  created_by: string
-  created_at: string
-  updated_at?: string | null
-  notes?: string | null
-}
+// Training 域类型已拆至 ./domains/training/types (C 域拆分)
+export type {
+  TrainingModelRecord,
+  TrainingModelsResponse,
+  TrainingHistoryRecord,
+  TrainingHistoryResponse,
+  TrainingScheduleResponse,
+  TrainingModelActionResponse,
+} from './domains/training/types'
 
-export interface TrainingModelsResponse {
-  models: TrainingModelRecord[]
-  total: number
-  page: number
-  page_size: number
-}
-
-export interface TrainingHistoryRecord {
-  job_id: string
-  model_type: string
-  status: string
-  params?: Record<string, unknown> | null
-  final_metrics?: Record<string, number> | null
-  model_uri?: string | null
-  created_by: string
-  created_at: string
-  started_at?: string | null
-  completed_at?: string | null
-  duration_seconds?: number | null
-}
-
-export interface TrainingHistoryResponse {
-  jobs: TrainingHistoryRecord[]
-  total: number
-  page: number
-  page_size: number
-}
-
-export interface TrainingScheduleResponse {
-  enabled: boolean
-  cron: string
-  model_type: string
-  params?: Record<string, unknown> | null
-  auto_deploy: boolean
-  next_run?: string | null
-  last_run?: string | null
-  last_job_id?: string | null
-  last_job_status?: string | null
-}
-
-export interface TrainingModelActionResponse {
-  model_id: string
-  message: string
-  stage?: string
-  deployed_at?: string
-  previous_production_version?: number | null
-  new_production_version?: number
-  rolled_back_from?: number
-  reason?: string
-}
-
-export const trainingApi = {
-  getModels: (params: { page?: number; page_size?: number; model_type?: string; stage?: string } = {}): Promise<AxiosResponse<TrainingModelsResponse>> =>
-    api.get('/training/models', { params: { page: 1, page_size: 20, ...params } }),
-
-  getModel: (modelId: string): Promise<AxiosResponse<TrainingModelRecord>> =>
-    api.get(`/training/models/${modelId}`),
-
-  deployModel: (modelId: string, body: { force?: boolean; notes?: string } = {}): Promise<AxiosResponse<TrainingModelActionResponse>> =>
-    api.post(`/training/models/${modelId}/deploy`, body),
-
-  rollbackModel: (modelId: string, body: { target_version: number; reason?: string }): Promise<AxiosResponse<TrainingModelActionResponse>> =>
-    api.post(`/training/models/${modelId}/rollback`, body),
-
-  archiveModel: (modelId: string, body: { reason: string }): Promise<AxiosResponse<TrainingModelActionResponse>> =>
-    api.post(`/training/models/${modelId}/archive`, body),
-
-  getHistory: (params: { page?: number; page_size?: number; model_type?: string; status?: string } = {}): Promise<AxiosResponse<TrainingHistoryResponse>> =>
-    api.get('/training/history', { params: { page: 1, page_size: 20, ...params } }),
-
-  getSchedule: (): Promise<AxiosResponse<TrainingScheduleResponse>> =>
-    api.get('/training/schedule'),
-}
+export { trainingApi } from './domains/training/api'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Signal API（已类型化）
