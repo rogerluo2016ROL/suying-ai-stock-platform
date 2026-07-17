@@ -5,12 +5,6 @@
     "test:frontend:lowio": "bash tools/codex-lowio.sh fe-test",
     "typecheck:frontend:lowio": "bash tools/codex-lowio.sh fe-typecheck"
   },
-  "dependencies": {
-    "echarts": "^6.1.0",
-    "echarts-for-react": "^3.0.6",
-    "react-router-dom": "^7.16.0",
-    "recharts": "^3.8.1"
-  },
   "devDependencies": {
     "@astudioplus/codegraph-mcp": "^0.18.6",
     "@tailwindcss/vite": "^4.3.0",
