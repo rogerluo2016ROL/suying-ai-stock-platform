@@ -1,18 +1,17 @@
-import os
 """Screener Service — FastAPI entry point.
 
 Usage:
     cd services/screener-service
     python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 """
-
 import logging
-import sys, os
+import os
+import sys
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-# Ensure packages/ are importable before kronos-factors
+from fastapi import FastAPI
+
+# 注入共享 packages(须在 import kronos-factors 前)
 _PACKAGES = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages"))
 for _pkg in ["kronos-factors", "kronos-core", "kronos-data"]:
     _path = os.path.join(_PACKAGES, _pkg)
@@ -23,11 +22,8 @@ from app.config import HOST, PORT, DEBUG, DB_PATH
 from app.domains.router import router as screener_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.lark import router as lark_router
+from kronos_contracts.app_factory import create_app
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
 logger = logging.getLogger("screener-service")
 
 
@@ -89,41 +85,13 @@ async def lifespan(app: FastAPI):
     logger.info("Screener Service stopped.")
 
 
-app = FastAPI(
-    title="速赢AI - Screener Service",
+app = create_app(
+    "screener-service",
+    "0.1.0",
+    [screener_router, dashboard_router, lark_router],
     description="Stock screening microservice — 6 strategies, unified API",
-    version="0.1.0",
     lifespan=lifespan,
 )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(screener_router)
-app.include_router(dashboard_router)
-app.include_router(lark_router)
-
-
-@app.get("/api/v1/health/live")
-async def health_live_contract():
-    return {"live": True, "service": "screener-service", "version": "0.1.0"}
-
-@app.get("/api/v1/health/ready")
-async def health_ready_contract():
-    from kronos_contracts.health import check_postgres, build_health
-    return build_health("screener-service", "0.1.0", {"postgres": await check_postgres()}).model_dump()
-@app.get("/api/v1/health")
-async def health():
-    return {
-        "status": "healthy",
-        "service": "screener-service",
-        "version": "0.1.0",
-    }
 
 
 # ── Run directly ──

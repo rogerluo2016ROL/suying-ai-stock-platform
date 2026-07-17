@@ -1,4 +1,3 @@
-import os
 """Data Service — 后台数据采集 + 定时调度.
 
 Usage:
@@ -11,11 +10,12 @@ Env vars (all optional):
     KRONOS_DB_PATH=/path/to/stock_screening.db
     TUSHARE_TOKEN_FILE=/run/secrets/tushare_token
 """
-
-import logging, sys, os
+import logging
+import os
+import sys
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 # Ensure Kronos src is importable
 _PROJ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -26,8 +26,8 @@ if os.path.isdir(_KRONOS):
 
 from app.routers.data import router as data_router
 from app.scheduler import start_scheduler, stop_scheduler
+from kronos_contracts.app_factory import create_app
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("data-service")
 
 
@@ -44,29 +44,13 @@ async def lifespan(app: FastAPI):
     logger.info("Data Service stopped.")
 
 
-app = FastAPI(
-    title="速赢AI - Data Service",
+app = create_app(
+    "data-service",
+    "0.1.0",
+    [data_router],
     description="后台数据采集 + 定时调度 + 手动触发",
-    version="0.1.0",
     lifespan=lifespan,
 )
-
-app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","), allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
-app.include_router(data_router)
-
-
-@app.get("/api/v1/health/live")
-async def health_live_contract():
-    return {"live": True, "service": "data-service", "version": "0.1.0"}
-
-@app.get("/api/v1/health/ready")
-async def health_ready_contract():
-    from kronos_contracts.health import check_postgres, build_health
-    return build_health("data-service", "0.1.0", {"postgres": await check_postgres()}).model_dump()
-@app.get("/api/v1/health")
-async def health():
-    return {"status": "healthy", "service": "data-service", "version": "0.1.0"}
 
 
 if __name__ == "__main__":
