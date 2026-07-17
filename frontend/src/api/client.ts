@@ -1391,12 +1391,4 @@ export type {
   ResonanceSummary,
 } from './types'
 
-// Domain-oriented entry points. Existing named APIs above remain compatible
-// while new code can migrate one domain at a time without a flag day.
-export { dataDomainApi } from './domains/data'
-export { screenerDomainApi } from './domains/screener'
-export { modelsDomainApi } from './domains/models'
-export { strategyDomainApi } from './domains/strategy'
-export { tradeDomainApi } from './domains/trade'
-
 export default api
