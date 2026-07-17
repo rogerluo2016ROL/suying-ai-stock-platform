@@ -170,12 +170,7 @@ export interface UserAuthorizationPayload {
   }
 }
 
-const eastmoneyIndexSecids = ['1.000001', '0.399001', '0.399006', '0.899050']
-
-function eastmoneyScaledNumber(value: unknown) {
-  const number = Number(value)
-  return Number.isFinite(number) ? Number((number / 100).toFixed(2)) : undefined
-}
+// eastmoney 辅助 + marketApi 已拆至 ./domains/market/api (C 域拆分)
 
 // axios 实例 / auth 注入 / 请求-响应拦截器已抽至 ./http (C 拆分试点)
 
@@ -731,80 +726,9 @@ export const trainingApi = {
 // Signal API（已类型化）
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const signalApi = {
-  getLevels: (): Promise<AxiosResponse<string[]>> =>
-    api.get('/signal/levels'),
+export { signalApi } from './domains/signal/api'
 
-  getLive: (session = 'intra'): Promise<AxiosResponse<SignalLiveResponse>> =>
-    api.get(`/signal/live?session=${session}`),
-
-  getHistory: (code?: string): Promise<AxiosResponse<SignalHistoryResponse>> =>
-    api.get(`/signal/history${code ? `?code=${code}` : ''}`),
-
-  analyzeCode: (code: string): Promise<AxiosResponse<SignalAnalyzeResponse>> =>
-    api.get(`/signal/analyze/${code}`),
-
-  getDashboardSummary: (): Promise<AxiosResponse<DashboardSummaryResponse>> =>
-    api.get(`/signal/dashboard-summary?_t=${Date.now()}`),
-
-  getScreeningDashboardSummary: (): Promise<AxiosResponse<Record<string, unknown>>> =>
-    api.get(`/dashboard/summary?_t=${Date.now()}`),
-
-  getDashboardAuction: (): Promise<AxiosResponse<Record<string, unknown>>> =>
-    api.get('/dashboard/auction'),
-
-  getDataStatus: (): Promise<AxiosResponse<DataStatusResponse>> =>
-    api.get(`/signal/data-status?_t=${Date.now()}`),
-
-  triggerSync: (tableKey: string, days: number): Promise<AxiosResponse<TriggerSyncResponse>> =>
-    api.post(`/signal/trigger-sync?table_key=${tableKey}&days=${days}`),
-
-  getSyncSchedules: (): Promise<AxiosResponse<SyncSchedulesResponse>> =>
-    api.get('/signal/sync-schedules'),
-
-  updateSyncSchedules: (params: string): Promise<AxiosResponse<void>> =>
-    api.post(`/signal/sync-schedules?${params}`),
-
-  deleteSyncSchedule: (key: string): Promise<AxiosResponse<void>> =>
-    api.delete(`/signal/sync-schedules?table_key=${key}`),
-}
-
-export const marketApi = {
-  getIndexQuotes: async (): Promise<AxiosResponse<MarketIndexQuotesResponse>> => {
-    try {
-      const responses = await Promise.all(
-        eastmoneyIndexSecids.map(secid =>
-          publicMarketApi.get('https://push2.eastmoney.com/api/qt/stock/get', {
-            params: {
-              secid,
-              fields: 'f43,f48,f57,f58,f169,f170',
-            },
-          }),
-        ),
-      )
-      const diff = responses
-        .map(response => response.data?.data)
-        .filter(Boolean)
-        .map(row => ({
-          f12: row.f57,
-          f14: row.f58,
-          f2: eastmoneyScaledNumber(row.f43),
-          f3: eastmoneyScaledNumber(row.f170),
-          f4: eastmoneyScaledNumber(row.f169),
-          f6: row.f48,
-        }))
-      if (diff.length > 0) {
-        return {
-          ...responses[0],
-          data: { source: 'eastmoney_realtime', data: { diff } },
-        }
-      }
-    } catch {
-      // Fall through to local post-market close snapshot.
-    }
-    return api.get('/screener/market/index-quotes')
-  },
-}
+export { marketApi } from './domains/market/api'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Workbench BFF API（页面级 ViewModel）
