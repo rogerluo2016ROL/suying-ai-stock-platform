@@ -252,12 +252,16 @@ def check_table_latest_date(table: str, date_col: str = "trade_date") -> date | 
     except Exception:
         logger.debug("PG check %s.%s failed, trying SQLite", table, date_col)
 
-    # Fallback: SQLite
+    # Fallback: SQLite (SQLite 无 Identifier API, 用 isidentifier() 校验防注入 + 双引号引用)
+    if not (isinstance(table, str) and isinstance(date_col, str)
+            and table.isidentifier() and date_col.isidentifier()):
+        logger.debug("SQLite check skipped: invalid identifier %s.%s", table, date_col)
+        return None
     try:
         from app.config import DB_PATH
         import sqlite3
         db = sqlite3.connect(DB_PATH)
-        row = db.execute(f"SELECT MAX({date_col}) FROM {table}").fetchone()
+        row = db.execute(f'SELECT MAX("{date_col}") FROM "{table}"').fetchone()
         db.close()
         parsed = _parse_date(row[0]) if row else None
         if parsed:
