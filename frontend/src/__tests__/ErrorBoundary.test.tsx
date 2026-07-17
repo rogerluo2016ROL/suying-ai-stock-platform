@@ -10,9 +10,13 @@ function ThrowOnRender({ message }: { message: string }): JSX.Element {
 
 describe('P1-02: ErrorBoundary 捕获渲染错误兜底', () => {
   // Silence React's expected error logging for these intentional throws.
-  const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-  afterAll(() => spy.mockRestore())
+  // 每 it 独立 spy + restore, 避免并发环境下的 mock 泄漏 (修全套偶发 flaky)
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
 
   it('子组件抛错 → 渲染 500 fallback 含刷新按钮，不白屏', () => {
     render(
