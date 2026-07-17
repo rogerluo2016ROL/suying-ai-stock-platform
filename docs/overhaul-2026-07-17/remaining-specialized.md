@@ -8,7 +8,11 @@
 
 ---
 
-## #10 — P0-2 连接池迁移(routes/repository 裸 `psycopg2.connect` → `pg_conn`)
+## #10 — P0-2 连接池迁移 — repository ✅ 完成(2026-07-18)/ routes 📋 专项
+
+> **repository pool 已完成**:`repository.connect()` 改 `@contextmanager`(用 `kronos_contracts.db.pg_conn` 池);3 个 owned-cur 函数(`list_token_output_pools`/`token_output_counts`/`get_token_output_evidence`)用 `ExitStack` 条件 enter(保留"复用外层 cur"的事务组合语义);service.py 13 处 `with repository.connect() as pg` **零改动**(contextmanager 兼容 with)。`db.get_pg_pool` 建池加 `connect_timeout=PG_CONNECT_TIMEOUT`(默认 5,避免池初始化卡)。
+> **docker PG 运行时验证**:`token_output_counts` 返回 1405 mappings(真实查询)+ pool singleton count=1(复用,未重建)。
+> **routes 仍专项**:prediction/backtest/signal/data routes 的 `connect_timeout=3/5` 是 readiness 倾向(快速失败),迁 pool 是行为变化,留生产多 worker 前。
 
 ### 现状(2026-07-17 勘察)
 

@@ -46,7 +46,8 @@ def get_pg_pool(dsn: str | None = None, maxconn: int | None = None):
     dsn = dsn or _default_pg_dsn()
     if dsn not in _pg_pools:
         cap = maxconn or int(os.environ.get("PG_POOL_MAXCONN", "8"))
-        _pg_pools[dsn] = ThreadedConnectionPool(1, cap, dsn)
+        connect_timeout = int(os.environ.get("PG_CONNECT_TIMEOUT", "5"))
+        _pg_pools[dsn] = ThreadedConnectionPool(1, cap, dsn, connect_timeout=connect_timeout)
     return _pg_pools[dsn]
 
 
