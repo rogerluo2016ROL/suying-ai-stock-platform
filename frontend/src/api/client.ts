@@ -606,28 +606,7 @@ export const screenerApi = {
 // Prediction API（已类型化）
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const predictionApi = {
-  getStatus: (): Promise<AxiosResponse<PredictionStatus>> =>
-    api.get('/prediction/status'),
-
-  getOverview: (): Promise<AxiosResponse<Record<string, unknown>>> =>
-    api.get('/prediction/overview'),
-
-  predict: (code: string, predDays = 10): Promise<AxiosResponse<PredictionResponse>> =>
-    api.post(`/prediction/${code}?pred_days=${predDays}`),
-
-  predictFast: (code: string, predDays = 15): Promise<AxiosResponse<FastPredictionResponse>> =>
-    api.post(`/prediction/${code}/fast?pred_days=${predDays}`),
-
-  predictBatch: (codes: string[], days = 30): Promise<AxiosResponse<BatchPredictionResponse>> =>
-    api.post(`/prediction/${codes[0]}/meta?pred_days=${days}`, codes),
-
-  compare: (codes: string[], predDays = 20): Promise<AxiosResponse<Record<string, unknown>>> =>
-    api.post(`/prediction/compare?pred_days=${predDays}`, codes),
-
-  getAccuracyBacktest: (): Promise<AxiosResponse<Record<string, unknown>>> =>
-    api.get('/prediction/accuracy-backtest'),
-}
+export { predictionApi } from './domains/prediction/api'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Strategy API（已类型化）
@@ -831,28 +810,13 @@ export const marketApi = {
 // Workbench BFF API（页面级 ViewModel）
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const workbenchApi = {
-  getPage: (modulePath: string): Promise<AxiosResponse<WorkbenchPageEnvelope>> => {
-    const normalized = modulePath.replace(/^\/+/, '')
-    const path = normalized.split('/').filter(Boolean).map(encodeURIComponent).join('/')
-    return api.get(`/workbench/${path}`)
-  },
-}
+export { workbenchApi } from './domains/workbench/api'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Alert API（已类型化）
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const alertApi = {
-  getChannels: (): Promise<AxiosResponse<unknown>> =>
-    api.get('/alert/channels'),
-
-  getConfig: (): Promise<AxiosResponse<unknown>> =>
-    api.get('/alert/config'),
-
-  getUnreadCount: (): Promise<AxiosResponse<UnreadAlertCountResponse>> =>
-    api.get('/alert/unread-count'),
-}
+export { alertApi } from './domains/alert/api'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Admin RBAC / Membership API
