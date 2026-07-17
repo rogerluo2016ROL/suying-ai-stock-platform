@@ -35,11 +35,11 @@
 
 | 边界 | 角色 | 产物写入 | 源码层问题的出路 |
 |---|---|---|---|
-| **review-only** | `code-reviewer` / `miniapp-code-reviewer` / `apple-code-reviewer` | 仅 `docs/reviews/`（工具层已 − Edit、Write 限此目录，见下表） | 发现的问题由 product-lead 重派执行层修复；重大架构问题**同时**升级 tech-lead + product-lead，不替任何人决策"要不要修" |
-| **test-only** | `qa-engineer` / `miniapp-qa-engineer` / `apple-qa-engineer` | `docs/qa/` 测试报告 | 失败用例只报告 + 提交证据，由 product-lead 重派执行层修复 |
-| **deploy-only** | `deploy-engineer` / `apple-release-engineer` | `docs/deploy/` 部署 / 发布报告 | 冒烟暴露**代码问题** → 退回 product-lead → dev 修复；**环境 / 配置 / 签名材料问题**（端口、`.env.uat`、容器编排、证书 / profile / 公证凭据）→ 自己重跑；apple-release-engineer 可改 `apple/fastlane/` 配置（流水线配置非业务源码） |
+| **review-only** | `code-reviewer` / `miniapp-code-reviewer` | 仅 `docs/reviews/`（工具层已 − Edit、Write 限此目录，见下表） | 发现的问题由 product-lead 重派执行层修复；重大架构问题**同时**升级 tech-lead + product-lead，不替任何人决策"要不要修" |
+| **test-only** | `qa-engineer` / `miniapp-qa-engineer` | `docs/qa/` 测试报告 | 失败用例只报告 + 提交证据，由 product-lead 重派执行层修复 |
+| **deploy-only** | `deploy-engineer` | `docs/deploy/` 部署报告 | 冒烟暴露**代码问题** → 退回 product-lead → dev 修复；**环境 / 配置问题**（端口、`.env.uat`、容器编排）→ 自己重跑 |
 
-共同点：三类角色都**不修改任何业务源码**（`backend/` / `frontend/` / `miniapp/` / `apple/` 的 App 与 AppCore 等）；需要源码变更时一律 SendMessage product-lead 重派，不绕权限边界。
+共同点：三类角色都**不修改任何业务源码**（`backend/` / `frontend/` / `miniapp/` 的应用等）；需要源码变更时一律 SendMessage product-lead 重派，不绕权限边界。
 
 ### Agent Tools
 
@@ -95,4 +95,4 @@
 
 <!-- END GENERATED:agent-tools-table -->
 
-通用工具底座 + 其他 plugin skills 均来自 Claude Code 内置或官方 plugin marketplace。`qa-engineer` 的 `chrome-devtools` server 加载机制（`.mcp.json` 声明 + `tools` 白名单放行两道独立门 + 可选 `/plugin install chrome-devtools-mcp` slash command）见上方「实操影响」与「关键纠正」说明，此处不重复。`context7` server 走同款两道门：`.mcp.json` 声明 `@upstash/context7-mcp` 且 `alwaysLoad: true`（teammate 白名单无 ToolSearch，deferred 工具拿不到 schema），`tools` 白名单放行 `mcp__context7__*`——当前授予 `tech-lead`（ADR 版本查证）+ `frontend-dev` / `backend-dev` / `ai-agent-dev` / `ml-engineer` / `apple-dev`（第三方库当前版本文档，防 API 幻觉）。`xcodebuild` server（XcodeBuildMCP，Apple 轨的 chrome-devtools 对等物）同款两道门：`.mcp.json` 声明 `npx -y xcodebuildmcp@latest` 且 `alwaysLoad: true`，`tools` 白名单放行 `mcp__xcodebuild__*`——当前授予 `apple-dev`（build / 模拟器 / 跑测试调试）+ `apple-qa-engineer`（真机 devicectl / XCUITest / 截图取证）；签名不归它管（fastlane match，ADR-009）。其余角色无第三方依赖，可直接分发复用。
+通用工具底座 + 其他 plugin skills 均来自 Claude Code 内置或官方 plugin marketplace。`qa-engineer` 的 `chrome-devtools` server 加载机制（`.mcp.json` 声明 + `tools` 白名单放行两道独立门 + 可选 `/plugin install chrome-devtools-mcp` slash command）见上方「实操影响」与「关键纠正」说明，此处不重复。`context7` server 走同款两道门：`.mcp.json` 声明 `@upstash/context7-mcp` 且 `alwaysLoad: true`（teammate 白名单无 ToolSearch，deferred 工具拿不到 schema），`tools` 白名单放行 `mcp__context7__*`——当前授予 `tech-lead`（ADR 版本查证）+ `frontend-dev` / `backend-dev` / `ai-agent-dev` / `ml-engineer`（第三方库当前版本文档，防 API 幻觉）。其余角色无第三方依赖，可直接分发复用。

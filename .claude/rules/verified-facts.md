@@ -15,9 +15,9 @@ paths:
 > 组件清单 / 计数以实际目录为准（`ls .claude/agents|standards|skills|hooks|scripts|commands`），不在文档里重复声明。本文件由 `CLAUDE.md` 指针引入；仅编辑模板内部文件时按 path 自动加载，避免常驻 context（v6.6.2 从 CLAUDE.md 下沉）。
 
 - **Pool 上限**（ADR-001 + `team-roles.md` `Pool 上限` 列）：
-  - product-lead / tech-lead / uiux-designer / content-writer / growth-analyst / deploy-engineer / apple-release-engineer = **1**（禁 pool）
+  - product-lead / tech-lead / uiux-designer / content-writer / growth-analyst / deploy-engineer = **1**（禁 pool）
   - frontend-dev / backend-dev / code-reviewer / qa-engineer = **5**（Small=3 / Med=5 / Large=7）
-  - ai-agent-dev / ml-engineer / miniapp-dev / miniapp-code-reviewer / miniapp-qa-engineer / apple-dev / apple-code-reviewer / apple-qa-engineer = **3**
+  - ai-agent-dev / ml-engineer / miniapp-dev / miniapp-code-reviewer / miniapp-qa-engineer = **3**
 - **Pool 模式 文件命名**：`progress/<role>-<N>.md` / `docs/reviews/<feat>-r<N>-<date>.md` / `docs/qa/<feat>-{e2e,uat}-q<N>-<date>.md`
 - **progress 5 段格式**（`ac-lifecycle.md` "完整条目格式"）：状态 / Skills / SIT 证据 / 质量门 / 下一步（hook `check-progress-file.sh` 强制校验）
 - **Verdict 词表** 4 套（`workflow.md` §Verdict 词表）：code-review `approve / approve with changes / block`；SIT Audit `Pass / Pass with concerns / Redo SIT`；QA 报告级 `Promote / Block / Conditional promote`；UAT 业务签字 `approve / request changes`
