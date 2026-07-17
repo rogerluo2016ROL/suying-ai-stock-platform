@@ -87,28 +87,8 @@ export interface StrategyPick {
   [key: string]: unknown
 }
 
-/** Trade order record (audit log / orders list). */
-export interface TradeOrder {
-  id?: string | number
-  code: string
-  direction: string
-  price: number
-  volume: number
-  status?: string
-  time?: string
-  filled_at?: string
-  [key: string]: unknown
-}
-
-/** Trade account summary. */
-export interface TradeAccount {
-  total_capital?: number
-  total_assets?: number
-  total_pnl?: number
-  available?: number
-  market_value?: number
-  [key: string]: unknown
-}
+// Trade 域类型已拆至 ./domains/trade/types (C 域拆分)
+export type { TradeOrder, TradeAccount } from './domains/trade/types'
 
 export interface MembershipInfo {
   status: string
@@ -918,25 +898,8 @@ export const adminApi = {
 // Trade API（已类型化）
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const tradeApi = {
-  getAccount: (): Promise<AxiosResponse<AccountResponse>> =>
-    api.get('/trade/account'),
-
-  getPositions: (): Promise<AxiosResponse<PositionsResponse>> =>
-    api.get('/trade/positions'),
-
-  getOrders: (): Promise<AxiosResponse<OrdersResponse>> =>
-    api.get('/trade/orders'),
-
-  placeOrder: (order: PlaceOrderRequest): Promise<AxiosResponse<PlaceOrderResponse>> =>
-    api.post('/trade/order', order),
-
-  getRiskVerdicts: (params: RiskVerdictQuery = {}): Promise<AxiosResponse<RiskVerdictsResponse>> =>
-    api.get('/trade/risk-verdicts', { params }),
-
-  getDecisionContexts: (params: DecisionContextQuery = {}): Promise<AxiosResponse<DecisionContextsResponse>> =>
-    api.get('/trade/decision-contexts', { params }),
-}
+// Trade 域 API 已拆至 ./domains/trade/api (C 域拆分)
+export { tradeApi } from './domains/trade/api'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Backtest API（已类型化）
