@@ -72,20 +72,8 @@ import {
 export { injectAuth, clearAuth, injectPlatformContext, clearPlatformContext } from './http'
 
 // ── 保留部分内联类型（与 types.ts 兼容） ──
-/** A screener pick passed to strategy generation / plan picks. */
-export interface StrategyPick {
-  candidate_id?: string
-  source_module?: string
-  source_mode?: string
-  visibility?: 'private' | 'tenant_shared' | 'public'
-  data_scope?: 'public' | 'tenant' | 'user' | 'account'
-  code: string
-  name?: string
-  price?: number
-  score?: number
-  grade?: string
-  [key: string]: unknown
-}
+// Strategy 域类型已拆至 ./domains/strategy/types (C 域拆分)
+export type { StrategyPick } from './domains/strategy/types'
 
 // Trade 域类型已拆至 ./domains/trade/types (C 域拆分)
 export type { TradeOrder, TradeAccount } from './domains/trade/types'
@@ -540,28 +528,7 @@ export { predictionApi } from './domains/prediction/api'
 // Strategy API（已类型化）
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const strategyApi = {
-  generate: (picks: StrategyPick[], capital = 1_000_000): Promise<AxiosResponse<StrategyGenerateResponse>> =>
-    api.post(`/strategy/generate?capital=${capital}`, picks),
-
-  getTemplates: (): Promise<AxiosResponse<StrategyTemplatesResponse>> =>
-    api.get('/strategy/templates'),
-
-  getPlans: (): Promise<AxiosResponse<StrategyPlansResponse>> =>
-    api.get('/strategy/plans'),
-
-  createPlan: (name: string, modelName: string, maxPositions: number, capital = 1_000_000): Promise<AxiosResponse<{ plan: StrategyPlan }>> =>
-    api.post(`/strategy/plans?name=${encodeURIComponent(name)}&model_name=${modelName}&max_positions=${maxPositions}&capital=${capital}`),
-
-  getPlan: (planId: string): Promise<AxiosResponse<StrategyPlan>> =>
-    api.get(`/strategy/plans/${planId}`),
-
-  addPicks: (planId: string, picks: StrategyPick[]): Promise<AxiosResponse<void>> =>
-    api.post(`/strategy/plans/${planId}/picks`, picks),
-
-  deletePlan: (planId: string): Promise<AxiosResponse<void>> =>
-    api.delete(`/strategy/plans/${planId}`),
-}
+export { strategyApi } from './domains/strategy/api'
 
 export interface TrainingModelRecord {
   id: string
@@ -692,58 +659,13 @@ export { tradeApi } from './domains/trade/api'
 // Backtest API（已类型化）
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const backtestApi = {
-  getFactors: (): Promise<AxiosResponse<FactorsResponse>> =>
-    api.get('/backtest/factors'),
-
-  getFactorEvidence: (modelKey: string) =>
-    api.get<FactorEvidenceResponse>('/backtest/factor-evidence', { params: { model_key: modelKey } }),
-
-  run: (params: {
-    mode?: string
-    windows?: number
-    top_n?: number
-    forward_days?: number
-  } = {}): Promise<AxiosResponse<BacktestRunResponse>> => {
-    const { mode = 'all', windows = 3, top_n = 30, forward_days = 60 } = params
-    const qs = new URLSearchParams({ mode, windows: String(windows), top_n: String(top_n), forward_days: String(forward_days) })
-    return api.post(`/backtest/run?${qs.toString()}`)
-  },
-
-  calibrate: (mode = 'all'): Promise<AxiosResponse<unknown>> =>
-    api.post(`/backtest/calibrate?mode=${mode}`),
-
-  compare: (params: {
-    strategy_ids?: string[]
-    start_date?: string
-    end_date?: string
-  } = {}): Promise<AxiosResponse<BacktestCompareResponse>> => {
-    const { strategy_ids = ['momentum', 'quality'], start_date, end_date } = params
-    const qs = new URLSearchParams()
-    strategy_ids.forEach(id => qs.append('strategy_ids', id))
-    if (start_date) qs.set('start_date', start_date)
-    if (end_date) qs.set('end_date', end_date)
-    return api.post(`/backtest/compare?${qs.toString()}`)
-  },
-}
+export { backtestApi } from './domains/backtest/api'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Diagnosis API（已类型化）
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const diagnosisApi = {
-  analyze: (code: string, forceRefresh = false): Promise<AxiosResponse<DiagnosisReport>> =>
-    api.post('/diagnosis/analyze', { code, force_refresh: forceRefresh }),
-
-  compare: (codes: string[], dimensions?: string[], forceRefresh = false): Promise<AxiosResponse<DiagnosisCompareResponse>> =>
-    api.post('/diagnosis/compare', { codes, dimensions, force_refresh: forceRefresh }),
-
-  getHistory: (): Promise<AxiosResponse<DiagnosisHistoryResponse>> =>
-    api.get('/diagnosis/history'),
-
-  getReportPdf: (code: string): Promise<AxiosResponse<Blob>> =>
-    api.get(`/diagnosis/report/${code}/pdf`, { responseType: 'blob' }),
-}
+export { diagnosisApi } from './domains/diagnosis/api'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Health API（已类型化 + 语义化错误）
