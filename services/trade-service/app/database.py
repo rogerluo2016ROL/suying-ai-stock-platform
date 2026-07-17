@@ -13,26 +13,9 @@ already in the asyncpg scheme) takes precedence.
 
 import os
 
+from kronos_contracts.db import resolve_async_url as _resolve_async_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
-
-
-def _resolve_async_url() -> str:
-    """Resolve an asyncpg-compatible Postgres URL.
-
-    Priority: explicit ``DATABASE_URL`` > ``KRONOS_PG_URL`` (psycopg2 scheme)
-    > localhost default. Any ``postgresql://`` scheme is rewritten to
-    ``postgresql+asyncpg://`` (leftmost occurrence only, so credentials are safe).
-    """
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        url = os.environ.get(
-            "KRONOS_PG_URL",
-            "postgresql://kronos:kronos@localhost:6432/kronos",
-        )
-    if url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return url
 
 
 DATABASE_URL = _resolve_async_url()
