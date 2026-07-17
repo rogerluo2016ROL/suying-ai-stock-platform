@@ -87,7 +87,14 @@ pytest tests/ -v 2>/dev/null || true
 
 ---
 
-## #12 — create_app 工厂(统一 11 个 main.py 启动样板)
+## #12 — create_app 工厂(统一 main.py 启动样板)✅ 已完成(2026-07-18)
+
+> **已完成**:工厂 `kronos_contracts.app_factory.create_app` 就位(支持 `lifespan` / `health_extra` dict|callable)。
+> **10/11 服务迁移**:alert/diagnosis/strategy/trade(标准)+ backtest/signal/training/data/screener/prediction(各自保留特殊 lifespan:inject_adapters / scheduler / PG-adapter+sockettimeout / Kronos-src / 模型加载)。
+> **api-gateway 不迁(N/A)**:网关非标准服务——catch-all `@app.api_route("/{path:path}")` 代理(非 router include)+ `probe_services` health(探测上游,非 check_postgres)+ 额外 `/api/v1/runtime/readiness` + 裸 FastAPI 无样板可消除;工厂模式不匹配,强迁会破坏 readiness 探测且收益 ~0。
+> 验证:10 服务 `from app.main import app` 通过(title / health 3 路由 / CORS / signal 的 Deprecate 中间件 / prediction 动态 health_extra)。commit: `86610dcc` / `7bd956cb` / `f58fff56`。
+
+### ~~create_app 工厂(原方案,已完成,留作记录)~~
 
 ### 现状(2026-07-17 勘察)
 
@@ -232,7 +239,7 @@ bash .claude/scripts/lint-all.sh
 | 项 | 风险 | 收益 | 建议 |
 |---|---|---|---|
 | #10(screener repository + routes) | 中(owned-cur/contextmanager 重构 + 行为变化) | 中(防多 worker 撑爆 PG) | 生产多 worker 前做(批 1 已作废,见修正) |
-| #12 create_app | 低(重构) | 中(降样板,新服务省力) | 新增微服务时做 |
+| #12 create_app | — | 中(降样板) | ✅ 完成 2026-07-18(10/11,api-gateway N/A) |
 | #13 模板裁剪 | 高(联动/lint) | 低(不进运行时) | **默认不做**,模板升级时顺带 |
 
 > 已完成:#7(npm audit)/ #8(ErrorBoundary flaky)/ #9(scheduler P0-3 分离 commit)。
