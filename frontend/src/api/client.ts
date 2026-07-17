@@ -59,6 +59,18 @@ import type {
 import type { PlatformSession } from '../types/platform'
 import { configureApiContext } from './core/context'
 
+// C 拆分试点: axios 实例 + auth + 拦截器抽至 ./http (本文件 re-export 保持向后兼容)
+import {
+  api,
+  rootApi,
+  publicMarketApi,
+  injectAuth,
+  clearAuth,
+  injectPlatformContext,
+  clearPlatformContext,
+} from './http'
+export { injectAuth, clearAuth, injectPlatformContext, clearPlatformContext } from './http'
+
 // ── 保留部分内联类型（与 types.ts 兼容） ──
 /** A screener pick passed to strategy generation / plan picks. */
 export interface StrategyPick {
@@ -178,26 +190,6 @@ export interface UserAuthorizationPayload {
   }
 }
 
-const api = axios.create({
-  baseURL: '/api/v1',
-  timeout: 30000,
-  headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,
-})
-
-const rootApi = axios.create({
-  baseURL: '',
-  timeout: 30000,
-  headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,
-})
-
-const publicMarketApi = axios.create({
-  timeout: 10000,
-  headers: { 'Content-Type': 'application/json' },
-  withCredentials: false,
-})
-
 const eastmoneyIndexSecids = ['1.000001', '0.399001', '0.399006', '0.899050']
 
 function eastmoneyScaledNumber(value: unknown) {
@@ -205,106 +197,7 @@ function eastmoneyScaledNumber(value: unknown) {
   return Number.isFinite(number) ? Number((number / 100).toFixed(2)) : undefined
 }
 
-// ── Auth interceptor state (injected by AuthProvider) ──
-
-let _getAccessToken: (() => string | null) | null = null
-let _onRefreshToken: (() => Promise<string | null>) | null = null
-let _onForceLogout: (() => void) | null = null
-let _getPlatformSession: (() => PlatformSession | null) | null = null
-
-export function injectAuth(
-  getToken: () => string | null,
-  refreshToken: () => Promise<string | null>,
-  forceLogout: () => void,
-) {
-  _getAccessToken = getToken
-  _onRefreshToken = refreshToken
-  _onForceLogout = forceLogout
-  configureApiContext({ getToken })
-}
-
-export function clearAuth() {
-  _getAccessToken = null
-  _onRefreshToken = null
-  _onForceLogout = null
-  configureApiContext({ getToken: undefined })
-}
-
-export function injectPlatformContext(getSession: () => PlatformSession | null) {
-  _getPlatformSession = getSession
-  configureApiContext({ getSession })
-}
-
-export function clearPlatformContext() {
-  _getPlatformSession = null
-  configureApiContext({ getSession: undefined })
-}
-
-// ── Request interceptor: attach Authorization + platform boundary headers ──
-
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = _getAccessToken?.()
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  const platformSession = _getPlatformSession?.()
-  if (platformSession?.tenantId) {
-    config.headers['X-Tenant-Id'] = platformSession.tenantId
-  }
-  if (platformSession?.accountId) {
-    config.headers['X-Trade-Account-Id'] = platformSession.accountId
-  }
-  if (platformSession?.dataScope) {
-    config.headers['X-Data-Scope'] = platformSession.dataScope
-  }
-  if (platformSession?.roleView) {
-    config.headers['X-Role-View'] = platformSession.roleView
-  }
-  if (platformSession?.tradeMode) {
-    config.headers['X-Trade-Mode'] = platformSession.tradeMode
-  }
-  if (platformSession?.brokerAdapter) {
-    config.headers['X-Broker-Adapter'] = platformSession.brokerAdapter
-  }
-  return config
-})
-
-// ── Response interceptor: 401 → refresh → retry ──
-
-let _refreshPromise: Promise<string | null> | null = null
-
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (!_onRefreshToken) {
-        _onForceLogout?.()
-        return Promise.reject(error)
-      }
-
-      // Promise lock: only one refresh at a time
-      if (!_refreshPromise) {
-        _refreshPromise = _onRefreshToken().finally(() => {
-          _refreshPromise = null
-        })
-      }
-
-      const newToken = await _refreshPromise
-      if (newToken) {
-        originalRequest._retry = true
-        originalRequest.headers.Authorization = `Bearer ${newToken}`
-        return api(originalRequest)
-      }
-
-      // Refresh failed → force logout
-      _onForceLogout?.()
-    }
-
-    return Promise.reject(error)
-  },
-)
+// axios 实例 / auth 注入 / 请求-响应拦截器已抽至 ./http (C 拆分试点)
 
 // ── Supply Chain Helper Types ──
 
