@@ -4,6 +4,8 @@
 
 > 本节把**角色 + 阶段门 + hook 触发点 + skill 强制调用 + 失败回路 + Pool fan-out / fan-in + 小程序分支 + 上线后链路**叠加在一张图上。子节速查：§1.1 主流程图 / §1.2 Hook 触发表 / §1.3 Skill 强制调用 / §1.4 小程序变体 / §1.5 失败回路 / **§1.6 Multi-instance Worker Pool 速查** / §1.7 Scrum 词汇映射。其他章节为局部视角：§2 角色消息流、§3 通信关系网络、§4-§7 角色能力详情。**只看一张图就理解整个团队 → §1.1 + §1.6**。
 
+> ⚠️ **需求入口 = 变更文件夹**：需求入口是**变更文件夹** `docs/changes/`（skill `agf-writing-change`）+ 活规格 `docs/specs/`（[ADR-012](adr/012-spec-driven-change-folders.md)）。下文图与表中凡标 `PRD / agf-writing-prd` 处，除明确 fallback 外**现行入口均为变更文件夹**；PRD 已弃用（仅 fallback）。
+
 ### 1.1 主流程图（用户提需求 → UAT 签字 → 可选上线后产物）
 
 ```mermaid
@@ -13,7 +15,7 @@ flowchart TD
 
     subgraph S1 [📍 阶段 1: 需求澄清 — product-lead]
         BS[🧠 skill: brainstorming<br/>模糊/多选项时强制]
-        PRD[(📄 PRD<br/>docs/prd/feature-YYYY-MM-DD.md<br/>10 节结构 / skill: agf-writing-prd)]
+        PRD[(📄 需求入口 变更文件夹<br/>docs/changes/&lt;change&gt;/<br/>proposal+delta+design+tasks<br/>skill: agf-writing-change<br/>⚠️ PRD docs/prd 弃用 fallback)]
         WP[📋 skill: writing-plans<br/>≥3 AC 或跨角色时强制]
     end
 
@@ -126,21 +128,26 @@ flowchart TD
 
 | 触发时机 | Hook | 行为 | 阻断/告警 |
 |---|---|---|---|
-| 任何 Bash 调用 | `block-dangerous-bash` | 拦截 `rm -rf` / `DROP TABLE` / `git push --force` / `git reset --hard` | 🛑 硬阻断 |
-| 用户 prompt 提交 | `scan-secrets` | 扫 10 厂商密钥 + PEM/SSH/PuTTY/BIP39 | 🛑 硬阻断 |
+| 任何 Bash 调用 | `block-dangerous-bash` | 拦截 `rm -rf` / `DROP TABLE` / `git push --force` / `git reset --hard` + `git commit --no-verify` / `-c core.hooksPath=` 旁路 | 🛑 硬阻断 |
+| `PreToolUse` (Edit\|Write) | `block-config-edit` | 防 agent 改已存在的 lint/format 配置弱化规则（`.eslintrc`/`.prettierrc`/`ruff.toml`/`.swiftformat` 等）；首次创建放行（ADR-017） | 🛑 硬阻断 |
+| `PreToolUse` (Edit\|Write) | `enforce-write-scope` | 按 `roles.yaml` `boundary.write_scope` 拦角色越界写（reviewer 只 `docs/reviews/`、qa 只 `docs/qa/`、deploy 只 `docs/deploy/`）；主线程 + 无 boundary 角色（dev）放行（ADR-018） | 🛑 硬阻断 |
+| 用户 prompt 提交 | `scan-secrets` | 扫 11 厂商密钥（AWS/GitHub/OpenAI/Anthropic/Google/Slack/DeepSeek/Doubao/Qwen/MiniMax/Apple 签名材料）+ PEM/SSH/PuTTY/BIP39 | 🛑 硬阻断 |
 | WebFetch/WebSearch/Read/Bash/mcp__* 输出 | `sanitize-tool-output` | 检测外部内容里的 prompt-injection 指令 | ⚠️ 软告警 |
 | `git commit`（pre-commit） | `scan-commit` → `lint-all.sh --pre-commit` | 对 staged diff 跑同套 secret 正则 + bash/JSON/YAML lint | 🛑 硬阻断 |
-| `PreToolUse(TaskCreate)` | `validate-task-schema` | 6 段 schema 缺段（任务描述/类型/上下文/上游产物/AC/预期产物）；caller != product-lead 且短描述自动豁免（main session 内部追踪不卡） | 🛑 硬阻断（产品派单时） |
+| `lint-all.sh` / pre-commit（治理自审） | `agf-deny-baseline` + `agf-claims-audit` | `permissions.deny` 被悄悄改小 / baseline 篡改 → exit 2；已注册 hook 无脚本 / CLAUDE.md 点名脚本不存在（幽灵声称）→ exit 2，消 written≠working（ADR-023）；均保守 fail-open | 🛑 硬阻断（lint / commit 时）|
+| `TaskCreated` | `validate-task-schema` | 6 段 schema 缺段（任务描述/类型/上下文/上游产物/AC/预期产物）；caller != product-lead 且短描述自动豁免（main session 内部追踪不卡） | 🛑 硬阻断（产品派单时） |
+| `TaskCreated` | `gate-deploy-release-auth` | deploy-engineer 派单 task 缺「用户授权:」归因行（A-F4）；归因+审计+摩擦层非硬门（ADR-019） | 🛑 硬阻断（部署派单时） |
+| `TaskCreated` | `gate-redo-fuse` | feature 的 blocking 评审报告（`code_verdict: block` / `sit_audit_verdict: Redo SIT`）≥ `AGF_REDO_FUSE_LIMIT`（默认 3）且 task 缺「熔断豁免:」归因（A-F3）；强制升级 tech-lead（ADR-020） | 🛑 硬阻断（回派熔断时） |
 | `SubagentStop` / `TeammateIdle`（执行层） | `check-progress-file` | 团队有 active task 时校验 `progress/<role>(-<N>)?.md` 存在 + 含 5 段格式（状态/Skills/SIT 证据/质量门/下一步）；团队全 completed 时放行 | 🛑 硬阻断 |
 | `TeammateIdle` | `teammate-keepalive` | task list 还有 pending 时 idle | 🛑 阻止 idle |
-| `SubagentStop` / `TeammateIdle`（reviewer） | `validate-review-verdict` | code-reviewer / miniapp-code-reviewer verdict 必从 findings 推（critical>0→block 等），声明≠推导 exit 2 打回；极保守 fail-open | 🛑 硬阻断（reviewer 退出时） |
+| `SubagentStop` / `TeammateIdle`（reviewer + qa，6 role） | `validate-verdict` | reviewer verdict 必从 frontmatter 原子事实推（code: critical_count>0→block；SIT: sit_checks 含 fail→Redo SIT）+ qa 客观底线（critical_defect>0 非 Block / P0 未全 pass² 却 Promote）→ 声明≠推导或违反底线 exit 2 打回（委托 `agf-verdict.py`，ADR-010）；极保守 fail-open | 🛑 硬阻断（reviewer / qa 退出时） |
 
 ### 1.3 阶段 × Skill 强制调用
 
 | 阶段 | 谁调 | Skill | 跳过条件 |
 |---|---|---|---|
 | 接到模糊/多选项需求 | product-lead | `superpowers:brainstorming` | 用户已给明确 PRD / 单点 bugfix |
-| 写 PRD | product-lead | `agf-writing-prd` | — |
+| 建变更文件夹（需求入口；PRD `agf-writing-prd` 弃用 fallback） | product-lead | `agf-writing-change` | — |
 | 实施计划（≥3 AC / 跨角色） | product-lead | `superpowers:writing-plans` | 单角色 / 单 AC |
 | 并行派 ≥2 execution teammate | product-lead | `superpowers:using-git-worktrees` | 单实例派发、纯只读 reviewer 并行 |
 | 写 ADR | tech-lead | `agf-writing-adr` | — |
@@ -188,7 +195,7 @@ flowchart TD
 
 ### 1.6 Multi-instance Worker Pool 速查（fan-out / fan-in 模型）
 
-> ADR-001 决策：同 type 有 ≥ 2 个 pending task 时，PL 自动 fan-out N 个实例 `<type>-<N>`，并发执行后由 PL 用 matrix 工具 fan-in 决策。详 [`ADR-001`](./adr/001-multi-instance-worker-pool.md) + [`workflow.md` §Multi-instance Worker Pool](../.claude/standards/workflow.md)。
+> ADR-001 决策：同 type 有 ≥ 2 个 pending task 时，PL 自动 fan-out N 个实例 `<type>-<N>`，并发执行后由 PL 用 matrix 工具 fan-in 决策。详 `ADR-001` + [`workflow.md` §Multi-instance Worker Pool](../.claude/standards/workflow.md)。
 
 **3 个 Pool 层**（与主流程 §1.1 阶段一一对应）：
 
@@ -200,6 +207,8 @@ flowchart TD
 
 **Pool 上限**：各角色上限（1 / 3 / 5）+ 按 [`cost-budget.md`](../.claude/standards/cost-budget.md) 的 Small=3 / Med=5 / Large=7 分档，以 [`team-roles.md`](../.claude/standards/team-roles.md) `Pool 上限` 列为权威。
 
+**实例生命周期（过门即关，不复用 · [ADR-025](adr/025-instance-lifecycle-eager-close.md)）**：实例完成**不复用**（复用=context bleed，teammate 无法清上下文；"上下文全显式传递" 使 fresh spawn 零损失）；**最后一道可回派门通过后即逐实例关**——reviewer/qa = fan-in 后关、dev = 名下 task 全过 UAT 签字后关（review/E2E/UAT 都能回派 dev，须活到 UAT 待命）。过门即关，不等 `/agf-team-stop` 批量关，消 idle 僵尸。
+
 **PL Fan-in 工具**（一表看全，不必逐个开报告）：
 
 | 命令 | 看什么 |
@@ -209,7 +218,9 @@ flowchart TD
 | `bash .claude/scripts/agf-matrix.sh --type=qa --feature=<slug>` | 全 E2E/UAT 报告 verdict + UAT 签字 + P0 pass^2（qa fan-in）|
 | `bash .claude/scripts/archive-progress.sh <feature>` | UAT 通过后归档：按 base role 分组 + 组内按 N 升序合并 `progress/<role>{-<N>}.md` → `docs/qa/<feature>-process-log.md` |
 
-**单实例例外（pool=off）/ 端口偏移 / N 分配算法**：规则细则见 [`ADR-001`](./adr/001-multi-instance-worker-pool.md) + [`workflow.md` §Multi-instance Worker Pool](../.claude/standards/workflow.md)（命中同文件改动 / DB schema / Auth / LLM 切换 / cross-cutting 即走单实例）。
+**单实例例外（pool=off）/ 端口偏移 / N 分配算法**：规则细则见 `ADR-001` + [`workflow.md` §Multi-instance Worker Pool](../.claude/standards/workflow.md)（命中同文件改动 / DB schema / Auth / LLM 切换 / cross-cutting 即走单实例）。
+
+> **Pool 之外的可选并行编排 = Dynamic Workflow**（显式触发，**不在交付主链路**）：批量独立任务 / 高风险大 PR 深审 / 写 PRD-ADR 前摸代码，可用 `/agf-code-map`（codemap 只读理解地图喂 PRD/ADR，[ADR-021](adr/021-code-understanding-engine.md)）；高风险大 PR 深审走 Review pool 维度分工或内置 `/code-review ultra`（原 `/agf-review-sweep` 已按 ADR-026 D5 退役）。何时用 Pool vs Workflow vs Team + workflow agent 卫生约束见 [`workflow.md`](../.claude/standards/workflow.md) §何时用 Workflow。
 
 ### 1.7 Scrum 词汇 ↔ 本项目载体（feature 流变体）
 
@@ -222,6 +233,7 @@ flowchart TD
 ## 2. 角色协作消息流
 
 > 下图是**单实例**视角的消息流主链路。**Pool 模式**下被 PL fan-out 的角色（dev / reviewer / qa）以 `<type>-<N>` 多实例并发，但消息箭头方向不变（依然汇聚到 PL）；详 §1.6。
+>
 
 ```mermaid
 flowchart TD
@@ -234,13 +246,13 @@ flowchart TD
     AI["🩷 ai-agent-dev\nopus · pink\nLLM / RAG / Agent"]
     CR["🟡 code-reviewer\nsonnet · yellow\n代码质量 / 安全"]
     QA["🔴 qa-engineer\nsonnet · red\nE2E / UAT 执行 + 报告"]
-    DE["🩶 deploy-engineer\nsonnet · slate\nUAT 部署 / 容器编排 / 冒烟自检"]
-    ML["🟩 ml-engineer\nsonnet · lime\n多模态 / 推理服务 / 文生图·文生视频"]
-    MD["🟦 miniapp-dev\nsonnet · teal\n小程序开发 / 原生 / Taro"]
-    MCR["🟧 miniapp-code-reviewer\nhaiku · amber\n小程序审查 / 审核合规"]
-    MQA["🌷 miniapp-qa-engineer\nsonnet · rose\n小程序 E2E / UAT"]
-    CW["🟪 content-writer\nsonnet · violet\nrelease notes / blog / 案例"]
-    GA["🟫 growth-analyst\nsonnet · indigo\n指标 / A/B 实验 / 漏斗"]
+    DE["🟢 deploy-engineer\nsonnet · green\nUAT 部署 / 容器编排 / 冒烟自检"]
+    ML["🩷 ml-engineer\nsonnet · pink\n多模态 / 推理服务 / 文生图·文生视频"]
+    MD["🩵 miniapp-dev\nsonnet · cyan\n小程序开发 / 原生 / Taro"]
+    MCR["🟡 miniapp-code-reviewer\nhaiku · yellow\n小程序审查 / 审核合规"]
+    MQA["🔴 miniapp-qa-engineer\nsonnet · red\n小程序 E2E / UAT"]
+    CW["🟣 content-writer\nsonnet · purple\nrelease notes / blog / 案例"]
+    GA["🔵 growth-analyst\nsonnet · blue\n指标 / A/B 实验 / 漏斗"]
 
     USER -->|"用户需求"| PL
     PL -.->|"技术可行性咨询"| TL
@@ -306,6 +318,9 @@ flowchart TD
 ## 3. 通信关系网络
 
 > 实线 = 主链路（直派 / 完成报告）；虚线 = 按需咨询。Pool 模式下 `frontend-dev-1` / `frontend-dev-2` 之间**不直接通信**——跨实例协调一律经 PL 中转（详 §1.6）。
+>
+> **FE ↔ BE「API 契约」边的机制**：契约的单一来源是后端 OpenAPI，前端用 orval 生成 类型 / hooks / MSW mock（禁手写）；SendMessage 仅协商接口设计意图，不当契约。防"前后端接不上 / 按钮点击无反应"，机制见 docs/adr/006-frontend-backend-contract-sync.md + .claude/standards/coding.md 前后端契约纪律 + .claude/standards/testing.md 前后端对接强制覆盖项。
+>
 
 ```mermaid
 graph LR
@@ -398,14 +413,13 @@ graph LR
 | 能力维度 | product-lead | tech-lead | uiux-designer | frontend-dev | backend-dev | ai-agent-dev | code-reviewer | qa-engineer | ml-engineer |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | **Model** | opus | opus | sonnet | sonnet | sonnet | opus | sonnet | sonnet | sonnet |
-| **Color** | 🟠 orange | 🔵 blue | 🟣 purple | 🩵 cyan | 🟢 green | 🩷 pink | 🟡 yellow | 🔴 red | 🟩 lime |
+| **Color** | 🟠 orange | 🔵 blue | 🟣 purple | 🩵 cyan | 🟢 green | 🩷 pink | 🟡 yellow | 🔴 red | 🩷 pink |
 | **Permission** | acceptEdits | acceptEdits | acceptEdits | acceptEdits | acceptEdits | acceptEdits | auto（review-only，Write 仅限 docs/reviews/） | acceptEdits | acceptEdits |
-| **Pool 上限**（详 §1.6 + [ADR-001](./adr/001-multi-instance-worker-pool.md)）| **1** 禁 | **1** 禁 | **1** 禁 | **5**（3/5/7）| **5**（3/5/7）| **3** | **5**（3/5/7）| **5**（3/5/7）| **3** |
+| **Pool 上限**（详 §1.6 + `ADR-001`）| **1** 禁 | **1** 禁 | **1** 禁 | **5**（3/5/7）| **5**（3/5/7）| **3** | **5**（3/5/7）| **5**（3/5/7）| **3** |
 | **可写文件** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅（仅 docs/reviews/） | ✅ | ✅ |
 | **WebSearch** | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ |
 | **WebFetch** | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ |
 | **TaskCreate** | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| **TeamCreate** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **SendMessage** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ### 交付链路新增角色能力（独立子表）
@@ -415,14 +429,13 @@ graph LR
 | 能力维度 | deploy-engineer |
 |---|:---:|
 | **Model** | sonnet |
-| **Color** | 🩶 slate |
+| **Color** | 🟢 green |
 | **Permission** | acceptEdits |
-| **Pool 上限**（详 §1.6 + [ADR-001](./adr/001-multi-instance-worker-pool.md)）| **1** 禁（唯一 UAT 环境）|
+| **Pool 上限**（详 §1.6 + `ADR-001`）| **1** 禁（唯一 UAT 环境）|
 | **可写文件** | ✅（默认 `docs/deploy/`；不修源码）|
 | **WebSearch** | ❌ |
 | **WebFetch** | ❌ |
 | **TaskCreate** | ❌ |
-| **TeamCreate** | ❌ |
 | **SendMessage** | ✅ |
 
 ### MiniApp 角色能力（独立子表）
@@ -432,14 +445,13 @@ graph LR
 | 能力维度 | miniapp-dev | miniapp-code-reviewer | miniapp-qa-engineer |
 |---|:---:|:---:|:---:|
 | **Model** | sonnet | haiku（cost-budget.md 路由）| sonnet |
-| **Color** | 🟦 teal | 🟧 amber | 🌷 rose |
+| **Color** | 🩵 cyan | 🟡 yellow | 🔴 red |
 | **Permission** | acceptEdits | auto（review-only，Write 仅限 docs/reviews/） | acceptEdits |
-| **Pool 上限**（详 §1.6 + [ADR-001](./adr/001-multi-instance-worker-pool.md)）| **3** | **3** | **3** |
+| **Pool 上限**（详 §1.6 + `ADR-001`）| **3** | **3** | **3** |
 | **可写文件** | ✅ | ✅（仅 docs/reviews/） | ✅ |
 | **WebSearch** | ❌ | ❌ | ❌ |
 | **WebFetch** | ✅ | ❌ | ❌ |
 | **TaskCreate** | ❌ | ❌ | ❌ |
-| **TeamCreate** | ❌ | ❌ | ❌ |
 | **SendMessage** | ✅ | ✅ | ✅ |
 
 ### Post-Launch 角色能力（独立子表）
@@ -449,13 +461,12 @@ graph LR
 | 能力维度 | content-writer | growth-analyst |
 |---|:---:|:---:|
 | **Model** | sonnet | sonnet |
-| **Color** | 🟪 violet | 🟫 indigo |
+| **Color** | 🟣 purple | 🔵 blue |
 | **Permission** | acceptEdits | acceptEdits |
 | **可写文件** | ✅（默认 `docs/content/`） | ✅（默认 `docs/growth/`） |
 | **WebSearch** | ✅ | ✅ |
 | **WebFetch** | ✅ | ✅ |
 | **TaskCreate** | ❌ | ❌ |
-| **TeamCreate** | ❌ | ❌ |
 | **SendMessage** | ✅ | ✅ |
 
 ---
@@ -477,7 +488,7 @@ graph LR
 | frontend-design | `/frontend-design:*` | uiux-designer, frontend-dev | 组件设计规范、可访问性建议（uiux-designer 同时支持 MiniApp Mode） |
 | feature-dev | `/feature-dev:feature-dev` | frontend-dev, backend-dev, ai-agent-dev, miniapp-dev | 快速搭建功能骨架 |
 | code-review | `/code-review:*` | code-reviewer, miniapp-code-reviewer | 结构化审查框架 |
-| code-simplifier | `/code-simplifier:*` | code-reviewer, backend-dev, miniapp-code-reviewer | 复杂度评估、简洁性建议 |
+| simplify（内置 skill，非 plugin） | `/simplify` | code-reviewer, miniapp-code-reviewer（review-only）, backend-dev, frontend-dev, ai-agent-dev, ml-engineer, miniapp-dev（dev） | 复杂度评估与简化清理；reviewer 仅跑 Phase 1+2 出建议（review-only），dev（backend / frontend / ai-agent / ml / miniapp）可跑 Phase 3 应用 |
 | chrome-devtools-mcp | `/chrome-devtools-mcp:*` | qa-engineer | E2E 浏览器测试（需连接） |
 | superpowers | `/superpowers:*` | product-lead, tech-lead, frontend-dev, backend-dev, ai-agent-dev, qa-engineer, ml-engineer, miniapp-dev, miniapp-qa-engineer, content-writer, growth-analyst | 需求澄清、实现前检查、系统化调试、完成前验证、审查闭环 |
 
@@ -491,9 +502,11 @@ graph LR
 | agf-running-sit-tests | frontend-dev, backend-dev, ai-agent-dev, ml-engineer, miniapp-dev（5 dev 自跑 SIT）；reviewer 角色 audit 时参考 | SIT 范围、环境准备、AC 驱动的集成 walk、证据落 `progress/<role>.md` |
 | agf-deploying-uat | deploy-engineer | merge 后部署隔离 UAT 栈：适用门 / 隔离起栈（project+端口偏移）/ 迁移 / 冒烟 / 交接 / 部署报告骨架 |
 | agf-writing-qa-report | qa-engineer, miniapp-qa-engineer | 写 E2E / UAT 报告时的骨架 + 证据质量条 + verdict 标准（SIT 不在覆盖范围） |
-| agf-writing-prd | product-lead | PRD 10-section 结构 + AC 质量条 + 完成前自检 |
+| agf-writing-change | product-lead | 变更文件夹入口：proposal+delta+design+tasks / AC↔scenario 映射 / validate / archive（取代 PRD）|
+| ~~agf-writing-prd~~（弃用 fallback）| product-lead | PRD 10-section（仅 fallback）|
 | agf-writing-adr | tech-lead | ADR 结构 + 强制备选 + 版本查证 |
-| agf-running-release-retro | product-lead | MAJOR / MINOR 释出后的发布复盘（PATCH 跳过） |
+| agf-design-discipline | uiux-designer, frontend-dev | 审美纪律层（AI Tells 黑名单 / 三刻度 / Design Read / Pre-Flight），三层治理见 ADR-013；不重声明 token、不引导非 shadcn 系统 |
+| agf-running-release-retro | product-lead | MAJOR / MINOR 释出后的发布复盘（**建议·提醒，非强制**；PATCH 跳过） |
 | agf-writing-docx-reports | content-writer, product-lead, tech-lead（按需触发） | 程序化生成中文 docx 高密度报告（决议书 / 评审 / 投标书等）；依赖第三方 skill `docx` |
 | agf-writing-pptx-reports | content-writer, product-lead, tech-lead（按需触发） | 程序化生成中文 pptx deck（制度 / 党政 / 培训宣贯）；依赖第三方 skill `pptx` |
 | agf-writing-github-issue | 全角色按需 + dev SIT 自动 path / qa E2E-UAT 自动 path | 在仓库提 issue（最小输入模式 + 标签锁定）；两条自动 path：① dev 跑 SIT 中发现 P0/P1 → 直接 `gh issue create --label "phase:sit"` ② qa-engineer/miniapp-qa-engineer 在 E2E/UAT 中发现 P0/P1 → 直接 `gh issue create --label "phase:e2e\|phase:uat"`；P2 缺陷不开 issue |
@@ -508,14 +521,14 @@ graph LR
 
 | 角色 | 三个关键词 | 主要输出 |
 |---|---|---|
-| **product-lead** | 需求挖掘 · 流程编排 · 验收交付 | PRD、任务单、交付报告 |
+| **product-lead** | 需求挖掘 · 流程编排 · 验收交付 | 变更文件夹（proposal+delta+design+tasks，skill `agf-writing-change`）、任务单、交付报告（~~PRD~~ 弃用 fallback）|
 | **tech-lead** | 架构基线 · 技术选型 · 架构风险评审（条件触发） | 技术方案、ADR、风险预警 |
-| **uiux-designer** | Web + MiniApp 设计 · 交互流程 · 静态 HTML 原型 | Web 设计规范 + 原型；MiniApp Mode 下产出 WeUI 规范 + 小程序原型 |
+| **uiux-designer** | Web + MiniApp 设计 · 交互流程 · 静态 HTML 原型 · **反 AI 味审美** | 项目级 `DESIGN.md`（设计 token SSOT）+ Web 设计规范 + 原型（守 skill `agf-design-discipline` 审美纪律：Design Read + 三刻度 + AI Tells 自查）；MiniApp Mode 下产出 WeUI 规范 + 小程序原型 |
 | **frontend-dev** | UI 组件 · 页面实现 · API 对接 | React/Vue 组件、页面、状态管理；Unit + SIT 自跑（`frontend/tests/sit/*`，证据进 `progress/frontend-dev.md` 或 pool 模式 `progress/frontend-dev-<N>.md`，详 §1.6） |
 | **backend-dev** | REST API · 数据库 · 业务逻辑 | API 端点、数据库迁移、中间件；Unit + SIT 自跑（`backend/tests/sit/*`，证据进 `progress/backend-dev{-<N>}.md`） |
 | **ai-agent-dev** | LLM 集成 · Prompt 工程 · RAG | Agent 工作流、Prompt、RAG 管道；Unit + SIT 自跑（含 prompt + RAG 集成层证据进 `progress/ai-agent-dev{-<N>}.md`） |
 | **code-reviewer** | 代码质量 · 安全审计 · SIT Audit | 审查报告含 YAML frontmatter（[`_TEMPLATE.md`](./reviews/_TEMPLATE.md)）+ critical/warning/suggestion + `## SIT Audit` 节（✅ Pass / ⚠️ Pass with concerns / ❌ Redo SIT）；路径 `docs/reviews/<feat>-<date>.md` 或 pool `docs/reviews/<feat>-r<N>-<date>.md` |
-| **qa-engineer** | E2E + UAT 执行 · 质量保障 · P0 pass^2 | E2E/UAT 报告含 YAML frontmatter（[`_TEMPLATE.md`](./qa/_TEMPLATE.md)）+ `report_verdict`（Promote/Block/Conditional promote）+ UAT 业务签字 verdict；**P0 case 必须连续跑 2 次都过**（`p0_pass2_total` / `p0_pass2_ok`）；路径 `docs/qa/<feat>-{e2e,uat}-<date>.md` 或 pool `docs/qa/<feat>-{e2e,uat}-q<N>-<date>.md` |
+| **qa-engineer** | E2E + UAT 执行 · 质量保障 · P0 pass^2 | E2E/UAT 报告含 YAML frontmatter（[`_TEMPLATE.md`](./qa/_TEMPLATE.md)）+ `report_verdict`（Promote/Block/Conditional promote）+ UAT 业务签字 verdict；**UAT 前先产用例文档**（[`uat-cases-_TEMPLATE.md`](./qa/uat-cases-_TEMPLATE.md)，每 AC ≥1 用例 · 6 字段 · 界面渲染核查矩阵，**用户审核 `status: Approved` 后才执行**）；**UAT 每个用户可见界面 chrome-devtools 真渲染 + 截图 + 读图四查**（导航/裁切/控件可点/视觉达标——截图必须 Read 读回做视觉分析，纯 API 断言不构成 Pass，`testing.md`「UAT 界面渲染核查」）；**P0 case 必须连续跑 2 次都过**（`p0_pass2_total` / `p0_pass2_ok`）；路径 `docs/qa/<feat>-{e2e,uat}-<date>.md` 或 pool `docs/qa/<feat>-{e2e,uat}-q<N>-<date>.md` |
 | **deploy-engineer** | UAT 部署 · 容器编排 · 冒烟自检 | UAT 部署报告 `docs/deploy/<feature>-uat-<date>.md`（栈 URL + 冒烟证据 + 二元 gate ✅/❌）；部署源 = 合并后 main，隔离起栈（独立 compose project + 端口偏移），不修源码 |
 | **ml-engineer** | 模型集成 · 推理服务 · 多模态 Pipeline | 推理 API 封装、文生图/文生视频管道、模型评估报告；Unit + SIT 自跑（推理链路集成证据进 `progress/ml-engineer{-<N>}.md`） |
 | **miniapp-dev** | 小程序开发 · 原生 · Taro 兜底 | 微信小程序页面/组件、wx.* API 集成、组件单测；Unit + SIT 自跑（DevTools 模拟器 + 集成证据进 `progress/miniapp-dev{-<N>}.md`） |
