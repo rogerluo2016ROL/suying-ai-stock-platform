@@ -1,17 +1,17 @@
-import os
 """Prediction Service — Kronos 30-day K-line forecasting.
 
 Usage:
     cd services/prediction-service
     python -m uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
 """
-
-import logging, sys, os
+import logging
+import os
+import sys
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-# Ensure packages/ are importable
+from fastapi import FastAPI
+
+# 注入共享 packages(须在 import app.routes 前——routes 依赖 kronos-core/factors/data)
 _PACKAGES = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages"))
 for _pkg in ["kronos-core", "kronos-factors", "kronos-data"]:
     _path = os.path.join(_PACKAGES, _pkg)
@@ -19,8 +19,8 @@ for _pkg in ["kronos-core", "kronos-factors", "kronos-data"]:
         sys.path.insert(0, _path)
 
 from app.routes import router
+from kronos_contracts.app_factory import create_app
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("prediction-service")
 
 _model_loaded = False
@@ -130,33 +130,18 @@ async def lifespan(app: FastAPI):
     logger.info("Prediction Service stopped.")
 
 
-app = FastAPI(
-    title="速赢AI - Prediction Service",
+app = create_app(
+    "prediction-service",
+    "0.1.0",
+    [router],
     description="Kronos K-line prediction — 30-day OHLCV forecasting",
-    version="0.1.0",
     lifespan=lifespan,
+    health_extra=lambda: {
+        "model_loaded": _model_loaded,
+        # M05: checkpoint 来源 metric — finetuned=自研, base_public=公开 Kronos-mini
+        "checkpoint_status": _model_checkpoint_status,
+    },
 )
-
-app.add_middleware(CORSMiddleware, allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS","http://localhost:5173,http://localhost:3000").split(","), allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
-app.include_router(router)
-
-
-@app.get("/api/v1/health/live")
-async def health_live_contract():
-    return {"live": True, "service": "prediction-service", "version": "0.1.0"}
-
-@app.get("/api/v1/health/ready")
-async def health_ready_contract():
-    from kronos_contracts.health import check_postgres, build_health
-    return build_health("prediction-service", "0.1.0", {"postgres": await check_postgres()}).model_dump()
-@app.get("/api/v1/health")
-async def health():
-    return {"status": "healthy", "service": "prediction-service",
-            "model_loaded": _model_loaded,
-            # M05: checkpoint 来源 metric — finetuned=自研, base_public=公开 Kronos-mini
-            "checkpoint_status": _model_checkpoint_status,
-            "version": "0.1.0"}
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
-from typing import Iterable
+from typing import Callable, Iterable
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,7 +38,7 @@ def create_app(
     lifespan=None,
     cors_origins: list[str] | None = None,
     enable_health: bool = True,
-    health_extra: dict | None = None,
+    health_extra: dict | Callable[[], dict] | None = None,
 ) -> FastAPI:
     """装配 FastAPI 实例(CORS + health 端点 + routers + lifespan)。
 
@@ -51,7 +51,8 @@ def create_app(
         lifespan: 自定义 async contextmanager;None 用 default_lifespan。
         cors_origins: CORS 白名单;None 读 env CORS_ALLOWED_ORIGINS(默认 5173/3000)。
         enable_health: 是否注册 /api/v1/health[/live|/ready] 三端点。
-        health_extra: 合并进 /api/v1/health 响应的额外字段(如 trade 的 mode)。
+        health_extra: 合并进 /api/v1/health 响应的额外字段。静态用 dict(trade 的 mode);
+            动态用 callable(prediction 的 model_loaded,运行时随 lifespan 变化)。
     """
     logging.basicConfig(
         level=logging.INFO,
@@ -95,7 +96,8 @@ def create_app(
         async def _health():
             resp = {"status": "healthy", "service": service_name, "version": version}
             if health_extra:
-                resp.update(health_extra)
+                extra = health_extra() if callable(health_extra) else health_extra
+                resp.update(extra)
             return resp
 
     return app
