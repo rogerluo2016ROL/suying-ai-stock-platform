@@ -1,0 +1,12 @@
+diff --git a/progress/frontend-dev-3.md b/progress/frontend-dev-3.md
+index 66f180bc..62823165 100644
+--- a/progress/frontend-dev-3.md
++++ b/progress/frontend-dev-3.md
+@@ -1,5 +1,7 @@
+ # frontend-dev-3 Progress
+ 
++> ⚠️ **task #6（BatchA-Screener 候选池按钮解禁）由重启实例 frontend-dev-3b 交付**，SIT 证据见同目录 [`frontend-dev-3b.md`](./frontend-dev-3b.md)（commit `5b092164`，分支 `feat/md-ui-screener-dev3b`，worktree `.wolf/worktrees/frontend-dev-3b`）。本文件下方为历史 task（T-206），与 task #6 无关。
++
+ ## T-206: model-training frontend 修复（4 项 P0） — 2026-06-12 14:30
+ 
+ **状态**: Completed

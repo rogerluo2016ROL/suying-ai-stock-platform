@@ -1,0 +1,135 @@
+diff --git a/.superpowers/sdd/.gitignore b/.superpowers/sdd/.gitignore
+index 756413c2..72e8ffc0 100644
+--- a/.superpowers/sdd/.gitignore
++++ b/.superpowers/sdd/.gitignore
+@@ -1,5 +1 @@
+-task-*-brief.md
+-task-*-report.md
+-platform-task-*-brief.md
+-platform-task-*-report.md
+-review-*.diff
++*
+diff --git a/.superpowers/sdd/progress.md b/.superpowers/sdd/progress.md
+index 1f759ef4..95362779 100644
+--- a/.superpowers/sdd/progress.md
++++ b/.superpowers/sdd/progress.md
+@@ -49,3 +49,23 @@
+ ## 次要问题
+ 
+ - Starlette 仍有 1 条弃用警告，若未在对应服务任务中自然消除，则在最终收口阶段处理。
++
++---
++
++# 毕师傅硬核科技 V2 扭亏实施台账
++
++- 依据设计：`docs/superpowers/specs/2026-07-16-bi-hardtech-v2-turnaround-design.md`
++- 依据计划：`docs/superpowers/plans/2026-07-16-bi-hardtech-v2-turnaround.md`
++- 实施分支：`codex/bi-hardtech-v2-turnaround`
++- 起始提交：`083fd7564f64be577456d3e84d3bbab7f1700f07`
++- 基线验证：`backend/tests/ml/test_simulate_position.py` 13 通过；`test_bi_trend_four_axis.py` 10 通过。
++
++## 任务状态
++
++| 任务 | 状态 | 开发提交 | 审查 | 验证 |
++|---|---|---|---|---|
++| 1. V2 纯规则层 | 已完成 | `8a84dcaf`, `91f51269` | CLEAN | 12/12 |
++| 2. 历史 regime 隔离 | 已完成 | `1456deb6`, `7ef31ac9` | CLEAN | 26/26 |
++| 3. 事件驱动资金模拟 | 已完成 | `0ecf9ffb` | CLEAN | 9/9 |
++| 4. 三臂回测与数据审计 | 进行中 | - | - | - |
++| 5. 真实一年验证与决策 | 待开始 | - | - | - |
+diff --git a/.superpowers/sdd/task-3-report.md b/.superpowers/sdd/task-3-report.md
+index 11707a5e..8f264419 100644
+--- a/.superpowers/sdd/task-3-report.md
++++ b/.superpowers/sdd/task-3-report.md
+@@ -1,63 +1,28 @@
+-# Task 3 报告：Add PostgreSQL Fetch Pipeline
+-
+-## 实现内容
+-- 给 `CbAuctionT0Engine` 补齐了 `run()` 编排：按顺序调用 `_fetch_effective_trade_date`、`_fetch_previous_trade_date`、`_fetch_trigger_stocks`、`_fetch_concepts`、`_fetch_bonds`。
+-- 新增了 5 个 PostgreSQL fetch helper，覆盖：
+-  - 竞价封板触发股
+-  - 同花顺概念映射
+-  - 转债映射
+-  - 交易日/前一交易日推导
+-- 保持原有 `_assemble_result` 和 `_relation_reason` 行为不变。
+-- 按 brief 口径保留：
+-  - `limit_type = 'U'`
+-  - `first_time IS NOT NULL`
+-  - `first_time <= '09:30:00'`
+-  - `fd_amount > 1_000_000_000`
+-  - 前一交易日同股已涨停则拒绝
+-  - 缺少 `fd_amount` 直接拒绝，不估算封单金额
+-  - 转债侧不按强赎、溢价率、成交额、剩余规模、退市日期做硬过滤
+-
+-## TDD 证据
+-### RED
+-命令：
+-```bash
+-bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q -k test_run_assembles_fetcher_outputs_without_postgres
+-```
+-结果：
+-```text
+-F ... AttributeError: <kronos_factors.engine.cb_auction_t0.CbAuctionT0Engine object at ...> has no attribute '_fetch_effective_trade_date'
+-```
+-
+-### GREEN
+-同一命令在实现后通过：
+-```text
+-. [100%]
+-```
+-
+-### 回归确认
+-命令：
+-```bash
+-bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q
+-```
+-结果：
+-```text
+-......... [100%]
+-```
+-
+-## 测试命令和结果
+-- `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q -k test_run_assembles_fetcher_outputs_without_postgres`
+-  - 先失败，后通过
+-- `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+-  - 通过，9 个测试全绿
+-
+-## 文件变更
+-- `packages/kronos-factors/kronos_factors/engine/cb_auction_t0.py`
+-- `packages/kronos-factors/tests/test_cb_auction_t0.py`
+-
+-## 自查结果
+-- `run()` 现在会真正走 fetch 编排，不再返回空壳结果。
+-- patched fetchers + fake connection 的单测已覆盖，不依赖本机 PostgreSQL。
+-- 现有 8 个 helper/assembly 测试未回归。
+-
+-## 疑虑
+-- 无额外疑虑；本任务按要求没有连接真实 PostgreSQL，当前验证范围已覆盖 brief 要求的编排逻辑。
++# Task 3 报告：事件驱动资金模拟器
++
++## 结果
++- 状态：已完成
++- 实现文件：`packages/kronos-factors/kronos_factors/backtest/portfolio_v2.py`
++- 测试文件：`packages/kronos-factors/tests/test_portfolio_v2.py`
++
++## TDD 过程
++1. RED
++   - 命令：`bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_portfolio_v2.py -q`
++   - 结果：`ModuleNotFoundError: No module named 'kronos_factors.backtest.portfolio_v2'`
++2. GREEN
++   - 同一命令复跑通过
++   - 结果：`9 passed`
++
++## 本次实现覆盖
++- 纯模拟器，无数据库依赖
++- 事件顺序固定为：旧仓开盘估值 -> 新开仓 -> 同日退出 -> 收盘盯市
++- bull 50%，neutral 30%，单股 15%，每日最多 2 只，无杠杆
++- 14bp 双边分摊为买卖各 7bp
++- 未平仓按每日收盘净值盯市，不计入已实现胜率
++- 月收益按上月末净值到本月末净值计算
++- 最大回撤按逐日收盘净值计算
++- 缺失 `adj_factor` 时抛出 `ValueError("adj_factor_missing")`
++
++## 验证
++- 最终测试命令：`bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_portfolio_v2.py -q`
++- 完整通过数：`9/9`

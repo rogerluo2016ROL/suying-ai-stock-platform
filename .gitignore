@@ -86,3 +86,12 @@ outputs/ai_compute_complete_data_*/
 .env.*
 chatBI/AI 后端.zip
 .firecrawl/
+
+# AppGenesisForge 运行态产物（可重建，不入库；ADR-021 codemap .agf/ 等）
+**/.agf/*
+!**/.agf/config.json
+progress/board.html*
+
+# 审视清理 20260717: 备份目录与 outputs 实验产物不再入库(已跟踪文件不受影响)
+.claude.backup-*/
+outputs/

@@ -1,0 +1,39 @@
+diff --git a/.wolf/buglog.json b/.wolf/buglog.json
+index f0527a32..31c10c14 100644
+--- a/.wolf/buglog.json
++++ b/.wolf/buglog.json
+@@ -84,6 +84,24 @@
+       "related_bugs": [],
+       "occurrences": 1,
+       "last_seen": "2026-07-02T08:50:33.345Z"
++    },
++    {
++      "id": "bug-011",
++      "timestamp": "2026-07-03T08:52:16.824676Z",
++      "error_message": "vitest getByText fails \"Found multiple elements\" in Dashboard auction tests",
++      "file": "frontend/tests/sit/auction-dashboard-preview.test.tsx + frontend/src/__tests__/Dashboard.test.tsx",
++      "root_cause": "1.2 全量明细表行业列 + 一字定方向 sector-grid 同名(新能源/半导体/银行)；信息卡 si-lbl(竞价价) + 明细表头(竞价价) 同名；TOP10 表 + 明细 + 信息卡 个股名同名(宁德时代) → getByText 多匹配",
++      "fix": "改用 getAllByText(...).length > 0 断言多处同名文本",
++      "tags": [
++        "vitest",
++        "getByText",
++        "multiple-match",
++        "testing-library",
++        "auction-dashboard"
++      ],
++      "related_bugs": [],
++      "occurrences": 1,
++      "last_seen": "2026-07-03"
+     }
+   ]
+ }
+\ No newline at end of file
+diff --git a/.wolf/memory.md b/.wolf/memory.md
+index 7f30de55..caad7af8 100644
+--- a/.wolf/memory.md
++++ b/.wolf/memory.md
+@@ -110,3 +110,4 @@
+ 
+ | Time | Action | File(s) | Outcome | ~Tokens |
+ |------|--------|---------|---------|--------|
++| 08:52 | BatchB Dashboard 1.2 auction-dashboard 竞价意图(4专属区块+token化+EmptyState) | Dashboard.tsx+test+新SIT | vitest 374/374+tsc 0; commit ef901fc7 | ~28k |

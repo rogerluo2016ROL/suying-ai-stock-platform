@@ -1,0 +1,1458 @@
+diff --git a/outputs/feishu_delivery_evidence/2026-07-14-auto-push-test/pipeline.json b/outputs/feishu_delivery_evidence/2026-07-14-auto-push-test/pipeline.json
+new file mode 100644
+index 00000000..4407ce8d
+--- /dev/null
++++ b/outputs/feishu_delivery_evidence/2026-07-14-auto-push-test/pipeline.json
+@@ -0,0 +1,8 @@
++{
++  "status": "test",
++  "feishu_delivery": {
++    "push_status": "confirmed",
++    "chat_id": "oc_f3b4c491a34af574aa65732a1bc74c79",
++    "message_id": "om_x100b6a6c37fd68acb1deb5e32721bd7"
++  }
++}
+\ No newline at end of file
+diff --git a/outputs/feishu_delivery_evidence/2026-07-14-auto-push-test/result.json b/outputs/feishu_delivery_evidence/2026-07-14-auto-push-test/result.json
+new file mode 100644
+index 00000000..5911aa1d
+--- /dev/null
++++ b/outputs/feishu_delivery_evidence/2026-07-14-auto-push-test/result.json
+@@ -0,0 +1,12 @@
++{
++  "status": "test",
++  "pipeline": {
++    "model_key": "feishu_auto_push_test",
++    "run_dir": "outputs/feishu_delivery_evidence/2026-07-14-auto-push-test",
++    "feishu_delivery": {
++      "push_status": "confirmed",
++      "chat_id": "oc_f3b4c491a34af574aa65732a1bc74c79",
++      "message_id": "om_x100b6a6c37fd68acb1deb5e32721bd7"
++    }
++  }
++}
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/084605_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/084605_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..92ff9c99
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/084605_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 08:46）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 08:46  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-14 08:46</td></tr><tr><td>本次取数时间</td><td>2026-07-14 08:46</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/084605_leader_afternoon.md b/outputs/lark_reports/2026-07-03/084605_leader_afternoon.md
+new file mode 100644
+index 00000000..3aa27347
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/084605_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 08:46）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-14 08:46 |
++| 本次取数时间 | 2026-07-14 08:46 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/084815_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/084815_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..9e620476
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/084815_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 08:48）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 08:48  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-14 08:48</td></tr><tr><td>本次取数时间</td><td>2026-07-14 08:48</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/084815_leader_afternoon.md b/outputs/lark_reports/2026-07-03/084815_leader_afternoon.md
+new file mode 100644
+index 00000000..990fa620
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/084815_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 08:48）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-14 08:48 |
++| 本次取数时间 | 2026-07-14 08:48 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/085025_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/085025_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..577258a1
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/085025_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 08:50）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 08:50  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-14 08:50</td></tr><tr><td>本次取数时间</td><td>2026-07-14 08:50</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/085025_leader_afternoon.md b/outputs/lark_reports/2026-07-03/085025_leader_afternoon.md
+new file mode 100644
+index 00000000..efccaa05
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/085025_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 08:50）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-14 08:50 |
++| 本次取数时间 | 2026-07-14 08:50 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/085122_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/085122_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..23a97a60
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/085122_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 08:51）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 08:51  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-14 08:51</td></tr><tr><td>本次取数时间</td><td>2026-07-14 08:51</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/085122_leader_afternoon.md b/outputs/lark_reports/2026-07-03/085122_leader_afternoon.md
+new file mode 100644
+index 00000000..46e59c41
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/085122_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 08:51）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-14 08:51 |
++| 本次取数时间 | 2026-07-14 08:51 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/092300_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/092300_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..7a04bf8e
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/092300_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 09:23）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 09:23  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-14 09:23</td></tr><tr><td>本次取数时间</td><td>2026-07-14 09:23</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/092300_leader_afternoon.md b/outputs/lark_reports/2026-07-03/092300_leader_afternoon.md
+new file mode 100644
+index 00000000..ea2667ec
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/092300_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 09:23）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-14 09:23 |
++| 本次取数时间 | 2026-07-14 09:23 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/092318_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/092318_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..7a04bf8e
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/092318_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 09:23）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 09:23  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-14 09:23</td></tr><tr><td>本次取数时间</td><td>2026-07-14 09:23</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/092318_leader_afternoon.md b/outputs/lark_reports/2026-07-03/092318_leader_afternoon.md
+new file mode 100644
+index 00000000..ea2667ec
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/092318_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 09:23）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-14 09:23 |
++| 本次取数时间 | 2026-07-14 09:23 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/092904_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/092904_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..b3081efa
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/092904_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 09:29）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 09:29  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-14 09:29</td></tr><tr><td>本次取数时间</td><td>2026-07-14 09:29</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/092904_leader_afternoon.md b/outputs/lark_reports/2026-07-03/092904_leader_afternoon.md
+new file mode 100644
+index 00000000..a59c108d
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/092904_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 09:29）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-14 09:29 |
++| 本次取数时间 | 2026-07-14 09:29 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/093257_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/093257_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..01327169
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/093257_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 09:32）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 09:32  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-14 09:32</td></tr><tr><td>本次取数时间</td><td>2026-07-14 09:32</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/093257_leader_afternoon.md b/outputs/lark_reports/2026-07-03/093257_leader_afternoon.md
+new file mode 100644
+index 00000000..7f05d141
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/093257_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 09:32）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-14 09:32 |
++| 本次取数时间 | 2026-07-14 09:32 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/094411_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/094411_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..8830ec52
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/094411_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 09:44）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 09:44  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-14 09:44</td></tr><tr><td>本次取数时间</td><td>2026-07-14 09:44</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/094411_leader_afternoon.md b/outputs/lark_reports/2026-07-03/094411_leader_afternoon.md
+new file mode 100644
+index 00000000..c4532c60
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/094411_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 09:44）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-14 09:44 |
++| 本次取数时间 | 2026-07-14 09:44 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/095041_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/095041_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..1247c88c
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/095041_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 09:50）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 09:50  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-14 09:50</td></tr><tr><td>本次取数时间</td><td>2026-07-14 09:50</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/095041_leader_afternoon.md b/outputs/lark_reports/2026-07-03/095041_leader_afternoon.md
+new file mode 100644
+index 00000000..bbd40a58
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/095041_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 09:50）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-14 09:50 |
++| 本次取数时间 | 2026-07-14 09:50 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-14/094636_bi_shifu_trend.md b/outputs/lark_reports/2026-07-14/094636_bi_shifu_trend.md
+new file mode 100644
+index 00000000..9822ac4b
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-14/094636_bi_shifu_trend.md
+@@ -0,0 +1,41 @@
++# 毕师傅趋势战法选股（2026-07-14 09:46）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-14 |
++| 报告生成时间 | 2026-07-14 09:46 |
++| 本次取数时间 | 2026-07-14 09:46 |
++| 数据更新时点 | daily_kline=2026-07-10 |
++| 本次刷新 | 跳过 (-) |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据快照 | 2026-07-14 09:30:00 | 实际分钟行情截止时间 |
++| 有效覆盖 | 4992 | 参与统计的股票数 |
++| 上涨家数 | 2032 | 涨幅大于 0 |
++| 下跌家数 | 2423 | 涨幅小于 0 |
++| 平盘家数 | 537 | 涨幅等于 0 |
++| 涨跌幅中位数 | 0.00% | 全市场中位数 |
++| 涨幅≥5% | 36 | 强势股数量 |
++| 跌幅≤-5% | 44 | 弱势股数量 |
++
++市场结论：该快照中下跌家数多于上涨家数；这是当时市场宽度描述，不代表后续走势。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-14/095011_bi_shifu_trend.md b/outputs/lark_reports/2026-07-14/095011_bi_shifu_trend.md
+new file mode 100644
+index 00000000..b233b35a
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-14/095011_bi_shifu_trend.md
+@@ -0,0 +1,41 @@
++# 毕师傅趋势战法选股（2026-07-14 09:50）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-14 |
++| 报告生成时间 | 2026-07-14 09:50 |
++| 本次取数时间 | 2026-07-14 09:50 |
++| 数据更新时点 | daily_kline=2026-07-13 |
++| 本次刷新 | 跳过 (-) |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据快照 | 2026-07-14 09:30:00 | 实际分钟行情截止时间 |
++| 有效覆盖 | 4992 | 参与统计的股票数 |
++| 上涨家数 | 2035 | 涨幅大于 0 |
++| 下跌家数 | 2379 | 涨幅小于 0 |
++| 平盘家数 | 578 | 涨幅等于 0 |
++| 涨跌幅中位数 | 0.00% | 全市场中位数 |
++| 涨幅≥5% | 36 | 强势股数量 |
++| 跌幅≤-5% | 33 | 弱势股数量 |
++
++市场结论：该快照中下跌家数多于上涨家数；这是当时市场宽度描述，不代表后续走势。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/manifest.json b/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/manifest.json
+new file mode 100644
+index 00000000..42c7225d
+--- /dev/null
++++ b/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/manifest.json
+@@ -0,0 +1,22 @@
++{
++  "schema_version": "1.0",
++  "run_id": "20260714_094630",
++  "official": false,
++  "working_tree_dirty": true,
++  "strict_timeline": false,
++  "model_key": "bi_shifu_trend",
++  "model_version": "unversioned",
++  "code_commit": "082ec32ff9f094bb36a2ad8602888e47208f2c94",
++  "parameters_hash": "sha256:195513c8a8b30d04eeaedab72ea107da5a646a7f2f5de23271e44a98e2ff0760",
++  "target_trade_date": "2026-07-14",
++  "data_snapshot_id": "UNAVAILABLE",
++  "universe_hash": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
++  "result_status": "success",
++  "cutoff_time": null,
++  "cost_bps": 14.0,
++  "artifacts": [
++    "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/result.json",
++    "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/pipeline.json",
++    "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/lark_reports/2026-07-14/094636_bi_shifu_trend.md"
++  ]
++}
+\ No newline at end of file
+diff --git a/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/pipeline.json b/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/pipeline.json
+new file mode 100644
+index 00000000..c3456006
+--- /dev/null
++++ b/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/pipeline.json
+@@ -0,0 +1,14 @@
++{
++  "status": "ok",
++  "model_key": "bi_shifu_trend",
++  "trade_date": "2026-07-14",
++  "mode": "bi_shifu_trend",
++  "top_n": 3,
++  "refresh": {
++    "status": "skipped"
++  },
++  "primary_rows": null,
++  "pre_model_fallback": null,
++  "fallback": null,
++  "report_path": "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/lark_reports/2026-07-14/094636_bi_shifu_trend.md"
++}
+\ No newline at end of file
+diff --git a/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/result.json b/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/result.json
+new file mode 100644
+index 00000000..9abac426
+--- /dev/null
++++ b/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/result.json
+@@ -0,0 +1,33 @@
++{
++  "mode": "bi_shifu_trend",
++  "trade_date": "2026-07-14",
++  "total_picks": 0,
++  "picks": [],
++  "data_refresh": {
++    "status": "skipped"
++  },
++  "pipeline": {
++    "model_key": "bi_shifu_trend",
++    "run_id": "20260714_094630",
++    "run_dir": "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend",
++    "started_at": "2026-07-14T09:46:35",
++    "planned_time_slot": "09:30",
++    "market_snapshot_time": "2026-07-14 09:30:00",
++    "markdown_path": "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/lark_reports/2026-07-14/094636_bi_shifu_trend.md",
++    "manifest_path": "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/pipeline_runs/2026-07-14/20260714_094630_bi_shifu_trend/manifest.json"
++  },
++  "market_strength": {
++    "status": "ok",
++    "scope": "intraday_market_breadth",
++    "trade_date": "2026-07-14",
++    "cutoff_time": "09:30",
++    "snapshot_time": "2026-07-14 09:30:00",
++    "coverage": 4992,
++    "advancers": 2032,
++    "decliners": 2423,
++    "flat": 537,
++    "median_pct": 0.0,
++    "above_5pct": 36,
++    "below_minus_5pct": 44
++  }
++}
+\ No newline at end of file
+diff --git a/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/manifest.json b/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/manifest.json
+new file mode 100644
+index 00000000..1c2707b3
+--- /dev/null
++++ b/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/manifest.json
+@@ -0,0 +1,22 @@
++{
++  "schema_version": "1.0",
++  "run_id": "20260714_095007",
++  "official": false,
++  "working_tree_dirty": true,
++  "strict_timeline": false,
++  "model_key": "bi_shifu_trend",
++  "model_version": "unversioned",
++  "code_commit": "082ec32ff9f094bb36a2ad8602888e47208f2c94",
++  "parameters_hash": "sha256:c03a853787aa1124931505d2904a2ab1c4f8d9909c0f1d57c4e4c6390214a0cc",
++  "target_trade_date": "2026-07-14",
++  "data_snapshot_id": "UNAVAILABLE",
++  "universe_hash": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
++  "result_status": "success",
++  "cutoff_time": null,
++  "cost_bps": 14.0,
++  "artifacts": [
++    "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/result.json",
++    "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/pipeline.json",
++    "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/lark_reports/2026-07-14/095011_bi_shifu_trend.md"
++  ]
++}
+\ No newline at end of file
+diff --git a/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/pipeline.json b/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/pipeline.json
+new file mode 100644
+index 00000000..1838d7dc
+--- /dev/null
++++ b/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/pipeline.json
+@@ -0,0 +1,14 @@
++{
++  "status": "ok",
++  "model_key": "bi_shifu_trend",
++  "trade_date": "2026-07-14",
++  "mode": "bi_shifu_trend",
++  "top_n": 10,
++  "refresh": {
++    "status": "skipped"
++  },
++  "primary_rows": null,
++  "pre_model_fallback": null,
++  "fallback": null,
++  "report_path": "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/lark_reports/2026-07-14/095011_bi_shifu_trend.md"
++}
+\ No newline at end of file
+diff --git a/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/result.json b/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/result.json
+new file mode 100644
+index 00000000..47e6c533
+--- /dev/null
++++ b/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/result.json
+@@ -0,0 +1,33 @@
++{
++  "mode": "bi_shifu_trend",
++  "trade_date": "2026-07-14",
++  "total_picks": 0,
++  "picks": [],
++  "data_refresh": {
++    "status": "skipped"
++  },
++  "pipeline": {
++    "model_key": "bi_shifu_trend",
++    "run_id": "20260714_095007",
++    "run_dir": "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend",
++    "started_at": "2026-07-14T09:50:11",
++    "planned_time_slot": "09:30",
++    "market_snapshot_time": "2026-07-14 09:30:00",
++    "markdown_path": "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/lark_reports/2026-07-14/095011_bi_shifu_trend.md",
++    "manifest_path": "/Users/rogerluo/程序目录/K线大模型/.worktrees/feishu-auto-push/outputs/pipeline_runs/2026-07-14/20260714_095007_bi_shifu_trend/manifest.json"
++  },
++  "market_strength": {
++    "status": "ok",
++    "scope": "intraday_market_breadth",
++    "trade_date": "2026-07-14",
++    "cutoff_time": "09:30",
++    "snapshot_time": "2026-07-14 09:30:00",
++    "coverage": 4992,
++    "advancers": 2035,
++    "decliners": 2379,
++    "flat": 578,
++    "median_pct": 0.0,
++    "above_5pct": 36,
++    "below_minus_5pct": 33
++  }
++}
+\ No newline at end of file

@@ -1,0 +1,25 @@
+diff --git a/.wolf/designqc-captures/dashboard_signals_desktop_top.jpg b/.wolf/designqc-captures/dashboard_signals_desktop_top.jpg
+new file mode 100644
+index 00000000..bbea6549
+Binary files /dev/null and b/.wolf/designqc-captures/dashboard_signals_desktop_top.jpg differ
+diff --git a/.wolf/designqc-captures/dashboard_signals_mobile_top.jpg b/.wolf/designqc-captures/dashboard_signals_mobile_top.jpg
+new file mode 100644
+index 00000000..c6b88bab
+Binary files /dev/null and b/.wolf/designqc-captures/dashboard_signals_mobile_top.jpg differ
+diff --git a/.wolf/designqc-captures/root_desktop_top.jpg b/.wolf/designqc-captures/root_desktop_top.jpg
+new file mode 100644
+index 00000000..bbea6549
+Binary files /dev/null and b/.wolf/designqc-captures/root_desktop_top.jpg differ
+diff --git a/.wolf/designqc-captures/root_mobile_top.jpg b/.wolf/designqc-captures/root_mobile_top.jpg
+new file mode 100644
+index 00000000..c6b88bab
+Binary files /dev/null and b/.wolf/designqc-captures/root_mobile_top.jpg differ
+diff --git a/.wolf/memory.md b/.wolf/memory.md
+index 7f30de55..aa20543d 100644
+--- a/.wolf/memory.md
++++ b/.wolf/memory.md
+@@ -110,3 +110,4 @@
+ 
+ | Time | Action | File(s) | Outcome | ~Tokens |
+ |------|--------|---------|---------|--------|
++| 23:50 | designqc: captured 4 screenshots (51KB, ~10000 tok) | /, /dashboard/signals | ready for eval | ~0 |

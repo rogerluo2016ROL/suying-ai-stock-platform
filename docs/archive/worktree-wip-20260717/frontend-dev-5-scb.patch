@@ -1,0 +1,194 @@
+diff --git a/frontend/src/pages/SupplyChainBom.tsx b/frontend/src/pages/SupplyChainBom.tsx
+index 33d5f0ab..b389f877 100644
+--- a/frontend/src/pages/SupplyChainBom.tsx
++++ b/frontend/src/pages/SupplyChainBom.tsx
+@@ -26,7 +26,7 @@ import type {
+ } from './supply-chain-bom/types'
+ import { chainCandidateToCandidateCompany } from './supply-chain-bom/types'
+ import { formatNumber } from './supply-chain-bom/formatters'
+-import { lightTokens, alpha } from '../styles/tokens'
++import { lightTokens, alpha, signalLevelTokens } from '../styles/tokens'
+ 
+ const { Title, Text, Paragraph } = Typography
+ const { TextArea } = Input
+@@ -42,6 +42,180 @@ function ckColor(level?: string) {
+ const ACCENT_OVERLAY = alpha.accent(0.45)
+ const ACCENT_OVERLAY_SOFT = alpha.accent(0.28)
+ 
++// ===== 4.1 policy-analysis helpers =====
++const POLICY_STRENGTH_LABELS = [
++  '1/5 — 轻微提及',
++  '2/5 — 一般关注',
++  '3/5 — 中等力度',
++  '4/5 — 强力政策',
++  '5/5 — 最高级别',
++]
++
++// 政策强度从 risk_factors / interpretation 字段启发式推断（无独立 strength 字段时）
++function inferPolicyStrength(result: PolicyInterpretResponse['interpretation_result'] | undefined): number {
++  if (!result) return 0
++  const text = `${result.summary || ''} ${result.investment_logic || ''}`
++  let score = 2
++  if (/大基金|3000亿|千亿|国家重大|重大科技专项|三年行动|五年规划/.test(text)) score = 4
++  if (/最高级别|战略|举国|核心攻关/.test(text)) score = 5
++  if (result.industry_themes?.length >= 3) score = Math.max(score, 3)
++  return Math.min(5, Math.max(1, score))
++}
++
++// 方向卡片：从 industry_themes 派生（preview direction cards）
++type PolicyDirection = { name: string; desc: string }
++function derivePolicyDirections(result: PolicyInterpretResponse['interpretation_result'] | undefined): PolicyDirection[] {
++  if (!result?.industry_themes?.length) return []
++  return result.industry_themes.map((t: Record<string, unknown>) => ({
++    name: String(t.name || t.theme || '未命名方向'),
++    desc: String(t.logic || t.rationale || t.summary || result.investment_logic || ''),
++  }))
++}
++
++// 行业映射行：从 bom_nodes 派生（preview mapping-table）
++type PolicyMapping = { direction: string; industry: string; concept: string; conf: 'exact' | 'llm' | 'low' }
++function derivePolicyMappings(directions: PolicyDirection[], bomNodes: string[]): PolicyMapping[] {
++  const rows: PolicyMapping[] = []
++  directions.forEach((d, idx) => {
++    const bomNode = bomNodes[idx] || bomNodes[0] || ''
++    rows.push({
++      direction: d.name,
++      industry: bomNode || d.name,
++      concept: `ths_${(bomNode || d.name).slice(0, 6)}`,
++      conf: idx < bomNodes.length ? 'exact' : 'llm',
++    })
++  })
++  return rows
++}
++
++function confBadgeClass(conf: 'exact' | 'llm' | 'low') {
++  if (conf === 'exact') return 'conf-exact'
++  if (conf === 'llm') return 'conf-llm'
++  return 'conf-low'
++}
++function confBadgeLabel(conf: 'exact' | 'llm' | 'low') {
++  if (conf === 'exact') return '精确匹配'
++  if (conf === 'llm') return 'LLM推断'
++  return '低置信'
++}
++
++// ===== 4.3 company-analysis helpers =====
++// 护城河评分维度（preview moat-table 5 列权重）
++const MOAT_DIMENSIONS: { key: string; label: string; weight: number; tone: 'high' | 'mid' | 'low' }[] = [
++  { key: 'moat', label: '护城河', weight: 0.30, tone: 'high' },
++  { key: 'growth', label: '增长力', weight: 0.20, tone: 'high' },
++  { key: 'profit', label: '利润率', weight: 0.15, tone: 'mid' },
++  { key: 'irreplaceable', label: '不可替代', weight: 0.25, tone: 'high' },
++  { key: 'domestic', label: '国产替代', weight: 0.10, tone: 'mid' },
++]
++
++// 从 dimension_scores 派生 5 维护城河分数（兼容多种 key 命名）
++function moatScore(c: CandidateCompany, dim: typeof MOAT_DIMENSIONS[number]): number | null {
++  const ds = c.dimension_scores || {}
++  const candidates: Record<string, number | undefined> = {
++    moat: ds.moat ?? ds.moat_score ?? ds.护城河,
++    growth: ds.growth ?? ds.growth_score ?? ds.增长力,
++    profit: ds.profit ?? ds.profitability ?? ds.margin ?? ds.gross_margin ?? c.gross_margin,
++    irreplaceable: ds.irreplaceable ?? ds.irreplaceability ?? ds.criticality ?? c.chokepoint_score,
++    domestic: ds.domestic ?? ds.domestic_substitution ?? ds.policy_match ?? c.policy_match_score,
++  }
++  const v = candidates[dim.key]
++  if (v === undefined || v === null || !Number.isFinite(Number(v))) return null
++  return Number(v)
++}
++
++function scoreToStars(score: number | null): { filled: number; off: number } {
++  if (score === null) return { filled: 0, off: 5 }
++  const filled = Math.max(0, Math.min(5, Math.round(score / 20)))
++  return { filled, off: 5 - filled }
++}
++
++function scoreClass(score: number | null): 'high' | 'mid' | 'low' {
++  if (score === null) return 'low'
++  if (score >= 85) return 'high'
++  if (score >= 70) return 'mid'
++  return 'low'
++}
++
++// 综合分（preview composite = 各维加权）
++function compositeScore(c: CandidateCompany): number | null {
++  let total = 0
++  let weightCovered = 0
++  MOAT_DIMENSIONS.forEach(dim => {
++    const s = moatScore(c, dim)
++    if (s !== null) {
++      total += s * dim.weight
++      weightCovered += dim.weight
++    }
++  })
++  if (weightCovered === 0) return c.score ?? null
++  return Math.round(total / weightCovered)
++}
++
++// 卡脖子分级（preview bottleneck grid 3 列）
++type BottleneckTier = 'l1' | 'l2' | 'l0'
++function bottleneckTier(c: CandidateCompany): BottleneckTier {
++  const ck = c.chokepoint_score
++  if (ck !== undefined && Number.isFinite(Number(ck))) {
++    const v = Number(ck)
++    if (v >= 70) return 'l1'
++    if (v >= 40) return 'l2'
++    return 'l0'
++  }
++  // fallback：从 dimension_scores.irreplaceable 或 impact_role 推断
++  const ir = c.dimension_scores?.irreplaceable ?? c.dimension_scores?.criticality
++  if (ir !== undefined && Number.isFinite(Number(ir))) {
++    const v = Number(ir)
++    if (v >= 70) return 'l1'
++    if (v >= 40) return 'l2'
++    return 'l0'
++  }
++  const role = c.impact_role || ''
++  if (role.includes('核心') || role.includes('critical')) return 'l1'
++  if (role.includes('重要') || role.includes('strategic')) return 'l2'
++  return 'l0'
++}
++
++const BOTTLENECK_META: Record<BottleneckTier, { label: string; icon: string; cls: string }> = {
++  l1: { label: '一级卡脖子', icon: '🔴', cls: 'bn-l1' },
++  l2: { label: '二级卡脖子', icon: '🟡', cls: 'bn-l2' },
++  l0: { label: '非卡脖子', icon: '🟢', cls: 'bn-l0' },
++}
++
++// 三重共振（preview comm-table 共振分）
++function resonanceScore(c: CandidateCompany): number {
++  const cycle = c.commercialization_cycle || c.commercialization_stage || ''
++  const policy = c.policy_match_score ?? c.dimension_scores?.policy_match
++  const yieldNum = c.performance_yield ?? c.dimension_scores?.performance
++  let s = 0
++  if (/成长|growth/i.test(cycle)) s += 0.35
++  else if (/导入|intro/i.test(cycle)) s += 0.15
++  else if (/成熟|mature/i.test(cycle)) s += 0.20
++  if (policy !== undefined && Number.isFinite(Number(policy))) s += (Number(policy) / 100) * 0.35
++  if (yieldNum !== undefined && Number.isFinite(Number(yieldNum))) s += Math.min(0.30, Number(yieldNum) / 100 * 0.30)
++  return Math.min(1, Math.round(s * 100) / 100)
++}
++
++function resonanceTone(score: number): 'triple' | 'waiting' | 'none' {
++  if (score >= 0.40) return 'triple'
++  if (score >= 0.15) return 'waiting'
++  return 'none'
++}
++
++function commPhaseClass(cycle: string | undefined): string {
++  if (!cycle) return 'comm-intro'
++  if (/成长|growth/i.test(cycle)) return 'comm-growth'
++  if (/成熟|mature/i.test(cycle)) return 'comm-mature'
++  return 'comm-intro'
++}
++function commPhaseLabel(cycle: string | undefined): string {
++  if (!cycle) return '导入期'
++  if (/成长|growth/i.test(cycle)) return '成长期'
++  if (/成熟|mature/i.test(cycle)) return '成熟期'
++  if (/导入|intro/i.test(cycle)) return '导入期'
++  return cycle
++}
++
+ const supplyChainTabs = [
+   { key: 'policy', path: '/supply-chain-bom/policy', label: '政策梳理', subLabel: '政策证据' },
+   { key: 'chain', path: '/supply-chain-bom', label: '产业链解构', subLabel: '三种模式' },
