@@ -458,6 +458,31 @@ class TestRiskParityAllocator:
         assert all(w <= 0.15 for w in limited.values())  # 上限不被突破
         assert abs(sum(limited.values()) - 0.45) < 0.01  # 3×0.15，差额持现金
 
+    def test_apply_max_position_limit_iterative_no_cap_breach(self):
+        from kronos_factors.engine.risk_parity import RiskParityAllocator
+
+        allocator = RiskParityAllocator()
+        # 单趟重分配的 bug 场景：A/B 超 0.30 → 余量 0.30 全给 C(0.10) → C=0.40 > 0.30（突破上限）
+        # 迭代版应反复裁剪，最终所有标的 ≤ max，超限部分持现金
+        weights = {"A": 0.50, "B": 0.40, "C": 0.10}
+        limited = allocator._apply_max_position_limit(weights, max_weight=0.30)
+        assert all(w <= 0.30 + 1e-9 for w in limited.values())  # 上限绝不突破
+        assert abs(limited["A"] - 0.30) < 1e-9
+        assert abs(limited["B"] - 0.30) < 1e-9
+        assert abs(limited["C"] - 0.30) < 1e-9  # C 被裁到上限，余量持现金
+        assert abs(sum(limited.values()) - 0.90) < 1e-6  # 0.30×3，持 0.10 现金
+
+    def test_apply_max_position_limit_redistributes_to_capacity(self):
+        from kronos_factors.engine.risk_parity import RiskParityAllocator
+
+        allocator = RiskParityAllocator()
+        # 余量能被未超限标的完全吸收 → 满仓 sum=1.0，且无标的超限
+        weights = {"A": 0.60, "B": 0.20, "C": 0.20}
+        limited = allocator._apply_max_position_limit(weights, max_weight=0.40)
+        assert all(w <= 0.40 + 1e-9 for w in limited.values())
+        assert abs(limited["A"] - 0.40) < 1e-9  # A 被裁
+        assert abs(sum(limited.values()) - 1.0) < 1e-6  # 余量全吸收 → 满仓
+
     def test_allocate_with_mock_volatility(self):
         from kronos_factors.engine.risk_parity import RiskParityAllocator, AllocationResult
 
