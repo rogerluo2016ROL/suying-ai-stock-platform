@@ -49,10 +49,17 @@ def main() -> int:
         default=float(os.environ.get("LARK_EVENT_RESTART_DELAY_SEC", "5")),
         help="Seconds to wait before restarting lark-cli after it exits.",
     )
+    parser.add_argument(
+        "--profile",
+        default=os.environ.get("LARK_CLI_PROFILE", ""),
+        help="lark-cli profile to consume events as (must match the bot app the screener replies with).",
+    )
     args = parser.parse_args()
 
-    cmd = [
-        "lark-cli",
+    cmd = ["lark-cli"]
+    if args.profile:
+        cmd += ["--profile", args.profile]
+    cmd += [
         "event",
         "consume",
         "im.message.receive_v1",
