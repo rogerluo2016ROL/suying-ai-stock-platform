@@ -4,9 +4,15 @@
 按交易所分批拉取全市场公司基本信息, 写入 PG (主) + SQLite (fallback).
 """
 
-import logging, sqlite3, time
+import logging, math, sqlite3, time
 
 logger = logging.getLogger("data-service.stock_profiles")
+
+
+def _num_or_none(v):
+    """NaN → None。Tushare 缺字段返回 NaN(float)，psycopg2 直传给 int4 列
+    (employees) 会触发 PG 'integer out of range'，整批 execute_values 归零。"""
+    return None if isinstance(v, float) and math.isnan(v) else v
 
 
 def sync_stock_profiles(days_back: int = 0) -> dict:
@@ -57,7 +63,7 @@ def sync_stock_profiles(days_back: int = 0) -> dict:
                 str(r.get("com_name", "")),
                 str(r.get("province", "")),
                 str(r.get("city", "")),
-                r.get("reg_capital"),
+                _num_or_none(r.get("reg_capital")),
                 str(r.get("setup_date", "")),
                 str(r.get("main_business", "")),
                 str(r.get("business_scope", ""))[:500],
@@ -66,7 +72,7 @@ def sync_stock_profiles(days_back: int = 0) -> dict:
                 str(r.get("chairman", "")),
                 str(r.get("manager", "")),
                 str(r.get("secretary", "")),
-                r.get("employees"),
+                _num_or_none(r.get("employees")),
                 str(r.get("introduction", ""))[:2000] if r.get("introduction") else "",
             ))
 
