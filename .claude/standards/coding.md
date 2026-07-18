@@ -69,15 +69,6 @@ git log --oneline --grep="<feature>" | head # commit 历史
 - **契约变更闭环**：后端改契约 → 重新导出 OpenAPI + 重跑 orval → 生成产物随 PR 提交；CI `git diff --exit-code` 挡未重生成的漂移。
 - 完整测试侧覆盖（SIT mock 来源 / E2E 真后端边界 / 交互完整性）见 `testing.md` 前后端对接强制覆盖项。
 
-### Apple 客户端契约纪律（含 apple/ 调后端 API 的 feature 必读）
-
-同一份 OpenAPI 契约在 Apple 侧的对应纪律（决策见 ADR-008，是 ADR-006 的 Apple 对应版）：
-
-- **Apple 客户端禁手写**：URLSession 请求、请求/响应 Codable DTO、JSON mock **一律走 swift-openapi-generator 生成**（SPM build plugin 构建期生成，产物不进库）；业务代码只用生成的 `Client` / `APIProtocol`。契约不一致由 `swift build` 在编译期暴露。
-- **SIT mock**：实现生成的 `APIProtocol` 协议做类型安全 fake server，禁手写 JSON fixture。
-- **契约变更闭环**：后端重新导出 `openapi.json` 进库 → apple 侧下次构建自动重生成；CI 对 `openapi.json` 跑「重导出 + `git diff --exit-code`」。
-- 执行细则见 `apple-native.md`；后端 schema 规范责任与 Web 轨同一条（上节），不重复。
-
 ### 设计 token 纪律（含前端样式的 feature 必读）
 
 项目视觉系统的单一来源是 `docs/design/DESIGN.md`（设计 token SSOT，维护者 uiux-designer）。前端样式与各 feature spec 只引用 token，杜绝"散点硬编码 + 设计漂移"：

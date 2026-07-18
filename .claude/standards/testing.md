@@ -13,7 +13,6 @@
 
 - **开发者职责**：Unit + SIT 都随代码提交（Unit 走 Mock，集成层走 API+DB+external 单边集成），不转包给测试角色
 - **前端 SIT mock 来源**：含前端的 feature，前端 SIT 的 MSW mock 必须来自 orval 生成产物（`*.msw.ts`，禁手写）——契约同步机制见下文「前后端对接强制覆盖项」节 + ADR-006
-- **Apple 轨**：`apple-dev` 同样承担 Unit（Swift Testing，`swift test`）+ SIT（`xcodebuild test` + 模拟器）自跑，流程按 skill `agf-running-apple-sit`；E2E（XCUITest 对签名分发包）/ UAT 由 `apple-qa-engineer` 执行——完整测试矩阵见 `apple-native.md` §9，SIT mock 必须实现生成的 `APIProtocol`（禁手写 JSON fixture，见 ADR-008）
 - **UAT 判定权**：唯一由 product-lead 对照 PRD AC 签字，qa-engineer 只执行并出报告
 - **测试报告**：SIT 证据写入 `progress/<role>.md` 的 `**SIT 证据**` 段（不再单独产 `docs/qa/[feature]-sit-*.md`）；E2E / UAT 完成后分别输出至 `docs/qa/[feature]-[e2e|uat]-[YYYY-MM-DD].md`
 - **阶段门槛 / 失败回退**：code-review (含 SIT Audit) 通过 → E2E → UAT；任一阶段失败由 product-lead 重新分派执行层修复，qa-engineer 和 code-reviewer 不直接改实现
@@ -49,7 +48,7 @@ hook/script 测试套的**组织 + 运行**纪律（区别于上文的 Unit/SIT/
 
 ### 适用范围
 
-feature 含任何用户可见界面（页面 / 弹窗 / 抽屉 / 浮层）即触发，**与是否调后端 API 无关**；纯后端 / 纯 CLI / 纯文档 feature 不适用（矩阵标"不适用"）。渲染载体按轨：Web = chrome-devtools MCP（对共享 UAT 栈 URL）；小程序 = 微信开发者工具模拟器 + 真机；Apple = Xcode 模拟器 / 真机。
+feature 含任何用户可见界面（页面 / 弹窗 / 抽屉 / 浮层）即触发，**与是否调后端 API 无关**；纯后端 / 纯 CLI / 纯文档 feature 不适用（矩阵标"不适用"）。渲染载体按轨：Web = chrome-devtools MCP（对共享 UAT 栈 URL）；小程序 = 微信开发者工具模拟器 + 真机。
 
 ### 强制项（每个用户可见界面，缺一不可）
 
@@ -76,7 +75,7 @@ feature 含任何用户可见界面（页面 / 弹窗 / 抽屉 / 浮层）即触
 
 ### 适用范围
 
-任何含 `frontend/`（或 `miniapp/` / `apple/`）调用 `backend/` API 的 feature。纯后端 / 纯文档 feature 不触发。Apple 侧的 ①②③ 对应物（生成 client 禁手写 / 控件绑定 handler / XCUITest 控件遍历）细则见 `apple-native.md` + ADR-008，原则与本节同源不另立。
+任何含 `frontend/`（或 `miniapp/`）调用 `backend/` API 的 feature。纯后端 / 纯文档 feature 不触发。
 
 ### 强制覆盖项（缺一不可）
 

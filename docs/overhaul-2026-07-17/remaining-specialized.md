@@ -179,6 +179,11 @@ cd services/alert-service && KRONOS_PG_URL=postgresql://kronos:kronos@localhost:
 
 ## #13 — D 框架/模板裁剪(`.claude/` AGF v6.27.1)
 
+> **Apple 轨专项裁剪 ✅ 已完成(2026-07-18)**:虽本文档一般建议"默认不裁模板",但 Apple 轨作为本项目明确不用的整轨已专项裁剪——
+> 核心(4 agent + 3 skill + command + apple-native.md,`9097a330`)+ 真角色残留(verified-facts/team-roles,`a8559bea`)+ team-capability-map 33 处(`cf2b2af7`)+ **framework 文档残留 4 文件**(deployment §7 整段 / coding Apple 子节 / testing 3 处 / repo-layout 7 处,本批 -44/+8)。
+> **刻意留(无害)**:A 类 = hooks/scripts 里 apple role-name 字符串匹配(check-progress-file / gate-deploy-release-auth / validate-verdict / agf-board / agf-next-instance + 对应 test)——功能代码有测试覆盖、customize.sh 设计不动、角色不 spawn 即不命中;C 类 = scan-secrets/scan-commit 的 Apple 签名密钥防御扫描——verified-facts 厂商数=11 含 Apple,通用安全防御。
+> 下文"现状/顾虑/执行步骤"是**通用模板裁剪建议**(仍默认不做,仅模板升级时顺带),与 Apple 专项裁剪无关。
+
 ### 现状(2026-07-17 勘察)
 
 `.claude/` 是完整 AGF 团队模板,非本项目业务代码:
