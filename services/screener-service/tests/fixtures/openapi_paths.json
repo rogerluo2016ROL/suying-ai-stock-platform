@@ -52,6 +52,10 @@
   "/api/v1/screener/supply-chain/refresh-workflow",
   "/api/v1/screener/supply-chain/research/ingest",
   "/api/v1/screener/supply-chain/themes",
+  "/api/v1/screener/supply-chain/token-output",
+  "/api/v1/screener/supply-chain/token-output-power",
+  "/api/v1/screener/supply-chain/token-output-power/{mapping_id}",
+  "/api/v1/screener/supply-chain/token-output/{mapping_id}",
   "/api/v1/screener/supply-chain/workbench",
   "/api/v1/screener/watchlist"
 ]
