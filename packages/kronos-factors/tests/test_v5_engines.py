@@ -250,13 +250,16 @@ class TestSectorHeatmapEngine:
         mock_cursor = MagicMock()
         mock_db.cursor.return_value = mock_cursor
 
-        # Mock limit_list_d results
+        # _compute_sector_stats 用 fetchall（2 次：涨停分板块 / 总数分板块）
         mock_cursor.fetchall.side_effect = [
-            [("半导体", 15, 4.5), ("新能源", 8, 2.3)],  # limit_up by sector
+            [("半导体", 15, 4.5), ("新能源", 8, 2.3)],            # limit_up by sector
             [("半导体", 100, 60), ("新能源", 80, 40), ("房地产", 50, 20)],  # total by sector
-            [(120,)],  # limit_up_count
-            [(10,)],  # limit_down_count
-            [(3000, 5000)],  # up_count, total
+        ]
+        # _compute_market_state 用 fetchone（3 次：涨停数 / 跌停数 / 涨跌比）
+        mock_cursor.fetchone.side_effect = [
+            (120,),         # limit_up_count
+            (10,),          # limit_down_count
+            (3000, 5000),   # up_count, total
         ]
 
         engine = SectorHeatmapEngine(pg_url="postgresql://test:test@localhost/test")
@@ -287,9 +290,12 @@ class TestSectorHeatmapEngine:
 # ═══════════════════════════════════════════════════════════════
 
 class TestLLMIntelligenceEngine:
-    def test_init_no_api_key(self):
+    def test_init_no_api_key(self, monkeypatch):
         from kronos_factors.engine.llm_intelligence import LLMIntelligenceEngine
 
+        # 隔离环境变量：__init__ 在 api_key 为空时会回退 DEEPSEEK_API_KEY，
+        # 不 delenv 的话本机设了 key 会让 is_available() 误真。
+        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
         engine = LLMIntelligenceEngine(api_key="")
         assert not engine.is_available()
 
@@ -436,10 +442,21 @@ class TestRiskParityAllocator:
         from kronos_factors.engine.risk_parity import RiskParityAllocator
 
         allocator = RiskParityAllocator()
+        # 部分超上限：超限的截断到 max，余量按比例重分配给未超限标的，总和仍 = 1.0
+        weights = {"000001": 0.50, "000002": 0.30, "600519": 0.20}
+        limited = allocator._apply_max_position_limit(weights, max_weight=0.45)
+        assert limited["000001"] <= 0.45            # 超限的被截断
+        assert abs(sum(limited.values()) - 1.0) < 0.01  # 余量重分配 → 满仓
+
+    def test_apply_max_position_limit_all_capped_holds_cash(self):
+        from kronos_factors.engine.risk_parity import RiskParityAllocator
+
+        allocator = RiskParityAllocator()
+        # 全部超上限：无未超限标的吸收余量 → 截断后持现金（sum < 1.0），不破坏单股上限
         weights = {"000001": 0.40, "000002": 0.35, "600519": 0.25}
         limited = allocator._apply_max_position_limit(weights, max_weight=0.15)
-        assert limited["000001"] <= 0.15
-        assert abs(sum(limited.values()) - 1.0) < 0.01
+        assert all(w <= 0.15 for w in limited.values())  # 上限不被突破
+        assert abs(sum(limited.values()) - 0.45) < 0.01  # 3×0.15，差额持现金
 
     def test_allocate_with_mock_volatility(self):
         from kronos_factors.engine.risk_parity import RiskParityAllocator, AllocationResult
@@ -507,17 +524,24 @@ class TestMultiIndexEngine:
 
 class TestOrchestratorV5:
     def test_run_fusion_screening_v5_exists(self):
-        """验证 V5.0 入口存在."""
-        try:
-            from services.screener_service.app import orchestrator
-            assert hasattr(orchestrator, "run_fusion_screening_v5")
-            assert hasattr(orchestrator, "run_screening_v5")
-        except ImportError:
-            # 直接测试 orchestrator 文件
-            import sys
-            sys.path.insert(0, os.path.join(_PACKAGES, "..", "services", "screener-service"))
-            from app import orchestrator
-            assert hasattr(orchestrator, "run_fusion_screening_v5")
+        """验证 V5.0 入口存在（静态源码检查，避免触发整包 import 的 DB/依赖副作用）."""
+        import ast
+        # _PACKAGES 指向 packages/kronos-factors，回退 2 级到 repo root
+        orchestrator_path = os.path.join(
+            _PACKAGES, "..", "..", "services", "screener-service", "app", "orchestrator.py"
+        )
+        assert os.path.exists(orchestrator_path), f"orchestrator.py not found: {orchestrator_path}"
+
+        with open(orchestrator_path, "r", encoding="utf-8") as f:
+            tree = ast.parse(f.read())
+
+        func_names = {
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        assert "run_fusion_screening_v5" in func_names
+        assert "run_screening_v5" in func_names
 
     def test_v5_env_variables(self):
         """验证环境变量控制."""
