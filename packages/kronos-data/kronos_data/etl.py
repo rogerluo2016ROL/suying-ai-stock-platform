@@ -756,7 +756,9 @@ def sync_index_basic(days_back: int = 30) -> dict:
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     db = _get_etl_db()
-    cols = ["ts_code", "name", "market", "publisher", "category",
+    # PG index_basic 主键列名是 code (非 ts_code); _insert_rows 的 PG 列过滤
+    # 不会改名, 传 ts_code 会被当不存在列丢弃 → code NOT NULL 违规, 整批 0 写入.
+    cols = ["code", "name", "market", "publisher", "category",
             "base_date", "base_point", "list_date"]
 
     total, written = 0, 0
@@ -1997,6 +1999,11 @@ def sync_cb_daily(days_back: int = 30) -> dict:
             continue
         rows = []
         for _, r in df.iterrows():
+            # 停牌/退市期间 Tushare 返回 OHLC 全 0 的占位行 — 无信息量且污染
+            # 收益计算 (close=0 → -100%), 直接跳过 (历史存量见 2026-07-18 清理)
+            ohlc = [_safe_cb_val(r.get(c)) for c in ("open", "high", "low", "close")]
+            if all(v in (None, 0) for v in ohlc):
+                continue
             rows.append(tuple(
                 _safe_cb_val(r.get(c)) if c != "trade_date"
                 else d[:4] + "-" + d[4:6] + "-" + d[6:8]
