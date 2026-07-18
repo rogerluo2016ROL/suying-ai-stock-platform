@@ -243,14 +243,18 @@ bash .claude/scripts/lint-all.sh
 
 ---
 
-## 总结:三项优先级与触发
+## 总结:Wave 2 优化 7 项最终状态(2026-07-18 收尾)
 
-| 项 | 风险 | 收益 | 建议 |
-|---|---|---|---|
-| #10(screener repository + routes) | 中(owned-cur/contextmanager 重构 + 行为变化) | 中(防多 worker 撑爆 PG) | 生产多 worker 前做(批 1 已作废,见修正) |
-| #12 create_app | — | 中(降样板) | ✅ 完成 2026-07-18(10/11,api-gateway N/A) |
-| #13 模板裁剪 | 高(联动/lint) | 低(不进运行时) | **默认不做**,模板升级时顺带 |
+| 项 | 状态 | 备注 |
+|---|---|---|
+| #7 npm audit | ✅ 完成 | |
+| #8 ErrorBoundary flaky | ✅ 完成 | |
+| #9 scheduler P0-3 分离 | ✅ 完成 | |
+| #10 P0-2 连接池 | 🟡 repository ✅ / routes defer | repository 已池化(`036d008c`,docker PG 运行时验证 1405 mappings);routes(15 处裸 connect)**用户决策 defer 到多 worker 生产前**(2026-07-18,保留 connect_timeout 快速失败,见上文 #10 节批 2) |
+| #11 C 域拆分 | ✅ 完成 | 15/15 domain,client.ts 130 行,根 `types.ts` 为共享类型 barrel(设计内,非残留),`npx tsc -b --noEmit` = 0(`5c407160`) |
+| #12 create_app 工厂 | ✅ 完成 | 10/11,api-gateway N/A(`86610dcc`/`7bd956cb`/`f58fff56`) |
+| #13 模板裁剪 | ✅ Apple 专项完成 | 核心+真角色残留+team-capability-map+framework 文档全清(`9097a330`/`a8559bea`/`cf2b2af7`/`ed857f31`);通用裁剪默认不做 |
 
-> 已完成:#7(npm audit)/ #8(ErrorBoundary flaky)/ #9(scheduler P0-3 分离 commit)。
-> #11(C 3 域)见 `supply-chain-split.md`(纯机械,可做)。
-> 本文档三项均无功能 bug,择触发条件推进即可。
+> **Wave 2 实质完成**:7 项中 6 项 ✅,#10 routes 按用户决策 defer(单 worker 下裸 connect + connect_timeout 快速失败更安全且可预测)。
+> 触发 #10 routes 的条件 = **生产多 worker 部署前**;届时回到上文「#10 — P0-2 连接池迁移」节批 2 执行(行为变化需重新对齐是否接受"PG 运行时抖动→连接失效报错"替代快速失败)。
+> A 类(hooks/scripts apple role-name 匹配)+ C 类(scan-secrets Apple 密钥防御)刻意留,无害。
