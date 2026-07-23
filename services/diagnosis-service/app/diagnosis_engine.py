@@ -173,36 +173,42 @@ async def _score_technical(
             try:
                 return score_five_factor(kline_df)
             except Exception:
+                logger.debug("score_five_factor failed for %s", code, exc_info=True)
                 return {}
 
         def _run_short_term():
             try:
                 return score_short_term(kline_df)
             except Exception:
+                logger.debug("score_short_term failed for %s", code, exc_info=True)
                 return {"score": 5.0}
 
         def _run_long_term():
             try:
                 return score_long_term(kline_df)
             except Exception:
+                logger.debug("score_long_term failed for %s", code, exc_info=True)
                 return {"score": 5.0}
 
         def _run_trend():
             try:
                 return score_trend_strength(kline_df)
             except Exception:
+                logger.debug("score_trend_strength failed for %s", code, exc_info=True)
                 return {"score": 5.0}
 
         def _run_reversal():
             try:
                 return score_reversal(kline_df)
             except Exception:
+                logger.debug("score_reversal failed for %s", code, exc_info=True)
                 return {"score": 5.0}
 
         def _run_liquidity():
             try:
                 return score_liquidity(kline_df)
             except Exception:
+                logger.debug("score_liquidity failed for %s", code, exc_info=True)
                 return {"score": 5.0}
 
         results = await asyncio.gather(
@@ -537,7 +543,7 @@ async def _score_fundamental(code: str, db) -> FundamentalDimension:
                 else:
                     audit_penalty = 0
         except Exception:
-            pass  # fina_audit table may not exist yet
+            logger.debug("fina_audit query failed for %s", code, exc_info=True)  # fina_audit table may not exist yet
 
         fundamental_score = max(0, fundamental_score - audit_penalty)
         fundamental_score = _clamp(fundamental_score)
@@ -839,7 +845,7 @@ async def _score_sentiment(code: str, db) -> SentimentDimension:
                 raw_s = float(ns_row[0])  # -1 to 1
                 news_score = _clamp(50 + raw_s * 40)  # map to 10-90
         except Exception:
-            pass  # Table may not exist yet — use default
+            logger.debug("news_sentiment query failed for %s", code, exc_info=True)  # Table may not exist yet — use default
 
         # ── P0: 互动问答情绪分析 ──
         interact_score = 50.0
@@ -875,7 +881,7 @@ async def _score_sentiment(code: str, db) -> SentimentDimension:
                     interact_score = min(90, 50 + pos_count * 5)
                 interact_count = len(iq_rows)
         except Exception:
-            pass
+            logger.debug("interact_qa query failed for %s", code, exc_info=True)
 
         # ── P3: 新闻联播行业热度 + 政策法规影响 ──
         policy_score = 50.0
@@ -968,7 +974,7 @@ async def _score_sentiment(code: str, db) -> SentimentDimension:
                                     policy_signals.append(f"政策: {title[:30]}...")
                                 break
         except Exception:
-            pass
+            logger.debug("policy/cctv sentiment query failed for %s", code, exc_info=True)
 
         # Blend: research 40% + cctv 15% + policy 10% + interact 20% + news 15%
         sentiment_score = round(
@@ -1067,6 +1073,7 @@ async def _get_macro_stance(db) -> tuple[str, float]:
         return stance, modifier
 
     except Exception:
+        logger.debug("Macro stance fetch failed", exc_info=True)
         return "无数据", 0.0
 
 
@@ -1183,7 +1190,7 @@ async def diagnose(
             try:
                 await db.rollback()
             except Exception:
-                pass
+                logger.warning("Rollback failed after dimension %s error", key, exc_info=True)
             dims[key] = default_factory()
         else:
             dims[key] = result
@@ -1207,7 +1214,7 @@ async def diagnose(
         w_sum = sum(effective_weights.values())
         effective_weights = {k: v / w_sum for k, v in effective_weights.items()}
     except Exception:
-        pass
+        logger.debug("Market regime detection failed, using base weights", exc_info=True)
 
     # Identify degraded dimensions
     degraded_dims = [

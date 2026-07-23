@@ -129,7 +129,7 @@ async def _register_scheduled_jobs(config: ScheduleConfig):
         try:
             _scheduler.remove_job(job_id)
         except Exception:
-            pass
+            logger.debug("Failed to remove job %s (%s)", name, job_id, exc_info=True)
     _job_ids.clear()
 
     # Schedule training job
@@ -295,7 +295,7 @@ async def update_schedule(config: ScheduleConfig) -> Dict[str, Any]:
                 try:
                     _scheduler.remove_job(job_id)
                 except Exception:
-                    pass
+                    logger.debug("Failed to remove job %s (%s)", name, job_id, exc_info=True)
             del _job_ids[name]
 
     # Calculate next run
@@ -306,7 +306,7 @@ async def update_schedule(config: ScheduleConfig) -> Dict[str, Any]:
             cit = croniter(config.cron, now)
             next_run = cit.get_next(datetime).isoformat()
         except Exception:
-            pass
+            logger.debug("Failed to compute next_run for cron %s", config.cron, exc_info=True)
 
     return {
         "enabled": config.enabled,
@@ -344,7 +344,7 @@ async def get_schedule_status() -> Dict[str, Any]:
             cit = croniter(_schedule_config.cron, now)
             next_run = cit.get_next(datetime).isoformat()
         except Exception:
-            pass
+            logger.debug("Failed to compute next_run for cron %s", _schedule_config.cron, exc_info=True)
 
     # Get last run info from DB
     last_run = None
@@ -367,7 +367,7 @@ async def get_schedule_status() -> Dict[str, Any]:
                     if job:
                         last_job_status = job.status.value
     except Exception:
-        pass
+        logger.debug("Failed to fetch last run info from DB", exc_info=True)
 
     return {
         "enabled": _schedule_config.enabled,

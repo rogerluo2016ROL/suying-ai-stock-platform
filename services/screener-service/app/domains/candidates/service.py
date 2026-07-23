@@ -55,13 +55,13 @@ async def record_candidate_pool(*, db, payload, tenant_id: str | None, owner_use
                 value = result.scalar()
                 created_at = value.isoformat() if hasattr(value, "isoformat") else (str(value) if value is not None else None)
             except Exception:
-                pass
+                logger.debug("candidate pool created_at fetch failed (id=%s)", row_id, exc_info=True)
         return CandidatePoolRecordResponse(pool_id=pool_id, id=row_id, created_at=created_at)
     except Exception as exc:
         try:
             await db.rollback()
         except Exception:
-            pass
+            logger.warning("candidate pool rollback failed", exc_info=True)
         logger.warning("candidate pool persistence failed: %s", exc)
         return CandidatePoolRecordResponse(pool_id=pool_id, fallback_reason=f"persist_failed: {exc}")
 
@@ -92,7 +92,8 @@ async def add_watchlist(*, db, payload, tenant_id, owner_user_id, account_id):
         return WatchlistAddResponse(record=WatchlistItemResponse(**record))
     except Exception as exc:
         try: await db.rollback()
-        except Exception: pass
+        except Exception:
+            logger.warning("watchlist add rollback failed (code=%s)", payload.code, exc_info=True)
         return WatchlistAddResponse(fallback_reason=f"persist_failed: {exc}")
 
 
@@ -120,5 +121,6 @@ async def remove_watchlist(*, db, code, row_id, tenant_id, owner_user_id, accoun
         return WatchlistDeleteResponse(deleted=deleted, code=code, id=row_id)
     except Exception as exc:
         try: await db.rollback()
-        except Exception: pass
+        except Exception:
+            logger.warning("watchlist remove rollback failed (code=%s)", code, exc_info=True)
         return WatchlistDeleteResponse(deleted=0, code=code, id=row_id, fallback_reason=f"remove_failed: {exc}")
