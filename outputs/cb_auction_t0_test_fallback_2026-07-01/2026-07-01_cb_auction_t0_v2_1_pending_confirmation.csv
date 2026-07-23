@@ -1,8 +1,0 @@
-﻿trigger_stock_code,trigger_stock_name,auction_price,up_limit,auction_amount,auction_amount_yi,confirmation_status,data_source
-002559,亚威股份,13.98,13.98,132161328.0,1.32,待确认真实封单金额,stk_auction+stk_limit
-603738,泰晶科技,66.06,66.06,99856957.0,1.0,待确认真实封单金额,stk_auction+stk_limit
-002458,益生股份,8.55,8.55,67839898.05,0.68,待确认真实封单金额,stk_auction+stk_limit
-600509,天富能源,9.3,9.3,45521640.0,0.46,待确认真实封单金额,stk_auction+stk_limit
-002635,安洁科技,22.5,22.5,35923500.0,0.36,待确认真实封单金额,stk_auction+stk_limit
-000601,韶能股份,6.44,6.44,20671112.0,0.21,待确认真实封单金额,stk_auction+stk_limit
-600233,圆通速递,17.33,17.33,13089349.0,0.13,待确认真实封单金额,stk_auction+stk_limit

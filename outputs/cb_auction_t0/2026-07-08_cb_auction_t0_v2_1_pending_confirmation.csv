@@ -1,6 +1,0 @@
-﻿trigger_stock_code,trigger_stock_name,auction_price,up_limit,auction_amount,auction_amount_yi,confirmation_status,data_source
-000977,浪潮信息,78.17,78.17,628437552.9,6.28,待确认真实封单金额,stk_auction+stk_limit
-001208,华菱线缆,14.85,14.85,25259850.0,0.25,待确认真实封单金额,stk_auction+stk_limit
-002546,新联电子,7.34,7.34,19274840.0,0.19,待确认真实封单金额,stk_auction+stk_limit
-001229,魅视科技,42.7,42.7,15821204.0,0.16,待确认真实封单金额,stk_auction+stk_limit
-000524,岭南控股,9.85,9.85,7491043.2,0.07,待确认真实封单金额,stk_auction+stk_limit

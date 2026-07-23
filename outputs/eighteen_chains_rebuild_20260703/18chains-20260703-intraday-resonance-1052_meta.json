@@ -1,9 +1,0 @@
-{
-  "trade_date": "2026-07-03",
-  "quote_time_min": "10:52:42",
-  "quote_time_max": "10:52:53",
-  "mapped_rows": 109,
-  "unique_codes": 102,
-  "quote_rows": 102,
-  "xlsx": "outputs/eighteen_chains_rebuild_20260703/18chains-20260703-intraday-resonance-1052.xlsx"
-}

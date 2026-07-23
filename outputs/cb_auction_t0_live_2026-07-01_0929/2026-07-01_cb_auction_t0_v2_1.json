@@ -1,9 +1,0 @@
-{
-  "model": "cb_auction_t0_v2_1",
-  "trade_date": "2026-07-01",
-  "trigger_stocks": [],
-  "concepts": [],
-  "bonds": [],
-  "observation_bonds": [],
-  "rejections": []
-}
