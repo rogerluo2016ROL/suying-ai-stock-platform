@@ -37,7 +37,13 @@ from app.broker_interface import (
     OrderSide,
     OrderType,
 )
-from app.risk_gateway import pre_check
+from app.risk_gateway import (
+    pre_check,
+    _LARGE_TRADE_THRESHOLD,
+    _MAX_SINGLE_ORDER_AMOUNT,
+    _MAX_POSITION_CONCENTRATION_PCT,
+    _PRICE_LIMIT_PCT,
+)
 from app.circuit_breaker import check_daily_loss, reset, get_state, can_trade, record_probe
 from app.schemas import PlaceOrderRequest, BrokerConnectRequest
 from app.platform_scope import (
@@ -56,6 +62,9 @@ engine = get_engine()          # PaperTradingEngine (existing, unchanged)
 
 _live_broker: BrokerInterface | None = None
 _current_mode: str = os.environ.get("TRADE_MODE", "paper")
+# 部署级实盘总开关：未显式开启时，live 下单 / 切换 live 模式 / 连接 live 券商一律 503。
+# 只能在部署环境（env）开启，运行期无法通过任何 API 绕过（kill switch）。
+_LIVE_TRADING_ENABLED = os.environ.get("LIVE_TRADING_ENABLED", "").lower() in ("1", "true", "yes")
 _broker_config: dict = {}
 _broker_connected_at: datetime | None = None
 
@@ -256,6 +265,14 @@ async def place_order(
     requested_mode = (body.trade_mode or _current_mode or "paper").lower()
     if requested_mode not in ("paper", "live"):
         raise HTTPException(400, detail={"detail": "trade_mode must be paper or live", "error_code": "INVALID_TRADE_MODE"})
+    if requested_mode == "live" and not _LIVE_TRADING_ENABLED:
+        raise HTTPException(
+            503,
+            detail={
+                "detail": "实盘交易未启用（部署级开关 LIVE_TRADING_ENABLED）",
+                "error_code": "LIVE_TRADING_DISABLED",
+            },
+        )
 
     order_req = OrderRequest(
         symbol=body.code.upper(),
@@ -367,6 +384,40 @@ async def place_order(
             detail={
                 "detail": risk_result.reject_reason,
                 "error_code": "RISK_REJECT",
+                "extra": risk_verdict,
+            },
+        )
+    # 服务端强制二次确认：WARN（如大额交易）须 confirmed=true，否则 409 由前端确认后重发
+    if risk_result.requires_confirmation and not body.confirmed:
+        await _risk_verdict_record_safe(
+            db,
+            verdict=risk_verdict,
+            symbol=body.code,
+        )
+        await _audit_record_safe(
+            db,
+            action="RISK_CONFIRM_REQUIRED",
+            mode=requested_mode,
+            user=user,
+            details={
+                "order_scope": order_scope,
+                "decision_context_id": body.decision_context_id,
+                "candidate_id": body.candidate_id,
+                "plan_id": body.plan_id,
+                "request": {
+                    "code": body.code, "direction": body.direction, "price": body.price,
+                    "volume": body.volume, "order_type": order_req.order_type.value,
+                },
+                "risk_verdict": risk_verdict,
+                "risk_check": risk_result.to_dict(),
+            },
+            symbol=body.code,
+        )
+        raise HTTPException(
+            409,
+            detail={
+                "detail": risk_result.confirm_reason or "大额交易需要二次确认",
+                "error_code": "CONFIRMATION_REQUIRED",
                 "extra": risk_verdict,
             },
         )
@@ -708,6 +759,15 @@ async def switch_mode(
     if mode not in ("paper", "live"):
         raise HTTPException(400, "mode must be paper or live")
 
+    if mode == "live" and not _LIVE_TRADING_ENABLED:
+        raise HTTPException(
+            503,
+            detail={
+                "detail": "实盘交易未启用（部署级开关 LIVE_TRADING_ENABLED）",
+                "error_code": "LIVE_TRADING_DISABLED",
+            },
+        )
+
     if mode == "live" and _live_broker is None:
         raise HTTPException(
             503,
@@ -779,6 +839,15 @@ async def broker_connect(
 
     if body.environment not in ("sandbox", "live"):
         raise HTTPException(400, "environment must be sandbox or live")
+
+    if body.environment == "live" and not _LIVE_TRADING_ENABLED:
+        raise HTTPException(
+            503,
+            detail={
+                "detail": "实盘交易未启用（部署级开关 LIVE_TRADING_ENABLED），仅 sandbox 可连接",
+                "error_code": "LIVE_TRADING_DISABLED",
+            },
+        )
 
     # P1-6 (audit): do NOT persist the plaintext trade_password into the
     # module-level _broker_config dict (real-money credential; would survive in
@@ -897,12 +966,12 @@ async def broker_status(user: dict = Depends(require_role("admin", "internal_ana
 
 @router.get("/risk-config")
 async def risk_config(user: dict = Depends(require_role("admin", "internal_analyst", "user"))):
-    """Return frontend-visible pre-trade risk thresholds."""
+    """Return frontend-visible pre-trade risk thresholds (单一来源: risk_gateway 模块常量)."""
     return {
-        "large_order_threshold": float(os.environ.get("RISK_LARGE_TRADE_THRESHOLD", "500000")),
-        "max_single_amount": float(os.environ.get("RISK_MAX_SINGLE_ORDER_AMOUNT", "500000")),
-        "max_position_pct": float(os.environ.get("RISK_MAX_POSITION_CONCENTRATION", "30")),
-        "price_limit_pct": float(os.environ.get("RISK_PRICE_LIMIT_PCT", "10.0")),
+        "large_order_threshold": _LARGE_TRADE_THRESHOLD,
+        "max_single_amount": _MAX_SINGLE_ORDER_AMOUNT,
+        "max_position_pct": _MAX_POSITION_CONCENTRATION_PCT,
+        "price_limit_pct": _PRICE_LIMIT_PCT,
     }
 
 

@@ -13,11 +13,8 @@ COPY backend /app/backend
 COPY packages/kronos-contracts /app/packages/kronos-contracts
 RUN pip install --no-cache-dir /app/packages/kronos-contracts
 
-# Install backend dependencies
-RUN pip install --no-cache-dir \
-    fastapi uvicorn[standard] \
-    sqlalchemy[asyncio] asyncpg psycopg2-binary \
-    alembic argon2-cffi pyjwt 'pydantic[email]'
+# Install backend dependencies (单一来源: backend/requirements.txt)
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
 EXPOSE 9001
 # AC-8: alembic upgrade head runs inside main.py lifespan (covers docker compose +

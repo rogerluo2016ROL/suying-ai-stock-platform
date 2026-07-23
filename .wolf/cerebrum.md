@@ -77,3 +77,21 @@
 
 ### Key Learnings (续)
 - **(2026-07-02) 因子回测判定必须结合IC+分组方向** — backtest_institutional_activity.py 判定逻辑已修正: ICIR>0.5且胜率>55%且多空>0 → 可做多; ICIR>0.5但多空<0 → "有信息量但极端值反转, 不能单边做多"。单看IC会误判(本次IC+0.056/70%胜率但实际做多亏-52%)。月频IC回测脚本tools/backtest_institutional_activity.py, 复用calc_top截面+daily_kline前向收益。
+
+### Key Learnings (续)
+- **(2026-07-19) 拥挤度→回撤预警因子已落地** `packages/kronos-factors/kronos_factors/scorer/crowding_drawdown.py` — 6成分(turnover_rate_f/amount/volume_ratio/pb/ret20/net_mf_amount)时序滚动分位等权合成CI, level high(>0.90)/medium(>0.80)/low. **方向纪律: 拥挤度是"极端反转"型, 高拥挤→预警回撤(回避方向), 不是做多** —— 与机构活跃度Top组年化-52% 同源教训. 待 walk_forward 样本外验证分组方向(IC + 高/低拥挤组未来回撤对比).
+- **(2026-07-19) 时序分位口径 = (rank-1)/(N-1)** — rolling_pctile 必须用此(对齐 bi_alpha_v15._pctile_ranks), 不是 pandas rank(pct=True)=rank/N. 最小0/最大1.
+- **(2026-07-19) 拥挤度数据坑**: 换手率用 daily_basic.turnover_rate_f(不用 daily_kline.turnover_rate, 688有36%NULL); 涨幅用close自算(不用change_pct); **不用北向个股hk_holdings(2024-08交易所停止披露)**; 主力资金用moneyflow.net_mf_amount(同步可用).
+
+### Decision Log (续)
+- **(2026-07-20) 拥挤度→回撤预警模型 v1 全套落地(6步)** — 因子 crowding_drawdown.py(6成分时序分位) + 选股接入(leader_afternoon apply_afternoon_optimization) + alert-service /crowding-scan(批量扫描+飞书) + tools/backtest_crowding_warning(回测, 接walk_forward M01) + scheduler _crowding_watch_loop. **核心决策: 高拥挤=回避方向(非做多), 回测判IC<0+分组方向(对齐机构活跃度-52%教训)**. 范围=全市场个股(科创重点), 不做指数级(科创50数据缺)/不做北向(2024-08停披). v1等权, v2按OOS校准. 待commit跑OOS + PL归档.
+
+### Key Learnings (续)
+- **(2026-07-21) moneyflow/kline/realtime 金额单位地图（踩3坑端到端验证）**:
+  - `moneyflow` 所有 *_amount(net_mf_amount/buy_lg_amount等) 单位 = **万元**(非元)。九安7-17 net_mf_amount=-147669 = -14.77亿。
+  - `daily_kline.amount` 单位 = **千元**(3594431千元=35.94亿)。千元→亿元 **/1e5**(不是/1e7,踩过)。
+  - `tushare realtime_tick` AMOUNT 单位 = **元**(/1e8=亿)。盘中单日主买卖几亿量级正常。
+  - **换手率坑**: `daily_kline.turnover_rate` 永远 NULL(pro.daily()不含换手率, sync_daily_kline cols也没采) → 必须用 `daily_basic.turnover_rate_f`(自由流通换手率,全表覆盖)。
+  - `tushare 1.4.29` realtime_tick 签名变了: `ts.realtime_tick(ts_code='002432.SZ')`, **不再接受 `code=`**(覆盖2026-07-02旧记录)。
+  - 反推单位法: moneyflow 八项和(buy+sell×4类) 与 daily_kline.amount 比值定口径。
+- **(2026-07-21) tools/analyze_main_force_today.py 固化** — 主力出货判定: 日级moneyflow趋势(大单/超大单/小单净额+net_mf_amount, 到T-1) + 盘中realtime_tick主买卖(当日实时)。多信号打分(量价背离/连续净流出/散户接盘/盘中大单方向); 盘中主力净流入作**反向减分**修小盘股假阳性(米奥案例)。`python tools/analyze_main_force_today.py 002432 300795`。

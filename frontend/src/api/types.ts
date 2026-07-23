@@ -553,6 +553,8 @@ export interface PlaceOrderRequest {
   decision_context_id?: string;
   candidate_id?: string;
   plan_id?: string;
+  /** 大额交易用户已二次确认（服务端 WARN → 409 后重发需置 true） */
+  confirmed?: boolean;
 }
 
 export interface BrokerConnectRequest {

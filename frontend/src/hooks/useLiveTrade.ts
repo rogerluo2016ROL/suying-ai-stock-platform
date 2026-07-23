@@ -214,9 +214,11 @@ export function useLiveTrade(): UseLiveTradeReturn {
       }
     }
 
-    // Step 2: Large order confirmation (live mode only, only when backend config loaded)
+    // Step 2: Large order confirmation (only when backend config loaded;
+    // server also enforces this via 409 CONFIRMATION_REQUIRED)
     const largeOrderThreshold = riskConfig?.large_order_threshold
-    if (effectiveMode === 'live' && largeOrderThreshold != null) {
+    let largeOrderConfirmed = false
+    if (largeOrderThreshold != null) {
       const estimatedAmount = params.price > 0
         ? params.price * params.volume
         : 0 // Market order - cannot estimate, always confirm
@@ -226,6 +228,7 @@ export function useLiveTrade(): UseLiveTradeReturn {
         if (!confirmed) {
           return { success: false, error: '用户取消大额交易' }
         }
+        largeOrderConfirmed = true
       }
     }
 
@@ -236,12 +239,15 @@ export function useLiveTrade(): UseLiveTradeReturn {
     // go through the single axios instance so the auth contract is consistent. The
     // backend decides paper vs live from its own account/broker config.
     try {
-      const r = await liveTradeApi.placeOrder({ ...params, trade_mode: effectiveMode })
+      const r = await liveTradeApi.placeOrder({ ...params, trade_mode: effectiveMode, confirmed: largeOrderConfirmed })
       const data = r.data
       message.success(data.message || '下单成功')
       return { success: true, data }
     } catch (err: any) {
-      const errMsg = err?.response?.data?.detail || '交易服务未连接'
+      const detail = err?.response?.data?.detail
+      const errMsg = typeof detail === 'string'
+        ? detail
+        : detail?.detail || '交易服务未连接'
       message.error(errMsg)
       return { success: false, error: errMsg }
     }

@@ -22,7 +22,7 @@
 | 自动交易 | asyncio 定时轮询 + APScheduler (训练调度) | ADR-003, ADR-004 |
 | 测试框架 | pytest (Python) + vitest (前端) | — |
 | 数据管道 | data-service (asyncio 调度 + PG-first 直写 + Tushare 1.4.29) + SQLite fallback | ADR-006 |
-| 部署 | Docker Compose (dev, postgres:15-alpine + redis:7-alpine + 8 微服务; 另有 3 个手动启动: backend/data-service/training-service) | — |
+| 部署 | Docker Compose (dev, postgres:15-alpine + redis:7-alpine + 全部 11 微服务 + frontend) | — |
 
 ## Verified Facts (Quick Reference)
 
@@ -43,12 +43,14 @@
 | backtest-service | 8007 | 历史回测 + IC/ICIR 分析 | `uvicorn app.main:app --port 8007` |
 | training-service | 8008 | 模型训练 + MLflow 实验追踪 | `uvicorn app.main:app --port 8008` |
 | diagnosis-service | 8009 | 五维个股诊断 (技术/资金/基本面/AI/情绪) | `uvicorn app.main:app --port 8009` |
+| data-service | 8010 | 后台数据采集 + 定时调度 (常驻) | `uvicorn app.main:app --port 8010` |
 | PostgreSQL | 6432 | docker: `postgres:15-alpine`, 用户 `kronos/kronos`, 库 `kronos` | `docker start docker-postgres-1` |
 | Redis | 7379 | docker: `redis:7-alpine` | `docker start docker-redis-1` |
 | Frontend | 3000 | Vite dev server | `cd frontend && npm run dev` |
 
 > 启动所有基础设施: `docker start docker-postgres-1 docker-redis-1`
-> 一键启动全部: `cd docker && docker compose up -d`
+> 一键启动全部: `cd docker && docker compose up -d`（compose 已含全部 11 微服务 + frontend）
+> 端口绑定（2026-07 安全收敛）: compose 下 postgres/redis 与 8001–8010 仅绑 `127.0.0.1`（本机调试可达，LAN 不可达）；对外入口仅 8080/9001/3000。
 
 ### 认证机制
 
@@ -82,6 +84,11 @@
 | `SIGNAL_SERVICE_URL` | `http://localhost:8004` | 自动交易引擎调用的信号服务地址 |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` | CORS 白名单 |
 | `DEBUG` | `false` | 开启后 uvicorn reload + verbose logging |
+| `KRONOS_SERVICE_SECRET` | — (prod 必设，缺失 raise) | 服务间认证（`X-Service-Auth` 头豁免）；trade/strategy/training/backend 需要 |
+| `KRONOS_ENV` | dev | `production` 时 kronos-auth 对缺失密钥硬失败（prod-gate） |
+| `AUTH_COOKIE_SECURE` | `false` (本地 http) | refresh cookie `Secure` 标记；带域名的生产部署必须 `true` |
+| `LIVE_TRADING_ENABLED` | `false` | 部署级实盘总开关：未开启时 live 下单/连接实盘券商/切 live 模式一律 503 |
+| `MLFLOW_MODE` | `mock` | training-service 实验追踪后端 |
 
 ### 项目目录结构
 

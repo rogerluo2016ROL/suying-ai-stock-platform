@@ -49,8 +49,37 @@ async def _daily_loop():
         await asyncio.sleep(600)
 
 
+async def _crowding_watch_loop():
+    """盘中拥挤度预警: 每 N 分钟调 alert-service /crowding-scan (科创板 high).
+
+    通过 CROWDING_WATCH_ENABLED=1 启用 (默认关). 间隔 CROWDING_WATCH_INTERVAL_SEC (默认 300s).
+    仅交易时段 (周一-五 9:30-15:00) 运行. 微服务间 HTTP 用 urllib (CLAUDE.md 约定).
+    """
+    import os, urllib.request
+    interval = int(os.environ.get("CROWDING_WATCH_INTERVAL_SEC", "300"))
+    alert_url = os.environ.get("ALERT_SERVICE_URL", "http://localhost:8005").rstrip("/")
+    loop = asyncio.get_event_loop()
+    while True:
+        now = datetime.now()
+        in_session = now.weekday() < 5 and time(9, 30) <= now.time() <= time(15, 0)
+        if in_session:
+            try:
+                def _scan():
+                    url = (f"{alert_url}/api/v1/alert/crowding-scan"
+                           f"?level=high&board=688&channel=app,feishu")
+                    with urllib.request.urlopen(
+                        urllib.request.Request(url, method="POST"), timeout=180) as resp:
+                        return resp.read()
+                body = await loop.run_in_executor(None, _scan)
+                logger.info("Crowding watch: %s", body[:200])
+            except Exception as e:
+                logger.warning("Crowding watch failed: %s", e)
+        await asyncio.sleep(interval)
+
+
 def start_scheduler():
     """Start the daily backfill scheduler as a background task."""
+    import os
     try:
         # Quick initial backfill on startup
         asyncio.create_task(_backfill_job())
@@ -59,3 +88,8 @@ def start_scheduler():
 
     asyncio.create_task(_daily_loop())
     logger.info("Scheduler: daily backfill loop started (runs after 16:00 each trading day)")
+    # 拥挤度盘中预警 (可选, env 启用; 服务运行时生效)
+    if os.environ.get("CROWDING_WATCH_ENABLED") == "1":
+        asyncio.create_task(_crowding_watch_loop())
+        logger.info("Scheduler: crowding watch loop started (科创板 high, 每 %ss)",
+                    os.environ.get("CROWDING_WATCH_INTERVAL_SEC", "300"))

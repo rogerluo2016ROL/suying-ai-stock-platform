@@ -953,3 +953,110 @@ INFO:     127.0.0.1:54088 - "POST /api/v1/lark/events HTTP/1.1" 200 OK
 2026-07-10 16:09:31,291 [INFO] screener.scheduler: Scheduler: T+1 backfill — 164 snapshots
 2026-07-10 16:09:34,272 [INFO] kronos.recorder: recorder: 1239 snapshots multi-horizon backfilled
 2026-07-10 16:09:34,272 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 1239 snapshots
+INFO:     Started server process [3382]
+INFO:     Waiting for application startup.
+2026-07-16 23:23:28,222 [INFO] screener-service: Starting Screener Service...
+2026-07-16 23:23:28,449 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-16 23:23:28,453 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-16 23:23:28,453 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-16 23:23:28,453 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-16 23:23:28,509 [INFO] kronos.recorder: recorder: 11 outcomes backfilled
+2026-07-16 23:23:28,509 [INFO] screener.scheduler: Scheduler: T+1 backfill — 11 snapshots
+2026-07-16 23:23:31,010 [INFO] kronos.recorder: recorder: 876 snapshots multi-horizon backfilled
+2026-07-16 23:23:31,010 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 876 snapshots
+2026-07-16 23:23:31,010 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-16
+2026-07-16 23:23:31,013 [INFO] kronos.recorder: recorder: 11 outcomes backfilled
+2026-07-16 23:23:31,014 [INFO] screener.scheduler: Scheduler: T+1 backfill — 11 snapshots
+2026-07-16 23:23:32,619 [INFO] kronos.recorder: recorder: 752 snapshots multi-horizon backfilled
+2026-07-16 23:23:32,619 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 752 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59734 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59735 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59743 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+INFO:     Started server process [6949]
+INFO:     Waiting for application startup.
+2026-07-16 23:24:25,057 [INFO] screener-service: Starting Screener Service...
+2026-07-16 23:24:25,294 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-16 23:24:25,298 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-16 23:24:25,298 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-16 23:24:25,298 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-16 23:24:25,315 [INFO] kronos.recorder: recorder: 11 outcomes backfilled
+2026-07-16 23:24:25,315 [INFO] screener.scheduler: Scheduler: T+1 backfill — 11 snapshots
+2026-07-16 23:24:26,987 [INFO] kronos.recorder: recorder: 752 snapshots multi-horizon backfilled
+2026-07-16 23:24:26,987 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 752 snapshots
+2026-07-16 23:24:26,987 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-16
+2026-07-16 23:24:26,990 [INFO] kronos.recorder: recorder: 11 outcomes backfilled
+2026-07-16 23:24:26,990 [INFO] screener.scheduler: Scheduler: T+1 backfill — 11 snapshots
+2026-07-16 23:24:29,077 [INFO] kronos.recorder: recorder: 752 snapshots multi-horizon backfilled
+2026-07-16 23:24:29,078 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 752 snapshots
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('127.0.0.1', 18011): [errno 48] address already in use
+INFO:     Waiting for application shutdown.
+2026-07-16 23:24:29,078 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     127.0.0.1:59778 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59779 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59788 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-07-16 23:25:07,805 [INFO] screener-service: Screener Service stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3382]
+INFO:     Started server process [20697]
+INFO:     Waiting for application startup.
+2026-07-16 23:25:09,238 [INFO] screener-service: Starting Screener Service...
+2026-07-16 23:25:09,509 [INFO] screener-service: Using PostgreSQL: localhost:6432/kronos
+2026-07-16 23:25:09,513 [INFO] kronos-factors.supply_chain: 产业链配置加载自 JSON: 15 链
+2026-07-16 23:25:09,514 [INFO] screener-service: kronos-factors loaded: v0.1.0
+2026-07-16 23:25:09,514 [INFO] screener.scheduler: Scheduler: daily backfill loop started (runs after 16:00 each trading day)
+2026-07-16 23:25:09,532 [INFO] kronos.recorder: recorder: 11 outcomes backfilled
+2026-07-16 23:25:09,532 [INFO] screener.scheduler: Scheduler: T+1 backfill — 11 snapshots
+2026-07-16 23:25:11,206 [INFO] kronos.recorder: recorder: 752 snapshots multi-horizon backfilled
+2026-07-16 23:25:11,207 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 752 snapshots
+2026-07-16 23:25:11,207 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-16
+2026-07-16 23:25:11,211 [INFO] kronos.recorder: recorder: 11 outcomes backfilled
+2026-07-16 23:25:11,211 [INFO] screener.scheduler: Scheduler: T+1 backfill — 11 snapshots
+2026-07-16 23:25:13,995 [INFO] kronos.recorder: recorder: 752 snapshots multi-horizon backfilled
+2026-07-16 23:25:13,995 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 752 snapshots
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18011 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59816 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59817 - "GET /api/v1/screener/modes HTTP/1.1" 200 OK
+2026-07-16 23:25:35,810 [INFO] screener.cache: Redis connected: redis://localhost:7379/0
+2026-07-16 23:26:03,803 [INFO] screener.routes: Snapshot saved: /Users/rogerluo/程序目录/K线大模型/services/outputs/snapshots/short/2026-07-15_2326.json (30 picks)
+2026-07-16 23:26:03,815 [INFO] kronos.recorder: recorder: short 2026-07-15 — 30 picks recorded
+2026-07-16 23:26:03,815 [INFO] screener.routes: Recorder: short 2026-07-15 — 30 picks
+INFO:     127.0.0.1:59840 - "POST /api/v1/screener/run HTTP/1.1" 200 OK
+2026-07-16 23:26:22,902 [INFO] screener.bi_shifu_trend: Stock pool: 5092 symbols
+2026-07-16 23:26:23,233 [INFO] screener.bi_shifu_trend: Kline range: 2026-01-14 ~ 2026-07-15 (120 days)
+2026-07-16 23:26:54,554 [INFO] screener.bi_shifu_trend: Loaded 659553 klines for 5561 stocks in 31.7s
+2026-07-16 23:26:56,239 [INFO] screener.bi_shifu_trend: Screening done: 0 picks in 33.3s
+INFO:     127.0.0.1:59873 - "POST /api/v1/screener/run?mode=bi_shifu_trend_v23&top_n=20&trade_date=2026-07-15 HTTP/1.1" 200 OK
+2026-07-17 16:06:35,782 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-17
+2026-07-17 16:06:35,899 [INFO] kronos.recorder: recorder: 41 outcomes backfilled
+2026-07-17 16:06:35,901 [INFO] screener.scheduler: Scheduler: T+1 backfill — 41 snapshots
+2026-07-17 16:06:37,644 [INFO] kronos.recorder: recorder: 782 snapshots multi-horizon backfilled
+2026-07-17 16:06:37,645 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 782 snapshots
+INFO:     127.0.0.1:59896 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59897 - "GET /openapi.json HTTP/1.1" 200 OK
+2026-07-18 16:02:15,068 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-18
+2026-07-18 16:02:15,078 [WARNING] screener.scheduler: Scheduler: backfill failed — server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+2026-07-19 16:02:03,145 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-19
+2026-07-19 16:02:03,425 [INFO] kronos.recorder: recorder: 20 outcomes backfilled
+2026-07-19 16:02:03,426 [INFO] screener.scheduler: Scheduler: T+1 backfill — 20 snapshots
+2026-07-19 16:02:05,733 [INFO] kronos.recorder: recorder: 657 snapshots multi-horizon backfilled
+2026-07-19 16:02:05,735 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 657 snapshots
+2026-07-20 16:05:03,580 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-20
+2026-07-20 16:05:03,670 [INFO] kronos.recorder: recorder: 20 outcomes backfilled
+2026-07-20 16:05:03,671 [INFO] screener.scheduler: Scheduler: T+1 backfill — 20 snapshots
+2026-07-20 16:05:05,555 [INFO] kronos.recorder: recorder: 677 snapshots multi-horizon backfilled
+2026-07-20 16:05:05,555 [INFO] screener.scheduler: Scheduler: Multi-horizon backfill — 677 snapshots
+2026-07-21 16:08:23,506 [INFO] screener.scheduler: Scheduler: starting daily backfill for 2026-07-21
+2026-07-21 16:08:23,523 [WARNING] screener.scheduler: Scheduler: backfill failed — server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+

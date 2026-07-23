@@ -111,6 +111,7 @@ describe('P0-01: placeOrder 鉴权口径统一', () => {
       decision_context_id: 'CTX-1',
       candidate_id: 'CAND-1',
       plan_id: 'PLAN-1',
+      confirmed: false,
     })
     expect(outcome).toEqual(expect.objectContaining({ success: true }))
   })

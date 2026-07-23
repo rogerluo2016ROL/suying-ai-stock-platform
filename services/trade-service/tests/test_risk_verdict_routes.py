@@ -191,6 +191,7 @@ async def test_live_order_requires_connected_broker_and_never_falls_back_to_pape
         captured_audits.append(kwargs)
 
     monkeypatch.setattr(routes, "_live_broker", None, raising=False)
+    monkeypatch.setattr(routes, "_LIVE_TRADING_ENABLED", True, raising=False)
     monkeypatch.setattr(routes, "_PaperEngineAdapter", fake_paper_adapter, raising=False)
     monkeypatch.setattr(routes, "_audit_record_safe", fake_audit, raising=False)
 
@@ -630,3 +631,92 @@ async def test_order_record_safe_commits_success_and_rolls_back_failure(monkeypa
 
     assert db.commits == 1
     assert db.rollbacks == 1
+
+
+@pytest.mark.asyncio
+async def test_live_order_blocked_when_kill_switch_off(monkeypatch):
+    """部署级总开关关闭时，live 下单一律 503 LIVE_TRADING_DISABLED（先于券商检查）。"""
+    from fastapi import HTTPException
+
+    from app import routes
+    from app.schemas import PlaceOrderRequest
+
+    used_paper = False
+
+    def fake_paper_adapter(_engine):
+        nonlocal used_paper
+        used_paper = True
+        raise AssertionError("kill-switch block must not reach broker selection")
+
+    monkeypatch.setattr(routes, "_LIVE_TRADING_ENABLED", False, raising=False)
+    monkeypatch.setattr(routes, "_PaperEngineAdapter", fake_paper_adapter, raising=False)
+
+    with pytest.raises(HTTPException) as exc:
+        await routes.place_order(
+            body=PlaceOrderRequest(
+                code="300750",
+                direction="BUY",
+                price=218.5,
+                volume=100,
+                trade_mode="live",
+            ),
+            tenant_id="tenant-alpha",
+            account_id=None,
+            db=object(),
+            user={"sub": "7", "role": "user"},
+        )
+
+    assert exc.value.status_code == 503
+    assert exc.value.detail["error_code"] == "LIVE_TRADING_DISABLED"
+    assert used_paper is False
+
+
+@pytest.mark.asyncio
+async def test_large_order_warn_requires_confirmed_flag(monkeypatch):
+    """大额订单（WARN）未带 confirmed=true → 409 CONFIRMATION_REQUIRED，不放行。"""
+    from fastapi import HTTPException
+
+    from app import routes
+    from app.broker_interface import AccountInfo
+    from app.schemas import PlaceOrderRequest
+
+    captured_audits = []
+
+    class FakeBroker:
+        async def get_account(self):
+            return AccountInfo(total_assets=1_000_000, available=900_000)
+
+        async def get_positions(self):
+            return []
+
+        async def place_order(self, order):
+            raise AssertionError("unconfirmed large order must not reach broker")
+
+    async def fake_audit(db, **kwargs):
+        captured_audits.append(kwargs)
+
+    async def fake_verdict_record(db, **kwargs):
+        return None
+
+    monkeypatch.setattr(routes, "_PaperEngineAdapter", lambda _engine: FakeBroker(), raising=False)
+    monkeypatch.setattr(routes, "_audit_record_safe", fake_audit, raising=False)
+    monkeypatch.setattr(routes, "_risk_verdict_record_safe", fake_verdict_record, raising=False)
+
+    with pytest.raises(HTTPException) as exc:
+        await routes.place_order(
+            body=PlaceOrderRequest(
+                code="300750",
+                direction="BUY",
+                price=100.0,
+                volume=3000,  # ¥300,000 ≥ 250k WARN 阈值，≤ 500k REJECT 上限
+                trade_mode="paper",
+            ),
+            tenant_id="tenant-alpha",
+            account_id=None,
+            db=object(),
+            user={"sub": "7", "role": "user"},
+        )
+
+    assert exc.value.status_code == 409
+    assert exc.value.detail["error_code"] == "CONFIRMATION_REQUIRED"
+    assert captured_audits[-1]["action"] == "RISK_CONFIRM_REQUIRED"

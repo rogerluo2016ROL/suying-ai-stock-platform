@@ -95,3 +95,21 @@ progress/board.html*
 # 审视清理 20260717: 备份目录与 outputs 实验产物不再入库(已跟踪文件不受影响)
 .claude.backup-*/
 outputs/
+
+# 训练运行产物（每次训练都会变，不入库）
+catboost_info/
+
+# Agent 运行态（每次会话都变，2026-07-23 移出跟踪）
+.wolf/
+.clawhub/
+.superpowers/
+
+# 嵌入式外部仓库 checkout（独立仓库，不作为 gitlink 跟踪）
+chatbi-workspace/raw/backend/cockpit-screen
+
+# Python 构建产物（通用覆盖，替代单行 tools/... 特例）
+*.egg-info/
+
+# 备份与构建产物
+*.backup-*
+*.egg-info/

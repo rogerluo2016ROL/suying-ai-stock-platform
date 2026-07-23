@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-07-10T13:46:01.907Z
-> Files: 600 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-07-21T03:30:49.950Z
+> Files: 606 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -977,6 +977,7 @@
 
 ## tools/
 
+- `analyze_main_force_today.py` — 分析个股「今日主力是否在出货」。 (~2142 tok)
 - `backtest_bi_shifu_trend_correct.py` — get_bar, forward_date (~2750 tok)
 - `backtest_bi_shifu_trend.py` — forward_close (~2300 tok)
 - `backtest_institutional_activity.py` — 机构活跃度因子 — 月频 IC + 分组多空回测。 (~1636 tok)
@@ -984,5 +985,14 @@
 - `backtest_trend_launch.py` — TrendLaunchEngine Walk-Forward 回测 (严格杜绝数据泄露). (~2802 tok)
 - `build_commercial_aerospace_chain.py` — build_chain (~2989 tok)
 - `build_supply_chain_foundation.py` — Build 大葱产业链 data-foundation nodes, edges, mappings and report. (~2792 tok)
+- `docs/changes/crowding-warning/` — 拥挤度→回撤预警 change 文件夹(proposal/specs delta/tasks/design), 待 agf-spec-validate + 归档. (~1500 tok)
 - `institutional_activity_top.py` — 全市场机构活跃度评分 — 5 维 percentile 加权。 (~2870 tok)
+- `packages/kronos-factors/kronos_factors/scorer/crowding_drawdown.py` — 拥挤度→回撤预警因子: 6成分(turnover_f/amount/vol_ratio/pb/ret20/主力净流入)时序滚动分位等权合成CI, 映射high/medium/low. (~1900 tok)
+- `packages/kronos-factors/tests/test_backtest_crowding_warning.py` — 回测脚本关键逻辑单测(future_drawdown/summarize, 4例). (~1800 tok)
+- `packages/kronos-factors/tests/test_crowding_drawdown.py` — crowding_drawdown 单测(纯逻辑+fake db端到端, 17例). (~2100 tok)
 - `send_bishifu_feishu.py` — 跑毕师傅硬核科技选股 + 推送飞书群（AI 投研分析）。 (~1028 tok)
+- `tools/backtest_crowding_warning.py` — 拥挤度→回撤预警 回测(向量化, train/test切分, 接walk_forward M01时序护栏). (~3200 tok)
+
+## ./tools/ (append 2026-07-21)
+
+- `analyze_main_force_today.py` — 主力出货分析(日级moneyflow趋势+盘中realtime_tick主买卖,多信号打分) (~1.6k tok)

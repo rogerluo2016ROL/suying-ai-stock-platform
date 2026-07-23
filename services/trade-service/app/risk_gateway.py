@@ -6,7 +6,8 @@ Checks:
 3. Price limit (±10% for A-shares)
 4. Position concentration (single stock ≤ 30% of portfolio)
 5. Single order amount cap (default ≤ 500k CNY)
-6. Large-trade detection (requires frontend confirmation when ≥ 500k CNY)
+6. Large-trade detection (WARN ≥ 250k CNY; server rejects with 409 unless
+   the request carries confirmed=true)
 """
 
 from __future__ import annotations
@@ -74,7 +75,8 @@ class RiskResult:
 # ── Configurable thresholds (env vars) ────────────────────────────────
 
 _MAX_SINGLE_ORDER_AMOUNT = float(os.environ.get("RISK_MAX_SINGLE_ORDER_AMOUNT", "500000"))
-_LARGE_TRADE_THRESHOLD = float(os.environ.get("RISK_LARGE_TRADE_THRESHOLD", "500000"))
+# WARN 阈值须低于 REJECT 上限，否则确认区间为空（历史 bug：两者默认同为 500k）
+_LARGE_TRADE_THRESHOLD = float(os.environ.get("RISK_LARGE_TRADE_THRESHOLD", "250000"))
 _MAX_POSITION_CONCENTRATION_PCT = float(os.environ.get("RISK_MAX_POSITION_CONCENTRATION", "30"))
 _PRICE_LIMIT_PCT = float(os.environ.get("RISK_PRICE_LIMIT_PCT", "10.0"))
 

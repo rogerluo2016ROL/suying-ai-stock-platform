@@ -71,8 +71,13 @@ def _afternoon_grade(total_score):
     return "C"
 
 
-def apply_afternoon_optimization(score):
-    """Apply post-backtest crowding and industry calibration to one pick."""
+def apply_afternoon_optimization(score, db=None, trade_date=None):
+    """Apply post-backtest crowding and industry calibration to one pick.
+
+    当提供 db + trade_date 时, 额外计算拥挤度→回撤预警 (crowding_drawdown),
+    把 crowding_level/crowding_score 写入 pick; high/medium 时追加 risk_flags
+    可读标签 (前端 Screener.tsx 原生渲染 risk_flags 成 warn chip).
+    """
     optimised = dict(score)
     raw_total = float(optimised.get("total_score", 0) or 0)
     gain_pct = float(optimised.get("gain_pct", 0) or 0)
@@ -107,6 +112,25 @@ def apply_afternoon_optimization(score):
     elif industry in AFTERNOON_SUPPORTIVE_INDUSTRIES:
         bonus += 2
         flags.append("supportive_industry")
+
+    # 拥挤度→回撤预警 (可选, 需 db+trade_date; 失败不阻塞选股)
+    if db is not None and trade_date and code:
+        try:
+            from kronos_factors.scorer.crowding_drawdown import compute_crowding_risk
+            cr = compute_crowding_risk(db, code, trade_date)
+            optimised["crowding_level"] = cr["level"]
+            optimised["crowding_score"] = cr["ci_score"]
+            if cr["level"] in ("high", "medium"):
+                lvl_cn = {"high": "高", "medium": "中"}[cr["level"]]
+                tag = f"拥挤度{lvl_cn}" + (f"(CI={cr['ci_score']:.2f})" if cr["ci_score"] is not None else "")
+                flags.append(f"crowding_{cr['level']}")
+                rf = optimised.get("risk_flags")
+                if isinstance(rf, list):
+                    rf.append(tag)
+                else:
+                    optimised["risk_flags"] = [tag]
+        except Exception:
+            pass
 
     total = max(0, raw_total - penalty + bonus)
     optimised["raw_total_score"] = raw_total
@@ -920,7 +944,7 @@ def score_stock_afternoon(code, name, industry, snap, pre_close, db, trade_date,
         "sector_momentum_score": sector_momentum_score,
         "sector_leader_score": sl_score,
     }
-    return apply_afternoon_optimization(result)
+    return apply_afternoon_optimization(result, db=db, trade_date=trade_date)
 
 
 # ═══════════════════════ 筛选主流程 ═══════════════════════

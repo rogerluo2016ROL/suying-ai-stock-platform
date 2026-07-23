@@ -5,7 +5,7 @@ description = "Kronos K-line foundation model — tokenizer, transformer predict
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",
-    "pandas>=2.0",
+    "pandas>=2.0,<3.0",
     "torch>=2.0",
     "einops>=0.7",
     "huggingface-hub>=0.16",

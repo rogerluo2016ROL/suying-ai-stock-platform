@@ -66,6 +66,61 @@ async def trigger_alert(
     }
 
 
+@router.post("/crowding-scan")
+async def crowding_scan(
+    trade_date: str = Query(None, description="YYYY-MM-DD, 默认 daily_kline 最近交易日"),
+    level: str = Query("high", description="过滤阈值: high 只推 high; medium 推 medium+high"),
+    board: str = Query("688", description="688 科创板 | all 全市场"),
+    channel: str = Query("app,feishu", description="推送渠道, 逗号分隔"),
+    top_n: int = Query(30, description="最多推送条数 (防刷屏)"),
+):
+    """扫描高拥挤标的并推送 alert (科创板⭐标注). 盘后批量调用.
+
+    复用 kronos_factors.scorer.crowding_drawdown.scan_crowding 做批量计算,
+    命中后逐个 store.create + feishu_notifier.notify.
+    """
+    import os
+    from kronos_factors.scorer._db_stub import _get_db, set_db_adapter
+    from kronos_factors.scorer.crowding_drawdown import scan_crowding
+
+    # alert-service 默认不注入 kronos adapter; 走 KRONOS_PG_URL 自动建连
+    pg_url = os.environ.get("KRONOS_PG_URL", "")
+    if pg_url:
+        try:
+            from kronos_factors.pg_adapter import create_pg_adapter
+            _a = create_pg_adapter(pg_url)
+            if _a:
+                set_db_adapter(_a)
+        except Exception:
+            pass
+
+    with _get_db() as db:
+        if not trade_date:
+            r = db.execute("SELECT MAX(trade_date) m FROM daily_kline").fetchone()
+            trade_date = r["m"] if r else None
+        if not trade_date:
+            return {"status": "error", "message": "无法确定 trade_date (KRONOS_PG_URL 未配或无数据)"}
+        warnings = scan_crowding(db, trade_date, board=board, min_level=level)
+
+    lvl_cn = {"high": "高", "medium": "中"}
+    pushed = 0
+    for w in warnings[:top_n]:
+        star = "⭐" if w["is_kechuang"] else ""
+        title = f"拥挤度{lvl_cn.get(w['level'], '')}预警 {star}{w['code']}"
+        msg = f"CI={w['ci_score']} 板块={'科创板' if w['is_kechuang'] else '其他'} 成分={w['factor_pctl']}"
+        alert = store.create(level="important", title=title, message=msg, code=w["code"], channel=channel)
+        if alert and "feishu" in channel.split(","):
+            feishu_notifier.notify(level="important", title=title, message=msg,
+                                   code=w["code"], score=w["ci_score"])
+            pushed += 1
+    return {
+        "trade_date": trade_date, "board": board, "scanned_level": level,
+        "n_warnings": len(warnings), "n_pushed_feishu": pushed,
+        "top5": [{"code": w["code"], "level": w["level"], "ci_score": w["ci_score"],
+                  "is_kechuang": w["is_kechuang"]} for w in warnings[:5]],
+    }
+
+
 @router.get("/channels")
 async def list_channels():
     return {"channels": [

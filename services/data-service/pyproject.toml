@@ -1,0 +1,31 @@
+[project]
+name = "data-service"
+version = "0.1.0"
+description = "速赢AI data-service — 后台数据采集 + 定时调度"
+requires-python = ">=3.10"
+# 内部包（kronos-data / kronos-factors / kronos-contracts）由 Dockerfile COPY + pip install 安装，
+# 不在此声明（避免 file:// 绝对路径 lock 死构建上下文）。
+dependencies = [
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.24",
+    "psycopg2-binary>=2.9",
+    "redis>=5.0",
+    "SQLAlchemy>=2.0",
+    "asyncpg>=0.29",
+    "openai>=1.0",
+    "tenacity>=8.2",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+# 与 trade-service 对齐：支持 `cd services/data-service && pytest`
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"

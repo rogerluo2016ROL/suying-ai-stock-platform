@@ -118,7 +118,7 @@ def _upsert_real(connection: Any, table: str, row: dict[str, Any]) -> None:
 
 def _pool_counts(connection: Any) -> dict[str, int]:
     counts = {pool: 0 for pool in ("A", "B", "C", "D")}
-    rows = getattr(connection, "rows", {})
+    rows = getattr(connection, "rows", None)
     if isinstance(rows, dict):
         for (table, _key), row in rows.items():
             if table == "business_tag_token_pool_states":

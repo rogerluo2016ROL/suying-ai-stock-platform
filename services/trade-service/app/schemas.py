@@ -15,6 +15,7 @@ class PlaceOrderRequest(BaseModel):
     decision_context_id: str = Field("", description="DecisionContext id that produced this order")
     candidate_id: str = Field("", description="Candidate id behind this order")
     plan_id: str = Field("", description="Plan id behind this order")
+    confirmed: bool = Field(False, description="User confirmed a large-trade WARN (server-enforced second confirmation)")
 
 
 class BrokerConnectRequest(BaseModel):

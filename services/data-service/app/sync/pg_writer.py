@@ -14,6 +14,9 @@ PG_URL = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6
 
 _MAX_RETRIES = 3  # ADR-006 决策 6: 3 次指数退避 (1s, 4s, 16s); ADR-012 §决策 5.1 沿用
 
+# PG 直写失败计数（进程内）— 让静默失败可观测；键为表名，值为累计失败批次数
+WRITE_FAILURES: dict[str, int] = {}
+
 # ADR-013 §决策 4 (W-2): 数据量门禁阈值表 — 二档分级 (floor → ERROR, warn → WARN).
 # 替代 ADR-012 单档 _VOLUME_FLOOR_MAP (新 _insert_rows 已支持 data_volume_warn 参数).
 # 仅对 daily_kline / stk_mins 这两张 P0 量级表启用二档门禁; 其他表 None=不启用 (字典 .get 返回 {}).
@@ -88,9 +91,13 @@ def _pg_write(table: str, columns: list[str], conflict_cols: list[str],
                                now_cols=now_cols)
         return written
     except Exception as e:
-        # _insert_rows 内部已 catch 大部分异常, 此处兜底 connection 失败等
-        print(f"  [WARN] _pg_write {table} thin-wrapper 失败: {str(e)[:140]}", flush=True)
-        logger.debug("PG write %s wrapper exception: %s", table, e)
+        # _insert_rows 内部已 catch 大部分异常, 此处兜底 connection 失败等.
+        # 不再静默 print：写失败是 PG-first 管道（ADR-006）的关键信号，必须进日志并计数。
+        WRITE_FAILURES[table] = WRITE_FAILURES.get(table, 0) + 1
+        logger.warning(
+            "PG write %s failed (batch_rows=%d, total_failed_batches=%d): %s",
+            table, len(rows), WRITE_FAILURES[table], str(e)[:140],
+        )
         return 0
     finally:
         try:

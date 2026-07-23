@@ -35,6 +35,11 @@ from threading import RLock
 
 logger = logging.getLogger("screener.bi_shifu_trend")
 
+DAILY_VOLUME_UNIT = "hand"
+DAILY_AMOUNT_UNIT = "k_yuan"
+MINUTE_VOLUME_UNIT = "share"
+MINUTE_AMOUNT_UNIT = "yuan"
+
 
 # ==================== 参数 ====================
 
@@ -82,6 +87,12 @@ class Params:
     # 历史数据
     MIN_DATA_DAYS = 60
     KLINE_LOOKBACK = 120         # 预取K线天数
+    MINUTE_BARS_MIN = 40         # 5分钟线全天至少 40 根才允许聚合替代
+    SOURCE_COMPARE_MIN = 0.50    # 日线与分钟聚合量额差异过大时判为异常
+    SOURCE_COMPARE_MAX = 1.50
+    SOURCE_CLOSE_DIFF_MAX = 0.20
+    SOURCE_REPAIR_VOLUME_RATIO_MAX = 10.0
+    SOURCE_REPAIR_AMOUNT_RATIO_MAX = 50.0
 
     # 评分权重
     SCORE_TREND_WEIGHT = 0.30
@@ -108,6 +119,92 @@ def _temporary_params(**overrides):
             for name, value in previous.items():
                 setattr(P, name, value)
 
+
+def _row_get(row, key: str, default=None):
+    if hasattr(row, "get"):
+        return row.get(key, default)
+    try:
+        return row[key]
+    except Exception:
+        return default
+
+
+def _is_valid_ohlcv(row) -> bool:
+    open_ = float(_row_get(row, "open") or 0)
+    high = float(_row_get(row, "high") or 0)
+    low = float(_row_get(row, "low") or 0)
+    close = float(_row_get(row, "close") or 0)
+    volume = float(_row_get(row, "volume") or 0)
+    amount = float(_row_get(row, "amount") or 0)
+    if min(open_, high, low, close) <= 0:
+        return False
+    if volume <= 0 or amount <= 0:
+        return False
+    return high >= max(open_, close) and low <= min(open_, close) and high >= low
+
+
+def _minute_row_to_daily_unit(row: dict) -> dict:
+    """Convert stk_mins aggregate units to daily_kline units.
+
+    Tushare official units:
+      daily vol=hand, amount=k yuan
+      minute vol=share, amount=yuan
+    """
+    return {
+        "code": row["code"],
+        "trade_date": row["trade_date"],
+        "open": row["open"],
+        "high": row["high"],
+        "low": row["low"],
+        "close": row["close"],
+        "volume": (float(row.get("volume") or 0) / 100.0),
+        "amount": (float(row.get("amount") or 0) / 1000.0),
+        "turnover_rate": 0,
+        "amplitude": row.get("amplitude"),
+        "change_pct": row.get("change_pct"),
+        "data_source": "stk_mins_aggregated_daily_unit",
+        "bars": row.get("bars"),
+    }
+
+
+def _compare_daily_to_minute(daily_row, minute_row: dict | None) -> dict:
+    if not minute_row:
+        return {"status": "missing_minute"}
+    daily_volume = float(_row_get(daily_row, "volume") or 0)
+    daily_amount = float(_row_get(daily_row, "amount") or 0)
+    minute_volume_hand = float(minute_row.get("volume") or 0) / 100.0
+    minute_amount_k_yuan = float(minute_row.get("amount") or 0) / 1000.0
+    volume_ratio = daily_volume / minute_volume_hand if minute_volume_hand > 0 else None
+    amount_ratio = daily_amount / minute_amount_k_yuan if minute_amount_k_yuan > 0 else None
+    close_diff = abs(float(_row_get(daily_row, "close") or 0) - float(minute_row.get("close") or 0))
+    ok = (
+        volume_ratio is not None
+        and amount_ratio is not None
+        and P.SOURCE_COMPARE_MIN <= volume_ratio <= P.SOURCE_COMPARE_MAX
+        and P.SOURCE_COMPARE_MIN <= amount_ratio <= P.SOURCE_COMPARE_MAX
+        and close_diff <= P.SOURCE_CLOSE_DIFF_MAX
+    )
+    return {
+        "status": "ok" if ok else "mismatch",
+        "volume_ratio_daily_to_minute": round(volume_ratio, 4) if volume_ratio is not None else None,
+        "amount_ratio_daily_to_minute": round(amount_ratio, 4) if amount_ratio is not None else None,
+        "close_abs_diff_raw": close_diff,
+        "close_abs_diff": round(close_diff, 4),
+    }
+
+
+def _should_repair_with_minute(source_check: dict) -> bool:
+    """Only repair clear unit-scale errors, not ordinary source differences."""
+    volume_ratio = source_check.get("volume_ratio_daily_to_minute")
+    amount_ratio = source_check.get("amount_ratio_daily_to_minute")
+    close_diff = float(source_check.get("close_abs_diff_raw", source_check.get("close_abs_diff") or 0))
+    if close_diff > P.SOURCE_CLOSE_DIFF_MAX:
+        return False
+    if volume_ratio is not None and float(volume_ratio) >= P.SOURCE_REPAIR_VOLUME_RATIO_MAX:
+        return True
+    if amount_ratio is not None and float(amount_ratio) >= P.SOURCE_REPAIR_AMOUNT_RATIO_MAX:
+        return True
+    return False
 
 
 # ==================== 指标计算 (纯 numpy, 无 DB 依赖) ====================
@@ -340,7 +437,71 @@ def _get_board(code: str) -> str:
     return "其他"
 
 
-def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
+def _load_minute_daily_snapshots(db, start_date: str, end_date: str) -> dict[tuple[str, str], dict]:
+    """Load 5-minute bars aggregated to daily snapshots.
+
+    Raw units stay in official minute units (share/yuan). Conversion happens
+    only when a row is selected as model input.
+    """
+    try:
+        rows = db.execute(
+            """
+            SELECT code, trade_time::date AS trade_date,
+                   (array_agg(open ORDER BY trade_time))[1] AS open,
+                   max(high) AS high,
+                   min(low) AS low,
+                   (array_agg(close ORDER BY trade_time DESC))[1] AS close,
+                   sum(volume) AS volume,
+                   sum(amount) AS amount,
+                   count(*) AS bars
+            FROM stk_mins
+            WHERE trade_time::date >= ? AND trade_time::date <= ?
+            GROUP BY code, trade_time::date
+            """,
+            (start_date, end_date),
+        ).fetchall()
+    except Exception as exc:
+        logger.info("Minute snapshots unavailable for %s~%s: %s", start_date, end_date, exc)
+        return {}
+
+    snapshot = {}
+    for row in rows:
+        bars = int(_row_get(row, "bars") or 0)
+        if bars < P.MINUTE_BARS_MIN:
+            continue
+        code = str(_row_get(row, "code") or "")
+        if not code:
+            continue
+        open_ = float(_row_get(row, "open") or 0)
+        high = float(_row_get(row, "high") or 0)
+        low = float(_row_get(row, "low") or 0)
+        close = float(_row_get(row, "close") or 0)
+        volume = float(_row_get(row, "volume") or 0)
+        amount = float(_row_get(row, "amount") or 0)
+        prev_close = None
+        trade_date = str(_row_get(row, "trade_date"))[:10]
+        snapshot[(code, trade_date)] = {
+            "code": code,
+            "trade_date": trade_date,
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+            "amount": amount,
+            "bars": bars,
+            "amplitude": round((high - low) / close * 100, 2) if close > 0 else None,
+            "change_pct": None if not prev_close else (close - prev_close) / prev_close * 100,
+        }
+    return snapshot
+
+
+def _load_minute_daily_snapshot(db, trade_date: str) -> dict[str, dict]:
+    snapshots = _load_minute_daily_snapshots(db, trade_date, trade_date)
+    return {code: row for (code, _td), row in snapshots.items()}
+
+
+def run_screening_with_metadata(db, trade_date: str, top_n: int = 20) -> tuple[list[dict], dict]:
     """
     全市场选股入口.
 
@@ -366,7 +527,7 @@ def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
 
     if not stocks_rows:
         logger.warning("stocks table is empty")
-        return []
+        return [], {"status": "error", "reason": "stocks_empty"}
 
     stock_info = {r["code"]: {"name": r["name"], "industry": r["industry"], "board": r["board"]}
                   for r in stocks_rows}
@@ -382,21 +543,23 @@ def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
 
     if not date_rows:
         logger.warning("No kline data before %s", trade_date)
-        return []
+        return [], {"status": "error", "reason": "daily_kline_empty", "trade_date": trade_date}
 
     dates = sorted([str(r["trade_date"])[:10] for r in date_rows])
     start_date = dates[0]
     logger.info("Kline range: %s ~ %s (%d days)", start_date, trade_date, len(dates))
 
-    # 3) 批量加载K线
+    # 3) 批量加载K线. daily_kline follows Tushare daily official units:
+    # volume=hand, amount=k yuan. Keep the model internally on this unit system.
     kline_rows = db.execute(
-        """SELECT code, trade_date, open, high, low, close, volume,
-                  turnover_rate, amplitude
+        """SELECT code, trade_date, open, high, low, close, volume, amount,
+                  turnover_rate, amplitude, change_pct
            FROM daily_kline
            WHERE trade_date >= ? AND trade_date <= ?
            ORDER BY code, trade_date""",
         (start_date, trade_date)
     ).fetchall()
+    minute_snapshots = _load_minute_daily_snapshots(db, start_date, trade_date)
 
     # 按股票分组
     stock_klines = defaultdict(list)
@@ -406,6 +569,28 @@ def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
     logger.info("Loaded %d klines for %d stocks in %.1fs",
                 len(kline_rows), len(stock_klines), __import__("time").time() - t0)
 
+    quality = {
+        "trade_date": trade_date,
+        "unit_contract": {
+            "daily_kline.volume": DAILY_VOLUME_UNIT,
+            "daily_kline.amount": DAILY_AMOUNT_UNIT,
+            "stk_mins.volume": MINUTE_VOLUME_UNIT,
+            "stk_mins.amount": MINUTE_AMOUNT_UNIT,
+            "model_internal.volume": DAILY_VOLUME_UNIT,
+            "model_internal.amount": DAILY_AMOUNT_UNIT,
+        },
+        "history_start": start_date,
+        "history_days": len(dates),
+        "minute_snapshot_rows": len(minute_snapshots),
+        "daily_used": 0,
+        "minute_fallback_used": 0,
+        "daily_invalid": 0,
+        "daily_minute_mismatch": 0,
+        "historical_unit_repairs": 0,
+        "skipped_no_current_bar": 0,
+        "sample_warnings": [],
+    }
+
     # 4) 逐股检查
     picks = []
     for code, rows in stock_klines.items():
@@ -414,10 +599,80 @@ def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
         if len(rows) < P.MIN_DATA_DAYS:
             continue
 
-        # 确认最新日期匹配
+        rows = list(rows)
+        repaired_rows = []
+        for row in rows:
+            td = str(row["trade_date"])[:10]
+            minute_row_for_day = minute_snapshots.get((code, td))
+            source_check_for_day = _compare_daily_to_minute(row, minute_row_for_day)
+            should_repair = (
+                minute_row_for_day
+                and _is_valid_ohlcv(_minute_row_to_daily_unit(minute_row_for_day))
+                and (
+                    not _is_valid_ohlcv(row)
+                    or _should_repair_with_minute(source_check_for_day)
+                )
+            )
+            if should_repair:
+                repaired_rows.append(_minute_row_to_daily_unit(minute_row_for_day))
+                quality["historical_unit_repairs"] += 1
+                if source_check_for_day.get("status") == "mismatch":
+                    quality["daily_minute_mismatch"] += 1
+                else:
+                    quality["daily_invalid"] += 1
+                if len(quality["sample_warnings"]) < 8:
+                    quality["sample_warnings"].append(
+                        {
+                            "code": code,
+                            "trade_date": td,
+                            "repair": "stk_mins_aggregated_daily_unit",
+                            **source_check_for_day,
+                        }
+                    )
+            else:
+                if source_check_for_day.get("status") == "mismatch":
+                    quality["daily_minute_mismatch"] += 1
+                    if len(quality["sample_warnings"]) < 8:
+                        quality["sample_warnings"].append(
+                            {
+                                "code": code,
+                                "trade_date": td,
+                                "repair": "none",
+                                **source_check_for_day,
+                            }
+                        )
+                repaired_rows.append(row)
+        rows = repaired_rows
+        minute_row = minute_snapshots.get((code, trade_date))
         latest_date = str(rows[-1]["trade_date"])[:10]
-        if latest_date != trade_date:
-            continue
+        latest_row = rows[-1] if latest_date == trade_date else None
+        source_used = "daily_kline"
+
+        if latest_row is not None:
+            if not _is_valid_ohlcv(latest_row):
+                converted_minute_row = _minute_row_to_daily_unit(minute_row) if minute_row else None
+                if converted_minute_row and _is_valid_ohlcv(converted_minute_row):
+                    rows[-1] = converted_minute_row
+                    source_used = "stk_mins_aggregated_daily_unit"
+                    quality["daily_invalid"] += 1
+                    quality["historical_unit_repairs"] += 1
+                else:
+                    quality["skipped_no_current_bar"] += 1
+                    continue
+            elif _row_get(latest_row, "data_source") == "stk_mins_aggregated_daily_unit":
+                source_used = "stk_mins_aggregated_daily_unit"
+        else:
+            if minute_row:
+                rows.append(_minute_row_to_daily_unit(minute_row))
+                source_used = "stk_mins_aggregated_daily_unit"
+            else:
+                quality["skipped_no_current_bar"] += 1
+                continue
+
+        if source_used == "stk_mins_aggregated_daily_unit":
+            quality["minute_fallback_used"] += 1
+        else:
+            quality["daily_used"] += 1
 
         close = np.array([float(r["close"]) for r in rows], dtype=float)
         open_ = np.array([float(r["open"]) for r in rows], dtype=float)
@@ -426,7 +681,9 @@ def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
         volume = np.array([float(r["volume"]) for r in rows], dtype=float)
 
         # change_pct 可能为 NULL, 从相邻收盘价自行计算
-        db_pct = rows[-1].get("pct_chg")
+        db_pct = rows[-1].get("change_pct") if hasattr(rows[-1], "get") else None
+        if db_pct is None and hasattr(rows[-1], "get"):
+            db_pct = rows[-1].get("pct_chg")
         if db_pct is not None:
             pct_chg = float(db_pct)
         elif len(close) >= 2 and close[-2] > 0:
@@ -458,6 +715,8 @@ def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
             "candidate_id": f"CAND-bi_shifu_trend-{code}",
             "visibility": "public",
             "data_scope": "public",
+            "snapshot_source": source_used,
+            "unit_contract": "daily_units(volume=hand,amount=k_yuan)",
         })
         picks.append(result)
 
@@ -468,6 +727,11 @@ def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
     elapsed = __import__("time").time() - t0
     logger.info("Screening done: %d picks in %.1fs", len(picks), elapsed)
 
+    return picks, quality
+
+
+def run_screening(db, trade_date: str, top_n: int = 20) -> list[dict]:
+    picks, _metadata = run_screening_with_metadata(db, trade_date, top_n=top_n)
     return picks
 
 
@@ -506,6 +770,24 @@ class BiShifuTrendEngine:
 
             trade_date = str(trade_date)[:10]
             return run_screening(db, trade_date, top_n=top_n)
+
+    def run_with_metadata(self, top_n: int = 20, trade_date: str = None, **kwargs) -> tuple[list[dict], dict]:
+        from kronos_factors.scorer._db_stub import _get_db
+
+        with _get_db(readonly=True) as db:
+            if trade_date is None:
+                row = db.execute(
+                    "SELECT MAX(trade_date) as md FROM daily_kline"
+                ).fetchone()
+                trade_date = str(row["md"])[:10] if row else None
+
+            if not trade_date:
+                logger.warning("No trade_date available")
+                return [], {"status": "error", "reason": "no_trade_date"}
+
+            trade_date = str(trade_date)[:10]
+            return run_screening_with_metadata(db, trade_date, top_n=top_n)
+
 
 class BiShifuTrendV23Engine(BiShifuTrendEngine):
     """V2.3 候选版：更深 MACD 回调、Top 5；开盘偏离规则由执行层在次日处理。"""

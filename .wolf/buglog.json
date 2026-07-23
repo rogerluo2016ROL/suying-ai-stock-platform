@@ -1123,6 +1123,105 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-07-10T13:46:01.915Z"
+    },
+    {
+      "id": "bug-067",
+      "timestamp": "2026-07-19T23:35:02.783795Z",
+      "error_message": "test_rolling_pctile_lowest failed: assert 0.2 < 0.1",
+      "file": "packages/kronos-factors/kronos_factors/scorer/crowding_drawdown.py",
+      "root_cause": "rolling_pctile 用 pandas rank(pct=True)=rank/N (最小值分位1/N=0.2), 与项目 bi_alpha_v15._pctile_ranks 口径 (rank-1)/(N-1) (最小0/最大1) 不一致",
+      "fix": "改用 (rank-1)/(N-1) 对齐 bi_alpha_v15",
+      "tags": [
+        "test-fix",
+        "percentile",
+        "crowding"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-19T23:35:02.783795Z"
+    },
+    {
+      "id": "bug-068",
+      "timestamp": "2026-07-20T00:16:06.340120Z",
+      "error_message": "test_summarize_high_crowding KeyError ic",
+      "file": "packages/kronos-factors/tests/test_backtest_crowding_warning.py",
+      "root_cause": "summarize 的 IC 要求 len(valid)>30 才算, 测试只造4行不够",
+      "fix": "测试改用40行(n=20) train 数据触发 IC 计算",
+      "tags": [
+        "test-fix",
+        "ic",
+        "crowding"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-20T00:16:06.340120Z"
+    },
+    {
+      "id": "bug-069",
+      "timestamp": "2026-07-21T03:27:16.537Z",
+      "error_message": "Incorrect value in code",
+      "file": "tools/analyze_main_force_today.py",
+      "root_cause": "Had ':>6} {'",
+      "fix": "Changed to ':>7} {'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-21T03:27:16.537Z"
+    },
+    {
+      "id": "bug-070",
+      "timestamp": "2026-07-21T03:27:34.668Z",
+      "error_message": "Significant refactor of ",
+      "file": "tools/analyze_main_force_today.py",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 13→17 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-21T03:27:34.668Z"
+    },
+    {
+      "id": "bug-071",
+      "timestamp": "2026-07-21T03:30:49.970Z",
+      "error_message": "Wrong reference: 1e7 should be 1e5",
+      "file": "tools/analyze_main_force_today.py",
+      "root_cause": "Used \"1e7\" instead of \"1e5\"",
+      "fix": "Changed 1e7 → 1e5",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-21T03:30:49.970Z"
+    },
+    {
+      "id": "bug-503",
+      "timestamp": "2026-07-21",
+      "error_message": "主力分析显示换手率全0+主力净额-15万(量级错)+占成交1170%(>100%不可能)",
+      "file": "tools/analyze_main_force_today.py",
+      "root_cause": "3处单位/字段误用:①换手率取daily_kline.turnover_rate(pro.daily不采,永远NULL)应取daily_basic.turnover_rate_f;②moneyflow金额单位是万元却当元除1万表头标万;③daily_kline.amount千元→亿元应/1e5误写/1e7",
+      "fix": "换手率改JOIN daily_basic.turnover_rate_f;moneyflow(万元)/1e4显亿表头(亿);amt5_yi=/1e5;八项和vs kline.amount反推验证单位",
+      "tags": [
+        "moneyflow",
+        "单位",
+        "换手率",
+        "tushare",
+        "daily_basic",
+        "主力分析"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-07-21"
     }
   ]
 }

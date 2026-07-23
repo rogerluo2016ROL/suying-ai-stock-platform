@@ -96,6 +96,16 @@ TRADE_SERVICE_URL = os.environ.get("TRADE_SERVICE_URL", "http://localhost:8006")
 SIGNAL_SERVICE_URL = os.environ.get("SIGNAL_SERVICE_URL", "http://localhost:8004")
 
 
+def _service_auth_headers() -> dict:
+    """X-Service-Auth header for internal service-to-service calls.
+
+    trade-service 的 require_role 接受该头作为服务间豁免（kronos-auth deps）。
+    未配置 KRONOS_SERVICE_SECRET 时不发头（本地 dev 行为不变）。
+    """
+    secret = os.environ.get("KRONOS_SERVICE_SECRET", "")
+    return {"X-Service-Auth": secret} if secret else {}
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Execution log
 # ═══════════════════════════════════════════════════════════════════════════
@@ -389,6 +399,8 @@ async def _run_one_check(state: ExecutorState, strategy: StrategyConfig) -> None
                     trade_mode=strategy.trade_mode,
                     **lineage,
                 )
+                if _order_failed(state, "SELL", code, result, lineage):
+                    continue
                 state.orders_placed += 1
                 state.add_log(
                     "SELL",
@@ -416,6 +428,8 @@ async def _run_one_check(state: ExecutorState, strategy: StrategyConfig) -> None
                     trade_mode=strategy.trade_mode,
                     **lineage,
                 )
+                if _order_failed(state, "SELL", code, result, lineage):
+                    continue
                 state.orders_placed += 1
                 state.add_log(
                     "SELL",
@@ -485,6 +499,8 @@ async def _run_one_check(state: ExecutorState, strategy: StrategyConfig) -> None
                     trade_mode=strategy.trade_mode,
                     **lineage,
                 )
+                if _order_failed(state, "BUY", code, result, lineage):
+                    continue
                 state.orders_placed += 1
                 current_positions_count += 1
                 held_codes.add(code)
@@ -806,7 +822,7 @@ async def _http_get(url: str, timeout: int = 10) -> dict:
 
 def _sync_get(url: str, timeout: int) -> dict:
     """Synchronous urllib GET."""
-    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    req = urllib.request.Request(url, headers={"Accept": "application/json", **_service_auth_headers()})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = resp.read().decode("utf-8")
@@ -835,7 +851,7 @@ def _sync_post_query(url: str, params: dict, timeout: int) -> dict:
 
     query_string = urlencode({k: v for k, v in params.items() if v is not None})
     full_url = f"{url}?{query_string}"
-    req = urllib.request.Request(full_url, method="POST", headers={"Accept": "application/json"})
+    req = urllib.request.Request(full_url, method="POST", headers={"Accept": "application/json", **_service_auth_headers()})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = resp.read().decode("utf-8")
@@ -866,7 +882,7 @@ def _sync_post_json(url: str, payload: dict, timeout: int) -> dict:
         url,
         data=body,
         method="POST",
-        headers={"Accept": "application/json", "Content-Type": "application/json"},
+        headers={"Accept": "application/json", "Content-Type": "application/json", **_service_auth_headers()},
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -926,6 +942,20 @@ async def _place_order(
     }
     url = f"{TRADE_SERVICE_URL}/api/v1/trade/order"
     return await _http_post_json(url, params)
+
+
+def _order_failed(state: "ExecutorState", action: str, code: str, result: dict, lineage: dict) -> bool:
+    """下单结果被 trade-service 拒绝/未达时记 ERROR 并返回 True（不再静默记成功）。"""
+    error = result.get("error")
+    if not error:
+        return False
+    logger.error("auto order rejected by trade-service (%s %s): %s", action, code, error)
+    state.add_log(
+        "ERROR",
+        f"{action}单提交失败: {code} — {error}",
+        {"code": code, "error": error, "detail": result.get("detail"), **lineage},
+    )
+    return True
 
 
 # ═══════════════════════════════════════════════════════════════════════════

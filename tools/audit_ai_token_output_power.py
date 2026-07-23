@@ -18,7 +18,7 @@ CHAIN_ID = "ai_token_output_power"
 
 def _pool_counts(connection: Any) -> dict[str, int]:
     counts = {pool: 0 for pool in ("A", "B", "C", "D")}
-    rows = getattr(connection, "rows", {})
+    rows = getattr(connection, "rows", None)
     if isinstance(rows, dict):
         for (table, _key), row in rows.items():
             if table == "business_tag_token_pool_states":
@@ -35,7 +35,7 @@ def _pool_counts(connection: Any) -> dict[str, int]:
 
 
 def _query_scalar(connection: Any, sql: str, default: int = 0) -> int:
-    rows = getattr(connection, "rows", {})
+    rows = getattr(connection, "rows", None)
     if isinstance(rows, dict):
         return default
     cur = connection.cursor()
@@ -103,13 +103,20 @@ def audit(
               AND as_of_date < CURRENT_DATE - INTERVAL '540 days'
             """,
         )
+        v2_codes: set[str] = set()
+        if not isinstance(getattr(connection, "rows", None), dict):
+            cur = connection.cursor()
+            cur.execute(
+                "SELECT DISTINCT code FROM business_tag_mapping WHERE chain_id = %s AND status NOT IN ('rejected')",
+                (CHAIN_ID,),
+            )
+            v2_codes = {str(row[0]) for row in cur.fetchall()}
     finally:
         if owned_connection and connection is not None:
             connection.close()
 
     power_field_coverage = round(power_complete / max(power_total, 1), 4)
     v1_codes = _load_v1_codes(previous_ranking_path)
-    v2_codes: set[str] = set()
     blocking_issues: list[str] = []
     if formal_count and provisional_count < 0:
         blocking_issues.append("池数量出现非法负值")

@@ -861,3 +861,43 @@
 
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
+| 00:18 | 波2优化收尾: #11 C域拆分15/15(client.ts 851→130, 5域文件) + #12 create_app工厂(10/11服务迁移, api-gateway N/A) 完成+push | frontend/src/api/domains, services/*/app/main.py, packages/kronos-contracts/app_factory.py | tsc/vitest 360-360/10服务import验证通过 | ~高 |
+| 00:59 | 收尾 #10/#13: 连接池 repository pool(036d008c)+apple 核心裁剪(9097a330)+真角色残留(a8559bea)全 push;framework 描述(AGF 通用)留人工 | services/screener,packages/kronos-contracts,.claude | gen-roles 无 drift/docker PG 验证过 | ~高 |
+
+## Session: 2026-07-19 22:16
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+
+## Session: 2026-07-19 23:14
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 23:35 | 实现拥挤度→回撤预警因子 + 17单测全过 | packages/kronos-factors/.../scorer/crowding_drawdown.py, tests/test_crowding_drawdown.py | 因子+单测完成, 待接入选股 | ~8k |
+| 00:09 | 第2步: crowding接入 apply_afternoon_optimization(db,trade_date)+risk_flags, 23测试过 | leader_afternoon.py | 选股pick带crowding_level, service/前端零改 | ~6k |
+| 00:16 | 第3步: backtest_crowding_warning.py 回测脚本+4单测过, 接入walk_forward M01护栏(实测dirty拦截生效); PG连通数据到07-16; 实跑待commit | tools/backtest_crowding_warning.py, tests/test_backtest_crowding_warning.py | 脚本就绪 | ~12k |
+| 00:20 | 第4步: scan_crowding批量+alert-service /crowding-scan endpoint, 实跑科创板扫出33只high拥挤(688192等) | crowding_drawdown.py(scan_crowding), routes.py(/crowding-scan) | 端到端验证通过 | ~14k |
+| 00:21 | 第5步: scheduler加_crowding_watch_loop(env启用), crontab行文档化(生产crontab 07-18已停用) | screener-service/app/scheduler.py | 调度就绪待服务恢复 | ~5k |
+| 00:23 | 第6步: docs/changes/crowding-warning/ 四件套; 全量测试过(17+4+23); 6步全套完成 | docs/changes/crowding-warning/ | AGF change就绪 | ~4k |
+
+## Session: 2026-07-21 11:00
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 11:18 | Created tools/analyze_main_force_today.py | — | ~1956 |
+| 11:24 | Edited tools/analyze_main_force_today.py | inline fix | ~30 |
+| 11:27 | Edited tools/analyze_main_force_today.py | 2→2 lines | ~40 |
+| 11:27 | Edited tools/analyze_main_force_today.py | modified print() | ~284 |
+| 11:28 | Edited tools/analyze_main_force_today.py | 30→35 lines | ~411 |
+| 11:30 | Edited tools/analyze_main_force_today.py | inline fix | ~18 |
+| 11:27 | 主力出货分析九安/米奥+数据补到7-20 | tools/analyze_main_force_today.py | 九安出货(涨停主力净流出4.2亿)/米奥今日主力净流入0.65亿 | ~22k |
+| 11:37 | Session end: 6 writes across 1 files (analyze_main_force_today.py) | 5 reads | ~31324 tok |
+| 12:33 | Session end: 6 writes across 1 files (analyze_main_force_today.py) | 5 reads | ~31324 tok |
+| 12:41 | Session end: 6 writes across 1 files (analyze_main_force_today.py) | 5 reads | ~31324 tok |
+| 13:30 | Session end: 6 writes across 1 files (analyze_main_force_today.py) | 5 reads | ~31324 tok |
+| 13:44 | Session end: 6 writes across 1 files (analyze_main_force_today.py) | 5 reads | ~31324 tok |
+| 15:40 | Session end: 6 writes across 1 files (analyze_main_force_today.py) | 5 reads | ~31324 tok |
+| 16:12 | Session end: 6 writes across 1 files (analyze_main_force_today.py) | 5 reads | ~31324 tok |
+| 16:20 | Session end: 6 writes across 1 files (analyze_main_force_today.py) | 5 reads | ~31324 tok |
+| 20:05 | Session end: 6 writes across 1 files (analyze_main_force_today.py) | 5 reads | ~31324 tok |
+| 20:34 | Session end: 6 writes across 1 files (analyze_main_force_today.py) | 5 reads | ~31324 tok |

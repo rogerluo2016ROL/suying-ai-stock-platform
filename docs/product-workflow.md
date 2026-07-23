@@ -15,8 +15,9 @@
 > - 角色通信：[`team-capability-map.md`](./team-capability-map.md)
 > - 团队工作流：[`.claude/standards/workflow.md`](../.claude/standards/workflow.md)
 > - AC 验收生命周期：[`.claude/standards/ac-lifecycle.md`](../.claude/standards/ac-lifecycle.md)
-> - PRD 模板（实际使用）：[`docs/prd/_TEMPLATE.md`](./prd/_TEMPLATE.md)
-> - PRD 拆分行事原则：[`.claude/agents/product-lead.md`](../.claude/agents/product-lead.md)
+> - 需求入口：**变更文件夹** [`docs/changes/`](./changes/README.md)（skill `agf-writing-change`，取代 PRD；[ADR-012](./adr/012-spec-driven-change-folders.md)）+ 活规格 [`docs/specs/`](./specs/README.md)（行为 SSOT）
+> - ⚠️ PRD 模板（**已弃用，仅 fallback**）：[`docs/prd/_TEMPLATE.md`](./prd/_TEMPLATE.md)
+> - 需求拆分行事原则：[`.claude/agents/product-lead.md`](../.claude/agents/product-lead.md)
 
 ---
 
@@ -24,18 +25,21 @@
 
 ### 2.1 全景图
 
+> ⚠️ 下图入口节点是**变更文件夹** `docs/changes/`（skill `agf-writing-change`，[ADR-012](./adr/012-spec-driven-change-folders.md)）；PRD 留 fallback 标注（分解详 §3）。
+
 ```mermaid
 flowchart TD
     U([👤 用户模糊想法])
     BS[🧠 需求澄清<br/>skill: superpowers:brainstorming]
-    PRD[(📄 PRD<br/>docs/prd/[feature]-YYYY-MM-DD.md<br/>10 节结构 / 见 §3)]
+    PRD[(📄 需求入口 变更文件夹<br/>docs/changes/&lt;change&gt;/<br/>proposal+delta+design+tasks<br/>skill: agf-writing-change<br/>⚠️ PRD 弃用 fallback 详见 §3)]
     PLAN[📋 实施计划<br/>skill: superpowers:writing-plans]
     TASK[📌 Task 任务单<br/>SendMessage 五要素 + AC 摘录]
     IMPL[(💻 代码 + Unit + SIT 自跑<br/>含 AC 自验<br/>SIT 证据进 progress/&lt;role&gt;.md)]
     DONE[✅ 完成报告<br/>SendMessage 含 SIT 结论 + AC 自验摘要 + Skills used<br/>progress 5 段格式底稿同步]
-    CR[(🔍 Code Review 报告 + SIT Audit<br/>docs/reviews/[feature]-YYYY-MM-DD.md<br/>含 `## SIT Audit` 节)]
-    E2E[(🌐 E2E 报告<br/>docs/qa/[feature]-e2e-[YYYY-MM-DD].md)]
-    UAT[(🎯 UAT 报告 + product-lead 业务签字<br/>docs/qa/[feature]-uat-[YYYY-MM-DD].md)]
+    CR[("🔍 Code Review 报告 + SIT Audit<br/>docs/reviews/[feature]-YYYY-MM-DD.md<br/>含 `## SIT Audit` 节")]
+    DEPLOY[("🚀 UAT 部署门<br/>deploy-engineer 隔离栈 + 冒烟自检<br/>docs/deploy/[feature]-uat-YYYY-MM-DD.md")]
+    E2E[("🌐 E2E 报告<br/>docs/qa/[feature]-e2e-[YYYY-MM-DD].md")]
+    UAT[("🎯 UAT 报告 + product-lead 业务签字<br/>docs/qa/[feature]-uat-[YYYY-MM-DD].md")]
     DELIVER([🎁 交付用户])
 
     U -->|product-lead 接需求| BS
@@ -45,16 +49,19 @@ flowchart TD
     TASK -->|分配执行层| IMPL
     IMPL -->|开发者自验 AC + SIT| DONE
     DONE -->|product-lead 触发| CR
-    CR -->|approve / approve with changes（含 SIT Audit ✅/⚠️）| E2E
+    CR -->|approve（含 SIT Audit ✅/⚠️）→ PL 合并 main → 提示部署| DEPLOY
+    DEPLOY -->|✅ 冒烟通过| E2E
     E2E -->|pass| UAT
     UAT -->|product-lead 业务签字| DELIVER
 
     CR -.->|block / Redo SIT| IMPL
+    DEPLOY -.->|❌ 代码问题（环境问题则 deploy 重部）| IMPL
     E2E -.->|fail| IMPL
     UAT -.->|fail| IMPL
 
     style PRD fill:#fef3c7,stroke:#f59e0b
     style CR fill:#fef3c7,stroke:#f59e0b
+    style DEPLOY fill:#fef3c7,stroke:#f59e0b
     style E2E fill:#fef3c7,stroke:#f59e0b
     style UAT fill:#fef3c7,stroke:#f59e0b
     style IMPL fill:#fef3c7,stroke:#f59e0b
@@ -74,29 +81,33 @@ flowchart TD
 |---|---|---|---|
 | 1 | 用户模糊想法 | 任何形式的输入（一句话 / 截图 / 草图） | — |
 | 2 | 需求澄清 | `product-lead` 调用 `superpowers:brainstorming` 收敛 MVP、识别开放问题 | [`product-lead.md` Step 0](../.claude/agents/product-lead.md) |
-| 3 | **PRD** | Product Requirements Document，10 节结构，**所有后续工作的唯一权威源** | [`_TEMPLATE.md`](./prd/_TEMPLATE.md) |
+| 3 | **变更文件夹** | 需求入口（取代 PRD，[ADR-012](./adr/012-spec-driven-change-folders.md)）：proposal + specs delta + design + tasks，**本次变更的权威源**；delta 交付后 merge 进活规格 `docs/specs/`。~~PRD~~ 弃用（fallback） | [`changes/README.md`](./changes/README.md) |
 | 4 | 实施计划 | `product-lead` 调用 `superpowers:writing-plans`；**多步 / 跨角色 / ≥3 AC** 三条件任一命中即**强制** | [`product-lead.md` Step 0](../.claude/agents/product-lead.md) |
 | 5 | Task 任务单 | `SendMessage` 消息体 + `TaskCreate`；必须摘录 AC 原文，不可只给路径 | [`product-lead.md` Step 2](../.claude/agents/product-lead.md) |
 | 6 | 代码 + Unit + **SIT 自跑** | 执行层（`frontend-dev`/`backend-dev`/`ai-agent-dev`/`ml-engineer`/`miniapp-dev`）实现 + Unit + SIT，按 skill `agf-running-sit-tests` 流程；证据进 `progress/<role>.md` 的 `**SIT 证据**` 段 | [`agf-running-sit-tests`](../.claude/skills/agf-running-sit-tests/SKILL.md) / [`ac-lifecycle.md` DoD](../.claude/standards/ac-lifecycle.md) |
 | 7 | 完成报告 | 含每条 AC 自验结果（✅/⚠️）+ SIT 段链接 + 调用过的 skills 列表 | [`ac-lifecycle.md`](../.claude/standards/ac-lifecycle.md) |
 | 8 | **Code Review + SIT Audit** | `code-reviewer` 审查代码 + audit `progress/<role>.md` 里的 SIT 证据；只输出 `docs/reviews/`，verdict 含 `## SIT Audit` 节（`✅ Pass / ⚠️ Pass with concerns / ❌ Redo SIT`） | [`code-reviewer.md`](../.claude/agents/code-reviewer.md) |
-| 9 | **E2E** | End-to-End Testing，浏览器/真机用户路径；qa-engineer 用 `chrome-devtools-mcp`，报告用 skill `agf-writing-qa-report` | [`agf-writing-qa-report`](../.claude/skills/agf-writing-qa-report/SKILL.md) |
-| 10 | **UAT + 签字** | User Acceptance Testing；`qa-engineer` 出报告（skill `agf-writing-qa-report`）+ `product-lead` 对照 PRD AC 业务签字 | [`ac-lifecycle.md`](../.claude/standards/ac-lifecycle.md) |
-| 11 | Release Notes 草稿 | `content-writer` 在 UAT 通过 24h 内起草，PL 评审后发布 | [`content-writer.md`](../.claude/agents/content-writer.md) |
-| 12 | 上线后实验 | `growth-analyst` 上线前定指标 + 上线后 7-14d 出实验报告，验证 PRD 成功指标 | [`growth-analyst.md`](../.claude/agents/growth-analyst.md) |
+| 9 | **UAT 部署门** | code review 通过 + `product-lead` 合并 main 后，`deploy-engineer` 部署与 dev worktree 物理隔离的 UAT 栈（独立 compose project + 端口偏移 +900）并冒烟自检；二元 gate（`✅ 部署成功（冒烟通过）/ ❌ 部署失败`，不进 verdict 词表）；报告 `docs/deploy/[feature]-uat-[YYYY-MM-DD].md` | [`agf-deploying-uat`](../.claude/skills/agf-deploying-uat/SKILL.md) |
+| 10 | **E2E** | End-to-End Testing，浏览器/真机用户路径；qa-engineer 对 deploy-engineer 部署的**共享 UAT 栈**测，用 `chrome-devtools-mcp`，报告用 skill `agf-writing-qa-report` | [`agf-writing-qa-report`](../.claude/skills/agf-writing-qa-report/SKILL.md) |
+| 11 | **UAT + 签字** | User Acceptance Testing；`qa-engineer` 出报告（skill `agf-writing-qa-report`）+ `product-lead` 对照 PRD AC 业务签字 | [`ac-lifecycle.md`](../.claude/standards/ac-lifecycle.md) |
+| 12 | Release Notes 草稿 | `content-writer` 在 UAT 通过 24h 内起草，PL 评审后发布 | [`content-writer.md`](../.claude/agents/content-writer.md) |
+| 13 | 上线后实验 | `growth-analyst` 上线前定指标 + 上线后 7-14d 出实验报告，验证 PRD 成功指标 | [`growth-analyst.md`](../.claude/agents/growth-analyst.md) |
 
 ### 2.3 几个不画进图的事
 
 - **`tech-lead` 咨询**是条件触发的虚线（无 ADR / 新选型 / 重大架构风险），不在主链路上——见 [`workflow.md`](../.claude/standards/workflow.md)。
+- **Dynamic Workflow**（可选加速层，显式触发，**不在主链路**；按需自写脚本，模板不再预制——原 `/agf-review-sweep` 已按 [ADR-026](adr/026-template-structural-slimming.md) D5 退役，高风险大 PR 深审改 Review pool 维度分工或内置 `/code-review ultra`）——何时用 / 卫生约束见 [`workflow.md`](../.claude/standards/workflow.md) §何时用 Workflow。写 PRD/ADR 前的只读理解地图走 `/agf-code-map`（codemap，**非 Workflow**，[ADR-021](adr/021-code-understanding-engine.md)）。
 - **并行派发**（同一执行层多实例并行处理不同模块）发生在节点 5→6 之间——见 [`workflow.md` Parallel Dispatch](../.claude/standards/workflow.md)。
-- **小程序链路**把节点 6/8/9-10 的角色替换为 `miniapp-dev` / `miniapp-code-reviewer` / `miniapp-qa-engineer`，节点和门槛结构完全相同——见 [`.claude/standards/miniapp.md`](../.claude/standards/miniapp.md)。
-- **进度活文档**：所有 Task 状态变化（节点 5→6→7→8→9→10）由 `product-lead` 通过 `TaskCreate` / `TaskUpdate` 实时维护；查看用 `/agf-tasks`（把 `~/.claude/tasks/` 的 JSON 渲染成可读表格）。
-- **上线后产物链**（节点 11-12）由 `content-writer` 与 `growth-analyst` 在 UAT 签字后接手，不阻塞主链路签字；可选触发——无对外发布需求或无埋点基础设施时可跳过。术语见 §4.6。
+- **小程序链路**把节点 6/8/10-11 的角色替换为 `miniapp-dev` / `miniapp-code-reviewer` / `miniapp-qa-engineer`（部署门节点 9 仅服务 Web 全栈链路，小程序"部署"= 上传体验版归 miniapp 角色），节点和门槛结构相同——见 [`.claude/standards/miniapp.md`](../.claude/standards/miniapp.md)。
+- **进度活文档**：所有 Task 状态变化（节点 5→6→7→8→9→10→11）由 `product-lead` 通过 `TaskCreate` / `TaskUpdate` 实时维护；查看用 `/agf-board`（把 `~/.claude/tasks/` 渲染成实时开发看板 `progress/board.html`；原 `/agf-tasks` 文本表已并入退役，ADR-026 D7）。
+- **上线后产物链**（节点 12-13）由 `content-writer` 与 `growth-analyst` 在 UAT 签字后接手，不阻塞主链路签字；可选触发——无对外发布需求或无埋点基础设施时可跳过。术语见 §4.6。
 - **版本号增长 + GitHub release** 不画进图：每次合并 main 前 `product-lead` 按 [`versioning.md`](../.claude/standards/versioning.md) 判定 MAJOR / MINOR / PATCH，BREAKING 必带 Migration steps。
 
 ---
 
 ## 3. 解剖：PRD 如何分解到 Task
+
+> ⚠️ **本节描述的是已弃用的 PRD 模型**。现行需求入口是**变更文件夹** `docs/changes/<change>/`（proposal + delta + design + tasks，skill `agf-writing-change`，[ADR-012](adr/012-spec-driven-change-folders.md)）；AC↔Scenario 映射在 `tasks.md`。本节作 PRD fallback 期的历史说明保留。
 
 ### 3.1 PRD 内部分层结构
 
@@ -213,7 +224,7 @@ flowchart LR
 | **Out of Scope** | 通用 PM 术语 | PRD §8；标"以后可能做" |
 | **Non-Goals** | Google PM 文化（与 Goals 配对） | PRD §2；标"本次明确不做"（≠ Out of Scope）|
 | **Open Questions** | 通用 PM 术语 | PRD §9；**每条必须标 Owner**，否则不允许进入 Step 2 任务分配 |
-| **Stage Gate** | Robert Cooper Stage-Gate® 模型 | 本项目固定 6 阶段门（PRD → 派单 → 实现+Unit+SIT 自跑 → Code Review 含 SIT Audit → E2E → UAT 签字）；SIT 合入 dev DoD（不独立成 phase）。完整流程图 + 失败回退规则见 [`workflow.md`](../.claude/standards/workflow.md) 主流程 / `team-capability-map.md §1.1`（权威，本条不重复）|
+| **Stage Gate** | Robert Cooper Stage-Gate® 模型 | 本项目固定 7 阶段门（PRD → 派单 → 实现+Unit+SIT 自跑 → Code Review 含 SIT Audit → **UAT 部署门**（deploy-engineer 隔离栈+冒烟，二元 gate）→ E2E → UAT 签字）；SIT 合入 dev DoD（不独立成 phase）。完整流程图 + 失败回退规则见 [`workflow.md`](../.claude/standards/workflow.md) 主流程 / `team-capability-map.md §1.1`（权威，本条不重复）|
 | **GA** | General Availability（发布管理通用术语） | "feature GA" = 走完所有阶段门并完成 product-lead 业务签字 |
 | **α / β** | Alpha / Beta 阶段（通用产品术语） | 模板不规定语义；项目可自定义（典型：α = 内部可用 / β = 受限外部） |
 | **dogfooding** | "吃自己的狗粮"（Microsoft 1988） | 团队内部自用产品收集反馈的中间阶段；通常在 α 之后、β 之前 |
@@ -245,7 +256,7 @@ flowchart LR
 | **Cross-functional team** | 15 角色横跨需求 / 设计 / 前后端 / AI / ML / 测试 / 部署 / 内容 / 增长 |
 | **Iterative delivery** | feature 流：每个 feature 从 PRD → UAT 签字是一次完整迭代 |
 | **Continuous integration testing** | Unit + SIT + E2E + UAT 四级测试，阶段门递进，前一级通过才进入下一级 |
-| **Retrospective** | Release retrospective（`/agf-release-retro vX.Y.Z`，MAJOR/MINOR 强制；按 [`agf-running-release-retro`](../.claude/skills/agf-running-release-retro/SKILL.md) skill 走 7 步），产物归档 `docs/reviews/retro-vX.Y.Z-YYYY-MM-DD.md`；`evals/` 季度漂移检测补充 |
+| **Retrospective** | Release retrospective（`/agf-release-retro vX.Y.Z`，MAJOR/MINOR **建议·提醒，非强制 gate**；按 [`agf-running-release-retro`](../.claude/skills/agf-running-release-retro/SKILL.md) skill 走 7 步），产物归档 `docs/reviews/retro-vX.Y.Z-YYYY-MM-DD.md` |
 | **Definition of Ready (DoR)** | `product-lead` Step 0 强制 `superpowers:brainstorming` 澄清 + AC 必须 ≤30s 可验证；澄清通过 = ready |
 | **Refinement / Grooming** | `superpowers:brainstorming` + `writing-plans` 串行调用（异步精炼，无需定时会议）|
 | **Persona** | 写入 PRD §1 Background 段落（轻量，不单独成节）|

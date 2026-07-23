@@ -1,0 +1,35 @@
+[project]
+name = "codemap"
+version = "0.1.0"
+description = "Deeply Understand — Python-native code understanding engine for AGF (ADR-021)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "AppGenesisForge" }]
+dependencies = [
+    "tree-sitter>=0.22",
+    "tree-sitter-python>=0.23",
+    "networkx>=3.0",
+    "tree-sitter-typescript>=0.23.2",
+    "tree-sitter-sql>=0.3.11",
+    "tree-sitter-java>=0.23.5",
+    "pyyaml>=6.0.3",
+]
+
+[project.scripts]
+codemap = "codemap.cli:main"
+
+[project.optional-dependencies]
+semantic = ["sentence-transformers>=2.0", "numpy>=1.24", "hnswlib>=0.8"]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codemap"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

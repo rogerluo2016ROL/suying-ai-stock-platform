@@ -10,7 +10,7 @@ set -uo pipefail
 # 本脚本位于 setup/，内部用相对路径（.claude/ 等）→ 先 cd 到项目根，无论从哪调用都对
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
-# 颜色（stdout 是 terminal，或 AGF_FORCE_COLOR=1 管道保色——agf-install TUI 沟槽透传用）
+# 颜色（stdout 是 terminal，或 AGF_FORCE_COLOR=1 管道保色，供上层编排脚本透传）
 if [[ -t 1 || "${AGF_FORCE_COLOR:-}" == "1" ]]; then
   R=$'\033[0;31m'; G=$'\033[0;32m'; Y=$'\033[0;33m'; B=$'\033[0;34m'; N=$'\033[0m'
 else
@@ -31,17 +31,80 @@ info "Checking Claude Code..."
 if command -v claude >/dev/null 2>&1; then
   CC_VER=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
   if [[ -n "${CC_VER:-}" ]]; then
-    LOWEST=$(printf '%s\n2.1.154\n' "$CC_VER" | sort -V | head -1)
-    if [[ "$LOWEST" == "2.1.154" ]]; then
-      ok "claude v$CC_VER (≥ v2.1.154)"
+    # min 版本机读 SSOT：.claude/.agf-min-cc（缺则回退硬编码）
+    MIN_CC="$(cat .claude/.agf-min-cc 2>/dev/null | head -1)"; [[ -n "$MIN_CC" ]] || MIN_CC="2.1.154"
+    LOWEST=$(printf '%s\n%s\n' "$CC_VER" "$MIN_CC" | sort -V | head -1)
+    if [[ "$LOWEST" == "$MIN_CC" ]]; then
+      ok "claude v$CC_VER (≥ v$MIN_CC)"
     else
-      warn "claude v$CC_VER 低于 v2.1.154 — Agent Team 实验功能不可用，subagent 路径仍可用"
+      warn "claude v$CC_VER 低于 v$MIN_CC — Agent Team 实验功能不可用，subagent 路径仍可用"
     fi
   else
     warn "claude --version 输出无法解析"
   fi
 else
   fail "claude CLI 未安装。安装：https://claude.com/claude-code"
+fi
+
+# 1b. superpowers plugin —— AGF 团队流程硬依赖（缺失能力严重下降，非可选叠加）
+#   SessionStart 自动注入 superpowers:using-superpowers；test-driven-development /
+#   verification-before-completion / requesting-code-review / brainstorming / writing-plans
+#   等团队强制 skill 全在此 plugin（见 .claude/standards/superpowers.md §强制矩阵）。
+#   缺失 → 这些流程门 Skill() 调用失败、静默退化为无纪律执行。
+#   plugin 由 Claude Code 内 /plugin 交互安装，shell 无法自动装 → warn（同 CC 版本偏低的降级语义）。
+info "Checking superpowers plugin (AGF 流程硬依赖)..."
+SP_MIN="6.0.3"  # 基线（不硬 pin；以本地安装为准，见 superpowers.md）
+# marketplace 名不固定（superpowers-marketplace / claude-plugins-official 均可）→ 用 glob；
+# 版本目录名即安装版本。中间段必须恰为 "superpowers"，故 superpowers-chrome/-lab 等兄弟 plugin 不误命中。
+SP_VERDIR=$(ls -d "$HOME"/.claude/plugins/cache/*/superpowers/*/ 2>/dev/null | sort -V | tail -1)
+SP_REG="$HOME/.claude/plugins/installed_plugins.json"
+if [[ -n "$SP_VERDIR" ]]; then
+  SP_VER=$(basename "$SP_VERDIR")
+  LOWEST=$(printf '%s\n%s\n' "$SP_VER" "$SP_MIN" | sort -V | head -1)
+  if [[ "$LOWEST" == "$SP_MIN" ]]; then
+    ok "superpowers plugin v$SP_VER (≥ 基线 v$SP_MIN)"
+  else
+    warn "superpowers plugin v$SP_VER 低于基线 v$SP_MIN — Claude Code 内跑 \`/plugin update superpowers\` 更新"
+  fi
+elif [[ -f "$SP_REG" ]] && grep -q '"superpowers@' "$SP_REG" 2>/dev/null; then
+  ok "superpowers plugin 已安装（installed_plugins.json 注册）"
+else
+  warn "superpowers plugin 未检测到 —— AGF 团队流程硬依赖，缺失能力严重下降（TDD / verification / code-review / brainstorming 等强制 skill 全在此，Skill() 调用会失败）。Claude Code 内装：\`/plugin marketplace add obra/superpowers-marketplace\` 后 \`/plugin install superpowers@superpowers-marketplace\`"
+fi
+
+# 1c. roles.yaml 预载的其余第三方 plugin skill（code-review / feature-dev / frontend-design /
+#   chrome-devtools-mcp 等）—— 与 superpowers 同为"预载即依赖"，缺失则对应角色开局能力缺一块。
+#   数据驱动：直接从 roles.yaml 抽 <plugin>:<skill> 引用（roles.yaml 是角色能力唯一 SSOT），
+#   将来新增预载依赖自动纳入核对、无需改本脚本。agf-* 为自研（.claude/skills/ 内）、非 <plugin>:<skill>
+#   形式故天然排除；superpowers 上面已单独版本校验故此处剔除。
+#   advisory：plugin 由 /plugin 交互安装、shell 装不了 → 一律 warn 不 fail。
+info "Checking roles.yaml 预载的第三方 plugin skill..."
+ROLES=".claude/agents/roles.yaml"
+if [[ -f "$ROLES" ]]; then
+  # 抽所有 "- [name: ]<plugin>:<skill>" 列表项 → 唯一 plugin 名（剔除 superpowers）。
+  # 用 [[:space:]] 不用 \s（BSD grep/sed 不保证支持）；<plugin>:<skill> 需冒号两侧紧邻词字符，
+  # 故 "model: opus" / "description: ..." 等 "key: value"（冒号后有空格）不误命中。
+  SP_SKILLS=$(grep -oE '^[[:space:]]*-[[:space:]]+(name:[[:space:]]+)?[a-z0-9-]+:[a-z0-9-]+' "$ROLES" \
+              | grep -oE '[a-z0-9-]+:[a-z0-9-]+' | sed 's/:.*//' | grep -vx superpowers | sort -u)
+  if [[ -z "$SP_SKILLS" ]]; then
+    ok "roles.yaml 无其他第三方 plugin skill 预载"
+  else
+    CATALOG="$HOME/.claude/plugins/plugin-catalog-cache.json"
+    for P in $SP_SKILLS; do
+      # 已装判定：installed_plugins.json 注册 OR plugin cache 有 <plugin>/<version>/ 目录
+      if { [[ -f "$SP_REG" ]] && grep -q "\"$P@" "$SP_REG" 2>/dev/null; } \
+         || ls -d "$HOME"/.claude/plugins/cache/*/"$P"/*/ >/dev/null 2>&1; then
+        ok "plugin skill '$P' 已安装"
+      else
+        # 从本地 catalog 反查所属 marketplace，给精确安装命令（缺 catalog 则回退通用提示）
+        MKT=$(grep -oE "\"$P@[a-z0-9-]+\"" "$CATALOG" 2>/dev/null | head -1 | sed -E 's/.*@([a-z0-9-]+)".*/\1/')
+        if [[ -n "$MKT" ]]; then HINT="\`/plugin install $P@$MKT\`"; else HINT="Claude Code 内 \`/plugin\` 装对应 plugin"; fi
+        warn "plugin skill '$P' 未在 plugin registry/cache 检测到 —— roles.yaml 有角色预载它，缺失则该角色开局能力缺一块。确认已内置/以其他方式启用可忽略；否则装：$HINT"
+      fi
+    done
+  fi
+else
+  warn "$ROLES 不存在 — 跳过第三方 plugin skill 核对（角色能力 SSOT 缺失）"
 fi
 
 # 2. Hook 可执行 + 回归测试
@@ -98,17 +161,6 @@ if [[ -d ".git" ]]; then
     else
       warn ".claude/hooks/scan-commit.sh 不存在 — 跳过 pre-commit 安装"
     fi
-  fi
-fi
-
-# 3d. evals 静态校验
-info "Validating evals/*.jsonl..."
-if [[ -f "evals/run.sh" ]]; then
-  chmod +x evals/run.sh 2>/dev/null || true
-  if bash evals/run.sh validate >/dev/null 2>&1; then
-    ok "evals/*.jsonl 全部合法"
-  else
-    warn "evals/*.jsonl 有问题 — 跑 \`bash evals/run.sh validate\` 看详情"
   fi
 fi
 
@@ -182,6 +234,22 @@ if [[ -d ".git" ]]; then
   ok "git 仓库已初始化"
 else
   warn "git 仓库未初始化 — 跑 \`git init && git add . && git commit -m 'initial'\`"
+fi
+
+# 6b. Deeply Understand (codemap, ADR-021) 可用性
+info "Checking Deeply Understand (codemap, ADR-021)..."
+if [[ -d "tools/codemap" ]]; then
+  if command -v uv >/dev/null 2>&1; then
+    if uv run --project "tools/codemap" codemap --help >/dev/null 2>&1; then
+      ok "codemap 可用（\`uv run --project tools/codemap codemap\` / \`/agf-code-map\`）"
+    else
+      warn "codemap 未就绪 — 跑 \`uv sync --project tools/codemap --extra dev\` 装依赖"
+    fi
+  else
+    warn "uv 未装 — codemap 依赖未装（ADR-021；/agf-code-map 不可用）"
+  fi
+else
+  warn "tools/codemap/ 不存在 — Deeply Understand (ADR-021) 未装（接手遗留项目能力不可用）"
 fi
 
 # 7. permissions 白名单提醒（无法自动校验，只提示）

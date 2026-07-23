@@ -5,7 +5,7 @@ description = "Factor scoring, strategy engines, and backtest for A-share stock 
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",
-    "pandas>=2.0",
+    "pandas>=2.0,<3.0",
     "psycopg2-binary>=2.9",
     "scipy>=1.10",
 ]
