@@ -106,6 +106,10 @@ const chainDeconstructResponse = {
             node_id: 'quantum_compute',
             name: '量子计算',
             layer: 3,
+            transmission_layer: 'core_product',
+            transmission_layer_name: '核心产品',
+            value_chain: { margin: 32, pricing_power: 4, value_added: 15, note: '毛利率32%, 定价权强, 附加值15%' },
+            competition: { concentration: 80, leader_share: 60, barrier: 5, threat: 2, note: '高集中度, 龙头份额60%, 高壁垒, 低威胁' },
             children: [],
           },
         ],
@@ -588,11 +592,11 @@ describe('SupplyChainBom', () => {
     expect(screen.getByText('量子通信')).toBeInTheDocument()
   })
 
-  // P2-08: Method selector tests
-  it('shows three view tabs and triggers chain deconstruct on method change', async () => {
+  // Step4: 单树视图 + overlay 开关测试
+  it('shows overlay toggles and re-fetches chain deconstruct with overlays param', async () => {
     renderSupplyChain()
 
-    // Wait for initial load and chain deconstruct call
+    // Wait for initial load: 主视图固定 upstream_downstream, 不带 overlays
     await waitFor(() => {
       expect(chainApi.deconstructChain).toHaveBeenCalledWith({
         theme_id: 'future_industry_core',
@@ -600,15 +604,50 @@ describe('SupplyChainBom', () => {
       })
     })
 
-    // Click on value_chain tab
-    fireEvent.click(screen.getByRole('radio', { name: /价值链/ }))
+    // 勾选 value_chain overlay 开关
+    fireEvent.click(screen.getByRole('checkbox', { name: /价值链/ }))
 
     await waitFor(() => {
       expect(chainApi.deconstructChain).toHaveBeenCalledWith({
         theme_id: 'future_industry_core',
-        method: 'value_chain',
+        method: 'upstream_downstream',
+        overlays: ['value_chain'],
       })
     })
+
+    // 叠加 competition overlay: 两个 overlay 同时生效
+    fireEvent.click(screen.getByRole('checkbox', { name: /竞争格局/ }))
+
+    await waitFor(() => {
+      expect(chainApi.deconstructChain).toHaveBeenCalledWith({
+        theme_id: 'future_industry_core',
+        method: 'upstream_downstream',
+        overlays: ['value_chain', 'competition'],
+      })
+    })
+  })
+
+  it('renders transmission layer tag always and overlay labels after toggling overlays on', async () => {
+    renderSupplyChain()
+
+    // transmission_layer_name 常显; overlay 标签未勾选时不显示
+    expect((await screen.findAllByText('核心产品')).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/毛利 32%/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/集中度 80%/)).not.toBeInTheDocument()
+
+    // 勾选两个 overlay 后, 节点表格叠加对应标签
+    fireEvent.click(screen.getByRole('checkbox', { name: /价值链/ }))
+    await waitFor(() => {
+      expect(chainApi.deconstructChain).toHaveBeenCalledWith({
+        theme_id: 'future_industry_core',
+        method: 'upstream_downstream',
+        overlays: ['value_chain'],
+      })
+    })
+    fireEvent.click(screen.getByRole('checkbox', { name: /竞争格局/ }))
+
+    expect((await screen.findAllByText(/毛利 32%/)).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText(/集中度 80%/)).length).toBeGreaterThan(0)
   })
 
   it('keeps a visible error state when chain deconstruct fails', async () => {

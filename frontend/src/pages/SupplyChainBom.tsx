@@ -10,7 +10,8 @@ import CandidateCompanyTable from './supply-chain-bom/CandidateCompanyTable'
 import CompanyResearchDrawer from './supply-chain-bom/CompanyResearchDrawer'
 import NodeThesisPanel from './supply-chain-bom/NodeThesisPanel'
 import ChainTreeChart from './supply-chain-bom/ChainTreeChart'
-import MethodSelector, { type ChainMethod } from './supply-chain-bom/MethodSelector'
+import MethodSelector, { type ChainMethod, type ChainOverlay } from './supply-chain-bom/MethodSelector'
+import NodeOverlayTags from './supply-chain-bom/NodeOverlayTags'
 import CandidateFilterBar from './supply-chain-bom/CandidateFilterBar'
 import ChainBubbleChart from './supply-chain-bom/ChainBubbleChart'
 import SupplyChainMappingReviewPanel from './supply-chain-bom/SupplyChainMappingReviewPanel'
@@ -330,7 +331,7 @@ function chainMethodSummary(method: ChainMethod): ChainMethodSummary {
   }
 }
 
-// Convert ChainNode from API to BomNode for display
+// Convert ChainNode from API to BomNode for display (保留 overlay/transmission 标签)
 function chainNodeToBomNode(node: ChainNode, themeId: string): BomNode {
   return {
     node_id: node.node_id,
@@ -343,6 +344,10 @@ function chainNodeToBomNode(node: ChainNode, themeId: string): BomNode {
     node_type: 'chain_node',
     keywords: [],
     policy_theme: undefined,
+    transmission_layer: node.transmission_layer,
+    transmission_layer_name: node.transmission_layer_name,
+    value_chain: node.value_chain ? { note: '', ...node.value_chain } : undefined,
+    competition: node.competition ? { note: '', ...node.competition } : undefined,
   }
 }
 
@@ -387,8 +392,10 @@ export default function SupplyChainBom() {
   const [policyLoading, setPolicyLoading] = useState(false)
   const [persistPolicy, setPersistPolicy] = useState(false)
 
-  // P2-08: Chain method selector state
-  const [chainMethod, setChainMethod] = useState<ChainMethod>('upstream_downstream')
+  // 拆解架构整合 Step4: 主视图固定 upstream_downstream 单树, value_chain/competition
+  // 降级为可叠加 overlay 开关 (ChainMethod 类型保留, bom 钻取链仍在用)
+  const chainMethod: ChainMethod = 'upstream_downstream'
+  const [chainOverlays, setChainOverlays] = useState<ChainOverlay[]>([])
   const [chainTemplate, setChainTemplate] = useState<ChainTemplateKey>('default')
   const [chainDeconstructResult, setChainDeconstructResult] = useState<ChainDeconstructResponse | null>(null)
   const [chainLoading, setChainLoading] = useState(false)
@@ -487,14 +494,19 @@ export default function SupplyChainBom() {
     }
   }, [])
 
-  // P2-08: Fetch chain deconstruct when method changes and theme is selected
+  // P2-08/Step4: Fetch chain deconstruct when overlays/template change and theme is selected
   useEffect(() => {
     if (!selectedThemeId) return
     let mounted = true
     setChainLoading(true)
     setChainDeconstructError('')
     const template = chainTemplate === 'default' ? undefined : chainTemplate
-    chainApi.deconstructChain({ theme_id: selectedThemeId, method: chainMethod, template })
+    chainApi.deconstructChain({
+      theme_id: selectedThemeId,
+      method: chainMethod,
+      template,
+      overlays: chainOverlays.length > 0 ? chainOverlays : undefined,
+    })
       .then(resp => {
         if (!mounted) return
         const data = resp.data as ChainDeconstructResponse
@@ -518,7 +530,7 @@ export default function SupplyChainBom() {
     return () => {
       mounted = false
     }
-  }, [selectedThemeId, chainMethod, chainTemplate])
+  }, [selectedThemeId, chainOverlays, chainTemplate])
 
   const selectedTheme = useMemo(
     () => themes.find(theme => theme.theme_id === selectedThemeId),
@@ -828,6 +840,12 @@ export default function SupplyChainBom() {
     },
     { title: '层级', dataIndex: 'level', width: 86, render: (v: string) => <Tag>{v}</Tag> },
     { title: '类型', dataIndex: 'node_type', width: 94 },
+    {
+      title: '维度标签',
+      key: 'overlay_tags',
+      width: 260,
+      render: (_: unknown, row: BomNode) => <NodeOverlayTags node={row} overlays={chainOverlays} />,
+    },
   ]
 
   const upstreamColumns: any[] = [
@@ -1014,32 +1032,30 @@ export default function SupplyChainBom() {
 
         <Col xs={24} lg={10}>
           <div style={{ minHeight: 360, border: `1px solid ${lightTokens.border}`, borderRadius: lightTokens.radius, background: lightTokens.surface }}>
-            {/* P2-08: MethodSelector for three view tabs */}
+            {/* Step4: 单树视图 + overlay 维度开关 */}
             <div style={{ padding: '8px 12px', borderBottom: `1px solid ${lightTokens.border}` }}>
               <MethodSelector
-                value={chainMethod}
-                onChange={setChainMethod}
+                overlays={chainOverlays}
+                onOverlaysChange={setChainOverlays}
                 loading={chainLoading}
                 disabled={!selectedThemeId}
               />
             </div>
-            {/* 4.2 AC①：三模式专属渲染（非通用壳） */}
-            {chainMethod === 'upstream_downstream' && (
-              <ReactECharts
-                option={graphOption}
-                style={{ height: 214 }}
-                onEvents={{
-                  click: (params: any) => {
-                    const nextNode = nodes.find(node => node.node_id === params?.data?.id)
-                    if (nextNode) selectNode(nextNode)
-                  },
-                }}
-              />
-            )}
-            {chainMethod === 'value_chain' && (
+            {/* 主视图固定为上下游拓扑图; overlay 勾选后在下方叠加对应维度图 */}
+            <ReactECharts
+              option={graphOption}
+              style={{ height: 214 }}
+              onEvents={{
+                click: (params: any) => {
+                  const nextNode = nodes.find(node => node.node_id === params?.data?.id)
+                  if (nextNode) selectNode(nextNode)
+                },
+              }}
+            />
+            {chainOverlays.includes('value_chain') && (
               <ReactECharts option={valueChainOption} style={{ height: 214 }} />
             )}
-            {chainMethod === 'competition' && (
+            {chainOverlays.includes('competition') && (
               <ReactECharts option={competitionOption} style={{ height: 214 }} />
             )}
             {filteredNodes.length === 0 && (
@@ -1051,18 +1067,32 @@ export default function SupplyChainBom() {
               <Space direction="vertical" size={8} style={{ width: '100%' }}>
                 <Space align="baseline" style={{ justifyContent: 'space-between', width: '100%' }}>
                   <Text strong>{methodSummary.title}</Text>
-                  <Tag color={chainMethod === 'value_chain' ? 'gold' : chainMethod === 'competition' ? 'purple' : 'blue'}>
-                    {chainLoading ? '加载中' : '已切换'}
-                  </Tag>
+                  <Space size={4}>
+                    {chainOverlays.includes('value_chain') && <Tag color="green">价值链</Tag>}
+                    {chainOverlays.includes('competition') && <Tag color="orange">竞争格局</Tag>}
+                    <Tag color="blue">
+                      {chainLoading ? '加载中' : '单树视图'}
+                    </Tag>
+                  </Space>
                 </Space>
                 <Text type="secondary" style={{ fontSize: 12 }}>{methodSummary.desc}</Text>
-                {/* 4.2 mode-note：value/competition 三卡注释（对齐 preview mode-note） */}
-                {chainMethod !== 'upstream_downstream' && (
+                {/* 4.2 mode-note：overlay 三卡注释（对齐 preview mode-note，随开关叠加） */}
+                {chainOverlays.includes('value_chain') && (
                   <Row gutter={8}>
-                    {(chainMethod === 'value_chain'
-                      ? [['最高毛利环节', '核心零部件', '技术壁垒最高，国产替代难度最大。'], ['利润兑现', '设备制造', '订单和业绩兑现最直接，是从政策受益走向利润兑现的核心环节。'], ['低毛利环节', '封装测试', '毛利率最低，受先进封装投资周期带动。']]
-                      : [['寡头垄断', '光刻系统', '全球极高集中度，A股通过光刻胶/光学元件/配套设备参与。'], ['国产突破', '刻蚀/PVD', '进入高壁垒高成长象限，订单兑现与扩产节奏最关键。'], ['分散竞争', '清洗/检测', '国产化率较高，按订单和利润率筛选。']]
-                    ).map(([label, value, sub]) => (
+                    {[['最高毛利环节', '核心零部件', '技术壁垒最高，国产替代难度最大。'], ['利润兑现', '设备制造', '订单和业绩兑现最直接，是从政策受益走向利润兑现的核心环节。'], ['低毛利环节', '封装测试', '毛利率最低，受先进封装投资周期带动。']].map(([label, value, sub]) => (
+                      <Col span={8} key={label as string}>
+                        <div style={{ background: lightTokens.surface2, border: `1px solid ${lightTokens.border}`, borderRadius: 7, padding: '8px 10px' }}>
+                          <div style={{ fontSize: 10, color: lightTokens.muted, marginBottom: 4 }}>{label}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: lightTokens.fg }}>{value}</div>
+                          <div style={{ fontSize: 10, color: lightTokens.fg2, marginTop: 2, lineHeight: 1.5 }}>{sub}</div>
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                )}
+                {chainOverlays.includes('competition') && (
+                  <Row gutter={8}>
+                    {[['寡头垄断', '光刻系统', '全球极高集中度，A股通过光刻胶/光学元件/配套设备参与。'], ['国产突破', '刻蚀/PVD', '进入高壁垒高成长象限，订单兑现与扩产节奏最关键。'], ['分散竞争', '清洗/检测', '国产化率较高，按订单和利润率筛选。']].map(([label, value, sub]) => (
                       <Col span={8} key={label as string}>
                         <div style={{ background: lightTokens.surface2, border: `1px solid ${lightTokens.border}`, borderRadius: 7, padding: '8px 10px' }}>
                           <div style={{ fontSize: 10, color: lightTokens.muted, marginBottom: 4 }}>{label}</div>
@@ -1082,7 +1112,7 @@ export default function SupplyChainBom() {
                       </div>
                     </Col>
                   ))}
-                  {methodSummary.stats.length === 0 && chainMethod === 'upstream_downstream' && (
+                  {methodSummary.stats.length === 0 && (
                     <Col span={24}>
                       <Text type="secondary" style={{ fontSize: 12 }}>上下游图展示节点拓扑，点击节点下钻候选公司。</Text>
                     </Col>

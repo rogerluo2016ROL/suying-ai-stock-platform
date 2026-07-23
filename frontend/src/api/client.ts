@@ -62,6 +62,8 @@ export {
 export type {
   PolicyInterpretRequest,
   PolicyInterpretResponse,
+  ValueChainLabel,
+  CompetitionLabel,
   ChainDeconstructTree,
   ChainDeconstructTemplate,
   ChainDeconstructResponse,

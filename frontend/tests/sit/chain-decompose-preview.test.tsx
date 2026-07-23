@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import SupplyChainBom from '../../src/pages/SupplyChainBom'
 import { screenerApi, chainApi } from '../../src/api/client'
 
-// SIT scope：SupplyChainBom 4.2 chain-decompose 三模式专属渲染 + token 化 + 缺数据 EmptyState。
+// SIT scope：SupplyChainBom Step4 单树视图 + overlay 维度切换渲染 + token 化 + 缺数据 EmptyState。
 // API client 走 vi.mock（既有 SupplyChainBom.test.tsx 同款）。
 
 vi.mock('echarts-for-react', () => ({
@@ -110,7 +110,7 @@ function renderSupplyChain(initialRoute = '/supply-chain-bom') {
   )
 }
 
-describe('SupplyChainBom 4.2 chain-decompose 三模式 SIT', () => {
+describe('SupplyChainBom Step4 单树 + overlay SIT', () => {
   beforeEach(() => {
     vi.mocked(screenerApi.getSupplyChainThemes).mockResolvedValue({ data: { themes } } as any)
     vi.mocked(screenerApi.getSupplyChainBom).mockResolvedValue({ data: { nodes: [], edges: [] } } as any)
@@ -148,16 +148,16 @@ describe('SupplyChainBom 4.2 chain-decompose 三模式 SIT', () => {
     })
   })
 
-  // AC①：切到 value_chain → 调 deconstructChain(method:value_chain) + 渲染 bar 图 + 价值链注释卡
-  it('value_chain 模式：调正确 method + 渲染毛利率 bar 图 + 价值链注释卡', async () => {
+  // AC①：勾选 value_chain overlay → 调 deconstructChain(overlays:[value_chain]) + 渲染 bar 图 + 价值链注释卡
+  it('value_chain overlay：method 保持 upstream + 渲染毛利率 bar 图 + 价值链注释卡', async () => {
     renderSupplyChain()
     await screen.findByTestId('graph-chart')
 
-    fireEvent.click(screen.getByRole('radio', { name: /价值链/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /价值链/ }))
 
     await waitFor(() => {
       expect(chainApi.deconstructChain).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'value_chain' }),
+        expect.objectContaining({ method: 'upstream_downstream', overlays: ['value_chain'] }),
       )
     })
     // 价值链注释卡标题（preview mode-note 对齐）
@@ -168,16 +168,16 @@ describe('SupplyChainBom 4.2 chain-decompose 三模式 SIT', () => {
     })
   })
 
-  // AC①：切到 competition → 渲染 scatter 图 + 竞争格局注释卡
-  it('competition 模式：渲染竞争格局注释卡（寡头垄断/国产突破/分散竞争）', async () => {
+  // AC①：勾选 competition overlay → 渲染 scatter 图 + 竞争格局注释卡
+  it('competition overlay：渲染竞争格局注释卡（寡头垄断/国产突破/分散竞争）', async () => {
     renderSupplyChain()
     await screen.findByTestId('graph-chart')
 
-    fireEvent.click(screen.getByRole('radio', { name: /竞争格局/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /竞争格局/ }))
 
     await waitFor(() => {
       expect(chainApi.deconstructChain).toHaveBeenCalledWith(
-        expect.objectContaining({ method: 'competition' }),
+        expect.objectContaining({ method: 'upstream_downstream', overlays: ['competition'] }),
       )
     })
     await waitFor(() => {
@@ -187,28 +187,31 @@ describe('SupplyChainBom 4.2 chain-decompose 三模式 SIT', () => {
     })
   })
 
-  // AC②：三模式切换后图表类型不同（专属渲染证据：upstream=graph, value=bar, competition=scatter）
-  it('三模式图表类型互不相同（专属渲染，非通用壳）', async () => {
+  // AC②：overlay 叠加后图表类型共存（主视图 graph 常显, value=bar, competition=scatter）
+  it('overlay 图表类型共存于单树主视图（graph + bar + scatter）', async () => {
     renderSupplyChain()
     await screen.findByTestId('graph-chart')
 
-    // upstream → graph
+    // 主视图 → graph
     let charts = screen.getAllByTestId('graph-chart')
     expect(charts.some(c => c.getAttribute('data-chart-type') === 'graph')).toBe(true)
 
-    // value_chain → bar（主 series）
-    fireEvent.click(screen.getByRole('radio', { name: /价值链/ }))
+    // value_chain overlay → bar（主 series）
+    fireEvent.click(screen.getByRole('checkbox', { name: /价值链/ }))
     await waitFor(() => {
       charts = screen.getAllByTestId('graph-chart')
       expect(charts.some(c => c.getAttribute('data-chart-type') === 'bar')).toBe(true)
     })
 
-    // competition → scatter
-    fireEvent.click(screen.getByRole('radio', { name: /竞争格局/ }))
+    // competition overlay → scatter（与 bar 共存, 主 graph 仍在）
+    fireEvent.click(screen.getByRole('checkbox', { name: /竞争格局/ }))
     await waitFor(() => {
       charts = screen.getAllByTestId('graph-chart')
       expect(charts.some(c => c.getAttribute('data-chart-type') === 'scatter')).toBe(true)
     })
+    charts = screen.getAllByTestId('graph-chart')
+    expect(charts.some(c => c.getAttribute('data-chart-type') === 'graph')).toBe(true)
+    expect(charts.some(c => c.getAttribute('data-chart-type') === 'bar')).toBe(true)
   })
 
   // AC③：缺数据 EmptyState——deconstructChain 返回空树时展示占位

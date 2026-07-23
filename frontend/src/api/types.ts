@@ -1007,7 +1007,19 @@ export interface SupplyChainNode {
     margin: number;
     pricing_power: number;
     value_added: number;
+    note?: string;
   };
+  /** overlay 注解: competition 标签 (传 overlays=["competition"] 时按 node_id 合并) */
+  competition?: {
+    concentration: number | null;
+    leader_share: number | null;
+    barrier: number | null;
+    threat: number | null;
+    note?: string;
+  };
+  /** 传导链 (transmission) 位置 (migration 040), 与钻取链 L1-L8 不同维度 */
+  transmission_layer?: string;
+  transmission_layer_name?: string;
 }
 
 /** 类型别名（页面兼容） */

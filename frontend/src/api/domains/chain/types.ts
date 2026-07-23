@@ -1,5 +1,22 @@
 // Chain 域类型(从 client.ts 拆出, C 域拆分)
 
+/** value_chain overlay 标签 (annotate_value_chain 输出, 按 node_id 合并进树节点) */
+export interface ValueChainLabel {
+  margin: number | null
+  pricing_power: number | null
+  value_added: number | null
+  note: string
+}
+
+/** competition overlay 标签 (annotate_competition 输出, 按 node_id 合并进树节点) */
+export interface CompetitionLabel {
+  concentration: number | null
+  leader_share: number | null
+  barrier: number | null
+  threat: number | null
+  note: string
+}
+
 export interface PolicyInterpretRequest {
   text: string
   source?: Record<string, unknown>
@@ -115,6 +132,12 @@ export interface ChainDeconstructTree {
     mapped_segments?: string[]
   }
   children?: ChainDeconstructTree[]
+  /** overlay 注解: 传 overlays=[...] 时按 node_id 合并进节点 */
+  value_chain?: ValueChainLabel
+  competition?: CompetitionLabel
+  /** 传导链 (transmission) 位置 (migration 040), 与钻取链 L1-L8 不同维度 */
+  transmission_layer?: string
+  transmission_layer_name?: string
 }
 
 export interface ChainDeconstructTemplate {
@@ -145,6 +168,11 @@ export interface ChainDeconstructResponse {
     evidence_level?: string
   }>
   tree: ChainDeconstructTree
+  /** 仅传 overlays 时存在: {overlay名: {node_id: 标签}} */
+  overlays?: {
+    value_chain?: Record<string, ValueChainLabel>
+    competition?: Record<string, CompetitionLabel>
+  }
 }
 
 export interface ChainNodeCompaniesResponse {

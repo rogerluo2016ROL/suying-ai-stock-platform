@@ -1,3 +1,5 @@
+import type { CompetitionLabel, ValueChainLabel } from '../../api/domains/chain/types'
+
 export interface ThemeRow {
   theme_id: string
   name: string
@@ -24,6 +26,12 @@ export interface BomNode {
   keywords: string[]
   policy_theme?: string
   bom_path?: string[]
+  /** 传导链 (transmission) 位置 (migration 040), 与钻取链 L1-L8 不同维度 */
+  transmission_layer?: string
+  transmission_layer_name?: string
+  /** overlay 注解标签 (chain/deconstruct 传 overlays=[...] 时按 node_id 合并) */
+  value_chain?: ValueChainLabel
+  competition?: CompetitionLabel
 }
 
 export interface ScoreDimension {

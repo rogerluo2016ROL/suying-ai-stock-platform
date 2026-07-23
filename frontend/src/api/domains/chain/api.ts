@@ -23,10 +23,12 @@ export const chainApi = {
       provider,
     }),
 
-  deconstructChain: (params: { theme_id: string; method?: string; template?: string }): Promise<AxiosResponse<ChainDeconstructResponse>> => {
-    const { theme_id, method = 'upstream_downstream', template } = params
+  deconstructChain: (params: { theme_id: string; method?: string; template?: string; overlays?: string[] }): Promise<AxiosResponse<ChainDeconstructResponse>> => {
+    const { theme_id, method = 'upstream_downstream', template, overlays } = params
     const qs = new URLSearchParams({ theme_id, method })
     if (template) qs.set('template', template)
+    // overlay 注解可叠加: overlays=value_chain&overlays=competition
+    overlays?.forEach(name => qs.append('overlays', name))
     return api.get(`/screener/chain/deconstruct?${qs.toString()}`)
   },
 

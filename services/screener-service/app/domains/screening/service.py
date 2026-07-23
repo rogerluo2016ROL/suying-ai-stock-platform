@@ -153,7 +153,7 @@ from datetime import datetime
 from pathlib import Path
 
 
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 
 from fastapi import APIRouter, Body, Depends, Header, Query, HTTPException
@@ -1721,6 +1721,7 @@ async def chain_deconstruct(
     theme_id: str = Query(..., description="Industry theme ID (e.g., 'semiconductor')"),
     method: str = Query("upstream_downstream", description="Deconstruct method: bom, upstream_downstream, value_chain, competition"),
     template: Optional[str] = Query(None, description="Optional industry-link template (8-layer 传导链/transmission, e.g. complex_tech); 与 BOM 钻取链 (drilldown) L1-L8 不同维度"),
+    overlays: Optional[List[str]] = Query(None, description="Optional overlay annotators applied on any method (subset of value_chain/competition); 单树 + 叠加注解, 标签按 node_id 合并进树节点"),
 ):
     """Return industry chain deconstruct tree with selected view method.
 
@@ -1729,6 +1730,9 @@ async def chain_deconstruct(
     - upstream_downstream: 5-layer tree (原材料→零部件→制造→渠道→终端)
     - value_chain: tree + margin/pricing_power/value_added per node
     - competition: tree + concentration/leader_share/barrier/threat per node
+    - overlays=value_chain&overlays=competition: 任意 method 上叠加 overlay 注解
+      (主推 method=upstream_downstream + overlays 单树多维分析); 返回追加顶层
+      "overlays" 键, 树节点按 node_id 合并 value_chain/competition 标签
     - template=complex_tech: 8-layer 传导链 (transmission) 产业传导位置模板
       (demand→task→core_product→foundation→integration→supporting→infrastructure→commercialization),
       与钻取链 (drilldown) L1-L8 是不同维度
@@ -1806,7 +1810,7 @@ async def chain_deconstruct(
 
     # Call deconstruct_chain with the nodes
     try:
-        result = deconstruct_chain(theme_id, method, nodes, theme_name, template=template)
+        result = deconstruct_chain(theme_id, method, nodes, theme_name, template=template, overlays=overlays)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
