@@ -90,38 +90,44 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 })
 
 // ── Response interceptor: 401 → refresh → retry ──
+// 共享工厂: api 与 rootApi 挂同一逻辑, 重试时用各自实例保持 baseURL 语义。
 
 let _refreshPromise: Promise<string | null> | null = null
 
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+function attachAuthRefreshInterceptor(instance: typeof api) {
+  instance.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (!_onRefreshToken) {
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        if (!_onRefreshToken) {
+          _onForceLogout?.()
+          return Promise.reject(error)
+        }
+
+        // Promise lock: only one refresh at a time
+        if (!_refreshPromise) {
+          _refreshPromise = _onRefreshToken().finally(() => {
+            _refreshPromise = null
+          })
+        }
+
+        const newToken = await _refreshPromise
+        if (newToken) {
+          originalRequest._retry = true
+          originalRequest.headers.Authorization = `Bearer ${newToken}`
+          return instance(originalRequest)
+        }
+
+        // Refresh failed → force logout
         _onForceLogout?.()
-        return Promise.reject(error)
       }
 
-      // Promise lock: only one refresh at a time
-      if (!_refreshPromise) {
-        _refreshPromise = _onRefreshToken().finally(() => {
-          _refreshPromise = null
-        })
-      }
+      return Promise.reject(error)
+    },
+  )
+}
 
-      const newToken = await _refreshPromise
-      if (newToken) {
-        originalRequest._retry = true
-        originalRequest.headers.Authorization = `Bearer ${newToken}`
-        return api(originalRequest)
-      }
-
-      // Refresh failed → force logout
-      _onForceLogout?.()
-    }
-
-    return Promise.reject(error)
-  },
-)
+attachAuthRefreshInterceptor(api)
+attachAuthRefreshInterceptor(rootApi)

@@ -1,7 +1,7 @@
 // P2-09: ECharts Tree option builders for Supply Chain BOM drill-down visualization
 // Pure functions following the pattern from diagnosis/chartOptions.ts
 
-import type { EChartsOption } from 'echarts'
+import type { EChartsOption, TooltipComponentOption } from 'echarts'
 import type { BomNode, ThemeRow, CandidateCompany } from './types'
 
 // ─────────────────────────────────────────────────────────────────
@@ -426,8 +426,10 @@ export function buildChainTreeOption(
   return {
     tooltip: {
       trigger: 'item',
-      // echarts 6 类型收窄了 triggerOn 组合字面量，运行时仍按子串匹配支持 'mousemove|click'
-      triggerOn: 'mousemove|click' as 'mousemove',
+      // echarts 6 的 TooltipOption.triggerOn 类型只列了单值与 'mousemove|click|mousewheel' 组合，
+      // 未含 'mousemove|click'；但运行时 (TooltipView) 按 indexOf 子串匹配，该值合法。
+      // 用 TooltipComponentOption['triggerOn'] 精确断言，而非伪装成 'mousemove'。
+      triggerOn: 'mousemove|click' as TooltipComponentOption['triggerOn'],
       formatter: (params: unknown) => {
         const p = params as { data?: TreeNode }
         const nodeData = p.data
@@ -523,8 +525,10 @@ export function buildThemeTreeOption(
   return {
     tooltip: {
       trigger: 'item',
-      // echarts 6 类型收窄了 triggerOn 组合字面量，运行时仍按子串匹配支持 'mousemove|click'
-      triggerOn: 'mousemove|click' as 'mousemove',
+      // echarts 6 的 TooltipOption.triggerOn 类型只列了单值与 'mousemove|click|mousewheel' 组合，
+      // 未含 'mousemove|click'；但运行时 (TooltipView) 按 indexOf 子串匹配，该值合法。
+      // 用 TooltipComponentOption['triggerOn'] 精确断言，而非伪装成 'mousemove'。
+      triggerOn: 'mousemove|click' as TooltipComponentOption['triggerOn'],
       formatter: (params: unknown) => {
         const p = params as { data?: TreeNode }
         const nodeData = p.data
