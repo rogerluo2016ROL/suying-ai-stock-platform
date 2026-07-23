@@ -4205,6 +4205,79 @@
             }
           ]
         }
+      ],
+      "technology_routes": [
+        {
+          "route_id": "ai_compute_domestic_full_stack",
+          "chain_id": "ai_compute_infrastructure",
+          "node_id": "ai_compute_infrastructure_core_product",
+          "route_name": "国产AI算力全栈路线(GPU/ASIC+高速互连+智算中心)",
+          "maturity_stage": "mass_production",
+          "performance_metrics": {},
+          "manufacturing_difficulty": {},
+          "cost_trend": {},
+          "substitute_route_ids": [],
+          "failure_conditions": [],
+          "evidence_ids": []
+        }
+      ],
+      "evidence_requirements": [
+        {
+          "requirement_id": "ai_compute_domestic_full_stack_req_1",
+          "business_keywords": [
+            "需求层"
+          ],
+          "technology_route_id": "ai_compute_domestic_full_stack"
+        },
+        {
+          "requirement_id": "ai_compute_domestic_full_stack_req_2",
+          "business_keywords": [
+            "任务层"
+          ],
+          "technology_route_id": "ai_compute_domestic_full_stack"
+        },
+        {
+          "requirement_id": "ai_compute_domestic_full_stack_req_3",
+          "business_keywords": [
+            "核心产品层"
+          ],
+          "technology_route_id": "ai_compute_domestic_full_stack"
+        },
+        {
+          "requirement_id": "ai_compute_domestic_full_stack_req_4",
+          "business_keywords": [
+            "底层支撑层"
+          ],
+          "technology_route_id": "ai_compute_domestic_full_stack"
+        },
+        {
+          "requirement_id": "ai_compute_domestic_full_stack_req_5",
+          "business_keywords": [
+            "集成层"
+          ],
+          "technology_route_id": "ai_compute_domestic_full_stack"
+        },
+        {
+          "requirement_id": "ai_compute_domestic_full_stack_req_6",
+          "business_keywords": [
+            "配套层"
+          ],
+          "technology_route_id": "ai_compute_domestic_full_stack"
+        },
+        {
+          "requirement_id": "ai_compute_domestic_full_stack_req_7",
+          "business_keywords": [
+            "基础设施层"
+          ],
+          "technology_route_id": "ai_compute_domestic_full_stack"
+        },
+        {
+          "requirement_id": "ai_compute_domestic_full_stack_req_8",
+          "business_keywords": [
+            "商业变现层"
+          ],
+          "technology_route_id": "ai_compute_domestic_full_stack"
+        }
       ]
     },
     {
@@ -9584,6 +9657,79 @@
               "confidence": "unknown"
             }
           ]
+        }
+      ],
+      "technology_routes": [
+        {
+          "route_id": "data_ai_app_saas",
+          "chain_id": "data_ai_application_commercialization",
+          "node_id": "data_ai_application_commercialization_core_product",
+          "route_name": "数据要素+AI应用SaaS化变现路线",
+          "maturity_stage": "mass_production",
+          "performance_metrics": {},
+          "manufacturing_difficulty": {},
+          "cost_trend": {},
+          "substitute_route_ids": [],
+          "failure_conditions": [],
+          "evidence_ids": []
+        }
+      ],
+      "evidence_requirements": [
+        {
+          "requirement_id": "data_ai_app_saas_req_1",
+          "business_keywords": [
+            "需求层"
+          ],
+          "technology_route_id": "data_ai_app_saas"
+        },
+        {
+          "requirement_id": "data_ai_app_saas_req_2",
+          "business_keywords": [
+            "任务层"
+          ],
+          "technology_route_id": "data_ai_app_saas"
+        },
+        {
+          "requirement_id": "data_ai_app_saas_req_3",
+          "business_keywords": [
+            "核心产品层"
+          ],
+          "technology_route_id": "data_ai_app_saas"
+        },
+        {
+          "requirement_id": "data_ai_app_saas_req_4",
+          "business_keywords": [
+            "底层支撑层"
+          ],
+          "technology_route_id": "data_ai_app_saas"
+        },
+        {
+          "requirement_id": "data_ai_app_saas_req_5",
+          "business_keywords": [
+            "集成层"
+          ],
+          "technology_route_id": "data_ai_app_saas"
+        },
+        {
+          "requirement_id": "data_ai_app_saas_req_6",
+          "business_keywords": [
+            "配套层"
+          ],
+          "technology_route_id": "data_ai_app_saas"
+        },
+        {
+          "requirement_id": "data_ai_app_saas_req_7",
+          "business_keywords": [
+            "基础设施层"
+          ],
+          "technology_route_id": "data_ai_app_saas"
+        },
+        {
+          "requirement_id": "data_ai_app_saas_req_8",
+          "business_keywords": [
+            "商业变现层"
+          ],
+          "technology_route_id": "data_ai_app_saas"
         }
       ]
     },
@@ -18525,6 +18671,79 @@
             }
           ]
         }
+      ],
+      "technology_routes": [
+        {
+          "route_id": "ascend_kunpeng_ecosystem",
+          "chain_id": "huawei_ascend_ai_ecosystem",
+          "node_id": "huawei_ascend_ai_ecosystem_core_product",
+          "route_name": "昇腾+鲲鹏国产生态路线(超节点集群+生态软件适配)",
+          "maturity_stage": "mass_production",
+          "performance_metrics": {},
+          "manufacturing_difficulty": {},
+          "cost_trend": {},
+          "substitute_route_ids": [],
+          "failure_conditions": [],
+          "evidence_ids": []
+        }
+      ],
+      "evidence_requirements": [
+        {
+          "requirement_id": "ascend_kunpeng_ecosystem_req_1",
+          "business_keywords": [
+            "需求层"
+          ],
+          "technology_route_id": "ascend_kunpeng_ecosystem"
+        },
+        {
+          "requirement_id": "ascend_kunpeng_ecosystem_req_2",
+          "business_keywords": [
+            "任务层"
+          ],
+          "technology_route_id": "ascend_kunpeng_ecosystem"
+        },
+        {
+          "requirement_id": "ascend_kunpeng_ecosystem_req_3",
+          "business_keywords": [
+            "核心产品层"
+          ],
+          "technology_route_id": "ascend_kunpeng_ecosystem"
+        },
+        {
+          "requirement_id": "ascend_kunpeng_ecosystem_req_4",
+          "business_keywords": [
+            "底层支撑层"
+          ],
+          "technology_route_id": "ascend_kunpeng_ecosystem"
+        },
+        {
+          "requirement_id": "ascend_kunpeng_ecosystem_req_5",
+          "business_keywords": [
+            "集成层"
+          ],
+          "technology_route_id": "ascend_kunpeng_ecosystem"
+        },
+        {
+          "requirement_id": "ascend_kunpeng_ecosystem_req_6",
+          "business_keywords": [
+            "配套层"
+          ],
+          "technology_route_id": "ascend_kunpeng_ecosystem"
+        },
+        {
+          "requirement_id": "ascend_kunpeng_ecosystem_req_7",
+          "business_keywords": [
+            "基础设施层"
+          ],
+          "technology_route_id": "ascend_kunpeng_ecosystem"
+        },
+        {
+          "requirement_id": "ascend_kunpeng_ecosystem_req_8",
+          "business_keywords": [
+            "商业变现层"
+          ],
+          "technology_route_id": "ascend_kunpeng_ecosystem"
+        }
       ]
     },
     {
@@ -18539,11 +18758,28 @@
           "order": 1,
           "name": "需求层",
           "definition": "识别哪些客户愿意为灵巧操作付费，并区分演示、试点、采购和复购。",
-          "key_questions": ["谁是付费客户？", "需求是否能从试点转为批量部署？"],
-          "segments": ["制造业柔性自动化", "具身智能", "危险作业", "仓储物流", "商业服务", "家庭服务"],
-          "evidence": ["需求必须由预算、采购、部署或复购证据支持。"],
+          "key_questions": [
+            "谁是付费客户？",
+            "需求是否能从试点转为批量部署？"
+          ],
+          "segments": [
+            "制造业柔性自动化",
+            "具身智能",
+            "危险作业",
+            "仓储物流",
+            "商业服务",
+            "家庭服务"
+          ],
+          "evidence": [
+            "需求必须由预算、采购、部署或复购证据支持。"
+          ],
           "companies": [],
-          "tracking_metrics": ["试点数量", "批量订单", "单客户部署量", "复购率"],
+          "tracking_metrics": [
+            "试点数量",
+            "批量订单",
+            "单客户部署量",
+            "复购率"
+          ],
           "research_dimensions": {}
         },
         {
@@ -18551,11 +18787,29 @@
           "order": 2,
           "name": "任务层",
           "definition": "把需求转化为可测量的接触丰富型操作任务。",
-          "key_questions": ["需要多少主动自由度？", "任务成功率和节拍要求是什么？"],
-          "segments": ["抓取", "捏取", "旋拧", "插接", "工具操作", "手内操作", "遥操作"],
-          "evidence": ["任务能力以可复现实验、连续运行和客户验收为准。"],
+          "key_questions": [
+            "需要多少主动自由度？",
+            "任务成功率和节拍要求是什么？"
+          ],
+          "segments": [
+            "抓取",
+            "捏取",
+            "旋拧",
+            "插接",
+            "工具操作",
+            "手内操作",
+            "遥操作"
+          ],
+          "evidence": [
+            "任务能力以可复现实验、连续运行和客户验收为准。"
+          ],
           "companies": [],
-          "tracking_metrics": ["任务成功率", "操作周期", "连续运行次数", "未知物体泛化率"],
+          "tracking_metrics": [
+            "任务成功率",
+            "操作周期",
+            "连续运行次数",
+            "未知物体泛化率"
+          ],
           "research_dimensions": {}
         },
         {
@@ -18563,11 +18817,28 @@
           "order": 3,
           "name": "核心产品层",
           "definition": "承接操作任务的灵巧手整机和开发平台。",
-          "key_questions": ["主动自由度和关节数是否混淆？", "产品是否已完成真实交付？"],
-          "segments": ["五指灵巧手", "工业灵巧末端", "仿生手", "遥操作手", "灵巧手开发平台"],
-          "evidence": ["产品页只能证明产品存在，订单、交付和收入需要独立强证据。"],
+          "key_questions": [
+            "主动自由度和关节数是否混淆？",
+            "产品是否已完成真实交付？"
+          ],
+          "segments": [
+            "五指灵巧手",
+            "工业灵巧末端",
+            "仿生手",
+            "遥操作手",
+            "灵巧手开发平台"
+          ],
+          "evidence": [
+            "产品页只能证明产品存在，订单、交付和收入需要独立强证据。"
+          ],
           "companies": [],
-          "tracking_metrics": ["主动自由度", "整手重量", "指尖力", "抓握循环寿命", "整手售价"],
+          "tracking_metrics": [
+            "主动自由度",
+            "整手重量",
+            "指尖力",
+            "抓握循环寿命",
+            "整手售价"
+          ],
           "research_dimensions": {}
         },
         {
@@ -18575,11 +18846,33 @@
           "order": 4,
           "name": "底层支撑层",
           "definition": "决定灵巧手力、速度、回驱性、感知和控制上限的关键部件与技术路线。",
-          "key_questions": ["路线是否适合手指、掌部或腕部的真实空间？", "持续性能和温升是否可验证？"],
-          "segments": ["空心杯电机", "无框力矩电机", "轴向磁通电机", "微型丝杠", "微型减速器", "腱绳", "触觉传感器", "编码器", "驱动芯片"],
-          "evidence": ["可用于机器人不等于已用于灵巧手，必须核验规格、安装位置、客户和交付。"],
+          "key_questions": [
+            "路线是否适合手指、掌部或腕部的真实空间？",
+            "持续性能和温升是否可验证？"
+          ],
+          "segments": [
+            "空心杯电机",
+            "无框力矩电机",
+            "轴向磁通电机",
+            "微型丝杠",
+            "微型减速器",
+            "腱绳",
+            "触觉传感器",
+            "编码器",
+            "驱动芯片"
+          ],
+          "evidence": [
+            "可用于机器人不等于已用于灵巧手，必须核验规格、安装位置、客户和交付。"
+          ],
           "companies": [],
-          "tracking_metrics": ["持续转矩", "峰值转矩", "温升", "传动效率", "触觉分辨率", "单位成本"],
+          "tracking_metrics": [
+            "持续转矩",
+            "峰值转矩",
+            "温升",
+            "传动效率",
+            "触觉分辨率",
+            "单位成本"
+          ],
           "research_dimensions": {}
         },
         {
@@ -18587,11 +18880,28 @@
           "order": 5,
           "name": "集成层",
           "definition": "把电机、传动、传感和控制集成为可更换、可标定的模组与整手系统。",
-          "key_questions": ["执行器能否批量保持一致？", "整手是否具备维修和热管理能力？"],
-          "segments": ["旋转执行器", "直线执行器", "掌内腱绳执行器", "手指模组", "整手机电集成", "手眼力控系统"],
-          "evidence": ["模组性能必须同时披露尺寸、重量、持续输出、寿命和控制接口。"],
+          "key_questions": [
+            "执行器能否批量保持一致？",
+            "整手是否具备维修和热管理能力？"
+          ],
+          "segments": [
+            "旋转执行器",
+            "直线执行器",
+            "掌内腱绳执行器",
+            "手指模组",
+            "整手机电集成",
+            "手眼力控系统"
+          ],
+          "evidence": [
+            "模组性能必须同时披露尺寸、重量、持续输出、寿命和控制接口。"
+          ],
           "companies": [],
-          "tracking_metrics": ["执行器良率", "标定时间", "模组寿命", "单自由度成本"],
+          "tracking_metrics": [
+            "执行器良率",
+            "标定时间",
+            "模组寿命",
+            "单自由度成本"
+          ],
           "research_dimensions": {}
         },
         {
@@ -18599,11 +18909,31 @@
           "order": 6,
           "name": "配套层",
           "definition": "支撑电机、传感、结构和批量制造的材料、连接与加工检测能力。",
-          "key_questions": ["材料性能是否形成真实瓶颈？", "宣布产能是否已转为有效产能？"],
-          "segments": ["钕铁硼磁材", "铜线", "软磁材料", "微型轴承", "工程塑料", "柔性电路", "连接器", "加工检测设备"],
-          "evidence": ["配套材料需核验灵巧手规格和收入暴露度，不能只按通用机器人概念映射。"],
+          "key_questions": [
+            "材料性能是否形成真实瓶颈？",
+            "宣布产能是否已转为有效产能？"
+          ],
+          "segments": [
+            "钕铁硼磁材",
+            "铜线",
+            "软磁材料",
+            "微型轴承",
+            "工程塑料",
+            "柔性电路",
+            "连接器",
+            "加工检测设备"
+          ],
+          "evidence": [
+            "配套材料需核验灵巧手规格和收入暴露度，不能只按通用机器人概念映射。"
+          ],
           "companies": [],
-          "tracking_metrics": ["材料单耗", "良率", "交付周期", "价格趋势", "国产化率"],
+          "tracking_metrics": [
+            "材料单耗",
+            "良率",
+            "交付周期",
+            "价格趋势",
+            "国产化率"
+          ],
           "research_dimensions": {}
         },
         {
@@ -18611,11 +18941,29 @@
           "order": 7,
           "name": "基础设施层",
           "definition": "支撑数据采集、训练、测试、生产和运维的产业底座。",
-          "key_questions": ["数据是否可复用并进入控制闭环？", "测试标准能否反映真实任务可靠性？"],
-          "segments": ["遥操作平台", "数据采集", "仿真训练", "测试评价", "可靠性实验室", "自动化产线", "维修网络"],
-          "evidence": ["训练数据量不能替代任务成功率、覆盖度和数据质量。"],
+          "key_questions": [
+            "数据是否可复用并进入控制闭环？",
+            "测试标准能否反映真实任务可靠性？"
+          ],
+          "segments": [
+            "遥操作平台",
+            "数据采集",
+            "仿真训练",
+            "测试评价",
+            "可靠性实验室",
+            "自动化产线",
+            "维修网络"
+          ],
+          "evidence": [
+            "训练数据量不能替代任务成功率、覆盖度和数据质量。"
+          ],
           "companies": [],
-          "tracking_metrics": ["有效操作轨迹", "仿真到现实成功率", "测试覆盖率", "维修周期"],
+          "tracking_metrics": [
+            "有效操作轨迹",
+            "仿真到现实成功率",
+            "测试覆盖率",
+            "维修周期"
+          ],
           "research_dimensions": {}
         },
         {
@@ -18623,11 +18971,30 @@
           "order": 8,
           "name": "商业变现层",
           "definition": "核验灵巧手相关收入、利润、复购和持续服务的实现方式。",
-          "key_questions": ["收入来自整手、模组、数据还是服务？", "订单能否交付、验收并回款？"],
-          "segments": ["整手销售", "机器人配套", "执行器外售", "RaaS", "操作数据服务", "指尖耗材", "维护升级"],
-          "evidence": ["商业化必须区分送样、定点、订单、交付、收入和利润。"],
+          "key_questions": [
+            "收入来自整手、模组、数据还是服务？",
+            "订单能否交付、验收并回款？"
+          ],
+          "segments": [
+            "整手销售",
+            "机器人配套",
+            "执行器外售",
+            "RaaS",
+            "操作数据服务",
+            "指尖耗材",
+            "维护升级"
+          ],
+          "evidence": [
+            "商业化必须区分送样、定点、订单、交付、收入和利润。"
+          ],
           "companies": [],
-          "tracking_metrics": ["相关收入", "相关毛利率", "订单交付率", "回款周期", "复购率"],
+          "tracking_metrics": [
+            "相关收入",
+            "相关毛利率",
+            "订单交付率",
+            "回款周期",
+            "复购率"
+          ],
           "research_dimensions": {}
         }
       ],
@@ -18641,8 +19008,14 @@
           "performance_metrics": {},
           "manufacturing_difficulty": {},
           "cost_trend": {},
-          "substitute_route_ids": ["dexterous_frameless_low_ratio", "dexterous_axial_flux_motor"],
-          "failure_conditions": ["持续输出不足", "丝杠寿命或噪声不达标"],
+          "substitute_route_ids": [
+            "dexterous_frameless_low_ratio",
+            "dexterous_axial_flux_motor"
+          ],
+          "failure_conditions": [
+            "持续输出不足",
+            "丝杠寿命或噪声不达标"
+          ],
           "evidence_ids": []
         },
         {
@@ -18654,8 +19027,14 @@
           "performance_metrics": {},
           "manufacturing_difficulty": {},
           "cost_trend": {},
-          "substitute_route_ids": ["dexterous_hollow_cup_screw", "dexterous_axial_flux_motor"],
-          "failure_conditions": ["微型化后转矩密度不足", "热管理失败"],
+          "substitute_route_ids": [
+            "dexterous_hollow_cup_screw",
+            "dexterous_axial_flux_motor"
+          ],
+          "failure_conditions": [
+            "微型化后转矩密度不足",
+            "热管理失败"
+          ],
           "evidence_ids": []
         },
         {
@@ -18679,10 +19058,19 @@
             "winding_process": "unknown"
           },
           "cost_trend": {},
-          "substitute_route_ids": ["dexterous_hollow_cup_screw", "dexterous_frameless_low_ratio"],
-          "failure_conditions": ["只节省厚度但直径不适配", "持续温升不达标", "没有机器人规格产品或装机证据"],
+          "substitute_route_ids": [
+            "dexterous_hollow_cup_screw",
+            "dexterous_frameless_low_ratio"
+          ],
+          "failure_conditions": [
+            "只节省厚度但直径不适配",
+            "持续温升不达标",
+            "没有机器人规格产品或装机证据"
+          ],
           "evidence_ids": [],
-          "excluded_application_domains": ["automotive"],
+          "excluded_application_domains": [
+            "automotive"
+          ],
           "application_domain_policy": {
             "evaluation_scope": "fact",
             "excluded_fact_handling": "cannot_satisfy_fact_requirement",
@@ -18691,9 +19079,15 @@
           },
           "route_fact_contracts": {
             "patent_standard": {
-              "required_metadata": ["legal_status", "legal_status_date"],
+              "required_metadata": [
+                "legal_status",
+                "legal_status_date"
+              ],
               "metadata_value_constraints": {
-                "legal_status": ["active", "granted"]
+                "legal_status": [
+                  "active",
+                  "granted"
+                ]
               }
             }
           },
@@ -18715,17 +19109,29 @@
               "rank": 1,
               "max_pool": "D",
               "eligible": true,
-              "required_fact_types": ["patent_standard", "prototype_delivery"],
+              "required_fact_types": [
+                "patent_standard",
+                "prototype_delivery"
+              ],
               "required_application_domains": [],
-              "required_metadata": ["legal_status", "legal_status_date"],
+              "required_metadata": [
+                "legal_status",
+                "legal_status_date"
+              ],
               "fact_match_mode": "any",
               "fact_requirements": [
                 {
                   "fact_type": "patent_standard",
                   "required_application_domains": [],
-                  "required_metadata": ["legal_status", "legal_status_date"],
+                  "required_metadata": [
+                    "legal_status",
+                    "legal_status_date"
+                  ],
                   "metadata_value_constraints": {
-                    "legal_status": ["active", "granted"]
+                    "legal_status": [
+                      "active",
+                      "granted"
+                    ]
                   }
                 },
                 {
@@ -18741,15 +19147,31 @@
               "rank": 2,
               "max_pool": "C",
               "eligible": true,
-              "required_fact_types": ["product_spec"],
-              "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-              "required_metadata": ["application_domain"],
+              "required_fact_types": [
+                "product_spec"
+              ],
+              "required_application_domains": [
+                "dexterous_hand",
+                "robot_hand",
+                "robot_joint",
+                "robot_wrist"
+              ],
+              "required_metadata": [
+                "application_domain"
+              ],
               "fact_match_mode": "any",
               "fact_requirements": [
                 {
                   "fact_type": "product_spec",
-                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-                  "required_metadata": ["application_domain"],
+                  "required_application_domains": [
+                    "dexterous_hand",
+                    "robot_hand",
+                    "robot_joint",
+                    "robot_wrist"
+                  ],
+                  "required_metadata": [
+                    "application_domain"
+                  ],
                   "metadata_value_constraints": {}
                 }
               ]
@@ -18759,15 +19181,33 @@
               "rank": 3,
               "max_pool": "C",
               "eligible": true,
-              "required_fact_types": ["prototype_delivery"],
-              "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-              "required_metadata": ["application_domain", "installation_position"],
+              "required_fact_types": [
+                "prototype_delivery"
+              ],
+              "required_application_domains": [
+                "dexterous_hand",
+                "robot_hand",
+                "robot_joint",
+                "robot_wrist"
+              ],
+              "required_metadata": [
+                "application_domain",
+                "installation_position"
+              ],
               "fact_match_mode": "any",
               "fact_requirements": [
                 {
                   "fact_type": "prototype_delivery",
-                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-                  "required_metadata": ["application_domain", "installation_position"],
+                  "required_application_domains": [
+                    "dexterous_hand",
+                    "robot_hand",
+                    "robot_joint",
+                    "robot_wrist"
+                  ],
+                  "required_metadata": [
+                    "application_domain",
+                    "installation_position"
+                  ],
                   "metadata_value_constraints": {}
                 }
               ]
@@ -18777,15 +19217,31 @@
               "rank": 4,
               "max_pool": "B",
               "eligible": true,
-              "required_fact_types": ["customer_validation"],
-              "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-              "required_metadata": ["application_domain"],
+              "required_fact_types": [
+                "customer_validation"
+              ],
+              "required_application_domains": [
+                "dexterous_hand",
+                "robot_hand",
+                "robot_joint",
+                "robot_wrist"
+              ],
+              "required_metadata": [
+                "application_domain"
+              ],
               "fact_match_mode": "any",
               "fact_requirements": [
                 {
                   "fact_type": "customer_validation",
-                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-                  "required_metadata": ["application_domain"],
+                  "required_application_domains": [
+                    "dexterous_hand",
+                    "robot_hand",
+                    "robot_joint",
+                    "robot_wrist"
+                  ],
+                  "required_metadata": [
+                    "application_domain"
+                  ],
                   "metadata_value_constraints": {}
                 }
               ]
@@ -18795,15 +19251,31 @@
               "rank": 5,
               "max_pool": "A",
               "eligible": true,
-              "required_fact_types": ["small_batch_delivery"],
-              "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-              "required_metadata": ["application_domain"],
+              "required_fact_types": [
+                "small_batch_delivery"
+              ],
+              "required_application_domains": [
+                "dexterous_hand",
+                "robot_hand",
+                "robot_joint",
+                "robot_wrist"
+              ],
+              "required_metadata": [
+                "application_domain"
+              ],
               "fact_match_mode": "any",
               "fact_requirements": [
                 {
                   "fact_type": "small_batch_delivery",
-                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-                  "required_metadata": ["application_domain"],
+                  "required_application_domains": [
+                    "dexterous_hand",
+                    "robot_hand",
+                    "robot_joint",
+                    "robot_wrist"
+                  ],
+                  "required_metadata": [
+                    "application_domain"
+                  ],
                   "metadata_value_constraints": {}
                 }
               ]
@@ -18813,23 +19285,51 @@
               "rank": 6,
               "max_pool": "A",
               "eligible": true,
-              "required_fact_types": ["order_award", "revenue_margin"],
-              "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-              "required_metadata": ["application_domain", "revenue_confirmed"],
+              "required_fact_types": [
+                "order_award",
+                "revenue_margin"
+              ],
+              "required_application_domains": [
+                "dexterous_hand",
+                "robot_hand",
+                "robot_joint",
+                "robot_wrist"
+              ],
+              "required_metadata": [
+                "application_domain",
+                "revenue_confirmed"
+              ],
               "fact_match_mode": "all",
               "fact_requirements": [
                 {
                   "fact_type": "order_award",
-                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-                  "required_metadata": ["application_domain"],
+                  "required_application_domains": [
+                    "dexterous_hand",
+                    "robot_hand",
+                    "robot_joint",
+                    "robot_wrist"
+                  ],
+                  "required_metadata": [
+                    "application_domain"
+                  ],
                   "metadata_value_constraints": {}
                 },
                 {
                   "fact_type": "revenue_margin",
-                  "required_application_domains": ["dexterous_hand", "robot_hand", "robot_joint", "robot_wrist"],
-                  "required_metadata": ["application_domain", "revenue_confirmed"],
+                  "required_application_domains": [
+                    "dexterous_hand",
+                    "robot_hand",
+                    "robot_joint",
+                    "robot_wrist"
+                  ],
+                  "required_metadata": [
+                    "application_domain",
+                    "revenue_confirmed"
+                  ],
                   "metadata_value_constraints": {
-                    "revenue_confirmed": [true]
+                    "revenue_confirmed": [
+                      true
+                    ]
                   }
                 }
               ]
@@ -18845,8 +19345,12 @@
           "performance_metrics": {},
           "manufacturing_difficulty": {},
           "cost_trend": {},
-          "substitute_route_ids": ["dexterous_linkage_drive"],
-          "failure_conditions": ["蠕变、迟滞或张力维护成本过高"],
+          "substitute_route_ids": [
+            "dexterous_linkage_drive"
+          ],
+          "failure_conditions": [
+            "蠕变、迟滞或张力维护成本过高"
+          ],
           "evidence_ids": []
         },
         {
@@ -18858,8 +19362,12 @@
           "performance_metrics": {},
           "manufacturing_difficulty": {},
           "cost_trend": {},
-          "substitute_route_ids": ["dexterous_tendon_drive"],
-          "failure_conditions": ["独立控制能力不足以完成目标任务"],
+          "substitute_route_ids": [
+            "dexterous_tendon_drive"
+          ],
+          "failure_conditions": [
+            "独立控制能力不足以完成目标任务"
+          ],
           "evidence_ids": []
         },
         {
@@ -18872,7 +19380,9 @@
           "manufacturing_difficulty": {},
           "cost_trend": {},
           "substitute_route_ids": [],
-          "failure_conditions": ["封装寿命、漂移或批次标定不达标"],
+          "failure_conditions": [
+            "封装寿命、漂移或批次标定不达标"
+          ],
           "evidence_ids": []
         }
       ],
@@ -18937,134 +19447,342 @@
       "evidence_requirements": [
         {
           "requirement_id": "dexterous_whole_hand",
-          "business_keywords": ["灵巧手", "机器人末端"],
+          "business_keywords": [
+            "灵巧手",
+            "机器人末端"
+          ],
           "node_id": "dexterous_hand_core_product",
           "technology_route_id": null,
-          "aliases": ["机器人手", "仿生手", "多指灵巧手", "机器人末端"],
-          "product_terms": ["灵巧手", "机器人手", "多指手", "末端执行器"],
-          "scene_terms": ["机器人", "具身智能", "人形机器人"],
-          "negative_examples": ["普通夹爪"],
+          "aliases": [
+            "机器人手",
+            "仿生手",
+            "多指灵巧手",
+            "机器人末端"
+          ],
+          "product_terms": [
+            "灵巧手",
+            "机器人手",
+            "多指手",
+            "末端执行器"
+          ],
+          "scene_terms": [
+            "机器人",
+            "具身智能",
+            "人形机器人"
+          ],
+          "negative_examples": [
+            "普通夹爪"
+          ],
           "require_product_and_scene": false,
-          "required_evidence_type_ids": ["product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue", "recognized_profit"],
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
           "next_validation_action": "核验整手规格、客户和交付",
           "independent_discovery": false
         },
         {
           "requirement_id": "dexterous_micro_actuator",
-          "business_keywords": ["微型执行器"],
+          "business_keywords": [
+            "微型执行器"
+          ],
           "node_id": "dexterous_hand_integration",
           "technology_route_id": null,
-          "aliases": ["微型驱动器", "微型线性执行器"],
-          "product_terms": ["微型执行器", "微型驱动器"],
-          "scene_terms": ["灵巧手", "机器人手指", "机器人关节"],
-          "negative_examples": ["汽车执行器"],
+          "aliases": [
+            "微型驱动器",
+            "微型线性执行器"
+          ],
+          "product_terms": [
+            "微型执行器",
+            "微型驱动器"
+          ],
+          "scene_terms": [
+            "灵巧手",
+            "机器人手指",
+            "机器人关节"
+          ],
+          "negative_examples": [
+            "汽车执行器"
+          ],
           "require_product_and_scene": true,
-          "required_evidence_type_ids": ["product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue"
+          ],
           "next_validation_action": "核验机器人安装位置和客户测试",
           "independent_discovery": false
         },
         {
           "requirement_id": "dexterous_hollow_cup_motor",
-          "business_keywords": ["空心杯电机"],
+          "business_keywords": [
+            "空心杯电机"
+          ],
           "node_id": "dexterous_hand_foundation",
           "technology_route_id": "dexterous_hollow_cup_screw",
-          "aliases": ["空杯电机", "无铁芯电机"],
-          "product_terms": ["空心杯电机", "空杯电机", "无铁芯电机"],
-          "scene_terms": ["灵巧手", "机器人手指", "末端执行器"],
-          "negative_examples": ["消费电子震动马达"],
+          "aliases": [
+            "空杯电机",
+            "无铁芯电机"
+          ],
+          "product_terms": [
+            "空心杯电机",
+            "空杯电机",
+            "无铁芯电机"
+          ],
+          "scene_terms": [
+            "灵巧手",
+            "机器人手指",
+            "末端执行器"
+          ],
+          "negative_examples": [
+            "消费电子震动马达"
+          ],
           "require_product_and_scene": true,
-          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue", "recognized_profit"],
+          "required_evidence_type_ids": [
+            "business_presence",
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
           "next_validation_action": "核验灵巧手规格、送样和量产收入",
           "independent_discovery": false
         },
         {
           "requirement_id": "dexterous_frameless_motor",
-          "business_keywords": ["无框电机"],
+          "business_keywords": [
+            "无框电机"
+          ],
           "node_id": "dexterous_hand_foundation",
           "technology_route_id": "dexterous_frameless_low_ratio",
-          "aliases": ["力矩电机", "无框力矩电机"],
-          "product_terms": ["无框电机", "无框力矩电机"],
-          "scene_terms": ["灵巧手", "机器人关节", "机器人腕部"],
-          "negative_examples": ["通用工业伺服"],
+          "aliases": [
+            "力矩电机",
+            "无框力矩电机"
+          ],
+          "product_terms": [
+            "无框电机",
+            "无框力矩电机"
+          ],
+          "scene_terms": [
+            "灵巧手",
+            "机器人关节",
+            "机器人腕部"
+          ],
+          "negative_examples": [
+            "通用工业伺服"
+          ],
           "require_product_and_scene": true,
-          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "required_evidence_type_ids": [
+            "business_presence",
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue"
+          ],
           "next_validation_action": "核验机器人尺寸参数和装机位置",
           "independent_discovery": false
         },
         {
           "requirement_id": "dexterous_axial_flux_motor",
-          "business_keywords": ["轴向磁通电机"],
+          "business_keywords": [
+            "轴向磁通电机"
+          ],
           "node_id": "dexterous_hand_foundation",
           "technology_route_id": "dexterous_axial_flux_motor",
-          "aliases": ["盘式电机", "轴向磁场电机"],
-          "product_terms": ["轴向磁通电机", "轴向磁场电机", "盘式电机"],
-          "scene_terms": ["灵巧手", "机器人手指", "机器人关节", "机器人腕部"],
-          "negative_examples": ["汽车驱动电机", "轮毂电机", "航空推进电机"],
+          "aliases": [
+            "盘式电机",
+            "轴向磁场电机"
+          ],
+          "product_terms": [
+            "轴向磁通电机",
+            "轴向磁场电机",
+            "盘式电机"
+          ],
+          "scene_terms": [
+            "灵巧手",
+            "机器人手指",
+            "机器人关节",
+            "机器人腕部"
+          ],
+          "negative_examples": [
+            "汽车驱动电机",
+            "轮毂电机",
+            "航空推进电机"
+          ],
           "require_product_and_scene": true,
-          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "required_evidence_type_ids": [
+            "business_presence",
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue"
+          ],
           "next_validation_action": "核验机器人规格、装机、客户验证和收入",
           "independent_discovery": true
         },
         {
           "requirement_id": "dexterous_micro_screw",
-          "business_keywords": ["微型丝杠"],
+          "business_keywords": [
+            "微型丝杠"
+          ],
           "node_id": "dexterous_hand_foundation",
           "technology_route_id": "dexterous_hollow_cup_screw",
-          "aliases": ["微型滚珠丝杠", "行星滚柱丝杠"],
-          "product_terms": ["微型丝杠", "微型滚珠丝杠", "微型行星滚柱丝杠"],
-          "scene_terms": ["灵巧手", "机器人手指", "微型执行器"],
-          "negative_examples": ["机床丝杠"],
+          "aliases": [
+            "微型滚珠丝杠",
+            "行星滚柱丝杠"
+          ],
+          "product_terms": [
+            "微型丝杠",
+            "微型滚珠丝杠",
+            "微型行星滚柱丝杠"
+          ],
+          "scene_terms": [
+            "灵巧手",
+            "机器人手指",
+            "微型执行器"
+          ],
+          "negative_examples": [
+            "机床丝杠"
+          ],
           "require_product_and_scene": true,
-          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "required_evidence_type_ids": [
+            "business_presence",
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue"
+          ],
           "next_validation_action": "核验尺寸、负载、送样和交付",
           "independent_discovery": false
         },
         {
           "requirement_id": "dexterous_tactile_sensor",
-          "business_keywords": ["触觉传感器"],
+          "business_keywords": [
+            "触觉传感器"
+          ],
           "node_id": "dexterous_hand_foundation",
           "technology_route_id": "dexterous_tactile_sensing",
-          "aliases": ["电子皮肤", "阵列触觉"],
-          "product_terms": ["触觉传感器", "电子皮肤", "触觉阵列"],
-          "scene_terms": ["灵巧手", "机器人手指", "机器人末端"],
-          "negative_examples": ["气体传感器"],
+          "aliases": [
+            "电子皮肤",
+            "阵列触觉"
+          ],
+          "product_terms": [
+            "触觉传感器",
+            "电子皮肤",
+            "触觉阵列"
+          ],
+          "scene_terms": [
+            "灵巧手",
+            "机器人手指",
+            "机器人末端"
+          ],
+          "negative_examples": [
+            "气体传感器"
+          ],
           "require_product_and_scene": true,
-          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "required_evidence_type_ids": [
+            "business_presence",
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue"
+          ],
           "next_validation_action": "核验阵列参数、装机和客户测试",
           "independent_discovery": false
         },
         {
           "requirement_id": "dexterous_force_sensor",
-          "business_keywords": ["力传感器"],
+          "business_keywords": [
+            "力传感器"
+          ],
           "node_id": "dexterous_hand_foundation",
           "technology_route_id": "dexterous_tactile_sensing",
-          "aliases": ["六维力传感器", "指尖力传感器"],
-          "product_terms": ["力传感器", "六维力传感器", "指尖力传感器"],
-          "scene_terms": ["灵巧手", "机器人手指", "机器人腕部"],
-          "negative_examples": ["称重传感器"],
+          "aliases": [
+            "六维力传感器",
+            "指尖力传感器"
+          ],
+          "product_terms": [
+            "力传感器",
+            "六维力传感器",
+            "指尖力传感器"
+          ],
+          "scene_terms": [
+            "灵巧手",
+            "机器人手指",
+            "机器人腕部"
+          ],
+          "negative_examples": [
+            "称重传感器"
+          ],
           "require_product_and_scene": true,
-          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "required_evidence_type_ids": [
+            "business_presence",
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue"
+          ],
           "next_validation_action": "核验量程精度、安装位置和客户验证",
           "independent_discovery": false
         },
         {
           "requirement_id": "dexterous_tendon",
-          "business_keywords": ["腱绳"],
+          "business_keywords": [
+            "腱绳"
+          ],
           "node_id": "dexterous_hand_integration",
           "technology_route_id": "dexterous_tendon_drive",
-          "aliases": ["腱驱动", "人工肌腱", "柔性腱绳"],
-          "product_terms": ["腱绳", "人工肌腱", "柔性腱绳"],
-          "scene_terms": ["灵巧手", "机器人手指", "腱驱动机器人"],
-          "negative_examples": ["普通钢丝绳"],
+          "aliases": [
+            "腱驱动",
+            "人工肌腱",
+            "柔性腱绳"
+          ],
+          "product_terms": [
+            "腱绳",
+            "人工肌腱",
+            "柔性腱绳"
+          ],
+          "scene_terms": [
+            "灵巧手",
+            "机器人手指",
+            "腱驱动机器人"
+          ],
+          "negative_examples": [
+            "普通钢丝绳"
+          ],
           "require_product_and_scene": true,
-          "required_evidence_type_ids": ["business_presence", "product_or_prototype", "customer_validation", "order_or_delivery", "recognized_revenue"],
+          "required_evidence_type_ids": [
+            "business_presence",
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue"
+          ],
           "next_validation_action": "核验材料寿命、装机和交付",
           "independent_discovery": false
         }
       ],
       "candidate_mapping_rules": {
-        "source_chain_ids": ["embodied_intelligence"],
-        "required_business_keywords": ["灵巧手", "微型执行器", "空心杯电机", "无框电机", "轴向磁通电机", "微型丝杠", "触觉传感器", "力传感器", "腱绳", "机器人末端"],
+        "source_chain_ids": [
+          "embodied_intelligence"
+        ],
+        "required_business_keywords": [
+          "灵巧手",
+          "微型执行器",
+          "空心杯电机",
+          "无框电机",
+          "轴向磁通电机",
+          "微型丝杠",
+          "触觉传感器",
+          "力传感器",
+          "腱绳",
+          "机器人末端"
+        ],
         "derived_status": "candidate",
         "derived_confidence_cap": 0.35,
         "requires_original_evidence": true
@@ -19078,17 +19796,30 @@
       "chain_id": "ai_token_output_power",
       "example_theme": "富余电力驱动的 AI 推理 Token 输出",
       "industry_dimensions": [
-        "function_value", "technology_route", "physical_bom",
-        "value_pool", "competition_moat", "supply_demand_cycle",
+        "function_value",
+        "technology_route",
+        "physical_bom",
+        "value_pool",
+        "competition_moat",
+        "supply_demand_cycle",
         "evidence_validation"
       ],
       "power_source_types": [
-        "curtailed_renewable", "valley_power",
-        "park_self_generation_or_ppa", "nominal_capacity"
+        "curtailed_renewable",
+        "valley_power",
+        "park_self_generation_or_ppa",
+        "nominal_capacity"
       ],
       "market_layer": {
         "separate_from_industry_evidence": true,
-        "fields": ["valuation", "price_change", "turnover", "fund_flow", "crowding", "strategy_signal"]
+        "fields": [
+          "valuation",
+          "price_change",
+          "turnover",
+          "fund_flow",
+          "crowding",
+          "strategy_signal"
+        ]
       },
       "evidence_grades": {
         "E0": "concept_or_public_claim",
@@ -19099,14 +19830,156 @@
         "E5": "recurring_token_revenue_and_profit"
       },
       "layers": [
-        {"layer_id":"demand","order":1,"name":"需求层","segments":["企业Agent","智能客服","代码生成","搜索","内容生成","多模态应用"],"evidence":["API调用量","DAU","Token消耗量","付费客户数"]},
-        {"layer_id":"task","order":2,"name":"任务层","segments":["实时推理","批量推理","长上下文","视频生成","端侧推理"],"evidence":["QPS","并发数","上下文长度","输入输出Token比"]},
-        {"layer_id":"core_product","order":3,"name":"核心产品层","segments":["大模型","推理API","模型服务平台","Agent平台"],"evidence":["模型调用量","Token价格","SLA","客户留存"]},
-        {"layer_id":"foundation","order":4,"name":"底层支撑层","segments":["GPU/ASIC","HBM","先进封装","推理软件","光互联"],"evidence":["Tokens/s","Tokens/W","显存","芯片供货和适配"]},
-        {"layer_id":"integration","order":5,"name":"集成层","segments":["AI服务器","推理集群","模型压缩","量化","调度","推理引擎"],"evidence":["集群上线","利用率","延迟","KV Cache命中率"]},
-        {"layer_id":"supporting","order":6,"name":"配套层","segments":["液冷","电源","变压器","PCB","连接器","光模块","存储"],"evidence":["机柜功率","PUE","冷却能力","交付订单"]},
-        {"layer_id":"infrastructure","order":7,"name":"基础设施层","segments":["低谷电","弃风弃光","绿电交易","储能","IDC","智算中心"],"evidence":["可用MW","电价","供电小时","并网容量","机房利用率"]},
-        {"layer_id":"commercialization","order":8,"name":"商业变现层","segments":["按Token计费","API","SaaS","Agent服务","算力租赁"],"evidence":["Token收入","单Token价格","毛利率","续费率","现金流"]}
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "segments": [
+            "企业Agent",
+            "智能客服",
+            "代码生成",
+            "搜索",
+            "内容生成",
+            "多模态应用"
+          ],
+          "evidence": [
+            "API调用量",
+            "DAU",
+            "Token消耗量",
+            "付费客户数"
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "segments": [
+            "实时推理",
+            "批量推理",
+            "长上下文",
+            "视频生成",
+            "端侧推理"
+          ],
+          "evidence": [
+            "QPS",
+            "并发数",
+            "上下文长度",
+            "输入输出Token比"
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "segments": [
+            "大模型",
+            "推理API",
+            "模型服务平台",
+            "Agent平台"
+          ],
+          "evidence": [
+            "模型调用量",
+            "Token价格",
+            "SLA",
+            "客户留存"
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "segments": [
+            "GPU/ASIC",
+            "HBM",
+            "先进封装",
+            "推理软件",
+            "光互联"
+          ],
+          "evidence": [
+            "Tokens/s",
+            "Tokens/W",
+            "显存",
+            "芯片供货和适配"
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "segments": [
+            "AI服务器",
+            "推理集群",
+            "模型压缩",
+            "量化",
+            "调度",
+            "推理引擎"
+          ],
+          "evidence": [
+            "集群上线",
+            "利用率",
+            "延迟",
+            "KV Cache命中率"
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "segments": [
+            "液冷",
+            "电源",
+            "变压器",
+            "PCB",
+            "连接器",
+            "光模块",
+            "存储"
+          ],
+          "evidence": [
+            "机柜功率",
+            "PUE",
+            "冷却能力",
+            "交付订单"
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "segments": [
+            "低谷电",
+            "弃风弃光",
+            "绿电交易",
+            "储能",
+            "IDC",
+            "智算中心"
+          ],
+          "evidence": [
+            "可用MW",
+            "电价",
+            "供电小时",
+            "并网容量",
+            "机房利用率"
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "segments": [
+            "按Token计费",
+            "API",
+            "SaaS",
+            "Agent服务",
+            "算力租赁"
+          ],
+          "evidence": [
+            "Token收入",
+            "单Token价格",
+            "毛利率",
+            "续费率",
+            "现金流"
+          ]
+        }
       ]
     },
     {
@@ -19118,8 +19991,12 @@
       "example_theme": "AI Token 商业输出",
       "market_layer_separate": true,
       "industry_dimensions": [
-        "demand_authenticity", "model_product_strength", "inference_unit_economics",
-        "bom_supply_position", "delivery_customer_stickiness", "commercial_output",
+        "demand_authenticity",
+        "model_product_strength",
+        "inference_unit_economics",
+        "bom_supply_position",
+        "delivery_customer_stickiness",
+        "commercial_output",
         "evidence_realization"
       ],
       "evidence_grades": {
@@ -19131,14 +20008,167 @@
         "E5": "recurring_revenue_profit_customer_and_cashflow"
       },
       "layers": [
-        {"layer_id":"token_demand","order":1,"name":"Token需求场景","segments":["企业Agent","代码生成","智能客服","搜索","营销","多模态应用","行业AI"],"evidence":["活跃客户","调用频率","Token消耗量","付费率","留存率"]},
-        {"layer_id":"model_product","order":2,"name":"模型与AI产品","segments":["基础模型","行业模型","Agent平台","MaaS"],"evidence":["模型上线","客户数量","调用量","定价","SLA","续费"]},
-        {"layer_id":"inference_software","order":3,"name":"推理优化软件","segments":["推理引擎","量化","蒸馏","编译器","调度","KV Cache"],"evidence":["性能测试","适配清单","Tokens/s","延迟","单位成本下降"]},
-        {"layer_id":"compute_hardware","order":4,"name":"核心算力硬件","segments":["GPU/ASIC","CPU","HBM","先进封装","AI服务器"],"evidence":["芯片适配","供货","订单","性能","客户认证","收入占比"]},
-        {"layer_id":"cluster_network","order":5,"name":"集群与网络支撑","segments":["AI集群","光模块","交换机","PCB","液冷","电源","存储"],"evidence":["集群交付","订单","BOM价值","机柜功率","PUE","客户占比"]},
-        {"layer_id":"token_delivery","order":6,"name":"Token服务与交付平台","segments":["推理云","API网关","MaaS平台","算力租赁","边缘推理"],"evidence":["平台上线","调用量","并发","可用率","客户","服务收入"]},
-        {"layer_id":"metering_operations","order":7,"name":"计量计费与运营","segments":["Token计量","套餐","定价","结算","客户运营","安全合规"],"evidence":["计费规则","ARPU","获客成本","续费","毛利","合规能力"]},
-        {"layer_id":"commercial_output","order":8,"name":"商业变现与输出","segments":["国内API收入","Agent/SaaS收入","行业解决方案","海外服务输出"],"evidence":["Token/API收入","客户增长","毛利率","现金流","海外收入"]}
+        {
+          "layer_id": "token_demand",
+          "order": 1,
+          "name": "Token需求场景",
+          "segments": [
+            "企业Agent",
+            "代码生成",
+            "智能客服",
+            "搜索",
+            "营销",
+            "多模态应用",
+            "行业AI"
+          ],
+          "evidence": [
+            "活跃客户",
+            "调用频率",
+            "Token消耗量",
+            "付费率",
+            "留存率"
+          ]
+        },
+        {
+          "layer_id": "model_product",
+          "order": 2,
+          "name": "模型与AI产品",
+          "segments": [
+            "基础模型",
+            "行业模型",
+            "Agent平台",
+            "MaaS"
+          ],
+          "evidence": [
+            "模型上线",
+            "客户数量",
+            "调用量",
+            "定价",
+            "SLA",
+            "续费"
+          ]
+        },
+        {
+          "layer_id": "inference_software",
+          "order": 3,
+          "name": "推理优化软件",
+          "segments": [
+            "推理引擎",
+            "量化",
+            "蒸馏",
+            "编译器",
+            "调度",
+            "KV Cache"
+          ],
+          "evidence": [
+            "性能测试",
+            "适配清单",
+            "Tokens/s",
+            "延迟",
+            "单位成本下降"
+          ]
+        },
+        {
+          "layer_id": "compute_hardware",
+          "order": 4,
+          "name": "核心算力硬件",
+          "segments": [
+            "GPU/ASIC",
+            "CPU",
+            "HBM",
+            "先进封装",
+            "AI服务器"
+          ],
+          "evidence": [
+            "芯片适配",
+            "供货",
+            "订单",
+            "性能",
+            "客户认证",
+            "收入占比"
+          ]
+        },
+        {
+          "layer_id": "cluster_network",
+          "order": 5,
+          "name": "集群与网络支撑",
+          "segments": [
+            "AI集群",
+            "光模块",
+            "交换机",
+            "PCB",
+            "液冷",
+            "电源",
+            "存储"
+          ],
+          "evidence": [
+            "集群交付",
+            "订单",
+            "BOM价值",
+            "机柜功率",
+            "PUE",
+            "客户占比"
+          ]
+        },
+        {
+          "layer_id": "token_delivery",
+          "order": 6,
+          "name": "Token服务与交付平台",
+          "segments": [
+            "推理云",
+            "API网关",
+            "MaaS平台",
+            "算力租赁",
+            "边缘推理"
+          ],
+          "evidence": [
+            "平台上线",
+            "调用量",
+            "并发",
+            "可用率",
+            "客户",
+            "服务收入"
+          ]
+        },
+        {
+          "layer_id": "metering_operations",
+          "order": 7,
+          "name": "计量计费与运营",
+          "segments": [
+            "Token计量",
+            "套餐",
+            "定价",
+            "结算",
+            "客户运营",
+            "安全合规"
+          ],
+          "evidence": [
+            "计费规则",
+            "ARPU",
+            "获客成本",
+            "续费",
+            "毛利",
+            "合规能力"
+          ]
+        },
+        {
+          "layer_id": "commercial_output",
+          "order": 8,
+          "name": "商业变现与输出",
+          "segments": [
+            "国内API收入",
+            "Agent/SaaS收入",
+            "行业解决方案",
+            "海外服务输出"
+          ],
+          "evidence": [
+            "Token/API收入",
+            "客户增长",
+            "毛利率",
+            "现金流",
+            "海外收入"
+          ]
+        }
       ]
     },
     {
