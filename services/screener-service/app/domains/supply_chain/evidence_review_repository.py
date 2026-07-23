@@ -153,6 +153,11 @@ class EvidenceReviewRepository:
     def _manual_transaction(self, operation, *, connection=None):
         owns_connection = connection is None
         active = connection or self.connection_factory()
+        # connection_factory 可能是连接池 contextmanager (repository.connect),
+        # 需 __enter__ 取出裸连接; 归还走 __exit__ 而非 close
+        cm = active if hasattr(active, "__enter__") else None
+        if cm is not None:
+            active = cm.__enter__()
         try:
             with active.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("SAVEPOINT supply_chain_manual_review")
@@ -187,7 +192,10 @@ class EvidenceReviewRepository:
             raise
         finally:
             if owns_connection:
-                active.close()
+                if cm is not None:
+                    cm.__exit__(None, None, None)
+                else:
+                    active.close()
 
     @staticmethod
     def _update_fact(
@@ -824,7 +832,10 @@ class EvidenceReviewRepository:
                 queue = [dict(row) for row in cur.fetchall()]
         finally:
             if owns_connection:
-                active.close()
+                if cm is not None:
+                    cm.__exit__(None, None, None)
+                else:
+                    active.close()
 
         return {
             "version": "supply-chain-evidence-review-queue-v2",
