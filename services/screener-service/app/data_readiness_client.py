@@ -2,7 +2,13 @@
 import json
 import os
 from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
+
+
+def _service_auth_headers() -> dict:
+    """X-Service-Auth 服务间豁免头（kronos-auth 契约）；未配置 secret 时不发头。"""
+    secret = os.environ.get("KRONOS_SERVICE_SECRET", "")
+    return {"X-Service-Auth": secret} if secret else {}
 
 
 def require_ready(profile: str, target_trade_date: str | None = None) -> dict:
@@ -12,7 +18,11 @@ def require_ready(profile: str, target_trade_date: str | None = None) -> dict:
     query = {"profile": profile}
     if target_trade_date:
         query["target_trade_date"] = target_trade_date
-    with urlopen(f"{base}/api/v1/data/readiness/evaluate?{urlencode(query)}", timeout=5) as response:
+    req = Request(
+        f"{base}/api/v1/data/readiness/evaluate?{urlencode(query)}",
+        headers=_service_auth_headers(),
+    )
+    with urlopen(req, timeout=5) as response:
         payload = json.loads(response.read())
     if payload.get("status") not in {"ready", "pass"}:
         raise RuntimeError(f"DATA_NOT_READY: {payload.get('status', 'unknown')}")

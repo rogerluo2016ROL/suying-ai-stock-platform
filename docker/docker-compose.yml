@@ -128,6 +128,8 @@ services:
       - TUSHARE_TOKEN_FILE=/run/secrets/tushare_token
       - TUSHARE_TOKEN=${TUSHARE_TOKEN:-}
       - REDIS_URL=redis://redis:6379/0
+      # screener 本身暂未接入 kronos-auth，但需带 X-Service-Auth 调 data/alert 等已认证服务
+      - KRONOS_SERVICE_SECRET=${KRONOS_SERVICE_SECRET:?KRONOS_SERVICE_SECRET must be set (service-to-service auth)}
     volumes:
       - ./secrets:/run/secrets:ro
     depends_on:

@@ -67,8 +67,12 @@ async def _crowding_watch_loop():
                 def _scan():
                     url = (f"{alert_url}/api/v1/alert/crowding-scan"
                            f"?level=high&board=688&channel=app,feishu")
+                    headers = {}
+                    secret = os.environ.get("KRONOS_SERVICE_SECRET", "")
+                    if secret:
+                        headers["X-Service-Auth"] = secret
                     with urllib.request.urlopen(
-                        urllib.request.Request(url, method="POST"), timeout=180) as resp:
+                        urllib.request.Request(url, method="POST", headers=headers), timeout=180) as resp:
                         return resp.read()
                 body = await loop.run_in_executor(None, _scan)
                 logger.info("Crowding watch: %s", body[:200])

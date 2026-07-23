@@ -29,13 +29,19 @@ def _data_service_url(path: str = "") -> str:
     return f"http://localhost:8010/api/v1/data{path}"
 
 
+def _service_auth_headers() -> dict:
+    """X-Service-Auth 服务间豁免头（kronos-auth 契约）；未配置 secret 时不发头。"""
+    secret = os.environ.get("KRONOS_SERVICE_SECRET", "")
+    return {"X-Service-Auth": secret} if secret else {}
+
+
 async def _http_json(url: str, method: str = "GET", timeout: int = 10):
     """async 包装同步 urllib, 避免阻塞事件循环 (P0-1)."""
     import asyncio
     import urllib.request
 
     def _call():
-        req = urllib.request.Request(url, method=method)
+        req = urllib.request.Request(url, method=method, headers=_service_auth_headers())
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read())
 
