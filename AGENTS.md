@@ -61,7 +61,7 @@
 - **密码哈希**: Argon2id (time_cost=3, memory_cost=65536 KiB, parallelism=2)
 - **RBAC**: 4 角色 — `admin` / `internal_analyst` / `external_analyst` / `user`
 - **默认管理员**: `admin@suying.ai` / `Admin123!`（由 `backend/app/config.py` 定义，`main.py` lifespan 自动 seed）
-- **微服务认证 (2026-07-23 起)**: trade/strategy/diagnosis/data/signal/alert/backtest/prediction 已接入 `kronos_auth`——写接口 `require_role`，只读 `get_current_user_jwt`；服务间调用带 `X-Service-Auth: $KRONOS_SERVICE_SECRET` 头豁免（dev fallback secret 不授予豁免）。screener-service 与 api-gateway 暂未接入（screener 出站调用已带 X-Service-Auth）
+- **微服务认证 (2026-07-23 起)**: 全部微服务已接入 `kronos_auth`——写接口 `require_role`，只读 `get_current_user_jwt`；服务间调用带 `X-Service-Auth: $KRONOS_SERVICE_SECRET` 头豁免（dev fallback secret 不授予豁免）。screener-service 写端点按 method+path 在 `app/domains/router.py` 集中分类（前端 allUsers 页面可达的写接口放行 `user`，其余默认 analyst-only，fail-closed），`/api/v1/lark/events` 飞书回调保持开放；api-gateway 在网关侧函数式验签（放行 OPTIONS 预检 / `/api/v1/auth/*` / 各服务 health 别名），验通过经 `sanitize_client_headers` 注入 `X-Owner-User-Id`
 - **实证**: `backend/app/config.py:16-32`, `backend/app/routers/auth.py:35-50`, ADR-001
 
 ### 数据库连接

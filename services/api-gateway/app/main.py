@@ -14,6 +14,8 @@ from urllib.error import URLError, HTTPError
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
+from kronos_auth import get_current_user_jwt
+from kronos_auth.exceptions import UnauthorizedError
 from app.service_registry import SERVICE_REGISTRY, sanitize_client_headers
 
 app = FastAPI()
@@ -229,8 +231,28 @@ async def gateway(request: Request, path: str):
     if not target:
         return JSONResponse({"detail": f"Not Found: {full}"}, 404)
 
+    # 网关侧 JWT 验签（函数式代理，不走 FastAPI 依赖）。放行规则：
+    # - OPTIONS 预检（浏览器不带 Authorization；CORSMiddleware 通常已拦截，双保险）
+    # - 各服务 /health 别名（探活必须匿名可达）
+    # - /api/v1/auth/*（登录/刷新必须匿名可达；backend 侧自行校验其余 auth 接口）
+    # 验通过把 claims 传给 sanitize_client_headers 注入 X-Owner-User-Id；
+    # 客户端伪造的 X-Service-Auth / X-Owner-User-Id 一律被剥离。
+    claims = None
+    if (
+        request.method != "OPTIONS"
+        and full not in _SERVICE_HEALTH_ALIASES
+        and not full.startswith("/api/v1/auth/")
+    ):
+        try:
+            claims = await get_current_user_jwt(request)
+        except UnauthorizedError as e:
+            return JSONResponse({"detail": e.detail}, status_code=401)
+
     body = await request.body()
-    headers = sanitize_client_headers({k: v for k, v in request.headers.items() if k.lower() not in ("host",)})
+    headers = sanitize_client_headers(
+        {k: v for k, v in request.headers.items() if k.lower() not in ("host",)},
+        claims,
+    )
 
     loop = asyncio.get_running_loop()
 

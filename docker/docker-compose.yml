@@ -75,6 +75,8 @@ services:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       # DEF-3 fix: 容器内用 compose 服务名寻址 (非 localhost); 逐服务 host 可被 GATEWAY_<NAME>_HOST 覆盖
       - GATEWAY_NETWORK_MODE=compose
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set (kronos-auth prod-gate)}
+      - KRONOS_SERVICE_SECRET=${KRONOS_SERVICE_SECRET:?KRONOS_SERVICE_SECRET must be set (service-to-service auth)}
     depends_on:
       postgres:
         condition: service_healthy
@@ -131,8 +133,9 @@ services:
       - TUSHARE_TOKEN_FILE=/run/secrets/tushare_token
       - TUSHARE_TOKEN=${TUSHARE_TOKEN:-}
       - REDIS_URL=redis://redis:6379/0
-      # screener 本身暂未接入 kronos-auth，但需带 X-Service-Auth 调 data/alert 等已认证服务
+      # 调 data/alert 等已认证服务需带 X-Service-Auth；自身接口 JWT 验签用 JWT_SECRET_KEY
       - KRONOS_SERVICE_SECRET=${KRONOS_SERVICE_SECRET:?KRONOS_SERVICE_SECRET must be set (service-to-service auth)}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set (kronos-auth prod-gate)}
     volumes:
       - ./secrets:/run/secrets:ro
     depends_on:

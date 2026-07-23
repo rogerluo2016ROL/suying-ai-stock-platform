@@ -6,7 +6,8 @@ import logging
 import os
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from kronos_auth import get_current_user_jwt
 
 from app.lark_bot import handle_lark_message
 
@@ -75,7 +76,7 @@ async def lark_events(request: Request, background_tasks: BackgroundTasks):
     return {"code": 0}
 
 
-@router.get("/bot/config")
+@router.get("/bot/config", dependencies=[Depends(get_current_user_jwt)])
 async def lark_bot_config():
     """Return non-secret bot configuration status for operations checks."""
     return {

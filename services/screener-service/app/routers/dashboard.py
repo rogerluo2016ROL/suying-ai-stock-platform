@@ -6,9 +6,15 @@ Works standalone — reads JSON files, no DB dependency needed for core endpoint
 
 import glob, json, os, subprocess
 from datetime import date, datetime
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from kronos_auth import get_current_user_jwt, require_role
 
-router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
+router = APIRouter(
+    prefix="/api/v1/dashboard",
+    tags=["dashboard"],
+    # 只读 GET 统一要求登录 JWT（服务间调用走 X-Service-Auth 豁免）
+    dependencies=[Depends(get_current_user_jwt)],
+)
 
 # ── Path resolution ──
 _FILE = os.path.abspath(__file__)
@@ -342,3 +348,10 @@ async def pipeline_status():
         d = os.path.basename(os.path.dirname(f))
         runs.append({"run": d, "report": f, "size": os.path.getsize(f)})
     return {"runs": runs, "latest": runs[0] if runs else None}
+
+
+# 写/触发类端点（sync/trigger、run-pipeline）仅 admin/internal_analyst；
+# 只读 GET 由上方 router-level get_current_user_jwt 覆盖。
+for _route in router.routes:
+    if (getattr(_route, "methods", None) or ()) & {"POST", "PUT", "DELETE", "PATCH"}:
+        _route.dependencies.append(Depends(require_role("admin", "internal_analyst")))

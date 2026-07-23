@@ -6,6 +6,8 @@ ENV PIP_INDEX_URL=$PIP_INDEX_URL PIP_DEFAULT_TIMEOUT=$PIP_DEFAULT_TIMEOUT
 WORKDIR /app
 COPY packages/kronos-contracts /app/packages/kronos-contracts
 RUN pip install --no-cache-dir /app/packages/kronos-contracts
+COPY packages/kronos-auth /app/packages/kronos-auth
+RUN pip install --no-cache-dir /app/packages/kronos-auth
 
 # Install system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
