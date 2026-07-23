@@ -2,7 +2,9 @@
 
 import logging
 from datetime import date, timedelta
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException
+
+from kronos_auth import require_role, get_current_user_jwt
 
 from app.scheduler import (
     get_job_status,
@@ -120,7 +122,7 @@ def _build_readiness_status() -> dict:
 
 
 @router.get("/status")
-async def data_status():
+async def data_status(user: dict = Depends(get_current_user_jwt)):
     """获取所有定时任务状态 + PG 写入状态 + API 限频状态."""
     result = get_job_status()
 
@@ -160,24 +162,25 @@ async def data_status():
     return result
 
 @router.get("/inventory")
-async def data_inventory():
+async def data_inventory(user: dict = Depends(get_current_user_jwt)):
     return inventory.inventory()
 
 @router.get("/jobs")
-async def data_jobs():
+async def data_jobs(user: dict = Depends(get_current_user_jwt)):
     return get_job_status()
 
 @router.get("/schedules")
-async def data_schedules():
+async def data_schedules(user: dict = Depends(get_current_user_jwt)):
     return {"schedules": [{"id": j.get("id"), "cron": j.get("cron"), "name": j.get("name")} for j in get_job_status().get("jobs", [])]}
 
 @router.get("/readiness")
-async def data_readiness():
+async def data_readiness(user: dict = Depends(get_current_user_jwt)):
     # readiness 与兼容 status 使用同一套组件判定，避免“未配 Tushare 仍 ready”。
     return _build_readiness_status()
 
 @router.post('/readiness/evaluate')
-async def evaluate_readiness(profile: str, target_trade_date: date, cutoff_time=None):
+async def evaluate_readiness(profile: str, target_trade_date: date, cutoff_time=None,
+                             user: dict = Depends(require_role("admin", "internal_analyst"))):
     def loader(source):
         try:
             import psycopg2
@@ -192,14 +195,14 @@ async def evaluate_readiness(profile: str, target_trade_date: date, cutoff_time=
     return save(result)
 
 @router.get('/readiness/snapshots/{snapshot_id}')
-async def readiness_snapshot(snapshot_id: str):
+async def readiness_snapshot(snapshot_id: str, user: dict = Depends(get_current_user_jwt)):
     result = get(snapshot_id)
     if result is None: raise HTTPException(404, 'snapshot not found')
     return result
 
 
 @router.post("/sync/rt_min")
-async def trigger_rt_min():
+async def trigger_rt_min(user: dict = Depends(require_role("admin", "internal_analyst"))):
     """手动触发实时分钟线采集."""
     try:
         result = collect_rt_min()
@@ -209,7 +212,7 @@ async def trigger_rt_min():
 
 
 @router.post("/sync/auction")
-async def trigger_auction():
+async def trigger_auction(user: dict = Depends(require_role("admin", "internal_analyst"))):
     """手动触发竞价快照 (Tushare stk_auction → PG, B2 后不再走 SQLite mootdx fallback)."""
     try:
         result = collect_auction_snapshot()
@@ -219,7 +222,8 @@ async def trigger_auction():
 
 
 @router.post("/sync/post_market")
-async def trigger_post_market(date_param: str = Query(None, alias="date")):
+async def trigger_post_market(date_param: str = Query(None, alias="date"),
+                              user: dict = Depends(require_role("admin", "internal_analyst"))):
     """手动触发盘后同步 (P0+P1) — 经 _run_job 更新 _job_status."""
     trade_date = date_param or date.today().strftime("%Y-%m-%d")
     try:
@@ -237,7 +241,7 @@ async def trigger_post_market(date_param: str = Query(None, alias="date")):
 
 
 @router.post("/sync/stocks")
-async def trigger_stocks_sync():
+async def trigger_stocks_sync(user: dict = Depends(require_role("admin", "internal_analyst"))):
     """手动触发股票列表同步 (全量)."""
     try:
         result = sync_stock_list()
@@ -250,6 +254,7 @@ async def trigger_stocks_sync():
 async def trigger_table_backfill(
     table_key: str = Query(..., description="Backfill table key, e.g. top_list, daily_kline"),
     days: int = Query(30, ge=1, le=3650, description="Days back to sync"),
+    user: dict = Depends(require_role("admin", "internal_analyst")),
 ):
     """手动触发指定数据表回补，复用 scheduler 的真实回补函数表."""
     fn = _BACKFILL_MAP.get(table_key)
@@ -307,5 +312,5 @@ async def health():
 
 
 @router.get("/readiness")
-async def readiness():
+async def readiness(user: dict = Depends(get_current_user_jwt)):
     return _build_readiness_status()

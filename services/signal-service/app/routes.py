@@ -2,7 +2,8 @@
 
 import os, logging, asyncio, re
 from datetime import datetime, timezone
-from fastapi import APIRouter, Query, HTTPException, Response
+from fastapi import APIRouter, Depends, Query, HTTPException, Response
+from kronos_auth import require_role, get_current_user_jwt
 from app.signal_store import get_store
 
 logger = logging.getLogger("signal-service.routes")
@@ -19,6 +20,15 @@ def _service_url(env_key: str, container: str, port: int, path: str = "") -> str
     return f"http://localhost:{port}{path}"
 
 
+def _service_auth_headers() -> dict:
+    """X-Service-Auth header for internal service-to-service calls.
+
+    未配置 KRONOS_SERVICE_SECRET 时不发头（本地 dev 行为不变）。
+    """
+    secret = os.environ.get("KRONOS_SERVICE_SECRET", "")
+    return {"X-Service-Auth": secret} if secret else {}
+
+
 async def _http_post_json(url: str, payload: dict | None = None, timeout: int = 10) -> dict:
     """async 包装同步 urllib POST, 避免阻塞事件循环 (P0-1)."""
     import json as _json
@@ -27,7 +37,7 @@ async def _http_post_json(url: str, payload: dict | None = None, timeout: int = 
     def _call() -> dict:
         data = _json.dumps(payload).encode() if payload else None
         req = urllib.request.Request(
-            url, data=data, headers={"Content-Type": "application/json"}
+            url, data=data, headers={"Content-Type": "application/json", **_service_auth_headers()}
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return _json.loads(resp.read())
@@ -51,11 +61,13 @@ def _trigger_sync_via_data_service(table_key: str, days: int) -> dict | None:
 
     base = os.environ.get("DATA_SERVICE_URL", "http://127.0.0.1:8010/api/v1/data").rstrip("/")
     if table_key == "stocks":
-        req = urllib.request.Request(f"{base}/sync/stocks", method="POST")
+        req = urllib.request.Request(f"{base}/sync/stocks", method="POST",
+                                     headers=_service_auth_headers())
         with urllib.request.urlopen(req, timeout=300) as resp:
             return json.loads(resp.read().decode("utf-8"))
     query = urllib.parse.urlencode({"table_key": table_key, "days": days})
-    req = urllib.request.Request(f"{base}/sync/backfill?{query}", method="POST")
+    req = urllib.request.Request(f"{base}/sync/backfill?{query}", method="POST",
+                                 headers=_service_auth_headers())
     with urllib.request.urlopen(req, timeout=300) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
@@ -472,7 +484,7 @@ def _signal_live_sql() -> str:
 
 
 @router.get("/dashboard-summary")
-async def dashboard_summary():
+async def dashboard_summary(user: dict = Depends(get_current_user_jwt)):
     """Aggregated endpoint for the Dashboard page.
 
     Returns market sentiment, limit stocks, signal stocks, service health,
@@ -895,7 +907,7 @@ async def dashboard_summary():
 # ═══════════════════════════════════════════════════════════════
 
 @router.get("/super-signal/{code}")
-async def super_signal(code: str):
+async def super_signal(code: str, user: dict = Depends(get_current_user_jwt)):
     """P4: 跨模型融合, 综合 screener 排名 + 信号评分 + 诊断评分.
 
     仅在 screener 选出的前 50 只股票上计算, 不增加全市场扫描成本.
@@ -946,7 +958,7 @@ async def super_signal(code: str):
 
 
 @router.get("/auction-intent")
-async def auction_intent(limit: int = Query(50, ge=10, le=200)):
+async def auction_intent(limit: int = Query(50, ge=10, le=200), user: dict = Depends(get_current_user_jwt)):
     """PRD: 开盘集合竞价意图分析 — 识别抢筹/出货信号.
 
     Scores each stock on 4 dimensions:
@@ -1039,7 +1051,7 @@ async def auction_intent(limit: int = Query(50, ge=10, le=200)):
 
 
 @router.get("/levels")
-async def signal_levels():
+async def signal_levels(user: dict = Depends(get_current_user_jwt)):
     """Five-level signal classification."""
     payload = {
         "levels": [
@@ -1056,7 +1068,7 @@ async def signal_levels():
 
 
 @router.get("/analyze/{code}")
-async def analyze_signal(code: str):
+async def analyze_signal(code: str, user: dict = Depends(get_current_user_jwt)):
     """Generate a real trading signal for a single stock using kronos-factors scorers.
 
     Returns: signal level, component scores, and reasoning.
@@ -1197,7 +1209,7 @@ async def analyze_signal(code: str):
 
 
 @router.post("/batch")
-async def batch_signals(codes: list[str]):
+async def batch_signals(codes: list[str], user: dict = Depends(get_current_user_jwt)):
     """Generate signals for multiple stocks (up to 30)."""
     if len(codes) > 30:
         raise HTTPException(400, "Max 30 stocks per batch")
@@ -1217,6 +1229,7 @@ async def signal_history(
     code: str = Query(None),
     session: str = Query(None),
     limit: int = Query(50, ge=10, le=200),
+    user: dict = Depends(get_current_user_jwt),
 ):
     """Query historical signals with filters."""
     results = store.query(code=code, session=session, limit=limit)
@@ -1230,7 +1243,7 @@ async def signal_history(
 
 
 @router.get("/limit-list")
-async def limit_list(type: str = Query("up", description="up | down")):
+async def limit_list(type: str = Query("up", description="up | down"), user: dict = Depends(get_current_user_jwt)):
     """PRD: Drill-down endpoint for limit-up / limit-down stock lists."""
     from kronos_factors.scorer._db_stub import _get_db
     try:
@@ -1267,6 +1280,7 @@ async def update_signal_rules(
     factor_weight: float = Query(0.3, ge=0.1, le=0.5),
     rule_weight: float = Query(0.2, ge=0.05, le=0.4),
     market_weight: float = Query(0.2, ge=0.05, le=0.4),
+    user: dict = Depends(require_role("admin", "internal_analyst")),
 ):
     total = kronos_weight + factor_weight + rule_weight + market_weight
     return {
@@ -1461,7 +1475,7 @@ def _default_sync_schedules() -> list[dict]:
 
 
 @router.get("/data-status")
-async def data_status():
+async def data_status(user: dict = Depends(get_current_user_jwt)):
     """Return comprehensive data source status with metadata."""
     from kronos_factors.scorer._db_stub import _get_db as _db
 
@@ -1543,6 +1557,7 @@ async def data_status():
 async def trigger_sync(
     table_key: str = Query(..., description="Table key e.g. moneyflow, daily_kline"),
     days: int = Query(30, ge=1, le=3650, description="Days back to sync"),
+    user: dict = Depends(require_role("admin", "internal_analyst")),
 ):
     """Trigger a Tushare data sync for a specific table.
 
@@ -1575,7 +1590,7 @@ async def trigger_sync(
 # ═══════════════════════════════════════════════════════════════
 
 @router.get("/sync-schedules")
-async def get_sync_schedules():
+async def get_sync_schedules(user: dict = Depends(get_current_user_jwt)):
     """Return all saved sync schedules."""
     from kronos_factors.scorer._db_stub import _get_db as _db
     try:
@@ -1618,6 +1633,7 @@ async def save_sync_schedule(
     interval_minutes: int = Query(0, ge=0, le=10080),
     daily_at: str = Query(None),
     enabled: bool = Query(True),
+    user: dict = Depends(require_role("admin", "internal_analyst")),
 ):
     """Save or update a sync schedule."""
     from kronos_factors.scorer._db_stub import _get_db as _db
@@ -1637,7 +1653,8 @@ async def save_sync_schedule(
 
 
 @router.delete("/sync-schedules")
-async def delete_sync_schedule(table_key: str = Query(...)):
+async def delete_sync_schedule(table_key: str = Query(...),
+                               user: dict = Depends(require_role("admin", "internal_analyst"))):
     """Delete a sync schedule."""
     from kronos_factors.scorer._db_stub import _get_db as _db
     try:
@@ -1653,7 +1670,8 @@ async def delete_sync_schedule(table_key: str = Query(...)):
 # ═══════════════════════════════════════════════════════════════
 
 @router.get("/live")
-async def signal_live(session: str = Query("intra", description="intra | post | auction")):
+async def signal_live(session: str = Query("intra", description="intra | post | auction"),
+                      user: dict = Depends(get_current_user_jwt)):
     """Return live trading signals for the dashboard signal cards.
 
     Returns recent high-signal stocks with price, change_pct, and signal metadata.
@@ -1713,7 +1731,7 @@ dashboard_router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 
 
 @dashboard_router.get("/summary")
-async def dashboard_screening_summary():
+async def dashboard_screening_summary(user: dict = Depends(get_current_user_jwt)):
     """Multi-strategy fusion screening dashboard summary.
 
     Returns merged consensus picks from multiple strategies + Kronos predictions.
@@ -1783,7 +1801,7 @@ async def dashboard_screening_summary():
 
 
 @dashboard_router.get("/auction")
-async def dashboard_auction():
+async def dashboard_auction(user: dict = Depends(get_current_user_jwt)):
     """Return auction intent picks for the Dashboard auction tab.
 
     Wraps the auction-intent endpoint data into the format expected by the frontend.
@@ -1816,7 +1834,7 @@ async def dashboard_auction():
 
 
 @dashboard_router.post("/run-pipeline")
-async def dashboard_run_pipeline():
+async def dashboard_run_pipeline(user: dict = Depends(require_role("admin", "internal_analyst"))):
     """Trigger the multi-strategy screening pipeline.
 
     Fires parallel screener runs and returns when complete.
@@ -1847,7 +1865,7 @@ data_router = APIRouter(prefix="/api/v1/data", tags=["data"])
 
 
 @data_router.get("/status")
-async def data_status_endpoint(response: Response):
+async def data_status_endpoint(response: Response, user: dict = Depends(get_current_user_jwt)):
     """Alias for /signal/data-status — serves the DataUpdate page."""
     response.headers["Deprecation"] = "true"
     return await data_status()
@@ -1855,7 +1873,8 @@ async def data_status_endpoint(response: Response):
 
 @data_router.post("/sync/{sync_type}")
 async def data_sync(sync_type: str, days: int = Query(30, ge=1, le=3650),
-                    table_key: str = Query(None), response: Response = None):
+                    table_key: str = Query(None), response: Response = None,
+                    user: dict = Depends(require_role("admin", "internal_analyst"))):
     """Trigger data sync. Maps sync_type to table_key for signal-service compatibility.
 
     Frontend DataUpdate page calls /api/v1/data/sync/{type}
@@ -1881,6 +1900,7 @@ async def data_save_schedule(
     interval_minutes: int = Query(0, ge=0, le=10080),
     daily_at: str = Query(None),
     enabled: bool = Query(True),
+    user: dict = Depends(require_role("admin", "internal_analyst")),
 ):
     """Save sync schedule (alias for /signal/sync-schedules POST)."""
     return await save_sync_schedule(
@@ -1890,6 +1910,7 @@ async def data_save_schedule(
 
 
 @data_router.delete("/status")
-async def data_delete_schedule(table_key: str = Query(...)):
+async def data_delete_schedule(table_key: str = Query(...),
+                               user: dict = Depends(require_role("admin", "internal_analyst"))):
     """Delete sync schedule (alias for /signal/sync-schedules DELETE)."""
     return await delete_sync_schedule(table_key=table_key)

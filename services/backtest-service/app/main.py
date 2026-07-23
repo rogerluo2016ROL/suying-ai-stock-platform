@@ -13,7 +13,7 @@ from fastapi import FastAPI
 
 # 注入共享 packages(须在 import app.routes 前——routes 依赖 kronos-factors/core/data)
 _PACKAGES = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages"))
-for _pkg in ["kronos-factors", "kronos-core", "kronos-data"]:
+for _pkg in ["kronos-factors", "kronos-core", "kronos-data", "kronos-auth"]:
     _path = os.path.join(_PACKAGES, _pkg)
     if os.path.isdir(_path) and _path not in sys.path:
         sys.path.insert(0, _path)

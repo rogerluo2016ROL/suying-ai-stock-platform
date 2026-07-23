@@ -1,15 +1,14 @@
-"""Keep backtest-service tests isolated on their own ``app`` package.
+"""Shared test fixtures — bypass JWT auth for pre-existing test suites.
 
-Also installs a FastAPI ``dependency_overrides`` JWT bypass (standard pattern)
-so pre-existing tests keep working without per-test token plumbing;
-``test_auth_guards.py`` clears the override locally to assert real 401s.
+Uses FastAPI ``app.dependency_overrides`` (standard pattern) so existing tests
+keep working without per-test token plumbing. ``test_auth_guards.py`` clears
+the override locally to assert the real 401 behavior.
 """
 
 import os
 import sys
 
 import pytest
-
 
 SERVICE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if SERVICE_ROOT not in sys.path:

@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ && rm -
 COPY packages/kronos-factors /app/packages/kronos-factors
 RUN pip install --no-cache-dir /app/packages/kronos-factors
 
+COPY packages/kronos-auth /app/packages/kronos-auth
+RUN pip install --no-cache-dir /app/packages/kronos-auth
+
 COPY services/backtest-service /app/service
 RUN pip install --no-cache-dir /app/service
 

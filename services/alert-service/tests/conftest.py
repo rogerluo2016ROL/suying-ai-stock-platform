@@ -1,15 +1,14 @@
-"""Keep backtest-service tests isolated on their own ``app`` package.
+"""Shared test fixtures — path setup + JWT auth bypass for existing suites.
 
-Also installs a FastAPI ``dependency_overrides`` JWT bypass (standard pattern)
-so pre-existing tests keep working without per-test token plumbing;
-``test_auth_guards.py`` clears the override locally to assert real 401s.
+The sys.path insert also fixes the baseline collection error
+(``ModuleNotFoundError: No module named 'app'`` when running
+``pytest tests/`` without PYTHONPATH).
 """
 
 import os
 import sys
 
 import pytest
-
 
 SERVICE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if SERVICE_ROOT not in sys.path:

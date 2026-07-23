@@ -1,6 +1,7 @@
 """Alert API routes — real notification system."""
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from kronos_auth import require_role, get_current_user_jwt
 from app.alert_store import get_store
 from app import feishu_notifier
 
@@ -9,7 +10,7 @@ store = get_store()
 
 
 @router.get("/alerts")
-async def list_alerts(limit: int = Query(50, ge=10, le=200)):
+async def list_alerts(limit: int = Query(50, ge=10, le=200), user: dict = Depends(get_current_user_jwt)):
     """Get recent alerts."""
     alerts = store.list_all(limit)
     return {
@@ -24,18 +25,18 @@ async def list_alerts(limit: int = Query(50, ge=10, le=200)):
 
 
 @router.get("/unread-count")
-async def unread_count():
+async def unread_count(user: dict = Depends(get_current_user_jwt)):
     return {"unread": store.unread_count()}
 
 
 @router.post("/alerts/{alert_id}/read")
-async def mark_read(alert_id: str):
+async def mark_read(alert_id: str, user: dict = Depends(get_current_user_jwt)):
     store.mark_read(alert_id)
     return {"status": "ok"}
 
 
 @router.post("/alerts/read-all")
-async def mark_all_read():
+async def mark_all_read(user: dict = Depends(get_current_user_jwt)):
     store.mark_all_read()
     return {"status": "ok"}
 
@@ -48,6 +49,7 @@ async def trigger_alert(
     code: str = Query("", description="Stock code"),
     channel: str = Query("app", description="app/wecom/dingtalk/feishu/email，逗号分隔多渠道"),
     score: float = Query(None, description="评分（可选，飞书卡片展示）"),
+    user: dict = Depends(require_role("admin", "internal_analyst")),
 ):
     """Manually trigger an alert (for testing/hooks). 支持飞书推送。"""
     alert = store.create(level=level, title=title, message=message, code=code, channel=channel)
@@ -73,6 +75,7 @@ async def crowding_scan(
     board: str = Query("688", description="688 科创板 | all 全市场"),
     channel: str = Query("app,feishu", description="推送渠道, 逗号分隔"),
     top_n: int = Query(30, description="最多推送条数 (防刷屏)"),
+    user: dict = Depends(require_role("admin", "internal_analyst")),
 ):
     """扫描高拥挤标的并推送 alert (科创板⭐标注). 盘后批量调用.
 
@@ -122,7 +125,7 @@ async def crowding_scan(
 
 
 @router.get("/channels")
-async def list_channels():
+async def list_channels(user: dict = Depends(get_current_user_jwt)):
     return {"channels": [
         {"id": "app", "name": "平台弹窗", "enabled": True},
         {"id": "feishu", "name": "飞书", "enabled": feishu_notifier.is_enabled(), "note": "需配 FEISHU_APP_ID/APP_SECRET/CHAT_ID"},
@@ -133,7 +136,7 @@ async def list_channels():
 
 
 @router.get("/config")
-async def get_config():
+async def get_config(user: dict = Depends(get_current_user_jwt)):
     return {
         "levels": {
             "urgent": {"icon": "🔴", "cooldown_sec": 0, "channels": ["app", "feishu"]},

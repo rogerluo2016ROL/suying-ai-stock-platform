@@ -27,6 +27,9 @@ RUN ln -s /usr/local/lib/node_modules/@larksuite/cli/scripts/run.js /usr/local/b
 COPY packages/kronos-data /app/packages/kronos-data
 RUN pip install --no-cache-dir /app/packages/kronos-data
 
+COPY packages/kronos-auth /app/packages/kronos-auth
+RUN pip install --no-cache-dir /app/packages/kronos-auth
+
 # 定时研究流水线依赖
 COPY packages/kronos-factors /app/packages/kronos-factors
 RUN pip install --no-cache-dir /app/packages/kronos-factors

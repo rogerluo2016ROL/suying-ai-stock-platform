@@ -8,7 +8,8 @@ import uuid
 from datetime import date, timedelta
 
 import numpy as np
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException
+from kronos_auth import require_role, get_current_user_jwt
 
 router = APIRouter(prefix="/api/v1/backtest", tags=["backtest"])
 logger = logging.getLogger("backtest-service")
@@ -116,7 +117,7 @@ def _run_factor_adapter(model_key, *, forward_days=5, cost_bps=14.0):
 
 
 @router.get("/factors")
-async def list_factors():
+async def list_factors(user: dict = Depends(get_current_user_jwt)):
     """List available factors."""
     return {
         "factors": [{"id": k, "name": v} for k, v in FACTORS.items()],
@@ -131,22 +132,24 @@ async def run_backtest(
     windows: int = Query(3, ge=1, le=12),
     top_n: int = Query(30, ge=10, le=100),
     forward_days: int = Query(60, ge=20, le=252),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Run a registered evidence adapter; unknown models fail closed."""
     return _run_factor_adapter(model_key, forward_days=forward_days)
 
 
 @router.post("/calibrate")
-async def calibrate_weights(mode: str = Query("all")):
+async def calibrate_weights(mode: str = Query("all"), user: dict = Depends(require_role("admin", "internal_analyst", "user"))):
     """基于近期 IC 校准因子权重."""
     raise HTTPException(status_code=409, detail={"code": "MODEL_CALIBRATION_NOT_IMPLEMENTED", "message": "缺少真实观测证据，未写入 factor_weights"})
 @router.get("/factor-evidence")
 async def factor_evidence(model_key: str = Query(...), forward_days: int = Query(5, ge=1, le=20),
-                          cost_bps: float = Query(14.0, ge=0, le=100)):
+                          cost_bps: float = Query(14.0, ge=0, le=100),
+                          user: dict = Depends(get_current_user_jwt)):
     return _run_factor_adapter(model_key, forward_days=forward_days, cost_bps=cost_bps)
 
 @router.post("/compare")
-async def compare_strategies(strategy_ids: list[str] = Query(default=["momentum", "quality"]), start_date: str = Query(default=None), end_date: str = Query(default=None)):
+async def compare_strategies(strategy_ids: list[str] = Query(default=["momentum", "quality"]), start_date: str = Query(default=None), end_date: str = Query(default=None), user: dict = Depends(require_role("admin", "internal_analyst", "user"))):
     raise HTTPException(status_code=422, detail={"code": "INSUFFICIENT_EVIDENCE", "missing_requirements": ["observed_factor_snapshots", "future_adjusted_returns"]})
 @router.post("/run-leader")
 async def run_leader_backtest(
@@ -154,6 +157,7 @@ async def run_leader_backtest(
     windows: int = Query(3, ge=1, le=12),
     top_n: int = Query(20, ge=5, le=50),
     forward_days: int = Query(5, ge=1, le=20),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """龙头战法回测 — 使用 kronos-factors leader engine 进行滚动窗口前向回测。"""
     try:
@@ -238,6 +242,7 @@ async def run_cb_backtest(
     windows: int = Query(3, ge=1, le=12),
     top_n: int = Query(20, ge=5, le=50),
     forward_days: int = Query(5, ge=1, le=20),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """可转债回测 — 使用 kronos-factors CB engine 进行滚动窗口前向回测。"""
     try:
@@ -351,6 +356,7 @@ async def run_afternoon_backtest(
     windows: int = Query(6, ge=1, le=12),
     top_n: int = Query(15, ge=5, le=30),
     forward_days: int = Query(5, ge=1, le=20),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """秋神午后回测 — 自动使用日K线历史数据."""
     try:
@@ -434,6 +440,7 @@ async def run_afternoon_backtest(
 async def ic_decay_tracking(
     lookback: int = Query(60, ge=20, le=120),
     mode: str = Query("short", description="short/all/long"),
+    user: dict = Depends(get_current_user_jwt),
 ):
     """P4: 追踪因子 IC 滚动衰减, 输出动态权重建议.
 

@@ -8,6 +8,9 @@ COPY packages/kronos-contracts /app/packages/kronos-contracts
 RUN pip install --no-cache-dir /app/packages/kronos-contracts
 RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ && rm -rf /var/lib/apt/lists/*
 
+COPY packages/kronos-auth /app/packages/kronos-auth
+RUN pip install --no-cache-dir /app/packages/kronos-auth
+
 # Install service
 COPY services/alert-service /app/service
 RUN pip install --no-cache-dir /app/service

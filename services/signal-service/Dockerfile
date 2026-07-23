@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir \
     /app/packages/kronos-factors \
     /app/packages/kronos-data
 
+COPY packages/kronos-auth /app/packages/kronos-auth
+RUN pip install --no-cache-dir /app/packages/kronos-auth
+
 # Install service
 COPY services/signal-service /app/service
 RUN pip install --no-cache-dir /app/service

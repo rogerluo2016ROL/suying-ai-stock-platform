@@ -13,6 +13,9 @@ COPY packages/kronos-factors /app/packages/kronos-factors
 COPY packages/kronos-core /app/packages/kronos-core
 RUN pip install --no-cache-dir /app/packages/kronos-factors /app/packages/kronos-core
 
+COPY packages/kronos-auth /app/packages/kronos-auth
+RUN pip install --no-cache-dir /app/packages/kronos-auth
+
 COPY services/prediction-service /app/service
 RUN pip install --no-cache-dir /app/service
 

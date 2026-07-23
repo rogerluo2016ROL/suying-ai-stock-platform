@@ -9,6 +9,7 @@ dependencies = [
     "uvicorn[standard]>=0.27",
     "kronos-factors",
     "kronos-data",
+    "kronos-auth",
 ]
 
 [project.optional-dependencies]

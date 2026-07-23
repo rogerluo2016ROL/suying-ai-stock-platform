@@ -8,6 +8,7 @@ dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
     "lark-oapi>=1.7.0",
+    "kronos-auth",
 ]
 
 [project.optional-dependencies]

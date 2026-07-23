@@ -25,6 +25,15 @@ USE_KRONOS_PREDICTION = os.environ.get(
     "USE_KRONOS_PREDICTION", "false"
 ).lower() in ("1", "true", "yes")
 
+
+def _service_auth_headers() -> dict:
+    """X-Service-Auth header for service-to-service calls.
+
+    未配置 KRONOS_SERVICE_SECRET 时不发头（本地 dev 行为不变）。
+    """
+    secret = os.environ.get("KRONOS_SERVICE_SECRET", "")
+    return {"X-Service-Auth": secret} if secret else {}
+
 # ── In-memory cache (per process, TTL = until next trading day) ──
 _cache: dict[str, Optional[dict]] = {}
 _cache_date: str = ""
@@ -45,7 +54,7 @@ def _fetch_kronos_prediction(code: str, pred_days: int = 15) -> Optional[dict]:
     """
     url = f"{PREDICTION_SERVICE_URL}/api/v1/prediction/{code}/fast?pred_days={pred_days}"
     try:
-        req = urllib.request.Request(url, method="POST")
+        req = urllib.request.Request(url, method="POST", headers=_service_auth_headers())
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode())
             return data

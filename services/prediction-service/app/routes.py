@@ -1,9 +1,11 @@
 """Prediction API — real Kronos K-line forecasting."""
 
 import os, logging
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException
 import pandas as pd
 import numpy as np
+
+from kronos_auth import require_role, get_current_user_jwt
 
 import app.main as _m
 
@@ -390,7 +392,7 @@ def _sanitize_prediction_df(
 
 
 @router.get("/status")
-async def model_status():
+async def model_status(user: dict = Depends(get_current_user_jwt)):
     return {
         "model_loaded": bool(getattr(_m, "_model_loaded", False)),
         "model": "Kronos-mini",
@@ -400,7 +402,7 @@ async def model_status():
 
 
 @router.get("/overview")
-async def prediction_overview():
+async def prediction_overview(user: dict = Depends(get_current_user_jwt)):
     latest_ts = _latest_daily_kline_timestamp()
     return {
         "page": {"module": "prediction", "view": "overview", "title": "K线预测 - 预测总览"},
@@ -419,6 +421,7 @@ async def prediction_overview():
 async def prediction_single_stock(
     code: str,
     pred_days: int = Query(20, ge=5, le=30),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     return await predict_stock(code, pred_days)
 
@@ -427,6 +430,7 @@ async def prediction_single_stock(
 async def prediction_compare(
     codes: list[str],
     pred_days: int = Query(20, ge=5, le=30),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     if not codes:
         raise HTTPException(400, "codes is required")
@@ -452,7 +456,7 @@ async def prediction_compare(
 
 
 @router.get("/accuracy-backtest")
-async def prediction_accuracy_backtest():
+async def prediction_accuracy_backtest(user: dict = Depends(get_current_user_jwt)):
     return {
         "mode": "accuracy_backtest",
         "model_metadata": _model_metadata("accuracy-backtest"),
@@ -474,6 +478,7 @@ async def prediction_accuracy_backtest():
 async def predict_stock_fast(
     code: str,
     pred_days: int = Query(15, ge=5, le=30),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """🔥 V2 快速预测: 单样本+低延迟，适合实时诊断 (延迟 ~300ms vs 标准 ~1s)。"""
     kline = _get_kline(code)
@@ -557,6 +562,7 @@ async def predict_stock_fast(
 async def predict_stock(
     code: str,
     pred_days: int = Query(20, ge=5, le=30),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Run real Kronos prediction for a single stock."""
     kline = _get_kline(code)
@@ -649,7 +655,8 @@ async def predict_stock(
 # ═══════════════════════════════════════════════════════════════
 
 @router.post("/{code}/meta")
-async def predict_stock_meta(code: str, pred_days: int = Query(20, ge=5, le=30)):
+async def predict_stock_meta(code: str, pred_days: int = Query(20, ge=5, le=30),
+                             user: dict = Depends(require_role("admin", "internal_analyst", "user"))):
     """P4: Kronos 元模型融合 — 20维辅助特征加权."""
     if not _m._model_loaded: raise HTTPException(503, "Model not loaded")
     kline = _get_kline(code)
