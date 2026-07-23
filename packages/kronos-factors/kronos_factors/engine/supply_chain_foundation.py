@@ -30,6 +30,7 @@ CHAIN_IDS = {
     "EDA工业软件": "eda_industrial_software",
     "华为终端": "huawei_devices",
     "存储芯片": "memory_chips",
+    "近存计算": "near_memory_computing",
     "光通信": "optical_communication",
     "AI Token输出电力": "ai_token_output_power",
 }

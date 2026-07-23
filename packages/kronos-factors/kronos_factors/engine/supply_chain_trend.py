@@ -98,13 +98,13 @@ def _score_h2_hardcore(pricing_power: int, barrier: int, gross_margin: float, ma
 
 
 def _score_h3_scarcity(concentration: float, barrier: int, sample_size: int) -> float:
-    """H3 稀缺性 (0-8)."""
-    conc = float(concentration or 0.15)
+    """H3 稀缺性 (0-8). concentration 为 0-100 百分数标度 (与 chain_deconstruct 一致)."""
+    conc = float(concentration or 15.0)
     bar = int(barrier or 1)
     n = int(sample_size or 100)
-    cs = 4 if conc >= 0.7 else (3 if conc >= 0.5 else (2 if conc >= 0.3 else 1))
+    cs = 4 if conc >= 70 else (3 if conc >= 50 else (2 if conc >= 30 else 1))
     bs = 4 if bar >= 5 else (3 if bar >= 4 else (2 if bar >= 3 else 1))
-    premium = 1 if (conc >= 0.7 and bar >= 4 and n <= 15) else 0
+    premium = 1 if (conc >= 70 and bar >= 4 and n <= 15) else 0
     return min(8.0, float(cs + bs + premium))
 
 
@@ -326,9 +326,9 @@ class TrendLaunchEngine(StrategyEngine):
 
     mode = "supply_chain_trend_launch"
 
-    # 15条候选产业链
+    # 16条候选产业链 (对齐 configs/supply_chains.json, 缺 AI Token输出电力)
     ALL_CHAINS = [
-        '半导体', '华为韬定律_先进封装', '光通信', '存储芯片', '华为终端', 'EDA工业软件',
+        '半导体', '华为韬定律_先进封装', '光通信', '存储芯片', '近存计算', '华为终端', 'EDA工业软件',
         'AI算力', '机器人', '新能源', '新能源车', '创新药',
         '高端制造', '国防军工', '消费升级', '周期资源',
     ]

@@ -128,9 +128,9 @@ def _chain_id_from_node_id(node_id: str | None) -> str:
     return ""
 
 
-# ── 产业链配置加载 (P3): 优先包内 configs/supply_chains.json, 失败/缺失 fallback 内置默认 ──
-_CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs" / "supply_chains.json"
-_LEGACY_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "configs" / "supply_chains.json"
+# ── 产业链配置加载 (P3): 唯一事实源 = 包级 configs/supply_chains.json, 包内副本仅为旧路径兼容 ──
+_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "configs" / "supply_chains.json"
+_IN_PACKAGE_CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs" / "supply_chains.json"
 
 
 def _load_chains_config():
@@ -140,7 +140,7 @@ def _load_chains_config():
     moat_kw: {类型: (pattern, score)}. JSON 缺失/损坏/不完整时退回内置默认.
     """
     try:
-        config_path = _CONFIG_PATH if _CONFIG_PATH.exists() else _LEGACY_CONFIG_PATH
+        config_path = _CONFIG_PATH if _CONFIG_PATH.exists() else _IN_PACKAGE_CONFIG_PATH
         data = json.loads(config_path.read_text(encoding="utf-8"))
         chains, layer_kw = {}, {}
         for name, cd in data.get("chains", {}).items():
@@ -374,6 +374,9 @@ class SupplyChainEngine(StrategyEngine):
             for d in (peer_broker, peer_report):
                 for ind in d:
                     d[ind].sort()
+            chain_fallback = bool(chain) and chain not in CHAINS
+            if chain_fallback:
+                logger.warning("未知产业链 '%s', 回退跑全部 %d 链", chain, len(CHAINS))
             chains_to_run = {chain: CHAINS[chain]} if chain in CHAINS else CHAINS
             picks = []
             for ck, cd in chains_to_run.items():
@@ -543,6 +546,7 @@ class SupplyChainEngine(StrategyEngine):
             mode=self.mode, picks=picks, total_scored=len(picks),
             total_excluded=0, elapsed=elapsed,
             metadata={"chains_run": list(chains_to_run.keys()), "trade_date": trade_date,
+                      "requested_chain": chain, "chain_fallback": chain_fallback,
                       "weights": self.weights, "bom_model_version": "4.0"},
         )
 
