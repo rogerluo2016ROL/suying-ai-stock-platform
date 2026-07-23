@@ -52,7 +52,9 @@ node_modules/.vite/
 
 # UAT/dev env files (contain secrets)
 docker/.env.*
+!docker/.env.*.example
 docker/secrets/*
+!docker/secrets/*.example
 
 # agent/build/run artifacts — PlatformFixTeam follow-up, 避免误 commit 工具/构建/运行产物
 .agents/
@@ -84,6 +86,7 @@ outputs/ai_compute_complete_data_*/
 # 飞书/密钥 env
 .env
 .env.*
+!.env.*.example
 chatBI/AI 后端.zip
 .firecrawl/
 

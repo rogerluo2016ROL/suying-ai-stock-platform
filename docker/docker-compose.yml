@@ -42,6 +42,9 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ../services/sql/init_postgres.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
       - ../services/sql/materialized_views.sql:/docker-entrypoint-initdb.d/02_materialized_views.sql:ro
+      - ../services/sql/self_learning_init.sql:/docker-entrypoint-initdb.d/03_self_learning_init.sql:ro
+      - ../services/sql/tushare_parameter_catalog.sql:/docker-entrypoint-initdb.d/04_tushare_parameter_catalog.sql:ro
+      - ../services/sql/data_governance_completion.sql:/docker-entrypoint-initdb.d/05_data_governance_completion.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kronos"]
       interval: 10s

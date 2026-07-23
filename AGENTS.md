@@ -12,7 +12,7 @@
 
 | 类别 | 选型 | ADR |
 |---|---|---|
-| 前端框架 | React 18 + Vite 6 + TypeScript 5.6 + Ant Design 5.22 + ECharts 5.5 | — |
+| 前端框架 | React 18 + Vite 6 + TypeScript 5.6 + Ant Design 5.22 + ECharts 6.1 | — |
 | 后端框架 | FastAPI (Python ≥3.10) + uvicorn + Pydantic v2 | — |
 | 数据库 | PostgreSQL 15 (primary, docker) + SQLite (fallback/kronos legacy) + Redis 7 (cache) | ADR-001 |
 | AI/ML | Kronos (自研 K线预测 Transformer) + LightGBM + CatBoost + ONNX Runtime | ADR-004 (model-training-pipeline), ADR-005 |
@@ -23,6 +23,8 @@
 | 测试框架 | pytest (Python) + vitest (前端) | — |
 | 数据管道 | data-service (asyncio 调度 + PG-first 直写 + Tushare 1.4.29) + SQLite fallback | ADR-006 |
 | 部署 | Docker Compose (dev, postgres:15-alpine + redis:7-alpine + 全部 11 微服务 + frontend) | — |
+
+> **Python 基线**: 以容器 `python:3.11-slim` 为准；根目录 `.python-version` 钉 3.11（本地 3.14 未验证，venv 建议用 3.11 重建）。pandas 统一 `>=2.0,<3.0`。
 
 ## Verified Facts (Quick Reference)
 
