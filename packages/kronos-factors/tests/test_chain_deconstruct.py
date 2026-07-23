@@ -590,6 +590,18 @@ class TestTransmissionLayer:
         for child in result["tree"]["children"]:
             assert child["transmission_layer"] == child["layer_id"]
 
+    def test_node_name_matching_transmission_layer_wins_over_legacy_number(self):
+        """模板链路节点: node_name 本身是传导层名 (如 "需求层"), 旧 layer=1-8 是
+        传导序号而非 legacy 5 层语义 — 名匹配必须优先于数字映射, 否则 "需求层"
+        (layer=1) 会被错映射成 foundation (底层支撑层)。"""
+        nodes = [
+            {"node_id": "d", "node_name": "需求层", "layer": 1, "parent_node_id": None},
+        ]
+        tree = build_upstream_downstream_tree(nodes)
+        node = tree["children"][0]
+        assert node["transmission_layer"] == "demand"
+        assert node["transmission_layer_name"] == "需求层"
+
 
 # ---------------------------------------------------------------------------
 # Golden legacy implementations (重构前的独立树逻辑, 用于逐字段对比)

@@ -657,15 +657,23 @@ def _to_float(value: Any, default: float | None = None) -> float | None:
         return default
 
 
+_NAME_TO_TRANSMISSION = {v: k for k, v in TRANSMISSION_LAYER_NAMES.items()}
+
+
 def _resolve_transmission_layer(node: dict[str, Any]) -> str | None:
     """Resolve the 传导链 (transmission) layer_id for a chain_nodes record.
 
-    优先读取 node["transmission_layer"] (migration 040 新列); 缺失时按旧
-    chain_nodes.layer (1-5) 经 LEGACY_LAYER_TO_TRANSMISSION 推导; 无法推导返回 None。
+    解析顺序: ① node["transmission_layer"] (migration 040 新列) ② 节点名精确
+    匹配传导层中文名 (模板链路节点的 name 本身就是 "需求层" 等, 旧 layer=1-8
+    是传导序号而非 legacy 5 层语义, 必须优先于数字映射) ③ 旧 chain_nodes.layer
+    (1-5) 经 LEGACY_LAYER_TO_TRANSMISSION 推导; 无法推导返回 None。
     """
     explicit = node.get("transmission_layer")
     if explicit:
         return str(explicit)
+    name = str(node.get("node_name") or node.get("name") or "")
+    if name in _NAME_TO_TRANSMISSION:
+        return _NAME_TO_TRANSMISSION[name]
     try:
         layer_num = int(node.get("layer"))
     except (TypeError, ValueError):
