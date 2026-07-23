@@ -1,5 +1,6 @@
 """Data Service REST API — 手动触发 + 状态查询."""
 
+import asyncio
 import logging
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Query, HTTPException
@@ -205,7 +206,7 @@ async def readiness_snapshot(snapshot_id: str, user: dict = Depends(get_current_
 async def trigger_rt_min(user: dict = Depends(require_role("admin", "internal_analyst"))):
     """手动触发实时分钟线采集."""
     try:
-        result = collect_rt_min()
+        result = await asyncio.to_thread(collect_rt_min)
         return {"status": "ok", **result}
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -215,7 +216,7 @@ async def trigger_rt_min(user: dict = Depends(require_role("admin", "internal_an
 async def trigger_auction(user: dict = Depends(require_role("admin", "internal_analyst"))):
     """手动触发竞价快照 (Tushare stk_auction → PG, B2 后不再走 SQLite mootdx fallback)."""
     try:
-        result = collect_auction_snapshot()
+        result = await asyncio.to_thread(collect_auction_snapshot)
         return {"status": "ok", **result}
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -244,7 +245,7 @@ async def trigger_post_market(date_param: str = Query(None, alias="date"),
 async def trigger_stocks_sync(user: dict = Depends(require_role("admin", "internal_analyst"))):
     """手动触发股票列表同步 (全量)."""
     try:
-        result = sync_stock_list()
+        result = await asyncio.to_thread(sync_stock_list)
         return {"status": "ok", **result}
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -268,8 +269,9 @@ async def trigger_table_backfill(
         )
 
     try:
-        dependency_sync = _sync_required_dependencies(table_key)
-        result = fn(days_back=days)
+        dependency_sync = await asyncio.to_thread(_sync_required_dependencies, table_key)
+        # 大表回补（如财报表逐股拉取）可能跑十几分钟，包线程避免冻住事件循环
+        result = await asyncio.to_thread(fn, days_back=days)
         pg_status, pg_written = _extract_pg_status(result)
         result_status = result.get("status") if isinstance(result, dict) else None
         status = result_status if result_status in {"ok", "skipped", "error"} else "ok"

@@ -1057,7 +1057,11 @@ async def _run_job(job: dict):
         for attempt in range(max_retries):
             try:
                 fn = job["fn"]
-                result = fn() if not job.get("args") else fn(*job["args"])
+                # 同步同步函数包线程执行，避免大表任务（如财报表逐股拉取）阻塞事件循环
+                if job.get("args"):
+                    result = await asyncio.to_thread(fn, *job["args"])
+                else:
+                    result = await asyncio.to_thread(fn)
                 pg_status, pg_total = _extract_pg_status(result)
                 result_status = result.get("status") if isinstance(result, dict) else None
                 preserved_statuses = {
