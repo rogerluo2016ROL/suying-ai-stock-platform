@@ -13,6 +13,7 @@ import logging
 import os
 import sys
 import sqlite3
+import threading
 import time
 from datetime import datetime, timedelta
 
@@ -26,7 +27,10 @@ sys.path.insert(0, _PKG_ROOT)
 # PG connection (preferred) or SQLite fallback
 _PG_URL = os.environ.get("KRONOS_PG_URL", "")
 _USE_PG = bool(_PG_URL)
-_pg_conn = None
+# 线程本地连接: 同步函数经 asyncio.to_thread 并发执行后, 全局单例连接会被
+# 其他线程的 db.close() 误关 (InterfaceError: connection already closed)。
+# 每线程一条连接, 同线程内保持原有的"关闭后按需重连"语义。
+_pg_local = threading.local()
 
 DB_PATH = os.path.join(_PROJ, "Kronos", "webui", "stock_screening.db")
 if not os.path.exists(DB_PATH):
@@ -178,13 +182,14 @@ def _get_pg_columns(conn, table: str) -> frozenset:
 
 def _get_etl_db() -> _Db:
     """Return _Db wrapper. PG if KRONOS_PG_URL is set, else SQLite."""
-    global _pg_conn
     if _USE_PG:
         try:
             import psycopg2
-            if _pg_conn is None or _pg_conn.closed:
-                _pg_conn = psycopg2.connect(_PG_URL)
-            return _Db(_pg_conn, True)
+            conn = getattr(_pg_local, "conn", None)
+            if conn is None or conn.closed:
+                conn = psycopg2.connect(_PG_URL)
+                _pg_local.conn = conn
+            return _Db(conn, True)
         except Exception as e:
             print(f"  PG connection failed ({e}), falling back to SQLite")
     return _Db(sqlite3.connect(DB_PATH), False)
