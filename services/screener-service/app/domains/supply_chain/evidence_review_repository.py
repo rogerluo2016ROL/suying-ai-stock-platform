@@ -784,6 +784,11 @@ class EvidenceReviewRepository:
         capped_limit = max(1, min(int(limit or 50), 200))
         owns_connection = connection is None
         active = connection or self.connection_factory()
+        # connection_factory 可能是连接池 contextmanager (repository.connect),
+        # 需 __enter__ 取出裸连接; 归还走 __exit__ 而非 close
+        cm = active if hasattr(active, "__enter__") else None
+        if cm is not None:
+            active = cm.__enter__()
         try:
             with active.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
