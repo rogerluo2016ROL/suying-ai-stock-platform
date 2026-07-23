@@ -12,9 +12,11 @@ WORKDIR /app
 COPY packages/kronos-contracts /app/packages/kronos-contracts
 RUN pip install --no-cache-dir /app/packages/kronos-contracts
 
-# System deps: gcc/g++ for psycopg2 build, tzdata for cron 时区
+# System deps: gcc/g++ for psycopg2 build, tzdata for cron 时区;
+# chromium + fonts-noto-cjk 用于早报海报 SVG → PNG 渲染 (generate_poster_image)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ tzdata && rm -rf /var/lib/apt/lists/*
+    gcc g++ tzdata chromium fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
+ENV CHROME_BIN=/usr/bin/chromium
 
 # 从独立 Node 阶段复制飞书 CLI，避免在运行镜像安装完整 npm 工具链。
 COPY --from=lark-cli /usr/local/bin/node /usr/local/bin/node

@@ -17,7 +17,13 @@ from app.sync.policy_law import sync_policy_law
 from app.sync.mp_report import sync_mp_report
 from app.sync.cctv_news import sync_cctv_news
 from app.sync.namechange import sync_st_history
-from app.scheduled_research import build_scheduled_research_jobs
+from app.sync.global_news import sync_global_news
+from app.sync.us_market import sync_us_daily, sync_us_basic, sync_global_index
+from app.sync.kr_market import sync_kr_daily
+from app.scheduled_research import (
+    build_scheduled_research_jobs,
+    run_missed_scheduled_research_tasks,
+)
 
 # 从 kronos-data/etl.py 导入已有 sync 函数 (零重复代码)
 _PROJ_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -41,6 +47,11 @@ from kronos_data.etl import (
     # ── P3 实时行情 ──
     sync_rt_k, sync_rt_sw_k,
 )
+
+# tools/ 下的链等权涨幅构建脚本 (build_industry_price_series.py)
+_TOOLS_DIR = os.path.join(_PROJ_ROOT, "tools")
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
 
 logger = logging.getLogger("data-service.scheduler")
 
@@ -123,6 +134,11 @@ MONITORED_TABLES: dict[str, dict] = {
     "policy_law":               {"date_col": "pub_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
     "mp_report":                {"date_col": "pub_date",   "lookback": 240,"freq": "L3-quarterly","gap_threshold": 180},
     "cctv_news":                {"date_col": "pub_date",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
+    # ── 海外市场早报 (morning_brief, 周一~五采集不受 A 股休市影响, 阈值含周末容差) ──
+    "global_news_flash":        {"date_col": "pub_time",   "lookback": 7,  "freq": "L2-daily",  "gap_threshold": 2},
+    "us_stock_daily":           {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 3},
+    "kr_stock_daily":           {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 3},
+    "global_index_daily":       {"date_col": "trade_date", "lookback": 14, "freq": "L2-daily",  "gap_threshold": 3},
 }
 
 # 表 → 回补函数 (来自 kronos_data.etl, 接受 days_back=int 参数)
@@ -169,6 +185,11 @@ _BACKFILL_MAP: dict[str, callable] = {
     "policy_law":               sync_policy_law,
     "mp_report":                sync_mp_report,
     "cctv_news":                sync_cctv_news,
+    # ── 海外市场早报 (morning_brief) ──
+    "global_news_flash":        sync_global_news,
+    "us_stock_daily":           sync_us_daily,
+    "kr_stock_daily":           sync_kr_daily,
+    "global_index_daily":       sync_global_index,
     # ── P0 周/月线回补 ──
     "weekly_kline":     sync_weekly_kline,
     "monthly_kline":    sync_monthly_kline,
@@ -814,6 +835,24 @@ def sync_sw_daily_batch(days_back: int = 7) -> dict:
         return {"status": "error", "table": "sw_daily", "reason": str(e)[:200]}
 
 
+def sync_chain_price_series_daily() -> dict:
+    """链成分股等权日涨幅 → industry_price_series (盘后 16:40).
+
+    复用 tools/build_industry_price_series.py 的 refresh_chain_equal_weight_series,
+    每日更新近 3 个交易日(容错漏跑),供供应链景气评分 (prosperity) 使用。
+    """
+    try:
+        from build_industry_price_series import refresh_chain_equal_weight_series
+        stats = refresh_chain_equal_weight_series(_PG_URL, trade_days=3, apply=True)
+        return {"table": "industry_price_series",
+                "written": stats.get("rows_written", 0),
+                "chains": len(stats.get("chains", {})),
+                "status": "ok"}
+    except Exception as e:
+        logger.warning("chain price series daily refresh failed: %s", e)
+        return {"status": "error", "table": "industry_price_series", "reason": str(e)[:200]}
+
+
 def sync_limit_list_d_intraday() -> dict:
     """日内 limit_list_d 增量 — L1 每 30 分钟采集当日涨跌停数据.
 
@@ -1067,16 +1106,17 @@ async def _scheduler_loop():
     last_run = {}
     while _running:
         now = datetime.now()
+        minute_key = now.strftime("%Y-%m-%d %H:%M")
         for job in _jobs:
             cron = job["cron"]
             job_id = job["id"]
             if job_id in _active_jobs:
                 continue
             # 避免同一分钟重复执行
-            if last_run.get(job_id) == now.strftime("%H:%M"):
+            if last_run.get(job_id) == minute_key:
                 continue
             if _cron_match(cron, now):
-                last_run[job_id] = now.strftime("%H:%M")
+                last_run[job_id] = minute_key
                 asyncio.create_task(_run_job(job))
 
         # 补偿只复用原任务定义，不创建第二套采集逻辑。
@@ -1182,6 +1222,33 @@ def run_intraday_sync():
                 str({k: v.get("written", 0) for k, v in ext.items()}))
     return {"core_summary": str({k: v.get("written", 0) for k, v in core.items()}),
             "ext_summary": str({k: v.get("written", 0) for k, v in ext.items()})}
+
+
+def run_morning_overseas_refresh() -> dict:
+    """海外市场早报数据波 — 每工作日 7:50, 在 8:00 早报生成前更新全部资讯 + 海外数据.
+
+    覆盖: 全球快讯 (新浪7x24/金十) + 美股日线 (Tushare VIP) + 全球指数
+          + A股资讯增量 (新闻/公告/新闻联播).
+    海外市场不受 A 股休市影响, cron 固定周一~周五触发, 不走 trade_cal 判断.
+    """
+    results = {}
+    for name, fn in [
+        ("global_news", sync_global_news),
+        ("us_daily", sync_us_daily),
+        ("global_index", sync_global_index),
+        ("stock_news", lambda: sync_stock_news(7)),
+        ("announcements", sync_announcements),
+        ("cctv_news", sync_cctv_news),
+    ]:
+        try:
+            r = fn()
+            results[name] = (r.get("written", r.get("pg_written", 0))
+                             if isinstance(r, dict) else str(r))
+        except Exception as e:
+            logger.warning("morning_overseas %s failed: %s", name, e)
+            results[name] = f"error: {e}"
+    logger.info("Morning overseas refresh: %s", results)
+    return results
 
 
 def validate_pipeline_consistency() -> dict:
@@ -1290,6 +1357,70 @@ def run_post_market_ext_daily() -> dict:
     return sync_post_market_ext(_current_date_string())
 
 
+def run_supply_chain_expectation_gap_daily() -> dict:
+    """盘后 17:30: 预期差模型每日链路 — refresh 当日分数 → 重估证据质量 → 快照落库。
+
+    三步串联,单步失败记 warning 不阻断后续(返回 degraded 由补偿队列 10/30/120
+    分钟重跑,复用现有重试机制)。复用 tools/ 下三个已 as-of 化的脚本:
+    - refresh-expectation-scores(当日分数,全宇宙,每天自然积累逐日分数)
+    - reevaluate(assessment_date=当日,as-of 同日截止,require-evidence 宇宙)
+    - register(fetch_picks 快照,默认 strong_confirmed/watch_review 档)
+    """
+    today = _current_date_string()
+    steps: dict[str, dict] = {}
+
+    try:
+        from supply_chain_data_collection_center import (
+            refresh_expectation_and_prosperity_scores,
+        )
+        result = refresh_expectation_and_prosperity_scores(_PG_URL, limit=6000, trade_date=today)
+        steps["refresh_scores"] = {
+            "status": "ok",
+            "written": result.get("written_expectation_gap_scores", 0),
+        }
+    except Exception as e:
+        logger.warning("expectation-gap daily: refresh scores failed: %s", e)
+        steps["refresh_scores"] = {"status": "error", "reason": str(e)[:200]}
+
+    try:
+        import reevaluate_supply_chain_evidence_quality as reevaluate
+        result = reevaluate.run(
+            _PG_URL, today, today, None, as_of_date=today, require_evidence=True,
+        )
+        steps["reevaluate"] = {
+            "status": "ok",
+            "written": result.get("written", 0),
+            "status_counts": result.get("review_status_counts", {}),
+        }
+    except Exception as e:
+        logger.warning("expectation-gap daily: reevaluate failed: %s", e)
+        steps["reevaluate"] = {"status": "error", "reason": str(e)[:200]}
+
+    try:
+        import register_supply_chain_expectation_gap_model as expectation_gap_model
+        result = expectation_gap_model.register_and_snapshot(_PG_URL, today, 30, 8.0, "close")
+        steps["snapshot"] = {
+            "status": "ok",
+            "snapshot_count": result.get("snapshot_count", 0),
+            "version_tag": result.get("version_tag"),
+        }
+    except Exception as e:
+        logger.warning("expectation-gap daily: snapshot failed: %s", e)
+        steps["snapshot"] = {"status": "error", "reason": str(e)[:200]}
+
+    failed = [name for name, step in steps.items() if step["status"] != "ok"]
+    if failed:
+        logger.warning("expectation-gap daily: degraded, failed steps=%s", failed)
+    return {
+        "status": "degraded" if failed else "ok",
+        "table": "screening_snapshots",
+        "trade_date": today,
+        "steps": steps,
+        "failed_steps": failed,
+        "written": steps.get("snapshot", {}).get("snapshot_count", 0),
+    }
+
+
 def start_scheduler():
     """注册定时任务并启动后台循环."""
     global _jobs
@@ -1322,6 +1453,14 @@ def start_scheduler():
         # P0 新闻舆情增量 — 盘中每 30 分钟采集最新快讯
         {"id": "stock_news", "name": "[L1]新闻舆情增量", "cron": "*/30 9-15 * * 1-5",
          "fn": sync_stock_news, "args": (7,)},
+
+        # ── 海外市场早报数据波 (周一~五, 不受 A 股交易日限制) ──
+        # 7:50 更新全部资讯+海外数据, 供 8:00 美股早报 / 9:05 韩股早报生成
+        {"id": "morning_overseas", "name": "[L1]海外早报数据刷新", "cron": "50 7 * * 1-5",
+         "fn": run_morning_overseas_refresh},
+        # 9:02 韩股开盘首小时快照 (韩国 9:00 开盘 = 北京 8:00), 供 9:05 早报
+        {"id": "kr_snapshot", "name": "[L1]韩股盘中快照", "cron": "2 9 * * 1-5",
+         "fn": sync_kr_daily},
 
         # ── L2 盘后级 (每日 16:00 前后) ──
         # P0 核心表 — 15:30 盘后立即采集
@@ -1357,6 +1496,8 @@ def start_scheduler():
          "fn": sync_margin_summary},
         {"id": "adj_factor", "name": "[L2]复权因子", "cron": "30 16 * * 1-5",
          "fn": sync_adj_factor},
+        {"id": "chain_price_series", "name": "[L2]链等权日涨幅(景气)",
+         "cron": "40 16 * * 1-5", "fn": sync_chain_price_series_daily},
         {"id": "top_list", "name": "[L2]龙虎榜明细", "cron": "0 17 * * 1-5",
          "fn": sync_top_list},
         {"id": "top_inst", "name": "[L2]龙虎榜机构交易", "cron": "3 17 * * 1-5",
@@ -1375,6 +1516,9 @@ def start_scheduler():
          "fn": sync_forecast_data},
         {"id": "dividend", "name": "[L2]分红送股", "cron": "24 17 * * 1-5",
          "fn": sync_dividend_data},
+        # 预期差模型每日链路 — refresh 分数 → 重估 → 快照 (履历逐日积累)
+        {"id": "expectation_gap_daily", "name": "[L2]预期差模型每日链路",
+         "cron": "30 17 * * 1-5", "fn": run_supply_chain_expectation_gap_daily},
 
         # ── P0: L2-P3 财务数据波 (17:25-17:45, 财报季日更, 其余时间 small batch) ──
         {"id": "income", "name": "[L2]利润表", "cron": "25 17 * * 1-5",
@@ -1434,6 +1578,9 @@ def start_scheduler():
         # P1 公司基本信息 — 每周六 03:00 (全量刷新)
         {"id": "stock_profiles", "name": "[L3]公司基本信息", "cron": "0 3 * * 6",
          "fn": sync_stock_profiles},
+        # 美股基础信息 (us_basic 名称映射) — 每周六 03:20
+        {"id": "us_basic_sync", "name": "[L3]美股基础信息", "cron": "20 3 * * 6",
+         "fn": sync_us_basic},
         # 阶段 1 AC-2 — ST 历史增量同步 (幸存者偏差修复, 供回测 JOIN 剔除戴帽股)
         # 周六 03:30 增量拉 namechange 解析戴帽/摘帽区间写 st_history
         {"id": "st_history_sync", "name": "[L3]ST历史同步", "cron": "30 3 * * 6",
@@ -1467,6 +1614,7 @@ def start_scheduler():
 
     loop = asyncio.get_event_loop()
     loop.create_task(_scheduler_loop())
+    loop.create_task(asyncio.to_thread(run_missed_scheduled_research_tasks))
     logger.info("Scheduler registered: %d jobs", len(_jobs))
 
 

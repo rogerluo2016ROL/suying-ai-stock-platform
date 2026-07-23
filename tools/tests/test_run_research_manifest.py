@@ -1,6 +1,7 @@
 import argparse
 import importlib.util
 import json
+import subprocess
 import sys
 import types
 from datetime import datetime
@@ -68,6 +69,21 @@ def test_git_state_is_conservative_when_git_is_unavailable(monkeypatch):
     )
 
     assert pipeline._git_state() == {"commit": "unavailable", "dirty": True}
+
+
+def test_subprocess_timeout_is_recorded_without_aborting_pipeline(monkeypatch):
+    def timeout(*_args, **_kwargs):
+        raise subprocess.TimeoutExpired(["collector"], 120, output="partial", stderr="slow source")
+
+    monkeypatch.setattr(pipeline.subprocess, "run", timeout)
+
+    result = pipeline._run_subprocess(["collector"], timeout=120)
+
+    assert result["returncode"] == 124
+    assert result["status"] == "timeout"
+    assert result["error"] == "subprocess timed out after 120s"
+    assert "partial" in result["stdout_tail"]
+    assert "slow source" in result["stderr_tail"]
 
 
 def test_send_feishu_defaults_to_config():
@@ -362,6 +378,22 @@ def test_write_delivery_state_updates_both_run_files(tmp_path):
     stored_pipeline = json.loads((tmp_path / "pipeline.json").read_text())
     assert stored_result["pipeline"]["feishu_delivery"] == state
     assert stored_pipeline["feishu_delivery"] == state
+
+
+def test_lark_doc_failure_is_recorded_without_aborting_delivery(tmp_path):
+    result = {"pipeline": {}}
+
+    doc = pipeline.try_sync_lark_doc(
+        lambda _path, _result: (_ for _ in ()).throw(RuntimeError("permission denied")),
+        tmp_path / "report.md",
+        result,
+        tmp_path,
+    )
+
+    assert doc == {}
+    assert result["pipeline"]["lark_doc"]["status"] == "failed"
+    assert "permission denied" in result["pipeline"]["lark_doc"]["error"]
+    assert json.loads((tmp_path / "result.json").read_text())["pipeline"]["lark_doc"]["status"] == "failed"
 
 
 def test_deliver_feishu_message_records_confirmed_state(monkeypatch, tmp_path):

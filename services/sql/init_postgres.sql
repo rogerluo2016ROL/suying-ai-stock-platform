@@ -969,3 +969,68 @@ CREATE TABLE IF NOT EXISTS st_history (
 );
 CREATE INDEX IF NOT EXISTS idx_st_history_code ON st_history(code);
 CREATE INDEX IF NOT EXISTS idx_st_history_date ON st_history(start_date);
+
+
+-- ── 海外市场早报 (morning_brief) 数据层 ──
+-- 数据源: Tushare VIP (us_daily / us_basic / index_global) + 东财 push2 (美股实时兜底)
+--         + Naver Finance (韩股) + 新浪7x24/金十 (全球快讯). 见 data-service sync/{global_news,us_market,kr_market}.py
+
+-- 全球财经快讯 (美/韩/日热点新闻 Top10 的原料)
+CREATE TABLE IF NOT EXISTS global_news_flash (
+    id SERIAL PRIMARY KEY,
+    ext_id TEXT NOT NULL,       -- 源站原始 id
+    pub_time TIMESTAMP NOT NULL,
+    title TEXT,
+    content TEXT,
+    source TEXT NOT NULL,       -- 'sina' / 'jin10'
+    url TEXT,
+    CONSTRAINT global_news_flash_uniq UNIQUE(source, ext_id)
+);
+CREATE INDEX IF NOT EXISTS idx_global_news_flash_time ON global_news_flash(pub_time);
+
+-- 美股基础信息 (Tushare us_basic, 周级刷新; 名称映射用)
+CREATE TABLE IF NOT EXISTS us_stock_basic (
+    ts_code TEXT PRIMARY KEY,
+    name TEXT,
+    enname TEXT,
+    classify TEXT,              -- EQ / ADR / GDR (证券类型, 非行业)
+    list_date TEXT,
+    delist_date TEXT
+);
+
+-- 美股日线快照 (Tushare us_daily 主源, 东财 push2 兜底; source 列标识)
+CREATE TABLE IF NOT EXISTS us_stock_daily (
+    trade_date DATE NOT NULL,   -- 美股交易日 (美国当地日期)
+    ts_code TEXT NOT NULL,
+    close DOUBLE PRECISION,
+    pct_chg DOUBLE PRECISION,
+    vol DOUBLE PRECISION,
+    amount DOUBLE PRECISION,    -- 成交额 (美元)
+    source TEXT DEFAULT 'tushare',
+    snapshot_ts TIMESTAMP,
+    CONSTRAINT us_stock_daily_uniq UNIQUE(trade_date, ts_code)
+);
+CREATE INDEX IF NOT EXISTS idx_us_stock_daily_date ON us_stock_daily(trade_date);
+
+-- 韩股盘中快照 (Naver Finance; 9:05 早报用开盘首小时数据)
+CREATE TABLE IF NOT EXISTS kr_stock_daily (
+    trade_date DATE NOT NULL,   -- 北京日期 (与韩国交易日一致)
+    code TEXT NOT NULL,
+    name TEXT,
+    market TEXT,                -- KOSPI / KOSDAQ
+    pct_chg DOUBLE PRECISION,
+    amount DOUBLE PRECISION,    -- 累计成交额 (百万韩元)
+    volume DOUBLE PRECISION,
+    snapshot_ts TIMESTAMP,
+    CONSTRAINT kr_stock_daily_uniq UNIQUE(trade_date, code)
+);
+CREATE INDEX IF NOT EXISTS idx_kr_stock_daily_date ON kr_stock_daily(trade_date);
+
+-- 全球指数日线 (Tushare index_global: IXIC/DJI/SPX/N225/KS11)
+CREATE TABLE IF NOT EXISTS global_index_daily (
+    ts_code TEXT NOT NULL,
+    trade_date DATE NOT NULL,
+    close DOUBLE PRECISION,
+    pct_chg DOUBLE PRECISION,
+    CONSTRAINT global_index_daily_uniq UNIQUE(ts_code, trade_date)
+);
