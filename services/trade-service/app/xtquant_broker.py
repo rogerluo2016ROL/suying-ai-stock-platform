@@ -8,6 +8,7 @@ the paper trading MockBroker.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import uuid
@@ -97,7 +98,10 @@ class XtquantBroker(BrokerInterface):
         self._account = account or os.environ.get("QMT_ACCOUNT", _STUB_ACCOUNT_ID)
         self._trader = None  # XtQuantTrader instance (when xtquant available)
         self._is_live = _XTQUANT_AVAILABLE
-        self._implemented_capabilities: set[str] = set()
+        # 已接线的实盘能力（place_order / order_callbacks 仍未接线 → live_readiness 保持 blocked）
+        self._implemented_capabilities: set[str] = {
+            "cancel_order", "query_positions", "query_account",
+        }
 
     def live_readiness(self) -> dict:
         missing = sorted(REQUIRED_LIVE_CAPABILITIES - self._implemented_capabilities)
@@ -147,47 +151,83 @@ class XtquantBroker(BrokerInterface):
                 raise BrokerCapabilityError("xtquant place_order capability is not implemented")
         raise BrokerCapabilityError("xtquant place_order capability is not implemented")
 
-    async def cancel_order(self, order_id: str) -> CancelResult:
+    def _require_connected(self, capability: str) -> None:
+        """统一前置检查：SDK 缺失 / 未连接一律 fail-fast，拒绝静默 fallback 到 stub。"""
         if not _XTQUANT_AVAILABLE:
-            raise BrokerCapabilityError("xtquant SDK unavailable; cancel_order is blocked")
-        if _XTQUANT_AVAILABLE:
-            if self._trader is None:
-                raise RuntimeError(
-                    "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
-                    "请先调用 connect() 连接券商。"
-                )
-            # TODO: wire to xtquant.xttrader.cancel_order_stock(...)
-            if "cancel_order" not in self._implemented_capabilities:
-                raise BrokerCapabilityError("xtquant cancel_order capability is not implemented")
-        raise BrokerCapabilityError("xtquant cancel_order capability is not implemented")
+            raise BrokerCapabilityError(f"xtquant SDK unavailable; {capability} is blocked")
+        if self._trader is None:
+            raise RuntimeError(
+                "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub（防止虚假成交）。"
+                "请先调用 connect() 连接券商。"
+            )
+
+    async def cancel_order(self, order_id: str) -> CancelResult:
+        self._require_connected("cancel_order")
+        from xtquant.xttype import StockAccount  # noqa: PLC0415 (SDK 仅 Windows/QMT 可用)
+
+        try:
+            xt_order_id = int(order_id)
+        except (TypeError, ValueError):
+            return CancelResult(
+                order_id=order_id, success=False,
+                message=f"非法 xtquant 委托号（需为整数）: {order_id}",
+            )
+        acc = StockAccount(self._account)
+        ret = await asyncio.to_thread(self._trader.cancel_order_stock, acc, xt_order_id)
+        if ret == 0:
+            logger.info("xtquant cancel ok: order=%s", order_id)
+            return CancelResult(order_id=order_id, success=True, message="cancelled (live)")
+        logger.warning("xtquant cancel failed: order=%s code=%s", order_id, ret)
+        return CancelResult(order_id=order_id, success=False, message=f"cancel failed: code={ret}")
 
     async def get_positions(self) -> list[Position]:
-        if not _XTQUANT_AVAILABLE:
-            raise BrokerCapabilityError("xtquant SDK unavailable; query_positions is blocked")
-        if _XTQUANT_AVAILABLE:
-            if self._trader is None:
-                raise RuntimeError(
-                    "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
-                    "请先调用 connect() 连接券商。"
-                )
-            # TODO: wire to xtquant.xttrader.query_stock_positions(...)
-            if "query_positions" not in self._implemented_capabilities:
-                raise BrokerCapabilityError("xtquant query_positions capability is not implemented")
-        raise BrokerCapabilityError("xtquant query_positions capability is not implemented")
+        self._require_connected("query_positions")
+        from xtquant.xttype import StockAccount  # noqa: PLC0415
+
+        acc = StockAccount(self._account)
+        raw = await asyncio.to_thread(self._trader.query_stock_positions, acc)
+        positions: list[Position] = []
+        for p in raw or []:
+            qty = int(getattr(p, "m_nVolume", 0) or 0)
+            if qty <= 0:
+                continue
+            # 与风控/下单链路对齐：symbol 用 6 位代码（不带交易所后缀）
+            symbol = str(getattr(p, "m_strInstrumentID", "") or "")
+            if not symbol:
+                continue
+            avg_cost = float(getattr(p, "m_dOpenPrice", 0.0) or 0.0)
+            market_value = float(getattr(p, "m_dMarketValue", 0.0) or 0.0)
+            current_price = round(market_value / qty, 3) if market_value else avg_cost
+            pos = Position(
+                symbol=symbol,
+                quantity=int(getattr(p, "m_nCanUseVolume", qty) or qty),
+                avg_cost=avg_cost,
+            )
+            pos.current_price = current_price
+            pos.market_value = round(market_value, 2)
+            pos.pnl = round((current_price - avg_cost) * qty, 2)
+            if avg_cost > 0:
+                pos.pnl_pct = round((current_price - avg_cost) / avg_cost * 100, 2)
+            positions.append(pos)
+        return positions
 
     async def get_account(self) -> AccountInfo:
-        if not _XTQUANT_AVAILABLE:
-            raise BrokerCapabilityError("xtquant SDK unavailable; query_account is blocked")
-        if _XTQUANT_AVAILABLE:
-            if self._trader is None:
-                raise RuntimeError(
-                    "XtquantBroker: SDK 可用但未连接，拒绝静默 fallback 到 stub。"
-                    "请先调用 connect() 连接券商。"
-                )
-            # TODO: wire to xtquant.xttrader.query_stock_asset(...)
-            if "query_account" not in self._implemented_capabilities:
-                raise BrokerCapabilityError("xtquant query_account capability is not implemented")
-        raise BrokerCapabilityError("xtquant query_account capability is not implemented")
+        self._require_connected("query_account")
+        from xtquant.xttype import StockAccount  # noqa: PLC0415
+
+        acc = StockAccount(self._account)
+        asset = await asyncio.to_thread(self._trader.query_stock_asset, acc)
+        if asset is None:
+            raise BrokerCapabilityError("xtquant query_stock_asset returned None")
+        return AccountInfo(
+            total_assets=float(getattr(asset, "m_dBalance", 0.0) or 0.0),
+            available=float(getattr(asset, "m_dAvailable", 0.0) or 0.0),
+            frozen=float(getattr(asset, "m_dFrozenCash", 0.0) or 0.0),
+            market_value=float(getattr(asset, "m_dMarketValue", 0.0) or 0.0),
+            total_pnl=float(getattr(asset, "m_dPositionProfit", 0.0) or 0.0),
+            daily_pnl=0.0,  # xtquant 资产快照不含当日盈亏，由熔断器按成交回报累计
+            account_id=self._account,
+        )
 
     async def sync(self) -> SyncResult:
         """Sync positions + account from broker."""
