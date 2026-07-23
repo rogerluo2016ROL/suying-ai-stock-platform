@@ -59,6 +59,7 @@
 - **密码哈希**: Argon2id (time_cost=3, memory_cost=65536 KiB, parallelism=2)
 - **RBAC**: 4 角色 — `admin` / `internal_analyst` / `external_analyst` / `user`
 - **默认管理员**: `admin@suying.ai` / `Admin123!`（由 `backend/app/config.py` 定义，`main.py` lifespan 自动 seed）
+- **微服务认证 (2026-07-23 起)**: trade/strategy/diagnosis/data/signal/alert/backtest/prediction 已接入 `kronos_auth`——写接口 `require_role`，只读 `get_current_user_jwt`；服务间调用带 `X-Service-Auth: $KRONOS_SERVICE_SECRET` 头豁免（dev fallback secret 不授予豁免）。screener-service 与 api-gateway 暂未接入（screener 出站调用已带 X-Service-Auth）
 - **实证**: `backend/app/config.py:16-32`, `backend/app/routers/auth.py:35-50`, ADR-001
 
 ### 数据库连接
