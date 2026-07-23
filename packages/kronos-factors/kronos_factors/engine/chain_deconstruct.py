@@ -1,13 +1,26 @@
 """Industry chain deconstruct module for multi-method chain analysis.
 
 This module implements four deconstruct methods for industry chain analysis:
-1. bom: L1-L8 BOM-oriented layered tree and node paths
+1. bom: 钻取链 (drilldown) L1-L8 BOM-oriented layered tree and node paths
 2. upstream_downstream: 5-layer tree (raw_material → component → manufacture → channel → terminal)
 3. value_chain: margin/pricing_power/value_added per node
 4. competition: concentration/leader_share/barrier/threat per node
 
+Plus a template path (template=...) rendering a 8-layer 传导链 (transmission) tree.
+
+术语约定 (terminology, 避免两套 "L1-L8" 撞名):
+- 传导链 (transmission): template 8 层产业传导位置
+  (demand/task/core_product/foundation/integration/supporting/infrastructure/commercialization),
+  显示名见 TRANSMISSION_LAYER_NAMES。chain_nodes.transmission_layer 列承载此维度
+  (migration 040), 旧 chain_nodes.layer (1-5) 经 LEGACY_LAYER_TO_TRANSMISSION 推导。
+- 钻取链 (drilldown): BOM L1-L8 研究钻取深度
+  (政策主题/产业方向/产业链/环节/BOM节点/产品技术路线/公司业务分部/证据事件),
+  显示名见 BOM_LAYER_NAMES。
+两者是不同维度: 传导链回答"需求如何沿产业链传导", 钻取链回答"研究要下钻到哪一层"。
+
 PRD: docs/prd/supply-chain-reconstruct-2026-06-24.md §4.2
-Migration: backend/alembic/versions/013_industry_chain_deconstruct.py
+Migration: backend/alembic/versions/013_industry_chain_deconstruct.py,
+           backend/alembic/versions/040_chain_nodes_transmission_layer.py
 """
 
 from __future__ import annotations
@@ -21,7 +34,8 @@ from typing import Any
 from kronos_factors.engine.industry_chain_templates import load_template_catalog
 
 
-# Layer definitions for upstream_downstream view
+# Layer definitions for upstream_downstream view (旧 chain_nodes.layer 1-5 上下游环节编号;
+# deprecated: 新代码优先使用 transmission_layer, 见 LEGACY_LAYER_TO_TRANSMISSION)
 LAYER_NAMES = {
     1: "原材料",
     2: "核心零部件",
@@ -30,6 +44,7 @@ LAYER_NAMES = {
     5: "终端应用",
 }
 
+# 钻取链 (drilldown) L1-L8 研究钻取深度显示名 — 与传导链 (transmission) 8 层无关
 BOM_LAYER_NAMES = {
     "L1": "政策主题",
     "L2": "产业方向",
@@ -39,6 +54,29 @@ BOM_LAYER_NAMES = {
     "L6": "产品/技术路线",
     "L7": "公司业务分部",
     "L8": "证据事件",
+}
+
+# 传导链 (transmission) 8 层产业传导位置显示名 — template 路径与
+# chain_nodes.transmission_layer 使用, 与钻取链 (drilldown) L1-L8 无关
+TRANSMISSION_LAYER_NAMES = {
+    "demand": "需求层",
+    "task": "任务层",
+    "core_product": "核心产品层",
+    "foundation": "底层支撑层",
+    "integration": "集成层",
+    "supporting": "配套层",
+    "infrastructure": "基础设施层",
+    "commercialization": "商业变现层",
+}
+
+# 旧 chain_nodes.layer (1-5) → 传导链 layer_id 推导映射;
+# 与 backend/alembic/versions/040_chain_nodes_transmission_layer.py 的回填逻辑一致
+LEGACY_LAYER_TO_TRANSMISSION = {
+    1: "foundation",
+    2: "core_product",
+    3: "integration",
+    4: "supporting",
+    5: "commercialization",
 }
 
 DEFAULT_EVIDENCE_EVENTS = [
@@ -378,7 +416,11 @@ def _build_layer_trigger_signal(layer_id: str, evidence_chain: list[dict[str, An
 
 
 def build_industry_template_tree(template: dict[str, Any]) -> dict[str, Any]:
-    """Build a deterministic 8-layer industry-link tree from a template config."""
+    """Build a deterministic 8-layer 传导链 (transmission) tree from a template config.
+
+    Each child node's layer_id 即传导链位置 (TRANSMISSION_LAYER_NAMES),
+    与 BOM 钻取链 (drilldown) L1-L8 是不同维度。
+    """
     template_id = str(template.get("template_id") or "")
     children = []
     for layer in sorted(template.get("layers") or [], key=lambda item: int(item.get("order") or 0)):
@@ -389,6 +431,8 @@ def build_industry_template_tree(template: dict[str, Any]) -> dict[str, Any]:
         child = {
             "node_id": f"template:{template_id}:{layer_id}",
             "layer_id": layer_id,
+            "transmission_layer": layer_id,
+            "transmission_layer_name": TRANSMISSION_LAYER_NAMES.get(layer_id, layer_id),
             "layer_order": int(layer.get("order") or 0),
             "name": str(layer.get("name") or layer_id),
             "definition": str(layer.get("definition") or ""),
@@ -606,6 +650,22 @@ def _to_float(value: Any, default: float | None = None) -> float | None:
         return default
 
 
+def _resolve_transmission_layer(node: dict[str, Any]) -> str | None:
+    """Resolve the 传导链 (transmission) layer_id for a chain_nodes record.
+
+    优先读取 node["transmission_layer"] (migration 040 新列); 缺失时按旧
+    chain_nodes.layer (1-5) 经 LEGACY_LAYER_TO_TRANSMISSION 推导; 无法推导返回 None。
+    """
+    explicit = node.get("transmission_layer")
+    if explicit:
+        return str(explicit)
+    try:
+        layer_num = int(node.get("layer"))
+    except (TypeError, ValueError):
+        return None
+    return LEGACY_LAYER_TO_TRANSMISSION.get(layer_num)
+
+
 def _build_tree_node(
     node: dict[str, Any],
     all_nodes: list[dict[str, Any]],
@@ -615,8 +675,17 @@ def _build_tree_node(
     result = {
         "node_id": node.get("node_id"),
         "name": node.get("node_name"),
+        # deprecated: 旧 chain_nodes.layer 上下游环节编号, 保留仅为向后兼容;
+        # 传导链位置请看 transmission_layer
         "layer": node.get("layer"),
     }
+
+    transmission_layer = _resolve_transmission_layer(node)
+    if transmission_layer:
+        result["transmission_layer"] = transmission_layer
+        result["transmission_layer_name"] = TRANSMISSION_LAYER_NAMES.get(
+            transmission_layer, transmission_layer
+        )
 
     if include_children:
         children = [
@@ -637,7 +706,8 @@ def build_upstream_downstream_tree(nodes: list[dict[str, Any]]) -> dict[str, Any
 
     Args:
         nodes: List of chain_nodes records with node_id, node_name, layer, parent_node_id,
-               upstream_nodes, downstream_nodes
+               upstream_nodes, downstream_nodes; 若带 transmission_layer (migration 040)
+               或可由旧 layer 推导, 输出节点会附带 transmission_layer 字段。
 
     Returns:
         Tree structure with root and 5-layer children:
@@ -645,8 +715,8 @@ def build_upstream_downstream_tree(nodes: list[dict[str, Any]]) -> dict[str, Any
             "node_id": "root",
             "name": "<theme_name>",
             "children": [
-                {"node_id": "...", "name": "原材料", "layer": 1, "children": [...]},
-                {"node_id": "...", "name": "核心零部件", "layer": 2, "children": [...]},
+                {"node_id": "...", "name": "原材料", "layer": 1, "transmission_layer": "foundation", "children": [...]},
+                {"node_id": "...", "name": "核心零部件", "layer": 2, "transmission_layer": "core_product", "children": [...]},
                 ...
             ]
         }
@@ -701,7 +771,7 @@ def build_upstream_downstream_tree(nodes: list[dict[str, Any]]) -> dict[str, Any
 
 
 def _bom_layer_key(layer: Any) -> str:
-    """Map source layer values into the V2 L1-L8 display buckets."""
+    """Map source layer values into the 钻取链 (drilldown) L1-L8 display buckets."""
     try:
         layer_num = int(layer)
     except (TypeError, ValueError):
@@ -976,7 +1046,11 @@ def build_bom_tree(
     theme_name: str | None = None,
     theme_id: str | None = None,
 ) -> dict[str, Any]:
-    """Build V2 BOM view with L1-L8 layer buckets and leaf paths."""
+    """Build V2 BOM view with 钻取链 (drilldown) L1-L8 layer buckets and leaf paths.
+
+    L1-L8 此处是研究钻取深度 (BOM_LAYER_NAMES), 与传导链 (transmission)
+    8 层产业位置 (TRANSMISSION_LAYER_NAMES) 是不同维度。
+    """
     layer_keys = [f"L{i}" for i in range(1, 9)]
     bom_layers: dict[str, list[dict[str, Any]]] = {key: [] for key in layer_keys}
     if not nodes:
@@ -1156,13 +1230,14 @@ def deconstruct_chain(
     Args:
         theme_id: Industry theme identifier (e.g., "semiconductor", "robot")
         method: Deconstruct method - one of:
-            - "bom": L1-L8 BOM layer buckets and paths
+            - "bom": 钻取链 (drilldown) L1-L8 BOM layer buckets and paths
             - "upstream_downstream": 5-layer tree structure
             - "value_chain": tree + margin/pricing_power/value_added
             - "competition": tree + concentration/leader_share/barrier/threat
         nodes: List of chain_nodes records (optional, for testing)
         theme_name: Human-readable theme name (optional)
-        template: Optional industry-link template, e.g. "complex_tech"
+        template: Optional industry-link template, e.g. "complex_tech";
+            渲染 8 层传导链 (transmission) 树, 与钻取链 (drilldown) L1-L8 不同维度
 
     Returns:
         Deconstruct result with theme info and tree structure:

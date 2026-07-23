@@ -1720,16 +1720,18 @@ def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> 
 async def chain_deconstruct(
     theme_id: str = Query(..., description="Industry theme ID (e.g., 'semiconductor')"),
     method: str = Query("upstream_downstream", description="Deconstruct method: bom, upstream_downstream, value_chain, competition"),
-    template: Optional[str] = Query(None, description="Optional industry-link template, e.g. complex_tech"),
+    template: Optional[str] = Query(None, description="Optional industry-link template (8-layer 传导链/transmission, e.g. complex_tech); 与 BOM 钻取链 (drilldown) L1-L8 不同维度"),
 ):
     """Return industry chain deconstruct tree with selected view method.
 
     Methods:
-    - bom: L1-L8 BOM tree and root-to-leaf paths
+    - bom: 钻取链 (drilldown) L1-L8 BOM tree and root-to-leaf paths (研究钻取深度)
     - upstream_downstream: 5-layer tree (原材料→零部件→制造→渠道→终端)
     - value_chain: tree + margin/pricing_power/value_added per node
     - competition: tree + concentration/leader_share/barrier/threat per node
-    - template=complex_tech: 8-layer complex-technology industry-link template
+    - template=complex_tech: 8-layer 传导链 (transmission) 产业传导位置模板
+      (demand→task→core_product→foundation→integration→supporting→infrastructure→commercialization),
+      与钻取链 (drilldown) L1-L8 是不同维度
     """
     from kronos_factors.engine.chain_deconstruct import deconstruct_chain
 
@@ -1738,10 +1740,20 @@ async def chain_deconstruct(
     try:
         with _pg_connect() as pg:
             cur = pg.cursor()
+            # transmission_layer 由 migration 040 引入; 未迁移的库探测不到该列时
+            # 回退旧 SELECT, 由 chain_deconstruct 按旧 layer 推导 (向后兼容)
             cur.execute(
                 """
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'chain_nodes' AND column_name = 'transmission_layer'
+                """
+            )
+            transmission_col = ", transmission_layer" if cur.fetchone() else ""
+            cur.execute(
+                f"""
                 SELECT node_id, theme_id, node_name, layer, parent_node_id,
                        upstream_nodes, downstream_nodes, value_chain, competition
+                       {transmission_col}
                 FROM chain_nodes
                 WHERE theme_id = %s
                 ORDER BY layer, node_id
@@ -1780,6 +1792,9 @@ async def chain_deconstruct(
                         "downstream_nodes": _json_or_default(row[6], []),
                         "value_chain": _json_or_default(row[7], {}),
                         "competition": _json_or_default(row[8], {}),
+                        # 传导链 (transmission) 位置 (migration 040), 缺列/NULL 时
+                        # 由 chain_deconstruct 按旧 layer 推导
+                        "transmission_layer": str(row[9]) if len(row) > 9 and row[9] else None,
                     }
                     nodes.append(node)
 

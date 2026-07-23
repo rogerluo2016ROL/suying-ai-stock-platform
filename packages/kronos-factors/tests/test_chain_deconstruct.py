@@ -527,3 +527,59 @@ class TestTemplateLoading:
         assert result["template"]["template_id"] == "complex_tech"
         assert result["tree"]["children"]
         assert result["macro_context"]
+
+
+class TestTransmissionLayer:
+    """传导链 (transmission) 层: 新列优先, 旧 layer 推导兜底, 与钻取链 L1-L8 解耦."""
+
+    def test_legacy_mapping_covers_layers_1_to_5(self):
+        from kronos_factors.engine.chain_deconstruct import (
+            LEGACY_LAYER_TO_TRANSMISSION,
+            TRANSMISSION_LAYER_NAMES,
+        )
+        assert LEGACY_LAYER_TO_TRANSMISSION == {
+            1: "foundation",
+            2: "core_product",
+            3: "integration",
+            4: "supporting",
+            5: "commercialization",
+        }
+        # 所有映射目标都是合法的传导链 layer_id
+        assert set(LEGACY_LAYER_TO_TRANSMISSION.values()) <= set(TRANSMISSION_LAYER_NAMES)
+
+    def test_tree_node_derives_transmission_layer_from_legacy_layer(self):
+        nodes = [
+            {"node_id": "raw", "node_name": "硅片", "layer": 1, "parent_node_id": None},
+            {"node_id": "fab", "node_name": "晶圆制造", "layer": 2, "parent_node_id": "raw"},
+        ]
+        tree = build_upstream_downstream_tree(nodes)
+        root = tree["children"][0]
+        assert root["layer"] == 1  # 旧字段保留, 向后兼容
+        assert root["transmission_layer"] == "foundation"
+        assert root["transmission_layer_name"] == "底层支撑层"
+        child = root["children"][0]
+        assert child["transmission_layer"] == "core_product"
+
+    def test_explicit_transmission_layer_takes_precedence(self):
+        nodes = [
+            {
+                "node_id": "n1",
+                "node_name": "液冷",
+                "layer": 2,
+                "parent_node_id": None,
+                "transmission_layer": "infrastructure",
+            },
+            {"node_id": "n2", "node_name": "未知", "layer": 9, "parent_node_id": None},
+        ]
+        tree = build_upstream_downstream_tree(nodes)
+        by_id = {child["node_id"]: child for child in tree["children"]}
+        # 显式值优先于 legacy 推导
+        assert by_id["n1"]["transmission_layer"] == "infrastructure"
+        assert by_id["n1"]["transmission_layer_name"] == "基础设施层"
+        # 无映射的 layer 不输出 transmission_layer 字段
+        assert "transmission_layer" not in by_id["n2"]
+
+    def test_template_children_carry_transmission_layer(self):
+        result = deconstruct_chain("ai", "bom", template="complex_tech")
+        for child in result["tree"]["children"]:
+            assert child["transmission_layer"] == child["layer_id"]

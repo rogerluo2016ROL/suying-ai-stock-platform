@@ -125,6 +125,11 @@ def pool_for_business_tag(status: str, revenue_ratio: float | None, commercializ
 
 
 def layer_level_from_bom_level(level: str | None) -> str:
+    """Map BOM node level/node_type into 钻取链 (drilldown) L1-L8 研究钻取深度。
+
+    注意: 此处的 L1-L8 是钻取链维度 (政策主题→…→证据事件), 与 template 8 层
+    传导链 (transmission, demand→…→commercialization) 是不同维度。
+    """
     key = str(level or "").lower()
     if key in {"theme", "policy"}: return "L1"
     if key in {"direction", "sector"}: return "L2"
@@ -790,6 +795,9 @@ def _load_bigtech_capex_context() -> dict[str, Any]:
     except Exception:
         return {"company_count": 0, "record_count": 0, "layers": {}, "companies": []}
     template = next((item for item in data.get("templates", []) if item.get("template_id") == "complex_tech"), {})
+    # template.layers 是传导链 (transmission) 8 层产业传导位置
+    # (demand/task/core_product/foundation/integration/supporting/infrastructure/commercialization),
+    # 与钻取链 (drilldown) L1-L8 是不同维度
     layers: dict[str, list[dict[str, Any]]] = {}
     companies: set[str] = set()
     for layer in template.get("layers", []):

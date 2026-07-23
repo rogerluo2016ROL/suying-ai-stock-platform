@@ -52,6 +52,9 @@ def load_bigtech_capex_context(config_path: Path = INDUSTRY_CHAIN_TEMPLATE_PATH)
         return {"company_count": 0, "record_count": 0, "layers": {}, "companies": []}
     data = json.loads(config_path.read_text(encoding="utf-8"))
     template = next((item for item in data.get("templates", []) if item.get("template_id") == "complex_tech"), {})
+    # template.layers 是传导链 (transmission) 8 层产业传导位置
+    # (demand/task/core_product/foundation/integration/supporting/infrastructure/commercialization),
+    # 与 BOM 钻取链 (drilldown) L1-L8 是不同维度
     layers: dict[str, list[dict[str, Any]]] = {}
     companies: set[str] = set()
     for layer in template.get("layers", []):
