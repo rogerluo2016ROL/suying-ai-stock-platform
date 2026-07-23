@@ -46,6 +46,24 @@ FACTOR_KEYS = [
 
 REASSESSMENT_ALLOWED_STATUSES = {"strong_confirmed", "watch_review"}
 
+REASSESSMENT_KNOWN_STATUSES = (
+    "strong_confirmed",
+    "watch_review",
+    "manual_review",
+    "downgrade_or_remove",
+)
+
+
+def parse_min_reassessment(value: str | None) -> list[str]:
+    """解析 --min-reassessment(逗号分隔状态列表);空值回退默认门槛。"""
+    if not value:
+        return sorted(REASSESSMENT_ALLOWED_STATUSES)
+    statuses = [item.strip() for item in str(value).split(",") if item.strip()]
+    unknown = [item for item in statuses if item not in REASSESSMENT_KNOWN_STATUSES]
+    if unknown:
+        raise ValueError(f"unknown reassessment status: {unknown}; known: {list(REASSESSMENT_KNOWN_STATUSES)}")
+    return statuses
+
 SIGNAL_TIER_THRESHOLDS = {
     "strong": 15.0,
     "watch": 8.0,
@@ -114,14 +132,42 @@ def model_score_from_row(row: dict) -> float:
     return round(score, 2)
 
 
-def fetch_picks(cur, trade_date: str, top_n: int, min_gap: float) -> list[dict]:
+def fetch_picks(
+    cur,
+    trade_date: str,
+    top_n: int,
+    min_gap: float,
+    min_reassessment: list[str] | None = None,
+    allow_lookahead: bool = False,
+) -> list[dict]:
+    statuses = list(min_reassessment) if min_reassessment else sorted(REASSESSMENT_ALLOWED_STATUSES)
+    if allow_lookahead:
+        # 旧行为(仅对比用):把全库最新 assessment_date 的评估 join 到所有历史 score_date,
+        # 对历史日期而言是未来函数。
+        reassessment_join = """
+            JOIN business_tag_evidence_reassessment r
+              ON r.mapping_id = g.mapping_id
+             AND r.assessment_date = (
+                 SELECT max(assessment_date) FROM business_tag_evidence_reassessment
+             )
+        """
+        params: tuple = (trade_date, statuses, min_gap, top_n)
+    else:
+        # as-of join:每个 score_date 只用 assessment_date <= 当日的最近一次评估。
+        reassessment_join = """
+            JOIN (
+                SELECT DISTINCT ON (mapping_id)
+                    mapping_id, assessment_date, reliability_adjusted_gap_score,
+                    evidence_quality_score, label_fit_score, review_status
+                FROM business_tag_evidence_reassessment
+                WHERE assessment_date <= %s
+                ORDER BY mapping_id, assessment_date DESC
+            ) r ON r.mapping_id = g.mapping_id
+        """
+        params = (trade_date, trade_date, statuses, min_gap, top_n)
     cur.execute(
         """
-        WITH latest_reassessment AS (
-            SELECT max(assessment_date) AS assessment_date
-            FROM business_tag_evidence_reassessment
-        ),
-        scored AS (
+        WITH scored AS (
             SELECT
                 b.mapping_id,
                 b.code,
@@ -163,10 +209,7 @@ def fetch_picks(cur, trade_date: str, top_n: int, min_gap: float) -> list[dict]:
                 )::numeric, 2) AS model_score
             FROM business_tag_expectation_gap_scores g
             JOIN business_tag_mapping b ON b.mapping_id = g.mapping_id
-            JOIN latest_reassessment lr ON lr.assessment_date IS NOT NULL
-            JOIN business_tag_evidence_reassessment r
-              ON r.mapping_id = g.mapping_id
-             AND r.assessment_date = lr.assessment_date
+            """ + reassessment_join + """
             LEFT JOIN business_tag_three_high_scores t
               ON t.mapping_id = g.mapping_id AND t.trade_date = g.trade_date
             LEFT JOIN stocks s ON s.code = split_part(b.code, '.', 1)
@@ -174,7 +217,7 @@ def fetch_picks(cur, trade_date: str, top_n: int, min_gap: float) -> list[dict]:
               ON dk.code = split_part(b.code, '.', 1) AND dk.trade_date = g.trade_date
             WHERE g.trade_date = %s
               AND g.gap_type IN ('positive', 'positive_evidence_delta', 'neutral')
-              AND r.review_status IN ('strong_confirmed', 'watch_review')
+              AND r.review_status = ANY(%s)
               AND r.reliability_adjusted_gap_score >= %s
               AND coalesce(s.is_st, 0) = 0
         ),
@@ -192,7 +235,7 @@ def fetch_picks(cur, trade_date: str, top_n: int, min_gap: float) -> list[dict]:
         ORDER BY model_score DESC, reliability_adjusted_gap_score DESC, expectation_gap_score DESC
         LIMIT %s
         """,
-        (trade_date, min_gap, top_n),
+        params,
     )
     rows = [dict(row) for row in cur.fetchall()]
     for index, row in enumerate(rows, start=1):
@@ -200,6 +243,30 @@ def fetch_picks(cur, trade_date: str, top_n: int, min_gap: float) -> list[dict]:
         row["grade"] = grade_from_score(float(row.get("model_score") or 0))
         row["signal_tier"] = signal_tier_from_gap(float(row.get("reliability_adjusted_gap_score") or 0))
     return rows
+
+
+def reassessment_candidate_counts(cur, trade_date: str, min_gap: float) -> dict[str, int]:
+    """按 reassessment 档位统计当日(as-of)候选数,用于日志观察候选池厚度。"""
+    cur.execute(
+        """
+        SELECT r.review_status, count(*) AS count
+        FROM business_tag_expectation_gap_scores g
+        JOIN (
+            SELECT DISTINCT ON (mapping_id)
+                mapping_id, reliability_adjusted_gap_score, review_status
+            FROM business_tag_evidence_reassessment
+            WHERE assessment_date <= %s
+            ORDER BY mapping_id, assessment_date DESC
+        ) r ON r.mapping_id = g.mapping_id
+        WHERE g.trade_date = %s
+          AND g.gap_type IN ('positive', 'positive_evidence_delta', 'neutral')
+          AND r.reliability_adjusted_gap_score >= %s
+        GROUP BY r.review_status
+        ORDER BY count(*) DESC
+        """,
+        (trade_date, trade_date, min_gap),
+    )
+    return {str(row["review_status"]): int(row["count"]) for row in cur.fetchall()}
 
 
 def factor_payload(row: dict) -> dict:
@@ -218,18 +285,76 @@ def factor_payload(row: dict) -> dict:
     return payload
 
 
-def register_model(cur, *, trade_date: str, top_n: int, pick_count: int, positive_count: int) -> None:
+def next_version_tag(existing_count: int) -> str:
+    """版本历史保留:首个版本用基础 tag,之后追加 -rN 序号后缀,不再覆盖旧行。"""
+    if existing_count <= 0:
+        return VERSION_TAG
+    return f"{VERSION_TAG}-r{existing_count + 1}"
+
+
+def count_existing_versions(cur, model_key: str = MODEL_KEY) -> int:
+    cur.execute(
+        """
+        SELECT count(*) AS count
+        FROM model_versions
+        WHERE model_name = %s AND (version_tag = %s OR version_tag LIKE %s)
+        """,
+        (model_key, VERSION_TAG, f"{VERSION_TAG}-r%"),
+    )
+    return int(cur.fetchone()["count"] or 0)
+
+
+def resolve_active_version(cur, model_key: str = MODEL_KEY) -> tuple[dict | None, bool]:
+    """解析当前生效版本:production 优先;无 production 退回 is_current 行。
+
+    返回 (version_row, fell_back_to_staging);无版本行时返回 (None, True)。
+    """
+    cur.execute(
+        """
+        SELECT id, model_name, version_tag, stage, is_current
+        FROM model_versions
+        WHERE model_name = %s AND stage = 'production'
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (model_key,),
+    )
+    row = cur.fetchone()
+    if row:
+        return dict(row), False
+    cur.execute(
+        """
+        SELECT id, model_name, version_tag, stage, is_current
+        FROM model_versions
+        WHERE model_name = %s AND is_current = true
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (model_key,),
+    )
+    row = cur.fetchone()
+    return (dict(row) if row else None), True
+
+
+def register_model(cur, *, trade_date: str, top_n: int, pick_count: int, positive_count: int) -> dict:
+    active_version, fell_back = resolve_active_version(cur, MODEL_KEY)
+    production_active = bool(active_version) and not fell_back
+    if production_active:
+        # 已有 production 版本:快照挂到 production 下,不再铸造新 staging 行。
+        version_tag = str(active_version["version_tag"])
+    else:
+        version_tag = next_version_tag(count_existing_versions(cur, MODEL_KEY))
     params = {
         "model_key": MODEL_KEY,
         "display_name": DISPLAY_NAME,
-        "version_tag": VERSION_TAG,
+        "version_tag": version_tag,
         "selection_universe": "business_tag_mapping candidates across 18 supply chains",
         "dedupe": "one strongest mapping per stock code",
         "hard_filters": [
             "latest expectation-gap score date",
-            "latest evidence reassessment date",
+            "as-of evidence reassessment (latest assessment_date <= trade_date)",
             "gap_type in positive-compatible or neutral labels",
-            "reassessment_status in strong_confirmed/watch_review",
+            "reassessment_status in configurable whitelist (default strong_confirmed/watch_review)",
             "reliability_adjusted_gap_score >= 8 by default",
             "exclude ST stocks",
         ],
@@ -250,6 +375,7 @@ def register_model(cur, *, trade_date: str, top_n: int, pick_count: int, positiv
         "top_n": top_n,
         "snapshot_count": pick_count,
         "positive_candidate_count": positive_count,
+        "active_version_tag": version_tag,
     }
     cur.execute(
         """
@@ -263,6 +389,7 @@ def register_model(cur, *, trade_date: str, top_n: int, pick_count: int, positiv
         """,
         (MODEL_KEY, DISPLAY_NAME, "产业链", FACTOR_KEYS),
     )
+    # stage 由 promote 流程治理(production/archived),register 不在冲突时覆盖。
     cur.execute(
         """
         INSERT INTO model_registry (
@@ -274,7 +401,6 @@ def register_model(cur, *, trade_date: str, top_n: int, pick_count: int, positiv
         ON CONFLICT (name, version) DO UPDATE SET
             id = EXCLUDED.id,
             model_type = EXCLUDED.model_type,
-            stage = EXCLUDED.stage,
             run_id = EXCLUDED.run_id,
             params = EXCLUDED.params,
             metrics = EXCLUDED.metrics,
@@ -292,31 +418,41 @@ def register_model(cur, *, trade_date: str, top_n: int, pick_count: int, positiv
             "三层证据驱动的产业链预期差选股模型；当前为 staging，需回填收益后再转 production。",
         ),
     )
-    cur.execute(
-        """
-        UPDATE model_versions
-        SET is_current = false
-        WHERE model_name = %s
-        """,
-        (MODEL_KEY,),
-    )
-    cur.execute(
-        """
-        DELETE FROM model_versions
-        WHERE model_name = %s AND version_tag = %s
-        """,
-        (MODEL_KEY, VERSION_TAG),
-    )
-    cur.execute(
-        """
-        INSERT INTO model_versions (
-            model_name, version_tag, snapshot_count, win_rate,
-            mean_return, is_current, deployed_at
+    if production_active:
+        # 快照计数记到 production 版本上,is_current 不动。
+        cur.execute(
+            """
+            UPDATE model_versions
+            SET snapshot_count = %s, deployed_at = now()
+            WHERE id = %s
+            """,
+            (pick_count, int(active_version["id"])),
         )
-        VALUES (%s, %s, %s, NULL, NULL, true, now())
-        """,
-        (MODEL_KEY, VERSION_TAG, pick_count),
-    )
+    else:
+        cur.execute(
+            """
+            UPDATE model_versions
+            SET is_current = false
+            WHERE model_name = %s
+            """,
+            (MODEL_KEY,),
+        )
+        # 历史版本保留:不再 DELETE,新行用序号后缀 tag、stage=staging。
+        cur.execute(
+            """
+            INSERT INTO model_versions (
+                model_name, version_tag, snapshot_count, win_rate,
+                mean_return, is_current, deployed_at, stage
+            )
+            VALUES (%s, %s, %s, NULL, NULL, true, now(), 'staging')
+            """,
+            (MODEL_KEY, version_tag, pick_count),
+        )
+    return {
+        "version_tag": version_tag,
+        "production_active": production_active,
+        "fell_back_to_staging": fell_back,
+    }
 
 
 def write_snapshot(cur, picks: list[dict], trade_date: str, time_slot: str) -> int:
@@ -356,32 +492,26 @@ def write_snapshot(cur, picks: list[dict], trade_date: str, time_slot: str) -> i
     return len(rows)
 
 
-def register_and_snapshot(pg_url: str, trade_date: str | None, top_n: int, min_gap: float, time_slot: str) -> dict:
+def register_and_snapshot(
+    pg_url: str,
+    trade_date: str | None,
+    top_n: int,
+    min_gap: float,
+    time_slot: str,
+    min_reassessment: list[str] | None = None,
+    allow_lookahead: bool = False,
+) -> dict:
+    statuses = list(min_reassessment) if min_reassessment else sorted(REASSESSMENT_ALLOWED_STATUSES)
     with psycopg2.connect(pg_url) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             score_date = trade_date or latest_trade_date(cur)
-            picks = fetch_picks(cur, score_date, top_n, min_gap)
-            cur.execute(
-                """
-                WITH latest_reassessment AS (
-                    SELECT max(assessment_date) AS assessment_date
-                    FROM business_tag_evidence_reassessment
-                )
-                SELECT count(*)
-                FROM business_tag_expectation_gap_scores g
-                JOIN latest_reassessment lr ON lr.assessment_date IS NOT NULL
-                JOIN business_tag_evidence_reassessment r
-                  ON r.mapping_id = g.mapping_id
-                 AND r.assessment_date = lr.assessment_date
-                WHERE g.trade_date = %s
-                  AND g.gap_type IN ('positive', 'positive_evidence_delta', 'neutral')
-                  AND r.review_status IN ('strong_confirmed', 'watch_review')
-                  AND r.reliability_adjusted_gap_score >= %s
-                """,
-                (score_date, min_gap),
+            picks = fetch_picks(
+                cur, score_date, top_n, min_gap,
+                min_reassessment=statuses, allow_lookahead=allow_lookahead,
             )
-            positive_count = int(cur.fetchone()["count"] or 0)
-            register_model(
+            candidate_counts = reassessment_candidate_counts(cur, score_date, min_gap)
+            positive_count = sum(candidate_counts.get(status, 0) for status in statuses)
+            version_info = register_model(
                 cur,
                 trade_date=score_date,
                 top_n=top_n,
@@ -390,14 +520,24 @@ def register_and_snapshot(pg_url: str, trade_date: str | None, top_n: int, min_g
             )
             snapshot_count = write_snapshot(cur, picks, score_date, time_slot)
         conn.commit()
+    if version_info["fell_back_to_staging"] and not version_info["production_active"]:
+        print(
+            f"[register] 无 production 版本,快照挂到新 staging 版本 {version_info['version_tag']};"
+            "晋升请使用 tools/promote_supply_chain_model.py"
+        )
+    elif version_info["production_active"]:
+        print(f"[register] 快照挂到 production 版本 {version_info['version_tag']}")
     return {
         "model_key": MODEL_KEY,
         "display_name": DISPLAY_NAME,
-        "version_tag": VERSION_TAG,
-        "stage": "staging",
+        "version_tag": version_info["version_tag"],
+        "stage": "production" if version_info["production_active"] else "staging",
         "trade_date": score_date,
         "top_n": top_n,
         "min_gap": min_gap,
+        "min_reassessment": statuses,
+        "allow_lookahead": allow_lookahead,
+        "reassessment_candidate_counts": candidate_counts,
         "positive_candidate_count": positive_count,
         "snapshot_count": snapshot_count,
         "top_picks": [
@@ -430,8 +570,20 @@ def main() -> int:
     parser.add_argument("--top-n", type=int, default=30)
     parser.add_argument("--min-gap", type=float, default=8.0)
     parser.add_argument("--time-slot", default="close")
+    parser.add_argument("--min-reassessment", default=None,
+                        help="逗号分隔的 reassessment 状态白名单,默认 strong_confirmed,watch_review")
+    parser.add_argument("--allow-lookahead", action="store_true",
+                        help="对比模式:join 全库最新 reassessment(未来函数),仅用于对比")
     args = parser.parse_args()
-    payload = register_and_snapshot(args.pg_url, args.trade_date, args.top_n, args.min_gap, args.time_slot)
+    payload = register_and_snapshot(
+        args.pg_url,
+        args.trade_date,
+        args.top_n,
+        args.min_gap,
+        args.time_slot,
+        min_reassessment=parse_min_reassessment(args.min_reassessment),
+        allow_lookahead=args.allow_lookahead,
+    )
     print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     return 0
 

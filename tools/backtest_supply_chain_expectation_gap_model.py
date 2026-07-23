@@ -131,10 +131,60 @@ def _summarize_by_signal_tier(records: list[dict[str, Any]]) -> dict[str, Any]:
     return {tier: _summarize(rows) for tier, rows in sorted(grouped.items())}
 
 
+def _benchmark_returns(cur, start_date: str, end_date: str, hold_days: list[int]) -> dict[str, Any]:
+    """基准:同一批 score_date 上,全评分宇宙(当日有 gap 评分的所有股票)的等权前向收益。
+
+    与 _return_after_days 口径一致:entry 为 score_date 收盘,exit 为之后第 N 个交易日收盘。
+    """
+    result: dict[str, Any] = {}
+    kline_end = (date.fromisoformat(end_date) + timedelta(days=max(hold_days) * 2 + 20)).isoformat()
+    for days in hold_days:
+        cur.execute(
+            """
+            WITH scored AS (
+                SELECT DISTINCT g.trade_date, split_part(b.code, '.', 1) AS code
+                FROM business_tag_expectation_gap_scores g
+                JOIN business_tag_mapping b ON b.mapping_id = g.mapping_id
+                WHERE g.trade_date BETWEEN %s AND %s
+            ),
+            kline AS (
+                SELECT code, trade_date, close,
+                       lead(close, %s) OVER (PARTITION BY code ORDER BY trade_date) AS fwd_close
+                FROM daily_kline
+                WHERE trade_date BETWEEN %s AND %s
+                  AND code IN (SELECT code FROM scored)
+            )
+            SELECT s.trade_date, count(*) AS n,
+                   avg((k.fwd_close / k.close - 1.0) * 100.0) AS avg_ret
+            FROM scored s
+            JOIN kline k ON k.code = s.code AND k.trade_date = s.trade_date
+            WHERE k.close > 0 AND k.fwd_close IS NOT NULL
+            GROUP BY s.trade_date
+            """,
+            (start_date, end_date, days, start_date, kline_end),
+        )
+        rows = cur.fetchall()
+        if not rows:
+            result[str(days)] = {"dates": 0, "avg_daily_mean_return": None, "mean_stock_count": None}
+            continue
+        daily_means = [float(row["avg_ret"]) for row in rows if row["avg_ret"] is not None]
+        result[str(days)] = {
+            "dates": len(daily_means),
+            "avg_daily_mean_return": round(mean(daily_means), 4) if daily_means else None,
+            "mean_stock_count": round(mean(int(row["n"]) for row in rows), 1),
+        }
+    return result
+
+
 def _update_model_metrics(cur, summary: dict[str, Any]) -> None:
-    t1 = summary["by_hold_days"].get("1", {})
-    if not t1 or t1.get("win_rate") is None:
-        return
+    by_hold = summary["by_hold_days"]
+    # 主口径取 5 日前向收益;不存在时退到第一个有样本的持有期。
+    t_ref = by_hold.get("5") or {}
+    if not t_ref or t_ref.get("win_rate") is None:
+        t_ref = next(
+            (value for _, value in sorted(by_hold.items(), key=lambda item: int(item[0])) if value.get("win_rate") is not None),
+            {},
+        )
     metrics = {
         "backtest_start_date": summary["start_date"],
         "backtest_end_date": summary["end_date"],
@@ -142,16 +192,36 @@ def _update_model_metrics(cur, summary: dict[str, Any]) -> None:
         "requested_years": summary["requested_years"],
         "is_full_requested_window_backtest": summary["is_full_requested_window_backtest"],
         "insufficient_reason": summary["insufficient_reason"],
+        "min_reassessment": summary.get("min_reassessment"),
         "by_hold_days": summary["by_hold_days"],
         "by_signal_tier_by_hold_days": summary.get("by_signal_tier_by_hold_days", {}),
+        "benchmark_by_hold_days": summary.get("benchmark_by_hold_days", {}),
     }
+    if not t_ref or t_ref.get("win_rate") is None:
+        # 整个窗口没有合格信号也是正式结论:win_rate/mean_return 保持 NULL,
+        # 但要把回测摘要与原因写进 model_registry,避免"没跑过"和"跑了但没信号"无法区分。
+        metrics["conclusion"] = "no_qualifying_candidates"
+        metrics["conclusion_note"] = (
+            "as-of 严格口径下窗口内无任何通过全部硬过滤的信号;"
+            "win_rate/mean_return 不可计算,保持 NULL,模型继续停留 staging。"
+        )
+        cur.execute(
+            """
+            UPDATE model_registry
+            SET metrics = coalesce(metrics, '{}'::json)::jsonb || %s::jsonb,
+                updated_at = now()
+            WHERE id = %s
+            """,
+            (json.dumps({"backtest": metrics}, ensure_ascii=False), model.MODEL_KEY),
+        )
+        return
     cur.execute(
         """
         UPDATE model_versions
         SET win_rate = %s, mean_return = %s
-        WHERE model_name = %s AND version_tag = %s AND is_current = true
+        WHERE model_name = %s AND is_current = true
         """,
-        (t1["win_rate"], t1["avg_return"], model.MODEL_KEY, model.VERSION_TAG),
+        (t_ref["win_rate"], t_ref["avg_return"], model.MODEL_KEY),
     )
     cur.execute(
         """
@@ -174,6 +244,7 @@ def run_backtest(
     min_gap: float,
     hold_days: list[int],
     update_db: bool,
+    min_reassessment: list[str] | None = None,
 ) -> dict[str, Any]:
     with psycopg2.connect(pg_url) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -184,7 +255,7 @@ def run_backtest(
             records_by_hold: dict[int, list[dict[str, Any]]] = {days: [] for days in hold_days}
             daily_pick_counts = {}
             for score_date in dates:
-                picks = model.fetch_picks(cur, score_date, top_n, min_gap)
+                picks = model.fetch_picks(cur, score_date, top_n, min_gap, min_reassessment=min_reassessment)
                 daily_pick_counts[score_date] = len(picks)
                 for pick in picks:
                     for days in hold_days:
@@ -207,6 +278,16 @@ def run_backtest(
                 str(days): _summarize_by_signal_tier(rows)
                 for days, rows in records_by_hold.items()
             }
+            benchmark_by_hold = _benchmark_returns(cur, start_date, latest_date, hold_days)
+            for days_key, bench in benchmark_by_hold.items():
+                pick_avg = by_hold.get(days_key, {}).get("avg_return")
+                bench_avg = bench.get("avg_daily_mean_return")
+                bench["pick_avg_return"] = pick_avg
+                bench["excess_return"] = (
+                    round(pick_avg - bench_avg, 4)
+                    if pick_avg is not None and bench_avg is not None
+                    else None
+                )
             signal_dates_with_picks = sum(1 for count in daily_pick_counts.values() if count > 0)
             total_selected_candidates = sum(daily_pick_counts.values())
             summary = {
@@ -217,6 +298,7 @@ def run_backtest(
                 "requested_years": years,
                 "top_n": top_n,
                 "min_gap": min_gap,
+                "min_reassessment": min_reassessment or sorted(model.REASSESSMENT_ALLOWED_STATUSES),
                 "available_score_dates": len(dates),
                 "score_date_range": [dates[0], dates[-1]] if dates else [],
                 "score_dates_sample": dates[:5] + (["..."] if len(dates) > 10 else []) + dates[-5:],
@@ -231,6 +313,7 @@ def run_backtest(
                 "insufficient_reason": None,
                 "by_hold_days": by_hold,
                 "by_signal_tier_by_hold_days": by_signal_tier_by_hold,
+                "benchmark_by_hold_days": benchmark_by_hold,
             }
             if not summary["is_full_requested_window_backtest"]:
                 summary["insufficient_reason"] = (
@@ -253,6 +336,8 @@ def main() -> int:
     parser.add_argument("--top-n", type=int, default=30)
     parser.add_argument("--min-gap", type=float, default=8.0)
     parser.add_argument("--hold-days", default="1,3,5,10")
+    parser.add_argument("--min-reassessment", default=None,
+                        help="逗号分隔的 reassessment 状态白名单,默认 strong_confirmed,watch_review")
     parser.add_argument("--update-db", action="store_true")
     args = parser.parse_args()
     hold_days = [int(item.strip()) for item in args.hold_days.split(",") if item.strip()]
@@ -265,6 +350,7 @@ def main() -> int:
         min_gap=args.min_gap,
         hold_days=hold_days,
         update_db=args.update_db,
+        min_reassessment=model.parse_min_reassessment(args.min_reassessment),
     )
     print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     return 0

@@ -39,9 +39,11 @@ def test_rank_score_prioritizes_tag_evidence_over_short_term_momentum():
 
 
 def test_expectation_gap_is_normalized_and_clamped():
+    # 新口径(阶段二B起): 分数已是 0..100 分布(50=中性), normalize 只做边界 clamp, 不再居中映射
     assert module.normalize_expectation_gap(1000) == 100
     assert module.normalize_expectation_gap(-1000) == 0
-    assert module.normalize_expectation_gap(0) == 50
+    assert module.normalize_expectation_gap(0) == 0
+    assert module.normalize_expectation_gap(50) == 50
 
 
 def test_bigtech_capex_tailwind_only_applies_to_ai_compute():

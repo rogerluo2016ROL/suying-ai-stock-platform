@@ -1232,7 +1232,8 @@ class TestSupplyChainThreeHighScores:
         assert score["mapping_id"] == "MAP-001"
         assert score["growth_score"] > 0
         assert score["profit_score"] is None
-        assert score["moat_score"] == 0
+        # 统一公式(采集中心口径):moat = moat事件*28 + approved事件平均置信度*35
+        assert score["moat_score"] == 28.0
         assert score["score_detail"]["profit_score_status"] == "unavailable"
         assert score["score_detail"]["approved_evidence_count"] == 1
         assert "EV-ORDER" in score["evidence_ids"]

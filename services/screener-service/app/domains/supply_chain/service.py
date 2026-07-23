@@ -1084,7 +1084,7 @@ def _query_business_tag_stage_for_score(cur, mapping_id: str) -> dict[str, Any]:
         """
         SELECT research_stage, commercialization_stage
         FROM business_tag_stage_tracking
-        WHERE mapping_id = %s
+        WHERE mapping_id = %s AND review_status = 'approved'
         ORDER BY trade_date DESC, created_at DESC
         LIMIT 1
         """,
@@ -1104,9 +1104,10 @@ def _query_business_tag_events_for_score(cur, mapping_id: str) -> list[dict[str,
         return []
     cur.execute(
         """
-        SELECT event_id, evidence_type, impact_dimensions, confidence, review_status
+        SELECT event_id, evidence_type, impact_dimensions, confidence, review_status,
+               code, title, event_date
         FROM business_tag_evidence_events
-        WHERE mapping_id = %s
+        WHERE mapping_id = %s AND review_status = 'approved'
         ORDER BY event_date DESC NULLS LAST, created_at DESC
         LIMIT 200
         """,
@@ -1119,6 +1120,9 @@ def _query_business_tag_events_for_score(cur, mapping_id: str) -> list[dict[str,
             "impact_dimensions": _json_or_default(row[2], []),
             "confidence": _to_float(row[3], 0.0),
             "review_status": str(row[4] or "pending_review"),
+            "code": str(row[5] or ""),
+            "title": str(row[6] or ""),
+            "event_date": row[7].isoformat() if row[7] else None,
         }
         for row in cur.fetchall()
     ]
@@ -1679,37 +1683,93 @@ def _materialize_supply_chain_inferred_data(
         raise HTTPException(status_code=500, detail=f"Inferred materialization failed: {e}") from e
 
 
-def _score_business_tag_progress_evidence(approved_events: list[dict[str, Any]]) -> float:
-    score = 0.0
-    progress_types = {"order", "commercialization", "customer_validation", "capacity", "certification"}
-    for event in approved_events:
-        evidence_type = str(event.get("evidence_type") or "")
-        dimensions = event.get("impact_dimensions") if isinstance(event.get("impact_dimensions"), list) else []
-        if evidence_type in progress_types:
-            score += 20 + _to_float(event.get("confidence"), 0.0) * 40
-        if "growth" in dimensions:
-            score += 10
-        if "commercialization" in dimensions:
-            score += 10
-    return round(min(100.0, score), 2)
+def _query_business_tag_market_context(cur, mapping: dict[str, Any], trade_date: str | None = None) -> dict[str, Any]:
+    """采集市场预期与景气输入,SQL 口径与 supply_chain_data_collection_center 一致。"""
+    from kronos_factors.engine.supply_chain_scoring import split_claim_counts
 
+    context: dict[str, Any] = {
+        "trade_date": (str(trade_date or "")[:10] or None),
+        "monitor_counts": {},
+        "analyst_claims": 0,
+        "news_claims": 0,
+        "total_claims": 0,
+        "price_change_20d": None,
+        "prosperity": {"latest_pct_change": None, "avg_pct_change": None, "sample_days": 0},
+    }
+    if context["trade_date"] is None and repository.table_exists(cur, "daily_kline"):
+        cur.execute("SELECT max(trade_date) FROM daily_kline")
+        row = cur.fetchone()
+        if row and row[0]:
+            context["trade_date"] = str(row[0])[:10]
+    score_date = context["trade_date"] or datetime.now().date().isoformat()
+    context["trade_date"] = score_date
 
-def _score_business_tag_risk_penalty(approved_events: list[dict[str, Any]]) -> float:
-    score = 0.0
-    risk_types = {"risk", "delay", "regulatory_risk", "competition", "customer_loss"}
-    for event in approved_events:
-        evidence_type = str(event.get("evidence_type") or "")
-        dimensions = event.get("impact_dimensions") if isinstance(event.get("impact_dimensions"), list) else []
-        if evidence_type in risk_types or "risk" in dimensions:
-            score += 15 + _to_float(event.get("confidence"), 0.0) * 35
-    return round(min(100.0, score), 2)
+    mapping_id = str(mapping.get("mapping_id") or "")
+    if mapping_id and repository.table_exists(cur, "business_tag_expectation_monitor"):
+        cur.execute(
+            """
+            SELECT coalesce(claim_source_type, 'unknown') AS source_type, count(*) AS count
+            FROM business_tag_expectation_monitor
+            WHERE mapping_id = %s
+              AND review_status IN ('candidate', 'pending_review', 'approved')
+            GROUP BY coalesce(claim_source_type, 'unknown')
+            """,
+            (mapping_id,),
+        )
+        monitor_counts = {str(row[0]): int(row[1] or 0) for row in cur.fetchall()}
+        analyst_claims, news_claims, total_claims = split_claim_counts(monitor_counts)
+        context.update(
+            monitor_counts=monitor_counts,
+            analyst_claims=analyst_claims,
+            news_claims=news_claims,
+            total_claims=total_claims,
+        )
 
+    base_code = str(mapping.get("code") or "").split(".", 1)[0]
+    if base_code and repository.table_exists(cur, "daily_kline"):
+        cur.execute(
+            """
+            SELECT close
+            FROM daily_kline
+            WHERE code = %s AND trade_date <= %s AND close IS NOT NULL AND close > 0
+            ORDER BY trade_date DESC
+            LIMIT 21
+            """,
+            (base_code, score_date),
+        )
+        rows = cur.fetchall()
+        old_close = float(rows[-1][0]) if len(rows) >= 2 and rows[-1][0] else None
+        new_close = float(rows[0][0]) if rows and rows[0][0] else None
+        if old_close and new_close:
+            context["price_change_20d"] = round((new_close / old_close - 1.0) * 100.0, 2)
 
-def _market_expectation_from_mapping(mapping: dict[str, Any]) -> tuple[float, str]:
-    explicit_score = _to_float(mapping.get("market_expectation_score"), None)
-    if explicit_score is not None:
-        return round(min(100.0, max(0.0, explicit_score)), 2), "explicit"
-    return 50.0, "neutral_default"
+    chain_id = mapping.get("chain_id")
+    if chain_id and repository.table_exists(cur, "industry_price_series"):
+        # 优先链成分股等权日涨幅(build_industry_price_series.py),无数据回退东财指数代理
+        rows = []
+        for metric_name in ("chain_equal_weight_pct_change", "dc_index_pct_change"):
+            cur.execute(
+                """
+                SELECT trade_date, avg(metric_value) AS avg_pct
+                FROM industry_price_series
+                WHERE chain_id = %s AND metric_name = %s
+                GROUP BY trade_date
+                ORDER BY trade_date DESC
+                LIMIT 5
+                """,
+                (chain_id, metric_name),
+            )
+            rows = cur.fetchall()
+            if rows:
+                break
+        if rows:
+            values = [float(row[1] or 0.0) for row in rows]
+            context["prosperity"] = {
+                "latest_pct_change": values[0],
+                "avg_pct_change": round(sum(values) / len(values), 4),
+                "sample_days": len(values),
+            }
+    return context
 
 
 def _calculate_business_tag_expectation_gap_score(
@@ -1718,44 +1778,75 @@ def _calculate_business_tag_expectation_gap_score(
     stage: dict[str, Any],
     events: list[dict[str, Any]],
     trade_date: str | None = None,
+    market_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    score_date = (trade_date or datetime.now().date().isoformat())[:10]
+    """预期差评分薄包装:公式唯一实现见 kronos_factors.engine.supply_chain_scoring。"""
+    from kronos_factors.engine.supply_chain_scoring import (
+        calculate_evidence_score,
+        calculate_market_expectation_score,
+        calculate_prosperity_score,
+        calculate_stage_progress_score,
+        classify_business_tag_events,
+        compute_expectation_gap_score,
+    )
+
+    context = market_context or {}
+    score_date = (trade_date or context.get("trade_date") or datetime.now().date().isoformat())[:10]
     approved_events = _approved_business_tag_events(events)
     evidence_ids = [str(event.get("event_id")) for event in approved_events if event.get("event_id")]
 
-    stage_progress_score = _score_stage_progress(stage)
-    evidence_delta_score = _score_business_tag_progress_evidence(approved_events)
-    risk_penalty_score = _score_business_tag_risk_penalty(approved_events)
-    market_expectation_score, market_expectation_source = _market_expectation_from_mapping(mapping)
-    actual_progress_score = round(min(100.0, stage_progress_score * 0.65 + evidence_delta_score * 0.35), 2)
+    stage_progress_score = calculate_stage_progress_score(
+        stage.get("research_stage"),
+        stage.get("commercialization_stage"),
+    )
+    event_counts = classify_business_tag_events(approved_events)
+    evidence_delta_score = calculate_evidence_score(approved_events, event_counts)
+    prosperity = context.get("prosperity") or {}
+    prosperity_score = calculate_prosperity_score(
+        prosperity.get("latest_pct_change"),
+        prosperity.get("avg_pct_change"),
+    )
 
-    raw_gap = actual_progress_score - market_expectation_score + evidence_delta_score * 0.35 - risk_penalty_score * 0.45
-    expectation_gap_score = round(min(100.0, max(0.0, raw_gap)), 2)
-    if raw_gap >= 15:
-        gap_type = "positive"
-    elif raw_gap <= -15:
-        gap_type = "negative"
+    explicit_score = _to_float(mapping.get("market_expectation_score"), None)
+    if explicit_score is not None:
+        market_expectation_score = round(min(100.0, max(0.0, explicit_score)), 2)
+        market_expectation_source = "explicit"
     else:
-        gap_type = "neutral"
+        market_expectation_score = calculate_market_expectation_score(
+            analyst_claims=int(context.get("analyst_claims") or 0),
+            news_claims=int(context.get("news_claims") or 0),
+            total_claims=int(context.get("total_claims") or 0),
+            price_change_20d=context.get("price_change_20d"),
+        )
+        market_expectation_source = "second_layer_monitor_and_price_reaction"
+
+    gap = compute_expectation_gap_score(
+        stage_score=stage_progress_score,
+        evidence_score=evidence_delta_score,
+        prosperity_score=prosperity_score,
+        market_expectation_score=market_expectation_score,
+        risk_events=event_counts["risk"],
+        price_change_20d=context.get("price_change_20d"),
+    )
 
     mapping_id = str(mapping.get("mapping_id") or "")
     return {
         "gap_id": f"GAP-{mapping_id}-{score_date}",
         "mapping_id": mapping_id,
         "trade_date": score_date,
-        "actual_progress_score": actual_progress_score,
+        "actual_progress_score": gap["actual_progress_score"],
         "market_expectation_score": market_expectation_score,
         "evidence_delta_score": evidence_delta_score,
-        "risk_penalty_score": risk_penalty_score,
-        "expectation_gap_score": expectation_gap_score,
-        "gap_type": gap_type,
+        "risk_penalty_score": gap["risk_penalty_score"],
+        "expectation_gap_score": gap["expectation_gap_score"],
+        "gap_type": gap["gap_type"],
         "score_detail": {
             "stage_progress_score": stage_progress_score,
             "market_expectation_source": market_expectation_source,
             "approved_evidence_count": len(approved_events),
-            "raw_gap": round(raw_gap, 2),
+            "raw_gap": gap["raw_gap"],
             "score_unit": "business_tag",
-            "formula": "actual_progress - market_expectation + evidence_delta*0.35 - risk_penalty*0.45",
+            "formula": gap["formula"],
         },
         "evidence_ids": evidence_ids,
     }
@@ -1810,11 +1901,13 @@ def _score_business_tag_three_high(
                 raise HTTPException(status_code=404, detail=f"Business tag mapping '{mapping_id}' not found")
             stage = _query_business_tag_stage_for_score(cur, mapping_id)
             events = _query_business_tag_events_for_score(cur, mapping_id)
+            market_context = _query_business_tag_market_context(cur, mapping, request.trade_date)
             score = _calculate_business_tag_three_high_score(
                 mapping=mapping,
                 stage=stage,
                 events=events,
                 trade_date=request.trade_date,
+                market_context=market_context,
             )
             limitations = []
             persisted = False
@@ -1914,16 +2007,22 @@ def _score_business_tag_expectation_gap(
                 mapping["market_expectation_score"] = request.market_expectation_score
             stage = _query_business_tag_stage_for_score(cur, mapping_id)
             events = _query_business_tag_events_for_score(cur, mapping_id)
+            market_context = _query_business_tag_market_context(cur, mapping, request.trade_date)
             score = _calculate_business_tag_expectation_gap_score(
                 mapping=mapping,
                 stage=stage,
                 events=events,
                 trade_date=request.trade_date,
+                market_context=market_context,
             )
             limitations = []
             persisted = False
-            if score["score_detail"]["market_expectation_source"] == "neutral_default":
-                limitations.append("缺少明确市场预期分，暂用中性 50 分")
+            if (
+                score["score_detail"]["market_expectation_source"] == "second_layer_monitor_and_price_reaction"
+                and not market_context.get("total_claims")
+                and market_context.get("price_change_20d") is None
+            ):
+                limitations.append("二层市场预期数据缺失，市场预期分仅含 35 底分")
             if request.persist:
                 if not repository.table_exists(cur, "business_tag_expectation_gap_scores"):
                     raise HTTPException(status_code=503, detail="business_tag_expectation_gap_scores table is missing")
@@ -2489,7 +2588,12 @@ def _build_inferred_business_tag_materialization(
 
     growth_score = round(min(60.0, confidence * 45.0 + _inferred_node_bonus(item_name)), 2)
     moat_score = round(min(55.0, _inferred_moat_bonus(item_name) + confidence * 10.0), 2)
-    stage_score = _score_stage_progress(stage)
+    from kronos_factors.engine.supply_chain_scoring import calculate_stage_progress_score
+
+    stage_score = calculate_stage_progress_score(
+        stage.get("research_stage"),
+        stage.get("commercialization_stage"),
+    )
     evidence_score = round(min(30.0, event_confidence * 45.0), 2)
     total_score = round(
         min(
@@ -2543,73 +2647,8 @@ def _build_inferred_business_tag_materialization(
     }
 
 
-def _score_stage_progress(stage: dict[str, Any]) -> float:
-    research_rank = stage_rank(stage.get("research_stage"))
-    commercialization_rank = stage_rank(stage.get("commercialization_stage"))
-    research_score = min(100.0, research_rank / 6 * 100) if research_rank else 0.0
-    commercialization_score = min(100.0, commercialization_rank / 7 * 100) if commercialization_rank else 0.0
-    return round(research_score * 0.4 + commercialization_score * 0.6, 2)
-
-
 def _approved_business_tag_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [event for event in events if str(event.get("review_status") or "") == "approved"]
-
-
-def _score_business_tag_growth(mapping: dict[str, Any], approved_events: list[dict[str, Any]]) -> float:
-    score = 0.0
-    revenue_ratio = _to_float(mapping.get("revenue_ratio"), None)
-    if revenue_ratio is not None:
-        score += min(40.0, max(0.0, revenue_ratio * 100))
-    for event in approved_events:
-        evidence_type = str(event.get("evidence_type") or "")
-        dimensions = event.get("impact_dimensions") if isinstance(event.get("impact_dimensions"), list) else []
-        if evidence_type in {"order", "commercialization"}:
-            score += 30
-        elif evidence_type == "customer_validation":
-            score += 15
-        if "growth" in dimensions:
-            score += 10
-    if revenue_ratio is None:
-        score = min(score, 75.0)
-    return round(min(100.0, score), 2)
-
-
-def _score_business_tag_profit(mapping: dict[str, Any], approved_events: list[dict[str, Any]]) -> tuple[float | None, str]:
-    gross_profit_ratio = _to_float(mapping.get("gross_profit_ratio"), None)
-    gross_margin = _to_float(mapping.get("gross_margin"), None)
-    if gross_profit_ratio is None and gross_margin is None:
-        return None, "unavailable"
-
-    if gross_profit_ratio is not None:
-        score = min(100.0, 50.0 + max(0.0, gross_profit_ratio * 100))
-        status = "gross_profit_attributed"
-    else:
-        margin_value = gross_margin * 100 if gross_margin is not None and gross_margin <= 1 else gross_margin
-        score = min(75.0, max(0.0, 35.0 + (margin_value or 0)))
-        status = "gross_margin_proxy"
-
-    if any("profit" in (event.get("impact_dimensions") or []) for event in approved_events):
-        score = min(100.0, score + 10)
-    return round(score, 2), status
-
-
-def _score_business_tag_moat(approved_events: list[dict[str, Any]]) -> float:
-    score = 0.0
-    moat_types = {"moat", "patent", "certification", "chokepoint", "capacity", "customer_validation"}
-    for event in approved_events:
-        evidence_type = str(event.get("evidence_type") or "")
-        dimensions = event.get("impact_dimensions") if isinstance(event.get("impact_dimensions"), list) else []
-        if evidence_type in moat_types or "moat" in dimensions:
-            confidence = _to_float(event.get("confidence"), 0.0)
-            score += 25 + confidence * 35
-    return round(min(100.0, score), 2)
-
-
-def _score_business_tag_evidence_strength(approved_events: list[dict[str, Any]]) -> float:
-    if not approved_events:
-        return 0.0
-    avg_confidence = sum(_to_float(event.get("confidence"), 0.0) for event in approved_events) / len(approved_events)
-    return round(min(100.0, len(approved_events) * 20 + avg_confidence * 60), 2)
 
 
 def _calculate_business_tag_three_high_score(
@@ -2618,50 +2657,62 @@ def _calculate_business_tag_three_high_score(
     stage: dict[str, Any],
     events: list[dict[str, Any]],
     trade_date: str | None = None,
+    market_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    score_date = (trade_date or datetime.now().date().isoformat())[:10]
+    """三高评分薄包装:公式唯一实现见 kronos_factors.engine.supply_chain_scoring。"""
+    from kronos_factors.engine.supply_chain_scoring import (
+        calculate_prosperity_score,
+        calculate_stage_progress_score,
+        compute_three_high_score,
+    )
+
+    context = market_context or {}
+    score_date = (trade_date or context.get("trade_date") or datetime.now().date().isoformat())[:10]
     approved_events = _approved_business_tag_events(events)
     evidence_ids = [str(event.get("event_id")) for event in approved_events if event.get("event_id")]
 
-    growth_score = _score_business_tag_growth(mapping, approved_events)
-    profit_score, profit_status = _score_business_tag_profit(mapping, approved_events)
-    moat_score = _score_business_tag_moat(approved_events)
-    stage_score = _score_stage_progress(stage)
-    evidence_score = _score_business_tag_evidence_strength(approved_events)
-    revenue_supported = _to_float(mapping.get("revenue_ratio"), None) is not None
-    profit_supported = profit_score is not None
-
-    total_score = (
-        growth_score * 0.25
-        + (profit_score or 0.0) * 0.20
-        + moat_score * 0.25
-        + stage_score * 0.15
-        + evidence_score * 0.15
+    stage_score = calculate_stage_progress_score(
+        stage.get("research_stage"),
+        stage.get("commercialization_stage"),
     )
-    score_cap = 100.0
-    if not revenue_supported and not profit_supported:
-        score_cap = 65.0
-    elif not profit_supported:
-        score_cap = 80.0
-    total_score = round(min(score_cap, total_score), 2)
+    prosperity = context.get("prosperity") or {}
+    prosperity_score = calculate_prosperity_score(
+        prosperity.get("latest_pct_change"),
+        prosperity.get("avg_pct_change"),
+    )
+    gross_profit_ratio = _to_float(mapping.get("gross_profit_ratio"), None)
+    result = compute_three_high_score(
+        revenue_ratio=_to_float(mapping.get("revenue_ratio"), None),
+        gross_profit_ratio=gross_profit_ratio,
+        events=approved_events,
+        stage_score=stage_score,
+        prosperity_score=prosperity_score,
+    )
+    profit_score = result["profit_score"]
+    if profit_score is None:
+        profit_status = "unavailable"
+    elif gross_profit_ratio is not None:
+        profit_status = "gross_profit_attributed"
+    else:
+        profit_status = "event_proxy"
 
     mapping_id = str(mapping.get("mapping_id") or "")
     return {
         "score_id": f"THREE-HIGH-{mapping_id}-{score_date}",
         "mapping_id": mapping_id,
         "trade_date": score_date,
-        "growth_score": growth_score,
+        "growth_score": result["growth_score"],
         "profit_score": profit_score,
-        "moat_score": moat_score,
+        "moat_score": result["moat_score"],
         "stage_score": stage_score,
-        "evidence_score": evidence_score,
-        "total_score": total_score,
+        "evidence_score": result["evidence_score"],
+        "total_score": result["total_score"],
         "score_detail": {
-            "revenue_supported": revenue_supported,
-            "profit_supported": profit_supported,
+            "revenue_supported": result["revenue_supported"],
+            "profit_supported": result["profit_supported"],
             "profit_score_status": profit_status,
             "approved_evidence_count": len(approved_events),
-            "score_cap": score_cap,
+            "score_cap": result["score_cap"],
             "score_unit": "business_tag",
         },
         "evidence_ids": evidence_ids,
@@ -3580,7 +3631,7 @@ def query_company_business_tags(code: str) -> dict[str, Any]:
                         LIMIT 1
                     ) eg ON TRUE
                     LEFT JOIN LATERAL (
-                        SELECT COUNT(*) AS event_count
+                        SELECT COUNT(*) FILTER (WHERE review_status = 'approved') AS event_count
                         FROM business_tag_evidence_events
                         WHERE mapping_id = m.mapping_id
                     ) ev ON TRUE

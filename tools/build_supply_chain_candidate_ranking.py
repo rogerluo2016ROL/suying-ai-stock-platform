@@ -33,9 +33,13 @@ def clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
 
 
 def normalize_expectation_gap(value: float | None) -> float:
-    # Gap scores are centered around 0. Positive means actual evidence is
-    # stronger than market expectation; map -100..100 into 0..100.
-    return clamp((float(value or 0) + 100.0) / 2.0)
+    # 阶段二B 起 expectation_gap_score 已是 0..100 分布、50=中性
+    # (共享模块 compute_expectation_gap_score 新口径 (raw+100)/2,见
+    # packages/kronos-factors/kronos_factors/engine/supply_chain_scoring.py
+    # 模块 docstring 变更记录),此处不再做 (v+100)/2 的居中映射,只做边界 clamp。
+    # 注意:历史快照仍是旧口径(clamp(raw,0,100),负差截断为 0),
+    # 由后续 refresh/backfill 按新口径自然覆盖。
+    return clamp(float(value or 0))
 
 
 def normalize_momentum(change_20d_pct: float | None) -> float:
@@ -320,6 +324,7 @@ def fetch_mapping_rows(
         SELECT DISTINCT ON (mapping_id)
             mapping_id, research_stage, commercialization_stage
         FROM business_tag_stage_tracking
+        WHERE review_status = 'approved'
         ORDER BY mapping_id, trade_date DESC, created_at DESC
     ),
     l8 AS (

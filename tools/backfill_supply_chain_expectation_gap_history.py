@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """Backfill historical as-of scores for the supply-chain expectation-gap model.
 
-The backfill uses only data dated on or before each score date:
-- approved evidence events with event_date <= score date
-- expectation monitor claims with claim_date <= score date
-- stage tracking rows with trade_date <= score date
+Strict 模式(默认,--as-of-strict)只使用评分日 D 当日可见的数据:
+- approved evidence events:reviewed_at(Asia/Shanghai 折算)<= D;存量 approved 行
+  reviewed_at 为 NULL 时用 created_at 兜底(分布会打印在输出里)
+- stage tracking rows:review_status='approved' 且可见日 <= D;该表无 reviewed_at 列,
+  按规则用 created_at 兜底
+- expectation monitor claims:claim_date 落在 [D-60d, D] 滚动窗内(不再单调累积)
 - kline price reaction up to score date
 - industry proxy rows with trade_date <= score date
+
+--allow-lookahead 保留旧行为(按 event_date/trade_date 回放、monitor 累积计数),
+仅用于对比验证未来函数的影响,不得用于正式评分。
 """
 
 from __future__ import annotations
@@ -15,36 +20,37 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 from collections import defaultdict, deque
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
 import psycopg2
 import psycopg2.extras
 
-from supply_chain_data_collection_center import (
-    _json_list,
+# 注入共享 packages(照 bom 工具惯例)
+_KRONOS_FACTORS = Path(__file__).resolve().parents[1] / "packages" / "kronos-factors"
+if _KRONOS_FACTORS.is_dir() and str(_KRONOS_FACTORS) not in sys.path:
+    sys.path.insert(0, str(_KRONOS_FACTORS))
+
+# 双评分公式唯一实现;不再从 supply_chain_data_collection_center 反向 import。
+from kronos_factors.engine.supply_chain_scoring import (
+    calculate_evidence_score,
+    calculate_gap_momentum_score,
     calculate_market_expectation_score,
     calculate_prosperity_score,
     calculate_stage_progress_score,
-    clamp_score,
+    classify_business_tag_events,
+    compute_expectation_gap_score,
+    compute_three_high_score,
+    split_claim_counts,
 )
 
 
 def _row_id(prefix: str, mapping_id: str, trade_date: str) -> str:
     payload = f"{prefix}:{mapping_id}:{trade_date}"
     return f"{prefix}-" + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
-
-
-def calculate_gap_momentum_score(
-    *,
-    current_gap: float,
-    previous_gap: float | None,
-    gap_20d_ago: float | None,
-) -> float:
-    recent_delta = float(current_gap or 0.0) - float(previous_gap if previous_gap is not None else current_gap or 0.0)
-    medium_delta = float(current_gap or 0.0) - float(gap_20d_ago if gap_20d_ago is not None else current_gap or 0.0)
-    return clamp_score(50.0 + recent_delta * 2.0 + medium_delta * 1.0)
 
 
 def _to_date(value: Any) -> date | None:
@@ -72,7 +78,20 @@ def _load_trade_dates(cur, start_date: str, end_date: str) -> list[date]:
     return [_to_date(row["trade_date"]) for row in cur.fetchall() if _to_date(row["trade_date"])]
 
 
-def _load_mappings(cur) -> list[dict[str, Any]]:
+def _load_mappings(cur, require_evidence: bool = False) -> list[dict[str, Any]]:
+    # require_evidence: 只保留 status='verified' 或存在 approved 证据事件的映射,
+    # 用于把诚实回放限定在有研究覆盖的宇宙内。
+    scope = ""
+    if require_evidence:
+        scope = """
+          AND (
+              b.status = 'verified'
+              OR EXISTS (
+                  SELECT 1 FROM business_tag_evidence_events e
+                  WHERE e.mapping_id = b.mapping_id AND e.review_status = 'approved'
+              )
+          )
+        """
     cur.execute(
         """
         SELECT b.mapping_id, b.code, split_part(b.code, '.', 1) AS base_code,
@@ -81,6 +100,7 @@ def _load_mappings(cur) -> list[dict[str, Any]]:
         FROM business_tag_mapping b
         LEFT JOIN stocks s ON s.code = split_part(b.code, '.', 1)
         WHERE coalesce(b.status, 'active') <> 'disabled'
+        """ + scope + """
         ORDER BY b.mapping_id
         """
     )
@@ -126,11 +146,17 @@ def _load_kline_features(cur, codes: list[str], start_date: str, end_date: str) 
     return tradable, price_change
 
 
-def _load_events(cur) -> dict[str, list[dict[str, Any]]]:
+def _load_events(cur) -> tuple[dict[str, list[dict[str, Any]]], dict[str, int]]:
+    # as-of 可见性规则:评分日 D 可见 = review_status='approved' 且审批时间不晚于 D。
+    # reviewed_at 为 timestamptz,统一按 Asia/Shanghai 折算成日期再与 D 比较。
+    # 存量 approved 行若 reviewed_at 为 NULL(如早期批量导入),用 created_at 兜底,
+    # 即"进入数据库的时间"视为可见时间;两类行数分布写入 stats 供调用方打印。
     cur.execute(
         """
-        SELECT mapping_id, event_id, evidence_type, impact_dimensions,
-               confidence, event_date
+        SELECT mapping_id, event_id, code, title, evidence_type, impact_dimensions,
+               confidence, event_date,
+               (reviewed_at AT TIME ZONE 'Asia/Shanghai')::date AS reviewed_date,
+               created_at::date AS created_date
         FROM business_tag_evidence_events
         WHERE review_status = 'approved'
           AND event_date IS NOT NULL
@@ -138,11 +164,20 @@ def _load_events(cur) -> dict[str, list[dict[str, Any]]]:
         """
     )
     events: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    stats = {"approved_total": 0, "with_reviewed_at": 0, "created_at_fallback": 0}
     for row in cur.fetchall():
         item = dict(row)
         item["event_date"] = _to_date(item.get("event_date"))
+        reviewed_date = _to_date(item.get("reviewed_date"))
+        created_date = _to_date(item.get("created_date"))
+        stats["approved_total"] += 1
+        if reviewed_date is not None:
+            stats["with_reviewed_at"] += 1
+        else:
+            stats["created_at_fallback"] += 1
+        item["approved_date"] = reviewed_date or created_date or item["event_date"]
         events[str(item["mapping_id"])].append(item)
-    return events
+    return events, stats
 
 
 def _load_monitors(cur) -> dict[str, list[dict[str, Any]]]:
@@ -163,22 +198,30 @@ def _load_monitors(cur) -> dict[str, list[dict[str, Any]]]:
     return monitors
 
 
-def _load_stages(cur) -> dict[str, list[dict[str, Any]]]:
+def _load_stages(cur) -> tuple[dict[str, list[dict[str, Any]]], dict[str, int]]:
+    # as-of 可见性规则:评分日 D 可见 = review_status='approved' 且审批时间不晚于 D。
+    # 注意:business_tag_stage_tracking 当前没有 reviewed_at 列(migration 020/033
+    # 均未添加),按既定兜底规则用 created_at(审批后落库时间)作为可见时间。
     cur.execute(
         """
-        SELECT mapping_id, trade_date, research_stage, commercialization_stage
+        SELECT mapping_id, trade_date, research_stage, commercialization_stage,
+               created_at::date AS created_date
         FROM business_tag_stage_tracking
         WHERE trade_date IS NOT NULL
-          AND review_status IN ('approved', 'pending_review', 'candidate')
+          AND review_status = 'approved'
         ORDER BY mapping_id, trade_date, created_at
         """
     )
     stages: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    stats = {"approved_total": 0, "with_reviewed_at": 0, "created_at_fallback": 0}
     for row in cur.fetchall():
         item = dict(row)
         item["trade_date"] = _to_date(item.get("trade_date"))
+        item["approved_date"] = _to_date(item.get("created_date")) or item["trade_date"]
+        stats["approved_total"] += 1
+        stats["created_at_fallback"] += 1
         stages[str(item["mapping_id"])].append(item)
-    return stages
+    return stages, stats
 
 
 def _load_prosperity(cur, trade_dates: list[date]) -> dict[tuple[str, date], dict[str, Any]]:
@@ -216,6 +259,9 @@ def _load_prosperity(cur, trade_dates: list[date]) -> dict[tuple[str, date], dic
     return result
 
 
+MONITOR_WINDOW_DAYS = 60  # strict 模式下市场预期只计 [D-60d, D] 滚动窗内的 claims
+
+
 def _build_scores_for_mapping(
     mapping: dict[str, Any],
     trade_dates: list[date],
@@ -225,6 +271,7 @@ def _build_scores_for_mapping(
     monitors: list[dict[str, Any]],
     stages: list[dict[str, Any]],
     prosperity_by_chain_date: dict[tuple[str, date], dict[str, Any]],
+    as_of_strict: bool = True,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     mapping_id = str(mapping["mapping_id"])
     base_code = str(mapping.get("base_code") or _base_code(mapping.get("code") or ""))
@@ -233,9 +280,16 @@ def _build_scores_for_mapping(
     revenue_ratio = mapping.get("revenue_ratio")
     gross_profit_ratio = mapping.get("gross_profit_ratio")
 
+    # strict 模式按"审批可见日"(approved_date)回放,lookahead 对比模式沿用旧的
+    # 按 event_date/trade_date 回放(审批动作发生在未来,属于未来函数)。
+    if as_of_strict:
+        events = sorted(events, key=lambda row: (row.get("approved_date") or row["event_date"], row["event_date"]))
+        stages = sorted(stages, key=lambda row: (row.get("approved_date") or row["trade_date"], row["trade_date"]))
+
     event_idx = monitor_idx = stage_idx = 0
     active_events: list[dict[str, Any]] = []
     monitor_counts: dict[str, int] = defaultdict(int)
+    monitor_window: deque[tuple[date, str]] = deque()
     current_stage: dict[str, Any] = {}
     three_high_rows: list[dict[str, Any]] = []
     gap_rows: list[dict[str, Any]] = []
@@ -249,54 +303,46 @@ def _build_scores_for_mapping(
         if (base_code, score_date) not in tradable:
             continue
 
-        while event_idx < len(events) and events[event_idx]["event_date"] <= score_date:
-            active_events.append(events[event_idx])
-            event_idx += 1
+        if as_of_strict:
+            while event_idx < len(events) and (events[event_idx].get("approved_date") or events[event_idx]["event_date"]) <= score_date:
+                active_events.append(events[event_idx])
+                event_idx += 1
+        else:
+            while event_idx < len(events) and events[event_idx]["event_date"] <= score_date:
+                active_events.append(events[event_idx])
+                event_idx += 1
         while monitor_idx < len(monitors) and monitors[monitor_idx]["claim_date"] <= score_date:
-            monitor_counts[str(monitors[monitor_idx].get("claim_source_type") or "unknown")] += 1
+            source_type = str(monitors[monitor_idx].get("claim_source_type") or "unknown")
+            monitor_counts[source_type] += 1
+            monitor_window.append((monitors[monitor_idx]["claim_date"], source_type))
             monitor_idx += 1
-        while stage_idx < len(stages) and stages[stage_idx]["trade_date"] <= score_date:
-            current_stage = stages[stage_idx]
-            stage_idx += 1
+        if as_of_strict:
+            # 滚动 [D-60d, D] 窗口:过期 claim 移出计数,避免 market_expectation 被动抬升。
+            window_start = score_date - timedelta(days=MONITOR_WINDOW_DAYS)
+            while monitor_window and monitor_window[0][0] < window_start:
+                _, source_type = monitor_window.popleft()
+                monitor_counts[source_type] -= 1
+                if monitor_counts[source_type] <= 0:
+                    del monitor_counts[source_type]
+        if as_of_strict:
+            while stage_idx < len(stages) and (stages[stage_idx].get("approved_date") or stages[stage_idx]["trade_date"]) <= score_date:
+                current_stage = stages[stage_idx]
+                stage_idx += 1
+        else:
+            while stage_idx < len(stages) and stages[stage_idx]["trade_date"] <= score_date:
+                current_stage = stages[stage_idx]
+                stage_idx += 1
 
-        avg_confidence = (
-            sum(float(row.get("confidence") or 0.0) for row in active_events) / len(active_events)
-            if active_events else 0.0
-        )
-        growth_events = profit_events = moat_events = risk_events = order_events = 0
-        for event in active_events:
-            dims = set(str(item) for item in _json_list(event.get("impact_dimensions")))
-            evidence_type = str(event.get("evidence_type") or "")
-            if "growth" in dims or evidence_type in {"order", "commercial_stage", "order_award"}:
-                growth_events += 1
-            if "profit" in dims or evidence_type == "revenue_margin":
-                profit_events += 1
-            if "moat" in dims or evidence_type in {"patent_standard", "patent", "moat"}:
-                moat_events += 1
-            if "risk" in dims or evidence_type == "risk":
-                risk_events += 1
-            if evidence_type in {"order", "commercial_stage", "order_award"}:
-                order_events += 1
-
-        evidence_score = clamp_score(
-            len(active_events) * 12.0
-            + avg_confidence * 60.0
-            + growth_events * 4.0
-            + moat_events * 4.0
-        )
+        event_counts = classify_business_tag_events(active_events)
+        growth_events = event_counts["growth"]
+        profit_events = event_counts["profit"]
+        moat_events = event_counts["moat"]
+        evidence_score = calculate_evidence_score(active_events, event_counts)
         stage_score = calculate_stage_progress_score(
             current_stage.get("research_stage"),
             current_stage.get("commercialization_stage"),
         )
-        analyst_claims = sum(
-            count for source_type, count in monitor_counts.items()
-            if source_type in {"analyst_estimate", "broker_report", "research_report", "profit_forecast"}
-        )
-        news_claims = sum(
-            count for source_type, count in monitor_counts.items()
-            if source_type in {"financial_news", "media_report", "news", "mid"}
-        )
-        total_claims = sum(monitor_counts.values())
+        analyst_claims, news_claims, total_claims = split_claim_counts(monitor_counts)
         price_change_20d = price_change.get((base_code, score_date))
         market_expectation_score = calculate_market_expectation_score(
             analyst_claims=analyst_claims,
@@ -314,46 +360,31 @@ def _build_scores_for_mapping(
         )
         revenue_value = float(revenue_ratio) if revenue_ratio is not None else None
         gross_profit_value = float(gross_profit_ratio) if gross_profit_ratio is not None else None
-        growth_score = clamp_score(
-            (revenue_value or 0.0) * 100.0
-            + growth_events * 14.0
-            + order_events * 12.0
-            + max(0.0, prosperity_score - 50.0) * 0.55
+        three_high = compute_three_high_score(
+            revenue_ratio=revenue_value,
+            gross_profit_ratio=gross_profit_value,
+            events=active_events,
+            stage_score=stage_score,
+            prosperity_score=prosperity_score,
         )
-        profit_score = None
-        if gross_profit_value is not None or profit_events:
-            profit_score = clamp_score((35.0 if gross_profit_value is None else 45.0 + gross_profit_value * 100.0) + profit_events * 10.0)
-        moat_score = clamp_score(moat_events * 28.0 + avg_confidence * 35.0)
-        score_cap = 100.0
-        if revenue_value is None and profit_score is None:
-            score_cap = 70.0
-        elif profit_score is None:
-            score_cap = 85.0
-        total_score = clamp_score(
-            growth_score * 0.24
-            + (profit_score or 0.0) * 0.18
-            + moat_score * 0.22
-            + stage_score * 0.16
-            + evidence_score * 0.14
-            + prosperity_score * 0.06,
-            high=score_cap,
+        growth_score = three_high["growth_score"]
+        profit_score = three_high["profit_score"]
+        moat_score = three_high["moat_score"]
+        score_cap = three_high["score_cap"]
+        total_score = three_high["total_score"]
+        gap = compute_expectation_gap_score(
+            stage_score=stage_score,
+            evidence_score=evidence_score,
+            prosperity_score=prosperity_score,
+            market_expectation_score=market_expectation_score,
+            risk_events=event_counts["risk"],
+            price_change_20d=price_change_20d,
         )
-        risk_penalty_score = clamp_score(risk_events * 20.0 + max(0.0, -float(price_change_20d or 0.0)) * 0.3)
-        actual_progress_score = clamp_score(stage_score * 0.50 + evidence_score * 0.32 + prosperity_score * 0.18)
-        raw_gap = (
-            actual_progress_score
-            - market_expectation_score
-            + evidence_score * 0.22
-            + (prosperity_score - 50.0) * 0.20
-            - risk_penalty_score * 0.40
-        )
-        expectation_gap_score = clamp_score(raw_gap)
-        if raw_gap >= 15:
-            gap_type = "positive"
-        elif raw_gap <= -15:
-            gap_type = "negative"
-        else:
-            gap_type = "neutral"
+        risk_penalty_score = gap["risk_penalty_score"]
+        actual_progress_score = gap["actual_progress_score"]
+        raw_gap = gap["raw_gap"]
+        expectation_gap_score = gap["expectation_gap_score"]
+        gap_type = gap["gap_type"]
         previous_gap = gap_history[-1] if gap_history else None
         gap_20d_ago = gap_history[0] if len(gap_history) >= 20 else None
         gap_momentum_score = calculate_gap_momentum_score(
@@ -366,17 +397,24 @@ def _build_scores_for_mapping(
         score_date_text = score_date.isoformat()
         evidence_ids = [str(row["event_id"]) for row in active_events if row.get("event_id")][-50:]
         shared_detail = {
-            "version": "supply-chain-history-asof-v1",
+            "version": "supply-chain-history-asof-v2-strict" if as_of_strict else "supply-chain-history-asof-v1-lookahead",
             "trade_date_source": "historical_asof_backfill",
+            "as_of_strict": as_of_strict,
             "approved_evidence_count": len(active_events),
             "monitor_counts": dict(monitor_counts),
+            "monitor_window_days": MONITOR_WINDOW_DAYS if as_of_strict else None,
             "price_change_20d": price_change_20d,
             "previous_gap_score": previous_gap,
             "gap_20d_ago": gap_20d_ago,
             "gap_momentum_score": gap_momentum_score,
             "prosperity_score": prosperity_score,
             "prosperity_proxy": prosperity,
-            "score_note": "历史回填只使用评分日前已发生数据；不使用未来证据。",
+            "score_note": (
+                "as-of 严格模式:证据/阶段按审批可见日(reviewed_at,缺失时 created_at 兜底)回放,"
+                "monitor 计数为 [D-60d, D] 滚动窗;不使用未来审批结果。"
+                if as_of_strict
+                else "lookahead 对比模式:按 event_date/trade_date 回放且 monitor 单调累积,含未来函数,仅用于对比。"
+            ),
         }
         three_high_rows.append({
             "score_id": _row_id("THREE-HIGH", mapping_id, score_date_text),
@@ -492,7 +530,17 @@ def _insert_gap(cur, rows: list[dict[str, Any]]) -> None:
     )
 
 
-def backfill_history(pg_url: str, *, start_date: str | None, end_date: str | None, years: int, commit_every: int, replace: bool) -> dict[str, Any]:
+def backfill_history(
+    pg_url: str,
+    *,
+    start_date: str | None,
+    end_date: str | None,
+    years: int,
+    commit_every: int,
+    replace: bool,
+    as_of_strict: bool = True,
+    require_evidence: bool = False,
+) -> dict[str, Any]:
     with psycopg2.connect(pg_url) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if end_date is None:
@@ -501,12 +549,12 @@ def backfill_history(pg_url: str, *, start_date: str | None, end_date: str | Non
             if start_date is None:
                 start_date = (date.fromisoformat(end_date) - timedelta(days=365 * years)).isoformat()
             trade_dates = _load_trade_dates(cur, start_date, end_date)
-            mappings = _load_mappings(cur)
+            mappings = _load_mappings(cur, require_evidence=require_evidence)
             codes = sorted({_base_code(row["code"]) for row in mappings if row.get("code")})
             tradable, price_change = _load_kline_features(cur, codes, start_date, end_date)
-            events_by_mapping = _load_events(cur)
+            events_by_mapping, event_visibility = _load_events(cur)
             monitors_by_mapping = _load_monitors(cur)
-            stages_by_mapping = _load_stages(cur)
+            stages_by_mapping, stage_visibility = _load_stages(cur)
             prosperity_by_chain_date = _load_prosperity(cur, trade_dates)
 
             deleted_three_high = deleted_gap = 0
@@ -537,6 +585,7 @@ def backfill_history(pg_url: str, *, start_date: str | None, end_date: str | Non
                     monitors_by_mapping.get(mapping_id, []),
                     stages_by_mapping.get(mapping_id, []),
                     prosperity_by_chain_date,
+                    as_of_strict=as_of_strict,
                 )
                 buffer_three_high.extend(three_rows)
                 buffer_gap.extend(gap_rows)
@@ -571,6 +620,10 @@ def backfill_history(pg_url: str, *, start_date: str | None, end_date: str | Non
         "trade_dates": len(trade_dates),
         "mappings": len(mappings),
         "replace": replace,
+        "as_of_strict": as_of_strict,
+        "require_evidence": require_evidence,
+        "event_visibility_stats": event_visibility,
+        "stage_visibility_stats": stage_visibility,
         "deleted_three_high_scores": deleted_three_high,
         "deleted_expectation_gap_scores": deleted_gap,
         "written_three_high_scores": written_three_high,
@@ -587,6 +640,13 @@ def main() -> int:
     parser.add_argument("--years", type=int, default=3)
     parser.add_argument("--commit-every", type=int, default=50)
     parser.add_argument("--replace", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--as-of-strict", dest="as_of_strict", action="store_true", default=True,
+                      help="默认开启:按审批可见日(reviewed_at/created_at)回放,monitor 用 [D-60d, D] 滚动窗")
+    mode.add_argument("--allow-lookahead", dest="as_of_strict", action="store_false",
+                      help="对比模式:沿用旧的 event_date/trade_date 回放 + 累积 monitor 计数(含未来函数)")
+    parser.add_argument("--require-evidence", action="store_true",
+                        help="只回放 status='verified' 或存在 approved 证据的映射")
     args = parser.parse_args()
     payload = backfill_history(
         args.pg_url,
@@ -595,6 +655,8 @@ def main() -> int:
         years=args.years,
         commit_every=args.commit_every,
         replace=args.replace,
+        as_of_strict=args.as_of_strict,
+        require_evidence=args.require_evidence,
     )
     print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     return 0

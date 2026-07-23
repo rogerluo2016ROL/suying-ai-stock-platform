@@ -1165,18 +1165,10 @@ def _batch_extract_business_tag_evidence(request: BusinessTagEvidenceBatchExtrac
     return supply_chain_service._batch_extract_business_tag_evidence(request)
 
 
-def _score_stage_progress(stage: dict[str, Any]) -> float:
-    return supply_chain_service._score_stage_progress(stage)
-
-
 def _approved_business_tag_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return supply_chain_service._approved_business_tag_events(events)
 
 
-def _score_business_tag_growth(mapping, approved_events): return supply_chain_service._score_business_tag_growth(mapping, approved_events)
-def _score_business_tag_profit(mapping, approved_events): return supply_chain_service._score_business_tag_profit(mapping, approved_events)
-def _score_business_tag_moat(approved_events): return supply_chain_service._score_business_tag_moat(approved_events)
-def _score_business_tag_evidence_strength(approved_events): return supply_chain_service._score_business_tag_evidence_strength(approved_events)
 def _calculate_business_tag_three_high_score(*args, **kwargs): return supply_chain_service._calculate_business_tag_three_high_score(*args, **kwargs)
 
 
@@ -1212,9 +1204,6 @@ def _persist_legacy_company_evidence_event(*args, **kwargs): return supply_chain
 def _link_inferred_evidence_to_company_bom_mapping(*args, **kwargs): return supply_chain_service._link_inferred_evidence_to_company_bom_mapping(*args, **kwargs)
 def _persist_inferred_company_chain_projection(*args, **kwargs): return supply_chain_service._persist_inferred_company_chain_projection(*args, **kwargs)
 def _materialize_supply_chain_inferred_data(*args, **kwargs): return supply_chain_service._materialize_supply_chain_inferred_data(*args, **kwargs)
-def _score_business_tag_progress_evidence(*args, **kwargs): return supply_chain_service._score_business_tag_progress_evidence(*args, **kwargs)
-def _score_business_tag_risk_penalty(*args, **kwargs): return supply_chain_service._score_business_tag_risk_penalty(*args, **kwargs)
-def _market_expectation_from_mapping(*args, **kwargs): return supply_chain_service._market_expectation_from_mapping(*args, **kwargs)
 def _calculate_business_tag_expectation_gap_score(*args, **kwargs): return supply_chain_service._calculate_business_tag_expectation_gap_score(*args, **kwargs)
 def _persist_business_tag_expectation_gap_score(*args, **kwargs): return supply_chain_service._persist_business_tag_expectation_gap_score(*args, **kwargs)
 def _score_business_tag_three_high(*args, **kwargs): return supply_chain_service._score_business_tag_three_high(*args, **kwargs)
@@ -1492,8 +1481,19 @@ def _review_business_tag_evidence(
             if not row:
                 raise HTTPException(status_code=404, detail=f"Evidence event '{event_id}' not found")
 
+            # 审核门触发器要求同一事务内声明人工审核动作（见 alembic 033）
+            cur.execute("SET LOCAL app.supply_chain_review_action = 'manual'")
+
             stage_after = request.stage_after if request.stage_after is not None else _json_or_default(row[8], {})
             confidence = request.confidence if request.confidence is not None else _to_float(row[7], 0.0)
+
+            reviewer = str(request.reviewer or "").strip() or "api_manual_review"
+            default_notes = {
+                "approved": "API 人工审核通过",
+                "rejected": "API 人工审核驳回",
+                "pending_review": "API 人工退回待审核",
+            }
+            review_note = str(request.note or "").strip() or default_notes[review_status]
 
             set_clauses = [
                 "review_status = %s",
@@ -1507,10 +1507,10 @@ def _review_business_tag_evidence(
             ]
             if _pg_column_exists(cur, "business_tag_evidence_events", "reviewer"):
                 set_clauses.append("reviewer = %s")
-                params.append(request.reviewer)
+                params.append(reviewer)
             if _pg_column_exists(cur, "business_tag_evidence_events", "review_note"):
                 set_clauses.append("review_note = %s")
-                params.append(request.note)
+                params.append(review_note)
             if _pg_column_exists(cur, "business_tag_evidence_events", "reviewed_at"):
                 set_clauses.append("reviewed_at = CURRENT_TIMESTAMP")
 
@@ -1579,7 +1579,7 @@ def _review_business_tag_evidence(
                 "event_id": event_id,
                 "mapping_id": event["mapping_id"],
                 "review_status": review_status,
-                "reviewer": request.reviewer,
+                "reviewer": reviewer,
                 "stage_updated": stage_updated,
                 "stage_record": stage_record,
                 "limitations": limitations,
@@ -4165,7 +4165,11 @@ def _run_bi_shifu_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -
 
     resolved_trade_date = _resolve_trade_date(trade_date)
     engine = BiShifuTrendV23Engine() if mode == "bi_shifu_trend_v23" else BiShifuTrendEngine()
-    picks = engine.run(top_n=top_n, trade_date=resolved_trade_date)
+    if hasattr(engine, "run_with_metadata"):
+        picks, data_quality = engine.run_with_metadata(top_n=top_n, trade_date=resolved_trade_date)
+    else:
+        picks = engine.run(top_n=top_n, trade_date=resolved_trade_date)
+        data_quality = {}
 
     picks = _sanitize_picks(picks)
     picks = _normalize_picks(picks, mode)
@@ -4175,6 +4179,7 @@ def _run_bi_shifu_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -
         "trade_date": resolved_trade_date,
         "total_picks": len(picks),
         "picks": picks,
+        "data_quality": data_quality,
     }
 
 
