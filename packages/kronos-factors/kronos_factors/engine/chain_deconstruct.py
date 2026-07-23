@@ -4,7 +4,14 @@ This module implements four deconstruct methods for industry chain analysis:
 1. bom: 钻取链 (drilldown) L1-L8 BOM-oriented layered tree and node paths
 2. upstream_downstream: 5-layer tree (raw_material → component → manufacture → channel → terminal)
 3. value_chain: margin/pricing_power/value_added per node
+   (兼容别名: 等价于 upstream_downstream + overlays=["value_chain"])
 4. competition: concentration/leader_share/barrier/threat per node
+   (兼容别名: 等价于 upstream_downstream + overlays=["competition"])
+
+value_chain / competition 的计算逻辑已抽为 overlay 注解器
+(annotate_value_chain / annotate_competition, 见 OVERLAY_ANNOTATORS),
+deconstruct_chain 支持 overlays=[...] 参数在任意 method 的单树上叠加注解 ——
+主推用法为 method="upstream_downstream" + overlays。
 
 Plus a template path (template=...) rendering a 8-layer 传导链 (transmission) tree.
 
@@ -1078,40 +1085,23 @@ def build_bom_tree(
     return tree
 
 
-def build_value_chain_tree(nodes: list[dict[str, Any]]) -> dict[str, Any]:
-    """Build value chain tree with margin/pricing_power/value_added per node.
+def annotate_value_chain(nodes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Annotate nodes with value_chain metrics (overlay 注解器).
 
     Args:
         nodes: List of chain_nodes records with value_chain JSONB field
 
     Returns:
-        Tree structure with value_chain metrics:
+        Mapping of node_id to value_chain metrics:
         {
-            "node_id": "root",
-            "name": "<theme_name>",
-            "children": [...],
-            "value_chain": {
-                "<node_id>": {
-                    "margin": 15.0,
-                    "pricing_power": 2.0,
-                    "value_added": 10.0,
-                    "note": "毛利率15%, 定价权弱"
-                }
+            "<node_id>": {
+                "margin": 15.0,
+                "pricing_power": 2.0,
+                "value_added": 10.0,
+                "note": "毛利率15%, 定价权弱"
             }
         }
     """
-    if not nodes:
-        return {
-            "node_id": "root",
-            "name": "空产业链",
-            "children": [],
-            "value_chain": {},
-        }
-
-    # Build base tree structure
-    tree = build_upstream_downstream_tree(nodes)
-
-    # Extract value_chain data from each node
     value_chain_data: dict[str, dict[str, Any]] = {}
 
     for node in nodes:
@@ -1140,45 +1130,57 @@ def build_value_chain_tree(nodes: list[dict[str, Any]]) -> dict[str, Any]:
             "note": ", ".join(note_parts) if note_parts else "无数据",
         }
 
-    tree["value_chain"] = value_chain_data
+    return value_chain_data
+
+
+def build_value_chain_tree(nodes: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build value chain tree with margin/pricing_power/value_added per node.
+
+    薄包装: 树构建委托 build_upstream_downstream_tree, 标签由
+    annotate_value_chain 注解器生成; 输出与旧独立实现逐字段一致。
+
+    Args:
+        nodes: List of chain_nodes records with value_chain JSONB field
+
+    Returns:
+        Tree structure with value_chain metrics:
+        {
+            "node_id": "root",
+            "name": "<theme_name>",
+            "children": [...],
+            "value_chain": {
+                "<node_id>": {
+                    "margin": 15.0,
+                    "pricing_power": 2.0,
+                    "value_added": 10.0,
+                    "note": "毛利率15%, 定价权弱"
+                }
+            }
+        }
+    """
+    tree = build_upstream_downstream_tree(nodes)
+    tree["value_chain"] = annotate_value_chain(nodes)
     return tree
 
 
-def build_competition_tree(nodes: list[dict[str, Any]]) -> dict[str, Any]:
-    """Build competition tree with concentration/leader_share/barrier/threat per node.
+def annotate_competition(nodes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Annotate nodes with competition metrics (overlay 注解器).
 
     Args:
         nodes: List of chain_nodes records with competition JSONB field
 
     Returns:
-        Tree structure with competition metrics:
+        Mapping of node_id to competition metrics:
         {
-            "node_id": "root",
-            "name": "<theme_name>",
-            "children": [...],
-            "competition": {
-                "<node_id>": {
-                    "concentration": 80,
-                    "leader_share": 60,
-                    "barrier": 5,
-                    "threat": 2,
-                    "note": "高集中度, 龙头份额60%, 高壁垒, 低威胁"
-                }
+            "<node_id>": {
+                "concentration": 80,
+                "leader_share": 60,
+                "barrier": 5,
+                "threat": 2,
+                "note": "高集中度, 龙头份额60%, 高壁垒, 低威胁"
             }
         }
     """
-    if not nodes:
-        return {
-            "node_id": "root",
-            "name": "空产业链",
-            "children": [],
-            "competition": {},
-        }
-
-    # Build base tree structure
-    tree = build_upstream_downstream_tree(nodes)
-
-    # Extract competition data from each node
     competition_data: dict[str, dict[str, Any]] = {}
 
     for node in nodes:
@@ -1214,8 +1216,58 @@ def build_competition_tree(nodes: list[dict[str, Any]]) -> dict[str, Any]:
             "note": ", ".join(note_parts) if note_parts else "无数据",
         }
 
-    tree["competition"] = competition_data
+    return competition_data
+
+
+def build_competition_tree(nodes: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build competition tree with concentration/leader_share/barrier/threat per node.
+
+    薄包装: 树构建委托 build_upstream_downstream_tree, 标签由
+    annotate_competition 注解器生成; 输出与旧独立实现逐字段一致。
+
+    Args:
+        nodes: List of chain_nodes records with competition JSONB field
+
+    Returns:
+        Tree structure with competition metrics:
+        {
+            "node_id": "root",
+            "name": "<theme_name>",
+            "children": [...],
+            "competition": {
+                "<node_id>": {
+                    "concentration": 80,
+                    "leader_share": 60,
+                    "barrier": 5,
+                    "threat": 2,
+                    "note": "高集中度, 龙头份额60%, 高壁垒, 低威胁"
+                }
+            }
+        }
+    """
+    tree = build_upstream_downstream_tree(nodes)
+    tree["competition"] = annotate_competition(nodes)
     return tree
+
+
+# overlay 注解器注册表: overlay 名 → 注解器函数
+OVERLAY_ANNOTATORS = {
+    "value_chain": annotate_value_chain,
+    "competition": annotate_competition,
+}
+
+
+def _apply_overlays_to_tree(
+    tree: dict[str, Any],
+    overlay_name: str,
+    overlay_data: dict[str, dict[str, Any]],
+) -> None:
+    """Merge overlay annotation fields onto matching tree nodes (in place)."""
+    node_id = tree.get("node_id")
+    if node_id in overlay_data:
+        tree[overlay_name] = overlay_data[node_id]
+    for child in tree.get("children") or []:
+        _apply_overlays_to_tree(child, overlay_name, overlay_data)
 
 
 def deconstruct_chain(
@@ -1224,6 +1276,7 @@ def deconstruct_chain(
     nodes: list[dict[str, Any]] | None = None,
     theme_name: str | None = None,
     template: str | None = None,
+    overlays: list[str] | None = None,
 ) -> dict[str, Any]:
     """Deconstruct industry chain using specified method.
 
@@ -1233,11 +1286,18 @@ def deconstruct_chain(
             - "bom": 钻取链 (drilldown) L1-L8 BOM layer buckets and paths
             - "upstream_downstream": 5-layer tree structure
             - "value_chain": tree + margin/pricing_power/value_added
+              (兼容别名: 等价于 upstream_downstream + overlays=["value_chain"])
             - "competition": tree + concentration/leader_share/barrier/threat
+              (兼容别名: 等价于 upstream_downstream + overlays=["competition"])
         nodes: List of chain_nodes records (optional, for testing)
         theme_name: Human-readable theme name (optional)
         template: Optional industry-link template, e.g. "complex_tech";
             渲染 8 层传导链 (transmission) 树, 与钻取链 (drilldown) L1-L8 不同维度
+        overlays: Optional overlay annotators to apply on any method,
+            e.g. ["value_chain", "competition"]. 主推用法:
+            method="upstream_downstream" + overlays=[...] — 单树 + 叠加注解。
+            传入时返回 dict 增加 "overlays" 键 (值为 annotate_* 输出),
+            且树节点上按 node_id 合并对应标签字段; 不传时输出结构不变。
 
     Returns:
         Deconstruct result with theme info and tree structure:
@@ -1248,12 +1308,20 @@ def deconstruct_chain(
             "bom_layers": {...} | None,
             "bom_paths": [...] | None,
             "value_chain": {...} | None,
-            "competition": {...} | None
+            "competition": {...} | None,
+            "overlays": {"value_chain": {...}, "competition": {...}}  # 仅传 overlays 时
         }
     """
     valid_methods = ("bom", "upstream_downstream", "value_chain", "competition")
     if method not in valid_methods:
         raise ValueError(f"Invalid method '{method}', must be one of {valid_methods}")
+
+    overlay_names = list(overlays or [])
+    invalid_overlays = [name for name in overlay_names if name not in OVERLAY_ANNOTATORS]
+    if invalid_overlays:
+        raise ValueError(
+            f"Invalid overlays {invalid_overlays}, must be subset of {sorted(OVERLAY_ANNOTATORS)}"
+        )
 
     if template:
         template_cfg = _find_industry_chain_template(template)
@@ -1317,5 +1385,14 @@ def deconstruct_chain(
             "tree": tree,
             "competition": tree.get("competition", {}),
         }
+
+    # Overlay 注解: 单树 + 叠加标签 (主推 method="upstream_downstream" + overlays)
+    if overlay_names:
+        overlay_payload: dict[str, dict[str, dict[str, Any]]] = {}
+        for name in overlay_names:
+            data = OVERLAY_ANNOTATORS[name](nodes)
+            overlay_payload[name] = data
+            _apply_overlays_to_tree(result["tree"], name, data)
+        result["overlays"] = overlay_payload
 
     return result

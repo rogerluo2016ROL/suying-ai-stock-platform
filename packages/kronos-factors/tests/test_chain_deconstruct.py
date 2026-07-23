@@ -8,9 +8,15 @@ AC verification:
 - [AC-5] All methods return correct data structure
 """
 
+import copy
+import json
+
 import pytest
 
 from kronos_factors.engine.chain_deconstruct import (
+    _to_float,
+    annotate_competition,
+    annotate_value_chain,
     build_bom_tree,
     build_competition_tree,
     build_upstream_downstream_tree,
@@ -583,3 +589,305 @@ class TestTransmissionLayer:
         result = deconstruct_chain("ai", "bom", template="complex_tech")
         for child in result["tree"]["children"]:
             assert child["transmission_layer"] == child["layer_id"]
+
+
+# ---------------------------------------------------------------------------
+# Golden legacy implementations (重构前的独立树逻辑, 用于逐字段对比)
+# ---------------------------------------------------------------------------
+
+
+def _legacy_build_value_chain_tree(nodes):
+    """Pre-refactor build_value_chain_tree logic (kept as golden reference)."""
+    if not nodes:
+        return {"node_id": "root", "name": "空产业链", "children": [], "value_chain": {}}
+    tree = build_upstream_downstream_tree(nodes)
+    value_chain_data = {}
+    for node in nodes:
+        node_id = node.get("node_id")
+        vc_raw = node.get("value_chain") or {}
+        margin = _to_float(vc_raw.get("margin"))
+        pricing_power = _to_float(vc_raw.get("pricing_power"))
+        value_added = _to_float(vc_raw.get("value_added"))
+        note_parts = []
+        if margin is not None:
+            note_parts.append(f"毛利率{margin:.0f}%")
+        if pricing_power is not None:
+            pp_label = "强" if pricing_power >= 4 else ("中" if pricing_power >= 2 else "弱")
+            note_parts.append(f"定价权{pp_label}")
+        if value_added is not None:
+            note_parts.append(f"附加值{value_added:.0f}%")
+        value_chain_data[node_id] = {
+            "margin": margin,
+            "pricing_power": pricing_power,
+            "value_added": value_added,
+            "note": ", ".join(note_parts) if note_parts else "无数据",
+        }
+    tree["value_chain"] = value_chain_data
+    return tree
+
+
+def _legacy_build_competition_tree(nodes):
+    """Pre-refactor build_competition_tree logic (kept as golden reference)."""
+    if not nodes:
+        return {"node_id": "root", "name": "空产业链", "children": [], "competition": {}}
+    tree = build_upstream_downstream_tree(nodes)
+    competition_data = {}
+    for node in nodes:
+        node_id = node.get("node_id")
+        comp_raw = node.get("competition") or {}
+        concentration = _to_float(comp_raw.get("concentration"))
+        leader_share = _to_float(comp_raw.get("leader_share"))
+        barrier = _to_float(comp_raw.get("barrier"))
+        threat = _to_float(comp_raw.get("threat"))
+        note_parts = []
+        if concentration is not None:
+            cc_label = "高" if concentration >= 70 else ("中" if concentration >= 40 else "低")
+            note_parts.append(f"{cc_label}集中度")
+        if leader_share is not None:
+            note_parts.append(f"龙头份额{leader_share:.0f}%")
+        if barrier is not None:
+            bar_label = "高" if barrier >= 4 else ("中" if barrier >= 2 else "低")
+            note_parts.append(f"{bar_label}壁垒")
+        if threat is not None:
+            th_label = "高" if threat >= 4 else ("中" if threat >= 2 else "低")
+            note_parts.append(f"{th_label}威胁")
+        competition_data[node_id] = {
+            "concentration": concentration,
+            "leader_share": leader_share,
+            "barrier": barrier,
+            "threat": threat,
+            "note": ", ".join(note_parts) if note_parts else "无数据",
+        }
+    tree["competition"] = competition_data
+    return tree
+
+
+def _legacy_deconstruct_chain(theme_id, method, nodes, theme_name=None):
+    """Pre-refactor deconstruct_chain method-branch logic (golden reference)."""
+    if nodes is None:
+        nodes = []
+    if theme_name and nodes:
+        for node in nodes:
+            if not node.get("parent_node_id"):
+                node["theme_id"] = theme_name
+    if method == "bom":
+        tree = build_bom_tree(nodes, theme_name=theme_name, theme_id=theme_id)
+        return {
+            "theme": {"id": theme_id, "name": theme_name or theme_id},
+            "view": method,
+            "tree": tree,
+            "bom_layers": tree.get("bom_layers", {f"L{i}": [] for i in range(1, 9)}),
+            "bom_paths": tree.get("bom_paths", []),
+            "bom_table": tree.get("bom_table", []),
+            "layer_definitions": tree.get("layer_definitions", {}),
+        }
+    if method == "upstream_downstream":
+        tree = build_upstream_downstream_tree(nodes)
+        return {
+            "theme": {"id": theme_id, "name": theme_name or theme_id},
+            "view": method,
+            "tree": tree,
+        }
+    if method == "value_chain":
+        tree = _legacy_build_value_chain_tree(nodes)
+        return {
+            "theme": {"id": theme_id, "name": theme_name or theme_id},
+            "view": method,
+            "tree": tree,
+            "value_chain": tree.get("value_chain", {}),
+        }
+    if method == "competition":
+        tree = _legacy_build_competition_tree(nodes)
+        return {
+            "theme": {"id": theme_id, "name": theme_name or theme_id},
+            "view": method,
+            "tree": tree,
+            "competition": tree.get("competition", {}),
+        }
+    raise ValueError(method)
+
+
+class TestAnnotateValueChain:
+    """Tests for annotate_value_chain overlay annotator."""
+
+    def test_empty_nodes_returns_empty_dict(self):
+        assert annotate_value_chain([]) == {}
+
+    def test_output_matches_tree_embedded_value_chain(self):
+        nodes = copy.deepcopy(SAMPLE_NODES)
+        annotations = annotate_value_chain(nodes)
+        tree = build_value_chain_tree(copy.deepcopy(SAMPLE_NODES))
+        assert annotations == tree["value_chain"]
+
+    def test_output_matches_legacy_golden(self):
+        nodes = copy.deepcopy(SAMPLE_NODES)
+        assert annotate_value_chain(nodes) == _legacy_build_value_chain_tree(
+            copy.deepcopy(SAMPLE_NODES)
+        )["value_chain"]
+
+    def test_contains_margin_pricing_power_value_added_note(self):
+        annotations = annotate_value_chain(copy.deepcopy(SAMPLE_NODES))
+        entry = annotations["silicon"]
+        assert entry["margin"] == 15.0
+        assert entry["pricing_power"] == 2.0
+        assert entry["value_added"] == 10.0
+        assert "毛利率15%" in entry["note"]
+
+
+class TestAnnotateCompetition:
+    """Tests for annotate_competition overlay annotator."""
+
+    def test_empty_nodes_returns_empty_dict(self):
+        assert annotate_competition([]) == {}
+
+    def test_output_matches_tree_embedded_competition(self):
+        nodes = copy.deepcopy(SAMPLE_NODES)
+        annotations = annotate_competition(nodes)
+        tree = build_competition_tree(copy.deepcopy(SAMPLE_NODES))
+        assert annotations == tree["competition"]
+
+    def test_output_matches_legacy_golden(self):
+        nodes = copy.deepcopy(SAMPLE_NODES)
+        assert annotate_competition(nodes) == _legacy_build_competition_tree(
+            copy.deepcopy(SAMPLE_NODES)
+        )["competition"]
+
+    def test_contains_required_fields(self):
+        annotations = annotate_competition(copy.deepcopy(SAMPLE_NODES))
+        entry = annotations["wafer_fab"]
+        for field in ("concentration", "leader_share", "barrier", "threat", "note"):
+            assert field in entry
+
+
+class TestThinWrapperGolden:
+    """build_value_chain_tree / build_competition_tree 薄包装与旧实现逐字段一致。"""
+
+    def test_value_chain_tree_matches_legacy_golden(self):
+        current = build_value_chain_tree(copy.deepcopy(SAMPLE_NODES))
+        legacy = _legacy_build_value_chain_tree(copy.deepcopy(SAMPLE_NODES))
+        assert json.dumps(current, sort_keys=True, ensure_ascii=False) == json.dumps(
+            legacy, sort_keys=True, ensure_ascii=False
+        )
+
+    def test_competition_tree_matches_legacy_golden(self):
+        current = build_competition_tree(copy.deepcopy(SAMPLE_NODES))
+        legacy = _legacy_build_competition_tree(copy.deepcopy(SAMPLE_NODES))
+        assert json.dumps(current, sort_keys=True, ensure_ascii=False) == json.dumps(
+            legacy, sort_keys=True, ensure_ascii=False
+        )
+
+    def test_empty_trees_match_legacy_golden(self):
+        assert build_value_chain_tree([]) == _legacy_build_value_chain_tree([])
+        assert build_competition_tree([]) == _legacy_build_competition_tree([])
+
+
+class TestDeconstructOverlays:
+    """Tests for deconstruct_chain overlays contract."""
+
+    def test_no_overlays_output_byte_identical_to_legacy(self):
+        for method in ("bom", "upstream_downstream", "value_chain", "competition"):
+            current = deconstruct_chain(
+                "semiconductor", method, copy.deepcopy(SAMPLE_NODES), "半导体"
+            )
+            legacy = _legacy_deconstruct_chain(
+                "semiconductor", method, copy.deepcopy(SAMPLE_NODES), "半导体"
+            )
+            assert "overlays" not in current
+            assert json.dumps(current, sort_keys=True, ensure_ascii=False) == json.dumps(
+                legacy, sort_keys=True, ensure_ascii=False
+            )
+
+    def test_overlays_adds_overlays_key_on_upstream_downstream(self):
+        result = deconstruct_chain(
+            "semiconductor",
+            "upstream_downstream",
+            copy.deepcopy(SAMPLE_NODES),
+            overlays=["value_chain", "competition"],
+        )
+        assert result["overlays"]["value_chain"] == annotate_value_chain(
+            copy.deepcopy(SAMPLE_NODES)
+        )
+        assert result["overlays"]["competition"] == annotate_competition(
+            copy.deepcopy(SAMPLE_NODES)
+        )
+
+    def test_overlays_merge_labels_onto_tree_nodes(self):
+        result = deconstruct_chain(
+            "semiconductor",
+            "upstream_downstream",
+            copy.deepcopy(SAMPLE_NODES),
+            overlays=["value_chain", "competition"],
+        )
+        vc = result["overlays"]["value_chain"]
+        comp = result["overlays"]["competition"]
+
+        def walk(node):
+            nid = node.get("node_id")
+            if nid in vc:
+                assert node["value_chain"] == vc[nid]
+                assert node["competition"] == comp[nid]
+            for child in node.get("children") or []:
+                walk(child)
+
+        walk(result["tree"])
+        # 至少根层节点被合并到标签
+        assert "value_chain" in result["tree"]["children"][0]
+
+    def test_overlays_on_bom_method(self):
+        result = deconstruct_chain(
+            "semiconductor",
+            "bom",
+            copy.deepcopy(SAMPLE_NODES),
+            "半导体",
+            overlays=["value_chain"],
+        )
+        assert "overlays" in result
+        assert set(result["overlays"]) == {"value_chain"}
+        # bom 既有字段不受影响
+        assert "bom_layers" in result and "bom_paths" in result
+
+    def test_overlays_on_value_chain_method_keeps_legacy_key(self):
+        result = deconstruct_chain(
+            "semiconductor",
+            "value_chain",
+            copy.deepcopy(SAMPLE_NODES),
+            overlays=["competition"],
+        )
+        # 旧 method 契约不变
+        assert "value_chain" in result
+        # overlay 额外叠加
+        assert set(result["overlays"]) == {"competition"}
+
+    def test_overlays_single_annotation(self):
+        result = deconstruct_chain(
+            "semiconductor",
+            "upstream_downstream",
+            copy.deepcopy(SAMPLE_NODES),
+            overlays=["value_chain"],
+        )
+        assert set(result["overlays"]) == {"value_chain"}
+
+    def test_invalid_overlay_raises_error(self):
+        with pytest.raises(ValueError, match="Invalid overlays"):
+            deconstruct_chain(
+                "semiconductor",
+                "upstream_downstream",
+                copy.deepcopy(SAMPLE_NODES),
+                overlays=["unknown_overlay"],
+            )
+
+    def test_overlays_none_and_empty_list_leave_output_unchanged(self):
+        baseline = deconstruct_chain(
+            "semiconductor", "upstream_downstream", copy.deepcopy(SAMPLE_NODES)
+        )
+        for overlays in (None, []):
+            result = deconstruct_chain(
+                "semiconductor",
+                "upstream_downstream",
+                copy.deepcopy(SAMPLE_NODES),
+                overlays=overlays,
+            )
+            assert "overlays" not in result
+            assert json.dumps(result, sort_keys=True, ensure_ascii=False) == json.dumps(
+                baseline, sort_keys=True, ensure_ascii=False
+            )
