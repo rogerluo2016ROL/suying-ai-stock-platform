@@ -251,15 +251,11 @@ async def pre_check_order(
     }
 
 
-@router.post("/order")
-async def place_order(
-    body: PlaceOrderRequest = Body(...),
-    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
-    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
-    db: AsyncSession = Depends(get_db),
-    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
-):
-    """Place a trading order — paper or live."""
+# ── place_order 主路径拆分（纯结构重构，审计 payload / error_code / 状态码保持不变）──
+
+
+def _resolve_requested_mode(body: PlaceOrderRequest) -> str:
+    """入参校验 + 实盘总开关检查，返回规范化后的 trade_mode。"""
     if body.direction.upper() not in ("BUY", "SELL"):
         raise HTTPException(400, "direction must be BUY or SELL")
     requested_mode = (body.trade_mode or _current_mode or "paper").lower()
@@ -273,8 +269,12 @@ async def place_order(
                 "error_code": "LIVE_TRADING_DISABLED",
             },
         )
+    return requested_mode
 
-    order_req = OrderRequest(
+
+def _build_order_request(body: PlaceOrderRequest) -> OrderRequest:
+    """由请求体构造 broker 层 OrderRequest。"""
+    return OrderRequest(
         symbol=body.code.upper(),
         side=OrderSide(body.direction.upper()),
         order_type=OrderType.LIMIT if body.price > 0 else OrderType.MARKET,
@@ -282,8 +282,16 @@ async def place_order(
         price=body.price,
     )
 
-    scope = resolve_trade_scope(user, tenant_id=tenant_id, account_id=account_id)
-    order_scope = build_order_scope(**scope)
+
+async def _select_broker(
+    db: AsyncSession,
+    *,
+    requested_mode: str,
+    user: dict,
+    body: PlaceOrderRequest,
+    order_scope: dict,
+) -> BrokerInterface:
+    """按模式选择 broker；live 未连接时记录 BROKER_NOT_CONNECTED 审计并抛 503。"""
     if requested_mode == "live":
         if _live_broker is None:
             await _audit_record_safe(
@@ -313,10 +321,18 @@ async def place_order(
                     "error_code": "BROKER_NOT_CONNECTED",
                 },
             )
-        broker = _live_broker
-    else:
-        broker = _PaperEngineAdapter(engine)
+        return _live_broker
+    return _PaperEngineAdapter(engine)
 
+
+async def _record_order_decision_context(
+    db: AsyncSession,
+    *,
+    body: PlaceOrderRequest,
+    scope: dict,
+    requested_mode: str,
+) -> None:
+    """下单前记录 DecisionContext 快照（best-effort，仅当带 decision_context_id）。"""
     if body.decision_context_id:
         await _decision_context_record_safe(
             db,
@@ -341,6 +357,22 @@ async def place_order(
             },
         )
 
+
+async def _run_risk_gate(
+    db: AsyncSession,
+    *,
+    broker: BrokerInterface,
+    order_req: OrderRequest,
+    body: PlaceOrderRequest,
+    scope: dict,
+    order_scope: dict,
+    requested_mode: str,
+    user: dict,
+):
+    """风控 pre_check + RISK_REJECT / 大额确认门 / RISK_PASS 审计。
+
+    返回 (acct, risk_result, risk_verdict)；风控拒绝抛 400，需二次确认抛 409。
+    """
     # Risk check for both paper and live modes. Paper orders use the same
     # verdict contract so the frontend and audit trail can rely on one shape.
     acct = await broker.get_account()
@@ -440,7 +472,25 @@ async def place_order(
         },
         symbol=body.code,
     )
+    return acct, risk_result, risk_verdict
 
+
+async def _check_live_circuit_breaker(
+    db: AsyncSession,
+    *,
+    requested_mode: str,
+    scope: dict,
+    acct,
+    user: dict,
+    body: PlaceOrderRequest,
+    order_scope: dict,
+    risk_verdict: dict,
+):
+    """live 模式熔断器检查（支持 HALF_OPEN 探测）；paper 直接放行。
+
+    返回 (acct_id, is_probe)；熔断阻断时记录审计并抛 409。
+    """
+    acct_id = None
     is_probe = False
     if requested_mode == "live":
         # Circuit breaker check (supports HALF_OPEN probing)
@@ -472,7 +522,18 @@ async def place_order(
                 },
             )
         is_probe = block_reason.startswith("HALF_OPEN")
+    return acct_id, is_probe
 
+
+async def _execute_order(
+    *,
+    broker: BrokerInterface,
+    order_req: OrderRequest,
+    requested_mode: str,
+    acct_id: str | None,
+    is_probe: bool,
+):
+    """实际下单 + HALF_OPEN probe 结果回填；下单异常时先 settle probe 槽位再原样抛出。"""
     # Execute. P0-3: can_trade() atomically reserves the single HALF_OPEN probe
     # slot (increments probing_count) when it grants a probe. If place_order
     # raises, we must still settle the reservation via record_probe(success=False)
@@ -494,7 +555,23 @@ async def place_order(
     if requested_mode == "live" and is_probe:
         probe_success = result.status.value not in ("REJECTED", "FAILED")
         await record_probe(acct_id, success=probe_success)
+    return result
 
+
+async def _persist_order_result(
+    db: AsyncSession,
+    *,
+    body: PlaceOrderRequest,
+    scope: dict,
+    order_scope: dict,
+    order_req: OrderRequest,
+    requested_mode: str,
+    user: dict,
+    risk_result,
+    risk_verdict: dict,
+    result,
+) -> None:
+    """下单成功后落库：RiskVerdict 补 order_id、写订单台账与 PLACE_ORDER 审计。"""
     risk_verdict["order_id"] = result.order_id
 
     await _risk_verdict_record_safe(
@@ -551,6 +628,17 @@ async def place_order(
         order_id=result.order_id,
     )
 
+
+def _build_place_order_response(
+    *,
+    body: PlaceOrderRequest,
+    order_scope: dict,
+    order_req: OrderRequest,
+    risk_result,
+    risk_verdict: dict,
+    result,
+) -> dict:
+    """组装下单接口响应体（字段与顺序保持原样）。"""
     return {
         "order_id": result.order_id,
         "broker_order_id": result.broker_order_id or None,
@@ -572,6 +660,47 @@ async def place_order(
         "risk_verdict": risk_verdict,
         "risk_check": risk_result.to_dict(),
     }
+
+
+@router.post("/order")
+async def place_order(
+    body: PlaceOrderRequest = Body(...),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user")),
+):
+    """Place a trading order — paper or live."""
+    requested_mode = _resolve_requested_mode(body)
+    order_req = _build_order_request(body)
+
+    scope = resolve_trade_scope(user, tenant_id=tenant_id, account_id=account_id)
+    order_scope = build_order_scope(**scope)
+    broker = await _select_broker(
+        db, requested_mode=requested_mode, user=user, body=body, order_scope=order_scope,
+    )
+    await _record_order_decision_context(db, body=body, scope=scope, requested_mode=requested_mode)
+    acct, risk_result, risk_verdict = await _run_risk_gate(
+        db, broker=broker, order_req=order_req, body=body, scope=scope,
+        order_scope=order_scope, requested_mode=requested_mode, user=user,
+    )
+    acct_id, is_probe = await _check_live_circuit_breaker(
+        db, requested_mode=requested_mode, scope=scope, acct=acct, user=user,
+        body=body, order_scope=order_scope, risk_verdict=risk_verdict,
+    )
+    result = await _execute_order(
+        broker=broker, order_req=order_req, requested_mode=requested_mode,
+        acct_id=acct_id, is_probe=is_probe,
+    )
+    await _persist_order_result(
+        db, body=body, scope=scope, order_scope=order_scope, order_req=order_req,
+        requested_mode=requested_mode, user=user, risk_result=risk_result,
+        risk_verdict=risk_verdict, result=result,
+    )
+    return _build_place_order_response(
+        body=body, order_scope=order_scope, order_req=order_req,
+        risk_result=risk_result, risk_verdict=risk_verdict, result=result,
+    )
 
 
 @router.delete("/order/{order_id}")
