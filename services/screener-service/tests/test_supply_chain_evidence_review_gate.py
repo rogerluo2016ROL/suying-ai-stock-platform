@@ -87,13 +87,18 @@ def test_review_business_tag_evidence_approve_passes_review_gate():
             ),
         )
 
-        # reviewer/note 留空,验证默认回填路径
+        # main 侧契约要求显式 reviewer/note(min_length=1);
+        # 阶段写入由请求 stage_after 驱动 (evidence_review_repository: decision==approved and stage_after)
         result = _review_business_tag_evidence(
             event_id,
-            BusinessTagEvidenceReviewRequest(review_status="approved", reviewer="", note=""),
+            BusinessTagEvidenceReviewRequest(
+                review_status="approved",
+                reviewer="pytest",
+                note="审核门回归测试",
+                stage_after={"research_stage": "R3", "commercialization_stage": "C2"},
+            ),
         )
         assert result["review_status"] == "approved"
-        assert result["reviewer"] == "api_manual_review"
         assert result["stage_updated"] is True
 
         cur.execute(

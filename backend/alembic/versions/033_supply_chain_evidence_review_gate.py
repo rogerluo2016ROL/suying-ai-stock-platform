@@ -40,6 +40,7 @@ def upgrade() -> None:
             USING reviewed_at AT TIME ZONE 'Asia/Shanghai'
         """
     )
+
     # review_normalization is owned by a completed manual review.  Historical
     # collector metadata cannot establish that audit chain and is removed.
     op.execute(

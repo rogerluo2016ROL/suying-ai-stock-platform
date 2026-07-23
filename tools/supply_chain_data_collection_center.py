@@ -16,12 +16,14 @@ import re
 import subprocess
 import sys
 import tempfile
+from copy import deepcopy
 from html import unescape
-from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from dataclasses import asdict, dataclass, replace
+from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import urljoin, urlparse
+from zoneinfo import ZoneInfo
 
 # 注入共享 packages(须在 import kronos-factors 前,照 bom 工具惯例)
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +50,64 @@ from kronos_factors.engine.supply_chain_scoring import json_list as _json_list  
 
 
 SourceLevel = Literal["strong", "mid", "weak"]
+_SHANGHAI = ZoneInfo("Asia/Shanghai")
+
+
+def shanghai_today() -> date:
+    return datetime.now(_SHANGHAI).date()
+
+
+def sanitize_sensitive_text(value: object, *, limit: int = 500) -> str:
+    """Redact common credential forms before an error crosses a boundary."""
+
+    text = str(value or "")[:4000]
+    text = re.sub(
+        r"(?i)([a-z][a-z0-9+.-]*://)[^/@\s]+:[^/@\s]+@",
+        r"\1<redacted>@",
+        text,
+    )
+    key_pattern = re.compile(
+        r"(?i)(?P<prefix>[\"']?(?:authorization|cookie|x-api-key|api[_-]?key|"
+        r"token|password|passwd|secret|client_secret)[\"']?\s*[:=]\s*)"
+        r"(?P<value>\"[^\"]*\"|'[^']*'|(?:bearer\s+)?[^,;\}\]\n&]+)"
+    )
+    text = key_pattern.sub(lambda match: f"{match.group('prefix')}<redacted>", text)
+    text = re.sub(
+        r"(?i)(bearer)\s+(?:\"[^\"]*\"|'[^']*'|[^\s,;\}\]&]+)",
+        r"\1 <redacted>",
+        text,
+    )
+    return text[:limit]
+
+
+class DocumentFetchError(RuntimeError):
+    """Safe document-fetch failure with exact request accounting."""
+
+    def __init__(
+        self,
+        message: object,
+        *,
+        request_count: int,
+        documents: tuple["RawDocument", ...] | list["RawDocument"] = (),
+        failed_count: int = 1,
+        skipped_count: int = 0,
+    ):
+        super().__init__(sanitize_sensitive_text(message))
+        self.request_count = int(request_count)
+        self.documents = tuple(documents)
+        self.failed_count = max(1, int(failed_count))
+        self.skipped_count = max(0, int(skipped_count))
+
+
+@dataclass
+class DocumentFetchStats:
+    """Mutable counters shared with compatibility wrappers."""
+
+    selected: int = 0
+    fetched: int = 0
+    skipped: int = 0
+    failed: int = 0
+    request_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -91,6 +151,7 @@ class RawDocument:
     company_name: str | None = None
     publish_time: str | None = None
     doc_type: str | None = None
+    metadata: dict[str, Any] | None = None
 
     @property
     def content_hash(self) -> str:
@@ -116,6 +177,7 @@ class ExtractedFact:
     profit_signal: bool = False
     moat_signal: bool = False
     risk_signal: bool = False
+    metadata: dict[str, Any] | None = None
 
 
 COMMERCIAL_STAGE_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -244,6 +306,14 @@ def confidence_cap_for_level(source_level: SourceLevel) -> float:
     return {"strong": 0.95, "mid": 0.75, "weak": 0.45}[source_level]
 
 
+def sanitize_pending_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
+    if metadata is None:
+        return None
+    sanitized = deepcopy(metadata)
+    sanitized.pop("review_normalization", None)
+    return sanitized
+
+
 def extract_fact_from_document(document: RawDocument, company_code: str | None = None) -> ExtractedFact:
     text = normalize_text(document.content_text)
     source_level = document.source_level
@@ -251,7 +321,7 @@ def extract_fact_from_document(document: RawDocument, company_code: str | None =
 
     research_stage = _stage_from_keywords(text, RESEARCH_STAGE_KEYWORDS)
     commercial_stage = _stage_from_keywords(text, COMMERCIAL_STAGE_KEYWORDS)
-    validation_status = "confirmed" if source_level == "strong" else "pending"
+    validation_status = "pending"
     confidence = min({"strong": 0.8, "mid": 0.6, "weak": 0.35}[source_level], confidence_cap)
 
     if source_level == "weak":
@@ -281,6 +351,7 @@ def extract_fact_from_document(document: RawDocument, company_code: str | None =
         profit_signal=_contains_any(text, PROFIT_KEYWORDS),
         moat_signal=_contains_any(text, MOAT_KEYWORDS),
         risk_signal=_contains_any(text, RISK_KEYWORDS),
+        metadata=sanitize_pending_metadata(document.metadata),
     )
 
 
@@ -748,14 +819,29 @@ def build_legacy_event_record_from_fact(row: dict) -> dict:
             "commercial_stage": row.get("commercial_stage_signal"),
         },
         "confidence": row.get("confidence") or 0.0,
-        "review_status": "approved" if source_level == "strong" and row.get("validation_status") == "confirmed" else "pending_review",
+        "review_status": "pending_review",
         "review_note": "synced from data collection center",
     }
 
 
-def _insert_raw_document_and_fact(cur, document: RawDocument, source: CollectionSource, job_id: str) -> dict:
+def _insert_raw_document_and_fact(
+    cur,
+    document: RawDocument,
+    source: CollectionSource,
+    job_id: str,
+    *,
+    mapping_id: str | None = None,
+    fact_nature: str | None = None,
+) -> dict:
     import json as _json
 
+    def returned_inserted(row) -> bool:
+        if isinstance(row, dict):
+            return bool(row.get("inserted"))
+        return bool(row and row[0])
+
+    raw_metadata = dict(document.metadata or {})
+    raw_metadata["backfill_job_id"] = job_id
     cur.execute(
         """
         INSERT INTO raw_evidence_documents (
@@ -767,7 +853,11 @@ def _insert_raw_document_and_fact(cur, document: RawDocument, source: Collection
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
             'active', %s, %s::jsonb
         )
-        ON CONFLICT (content_hash) DO NOTHING
+        ON CONFLICT (content_hash) DO UPDATE SET
+            publish_time = COALESCE(raw_evidence_documents.publish_time, EXCLUDED.publish_time),
+            metadata = EXCLUDED.metadata || raw_evidence_documents.metadata,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING (xmax = 0) AS inserted
         """,
         (
             document.doc_id,
@@ -783,26 +873,42 @@ def _insert_raw_document_and_fact(cur, document: RawDocument, source: Collection
             document.content_hash,
             document.doc_type,
             source.license_status,
-            _json.dumps({"backfill_job_id": job_id}, ensure_ascii=False),
+            _json.dumps(raw_metadata, ensure_ascii=False),
         ),
     )
-    inserted_doc = cur.rowcount > 0
+    inserted_doc = returned_inserted(cur.fetchone())
 
-    cur.execute(
-        """
-        SELECT mapping_id, chain_id, node_id, tag_name
-        FROM business_tag_mapping
-        WHERE split_part(code, '.', 1) = %s OR code = %s
-        ORDER BY confidence DESC NULLS LAST
-        LIMIT 1
-        """,
-        (str(document.company_code or "").split(".")[0], document.company_code),
-    )
-    mapping = cur.fetchone()
-    if not mapping:
-        return {"inserted_doc": inserted_doc, "inserted_fact": False, "duplicate": not inserted_doc}
+    mapping = None
+    if mapping_id:
+        cur.execute(
+            """
+            SELECT mapping_id, chain_id, node_id, tag_name
+            FROM business_tag_mapping
+            WHERE mapping_id = %s
+              AND (split_part(code, '.', 1) = %s OR code = %s)
+            LIMIT 1
+            """,
+            (mapping_id, str(document.company_code or "").split(".")[0], document.company_code),
+        )
+        mapping = cur.fetchone()
+
+    def mapping_value(key: str, index: int):
+        if not mapping:
+            return None
+        if isinstance(mapping, dict):
+            return mapping.get(key)
+        return mapping[index]
+
+    resolved_mapping_id = mapping_value("mapping_id", 0)
+    chain_id = mapping_value("chain_id", 1)
+    node_id = mapping_value("node_id", 2)
+    tag_name = mapping_value("tag_name", 3)
 
     fact = extract_fact_from_document(document)
+    fact_metadata = dict(fact.metadata or {})
+    fact_metadata["backfill_job_id"] = job_id
+    if node_id:
+        fact_metadata["node_id"] = node_id
     cur.execute(
         """
         INSERT INTO evidence_extracted_facts (
@@ -816,17 +922,20 @@ def _insert_raw_document_and_fact(cur, document: RawDocument, source: Collection
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb
         )
-        ON CONFLICT (fact_id) DO NOTHING
+        ON CONFLICT (fact_id) DO UPDATE SET
+            metadata = (EXCLUDED.metadata - 'review_normalization') || evidence_extracted_facts.metadata,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING (xmax = 0) AS inserted
         """,
         (
-            _fact_id(document.doc_id, mapping["mapping_id"]),
+            _fact_id(document.doc_id, resolved_mapping_id),
             document.doc_id,
-            mapping["mapping_id"],
+            resolved_mapping_id,
             document.company_code or "",
-            mapping["chain_id"],
-            mapping["tag_name"],
+            chain_id,
+            tag_name,
             fact.fact_type,
-            _fact_nature_for_level(source.source_level),
+            fact_nature or _fact_nature_for_level(source.source_level),
             fact.original_quote,
             source.source_level,
             fact.confidence,
@@ -838,10 +947,19 @@ def _insert_raw_document_and_fact(cur, document: RawDocument, source: Collection
             fact.moat_signal,
             fact.risk_signal,
             fact.validation_status,
-            _json.dumps({"backfill_job_id": job_id, "node_id": mapping["node_id"]}, ensure_ascii=False),
+            _json.dumps(fact_metadata, ensure_ascii=False),
         ),
     )
-    return {"inserted_doc": inserted_doc, "inserted_fact": cur.rowcount > 0, "duplicate": not inserted_doc}
+    inserted_fact = returned_inserted(cur.fetchone())
+    mapping_required = resolved_mapping_id is None
+    return {
+        "inserted_doc": inserted_doc,
+        "inserted_fact": inserted_fact,
+        "duplicate": not inserted_doc,
+        "mapping_id": resolved_mapping_id,
+        "mapping_required": mapping_required,
+        "status": "mapping_required" if mapping_required else "stored",
+    }
 
 
 def run_existing_source_backfill(pg_url: str, source_id: str, limit: int = 50) -> dict:
@@ -1096,97 +1214,17 @@ def run_existing_source_backfill(pg_url: str, source_id: str, limit: int = 50) -
                         publish_time=str(row.get("publish_time")) if row.get("publish_time") else None,
                         doc_type=row.get("doc_type"),
                     )
-                    cur.execute(
-                        """
-                        INSERT INTO raw_evidence_documents (
-                            doc_id, source_id, source_type, source_level, company_code,
-                            company_name, title, publish_time, url, content_text,
-                            content_hash, doc_type, doc_status, license_status, metadata
-                        )
-                        VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                            'active', %s, %s::jsonb
-                        )
-                        ON CONFLICT (content_hash) DO NOTHING
-                        """,
-                        (
-                            document.doc_id,
-                            source_id,
-                            source.source_type,
-                            source.source_level,
-                            document.company_code,
-                            document.company_name,
-                            document.title,
-                            document.publish_time,
-                            document.url,
-                            document.content_text,
-                            document.content_hash,
-                            document.doc_type,
-                            source.license_status,
-                            json.dumps({"backfill_job_id": job_id}, ensure_ascii=False),
-                        ),
-                    )
-                    if cur.rowcount == 0:
-                        duplicates += 1
-                    else:
-                        inserted_docs += 1
-
-                    cur.execute(
-                        """
-                        SELECT mapping_id, chain_id, node_id, tag_name
-                        FROM business_tag_mapping
-                        WHERE split_part(code, '.', 1) = %s OR code = %s
-                        ORDER BY confidence DESC NULLS LAST
-                        LIMIT 1
-                        """,
-                        (str(document.company_code or "").split(".")[0], document.company_code),
-                    )
-                    mapping = cur.fetchone()
-                    if not mapping:
-                        continue
-
-                    fact = extract_fact_from_document(document)
                     fact_nature = "analyst_estimate" if source_id == "broker_expectation_local" else _fact_nature_for_level(source.source_level)
-                    cur.execute(
-                        """
-                        INSERT INTO evidence_extracted_facts (
-                            fact_id, doc_id, mapping_id, company_code, chain_id, l5_tag,
-                            fact_type, fact_nature, original_quote, source_level,
-                            confidence, confidence_cap, research_stage_signal,
-                            commercial_stage_signal, growth_signal, profit_signal,
-                            moat_signal, risk_signal, validation_status, metadata
-                        )
-                        VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb
-                        )
-                        ON CONFLICT (fact_id) DO NOTHING
-                        """,
-                        (
-                            _fact_id(document.doc_id, mapping["mapping_id"]),
-                            document.doc_id,
-                            mapping["mapping_id"],
-                            document.company_code or "",
-                            mapping["chain_id"],
-                            mapping["tag_name"],
-                            fact.fact_type,
-                            fact_nature,
-                            fact.original_quote,
-                            source.source_level,
-                            fact.confidence,
-                            fact.confidence_cap,
-                            fact.research_stage_signal,
-                            fact.commercial_stage_signal,
-                            fact.growth_signal,
-                            fact.profit_signal,
-                            fact.moat_signal,
-                            fact.risk_signal,
-                            fact.validation_status,
-                            json.dumps({"backfill_job_id": job_id, "node_id": mapping["node_id"]}, ensure_ascii=False),
-                        ),
+                    result = _insert_raw_document_and_fact(
+                        cur,
+                        document,
+                        source,
+                        job_id,
+                        fact_nature=fact_nature,
                     )
-                    if cur.rowcount:
-                        inserted_facts += 1
+                    inserted_docs += 1 if result["inserted_doc"] else 0
+                    inserted_facts += 1 if result["inserted_fact"] else 0
+                    duplicates += 1 if result["duplicate"] else 0
                 except Exception:
                     failed += 1
 
@@ -1218,7 +1256,565 @@ def run_existing_source_backfill(pg_url: str, source_id: str, limit: int = 50) -
     }
 
 
-def fetch_cninfo_pdf_announcements(pg_url: str, limit: int = 20, title_mode: str = "relevant") -> dict:
+def _scoped_stock_code(value: object) -> str:
+    return str(value or "").strip().split(".", 1)[0]
+
+
+def _document_publish_date(value: object) -> date | None:
+    if isinstance(value, datetime):
+        localized = (
+            value.replace(tzinfo=_SHANGHAI)
+            if value.tzinfo is None
+            else value.astimezone(_SHANGHAI)
+        )
+        return localized.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, (int, float)):
+        timestamp = float(value)
+        if timestamp > 10_000_000_000:
+            timestamp /= 1000
+        try:
+            return datetime.fromtimestamp(timestamp, tz=UTC).astimezone(_SHANGHAI).date()
+        except (OverflowError, OSError, ValueError):
+            return None
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if len(text) >= 8 and text[:8].isdigit():
+        text = f"{text[:4]}-{text[4:6]}-{text[6:8]}"
+    try:
+        if len(text) <= 10:
+            return date.fromisoformat(text[:10])
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        localized = (
+            parsed.replace(tzinfo=_SHANGHAI)
+            if parsed.tzinfo is None
+            else parsed.astimezone(_SHANGHAI)
+        )
+        return localized.date()
+    except ValueError:
+        return None
+
+
+def _read_only_rows(pg_url: str, statement: str, params: tuple[object, ...]) -> list[dict]:
+    """Execute one scoped SELECT without opening a writable transaction."""
+
+    import psycopg2
+    import psycopg2.extras
+
+    connection = psycopg2.connect(pg_url)
+    try:
+        try:
+            connection.autocommit = True
+        except (AttributeError, TypeError):
+            pass
+        with connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+            cursor.execute(statement, params)
+            return [dict(row) for row in cursor.fetchall()]
+    finally:
+        close = getattr(connection, "close", None)
+        if callable(close):
+            close()
+
+
+def _http_session(session=None, *, referer: str | None = None):
+    if session is None:
+        import requests
+
+        session = requests.Session()
+    headers = getattr(session, "headers", None)
+    if hasattr(headers, "update"):
+        values = {"User-Agent": "Mozilla/5.0"}
+        if referer:
+            values["Referer"] = referer
+        headers.update(values)
+    return session
+
+
+def _announcement_date_text(value: object) -> str | None:
+    parsed = _document_publish_date(value)
+    return parsed.isoformat() if parsed else None
+
+
+def fetch_cninfo_documents(
+    pg_url: str,
+    *,
+    company_codes: tuple[str, ...],
+    start_date: date | None,
+    as_of_date: date,
+    limit: int = 20,
+    session=None,
+    candidate_predicate=None,
+    title_predicate=None,
+    stats: DocumentFetchStats | None = None,
+) -> tuple[list[RawDocument], int]:
+    """Return scoped CNINFO PDF documents and HTTP request count; never persist."""
+
+    counters = stats if stats is not None else DocumentFetchStats()
+    normalized_codes = {
+        _scoped_stock_code(code) for code in company_codes if _scoped_stock_code(code)
+    }
+    if not normalized_codes or limit <= 0:
+        return [], 0
+    rows = _read_only_rows(
+        pg_url,
+        """
+        SELECT DISTINCT
+            split_part(r.ts_code, '.', 1) AS code,
+            s.name AS company_name,
+            r.ann_date,
+            r.ann_date AS publish_date,
+            r.title,
+            r.url,
+            r.ts_code
+        FROM ts_raw_anns_d r
+        LEFT JOIN stocks s ON s.code = split_part(r.ts_code, '.', 1)
+        WHERE split_part(r.ts_code, '.', 1) = ANY(%s)
+          AND coalesce(r.url, '') <> ''
+          AND coalesce(r.title, '') <> ''
+        ORDER BY r.ann_date DESC NULLS LAST, r.ts_code, r.title
+        LIMIT %s
+        """,
+        (sorted(normalized_codes), max(limit * 10, limit)),
+    )
+    rows = [
+        row for row in rows if _scoped_stock_code(row.get("code")) in normalized_codes
+    ]
+    filtered: list[dict] = []
+    for row in rows:
+        published = _document_publish_date(
+            row.get("publish_date") or row.get("ann_date")
+        )
+        if published is not None and (
+            published > as_of_date or (start_date is not None and published < start_date)
+        ):
+            continue
+        filtered.append(row)
+    if candidate_predicate is not None:
+        filtered = [
+            row
+            for row in filtered
+            if candidate_predicate(str(row.get("title") or ""))
+        ]
+    counters.selected = len(filtered)
+
+    source = _source_by_id("cninfo_announcement")
+    client = _http_session(
+        session, referer="http://www.cninfo.com.cn/new/disclosure/detail"
+    )
+    documents: list[RawDocument] = []
+    request_count = 0
+    seen_announcements: set[str] = set()
+    errors: list[str] = []
+    for row in filtered:
+        if counters.fetched >= limit:
+            break
+        title = str(row.get("title") or "")
+        if title_predicate is not None and not title_predicate(title):
+            counters.skipped += 1
+            continue
+        detail_url = str(row.get("url") or "")
+        announcement_id = str(row.get("announcement_id") or "") or (
+            extract_cninfo_announcement_id(detail_url) or ""
+        )
+        if not announcement_id or announcement_id in seen_announcements:
+            counters.skipped += 1
+            continue
+        seen_announcements.add(announcement_id)
+        counters.fetched += 1
+        publish_text = _announcement_date_text(
+            row.get("publish_date") or row.get("ann_date")
+        )
+        try:
+            request_count += 1
+            detail = client.post(
+                "http://www.cninfo.com.cn/new/announcement/bulletin_detail",
+                params={
+                    "announceId": announcement_id,
+                    "flag": str(str(row.get("ts_code") or "").upper().endswith(".SZ")).lower(),
+                    "announceTime": publish_text or "",
+                },
+                timeout=20,
+            )
+            if getattr(detail, "status_code", 500) != 200:
+                raise RuntimeError(
+                    f"CNINFO detail HTTP {getattr(detail, 'status_code', 'unknown')}"
+                )
+            announcement = (detail.json() or {}).get("announcement") or {}
+            adjunct = announcement.get("adjunctUrl")
+            if not adjunct:
+                counters.skipped += 1
+                continue
+            pdf_url = cninfo_pdf_url(str(adjunct))
+            request_count += 1
+            response = client.get(pdf_url, timeout=30)
+            content = bytes(getattr(response, "content", b"") or b"")
+            if getattr(response, "status_code", 500) != 200 or not content.startswith(
+                b"%PDF"
+            ):
+                raise RuntimeError(
+                    f"CNINFO PDF HTTP {getattr(response, 'status_code', 'unknown')} or invalid PDF"
+                )
+            content_text = _extract_pdf_text(content)
+            if not content_text:
+                raise RuntimeError("CNINFO PDF text extraction failed")
+            documents.append(
+                RawDocument(
+                    source_id=source.source_id,
+                    source_level=source.source_level,
+                    title=str(
+                        announcement.get("announcementTitle")
+                        or row.get("title")
+                        or "公告全文"
+                    ),
+                    content_text=content_text,
+                    url=pdf_url,
+                    company_code=_scoped_stock_code(row.get("code")),
+                    company_name=str(
+                        row.get("company_name") or announcement.get("secName") or ""
+                    ),
+                    publish_time=publish_text,
+                    doc_type="announcement_pdf",
+                    metadata={"announcement_id": announcement_id},
+                )
+            )
+        except Exception as exc:
+            counters.failed += 1
+            errors.append(sanitize_sensitive_text(exc))
+    counters.request_count = request_count
+    if errors:
+        raise DocumentFetchError(
+            f"CNINFO document failures: {'; '.join(errors)}",
+            request_count=request_count,
+            documents=documents,
+            failed_count=counters.failed,
+            skipped_count=counters.skipped,
+        )
+    return documents, request_count
+
+
+def fetch_official_ir_documents(
+    pg_url: str,
+    *,
+    company_codes: tuple[str, ...],
+    start_date: date | None,
+    as_of_date: date,
+    limit: int = 10,
+    pages_per_company: int = 2,
+    session=None,
+    stats: DocumentFetchStats | None = None,
+) -> tuple[list[RawDocument], int]:
+    """Return scoped official-site documents and request count; never persist."""
+
+    counters = stats if stats is not None else DocumentFetchStats()
+    normalized_codes = {
+        _scoped_stock_code(code) for code in company_codes if _scoped_stock_code(code)
+    }
+    if not normalized_codes or limit <= 0 or pages_per_company <= 0:
+        return [], 0
+    rows = _read_only_rows(
+        pg_url,
+        """
+        SELECT DISTINCT
+            coalesce(p.code, split_part(r.ts_code, '.', 1)) AS code,
+            s.name AS company_name,
+            coalesce(nullif(p.website, ''), nullif(r.website, '')) AS website
+        FROM stock_profiles p
+        FULL OUTER JOIN ts_raw_stock_company r
+          ON split_part(r.ts_code, '.', 1) = p.code
+        LEFT JOIN stocks s
+          ON s.code = coalesce(p.code, split_part(r.ts_code, '.', 1))
+        WHERE coalesce(p.code, split_part(r.ts_code, '.', 1)) = ANY(%s)
+          AND coalesce(nullif(p.website, ''), nullif(r.website, '')) IS NOT NULL
+        ORDER BY coalesce(p.code, split_part(r.ts_code, '.', 1))
+        LIMIT %s
+        """,
+        (sorted(normalized_codes), len(normalized_codes)),
+    )
+    rows = [
+        row for row in rows if _scoped_stock_code(row.get("code")) in normalized_codes
+    ]
+    counters.selected = len(rows)
+    client = _http_session(session)
+    source = _source_by_id("official_ir_site")
+    documents: list[RawDocument] = []
+    request_count = 0
+    errors: list[str] = []
+    for company in rows:
+        if len(documents) >= limit:
+            break
+        website = normalize_website_url(str(company.get("website") or ""))
+        if not website:
+            counters.skipped += 1
+            continue
+        try:
+            request_count += 1
+            homepage = client.get(website, timeout=15)
+            homepage_html = response_text(homepage)
+            if getattr(homepage, "status_code", 500) >= 400 or not homepage_html:
+                raise RuntimeError(
+                    f"official IR homepage HTTP {getattr(homepage, 'status_code', 'unknown')} or empty response"
+                )
+            resolved_home = str(getattr(homepage, "url", website) or website)
+            urls = [resolved_home]
+            urls.extend(
+                extract_relevant_official_links(
+                    resolved_home.rstrip("/"),
+                    homepage_html,
+                    max_links=max(0, pages_per_company - 1),
+                )
+            )
+            for page_url in list(dict.fromkeys(urls))[:pages_per_company]:
+                if len(documents) >= limit:
+                    break
+                try:
+                    if page_url == resolved_home:
+                        page = homepage
+                        page_html = homepage_html
+                    else:
+                        request_count += 1
+                        page = client.get(page_url, timeout=15)
+                        page_html = response_text(page)
+                    if getattr(page, "status_code", 500) >= 400 or not page_html:
+                        raise RuntimeError(
+                            f"official IR page HTTP {getattr(page, 'status_code', 'unknown')} or empty response"
+                        )
+                    text = html_to_text(page_html)
+                    if len(text) < 80:
+                        counters.skipped += 1
+                        continue
+                    title_match = re.search(r"(?is)<title[^>]*>(.*?)</title>", page_html)
+                    page_title = (
+                        html_to_text(title_match.group(1))
+                        if title_match
+                        else f"{company.get('company_name') or company.get('code')} 官网页面"
+                    )
+                    documents.append(
+                        RawDocument(
+                            source_id=source.source_id,
+                            source_level=source.source_level,
+                            title=page_title[:240],
+                            content_text=text,
+                            url=page_url,
+                            company_code=_scoped_stock_code(company.get("code")),
+                            company_name=str(company.get("company_name") or ""),
+                            publish_time=None,
+                            doc_type="official_product_page",
+                            metadata={"fetched_as_of_date": as_of_date.isoformat()},
+                        )
+                    )
+                    counters.fetched += 1
+                except Exception as exc:
+                    counters.failed += 1
+                    errors.append(sanitize_sensitive_text(exc))
+        except Exception as exc:
+            counters.failed += 1
+            errors.append(sanitize_sensitive_text(exc))
+    counters.request_count = request_count
+    if errors:
+        raise DocumentFetchError(
+            f"official IR failures: {'; '.join(errors)}",
+            request_count=request_count,
+            documents=documents,
+            failed_count=counters.failed,
+            skipped_count=counters.skipped,
+        )
+    return documents, request_count
+
+
+def _cninfo_search_rows(payload: object) -> list[dict]:
+    if not isinstance(payload, dict):
+        return []
+    for key in ("announcements", "announcementList", "classifiedAnnouncements"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            rows: list[dict] = []
+            for item in value:
+                if isinstance(item, dict):
+                    rows.append(dict(item))
+                elif isinstance(item, list):
+                    rows.extend(dict(row) for row in item if isinstance(row, dict))
+            if rows:
+                return rows
+    nested = payload.get("data")
+    return _cninfo_search_rows(nested) if isinstance(nested, dict) else []
+
+
+def fetch_cninfo_keyword_documents(
+    *,
+    product_terms: tuple[str, ...],
+    scene_terms: tuple[str, ...],
+    require_product_and_scene: bool,
+    allowed_company_codes: tuple[str, ...],
+    as_of_date: date,
+    limit: int,
+    session=None,
+) -> tuple[list[RawDocument], int]:
+    """Run bounded global product+scene CNINFO searches and return PDF documents."""
+
+    products = tuple(dict.fromkeys(term.strip() for term in product_terms if term.strip()))
+    scenes = tuple(dict.fromkeys(term.strip() for term in scene_terms if term.strip()))
+    if not products or limit <= 0 or (require_product_and_scene and not scenes):
+        return [], 0
+    queries = [f'"{product}" "{scene}"' for product in products for scene in scenes]
+    if not require_product_and_scene:
+        queries.extend(f'"{product}"' for product in products)
+    queries = list(dict.fromkeys(queries))
+    allowed = {
+        _scoped_stock_code(code)
+        for code in allowed_company_codes
+        if _scoped_stock_code(code)
+    }
+    start_date = date(as_of_date.year - 3, 1, 1)
+    client = _http_session(
+        session, referer="http://www.cninfo.com.cn/new/fulltextSearch"
+    )
+    request_count = 0
+    candidates: dict[str, dict] = {}
+    for query in queries:
+        try:
+            request_count += 1
+            response = client.post(
+                "http://www.cninfo.com.cn/new/fulltextSearch/full",
+                data={
+                    "keyWord": query,
+                    "searchkey": query,
+                    "sdate": start_date.isoformat(),
+                    "edate": as_of_date.isoformat(),
+                    "sortName": "pubdate",
+                    "sortType": "desc",
+                    "pageNum": 1,
+                },
+                timeout=20,
+            )
+            if getattr(response, "status_code", 500) != 200:
+                raise DocumentFetchError(
+                    f"CNINFO keyword search HTTP {getattr(response, 'status_code', 'unknown')}",
+                    request_count=request_count,
+                )
+            payload = response.json() or {}
+        except DocumentFetchError:
+            raise
+        except Exception as exc:
+            raise DocumentFetchError(
+                f"CNINFO keyword search request or JSON parse failed: {exc}",
+                request_count=request_count,
+            ) from exc
+        for row in _cninfo_search_rows(payload):
+            code = _scoped_stock_code(
+                row.get("secCode") or row.get("code") or row.get("stockCode")
+            )
+            if allowed and code not in allowed:
+                continue
+            published = _document_publish_date(
+                row.get("announcementTime")
+                or row.get("announcementDate")
+                or row.get("publishDate")
+            )
+            if published is not None and not (start_date <= published <= as_of_date):
+                continue
+            identity = str(
+                row.get("announcementId")
+                or row.get("announceId")
+                or row.get("adjunctUrl")
+                or build_document_hash(
+                    "cninfo_announcement",
+                    "",
+                    str(row.get("announcementTitle") or ""),
+                    f"{code}:{published}",
+                )
+            )
+            candidates.setdefault(identity, {**row, "_code": code, "_published": published})
+
+    source = _source_by_id("cninfo_announcement")
+    documents: list[RawDocument] = []
+    skipped_count = sum(1 for row in candidates.values() if not row.get("adjunctUrl"))
+    downloadable = [
+        (announcement_id, row)
+        for announcement_id, row in candidates.items()
+        if row.get("adjunctUrl")
+    ]
+    download_attempts = 0
+    for announcement_id, row in downloadable:
+        if download_attempts >= limit:
+            break
+        adjunct = row.get("adjunctUrl")
+        download_attempts += 1
+        try:
+            request_count += 1
+            response = client.get(cninfo_pdf_url(str(adjunct)), timeout=30)
+            content = bytes(getattr(response, "content", b"") or b"")
+            if getattr(response, "status_code", 500) != 200 or not content.startswith(
+                b"%PDF"
+            ):
+                raise DocumentFetchError(
+                    f"CNINFO keyword PDF HTTP {getattr(response, 'status_code', 'unknown')} or invalid PDF",
+                    request_count=request_count,
+                    documents=documents,
+                    skipped_count=skipped_count,
+                )
+            content_text = _extract_pdf_text(content)
+            if not content_text:
+                raise DocumentFetchError(
+                    "CNINFO keyword PDF text extraction failed",
+                    request_count=request_count,
+                    documents=documents,
+                    skipped_count=skipped_count,
+                )
+        except DocumentFetchError:
+            raise
+        except Exception as exc:
+            raise DocumentFetchError(
+                f"CNINFO keyword PDF request or parse failed: {exc}",
+                request_count=request_count,
+                documents=documents,
+                skipped_count=skipped_count,
+            ) from exc
+        folded = content_text.casefold()
+        product_hits = [term for term in products if term.casefold() in folded]
+        scene_hits = [term for term in scenes if term.casefold() in folded]
+        if not product_hits or (require_product_and_scene and not scene_hits):
+            skipped_count += 1
+            continue
+        published = row.get("_published")
+        documents.append(
+            RawDocument(
+                source_id=source.source_id,
+                source_level=source.source_level,
+                title=str(row.get("announcementTitle") or "公告全文"),
+                content_text=content_text,
+                url=cninfo_pdf_url(str(adjunct)),
+                company_code=str(row.get("_code") or ""),
+                company_name=str(row.get("secName") or row.get("companyName") or ""),
+                publish_time=published.isoformat() if isinstance(published, date) else None,
+                doc_type="announcement_pdf",
+                metadata={
+                    "announcement_id": announcement_id,
+                    "product_hits": product_hits,
+                    "scene_hits": scene_hits,
+                    "same_document_match": bool(
+                        product_hits and (scene_hits or not require_product_and_scene)
+                    ),
+                },
+            )
+        )
+    source_limit_skipped = max(0, len(downloadable) - download_attempts)
+    if source_limit_skipped:
+        documents = [
+            replace(
+                document,
+                metadata={
+                    **(document.metadata or {}),
+                    "source_limit_skipped_documents": source_limit_skipped,
+                },
+            )
+            for document in documents
+        ]
+    return documents, request_count
+
+
+def _fetch_cninfo_pdf_announcements_legacy_inline(pg_url: str, limit: int = 20, title_mode: str = "relevant") -> dict:
     """Fetch CNInfo announcement PDFs for mapped candidate companies."""
     import requests
     import psycopg2
@@ -1377,7 +1973,7 @@ def fetch_cninfo_pdf_announcements(pg_url: str, limit: int = 20, title_mode: str
     }
 
 
-def fetch_official_ir_pages(pg_url: str, limit: int = 10, pages_per_company: int = 2) -> dict:
+def _fetch_official_ir_pages_legacy_inline(pg_url: str, limit: int = 10, pages_per_company: int = 2) -> dict:
     """Fetch official company website/IR pages for mapped candidate companies."""
     import requests
     import psycopg2
@@ -1527,6 +2123,288 @@ def fetch_official_ir_pages(pg_url: str, limit: int = 10, pages_per_company: int
     }
 
 
+def _legacy_scoped_company_codes(
+    pg_url: str,
+    *,
+    source: CollectionSource,
+    job_id: str,
+    scope_type: str,
+    metadata: dict[str, Any],
+    limit: int,
+) -> tuple[str, ...]:
+    import psycopg2
+    import psycopg2.extras
+
+    with psycopg2.connect(pg_url) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                INSERT INTO evidence_collection_jobs (
+                    job_id, source_id, job_type, scope_type, status, started_at, metadata
+                ) VALUES (%s, %s, 'manual', %s, 'running', CURRENT_TIMESTAMP, %s::jsonb)
+                ON CONFLICT (job_id) DO UPDATE SET
+                    status = 'running', started_at = CURRENT_TIMESTAMP,
+                    finished_at = NULL, updated_at = CURRENT_TIMESTAMP
+                """,
+                (job_id, source.source_id, scope_type, json.dumps(metadata, ensure_ascii=False)),
+            )
+            cur.execute(
+                """
+                SELECT DISTINCT split_part(code, '.', 1) AS code
+                FROM business_tag_mapping
+                WHERE coalesce(code, '') <> ''
+                ORDER BY split_part(code, '.', 1)
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            codes = tuple(
+                dict.fromkeys(
+                    _scoped_stock_code(dict(row).get("code"))
+                    for row in cur.fetchall()
+                    if _scoped_stock_code(dict(row).get("code"))
+                )
+            )
+        conn.commit()
+    return codes
+
+
+def fetch_cninfo_pdf_announcements(
+    pg_url: str, limit: int = 20, title_mode: str = "relevant"
+) -> dict:
+    """Backward-compatible command backed by the document-only CNINFO helper."""
+
+    import psycopg2
+    import psycopg2.extras
+
+    if title_mode not in {"relevant", "tender"}:
+        raise ValueError("title_mode must be relevant or tender")
+    source = _source_by_id("cninfo_announcement")
+    job_id = _job_id(source.source_id, "candidate_pool_pdf")
+    codes = _legacy_scoped_company_codes(
+        pg_url,
+        source=source,
+        job_id=job_id,
+        scope_type="candidate_pool_pdf",
+        metadata={"limit": limit, "title_mode": title_mode},
+        limit=max(limit * 10, limit),
+    )
+    as_of_date = shanghai_today()
+    documents: list[RawDocument] = []
+    stats = DocumentFetchStats()
+    error_message = None
+    try:
+        fetched_documents, _request_count = fetch_cninfo_documents(
+            pg_url,
+            company_codes=codes,
+            start_date=date(as_of_date.year - 3, 1, 1),
+            as_of_date=as_of_date,
+            limit=limit,
+            candidate_predicate=(
+                is_tender_cninfo_title if title_mode == "tender" else None
+            ),
+            title_predicate=(
+                is_tender_cninfo_title
+                if title_mode == "tender"
+                else is_relevant_cninfo_title
+            ),
+            stats=stats,
+        )
+    except Exception as exc:
+        fetched_documents = list(getattr(exc, "documents", ()) or ())
+        stats.failed = max(
+            stats.failed, int(getattr(exc, "failed_count", 1) or 1)
+        )
+        stats.skipped = max(
+            stats.skipped, int(getattr(exc, "skipped_count", 0) or 0)
+        )
+        stats.request_count = max(
+            stats.request_count, int(getattr(exc, "request_count", 0) or 0)
+        )
+        error_message = sanitize_sensitive_text(exc)
+    eligible_documents = [
+        item
+        for item in fetched_documents
+        if (
+            is_tender_cninfo_title(item.title)
+            if title_mode == "tender"
+            else is_relevant_cninfo_title(item.title)
+        )
+    ]
+    documents = eligible_documents[:limit]
+    if not any(
+        (stats.selected, stats.fetched, stats.skipped, stats.failed, stats.request_count)
+    ) and fetched_documents:
+        stats.selected = len(codes)
+        stats.fetched = len(fetched_documents)
+
+    inserted_docs = inserted_facts = duplicates = 0
+    with psycopg2.connect(pg_url) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            for document in documents:
+                result = _insert_raw_document_and_fact(cur, document, source, job_id)
+                inserted_docs += 1 if result["inserted_doc"] else 0
+                inserted_facts += 1 if result["inserted_fact"] else 0
+                duplicates += 1 if result["duplicate"] else 0
+            status = "success" if stats.failed == 0 else "partial_success"
+            cur.execute(
+                """
+                UPDATE evidence_collection_jobs
+                SET status = %s, finished_at = CURRENT_TIMESTAMP,
+                    fetched_count = %s, inserted_count = %s,
+                    duplicate_count = %s, failed_count = %s, error_message = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = %s
+                """,
+                (
+                    status,
+                    stats.fetched,
+                    inserted_docs + inserted_facts,
+                    duplicates,
+                    stats.failed,
+                    error_message,
+                    job_id,
+                ),
+            )
+        conn.commit()
+    return {
+        "job_id": job_id,
+        "source_id": source.source_id,
+        "selected": stats.selected,
+        "title_mode": title_mode,
+        "fetched": stats.fetched,
+        "inserted_docs": inserted_docs,
+        "inserted_facts": inserted_facts,
+        "duplicates": duplicates,
+        "skipped": stats.skipped,
+        "failed": stats.failed,
+        "request_count": stats.request_count,
+        "status": "success" if stats.failed == 0 else "partial_success",
+    }
+
+
+def fetch_official_ir_pages(
+    pg_url: str, limit: int = 10, pages_per_company: int = 2
+) -> dict:
+    """Backward-compatible command backed by the document-only IR helper."""
+
+    import psycopg2
+    import psycopg2.extras
+
+    source = _source_by_id("official_ir_site")
+    job_id = _job_id(source.source_id, "candidate_official_ir")
+    codes = _legacy_scoped_company_codes(
+        pg_url,
+        source=source,
+        job_id=job_id,
+        scope_type="candidate_official_ir",
+        metadata={"limit": limit, "pages_per_company": pages_per_company},
+        limit=limit,
+    )
+    as_of_date = shanghai_today()
+    documents: list[RawDocument] = []
+    stats = DocumentFetchStats()
+    error_message = None
+    try:
+        documents, _request_count = fetch_official_ir_documents(
+            pg_url,
+            company_codes=codes,
+            start_date=None,
+            as_of_date=as_of_date,
+            limit=max(1, len(codes) * pages_per_company),
+            pages_per_company=pages_per_company,
+            stats=stats,
+        )
+    except Exception as exc:
+        documents = list(getattr(exc, "documents", ()) or ())
+        stats.failed = max(
+            stats.failed, int(getattr(exc, "failed_count", 1) or 1)
+        )
+        stats.skipped = max(
+            stats.skipped, int(getattr(exc, "skipped_count", 0) or 0)
+        )
+        stats.request_count = max(
+            stats.request_count, int(getattr(exc, "request_count", 0) or 0)
+        )
+        error_message = sanitize_sensitive_text(exc)
+    if not any(
+        (stats.selected, stats.fetched, stats.skipped, stats.failed, stats.request_count)
+    ) and documents:
+        stats.selected = len(codes)
+        stats.fetched = len(documents)
+
+    inserted_docs = inserted_facts = duplicates = official_events = 0
+    with psycopg2.connect(pg_url) as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            for document in documents:
+                result = _insert_raw_document_and_fact(cur, document, source, job_id)
+                inserted_docs += 1 if result["inserted_doc"] else 0
+                inserted_facts += 1 if result["inserted_fact"] else 0
+                duplicates += 1 if result["duplicate"] else 0
+                event_id = "OFF-" + document.content_hash[:24]
+                cur.execute(
+                    """
+                    INSERT INTO official_site_events (
+                        event_id, doc_id, company_code, company_name,
+                        source_level, event_type, title, url,
+                        evidence_summary, metadata
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                    ON CONFLICT (event_id) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        evidence_summary = EXCLUDED.evidence_summary,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    (
+                        event_id,
+                        document.doc_id,
+                        document.company_code,
+                        document.company_name,
+                        document.source_level,
+                        "official_site_page",
+                        document.title,
+                        document.url,
+                        document.content_text[:500],
+                        json.dumps({"backfill_job_id": job_id}, ensure_ascii=False),
+                    ),
+                )
+                official_events += 1 if cur.rowcount else 0
+            status = "success" if stats.failed == 0 else "partial_success"
+            cur.execute(
+                """
+                UPDATE evidence_collection_jobs
+                SET status = %s, finished_at = CURRENT_TIMESTAMP,
+                    fetched_count = %s, inserted_count = %s,
+                    duplicate_count = %s, failed_count = %s, error_message = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = %s
+                """,
+                (
+                    status,
+                    stats.fetched,
+                    inserted_docs + inserted_facts + official_events,
+                    duplicates,
+                    stats.failed,
+                    error_message,
+                    job_id,
+                ),
+            )
+        conn.commit()
+    return {
+        "job_id": job_id,
+        "source_id": source.source_id,
+        "selected_companies": stats.selected,
+        "fetched_pages": stats.fetched,
+        "inserted_docs": inserted_docs,
+        "inserted_facts": inserted_facts,
+        "official_events": official_events,
+        "duplicates": duplicates,
+        "skipped": stats.skipped,
+        "failed": stats.failed,
+        "request_count": stats.request_count,
+        "status": "success" if stats.failed == 0 else "partial_success",
+    }
+
+
 def sync_facts_to_legacy_events(pg_url: str, limit: int = 500) -> dict:
     import psycopg2
     import psycopg2.extras
@@ -1571,9 +2449,7 @@ def sync_facts_to_legacy_events(pg_url: str, limit: int = 500) -> dict:
             original_url = EXCLUDED.original_url,
             evidence_type = EXCLUDED.evidence_type,
             impact_dimensions = EXCLUDED.impact_dimensions,
-            confidence = EXCLUDED.confidence,
-            review_status = EXCLUDED.review_status,
-            review_note = EXCLUDED.review_note
+            confidence = EXCLUDED.confidence
     """
 
     synced = 0
@@ -1943,6 +2819,7 @@ def load_weak_signal_documents(file_path: str, source_id: str) -> list[RawDocume
                 company_name=item.get("company_name"),
                 publish_time=item.get("publish_time"),
                 doc_type=item.get("doc_type") or source.source_type,
+                metadata=item.get("metadata") if isinstance(item.get("metadata"), dict) else None,
             )
         )
     return documents

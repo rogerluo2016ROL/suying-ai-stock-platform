@@ -30,6 +30,7 @@ from app.domains.candidates.models import (
 from app.domains.candidates import service as candidate_service
 from app.domains.supply_chain import service as supply_chain_service
 from app.domains.supply_chain import repository as supply_chain_repository
+from app.domains.supply_chain import evidence_review_service
 
 logger = logging.getLogger("screener.routes")
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
@@ -65,8 +66,8 @@ class SupplyChainMappingReviewRequest(BaseModel):
 
 class BusinessTagEvidenceReviewRequest(BaseModel):
     review_status: str = Field(..., description="approved, rejected, or pending_review")
-    reviewer: str = Field(default="system", description="Reviewer name or operator id")
-    note: str = Field(default="", description="Short review note")
+    reviewer: str = Field(..., min_length=1, description="Asserted reviewer name or operator id")
+    note: str = Field(..., min_length=1, description="Short review note")
     confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     stage_after: Optional[dict[str, Any]] = Field(
         default=None,
@@ -1453,139 +1454,40 @@ def _review_business_tag_evidence(
     event_id: str,
     request: BusinessTagEvidenceReviewRequest,
 ) -> dict[str, Any]:
-    allowed_statuses = {"approved", "rejected", "pending_review"}
     review_status = str(request.review_status or "").strip()
-    if review_status not in allowed_statuses:
+    decision_by_status = {
+        "approved": "approved",
+        "rejected": "rejected",
+        "pending_review": "needs_more_evidence",
+    }
+    if review_status not in decision_by_status:
         raise HTTPException(status_code=400, detail=f"Invalid review_status '{request.review_status}'")
-
     if not event_id:
         raise HTTPException(status_code=400, detail="event_id is required")
-
     try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            if not _pg_table_exists(cur, "business_tag_evidence_events"):
-                raise HTTPException(status_code=503, detail="business_tag_evidence_events table is missing")
-
-            cur.execute(
-                """
-                SELECT event_id, mapping_id, code, node_id, event_date, title,
-                       excerpt, confidence, stage_after
-                FROM business_tag_evidence_events
-                WHERE event_id = %s
-                LIMIT 1
-                """,
-                (event_id,),
-            )
-            row = cur.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail=f"Evidence event '{event_id}' not found")
-
-            # 审核门触发器要求同一事务内声明人工审核动作（见 alembic 033）
-            cur.execute("SET LOCAL app.supply_chain_review_action = 'manual'")
-
-            stage_after = request.stage_after if request.stage_after is not None else _json_or_default(row[8], {})
-            confidence = request.confidence if request.confidence is not None else _to_float(row[7], 0.0)
-
-            reviewer = str(request.reviewer or "").strip() or "api_manual_review"
-            default_notes = {
-                "approved": "API 人工审核通过",
-                "rejected": "API 人工审核驳回",
-                "pending_review": "API 人工退回待审核",
-            }
-            review_note = str(request.note or "").strip() or default_notes[review_status]
-
-            set_clauses = [
-                "review_status = %s",
-                "confidence = %s",
-                "stage_after = %s::jsonb",
-            ]
-            params: list[Any] = [
-                review_status,
-                confidence,
-                json.dumps(stage_after or {}, ensure_ascii=False),
-            ]
-            if _pg_column_exists(cur, "business_tag_evidence_events", "reviewer"):
-                set_clauses.append("reviewer = %s")
-                params.append(reviewer)
-            if _pg_column_exists(cur, "business_tag_evidence_events", "review_note"):
-                set_clauses.append("review_note = %s")
-                params.append(review_note)
-            if _pg_column_exists(cur, "business_tag_evidence_events", "reviewed_at"):
-                set_clauses.append("reviewed_at = CURRENT_TIMESTAMP")
-
-            params.append(event_id)
-            cur.execute(
-                f"""
-                UPDATE business_tag_evidence_events
-                SET {", ".join(set_clauses)}
-                WHERE event_id = %s
-                """,
-                params,
-            )
-
-            event = {
-                "event_id": str(row[0]),
-                "mapping_id": str(row[1] or ""),
-                "code": str(row[2] or ""),
-                "node_id": row[3],
-                "event_date": str(row[4]) if row[4] else None,
-                "title": row[5],
-                "excerpt": row[6],
-                "confidence": confidence,
-                "stage_after": stage_after or {},
-            }
-            stage_record = _stage_record_from_reviewed_event(event, review_status=review_status)
-            stage_updated = False
-            limitations: list[str] = []
-            if stage_record:
-                if not _pg_table_exists(cur, "business_tag_stage_tracking"):
-                    limitations.append("business_tag_stage_tracking table is missing; evidence reviewed but stage not updated")
-                else:
-                    cur.execute(
-                        """
-                        INSERT INTO business_tag_stage_tracking (
-                            stage_id, mapping_id, trade_date, research_stage,
-                            commercialization_stage, stage_reason, source_event_id,
-                            last_stage_change_date, review_status
-                        )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (stage_id) DO UPDATE SET
-                            trade_date = EXCLUDED.trade_date,
-                            research_stage = EXCLUDED.research_stage,
-                            commercialization_stage = EXCLUDED.commercialization_stage,
-                            stage_reason = EXCLUDED.stage_reason,
-                            source_event_id = EXCLUDED.source_event_id,
-                            last_stage_change_date = EXCLUDED.last_stage_change_date,
-                            review_status = EXCLUDED.review_status
-                        """,
-                        (
-                            stage_record["stage_id"],
-                            stage_record["mapping_id"],
-                            stage_record["trade_date"],
-                            stage_record["research_stage"],
-                            stage_record["commercialization_stage"],
-                            stage_record["stage_reason"],
-                            stage_record["source_event_id"],
-                            stage_record["last_stage_change_date"],
-                            stage_record["review_status"],
-                        ),
-                    )
-                    stage_updated = True
-
-            pg.commit()
-            return {
-                "version": "supply-chain-v2-evidence-review",
-                "event_id": event_id,
-                "mapping_id": event["mapping_id"],
-                "review_status": review_status,
-                "reviewer": reviewer,
-                "stage_updated": stage_updated,
-                "stage_record": stage_record,
-                "limitations": limitations,
-            }
+        result = evidence_review_service.review_event(
+            event_id=event_id,
+            decision=decision_by_status[review_status],
+            reviewer=request.reviewer,
+            note=request.note,
+            confidence=request.confidence,
+            stage_after=request.stage_after,
+        )
+        stage_record = result.get("stage_record")
+        return {
+            **result,
+            "version": "supply-chain-v2-evidence-review",
+            "event_id": event_id,
+            "review_status": review_status,
+            "stage_updated": bool(stage_record),
+            "limitations": list(result.get("limitations") or []),
+        }
     except HTTPException:
         raise
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except Exception as e:
         logger.warning("business tag evidence review failed: %s", e)
         raise HTTPException(status_code=500, detail=f"Evidence review failed: {e}") from e
@@ -3071,8 +2973,8 @@ async def supply_chain_evidence_review(
 async def supply_chain_evidence_review_queue(
     limit: int = Query(50, ge=1, le=200),
 ):
-    """Return evidence-chain review queue from stage, freshness, and expectation monitors."""
-    return _query_evidence_review_queue(limit)
+    """Return pending facts, events, and expectation monitors."""
+    return evidence_review_service.list_queue(limit=limit)
 
 
 @router.get("/supply-chain/capex-evidence-review/queue")

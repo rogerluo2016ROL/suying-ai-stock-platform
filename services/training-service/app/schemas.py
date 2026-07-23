@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 def _training_model_metadata() -> Dict[str, Any]:
@@ -45,6 +45,7 @@ class ModelType(str, Enum):
     LIGHTGBM = "lightgbm"
     CATBOOST = "catboost"
     KRONOS_FINETUNE = "kronos_finetune"
+    SCREENER = "screener"
 
 
 class JobStatus(str, Enum):
@@ -109,6 +110,13 @@ class TrainingParams(BaseModel):
         default=0.2, ge=0.05, le=0.5,
         description="Validation set ratio"
     )
+
+    @field_validator("model_type")
+    @classmethod
+    def reject_registry_only_model_types(cls, value: ModelType) -> ModelType:
+        if value is ModelType.SCREENER:
+            raise ValueError("screener is a registry-only model type")
+        return value
 
 
 class TrainingMetrics(BaseModel):
