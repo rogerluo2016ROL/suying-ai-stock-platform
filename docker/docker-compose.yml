@@ -111,8 +111,8 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set in env (no hardcoded default)}
       - DATABASE_SYNC_URL=postgresql+psycopg2://kronos:kronos@postgres:5432/kronos
       - KRONOS_ENV=production
-      # Local docker/UAT is served over http; production deployments must set true.
-      - AUTH_COOKIE_SECURE=${AUTH_COOKIE_SECURE:-false}
+      # 生产默认 Secure=true（https）；本地 http 开发在 .env 显式设 AUTH_COOKIE_SECURE=false
+      - AUTH_COOKIE_SECURE=${AUTH_COOKIE_SECURE:-true}
       - KRONOS_SERVICE_SECRET=${KRONOS_SERVICE_SECRET:?KRONOS_SERVICE_SECRET must be set (service-to-service auth)}
     depends_on:
       postgres:

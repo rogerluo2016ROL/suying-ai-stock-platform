@@ -48,7 +48,9 @@ function queryIndexCloseSnapshot(): Promise<Record<string, unknown>> {
     execFile(
       'psql',
       ['-h', '127.0.0.1', '-p', '6432', '-U', 'kronos', '-d', 'kronos', '-At', '-F', '\t', '-c', sql],
-      { env: { ...process.env, PGPASSWORD: process.env.PGPASSWORD || 'kronos' }, timeout: 5000 },
+      // dev-only 中间件：PGPASSWORD 走环境变量或 ~/.pgpass，不在仓库硬编码密码；
+      // 失败时走下方 fallback_reason 优雅降级
+      { env: { ...process.env }, timeout: 5000 },
       (error, stdout) => {
         if (error) {
           resolve({ source: 'index_daily_close', as_of: null, data: { diff: [] }, fallback_reason: String(error.message || error) })

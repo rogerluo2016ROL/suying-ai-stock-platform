@@ -204,7 +204,11 @@ async def dashboard_freshness():
         return {"status": "error", "message": "monitor_freshness.py not found"}
 
     try:
-        result = subprocess.run(
+        import asyncio
+
+        # subprocess.run 包到线程，避免阻塞事件循环（最长 30s timeout）
+        result = await asyncio.to_thread(
+            subprocess.run,
             ["python3", script, "--json"],
             cwd=KRONOS_ROOT, capture_output=True, text=True, timeout=30,
         )

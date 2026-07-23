@@ -39,7 +39,7 @@ MODEL_TITLES = {
 }
 CB_AUCTION_MODES = {"cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1"}
 MORNING_BRIEF_MODES = {"us_morning_brief", "kr_morning_brief"}
-DEFAULT_LARK_REPORT_FOLDER_TOKEN = "GDlmf7ZIKltfRIdrGn7cyPKJnCg"
+DEFAULT_LARK_REPORT_FOLDER_TOKEN = os.environ.get("LARK_REPORT_FOLDER_TOKEN", "")
 
 
 @dataclass(frozen=True)
@@ -3444,7 +3444,7 @@ def sync_markdown_to_lark_doc(path: Path, result: dict[str, Any]) -> dict[str, A
     xml_path = path.with_suffix(".doc.xml")
     xml_path.write_text(build_lark_doc_xml_report(result), encoding="utf-8")
     rel_path = xml_path.relative_to(root)
-    parent_token = os.environ.get("LARK_REPORT_FOLDER_TOKEN", DEFAULT_LARK_REPORT_FOLDER_TOKEN).strip()
+    parent_token = DEFAULT_LARK_REPORT_FOLDER_TOKEN.strip()
     cmd = [
         "lark-cli",
         "docs",
