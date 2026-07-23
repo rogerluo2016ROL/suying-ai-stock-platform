@@ -426,7 +426,8 @@ export function buildChainTreeOption(
   return {
     tooltip: {
       trigger: 'item',
-      triggerOn: 'mousemove|click',
+      // echarts 6 类型收窄了 triggerOn 组合字面量，运行时仍按子串匹配支持 'mousemove|click'
+      triggerOn: 'mousemove|click' as 'mousemove',
       formatter: (params: unknown) => {
         const p = params as { data?: TreeNode }
         const nodeData = p.data
@@ -522,7 +523,8 @@ export function buildThemeTreeOption(
   return {
     tooltip: {
       trigger: 'item',
-      triggerOn: 'mousemove|click',
+      // echarts 6 类型收窄了 triggerOn 组合字面量，运行时仍按子串匹配支持 'mousemove|click'
+      triggerOn: 'mousemove|click' as 'mousemove',
       formatter: (params: unknown) => {
         const p = params as { data?: TreeNode }
         const nodeData = p.data
