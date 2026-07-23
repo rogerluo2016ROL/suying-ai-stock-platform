@@ -310,20 +310,9 @@ function chainDeconstructErrorText(error: unknown) {
 }
 
 function chainMethodSummary(method: ChainMethod): ChainMethodSummary {
-  if (method === 'value_chain') {
-    return {
-      title: '价值链拆解',
-      desc: '按原材料、核心零部件、制造设备、封装测试拆分利润池，突出毛利率、议价权和国产替代空间。',
-      stats: [],
-    }
-  }
-  if (method === 'competition') {
-    return {
-      title: '竞争格局',
-      desc: '按市场份额、技术壁垒、市值体量和客户绑定关系评估公司位置，区分龙头、跟随者和卡位标的。',
-      stats: [],
-    }
-  }
+  // value_chain / competition 分支已随 Step4 overlay 化移除（两维度改为 overlay 开关，
+  // 不再作为独立 method 入口）；method 当前恒为 'upstream_downstream'。
+  void method
   return {
     title: '上下游拆解',
     desc: '从政策主题向上游材料、核心部件、制造设备、下游应用逐层展开，定位可跟踪节点和映射公司。',
@@ -660,17 +649,6 @@ export default function SupplyChainBom() {
     // When chainCandidates has data, use it; otherwise use workbench candidates
     return chainCandidates.length > 0 ? chainCandidates : activeCandidates
   }, [chainCandidates, activeCandidates])
-
-  const treeData = useMemo(() => themes.map(theme => ({
-    title: theme.name,
-    key: theme.theme_id,
-    children: nodes
-      .filter(node => node.theme_id === theme.theme_id)
-      .map(node => ({
-        title: `${node.name} · ${node.level}`,
-        key: node.node_id,
-      })),
-  })), [themes, nodes])
 
   const graphOption = useMemo(() => {
     const nodePalette = [lightTokens.accent, lightTokens.down, lightTokens.muted]
