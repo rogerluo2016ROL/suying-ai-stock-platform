@@ -415,6 +415,7 @@ def test_fetch_trigger_stocks_uses_limit_list_ts_code_schema():
 def test_fetch_trigger_stocks_normalizes_hhmmss_first_time_in_sql():
     engine = CbAuctionT0Engine(pg_url="postgresql://unit/unit")
     engine.use_kpl_list_fallback = False
+    engine.use_eastmoney_limit_pool_fallback = False
     captured = {}
 
     class TimeCheckingCursor:

@@ -1,12 +1,21 @@
 """PostgreSQL read boundary for supply-chain domain queries."""
 
 import os
+from contextlib import ExitStack, contextmanager
+
 from psycopg2 import sql
+from kronos_contracts.db import pg_conn
 
 
+@contextmanager
 def connect():
-    import psycopg2
-    return psycopg2.connect(os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos"), connect_timeout=5)
+    """连接 contextmanager(pool 复用,自动归还;建池带 connect_timeout 快速失败)。
+
+    service.py 用 ``with repository.connect() as pg:``(pool 借/还,等价原裸 connect 语义);
+    repository 内部 owned-cur 用 ``with ExitStack()`` 条件 enter(支持复用外层 cur 的事务组合)。
+    """
+    with pg_conn(os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")) as conn:
+        yield conn
 
 
 def table_exists(cur, table_name: str) -> bool:
@@ -223,10 +232,9 @@ def list_token_output_pools(
     as_of_date: str | None = None,
 ) -> list[dict]:
     """Read commercial Token pool rows without changing their evidence grade."""
-    owned = cur is None
-    pg = connect() if owned else None
-    cur = pg.cursor() if owned else cur
-    try:
+    with ExitStack() as stack:
+        if cur is None:
+            cur = stack.enter_context(connect()).cursor()
         if not table_exists(cur, "business_tag_token_commercial_pool_states"):
             return []
         placeholders = ",".join(["%s"] * len(pool_codes))
@@ -251,16 +259,12 @@ def list_token_output_pools(
         """, tuple(params))
         names = [desc[0] for desc in cur.description]
         return [dict(zip(names, row)) for row in cur.fetchall()]
-    finally:
-        if owned:
-            pg.close()
 
 
 def token_output_counts(cur=None, as_of_date: str | None = None) -> dict[str, int]:
-    owned = cur is None
-    pg = connect() if owned else None
-    cur = pg.cursor() if owned else cur
-    try:
+    with ExitStack() as stack:
+        if cur is None:
+            cur = stack.enter_context(connect()).cursor()
         date_clause = "AND ps.as_of_date <= %s::date" if as_of_date else ""
         params = (as_of_date,) if as_of_date else ()
         cur.execute(f"""
@@ -276,16 +280,12 @@ def token_output_counts(cur=None, as_of_date: str | None = None) -> dict[str, in
         """, params)
         row = cur.fetchone() or (0, 0, 0, 0, 0)
         return dict(zip(("mapping_count", "unique_company_count", "formal_company_count", "domestic_output_count", "overseas_output_count"), [int(value or 0) for value in row]))
-    finally:
-        if owned:
-            pg.close()
 
 
 def get_token_output_evidence(cur=None, mapping_id: str = "") -> dict:
-    owned = cur is None
-    pg = connect() if owned else None
-    cur = pg.cursor() if owned else cur
-    try:
+    with ExitStack() as stack:
+        if cur is None:
+            cur = stack.enter_context(connect()).cursor()
         cur.execute("""
             SELECT m.mapping_id,m.code,m.chain_id,m.node_id,m.tag_name,m.status,
                    e.*,ps.pool_code,ps.industry_score,ps.market_signal_score,ps.reason_codes,
@@ -308,6 +308,3 @@ def get_token_output_evidence(cur=None, mapping_id: str = "") -> dict:
             metadata = json.loads(metadata)
         payload["source_mapping_ids"] = list(metadata.get("source_mapping_ids") or [])
         return payload
-    finally:
-        if owned:
-            pg.close()

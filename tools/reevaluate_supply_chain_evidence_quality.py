@@ -252,7 +252,26 @@ def keyword_hits(text: str, keywords: list[str]) -> int:
     return sum(1 for keyword in keywords if keyword and keyword.lower() in text.lower())
 
 
-def mapping_keywords(chain_id: str | None, tag_name: str | None, path_text: str) -> list[str]:
+# 非算力链回退分支的关键词噪音词表 (通用层名, 每条链都一样, 无区分度)
+_KEYWORD_NOISE = {
+    "需求层", "任务层", "核心产品层", "底层支撑层", "集成层", "配套层",
+    "基础设施层", "商业变现层", "产业链",
+}
+
+
+def _fit_tokens(text: str) -> list[str]:
+    """提取 label-fit 关键词: 中文词(>=2字) 或全大写缩写(>=3, 如 HBM/CXL/TSV/EDA).
+
+    英文小写碎片(如 chain_id 拆出的 'new','power','grid')与 JSON 噪音('name','level','id','L1')
+    一律排除 — 它们几乎不可能命中中文证据文本, 只会稀释 hit_ratio
+    (历史 bug: 非算力链 label_fit 被封底 35 的根因)."""
+    words = re.findall(r"[一-鿿]{2,}|[A-Z0-9]{3,}", text or "")
+    return [w for w in words
+            if not re.fullmatch(r"L[1-8]", w) and w not in _KEYWORD_NOISE]
+
+
+def mapping_keywords(chain_id: str | None, tag_name: str | None, path_text: str,
+                     mapping_id: str | None = None) -> list[str]:
     tag = f"{chain_id or ''} {tag_name or ''} {path_text or ''}"
     if "行业AI应用" in tag or "行业应用" in tag:
         return TAG_KEYWORDS["ai_compute_application"]
@@ -260,8 +279,15 @@ def mapping_keywords(chain_id: str | None, tag_name: str | None, path_text: str)
         return TAG_KEYWORDS["ai_compute_software"]
     if "AI算力" in tag or "ai_compute" in tag:
         return TAG_KEYWORDS["generic_ai_compute"]
-    words = re.findall(r"[\u4e00-\u9fffA-Za-z0-9]{2,}", tag)
-    return [w for w in words if len(w) >= 2][:20]
+    # 回退分支: tag_name + mapping_id 业务后缀 + l1_l8_path 中文节点名
+    words = _fit_tokens(f"{tag_name or ''} {mapping_id or ''} {path_text or ''}")
+    cleaned: list[str] = []
+    for w in words:
+        stripped = re.sub(r"(业务|板块|产品)$", "", w)
+        cleaned.append(stripped if len(stripped) >= 2 else w)
+        if stripped != w and len(stripped) >= 2:
+            cleaned.append(w)
+    return list(dict.fromkeys(cleaned))[:20]
 
 
 def assess_label_fit(
@@ -269,12 +295,13 @@ def assess_label_fit(
     chain_id: str | None,
     tag_name: str | None,
     l1_l8_path: Any,
+    mapping_id: str | None = None,
     unique_events: list[EvidenceEvent],
     revenue_ratio: float | None,
     gross_profit_ratio: float | None,
 ) -> tuple[float, list[str], dict[str, Any]]:
     path_text = json.dumps(l1_l8_path or [], ensure_ascii=False)
-    keywords = mapping_keywords(chain_id, tag_name, path_text)
+    keywords = mapping_keywords(chain_id, tag_name, path_text, mapping_id=mapping_id)
     evidence_text = "\n".join(event.text for event in unique_events)
     hits = keyword_hits(evidence_text, keywords)
     hit_ratio = hits / max(len(keywords), 1)
@@ -430,6 +457,7 @@ def build_assessment(row: dict[str, Any], events: list[EvidenceEvent], assessmen
         chain_id=row.get("chain_id"),
         tag_name=row.get("tag_name"),
         l1_l8_path=row.get("l1_l8_path"),
+        mapping_id=row.get("mapping_id"),
         unique_events=unique_events,
         revenue_ratio=row.get("revenue_ratio"),
         gross_profit_ratio=row.get("gross_profit_ratio"),
@@ -534,12 +562,24 @@ def latest_trade_date(cur) -> str:
     return str(row["trade_date"])[:10]
 
 
-def fetch_mapping_rows(cur, trade_date: str, code: str | None = None) -> list[dict[str, Any]]:
+def fetch_mapping_rows(cur, trade_date: str, code: str | None = None, require_evidence: bool = False) -> list[dict[str, Any]]:
     params: list[Any] = [trade_date]
     code_filter = ""
     if code:
         code_filter = "AND split_part(m.code, '.', 1) = %s"
         params.append(code)
+    evidence_filter = ""
+    if require_evidence:
+        # 只评估有 approved 证据或 verified 状态的映射(同 backfill 的 --require-evidence 宇宙)
+        evidence_filter = """
+          AND (
+              m.status = 'verified'
+              OR EXISTS (
+                  SELECT 1 FROM business_tag_evidence_events e
+                  WHERE e.mapping_id = m.mapping_id AND e.review_status = 'approved'
+              )
+          )
+        """
     cur.execute(
         f"""
         SELECT
@@ -560,6 +600,7 @@ def fetch_mapping_rows(cur, trade_date: str, code: str | None = None) -> list[di
           ON g.mapping_id = m.mapping_id AND g.trade_date = %s
         WHERE coalesce(m.status, '') NOT IN ('rejected', 'disabled')
         {code_filter}
+        {evidence_filter}
         ORDER BY split_part(m.code, '.', 1), m.mapping_id
         """,
         params,
@@ -567,9 +608,22 @@ def fetch_mapping_rows(cur, trade_date: str, code: str | None = None) -> list[di
     return [dict(row) for row in cur.fetchall()]
 
 
-def fetch_events(cur, mapping_ids: list[str]) -> dict[str, list[EvidenceEvent]]:
+def fetch_events(cur, mapping_ids: list[str], as_of_date: str | None = None) -> dict[str, list[EvidenceEvent]]:
+    """加载事件;as_of_date 给定即启用 as-of 可见性过滤(无未来函数):
+    - approved 行:coalesce(reviewed_at 折算 Asia/Shanghai 日期, created_at 兜底) <= as_of_date
+    - 非 approved 行(pending/candidate):created_at <= as_of_date
+    """
     if not mapping_ids:
         return {}
+    asof_filter = ""
+    if as_of_date:
+        asof_filter = """
+              AND (
+                  (review_status = 'approved'
+                   AND coalesce((reviewed_at AT TIME ZONE 'Asia/Shanghai')::date, created_at::date) <= %s)
+                  OR (review_status <> 'approved' AND created_at::date <= %s)
+              )
+        """
     events_by_mapping: dict[str, list[EvidenceEvent]] = defaultdict(list)
     for start in range(0, len(mapping_ids), 500):
         batch = mapping_ids[start:start + 500]
@@ -590,8 +644,8 @@ def fetch_events(cur, mapping_ids: list[str]) -> dict[str, list[EvidenceEvent]]:
                 impact_dimensions
             FROM business_tag_evidence_events
             WHERE mapping_id = ANY(%s)
-            """,
-            (batch,),
+            """ + asof_filter,
+            [batch, *([as_of_date, as_of_date] if as_of_date else [])],
         )
         for row in cur.fetchall():
             data = dict(row)
@@ -695,13 +749,22 @@ def summarize(assessments: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def run(pg_url: str, trade_date: str | None, assessment_date: str, code: str | None) -> dict[str, Any]:
+def run(
+    pg_url: str,
+    trade_date: str | None,
+    assessment_date: str,
+    code: str | None,
+    as_of_date: str | None = None,
+    require_evidence: bool = False,
+) -> dict[str, Any]:
+    # as_of_date 缺省取 assessment_date:评估只消费评估日当天及之前可见的证据,无未来函数。
+    as_of = as_of_date or assessment_date
     with psycopg2.connect(pg_url) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             ensure_table(cur)
             score_date = trade_date or latest_trade_date(cur)
-            mappings = fetch_mapping_rows(cur, score_date, code)
-            events_by_mapping = fetch_events(cur, [row["mapping_id"] for row in mappings])
+            mappings = fetch_mapping_rows(cur, score_date, code, require_evidence=require_evidence)
+            events_by_mapping = fetch_events(cur, [row["mapping_id"] for row in mappings], as_of_date=as_of)
             assessments = [
                 build_assessment(row, events_by_mapping.get(row["mapping_id"], []), assessment_date)
                 for row in mappings
@@ -712,6 +775,9 @@ def run(pg_url: str, trade_date: str | None, assessment_date: str, code: str | N
     payload.update({
         "trade_date": trade_date or score_date,
         "assessment_date": assessment_date,
+        "as_of_date": as_of,
+        "require_evidence": require_evidence,
+        "universe_mappings": len(mappings),
         "written": written,
         "code": code,
     })
@@ -725,9 +791,20 @@ def main() -> int:
     parser.add_argument("--pg-url", default=DEFAULT_PG_URL)
     parser.add_argument("--trade-date", default=None)
     parser.add_argument("--assessment-date", default=os.environ.get("ASSESSMENT_DATE", "2026-07-07"))
+    parser.add_argument("--as-of-date", default=None,
+                        help="as-of 可见性截止日,缺省取 assessment-date;只消费该日及之前可见(approved 按 reviewed_at,created_at 兜底)的事件")
+    parser.add_argument("--require-evidence", action="store_true",
+                        help="只评估有 approved 证据或 verified 状态的映射")
     parser.add_argument("--code", default=None, help="Optional stock code, e.g. 300479")
     args = parser.parse_args()
-    payload = run(args.pg_url, args.trade_date, args.assessment_date, args.code)
+    payload = run(
+        args.pg_url,
+        args.trade_date,
+        args.assessment_date,
+        args.code,
+        as_of_date=args.as_of_date,
+        require_evidence=args.require_evidence,
+    )
     print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     return 0
 

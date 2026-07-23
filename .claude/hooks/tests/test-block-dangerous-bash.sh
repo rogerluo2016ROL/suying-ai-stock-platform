@@ -268,6 +268,45 @@ assert_pass "env-var prefix plain git push"       "GIT_SSH=x git push origin mai
 assert_pass "commit msg literal sudo rm -rf"      'git commit -m "always avoid sudo rm -rf in prod"'
 
 # --------------------------------------------------------------------------
+# Category B (cont): AC-6 — git commit --no-verify / -n / core.hooksPath 绕过
+# 堵 scan-commit.sh 旁路（block-dangerous-bash rule #6）
+# --------------------------------------------------------------------------
+
+# 真绕过：必拦
+assert_block "commit --no-verify"                 "git commit --no-verify"
+assert_block "commit --no-verify with -m"         'git commit -m "msg" --no-verify'
+assert_block "commit -n short form"               "git commit -n"
+assert_block "commit -nv cluster"                 "git commit -nv -m msg"
+assert_block "commit -an cluster"                 "git commit -an -m msg"
+assert_block "commit -am -n combo"                'git commit -am "msg" -n'
+assert_block "-c core.hooksPath= commit"          "git -c core.hooksPath=/dev/null commit -m x"
+assert_block "-c core.hooksPath empty commit"     "git -c core.hooksPath= commit"
+
+# 不误判：必放行（COMMAND_STRIPPED strip 引号内容 → 引号内 --no-verify 字面不命中）
+assert_pass "commit msg quotes --no-verify"       'git commit -m "--no-verify is a flag"'
+assert_pass "commit normal"                       'git commit -m "normal msg"'
+assert_pass "push -n (not commit)"                "git push -n"
+assert_pass "ls -n (not git)"                     "ls -n"
+
+# --------------------------------------------------------------------------
+# Category F: W1 — verb-disguise & global-option evasions
+#   command/builtin（透明执行动词绕锚点）、\verb（反斜杠转义）、git -c k=v（全局选项
+#   夹在 git 与 commit 间）。后者还连锁跳过 scan-commit.sh pre-commit（--no-verify/-n）。
+# --------------------------------------------------------------------------
+# 真绕过：必拦
+assert_block "command rm -rf"                      "command rm -rf /tmp/x"
+assert_block "builtin rm -rf"                      "builtin rm -rf /tmp/x"
+assert_block "sudo command rm -rf"                 "sudo command rm -rf /tmp/x"
+assert_block "backslash \\rm -rf"                  "\\rm -rf /tmp/x"
+assert_block "git -c k=v commit --no-verify"       "git -c user.email=a@b.c commit --no-verify -m x"
+assert_block "git -c k=v commit -n"                "git -c user.email=a@b.c commit -n -m x"
+# 不误判：command/builtin/-c/\\ 在良性命令上仍放行（防 PREFIX/strip 改动误伤）
+assert_pass "command benign ls"                    "command ls -la"
+assert_pass "builtin benign echo"                  "builtin echo hi"
+assert_pass "git -c benign commit"                 "git -c user.email=a@b.c commit -m normal"
+assert_pass "backslash benign ls"                  "\\ls -la"
+
+# --------------------------------------------------------------------------
 # Summary
 # --------------------------------------------------------------------------
 

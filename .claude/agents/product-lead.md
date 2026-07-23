@@ -121,11 +121,18 @@ SendMessage({to: "deploy-engineer", message: "任务描述: 部署合并后的 m
 
 PL 每次 fan-out 后只看 matrix.sh 表格，**不必逐个打开 N 份报告**；红行才下钻单份报告决策。matrix 输出 ≥ 30 行表明 batch 过大，考虑拆 sprint。
 
+**过门即关 reviewer / qa 实例**（ADR-025）：fan-in 消费完某 reviewer / qa 实例的报告后，该实例已无回派可能（缺陷回派的是 dev，不是它们）→ **立即逐个关**，不留到 `/agf-team-stop` 批量关（避免过门后闲挂成僵尸）：
+```
+SendMessage({to: "<code-reviewer-N / qa-engineer-N>", message: {type: "shutdown_request", reason: "报告已 fan-in 消费，本轮工作完成（ADR-025 过门即关）"}})
+```
+关前确认该实例名下 task 全 `completed`（同 `agf-team-stop` 的 task 安全检查）。**dev 实例不在此关**——它要活到 UAT 待命回派（见 Step 5）。
+
 #### Pool 模式失败处理
 
 单实例 fail（重 spawn / 降级 / abort 三选项）与 ≥50% fail（默认 abort + retro）的处理 SSOT 见 `workflow.md` §失败处理。PL 特有回退路由：
 
 - **常规阶段失败回退**（code-review / E2E / UAT 任一）：派回对应 dev 实例（按 task_id 对应实例 ID 回派，无论单 / pool 模式）
+- **回派熔断（ADR-020，hook `gate-redo-fuse`）**：同一 feature 累计 ≥3 份 blocking 评审（`code_verdict: block` / `sit_audit_verdict: Redo SIT`，跨 pool 实例累计）时，回派 dev 的 task 描述必须含 `熔断豁免:` 归因行（否则 TaskCreated exit 2）。**熔断 = 不要再机械回派**：≥3 次 block 通常不是 dev 实现问题，而是根因——架构方向错（升 tech-lead 重估）/ 需求 AC 模糊矛盾（回变更文件夹澄清）/ 技能差距（换实例或补 skill）。先 TaskCreate tech-lead 诊断根因，再据结论回派（task 描述加 `熔断豁免: tech-lead 已诊断 <结论>，按新指导重派`）。阈值可调：`AGF_REDO_FUSE_LIMIT=N`（默认 3）。
 - **部署门 `❌` 回退**：环境/配置问题派回 deploy-engineer 重部；代码问题回执行层修复后重走 code review → 部署门（详 Step 3.3）
 
 #### 强制单实例例外（pool=off）
@@ -155,17 +162,21 @@ SendMessage({to: "code-reviewer", message: "请审查以下实现 + audit SIT �
 
 ### Step 5：主动询问关闭执行层 teammate（UAT 签字后立即执行）
 
+按 ADR-025 **过门即关**，到本步时 reviewer / qa 实例通常**已在 Step 3.5 fan-in 后逐个关闭**——此处主要关 **dev 实例**（它们要活到 UAT 待命回派，UAT 签字 = dev 的最后一道可回派门通过）。`/agf-team-stop` 作为 feature 收尾的**兜底批量关**，清掉一切仍 alive 的执行层实例。
+
 向用户汇报的**同一轮**主动追问（不等用户开口）：
 
-> "UAT ✅ 已签字。当前 alive 执行层 teammate（dev / reviewer / qa）共 N 个，本 feature 工作已结束。要不要现在关闭？PL 与单实例长期角色（tech-lead / uiux-designer / content-writer / growth-analyst）默认保留以接续后续需求。回 yes 我执行 `/agf-team-stop`；回 no 暂留待命。"
+> "UAT ✅ 已签字。当前 alive 执行层 teammate（多为 dev；reviewer/qa 已过门即关）共 N 个，本 feature 工作已结束。要不要现在关闭？PL 与单实例长期角色（tech-lead / uiux-designer / content-writer / growth-analyst）默认保留以接续后续需求。回 yes 我执行 `/agf-team-stop`；回 no 暂留待命。"
 
 - 用户 yes → 调用 `Skill({skill: "agf-team-stop"})`（详 `agf-team-stop.md`，含 UAT 签字校验 + task 安全检查 + 逐个 shutdown_request + 闭环报告）
 - 用户 no → 跳到 Step 6，teammate 保留待命
 - 用户未回复 → **不替用户决定**，默认保留
 
 **禁止**：
-- 不询问就关 teammate
-- 绕过 `/agf-team-stop` 直接 `SendMessage({type: "shutdown_request"})`（除非 slash command 命中 "任务规模过小" 分支建议手动操作）
+- 不询问就关 teammate（指**整 feature 收尾的批量关**——要用户拍板）
+- 绕过 `/agf-team-stop` 直接 `SendMessage({type: "shutdown_request"})` 做**批量**关（除非 slash command 命中 "任务规模过小" 分支建议手动操作）
+
+> **例外（ADR-025 过门即关）**：Step 3.5 对**单个** reviewer/qa 实例在其报告 fan-in 后直接发 `shutdown_request` 是**受认可的逐实例收尾**、不需用户逐个拍板（它是流程内的资源回收，非"整 feature 结束"决策）。本"禁止"针对的是**整 feature 批量关**这一需用户拍板的动作。
 
 ### Step 6：归档 progress/ 并清理（UAT 签字后执行）
 

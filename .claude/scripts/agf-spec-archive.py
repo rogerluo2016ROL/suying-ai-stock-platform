@@ -268,11 +268,45 @@ def main(argv=None):
         print(f"\n[dry-run] 将写 {len(plans)} 份活规格 + 移动 {change_dir} → {archive_dir}（未执行）")
         return 0
 
-    # === commit：写活规格 + 原子前置的归档存在性已在上方校验 ===
-    for cap, spec_path, segs in plans:
-        os.makedirs(os.path.dirname(spec_path), exist_ok=True)
-        with open(spec_path, "w", encoding="utf-8") as f:
-            f.write(serialize_spec(segs))
+    # === commit：写活规格 + 归档（原子化：任一写盘失败回滚已写的，C-F4）===
+    # 写盘前备份原 spec（.bak）；循环任一异常 → 恢复已存在 spec + 删新建 + exit 1，不留半改 SSOT。
+    # 多 capability change 时 cap1 写完、cap2 crash 是评审 C-F4 的核心场景（活规格半污染）。
+    backups = []  # [(spec_path, backup_path, existed)]
+    try:
+        for cap, spec_path, segs in plans:
+            os.makedirs(os.path.dirname(spec_path), exist_ok=True)
+            existed = os.path.exists(spec_path)
+            backup = spec_path + ".bak"
+            if existed:
+                shutil.copy2(spec_path, backup)
+            backups.append((spec_path, backup, existed))
+            with open(spec_path, "w", encoding="utf-8") as f:
+                f.write(serialize_spec(segs))
+    except Exception as write_err:
+        # 回滚：已存在的恢复 .bak；新建的删除（原本不存在）
+        for spec_path, backup, existed in backups:
+            try:
+                if existed:
+                    shutil.copy2(backup, spec_path)
+                else:
+                    os.remove(spec_path)
+            except Exception:
+                pass  # 回滚失败不掩盖原错（但已尽力恢复）
+        for _, backup, _ in backups:
+            try:
+                os.remove(backup)
+            except OSError:
+                pass
+        sys.stderr.write(
+            f"✗ spec-archive 写盘失败，已回滚 {len(backups)} 个活规格到原状（C-F4 原子化）: {write_err}\n"
+        )
+        return 1
+    # 写盘全成功 → 清理 .bak + 归档
+    for _, backup, _ in backups:
+        try:
+            os.remove(backup)
+        except OSError:
+            pass
     os.makedirs(os.path.dirname(archive_dir), exist_ok=True)
     shutil.move(change_dir, archive_dir)
     print(f"✅ 已 merge {len(plans)} 份 delta + 归档 → {archive_dir}")

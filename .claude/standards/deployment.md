@@ -126,28 +126,3 @@ docker compose -p "$COMPOSE_PROJECT_NAME" --env-file .env.uat up -d --build
 ### 6.4 远程 SSH 部署（未来变体）
 
 本节契约聚焦**本地隔离 Docker Compose**。远程 SSH 部署（staging / prod 拓扑、密钥分发、回滚策略等）属未来扩展，**变体见未来 ADR**（届时由 `tech-lead` 撰写），本规范不预先约束。
-
-## 7. Apple 发布（签名分发契约，与 §6 docker UAT 并列）
-
-> Apple 轨的"部署"是**构建签名分发包**，不是起容器栈。本节是该契约的单一来源；流水线选型与渠道矩阵见 ADR-009，分步 runbook 在 skill `agf-releasing-apple`——单一来源：**契约在此 standard，决策在 ADR，runbook 在 skill**。
-
-### 7.1 触发与责任
-
-- 触发时机与 §6 同位：code review（含 SIT Audit）通过 + 合并到 main 后，由 `apple-release-engineer` 执行（Pool=1，唯一签名身份）。
-- 手动触发：`/agf-apple-release`。
-
-### 7.2 渠道 → lane 映射（PRD 声明渠道，release task 按表选 lane）
-
-| 渠道 | fastlane lane | QA 测试目标 |
-|---|---|---|
-| TestFlight 内测（iOS / macOS） | `beta` | TestFlight build 号 |
-| App Store 上架 | `release_appstore` | 提审前的 TestFlight build |
-| macOS 直发 | `release_dmg` | 公证后的 DMG（本地路径） |
-| 企业 / 内部 | `release_internal` | 内部分发包路径 |
-
-### 7.3 硬约束
-
-- **签名材料不入库**：`.p8` API key / `.p12` 证书 / match 仓密码走环境变量或 Keychain（`scan-secrets.sh` + `pre-commit` 已扩展 Apple 模式拦截）。
-- **二元 gate**：`✅ 构建成功（冒烟通过）` / `❌ 构建失败`，不发明新 verdict；冒烟 = 装包启动 + 关键路径点查。
-- **报告**：`docs/deploy/<feature>-apple-<YYYY-MM-DD>.md`（含分发包定位 / 冒烟证据 / 构建 commit SHA / gate 结论）；`apple-qa-engineer` 读它拿测试目标。
-- **失败回路**：代码层失败 → product-lead → apple-dev；签名 / 公证 / 构建配置层 → apple-release-engineer 自己重跑。

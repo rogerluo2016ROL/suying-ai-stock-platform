@@ -67,6 +67,8 @@ Agent Team 是吞 token 最快的协作形态——多个 teammate 各持独立�
 - 仅当任务**有明确规则可循且失误成本由其他角色兜底**时才考虑 haiku
 - 升降级触发：连续 2 次产出不达预期升档；连续 5 次任务空跑（输入不足 1k token）降档
 
+> ⚠️ **teammate model-pin 的已知上游缺陷（ADR-022）**：上表路由**仅在队友初始 spawn 时可靠**。Claude Code 现行实现（≤v2.1.203 未修）在 **PL 经 `SendMessage` 续跑已 idle 的队友**时，续跑 turn 会静默跑在**唤醒方（PL=opus）**模型上、而非队友 pin 的 sonnet/haiku（上游 #75565 / #74598）。**纪律**：① 大块后续任务优先 **respawn 新实例**而非续跑（短续跑可接受 opus 计费）；② release retro 的 `/usage` 环节 **diff 队友 transcript 的 per-turn `.message.model`** 抓静默抬档；③ 成本事故频发时再评估 opt-in PreToolUse 拦截 hook。
+
 ## Effort 维度（与 model 正交；Opus 4.8 起）
 
 `model` 决定**能力档**（opus/sonnet/haiku），`effort` 决定**思考深度**（`low / medium / high / xhigh / max`，可用档取决于 model）。二者正交：同一个 opus 可低 effort 快答、也可 xhigh 深推。合理用 effort 能在不换 model 的前提下省钱（降 effort）或提质（升 effort）。
@@ -125,7 +127,7 @@ PL 在 Step 3 派单时按 PRD 复杂度选档。**判定规则（单一决策�
 
 ### Dynamic Workflow 成本门（ADR-002 基底；用途边界已扩展至 ADR-005 阶段嵌入）
 
-`/agf-review-sweep` 等 Dynamic Workflow 单 run 扇出几十～上百 agent，**比 Pool 还烧**。门控：
+Dynamic Workflow（按需自写脚本；预制的 `/agf-review-sweep` 已按 ADR-026 D5 退役）单 run 可扇出几十～上百 agent，**比 Pool 还烧**。门控：
 
 - **显式触发 + PL 批**：禁默认开 `ultracode`（会把每个任务都编排成 workflow）；只在大 PR / 审计由 PL 按规模批准后调。
 - **预算档**：≥ Medium 档（> 100k）的 workflow run **必须** PL 事前批 + 进 retro §3 记录实测倍数。

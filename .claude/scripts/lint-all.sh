@@ -32,6 +32,23 @@ done
 FAIL=0
 PASS_COUNT=0
 
+# run_gate <banner> <script> <fail-label> — 委托一个 gate 脚本：缺文件 → WARN 跳过；
+# exit 0 → PASS++（透传 gate stderr）；非 0 → 打 fail-label + FAIL++。gate 自身负责 fail-open。
+run_gate() {
+  local banner="$1" script="$2" faillabel="$3" err
+  echo ""; echo "=== $banner ==="
+  if [[ ! -f "$script" ]]; then echo "  ⚠️ 跳过（缺 $script）"; return 0; fi
+  err="$(mktemp)"
+  if bash "$script" 2>"$err"; then
+    cat "$err" >&2 2>/dev/null || true
+    PASS_COUNT=$((PASS_COUNT + 1))
+  else
+    echo "  ❌ $faillabel" >&2; cat "$err" >&2
+    FAIL=$((FAIL + 1))
+  fi
+  rm -f "$err"
+}
+
 # === 文件列表 ===
 if [[ "$PRE_COMMIT_MODE" -eq 1 ]]; then
   # 仅校验 staged 文件
@@ -121,9 +138,9 @@ echo "=== roles SSOT drift 检查 ==="
 GEN_ROLES=".claude/scripts/gen-roles.py"
 ROLES_YAML=".claude/agents/roles.yaml"
 if [[ ! -f "$GEN_ROLES" ]]; then
-  echo "  ⚠️ 跳过（缺 $GEN_ROLES）"
+  echo "  ⚠️ 跳过（缺 ${GEN_ROLES}）"
 elif [[ ! -f "$ROLES_YAML" ]]; then
-  echo "  ⚠️ 跳过（缺 $ROLES_YAML）"
+  echo "  ⚠️ 跳过（缺 ${ROLES_YAML}）"
 elif ! command -v python3 >/dev/null 2>&1; then
   echo "  ⚠️ 跳过（无 python3）"
 else
@@ -138,29 +155,39 @@ else
   rm -f /tmp/_genroles.err
 fi
 
-# === Hook 测试套（全部 test-*.sh）===
+# deny-baseline 非回归门：硬阻断 settings.json permissions.deny 被悄悄改小 / baseline 篡改。
+# claims-audit 门：CLAUDE.md 治理声称 ↔ 现实（A 幽灵注册 + B 幽灵声称硬阻断，C advisory）。
+# 两者 fail-open 由各脚本自负（缺 jq/文件 → 自 exit 0 + WARN）。
+run_gate "deny-baseline 非回归门" ".claude/scripts/agf-deny-baseline.sh" "deny-baseline 回归 / 篡改"
+run_gate "claims-audit 门" ".claude/scripts/agf-claims-audit.sh" "claims-audit 失败（声称与现实不符）"
+
+# === Hook 测试套（委托 run-all-tests.sh，v6.25.0 去重）===
+# 原地内联过一份「find test-*.sh 循环」与 run-all-tests.sh 重复、且执行语义分叉
+# （本处非 hermetic，会被 git hook 环境的 GIT_DIR/GIT_WORK_TREE 污染）——统一委托
+# hermetic runner，两处只维护一份循环。
 if [[ "$PRE_COMMIT_MODE" -eq 0 ]]; then
-  shopt -s nullglob
-  TEST_HOOKS=(.claude/hooks/tests/test-*.sh)
-  shopt -u nullglob
-  if (( ${#TEST_HOOKS[@]} > 0 )); then
-    echo ""
-    echo "=== Hook 测试套 ==="
-    for th in "${TEST_HOOKS[@]}"; do
-      [[ -x "$th" ]] || continue
-      if bash "$th" > /tmp/_hooktest.out 2>&1; then
-        tp=$(grep -c '✅' /tmp/_hooktest.out 2>/dev/null || true)
-        echo "  ✅ $(basename "$th") ($tp 用例)"
-        PASS_COUNT=$((PASS_COUNT + 1))
-      else
-        echo "  ❌ $(basename "$th") 失败" >&2
-        cat /tmp/_hooktest.out >&2
-        FAIL=$((FAIL + 1))
-      fi
-      rm -f /tmp/_hooktest.out
-    done
+  echo ""
+  echo "=== Hook 测试套（run-all-tests.sh hermetic）==="
+  if bash "$(dirname "${BASH_SOURCE[0]}")/run-all-tests.sh" > /tmp/_hooktest.out 2>&1; then
+    grep -E '  ✅ ' /tmp/_hooktest.out || true
+    SUITE_N=$(grep -cE '  ✅ ' /tmp/_hooktest.out || true)
+    PASS_COUNT=$((PASS_COUNT + SUITE_N))
+  else
+    cat /tmp/_hooktest.out >&2
+    FAIL=$((FAIL + 1))
   fi
+  rm -f /tmp/_hooktest.out
 fi
+
+# === repo-layout SSOT advisory（advisory，不计入 FAIL；防 I8 类型漏列 drift）===
+echo ""
+echo "=== repo-layout SSOT advisory ==="
+bash "$(dirname "${BASH_SOURCE[0]}")/check-repo-layout.sh" || true
+
+# === superpowers-mapping advisory（W1 drift 守门：hook advisory 字面量必须在 superpowers.md）===
+echo ""
+echo "=== superpowers-mapping advisory ==="
+bash "$(dirname "${BASH_SOURCE[0]}")/check-superpowers-mapping.sh" || true
 
 # === 总结 ===
 echo ""

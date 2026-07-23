@@ -17,6 +17,7 @@ argument-hint: <feature-slug>（必须已通过 code review（含 SIT Audit）�
    - 目标为 **Web 全栈链路**（docker-compose 化）；若是小程序 feature → **拒绝**：小程序"部署"= 上传体验版，归 miniapp-dev / miniapp-qa-engineer，不走本命令
    - 任一不满足 → **拒绝启动部署**，告诉用户缺什么
 2. **派单**（派 `deploy-engineer`；**Pool 上限 = 1，禁 fan-out**——只有一个 UAT 环境，并发部署必撞端口/状态）：
+   - **用户授权归因（A-F4 / ADR-019，hook `gate-deploy-release-auth` 强制）**：本 slash 命令由用户显式触发 = 用户授权。派单 task 描述**必须含**一行 `用户授权: /agf-deploy-uat $ARGUMENTS 已触发（用户显式调用）`，否则 TaskCreated 被 hook exit 2 阻断。
    - `deploy-engineer` — initial task: 按 skill `agf-deploying-uat` 把合并后 main 部署到隔离 UAT 栈（独立 `COMPOSE_PROJECT_NAME=${APP_NAME}-uat` + `UAT_PORT_OFFSET=900`），容器内跑 `alembic upgrade head`，冒烟自检（真实 curl 输出，非 dry-run），落部署报告到 `docs/deploy/$ARGUMENTS-uat-[YYYY-MM-DD].md`，SendMessage product-lead 附 UAT 栈 URL
 3. **部署门约束**：
    - 部署源必须是**合并后的 main**，不是任何 dev worktree 未合并分支

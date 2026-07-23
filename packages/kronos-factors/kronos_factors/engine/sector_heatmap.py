@@ -38,6 +38,21 @@ class SectorStat:
     volume_ratio: float = 1.0      # 板块量比 (相对 5 日均量)
     trend: str = "flat"            # "strong_up" | "exploring" | "flat" | "down"
 
+    def __post_init__(self):
+        """趋势由 hit_rate + avg_gain_pct 派生（单一来源，避免阈值散落两处）.
+
+        构造时即定 trend，便于脱离 DB 单测阈值逻辑；_compute_sector_stats
+        只负责算 hit_rate / avg_gain_pct 并喂进来，不再重复这套 if/elif。
+        """
+        if self.hit_rate >= 0.15:
+            self.trend = "strong_up"
+        elif self.hit_rate >= 0.08:
+            self.trend = "exploring"
+        elif self.avg_gain_pct < -1:
+            self.trend = "down"
+        else:
+            self.trend = "flat"
+
 
 @dataclass
 class MarketState:
@@ -220,16 +235,7 @@ class SectorHeatmapEngine:
 
                 hit_rate = hit_stocks / total_stocks if total_stocks > 0 else 0
 
-                # 趋势判断
-                if hit_rate >= 0.15:
-                    trend = "strong_up"
-                elif hit_rate >= 0.08:
-                    trend = "exploring"
-                elif avg_gain < -1:
-                    trend = "down"
-                else:
-                    trend = "flat"
-
+                # trend 由 SectorStat.__post_init__ 按 hit_rate + avg_gain_pct 派生
                 sectors.append(SectorStat(
                     sector=sector_name,
                     total_stocks=total_stocks,
@@ -237,7 +243,6 @@ class SectorHeatmapEngine:
                     hit_stocks=hit_stocks,
                     hit_rate=hit_rate,
                     avg_gain_pct=avg_gain,
-                    trend=trend,
                 ))
 
             # 按 hit_rate 降序

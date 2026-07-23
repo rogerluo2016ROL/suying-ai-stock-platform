@@ -30,6 +30,8 @@ import pandas as pd
 from collections import defaultdict
 from datetime import datetime, date
 import logging
+from contextlib import contextmanager
+from threading import RLock
 
 logger = logging.getLogger("screener.bi_shifu_trend")
 
@@ -90,6 +92,22 @@ class Params:
 
 
 P = Params
+_PARAM_OVERRIDE_LOCK = RLock()
+
+
+@contextmanager
+def _temporary_params(**overrides):
+    """为候选版本临时覆盖筛选参数，并在并发调用间保持隔离。"""
+    with _PARAM_OVERRIDE_LOCK:
+        previous = {name: getattr(P, name) for name in overrides}
+        try:
+            for name, value in overrides.items():
+                setattr(P, name, value)
+            yield
+        finally:
+            for name, value in previous.items():
+                setattr(P, name, value)
+
 
 
 # ==================== 指标计算 (纯 numpy, 无 DB 依赖) ====================
@@ -488,3 +506,18 @@ class BiShifuTrendEngine:
 
             trade_date = str(trade_date)[:10]
             return run_screening(db, trade_date, top_n=top_n)
+
+class BiShifuTrendV23Engine(BiShifuTrendEngine):
+    """V2.3 候选版：更深 MACD 回调、Top 5；开盘偏离规则由执行层在次日处理。"""
+
+    MODE_KEY = "bi_shifu_trend_v23"
+    MODE_NAME = "毕师傅趋势战法候选 V2.3"
+    VERSION = "v2.3-candidate"
+
+    def run(self, top_n: int = 5, trade_date: str = None, **kwargs) -> list[dict]:
+        with _temporary_params(MACD_BELOW_MIN_DAYS=7):
+            return super().run(top_n=min(top_n, 5), trade_date=trade_date, **kwargs)
+
+    def run_with_metadata(self, top_n: int = 5, trade_date: str = None, **kwargs) -> tuple[list[dict], dict]:
+        with _temporary_params(MACD_BELOW_MIN_DAYS=7):
+            return super().run_with_metadata(top_n=min(top_n, 5), trade_date=trade_date, **kwargs)

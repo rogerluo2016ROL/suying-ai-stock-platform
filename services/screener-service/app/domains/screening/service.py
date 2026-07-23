@@ -1166,18 +1166,10 @@ def _batch_extract_business_tag_evidence(request: BusinessTagEvidenceBatchExtrac
     return supply_chain_service._batch_extract_business_tag_evidence(request)
 
 
-def _score_stage_progress(stage: dict[str, Any]) -> float:
-    return supply_chain_service._score_stage_progress(stage)
-
-
 def _approved_business_tag_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return supply_chain_service._approved_business_tag_events(events)
 
 
-def _score_business_tag_growth(mapping, approved_events): return supply_chain_service._score_business_tag_growth(mapping, approved_events)
-def _score_business_tag_profit(mapping, approved_events): return supply_chain_service._score_business_tag_profit(mapping, approved_events)
-def _score_business_tag_moat(approved_events): return supply_chain_service._score_business_tag_moat(approved_events)
-def _score_business_tag_evidence_strength(approved_events): return supply_chain_service._score_business_tag_evidence_strength(approved_events)
 def _calculate_business_tag_three_high_score(*args, **kwargs): return supply_chain_service._calculate_business_tag_three_high_score(*args, **kwargs)
 
 
@@ -1213,9 +1205,6 @@ def _persist_legacy_company_evidence_event(*args, **kwargs): return supply_chain
 def _link_inferred_evidence_to_company_bom_mapping(*args, **kwargs): return supply_chain_service._link_inferred_evidence_to_company_bom_mapping(*args, **kwargs)
 def _persist_inferred_company_chain_projection(*args, **kwargs): return supply_chain_service._persist_inferred_company_chain_projection(*args, **kwargs)
 def _materialize_supply_chain_inferred_data(*args, **kwargs): return supply_chain_service._materialize_supply_chain_inferred_data(*args, **kwargs)
-def _score_business_tag_progress_evidence(*args, **kwargs): return supply_chain_service._score_business_tag_progress_evidence(*args, **kwargs)
-def _score_business_tag_risk_penalty(*args, **kwargs): return supply_chain_service._score_business_tag_risk_penalty(*args, **kwargs)
-def _market_expectation_from_mapping(*args, **kwargs): return supply_chain_service._market_expectation_from_mapping(*args, **kwargs)
 def _calculate_business_tag_expectation_gap_score(*args, **kwargs): return supply_chain_service._calculate_business_tag_expectation_gap_score(*args, **kwargs)
 def _persist_business_tag_expectation_gap_score(*args, **kwargs): return supply_chain_service._persist_business_tag_expectation_gap_score(*args, **kwargs)
 def _score_business_tag_three_high(*args, **kwargs): return supply_chain_service._score_business_tag_three_high(*args, **kwargs)
@@ -2874,6 +2863,7 @@ async def list_modes():
             {"id": "bi_trend_launch","name": "毕师傅硬核科技趋势启动 V13", "cycle": "5-20天", "style": "趋势"},
             {"id": "bi_trend_full_market","name": "毕师傅全市场趋势启动 V1.0", "cycle": "5-20天", "style": "全市场"},
             {"id": "bi_shifu_trend","name": "毕师傅趋势战法 v2.0", "cycle": "5-20天", "style": "趋势"},
+            {"id": "bi_shifu_trend_v23","name": "毕师傅趋势战法候选 V2.3", "cycle": "5-20天", "style": "候选趋势"},
             {"id": "supply_chain",  "name": "产业链预期差选股模型", "cycle": "3-12月", "style": "产业链预期差"},
             {"id": "supply_chain_trend_launch", "name": "大葱产业链趋势启动战法 vFinal", "cycle": "1月", "style": "动态轮动"},
         ]
@@ -3578,7 +3568,7 @@ async def run_screening(
             result = await loop.run_in_executor(
                 _executor, _run_bi_full_market_mode, mode, top_n, trade_date
             )
-        elif mode == "bi_shifu_trend":
+        elif mode in ("bi_shifu_trend", "bi_shifu_trend_v23"):
             result = await loop.run_in_executor(
                 _executor, _run_bi_shifu_trend_mode, mode, top_n, trade_date
             )
@@ -4072,12 +4062,16 @@ def _run_bi_full_market_mode(mode: str, top_n: int, trade_date: Optional[str]) -
 
 
 def _run_bi_shifu_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run 毕师傅趋势战法 v2.0 (全市场多维度评分 + 趋势识别)."""
-    from kronos_factors.engine.bi_shifu_trend import BiShifuTrendEngine
+    """Run 毕师傅趋势战法正式版或候选 V2.3。"""
+    from kronos_factors.engine.bi_shifu_trend import BiShifuTrendEngine, BiShifuTrendV23Engine
 
     resolved_trade_date = _resolve_trade_date(trade_date)
-    engine = BiShifuTrendEngine()
-    picks = engine.run(top_n=top_n, trade_date=resolved_trade_date)
+    engine = BiShifuTrendV23Engine() if mode == "bi_shifu_trend_v23" else BiShifuTrendEngine()
+    if hasattr(engine, "run_with_metadata"):
+        picks, data_quality = engine.run_with_metadata(top_n=top_n, trade_date=resolved_trade_date)
+    else:
+        picks = engine.run(top_n=top_n, trade_date=resolved_trade_date)
+        data_quality = {}
 
     picks = _sanitize_picks(picks)
     picks = _normalize_picks(picks, mode)
@@ -4087,6 +4081,7 @@ def _run_bi_shifu_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -
         "trade_date": resolved_trade_date,
         "total_picks": len(picks),
         "picks": picks,
+        "data_quality": data_quality,
     }
 
 

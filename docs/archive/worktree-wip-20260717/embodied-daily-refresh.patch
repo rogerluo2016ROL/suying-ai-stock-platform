@@ -1,0 +1,1087 @@
+diff --git a/.superpowers/sdd/.gitignore b/.superpowers/sdd/.gitignore
+index 756413c2..72e8ffc0 100644
+--- a/.superpowers/sdd/.gitignore
++++ b/.superpowers/sdd/.gitignore
+@@ -1,5 +1 @@
+-task-*-brief.md
+-task-*-report.md
+-platform-task-*-brief.md
+-platform-task-*-report.md
+-review-*.diff
++*
+diff --git a/.superpowers/sdd/progress.md b/.superpowers/sdd/progress.md
+index 1f759ef4..123e8da3 100644
+--- a/.superpowers/sdd/progress.md
++++ b/.superpowers/sdd/progress.md
+@@ -1,51 +1,13 @@
+-# 五域优化实施台账
+-
+-- 依据 PRD：`docs/prd/platform-five-domain-optimization-2026-07-10.md`
+-- 依据设计：`docs/superpowers/specs/2026-07-10-platform-five-domain-optimization-design.md`
+-- 依据计划：`docs/superpowers/plans/2026-07-10-platform-five-domain-optimization.md`
+-- 实施分支：`codex/platform-five-domain-optimization`
+-- 起始提交：`c9791e04f24c021d631e6e97f8cd04f6adf46682`
+-- 工作约束：每项任务均采用测试先行、独立任务审查、聚焦验证；交易能力默认仅纸面模式，未通过准入不得实盘。
+-
+-## 基线
+-
+-- 前端类型检查：基线命令无报错输出。
+-- 前端聚焦测试：26 通过、1 失败；失败为 `SupplyChainBom.test.tsx` 文案期望与现有页面不一致，纳入任务 1 修复。
+-- API 网关与数据服务聚焦测试：22 通过，1 条依赖弃用警告。
+-
+-## 任务状态
+-
+-| 任务 | 状态 | 开发提交 | 审查 | 验证 |
+-|---|---|---|---|---|
+-| 1. 恢复前端基线并移除 DataUpdate 固定演示回退 | 已完成 | `4f3bbd5f`, `03d8f1a2` | CLEAN | 24/24；typecheck 0 |
+-| 2. 移除 Screener 伪造 IC/相关性/分位收益 | 已完成 | `b9bf60a9`, `4ffccb7d`, `9c8aadfc` | CLEAN | 36/36；typecheck 0 |
+-| 3. 移除网关预览固定数字与伪 lineage | 已完成 | `f2c5d843`, `a9e527d6` | CLEAN（主控复核；代理快照不同步） | 9/9；preview scan clean |
+-| 4. 清除训练随机校准、默认指标与回测代理 | 已完成 | `cfe80532`, `9ebc074b`, `b5ebd74c`, `75d8ee74`, `498c2957` | CLEAN（审查问题已修复；独立服务审查） | training 2/2；backtest 2/2；py_compile；全量 training 36/1/1（既有缺文件） |
+-| 5. 移除固定 Kronos 50 并阻断 xtquant 实盘桩 | 已完成 | `d9bd3722`, `77e770fa`, `d6026c9d`, `f74ffba3` | CLEAN | trade 3/3；signal 14/15（既有日期断言）；py_compile |
+-| 6. 建立隔离服务测试运行器与 CI | 已完成 | `a190e4db`, `501fb1c`, `746711d4`, `360978e7` | CLEAN | runner 3/3；CI 依赖/矩阵审查通过 |
+-| 7. 修复数据路由与服务责任边界 | 已完成 | `f04fde4f`, `54690474`, `b290ae7d`, `430c1abd`, `ed8c0e57`, `74d07927` | 主控复核；待代理最终确认 | gateway 10/10；FE API 7/7；compose config；signal header |
+-| 8. 统一 liveness/readiness 和运行状态 | 已完成 | `6343391f`, `5e83e22d`, `5ac73901`, `be606630`, `f3cc7d39`, `92650fae`, `36c1e162` | CLEAN（最终审查） | contracts/gateway 4 passed；FE 11/11；typecheck；py_compile |
+-| 9. 拆分 data inventory/jobs/schedules/readiness 语义 | 已完成 | `71c0a954`, `97f17945` | 基本 CLEAN（低风险：schedules 为 jobs 投影） | data 2 passed；FE typecheck；py_compile |
+-| 10. 建立 profile 驱动的数据 readiness 快照 | 已完成 | `c139c056`, `b7a32859`, `1afc84c2` | 主控复核（data 2/2；gate 已接入） | data readiness 2/2；py_compile |
+-| 11. 建立数据库就绪性与数据新鲜度门禁 | 已完成 | `9d6525a4` | 主控复核 | ownership 2/2；CLI clean；CI gate |
+-| 12. 建立不可变模型运行 manifest 和正式时间线 | 已完成 | `257946ac`, `6de4d35` | 主控复核 | manifest 2/2；config/lint |
+-| 13. 建立可执行模型清单与版本清单 | 已完成 | `85847384` | 主控复核 | factor IC 2/2；py/lint |
+-| 14. 建立统一回测适配器与可复现证据 | 已完成 | `85847384` | 主控复核 | rank IC 2/2；adapter registry |
+-| 15. 建立模型准入和发布门禁 | 已完成 | `dc8961b7` | 主控复核 | admission 6/6；production manual gate |
+-| 16. 拆分 screener router 并把流水线改成受控 job | 已完成 | `1f5eb6b0` | 主控复核 | pipeline idempotency 1/1；py_compile |
+-| 17. 真实 API SIT、浏览器 UAT 和回滚演练 | 已完成 | `d4949112`, `f12b8109` | 主控复核 | smoke tests 15/15；paper-only/no-pick gate；UAT docs |
+-
+-## Final Verification
+-
+-- Frontend typecheck: pass.
+-- Frontend full Vitest suite: pass (existing jsdom pseudo-element warnings only).
+-- Frontend production build: pass; Vite emitted only chunk-size warnings for ECharts/AntD.
+-- Gateway tests: 12 passed.
+-- Model/ownership/smoke contract tests: 19 passed with `PYTHONPATH=packages/kronos-contracts`.
+-- Ownership CLI: clean.
+-- Paper-only policy remains enforced; live broker operations remain blocked.
+-- Known baseline failures: signal freshness test expects fixed 2026-06-21 and training suite references missing `Kronos/Kronos-uat-bak/src/kronos/finetune/dataset.py`; neither was masked or rewritten.
+-
+-## 次要问题
+-
+-- Starlette 仍有 1 条弃用警告，若未在对应服务任务中自然消除，则在最终收口阶段处理。
++# Embodied Daily Refresh SDD Progress
++
++Branch base: 2ceee281
++Plan: docs/superpowers/plans/2026-07-16-embodied-intelligence-daily-refresh.md
++
++Task 1: complete (commits 2ceee28..8bfeb39, review clean)
++Task 2: complete (commits 8bfeb39..384d8c3, review clean)
++Task 3: complete (commits 384d8c3..6b1dc87, review clean)
++Task 4: complete (commits 6b1dc87..b37efd8, review clean)
++Task 5: complete (commits b37efd8..57e3133, review clean)
++Task 6: complete (commits 57e3133..c7ac845, review clean)
++Task 7: complete (commits c7ac845..cf8c982, review clean)
++Task 8: complete (commits cf8c982..7831415, review clean)
+diff --git a/.superpowers/sdd/task-2-report.md b/.superpowers/sdd/task-2-report.md
+index 148574f0..ccb7159f 100644
+--- a/.superpowers/sdd/task-2-report.md
++++ b/.superpowers/sdd/task-2-report.md
+@@ -1,50 +1,70 @@
+-# Task 2 执行报告（Result Assembly And Theme Sorting）
+-
+-## 实现内容
+-- 在 `packages/kronos-factors/kronos_factors/engine/cb_auction_t0.py` 中新增 `CbAuctionT0Engine._assemble_result(...)`，仅处理内存中的候选结果组装，不访问数据库。
+-- 在 `CbAuctionT0Engine` 中新增 `_relation_reason(...)`，用于输出题材关系文案。
+-- `_assemble_result` 逻辑包含：
+-  - 以 `cb_code` 去重并合并重复转债：合并 `matched_concepts` 与 `trigger_sources`，并对金额、触发股数量、概念覆盖度等字段取并集/最大/最小策略。
+-  - 生成 `is_direct_trigger`、`theme_score`、`risk_notes`、`remain_size_yi`、`code`、`name`、`relation_reason`。
+-  - 按题材相关性排序：先按是否直接触发股、命中题材数、触发股数、匹配封单额、概念规模宽度排序，最后补充代码顺序，支持 `top_n` 截断。
+-  - 返回统一结构：`model`、`trade_date`、`trigger_stocks`、`concepts`、`bonds`、`rejections`（可为空）。
+-- 保持 `run()` 行为不变（仍为现有 stub 行为）。
+-
+-## 测试命令和结果
+-- 命令：
+-  - `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+-- 结果：
+-  - 失败阶段（新增两个测试前）：`AttributeError: 'CbAuctionT0Engine' object has no attribute '_assemble_result'`
+-  - 通过阶段（实现后）：`6 passed in ...`（本次运行显示 `...... [100%]`）
+-
+-## TDD RED/GREEN 证据
+-- RED：首次运行新增测试时有 2 个失败，均来自 `_assemble_result` 不存在。
+-- GREEN：补齐 `_assemble_result` 与 `_relation_reason` 后，测试全部通过。
+-
+-## 文件变更
+-- `packages/kronos-factors/kronos_factors/engine/cb_auction_t0.py`
+-- `packages/kronos-factors/tests/test_cb_auction_t0.py`
+-
+-## 自查结果
+-- 核对了排序逻辑与题材去重行为：重复转债合并后 `matched_concepts`、`trigger_sources` 已去重并有序。
+-- 风险信息保留为注释字段（`risk_notes`），未作为硬过滤条件。
+-- 只使用同花顺相关概念字段进行组装/排序依据，不引入交易便利性维度。
+-- 未改动 `run()` 与其他模型行为。
+-
+-## 疑虑
+-- 当前 `CbAuctionT0Engine.run()` 仍是空壳返回，仍需后续 Task 3/4 用真实触发与题材数据接入 `_assemble_result`。
+-
+-## 修复补充（Review 回归修复）
+-
+-- 已修复 `trigger_stock_code` 归一化缺失问题：
+-  - 修改 `trigger_codes` 生成方式为
+-    `trigger_codes = {_normalize_stock_code(row.get("trigger_stock_code")) for row in triggers}`，
+-    避免 `300001.SZ` 与 `300001` 未命中直接触发判断。
+-- 已修复 `top_n` 边界处理问题：
+-  - 改为 `if top_n is not None: bonds = bonds[:top_n]`，确保 `top_n=0` 返回 0 条，`top_n=None` 返回全部。
+-- 新增测试：
+-  - `test_assemble_result_normalizes_trigger_stock_code_for_direct_match`
+-  - `test_assemble_result_top_n_zero_and_none`
+-- 复测命令：
+-  - `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+-- 复测结果：`8 passed in ...`（本次运行显示 `........ [100%]`）。
++# Task 2 Final Report: Evidence Normalization and Upgrade Gate
++
++## Final status
++
++Complete after two review-remediation rounds.
++
++Commits:
++
++- `3bf0e5d9 feat: enforce embodied evidence upgrade gates`
++- `10b85e72 fix: harden embodied evidence verification`
++- `384d8c35 fix: enforce trusted evidence identities`
++
++## Final behavior
++
++- Sources are classified S/A/B/C/D with unknown sources failing safe to D.
++- Evidence is whitespace-normalized and fingerprinted as
++  `v1:<sha256>` with an explicit `fingerprint_version` contract.
++- Automatic verification is evaluated independently per `node_id`.
++- One clear, current S-grade item can verify a node. Two A-grade items can
++  verify it only when they have two distinct, non-empty trusted
++  `publisher_id`/`canonical_source_id` identities. Free-form crawl `source_id`
++  never supplies an A vote identity.
++- `publisher_id`, `canonical_source_id`, `node_id`, and `source_url` are stripped;
++  empty optional values normalize to `None`.
++- Future, expired, and explicitly invalid evidence cannot upgrade. Callers may
++  supply `as_of`; no arbitrary universal history window is imposed.
++- Relation and stage phrases are evaluated sentence-by-sentence and keyword-by-
++  keyword with local negation windows. Forms including `未量产`, `未交付`,
++  `无订单`, `尚无订单`, `并未向客户供应`, and `不存在任何相关订单`
++  neither establish an explicit relation nor advance commercialization stage.
++  A positive counterexample (`不但已量产，而且已批量交付`) remains affirmative.
++- Vague sentences cannot be unlocked by unrelated `主营`/`收入` text.
++- Framework agreements and generic capacity release do not overstate stage.
++  A stated revenue-share percentage reaches at most revenue recognition;
++  `SIGNIFICANT_REVENUE_SHARE` additionally requires explicit significant/large
++  improvement wording plus a percentage.
++- Task 2 produces ordered stage candidates only; it never confirms an automatic
++  downgrade.
++
++## TDD evidence
++
++- Initial RED: missing evidence module (`ModuleNotFoundError`, exit 2).
++- Vague-supply RED: `可用于...供应链` was incorrectly explicit (`1 failed`).
++- First review RED: missing fingerprint contract (collection error, exit 2).
++- Valid-alias RED: `valid=False` was not accepted (`1 failed`).
++- Second review RED: four failures exposed local negation, crawl-ID voting,
++  optional-string normalization, and revenue-share overstatement.
++- Negation-window RED: `并未向客户供应` remained explicit (`1 failed`).
++- Each RED was followed by a focused GREEN before proceeding.
++
++## Fresh final verification
++
++- `bash tools/codex-lowio.sh py tools/tests/test_embodied_refresh_evidence.py -q`
++  -> `19 passed`.
++- `bash tools/codex-lowio.sh py tools/tests/test_embodied_refresh_repository.py -q`
++  -> `10 passed`.
++- `python3 -m py_compile tools/embodied_refresh/models.py tools/embodied_refresh/evidence.py`
++  -> exit 0.
++- `git diff --check` -> clean.
++- Commit hook lint -> passed.
++
++## Concerns
++
++The classifier and language parser are intentionally deterministic and
++auditable. New source aliases, publisher aliases, and authoritative phrasing
++must be added explicitly with focused tests; unknown or ambiguous inputs fail
++safe and require review.
++
++Parent-owned `.superpowers/sdd/.gitignore` and `progress.md` modifications were
++left untouched and excluded from Task 2 commits.
+diff --git a/.superpowers/sdd/task-3-report.md b/.superpowers/sdd/task-3-report.md
+index 11707a5e..2f9cc6df 100644
+--- a/.superpowers/sdd/task-3-report.md
++++ b/.superpowers/sdd/task-3-report.md
+@@ -1,63 +1,99 @@
+-# Task 3 报告：Add PostgreSQL Fetch Pipeline
+-
+-## 实现内容
+-- 给 `CbAuctionT0Engine` 补齐了 `run()` 编排：按顺序调用 `_fetch_effective_trade_date`、`_fetch_previous_trade_date`、`_fetch_trigger_stocks`、`_fetch_concepts`、`_fetch_bonds`。
+-- 新增了 5 个 PostgreSQL fetch helper，覆盖：
+-  - 竞价封板触发股
+-  - 同花顺概念映射
+-  - 转债映射
+-  - 交易日/前一交易日推导
+-- 保持原有 `_assemble_result` 和 `_relation_reason` 行为不变。
+-- 按 brief 口径保留：
+-  - `limit_type = 'U'`
+-  - `first_time IS NOT NULL`
+-  - `first_time <= '09:30:00'`
+-  - `fd_amount > 1_000_000_000`
+-  - 前一交易日同股已涨停则拒绝
+-  - 缺少 `fd_amount` 直接拒绝，不估算封单金额
+-  - 转债侧不按强赎、溢价率、成交额、剩余规模、退市日期做硬过滤
+-
+-## TDD 证据
+-### RED
+-命令：
+-```bash
+-bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q -k test_run_assembles_fetcher_outputs_without_postgres
+-```
+-结果：
+-```text
+-F ... AttributeError: <kronos_factors.engine.cb_auction_t0.CbAuctionT0Engine object at ...> has no attribute '_fetch_effective_trade_date'
+-```
+-
+-### GREEN
+-同一命令在实现后通过：
+-```text
+-. [100%]
+-```
+-
+-### 回归确认
+-命令：
+-```bash
+-bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q
+-```
+-结果：
+-```text
+-......... [100%]
+-```
+-
+-## 测试命令和结果
+-- `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q -k test_run_assembles_fetcher_outputs_without_postgres`
+-  - 先失败，后通过
+-- `bash tools/codex-lowio.sh py packages/kronos-factors/tests/test_cb_auction_t0.py -q`
+-  - 通过，9 个测试全绿
+-
+-## 文件变更
+-- `packages/kronos-factors/kronos_factors/engine/cb_auction_t0.py`
+-- `packages/kronos-factors/tests/test_cb_auction_t0.py`
+-
+-## 自查结果
+-- `run()` 现在会真正走 fetch 编排，不再返回空壳结果。
+-- patched fetchers + fake connection 的单测已覆盖，不依赖本机 PostgreSQL。
+-- 现有 8 个 helper/assembly 测试未回归。
+-
+-## 疑虑
+-- 无额外疑虑；本任务按要求没有连接真实 PostgreSQL，当前验证范围已覆盖 brief 要求的编排逻辑。
++# Task 3 Report: Incremental Source Refresh and Mapping State Machine
++
++## Status
++
++DONE_WITH_CONCERNS
++
++## Commit
++
++`a5d153bc` (`feat: refresh embodied mappings incrementally`)
++
++## Implemented
++
++- Added five whitelisted `SourceSpec` adapters and independent per-source incremental queries.
++- Each source receives its own cursor. A failed source records an error, rolls back its read transaction, and never emits a next cursor; successful sources remain usable.
++- Empty successful polls retain an existing cursor but do not invent a first cursor.
++- Kept the old repair CLI behavior and exposed the new adapter through `fetch_embodied_incremental_sources`.
++- Added conservative mapping transitions and an explicit allowed-transition table.
++- New mappings are persisted as `candidate`; their transition history is persisted as `pending_review`.
++- Existing mappings upgrade to `verified` only through Task 2 `can_auto_verify(events, as_of=effective_as_of)` with an explicit cutoff.
++- Unavailable-source batches emit no downgrade update.
++- Evidence resolving to incompatible nodes produces a `pending_review` conflict instead of choosing the first node.
++- Mapping writes and transition-history writes share one transaction; any persistence exception rolls both back.
++
++## TDD Evidence
++
++- Initial RED: focused command produced 8 expected failures because `embodied_refresh.sources` and `embodied_refresh.mappings` did not exist.
++- First GREEN attempt: 7 passed, 1 failed; the remaining assertion incorrectly looked for `pending_review` in the mapping row instead of the transition review row.
++- Corrected contract: mapping status is `candidate`, transition review status is `pending_review`.
++- Strengthened rollback test tracks pending/persisted mapping and history state and confirms both remain empty after failure.
++
++## Fresh Verification
++
++- `bash tools/codex-lowio.sh py tools/tests/test_embodied_refresh_sources.py tools/tests/test_embodied_refresh_mappings.py tools/tests/test_embodied_refresh_repository.py tools/tests/test_embodied_refresh_evidence.py -q`
++  - exit 0; 37 passed.
++- `python3 -m py_compile tools/embodied_refresh/*.py tools/repair_priority_supply_chains.py`
++  - exit 0.
++- Task-file `git diff --check` and staged `git diff --cached --check`
++  - exit 0.
++- Commit hook lint
++  - passed.
++
++## Concerns
++
++- Conflict records are returned as explicit `MappingConflict(review_status="pending_review")` objects for the orchestrator/review layer. The existing database history tables require a concrete `mapping_id`, so a conflict between two brand-new nodes is intentionally not forced into one of those rows; doing so would require either picking a node or adding a dedicated conflict-table migration outside Task 3 scope.
++- Source adapters use trusted static table/column specifications. Adding a source requires code plus focused tests; arbitrary runtime table names are intentionally unsupported.
++- Parent-owned `.superpowers/sdd/.gitignore`, `progress.md`, and `task-2-report.md` modifications were not staged or committed.
++
++## Review Remediation (2026-07-17)
++
++### Status and commit
++
++- DONE
++- `a95f26da` (`fix: persist embodied mapping conflicts safely`)
++
++### Critical/Important fixes
++
++- Corrected `fina_mainbz` incremental cursor from nonexistent `update_time` to real `end_date`; a live `information_schema.columns` test verifies the configured column exists in local PostgreSQL.
++- Extended undeployed revision `036` with dedicated `embodied_mapping_conflicts` and `embodied_mapping_transitions` tables. Both carry nullable run/mapping links, chain/company/node identity, evidence IDs, source identity, review/status fields, and timestamps.
++- Conflict rows now persist inside the same transaction as mapping work. A failure rolls back mappings, transitions, and conflicts together.
++- Mapping lookup now locks every existing row for `(chain_id, code)` before comparing proposed nodes. A proposed node incompatible with an existing node creates a persisted review conflict and does not create/update a mapping.
++- Multiple evidence batches for one `(chain_id, code, node_id)` are merged and fingerprint-deduplicated before calling Task 2 `can_auto_verify(..., as_of=...)`. Transition evidence IDs reflect the merged set.
++- Mapping state changes no longer write to `business_tag_stage_transition_log`; they use the dedicated mapping-transition table.
++- Caller-owned database connections use per-source savepoints. A failed source rolls back only to its savepoint and cannot roll back unrelated caller work; other sources continue.
++
++### TDD and verification
++
++- Review RED: 10 expected failures covered the incorrect schema cursor, global rollback, missing migration tables, missing conflict persistence, existing-vs-new conflicts, evidence merging, and old transition-table usage.
++- Focused GREEN: Task 1-3 suites passed 42 tests.
++- Final fresh command: `bash tools/codex-lowio.sh py tools/tests/test_embodied_refresh_repository.py tools/tests/test_embodied_refresh_evidence.py tools/tests/test_embodied_refresh_sources.py tools/tests/test_embodied_refresh_mappings.py -q` -> 42 passed, exit 0.
++- Python compilation, task-file diff checks, staged diff check, and commit-hook lint passed.
++- Revision `036` was executed in a disposable PostgreSQL schema: upgrade, presence checks for both new tables, and downgrade all passed.
++
++### Remaining concerns
++
++- None within Task 3 scope. Adding future sources still requires a static trusted `SourceSpec` and a schema-contract test.
++
++## Quality Gate Remediation (2026-07-17)
++
++### Commit
++
++`6b1dc87e` (`fix: harden embodied mapping audit semantics`)
++
++### Fixes
++
++- Conflict pairing now emits every and only unequal `(existing_node, proposed_node)` combination. Matching nodes never self-conflict, multiple existing nodes are fully represented, and a multi-proposed batch without an existing mapping is explicitly persisted as `batch_ambiguity` with nullable existing node/mapping.
++- The normal source suite is offline-safe. `fina_mainbz.end_date` remains covered by a static `SourceSpec` schema contract; live `information_schema` verification runs only when `KRONOS_PG_URL` is explicitly set and otherwise skips.
++- `embodied_mapping_transitions` now enforces database CHECK constraints on `from_status`, `to_status`, and `review_status`.
++- Audit provenance now distinguishes `source_record_ids` from normalized `evidence_fingerprints`; `source_names` is a JSON collection containing all merged input sources rather than the first source only. Conflict rows use the same explicit provenance contract.
++
++### TDD and fresh verification
++
++- RED exposed self-conflicts, missing multi-existing combinations, conflated provenance fields, and absent transition status constraints.
++- Task 1-3 final regression: 43 passed, 1 intentionally skipped live-schema integration test (no `KRONOS_PG_URL`), exit 0.
++- Revision `036` again passed isolated PostgreSQL upgrade/downgrade; live catalog inspection confirmed all three transition CHECK constraints were created.
++- Python compilation, diff checks, staged diff check, and commit-hook lint passed.
++
++### Concerns
++
++- None in Task 3 scope.
+diff --git a/outputs/embodied_refresh/d0ff8ffd-59c7-4297-8236-b263950627d8/result.json b/outputs/embodied_refresh/d0ff8ffd-59c7-4297-8236-b263950627d8/result.json
+new file mode 100644
+index 00000000..26f8fbfe
+--- /dev/null
++++ b/outputs/embodied_refresh/d0ff8ffd-59c7-4297-8236-b263950627d8/result.json
+@@ -0,0 +1,19 @@
++{
++  "run_id": "d0ff8ffd-59c7-4297-8236-b263950627d8",
++  "as_of_date": "2026-07-17",
++  "status": "success",
++  "source_cutoffs": {"announcement": "2026-07-17", "interact_qa": "2026-07-17", "research": "2026-06-24", "profile": "2026-07-03 00:47:26.651318", "main_business": "2026-03-31"},
++  "changes": {"new_candidate": 4, "P0": 0, "P1": 0, "P2": 0, "P3": 4},
++  "mappings": [
++    {"code": "000559", "status": "candidate", "evidence_events": 1},
++    {"code": "301696", "status": "candidate", "evidence_events": 16},
++    {"code": "605088", "status": "candidate", "evidence_events": 1},
++    {"code": "920418", "status": "candidate", "evidence_events": 1}
++  ],
++  "conflicts": {"ambiguous_node_recognition": 910, "node_mismatch": 3, "total": 913, "empty_source_ids": 0, "source_counts": {"interact_qa": 849, "profile": 13, "research": 48}, "expected_missing": 0, "persisted_extra": 0},
++  "delivery": {"configured_targets": 3, "attempted": false, "records": 0, "message_ids": []},
++  "idempotency": {"same_terminal_run": true, "events": 34, "mappings": 4, "transitions": 4, "conflicts": 913, "snapshots": 6, "messages": 0},
++  "coverage_by_layer": {"L1": 1, "L2": 2, "L3": 8, "L4": 12, "L5": 16, "L6": 7, "L7": 6, "L8": 7},
++  "formal_top3": ["000551", "000837", "002046"],
++  "watch_top3": ["002048", "002406", "002434"]
++}
+diff --git a/outputs/lark_reports/2026-07-03/031245_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/031245_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..9fda81a6
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/031245_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 03:12）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 03:12  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-17 03:12</td></tr><tr><td>本次取数时间</td><td>2026-07-17 03:12</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/031245_leader_afternoon.md b/outputs/lark_reports/2026-07-03/031245_leader_afternoon.md
+new file mode 100644
+index 00000000..6a82ab60
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/031245_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 03:12）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-17 03:12 |
++| 本次取数时间 | 2026-07-17 03:12 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/031344_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/031344_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..61c35e6c
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/031344_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 03:13）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 03:13  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-17 03:13</td></tr><tr><td>本次取数时间</td><td>2026-07-17 03:13</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/031344_leader_afternoon.md b/outputs/lark_reports/2026-07-03/031344_leader_afternoon.md
+new file mode 100644
+index 00000000..d3fa00ba
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/031344_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 03:13）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-17 03:13 |
++| 本次取数时间 | 2026-07-17 03:13 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/031429_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/031429_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..360db565
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/031429_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 03:14）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 03:14  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-17 03:14</td></tr><tr><td>本次取数时间</td><td>2026-07-17 03:14</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/031429_leader_afternoon.md b/outputs/lark_reports/2026-07-03/031429_leader_afternoon.md
+new file mode 100644
+index 00000000..c5ce64fa
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/031429_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 03:14）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-17 03:14 |
++| 本次取数时间 | 2026-07-17 03:14 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/031502_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/031502_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..efe72c72
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/031502_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 03:15）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 03:15  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-17 03:15</td></tr><tr><td>本次取数时间</td><td>2026-07-17 03:15</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/031502_leader_afternoon.md b/outputs/lark_reports/2026-07-03/031502_leader_afternoon.md
+new file mode 100644
+index 00000000..f8645328
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/031502_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 03:15）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-17 03:15 |
++| 本次取数时间 | 2026-07-17 03:15 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/031918_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/031918_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..1bea3da1
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/031918_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 03:19）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 03:19  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-17 03:19</td></tr><tr><td>本次取数时间</td><td>2026-07-17 03:19</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/031918_leader_afternoon.md b/outputs/lark_reports/2026-07-03/031918_leader_afternoon.md
+new file mode 100644
+index 00000000..2ef29e7c
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/031918_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 03:19）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-17 03:19 |
++| 本次取数时间 | 2026-07-17 03:19 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。
+diff --git a/outputs/lark_reports/2026-07-03/032116_leader_afternoon.doc.xml b/outputs/lark_reports/2026-07-03/032116_leader_afternoon.doc.xml
+new file mode 100644
+index 00000000..d68ce402
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/032116_leader_afternoon.doc.xml
+@@ -0,0 +1,65 @@
++<h1>秋神午后选股分析报告（2026-07-03 03:21）</h1>
++<whiteboard type="svg"><svg xmlns="http://www.w3.org/2000/svg" width="900" height="1400" viewBox="0 0 900 1400">
++<defs>
++<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>
++<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>
++<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>
++</defs>
++<rect width="900" height="1400" fill="#050403"/>
++<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>
++<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>
++<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>
++<path d="M675 0 C710 120 836 154 900 180 L900 0 Z" fill="#c59b3b" opacity="0.28"/>
++<path d="M0 1260 C168 1222 262 1320 400 1400 L0 1400 Z" fill="#d4aa4e" opacity="0.12"/>
++<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>
++<text x="62" y="132" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="42" font-weight="800" fill="#ead89b">秋神午后选股分析报告</text>
++<text x="62" y="176" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="#c9bd95">数据日期 2026-07-03  ·  更新时间 03:21  ·  选股</text>
++<text x="62" y="224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="#f7efd4">市场状态：无入选标的</text>
++<rect x="62" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">入选数量</text>
++<text x="82" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">0只</text>
++<text x="82" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">未通过模型门槛</text>
++<rect x="454" y="266" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="297" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">平均评分</text>
++<text x="474" y="329" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">-</text>
++<text x="474" y="354" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无评分字段，无法评价强弱</text>
++<rect x="62" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="82" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">最强板块</text>
++<text x="82" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">- 0只</text>
++<text x="82" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">无入选板块</text>
++<rect x="454" y="390" width="352" height="102" rx="16" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="474" y="421" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">数据刷新</text>
++<text x="474" y="453" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="800" fill="#ead89b">ok</text>
++<text x="474" y="478" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="#c9bd95">数据刷新正常</text>
++<rect x="56" y="532" width="788" height="126" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5" filter="url(#shadow)"/>
++<text x="84" y="568" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">市场诊断</text>
++<text x="84" y="602" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">本次模型没有给出可执行清单，先观察</text>
++<text x="84" y="630" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="#f7efd4">，不强行出手。</text>
++<text x="62" y="704" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#ead89b">选股清单 Top 0</text>
++<rect x="56" y="732" width="742" height="116" rx="18" fill="#15130f" stroke="#6d5931" stroke-width="1.5"/>
++<text x="86" y="780" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="800" fill="#ead89b">暂无主买标的</text>
++<text x="86" y="818" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">本次没有选股通过模型门槛。</text>
++<text x="62" y="1220" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="800" fill="#ead89b">板块共振</text>
++<rect x="64" y="1241" width="10" height="10" fill="#ead89b"/>
++<text x="88" y="1260" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="#f7efd4">暂无可统计的板块共振数据</text>
++<line x1="62" y1="1350" x2="838" y2="1350" stroke="#6d5931" stroke-width="1.5"/>
++<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">非买入指令 · 盘中数据会变化 · 缺失字段不补造</text>
++<text x="735" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="#c9bd95">Suying AI</text>
++</svg></whiteboard>
++<h2>一、数据更新时间和日期</h2>
++<table><thead><tr><th background-color="light-gray">项目</th><th background-color="light-gray">内容</th></tr></thead><tbody><tr><td>选股日期</td><td>2026-07-03</td></tr><tr><td>报告生成时间</td><td>2026-07-17 03:21</td></tr><tr><td>本次取数时间</td><td>2026-07-17 03:21</td></tr><tr><td>数据更新时点</td><td>stk_mins=-；daily_kline=-</td></tr><tr><td>本次刷新</td><td>状态 ok；耗时 0.1s</td></tr><tr><td>入选数量</td><td>0只</td></tr></tbody></table>
++<h2>二、市场状态诊断</h2>
++<table><thead><tr><th background-color="light-gray">指标</th><th background-color="light-gray">数据</th><th background-color="light-gray">判断</th></tr></thead><tbody><tr><td>数据刷新</td><td>ok</td><td>数据刷新正常</td></tr><tr><td>入选数量</td><td>0只</td><td>未通过模型门槛</td></tr><tr><td>平均评分</td><td>-</td><td>无评分字段，无法评价强弱</td></tr><tr><td>最强板块</td><td>- 0只</td><td>无入选板块</td></tr></tbody></table>
++<p><b>市场结论：</b>本次模型没有给出可执行清单，先观察，不强行出手。</p>
++<h2>三、选股清单</h2>
++<p>本次没有股票通过模型门槛。</p>
++<h2>四、板块共振</h2>
++<ul><li>暂无可统计的板块共振数据</li></ul>
++<h2>五、风险提示</h2>
++<callout emoji="❗" background-color="light-yellow" border-color="yellow">
++<ul>
++<li>本报告是模型筛选结果，不是自动买入指令。</li>
++<li>盘中数据会变化，后续重新运行可能得到不同结果。</li>
++<li>缺失字段统一显示为 -，不会补造价格、目标价、封单金额或原因。</li>
++</ul>
++</callout>
+\ No newline at end of file
+diff --git a/outputs/lark_reports/2026-07-03/032116_leader_afternoon.md b/outputs/lark_reports/2026-07-03/032116_leader_afternoon.md
+new file mode 100644
+index 00000000..4a547a02
+--- /dev/null
++++ b/outputs/lark_reports/2026-07-03/032116_leader_afternoon.md
+@@ -0,0 +1,37 @@
++# 秋神午后选股分析报告（2026-07-03 03:21）
++
++## 一、数据更新时间和日期
++
++| 项目 | 内容 |
++| --- | --- |
++| 选股日期 | 2026-07-03 |
++| 报告生成时间 | 2026-07-17 03:21 |
++| 本次取数时间 | 2026-07-17 03:21 |
++| 数据更新时点 | stk_mins=-；daily_kline=- |
++| 本次刷新 | 状态 ok；耗时 0.1s |
++| 入选数量 | 0只 |
++
++## 二、市场状态诊断
++
++| 指标 | 数据 | 判断 |
++| --- | --- | --- |
++| 数据刷新 | ok | 数据刷新正常 |
++| 入选数量 | 0只 | 未通过模型门槛 |
++| 平均评分 | - | 无评分字段，无法评价强弱 |
++| 最强板块 | - 0只 | 无入选板块 |
++
++市场结论：本次模型没有给出可执行清单，先观察，不强行出手。
++
++## 三、选股清单
++
++本次没有股票通过模型门槛。
++
++## 四、板块共振
++
++- 暂无可统计的板块共振数据
++
++## 五、风险提示
++
++- 本报告是模型筛选结果，不是自动买入指令。
++- 缺失字段统一显示为 `-`，不会补造价格、目标价或原因。
++- 盘中数据随时间变化，后续重新运行可能得到不同结果。

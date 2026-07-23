@@ -157,6 +157,14 @@ assert_validate "qa: P0 全过 + Promote → exit 0" "$WORK/q-good.md" qa 0
 write_qa "$WORK/q-cond.md" E2E "Conditional promote" 0 3 2 N/A
 assert_validate "qa: Conditional + P0 未全过 → exit 0(不硬拦)" "$WORK/q-cond.md" qa 0
 
+# W2：非整数计数不应被 _as_int 静默转 0 放行——frontmatter 数据非法，verdict 一致性门
+# 要求数据本身有效（原 critical_count: see-notes → _as_int→0 → derive "approve" 与声明
+# 一致 → exit 0 放行，门形同虚设）
+write_review "$WORK/r-bad-count.md" approve see-notes 0 Pass pass pass pass pass
+assert_validate "review: critical_count 非整数 → exit 2（W2）" "$WORK/r-bad-count.md" review 2
+write_qa "$WORK/q-bad-count.md" UAT Promote not-a-number 3 3 approve
+assert_validate "qa: critical_defect_count 非整数 → exit 2（W2）" "$WORK/q-bad-count.md" qa 2
+
 # --------------------------------------------------------------------------- #
 # 3) fail-open（exit 0 + WARN）
 # --------------------------------------------------------------------------- #

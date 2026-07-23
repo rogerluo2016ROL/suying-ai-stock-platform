@@ -5,6 +5,8 @@ model: sonnet
 color: purple
 tools: Glob, Grep, Read, Write, Edit, Bash, WebFetch, SendMessage, TaskGet, TaskUpdate, TaskList, Skill
 skills:
+  - superpowers:brainstorming
+  - superpowers:writing-plans
   - frontend-design:frontend-design
   - agf-design-discipline
 ---

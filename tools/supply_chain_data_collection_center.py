@@ -14,6 +14,7 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
 import tempfile
 from copy import deepcopy
 from html import unescape
@@ -23,6 +24,29 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urljoin, urlparse
 from zoneinfo import ZoneInfo
+
+# 注入共享 packages(须在 import kronos-factors 前,照 bom 工具惯例)
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+_KRONOS_FACTORS = _PROJECT_ROOT / "packages" / "kronos-factors"
+if _KRONOS_FACTORS.is_dir() and str(_KRONOS_FACTORS) not in sys.path:
+    sys.path.insert(0, str(_KRONOS_FACTORS))
+
+# 双评分公式唯一实现见 kronos_factors.engine.supply_chain_scoring;
+# 此处 re-export 保持 backfill 等存量 import 不破。
+from kronos_factors.engine.supply_chain_scoring import (  # noqa: E402
+    COMMERCIAL_STAGE_SCORE,
+    RESEARCH_STAGE_SCORE,
+    calculate_evidence_score,
+    calculate_market_expectation_score,
+    calculate_prosperity_score,
+    calculate_stage_progress_score,
+    clamp_score,
+    classify_business_tag_events,
+    compute_expectation_gap_score,
+    compute_three_high_score,
+    split_claim_counts,
+)
+from kronos_factors.engine.supply_chain_scoring import json_list as _json_list  # noqa: E402
 
 
 SourceLevel = Literal["strong", "mid", "weak"]
@@ -2943,72 +2967,9 @@ def run_scheduled_batch(pg_url: str, batch: str = "daily_core", limit: int = 100
     }
 
 
-RESEARCH_STAGE_SCORE = {
-    "R0": 0.0,
-    "R1": 15.0,
-    "R2": 30.0,
-    "R3": 45.0,
-    "R4": 60.0,
-    "R5": 75.0,
-    "R6": 90.0,
-}
-COMMERCIAL_STAGE_SCORE = {
-    "C0": 0.0,
-    "C1": 20.0,
-    "C2": 40.0,
-    "C3": 60.0,
-    "C4": 80.0,
-    "C5": 95.0,
-}
-
-
-def clamp_score(value: float, low: float = 0.0, high: float = 100.0) -> float:
-    return round(min(high, max(low, float(value or 0.0))), 2)
-
-
-def calculate_stage_progress_score(research_stage: str | None, commercial_stage: str | None) -> float:
-    research_score = RESEARCH_STAGE_SCORE.get(str(research_stage or "R0").upper(), 0.0)
-    commercial_score = COMMERCIAL_STAGE_SCORE.get(str(commercial_stage or "C0").upper(), 0.0)
-    return clamp_score(max(research_score, commercial_score))
-
-
-def calculate_market_expectation_score(
-    *,
-    analyst_claims: int = 0,
-    news_claims: int = 0,
-    total_claims: int = 0,
-    price_change_20d: float | None = None,
-) -> float:
-    price_component = max(0.0, float(price_change_20d or 0.0)) * 1.25
-    score = 35.0 + min(25.0, analyst_claims * 4.0) + min(15.0, news_claims * 2.5)
-    score += min(15.0, max(0, total_claims - analyst_claims - news_claims) * 1.5)
-    score += min(25.0, price_component)
-    return clamp_score(score)
-
-
-def calculate_prosperity_score(latest_pct_change: float | None, avg_pct_change: float | None) -> float:
-    latest = float(latest_pct_change or 0.0)
-    avg = float(avg_pct_change or 0.0)
-    return clamp_score(50.0 + latest * 3.0 + avg * 2.0)
-
-
 def _score_row_id(prefix: str, mapping_id: str, trade_date: str) -> str:
     payload = f"{prefix}:{mapping_id}:{trade_date}"
     return f"{prefix}-" + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
-
-
-def _json_list(value) -> list:
-    if isinstance(value, list):
-        return value
-    if isinstance(value, dict):
-        return list(value.keys())
-    if isinstance(value, str) and value.strip():
-        try:
-            parsed = json.loads(value)
-        except json.JSONDecodeError:
-            return []
-        return parsed if isinstance(parsed, list) else []
-    return []
 
 
 def _latest_trade_date(cur) -> str:
@@ -3050,18 +3011,24 @@ def _price_change_20d(cur, code: str, trade_date: str) -> float | None:
 def _chain_prosperity(cur, chain_id: str | None) -> dict:
     if not chain_id:
         return {"latest_pct_change": None, "avg_pct_change": None, "sample_days": 0}
-    cur.execute(
-        """
-        SELECT trade_date, avg(metric_value) AS avg_pct
-        FROM industry_price_series
-        WHERE chain_id = %s AND metric_name = 'dc_index_pct_change'
-        GROUP BY trade_date
-        ORDER BY trade_date DESC
-        LIMIT 5
-        """,
-        (chain_id,),
-    )
-    rows = cur.fetchall()
+    # 优先 chain_equal_weight_pct_change(build_industry_price_series.py 的链成分股
+    # 等权日涨幅,覆盖全部映射链);无数据时回退 dc_index_pct_change(东财指数代理,
+    # 仅 17 条链有少量快照)。活跃链此前因 dc_index 无数据导致 prosperity 恒 50。
+    for metric_name in ("chain_equal_weight_pct_change", "dc_index_pct_change"):
+        cur.execute(
+            """
+            SELECT trade_date, avg(metric_value) AS avg_pct
+            FROM industry_price_series
+            WHERE chain_id = %s AND metric_name = %s
+            GROUP BY trade_date
+            ORDER BY trade_date DESC
+            LIMIT 5
+            """,
+            (chain_id, metric_name),
+        )
+        rows = cur.fetchall()
+        if rows:
+            break
     if not rows:
         return {"latest_pct_change": None, "avg_pct_change": None, "sample_days": 0}
     values = [
@@ -3096,12 +3063,12 @@ def refresh_expectation_and_prosperity_scores(
     stage_sql = """
         SELECT research_stage, commercialization_stage
         FROM business_tag_stage_tracking
-        WHERE mapping_id = %s
+        WHERE mapping_id = %s AND review_status = 'approved'
         ORDER BY trade_date DESC NULLS LAST, created_at DESC NULLS LAST
         LIMIT 1
     """
     events_sql = """
-        SELECT event_id, evidence_type, impact_dimensions, confidence,
+        SELECT event_id, code, title, evidence_type, impact_dimensions, confidence,
                source_id, event_date
         FROM business_tag_evidence_events
         WHERE mapping_id = %s AND review_status = 'approved'
@@ -3179,39 +3146,15 @@ def refresh_expectation_and_prosperity_scores(
                 cur.execute(events_sql, (mapping_id,))
                 events = [dict(row) for row in cur.fetchall()]
                 evidence_ids = [str(row["event_id"]) for row in events if row.get("event_id")][:50]
-                avg_confidence = (
-                    sum(float(row.get("confidence") or 0.0) for row in events) / len(events)
-                    if events
-                    else 0.0
-                )
-                growth_events = profit_events = moat_events = risk_events = order_events = 0
-                for event in events:
-                    dims = set(str(item) for item in _json_list(event.get("impact_dimensions")))
-                    evidence_type = str(event.get("evidence_type") or "")
-                    if "growth" in dims or evidence_type in {"order", "commercial_stage", "order_award"}:
-                        growth_events += 1
-                    if "profit" in dims or evidence_type == "revenue_margin":
-                        profit_events += 1
-                    if "moat" in dims or evidence_type in {"patent_standard", "patent", "moat"}:
-                        moat_events += 1
-                    if "risk" in dims or evidence_type == "risk":
-                        risk_events += 1
-                    if evidence_type in {"order", "commercial_stage", "order_award"}:
-                        order_events += 1
-
-                evidence_score = clamp_score(len(events) * 12.0 + avg_confidence * 60.0 + growth_events * 4.0 + moat_events * 4.0)
+                event_counts = classify_business_tag_events(events)
+                growth_events = event_counts["growth"]
+                profit_events = event_counts["profit"]
+                moat_events = event_counts["moat"]
+                evidence_score = calculate_evidence_score(events, event_counts)
 
                 cur.execute(monitors_sql, (mapping_id,))
                 monitor_counts = {str(row["source_type"]): int(row["count"] or 0) for row in cur.fetchall()}
-                analyst_claims = sum(
-                    count for source_type, count in monitor_counts.items()
-                    if source_type in {"analyst_estimate", "broker_report", "research_report", "profit_forecast"}
-                )
-                news_claims = sum(
-                    count for source_type, count in monitor_counts.items()
-                    if source_type in {"financial_news", "media_report", "news"}
-                )
-                total_claims = sum(monitor_counts.values())
+                analyst_claims, news_claims, total_claims = split_claim_counts(monitor_counts)
                 price_change_20d = _price_change_20d(cur, str(mapping.get("code") or ""), score_date)
                 market_expectation_score = calculate_market_expectation_score(
                     analyst_claims=analyst_claims,
@@ -3228,47 +3171,32 @@ def refresh_expectation_and_prosperity_scores(
 
                 revenue_ratio = _float_or_none(mapping.get("revenue_ratio"))
                 gross_profit_ratio = _float_or_none(mapping.get("gross_profit_ratio"))
-                growth_score = clamp_score(
-                    (revenue_ratio or 0.0) * 100.0
-                    + growth_events * 14.0
-                    + order_events * 12.0
-                    + max(0.0, prosperity_score - 50.0) * 0.55
+                three_high = compute_three_high_score(
+                    revenue_ratio=revenue_ratio,
+                    gross_profit_ratio=gross_profit_ratio,
+                    events=events,
+                    stage_score=stage_score,
+                    prosperity_score=prosperity_score,
                 )
-                profit_score = None
-                if gross_profit_ratio is not None or profit_events:
-                    profit_score = clamp_score((35.0 if gross_profit_ratio is None else 45.0 + gross_profit_ratio * 100.0) + profit_events * 10.0)
-                moat_score = clamp_score(moat_events * 28.0 + avg_confidence * 35.0)
-                score_cap = 100.0
-                if revenue_ratio is None and profit_score is None:
-                    score_cap = 70.0
-                elif profit_score is None:
-                    score_cap = 85.0
-                total_score = clamp_score(
-                    growth_score * 0.24
-                    + (profit_score or 0.0) * 0.18
-                    + moat_score * 0.22
-                    + stage_score * 0.16
-                    + evidence_score * 0.14
-                    + prosperity_score * 0.06,
-                    high=score_cap,
-                )
+                growth_score = three_high["growth_score"]
+                profit_score = three_high["profit_score"]
+                moat_score = three_high["moat_score"]
+                score_cap = three_high["score_cap"]
+                total_score = three_high["total_score"]
 
-                risk_penalty_score = clamp_score(risk_events * 20.0 + max(0.0, -float(price_change_20d or 0.0)) * 0.3)
-                actual_progress_score = clamp_score(stage_score * 0.50 + evidence_score * 0.32 + prosperity_score * 0.18)
-                raw_gap = (
-                    actual_progress_score
-                    - market_expectation_score
-                    + evidence_score * 0.22
-                    + (prosperity_score - 50.0) * 0.20
-                    - risk_penalty_score * 0.40
+                gap = compute_expectation_gap_score(
+                    stage_score=stage_score,
+                    evidence_score=evidence_score,
+                    prosperity_score=prosperity_score,
+                    market_expectation_score=market_expectation_score,
+                    risk_events=event_counts["risk"],
+                    price_change_20d=price_change_20d,
                 )
-                expectation_gap_score = clamp_score(raw_gap)
-                if raw_gap >= 15:
-                    gap_type = "positive"
-                elif raw_gap <= -15:
-                    gap_type = "negative"
-                else:
-                    gap_type = "neutral"
+                risk_penalty_score = gap["risk_penalty_score"]
+                actual_progress_score = gap["actual_progress_score"]
+                raw_gap = gap["raw_gap"]
+                expectation_gap_score = gap["expectation_gap_score"]
+                gap_type = gap["gap_type"]
 
                 shared_detail = {
                     "version": "supply-chain-collection-v1-second-layer-refresh",

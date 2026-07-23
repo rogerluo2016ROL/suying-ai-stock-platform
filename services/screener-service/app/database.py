@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from kronos_contracts.db import resolve_async_url as _resolve_async_url
+
 try:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
     from sqlalchemy.pool import NullPool
@@ -13,18 +15,6 @@ except ModuleNotFoundError:
     async_sessionmaker = None  # type: ignore[assignment]
     create_async_engine = None  # type: ignore[assignment]
     NullPool = None  # type: ignore[assignment]
-
-
-def _resolve_async_url() -> str:
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        url = os.environ.get(
-            "KRONOS_PG_URL",
-            "postgresql://kronos:kronos@localhost:6432/kronos",
-        )
-    if url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return url
 
 
 DATABASE_URL = _resolve_async_url()

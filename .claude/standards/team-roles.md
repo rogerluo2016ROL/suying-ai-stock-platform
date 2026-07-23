@@ -1,6 +1,6 @@
 # Team Roles and Capability Baseline
 
-> **关于 `Permission` 列**：`permissionMode` 是 Claude Code 官方 sub-agent frontmatter 字段，但**仅在 sub-agent / `--agent` 路径生效，Agent Team teammate 路径被忽略**（详见下方 frontmatter 能力表）。当前启动方式：lead = `product-lead` 以 `--agent product-lead` 启动（见 `agf-team-start.sh`），故 **PL 自身的 `acceptEdits` 生效并成为团队权限基线**，其余 teammate 继承该基线；review-only 等更严模式由 lead 在 spawn 后对单个 teammate 单独切换。**默认不再使用 `--dangerously-skip-permissions`**（仅在显式传该 flag 时启用，自担风险）。
+> **关于 `Permission` 列**：`permissionMode` 是 Claude Code 官方 sub-agent frontmatter 字段，但**仅在 sub-agent / `--agent` 路径生效，Agent Team teammate 路径被忽略**（详见下方 frontmatter 能力表）。当前启动方式：lead = `product-lead` 以 `claude --agent product-lead` 启动（原 TUI 启动器已按 ADR-026 D3 退役，见 `team-mode.md`），故 **PL 自身的 `acceptEdits` 生效并成为团队权限基线**，其余 teammate 继承该基线；review-only 等更严模式由 lead 在 spawn 后对单个 teammate 单独切换。**默认不再使用 `--dangerously-skip-permissions`**（仅在显式传该 flag 时启用，自担风险）。
 >
 > **关于 `Pool 上限` 列**：见 ADR-001 与 `workflow.md` §Multi-instance Worker Pool。值 = 同 type 并发实例数上限（含 1 表示**不允许 pool**；3-7 表示按 cost-budget 分档自动调）。pool 模式触发条件 + 例外清单见 workflow.md。
 
@@ -24,10 +24,6 @@
 | MiniApp Dev | `miniapp-dev` | sonnet | cyan | acceptEdits | **3**（小程序 task 通常单一） | 微信小程序开发，默认原生，Taro 兜底 |
 | MiniApp Code Reviewer | `miniapp-code-reviewer` | haiku | yellow | auto | **3**（haiku 便宜可放大，但小程序场景并发量小） | 小程序代码审查、审核合规、包体积评估 → `docs/reviews/` |
 | MiniApp QA Engineer | `miniapp-qa-engineer` | sonnet | red | acceptEdits | **3**（端口偏移 + 真机调度，pool 隔离比 web 复杂） | 小程序 E2E / UAT 测试执行 |
-| Apple Dev | `apple-dev` | sonnet | cyan | acceptEdits | **3**（Xcode 工程文件易冲突，pool 收紧） | Swift / SwiftUI macOS+iOS 实现（target 由 task 声明），Unit + SIT 自跑 |
-| Apple Code Reviewer | `apple-code-reviewer` | sonnet | yellow | auto | **3**（Swift 并发 / 内存审查需 sonnet 档，不降 haiku） | Swift 专项审查（并发 / retain cycle / HIG / 签名配置）+ SIT Audit → `docs/reviews/` |
-| Apple QA Engineer | `apple-qa-engineer` | sonnet | red | acceptEdits | **3**（模拟器 + 真机调度） | XCUITest E2E / UAT（对签名分发包） |
-| Apple Release Engineer | `apple-release-engineer` | sonnet | green | acceptEdits | **1**（禁 pool，唯一签名身份 + App Store Connect） | 签名 / 公证 / 打包 / TestFlight / App Store 上传，冒烟自检 → `docs/deploy/` |
 | Content Writer | `content-writer` | sonnet | purple | acceptEdits | **1**（叙事一致性需单一作者） | Release notes / blog / 用户案例 / 知识沉淀 |
 | Growth Analyst | `growth-analyst` | sonnet | blue | acceptEdits | **1**（实验设计需统一 OMTM 锚点） | 北极星 / OMTM / A/B 实验设计与报告 |
 
@@ -39,11 +35,11 @@
 
 | 边界 | 角色 | 产物写入 | 源码层问题的出路 |
 |---|---|---|---|
-| **review-only** | `code-reviewer` / `miniapp-code-reviewer` / `apple-code-reviewer` | 仅 `docs/reviews/`（工具层已 − Edit、Write 限此目录，见下表） | 发现的问题由 product-lead 重派执行层修复；重大架构问题**同时**升级 tech-lead + product-lead，不替任何人决策"要不要修" |
-| **test-only** | `qa-engineer` / `miniapp-qa-engineer` / `apple-qa-engineer` | `docs/qa/` 测试报告 | 失败用例只报告 + 提交证据，由 product-lead 重派执行层修复 |
-| **deploy-only** | `deploy-engineer` / `apple-release-engineer` | `docs/deploy/` 部署 / 发布报告 | 冒烟暴露**代码问题** → 退回 product-lead → dev 修复；**环境 / 配置 / 签名材料问题**（端口、`.env.uat`、容器编排、证书 / profile / 公证凭据）→ 自己重跑；apple-release-engineer 可改 `apple/fastlane/` 配置（流水线配置非业务源码） |
+| **review-only** | `code-reviewer` / `miniapp-code-reviewer` | 仅 `docs/reviews/`（工具层已 − Edit、Write 限此目录，见下表） | 发现的问题由 product-lead 重派执行层修复；重大架构问题**同时**升级 tech-lead + product-lead，不替任何人决策"要不要修" |
+| **test-only** | `qa-engineer` / `miniapp-qa-engineer` | `docs/qa/` 测试报告 | 失败用例只报告 + 提交证据，由 product-lead 重派执行层修复 |
+| **deploy-only** | `deploy-engineer` | `docs/deploy/` 部署报告 | 冒烟暴露**代码问题** → 退回 product-lead → dev 修复；**环境 / 配置问题**（端口、`.env.uat`、容器编排）→ 自己重跑 |
 
-共同点：三类角色都**不修改任何业务源码**（`backend/` / `frontend/` / `miniapp/` / `apple/` 的 App 与 AppCore 等）；需要源码变更时一律 SendMessage product-lead 重派，不绕权限边界。
+共同点：三类角色都**不修改任何业务源码**（`backend/` / `frontend/` / `miniapp/` 的应用等）；需要源码变更时一律 SendMessage product-lead 重派，不绕权限边界。
 
 ### Agent Tools
 
@@ -57,7 +53,7 @@
 > | `description`（含「主动调用 when」+ 关键词）| ✅ 驱动**自动委派**（Claude 据此决定何时调起本 sub-agent；官方建议含 "use proactively" 鼓励委派）| ✅ 同 sub-agent | ⚠️ **不驱动路由**：teammate 由 PL **按 type 名显式 spawn**，description 不参与自动派工；其正文 body 仍**追加**进 teammate system prompt（官方："appended … rather than replacing"），故关键词对 team 内派工准确率**无增益**，真正决定派谁的是 PL 编排逻辑 |
 > | `tools` / `disallowedTools` | ✅ 生效 | ✅ 生效 | ✅ 生效；team 协调工具（`SendMessage` / Task*）即使被排除也始终可用 |
 > | `permissionMode` | ✅ 生效 | ✅ 生效 | ❌ 忽略，teammate 继承 lead 模式 |
-> | `model` | ✅ 生效 | ✅ 生效 | ✅ 生效，teammate 按各自 definition 的 model 档运行（路由基线见 `cost-budget.md`） |
+> | `model` | ✅ 生效 | ✅ 生效 | ⚠️ **仅初始 spawn 生效**：spawn 时按 definition model 档运行，但 **`SendMessage`-resume / park-wake 后 pin 丢失、静默回退唤醒方模型**（上游未修，ADR-022 / #75565；路由基线 + 纪律见 `cost-budget.md`） |
 > | `effort` | ✅ 生效 | ✅ 生效（lead 可再用 session 内 `/effort` 临时调） | ❌ **不生效**，随 session 默认，当前无 per-role 设置手段（操作结论见 `cost-budget.md` §Effort 维度） |
 > | `skills` | ✅ 启动时预加载 | ✅ 启动时预加载 | ❌ **不生效**，teammate 仅按 description 关键词匹配或 `/skill-name` 显式调起，与普通 session 一致 |
 > | `mcpServers` | ✅ 生效 | ✅ 生效 | ❌ **不生效**，teammate 从项目 / 用户 settings 加载 MCP，与普通 session 一致 |
@@ -83,7 +79,7 @@
 |---|---|---|
 | `product-lead` | + `WebFetch`, + `WebSearch`, + `Agent`, + `TaskCreate` | `superpowers:brainstorming`, `superpowers:writing-plans`, `agf-writing-change`, `superpowers:using-git-worktrees`, `superpowers:requesting-code-review`, `superpowers:receiving-code-review`, `superpowers:finishing-a-development-branch` |
 | `tech-lead` | + `WebFetch`, + `WebSearch`, + `mcp__context7__*` | `superpowers:brainstorming`, `superpowers:writing-plans`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:requesting-code-review`, `superpowers:receiving-code-review` |
-| `uiux-designer` | + `WebFetch` | `frontend-design:frontend-design`, `agf-design-discipline` |
+| `uiux-designer` | + `WebFetch` | `superpowers:brainstorming`, `superpowers:writing-plans`, `frontend-design:frontend-design`, `agf-design-discipline` |
 | `frontend-dev` | + `WebFetch`, + `mcp__context7__*` | `simplify`, `frontend-design:frontend-design`, `agf-design-discipline`, `feature-dev:feature-dev`, `agf-running-sit-tests`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:receiving-code-review` |
 | `backend-dev` | + `mcp__context7__*` | `simplify`, `feature-dev:feature-dev`, `agf-wiring-multi-llm-sdk`, `agf-running-sit-tests`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:receiving-code-review` |
 | `ai-agent-dev` | + `WebFetch`, + `WebSearch`, + `mcp__context7__*` | `simplify`, `feature-dev:feature-dev`, `agf-wiring-multi-llm-sdk`, `agf-running-sit-tests`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:receiving-code-review` |
@@ -94,13 +90,9 @@
 | `miniapp-dev` | + `WebFetch` | `simplify`, `feature-dev:feature-dev`, `agf-running-sit-tests`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:receiving-code-review` |
 | `miniapp-code-reviewer` | − `Edit`；Write 限 `docs/reviews/`（review-only） | `code-review:code-review`, `simplify`（仅 Phase 1+2 review，不跑 Phase 3 fix）, `agf-running-sit-tests`（**仅作 audit 参考，不强制调用**——reviewer 不跑 SIT，预加载用于读懂 miniapp-dev SIT 范围 / 评估 dev SIT 结论是否合理） |
 | `miniapp-qa-engineer` | （仅通用底座） | `agf-writing-qa-report`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion` |
-| `apple-dev` | + `WebFetch`, + `mcp__context7__*`, + `mcp__xcodebuild__*`（XcodeBuildMCP：build / 模拟器 / 真机 devicectl / 跑测试；server 走 `.mcp.json` 两道门，同 qa-engineer 的 chrome-devtools 模式） | `simplify`, `feature-dev:feature-dev`, `agf-running-apple-sit`, `agf-wiring-apple-llm`, `superpowers:test-driven-development`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion`, `superpowers:receiving-code-review` |
-| `apple-code-reviewer` | − `Edit`；Write 限 `docs/reviews/`（review-only） | `code-review:code-review`, `simplify`（仅 Phase 1+2 review，不跑 Phase 3 fix）, `agf-running-apple-sit`（**仅作 audit 参考，不强制调用**——reviewer 不跑 SIT，预加载用于读懂 apple-dev SIT 范围 / 评估其 SIT 结论是否合理） |
-| `apple-qa-engineer` | + `mcp__xcodebuild__*`（XcodeBuildMCP：真机/模拟器列表、devicectl 装包、launch、截图、XCUITest；两道门同上） | `agf-writing-qa-report`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion` |
-| `apple-release-engineer` | （仅通用底座） | `agf-releasing-apple`, `superpowers:systematic-debugging`, `superpowers:verification-before-completion` |
 | `content-writer` | + `WebFetch`, + `WebSearch` | `superpowers:brainstorming` |
 | `growth-analyst` | + `WebFetch`, + `WebSearch` | `superpowers:brainstorming`, `superpowers:writing-plans` |
 
 <!-- END GENERATED:agent-tools-table -->
 
-通用工具底座 + 其他 plugin skills 均来自 Claude Code 内置或官方 plugin marketplace。`qa-engineer` 的 `chrome-devtools` server 加载机制（`.mcp.json` 声明 + `tools` 白名单放行两道独立门 + 可选 `/plugin install chrome-devtools-mcp` slash command）见上方「实操影响」与「关键纠正」说明，此处不重复。`context7` server 走同款两道门：`.mcp.json` 声明 `@upstash/context7-mcp` 且 `alwaysLoad: true`（teammate 白名单无 ToolSearch，deferred 工具拿不到 schema），`tools` 白名单放行 `mcp__context7__*`——当前授予 `tech-lead`（ADR 版本查证）+ `frontend-dev` / `backend-dev` / `ai-agent-dev` / `ml-engineer` / `apple-dev`（第三方库当前版本文档，防 API 幻觉）。`xcodebuild` server（XcodeBuildMCP，Apple 轨的 chrome-devtools 对等物）同款两道门：`.mcp.json` 声明 `npx -y xcodebuildmcp@latest` 且 `alwaysLoad: true`，`tools` 白名单放行 `mcp__xcodebuild__*`——当前授予 `apple-dev`（build / 模拟器 / 跑测试调试）+ `apple-qa-engineer`（真机 devicectl / XCUITest / 截图取证）；签名不归它管（fastlane match，ADR-009）。其余角色无第三方依赖，可直接分发复用。
+通用工具底座 + 其他 plugin skills 均来自 Claude Code 内置或官方 plugin marketplace。`qa-engineer` 的 `chrome-devtools` server 加载机制（`.mcp.json` 声明 + `tools` 白名单放行两道独立门 + 可选 `/plugin install chrome-devtools-mcp` slash command）见上方「实操影响」与「关键纠正」说明，此处不重复。`context7` server 走同款两道门：`.mcp.json` 声明 `@upstash/context7-mcp` 且 `alwaysLoad: true`（teammate 白名单无 ToolSearch，deferred 工具拿不到 schema），`tools` 白名单放行 `mcp__context7__*`——当前授予 `tech-lead`（ADR 版本查证）+ `frontend-dev` / `backend-dev` / `ai-agent-dev` / `ml-engineer`（第三方库当前版本文档，防 API 幻觉）。其余角色无第三方依赖，可直接分发复用。

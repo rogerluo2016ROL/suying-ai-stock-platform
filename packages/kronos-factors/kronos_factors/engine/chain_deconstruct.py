@@ -12,7 +12,9 @@ Migration: backend/alembic/versions/013_industry_chain_deconstruct.py
 
 from __future__ import annotations
 
+import functools
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -51,8 +53,12 @@ DEFAULT_EVIDENCE_EVENTS = [
 
 TEMPLATE_CONFIG_NAME = "industry_chain_templates.json"
 PACKAGE_TEMPLATE_CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / TEMPLATE_CONFIG_NAME
-IN_PACKAGE_TEMPLATE_CONFIG_PATH = Path(__file__).resolve().parents[1] / "configs" / TEMPLATE_CONFIG_NAME
 METRIC_GROUP_KEYS = ("commercialization", "expectation_gap", "trigger_signals")
+def _today() -> str:
+    """Current date as ISO string for as_of_date defaults."""
+    return date.today().isoformat()
+
+
 MACRO_REGIONS = {
     "US": "Fed / BLS / BEA",
     "CN": "PBOC / NBS",
@@ -120,7 +126,7 @@ DEFAULT_LAYER_CAPEX_EVIDENCE: dict[str, list[dict[str, Any]]] = {
             "source_name": "Investor relations / earnings call",
             "source_url": "",
             "quote": "",
-            "as_of_date": "2026-07-08",
+            "as_of_date": _today(),
             "evidence_level": "manual_judgement",
             "collection_method": "manual_first",
             "impact_direction": "positive",
@@ -142,7 +148,7 @@ DEFAULT_LAYER_CAPEX_EVIDENCE: dict[str, list[dict[str, Any]]] = {
             "source_name": "Company IR / filings / earnings call",
             "source_url": "",
             "quote": "",
-            "as_of_date": "2026-07-08",
+            "as_of_date": _today(),
             "evidence_level": "manual_judgement",
             "collection_method": "manual_first",
             "impact_direction": "positive",
@@ -164,7 +170,7 @@ DEFAULT_LAYER_CAPEX_EVIDENCE: dict[str, list[dict[str, Any]]] = {
             "source_name": "Investor relations / earnings call",
             "source_url": "",
             "quote": "",
-            "as_of_date": "2026-07-08",
+            "as_of_date": _today(),
             "evidence_level": "manual_judgement",
             "collection_method": "manual_first",
             "impact_direction": "positive",
@@ -203,6 +209,7 @@ DEFAULT_LAYER_PHYSICAL_METRICS: dict[str, list[dict[str, Any]]] = {
 }
 
 
+@functools.lru_cache(maxsize=8)
 def load_industry_chain_templates(path: str | Path | None = None) -> dict[str, Any]:
     """Load industry-link templates used to adapt deconstruct logic by sector type."""
     return load_template_catalog(path)
@@ -217,7 +224,8 @@ def _find_industry_chain_template(template_id: str) -> dict[str, Any]:
     raise ValueError(f"Invalid template '{template_id}', must be one of {valid_ids}")
 
 
-def _default_macro_context(as_of_date: str = "2026-07-08") -> list[dict[str, Any]]:
+def _default_macro_context(as_of_date: str | None = None) -> list[dict[str, Any]]:
+    as_of_date = as_of_date or _today()
     return [
         {
             "region": region,
@@ -260,7 +268,7 @@ def _normalize_capex_evidence(layer: dict[str, Any]) -> list[dict[str, Any]]:
         item.setdefault("source_name", "manual structured research")
         item.setdefault("source_url", "")
         item.setdefault("quote", "")
-        item.setdefault("as_of_date", "2026-07-08")
+        item.setdefault("as_of_date", _today())
         item.setdefault("evidence_level", "manual_judgement")
         item.setdefault("collection_method", "manual_first")
         item.setdefault("impact_direction", "unknown")
@@ -289,7 +297,7 @@ def _normalize_physical_metrics(layer: dict[str, Any]) -> list[dict[str, Any]]:
         item.setdefault("source_url", "")
         item.setdefault("evidence_level", "manual_judgement")
         item.setdefault("collection_method", "manual_first")
-        item.setdefault("as_of_date", "2026-07-08")
+        item.setdefault("as_of_date", _today())
         item.setdefault("impact_direction", "unknown")
         item.setdefault("confidence", "unknown")
         normalized.append(item)
@@ -311,7 +319,7 @@ def _build_layer_evidence_chain(
             "source_type": item.get("source_type") or "manual_research",
             "source_name": item.get("source_name") or "manual structured research",
             "evidence_level": item.get("evidence_level") or "manual_judgement",
-            "as_of_date": item.get("as_of_date") or "2026-07-08",
+            "as_of_date": item.get("as_of_date") or _today(),
             "metric_usage": item.get("metric_usage") or [],
             "impact_direction": item.get("impact_direction") or "unknown",
             "confidence": item.get("confidence") or "unknown",
@@ -325,7 +333,7 @@ def _build_layer_evidence_chain(
             "source_type": item.get("source_type") or "industry_research",
             "source_name": item.get("source_name") or "研报/公司公告/产业新闻",
             "evidence_level": item.get("evidence_level") or "manual_judgement",
-            "as_of_date": item.get("as_of_date") or "2026-07-08",
+            "as_of_date": item.get("as_of_date") or _today(),
             "metric_usage": item.get("metric_usage") or [],
             "impact_direction": item.get("impact_direction") or "unknown",
             "confidence": item.get("confidence") or "unknown",
@@ -492,6 +500,13 @@ BOM_COMPLETION_PROFILES: dict[str, dict[str, list[str] | str]] = {
         "bom_nodes": ["DRAM颗粒", "NAND颗粒", "HBM堆叠", "存储主控芯片", "SSD模组", "内存模组"],
         "technologies": ["DDR5/LPDDR5", "3D NAND(200L+)", "HBM3/HBM4", "CXL内存", "存算一体"],
         "business_segments": ["DRAM业务", "NAND/SSD业务", "HBM业务", "存储封测业务"],
+    },
+    "近存计算": {
+        "chain": "近存计算产业链",
+        "segments": ["存算一体芯片", "互连与接口", "先进封装集成", "设备与材料", "存储介质", "场景应用"],
+        "bom_nodes": ["HBM堆叠", "存储主控芯片", "内存模组", "混合键合设备", "CMP设备", "玻璃基板/TGV", "临时键合/解键合", "存算一体芯片(CIM)", "CXL内存控制器", "ReRAM/MRAM介质", "HBM-PIM/AiM", "UCIe/Chiplet IP", "3D IC EDA"],
+        "technologies": ["存内计算(CIM)", "HBM-PIM", "CXL内存池化", "近数据处理(NDP)", "混合键合Hybrid Bonding", "TSV", "ReRAM/MRAM", "UCIe", "3D IC"],
+        "business_segments": ["存算一体芯片业务", "内存接口芯片业务", "先进封装业务", "半导体设备业务", "存储颗粒业务", "EDA/IP业务"],
     },
     "华为终端": {
         "chain": "华为终端产业链",
@@ -776,17 +791,26 @@ def _add_layer_items(
     layer: str,
     names: list[str],
     *,
-    parent_node_id: str | None,
+    parent_node_id: str | None = None,
+    parent_items: list[dict[str, Any]] | None = None,
     source_node_id: str,
     source_status: str,
 ) -> list[dict[str, Any]]:
+    """Append items to a BOM layer.
+
+    parent_items: 父层 item 列表, 按索引对齐均匀轮转挂载 (第 i 个子项挂第
+    (i-1) % len(parent_items) 个父项), 避免全部挤在第一个父节点下;
+    缺省/为空时退回 parent_node_id.
+    """
+    parents = [str(item["node_id"]) for item in (parent_items or []) if item.get("node_id")]
     items: list[dict[str, Any]] = []
     for index, name in enumerate(_unique(names), start=1):
+        resolved_parent = parents[(index - 1) % len(parents)] if parents else parent_node_id
         item = _make_layer_item(
             layer=layer,
             name=name,
             node_id=f"{source_node_id}:{layer}:{index}",
-            parent_node_id=parent_node_id,
+            parent_node_id=resolved_parent,
             source_node_id=source_node_id,
             keywords=[name],
             source_status=source_status,
@@ -884,7 +908,8 @@ def _semantic_bom_layers(
             bom_layers,
             "L5",
             bom_node_names,
-            parent_node_id=segment_items[0]["node_id"] if segment_items else chain_item["node_id"],
+            parent_items=segment_items,
+            parent_node_id=chain_item["node_id"],
             source_node_id=source_node_id,
             source_status="derived_bom_node",
         )
@@ -892,7 +917,8 @@ def _semantic_bom_layers(
             bom_layers,
             "L6",
             technology_names,
-            parent_node_id=bom_node_items[0]["node_id"] if bom_node_items else chain_item["node_id"],
+            parent_items=bom_node_items,
+            parent_node_id=chain_item["node_id"],
             source_node_id=source_node_id,
             source_status="derived_technology",
         )
@@ -900,7 +926,8 @@ def _semantic_bom_layers(
             bom_layers,
             "L7",
             business_segments,
-            parent_node_id=technology_items[0]["node_id"] if technology_items else chain_item["node_id"],
+            parent_items=technology_items,
+            parent_node_id=chain_item["node_id"],
             source_node_id=source_node_id,
             source_status="business_segment_template",
         )
@@ -908,7 +935,8 @@ def _semantic_bom_layers(
             bom_layers,
             "L8",
             evidence_events,
-            parent_node_id=business_items[0]["node_id"] if business_items else chain_item["node_id"],
+            parent_items=business_items,
+            parent_node_id=chain_item["node_id"],
             source_node_id=source_node_id,
             source_status="evidence_event_type",
         )
@@ -1056,8 +1084,8 @@ def build_competition_tree(nodes: list[dict[str, Any]]) -> dict[str, Any]:
             "children": [...],
             "competition": {
                 "<node_id>": {
-                    "concentration": 0.8,
-                    "leader_share": 0.6,
+                    "concentration": 80,
+                    "leader_share": 60,
                     "barrier": 5,
                     "threat": 2,
                     "note": "高集中度, 龙头份额60%, 高壁垒, 低威胁"
@@ -1092,7 +1120,8 @@ def build_competition_tree(nodes: list[dict[str, Any]]) -> dict[str, Any]:
         # Build note from available data
         note_parts = []
         if concentration is not None:
-            cc_label = "高" if concentration >= 0.7 else ("中" if concentration >= 0.4 else "低")
+            # concentration/leader_share 统一 0-100 百分数标度 (与 supply_chain_trend 一致)
+            cc_label = "高" if concentration >= 70 else ("中" if concentration >= 40 else "低")
             note_parts.append(f"{cc_label}集中度")
         if leader_share is not None:
             note_parts.append(f"龙头份额{leader_share:.0f}%")

@@ -34,8 +34,11 @@ MODEL_TITLES = {
     "cb_auction_t0_v2": "竞价 T+0 选债 V2 分析报告",
     "cb_auction_t0_v2_1": "竞价 T+0 选债 V2.1 稳健版分析报告",
     "general_qa": "AI 投研问答报告",
+    "us_morning_brief": "美股早报·板块共振与全球热点",
+    "kr_morning_brief": "韩股早报·板块共振与热门股",
 }
 CB_AUCTION_MODES = {"cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1"}
+MORNING_BRIEF_MODES = {"us_morning_brief", "kr_morning_brief"}
 DEFAULT_LARK_REPORT_FOLDER_TOKEN = "GDlmf7ZIKltfRIdrGn7cyPKJnCg"
 
 
@@ -2441,6 +2444,8 @@ def _xml_table(headers: list[str], rows: list[list[Any]]) -> str:
 
 def build_lark_doc_xml_report(result: dict[str, Any]) -> str:
     mode = result.get("mode", "")
+    if mode in MORNING_BRIEF_MODES:
+        return build_brief_lark_doc_xml_report(result)
     is_cb = mode in CB_AUCTION_MODES
     title = MODEL_TITLES.get(mode, "模型分析报告")
     trade_date = result.get("trade_date") or "latest"
@@ -2614,6 +2619,8 @@ def build_whiteboard_svg_block(result: dict[str, Any]) -> str:
 
 def build_poster_svg(result: dict[str, Any]) -> str:
     mode = result.get("mode", "")
+    if mode in MORNING_BRIEF_MODES:
+        return build_brief_poster_svg(result)
     is_cb = mode in CB_AUCTION_MODES
     title = MODEL_TITLES.get(mode, "模型分析报告")
     trade_date = result.get("trade_date") or "latest"
@@ -2974,6 +2981,8 @@ def _fmt_amount_yi(v: Any) -> str:
 def build_markdown_report(result: dict[str, Any]) -> str:
     if result.get("mode") in CB_AUCTION_MODES:
         return build_cb_markdown_report(result)
+    if result.get("mode") in MORNING_BRIEF_MODES:
+        return build_brief_markdown_report(result)
 
     mode = result.get("mode", "")
     title = MODEL_TITLES.get(mode, "选股分析报告")
@@ -3008,6 +3017,8 @@ def build_markdown_report(result: dict[str, Any]) -> str:
         diagnosis_rows, conclusion = _stock_market_diagnosis(result)
     data_update = _format_data_update(mode)
     refresh_summary = _format_refresh_summary(result.get("data_refresh"))
+    data_quality = result.get("data_quality") or {}
+    unit_contract = data_quality.get("unit_contract") or {}
     update_rows = [
         ["选股日期", trade_date],
         ["报告生成时间", _generated_at()],
@@ -3018,6 +3029,15 @@ def build_markdown_report(result: dict[str, Any]) -> str:
     ]
     if candidates:
         update_rows.append(["候选数量", f"{result.get('candidate_total') or len(candidates)}只"])
+    if data_quality:
+        update_rows.append(
+            [
+                "模型量额口径",
+                "成交量=手、成交额=千元"
+                if unit_contract.get("model_internal.volume") == "hand"
+                else "见数据质量说明",
+            ]
+        )
     lines = [
         f"# {title}（{trade_date} {datetime.now().strftime('%H:%M')}）",
         "",
@@ -3034,9 +3054,50 @@ def build_markdown_report(result: dict[str, Any]) -> str:
         "",
         f"市场结论：{conclusion}",
         "",
-        "## 三、选股清单",
-        "",
     ]
+    if data_quality:
+        warning_rows = []
+        for item in (data_quality.get("sample_warnings") or [])[:5]:
+            warning_rows.append(
+                [
+                    item.get("code", "-"),
+                    item.get("trade_date", "-"),
+                    item.get("status", "-"),
+                    item.get("volume_ratio_daily_to_minute", "-"),
+                    item.get("amount_ratio_daily_to_minute", "-"),
+                ]
+            )
+        lines.extend(
+            [
+                "## 数据质量和口径说明",
+                "",
+                *_markdown_table(
+                    ["项目", "内容"],
+                    [
+                        ["日线口径", f"volume={unit_contract.get('daily_kline.volume', '-')}; amount={unit_contract.get('daily_kline.amount', '-')}"],
+                        ["分钟线原始口径", f"volume={unit_contract.get('stk_mins.volume', '-')}; amount={unit_contract.get('stk_mins.amount', '-')}"],
+                        ["模型内部口径", f"volume={unit_contract.get('model_internal.volume', '-')}; amount={unit_contract.get('model_internal.amount', '-')}"],
+                        ["分钟聚合覆盖", f"{data_quality.get('minute_snapshot_rows', 0)}条"],
+                        ["历史口径修复", f"{data_quality.get('historical_unit_repairs', 0)}条"],
+                        ["信号日分钟替代", f"{data_quality.get('minute_fallback_used', 0)}只"],
+                    ],
+                ),
+                "",
+            ]
+        )
+        if warning_rows:
+            lines.extend(
+                [
+                    "异常样例：",
+                    "",
+                    *_markdown_table(
+                        ["代码", "日期", "状态", "量比(日/分)", "额比(日/分)"],
+                        warning_rows,
+                    ),
+                    "",
+                ]
+            )
+    lines.extend(["## 三、选股清单", ""])
     if picks:
         lines.extend(
             [
@@ -3249,6 +3310,8 @@ def generate_poster_image(result: dict[str, Any]) -> Path | None:
     cmd = [
         chrome,
         "--headless=new",
+        "--no-sandbox",  # 容器内 root 运行必需 (crbug.com/638180)
+        "--disable-dev-shm-usage",  # 容器 /dev/shm 较小, 防渲染崩溃
         "--disable-gpu",
         "--hide-scrollbars",
         "--window-size=900,1400",
@@ -3411,6 +3474,8 @@ def sync_markdown_to_lark_doc(path: Path, result: dict[str, Any]) -> dict[str, A
 
 
 def _format_group_reply(result: dict[str, Any], doc: dict[str, Any]) -> str:
+    if result.get("mode") in MORNING_BRIEF_MODES:
+        return _format_brief_group_reply(result, doc)
     picks = result.get("picks") or []
     candidates = result.get("candidate_picks") or []
     is_cb = result.get("mode") in CB_AUCTION_MODES
@@ -3774,3 +3839,292 @@ def handle_lark_message(payload: dict[str, Any]) -> dict[str, Any]:
         "doc_xml_path": doc.get("xml_path"),
         "doc_url": doc.get("url"),
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 海外市场早报 (morning_brief) 展示层 — 报告型 model 专用渲染分支
+# result 结构: {mode, brief_type, trade_date, picks[热门股], sector_resonance[],
+#               news_top10[], market_strength{indices[], note?}, data_source}
+# ══════════════════════════════════════════════════════════════════════════
+
+_BRIEF_SOURCE_LABELS = {
+    "tushare": "Tushare VIP (美股日线)",
+    "eastmoney": "东方财富 (美股实时快照)",
+    "eastmoney_realtime": "东方财富 (美股实时快照)",
+    "naver": "Naver Finance (韩股快照)",
+    "naver_realtime": "Naver Finance (韩股实时快照)",
+}
+
+
+def _fmt_brief_amount(amount: float, brief_type: str) -> str:
+    """成交额格式化: 美股=亿美元, 韩股=亿韩元."""
+    unit = "亿韩元" if brief_type == "kr_morning" else "亿美元"
+    try:
+        return f"{float(amount) / 1e8:.1f}{unit}"
+    except (TypeError, ValueError):
+        return "-"
+
+
+def _brief_market_lines(result: dict[str, Any]) -> list[str]:
+    indices = (result.get("market_strength") or {}).get("indices") or []
+    lines = []
+    for idx in indices:
+        lines.append(f"- {idx.get('name')} ({idx.get('trade_date')}): "
+                     f"收盘 {idx.get('close')} | 涨跌幅 {float(idx.get('pct_chg') or 0):+.2f}%")
+    note = (result.get("market_strength") or {}).get("note")
+    if note:
+        lines.append(f"- 注: {note}")
+    return lines or ["- 指数数据暂缺"]
+
+
+def _brief_resonance_rows(result: dict[str, Any]) -> list[list[Any]]:
+    brief_type = result.get("brief_type") or ""
+    return [
+        [
+            r.get("sector"),
+            f"{r.get('hot_count')}只",
+            f"{float(r.get('avg_pct') or 0):+.2f}%",
+            _fmt_brief_amount(r.get("total_amount"), brief_type),
+            "、".join(r.get("stocks") or []),
+        ]
+        for r in (result.get("sector_resonance") or [])[:10]
+    ]
+
+
+def _brief_pick_rows(result: dict[str, Any], limit: int = 20) -> list[list[Any]]:
+    brief_type = result.get("brief_type") or ""
+    return [
+        [
+            i,
+            p.get("code"),
+            p.get("name"),
+            p.get("sector") or "-",
+            f"{float(p.get('pct_chg') or 0):+.2f}%",
+            _fmt_brief_amount(p.get("amount"), brief_type),
+        ]
+        for i, p in enumerate((result.get("picks") or [])[:limit], 1)
+    ]
+
+
+def _brief_news_lines(result: dict[str, Any]) -> list[str]:
+    lines = []
+    for n in (result.get("news_top10") or [])[:10]:
+        tags = " ".join(f"#{t}" for t in (n.get("tags") or []))
+        summary = f" — {n.get('summary')}" if n.get("summary") else ""
+        lines.append(f"{n.get('rank')}. 【{n.get('market') or '全球'}】{n.get('title')}{summary} {tags}".rstrip())
+    return lines or ["暂无符合条件的新闻"]
+
+
+def build_brief_markdown_report(result: dict[str, Any]) -> str:
+    mode = result.get("mode", "")
+    title = MODEL_TITLES.get(mode, "海外市场早报")
+    trade_date = result.get("trade_date") or "latest"
+    brief_type = result.get("brief_type") or ""
+    picks = result.get("picks") or []
+    source = _BRIEF_SOURCE_LABELS.get(result.get("data_source"),
+                                      result.get("data_source") or "未标注")
+
+    lines = [
+        f"# {title}（{trade_date} {datetime.now().strftime('%H:%M')}）",
+        "",
+        "## 一、数据更新时间和日期",
+        "",
+        *_markdown_table(["项目", "内容"], [
+            ["数据日期", trade_date],
+            ["报告生成时间", _generated_at()],
+            ["数据源", source],
+            ["热门股入选数量", f"{len(picks)}只"],
+            ["共振板块数量", f"{len(result.get('sector_resonance') or [])}个"],
+        ]),
+        "",
+        "## 二、全球市场概览",
+        "",
+        *_brief_market_lines(result),
+        "",
+        "## 三、板块共振",
+        "",
+        *_markdown_table(["板块", "热门股数", "平均涨幅", "总成交额", "代表个股"],
+                         _brief_resonance_rows(result) or [["-", "-", "-", "-", "今日无显著板块共振"]]),
+        "",
+        f"## 四、热门股清单 Top {min(20, len(picks))}",
+        "",
+        *_markdown_table(["序号", "代码", "名称", "板块", "涨跌幅", "成交额"],
+                         _brief_pick_rows(result) or [["-", "-", "-", "-", "-", "无符合条件的热门股"]]),
+        "",
+        "## 五、热点财经新闻 Top10（硬科技侧重）",
+        "",
+        *_brief_news_lines(result),
+        "",
+        "---",
+        "免责声明: 本报告由模型自动生成, 仅供研究参考, 不构成投资建议。"
+        "海外市场数据来自公开接口, 可能存在延迟或误差。",
+    ]
+    return "\n".join(lines)
+
+
+def _format_brief_group_reply(result: dict[str, Any], doc: dict[str, Any]) -> str:
+    mode = result.get("mode", "")
+    brief_type = result.get("brief_type") or ""
+    picks = result.get("picks") or []
+    source = _BRIEF_SOURCE_LABELS.get(result.get("data_source"),
+                                      result.get("data_source") or "未标注")
+    lines = [
+        f"已生成飞书文档：{doc.get('title') or MODEL_TITLES.get(mode, '海外市场早报')}",
+        f"数据日期: {result.get('trade_date') or 'latest'}",
+        f"热门股: {len(picks)} 只 | 数据源: {source}",
+        f"文档: {doc.get('url') or '完整文档生成失败'}",
+        "",
+        "全球市场:",
+        *_brief_market_lines(result),
+        "",
+        "板块共振:",
+    ]
+    resonance = result.get("sector_resonance") or []
+    if resonance:
+        for r in resonance[:6]:
+            lines.append(f"- {r.get('sector')}: {r.get('hot_count')}只 "
+                         f"均涨{float(r.get('avg_pct') or 0):+.1f}% "
+                         f"({'、'.join((r.get('stocks') or [])[:3])})")
+    else:
+        lines.append("- 今日无显著板块共振")
+
+    if picks:
+        lines.extend(["", f"热门股 Top {min(10, len(picks))}:"])
+        for i, p in enumerate(picks[:10], 1):
+            lines.append(f"{i}. {p.get('code')} {p.get('name')} | {p.get('sector') or '-'}"
+                         f" | {float(p.get('pct_chg') or 0):+.2f}%"
+                         f" | 成交额 {_fmt_brief_amount(p.get('amount'), brief_type)}")
+    else:
+        lines.append("本次没有符合条件的热门股。")
+
+    lines.extend(["", "热点新闻 Top10:"])
+    lines.extend(_brief_news_lines(result))
+    return "\n".join(lines)
+
+
+def build_brief_lark_doc_xml_report(result: dict[str, Any]) -> str:
+    mode = result.get("mode", "")
+    title = MODEL_TITLES.get(mode, "海外市场早报")
+    trade_date = result.get("trade_date") or "latest"
+    brief_type = result.get("brief_type") or ""
+    picks = result.get("picks") or []
+    source = _BRIEF_SOURCE_LABELS.get(result.get("data_source"),
+                                      result.get("data_source") or "未标注")
+
+    parts = [
+        f"<h1>{_xml_escape(title)}（{_xml_escape(str(trade_date))} "
+        f"{_xml_escape(datetime.now().strftime('%H:%M'))}）</h1>",
+        "<h2>一、数据更新时间和日期</h2>",
+        _xml_table(["项目", "内容"], [
+            ["数据日期", trade_date],
+            ["报告生成时间", _generated_at()],
+            ["数据源", source],
+            ["热门股入选数量", f"{len(picks)}只"],
+            ["共振板块数量", f"{len(result.get('sector_resonance') or [])}个"],
+        ]),
+        "<h2>二、全球市场概览</h2>",
+        "<ul>" + "".join(f"<li>{_xml_escape(line.lstrip('- '))}</li>"
+                         for line in _brief_market_lines(result)) + "</ul>",
+        "<h2>三、板块共振</h2>",
+        _xml_table(["板块", "热门股数", "平均涨幅", "总成交额", "代表个股"],
+                   _brief_resonance_rows(result) or [["-", "-", "-", "-", "今日无显著板块共振"]]),
+        f"<h2>四、热门股清单 Top {min(20, len(picks))}</h2>",
+        _xml_table(["序号", "代码", "名称", "板块", "涨跌幅", "成交额"],
+                   _brief_pick_rows(result) or [["-", "-", "-", "-", "-", "无符合条件的热门股"]]),
+        "<h2>五、热点财经新闻 Top10（硬科技侧重）</h2>",
+        "<ol>" + "".join(f"<li>{_xml_escape(line.split('. ', 1)[-1])}</li>"
+                         for line in _brief_news_lines(result)) + "</ol>",
+        "<p><i>免责声明: 本报告由模型自动生成, 仅供研究参考, 不构成投资建议。"
+        "海外市场数据来自公开接口, 可能存在延迟或误差。</i></p>",
+    ]
+    return "".join(parts)
+
+
+def build_brief_poster_svg(result: dict[str, Any]) -> str:
+    mode = result.get("mode", "")
+    brief_type = result.get("brief_type") or ""
+    title = MODEL_TITLES.get(mode, "海外市场早报")
+    trade_date = result.get("trade_date") or "latest"
+    picks = result.get("picks") or []
+    resonance = result.get("sector_resonance") or []
+    news = result.get("news_top10") or []
+    indices = (result.get("market_strength") or {}).get("indices") or []
+
+    gold = "#ead89b"
+    gold_dark = "#caa85a"
+    ink = "#f7efd4"
+    muted = "#c9bd95"
+    panel = "#15130f"
+    border = "#6d5931"
+    width, height = 900, 1400
+
+    index_summary = "  ".join(f"{i.get('name')} {float(i.get('pct_chg') or 0):+.2f}%"
+                              for i in indices[:3]) or "指数数据暂缺"
+    metric_rows = [
+        ("热门股", f"{len(picks)}只", "涨幅榜 ∪ 成交额榜"),
+        ("共振板块", f"{len(resonance)}个", f"最强: {resonance[0]['sector']}" if resonance else "今日无显著共振"),
+        ("最强板块均涨", f"{float(resonance[0].get('avg_pct') or 0):+.1f}%" if resonance else "-",
+         f"{resonance[0]['hot_count']}只热门股" if resonance else "-"),
+        ("热点新闻", f"{len(news)}条", "硬科技侧重 Top10"),
+    ]
+    amount_unit = "亿韩元" if brief_type == "kr_morning" else "亿美元"
+    table_headers = ["序号", "代码", "名称", "板块", "涨幅", f"成交额({amount_unit})"]
+    table_rows = [
+        [i, p.get("code"), _clip_text(p.get("name"), 8), _clip_text(p.get("sector") or "-", 6),
+         f"{float(p.get('pct_chg') or 0):+.1f}%", f"{float(p.get('amount') or 0) / 1e8:.1f}"]
+        for i, p in enumerate(picks[:8], 1)
+    ]
+
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
+        "<defs>",
+        '<radialGradient id="glow" cx="82%" cy="12%" r="62%"><stop offset="0%" stop-color="#83662c" stop-opacity="0.95"/><stop offset="42%" stop-color="#251b0c" stop-opacity="0.76"/><stop offset="100%" stop-color="#050403" stop-opacity="1"/></radialGradient>',
+        '<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>',
+        '<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>',
+        "</defs>",
+        '<rect width="900" height="1400" fill="#050403"/>',
+        '<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>',
+        '<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>',
+        '<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>',
+        '<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>',
+        f'<text x="62" y="128" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="38" font-weight="800" fill="{gold}">{_xml_escape(_clip_text(title, 30))}</text>',
+        f'<text x="62" y="170" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="20" fill="{muted}">数据日期 {_xml_escape(str(trade_date))} · 生成 {_xml_escape(_generated_at()[11:])} · 早报</text>',
+        f'<text x="62" y="214" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="21" font-weight="700" fill="{ink}">{_xml_escape(_clip_text(index_summary, 34))}</text>',
+    ]
+    for idx, metric in enumerate(metric_rows):
+        x = 62 + (idx % 2) * 392
+        y = 246 + (idx // 2) * 116
+        lines.append(_svg_dark_metric_card(x, y, 352, 96, metric[0], metric[1], metric[2],
+                                           gold, muted, border))
+
+    lines.append(f'<text x="62" y="516" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="{gold}">热门股 Top {min(8, len(picks))}</text>')
+    if table_rows:
+        lines.append(_svg_poster_pick_table(56, 540, table_headers, table_rows,
+                                            [58, 110, 130, 130, 110, 160],
+                                            border, ink, muted, gold_dark))
+    else:
+        lines.append(f'<rect x="56" y="540" width="742" height="100" rx="18" fill="{panel}" stroke="{border}" stroke-width="1.5"/>')
+        lines.append(f'<text x="86" y="596" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="{ink}">本次没有符合条件的热门股</text>')
+
+    lines.append(f'<text x="62" y="1066" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="{gold}">板块共振</text>')
+    if resonance:
+        for i, r in enumerate(resonance[:3]):
+            y = 1106 + i * 34
+            text = (f"{r.get('sector')}: {r.get('hot_count')}只 "
+                    f"均涨{float(r.get('avg_pct') or 0):+.1f}% "
+                    f"({'、'.join((r.get('stocks') or [])[:3])})")
+            lines.append(f'<rect x="64" y="{y - 16}" width="10" height="10" fill="{gold}"/>')
+            lines.append(f'<text x="88" y="{y}" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="{ink}">{_xml_escape(_clip_text(text, 36))}</text>')
+    else:
+        lines.append(f'<text x="88" y="1106" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="{ink}">今日无显著板块共振</text>')
+
+    lines.append(f'<text x="62" y="1230" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="{gold}">热点新闻 Top 3（硬科技侧重）</text>')
+    for i, n in enumerate(news[:3]):
+        y = 1270 + i * 32
+        text = f"{n.get('rank')}. 【{n.get('market') or '全球'}】{n.get('title')}"
+        lines.append(f'<rect x="64" y="{y - 15}" width="10" height="10" fill="{gold}"/>')
+        lines.append(f'<text x="88" y="{y}" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="{ink}">{_xml_escape(_clip_text(text, 38))}</text>')
+
+    lines.append(f'<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="{muted}">模型自动生成, 仅供研究参考, 不构成投资建议 · 数据来自公开接口可能存在延迟</text>')
+    lines.append("</svg>")
+    return "\n".join(lines)

@@ -10,6 +10,39 @@ router = APIRouter(prefix="/api/v1/signal", tags=["signal"])
 store = get_store()
 
 
+def _service_url(env_key: str, container: str, port: int, path: str = "") -> str:
+    """跨服务 URL: env 优先, Docker 内用容器名, 否则 localhost."""
+    if os.environ.get(env_key):
+        return os.environ[env_key].rstrip("/")
+    if os.path.exists("/.dockerenv"):
+        return f"http://{container}:{port}{path}"
+    return f"http://localhost:{port}{path}"
+
+
+async def _http_post_json(url: str, payload: dict | None = None, timeout: int = 10) -> dict:
+    """async 包装同步 urllib POST, 避免阻塞事件循环 (P0-1)."""
+    import json as _json
+    import urllib.request
+
+    def _call() -> dict:
+        data = _json.dumps(payload).encode() if payload else None
+        req = urllib.request.Request(
+            url, data=data, headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return _json.loads(resp.read())
+
+    return await asyncio.to_thread(_call)
+
+
+DIAGNOSIS_ANALYZE_URL = _service_url(
+    "DIAGNOSIS_SERVICE_URL", "diagnosis-service", 8009, "/api/v1/diagnosis/analyze"
+)
+SCREENER_RUN_URL = _service_url(
+    "SCREENER_SERVICE_URL", "screener-service", 8001, "/api/v1/screener/run"
+)
+
+
 def _trigger_sync_via_data_service(table_key: str, days: int) -> dict | None:
     """Proxy manual sync to data-service so Tushare/PG runtime env stays single-source."""
     import json
@@ -882,11 +915,7 @@ async def super_signal(code: str):
 
     # 2. Diagnosis score (HTTP call)
     try:
-        diag_url = "http://localhost:8009/api/v1/diagnosis/analyze"
-        req = urllib.request.Request(diag_url,
-            data=json.dumps({"code": code}).encode(),
-            headers={"Content-Type": "application/json"})
-        diag = json.loads(urllib.request.urlopen(req, timeout=5).read())
+        diag = await _http_post_json(DIAGNOSIS_ANALYZE_URL, {"code": code}, timeout=5)
         diag_score = diag.get("overall_score")
         results["components"]["diagnosis"] = {"score": diag_score, "weight": 0.35}
     except Exception:
@@ -895,11 +924,7 @@ async def super_signal(code: str):
 
     # 3. Screener rank (percentile)
     try:
-        scr_url = "http://localhost:8001/api/v1/screener/run"
-        req = urllib.request.Request(scr_url,
-            data=json.dumps({"mode": "short", "top_n": 50}).encode(),
-            headers={"Content-Type": "application/json"})
-        scr = json.loads(urllib.request.urlopen(req, timeout=10).read())
+        scr = await _http_post_json(SCREENER_RUN_URL, {"mode": "short", "top_n": 50}, timeout=10)
         picks = scr.get("picks", [])
         rank = next((i+1 for i, p in enumerate(picks) if p.get("code") == code), None)
         rank_score = max(10, 100 - rank * 2) if rank is not None else None
@@ -1796,17 +1821,13 @@ async def dashboard_run_pipeline():
 
     Fires parallel screener runs and returns when complete.
     """
-    import urllib.request
-
     modes_to_run = ["leader_scalp", "short", "all"]
     results = {}
 
     for mode in modes_to_run:
         try:
-            url = f"http://localhost:8001/api/v1/screener/run?mode={mode}&top_n=20"
-            req = urllib.request.Request(url, method="POST")
-            resp = urllib.request.urlopen(req, timeout=120)
-            data = json.loads(resp.read())
+            url = f"{SCREENER_RUN_URL}?mode={mode}&top_n=20"
+            data = await _http_post_json(url, None, timeout=120)
             results[mode] = {"picks": len(data.get("picks", [])), "elapsed": data.get("elapsed", 0)}
         except Exception as e:
             results[mode] = {"error": str(e)[:100]}

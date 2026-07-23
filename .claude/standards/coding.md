@@ -29,6 +29,36 @@ git log --oneline --grep="<feature>" | head # commit 历史
 
 **适用范围**：所有 agent，**tech-lead 自身也不豁免**——上面那次违规链条的起点恰恰是 tech-lead。
 
+### Search before build（引新依赖 / API / 通用工具纪律）
+
+实现前要引入新依赖 / 调新 API / 写新通用工具函数（utility / helper / 抽象）时，**先搜已有方案**，别默认手写。与 `Verify before assert`（项目内 grep 基线）互补——本节是**外部生态**搜（npm / PyPI / context7）。
+
+**搜三处**：
+
+1. **仓内**：`rg` 看是否已有同功能（避免重复造轮子）
+2. **生态**：context7 查目标库 / API 的**最新版 + 用法**（防凭记忆写错版本 / 参数）；npm / PyPI 搜现有包
+3. **MCP**：是否已有 MCP server 提供该能力（如 chrome-devtools / context7）
+
+**决策（adopt / extend / build）**：
+
+| 情况 | 决策 |
+|---|---|
+| 现有包精确匹配 + 维护良好 | **adopt**（直接装用） |
+| 部分匹配 + 好基础 | **extend**（装 + 薄包装） |
+| 多个弱匹配 | **compose**（组 2-3 个小包） |
+| 都不合适 | **build**（自写，但 progress / commit 记"为什么不用现成的"） |
+
+**记来源**：adopt / extend / compose 时，包名 + 版本 + 决策理由进 commit message 或 `progress/`；build 时记"搜过 X/Y/Z 都不合适，因为…"。
+
+**反模式**：
+
+- ❌ 跳过搜直接手写（常见浪费：手写一个 npm 包能做的事）
+- ❌ 凭记忆写版本 / 参数（用 context7 查当前版；tech-lead 选型时已这么做，dev 实现时同样适用）
+- ❌ 报告"没找到"却没真搜（silenced skipping）
+- ❌ 把库包得失去原有好处（over-customize）
+
+> 与 tech-lead 选型查证（ADR-000）分工：tech-lead 选型时定栈；dev 实现时引新依赖 / API 走本节（同一 context7，不同触发点）。
+
 ### 前后端契约纪律（含 frontend 的 feature 必读）
 
 前后端契约的单一来源是后端 **OpenAPI**（FastAPI 自动生成）；前端调用层全部由 **orval** 从 OpenAPI 生成，杜绝"口头契约 + 手写漂移"。决策与流程见 ADR-006，执行硬约束：
@@ -38,15 +68,6 @@ git log --oneline --grep="<feature>" | head # commit 历史
 - **orval 版本下限**：pin `orval ≥ 8.0.3`（CVE-2026-24132 mock 值未转义已在此版修复；取当时最新 8.x，建议 `^8.16.0`）。
 - **契约变更闭环**：后端改契约 → 重新导出 OpenAPI + 重跑 orval → 生成产物随 PR 提交；CI `git diff --exit-code` 挡未重生成的漂移。
 - 完整测试侧覆盖（SIT mock 来源 / E2E 真后端边界 / 交互完整性）见 `testing.md` 前后端对接强制覆盖项。
-
-### Apple 客户端契约纪律（含 apple/ 调后端 API 的 feature 必读）
-
-同一份 OpenAPI 契约在 Apple 侧的对应纪律（决策见 ADR-008，是 ADR-006 的 Apple 对应版）：
-
-- **Apple 客户端禁手写**：URLSession 请求、请求/响应 Codable DTO、JSON mock **一律走 swift-openapi-generator 生成**（SPM build plugin 构建期生成，产物不进库）；业务代码只用生成的 `Client` / `APIProtocol`。契约不一致由 `swift build` 在编译期暴露。
-- **SIT mock**：实现生成的 `APIProtocol` 协议做类型安全 fake server，禁手写 JSON fixture。
-- **契约变更闭环**：后端重新导出 `openapi.json` 进库 → apple 侧下次构建自动重生成；CI 对 `openapi.json` 跑「重导出 + `git diff --exit-code`」。
-- 执行细则见 `apple-native.md`；后端 schema 规范责任与 Web 轨同一条（上节），不重复。
 
 ### 设计 token 纪律（含前端样式的 feature 必读）
 

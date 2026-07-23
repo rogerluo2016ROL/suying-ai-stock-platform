@@ -8,9 +8,10 @@
     "_OTEL_EXAMPLE_OTEL_METRICS_EXPORTER": "otlp",
     "_OTEL_EXAMPLE_OTEL_LOGS_EXPORTER": "otlp",
     "_OTEL_EXAMPLE_OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4318",
-    "_OTEL_EXAMPLE_OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf"
+    "_OTEL_EXAMPLE_OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+    "_comment_agf_hooks": "Hook 运行时控制（ADR-014）：AGF_HOOK_PROFILE=minimal|standard（默认 standard，未设=standard=零回归）；AGF_DISABLED_HOOKS=id1,id2。须在 shell export 或本 env 块设实际值才生效（注释占位不生效）。四层防御 + validate-verdict 永不响应 profile。原遥测开关（AGF_OBSERVE/AGF_GOVERNANCE_LOG）已按 ADR-026 D6 退役。"
   },
-  "teammateMode": "iterm2",
+  "teammateMode": "auto",
   "fallbackModel": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
   "autoMemoryEnabled": true,
   "worktree": {
@@ -79,7 +80,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start-context.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/agf-hook-guard.sh session-start-context \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start-context.sh"
           }
         ]
       }
@@ -112,11 +113,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/teammate-keepalive.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/agf-hook-guard.sh teammate-keepalive \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/teammate-keepalive.sh"
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-progress-file.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/agf-hook-guard.sh check-progress-file \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-progress-file.sh"
           },
           {
             "type": "command",
@@ -131,7 +132,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-progress-file.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/agf-hook-guard.sh check-progress-file \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-progress-file.sh"
           },
           {
             "type": "command",
@@ -149,6 +150,19 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-dangerous-bash.sh"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-config-edit.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/enforce-write-scope.sh"
+          }
+        ]
       }
     ],
     "TaskCreated": [
@@ -157,7 +171,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/validate-task-schema.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/agf-hook-guard.sh validate-task-schema \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/validate-task-schema.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/agf-hook-guard.sh gate-deploy-release-auth \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/gate-deploy-release-auth.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/agf-hook-guard.sh gate-redo-fuse \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/gate-redo-fuse.sh"
           }
         ]
       }

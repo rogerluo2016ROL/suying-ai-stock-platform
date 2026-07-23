@@ -1,7 +1,9 @@
 # Superpowers Skills Policy
 
 > 基线：superpowers 6.0.3（以本地安装为准、不硬 pin）。每个 skill 的完整描述以本地 SKILL.md 为准：
-> `~/.claude/plugins/cache/claude-plugins-official/superpowers/<version>/skills/<name>/SKILL.md`
+> `~/.claude/plugins/cache/<marketplace>/superpowers/<version>/skills/<name>/SKILL.md`
+> （`<marketplace>` 视安装源而定，当前为 `superpowers-marketplace`（`obra/superpowers-marketplace`）；用 glob `~/.claude/plugins/cache/*/superpowers/` 定位不必硬编码）。
+> 安装/校验：`setup/init-team.sh` 的 superpowers 检测（缺失即 warn）；手动装 `/plugin marketplace add obra/superpowers-marketplace` → `/plugin install superpowers@superpowers-marketplace`。
 
 团队在关键流程节点必须调用 `superpowers:` 系列 skill，保证需求澄清、实现质量、完成验证、代码审查的一致性。
 

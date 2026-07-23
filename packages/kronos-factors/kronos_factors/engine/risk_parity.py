@@ -117,27 +117,41 @@ class RiskParityAllocator:
         weights: dict[str, float],
         max_weight: float = DEFAULT_MAX_SINGLE_WEIGHT,
     ) -> dict[str, float]:
-        """单股上限裁剪.
+        """单股上限裁剪（迭代重分配）.
 
-        若 w_i > max_weight，截断为 max_weight，余量按比例重新分配。
+        若 w_i > max_weight，截断为 max_weight，余量按比例重分配给未超限标的；
+        重分配后若又有标的被推过上限，反复裁剪直至余量归零或无未超限容量可吸收。
+        全部到顶（无未超限标的）时持现金（sum < 1.0），但绝不突破单股上限。
         """
-        limited = {}
-        excess = 0.0
-        uncapped_codes = []
+        limited = dict(weights)
+        eps = 1e-12
 
-        for code, weight in weights.items():
-            if weight > max_weight:
-                limited[code] = max_weight
-                excess += weight - max_weight
+        while True:
+            # 1. 截断所有超限标的，累计余量
+            excess = 0.0
+            for code in limited:
+                if limited[code] > max_weight + eps:
+                    excess += limited[code] - max_weight
+                    limited[code] = max_weight
+
+            if excess <= eps:
+                break  # 无超限 → 收敛
+
+            # 2. 余量按比例分给当前未超限的标的
+            uncapped = [c for c in limited if limited[c] < max_weight - eps]
+            if not uncapped:
+                break  # 全部到顶，余量无处可去 → 持现金
+
+            uncapped_total = sum(limited[c] for c in uncapped)
+            if uncapped_total <= eps:
+                # 未超限标的权重都 ≈0：均摊
+                share = excess / len(uncapped)
+                for c in uncapped:
+                    limited[c] += share
             else:
-                uncapped_codes.append(code)
-                limited[code] = weight
-
-        if excess > 0 and uncapped_codes:
-            uncapped_total = sum(limited[c] for c in uncapped_codes)
-            if uncapped_total > 0:
-                for code in uncapped_codes:
-                    limited[code] += (limited[code] / uncapped_total) * excess
+                for c in uncapped:
+                    limited[c] += (limited[c] / uncapped_total) * excess
+            # 下一轮重新裁剪被推过上限的标的
 
         return limited
 

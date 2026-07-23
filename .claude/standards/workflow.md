@@ -17,6 +17,30 @@
 
 **Headless / CI 入口**：在 CI 或脚本里以 `claude -p --agent <name> "<prompt>"` 触发某个 agent 时，该角色 frontmatter 的工具白名单与权限模式不因 headless 失效——例如 `claude -p --agent code-reviewer "review HEAD"` 直接得到该角色的工具集与 `auto` 模式。逐字段生效细节见 `team-roles.md` frontmatter 能力表。
 
+## 渐进检索（iterative-retrieval）—— subagent / 探索的 context 策略
+
+派只读 subagent（上文 Session Entry 路径 2"探索 ≥10 文件"）或 teammate 接手陌生模块时，subagent 启动 context 受限，**不知道要哪些文件**。别"一次塞全部"（超 context）也别"靠猜"（常错）。用渐进检索：
+
+```
+Cycle 1  DISPATCH   宽泛搜（关键词 / pattern / glob）
+Cycle 2  EVALUATE   每文件 0-1 相关度评分：
+                      直接实现目标 = 0.8-1.0
+                      含相关模式/类型 = 0.5-0.7
+                      无关 = <0.4，排除
+Cycle 3  REFINE     加 EVALUATE 发现的新术语 / 排除低分文件 → 再 DISPATCH
+         max 3 cycle，≥3 个 high-relevance（≥0.7）即停
+```
+
+**要点**：
+
+- **start broad, narrow progressively**：首轮别过窄
+- **学代码库术语**：首轮常揭示项目命名约定（如搜"rate limit"没命中却揭示项目用"throttle"）
+- **track what's missing**：显式记 context 缺口，驱动下一轮 refine
+- **stop at good enough**：3 个高相关文件胜过 10 个中等
+- **别一次塞太多**：context 隔离是 subagent 的价值（只回结论不带过程），塞太多 = 失去隔离
+
+**与 PL 派工的关系**：PL 派工 6 段 schema 给"上游产物"（起点）；subagent 用渐进检索自己补探索所需 context。两者互补，不冲突。
+
 ## Workflow
 
 1. **Simple tasks**: 按上节"Session Entry"判定为可直接执行的请求，主 Claude 处理
@@ -98,7 +122,7 @@ PL 在 Step 3 派单时按**规模 + 风险**显式选 lane，写进 task「上�
 | Lane | 适用 | 尾部门（部署 → E2E → UAT）|
 |---|---|---|
 | **full**（默认）| Medium/Large feature、MINOR/MAJOR、**或任何高风险变更** | 全套：隔离 UAT 栈 + 全 E2E 控件遍历 + UAT 用例 gate + P0 pass² + 全界面渲染核查 |
-| **fast** | 仅 **Small + PATCH + 非高风险**（PL 显式选 + 记录风险接受）| **只减不跳**：仍部署 + 冒烟自检；E2E 缩到「冒烟 + 改动面目标 AC 抽核 + 受影响界面渲染核查」；UAT 用例沿用 PATCH 豁免；**P0 仍 pass²、受影响界面渲染核查仍必做** |
+| **fast** | 仅 **Small + PATCH + 非高风险**（PL 显式选 + 记录风险接受）| **只减不跳**：仍部署 + 冒烟自检；E2E 缩到「冒烟 + 改动面目标 AC 抽核 + 受影响界面渲染核查」；UAT 用例沿用 PATCH 豁免；**P0 仍 pass²、受影响界面渲染核查仍必做**（对应 `AGF_HOOK_PROFILE=minimal`，机械降级 workflow hook；ADR-014） |
 
 **硬护栏**：高风险变更（auth / 鉴权链路 / DB schema migration / LLM 切换·prompt 重构 / cross-cutting concerns，清单 SSOT 见本文件 §例外 + `coding.md` 高风险定义）**无论规模一律 full lane**，PL 不得选 fast。"PL 显式选 + 高风险硬护栏"双重挡 fast lane 误把"该全测的小 diff"放过。
 
@@ -183,19 +207,19 @@ PL 在 Step 3 派单时按**规模 + 风险**显式选 lane，写进 task「上�
 并行实例的 fan-out **只能由 `product-lead`（lead）发起**——由它调 `Agent` 工具起 `<type>-N`。两条硬禁止（官方限制 + 安全）：
 
 - ❌ **单个 worker 不得自 spawn 子 worker**：**teammate 不能 spawn teammate** 是官方现行硬限制（no nested teams）；**subagent 自 Claude Code v2.1.172 起已可嵌套**（深度上限 5，sub-agents），但 AGF **主动不授予** dev / reviewer / qa 的 `tools` 以 `Agent`（仅 `product-lead` 含）——以**工具门控**维持单编排者纪律，**不依赖**「官方禁止 subagent 嵌套」这条**已过时**的前提。要并行 review N 块代码，是 PL 起 N 个 `code-reviewer-N`，**不是** 1 个 reviewer 内部再分裂。
-- ❌ **teammate 不得用 bash shell-out `claude --agent ...`** 自起独立进程绕过框架：那会脱离共享任务表 / mailbox / worktree 管理、独立计费、并绕过 `block-dangerous-bash` 与 pool 隔离。CI / 自动化的非交互 review 走 `claude ultrareview [target]` 或 `.github/workflows/claude-code.yml`，**不在 team 内 shell-out**。
+- ❌ **teammate 不得用 bash shell-out `claude --agent ...`** 自起独立进程绕过框架：那会脱离共享任务表 / mailbox / worktree 管理、独立计费、并绕过 `block-dangerous-bash` 与 pool 隔离。CI / 自动化的非交互 review 走 `claude ultrareview [target]` 或 `.github/workflows/claude-code.yml.template`（启用需改名，见文件头注释），**不在 team 内 shell-out**。
 
 ### 何时用 Workflow（vs Pool / Agent Team）
 
 > 判定规则一句话：**任务需要对话（协商 / 签字 / 回派）→ Team/Pool；不需要且机器可验证 → Workflow**。
 > 按阶段嵌入边界详 ADR-005 Workflow 阶段嵌入（扩展自 ADR-002 窄引入，后者仍是安全/成本基底）。
+> **例外**：**需求澄清 / 架构基线前**阶段用 `/agf-code-map`（codemap skill，**非 Workflow**，见 ADR-021）出理解地图——原 `/agf-understand` workflow 已被 codemap 替代并删除（2026-07-07）。
 
 | 交付阶段 | 用 | 说明 |
 |---|---|---|
-| 需求澄清 / 架构基线前 | **Workflow** `/agf-understand` | 只读扫读出理解地图，喂 PRD「现状」与 ADR「上下文」 |
 | 常规 feature 实现 | **Agent Team / Pool**（默认，不变）| API 契约要协商、verdict 要回派 |
 | 大批量**互相独立**的模块 / 迁移 / 批量改写 | **Workflow** sweep（worktree 隔离 + verify，PL 收口 merge）| 无契约协商时比 Dev pool 更稳；兼作 Agent Teams 未修硬伤（#55586 重复 spawn / #23620 compact 丢 team）的规避路径。脚本按需写，不预制 |
-| Code review | 常规走 reviewer / Review pool；高风险大 PR 叠加 **Workflow** `/agf-review-sweep` | ADR-002 不变 |
+| Code review | 常规走 reviewer / Review pool；高风险大 PR 用 **Review pool 多实例 × review-checklist 维度分工**（`agf-matrix.sh` fan-in）或内置 `/code-review ultra` | 原 `/agf-review-sweep` saved workflow 已按 ADR-026 D5 退役（成本自述"比 Pool 还烧"、内置 ultra 覆盖同场景）|
 | 测试 | 生成类（E2E case 扇出）可 **Workflow**；**执行留 qa-engineer** 对共享 UAT 栈 | P0 pass² 等签字语义不进 workflow |
 | 审计 / 复盘类（issue audit / source audit）| **Workflow** | 只读、多视角、对抗验证天然契合 |
 
@@ -220,7 +244,7 @@ PL 在 Step 3 派单时按**规模 + 风险**显式选 lane，写进 task「上�
 - **实例自识别**：实例从 spawn 时的实例名与 task description 确认自己的 N，所有产物文件名（progress / review / qa 报告）使用该 N，不自行另派编号
 - **跨实例禁直连**：并行实例间不互发 SendMessage 私下协调；接口契约、共享文件冲突一律回 **product-lead** 中转（防绕过 PL 形成实例间私有约定 → 跨实例漂移）
 - 所有实例共享 `.claude/agents/<type>.md` 同一 frontmatter（**SSOT 不变**），仅同 definition 加载 N 次
-- 实例完成后 idle 不复用，下个 batch 重新 spawn（避免 context bleed + 简化资源回收）
+- **不复用 + 过门即关**（ADR-025）：实例完成 idle **不复用**（复用=context bleed，且 Agent Teams teammate 无法清/重置自身上下文——查证见 ADR-025）；其**最后一道可回派门通过后即逐实例关**（reviewer/qa=fan-in 后 / dev=UAT 签字后），新任务 fresh spawn（"上下文全显式传递"设计使 fresh spawn 零信息损失）。详见下「实例生命周期」。
 
 ### 池上限（per type）
 
@@ -285,10 +309,21 @@ PL 在 Step 3 派单时识别上述场景，明确写入 task description 的"�
 - **PL 抽检**：每 batch 完成后 PL 选 1 个 task 交叉对比另一 reviewer 的 review 结果（10% 抽检率，写进 retro §4 流程协作段）
 - **Retro Cohen's κ**：连续 ≥ 3 个 release 跑实例间 verdict 一致性，κ < 0.6 触发新 ADR
 
-### 实例不复用，但 archive-progress 必须合并
+### 实例生命周期（过门即关，不复用 · ADR-025）
 
-- 各实例 `progress/<role>-<N>.md` 在 feature 结束、UAT 通过后由 `archive-progress.sh` 自动合并到 `docs/qa/<feat>-process-log.md` 的对应 role 段（按时间顺序 cat 即可）
-- 合并完成后所有 `progress/<role>-*.md` 一起 `git rm` 离开 main 分支
+**不复用**：实例完成不复用于下一任务——复用 = 新任务累进同一上下文窗口（context bleed），而 Agent Teams teammate **无法清/重置自身上下文**（无自我 `/clear`、无自动 compaction、lead 无重置信号、无 per-task 隔离——查证见 ADR-025 附录）。AGF "上下文全显式传递" 设计使 fresh spawn **零信息损失**，故选 fresh spawn 而非带 bleed 复用。
+
+**过门即关**（逐实例，不等 `/agf-team-stop` 整 feature 批量关）——关闭点按角色分（dev 会被回派、reviewer/qa 不会）：
+
+| 角色 | 关闭点 | 理由 |
+|---|---|---|
+| **reviewer** | fan-in 后（评审报告被 PL 消费） | 无回派——差评不回派 reviewer，PL 只交叉抽检 |
+| **qa** | fan-in 后（E2E/UAT 报告被 PL 消费） | 无回派——缺陷回派的是 dev，不是 qa |
+| **dev** | 其名下 task 全部**过 UAT 签字后** | review/E2E/UAT 任一都能回派 dev 修复（§失败处理"按 task_id 回派原实例"，靠实现上下文）→ 须活到 UAT 待命；**UAT 前 dev 是待命、不是僵尸** |
+
+PL 关一个实例 = `SendMessage({to: "<instance>", message: {type: "shutdown_request", reason: "..."}})`（复用 `agf-team-stop` 同机制，只是下沉为过门后逐实例调用）。落地点见 `product-lead.md` Step 3.5 / Step 5。**N 不因关闭重置**（单调递增防新旧同名路由错），故任一时刻同 type ≤1 待命实例但编号一路涨（无害）。
+
+**archive-progress 必须合并**：各实例 `progress/<role>-<N>.md` 是 git-tracked——关**实例**不删**文件**。feature 结束、UAT 通过后由 `archive-progress.sh` 自动合并到 `docs/qa/<feat>-process-log.md` 对应 role 段（按时间顺序 cat），合并后所有 `progress/<role>-*.md` 一起 `git rm` 离开 main 分支。
 
 ## Issue Close DoD（Definition of Done for `gh issue close`）
 

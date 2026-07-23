@@ -7,29 +7,8 @@ JWT secret 读法与 backend/app/config.py + packages/kronos-auth 统一（ADR-0
 """
 
 import os
-import warnings
 
-
-def _is_production() -> bool:
-    return os.environ.get("KRONOS_ENV", "").lower() == "production"
-
-
-def _secret(env_key: str, dev_fallback: str) -> str:
-    """统一密钥读法：env 优先；prod 缺失 raise；dev 缺失 warn + dev-only- fallback。"""
-    value = os.environ.get(env_key)
-    if value:
-        return value
-    if _is_production():
-        raise RuntimeError(
-            f"{env_key} must be set in production (KRONOS_ENV=production)"
-        )
-    warnings.warn(
-        f"{env_key} not set — using dev-only fallback. "
-        "Set a real secret before production (KRONOS_ENV=production will raise).",
-        RuntimeWarning,
-        stacklevel=2,
-    )
-    return dev_fallback
+from kronos_auth.config import _secret  # 阶段1: 统一用 kronos-auth 标准版, 删除本地复制
 
 
 # ── Server ──

@@ -81,6 +81,22 @@ def resolve_chat_targets(args: argparse.Namespace, config: dict[str, Any]) -> li
     )
 
 
+def try_sync_lark_doc(syncer, report_path: Path, result: dict[str, Any], run_dir: Path) -> dict[str, Any]:
+    """飞书文档失败时记录原因，但允许后续群消息继续发送。"""
+    try:
+        doc = syncer(report_path, result)
+        result["pipeline"]["lark_doc"] = doc
+        _write_json(run_dir / "result.json", result)
+        return doc
+    except Exception as exc:
+        result["pipeline"]["lark_doc"] = {
+            "status": "failed",
+            "error": f"{type(exc).__name__}: {exc}"[-2000:],
+        }
+        _write_json(run_dir / "result.json", result)
+        return {}
+
+
 def resolve_model(config: dict[str, Any], model_key: str) -> tuple[str, dict[str, Any]]:
     models = config.get("models") or {}
     if model_key in models:
@@ -399,15 +415,26 @@ def build_run_manifest(*, args, model_key: str, run_id: str, trade_date: str,
 
 def _run_subprocess(cmd: list[str], timeout: int = 240) -> dict[str, Any]:
     started = time.time()
-    proc = subprocess.run(
-        cmd,
-        cwd=ROOT,
-        env=os.environ.copy(),
-        text=True,
-        capture_output=True,
-        timeout=timeout,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=ROOT,
+            env=os.environ.copy(),
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        # 备用采集不可用不能中断模型与飞书报告主链路。
+        return {
+            "returncode": 124,
+            "elapsed": round(time.time() - started, 1),
+            "status": "timeout",
+            "error": f"subprocess timed out after {timeout}s",
+            "stdout_tail": str(exc.stdout or "")[-2000:],
+            "stderr_tail": str(exc.stderr or "")[-2000:],
+        }
     result: dict[str, Any] = {
         "returncode": proc.returncode,
         "elapsed": round(time.time() - started, 1),
@@ -795,7 +822,7 @@ def _run_registered_mode(
         return _run_cb_mode(mode, top_n, trade_date)
     if mode == "bi_trend_launch":
         return _run_bi_trend_mode(mode, top_n, trade_date)
-    if mode == "bi_shifu_trend":
+    if mode in {"bi_shifu_trend", "bi_shifu_trend_v23"}:
         return _run_bi_shifu_trend_mode(mode, top_n, trade_date)
     if mode == "bi_trend_full_market":
         return _run_bi_full_market_mode(mode, top_n, trade_date)
@@ -803,6 +830,14 @@ def _run_registered_mode(
         return _run_supply_chain_mode(mode, top_n, trade_date)
     if mode == "supply_chain_trend_launch":
         return _run_supply_chain_trend_launch_mode(mode, top_n, trade_date)
+    if mode in {"us_morning_brief", "kr_morning_brief"}:
+        from app.domains.morning_brief.service import (
+            _run_kr_morning_brief_mode,
+            _run_us_morning_brief_mode,
+        )
+        if mode == "us_morning_brief":
+            return _run_us_morning_brief_mode(mode, top_n, trade_date)
+        return _run_kr_morning_brief_mode(mode, top_n, trade_date)
     if mode in {"short", "chokepoint"}:
         result = _run_multifactor_mode(mode, top_n, trade_date)
         if not result.get("trade_date"):
@@ -1031,9 +1066,7 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
 
     doc: dict[str, Any] | None = None
     if args.sync_doc:
-        doc = sync_markdown_to_lark_doc(report_path, result)
-        result["pipeline"]["lark_doc"] = doc
-        _write_json(run_dir / "result.json", result)
+        doc = try_sync_lark_doc(sync_markdown_to_lark_doc, report_path, result, run_dir)
 
     chat_targets = resolve_chat_targets(args, config)
     if resolve_send_feishu(args, config):
@@ -1054,10 +1087,14 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
             sender=send_text_to_chat,
         )
         if args.send_poster:
-            poster = generate_poster_image(result)
-            if poster:
-                for target in chat_targets:
-                    send_image_to_chat(target["chat_id"], poster)
+            # 海报是增强项: 渲染/发送失败不影响群消息与文档已送达的事实, 不阻断流水线
+            try:
+                poster = generate_poster_image(result)
+                if poster:
+                    for target in chat_targets:
+                        send_image_to_chat(target["chat_id"], poster)
+            except Exception as exc:
+                print(f"[pipeline] 海报生成或发送失败 (已跳过): {exc}", file=sys.stderr)
 
     return result
 

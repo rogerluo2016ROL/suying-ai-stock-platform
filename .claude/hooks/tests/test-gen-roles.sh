@@ -7,11 +7,11 @@
 # 由 lint-all.sh / init-team.sh 自动发现并执行。
 #
 # 覆盖 spec §10 五项（docs/superpowers/specs/2026-06-15-agent-capability-yaml-ssot-design.md）：
-#   1. round-trip：每个真实 .md frontmatter extract→render 逐字节零 diff
+#   1. write-path identity：committed roles.yaml 渲染 == committed .md/两表（--check 零 diff）
 #   2. --check 抓篡改：改一处 frontmatter 后 --check 必 exit 1 且 diff 指向该文件
 #   3. schema 拒非法：缺字段 / 非法 model / review-only 带 Edit 各自 exit 1
 #   4. marker 缺失：删 marker 后生成器 exit 1
-#   5. 两表渲染 + extract→check 自洽（fixture 上闭环）
+#   5. 两表渲染 + 镜像 --check 自洽（fixture 上闭环）
 #
 # 设计约束：对仓库真实文件**只读**。所有变异 case 在 mktemp 临时镜像里跑，
 # 通过环境/参数把 gen-roles 的路径常量指向临时目录，绝不污染工作树。
@@ -41,33 +41,19 @@ if [[ ! -f "$GEN" ]]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────
-# §10.1 round-trip：所有真实 .md frontmatter 零 diff（只读）
+# §10.1 write-path identity：committed roles.yaml 渲染 == committed .md/两表（只读 --check）
+# （extract→render round-trip 已随一次性迁移代码删除；roles.yaml 现为唯一 SSOT，
+#  正确的不变量是"渲染 roles.yaml 逐字节复现 committed 产物"，即 --check。）
 # ─────────────────────────────────────────────────────────────────────────
-RT_OUT=$(python3 - "$GEN" "$AGENTS_DIR" <<'PY'
-import importlib.util, os, sys, difflib
-gen_path, agents_dir = sys.argv[1], sys.argv[2]
-spec = importlib.util.spec_from_file_location("genroles", gen_path)
-g = importlib.util.module_from_spec(spec); spec.loader.exec_module(g)
-fail = []
-for f in sorted(x for x in os.listdir(agents_dir) if x.endswith(".md") and x != "roles.yaml"):
-    p = os.path.join(agents_dir, f)
-    original = open(p, encoding="utf-8").read()
-    _, body = g.split_frontmatter(original)
-    agent = g.extract_agent_from_md(p)
-    if g.render_agent_md(agent, body) != original:
-        fail.append(f)
-print("FAIL:" + ",".join(fail) if fail else "OK")
-PY
-)
-if [[ "$RT_OUT" == "OK" ]]; then
-  ok "round-trip 全部 .md frontmatter 零 diff"
+if python3 "$GEN" --check >/dev/null 2>&1; then
+  ok "真实仓库 --check 一致（committed roles.yaml ↔ .md/两表 零 diff）"
 else
-  bad "round-trip 有 diff：$RT_OUT"
+  bad "真实仓库 --check 不一致（应 exit 0）"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────
 # 构造临时镜像（含 roles.yaml + 真实 .md + 带 marker 的 team-roles.md）
-# 用于 --check / marker / 篡改 case。镜像由 --extract 生成 roles.yaml 保证自洽。
+# 用于 --check / marker / 篡改 case。镜像 roles.yaml 复制 committed SSOT 保证自洽。
 # ─────────────────────────────────────────────────────────────────────────
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -75,12 +61,12 @@ mkdir -p "$TMP/.claude/agents" "$TMP/.claude/scripts" "$TMP/.claude/standards"
 cp "$GEN" "$TMP/.claude/scripts/gen-roles.py"
 cp "$AGENTS_DIR"/*.md "$TMP/.claude/agents/" 2>/dev/null
 
-# 生成 roles.yaml（extract 读真实 .md + 真实 team-roles 两表）
-python3 "$GEN" --extract > "$TMP/.claude/agents/roles.yaml" 2>/dev/null
+# 镜像 roles.yaml = 直接复制 committed SSOT（extract 一次性迁移已删，roles.yaml 是唯一来源）
+cp "$AGENTS_DIR/roles.yaml" "$TMP/.claude/agents/roles.yaml"
 if [[ ! -s "$TMP/.claude/agents/roles.yaml" ]]; then
-  bad "extract 未产出 roles.yaml"
+  bad "镜像 roles.yaml 未就位"
 else
-  ok "extract 产出 roles.yaml"
+  ok "镜像 roles.yaml 就位（复制 committed SSOT）"
 fi
 
 # 造一个带 marker 的 team-roles.md（用生成器自渲两表填入），保证镜像 --check 自洽
@@ -111,7 +97,7 @@ run_check() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────
-# §10.5 闭环：镜像刚 extract+回填两表 → --check 应一致（exit 0）
+# §10.5 闭环：镜像 roles.yaml(复制) + 回填两表 → --check 应一致（exit 0）
 # ─────────────────────────────────────────────────────────────────────────
 if run_check; then
   ok "干净镜像 --check 一致（exit 0）"

@@ -21,7 +21,7 @@ Bespoke SDK exceptions:
 - MiniMax video / TTS: use `minimax` official SDK
 - Streaming nuance: confirm OAI-compat client handles vendor's stream chunk format
 
-Before wiring any SDK, pull its **current** docs via Context7 (`resolve-library-id` → `get-library-docs`) — all four vendors iterate fast and training-data memory of their APIs is likely stale. Context7 coverage of domestic SDKs varies; if a library isn't indexed, fall back to WebFetch on official docs.
+Before wiring any SDK, pull its **current** docs via Context7 (`resolve-library-id` → `query-docs`) — all four vendors iterate fast and training-data memory of their APIs is likely stale. Context7 coverage of domestic SDKs varies; if a library isn't indexed, fall back to WebFetch on official docs.
 
 ## Env var contract (locked)
 

@@ -68,6 +68,31 @@ def _as_str(value):
     return "" if value is None else str(value)
 
 
+def _count_problems(fm, keys):
+    """frontmatter 计数字段中「present(非 None) 但 int() 不可解析」的 → 错误消息列表。
+
+    W2：原 ``_as_int`` 把 ``critical_count: see-notes`` 这类静默转 0，使 ``derive_code``
+    算出 "approve" 与声明的 "approve" 一致 → validate 放行，verdict 一致性门形同虚设。
+    bool（YAML true/false 是 int 子类但语义不是计数）同样报；None / 缺省 → 不报（lenient，
+    与 ``_as_int`` 默认 0 一致）。
+    """
+    msgs = []
+    for k in keys:
+        if k not in fm:
+            continue
+        v = fm[k]
+        if v is None:
+            continue
+        if isinstance(v, bool):
+            msgs.append(f'"{k}" 是布尔值不是整数计数（frontmatter 数据非法）')
+            continue
+        try:
+            int(v)
+        except (TypeError, ValueError):
+            msgs.append(f'"{k}: {v!r}" 非整数计数（verdict 一致性门要求数据本身有效）')
+    return msgs
+
+
 def _warning_count(fm):
     """warning 计数（单处 SSOT，防 alias 规则漂移）：优先 `warning_count`，
     缺失（或显式 None）时认 miniapp/apple 的 `important_count` 别名。
@@ -140,7 +165,7 @@ def validate(path, kind):
     """
     fm = parse_report(path)
     if kind == "review":
-        problems = []
+        problems = list(_count_problems(fm, ("critical_count", "warning_count", "important_count")))
         declared_code = _as_str(fm.get("code_verdict")).strip()
         derived_code = derive_code(fm)
         if declared_code != derived_code:
@@ -161,9 +186,10 @@ def validate(path, kind):
             return False, "；".join(problems)
         return True, ""
     if kind == "qa":
-        violations = qa_floor_violations(fm)
-        if violations:
-            return False, "；".join(violations)
+        problems = list(_count_problems(fm, ("critical_defect_count", "p0_pass2_total", "p0_pass2_ok")))
+        problems.extend(qa_floor_violations(fm))
+        if problems:
+            return False, "；".join(problems)
         return True, ""
     return True, ""
 

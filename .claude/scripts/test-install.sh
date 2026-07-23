@@ -86,8 +86,14 @@ echo
 info "校验 .claude/ 目录清单（条目数与源仓动态对比）..."
 for d in agents standards hooks commands skills rules scripts; do
   if [[ -d "$TMP/.claude/$d" ]]; then
-    SRC_N=$(ls "$SOURCE/.claude/$d" | wc -l | tr -d ' ')
-    TGT_N=$(ls "$TMP/.claude/$d" | wc -l | tr -d ' ')
+    # 排除 __pycache__：源 checkout 用过 python 后会有编译产物，安装器现已主动不分发；
+    # skills 另排除 office 技能组（默认不装，--with-office-skills 选装，v6.25.0）
+    if [[ "$d" == "skills" ]]; then
+      SRC_N=$(ls "$SOURCE/.claude/$d" | grep -Evc '^(docx|pptx|agf-writing-docx-reports|agf-writing-pptx-reports|__pycache__)$')
+    else
+      SRC_N=$(ls "$SOURCE/.claude/$d" | grep -cv '^__pycache__$')
+    fi
+    TGT_N=$(ls "$TMP/.claude/$d" | grep -cv '^__pycache__$')
     if [[ "$SRC_N" == "$TGT_N" ]]; then
       ok ".claude/$d/ 条目数一致（${TGT_N}）"
     else
@@ -102,18 +108,24 @@ info "校验关键文件..."
 REQUIRED_FILES=".claude/settings.json
 .claude/.agf-version
 setup/init-team.sh
-setup/agf-team-start.sh
 setup/customize.sh
 CLAUDE.md
 CLAUDE.md.agf-template
 docs/FIRST_RUN.md
 docs/team-capability-map.md
 docs/product-workflow.md
-docs/prd/_TEMPLATE.md
 docs/qa/_TEMPLATE.md
 docs/qa/uat-cases-_TEMPLATE.md
 docs/reviews/_TEMPLATE.md
 docs/reviews/retro-_TEMPLATE.md
+docs/changes/README.md
+docs/changes/_TEMPLATE/proposal.md
+docs/changes/_TEMPLATE/design.md
+docs/changes/_TEMPLATE/tasks.md
+docs/changes/archive/.gitkeep
+docs/specs/README.md
+docs/specs/_TEMPLATE.md
+.claude/security/deny-baseline.json
 docs/adr/000-system-architecture.md.agf-template
 progress/README.md
 progress/.gitkeep
@@ -128,6 +140,32 @@ while IFS= read -r f; do
 done <<< "$REQUIRED_FILES"
 if [[ $MISSING -eq 0 ]]; then
   ok "关键文件齐全（$(echo "$REQUIRED_FILES" | wc -l | tr -d ' ') 个）"
+fi
+
+# 负向断言：弃用/垃圾资产不得进目标项目
+if [[ -d "$TMP/docs/prd" || -d "$TMP/docs/growth" ]]; then
+  fail "弃用目录被创建：docs/prd 或 docs/growth（PRD 弃用 v6.9.0；growth 无目录约定）"
+else
+  ok "未创建弃用目录（docs/prd / docs/growth）"
+fi
+if find "$TMP/.claude" \( -name '__pycache__' -o -name '*.pyc' \) 2>/dev/null | grep -q .; then
+  fail "目标 .claude/ 含 __pycache__/.pyc（安装器应清理源 checkout 编译产物）"
+else
+  ok "目标 .claude/ 无 __pycache__/.pyc"
+fi
+if [[ -d "$TMP/.claude/skills/docx" || -d "$TMP/.claude/skills/pptx" || -d "$TMP/.claude/skills/agf-writing-pptx-reports" ]]; then
+  fail "office 技能组被默认装入（应 --with-office-skills 才装，v6.25.0）"
+else
+  ok "office 技能组默认未装（docx/pptx/agf-writing-{docx,pptx}-reports）"
+fi
+
+# C2（ADR-021）：codemap build 生成 .agf/code-map.db（整库结构摘要，二进制可重建），
+# 安装器必须随装写入 target .gitignore 忽略 .agf/，否则用户首次 codemap build 后
+# git add . 就把图谱泄入版本库。
+if grep -q '\.agf/' "$TMP/.gitignore" 2>/dev/null; then
+  ok "target .gitignore 含 .agf/ 忽略规则（codemap 运行态产物不入库；C2）"
+else
+  fail "target .gitignore 缺 .agf/ 忽略规则（C2：codemap build 后 .agf/*.db 会泄入 git）"
 fi
 
 # greenfield CLAUDE.md 必须来自 CLAUDE.example.md 脚手架（而非模板仓自身 CLAUDE.md）
@@ -155,7 +193,7 @@ fi
 
 # 可执行位
 NOEXEC=0
-for f in "$TMP/setup/init-team.sh" "$TMP/setup/agf-team-start.sh" "$TMP/setup/customize.sh" "$TMP/.claude/hooks/"*.sh "$TMP/.claude/scripts/"*.sh; do
+for f in "$TMP/setup/init-team.sh" "$TMP/setup/customize.sh" "$TMP/.claude/hooks/"*.sh "$TMP/.claude/scripts/"*.sh; do
   if [[ -f "$f" && ! -x "$f" ]]; then
     fail "缺可执行位: ${f#"$TMP"/}"
     NOEXEC=$((NOEXEC+1))
@@ -163,11 +201,11 @@ for f in "$TMP/setup/init-team.sh" "$TMP/setup/agf-team-start.sh" "$TMP/setup/cu
 done
 [[ $NOEXEC -eq 0 ]] && ok "setup/*.sh + hooks/*.sh + scripts/*.sh 可执行位齐全"
 
-# workflows 必须拷（/agf-understand 等依赖）
-if [[ -f "$TMP/.claude/workflows/agf-understand.js" ]]; then
-  ok ".claude/workflows/ 已装（agf-understand / agf-review-sweep）"
+# workflows 已随 ADR-026 D5 退役——目标项目不应再收到该目录
+if [[ -d "$TMP/.claude/workflows" ]]; then
+  fail ".claude/workflows/ 被装入（ADR-026 D5 已退役，不应分发）"
 else
-  fail ".claude/workflows/ 未装入（/agf-understand 在目标项目不可用）"
+  ok ".claude/workflows/ 未分发（ADR-026 D5 退役）"
 fi
 
 # 去链接化：目标 .claude/*.md 不应残留任何 markdown 链接 [text](url)

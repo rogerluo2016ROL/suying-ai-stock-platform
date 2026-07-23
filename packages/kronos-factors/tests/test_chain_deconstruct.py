@@ -427,3 +427,103 @@ class TestLayerNames:
         assert LAYER_NAMES[3] == "制造"
         assert LAYER_NAMES[4] == "渠道"
         assert LAYER_NAMES[5] == "终端应用"
+
+
+class TestBomLayerParenting:
+    """Tests for round-robin L4-L8 parent mounting (fix: children no longer
+    all hang under the first parent item)."""
+
+    NODES = [
+        {
+            "node_id": "near_memory_computing",
+            "theme_id": "future_industry_core",
+            "chain_id": "near_memory_computing",
+            "node_name": "近存计算",
+            "layer": 1,
+            "parent_node_id": None,
+            "keywords": ["存算一体", "HBM-PIM", "CXL"],
+        }
+    ]
+
+    def test_l5_children_distributed_across_l4_parents(self):
+        result = build_bom_tree(self.NODES, theme_name="未来产业主攻方向")
+        layers = result["bom_layers"]
+        l5_parents = {item["parent_node_id"] for item in layers["L5"]}
+        l4_ids = {item["node_id"] for item in layers["L4"]}
+        # 不再全部挂第一个 L4; 且每个父都是真实 L4 节点
+        assert len(l5_parents) > 1
+        assert l5_parents <= l4_ids
+
+    def test_each_layer_parents_come_from_previous_layer(self):
+        result = build_bom_tree(self.NODES, theme_name="未来产业主攻方向")
+        layers = result["bom_layers"]
+        for child_layer, parent_layer in (("L6", "L5"), ("L7", "L6"), ("L8", "L7")):
+            parent_ids = {item["node_id"] for item in layers[parent_layer]}
+            child_parents = {item["parent_node_id"] for item in layers[child_layer]}
+            assert len(child_parents) > 1, f"{child_layer} 仍全挂单父节点"
+            assert child_parents <= parent_ids
+
+    def test_round_robin_covers_all_parents_when_more_children(self):
+        result = build_bom_tree(self.NODES, theme_name="未来产业主攻方向")
+        layers = result["bom_layers"]
+        # 近存计算 profile: L5(13) > L4(6), 轮转后每个 L4 至少有一个 L5 子项
+        used = {item["parent_node_id"] for item in layers["L5"]}
+        assert used == {item["node_id"] for item in layers["L4"]}
+
+    def test_single_parent_still_works(self):
+        nodes = [
+            {
+                "node_id": "custom_chain",
+                "theme_id": "t",
+                "node_name": "未知定制链",
+                "layer": 1,
+                "parent_node_id": None,
+                "keywords": [],
+            }
+        ]
+        result = build_bom_tree(nodes, theme_name="t")
+        layers = result["bom_layers"]
+        assert layers["L5"]
+        assert all(item["parent_node_id"] for item in layers["L5"])
+
+
+class TestCompetitionScale:
+    """competition 指标统一 0-100 百分数标度."""
+
+    def test_concentration_label_uses_0_to_100_scale(self):
+        nodes = [
+            {"node_id": "hi", "node_name": "高集中", "layer": 1, "parent_node_id": None,
+             "competition": {"concentration": 80}},
+            {"node_id": "mid", "node_name": "中集中", "layer": 1, "parent_node_id": None,
+             "competition": {"concentration": 50}},
+            {"node_id": "lo", "node_name": "低集中", "layer": 1, "parent_node_id": None,
+             "competition": {"concentration": 10}},
+        ]
+        comp = build_competition_tree(nodes)["competition"]
+        assert "高集中度" in comp["hi"]["note"]
+        assert "中集中度" in comp["mid"]["note"]
+        assert "低集中度" in comp["lo"]["note"]
+
+    def test_leader_share_printed_as_percent_of_0_to_100(self):
+        nodes = [
+            {"node_id": "n1", "node_name": "龙头", "layer": 1, "parent_node_id": None,
+             "competition": {"leader_share": 60}},
+        ]
+        comp = build_competition_tree(nodes)["competition"]
+        assert "龙头份额60%" in comp["n1"]["note"]
+
+
+class TestTemplateLoading:
+    """Template config loading: cached and single source path."""
+
+    def test_load_templates_cached(self):
+        from kronos_factors.engine.chain_deconstruct import load_industry_chain_templates
+        first = load_industry_chain_templates()
+        second = load_industry_chain_templates()
+        assert first is second  # lru_cache 命中同一对象
+
+    def test_template_tree_builds(self):
+        result = deconstruct_chain("ai", "bom", template="complex_tech")
+        assert result["template"]["template_id"] == "complex_tech"
+        assert result["tree"]["children"]
+        assert result["macro_context"]

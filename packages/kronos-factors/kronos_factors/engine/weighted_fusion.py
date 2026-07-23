@@ -92,7 +92,7 @@ class WeightedFusionEngine:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            models = data.get("models", {})
+            models = data.get("models") or data
             for mode, profile_dict in models.items():
                 self.mode_profiles[mode] = ModeProfile(
                     mode=mode,
@@ -112,7 +112,7 @@ class WeightedFusionEngine:
 
     def _load_from_dict(self, data: dict) -> None:
         """从字典加载 mode_profiles."""
-        for mode, profile_dict in data.get("models", {}).items():
+        for mode, profile_dict in (data.get("models") or data).items():
             self.mode_profiles[mode] = ModeProfile(
                 mode=mode,
                 precision=profile_dict.get("precision", 0.5),

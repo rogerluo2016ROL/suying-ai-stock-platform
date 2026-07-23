@@ -13,12 +13,22 @@
 
 - **开发者职责**：Unit + SIT 都随代码提交（Unit 走 Mock，集成层走 API+DB+external 单边集成），不转包给测试角色
 - **前端 SIT mock 来源**：含前端的 feature，前端 SIT 的 MSW mock 必须来自 orval 生成产物（`*.msw.ts`，禁手写）——契约同步机制见下文「前后端对接强制覆盖项」节 + ADR-006
-- **Apple 轨**：`apple-dev` 同样承担 Unit（Swift Testing，`swift test`）+ SIT（`xcodebuild test` + 模拟器）自跑，流程按 skill `agf-running-apple-sit`；E2E（XCUITest 对签名分发包）/ UAT 由 `apple-qa-engineer` 执行——完整测试矩阵见 `apple-native.md` §9，SIT mock 必须实现生成的 `APIProtocol`（禁手写 JSON fixture，见 ADR-008）
 - **UAT 判定权**：唯一由 product-lead 对照 PRD AC 签字，qa-engineer 只执行并出报告
 - **测试报告**：SIT 证据写入 `progress/<role>.md` 的 `**SIT 证据**` 段（不再单独产 `docs/qa/[feature]-sit-*.md`）；E2E / UAT 完成后分别输出至 `docs/qa/[feature]-[e2e|uat]-[YYYY-MM-DD].md`
 - **阶段门槛 / 失败回退**：code-review (含 SIT Audit) 通过 → E2E → UAT；任一阶段失败由 product-lead 重新分派执行层修复，qa-engineer 和 code-reviewer 不直接改实现
 - **交付 lane（ADR-011 决策 3）**：PL 派单时按规模 + 风险选 lane——**full**（默认；Medium/Large feature、MINOR/MAJOR、或**任何高风险变更**）走本文件全套门；**fast**（仅 Small + PATCH + 非高风险，PL 显式选 + 记录风险接受）**只减不跳**：E2E 缩到「冒烟 + 改动面目标 AC 抽核 + **受影响界面**渲染核查」、UAT 用例沿用 PATCH 豁免，但**仍部署 + 冒烟、P0 仍 pass²、受影响界面渲染核查仍必做**。高风险变更（auth / schema migration / LLM 切换 / cross-cutting，清单见 `workflow.md` §例外）**无论规模一律 full**。lane SSOT + 选择协议见 `workflow.md` §交付 lane
 - **TDD 是核心纪律**（非建议）：新功能 / bugfix 任务必须按 red → green → refactor 顺序，PR commit history 能看出 test commit 早于 impl commit；详见 `ac-lifecycle.md` DoD + skill `superpowers:test-driven-development`；纯重构 / 文档 / 配置任务可跳过
+
+## 测试基础设施（test 套组织 + hermetic runner）
+
+hook/script 测试套的**组织 + 运行**纪律（区别于上文的 Unit/SIT/E2E/UAT 四级业务测试）：
+
+- **位置**：`.claude/hooks/tests/`（扁平 `test-*.sh`）+ `.claude/hooks/tests/ci/` 子目录（CI 治理断言类）。`lint-all.sh` 用 `find .claude/hooks/tests -name 'test-*.sh'` **递归发现**（兼容扁平 + 子目录，无 `globstar` 依赖，macOS bash 3.2 友好）。
+- **约定**：`test-*.sh` 命名 + `set -uo pipefail`（不用 `-e`，要捕获 exit code 断言）+ `PASS/FAIL` 计数 + 末尾 `exit 0|1`。
+- **两个 runner**：
+  - `lint-all.sh`——含语法/JSON/YAML + gen-roles drift + test 套（非 hermetic，常规入口，pre-commit 链调）。
+  - `run-all-tests.sh`——**hermetic**，剥离 `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` 等继承 env（依据 ECC `tests/run-all.js:80-83`），防 hook 环境跑 test 时 git 指向 host repo 污染 fixture；只跑 test 套。
+- **CI 治理断言**（`tests/ci/`）：把治理规则做成可断言测试（如 `test-no-hardcoded-paths.sh` 扫无 `/Users/`/`/home/` 硬编码绝对路径），比纯 lint 更结构化、可单独失败定位。
 
 ## UAT 用例文档（用户审核 gate）
 
@@ -38,7 +48,7 @@
 
 ### 适用范围
 
-feature 含任何用户可见界面（页面 / 弹窗 / 抽屉 / 浮层）即触发，**与是否调后端 API 无关**；纯后端 / 纯 CLI / 纯文档 feature 不适用（矩阵标"不适用"）。渲染载体按轨：Web = chrome-devtools MCP（对共享 UAT 栈 URL）；小程序 = 微信开发者工具模拟器 + 真机；Apple = Xcode 模拟器 / 真机。
+feature 含任何用户可见界面（页面 / 弹窗 / 抽屉 / 浮层）即触发，**与是否调后端 API 无关**；纯后端 / 纯 CLI / 纯文档 feature 不适用（矩阵标"不适用"）。渲染载体按轨：Web = chrome-devtools MCP（对共享 UAT 栈 URL）；小程序 = 微信开发者工具模拟器 + 真机。
 
 ### 强制项（每个用户可见界面，缺一不可）
 
@@ -65,7 +75,7 @@ feature 含任何用户可见界面（页面 / 弹窗 / 抽屉 / 浮层）即触
 
 ### 适用范围
 
-任何含 `frontend/`（或 `miniapp/` / `apple/`）调用 `backend/` API 的 feature。纯后端 / 纯文档 feature 不触发。Apple 侧的 ①②③ 对应物（生成 client 禁手写 / 控件绑定 handler / XCUITest 控件遍历）细则见 `apple-native.md` + ADR-008，原则与本节同源不另立。
+任何含 `frontend/`（或 `miniapp/`）调用 `backend/` API 的 feature。纯后端 / 纯文档 feature 不触发。
 
 ### 强制覆盖项（缺一不可）
 

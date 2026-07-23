@@ -19,6 +19,10 @@
 set -uo pipefail
 
 INPUT=$(cat)
+
+# opt-in 治理事件留痕（ADR-014）：exit 2 时记一条元数据（不含 prompt 原文，防泄密）
+_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 PROMPT=$(echo "$INPUT" | jq -r '.prompt // empty')
 
 if [ -z "$PROMPT" ]; then

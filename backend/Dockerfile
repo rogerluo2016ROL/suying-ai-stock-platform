@@ -9,6 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ && rm -
 # Copy backend
 COPY backend /app/backend
 
+# kronos-contracts 共享包 (health 契约, /api/v1/health/ready 依赖)
+COPY packages/kronos-contracts /app/packages/kronos-contracts
+RUN pip install --no-cache-dir /app/packages/kronos-contracts
+
 # Install backend dependencies
 RUN pip install --no-cache-dir \
     fastapi uvicorn[standard] \

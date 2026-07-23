@@ -24,7 +24,7 @@ You just wrote the Unit tests, so you have the clearest picture of the unit-vs-i
 
 - [ ] Feature branch is rebased onto `main`
 - [ ] All Unit tests passing on the branch (pytest / vitest green) + lint + typecheck green
-- [ ] PRD acceptance criteria (AC) accessible at `docs/prd/[feature]-[date].md`
+- [ ] AC 来源可访问：`docs/changes/<change>/tasks.md`（AC↔scenario 映射，ADR-012）；旧 feature fallback `docs/prd/[feature]-[date].md`
 - [ ] `.env.local` with SIT-mode flags configured (or `.env.sit` if a dedicated SIT config exists)
 - [ ] **前端 SIT 专属**：MSW mock 来自 orval 生成产物（`*.msw.ts`），非手写——mock 与 OpenAPI 契约同源（见 ADR-006 / `coding.md` 契约纪律）
 
@@ -32,23 +32,19 @@ If any precondition fails: SendMessage product-lead, do not proceed.
 
 ## Environment
 
-Default SIT environment is **local docker-compose**:
+Default SIT environment is **local docker-compose**, brought up via the root Makefile（本地开发一键 SSOT，依赖管理走 uv——见 ADR-000；不要手写 pip/alembic/uvicorn 命令绕开 `uv.lock`）:
 
 ```bash
 # from repo root
-docker compose up -d postgres
-pnpm install                              # frontend deps
-python -m pip install -r backend/requirements.txt
-alembic upgrade head                      # apply latest schema
-pnpm --filter frontend dev &              # frontend on 5173
-python -m uvicorn app.main:app --reload & # backend on 8000
+make dev       # postgres + backend (uv) + frontend (pnpm) 一键起栈
+make migrate   # apply latest schema (uv run alembic)
 ```
 
 For LLM-dependent features, set provider env vars per `agf-wiring-multi-llm-sdk` skill. Use a **dedicated SIT API key** with a hard daily spend cap so a runaway test doesn't drain the budget.
 
 ## Execution sequence
 
-Walk every AC from `docs/prd/[feature].md`. For each AC at the integration layer:
+Walk every AC from `docs/changes/<change>/tasks.md`（旧 feature fallback `docs/prd/[feature].md`）. For each AC at the integration layer:
 
 1. **Setup** — record exact starting state (DB rows / fixture / user logged in)
 2. **Action** — step-by-step what triggers the integration (frontend button click → API call → DB write → external service callback)
@@ -77,7 +73,7 @@ Format authority: `.claude/standards/ac-lifecycle.md` → **完整条目格式**
 
 ## Hand-off
 
-完成 SIT 自跑后，**先自检再报告**——跑 `bash .claude/scripts/agf-sit-precheck.sh progress/<role>.md` 机筛 placeholder / 漏证据 / pass 含失败 token / 质量门矛盾（advisory，不阻断），把 flag 的修掉再 SendMessage，省一轮 code-review 打回（同一脚本是 code-reviewer 的 SIT Audit step 0，ADR-011 决策 2）。然后：
+完成 SIT 自跑后，**先自检再报告**——跑 `bash .claude/scripts/agf-advisory.sh progress/<role>.md`（advisory 机筛统一入口，ADR-026 D2）机筛 placeholder / 漏证据 / pass 含失败 token / 质量门矛盾（advisory，不阻断），把 flag 的修掉再 SendMessage，省一轮 code-review 打回。**这是全链路唯一一次机筛**：reviewer 的 SIT Audit 不重跑 advisory（ADR-011 决策 2 + ADR-026 D2）。然后：
 
 - **All AC pass**: SendMessage product-lead — "Implementation + SIT done, ready for code-review"，引用 `progress/<role>.md` 条目路径 + 时间戳
 - **Some AC fail / blocked**: 仍写完 `progress/<role>.md` 的 SIT 段（如实记录 fail / blocked），但 SendMessage 写明阻塞原因与影响范围，由 product-lead 决定本轮是否就修

@@ -7,6 +7,8 @@ argument-hint: 无参数（自动识别 alive teammate）
 
 关闭已完成本 feature 工作的执行层 teammate，释放 process / 上下文，保留 product-lead 与单实例长期角色待命。
 
+> **与"过门即关"的关系（ADR-025）**：理想流程下 reviewer / qa 实例在 fan-in 后、dev 实例在 UAT 签字后已由 PL **逐个 `shutdown_request`** 关闭（见 `product-lead.md` Step 3.5 / Step 5）。本命令是 feature 收尾的**兜底批量关**——清掉一切仍 alive 的执行层实例（过门即关漏关 / 用户选暂留后再统一关）。逐实例关与本批量关**同一 `shutdown_request` 机制 + 同一 task 安全检查**，只是触发时机不同。
+
 **默认关闭类型**（10 个执行层）：`frontend-dev` / `backend-dev` / `ai-agent-dev` / `ml-engineer` / `miniapp-dev` / `code-reviewer` / `miniapp-code-reviewer` / `qa-engineer` / `miniapp-qa-engineer` / `deploy-engineer`
 
 **默认保留类型**（PL + 4 个单实例长期角色，共 5）：`product-lead` / `tech-lead` / `uiux-designer` / `content-writer` / `growth-analyst`
@@ -27,7 +29,7 @@ argument-hint: 无参数（自动识别 alive teammate）
    - 输出预览：`共 N 个待关：<name1>(<type1>), <name2>(<type2>), ...；保留 M 个：<name>(<type>), ...`
 
 3. **关闭前 task 安全检查**：
-   - `bash .claude/scripts/agf-tasks.sh <team-name>` 查共享 task list
+   - `/agf-board`（或 `bash .claude/scripts/agf-board.sh`）查共享 task 看板
    - 待关 teammate 名下 task 必须全部 `status ∈ {completed}`（其它状态都阻断）
    - 若有 `pending` / `in_progress` / `blocked` 命中待关 owner → **abort**：列出残留任务 `T-NNN + owner + status`，要求 PL 先 `TaskUpdate` 完成或重派给保留角色
 

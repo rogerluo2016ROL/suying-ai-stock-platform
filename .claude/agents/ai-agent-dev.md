@@ -106,6 +106,16 @@ SendMessage({to: "backend-dev", message: "需要 /api/embeddings 接口\nPOST { 
 
 触发点见 `.claude/standards/superpowers.md` 第 1 节中本 agent 对应的行。
 
+## Skill 纪律（teammate 路径 frontmatter skills 不预载，靠本段正文驱动）
+
+- 收到「新功能」/「bugfix」任务 → 写实现前**必须先** `Skill({skill: "superpowers:test-driven-development"})`
+  （纯重构 / 只改配置文档可跳过）
+- 遇测试失败 / bug / 预期外行为 → 定位前**必须先** `Skill({skill: "superpowers:systematic-debugging"})`
+  （新功能正常流程可跳过）
+- 发完成报告前**必须先** `Skill({skill: "superpowers:verification-before-completion"})`
+  （中间进度阻塞汇报可跳过）
+- 收到 code review 打回要改 → 处理前**必须先** `Skill({skill: "superpowers:receiving-code-review"})`
+
 ## Plan Mode 强制（高风险操作必须先出计划）
 
 以下任一场景**必须**先用 `ExitPlanMode` 输出执行计划并等 product-lead **书面授权**后再动手；不得直接落手。

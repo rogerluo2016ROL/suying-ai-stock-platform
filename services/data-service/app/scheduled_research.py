@@ -65,6 +65,8 @@ def build_pipeline_command(
         command.append("--trigger-auction")
     if task.get("eastmoney_fallback"):
         command.append("--eastmoney-fallback")
+    if task.get("send_poster"):
+        command.append("--send-poster")
     for chat_id in chat_ids:
         command.extend(["--chat-id", chat_id])
     return command
@@ -141,16 +143,20 @@ def run_scheduled_research_task(
         "started_at": started.isoformat(timespec="seconds"),
     }
     pg_url = os.environ.get("KRONOS_PG_URL", DEFAULT_PG_URL)
-    try:
-        open_day = is_open_trading_day(trade_date, pg_url)
-    except Exception as exc:
-        state = {
-            **base_state,
-            "status": "failed_trade_calendar",
-            "error": f"{type(exc).__name__}: 交易日历查询失败",
-        }
-        _write_state(state_path, state)
-        return state
+    if task.get("skip_trade_cal_check"):
+        # 海外市场类任务 (如美股/韩股早报): 海外照常交易, 不受 A 股交易日历限制
+        open_day = True
+    else:
+        try:
+            open_day = is_open_trading_day(trade_date, pg_url)
+        except Exception as exc:
+            state = {
+                **base_state,
+                "status": "failed_trade_calendar",
+                "error": f"{type(exc).__name__}: 交易日历查询失败",
+            }
+            _write_state(state_path, state)
+            return state
     if not open_day:
         state = {**base_state, "status": "skipped_non_trading_day"}
         _write_state(state_path, state)
@@ -180,6 +186,9 @@ def run_scheduled_research_task(
         **base_state,
         "status": status,
         "finished_at": datetime.now().isoformat(timespec="seconds"),
+        "return_code": return_code,
+        "stdout_tail": str(getattr(execution, "stdout", "") or "")[-4000:],
+        "stderr_tail": str(getattr(execution, "stderr", "") or "")[-4000:],
         "run_dir": summary.get("run_dir"),
         "report_path": summary.get("report_path"),
         "market_snapshot_time": (run_result.get("market_strength") or {}).get("snapshot_time"),
@@ -190,6 +199,42 @@ def run_scheduled_research_task(
         state["error"] = "统一研究流水线返回非零状态"
     _write_state(state_path, state)
     return state
+
+
+def run_missed_scheduled_research_tasks(
+    *,
+    now: datetime | None = None,
+    executor: Callable[[list[str]], Any] | None = None,
+    state_root: str | Path = DEFAULT_STATE_ROOT,
+    config_path: str | Path | None = None,
+) -> list[dict[str, Any]]:
+    """服务启动时，仅在各任务允许的宽限窗口内补跑一次。"""
+    current = now or datetime.now()
+    config = load_scheduled_research_config(config_path)
+    results = []
+    for task in config.get("tasks") or []:
+        grace = int(task.get("max_late_minutes") or 0)
+        cron_parts = str(task.get("cron") or "").split()
+        if grace <= 0 or len(cron_parts) < 2:
+            continue
+        try:
+            minute, hour = int(cron_parts[0]), int(cron_parts[1])
+        except ValueError:
+            continue
+        planned = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        late_minutes = (current - planned).total_seconds() / 60
+        if not 0 < late_minutes <= grace:
+            continue
+        results.append(
+            run_scheduled_research_task(
+                str(task["id"]),
+                now=current,
+                executor=executor,
+                state_root=state_root,
+                config_path=config_path,
+            )
+        )
+    return results
 
 
 def build_scheduled_research_jobs() -> list[dict[str, Any]]:

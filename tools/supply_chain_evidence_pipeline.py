@@ -245,12 +245,38 @@ def extract_fact_from_text(
     )
 
 
+# doc source_id → claim_source_type 映射;不再把 fact.source_level(strong/mid/weak)
+# 误写入 claim_source_type(历史存量由 tools/fix_expectation_monitor_claim_source_type.py 修复)。
+_CLAIM_SOURCE_TYPE_BY_DOC_SOURCE = {
+    "cninfo_announcement": "announcement",
+    "exchange_announcement": "announcement",
+    "manual_announcement": "announcement",
+    "broker_expectation": "broker_report",
+    "broker_expectation_local": "broker_report",
+    "broker_report": "broker_report",
+    "financial_news_authoritative": "financial_news",
+    "legacy_mid_evidence_event": "exchange_interaction",
+}
+_CLAIM_SOURCE_FALLBACK_FACT_NATURES = {"analyst_estimate", "media_report"}
+
+
+def _claim_source_type_for(doc_source_id: str | None, fact_nature: str | None) -> str:
+    mapped = _CLAIM_SOURCE_TYPE_BY_DOC_SOURCE.get(str(doc_source_id or ""))
+    if mapped:
+        return mapped
+    nature = str(fact_nature or "")
+    if nature in _CLAIM_SOURCE_FALLBACK_FACT_NATURES:
+        return nature
+    return "other"
+
+
 def build_expectation_monitor_record(
     *,
     fact_id: str,
     mapping_id: str,
     source_doc_id: str,
     fact: ExtractedFact,
+    doc_source_id: str | None = None,
 ) -> dict:
     monitor_id = _stable_id("EXPECT", mapping_id, fact_id, source_doc_id)
     return {
@@ -258,7 +284,7 @@ def build_expectation_monitor_record(
         "mapping_id": mapping_id,
         "claim_text": fact.original_quote[:1000],
         "claim_date": datetime.now().date().isoformat(),
-        "claim_source_type": fact.source_level,
+        "claim_source_type": _claim_source_type_for(doc_source_id, fact.fact_nature),
         "expected_result": fact.fact_value or fact.original_quote[:300],
         "expected_date": None,
         "actual_progress": None,
@@ -1252,8 +1278,10 @@ def refresh_expectation_monitor(*, pg_url: str, run_prefix: str | None = None, l
                        f.original_quote, f.source_level, f.confidence,
                        f.confidence_cap, f.research_stage_signal,
                        f.commercial_stage_signal, f.growth_signal,
-                       f.profit_signal, f.moat_signal, f.risk_signal
+                       f.profit_signal, f.moat_signal, f.risk_signal,
+                       d.source_id AS doc_source_id
                 FROM evidence_extracted_facts f
+                LEFT JOIN raw_evidence_documents d ON d.doc_id = f.doc_id
                 WHERE {" AND ".join(where)}
                 ORDER BY f.created_at DESC
                 LIMIT %s
@@ -1283,6 +1311,7 @@ def refresh_expectation_monitor(*, pg_url: str, run_prefix: str | None = None, l
                     profit_signal,
                     moat_signal,
                     risk_signal,
+                    doc_source_id,
                 ) = row
                 fact = ExtractedFact(
                     company_code=str(company_code or ""),
@@ -1308,6 +1337,7 @@ def refresh_expectation_monitor(*, pg_url: str, run_prefix: str | None = None, l
                     mapping_id=mapping_id,
                     source_doc_id=doc_id,
                     fact=fact,
+                    doc_source_id=doc_source_id,
                 )
                 cur.execute(
                     """

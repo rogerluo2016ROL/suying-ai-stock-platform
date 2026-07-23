@@ -100,6 +100,10 @@ Decide: **是 (public)** or **否 (not public)**.
 - If **是**: dispatch `content-writer` to produce `docs/content/internal/[YYYY-MM-DD]-[slug].md` from this retro as source material
 - If **否**: mark "否" in §6
 
+### 5.1 可选：skill 内容质量盘点（MINOR retro 时建议）
+
+按 skill `agf-skill-stocktake` 对 `.claude/skills/agf-*/SKILL.md` 做内容质量盘点（5 维度 checklist + Keep/Improve/Update/Retire/Merge 裁定）。**可选步骤、不进 verification gate**——跳过不影响 retro 完成；产出的 Update/Retire 项作为 §5 Action item 候选。
+
 ### 6. Verification gate
 
 All **must pass** before commit:

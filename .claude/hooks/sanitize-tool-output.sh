@@ -87,7 +87,14 @@ if printf '%s' "$OUTPUT_FLAT" | grep -qiE "${PAT_OVERRIDE}|${PAT_IMPERSONATE}|${
 fi
 
 # 5) Hidden-instruction markers (zero-width / unicode tag chars used in known PI attacks)
-if printf '%s' "$TOOL_OUTPUT" | LC_ALL=C grep -qP '[\xE2\x80\x8B-\xE2\x80\x8F]|[\xF3\xA0\x80-\xF3\xA0\xBF]' 2>/dev/null; then
+# 字面多字节序列匹配（grep -F）：macOS BSD grep 无 -P（旧 -P 写法在 Darwin 静默失效），
+# 且 PCRE 字节区间类 [\xE2...-\xE2...] 是逐字节区间、会命中任意多字节字符（中文全误报）。
+# 覆盖：U+200B ZWSP / U+200C ZWNJ / U+200E LRM / U+200F RLM（e2 80 8b/8c/8e/8f）
+#      + Unicode tags U+E0000-E007F（f3 a0 80 xx / f3 a0 81 xx，按 3 字节前缀匹配）。
+# 有意不含 U+200D ZWJ——合法 emoji 组合序列（👨‍👩‍👧 等）广泛使用，纳入会持续误报。
+if printf '%s' "$TOOL_OUTPUT" | LC_ALL=C grep -qF \
+    -e $'\xe2\x80\x8b' -e $'\xe2\x80\x8c' -e $'\xe2\x80\x8e' -e $'\xe2\x80\x8f' \
+    -e $'\xf3\xa0\x80' -e $'\xf3\xa0\x81' 2>/dev/null; then
   WARNINGS+=("zero-width / unicode-tag chars detected (possible hidden instructions)")
 fi
 

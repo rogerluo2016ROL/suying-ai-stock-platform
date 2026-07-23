@@ -1,0 +1,37 @@
+diff --git a/progress/frontend-dev-3.md b/progress/frontend-dev-3.md
+index 66f180bc..1bb70c76 100644
+--- a/progress/frontend-dev-3.md
++++ b/progress/frontend-dev-3.md
+@@ -29,3 +29,32 @@ AC by AC:
+ - `frontend/src/pages/Training.tsx` (no change needed; path now matches new backend endpoint)
+ 
+ **下一步**: PL 决定是否接受构建被 pre-existing errors 阻塞（新增代码 0 TS 错误）
++
++---
++
++## BatchA-Screener 3.1 + 候选池按钮解禁（消费 M0 API）— 2026-07-02
++
++**Task**: #6 BatchA-Screener（frontend-dev-3）
++
++**AC 自验**: ✅ 全通过
++- ✅ 候选池按钮解禁，点击调 `screenerApi.recordCandidatePool({source_module:'screener', source_mode, name, candidates, trade_date})` 写入 + `message.success/error` toast + `queryCandidatePool` 刷新侧栏计数（失败不阻断）
++- ✅ 工作台区块对齐 preview（3 主 tab + 模型分类子 tab 已在；本次只解禁按钮 + 详情卡交互，未动区块结构）
++- ✅ 缺数据 EmptyState：`wb-empty`（`emptyResultTitle` + `emptyResultDetail`，hasRun/noResultReason 分支）+ detail-card `prototype-fallback`（等待/无输出文案）
++- ✅ 内联 style token 化：L721 `ind-bar-fill` 的 `background: String(color)` 已是 `var(--up)/var(--down)/var(--accent)` token；L722 `ind-bar-val` color 同 token。本次无新增裸色值
++- ✅ 自选股按钮保持 disabled，title 改 "watchlist 待 Batch B"
++
++**质量门**:
++- vitest: `npx vitest run src/__tests__/Screener.test.tsx` → **6 passed (6)**（新增 candidate-pool 写入测试 1 个；修 1 个 prototype-structure 测试的多匹配 flakiness：/leader_scalp/ 收紧为 /模型: .*leader_scalp/ + afterEach `message.destroy()` 清 antd 静态 message portal）
++- tsc: `npx tsc -b --noEmit` → **0 错**（修了 1 处 stageState 函数声明误删导致的 TS1128）
++- lint: tsc 通过即代表类型层 OK
++- dev server: 未起（本次为纯交互 handler + 按钮 disabled 解禁，无新依赖/路由/样式 token）
++
++**改动文件**:
++- `frontend/src/pages/Screener.tsx`（+`message` import；+`recordingPool` state；+`addToCandidatePool` handler 调 recordCandidatePool + queryCandidatePool 刷新 + try/catch/finally；batch-actions "加入候选池 →" 解禁绑 handler + loading 态；detail-actions "加入候选池" 解禁绑 handler；"加入自选" title 改 watchlist 待 Batch B）
++- `frontend/src/__tests__/Screener.test.tsx`（mock 补 recordCandidatePool/queryCandidatePool + 默认 resolve；afterEach message.destroy()；+candidate-pool 写入测试断言 source_module/source_mode/name/candidates[{code,name,score,grade,rank}]）
++
++**契约对账**: 前端走 `screenerApi.recordCandidatePool`（client.ts:426，POST /screener/candidate-pool），payload 字段 `candidate_pool_metadata` 实际未传（无附加元数据）；scope 走 client 拦截器头，前端不传明文 tenant/owner/account。与 M0 后端 e949baa8（已测 9/9）对齐。
++
++**⚠️ worktree 纪律异常（已上报 PL，需协调）**: 本实例被派为 frontend-dev-3 / Screener，但 `git worktree list` 显示我被分配的 worktree 是 `.wolf/worktrees/frontend-dev-5`（branch `feat/md-ui-signals-dev5`，属 Signals dev-5 的隔离区）。我的 Edit 工具用绝对路径 `/Users/rogerluo/程序目录/K线大模型/frontend/...`，改动落在了**主仓**（branch `feature/suying-ai-stock-platform`）的 `frontend/src/pages/Screener.tsx` + `Screener.test.tsx`（主仓 `git diff --stat` 确认 +74/-3），而非任何隔离 worktree。代码正确、测试全绿，但**位置错了**——Screener 的改动混进了主仓未提交 diff，与 dev-5 的 Signals 改动若同在主仓会互相污染。需 PL 决定：①把这两文件 cherry-pick/移植到正确的 frontend-dev-3 worktree（如存在），或 ②确认主仓即 landing 区由 PL 统一 per-file add。我**不自行 git add / 不 stash**（守 no-git-stash-shared-worktree）。
++
++**下一步**: 等 PL 对 worktree 归属裁决；Screener 3.1 + 候选池按钮功能本身已完成可交付。

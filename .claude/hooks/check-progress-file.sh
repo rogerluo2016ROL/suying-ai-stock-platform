@@ -26,6 +26,10 @@ set -uo pipefail
 
 INPUT=$(cat || true)
 
+# jq 是文档化硬依赖（同 agf-board）；缺 jq → fail-open exit 0（与 TaskCreated 系 hook 一致，
+# 本 hook 是 best-effort 质量门、非安全门）。省掉三处手抄的 grep→sed 回退分支（F3）。
+command -v jq >/dev/null 2>&1 || exit 0
+
 # 执行层强制名单（与 .claude/standards/ac-lifecycle.md "强制对象" 对齐）
 EXECUTION_ROLES=(
   "backend-dev"
@@ -44,15 +48,6 @@ EXECUTION_ROLES=(
 #
 # Single jq call walks the entire fallback chain (was N separate forks per call).
 extract_role() {
-  if ! command -v jq >/dev/null 2>&1; then
-    # jq 不可用 → 回退到 grep（粗暴但够用）
-    printf '%s' "$INPUT" \
-      | grep -oE '"(teammate|name|subagent_type|agent_name|role)"[[:space:]]*:[[:space:]]*"[^"]+"' \
-      | head -1 \
-      | sed -E 's/.*:[[:space:]]*"([^"]+)".*/\1/' \
-      || echo ""
-    return
-  fi
   printf '%s' "$INPUT" | jq -r '
     [.teammate.name, .agent.name, .name,
      .subagent_type, .agent.subagent_type, .teammate.role, .role]
@@ -74,14 +69,6 @@ strip_instance_suffix() {
 }
 
 extract_team() {
-  if ! command -v jq >/dev/null 2>&1; then
-    printf '%s' "$INPUT" \
-      | grep -oE '"team[Nn]ame"?[[:space:]]*:[[:space:]]*"[^"]+"' \
-      | head -1 \
-      | sed -E 's/.*:[[:space:]]*"([^"]+)".*/\1/' \
-      || echo ""
-    return
-  fi
   # 兼容 .team 是 string（"team": "myteam"）和 object（"team": {"name": "myteam"}）两种 shape
   # 用 try/catch 防 jq 在 string 上调 .name 报 "Cannot index string"
   printf '%s' "$INPUT" | jq -r '
@@ -125,15 +112,18 @@ done
 if [[ -n "$TEAM" ]]; then
   TASK_DIR="$HOME/.claude/tasks/$TEAM"
   if [[ -d "$TASK_DIR" ]]; then
-    # 任何 task 处于 pending 或 in_progress 状态即认为团队 active
-    ACTIVE_COUNT=0
-    if command -v jq >/dev/null 2>&1; then
-      ACTIVE_COUNT=$(jq -s '[.[] | select(.status == "pending" or .status == "in_progress")] | length' \
-        "$TASK_DIR"/*.json 2>/dev/null || echo 0)
-    else
-      ACTIVE_COUNT=$(grep -lE '"status"[[:space:]]*:[[:space:]]*"(pending|in_progress)"' \
-        "$TASK_DIR"/*.json 2>/dev/null | wc -l | tr -d ' ')
+    # 任何 task 处于 pending 或 in_progress 状态即认为团队 active（jq 已保证可用）。
+    # I6 修：预检 *.json 实际存在（nullglob），空 task dir 直接 standby（exit 0）；
+    # 避免 jq 对字面 *.json 报错 + `|| echo 0` 双输出 "0\n0" 致 arithmetic error（standby 豁免失效）
+    shopt -s nullglob
+    json_files=("$TASK_DIR"/*.json)
+    shopt -u nullglob
+    if (( ${#json_files[@]} == 0 )); then
+      exit 0
     fi
+    ACTIVE_COUNT=$(jq -s '[.[] | select(.status == "pending" or .status == "in_progress")] | length' \
+      "${json_files[@]}" 2>/dev/null)
+    ACTIVE_COUNT=${ACTIVE_COUNT//[^0-9]/}
     # 团队没有 active task → 团队 standby，放行
     if [[ "${ACTIVE_COUNT:-0}" -eq 0 ]]; then
       exit 0
@@ -142,7 +132,9 @@ if [[ -n "$TEAM" ]]; then
 fi
 
 # 检查 progress/<role>.md 是否存在 + 含 ≥1 个 ## 二级标题
-PROGRESS_FILE="progress/$ROLE.md"
+# 用 CLAUDE_PROJECT_DIR 锚定（与同事件 validate-verdict.sh 同语义）：hook 进程 cwd
+# 不保证等于项目根（worktree / 子目录场景），纯相对路径会看错目录树导致误拦/漏检
+PROGRESS_FILE="${CLAUDE_PROJECT_DIR:-.}/progress/$ROLE.md"
 
 if [[ ! -f "$PROGRESS_FILE" ]]; then
   cat >&2 <<EOF
@@ -205,6 +197,61 @@ if [[ ${#MISSING_SECTIONS[@]} -gt 0 ]]; then
 如果该 task 在阻塞状态，"状态" 段填 "阻塞"，"下一步" 段写明阻塞点 + 已尝试 + 需要什么。
 EOF
   exit 2
+fi
+
+# =============================================================================
+# Advisory 内容校验（superpowers.md §4，ADR-011 advisory 风格）
+#
+# 5 段硬门通过后、exit 0 前，查 Skills 段内容是否匹配 **状态** 段推断的任务类型：
+#   - feature 类（状态含 新功能/bugfix/bug 修复/新特性/feature）
+#     → Skills 段应含 test-driven-development
+#   - complete 类（状态含 已完成/完成/done）
+#     → Skills 段应含 verification-before-completion
+#
+# **advisory，不阻断**：缺则 stderr warning，仍 exit 0（仿 agf-sit-precheck.sh）。
+# **不改 progress 文件**（避免 hook 写用户文件副作用；只 stderr 提示）。
+# 两类可并存（一个 task 可能既是 feature 又报 complete）→ 两条 advisory 各自判定。
+# 不削弱上面的 5 段硬门：advisory 只在硬门全过后追加软检查。
+# =============================================================================
+
+# Extract section content from a markdown block:
+# header line（含行内内容）+ 后续行直到下一个 **header**: line。
+# sec_name 不含 ** 包裹（函数内拼）。用 index() 字面量比较避免 regex 元字符陷阱。
+extract_section_content() {
+  local block="$1" sec_name="$2"
+  printf '%s' "$block" | LC_ALL=C awk -v sec="**${sec_name}**" '
+    index($0, sec) == 1 && substr($0, length(sec)+1, 1) ~ /[:：]/ {
+      in_sec = 1; print; next
+    }
+    /^\*\*[^*]+\*\*[:：]/ { in_sec = 0 }
+    in_sec { print }
+  '
+}
+
+STATUS_CONTENT=$(extract_section_content "$LAST_BLOCK" "状态")
+SKILLS_CONTENT=$(extract_section_content "$LAST_BLOCK" "Skills")
+
+# 推断任务类型
+IS_FEATURE=0
+IS_COMPLETE=0
+if printf '%s' "$STATUS_CONTENT" | grep -qE '新功能|bugfix|bug[[:space:]]*修复|新特性|feature'; then
+  IS_FEATURE=1
+fi
+# complete 类：先剔除「未完成」再匹配，避免「完成」子串误命中「未完成」（精确化）
+if printf '%s' "${STATUS_CONTENT//未完成/}" | grep -qE '已完成|完成|done'; then
+  IS_COMPLETE=1
+fi
+
+# Advisory 输出（stderr only，不 exit 2，不改 progress 文件）
+if [[ "$IS_FEATURE" -eq 1 ]]; then
+  if ! printf '%s' "$SKILLS_CONTENT" | grep -q 'test-driven-development'; then
+    echo "⚠️  [check-progress-file advisory] feature 类任务 Skills 段缺 superpowers:test-driven-development（advisory 非阻断；纯重构/配置可跳过，在 Skills 段注明 skip 理由；superpowers.md §4）" >&2
+  fi
+fi
+if [[ "$IS_COMPLETE" -eq 1 ]]; then
+  if ! printf '%s' "$SKILLS_CONTENT" | grep -q 'verification-before-completion'; then
+    echo "⚠️  [check-progress-file advisory] complete 类任务 Skills 段缺 superpowers:verification-before-completion（advisory 非阻断；纯重构/配置可跳过，在 Skills 段注明 skip 理由；superpowers.md §4）" >&2
+  fi
 fi
 
 exit 0
