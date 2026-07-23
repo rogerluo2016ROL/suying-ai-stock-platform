@@ -1,25 +1,182 @@
+
+
+
+
+# ── re-export：保持 app.domains.screening.service 的导入路径兼容 ──
+
+
+
+# ── re-export：保持 app.domains.screening.service 的导入路径兼容 ──
+from app.domains.screening.supply_chain_queries import (  # noqa: F401
+    _apply_supply_chain_mapping_review,
+    _map_stage_tracking_row,
+    _mapping_evidence_gaps,
+    _mapping_evidence_items,
+    _mapping_review_priority,
+    _mapping_source_from_evidence,
+    _persist_policy_interpretation,
+    _query_business_tag_evidence_chain,
+    _query_business_tag_stage,
+    _query_capex_evidence_review_queue,
+    _query_evidence_review_queue,
+    _query_recent_research_reports,
+    _query_research_report_freshness,
+    _query_supply_chain_candidate_ranking,
+    _query_supply_chain_company_detail,
+    _query_supply_chain_data_freshness,
+    _query_supply_chain_mapping_quality,
+    _query_supply_chain_mapping_review_queue,
+    _query_supply_chain_node_companies,
+    _query_supply_chain_node_evidence,
+    _research_report_text,
+    _review_business_tag_evidence,
+    _review_capex_evidence,
+)
+from app.domains.screening.candidates import (  # noqa: F401
+    VALID_FILTERS,
+    VALID_RESONANCE_LEVELS,
+    _build_evidence_summary,
+    _build_selected_node_thesis,
+    _candidate_matches_node,
+    _candidate_search_terms,
+    _commercialization_cycle,
+    _derive_commercialization_stage,
+    _derive_resonance,
+    _derive_resonance_from_three_factors,
+    _enrich_candidate_with_resonance_v6,
+    _enrich_supply_chain_candidate,
+    _filter_candidate_by_filter_type,
+    _filter_candidate_by_resonance_level,
+    _filter_candidates_for_node,
+    _get_supply_chain_candidate_pool,
+    _node_match_terms,
+    _normalize_match_terms,
+    _pick_products_materials,
+    _query_business_tag_mapping_candidates,
+    _query_latest_market_snapshots,
+    _query_upstream_influence_candidates,
+    _selection_reason,
+    _supply_chain_model_payload,
+)
+from app.domains.screening.modes import (  # noqa: F401
+    _auto_save_snapshot,
+    _candidate_pool_record_safe,
+    _executor,
+    _load_supply_chain_expectation_gap_snapshot,
+    _run_afternoon_mode,
+    _run_bi_full_market_mode,
+    _run_bi_shifu_trend_mode,
+    _run_bi_trend_mode,
+    _run_leader_mode,
+    _run_multifactor_mode,
+    _run_supply_chain_trend_launch_mode,
+)
+
+
+# ── re-export：保持 app.domains.screening.service 的导入路径兼容 ──
+from app.domains.screening.schemas import (  # noqa: F401
+    BusinessTagBatchScoreRequest,
+    BusinessTagEvidenceBatchExtractRequest,
+    BusinessTagEvidenceExtractRequest,
+    BusinessTagEvidenceReviewRequest,
+    BusinessTagExpectationGapScoreRequest,
+    BusinessTagThreeHighScoreRequest,
+    InterpretationResult,
+    LLMUsageInfo,
+    PolicyInterpretRequest,
+    PolicyInterpretResponse,
+    SupplyChainInferredMaterializeRequest,
+    SupplyChainMappingReviewRequest,
+    SupplyChainRefreshWorkflowRequest,
+    _LegacyCandidatePoolQueryResponse,
+    _LegacyCandidatePoolRecordRequest,
+    _LegacyCandidatePoolRecordResponse,
+)
+
+
+from app.domains.screening.contract import (  # noqa: F401
+    _normalize_picks,
+    _sanitize_picks,
+    _screener_data_freshness,
+    _screener_model_metadata,
+    _screener_source_for_mode,
+    _snapshot_rows,
+)
+
+
+from app.domains.screening.data_access import (  # noqa: F401
+    _json_or_default,
+    _load_supply_chain_bom_payload,
+    _pg_column_exists,
+    _pg_connect,
+    _pg_count,
+    _pg_distinct_count,
+    _pg_nonempty_text_count,
+    _pg_table_exists,
+    _row_get,
+    _seed_chain_nodes_for_deconstruct,
+    _status_from_rows,
+    _to_float,
+)
+
+
 """Screener API routes — 12 screening modes via unified endpoint with Redis caching."""
 
+
 import asyncio
+
+
 import hashlib
+
+
 import json
+
+
 import logging
+
+
 import math
+
+
 import os
+
+
 import time
+
+
 from concurrent.futures import ThreadPoolExecutor
+
+
 from datetime import datetime
+
+
 from pathlib import Path
+
+
 from typing import Any, Optional
 
+
 from fastapi import APIRouter, Body, Depends, Header, Query, HTTPException
+
+
 from pydantic import BaseModel, Field
+
+
 import numpy as np
 
+
 from app import candidate_pool_store, watchlist_store
+
+
 from app.config import AVAILABLE_MODES, DEFAULT_TOP_N, MAX_TOP_N
+
+
 from app.database import AsyncSession, get_db
+
+
 from app.jobs.pipeline_runner import finish_persisted_pipeline, submit_persisted_pipeline
+
+
 from app.domains.candidates.models import (
     CandidatePoolQueryResponse,
     CandidatePoolRecordRequest,
@@ -27,15 +184,32 @@ from app.domains.candidates.models import (
     WatchlistAddRequest, WatchlistAddResponse, WatchlistDeleteResponse,
     WatchlistItemResponse, WatchlistQueryResponse,
 )
+
+
 from app.domains.candidates import service as candidate_service
+
+
 from app.domains.supply_chain import service as supply_chain_service
+
+
 from app.domains.supply_chain import repository as supply_chain_repository
+
+
 from app.domains.supply_chain import evidence_review_service
 
+
 logger = logging.getLogger("screener.routes")
+
+
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
+
+
 INDUSTRY_CHAIN_TEMPLATE_PATH = PROJECT_ROOT / "packages" / "kronos-factors" / "configs" / "industry_chain_templates.json"
+
+
 BIGTECH_COMPANIES = {"Microsoft", "Alphabet", "Meta", "Amazon", "Oracle"}
+
+
 AI_COMPUTE_LAYER_KEYWORDS = {
     "demand": ("云", "cloud", "aws", "oci", "AI", "大模型", "算力", "应用"),
     "foundation": ("HBM", "CoWoS", "封装", "服务器", "网络设备", "数据中心土地"),
@@ -43,238 +217,16 @@ AI_COMPUTE_LAYER_KEYWORDS = {
 }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Policy Interpretation Request/Response Models
-# ─────────────────────────────────────────────────────────────────────────────
-
-class PolicyInterpretRequest(BaseModel):
-    """Request model for policy interpretation endpoint."""
-
-    text: str = Field(..., description="Policy document text to interpret")
-    source: Optional[dict[str, Any]] = Field(
-        default=None, description="Source metadata with title/published_at"
-    )
-    persist: bool = Field(default=False, description="Persist result to PG")
-    provider: str = Field(default="deepseek", description="LLM provider to use")
-
-
-class SupplyChainMappingReviewRequest(BaseModel):
-    decision: str = Field(..., description="verified, rejected, needs_more_evidence, or pending_review")
-    reviewer: str = Field(default="system", description="Reviewer name or operator id")
-    note: str = Field(default="", description="Short review note")
-
-
-class BusinessTagEvidenceReviewRequest(BaseModel):
-    review_status: str = Field(..., description="approved, rejected, or pending_review")
-    reviewer: str = Field(..., min_length=1, description="Asserted reviewer name or operator id")
-    note: str = Field(..., min_length=1, description="Short review note")
-    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    stage_after: Optional[dict[str, Any]] = Field(
-        default=None,
-        description="Optional R/C stage after approval, e.g. {'research_stage':'R3','commercialization_stage':'C2'}",
-    )
-
-
-class BusinessTagEvidenceExtractRequest(BaseModel):
-    source_type: str = Field(..., description="announcement_title, research_title, irm_qa, manual, etc.")
-    source_id: Optional[str] = Field(default=None)
-    title: str = Field(default="")
-    excerpt: str = Field(default="")
-    original_url: Optional[str] = Field(default=None)
-    event_date: Optional[str] = Field(default=None)
-    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    persist: bool = Field(default=True, description="Whether to persist as pending_review evidence event")
-
-
-class BusinessTagEvidenceBatchExtractRequest(BaseModel):
-    mapping_id: Optional[str] = Field(default=None, description="Limit extraction to one business-tag mapping")
-    code: Optional[str] = Field(default=None, description="Limit extraction to one stock code")
-    source_types: list[str] = Field(
-        default_factory=lambda: ["announcement_title", "research_title", "irm_qa", "interact_qa"],
-        description="Candidate source types to scan",
-    )
-    limit: int = Field(default=50, ge=1, le=500)
-    persist: bool = Field(default=True)
-
-
-class BusinessTagThreeHighScoreRequest(BaseModel):
-    trade_date: Optional[str] = Field(default=None, description="Score date, default today")
-    persist: bool = Field(default=True, description="Whether to persist the score snapshot")
-
-
-class BusinessTagExpectationGapScoreRequest(BaseModel):
-    trade_date: Optional[str] = Field(default=None, description="Score date, default today")
-    persist: bool = Field(default=True, description="Whether to persist the score snapshot")
-    market_expectation_score: Optional[float] = Field(
-        default=None,
-        ge=0.0,
-        le=100.0,
-        description="Optional market expectation score; defaults to neutral 50 when unavailable",
-    )
-
-
-class BusinessTagBatchScoreRequest(BaseModel):
-    code: Optional[str] = Field(default=None, description="Limit batch scoring to one stock code")
-    node_id: Optional[str] = Field(default=None, description="Limit batch scoring to one supply-chain node")
-    status: Optional[str] = Field(default=None, description="Limit batch scoring to one mapping status")
-    score_types: list[str] = Field(
-        default_factory=lambda: ["three_high", "expectation_gap"],
-        description="Score types to run: three_high and/or expectation_gap",
-    )
-    trade_date: Optional[str] = Field(default=None, description="Score date, default today")
-    persist: bool = Field(default=True, description="Whether to persist score snapshots")
-    market_expectation_score: Optional[float] = Field(default=None, ge=0.0, le=100.0)
-    limit: int = Field(default=100, ge=1, le=500)
-
-
-class SupplyChainRefreshWorkflowRequest(BaseModel):
-    mapping_id: Optional[str] = Field(default=None, description="Limit refresh to one business-tag mapping")
-    code: Optional[str] = Field(default=None, description="Limit refresh to one stock code")
-    node_id: Optional[str] = Field(default=None, description="Limit scoring to one supply-chain node")
-    status: Optional[str] = Field(default=None, description="Limit scoring to one mapping status")
-    source_types: list[str] = Field(
-        default_factory=lambda: ["announcement_title", "research_title", "irm_qa", "interact_qa"],
-        description="Candidate source types to scan for evidence",
-    )
-    score_types: list[str] = Field(
-        default_factory=lambda: ["three_high", "expectation_gap"],
-        description="Score types to run after evidence extraction",
-    )
-    rank_types: list[str] = Field(
-        default_factory=lambda: ["value", "expectation_gap"],
-        description="Ranking previews to return after scoring",
-    )
-    trade_date: Optional[str] = Field(default=None)
-    persist: bool = Field(default=True, description="Whether to persist evidence and score snapshots")
-    market_expectation_score: Optional[float] = Field(default=None, ge=0.0, le=100.0)
-    include_evidence_extract: bool = Field(default=True)
-    include_scores: bool = Field(default=True)
-    include_rankings: bool = Field(default=True)
-    evidence_limit: int = Field(default=50, ge=1, le=500)
-    score_limit: int = Field(default=100, ge=1, le=500)
-    top_n: int = Field(default=20, ge=1, le=200)
-
-
-class SupplyChainInferredMaterializeRequest(BaseModel):
-    theme_id: Optional[str] = Field(default="future_industry_core", description="Limit to one policy theme")
-    node_id: Optional[str] = Field(default=None, description="Limit to one BOM/chain node")
-    code: Optional[str] = Field(default=None, description="Limit to one stock code")
-    status: Optional[str] = Field(default=None, description="Limit to mapping status")
-    trade_date: Optional[str] = Field(default=None, description="Materialization date, default today")
-    limit: int = Field(default=5000, ge=1, le=20000)
-    persist: bool = Field(default=True, description="Whether to persist inferred records")
-    include_three_high: bool = Field(default=True, description="Whether to persist inference-only three-high baseline")
-    include_company_chain_projection: bool = Field(
-        default=True,
-        description="Whether to copy inferred three-high summary back to company_chain_mapping.three_factors",
-    )
-
-
-class InterpretationResult(BaseModel):
-    """Structured interpretation result from LLM."""
-
-    summary: str = Field(default="", description="Brief summary of the policy")
-    industry_themes: list[dict[str, Any]] = Field(
-        default_factory=list, description="Identified industry themes"
-    )
-    bom_nodes: list[str] = Field(
-        default_factory=list, description="Supply-chain BOM nodes mentioned"
-    )
-    investment_logic: str = Field(default="", description="Investment thesis")
-    risk_factors: list[dict[str, Any]] = Field(
-        default_factory=list, description="Risk factors identified"
-    )
-
-
-class LLMUsageInfo(BaseModel):
-    """Token usage telemetry from LLM call."""
-
-    prompt_tokens: int = Field(default=0)
-    completion_tokens: int = Field(default=0)
-    total_tokens: int = Field(default=0)
-    provider: str = Field(default="")
-    model: str = Field(default="")
-
-
-class PolicyInterpretResponse(BaseModel):
-    """Response model for policy interpretation endpoint."""
-
-    status: str = Field(..., description="ok, disabled, or error")
-    interpretation_result: InterpretationResult = Field(
-        default_factory=InterpretationResult
-    )
-    usage: LLMUsageInfo = Field(default_factory=LLMUsageInfo)
-    persisted: bool = Field(default=False)
-    reason: Optional[str] = Field(default=None, description="Error reason if status!=ok")
-
-
 router = APIRouter(prefix="/api/v1/screener", tags=["screener"])
+
+
 _CB_AUCTION_T0_ENGINE = None
+
+
 _CB_AUCTION_T0_V2_ENGINE = None
+
+
 _CB_AUCTION_T0_V21_ENGINE = None
-
-
-def _screener_model_metadata(mode: str) -> dict[str, Any]:
-    if mode == "supply_chain_trend_launch":
-        return {
-            "name": "supply-chain-trend-launch-v1",
-            "version": "trend-launch-v1.0",
-            "provider": "screener-service",
-            "inference_mode": mode,
-        }
-    if mode.startswith("chain:") or mode == "supply_chain":
-        return {
-            "name": "supply-chain-deconstruct-v5",
-            "version": "supply-chain-v5.0",
-            "provider": "screener-service",
-            "inference_mode": mode,
-        }
-    return {
-        "name": "screener-multi-strategy-v2",
-        "version": "screener-contract-v2",
-        "provider": "screener-service",
-        "inference_mode": mode,
-    }
-
-
-def _screener_data_freshness(trade_date: str | None = None, source: str = "daily_kline") -> dict[str, Any]:
-    if not trade_date:
-        return {
-            "status": "unknown",
-            "as_of": None,
-            "source": source,
-            "quality_score": 0,
-        }
-    as_of = str(trade_date)[:10]
-    try:
-        as_date = datetime.fromisoformat(as_of).date()
-        lag_days = max(0, (datetime.now().date() - as_date).days)
-    except Exception:
-        lag_days = 999
-    if lag_days <= 10:
-        status, quality_score = "fresh", 96
-    elif lag_days <= 30:
-        status, quality_score = "stale", 72
-    else:
-        status, quality_score = "outdated", 35
-    return {
-        "status": status,
-        "as_of": as_of,
-        "source": source,
-        "quality_score": quality_score,
-    }
-
-
-def _screener_source_for_mode(mode: str) -> str:
-    if mode in ("cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1"):
-        return "limit_list_d + kpl_list + eastmoney_limit_pool + stk_auction_o"
-    if "auction" in mode:
-        return "stk_auction_o"
-    if mode == "leader_intraday":
-        return "rt_sw_k"
-    if mode == "cb_intraday":
-        return "stk_mins"
-    return "daily_kline"
 
 
 def _with_screener_contract(
@@ -300,163 +252,6 @@ def _with_screener_contract(
     )
     enriched["fallback_reason"] = fallback_reason
     return enriched
-
-
-def _normalize_picks(picks: list, mode: str) -> list:
-    """Normalize engine-specific field names to frontend-expected fields.
-
-    Frontend expects: price, score, grade, entry_price, stop_loss, target_price
-    Different engines use different names, so we normalize here.
-    """
-    for p in picks:
-        code = str(p.get("code") or p.get("ts_code") or "").strip().upper()
-        if code:
-            p["candidate_id"] = p.get("candidate_id") or f"CAND-{mode}-{code}"
-        p["source_module"] = p.get("source_module") or "screener"
-        p["source_mode"] = p.get("source_mode") or mode
-        p["visibility"] = p.get("visibility") or "public"
-        p["data_scope"] = p.get("data_scope") or "public"
-
-        # Normalize price
-        if "price" not in p:
-            if "close" in p:
-                p["price"] = p["close"]
-            elif "current_price" in p:
-                p["price"] = p["current_price"]
-            # leader_auction: no price field, use default placeholder
-            elif "gap_pct" in p:
-                p["price"] = 0  # auction mode doesn't store price
-
-        # Normalize score
-        if "score" not in p:
-            if "total_score" in p:
-                p["score"] = p["total_score"]
-            elif "composite_score" in p:
-                p["score"] = p["composite_score"]
-            elif "gap_score" in p:
-                p["score"] = p.get("total_score", 5.0)
-
-        # Normalize grade (default B if missing)
-        if "grade" not in p:
-            sc = p.get("score", 0)
-            if sc >= 20: p["grade"] = "S"
-            elif sc >= 16: p["grade"] = "A"
-            elif sc >= 10: p["grade"] = "B"
-            else: p["grade"] = "C"
-
-        # Normalize entry/stop/target (fill None or missing values)
-        base_price = p.get("close") or p.get("price") or 0
-        if base_price and float(base_price) > 0:
-            bp = float(base_price)
-            if not p.get("entry_price"):
-                p["entry_price"] = round(bp * 1.01, 2)
-            if not p.get("stop_loss"):
-                p["stop_loss"] = round(bp * 0.93, 2)
-            if not p.get("target_price"):
-                p["target_price"] = round(bp * 1.15, 2)
-
-        # Ensure numeric types
-        for k in ("price", "score", "entry_price", "stop_loss", "target_price"):
-            if k in p and p[k] is not None:
-                try:
-                    p[k] = round(float(p[k]), 2)
-                except (ValueError, TypeError):
-                    pass
-
-    return picks
-
-
-def _snapshot_rows(result: dict) -> list[dict]:
-    """Return the observed factor universe for persistence.
-
-    ``picks`` is the risk-controlled trading list and can be intentionally
-    short in weak markets.  Backtest evidence must use the real scored
-    cross-section when the engine supplies it, without changing the list
-    shown to users or inventing rows.
-    """
-    observations = result.get("factor_observations")
-    if isinstance(observations, list) and observations:
-        return [row for row in observations if isinstance(row, dict) and row.get("code")]
-    picks = result.get("picks")
-    return [row for row in picks if isinstance(row, dict) and row.get("code")] if isinstance(picks, list) else []
-
-
-def _sanitize_picks(picks: list) -> list:
-    """Convert numpy types in picks to native Python types for JSON serialization."""
-    def _convert(v):
-        if isinstance(v, (np.integer,)):
-            return int(v)
-        if isinstance(v, (np.floating,)):
-            return float(v) if not math.isnan(v) else None
-        if isinstance(v, (np.bool_,)):
-            return bool(v)
-        if isinstance(v, np.ndarray):
-            return v.tolist()
-        if isinstance(v, dict):
-            return {k: _convert(vv) for k, vv in v.items()}
-        if isinstance(v, list):
-            return [_convert(vv) for vv in v]
-        return v
-    return [_convert(p) for p in picks]
-
-
-def _load_supply_chain_bom_payload() -> dict:
-    """Load BOM seed config and enrich it for read-only API responses."""
-    return supply_chain_service.load_bom_payload()
-
-
-def _seed_chain_nodes_for_deconstruct(theme_id: str) -> tuple[list[dict[str, Any]], str | None]:
-    """Return BOM seed nodes in the shape expected by chain_deconstruct."""
-    payload = _load_supply_chain_bom_payload()
-    themes = payload.get("themes", [])
-    theme = next((item for item in themes if item.get("theme_id") == theme_id), None)
-    if not theme:
-        return [], None
-
-    level_order = {
-        "theme": 0,
-        "chain": 1,
-        "industry": 1,
-        "component": 2,
-        "material": 2,
-        "equipment": 3,
-        "application": 4,
-    }
-
-    nodes = []
-    for node in payload.get("nodes", []):
-        if node.get("theme_id") != theme_id:
-            continue
-        level = str(node.get("level") or node.get("node_type") or "").lower()
-        nodes.append({
-            "node_id": str(node.get("node_id") or ""),
-            "theme_id": str(node.get("theme_id") or ""),
-            "chain_id": str(node.get("chain_id") or ""),
-            "node_name": str(node.get("name") or node.get("node_name") or ""),
-            "layer": level_order.get(level, 1),
-            "parent_node_id": node.get("parent_node_id") or None,
-            "keywords": node.get("keywords") or [],
-            "node_type": node.get("node_type") or level,
-            "source_level": node.get("level"),
-            "upstream_nodes": node.get("upstream_nodes") or [],
-            "downstream_nodes": node.get("downstream_nodes") or [],
-            "value_chain": node.get("value_chain") or {},
-            "competition": node.get("competition") or {},
-        })
-    return nodes, str(theme.get("name") or theme_id)
-
-
-def _json_or_default(value, default):
-    if value is None:
-        return default
-    if isinstance(value, (dict, list)):
-        return value
-    if isinstance(value, str):
-        try:
-            return json.loads(value)
-        except json.JSONDecodeError:
-            return default
-    return default
 
 
 def _get_factor_db():
@@ -590,468 +385,34 @@ def _query_index_close_quotes(trade_date: Optional[str] = None) -> dict[str, Any
     }
 
 
-def _row_get(row, key, default=None):
-    try:
-        return row[key]
-    except (KeyError, IndexError, TypeError):
-        return default
-
-
-def _query_supply_chain_node_evidence(node_id: str) -> list[dict]:
-    try:
-        from kronos_factors.scorer._db_stub import _get_db
-        with _get_db(readonly=True) as db:
-            rows = db.execute(
-                """
-                SELECT evidence_id, code, evidence_type, summary, excerpt,
-                       confidence, evidence_date, status, source_id
-                FROM company_evidence
-                WHERE node_id = ?
-                ORDER BY confidence DESC
-                LIMIT 100
-                """,
-                (node_id,),
-            ).fetchall()
-        return [{
-            "evidence_id": _row_get(r, "evidence_id"),
-            "code": _row_get(r, "code"),
-            "evidence_type": _row_get(r, "evidence_type"),
-            "summary": _row_get(r, "summary"),
-            "excerpt": _row_get(r, "excerpt"),
-            "confidence": float(_row_get(r, "confidence", 0) or 0),
-            "evidence_date": str(_row_get(r, "evidence_date") or ""),
-            "status": _row_get(r, "status"),
-            "source_id": _row_get(r, "source_id"),
-        } for r in rows]
-    except Exception as e:
-        logger.debug("supply_chain node evidence unavailable (%s): %s", node_id, e)
-        return []
-
-
-def _query_supply_chain_node_companies(node_id: str) -> list[dict]:
-    try:
-        from kronos_factors.scorer._db_stub import _get_db
-        with _get_db(readonly=True) as db:
-            rows = db.execute(
-                """
-                SELECT m.code, COALESCE(s.name, m.code) AS name,
-                       m.product_name, m.material_name, m.confidence, m.status,
-                       sc.total_score, sc.rating, sc.trade_signal, sc.dimension_scores
-                FROM company_bom_mapping m
-                LEFT JOIN stocks s ON s.code = m.code
-                LEFT JOIN supply_chain_scores sc
-                  ON sc.code = m.code
-                 AND (sc.node_id = m.node_id OR sc.node_id IS NULL)
-                WHERE m.node_id = ?
-                  AND m.status IN ('approved', 'pending_review')
-                ORDER BY COALESCE(sc.total_score, 0) DESC, m.confidence DESC
-                LIMIT 50
-                """,
-                (node_id,),
-            ).fetchall()
-        companies = []
-        for idx, r in enumerate(rows, start=1):
-            companies.append({
-                "code": _row_get(r, "code"),
-                "name": _row_get(r, "name"),
-                "rank": idx,
-                "rating": _row_get(r, "rating") or "待评级",
-                "trade_signal": _row_get(r, "trade_signal") or "观察",
-                "score": float(_row_get(r, "total_score", 0) or 0),
-                "product_name": _row_get(r, "product_name"),
-                "material_name": _row_get(r, "material_name"),
-                "confidence": float(_row_get(r, "confidence", 0) or 0),
-                "status": _row_get(r, "status"),
-                "dimension_scores": _json_or_default(_row_get(r, "dimension_scores"), {}),
-            })
-        return companies
-    except Exception as e:
-        logger.debug("supply_chain node companies unavailable (%s): %s", node_id, e)
-        return []
-
-
-def _query_supply_chain_company_detail(code: str) -> dict | None:
-    try:
-        from kronos_factors.scorer._db_stub import _get_db
-        with _get_db(readonly=True) as db:
-            mapping_rows = db.execute(
-                """
-                SELECT m.node_id, m.product_name, m.material_name, m.confidence,
-                       m.evidence_ids, n.name AS node_name, n.theme_id, n.level,
-                       COALESCE(s.name, m.code) AS company_name
-                FROM company_bom_mapping m
-                LEFT JOIN supply_chain_bom_nodes n ON n.node_id = m.node_id
-                LEFT JOIN stocks s ON s.code = m.code
-                WHERE m.code = ?
-                ORDER BY m.confidence DESC
-                """,
-                (code,),
-            ).fetchall()
-            score = db.execute(
-                """
-                SELECT total_score, rating, trade_signal, dimension_scores
-                FROM supply_chain_scores
-                WHERE code = ?
-                ORDER BY trade_date DESC, total_score DESC
-                LIMIT 1
-                """,
-                (code,),
-            ).fetchone()
-            fin = db.execute(
-                """
-                SELECT roe, gross_margin, net_margin, debt_ratio, eps,
-                       revenue_growth, profit_growth, end_date
-                FROM financial_indicator
-                WHERE code = ?
-                ORDER BY end_date DESC
-                LIMIT 1
-                """,
-                (code,),
-            ).fetchone()
-            evidence_rows = db.execute(
-                """
-                SELECT evidence_id, node_id, evidence_type, summary, excerpt,
-                       confidence, evidence_date, status, source_id
-                FROM company_evidence
-                WHERE code = ?
-                ORDER BY confidence DESC
-                LIMIT 100
-                """,
-                (code,),
-            ).fetchall()
-    except Exception as e:
-        logger.debug("supply_chain company detail unavailable (%s): %s", code, e)
-        return None
-
-    payload = _load_supply_chain_bom_payload()
-    theme_by_id = {theme.get("theme_id"): theme for theme in payload["themes"]}
-    node_by_id = {node.get("node_id"): node for node in payload["nodes"]}
-
-    products, materials, paths = [], [], []
-    for row in mapping_rows:
-        product = _row_get(row, "product_name")
-        material = _row_get(row, "material_name")
-        if product and product not in products:
-            products.append(product)
-        if material and material not in materials:
-            materials.append(material)
-        node = node_by_id.get(_row_get(row, "node_id"), {})
-        if node.get("bom_path"):
-            paths.append(node["bom_path"])
-
-    evidence = [{
-        "evidence_id": _row_get(r, "evidence_id"),
-        "node_id": _row_get(r, "node_id"),
-        "evidence_type": _row_get(r, "evidence_type"),
-        "summary": _row_get(r, "summary"),
-        "excerpt": _row_get(r, "excerpt"),
-        "confidence": float(_row_get(r, "confidence", 0) or 0),
-        "evidence_date": str(_row_get(r, "evidence_date") or ""),
-        "status": _row_get(r, "status"),
-        "source_id": _row_get(r, "source_id"),
-    } for r in evidence_rows]
-    moat_evidence = [e for e in evidence if e.get("evidence_type") in {"patent", "moat", "announcement", "capacity", "bidding"}]
-
-    financial_indicators = {}
-    if fin:
-        financial_indicators = {
-            "roe": float(_row_get(fin, "roe", 0) or 0),
-            "gross_margin": float(_row_get(fin, "gross_margin", 0) or 0),
-            "net_margin": float(_row_get(fin, "net_margin", 0) or 0),
-            "debt_ratio": float(_row_get(fin, "debt_ratio", 0) or 0),
-            "eps": float(_row_get(fin, "eps", 0) or 0),
-            "revenue_growth": float(_row_get(fin, "revenue_growth", 0) or 0),
-            "profit_growth": float(_row_get(fin, "profit_growth", 0) or 0),
-            "end_date": str(_row_get(fin, "end_date") or ""),
-        }
-
-    first_node = node_by_id.get(_row_get(mapping_rows[0], "node_id"), {}) if mapping_rows else {}
-    first_theme = theme_by_id.get(first_node.get("theme_id"), {})
-    return {
-        "code": code,
-        "name": _row_get(mapping_rows[0], "company_name") if mapping_rows else code,
-        "node_name": _row_get(mapping_rows[0], "node_name") if mapping_rows else None,
-        "rank": None,
-        "rating": _row_get(score, "rating") if score else None,
-        "trade_signal": (_row_get(score, "trade_signal") if score else None) or "观察",
-        "score": float(_row_get(score, "total_score", 0) or 0) if score else 0,
-        "dimension_scores": _json_or_default(_row_get(score, "dimension_scores") if score else None, {}),
-        "policy_theme": first_theme.get("name", ""),
-        "bom_path": paths[0] if paths else [],
-        "products": products,
-        "materials": materials,
-        "financial_indicators": financial_indicators,
-        "moat_evidence": moat_evidence,
-        "evidence": evidence,
-    }
-
-
-def _to_float(value, default: float = 0.0) -> float:
-    try:
-        if value is None:
-            return default
-        return round(float(value), 4)
-    except (TypeError, ValueError):
-        return default
-
-
-def _pick_products_materials(pick: dict) -> tuple[list[str], list[str]]:
-    product_map = pick.get("company_product_map") if isinstance(pick.get("company_product_map"), dict) else {}
-    products = [v for v in product_map.get("products", []) if v]
-    materials = [v for v in product_map.get("materials", []) if v]
-    layer = pick.get("layer")
-    if layer and layer not in products:
-        products.append(layer)
-    return products, materials
-
-
-def _derive_commercialization_stage(pick: dict) -> str:
-    stage = str(pick.get("commercialization_stage") or "").strip()
-    if stage and stage != "证据待抽取":
-        return stage
-    revenue_growth = _to_float(pick.get("revenue_growth"))
-    profit_growth = _to_float(pick.get("profit_growth"))
-    report_count = int(_to_float(pick.get("report_count")))
-    gross_margin = _to_float(pick.get("gross_margin"))
-    if revenue_growth >= 50 and profit_growth > 0 and report_count >= 20:
-        return "规模推广"
-    if revenue_growth >= 25 and profit_growth > 0:
-        return "量产爬坡"
-    if report_count >= 5 or gross_margin >= 35:
-        return "小批量验证"
-    return "预研验证"
-
-
-def _commercialization_cycle(stage: str) -> str:
-    mapping = {
-        "预研": "早期布局",
-        "预研验证": "早期布局",
-        "中试": "产业验证",
-        "小批量": "小批量验证",
-        "小批量验证": "小批量验证",
-        "量产": "量产启动",
-        "量产爬坡": "量产启动",
-        "规模推广": "业绩兑现",
-        "成熟": "估值扩散",
-    }
-    return mapping.get(stage, "产业验证")
-
-
-def _derive_resonance(pick: dict, stage: str) -> dict:
-    dims = pick.get("dimension_scores") if isinstance(pick.get("dimension_scores"), dict) else {}
-    policy_score = _to_float(dims.get("policy"))
-    revenue_growth = _to_float(pick.get("revenue_growth"))
-    profit_growth = _to_float(pick.get("profit_growth"))
-    trade_signal = str(pick.get("trade_signal") or "观察")
-    policy = "强" if policy_score >= 10 or pick.get("policy_theme") else "中"
-    commercialization = "量产放量" if stage in {"量产爬坡", "规模推广"} else "验证推进"
-    performance = "高增长" if revenue_growth >= 25 and profit_growth > 0 else "待兑现"
-    market = "趋势确认" if trade_signal in {"启动", "强启动"} else "观察跟踪"
-    active = sum([
-        policy == "强",
-        commercialization == "量产放量",
-        performance == "高增长",
-        market == "趋势确认",
-    ])
-    if active >= 4:
-        summary = "政策、商业化、业绩、市场四维共振"
-    elif active >= 3:
-        summary = "政策、商业化、业绩三维共振"
-    elif active >= 2:
-        summary = "政策与产业进程共振，等待市场确认"
+def _query_research_ingestion_status() -> dict:
+    auto_enabled = str(os.environ.get("SUPPLY_CHAIN_REPORT_AUTO_INGEST", "")).lower() in {"1", "true", "yes"}
+    llm_enabled = bool(os.environ.get("DEEPSEEK_API_KEY"))
+    report_freshness = _query_research_report_freshness()
+    source_latest = report_freshness.get("latest_pub_date", "")
+    source_count = int(report_freshness.get("row_count", 0) or 0)
+    if auto_enabled and llm_enabled:
+        status = "enabled"
+        message = f"Tushare研报库已接入，最新研报日期 {source_latest or '未知'}；研报自动采集与LLM抽取已启用，抽取结果进入待审核图谱。"
+    elif auto_enabled:
+        status = "llm_key_missing"
+        message = f"Tushare研报库已接入，最新研报日期 {source_latest or '未知'}；研报自动采集已启用，但缺少LLM密钥，暂不能自动抽取图谱。"
+    elif source_count > 0:
+        status = "local_catalog_available"
+        message = f"Tushare研报库已接入，最新研报日期 {source_latest or '未知'}，但LLM批量抽取和图谱写入调度尚未开启。"
     else:
-        summary = "处于早期跟踪阶段，等待商业化或业绩证据"
+        status = "not_configured"
+        message = "当前未发现本地研报库数据，页面仅支持手工粘贴政策、公告、研报文本进行抽取。"
     return {
-        "policy": policy,
-        "commercialization": commercialization,
-        "performance": performance,
-        "market": market,
-        "summary": summary,
+        "auto_collection_status": status,
+        "llm_auto_extract_enabled": auto_enabled and llm_enabled,
+        "manual_extract_available": True,
+        "batch_extract_endpoint": "/api/v1/screener/supply-chain/research/ingest",
+        "source_table": "research_reports_tushare",
+        "source_latest_pub_date": source_latest,
+        "source_row_count": source_count,
+        "message": message,
     }
-
-
-def _selection_reason(pick: dict, stage: str, products: list[str], materials: list[str], resonance: dict) -> str:
-    name = pick.get("name") or pick.get("code") or "候选公司"
-    chain = pick.get("chain") or "产业链"
-    layer = pick.get("layer") or "关键环节"
-    product_text = "、".join(products[:2]) if products else layer
-    material_text = f"，涉及{'、'.join(materials[:2])}" if materials else ""
-    moat = "、".join((pick.get("moat_signals") or [])[:2])
-    moat_text = f"，护城河信号为{moat}" if moat else ""
-    return (
-        f"{name}入选{chain}-{layer}环节，核心产品/能力为{product_text}{material_text}，"
-        f"商业化阶段为{stage}，{resonance.get('summary', '处于持续跟踪阶段')}{moat_text}。"
-    )
-
-
-def _enrich_supply_chain_candidate(pick: dict, rank: int) -> dict:
-    products, materials = _pick_products_materials(pick)
-    stage = _derive_commercialization_stage(pick)
-    resonance = pick.get("resonance") if isinstance(pick.get("resonance"), dict) else _derive_resonance(pick, stage)
-    financial_indicators = pick.get("financial_indicators") if isinstance(pick.get("financial_indicators"), dict) else {
-        "revenue_growth": _to_float(pick.get("revenue_growth")),
-        "profit_growth": _to_float(pick.get("profit_growth")),
-        "roe": _to_float(pick.get("roe")),
-        "gross_margin": _to_float(pick.get("gross_margin")),
-    }
-    moat_signals = pick.get("moat_signals") if isinstance(pick.get("moat_signals"), list) else []
-    moat_evidence = pick.get("moat_evidence") if isinstance(pick.get("moat_evidence"), list) else [
-        {"evidence_type": "moat_signal", "summary": signal, "confidence": 0.7}
-        for signal in moat_signals
-    ]
-    enriched = dict(pick)
-    enriched.update({
-        "rank": pick.get("rank") or rank,
-        "score": _to_float(pick.get("score") if pick.get("score") is not None else pick.get("total_score")),
-        "rating": pick.get("rating") or pick.get("grade") or "待评级",
-        "trade_signal": pick.get("trade_signal") or "观察",
-        "policy_theme": pick.get("policy_theme") or "未来产业主攻方向",
-        "bom_path": pick.get("bom_path") or [v for v in (pick.get("chain"), pick.get("layer")) if v],
-        "products": products,
-        "materials": materials,
-        "financial_indicators": financial_indicators,
-        "moat_evidence": moat_evidence,
-        "commercialization_stage": stage,
-        "commercialization_cycle": pick.get("commercialization_cycle") or _commercialization_cycle(stage),
-        "resonance": resonance,
-        "selection_reason": pick.get("selection_reason") or _selection_reason(pick, stage, products, materials, resonance),
-        "dimension_scores": pick.get("dimension_scores") if isinstance(pick.get("dimension_scores"), dict) else {},
-        "evidence": pick.get("evidence") if isinstance(pick.get("evidence"), list) else [],
-    })
-    return enriched
-
-
-def _get_supply_chain_candidate_pool(top_n: int = 30, trade_date: Optional[str] = None) -> list[dict]:
-    result = _run_supply_chain_mode("supply_chain", top_n, trade_date)
-    picks = _sanitize_picks(result.get("picks", []))
-    return [_enrich_supply_chain_candidate(pick, idx) for idx, pick in enumerate(picks[:top_n], start=1)]
-
-
-def _query_business_tag_mapping_candidates(top_n: int = 30, node_id: Optional[str] = None) -> list[dict]:
-    safe_top_n = min(MAX_TOP_N, max(1, int(top_n or 30)))
-    conditions = ["COALESCE(m.status, '') <> 'rejected'"]
-    params: list[Any] = []
-    if node_id:
-        conditions.append("m.node_id = %s")
-        params.append(node_id)
-    where = " AND ".join(conditions)
-
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            if not _pg_table_exists(cur, "business_tag_mapping"):
-                return []
-            facts_join = """
-                LEFT JOIN (
-                    SELECT mapping_id,
-                           COUNT(*) AS fact_count,
-                           MAX(created_at) AS latest_fact_at,
-                           MAX(research_stage_signal) FILTER (WHERE research_stage_signal IS NOT NULL) AS research_stage_signal,
-                           MAX(commercial_stage_signal) FILTER (WHERE commercial_stage_signal IS NOT NULL) AS commercial_stage_signal
-                    FROM evidence_extracted_facts
-                    GROUP BY mapping_id
-                ) f ON f.mapping_id = m.mapping_id
-            """ if _pg_table_exists(cur, "evidence_extracted_facts") else "LEFT JOIN (SELECT NULL::text AS mapping_id, 0::int AS fact_count, NULL::timestamp AS latest_fact_at, NULL::text AS research_stage_signal, NULL::text AS commercial_stage_signal) f ON FALSE"
-            freshness_join = """
-                LEFT JOIN business_tag_evidence_freshness fr ON fr.mapping_id = m.mapping_id
-            """ if _pg_table_exists(cur, "business_tag_evidence_freshness") else "LEFT JOIN (SELECT NULL::text AS mapping_id, NULL::text AS freshness_status, NULL::int AS days_since_update) fr ON FALSE"
-            cur.execute(
-                f"""
-                SELECT m.mapping_id, m.code, COALESCE(s.name, m.code) AS name,
-                       m.node_id, COALESCE(n.name, cn.node_name, m.node_id) AS node_name,
-                       m.chain_id, m.theme_id, m.tag_name, m.confidence, m.status,
-                       m.revenue_ratio, m.gross_profit_ratio,
-                       COALESCE(f.fact_count, 0) AS fact_count,
-                       f.latest_fact_at, f.research_stage_signal, f.commercial_stage_signal,
-                       fr.freshness_status, fr.days_since_update, m.updated_at
-                FROM business_tag_mapping m
-                LEFT JOIN stocks s
-                  ON regexp_replace(s.code, '\\.(SZ|SH|BJ)$', '') = regexp_replace(m.code, '\\.(SZ|SH|BJ)$', '')
-                LEFT JOIN supply_chain_bom_nodes n ON n.node_id = m.node_id
-                LEFT JOIN chain_nodes cn ON cn.node_id = m.node_id
-                {facts_join}
-                {freshness_join}
-                WHERE {where}
-                ORDER BY COALESCE(f.fact_count, 0) DESC,
-                         m.confidence DESC NULLS LAST,
-                         m.updated_at DESC NULLS LAST
-                LIMIT %s
-                """,
-                [*params, safe_top_n],
-            )
-            rows = cur.fetchall()
-    except Exception as e:
-        logger.warning("business_tag mapping fallback candidates unavailable: %s", e)
-        return []
-
-    candidates: list[dict] = []
-    for idx, row in enumerate(rows, start=1):
-        confidence = _to_float(row[8], 0.0)
-        fact_count = int(row[12] or 0)
-        freshness_status = str(row[16] or "unknown")
-        evidence_gaps = [] if fact_count > 0 else ["该业务标签暂无结构化证据事实"]
-        if freshness_status in {"unknown", "stale", "expired"}:
-            evidence_gaps.append("证据新鲜度不足，需要补充最新公告、研报或新闻")
-        candidates.append({
-            "rank": idx,
-            "mapping_id": str(row[0]),
-            "code": str(row[1] or ""),
-            "name": str(row[2] or row[1] or ""),
-            "node_id": str(row[3] or ""),
-            "node_name": str(row[4] or ""),
-            "chain": str(row[5] or ""),
-            "policy_theme": str(row[6] or ""),
-            "products": [str(row[7])] if row[7] else [],
-            "materials": [],
-            "mapping_confidence": confidence,
-            "mapping_status": str(row[9] or "pending_review"),
-            "mapping_source": "business_tag_mapping",
-            "mapping_quality_weight": confidence,
-            "score": round(confidence * 100 + min(fact_count, 20), 2),
-            "mapping_adjusted_score": round(confidence * 100 + min(fact_count, 20), 2),
-            "rating": "证据充分" if fact_count >= 3 else "待补证据",
-            "trade_signal": "观察",
-            "financial_indicators": {
-                "revenue_ratio": _to_float(row[10], None),
-                "gross_profit_ratio": _to_float(row[11], None),
-            },
-            "commercialization_stage": row[15] or "待证据确认",
-            "commercialization_cycle": row[14] or "待证据确认",
-            "selection_reason": f"来自业务标签映射，结构化事实 {fact_count} 条",
-            "evidence": [f"结构化事实 {fact_count} 条", f"新鲜度 {freshness_status}"],
-            "evidence_gaps": evidence_gaps,
-            "candidate_source": "business_tag_mapping_fallback",
-            "last_trade_date": str(row[18]) if row[18] else None,
-        })
-    return candidates
-
-
-def _pg_connect():
-    return supply_chain_repository.connect()
-
-
-def _pg_table_exists(cur, table_name: str) -> bool:
-    return supply_chain_repository.table_exists(cur, table_name)
-
-
-def _pg_column_exists(cur, table_name: str, column_name: str) -> bool:
-    return supply_chain_repository.column_exists(cur, table_name, column_name)
-
-
-def _pg_count(cur, table_name: str) -> int:
-    return supply_chain_repository.count(cur, table_name)
-
-
-def _pg_distinct_count(cur, table_name: str, column_name: str) -> int:
-    return supply_chain_repository.distinct_count(cur, table_name, column_name)
-
-
-def _pg_nonempty_text_count(cur, table_name: str, column_name: str, min_length: int = 20) -> int:
-    return supply_chain_repository.nonempty_text_count(cur, table_name, column_name, min_length)
-
-
-def _status_from_rows(rows: int, *, ready: int, partial: int = 1) -> str:
-    return supply_chain_repository.status_from_rows(rows, ready=ready, partial=partial)
 
 
 def _query_supply_chain_data_readiness() -> dict[str, Any]:
@@ -1174,45 +535,119 @@ def _calculate_business_tag_three_high_score(*args, **kwargs): return supply_cha
 
 
 def _l8_dimension_payloads(*args, **kwargs): return supply_chain_service._l8_dimension_payloads(*args, **kwargs)
+
+
 def _matching_l8_dimensions(*args, **kwargs): return supply_chain_service._matching_l8_dimensions(*args, **kwargs)
+
+
 def _l8_source_confidence(*args, **kwargs): return supply_chain_service._l8_source_confidence(*args, **kwargs)
+
+
 def _build_l8_source_evidence_events(*args, **kwargs): return supply_chain_service._build_l8_source_evidence_events(*args, **kwargs)
+
+
 def _build_l8_evidence_status_records(*args, **kwargs): return supply_chain_service._build_l8_evidence_status_records(*args, **kwargs)
+
+
 def _inferred_item_name(*args, **kwargs): return supply_chain_service._inferred_item_name(*args, **kwargs)
+
+
 def _inferred_l4_name(*args, **kwargs): return supply_chain_service._inferred_l4_name(*args, **kwargs)
+
+
 def _inferred_l6_name(*args, **kwargs): return supply_chain_service._inferred_l6_name(*args, **kwargs)
+
+
 def _inferred_l7_name(*args, **kwargs): return supply_chain_service._inferred_l7_name(*args, **kwargs)
+
+
 def _build_inferred_l1_l8_path(*args, **kwargs): return supply_chain_service._build_inferred_l1_l8_path(*args, **kwargs)
+
+
 def _stage_from_inferred_mapping_status(*args, **kwargs): return supply_chain_service._stage_from_inferred_mapping_status(*args, **kwargs)
+
+
 def _inferred_node_bonus(*args, **kwargs): return supply_chain_service._inferred_node_bonus(*args, **kwargs)
+
+
 def _inferred_moat_bonus(*args, **kwargs): return supply_chain_service._inferred_moat_bonus(*args, **kwargs)
+
+
 def _build_inferred_business_tag_materialization(*args, **kwargs): return supply_chain_service._build_inferred_business_tag_materialization(*args, **kwargs)
 
 
 def _query_business_tag_score_mapping_context(*args, **kwargs): return supply_chain_service._query_business_tag_score_mapping_context(*args, **kwargs)
+
+
 def _query_business_tag_stage_for_score(*args, **kwargs): return supply_chain_service._query_business_tag_stage_for_score(*args, **kwargs)
+
+
 def _query_business_tag_events_for_score(*args, **kwargs): return supply_chain_service._query_business_tag_events_for_score(*args, **kwargs)
+
+
 def _persist_business_tag_three_high_score(*args, **kwargs): return supply_chain_service._persist_business_tag_three_high_score(*args, **kwargs)
+
+
 def _business_tag_materialization_tables(*args, **kwargs): return supply_chain_service._business_tag_materialization_tables(*args, **kwargs)
+
+
 def _query_inferred_bom_mapping_rows(*args, **kwargs): return supply_chain_service._query_inferred_bom_mapping_rows(*args, **kwargs)
+
+
 def _query_l8_source_evidence_events_for_mapping(*args, **kwargs): return supply_chain_service._query_l8_source_evidence_events_for_mapping(*args, **kwargs)
+
+
 def _clear_generated_l8_events_for_mapping(*args, **kwargs): return supply_chain_service._clear_generated_l8_events_for_mapping(*args, **kwargs)
+
+
 def _persist_business_tag_mapping(*args, **kwargs): return supply_chain_service._persist_business_tag_mapping(*args, **kwargs)
+
+
 def _persist_business_tag_l8_evidence_status(*args, **kwargs): return supply_chain_service._persist_business_tag_l8_evidence_status(*args, **kwargs)
+
+
 def _persist_business_tag_stage(*args, **kwargs): return supply_chain_service._persist_business_tag_stage(*args, **kwargs)
+
+
 def _persist_inferred_legacy_company_evidence(*args, **kwargs): return supply_chain_service._persist_inferred_legacy_company_evidence(*args, **kwargs)
+
+
 def _persist_legacy_company_evidence_event(*args, **kwargs): return supply_chain_service._persist_legacy_company_evidence_event(*args, **kwargs)
+
+
 def _link_inferred_evidence_to_company_bom_mapping(*args, **kwargs): return supply_chain_service._link_inferred_evidence_to_company_bom_mapping(*args, **kwargs)
+
+
 def _persist_inferred_company_chain_projection(*args, **kwargs): return supply_chain_service._persist_inferred_company_chain_projection(*args, **kwargs)
+
+
 def _materialize_supply_chain_inferred_data(*args, **kwargs): return supply_chain_service._materialize_supply_chain_inferred_data(*args, **kwargs)
+
+
 def _calculate_business_tag_expectation_gap_score(*args, **kwargs): return supply_chain_service._calculate_business_tag_expectation_gap_score(*args, **kwargs)
+
+
 def _persist_business_tag_expectation_gap_score(*args, **kwargs): return supply_chain_service._persist_business_tag_expectation_gap_score(*args, **kwargs)
+
+
 def _score_business_tag_three_high(*args, **kwargs): return supply_chain_service._score_business_tag_three_high(*args, **kwargs)
+
+
 def _query_business_tag_three_high_score(*args, **kwargs): return supply_chain_service._query_business_tag_three_high_score(*args, **kwargs)
+
+
 def _score_business_tag_expectation_gap(*args, **kwargs): return supply_chain_service._score_business_tag_expectation_gap(*args, **kwargs)
+
+
 def _query_business_tag_expectation_gap_score(*args, **kwargs): return supply_chain_service._query_business_tag_expectation_gap_score(*args, **kwargs)
+
+
 def _normalize_batch_score_types(*args, **kwargs): return supply_chain_service._normalize_batch_score_types(*args, **kwargs)
+
+
 def _query_business_tag_mappings_for_batch_score(*args, **kwargs): return supply_chain_service._query_business_tag_mappings_for_batch_score(*args, **kwargs)
+
+
 def _batch_score_business_tags(request):
     return supply_chain_service._batch_score_business_tags(
         request,
@@ -1223,6 +658,8 @@ def _batch_score_business_tags(request):
 
 
 def _normalize_refresh_rank_types(*args, **kwargs): return supply_chain_service._normalize_refresh_rank_types(*args, **kwargs)
+
+
 def _refresh_supply_chain_tracking_workflow(request):
     return supply_chain_service._refresh_supply_chain_tracking_workflow(
         request,
@@ -1230,1125 +667,42 @@ def _refresh_supply_chain_tracking_workflow(request):
         batch_score=_batch_score_business_tags,
         query_rankings=_query_supply_chain_rankings,
     )
+
+
 def _normalize_business_ratio(*args, **kwargs): return supply_chain_service._normalize_business_ratio(*args, **kwargs)
+
+
 def _calculate_company_value_rankings(*args, **kwargs): return supply_chain_service._calculate_company_value_rankings(*args, **kwargs)
+
+
 def _calculate_company_expectation_gap_rankings(*args, **kwargs): return supply_chain_service._calculate_company_expectation_gap_rankings(*args, **kwargs)
+
+
 def _query_supply_chain_rankings(*args, **kwargs): return supply_chain_service._query_supply_chain_rankings(*args, **kwargs)
+
+
 def _candidate_rank_clamp(*args, **kwargs): return supply_chain_service._candidate_rank_clamp(*args, **kwargs)
+
+
 def _normalize_candidate_expectation_gap(*args, **kwargs): return supply_chain_service._normalize_candidate_expectation_gap(*args, **kwargs)
+
+
 def _normalize_candidate_momentum(*args, **kwargs): return supply_chain_service._normalize_candidate_momentum(*args, **kwargs)
+
+
 def _load_bigtech_capex_context(*args, **kwargs): return supply_chain_service._load_bigtech_capex_context(*args, **kwargs)
+
+
 def _score_bigtech_capex_tailwind(*args, **kwargs): return supply_chain_service._score_bigtech_capex_tailwind(*args, **kwargs)
+
+
 def _score_company_capex_evidence(*args, **kwargs): return supply_chain_service._score_company_capex_evidence(*args, **kwargs)
+
+
 def _score_supply_chain_candidate_row(*args, **kwargs): return supply_chain_service._score_supply_chain_candidate_row(*args, **kwargs)
+
+
 def _aggregate_supply_chain_candidate_rows(*args, **kwargs): return supply_chain_service._aggregate_supply_chain_candidate_rows(*args, **kwargs)
-
-
-def _query_supply_chain_candidate_ranking(
-    top_n: int = 100,
-    chain_id: Optional[str] = None,
-    signal: Optional[str] = None,
-) -> dict[str, Any]:
-    safe_top_n = min(200, max(1, int(top_n or 100)))
-    safe_chain_id = str(chain_id or "").strip() or None
-    safe_signal = str(signal or "").strip() or None
-    payload: dict[str, Any] = {
-        "version": "supply-chain-candidate-ranking-v1",
-        "source_status": "unknown",
-        "filters": {"top_n": safe_top_n, "chain_id": safe_chain_id, "signal": safe_signal},
-        "summary": {},
-        "items": [],
-        "by_chain": {},
-        "limitations": [
-            "候选总榜不是买入建议；交易层仍需结合行情、风控和买卖点模型。",
-            "20日涨幅只占2%权重，排序核心是业务标签级证据。",
-        ],
-    }
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            required = [
-                "business_tag_mapping",
-                "business_tag_three_high_scores",
-                "business_tag_expectation_gap_scores",
-                "business_tag_l8_evidence_status",
-                "business_tag_evidence_freshness",
-                "daily_kline",
-            ]
-            missing = [table for table in required if not _pg_table_exists(cur, table)]
-            if missing:
-                payload["source_status"] = "missing_tables"
-                payload["limitations"].append(f"缺少表：{', '.join(missing)}")
-                return payload
-            has_capex_table = _pg_table_exists(cur, "business_tag_capex_evidence")
-            capex_cte = """
-                capex AS (
-                    SELECT
-                        mapping_id,
-                        count(*) FILTER (WHERE review_status = 'approved') AS capex_evidence_count,
-                        count(*) FILTER (WHERE review_status = 'approved' AND capex_amount IS NOT NULL) AS capex_amount_count,
-                        count(*) FILTER (WHERE review_status = 'approved' AND direction_is_ai_related) AS capex_direction_ai_count,
-                        count(*) FILTER (WHERE review_status = 'approved' AND as_of_date >= CURRENT_DATE - INTERVAL '540 days') AS capex_fresh_count,
-                        avg(confidence) FILTER (WHERE review_status = 'approved') AS capex_avg_confidence,
-                        max(as_of_date) FILTER (WHERE review_status = 'approved') AS capex_latest_as_of_date,
-                        jsonb_agg(DISTINCT capex_direction) FILTER (WHERE review_status = 'approved') AS capex_directions
-                    FROM business_tag_capex_evidence
-                    GROUP BY mapping_id
-                ),
-            """ if has_capex_table else ""
-            capex_select = """
-                    coalesce(cx.capex_evidence_count, 0) AS capex_evidence_count,
-                    coalesce(cx.capex_amount_count, 0) AS capex_amount_count,
-                    coalesce(cx.capex_direction_ai_count, 0) AS capex_direction_ai_count,
-                    coalesce(cx.capex_fresh_count, 0) AS capex_fresh_count,
-                    coalesce(cx.capex_avg_confidence, 0) AS capex_avg_confidence,
-                    cx.capex_latest_as_of_date,
-                    coalesce(cx.capex_directions, '[]'::jsonb) AS capex_directions,
-            """ if has_capex_table else """
-                    0 AS capex_evidence_count,
-                    0 AS capex_amount_count,
-                    0 AS capex_direction_ai_count,
-                    0 AS capex_fresh_count,
-                    0 AS capex_avg_confidence,
-                    NULL AS capex_latest_as_of_date,
-                    '[]'::jsonb AS capex_directions,
-            """
-            capex_join = "LEFT JOIN capex cx ON cx.mapping_id = b.mapping_id" if has_capex_table else ""
-            cur.execute(
-                f"""
-                WITH mapping_base AS (
-                    SELECT mapping_id, split_part(code, '.', 1) AS code, chain_id, node_id, tag_name, status AS mapping_status
-                    FROM business_tag_mapping
-                    WHERE chain_id IS NOT NULL
-                      AND COALESCE(status, '') <> 'rejected'
-                ),
-                latest_score AS (
-                    SELECT DISTINCT ON (mapping_id)
-                        mapping_id, trade_date, growth_score, profit_score, moat_score,
-                        stage_score, evidence_score, total_score
-                    FROM business_tag_three_high_scores
-                    ORDER BY mapping_id, trade_date DESC, created_at DESC
-                ),
-                latest_gap AS (
-                    SELECT DISTINCT ON (mapping_id)
-                        mapping_id, expectation_gap_score, gap_type
-                    FROM business_tag_expectation_gap_scores
-                    ORDER BY mapping_id, trade_date DESC, created_at DESC
-                ),
-                latest_stage AS (
-                    SELECT DISTINCT ON (mapping_id)
-                        mapping_id, research_stage, commercialization_stage
-                    FROM business_tag_stage_tracking
-                    ORDER BY mapping_id, trade_date DESC, created_at DESC
-                ),
-                l8 AS (
-                    SELECT mapping_id, count(*) AS l8_total,
-                           count(*) FILTER (WHERE source_status = 'matched') AS l8_matched,
-                           sum(coalesce(evidence_count, 0)) AS l8_evidence_count
-                    FROM business_tag_l8_evidence_status
-                    GROUP BY mapping_id
-                ),
-                facts AS (
-                    SELECT mapping_id, count(*) AS fact_count
-                    FROM evidence_extracted_facts
-                    GROUP BY mapping_id
-                ),
-                {capex_cte}
-                market_latest AS (
-                    SELECT DISTINCT ON (code)
-                        code, trade_date AS latest_trade_date, close AS latest_price, change_pct AS change_1d_pct
-                    FROM daily_kline
-                    ORDER BY code, trade_date DESC
-                ),
-                market_20d AS (
-                    SELECT code,
-                           max(close) FILTER (WHERE rn = 1) AS latest_close,
-                           max(close) FILTER (WHERE rn = 20) AS close_20d
-                    FROM (
-                        SELECT code, trade_date, close,
-                               row_number() OVER (PARTITION BY code ORDER BY trade_date DESC) AS rn
-                        FROM daily_kline
-                    ) x
-                    WHERE rn IN (1, 20)
-                    GROUP BY code
-                )
-                SELECT
-                    b.mapping_id, b.code, coalesce(s.name, b.code) AS name, coalesce(s.industry, '') AS industry,
-                    b.chain_id, b.node_id, b.tag_name, b.mapping_status,
-                    coalesce(sc.growth_score, 0) AS growth_score,
-                    coalesce(sc.profit_score, 0) AS profit_score,
-                    coalesce(sc.moat_score, 0) AS moat_score,
-                    coalesce(sc.stage_score, 0) AS stage_score,
-                    coalesce(sc.evidence_score, 0) AS evidence_score,
-                    coalesce(sc.total_score, 0) AS three_high_total,
-                    coalesce(g.expectation_gap_score, 0) AS expectation_gap_score,
-                    coalesce(g.gap_type, '') AS gap_type,
-                    coalesce(st.research_stage, '') AS research_stage,
-                    coalesce(st.commercialization_stage, '') AS commercialization_stage,
-                    coalesce(l8.l8_total, 0) AS l8_total,
-                    coalesce(l8.l8_matched, 0) AS l8_matched,
-                    CASE WHEN coalesce(l8.l8_total, 0) = 0 THEN 0
-                         ELSE coalesce(l8.l8_matched, 0)::float / l8.l8_total END AS l8_match_rate,
-                    coalesce(l8.l8_evidence_count, 0) AS l8_evidence_count,
-                    coalesce(f.fact_count, 0) AS fact_count,
-                    {capex_select}
-                    CASE WHEN fr.freshness_status = 'fresh' THEN 1.0
-                         WHEN fr.freshness_status = 'stale' THEN 0.6
-                         WHEN fr.freshness_status = 'expired' THEN 0.2
-                         ELSE 0.0 END AS fresh_rate,
-                    coalesce(fr.freshness_status, 'unknown') AS freshness_status,
-                    ml.latest_trade_date, ml.latest_price, ml.change_1d_pct,
-                    CASE WHEN m20.close_20d IS NULL OR m20.close_20d = 0 THEN NULL
-                         ELSE (m20.latest_close / m20.close_20d - 1) * 100 END AS change_20d_pct
-                FROM mapping_base b
-                LEFT JOIN stocks s ON s.code = b.code
-                LEFT JOIN latest_score sc ON sc.mapping_id = b.mapping_id
-                LEFT JOIN latest_gap g ON g.mapping_id = b.mapping_id
-                LEFT JOIN latest_stage st ON st.mapping_id = b.mapping_id
-                LEFT JOIN l8 ON l8.mapping_id = b.mapping_id
-                LEFT JOIN facts f ON f.mapping_id = b.mapping_id
-                {capex_join}
-                LEFT JOIN business_tag_evidence_freshness fr ON fr.mapping_id = b.mapping_id
-                LEFT JOIN market_latest ml ON ml.code = b.code
-                LEFT JOIN market_20d m20 ON m20.code = b.code
-                """,
-            )
-            columns = [desc[0] for desc in cur.description]
-            capex_context = _load_bigtech_capex_context()
-            scored = [_score_supply_chain_candidate_row(dict(zip(columns, row)), capex_context) for row in cur.fetchall()]
-            aggregated = _aggregate_supply_chain_candidate_rows(scored)
-            if safe_chain_id:
-                aggregated = [item for item in aggregated if item.get("chain_id") == safe_chain_id]
-            if safe_signal:
-                aggregated = [item for item in aggregated if item.get("signal") == safe_signal]
-            by_chain: dict[str, list[dict[str, Any]]] = {}
-            for item in aggregated:
-                by_chain.setdefault(str(item.get("chain_id")), [])
-                if len(by_chain[str(item.get("chain_id"))]) < safe_top_n:
-                    by_chain[str(item.get("chain_id"))].append(item)
-            signal_distribution: dict[str, int] = {}
-            for item in aggregated:
-                signal_distribution[str(item.get("signal"))] = signal_distribution.get(str(item.get("signal")), 0) + 1
-            payload["source_status"] = "ready" if aggregated else "empty"
-            payload["summary"] = {
-                "mapping_rows": len(scored),
-                "company_chain_rows": len(aggregated),
-                "chain_count": len({item.get("chain_id") for item in aggregated}),
-                "signal_distribution": signal_distribution,
-                "bigtech_capex_context": {
-                    "company_count": capex_context.get("company_count", 0),
-                    "record_count": capex_context.get("record_count", 0),
-                    "companies": capex_context.get("companies", []),
-                },
-            }
-            payload["items"] = aggregated[:safe_top_n]
-            payload["by_chain"] = by_chain
-    except Exception as e:
-        payload["source_status"] = "degraded"
-        payload["error"] = str(e)
-        payload["limitations"].append("PostgreSQL candidate ranking lookup failed")
-    return payload
-
-
-def _review_business_tag_evidence(
-    event_id: str,
-    request: BusinessTagEvidenceReviewRequest,
-) -> dict[str, Any]:
-    review_status = str(request.review_status or "").strip()
-    decision_by_status = {
-        "approved": "approved",
-        "rejected": "rejected",
-        "pending_review": "needs_more_evidence",
-    }
-    if review_status not in decision_by_status:
-        raise HTTPException(status_code=400, detail=f"Invalid review_status '{request.review_status}'")
-    if not event_id:
-        raise HTTPException(status_code=400, detail="event_id is required")
-    try:
-        result = evidence_review_service.review_event(
-            event_id=event_id,
-            decision=decision_by_status[review_status],
-            reviewer=request.reviewer,
-            note=request.note,
-            confidence=request.confidence,
-            stage_after=request.stage_after,
-        )
-        stage_record = result.get("stage_record")
-        return {
-            **result,
-            "version": "supply-chain-v2-evidence-review",
-            "event_id": event_id,
-            "review_status": review_status,
-            "stage_updated": bool(stage_record),
-            "limitations": list(result.get("limitations") or []),
-        }
-    except HTTPException:
-        raise
-    except LookupError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
-    except Exception as e:
-        logger.warning("business tag evidence review failed: %s", e)
-        raise HTTPException(status_code=500, detail=f"Evidence review failed: {e}") from e
-
-
-def _map_stage_tracking_row(row) -> dict[str, Any]:
-    return {
-        "stage_id": str(row[0]),
-        "trade_date": str(row[1]) if row[1] else None,
-        "research_stage": str(row[2] or "R0"),
-        "commercialization_stage": str(row[3] or "C0"),
-        "stage_reason": row[4],
-        "source_event_id": row[5],
-        "last_stage_change_date": str(row[6]) if row[6] else None,
-        "review_status": str(row[7] or "pending_review"),
-        "created_at": str(row[8]) if row[8] else None,
-        "stage_confirmed": bool(row[5] and str(row[7] or "") == "approved"),
-    }
-
-
-def _query_business_tag_stage(mapping_id: str) -> dict[str, Any]:
-    if not mapping_id:
-        payload = _default_business_tag_stage(mapping_id)
-        payload["source_status"] = "invalid_mapping_id"
-        payload["limitations"].append("mapping_id is empty")
-        return payload
-
-    evidence_payload = _query_business_tag_evidence(mapping_id)
-    evidence_count = int(evidence_payload.get("event_count") or 0)
-    payload = _default_business_tag_stage(mapping_id, evidence_count=evidence_count)
-    payload["mapping"] = evidence_payload.get("mapping")
-
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            if not _pg_table_exists(cur, "business_tag_stage_tracking"):
-                payload["source_status"] = "stage_table_missing"
-                payload["limitations"].append("business_tag_stage_tracking table is missing")
-                return payload
-
-            cur.execute(
-                """
-                SELECT stage_id, trade_date, research_stage, commercialization_stage,
-                       stage_reason, source_event_id, last_stage_change_date,
-                       review_status, created_at
-                FROM business_tag_stage_tracking
-                WHERE mapping_id = %s
-                ORDER BY trade_date DESC, created_at DESC
-                LIMIT 100
-                """,
-                (mapping_id,),
-            )
-            rows = cur.fetchall()
-            if not rows:
-                if evidence_count:
-                    inferred_stage = _stage_from_evidence_events(evidence_payload.get("events") or [])
-                    payload["current_stage"] = inferred_stage
-                    payload["source_status"] = "evidence_inferred" if inferred_stage["stage_confirmed"] else "evidence_pending_stage_review"
-                    payload["limitations"].append("已有证据事件，但还没有形成正式阶段跟踪记录")
-                elif evidence_payload.get("source_status") == "mapping_not_found":
-                    payload["source_status"] = "mapping_not_found"
-                    payload["limitations"].append("未找到业务标签映射，无法判断阶段")
-                return payload
-
-            history = [_map_stage_tracking_row(row) for row in rows]
-            current = history[0]
-            payload.update({
-                "source": "business_tag_stage_tracking",
-                "source_status": "ready",
-                "current_stage": {
-                    "research_stage": current["research_stage"],
-                    "commercialization_stage": current["commercialization_stage"],
-                    "stage_reason": current["stage_reason"],
-                    "stage_confirmed": current["stage_confirmed"],
-                    "review_status": current["review_status"],
-                    "source_event_id": current["source_event_id"],
-                    "last_stage_change_date": current["last_stage_change_date"],
-                },
-                "history": history,
-            })
-    except Exception as e:
-        payload["source_status"] = "degraded"
-        payload["error"] = str(e)
-        payload["limitations"].append("PostgreSQL stage lookup failed")
-    return payload
-
-
-def _query_business_tag_evidence_chain(mapping_id: str) -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "version": "supply-chain-evidence-chain-v1",
-        "mapping_id": mapping_id,
-        "source_status": "unknown",
-        "documents": [],
-        "facts": [],
-        "freshness": {},
-        "stage_transitions": [],
-        "expectations": [],
-        "limitations": [],
-    }
-    if not mapping_id:
-        payload["source_status"] = "invalid_mapping_id"
-        payload["limitations"].append("mapping_id is empty")
-        return payload
-
-    required_tables = [
-        "raw_evidence_documents",
-        "evidence_extracted_facts",
-        "business_tag_evidence_freshness",
-        "business_tag_stage_transition_log",
-        "business_tag_expectation_monitor",
-    ]
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            missing = [table for table in required_tables if not _pg_table_exists(cur, table)]
-            if missing:
-                payload["source_status"] = "table_missing"
-                payload["limitations"].append(f"missing evidence-chain tables: {', '.join(missing)}")
-                return payload
-
-            cur.execute(
-                """
-                SELECT f.fact_id, f.doc_id, f.company_code, f.chain_id, f.l5_tag,
-                       f.l6_route, f.business_segment, f.fact_type, f.fact_nature,
-                       f.fact_value, f.original_quote, f.source_level, f.confidence,
-                       f.confidence_cap, f.research_stage_signal,
-                       f.commercial_stage_signal, f.growth_signal, f.profit_signal,
-                       f.moat_signal, f.risk_signal, f.validation_status,
-                       f.evidence_event_id, f.metadata, f.created_at
-                FROM evidence_extracted_facts f
-                WHERE f.mapping_id = %s
-                ORDER BY f.created_at DESC
-                LIMIT 200
-                """,
-                (mapping_id,),
-            )
-            fact_rows = cur.fetchall()
-            payload["facts"] = [
-                {
-                    "fact_id": str(row[0]),
-                    "doc_id": row[1],
-                    "company_code": row[2],
-                    "chain_id": row[3],
-                    "l5_tag": row[4],
-                    "l6_route": row[5],
-                    "business_segment": row[6],
-                    "fact_type": row[7],
-                    "fact_nature": row[8],
-                    "fact_value": row[9],
-                    "original_quote": row[10],
-                    "source_level": row[11],
-                    "confidence": _to_float(row[12], 0.0),
-                    "confidence_cap": _to_float(row[13], 0.0),
-                    "research_stage_signal": row[14],
-                    "commercial_stage_signal": row[15],
-                    "growth_signal": bool(row[16]),
-                    "profit_signal": bool(row[17]),
-                    "moat_signal": bool(row[18]),
-                    "risk_signal": bool(row[19]),
-                    "validation_status": row[20],
-                    "evidence_event_id": row[21],
-                    "metadata": _json_or_default(row[22], {}),
-                    "created_at": str(row[23]) if row[23] else None,
-                }
-                for row in fact_rows
-            ]
-
-            doc_ids = [row[1] for row in fact_rows if row[1]]
-            if doc_ids:
-                cur.execute(
-                    """
-                    SELECT doc_id, source_id, source_type, source_level, company_code,
-                           company_name, title, publish_time, crawl_time, url,
-                           content_hash, doc_status, license_status, metadata
-                    FROM raw_evidence_documents
-                    WHERE doc_id = ANY(%s)
-                    ORDER BY COALESCE(publish_time, crawl_time) DESC
-                    LIMIT 200
-                    """,
-                    (doc_ids,),
-                )
-                payload["documents"] = [
-                    {
-                        "doc_id": str(row[0]),
-                        "source_id": row[1],
-                        "source_type": row[2],
-                        "source_level": row[3],
-                        "company_code": row[4],
-                        "company_name": row[5],
-                        "title": row[6],
-                        "publish_time": str(row[7]) if row[7] else None,
-                        "crawl_time": str(row[8]) if row[8] else None,
-                        "url": row[9],
-                        "content_hash": row[10],
-                        "doc_status": row[11],
-                        "license_status": row[12],
-                        "metadata": _json_or_default(row[13], {}),
-                    }
-                    for row in cur.fetchall()
-                ]
-
-            cur.execute(
-                """
-                SELECT last_strong_evidence_date, last_mid_evidence_date,
-                       last_weak_signal_date, last_any_evidence_date,
-                       days_since_update, freshness_status, next_review_date,
-                       stale_reason, updated_at
-                FROM business_tag_evidence_freshness
-                WHERE mapping_id = %s
-                LIMIT 1
-                """,
-                (mapping_id,),
-            )
-            row = cur.fetchone()
-            if row:
-                payload["freshness"] = {
-                    "last_strong_evidence_date": str(row[0]) if row[0] else None,
-                    "last_mid_evidence_date": str(row[1]) if row[1] else None,
-                    "last_weak_signal_date": str(row[2]) if row[2] else None,
-                    "last_any_evidence_date": str(row[3]) if row[3] else None,
-                    "days_since_update": row[4],
-                    "freshness_status": row[5],
-                    "next_review_date": str(row[6]) if row[6] else None,
-                    "stale_reason": row[7],
-                    "updated_at": str(row[8]) if row[8] else None,
-                }
-
-            cur.execute(
-                """
-                SELECT transition_id, old_research_stage, new_research_stage,
-                       old_commercial_stage, new_commercial_stage, trigger_fact_id,
-                       trigger_event_id, change_reason, review_status, created_at
-                FROM business_tag_stage_transition_log
-                WHERE mapping_id = %s
-                ORDER BY created_at DESC
-                LIMIT 100
-                """,
-                (mapping_id,),
-            )
-            payload["stage_transitions"] = [
-                {
-                    "transition_id": str(row[0]),
-                    "old_research_stage": row[1],
-                    "new_research_stage": row[2],
-                    "old_commercial_stage": row[3],
-                    "new_commercial_stage": row[4],
-                    "trigger_fact_id": row[5],
-                    "trigger_event_id": row[6],
-                    "change_reason": row[7],
-                    "review_status": row[8],
-                    "created_at": str(row[9]) if row[9] else None,
-                }
-                for row in cur.fetchall()
-            ]
-
-            cur.execute(
-                """
-                SELECT monitor_id, claim_text, claim_date, claim_source_type,
-                       expected_result, expected_date, actual_progress,
-                       gap_status, market_price_change, evidence_ids,
-                       source_doc_id, review_status, metadata, created_at
-                FROM business_tag_expectation_monitor
-                WHERE mapping_id = %s
-                ORDER BY created_at DESC
-                LIMIT 100
-                """,
-                (mapping_id,),
-            )
-            payload["expectations"] = [
-                {
-                    "monitor_id": str(row[0]),
-                    "claim_text": row[1],
-                    "claim_date": str(row[2]) if row[2] else None,
-                    "claim_source_type": row[3],
-                    "expected_result": row[4],
-                    "expected_date": str(row[5]) if row[5] else None,
-                    "actual_progress": row[6],
-                    "gap_status": row[7],
-                    "market_price_change": _to_float(row[8], None),
-                    "evidence_ids": _json_or_default(row[9], []),
-                    "source_doc_id": row[10],
-                    "review_status": row[11],
-                    "metadata": _json_or_default(row[12], {}),
-                    "created_at": str(row[13]) if row[13] else None,
-                }
-                for row in cur.fetchall()
-            ]
-
-            payload["source_status"] = "ready"
-    except Exception as e:
-        payload["source_status"] = "degraded"
-        payload["error"] = str(e)
-        payload["limitations"].append("PostgreSQL evidence-chain lookup failed")
-    return payload
-
-
-def _query_evidence_review_queue(limit: int = 50) -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "version": "supply-chain-evidence-review-queue-v1",
-        "queue": [],
-        "counts": {
-            "stage_transitions": 0,
-            "stale_evidence": 0,
-            "expectations": 0,
-        },
-        "limitations": [],
-    }
-    capped_limit = max(1, min(int(limit or 50), 200))
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            required_tables = [
-                "business_tag_stage_transition_log",
-                "business_tag_evidence_freshness",
-                "business_tag_expectation_monitor",
-            ]
-            missing = [table for table in required_tables if not _pg_table_exists(cur, table)]
-            if missing:
-                payload["limitations"].append(f"missing evidence review tables: {', '.join(missing)}")
-                return payload
-
-            cur.execute(
-                """
-                SELECT transition_id, mapping_id, new_research_stage,
-                       new_commercial_stage, change_reason, review_status, created_at
-                FROM business_tag_stage_transition_log
-                WHERE review_status = 'pending_review'
-                ORDER BY created_at DESC
-                LIMIT %s
-                """,
-                (capped_limit,),
-            )
-            stage_items = [
-                {
-                    "queue_type": "stage_transition",
-                    "id": str(row[0]),
-                    "mapping_id": row[1],
-                    "title": f"阶段待复核 {row[2] or ''}/{row[3] or ''}".strip(),
-                    "summary": row[4],
-                    "review_status": row[5],
-                    "created_at": str(row[6]) if row[6] else None,
-                }
-                for row in cur.fetchall()
-            ]
-            payload["counts"]["stage_transitions"] = len(stage_items)
-
-            cur.execute(
-                """
-                SELECT mapping_id, freshness_status, days_since_update,
-                       stale_reason, next_review_date, updated_at
-                FROM business_tag_evidence_freshness
-                WHERE freshness_status IN ('stale','expired','unknown')
-                ORDER BY
-                    CASE freshness_status WHEN 'expired' THEN 0 WHEN 'unknown' THEN 1 ELSE 2 END,
-                    next_review_date ASC NULLS FIRST
-                LIMIT %s
-                """,
-                (capped_limit,),
-            )
-            freshness_items = [
-                {
-                    "queue_type": "evidence_freshness",
-                    "id": str(row[0]),
-                    "mapping_id": row[0],
-                    "title": f"证据状态 {row[1]}",
-                    "summary": row[3],
-                    "freshness_status": row[1],
-                    "days_since_update": row[2],
-                    "next_review_date": str(row[4]) if row[4] else None,
-                    "created_at": str(row[5]) if row[5] else None,
-                }
-                for row in cur.fetchall()
-            ]
-            payload["counts"]["stale_evidence"] = len(freshness_items)
-
-            cur.execute(
-                """
-                SELECT monitor_id, mapping_id, claim_text, gap_status,
-                       review_status, created_at
-                FROM business_tag_expectation_monitor
-                WHERE gap_status = 'pending'
-                ORDER BY created_at DESC
-                LIMIT %s
-                """,
-                (capped_limit,),
-            )
-            expectation_items = [
-                {
-                    "queue_type": "expectation_monitor",
-                    "id": str(row[0]),
-                    "mapping_id": row[1],
-                    "title": "预期差待验证",
-                    "summary": row[2],
-                    "gap_status": row[3],
-                    "review_status": row[4],
-                    "created_at": str(row[5]) if row[5] else None,
-                }
-                for row in cur.fetchall()
-            ]
-            payload["counts"]["expectations"] = len(expectation_items)
-
-            payload["queue"] = (stage_items + freshness_items + expectation_items)[:capped_limit]
-    except Exception as e:
-        payload["error"] = str(e)
-        payload["limitations"].append("PostgreSQL evidence review queue lookup failed")
-    return payload
-
-
-def _query_capex_evidence_review_queue(
-    limit: int = 50,
-    chain_id: Optional[str] = None,
-    review_status: str = "pending_review",
-) -> dict[str, Any]:
-    capped_limit = max(1, min(int(limit or 50), 200))
-    safe_chain_id = str(chain_id or "").strip() or None
-    safe_status = str(review_status or "pending_review").strip()
-    allowed_statuses = {"pending_review", "approved", "rejected"}
-    if safe_status not in allowed_statuses:
-        safe_status = "pending_review"
-    payload: dict[str, Any] = {
-        "version": "business-tag-capex-evidence-review-queue-v1",
-        "source_status": "unknown",
-        "filters": {"limit": capped_limit, "chain_id": safe_chain_id, "review_status": safe_status},
-        "counts": {},
-        "queue": [],
-        "limitations": [],
-    }
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            if not _pg_table_exists(cur, "business_tag_capex_evidence"):
-                payload["source_status"] = "missing_table"
-                payload["limitations"].append("business_tag_capex_evidence table is missing")
-                return payload
-            params: list[Any] = [safe_status]
-            chain_filter = ""
-            if safe_chain_id:
-                chain_filter = "AND c.chain_id = %s"
-                params.append(safe_chain_id)
-            cur.execute(
-                f"""
-                SELECT c.review_status, count(*)
-                FROM business_tag_capex_evidence c
-                WHERE 1=1 {chain_filter}
-                GROUP BY c.review_status
-                """,
-                params[1:] if safe_chain_id else [],
-            )
-            payload["counts"] = {str(row[0]): int(row[1]) for row in cur.fetchall()}
-            params.append(capped_limit)
-            cur.execute(
-                f"""
-                SELECT
-                    c.capex_evidence_id, c.mapping_id, c.code,
-                    coalesce(c.company_name, s.name, c.code) AS company_name,
-                    coalesce(c.chain_id, m.chain_id, '') AS chain_id,
-                    coalesce(c.node_id, m.node_id, '') AS node_id,
-                    coalesce(m.tag_name, '') AS tag_name,
-                    c.fiscal_period, c.as_of_date, c.capex_amount,
-                    c.capex_amount_unit, c.currency, c.capex_direction,
-                    c.mapped_layer_id, c.mapped_segments, c.source_type,
-                    c.source_level, c.source_name, c.source_url, c.quote,
-                    c.evidence_level, c.confidence, c.review_status,
-                    c.amount_is_total_capex, c.amount_is_segment_capex,
-                    c.direction_is_ai_related, c.metadata, c.created_at
-                FROM business_tag_capex_evidence c
-                LEFT JOIN business_tag_mapping m ON m.mapping_id = c.mapping_id
-                LEFT JOIN stocks s ON s.code = c.code
-                WHERE c.review_status = %s {chain_filter}
-                ORDER BY
-                    c.direction_is_ai_related DESC,
-                    c.confidence DESC,
-                    c.as_of_date DESC,
-                    c.created_at DESC
-                LIMIT %s
-                """,
-                params,
-            )
-            payload["queue"] = [
-                {
-                    "capex_evidence_id": str(row[0]),
-                    "mapping_id": str(row[1]),
-                    "code": str(row[2]),
-                    "company_name": str(row[3] or ""),
-                    "chain_id": str(row[4] or ""),
-                    "node_id": str(row[5] or ""),
-                    "tag_name": str(row[6] or ""),
-                    "fiscal_period": str(row[7] or ""),
-                    "as_of_date": str(row[8]) if row[8] else None,
-                    "capex_amount": _to_float(row[9], None),
-                    "capex_amount_unit": str(row[10] or ""),
-                    "currency": str(row[11] or ""),
-                    "capex_direction": _json_or_default(row[12], []),
-                    "mapped_layer_id": str(row[13] or ""),
-                    "mapped_segments": _json_or_default(row[14], []),
-                    "source_type": str(row[15] or ""),
-                    "source_level": str(row[16] or ""),
-                    "source_name": str(row[17] or ""),
-                    "source_url": str(row[18] or ""),
-                    "quote": str(row[19] or ""),
-                    "evidence_level": str(row[20] or ""),
-                    "confidence": _to_float(row[21], 0.0),
-                    "review_status": str(row[22] or ""),
-                    "amount_is_total_capex": bool(row[23]),
-                    "amount_is_segment_capex": bool(row[24]),
-                    "direction_is_ai_related": bool(row[25]),
-                    "metadata": _json_or_default(row[26], {}),
-                    "created_at": str(row[27]) if row[27] else None,
-                }
-                for row in cur.fetchall()
-            ]
-            payload["source_status"] = "ready"
-    except Exception as e:
-        payload["source_status"] = "degraded"
-        payload["error"] = str(e)
-        payload["limitations"].append("PostgreSQL CAPEX evidence review queue lookup failed")
-    return payload
-
-
-def _review_capex_evidence(
-    capex_evidence_id: str,
-    request: BusinessTagEvidenceReviewRequest,
-) -> dict[str, Any]:
-    allowed_statuses = {"approved", "rejected", "pending_review"}
-    review_status = str(request.review_status or "").strip()
-    if review_status not in allowed_statuses:
-        raise HTTPException(status_code=400, detail=f"Invalid review_status '{request.review_status}'")
-    if not capex_evidence_id:
-        raise HTTPException(status_code=400, detail="capex_evidence_id is required")
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            if not _pg_table_exists(cur, "business_tag_capex_evidence"):
-                raise HTTPException(status_code=503, detail="business_tag_capex_evidence table is missing")
-            cur.execute(
-                """
-                SELECT capex_evidence_id, mapping_id, code, review_status, confidence
-                FROM business_tag_capex_evidence
-                WHERE capex_evidence_id = %s
-                LIMIT 1
-                """,
-                (capex_evidence_id,),
-            )
-            row = cur.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail=f"CAPEX evidence '{capex_evidence_id}' not found")
-            confidence = request.confidence if request.confidence is not None else _to_float(row[4], 0.0)
-            metadata_patch = {
-                "reviewer": request.reviewer,
-                "review_note": request.note,
-                "reviewed_at": datetime.now().isoformat(timespec="seconds"),
-            }
-            cur.execute(
-                """
-                UPDATE business_tag_capex_evidence
-                SET review_status = %s,
-                    confidence = %s,
-                    metadata = metadata || %s::jsonb,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE capex_evidence_id = %s
-                """,
-                (
-                    review_status,
-                    confidence,
-                    json.dumps(metadata_patch, ensure_ascii=False),
-                    capex_evidence_id,
-                ),
-            )
-            pg.commit()
-            return {
-                "version": "business-tag-capex-evidence-review-v1",
-                "capex_evidence_id": str(row[0]),
-                "mapping_id": str(row[1] or ""),
-                "code": str(row[2] or ""),
-                "previous_review_status": str(row[3] or ""),
-                "review_status": review_status,
-                "confidence": confidence,
-                "reviewer": request.reviewer,
-            }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.warning("CAPEX evidence review failed: %s", e)
-        raise HTTPException(status_code=500, detail=f"CAPEX evidence review failed: {e}") from e
-
-
-def _mapping_source_from_evidence(evidence: object) -> str:
-    payload = _json_or_default(evidence, {})
-    if isinstance(payload, dict):
-        return str(payload.get("mapping_source") or payload.get("source") or "")
-    return ""
-
-
-def _mapping_evidence_items(evidence: object) -> list:
-    payload = _json_or_default(evidence, {})
-    if isinstance(payload, dict):
-        items = payload.get("evidence") or []
-        return items if isinstance(items, list) else [items]
-    return []
-
-
-def _mapping_evidence_gaps(evidence: object) -> list:
-    payload = _json_or_default(evidence, {})
-    if isinstance(payload, dict):
-        gaps = payload.get("evidence_gaps") or []
-        return gaps if isinstance(gaps, list) else [gaps]
-    return []
-
-
-def _mapping_review_priority(status: str, confidence: float, source: str) -> float:
-    status_base = {"pending_review": 45.0, "weak_evidence": 35.0, "needs_more_evidence": 40.0}.get(status, 10.0)
-    source_base = {"industry": 22.0, "introduction": 18.0, "research_report": 14.0, "main_business": 8.0}.get(source, 12.0)
-    confidence_gap = max(0.0, 1.0 - confidence) * 25.0
-    return round(status_base + source_base + confidence_gap, 2)
-
-
-def _query_supply_chain_mapping_review_queue(
-    status: str = "reviewable",
-    node_id: Optional[str] = None,
-    chain_id: Optional[str] = None,
-    limit: int = 50,
-    offset: int = 0,
-) -> dict:
-    statuses = ["pending_review", "weak_evidence"] if status == "reviewable" else [status]
-    safe_limit = max(1, min(int(limit or 50), 200))
-    safe_offset = max(0, int(offset or 0))
-    conditions = ["m.status = ANY(%s)"]
-    params: list[object] = [statuses]
-    if node_id:
-        conditions.append("m.node_id = %s")
-        params.append(node_id)
-    if chain_id:
-        conditions.append("COALESCE(n.chain_id, c.evidence->>'chain_id') = %s")
-        params.append(chain_id)
-    where = " AND ".join(conditions)
-    fallback_reason = None
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            cur.execute(
-                f"""
-                SELECT COUNT(*) OVER() AS total_count,
-                       m.code, COALESCE(s.name, m.code) AS name,
-                       m.node_id, COALESCE(n.name, cn.node_name, m.node_id) AS node_name,
-                       COALESCE(n.chain_id, c.evidence->>'chain_id') AS chain_id,
-                       m.product_name, m.material_name, m.confidence, m.status,
-                       c.evidence, m.updated_at
-                FROM company_bom_mapping m
-                LEFT JOIN stocks s ON s.code = m.code
-                LEFT JOIN supply_chain_bom_nodes n ON n.node_id = m.node_id
-                LEFT JOIN chain_nodes cn ON cn.node_id = m.node_id
-                LEFT JOIN company_chain_mapping c ON c.code = m.code AND c.node_id = m.node_id
-                WHERE {where}
-                ORDER BY
-                    CASE m.status WHEN 'pending_review' THEN 1 WHEN 'weak_evidence' THEN 2 ELSE 3 END,
-                    m.confidence DESC,
-                    m.updated_at DESC NULLS LAST
-                LIMIT %s OFFSET %s
-                """,
-                [*params, safe_limit, safe_offset],
-            )
-            rows = cur.fetchall()
-    except Exception as e:
-        logger.debug("supply_chain mapping review queue unavailable: %s", e)
-        return {"total": 0, "limit": safe_limit, "offset": safe_offset, "items": []}
-
-    total = int(rows[0][0] or 0) if rows else 0
-    items = []
-    for row in rows:
-        evidence = row[10]
-        confidence = _to_float(row[8], 0.0)
-        mapping_source = _mapping_source_from_evidence(evidence)
-        mapping_status = str(row[9] or "")
-        items.append({
-            "code": str(row[1] or ""),
-            "name": str(row[2] or ""),
-            "node_id": str(row[3] or ""),
-            "node_name": str(row[4] or ""),
-            "chain_id": str(row[5] or ""),
-            "product_name": row[6],
-            "material_name": row[7],
-            "confidence": confidence,
-            "status": mapping_status,
-            "mapping_source": mapping_source,
-            "evidence": _mapping_evidence_items(evidence),
-            "evidence_gaps": _mapping_evidence_gaps(evidence),
-            "updated_at": str(row[11] or ""),
-            "review_priority": _mapping_review_priority(mapping_status, confidence, mapping_source),
-        })
-    items.sort(key=lambda item: item["review_priority"], reverse=True)
-    return {"total": total, "limit": safe_limit, "offset": safe_offset, "items": items}
-
-
-def _query_supply_chain_mapping_quality() -> dict:
-    status_counts: dict[str, int] = {}
-    source_counts: dict[str, int] = {}
-    hotspot_nodes: list[dict] = []
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            cur.execute("SELECT status, COUNT(*) FROM company_bom_mapping GROUP BY status")
-            for status, count in cur.fetchall():
-                status_counts[str(status or "")] = int(count or 0)
-
-            cur.execute("""
-                SELECT COALESCE(c.evidence->>'mapping_source', 'unknown') AS mapping_source, COUNT(*)
-                FROM company_bom_mapping m
-                LEFT JOIN company_chain_mapping c ON c.code = m.code AND c.node_id = m.node_id
-                GROUP BY mapping_source
-            """)
-            for source, count in cur.fetchall():
-                source_counts[str(source or "unknown")] = int(count or 0)
-
-            cur.execute("""
-                SELECT m.node_id,
-                       COALESCE(n.name, cn.node_name, m.node_id) AS node_name,
-                       COALESCE(n.chain_id, c.evidence->>'chain_id') AS chain_id,
-                       COUNT(*) FILTER (WHERE m.status = 'verified') AS verified,
-                       COUNT(*) FILTER (WHERE m.status = 'pending_review') AS pending_review,
-                       COUNT(*) FILTER (WHERE m.status = 'weak_evidence') AS weak_evidence,
-                       COUNT(*) FILTER (WHERE m.status = 'rejected') AS rejected
-                FROM company_bom_mapping m
-                LEFT JOIN supply_chain_bom_nodes n ON n.node_id = m.node_id
-                LEFT JOIN chain_nodes cn ON cn.node_id = m.node_id
-                LEFT JOIN company_chain_mapping c ON c.code = m.code AND c.node_id = m.node_id
-                GROUP BY m.node_id, n.name, cn.node_name, n.chain_id, c.evidence->>'chain_id'
-                ORDER BY
-                    (COUNT(*) FILTER (WHERE m.status IN ('pending_review', 'weak_evidence'))) DESC,
-                    m.node_id
-                LIMIT 50
-            """)
-            for row in cur.fetchall():
-                pending = int(row[4] or 0)
-                weak = int(row[5] or 0)
-                hotspot_nodes.append({
-                    "node_id": str(row[0] or ""),
-                    "node_name": str(row[1] or ""),
-                    "chain_id": str(row[2] or ""),
-                    "verified": int(row[3] or 0),
-                    "pending_review": pending,
-                    "weak_evidence": weak,
-                    "rejected": int(row[6] or 0),
-                    "review_pressure": pending + weak,
-                })
-    except Exception as e:
-        logger.debug("supply_chain mapping quality unavailable: %s", e)
-
-    return {
-        "mapping_count": sum(status_counts.values()),
-        "status_counts": status_counts,
-        "source_counts": source_counts,
-        "review_queue_count": status_counts.get("pending_review", 0) + status_counts.get("weak_evidence", 0),
-        "hotspot_nodes": hotspot_nodes,
-    }
-
-
-def _apply_supply_chain_mapping_review(
-    code: str,
-    node_id: str,
-    decision: str,
-    reviewer: str = "system",
-    note: str = "",
-) -> dict:
-    from psycopg2.extras import Json
-
-    status_by_decision = {
-        "verified": "verified",
-        "rejected": "rejected",
-        "needs_more_evidence": "weak_evidence",
-        "pending_review": "pending_review",
-    }
-    if decision not in status_by_decision:
-        return {"status": "error", "reason": f"unsupported decision: {decision}"}
-    mapping_status = status_by_decision[decision]
-    review = {
-        "decision": decision,
-        "reviewer": reviewer or "system",
-        "note": note or "",
-        "reviewed_at": datetime.now().isoformat(timespec="seconds"),
-    }
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            cur.execute(
-                """
-                UPDATE company_bom_mapping
-                SET status = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE code = %s AND node_id = %s
-                """,
-                (mapping_status, code, node_id),
-            )
-            if cur.rowcount == 0:
-                pg.rollback()
-                return {"status": "not_found", "reason": "mapping not found", "code": code, "node_id": node_id}
-
-            cur.execute(
-                """
-                SELECT id, evidence
-                FROM company_chain_mapping
-                WHERE code = %s AND node_id = %s
-                """,
-                (code, node_id),
-            )
-            for row_id, evidence in cur.fetchall():
-                payload = _json_or_default(evidence, {})
-                if not isinstance(payload, dict):
-                    payload = {}
-                payload["status"] = mapping_status
-                payload["review"] = review
-                cur.execute(
-                    "UPDATE company_chain_mapping SET evidence = %s WHERE id = %s",
-                    (Json(payload), row_id),
-                )
-            pg.commit()
-    except Exception as e:
-        logger.warning("supply_chain mapping review update failed: %s", e)
-        return {"status": "error", "reason": str(e), "code": code, "node_id": node_id}
-
-    return {
-        "status": "ok",
-        "code": code,
-        "node_id": node_id,
-        "mapping_status": mapping_status,
-        "review": review,
-    }
-
-
-def _query_latest_market_snapshots(codes: list[str], trade_date: Optional[str] = None) -> dict[str, dict]:
-    clean_codes = sorted({str(code) for code in codes if code})
-    if not clean_codes:
-        return {}
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            placeholders = ",".join(["%s"] * len(clean_codes))
-            params: list[object] = clean_codes[:]
-            cutoff = ""
-            if trade_date:
-                cutoff = " AND trade_date <= %s"
-                params.append(trade_date)
-            cur.execute(
-                f"""
-                SELECT DISTINCT ON (code)
-                       code, trade_date, close, change_pct
-                FROM daily_kline
-                WHERE code IN ({placeholders}){cutoff}
-                ORDER BY code, trade_date DESC
-                """,
-                params,
-            )
-            return {
-                str(row[0]): {
-                    "last_trade_date": str(row[1]) if row[1] else "",
-                    "last_price": _to_float(row[2], None),
-                    "last_change_pct": _to_float(row[3], None),
-                }
-                for row in cur.fetchall()
-            }
-    except Exception as e:
-        logger.debug("supply_chain market snapshots unavailable: %s", e)
-        return {}
 
 
 def _attach_market_snapshots(candidates: list[dict], trade_date: Optional[str] = None) -> list[dict]:
@@ -2363,472 +717,6 @@ def _attach_market_snapshots(candidates: list[dict], trade_date: Optional[str] =
             next_candidate.update(snapshot)
         enriched.append(next_candidate)
     return enriched
-
-
-def _query_supply_chain_data_freshness() -> dict:
-    result = {
-        "market": {"latest_trade_date": "", "row_count": 0},
-        "research_reports": {"latest_pub_date": "", "row_count": 0},
-        "broker_recommend": {"latest_month": "", "row_count": 0},
-    }
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            cur.execute("SELECT MAX(trade_date), COUNT(*) FROM daily_kline")
-            latest, count = cur.fetchone()
-            result["market"] = {"latest_trade_date": str(latest or ""), "row_count": int(count or 0)}
-
-            result["research_reports"] = _query_research_report_freshness()
-
-            cur.execute("SELECT MAX(month), COUNT(*) FROM broker_recommend")
-            latest, count = cur.fetchone()
-            result["broker_recommend"] = {"latest_month": str(latest or ""), "row_count": int(count or 0)}
-    except Exception as e:
-        logger.debug("supply_chain data freshness unavailable: %s", e)
-    return result
-
-
-def _query_research_report_freshness() -> dict:
-    result = {"latest_pub_date": "", "row_count": 0}
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            cur.execute("SELECT MAX(pub_date), COUNT(*) FROM research_reports_tushare")
-            latest, count = cur.fetchone()
-            return {"latest_pub_date": str(latest or ""), "row_count": int(count or 0)}
-    except Exception as e:
-        logger.debug("supply_chain research report freshness unavailable: %s", e)
-        return result
-
-
-def _query_recent_research_reports(limit: int = 5, keyword: Optional[str] = None) -> list[dict]:
-    safe_limit = max(1, min(int(limit or 5), 20))
-    params: list[object] = []
-    where = ""
-    if keyword:
-        keyword_text = str(keyword).strip()
-        if keyword_text:
-            where = "WHERE title ILIKE %s OR broker ILIKE %s OR code = %s"
-            params.extend([f"%{keyword_text}%", f"%{keyword_text}%", keyword_text])
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            cur.execute(
-                f"""
-                SELECT code, pub_date, title, broker, rating, target_price
-                FROM research_reports_tushare
-                {where}
-                ORDER BY pub_date DESC NULLS LAST, code
-                LIMIT %s
-                """,
-                [*params, safe_limit],
-            )
-            return [{
-                "code": str(row[0] or ""),
-                "pub_date": str(row[1] or ""),
-                "title": str(row[2] or ""),
-                "broker": str(row[3] or ""),
-                "rating": str(row[4] or "") if row[4] is not None else "",
-                "target_price": _to_float(row[5], None),
-            } for row in cur.fetchall()]
-    except Exception as e:
-        logger.debug("supply_chain recent research reports unavailable: %s", e)
-        return []
-
-
-def _research_report_text(report: dict) -> str:
-    return "\n".join([
-        f"研报标题：{report.get('title') or ''}",
-        f"股票代码：{report.get('code') or ''}",
-        f"发布日期：{report.get('pub_date') or ''}",
-        f"机构/覆盖对象：{report.get('broker') or ''}",
-        f"评级：{report.get('rating') or ''}",
-        f"目标价：{report.get('target_price') or ''}",
-        "说明：当前Tushare研报表提供的是研报元数据，若需全文证据，需要接入研报PDF/正文解析后再进入LLM抽取。",
-    ])
-
-
-def _query_upstream_influence_candidates(limit: int = 50, trade_date: Optional[str] = None) -> list[dict]:
-    """Return companies that affect strategic chains as upstream enablers."""
-    safe_limit = max(1, min(int(limit or 50), 200))
-    try:
-        from kronos_factors.engine.supply_chain import (
-            load_upstream_influence_rules,
-            match_upstream_influence_rules,
-        )
-        rules = load_upstream_influence_rules()
-        if not rules:
-            return []
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            cur.execute(
-                """
-                SELECT s.code, s.name, s.industry, COALESCE(p.main_business, '') AS main_business
-                FROM stocks s
-                LEFT JOIN stock_profiles p ON p.code = s.code
-                WHERE s.is_st = 0
-                """
-            )
-            candidates = []
-            for code, name, industry, main_business in cur.fetchall():
-                matches = match_upstream_influence_rules(
-                    code=str(code or ""),
-                    name=str(name or ""),
-                    industry=str(industry or ""),
-                    main_business=str(main_business or ""),
-                    rules=rules,
-                )
-                for match in matches:
-                    downstream = match.get("downstream_chains") or []
-                    influence_score = min(100.0, 35.0 + len(downstream) * 5.0)
-                    candidates.append({
-                        "code": str(code or ""),
-                        "name": str(name or ""),
-                        "industry": str(industry or ""),
-                        "chain": "上游影响",
-                        "layer": match.get("upstream_node"),
-                        "score": round(influence_score, 1),
-                        "rating": "观察",
-                        "trade_signal": "观察",
-                        "candidate_source": match.get("candidate_source"),
-                        "pool_status": match.get("pool_status"),
-                        "policy_theme": match.get("policy_theme"),
-                        "upstream_node": match.get("upstream_node"),
-                        "impact_role": match.get("impact_role"),
-                        "downstream_chains": downstream,
-                        "influence_paths": match.get("influence_paths") or [],
-                        "evidence_gaps": match.get("evidence_gaps") or [],
-                        "products": [match.get("upstream_node")] if match.get("upstream_node") else [],
-                        "materials": [match.get("upstream_node")] if match.get("upstream_node") else [],
-                        "commercialization_stage": "证据待抽取",
-                        "commercialization_cycle": "上游映射验证",
-                        "resonance": {"summary": "等待产品、客户、量产和财务证据验证"},
-                        "selection_reason": (
-                            f"{name or code}不因{industry or '原行业'}行业被排除，"
-                            f"作为{match.get('impact_role') or '上游使能环节'}进入上游影响观察池；"
-                            "需要继续验证其产品/材料是否真实影响下游战略产业。"
-                        ),
-                    })
-            candidates = _attach_market_snapshots(candidates, trade_date)
-            candidates.sort(
-                key=lambda item: (
-                    float(item.get("score") or 0),
-                    float(item.get("last_change_pct") or 0),
-                ),
-                reverse=True,
-            )
-            return candidates[:safe_limit]
-    except Exception as e:
-        logger.debug("supply_chain upstream influence candidates unavailable: %s", e)
-        return []
-
-
-def _query_research_ingestion_status() -> dict:
-    auto_enabled = str(os.environ.get("SUPPLY_CHAIN_REPORT_AUTO_INGEST", "")).lower() in {"1", "true", "yes"}
-    llm_enabled = bool(os.environ.get("DEEPSEEK_API_KEY"))
-    report_freshness = _query_research_report_freshness()
-    source_latest = report_freshness.get("latest_pub_date", "")
-    source_count = int(report_freshness.get("row_count", 0) or 0)
-    if auto_enabled and llm_enabled:
-        status = "enabled"
-        message = f"Tushare研报库已接入，最新研报日期 {source_latest or '未知'}；研报自动采集与LLM抽取已启用，抽取结果进入待审核图谱。"
-    elif auto_enabled:
-        status = "llm_key_missing"
-        message = f"Tushare研报库已接入，最新研报日期 {source_latest or '未知'}；研报自动采集已启用，但缺少LLM密钥，暂不能自动抽取图谱。"
-    elif source_count > 0:
-        status = "local_catalog_available"
-        message = f"Tushare研报库已接入，最新研报日期 {source_latest or '未知'}，但LLM批量抽取和图谱写入调度尚未开启。"
-    else:
-        status = "not_configured"
-        message = "当前未发现本地研报库数据，页面仅支持手工粘贴政策、公告、研报文本进行抽取。"
-    return {
-        "auto_collection_status": status,
-        "llm_auto_extract_enabled": auto_enabled and llm_enabled,
-        "manual_extract_available": True,
-        "batch_extract_endpoint": "/api/v1/screener/supply-chain/research/ingest",
-        "source_table": "research_reports_tushare",
-        "source_latest_pub_date": source_latest,
-        "source_row_count": source_count,
-        "message": message,
-    }
-
-
-def _normalize_match_terms(values: list[object]) -> set[str]:
-    terms: set[str] = set()
-    for value in values:
-        if value is None:
-            continue
-        if isinstance(value, list):
-            terms.update(_normalize_match_terms(value))
-            continue
-        text = str(value).strip().lower()
-        if text:
-            terms.add(text)
-    return terms
-
-
-def _candidate_search_terms(candidate: dict) -> set[str]:
-    return _normalize_match_terms([
-        candidate.get("chain"),
-        candidate.get("layer"),
-        candidate.get("bom_path") if isinstance(candidate.get("bom_path"), list) else [],
-        candidate.get("products") if isinstance(candidate.get("products"), list) else [],
-        candidate.get("materials") if isinstance(candidate.get("materials"), list) else [],
-        candidate.get("selection_reason"),
-    ])
-
-
-def _node_match_terms(node: dict) -> set[str]:
-    bom_path = node.get("bom_path") if isinstance(node.get("bom_path"), list) else []
-    return _normalize_match_terms([
-        node.get("name"),
-        node.get("chain_id"),
-        node.get("level"),
-        node.get("node_type"),
-        bom_path[1:] if len(bom_path) > 1 else bom_path,
-        node.get("keywords") if isinstance(node.get("keywords"), list) else [],
-    ])
-
-
-def _candidate_matches_node(candidate: dict, node: dict) -> bool:
-    search_text = " ".join(_candidate_search_terms(candidate))
-    node_terms = _node_match_terms(node)
-    return any(term and term in search_text for term in node_terms)
-
-
-def _filter_candidates_for_node(candidates: list[dict], node: dict | None) -> list[dict]:
-    if not node:
-        return []
-    matched = []
-    for candidate in candidates:
-        if _candidate_matches_node(candidate, node):
-            enriched = dict(candidate)
-            enriched["matched_node_id"] = node.get("node_id")
-            enriched["matched_node_name"] = node.get("name")
-            matched.append(enriched)
-    return matched
-
-
-def _build_selected_node_thesis(node: dict | None, node_candidates: list[dict]) -> dict:
-    if not node:
-        return {}
-    keywords = node.get("keywords") if isinstance(node.get("keywords"), list) else []
-    name = node.get("name") or "BOM节点"
-    candidate_count = len(node_candidates)
-    mapping_status = "mapped" if candidate_count else "missing_company_mapping"
-    mapping_message = f"已映射 {candidate_count} 家候选上市公司" if candidate_count else "该节点缺少公司映射证据"
-    return {
-        "node_id": node.get("node_id"),
-        "name": name,
-        "policy_theme": node.get("policy_theme", ""),
-        "bom_path": node.get("bom_path", []),
-        "keywords": keywords,
-        "thesis": (
-            f"{name}是{node.get('policy_theme') or '政策主题'}下的关键BOM节点，"
-            "需要用产品、材料、订单、产能和财务兑现证据验证公司映射。"
-        ),
-        "trigger_conditions": ["政策持续加码", "产品进入量产或规模推广", "订单与产能公告验证", "收入和利润增速同步改善"],
-        "risk_factors": ["商业化进度低于预期", "国产替代节奏放缓", "毛利率下降", "市场交易拥挤"],
-        "mapping_status": mapping_status,
-        "mapping_message": mapping_message,
-    }
-
-
-def _build_evidence_summary(candidates: list[dict]) -> dict:
-    approved = 0
-    pending_review = 0
-    low_confidence = 0
-    for candidate in candidates:
-        evidence = candidate.get("evidence") if isinstance(candidate.get("evidence"), list) else []
-        for item in evidence:
-            status = item.get("status") if isinstance(item, dict) else None
-            confidence = _to_float(item.get("confidence") if isinstance(item, dict) else None)
-            if status == "approved":
-                approved += 1
-            elif status == "pending_review":
-                pending_review += 1
-            if confidence and confidence < 0.5:
-                low_confidence += 1
-    return {
-        "approved": approved,
-        "pending_review": pending_review,
-        "low_confidence": low_confidence,
-    }
-
-
-def _supply_chain_model_payload() -> dict:
-    from kronos_factors.engine.supply_chain_bom_v5 import DIM_WEIGHTS
-
-    dimension_names = {
-        "policy": "政策力度",
-        "bom": "BOM关键度",
-        "chokepoint": "卡脖子/国产替代",
-        "growth": "业绩成长",
-        "profit": "盈利质量",
-        "commercialization": "商业化阶段",
-        "market": "市场共振",
-    }
-    return {
-        "name": "产业链预期差选股模型 V1.0",
-        "version": "1.0",
-        "philosophy": "政策主题定方向，BOM 拆解定环节，上市公司候选池定标的，商业化、政策、业绩、市场共振定启动信号。",
-        "score_dimensions": [
-            {"key": key, "name": dimension_names[key], "weight": weight}
-            for key, weight in DIM_WEIGHTS.items()
-        ],
-    }
-
-# Shared thread pool for offloading synchronous screening engines.
-# Each /run call is serialized behind a max_workers=3 pool to limit
-# concurrent heavy computation (Kronos factor engine + PG queries).
-_executor = ThreadPoolExecutor(max_workers=3)
-
-
-def _auto_save_snapshot(result: dict, mode: str):
-    """Auto-save screening results to JSON file and PG (fire-and-forget).
-
-    Called after every successful screening run. Saves to:
-      - outputs/snapshots/{mode}/{date}_{time_slot}.json
-      - PG screening_snapshots table via recorder.record_picks()
-    """
-    import json, os
-    from datetime import datetime
-
-    picks = result.get("picks", [])
-    snapshot_rows = _snapshot_rows(result)
-    if not snapshot_rows:
-        return
-
-    trade_date = result.get("trade_date") or datetime.now().strftime("%Y-%m-%d")
-    time_slot = result.get("time_slot") or datetime.now().strftime("%H:%M")
-
-    # 1) JSON file snapshot
-    try:
-        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-        snap_dir = os.path.join(repo_root, "outputs", "snapshots", mode)
-        os.makedirs(snap_dir, exist_ok=True)
-
-        snap_path = os.path.join(snap_dir, f"{trade_date}_{time_slot.replace(':', '')}.json")
-        with open(snap_path, "w") as f:
-            json.dump({
-                "mode": mode,
-                "trade_date": trade_date,
-                "time_slot": time_slot,
-                "saved_at": datetime.now().isoformat(),
-                "total_picks": len(picks),
-                "factor_observations": len(snapshot_rows),
-                "picks": picks,
-            }, f, ensure_ascii=False, indent=2, default=str)
-        logger.info("Snapshot saved: %s (%d picks)", snap_path, len(picks))
-    except Exception as e:
-        logger.warning("Snapshot file save failed: %s", e)
-
-    # 2) PG screening_snapshots via recorder
-    try:
-        model_key = mode  # e.g. 'leader_afternoon', 'bi_trend_launch'
-        from kronos_factors.recorder import record_picks
-        n = record_picks(model_key, trade_date, time_slot, snapshot_rows)
-        if n:
-            logger.info("Recorder: %s %s — %d picks", model_key, trade_date, n)
-    except Exception as e:
-        logger.warning("Recorder save failed (PG may not be available): %s", e)
-
-
-async def _candidate_pool_record_safe(
-    db: AsyncSession | None,
-    *,
-    result: dict,
-    mode: str,
-    top_n: int,
-    tenant_id: str | None,
-    owner_user_id: str | None,
-    account_id: str | None,
-    data_scope: str | None,
-) -> None:
-    if db is None:
-        return
-
-    picks = result.get("picks") or []
-    if not picks:
-        return
-
-    resolved_tenant = tenant_id or "tenant-default"
-    resolved_scope = data_scope or ("account" if account_id or owner_user_id else "public")
-    visibility = "public" if resolved_scope == "public" else "private"
-    trade_date = result.get("trade_date") or datetime.now().strftime("%Y-%m-%d")
-    time_slot = result.get("time_slot") or datetime.now().strftime("%H:%M")
-    pool_id = f"POOL-{mode}-{trade_date}-{time_slot.replace(':', '')}-{account_id or owner_user_id or 'public'}"
-
-    try:
-        await candidate_pool_store.record(
-            db,
-            pool_id=pool_id,
-            tenant_id=resolved_tenant,
-            owner_user_id=owner_user_id,
-            account_id=account_id,
-            source_module="screener",
-            source_mode=mode,
-            name=f"{mode} 候选池",
-            candidates=picks,
-            metadata={
-                "trade_date": trade_date,
-                "time_slot": time_slot,
-                "top_n": top_n,
-                "elapsed": result.get("elapsed"),
-            },
-            visibility=visibility,
-            data_scope=resolved_scope,
-        )
-        await db.commit()
-    except Exception as e:
-        await db.rollback()
-        logger.warning("CandidatePool save failed (PG may not be available): %s", e)
-
-
-def _persist_policy_interpretation(
-    text: str,
-    source: dict[str, Any] | None,
-    interpretation: dict[str, Any],
-    usage: LLMUsageInfo,
-) -> dict[str, Any]:
-    """Persist policy interpretation result to policy_interpretations table.
-
-    Args:
-        text: Original policy text
-        source: Source metadata (title, url, etc.)
-        interpretation: Parsed interpretation dict from LLM
-        usage: Token usage telemetry
-
-    Returns:
-        Dict with status and inserted row id
-    """
-    source = source or {}
-    try:
-        with _pg_connect() as pg:
-            cur = pg.cursor()
-            cur.execute(
-                """
-                INSERT INTO policy_interpretations
-                    (source_type, source_content, source_url, interpreted_themes, model_used, tokens_used, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-                """,
-                (
-                    source.get("source_type", "manual"),
-                    text,
-                    source.get("source_url"),
-                    json.dumps(interpretation, ensure_ascii=False),
-                    f"{usage.provider}/{usage.model}",
-                    usage.total_tokens,
-                    datetime.now(),
-                ),
-            )
-            row_id = cur.fetchone()[0]
-            pg.commit()
-            return {"status": "ok", "id": row_id}
-    except Exception as e:
-        logger.warning("policy_interpretation persist failed: %s", e)
-        return {"status": "error", "reason": str(e)}
 
 
 @router.get("/modes")
@@ -3641,46 +1529,6 @@ async def run_screening(
     return response
 
 
-def _run_leader_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run Leader Scalp strategy (daily or intraday)."""
-    from kronos_factors.engine import (
-        run_leader_screening, run_intraday_screening,
-        generate_execution_plan, generate_intraday_plan,
-    )
-    td = _resolve_intraday_trade_date(trade_date) if mode in {"leader_intraday", "leader_closing"} else _resolve_trade_date(trade_date)
-
-    if mode == "leader_auction":
-        from kronos_factors.engine.leader_auction import AuctionScalpEngine
-        engine = AuctionScalpEngine()
-        picks_data = engine.run(trade_date=td, top_n=top_n)
-        engine.close()
-        plans = generate_execution_plan(picks_data) if picks_data else []
-    elif mode == "leader_intraday":
-        result = run_intraday_screening(td or "latest", top_n=top_n)
-        picks_data = result[0] if isinstance(result, tuple) else result
-        plans = generate_intraday_plan(picks_data) if picks_data else []
-    elif mode == "leader_closing":
-        from kronos_factors.engine.leader_closing import run_intraday_screening as run_closing
-        result = run_closing(td or "latest", time_slot="14:40", top_n=top_n)
-        picks_data = result[0] if isinstance(result, tuple) else result
-        plans = generate_intraday_plan(picks_data) if picks_data else []
-    else:
-        result = run_leader_screening(td or "latest", top_n=top_n)
-        picks_data = result[0] if isinstance(result, tuple) else result
-        plans = generate_execution_plan(picks_data) if picks_data else []
-
-    picks_out = _sanitize_picks(picks_data) if picks_data else []
-    picks_out = _normalize_picks(picks_out, mode)
-
-    return {
-        "mode": mode,
-        "trade_date": td,
-        "total_picks": len(picks_out),
-        "picks": picks_out,
-        "execution_plans": plans,
-    }
-
-
 def _run_cb_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
     """Run convertible bond screening modes."""
     from kronos_factors.engine.cb_floor import CbFloorEngine
@@ -3827,100 +1675,6 @@ def _build_cb_t0_process(
     }
 
 
-def _load_supply_chain_expectation_gap_snapshot(top_n: int, trade_date: Optional[str]) -> Optional[dict]:
-    model_key = "supply_chain_expectation_gap_v1"
-    time_slot = "close"
-    try:
-        with _pg_connect() as conn:
-            with conn.cursor() as cur:
-                if not _pg_table_exists(cur, "screening_snapshots"):
-                    return None
-                resolved_trade_date = trade_date
-                if not resolved_trade_date:
-                    cur.execute(
-                        """
-                        SELECT max(trade_date)
-                        FROM screening_snapshots
-                        WHERE model_key = %s AND time_slot = %s
-                        """,
-                        (model_key, time_slot),
-                    )
-                    row = cur.fetchone()
-                    resolved_trade_date = str(row[0]) if row and row[0] else None
-                if not resolved_trade_date:
-                    return None
-                cur.execute(
-                    """
-                    SELECT
-                        ss.stock_code,
-                        coalesce(s.name, split_part(ss.stock_code, '.', 1)) AS name,
-                        ss.total_score,
-                        ss.grade,
-                        ss.rank_in_day,
-                        ss.factors,
-                        ss.trade_date
-                    FROM screening_snapshots ss
-                    LEFT JOIN stocks s ON s.code = split_part(ss.stock_code, '.', 1)
-                    WHERE ss.model_key = %s
-                      AND ss.time_slot = %s
-                      AND ss.trade_date = %s
-                    ORDER BY ss.rank_in_day ASC
-                    LIMIT %s
-                    """,
-                    (model_key, time_slot, resolved_trade_date, top_n),
-                )
-                rows = cur.fetchall()
-        if not rows:
-            return None
-        picks = []
-        for stock_code, name, total_score, grade, rank, factors, row_trade_date in rows:
-            if isinstance(factors, str):
-                factors = json.loads(factors)
-            if not isinstance(factors, dict):
-                factors = {}
-            pick = {
-                "rank": int(rank or len(picks) + 1),
-                "code": str(stock_code),
-                "name": str(name),
-                "score": _to_float(total_score, 0.0),
-                "total_score": _to_float(total_score, 0.0),
-                "grade": str(grade or ""),
-                "signal": factors.get("signal_tier"),
-                "industry": factors.get("chain_id") or "产业链预期差",
-                "chain_id": factors.get("chain_id"),
-                "tag_name": factors.get("tag_name"),
-                "source_mode": "supply_chain",
-                "trade_date": str(row_trade_date),
-            }
-            for key in (
-                "expectation_gap_score",
-                "reliability_adjusted_gap_score",
-                "evidence_quality_score",
-                "label_fit_score",
-                "reassessment_status",
-                "gap_momentum_score",
-                "three_high_total",
-                "growth_score",
-                "profit_score",
-                "moat_score",
-            ):
-                if key in factors:
-                    pick[key] = factors.get(key)
-            picks.append(pick)
-        return {
-            "mode": "supply_chain",
-            "model_key": model_key,
-            "trade_date": str(rows[0][6]),
-            "total_picks": len(picks),
-            "picks": picks,
-            "source": "screening_snapshots",
-            "score_contract": "reassessment_adjusted",
-        }
-    except Exception as exc:
-        logger.warning("Load supply-chain expectation-gap snapshot failed: %s", exc)
-        return None
-
-
 def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
     """Run the supply-chain entry, preferring expectation-gap registered snapshots."""
     snapshot = _load_supply_chain_expectation_gap_snapshot(top_n, trade_date)
@@ -3956,171 +1710,6 @@ def _run_supply_chain_mode(mode: str, top_n: int, trade_date: Optional[str]) -> 
         "total_picks": len(picks),
         "picks": picks,
     }
-
-
-def _run_supply_chain_trend_launch_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run 产业链趋势启动选股 vFinal."""
-    from kronos_factors.engine.supply_chain_trend import TrendLaunchEngine
-
-    resolved_trade_date = _resolve_trade_date(trade_date)
-    engine = TrendLaunchEngine()
-    result = engine.run(top_n=top_n, trade_date=resolved_trade_date)
-
-    picks = result.picks
-    picks = _sanitize_picks(picks)
-    for p in picks:
-        sc = p.get("total_score", 0)
-        if sc >= 75: p["grade"] = "S"
-        elif sc >= 60: p["grade"] = "A"
-        elif sc >= 45: p["grade"] = "B"
-        else: p["grade"] = "C"
-
-    return {
-        "mode": mode,
-        "trade_date": resolved_trade_date,
-        "total_picks": len(picks),
-        "picks": picks,
-        "metadata": result.metadata,
-    }
-
-
-def _run_multifactor_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run multi-factor mode (short/chokepoint)."""
-    from kronos_factors.engine.modes import (
-        ShortModeEngine, ChokepointEngine,
-    )
-
-    engine_map = {
-        "short": ShortModeEngine,
-        "chokepoint": ChokepointEngine,
-    }
-    engine = engine_map[mode]()
-    result = engine.run(top_n=top_n)
-
-    picks = _sanitize_picks(result.picks)
-    picks = _normalize_picks(picks, mode)
-
-    return {
-        "mode": result.mode,
-        "market_env": result.market_env,
-        "total_scored": result.total_scored,
-        "total_excluded": result.total_excluded,
-        "picks": picks,
-        "factor_weights": engine.get_factor_weights(),
-    }
-
-
-def _run_bi_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run 毕师傅趋势启动战法 V13 (OBV+WR trend launch screening + 黑天鹅防护 + 止损降权分散 + 智能卖出决策树)."""
-    from kronos_factors.engine.bi_trend_launch import BiTrendLaunchEngine, generate_bi_plan
-
-    resolved_trade_date = _resolve_trade_date(trade_date)
-    engine = BiTrendLaunchEngine()
-    picks, factor_observations, market_info = engine.run_with_scores(
-        top_n=top_n, trade_date=resolved_trade_date
-    )
-
-    picks = _sanitize_picks(picks)
-    factor_observations = _sanitize_picks(factor_observations)
-    picks = _normalize_picks(picks, mode)
-
-    # Generate execution plans with market regime awareness
-    regime = "neutral"
-    plans = generate_bi_plan(picks, market_regime=regime) if picks else []
-
-    return {
-        "mode": mode,
-        "trade_date": resolved_trade_date,
-        "total_picks": len(picks),
-        "picks": picks,
-        "factor_observations": factor_observations,
-        "market_info": market_info,
-        "execution_plans": plans,
-    }
-
-
-def _run_bi_full_market_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run 毕师傅全市场趋势启动战法 V1.0 (全市场 + VR过滤)."""
-    from kronos_factors.engine.bi_trend_full_market import BiTrendFullMarketEngine, generate_bi_plan
-
-    engine = BiTrendFullMarketEngine()
-    picks = engine.run(top_n=top_n, trade_date=trade_date, hard_tech_only=False)
-
-    picks = _sanitize_picks(picks)
-    picks = _normalize_picks(picks, mode)
-
-    regime = "neutral"
-    plans = generate_bi_plan(picks, market_regime=regime) if picks else []
-
-    return {
-        "mode": mode,
-        "trade_date": trade_date,
-        "total_picks": len(picks),
-        "picks": picks,
-        "execution_plans": plans,
-    }
-
-
-def _run_bi_shifu_trend_mode(mode: str, top_n: int, trade_date: Optional[str]) -> dict:
-    """Run 毕师傅趋势战法正式版或候选 V2.3。"""
-    from kronos_factors.engine.bi_shifu_trend import BiShifuTrendEngine, BiShifuTrendV23Engine
-
-    resolved_trade_date = _resolve_trade_date(trade_date)
-    engine = BiShifuTrendV23Engine() if mode == "bi_shifu_trend_v23" else BiShifuTrendEngine()
-    if hasattr(engine, "run_with_metadata"):
-        picks, data_quality = engine.run_with_metadata(top_n=top_n, trade_date=resolved_trade_date)
-    else:
-        picks = engine.run(top_n=top_n, trade_date=resolved_trade_date)
-        data_quality = {}
-
-    picks = _sanitize_picks(picks)
-    picks = _normalize_picks(picks, mode)
-
-    return {
-        "mode": mode,
-        "trade_date": resolved_trade_date,
-        "total_picks": len(picks),
-        "picks": picks,
-        "data_quality": data_quality,
-    }
-
-
-def _run_afternoon_mode(
-    mode: str,
-    top_n: int,
-    trade_date: Optional[str],
-    time_slot: str = "14:30",
-) -> dict:
-    """Run 秋神龙头战法-午后选股 V1.0 at the requested time slot."""
-    from kronos_factors.engine.leader_afternoon import (
-        AfternoonLeaderEngine,
-        AfternoonTrendFullEngine,
-        build_sector_resonance_summary,
-        resolve_afternoon_trade_date,
-    )
-
-    is_full = mode == "leader_afternoon_trend_full"
-    engine = AfternoonTrendFullEngine() if is_full else AfternoonLeaderEngine()
-    run_top_n = max(top_n, 30) if is_full else top_n
-    if trade_date is None:
-        with _get_factor_db() as db:
-            trade_date = resolve_afternoon_trade_date(db)
-    picks = engine.run(top_n=run_top_n, trade_date=trade_date, time_slot=time_slot)
-
-    picks = _sanitize_picks(picks)
-    picks = _normalize_picks(picks, mode)
-    sector_resonance = build_sector_resonance_summary(picks) if is_full else []
-
-    result = {
-        "mode": mode,
-        "trade_date": trade_date,
-        "time_slot": time_slot,
-        "total_picks": len(picks),
-        "picks": picks,
-    }
-    if is_full:
-        result["sector_resonance"] = sector_resonance
-    return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -4288,180 +1877,6 @@ async def chain_node_companies(node_id: str):
         raise HTTPException(status_code=500, detail=f"Database query failed: {e}")
 
 
-def _derive_resonance_from_three_factors(three_factors: dict) -> dict:
-    """Derive resonance summary from three_factors JSONB field.
-
-    three_factors structure (from PRD):
-    {
-        "industry_cycle": {"stage": "量产", "score": 9},
-        "policy_intensity": {"stars": 4, "score": 12},
-        "performance_proof": {"status": "业绩兑现", "score": 10}
-    }
-    """
-    if not three_factors:
-        return {"summary": "待评估", "dimensions": {}}
-
-    industry_cycle = three_factors.get("industry_cycle", {})
-    policy_intensity = three_factors.get("policy_intensity", {})
-    performance_proof = three_factors.get("performance_proof", {})
-
-    dims = {
-        "industry_cycle": {
-            "stage": industry_cycle.get("stage", "未知"),
-            "score": _to_float(industry_cycle.get("score"), 0),
-        },
-        "policy_intensity": {
-            "stars": int(policy_intensity.get("stars", 0)),
-            "score": _to_float(policy_intensity.get("score"), 0),
-        },
-        "performance_proof": {
-            "status": performance_proof.get("status", "待验证"),
-            "score": _to_float(performance_proof.get("score"), 0),
-        },
-    }
-
-    # Count how many dimensions are "达标" (score >= threshold)
-    cycle_ok = dims["industry_cycle"]["score"] >= 9  # 量产/放量
-    policy_ok = dims["policy_intensity"]["stars"] >= 4
-    perf_ok = dims["performance_proof"]["score"] >= 10
-
-    active_count = sum([cycle_ok, policy_ok, perf_ok])
-
-    if active_count >= 3:
-        summary = "三因子共振 — 强启动信号"
-    elif active_count >= 2:
-        summary = "双因子共振 — 关注信号"
-    elif active_count >= 1:
-        summary = "单因子达标 — 观察信号"
-    else:
-        summary = "待兑现 — 暂无共振"
-
-    return {
-        "summary": summary,
-        "dimensions": dims,
-        "active_count": active_count,
-    }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Chain Candidates Endpoint (Phase 3)
-# ─────────────────────────────────────────────────────────────────────────────
-
-VALID_FILTERS = frozenset({
-    "high_growth", "high_profit", "high_moat", "chokepoint_core", "all"
-})
-
-VALID_RESONANCE_LEVELS = frozenset({
-    "强启动", "启动", "关注", "观察"
-})
-
-
-def _enrich_candidate_with_resonance_v6(candidate: dict) -> dict:
-    """Enrich a candidate with V6 three-factor resonance scoring."""
-    from kronos_factors.engine.supply_chain_bom_v5 import (
-        derive_resonance_v6,
-        classify_chokepoint_level,
-        CHOKEPOINT_CORE_KEYWORDS,
-    )
-
-    # Extract stage from candidate
-    stage = candidate.get("commercialization_stage")
-    if not stage or stage == "证据待抽取":
-        stage = candidate.get("stage")
-
-    # Compute V6 resonance scores
-    resonance_v6 = derive_resonance_v6(candidate, stage)
-
-    # Determine chokepoint level from dimension_scores keywords
-    dim_scores = candidate.get("dimension_scores") if isinstance(candidate.get("dimension_scores"), dict) else {}
-    chokepoint_score = _to_float(dim_scores.get("chokepoint", 0))
-    evidence = candidate.get("evidence") if isinstance(candidate.get("evidence"), list) else []
-    keywords = []
-    for item in evidence:
-        if isinstance(item, dict):
-            kw_list = item.get("keywords") or item.get("chokepoint")
-            if isinstance(kw_list, list):
-                keywords.extend([str(k) for k in kw_list if k])
-            elif isinstance(kw_list, str):
-                keywords.append(kw_list)
-
-    chokepoint_level = classify_chokepoint_level(chokepoint_score, keywords)
-
-    enriched = dict(candidate)
-    enriched.update({
-        "three_factor_scores": {
-            "industry_cycle": resonance_v6["industry_cycle_score"],
-            "policy_intensity": resonance_v6["policy_intensity_score"],
-            "performance_yield": resonance_v6["performance_yield_score"],
-        },
-        "resonance_factors": resonance_v6["resonance_factors"],
-        "resonance_signal": resonance_v6["resonance_signal"],
-        "resonance_details": resonance_v6["resonance_details"],
-        "chokepoint_level": chokepoint_level,
-        "chokepoint_keywords": [k for k in keywords if k in CHOKEPOINT_CORE_KEYWORDS] if keywords else [],
-    })
-
-    # Preserve existing resonance if available (backward compatibility)
-    if not enriched.get("resonance"):
-        enriched["resonance"] = {
-            "summary": resonance_v6["resonance_signal"],
-            "dimensions": resonance_v6["resonance_details"],
-        }
-
-    return enriched
-
-
-def _filter_candidate_by_filter_type(candidate: dict, filter_type: str) -> bool:
-    """Filter candidate by filter type criteria.
-
-    Filter criteria:
-    - high_growth: performance_yield >= 15 (yoy >= 50%)
-    - high_profit: gross_margin >= 50%
-    - high_moat: chokepoint_score >= 10
-    - chokepoint_core: chokepoint_level == "卡脖子核心"
-    - all: no filter
-    """
-    if filter_type == "all":
-        return True
-
-    three_factors = candidate.get("three_factor_scores") if isinstance(candidate.get("three_factor_scores"), dict) else {}
-    dim_scores = candidate.get("dimension_scores") if isinstance(candidate.get("dimension_scores"), dict) else {}
-
-    if filter_type == "high_growth":
-        perf_yield = _to_float(three_factors.get("performance_yield", 0))
-        return perf_yield >= 15.0
-
-    if filter_type == "high_profit":
-        gross_margin = _to_float(candidate.get("gross_margin", 0))
-        profit_dim = _to_float(dim_scores.get("profit", 0))
-        # High profit: gross_margin >= 50% OR profit_dim >= 10 (V5 max)
-        return gross_margin >= 50.0 or profit_dim >= 10.0
-
-    if filter_type == "high_moat":
-        chokepoint_score = _to_float(dim_scores.get("chokepoint", 0))
-        choke_keywords = candidate.get("chokepoint_keywords") if isinstance(candidate.get("chokepoint_keywords"), list) else []
-        # High moat: chokepoint_score >= 6 OR has chokepoint keywords
-        return chokepoint_score >= 6.0 or len(choke_keywords) > 0
-
-    if filter_type == "chokepoint_core":
-        chokepoint_level = str(candidate.get("chokepoint_level") or "")
-        return chokepoint_level == "卡脖子核心"
-
-    return True
-
-
-def _filter_candidate_by_resonance_level(candidate: dict, resonance_level: str | None) -> bool:
-    """Filter candidate by resonance level.
-
-    resonance_level options: 强启动, 启动, 关注, 观察
-    """
-    if not resonance_level:
-        return True
-
-    signal = str(candidate.get("resonance_signal") or candidate.get("trade_signal") or "观察")
-    return signal == resonance_level
-
-
 @router.get(
     "/chain/candidates",
     response_model=dict,
@@ -4578,60 +1993,6 @@ async def chain_candidates(
         "resonance_summary": resonance_summary,
         "elapsed": round(time.time() - t0, 2),
     }
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Candidate Pool REST API — 解封"选股 → 加候选池 → 决策"咽喉
-#
-# Scope（tenant_id / owner_user_id / account_id）全部从认证头注入，前端绝不传明文。
-# pool_id 由后端按 POOL-{mode}-{trade_date}-{time_slot}-{scope} 生成（幂等 UPSERT）。
-# ─────────────────────────────────────────────────────────────────────────────
-
-class _LegacyCandidatePoolRecordRequest(BaseModel):
-    """POST /screener/candidate-pool 入参。
-
-    scope 字段（tenant/owner/account）不在此处——由后端从认证头注入。
-    """
-
-    source_module: str = Field(..., description="来源模块，如 screener / strategy / signal")
-    source_mode: str = Field(..., description="来源模式，如 leader_auction / bi_trend_launch")
-    name: str = Field(..., description="候选池名称")
-    candidates: list[dict[str, Any]] = Field(
-        default_factory=list, description="候选快照列表（每项含 candidate_id/code/score 等）"
-    )
-    candidate_pool_metadata: dict[str, Any] = Field(
-        default_factory=dict, description="附加元数据（trade_date/time_slot/top_n 等）"
-    )
-    visibility: str = Field(default="private", description="可见性：private / tenant_shared / public")
-    data_scope: str = Field(default="account", description="数据范围：account / tenant / public")
-    trade_date: Optional[str] = Field(default=None, description="交易日 YYYY-MM-DD，用于 pool_id 生成")
-    time_slot: Optional[str] = Field(default=None, description="时段 HH:MM，用于 pool_id 生成")
-
-
-class _LegacyCandidatePoolRecordResponse(BaseModel):
-    """POST /screener/candidate-pool 响应。"""
-
-    pool_id: str = Field(..., description="后端生成的候选池 ID")
-    id: Optional[int] = Field(default=None, description="数据库行 id（PG 不可用时为 None）")
-    created_at: Optional[str] = Field(default=None, description="创建时间 ISO（PG 不可用时为 None）")
-    fallback_reason: Optional[str] = Field(
-        default=None, description="非空表示降级（如 PG 不可用、db 未注入），已忽略写入"
-    )
-
-
-class _LegacyCandidatePoolQueryResponse(BaseModel):
-    """GET /screener/candidate-pool 响应。"""
-
-    total: int = Field(..., description="满足 scope 过滤的总记录数")
-    page: int = Field(..., description="当前页码")
-    page_size: int = Field(..., description="每页大小")
-    records: list[dict[str, Any]] = Field(default_factory=list, description="候选池记录列表")
-    empty_state: Optional[dict[str, Any]] = Field(
-        default=None, description="无数据时的空态提示（含 hint / suggestion）"
-    )
-    fallback_reason: Optional[str] = Field(
-        default=None, description="非空表示降级（如 PG 不可用、db 未注入）"
-    )
 
 
 @router.post(
