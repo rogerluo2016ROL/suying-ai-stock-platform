@@ -1,11 +1,15 @@
 FROM node:20-slim AS lark-cli
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+ARG APT_MIRROR=deb.debian.org
+# deb.debian.org 国内拉取极慢时可传 --build-arg APT_MIRROR=mirrors.aliyun.com
+RUN sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && npm install -g @larksuite/cli@1.0.69 \
     && rm -rf /var/lib/apt/lists/*
 
 FROM python:3.11-slim
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ARG PIP_DEFAULT_TIMEOUT=60
+ARG APT_MIRROR=deb.debian.org
 ENV PIP_INDEX_URL=$PIP_INDEX_URL PIP_DEFAULT_TIMEOUT=$PIP_DEFAULT_TIMEOUT
 
 WORKDIR /app
@@ -14,7 +18,8 @@ RUN pip install --no-cache-dir /app/packages/kronos-contracts
 
 # System deps: gcc/g++ for psycopg2 build, tzdata for cron 时区;
 # chromium + fonts-noto-cjk 用于早报海报 SVG → PNG 渲染 (generate_poster_image)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ tzdata chromium fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
 ENV CHROME_BIN=/usr/bin/chromium
 
