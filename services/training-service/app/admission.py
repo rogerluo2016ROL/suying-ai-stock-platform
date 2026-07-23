@@ -1,9 +1,37 @@
 import json
+import os
 from pathlib import Path
 from typing import Literal
 from pydantic import BaseModel
 
-REQUIRED_GATES = ["data_readiness", "strict_timeline", "cost_model", "oos_report", "drawdown_sample"]
+_DEFAULT_GATES = ["data_readiness", "strict_timeline", "cost_model", "oos_report", "drawdown_sample"]
+
+
+def _load_gates_config() -> dict:
+    """读取 configs/model_admission_gates.json（ADR-019 准入门禁 config 驱动）。
+
+    查找顺序: $MODEL_ADMISSION_GATES_PATH → 容器 /app/configs/ → 仓库根 configs/。
+    缺文件/解析失败回退内置默认（与历史硬编码一致，行为不变）。
+    """
+    candidates = []
+    env_path = os.environ.get("MODEL_ADMISSION_GATES_PATH")
+    if env_path:
+        candidates.append(Path(env_path))
+    candidates.append(Path("/app/configs/model_admission_gates.json"))
+    candidates.append(Path(__file__).resolve().parents[3] / "configs" / "model_admission_gates.json")
+    for p in candidates:
+        try:
+            if p.is_file():
+                return json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+    return {}
+
+
+_CFG = _load_gates_config()
+REQUIRED_GATES = _CFG.get("required_gates", _DEFAULT_GATES)
+PAPER_REQUIRES_BASELINE = _CFG.get("paper_requires_baseline", True)
+PRODUCTION_REQUIRES_MANUAL_APPROVAL = _CFG.get("production_requires_manual_approval", True)
 
 class AdmissionDecision(BaseModel):
     allowed: bool
@@ -26,9 +54,9 @@ def evaluate_admission(evidence: dict, target_stage: str = "candidate", *,
             passed.append(gate)
             if item.get("evidence_run_id"): runs.append(item["evidence_run_id"])
         else: failed.append(gate)
-    if target_stage in {"paper", "production"} and not baseline_exists:
+    if target_stage in {"paper", "production"} and PAPER_REQUIRES_BASELINE and not baseline_exists:
         failed.append("baseline")
-    if target_stage == "production" and not manual_approval:
+    if target_stage == "production" and PRODUCTION_REQUIRES_MANUAL_APPROVAL and not manual_approval:
         failed.append("manual_approval")
     if target_stage == "production" and not production_thresholds_approved:
         failed.append("production_thresholds_not_approved")

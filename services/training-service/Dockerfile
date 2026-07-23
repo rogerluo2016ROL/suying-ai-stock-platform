@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir /app/packages/kronos-contracts
 RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ && rm -rf /var/lib/apt/lists/*
 
 COPY packages /app/packages
+COPY configs /app/configs
 COPY services/training-service/requirements.txt /tmp/training-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/training-requirements.txt
 
