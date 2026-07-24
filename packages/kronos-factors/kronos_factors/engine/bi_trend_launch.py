@@ -502,7 +502,23 @@ def score_bi_trend(df, code=None, name=None, industry=None, sector_change=0):
     }
 
 
-def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
+def _resolve_global_market_regime(explicit=None):
+    if explicit is not None:
+        return dict(explicit), "explicit"
+
+    market_regime = {"regime": "neutral", "bonus": 0.0}
+    try:
+        from kronos_factors.scorer.screening_scorers import get_market_regime
+
+        market_regime = get_market_regime()
+    except Exception:
+        pass
+    return market_regime, "current_runtime"
+
+
+def run_bi_screening(
+    db, trade_date, top_n=20, hard_tech_only=True, global_market_regime=None
+):
     """毕师傅趋势启动战法 V2.0 - 硬核科技版.
 
     V5.8: 硬科技门控 + 卡脖子稀缺性
@@ -511,12 +527,9 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
 
     Returns: (top_picks, all_scores, market_info)
     """
-    market_regime = {"regime": "neutral", "bonus": 0.0}
-    try:
-        from kronos_factors.scorer.screening_scorers import get_market_regime
-        market_regime = get_market_regime()
-    except Exception:
-        pass
+    market_regime, global_regime_source = _resolve_global_market_regime(
+        global_market_regime
+    )
 
     import pandas as pd
 
@@ -526,7 +539,11 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         "SELECT MAX(trade_date) as prev_date FROM daily_kline WHERE trade_date < ?", (trade_date,)
     ).fetchone()
     if not prev_row:
-        return [], [], {"breadth": 50, "env": "unknown"}
+        return [], [], {
+            "breadth": 50,
+            "env": "unknown",
+            "global_regime_source": global_regime_source,
+        }
     prev_date = prev_row["prev_date"]
 
     # 检查当日 daily_kline 是否有数据
@@ -676,7 +693,13 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
     # 1. 系统性崩盘 -> 空仓 (唯一保留的熔断)
     if breadth < MARKET_BREADTH_CRASH:
         print(f"    熔断: 涨跌比{breadth:.0f}%<{MARKET_BREADTH_CRASH}%")
-        return [], [], {"breadth": round(breadth, 1), "breadth_5d": round(breadth_5d, 1), "sh_trend": sh_trend, "env": "crash"}
+        return [], [], {
+            "breadth": round(breadth, 1),
+            "breadth_5d": round(breadth_5d, 1),
+            "sh_trend": sh_trend,
+            "env": "crash",
+            "global_regime_source": global_regime_source,
+        }
 
     # 2. 前日暴跌/上证熊市 -> 不再熔断 (V5.9: 过于严格, 仅降仓不空仓)
 
@@ -880,6 +903,7 @@ def run_bi_screening(db, trade_date, top_n=20, hard_tech_only=True):
         "regime": regime, "position_ratio": position_ratio,
         "env": regime, "prev_date": prev_date, "sh_trend": sh_trend,
         "effective_n": effective_n,
+        "global_regime_source": global_regime_source,
     }
     return top, scores, market_info
 
