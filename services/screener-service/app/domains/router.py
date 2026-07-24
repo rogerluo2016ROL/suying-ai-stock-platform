@@ -37,7 +37,8 @@ def _include_with_write_guards(domain_router: APIRouter) -> None:
     user_write = APIRouter()
     analyst_write = APIRouter()
     for route in domain_router.routes:
-        methods = getattr(route, "methods", None) or ()
+        # FastAPI 0.139 起 route.methods 由 set 变 tuple, 统一 set 化兼容两个版本
+        methods = set(getattr(route, "methods", None) or ())
         if not methods & _WRITE_METHODS:
             readonly.routes.append(route)
         elif route.path in _USER_WRITE_PATHS:
