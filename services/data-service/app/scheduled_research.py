@@ -19,6 +19,7 @@ TERMINAL_STATUSES = {
     "success",
     "partial_delivery",
     "failed_delivery",
+    "data_success_delivery_incomplete",
     "skipped_non_trading_day",
 }
 
@@ -48,6 +49,16 @@ def build_pipeline_command(
     trade_date: str,
     chat_ids: list[str],
 ) -> list[str]:
+    if task.get("runner") == "embodied_refresh":
+        command = [
+            sys.executable,
+            str(ROOT / "tools" / "run_embodied_daily_refresh.py"),
+            "--mode", str(task["mode"]),
+            "--as-of-date", trade_date,
+        ]
+        if task.get("send_feishu"):
+            command.append("--send-feishu")
+        return command
     command = [
         sys.executable,
         str(ROOT / "tools" / "run_research_pipeline.py"),
@@ -130,7 +141,7 @@ def run_scheduled_research_task(
         raise ValueError(f"未知定时研究任务: {task_id}")
 
     state_path = Path(state_root) / trade_date / f"{task_id}.json"
-    if state_path.exists():
+    if state_path.exists() and not task.get("repeatable", False):
         previous = json.loads(state_path.read_text(encoding="utf-8"))
         if previous.get("status") in TERMINAL_STATUSES:
             return {**previous, "status": "skipped_duplicate"}
@@ -146,7 +157,7 @@ def run_scheduled_research_task(
     if task.get("skip_trade_cal_check"):
         # 海外市场类任务 (如美股/韩股早报): 海外照常交易, 不受 A 股交易日历限制
         open_day = True
-    else:
+    elif task.get("calendar_scope", "trading_days") == "trading_days":
         try:
             open_day = is_open_trading_day(trade_date, pg_url)
         except Exception as exc:
@@ -157,10 +168,11 @@ def run_scheduled_research_task(
             }
             _write_state(state_path, state)
             return state
-    if not open_day:
-        state = {**base_state, "status": "skipped_non_trading_day"}
-        _write_state(state_path, state)
-        return state
+        if not open_day:
+            state = {**base_state, "status": "skipped_non_trading_day"}
+            _write_state(state_path, state)
+            return state
+    # calendar_scope=all_days (如具身智能任务): 每天运行, 不查交易日历
 
     targets = config.get("chat_targets") or []
     chat_ids = [str(item.get("chat_id")) for item in targets if item.get("chat_id")]
@@ -179,6 +191,19 @@ def run_scheduled_research_task(
 
     return_code = int(getattr(execution, "returncode", 0) or 0)
     summary = _pipeline_summary(execution)
+    if task.get("runner") == "embodied_refresh":
+        status = summary.get("status") or ("success" if return_code == 0 else "failed")
+        state = {
+            **base_state,
+            "status": status,
+            "finished_at": datetime.now().isoformat(timespec="seconds"),
+            "run_id": summary.get("run_id"),
+            "delivery_summary": summary.get("delivery_summary"),
+        }
+        if return_code != 0:
+            state["error"] = "具身智能刷新 CLI 返回非零状态"
+        _write_state(state_path, state)
+        return state
     run_result = _load_run_result(summary)
     delivery = (run_result.get("pipeline") or {}).get("feishu_delivery") or {}
     status = delivery.get("status") or ("success" if return_code == 0 else "failed")

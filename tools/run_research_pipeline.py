@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -227,13 +228,18 @@ def write_delivery_state(
     _write_json(pipeline_path, pipeline_payload)
 
 
-def _delivery_error(exc: Exception) -> str:
+def sanitize_delivery_error(exc: Exception) -> str:
     detail = str(exc)
     for key in ("LARK_APP_ID", "LARK_APP_SECRET"):
         value = os.environ.get(key, "").strip()
         if value:
             detail = detail.replace(value, "<redacted>")
+    detail = re.sub(r"(?i)(authorization\s*[:=]\s*)(?:bearer\s+)?[^\s,;]+", r"\1<redacted>", detail)
+    detail = re.sub(r'(?i)(["\']?(?:access|tenant|refresh)[_-]?token["\']?\s*[:=]\s*["\']?)[^"\'\s&,;}]+', r"\1<redacted>", detail)
     return f"{type(exc).__name__}: {detail}"[-500:]
+
+
+_delivery_error = sanitize_delivery_error
 
 
 def deliver_feishu_message(
@@ -243,6 +249,7 @@ def deliver_feishu_message(
     chat_id: str,
     message: str,
     sender: Any,
+    confirmer: Any = None,
 ) -> dict[str, Any]:
     try:
         response = sender(chat_id, message)
@@ -268,7 +275,7 @@ def deliver_feishu_message(
         raise RuntimeError("飞书接口未返回消息 ID，无法确认送达。")
 
     try:
-        confirmed = confirm_message_delivery(chat_id, message_id)
+        confirmed = (confirmer or confirm_message_delivery)(chat_id, message_id)
     except Exception as exc:
         state = {
             "push_status": "unconfirmed",
