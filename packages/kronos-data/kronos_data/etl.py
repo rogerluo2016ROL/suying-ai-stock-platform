@@ -38,20 +38,25 @@ if not os.path.exists(DB_PATH):
 
 # Rate limiting — 500 req/min max, ~120ms per call
 _CALL_TIMES = []
-_RATE_LIMIT = 450  # safe margin below 500
+_call_times_lock = threading.Lock()
+_RATE_LIMIT = int(os.environ.get("TUSHARE_RATE_PER_MIN", "450"))  # safe margin below 500
 
 
 def _rate_limit():
-    """Enforce 450 req/min sliding-window rate limit."""
+    """Enforce sliding-window rate limit (默认 450/min, TUSHARE_RATE_PER_MIN 可调).
+
+    线程安全: 财报并行拉取 (ThreadPoolExecutor) 下多线程共用滑动窗口。
+    """
     global _CALL_TIMES
-    now = time.time()
-    _CALL_TIMES = [t for t in _CALL_TIMES if now - t < 60]
-    if len(_CALL_TIMES) >= _RATE_LIMIT:
-        sleep_for = 60 - (now - _CALL_TIMES[0]) + 0.1
-        if sleep_for > 0:
-            time.sleep(sleep_for)
-            _CALL_TIMES = []
-    _CALL_TIMES.append(time.time())
+    with _call_times_lock:
+        now = time.time()
+        _CALL_TIMES = [t for t in _CALL_TIMES if now - t < 60]
+        if len(_CALL_TIMES) >= _RATE_LIMIT:
+            sleep_for = 60 - (now - _CALL_TIMES[0]) + 0.1
+            if sleep_for > 0:
+                time.sleep(sleep_for)
+                _CALL_TIMES = []
+        _CALL_TIMES.append(time.time())
 
 
 def _get_secret(name: str) -> str:
@@ -977,8 +982,17 @@ def _sync_bulk_financial(table: str, api_name: str, fields: str,
         offset = 0
         while True:
             _rate_limit()
-            df = pro.query(api_name, period=period, fields=fields,
-                           limit=5000, offset=offset)
+            try:
+                df = pro.query(api_name, period=period, fields=fields,
+                               limit=5000, offset=offset)
+            except Exception as e:
+                if "ts_code" in str(e) or "必填" in str(e):
+                    # 当前账号不允许按 period 全市场拉取 → 降级并行逐股路径
+                    print(f"  {api_name}: period 整批拉取被拒 ({str(e)[:40]}), 降级并行逐股")
+                    db.close()
+                    return _sync_per_stock_financial(table, api_name, fields, periods,
+                                                     conflict_action=conflict_action)
+                raise
             if df is None or df.empty:
                 break
             rows = _financial_rows_from_df(table, cols, df)
@@ -1029,68 +1043,38 @@ def _sync_per_stock_financial(table: str, api_name: str, fields: str,
     fn = getattr(pro, api_name)
     processed = 0
 
-    for code in codes:
-        for period in periods:
-            _rate_limit()
-            try:
-                kwargs = {"ts_code": _ts_code(code), "period": period,
-                          "fields": fields}
-                if extra_kwargs:
-                    kwargs.update(extra_kwargs)
-                df = fn(**kwargs)
-            except Exception:
-                continue
+    # 并行拉取: API 调用是瓶颈 (每对 code×period 一次), 行构建与写库留在主线程
+    # (thread-local 连接 + _insert_rows 串行, 无并发写风险).
+    # max_workers 默认 8, TUSHARE_FINANCIAL_WORKERS 可调; _rate_limit 全局滑动窗口兜底.
+    max_workers = int(os.environ.get("TUSHARE_FINANCIAL_WORKERS", "8"))
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _fetch(pair):
+        code, period = pair
+        _rate_limit()
+        try:
+            kwargs = {"ts_code": _ts_code(code), "period": period,
+                      "fields": fields}
+            if extra_kwargs:
+                kwargs.update(extra_kwargs)
+            return code, fn(**kwargs)
+        except Exception:
+            return code, None
+
+    pairs = [(code, period) for code in codes for period in periods]
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        for code, df in ex.map(_fetch, pairs):
             if df is None or df.empty:
+                processed += 1
                 continue
-
-            rows = []
-            aliases = _FINANCIAL_FIELD_ALIASES.get(table, {})
-            for _, r in df.iterrows():
-                row_vals = []
-                for c in cols:
-                    if c == "code":
-                        row_vals.append(code)
-                    elif c == "end_date":
-                        row_vals.append(str(r.get("end_date", "")))
-                    elif c == "report_type":
-                        row_vals.append(str(r.get("report_type", "")))
-                    else:
-                        # 取值用 Tushare 字段名 (alias), 写入用 PG 表列名 (c);
-                        # numpy 标量转原生 (update 模式 execute_values 不隐式转换, 防 np.float64 进 SQL)
-                        v = r.get(aliases.get(c, c))
-                        if isinstance(v, (int, float)) is False and v is not None:
-                            import numpy as _np
-                            if isinstance(v, _np.floating):
-                                v = float(v) if not _np.isnan(v) else None
-                            elif isinstance(v, _np.integer):
-                                v = int(v)
-                        elif isinstance(v, float):
-                            import math
-                            if math.isnan(v):
-                                v = None
-                        row_vals.append(v)
-                rows.append(tuple(row_vals))
-            # 按 (code, end_date) 去重: fina_indicator 等同期可能返回多版本行,
-            # ON CONFLICT DO UPDATE 不允许同批重复影响同一行 (保留最后=最新版本)
-            if len(rows) > 1:
-                ci, ei = cols.index("code"), cols.index("end_date")
-                dedup = {}
-                for row in rows:
-                    dedup[(row[ci], row[ei])] = row
-                rows = list(dedup.values())
+            rows = _financial_rows_from_df(table, cols, df, code_override=code)
             total += len(rows)
-            if conflict_action == "update":
-                # 回填模式: ON CONFLICT(code,end_date) DO UPDATE SET 非PK列
-                upd = [c for c in cols if c not in ("code", "end_date", "report_type")]
-                written += _insert_rows(db, table, cols, rows, conflict_action="update",
-                                        conflict_cols=["code", "end_date"], update_cols=upd)
-            else:
-                written += _insert_rows(db, table, cols, rows)
+            written += _insert_financial_rows(db, table, cols, rows, conflict_action)
 
-        processed += 1
-        if processed % 500 == 0:
-            print(f"  {api_name}: {processed}/{len(codes)} ({processed*100//len(codes)}%) "
-                  f"- {written} rows")
+            processed += 1
+            if processed % 500 == 0:
+                print(f"  {api_name}: {processed}/{len(codes)} ({processed*100//len(codes)}%) "
+                      f"- {written} rows")
 
     db.commit()
     db.close()

@@ -162,6 +162,8 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - TZ=Asia/Shanghai                   # 关键: cron "25 9" 按容器本地时区 (否则 UTC 偏移)
       - DATA_SQLITE_FALLBACK=false          # 显式 PG-only (清债后 :ro 挂载安全)
+      - TUSHARE_RATE_PER_MIN=${TUSHARE_RATE_PER_MIN:-450}      # VIP 可调到 2000
+      - TUSHARE_FINANCIAL_WORKERS=${TUSHARE_FINANCIAL_WORKERS:-8}  # 财报并行拉取线程数
       - LARK_DOC_CREATE_AS=bot              # 容器不使用个人飞书登录态
       - LARK_CLI_INIT_BOT=true              # 运行时从标准输入初始化 bot，不把密钥写入镜像
       - KRONOS_SERVICE_SECRET=${KRONOS_SERVICE_SECRET:?KRONOS_SERVICE_SECRET must be set (service-to-service auth)}
