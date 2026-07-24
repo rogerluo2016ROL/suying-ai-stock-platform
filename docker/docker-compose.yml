@@ -190,6 +190,8 @@ services:
       - KRONOS_ENV=production
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
       - KRONOS_DEVICE=cpu
+      # huggingface.co 不可达 (Errno 101), 走国内镜像下载 NeoQuasar/Kronos-mini
+      - HF_ENDPOINT=${HF_ENDPOINT:-https://hf-mirror.com}
       - KRONOS_SERVICE_SECRET=${KRONOS_SERVICE_SECRET:?KRONOS_SERVICE_SECRET must be set (service-to-service auth)}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set (kronos-auth prod-gate)}
     volumes:
