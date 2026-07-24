@@ -1061,20 +1061,43 @@ def _sync_per_stock_financial(table: str, api_name: str, fields: str,
         except Exception:
             return code, None
 
-    pairs = [(code, period) for code in codes for period in periods]
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        for code, df in ex.map(_fetch, pairs):
-            if df is None or df.empty:
+    def _drain(pairs_subset, workers: int) -> tuple[int, int, list]:
+        """并行拉取+主线程写库一轮, 返回 (total, written, 失败 pairs)."""
+        _total, _written = 0, 0
+        failed = []
+        nonlocal processed
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            for code, df in ex.map(_fetch, pairs_subset):
+                if df is None:
+                    failed.append(code)
+                if df is None or df.empty:
+                    processed += 1
+                    continue
+                rows = _financial_rows_from_df(table, cols, df, code_override=code)
+                _total += len(rows)
+                _written += _insert_financial_rows(db, table, cols, rows, conflict_action)
                 processed += 1
-                continue
-            rows = _financial_rows_from_df(table, cols, df, code_override=code)
-            total += len(rows)
-            written += _insert_financial_rows(db, table, cols, rows, conflict_action)
+                if processed % 500 == 0:
+                    print(f"  {api_name}: {processed}/{len(codes)} ({processed*100//len(codes)}%) "
+                          f"- {written + _written} rows")
+        return _total, _written, failed
 
-            processed += 1
-            if processed % 500 == 0:
-                print(f"  {api_name}: {processed}/{len(codes)} ({processed*100//len(codes)}%) "
-                      f"- {written} rows")
+    pairs = [(code, period) for code in codes for period in periods]
+    total, written, failed_codes = _drain(pairs, max_workers)
+
+    # 限流导致的静默失败: 串行慢速重试 2 轮 (高并发下 Tushare 服务端实际仍限流,
+    # 实测 8 线程 2000/min 失败率 ~70%; 重试轮用单线程把失败对补回来)
+    for retry_round in (1, 2):
+        if not failed_codes:
+            break
+        print(f"  {api_name}: {len(failed_codes)} 只拉取失败, 串行重试第 {retry_round} 轮")
+        time.sleep(5)
+        retry_pairs = [(c, p) for c in failed_codes for p in periods]
+        t2, w2, failed_codes = _drain(retry_pairs, workers=1)
+        total += t2
+        written += w2
+    if failed_codes:
+        print(f"  {api_name}: 重试后仍 {len(failed_codes)} 只失败: {failed_codes[:10]}")
 
     db.commit()
     db.close()
