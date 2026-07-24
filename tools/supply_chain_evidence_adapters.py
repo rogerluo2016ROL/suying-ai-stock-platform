@@ -20,8 +20,15 @@ EVENT_SOURCE_TYPES = {
     "announcement",
     "announcement_pdf",
     "interactive_qa",
+    "interact_qa",
     "research_report",
     "investor_relations_event",
+    "financial_news",
+    "major_financial_news",
+    "financial_report",
+    "profit_forecast",
+    "government_policy_law",
+    "government_project_announcement",
 }
 STATIC_SOURCE_TYPES = {
     "official_product_page",

@@ -33,6 +33,13 @@ CHAIN_IDS = {
     "近存计算": "near_memory_computing",
     "光通信": "optical_communication",
     "AI Token输出电力": "ai_token_output_power",
+    # 六张网（2026-04-28 中央政治局会议）
+    "国家水网": "national_water_network",
+    "新型电网": "new_power_grid",
+    "算力网": "compute_network",
+    "新一代通信网": "next_gen_comm_network",
+    "城市地下管网": "urban_underground_pipeline",
+    "物流网": "logistics_network",
 }
 
 LAYER_IDS = {
@@ -62,6 +69,31 @@ LAYER_IDS = {
     "资源": "resources",
     "冶炼": "smelting",
     "加工": "processing",
+    # 六张网新增层级
+    "工程": "engineering",
+    "运营": "operations",
+    "智慧水务": "smart_water",
+    "特高压": "uhv",
+    "智能变电": "smart_substation",
+    "配电与微网": "distribution_microgrid",
+    "储能与调节": "storage_regulation",
+    "电网数字化": "grid_digitalization",
+    "智算中心": "intelligent_compute_center",
+    "算力调度": "compute_scheduling",
+    "网络互联": "network_interconnect",
+    "绿色算力": "green_compute",
+    "5G-A": "5g_a",
+    "万兆光网": "ten_gigabit_optical",
+    "卫星互联网": "satellite_internet",
+    "6G研发": "6g_rd",
+    "管材": "pipe_materials",
+    "工程与修复": "construction_repair",
+    "监测与传感": "monitoring_sensing",
+    "智慧管网": "smart_pipeline",
+    "枢纽与通道": "hub_corridor",
+    "多式联运": "multimodal_transport",
+    "冷链物流": "cold_chain",
+    "智慧物流": "smart_logistics",
 }
 
 GENERIC_KEYWORDS = {

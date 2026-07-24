@@ -58,7 +58,10 @@ def sync_announcements(days_back: int = 7) -> dict:
             code = ts_code.split(".")[0][:6] if "." in ts_code else ts_code
             title = str(r.get("title", ""))
             url = str(r.get("url", ""))
-            rec_time = str(r.get("rec_time", ""))
+            rec_time = str(r.get("rec_time", "") or "").strip()
+            # PG rec_time 是 timestamp 列, 空串/'nan' 会整批报 invalid input syntax —— 归一为 NULL
+            if rec_time.lower() in ("", "nan", "nat", "none"):
+                rec_time = None
 
             # 跳过无效行
             if not title:

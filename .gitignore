@@ -36,6 +36,8 @@ docs/training/diagrams/src/.~*.drawio
 docs/training/diagrams/
 Kronos/
 services/*/.venv/
+.venv/
+backend/.venv/
 
 # Large data & dependencies (not tracked)
 backend/data/*.db

@@ -21064,6 +21064,1880 @@
           ]
         }
       ]
+    },
+    {
+      "template_id": "national_water_network",
+      "name": "国家水网传导链模板",
+      "description": "六张网（2026-04-28中央政治局会议）之国家水网：政策需求如何传导到工程、设备、系统集成与商业变现。",
+      "example_theme": "国家水网",
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "水资源时空分布不均带来的供水、防洪与粮食安全需求。",
+          "key_questions": [
+            "需求来自供水安全、防洪还是灌溉？",
+            "是否有可验证的工程投资计划？"
+          ],
+          "segments": [
+            "城乡供水",
+            "防洪减灾",
+            "农业灌溉",
+            "农村自来水普及"
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "国家水网主骨架与毛细血管建设任务。",
+          "key_questions": [
+            "任务是大动脉调水还是最后一公里连通？",
+            "年度开工清单是否明确？"
+          ],
+          "segments": [
+            "南水北调后续工程",
+            "引江补汉",
+            "灌区现代化改造",
+            "数字孪生流域"
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "重大水利工程与水务运营服务。",
+          "key_questions": [
+            "核心交付物是工程还是运营服务？"
+          ],
+          "segments": [
+            "水利枢纽",
+            "引调水线路",
+            "灌区工程",
+            "城乡供水服务"
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "水利建设所需建材与装备。",
+          "key_questions": [
+            "哪些装备存在国产替代或格局集中？"
+          ],
+          "segments": [
+            "PCCP/球墨铸铁管",
+            "水泵/阀门",
+            "盾构/TBM掘进机",
+            "水表与流量计"
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "工程总承包与智慧水务系统集成。",
+          "key_questions": [
+            "EPC订单归属？",
+            "智慧水务平台由谁承建？"
+          ],
+          "segments": [
+            "水利工程EPC",
+            "智慧水务平台",
+            "监测系统集成",
+            "天空地水工一体化"
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "勘测设计与工程配套。",
+          "key_questions": [
+            "设计环节是否先于工程放量？"
+          ],
+          "segments": [
+            "勘测设计",
+            "监理检测",
+            "防水材料",
+            "土工材料"
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "资金与制度底座。",
+          "key_questions": [
+            "资金到位率如何？",
+            "水价改革进展？"
+          ],
+          "segments": [
+            "超长期特别国债",
+            "中央预算内投资",
+            "水价改革",
+            "水利REITs"
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "收入与利润兑现路径。",
+          "key_questions": [
+            "现金流来自工程确认还是运营收费？",
+            "回款是否依赖地方财政？"
+          ],
+          "segments": [
+            "EPC工程收入",
+            "水务运营收费",
+            "装备销售",
+            "信息化服务收入"
+          ]
+        }
+      ],
+      "evidence_requirements": [
+        {
+          "requirement_id": "national_water_network_materials_req",
+          "business_keywords": [
+            "PCCP",
+            "球墨铸铁管",
+            "水泥管",
+            "混凝土管",
+            "防水材料",
+            "土工材料"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "PCCP",
+            "球墨铸铁管",
+            "水泥管",
+            "混凝土管",
+            "防水材料",
+            "土工材料"
+          ],
+          "scene_terms": [
+            "水利",
+            "水网",
+            "调水",
+            "灌区",
+            "供水"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验国家水网材料环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "national_water_network_equipment_req",
+          "business_keywords": [
+            "水泵",
+            "阀门",
+            "水表",
+            "闸门",
+            "启闭机",
+            "盾构",
+            "掘进机",
+            "TBM"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "水泵",
+            "阀门",
+            "水表",
+            "闸门",
+            "启闭机",
+            "盾构",
+            "掘进机",
+            "TBM"
+          ],
+          "scene_terms": [
+            "水利",
+            "水网",
+            "调水",
+            "灌区",
+            "供水"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验国家水网设备环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "national_water_network_engineering_req",
+          "business_keywords": [
+            "水利工程",
+            "引调水",
+            "调水工程",
+            "灌区",
+            "水库",
+            "堤防",
+            "河道治理",
+            "抽水蓄能电站",
+            "水电工程"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "水利工程",
+            "引调水",
+            "调水工程",
+            "灌区",
+            "水库",
+            "堤防",
+            "河道治理",
+            "抽水蓄能电站",
+            "水电工程"
+          ],
+          "scene_terms": [
+            "水利",
+            "水网",
+            "调水",
+            "灌区",
+            "供水"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验国家水网工程环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "national_water_network_operations_req",
+          "business_keywords": [
+            "水务",
+            "供水",
+            "原水",
+            "污水处理",
+            "再生水"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "水务",
+            "供水",
+            "原水",
+            "污水处理",
+            "再生水"
+          ],
+          "scene_terms": [
+            "水利",
+            "水网",
+            "调水",
+            "灌区",
+            "供水"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验国家水网运营环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "national_water_network_smart_water_req",
+          "business_keywords": [
+            "智慧水务",
+            "数字孪生流域",
+            "水文监测",
+            "水务信息化",
+            "流量计",
+            "水利信息化"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "智慧水务",
+            "数字孪生流域",
+            "水文监测",
+            "水务信息化",
+            "流量计",
+            "水利信息化"
+          ],
+          "scene_terms": [
+            "水利",
+            "水网",
+            "调水",
+            "灌区",
+            "供水"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验国家水网智慧水务环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        }
+      ]
+    },
+    {
+      "template_id": "new_power_grid",
+      "name": "新型电网传导链模板",
+      "description": "六张网（2026-04-28中央政治局会议）之新型电网：政策需求如何传导到工程、设备、系统集成与商业变现。",
+      "example_theme": "新型电网",
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "用电负荷增长与新能源消纳驱动的电网升级需求。",
+          "key_questions": [
+            "需求来自负荷增长、新能源并网还是算力负荷？"
+          ],
+          "segments": [
+            "最高负荷16亿千瓦",
+            "18亿千瓦新能源并网",
+            "4000万台充电设施",
+            "算力负荷"
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "主网架升级与配网智能化任务。",
+          "key_questions": [
+            "特高压核准开工节奏？",
+            "配网改造招标放量时点？"
+          ],
+          "segments": [
+            "特高压外送通道",
+            "配电网智能化改造",
+            "微电网",
+            "源网荷储协同"
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "电网工程与核心一次/二次设备。",
+          "key_questions": [
+            "核心设备招标份额如何分布？"
+          ],
+          "segments": [
+            "特高压交直流工程",
+            "智能变电站",
+            "配网自动化",
+            "构网型储能"
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "高壁垒核心设备与器件。",
+          "key_questions": [
+            "换流阀/换流变等格局是否集中？"
+          ],
+          "segments": [
+            "换流阀",
+            "换流变压器",
+            "GIS组合电器",
+            "继电保护",
+            "绝缘子"
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "电网数字化与系统集成。",
+          "key_questions": [
+            "调度与信息化订单归属？"
+          ],
+          "segments": [
+            "调度自动化",
+            "电力信息化",
+            "虚拟电厂平台",
+            "能量管理系统"
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "工程配套环节。",
+          "key_questions": [
+            "配套环节毛利与回款质量？"
+          ],
+          "segments": [
+            "铁塔导线",
+            "电缆",
+            "电力设计",
+            "检测运维"
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "投资与电价机制底座。",
+          "key_questions": [
+            "国网4万亿投资分解到年度的节奏？"
+          ],
+          "segments": [
+            "国网十五五4万亿",
+            "超长期特别国债",
+            "输配电价机制",
+            "绿电交易"
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "设备招标与市场化收益兑现。",
+          "key_questions": [
+            "收入确认滞后招标几个季度？"
+          ],
+          "segments": [
+            "设备集采中标",
+            "输配电服务",
+            "辅助服务市场",
+            "虚拟电厂收益"
+          ]
+        }
+      ],
+      "candidate_mapping_rules": {
+        "source_chain_ids": [
+          "ai_token_output_power",
+          "new_power_system_grid"
+        ],
+        "required_business_keywords": [
+          "变压器",
+          "储能",
+          "绿电",
+          "电源",
+          "电网",
+          "配电",
+          "特高压",
+          "虚拟电厂"
+        ]
+      },
+      "evidence_requirements": [
+        {
+          "requirement_id": "new_power_grid_uhv_req",
+          "business_keywords": [
+            "特高压",
+            "换流阀",
+            "换流变压器",
+            "GIS",
+            "组合电器",
+            "变压器",
+            "电抗器",
+            "绝缘子",
+            "铁塔",
+            "导线"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "特高压",
+            "换流阀",
+            "换流变压器",
+            "GIS",
+            "组合电器",
+            "变压器",
+            "电抗器",
+            "绝缘子",
+            "铁塔",
+            "导线"
+          ],
+          "scene_terms": [
+            "电网",
+            "特高压",
+            "电力",
+            "配电",
+            "储能"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验新型电网特高压环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "new_power_grid_smart_substation_req",
+          "business_keywords": [
+            "继电保护",
+            "变电站自动化",
+            "互感器",
+            "断路器",
+            "智能变电站"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "继电保护",
+            "变电站自动化",
+            "互感器",
+            "断路器",
+            "智能变电站"
+          ],
+          "scene_terms": [
+            "电网",
+            "特高压",
+            "电力",
+            "配电",
+            "储能"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验新型电网智能变电环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "new_power_grid_distribution_microgrid_req",
+          "business_keywords": [
+            "配电",
+            "配网",
+            "微电网",
+            "充电桩",
+            "台区",
+            "环网柜",
+            "一二次融合",
+            "电源"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "配电",
+            "配网",
+            "微电网",
+            "充电桩",
+            "台区",
+            "环网柜",
+            "一二次融合",
+            "电源"
+          ],
+          "scene_terms": [
+            "电网",
+            "特高压",
+            "电力",
+            "配电",
+            "储能"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验新型电网配电与微网环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "new_power_grid_storage_regulation_req",
+          "business_keywords": [
+            "储能",
+            "虚拟电厂",
+            "需求响应",
+            "构网型",
+            "抽水蓄能",
+            "调峰",
+            "绿电"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "储能",
+            "虚拟电厂",
+            "需求响应",
+            "构网型",
+            "抽水蓄能",
+            "调峰",
+            "绿电"
+          ],
+          "scene_terms": [
+            "电网",
+            "特高压",
+            "电力",
+            "配电",
+            "储能"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验新型电网储能与调节环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "new_power_grid_grid_digitalization_req",
+          "business_keywords": [
+            "电力信息化",
+            "电网调度",
+            "能量管理",
+            "数字电网",
+            "电力物联",
+            "调度自动化",
+            "电网"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "电力信息化",
+            "电网调度",
+            "能量管理",
+            "数字电网",
+            "电力物联",
+            "调度自动化",
+            "电网"
+          ],
+          "scene_terms": [
+            "电网",
+            "特高压",
+            "电力",
+            "配电",
+            "储能"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验新型电网电网数字化环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        }
+      ]
+    },
+    {
+      "template_id": "compute_network",
+      "name": "算力网传导链模板",
+      "description": "六张网（2026-04-28中央政治局会议）之算力网：政策需求如何传导到工程、设备、系统集成与商业变现。",
+      "example_theme": "算力网",
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "AI推理与训练需求爆发带来的算力资源需求。",
+          "key_questions": [
+            "Token调用量增速是否可持续？",
+            "需求来自训练还是推理？"
+          ],
+          "segments": [
+            "日均Token调用140万亿",
+            "大模型训练",
+            "行业AI应用",
+            "普惠算力"
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "全国一体化算力调度与东数西算深化。",
+          "key_questions": [
+            "算力大通道建设进度？",
+            "跨域调度平台接入比例？"
+          ],
+          "segments": [
+            "东数西算",
+            "70条以上算力大通道",
+            "全国一体化调度",
+            "算电协同"
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "智算中心与算力服务。",
+          "key_questions": [
+            "智算中心上架率与利用率？"
+          ],
+          "segments": [
+            "智算中心",
+            "算力租赁",
+            "算力调度平台",
+            "AI云服务"
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "算力硬件底座。",
+          "key_questions": [
+            "国产算力芯片供给是否瓶颈？"
+          ],
+          "segments": [
+            "AI服务器",
+            "GPU/ASIC",
+            "高速光模块",
+            "高速交换机"
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "集群组网与调度集成。",
+          "key_questions": [
+            "集群集成与调度软件份额？"
+          ],
+          "segments": [
+            "集群组网",
+            "液冷集成",
+            "调度软件",
+            "运维服务"
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "数据中心配套。",
+          "key_questions": [
+            "液冷渗透率提升节奏？"
+          ],
+          "segments": [
+            "液冷温控",
+            "HVDC电源",
+            "PCB",
+            "连接器"
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "能源与网络底座。",
+          "key_questions": [
+            "绿电占比>80%强制带来的配套投资？"
+          ],
+          "segments": [
+            "绿电直供",
+            "储能配套",
+            "算力大通道网络",
+            "八大算力枢纽"
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "算力服务变现与商业模式闭环。",
+          "key_questions": [
+            "算力租赁价格趋势？",
+            "2027年商业模式能否闭环？"
+          ],
+          "segments": [
+            "算力租赁收入",
+            "Token计费",
+            "算力券",
+            "绿电溢价"
+          ]
+        }
+      ],
+      "candidate_mapping_rules": {
+        "source_chain_ids": [
+          "ai_compute",
+          "ai_compute_infrastructure",
+          "ai_token_output_power"
+        ],
+        "required_business_keywords": [
+          "智算中心",
+          "IDC",
+          "数据中心",
+          "液冷",
+          "算力调度",
+          "算力租赁",
+          "HVDC",
+          "温控",
+          "算力"
+        ]
+      },
+      "evidence_requirements": [
+        {
+          "requirement_id": "compute_network_intelligent_compute_center_req",
+          "business_keywords": [
+            "智算中心",
+            "IDC",
+            "数据中心",
+            "算力中心",
+            "AI服务器",
+            "算力基础设施"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "智算中心",
+            "IDC",
+            "数据中心",
+            "算力中心",
+            "AI服务器",
+            "算力基础设施"
+          ],
+          "scene_terms": [
+            "算力",
+            "数据中心",
+            "智算",
+            "IDC"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验算力网智算中心环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "compute_network_compute_scheduling_req",
+          "business_keywords": [
+            "算力调度",
+            "算力交易",
+            "算力网",
+            "东数西算",
+            "算力租赁",
+            "算力券",
+            "云平台",
+            "算力"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "算力调度",
+            "算力交易",
+            "算力网",
+            "东数西算",
+            "算力租赁",
+            "算力券",
+            "云平台",
+            "算力"
+          ],
+          "scene_terms": [
+            "算力",
+            "数据中心",
+            "智算",
+            "IDC"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验算力网算力调度环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "compute_network_network_interconnect_req",
+          "business_keywords": [
+            "光模块",
+            "交换机",
+            "算力大通道",
+            "OTN",
+            "DCI",
+            "光传输"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "光模块",
+            "交换机",
+            "算力大通道",
+            "OTN",
+            "DCI",
+            "光传输"
+          ],
+          "scene_terms": [
+            "算力",
+            "数据中心",
+            "智算",
+            "IDC"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验算力网网络互联环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "compute_network_green_compute_req",
+          "business_keywords": [
+            "液冷",
+            "绿电",
+            "HVDC",
+            "温控",
+            "数据中心电源",
+            "算电协同"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "液冷",
+            "绿电",
+            "HVDC",
+            "温控",
+            "数据中心电源",
+            "算电协同"
+          ],
+          "scene_terms": [
+            "算力",
+            "数据中心",
+            "智算",
+            "IDC"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验算力网绿色算力环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        }
+      ]
+    },
+    {
+      "template_id": "next_gen_comm_network",
+      "name": "新一代通信网传导链模板",
+      "description": "六张网（2026-04-28中央政治局会议）之新一代通信网：政策需求如何传导到工程、设备、系统集成与商业变现。",
+      "example_theme": "新一代通信网",
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "流量增长与新连接场景驱动的网络升级需求。",
+          "key_questions": [
+            "需求来自消费者流量还是行业连接？"
+          ],
+          "segments": [
+            "5G-A覆盖330城",
+            "万兆光网168试点",
+            "车联网",
+            "工业互联网"
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "5G-A规模商用、万兆覆盖与空天地一体建设任务。",
+          "key_questions": [
+            "5G-A基站60万+建设节奏？",
+            "低轨星座发射进度？"
+          ],
+          "segments": [
+            "5G-A基站超60万个",
+            "50G-PON/FTTR",
+            "低轨卫星组网",
+            "6G技术试验"
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "网络设备与运营服务。",
+          "key_questions": [
+            "主设备集采份额？"
+          ],
+          "segments": [
+            "5G-A基站设备",
+            "万兆光接入设备",
+            "卫星互联网系统",
+            "运营商网络服务"
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "核心器件与载荷。",
+          "key_questions": [
+            "射频/光芯片国产化程度？"
+          ],
+          "segments": [
+            "基站天线与射频",
+            "光芯片/光模块",
+            "卫星载荷",
+            "相控阵天线"
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "网络集成与运维。",
+          "key_questions": [
+            "承载网与核心网集成商格局？"
+          ],
+          "segments": [
+            "承载网集成",
+            "核心网",
+            "地面站系统",
+            "网络运维"
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "建设配套环节。",
+          "key_questions": [
+            "光纤光缆量价？"
+          ],
+          "segments": [
+            "光纤光缆",
+            "通信电源",
+            "测试仪器",
+            "连接器"
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "频谱资源与投资底座。",
+          "key_questions": [
+            "运营商capex投向？",
+            "6G频谱与标准节奏？"
+          ],
+          "segments": [
+            "6GHz试验频率",
+            "运营商资本开支",
+            "十五五万颗卫星发射",
+            "共建共享"
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "设备集采与服务收入兑现。",
+          "key_questions": [
+            "5G-A专网变现能力？"
+          ],
+          "segments": [
+            "设备集采中标",
+            "流量经营",
+            "专网服务",
+            "卫星通信服务"
+          ]
+        }
+      ],
+      "candidate_mapping_rules": {
+        "source_chain_ids": [
+          "ai_compute",
+          "ai_compute_infrastructure"
+        ],
+        "required_business_keywords": [
+          "光模块",
+          "交换机",
+          "光通信",
+          "基站",
+          "卫星",
+          "光纤"
+        ]
+      },
+      "evidence_requirements": [
+        {
+          "requirement_id": "next_gen_comm_network_5g_a_req",
+          "business_keywords": [
+            "5G-A",
+            "5G-A基站",
+            "基站天线",
+            "射频",
+            "通感一体",
+            "RedCap",
+            "5G基站",
+            "基站"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "5G-A",
+            "5G-A基站",
+            "基站天线",
+            "射频",
+            "通感一体",
+            "RedCap",
+            "5G基站",
+            "基站"
+          ],
+          "scene_terms": [
+            "通信",
+            "5G",
+            "光网",
+            "卫星",
+            "基站"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验新一代通信网5G-A环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "next_gen_comm_network_ten_gigabit_optical_req",
+          "business_keywords": [
+            "万兆",
+            "FTTR",
+            "50G-PON",
+            "PON",
+            "光纤光缆",
+            "OLT",
+            "光接入",
+            "光模块",
+            "光通信",
+            "光纤",
+            "交换机"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "万兆",
+            "FTTR",
+            "50G-PON",
+            "PON",
+            "光纤光缆",
+            "OLT",
+            "光接入",
+            "光模块",
+            "光通信",
+            "光纤",
+            "交换机"
+          ],
+          "scene_terms": [
+            "通信",
+            "5G",
+            "光网",
+            "卫星",
+            "基站"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验新一代通信网万兆光网环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "next_gen_comm_network_satellite_internet_req",
+          "business_keywords": [
+            "卫星互联网",
+            "低轨卫星",
+            "卫星载荷",
+            "相控阵",
+            "星载",
+            "地面站",
+            "卫星"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "卫星互联网",
+            "低轨卫星",
+            "卫星载荷",
+            "相控阵",
+            "星载",
+            "地面站",
+            "卫星"
+          ],
+          "scene_terms": [
+            "通信",
+            "5G",
+            "光网",
+            "卫星",
+            "基站"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验新一代通信网卫星互联网环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "next_gen_comm_network_6g_rd_req",
+          "business_keywords": [
+            "6G",
+            "太赫兹",
+            "空天地一体",
+            "Pre6G"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "6G",
+            "太赫兹",
+            "空天地一体",
+            "Pre6G"
+          ],
+          "scene_terms": [
+            "通信",
+            "5G",
+            "光网",
+            "卫星",
+            "基站"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验新一代通信网6G研发环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        }
+      ]
+    },
+    {
+      "template_id": "urban_underground_pipeline",
+      "name": "城市地下管网传导链模板",
+      "description": "六张网（2026-04-28中央政治局会议）之城市地下管网：政策需求如何传导到工程、设备、系统集成与商业变现。",
+      "example_theme": "城市地下管网",
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "城市内涝、燃气安全与供水漏损驱动的管网更新需求。",
+          "key_questions": [
+            "需求是安全倒逼还是城市更新？",
+            "地方财政能否支撑？"
+          ],
+          "segments": [
+            "城市内涝治理",
+            "燃气安全",
+            "供水漏损",
+            "供热低效"
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "十五五77万公里管网建设改造任务。",
+          "key_questions": [
+            "分解到年度的改造里程？",
+            "特别国债倾斜力度？"
+          ],
+          "segments": [
+            "燃气约20万公里",
+            "排水约17.5万公里",
+            "供水约17.5万公里",
+            "污水约10万公里",
+            "供热约12万公里"
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "管网改造工程与管材供给。",
+          "key_questions": [
+            "工程与管材的价值量占比？"
+          ],
+          "segments": [
+            "管网改造工程",
+            "综合管廊",
+            "管材供应",
+            "非开挖修复"
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "管材与专业装备。",
+          "key_questions": [
+            "管材格局是否分散？",
+            "非开挖装备壁垒？"
+          ],
+          "segments": [
+            "球墨铸铁管/PE管",
+            "非开挖修复装备",
+            "管网传感器",
+            "巡检机器人"
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "智慧管网系统集成。",
+          "key_questions": [
+            "200城500万传感器部署订单归属？"
+          ],
+          "segments": [
+            "管网数字孪生",
+            "一张图平台",
+            "监测系统集成",
+            "管网GIS"
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "工程配套环节。",
+          "key_questions": [
+            "检测评估是否先行放量？"
+          ],
+          "segments": [
+            "市政设计",
+            "检测评估",
+            "防水密封",
+            "阀门井"
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "资金与运营机制底座。",
+          "key_questions": [
+            "特许经营与管廊商业运营模式跑通？"
+          ],
+          "segments": [
+            "超长期特别国债倾斜",
+            "中央预算内投资",
+            "特许经营",
+            "综合管廊商业运营"
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "工程与运营收入兑现。",
+          "key_questions": [
+            "存量置换vs新增需求的收入质量？",
+            "回款周期？"
+          ],
+          "segments": [
+            "工程收入",
+            "管材销售",
+            "监测设备销售",
+            "运营服务费"
+          ]
+        }
+      ],
+      "evidence_requirements": [
+        {
+          "requirement_id": "urban_underground_pipeline_pipe_materials_req",
+          "business_keywords": [
+            "管材",
+            "球墨铸铁管",
+            "PE管",
+            "PCCP",
+            "螺旋钢管",
+            "管道制造"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "管材",
+            "球墨铸铁管",
+            "PE管",
+            "PCCP",
+            "螺旋钢管",
+            "管道制造"
+          ],
+          "scene_terms": [
+            "管网",
+            "管道",
+            "燃气",
+            "排水",
+            "供水",
+            "管廊"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验城市地下管网管材环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "urban_underground_pipeline_construction_repair_req",
+          "business_keywords": [
+            "管网改造",
+            "非开挖",
+            "管道修复",
+            "顶管",
+            "市政工程",
+            "综合管廊",
+            "燃气工程",
+            "排水工程"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "管网改造",
+            "非开挖",
+            "管道修复",
+            "顶管",
+            "市政工程",
+            "综合管廊",
+            "燃气工程",
+            "排水工程"
+          ],
+          "scene_terms": [
+            "管网",
+            "管道",
+            "燃气",
+            "排水",
+            "供水",
+            "管廊"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验城市地下管网工程与修复环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "urban_underground_pipeline_monitoring_sensing_req",
+          "business_keywords": [
+            "燃气报警",
+            "泄漏检测",
+            "管网监测",
+            "智能井盖",
+            "气体传感器",
+            "压力传感"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "燃气报警",
+            "泄漏检测",
+            "管网监测",
+            "智能井盖",
+            "气体传感器",
+            "压力传感"
+          ],
+          "scene_terms": [
+            "管网",
+            "管道",
+            "燃气",
+            "排水",
+            "供水",
+            "管廊"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验城市地下管网监测与传感环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "urban_underground_pipeline_smart_pipeline_req",
+          "business_keywords": [
+            "智慧管网",
+            "管网数字孪生",
+            "巡检机器人",
+            "管线信息化",
+            "燃气管网GIS"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "智慧管网",
+            "管网数字孪生",
+            "巡检机器人",
+            "管线信息化",
+            "燃气管网GIS"
+          ],
+          "scene_terms": [
+            "管网",
+            "管道",
+            "燃气",
+            "排水",
+            "供水",
+            "管廊"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验城市地下管网智慧管网环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        }
+      ]
+    },
+    {
+      "template_id": "logistics_network",
+      "name": "物流网传导链模板",
+      "description": "六张网（2026-04-28中央政治局会议）之物流网：政策需求如何传导到工程、设备、系统集成与商业变现。",
+      "example_theme": "物流网",
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "统一大市场与降低全社会物流成本的需求。",
+          "key_questions": [
+            "需求来自制造业供应链还是消费物流？"
+          ],
+          "segments": [
+            "全社会物流成本下降",
+            "多式联运占比提升",
+            "冷链需求",
+            "农村物流"
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "6轴7廊8通道与枢纽补链强链任务。",
+          "key_questions": [
+            "枢纽补链强链城市名单与资金？",
+            "多式联运一单制推进？"
+          ],
+          "segments": [
+            "综合货运枢纽",
+            "多式联运一单制",
+            "冷链骨干网",
+            "国际物流通道"
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "物流服务与枢纽运营。",
+          "key_questions": [
+            "枢纽运营与运输服务的价值分布？"
+          ],
+          "segments": [
+            "枢纽园区运营",
+            "多式联运服务",
+            "冷链物流",
+            "干线运输"
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "物流装备与设施。",
+          "key_questions": [
+            "自动化仓储装备渗透率？"
+          ],
+          "segments": [
+            "港口铁路场站",
+            "冷库与冷藏车",
+            "自动化仓储",
+            "物流机器人"
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "智慧物流系统集成。",
+          "key_questions": [
+            "数字货运平台格局？"
+          ],
+          "segments": [
+            "数字货运平台",
+            "仓储系统集成",
+            "运输调度优化",
+            "一单制平台"
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "配套环节。",
+          "key_questions": [
+            "配套环节议价能力？"
+          ],
+          "segments": [
+            "包装容器",
+            "物流信息系统",
+            "货运代理",
+            "供应链金融服务"
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "通道与政策底座。",
+          "key_questions": [
+            "中欧班列与陆海新通道货量？"
+          ],
+          "segments": [
+            "中欧班列",
+            "西部陆海新通道",
+            "枢纽补链强链资金",
+            "物流用地政策"
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "物流服务与平台收入兑现。",
+          "key_questions": [
+            "价格竞争对盈利的侵蚀？"
+          ],
+          "segments": [
+            "物流服务收入",
+            "园区租金",
+            "平台佣金",
+            "冷链溢价"
+          ]
+        }
+      ],
+      "evidence_requirements": [
+        {
+          "requirement_id": "logistics_network_hub_corridor_req",
+          "business_keywords": [
+            "货运枢纽",
+            "物流园区",
+            "港口",
+            "铁路货运",
+            "中欧班列",
+            "陆海新通道"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "货运枢纽",
+            "物流园区",
+            "港口",
+            "铁路货运",
+            "中欧班列",
+            "陆海新通道"
+          ],
+          "scene_terms": [
+            "物流",
+            "货运",
+            "港口",
+            "铁路",
+            "冷链",
+            "仓储"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验物流网枢纽与通道环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "logistics_network_multimodal_transport_req",
+          "business_keywords": [
+            "多式联运",
+            "铁水联运",
+            "一单制",
+            "集装箱",
+            "货运代理"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "多式联运",
+            "铁水联运",
+            "一单制",
+            "集装箱",
+            "货运代理"
+          ],
+          "scene_terms": [
+            "物流",
+            "货运",
+            "港口",
+            "铁路",
+            "冷链",
+            "仓储"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验物流网多式联运环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "logistics_network_cold_chain_req",
+          "business_keywords": [
+            "冷链",
+            "冷库",
+            "冷藏车",
+            "生鲜物流",
+            "农产品物流"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "冷链",
+            "冷库",
+            "冷藏车",
+            "生鲜物流",
+            "农产品物流"
+          ],
+          "scene_terms": [
+            "物流",
+            "货运",
+            "港口",
+            "铁路",
+            "冷链",
+            "仓储"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验物流网冷链物流环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        },
+        {
+          "requirement_id": "logistics_network_smart_logistics_req",
+          "business_keywords": [
+            "智慧物流",
+            "无人仓",
+            "仓储自动化",
+            "物流机器人",
+            "数字货运",
+            "网络货运"
+          ],
+          "technology_route_id": null,
+          "product_terms": [
+            "智慧物流",
+            "无人仓",
+            "仓储自动化",
+            "物流机器人",
+            "数字货运",
+            "网络货运"
+          ],
+          "scene_terms": [
+            "物流",
+            "货运",
+            "港口",
+            "铁路",
+            "冷链",
+            "仓储"
+          ],
+          "negative_examples": [],
+          "require_product_and_scene": false,
+          "required_evidence_type_ids": [
+            "product_or_prototype",
+            "customer_validation",
+            "order_or_delivery",
+            "recognized_revenue",
+            "recognized_profit"
+          ],
+          "next_validation_action": "核验物流网智慧物流环节的产品、客户、订单与收入证据",
+          "independent_discovery": false
+        }
+      ]
     }
   ]
 }
