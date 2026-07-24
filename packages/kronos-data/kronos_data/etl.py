@@ -195,6 +195,16 @@ def _get_etl_db() -> _Db:
     return _Db(sqlite3.connect(DB_PATH), False)
 
 
+def _ensure_pg_conn(db: _Db) -> None:
+    """长时间 sync (如 per-stock 财务循环 >20min) 中 PG 服务端可能断开空闲连接,
+    之后 db._conn.cursor() 直接抛 InterfaceError: connection already closed 使整个 sync 崩溃。
+    写入前检测 closed 并重连 (复用 thread-local 语义), 连接正常时零开销。"""
+    if db._pg and db._conn.closed:
+        import psycopg2
+        db._conn = psycopg2.connect(_PG_URL)
+        _pg_local.conn = db._conn
+
+
 def clean_before_write(db: _Db, table: str, days_back: int, date_col: str = "trade_date"):
     """Delete old rows within the sync window to avoid duplicates."""
     cutoff = (datetime.now() - timedelta(days=days_back + 1)).strftime("%Y-%m-%d")
@@ -295,6 +305,8 @@ def _insert_rows(db: _Db, table: str, columns: list[str],
     if db._pg:
         import psycopg2
         import psycopg2.extras
+        # 长 sync 中连接可能已被服务端断开, 先确保连接可用再查表结构/写数据
+        _ensure_pg_conn(db)
         # 止血: 查表实际列, 过滤 cols 中表不存在的列。etl cols 原为 SQLite 设计, 迁 PG 后大量列名脱节
         # (如 hk_holdings 的 hold_vol), 导致 execute_values 整批 "column does not exist" 失败;
         # 旧代码 except:pass 静默吞 → 表面成功实则 0 写入, 数据停滞数周无人察觉。
@@ -351,6 +363,7 @@ def _insert_rows(db: _Db, table: str, columns: list[str],
         attempts = max(1, retries)
         last_err = None
         for attempt in range(attempts):
+            _ensure_pg_conn(db)  # 重试前连接也可能已断, 每次 attempt 前兜底
             cur = db._conn.cursor()
             try:
                 psycopg2.extras.execute_values(cur, sql, filtered, template=values_template, page_size=1000)
@@ -862,6 +875,125 @@ def _get_all_codes(db: sqlite3.Connection) -> list[str]:
     ).fetchall()]
 
 
+# PG 表列名映射 (module 级, per-stock 与 bulk 两路共用).
+_FINANCIAL_COLS_MAP = {
+    "financial_income": ["code", "end_date", "report_type", "basic_eps",
+        "total_revenue", "revenue", "oper_cost", "sell_expense",
+        "admin_expense", "fin_expense", "n_income", "n_income_attr_p",
+        "operate_profit", "total_profit"],
+    "financial_balance": ["code", "end_date", "report_type", "total_assets",
+        "total_cur_assets", "total_liab", "total_cur_liab",
+        "total_hldr_eqy_exc_min_int", "total_share", "cap_rese", "undistr_porfit"],
+    "financial_cashflow": ["code", "end_date", "report_type",
+        "n_cashflow_act", "n_cashflow_inv_act", "n_cashflow_fin_act",
+        "c_fr_sale_sg", "net_profit"],
+    # P4 修复: cols 用 PG 表列名 (非 Tushare 原名), 配合 field_aliases 取值.
+    "financial_indicator": ["code", "end_date", "roe", "roa",
+        "gross_margin", "net_margin", "debt_ratio",
+        "eps", "current_ratio", "revenue_growth", "profit_growth"],
+}
+# PG 表列名 → Tushare API 字段名 (取值用 Tushare 名, 写入用 PG 列名).
+_FINANCIAL_FIELD_ALIASES = {
+    "financial_indicator": {
+        "gross_margin": "grossprofit_margin", "net_margin": "netprofit_margin",
+        "debt_ratio": "debt_to_assets", "revenue_growth": "or_yoy",
+        "profit_growth": "netprofit_yoy",
+    },
+}
+
+
+def _financial_rows_from_df(table: str, cols: list[str], df,
+                            code_override: str | None = None) -> list[tuple]:
+    """df → 写入行 tuples. code_override=None 时从 ts_code 拆 6 位代码 (bulk 路径)."""
+    aliases = _FINANCIAL_FIELD_ALIASES.get(table, {})
+    rows = []
+    for _, r in df.iterrows():
+        row_vals = []
+        for c in cols:
+            if c == "code":
+                if code_override is not None:
+                    row_vals.append(code_override)
+                else:
+                    row_vals.append(str(r.get("ts_code", "")).split(".")[0])
+            elif c == "end_date":
+                row_vals.append(str(r.get("end_date", "")))
+            elif c == "report_type":
+                row_vals.append(str(r.get("report_type", "")))
+            else:
+                v = r.get(aliases.get(c, c))
+                if isinstance(v, (int, float)) is False and v is not None:
+                    import numpy as _np
+                    if isinstance(v, _np.floating):
+                        v = float(v) if not _np.isnan(v) else None
+                    elif isinstance(v, _np.integer):
+                        v = int(v)
+                elif isinstance(v, float):
+                    import math
+                    if math.isnan(v):
+                        v = None
+                row_vals.append(v)
+        rows.append(tuple(row_vals))
+    # 按 (code, end_date) 去重: 同期可能返回多版本行 (保留最后=最新版本)
+    if len(rows) > 1:
+        ci, ei = cols.index("code"), cols.index("end_date")
+        dedup = {}
+        for row in rows:
+            dedup[(row[ci], row[ei])] = row
+        rows = list(dedup.values())
+    return rows
+
+
+def _insert_financial_rows(db, table: str, cols: list[str], rows: list[tuple],
+                           conflict_action: str) -> int:
+    """按 conflict_action 写一批财报行, 返回写入行数."""
+    if conflict_action == "update":
+        upd = [c for c in cols if c not in ("code", "end_date", "report_type")]
+        return _insert_rows(db, table, cols, rows, conflict_action="update",
+                            conflict_cols=["code", "end_date"], update_cols=upd)
+    return _insert_rows(db, table, cols, rows)
+
+
+def _sync_bulk_financial(table: str, api_name: str, fields: str,
+                         periods: list[str], conflict_action: str = "nothing") -> dict:
+    """按报告期整批拉取的财报同步 (Tushare VIP 快速路径).
+
+    pro.query(api_name, period=...) 一次调用拿全市场单季度 (~5000 行/页),
+    2 个季度仅需数次调用, 替代 _sync_per_stock_financial 的 5022×2 次逐股调用
+    (实测 15+ 分钟 → 约 1 分钟).
+    """
+    pro = _get_pro()
+    if pro is None:
+        return {"status": "skipped", "reason": "no Tushare token"}
+
+    db = _get_etl_db()
+    db.row_factory = sqlite3.Row
+    cols = _FINANCIAL_COLS_MAP.get(table, [])
+    if not cols:
+        db.close()
+        return {"status": "error", "reason": f"unknown table: {table}"}
+
+    total, written = 0, 0
+    for period in periods:
+        offset = 0
+        while True:
+            _rate_limit()
+            df = pro.query(api_name, period=period, fields=fields,
+                           limit=5000, offset=offset)
+            if df is None or df.empty:
+                break
+            rows = _financial_rows_from_df(table, cols, df)
+            total += len(rows)
+            written += _insert_financial_rows(db, table, cols, rows, conflict_action)
+            if len(df) < 5000:
+                break
+            offset += 5000
+        print(f"  {api_name} period={period}: fetched={total} written={written}")
+    db.commit()
+    db.close()
+    return {"status": "ok", "table": table, "fetched": total, "written": written,
+            "mode": "bulk_period"}
+
+
 def _sync_per_stock_financial(table: str, api_name: str, fields: str,
                                periods: list[str], extra_kwargs: dict = None,
                                conflict_action: str = "nothing",
@@ -887,35 +1019,9 @@ def _sync_per_stock_financial(table: str, api_name: str, fields: str,
         codes = _get_all_codes(db)
     total, written = 0, 0
 
-    cols_map = {
-        "financial_income": ["code", "end_date", "report_type", "basic_eps",
-            "total_revenue", "revenue", "oper_cost", "sell_expense",
-            "admin_expense", "fin_expense", "n_income", "n_income_attr_p",
-            "operate_profit", "total_profit"],
-        "financial_balance": ["code", "end_date", "report_type", "total_assets",
-            "total_cur_assets", "total_liab", "total_cur_liab",
-            "total_hldr_eqy_exc_min_int", "total_share", "cap_rese", "undistr_porfit"],
-        "financial_cashflow": ["code", "end_date", "report_type",
-            "n_cashflow_act", "n_cashflow_inv_act", "n_cashflow_fin_act",
-            "c_fr_sale_sg", "net_profit"],
-        # P4 修复: cols 用 PG 表列名 (非 Tushare 原名), 配合 field_aliases 取值.
-        # 原 cols 用 grossprofit_margin/or_yoy 等 Tushare 名, 与 PG 列 (gross_margin/revenue_growth)
-        # 不匹配, 被 _insert_rows 过滤 → growth/gross_margin 等字段从未写入 (全期 NULL/0).
-        "financial_indicator": ["code", "end_date", "roe", "roa",
-            "gross_margin", "net_margin", "debt_ratio",
-            "eps", "current_ratio", "revenue_growth", "profit_growth"],
-    }
-    # PG 表列名 → Tushare API 字段名 (取值用 Tushare 名, 写入用 PG 列名).
-    # profit_growth 用 netprofit_yoy (归母净利同比), 非 profit_dedt (扣非净利绝对值, 非同比).
-    field_aliases = {
-        "financial_indicator": {
-            "gross_margin": "grossprofit_margin", "net_margin": "netprofit_margin",
-            "debt_ratio": "debt_to_assets", "revenue_growth": "or_yoy",
-            "profit_growth": "netprofit_yoy",
-        },
-    }
-
-    cols = cols_map.get(table, [])
+    # 列映射与别名已提升为模块级 _FINANCIAL_COLS_MAP / _FINANCIAL_FIELD_ALIASES
+    # (与 _sync_bulk_financial 共用, P4 修复注释见模块级定义).
+    cols = _FINANCIAL_COLS_MAP.get(table, [])
     if not cols:
         db.close()
         return {"status": "error", "reason": f"unknown table: {table}"}
@@ -938,7 +1044,7 @@ def _sync_per_stock_financial(table: str, api_name: str, fields: str,
                 continue
 
             rows = []
-            aliases = field_aliases.get(table, {})
+            aliases = _FINANCIAL_FIELD_ALIASES.get(table, {})
             for _, r in df.iterrows():
                 row_vals = []
                 for c in cols:
@@ -1013,35 +1119,35 @@ def _recent_quarters(n: int = 2) -> list[str]:
 
 
 def sync_income(days_back: int = 30) -> dict:
-    """Sync pro.income() — latest 2 quarters for all stocks."""
+    """Sync pro.income() — latest 2 quarters for all stocks (bulk 按报告期整批拉取)."""
     periods = _recent_quarters(2)
     fields = "ts_code,end_date,report_type,basic_eps,total_revenue,revenue,oper_cost,sell_expense,admin_expense,fin_expense,n_income,n_income_attr_p,operate_profit,total_profit"
-    return _sync_per_stock_financial("financial_income", "income", fields, periods)
+    return _sync_bulk_financial("financial_income", "income", fields, periods)
 
 
 def sync_balancesheet(days_back: int = 30) -> dict:
-    """Sync pro.balancesheet() — latest 2 quarters for all stocks."""
+    """Sync pro.balancesheet() — latest 2 quarters for all stocks (bulk 按报告期整批拉取)."""
     periods = _recent_quarters(2)
     fields = "ts_code,end_date,report_type,total_assets,total_cur_assets,total_liab,total_cur_liab,total_hldr_eqy_exc_min_int,total_share,cap_rese,undistr_porfit"
-    return _sync_per_stock_financial("financial_balance", "balancesheet", fields, periods)
+    return _sync_bulk_financial("financial_balance", "balancesheet", fields, periods)
 
 
 def sync_cashflow(days_back: int = 30) -> dict:
-    """Sync pro.cashflow() — latest 2 quarters for all stocks."""
+    """Sync pro.cashflow() — latest 2 quarters for all stocks (bulk 按报告期整批拉取)."""
     periods = _recent_quarters(2)
     fields = "ts_code,end_date,report_type,n_cashflow_act,n_cashflow_inv_act,n_cashflow_fin_act,c_fr_sale_sg,net_profit"
-    return _sync_per_stock_financial("financial_cashflow", "cashflow", fields, periods)
+    return _sync_bulk_financial("financial_cashflow", "cashflow", fields, periods)
 
 
 def sync_financial_indicator(days_back: int = 30) -> dict:
-    """Sync pro.fina_indicator() — latest 2 quarters for all stocks.
+    """Sync pro.fina_indicator() — latest 2 quarters for all stocks (bulk 按报告期整批拉取).
 
     P4 修复: fields 含 netprofit_yoy (归母净利同比→profit_growth), 配合 cols_map/field_aliases
     正确写入 PG 列. 原 profit_dedt 是扣非净利绝对值非同比, 已弃用.
     """
     periods = _recent_quarters(2)
     fields = "ts_code,end_date,roe,roa,grossprofit_margin,netprofit_margin,debt_to_assets,eps,current_ratio,or_yoy,netprofit_yoy"
-    return _sync_per_stock_financial("financial_indicator", "fina_indicator", fields, periods)
+    return _sync_bulk_financial("financial_indicator", "fina_indicator", fields, periods)
 
 
 def sync_forecast_data(days_back: int = 180) -> dict:
