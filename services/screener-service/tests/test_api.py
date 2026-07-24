@@ -132,6 +132,27 @@ class TestScreenerRun:
         assert response.status_code == 400
         assert "Unknown mode" in response.json()["detail"]
 
+    def test_run_returns_503_on_timeout(self, client, monkeypatch):
+        """执行器超时应返回明确 503 (而非网关 30s 切断后的不透明 502).
+
+        移植自 fix/screener-run-timeout-mdready (6e757bb4)。
+        """
+        import time as _time
+
+        import app.domains.screening.service as svc
+
+        monkeypatch.setattr(svc, "_RUN_TIMEOUT_SEC", 0.05)
+        monkeypatch.setattr(
+            svc, "_run_leader_mode",
+            lambda *args: (_time.sleep(1), {"picks": []})[1],
+        )
+        response = client.post(
+            "/api/v1/screener/run?mode=leader_scalp&top_n=5&trade_date=2099-01-04"
+        )
+        assert response.status_code == 503
+        assert "超时" in response.json()["detail"]
+
+
     @pytest.mark.parametrize("mode", ["cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1"])
     def test_cb_t0_freshness_source_mentions_limit_trigger_source(self, mode):
         """Verify CB T+0 modes expose the limit-up trigger source, not only auction snapshots."""

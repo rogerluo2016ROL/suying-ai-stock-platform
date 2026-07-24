@@ -144,6 +144,10 @@ import os
 import time
 
 
+# /run 执行限时（秒, env 可调）: 超时返回明确 503 而非网关 30s 切断后的不透明 502
+_RUN_TIMEOUT_SEC = float(os.environ.get("SCREENER_RUN_TIMEOUT_SEC", "25"))
+
+
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -1436,42 +1440,53 @@ async def run_screening(
         pass  # cache miss or Redis unavailable → proceed normally
 
     try:
+        # 选出执行器后用 wait_for 统一限时: 冷缓存/缺当日数据时 mode 可能跑超
+        # 网关 30s 代理超时 → 返回明确 503 而非不透明 502 (env 可调)
         if mode in ("leader_scalp", "leader_intraday", "leader_auction", "leader_closing"):
-            result = await loop.run_in_executor(
+            runner_coro = loop.run_in_executor(
                 _executor, _run_leader_mode, mode, top_n, trade_date
             )
         elif mode in ("leader_afternoon", "leader_afternoon_trend_full"):
-            result = await loop.run_in_executor(
+            runner_coro = loop.run_in_executor(
                 _executor, _run_afternoon_mode, mode, top_n, trade_date
             )
         elif mode in ("cb_floor", "cb_intraday", "cb_auction", "cb_auction_t0", "cb_auction_t0_v2", "cb_auction_t0_v2_1"):
-            result = await loop.run_in_executor(
+            runner_coro = loop.run_in_executor(
                 _executor, _run_cb_mode, mode, top_n, trade_date
             )
         elif mode == "bi_trend_launch":
-            result = await loop.run_in_executor(
+            runner_coro = loop.run_in_executor(
                 _executor, _run_bi_trend_mode, mode, top_n, trade_date
             )
         elif mode == "bi_trend_full_market":
-            result = await loop.run_in_executor(
+            runner_coro = loop.run_in_executor(
                 _executor, _run_bi_full_market_mode, mode, top_n, trade_date
             )
         elif mode in ("bi_shifu_trend", "bi_shifu_trend_v23"):
-            result = await loop.run_in_executor(
+            runner_coro = loop.run_in_executor(
                 _executor, _run_bi_shifu_trend_mode, mode, top_n, trade_date
             )
         elif mode == "supply_chain":
-            result = await loop.run_in_executor(
+            runner_coro = loop.run_in_executor(
                 _executor, _run_supply_chain_mode, mode, top_n, trade_date
             )
         elif mode == "supply_chain_trend_launch":
-            result = await loop.run_in_executor(
+            runner_coro = loop.run_in_executor(
                 _executor, _run_supply_chain_trend_launch_mode, mode, top_n, trade_date
             )
         else:
-            result = await loop.run_in_executor(
+            runner_coro = loop.run_in_executor(
                 _executor, _run_multifactor_mode, mode, top_n, trade_date
             )
+        result = await asyncio.wait_for(runner_coro, timeout=_RUN_TIMEOUT_SEC)
+    except asyncio.TimeoutError:
+        logger.error("Screening mode=%s 超时 (%ss)", mode, _RUN_TIMEOUT_SEC)
+        if pipeline_run is not None:
+            await finish_persisted_pipeline(db, pipeline_run.run_id, error={"message": "timeout"})
+        raise HTTPException(
+            status_code=503,
+            detail=f"选股超时（{_RUN_TIMEOUT_SEC}s）：行情数据可能未就绪，请稍后重试",
+        )
     except Exception as e:
         err = str(e)
         logger.exception("Screening failed for mode=%s: %s", mode, err)
