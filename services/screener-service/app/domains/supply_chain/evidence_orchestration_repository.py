@@ -440,7 +440,26 @@ class EvidenceOrchestrationRepository:
         doc_type: str | None,
         metadata: Mapping[str, Any],
     ) -> RawDocumentPersistenceOutcome:
-        """Insert once without a pre-read; update metadata only after a conflict."""
+        """Insert once without a pre-read; update metadata only after a conflict.
+
+        content_hash 与 doc_id 均为唯一约束：先按 content_hash 预查，命中即按
+        重复文档处理（避免 doc_id 不同但内容相同触发 UniqueViolation 中断整轮
+        采集）；doc_id 冲突但哈希不同仍 fail-closed（identity conflict）。
+        """
+        cur.execute(
+            "SELECT doc_id FROM raw_evidence_documents WHERE content_hash = %s LIMIT 1",
+            (content_hash,),
+        )
+        existing = cur.fetchone()
+        if existing is not None:
+            # 内容已存在（doc_id 不同）：按重复文档处理，且必须返回已存在的
+            # doc_id——下游事实表以 doc_id 外键引用，不能用未插入的新 id。
+            existing_doc_id = str(existing[0] if not isinstance(existing, Mapping) else existing["doc_id"])
+            return RawDocumentPersistenceOutcome(
+                doc_id=existing_doc_id,
+                inserted=False,
+                duplicate=True,
+            )
 
         cur.execute(
             """
@@ -577,6 +596,7 @@ class EvidenceOrchestrationRepository:
                     title = EXCLUDED.title,
                     excerpt = EXCLUDED.excerpt,
                     original_url = COALESCE(business_tag_evidence_events.original_url, EXCLUDED.original_url)
+                    WHERE business_tag_evidence_events.review_status IS DISTINCT FROM 'approved'
                 RETURNING review_status
                 """,
                 (
@@ -594,6 +614,14 @@ class EvidenceOrchestrationRepository:
                 ),
             )
             event_row = _row(cur.fetchone())
+            if not event_row:
+                # 已人工 approved 的事件不允许在采集流程中被改写（guard 触发器），
+                # 回读当前 review_status 继续后续流程。
+                cur.execute(
+                    "SELECT review_status FROM business_tag_evidence_events WHERE event_id = %s",
+                    (event_id,),
+                )
+                event_row = _row(cur.fetchone())
             if not event_row or not event_row.get("review_status"):
                 raise RuntimeError("event upsert did not return review status")
             review_status = str(event_row["review_status"])
@@ -613,11 +641,12 @@ class EvidenceOrchestrationRepository:
                         - 'revenue_confirmed' - 'profit_confirmed')
                         || evidence_extracted_facts.metadata,
                     updated_at = CURRENT_TIMESTAMP
+                    WHERE evidence_extracted_facts.validation_status IS DISTINCT FROM 'confirmed'
                 RETURNING validation_status
                 """,
                 (
                     fact_id,
-                    document.doc_id,
+                    raw_outcome.doc_id,
                     mapping_id,
                     document.company_code or "",
                     _fact_type(requirement_id),
@@ -632,11 +661,19 @@ class EvidenceOrchestrationRepository:
                 ),
             )
             fact_row = _row(cur.fetchone())
+            if not fact_row:
+                # 已 confirmed 的事实不允许在采集流程中被改写（guard 触发器），
+                # 回读当前 validation_status 继续后续流程。
+                cur.execute(
+                    "SELECT validation_status FROM evidence_extracted_facts WHERE fact_id = %s",
+                    (fact_id,),
+                )
+                fact_row = _row(cur.fetchone())
             if not fact_row or not fact_row.get("validation_status"):
                 raise RuntimeError("fact upsert did not return validation status")
             validation_status = str(fact_row["validation_status"])
         return PendingDocumentOutcome(
-            doc_id=document.doc_id,
+            doc_id=raw_outcome.doc_id,
             fact_id=fact_id,
             event_id=event_id,
             mapping_id=mapping_id,

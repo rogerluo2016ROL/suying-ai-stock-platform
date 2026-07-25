@@ -1138,6 +1138,7 @@ def backfill_existing_events(*, pg_url: str, run_prefix: str | None = None, limi
                         evidence_event_id = EXCLUDED.evidence_event_id,
                         metadata = (EXCLUDED.metadata - 'review_normalization') || evidence_extracted_facts.metadata,
                         updated_at = CURRENT_TIMESTAMP
+                        WHERE evidence_extracted_facts.validation_status IS DISTINCT FROM 'confirmed'
                     """,
                     (
                         fact_id,

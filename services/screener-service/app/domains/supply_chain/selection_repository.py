@@ -1597,7 +1597,12 @@ class SelectionRepository:
             "next_validation",
             {
                 "event": bundle.get("next_validation_event"),
-                "date": bundle.get("next_validation_date"),
+                # pool_state 读出的 date 对象不可 JSON 序列化，统一转 ISO 字符串
+                "date": (
+                    bundle["next_validation_date"].isoformat()
+                    if hasattr(bundle.get("next_validation_date"), "isoformat")
+                    else bundle.get("next_validation_date")
+                ),
                 "actions": [],
             },
         )
