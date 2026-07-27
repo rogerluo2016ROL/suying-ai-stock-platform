@@ -52,14 +52,17 @@ def sync_daily_kline(trade_date: str) -> dict:
                 except Exception:
                     pass
 
-    # PG 直写 (主路径)
+    # PG 直写 (主路径) — 失败必须可见, 不再静默吞 (ADR-006 PG-first 关键信号;
+    # 历史 bug: except logger.debug 生产默认不输出 → PG 写失败完全不可观测)
     pg_written = 0
+    pg_error = None
     if all_rows:
         try:
             from app.sync.pg_writer import write_daily_kline
             pg_written = write_daily_kline(all_rows)
         except Exception as e:
-            logger.debug("PG write daily_kline skipped: %s", e)
+            pg_error = f"{type(e).__name__}: {e}"
+            logger.error("PG write daily_kline FAILED (rows=%d): %s", len(all_rows), pg_error)
 
     # SQLite 写入 (fallback)
     if SQLITE_FALLBACK_ENABLED and db is not None:
@@ -73,7 +76,8 @@ def sync_daily_kline(trade_date: str) -> dict:
         finally:
             db.close()
 
-    return {"table": "daily_kline", "written": len(all_rows), "pg_written": pg_written, "elapsed": time.time() - t0}
+    return {"table": "daily_kline", "written": len(all_rows), "pg_written": pg_written,
+            "pg_error": pg_error, "elapsed": time.time() - t0}
 
 
 def sync_single_table(api_name: str, trade_date: str, table: str, cols: list) -> tuple:

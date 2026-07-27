@@ -28,8 +28,11 @@ _VOLUME_THRESHOLD_MAP: dict[str, dict[str, int]] = {
 
 # 确保 kronos-data 可 import (data-service 启动时 scheduler.py 已注入 sys.path,
 # 但 pg_writer 可能被先 import; 复用同套 sys.path 注入策略)
-_PROJ_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))))
+# 5 层 dirname 回溯到项目根: pg_writer.py → sync/ → app/ → data-service/ → services/ → 项目根
+# 历史 bug: 仅 4 层, _PROJ_ROOT 错落到 services/, packages/kronos-data 路径无效,
+# 导致 from kronos_data.etl import 抛 ModuleNotFoundError 被 sync 静默吞 → 数据采到却没入库
+_PROJ_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))))
 _KRONOS_DATA = os.path.join(_PROJ_ROOT, "packages", "kronos-data")
 if _KRONOS_DATA not in sys.path:
     sys.path.insert(0, _KRONOS_DATA)
