@@ -60,6 +60,8 @@ _jobs: list[dict] = []
 _active_jobs: set[str] = set()
 _compensation: dict[str, dict] = {}
 _running = False
+# morning_overseas 各子任务累计失败次数 (让外盘采集失败可观测, 不再被 warning 吞)
+_morning_overseas_failures: dict[str, int] = {}
 
 # 单次任务内的 1/4/16 秒重试耗尽后，继续在 10 分钟、30 分钟、2 小时补偿。
 _COMPENSATION_DELAYS_MINUTES = (10, 30, 120)
@@ -1083,6 +1085,16 @@ async def _run_job(job: dict):
                     _clear_compensation(job_id)
                 if pg_total > 0:
                     logger.info("%s: ok (pg=%s, %d rows)", job_id, pg_status, pg_total)
+                # 推送失败可见性 (ADR-006 关键信号): research 任务 pg_total=0, feishu_delivery
+                # 失败原本完全静默 (failed_delivery 在 preserved_statuses 且不打日志) →
+                # "采到却没发"无声无息。这里把 failed/partial delivery 显式进主日志。
+                if last_status in ("failed_delivery", "partial_delivery"):
+                    deliveries = result.get("feishu_deliveries") if isinstance(result, dict) else None
+                    dl = deliveries or []
+                    failed_chats = [d.get("chat_id") for d in dl
+                                    if isinstance(d, dict) and d.get("push_status") != "confirmed"]
+                    logger.warning("%s: feishu delivery %s — %d/%d chats failed: %s",
+                                   job_id, last_status, len(failed_chats), len(dl), failed_chats[:5])
                 return
             except Exception as e:
                 if attempt < max_retries - 1:
@@ -1249,7 +1261,9 @@ def run_morning_overseas_refresh() -> dict:
             results[name] = (r.get("written", r.get("pg_written", 0))
                              if isinstance(r, dict) else str(r))
         except Exception as e:
-            logger.warning("morning_overseas %s failed: %s", name, e)
+            _morning_overseas_failures[name] = _morning_overseas_failures.get(name, 0) + 1
+            logger.error("morning_overseas %s FAILED (total=%d): %s",
+                         name, _morning_overseas_failures[name], e)
             results[name] = f"error: {e}"
     logger.info("Morning overseas refresh: %s", results)
     return results
