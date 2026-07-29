@@ -214,10 +214,10 @@ _BACKFILL_MAP: dict[str, callable] = {
 # trigger_data_backfill 调用时会因签名不匹配 / 业务语义错位而误触发. validator 检查 1 + 检查 3
 # 均跳过此集合避免噪音.
 # - stocks: 非时序 (全量股票列表), cron 'stocks_sync' (每周六 02:00) + 'stocks_incremental' (每日 08:00) 维护
-# - trade_cal: 交易日历, 由其他流程维护 (无独立 sync_trade_cal 入口)
+# - trade_cal: 交易日历, 已加 sync_trade_cal backfill handler (2026-07-29 缺口事件后), 不再 skip
 # - rt_k / rt_sw_k (ADR-013 §决策 6 LD-3 新增): 实时数据按 cron 拉, sync_rt_k 签名无 days_back,
 #   sync_rt_sw_k 签名虽有 days_back=1 但语义是"今天再拉一次"非"回补 N 天" → 监控失配, 留在监控但不进 backfill
-_DESIGN_SKIP_BACKFILL = {"stocks", "trade_cal", "rt_k", "rt_sw_k"}
+_DESIGN_SKIP_BACKFILL = {"stocks", "rt_k", "rt_sw_k"}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -823,6 +823,70 @@ def sync_stk_factor_pro_backfill(days_back: int = 7) -> dict:
 
 # ADR-012 §决策 5.4: 注册 stk_factor_pro backfill handler (函数定义后立刻补登记)
 _BACKFILL_MAP["stk_factor_pro"] = sync_stk_factor_pro_backfill
+
+
+def sync_trade_cal(days_back: int = 14) -> dict:
+    """回补交易日历: 拉 [today-days_back, today+7] 段, ON CONFLICT DO NOTHING 补缺口.
+
+    背景: 2026-07-29 起 trade_cal 表数据缺口(缺07-29~08-02等) 致 is_open_trading_day
+    抛 RuntimeError → A股定时任务(bi_shifu/qishen/cb_auction) failed_trade_calendar 全跳过.
+    本 handler 让 integrity scan 发现 gap 时自动从 Tushare 补, 防再缺.
+    """
+    from datetime import date, timedelta
+    from app.config import TUSHARE_TOKEN
+    from app.sync.rate_limiter import rate_limit
+
+    t0 = time.time()
+    if not TUSHARE_TOKEN:
+        return {"status": "skipped", "reason": "no Tushare token"}
+    try:
+        import tushare as ts
+        ts.set_token(TUSHARE_TOKEN)
+        pro = ts.pro_api()
+    except Exception as e:
+        return {"status": "error", "reason": str(e)[:200]}
+
+    today = date.today()
+    start = (today - timedelta(days=days_back)).strftime("%Y%m%d")
+    end = (today + timedelta(days=7)).strftime("%Y%m%d")  # 含近期未来, 防今/明天缺口
+    rate_limit()
+    try:
+        df = pro.trade_cal(exchange="SSE", start_date=start, end_date=end)
+    except Exception as e:
+        return {"status": "error", "reason": f"trade_cal fetch failed: {str(e)[:150]}"}
+    if df is None or len(df) == 0:
+        return {"table": "trade_cal", "written": 0, "pg_written": 0, "elapsed": time.time() - t0}
+
+    rows = []
+    for _, r in df.iterrows():
+        cd = str(r["cal_date"])
+        cd_date = f"{cd[:4]}-{cd[4:6]}-{cd[6:8]}"
+        is_open = int(r["is_open"])
+        ptd = r.get("pretrade_date")
+        ptd_date = None
+        if ptd is not None and str(ptd) not in ("nan", "NaT", ""):
+            ps = str(ptd)
+            ptd_date = f"{ps[:4]}-{ps[4:6]}-{ps[6:8]}"
+        rows.append((cd_date, is_open, ptd_date))
+
+    pg_written = 0
+    if rows:
+        try:
+            from app.sync.pg_writer import _pg_write
+            pg_written = _pg_write("trade_cal",
+                                   ["cal_date", "is_open", "pretrade_date"],
+                                   ["cal_date"], rows)
+        except Exception as e:
+            logger.warning("PG write trade_cal failed: %s", str(e)[:140])
+
+    elapsed = time.time() - t0
+    logger.info("trade_cal backfill: range=%s~%s rows=%d pg=%d %.1fs",
+                start, end, len(rows), pg_written, elapsed)
+    return {"table": "trade_cal", "written": len(rows), "pg_written": pg_written, "elapsed": elapsed}
+
+
+# 2026-07-29 缺口事件后新增: integrity scan 发现 trade_cal gap 时自动从 Tushare 补
+_BACKFILL_MAP["trade_cal"] = sync_trade_cal
 
 
 def sync_sw_daily_batch(days_back: int = 7) -> dict:
