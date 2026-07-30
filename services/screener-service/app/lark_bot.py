@@ -3882,7 +3882,8 @@ def _brief_market_lines(result: dict[str, Any]) -> list[str]:
     return lines or ["- 指数数据暂缺"]
 
 
-def _brief_resonance_rows(result: dict[str, Any]) -> list[list[Any]]:
+def _brief_resonance_rows(result: dict[str, Any],
+                          key: str = "sector_resonance") -> list[list[Any]]:
     brief_type = result.get("brief_type") or ""
     return [
         [
@@ -3892,11 +3893,12 @@ def _brief_resonance_rows(result: dict[str, Any]) -> list[list[Any]]:
             _fmt_brief_amount(r.get("total_amount"), brief_type),
             "、".join(r.get("stocks") or []),
         ]
-        for r in (result.get("sector_resonance") or [])[:10]
+        for r in (result.get(key) or [])[:10]
     ]
 
 
-def _brief_pick_rows(result: dict[str, Any], limit: int = 20) -> list[list[Any]]:
+def _brief_pick_rows(result: dict[str, Any], limit: int = 20,
+                     key: str = "picks") -> list[list[Any]]:
     brief_type = result.get("brief_type") or ""
     return [
         [
@@ -3907,7 +3909,7 @@ def _brief_pick_rows(result: dict[str, Any], limit: int = 20) -> list[list[Any]]
             f"{float(p.get('pct_chg') or 0):+.2f}%",
             _fmt_brief_amount(p.get("amount"), brief_type),
         ]
-        for i, p in enumerate((result.get("picks") or [])[:limit], 1)
+        for i, p in enumerate((result.get(key) or [])[:limit], 1)
     ]
 
 
@@ -3926,6 +3928,7 @@ def build_brief_markdown_report(result: dict[str, Any]) -> str:
     trade_date = result.get("trade_date") or "latest"
     brief_type = result.get("brief_type") or ""
     picks = result.get("picks") or []
+    picks_down = result.get("picks_down") or []
     source = _BRIEF_SOURCE_LABELS.get(result.get("data_source"),
                                       result.get("data_source") or "未标注")
 
@@ -3939,24 +3942,39 @@ def build_brief_markdown_report(result: dict[str, Any]) -> str:
             ["报告生成时间", _generated_at()],
             ["数据源", source],
             ["热门股入选数量", f"{len(picks)}只"],
-            ["共振板块数量", f"{len(result.get('sector_resonance') or [])}个"],
+            ["领跌股入选数量", f"{len(picks_down)}只"],
+            ["共振板块(涨/跌)", f"{len(result.get('sector_resonance') or [])}个 / "
+                              f"{len(result.get('sector_resonance_down') or [])}个"],
         ]),
         "",
         "## 二、全球市场概览",
         "",
         *_brief_market_lines(result),
         "",
-        "## 三、板块共振",
+        "## 三、板块共振·涨幅",
         "",
         *_markdown_table(["板块", "热门股数", "平均涨幅", "总成交额", "代表个股"],
-                         _brief_resonance_rows(result) or [["-", "-", "-", "-", "今日无显著板块共振"]]),
+                         _brief_resonance_rows(result)
+                         or [["-", "-", "-", "-", "今日无显著上涨共振板块"]]),
         "",
-        f"## 四、热门股清单 Top {min(20, len(picks))}",
+        "## 四、板块共振·跌幅",
+        "",
+        *_markdown_table(["板块", "领跌股数", "平均跌幅", "总成交额", "代表个股"],
+                         _brief_resonance_rows(result, key="sector_resonance_down")
+                         or [["-", "-", "-", "-", "今日无显著下跌共振板块"]]),
+        "",
+        f"## 五、热门股清单 Top {min(20, len(picks))}",
         "",
         *_markdown_table(["序号", "代码", "名称", "板块", "涨跌幅", "成交额"],
                          _brief_pick_rows(result) or [["-", "-", "-", "-", "-", "无符合条件的热门股"]]),
         "",
-        "## 五、热点财经新闻 Top10（硬科技侧重）",
+        f"## 六、领跌股清单 Top {min(20, len(picks_down))}",
+        "",
+        *_markdown_table(["序号", "代码", "名称", "板块", "涨跌幅", "成交额"],
+                         _brief_pick_rows(result, key="picks_down")
+                         or [["-", "-", "-", "-", "-", "无符合条件的领跌股"]]),
+        "",
+        "## 七、热点财经新闻 Top10（硬科技侧重）",
         "",
         *_brief_news_lines(result),
         "",
@@ -3982,7 +4000,7 @@ def _format_brief_group_reply(result: dict[str, Any], doc: dict[str, Any]) -> st
         "全球市场:",
         *_brief_market_lines(result),
         "",
-        "板块共振:",
+        "板块共振·涨幅:",
     ]
     resonance = result.get("sector_resonance") or []
     if resonance:
@@ -3991,7 +4009,18 @@ def _format_brief_group_reply(result: dict[str, Any], doc: dict[str, Any]) -> st
                          f"均涨{float(r.get('avg_pct') or 0):+.1f}% "
                          f"({'、'.join((r.get('stocks') or [])[:3])})")
     else:
-        lines.append("- 今日无显著板块共振")
+        lines.append("- 今日无显著上涨共振板块")
+
+    resonance_down = result.get("sector_resonance_down") or []
+    lines.append("")
+    lines.append("板块共振·跌幅:")
+    if resonance_down:
+        for r in resonance_down[:6]:
+            lines.append(f"- {r.get('sector')}: {r.get('hot_count')}只 "
+                         f"均跌{float(r.get('avg_pct') or 0):+.1f}% "
+                         f"({'、'.join((r.get('stocks') or [])[:3])})")
+    else:
+        lines.append("- 今日无显著下跌共振板块")
 
     if picks:
         lines.extend(["", f"热门股 Top {min(10, len(picks))}:"])
@@ -4025,18 +4054,29 @@ def build_brief_lark_doc_xml_report(result: dict[str, Any]) -> str:
             ["报告生成时间", _generated_at()],
             ["数据源", source],
             ["热门股入选数量", f"{len(picks)}只"],
-            ["共振板块数量", f"{len(result.get('sector_resonance') or [])}个"],
+            ["领跌股入选数量", f"{len(result.get('picks_down') or [])}只"],
+            ["共振板块(涨/跌)", f"{len(result.get('sector_resonance') or [])}个 / "
+                              f"{len(result.get('sector_resonance_down') or [])}个"],
         ]),
         "<h2>二、全球市场概览</h2>",
         "<ul>" + "".join(f"<li>{_xml_escape(line.lstrip('- '))}</li>"
                          for line in _brief_market_lines(result)) + "</ul>",
-        "<h2>三、板块共振</h2>",
+        "<h2>三、板块共振·涨幅</h2>",
         _xml_table(["板块", "热门股数", "平均涨幅", "总成交额", "代表个股"],
-                   _brief_resonance_rows(result) or [["-", "-", "-", "-", "今日无显著板块共振"]]),
-        f"<h2>四、热门股清单 Top {min(20, len(picks))}</h2>",
+                   _brief_resonance_rows(result)
+                   or [["-", "-", "-", "-", "今日无显著上涨共振板块"]]),
+        "<h2>四、板块共振·跌幅</h2>",
+        _xml_table(["板块", "领跌股数", "平均跌幅", "总成交额", "代表个股"],
+                   _brief_resonance_rows(result, key="sector_resonance_down")
+                   or [["-", "-", "-", "-", "今日无显著下跌共振板块"]]),
+        f"<h2>五、热门股清单 Top {min(20, len(picks))}</h2>",
         _xml_table(["序号", "代码", "名称", "板块", "涨跌幅", "成交额"],
                    _brief_pick_rows(result) or [["-", "-", "-", "-", "-", "无符合条件的热门股"]]),
-        "<h2>五、热点财经新闻 Top10（硬科技侧重）</h2>",
+        f"<h2>六、领跌股清单 Top {min(20, len(result.get('picks_down') or []))}</h2>",
+        _xml_table(["序号", "代码", "名称", "板块", "涨跌幅", "成交额"],
+                   _brief_pick_rows(result, key="picks_down")
+                   or [["-", "-", "-", "-", "-", "无符合条件的领跌股"]]),
+        "<h2>七、热点财经新闻 Top10（硬科技侧重）</h2>",
         "<ol>" + "".join(f"<li>{_xml_escape(line.split('. ', 1)[-1])}</li>"
                          for line in _brief_news_lines(result)) + "</ol>",
         "<p><i>免责声明: 本报告由模型自动生成, 仅供研究参考, 不构成投资建议。"
@@ -4052,6 +4092,7 @@ def build_brief_poster_svg(result: dict[str, Any]) -> str:
     trade_date = result.get("trade_date") or "latest"
     picks = result.get("picks") or []
     resonance = result.get("sector_resonance") or []
+    resonance_down = result.get("sector_resonance_down") or []
     news = result.get("news_top10") or []
     indices = (result.get("market_strength") or {}).get("indices") or []
 
@@ -4061,7 +4102,7 @@ def build_brief_poster_svg(result: dict[str, Any]) -> str:
     muted = "#c9bd95"
     panel = "#15130f"
     border = "#6d5931"
-    width, height = 900, 1400
+    width, height = 900, 1560
 
     index_summary = "  ".join(f"{i.get('name')} {float(i.get('pct_chg') or 0):+.2f}%"
                               for i in indices[:3]) or "指数数据暂缺"
@@ -4087,8 +4128,8 @@ def build_brief_poster_svg(result: dict[str, Any]) -> str:
         '<linearGradient id="panel" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#1e1a13"/><stop offset="100%" stop-color="#0b0a08"/></linearGradient>',
         '<filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/></filter>',
         "</defs>",
-        '<rect width="900" height="1400" fill="#050403"/>',
-        '<rect width="900" height="1400" fill="url(#glow)" opacity="0.92"/>',
+        '<rect width="900" height="1560" fill="#050403"/>',
+        '<rect width="900" height="1560" fill="url(#glow)" opacity="0.92"/>',
         '<circle cx="780" cy="150" r="210" fill="#d8ad4f" opacity="0.18"/>',
         '<circle cx="86" cy="1190" r="240" fill="#d8ad4f" opacity="0.10"/>',
         '<text x="62" y="76" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="700" fill="#f5e6b1">SUYING AI 投研分析</text>',
@@ -4111,7 +4152,7 @@ def build_brief_poster_svg(result: dict[str, Any]) -> str:
         lines.append(f'<rect x="56" y="540" width="742" height="100" rx="18" fill="{panel}" stroke="{border}" stroke-width="1.5"/>')
         lines.append(f'<text x="86" y="596" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="22" fill="{ink}">本次没有符合条件的热门股</text>')
 
-    lines.append(f'<text x="62" y="1066" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="{gold}">板块共振</text>')
+    lines.append(f'<text x="62" y="1066" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="{gold}">板块共振·涨幅</text>')
     if resonance:
         for i, r in enumerate(resonance[:3]):
             y = 1106 + i * 34
@@ -4121,15 +4162,27 @@ def build_brief_poster_svg(result: dict[str, Any]) -> str:
             lines.append(f'<rect x="64" y="{y - 16}" width="10" height="10" fill="{gold}"/>')
             lines.append(f'<text x="88" y="{y}" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="{ink}">{_xml_escape(_clip_text(text, 36))}</text>')
     else:
-        lines.append(f'<text x="88" y="1106" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="{ink}">今日无显著板块共振</text>')
+        lines.append(f'<text x="88" y="1106" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="{ink}">今日无显著上涨共振板块</text>')
 
-    lines.append(f'<text x="62" y="1230" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="{gold}">热点新闻 Top 3（硬科技侧重）</text>')
+    lines.append(f'<text x="62" y="1224" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="{gold}">板块共振·跌幅</text>')
+    if resonance_down:
+        for i, r in enumerate(resonance_down[:3]):
+            y = 1264 + i * 34
+            text = (f"{r.get('sector')}: {r.get('hot_count')}只 "
+                    f"均跌{float(r.get('avg_pct') or 0):+.1f}% "
+                    f"({'、'.join((r.get('stocks') or [])[:3])})")
+            lines.append(f'<rect x="64" y="{y - 16}" width="10" height="10" fill="{gold}"/>')
+            lines.append(f'<text x="88" y="{y}" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="{ink}">{_xml_escape(_clip_text(text, 36))}</text>')
+    else:
+        lines.append(f'<text x="88" y="1264" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="19" fill="{ink}">今日无显著下跌共振板块</text>')
+
+    lines.append(f'<text x="62" y="1382" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="26" font-weight="800" fill="{gold}">热点新闻 Top 3（硬科技侧重）</text>')
     for i, n in enumerate(news[:3]):
-        y = 1270 + i * 32
+        y = 1422 + i * 32
         text = f"{n.get('rank')}. 【{n.get('market') or '全球'}】{n.get('title')}"
         lines.append(f'<rect x="64" y="{y - 15}" width="10" height="10" fill="{gold}"/>')
         lines.append(f'<text x="88" y="{y}" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="18" fill="{ink}">{_xml_escape(_clip_text(text, 38))}</text>')
 
-    lines.append(f'<text x="62" y="1380" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="{muted}">模型自动生成, 仅供研究参考, 不构成投资建议 · 数据来自公开接口可能存在延迟</text>')
+    lines.append(f'<text x="62" y="1540" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="15" fill="{muted}">模型自动生成, 仅供研究参考, 不构成投资建议 · 数据来自公开接口可能存在延迟</text>')
     lines.append("</svg>")
     return "\n".join(lines)

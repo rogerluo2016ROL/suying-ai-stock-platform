@@ -8,7 +8,8 @@
 - LLM (DeepSeek): 热门股板块归类 + 新闻 Top10 排序; 无 key 或调用失败时规则降级.
 
 返回结构迁就统一研究流水线 (picks 装热门股清单):
-{status, mode, trade_date, picks[], total_picks, sector_resonance[], news_top10[],
+{status, mode, trade_date, picks[], picks_down[], total_picks, sector_resonance[],
+ sector_resonance_down[], news_top10[],
  market_strength{indices[], snapshot_time}, data_source, brief_type}
 """
 
@@ -48,8 +49,9 @@ def _pg_query(sql: str, params: tuple = ()) -> list[tuple]:
             return cur.fetchall()
 
 
-def _load_us_hot(top_n: int) -> tuple[str, list[dict], str]:
-    """返回 (trade_date, hot_stocks, data_source). 涨幅榜 ∪ 成交额榜去重."""
+def _load_us_hot(top_n: int) -> tuple[str, list[dict], list[dict], str]:
+    """返回 (trade_date, hot_stocks, loser_stocks, data_source).
+    hot = 涨幅榜 ∪ 成交额榜; losers = 纯跌幅榜 (供板块共振跌幅)."""
     rows = _pg_query("""
         SELECT d.trade_date, d.ts_code,
                COALESCE(NULLIF(b.name,''), b.enname, d.ts_code) AS name,
@@ -60,14 +62,15 @@ def _load_us_hot(top_n: int) -> tuple[str, list[dict], str]:
           AND d.pct_chg IS NOT NULL
     """)
     if not rows:
-        spot = _fetch_us_spot_em()
-        return (datetime.now().date().isoformat(), spot, "eastmoney_realtime")
+        hot, losers = _fetch_us_spot_em(top_n)
+        return (datetime.now().date().isoformat(), hot, losers, "eastmoney_realtime")
 
     trade_date = str(rows[0][0])
     source = rows[0][5] or "tushare"
     stocks = [{"code": r[1], "name": r[2], "pct_chg": float(r[3]),
                "amount": float(r[4] or 0)} for r in rows]
-    return trade_date, _pick_hot(stocks, top_n), source
+    return (trade_date, _pick_hot(stocks, top_n),
+            _pick_losers(stocks, top_n), source)
 
 
 def _pick_hot(stocks: list[dict], top_n: int,
@@ -88,7 +91,19 @@ def _pick_hot(stocks: list[dict], top_n: int,
     return hot
 
 
-def _load_kr_hot(top_n: int) -> tuple[str, list[dict], str]:
+def _pick_losers(stocks: list[dict], top_n: int,
+                 min_pct: float = 3.0, min_amount: float = 5e6) -> list[dict]:
+    """领跌股 = 跌幅榜 (跌幅≤-min_pct 且成交额≥min_amount), 跌最多在前, 封顶 top_n.
+
+    与 _pick_hot 不同: 不混入成交额榜 — 跌幅共振需要纯领跌样本,
+    避免与热门股清单大面积重叠造成阅读困惑.
+    """
+    liquid = [s for s in stocks if s["amount"] >= min_amount]
+    return sorted([s for s in liquid if s["pct_chg"] <= -min_pct],
+                  key=lambda x: x["pct_chg"])[:top_n]
+
+
+def _load_kr_hot(top_n: int) -> tuple[str, list[dict], list[dict], str]:
     rows = _pg_query("""
         SELECT trade_date, code, name, pct_chg, amount, snapshot_ts
         FROM kr_stock_daily
@@ -98,11 +113,12 @@ def _load_kr_hot(top_n: int) -> tuple[str, list[dict], str]:
     today = datetime.now().date().isoformat()
     # 快照非当日 或 快照早于今早 8 点 (韩股未开盘的旧数据) → 直连 Naver
     if not rows or str(rows[0][0]) != today:
-        spot = _fetch_kr_spot(top_n)
-        return today, spot, "naver_realtime"
+        hot, losers = _fetch_kr_spot(top_n)
+        return today, hot, losers, "naver_realtime"
     stocks = [{"code": r[1], "name": r[2], "pct_chg": float(r[3]),
                "amount": float(r[4] or 0) * 1e6} for r in rows]  # 百万韩元→韩元
-    return str(rows[0][0]), _pick_hot(stocks, top_n, min_pct=2.0, min_amount=1e10), "naver"
+    return (str(rows[0][0]), _pick_hot(stocks, top_n, min_pct=2.0, min_amount=1e10),
+            _pick_losers(stocks, top_n, min_pct=2.0, min_amount=1e10), "naver")
 
 
 def _load_indices(codes: list[str]) -> list[dict]:
@@ -131,11 +147,14 @@ def _load_news_window(hours: int = 16, limit: int = 200) -> list[dict]:
 
 # ── 实时兜底 (PG 无数据时直连源站) ─────────────────────────────────────────
 
-def _fetch_us_spot_em(top_n: int = 30) -> list[dict]:
+def _fetch_us_spot_em(top_n: int = 30) -> tuple[list[dict], list[dict]]:
+    """东财实时快照兜底. 返回 (hot, losers).
+    fid=f3(涨跌幅): po=1 降序翻 2 页取涨幅侧, po=0 升序 1 页补跌幅侧样本."""
     stocks: list[dict] = []
-    for pn in (1, 2):
+    seen: set[str] = set()
+    for pn, po in ((1, 1), (2, 1), (1, 0)):
         params = {
-            "pn": pn, "pz": 100, "po": 1, "np": 1, "fltt": 2, "invt": 2,
+            "pn": pn, "pz": 100, "po": po, "np": 1, "fltt": 2, "invt": 2,
             "fid": "f3", "fs": "m:105,m:106,m:107",
             "fields": "f12,f14,f2,f3,f5,f6",
             "ut": "bd1d9ddb04089700cf9c27f6f7426281",
@@ -154,12 +173,17 @@ def _fetch_us_spot_em(top_n: int = 30) -> list[dict]:
         for it in diff:
             if it.get("f3") in (None, "-"):
                 continue
-            stocks.append({"code": str(it.get("f12")), "name": str(it.get("f14") or ""),
+            code = str(it.get("f12"))
+            if code in seen:
+                continue
+            seen.add(code)
+            stocks.append({"code": code, "name": str(it.get("f14") or ""),
                            "pct_chg": float(it["f3"]), "amount": float(it.get("f6") or 0)})
-    return _pick_hot(stocks, top_n)
+    return _pick_hot(stocks, top_n), _pick_losers(stocks, top_n)
 
 
-def _fetch_kr_spot(top_n: int = 30) -> list[dict]:
+def _fetch_kr_spot(top_n: int = 30) -> tuple[list[dict], list[dict]]:
+    """Naver 实时快照兜底 (按市值取样本, 涨跌双向天然覆盖). 返回 (hot, losers)."""
     stocks: list[dict] = []
     for market in ("KOSPI", "KOSDAQ"):
         for page in range(1, 4):  # 兜底只取市值前 300/市场
@@ -183,7 +207,8 @@ def _fetch_kr_spot(top_n: int = 30) -> list[dict]:
                                "pct_chg": pct, "amount": amt})
             if len(items) < 100:
                 break
-    return _pick_hot(stocks, top_n, min_pct=2.0, min_amount=1e10)
+    return (_pick_hot(stocks, top_n, min_pct=2.0, min_amount=1e10),
+            _pick_losers(stocks, top_n, min_pct=2.0, min_amount=1e10))
 
 
 # ── LLM (DeepSeek) ─────────────────────────────────────────────────────────
@@ -283,8 +308,9 @@ def _translate_names_to_chinese(hot: list[dict], market: str) -> None:
 
 
 def _build_resonance(hot: list[dict], sectors: dict[str, str],
-                     min_cluster: int = 2) -> list[dict]:
-    """板块共振 = 同一板块热门股 ≥ min_cluster 只."""
+                     min_cluster: int = 2, direction: str = "up") -> list[dict]:
+    """板块共振 = 同一板块热门股 ≥ min_cluster 只.
+    direction="down" 时代表个股按跌幅排序 (跌最多在前), 供板块共振跌幅."""
     clusters: dict[str, list[dict]] = {}
     for s in hot:
         sector = sectors.get(s["code"], "综合")
@@ -294,13 +320,14 @@ def _build_resonance(hot: list[dict], sectors: dict[str, str],
     for sector, members in clusters.items():
         if len(members) < min_cluster:
             continue
+        ranked = sorted(members,
+                        key=lambda x: x["pct_chg"] if direction == "down" else -x["pct_chg"])
         out.append({
             "sector": sector,
             "hot_count": len(members),
             "avg_pct": round(sum(m["pct_chg"] for m in members) / len(members), 2),
             "total_amount": sum(m["amount"] for m in members),
-            "stocks": [f"{m['name']}({m['pct_chg']:+.1f}%)" for m in
-                       sorted(members, key=lambda x: -x["pct_chg"])[:6]],
+            "stocks": [f"{m['name']}({m['pct_chg']:+.1f}%)" for m in ranked[:6]],
         })
     out.sort(key=lambda x: (-x["hot_count"], -x["total_amount"]))
     return out
@@ -354,11 +381,15 @@ def _select_news_top10(news: list[dict], market_focus: str) -> list[dict]:
 
 def _run_us_morning_brief_mode(mode: str, top_n: int,
                                trade_date: Optional[str]) -> dict:
-    """8:00 美股早报: 美股板块共振 + 热门股 + 美韩日新闻 Top10 (硬科技侧重)."""
-    us_date, hot, source = _load_us_hot(top_n)
-    _translate_names_to_chinese(hot, "us")
-    sectors = _classify_sectors(hot)
+    """8:00 美股早报: 美股板块共振(涨/跌) + 热门股 + 美韩日新闻 Top10 (硬科技侧重)."""
+    us_date, hot, losers, source = _load_us_hot(top_n)
+    # 涨/跌两榜合并做一次翻译+归类 (hot 优先, losers 去重追加), 避免 LLM 调用翻倍
+    seen = {s["code"] for s in hot}
+    both = hot + [s for s in losers if s["code"] not in seen]
+    _translate_names_to_chinese(both, "us")
+    sectors = _classify_sectors(both)
     resonance = _build_resonance(hot, sectors)
+    resonance_down = _build_resonance(losers, sectors, direction="down")
     news = _load_news_window(hours=16)
     news_top10 = _select_news_top10(news, market_focus="美国")
     indices = _load_indices(["IXIC", "DJI", "SPX"])
@@ -369,8 +400,10 @@ def _run_us_morning_brief_mode(mode: str, top_n: int,
         "brief_type": "us_morning",
         "trade_date": us_date,
         "picks": hot,
+        "picks_down": losers,
         "total_picks": len(hot),
         "sector_resonance": resonance,
+        "sector_resonance_down": resonance_down,
         "news_top10": news_top10,
         "market_strength": {
             "indices": indices,
@@ -382,11 +415,14 @@ def _run_us_morning_brief_mode(mode: str, top_n: int,
 
 def _run_kr_morning_brief_mode(mode: str, top_n: int,
                                trade_date: Optional[str]) -> dict:
-    """9:05 韩股早报: 韩股开盘首小时板块共振 + 热门股 + 韩国相关新闻."""
-    kr_date, hot, source = _load_kr_hot(top_n)
-    _translate_names_to_chinese(hot, "kr")
-    sectors = _classify_sectors(hot)
+    """9:05 韩股早报: 韩股开盘首小时板块共振(涨/跌) + 热门股 + 韩国相关新闻."""
+    kr_date, hot, losers, source = _load_kr_hot(top_n)
+    seen = {s["code"] for s in hot}
+    both = hot + [s for s in losers if s["code"] not in seen]
+    _translate_names_to_chinese(both, "kr")
+    sectors = _classify_sectors(both)
     resonance = _build_resonance(hot, sectors)
+    resonance_down = _build_resonance(losers, sectors, direction="down")
     news = _load_news_window(hours=16)
     kr_related = [n for n in news if re.search(r"韩国|三星|SK|海力士|KOSPI|首尔", n["content"])]
     # 韩国相关新闻凑不齐 10 条时, 用全量窗口补足 (全球宏观同样影响韩股)
@@ -400,8 +436,10 @@ def _run_kr_morning_brief_mode(mode: str, top_n: int,
         "brief_type": "kr_morning",
         "trade_date": kr_date,
         "picks": hot,
+        "picks_down": losers,
         "total_picks": len(hot),
         "sector_resonance": resonance,
+        "sector_resonance_down": resonance_down,
         "news_top10": news_top10,
         "market_strength": {
             "indices": indices,
