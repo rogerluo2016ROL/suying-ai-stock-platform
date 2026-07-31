@@ -1520,12 +1520,16 @@
             "单纯发布会演示不能等同于商业化需求，需要和订单、交付、复购分开。"
           ],
           "companies": [
-            "特斯拉",
             "Figure AI",
-            "宇树科技",
+            "上纬新材",
             "优必选",
             "傅利叶智能",
-            "波士顿动力"
+            "宇树科技",
+            "机器人",
+            "波士顿动力",
+            "特斯拉",
+            "石头科技",
+            "科沃斯"
           ],
           "tracking_metrics": [
             "试点项目数",
@@ -1633,12 +1637,15 @@
             "仿真成绩需要用真实场景测试闭环验证。"
           ],
           "companies": [
-            "NVIDIA",
-            "Google DeepMind",
-            "OpenAI",
-            "特斯拉",
             "Figure AI",
-            "智元机器人"
+            "Google DeepMind",
+            "NVIDIA",
+            "OpenAI",
+            "全志科技",
+            "晶晨股份",
+            "智元机器人",
+            "特斯拉",
+            "瑞芯微"
           ],
           "tracking_metrics": [
             "任务成功率",
@@ -1712,12 +1719,16 @@
             "样机参数不等于商业产品，需要用量产良率和客户部署验证。"
           ],
           "companies": [
-            "特斯拉",
-            "宇树科技",
-            "优必选",
             "Figure AI",
+            "九号公司",
+            "亿嘉和",
+            "优必选",
+            "埃夫特",
+            "宇树科技",
+            "小米机器人",
+            "新时达",
             "智元机器人",
-            "小米机器人"
+            "特斯拉"
           ],
           "tracking_metrics": [
             "整机 BOM 成本",
@@ -1826,13 +1837,16 @@
             "减速器、电机、传感器和控制器会影响整机成本、性能和供应安全。"
           ],
           "companies": [
-            "绿的谐波",
-            "鸣志电器",
+            "兆威机电",
+            "双环传动",
+            "地平线",
+            "昊志机电",
             "柯力传感",
-            "汉威科技",
             "汇川技术",
+            "汉威科技",
+            "绿的谐波",
             "英伟达",
-            "地平线"
+            "鸣志电器"
           ],
           "tracking_metrics": [
             "关键零部件 ASP",
@@ -1959,11 +1973,11 @@
             "单个零部件优势需要通过系统集成转化为整机性能。"
           ],
           "companies": [
-            "拓普集团",
             "三花智控",
-            "江苏雷利",
             "埃斯顿",
+            "拓普集团",
             "汇川技术",
+            "江苏雷利",
             "雷赛智能"
           ],
           "tracking_metrics": [
@@ -2072,10 +2086,13 @@
           "companies": [
             "NVIDIA",
             "ROS生态",
+            "中国汽研",
+            "中国移动",
             "华为",
-            "阿里云",
+            "海天瑞声",
+            "索辰科技",
             "腾讯云",
-            "中国移动"
+            "阿里云"
           ],
           "tracking_metrics": [
             "训练数据小时数",
@@ -2182,12 +2199,14 @@
             "泛 AI 算力投入不能自动算作具身智能证据，必须有机器人、仿真、自动驾驶或边缘智能映射。"
           ],
           "companies": [
-            "NVIDIA",
-            "Microsoft",
             "Amazon",
             "Google",
             "Meta",
+            "Microsoft",
+            "NVIDIA",
+            "东土科技",
             "华为",
+            "移远通信",
             "阿里云"
           ],
           "tracking_metrics": [
@@ -2314,12 +2333,14 @@
             "短期概念热度不能替代可复购、可盈利、可规模化的商业模型。"
           ],
           "companies": [
-            "优必选",
-            "特斯拉",
-            "宇树科技",
             "Figure AI",
+            "优必选",
+            "傅利叶智能",
+            "博实股份",
+            "宇树科技",
             "智元机器人",
-            "傅利叶智能"
+            "特斯拉",
+            "申昊科技"
           ],
           "tracking_metrics": [
             "具身智能收入",
@@ -8835,7 +8856,7 @@
           "layer_id": "demand",
           "order": 1,
           "name": "需求层",
-          "definition": "围绕数据要素/AI应用商业化的需求层，跟踪政企数字化;数据资产入表;AI办公提效;金融智能化;行业大模型落地。",
+          "definition": "围绕数据要素/AI应用商业化的需求层，跟踪政企数字化;数据资产入表;内容生成AIGC;办公与生产力;软件开发提效;企业服务智能化;垂直行业应用;端侧AI硬件;AI for Science。",
           "key_questions": [
             "政企数字化是否形成真实订单或验证进展？",
             "是否能传导到收入、毛利或CAPEX？",
@@ -8844,15 +8865,24 @@
           "segments": [
             "政企数字化",
             "数据资产入表",
-            "AI办公提效",
-            "金融智能化",
-            "行业大模型落地"
+            "内容生成AIGC",
+            "办公与生产力",
+            "软件开发提效",
+            "企业服务智能化",
+            "垂直行业应用",
+            "端侧AI硬件",
+            "AI for Science"
           ],
           "evidence": [
             "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
             "概念相关只能作为候选映射，不能直接视为强证据。"
           ],
-          "companies": [],
+          "companies": [
+            "中国电信",
+            "中国移动",
+            "中国联通",
+            "用友网络"
+          ],
           "tracking_metrics": [
             "政企数字化订单",
             "政企数字化价格/渗透率",
@@ -8952,7 +8982,12 @@
             "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
             "概念相关只能作为候选映射，不能直接视为强证据。"
           ],
-          "companies": [],
+          "companies": [
+            "云赛智联",
+            "人民网",
+            "每日互动",
+            "海天瑞声"
+          ],
           "tracking_metrics": [
             "数据治理订单",
             "数据治理价格/渗透率",
@@ -9035,7 +9070,7 @@
           "layer_id": "core_product",
           "order": 3,
           "name": "核心产品层",
-          "definition": "围绕数据要素/AI应用商业化的核心产品层，跟踪行业大模型;AI办公软件;数据交易平台;智能投研/金融IT;知识管理。",
+          "definition": "围绕数据要素/AI应用商业化的核心产品层，跟踪行业大模型;AI办公软件;AIGC内容生成工具;代码生成/开发工具;智能客服/企业SaaS;垂直行业AI产品;端侧AI终端;数据交易平台;智能投研/金融IT;知识管理。",
           "key_questions": [
             "行业大模型是否形成真实订单或验证进展？",
             "是否能传导到收入、毛利或CAPEX？",
@@ -9044,6 +9079,11 @@
           "segments": [
             "行业大模型",
             "AI办公软件",
+            "AIGC内容生成工具",
+            "代码生成/开发工具",
+            "智能客服/企业SaaS",
+            "垂直行业AI产品",
+            "端侧AI终端",
             "数据交易平台",
             "智能投研/金融IT",
             "知识管理"
@@ -9054,10 +9094,36 @@
           ],
           "companies": [
             "万兴科技",
+            "三六零",
+            "中文在线",
+            "中望软件",
+            "中科创达",
             "云从科技",
+            "传音控股",
+            "佳发教育",
+            "光云科技",
+            "卫宁健康",
+            "当虹科技",
+            "彩讯股份",
+            "成都先导",
+            "托普云农",
             "拓尔思",
+            "昆仑万维",
+            "歌尔股份",
+            "汉王科技",
+            "泛微网络",
+            "润和软件",
+            "焦点科技",
+            "神州泰岳",
+            "福昕软件",
             "科大讯飞",
-            "金山办公"
+            "萤石网络",
+            "蓝色光标",
+            "视觉中国",
+            "软通动力",
+            "通达海",
+            "金山办公",
+            "金证股份"
           ],
           "tracking_metrics": [
             "行业大模型订单",
@@ -9161,9 +9227,13 @@
           "companies": [
             "中科曙光",
             "中际旭创",
+            "宝兰德",
             "寒武纪",
             "星环科技",
-            "浪潮信息"
+            "普元信息",
+            "浪潮信息",
+            "海光信息",
+            "首都在线"
           ],
           "tracking_metrics": [
             "算力资源订单",
@@ -9265,9 +9335,14 @@
             "概念相关只能作为候选映射，不能直接视为强证据。"
           ],
           "companies": [
+            "东华软件",
+            "太极股份",
+            "宇信科技",
             "开普云",
             "恒生电子",
+            "新点软件",
             "汉得信息",
+            "神州数码",
             "紫光股份"
           ],
           "tracking_metrics": [
@@ -9370,8 +9445,12 @@
             "概念相关只能作为候选映射，不能直接视为强证据。"
           ],
           "companies": [
+            "中孚信息",
             "国投智能",
+            "奇安信",
+            "安恒信息",
             "数字认证",
+            "格尔软件",
             "深信服",
             "绿盟科技"
           ],
@@ -9475,7 +9554,13 @@
             "概念相关只能作为候选映射，不能直接视为强证据。"
           ],
           "companies": [
-            "东方国信"
+            "东方国信",
+            "中科星图",
+            "奥飞数据",
+            "宝信软件",
+            "数据港",
+            "润泽科技",
+            "深桑达A"
           ],
           "tracking_metrics": [
             "数据交易所订单",
@@ -9559,7 +9644,7 @@
           "layer_id": "commercialization",
           "order": 8,
           "name": "商业变现层",
-          "definition": "围绕数据要素/AI应用商业化的商业变现层，跟踪订阅收入;API调用收入;项目订单;数据运营分成;续费率。",
+          "definition": "围绕数据要素/AI应用商业化的商业变现层，跟踪订阅收入;API调用收入;项目订单;数据运营分成;续费率;内容/流量变现。",
           "key_questions": [
             "订阅收入是否形成真实订单或验证进展？",
             "是否能传导到收入、毛利或CAPEX？",
@@ -9570,14 +9655,20 @@
             "API调用收入",
             "项目订单",
             "数据运营分成",
-            "续费率"
+            "续费率",
+            "内容/流量变现"
           ],
           "evidence": [
             "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
             "概念相关只能作为候选映射，不能直接视为强证据。"
           ],
           "companies": [
+            "值得买",
             "同花顺",
+            "大智慧",
+            "广联达",
+            "指南针",
+            "税友股份",
             "财富趋势"
           ],
           "tracking_metrics": [
@@ -22936,6 +23027,908 @@
           ],
           "next_validation_action": "核验物流网智慧物流环节的产品、客户、订单与收入证据",
           "independent_discovery": false
+        }
+      ]
+    },
+    {
+      "template_id": "physical_ai",
+      "name": "物理AI复杂产业链路模板",
+      "description": "围绕世界模型、物理仿真、合成数据、机器人基础模型、自动驾驶和数字孪生，拆解AI从数字世界走向物理世界的模型-仿真-数据-本体链路。",
+      "example_theme": "物理AI",
+      "macro_context": [
+        {
+          "region": "US",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "CN",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "JP",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "KR",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        },
+        {
+          "region": "EU",
+          "policy_stance": "unknown",
+          "inflation_state": "unknown",
+          "rate_trend": "unknown",
+          "liquidity_signal": "unknown",
+          "source_type": "official_macro_policy",
+          "source_name": "macro_policy_snapshot_required",
+          "source_url": "",
+          "as_of_date": "unknown",
+          "evidence_level": "unknown"
+        }
+      ],
+      "layers": [
+        {
+          "layer_id": "demand",
+          "order": 1,
+          "name": "需求层",
+          "definition": "围绕物理AI的需求层，跟踪无人工厂/智能制造;自动驾驶;仓储物流;城市数字孪生;特种作业。",
+          "key_questions": [
+            "无人工厂/智能制造是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "无人工厂/智能制造",
+            "自动驾驶",
+            "仓储物流",
+            "城市数字孪生",
+            "特种作业"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "工业富联",
+            "比亚迪",
+            "赛力斯"
+          ],
+          "tracking_metrics": [
+            "无人工厂/智能制造订单",
+            "无人工厂/智能制造价格/渗透率",
+            "无人工厂/智能制造客户导入",
+            "无人工厂/智能制造CAPEX",
+            "无人工厂/智能制造毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "无人工厂/智能制造订单",
+              "无人工厂/智能制造收入",
+              "无人工厂/智能制造毛利率"
+            ],
+            "expectation_gap": [
+              "无人工厂/智能制造订单高于预期",
+              "无人工厂/智能制造导入快于预期",
+              "无人工厂/智能制造价格/份额改善"
+            ],
+            "trigger_signals": [
+              "无人工厂/智能制造中标/定点",
+              "无人工厂/智能制造CAPEX上修",
+              "无人工厂/智能制造业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "physical_ai_demand_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "无人工厂/智能制造"
+              ],
+              "mapped_layer_id": "demand",
+              "mapped_segments": [
+                "无人工厂/智能制造"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "physical_ai_demand_physical_metric",
+              "name": "无人工厂/智能制造物理指标",
+              "mapped_layer_id": "demand",
+              "mapped_segment": "无人工厂/智能制造",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "task",
+          "order": 2,
+          "name": "任务层",
+          "definition": "围绕物理AI的任务层，跟踪物理规律理解;世界模型预测;Sim2Real迁移;合成数据生成;空间感知。",
+          "key_questions": [
+            "物理规律理解是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "物理规律理解",
+            "世界模型预测",
+            "Sim2Real迁移",
+            "合成数据生成",
+            "空间感知"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "光庭信息",
+            "奥比中光",
+            "海天瑞声"
+          ],
+          "tracking_metrics": [
+            "物理规律理解订单",
+            "物理规律理解价格/渗透率",
+            "物理规律理解客户导入",
+            "物理规律理解CAPEX",
+            "物理规律理解毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "物理规律理解订单",
+              "物理规律理解收入",
+              "物理规律理解毛利率"
+            ],
+            "expectation_gap": [
+              "物理规律理解订单高于预期",
+              "物理规律理解导入快于预期",
+              "物理规律理解价格/份额改善"
+            ],
+            "trigger_signals": [
+              "物理规律理解中标/定点",
+              "物理规律理解CAPEX上修",
+              "物理规律理解业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "physical_ai_task_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "物理规律理解"
+              ],
+              "mapped_layer_id": "task",
+              "mapped_segments": [
+                "物理规律理解"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "physical_ai_task_physical_metric",
+              "name": "物理规律理解物理指标",
+              "mapped_layer_id": "task",
+              "mapped_segment": "物理规律理解",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "core_product",
+          "order": 3,
+          "name": "核心产品层",
+          "definition": "围绕物理AI的核心产品层，跟踪世界模型;物理仿真引擎;机器人基础模型/VLA;自动驾驶方案;数字孪生平台。",
+          "key_questions": [
+            "世界模型是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "世界模型",
+            "物理仿真引擎",
+            "机器人基础模型/VLA",
+            "自动驾驶方案",
+            "数字孪生平台"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中望软件",
+            "四维图新",
+            "德赛西威",
+            "索辰科技",
+            "经纬恒润",
+            "超图软件"
+          ],
+          "tracking_metrics": [
+            "世界模型订单",
+            "世界模型价格/渗透率",
+            "世界模型客户导入",
+            "世界模型CAPEX",
+            "世界模型毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "世界模型订单",
+              "世界模型收入",
+              "世界模型毛利率"
+            ],
+            "expectation_gap": [
+              "世界模型订单高于预期",
+              "世界模型导入快于预期",
+              "世界模型价格/份额改善"
+            ],
+            "trigger_signals": [
+              "世界模型中标/定点",
+              "世界模型CAPEX上修",
+              "世界模型业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "physical_ai_core_product_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "世界模型"
+              ],
+              "mapped_layer_id": "core_product",
+              "mapped_segments": [
+                "世界模型"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "physical_ai_core_product_physical_metric",
+              "name": "世界模型物理指标",
+              "mapped_layer_id": "core_product",
+              "mapped_segment": "世界模型",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "foundation",
+          "order": 4,
+          "name": "底层支撑层",
+          "definition": "围绕物理AI的底层支撑层，跟踪训练算力;物理求解器;深度视觉传感器;实时渲染;边缘计算模组。",
+          "key_questions": [
+            "训练算力是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "训练算力",
+            "物理求解器",
+            "深度视觉传感器",
+            "实时渲染",
+            "边缘计算模组"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中科创达",
+            "寒武纪",
+            "海光信息"
+          ],
+          "tracking_metrics": [
+            "训练算力订单",
+            "训练算力价格/渗透率",
+            "训练算力客户导入",
+            "训练算力CAPEX",
+            "训练算力毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "训练算力订单",
+              "训练算力收入",
+              "训练算力毛利率"
+            ],
+            "expectation_gap": [
+              "训练算力订单高于预期",
+              "训练算力导入快于预期",
+              "训练算力价格/份额改善"
+            ],
+            "trigger_signals": [
+              "训练算力中标/定点",
+              "训练算力CAPEX上修",
+              "训练算力业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "physical_ai_foundation_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "训练算力"
+              ],
+              "mapped_layer_id": "foundation",
+              "mapped_segments": [
+                "训练算力"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "physical_ai_foundation_physical_metric",
+              "name": "训练算力物理指标",
+              "mapped_layer_id": "foundation",
+              "mapped_segment": "训练算力",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "integration",
+          "order": 5,
+          "name": "集成层",
+          "definition": "围绕物理AI的集成层，跟踪本体/整车集成;仿真真实联合标定;数据采集系统;场景库构建;车路协同集成。",
+          "key_questions": [
+            "本体/整车集成是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "本体/整车集成",
+            "仿真真实联合标定",
+            "数据采集系统",
+            "场景库构建",
+            "车路协同集成"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "佳都科技",
+            "千方科技"
+          ],
+          "tracking_metrics": [
+            "本体/整车集成订单",
+            "本体/整车集成价格/渗透率",
+            "本体/整车集成客户导入",
+            "本体/整车集成CAPEX",
+            "本体/整车集成毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "本体/整车集成订单",
+              "本体/整车集成收入",
+              "本体/整车集成毛利率"
+            ],
+            "expectation_gap": [
+              "本体/整车集成订单高于预期",
+              "本体/整车集成导入快于预期",
+              "本体/整车集成价格/份额改善"
+            ],
+            "trigger_signals": [
+              "本体/整车集成中标/定点",
+              "本体/整车集成CAPEX上修",
+              "本体/整车集成业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "physical_ai_integration_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "本体/整车集成"
+              ],
+              "mapped_layer_id": "integration",
+              "mapped_segments": [
+                "本体/整车集成"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "physical_ai_integration_physical_metric",
+              "name": "本体/整车集成物理指标",
+              "mapped_layer_id": "integration",
+              "mapped_segment": "本体/整车集成",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "supporting",
+          "order": 6,
+          "name": "配套层",
+          "definition": "围绕物理AI的配套层，跟踪合成数据服务;数据标注;仿真资产/内容;安全验证;标准评测。",
+          "key_questions": [
+            "合成数据服务是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "合成数据服务",
+            "数据标注",
+            "仿真资产/内容",
+            "安全验证",
+            "标准评测"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "中国汽研",
+            "华测检测"
+          ],
+          "tracking_metrics": [
+            "合成数据服务订单",
+            "合成数据服务价格/渗透率",
+            "合成数据服务客户导入",
+            "合成数据服务CAPEX",
+            "合成数据服务毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "合成数据服务订单",
+              "合成数据服务收入",
+              "合成数据服务毛利率"
+            ],
+            "expectation_gap": [
+              "合成数据服务订单高于预期",
+              "合成数据服务导入快于预期",
+              "合成数据服务价格/份额改善"
+            ],
+            "trigger_signals": [
+              "合成数据服务中标/定点",
+              "合成数据服务CAPEX上修",
+              "合成数据服务业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "physical_ai_supporting_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "合成数据服务"
+              ],
+              "mapped_layer_id": "supporting",
+              "mapped_segments": [
+                "合成数据服务"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "physical_ai_supporting_physical_metric",
+              "name": "合成数据服务物理指标",
+              "mapped_layer_id": "supporting",
+              "mapped_segment": "合成数据服务",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "infrastructure",
+          "order": 7,
+          "name": "基础设施层",
+          "definition": "围绕物理AI的基础设施层，跟踪智算中心;仿真云/渲染农场;数据闭环平台;车路协同设施;测试场。",
+          "key_questions": [
+            "智算中心是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "智算中心",
+            "仿真云/渲染农场",
+            "数据闭环平台",
+            "车路协同设施",
+            "测试场"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "宝信软件",
+            "润泽科技",
+            "首都在线"
+          ],
+          "tracking_metrics": [
+            "智算中心订单",
+            "智算中心价格/渗透率",
+            "智算中心客户导入",
+            "智算中心CAPEX",
+            "智算中心毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "智算中心订单",
+              "智算中心收入",
+              "智算中心毛利率"
+            ],
+            "expectation_gap": [
+              "智算中心订单高于预期",
+              "智算中心导入快于预期",
+              "智算中心价格/份额改善"
+            ],
+            "trigger_signals": [
+              "智算中心中标/定点",
+              "智算中心CAPEX上修",
+              "智算中心业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "physical_ai_infrastructure_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "智算中心"
+              ],
+              "mapped_layer_id": "infrastructure",
+              "mapped_segments": [
+                "智算中心"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "physical_ai_infrastructure_physical_metric",
+              "name": "智算中心物理指标",
+              "mapped_layer_id": "infrastructure",
+              "mapped_segment": "智算中心",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
+        },
+        {
+          "layer_id": "commercialization",
+          "order": 8,
+          "name": "商业变现层",
+          "definition": "围绕物理AI的商业变现层，跟踪本体销售/RaaS;仿真软件订阅;数据服务;算力租赁;方案授权。",
+          "key_questions": [
+            "本体销售/RaaS是否形成真实订单或验证进展？",
+            "是否能传导到收入、毛利或CAPEX？",
+            "是否有公告、财报、IR或产业物理指标支撑？"
+          ],
+          "segments": [
+            "本体销售/RaaS",
+            "仿真软件订阅",
+            "数据服务",
+            "算力租赁",
+            "方案授权"
+          ],
+          "evidence": [
+            "所有现实判断必须回到公告、财报、招股书、IR、交易所文件或可复核产业数据。",
+            "概念相关只能作为候选映射，不能直接视为强证据。"
+          ],
+          "companies": [
+            "优刻得",
+            "虹软科技"
+          ],
+          "tracking_metrics": [
+            "本体销售/RaaS订单",
+            "本体销售/RaaS价格/渗透率",
+            "本体销售/RaaS客户导入",
+            "本体销售/RaaSCAPEX",
+            "本体销售/RaaS毛利率"
+          ],
+          "metrics": {
+            "commercialization": [
+              "本体销售/RaaS订单",
+              "本体销售/RaaS收入",
+              "本体销售/RaaS毛利率"
+            ],
+            "expectation_gap": [
+              "本体销售/RaaS订单高于预期",
+              "本体销售/RaaS导入快于预期",
+              "本体销售/RaaS价格/份额改善"
+            ],
+            "trigger_signals": [
+              "本体销售/RaaS中标/定点",
+              "本体销售/RaaSCAPEX上修",
+              "本体销售/RaaS业绩预增"
+            ]
+          },
+          "capex_evidence": [
+            {
+              "evidence_id": "physical_ai_commercialization_capex_evidence",
+              "company": "sector_participants",
+              "region": "global",
+              "fiscal_period": "unknown",
+              "capex_amount": null,
+              "currency": "unknown",
+              "capex_direction": [
+                "本体销售/RaaS"
+              ],
+              "mapped_layer_id": "commercialization",
+              "mapped_segments": [
+                "本体销售/RaaS"
+              ],
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "source_type": "company_filings_or_ir_required",
+              "source_name": "official_company_filing_required",
+              "source_url": "",
+              "quote": "待采集：只允许使用公告、财报、招股书、投资者关系材料、交易所问询回复等可追溯证据。",
+              "as_of_date": "unknown",
+              "evidence_level": "unknown",
+              "collection_method": "manual_review_required",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ],
+          "physical_metrics": [
+            {
+              "metric_id": "physical_ai_commercialization_physical_metric",
+              "name": "本体销售/RaaS物理指标",
+              "mapped_layer_id": "commercialization",
+              "mapped_segment": "本体销售/RaaS",
+              "metric_usage": [
+                "commercialization",
+                "expectation_gap",
+                "trigger_signal"
+              ],
+              "data_type": "timeseries",
+              "source_type": "industry_physical_research",
+              "source_name": "verified_industry_source_required",
+              "source_url": "",
+              "evidence_level": "unknown",
+              "collection_method": "manual_or_pipeline_required",
+              "as_of_date": "unknown",
+              "impact_direction": "unknown",
+              "confidence": "unknown"
+            }
+          ]
         }
       ]
     }

@@ -629,13 +629,22 @@ def _filter_candidate_by_filter_type(candidate: dict, filter_type: str) -> bool:
 
     if filter_type == "high_growth":
         perf_yield = _to_float(three_factors.get("performance_yield", 0))
-        return perf_yield >= 15.0
+        if perf_yield:
+            return perf_yield >= 15.0
+        # 快照三路回退: V6 原始字段 (q_sales_yoy 等) 缺失时,
+        # 用快照三高 growth_score (0-100, 事件+收入占比驱动), ≥75 约当业绩兑现档
+        snap_growth = _to_float(candidate.get("growth_score"))
+        return snap_growth is not None and snap_growth >= 75.0
 
     if filter_type == "high_profit":
         gross_margin = _to_float(candidate.get("gross_margin", 0))
         profit_dim = _to_float(dim_scores.get("profit", 0))
         # High profit: gross_margin >= 50% OR profit_dim >= 10 (V5 max)
-        return gross_margin >= 50.0 or profit_dim >= 10.0
+        if gross_margin >= 50.0 or profit_dim >= 10.0:
+            return True
+        # 快照三路回退: profit_score (0-100, 毛利占比+盈利事件驱动) ≥75 视作高盈利
+        snap_profit = _to_float(candidate.get("profit_score"))
+        return snap_profit is not None and snap_profit >= 75.0
 
     if filter_type == "high_moat":
         chokepoint_score = _to_float(dim_scores.get("chokepoint", 0))

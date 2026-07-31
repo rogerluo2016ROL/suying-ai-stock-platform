@@ -223,14 +223,14 @@ CHAIN_CONFIGS: dict[str, dict[str, Any]] = {
         "description": "围绕数据确权、数据资源入表、行业数据运营、AI办公、AI金融、AI政企和模型应用付费，拆解从数据供给到商业化收入兑现的链路。",
         "example_theme": "数据要素/AI应用商业化",
         "layers": {
-            "demand": ["政企数字化", "数据资产入表", "AI办公提效", "金融智能化", "行业大模型落地"],
+            "demand": ["政企数字化", "数据资产入表", "内容生成AIGC", "办公与生产力", "软件开发提效", "企业服务智能化", "垂直行业应用", "端侧AI硬件", "AI for Science"],
             "task": ["数据治理", "数据确权", "模型调用", "应用集成", "付费转化"],
-            "core_product": ["行业大模型", "AI办公软件", "数据交易平台", "智能投研/金融IT", "知识管理"],
+            "core_product": ["行业大模型", "AI办公软件", "AIGC内容生成工具", "代码生成/开发工具", "智能客服/企业SaaS", "垂直行业AI产品", "端侧AI终端", "数据交易平台", "智能投研/金融IT", "知识管理"],
             "foundation": ["算力资源", "数据资源", "向量数据库", "安全可信", "云原生中间件"],
             "integration": ["政企系统集成", "行业SaaS", "金融IT交付", "数据运营", "AI Agent工作流"],
             "supporting": ["数据安全", "身份认证", "隐私计算", "运维服务", "咨询实施"],
             "infrastructure": ["数据交易所", "政务云", "企业数据湖", "智算中心", "行业知识库"],
-            "commercialization": ["订阅收入", "API调用收入", "项目订单", "数据运营分成", "续费率"],
+            "commercialization": ["订阅收入", "API调用收入", "项目订单", "数据运营分成", "续费率", "内容/流量变现"],
         },
     },
     "defense_informatization_unmanned": {
@@ -403,6 +403,23 @@ CHAIN_CONFIGS: dict[str, dict[str, Any]] = {
             "commercialization": ["服务器订单", "智算中心中标", "软件适配收入", "AI应用订阅", "项目验收收入"],
         },
     },
+    "physical_ai": {
+        "theme_id": "future_industry_physical_ai",
+        "theme_name": "物理AI复杂产业链",
+        "name": "物理AI复杂产业链路模板",
+        "description": "围绕世界模型、物理仿真、合成数据、机器人基础模型、自动驾驶和数字孪生，拆解AI从数字世界走向物理世界的模型-仿真-数据-本体链路。",
+        "example_theme": "物理AI",
+        "layers": {
+            "demand": ["无人工厂/智能制造", "自动驾驶", "仓储物流", "城市数字孪生", "特种作业"],
+            "task": ["物理规律理解", "世界模型预测", "Sim2Real迁移", "合成数据生成", "空间感知"],
+            "core_product": ["世界模型", "物理仿真引擎", "机器人基础模型/VLA", "自动驾驶方案", "数字孪生平台"],
+            "foundation": ["训练算力", "物理求解器", "深度视觉传感器", "实时渲染", "边缘计算模组"],
+            "integration": ["本体/整车集成", "仿真真实联合标定", "数据采集系统", "场景库构建", "车路协同集成"],
+            "supporting": ["合成数据服务", "数据标注", "仿真资产/内容", "安全验证", "标准评测"],
+            "infrastructure": ["智算中心", "仿真云/渲染农场", "数据闭环平台", "车路协同设施", "测试场"],
+            "commercialization": ["本体销售/RaaS", "仿真软件订阅", "数据服务", "算力租赁", "方案授权"],
+        },
+    },
 }
 
 EXISTING_TEMPLATE_NODE_CONFIGS = {
@@ -563,6 +580,14 @@ MAPPINGS: dict[str, list[dict[str, str]]] = {
         {"code": "688106", "name": "金宏气体", "layer": "supporting", "product": "电子大宗气体/特气"},
     ],
     "data_ai_application_commercialization": [
+        {"code": "600941", "name": "中国移动", "layer": "demand", "product": "政企数字化/云网需求"},
+        {"code": "601728", "name": "中国电信", "layer": "demand", "product": "政企云/数字化采购需求"},
+        {"code": "600050", "name": "中国联通", "layer": "demand", "product": "政企数字化需求"},
+        {"code": "600588", "name": "用友网络", "layer": "demand", "product": "企业数字化/AI办公需求承载"},
+        {"code": "603000", "name": "人民网", "layer": "task", "product": "数据确权/数据要素运营"},
+        {"code": "300766", "name": "每日互动", "layer": "task", "product": "数据治理/数据要素服务"},
+        {"code": "600602", "name": "云赛智联", "layer": "task", "product": "政企数据治理/城市数据运营"},
+        {"code": "688787", "name": "海天瑞声", "layer": "task", "product": "训练数据服务/数据治理"},
         {"code": "688111", "name": "金山办公", "layer": "core_product", "product": "AI办公软件/WPS AI"},
         {"code": "002230", "name": "科大讯飞", "layer": "core_product", "product": "大模型/AI教育办公应用"},
         {"code": "300624", "name": "万兴科技", "layer": "core_product", "product": "AI创意软件"},
@@ -584,6 +609,115 @@ MAPPINGS: dict[str, list[dict[str, str]]] = {
         {"code": "688031", "name": "星环科技", "layer": "foundation", "product": "大数据基础软件"},
         {"code": "688327", "name": "云从科技", "layer": "core_product", "product": "AI视觉/行业智能应用"},
         {"code": "688228", "name": "开普云", "layer": "integration", "product": "政务数据运营/数字内容"},
+        {"code": "601360", "name": "三六零", "layer": "core_product", "product": "大模型/AI应用"},
+        {"code": "300418", "name": "昆仑万维", "layer": "core_product", "product": "大模型/AI应用出海"},
+        {"code": "688095", "name": "福昕软件", "layer": "core_product", "product": "AI办公/PDF软件"},
+        {"code": "002362", "name": "汉王科技", "layer": "core_product", "product": "OCR/AI识别应用"},
+        {"code": "300634", "name": "彩讯股份", "layer": "core_product", "product": "AI办公/智能邮箱"},
+        {"code": "688041", "name": "海光信息", "layer": "foundation", "product": "DCU/AI算力芯片"},
+        {"code": "688058", "name": "宝兰德", "layer": "foundation", "product": "云原生中间件"},
+        {"code": "688118", "name": "普元信息", "layer": "foundation", "product": "中间件/数据平台"},
+        {"code": "300846", "name": "首都在线", "layer": "foundation", "product": "云计算/推理算力"},
+        {"code": "002368", "name": "太极股份", "layer": "integration", "product": "政企系统集成"},
+        {"code": "002065", "name": "东华软件", "layer": "integration", "product": "行业系统集成"},
+        {"code": "000034", "name": "神州数码", "layer": "integration", "product": "云与数字化集成"},
+        {"code": "300674", "name": "宇信科技", "layer": "integration", "product": "金融IT交付"},
+        {"code": "688232", "name": "新点软件", "layer": "integration", "product": "政务集成/智慧政务"},
+        {"code": "688023", "name": "安恒信息", "layer": "supporting", "product": "数据安全"},
+        {"code": "688561", "name": "奇安信", "layer": "supporting", "product": "网络安全"},
+        {"code": "603232", "name": "格尔软件", "layer": "supporting", "product": "身份认证/商用密码"},
+        {"code": "300659", "name": "中孚信息", "layer": "supporting", "product": "数据安全/保密"},
+        {"code": "300442", "name": "润泽科技", "layer": "infrastructure", "product": "智算中心"},
+        {"code": "603881", "name": "数据港", "layer": "infrastructure", "product": "IDC/数据中心"},
+        {"code": "300738", "name": "奥飞数据", "layer": "infrastructure", "product": "IDC/算力服务"},
+        {"code": "600845", "name": "宝信软件", "layer": "infrastructure", "product": "IDC/工业互联网"},
+        {"code": "000032", "name": "深桑达A", "layer": "infrastructure", "product": "政务云/数据要素"},
+        {"code": "300803", "name": "指南针", "layer": "commercialization", "product": "金融信息服务订阅"},
+        {"code": "601519", "name": "大智慧", "layer": "commercialization", "product": "金融信息服务"},
+        {"code": "603171", "name": "税友股份", "layer": "commercialization", "product": "财税SaaS订阅"},
+        {"code": "002410", "name": "广联达", "layer": "commercialization", "product": "建筑SaaS订阅/AI"},
+        {"code": "300058", "name": "蓝色光标", "layer": "core_product", "product": "AIGC营销文案/内容生成"},
+        {"code": "300364", "name": "中文在线", "layer": "core_product", "product": "AIGC文本/IP内容"},
+        {"code": "000681", "name": "视觉中国", "layer": "core_product", "product": "AIGC图像/版权内容"},
+        {"code": "688039", "name": "当虹科技", "layer": "core_product", "product": "视频生成/智能剪辑"},
+        {"code": "603039", "name": "泛微网络", "layer": "core_product", "product": "智能助手/OA协同"},
+        {"code": "300496", "name": "中科创达", "layer": "core_product", "product": "端侧AI软件/开发工具"},
+        {"code": "301236", "name": "软通动力", "layer": "core_product", "product": "软件开发服务/代码生成"},
+        {"code": "300339", "name": "润和软件", "layer": "core_product", "product": "软件开发/AI服务"},
+        {"code": "300002", "name": "神州泰岳", "layer": "core_product", "product": "智能客服/NLP"},
+        {"code": "688365", "name": "光云科技", "layer": "core_product", "product": "电商SaaS/智能客服"},
+        {"code": "300253", "name": "卫宁健康", "layer": "core_product", "product": "医疗AI/影像辅助"},
+        {"code": "300559", "name": "佳发教育", "layer": "core_product", "product": "教育AI/个性化学习"},
+        {"code": "301378", "name": "通达海", "layer": "core_product", "product": "法律AI/合同审查"},
+        {"code": "688083", "name": "中望软件", "layer": "core_product", "product": "制造/工业设计AI"},
+        {"code": "002315", "name": "焦点科技", "layer": "core_product", "product": "零售电商AI/数字人"},
+        {"code": "301556", "name": "托普云农", "layer": "core_product", "product": "农业AI/病虫害识别"},
+        {"code": "600446", "name": "金证股份", "layer": "core_product", "product": "金融AI/量化风控"},
+        {"code": "688036", "name": "传音控股", "layer": "core_product", "product": "端侧AI手机"},
+        {"code": "002241", "name": "歌尔股份", "layer": "core_product", "product": "AI眼镜/智能终端"},
+        {"code": "688475", "name": "萤石网络", "layer": "core_product", "product": "智能家居/端侧AI"},
+        {"code": "688222", "name": "成都先导", "layer": "core_product", "product": "AI药物研发/AI4S"},
+        {"code": "300785", "name": "值得买", "layer": "commercialization", "product": "内容/导购变现"},
+        {"code": "688568", "name": "中科星图", "layer": "infrastructure", "product": "行业知识库/遥感气象AI"},
+    ],
+    "embodied_intelligence": [
+        {"code": "300024", "name": "机器人", "layer": "demand", "product": "机器人整机/零部件需求拉动"},
+        {"code": "603486", "name": "科沃斯", "layer": "demand", "product": "家庭服务机器人需求"},
+        {"code": "688169", "name": "石头科技", "layer": "demand", "product": "家庭服务机器人需求"},
+        {"code": "688585", "name": "上纬新材", "layer": "demand", "product": "智元机器人入主/本体平台"},
+        {"code": "603893", "name": "瑞芯微", "layer": "task", "product": "端侧推理SoC"},
+        {"code": "688099", "name": "晶晨股份", "layer": "task", "product": "端侧AI芯片"},
+        {"code": "300458", "name": "全志科技", "layer": "task", "product": "端侧SoC/智能硬件"},
+        {"code": "688165", "name": "埃夫特", "layer": "core_product", "product": "工业机器人整机"},
+        {"code": "002527", "name": "新时达", "layer": "core_product", "product": "机器人整机/控制器"},
+        {"code": "689009", "name": "九号公司", "layer": "core_product", "product": "服务/配送机器人"},
+        {"code": "603666", "name": "亿嘉和", "layer": "core_product", "product": "特种作业机器人"},
+        {"code": "688017", "name": "绿的谐波", "layer": "foundation", "product": "谐波减速器"},
+        {"code": "002472", "name": "双环传动", "layer": "foundation", "product": "精密减速器/齿轮"},
+        {"code": "603728", "name": "鸣志电器", "layer": "foundation", "product": "空心杯/步进电机"},
+        {"code": "603662", "name": "柯力传感", "layer": "foundation", "product": "力矩/六维力传感器"},
+        {"code": "300007", "name": "汉威科技", "layer": "foundation", "product": "柔性/触觉传感器"},
+        {"code": "300124", "name": "汇川技术", "layer": "foundation", "product": "伺服系统/工控"},
+        {"code": "003021", "name": "兆威机电", "layer": "foundation", "product": "微型传动/灵巧手模组"},
+        {"code": "300503", "name": "昊志机电", "layer": "foundation", "product": "谐波减速器/电主轴"},
+        {"code": "601689", "name": "拓普集团", "layer": "integration", "product": "执行器/关节模组"},
+        {"code": "002050", "name": "三花智控", "layer": "integration", "product": "机电执行器"},
+        {"code": "300660", "name": "江苏雷利", "layer": "integration", "product": "微特电机/执行器"},
+        {"code": "002747", "name": "埃斯顿", "layer": "integration", "product": "运动控制/整机集成"},
+        {"code": "002979", "name": "雷赛智能", "layer": "integration", "product": "运动控制/伺服"},
+        {"code": "688787", "name": "海天瑞声", "layer": "supporting", "product": "训练数据服务"},
+        {"code": "688507", "name": "索辰科技", "layer": "supporting", "product": "仿真平台/CAE"},
+        {"code": "601965", "name": "中国汽研", "layer": "supporting", "product": "检测认证/测试评价"},
+        {"code": "300353", "name": "东土科技", "layer": "infrastructure", "product": "工业网络/工业互联网"},
+        {"code": "603236", "name": "移远通信", "layer": "infrastructure", "product": "边缘通信模组"},
+        {"code": "002698", "name": "博实股份", "layer": "commercialization", "product": "成套装备/运维服务"},
+        {"code": "300853", "name": "申昊科技", "layer": "commercialization", "product": "巡检机器人运营"},
+    ],
+    "physical_ai": [
+        {"code": "002594", "name": "比亚迪", "layer": "demand", "product": "自动驾驶/智能制造需求"},
+        {"code": "601127", "name": "赛力斯", "layer": "demand", "product": "智能驾驶需求"},
+        {"code": "601138", "name": "工业富联", "layer": "demand", "product": "无人工厂/智能制造需求"},
+        {"code": "688787", "name": "海天瑞声", "layer": "task", "product": "合成/训练数据"},
+        {"code": "301221", "name": "光庭信息", "layer": "task", "product": "智驾仿真/数据服务"},
+        {"code": "688322", "name": "奥比中光", "layer": "task", "product": "空间感知/深度视觉"},
+        {"code": "688507", "name": "索辰科技", "layer": "core_product", "product": "物理仿真CAE"},
+        {"code": "688083", "name": "中望软件", "layer": "core_product", "product": "工业软件/数字孪生"},
+        {"code": "300036", "name": "超图软件", "layer": "core_product", "product": "GIS/数字孪生平台"},
+        {"code": "002920", "name": "德赛西威", "layer": "core_product", "product": "智驾方案/域控制器"},
+        {"code": "688326", "name": "经纬恒润", "layer": "core_product", "product": "智驾电子/仿真测试"},
+        {"code": "002405", "name": "四维图新", "layer": "core_product", "product": "高精地图/数字孪生"},
+        {"code": "688256", "name": "寒武纪", "layer": "foundation", "product": "训练算力芯片"},
+        {"code": "688041", "name": "海光信息", "layer": "foundation", "product": "DCU/训练算力"},
+        {"code": "300496", "name": "中科创达", "layer": "foundation", "product": "边缘计算/操作系统"},
+        {"code": "600728", "name": "佳都科技", "layer": "integration", "product": "城市数字孪生集成"},
+        {"code": "002373", "name": "千方科技", "layer": "integration", "product": "车路协同集成"},
+        {"code": "601965", "name": "中国汽研", "layer": "supporting", "product": "测试验证/试验场"},
+        {"code": "300012", "name": "华测检测", "layer": "supporting", "product": "检测认证"},
+        {"code": "600845", "name": "宝信软件", "layer": "infrastructure", "product": "智算中心/IDC"},
+        {"code": "300442", "name": "润泽科技", "layer": "infrastructure", "product": "智算中心"},
+        {"code": "300846", "name": "首都在线", "layer": "infrastructure", "product": "云渲染/算力服务"},
+        {"code": "688088", "name": "虹软科技", "layer": "commercialization", "product": "视觉算法授权"},
+        {"code": "688158", "name": "优刻得", "layer": "commercialization", "product": "云订阅/算力租赁"},
     ],
     "defense_informatization_unmanned": [
         {"code": "600760", "name": "中航沈飞", "layer": "integration", "product": "航空装备总装"},
@@ -895,6 +1029,7 @@ def persist(pg_url: str) -> dict[str, Any]:
         "supply_chain_bom_edges": 0,
         "company_business_segments": 0,
         "business_tag_mapping": 0,
+        "company_chain_mapping": 0,
     }
     with psycopg2.connect(pg_url, connect_timeout=5) as conn:
         with conn.cursor() as cur:
@@ -903,75 +1038,7 @@ def persist(pg_url: str) -> dict[str, Any]:
                 raise RuntimeError(f"stocks table missing codes: {validation['missing_codes']}")
             for chain_id, config in CHAIN_CONFIGS.items():
                 _persist_chain_nodes(cur, chain_id, config, counts)
-                for item in MAPPINGS[chain_id]:
-                    layer_id = item["layer"]
-                    product = item["product"]
-                    segment_id = f"{chain_id}_{layer_id}_{item['code']}"
-                    mid = mapping_id(chain_id, item["code"], layer_id, product)
-                    cur.execute(
-                        """
-                        INSERT INTO company_business_segments (
-                            segment_id, code, segment_name, report_period, revenue, revenue_ratio,
-                            gross_profit, gross_margin, source_table, source_row_id,
-                            evidence_status, metadata
-                        )
-                        VALUES (%s, %s, %s, NULL, NULL, NULL, NULL, NULL, %s, %s, %s, %s)
-                        ON CONFLICT (segment_id) DO UPDATE SET
-                            code = EXCLUDED.code,
-                            segment_name = EXCLUDED.segment_name,
-                            source_table = EXCLUDED.source_table,
-                            source_row_id = EXCLUDED.source_row_id,
-                            evidence_status = EXCLUDED.evidence_status,
-                            metadata = EXCLUDED.metadata,
-                            updated_at = CURRENT_TIMESTAMP
-                        """,
-                        (
-                            segment_id,
-                            item["code"],
-                            product,
-                            "manual_priority_complex_chain_seed",
-                            mid,
-                            "pending_review",
-                            Json({"chain_id": chain_id, "layer_id": layer_id, "company_name": item["name"], "requires_original_evidence": True}),
-                        ),
-                    )
-                    counts["company_business_segments"] += 1
-                    cur.execute(
-                        """
-                        INSERT INTO business_tag_mapping (
-                            mapping_id, code, business_segment_id, node_id, theme_id, chain_id,
-                            tag_name, l1_l8_path, revenue_ratio, gross_profit_ratio,
-                            confidence, status, evidence_ids
-                        )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, NULL, NULL, %s, %s, %s::jsonb)
-                        ON CONFLICT (mapping_id) DO UPDATE SET
-                            code = EXCLUDED.code,
-                            business_segment_id = EXCLUDED.business_segment_id,
-                            node_id = EXCLUDED.node_id,
-                            theme_id = EXCLUDED.theme_id,
-                            chain_id = EXCLUDED.chain_id,
-                            tag_name = EXCLUDED.tag_name,
-                            l1_l8_path = EXCLUDED.l1_l8_path,
-                            confidence = EXCLUDED.confidence,
-                            status = EXCLUDED.status,
-                            evidence_ids = EXCLUDED.evidence_ids,
-                            updated_at = CURRENT_TIMESTAMP
-                        """,
-                        (
-                            mid,
-                            item["code"],
-                            segment_id,
-                            layer_node_id(chain_id, layer_id),
-                            config["theme_id"],
-                            chain_id,
-                            LAYER_NAMES[layer_id],
-                            json.dumps(mapping_path(chain_id, config, layer_id, product), ensure_ascii=False),
-                            0.72,
-                            "pending_review",
-                            json.dumps(["manual_priority_complex_chain_seed_requires_original_evidence"], ensure_ascii=False),
-                        ),
-                    )
-                    counts["business_tag_mapping"] += 1
+                _persist_chain_mappings(cur, chain_id, config, counts)
 
             existing_templates = {
                 item.get("template_id"): item
@@ -991,9 +1058,115 @@ def persist(pg_url: str) -> dict[str, Any]:
                     },
                 }
                 _persist_chain_nodes(cur, chain_id, config, counts)
+                # EXISTING_TEMPLATE 链 (如具身智能) 也可带 MAPPINGS 种子, 与 CHAIN_CONFIGS 链同路径落映射
+                if MAPPINGS.get(chain_id):
+                    _persist_chain_mappings(cur, chain_id, config, counts)
         conn.commit()
     unique_companies = {item["code"] for items in MAPPINGS.values() for item in items}
     return {"counts": counts, "unique_companies": len(unique_companies), "mapping_rows": sum(len(items) for items in MAPPINGS.values())}
+
+
+def _persist_chain_mappings(cur, chain_id: str, config: dict[str, Any], counts: dict[str, int]) -> None:
+    # company_chain_mapping 无唯一键, 先按本链节点+种子代码清理再生行, 保证幂等
+    chain_node_ids = [layer_node_id(chain_id, lid) for lid in LAYER_IDS]
+    chain_codes = [item["code"] for item in MAPPINGS[chain_id]]
+    cur.execute(
+        "DELETE FROM company_chain_mapping WHERE node_id = ANY(%s) AND code = ANY(%s)",
+        (chain_node_ids, chain_codes),
+    )
+    for item in MAPPINGS[chain_id]:
+        layer_id = item["layer"]
+        product = item["product"]
+        segment_id = f"{chain_id}_{layer_id}_{item['code']}"
+        mid = mapping_id(chain_id, item["code"], layer_id, product)
+        cur.execute(
+            """
+            INSERT INTO company_business_segments (
+                segment_id, code, segment_name, report_period, revenue, revenue_ratio,
+                gross_profit, gross_margin, source_table, source_row_id,
+                evidence_status, metadata
+            )
+            VALUES (%s, %s, %s, NULL, NULL, NULL, NULL, NULL, %s, %s, %s, %s)
+            ON CONFLICT (segment_id) DO UPDATE SET
+                code = EXCLUDED.code,
+                segment_name = EXCLUDED.segment_name,
+                source_table = EXCLUDED.source_table,
+                source_row_id = EXCLUDED.source_row_id,
+                evidence_status = EXCLUDED.evidence_status,
+                metadata = EXCLUDED.metadata,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (
+                segment_id,
+                item["code"],
+                product,
+                "manual_priority_complex_chain_seed",
+                mid,
+                "pending_review",
+                Json({"chain_id": chain_id, "layer_id": layer_id, "company_name": item["name"], "requires_original_evidence": True}),
+            ),
+        )
+        counts["company_business_segments"] += 1
+        cur.execute(
+            """
+            INSERT INTO business_tag_mapping (
+                mapping_id, code, business_segment_id, node_id, theme_id, chain_id,
+                tag_name, l1_l8_path, revenue_ratio, gross_profit_ratio,
+                confidence, status, evidence_ids
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, NULL, NULL, %s, %s, %s::jsonb)
+            ON CONFLICT (mapping_id) DO UPDATE SET
+                code = EXCLUDED.code,
+                business_segment_id = EXCLUDED.business_segment_id,
+                node_id = EXCLUDED.node_id,
+                theme_id = EXCLUDED.theme_id,
+                chain_id = EXCLUDED.chain_id,
+                tag_name = EXCLUDED.tag_name,
+                l1_l8_path = EXCLUDED.l1_l8_path,
+                confidence = EXCLUDED.confidence,
+                status = EXCLUDED.status,
+                evidence_ids = EXCLUDED.evidence_ids,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (
+                mid,
+                item["code"],
+                segment_id,
+                layer_node_id(chain_id, layer_id),
+                config["theme_id"],
+                chain_id,
+                LAYER_NAMES[layer_id],
+                json.dumps(mapping_path(chain_id, config, layer_id, product), ensure_ascii=False),
+                0.72,
+                "pending_review",
+                json.dumps(["manual_priority_complex_chain_seed_requires_original_evidence"], ensure_ascii=False),
+            ),
+        )
+        counts["business_tag_mapping"] += 1
+        cur.execute(
+            """
+            INSERT INTO company_chain_mapping (
+                code, node_id, main_pct, policy_match_score, chokepoint_score,
+                evidence, three_factors, trade_signal
+            )
+            VALUES (%s, %s, NULL, NULL, 0, %s, %s, %s)
+            """,
+            (
+                item["code"],
+                layer_node_id(chain_id, layer_id),
+                Json({
+                    "source": "manual_priority_complex_chain_seed",
+                    "chain_id": chain_id,
+                    "layer_id": layer_id,
+                    "product": product,
+                    "company_name": item["name"],
+                    "requires_original_evidence": True,
+                }),
+                Json({}),
+                "观察",
+            ),
+        )
+        counts["company_chain_mapping"] += 1
 
 
 def _persist_chain_nodes(cur, chain_id: str, config: dict[str, Any], counts: dict[str, int]) -> None:

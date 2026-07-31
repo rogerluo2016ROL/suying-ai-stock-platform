@@ -257,6 +257,16 @@ def _load_supply_chain_expectation_gap_snapshot(top_n: int, trade_date: Optional
             ):
                 if key in factors:
                     pick[key] = factors.get(key)
+            # 快照三高 (0-100) 线性映射到 V5 维度分 (growth 15 / profit 10 / chokepoint 20),
+            # 供 /chain/candidates 的 high_profit/high_moat 过滤器与卡脖子分级读取
+            snap_growth = _to_float(factors.get("growth_score"))
+            snap_profit = _to_float(factors.get("profit_score"))
+            snap_moat = _to_float(factors.get("moat_score"))
+            pick["dimension_scores"] = {
+                "growth": round(snap_growth * 0.15, 1) if snap_growth is not None else 0.0,
+                "profit": round(snap_profit * 0.10, 1) if snap_profit is not None else 0.0,
+                "chokepoint": round(snap_moat * 0.20, 1) if snap_moat is not None else 0.0,
+            }
             picks.append(pick)
         return {
             "mode": "supply_chain",
