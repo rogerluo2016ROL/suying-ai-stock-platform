@@ -624,14 +624,21 @@ def sync_stk_factor_pro_daily() -> dict:
     #   macd_dif, macd_dea, macd, rsi_6, rsi_12, rsi_24,
     #   boll_upper, boll_mid, boll_lower, kdj_k, kdj_d, kdj_j,
     #   vol_ratio, turnover_rate
-    # Tushare API returns: close, macd_*, rsi_*, boll_*, kdj_*, turnover_rate, volume_ratio
-    api_cols = ["ts_code", "macd_dif", "macd_dea", "macd",
-                "kdj_k", "kdj_d", "kdj_j",
-                "rsi_6", "rsi_12", "rsi_24",
-                "boll_upper", "boll_mid", "boll_lower",
+    # Tushare API 返回 (2026 起字段带复权后缀, 取 _qfq 前复权):
+    #   close, macd_*_qfq, kdj_{k,d}_qfq + kdj_qfq(=J), rsi_qfq_{6,12,24},
+    #   boll_{upper,mid,lower}_qfq, turnover_rate, volume_ratio
+    api_cols = ["ts_code", "macd_dif_qfq", "macd_dea_qfq", "macd_qfq",
+                "kdj_k_qfq", "kdj_d_qfq", "kdj_qfq",
+                "rsi_qfq_6", "rsi_qfq_12", "rsi_qfq_24",
+                "boll_upper_qfq", "boll_mid_qfq", "boll_lower_qfq",
                 "turnover_rate", "volume_ratio"]
-    pg_col_map = {  # API field → PG column name
-        "volume_ratio": "vol_ratio",  # PG column name differs
+    pg_col_map = {  # Tushare 字段 (现带 _qfq/_hfq/_bfq 复权后缀, 取前复权) → PG 列名
+        "macd_dif_qfq": "macd_dif", "macd_dea_qfq": "macd_dea", "macd_qfq": "macd",
+        "kdj_k_qfq": "kdj_k", "kdj_d_qfq": "kdj_d", "kdj_qfq": "kdj_j",
+        "rsi_qfq_6": "rsi_6", "rsi_qfq_12": "rsi_12", "rsi_qfq_24": "rsi_24",
+        "boll_upper_qfq": "boll_upper", "boll_mid_qfq": "boll_mid",
+        "boll_lower_qfq": "boll_lower",
+        "volume_ratio": "vol_ratio",
     }
 
     rows = []
@@ -730,12 +737,19 @@ def sync_stk_factor_pro_backfill(days_back: int = 7) -> dict:
     today = date.today()
     # 列名映射与 sync_stk_factor_pro_daily 保持完全一致 (单一来源 by copy, 因 sync_daily
     # 字段映射是脱敏 inline 写死, 没有 helper 可抽; 改 helper 超出本 ADR 白名单)
-    api_cols = ["ts_code", "macd_dif", "macd_dea", "macd",
-                "kdj_k", "kdj_d", "kdj_j",
-                "rsi_6", "rsi_12", "rsi_24",
-                "boll_upper", "boll_mid", "boll_lower",
+    api_cols = ["ts_code", "macd_dif_qfq", "macd_dea_qfq", "macd_qfq",
+                "kdj_k_qfq", "kdj_d_qfq", "kdj_qfq",
+                "rsi_qfq_6", "rsi_qfq_12", "rsi_qfq_24",
+                "boll_upper_qfq", "boll_mid_qfq", "boll_lower_qfq",
                 "turnover_rate", "volume_ratio"]
-    pg_col_map = {"volume_ratio": "vol_ratio"}
+    pg_col_map = {  # Tushare 字段 (现带 _qfq/_hfq/_bfq 复权后缀, 取前复权) → PG 列名
+        "macd_dif_qfq": "macd_dif", "macd_dea_qfq": "macd_dea", "macd_qfq": "macd",
+        "kdj_k_qfq": "kdj_k", "kdj_d_qfq": "kdj_d", "kdj_qfq": "kdj_j",
+        "rsi_qfq_6": "rsi_6", "rsi_qfq_12": "rsi_12", "rsi_qfq_24": "rsi_24",
+        "boll_upper_qfq": "boll_upper", "boll_mid_qfq": "boll_mid",
+        "boll_lower_qfq": "boll_lower",
+        "volume_ratio": "vol_ratio",
+    }
     pg_cols = [pg_col_map.get(c, c) for c in api_cols]
 
     total_written, total_pg, total_sqlite, days_processed = 0, 0, 0, 0
