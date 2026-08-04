@@ -654,13 +654,17 @@ def sync_stk_factor_pro_daily() -> dict:
 
     pg_cols = [pg_col_map.get(c, c) for c in api_cols]
 
-    # PG 直写 (主路径)
+    # PG 直写 (主路径) — 列与行都须显式带 trade_date: pg_cols 不含该列时
+    # trade_date 落 NULL 且 ON CONFLICT (ts_code, trade_date) 恒不匹配 (历史 bug,
+    # SQLite 路径 L672 已正确 prepend, PG 路径对齐之)
     pg_written = 0
     if rows:
         try:
             from app.sync.pg_writer import _pg_write
-            pg_written = _pg_write("stk_factor_pro", pg_cols,
-                                    ["ts_code", "trade_date"], rows)
+            pg_date_cols = ["ts_code", "trade_date"] + pg_cols[1:]
+            pg_rows = [(row[0], trade_date) + tuple(row[1:]) for row in rows]
+            pg_written = _pg_write("stk_factor_pro", pg_date_cols,
+                                    ["ts_code", "trade_date"], pg_rows)
         except Exception as e:
             logger.debug("PG write stk_factor_pro skipped: %s", e)
 
@@ -778,8 +782,10 @@ def sync_stk_factor_pro_backfill(days_back: int = 7) -> dict:
         pg_w = 0
         try:
             from app.sync.pg_writer import _pg_write
-            pg_w = _pg_write("stk_factor_pro", pg_cols,
-                             ["ts_code", "trade_date"], rows)
+            pg_date_cols = ["ts_code", "trade_date"] + pg_cols[1:]
+            pg_rows = [(row[0], trade_date_iso) + tuple(row[1:]) for row in rows]
+            pg_w = _pg_write("stk_factor_pro", pg_date_cols,
+                             ["ts_code", "trade_date"], pg_rows)
             total_pg += pg_w
         except Exception as e:
             logger.debug("PG write stk_factor_pro %s skipped: %s", ymd, str(e)[:120])
