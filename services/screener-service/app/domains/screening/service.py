@@ -336,6 +336,7 @@ def _query_index_close_quotes(trade_date: Optional[str] = None) -> dict[str, Any
         "000001": "上证",
         "399001": "深成",
         "399006": "创业板",
+        "000688": "科创50",
         "899050": "北证50",
     }
     codes_sql = ", ".join(f"'{code}'" for code in code_labels)

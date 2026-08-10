@@ -36,12 +36,12 @@ function queryIndexCloseSnapshot(): Promise<Record<string, unknown>> {
     WITH latest AS (
       SELECT MAX(trade_date) AS trade_date
       FROM index_daily
-      WHERE code IN ('000001','399001','399006','899050')
+      WHERE code IN ('000001','399001','399006','000688','899050')
     )
     SELECT code, close, change_pct, trade_date
     FROM index_daily
     WHERE trade_date = (SELECT trade_date FROM latest)
-      AND code IN ('000001','399001','399006','899050')
+      AND code IN ('000001','399001','399006','000688','899050')
     ORDER BY code
   `
   return new Promise((resolve) => {
@@ -60,6 +60,7 @@ function queryIndexCloseSnapshot(): Promise<Record<string, unknown>> {
           '000001': '上证',
           '399001': '深成',
           '399006': '创业板',
+          '000688': '科创50',
           '899050': '北证50',
         }
         const diff = stdout

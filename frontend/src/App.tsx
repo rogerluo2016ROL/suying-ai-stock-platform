@@ -62,6 +62,7 @@ const marketTapeItems = [
   { label: '上证', value: '--', change: '待同步', tone: 'muted' },
   { label: '深成', value: '--', change: '待同步', tone: 'muted' },
   { label: '创业板', value: '--', change: '待同步', tone: 'muted' },
+  { label: '科创50', value: '--', change: '待同步', tone: 'muted' },
   { label: '北证50', value: '--', change: '待同步', tone: 'muted' },
 ]
 
@@ -71,8 +72,12 @@ const marketTapeLabels: Record<string, string> = {
   '000001': '上证',
   '399001': '深成',
   '399006': '创业板',
+  '000688': '科创50',
   '899050': '北证50',
 }
+
+// 顶部行情条滚动复制的份数，须与 suying-app.css 中 mkt-ticker-scroll 的 calc(-100% / 6) 保持一致
+const TAPE_COPIES = 6
 
 function formatMarketNumber(value: unknown) {
   const number = Number(value)
@@ -422,13 +427,18 @@ export default function App() {
           </div>
 
           <div className="mkt-ticker" aria-label="市场行情">
-            {marketTape.map(item => (
-              <span className="tk" key={item.label}>
-                <span className="lbl">{item.label}</span>
-                <span className={`val mono ${item.tone}`}>{item.value}</span>
-                <span className={`mono ${item.tone}`}>{item.change}</span>
-              </span>
-            ))}
+            <div className="mkt-ticker-track">
+              {/* 多份复制保证宽屏下滚动无空白；份数须与 CSS keyframes 的 calc(-100% / N) 一致 */}
+              {Array.from({ length: TAPE_COPIES }, (_, copy) =>
+                marketTape.map(item => (
+                  <span className="tk" key={`${item.label}-${copy}`} aria-hidden={copy > 0}>
+                    <span className="lbl">{item.label}</span>
+                    <span className={`val mono ${item.tone}`}>{item.value}</span>
+                    <span className={`mono ${item.tone}`}>{item.change}</span>
+                  </span>
+                )),
+              )}
+            </div>
           </div>
 
           <Dropdown menu={{ items: platformContextMenuItems }} placement="bottomRight" trigger={['click']}>

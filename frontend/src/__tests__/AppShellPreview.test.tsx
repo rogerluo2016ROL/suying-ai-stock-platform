@@ -115,12 +115,13 @@ describe('App shell preview baseline', () => {
     expect(screen.getByText('AI')).toBeInTheDocument()
 
     const marketTape = screen.getByLabelText('市场行情')
-    expect(within(marketTape).getByText('上证')).toBeInTheDocument()
-    expect(within(marketTape).getByText('深成')).toBeInTheDocument()
-    expect(within(marketTape).getByText('创业板')).toBeInTheDocument()
-    expect(within(marketTape).getByText('北证50')).toBeInTheDocument()
-    expect(await within(marketTape).findByText('4075.50')).toBeInTheDocument()
-    expect(within(marketTape).getByText('+2.36%')).toBeInTheDocument()
+    // 行情条为无缝滚动会复制多份（TAPE_COPIES），断言每份都渲染
+    expect(within(marketTape).getAllByText('上证').length).toBeGreaterThan(0)
+    expect(within(marketTape).getAllByText('深成').length).toBeGreaterThan(0)
+    expect(within(marketTape).getAllByText('创业板').length).toBeGreaterThan(0)
+    expect(within(marketTape).getAllByText('北证50').length).toBeGreaterThan(0)
+    expect((await within(marketTape).findAllByText('4075.50')).length).toBeGreaterThan(0)
+    expect(within(marketTape).getAllByText('+2.36%').length).toBeGreaterThan(0)
 
     expect(within(navigation).getByText('智能看板')).toBeInTheDocument()
     expect(within(navigation).getByText('开盘决策')).toBeInTheDocument()

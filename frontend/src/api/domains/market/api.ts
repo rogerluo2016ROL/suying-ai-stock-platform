@@ -4,7 +4,7 @@ import type { MarketIndexQuotesResponse } from '../../types'
 
 /** Market 域 (从 client.ts 拆出, C 域拆分; eastmoney 辅助随迁)。 */
 
-const eastmoneyIndexSecids = ['1.000001', '0.399001', '0.399006', '0.899050']
+const eastmoneyIndexSecids = ['1.000001', '0.399001', '0.399006', '1.000688', '0.899050']
 
 function eastmoneyScaledNumber(value: unknown) {
   const number = Number(value)
