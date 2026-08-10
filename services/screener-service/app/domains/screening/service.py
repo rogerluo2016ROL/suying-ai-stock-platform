@@ -348,13 +348,14 @@ def _query_index_close_quotes(trade_date: Optional[str] = None) -> dict[str, Any
     with _get_factor_db() as db:
         date_row = db.execute(
             f"""
-            SELECT MAX(trade_date)
+            SELECT MAX(trade_date) AS trade_date
             FROM index_daily
             WHERE code IN ({codes_sql})
             {date_filter}
             """
         ).fetchone()
-        latest_date = _row_get(date_row, 0)
+        # pg_adapter 返回 dict 行（键为列别名），SQLite/其他适配器可能是元组，两种都兼容
+        latest_date = _row_get(date_row, "trade_date") or _row_get(date_row, 0)
         if not latest_date:
             return {
                 "source": "index_daily",
@@ -379,7 +380,8 @@ def _query_index_close_quotes(trade_date: Optional[str] = None) -> dict[str, Any
             "f12": code,
             "f14": code_labels.get(code, code),
             "f2": _row_get(row, "close") or _row_get(row, 1),
-            "f3": _row_get(row, "change_pct") or _row_get(row, 2),
+            # pg_adapter 会把 change_pct 结果键改写成 pct_chg（_KEY_MAP），两种都取
+            "f3": _row_get(row, "change_pct") if _row_get(row, "change_pct") is not None else _row_get(row, "pct_chg"),
             "f4": None,
             "f6": None,
         })
