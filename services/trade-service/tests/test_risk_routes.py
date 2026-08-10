@@ -102,6 +102,7 @@ def test_stop_loss_sells_paper_position(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["applied"] == "executed"
+    assert data["mode"] == "paper"
     assert data["order"]["volume"] == 100
     assert "300750" not in risk.engine.positions
     assert len(risk._risk_audit_entries) == before + 1
@@ -124,6 +125,7 @@ def test_reduce_position_executes_partial_sell(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["applied"] == "executed"
+    assert data["mode"] == "paper"
     assert data["sell_volume"] == 500
     assert risk.engine.positions["600519"].volume == 500
     assert len(risk._risk_audit_entries) == before + 1
@@ -163,6 +165,7 @@ def test_liquidate_all_requires_confirm_then_sells_everything(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["applied"] == "executed"
+    assert data["mode"] == "paper"
     assert data["liquidated"] == 2
     assert risk.engine.get_positions() == []
     assert len(risk._risk_audit_entries) == before + 1
@@ -199,3 +202,22 @@ def test_check_batch_rejects_invalid_action(client):
     )
 
     assert resp.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "path, payload",
+    [
+        ("/api/v1/trade/risk/position/600519/stop-loss", {"reason": "live"}),
+        ("/api/v1/trade/risk/position/600519/reduce", {"pct": 0.5}),
+        ("/api/v1/trade/risk/liquidate-all", {"confirm": True, "reason": "live"}),
+    ],
+)
+def test_risk_write_ops_refuse_in_live_mode(client, monkeypatch, path, payload):
+    """Regression #15: 系统处于 live 模式时，风控写操作必须 409 拒绝，
+    避免'点清仓看到 executed、实盘却没动'的实盘资金隐患。"""
+    monkeypatch.setattr(routes, "_current_mode", "live")
+
+    resp = client.post(path, json=payload)
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["error_code"] == "RISK_LIVE_NOT_SUPPORTED"

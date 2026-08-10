@@ -48,6 +48,19 @@ router = APIRouter(prefix="/api/v1/trade", tags=["risk"])
 # Paper engine singleton (shared with app.routes).
 engine = get_engine()
 
+
+def _reject_if_live_mode() -> None:
+    """风控写操作当前仅作用于模拟盘；系统处于 live 模式时拒绝，
+    避免“点清仓看到 executed、实盘却没动”的实盘资金隐患（issue #15）。"""
+    if routes._current_mode == "live":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "detail": "风控写操作当前仅支持模拟盘；系统处于 live 模式，请到券商端手动操作。",
+                "error_code": "RISK_LIVE_NOT_SUPPORTED",
+            },
+        )
+
 # ── Risk audit (doc §7 — in-memory + best-effort DB persist) ───────────
 
 VALID_RISK_ACTIONS = frozenset({
@@ -394,6 +407,7 @@ async def stop_loss_position(
     user: dict = Depends(require_role("admin", "internal_analyst")),
 ):
     """风控止损单 — 触发该持仓全量卖出 (doc §7, action=RISK_STOP_LOSS)."""
+    _reject_if_live_mode()
     scope = resolve_trade_scope(user, tenant_id=tenant_id)
     code_upper = code.upper()
     reason = (body.reason if body else "") or "risk stop-loss"
@@ -424,6 +438,7 @@ async def stop_loss_position(
     return {
         "code": code_upper,
         "applied": applied,  # executed=paper 引擎已卖出; mock=无持仓, TODO: live 券商持仓
+        "mode": "paper",  # 本操作仅作用于模拟盘（实盘风控写操作见 epic，issue #15）
         "order": order_payload,
         "reason": reason,
     }
@@ -441,6 +456,7 @@ async def reduce_position(
 
     ``pct`` 约定: 0<pct<=1 按比例 (0.5=减半), 1<pct<=100 按百分比。
     """
+    _reject_if_live_mode()
     scope = resolve_trade_scope(user, tenant_id=tenant_id)
     code_upper = code.upper()
     fraction = body.pct / 100 if body.pct > 1 else body.pct
@@ -480,6 +496,7 @@ async def reduce_position(
         "pct": body.pct,
         "sell_volume": sell_volume,
         "applied": applied,  # TODO: live 券商持仓减仓
+        "mode": "paper",  # 本操作仅作用于模拟盘（实盘风控写操作见 epic，issue #15）
         "order": order_payload,
     }
 
@@ -493,6 +510,7 @@ async def liquidate_all(
 ):
     """一键清仓 (doc §7, action=RISK_LIQUIDATE_ALL) — 高危操作, 后端二次校验
     要求 body.confirm=true, 否则 409。"""
+    _reject_if_live_mode()
     if body is None or not body.confirm:
         raise HTTPException(
             status_code=409,
@@ -537,6 +555,7 @@ async def liquidate_all(
         "liquidated": len(orders),
         "orders": orders,
         "reason": body.reason,
+        "mode": "paper",  # 本操作仅作用于模拟盘（实盘风控写操作见 epic，issue #15）
     }
 
 
