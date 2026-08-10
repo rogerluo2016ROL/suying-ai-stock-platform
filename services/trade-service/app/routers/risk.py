@@ -32,13 +32,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import routes
 from app.broker_interface import OrderRequest, OrderSide, OrderType
 from app.circuit_breaker import get_state
 from app.database import get_db
 from app.engine import get_engine
 from app.platform_scope import resolve_trade_scope
 from app.risk_gateway import pre_check
-from app.routes import _PaperEngineAdapter, _broker_config
+from app.routes import _PaperEngineAdapter
 
 logger = logging.getLogger("trade-service.risk")
 
@@ -280,7 +281,7 @@ async def risk_dashboard(
     """Aggregate risk dashboard (doc §4.2): circuitBreaker + positions +
     strategies + marketRegime + auditSummary."""
     # 1. Circuit breaker (in-memory state from circuit_breaker.py)
-    acct_id = _broker_config.get("account_id", "default")
+    acct_id = routes._broker_config.get("account_id", "default")
     cb = await get_state(acct_id)
     threshold_pct = cb["threshold_pct"]
     daily_loss_pct = cb["daily_loss_pct"]

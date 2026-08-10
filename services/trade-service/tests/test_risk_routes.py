@@ -29,6 +29,7 @@ sys.modules["app.database"] = types.SimpleNamespace(get_db=lambda: None)
 
 from app.engine import PaperTradingEngine  # noqa: E402
 from app.routers import risk  # noqa: E402
+from app import routes  # noqa: E402
 
 
 @pytest.fixture
@@ -52,6 +53,25 @@ def test_risk_dashboard_returns_five_aggregate_keys(client):
     assert data["circuitBreaker"]["state"] == "NORMAL"
     assert data["positions"][0]["code"] == "600519"
     assert data["marketRegime"]["data_source"] == "mock"
+
+
+def test_risk_dashboard_reads_rebound_broker_config_account_id(client, monkeypatch):
+    """Regression #14: risk.py 必须在调用时读 routes._broker_config（模块属性），
+    而非 import 时 by-value 绑定的旧对象——broker_connect rebind 后才能拿到真实 account_id。"""
+    seen = {}
+    real_get_state = risk.get_state
+
+    async def spy_get_state(acct_id):
+        seen["acct_id"] = acct_id
+        return await real_get_state(acct_id)
+
+    monkeypatch.setattr(routes, "_broker_config", {"account_id": "ACC-TEST-42"})
+    monkeypatch.setattr(risk, "get_state", spy_get_state)
+
+    resp = client.get("/api/v1/trade/risk-dashboard")
+
+    assert resp.status_code == 200
+    assert seen.get("acct_id") == "ACC-TEST-42"  # 未修则恒为 "default"
 
 
 def test_pause_and_resume_strategy_return_200_and_increase_audit_count(client):
