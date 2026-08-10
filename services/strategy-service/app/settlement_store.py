@@ -79,18 +79,40 @@ def _json(value: Any, default: Any) -> Any:
     return json.loads(value or json.dumps(default, ensure_ascii=False))
 
 
+# 表是否缺失的进程级缓存（#5）：探测一次后短路，避免每次 pg_get 都触发
+# UndefinedTable → 被路由 safe wrapper 捕获 → WARNING 日志噪声。迁移落地（services/sql/
+# 建 plan_settlements）后进程重启即自动探测到存在、恢复 PG 读路径。
+_table_missing_cached: bool | None = None
+
+
 async def pg_get(db: AsyncSession, plan_id: str) -> SettlementRecord | None:
     """Read a settlement record from PostgreSQL.
 
-    The table is not migrated yet (see module TODO); callers must wrap this in
-    a safe helper that treats any failure as a cache miss.
+    The `plan_settlements` table is not migrated yet (see module TODO); probe
+    once and cache "missing" so repeated calls short-circuit to None instead of
+    raising UndefinedTable + WARNING on every /settlement-report (review #5).
     """
+    global _table_missing_cached
+    if _table_missing_cached is None:
+        try:
+            present = (
+                await db.execute(
+                    text("SELECT to_regclass(:t) IS NOT NULL"),
+                    {"t": TABLE_PLAN_SETTLEMENTS},
+                )
+            ).scalar()
+            _table_missing_cached = not present
+        except Exception:
+            _table_missing_cached = False  # 探测失败不缓存，保留原 fail-safe 路径
+    if _table_missing_cached:
+        return None
+
     result = await db.execute(
         text(
-            f"""
+            """
             SELECT plan_id, settled_at, period, summary, trades, positions,
                    stocks, daily_returns
-            FROM {TABLE_PLAN_SETTLEMENTS}
+            FROM plan_settlements
             WHERE plan_id = :plan_id
             """
         ),
@@ -106,7 +128,7 @@ async def pg_get(db: AsyncSession, plan_id: str) -> SettlementRecord | None:
         period=_json(row[2], {}),
         summary=_json(row[3], {}),
         trades=_json(row[4], []),
-        positions=_json(row[5], []),
+        positions=_json(row[5], {}),
         stocks=_json(row[6], []),
         daily_returns=_json(row[7], []),
     )

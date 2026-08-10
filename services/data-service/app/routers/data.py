@@ -179,7 +179,7 @@ async def data_table_preview(
         return await asyncio.to_thread(inventory.table_preview, table_id, limit)
     except Exception as e:
         logger.exception("Table preview failed for %s", table_id)
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, "数据表预览失败，请稍后重试（详情见服务端日志）")
 
 @router.get("/jobs")
 async def data_jobs(user: dict = Depends(get_current_user_jwt)):

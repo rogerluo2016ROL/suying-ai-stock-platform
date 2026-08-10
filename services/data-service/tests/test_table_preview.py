@@ -81,10 +81,15 @@ def test_preview_invalid_limit_returns_4xx(client, monkeypatch, limit):
     assert resp.status_code == 422
 
 
-def test_preview_db_failure_returns_500(client, monkeypatch):
+def test_preview_db_failure_returns_500_without_leaking_db_error(client, monkeypatch):
+    """Regression #4: 500 不回显底层 DB 异常（连接串/表名等敏感信息不外泄）。"""
     def _boom(table, limit):
-        raise RuntimeError("pg down")
+        raise RuntimeError("pg down: connection refused at db.internal:5432")
 
     monkeypatch.setattr(inventory, "table_preview", _boom)
     resp = client.get("/api/v1/data/tables/stocks/preview")
     assert resp.status_code == 500
+    detail = resp.json()["detail"]
+    assert "db.internal" not in detail
+    assert "pg down" not in detail
+    assert "数据表预览失败" in detail

@@ -27,7 +27,8 @@ sys.modules["kronos_auth"] = types.SimpleNamespace(require_role=_require_role_st
 sys.modules["app.database"] = types.SimpleNamespace(get_db=lambda: None)
 
 from app import routes  # noqa: E402
-from app.settlement_store import SettlementRecord, get_settlement_store  # noqa: E402
+from app import settlement_store as settlement_store_mod  # noqa: E402
+from app.settlement_store import SettlementRecord, get_settlement_store, pg_get  # noqa: E402
 
 USER = {"sub": "7", "role": "user"}
 
@@ -125,3 +126,44 @@ async def test_missing_plan_returns_404():
 
     assert exc.value.status_code == 404
     assert exc.value.detail == "方案不存在"
+
+
+class _FakeDb:
+    """pg_get 缓存测试用的假 AsyncSession。"""
+
+    def __init__(self, table_present: bool):
+        self.table_present = table_present
+        self.queries: list[str] = []
+
+    async def execute(self, stmt, params=None):
+        sql = str(stmt)
+        self.queries.append(sql)
+        if "to_regclass" in sql:
+            class _Scalar:
+                def scalar(self_):
+                    return "plan_settlements_oid" if self.table_present else None
+
+            return _Scalar()
+
+        class _Rows:
+            def fetchone(self_):
+                return None
+
+        return _Rows()
+
+
+@pytest.mark.asyncio
+async def test_pg_get_caches_missing_table_and_short_circuits(monkeypatch):
+    """Regression #5: plan_settlements 缺失时探一次即缓存短路，
+    避免每次 /settlement-report 都抛 UndefinedTable + WARNING 噪声。"""
+    monkeypatch.setattr(settlement_store_mod, "_table_missing_cached", None)
+
+    db1 = _FakeDb(table_present=False)
+    assert await pg_get(db1, "PLAN-1") is None
+    assert settlement_store_mod._table_missing_cached is True
+    assert any("to_regclass" in q for q in db1.queries)  # 首次探测了表存在性
+
+    # 第二次：已缓存缺失 → 不再发任何查询，直接 None（消除每调用异常/噪声）
+    db2 = _FakeDb(table_present=False)
+    assert await pg_get(db2, "PLAN-1") is None
+    assert db2.queries == []
