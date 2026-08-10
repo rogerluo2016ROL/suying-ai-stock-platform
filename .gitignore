@@ -46,6 +46,8 @@ backend/data/*.db-wal
 node_modules/
 .pnpm-store/
 .playwright-mcp/
+# Playwright 截图等浏览器自动化产物，不上传
+output/playwright/
 outputs/cb_ml_*.pkl
 # 运行时回测/选股快照, 体积膨胀且与代码无关
 outputs/snapshots/
