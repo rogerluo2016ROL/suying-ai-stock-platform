@@ -127,6 +127,7 @@
 - 自动交易引擎的状态管理使用 `asyncio.Event`（暂停/停止信号），与 `threading.Lock`（StrategyStore）分层隔离。
 - PG 与 SQLite 列名差异（`pct_chg` vs `change_pct`, `ts_code` vs `code`）由 `pg_adapter._PgCursor._KEY_MAP` 和 `_COLUMN_MAP` 透明转换，代码层应始终使用 SQLite/engine 命名。
 - Kronos 模型检查点位于 `Kronos/outputs/models/`，预测服务 (8002) 启动时自动加载最新 checkpoint。
+- api-gateway 直挂 FastAPI 路由（非 catch-all 代理路径）必须显式 `Depends(get_current_user_jwt)`，`/api/health*` 探活别名除外；新增直挂路由时同步评估是否纳入 rate-limit 与角色收敛（实证：`services/api-gateway/app/main.py` readiness 修复，release v2026.08.10 retro）。
 - 涉及多 LLM SDK 接入（DeepSeek/Doubao/Qwen/MiniMax 切换、fallback、env 变量）→ 必须先看 skill `agf-wiring-multi-llm-sdk`。
 - 写 PRD → skill `agf-writing-prd`；写 ADR → skill `agf-writing-adr`。
 - SIT 由执行层 dev 自跑（按 skill `agf-running-sit-tests`），证据落 `progress/<role>.md` 的 `**SIT 证据**` 段，由 `code-reviewer` 在 code review 时 audit。
