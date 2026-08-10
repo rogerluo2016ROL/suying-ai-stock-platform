@@ -53,6 +53,8 @@ def test_readiness_all_ok(monkeypatch):
 
     monkeypatch.setattr(runtime, "_probe_http", fake_http)
     monkeypatch.setattr(runtime, "_probe_tcp", fake_tcp)
+    monkeypatch.setenv("KRONOS_PG_PORT", "6432")
+    monkeypatch.setenv("KRONOS_REDIS_PORT", "7379")
     body = TestClient(app).get("/api/v1/runtime/readiness").json()
     assert body["live"] is True
     assert body["ready"] is True
@@ -110,6 +112,8 @@ def test_readiness_infra_tcp_failure(monkeypatch):
 
     monkeypatch.setattr(runtime, "_probe_http", fake_http)
     monkeypatch.setattr(runtime, "_probe_tcp", fake_tcp)
+    monkeypatch.setenv("KRONOS_PG_PORT", "6432")
+    monkeypatch.setenv("KRONOS_REDIS_PORT", "7379")
     body = TestClient(app).get("/api/v1/runtime/readiness").json()
     # 微服务全部 ok → 旧契约 ready 仍为 True；总状态含基础设施 → degraded
     assert body["ready"] is True
@@ -121,3 +125,45 @@ def test_readiness_infra_tcp_failure(monkeypatch):
         assert by_name[infra]["status"] == "down"
         assert by_name[infra]["latency_ms"] is None
         assert infra not in body["services"]
+
+
+def test_readiness_skips_infra_when_port_env_unset(monkeypatch):
+    """Regression #16: KRONOS_PG_PORT/REDIS_PORT 未设时不探 infra、不报 down，
+    避免容器内默认端口不通造成 status 误判 degraded。"""
+    async def fake_http(name, port, base):
+        return _ok_http(name, port, base)
+
+    tcp_calls = []
+
+    async def fake_tcp(name, host, port):
+        tcp_calls.append((name, host, port))
+        return _ok_tcp(name, host, port)
+
+    monkeypatch.setattr(runtime, "_probe_http", fake_http)
+    monkeypatch.setattr(runtime, "_probe_tcp", fake_tcp)
+    monkeypatch.delenv("KRONOS_PG_PORT", raising=False)
+    monkeypatch.delenv("KRONOS_REDIS_PORT", raising=False)
+
+    body = TestClient(app).get("/api/v1/runtime/readiness").json()
+
+    names = {c["name"] for c in body["components"]}
+    assert "postgresql" not in names
+    assert "redis" not in names
+    assert tcp_calls == []  # infra 未被探活
+    assert body["ready"] is True
+    assert body["status"] == "ok"  # infra 缺席不导致 degraded
+
+
+def test_probe_http_does_not_follow_redirects(monkeypatch):
+    """Regression #16: _probe_http 不跟随重定向（302 不再被误判 ok）。"""
+    from urllib.error import HTTPError
+    import asyncio
+
+    class _RedirectingOpener:
+        def open(self, url, timeout=None):
+            raise HTTPError(url, 302, "Found", {}, None)
+
+    monkeypatch.setattr(runtime, "_http_opener", _RedirectingOpener())
+
+    result = asyncio.run(runtime._probe_http("svc", 8000, "http://svc:8000"))
+    assert result["status"] == "down"

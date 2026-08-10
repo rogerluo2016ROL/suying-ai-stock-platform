@@ -2,18 +2,35 @@ import asyncio
 import os
 import socket
 import time
-from urllib.request import urlopen
+from urllib.request import urlopen, HTTPRedirectHandler, build_opener
 from urllib.error import URLError
 from .main import SERVICES
 from .service_registry import SERVICE_REGISTRY
 
 _PROBE_TIMEOUT = 2  # seconds; a hung service must not stall the whole endpoint
 
-# 基础设施 TCP 探活目标（端口与 docker-compose 本机映射一致，可用 env 覆盖）。
-_INFRA_TARGETS = (
-    ("postgresql", os.environ.get("KRONOS_PG_HOST", "localhost"), int(os.environ.get("KRONOS_PG_PORT", "6432"))),
-    ("redis", os.environ.get("KRONOS_REDIS_HOST", "localhost"), int(os.environ.get("KRONOS_REDIS_PORT", "7379"))),
-)
+class _NoRedirectHandler(HTTPRedirectHandler):
+    """不跟随重定向（避免维护期 302→登录页 200 被误判 ok，issue #16）。"""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_http_opener = build_opener(_NoRedirectHandler())
+
+
+def _infra_targets() -> list[tuple[str, str, int]]:
+    """基础设施 TCP 探活目标。仅在 KRONOS_PG_PORT / KRONOS_REDIS_PORT 显式配置时纳入——
+    未配置则跳过（不报 down），避免用错误的默认端口（宿主映射 6432/7379 在容器内不通）
+    造成 infra 永远误报 down、status 误判 degraded（issue #16）。"""
+    targets: list[tuple[str, str, int]] = []
+    pg_port = os.environ.get("KRONOS_PG_PORT")
+    if pg_port:
+        targets.append(("postgresql", os.environ.get("KRONOS_PG_HOST", "localhost"), int(pg_port)))
+    redis_port = os.environ.get("KRONOS_REDIS_PORT")
+    if redis_port:
+        targets.append(("redis", os.environ.get("KRONOS_REDIS_HOST", "localhost"), int(redis_port)))
+    return targets
 
 async def _probe(name: str, base: str) -> tuple[str, dict]:
     try:
@@ -45,7 +62,7 @@ async def _probe_http(name: str, port: int, base: str) -> dict:
     start = time.perf_counter()
 
     def request():
-        with urlopen(base + "/api/v1/health/ready", timeout=_PROBE_TIMEOUT) as response:
+        with _http_opener.open(base + "/api/v1/health/ready", timeout=_PROBE_TIMEOUT) as response:
             return response.status
 
     try:
@@ -90,6 +107,6 @@ async def probe_runtime_matrix() -> list[dict]:
         key = "backend-auth" if service.name == "backend" else service.name
         targets.setdefault(SERVICES[service.prefix], (key, service.port))
     probes = [_probe_http(name, port, base) for base, (name, port) in targets.items()]
-    probes += [_probe_tcp(name, host, port) for name, host, port in _INFRA_TARGETS]
+    probes += [_probe_tcp(name, host, port) for name, host, port in _infra_targets()]
     results = await asyncio.gather(*probes)
     return [_matrix_entry("api-gateway", 8080, "ok", 0.0), *results]

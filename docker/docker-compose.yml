@@ -73,6 +73,11 @@ services:
       - "${API_GATEWAY_PORT:-8080}:8080"
     environment:
       - KRONOS_PG_URL=postgresql://kronos:kronos@postgres:5432/kronos
+      # readiness infra 探活目标（容器内用 compose 服务名 + 内部端口，#16）；未设则跳过 infra 探活
+      - KRONOS_PG_HOST=postgres
+      - KRONOS_PG_PORT=5432
+      - KRONOS_REDIS_HOST=redis
+      - KRONOS_REDIS_PORT=6379
       # DEF-3 fix: 容器内用 compose 服务名寻址 (非 localhost); 逐服务 host 可被 GATEWAY_<NAME>_HOST 覆盖
       - GATEWAY_NETWORK_MODE=compose
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set (kronos-auth prod-gate)}
